@@ -1,9 +1,9 @@
 import { HUMANIZED_OPERATION_STATUS, getHostClient, supervisor } from "@/proto/services";
 import {
-  BenchType,
+  ObjectType,
   EditType,
   GraphScope,
-  MESSAGE_TYPE_BY_BENCH_TYPE,
+  MESSAGE_TYPE_BY_OBJECT_TYPE,
   NODE_PROPERTY_ENUM_BY_TYPE,
   NodeReferenceData,
   NodeType,
@@ -63,7 +63,7 @@ export type Transaction = {
 
   /** Create a new node */
   create<T extends NodeType>(
-    node: { metatype: T | BenchType } & Partial<Omit<NodeTypeMapping[T], "metatype">>,
+    node: { metatype: T | ObjectType } & Partial<Omit<NodeTypeMapping[T], "metatype">>,
   ): NodeTypeMapping[T];
   /** Create or update all properties in the node */
   upsert(node: AnyNodeData): void;
@@ -169,10 +169,10 @@ export class TransactionBuilder implements Transaction {
   }
 
   create<T extends NodeType>(
-    nodeIn: { metatype: T | BenchType } & Partial<Omit<NodeTypeMapping[NodeType], "metatype">>,
+    nodeIn: { metatype: T | ObjectType } & Partial<Omit<NodeTypeMapping[NodeType], "metatype">>,
   ): NodeTypeMapping[T] {
     // fill in scope
-    const properties = PROPERTY_ENUM_BY_TYPE[nodeIn.metatype as unknown as BenchType]!;
+    const properties = PROPERTY_ENUM_BY_TYPE[nodeIn.metatype as unknown as ObjectType]!;
     if ("packagePtr" in properties && (nodeIn as any).packagePtr == null) {
       throw new Error(`missing packagePtr in ${describeNode(nodeIn)}`); // can't infer package
     }

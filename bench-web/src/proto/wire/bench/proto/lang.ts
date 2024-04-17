@@ -22,9 +22,9 @@ import { Struct } from "../../google/protobuf/struct";
  */
 export interface AccessData {
     /**
-     * @generated from protobuf field: symbolx.bench.BenchType metatype = 1;
+     * @generated from protobuf field: symbolx.bench.ObjectType metatype = 1;
      */
-    metatype: BenchType;
+    metatype: ObjectType;
     /**
      * @generated from protobuf field: optional int32 id = 2;
      */
@@ -42,9 +42,9 @@ export interface AccessData {
      */
     verb: AccessType;
     /**
-     * @generated from protobuf field: symbolx.bench.BenchType object_type = 33;
+     * @generated from protobuf field: symbolx.bench.ObjectType object_type = 33;
      */
-    objectType: BenchType;
+    objectType: ObjectType;
     /**
      * @generated from protobuf field: repeated symbolx.bench.PropertyReferenceData object_properties_ptr = 34;
      */
@@ -57,9 +57,9 @@ export interface AccessData {
  */
 export interface AccessMatrixData {
     /**
-     * @generated from protobuf field: symbolx.bench.BenchType metatype = 1;
+     * @generated from protobuf field: symbolx.bench.ObjectType metatype = 1;
      */
-    metatype: BenchType;
+    metatype: ObjectType;
     /**
      * @generated from protobuf field: optional int32 id = 2;
      */
@@ -104,9 +104,9 @@ export interface AccessMatrixData {
  */
 export interface AccessTraceData {
     /**
-     * @generated from protobuf field: symbolx.bench.BenchType metatype = 1;
+     * @generated from protobuf field: symbolx.bench.ObjectType metatype = 1;
      */
-    metatype: BenchType;
+    metatype: ObjectType;
     /**
      * @generated from protobuf field: optional int32 id = 2;
      */
@@ -140,9 +140,9 @@ export interface AccessTraceData {
  */
 export interface AccessZoneData {
     /**
-     * @generated from protobuf field: symbolx.bench.BenchType metatype = 1;
+     * @generated from protobuf field: symbolx.bench.ObjectType metatype = 1;
      */
-    metatype: BenchType;
+    metatype: ObjectType;
     /**
      * @generated from protobuf field: optional int32 id = 2;
      */
@@ -183,9 +183,9 @@ export interface AccessZoneData {
  */
 export interface AggregationData {
     /**
-     * @generated from protobuf field: symbolx.bench.BenchType metatype = 1;
+     * @generated from protobuf field: symbolx.bench.ObjectType metatype = 1;
      */
-    metatype: BenchType;
+    metatype: ObjectType;
     /**
      * @generated from protobuf field: optional int32 id = 2;
      */
@@ -234,9 +234,9 @@ export interface AggregationData {
  */
 export interface AggregationBucketData {
     /**
-     * @generated from protobuf field: symbolx.bench.BenchType metatype = 1;
+     * @generated from protobuf field: symbolx.bench.ObjectType metatype = 1;
      */
-    metatype: BenchType;
+    metatype: ObjectType;
     /**
      * @generated from protobuf field: optional int32 id = 2;
      */
@@ -257,9 +257,9 @@ export interface AggregationBucketData {
  */
 export interface BoxData {
     /**
-     * @generated from protobuf field: symbolx.bench.BenchType metatype = 1;
+     * @generated from protobuf field: symbolx.bench.ObjectType metatype = 1;
      */
-    metatype: BenchType;
+    metatype: ObjectType;
     /**
      * @generated from protobuf field: optional int32 id = 2;
      */
@@ -288,9 +288,9 @@ export interface BoxData {
  */
 export interface CodeData {
     /**
-     * @generated from protobuf field: symbolx.bench.BenchType metatype = 1;
+     * @generated from protobuf field: symbolx.bench.ObjectType metatype = 1;
      */
-    metatype: BenchType;
+    metatype: ObjectType;
     /**
      * @generated from protobuf field: optional int32 id = 2;
      */
@@ -323,9 +323,9 @@ export interface CodeData {
  */
 export interface CodeLineData {
     /**
-     * @generated from protobuf field: symbolx.bench.BenchType metatype = 1;
+     * @generated from protobuf field: symbolx.bench.ObjectType metatype = 1;
      */
-    metatype: BenchType;
+    metatype: ObjectType;
     /**
      * @generated from protobuf field: optional int32 id = 2;
      */
@@ -358,9 +358,9 @@ export interface CodeLineData {
  */
 export interface ColorData {
     /**
-     * @generated from protobuf field: symbolx.bench.BenchType metatype = 1;
+     * @generated from protobuf field: symbolx.bench.ObjectType metatype = 1;
      */
-    metatype: BenchType;
+    metatype: ObjectType;
     /**
      * @generated from protobuf field: optional int32 id = 2;
      */
@@ -385,9 +385,9 @@ export interface ColorData {
  */
 export interface ContextData {
     /**
-     * @generated from protobuf field: symbolx.bench.BenchType metatype = 1;
+     * @generated from protobuf field: symbolx.bench.ObjectType metatype = 1;
      */
-    metatype: BenchType;
+    metatype: ObjectType;
     /**
      * @generated from protobuf field: optional int32 id = 2;
      */
@@ -440,9 +440,9 @@ export interface ContextData {
  */
 export interface ExpressionData {
     /**
-     * @generated from protobuf field: symbolx.bench.BenchType metatype = 1;
+     * @generated from protobuf field: symbolx.bench.ObjectType metatype = 1;
      */
-    metatype: BenchType;
+    metatype: ObjectType;
     /**
      * @generated from protobuf field: optional int32 id = 2;
      */
@@ -495,9 +495,9 @@ export interface ExpressionData {
  */
 export interface FileData {
     /**
-     * @generated from protobuf field: symbolx.bench.BenchType metatype = 1;
+     * @generated from protobuf field: symbolx.bench.ObjectType metatype = 1;
      */
-    metatype: BenchType;
+    metatype: ObjectType;
     /**
      * @generated from protobuf field: optional int32 id = 2;
      */
@@ -534,9 +534,9 @@ export interface FileData {
  */
 export interface FontData {
     /**
-     * @generated from protobuf field: symbolx.bench.BenchType metatype = 1;
+     * @generated from protobuf field: symbolx.bench.ObjectType metatype = 1;
      */
-    metatype: BenchType;
+    metatype: ObjectType;
     /**
      * @generated from protobuf field: optional int32 id = 2;
      */
@@ -561,9 +561,9 @@ export interface FontData {
  */
 export interface IconData {
     /**
-     * @generated from protobuf field: symbolx.bench.BenchType metatype = 1;
+     * @generated from protobuf field: symbolx.bench.ObjectType metatype = 1;
      */
-    metatype: BenchType;
+    metatype: ObjectType;
     /**
      * @generated from protobuf field: optional int32 id = 2;
      */
@@ -615,9 +615,9 @@ export interface IconData {
  */
 export interface NodeReferenceData {
     /**
-     * @generated from protobuf field: symbolx.bench.BenchType metatype = 1;
+     * @generated from protobuf field: symbolx.bench.ObjectType metatype = 1;
      */
-    metatype: BenchType;
+    metatype: ObjectType;
     /**
      * @generated from protobuf field: symbolx.bench.NodeType type = 30;
      */
@@ -650,9 +650,9 @@ export interface NodeReferenceData {
  */
 export interface OffsetData {
     /**
-     * @generated from protobuf field: symbolx.bench.BenchType metatype = 1;
+     * @generated from protobuf field: symbolx.bench.ObjectType metatype = 1;
      */
-    metatype: BenchType;
+    metatype: ObjectType;
     /**
      * @generated from protobuf field: optional int32 id = 2;
      */
@@ -746,9 +746,9 @@ export interface OffsetData {
  */
 export interface PathData {
     /**
-     * @generated from protobuf field: symbolx.bench.BenchType metatype = 1;
+     * @generated from protobuf field: symbolx.bench.ObjectType metatype = 1;
      */
-    metatype: BenchType;
+    metatype: ObjectType;
     /**
      * @generated from protobuf field: optional int32 id = 2;
      */
@@ -781,9 +781,9 @@ export interface PathData {
  */
 export interface PathSegmentData {
     /**
-     * @generated from protobuf field: symbolx.bench.BenchType metatype = 1;
+     * @generated from protobuf field: symbolx.bench.ObjectType metatype = 1;
      */
-    metatype: BenchType;
+    metatype: ObjectType;
     /**
      * @generated from protobuf field: optional int32 id = 2;
      */
@@ -808,9 +808,9 @@ export interface PathSegmentData {
  */
 export interface PathTokenData {
     /**
-     * @generated from protobuf field: symbolx.bench.BenchType metatype = 1;
+     * @generated from protobuf field: symbolx.bench.ObjectType metatype = 1;
      */
-    metatype: BenchType;
+    metatype: ObjectType;
     /**
      * @generated from protobuf field: optional int32 id = 2;
      */
@@ -841,9 +841,9 @@ export interface PathTokenData {
  */
 export interface PolicyData {
     /**
-     * @generated from protobuf field: symbolx.bench.BenchType metatype = 1;
+     * @generated from protobuf field: symbolx.bench.ObjectType metatype = 1;
      */
-    metatype: BenchType;
+    metatype: ObjectType;
     /**
      * @generated from protobuf field: optional int32 id = 2;
      */
@@ -890,9 +890,9 @@ export interface PolicyData {
  */
 export interface PolicyRuleData {
     /**
-     * @generated from protobuf field: symbolx.bench.BenchType metatype = 1;
+     * @generated from protobuf field: symbolx.bench.ObjectType metatype = 1;
      */
-    metatype: BenchType;
+    metatype: ObjectType;
     /**
      * @generated from protobuf field: optional int32 id = 2;
      */
@@ -987,9 +987,9 @@ export interface PolicyRuleData {
  */
 export interface ProjectionData {
     /**
-     * @generated from protobuf field: symbolx.bench.BenchType metatype = 1;
+     * @generated from protobuf field: symbolx.bench.ObjectType metatype = 1;
      */
-    metatype: BenchType;
+    metatype: ObjectType;
     /**
      * @generated from protobuf field: optional int32 id = 2;
      */
@@ -1012,19 +1012,19 @@ export interface ProjectionData {
     setProperties: number[];
 }
 /**
- * PropertyReference(type: Optional[bench.utils.func.BenchType] = <factory>, id: int = <factory>, references_type: Optional[bench.language.const.NodeType] = <factory>, parent: Union[ForwardRef('Struct'), ForwardRef('Node'), ForwardRef('Value'), NoneType] = None, _status: bench.language.const.InterpStatus = None, _updated_properties: bitarray.bitarray | None = None, parent_id: int = None, parent_key: str = None)
+ * PropertyReference(type: Optional[bench.utils.func.ObjectType] = <factory>, id: int = <factory>, references_type: Optional[bench.language.const.NodeType] = <factory>, parent: Union[ForwardRef('Struct'), ForwardRef('Node'), ForwardRef('Value'), NoneType] = None, _status: bench.language.const.InterpStatus = None, _updated_properties: bitarray.bitarray | None = None, parent_id: int = None, parent_key: str = None)
  *
  * @generated from protobuf message symbolx.bench.PropertyReferenceData
  */
 export interface PropertyReferenceData {
     /**
-     * @generated from protobuf field: symbolx.bench.BenchType metatype = 1;
+     * @generated from protobuf field: symbolx.bench.ObjectType metatype = 1;
      */
-    metatype: BenchType;
+    metatype: ObjectType;
     /**
-     * @generated from protobuf field: optional symbolx.bench.BenchType type = 30;
+     * @generated from protobuf field: optional symbolx.bench.ObjectType type = 30;
      */
-    type?: BenchType;
+    type?: ObjectType;
     /**
      * @generated from protobuf field: int32 id = 31;
      */
@@ -1042,9 +1042,9 @@ export interface PropertyReferenceData {
  */
 export interface ReadOptionsData {
     /**
-     * @generated from protobuf field: symbolx.bench.BenchType metatype = 1;
+     * @generated from protobuf field: symbolx.bench.ObjectType metatype = 1;
      */
-    metatype: BenchType;
+    metatype: ObjectType;
     /**
      * @generated from protobuf field: optional int32 id = 2;
      */
@@ -1089,9 +1089,9 @@ export interface ReadOptionsData {
  */
 export interface RequestData {
     /**
-     * @generated from protobuf field: symbolx.bench.BenchType metatype = 1;
+     * @generated from protobuf field: symbolx.bench.ObjectType metatype = 1;
      */
-    metatype: BenchType;
+    metatype: ObjectType;
     /**
      * @generated from protobuf field: optional int32 id = 2;
      */
@@ -1136,9 +1136,9 @@ export interface RequestData {
  */
 export interface ResourceCredentialData {
     /**
-     * @generated from protobuf field: symbolx.bench.BenchType metatype = 1;
+     * @generated from protobuf field: symbolx.bench.ObjectType metatype = 1;
      */
-    metatype: BenchType;
+    metatype: ObjectType;
     /**
      * @generated from protobuf field: optional int32 id = 2;
      */
@@ -1159,9 +1159,9 @@ export interface ResourceCredentialData {
  */
 export interface RunCodeFrameData {
     /**
-     * @generated from protobuf field: symbolx.bench.BenchType metatype = 1;
+     * @generated from protobuf field: symbolx.bench.ObjectType metatype = 1;
      */
-    metatype: BenchType;
+    metatype: ObjectType;
     /**
      * @generated from protobuf field: optional int32 id = 2;
      */
@@ -1206,9 +1206,9 @@ export interface RunCodeFrameData {
  */
 export interface RunErrorData {
     /**
-     * @generated from protobuf field: symbolx.bench.BenchType metatype = 1;
+     * @generated from protobuf field: symbolx.bench.ObjectType metatype = 1;
      */
-    metatype: BenchType;
+    metatype: ObjectType;
     /**
      * @generated from protobuf field: optional int32 id = 2;
      */
@@ -1257,9 +1257,9 @@ export interface RunErrorData {
  */
 export interface ScheduleData {
     /**
-     * @generated from protobuf field: symbolx.bench.BenchType metatype = 1;
+     * @generated from protobuf field: symbolx.bench.ObjectType metatype = 1;
      */
-    metatype: BenchType;
+    metatype: ObjectType;
     /**
      * @generated from protobuf field: optional int32 id = 2;
      */
@@ -1304,9 +1304,9 @@ export interface ScheduleData {
  */
 export interface SelectionData {
     /**
-     * @generated from protobuf field: symbolx.bench.BenchType metatype = 1;
+     * @generated from protobuf field: symbolx.bench.ObjectType metatype = 1;
      */
-    metatype: BenchType;
+    metatype: ObjectType;
     /**
      * @generated from protobuf field: optional int32 id = 2;
      */
@@ -1335,9 +1335,9 @@ export interface SelectionData {
  */
 export interface StepConnectionData {
     /**
-     * @generated from protobuf field: symbolx.bench.BenchType metatype = 1;
+     * @generated from protobuf field: symbolx.bench.ObjectType metatype = 1;
      */
-    metatype: BenchType;
+    metatype: ObjectType;
     /**
      * @generated from protobuf field: optional int32 id = 2;
      */
@@ -1371,9 +1371,9 @@ export interface StepConnectionData {
  */
 export interface SubjectData {
     /**
-     * @generated from protobuf field: symbolx.bench.BenchType metatype = 1;
+     * @generated from protobuf field: symbolx.bench.ObjectType metatype = 1;
      */
-    metatype: BenchType;
+    metatype: ObjectType;
     /**
      * @generated from protobuf field: optional int32 id = 2;
      */
@@ -1442,9 +1442,9 @@ export interface SubjectData {
  */
 export interface TextData {
     /**
-     * @generated from protobuf field: symbolx.bench.BenchType metatype = 1;
+     * @generated from protobuf field: symbolx.bench.ObjectType metatype = 1;
      */
-    metatype: BenchType;
+    metatype: ObjectType;
     /**
      * @generated from protobuf field: optional int32 id = 2;
      */
@@ -1477,9 +1477,9 @@ export interface TextData {
  */
 export interface TextLineData {
     /**
-     * @generated from protobuf field: symbolx.bench.BenchType metatype = 1;
+     * @generated from protobuf field: symbolx.bench.ObjectType metatype = 1;
      */
-    metatype: BenchType;
+    metatype: ObjectType;
     /**
      * @generated from protobuf field: optional int32 id = 2;
      */
@@ -1540,9 +1540,9 @@ export interface TextLineData {
  */
 export interface TextSpanData {
     /**
-     * @generated from protobuf field: symbolx.bench.BenchType metatype = 1;
+     * @generated from protobuf field: symbolx.bench.ObjectType metatype = 1;
      */
-    metatype: BenchType;
+    metatype: ObjectType;
     /**
      * @generated from protobuf field: optional int32 id = 2;
      */
@@ -1587,9 +1587,9 @@ export interface TextSpanData {
  */
 export interface TypeInfoData {
     /**
-     * @generated from protobuf field: symbolx.bench.BenchType metatype = 1;
+     * @generated from protobuf field: symbolx.bench.ObjectType metatype = 1;
      */
-    metatype: BenchType;
+    metatype: ObjectType;
     /**
      * @generated from protobuf field: optional int32 id = 2;
      */
@@ -1674,9 +1674,9 @@ export interface TypeInfoData {
  */
 export interface ValueReferenceData {
     /**
-     * @generated from protobuf field: symbolx.bench.BenchType metatype = 1;
+     * @generated from protobuf field: symbolx.bench.ObjectType metatype = 1;
      */
-    metatype: BenchType;
+    metatype: ObjectType;
     /**
      * @generated from protobuf field: optional int32 id = 2;
      */
@@ -1711,9 +1711,9 @@ export interface ValueReferenceData {
  */
 export interface BadgeData {
     /**
-     * @generated from protobuf field: symbolx.bench.BenchType metatype = 1;
+     * @generated from protobuf field: symbolx.bench.ObjectType metatype = 1;
      */
-    metatype: BenchType;
+    metatype: ObjectType;
     /**
      * @generated from protobuf field: string id = 2;
      */
@@ -1806,9 +1806,9 @@ export interface BadgeData {
  */
 export interface BenchData {
     /**
-     * @generated from protobuf field: symbolx.bench.BenchType metatype = 1;
+     * @generated from protobuf field: symbolx.bench.ObjectType metatype = 1;
      */
-    metatype: BenchType;
+    metatype: ObjectType;
     /**
      * @generated from protobuf field: string id = 2;
      */
@@ -1909,9 +1909,9 @@ export interface BenchData {
  */
 export interface BlockData {
     /**
-     * @generated from protobuf field: symbolx.bench.BenchType metatype = 1;
+     * @generated from protobuf field: symbolx.bench.ObjectType metatype = 1;
      */
-    metatype: BenchType;
+    metatype: ObjectType;
     /**
      * @generated from protobuf field: string id = 2;
      */
@@ -2048,9 +2048,9 @@ export interface BlockData {
  */
 export interface BranchData {
     /**
-     * @generated from protobuf field: symbolx.bench.BenchType metatype = 1;
+     * @generated from protobuf field: symbolx.bench.ObjectType metatype = 1;
      */
-    metatype: BenchType;
+    metatype: ObjectType;
     /**
      * @generated from protobuf field: string id = 2;
      */
@@ -2131,9 +2131,9 @@ export interface BranchData {
  */
 export interface CacheData {
     /**
-     * @generated from protobuf field: symbolx.bench.BenchType metatype = 1;
+     * @generated from protobuf field: symbolx.bench.ObjectType metatype = 1;
      */
-    metatype: BenchType;
+    metatype: ObjectType;
     /**
      * @generated from protobuf field: string id = 2;
      */
@@ -2210,9 +2210,9 @@ export interface CacheData {
  */
 export interface ClientData {
     /**
-     * @generated from protobuf field: symbolx.bench.BenchType metatype = 1;
+     * @generated from protobuf field: symbolx.bench.ObjectType metatype = 1;
      */
-    metatype: BenchType;
+    metatype: ObjectType;
     /**
      * @generated from protobuf field: string id = 2;
      */
@@ -2314,9 +2314,9 @@ export interface ClientData {
  */
 export interface DependencyData {
     /**
-     * @generated from protobuf field: symbolx.bench.BenchType metatype = 1;
+     * @generated from protobuf field: symbolx.bench.ObjectType metatype = 1;
      */
-    metatype: BenchType;
+    metatype: ObjectType;
     /**
      * @generated from protobuf field: string id = 2;
      */
@@ -2394,9 +2394,9 @@ export interface DependencyData {
  */
 export interface DriveData {
     /**
-     * @generated from protobuf field: symbolx.bench.BenchType metatype = 1;
+     * @generated from protobuf field: symbolx.bench.ObjectType metatype = 1;
      */
-    metatype: BenchType;
+    metatype: ObjectType;
     /**
      * @generated from protobuf field: string id = 2;
      */
@@ -2473,9 +2473,9 @@ export interface DriveData {
  */
 export interface EnvironmentData {
     /**
-     * @generated from protobuf field: symbolx.bench.BenchType metatype = 1;
+     * @generated from protobuf field: symbolx.bench.ObjectType metatype = 1;
      */
-    metatype: BenchType;
+    metatype: ObjectType;
     /**
      * @generated from protobuf field: string id = 2;
      */
@@ -2572,9 +2572,9 @@ export interface EnvironmentData {
  */
 export interface FieldData {
     /**
-     * @generated from protobuf field: symbolx.bench.BenchType metatype = 1;
+     * @generated from protobuf field: symbolx.bench.ObjectType metatype = 1;
      */
-    metatype: BenchType;
+    metatype: ObjectType;
     /**
      * @generated from protobuf field: string id = 2;
      */
@@ -2727,9 +2727,9 @@ export interface FieldData {
  */
 export interface FileContentData {
     /**
-     * @generated from protobuf field: symbolx.bench.BenchType metatype = 1;
+     * @generated from protobuf field: symbolx.bench.ObjectType metatype = 1;
      */
-    metatype: BenchType;
+    metatype: ObjectType;
     /**
      * @generated from protobuf field: string id = 2;
      */
@@ -2810,9 +2810,9 @@ export interface FileContentData {
  */
 export interface HandleData {
     /**
-     * @generated from protobuf field: symbolx.bench.BenchType metatype = 1;
+     * @generated from protobuf field: symbolx.bench.ObjectType metatype = 1;
      */
-    metatype: BenchType;
+    metatype: ObjectType;
     /**
      * @generated from protobuf field: string id = 2;
      */
@@ -2875,9 +2875,9 @@ export interface HandleData {
  */
 export interface IdentityData {
     /**
-     * @generated from protobuf field: symbolx.bench.BenchType metatype = 1;
+     * @generated from protobuf field: symbolx.bench.ObjectType metatype = 1;
      */
-    metatype: BenchType;
+    metatype: ObjectType;
     /**
      * @generated from protobuf field: string id = 2;
      */
@@ -2946,9 +2946,9 @@ export interface IdentityData {
  */
 export interface InviteData {
     /**
-     * @generated from protobuf field: symbolx.bench.BenchType metatype = 1;
+     * @generated from protobuf field: symbolx.bench.ObjectType metatype = 1;
      */
-    metatype: BenchType;
+    metatype: ObjectType;
     /**
      * @generated from protobuf field: string id = 2;
      */
@@ -3031,9 +3031,9 @@ export interface InviteData {
  */
 export interface LinkData {
     /**
-     * @generated from protobuf field: symbolx.bench.BenchType metatype = 1;
+     * @generated from protobuf field: symbolx.bench.ObjectType metatype = 1;
      */
-    metatype: BenchType;
+    metatype: ObjectType;
     /**
      * @generated from protobuf field: string id = 2;
      */
@@ -3107,9 +3107,9 @@ export interface LinkData {
  */
 export interface LogData {
     /**
-     * @generated from protobuf field: symbolx.bench.BenchType metatype = 1;
+     * @generated from protobuf field: symbolx.bench.ObjectType metatype = 1;
      */
-    metatype: BenchType;
+    metatype: ObjectType;
     /**
      * @generated from protobuf field: string id = 2;
      */
@@ -3214,9 +3214,9 @@ export interface LogData {
  */
 export interface MembershipData {
     /**
-     * @generated from protobuf field: symbolx.bench.BenchType metatype = 1;
+     * @generated from protobuf field: symbolx.bench.ObjectType metatype = 1;
      */
-    metatype: BenchType;
+    metatype: ObjectType;
     /**
      * @generated from protobuf field: string id = 2;
      */
@@ -3292,9 +3292,9 @@ export interface MembershipData {
  */
 export interface BaseNodeData {
     /**
-     * @generated from protobuf field: symbolx.bench.BenchType metatype = 1;
+     * @generated from protobuf field: symbolx.bench.ObjectType metatype = 1;
      */
-    metatype: BenchType;
+    metatype: ObjectType;
     /**
      * @generated from protobuf field: string id = 2;
      */
@@ -3359,9 +3359,9 @@ export interface BaseNodeData {
  */
 export interface NoticeData {
     /**
-     * @generated from protobuf field: symbolx.bench.BenchType metatype = 1;
+     * @generated from protobuf field: symbolx.bench.ObjectType metatype = 1;
      */
-    metatype: BenchType;
+    metatype: ObjectType;
     /**
      * @generated from protobuf field: string id = 2;
      */
@@ -3447,9 +3447,9 @@ export interface NoticeData {
  */
 export interface NotificationData {
     /**
-     * @generated from protobuf field: symbolx.bench.BenchType metatype = 1;
+     * @generated from protobuf field: symbolx.bench.ObjectType metatype = 1;
      */
-    metatype: BenchType;
+    metatype: ObjectType;
     /**
      * @generated from protobuf field: string id = 2;
      */
@@ -3551,9 +3551,9 @@ export interface NotificationData {
  */
 export interface OrganizationData {
     /**
-     * @generated from protobuf field: symbolx.bench.BenchType metatype = 1;
+     * @generated from protobuf field: symbolx.bench.ObjectType metatype = 1;
      */
-    metatype: BenchType;
+    metatype: ObjectType;
     /**
      * @generated from protobuf field: string id = 2;
      */
@@ -3634,9 +3634,9 @@ export interface OrganizationData {
  */
 export interface PackageData {
     /**
-     * @generated from protobuf field: symbolx.bench.BenchType metatype = 1;
+     * @generated from protobuf field: symbolx.bench.ObjectType metatype = 1;
      */
-    metatype: BenchType;
+    metatype: ObjectType;
     /**
      * @generated from protobuf field: string id = 2;
      */
@@ -3721,9 +3721,9 @@ export interface PackageData {
  */
 export interface PauseData {
     /**
-     * @generated from protobuf field: symbolx.bench.BenchType metatype = 1;
+     * @generated from protobuf field: symbolx.bench.ObjectType metatype = 1;
      */
-    metatype: BenchType;
+    metatype: ObjectType;
     /**
      * @generated from protobuf field: string id = 2;
      */
@@ -3792,9 +3792,9 @@ export interface PauseData {
  */
 export interface QueryData {
     /**
-     * @generated from protobuf field: symbolx.bench.BenchType metatype = 1;
+     * @generated from protobuf field: symbolx.bench.ObjectType metatype = 1;
      */
-    metatype: BenchType;
+    metatype: ObjectType;
     /**
      * @generated from protobuf field: string id = 2;
      */
@@ -3883,9 +3883,9 @@ export interface QueryData {
  */
 export interface RecordData {
     /**
-     * @generated from protobuf field: symbolx.bench.BenchType metatype = 1;
+     * @generated from protobuf field: symbolx.bench.ObjectType metatype = 1;
      */
-    metatype: BenchType;
+    metatype: ObjectType;
     /**
      * @generated from protobuf field: string id = 2;
      */
@@ -3960,9 +3960,9 @@ export interface RecordData {
  */
 export interface RoleData {
     /**
-     * @generated from protobuf field: symbolx.bench.BenchType metatype = 1;
+     * @generated from protobuf field: symbolx.bench.ObjectType metatype = 1;
      */
-    metatype: BenchType;
+    metatype: ObjectType;
     /**
      * @generated from protobuf field: string id = 2;
      */
@@ -4031,9 +4031,9 @@ export interface RoleData {
  */
 export interface RunData {
     /**
-     * @generated from protobuf field: symbolx.bench.BenchType metatype = 1;
+     * @generated from protobuf field: symbolx.bench.ObjectType metatype = 1;
      */
-    metatype: BenchType;
+    metatype: ObjectType;
     /**
      * @generated from protobuf field: string id = 2;
      */
@@ -4164,9 +4164,9 @@ export interface RunData {
  */
 export interface ServerData {
     /**
-     * @generated from protobuf field: symbolx.bench.BenchType metatype = 1;
+     * @generated from protobuf field: symbolx.bench.ObjectType metatype = 1;
      */
-    metatype: BenchType;
+    metatype: ObjectType;
     /**
      * @generated from protobuf field: string id = 2;
      */
@@ -4271,9 +4271,9 @@ export interface ServerData {
  */
 export interface SessionData {
     /**
-     * @generated from protobuf field: symbolx.bench.BenchType metatype = 1;
+     * @generated from protobuf field: symbolx.bench.ObjectType metatype = 1;
      */
-    metatype: BenchType;
+    metatype: ObjectType;
     /**
      * @generated from protobuf field: string id = 2;
      */
@@ -4362,9 +4362,9 @@ export interface SessionData {
  */
 export interface SignalData {
     /**
-     * @generated from protobuf field: symbolx.bench.BenchType metatype = 1;
+     * @generated from protobuf field: symbolx.bench.ObjectType metatype = 1;
      */
-    metatype: BenchType;
+    metatype: ObjectType;
     /**
      * @generated from protobuf field: string id = 2;
      */
@@ -4445,9 +4445,9 @@ export interface SignalData {
  */
 export interface SkipData {
     /**
-     * @generated from protobuf field: symbolx.bench.BenchType metatype = 1;
+     * @generated from protobuf field: symbolx.bench.ObjectType metatype = 1;
      */
-    metatype: BenchType;
+    metatype: ObjectType;
     /**
      * @generated from protobuf field: string id = 2;
      */
@@ -4520,9 +4520,9 @@ export interface SkipData {
  */
 export interface SpaceData {
     /**
-     * @generated from protobuf field: symbolx.bench.BenchType metatype = 1;
+     * @generated from protobuf field: symbolx.bench.ObjectType metatype = 1;
      */
-    metatype: BenchType;
+    metatype: ObjectType;
     /**
      * @generated from protobuf field: string id = 2;
      */
@@ -4616,9 +4616,9 @@ export interface SpaceData {
  */
 export interface StepData {
     /**
-     * @generated from protobuf field: symbolx.bench.BenchType metatype = 1;
+     * @generated from protobuf field: symbolx.bench.ObjectType metatype = 1;
      */
-    metatype: BenchType;
+    metatype: ObjectType;
     /**
      * @generated from protobuf field: string id = 2;
      */
@@ -4728,9 +4728,9 @@ export interface StepData {
  */
 export interface StoreData {
     /**
-     * @generated from protobuf field: symbolx.bench.BenchType metatype = 1;
+     * @generated from protobuf field: symbolx.bench.ObjectType metatype = 1;
      */
-    metatype: BenchType;
+    metatype: ObjectType;
     /**
      * @generated from protobuf field: string id = 2;
      */
@@ -4835,9 +4835,9 @@ export interface StoreData {
  */
 export interface TriggerData {
     /**
-     * @generated from protobuf field: symbolx.bench.BenchType metatype = 1;
+     * @generated from protobuf field: symbolx.bench.ObjectType metatype = 1;
      */
-    metatype: BenchType;
+    metatype: ObjectType;
     /**
      * @generated from protobuf field: string id = 2;
      */
@@ -4922,9 +4922,9 @@ export interface TriggerData {
  */
 export interface UpgradeData {
     /**
-     * @generated from protobuf field: symbolx.bench.BenchType metatype = 1;
+     * @generated from protobuf field: symbolx.bench.ObjectType metatype = 1;
      */
-    metatype: BenchType;
+    metatype: ObjectType;
     /**
      * @generated from protobuf field: string id = 2;
      */
@@ -5001,9 +5001,9 @@ export interface UpgradeData {
  */
 export interface UserData {
     /**
-     * @generated from protobuf field: symbolx.bench.BenchType metatype = 1;
+     * @generated from protobuf field: symbolx.bench.ObjectType metatype = 1;
      */
-    metatype: BenchType;
+    metatype: ObjectType;
     /**
      * @generated from protobuf field: string id = 2;
      */
@@ -5104,9 +5104,9 @@ export interface UserData {
  */
 export interface ViewData {
     /**
-     * @generated from protobuf field: symbolx.bench.BenchType metatype = 1;
+     * @generated from protobuf field: symbolx.bench.ObjectType metatype = 1;
      */
-    metatype: BenchType;
+    metatype: ObjectType;
     /**
      * @generated from protobuf field: string id = 2;
      */
@@ -6030,7 +6030,215 @@ export enum BenchType {
     /**
      * @generated from protobuf enum value: BENCH_TYPE_OFFSET = 1203;
      */
-    OFFSET = 1203
+    OFFSET = 1203,
+    /**
+     * @generated from protobuf enum value: BENCH_TYPE_ENUM_TYPE = 2001;
+     */
+    ENUM_TYPE = 2001,
+    /**
+     * @generated from protobuf enum value: BENCH_TYPE_NODE_TYPE = 2002;
+     */
+    NODE_TYPE = 2002,
+    /**
+     * @generated from protobuf enum value: BENCH_TYPE_STRUCT_TYPE = 2003;
+     */
+    STRUCT_TYPE = 2003,
+    /**
+     * @generated from protobuf enum value: BENCH_TYPE_OBJECT_TYPE = 2004;
+     */
+    OBJECT_TYPE = 2004,
+    /**
+     * @generated from protobuf enum value: BENCH_TYPE_BENCH_TYPE = 2005;
+     */
+    BENCH_TYPE = 2005,
+    /**
+     * @generated from protobuf enum value: BENCH_TYPE_NODE_VISIBILITY = 2010;
+     */
+    NODE_VISIBILITY = 2010,
+    /**
+     * @generated from protobuf enum value: BENCH_TYPE_ACCESS_KIND = 2030;
+     */
+    ACCESS_KIND = 2030,
+    /**
+     * @generated from protobuf enum value: BENCH_TYPE_READ_TYPE = 2031;
+     */
+    READ_TYPE = 2031,
+    /**
+     * @generated from protobuf enum value: BENCH_TYPE_EDIT_TYPE = 2032;
+     */
+    EDIT_TYPE = 2032,
+    /**
+     * @generated from protobuf enum value: BENCH_TYPE_USE_TYPE = 2033;
+     */
+    USE_TYPE = 2033,
+    /**
+     * @generated from protobuf enum value: BENCH_TYPE_ACCESS_TYPE = 2034;
+     */
+    ACCESS_TYPE = 2034,
+    /**
+     * @generated from protobuf enum value: BENCH_TYPE_POLICY_EFFECT = 2035;
+     */
+    POLICY_EFFECT = 2035,
+    /**
+     * @generated from protobuf enum value: BENCH_TYPE_REGION = 2050;
+     */
+    REGION = 2050,
+    /**
+     * @generated from protobuf enum value: BENCH_TYPE_TENANCY = 2051;
+     */
+    TENANCY = 2051,
+    /**
+     * @generated from protobuf enum value: BENCH_TYPE_STORE_KIND = 2052;
+     */
+    STORE_KIND = 2052,
+    /**
+     * @generated from protobuf enum value: BENCH_TYPE_STORE_ENGINE_TYPE = 2053;
+     */
+    STORE_ENGINE_TYPE = 2053,
+    /**
+     * @generated from protobuf enum value: BENCH_TYPE_SERVER_PROFILE = 2055;
+     */
+    SERVER_PROFILE = 2055,
+    /**
+     * @generated from protobuf enum value: BENCH_TYPE_RESOURCE_STATUS = 2056;
+     */
+    RESOURCE_STATUS = 2056,
+    /**
+     * @generated from protobuf enum value: BENCH_TYPE_BLOCK_TYPE = 2070;
+     */
+    BLOCK_TYPE = 2070,
+    /**
+     * @generated from protobuf enum value: BENCH_TYPE_SCHEDULE_TYPE = 2071;
+     */
+    SCHEDULE_TYPE = 2071,
+    /**
+     * @generated from protobuf enum value: BENCH_TYPE_PRIMITIVE_TYPE = 2080;
+     */
+    PRIMITIVE_TYPE = 2080,
+    /**
+     * @generated from protobuf enum value: BENCH_TYPE_FORMAT_HINT = 2081;
+     */
+    FORMAT_HINT = 2081,
+    /**
+     * @generated from protobuf enum value: BENCH_TYPE_FILE_STATUS = 2100;
+     */
+    FILE_STATUS = 2100,
+    /**
+     * @generated from protobuf enum value: BENCH_TYPE_FILE_RETENTION_MODE = 21012;
+     */
+    FILE_RETENTION_MODE = 21012,
+    /**
+     * @generated from protobuf enum value: BENCH_TYPE_STEP_TYPE = 2150;
+     */
+    STEP_TYPE = 2150,
+    /**
+     * @generated from protobuf enum value: BENCH_TYPE_VIEW_TYPE = 2200;
+     */
+    VIEW_TYPE = 2200,
+    /**
+     * @generated from protobuf enum value: BENCH_TYPE_VARIANT = 2201;
+     */
+    VARIANT = 2201,
+    /**
+     * @generated from protobuf enum value: BENCH_TYPE_COLOR_TYPE = 2202;
+     */
+    COLOR_TYPE = 2202,
+    /**
+     * @generated from protobuf enum value: BENCH_TYPE_COLOR_SHADE = 2203;
+     */
+    COLOR_SHADE = 2203,
+    /**
+     * @generated from protobuf enum value: BENCH_TYPE_FONT_TYPE = 2204;
+     */
+    FONT_TYPE = 2204,
+    /**
+     * @generated from protobuf enum value: BENCH_TYPE_FONT_WEIGHT = 2205;
+     */
+    FONT_WEIGHT = 2205,
+    /**
+     * @generated from protobuf enum value: BENCH_TYPE_FONT_SIZE = 2206;
+     */
+    FONT_SIZE = 2206,
+    /**
+     * @generated from protobuf enum value: BENCH_TYPE_SPACING = 2207;
+     */
+    SPACING = 2207,
+    /**
+     * @generated from protobuf enum value: BENCH_TYPE_ANCHOR = 2208;
+     */
+    ANCHOR = 2208,
+    /**
+     * @generated from protobuf enum value: BENCH_TYPE_ORIENTATION = 2209;
+     */
+    ORIENTATION = 2209,
+    /**
+     * @generated from protobuf enum value: BENCH_TYPE_ALIGNMENT = 2210;
+     */
+    ALIGNMENT = 2210,
+    /**
+     * @generated from protobuf enum value: BENCH_TYPE_ICON_KIND = 2211;
+     */
+    ICON_KIND = 2211,
+    /**
+     * @generated from protobuf enum value: BENCH_TYPE_LOG_KIND = 2250;
+     */
+    LOG_KIND = 2250,
+    /**
+     * @generated from protobuf enum value: BENCH_TYPE_LOG_LEVEL = 2251;
+     */
+    LOG_LEVEL = 2251,
+    /**
+     * @generated from protobuf enum value: BENCH_TYPE_TRIGGER_TYPE = 2263;
+     */
+    TRIGGER_TYPE = 2263,
+    /**
+     * @generated from protobuf enum value: BENCH_TYPE_RUN_STATUS = 2254;
+     */
+    RUN_STATUS = 2254,
+    /**
+     * @generated from protobuf enum value: BENCH_TYPE_RUN_ERROR_KIND = 2255;
+     */
+    RUN_ERROR_KIND = 2255,
+    /**
+     * @generated from protobuf enum value: BENCH_TYPE_NOTICE_KIND = 2260;
+     */
+    NOTICE_KIND = 2260,
+    /**
+     * @generated from protobuf enum value: BENCH_TYPE_NOTIFICATION_KIND = 2261;
+     */
+    NOTIFICATION_KIND = 2261,
+    /**
+     * @generated from protobuf enum value: BENCH_TYPE_EXPRESSION_KIND = 2300;
+     */
+    EXPRESSION_KIND = 2300,
+    /**
+     * @generated from protobuf enum value: BENCH_TYPE_CONDITIONAL_OP = 2301;
+     */
+    CONDITIONAL_OP = 2301,
+    /**
+     * @generated from protobuf enum value: BENCH_TYPE_AGGREGATION_OP = 2302;
+     */
+    AGGREGATION_OP = 2302,
+    /**
+     * @generated from protobuf enum value: BENCH_TYPE_SORT_OP = 2303;
+     */
+    SORT_OP = 2303,
+    /**
+     * @generated from protobuf enum value: BENCH_TYPE_SORT_MODE = 2304;
+     */
+    SORT_MODE = 2304,
+    /**
+     * @generated from protobuf enum value: BENCH_TYPE_SELECTION_KIND = 2305;
+     */
+    SELECTION_KIND = 2305,
+    /**
+     * @generated from protobuf enum value: BENCH_TYPE_USER_STATUS = 2500;
+     */
+    USER_STATUS = 2500,
+    /**
+     * @generated from protobuf enum value: BENCH_TYPE_ORGANIZATION_STATUS = 2501;
+     */
+    ORGANIZATION_STATUS = 2501
 }
 /**
  * @generated from protobuf enum symbolx.bench.BlockType
@@ -6456,9 +6664,13 @@ export enum EnumType {
      */
     STRUCT_TYPE = 2003,
     /**
-     * @generated from protobuf enum value: ENUM_TYPE_BENCH_TYPE = 2004;
+     * @generated from protobuf enum value: ENUM_TYPE_OBJECT_TYPE = 2004;
      */
-    BENCH_TYPE = 2004,
+    OBJECT_TYPE = 2004,
+    /**
+     * @generated from protobuf enum value: ENUM_TYPE_BENCH_TYPE = 2005;
+     */
+    BENCH_TYPE = 2005,
     /**
      * @generated from protobuf enum value: ENUM_TYPE_NODE_VISIBILITY = 2010;
      */
@@ -7406,6 +7618,315 @@ export enum NotificationKind {
      * @generated from protobuf enum value: NOTIFICATION_KIND_URGENT = 3;
      */
     URGENT = 3
+}
+/**
+ * @generated from protobuf enum symbolx.bench.ObjectType
+ */
+export enum ObjectType {
+    /**
+     * @generated from protobuf enum value: OBJECT_TYPE_UNSPECIFIED = 0;
+     */
+    UNSPECIFIED = 0,
+    /**
+     * @generated from protobuf enum value: OBJECT_TYPE_BENCH = 1;
+     */
+    BENCH = 1,
+    /**
+     * @generated from protobuf enum value: OBJECT_TYPE_ENVIRONMENT = 3;
+     */
+    ENVIRONMENT = 3,
+    /**
+     * @generated from protobuf enum value: OBJECT_TYPE_BRANCH = 4;
+     */
+    BRANCH = 4,
+    /**
+     * @generated from protobuf enum value: OBJECT_TYPE_PACKAGE = 20;
+     */
+    PACKAGE = 20,
+    /**
+     * @generated from protobuf enum value: OBJECT_TYPE_DEPENDENCY = 21;
+     */
+    DEPENDENCY = 21,
+    /**
+     * @generated from protobuf enum value: OBJECT_TYPE_UPGRADE = 22;
+     */
+    UPGRADE = 22,
+    /**
+     * @generated from protobuf enum value: OBJECT_TYPE_SPACE = 23;
+     */
+    SPACE = 23,
+    /**
+     * @generated from protobuf enum value: OBJECT_TYPE_LINK = 24;
+     */
+    LINK = 24,
+    /**
+     * @generated from protobuf enum value: OBJECT_TYPE_SKIP = 25;
+     */
+    SKIP = 25,
+    /**
+     * @generated from protobuf enum value: OBJECT_TYPE_NOTICE = 26;
+     */
+    NOTICE = 26,
+    /**
+     * @generated from protobuf enum value: OBJECT_TYPE_BLOCK = 30;
+     */
+    BLOCK = 30,
+    /**
+     * @generated from protobuf enum value: OBJECT_TYPE_TRIGGER = 31;
+     */
+    TRIGGER = 31,
+    /**
+     * @generated from protobuf enum value: OBJECT_TYPE_FIELD = 32;
+     */
+    FIELD = 32,
+    /**
+     * @generated from protobuf enum value: OBJECT_TYPE_RECORD = 33;
+     */
+    RECORD = 33,
+    /**
+     * @generated from protobuf enum value: OBJECT_TYPE_QUERY = 34;
+     */
+    QUERY = 34,
+    /**
+     * @generated from protobuf enum value: OBJECT_TYPE_VIEW = 35;
+     */
+    VIEW = 35,
+    /**
+     * @generated from protobuf enum value: OBJECT_TYPE_STEP = 36;
+     */
+    STEP = 36,
+    /**
+     * @generated from protobuf enum value: OBJECT_TYPE_BADGE = 60;
+     */
+    BADGE = 60,
+    /**
+     * @generated from protobuf enum value: OBJECT_TYPE_ROLE = 61;
+     */
+    ROLE = 61,
+    /**
+     * @generated from protobuf enum value: OBJECT_TYPE_IDENTITY = 62;
+     */
+    IDENTITY = 62,
+    /**
+     * @generated from protobuf enum value: OBJECT_TYPE_MEMBERSHIP = 63;
+     */
+    MEMBERSHIP = 63,
+    /**
+     * @generated from protobuf enum value: OBJECT_TYPE_INVITE = 64;
+     */
+    INVITE = 64,
+    /**
+     * @generated from protobuf enum value: OBJECT_TYPE_SESSION = 80;
+     */
+    SESSION = 80,
+    /**
+     * @generated from protobuf enum value: OBJECT_TYPE_RUN = 81;
+     */
+    RUN = 81,
+    /**
+     * @generated from protobuf enum value: OBJECT_TYPE_PAUSE = 82;
+     */
+    PAUSE = 82,
+    /**
+     * @generated from protobuf enum value: OBJECT_TYPE_SIGNAL = 83;
+     */
+    SIGNAL = 83,
+    /**
+     * @generated from protobuf enum value: OBJECT_TYPE_LOG = 84;
+     */
+    LOG = 84,
+    /**
+     * @generated from protobuf enum value: OBJECT_TYPE_NOTIFICATION = 85;
+     */
+    NOTIFICATION = 85,
+    /**
+     * @generated from protobuf enum value: OBJECT_TYPE_SERVER = 160;
+     */
+    SERVER = 160,
+    /**
+     * @generated from protobuf enum value: OBJECT_TYPE_STORE = 161;
+     */
+    STORE = 161,
+    /**
+     * @generated from protobuf enum value: OBJECT_TYPE_DRIVE = 162;
+     */
+    DRIVE = 162,
+    /**
+     * @generated from protobuf enum value: OBJECT_TYPE_CACHE = 163;
+     */
+    CACHE = 163,
+    /**
+     * @generated from protobuf enum value: OBJECT_TYPE_FILE_CONTENT = 180;
+     */
+    FILE_CONTENT = 180,
+    /**
+     * @generated from protobuf enum value: OBJECT_TYPE_HANDLE = 220;
+     */
+    HANDLE = 220,
+    /**
+     * @generated from protobuf enum value: OBJECT_TYPE_USER = 221;
+     */
+    USER = 221,
+    /**
+     * @generated from protobuf enum value: OBJECT_TYPE_ORGANIZATION = 222;
+     */
+    ORGANIZATION = 222,
+    /**
+     * @generated from protobuf enum value: OBJECT_TYPE_CLIENT = 223;
+     */
+    CLIENT = 223,
+    /**
+     * @generated from protobuf enum value: OBJECT_TYPE_PATH = 1000;
+     */
+    PATH = 1000,
+    /**
+     * @generated from protobuf enum value: OBJECT_TYPE_PATH_SEGMENT = 1001;
+     */
+    PATH_SEGMENT = 1001,
+    /**
+     * @generated from protobuf enum value: OBJECT_TYPE_PATH_TOKEN = 1002;
+     */
+    PATH_TOKEN = 1002,
+    /**
+     * @generated from protobuf enum value: OBJECT_TYPE_NODE_REFERENCE = 1003;
+     */
+    NODE_REFERENCE = 1003,
+    /**
+     * @generated from protobuf enum value: OBJECT_TYPE_PROPERTY_REFERENCE = 1004;
+     */
+    PROPERTY_REFERENCE = 1004,
+    /**
+     * @generated from protobuf enum value: OBJECT_TYPE_VALUE_REFERENCE = 1005;
+     */
+    VALUE_REFERENCE = 1005,
+    /**
+     * @generated from protobuf enum value: OBJECT_TYPE_TYPE_INFO = 1010;
+     */
+    TYPE_INFO = 1010,
+    /**
+     * @generated from protobuf enum value: OBJECT_TYPE_CONTEXT = 1011;
+     */
+    CONTEXT = 1011,
+    /**
+     * @generated from protobuf enum value: OBJECT_TYPE_SCHEDULE = 1012;
+     */
+    SCHEDULE = 1012,
+    /**
+     * @generated from protobuf enum value: OBJECT_TYPE_PROJECTION = 1013;
+     */
+    PROJECTION = 1013,
+    /**
+     * @generated from protobuf enum value: OBJECT_TYPE_FILE = 1020;
+     */
+    FILE = 1020,
+    /**
+     * @generated from protobuf enum value: OBJECT_TYPE_ICON = 1021;
+     */
+    ICON = 1021,
+    /**
+     * @generated from protobuf enum value: OBJECT_TYPE_POLICY = 1030;
+     */
+    POLICY = 1030,
+    /**
+     * @generated from protobuf enum value: OBJECT_TYPE_POLICY_RULE = 1031;
+     */
+    POLICY_RULE = 1031,
+    /**
+     * @generated from protobuf enum value: OBJECT_TYPE_SUBJECT = 1032;
+     */
+    SUBJECT = 1032,
+    /**
+     * @generated from protobuf enum value: OBJECT_TYPE_ACCESS_ZONE = 1034;
+     */
+    ACCESS_ZONE = 1034,
+    /**
+     * @generated from protobuf enum value: OBJECT_TYPE_ACCESS_MATRIX = 1035;
+     */
+    ACCESS_MATRIX = 1035,
+    /**
+     * @generated from protobuf enum value: OBJECT_TYPE_ACCESS = 1037;
+     */
+    ACCESS = 1037,
+    /**
+     * @generated from protobuf enum value: OBJECT_TYPE_ACCESS_TRACE = 1038;
+     */
+    ACCESS_TRACE = 1038,
+    /**
+     * @generated from protobuf enum value: OBJECT_TYPE_REQUEST = 1036;
+     */
+    REQUEST = 1036,
+    /**
+     * @generated from protobuf enum value: OBJECT_TYPE_READ_OPTIONS = 1050;
+     */
+    READ_OPTIONS = 1050,
+    /**
+     * @generated from protobuf enum value: OBJECT_TYPE_EXPRESSION = 1060;
+     */
+    EXPRESSION = 1060,
+    /**
+     * @generated from protobuf enum value: OBJECT_TYPE_AGGREGATION = 1061;
+     */
+    AGGREGATION = 1061,
+    /**
+     * @generated from protobuf enum value: OBJECT_TYPE_AGGREGATION_BUCKET = 1062;
+     */
+    AGGREGATION_BUCKET = 1062,
+    /**
+     * @generated from protobuf enum value: OBJECT_TYPE_SELECTION = 1063;
+     */
+    SELECTION = 1063,
+    /**
+     * @generated from protobuf enum value: OBJECT_TYPE_CODE = 1090;
+     */
+    CODE = 1090,
+    /**
+     * @generated from protobuf enum value: OBJECT_TYPE_CODE_LINE = 1091;
+     */
+    CODE_LINE = 1091,
+    /**
+     * @generated from protobuf enum value: OBJECT_TYPE_STEP_CONNECTION = 1100;
+     */
+    STEP_CONNECTION = 1100,
+    /**
+     * @generated from protobuf enum value: OBJECT_TYPE_RUN_CODE_FRAME = 1110;
+     */
+    RUN_CODE_FRAME = 1110,
+    /**
+     * @generated from protobuf enum value: OBJECT_TYPE_RUN_ERROR = 1111;
+     */
+    RUN_ERROR = 1111,
+    /**
+     * @generated from protobuf enum value: OBJECT_TYPE_RESOURCE_CREDENTIAL = 1132;
+     */
+    RESOURCE_CREDENTIAL = 1132,
+    /**
+     * @generated from protobuf enum value: OBJECT_TYPE_TEXT = 1160;
+     */
+    TEXT = 1160,
+    /**
+     * @generated from protobuf enum value: OBJECT_TYPE_TEXT_LINE = 1161;
+     */
+    TEXT_LINE = 1161,
+    /**
+     * @generated from protobuf enum value: OBJECT_TYPE_TEXT_SPAN = 1162;
+     */
+    TEXT_SPAN = 1162,
+    /**
+     * @generated from protobuf enum value: OBJECT_TYPE_COLOR = 1200;
+     */
+    COLOR = 1200,
+    /**
+     * @generated from protobuf enum value: OBJECT_TYPE_FONT = 1201;
+     */
+    FONT = 1201,
+    /**
+     * @generated from protobuf enum value: OBJECT_TYPE_BOX = 1202;
+     */
+    BOX = 1202,
+    /**
+     * @generated from protobuf enum value: OBJECT_TYPE_OFFSET = 1203;
+     */
+    OFFSET = 1203
 }
 /**
  * @generated from protobuf enum symbolx.bench.OrganizationStatus
@@ -8756,12 +9277,12 @@ export enum ViewType {
 class AccessData$Type extends MessageType<AccessData> {
     constructor() {
         super("symbolx.bench.AccessData", [
-            { no: 1, name: "metatype", kind: "enum", T: () => ["symbolx.bench.BenchType", BenchType, "BENCH_TYPE_"] },
+            { no: 1, name: "metatype", kind: "enum", T: () => ["symbolx.bench.ObjectType", ObjectType, "OBJECT_TYPE_"] },
             { no: 2, name: "id", kind: "scalar", opt: true, T: 5 /*ScalarType.INT32*/ },
             { no: 30, name: "mode", kind: "enum", T: () => ["symbolx.bench.AccessMode", AccessMode, "ACCESS_MODE_"] },
             { no: 31, name: "decision", kind: "enum", T: () => ["symbolx.bench.PolicyEffect", PolicyEffect, "POLICY_EFFECT_"] },
             { no: 32, name: "verb", kind: "enum", T: () => ["symbolx.bench.AccessType", AccessType, "ACCESS_TYPE_"] },
-            { no: 33, name: "object_type", kind: "enum", T: () => ["symbolx.bench.BenchType", BenchType, "BENCH_TYPE_"] },
+            { no: 33, name: "object_type", kind: "enum", T: () => ["symbolx.bench.ObjectType", ObjectType, "OBJECT_TYPE_"] },
             { no: 34, name: "object_properties_ptr", kind: "message", repeat: 1 /*RepeatType.PACKED*/, T: () => PropertyReferenceData }
         ]);
     }
@@ -8782,7 +9303,7 @@ class AccessData$Type extends MessageType<AccessData> {
         while (reader.pos < end) {
             let [fieldNo, wireType] = reader.tag();
             switch (fieldNo) {
-                case /* symbolx.bench.BenchType metatype */ 1:
+                case /* symbolx.bench.ObjectType metatype */ 1:
                     message.metatype = reader.int32();
                     break;
                 case /* optional int32 id */ 2:
@@ -8797,7 +9318,7 @@ class AccessData$Type extends MessageType<AccessData> {
                 case /* symbolx.bench.AccessType verb */ 32:
                     message.verb = reader.int32();
                     break;
-                case /* symbolx.bench.BenchType object_type */ 33:
+                case /* symbolx.bench.ObjectType object_type */ 33:
                     message.objectType = reader.int32();
                     break;
                 case /* repeated symbolx.bench.PropertyReferenceData object_properties_ptr */ 34:
@@ -8815,7 +9336,7 @@ class AccessData$Type extends MessageType<AccessData> {
         return message;
     }
     internalBinaryWrite(message: AccessData, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
-        /* symbolx.bench.BenchType metatype = 1; */
+        /* symbolx.bench.ObjectType metatype = 1; */
         if (message.metatype !== 0)
             writer.tag(1, WireType.Varint).int32(message.metatype);
         /* optional int32 id = 2; */
@@ -8830,7 +9351,7 @@ class AccessData$Type extends MessageType<AccessData> {
         /* symbolx.bench.AccessType verb = 32; */
         if (message.verb !== 0)
             writer.tag(32, WireType.Varint).int32(message.verb);
-        /* symbolx.bench.BenchType object_type = 33; */
+        /* symbolx.bench.ObjectType object_type = 33; */
         if (message.objectType !== 0)
             writer.tag(33, WireType.Varint).int32(message.objectType);
         /* repeated symbolx.bench.PropertyReferenceData object_properties_ptr = 34; */
@@ -8850,7 +9371,7 @@ export const AccessData = new AccessData$Type();
 class AccessMatrixData$Type extends MessageType<AccessMatrixData> {
     constructor() {
         super("symbolx.bench.AccessMatrixData", [
-            { no: 1, name: "metatype", kind: "enum", T: () => ["symbolx.bench.BenchType", BenchType, "BENCH_TYPE_"] },
+            { no: 1, name: "metatype", kind: "enum", T: () => ["symbolx.bench.ObjectType", ObjectType, "OBJECT_TYPE_"] },
             { no: 2, name: "id", kind: "scalar", opt: true, T: 5 /*ScalarType.INT32*/ },
             { no: 3, name: "parent_id", kind: "scalar", opt: true, T: 5 /*ScalarType.INT32*/ },
             { no: 4, name: "parent_key", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
@@ -8878,7 +9399,7 @@ class AccessMatrixData$Type extends MessageType<AccessMatrixData> {
         while (reader.pos < end) {
             let [fieldNo, wireType] = reader.tag();
             switch (fieldNo) {
-                case /* symbolx.bench.BenchType metatype */ 1:
+                case /* symbolx.bench.ObjectType metatype */ 1:
                     message.metatype = reader.int32();
                     break;
                 case /* optional int32 id */ 2:
@@ -8924,7 +9445,7 @@ class AccessMatrixData$Type extends MessageType<AccessMatrixData> {
         return message;
     }
     internalBinaryWrite(message: AccessMatrixData, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
-        /* symbolx.bench.BenchType metatype = 1; */
+        /* symbolx.bench.ObjectType metatype = 1; */
         if (message.metatype !== 0)
             writer.tag(1, WireType.Varint).int32(message.metatype);
         /* optional int32 id = 2; */
@@ -8972,7 +9493,7 @@ export const AccessMatrixData = new AccessMatrixData$Type();
 class AccessTraceData$Type extends MessageType<AccessTraceData> {
     constructor() {
         super("symbolx.bench.AccessTraceData", [
-            { no: 1, name: "metatype", kind: "enum", T: () => ["symbolx.bench.BenchType", BenchType, "BENCH_TYPE_"] },
+            { no: 1, name: "metatype", kind: "enum", T: () => ["symbolx.bench.ObjectType", ObjectType, "OBJECT_TYPE_"] },
             { no: 2, name: "id", kind: "scalar", opt: true, T: 5 /*ScalarType.INT32*/ },
             { no: 3, name: "parent_id", kind: "scalar", opt: true, T: 5 /*ScalarType.INT32*/ },
             { no: 4, name: "parent_key", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
@@ -8995,7 +9516,7 @@ class AccessTraceData$Type extends MessageType<AccessTraceData> {
         while (reader.pos < end) {
             let [fieldNo, wireType] = reader.tag();
             switch (fieldNo) {
-                case /* symbolx.bench.BenchType metatype */ 1:
+                case /* symbolx.bench.ObjectType metatype */ 1:
                     message.metatype = reader.int32();
                     break;
                 case /* optional int32 id */ 2:
@@ -9032,7 +9553,7 @@ class AccessTraceData$Type extends MessageType<AccessTraceData> {
         return message;
     }
     internalBinaryWrite(message: AccessTraceData, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
-        /* symbolx.bench.BenchType metatype = 1; */
+        /* symbolx.bench.ObjectType metatype = 1; */
         if (message.metatype !== 0)
             writer.tag(1, WireType.Varint).int32(message.metatype);
         /* optional int32 id = 2; */
@@ -9071,7 +9592,7 @@ export const AccessTraceData = new AccessTraceData$Type();
 class AccessZoneData$Type extends MessageType<AccessZoneData> {
     constructor() {
         super("symbolx.bench.AccessZoneData", [
-            { no: 1, name: "metatype", kind: "enum", T: () => ["symbolx.bench.BenchType", BenchType, "BENCH_TYPE_"] },
+            { no: 1, name: "metatype", kind: "enum", T: () => ["symbolx.bench.ObjectType", ObjectType, "OBJECT_TYPE_"] },
             { no: 2, name: "id", kind: "scalar", opt: true, T: 5 /*ScalarType.INT32*/ },
             { no: 3, name: "parent_id", kind: "scalar", opt: true, T: 5 /*ScalarType.INT32*/ },
             { no: 4, name: "parent_key", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
@@ -9098,7 +9619,7 @@ class AccessZoneData$Type extends MessageType<AccessZoneData> {
         while (reader.pos < end) {
             let [fieldNo, wireType] = reader.tag();
             switch (fieldNo) {
-                case /* symbolx.bench.BenchType metatype */ 1:
+                case /* symbolx.bench.ObjectType metatype */ 1:
                     message.metatype = reader.int32();
                     break;
                 case /* optional int32 id */ 2:
@@ -9141,7 +9662,7 @@ class AccessZoneData$Type extends MessageType<AccessZoneData> {
         return message;
     }
     internalBinaryWrite(message: AccessZoneData, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
-        /* symbolx.bench.BenchType metatype = 1; */
+        /* symbolx.bench.ObjectType metatype = 1; */
         if (message.metatype !== 0)
             writer.tag(1, WireType.Varint).int32(message.metatype);
         /* optional int32 id = 2; */
@@ -9186,7 +9707,7 @@ export const AccessZoneData = new AccessZoneData$Type();
 class AggregationData$Type extends MessageType<AggregationData> {
     constructor() {
         super("symbolx.bench.AggregationData", [
-            { no: 1, name: "metatype", kind: "enum", T: () => ["symbolx.bench.BenchType", BenchType, "BENCH_TYPE_"] },
+            { no: 1, name: "metatype", kind: "enum", T: () => ["symbolx.bench.ObjectType", ObjectType, "OBJECT_TYPE_"] },
             { no: 2, name: "id", kind: "scalar", opt: true, T: 5 /*ScalarType.INT32*/ },
             { no: 3, name: "parent_id", kind: "scalar", opt: true, T: 5 /*ScalarType.INT32*/ },
             { no: 4, name: "parent_key", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
@@ -9214,7 +9735,7 @@ class AggregationData$Type extends MessageType<AggregationData> {
         while (reader.pos < end) {
             let [fieldNo, wireType] = reader.tag();
             switch (fieldNo) {
-                case /* symbolx.bench.BenchType metatype */ 1:
+                case /* symbolx.bench.ObjectType metatype */ 1:
                     message.metatype = reader.int32();
                     break;
                 case /* optional int32 id */ 2:
@@ -9263,7 +9784,7 @@ class AggregationData$Type extends MessageType<AggregationData> {
         return message;
     }
     internalBinaryWrite(message: AggregationData, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
-        /* symbolx.bench.BenchType metatype = 1; */
+        /* symbolx.bench.ObjectType metatype = 1; */
         if (message.metatype !== 0)
             writer.tag(1, WireType.Varint).int32(message.metatype);
         /* optional int32 id = 2; */
@@ -9314,7 +9835,7 @@ export const AggregationData = new AggregationData$Type();
 class AggregationBucketData$Type extends MessageType<AggregationBucketData> {
     constructor() {
         super("symbolx.bench.AggregationBucketData", [
-            { no: 1, name: "metatype", kind: "enum", T: () => ["symbolx.bench.BenchType", BenchType, "BENCH_TYPE_"] },
+            { no: 1, name: "metatype", kind: "enum", T: () => ["symbolx.bench.ObjectType", ObjectType, "OBJECT_TYPE_"] },
             { no: 2, name: "id", kind: "scalar", opt: true, T: 5 /*ScalarType.INT32*/ },
             { no: 30, name: "key", kind: "message", T: () => Struct },
             { no: 31, name: "count", kind: "scalar", T: 5 /*ScalarType.INT32*/ }
@@ -9333,7 +9854,7 @@ class AggregationBucketData$Type extends MessageType<AggregationBucketData> {
         while (reader.pos < end) {
             let [fieldNo, wireType] = reader.tag();
             switch (fieldNo) {
-                case /* symbolx.bench.BenchType metatype */ 1:
+                case /* symbolx.bench.ObjectType metatype */ 1:
                     message.metatype = reader.int32();
                     break;
                 case /* optional int32 id */ 2:
@@ -9357,7 +9878,7 @@ class AggregationBucketData$Type extends MessageType<AggregationBucketData> {
         return message;
     }
     internalBinaryWrite(message: AggregationBucketData, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
-        /* symbolx.bench.BenchType metatype = 1; */
+        /* symbolx.bench.ObjectType metatype = 1; */
         if (message.metatype !== 0)
             writer.tag(1, WireType.Varint).int32(message.metatype);
         /* optional int32 id = 2; */
@@ -9383,7 +9904,7 @@ export const AggregationBucketData = new AggregationBucketData$Type();
 class BoxData$Type extends MessageType<BoxData> {
     constructor() {
         super("symbolx.bench.BoxData", [
-            { no: 1, name: "metatype", kind: "enum", T: () => ["symbolx.bench.BenchType", BenchType, "BENCH_TYPE_"] },
+            { no: 1, name: "metatype", kind: "enum", T: () => ["symbolx.bench.ObjectType", ObjectType, "OBJECT_TYPE_"] },
             { no: 2, name: "id", kind: "scalar", opt: true, T: 5 /*ScalarType.INT32*/ },
             { no: 50, name: "width", kind: "scalar", opt: true, T: 5 /*ScalarType.INT32*/ },
             { no: 51, name: "height", kind: "scalar", opt: true, T: 5 /*ScalarType.INT32*/ },
@@ -9403,7 +9924,7 @@ class BoxData$Type extends MessageType<BoxData> {
         while (reader.pos < end) {
             let [fieldNo, wireType] = reader.tag();
             switch (fieldNo) {
-                case /* symbolx.bench.BenchType metatype */ 1:
+                case /* symbolx.bench.ObjectType metatype */ 1:
                     message.metatype = reader.int32();
                     break;
                 case /* optional int32 id */ 2:
@@ -9433,7 +9954,7 @@ class BoxData$Type extends MessageType<BoxData> {
         return message;
     }
     internalBinaryWrite(message: BoxData, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
-        /* symbolx.bench.BenchType metatype = 1; */
+        /* symbolx.bench.ObjectType metatype = 1; */
         if (message.metatype !== 0)
             writer.tag(1, WireType.Varint).int32(message.metatype);
         /* optional int32 id = 2; */
@@ -9465,7 +9986,7 @@ export const BoxData = new BoxData$Type();
 class CodeData$Type extends MessageType<CodeData> {
     constructor() {
         super("symbolx.bench.CodeData", [
-            { no: 1, name: "metatype", kind: "enum", T: () => ["symbolx.bench.BenchType", BenchType, "BENCH_TYPE_"] },
+            { no: 1, name: "metatype", kind: "enum", T: () => ["symbolx.bench.ObjectType", ObjectType, "OBJECT_TYPE_"] },
             { no: 2, name: "id", kind: "scalar", opt: true, T: 5 /*ScalarType.INT32*/ },
             { no: 3, name: "parent_id", kind: "scalar", opt: true, T: 5 /*ScalarType.INT32*/ },
             { no: 4, name: "parent_key", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
@@ -9488,7 +10009,7 @@ class CodeData$Type extends MessageType<CodeData> {
         while (reader.pos < end) {
             let [fieldNo, wireType] = reader.tag();
             switch (fieldNo) {
-                case /* symbolx.bench.BenchType metatype */ 1:
+                case /* symbolx.bench.ObjectType metatype */ 1:
                     message.metatype = reader.int32();
                     break;
                 case /* optional int32 id */ 2:
@@ -9525,7 +10046,7 @@ class CodeData$Type extends MessageType<CodeData> {
         return message;
     }
     internalBinaryWrite(message: CodeData, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
-        /* symbolx.bench.BenchType metatype = 1; */
+        /* symbolx.bench.ObjectType metatype = 1; */
         if (message.metatype !== 0)
             writer.tag(1, WireType.Varint).int32(message.metatype);
         /* optional int32 id = 2; */
@@ -9564,7 +10085,7 @@ export const CodeData = new CodeData$Type();
 class CodeLineData$Type extends MessageType<CodeLineData> {
     constructor() {
         super("symbolx.bench.CodeLineData", [
-            { no: 1, name: "metatype", kind: "enum", T: () => ["symbolx.bench.BenchType", BenchType, "BENCH_TYPE_"] },
+            { no: 1, name: "metatype", kind: "enum", T: () => ["symbolx.bench.ObjectType", ObjectType, "OBJECT_TYPE_"] },
             { no: 2, name: "id", kind: "scalar", opt: true, T: 5 /*ScalarType.INT32*/ },
             { no: 3, name: "parent_id", kind: "scalar", opt: true, T: 5 /*ScalarType.INT32*/ },
             { no: 4, name: "parent_key", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
@@ -9587,7 +10108,7 @@ class CodeLineData$Type extends MessageType<CodeLineData> {
         while (reader.pos < end) {
             let [fieldNo, wireType] = reader.tag();
             switch (fieldNo) {
-                case /* symbolx.bench.BenchType metatype */ 1:
+                case /* symbolx.bench.ObjectType metatype */ 1:
                     message.metatype = reader.int32();
                     break;
                 case /* optional int32 id */ 2:
@@ -9624,7 +10145,7 @@ class CodeLineData$Type extends MessageType<CodeLineData> {
         return message;
     }
     internalBinaryWrite(message: CodeLineData, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
-        /* symbolx.bench.BenchType metatype = 1; */
+        /* symbolx.bench.ObjectType metatype = 1; */
         if (message.metatype !== 0)
             writer.tag(1, WireType.Varint).int32(message.metatype);
         /* optional int32 id = 2; */
@@ -9663,7 +10184,7 @@ export const CodeLineData = new CodeLineData$Type();
 class ColorData$Type extends MessageType<ColorData> {
     constructor() {
         super("symbolx.bench.ColorData", [
-            { no: 1, name: "metatype", kind: "enum", T: () => ["symbolx.bench.BenchType", BenchType, "BENCH_TYPE_"] },
+            { no: 1, name: "metatype", kind: "enum", T: () => ["symbolx.bench.ObjectType", ObjectType, "OBJECT_TYPE_"] },
             { no: 2, name: "id", kind: "scalar", opt: true, T: 5 /*ScalarType.INT32*/ },
             { no: 31, name: "type", kind: "enum", opt: true, T: () => ["symbolx.bench.ColorType", ColorType, "COLOR_TYPE_"] },
             { no: 32, name: "shade", kind: "enum", opt: true, T: () => ["symbolx.bench.ColorShade", ColorShade, "COLOR_SHADE_"] },
@@ -9682,7 +10203,7 @@ class ColorData$Type extends MessageType<ColorData> {
         while (reader.pos < end) {
             let [fieldNo, wireType] = reader.tag();
             switch (fieldNo) {
-                case /* symbolx.bench.BenchType metatype */ 1:
+                case /* symbolx.bench.ObjectType metatype */ 1:
                     message.metatype = reader.int32();
                     break;
                 case /* optional int32 id */ 2:
@@ -9709,7 +10230,7 @@ class ColorData$Type extends MessageType<ColorData> {
         return message;
     }
     internalBinaryWrite(message: ColorData, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
-        /* symbolx.bench.BenchType metatype = 1; */
+        /* symbolx.bench.ObjectType metatype = 1; */
         if (message.metatype !== 0)
             writer.tag(1, WireType.Varint).int32(message.metatype);
         /* optional int32 id = 2; */
@@ -9738,7 +10259,7 @@ export const ColorData = new ColorData$Type();
 class ContextData$Type extends MessageType<ContextData> {
     constructor() {
         super("symbolx.bench.ContextData", [
-            { no: 1, name: "metatype", kind: "enum", T: () => ["symbolx.bench.BenchType", BenchType, "BENCH_TYPE_"] },
+            { no: 1, name: "metatype", kind: "enum", T: () => ["symbolx.bench.ObjectType", ObjectType, "OBJECT_TYPE_"] },
             { no: 2, name: "id", kind: "scalar", opt: true, T: 5 /*ScalarType.INT32*/ },
             { no: 3, name: "parent_id", kind: "scalar", opt: true, T: 5 /*ScalarType.INT32*/ },
             { no: 4, name: "parent_key", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
@@ -9765,7 +10286,7 @@ class ContextData$Type extends MessageType<ContextData> {
         while (reader.pos < end) {
             let [fieldNo, wireType] = reader.tag();
             switch (fieldNo) {
-                case /* symbolx.bench.BenchType metatype */ 1:
+                case /* symbolx.bench.ObjectType metatype */ 1:
                     message.metatype = reader.int32();
                     break;
                 case /* optional int32 id */ 2:
@@ -9817,7 +10338,7 @@ class ContextData$Type extends MessageType<ContextData> {
         return message;
     }
     internalBinaryWrite(message: ContextData, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
-        /* symbolx.bench.BenchType metatype = 1; */
+        /* symbolx.bench.ObjectType metatype = 1; */
         if (message.metatype !== 0)
             writer.tag(1, WireType.Varint).int32(message.metatype);
         /* optional int32 id = 2; */
@@ -9871,7 +10392,7 @@ export const ContextData = new ContextData$Type();
 class ExpressionData$Type extends MessageType<ExpressionData> {
     constructor() {
         super("symbolx.bench.ExpressionData", [
-            { no: 1, name: "metatype", kind: "enum", T: () => ["symbolx.bench.BenchType", BenchType, "BENCH_TYPE_"] },
+            { no: 1, name: "metatype", kind: "enum", T: () => ["symbolx.bench.ObjectType", ObjectType, "OBJECT_TYPE_"] },
             { no: 2, name: "id", kind: "scalar", opt: true, T: 5 /*ScalarType.INT32*/ },
             { no: 3, name: "parent_id", kind: "scalar", opt: true, T: 5 /*ScalarType.INT32*/ },
             { no: 4, name: "parent_key", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
@@ -9900,7 +10421,7 @@ class ExpressionData$Type extends MessageType<ExpressionData> {
         while (reader.pos < end) {
             let [fieldNo, wireType] = reader.tag();
             switch (fieldNo) {
-                case /* symbolx.bench.BenchType metatype */ 1:
+                case /* symbolx.bench.ObjectType metatype */ 1:
                     message.metatype = reader.int32();
                     break;
                 case /* optional int32 id */ 2:
@@ -9952,7 +10473,7 @@ class ExpressionData$Type extends MessageType<ExpressionData> {
         return message;
     }
     internalBinaryWrite(message: ExpressionData, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
-        /* symbolx.bench.BenchType metatype = 1; */
+        /* symbolx.bench.ObjectType metatype = 1; */
         if (message.metatype !== 0)
             writer.tag(1, WireType.Varint).int32(message.metatype);
         /* optional int32 id = 2; */
@@ -10006,7 +10527,7 @@ export const ExpressionData = new ExpressionData$Type();
 class FileData$Type extends MessageType<FileData> {
     constructor() {
         super("symbolx.bench.FileData", [
-            { no: 1, name: "metatype", kind: "enum", T: () => ["symbolx.bench.BenchType", BenchType, "BENCH_TYPE_"] },
+            { no: 1, name: "metatype", kind: "enum", T: () => ["symbolx.bench.ObjectType", ObjectType, "OBJECT_TYPE_"] },
             { no: 2, name: "id", kind: "scalar", opt: true, T: 5 /*ScalarType.INT32*/ },
             { no: 31, name: "type", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
             { no: 33, name: "name", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
@@ -10029,7 +10550,7 @@ class FileData$Type extends MessageType<FileData> {
         while (reader.pos < end) {
             let [fieldNo, wireType] = reader.tag();
             switch (fieldNo) {
-                case /* symbolx.bench.BenchType metatype */ 1:
+                case /* symbolx.bench.ObjectType metatype */ 1:
                     message.metatype = reader.int32();
                     break;
                 case /* optional int32 id */ 2:
@@ -10065,7 +10586,7 @@ class FileData$Type extends MessageType<FileData> {
         return message;
     }
     internalBinaryWrite(message: FileData, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
-        /* symbolx.bench.BenchType metatype = 1; */
+        /* symbolx.bench.ObjectType metatype = 1; */
         if (message.metatype !== 0)
             writer.tag(1, WireType.Varint).int32(message.metatype);
         /* optional int32 id = 2; */
@@ -10103,7 +10624,7 @@ export const FileData = new FileData$Type();
 class FontData$Type extends MessageType<FontData> {
     constructor() {
         super("symbolx.bench.FontData", [
-            { no: 1, name: "metatype", kind: "enum", T: () => ["symbolx.bench.BenchType", BenchType, "BENCH_TYPE_"] },
+            { no: 1, name: "metatype", kind: "enum", T: () => ["symbolx.bench.ObjectType", ObjectType, "OBJECT_TYPE_"] },
             { no: 2, name: "id", kind: "scalar", opt: true, T: 5 /*ScalarType.INT32*/ },
             { no: 31, name: "type", kind: "enum", opt: true, T: () => ["symbolx.bench.FontType", FontType, "FONT_TYPE_"] },
             { no: 32, name: "weight", kind: "enum", opt: true, T: () => ["symbolx.bench.FontWeight", FontWeight, "FONT_WEIGHT_"] },
@@ -10122,7 +10643,7 @@ class FontData$Type extends MessageType<FontData> {
         while (reader.pos < end) {
             let [fieldNo, wireType] = reader.tag();
             switch (fieldNo) {
-                case /* symbolx.bench.BenchType metatype */ 1:
+                case /* symbolx.bench.ObjectType metatype */ 1:
                     message.metatype = reader.int32();
                     break;
                 case /* optional int32 id */ 2:
@@ -10149,7 +10670,7 @@ class FontData$Type extends MessageType<FontData> {
         return message;
     }
     internalBinaryWrite(message: FontData, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
-        /* symbolx.bench.BenchType metatype = 1; */
+        /* symbolx.bench.ObjectType metatype = 1; */
         if (message.metatype !== 0)
             writer.tag(1, WireType.Varint).int32(message.metatype);
         /* optional int32 id = 2; */
@@ -10178,7 +10699,7 @@ export const FontData = new FontData$Type();
 class IconData$Type extends MessageType<IconData> {
     constructor() {
         super("symbolx.bench.IconData", [
-            { no: 1, name: "metatype", kind: "enum", T: () => ["symbolx.bench.BenchType", BenchType, "BENCH_TYPE_"] },
+            { no: 1, name: "metatype", kind: "enum", T: () => ["symbolx.bench.ObjectType", ObjectType, "OBJECT_TYPE_"] },
             { no: 2, name: "id", kind: "scalar", opt: true, T: 5 /*ScalarType.INT32*/ },
             { no: 3, name: "parent_id", kind: "scalar", opt: true, T: 5 /*ScalarType.INT32*/ },
             { no: 4, name: "parent_key", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
@@ -10205,7 +10726,7 @@ class IconData$Type extends MessageType<IconData> {
         while (reader.pos < end) {
             let [fieldNo, wireType] = reader.tag();
             switch (fieldNo) {
-                case /* symbolx.bench.BenchType metatype */ 1:
+                case /* symbolx.bench.ObjectType metatype */ 1:
                     message.metatype = reader.int32();
                     break;
                 case /* optional int32 id */ 2:
@@ -10254,7 +10775,7 @@ class IconData$Type extends MessageType<IconData> {
         return message;
     }
     internalBinaryWrite(message: IconData, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
-        /* symbolx.bench.BenchType metatype = 1; */
+        /* symbolx.bench.ObjectType metatype = 1; */
         if (message.metatype !== 0)
             writer.tag(1, WireType.Varint).int32(message.metatype);
         /* optional int32 id = 2; */
@@ -10305,7 +10826,7 @@ export const IconData = new IconData$Type();
 class NodeReferenceData$Type extends MessageType<NodeReferenceData> {
     constructor() {
         super("symbolx.bench.NodeReferenceData", [
-            { no: 1, name: "metatype", kind: "enum", T: () => ["symbolx.bench.BenchType", BenchType, "BENCH_TYPE_"] },
+            { no: 1, name: "metatype", kind: "enum", T: () => ["symbolx.bench.ObjectType", ObjectType, "OBJECT_TYPE_"] },
             { no: 30, name: "type", kind: "enum", T: () => ["symbolx.bench.NodeType", NodeType, "NODE_TYPE_"] },
             { no: 31, name: "id", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
             { no: 32, name: "ck", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
@@ -10327,7 +10848,7 @@ class NodeReferenceData$Type extends MessageType<NodeReferenceData> {
         while (reader.pos < end) {
             let [fieldNo, wireType] = reader.tag();
             switch (fieldNo) {
-                case /* symbolx.bench.BenchType metatype */ 1:
+                case /* symbolx.bench.ObjectType metatype */ 1:
                     message.metatype = reader.int32();
                     break;
                 case /* symbolx.bench.NodeType type */ 30:
@@ -10360,7 +10881,7 @@ class NodeReferenceData$Type extends MessageType<NodeReferenceData> {
         return message;
     }
     internalBinaryWrite(message: NodeReferenceData, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
-        /* symbolx.bench.BenchType metatype = 1; */
+        /* symbolx.bench.ObjectType metatype = 1; */
         if (message.metatype !== 0)
             writer.tag(1, WireType.Varint).int32(message.metatype);
         /* symbolx.bench.NodeType type = 30; */
@@ -10395,7 +10916,7 @@ export const NodeReferenceData = new NodeReferenceData$Type();
 class OffsetData$Type extends MessageType<OffsetData> {
     constructor() {
         super("symbolx.bench.OffsetData", [
-            { no: 1, name: "metatype", kind: "enum", T: () => ["symbolx.bench.BenchType", BenchType, "BENCH_TYPE_"] },
+            { no: 1, name: "metatype", kind: "enum", T: () => ["symbolx.bench.ObjectType", ObjectType, "OBJECT_TYPE_"] },
             { no: 2, name: "id", kind: "scalar", opt: true, T: 5 /*ScalarType.INT32*/ },
             { no: 40, name: "top", kind: "scalar", opt: true, T: 5 /*ScalarType.INT32*/ },
             { no: 41, name: "right", kind: "scalar", opt: true, T: 5 /*ScalarType.INT32*/ },
@@ -10419,7 +10940,7 @@ class OffsetData$Type extends MessageType<OffsetData> {
         while (reader.pos < end) {
             let [fieldNo, wireType] = reader.tag();
             switch (fieldNo) {
-                case /* symbolx.bench.BenchType metatype */ 1:
+                case /* symbolx.bench.ObjectType metatype */ 1:
                     message.metatype = reader.int32();
                     break;
                 case /* optional int32 id */ 2:
@@ -10461,7 +10982,7 @@ class OffsetData$Type extends MessageType<OffsetData> {
         return message;
     }
     internalBinaryWrite(message: OffsetData, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
-        /* symbolx.bench.BenchType metatype = 1; */
+        /* symbolx.bench.ObjectType metatype = 1; */
         if (message.metatype !== 0)
             writer.tag(1, WireType.Varint).int32(message.metatype);
         /* optional int32 id = 2; */
@@ -10505,7 +11026,7 @@ export const OffsetData = new OffsetData$Type();
 class PathData$Type extends MessageType<PathData> {
     constructor() {
         super("symbolx.bench.PathData", [
-            { no: 1, name: "metatype", kind: "enum", T: () => ["symbolx.bench.BenchType", BenchType, "BENCH_TYPE_"] },
+            { no: 1, name: "metatype", kind: "enum", T: () => ["symbolx.bench.ObjectType", ObjectType, "OBJECT_TYPE_"] },
             { no: 2, name: "id", kind: "scalar", opt: true, T: 5 /*ScalarType.INT32*/ },
             { no: 3, name: "parent_id", kind: "scalar", opt: true, T: 5 /*ScalarType.INT32*/ },
             { no: 4, name: "parent_key", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
@@ -10528,7 +11049,7 @@ class PathData$Type extends MessageType<PathData> {
         while (reader.pos < end) {
             let [fieldNo, wireType] = reader.tag();
             switch (fieldNo) {
-                case /* symbolx.bench.BenchType metatype */ 1:
+                case /* symbolx.bench.ObjectType metatype */ 1:
                     message.metatype = reader.int32();
                     break;
                 case /* optional int32 id */ 2:
@@ -10565,7 +11086,7 @@ class PathData$Type extends MessageType<PathData> {
         return message;
     }
     internalBinaryWrite(message: PathData, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
-        /* symbolx.bench.BenchType metatype = 1; */
+        /* symbolx.bench.ObjectType metatype = 1; */
         if (message.metatype !== 0)
             writer.tag(1, WireType.Varint).int32(message.metatype);
         /* optional int32 id = 2; */
@@ -10604,7 +11125,7 @@ export const PathData = new PathData$Type();
 class PathSegmentData$Type extends MessageType<PathSegmentData> {
     constructor() {
         super("symbolx.bench.PathSegmentData", [
-            { no: 1, name: "metatype", kind: "enum", T: () => ["symbolx.bench.BenchType", BenchType, "BENCH_TYPE_"] },
+            { no: 1, name: "metatype", kind: "enum", T: () => ["symbolx.bench.ObjectType", ObjectType, "OBJECT_TYPE_"] },
             { no: 2, name: "id", kind: "scalar", opt: true, T: 5 /*ScalarType.INT32*/ },
             { no: 31, name: "type", kind: "enum", T: () => ["symbolx.bench.PathSegmentType", PathSegmentType, "PATH_SEGMENT_TYPE_"] },
             { no: 32, name: "name", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
@@ -10624,7 +11145,7 @@ class PathSegmentData$Type extends MessageType<PathSegmentData> {
         while (reader.pos < end) {
             let [fieldNo, wireType] = reader.tag();
             switch (fieldNo) {
-                case /* symbolx.bench.BenchType metatype */ 1:
+                case /* symbolx.bench.ObjectType metatype */ 1:
                     message.metatype = reader.int32();
                     break;
                 case /* optional int32 id */ 2:
@@ -10651,7 +11172,7 @@ class PathSegmentData$Type extends MessageType<PathSegmentData> {
         return message;
     }
     internalBinaryWrite(message: PathSegmentData, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
-        /* symbolx.bench.BenchType metatype = 1; */
+        /* symbolx.bench.ObjectType metatype = 1; */
         if (message.metatype !== 0)
             writer.tag(1, WireType.Varint).int32(message.metatype);
         /* optional int32 id = 2; */
@@ -10680,7 +11201,7 @@ export const PathSegmentData = new PathSegmentData$Type();
 class PathTokenData$Type extends MessageType<PathTokenData> {
     constructor() {
         super("symbolx.bench.PathTokenData", [
-            { no: 1, name: "metatype", kind: "enum", T: () => ["symbolx.bench.BenchType", BenchType, "BENCH_TYPE_"] },
+            { no: 1, name: "metatype", kind: "enum", T: () => ["symbolx.bench.ObjectType", ObjectType, "OBJECT_TYPE_"] },
             { no: 2, name: "id", kind: "scalar", opt: true, T: 5 /*ScalarType.INT32*/ },
             { no: 31, name: "type", kind: "enum", T: () => ["symbolx.bench.PathTokenType", PathTokenType, "PATH_TOKEN_TYPE_"] }
         ]);
@@ -10698,7 +11219,7 @@ class PathTokenData$Type extends MessageType<PathTokenData> {
         while (reader.pos < end) {
             let [fieldNo, wireType] = reader.tag();
             switch (fieldNo) {
-                case /* symbolx.bench.BenchType metatype */ 1:
+                case /* symbolx.bench.ObjectType metatype */ 1:
                     message.metatype = reader.int32();
                     break;
                 case /* optional int32 id */ 2:
@@ -10719,7 +11240,7 @@ class PathTokenData$Type extends MessageType<PathTokenData> {
         return message;
     }
     internalBinaryWrite(message: PathTokenData, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
-        /* symbolx.bench.BenchType metatype = 1; */
+        /* symbolx.bench.ObjectType metatype = 1; */
         if (message.metatype !== 0)
             writer.tag(1, WireType.Varint).int32(message.metatype);
         /* optional int32 id = 2; */
@@ -10742,7 +11263,7 @@ export const PathTokenData = new PathTokenData$Type();
 class PolicyData$Type extends MessageType<PolicyData> {
     constructor() {
         super("symbolx.bench.PolicyData", [
-            { no: 1, name: "metatype", kind: "enum", T: () => ["symbolx.bench.BenchType", BenchType, "BENCH_TYPE_"] },
+            { no: 1, name: "metatype", kind: "enum", T: () => ["symbolx.bench.ObjectType", ObjectType, "OBJECT_TYPE_"] },
             { no: 2, name: "id", kind: "scalar", opt: true, T: 5 /*ScalarType.INT32*/ },
             { no: 3, name: "parent_id", kind: "scalar", opt: true, T: 5 /*ScalarType.INT32*/ },
             { no: 4, name: "parent_key", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
@@ -10770,7 +11291,7 @@ class PolicyData$Type extends MessageType<PolicyData> {
         while (reader.pos < end) {
             let [fieldNo, wireType] = reader.tag();
             switch (fieldNo) {
-                case /* symbolx.bench.BenchType metatype */ 1:
+                case /* symbolx.bench.ObjectType metatype */ 1:
                     message.metatype = reader.int32();
                     break;
                 case /* optional int32 id */ 2:
@@ -10816,7 +11337,7 @@ class PolicyData$Type extends MessageType<PolicyData> {
         return message;
     }
     internalBinaryWrite(message: PolicyData, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
-        /* symbolx.bench.BenchType metatype = 1; */
+        /* symbolx.bench.ObjectType metatype = 1; */
         if (message.metatype !== 0)
             writer.tag(1, WireType.Varint).int32(message.metatype);
         /* optional int32 id = 2; */
@@ -10864,7 +11385,7 @@ export const PolicyData = new PolicyData$Type();
 class PolicyRuleData$Type extends MessageType<PolicyRuleData> {
     constructor() {
         super("symbolx.bench.PolicyRuleData", [
-            { no: 1, name: "metatype", kind: "enum", T: () => ["symbolx.bench.BenchType", BenchType, "BENCH_TYPE_"] },
+            { no: 1, name: "metatype", kind: "enum", T: () => ["symbolx.bench.ObjectType", ObjectType, "OBJECT_TYPE_"] },
             { no: 2, name: "id", kind: "scalar", opt: true, T: 5 /*ScalarType.INT32*/ },
             { no: 3, name: "parent_id", kind: "scalar", opt: true, T: 5 /*ScalarType.INT32*/ },
             { no: 4, name: "parent_key", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
@@ -10906,7 +11427,7 @@ class PolicyRuleData$Type extends MessageType<PolicyRuleData> {
         while (reader.pos < end) {
             let [fieldNo, wireType] = reader.tag();
             switch (fieldNo) {
-                case /* symbolx.bench.BenchType metatype */ 1:
+                case /* symbolx.bench.ObjectType metatype */ 1:
                     message.metatype = reader.int32();
                     break;
                 case /* optional int32 id */ 2:
@@ -10997,7 +11518,7 @@ class PolicyRuleData$Type extends MessageType<PolicyRuleData> {
         return message;
     }
     internalBinaryWrite(message: PolicyRuleData, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
-        /* symbolx.bench.BenchType metatype = 1; */
+        /* symbolx.bench.ObjectType metatype = 1; */
         if (message.metatype !== 0)
             writer.tag(1, WireType.Varint).int32(message.metatype);
         /* optional int32 id = 2; */
@@ -11090,7 +11611,7 @@ export const PolicyRuleData = new PolicyRuleData$Type();
 class ProjectionData$Type extends MessageType<ProjectionData> {
     constructor() {
         super("symbolx.bench.ProjectionData", [
-            { no: 1, name: "metatype", kind: "enum", T: () => ["symbolx.bench.BenchType", BenchType, "BENCH_TYPE_"] },
+            { no: 1, name: "metatype", kind: "enum", T: () => ["symbolx.bench.ObjectType", ObjectType, "OBJECT_TYPE_"] },
             { no: 2, name: "id", kind: "scalar", opt: true, T: 5 /*ScalarType.INT32*/ },
             { no: 3, name: "parent_id", kind: "scalar", opt: true, T: 5 /*ScalarType.INT32*/ },
             { no: 4, name: "parent_key", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
@@ -11111,7 +11632,7 @@ class ProjectionData$Type extends MessageType<ProjectionData> {
         while (reader.pos < end) {
             let [fieldNo, wireType] = reader.tag();
             switch (fieldNo) {
-                case /* symbolx.bench.BenchType metatype */ 1:
+                case /* symbolx.bench.ObjectType metatype */ 1:
                     message.metatype = reader.int32();
                     break;
                 case /* optional int32 id */ 2:
@@ -11145,7 +11666,7 @@ class ProjectionData$Type extends MessageType<ProjectionData> {
         return message;
     }
     internalBinaryWrite(message: ProjectionData, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
-        /* symbolx.bench.BenchType metatype = 1; */
+        /* symbolx.bench.ObjectType metatype = 1; */
         if (message.metatype !== 0)
             writer.tag(1, WireType.Varint).int32(message.metatype);
         /* optional int32 id = 2; */
@@ -11181,8 +11702,8 @@ export const ProjectionData = new ProjectionData$Type();
 class PropertyReferenceData$Type extends MessageType<PropertyReferenceData> {
     constructor() {
         super("symbolx.bench.PropertyReferenceData", [
-            { no: 1, name: "metatype", kind: "enum", T: () => ["symbolx.bench.BenchType", BenchType, "BENCH_TYPE_"] },
-            { no: 30, name: "type", kind: "enum", opt: true, T: () => ["symbolx.bench.BenchType", BenchType, "BENCH_TYPE_"] },
+            { no: 1, name: "metatype", kind: "enum", T: () => ["symbolx.bench.ObjectType", ObjectType, "OBJECT_TYPE_"] },
+            { no: 30, name: "type", kind: "enum", opt: true, T: () => ["symbolx.bench.ObjectType", ObjectType, "OBJECT_TYPE_"] },
             { no: 31, name: "id", kind: "scalar", T: 5 /*ScalarType.INT32*/ },
             { no: 32, name: "references_type", kind: "enum", opt: true, T: () => ["symbolx.bench.NodeType", NodeType, "NODE_TYPE_"] }
         ]);
@@ -11200,10 +11721,10 @@ class PropertyReferenceData$Type extends MessageType<PropertyReferenceData> {
         while (reader.pos < end) {
             let [fieldNo, wireType] = reader.tag();
             switch (fieldNo) {
-                case /* symbolx.bench.BenchType metatype */ 1:
+                case /* symbolx.bench.ObjectType metatype */ 1:
                     message.metatype = reader.int32();
                     break;
-                case /* optional symbolx.bench.BenchType type */ 30:
+                case /* optional symbolx.bench.ObjectType type */ 30:
                     message.type = reader.int32();
                     break;
                 case /* int32 id */ 31:
@@ -11224,10 +11745,10 @@ class PropertyReferenceData$Type extends MessageType<PropertyReferenceData> {
         return message;
     }
     internalBinaryWrite(message: PropertyReferenceData, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
-        /* symbolx.bench.BenchType metatype = 1; */
+        /* symbolx.bench.ObjectType metatype = 1; */
         if (message.metatype !== 0)
             writer.tag(1, WireType.Varint).int32(message.metatype);
-        /* optional symbolx.bench.BenchType type = 30; */
+        /* optional symbolx.bench.ObjectType type = 30; */
         if (message.type !== undefined)
             writer.tag(30, WireType.Varint).int32(message.type);
         /* int32 id = 31; */
@@ -11250,7 +11771,7 @@ export const PropertyReferenceData = new PropertyReferenceData$Type();
 class ReadOptionsData$Type extends MessageType<ReadOptionsData> {
     constructor() {
         super("symbolx.bench.ReadOptionsData", [
-            { no: 1, name: "metatype", kind: "enum", T: () => ["symbolx.bench.BenchType", BenchType, "BENCH_TYPE_"] },
+            { no: 1, name: "metatype", kind: "enum", T: () => ["symbolx.bench.ObjectType", ObjectType, "OBJECT_TYPE_"] },
             { no: 2, name: "id", kind: "scalar", opt: true, T: 5 /*ScalarType.INT32*/ },
             { no: 31, name: "ancestor_types", kind: "enum", repeat: 1 /*RepeatType.PACKED*/, T: () => ["symbolx.bench.NodeType", NodeType, "NODE_TYPE_"] },
             { no: 32, name: "descendant_types", kind: "enum", repeat: 1 /*RepeatType.PACKED*/, T: () => ["symbolx.bench.NodeType", NodeType, "NODE_TYPE_"] },
@@ -11282,7 +11803,7 @@ class ReadOptionsData$Type extends MessageType<ReadOptionsData> {
         while (reader.pos < end) {
             let [fieldNo, wireType] = reader.tag();
             switch (fieldNo) {
-                case /* symbolx.bench.BenchType metatype */ 1:
+                case /* symbolx.bench.ObjectType metatype */ 1:
                     message.metatype = reader.int32();
                     break;
                 case /* optional int32 id */ 2:
@@ -11332,7 +11853,7 @@ class ReadOptionsData$Type extends MessageType<ReadOptionsData> {
         return message;
     }
     internalBinaryWrite(message: ReadOptionsData, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
-        /* symbolx.bench.BenchType metatype = 1; */
+        /* symbolx.bench.ObjectType metatype = 1; */
         if (message.metatype !== 0)
             writer.tag(1, WireType.Varint).int32(message.metatype);
         /* optional int32 id = 2; */
@@ -11384,7 +11905,7 @@ export const ReadOptionsData = new ReadOptionsData$Type();
 class RequestData$Type extends MessageType<RequestData> {
     constructor() {
         super("symbolx.bench.RequestData", [
-            { no: 1, name: "metatype", kind: "enum", T: () => ["symbolx.bench.BenchType", BenchType, "BENCH_TYPE_"] },
+            { no: 1, name: "metatype", kind: "enum", T: () => ["symbolx.bench.ObjectType", ObjectType, "OBJECT_TYPE_"] },
             { no: 2, name: "id", kind: "scalar", opt: true, T: 5 /*ScalarType.INT32*/ },
             { no: 3, name: "parent_id", kind: "scalar", opt: true, T: 5 /*ScalarType.INT32*/ },
             { no: 4, name: "parent_key", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
@@ -11411,7 +11932,7 @@ class RequestData$Type extends MessageType<RequestData> {
         while (reader.pos < end) {
             let [fieldNo, wireType] = reader.tag();
             switch (fieldNo) {
-                case /* symbolx.bench.BenchType metatype */ 1:
+                case /* symbolx.bench.ObjectType metatype */ 1:
                     message.metatype = reader.int32();
                     break;
                 case /* optional int32 id */ 2:
@@ -11457,7 +11978,7 @@ class RequestData$Type extends MessageType<RequestData> {
         return message;
     }
     internalBinaryWrite(message: RequestData, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
-        /* symbolx.bench.BenchType metatype = 1; */
+        /* symbolx.bench.ObjectType metatype = 1; */
         if (message.metatype !== 0)
             writer.tag(1, WireType.Varint).int32(message.metatype);
         /* optional int32 id = 2; */
@@ -11505,7 +12026,7 @@ export const RequestData = new RequestData$Type();
 class ResourceCredentialData$Type extends MessageType<ResourceCredentialData> {
     constructor() {
         super("symbolx.bench.ResourceCredentialData", [
-            { no: 1, name: "metatype", kind: "enum", T: () => ["symbolx.bench.BenchType", BenchType, "BENCH_TYPE_"] },
+            { no: 1, name: "metatype", kind: "enum", T: () => ["symbolx.bench.ObjectType", ObjectType, "OBJECT_TYPE_"] },
             { no: 2, name: "id", kind: "scalar", opt: true, T: 5 /*ScalarType.INT32*/ },
             { no: 31, name: "username", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
             { no: 32, name: "password", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ }
@@ -11523,7 +12044,7 @@ class ResourceCredentialData$Type extends MessageType<ResourceCredentialData> {
         while (reader.pos < end) {
             let [fieldNo, wireType] = reader.tag();
             switch (fieldNo) {
-                case /* symbolx.bench.BenchType metatype */ 1:
+                case /* symbolx.bench.ObjectType metatype */ 1:
                     message.metatype = reader.int32();
                     break;
                 case /* optional int32 id */ 2:
@@ -11547,7 +12068,7 @@ class ResourceCredentialData$Type extends MessageType<ResourceCredentialData> {
         return message;
     }
     internalBinaryWrite(message: ResourceCredentialData, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
-        /* symbolx.bench.BenchType metatype = 1; */
+        /* symbolx.bench.ObjectType metatype = 1; */
         if (message.metatype !== 0)
             writer.tag(1, WireType.Varint).int32(message.metatype);
         /* optional int32 id = 2; */
@@ -11573,7 +12094,7 @@ export const ResourceCredentialData = new ResourceCredentialData$Type();
 class RunCodeFrameData$Type extends MessageType<RunCodeFrameData> {
     constructor() {
         super("symbolx.bench.RunCodeFrameData", [
-            { no: 1, name: "metatype", kind: "enum", T: () => ["symbolx.bench.BenchType", BenchType, "BENCH_TYPE_"] },
+            { no: 1, name: "metatype", kind: "enum", T: () => ["symbolx.bench.ObjectType", ObjectType, "OBJECT_TYPE_"] },
             { no: 2, name: "id", kind: "scalar", opt: true, T: 5 /*ScalarType.INT32*/ },
             { no: 3, name: "parent_id", kind: "scalar", opt: true, T: 5 /*ScalarType.INT32*/ },
             { no: 4, name: "parent_key", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
@@ -11601,7 +12122,7 @@ class RunCodeFrameData$Type extends MessageType<RunCodeFrameData> {
         while (reader.pos < end) {
             let [fieldNo, wireType] = reader.tag();
             switch (fieldNo) {
-                case /* symbolx.bench.BenchType metatype */ 1:
+                case /* symbolx.bench.ObjectType metatype */ 1:
                     message.metatype = reader.int32();
                     break;
                 case /* optional int32 id */ 2:
@@ -11647,7 +12168,7 @@ class RunCodeFrameData$Type extends MessageType<RunCodeFrameData> {
         return message;
     }
     internalBinaryWrite(message: RunCodeFrameData, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
-        /* symbolx.bench.BenchType metatype = 1; */
+        /* symbolx.bench.ObjectType metatype = 1; */
         if (message.metatype !== 0)
             writer.tag(1, WireType.Varint).int32(message.metatype);
         /* optional int32 id = 2; */
@@ -11695,7 +12216,7 @@ export const RunCodeFrameData = new RunCodeFrameData$Type();
 class RunErrorData$Type extends MessageType<RunErrorData> {
     constructor() {
         super("symbolx.bench.RunErrorData", [
-            { no: 1, name: "metatype", kind: "enum", T: () => ["symbolx.bench.BenchType", BenchType, "BENCH_TYPE_"] },
+            { no: 1, name: "metatype", kind: "enum", T: () => ["symbolx.bench.ObjectType", ObjectType, "OBJECT_TYPE_"] },
             { no: 2, name: "id", kind: "scalar", opt: true, T: 5 /*ScalarType.INT32*/ },
             { no: 3, name: "parent_id", kind: "scalar", opt: true, T: 5 /*ScalarType.INT32*/ },
             { no: 4, name: "parent_key", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
@@ -11724,7 +12245,7 @@ class RunErrorData$Type extends MessageType<RunErrorData> {
         while (reader.pos < end) {
             let [fieldNo, wireType] = reader.tag();
             switch (fieldNo) {
-                case /* symbolx.bench.BenchType metatype */ 1:
+                case /* symbolx.bench.ObjectType metatype */ 1:
                     message.metatype = reader.int32();
                     break;
                 case /* optional int32 id */ 2:
@@ -11773,7 +12294,7 @@ class RunErrorData$Type extends MessageType<RunErrorData> {
         return message;
     }
     internalBinaryWrite(message: RunErrorData, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
-        /* symbolx.bench.BenchType metatype = 1; */
+        /* symbolx.bench.ObjectType metatype = 1; */
         if (message.metatype !== 0)
             writer.tag(1, WireType.Varint).int32(message.metatype);
         /* optional int32 id = 2; */
@@ -11824,7 +12345,7 @@ export const RunErrorData = new RunErrorData$Type();
 class ScheduleData$Type extends MessageType<ScheduleData> {
     constructor() {
         super("symbolx.bench.ScheduleData", [
-            { no: 1, name: "metatype", kind: "enum", T: () => ["symbolx.bench.BenchType", BenchType, "BENCH_TYPE_"] },
+            { no: 1, name: "metatype", kind: "enum", T: () => ["symbolx.bench.ObjectType", ObjectType, "OBJECT_TYPE_"] },
             { no: 2, name: "id", kind: "scalar", opt: true, T: 5 /*ScalarType.INT32*/ },
             { no: 3, name: "parent_id", kind: "scalar", opt: true, T: 5 /*ScalarType.INT32*/ },
             { no: 4, name: "parent_key", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
@@ -11850,7 +12371,7 @@ class ScheduleData$Type extends MessageType<ScheduleData> {
         while (reader.pos < end) {
             let [fieldNo, wireType] = reader.tag();
             switch (fieldNo) {
-                case /* symbolx.bench.BenchType metatype */ 1:
+                case /* symbolx.bench.ObjectType metatype */ 1:
                     message.metatype = reader.int32();
                     break;
                 case /* optional int32 id */ 2:
@@ -11896,7 +12417,7 @@ class ScheduleData$Type extends MessageType<ScheduleData> {
         return message;
     }
     internalBinaryWrite(message: ScheduleData, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
-        /* symbolx.bench.BenchType metatype = 1; */
+        /* symbolx.bench.ObjectType metatype = 1; */
         if (message.metatype !== 0)
             writer.tag(1, WireType.Varint).int32(message.metatype);
         /* optional int32 id = 2; */
@@ -11944,7 +12465,7 @@ export const ScheduleData = new ScheduleData$Type();
 class SelectionData$Type extends MessageType<SelectionData> {
     constructor() {
         super("symbolx.bench.SelectionData", [
-            { no: 1, name: "metatype", kind: "enum", T: () => ["symbolx.bench.BenchType", BenchType, "BENCH_TYPE_"] },
+            { no: 1, name: "metatype", kind: "enum", T: () => ["symbolx.bench.ObjectType", ObjectType, "OBJECT_TYPE_"] },
             { no: 2, name: "id", kind: "scalar", opt: true, T: 5 /*ScalarType.INT32*/ },
             { no: 30, name: "kind", kind: "enum", T: () => ["symbolx.bench.SelectionKind", SelectionKind, "SELECTION_KIND_"] },
             { no: 31, name: "nodes_ptr", kind: "message", repeat: 1 /*RepeatType.PACKED*/, T: () => NodeReferenceData },
@@ -11966,7 +12487,7 @@ class SelectionData$Type extends MessageType<SelectionData> {
         while (reader.pos < end) {
             let [fieldNo, wireType] = reader.tag();
             switch (fieldNo) {
-                case /* symbolx.bench.BenchType metatype */ 1:
+                case /* symbolx.bench.ObjectType metatype */ 1:
                     message.metatype = reader.int32();
                     break;
                 case /* optional int32 id */ 2:
@@ -11996,7 +12517,7 @@ class SelectionData$Type extends MessageType<SelectionData> {
         return message;
     }
     internalBinaryWrite(message: SelectionData, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
-        /* symbolx.bench.BenchType metatype = 1; */
+        /* symbolx.bench.ObjectType metatype = 1; */
         if (message.metatype !== 0)
             writer.tag(1, WireType.Varint).int32(message.metatype);
         /* optional int32 id = 2; */
@@ -12028,7 +12549,7 @@ export const SelectionData = new SelectionData$Type();
 class StepConnectionData$Type extends MessageType<StepConnectionData> {
     constructor() {
         super("symbolx.bench.StepConnectionData", [
-            { no: 1, name: "metatype", kind: "enum", T: () => ["symbolx.bench.BenchType", BenchType, "BENCH_TYPE_"] },
+            { no: 1, name: "metatype", kind: "enum", T: () => ["symbolx.bench.ObjectType", ObjectType, "OBJECT_TYPE_"] },
             { no: 2, name: "id", kind: "scalar", opt: true, T: 5 /*ScalarType.INT32*/ },
             { no: 3, name: "parent_id", kind: "scalar", opt: true, T: 5 /*ScalarType.INT32*/ },
             { no: 4, name: "parent_key", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
@@ -12050,7 +12571,7 @@ class StepConnectionData$Type extends MessageType<StepConnectionData> {
         while (reader.pos < end) {
             let [fieldNo, wireType] = reader.tag();
             switch (fieldNo) {
-                case /* symbolx.bench.BenchType metatype */ 1:
+                case /* symbolx.bench.ObjectType metatype */ 1:
                     message.metatype = reader.int32();
                     break;
                 case /* optional int32 id */ 2:
@@ -12087,7 +12608,7 @@ class StepConnectionData$Type extends MessageType<StepConnectionData> {
         return message;
     }
     internalBinaryWrite(message: StepConnectionData, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
-        /* symbolx.bench.BenchType metatype = 1; */
+        /* symbolx.bench.ObjectType metatype = 1; */
         if (message.metatype !== 0)
             writer.tag(1, WireType.Varint).int32(message.metatype);
         /* optional int32 id = 2; */
@@ -12126,7 +12647,7 @@ export const StepConnectionData = new StepConnectionData$Type();
 class SubjectData$Type extends MessageType<SubjectData> {
     constructor() {
         super("symbolx.bench.SubjectData", [
-            { no: 1, name: "metatype", kind: "enum", T: () => ["symbolx.bench.BenchType", BenchType, "BENCH_TYPE_"] },
+            { no: 1, name: "metatype", kind: "enum", T: () => ["symbolx.bench.ObjectType", ObjectType, "OBJECT_TYPE_"] },
             { no: 2, name: "id", kind: "scalar", opt: true, T: 5 /*ScalarType.INT32*/ },
             { no: 3, name: "parent_id", kind: "scalar", opt: true, T: 5 /*ScalarType.INT32*/ },
             { no: 4, name: "parent_key", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
@@ -12161,7 +12682,7 @@ class SubjectData$Type extends MessageType<SubjectData> {
         while (reader.pos < end) {
             let [fieldNo, wireType] = reader.tag();
             switch (fieldNo) {
-                case /* symbolx.bench.BenchType metatype */ 1:
+                case /* symbolx.bench.ObjectType metatype */ 1:
                     message.metatype = reader.int32();
                     break;
                 case /* optional int32 id */ 2:
@@ -12225,7 +12746,7 @@ class SubjectData$Type extends MessageType<SubjectData> {
         return message;
     }
     internalBinaryWrite(message: SubjectData, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
-        /* symbolx.bench.BenchType metatype = 1; */
+        /* symbolx.bench.ObjectType metatype = 1; */
         if (message.metatype !== 0)
             writer.tag(1, WireType.Varint).int32(message.metatype);
         /* optional int32 id = 2; */
@@ -12291,7 +12812,7 @@ export const SubjectData = new SubjectData$Type();
 class TextData$Type extends MessageType<TextData> {
     constructor() {
         super("symbolx.bench.TextData", [
-            { no: 1, name: "metatype", kind: "enum", T: () => ["symbolx.bench.BenchType", BenchType, "BENCH_TYPE_"] },
+            { no: 1, name: "metatype", kind: "enum", T: () => ["symbolx.bench.ObjectType", ObjectType, "OBJECT_TYPE_"] },
             { no: 2, name: "id", kind: "scalar", opt: true, T: 5 /*ScalarType.INT32*/ },
             { no: 3, name: "parent_id", kind: "scalar", opt: true, T: 5 /*ScalarType.INT32*/ },
             { no: 4, name: "parent_key", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
@@ -12314,7 +12835,7 @@ class TextData$Type extends MessageType<TextData> {
         while (reader.pos < end) {
             let [fieldNo, wireType] = reader.tag();
             switch (fieldNo) {
-                case /* symbolx.bench.BenchType metatype */ 1:
+                case /* symbolx.bench.ObjectType metatype */ 1:
                     message.metatype = reader.int32();
                     break;
                 case /* optional int32 id */ 2:
@@ -12351,7 +12872,7 @@ class TextData$Type extends MessageType<TextData> {
         return message;
     }
     internalBinaryWrite(message: TextData, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
-        /* symbolx.bench.BenchType metatype = 1; */
+        /* symbolx.bench.ObjectType metatype = 1; */
         if (message.metatype !== 0)
             writer.tag(1, WireType.Varint).int32(message.metatype);
         /* optional int32 id = 2; */
@@ -12390,7 +12911,7 @@ export const TextData = new TextData$Type();
 class TextLineData$Type extends MessageType<TextLineData> {
     constructor() {
         super("symbolx.bench.TextLineData", [
-            { no: 1, name: "metatype", kind: "enum", T: () => ["symbolx.bench.BenchType", BenchType, "BENCH_TYPE_"] },
+            { no: 1, name: "metatype", kind: "enum", T: () => ["symbolx.bench.ObjectType", ObjectType, "OBJECT_TYPE_"] },
             { no: 2, name: "id", kind: "scalar", opt: true, T: 5 /*ScalarType.INT32*/ },
             { no: 3, name: "parent_id", kind: "scalar", opt: true, T: 5 /*ScalarType.INT32*/ },
             { no: 4, name: "parent_key", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
@@ -12426,7 +12947,7 @@ class TextLineData$Type extends MessageType<TextLineData> {
         while (reader.pos < end) {
             let [fieldNo, wireType] = reader.tag();
             switch (fieldNo) {
-                case /* symbolx.bench.BenchType metatype */ 1:
+                case /* symbolx.bench.ObjectType metatype */ 1:
                     message.metatype = reader.int32();
                     break;
                 case /* optional int32 id */ 2:
@@ -12484,7 +13005,7 @@ class TextLineData$Type extends MessageType<TextLineData> {
         return message;
     }
     internalBinaryWrite(message: TextLineData, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
-        /* symbolx.bench.BenchType metatype = 1; */
+        /* symbolx.bench.ObjectType metatype = 1; */
         if (message.metatype !== 0)
             writer.tag(1, WireType.Varint).int32(message.metatype);
         /* optional int32 id = 2; */
@@ -12544,7 +13065,7 @@ export const TextLineData = new TextLineData$Type();
 class TextSpanData$Type extends MessageType<TextSpanData> {
     constructor() {
         super("symbolx.bench.TextSpanData", [
-            { no: 1, name: "metatype", kind: "enum", T: () => ["symbolx.bench.BenchType", BenchType, "BENCH_TYPE_"] },
+            { no: 1, name: "metatype", kind: "enum", T: () => ["symbolx.bench.ObjectType", ObjectType, "OBJECT_TYPE_"] },
             { no: 2, name: "id", kind: "scalar", opt: true, T: 5 /*ScalarType.INT32*/ },
             { no: 33, name: "content", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
             { no: 34, name: "node_ptr", kind: "message", T: () => NodeReferenceData },
@@ -12573,7 +13094,7 @@ class TextSpanData$Type extends MessageType<TextSpanData> {
         while (reader.pos < end) {
             let [fieldNo, wireType] = reader.tag();
             switch (fieldNo) {
-                case /* symbolx.bench.BenchType metatype */ 1:
+                case /* symbolx.bench.ObjectType metatype */ 1:
                     message.metatype = reader.int32();
                     break;
                 case /* optional int32 id */ 2:
@@ -12615,7 +13136,7 @@ class TextSpanData$Type extends MessageType<TextSpanData> {
         return message;
     }
     internalBinaryWrite(message: TextSpanData, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
-        /* symbolx.bench.BenchType metatype = 1; */
+        /* symbolx.bench.ObjectType metatype = 1; */
         if (message.metatype !== 0)
             writer.tag(1, WireType.Varint).int32(message.metatype);
         /* optional int32 id = 2; */
@@ -12659,7 +13180,7 @@ export const TextSpanData = new TextSpanData$Type();
 class TypeInfoData$Type extends MessageType<TypeInfoData> {
     constructor() {
         super("symbolx.bench.TypeInfoData", [
-            { no: 1, name: "metatype", kind: "enum", T: () => ["symbolx.bench.BenchType", BenchType, "BENCH_TYPE_"] },
+            { no: 1, name: "metatype", kind: "enum", T: () => ["symbolx.bench.ObjectType", ObjectType, "OBJECT_TYPE_"] },
             { no: 2, name: "id", kind: "scalar", opt: true, T: 5 /*ScalarType.INT32*/ },
             { no: 3, name: "parent_id", kind: "scalar", opt: true, T: 5 /*ScalarType.INT32*/ },
             { no: 4, name: "parent_key", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
@@ -12698,7 +13219,7 @@ class TypeInfoData$Type extends MessageType<TypeInfoData> {
         while (reader.pos < end) {
             let [fieldNo, wireType] = reader.tag();
             switch (fieldNo) {
-                case /* symbolx.bench.BenchType metatype */ 1:
+                case /* symbolx.bench.ObjectType metatype */ 1:
                     message.metatype = reader.int32();
                     break;
                 case /* optional int32 id */ 2:
@@ -12774,7 +13295,7 @@ class TypeInfoData$Type extends MessageType<TypeInfoData> {
         return message;
     }
     internalBinaryWrite(message: TypeInfoData, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
-        /* symbolx.bench.BenchType metatype = 1; */
+        /* symbolx.bench.ObjectType metatype = 1; */
         if (message.metatype !== 0)
             writer.tag(1, WireType.Varint).int32(message.metatype);
         /* optional int32 id = 2; */
@@ -12852,7 +13373,7 @@ export const TypeInfoData = new TypeInfoData$Type();
 class ValueReferenceData$Type extends MessageType<ValueReferenceData> {
     constructor() {
         super("symbolx.bench.ValueReferenceData", [
-            { no: 1, name: "metatype", kind: "enum", T: () => ["symbolx.bench.BenchType", BenchType, "BENCH_TYPE_"] },
+            { no: 1, name: "metatype", kind: "enum", T: () => ["symbolx.bench.ObjectType", ObjectType, "OBJECT_TYPE_"] },
             { no: 2, name: "id", kind: "scalar", opt: true, T: 5 /*ScalarType.INT32*/ },
             { no: 3, name: "parent_id", kind: "scalar", opt: true, T: 5 /*ScalarType.INT32*/ },
             { no: 4, name: "parent_key", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
@@ -12874,7 +13395,7 @@ class ValueReferenceData$Type extends MessageType<ValueReferenceData> {
         while (reader.pos < end) {
             let [fieldNo, wireType] = reader.tag();
             switch (fieldNo) {
-                case /* symbolx.bench.BenchType metatype */ 1:
+                case /* symbolx.bench.ObjectType metatype */ 1:
                     message.metatype = reader.int32();
                     break;
                 case /* optional int32 id */ 2:
@@ -12911,7 +13432,7 @@ class ValueReferenceData$Type extends MessageType<ValueReferenceData> {
         return message;
     }
     internalBinaryWrite(message: ValueReferenceData, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
-        /* symbolx.bench.BenchType metatype = 1; */
+        /* symbolx.bench.ObjectType metatype = 1; */
         if (message.metatype !== 0)
             writer.tag(1, WireType.Varint).int32(message.metatype);
         /* optional int32 id = 2; */
@@ -12950,7 +13471,7 @@ export const ValueReferenceData = new ValueReferenceData$Type();
 class BadgeData$Type extends MessageType<BadgeData> {
     constructor() {
         super("symbolx.bench.BadgeData", [
-            { no: 1, name: "metatype", kind: "enum", T: () => ["symbolx.bench.BenchType", BenchType, "BENCH_TYPE_"] },
+            { no: 1, name: "metatype", kind: "enum", T: () => ["symbolx.bench.ObjectType", ObjectType, "OBJECT_TYPE_"] },
             { no: 2, name: "id", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 3, name: "ck", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 4, name: "parent_ptr", kind: "message", T: () => NodeReferenceData },
@@ -12993,7 +13514,7 @@ class BadgeData$Type extends MessageType<BadgeData> {
         while (reader.pos < end) {
             let [fieldNo, wireType] = reader.tag();
             switch (fieldNo) {
-                case /* symbolx.bench.BenchType metatype */ 1:
+                case /* symbolx.bench.ObjectType metatype */ 1:
                     message.metatype = reader.int32();
                     break;
                 case /* string id */ 2:
@@ -13075,7 +13596,7 @@ class BadgeData$Type extends MessageType<BadgeData> {
         return message;
     }
     internalBinaryWrite(message: BadgeData, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
-        /* symbolx.bench.BenchType metatype = 1; */
+        /* symbolx.bench.ObjectType metatype = 1; */
         if (message.metatype !== 0)
             writer.tag(1, WireType.Varint).int32(message.metatype);
         /* string id = 2; */
@@ -13159,7 +13680,7 @@ export const BadgeData = new BadgeData$Type();
 class BenchData$Type extends MessageType<BenchData> {
     constructor() {
         super("symbolx.bench.BenchData", [
-            { no: 1, name: "metatype", kind: "enum", T: () => ["symbolx.bench.BenchType", BenchType, "BENCH_TYPE_"] },
+            { no: 1, name: "metatype", kind: "enum", T: () => ["symbolx.bench.ObjectType", ObjectType, "OBJECT_TYPE_"] },
             { no: 2, name: "id", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 4, name: "parent_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 8, name: "source", kind: "enum", T: () => ["symbolx.bench.NodeSource", NodeSource, "NODE_SOURCE_"] },
@@ -13205,7 +13726,7 @@ class BenchData$Type extends MessageType<BenchData> {
         while (reader.pos < end) {
             let [fieldNo, wireType] = reader.tag();
             switch (fieldNo) {
-                case /* symbolx.bench.BenchType metatype */ 1:
+                case /* symbolx.bench.ObjectType metatype */ 1:
                     message.metatype = reader.int32();
                     break;
                 case /* string id */ 2:
@@ -13293,7 +13814,7 @@ class BenchData$Type extends MessageType<BenchData> {
         return message;
     }
     internalBinaryWrite(message: BenchData, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
-        /* symbolx.bench.BenchType metatype = 1; */
+        /* symbolx.bench.ObjectType metatype = 1; */
         if (message.metatype !== 0)
             writer.tag(1, WireType.Varint).int32(message.metatype);
         /* string id = 2; */
@@ -13383,7 +13904,7 @@ export const BenchData = new BenchData$Type();
 class BlockData$Type extends MessageType<BlockData> {
     constructor() {
         super("symbolx.bench.BlockData", [
-            { no: 1, name: "metatype", kind: "enum", T: () => ["symbolx.bench.BenchType", BenchType, "BENCH_TYPE_"] },
+            { no: 1, name: "metatype", kind: "enum", T: () => ["symbolx.bench.ObjectType", ObjectType, "OBJECT_TYPE_"] },
             { no: 2, name: "id", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 3, name: "ck", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 4, name: "parent_ptr", kind: "message", T: () => NodeReferenceData },
@@ -13444,7 +13965,7 @@ class BlockData$Type extends MessageType<BlockData> {
         while (reader.pos < end) {
             let [fieldNo, wireType] = reader.tag();
             switch (fieldNo) {
-                case /* symbolx.bench.BenchType metatype */ 1:
+                case /* symbolx.bench.ObjectType metatype */ 1:
                     message.metatype = reader.int32();
                     break;
                 case /* string id */ 2:
@@ -13559,7 +14080,7 @@ class BlockData$Type extends MessageType<BlockData> {
         return message;
     }
     internalBinaryWrite(message: BlockData, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
-        /* symbolx.bench.BenchType metatype = 1; */
+        /* symbolx.bench.ObjectType metatype = 1; */
         if (message.metatype !== 0)
             writer.tag(1, WireType.Varint).int32(message.metatype);
         /* string id = 2; */
@@ -13676,7 +14197,7 @@ export const BlockData = new BlockData$Type();
 class BranchData$Type extends MessageType<BranchData> {
     constructor() {
         super("symbolx.bench.BranchData", [
-            { no: 1, name: "metatype", kind: "enum", T: () => ["symbolx.bench.BenchType", BenchType, "BENCH_TYPE_"] },
+            { no: 1, name: "metatype", kind: "enum", T: () => ["symbolx.bench.ObjectType", ObjectType, "OBJECT_TYPE_"] },
             { no: 2, name: "id", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 4, name: "parent_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 7, name: "bench_ptr", kind: "message", T: () => NodeReferenceData },
@@ -13715,7 +14236,7 @@ class BranchData$Type extends MessageType<BranchData> {
         while (reader.pos < end) {
             let [fieldNo, wireType] = reader.tag();
             switch (fieldNo) {
-                case /* symbolx.bench.BenchType metatype */ 1:
+                case /* symbolx.bench.ObjectType metatype */ 1:
                     message.metatype = reader.int32();
                     break;
                 case /* string id */ 2:
@@ -13788,7 +14309,7 @@ class BranchData$Type extends MessageType<BranchData> {
         return message;
     }
     internalBinaryWrite(message: BranchData, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
-        /* symbolx.bench.BenchType metatype = 1; */
+        /* symbolx.bench.ObjectType metatype = 1; */
         if (message.metatype !== 0)
             writer.tag(1, WireType.Varint).int32(message.metatype);
         /* string id = 2; */
@@ -13863,7 +14384,7 @@ export const BranchData = new BranchData$Type();
 class CacheData$Type extends MessageType<CacheData> {
     constructor() {
         super("symbolx.bench.CacheData", [
-            { no: 1, name: "metatype", kind: "enum", T: () => ["symbolx.bench.BenchType", BenchType, "BENCH_TYPE_"] },
+            { no: 1, name: "metatype", kind: "enum", T: () => ["symbolx.bench.ObjectType", ObjectType, "OBJECT_TYPE_"] },
             { no: 2, name: "id", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 4, name: "parent_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 7, name: "bench_ptr", kind: "message", T: () => NodeReferenceData },
@@ -13903,7 +14424,7 @@ class CacheData$Type extends MessageType<CacheData> {
         while (reader.pos < end) {
             let [fieldNo, wireType] = reader.tag();
             switch (fieldNo) {
-                case /* symbolx.bench.BenchType metatype */ 1:
+                case /* symbolx.bench.ObjectType metatype */ 1:
                     message.metatype = reader.int32();
                     break;
                 case /* string id */ 2:
@@ -13973,7 +14494,7 @@ class CacheData$Type extends MessageType<CacheData> {
         return message;
     }
     internalBinaryWrite(message: CacheData, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
-        /* symbolx.bench.BenchType metatype = 1; */
+        /* symbolx.bench.ObjectType metatype = 1; */
         if (message.metatype !== 0)
             writer.tag(1, WireType.Varint).int32(message.metatype);
         /* string id = 2; */
@@ -14045,7 +14566,7 @@ export const CacheData = new CacheData$Type();
 class ClientData$Type extends MessageType<ClientData> {
     constructor() {
         super("symbolx.bench.ClientData", [
-            { no: 1, name: "metatype", kind: "enum", T: () => ["symbolx.bench.BenchType", BenchType, "BENCH_TYPE_"] },
+            { no: 1, name: "metatype", kind: "enum", T: () => ["symbolx.bench.ObjectType", ObjectType, "OBJECT_TYPE_"] },
             { no: 2, name: "id", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 4, name: "parent_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 7, name: "bench_ptr", kind: "message", T: () => NodeReferenceData },
@@ -14088,7 +14609,7 @@ class ClientData$Type extends MessageType<ClientData> {
         while (reader.pos < end) {
             let [fieldNo, wireType] = reader.tag();
             switch (fieldNo) {
-                case /* symbolx.bench.BenchType metatype */ 1:
+                case /* symbolx.bench.ObjectType metatype */ 1:
                     message.metatype = reader.int32();
                     break;
                 case /* string id */ 2:
@@ -14176,7 +14697,7 @@ class ClientData$Type extends MessageType<ClientData> {
         return message;
     }
     internalBinaryWrite(message: ClientData, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
-        /* symbolx.bench.BenchType metatype = 1; */
+        /* symbolx.bench.ObjectType metatype = 1; */
         if (message.metatype !== 0)
             writer.tag(1, WireType.Varint).int32(message.metatype);
         /* string id = 2; */
@@ -14266,7 +14787,7 @@ export const ClientData = new ClientData$Type();
 class DependencyData$Type extends MessageType<DependencyData> {
     constructor() {
         super("symbolx.bench.DependencyData", [
-            { no: 1, name: "metatype", kind: "enum", T: () => ["symbolx.bench.BenchType", BenchType, "BENCH_TYPE_"] },
+            { no: 1, name: "metatype", kind: "enum", T: () => ["symbolx.bench.ObjectType", ObjectType, "OBJECT_TYPE_"] },
             { no: 2, name: "id", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 3, name: "ck", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 4, name: "parent_ptr", kind: "message", T: () => NodeReferenceData },
@@ -14305,7 +14826,7 @@ class DependencyData$Type extends MessageType<DependencyData> {
         while (reader.pos < end) {
             let [fieldNo, wireType] = reader.tag();
             switch (fieldNo) {
-                case /* symbolx.bench.BenchType metatype */ 1:
+                case /* symbolx.bench.ObjectType metatype */ 1:
                     message.metatype = reader.int32();
                     break;
                 case /* string id */ 2:
@@ -14375,7 +14896,7 @@ class DependencyData$Type extends MessageType<DependencyData> {
         return message;
     }
     internalBinaryWrite(message: DependencyData, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
-        /* symbolx.bench.BenchType metatype = 1; */
+        /* symbolx.bench.ObjectType metatype = 1; */
         if (message.metatype !== 0)
             writer.tag(1, WireType.Varint).int32(message.metatype);
         /* string id = 2; */
@@ -14447,7 +14968,7 @@ export const DependencyData = new DependencyData$Type();
 class DriveData$Type extends MessageType<DriveData> {
     constructor() {
         super("symbolx.bench.DriveData", [
-            { no: 1, name: "metatype", kind: "enum", T: () => ["symbolx.bench.BenchType", BenchType, "BENCH_TYPE_"] },
+            { no: 1, name: "metatype", kind: "enum", T: () => ["symbolx.bench.ObjectType", ObjectType, "OBJECT_TYPE_"] },
             { no: 2, name: "id", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 4, name: "parent_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 7, name: "bench_ptr", kind: "message", T: () => NodeReferenceData },
@@ -14487,7 +15008,7 @@ class DriveData$Type extends MessageType<DriveData> {
         while (reader.pos < end) {
             let [fieldNo, wireType] = reader.tag();
             switch (fieldNo) {
-                case /* symbolx.bench.BenchType metatype */ 1:
+                case /* symbolx.bench.ObjectType metatype */ 1:
                     message.metatype = reader.int32();
                     break;
                 case /* string id */ 2:
@@ -14557,7 +15078,7 @@ class DriveData$Type extends MessageType<DriveData> {
         return message;
     }
     internalBinaryWrite(message: DriveData, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
-        /* symbolx.bench.BenchType metatype = 1; */
+        /* symbolx.bench.ObjectType metatype = 1; */
         if (message.metatype !== 0)
             writer.tag(1, WireType.Varint).int32(message.metatype);
         /* string id = 2; */
@@ -14629,7 +15150,7 @@ export const DriveData = new DriveData$Type();
 class EnvironmentData$Type extends MessageType<EnvironmentData> {
     constructor() {
         super("symbolx.bench.EnvironmentData", [
-            { no: 1, name: "metatype", kind: "enum", T: () => ["symbolx.bench.BenchType", BenchType, "BENCH_TYPE_"] },
+            { no: 1, name: "metatype", kind: "enum", T: () => ["symbolx.bench.ObjectType", ObjectType, "OBJECT_TYPE_"] },
             { no: 2, name: "id", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 4, name: "parent_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 7, name: "bench_ptr", kind: "message", T: () => NodeReferenceData },
@@ -14672,7 +15193,7 @@ class EnvironmentData$Type extends MessageType<EnvironmentData> {
         while (reader.pos < end) {
             let [fieldNo, wireType] = reader.tag();
             switch (fieldNo) {
-                case /* symbolx.bench.BenchType metatype */ 1:
+                case /* symbolx.bench.ObjectType metatype */ 1:
                     message.metatype = reader.int32();
                     break;
                 case /* string id */ 2:
@@ -14757,7 +15278,7 @@ class EnvironmentData$Type extends MessageType<EnvironmentData> {
         return message;
     }
     internalBinaryWrite(message: EnvironmentData, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
-        /* symbolx.bench.BenchType metatype = 1; */
+        /* symbolx.bench.ObjectType metatype = 1; */
         if (message.metatype !== 0)
             writer.tag(1, WireType.Varint).int32(message.metatype);
         /* string id = 2; */
@@ -14844,7 +15365,7 @@ export const EnvironmentData = new EnvironmentData$Type();
 class FieldData$Type extends MessageType<FieldData> {
     constructor() {
         super("symbolx.bench.FieldData", [
-            { no: 1, name: "metatype", kind: "enum", T: () => ["symbolx.bench.BenchType", BenchType, "BENCH_TYPE_"] },
+            { no: 1, name: "metatype", kind: "enum", T: () => ["symbolx.bench.ObjectType", ObjectType, "OBJECT_TYPE_"] },
             { no: 2, name: "id", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 3, name: "ck", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 4, name: "parent_ptr", kind: "message", T: () => NodeReferenceData },
@@ -14908,7 +15429,7 @@ class FieldData$Type extends MessageType<FieldData> {
         while (reader.pos < end) {
             let [fieldNo, wireType] = reader.tag();
             switch (fieldNo) {
-                case /* symbolx.bench.BenchType metatype */ 1:
+                case /* symbolx.bench.ObjectType metatype */ 1:
                     message.metatype = reader.int32();
                     break;
                 case /* string id */ 2:
@@ -15035,7 +15556,7 @@ class FieldData$Type extends MessageType<FieldData> {
         return message;
     }
     internalBinaryWrite(message: FieldData, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
-        /* symbolx.bench.BenchType metatype = 1; */
+        /* symbolx.bench.ObjectType metatype = 1; */
         if (message.metatype !== 0)
             writer.tag(1, WireType.Varint).int32(message.metatype);
         /* string id = 2; */
@@ -15164,7 +15685,7 @@ export const FieldData = new FieldData$Type();
 class FileContentData$Type extends MessageType<FileContentData> {
     constructor() {
         super("symbolx.bench.FileContentData", [
-            { no: 1, name: "metatype", kind: "enum", T: () => ["symbolx.bench.BenchType", BenchType, "BENCH_TYPE_"] },
+            { no: 1, name: "metatype", kind: "enum", T: () => ["symbolx.bench.ObjectType", ObjectType, "OBJECT_TYPE_"] },
             { no: 2, name: "id", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 4, name: "parent_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 7, name: "bench_ptr", kind: "message", T: () => NodeReferenceData },
@@ -15206,7 +15727,7 @@ class FileContentData$Type extends MessageType<FileContentData> {
         while (reader.pos < end) {
             let [fieldNo, wireType] = reader.tag();
             switch (fieldNo) {
-                case /* symbolx.bench.BenchType metatype */ 1:
+                case /* symbolx.bench.ObjectType metatype */ 1:
                     message.metatype = reader.int32();
                     break;
                 case /* string id */ 2:
@@ -15279,7 +15800,7 @@ class FileContentData$Type extends MessageType<FileContentData> {
         return message;
     }
     internalBinaryWrite(message: FileContentData, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
-        /* symbolx.bench.BenchType metatype = 1; */
+        /* symbolx.bench.ObjectType metatype = 1; */
         if (message.metatype !== 0)
             writer.tag(1, WireType.Varint).int32(message.metatype);
         /* string id = 2; */
@@ -15354,7 +15875,7 @@ export const FileContentData = new FileContentData$Type();
 class HandleData$Type extends MessageType<HandleData> {
     constructor() {
         super("symbolx.bench.HandleData", [
-            { no: 1, name: "metatype", kind: "enum", T: () => ["symbolx.bench.BenchType", BenchType, "BENCH_TYPE_"] },
+            { no: 1, name: "metatype", kind: "enum", T: () => ["symbolx.bench.ObjectType", ObjectType, "OBJECT_TYPE_"] },
             { no: 2, name: "id", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 4, name: "parent_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 7, name: "bench_ptr", kind: "message", T: () => NodeReferenceData },
@@ -15387,7 +15908,7 @@ class HandleData$Type extends MessageType<HandleData> {
         while (reader.pos < end) {
             let [fieldNo, wireType] = reader.tag();
             switch (fieldNo) {
-                case /* symbolx.bench.BenchType metatype */ 1:
+                case /* symbolx.bench.ObjectType metatype */ 1:
                     message.metatype = reader.int32();
                     break;
                 case /* string id */ 2:
@@ -15445,7 +15966,7 @@ class HandleData$Type extends MessageType<HandleData> {
         return message;
     }
     internalBinaryWrite(message: HandleData, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
-        /* symbolx.bench.BenchType metatype = 1; */
+        /* symbolx.bench.ObjectType metatype = 1; */
         if (message.metatype !== 0)
             writer.tag(1, WireType.Varint).int32(message.metatype);
         /* string id = 2; */
@@ -15505,7 +16026,7 @@ export const HandleData = new HandleData$Type();
 class IdentityData$Type extends MessageType<IdentityData> {
     constructor() {
         super("symbolx.bench.IdentityData", [
-            { no: 1, name: "metatype", kind: "enum", T: () => ["symbolx.bench.BenchType", BenchType, "BENCH_TYPE_"] },
+            { no: 1, name: "metatype", kind: "enum", T: () => ["symbolx.bench.ObjectType", ObjectType, "OBJECT_TYPE_"] },
             { no: 2, name: "id", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 3, name: "ck", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 4, name: "parent_ptr", kind: "message", T: () => NodeReferenceData },
@@ -15540,7 +16061,7 @@ class IdentityData$Type extends MessageType<IdentityData> {
         while (reader.pos < end) {
             let [fieldNo, wireType] = reader.tag();
             switch (fieldNo) {
-                case /* symbolx.bench.BenchType metatype */ 1:
+                case /* symbolx.bench.ObjectType metatype */ 1:
                     message.metatype = reader.int32();
                     break;
                 case /* string id */ 2:
@@ -15604,7 +16125,7 @@ class IdentityData$Type extends MessageType<IdentityData> {
         return message;
     }
     internalBinaryWrite(message: IdentityData, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
-        /* symbolx.bench.BenchType metatype = 1; */
+        /* symbolx.bench.ObjectType metatype = 1; */
         if (message.metatype !== 0)
             writer.tag(1, WireType.Varint).int32(message.metatype);
         /* string id = 2; */
@@ -15670,7 +16191,7 @@ export const IdentityData = new IdentityData$Type();
 class InviteData$Type extends MessageType<InviteData> {
     constructor() {
         super("symbolx.bench.InviteData", [
-            { no: 1, name: "metatype", kind: "enum", T: () => ["symbolx.bench.BenchType", BenchType, "BENCH_TYPE_"] },
+            { no: 1, name: "metatype", kind: "enum", T: () => ["symbolx.bench.ObjectType", ObjectType, "OBJECT_TYPE_"] },
             { no: 2, name: "id", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 3, name: "ck", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 4, name: "parent_ptr", kind: "message", T: () => NodeReferenceData },
@@ -15710,7 +16231,7 @@ class InviteData$Type extends MessageType<InviteData> {
         while (reader.pos < end) {
             let [fieldNo, wireType] = reader.tag();
             switch (fieldNo) {
-                case /* symbolx.bench.BenchType metatype */ 1:
+                case /* symbolx.bench.ObjectType metatype */ 1:
                     message.metatype = reader.int32();
                     break;
                 case /* string id */ 2:
@@ -15783,7 +16304,7 @@ class InviteData$Type extends MessageType<InviteData> {
         return message;
     }
     internalBinaryWrite(message: InviteData, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
-        /* symbolx.bench.BenchType metatype = 1; */
+        /* symbolx.bench.ObjectType metatype = 1; */
         if (message.metatype !== 0)
             writer.tag(1, WireType.Varint).int32(message.metatype);
         /* string id = 2; */
@@ -15858,7 +16379,7 @@ export const InviteData = new InviteData$Type();
 class LinkData$Type extends MessageType<LinkData> {
     constructor() {
         super("symbolx.bench.LinkData", [
-            { no: 1, name: "metatype", kind: "enum", T: () => ["symbolx.bench.BenchType", BenchType, "BENCH_TYPE_"] },
+            { no: 1, name: "metatype", kind: "enum", T: () => ["symbolx.bench.ObjectType", ObjectType, "OBJECT_TYPE_"] },
             { no: 2, name: "id", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 3, name: "ck", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 4, name: "parent_ptr", kind: "message", T: () => NodeReferenceData },
@@ -15894,7 +16415,7 @@ class LinkData$Type extends MessageType<LinkData> {
         while (reader.pos < end) {
             let [fieldNo, wireType] = reader.tag();
             switch (fieldNo) {
-                case /* symbolx.bench.BenchType metatype */ 1:
+                case /* symbolx.bench.ObjectType metatype */ 1:
                     message.metatype = reader.int32();
                     break;
                 case /* string id */ 2:
@@ -15961,7 +16482,7 @@ class LinkData$Type extends MessageType<LinkData> {
         return message;
     }
     internalBinaryWrite(message: LinkData, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
-        /* symbolx.bench.BenchType metatype = 1; */
+        /* symbolx.bench.ObjectType metatype = 1; */
         if (message.metatype !== 0)
             writer.tag(1, WireType.Varint).int32(message.metatype);
         /* string id = 2; */
@@ -16030,7 +16551,7 @@ export const LinkData = new LinkData$Type();
 class LogData$Type extends MessageType<LogData> {
     constructor() {
         super("symbolx.bench.LogData", [
-            { no: 1, name: "metatype", kind: "enum", T: () => ["symbolx.bench.BenchType", BenchType, "BENCH_TYPE_"] },
+            { no: 1, name: "metatype", kind: "enum", T: () => ["symbolx.bench.ObjectType", ObjectType, "OBJECT_TYPE_"] },
             { no: 2, name: "id", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 4, name: "parent_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 6, name: "package_ptr", kind: "message", T: () => NodeReferenceData },
@@ -16075,7 +16596,7 @@ class LogData$Type extends MessageType<LogData> {
         while (reader.pos < end) {
             let [fieldNo, wireType] = reader.tag();
             switch (fieldNo) {
-                case /* symbolx.bench.BenchType metatype */ 1:
+                case /* symbolx.bench.ObjectType metatype */ 1:
                     message.metatype = reader.int32();
                     break;
                 case /* string id */ 2:
@@ -16166,7 +16687,7 @@ class LogData$Type extends MessageType<LogData> {
         return message;
     }
     internalBinaryWrite(message: LogData, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
-        /* symbolx.bench.BenchType metatype = 1; */
+        /* symbolx.bench.ObjectType metatype = 1; */
         if (message.metatype !== 0)
             writer.tag(1, WireType.Varint).int32(message.metatype);
         /* string id = 2; */
@@ -16259,7 +16780,7 @@ export const LogData = new LogData$Type();
 class MembershipData$Type extends MessageType<MembershipData> {
     constructor() {
         super("symbolx.bench.MembershipData", [
-            { no: 1, name: "metatype", kind: "enum", T: () => ["symbolx.bench.BenchType", BenchType, "BENCH_TYPE_"] },
+            { no: 1, name: "metatype", kind: "enum", T: () => ["symbolx.bench.ObjectType", ObjectType, "OBJECT_TYPE_"] },
             { no: 2, name: "id", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 3, name: "ck", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 4, name: "parent_ptr", kind: "message", T: () => NodeReferenceData },
@@ -16296,7 +16817,7 @@ class MembershipData$Type extends MessageType<MembershipData> {
         while (reader.pos < end) {
             let [fieldNo, wireType] = reader.tag();
             switch (fieldNo) {
-                case /* symbolx.bench.BenchType metatype */ 1:
+                case /* symbolx.bench.ObjectType metatype */ 1:
                     message.metatype = reader.int32();
                     break;
                 case /* string id */ 2:
@@ -16363,7 +16884,7 @@ class MembershipData$Type extends MessageType<MembershipData> {
         return message;
     }
     internalBinaryWrite(message: MembershipData, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
-        /* symbolx.bench.BenchType metatype = 1; */
+        /* symbolx.bench.ObjectType metatype = 1; */
         if (message.metatype !== 0)
             writer.tag(1, WireType.Varint).int32(message.metatype);
         /* string id = 2; */
@@ -16432,7 +16953,7 @@ export const MembershipData = new MembershipData$Type();
 class BaseNodeData$Type extends MessageType<BaseNodeData> {
     constructor() {
         super("symbolx.bench.BaseNodeData", [
-            { no: 1, name: "metatype", kind: "enum", T: () => ["symbolx.bench.BenchType", BenchType, "BENCH_TYPE_"] },
+            { no: 1, name: "metatype", kind: "enum", T: () => ["symbolx.bench.ObjectType", ObjectType, "OBJECT_TYPE_"] },
             { no: 2, name: "id", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 3, name: "ck", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 4, name: "parent_ptr", kind: "message", T: () => NodeReferenceData },
@@ -16466,7 +16987,7 @@ class BaseNodeData$Type extends MessageType<BaseNodeData> {
         while (reader.pos < end) {
             let [fieldNo, wireType] = reader.tag();
             switch (fieldNo) {
-                case /* symbolx.bench.BenchType metatype */ 1:
+                case /* symbolx.bench.ObjectType metatype */ 1:
                     message.metatype = reader.int32();
                     break;
                 case /* string id */ 2:
@@ -16527,7 +17048,7 @@ class BaseNodeData$Type extends MessageType<BaseNodeData> {
         return message;
     }
     internalBinaryWrite(message: BaseNodeData, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
-        /* symbolx.bench.BenchType metatype = 1; */
+        /* symbolx.bench.ObjectType metatype = 1; */
         if (message.metatype !== 0)
             writer.tag(1, WireType.Varint).int32(message.metatype);
         /* string id = 2; */
@@ -16590,7 +17111,7 @@ export const BaseNodeData = new BaseNodeData$Type();
 class NoticeData$Type extends MessageType<NoticeData> {
     constructor() {
         super("symbolx.bench.NoticeData", [
-            { no: 1, name: "metatype", kind: "enum", T: () => ["symbolx.bench.BenchType", BenchType, "BENCH_TYPE_"] },
+            { no: 1, name: "metatype", kind: "enum", T: () => ["symbolx.bench.ObjectType", ObjectType, "OBJECT_TYPE_"] },
             { no: 2, name: "id", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 3, name: "ck", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 4, name: "parent_ptr", kind: "message", T: () => NodeReferenceData },
@@ -16632,7 +17153,7 @@ class NoticeData$Type extends MessageType<NoticeData> {
         while (reader.pos < end) {
             let [fieldNo, wireType] = reader.tag();
             switch (fieldNo) {
-                case /* symbolx.bench.BenchType metatype */ 1:
+                case /* symbolx.bench.ObjectType metatype */ 1:
                     message.metatype = reader.int32();
                     break;
                 case /* string id */ 2:
@@ -16708,7 +17229,7 @@ class NoticeData$Type extends MessageType<NoticeData> {
         return message;
     }
     internalBinaryWrite(message: NoticeData, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
-        /* symbolx.bench.BenchType metatype = 1; */
+        /* symbolx.bench.ObjectType metatype = 1; */
         if (message.metatype !== 0)
             writer.tag(1, WireType.Varint).int32(message.metatype);
         /* string id = 2; */
@@ -16786,7 +17307,7 @@ export const NoticeData = new NoticeData$Type();
 class NotificationData$Type extends MessageType<NotificationData> {
     constructor() {
         super("symbolx.bench.NotificationData", [
-            { no: 1, name: "metatype", kind: "enum", T: () => ["symbolx.bench.BenchType", BenchType, "BENCH_TYPE_"] },
+            { no: 1, name: "metatype", kind: "enum", T: () => ["symbolx.bench.ObjectType", ObjectType, "OBJECT_TYPE_"] },
             { no: 2, name: "id", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 3, name: "ck", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 4, name: "parent_ptr", kind: "message", T: () => NodeReferenceData },
@@ -16830,7 +17351,7 @@ class NotificationData$Type extends MessageType<NotificationData> {
         while (reader.pos < end) {
             let [fieldNo, wireType] = reader.tag();
             switch (fieldNo) {
-                case /* symbolx.bench.BenchType metatype */ 1:
+                case /* symbolx.bench.ObjectType metatype */ 1:
                     message.metatype = reader.int32();
                     break;
                 case /* string id */ 2:
@@ -16918,7 +17439,7 @@ class NotificationData$Type extends MessageType<NotificationData> {
         return message;
     }
     internalBinaryWrite(message: NotificationData, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
-        /* symbolx.bench.BenchType metatype = 1; */
+        /* symbolx.bench.ObjectType metatype = 1; */
         if (message.metatype !== 0)
             writer.tag(1, WireType.Varint).int32(message.metatype);
         /* string id = 2; */
@@ -17008,7 +17529,7 @@ export const NotificationData = new NotificationData$Type();
 class OrganizationData$Type extends MessageType<OrganizationData> {
     constructor() {
         super("symbolx.bench.OrganizationData", [
-            { no: 1, name: "metatype", kind: "enum", T: () => ["symbolx.bench.BenchType", BenchType, "BENCH_TYPE_"] },
+            { no: 1, name: "metatype", kind: "enum", T: () => ["symbolx.bench.ObjectType", ObjectType, "OBJECT_TYPE_"] },
             { no: 2, name: "id", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 4, name: "parent_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 8, name: "source", kind: "enum", T: () => ["symbolx.bench.NodeSource", NodeSource, "NODE_SOURCE_"] },
@@ -17047,7 +17568,7 @@ class OrganizationData$Type extends MessageType<OrganizationData> {
         while (reader.pos < end) {
             let [fieldNo, wireType] = reader.tag();
             switch (fieldNo) {
-                case /* symbolx.bench.BenchType metatype */ 1:
+                case /* symbolx.bench.ObjectType metatype */ 1:
                     message.metatype = reader.int32();
                     break;
                 case /* string id */ 2:
@@ -17120,7 +17641,7 @@ class OrganizationData$Type extends MessageType<OrganizationData> {
         return message;
     }
     internalBinaryWrite(message: OrganizationData, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
-        /* symbolx.bench.BenchType metatype = 1; */
+        /* symbolx.bench.ObjectType metatype = 1; */
         if (message.metatype !== 0)
             writer.tag(1, WireType.Varint).int32(message.metatype);
         /* string id = 2; */
@@ -17195,7 +17716,7 @@ export const OrganizationData = new OrganizationData$Type();
 class PackageData$Type extends MessageType<PackageData> {
     constructor() {
         super("symbolx.bench.PackageData", [
-            { no: 1, name: "metatype", kind: "enum", T: () => ["symbolx.bench.BenchType", BenchType, "BENCH_TYPE_"] },
+            { no: 1, name: "metatype", kind: "enum", T: () => ["symbolx.bench.ObjectType", ObjectType, "OBJECT_TYPE_"] },
             { no: 2, name: "id", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 4, name: "parent_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 7, name: "bench_ptr", kind: "message", T: () => NodeReferenceData },
@@ -17235,7 +17756,7 @@ class PackageData$Type extends MessageType<PackageData> {
         while (reader.pos < end) {
             let [fieldNo, wireType] = reader.tag();
             switch (fieldNo) {
-                case /* symbolx.bench.BenchType metatype */ 1:
+                case /* symbolx.bench.ObjectType metatype */ 1:
                     message.metatype = reader.int32();
                     break;
                 case /* string id */ 2:
@@ -17311,7 +17832,7 @@ class PackageData$Type extends MessageType<PackageData> {
         return message;
     }
     internalBinaryWrite(message: PackageData, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
-        /* symbolx.bench.BenchType metatype = 1; */
+        /* symbolx.bench.ObjectType metatype = 1; */
         if (message.metatype !== 0)
             writer.tag(1, WireType.Varint).int32(message.metatype);
         /* string id = 2; */
@@ -17389,7 +17910,7 @@ export const PackageData = new PackageData$Type();
 class PauseData$Type extends MessageType<PauseData> {
     constructor() {
         super("symbolx.bench.PauseData", [
-            { no: 1, name: "metatype", kind: "enum", T: () => ["symbolx.bench.BenchType", BenchType, "BENCH_TYPE_"] },
+            { no: 1, name: "metatype", kind: "enum", T: () => ["symbolx.bench.ObjectType", ObjectType, "OBJECT_TYPE_"] },
             { no: 2, name: "id", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 3, name: "ck", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 4, name: "parent_ptr", kind: "message", T: () => NodeReferenceData },
@@ -17424,7 +17945,7 @@ class PauseData$Type extends MessageType<PauseData> {
         while (reader.pos < end) {
             let [fieldNo, wireType] = reader.tag();
             switch (fieldNo) {
-                case /* symbolx.bench.BenchType metatype */ 1:
+                case /* symbolx.bench.ObjectType metatype */ 1:
                     message.metatype = reader.int32();
                     break;
                 case /* string id */ 2:
@@ -17488,7 +18009,7 @@ class PauseData$Type extends MessageType<PauseData> {
         return message;
     }
     internalBinaryWrite(message: PauseData, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
-        /* symbolx.bench.BenchType metatype = 1; */
+        /* symbolx.bench.ObjectType metatype = 1; */
         if (message.metatype !== 0)
             writer.tag(1, WireType.Varint).int32(message.metatype);
         /* string id = 2; */
@@ -17554,7 +18075,7 @@ export const PauseData = new PauseData$Type();
 class QueryData$Type extends MessageType<QueryData> {
     constructor() {
         super("symbolx.bench.QueryData", [
-            { no: 1, name: "metatype", kind: "enum", T: () => ["symbolx.bench.BenchType", BenchType, "BENCH_TYPE_"] },
+            { no: 1, name: "metatype", kind: "enum", T: () => ["symbolx.bench.ObjectType", ObjectType, "OBJECT_TYPE_"] },
             { no: 2, name: "id", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 3, name: "ck", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 4, name: "parent_ptr", kind: "message", T: () => NodeReferenceData },
@@ -17597,7 +18118,7 @@ class QueryData$Type extends MessageType<QueryData> {
         while (reader.pos < end) {
             let [fieldNo, wireType] = reader.tag();
             switch (fieldNo) {
-                case /* symbolx.bench.BenchType metatype */ 1:
+                case /* symbolx.bench.ObjectType metatype */ 1:
                     message.metatype = reader.int32();
                     break;
                 case /* string id */ 2:
@@ -17676,7 +18197,7 @@ class QueryData$Type extends MessageType<QueryData> {
         return message;
     }
     internalBinaryWrite(message: QueryData, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
-        /* symbolx.bench.BenchType metatype = 1; */
+        /* symbolx.bench.ObjectType metatype = 1; */
         if (message.metatype !== 0)
             writer.tag(1, WireType.Varint).int32(message.metatype);
         /* string id = 2; */
@@ -17757,7 +18278,7 @@ export const QueryData = new QueryData$Type();
 class RecordData$Type extends MessageType<RecordData> {
     constructor() {
         super("symbolx.bench.RecordData", [
-            { no: 1, name: "metatype", kind: "enum", T: () => ["symbolx.bench.BenchType", BenchType, "BENCH_TYPE_"] },
+            { no: 1, name: "metatype", kind: "enum", T: () => ["symbolx.bench.ObjectType", ObjectType, "OBJECT_TYPE_"] },
             { no: 2, name: "id", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 3, name: "ck", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 4, name: "parent_ptr", kind: "message", T: () => NodeReferenceData },
@@ -17793,7 +18314,7 @@ class RecordData$Type extends MessageType<RecordData> {
         while (reader.pos < end) {
             let [fieldNo, wireType] = reader.tag();
             switch (fieldNo) {
-                case /* symbolx.bench.BenchType metatype */ 1:
+                case /* symbolx.bench.ObjectType metatype */ 1:
                     message.metatype = reader.int32();
                     break;
                 case /* string id */ 2:
@@ -17860,7 +18381,7 @@ class RecordData$Type extends MessageType<RecordData> {
         return message;
     }
     internalBinaryWrite(message: RecordData, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
-        /* symbolx.bench.BenchType metatype = 1; */
+        /* symbolx.bench.ObjectType metatype = 1; */
         if (message.metatype !== 0)
             writer.tag(1, WireType.Varint).int32(message.metatype);
         /* string id = 2; */
@@ -17929,7 +18450,7 @@ export const RecordData = new RecordData$Type();
 class RoleData$Type extends MessageType<RoleData> {
     constructor() {
         super("symbolx.bench.RoleData", [
-            { no: 1, name: "metatype", kind: "enum", T: () => ["symbolx.bench.BenchType", BenchType, "BENCH_TYPE_"] },
+            { no: 1, name: "metatype", kind: "enum", T: () => ["symbolx.bench.ObjectType", ObjectType, "OBJECT_TYPE_"] },
             { no: 2, name: "id", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 3, name: "ck", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 4, name: "parent_ptr", kind: "message", T: () => NodeReferenceData },
@@ -17964,7 +18485,7 @@ class RoleData$Type extends MessageType<RoleData> {
         while (reader.pos < end) {
             let [fieldNo, wireType] = reader.tag();
             switch (fieldNo) {
-                case /* symbolx.bench.BenchType metatype */ 1:
+                case /* symbolx.bench.ObjectType metatype */ 1:
                     message.metatype = reader.int32();
                     break;
                 case /* string id */ 2:
@@ -18028,7 +18549,7 @@ class RoleData$Type extends MessageType<RoleData> {
         return message;
     }
     internalBinaryWrite(message: RoleData, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
-        /* symbolx.bench.BenchType metatype = 1; */
+        /* symbolx.bench.ObjectType metatype = 1; */
         if (message.metatype !== 0)
             writer.tag(1, WireType.Varint).int32(message.metatype);
         /* string id = 2; */
@@ -18094,7 +18615,7 @@ export const RoleData = new RoleData$Type();
 class RunData$Type extends MessageType<RunData> {
     constructor() {
         super("symbolx.bench.RunData", [
-            { no: 1, name: "metatype", kind: "enum", T: () => ["symbolx.bench.BenchType", BenchType, "BENCH_TYPE_"] },
+            { no: 1, name: "metatype", kind: "enum", T: () => ["symbolx.bench.ObjectType", ObjectType, "OBJECT_TYPE_"] },
             { no: 2, name: "id", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 3, name: "ck", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 4, name: "parent_ptr", kind: "message", T: () => NodeReferenceData },
@@ -18146,7 +18667,7 @@ class RunData$Type extends MessageType<RunData> {
         while (reader.pos < end) {
             let [fieldNo, wireType] = reader.tag();
             switch (fieldNo) {
-                case /* symbolx.bench.BenchType metatype */ 1:
+                case /* symbolx.bench.ObjectType metatype */ 1:
                     message.metatype = reader.int32();
                     break;
                 case /* string id */ 2:
@@ -18255,7 +18776,7 @@ class RunData$Type extends MessageType<RunData> {
         return message;
     }
     internalBinaryWrite(message: RunData, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
-        /* symbolx.bench.BenchType metatype = 1; */
+        /* symbolx.bench.ObjectType metatype = 1; */
         if (message.metatype !== 0)
             writer.tag(1, WireType.Varint).int32(message.metatype);
         /* string id = 2; */
@@ -18366,7 +18887,7 @@ export const RunData = new RunData$Type();
 class ServerData$Type extends MessageType<ServerData> {
     constructor() {
         super("symbolx.bench.ServerData", [
-            { no: 1, name: "metatype", kind: "enum", T: () => ["symbolx.bench.BenchType", BenchType, "BENCH_TYPE_"] },
+            { no: 1, name: "metatype", kind: "enum", T: () => ["symbolx.bench.ObjectType", ObjectType, "OBJECT_TYPE_"] },
             { no: 2, name: "id", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 4, name: "parent_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 7, name: "bench_ptr", kind: "message", T: () => NodeReferenceData },
@@ -18415,7 +18936,7 @@ class ServerData$Type extends MessageType<ServerData> {
         while (reader.pos < end) {
             let [fieldNo, wireType] = reader.tag();
             switch (fieldNo) {
-                case /* symbolx.bench.BenchType metatype */ 1:
+                case /* symbolx.bench.ObjectType metatype */ 1:
                     message.metatype = reader.int32();
                     break;
                 case /* string id */ 2:
@@ -18506,7 +19027,7 @@ class ServerData$Type extends MessageType<ServerData> {
         return message;
     }
     internalBinaryWrite(message: ServerData, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
-        /* symbolx.bench.BenchType metatype = 1; */
+        /* symbolx.bench.ObjectType metatype = 1; */
         if (message.metatype !== 0)
             writer.tag(1, WireType.Varint).int32(message.metatype);
         /* string id = 2; */
@@ -18599,7 +19120,7 @@ export const ServerData = new ServerData$Type();
 class SessionData$Type extends MessageType<SessionData> {
     constructor() {
         super("symbolx.bench.SessionData", [
-            { no: 1, name: "metatype", kind: "enum", T: () => ["symbolx.bench.BenchType", BenchType, "BENCH_TYPE_"] },
+            { no: 1, name: "metatype", kind: "enum", T: () => ["symbolx.bench.ObjectType", ObjectType, "OBJECT_TYPE_"] },
             { no: 2, name: "id", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 3, name: "ck", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 4, name: "parent_ptr", kind: "message", T: () => NodeReferenceData },
@@ -18641,7 +19162,7 @@ class SessionData$Type extends MessageType<SessionData> {
         while (reader.pos < end) {
             let [fieldNo, wireType] = reader.tag();
             switch (fieldNo) {
-                case /* symbolx.bench.BenchType metatype */ 1:
+                case /* symbolx.bench.ObjectType metatype */ 1:
                     message.metatype = reader.int32();
                     break;
                 case /* string id */ 2:
@@ -18720,7 +19241,7 @@ class SessionData$Type extends MessageType<SessionData> {
         return message;
     }
     internalBinaryWrite(message: SessionData, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
-        /* symbolx.bench.BenchType metatype = 1; */
+        /* symbolx.bench.ObjectType metatype = 1; */
         if (message.metatype !== 0)
             writer.tag(1, WireType.Varint).int32(message.metatype);
         /* string id = 2; */
@@ -18801,7 +19322,7 @@ export const SessionData = new SessionData$Type();
 class SignalData$Type extends MessageType<SignalData> {
     constructor() {
         super("symbolx.bench.SignalData", [
-            { no: 1, name: "metatype", kind: "enum", T: () => ["symbolx.bench.BenchType", BenchType, "BENCH_TYPE_"] },
+            { no: 1, name: "metatype", kind: "enum", T: () => ["symbolx.bench.ObjectType", ObjectType, "OBJECT_TYPE_"] },
             { no: 2, name: "id", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 3, name: "ck", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 4, name: "parent_ptr", kind: "message", T: () => NodeReferenceData },
@@ -18839,7 +19360,7 @@ class SignalData$Type extends MessageType<SignalData> {
         while (reader.pos < end) {
             let [fieldNo, wireType] = reader.tag();
             switch (fieldNo) {
-                case /* symbolx.bench.BenchType metatype */ 1:
+                case /* symbolx.bench.ObjectType metatype */ 1:
                     message.metatype = reader.int32();
                     break;
                 case /* string id */ 2:
@@ -18912,7 +19433,7 @@ class SignalData$Type extends MessageType<SignalData> {
         return message;
     }
     internalBinaryWrite(message: SignalData, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
-        /* symbolx.bench.BenchType metatype = 1; */
+        /* symbolx.bench.ObjectType metatype = 1; */
         if (message.metatype !== 0)
             writer.tag(1, WireType.Varint).int32(message.metatype);
         /* string id = 2; */
@@ -18987,7 +19508,7 @@ export const SignalData = new SignalData$Type();
 class SkipData$Type extends MessageType<SkipData> {
     constructor() {
         super("symbolx.bench.SkipData", [
-            { no: 1, name: "metatype", kind: "enum", T: () => ["symbolx.bench.BenchType", BenchType, "BENCH_TYPE_"] },
+            { no: 1, name: "metatype", kind: "enum", T: () => ["symbolx.bench.ObjectType", ObjectType, "OBJECT_TYPE_"] },
             { no: 2, name: "id", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 3, name: "ck", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 4, name: "parent_ptr", kind: "message", T: () => NodeReferenceData },
@@ -19023,7 +19544,7 @@ class SkipData$Type extends MessageType<SkipData> {
         while (reader.pos < end) {
             let [fieldNo, wireType] = reader.tag();
             switch (fieldNo) {
-                case /* symbolx.bench.BenchType metatype */ 1:
+                case /* symbolx.bench.ObjectType metatype */ 1:
                     message.metatype = reader.int32();
                     break;
                 case /* string id */ 2:
@@ -19090,7 +19611,7 @@ class SkipData$Type extends MessageType<SkipData> {
         return message;
     }
     internalBinaryWrite(message: SkipData, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
-        /* symbolx.bench.BenchType metatype = 1; */
+        /* symbolx.bench.ObjectType metatype = 1; */
         if (message.metatype !== 0)
             writer.tag(1, WireType.Varint).int32(message.metatype);
         /* string id = 2; */
@@ -19159,7 +19680,7 @@ export const SkipData = new SkipData$Type();
 class SpaceData$Type extends MessageType<SpaceData> {
     constructor() {
         super("symbolx.bench.SpaceData", [
-            { no: 1, name: "metatype", kind: "enum", T: () => ["symbolx.bench.BenchType", BenchType, "BENCH_TYPE_"] },
+            { no: 1, name: "metatype", kind: "enum", T: () => ["symbolx.bench.ObjectType", ObjectType, "OBJECT_TYPE_"] },
             { no: 2, name: "id", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 3, name: "ck", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 4, name: "parent_ptr", kind: "message", T: () => NodeReferenceData },
@@ -19203,7 +19724,7 @@ class SpaceData$Type extends MessageType<SpaceData> {
         while (reader.pos < end) {
             let [fieldNo, wireType] = reader.tag();
             switch (fieldNo) {
-                case /* symbolx.bench.BenchType metatype */ 1:
+                case /* symbolx.bench.ObjectType metatype */ 1:
                     message.metatype = reader.int32();
                     break;
                 case /* string id */ 2:
@@ -19285,7 +19806,7 @@ class SpaceData$Type extends MessageType<SpaceData> {
         return message;
     }
     internalBinaryWrite(message: SpaceData, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
-        /* symbolx.bench.BenchType metatype = 1; */
+        /* symbolx.bench.ObjectType metatype = 1; */
         if (message.metatype !== 0)
             writer.tag(1, WireType.Varint).int32(message.metatype);
         /* string id = 2; */
@@ -19369,7 +19890,7 @@ export const SpaceData = new SpaceData$Type();
 class StepData$Type extends MessageType<StepData> {
     constructor() {
         super("symbolx.bench.StepData", [
-            { no: 1, name: "metatype", kind: "enum", T: () => ["symbolx.bench.BenchType", BenchType, "BENCH_TYPE_"] },
+            { no: 1, name: "metatype", kind: "enum", T: () => ["symbolx.bench.ObjectType", ObjectType, "OBJECT_TYPE_"] },
             { no: 2, name: "id", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 3, name: "ck", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 4, name: "parent_ptr", kind: "message", T: () => NodeReferenceData },
@@ -19417,7 +19938,7 @@ class StepData$Type extends MessageType<StepData> {
         while (reader.pos < end) {
             let [fieldNo, wireType] = reader.tag();
             switch (fieldNo) {
-                case /* symbolx.bench.BenchType metatype */ 1:
+                case /* symbolx.bench.ObjectType metatype */ 1:
                     message.metatype = reader.int32();
                     break;
                 case /* string id */ 2:
@@ -19511,7 +20032,7 @@ class StepData$Type extends MessageType<StepData> {
         return message;
     }
     internalBinaryWrite(message: StepData, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
-        /* symbolx.bench.BenchType metatype = 1; */
+        /* symbolx.bench.ObjectType metatype = 1; */
         if (message.metatype !== 0)
             writer.tag(1, WireType.Varint).int32(message.metatype);
         /* string id = 2; */
@@ -19607,7 +20128,7 @@ export const StepData = new StepData$Type();
 class StoreData$Type extends MessageType<StoreData> {
     constructor() {
         super("symbolx.bench.StoreData", [
-            { no: 1, name: "metatype", kind: "enum", T: () => ["symbolx.bench.BenchType", BenchType, "BENCH_TYPE_"] },
+            { no: 1, name: "metatype", kind: "enum", T: () => ["symbolx.bench.ObjectType", ObjectType, "OBJECT_TYPE_"] },
             { no: 2, name: "id", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 4, name: "parent_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 7, name: "bench_ptr", kind: "message", T: () => NodeReferenceData },
@@ -19656,7 +20177,7 @@ class StoreData$Type extends MessageType<StoreData> {
         while (reader.pos < end) {
             let [fieldNo, wireType] = reader.tag();
             switch (fieldNo) {
-                case /* symbolx.bench.BenchType metatype */ 1:
+                case /* symbolx.bench.ObjectType metatype */ 1:
                     message.metatype = reader.int32();
                     break;
                 case /* string id */ 2:
@@ -19747,7 +20268,7 @@ class StoreData$Type extends MessageType<StoreData> {
         return message;
     }
     internalBinaryWrite(message: StoreData, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
-        /* symbolx.bench.BenchType metatype = 1; */
+        /* symbolx.bench.ObjectType metatype = 1; */
         if (message.metatype !== 0)
             writer.tag(1, WireType.Varint).int32(message.metatype);
         /* string id = 2; */
@@ -19840,7 +20361,7 @@ export const StoreData = new StoreData$Type();
 class TriggerData$Type extends MessageType<TriggerData> {
     constructor() {
         super("symbolx.bench.TriggerData", [
-            { no: 1, name: "metatype", kind: "enum", T: () => ["symbolx.bench.BenchType", BenchType, "BENCH_TYPE_"] },
+            { no: 1, name: "metatype", kind: "enum", T: () => ["symbolx.bench.ObjectType", ObjectType, "OBJECT_TYPE_"] },
             { no: 2, name: "id", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 3, name: "ck", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 4, name: "parent_ptr", kind: "message", T: () => NodeReferenceData },
@@ -19882,7 +20403,7 @@ class TriggerData$Type extends MessageType<TriggerData> {
         while (reader.pos < end) {
             let [fieldNo, wireType] = reader.tag();
             switch (fieldNo) {
-                case /* symbolx.bench.BenchType metatype */ 1:
+                case /* symbolx.bench.ObjectType metatype */ 1:
                     message.metatype = reader.int32();
                     break;
                 case /* string id */ 2:
@@ -19958,7 +20479,7 @@ class TriggerData$Type extends MessageType<TriggerData> {
         return message;
     }
     internalBinaryWrite(message: TriggerData, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
-        /* symbolx.bench.BenchType metatype = 1; */
+        /* symbolx.bench.ObjectType metatype = 1; */
         if (message.metatype !== 0)
             writer.tag(1, WireType.Varint).int32(message.metatype);
         /* string id = 2; */
@@ -20036,7 +20557,7 @@ export const TriggerData = new TriggerData$Type();
 class UpgradeData$Type extends MessageType<UpgradeData> {
     constructor() {
         super("symbolx.bench.UpgradeData", [
-            { no: 1, name: "metatype", kind: "enum", T: () => ["symbolx.bench.BenchType", BenchType, "BENCH_TYPE_"] },
+            { no: 1, name: "metatype", kind: "enum", T: () => ["symbolx.bench.ObjectType", ObjectType, "OBJECT_TYPE_"] },
             { no: 2, name: "id", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 3, name: "ck", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 4, name: "parent_ptr", kind: "message", T: () => NodeReferenceData },
@@ -20074,7 +20595,7 @@ class UpgradeData$Type extends MessageType<UpgradeData> {
         while (reader.pos < end) {
             let [fieldNo, wireType] = reader.tag();
             switch (fieldNo) {
-                case /* symbolx.bench.BenchType metatype */ 1:
+                case /* symbolx.bench.ObjectType metatype */ 1:
                     message.metatype = reader.int32();
                     break;
                 case /* string id */ 2:
@@ -20144,7 +20665,7 @@ class UpgradeData$Type extends MessageType<UpgradeData> {
         return message;
     }
     internalBinaryWrite(message: UpgradeData, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
-        /* symbolx.bench.BenchType metatype = 1; */
+        /* symbolx.bench.ObjectType metatype = 1; */
         if (message.metatype !== 0)
             writer.tag(1, WireType.Varint).int32(message.metatype);
         /* string id = 2; */
@@ -20216,7 +20737,7 @@ export const UpgradeData = new UpgradeData$Type();
 class UserData$Type extends MessageType<UserData> {
     constructor() {
         super("symbolx.bench.UserData", [
-            { no: 1, name: "metatype", kind: "enum", T: () => ["symbolx.bench.BenchType", BenchType, "BENCH_TYPE_"] },
+            { no: 1, name: "metatype", kind: "enum", T: () => ["symbolx.bench.ObjectType", ObjectType, "OBJECT_TYPE_"] },
             { no: 2, name: "id", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 4, name: "parent_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 8, name: "source", kind: "enum", T: () => ["symbolx.bench.NodeSource", NodeSource, "NODE_SOURCE_"] },
@@ -20261,7 +20782,7 @@ class UserData$Type extends MessageType<UserData> {
         while (reader.pos < end) {
             let [fieldNo, wireType] = reader.tag();
             switch (fieldNo) {
-                case /* symbolx.bench.BenchType metatype */ 1:
+                case /* symbolx.bench.ObjectType metatype */ 1:
                     message.metatype = reader.int32();
                     break;
                 case /* string id */ 2:
@@ -20349,7 +20870,7 @@ class UserData$Type extends MessageType<UserData> {
         return message;
     }
     internalBinaryWrite(message: UserData, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
-        /* symbolx.bench.BenchType metatype = 1; */
+        /* symbolx.bench.ObjectType metatype = 1; */
         if (message.metatype !== 0)
             writer.tag(1, WireType.Varint).int32(message.metatype);
         /* string id = 2; */
@@ -20439,7 +20960,7 @@ export const UserData = new UserData$Type();
 class ViewData$Type extends MessageType<ViewData> {
     constructor() {
         super("symbolx.bench.ViewData", [
-            { no: 1, name: "metatype", kind: "enum", T: () => ["symbolx.bench.BenchType", BenchType, "BENCH_TYPE_"] },
+            { no: 1, name: "metatype", kind: "enum", T: () => ["symbolx.bench.ObjectType", ObjectType, "OBJECT_TYPE_"] },
             { no: 2, name: "id", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 3, name: "ck", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 4, name: "parent_ptr", kind: "message", T: () => NodeReferenceData },
@@ -20501,7 +21022,7 @@ class ViewData$Type extends MessageType<ViewData> {
         while (reader.pos < end) {
             let [fieldNo, wireType] = reader.tag();
             switch (fieldNo) {
-                case /* symbolx.bench.BenchType metatype */ 1:
+                case /* symbolx.bench.ObjectType metatype */ 1:
                     message.metatype = reader.int32();
                     break;
                 case /* string id */ 2:
@@ -20637,7 +21158,7 @@ class ViewData$Type extends MessageType<ViewData> {
         return message;
     }
     internalBinaryWrite(message: ViewData, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
-        /* symbolx.bench.BenchType metatype = 1; */
+        /* symbolx.bench.ObjectType metatype = 1; */
         if (message.metatype !== 0)
             writer.tag(1, WireType.Varint).int32(message.metatype);
         /* string id = 2; */
@@ -21195,7 +21716,7 @@ export type AnyNodeDataType = typeof BenchData | typeof EnvironmentData | typeof
 export type AnyStructDataType = typeof PathData | typeof PathSegmentData | typeof PathTokenData | typeof NodeReferenceData | typeof PropertyReferenceData | typeof ValueReferenceData | typeof TypeInfoData | typeof ContextData | typeof ScheduleData | typeof ProjectionData | typeof FileData | typeof IconData | typeof PolicyData | typeof PolicyRuleData | typeof SubjectData | typeof AccessZoneData | typeof AccessMatrixData | typeof AccessData | typeof AccessTraceData | typeof RequestData | typeof ReadOptionsData | typeof ExpressionData | typeof AggregationData | typeof AggregationBucketData | typeof SelectionData | typeof CodeData | typeof CodeLineData | typeof StepConnectionData | typeof RunCodeFrameData | typeof RunErrorData | typeof ResourceCredentialData | typeof TextData | typeof TextLineData | typeof TextSpanData | typeof ColorData | typeof FontData | typeof BoxData | typeof OffsetData
 
 // type lists
-export const BENCH_TYPES: BenchType[] = Object.values(BenchType).filter(v => typeof v === 'number' && v > 0) as BenchType[]
+export const OBJECT_TYPES: ObjectType[] = Object.values(ObjectType).filter(v => typeof v === 'number' && v > 0) as ObjectType[]
 export const NODE_TYPES: NodeType[] = Object.values(NodeType).filter(v => typeof v === 'number' && v > 0) as NodeType[]
 export const STRUCT_TYPES: StructType[] = Object.values(StructType).filter(v => typeof v === 'number' && v > 0) as StructType[]
 
@@ -21366,160 +21887,160 @@ export const DESCENDANT_NODE_TYPES: Record<NodeType, NodeType[]> = {
 
 
 // Message types
-export const MESSAGE_TYPE_BY_BENCH_TYPE: Partial<Record<BenchType, MessageType<any>>> = {
-  [BenchType.BENCH]: BenchData,
-  [BenchType.ENVIRONMENT]: EnvironmentData,
-  [BenchType.BRANCH]: BranchData,
-  [BenchType.PACKAGE]: PackageData,
-  [BenchType.DEPENDENCY]: DependencyData,
-  [BenchType.UPGRADE]: UpgradeData,
-  [BenchType.SPACE]: SpaceData,
-  [BenchType.LINK]: LinkData,
-  [BenchType.SKIP]: SkipData,
-  [BenchType.NOTICE]: NoticeData,
-  [BenchType.BLOCK]: BlockData,
-  [BenchType.TRIGGER]: TriggerData,
-  [BenchType.FIELD]: FieldData,
-  [BenchType.RECORD]: RecordData,
-  [BenchType.QUERY]: QueryData,
-  [BenchType.VIEW]: ViewData,
-  [BenchType.STEP]: StepData,
-  [BenchType.BADGE]: BadgeData,
-  [BenchType.ROLE]: RoleData,
-  [BenchType.IDENTITY]: IdentityData,
-  [BenchType.MEMBERSHIP]: MembershipData,
-  [BenchType.INVITE]: InviteData,
-  [BenchType.SESSION]: SessionData,
-  [BenchType.RUN]: RunData,
-  [BenchType.PAUSE]: PauseData,
-  [BenchType.SIGNAL]: SignalData,
-  [BenchType.LOG]: LogData,
-  [BenchType.NOTIFICATION]: NotificationData,
-  [BenchType.SERVER]: ServerData,
-  [BenchType.STORE]: StoreData,
-  [BenchType.DRIVE]: DriveData,
-  [BenchType.CACHE]: CacheData,
-  [BenchType.FILE_CONTENT]: FileContentData,
-  [BenchType.HANDLE]: HandleData,
-  [BenchType.USER]: UserData,
-  [BenchType.ORGANIZATION]: OrganizationData,
-  [BenchType.CLIENT]: ClientData,
-  [BenchType.PATH]: PathData,
-  [BenchType.PATH_SEGMENT]: PathSegmentData,
-  [BenchType.PATH_TOKEN]: PathTokenData,
-  [BenchType.NODE_REFERENCE]: NodeReferenceData,
-  [BenchType.PROPERTY_REFERENCE]: PropertyReferenceData,
-  [BenchType.VALUE_REFERENCE]: ValueReferenceData,
-  [BenchType.TYPE_INFO]: TypeInfoData,
-  [BenchType.CONTEXT]: ContextData,
-  [BenchType.SCHEDULE]: ScheduleData,
-  [BenchType.PROJECTION]: ProjectionData,
-  [BenchType.FILE]: FileData,
-  [BenchType.ICON]: IconData,
-  [BenchType.POLICY]: PolicyData,
-  [BenchType.POLICY_RULE]: PolicyRuleData,
-  [BenchType.SUBJECT]: SubjectData,
-  [BenchType.ACCESS_ZONE]: AccessZoneData,
-  [BenchType.ACCESS_MATRIX]: AccessMatrixData,
-  [BenchType.ACCESS]: AccessData,
-  [BenchType.ACCESS_TRACE]: AccessTraceData,
-  [BenchType.REQUEST]: RequestData,
-  [BenchType.READ_OPTIONS]: ReadOptionsData,
-  [BenchType.EXPRESSION]: ExpressionData,
-  [BenchType.AGGREGATION]: AggregationData,
-  [BenchType.AGGREGATION_BUCKET]: AggregationBucketData,
-  [BenchType.SELECTION]: SelectionData,
-  [BenchType.CODE]: CodeData,
-  [BenchType.CODE_LINE]: CodeLineData,
-  [BenchType.STEP_CONNECTION]: StepConnectionData,
-  [BenchType.RUN_CODE_FRAME]: RunCodeFrameData,
-  [BenchType.RUN_ERROR]: RunErrorData,
-  [BenchType.RESOURCE_CREDENTIAL]: ResourceCredentialData,
-  [BenchType.TEXT]: TextData,
-  [BenchType.TEXT_LINE]: TextLineData,
-  [BenchType.TEXT_SPAN]: TextSpanData,
-  [BenchType.COLOR]: ColorData,
-  [BenchType.FONT]: FontData,
-  [BenchType.BOX]: BoxData,
-  [BenchType.OFFSET]: OffsetData,
+export const MESSAGE_TYPE_BY_OBJECT_TYPE: Partial<Record<ObjectType, MessageType<any>>> = {
+  [ObjectType.BENCH]: BenchData,
+  [ObjectType.ENVIRONMENT]: EnvironmentData,
+  [ObjectType.BRANCH]: BranchData,
+  [ObjectType.PACKAGE]: PackageData,
+  [ObjectType.DEPENDENCY]: DependencyData,
+  [ObjectType.UPGRADE]: UpgradeData,
+  [ObjectType.SPACE]: SpaceData,
+  [ObjectType.LINK]: LinkData,
+  [ObjectType.SKIP]: SkipData,
+  [ObjectType.NOTICE]: NoticeData,
+  [ObjectType.BLOCK]: BlockData,
+  [ObjectType.TRIGGER]: TriggerData,
+  [ObjectType.FIELD]: FieldData,
+  [ObjectType.RECORD]: RecordData,
+  [ObjectType.QUERY]: QueryData,
+  [ObjectType.VIEW]: ViewData,
+  [ObjectType.STEP]: StepData,
+  [ObjectType.BADGE]: BadgeData,
+  [ObjectType.ROLE]: RoleData,
+  [ObjectType.IDENTITY]: IdentityData,
+  [ObjectType.MEMBERSHIP]: MembershipData,
+  [ObjectType.INVITE]: InviteData,
+  [ObjectType.SESSION]: SessionData,
+  [ObjectType.RUN]: RunData,
+  [ObjectType.PAUSE]: PauseData,
+  [ObjectType.SIGNAL]: SignalData,
+  [ObjectType.LOG]: LogData,
+  [ObjectType.NOTIFICATION]: NotificationData,
+  [ObjectType.SERVER]: ServerData,
+  [ObjectType.STORE]: StoreData,
+  [ObjectType.DRIVE]: DriveData,
+  [ObjectType.CACHE]: CacheData,
+  [ObjectType.FILE_CONTENT]: FileContentData,
+  [ObjectType.HANDLE]: HandleData,
+  [ObjectType.USER]: UserData,
+  [ObjectType.ORGANIZATION]: OrganizationData,
+  [ObjectType.CLIENT]: ClientData,
+  [ObjectType.PATH]: PathData,
+  [ObjectType.PATH_SEGMENT]: PathSegmentData,
+  [ObjectType.PATH_TOKEN]: PathTokenData,
+  [ObjectType.NODE_REFERENCE]: NodeReferenceData,
+  [ObjectType.PROPERTY_REFERENCE]: PropertyReferenceData,
+  [ObjectType.VALUE_REFERENCE]: ValueReferenceData,
+  [ObjectType.TYPE_INFO]: TypeInfoData,
+  [ObjectType.CONTEXT]: ContextData,
+  [ObjectType.SCHEDULE]: ScheduleData,
+  [ObjectType.PROJECTION]: ProjectionData,
+  [ObjectType.FILE]: FileData,
+  [ObjectType.ICON]: IconData,
+  [ObjectType.POLICY]: PolicyData,
+  [ObjectType.POLICY_RULE]: PolicyRuleData,
+  [ObjectType.SUBJECT]: SubjectData,
+  [ObjectType.ACCESS_ZONE]: AccessZoneData,
+  [ObjectType.ACCESS_MATRIX]: AccessMatrixData,
+  [ObjectType.ACCESS]: AccessData,
+  [ObjectType.ACCESS_TRACE]: AccessTraceData,
+  [ObjectType.REQUEST]: RequestData,
+  [ObjectType.READ_OPTIONS]: ReadOptionsData,
+  [ObjectType.EXPRESSION]: ExpressionData,
+  [ObjectType.AGGREGATION]: AggregationData,
+  [ObjectType.AGGREGATION_BUCKET]: AggregationBucketData,
+  [ObjectType.SELECTION]: SelectionData,
+  [ObjectType.CODE]: CodeData,
+  [ObjectType.CODE_LINE]: CodeLineData,
+  [ObjectType.STEP_CONNECTION]: StepConnectionData,
+  [ObjectType.RUN_CODE_FRAME]: RunCodeFrameData,
+  [ObjectType.RUN_ERROR]: RunErrorData,
+  [ObjectType.RESOURCE_CREDENTIAL]: ResourceCredentialData,
+  [ObjectType.TEXT]: TextData,
+  [ObjectType.TEXT_LINE]: TextLineData,
+  [ObjectType.TEXT_SPAN]: TextSpanData,
+  [ObjectType.COLOR]: ColorData,
+  [ObjectType.FONT]: FontData,
+  [ObjectType.BOX]: BoxData,
+  [ObjectType.OFFSET]: OffsetData,
 }
 
-export const BENCH_TYPE_BY_MESSAGE_TYPE_NAME: Record<string, BenchType> = {
-  ["symbolx.bench.BenchData"]: BenchType.BENCH,
-  ["symbolx.bench.EnvironmentData"]: BenchType.ENVIRONMENT,
-  ["symbolx.bench.BranchData"]: BenchType.BRANCH,
-  ["symbolx.bench.PackageData"]: BenchType.PACKAGE,
-  ["symbolx.bench.DependencyData"]: BenchType.DEPENDENCY,
-  ["symbolx.bench.UpgradeData"]: BenchType.UPGRADE,
-  ["symbolx.bench.SpaceData"]: BenchType.SPACE,
-  ["symbolx.bench.LinkData"]: BenchType.LINK,
-  ["symbolx.bench.SkipData"]: BenchType.SKIP,
-  ["symbolx.bench.NoticeData"]: BenchType.NOTICE,
-  ["symbolx.bench.BlockData"]: BenchType.BLOCK,
-  ["symbolx.bench.TriggerData"]: BenchType.TRIGGER,
-  ["symbolx.bench.FieldData"]: BenchType.FIELD,
-  ["symbolx.bench.RecordData"]: BenchType.RECORD,
-  ["symbolx.bench.QueryData"]: BenchType.QUERY,
-  ["symbolx.bench.ViewData"]: BenchType.VIEW,
-  ["symbolx.bench.StepData"]: BenchType.STEP,
-  ["symbolx.bench.BadgeData"]: BenchType.BADGE,
-  ["symbolx.bench.RoleData"]: BenchType.ROLE,
-  ["symbolx.bench.IdentityData"]: BenchType.IDENTITY,
-  ["symbolx.bench.MembershipData"]: BenchType.MEMBERSHIP,
-  ["symbolx.bench.InviteData"]: BenchType.INVITE,
-  ["symbolx.bench.SessionData"]: BenchType.SESSION,
-  ["symbolx.bench.RunData"]: BenchType.RUN,
-  ["symbolx.bench.PauseData"]: BenchType.PAUSE,
-  ["symbolx.bench.SignalData"]: BenchType.SIGNAL,
-  ["symbolx.bench.LogData"]: BenchType.LOG,
-  ["symbolx.bench.NotificationData"]: BenchType.NOTIFICATION,
-  ["symbolx.bench.ServerData"]: BenchType.SERVER,
-  ["symbolx.bench.StoreData"]: BenchType.STORE,
-  ["symbolx.bench.DriveData"]: BenchType.DRIVE,
-  ["symbolx.bench.CacheData"]: BenchType.CACHE,
-  ["symbolx.bench.FileContentData"]: BenchType.FILE_CONTENT,
-  ["symbolx.bench.HandleData"]: BenchType.HANDLE,
-  ["symbolx.bench.UserData"]: BenchType.USER,
-  ["symbolx.bench.OrganizationData"]: BenchType.ORGANIZATION,
-  ["symbolx.bench.ClientData"]: BenchType.CLIENT,
-  ["symbolx.bench.PathData"]: BenchType.PATH,
-  ["symbolx.bench.PathSegmentData"]: BenchType.PATH_SEGMENT,
-  ["symbolx.bench.PathTokenData"]: BenchType.PATH_TOKEN,
-  ["symbolx.bench.NodeReferenceData"]: BenchType.NODE_REFERENCE,
-  ["symbolx.bench.PropertyReferenceData"]: BenchType.PROPERTY_REFERENCE,
-  ["symbolx.bench.ValueReferenceData"]: BenchType.VALUE_REFERENCE,
-  ["symbolx.bench.TypeInfoData"]: BenchType.TYPE_INFO,
-  ["symbolx.bench.ContextData"]: BenchType.CONTEXT,
-  ["symbolx.bench.ScheduleData"]: BenchType.SCHEDULE,
-  ["symbolx.bench.ProjectionData"]: BenchType.PROJECTION,
-  ["symbolx.bench.FileData"]: BenchType.FILE,
-  ["symbolx.bench.IconData"]: BenchType.ICON,
-  ["symbolx.bench.PolicyData"]: BenchType.POLICY,
-  ["symbolx.bench.PolicyRuleData"]: BenchType.POLICY_RULE,
-  ["symbolx.bench.SubjectData"]: BenchType.SUBJECT,
-  ["symbolx.bench.AccessZoneData"]: BenchType.ACCESS_ZONE,
-  ["symbolx.bench.AccessMatrixData"]: BenchType.ACCESS_MATRIX,
-  ["symbolx.bench.AccessData"]: BenchType.ACCESS,
-  ["symbolx.bench.AccessTraceData"]: BenchType.ACCESS_TRACE,
-  ["symbolx.bench.RequestData"]: BenchType.REQUEST,
-  ["symbolx.bench.ReadOptionsData"]: BenchType.READ_OPTIONS,
-  ["symbolx.bench.ExpressionData"]: BenchType.EXPRESSION,
-  ["symbolx.bench.AggregationData"]: BenchType.AGGREGATION,
-  ["symbolx.bench.AggregationBucketData"]: BenchType.AGGREGATION_BUCKET,
-  ["symbolx.bench.SelectionData"]: BenchType.SELECTION,
-  ["symbolx.bench.CodeData"]: BenchType.CODE,
-  ["symbolx.bench.CodeLineData"]: BenchType.CODE_LINE,
-  ["symbolx.bench.StepConnectionData"]: BenchType.STEP_CONNECTION,
-  ["symbolx.bench.RunCodeFrameData"]: BenchType.RUN_CODE_FRAME,
-  ["symbolx.bench.RunErrorData"]: BenchType.RUN_ERROR,
-  ["symbolx.bench.ResourceCredentialData"]: BenchType.RESOURCE_CREDENTIAL,
-  ["symbolx.bench.TextData"]: BenchType.TEXT,
-  ["symbolx.bench.TextLineData"]: BenchType.TEXT_LINE,
-  ["symbolx.bench.TextSpanData"]: BenchType.TEXT_SPAN,
-  ["symbolx.bench.ColorData"]: BenchType.COLOR,
-  ["symbolx.bench.FontData"]: BenchType.FONT,
-  ["symbolx.bench.BoxData"]: BenchType.BOX,
-  ["symbolx.bench.OffsetData"]: BenchType.OFFSET,
+export const OBJECT_TYPE_BY_MESSAGE_TYPE_NAME: Record<string, ObjectType> = {
+  ["symbolx.bench.BenchData"]: ObjectType.BENCH,
+  ["symbolx.bench.EnvironmentData"]: ObjectType.ENVIRONMENT,
+  ["symbolx.bench.BranchData"]: ObjectType.BRANCH,
+  ["symbolx.bench.PackageData"]: ObjectType.PACKAGE,
+  ["symbolx.bench.DependencyData"]: ObjectType.DEPENDENCY,
+  ["symbolx.bench.UpgradeData"]: ObjectType.UPGRADE,
+  ["symbolx.bench.SpaceData"]: ObjectType.SPACE,
+  ["symbolx.bench.LinkData"]: ObjectType.LINK,
+  ["symbolx.bench.SkipData"]: ObjectType.SKIP,
+  ["symbolx.bench.NoticeData"]: ObjectType.NOTICE,
+  ["symbolx.bench.BlockData"]: ObjectType.BLOCK,
+  ["symbolx.bench.TriggerData"]: ObjectType.TRIGGER,
+  ["symbolx.bench.FieldData"]: ObjectType.FIELD,
+  ["symbolx.bench.RecordData"]: ObjectType.RECORD,
+  ["symbolx.bench.QueryData"]: ObjectType.QUERY,
+  ["symbolx.bench.ViewData"]: ObjectType.VIEW,
+  ["symbolx.bench.StepData"]: ObjectType.STEP,
+  ["symbolx.bench.BadgeData"]: ObjectType.BADGE,
+  ["symbolx.bench.RoleData"]: ObjectType.ROLE,
+  ["symbolx.bench.IdentityData"]: ObjectType.IDENTITY,
+  ["symbolx.bench.MembershipData"]: ObjectType.MEMBERSHIP,
+  ["symbolx.bench.InviteData"]: ObjectType.INVITE,
+  ["symbolx.bench.SessionData"]: ObjectType.SESSION,
+  ["symbolx.bench.RunData"]: ObjectType.RUN,
+  ["symbolx.bench.PauseData"]: ObjectType.PAUSE,
+  ["symbolx.bench.SignalData"]: ObjectType.SIGNAL,
+  ["symbolx.bench.LogData"]: ObjectType.LOG,
+  ["symbolx.bench.NotificationData"]: ObjectType.NOTIFICATION,
+  ["symbolx.bench.ServerData"]: ObjectType.SERVER,
+  ["symbolx.bench.StoreData"]: ObjectType.STORE,
+  ["symbolx.bench.DriveData"]: ObjectType.DRIVE,
+  ["symbolx.bench.CacheData"]: ObjectType.CACHE,
+  ["symbolx.bench.FileContentData"]: ObjectType.FILE_CONTENT,
+  ["symbolx.bench.HandleData"]: ObjectType.HANDLE,
+  ["symbolx.bench.UserData"]: ObjectType.USER,
+  ["symbolx.bench.OrganizationData"]: ObjectType.ORGANIZATION,
+  ["symbolx.bench.ClientData"]: ObjectType.CLIENT,
+  ["symbolx.bench.PathData"]: ObjectType.PATH,
+  ["symbolx.bench.PathSegmentData"]: ObjectType.PATH_SEGMENT,
+  ["symbolx.bench.PathTokenData"]: ObjectType.PATH_TOKEN,
+  ["symbolx.bench.NodeReferenceData"]: ObjectType.NODE_REFERENCE,
+  ["symbolx.bench.PropertyReferenceData"]: ObjectType.PROPERTY_REFERENCE,
+  ["symbolx.bench.ValueReferenceData"]: ObjectType.VALUE_REFERENCE,
+  ["symbolx.bench.TypeInfoData"]: ObjectType.TYPE_INFO,
+  ["symbolx.bench.ContextData"]: ObjectType.CONTEXT,
+  ["symbolx.bench.ScheduleData"]: ObjectType.SCHEDULE,
+  ["symbolx.bench.ProjectionData"]: ObjectType.PROJECTION,
+  ["symbolx.bench.FileData"]: ObjectType.FILE,
+  ["symbolx.bench.IconData"]: ObjectType.ICON,
+  ["symbolx.bench.PolicyData"]: ObjectType.POLICY,
+  ["symbolx.bench.PolicyRuleData"]: ObjectType.POLICY_RULE,
+  ["symbolx.bench.SubjectData"]: ObjectType.SUBJECT,
+  ["symbolx.bench.AccessZoneData"]: ObjectType.ACCESS_ZONE,
+  ["symbolx.bench.AccessMatrixData"]: ObjectType.ACCESS_MATRIX,
+  ["symbolx.bench.AccessData"]: ObjectType.ACCESS,
+  ["symbolx.bench.AccessTraceData"]: ObjectType.ACCESS_TRACE,
+  ["symbolx.bench.RequestData"]: ObjectType.REQUEST,
+  ["symbolx.bench.ReadOptionsData"]: ObjectType.READ_OPTIONS,
+  ["symbolx.bench.ExpressionData"]: ObjectType.EXPRESSION,
+  ["symbolx.bench.AggregationData"]: ObjectType.AGGREGATION,
+  ["symbolx.bench.AggregationBucketData"]: ObjectType.AGGREGATION_BUCKET,
+  ["symbolx.bench.SelectionData"]: ObjectType.SELECTION,
+  ["symbolx.bench.CodeData"]: ObjectType.CODE,
+  ["symbolx.bench.CodeLineData"]: ObjectType.CODE_LINE,
+  ["symbolx.bench.StepConnectionData"]: ObjectType.STEP_CONNECTION,
+  ["symbolx.bench.RunCodeFrameData"]: ObjectType.RUN_CODE_FRAME,
+  ["symbolx.bench.RunErrorData"]: ObjectType.RUN_ERROR,
+  ["symbolx.bench.ResourceCredentialData"]: ObjectType.RESOURCE_CREDENTIAL,
+  ["symbolx.bench.TextData"]: ObjectType.TEXT,
+  ["symbolx.bench.TextLineData"]: ObjectType.TEXT_LINE,
+  ["symbolx.bench.TextSpanData"]: ObjectType.TEXT_SPAN,
+  ["symbolx.bench.ColorData"]: ObjectType.COLOR,
+  ["symbolx.bench.FontData"]: ObjectType.FONT,
+  ["symbolx.bench.BoxData"]: ObjectType.BOX,
+  ["symbolx.bench.OffsetData"]: ObjectType.OFFSET,
 }
 
 
@@ -21605,82 +22126,82 @@ export interface NodeTypeMapping extends Record<NodeType, AnyNodeData> {
   [NodeType.CLIENT]: ClientData,
 }
 
-export interface AnyTypeMapping extends Record<BenchType, AnyStructData | AnyNodeData> {
-  [BenchType.BENCH]: BenchData,
-  [BenchType.ENVIRONMENT]: EnvironmentData,
-  [BenchType.BRANCH]: BranchData,
-  [BenchType.PACKAGE]: PackageData,
-  [BenchType.DEPENDENCY]: DependencyData,
-  [BenchType.UPGRADE]: UpgradeData,
-  [BenchType.SPACE]: SpaceData,
-  [BenchType.LINK]: LinkData,
-  [BenchType.SKIP]: SkipData,
-  [BenchType.NOTICE]: NoticeData,
-  [BenchType.BLOCK]: BlockData,
-  [BenchType.TRIGGER]: TriggerData,
-  [BenchType.FIELD]: FieldData,
-  [BenchType.RECORD]: RecordData,
-  [BenchType.QUERY]: QueryData,
-  [BenchType.VIEW]: ViewData,
-  [BenchType.STEP]: StepData,
-  [BenchType.BADGE]: BadgeData,
-  [BenchType.ROLE]: RoleData,
-  [BenchType.IDENTITY]: IdentityData,
-  [BenchType.MEMBERSHIP]: MembershipData,
-  [BenchType.INVITE]: InviteData,
-  [BenchType.SESSION]: SessionData,
-  [BenchType.RUN]: RunData,
-  [BenchType.PAUSE]: PauseData,
-  [BenchType.SIGNAL]: SignalData,
-  [BenchType.LOG]: LogData,
-  [BenchType.NOTIFICATION]: NotificationData,
-  [BenchType.SERVER]: ServerData,
-  [BenchType.STORE]: StoreData,
-  [BenchType.DRIVE]: DriveData,
-  [BenchType.CACHE]: CacheData,
-  [BenchType.FILE_CONTENT]: FileContentData,
-  [BenchType.HANDLE]: HandleData,
-  [BenchType.USER]: UserData,
-  [BenchType.ORGANIZATION]: OrganizationData,
-  [BenchType.CLIENT]: ClientData,
-  [BenchType.PATH]: PathData,
-  [BenchType.PATH_SEGMENT]: PathSegmentData,
-  [BenchType.PATH_TOKEN]: PathTokenData,
-  [BenchType.NODE_REFERENCE]: NodeReferenceData,
-  [BenchType.PROPERTY_REFERENCE]: PropertyReferenceData,
-  [BenchType.VALUE_REFERENCE]: ValueReferenceData,
-  [BenchType.TYPE_INFO]: TypeInfoData,
-  [BenchType.CONTEXT]: ContextData,
-  [BenchType.SCHEDULE]: ScheduleData,
-  [BenchType.PROJECTION]: ProjectionData,
-  [BenchType.FILE]: FileData,
-  [BenchType.ICON]: IconData,
-  [BenchType.POLICY]: PolicyData,
-  [BenchType.POLICY_RULE]: PolicyRuleData,
-  [BenchType.SUBJECT]: SubjectData,
-  [BenchType.ACCESS_ZONE]: AccessZoneData,
-  [BenchType.ACCESS_MATRIX]: AccessMatrixData,
-  [BenchType.ACCESS]: AccessData,
-  [BenchType.ACCESS_TRACE]: AccessTraceData,
-  [BenchType.REQUEST]: RequestData,
-  [BenchType.READ_OPTIONS]: ReadOptionsData,
-  [BenchType.EXPRESSION]: ExpressionData,
-  [BenchType.AGGREGATION]: AggregationData,
-  [BenchType.AGGREGATION_BUCKET]: AggregationBucketData,
-  [BenchType.SELECTION]: SelectionData,
-  [BenchType.CODE]: CodeData,
-  [BenchType.CODE_LINE]: CodeLineData,
-  [BenchType.STEP_CONNECTION]: StepConnectionData,
-  [BenchType.RUN_CODE_FRAME]: RunCodeFrameData,
-  [BenchType.RUN_ERROR]: RunErrorData,
-  [BenchType.RESOURCE_CREDENTIAL]: ResourceCredentialData,
-  [BenchType.TEXT]: TextData,
-  [BenchType.TEXT_LINE]: TextLineData,
-  [BenchType.TEXT_SPAN]: TextSpanData,
-  [BenchType.COLOR]: ColorData,
-  [BenchType.FONT]: FontData,
-  [BenchType.BOX]: BoxData,
-  [BenchType.OFFSET]: OffsetData,
+export interface AnyTypeMapping extends Record<ObjectType, AnyStructData | AnyNodeData> {
+  [ObjectType.BENCH]: BenchData,
+  [ObjectType.ENVIRONMENT]: EnvironmentData,
+  [ObjectType.BRANCH]: BranchData,
+  [ObjectType.PACKAGE]: PackageData,
+  [ObjectType.DEPENDENCY]: DependencyData,
+  [ObjectType.UPGRADE]: UpgradeData,
+  [ObjectType.SPACE]: SpaceData,
+  [ObjectType.LINK]: LinkData,
+  [ObjectType.SKIP]: SkipData,
+  [ObjectType.NOTICE]: NoticeData,
+  [ObjectType.BLOCK]: BlockData,
+  [ObjectType.TRIGGER]: TriggerData,
+  [ObjectType.FIELD]: FieldData,
+  [ObjectType.RECORD]: RecordData,
+  [ObjectType.QUERY]: QueryData,
+  [ObjectType.VIEW]: ViewData,
+  [ObjectType.STEP]: StepData,
+  [ObjectType.BADGE]: BadgeData,
+  [ObjectType.ROLE]: RoleData,
+  [ObjectType.IDENTITY]: IdentityData,
+  [ObjectType.MEMBERSHIP]: MembershipData,
+  [ObjectType.INVITE]: InviteData,
+  [ObjectType.SESSION]: SessionData,
+  [ObjectType.RUN]: RunData,
+  [ObjectType.PAUSE]: PauseData,
+  [ObjectType.SIGNAL]: SignalData,
+  [ObjectType.LOG]: LogData,
+  [ObjectType.NOTIFICATION]: NotificationData,
+  [ObjectType.SERVER]: ServerData,
+  [ObjectType.STORE]: StoreData,
+  [ObjectType.DRIVE]: DriveData,
+  [ObjectType.CACHE]: CacheData,
+  [ObjectType.FILE_CONTENT]: FileContentData,
+  [ObjectType.HANDLE]: HandleData,
+  [ObjectType.USER]: UserData,
+  [ObjectType.ORGANIZATION]: OrganizationData,
+  [ObjectType.CLIENT]: ClientData,
+  [ObjectType.PATH]: PathData,
+  [ObjectType.PATH_SEGMENT]: PathSegmentData,
+  [ObjectType.PATH_TOKEN]: PathTokenData,
+  [ObjectType.NODE_REFERENCE]: NodeReferenceData,
+  [ObjectType.PROPERTY_REFERENCE]: PropertyReferenceData,
+  [ObjectType.VALUE_REFERENCE]: ValueReferenceData,
+  [ObjectType.TYPE_INFO]: TypeInfoData,
+  [ObjectType.CONTEXT]: ContextData,
+  [ObjectType.SCHEDULE]: ScheduleData,
+  [ObjectType.PROJECTION]: ProjectionData,
+  [ObjectType.FILE]: FileData,
+  [ObjectType.ICON]: IconData,
+  [ObjectType.POLICY]: PolicyData,
+  [ObjectType.POLICY_RULE]: PolicyRuleData,
+  [ObjectType.SUBJECT]: SubjectData,
+  [ObjectType.ACCESS_ZONE]: AccessZoneData,
+  [ObjectType.ACCESS_MATRIX]: AccessMatrixData,
+  [ObjectType.ACCESS]: AccessData,
+  [ObjectType.ACCESS_TRACE]: AccessTraceData,
+  [ObjectType.REQUEST]: RequestData,
+  [ObjectType.READ_OPTIONS]: ReadOptionsData,
+  [ObjectType.EXPRESSION]: ExpressionData,
+  [ObjectType.AGGREGATION]: AggregationData,
+  [ObjectType.AGGREGATION_BUCKET]: AggregationBucketData,
+  [ObjectType.SELECTION]: SelectionData,
+  [ObjectType.CODE]: CodeData,
+  [ObjectType.CODE_LINE]: CodeLineData,
+  [ObjectType.STEP_CONNECTION]: StepConnectionData,
+  [ObjectType.RUN_CODE_FRAME]: RunCodeFrameData,
+  [ObjectType.RUN_ERROR]: RunErrorData,
+  [ObjectType.RESOURCE_CREDENTIAL]: ResourceCredentialData,
+  [ObjectType.TEXT]: TextData,
+  [ObjectType.TEXT_LINE]: TextLineData,
+  [ObjectType.TEXT_SPAN]: TextSpanData,
+  [ObjectType.COLOR]: ColorData,
+  [ObjectType.FONT]: FontData,
+  [ObjectType.BOX]: BoxData,
+  [ObjectType.OFFSET]: OffsetData,
 }
 
 
@@ -23056,163 +23577,163 @@ export type AnyProperty = AnyNodeProperty | AnyStructProperty
 export type AnyNodePropertyType = typeof BenchProperty | typeof EnvironmentProperty | typeof BranchProperty | typeof PackageProperty | typeof DependencyProperty | typeof UpgradeProperty | typeof SpaceProperty | typeof LinkProperty | typeof SkipProperty | typeof NoticeProperty | typeof BlockProperty | typeof TriggerProperty | typeof FieldProperty | typeof RecordProperty | typeof QueryProperty | typeof ViewProperty | typeof StepProperty | typeof BadgeProperty | typeof RoleProperty | typeof IdentityProperty | typeof MembershipProperty | typeof InviteProperty | typeof SessionProperty | typeof RunProperty | typeof PauseProperty | typeof SignalProperty | typeof LogProperty | typeof NotificationProperty | typeof ServerProperty | typeof StoreProperty | typeof DriveProperty | typeof CacheProperty | typeof FileContentProperty | typeof HandleProperty | typeof UserProperty | typeof OrganizationProperty | typeof ClientProperty
 export type AnyStructPropertyType = typeof PathProperty | typeof PathSegmentProperty | typeof PathTokenProperty | typeof NodeReferenceProperty | typeof PropertyReferenceProperty | typeof ValueReferenceProperty | typeof TypeInfoProperty | typeof ContextProperty | typeof ScheduleProperty | typeof ProjectionProperty | typeof FileProperty | typeof IconProperty | typeof PolicyProperty | typeof PolicyRuleProperty | typeof SubjectProperty | typeof AccessZoneProperty | typeof AccessMatrixProperty | typeof AccessProperty | typeof AccessTraceProperty | typeof RequestProperty | typeof ReadOptionsProperty | typeof ExpressionProperty | typeof AggregationProperty | typeof AggregationBucketProperty | typeof SelectionProperty | typeof CodeProperty | typeof CodeLineProperty | typeof StepConnectionProperty | typeof RunCodeFrameProperty | typeof RunErrorProperty | typeof ResourceCredentialProperty | typeof TextProperty | typeof TextLineProperty | typeof TextSpanProperty | typeof ColorProperty | typeof FontProperty | typeof BoxProperty | typeof OffsetProperty
 export type AnyPropertyType = typeof BenchProperty | typeof EnvironmentProperty | typeof BranchProperty | typeof PackageProperty | typeof DependencyProperty | typeof UpgradeProperty | typeof SpaceProperty | typeof LinkProperty | typeof SkipProperty | typeof NoticeProperty | typeof BlockProperty | typeof TriggerProperty | typeof FieldProperty | typeof RecordProperty | typeof QueryProperty | typeof ViewProperty | typeof StepProperty | typeof BadgeProperty | typeof RoleProperty | typeof IdentityProperty | typeof MembershipProperty | typeof InviteProperty | typeof SessionProperty | typeof RunProperty | typeof PauseProperty | typeof SignalProperty | typeof LogProperty | typeof NotificationProperty | typeof ServerProperty | typeof StoreProperty | typeof DriveProperty | typeof CacheProperty | typeof FileContentProperty | typeof HandleProperty | typeof UserProperty | typeof OrganizationProperty | typeof ClientProperty | typeof PathProperty | typeof PathSegmentProperty | typeof PathTokenProperty | typeof NodeReferenceProperty | typeof PropertyReferenceProperty | typeof ValueReferenceProperty | typeof TypeInfoProperty | typeof ContextProperty | typeof ScheduleProperty | typeof ProjectionProperty | typeof FileProperty | typeof IconProperty | typeof PolicyProperty | typeof PolicyRuleProperty | typeof SubjectProperty | typeof AccessZoneProperty | typeof AccessMatrixProperty | typeof AccessProperty | typeof AccessTraceProperty | typeof RequestProperty | typeof ReadOptionsProperty | typeof ExpressionProperty | typeof AggregationProperty | typeof AggregationBucketProperty | typeof SelectionProperty | typeof CodeProperty | typeof CodeLineProperty | typeof StepConnectionProperty | typeof RunCodeFrameProperty | typeof RunErrorProperty | typeof ResourceCredentialProperty | typeof TextProperty | typeof TextLineProperty | typeof TextSpanProperty | typeof ColorProperty | typeof FontProperty | typeof BoxProperty | typeof OffsetProperty
-export const NODE_PROPERTY_ENUM_BY_TYPE: Partial<Record<BenchType, AnyNodePropertyType>> = {
-  [BenchType.BENCH]: BenchProperty,
-  [BenchType.ENVIRONMENT]: EnvironmentProperty,
-  [BenchType.BRANCH]: BranchProperty,
-  [BenchType.PACKAGE]: PackageProperty,
-  [BenchType.DEPENDENCY]: DependencyProperty,
-  [BenchType.UPGRADE]: UpgradeProperty,
-  [BenchType.SPACE]: SpaceProperty,
-  [BenchType.LINK]: LinkProperty,
-  [BenchType.SKIP]: SkipProperty,
-  [BenchType.NOTICE]: NoticeProperty,
-  [BenchType.BLOCK]: BlockProperty,
-  [BenchType.TRIGGER]: TriggerProperty,
-  [BenchType.FIELD]: FieldProperty,
-  [BenchType.RECORD]: RecordProperty,
-  [BenchType.QUERY]: QueryProperty,
-  [BenchType.VIEW]: ViewProperty,
-  [BenchType.STEP]: StepProperty,
-  [BenchType.BADGE]: BadgeProperty,
-  [BenchType.ROLE]: RoleProperty,
-  [BenchType.IDENTITY]: IdentityProperty,
-  [BenchType.MEMBERSHIP]: MembershipProperty,
-  [BenchType.INVITE]: InviteProperty,
-  [BenchType.SESSION]: SessionProperty,
-  [BenchType.RUN]: RunProperty,
-  [BenchType.PAUSE]: PauseProperty,
-  [BenchType.SIGNAL]: SignalProperty,
-  [BenchType.LOG]: LogProperty,
-  [BenchType.NOTIFICATION]: NotificationProperty,
-  [BenchType.SERVER]: ServerProperty,
-  [BenchType.STORE]: StoreProperty,
-  [BenchType.DRIVE]: DriveProperty,
-  [BenchType.CACHE]: CacheProperty,
-  [BenchType.FILE_CONTENT]: FileContentProperty,
-  [BenchType.HANDLE]: HandleProperty,
-  [BenchType.USER]: UserProperty,
-  [BenchType.ORGANIZATION]: OrganizationProperty,
-  [BenchType.CLIENT]: ClientProperty,
+export const NODE_PROPERTY_ENUM_BY_TYPE: Partial<Record<ObjectType, AnyNodePropertyType>> = {
+  [ObjectType.BENCH]: BenchProperty,
+  [ObjectType.ENVIRONMENT]: EnvironmentProperty,
+  [ObjectType.BRANCH]: BranchProperty,
+  [ObjectType.PACKAGE]: PackageProperty,
+  [ObjectType.DEPENDENCY]: DependencyProperty,
+  [ObjectType.UPGRADE]: UpgradeProperty,
+  [ObjectType.SPACE]: SpaceProperty,
+  [ObjectType.LINK]: LinkProperty,
+  [ObjectType.SKIP]: SkipProperty,
+  [ObjectType.NOTICE]: NoticeProperty,
+  [ObjectType.BLOCK]: BlockProperty,
+  [ObjectType.TRIGGER]: TriggerProperty,
+  [ObjectType.FIELD]: FieldProperty,
+  [ObjectType.RECORD]: RecordProperty,
+  [ObjectType.QUERY]: QueryProperty,
+  [ObjectType.VIEW]: ViewProperty,
+  [ObjectType.STEP]: StepProperty,
+  [ObjectType.BADGE]: BadgeProperty,
+  [ObjectType.ROLE]: RoleProperty,
+  [ObjectType.IDENTITY]: IdentityProperty,
+  [ObjectType.MEMBERSHIP]: MembershipProperty,
+  [ObjectType.INVITE]: InviteProperty,
+  [ObjectType.SESSION]: SessionProperty,
+  [ObjectType.RUN]: RunProperty,
+  [ObjectType.PAUSE]: PauseProperty,
+  [ObjectType.SIGNAL]: SignalProperty,
+  [ObjectType.LOG]: LogProperty,
+  [ObjectType.NOTIFICATION]: NotificationProperty,
+  [ObjectType.SERVER]: ServerProperty,
+  [ObjectType.STORE]: StoreProperty,
+  [ObjectType.DRIVE]: DriveProperty,
+  [ObjectType.CACHE]: CacheProperty,
+  [ObjectType.FILE_CONTENT]: FileContentProperty,
+  [ObjectType.HANDLE]: HandleProperty,
+  [ObjectType.USER]: UserProperty,
+  [ObjectType.ORGANIZATION]: OrganizationProperty,
+  [ObjectType.CLIENT]: ClientProperty,
 }
 
-export const STRUCT_PROPERTY_ENUM_BY_TYPE: Partial<Record<BenchType, AnyStructPropertyType>> = {
-  [BenchType.PATH]: PathProperty,
-  [BenchType.PATH_SEGMENT]: PathSegmentProperty,
-  [BenchType.PATH_TOKEN]: PathTokenProperty,
-  [BenchType.NODE_REFERENCE]: NodeReferenceProperty,
-  [BenchType.PROPERTY_REFERENCE]: PropertyReferenceProperty,
-  [BenchType.VALUE_REFERENCE]: ValueReferenceProperty,
-  [BenchType.TYPE_INFO]: TypeInfoProperty,
-  [BenchType.CONTEXT]: ContextProperty,
-  [BenchType.SCHEDULE]: ScheduleProperty,
-  [BenchType.PROJECTION]: ProjectionProperty,
-  [BenchType.FILE]: FileProperty,
-  [BenchType.ICON]: IconProperty,
-  [BenchType.POLICY]: PolicyProperty,
-  [BenchType.POLICY_RULE]: PolicyRuleProperty,
-  [BenchType.SUBJECT]: SubjectProperty,
-  [BenchType.ACCESS_ZONE]: AccessZoneProperty,
-  [BenchType.ACCESS_MATRIX]: AccessMatrixProperty,
-  [BenchType.ACCESS]: AccessProperty,
-  [BenchType.ACCESS_TRACE]: AccessTraceProperty,
-  [BenchType.REQUEST]: RequestProperty,
-  [BenchType.READ_OPTIONS]: ReadOptionsProperty,
-  [BenchType.EXPRESSION]: ExpressionProperty,
-  [BenchType.AGGREGATION]: AggregationProperty,
-  [BenchType.AGGREGATION_BUCKET]: AggregationBucketProperty,
-  [BenchType.SELECTION]: SelectionProperty,
-  [BenchType.CODE]: CodeProperty,
-  [BenchType.CODE_LINE]: CodeLineProperty,
-  [BenchType.STEP_CONNECTION]: StepConnectionProperty,
-  [BenchType.RUN_CODE_FRAME]: RunCodeFrameProperty,
-  [BenchType.RUN_ERROR]: RunErrorProperty,
-  [BenchType.RESOURCE_CREDENTIAL]: ResourceCredentialProperty,
-  [BenchType.TEXT]: TextProperty,
-  [BenchType.TEXT_LINE]: TextLineProperty,
-  [BenchType.TEXT_SPAN]: TextSpanProperty,
-  [BenchType.COLOR]: ColorProperty,
-  [BenchType.FONT]: FontProperty,
-  [BenchType.BOX]: BoxProperty,
-  [BenchType.OFFSET]: OffsetProperty,
+export const STRUCT_PROPERTY_ENUM_BY_TYPE: Partial<Record<ObjectType, AnyStructPropertyType>> = {
+  [ObjectType.PATH]: PathProperty,
+  [ObjectType.PATH_SEGMENT]: PathSegmentProperty,
+  [ObjectType.PATH_TOKEN]: PathTokenProperty,
+  [ObjectType.NODE_REFERENCE]: NodeReferenceProperty,
+  [ObjectType.PROPERTY_REFERENCE]: PropertyReferenceProperty,
+  [ObjectType.VALUE_REFERENCE]: ValueReferenceProperty,
+  [ObjectType.TYPE_INFO]: TypeInfoProperty,
+  [ObjectType.CONTEXT]: ContextProperty,
+  [ObjectType.SCHEDULE]: ScheduleProperty,
+  [ObjectType.PROJECTION]: ProjectionProperty,
+  [ObjectType.FILE]: FileProperty,
+  [ObjectType.ICON]: IconProperty,
+  [ObjectType.POLICY]: PolicyProperty,
+  [ObjectType.POLICY_RULE]: PolicyRuleProperty,
+  [ObjectType.SUBJECT]: SubjectProperty,
+  [ObjectType.ACCESS_ZONE]: AccessZoneProperty,
+  [ObjectType.ACCESS_MATRIX]: AccessMatrixProperty,
+  [ObjectType.ACCESS]: AccessProperty,
+  [ObjectType.ACCESS_TRACE]: AccessTraceProperty,
+  [ObjectType.REQUEST]: RequestProperty,
+  [ObjectType.READ_OPTIONS]: ReadOptionsProperty,
+  [ObjectType.EXPRESSION]: ExpressionProperty,
+  [ObjectType.AGGREGATION]: AggregationProperty,
+  [ObjectType.AGGREGATION_BUCKET]: AggregationBucketProperty,
+  [ObjectType.SELECTION]: SelectionProperty,
+  [ObjectType.CODE]: CodeProperty,
+  [ObjectType.CODE_LINE]: CodeLineProperty,
+  [ObjectType.STEP_CONNECTION]: StepConnectionProperty,
+  [ObjectType.RUN_CODE_FRAME]: RunCodeFrameProperty,
+  [ObjectType.RUN_ERROR]: RunErrorProperty,
+  [ObjectType.RESOURCE_CREDENTIAL]: ResourceCredentialProperty,
+  [ObjectType.TEXT]: TextProperty,
+  [ObjectType.TEXT_LINE]: TextLineProperty,
+  [ObjectType.TEXT_SPAN]: TextSpanProperty,
+  [ObjectType.COLOR]: ColorProperty,
+  [ObjectType.FONT]: FontProperty,
+  [ObjectType.BOX]: BoxProperty,
+  [ObjectType.OFFSET]: OffsetProperty,
 }
 
-export const PROPERTY_ENUM_BY_TYPE: Partial<Record<BenchType, AnyPropertyType>> = {
-  [BenchType.BENCH]: BenchProperty,
-  [BenchType.ENVIRONMENT]: EnvironmentProperty,
-  [BenchType.BRANCH]: BranchProperty,
-  [BenchType.PACKAGE]: PackageProperty,
-  [BenchType.DEPENDENCY]: DependencyProperty,
-  [BenchType.UPGRADE]: UpgradeProperty,
-  [BenchType.SPACE]: SpaceProperty,
-  [BenchType.LINK]: LinkProperty,
-  [BenchType.SKIP]: SkipProperty,
-  [BenchType.NOTICE]: NoticeProperty,
-  [BenchType.BLOCK]: BlockProperty,
-  [BenchType.TRIGGER]: TriggerProperty,
-  [BenchType.FIELD]: FieldProperty,
-  [BenchType.RECORD]: RecordProperty,
-  [BenchType.QUERY]: QueryProperty,
-  [BenchType.VIEW]: ViewProperty,
-  [BenchType.STEP]: StepProperty,
-  [BenchType.BADGE]: BadgeProperty,
-  [BenchType.ROLE]: RoleProperty,
-  [BenchType.IDENTITY]: IdentityProperty,
-  [BenchType.MEMBERSHIP]: MembershipProperty,
-  [BenchType.INVITE]: InviteProperty,
-  [BenchType.SESSION]: SessionProperty,
-  [BenchType.RUN]: RunProperty,
-  [BenchType.PAUSE]: PauseProperty,
-  [BenchType.SIGNAL]: SignalProperty,
-  [BenchType.LOG]: LogProperty,
-  [BenchType.NOTIFICATION]: NotificationProperty,
-  [BenchType.SERVER]: ServerProperty,
-  [BenchType.STORE]: StoreProperty,
-  [BenchType.DRIVE]: DriveProperty,
-  [BenchType.CACHE]: CacheProperty,
-  [BenchType.FILE_CONTENT]: FileContentProperty,
-  [BenchType.HANDLE]: HandleProperty,
-  [BenchType.USER]: UserProperty,
-  [BenchType.ORGANIZATION]: OrganizationProperty,
-  [BenchType.CLIENT]: ClientProperty,
-  [BenchType.PATH]: PathProperty,
-  [BenchType.PATH_SEGMENT]: PathSegmentProperty,
-  [BenchType.PATH_TOKEN]: PathTokenProperty,
-  [BenchType.NODE_REFERENCE]: NodeReferenceProperty,
-  [BenchType.PROPERTY_REFERENCE]: PropertyReferenceProperty,
-  [BenchType.VALUE_REFERENCE]: ValueReferenceProperty,
-  [BenchType.TYPE_INFO]: TypeInfoProperty,
-  [BenchType.CONTEXT]: ContextProperty,
-  [BenchType.SCHEDULE]: ScheduleProperty,
-  [BenchType.PROJECTION]: ProjectionProperty,
-  [BenchType.FILE]: FileProperty,
-  [BenchType.ICON]: IconProperty,
-  [BenchType.POLICY]: PolicyProperty,
-  [BenchType.POLICY_RULE]: PolicyRuleProperty,
-  [BenchType.SUBJECT]: SubjectProperty,
-  [BenchType.ACCESS_ZONE]: AccessZoneProperty,
-  [BenchType.ACCESS_MATRIX]: AccessMatrixProperty,
-  [BenchType.ACCESS]: AccessProperty,
-  [BenchType.ACCESS_TRACE]: AccessTraceProperty,
-  [BenchType.REQUEST]: RequestProperty,
-  [BenchType.READ_OPTIONS]: ReadOptionsProperty,
-  [BenchType.EXPRESSION]: ExpressionProperty,
-  [BenchType.AGGREGATION]: AggregationProperty,
-  [BenchType.AGGREGATION_BUCKET]: AggregationBucketProperty,
-  [BenchType.SELECTION]: SelectionProperty,
-  [BenchType.CODE]: CodeProperty,
-  [BenchType.CODE_LINE]: CodeLineProperty,
-  [BenchType.STEP_CONNECTION]: StepConnectionProperty,
-  [BenchType.RUN_CODE_FRAME]: RunCodeFrameProperty,
-  [BenchType.RUN_ERROR]: RunErrorProperty,
-  [BenchType.RESOURCE_CREDENTIAL]: ResourceCredentialProperty,
-  [BenchType.TEXT]: TextProperty,
-  [BenchType.TEXT_LINE]: TextLineProperty,
-  [BenchType.TEXT_SPAN]: TextSpanProperty,
-  [BenchType.COLOR]: ColorProperty,
-  [BenchType.FONT]: FontProperty,
-  [BenchType.BOX]: BoxProperty,
-  [BenchType.OFFSET]: OffsetProperty,
+export const PROPERTY_ENUM_BY_TYPE: Partial<Record<ObjectType, AnyPropertyType>> = {
+  [ObjectType.BENCH]: BenchProperty,
+  [ObjectType.ENVIRONMENT]: EnvironmentProperty,
+  [ObjectType.BRANCH]: BranchProperty,
+  [ObjectType.PACKAGE]: PackageProperty,
+  [ObjectType.DEPENDENCY]: DependencyProperty,
+  [ObjectType.UPGRADE]: UpgradeProperty,
+  [ObjectType.SPACE]: SpaceProperty,
+  [ObjectType.LINK]: LinkProperty,
+  [ObjectType.SKIP]: SkipProperty,
+  [ObjectType.NOTICE]: NoticeProperty,
+  [ObjectType.BLOCK]: BlockProperty,
+  [ObjectType.TRIGGER]: TriggerProperty,
+  [ObjectType.FIELD]: FieldProperty,
+  [ObjectType.RECORD]: RecordProperty,
+  [ObjectType.QUERY]: QueryProperty,
+  [ObjectType.VIEW]: ViewProperty,
+  [ObjectType.STEP]: StepProperty,
+  [ObjectType.BADGE]: BadgeProperty,
+  [ObjectType.ROLE]: RoleProperty,
+  [ObjectType.IDENTITY]: IdentityProperty,
+  [ObjectType.MEMBERSHIP]: MembershipProperty,
+  [ObjectType.INVITE]: InviteProperty,
+  [ObjectType.SESSION]: SessionProperty,
+  [ObjectType.RUN]: RunProperty,
+  [ObjectType.PAUSE]: PauseProperty,
+  [ObjectType.SIGNAL]: SignalProperty,
+  [ObjectType.LOG]: LogProperty,
+  [ObjectType.NOTIFICATION]: NotificationProperty,
+  [ObjectType.SERVER]: ServerProperty,
+  [ObjectType.STORE]: StoreProperty,
+  [ObjectType.DRIVE]: DriveProperty,
+  [ObjectType.CACHE]: CacheProperty,
+  [ObjectType.FILE_CONTENT]: FileContentProperty,
+  [ObjectType.HANDLE]: HandleProperty,
+  [ObjectType.USER]: UserProperty,
+  [ObjectType.ORGANIZATION]: OrganizationProperty,
+  [ObjectType.CLIENT]: ClientProperty,
+  [ObjectType.PATH]: PathProperty,
+  [ObjectType.PATH_SEGMENT]: PathSegmentProperty,
+  [ObjectType.PATH_TOKEN]: PathTokenProperty,
+  [ObjectType.NODE_REFERENCE]: NodeReferenceProperty,
+  [ObjectType.PROPERTY_REFERENCE]: PropertyReferenceProperty,
+  [ObjectType.VALUE_REFERENCE]: ValueReferenceProperty,
+  [ObjectType.TYPE_INFO]: TypeInfoProperty,
+  [ObjectType.CONTEXT]: ContextProperty,
+  [ObjectType.SCHEDULE]: ScheduleProperty,
+  [ObjectType.PROJECTION]: ProjectionProperty,
+  [ObjectType.FILE]: FileProperty,
+  [ObjectType.ICON]: IconProperty,
+  [ObjectType.POLICY]: PolicyProperty,
+  [ObjectType.POLICY_RULE]: PolicyRuleProperty,
+  [ObjectType.SUBJECT]: SubjectProperty,
+  [ObjectType.ACCESS_ZONE]: AccessZoneProperty,
+  [ObjectType.ACCESS_MATRIX]: AccessMatrixProperty,
+  [ObjectType.ACCESS]: AccessProperty,
+  [ObjectType.ACCESS_TRACE]: AccessTraceProperty,
+  [ObjectType.REQUEST]: RequestProperty,
+  [ObjectType.READ_OPTIONS]: ReadOptionsProperty,
+  [ObjectType.EXPRESSION]: ExpressionProperty,
+  [ObjectType.AGGREGATION]: AggregationProperty,
+  [ObjectType.AGGREGATION_BUCKET]: AggregationBucketProperty,
+  [ObjectType.SELECTION]: SelectionProperty,
+  [ObjectType.CODE]: CodeProperty,
+  [ObjectType.CODE_LINE]: CodeLineProperty,
+  [ObjectType.STEP_CONNECTION]: StepConnectionProperty,
+  [ObjectType.RUN_CODE_FRAME]: RunCodeFrameProperty,
+  [ObjectType.RUN_ERROR]: RunErrorProperty,
+  [ObjectType.RESOURCE_CREDENTIAL]: ResourceCredentialProperty,
+  [ObjectType.TEXT]: TextProperty,
+  [ObjectType.TEXT_LINE]: TextLineProperty,
+  [ObjectType.TEXT_SPAN]: TextSpanProperty,
+  [ObjectType.COLOR]: ColorProperty,
+  [ObjectType.FONT]: FontProperty,
+  [ObjectType.BOX]: BoxProperty,
+  [ObjectType.OFFSET]: OffsetProperty,
 }
 
 
@@ -23223,7 +23744,7 @@ export type PropertyInfo = {
     // basics
     id: number;
     name: string;
-    component: BenchType;
+    component: ObjectType;
     kind: PropertyKind;
     primitiveType?: PrimitiveType;
     default?: any;
@@ -23257,1372 +23778,1372 @@ export type PropertyInfo = {
 }
     
 export const PathDataInfo: Record<PathProperty, PropertyInfo> = {
-  [PathProperty.metatype]: { id: 1, name: 'metatype', component: BenchType.PATH, kind: 'enum', primitiveType: PrimitiveType.STRING, isRequired: true, isInternal: true, isComputed: true, isWired: true },
-  [PathProperty.segments]: { id: 31, name: 'segments', component: BenchType.PATH, kind: 'reference', primitiveType: PrimitiveType.JSON, isList: true, isRequired: true, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.PATH_SEGMENT },
-  [PathProperty.id]: { id: 2, name: 'id', component: BenchType.PATH, kind: 'primitive', primitiveType: PrimitiveType.INT32, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
-  [PathProperty.orderKey]: { id: 5, name: 'order_key', component: BenchType.PATH, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isRuntime: true, isWired: true, isStored: true },
-  [PathProperty.setProperties]: { id: 22, name: 'set_properties', component: BenchType.PATH, kind: 'primitive', primitiveType: PrimitiveType.INT32, isList: true, isRequired: true, isRuntime: true, isWired: true, isStored: true },
-  [PathProperty.parentId]: { id: 3, name: 'parent_id', component: BenchType.PATH, kind: 'reference', primitiveType: PrimitiveType.INT32, isInternal: true, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_PARENT },
-  [PathProperty.parentKey]: { id: 4, name: 'parent_key', component: BenchType.PATH, kind: 'reference', primitiveType: PrimitiveType.STRING, isInternal: true, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_PARENT },
+  [PathProperty.metatype]: { id: 1, name: 'metatype', component: ObjectType.PATH, kind: 'enum', primitiveType: PrimitiveType.STRING, isRequired: true, isInternal: true, isComputed: true, isWired: true },
+  [PathProperty.segments]: { id: 31, name: 'segments', component: ObjectType.PATH, kind: 'reference', primitiveType: PrimitiveType.JSON, isList: true, isRequired: true, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.PATH_SEGMENT },
+  [PathProperty.id]: { id: 2, name: 'id', component: ObjectType.PATH, kind: 'primitive', primitiveType: PrimitiveType.INT32, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
+  [PathProperty.orderKey]: { id: 5, name: 'order_key', component: ObjectType.PATH, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isRuntime: true, isWired: true, isStored: true },
+  [PathProperty.setProperties]: { id: 22, name: 'set_properties', component: ObjectType.PATH, kind: 'primitive', primitiveType: PrimitiveType.INT32, isList: true, isRequired: true, isRuntime: true, isWired: true, isStored: true },
+  [PathProperty.parentId]: { id: 3, name: 'parent_id', component: ObjectType.PATH, kind: 'reference', primitiveType: PrimitiveType.INT32, isInternal: true, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_PARENT },
+  [PathProperty.parentKey]: { id: 4, name: 'parent_key', component: ObjectType.PATH, kind: 'reference', primitiveType: PrimitiveType.STRING, isInternal: true, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_PARENT },
 }
 export const PathSegmentDataInfo: Record<PathSegmentProperty, PropertyInfo> = {
-  [PathSegmentProperty.metatype]: { id: 1, name: 'metatype', component: BenchType.PATH_SEGMENT, kind: 'enum', primitiveType: PrimitiveType.STRING, isRequired: true, isInternal: true, isComputed: true, isWired: true },
-  [PathSegmentProperty.type]: { id: 31, name: 'type', component: BenchType.PATH_SEGMENT, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isRuntime: true, isWired: true, isStored: true },
-  [PathSegmentProperty.name]: { id: 32, name: 'name', component: BenchType.PATH_SEGMENT, kind: 'primitive', primitiveType: PrimitiveType.STRING, isRuntime: true, isWired: true, isStored: true },
-  [PathSegmentProperty.id]: { id: 2, name: 'id', component: BenchType.PATH_SEGMENT, kind: 'primitive', primitiveType: PrimitiveType.INT32, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
-  [PathSegmentProperty.referencePtr]: { id: 33, name: 'reference_ptr', component: BenchType.PATH_SEGMENT, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.BENCH, NodeType.ENVIRONMENT, NodeType.BRANCH, NodeType.PACKAGE, NodeType.BLOCK, NodeType.FIELD, NodeType.VIEW], referenceStruct: StructType.NODE_REFERENCE },
+  [PathSegmentProperty.metatype]: { id: 1, name: 'metatype', component: ObjectType.PATH_SEGMENT, kind: 'enum', primitiveType: PrimitiveType.STRING, isRequired: true, isInternal: true, isComputed: true, isWired: true },
+  [PathSegmentProperty.type]: { id: 31, name: 'type', component: ObjectType.PATH_SEGMENT, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isRuntime: true, isWired: true, isStored: true },
+  [PathSegmentProperty.name]: { id: 32, name: 'name', component: ObjectType.PATH_SEGMENT, kind: 'primitive', primitiveType: PrimitiveType.STRING, isRuntime: true, isWired: true, isStored: true },
+  [PathSegmentProperty.id]: { id: 2, name: 'id', component: ObjectType.PATH_SEGMENT, kind: 'primitive', primitiveType: PrimitiveType.INT32, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
+  [PathSegmentProperty.referencePtr]: { id: 33, name: 'reference_ptr', component: ObjectType.PATH_SEGMENT, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.BENCH, NodeType.ENVIRONMENT, NodeType.BRANCH, NodeType.PACKAGE, NodeType.BLOCK, NodeType.FIELD, NodeType.VIEW], referenceStruct: StructType.NODE_REFERENCE },
 }
 export const PathTokenDataInfo: Record<PathTokenProperty, PropertyInfo> = {
-  [PathTokenProperty.metatype]: { id: 1, name: 'metatype', component: BenchType.PATH_TOKEN, kind: 'enum', primitiveType: PrimitiveType.STRING, isRequired: true, isInternal: true, isComputed: true, isWired: true },
-  [PathTokenProperty.type]: { id: 31, name: 'type', component: BenchType.PATH_TOKEN, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isRuntime: true, isWired: true, isStored: true },
-  [PathTokenProperty.id]: { id: 2, name: 'id', component: BenchType.PATH_TOKEN, kind: 'primitive', primitiveType: PrimitiveType.INT32, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
+  [PathTokenProperty.metatype]: { id: 1, name: 'metatype', component: ObjectType.PATH_TOKEN, kind: 'enum', primitiveType: PrimitiveType.STRING, isRequired: true, isInternal: true, isComputed: true, isWired: true },
+  [PathTokenProperty.type]: { id: 31, name: 'type', component: ObjectType.PATH_TOKEN, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isRuntime: true, isWired: true, isStored: true },
+  [PathTokenProperty.id]: { id: 2, name: 'id', component: ObjectType.PATH_TOKEN, kind: 'primitive', primitiveType: PrimitiveType.INT32, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
 }
 export const NodeReferenceDataInfo: Record<NodeReferenceProperty, PropertyInfo> = {
-  [NodeReferenceProperty.metatype]: { id: 1, name: 'metatype', component: BenchType.NODE_REFERENCE, kind: 'enum', primitiveType: PrimitiveType.STRING, isRequired: true, isInternal: true, isComputed: true, isWired: true },
-  [NodeReferenceProperty.type]: { id: 30, name: 'type', component: BenchType.NODE_REFERENCE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isRuntime: true, isWired: true, isStored: true },
-  [NodeReferenceProperty.id]: { id: 31, name: 'id', component: BenchType.NODE_REFERENCE, kind: 'primitive', primitiveType: PrimitiveType.UUID, isRuntime: true, isWired: true, isStored: true },
-  [NodeReferenceProperty.ck]: { id: 32, name: 'ck', component: BenchType.NODE_REFERENCE, kind: 'primitive', primitiveType: PrimitiveType.UUID, isRuntime: true, isWired: true, isStored: true },
-  [NodeReferenceProperty.benchId]: { id: 33, name: 'bench_id', component: BenchType.NODE_REFERENCE, kind: 'primitive', primitiveType: PrimitiveType.UUID, isRuntime: true, isWired: true, isStored: true },
-  [NodeReferenceProperty.baseCk]: { id: 34, name: 'base_ck', component: BenchType.NODE_REFERENCE, kind: 'primitive', primitiveType: PrimitiveType.UUID, isRuntime: true, isWired: true, isStored: true },
-  [NodeReferenceProperty.baseBenchId]: { id: 35, name: 'base_bench_id', component: BenchType.NODE_REFERENCE, kind: 'primitive', primitiveType: PrimitiveType.UUID, isRuntime: true, isWired: true, isStored: true },
+  [NodeReferenceProperty.metatype]: { id: 1, name: 'metatype', component: ObjectType.NODE_REFERENCE, kind: 'enum', primitiveType: PrimitiveType.STRING, isRequired: true, isInternal: true, isComputed: true, isWired: true },
+  [NodeReferenceProperty.type]: { id: 30, name: 'type', component: ObjectType.NODE_REFERENCE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isRuntime: true, isWired: true, isStored: true },
+  [NodeReferenceProperty.id]: { id: 31, name: 'id', component: ObjectType.NODE_REFERENCE, kind: 'primitive', primitiveType: PrimitiveType.UUID, isRuntime: true, isWired: true, isStored: true },
+  [NodeReferenceProperty.ck]: { id: 32, name: 'ck', component: ObjectType.NODE_REFERENCE, kind: 'primitive', primitiveType: PrimitiveType.UUID, isRuntime: true, isWired: true, isStored: true },
+  [NodeReferenceProperty.benchId]: { id: 33, name: 'bench_id', component: ObjectType.NODE_REFERENCE, kind: 'primitive', primitiveType: PrimitiveType.UUID, isRuntime: true, isWired: true, isStored: true },
+  [NodeReferenceProperty.baseCk]: { id: 34, name: 'base_ck', component: ObjectType.NODE_REFERENCE, kind: 'primitive', primitiveType: PrimitiveType.UUID, isRuntime: true, isWired: true, isStored: true },
+  [NodeReferenceProperty.baseBenchId]: { id: 35, name: 'base_bench_id', component: ObjectType.NODE_REFERENCE, kind: 'primitive', primitiveType: PrimitiveType.UUID, isRuntime: true, isWired: true, isStored: true },
 }
 export const PropertyReferenceDataInfo: Record<PropertyReferenceProperty, PropertyInfo> = {
-  [PropertyReferenceProperty.metatype]: { id: 1, name: 'metatype', component: BenchType.PROPERTY_REFERENCE, kind: 'enum', primitiveType: PrimitiveType.STRING, isRequired: true, isInternal: true, isComputed: true, isWired: true },
-  [PropertyReferenceProperty.type]: { id: 30, name: 'type', component: BenchType.PROPERTY_REFERENCE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRuntime: true, isWired: true, isStored: true },
-  [PropertyReferenceProperty.id]: { id: 31, name: 'id', component: BenchType.PROPERTY_REFERENCE, kind: 'primitive', primitiveType: PrimitiveType.INT32, isRequired: true, isRuntime: true, isWired: true, isStored: true },
-  [PropertyReferenceProperty.referencesType]: { id: 32, name: 'references_type', component: BenchType.PROPERTY_REFERENCE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRuntime: true, isWired: true, isStored: true },
+  [PropertyReferenceProperty.metatype]: { id: 1, name: 'metatype', component: ObjectType.PROPERTY_REFERENCE, kind: 'enum', primitiveType: PrimitiveType.STRING, isRequired: true, isInternal: true, isComputed: true, isWired: true },
+  [PropertyReferenceProperty.type]: { id: 30, name: 'type', component: ObjectType.PROPERTY_REFERENCE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRuntime: true, isWired: true, isStored: true },
+  [PropertyReferenceProperty.id]: { id: 31, name: 'id', component: ObjectType.PROPERTY_REFERENCE, kind: 'primitive', primitiveType: PrimitiveType.INT32, isRequired: true, isRuntime: true, isWired: true, isStored: true },
+  [PropertyReferenceProperty.referencesType]: { id: 32, name: 'references_type', component: ObjectType.PROPERTY_REFERENCE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRuntime: true, isWired: true, isStored: true },
 }
 export const ValueReferenceDataInfo: Record<ValueReferenceProperty, PropertyInfo> = {
-  [ValueReferenceProperty.metatype]: { id: 1, name: 'metatype', component: BenchType.VALUE_REFERENCE, kind: 'enum', primitiveType: PrimitiveType.STRING, isRequired: true, isInternal: true, isComputed: true, isWired: true },
-  [ValueReferenceProperty.path]: { id: 31, name: 'path', component: BenchType.VALUE_REFERENCE, kind: 'reference', primitiveType: PrimitiveType.JSON, isRequired: true, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.PATH },
-  [ValueReferenceProperty.id]: { id: 2, name: 'id', component: BenchType.VALUE_REFERENCE, kind: 'primitive', primitiveType: PrimitiveType.INT32, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
-  [ValueReferenceProperty.orderKey]: { id: 5, name: 'order_key', component: BenchType.VALUE_REFERENCE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isRuntime: true, isWired: true, isStored: true },
-  [ValueReferenceProperty.setProperties]: { id: 22, name: 'set_properties', component: BenchType.VALUE_REFERENCE, kind: 'primitive', primitiveType: PrimitiveType.INT32, isList: true, isRequired: true, isRuntime: true, isWired: true, isStored: true },
-  [ValueReferenceProperty.parentId]: { id: 3, name: 'parent_id', component: BenchType.VALUE_REFERENCE, kind: 'reference', primitiveType: PrimitiveType.INT32, isInternal: true, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_PARENT },
-  [ValueReferenceProperty.parentKey]: { id: 4, name: 'parent_key', component: BenchType.VALUE_REFERENCE, kind: 'reference', primitiveType: PrimitiveType.STRING, isInternal: true, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_PARENT },
+  [ValueReferenceProperty.metatype]: { id: 1, name: 'metatype', component: ObjectType.VALUE_REFERENCE, kind: 'enum', primitiveType: PrimitiveType.STRING, isRequired: true, isInternal: true, isComputed: true, isWired: true },
+  [ValueReferenceProperty.path]: { id: 31, name: 'path', component: ObjectType.VALUE_REFERENCE, kind: 'reference', primitiveType: PrimitiveType.JSON, isRequired: true, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.PATH },
+  [ValueReferenceProperty.id]: { id: 2, name: 'id', component: ObjectType.VALUE_REFERENCE, kind: 'primitive', primitiveType: PrimitiveType.INT32, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
+  [ValueReferenceProperty.orderKey]: { id: 5, name: 'order_key', component: ObjectType.VALUE_REFERENCE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isRuntime: true, isWired: true, isStored: true },
+  [ValueReferenceProperty.setProperties]: { id: 22, name: 'set_properties', component: ObjectType.VALUE_REFERENCE, kind: 'primitive', primitiveType: PrimitiveType.INT32, isList: true, isRequired: true, isRuntime: true, isWired: true, isStored: true },
+  [ValueReferenceProperty.parentId]: { id: 3, name: 'parent_id', component: ObjectType.VALUE_REFERENCE, kind: 'reference', primitiveType: PrimitiveType.INT32, isInternal: true, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_PARENT },
+  [ValueReferenceProperty.parentKey]: { id: 4, name: 'parent_key', component: ObjectType.VALUE_REFERENCE, kind: 'reference', primitiveType: PrimitiveType.STRING, isInternal: true, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_PARENT },
 }
 export const TypeInfoDataInfo: Record<TypeInfoProperty, PropertyInfo> = {
-  [TypeInfoProperty.metatype]: { id: 1, name: 'metatype', component: BenchType.TYPE_INFO, kind: 'enum', primitiveType: PrimitiveType.STRING, isRequired: true, isInternal: true, isComputed: true, isWired: true },
-  [TypeInfoProperty.id]: { id: 2, name: 'id', component: BenchType.TYPE_INFO, kind: 'primitive', primitiveType: PrimitiveType.INT32, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
-  [TypeInfoProperty.orderKey]: { id: 5, name: 'order_key', component: BenchType.TYPE_INFO, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isRuntime: true, isWired: true, isStored: true },
-  [TypeInfoProperty.setProperties]: { id: 22, name: 'set_properties', component: BenchType.TYPE_INFO, kind: 'primitive', primitiveType: PrimitiveType.INT32, isList: true, isRequired: true, isRuntime: true, isWired: true, isStored: true },
-  [TypeInfoProperty.primitiveType]: { id: 40, name: 'primitive_type', component: BenchType.TYPE_INFO, kind: 'enum', primitiveType: PrimitiveType.INT16, isRuntime: true, isWired: true, isStored: true },
-  [TypeInfoProperty.nodeType]: { id: 41, name: 'node_type', component: BenchType.TYPE_INFO, kind: 'enum', primitiveType: PrimitiveType.INT16, isRuntime: true, isWired: true, isStored: true },
-  [TypeInfoProperty.structType]: { id: 42, name: 'struct_type', component: BenchType.TYPE_INFO, kind: 'enum', primitiveType: PrimitiveType.INT16, isRuntime: true, isWired: true, isStored: true },
-  [TypeInfoProperty.visibility]: { id: 44, name: 'visibility', component: BenchType.TYPE_INFO, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isRuntime: true, isWired: true, isStored: true },
-  [TypeInfoProperty.formatHint]: { id: 45, name: 'format_hint', component: BenchType.TYPE_INFO, kind: 'enum', primitiveType: PrimitiveType.INT16, isRuntime: true, isWired: true, isStored: true },
-  [TypeInfoProperty.condition]: { id: 46, name: 'condition', component: BenchType.TYPE_INFO, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.EXPRESSION },
-  [TypeInfoProperty.length]: { id: 47, name: 'length', component: BenchType.TYPE_INFO, kind: 'primitive', primitiveType: PrimitiveType.INT32, isRuntime: true, isWired: true, isStored: true },
-  [TypeInfoProperty.precision]: { id: 48, name: 'precision', component: BenchType.TYPE_INFO, kind: 'primitive', primitiveType: PrimitiveType.INT32, isRuntime: true, isWired: true, isStored: true },
-  [TypeInfoProperty.scale]: { id: 49, name: 'scale', component: BenchType.TYPE_INFO, kind: 'primitive', primitiveType: PrimitiveType.INT32, isRuntime: true, isWired: true, isStored: true },
-  [TypeInfoProperty.defaultPacked]: { id: 50, name: 'default_packed', component: BenchType.TYPE_INFO, kind: 'primitive', primitiveType: PrimitiveType.JSON, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true, isValuePacked: true },
-  [TypeInfoProperty.isList]: { id: 53, name: 'is_list', component: BenchType.TYPE_INFO, kind: 'primitive', primitiveType: PrimitiveType.BOOLEAN, isRequired: true, isRuntime: true, isWired: true, isStored: true },
-  [TypeInfoProperty.isRequired]: { id: 54, name: 'is_required', component: BenchType.TYPE_INFO, kind: 'primitive', primitiveType: PrimitiveType.BOOLEAN, isRequired: true, isRuntime: true, isWired: true, isStored: true },
-  [TypeInfoProperty.isSecret]: { id: 55, name: 'is_secret', component: BenchType.TYPE_INFO, kind: 'primitive', primitiveType: PrimitiveType.BOOLEAN, isRequired: true, isRuntime: true, isWired: true, isStored: true },
-  [TypeInfoProperty.parentId]: { id: 3, name: 'parent_id', component: BenchType.TYPE_INFO, kind: 'reference', primitiveType: PrimitiveType.INT32, isInternal: true, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_PARENT },
-  [TypeInfoProperty.parentKey]: { id: 4, name: 'parent_key', component: BenchType.TYPE_INFO, kind: 'reference', primitiveType: PrimitiveType.STRING, isInternal: true, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_PARENT },
-  [TypeInfoProperty.baseTypePtr]: { id: 43, name: 'base_type_ptr', component: BenchType.TYPE_INFO, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.BLOCK], referenceStruct: StructType.NODE_REFERENCE },
+  [TypeInfoProperty.metatype]: { id: 1, name: 'metatype', component: ObjectType.TYPE_INFO, kind: 'enum', primitiveType: PrimitiveType.STRING, isRequired: true, isInternal: true, isComputed: true, isWired: true },
+  [TypeInfoProperty.id]: { id: 2, name: 'id', component: ObjectType.TYPE_INFO, kind: 'primitive', primitiveType: PrimitiveType.INT32, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
+  [TypeInfoProperty.orderKey]: { id: 5, name: 'order_key', component: ObjectType.TYPE_INFO, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isRuntime: true, isWired: true, isStored: true },
+  [TypeInfoProperty.setProperties]: { id: 22, name: 'set_properties', component: ObjectType.TYPE_INFO, kind: 'primitive', primitiveType: PrimitiveType.INT32, isList: true, isRequired: true, isRuntime: true, isWired: true, isStored: true },
+  [TypeInfoProperty.primitiveType]: { id: 40, name: 'primitive_type', component: ObjectType.TYPE_INFO, kind: 'enum', primitiveType: PrimitiveType.INT16, isRuntime: true, isWired: true, isStored: true },
+  [TypeInfoProperty.nodeType]: { id: 41, name: 'node_type', component: ObjectType.TYPE_INFO, kind: 'enum', primitiveType: PrimitiveType.INT16, isRuntime: true, isWired: true, isStored: true },
+  [TypeInfoProperty.structType]: { id: 42, name: 'struct_type', component: ObjectType.TYPE_INFO, kind: 'enum', primitiveType: PrimitiveType.INT16, isRuntime: true, isWired: true, isStored: true },
+  [TypeInfoProperty.visibility]: { id: 44, name: 'visibility', component: ObjectType.TYPE_INFO, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isRuntime: true, isWired: true, isStored: true },
+  [TypeInfoProperty.formatHint]: { id: 45, name: 'format_hint', component: ObjectType.TYPE_INFO, kind: 'enum', primitiveType: PrimitiveType.INT16, isRuntime: true, isWired: true, isStored: true },
+  [TypeInfoProperty.condition]: { id: 46, name: 'condition', component: ObjectType.TYPE_INFO, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.EXPRESSION },
+  [TypeInfoProperty.length]: { id: 47, name: 'length', component: ObjectType.TYPE_INFO, kind: 'primitive', primitiveType: PrimitiveType.INT32, isRuntime: true, isWired: true, isStored: true },
+  [TypeInfoProperty.precision]: { id: 48, name: 'precision', component: ObjectType.TYPE_INFO, kind: 'primitive', primitiveType: PrimitiveType.INT32, isRuntime: true, isWired: true, isStored: true },
+  [TypeInfoProperty.scale]: { id: 49, name: 'scale', component: ObjectType.TYPE_INFO, kind: 'primitive', primitiveType: PrimitiveType.INT32, isRuntime: true, isWired: true, isStored: true },
+  [TypeInfoProperty.defaultPacked]: { id: 50, name: 'default_packed', component: ObjectType.TYPE_INFO, kind: 'primitive', primitiveType: PrimitiveType.JSON, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true, isValuePacked: true },
+  [TypeInfoProperty.isList]: { id: 53, name: 'is_list', component: ObjectType.TYPE_INFO, kind: 'primitive', primitiveType: PrimitiveType.BOOLEAN, isRequired: true, isRuntime: true, isWired: true, isStored: true },
+  [TypeInfoProperty.isRequired]: { id: 54, name: 'is_required', component: ObjectType.TYPE_INFO, kind: 'primitive', primitiveType: PrimitiveType.BOOLEAN, isRequired: true, isRuntime: true, isWired: true, isStored: true },
+  [TypeInfoProperty.isSecret]: { id: 55, name: 'is_secret', component: ObjectType.TYPE_INFO, kind: 'primitive', primitiveType: PrimitiveType.BOOLEAN, isRequired: true, isRuntime: true, isWired: true, isStored: true },
+  [TypeInfoProperty.parentId]: { id: 3, name: 'parent_id', component: ObjectType.TYPE_INFO, kind: 'reference', primitiveType: PrimitiveType.INT32, isInternal: true, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_PARENT },
+  [TypeInfoProperty.parentKey]: { id: 4, name: 'parent_key', component: ObjectType.TYPE_INFO, kind: 'reference', primitiveType: PrimitiveType.STRING, isInternal: true, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_PARENT },
+  [TypeInfoProperty.baseTypePtr]: { id: 43, name: 'base_type_ptr', component: ObjectType.TYPE_INFO, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.BLOCK], referenceStruct: StructType.NODE_REFERENCE },
 }
 export const ContextDataInfo: Record<ContextProperty, PropertyInfo> = {
-  [ContextProperty.metatype]: { id: 1, name: 'metatype', component: BenchType.CONTEXT, kind: 'enum', primitiveType: PrimitiveType.STRING, isRequired: true, isInternal: true, isComputed: true, isWired: true },
-  [ContextProperty.id]: { id: 2, name: 'id', component: BenchType.CONTEXT, kind: 'primitive', primitiveType: PrimitiveType.INT32, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
-  [ContextProperty.orderKey]: { id: 5, name: 'order_key', component: BenchType.CONTEXT, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isRuntime: true, isWired: true, isStored: true },
-  [ContextProperty.setProperties]: { id: 22, name: 'set_properties', component: BenchType.CONTEXT, kind: 'primitive', primitiveType: PrimitiveType.INT32, isList: true, isRequired: true, isRuntime: true, isWired: true, isStored: true },
-  [ContextProperty.benchPtr]: { id: 30, name: 'bench_ptr', component: BenchType.CONTEXT, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.BENCH], referenceStruct: StructType.NODE_REFERENCE },
-  [ContextProperty.environmentPtr]: { id: 31, name: 'environment_ptr', component: BenchType.CONTEXT, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.ENVIRONMENT], referenceStruct: StructType.NODE_REFERENCE },
-  [ContextProperty.branchPtr]: { id: 32, name: 'branch_ptr', component: BenchType.CONTEXT, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.BRANCH], referenceStruct: StructType.NODE_REFERENCE },
-  [ContextProperty.packagePtr]: { id: 33, name: 'package_ptr', component: BenchType.CONTEXT, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.PACKAGE], referenceStruct: StructType.NODE_REFERENCE },
-  [ContextProperty.modulePtr]: { id: 34, name: 'module_ptr', component: BenchType.CONTEXT, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.BLOCK], referenceStruct: StructType.NODE_REFERENCE },
-  [ContextProperty.pagePtr]: { id: 35, name: 'page_ptr', component: BenchType.CONTEXT, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.BLOCK], referenceStruct: StructType.NODE_REFERENCE },
-  [ContextProperty.parentId]: { id: 3, name: 'parent_id', component: BenchType.CONTEXT, kind: 'reference', primitiveType: PrimitiveType.INT32, isInternal: true, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_PARENT },
-  [ContextProperty.parentKey]: { id: 4, name: 'parent_key', component: BenchType.CONTEXT, kind: 'reference', primitiveType: PrimitiveType.STRING, isInternal: true, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_PARENT },
+  [ContextProperty.metatype]: { id: 1, name: 'metatype', component: ObjectType.CONTEXT, kind: 'enum', primitiveType: PrimitiveType.STRING, isRequired: true, isInternal: true, isComputed: true, isWired: true },
+  [ContextProperty.id]: { id: 2, name: 'id', component: ObjectType.CONTEXT, kind: 'primitive', primitiveType: PrimitiveType.INT32, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
+  [ContextProperty.orderKey]: { id: 5, name: 'order_key', component: ObjectType.CONTEXT, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isRuntime: true, isWired: true, isStored: true },
+  [ContextProperty.setProperties]: { id: 22, name: 'set_properties', component: ObjectType.CONTEXT, kind: 'primitive', primitiveType: PrimitiveType.INT32, isList: true, isRequired: true, isRuntime: true, isWired: true, isStored: true },
+  [ContextProperty.benchPtr]: { id: 30, name: 'bench_ptr', component: ObjectType.CONTEXT, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.BENCH], referenceStruct: StructType.NODE_REFERENCE },
+  [ContextProperty.environmentPtr]: { id: 31, name: 'environment_ptr', component: ObjectType.CONTEXT, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.ENVIRONMENT], referenceStruct: StructType.NODE_REFERENCE },
+  [ContextProperty.branchPtr]: { id: 32, name: 'branch_ptr', component: ObjectType.CONTEXT, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.BRANCH], referenceStruct: StructType.NODE_REFERENCE },
+  [ContextProperty.packagePtr]: { id: 33, name: 'package_ptr', component: ObjectType.CONTEXT, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.PACKAGE], referenceStruct: StructType.NODE_REFERENCE },
+  [ContextProperty.modulePtr]: { id: 34, name: 'module_ptr', component: ObjectType.CONTEXT, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.BLOCK], referenceStruct: StructType.NODE_REFERENCE },
+  [ContextProperty.pagePtr]: { id: 35, name: 'page_ptr', component: ObjectType.CONTEXT, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.BLOCK], referenceStruct: StructType.NODE_REFERENCE },
+  [ContextProperty.parentId]: { id: 3, name: 'parent_id', component: ObjectType.CONTEXT, kind: 'reference', primitiveType: PrimitiveType.INT32, isInternal: true, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_PARENT },
+  [ContextProperty.parentKey]: { id: 4, name: 'parent_key', component: ObjectType.CONTEXT, kind: 'reference', primitiveType: PrimitiveType.STRING, isInternal: true, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_PARENT },
 }
 export const ScheduleDataInfo: Record<ScheduleProperty, PropertyInfo> = {
-  [ScheduleProperty.metatype]: { id: 1, name: 'metatype', component: BenchType.SCHEDULE, kind: 'enum', primitiveType: PrimitiveType.STRING, isRequired: true, isInternal: true, isComputed: true, isWired: true },
-  [ScheduleProperty.type]: { id: 30, name: 'type', component: BenchType.SCHEDULE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isRuntime: true, isWired: true, isStored: true },
-  [ScheduleProperty.timezone]: { id: 31, name: 'timezone', component: BenchType.SCHEDULE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isRuntime: true, isWired: true, isStored: true },
-  [ScheduleProperty.interval]: { id: 32, name: 'interval', component: BenchType.SCHEDULE, kind: 'primitive', primitiveType: PrimitiveType.INT32, isRuntime: true, isWired: true, isStored: true },
-  [ScheduleProperty.cron]: { id: 33, name: 'cron', component: BenchType.SCHEDULE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isRuntime: true, isWired: true, isStored: true },
-  [ScheduleProperty.id]: { id: 2, name: 'id', component: BenchType.SCHEDULE, kind: 'primitive', primitiveType: PrimitiveType.INT32, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
-  [ScheduleProperty.orderKey]: { id: 5, name: 'order_key', component: BenchType.SCHEDULE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isRuntime: true, isWired: true, isStored: true },
-  [ScheduleProperty.setProperties]: { id: 22, name: 'set_properties', component: BenchType.SCHEDULE, kind: 'primitive', primitiveType: PrimitiveType.INT32, isList: true, isRequired: true, isRuntime: true, isWired: true, isStored: true },
-  [ScheduleProperty.parentId]: { id: 3, name: 'parent_id', component: BenchType.SCHEDULE, kind: 'reference', primitiveType: PrimitiveType.INT32, isInternal: true, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_PARENT },
-  [ScheduleProperty.parentKey]: { id: 4, name: 'parent_key', component: BenchType.SCHEDULE, kind: 'reference', primitiveType: PrimitiveType.STRING, isInternal: true, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_PARENT },
+  [ScheduleProperty.metatype]: { id: 1, name: 'metatype', component: ObjectType.SCHEDULE, kind: 'enum', primitiveType: PrimitiveType.STRING, isRequired: true, isInternal: true, isComputed: true, isWired: true },
+  [ScheduleProperty.type]: { id: 30, name: 'type', component: ObjectType.SCHEDULE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isRuntime: true, isWired: true, isStored: true },
+  [ScheduleProperty.timezone]: { id: 31, name: 'timezone', component: ObjectType.SCHEDULE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isRuntime: true, isWired: true, isStored: true },
+  [ScheduleProperty.interval]: { id: 32, name: 'interval', component: ObjectType.SCHEDULE, kind: 'primitive', primitiveType: PrimitiveType.INT32, isRuntime: true, isWired: true, isStored: true },
+  [ScheduleProperty.cron]: { id: 33, name: 'cron', component: ObjectType.SCHEDULE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isRuntime: true, isWired: true, isStored: true },
+  [ScheduleProperty.id]: { id: 2, name: 'id', component: ObjectType.SCHEDULE, kind: 'primitive', primitiveType: PrimitiveType.INT32, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
+  [ScheduleProperty.orderKey]: { id: 5, name: 'order_key', component: ObjectType.SCHEDULE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isRuntime: true, isWired: true, isStored: true },
+  [ScheduleProperty.setProperties]: { id: 22, name: 'set_properties', component: ObjectType.SCHEDULE, kind: 'primitive', primitiveType: PrimitiveType.INT32, isList: true, isRequired: true, isRuntime: true, isWired: true, isStored: true },
+  [ScheduleProperty.parentId]: { id: 3, name: 'parent_id', component: ObjectType.SCHEDULE, kind: 'reference', primitiveType: PrimitiveType.INT32, isInternal: true, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_PARENT },
+  [ScheduleProperty.parentKey]: { id: 4, name: 'parent_key', component: ObjectType.SCHEDULE, kind: 'reference', primitiveType: PrimitiveType.STRING, isInternal: true, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_PARENT },
 }
 export const ProjectionDataInfo: Record<ProjectionProperty, PropertyInfo> = {
-  [ProjectionProperty.metatype]: { id: 1, name: 'metatype', component: BenchType.PROJECTION, kind: 'enum', primitiveType: PrimitiveType.STRING, isRequired: true, isInternal: true, isComputed: true, isWired: true },
-  [ProjectionProperty.id]: { id: 2, name: 'id', component: BenchType.PROJECTION, kind: 'primitive', primitiveType: PrimitiveType.INT32, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
-  [ProjectionProperty.orderKey]: { id: 5, name: 'order_key', component: BenchType.PROJECTION, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isRuntime: true, isWired: true, isStored: true },
-  [ProjectionProperty.setProperties]: { id: 22, name: 'set_properties', component: BenchType.PROJECTION, kind: 'primitive', primitiveType: PrimitiveType.INT32, isList: true, isRequired: true, isRuntime: true, isWired: true, isStored: true },
-  [ProjectionProperty.parentId]: { id: 3, name: 'parent_id', component: BenchType.PROJECTION, kind: 'reference', primitiveType: PrimitiveType.INT32, isInternal: true, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_PARENT },
-  [ProjectionProperty.parentKey]: { id: 4, name: 'parent_key', component: BenchType.PROJECTION, kind: 'reference', primitiveType: PrimitiveType.STRING, isInternal: true, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_PARENT },
+  [ProjectionProperty.metatype]: { id: 1, name: 'metatype', component: ObjectType.PROJECTION, kind: 'enum', primitiveType: PrimitiveType.STRING, isRequired: true, isInternal: true, isComputed: true, isWired: true },
+  [ProjectionProperty.id]: { id: 2, name: 'id', component: ObjectType.PROJECTION, kind: 'primitive', primitiveType: PrimitiveType.INT32, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
+  [ProjectionProperty.orderKey]: { id: 5, name: 'order_key', component: ObjectType.PROJECTION, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isRuntime: true, isWired: true, isStored: true },
+  [ProjectionProperty.setProperties]: { id: 22, name: 'set_properties', component: ObjectType.PROJECTION, kind: 'primitive', primitiveType: PrimitiveType.INT32, isList: true, isRequired: true, isRuntime: true, isWired: true, isStored: true },
+  [ProjectionProperty.parentId]: { id: 3, name: 'parent_id', component: ObjectType.PROJECTION, kind: 'reference', primitiveType: PrimitiveType.INT32, isInternal: true, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_PARENT },
+  [ProjectionProperty.parentKey]: { id: 4, name: 'parent_key', component: ObjectType.PROJECTION, kind: 'reference', primitiveType: PrimitiveType.STRING, isInternal: true, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_PARENT },
 }
 export const FileDataInfo: Record<FileProperty, PropertyInfo> = {
-  [FileProperty.metatype]: { id: 1, name: 'metatype', component: BenchType.FILE, kind: 'enum', primitiveType: PrimitiveType.STRING, isRequired: true, isInternal: true, isComputed: true, isWired: true },
-  [FileProperty.type]: { id: 31, name: 'type', component: BenchType.FILE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isRuntime: true, isWired: true, isStored: true },
-  [FileProperty.name]: { id: 33, name: 'name', component: BenchType.FILE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isRequired: true, isRuntime: true, isWired: true, isStored: true },
-  [FileProperty.size]: { id: 34, name: 'size', component: BenchType.FILE, kind: 'primitive', primitiveType: PrimitiveType.INT32, isInternal: true, isRuntime: true, isWired: true, isStored: true },
-  [FileProperty.sha512]: { id: 35, name: 'sha512', component: BenchType.FILE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isRuntime: true, isWired: true, isStored: true },
-  [FileProperty.externalUrl]: { id: 37, name: 'external_url', component: BenchType.FILE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isRuntime: true, isWired: true, isStored: true },
-  [FileProperty.id]: { id: 2, name: 'id', component: BenchType.FILE, kind: 'primitive', primitiveType: PrimitiveType.INT32, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
-  [FileProperty.contentPtr]: { id: 36, name: 'content_ptr', component: BenchType.FILE, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.FILE_CONTENT], referenceStruct: StructType.NODE_REFERENCE },
+  [FileProperty.metatype]: { id: 1, name: 'metatype', component: ObjectType.FILE, kind: 'enum', primitiveType: PrimitiveType.STRING, isRequired: true, isInternal: true, isComputed: true, isWired: true },
+  [FileProperty.type]: { id: 31, name: 'type', component: ObjectType.FILE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isRuntime: true, isWired: true, isStored: true },
+  [FileProperty.name]: { id: 33, name: 'name', component: ObjectType.FILE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isRequired: true, isRuntime: true, isWired: true, isStored: true },
+  [FileProperty.size]: { id: 34, name: 'size', component: ObjectType.FILE, kind: 'primitive', primitiveType: PrimitiveType.INT32, isInternal: true, isRuntime: true, isWired: true, isStored: true },
+  [FileProperty.sha512]: { id: 35, name: 'sha512', component: ObjectType.FILE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isRuntime: true, isWired: true, isStored: true },
+  [FileProperty.externalUrl]: { id: 37, name: 'external_url', component: ObjectType.FILE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isRuntime: true, isWired: true, isStored: true },
+  [FileProperty.id]: { id: 2, name: 'id', component: ObjectType.FILE, kind: 'primitive', primitiveType: PrimitiveType.INT32, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
+  [FileProperty.contentPtr]: { id: 36, name: 'content_ptr', component: ObjectType.FILE, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.FILE_CONTENT], referenceStruct: StructType.NODE_REFERENCE },
 }
 export const IconDataInfo: Record<IconProperty, PropertyInfo> = {
-  [IconProperty.metatype]: { id: 1, name: 'metatype', component: BenchType.ICON, kind: 'enum', primitiveType: PrimitiveType.STRING, isRequired: true, isInternal: true, isComputed: true, isWired: true },
-  [IconProperty.kind]: { id: 30, name: 'kind', component: BenchType.ICON, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isRuntime: true, isWired: true, isStored: true },
-  [IconProperty.emoji]: { id: 31, name: 'emoji', component: BenchType.ICON, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isRuntime: true, isWired: true, isStored: true },
-  [IconProperty.file]: { id: 32, name: 'file', component: BenchType.ICON, kind: 'reference', primitiveType: PrimitiveType.JSON, isInternal: true, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.FILE },
-  [IconProperty.faName]: { id: 33, name: 'fa_name', component: BenchType.ICON, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isRuntime: true, isWired: true, isStored: true },
-  [IconProperty.color]: { id: 40, name: 'color', component: BenchType.ICON, kind: 'reference', primitiveType: PrimitiveType.JSON, isInternal: true, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.COLOR },
-  [IconProperty.id]: { id: 2, name: 'id', component: BenchType.ICON, kind: 'primitive', primitiveType: PrimitiveType.INT32, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
-  [IconProperty.orderKey]: { id: 5, name: 'order_key', component: BenchType.ICON, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isRuntime: true, isWired: true, isStored: true },
-  [IconProperty.setProperties]: { id: 22, name: 'set_properties', component: BenchType.ICON, kind: 'primitive', primitiveType: PrimitiveType.INT32, isList: true, isRequired: true, isRuntime: true, isWired: true, isStored: true },
-  [IconProperty.parentId]: { id: 3, name: 'parent_id', component: BenchType.ICON, kind: 'reference', primitiveType: PrimitiveType.INT32, isInternal: true, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_PARENT },
-  [IconProperty.parentKey]: { id: 4, name: 'parent_key', component: BenchType.ICON, kind: 'reference', primitiveType: PrimitiveType.STRING, isInternal: true, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_PARENT },
+  [IconProperty.metatype]: { id: 1, name: 'metatype', component: ObjectType.ICON, kind: 'enum', primitiveType: PrimitiveType.STRING, isRequired: true, isInternal: true, isComputed: true, isWired: true },
+  [IconProperty.kind]: { id: 30, name: 'kind', component: ObjectType.ICON, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isRuntime: true, isWired: true, isStored: true },
+  [IconProperty.emoji]: { id: 31, name: 'emoji', component: ObjectType.ICON, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isRuntime: true, isWired: true, isStored: true },
+  [IconProperty.file]: { id: 32, name: 'file', component: ObjectType.ICON, kind: 'reference', primitiveType: PrimitiveType.JSON, isInternal: true, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.FILE },
+  [IconProperty.faName]: { id: 33, name: 'fa_name', component: ObjectType.ICON, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isRuntime: true, isWired: true, isStored: true },
+  [IconProperty.color]: { id: 40, name: 'color', component: ObjectType.ICON, kind: 'reference', primitiveType: PrimitiveType.JSON, isInternal: true, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.COLOR },
+  [IconProperty.id]: { id: 2, name: 'id', component: ObjectType.ICON, kind: 'primitive', primitiveType: PrimitiveType.INT32, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
+  [IconProperty.orderKey]: { id: 5, name: 'order_key', component: ObjectType.ICON, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isRuntime: true, isWired: true, isStored: true },
+  [IconProperty.setProperties]: { id: 22, name: 'set_properties', component: ObjectType.ICON, kind: 'primitive', primitiveType: PrimitiveType.INT32, isList: true, isRequired: true, isRuntime: true, isWired: true, isStored: true },
+  [IconProperty.parentId]: { id: 3, name: 'parent_id', component: ObjectType.ICON, kind: 'reference', primitiveType: PrimitiveType.INT32, isInternal: true, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_PARENT },
+  [IconProperty.parentKey]: { id: 4, name: 'parent_key', component: ObjectType.ICON, kind: 'reference', primitiveType: PrimitiveType.STRING, isInternal: true, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_PARENT },
 }
 export const PolicyDataInfo: Record<PolicyProperty, PropertyInfo> = {
-  [PolicyProperty.metatype]: { id: 1, name: 'metatype', component: BenchType.POLICY, kind: 'enum', primitiveType: PrimitiveType.STRING, isRequired: true, isInternal: true, isComputed: true, isWired: true },
-  [PolicyProperty.name]: { id: 30, name: 'name', component: BenchType.POLICY, kind: 'primitive', primitiveType: PrimitiveType.STRING, isRequired: true, isRuntime: true, isWired: true, isStored: true },
-  [PolicyProperty.text]: { id: 31, name: 'text', component: BenchType.POLICY, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.TEXT },
-  [PolicyProperty.rules]: { id: 32, name: 'rules', component: BenchType.POLICY, kind: 'reference', primitiveType: PrimitiveType.JSON, isList: true, isRequired: true, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.POLICY_RULE },
-  [PolicyProperty.id]: { id: 2, name: 'id', component: BenchType.POLICY, kind: 'primitive', primitiveType: PrimitiveType.INT32, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
-  [PolicyProperty.orderKey]: { id: 5, name: 'order_key', component: BenchType.POLICY, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isRuntime: true, isWired: true, isStored: true },
-  [PolicyProperty.setProperties]: { id: 22, name: 'set_properties', component: BenchType.POLICY, kind: 'primitive', primitiveType: PrimitiveType.INT32, isList: true, isRequired: true, isRuntime: true, isWired: true, isStored: true },
-  [PolicyProperty.scopesPtr]: { id: 33, name: 'scopes_ptr', component: BenchType.POLICY, kind: 'reference', isList: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.BLOCK], referenceStruct: StructType.NODE_REFERENCE },
-  [PolicyProperty.parentId]: { id: 3, name: 'parent_id', component: BenchType.POLICY, kind: 'reference', primitiveType: PrimitiveType.INT32, isInternal: true, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_PARENT },
-  [PolicyProperty.parentKey]: { id: 4, name: 'parent_key', component: BenchType.POLICY, kind: 'reference', primitiveType: PrimitiveType.STRING, isInternal: true, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_PARENT },
+  [PolicyProperty.metatype]: { id: 1, name: 'metatype', component: ObjectType.POLICY, kind: 'enum', primitiveType: PrimitiveType.STRING, isRequired: true, isInternal: true, isComputed: true, isWired: true },
+  [PolicyProperty.name]: { id: 30, name: 'name', component: ObjectType.POLICY, kind: 'primitive', primitiveType: PrimitiveType.STRING, isRequired: true, isRuntime: true, isWired: true, isStored: true },
+  [PolicyProperty.text]: { id: 31, name: 'text', component: ObjectType.POLICY, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.TEXT },
+  [PolicyProperty.rules]: { id: 32, name: 'rules', component: ObjectType.POLICY, kind: 'reference', primitiveType: PrimitiveType.JSON, isList: true, isRequired: true, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.POLICY_RULE },
+  [PolicyProperty.id]: { id: 2, name: 'id', component: ObjectType.POLICY, kind: 'primitive', primitiveType: PrimitiveType.INT32, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
+  [PolicyProperty.orderKey]: { id: 5, name: 'order_key', component: ObjectType.POLICY, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isRuntime: true, isWired: true, isStored: true },
+  [PolicyProperty.setProperties]: { id: 22, name: 'set_properties', component: ObjectType.POLICY, kind: 'primitive', primitiveType: PrimitiveType.INT32, isList: true, isRequired: true, isRuntime: true, isWired: true, isStored: true },
+  [PolicyProperty.scopesPtr]: { id: 33, name: 'scopes_ptr', component: ObjectType.POLICY, kind: 'reference', isList: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.BLOCK], referenceStruct: StructType.NODE_REFERENCE },
+  [PolicyProperty.parentId]: { id: 3, name: 'parent_id', component: ObjectType.POLICY, kind: 'reference', primitiveType: PrimitiveType.INT32, isInternal: true, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_PARENT },
+  [PolicyProperty.parentKey]: { id: 4, name: 'parent_key', component: ObjectType.POLICY, kind: 'reference', primitiveType: PrimitiveType.STRING, isInternal: true, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_PARENT },
 }
 export const PolicyRuleDataInfo: Record<PolicyRuleProperty, PropertyInfo> = {
-  [PolicyRuleProperty.metatype]: { id: 1, name: 'metatype', component: BenchType.POLICY_RULE, kind: 'enum', primitiveType: PrimitiveType.STRING, isRequired: true, isInternal: true, isComputed: true, isWired: true },
-  [PolicyRuleProperty.name]: { id: 30, name: 'name', component: BenchType.POLICY_RULE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isRequired: true, isRuntime: true, isWired: true, isStored: true },
-  [PolicyRuleProperty.text]: { id: 31, name: 'text', component: BenchType.POLICY_RULE, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.TEXT },
-  [PolicyRuleProperty.subjectIsDelegated]: { id: 40, name: 'subject_is_delegated', component: BenchType.POLICY_RULE, kind: 'primitive', primitiveType: PrimitiveType.BOOLEAN, isRuntime: true, isWired: true, isStored: true },
-  [PolicyRuleProperty.subjectIsAuthenticated]: { id: 41, name: 'subject_is_authenticated', component: BenchType.POLICY_RULE, kind: 'primitive', primitiveType: PrimitiveType.BOOLEAN, isRuntime: true, isWired: true, isStored: true },
-  [PolicyRuleProperty.subjectIsStaff]: { id: 42, name: 'subject_is_staff', component: BenchType.POLICY_RULE, kind: 'primitive', primitiveType: PrimitiveType.BOOLEAN, isRuntime: true, isWired: true, isStored: true },
-  [PolicyRuleProperty.subjectIsMember]: { id: 43, name: 'subject_is_member', component: BenchType.POLICY_RULE, kind: 'primitive', primitiveType: PrimitiveType.BOOLEAN, isRuntime: true, isWired: true, isStored: true },
-  [PolicyRuleProperty.subjectIsOwner]: { id: 44, name: 'subject_is_owner', component: BenchType.POLICY_RULE, kind: 'primitive', primitiveType: PrimitiveType.BOOLEAN, isRuntime: true, isWired: true, isStored: true },
-  [PolicyRuleProperty.effect]: { id: 60, name: 'effect', component: BenchType.POLICY_RULE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isRuntime: true, isWired: true, isStored: true },
-  [PolicyRuleProperty.verbs]: { id: 61, name: 'verbs', component: BenchType.POLICY_RULE, kind: 'enum', primitiveType: PrimitiveType.INT16, isList: true, isRequired: true, isRuntime: true, isWired: true, isStored: true },
-  [PolicyRuleProperty.verbKinds]: { id: 62, name: 'verb_kinds', component: BenchType.POLICY_RULE, kind: 'enum', primitiveType: PrimitiveType.INT16, isList: true, isRequired: true, isRuntime: true, isWired: true, isStored: true },
-  [PolicyRuleProperty.objectNodeTypes]: { id: 80, name: 'object_node_types', component: BenchType.POLICY_RULE, kind: 'enum', primitiveType: PrimitiveType.INT16, isList: true, isRuntime: true, isWired: true, isStored: true },
-  [PolicyRuleProperty.objectPropertiesIsSystem]: { id: 82, name: 'object_properties_is_system', component: BenchType.POLICY_RULE, kind: 'primitive', primitiveType: PrimitiveType.BOOLEAN, isRuntime: true, isWired: true, isStored: true },
-  [PolicyRuleProperty.objectPropertiesIsSensitive]: { id: 83, name: 'object_properties_is_sensitive', component: BenchType.POLICY_RULE, kind: 'primitive', primitiveType: PrimitiveType.BOOLEAN, isRuntime: true, isWired: true, isStored: true },
-  [PolicyRuleProperty.objectPropertiesIsKernel]: { id: 84, name: 'object_properties_is_kernel', component: BenchType.POLICY_RULE, kind: 'primitive', primitiveType: PrimitiveType.BOOLEAN, isRuntime: true, isWired: true, isStored: true },
-  [PolicyRuleProperty.id]: { id: 2, name: 'id', component: BenchType.POLICY_RULE, kind: 'primitive', primitiveType: PrimitiveType.INT32, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
-  [PolicyRuleProperty.orderKey]: { id: 5, name: 'order_key', component: BenchType.POLICY_RULE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isRuntime: true, isWired: true, isStored: true },
-  [PolicyRuleProperty.setProperties]: { id: 22, name: 'set_properties', component: BenchType.POLICY_RULE, kind: 'primitive', primitiveType: PrimitiveType.INT32, isList: true, isRequired: true, isRuntime: true, isWired: true, isStored: true },
-  [PolicyRuleProperty.objectPropertiesPtr]: { id: 81, name: 'object_properties_ptr', component: BenchType.POLICY_RULE, kind: 'primitive', primitiveType: PrimitiveType.JSON, isList: true, isRuntime: true, isWired: true, isStored: true, referenceStruct: StructType.PROPERTY_REFERENCE },
-  [PolicyRuleProperty.parentId]: { id: 3, name: 'parent_id', component: BenchType.POLICY_RULE, kind: 'reference', primitiveType: PrimitiveType.INT32, isInternal: true, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_PARENT },
-  [PolicyRuleProperty.parentKey]: { id: 4, name: 'parent_key', component: BenchType.POLICY_RULE, kind: 'reference', primitiveType: PrimitiveType.STRING, isInternal: true, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_PARENT },
+  [PolicyRuleProperty.metatype]: { id: 1, name: 'metatype', component: ObjectType.POLICY_RULE, kind: 'enum', primitiveType: PrimitiveType.STRING, isRequired: true, isInternal: true, isComputed: true, isWired: true },
+  [PolicyRuleProperty.name]: { id: 30, name: 'name', component: ObjectType.POLICY_RULE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isRequired: true, isRuntime: true, isWired: true, isStored: true },
+  [PolicyRuleProperty.text]: { id: 31, name: 'text', component: ObjectType.POLICY_RULE, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.TEXT },
+  [PolicyRuleProperty.subjectIsDelegated]: { id: 40, name: 'subject_is_delegated', component: ObjectType.POLICY_RULE, kind: 'primitive', primitiveType: PrimitiveType.BOOLEAN, isRuntime: true, isWired: true, isStored: true },
+  [PolicyRuleProperty.subjectIsAuthenticated]: { id: 41, name: 'subject_is_authenticated', component: ObjectType.POLICY_RULE, kind: 'primitive', primitiveType: PrimitiveType.BOOLEAN, isRuntime: true, isWired: true, isStored: true },
+  [PolicyRuleProperty.subjectIsStaff]: { id: 42, name: 'subject_is_staff', component: ObjectType.POLICY_RULE, kind: 'primitive', primitiveType: PrimitiveType.BOOLEAN, isRuntime: true, isWired: true, isStored: true },
+  [PolicyRuleProperty.subjectIsMember]: { id: 43, name: 'subject_is_member', component: ObjectType.POLICY_RULE, kind: 'primitive', primitiveType: PrimitiveType.BOOLEAN, isRuntime: true, isWired: true, isStored: true },
+  [PolicyRuleProperty.subjectIsOwner]: { id: 44, name: 'subject_is_owner', component: ObjectType.POLICY_RULE, kind: 'primitive', primitiveType: PrimitiveType.BOOLEAN, isRuntime: true, isWired: true, isStored: true },
+  [PolicyRuleProperty.effect]: { id: 60, name: 'effect', component: ObjectType.POLICY_RULE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isRuntime: true, isWired: true, isStored: true },
+  [PolicyRuleProperty.verbs]: { id: 61, name: 'verbs', component: ObjectType.POLICY_RULE, kind: 'enum', primitiveType: PrimitiveType.INT16, isList: true, isRequired: true, isRuntime: true, isWired: true, isStored: true },
+  [PolicyRuleProperty.verbKinds]: { id: 62, name: 'verb_kinds', component: ObjectType.POLICY_RULE, kind: 'enum', primitiveType: PrimitiveType.INT16, isList: true, isRequired: true, isRuntime: true, isWired: true, isStored: true },
+  [PolicyRuleProperty.objectNodeTypes]: { id: 80, name: 'object_node_types', component: ObjectType.POLICY_RULE, kind: 'enum', primitiveType: PrimitiveType.INT16, isList: true, isRuntime: true, isWired: true, isStored: true },
+  [PolicyRuleProperty.objectPropertiesIsSystem]: { id: 82, name: 'object_properties_is_system', component: ObjectType.POLICY_RULE, kind: 'primitive', primitiveType: PrimitiveType.BOOLEAN, isRuntime: true, isWired: true, isStored: true },
+  [PolicyRuleProperty.objectPropertiesIsSensitive]: { id: 83, name: 'object_properties_is_sensitive', component: ObjectType.POLICY_RULE, kind: 'primitive', primitiveType: PrimitiveType.BOOLEAN, isRuntime: true, isWired: true, isStored: true },
+  [PolicyRuleProperty.objectPropertiesIsKernel]: { id: 84, name: 'object_properties_is_kernel', component: ObjectType.POLICY_RULE, kind: 'primitive', primitiveType: PrimitiveType.BOOLEAN, isRuntime: true, isWired: true, isStored: true },
+  [PolicyRuleProperty.id]: { id: 2, name: 'id', component: ObjectType.POLICY_RULE, kind: 'primitive', primitiveType: PrimitiveType.INT32, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
+  [PolicyRuleProperty.orderKey]: { id: 5, name: 'order_key', component: ObjectType.POLICY_RULE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isRuntime: true, isWired: true, isStored: true },
+  [PolicyRuleProperty.setProperties]: { id: 22, name: 'set_properties', component: ObjectType.POLICY_RULE, kind: 'primitive', primitiveType: PrimitiveType.INT32, isList: true, isRequired: true, isRuntime: true, isWired: true, isStored: true },
+  [PolicyRuleProperty.objectPropertiesPtr]: { id: 81, name: 'object_properties_ptr', component: ObjectType.POLICY_RULE, kind: 'primitive', primitiveType: PrimitiveType.JSON, isList: true, isRuntime: true, isWired: true, isStored: true, referenceStruct: StructType.PROPERTY_REFERENCE },
+  [PolicyRuleProperty.parentId]: { id: 3, name: 'parent_id', component: ObjectType.POLICY_RULE, kind: 'reference', primitiveType: PrimitiveType.INT32, isInternal: true, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_PARENT },
+  [PolicyRuleProperty.parentKey]: { id: 4, name: 'parent_key', component: ObjectType.POLICY_RULE, kind: 'reference', primitiveType: PrimitiveType.STRING, isInternal: true, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_PARENT },
 }
 export const SubjectDataInfo: Record<SubjectProperty, PropertyInfo> = {
-  [SubjectProperty.metatype]: { id: 1, name: 'metatype', component: BenchType.SUBJECT, kind: 'enum', primitiveType: PrimitiveType.STRING, isRequired: true, isInternal: true, isComputed: true, isWired: true },
-  [SubjectProperty.isAuthenticated]: { id: 30, name: 'is_authenticated', component: BenchType.SUBJECT, kind: 'primitive', primitiveType: PrimitiveType.BOOLEAN, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
-  [SubjectProperty.isStaff]: { id: 31, name: 'is_staff', component: BenchType.SUBJECT, kind: 'primitive', primitiveType: PrimitiveType.BOOLEAN, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
-  [SubjectProperty.isSystem]: { id: 32, name: 'is_system', component: BenchType.SUBJECT, kind: 'primitive', primitiveType: PrimitiveType.BOOLEAN, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
-  [SubjectProperty.id]: { id: 2, name: 'id', component: BenchType.SUBJECT, kind: 'primitive', primitiveType: PrimitiveType.INT32, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
-  [SubjectProperty.orderKey]: { id: 5, name: 'order_key', component: BenchType.SUBJECT, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isRuntime: true, isWired: true, isStored: true },
-  [SubjectProperty.setProperties]: { id: 22, name: 'set_properties', component: BenchType.SUBJECT, kind: 'primitive', primitiveType: PrimitiveType.INT32, isList: true, isRequired: true, isRuntime: true, isWired: true, isStored: true },
-  [SubjectProperty.clientPtr]: { id: 40, name: 'client_ptr', component: BenchType.SUBJECT, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.CLIENT], referenceStruct: StructType.NODE_REFERENCE },
-  [SubjectProperty.userPtr]: { id: 41, name: 'user_ptr', component: BenchType.SUBJECT, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.USER], referenceStruct: StructType.NODE_REFERENCE },
-  [SubjectProperty.identityPtr]: { id: 42, name: 'identity_ptr', component: BenchType.SUBJECT, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.IDENTITY], referenceStruct: StructType.NODE_REFERENCE },
-  [SubjectProperty.badgesPtr]: { id: 43, name: 'badges_ptr', component: BenchType.SUBJECT, kind: 'reference', isList: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.BADGE], referenceStruct: StructType.NODE_REFERENCE },
-  [SubjectProperty.ownedPtr]: { id: 44, name: 'owned_ptr', component: BenchType.SUBJECT, kind: 'reference', isList: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.USER, NodeType.ORGANIZATION, NodeType.BENCH], referenceStruct: StructType.NODE_REFERENCE },
-  [SubjectProperty.membershipsPtr]: { id: 45, name: 'memberships_ptr', component: BenchType.SUBJECT, kind: 'reference', isList: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.MEMBERSHIP], referenceStruct: StructType.NODE_REFERENCE },
-  [SubjectProperty.rolesPtr]: { id: 46, name: 'roles_ptr', component: BenchType.SUBJECT, kind: 'reference', isList: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.ROLE], referenceStruct: StructType.NODE_REFERENCE },
-  [SubjectProperty.parentId]: { id: 3, name: 'parent_id', component: BenchType.SUBJECT, kind: 'reference', primitiveType: PrimitiveType.INT32, isInternal: true, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_PARENT },
-  [SubjectProperty.parentKey]: { id: 4, name: 'parent_key', component: BenchType.SUBJECT, kind: 'reference', primitiveType: PrimitiveType.STRING, isInternal: true, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_PARENT },
+  [SubjectProperty.metatype]: { id: 1, name: 'metatype', component: ObjectType.SUBJECT, kind: 'enum', primitiveType: PrimitiveType.STRING, isRequired: true, isInternal: true, isComputed: true, isWired: true },
+  [SubjectProperty.isAuthenticated]: { id: 30, name: 'is_authenticated', component: ObjectType.SUBJECT, kind: 'primitive', primitiveType: PrimitiveType.BOOLEAN, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
+  [SubjectProperty.isStaff]: { id: 31, name: 'is_staff', component: ObjectType.SUBJECT, kind: 'primitive', primitiveType: PrimitiveType.BOOLEAN, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
+  [SubjectProperty.isSystem]: { id: 32, name: 'is_system', component: ObjectType.SUBJECT, kind: 'primitive', primitiveType: PrimitiveType.BOOLEAN, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
+  [SubjectProperty.id]: { id: 2, name: 'id', component: ObjectType.SUBJECT, kind: 'primitive', primitiveType: PrimitiveType.INT32, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
+  [SubjectProperty.orderKey]: { id: 5, name: 'order_key', component: ObjectType.SUBJECT, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isRuntime: true, isWired: true, isStored: true },
+  [SubjectProperty.setProperties]: { id: 22, name: 'set_properties', component: ObjectType.SUBJECT, kind: 'primitive', primitiveType: PrimitiveType.INT32, isList: true, isRequired: true, isRuntime: true, isWired: true, isStored: true },
+  [SubjectProperty.clientPtr]: { id: 40, name: 'client_ptr', component: ObjectType.SUBJECT, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.CLIENT], referenceStruct: StructType.NODE_REFERENCE },
+  [SubjectProperty.userPtr]: { id: 41, name: 'user_ptr', component: ObjectType.SUBJECT, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.USER], referenceStruct: StructType.NODE_REFERENCE },
+  [SubjectProperty.identityPtr]: { id: 42, name: 'identity_ptr', component: ObjectType.SUBJECT, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.IDENTITY], referenceStruct: StructType.NODE_REFERENCE },
+  [SubjectProperty.badgesPtr]: { id: 43, name: 'badges_ptr', component: ObjectType.SUBJECT, kind: 'reference', isList: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.BADGE], referenceStruct: StructType.NODE_REFERENCE },
+  [SubjectProperty.ownedPtr]: { id: 44, name: 'owned_ptr', component: ObjectType.SUBJECT, kind: 'reference', isList: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.USER, NodeType.ORGANIZATION, NodeType.BENCH], referenceStruct: StructType.NODE_REFERENCE },
+  [SubjectProperty.membershipsPtr]: { id: 45, name: 'memberships_ptr', component: ObjectType.SUBJECT, kind: 'reference', isList: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.MEMBERSHIP], referenceStruct: StructType.NODE_REFERENCE },
+  [SubjectProperty.rolesPtr]: { id: 46, name: 'roles_ptr', component: ObjectType.SUBJECT, kind: 'reference', isList: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.ROLE], referenceStruct: StructType.NODE_REFERENCE },
+  [SubjectProperty.parentId]: { id: 3, name: 'parent_id', component: ObjectType.SUBJECT, kind: 'reference', primitiveType: PrimitiveType.INT32, isInternal: true, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_PARENT },
+  [SubjectProperty.parentKey]: { id: 4, name: 'parent_key', component: ObjectType.SUBJECT, kind: 'reference', primitiveType: PrimitiveType.STRING, isInternal: true, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_PARENT },
 }
 export const AccessZoneDataInfo: Record<AccessZoneProperty, PropertyInfo> = {
-  [AccessZoneProperty.metatype]: { id: 1, name: 'metatype', component: BenchType.ACCESS_ZONE, kind: 'enum', primitiveType: PrimitiveType.STRING, isRequired: true, isInternal: true, isComputed: true, isWired: true },
-  [AccessZoneProperty.scopeId]: { id: 30, name: 'scope_id', component: BenchType.ACCESS_ZONE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
-  [AccessZoneProperty.identityId]: { id: 31, name: 'identity_id', component: BenchType.ACCESS_ZONE, kind: 'primitive', primitiveType: PrimitiveType.INT32, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
-  [AccessZoneProperty.rules]: { id: 32, name: 'rules', component: BenchType.ACCESS_ZONE, kind: 'reference', primitiveType: PrimitiveType.JSON, isList: true, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.POLICY_RULE },
-  [AccessZoneProperty.id]: { id: 2, name: 'id', component: BenchType.ACCESS_ZONE, kind: 'primitive', primitiveType: PrimitiveType.INT32, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
-  [AccessZoneProperty.orderKey]: { id: 5, name: 'order_key', component: BenchType.ACCESS_ZONE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isRuntime: true, isWired: true, isStored: true },
-  [AccessZoneProperty.setProperties]: { id: 22, name: 'set_properties', component: BenchType.ACCESS_ZONE, kind: 'primitive', primitiveType: PrimitiveType.INT32, isList: true, isRequired: true, isRuntime: true, isWired: true, isStored: true },
-  [AccessZoneProperty.parentId]: { id: 3, name: 'parent_id', component: BenchType.ACCESS_ZONE, kind: 'reference', primitiveType: PrimitiveType.INT32, isInternal: true, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_PARENT },
-  [AccessZoneProperty.parentKey]: { id: 4, name: 'parent_key', component: BenchType.ACCESS_ZONE, kind: 'reference', primitiveType: PrimitiveType.STRING, isInternal: true, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_PARENT },
+  [AccessZoneProperty.metatype]: { id: 1, name: 'metatype', component: ObjectType.ACCESS_ZONE, kind: 'enum', primitiveType: PrimitiveType.STRING, isRequired: true, isInternal: true, isComputed: true, isWired: true },
+  [AccessZoneProperty.scopeId]: { id: 30, name: 'scope_id', component: ObjectType.ACCESS_ZONE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
+  [AccessZoneProperty.identityId]: { id: 31, name: 'identity_id', component: ObjectType.ACCESS_ZONE, kind: 'primitive', primitiveType: PrimitiveType.INT32, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
+  [AccessZoneProperty.rules]: { id: 32, name: 'rules', component: ObjectType.ACCESS_ZONE, kind: 'reference', primitiveType: PrimitiveType.JSON, isList: true, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.POLICY_RULE },
+  [AccessZoneProperty.id]: { id: 2, name: 'id', component: ObjectType.ACCESS_ZONE, kind: 'primitive', primitiveType: PrimitiveType.INT32, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
+  [AccessZoneProperty.orderKey]: { id: 5, name: 'order_key', component: ObjectType.ACCESS_ZONE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isRuntime: true, isWired: true, isStored: true },
+  [AccessZoneProperty.setProperties]: { id: 22, name: 'set_properties', component: ObjectType.ACCESS_ZONE, kind: 'primitive', primitiveType: PrimitiveType.INT32, isList: true, isRequired: true, isRuntime: true, isWired: true, isStored: true },
+  [AccessZoneProperty.parentId]: { id: 3, name: 'parent_id', component: ObjectType.ACCESS_ZONE, kind: 'reference', primitiveType: PrimitiveType.INT32, isInternal: true, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_PARENT },
+  [AccessZoneProperty.parentKey]: { id: 4, name: 'parent_key', component: ObjectType.ACCESS_ZONE, kind: 'reference', primitiveType: PrimitiveType.STRING, isInternal: true, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_PARENT },
 }
 export const AccessMatrixDataInfo: Record<AccessMatrixProperty, PropertyInfo> = {
-  [AccessMatrixProperty.metatype]: { id: 1, name: 'metatype', component: BenchType.ACCESS_MATRIX, kind: 'enum', primitiveType: PrimitiveType.STRING, isRequired: true, isInternal: true, isComputed: true, isWired: true },
-  [AccessMatrixProperty.subject]: { id: 30, name: 'subject', component: BenchType.ACCESS_MATRIX, kind: 'reference', primitiveType: PrimitiveType.JSON, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.SUBJECT },
-  [AccessMatrixProperty.identities]: { id: 32, name: 'identities', component: BenchType.ACCESS_MATRIX, kind: 'reference', primitiveType: PrimitiveType.JSON, isList: true, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.SUBJECT },
-  [AccessMatrixProperty.scopedZones]: { id: 33, name: 'scoped_zones', component: BenchType.ACCESS_MATRIX, kind: 'reference', primitiveType: PrimitiveType.JSON, isList: true, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.ACCESS_ZONE },
-  [AccessMatrixProperty.baseZones]: { id: 34, name: 'base_zones', component: BenchType.ACCESS_MATRIX, kind: 'reference', primitiveType: PrimitiveType.JSON, isList: true, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.ACCESS_ZONE },
-  [AccessMatrixProperty.id]: { id: 2, name: 'id', component: BenchType.ACCESS_MATRIX, kind: 'primitive', primitiveType: PrimitiveType.INT32, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
-  [AccessMatrixProperty.orderKey]: { id: 5, name: 'order_key', component: BenchType.ACCESS_MATRIX, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isRuntime: true, isWired: true, isStored: true },
-  [AccessMatrixProperty.setProperties]: { id: 22, name: 'set_properties', component: BenchType.ACCESS_MATRIX, kind: 'primitive', primitiveType: PrimitiveType.INT32, isList: true, isRequired: true, isRuntime: true, isWired: true, isStored: true },
-  [AccessMatrixProperty.parentId]: { id: 3, name: 'parent_id', component: BenchType.ACCESS_MATRIX, kind: 'reference', primitiveType: PrimitiveType.INT32, isInternal: true, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_PARENT },
-  [AccessMatrixProperty.parentKey]: { id: 4, name: 'parent_key', component: BenchType.ACCESS_MATRIX, kind: 'reference', primitiveType: PrimitiveType.STRING, isInternal: true, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_PARENT },
+  [AccessMatrixProperty.metatype]: { id: 1, name: 'metatype', component: ObjectType.ACCESS_MATRIX, kind: 'enum', primitiveType: PrimitiveType.STRING, isRequired: true, isInternal: true, isComputed: true, isWired: true },
+  [AccessMatrixProperty.subject]: { id: 30, name: 'subject', component: ObjectType.ACCESS_MATRIX, kind: 'reference', primitiveType: PrimitiveType.JSON, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.SUBJECT },
+  [AccessMatrixProperty.identities]: { id: 32, name: 'identities', component: ObjectType.ACCESS_MATRIX, kind: 'reference', primitiveType: PrimitiveType.JSON, isList: true, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.SUBJECT },
+  [AccessMatrixProperty.scopedZones]: { id: 33, name: 'scoped_zones', component: ObjectType.ACCESS_MATRIX, kind: 'reference', primitiveType: PrimitiveType.JSON, isList: true, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.ACCESS_ZONE },
+  [AccessMatrixProperty.baseZones]: { id: 34, name: 'base_zones', component: ObjectType.ACCESS_MATRIX, kind: 'reference', primitiveType: PrimitiveType.JSON, isList: true, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.ACCESS_ZONE },
+  [AccessMatrixProperty.id]: { id: 2, name: 'id', component: ObjectType.ACCESS_MATRIX, kind: 'primitive', primitiveType: PrimitiveType.INT32, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
+  [AccessMatrixProperty.orderKey]: { id: 5, name: 'order_key', component: ObjectType.ACCESS_MATRIX, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isRuntime: true, isWired: true, isStored: true },
+  [AccessMatrixProperty.setProperties]: { id: 22, name: 'set_properties', component: ObjectType.ACCESS_MATRIX, kind: 'primitive', primitiveType: PrimitiveType.INT32, isList: true, isRequired: true, isRuntime: true, isWired: true, isStored: true },
+  [AccessMatrixProperty.parentId]: { id: 3, name: 'parent_id', component: ObjectType.ACCESS_MATRIX, kind: 'reference', primitiveType: PrimitiveType.INT32, isInternal: true, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_PARENT },
+  [AccessMatrixProperty.parentKey]: { id: 4, name: 'parent_key', component: ObjectType.ACCESS_MATRIX, kind: 'reference', primitiveType: PrimitiveType.STRING, isInternal: true, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_PARENT },
 }
 export const AccessDataInfo: Record<AccessProperty, PropertyInfo> = {
-  [AccessProperty.metatype]: { id: 1, name: 'metatype', component: BenchType.ACCESS, kind: 'enum', primitiveType: PrimitiveType.STRING, isRequired: true, isInternal: true, isComputed: true, isWired: true },
-  [AccessProperty.mode]: { id: 30, name: 'mode', component: BenchType.ACCESS, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
-  [AccessProperty.decision]: { id: 31, name: 'decision', component: BenchType.ACCESS, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
-  [AccessProperty.verb]: { id: 32, name: 'verb', component: BenchType.ACCESS, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
-  [AccessProperty.objectType]: { id: 33, name: 'object_type', component: BenchType.ACCESS, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
-  [AccessProperty.id]: { id: 2, name: 'id', component: BenchType.ACCESS, kind: 'primitive', primitiveType: PrimitiveType.INT32, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
-  [AccessProperty.objectPropertiesPtr]: { id: 34, name: 'object_properties_ptr', component: BenchType.ACCESS, kind: 'primitive', primitiveType: PrimitiveType.JSON, isList: true, isInternal: true, isRuntime: true, isWired: true, isStored: true, referenceStruct: StructType.PROPERTY_REFERENCE },
+  [AccessProperty.metatype]: { id: 1, name: 'metatype', component: ObjectType.ACCESS, kind: 'enum', primitiveType: PrimitiveType.STRING, isRequired: true, isInternal: true, isComputed: true, isWired: true },
+  [AccessProperty.mode]: { id: 30, name: 'mode', component: ObjectType.ACCESS, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
+  [AccessProperty.decision]: { id: 31, name: 'decision', component: ObjectType.ACCESS, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
+  [AccessProperty.verb]: { id: 32, name: 'verb', component: ObjectType.ACCESS, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
+  [AccessProperty.objectType]: { id: 33, name: 'object_type', component: ObjectType.ACCESS, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
+  [AccessProperty.id]: { id: 2, name: 'id', component: ObjectType.ACCESS, kind: 'primitive', primitiveType: PrimitiveType.INT32, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
+  [AccessProperty.objectPropertiesPtr]: { id: 34, name: 'object_properties_ptr', component: ObjectType.ACCESS, kind: 'primitive', primitiveType: PrimitiveType.JSON, isList: true, isInternal: true, isRuntime: true, isWired: true, isStored: true, referenceStruct: StructType.PROPERTY_REFERENCE },
 }
 export const AccessTraceDataInfo: Record<AccessTraceProperty, PropertyInfo> = {
-  [AccessTraceProperty.metatype]: { id: 1, name: 'metatype', component: BenchType.ACCESS_TRACE, kind: 'enum', primitiveType: PrimitiveType.STRING, isRequired: true, isInternal: true, isComputed: true, isWired: true },
-  [AccessTraceProperty.matchedRules]: { id: 30, name: 'matched_rules', component: BenchType.ACCESS_TRACE, kind: 'reference', primitiveType: PrimitiveType.JSON, isList: true, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.POLICY_RULE },
-  [AccessTraceProperty.id]: { id: 2, name: 'id', component: BenchType.ACCESS_TRACE, kind: 'primitive', primitiveType: PrimitiveType.INT32, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
-  [AccessTraceProperty.orderKey]: { id: 5, name: 'order_key', component: BenchType.ACCESS_TRACE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isRuntime: true, isWired: true, isStored: true },
-  [AccessTraceProperty.setProperties]: { id: 22, name: 'set_properties', component: BenchType.ACCESS_TRACE, kind: 'primitive', primitiveType: PrimitiveType.INT32, isList: true, isRequired: true, isRuntime: true, isWired: true, isStored: true },
-  [AccessTraceProperty.parentId]: { id: 3, name: 'parent_id', component: BenchType.ACCESS_TRACE, kind: 'reference', primitiveType: PrimitiveType.INT32, isInternal: true, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_PARENT },
-  [AccessTraceProperty.parentKey]: { id: 4, name: 'parent_key', component: BenchType.ACCESS_TRACE, kind: 'reference', primitiveType: PrimitiveType.STRING, isInternal: true, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_PARENT },
+  [AccessTraceProperty.metatype]: { id: 1, name: 'metatype', component: ObjectType.ACCESS_TRACE, kind: 'enum', primitiveType: PrimitiveType.STRING, isRequired: true, isInternal: true, isComputed: true, isWired: true },
+  [AccessTraceProperty.matchedRules]: { id: 30, name: 'matched_rules', component: ObjectType.ACCESS_TRACE, kind: 'reference', primitiveType: PrimitiveType.JSON, isList: true, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.POLICY_RULE },
+  [AccessTraceProperty.id]: { id: 2, name: 'id', component: ObjectType.ACCESS_TRACE, kind: 'primitive', primitiveType: PrimitiveType.INT32, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
+  [AccessTraceProperty.orderKey]: { id: 5, name: 'order_key', component: ObjectType.ACCESS_TRACE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isRuntime: true, isWired: true, isStored: true },
+  [AccessTraceProperty.setProperties]: { id: 22, name: 'set_properties', component: ObjectType.ACCESS_TRACE, kind: 'primitive', primitiveType: PrimitiveType.INT32, isList: true, isRequired: true, isRuntime: true, isWired: true, isStored: true },
+  [AccessTraceProperty.parentId]: { id: 3, name: 'parent_id', component: ObjectType.ACCESS_TRACE, kind: 'reference', primitiveType: PrimitiveType.INT32, isInternal: true, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_PARENT },
+  [AccessTraceProperty.parentKey]: { id: 4, name: 'parent_key', component: ObjectType.ACCESS_TRACE, kind: 'reference', primitiveType: PrimitiveType.STRING, isInternal: true, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_PARENT },
 }
 export const RequestDataInfo: Record<RequestProperty, PropertyInfo> = {
-  [RequestProperty.metatype]: { id: 1, name: 'metatype', component: BenchType.REQUEST, kind: 'enum', primitiveType: PrimitiveType.STRING, isRequired: true, isInternal: true, isComputed: true, isWired: true },
-  [RequestProperty.subject]: { id: 30, name: 'subject', component: BenchType.REQUEST, kind: 'reference', primitiveType: PrimitiveType.JSON, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.SUBJECT },
-  [RequestProperty.decision]: { id: 31, name: 'decision', component: BenchType.REQUEST, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
-  [RequestProperty.accesses]: { id: 32, name: 'accesses', component: BenchType.REQUEST, kind: 'reference', primitiveType: PrimitiveType.JSON, isList: true, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.ACCESS },
-  [RequestProperty.transactionId]: { id: 40, name: 'transaction_id', component: BenchType.REQUEST, kind: 'primitive', primitiveType: PrimitiveType.UUID, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
-  [RequestProperty.id]: { id: 2, name: 'id', component: BenchType.REQUEST, kind: 'primitive', primitiveType: PrimitiveType.INT32, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
-  [RequestProperty.orderKey]: { id: 5, name: 'order_key', component: BenchType.REQUEST, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isRuntime: true, isWired: true, isStored: true },
-  [RequestProperty.setProperties]: { id: 22, name: 'set_properties', component: BenchType.REQUEST, kind: 'primitive', primitiveType: PrimitiveType.INT32, isList: true, isRequired: true, isRuntime: true, isWired: true, isStored: true },
-  [RequestProperty.parentId]: { id: 3, name: 'parent_id', component: BenchType.REQUEST, kind: 'reference', primitiveType: PrimitiveType.INT32, isInternal: true, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_PARENT },
-  [RequestProperty.parentKey]: { id: 4, name: 'parent_key', component: BenchType.REQUEST, kind: 'reference', primitiveType: PrimitiveType.STRING, isInternal: true, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_PARENT },
+  [RequestProperty.metatype]: { id: 1, name: 'metatype', component: ObjectType.REQUEST, kind: 'enum', primitiveType: PrimitiveType.STRING, isRequired: true, isInternal: true, isComputed: true, isWired: true },
+  [RequestProperty.subject]: { id: 30, name: 'subject', component: ObjectType.REQUEST, kind: 'reference', primitiveType: PrimitiveType.JSON, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.SUBJECT },
+  [RequestProperty.decision]: { id: 31, name: 'decision', component: ObjectType.REQUEST, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
+  [RequestProperty.accesses]: { id: 32, name: 'accesses', component: ObjectType.REQUEST, kind: 'reference', primitiveType: PrimitiveType.JSON, isList: true, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.ACCESS },
+  [RequestProperty.transactionId]: { id: 40, name: 'transaction_id', component: ObjectType.REQUEST, kind: 'primitive', primitiveType: PrimitiveType.UUID, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
+  [RequestProperty.id]: { id: 2, name: 'id', component: ObjectType.REQUEST, kind: 'primitive', primitiveType: PrimitiveType.INT32, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
+  [RequestProperty.orderKey]: { id: 5, name: 'order_key', component: ObjectType.REQUEST, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isRuntime: true, isWired: true, isStored: true },
+  [RequestProperty.setProperties]: { id: 22, name: 'set_properties', component: ObjectType.REQUEST, kind: 'primitive', primitiveType: PrimitiveType.INT32, isList: true, isRequired: true, isRuntime: true, isWired: true, isStored: true },
+  [RequestProperty.parentId]: { id: 3, name: 'parent_id', component: ObjectType.REQUEST, kind: 'reference', primitiveType: PrimitiveType.INT32, isInternal: true, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_PARENT },
+  [RequestProperty.parentKey]: { id: 4, name: 'parent_key', component: ObjectType.REQUEST, kind: 'reference', primitiveType: PrimitiveType.STRING, isInternal: true, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_PARENT },
 }
 export const ReadOptionsDataInfo: Record<ReadOptionsProperty, PropertyInfo> = {
-  [ReadOptionsProperty.metatype]: { id: 1, name: 'metatype', component: BenchType.READ_OPTIONS, kind: 'enum', primitiveType: PrimitiveType.STRING, isRequired: true, isInternal: true, isComputed: true, isWired: true },
-  [ReadOptionsProperty.ancestorTypes]: { id: 31, name: 'ancestor_types', component: BenchType.READ_OPTIONS, kind: 'enum', primitiveType: PrimitiveType.INT16, isList: true, isRuntime: true, isWired: true, isStored: true },
-  [ReadOptionsProperty.descendantTypes]: { id: 32, name: 'descendant_types', component: BenchType.READ_OPTIONS, kind: 'enum', primitiveType: PrimitiveType.INT16, isList: true, isRuntime: true, isWired: true, isStored: true },
-  [ReadOptionsProperty.selectAllProperties]: { id: 43, name: 'select_all_properties', component: BenchType.READ_OPTIONS, kind: 'primitive', primitiveType: PrimitiveType.BOOLEAN, isRequired: true, isRuntime: true, isWired: true, isStored: true },
-  [ReadOptionsProperty.includeHidden]: { id: 50, name: 'include_hidden', component: BenchType.READ_OPTIONS, kind: 'primitive', primitiveType: PrimitiveType.BOOLEAN, isRequired: true, isRuntime: true, isWired: true, isStored: true },
-  [ReadOptionsProperty.id]: { id: 2, name: 'id', component: BenchType.READ_OPTIONS, kind: 'primitive', primitiveType: PrimitiveType.INT32, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
-  [ReadOptionsProperty.relatedPropertiesPtr]: { id: 33, name: 'related_properties_ptr', component: BenchType.READ_OPTIONS, kind: 'primitive', primitiveType: PrimitiveType.JSON, isList: true, isRuntime: true, isWired: true, isStored: true, referenceStruct: StructType.PROPERTY_REFERENCE },
-  [ReadOptionsProperty.includePropertiesPtr]: { id: 40, name: 'include_properties_ptr', component: BenchType.READ_OPTIONS, kind: 'primitive', primitiveType: PrimitiveType.JSON, isList: true, isRuntime: true, isWired: true, isStored: true, referenceStruct: StructType.PROPERTY_REFERENCE },
-  [ReadOptionsProperty.excludePropertiesPtr]: { id: 41, name: 'exclude_properties_ptr', component: BenchType.READ_OPTIONS, kind: 'primitive', primitiveType: PrimitiveType.JSON, isList: true, isRuntime: true, isWired: true, isStored: true, referenceStruct: StructType.PROPERTY_REFERENCE },
-  [ReadOptionsProperty.selectPropertiesPtr]: { id: 42, name: 'select_properties_ptr', component: BenchType.READ_OPTIONS, kind: 'primitive', primitiveType: PrimitiveType.JSON, isList: true, isRuntime: true, isWired: true, isStored: true, referenceStruct: StructType.PROPERTY_REFERENCE },
+  [ReadOptionsProperty.metatype]: { id: 1, name: 'metatype', component: ObjectType.READ_OPTIONS, kind: 'enum', primitiveType: PrimitiveType.STRING, isRequired: true, isInternal: true, isComputed: true, isWired: true },
+  [ReadOptionsProperty.ancestorTypes]: { id: 31, name: 'ancestor_types', component: ObjectType.READ_OPTIONS, kind: 'enum', primitiveType: PrimitiveType.INT16, isList: true, isRuntime: true, isWired: true, isStored: true },
+  [ReadOptionsProperty.descendantTypes]: { id: 32, name: 'descendant_types', component: ObjectType.READ_OPTIONS, kind: 'enum', primitiveType: PrimitiveType.INT16, isList: true, isRuntime: true, isWired: true, isStored: true },
+  [ReadOptionsProperty.selectAllProperties]: { id: 43, name: 'select_all_properties', component: ObjectType.READ_OPTIONS, kind: 'primitive', primitiveType: PrimitiveType.BOOLEAN, isRequired: true, isRuntime: true, isWired: true, isStored: true },
+  [ReadOptionsProperty.includeHidden]: { id: 50, name: 'include_hidden', component: ObjectType.READ_OPTIONS, kind: 'primitive', primitiveType: PrimitiveType.BOOLEAN, isRequired: true, isRuntime: true, isWired: true, isStored: true },
+  [ReadOptionsProperty.id]: { id: 2, name: 'id', component: ObjectType.READ_OPTIONS, kind: 'primitive', primitiveType: PrimitiveType.INT32, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
+  [ReadOptionsProperty.relatedPropertiesPtr]: { id: 33, name: 'related_properties_ptr', component: ObjectType.READ_OPTIONS, kind: 'primitive', primitiveType: PrimitiveType.JSON, isList: true, isRuntime: true, isWired: true, isStored: true, referenceStruct: StructType.PROPERTY_REFERENCE },
+  [ReadOptionsProperty.includePropertiesPtr]: { id: 40, name: 'include_properties_ptr', component: ObjectType.READ_OPTIONS, kind: 'primitive', primitiveType: PrimitiveType.JSON, isList: true, isRuntime: true, isWired: true, isStored: true, referenceStruct: StructType.PROPERTY_REFERENCE },
+  [ReadOptionsProperty.excludePropertiesPtr]: { id: 41, name: 'exclude_properties_ptr', component: ObjectType.READ_OPTIONS, kind: 'primitive', primitiveType: PrimitiveType.JSON, isList: true, isRuntime: true, isWired: true, isStored: true, referenceStruct: StructType.PROPERTY_REFERENCE },
+  [ReadOptionsProperty.selectPropertiesPtr]: { id: 42, name: 'select_properties_ptr', component: ObjectType.READ_OPTIONS, kind: 'primitive', primitiveType: PrimitiveType.JSON, isList: true, isRuntime: true, isWired: true, isStored: true, referenceStruct: StructType.PROPERTY_REFERENCE },
 }
 export const ExpressionDataInfo: Record<ExpressionProperty, PropertyInfo> = {
-  [ExpressionProperty.metatype]: { id: 1, name: 'metatype', component: BenchType.EXPRESSION, kind: 'enum', primitiveType: PrimitiveType.STRING, isRequired: true, isInternal: true, isComputed: true, isWired: true },
-  [ExpressionProperty.op]: { id: 30, name: 'op', component: BenchType.EXPRESSION, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isRuntime: true, isWired: true, isStored: true },
-  [ExpressionProperty.clauses]: { id: 35, name: 'clauses', component: BenchType.EXPRESSION, kind: 'reference', primitiveType: PrimitiveType.JSON, isList: true, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.EXPRESSION },
-  [ExpressionProperty.valuePacked]: { id: 36, name: 'value_packed', component: BenchType.EXPRESSION, kind: 'primitive', primitiveType: PrimitiveType.JSON, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true, isValuePacked: true },
-  [ExpressionProperty.sortMode]: { id: 37, name: 'sort_mode', component: BenchType.EXPRESSION, kind: 'enum', primitiveType: PrimitiveType.INT16, isRuntime: true, isWired: true, isStored: true },
-  [ExpressionProperty.id]: { id: 2, name: 'id', component: BenchType.EXPRESSION, kind: 'primitive', primitiveType: PrimitiveType.INT32, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
-  [ExpressionProperty.orderKey]: { id: 5, name: 'order_key', component: BenchType.EXPRESSION, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isRuntime: true, isWired: true, isStored: true },
-  [ExpressionProperty.setProperties]: { id: 22, name: 'set_properties', component: BenchType.EXPRESSION, kind: 'primitive', primitiveType: PrimitiveType.INT32, isList: true, isRequired: true, isRuntime: true, isWired: true, isStored: true },
-  [ExpressionProperty.fieldPtr]: { id: 31, name: 'field_ptr', component: BenchType.EXPRESSION, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.FIELD], referenceStruct: StructType.NODE_REFERENCE },
-  [ExpressionProperty.propertyPtr]: { id: 32, name: 'property_ptr', component: BenchType.EXPRESSION, kind: 'primitive', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceStruct: StructType.PROPERTY_REFERENCE },
-  [ExpressionProperty.parentId]: { id: 3, name: 'parent_id', component: BenchType.EXPRESSION, kind: 'reference', primitiveType: PrimitiveType.INT32, isInternal: true, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_PARENT },
-  [ExpressionProperty.parentKey]: { id: 4, name: 'parent_key', component: BenchType.EXPRESSION, kind: 'reference', primitiveType: PrimitiveType.STRING, isInternal: true, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_PARENT },
+  [ExpressionProperty.metatype]: { id: 1, name: 'metatype', component: ObjectType.EXPRESSION, kind: 'enum', primitiveType: PrimitiveType.STRING, isRequired: true, isInternal: true, isComputed: true, isWired: true },
+  [ExpressionProperty.op]: { id: 30, name: 'op', component: ObjectType.EXPRESSION, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isRuntime: true, isWired: true, isStored: true },
+  [ExpressionProperty.clauses]: { id: 35, name: 'clauses', component: ObjectType.EXPRESSION, kind: 'reference', primitiveType: PrimitiveType.JSON, isList: true, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.EXPRESSION },
+  [ExpressionProperty.valuePacked]: { id: 36, name: 'value_packed', component: ObjectType.EXPRESSION, kind: 'primitive', primitiveType: PrimitiveType.JSON, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true, isValuePacked: true },
+  [ExpressionProperty.sortMode]: { id: 37, name: 'sort_mode', component: ObjectType.EXPRESSION, kind: 'enum', primitiveType: PrimitiveType.INT16, isRuntime: true, isWired: true, isStored: true },
+  [ExpressionProperty.id]: { id: 2, name: 'id', component: ObjectType.EXPRESSION, kind: 'primitive', primitiveType: PrimitiveType.INT32, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
+  [ExpressionProperty.orderKey]: { id: 5, name: 'order_key', component: ObjectType.EXPRESSION, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isRuntime: true, isWired: true, isStored: true },
+  [ExpressionProperty.setProperties]: { id: 22, name: 'set_properties', component: ObjectType.EXPRESSION, kind: 'primitive', primitiveType: PrimitiveType.INT32, isList: true, isRequired: true, isRuntime: true, isWired: true, isStored: true },
+  [ExpressionProperty.fieldPtr]: { id: 31, name: 'field_ptr', component: ObjectType.EXPRESSION, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.FIELD], referenceStruct: StructType.NODE_REFERENCE },
+  [ExpressionProperty.propertyPtr]: { id: 32, name: 'property_ptr', component: ObjectType.EXPRESSION, kind: 'primitive', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceStruct: StructType.PROPERTY_REFERENCE },
+  [ExpressionProperty.parentId]: { id: 3, name: 'parent_id', component: ObjectType.EXPRESSION, kind: 'reference', primitiveType: PrimitiveType.INT32, isInternal: true, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_PARENT },
+  [ExpressionProperty.parentKey]: { id: 4, name: 'parent_key', component: ObjectType.EXPRESSION, kind: 'reference', primitiveType: PrimitiveType.STRING, isInternal: true, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_PARENT },
 }
 export const AggregationDataInfo: Record<AggregationProperty, PropertyInfo> = {
-  [AggregationProperty.metatype]: { id: 1, name: 'metatype', component: BenchType.AGGREGATION, kind: 'enum', primitiveType: PrimitiveType.STRING, isRequired: true, isInternal: true, isComputed: true, isWired: true },
-  [AggregationProperty.op]: { id: 30, name: 'op', component: BenchType.AGGREGATION, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isRuntime: true, isWired: true, isStored: true },
-  [AggregationProperty.exists]: { id: 31, name: 'exists', component: BenchType.AGGREGATION, kind: 'primitive', primitiveType: PrimitiveType.BOOLEAN, isRuntime: true, isWired: true, isStored: true },
-  [AggregationProperty.count]: { id: 32, name: 'count', component: BenchType.AGGREGATION, kind: 'primitive', primitiveType: PrimitiveType.INT32, isRuntime: true, isWired: true, isStored: true },
-  [AggregationProperty.scalar]: { id: 33, name: 'scalar', component: BenchType.AGGREGATION, kind: 'primitive', primitiveType: PrimitiveType.FLOAT32, isRuntime: true, isWired: true, isStored: true },
-  [AggregationProperty.buckets]: { id: 34, name: 'buckets', component: BenchType.AGGREGATION, kind: 'reference', primitiveType: PrimitiveType.JSON, isList: true, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.AGGREGATION_BUCKET },
-  [AggregationProperty.id]: { id: 2, name: 'id', component: BenchType.AGGREGATION, kind: 'primitive', primitiveType: PrimitiveType.INT32, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
-  [AggregationProperty.orderKey]: { id: 5, name: 'order_key', component: BenchType.AGGREGATION, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isRuntime: true, isWired: true, isStored: true },
-  [AggregationProperty.setProperties]: { id: 22, name: 'set_properties', component: BenchType.AGGREGATION, kind: 'primitive', primitiveType: PrimitiveType.INT32, isList: true, isRequired: true, isRuntime: true, isWired: true, isStored: true },
-  [AggregationProperty.parentId]: { id: 3, name: 'parent_id', component: BenchType.AGGREGATION, kind: 'reference', primitiveType: PrimitiveType.INT32, isInternal: true, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_PARENT },
-  [AggregationProperty.parentKey]: { id: 4, name: 'parent_key', component: BenchType.AGGREGATION, kind: 'reference', primitiveType: PrimitiveType.STRING, isInternal: true, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_PARENT },
+  [AggregationProperty.metatype]: { id: 1, name: 'metatype', component: ObjectType.AGGREGATION, kind: 'enum', primitiveType: PrimitiveType.STRING, isRequired: true, isInternal: true, isComputed: true, isWired: true },
+  [AggregationProperty.op]: { id: 30, name: 'op', component: ObjectType.AGGREGATION, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isRuntime: true, isWired: true, isStored: true },
+  [AggregationProperty.exists]: { id: 31, name: 'exists', component: ObjectType.AGGREGATION, kind: 'primitive', primitiveType: PrimitiveType.BOOLEAN, isRuntime: true, isWired: true, isStored: true },
+  [AggregationProperty.count]: { id: 32, name: 'count', component: ObjectType.AGGREGATION, kind: 'primitive', primitiveType: PrimitiveType.INT32, isRuntime: true, isWired: true, isStored: true },
+  [AggregationProperty.scalar]: { id: 33, name: 'scalar', component: ObjectType.AGGREGATION, kind: 'primitive', primitiveType: PrimitiveType.FLOAT32, isRuntime: true, isWired: true, isStored: true },
+  [AggregationProperty.buckets]: { id: 34, name: 'buckets', component: ObjectType.AGGREGATION, kind: 'reference', primitiveType: PrimitiveType.JSON, isList: true, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.AGGREGATION_BUCKET },
+  [AggregationProperty.id]: { id: 2, name: 'id', component: ObjectType.AGGREGATION, kind: 'primitive', primitiveType: PrimitiveType.INT32, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
+  [AggregationProperty.orderKey]: { id: 5, name: 'order_key', component: ObjectType.AGGREGATION, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isRuntime: true, isWired: true, isStored: true },
+  [AggregationProperty.setProperties]: { id: 22, name: 'set_properties', component: ObjectType.AGGREGATION, kind: 'primitive', primitiveType: PrimitiveType.INT32, isList: true, isRequired: true, isRuntime: true, isWired: true, isStored: true },
+  [AggregationProperty.parentId]: { id: 3, name: 'parent_id', component: ObjectType.AGGREGATION, kind: 'reference', primitiveType: PrimitiveType.INT32, isInternal: true, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_PARENT },
+  [AggregationProperty.parentKey]: { id: 4, name: 'parent_key', component: ObjectType.AGGREGATION, kind: 'reference', primitiveType: PrimitiveType.STRING, isInternal: true, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_PARENT },
 }
 export const AggregationBucketDataInfo: Record<AggregationBucketProperty, PropertyInfo> = {
-  [AggregationBucketProperty.metatype]: { id: 1, name: 'metatype', component: BenchType.AGGREGATION_BUCKET, kind: 'enum', primitiveType: PrimitiveType.STRING, isRequired: true, isInternal: true, isComputed: true, isWired: true },
-  [AggregationBucketProperty.key]: { id: 30, name: 'key', component: BenchType.AGGREGATION_BUCKET, kind: 'primitive', primitiveType: PrimitiveType.JSON, isRequired: true, isRuntime: true, isWired: true, isStored: true },
-  [AggregationBucketProperty.count]: { id: 31, name: 'count', component: BenchType.AGGREGATION_BUCKET, kind: 'primitive', primitiveType: PrimitiveType.INT32, isRequired: true, isRuntime: true, isWired: true, isStored: true },
-  [AggregationBucketProperty.id]: { id: 2, name: 'id', component: BenchType.AGGREGATION_BUCKET, kind: 'primitive', primitiveType: PrimitiveType.INT32, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
+  [AggregationBucketProperty.metatype]: { id: 1, name: 'metatype', component: ObjectType.AGGREGATION_BUCKET, kind: 'enum', primitiveType: PrimitiveType.STRING, isRequired: true, isInternal: true, isComputed: true, isWired: true },
+  [AggregationBucketProperty.key]: { id: 30, name: 'key', component: ObjectType.AGGREGATION_BUCKET, kind: 'primitive', primitiveType: PrimitiveType.JSON, isRequired: true, isRuntime: true, isWired: true, isStored: true },
+  [AggregationBucketProperty.count]: { id: 31, name: 'count', component: ObjectType.AGGREGATION_BUCKET, kind: 'primitive', primitiveType: PrimitiveType.INT32, isRequired: true, isRuntime: true, isWired: true, isStored: true },
+  [AggregationBucketProperty.id]: { id: 2, name: 'id', component: ObjectType.AGGREGATION_BUCKET, kind: 'primitive', primitiveType: PrimitiveType.INT32, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
 }
 export const SelectionDataInfo: Record<SelectionProperty, PropertyInfo> = {
-  [SelectionProperty.metatype]: { id: 1, name: 'metatype', component: BenchType.SELECTION, kind: 'enum', primitiveType: PrimitiveType.STRING, isRequired: true, isInternal: true, isComputed: true, isWired: true },
-  [SelectionProperty.kind]: { id: 30, name: 'kind', component: BenchType.SELECTION, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isRuntime: true, isWired: true, isStored: true },
-  [SelectionProperty.id]: { id: 2, name: 'id', component: BenchType.SELECTION, kind: 'primitive', primitiveType: PrimitiveType.INT32, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
-  [SelectionProperty.nodesPtr]: { id: 31, name: 'nodes_ptr', component: BenchType.SELECTION, kind: 'reference', isList: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.BENCH, NodeType.ENVIRONMENT, NodeType.BRANCH, NodeType.PACKAGE, NodeType.DEPENDENCY, NodeType.UPGRADE, NodeType.SPACE, NodeType.LINK, NodeType.SKIP, NodeType.NOTICE, NodeType.BLOCK, NodeType.TRIGGER, NodeType.FIELD, NodeType.RECORD, NodeType.QUERY, NodeType.VIEW, NodeType.STEP, NodeType.BADGE, NodeType.ROLE, NodeType.IDENTITY, NodeType.MEMBERSHIP, NodeType.INVITE, NodeType.SESSION, NodeType.RUN, NodeType.PAUSE, NodeType.SIGNAL, NodeType.LOG, NodeType.NOTIFICATION, NodeType.SERVER, NodeType.STORE, NodeType.DRIVE, NodeType.CACHE, NodeType.FILE_CONTENT, NodeType.CLIENT, NodeType.HANDLE], referenceStruct: StructType.NODE_REFERENCE },
-  [SelectionProperty.fromNodePtr]: { id: 32, name: 'from_node_ptr', component: BenchType.SELECTION, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.BENCH, NodeType.ENVIRONMENT, NodeType.BRANCH, NodeType.PACKAGE, NodeType.DEPENDENCY, NodeType.UPGRADE, NodeType.SPACE, NodeType.LINK, NodeType.SKIP, NodeType.NOTICE, NodeType.BLOCK, NodeType.TRIGGER, NodeType.FIELD, NodeType.RECORD, NodeType.QUERY, NodeType.VIEW, NodeType.STEP, NodeType.BADGE, NodeType.ROLE, NodeType.IDENTITY, NodeType.MEMBERSHIP, NodeType.INVITE, NodeType.SESSION, NodeType.RUN, NodeType.PAUSE, NodeType.SIGNAL, NodeType.LOG, NodeType.NOTIFICATION, NodeType.SERVER, NodeType.STORE, NodeType.DRIVE, NodeType.CACHE, NodeType.FILE_CONTENT, NodeType.CLIENT, NodeType.HANDLE], referenceStruct: StructType.NODE_REFERENCE },
-  [SelectionProperty.toNodePtr]: { id: 33, name: 'to_node_ptr', component: BenchType.SELECTION, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.BENCH, NodeType.ENVIRONMENT, NodeType.BRANCH, NodeType.PACKAGE, NodeType.DEPENDENCY, NodeType.UPGRADE, NodeType.SPACE, NodeType.LINK, NodeType.SKIP, NodeType.NOTICE, NodeType.BLOCK, NodeType.TRIGGER, NodeType.FIELD, NodeType.RECORD, NodeType.QUERY, NodeType.VIEW, NodeType.STEP, NodeType.BADGE, NodeType.ROLE, NodeType.IDENTITY, NodeType.MEMBERSHIP, NodeType.INVITE, NodeType.SESSION, NodeType.RUN, NodeType.PAUSE, NodeType.SIGNAL, NodeType.LOG, NodeType.NOTIFICATION, NodeType.SERVER, NodeType.STORE, NodeType.DRIVE, NodeType.CACHE, NodeType.FILE_CONTENT, NodeType.CLIENT, NodeType.HANDLE], referenceStruct: StructType.NODE_REFERENCE },
+  [SelectionProperty.metatype]: { id: 1, name: 'metatype', component: ObjectType.SELECTION, kind: 'enum', primitiveType: PrimitiveType.STRING, isRequired: true, isInternal: true, isComputed: true, isWired: true },
+  [SelectionProperty.kind]: { id: 30, name: 'kind', component: ObjectType.SELECTION, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isRuntime: true, isWired: true, isStored: true },
+  [SelectionProperty.id]: { id: 2, name: 'id', component: ObjectType.SELECTION, kind: 'primitive', primitiveType: PrimitiveType.INT32, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
+  [SelectionProperty.nodesPtr]: { id: 31, name: 'nodes_ptr', component: ObjectType.SELECTION, kind: 'reference', isList: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.BENCH, NodeType.ENVIRONMENT, NodeType.BRANCH, NodeType.PACKAGE, NodeType.DEPENDENCY, NodeType.UPGRADE, NodeType.SPACE, NodeType.LINK, NodeType.SKIP, NodeType.NOTICE, NodeType.BLOCK, NodeType.TRIGGER, NodeType.FIELD, NodeType.RECORD, NodeType.QUERY, NodeType.VIEW, NodeType.STEP, NodeType.BADGE, NodeType.ROLE, NodeType.IDENTITY, NodeType.MEMBERSHIP, NodeType.INVITE, NodeType.SESSION, NodeType.RUN, NodeType.PAUSE, NodeType.SIGNAL, NodeType.LOG, NodeType.NOTIFICATION, NodeType.SERVER, NodeType.STORE, NodeType.DRIVE, NodeType.CACHE, NodeType.FILE_CONTENT, NodeType.CLIENT, NodeType.HANDLE], referenceStruct: StructType.NODE_REFERENCE },
+  [SelectionProperty.fromNodePtr]: { id: 32, name: 'from_node_ptr', component: ObjectType.SELECTION, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.BENCH, NodeType.ENVIRONMENT, NodeType.BRANCH, NodeType.PACKAGE, NodeType.DEPENDENCY, NodeType.UPGRADE, NodeType.SPACE, NodeType.LINK, NodeType.SKIP, NodeType.NOTICE, NodeType.BLOCK, NodeType.TRIGGER, NodeType.FIELD, NodeType.RECORD, NodeType.QUERY, NodeType.VIEW, NodeType.STEP, NodeType.BADGE, NodeType.ROLE, NodeType.IDENTITY, NodeType.MEMBERSHIP, NodeType.INVITE, NodeType.SESSION, NodeType.RUN, NodeType.PAUSE, NodeType.SIGNAL, NodeType.LOG, NodeType.NOTIFICATION, NodeType.SERVER, NodeType.STORE, NodeType.DRIVE, NodeType.CACHE, NodeType.FILE_CONTENT, NodeType.CLIENT, NodeType.HANDLE], referenceStruct: StructType.NODE_REFERENCE },
+  [SelectionProperty.toNodePtr]: { id: 33, name: 'to_node_ptr', component: ObjectType.SELECTION, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.BENCH, NodeType.ENVIRONMENT, NodeType.BRANCH, NodeType.PACKAGE, NodeType.DEPENDENCY, NodeType.UPGRADE, NodeType.SPACE, NodeType.LINK, NodeType.SKIP, NodeType.NOTICE, NodeType.BLOCK, NodeType.TRIGGER, NodeType.FIELD, NodeType.RECORD, NodeType.QUERY, NodeType.VIEW, NodeType.STEP, NodeType.BADGE, NodeType.ROLE, NodeType.IDENTITY, NodeType.MEMBERSHIP, NodeType.INVITE, NodeType.SESSION, NodeType.RUN, NodeType.PAUSE, NodeType.SIGNAL, NodeType.LOG, NodeType.NOTIFICATION, NodeType.SERVER, NodeType.STORE, NodeType.DRIVE, NodeType.CACHE, NodeType.FILE_CONTENT, NodeType.CLIENT, NodeType.HANDLE], referenceStruct: StructType.NODE_REFERENCE },
 }
 export const CodeDataInfo: Record<CodeProperty, PropertyInfo> = {
-  [CodeProperty.metatype]: { id: 1, name: 'metatype', component: BenchType.CODE, kind: 'enum', primitiveType: PrimitiveType.STRING, isRequired: true, isInternal: true, isComputed: true, isWired: true },
-  [CodeProperty.lines]: { id: 30, name: 'lines', component: BenchType.CODE, kind: 'reference', primitiveType: PrimitiveType.JSON, isList: true, isRequired: true, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.CODE_LINE },
-  [CodeProperty.id]: { id: 2, name: 'id', component: BenchType.CODE, kind: 'primitive', primitiveType: PrimitiveType.INT32, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
-  [CodeProperty.orderKey]: { id: 5, name: 'order_key', component: BenchType.CODE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isRuntime: true, isWired: true, isStored: true },
-  [CodeProperty.setProperties]: { id: 22, name: 'set_properties', component: BenchType.CODE, kind: 'primitive', primitiveType: PrimitiveType.INT32, isList: true, isRequired: true, isRuntime: true, isWired: true, isStored: true },
-  [CodeProperty.parentId]: { id: 3, name: 'parent_id', component: BenchType.CODE, kind: 'reference', primitiveType: PrimitiveType.INT32, isInternal: true, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_PARENT },
-  [CodeProperty.parentKey]: { id: 4, name: 'parent_key', component: BenchType.CODE, kind: 'reference', primitiveType: PrimitiveType.STRING, isInternal: true, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_PARENT },
+  [CodeProperty.metatype]: { id: 1, name: 'metatype', component: ObjectType.CODE, kind: 'enum', primitiveType: PrimitiveType.STRING, isRequired: true, isInternal: true, isComputed: true, isWired: true },
+  [CodeProperty.lines]: { id: 30, name: 'lines', component: ObjectType.CODE, kind: 'reference', primitiveType: PrimitiveType.JSON, isList: true, isRequired: true, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.CODE_LINE },
+  [CodeProperty.id]: { id: 2, name: 'id', component: ObjectType.CODE, kind: 'primitive', primitiveType: PrimitiveType.INT32, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
+  [CodeProperty.orderKey]: { id: 5, name: 'order_key', component: ObjectType.CODE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isRuntime: true, isWired: true, isStored: true },
+  [CodeProperty.setProperties]: { id: 22, name: 'set_properties', component: ObjectType.CODE, kind: 'primitive', primitiveType: PrimitiveType.INT32, isList: true, isRequired: true, isRuntime: true, isWired: true, isStored: true },
+  [CodeProperty.parentId]: { id: 3, name: 'parent_id', component: ObjectType.CODE, kind: 'reference', primitiveType: PrimitiveType.INT32, isInternal: true, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_PARENT },
+  [CodeProperty.parentKey]: { id: 4, name: 'parent_key', component: ObjectType.CODE, kind: 'reference', primitiveType: PrimitiveType.STRING, isInternal: true, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_PARENT },
 }
 export const CodeLineDataInfo: Record<CodeLineProperty, PropertyInfo> = {
-  [CodeLineProperty.metatype]: { id: 1, name: 'metatype', component: BenchType.CODE_LINE, kind: 'enum', primitiveType: PrimitiveType.STRING, isRequired: true, isInternal: true, isComputed: true, isWired: true },
-  [CodeLineProperty.line]: { id: 32, name: 'line', component: BenchType.CODE_LINE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isRequired: true, isRuntime: true, isWired: true, isStored: true },
-  [CodeLineProperty.id]: { id: 2, name: 'id', component: BenchType.CODE_LINE, kind: 'primitive', primitiveType: PrimitiveType.INT32, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
-  [CodeLineProperty.orderKey]: { id: 5, name: 'order_key', component: BenchType.CODE_LINE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isRuntime: true, isWired: true, isStored: true },
-  [CodeLineProperty.setProperties]: { id: 22, name: 'set_properties', component: BenchType.CODE_LINE, kind: 'primitive', primitiveType: PrimitiveType.INT32, isList: true, isRequired: true, isRuntime: true, isWired: true, isStored: true },
-  [CodeLineProperty.parentId]: { id: 3, name: 'parent_id', component: BenchType.CODE_LINE, kind: 'reference', primitiveType: PrimitiveType.INT32, isInternal: true, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_PARENT },
-  [CodeLineProperty.parentKey]: { id: 4, name: 'parent_key', component: BenchType.CODE_LINE, kind: 'reference', primitiveType: PrimitiveType.STRING, isInternal: true, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_PARENT },
+  [CodeLineProperty.metatype]: { id: 1, name: 'metatype', component: ObjectType.CODE_LINE, kind: 'enum', primitiveType: PrimitiveType.STRING, isRequired: true, isInternal: true, isComputed: true, isWired: true },
+  [CodeLineProperty.line]: { id: 32, name: 'line', component: ObjectType.CODE_LINE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isRequired: true, isRuntime: true, isWired: true, isStored: true },
+  [CodeLineProperty.id]: { id: 2, name: 'id', component: ObjectType.CODE_LINE, kind: 'primitive', primitiveType: PrimitiveType.INT32, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
+  [CodeLineProperty.orderKey]: { id: 5, name: 'order_key', component: ObjectType.CODE_LINE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isRuntime: true, isWired: true, isStored: true },
+  [CodeLineProperty.setProperties]: { id: 22, name: 'set_properties', component: ObjectType.CODE_LINE, kind: 'primitive', primitiveType: PrimitiveType.INT32, isList: true, isRequired: true, isRuntime: true, isWired: true, isStored: true },
+  [CodeLineProperty.parentId]: { id: 3, name: 'parent_id', component: ObjectType.CODE_LINE, kind: 'reference', primitiveType: PrimitiveType.INT32, isInternal: true, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_PARENT },
+  [CodeLineProperty.parentKey]: { id: 4, name: 'parent_key', component: ObjectType.CODE_LINE, kind: 'reference', primitiveType: PrimitiveType.STRING, isInternal: true, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_PARENT },
 }
 export const StepConnectionDataInfo: Record<StepConnectionProperty, PropertyInfo> = {
-  [StepConnectionProperty.metatype]: { id: 1, name: 'metatype', component: BenchType.STEP_CONNECTION, kind: 'enum', primitiveType: PrimitiveType.STRING, isRequired: true, isInternal: true, isComputed: true, isWired: true },
-  [StepConnectionProperty.id]: { id: 2, name: 'id', component: BenchType.STEP_CONNECTION, kind: 'primitive', primitiveType: PrimitiveType.INT32, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
-  [StepConnectionProperty.orderKey]: { id: 5, name: 'order_key', component: BenchType.STEP_CONNECTION, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isRuntime: true, isWired: true, isStored: true },
-  [StepConnectionProperty.setProperties]: { id: 22, name: 'set_properties', component: BenchType.STEP_CONNECTION, kind: 'primitive', primitiveType: PrimitiveType.INT32, isList: true, isRequired: true, isRuntime: true, isWired: true, isStored: true },
-  [StepConnectionProperty.sourcePtr]: { id: 30, name: 'source_ptr', component: BenchType.STEP_CONNECTION, kind: 'reference', isRequired: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.STEP], referenceStruct: StructType.NODE_REFERENCE },
-  [StepConnectionProperty.parentId]: { id: 3, name: 'parent_id', component: BenchType.STEP_CONNECTION, kind: 'reference', primitiveType: PrimitiveType.INT32, isInternal: true, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_PARENT },
-  [StepConnectionProperty.parentKey]: { id: 4, name: 'parent_key', component: BenchType.STEP_CONNECTION, kind: 'reference', primitiveType: PrimitiveType.STRING, isInternal: true, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_PARENT },
+  [StepConnectionProperty.metatype]: { id: 1, name: 'metatype', component: ObjectType.STEP_CONNECTION, kind: 'enum', primitiveType: PrimitiveType.STRING, isRequired: true, isInternal: true, isComputed: true, isWired: true },
+  [StepConnectionProperty.id]: { id: 2, name: 'id', component: ObjectType.STEP_CONNECTION, kind: 'primitive', primitiveType: PrimitiveType.INT32, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
+  [StepConnectionProperty.orderKey]: { id: 5, name: 'order_key', component: ObjectType.STEP_CONNECTION, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isRuntime: true, isWired: true, isStored: true },
+  [StepConnectionProperty.setProperties]: { id: 22, name: 'set_properties', component: ObjectType.STEP_CONNECTION, kind: 'primitive', primitiveType: PrimitiveType.INT32, isList: true, isRequired: true, isRuntime: true, isWired: true, isStored: true },
+  [StepConnectionProperty.sourcePtr]: { id: 30, name: 'source_ptr', component: ObjectType.STEP_CONNECTION, kind: 'reference', isRequired: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.STEP], referenceStruct: StructType.NODE_REFERENCE },
+  [StepConnectionProperty.parentId]: { id: 3, name: 'parent_id', component: ObjectType.STEP_CONNECTION, kind: 'reference', primitiveType: PrimitiveType.INT32, isInternal: true, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_PARENT },
+  [StepConnectionProperty.parentKey]: { id: 4, name: 'parent_key', component: ObjectType.STEP_CONNECTION, kind: 'reference', primitiveType: PrimitiveType.STRING, isInternal: true, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_PARENT },
 }
 export const RunCodeFrameDataInfo: Record<RunCodeFrameProperty, PropertyInfo> = {
-  [RunCodeFrameProperty.metatype]: { id: 1, name: 'metatype', component: BenchType.RUN_CODE_FRAME, kind: 'enum', primitiveType: PrimitiveType.STRING, isRequired: true, isInternal: true, isComputed: true, isWired: true },
-  [RunCodeFrameProperty.lineno]: { id: 31, name: 'lineno', component: BenchType.RUN_CODE_FRAME, kind: 'primitive', primitiveType: PrimitiveType.INT32, isRequired: true, isInternal: true, isRuntime: true, isWired: true, isStored: true },
-  [RunCodeFrameProperty.name]: { id: 32, name: 'name', component: BenchType.RUN_CODE_FRAME, kind: 'primitive', primitiveType: PrimitiveType.STRING, isRequired: true, isInternal: true, isRuntime: true, isWired: true, isStored: true },
-  [RunCodeFrameProperty.line]: { id: 33, name: 'line', component: BenchType.RUN_CODE_FRAME, kind: 'primitive', primitiveType: PrimitiveType.STRING, isRequired: true, isInternal: true, isRuntime: true, isWired: true, isStored: true },
-  [RunCodeFrameProperty.id]: { id: 2, name: 'id', component: BenchType.RUN_CODE_FRAME, kind: 'primitive', primitiveType: PrimitiveType.INT32, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
-  [RunCodeFrameProperty.orderKey]: { id: 5, name: 'order_key', component: BenchType.RUN_CODE_FRAME, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isRuntime: true, isWired: true, isStored: true },
-  [RunCodeFrameProperty.setProperties]: { id: 22, name: 'set_properties', component: BenchType.RUN_CODE_FRAME, kind: 'primitive', primitiveType: PrimitiveType.INT32, isList: true, isRequired: true, isRuntime: true, isWired: true, isStored: true },
-  [RunCodeFrameProperty.nodePtr]: { id: 30, name: 'node_ptr', component: BenchType.RUN_CODE_FRAME, kind: 'reference', isRequired: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.BLOCK], referenceStruct: StructType.NODE_REFERENCE },
-  [RunCodeFrameProperty.parentId]: { id: 3, name: 'parent_id', component: BenchType.RUN_CODE_FRAME, kind: 'reference', primitiveType: PrimitiveType.INT32, isInternal: true, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_PARENT },
-  [RunCodeFrameProperty.parentKey]: { id: 4, name: 'parent_key', component: BenchType.RUN_CODE_FRAME, kind: 'reference', primitiveType: PrimitiveType.STRING, isInternal: true, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_PARENT },
+  [RunCodeFrameProperty.metatype]: { id: 1, name: 'metatype', component: ObjectType.RUN_CODE_FRAME, kind: 'enum', primitiveType: PrimitiveType.STRING, isRequired: true, isInternal: true, isComputed: true, isWired: true },
+  [RunCodeFrameProperty.lineno]: { id: 31, name: 'lineno', component: ObjectType.RUN_CODE_FRAME, kind: 'primitive', primitiveType: PrimitiveType.INT32, isRequired: true, isInternal: true, isRuntime: true, isWired: true, isStored: true },
+  [RunCodeFrameProperty.name]: { id: 32, name: 'name', component: ObjectType.RUN_CODE_FRAME, kind: 'primitive', primitiveType: PrimitiveType.STRING, isRequired: true, isInternal: true, isRuntime: true, isWired: true, isStored: true },
+  [RunCodeFrameProperty.line]: { id: 33, name: 'line', component: ObjectType.RUN_CODE_FRAME, kind: 'primitive', primitiveType: PrimitiveType.STRING, isRequired: true, isInternal: true, isRuntime: true, isWired: true, isStored: true },
+  [RunCodeFrameProperty.id]: { id: 2, name: 'id', component: ObjectType.RUN_CODE_FRAME, kind: 'primitive', primitiveType: PrimitiveType.INT32, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
+  [RunCodeFrameProperty.orderKey]: { id: 5, name: 'order_key', component: ObjectType.RUN_CODE_FRAME, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isRuntime: true, isWired: true, isStored: true },
+  [RunCodeFrameProperty.setProperties]: { id: 22, name: 'set_properties', component: ObjectType.RUN_CODE_FRAME, kind: 'primitive', primitiveType: PrimitiveType.INT32, isList: true, isRequired: true, isRuntime: true, isWired: true, isStored: true },
+  [RunCodeFrameProperty.nodePtr]: { id: 30, name: 'node_ptr', component: ObjectType.RUN_CODE_FRAME, kind: 'reference', isRequired: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.BLOCK], referenceStruct: StructType.NODE_REFERENCE },
+  [RunCodeFrameProperty.parentId]: { id: 3, name: 'parent_id', component: ObjectType.RUN_CODE_FRAME, kind: 'reference', primitiveType: PrimitiveType.INT32, isInternal: true, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_PARENT },
+  [RunCodeFrameProperty.parentKey]: { id: 4, name: 'parent_key', component: ObjectType.RUN_CODE_FRAME, kind: 'reference', primitiveType: PrimitiveType.STRING, isInternal: true, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_PARENT },
 }
 export const RunErrorDataInfo: Record<RunErrorProperty, PropertyInfo> = {
-  [RunErrorProperty.metatype]: { id: 1, name: 'metatype', component: BenchType.RUN_ERROR, kind: 'enum', primitiveType: PrimitiveType.STRING, isRequired: true, isInternal: true, isComputed: true, isWired: true },
-  [RunErrorProperty.kind]: { id: 30, name: 'kind', component: BenchType.RUN_ERROR, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isRuntime: true, isWired: true, isStored: true },
-  [RunErrorProperty.type]: { id: 31, name: 'type', component: BenchType.RUN_ERROR, kind: 'primitive', primitiveType: PrimitiveType.STRING, isRequired: true, isInternal: true, isRuntime: true, isWired: true, isStored: true },
-  [RunErrorProperty.message]: { id: 32, name: 'message', component: BenchType.RUN_ERROR, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isRuntime: true, isWired: true, isStored: true },
-  [RunErrorProperty.traceback]: { id: 34, name: 'traceback', component: BenchType.RUN_ERROR, kind: 'reference', primitiveType: PrimitiveType.JSON, isList: true, isRequired: true, isInternal: true, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.RUN_CODE_FRAME },
-  [RunErrorProperty.id]: { id: 2, name: 'id', component: BenchType.RUN_ERROR, kind: 'primitive', primitiveType: PrimitiveType.INT32, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
-  [RunErrorProperty.orderKey]: { id: 5, name: 'order_key', component: BenchType.RUN_ERROR, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isRuntime: true, isWired: true, isStored: true },
-  [RunErrorProperty.setProperties]: { id: 22, name: 'set_properties', component: BenchType.RUN_ERROR, kind: 'primitive', primitiveType: PrimitiveType.INT32, isList: true, isRequired: true, isRuntime: true, isWired: true, isStored: true },
-  [RunErrorProperty.nodePtr]: { id: 33, name: 'node_ptr', component: BenchType.RUN_ERROR, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.BLOCK], referenceStruct: StructType.NODE_REFERENCE },
-  [RunErrorProperty.parentId]: { id: 3, name: 'parent_id', component: BenchType.RUN_ERROR, kind: 'reference', primitiveType: PrimitiveType.INT32, isInternal: true, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_PARENT },
-  [RunErrorProperty.parentKey]: { id: 4, name: 'parent_key', component: BenchType.RUN_ERROR, kind: 'reference', primitiveType: PrimitiveType.STRING, isInternal: true, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_PARENT },
+  [RunErrorProperty.metatype]: { id: 1, name: 'metatype', component: ObjectType.RUN_ERROR, kind: 'enum', primitiveType: PrimitiveType.STRING, isRequired: true, isInternal: true, isComputed: true, isWired: true },
+  [RunErrorProperty.kind]: { id: 30, name: 'kind', component: ObjectType.RUN_ERROR, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isRuntime: true, isWired: true, isStored: true },
+  [RunErrorProperty.type]: { id: 31, name: 'type', component: ObjectType.RUN_ERROR, kind: 'primitive', primitiveType: PrimitiveType.STRING, isRequired: true, isInternal: true, isRuntime: true, isWired: true, isStored: true },
+  [RunErrorProperty.message]: { id: 32, name: 'message', component: ObjectType.RUN_ERROR, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isRuntime: true, isWired: true, isStored: true },
+  [RunErrorProperty.traceback]: { id: 34, name: 'traceback', component: ObjectType.RUN_ERROR, kind: 'reference', primitiveType: PrimitiveType.JSON, isList: true, isRequired: true, isInternal: true, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.RUN_CODE_FRAME },
+  [RunErrorProperty.id]: { id: 2, name: 'id', component: ObjectType.RUN_ERROR, kind: 'primitive', primitiveType: PrimitiveType.INT32, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
+  [RunErrorProperty.orderKey]: { id: 5, name: 'order_key', component: ObjectType.RUN_ERROR, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isRuntime: true, isWired: true, isStored: true },
+  [RunErrorProperty.setProperties]: { id: 22, name: 'set_properties', component: ObjectType.RUN_ERROR, kind: 'primitive', primitiveType: PrimitiveType.INT32, isList: true, isRequired: true, isRuntime: true, isWired: true, isStored: true },
+  [RunErrorProperty.nodePtr]: { id: 33, name: 'node_ptr', component: ObjectType.RUN_ERROR, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.BLOCK], referenceStruct: StructType.NODE_REFERENCE },
+  [RunErrorProperty.parentId]: { id: 3, name: 'parent_id', component: ObjectType.RUN_ERROR, kind: 'reference', primitiveType: PrimitiveType.INT32, isInternal: true, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_PARENT },
+  [RunErrorProperty.parentKey]: { id: 4, name: 'parent_key', component: ObjectType.RUN_ERROR, kind: 'reference', primitiveType: PrimitiveType.STRING, isInternal: true, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_PARENT },
 }
 export const ResourceCredentialDataInfo: Record<ResourceCredentialProperty, PropertyInfo> = {
-  [ResourceCredentialProperty.metatype]: { id: 1, name: 'metatype', component: BenchType.RESOURCE_CREDENTIAL, kind: 'enum', primitiveType: PrimitiveType.STRING, isRequired: true, isInternal: true, isComputed: true, isWired: true },
-  [ResourceCredentialProperty.username]: { id: 31, name: 'username', component: BenchType.RESOURCE_CREDENTIAL, kind: 'primitive', primitiveType: PrimitiveType.STRING, isRequired: true, isRuntime: true, isWired: true, isStored: true, isSensitive: true },
-  [ResourceCredentialProperty.password]: { id: 32, name: 'password', component: BenchType.RESOURCE_CREDENTIAL, kind: 'primitive', primitiveType: PrimitiveType.STRING, isRequired: true, isRuntime: true, isWired: true, isStored: true, isSensitive: true },
-  [ResourceCredentialProperty.id]: { id: 2, name: 'id', component: BenchType.RESOURCE_CREDENTIAL, kind: 'primitive', primitiveType: PrimitiveType.INT32, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
+  [ResourceCredentialProperty.metatype]: { id: 1, name: 'metatype', component: ObjectType.RESOURCE_CREDENTIAL, kind: 'enum', primitiveType: PrimitiveType.STRING, isRequired: true, isInternal: true, isComputed: true, isWired: true },
+  [ResourceCredentialProperty.username]: { id: 31, name: 'username', component: ObjectType.RESOURCE_CREDENTIAL, kind: 'primitive', primitiveType: PrimitiveType.STRING, isRequired: true, isRuntime: true, isWired: true, isStored: true, isSensitive: true },
+  [ResourceCredentialProperty.password]: { id: 32, name: 'password', component: ObjectType.RESOURCE_CREDENTIAL, kind: 'primitive', primitiveType: PrimitiveType.STRING, isRequired: true, isRuntime: true, isWired: true, isStored: true, isSensitive: true },
+  [ResourceCredentialProperty.id]: { id: 2, name: 'id', component: ObjectType.RESOURCE_CREDENTIAL, kind: 'primitive', primitiveType: PrimitiveType.INT32, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
 }
 export const TextDataInfo: Record<TextProperty, PropertyInfo> = {
-  [TextProperty.metatype]: { id: 1, name: 'metatype', component: BenchType.TEXT, kind: 'enum', primitiveType: PrimitiveType.STRING, isRequired: true, isInternal: true, isComputed: true, isWired: true },
-  [TextProperty.lines]: { id: 32, name: 'lines', component: BenchType.TEXT, kind: 'reference', primitiveType: PrimitiveType.JSON, isList: true, isRequired: true, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.TEXT_LINE },
-  [TextProperty.id]: { id: 2, name: 'id', component: BenchType.TEXT, kind: 'primitive', primitiveType: PrimitiveType.INT32, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
-  [TextProperty.orderKey]: { id: 5, name: 'order_key', component: BenchType.TEXT, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isRuntime: true, isWired: true, isStored: true },
-  [TextProperty.setProperties]: { id: 22, name: 'set_properties', component: BenchType.TEXT, kind: 'primitive', primitiveType: PrimitiveType.INT32, isList: true, isRequired: true, isRuntime: true, isWired: true, isStored: true },
-  [TextProperty.parentId]: { id: 3, name: 'parent_id', component: BenchType.TEXT, kind: 'reference', primitiveType: PrimitiveType.INT32, isInternal: true, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_PARENT },
-  [TextProperty.parentKey]: { id: 4, name: 'parent_key', component: BenchType.TEXT, kind: 'reference', primitiveType: PrimitiveType.STRING, isInternal: true, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_PARENT },
+  [TextProperty.metatype]: { id: 1, name: 'metatype', component: ObjectType.TEXT, kind: 'enum', primitiveType: PrimitiveType.STRING, isRequired: true, isInternal: true, isComputed: true, isWired: true },
+  [TextProperty.lines]: { id: 32, name: 'lines', component: ObjectType.TEXT, kind: 'reference', primitiveType: PrimitiveType.JSON, isList: true, isRequired: true, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.TEXT_LINE },
+  [TextProperty.id]: { id: 2, name: 'id', component: ObjectType.TEXT, kind: 'primitive', primitiveType: PrimitiveType.INT32, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
+  [TextProperty.orderKey]: { id: 5, name: 'order_key', component: ObjectType.TEXT, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isRuntime: true, isWired: true, isStored: true },
+  [TextProperty.setProperties]: { id: 22, name: 'set_properties', component: ObjectType.TEXT, kind: 'primitive', primitiveType: PrimitiveType.INT32, isList: true, isRequired: true, isRuntime: true, isWired: true, isStored: true },
+  [TextProperty.parentId]: { id: 3, name: 'parent_id', component: ObjectType.TEXT, kind: 'reference', primitiveType: PrimitiveType.INT32, isInternal: true, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_PARENT },
+  [TextProperty.parentKey]: { id: 4, name: 'parent_key', component: ObjectType.TEXT, kind: 'reference', primitiveType: PrimitiveType.STRING, isInternal: true, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_PARENT },
 }
 export const TextLineDataInfo: Record<TextLineProperty, PropertyInfo> = {
-  [TextLineProperty.metatype]: { id: 1, name: 'metatype', component: BenchType.TEXT_LINE, kind: 'enum', primitiveType: PrimitiveType.STRING, isRequired: true, isInternal: true, isComputed: true, isWired: true },
-  [TextLineProperty.type]: { id: 30, name: 'type', component: BenchType.TEXT_LINE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isRuntime: true, isWired: true, isStored: true },
-  [TextLineProperty.spans]: { id: 33, name: 'spans', component: BenchType.TEXT_LINE, kind: 'reference', primitiveType: PrimitiveType.JSON, isList: true, isRequired: true, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.TEXT_SPAN },
-  [TextLineProperty.id]: { id: 2, name: 'id', component: BenchType.TEXT_LINE, kind: 'primitive', primitiveType: PrimitiveType.INT32, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
-  [TextLineProperty.orderKey]: { id: 5, name: 'order_key', component: BenchType.TEXT_LINE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isRuntime: true, isWired: true, isStored: true },
-  [TextLineProperty.setProperties]: { id: 22, name: 'set_properties', component: BenchType.TEXT_LINE, kind: 'primitive', primitiveType: PrimitiveType.INT32, isList: true, isRequired: true, isRuntime: true, isWired: true, isStored: true },
-  [TextLineProperty.color]: { id: 50, name: 'color', component: BenchType.TEXT_LINE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRuntime: true, isWired: true, isStored: true },
-  [TextLineProperty.isBold]: { id: 60, name: 'is_bold', component: BenchType.TEXT_LINE, kind: 'primitive', primitiveType: PrimitiveType.BOOLEAN, isRequired: true, isRuntime: true, isWired: true, isStored: true },
-  [TextLineProperty.isItalic]: { id: 61, name: 'is_italic', component: BenchType.TEXT_LINE, kind: 'primitive', primitiveType: PrimitiveType.BOOLEAN, isRequired: true, isRuntime: true, isWired: true, isStored: true },
-  [TextLineProperty.isStrikethrough]: { id: 62, name: 'is_strikethrough', component: BenchType.TEXT_LINE, kind: 'primitive', primitiveType: PrimitiveType.BOOLEAN, isRequired: true, isRuntime: true, isWired: true, isStored: true },
-  [TextLineProperty.isUnderline]: { id: 63, name: 'is_underline', component: BenchType.TEXT_LINE, kind: 'primitive', primitiveType: PrimitiveType.BOOLEAN, isRequired: true, isRuntime: true, isWired: true, isStored: true },
-  [TextLineProperty.isCode]: { id: 64, name: 'is_code', component: BenchType.TEXT_LINE, kind: 'primitive', primitiveType: PrimitiveType.BOOLEAN, isRequired: true, isRuntime: true, isWired: true, isStored: true },
-  [TextLineProperty.parentId]: { id: 3, name: 'parent_id', component: BenchType.TEXT_LINE, kind: 'reference', primitiveType: PrimitiveType.INT32, isInternal: true, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_PARENT },
-  [TextLineProperty.parentKey]: { id: 4, name: 'parent_key', component: BenchType.TEXT_LINE, kind: 'reference', primitiveType: PrimitiveType.STRING, isInternal: true, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_PARENT },
+  [TextLineProperty.metatype]: { id: 1, name: 'metatype', component: ObjectType.TEXT_LINE, kind: 'enum', primitiveType: PrimitiveType.STRING, isRequired: true, isInternal: true, isComputed: true, isWired: true },
+  [TextLineProperty.type]: { id: 30, name: 'type', component: ObjectType.TEXT_LINE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isRuntime: true, isWired: true, isStored: true },
+  [TextLineProperty.spans]: { id: 33, name: 'spans', component: ObjectType.TEXT_LINE, kind: 'reference', primitiveType: PrimitiveType.JSON, isList: true, isRequired: true, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.TEXT_SPAN },
+  [TextLineProperty.id]: { id: 2, name: 'id', component: ObjectType.TEXT_LINE, kind: 'primitive', primitiveType: PrimitiveType.INT32, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
+  [TextLineProperty.orderKey]: { id: 5, name: 'order_key', component: ObjectType.TEXT_LINE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isRuntime: true, isWired: true, isStored: true },
+  [TextLineProperty.setProperties]: { id: 22, name: 'set_properties', component: ObjectType.TEXT_LINE, kind: 'primitive', primitiveType: PrimitiveType.INT32, isList: true, isRequired: true, isRuntime: true, isWired: true, isStored: true },
+  [TextLineProperty.color]: { id: 50, name: 'color', component: ObjectType.TEXT_LINE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRuntime: true, isWired: true, isStored: true },
+  [TextLineProperty.isBold]: { id: 60, name: 'is_bold', component: ObjectType.TEXT_LINE, kind: 'primitive', primitiveType: PrimitiveType.BOOLEAN, isRequired: true, isRuntime: true, isWired: true, isStored: true },
+  [TextLineProperty.isItalic]: { id: 61, name: 'is_italic', component: ObjectType.TEXT_LINE, kind: 'primitive', primitiveType: PrimitiveType.BOOLEAN, isRequired: true, isRuntime: true, isWired: true, isStored: true },
+  [TextLineProperty.isStrikethrough]: { id: 62, name: 'is_strikethrough', component: ObjectType.TEXT_LINE, kind: 'primitive', primitiveType: PrimitiveType.BOOLEAN, isRequired: true, isRuntime: true, isWired: true, isStored: true },
+  [TextLineProperty.isUnderline]: { id: 63, name: 'is_underline', component: ObjectType.TEXT_LINE, kind: 'primitive', primitiveType: PrimitiveType.BOOLEAN, isRequired: true, isRuntime: true, isWired: true, isStored: true },
+  [TextLineProperty.isCode]: { id: 64, name: 'is_code', component: ObjectType.TEXT_LINE, kind: 'primitive', primitiveType: PrimitiveType.BOOLEAN, isRequired: true, isRuntime: true, isWired: true, isStored: true },
+  [TextLineProperty.parentId]: { id: 3, name: 'parent_id', component: ObjectType.TEXT_LINE, kind: 'reference', primitiveType: PrimitiveType.INT32, isInternal: true, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_PARENT },
+  [TextLineProperty.parentKey]: { id: 4, name: 'parent_key', component: ObjectType.TEXT_LINE, kind: 'reference', primitiveType: PrimitiveType.STRING, isInternal: true, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_PARENT },
 }
 export const TextSpanDataInfo: Record<TextSpanProperty, PropertyInfo> = {
-  [TextSpanProperty.metatype]: { id: 1, name: 'metatype', component: BenchType.TEXT_SPAN, kind: 'enum', primitiveType: PrimitiveType.STRING, isRequired: true, isInternal: true, isComputed: true, isWired: true },
-  [TextSpanProperty.content]: { id: 33, name: 'content', component: BenchType.TEXT_SPAN, kind: 'primitive', primitiveType: PrimitiveType.STRING, isRuntime: true, isWired: true, isStored: true },
-  [TextSpanProperty.id]: { id: 2, name: 'id', component: BenchType.TEXT_SPAN, kind: 'primitive', primitiveType: PrimitiveType.INT32, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
-  [TextSpanProperty.color]: { id: 50, name: 'color', component: BenchType.TEXT_SPAN, kind: 'enum', primitiveType: PrimitiveType.INT16, isRuntime: true, isWired: true, isStored: true },
-  [TextSpanProperty.isBold]: { id: 60, name: 'is_bold', component: BenchType.TEXT_SPAN, kind: 'primitive', primitiveType: PrimitiveType.BOOLEAN, isRequired: true, isRuntime: true, isWired: true, isStored: true },
-  [TextSpanProperty.isItalic]: { id: 61, name: 'is_italic', component: BenchType.TEXT_SPAN, kind: 'primitive', primitiveType: PrimitiveType.BOOLEAN, isRequired: true, isRuntime: true, isWired: true, isStored: true },
-  [TextSpanProperty.isStrikethrough]: { id: 62, name: 'is_strikethrough', component: BenchType.TEXT_SPAN, kind: 'primitive', primitiveType: PrimitiveType.BOOLEAN, isRequired: true, isRuntime: true, isWired: true, isStored: true },
-  [TextSpanProperty.isUnderline]: { id: 63, name: 'is_underline', component: BenchType.TEXT_SPAN, kind: 'primitive', primitiveType: PrimitiveType.BOOLEAN, isRequired: true, isRuntime: true, isWired: true, isStored: true },
-  [TextSpanProperty.isCode]: { id: 64, name: 'is_code', component: BenchType.TEXT_SPAN, kind: 'primitive', primitiveType: PrimitiveType.BOOLEAN, isRequired: true, isRuntime: true, isWired: true, isStored: true },
-  [TextSpanProperty.nodePtr]: { id: 34, name: 'node_ptr', component: BenchType.TEXT_SPAN, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.DEPENDENCY, NodeType.UPGRADE, NodeType.SPACE, NodeType.SKIP, NodeType.NOTICE, NodeType.BLOCK, NodeType.TRIGGER, NodeType.FIELD, NodeType.RECORD, NodeType.QUERY, NodeType.VIEW, NodeType.STEP, NodeType.BADGE, NodeType.ROLE, NodeType.IDENTITY, NodeType.MEMBERSHIP, NodeType.INVITE], referenceStruct: StructType.NODE_REFERENCE },
+  [TextSpanProperty.metatype]: { id: 1, name: 'metatype', component: ObjectType.TEXT_SPAN, kind: 'enum', primitiveType: PrimitiveType.STRING, isRequired: true, isInternal: true, isComputed: true, isWired: true },
+  [TextSpanProperty.content]: { id: 33, name: 'content', component: ObjectType.TEXT_SPAN, kind: 'primitive', primitiveType: PrimitiveType.STRING, isRuntime: true, isWired: true, isStored: true },
+  [TextSpanProperty.id]: { id: 2, name: 'id', component: ObjectType.TEXT_SPAN, kind: 'primitive', primitiveType: PrimitiveType.INT32, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
+  [TextSpanProperty.color]: { id: 50, name: 'color', component: ObjectType.TEXT_SPAN, kind: 'enum', primitiveType: PrimitiveType.INT16, isRuntime: true, isWired: true, isStored: true },
+  [TextSpanProperty.isBold]: { id: 60, name: 'is_bold', component: ObjectType.TEXT_SPAN, kind: 'primitive', primitiveType: PrimitiveType.BOOLEAN, isRequired: true, isRuntime: true, isWired: true, isStored: true },
+  [TextSpanProperty.isItalic]: { id: 61, name: 'is_italic', component: ObjectType.TEXT_SPAN, kind: 'primitive', primitiveType: PrimitiveType.BOOLEAN, isRequired: true, isRuntime: true, isWired: true, isStored: true },
+  [TextSpanProperty.isStrikethrough]: { id: 62, name: 'is_strikethrough', component: ObjectType.TEXT_SPAN, kind: 'primitive', primitiveType: PrimitiveType.BOOLEAN, isRequired: true, isRuntime: true, isWired: true, isStored: true },
+  [TextSpanProperty.isUnderline]: { id: 63, name: 'is_underline', component: ObjectType.TEXT_SPAN, kind: 'primitive', primitiveType: PrimitiveType.BOOLEAN, isRequired: true, isRuntime: true, isWired: true, isStored: true },
+  [TextSpanProperty.isCode]: { id: 64, name: 'is_code', component: ObjectType.TEXT_SPAN, kind: 'primitive', primitiveType: PrimitiveType.BOOLEAN, isRequired: true, isRuntime: true, isWired: true, isStored: true },
+  [TextSpanProperty.nodePtr]: { id: 34, name: 'node_ptr', component: ObjectType.TEXT_SPAN, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.DEPENDENCY, NodeType.UPGRADE, NodeType.SPACE, NodeType.SKIP, NodeType.NOTICE, NodeType.BLOCK, NodeType.TRIGGER, NodeType.FIELD, NodeType.RECORD, NodeType.QUERY, NodeType.VIEW, NodeType.STEP, NodeType.BADGE, NodeType.ROLE, NodeType.IDENTITY, NodeType.MEMBERSHIP, NodeType.INVITE], referenceStruct: StructType.NODE_REFERENCE },
 }
 export const ColorDataInfo: Record<ColorProperty, PropertyInfo> = {
-  [ColorProperty.metatype]: { id: 1, name: 'metatype', component: BenchType.COLOR, kind: 'enum', primitiveType: PrimitiveType.STRING, isRequired: true, isInternal: true, isComputed: true, isWired: true },
-  [ColorProperty.type]: { id: 31, name: 'type', component: BenchType.COLOR, kind: 'enum', primitiveType: PrimitiveType.INT16, isRuntime: true, isWired: true, isStored: true },
-  [ColorProperty.shade]: { id: 32, name: 'shade', component: BenchType.COLOR, kind: 'enum', primitiveType: PrimitiveType.INT16, isRuntime: true, isWired: true, isStored: true },
-  [ColorProperty.hex]: { id: 33, name: 'hex', component: BenchType.COLOR, kind: 'primitive', primitiveType: PrimitiveType.STRING, isRuntime: true, isWired: true, isStored: true },
-  [ColorProperty.id]: { id: 2, name: 'id', component: BenchType.COLOR, kind: 'primitive', primitiveType: PrimitiveType.INT32, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
+  [ColorProperty.metatype]: { id: 1, name: 'metatype', component: ObjectType.COLOR, kind: 'enum', primitiveType: PrimitiveType.STRING, isRequired: true, isInternal: true, isComputed: true, isWired: true },
+  [ColorProperty.type]: { id: 31, name: 'type', component: ObjectType.COLOR, kind: 'enum', primitiveType: PrimitiveType.INT16, isRuntime: true, isWired: true, isStored: true },
+  [ColorProperty.shade]: { id: 32, name: 'shade', component: ObjectType.COLOR, kind: 'enum', primitiveType: PrimitiveType.INT16, isRuntime: true, isWired: true, isStored: true },
+  [ColorProperty.hex]: { id: 33, name: 'hex', component: ObjectType.COLOR, kind: 'primitive', primitiveType: PrimitiveType.STRING, isRuntime: true, isWired: true, isStored: true },
+  [ColorProperty.id]: { id: 2, name: 'id', component: ObjectType.COLOR, kind: 'primitive', primitiveType: PrimitiveType.INT32, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
 }
 export const FontDataInfo: Record<FontProperty, PropertyInfo> = {
-  [FontProperty.metatype]: { id: 1, name: 'metatype', component: BenchType.FONT, kind: 'enum', primitiveType: PrimitiveType.STRING, isRequired: true, isInternal: true, isComputed: true, isWired: true },
-  [FontProperty.type]: { id: 31, name: 'type', component: BenchType.FONT, kind: 'enum', primitiveType: PrimitiveType.INT16, isRuntime: true, isWired: true, isStored: true },
-  [FontProperty.weight]: { id: 32, name: 'weight', component: BenchType.FONT, kind: 'enum', primitiveType: PrimitiveType.INT16, isRuntime: true, isWired: true, isStored: true },
-  [FontProperty.size]: { id: 33, name: 'size', component: BenchType.FONT, kind: 'enum', primitiveType: PrimitiveType.INT16, isRuntime: true, isWired: true, isStored: true },
-  [FontProperty.id]: { id: 2, name: 'id', component: BenchType.FONT, kind: 'primitive', primitiveType: PrimitiveType.INT32, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
+  [FontProperty.metatype]: { id: 1, name: 'metatype', component: ObjectType.FONT, kind: 'enum', primitiveType: PrimitiveType.STRING, isRequired: true, isInternal: true, isComputed: true, isWired: true },
+  [FontProperty.type]: { id: 31, name: 'type', component: ObjectType.FONT, kind: 'enum', primitiveType: PrimitiveType.INT16, isRuntime: true, isWired: true, isStored: true },
+  [FontProperty.weight]: { id: 32, name: 'weight', component: ObjectType.FONT, kind: 'enum', primitiveType: PrimitiveType.INT16, isRuntime: true, isWired: true, isStored: true },
+  [FontProperty.size]: { id: 33, name: 'size', component: ObjectType.FONT, kind: 'enum', primitiveType: PrimitiveType.INT16, isRuntime: true, isWired: true, isStored: true },
+  [FontProperty.id]: { id: 2, name: 'id', component: ObjectType.FONT, kind: 'primitive', primitiveType: PrimitiveType.INT32, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
 }
 export const BoxDataInfo: Record<BoxProperty, PropertyInfo> = {
-  [BoxProperty.metatype]: { id: 1, name: 'metatype', component: BenchType.BOX, kind: 'enum', primitiveType: PrimitiveType.STRING, isRequired: true, isInternal: true, isComputed: true, isWired: true },
-  [BoxProperty.width]: { id: 50, name: 'width', component: BenchType.BOX, kind: 'primitive', primitiveType: PrimitiveType.INT32, isRuntime: true, isWired: true, isStored: true },
-  [BoxProperty.height]: { id: 51, name: 'height', component: BenchType.BOX, kind: 'primitive', primitiveType: PrimitiveType.INT32, isRuntime: true, isWired: true, isStored: true },
-  [BoxProperty.widthRelative]: { id: 52, name: 'width_relative', component: BenchType.BOX, kind: 'primitive', primitiveType: PrimitiveType.FLOAT32, isRuntime: true, isWired: true, isStored: true },
-  [BoxProperty.heightRelative]: { id: 53, name: 'height_relative', component: BenchType.BOX, kind: 'primitive', primitiveType: PrimitiveType.FLOAT32, isRuntime: true, isWired: true, isStored: true },
-  [BoxProperty.id]: { id: 2, name: 'id', component: BenchType.BOX, kind: 'primitive', primitiveType: PrimitiveType.INT32, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
+  [BoxProperty.metatype]: { id: 1, name: 'metatype', component: ObjectType.BOX, kind: 'enum', primitiveType: PrimitiveType.STRING, isRequired: true, isInternal: true, isComputed: true, isWired: true },
+  [BoxProperty.width]: { id: 50, name: 'width', component: ObjectType.BOX, kind: 'primitive', primitiveType: PrimitiveType.INT32, isRuntime: true, isWired: true, isStored: true },
+  [BoxProperty.height]: { id: 51, name: 'height', component: ObjectType.BOX, kind: 'primitive', primitiveType: PrimitiveType.INT32, isRuntime: true, isWired: true, isStored: true },
+  [BoxProperty.widthRelative]: { id: 52, name: 'width_relative', component: ObjectType.BOX, kind: 'primitive', primitiveType: PrimitiveType.FLOAT32, isRuntime: true, isWired: true, isStored: true },
+  [BoxProperty.heightRelative]: { id: 53, name: 'height_relative', component: ObjectType.BOX, kind: 'primitive', primitiveType: PrimitiveType.FLOAT32, isRuntime: true, isWired: true, isStored: true },
+  [BoxProperty.id]: { id: 2, name: 'id', component: ObjectType.BOX, kind: 'primitive', primitiveType: PrimitiveType.INT32, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
 }
 export const OffsetDataInfo: Record<OffsetProperty, PropertyInfo> = {
-  [OffsetProperty.metatype]: { id: 1, name: 'metatype', component: BenchType.OFFSET, kind: 'enum', primitiveType: PrimitiveType.STRING, isRequired: true, isInternal: true, isComputed: true, isWired: true },
-  [OffsetProperty.top]: { id: 40, name: 'top', component: BenchType.OFFSET, kind: 'primitive', primitiveType: PrimitiveType.INT32, isRuntime: true, isWired: true, isStored: true },
-  [OffsetProperty.right]: { id: 41, name: 'right', component: BenchType.OFFSET, kind: 'primitive', primitiveType: PrimitiveType.INT32, isRuntime: true, isWired: true, isStored: true },
-  [OffsetProperty.bottom]: { id: 42, name: 'bottom', component: BenchType.OFFSET, kind: 'primitive', primitiveType: PrimitiveType.INT32, isRuntime: true, isWired: true, isStored: true },
-  [OffsetProperty.left]: { id: 43, name: 'left', component: BenchType.OFFSET, kind: 'primitive', primitiveType: PrimitiveType.INT32, isRuntime: true, isWired: true, isStored: true },
-  [OffsetProperty.topRelative]: { id: 44, name: 'top_relative', component: BenchType.OFFSET, kind: 'primitive', primitiveType: PrimitiveType.FLOAT32, isRuntime: true, isWired: true, isStored: true },
-  [OffsetProperty.rightRelative]: { id: 45, name: 'right_relative', component: BenchType.OFFSET, kind: 'primitive', primitiveType: PrimitiveType.FLOAT32, isRuntime: true, isWired: true, isStored: true },
-  [OffsetProperty.bottomRelative]: { id: 46, name: 'bottom_relative', component: BenchType.OFFSET, kind: 'primitive', primitiveType: PrimitiveType.FLOAT32, isRuntime: true, isWired: true, isStored: true },
-  [OffsetProperty.leftRelative]: { id: 47, name: 'left_relative', component: BenchType.OFFSET, kind: 'primitive', primitiveType: PrimitiveType.FLOAT32, isRuntime: true, isWired: true, isStored: true },
-  [OffsetProperty.id]: { id: 2, name: 'id', component: BenchType.OFFSET, kind: 'primitive', primitiveType: PrimitiveType.INT32, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
+  [OffsetProperty.metatype]: { id: 1, name: 'metatype', component: ObjectType.OFFSET, kind: 'enum', primitiveType: PrimitiveType.STRING, isRequired: true, isInternal: true, isComputed: true, isWired: true },
+  [OffsetProperty.top]: { id: 40, name: 'top', component: ObjectType.OFFSET, kind: 'primitive', primitiveType: PrimitiveType.INT32, isRuntime: true, isWired: true, isStored: true },
+  [OffsetProperty.right]: { id: 41, name: 'right', component: ObjectType.OFFSET, kind: 'primitive', primitiveType: PrimitiveType.INT32, isRuntime: true, isWired: true, isStored: true },
+  [OffsetProperty.bottom]: { id: 42, name: 'bottom', component: ObjectType.OFFSET, kind: 'primitive', primitiveType: PrimitiveType.INT32, isRuntime: true, isWired: true, isStored: true },
+  [OffsetProperty.left]: { id: 43, name: 'left', component: ObjectType.OFFSET, kind: 'primitive', primitiveType: PrimitiveType.INT32, isRuntime: true, isWired: true, isStored: true },
+  [OffsetProperty.topRelative]: { id: 44, name: 'top_relative', component: ObjectType.OFFSET, kind: 'primitive', primitiveType: PrimitiveType.FLOAT32, isRuntime: true, isWired: true, isStored: true },
+  [OffsetProperty.rightRelative]: { id: 45, name: 'right_relative', component: ObjectType.OFFSET, kind: 'primitive', primitiveType: PrimitiveType.FLOAT32, isRuntime: true, isWired: true, isStored: true },
+  [OffsetProperty.bottomRelative]: { id: 46, name: 'bottom_relative', component: ObjectType.OFFSET, kind: 'primitive', primitiveType: PrimitiveType.FLOAT32, isRuntime: true, isWired: true, isStored: true },
+  [OffsetProperty.leftRelative]: { id: 47, name: 'left_relative', component: ObjectType.OFFSET, kind: 'primitive', primitiveType: PrimitiveType.FLOAT32, isRuntime: true, isWired: true, isStored: true },
+  [OffsetProperty.id]: { id: 2, name: 'id', component: ObjectType.OFFSET, kind: 'primitive', primitiveType: PrimitiveType.INT32, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
 }
 export const BenchDataInfo: Record<BenchProperty, PropertyInfo> = {
-  [BenchProperty.metatype]: { id: 1, name: 'metatype', component: BenchType.BENCH, kind: 'enum', primitiveType: PrimitiveType.STRING, isRequired: true, isInternal: true, isComputed: true, isWired: true },
-  [BenchProperty.slug]: { id: 32, name: 'slug', component: BenchType.BENCH, kind: 'primitive', primitiveType: PrimitiveType.STRING, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true, isUnique: true },
-  [BenchProperty.name]: { id: 33, name: 'name', component: BenchType.BENCH, kind: 'primitive', primitiveType: PrimitiveType.STRING, isRequired: true, isRuntime: true, isWired: true, isStored: true },
-  [BenchProperty.text]: { id: 34, name: 'text', component: BenchType.BENCH, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.TEXT },
-  [BenchProperty.icon]: { id: 35, name: 'icon', component: BenchType.BENCH, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.ICON },
-  [BenchProperty.region]: { id: 37, name: 'region', component: BenchType.BENCH, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isRuntime: true, isWired: true, isStored: true },
-  [BenchProperty.encryptionKey]: { id: 38, name: 'encryption_key', component: BenchType.BENCH, kind: 'primitive', primitiveType: PrimitiveType.STRING, isRequired: true, isInternal: true, isSystem: true, isKernel: true, isRuntime: true, isWired: true, isStored: true, isDeferred: true, isSensitive: true, isEncrypted: true },
-  [BenchProperty.policies]: { id: 39, name: 'policies', component: BenchType.BENCH, kind: 'reference', primitiveType: PrimitiveType.JSON, isList: true, isRequired: true, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.POLICY },
-  [BenchProperty.id]: { id: 2, name: 'id', component: BenchType.BENCH, kind: 'primitive', primitiveType: PrimitiveType.UUID, isRequired: true, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
-  [BenchProperty.setProperties]: { id: 22, name: 'set_properties', component: BenchType.BENCH, kind: 'primitive', primitiveType: PrimitiveType.INT32, isList: true, isRequired: true, isRuntime: true, isWired: true, isStored: true },
-  [BenchProperty.source]: { id: 8, name: 'source', component: BenchType.BENCH, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true },
-  [BenchProperty.revision]: { id: 10, name: 'revision', component: BenchType.BENCH, kind: 'primitive', primitiveType: PrimitiveType.INT64, isRequired: true, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
-  [BenchProperty.createdAt]: { id: 11, name: 'created_at', component: BenchType.BENCH, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isRequired: true, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
-  [BenchProperty.updatedAt]: { id: 12, name: 'updated_at', component: BenchType.BENCH, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isRequired: true, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
-  [BenchProperty.deletedAt]: { id: 13, name: 'deleted_at', component: BenchType.BENCH, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
-  [BenchProperty.archivedAt]: { id: 14, name: 'archived_at', component: BenchType.BENCH, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
-  [BenchProperty.parentPtr]: { id: 4, name: 'parent_ptr', component: BenchType.BENCH, kind: 'reference', isInternal: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_PARENT, referenceStruct: StructType.NODE_REFERENCE },
-  [BenchProperty.mainHandlePtr]: { id: 31, name: 'main_handle_ptr', component: BenchType.BENCH, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.HANDLE], referenceStruct: StructType.NODE_REFERENCE },
-  [BenchProperty.ownerPtr]: { id: 36, name: 'owner_ptr', component: BenchType.BENCH, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.USER, NodeType.ORGANIZATION], referenceStruct: StructType.NODE_REFERENCE },
-  [BenchProperty.mainEnvironmentPtr]: { id: 40, name: 'main_environment_ptr', component: BenchType.BENCH, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.ENVIRONMENT], referenceStruct: StructType.NODE_REFERENCE },
-  [BenchProperty.mainBranchPtr]: { id: 42, name: 'main_branch_ptr', component: BenchType.BENCH, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.BRANCH], referenceStruct: StructType.NODE_REFERENCE },
-  [BenchProperty.publishedBranchPtr]: { id: 43, name: 'published_branch_ptr', component: BenchType.BENCH, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.BRANCH], referenceStruct: StructType.NODE_REFERENCE },
-  [BenchProperty.createdByPtr]: { id: 17, name: 'created_by_ptr', component: BenchType.BENCH, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.USER, NodeType.RUN], referenceStruct: StructType.NODE_REFERENCE },
-  [BenchProperty.updatedByPtr]: { id: 18, name: 'updated_by_ptr', component: BenchType.BENCH, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.USER, NodeType.RUN], referenceStruct: StructType.NODE_REFERENCE },
+  [BenchProperty.metatype]: { id: 1, name: 'metatype', component: ObjectType.BENCH, kind: 'enum', primitiveType: PrimitiveType.STRING, isRequired: true, isInternal: true, isComputed: true, isWired: true },
+  [BenchProperty.slug]: { id: 32, name: 'slug', component: ObjectType.BENCH, kind: 'primitive', primitiveType: PrimitiveType.STRING, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true, isUnique: true },
+  [BenchProperty.name]: { id: 33, name: 'name', component: ObjectType.BENCH, kind: 'primitive', primitiveType: PrimitiveType.STRING, isRequired: true, isRuntime: true, isWired: true, isStored: true },
+  [BenchProperty.text]: { id: 34, name: 'text', component: ObjectType.BENCH, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.TEXT },
+  [BenchProperty.icon]: { id: 35, name: 'icon', component: ObjectType.BENCH, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.ICON },
+  [BenchProperty.region]: { id: 37, name: 'region', component: ObjectType.BENCH, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isRuntime: true, isWired: true, isStored: true },
+  [BenchProperty.encryptionKey]: { id: 38, name: 'encryption_key', component: ObjectType.BENCH, kind: 'primitive', primitiveType: PrimitiveType.STRING, isRequired: true, isInternal: true, isSystem: true, isKernel: true, isRuntime: true, isWired: true, isStored: true, isDeferred: true, isSensitive: true, isEncrypted: true },
+  [BenchProperty.policies]: { id: 39, name: 'policies', component: ObjectType.BENCH, kind: 'reference', primitiveType: PrimitiveType.JSON, isList: true, isRequired: true, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.POLICY },
+  [BenchProperty.id]: { id: 2, name: 'id', component: ObjectType.BENCH, kind: 'primitive', primitiveType: PrimitiveType.UUID, isRequired: true, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
+  [BenchProperty.setProperties]: { id: 22, name: 'set_properties', component: ObjectType.BENCH, kind: 'primitive', primitiveType: PrimitiveType.INT32, isList: true, isRequired: true, isRuntime: true, isWired: true, isStored: true },
+  [BenchProperty.source]: { id: 8, name: 'source', component: ObjectType.BENCH, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true },
+  [BenchProperty.revision]: { id: 10, name: 'revision', component: ObjectType.BENCH, kind: 'primitive', primitiveType: PrimitiveType.INT64, isRequired: true, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
+  [BenchProperty.createdAt]: { id: 11, name: 'created_at', component: ObjectType.BENCH, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isRequired: true, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
+  [BenchProperty.updatedAt]: { id: 12, name: 'updated_at', component: ObjectType.BENCH, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isRequired: true, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
+  [BenchProperty.deletedAt]: { id: 13, name: 'deleted_at', component: ObjectType.BENCH, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
+  [BenchProperty.archivedAt]: { id: 14, name: 'archived_at', component: ObjectType.BENCH, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
+  [BenchProperty.parentPtr]: { id: 4, name: 'parent_ptr', component: ObjectType.BENCH, kind: 'reference', isInternal: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_PARENT, referenceStruct: StructType.NODE_REFERENCE },
+  [BenchProperty.mainHandlePtr]: { id: 31, name: 'main_handle_ptr', component: ObjectType.BENCH, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.HANDLE], referenceStruct: StructType.NODE_REFERENCE },
+  [BenchProperty.ownerPtr]: { id: 36, name: 'owner_ptr', component: ObjectType.BENCH, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.USER, NodeType.ORGANIZATION], referenceStruct: StructType.NODE_REFERENCE },
+  [BenchProperty.mainEnvironmentPtr]: { id: 40, name: 'main_environment_ptr', component: ObjectType.BENCH, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.ENVIRONMENT], referenceStruct: StructType.NODE_REFERENCE },
+  [BenchProperty.mainBranchPtr]: { id: 42, name: 'main_branch_ptr', component: ObjectType.BENCH, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.BRANCH], referenceStruct: StructType.NODE_REFERENCE },
+  [BenchProperty.publishedBranchPtr]: { id: 43, name: 'published_branch_ptr', component: ObjectType.BENCH, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.BRANCH], referenceStruct: StructType.NODE_REFERENCE },
+  [BenchProperty.createdByPtr]: { id: 17, name: 'created_by_ptr', component: ObjectType.BENCH, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.USER, NodeType.RUN], referenceStruct: StructType.NODE_REFERENCE },
+  [BenchProperty.updatedByPtr]: { id: 18, name: 'updated_by_ptr', component: ObjectType.BENCH, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.USER, NodeType.RUN], referenceStruct: StructType.NODE_REFERENCE },
 }
 export const EnvironmentDataInfo: Record<EnvironmentProperty, PropertyInfo> = {
-  [EnvironmentProperty.metatype]: { id: 1, name: 'metatype', component: BenchType.ENVIRONMENT, kind: 'enum', primitiveType: PrimitiveType.STRING, isRequired: true, isInternal: true, isComputed: true, isWired: true },
-  [EnvironmentProperty.name]: { id: 32, name: 'name', component: BenchType.ENVIRONMENT, kind: 'primitive', primitiveType: PrimitiveType.STRING, isRequired: true, isRuntime: true, isWired: true, isStored: true },
-  [EnvironmentProperty.text]: { id: 34, name: 'text', component: BenchType.ENVIRONMENT, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.TEXT },
-  [EnvironmentProperty.icon]: { id: 35, name: 'icon', component: BenchType.ENVIRONMENT, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.ICON },
-  [EnvironmentProperty.policies]: { id: 36, name: 'policies', component: BenchType.ENVIRONMENT, kind: 'reference', primitiveType: PrimitiveType.JSON, isList: true, isRequired: true, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.POLICY },
-  [EnvironmentProperty.id]: { id: 2, name: 'id', component: BenchType.ENVIRONMENT, kind: 'primitive', primitiveType: PrimitiveType.UUID, isRequired: true, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
-  [EnvironmentProperty.setProperties]: { id: 22, name: 'set_properties', component: BenchType.ENVIRONMENT, kind: 'primitive', primitiveType: PrimitiveType.INT32, isList: true, isRequired: true, isRuntime: true, isWired: true, isStored: true },
-  [EnvironmentProperty.source]: { id: 8, name: 'source', component: BenchType.ENVIRONMENT, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true },
-  [EnvironmentProperty.revision]: { id: 10, name: 'revision', component: BenchType.ENVIRONMENT, kind: 'primitive', primitiveType: PrimitiveType.INT64, isRequired: true, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
-  [EnvironmentProperty.createdAt]: { id: 11, name: 'created_at', component: BenchType.ENVIRONMENT, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isRequired: true, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
-  [EnvironmentProperty.updatedAt]: { id: 12, name: 'updated_at', component: BenchType.ENVIRONMENT, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isRequired: true, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
-  [EnvironmentProperty.deletedAt]: { id: 13, name: 'deleted_at', component: BenchType.ENVIRONMENT, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
-  [EnvironmentProperty.archivedAt]: { id: 14, name: 'archived_at', component: BenchType.ENVIRONMENT, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
-  [EnvironmentProperty.parentPtr]: { id: 4, name: 'parent_ptr', component: BenchType.ENVIRONMENT, kind: 'reference', isInternal: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_PARENT, referenceNodes: [NodeType.BENCH], referenceStruct: StructType.NODE_REFERENCE },
-  [EnvironmentProperty.serverPtr]: { id: 40, name: 'server_ptr', component: BenchType.ENVIRONMENT, kind: 'reference', isRequired: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.SERVER], referenceStruct: StructType.NODE_REFERENCE },
-  [EnvironmentProperty.storePtr]: { id: 41, name: 'store_ptr', component: BenchType.ENVIRONMENT, kind: 'reference', isRequired: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.STORE], referenceStruct: StructType.NODE_REFERENCE },
-  [EnvironmentProperty.searchPtr]: { id: 42, name: 'search_ptr', component: BenchType.ENVIRONMENT, kind: 'reference', isRequired: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.STORE], referenceStruct: StructType.NODE_REFERENCE },
-  [EnvironmentProperty.analyticsPtr]: { id: 43, name: 'analytics_ptr', component: BenchType.ENVIRONMENT, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.STORE], referenceStruct: StructType.NODE_REFERENCE },
-  [EnvironmentProperty.drivePtr]: { id: 44, name: 'drive_ptr', component: BenchType.ENVIRONMENT, kind: 'reference', isRequired: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.DRIVE], referenceStruct: StructType.NODE_REFERENCE },
-  [EnvironmentProperty.cachePtr]: { id: 45, name: 'cache_ptr', component: BenchType.ENVIRONMENT, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.CACHE], referenceStruct: StructType.NODE_REFERENCE },
-  [EnvironmentProperty.benchPtr]: { id: 7, name: 'bench_ptr', component: BenchType.ENVIRONMENT, kind: 'reference', isRequired: true, isInternal: true, isComputed: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_ANCESTOR_FIRST, referenceNodes: [NodeType.BENCH], referenceStruct: StructType.NODE_REFERENCE },
-  [EnvironmentProperty.createdByPtr]: { id: 17, name: 'created_by_ptr', component: BenchType.ENVIRONMENT, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.USER, NodeType.RUN], referenceStruct: StructType.NODE_REFERENCE },
-  [EnvironmentProperty.updatedByPtr]: { id: 18, name: 'updated_by_ptr', component: BenchType.ENVIRONMENT, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.USER, NodeType.RUN], referenceStruct: StructType.NODE_REFERENCE },
+  [EnvironmentProperty.metatype]: { id: 1, name: 'metatype', component: ObjectType.ENVIRONMENT, kind: 'enum', primitiveType: PrimitiveType.STRING, isRequired: true, isInternal: true, isComputed: true, isWired: true },
+  [EnvironmentProperty.name]: { id: 32, name: 'name', component: ObjectType.ENVIRONMENT, kind: 'primitive', primitiveType: PrimitiveType.STRING, isRequired: true, isRuntime: true, isWired: true, isStored: true },
+  [EnvironmentProperty.text]: { id: 34, name: 'text', component: ObjectType.ENVIRONMENT, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.TEXT },
+  [EnvironmentProperty.icon]: { id: 35, name: 'icon', component: ObjectType.ENVIRONMENT, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.ICON },
+  [EnvironmentProperty.policies]: { id: 36, name: 'policies', component: ObjectType.ENVIRONMENT, kind: 'reference', primitiveType: PrimitiveType.JSON, isList: true, isRequired: true, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.POLICY },
+  [EnvironmentProperty.id]: { id: 2, name: 'id', component: ObjectType.ENVIRONMENT, kind: 'primitive', primitiveType: PrimitiveType.UUID, isRequired: true, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
+  [EnvironmentProperty.setProperties]: { id: 22, name: 'set_properties', component: ObjectType.ENVIRONMENT, kind: 'primitive', primitiveType: PrimitiveType.INT32, isList: true, isRequired: true, isRuntime: true, isWired: true, isStored: true },
+  [EnvironmentProperty.source]: { id: 8, name: 'source', component: ObjectType.ENVIRONMENT, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true },
+  [EnvironmentProperty.revision]: { id: 10, name: 'revision', component: ObjectType.ENVIRONMENT, kind: 'primitive', primitiveType: PrimitiveType.INT64, isRequired: true, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
+  [EnvironmentProperty.createdAt]: { id: 11, name: 'created_at', component: ObjectType.ENVIRONMENT, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isRequired: true, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
+  [EnvironmentProperty.updatedAt]: { id: 12, name: 'updated_at', component: ObjectType.ENVIRONMENT, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isRequired: true, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
+  [EnvironmentProperty.deletedAt]: { id: 13, name: 'deleted_at', component: ObjectType.ENVIRONMENT, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
+  [EnvironmentProperty.archivedAt]: { id: 14, name: 'archived_at', component: ObjectType.ENVIRONMENT, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
+  [EnvironmentProperty.parentPtr]: { id: 4, name: 'parent_ptr', component: ObjectType.ENVIRONMENT, kind: 'reference', isInternal: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_PARENT, referenceNodes: [NodeType.BENCH], referenceStruct: StructType.NODE_REFERENCE },
+  [EnvironmentProperty.serverPtr]: { id: 40, name: 'server_ptr', component: ObjectType.ENVIRONMENT, kind: 'reference', isRequired: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.SERVER], referenceStruct: StructType.NODE_REFERENCE },
+  [EnvironmentProperty.storePtr]: { id: 41, name: 'store_ptr', component: ObjectType.ENVIRONMENT, kind: 'reference', isRequired: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.STORE], referenceStruct: StructType.NODE_REFERENCE },
+  [EnvironmentProperty.searchPtr]: { id: 42, name: 'search_ptr', component: ObjectType.ENVIRONMENT, kind: 'reference', isRequired: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.STORE], referenceStruct: StructType.NODE_REFERENCE },
+  [EnvironmentProperty.analyticsPtr]: { id: 43, name: 'analytics_ptr', component: ObjectType.ENVIRONMENT, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.STORE], referenceStruct: StructType.NODE_REFERENCE },
+  [EnvironmentProperty.drivePtr]: { id: 44, name: 'drive_ptr', component: ObjectType.ENVIRONMENT, kind: 'reference', isRequired: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.DRIVE], referenceStruct: StructType.NODE_REFERENCE },
+  [EnvironmentProperty.cachePtr]: { id: 45, name: 'cache_ptr', component: ObjectType.ENVIRONMENT, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.CACHE], referenceStruct: StructType.NODE_REFERENCE },
+  [EnvironmentProperty.benchPtr]: { id: 7, name: 'bench_ptr', component: ObjectType.ENVIRONMENT, kind: 'reference', isRequired: true, isInternal: true, isComputed: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_ANCESTOR_FIRST, referenceNodes: [NodeType.BENCH], referenceStruct: StructType.NODE_REFERENCE },
+  [EnvironmentProperty.createdByPtr]: { id: 17, name: 'created_by_ptr', component: ObjectType.ENVIRONMENT, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.USER, NodeType.RUN], referenceStruct: StructType.NODE_REFERENCE },
+  [EnvironmentProperty.updatedByPtr]: { id: 18, name: 'updated_by_ptr', component: ObjectType.ENVIRONMENT, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.USER, NodeType.RUN], referenceStruct: StructType.NODE_REFERENCE },
 }
 export const BranchDataInfo: Record<BranchProperty, PropertyInfo> = {
-  [BranchProperty.metatype]: { id: 1, name: 'metatype', component: BenchType.BRANCH, kind: 'enum', primitiveType: PrimitiveType.STRING, isRequired: true, isInternal: true, isComputed: true, isWired: true },
-  [BranchProperty.name]: { id: 32, name: 'name', component: BenchType.BRANCH, kind: 'primitive', primitiveType: PrimitiveType.STRING, isRequired: true, isRuntime: true, isWired: true, isStored: true },
-  [BranchProperty.slug]: { id: 33, name: 'slug', component: BenchType.BRANCH, kind: 'primitive', primitiveType: PrimitiveType.STRING, isRuntime: true, isWired: true, isStored: true },
-  [BranchProperty.text]: { id: 34, name: 'text', component: BenchType.BRANCH, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.TEXT },
-  [BranchProperty.icon]: { id: 35, name: 'icon', component: BenchType.BRANCH, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.ICON },
-  [BranchProperty.policies]: { id: 36, name: 'policies', component: BenchType.BRANCH, kind: 'reference', primitiveType: PrimitiveType.JSON, isList: true, isRequired: true, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.POLICY },
-  [BranchProperty.id]: { id: 2, name: 'id', component: BenchType.BRANCH, kind: 'primitive', primitiveType: PrimitiveType.UUID, isRequired: true, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
-  [BranchProperty.setProperties]: { id: 22, name: 'set_properties', component: BenchType.BRANCH, kind: 'primitive', primitiveType: PrimitiveType.INT32, isList: true, isRequired: true, isRuntime: true, isWired: true, isStored: true },
-  [BranchProperty.source]: { id: 8, name: 'source', component: BenchType.BRANCH, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true },
-  [BranchProperty.revision]: { id: 10, name: 'revision', component: BenchType.BRANCH, kind: 'primitive', primitiveType: PrimitiveType.INT64, isRequired: true, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
-  [BranchProperty.createdAt]: { id: 11, name: 'created_at', component: BenchType.BRANCH, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isRequired: true, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
-  [BranchProperty.updatedAt]: { id: 12, name: 'updated_at', component: BenchType.BRANCH, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isRequired: true, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
-  [BranchProperty.deletedAt]: { id: 13, name: 'deleted_at', component: BenchType.BRANCH, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
-  [BranchProperty.archivedAt]: { id: 14, name: 'archived_at', component: BenchType.BRANCH, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
-  [BranchProperty.parentPtr]: { id: 4, name: 'parent_ptr', component: BenchType.BRANCH, kind: 'reference', isInternal: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_PARENT, referenceNodes: [NodeType.BENCH], referenceStruct: StructType.NODE_REFERENCE },
-  [BranchProperty.mainPackagePtr]: { id: 40, name: 'main_package_ptr', component: BenchType.BRANCH, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.PACKAGE], referenceStruct: StructType.NODE_REFERENCE },
-  [BranchProperty.benchPtr]: { id: 7, name: 'bench_ptr', component: BenchType.BRANCH, kind: 'reference', isRequired: true, isInternal: true, isComputed: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_ANCESTOR_FIRST, referenceNodes: [NodeType.BENCH], referenceStruct: StructType.NODE_REFERENCE },
-  [BranchProperty.createdByPtr]: { id: 17, name: 'created_by_ptr', component: BenchType.BRANCH, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.USER, NodeType.RUN], referenceStruct: StructType.NODE_REFERENCE },
-  [BranchProperty.updatedByPtr]: { id: 18, name: 'updated_by_ptr', component: BenchType.BRANCH, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.USER, NodeType.RUN], referenceStruct: StructType.NODE_REFERENCE },
+  [BranchProperty.metatype]: { id: 1, name: 'metatype', component: ObjectType.BRANCH, kind: 'enum', primitiveType: PrimitiveType.STRING, isRequired: true, isInternal: true, isComputed: true, isWired: true },
+  [BranchProperty.name]: { id: 32, name: 'name', component: ObjectType.BRANCH, kind: 'primitive', primitiveType: PrimitiveType.STRING, isRequired: true, isRuntime: true, isWired: true, isStored: true },
+  [BranchProperty.slug]: { id: 33, name: 'slug', component: ObjectType.BRANCH, kind: 'primitive', primitiveType: PrimitiveType.STRING, isRuntime: true, isWired: true, isStored: true },
+  [BranchProperty.text]: { id: 34, name: 'text', component: ObjectType.BRANCH, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.TEXT },
+  [BranchProperty.icon]: { id: 35, name: 'icon', component: ObjectType.BRANCH, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.ICON },
+  [BranchProperty.policies]: { id: 36, name: 'policies', component: ObjectType.BRANCH, kind: 'reference', primitiveType: PrimitiveType.JSON, isList: true, isRequired: true, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.POLICY },
+  [BranchProperty.id]: { id: 2, name: 'id', component: ObjectType.BRANCH, kind: 'primitive', primitiveType: PrimitiveType.UUID, isRequired: true, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
+  [BranchProperty.setProperties]: { id: 22, name: 'set_properties', component: ObjectType.BRANCH, kind: 'primitive', primitiveType: PrimitiveType.INT32, isList: true, isRequired: true, isRuntime: true, isWired: true, isStored: true },
+  [BranchProperty.source]: { id: 8, name: 'source', component: ObjectType.BRANCH, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true },
+  [BranchProperty.revision]: { id: 10, name: 'revision', component: ObjectType.BRANCH, kind: 'primitive', primitiveType: PrimitiveType.INT64, isRequired: true, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
+  [BranchProperty.createdAt]: { id: 11, name: 'created_at', component: ObjectType.BRANCH, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isRequired: true, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
+  [BranchProperty.updatedAt]: { id: 12, name: 'updated_at', component: ObjectType.BRANCH, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isRequired: true, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
+  [BranchProperty.deletedAt]: { id: 13, name: 'deleted_at', component: ObjectType.BRANCH, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
+  [BranchProperty.archivedAt]: { id: 14, name: 'archived_at', component: ObjectType.BRANCH, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
+  [BranchProperty.parentPtr]: { id: 4, name: 'parent_ptr', component: ObjectType.BRANCH, kind: 'reference', isInternal: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_PARENT, referenceNodes: [NodeType.BENCH], referenceStruct: StructType.NODE_REFERENCE },
+  [BranchProperty.mainPackagePtr]: { id: 40, name: 'main_package_ptr', component: ObjectType.BRANCH, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.PACKAGE], referenceStruct: StructType.NODE_REFERENCE },
+  [BranchProperty.benchPtr]: { id: 7, name: 'bench_ptr', component: ObjectType.BRANCH, kind: 'reference', isRequired: true, isInternal: true, isComputed: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_ANCESTOR_FIRST, referenceNodes: [NodeType.BENCH], referenceStruct: StructType.NODE_REFERENCE },
+  [BranchProperty.createdByPtr]: { id: 17, name: 'created_by_ptr', component: ObjectType.BRANCH, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.USER, NodeType.RUN], referenceStruct: StructType.NODE_REFERENCE },
+  [BranchProperty.updatedByPtr]: { id: 18, name: 'updated_by_ptr', component: ObjectType.BRANCH, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.USER, NodeType.RUN], referenceStruct: StructType.NODE_REFERENCE },
 }
 export const PackageDataInfo: Record<PackageProperty, PropertyInfo> = {
-  [PackageProperty.metatype]: { id: 1, name: 'metatype', component: BenchType.PACKAGE, kind: 'enum', primitiveType: PrimitiveType.STRING, isRequired: true, isInternal: true, isComputed: true, isWired: true },
-  [PackageProperty.slug]: { id: 33, name: 'slug', component: BenchType.PACKAGE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isRuntime: true, isWired: true, isStored: true },
-  [PackageProperty.text]: { id: 34, name: 'text', component: BenchType.PACKAGE, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.TEXT },
-  [PackageProperty.icon]: { id: 35, name: 'icon', component: BenchType.PACKAGE, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.ICON },
-  [PackageProperty.policies]: { id: 36, name: 'policies', component: BenchType.PACKAGE, kind: 'reference', primitiveType: PrimitiveType.JSON, isList: true, isRequired: true, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.POLICY },
-  [PackageProperty.pausedAt]: { id: 37, name: 'paused_at', component: BenchType.PACKAGE, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isRuntime: true, isWired: true, isStored: true },
-  [PackageProperty.id]: { id: 2, name: 'id', component: BenchType.PACKAGE, kind: 'primitive', primitiveType: PrimitiveType.UUID, isRequired: true, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
-  [PackageProperty.setProperties]: { id: 22, name: 'set_properties', component: BenchType.PACKAGE, kind: 'primitive', primitiveType: PrimitiveType.INT32, isList: true, isRequired: true, isRuntime: true, isWired: true, isStored: true },
-  [PackageProperty.source]: { id: 8, name: 'source', component: BenchType.PACKAGE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true },
-  [PackageProperty.revision]: { id: 10, name: 'revision', component: BenchType.PACKAGE, kind: 'primitive', primitiveType: PrimitiveType.INT64, isRequired: true, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
-  [PackageProperty.createdAt]: { id: 11, name: 'created_at', component: BenchType.PACKAGE, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isRequired: true, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
-  [PackageProperty.updatedAt]: { id: 12, name: 'updated_at', component: BenchType.PACKAGE, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isRequired: true, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
-  [PackageProperty.deletedAt]: { id: 13, name: 'deleted_at', component: BenchType.PACKAGE, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
-  [PackageProperty.archivedAt]: { id: 14, name: 'archived_at', component: BenchType.PACKAGE, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
-  [PackageProperty.parentPtr]: { id: 4, name: 'parent_ptr', component: BenchType.PACKAGE, kind: 'reference', isInternal: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_PARENT, referenceNodes: [NodeType.BENCH], referenceStruct: StructType.NODE_REFERENCE },
-  [PackageProperty.environmentPtr]: { id: 40, name: 'environment_ptr', component: BenchType.PACKAGE, kind: 'reference', isRequired: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.ENVIRONMENT], referenceStruct: StructType.NODE_REFERENCE },
-  [PackageProperty.basesPtr]: { id: 42, name: 'bases_ptr', component: BenchType.PACKAGE, kind: 'reference', isList: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.PACKAGE], referenceStruct: StructType.NODE_REFERENCE },
-  [PackageProperty.benchPtr]: { id: 7, name: 'bench_ptr', component: BenchType.PACKAGE, kind: 'reference', isRequired: true, isInternal: true, isComputed: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_ANCESTOR_FIRST, referenceNodes: [NodeType.BENCH], referenceStruct: StructType.NODE_REFERENCE },
-  [PackageProperty.createdByPtr]: { id: 17, name: 'created_by_ptr', component: BenchType.PACKAGE, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.USER, NodeType.RUN], referenceStruct: StructType.NODE_REFERENCE },
-  [PackageProperty.updatedByPtr]: { id: 18, name: 'updated_by_ptr', component: BenchType.PACKAGE, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.USER, NodeType.RUN], referenceStruct: StructType.NODE_REFERENCE },
+  [PackageProperty.metatype]: { id: 1, name: 'metatype', component: ObjectType.PACKAGE, kind: 'enum', primitiveType: PrimitiveType.STRING, isRequired: true, isInternal: true, isComputed: true, isWired: true },
+  [PackageProperty.slug]: { id: 33, name: 'slug', component: ObjectType.PACKAGE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isRuntime: true, isWired: true, isStored: true },
+  [PackageProperty.text]: { id: 34, name: 'text', component: ObjectType.PACKAGE, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.TEXT },
+  [PackageProperty.icon]: { id: 35, name: 'icon', component: ObjectType.PACKAGE, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.ICON },
+  [PackageProperty.policies]: { id: 36, name: 'policies', component: ObjectType.PACKAGE, kind: 'reference', primitiveType: PrimitiveType.JSON, isList: true, isRequired: true, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.POLICY },
+  [PackageProperty.pausedAt]: { id: 37, name: 'paused_at', component: ObjectType.PACKAGE, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isRuntime: true, isWired: true, isStored: true },
+  [PackageProperty.id]: { id: 2, name: 'id', component: ObjectType.PACKAGE, kind: 'primitive', primitiveType: PrimitiveType.UUID, isRequired: true, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
+  [PackageProperty.setProperties]: { id: 22, name: 'set_properties', component: ObjectType.PACKAGE, kind: 'primitive', primitiveType: PrimitiveType.INT32, isList: true, isRequired: true, isRuntime: true, isWired: true, isStored: true },
+  [PackageProperty.source]: { id: 8, name: 'source', component: ObjectType.PACKAGE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true },
+  [PackageProperty.revision]: { id: 10, name: 'revision', component: ObjectType.PACKAGE, kind: 'primitive', primitiveType: PrimitiveType.INT64, isRequired: true, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
+  [PackageProperty.createdAt]: { id: 11, name: 'created_at', component: ObjectType.PACKAGE, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isRequired: true, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
+  [PackageProperty.updatedAt]: { id: 12, name: 'updated_at', component: ObjectType.PACKAGE, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isRequired: true, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
+  [PackageProperty.deletedAt]: { id: 13, name: 'deleted_at', component: ObjectType.PACKAGE, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
+  [PackageProperty.archivedAt]: { id: 14, name: 'archived_at', component: ObjectType.PACKAGE, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
+  [PackageProperty.parentPtr]: { id: 4, name: 'parent_ptr', component: ObjectType.PACKAGE, kind: 'reference', isInternal: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_PARENT, referenceNodes: [NodeType.BENCH], referenceStruct: StructType.NODE_REFERENCE },
+  [PackageProperty.environmentPtr]: { id: 40, name: 'environment_ptr', component: ObjectType.PACKAGE, kind: 'reference', isRequired: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.ENVIRONMENT], referenceStruct: StructType.NODE_REFERENCE },
+  [PackageProperty.basesPtr]: { id: 42, name: 'bases_ptr', component: ObjectType.PACKAGE, kind: 'reference', isList: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.PACKAGE], referenceStruct: StructType.NODE_REFERENCE },
+  [PackageProperty.benchPtr]: { id: 7, name: 'bench_ptr', component: ObjectType.PACKAGE, kind: 'reference', isRequired: true, isInternal: true, isComputed: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_ANCESTOR_FIRST, referenceNodes: [NodeType.BENCH], referenceStruct: StructType.NODE_REFERENCE },
+  [PackageProperty.createdByPtr]: { id: 17, name: 'created_by_ptr', component: ObjectType.PACKAGE, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.USER, NodeType.RUN], referenceStruct: StructType.NODE_REFERENCE },
+  [PackageProperty.updatedByPtr]: { id: 18, name: 'updated_by_ptr', component: ObjectType.PACKAGE, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.USER, NodeType.RUN], referenceStruct: StructType.NODE_REFERENCE },
 }
 export const DependencyDataInfo: Record<DependencyProperty, PropertyInfo> = {
-  [DependencyProperty.metatype]: { id: 1, name: 'metatype', component: BenchType.DEPENDENCY, kind: 'enum', primitiveType: PrimitiveType.STRING, isRequired: true, isInternal: true, isComputed: true, isWired: true },
-  [DependencyProperty.id]: { id: 2, name: 'id', component: BenchType.DEPENDENCY, kind: 'primitive', primitiveType: PrimitiveType.UUID, isRequired: true, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
-  [DependencyProperty.setProperties]: { id: 22, name: 'set_properties', component: BenchType.DEPENDENCY, kind: 'primitive', primitiveType: PrimitiveType.INT32, isList: true, isRequired: true, isRuntime: true, isWired: true, isStored: true },
-  [DependencyProperty.ck]: { id: 3, name: 'ck', component: BenchType.DEPENDENCY, kind: 'primitive', primitiveType: PrimitiveType.UUID, isRequired: true, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
-  [DependencyProperty.source]: { id: 8, name: 'source', component: BenchType.DEPENDENCY, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true },
-  [DependencyProperty.revision]: { id: 10, name: 'revision', component: BenchType.DEPENDENCY, kind: 'primitive', primitiveType: PrimitiveType.INT64, isRequired: true, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
-  [DependencyProperty.createdAt]: { id: 11, name: 'created_at', component: BenchType.DEPENDENCY, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isRequired: true, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
-  [DependencyProperty.updatedAt]: { id: 12, name: 'updated_at', component: BenchType.DEPENDENCY, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isRequired: true, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
-  [DependencyProperty.deletedAt]: { id: 13, name: 'deleted_at', component: BenchType.DEPENDENCY, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
-  [DependencyProperty.archivedAt]: { id: 14, name: 'archived_at', component: BenchType.DEPENDENCY, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
-  [DependencyProperty.parentPtr]: { id: 4, name: 'parent_ptr', component: BenchType.DEPENDENCY, kind: 'reference', isInternal: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_PARENT, referenceNodes: [NodeType.PACKAGE, NodeType.BLOCK], referenceStruct: StructType.NODE_REFERENCE },
-  [DependencyProperty.scopesPtr]: { id: 30, name: 'scopes_ptr', component: BenchType.DEPENDENCY, kind: 'reference', isList: true, isRequired: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.BLOCK], referenceStruct: StructType.NODE_REFERENCE },
-  [DependencyProperty.dependencyPtr]: { id: 40, name: 'dependency_ptr', component: BenchType.DEPENDENCY, kind: 'reference', isRequired: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.PACKAGE], referenceStruct: StructType.NODE_REFERENCE },
-  [DependencyProperty.dependencyScopesPtr]: { id: 41, name: 'dependency_scopes_ptr', component: BenchType.DEPENDENCY, kind: 'reference', isList: true, isRequired: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.BLOCK], referenceStruct: StructType.NODE_REFERENCE },
-  [DependencyProperty.packagePtr]: { id: 6, name: 'package_ptr', component: BenchType.DEPENDENCY, kind: 'reference', isRequired: true, isInternal: true, isComputed: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_ANCESTOR_FIRST, referenceNodes: [NodeType.PACKAGE], referenceStruct: StructType.NODE_REFERENCE },
-  [DependencyProperty.benchPtr]: { id: 7, name: 'bench_ptr', component: BenchType.DEPENDENCY, kind: 'reference', isRequired: true, isInternal: true, isComputed: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_ANCESTOR_FIRST, referenceNodes: [NodeType.BENCH], referenceStruct: StructType.NODE_REFERENCE },
-  [DependencyProperty.createdByPtr]: { id: 17, name: 'created_by_ptr', component: BenchType.DEPENDENCY, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.USER, NodeType.RUN], referenceStruct: StructType.NODE_REFERENCE },
-  [DependencyProperty.updatedByPtr]: { id: 18, name: 'updated_by_ptr', component: BenchType.DEPENDENCY, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.USER, NodeType.RUN], referenceStruct: StructType.NODE_REFERENCE },
+  [DependencyProperty.metatype]: { id: 1, name: 'metatype', component: ObjectType.DEPENDENCY, kind: 'enum', primitiveType: PrimitiveType.STRING, isRequired: true, isInternal: true, isComputed: true, isWired: true },
+  [DependencyProperty.id]: { id: 2, name: 'id', component: ObjectType.DEPENDENCY, kind: 'primitive', primitiveType: PrimitiveType.UUID, isRequired: true, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
+  [DependencyProperty.setProperties]: { id: 22, name: 'set_properties', component: ObjectType.DEPENDENCY, kind: 'primitive', primitiveType: PrimitiveType.INT32, isList: true, isRequired: true, isRuntime: true, isWired: true, isStored: true },
+  [DependencyProperty.ck]: { id: 3, name: 'ck', component: ObjectType.DEPENDENCY, kind: 'primitive', primitiveType: PrimitiveType.UUID, isRequired: true, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
+  [DependencyProperty.source]: { id: 8, name: 'source', component: ObjectType.DEPENDENCY, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true },
+  [DependencyProperty.revision]: { id: 10, name: 'revision', component: ObjectType.DEPENDENCY, kind: 'primitive', primitiveType: PrimitiveType.INT64, isRequired: true, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
+  [DependencyProperty.createdAt]: { id: 11, name: 'created_at', component: ObjectType.DEPENDENCY, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isRequired: true, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
+  [DependencyProperty.updatedAt]: { id: 12, name: 'updated_at', component: ObjectType.DEPENDENCY, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isRequired: true, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
+  [DependencyProperty.deletedAt]: { id: 13, name: 'deleted_at', component: ObjectType.DEPENDENCY, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
+  [DependencyProperty.archivedAt]: { id: 14, name: 'archived_at', component: ObjectType.DEPENDENCY, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
+  [DependencyProperty.parentPtr]: { id: 4, name: 'parent_ptr', component: ObjectType.DEPENDENCY, kind: 'reference', isInternal: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_PARENT, referenceNodes: [NodeType.PACKAGE, NodeType.BLOCK], referenceStruct: StructType.NODE_REFERENCE },
+  [DependencyProperty.scopesPtr]: { id: 30, name: 'scopes_ptr', component: ObjectType.DEPENDENCY, kind: 'reference', isList: true, isRequired: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.BLOCK], referenceStruct: StructType.NODE_REFERENCE },
+  [DependencyProperty.dependencyPtr]: { id: 40, name: 'dependency_ptr', component: ObjectType.DEPENDENCY, kind: 'reference', isRequired: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.PACKAGE], referenceStruct: StructType.NODE_REFERENCE },
+  [DependencyProperty.dependencyScopesPtr]: { id: 41, name: 'dependency_scopes_ptr', component: ObjectType.DEPENDENCY, kind: 'reference', isList: true, isRequired: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.BLOCK], referenceStruct: StructType.NODE_REFERENCE },
+  [DependencyProperty.packagePtr]: { id: 6, name: 'package_ptr', component: ObjectType.DEPENDENCY, kind: 'reference', isRequired: true, isInternal: true, isComputed: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_ANCESTOR_FIRST, referenceNodes: [NodeType.PACKAGE], referenceStruct: StructType.NODE_REFERENCE },
+  [DependencyProperty.benchPtr]: { id: 7, name: 'bench_ptr', component: ObjectType.DEPENDENCY, kind: 'reference', isRequired: true, isInternal: true, isComputed: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_ANCESTOR_FIRST, referenceNodes: [NodeType.BENCH], referenceStruct: StructType.NODE_REFERENCE },
+  [DependencyProperty.createdByPtr]: { id: 17, name: 'created_by_ptr', component: ObjectType.DEPENDENCY, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.USER, NodeType.RUN], referenceStruct: StructType.NODE_REFERENCE },
+  [DependencyProperty.updatedByPtr]: { id: 18, name: 'updated_by_ptr', component: ObjectType.DEPENDENCY, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.USER, NodeType.RUN], referenceStruct: StructType.NODE_REFERENCE },
 }
 export const UpgradeDataInfo: Record<UpgradeProperty, PropertyInfo> = {
-  [UpgradeProperty.metatype]: { id: 1, name: 'metatype', component: BenchType.UPGRADE, kind: 'enum', primitiveType: PrimitiveType.STRING, isRequired: true, isInternal: true, isComputed: true, isWired: true },
-  [UpgradeProperty.name]: { id: 32, name: 'name', component: BenchType.UPGRADE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isRequired: true, isRuntime: true, isWired: true, isStored: true },
-  [UpgradeProperty.title]: { id: 34, name: 'title', component: BenchType.UPGRADE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isRuntime: true, isWired: true, isStored: true },
-  [UpgradeProperty.text]: { id: 35, name: 'text', component: BenchType.UPGRADE, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.TEXT },
-  [UpgradeProperty.id]: { id: 2, name: 'id', component: BenchType.UPGRADE, kind: 'primitive', primitiveType: PrimitiveType.UUID, isRequired: true, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
-  [UpgradeProperty.setProperties]: { id: 22, name: 'set_properties', component: BenchType.UPGRADE, kind: 'primitive', primitiveType: PrimitiveType.INT32, isList: true, isRequired: true, isRuntime: true, isWired: true, isStored: true },
-  [UpgradeProperty.ck]: { id: 3, name: 'ck', component: BenchType.UPGRADE, kind: 'primitive', primitiveType: PrimitiveType.UUID, isRequired: true, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
-  [UpgradeProperty.source]: { id: 8, name: 'source', component: BenchType.UPGRADE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true },
-  [UpgradeProperty.revision]: { id: 10, name: 'revision', component: BenchType.UPGRADE, kind: 'primitive', primitiveType: PrimitiveType.INT64, isRequired: true, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
-  [UpgradeProperty.createdAt]: { id: 11, name: 'created_at', component: BenchType.UPGRADE, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isRequired: true, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
-  [UpgradeProperty.updatedAt]: { id: 12, name: 'updated_at', component: BenchType.UPGRADE, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isRequired: true, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
-  [UpgradeProperty.deletedAt]: { id: 13, name: 'deleted_at', component: BenchType.UPGRADE, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
-  [UpgradeProperty.archivedAt]: { id: 14, name: 'archived_at', component: BenchType.UPGRADE, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
-  [UpgradeProperty.parentPtr]: { id: 4, name: 'parent_ptr', component: BenchType.UPGRADE, kind: 'reference', isInternal: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_PARENT, referenceNodes: [NodeType.PACKAGE], referenceStruct: StructType.NODE_REFERENCE },
-  [UpgradeProperty.packagePtr]: { id: 6, name: 'package_ptr', component: BenchType.UPGRADE, kind: 'reference', isRequired: true, isInternal: true, isComputed: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_ANCESTOR_FIRST, referenceNodes: [NodeType.PACKAGE], referenceStruct: StructType.NODE_REFERENCE },
-  [UpgradeProperty.benchPtr]: { id: 7, name: 'bench_ptr', component: BenchType.UPGRADE, kind: 'reference', isRequired: true, isInternal: true, isComputed: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_ANCESTOR_FIRST, referenceNodes: [NodeType.BENCH], referenceStruct: StructType.NODE_REFERENCE },
-  [UpgradeProperty.createdByPtr]: { id: 17, name: 'created_by_ptr', component: BenchType.UPGRADE, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.USER, NodeType.RUN], referenceStruct: StructType.NODE_REFERENCE },
-  [UpgradeProperty.updatedByPtr]: { id: 18, name: 'updated_by_ptr', component: BenchType.UPGRADE, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.USER, NodeType.RUN], referenceStruct: StructType.NODE_REFERENCE },
+  [UpgradeProperty.metatype]: { id: 1, name: 'metatype', component: ObjectType.UPGRADE, kind: 'enum', primitiveType: PrimitiveType.STRING, isRequired: true, isInternal: true, isComputed: true, isWired: true },
+  [UpgradeProperty.name]: { id: 32, name: 'name', component: ObjectType.UPGRADE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isRequired: true, isRuntime: true, isWired: true, isStored: true },
+  [UpgradeProperty.title]: { id: 34, name: 'title', component: ObjectType.UPGRADE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isRuntime: true, isWired: true, isStored: true },
+  [UpgradeProperty.text]: { id: 35, name: 'text', component: ObjectType.UPGRADE, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.TEXT },
+  [UpgradeProperty.id]: { id: 2, name: 'id', component: ObjectType.UPGRADE, kind: 'primitive', primitiveType: PrimitiveType.UUID, isRequired: true, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
+  [UpgradeProperty.setProperties]: { id: 22, name: 'set_properties', component: ObjectType.UPGRADE, kind: 'primitive', primitiveType: PrimitiveType.INT32, isList: true, isRequired: true, isRuntime: true, isWired: true, isStored: true },
+  [UpgradeProperty.ck]: { id: 3, name: 'ck', component: ObjectType.UPGRADE, kind: 'primitive', primitiveType: PrimitiveType.UUID, isRequired: true, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
+  [UpgradeProperty.source]: { id: 8, name: 'source', component: ObjectType.UPGRADE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true },
+  [UpgradeProperty.revision]: { id: 10, name: 'revision', component: ObjectType.UPGRADE, kind: 'primitive', primitiveType: PrimitiveType.INT64, isRequired: true, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
+  [UpgradeProperty.createdAt]: { id: 11, name: 'created_at', component: ObjectType.UPGRADE, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isRequired: true, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
+  [UpgradeProperty.updatedAt]: { id: 12, name: 'updated_at', component: ObjectType.UPGRADE, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isRequired: true, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
+  [UpgradeProperty.deletedAt]: { id: 13, name: 'deleted_at', component: ObjectType.UPGRADE, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
+  [UpgradeProperty.archivedAt]: { id: 14, name: 'archived_at', component: ObjectType.UPGRADE, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
+  [UpgradeProperty.parentPtr]: { id: 4, name: 'parent_ptr', component: ObjectType.UPGRADE, kind: 'reference', isInternal: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_PARENT, referenceNodes: [NodeType.PACKAGE], referenceStruct: StructType.NODE_REFERENCE },
+  [UpgradeProperty.packagePtr]: { id: 6, name: 'package_ptr', component: ObjectType.UPGRADE, kind: 'reference', isRequired: true, isInternal: true, isComputed: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_ANCESTOR_FIRST, referenceNodes: [NodeType.PACKAGE], referenceStruct: StructType.NODE_REFERENCE },
+  [UpgradeProperty.benchPtr]: { id: 7, name: 'bench_ptr', component: ObjectType.UPGRADE, kind: 'reference', isRequired: true, isInternal: true, isComputed: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_ANCESTOR_FIRST, referenceNodes: [NodeType.BENCH], referenceStruct: StructType.NODE_REFERENCE },
+  [UpgradeProperty.createdByPtr]: { id: 17, name: 'created_by_ptr', component: ObjectType.UPGRADE, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.USER, NodeType.RUN], referenceStruct: StructType.NODE_REFERENCE },
+  [UpgradeProperty.updatedByPtr]: { id: 18, name: 'updated_by_ptr', component: ObjectType.UPGRADE, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.USER, NodeType.RUN], referenceStruct: StructType.NODE_REFERENCE },
 }
 export const SpaceDataInfo: Record<SpaceProperty, PropertyInfo> = {
-  [SpaceProperty.metatype]: { id: 1, name: 'metatype', component: BenchType.SPACE, kind: 'enum', primitiveType: PrimitiveType.STRING, isRequired: true, isInternal: true, isComputed: true, isWired: true },
-  [SpaceProperty.name]: { id: 31, name: 'name', component: BenchType.SPACE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isRequired: true, isRuntime: true, isWired: true, isStored: true },
-  [SpaceProperty.text]: { id: 32, name: 'text', component: BenchType.SPACE, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.TEXT },
-  [SpaceProperty.orderKey]: { id: 33, name: 'order_key', component: BenchType.SPACE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isRequired: true, isInternal: true, isRuntime: true, isWired: true, isStored: true },
-  [SpaceProperty.policies]: { id: 34, name: 'policies', component: BenchType.SPACE, kind: 'reference', primitiveType: PrimitiveType.JSON, isList: true, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.POLICY },
-  [SpaceProperty.focus]: { id: 70, name: 'focus', component: BenchType.SPACE, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.SELECTION },
-  [SpaceProperty.id]: { id: 2, name: 'id', component: BenchType.SPACE, kind: 'primitive', primitiveType: PrimitiveType.UUID, isRequired: true, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
-  [SpaceProperty.setProperties]: { id: 22, name: 'set_properties', component: BenchType.SPACE, kind: 'primitive', primitiveType: PrimitiveType.INT32, isList: true, isRequired: true, isRuntime: true, isWired: true, isStored: true },
-  [SpaceProperty.ck]: { id: 3, name: 'ck', component: BenchType.SPACE, kind: 'primitive', primitiveType: PrimitiveType.UUID, isRequired: true, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
-  [SpaceProperty.source]: { id: 8, name: 'source', component: BenchType.SPACE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true },
-  [SpaceProperty.revision]: { id: 10, name: 'revision', component: BenchType.SPACE, kind: 'primitive', primitiveType: PrimitiveType.INT64, isRequired: true, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
-  [SpaceProperty.createdAt]: { id: 11, name: 'created_at', component: BenchType.SPACE, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isRequired: true, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
-  [SpaceProperty.updatedAt]: { id: 12, name: 'updated_at', component: BenchType.SPACE, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isRequired: true, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
-  [SpaceProperty.deletedAt]: { id: 13, name: 'deleted_at', component: BenchType.SPACE, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
-  [SpaceProperty.archivedAt]: { id: 14, name: 'archived_at', component: BenchType.SPACE, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
-  [SpaceProperty.parentPtr]: { id: 4, name: 'parent_ptr', component: BenchType.SPACE, kind: 'reference', isInternal: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_PARENT, referenceNodes: [NodeType.PACKAGE], referenceStruct: StructType.NODE_REFERENCE },
-  [SpaceProperty.inspectionPtr]: { id: 75, name: 'inspection_ptr', component: BenchType.SPACE, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.BENCH, NodeType.ENVIRONMENT, NodeType.BRANCH, NodeType.PACKAGE, NodeType.DEPENDENCY, NodeType.UPGRADE, NodeType.SPACE, NodeType.LINK, NodeType.SKIP, NodeType.NOTICE, NodeType.BLOCK, NodeType.TRIGGER, NodeType.FIELD, NodeType.RECORD, NodeType.QUERY, NodeType.VIEW, NodeType.STEP, NodeType.BADGE, NodeType.ROLE, NodeType.IDENTITY, NodeType.MEMBERSHIP, NodeType.INVITE, NodeType.SESSION, NodeType.RUN, NodeType.PAUSE, NodeType.SIGNAL, NodeType.LOG, NodeType.NOTIFICATION, NodeType.SERVER, NodeType.STORE, NodeType.DRIVE, NodeType.CACHE, NodeType.FILE_CONTENT, NodeType.HANDLE, NodeType.USER, NodeType.ORGANIZATION, NodeType.CLIENT], referenceStruct: StructType.NODE_REFERENCE },
-  [SpaceProperty.basePtr]: { id: 76, name: 'base_ptr', component: BenchType.SPACE, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.BENCH, NodeType.ENVIRONMENT, NodeType.BRANCH, NodeType.PACKAGE, NodeType.DEPENDENCY, NodeType.UPGRADE, NodeType.SPACE, NodeType.LINK, NodeType.SKIP, NodeType.NOTICE, NodeType.BLOCK, NodeType.TRIGGER, NodeType.FIELD, NodeType.RECORD, NodeType.QUERY, NodeType.VIEW, NodeType.STEP, NodeType.BADGE, NodeType.ROLE, NodeType.IDENTITY, NodeType.MEMBERSHIP, NodeType.INVITE, NodeType.SESSION, NodeType.RUN, NodeType.PAUSE, NodeType.SIGNAL, NodeType.LOG, NodeType.NOTIFICATION, NodeType.SERVER, NodeType.STORE, NodeType.DRIVE, NodeType.CACHE, NodeType.FILE_CONTENT, NodeType.HANDLE, NodeType.USER, NodeType.ORGANIZATION, NodeType.CLIENT], referenceStruct: StructType.NODE_REFERENCE },
-  [SpaceProperty.packagePtr]: { id: 6, name: 'package_ptr', component: BenchType.SPACE, kind: 'reference', isRequired: true, isInternal: true, isComputed: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_ANCESTOR_FIRST, referenceNodes: [NodeType.PACKAGE], referenceStruct: StructType.NODE_REFERENCE },
-  [SpaceProperty.benchPtr]: { id: 7, name: 'bench_ptr', component: BenchType.SPACE, kind: 'reference', isRequired: true, isInternal: true, isComputed: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_ANCESTOR_FIRST, referenceNodes: [NodeType.BENCH], referenceStruct: StructType.NODE_REFERENCE },
-  [SpaceProperty.createdByPtr]: { id: 17, name: 'created_by_ptr', component: BenchType.SPACE, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.USER, NodeType.RUN], referenceStruct: StructType.NODE_REFERENCE },
-  [SpaceProperty.updatedByPtr]: { id: 18, name: 'updated_by_ptr', component: BenchType.SPACE, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.USER, NodeType.RUN], referenceStruct: StructType.NODE_REFERENCE },
+  [SpaceProperty.metatype]: { id: 1, name: 'metatype', component: ObjectType.SPACE, kind: 'enum', primitiveType: PrimitiveType.STRING, isRequired: true, isInternal: true, isComputed: true, isWired: true },
+  [SpaceProperty.name]: { id: 31, name: 'name', component: ObjectType.SPACE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isRequired: true, isRuntime: true, isWired: true, isStored: true },
+  [SpaceProperty.text]: { id: 32, name: 'text', component: ObjectType.SPACE, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.TEXT },
+  [SpaceProperty.orderKey]: { id: 33, name: 'order_key', component: ObjectType.SPACE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isRequired: true, isInternal: true, isRuntime: true, isWired: true, isStored: true },
+  [SpaceProperty.policies]: { id: 34, name: 'policies', component: ObjectType.SPACE, kind: 'reference', primitiveType: PrimitiveType.JSON, isList: true, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.POLICY },
+  [SpaceProperty.focus]: { id: 70, name: 'focus', component: ObjectType.SPACE, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.SELECTION },
+  [SpaceProperty.id]: { id: 2, name: 'id', component: ObjectType.SPACE, kind: 'primitive', primitiveType: PrimitiveType.UUID, isRequired: true, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
+  [SpaceProperty.setProperties]: { id: 22, name: 'set_properties', component: ObjectType.SPACE, kind: 'primitive', primitiveType: PrimitiveType.INT32, isList: true, isRequired: true, isRuntime: true, isWired: true, isStored: true },
+  [SpaceProperty.ck]: { id: 3, name: 'ck', component: ObjectType.SPACE, kind: 'primitive', primitiveType: PrimitiveType.UUID, isRequired: true, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
+  [SpaceProperty.source]: { id: 8, name: 'source', component: ObjectType.SPACE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true },
+  [SpaceProperty.revision]: { id: 10, name: 'revision', component: ObjectType.SPACE, kind: 'primitive', primitiveType: PrimitiveType.INT64, isRequired: true, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
+  [SpaceProperty.createdAt]: { id: 11, name: 'created_at', component: ObjectType.SPACE, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isRequired: true, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
+  [SpaceProperty.updatedAt]: { id: 12, name: 'updated_at', component: ObjectType.SPACE, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isRequired: true, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
+  [SpaceProperty.deletedAt]: { id: 13, name: 'deleted_at', component: ObjectType.SPACE, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
+  [SpaceProperty.archivedAt]: { id: 14, name: 'archived_at', component: ObjectType.SPACE, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
+  [SpaceProperty.parentPtr]: { id: 4, name: 'parent_ptr', component: ObjectType.SPACE, kind: 'reference', isInternal: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_PARENT, referenceNodes: [NodeType.PACKAGE], referenceStruct: StructType.NODE_REFERENCE },
+  [SpaceProperty.inspectionPtr]: { id: 75, name: 'inspection_ptr', component: ObjectType.SPACE, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.BENCH, NodeType.ENVIRONMENT, NodeType.BRANCH, NodeType.PACKAGE, NodeType.DEPENDENCY, NodeType.UPGRADE, NodeType.SPACE, NodeType.LINK, NodeType.SKIP, NodeType.NOTICE, NodeType.BLOCK, NodeType.TRIGGER, NodeType.FIELD, NodeType.RECORD, NodeType.QUERY, NodeType.VIEW, NodeType.STEP, NodeType.BADGE, NodeType.ROLE, NodeType.IDENTITY, NodeType.MEMBERSHIP, NodeType.INVITE, NodeType.SESSION, NodeType.RUN, NodeType.PAUSE, NodeType.SIGNAL, NodeType.LOG, NodeType.NOTIFICATION, NodeType.SERVER, NodeType.STORE, NodeType.DRIVE, NodeType.CACHE, NodeType.FILE_CONTENT, NodeType.HANDLE, NodeType.USER, NodeType.ORGANIZATION, NodeType.CLIENT], referenceStruct: StructType.NODE_REFERENCE },
+  [SpaceProperty.basePtr]: { id: 76, name: 'base_ptr', component: ObjectType.SPACE, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.BENCH, NodeType.ENVIRONMENT, NodeType.BRANCH, NodeType.PACKAGE, NodeType.DEPENDENCY, NodeType.UPGRADE, NodeType.SPACE, NodeType.LINK, NodeType.SKIP, NodeType.NOTICE, NodeType.BLOCK, NodeType.TRIGGER, NodeType.FIELD, NodeType.RECORD, NodeType.QUERY, NodeType.VIEW, NodeType.STEP, NodeType.BADGE, NodeType.ROLE, NodeType.IDENTITY, NodeType.MEMBERSHIP, NodeType.INVITE, NodeType.SESSION, NodeType.RUN, NodeType.PAUSE, NodeType.SIGNAL, NodeType.LOG, NodeType.NOTIFICATION, NodeType.SERVER, NodeType.STORE, NodeType.DRIVE, NodeType.CACHE, NodeType.FILE_CONTENT, NodeType.HANDLE, NodeType.USER, NodeType.ORGANIZATION, NodeType.CLIENT], referenceStruct: StructType.NODE_REFERENCE },
+  [SpaceProperty.packagePtr]: { id: 6, name: 'package_ptr', component: ObjectType.SPACE, kind: 'reference', isRequired: true, isInternal: true, isComputed: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_ANCESTOR_FIRST, referenceNodes: [NodeType.PACKAGE], referenceStruct: StructType.NODE_REFERENCE },
+  [SpaceProperty.benchPtr]: { id: 7, name: 'bench_ptr', component: ObjectType.SPACE, kind: 'reference', isRequired: true, isInternal: true, isComputed: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_ANCESTOR_FIRST, referenceNodes: [NodeType.BENCH], referenceStruct: StructType.NODE_REFERENCE },
+  [SpaceProperty.createdByPtr]: { id: 17, name: 'created_by_ptr', component: ObjectType.SPACE, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.USER, NodeType.RUN], referenceStruct: StructType.NODE_REFERENCE },
+  [SpaceProperty.updatedByPtr]: { id: 18, name: 'updated_by_ptr', component: ObjectType.SPACE, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.USER, NodeType.RUN], referenceStruct: StructType.NODE_REFERENCE },
 }
 export const LinkDataInfo: Record<LinkProperty, PropertyInfo> = {
-  [LinkProperty.metatype]: { id: 1, name: 'metatype', component: BenchType.LINK, kind: 'enum', primitiveType: PrimitiveType.STRING, isRequired: true, isInternal: true, isComputed: true, isWired: true },
-  [LinkProperty.orderKey]: { id: 32, name: 'order_key', component: BenchType.LINK, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isRuntime: true, isWired: true, isStored: true },
-  [LinkProperty.id]: { id: 2, name: 'id', component: BenchType.LINK, kind: 'primitive', primitiveType: PrimitiveType.UUID, isRequired: true, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
-  [LinkProperty.setProperties]: { id: 22, name: 'set_properties', component: BenchType.LINK, kind: 'primitive', primitiveType: PrimitiveType.INT32, isList: true, isRequired: true, isRuntime: true, isWired: true, isStored: true },
-  [LinkProperty.ck]: { id: 3, name: 'ck', component: BenchType.LINK, kind: 'primitive', primitiveType: PrimitiveType.UUID, isRequired: true, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
-  [LinkProperty.source]: { id: 8, name: 'source', component: BenchType.LINK, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true },
-  [LinkProperty.revision]: { id: 10, name: 'revision', component: BenchType.LINK, kind: 'primitive', primitiveType: PrimitiveType.INT64, isRequired: true, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
-  [LinkProperty.createdAt]: { id: 11, name: 'created_at', component: BenchType.LINK, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isRequired: true, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
-  [LinkProperty.updatedAt]: { id: 12, name: 'updated_at', component: BenchType.LINK, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isRequired: true, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
-  [LinkProperty.deletedAt]: { id: 13, name: 'deleted_at', component: BenchType.LINK, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
-  [LinkProperty.archivedAt]: { id: 14, name: 'archived_at', component: BenchType.LINK, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
-  [LinkProperty.parentPtr]: { id: 4, name: 'parent_ptr', component: BenchType.LINK, kind: 'reference', isInternal: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_PARENT, referenceNodes: [NodeType.PACKAGE, NodeType.BLOCK], referenceStruct: StructType.NODE_REFERENCE },
-  [LinkProperty.referencePtr]: { id: 30, name: 'reference_ptr', component: BenchType.LINK, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.DEPENDENCY, NodeType.UPGRADE, NodeType.SPACE, NodeType.SKIP, NodeType.NOTICE, NodeType.BLOCK, NodeType.TRIGGER, NodeType.FIELD, NodeType.RECORD, NodeType.QUERY, NodeType.VIEW, NodeType.STEP, NodeType.BADGE, NodeType.ROLE, NodeType.IDENTITY, NodeType.MEMBERSHIP, NodeType.INVITE], referenceStruct: StructType.NODE_REFERENCE },
-  [LinkProperty.packagePtr]: { id: 6, name: 'package_ptr', component: BenchType.LINK, kind: 'reference', isRequired: true, isInternal: true, isComputed: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_ANCESTOR_FIRST, referenceNodes: [NodeType.PACKAGE], referenceStruct: StructType.NODE_REFERENCE },
-  [LinkProperty.benchPtr]: { id: 7, name: 'bench_ptr', component: BenchType.LINK, kind: 'reference', isRequired: true, isInternal: true, isComputed: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_ANCESTOR_FIRST, referenceNodes: [NodeType.BENCH], referenceStruct: StructType.NODE_REFERENCE },
-  [LinkProperty.createdByPtr]: { id: 17, name: 'created_by_ptr', component: BenchType.LINK, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.USER, NodeType.RUN], referenceStruct: StructType.NODE_REFERENCE },
-  [LinkProperty.updatedByPtr]: { id: 18, name: 'updated_by_ptr', component: BenchType.LINK, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.USER, NodeType.RUN], referenceStruct: StructType.NODE_REFERENCE },
+  [LinkProperty.metatype]: { id: 1, name: 'metatype', component: ObjectType.LINK, kind: 'enum', primitiveType: PrimitiveType.STRING, isRequired: true, isInternal: true, isComputed: true, isWired: true },
+  [LinkProperty.orderKey]: { id: 32, name: 'order_key', component: ObjectType.LINK, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isRuntime: true, isWired: true, isStored: true },
+  [LinkProperty.id]: { id: 2, name: 'id', component: ObjectType.LINK, kind: 'primitive', primitiveType: PrimitiveType.UUID, isRequired: true, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
+  [LinkProperty.setProperties]: { id: 22, name: 'set_properties', component: ObjectType.LINK, kind: 'primitive', primitiveType: PrimitiveType.INT32, isList: true, isRequired: true, isRuntime: true, isWired: true, isStored: true },
+  [LinkProperty.ck]: { id: 3, name: 'ck', component: ObjectType.LINK, kind: 'primitive', primitiveType: PrimitiveType.UUID, isRequired: true, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
+  [LinkProperty.source]: { id: 8, name: 'source', component: ObjectType.LINK, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true },
+  [LinkProperty.revision]: { id: 10, name: 'revision', component: ObjectType.LINK, kind: 'primitive', primitiveType: PrimitiveType.INT64, isRequired: true, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
+  [LinkProperty.createdAt]: { id: 11, name: 'created_at', component: ObjectType.LINK, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isRequired: true, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
+  [LinkProperty.updatedAt]: { id: 12, name: 'updated_at', component: ObjectType.LINK, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isRequired: true, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
+  [LinkProperty.deletedAt]: { id: 13, name: 'deleted_at', component: ObjectType.LINK, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
+  [LinkProperty.archivedAt]: { id: 14, name: 'archived_at', component: ObjectType.LINK, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
+  [LinkProperty.parentPtr]: { id: 4, name: 'parent_ptr', component: ObjectType.LINK, kind: 'reference', isInternal: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_PARENT, referenceNodes: [NodeType.PACKAGE, NodeType.BLOCK], referenceStruct: StructType.NODE_REFERENCE },
+  [LinkProperty.referencePtr]: { id: 30, name: 'reference_ptr', component: ObjectType.LINK, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.DEPENDENCY, NodeType.UPGRADE, NodeType.SPACE, NodeType.SKIP, NodeType.NOTICE, NodeType.BLOCK, NodeType.TRIGGER, NodeType.FIELD, NodeType.RECORD, NodeType.QUERY, NodeType.VIEW, NodeType.STEP, NodeType.BADGE, NodeType.ROLE, NodeType.IDENTITY, NodeType.MEMBERSHIP, NodeType.INVITE], referenceStruct: StructType.NODE_REFERENCE },
+  [LinkProperty.packagePtr]: { id: 6, name: 'package_ptr', component: ObjectType.LINK, kind: 'reference', isRequired: true, isInternal: true, isComputed: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_ANCESTOR_FIRST, referenceNodes: [NodeType.PACKAGE], referenceStruct: StructType.NODE_REFERENCE },
+  [LinkProperty.benchPtr]: { id: 7, name: 'bench_ptr', component: ObjectType.LINK, kind: 'reference', isRequired: true, isInternal: true, isComputed: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_ANCESTOR_FIRST, referenceNodes: [NodeType.BENCH], referenceStruct: StructType.NODE_REFERENCE },
+  [LinkProperty.createdByPtr]: { id: 17, name: 'created_by_ptr', component: ObjectType.LINK, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.USER, NodeType.RUN], referenceStruct: StructType.NODE_REFERENCE },
+  [LinkProperty.updatedByPtr]: { id: 18, name: 'updated_by_ptr', component: ObjectType.LINK, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.USER, NodeType.RUN], referenceStruct: StructType.NODE_REFERENCE },
 }
 export const SkipDataInfo: Record<SkipProperty, PropertyInfo> = {
-  [SkipProperty.metatype]: { id: 1, name: 'metatype', component: BenchType.SKIP, kind: 'enum', primitiveType: PrimitiveType.STRING, isRequired: true, isInternal: true, isComputed: true, isWired: true },
-  [SkipProperty.orderKey]: { id: 31, name: 'order_key', component: BenchType.SKIP, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isRuntime: true, isWired: true, isStored: true },
-  [SkipProperty.id]: { id: 2, name: 'id', component: BenchType.SKIP, kind: 'primitive', primitiveType: PrimitiveType.UUID, isRequired: true, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
-  [SkipProperty.setProperties]: { id: 22, name: 'set_properties', component: BenchType.SKIP, kind: 'primitive', primitiveType: PrimitiveType.INT32, isList: true, isRequired: true, isRuntime: true, isWired: true, isStored: true },
-  [SkipProperty.ck]: { id: 3, name: 'ck', component: BenchType.SKIP, kind: 'primitive', primitiveType: PrimitiveType.UUID, isRequired: true, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
-  [SkipProperty.source]: { id: 8, name: 'source', component: BenchType.SKIP, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true },
-  [SkipProperty.revision]: { id: 10, name: 'revision', component: BenchType.SKIP, kind: 'primitive', primitiveType: PrimitiveType.INT64, isRequired: true, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
-  [SkipProperty.createdAt]: { id: 11, name: 'created_at', component: BenchType.SKIP, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isRequired: true, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
-  [SkipProperty.updatedAt]: { id: 12, name: 'updated_at', component: BenchType.SKIP, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isRequired: true, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
-  [SkipProperty.deletedAt]: { id: 13, name: 'deleted_at', component: BenchType.SKIP, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
-  [SkipProperty.archivedAt]: { id: 14, name: 'archived_at', component: BenchType.SKIP, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
-  [SkipProperty.parentPtr]: { id: 4, name: 'parent_ptr', component: BenchType.SKIP, kind: 'reference', isInternal: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_PARENT, referenceNodes: [NodeType.PACKAGE, NodeType.BLOCK], referenceStruct: StructType.NODE_REFERENCE },
-  [SkipProperty.referencePtr]: { id: 30, name: 'reference_ptr', component: BenchType.SKIP, kind: 'reference', isRequired: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.DEPENDENCY, NodeType.UPGRADE, NodeType.SPACE, NodeType.SKIP, NodeType.NOTICE, NodeType.BLOCK, NodeType.TRIGGER, NodeType.FIELD, NodeType.RECORD, NodeType.QUERY, NodeType.VIEW, NodeType.STEP, NodeType.BADGE, NodeType.ROLE, NodeType.IDENTITY, NodeType.MEMBERSHIP, NodeType.INVITE], referenceStruct: StructType.NODE_REFERENCE },
-  [SkipProperty.packagePtr]: { id: 6, name: 'package_ptr', component: BenchType.SKIP, kind: 'reference', isRequired: true, isInternal: true, isComputed: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_ANCESTOR_FIRST, referenceNodes: [NodeType.PACKAGE], referenceStruct: StructType.NODE_REFERENCE },
-  [SkipProperty.benchPtr]: { id: 7, name: 'bench_ptr', component: BenchType.SKIP, kind: 'reference', isRequired: true, isInternal: true, isComputed: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_ANCESTOR_FIRST, referenceNodes: [NodeType.BENCH], referenceStruct: StructType.NODE_REFERENCE },
-  [SkipProperty.createdByPtr]: { id: 17, name: 'created_by_ptr', component: BenchType.SKIP, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.USER, NodeType.RUN], referenceStruct: StructType.NODE_REFERENCE },
-  [SkipProperty.updatedByPtr]: { id: 18, name: 'updated_by_ptr', component: BenchType.SKIP, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.USER, NodeType.RUN], referenceStruct: StructType.NODE_REFERENCE },
+  [SkipProperty.metatype]: { id: 1, name: 'metatype', component: ObjectType.SKIP, kind: 'enum', primitiveType: PrimitiveType.STRING, isRequired: true, isInternal: true, isComputed: true, isWired: true },
+  [SkipProperty.orderKey]: { id: 31, name: 'order_key', component: ObjectType.SKIP, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isRuntime: true, isWired: true, isStored: true },
+  [SkipProperty.id]: { id: 2, name: 'id', component: ObjectType.SKIP, kind: 'primitive', primitiveType: PrimitiveType.UUID, isRequired: true, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
+  [SkipProperty.setProperties]: { id: 22, name: 'set_properties', component: ObjectType.SKIP, kind: 'primitive', primitiveType: PrimitiveType.INT32, isList: true, isRequired: true, isRuntime: true, isWired: true, isStored: true },
+  [SkipProperty.ck]: { id: 3, name: 'ck', component: ObjectType.SKIP, kind: 'primitive', primitiveType: PrimitiveType.UUID, isRequired: true, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
+  [SkipProperty.source]: { id: 8, name: 'source', component: ObjectType.SKIP, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true },
+  [SkipProperty.revision]: { id: 10, name: 'revision', component: ObjectType.SKIP, kind: 'primitive', primitiveType: PrimitiveType.INT64, isRequired: true, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
+  [SkipProperty.createdAt]: { id: 11, name: 'created_at', component: ObjectType.SKIP, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isRequired: true, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
+  [SkipProperty.updatedAt]: { id: 12, name: 'updated_at', component: ObjectType.SKIP, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isRequired: true, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
+  [SkipProperty.deletedAt]: { id: 13, name: 'deleted_at', component: ObjectType.SKIP, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
+  [SkipProperty.archivedAt]: { id: 14, name: 'archived_at', component: ObjectType.SKIP, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
+  [SkipProperty.parentPtr]: { id: 4, name: 'parent_ptr', component: ObjectType.SKIP, kind: 'reference', isInternal: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_PARENT, referenceNodes: [NodeType.PACKAGE, NodeType.BLOCK], referenceStruct: StructType.NODE_REFERENCE },
+  [SkipProperty.referencePtr]: { id: 30, name: 'reference_ptr', component: ObjectType.SKIP, kind: 'reference', isRequired: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.DEPENDENCY, NodeType.UPGRADE, NodeType.SPACE, NodeType.SKIP, NodeType.NOTICE, NodeType.BLOCK, NodeType.TRIGGER, NodeType.FIELD, NodeType.RECORD, NodeType.QUERY, NodeType.VIEW, NodeType.STEP, NodeType.BADGE, NodeType.ROLE, NodeType.IDENTITY, NodeType.MEMBERSHIP, NodeType.INVITE], referenceStruct: StructType.NODE_REFERENCE },
+  [SkipProperty.packagePtr]: { id: 6, name: 'package_ptr', component: ObjectType.SKIP, kind: 'reference', isRequired: true, isInternal: true, isComputed: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_ANCESTOR_FIRST, referenceNodes: [NodeType.PACKAGE], referenceStruct: StructType.NODE_REFERENCE },
+  [SkipProperty.benchPtr]: { id: 7, name: 'bench_ptr', component: ObjectType.SKIP, kind: 'reference', isRequired: true, isInternal: true, isComputed: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_ANCESTOR_FIRST, referenceNodes: [NodeType.BENCH], referenceStruct: StructType.NODE_REFERENCE },
+  [SkipProperty.createdByPtr]: { id: 17, name: 'created_by_ptr', component: ObjectType.SKIP, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.USER, NodeType.RUN], referenceStruct: StructType.NODE_REFERENCE },
+  [SkipProperty.updatedByPtr]: { id: 18, name: 'updated_by_ptr', component: ObjectType.SKIP, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.USER, NodeType.RUN], referenceStruct: StructType.NODE_REFERENCE },
 }
 export const NoticeDataInfo: Record<NoticeProperty, PropertyInfo> = {
-  [NoticeProperty.metatype]: { id: 1, name: 'metatype', component: BenchType.NOTICE, kind: 'enum', primitiveType: PrimitiveType.STRING, isRequired: true, isInternal: true, isComputed: true, isWired: true },
-  [NoticeProperty.kind]: { id: 30, name: 'kind', component: BenchType.NOTICE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isRuntime: true, isWired: true, isStored: true },
-  [NoticeProperty.type]: { id: 31, name: 'type', component: BenchType.NOTICE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isRuntime: true, isWired: true, isStored: true },
-  [NoticeProperty.message]: { id: 33, name: 'message', component: BenchType.NOTICE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isRuntime: true, isWired: true, isStored: true },
-  [NoticeProperty.path]: { id: 34, name: 'path', component: BenchType.NOTICE, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.PATH },
-  [NoticeProperty.id]: { id: 2, name: 'id', component: BenchType.NOTICE, kind: 'primitive', primitiveType: PrimitiveType.UUID, isRequired: true, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
-  [NoticeProperty.setProperties]: { id: 22, name: 'set_properties', component: BenchType.NOTICE, kind: 'primitive', primitiveType: PrimitiveType.INT32, isList: true, isRequired: true, isRuntime: true, isWired: true, isStored: true },
-  [NoticeProperty.ck]: { id: 3, name: 'ck', component: BenchType.NOTICE, kind: 'primitive', primitiveType: PrimitiveType.UUID, isRequired: true, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
-  [NoticeProperty.source]: { id: 8, name: 'source', component: BenchType.NOTICE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true },
-  [NoticeProperty.revision]: { id: 10, name: 'revision', component: BenchType.NOTICE, kind: 'primitive', primitiveType: PrimitiveType.INT64, isRequired: true, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
-  [NoticeProperty.createdAt]: { id: 11, name: 'created_at', component: BenchType.NOTICE, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isRequired: true, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
-  [NoticeProperty.updatedAt]: { id: 12, name: 'updated_at', component: BenchType.NOTICE, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isRequired: true, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
-  [NoticeProperty.deletedAt]: { id: 13, name: 'deleted_at', component: BenchType.NOTICE, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
-  [NoticeProperty.archivedAt]: { id: 14, name: 'archived_at', component: BenchType.NOTICE, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
-  [NoticeProperty.parentPtr]: { id: 4, name: 'parent_ptr', component: BenchType.NOTICE, kind: 'reference', isInternal: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_PARENT, referenceNodes: [NodeType.BLOCK, NodeType.PACKAGE], referenceStruct: StructType.NODE_REFERENCE },
-  [NoticeProperty.propertiesPtr]: { id: 35, name: 'properties_ptr', component: BenchType.NOTICE, kind: 'primitive', primitiveType: PrimitiveType.JSON, isList: true, isRuntime: true, isWired: true, isStored: true, referenceStruct: StructType.PROPERTY_REFERENCE },
-  [NoticeProperty.packagePtr]: { id: 6, name: 'package_ptr', component: BenchType.NOTICE, kind: 'reference', isRequired: true, isInternal: true, isComputed: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_ANCESTOR_FIRST, referenceNodes: [NodeType.PACKAGE], referenceStruct: StructType.NODE_REFERENCE },
-  [NoticeProperty.benchPtr]: { id: 7, name: 'bench_ptr', component: BenchType.NOTICE, kind: 'reference', isRequired: true, isInternal: true, isComputed: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_ANCESTOR_FIRST, referenceNodes: [NodeType.BENCH], referenceStruct: StructType.NODE_REFERENCE },
-  [NoticeProperty.createdByPtr]: { id: 17, name: 'created_by_ptr', component: BenchType.NOTICE, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.USER, NodeType.RUN], referenceStruct: StructType.NODE_REFERENCE },
-  [NoticeProperty.updatedByPtr]: { id: 18, name: 'updated_by_ptr', component: BenchType.NOTICE, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.USER, NodeType.RUN], referenceStruct: StructType.NODE_REFERENCE },
+  [NoticeProperty.metatype]: { id: 1, name: 'metatype', component: ObjectType.NOTICE, kind: 'enum', primitiveType: PrimitiveType.STRING, isRequired: true, isInternal: true, isComputed: true, isWired: true },
+  [NoticeProperty.kind]: { id: 30, name: 'kind', component: ObjectType.NOTICE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isRuntime: true, isWired: true, isStored: true },
+  [NoticeProperty.type]: { id: 31, name: 'type', component: ObjectType.NOTICE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isRuntime: true, isWired: true, isStored: true },
+  [NoticeProperty.message]: { id: 33, name: 'message', component: ObjectType.NOTICE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isRuntime: true, isWired: true, isStored: true },
+  [NoticeProperty.path]: { id: 34, name: 'path', component: ObjectType.NOTICE, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.PATH },
+  [NoticeProperty.id]: { id: 2, name: 'id', component: ObjectType.NOTICE, kind: 'primitive', primitiveType: PrimitiveType.UUID, isRequired: true, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
+  [NoticeProperty.setProperties]: { id: 22, name: 'set_properties', component: ObjectType.NOTICE, kind: 'primitive', primitiveType: PrimitiveType.INT32, isList: true, isRequired: true, isRuntime: true, isWired: true, isStored: true },
+  [NoticeProperty.ck]: { id: 3, name: 'ck', component: ObjectType.NOTICE, kind: 'primitive', primitiveType: PrimitiveType.UUID, isRequired: true, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
+  [NoticeProperty.source]: { id: 8, name: 'source', component: ObjectType.NOTICE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true },
+  [NoticeProperty.revision]: { id: 10, name: 'revision', component: ObjectType.NOTICE, kind: 'primitive', primitiveType: PrimitiveType.INT64, isRequired: true, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
+  [NoticeProperty.createdAt]: { id: 11, name: 'created_at', component: ObjectType.NOTICE, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isRequired: true, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
+  [NoticeProperty.updatedAt]: { id: 12, name: 'updated_at', component: ObjectType.NOTICE, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isRequired: true, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
+  [NoticeProperty.deletedAt]: { id: 13, name: 'deleted_at', component: ObjectType.NOTICE, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
+  [NoticeProperty.archivedAt]: { id: 14, name: 'archived_at', component: ObjectType.NOTICE, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
+  [NoticeProperty.parentPtr]: { id: 4, name: 'parent_ptr', component: ObjectType.NOTICE, kind: 'reference', isInternal: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_PARENT, referenceNodes: [NodeType.BLOCK, NodeType.PACKAGE], referenceStruct: StructType.NODE_REFERENCE },
+  [NoticeProperty.propertiesPtr]: { id: 35, name: 'properties_ptr', component: ObjectType.NOTICE, kind: 'primitive', primitiveType: PrimitiveType.JSON, isList: true, isRuntime: true, isWired: true, isStored: true, referenceStruct: StructType.PROPERTY_REFERENCE },
+  [NoticeProperty.packagePtr]: { id: 6, name: 'package_ptr', component: ObjectType.NOTICE, kind: 'reference', isRequired: true, isInternal: true, isComputed: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_ANCESTOR_FIRST, referenceNodes: [NodeType.PACKAGE], referenceStruct: StructType.NODE_REFERENCE },
+  [NoticeProperty.benchPtr]: { id: 7, name: 'bench_ptr', component: ObjectType.NOTICE, kind: 'reference', isRequired: true, isInternal: true, isComputed: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_ANCESTOR_FIRST, referenceNodes: [NodeType.BENCH], referenceStruct: StructType.NODE_REFERENCE },
+  [NoticeProperty.createdByPtr]: { id: 17, name: 'created_by_ptr', component: ObjectType.NOTICE, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.USER, NodeType.RUN], referenceStruct: StructType.NODE_REFERENCE },
+  [NoticeProperty.updatedByPtr]: { id: 18, name: 'updated_by_ptr', component: ObjectType.NOTICE, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.USER, NodeType.RUN], referenceStruct: StructType.NODE_REFERENCE },
 }
 export const BlockDataInfo: Record<BlockProperty, PropertyInfo> = {
-  [BlockProperty.metatype]: { id: 1, name: 'metatype', component: BenchType.BLOCK, kind: 'enum', primitiveType: PrimitiveType.STRING, isRequired: true, isInternal: true, isComputed: true, isWired: true },
-  [BlockProperty.type]: { id: 30, name: 'type', component: BenchType.BLOCK, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isRuntime: true, isWired: true, isStored: true },
-  [BlockProperty.name]: { id: 32, name: 'name', component: BenchType.BLOCK, kind: 'primitive', primitiveType: PrimitiveType.STRING, isRequired: true, isRuntime: true, isWired: true, isStored: true },
-  [BlockProperty.orderKey]: { id: 33, name: 'order_key', component: BenchType.BLOCK, kind: 'primitive', primitiveType: PrimitiveType.STRING, isRequired: true, isInternal: true, isRuntime: true, isWired: true, isStored: true },
-  [BlockProperty.visibility]: { id: 34, name: 'visibility', component: BenchType.BLOCK, kind: 'enum', primitiveType: PrimitiveType.INT16, isRuntime: true, isWired: true, isStored: true },
-  [BlockProperty.policies]: { id: 35, name: 'policies', component: BenchType.BLOCK, kind: 'reference', primitiveType: PrimitiveType.JSON, isList: true, isRequired: true, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.POLICY },
-  [BlockProperty.builtinBase]: { id: 37, name: 'builtin_base', component: BenchType.BLOCK, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.TYPE_INFO },
-  [BlockProperty.text]: { id: 40, name: 'text', component: BenchType.BLOCK, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.TEXT },
-  [BlockProperty.code]: { id: 41, name: 'code', component: BenchType.BLOCK, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.CODE },
-  [BlockProperty.valuePacked]: { id: 42, name: 'value_packed', component: BenchType.BLOCK, kind: 'primitive', primitiveType: PrimitiveType.JSON, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true, isValuePacked: true },
-  [BlockProperty.secretValuePacked]: { id: 43, name: 'secret_value_packed', component: BenchType.BLOCK, kind: 'primitive', primitiveType: PrimitiveType.JSON, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true, isDeferred: true, isSensitive: true, isEncrypted: true, isValuePacked: true },
-  [BlockProperty.icon]: { id: 44, name: 'icon', component: BenchType.BLOCK, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.ICON },
-  [BlockProperty.delegatedPolicies]: { id: 46, name: 'delegated_policies', component: BenchType.BLOCK, kind: 'reference', primitiveType: PrimitiveType.JSON, isList: true, isRequired: true, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.POLICY },
-  [BlockProperty.isIntrinsic]: { id: 60, name: 'is_intrinsic', component: BenchType.BLOCK, kind: 'primitive', primitiveType: PrimitiveType.BOOLEAN, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
-  [BlockProperty.isPage]: { id: 61, name: 'is_page', component: BenchType.BLOCK, kind: 'primitive', primitiveType: PrimitiveType.BOOLEAN, isRequired: true, isRuntime: true, isWired: true, isStored: true },
-  [BlockProperty.isProtocol]: { id: 62, name: 'is_protocol', component: BenchType.BLOCK, kind: 'primitive', primitiveType: PrimitiveType.BOOLEAN, isRequired: true, isRuntime: true, isWired: true, isStored: true },
-  [BlockProperty.pausedAt]: { id: 66, name: 'paused_at', component: BenchType.BLOCK, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isRuntime: true, isWired: true, isStored: true },
-  [BlockProperty.id]: { id: 2, name: 'id', component: BenchType.BLOCK, kind: 'primitive', primitiveType: PrimitiveType.UUID, isRequired: true, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
-  [BlockProperty.setProperties]: { id: 22, name: 'set_properties', component: BenchType.BLOCK, kind: 'primitive', primitiveType: PrimitiveType.INT32, isList: true, isRequired: true, isRuntime: true, isWired: true, isStored: true },
-  [BlockProperty.ck]: { id: 3, name: 'ck', component: BenchType.BLOCK, kind: 'primitive', primitiveType: PrimitiveType.UUID, isRequired: true, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
-  [BlockProperty.source]: { id: 8, name: 'source', component: BenchType.BLOCK, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true },
-  [BlockProperty.revision]: { id: 10, name: 'revision', component: BenchType.BLOCK, kind: 'primitive', primitiveType: PrimitiveType.INT64, isRequired: true, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
-  [BlockProperty.createdAt]: { id: 11, name: 'created_at', component: BenchType.BLOCK, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isRequired: true, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
-  [BlockProperty.updatedAt]: { id: 12, name: 'updated_at', component: BenchType.BLOCK, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isRequired: true, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
-  [BlockProperty.deletedAt]: { id: 13, name: 'deleted_at', component: BenchType.BLOCK, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
-  [BlockProperty.archivedAt]: { id: 14, name: 'archived_at', component: BenchType.BLOCK, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
-  [BlockProperty.parentPtr]: { id: 4, name: 'parent_ptr', component: BenchType.BLOCK, kind: 'reference', isInternal: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_PARENT, referenceNodes: [NodeType.BLOCK, NodeType.PACKAGE], referenceStruct: StructType.NODE_REFERENCE },
-  [BlockProperty.basesPtr]: { id: 36, name: 'bases_ptr', component: BenchType.BLOCK, kind: 'reference', isList: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.BLOCK], referenceStruct: StructType.NODE_REFERENCE },
-  [BlockProperty.referencePtr]: { id: 45, name: 'reference_ptr', component: BenchType.BLOCK, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.BLOCK], referenceStruct: StructType.NODE_REFERENCE },
-  [BlockProperty.packagePtr]: { id: 6, name: 'package_ptr', component: BenchType.BLOCK, kind: 'reference', isRequired: true, isInternal: true, isComputed: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_ANCESTOR_FIRST, referenceNodes: [NodeType.PACKAGE], referenceStruct: StructType.NODE_REFERENCE },
-  [BlockProperty.benchPtr]: { id: 7, name: 'bench_ptr', component: BenchType.BLOCK, kind: 'reference', isRequired: true, isInternal: true, isComputed: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_ANCESTOR_FIRST, referenceNodes: [NodeType.BENCH], referenceStruct: StructType.NODE_REFERENCE },
-  [BlockProperty.createdByPtr]: { id: 17, name: 'created_by_ptr', component: BenchType.BLOCK, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.USER, NodeType.RUN], referenceStruct: StructType.NODE_REFERENCE },
-  [BlockProperty.updatedByPtr]: { id: 18, name: 'updated_by_ptr', component: BenchType.BLOCK, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.USER, NodeType.RUN], referenceStruct: StructType.NODE_REFERENCE },
+  [BlockProperty.metatype]: { id: 1, name: 'metatype', component: ObjectType.BLOCK, kind: 'enum', primitiveType: PrimitiveType.STRING, isRequired: true, isInternal: true, isComputed: true, isWired: true },
+  [BlockProperty.type]: { id: 30, name: 'type', component: ObjectType.BLOCK, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isRuntime: true, isWired: true, isStored: true },
+  [BlockProperty.name]: { id: 32, name: 'name', component: ObjectType.BLOCK, kind: 'primitive', primitiveType: PrimitiveType.STRING, isRequired: true, isRuntime: true, isWired: true, isStored: true },
+  [BlockProperty.orderKey]: { id: 33, name: 'order_key', component: ObjectType.BLOCK, kind: 'primitive', primitiveType: PrimitiveType.STRING, isRequired: true, isInternal: true, isRuntime: true, isWired: true, isStored: true },
+  [BlockProperty.visibility]: { id: 34, name: 'visibility', component: ObjectType.BLOCK, kind: 'enum', primitiveType: PrimitiveType.INT16, isRuntime: true, isWired: true, isStored: true },
+  [BlockProperty.policies]: { id: 35, name: 'policies', component: ObjectType.BLOCK, kind: 'reference', primitiveType: PrimitiveType.JSON, isList: true, isRequired: true, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.POLICY },
+  [BlockProperty.builtinBase]: { id: 37, name: 'builtin_base', component: ObjectType.BLOCK, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.TYPE_INFO },
+  [BlockProperty.text]: { id: 40, name: 'text', component: ObjectType.BLOCK, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.TEXT },
+  [BlockProperty.code]: { id: 41, name: 'code', component: ObjectType.BLOCK, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.CODE },
+  [BlockProperty.valuePacked]: { id: 42, name: 'value_packed', component: ObjectType.BLOCK, kind: 'primitive', primitiveType: PrimitiveType.JSON, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true, isValuePacked: true },
+  [BlockProperty.secretValuePacked]: { id: 43, name: 'secret_value_packed', component: ObjectType.BLOCK, kind: 'primitive', primitiveType: PrimitiveType.JSON, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true, isDeferred: true, isSensitive: true, isEncrypted: true, isValuePacked: true },
+  [BlockProperty.icon]: { id: 44, name: 'icon', component: ObjectType.BLOCK, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.ICON },
+  [BlockProperty.delegatedPolicies]: { id: 46, name: 'delegated_policies', component: ObjectType.BLOCK, kind: 'reference', primitiveType: PrimitiveType.JSON, isList: true, isRequired: true, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.POLICY },
+  [BlockProperty.isIntrinsic]: { id: 60, name: 'is_intrinsic', component: ObjectType.BLOCK, kind: 'primitive', primitiveType: PrimitiveType.BOOLEAN, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
+  [BlockProperty.isPage]: { id: 61, name: 'is_page', component: ObjectType.BLOCK, kind: 'primitive', primitiveType: PrimitiveType.BOOLEAN, isRequired: true, isRuntime: true, isWired: true, isStored: true },
+  [BlockProperty.isProtocol]: { id: 62, name: 'is_protocol', component: ObjectType.BLOCK, kind: 'primitive', primitiveType: PrimitiveType.BOOLEAN, isRequired: true, isRuntime: true, isWired: true, isStored: true },
+  [BlockProperty.pausedAt]: { id: 66, name: 'paused_at', component: ObjectType.BLOCK, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isRuntime: true, isWired: true, isStored: true },
+  [BlockProperty.id]: { id: 2, name: 'id', component: ObjectType.BLOCK, kind: 'primitive', primitiveType: PrimitiveType.UUID, isRequired: true, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
+  [BlockProperty.setProperties]: { id: 22, name: 'set_properties', component: ObjectType.BLOCK, kind: 'primitive', primitiveType: PrimitiveType.INT32, isList: true, isRequired: true, isRuntime: true, isWired: true, isStored: true },
+  [BlockProperty.ck]: { id: 3, name: 'ck', component: ObjectType.BLOCK, kind: 'primitive', primitiveType: PrimitiveType.UUID, isRequired: true, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
+  [BlockProperty.source]: { id: 8, name: 'source', component: ObjectType.BLOCK, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true },
+  [BlockProperty.revision]: { id: 10, name: 'revision', component: ObjectType.BLOCK, kind: 'primitive', primitiveType: PrimitiveType.INT64, isRequired: true, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
+  [BlockProperty.createdAt]: { id: 11, name: 'created_at', component: ObjectType.BLOCK, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isRequired: true, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
+  [BlockProperty.updatedAt]: { id: 12, name: 'updated_at', component: ObjectType.BLOCK, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isRequired: true, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
+  [BlockProperty.deletedAt]: { id: 13, name: 'deleted_at', component: ObjectType.BLOCK, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
+  [BlockProperty.archivedAt]: { id: 14, name: 'archived_at', component: ObjectType.BLOCK, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
+  [BlockProperty.parentPtr]: { id: 4, name: 'parent_ptr', component: ObjectType.BLOCK, kind: 'reference', isInternal: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_PARENT, referenceNodes: [NodeType.BLOCK, NodeType.PACKAGE], referenceStruct: StructType.NODE_REFERENCE },
+  [BlockProperty.basesPtr]: { id: 36, name: 'bases_ptr', component: ObjectType.BLOCK, kind: 'reference', isList: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.BLOCK], referenceStruct: StructType.NODE_REFERENCE },
+  [BlockProperty.referencePtr]: { id: 45, name: 'reference_ptr', component: ObjectType.BLOCK, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.BLOCK], referenceStruct: StructType.NODE_REFERENCE },
+  [BlockProperty.packagePtr]: { id: 6, name: 'package_ptr', component: ObjectType.BLOCK, kind: 'reference', isRequired: true, isInternal: true, isComputed: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_ANCESTOR_FIRST, referenceNodes: [NodeType.PACKAGE], referenceStruct: StructType.NODE_REFERENCE },
+  [BlockProperty.benchPtr]: { id: 7, name: 'bench_ptr', component: ObjectType.BLOCK, kind: 'reference', isRequired: true, isInternal: true, isComputed: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_ANCESTOR_FIRST, referenceNodes: [NodeType.BENCH], referenceStruct: StructType.NODE_REFERENCE },
+  [BlockProperty.createdByPtr]: { id: 17, name: 'created_by_ptr', component: ObjectType.BLOCK, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.USER, NodeType.RUN], referenceStruct: StructType.NODE_REFERENCE },
+  [BlockProperty.updatedByPtr]: { id: 18, name: 'updated_by_ptr', component: ObjectType.BLOCK, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.USER, NodeType.RUN], referenceStruct: StructType.NODE_REFERENCE },
 }
 export const TriggerDataInfo: Record<TriggerProperty, PropertyInfo> = {
-  [TriggerProperty.metatype]: { id: 1, name: 'metatype', component: BenchType.TRIGGER, kind: 'enum', primitiveType: PrimitiveType.STRING, isRequired: true, isInternal: true, isComputed: true, isWired: true },
-  [TriggerProperty.type]: { id: 30, name: 'type', component: BenchType.TRIGGER, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isRuntime: true, isWired: true, isStored: true },
-  [TriggerProperty.name]: { id: 31, name: 'name', component: BenchType.TRIGGER, kind: 'primitive', primitiveType: PrimitiveType.STRING, isRequired: true, isRuntime: true, isWired: true, isStored: true },
-  [TriggerProperty.active]: { id: 32, name: 'active', component: BenchType.TRIGGER, kind: 'primitive', primitiveType: PrimitiveType.BOOLEAN, isRequired: true, isRuntime: true, isWired: true, isStored: true },
-  [TriggerProperty.schedule]: { id: 33, name: 'schedule', component: BenchType.TRIGGER, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.SCHEDULE },
-  [TriggerProperty.id]: { id: 2, name: 'id', component: BenchType.TRIGGER, kind: 'primitive', primitiveType: PrimitiveType.UUID, isRequired: true, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
-  [TriggerProperty.setProperties]: { id: 22, name: 'set_properties', component: BenchType.TRIGGER, kind: 'primitive', primitiveType: PrimitiveType.INT32, isList: true, isRequired: true, isRuntime: true, isWired: true, isStored: true },
-  [TriggerProperty.ck]: { id: 3, name: 'ck', component: BenchType.TRIGGER, kind: 'primitive', primitiveType: PrimitiveType.UUID, isRequired: true, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
-  [TriggerProperty.source]: { id: 8, name: 'source', component: BenchType.TRIGGER, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true },
-  [TriggerProperty.revision]: { id: 10, name: 'revision', component: BenchType.TRIGGER, kind: 'primitive', primitiveType: PrimitiveType.INT64, isRequired: true, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
-  [TriggerProperty.createdAt]: { id: 11, name: 'created_at', component: BenchType.TRIGGER, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isRequired: true, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
-  [TriggerProperty.updatedAt]: { id: 12, name: 'updated_at', component: BenchType.TRIGGER, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isRequired: true, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
-  [TriggerProperty.deletedAt]: { id: 13, name: 'deleted_at', component: BenchType.TRIGGER, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
-  [TriggerProperty.archivedAt]: { id: 14, name: 'archived_at', component: BenchType.TRIGGER, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
-  [TriggerProperty.parentPtr]: { id: 4, name: 'parent_ptr', component: BenchType.TRIGGER, kind: 'reference', isInternal: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_PARENT, referenceNodes: [NodeType.BLOCK], referenceStruct: StructType.NODE_REFERENCE },
-  [TriggerProperty.signalPtr]: { id: 34, name: 'signal_ptr', component: BenchType.TRIGGER, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.BLOCK], referenceStruct: StructType.NODE_REFERENCE },
-  [TriggerProperty.packagePtr]: { id: 6, name: 'package_ptr', component: BenchType.TRIGGER, kind: 'reference', isRequired: true, isInternal: true, isComputed: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_ANCESTOR_FIRST, referenceNodes: [NodeType.PACKAGE], referenceStruct: StructType.NODE_REFERENCE },
-  [TriggerProperty.benchPtr]: { id: 7, name: 'bench_ptr', component: BenchType.TRIGGER, kind: 'reference', isRequired: true, isInternal: true, isComputed: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_ANCESTOR_FIRST, referenceNodes: [NodeType.BENCH], referenceStruct: StructType.NODE_REFERENCE },
-  [TriggerProperty.createdByPtr]: { id: 17, name: 'created_by_ptr', component: BenchType.TRIGGER, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.USER, NodeType.RUN], referenceStruct: StructType.NODE_REFERENCE },
-  [TriggerProperty.updatedByPtr]: { id: 18, name: 'updated_by_ptr', component: BenchType.TRIGGER, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.USER, NodeType.RUN], referenceStruct: StructType.NODE_REFERENCE },
+  [TriggerProperty.metatype]: { id: 1, name: 'metatype', component: ObjectType.TRIGGER, kind: 'enum', primitiveType: PrimitiveType.STRING, isRequired: true, isInternal: true, isComputed: true, isWired: true },
+  [TriggerProperty.type]: { id: 30, name: 'type', component: ObjectType.TRIGGER, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isRuntime: true, isWired: true, isStored: true },
+  [TriggerProperty.name]: { id: 31, name: 'name', component: ObjectType.TRIGGER, kind: 'primitive', primitiveType: PrimitiveType.STRING, isRequired: true, isRuntime: true, isWired: true, isStored: true },
+  [TriggerProperty.active]: { id: 32, name: 'active', component: ObjectType.TRIGGER, kind: 'primitive', primitiveType: PrimitiveType.BOOLEAN, isRequired: true, isRuntime: true, isWired: true, isStored: true },
+  [TriggerProperty.schedule]: { id: 33, name: 'schedule', component: ObjectType.TRIGGER, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.SCHEDULE },
+  [TriggerProperty.id]: { id: 2, name: 'id', component: ObjectType.TRIGGER, kind: 'primitive', primitiveType: PrimitiveType.UUID, isRequired: true, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
+  [TriggerProperty.setProperties]: { id: 22, name: 'set_properties', component: ObjectType.TRIGGER, kind: 'primitive', primitiveType: PrimitiveType.INT32, isList: true, isRequired: true, isRuntime: true, isWired: true, isStored: true },
+  [TriggerProperty.ck]: { id: 3, name: 'ck', component: ObjectType.TRIGGER, kind: 'primitive', primitiveType: PrimitiveType.UUID, isRequired: true, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
+  [TriggerProperty.source]: { id: 8, name: 'source', component: ObjectType.TRIGGER, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true },
+  [TriggerProperty.revision]: { id: 10, name: 'revision', component: ObjectType.TRIGGER, kind: 'primitive', primitiveType: PrimitiveType.INT64, isRequired: true, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
+  [TriggerProperty.createdAt]: { id: 11, name: 'created_at', component: ObjectType.TRIGGER, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isRequired: true, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
+  [TriggerProperty.updatedAt]: { id: 12, name: 'updated_at', component: ObjectType.TRIGGER, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isRequired: true, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
+  [TriggerProperty.deletedAt]: { id: 13, name: 'deleted_at', component: ObjectType.TRIGGER, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
+  [TriggerProperty.archivedAt]: { id: 14, name: 'archived_at', component: ObjectType.TRIGGER, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
+  [TriggerProperty.parentPtr]: { id: 4, name: 'parent_ptr', component: ObjectType.TRIGGER, kind: 'reference', isInternal: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_PARENT, referenceNodes: [NodeType.BLOCK], referenceStruct: StructType.NODE_REFERENCE },
+  [TriggerProperty.signalPtr]: { id: 34, name: 'signal_ptr', component: ObjectType.TRIGGER, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.BLOCK], referenceStruct: StructType.NODE_REFERENCE },
+  [TriggerProperty.packagePtr]: { id: 6, name: 'package_ptr', component: ObjectType.TRIGGER, kind: 'reference', isRequired: true, isInternal: true, isComputed: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_ANCESTOR_FIRST, referenceNodes: [NodeType.PACKAGE], referenceStruct: StructType.NODE_REFERENCE },
+  [TriggerProperty.benchPtr]: { id: 7, name: 'bench_ptr', component: ObjectType.TRIGGER, kind: 'reference', isRequired: true, isInternal: true, isComputed: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_ANCESTOR_FIRST, referenceNodes: [NodeType.BENCH], referenceStruct: StructType.NODE_REFERENCE },
+  [TriggerProperty.createdByPtr]: { id: 17, name: 'created_by_ptr', component: ObjectType.TRIGGER, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.USER, NodeType.RUN], referenceStruct: StructType.NODE_REFERENCE },
+  [TriggerProperty.updatedByPtr]: { id: 18, name: 'updated_by_ptr', component: ObjectType.TRIGGER, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.USER, NodeType.RUN], referenceStruct: StructType.NODE_REFERENCE },
 }
 export const FieldDataInfo: Record<FieldProperty, PropertyInfo> = {
-  [FieldProperty.metatype]: { id: 1, name: 'metatype', component: BenchType.FIELD, kind: 'enum', primitiveType: PrimitiveType.STRING, isRequired: true, isInternal: true, isComputed: true, isWired: true },
-  [FieldProperty.name]: { id: 30, name: 'name', component: BenchType.FIELD, kind: 'primitive', primitiveType: PrimitiveType.STRING, isRuntime: true, isWired: true, isStored: true },
-  [FieldProperty.orderKey]: { id: 31, name: 'order_key', component: BenchType.FIELD, kind: 'primitive', primitiveType: PrimitiveType.STRING, isRequired: true, isInternal: true, isRuntime: true, isWired: true, isStored: true },
-  [FieldProperty.text]: { id: 33, name: 'text', component: BenchType.FIELD, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.TEXT },
-  [FieldProperty.icon]: { id: 34, name: 'icon', component: BenchType.FIELD, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.ICON },
-  [FieldProperty.valuePacked]: { id: 35, name: 'value_packed', component: BenchType.FIELD, kind: 'primitive', primitiveType: PrimitiveType.JSON, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true, isValuePacked: true },
-  [FieldProperty.isInput]: { id: 60, name: 'is_input', component: BenchType.FIELD, kind: 'primitive', primitiveType: PrimitiveType.BOOLEAN, isRequired: true, isRuntime: true, isWired: true, isStored: true },
-  [FieldProperty.isOutput]: { id: 61, name: 'is_output', component: BenchType.FIELD, kind: 'primitive', primitiveType: PrimitiveType.BOOLEAN, isRequired: true, isRuntime: true, isWired: true, isStored: true },
-  [FieldProperty.isOption]: { id: 62, name: 'is_option', component: BenchType.FIELD, kind: 'primitive', primitiveType: PrimitiveType.BOOLEAN, isRequired: true, isInternal: true, isRuntime: true, isWired: true, isStored: true },
-  [FieldProperty.primitiveType]: { id: 40, name: 'primitive_type', component: BenchType.FIELD, kind: 'enum', primitiveType: PrimitiveType.INT16, isRuntime: true, isWired: true, isStored: true },
-  [FieldProperty.nodeType]: { id: 41, name: 'node_type', component: BenchType.FIELD, kind: 'enum', primitiveType: PrimitiveType.INT16, isRuntime: true, isWired: true, isStored: true },
-  [FieldProperty.structType]: { id: 42, name: 'struct_type', component: BenchType.FIELD, kind: 'enum', primitiveType: PrimitiveType.INT16, isRuntime: true, isWired: true, isStored: true },
-  [FieldProperty.visibility]: { id: 44, name: 'visibility', component: BenchType.FIELD, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isRuntime: true, isWired: true, isStored: true },
-  [FieldProperty.formatHint]: { id: 45, name: 'format_hint', component: BenchType.FIELD, kind: 'enum', primitiveType: PrimitiveType.INT16, isRuntime: true, isWired: true, isStored: true },
-  [FieldProperty.condition]: { id: 46, name: 'condition', component: BenchType.FIELD, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.EXPRESSION },
-  [FieldProperty.length]: { id: 47, name: 'length', component: BenchType.FIELD, kind: 'primitive', primitiveType: PrimitiveType.INT32, isRuntime: true, isWired: true, isStored: true },
-  [FieldProperty.precision]: { id: 48, name: 'precision', component: BenchType.FIELD, kind: 'primitive', primitiveType: PrimitiveType.INT32, isRuntime: true, isWired: true, isStored: true },
-  [FieldProperty.scale]: { id: 49, name: 'scale', component: BenchType.FIELD, kind: 'primitive', primitiveType: PrimitiveType.INT32, isRuntime: true, isWired: true, isStored: true },
-  [FieldProperty.defaultPacked]: { id: 50, name: 'default_packed', component: BenchType.FIELD, kind: 'primitive', primitiveType: PrimitiveType.JSON, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true, isValuePacked: true },
-  [FieldProperty.isList]: { id: 53, name: 'is_list', component: BenchType.FIELD, kind: 'primitive', primitiveType: PrimitiveType.BOOLEAN, isRequired: true, isRuntime: true, isWired: true, isStored: true },
-  [FieldProperty.isRequired]: { id: 54, name: 'is_required', component: BenchType.FIELD, kind: 'primitive', primitiveType: PrimitiveType.BOOLEAN, isRequired: true, isRuntime: true, isWired: true, isStored: true },
-  [FieldProperty.isSecret]: { id: 55, name: 'is_secret', component: BenchType.FIELD, kind: 'primitive', primitiveType: PrimitiveType.BOOLEAN, isRequired: true, isRuntime: true, isWired: true, isStored: true },
-  [FieldProperty.id]: { id: 2, name: 'id', component: BenchType.FIELD, kind: 'primitive', primitiveType: PrimitiveType.UUID, isRequired: true, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
-  [FieldProperty.setProperties]: { id: 22, name: 'set_properties', component: BenchType.FIELD, kind: 'primitive', primitiveType: PrimitiveType.INT32, isList: true, isRequired: true, isRuntime: true, isWired: true, isStored: true },
-  [FieldProperty.ck]: { id: 3, name: 'ck', component: BenchType.FIELD, kind: 'primitive', primitiveType: PrimitiveType.UUID, isRequired: true, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
-  [FieldProperty.source]: { id: 8, name: 'source', component: BenchType.FIELD, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true },
-  [FieldProperty.revision]: { id: 10, name: 'revision', component: BenchType.FIELD, kind: 'primitive', primitiveType: PrimitiveType.INT64, isRequired: true, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
-  [FieldProperty.createdAt]: { id: 11, name: 'created_at', component: BenchType.FIELD, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isRequired: true, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
-  [FieldProperty.updatedAt]: { id: 12, name: 'updated_at', component: BenchType.FIELD, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isRequired: true, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
-  [FieldProperty.deletedAt]: { id: 13, name: 'deleted_at', component: BenchType.FIELD, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
-  [FieldProperty.archivedAt]: { id: 14, name: 'archived_at', component: BenchType.FIELD, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
-  [FieldProperty.parentPtr]: { id: 4, name: 'parent_ptr', component: BenchType.FIELD, kind: 'reference', isInternal: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_PARENT, referenceNodes: [NodeType.BLOCK, NodeType.STEP], referenceStruct: StructType.NODE_REFERENCE },
-  [FieldProperty.baseTypePtr]: { id: 43, name: 'base_type_ptr', component: BenchType.FIELD, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.BLOCK], referenceStruct: StructType.NODE_REFERENCE },
-  [FieldProperty.packagePtr]: { id: 6, name: 'package_ptr', component: BenchType.FIELD, kind: 'reference', isRequired: true, isInternal: true, isComputed: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_ANCESTOR_FIRST, referenceNodes: [NodeType.PACKAGE], referenceStruct: StructType.NODE_REFERENCE },
-  [FieldProperty.benchPtr]: { id: 7, name: 'bench_ptr', component: BenchType.FIELD, kind: 'reference', isRequired: true, isInternal: true, isComputed: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_ANCESTOR_FIRST, referenceNodes: [NodeType.BENCH], referenceStruct: StructType.NODE_REFERENCE },
-  [FieldProperty.createdByPtr]: { id: 17, name: 'created_by_ptr', component: BenchType.FIELD, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.USER, NodeType.RUN], referenceStruct: StructType.NODE_REFERENCE },
-  [FieldProperty.updatedByPtr]: { id: 18, name: 'updated_by_ptr', component: BenchType.FIELD, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.USER, NodeType.RUN], referenceStruct: StructType.NODE_REFERENCE },
+  [FieldProperty.metatype]: { id: 1, name: 'metatype', component: ObjectType.FIELD, kind: 'enum', primitiveType: PrimitiveType.STRING, isRequired: true, isInternal: true, isComputed: true, isWired: true },
+  [FieldProperty.name]: { id: 30, name: 'name', component: ObjectType.FIELD, kind: 'primitive', primitiveType: PrimitiveType.STRING, isRuntime: true, isWired: true, isStored: true },
+  [FieldProperty.orderKey]: { id: 31, name: 'order_key', component: ObjectType.FIELD, kind: 'primitive', primitiveType: PrimitiveType.STRING, isRequired: true, isInternal: true, isRuntime: true, isWired: true, isStored: true },
+  [FieldProperty.text]: { id: 33, name: 'text', component: ObjectType.FIELD, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.TEXT },
+  [FieldProperty.icon]: { id: 34, name: 'icon', component: ObjectType.FIELD, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.ICON },
+  [FieldProperty.valuePacked]: { id: 35, name: 'value_packed', component: ObjectType.FIELD, kind: 'primitive', primitiveType: PrimitiveType.JSON, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true, isValuePacked: true },
+  [FieldProperty.isInput]: { id: 60, name: 'is_input', component: ObjectType.FIELD, kind: 'primitive', primitiveType: PrimitiveType.BOOLEAN, isRequired: true, isRuntime: true, isWired: true, isStored: true },
+  [FieldProperty.isOutput]: { id: 61, name: 'is_output', component: ObjectType.FIELD, kind: 'primitive', primitiveType: PrimitiveType.BOOLEAN, isRequired: true, isRuntime: true, isWired: true, isStored: true },
+  [FieldProperty.isOption]: { id: 62, name: 'is_option', component: ObjectType.FIELD, kind: 'primitive', primitiveType: PrimitiveType.BOOLEAN, isRequired: true, isInternal: true, isRuntime: true, isWired: true, isStored: true },
+  [FieldProperty.primitiveType]: { id: 40, name: 'primitive_type', component: ObjectType.FIELD, kind: 'enum', primitiveType: PrimitiveType.INT16, isRuntime: true, isWired: true, isStored: true },
+  [FieldProperty.nodeType]: { id: 41, name: 'node_type', component: ObjectType.FIELD, kind: 'enum', primitiveType: PrimitiveType.INT16, isRuntime: true, isWired: true, isStored: true },
+  [FieldProperty.structType]: { id: 42, name: 'struct_type', component: ObjectType.FIELD, kind: 'enum', primitiveType: PrimitiveType.INT16, isRuntime: true, isWired: true, isStored: true },
+  [FieldProperty.visibility]: { id: 44, name: 'visibility', component: ObjectType.FIELD, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isRuntime: true, isWired: true, isStored: true },
+  [FieldProperty.formatHint]: { id: 45, name: 'format_hint', component: ObjectType.FIELD, kind: 'enum', primitiveType: PrimitiveType.INT16, isRuntime: true, isWired: true, isStored: true },
+  [FieldProperty.condition]: { id: 46, name: 'condition', component: ObjectType.FIELD, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.EXPRESSION },
+  [FieldProperty.length]: { id: 47, name: 'length', component: ObjectType.FIELD, kind: 'primitive', primitiveType: PrimitiveType.INT32, isRuntime: true, isWired: true, isStored: true },
+  [FieldProperty.precision]: { id: 48, name: 'precision', component: ObjectType.FIELD, kind: 'primitive', primitiveType: PrimitiveType.INT32, isRuntime: true, isWired: true, isStored: true },
+  [FieldProperty.scale]: { id: 49, name: 'scale', component: ObjectType.FIELD, kind: 'primitive', primitiveType: PrimitiveType.INT32, isRuntime: true, isWired: true, isStored: true },
+  [FieldProperty.defaultPacked]: { id: 50, name: 'default_packed', component: ObjectType.FIELD, kind: 'primitive', primitiveType: PrimitiveType.JSON, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true, isValuePacked: true },
+  [FieldProperty.isList]: { id: 53, name: 'is_list', component: ObjectType.FIELD, kind: 'primitive', primitiveType: PrimitiveType.BOOLEAN, isRequired: true, isRuntime: true, isWired: true, isStored: true },
+  [FieldProperty.isRequired]: { id: 54, name: 'is_required', component: ObjectType.FIELD, kind: 'primitive', primitiveType: PrimitiveType.BOOLEAN, isRequired: true, isRuntime: true, isWired: true, isStored: true },
+  [FieldProperty.isSecret]: { id: 55, name: 'is_secret', component: ObjectType.FIELD, kind: 'primitive', primitiveType: PrimitiveType.BOOLEAN, isRequired: true, isRuntime: true, isWired: true, isStored: true },
+  [FieldProperty.id]: { id: 2, name: 'id', component: ObjectType.FIELD, kind: 'primitive', primitiveType: PrimitiveType.UUID, isRequired: true, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
+  [FieldProperty.setProperties]: { id: 22, name: 'set_properties', component: ObjectType.FIELD, kind: 'primitive', primitiveType: PrimitiveType.INT32, isList: true, isRequired: true, isRuntime: true, isWired: true, isStored: true },
+  [FieldProperty.ck]: { id: 3, name: 'ck', component: ObjectType.FIELD, kind: 'primitive', primitiveType: PrimitiveType.UUID, isRequired: true, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
+  [FieldProperty.source]: { id: 8, name: 'source', component: ObjectType.FIELD, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true },
+  [FieldProperty.revision]: { id: 10, name: 'revision', component: ObjectType.FIELD, kind: 'primitive', primitiveType: PrimitiveType.INT64, isRequired: true, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
+  [FieldProperty.createdAt]: { id: 11, name: 'created_at', component: ObjectType.FIELD, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isRequired: true, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
+  [FieldProperty.updatedAt]: { id: 12, name: 'updated_at', component: ObjectType.FIELD, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isRequired: true, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
+  [FieldProperty.deletedAt]: { id: 13, name: 'deleted_at', component: ObjectType.FIELD, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
+  [FieldProperty.archivedAt]: { id: 14, name: 'archived_at', component: ObjectType.FIELD, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
+  [FieldProperty.parentPtr]: { id: 4, name: 'parent_ptr', component: ObjectType.FIELD, kind: 'reference', isInternal: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_PARENT, referenceNodes: [NodeType.BLOCK, NodeType.STEP], referenceStruct: StructType.NODE_REFERENCE },
+  [FieldProperty.baseTypePtr]: { id: 43, name: 'base_type_ptr', component: ObjectType.FIELD, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.BLOCK], referenceStruct: StructType.NODE_REFERENCE },
+  [FieldProperty.packagePtr]: { id: 6, name: 'package_ptr', component: ObjectType.FIELD, kind: 'reference', isRequired: true, isInternal: true, isComputed: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_ANCESTOR_FIRST, referenceNodes: [NodeType.PACKAGE], referenceStruct: StructType.NODE_REFERENCE },
+  [FieldProperty.benchPtr]: { id: 7, name: 'bench_ptr', component: ObjectType.FIELD, kind: 'reference', isRequired: true, isInternal: true, isComputed: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_ANCESTOR_FIRST, referenceNodes: [NodeType.BENCH], referenceStruct: StructType.NODE_REFERENCE },
+  [FieldProperty.createdByPtr]: { id: 17, name: 'created_by_ptr', component: ObjectType.FIELD, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.USER, NodeType.RUN], referenceStruct: StructType.NODE_REFERENCE },
+  [FieldProperty.updatedByPtr]: { id: 18, name: 'updated_by_ptr', component: ObjectType.FIELD, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.USER, NodeType.RUN], referenceStruct: StructType.NODE_REFERENCE },
 }
 export const RecordDataInfo: Record<RecordProperty, PropertyInfo> = {
-  [RecordProperty.metatype]: { id: 1, name: 'metatype', component: BenchType.RECORD, kind: 'enum', primitiveType: PrimitiveType.STRING, isRequired: true, isInternal: true, isComputed: true, isWired: true },
-  [RecordProperty.valuePacked]: { id: 30, name: 'value_packed', component: BenchType.RECORD, kind: 'primitive', primitiveType: PrimitiveType.JSON, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true, isValuePacked: true },
-  [RecordProperty.secretValuePacked]: { id: 31, name: 'secret_value_packed', component: BenchType.RECORD, kind: 'primitive', primitiveType: PrimitiveType.JSON, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true, isDeferred: true, isSensitive: true, isEncrypted: true, isValuePacked: true },
-  [RecordProperty.id]: { id: 2, name: 'id', component: BenchType.RECORD, kind: 'primitive', primitiveType: PrimitiveType.UUID, isRequired: true, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
-  [RecordProperty.setProperties]: { id: 22, name: 'set_properties', component: BenchType.RECORD, kind: 'primitive', primitiveType: PrimitiveType.INT32, isList: true, isRequired: true, isRuntime: true, isWired: true, isStored: true },
-  [RecordProperty.ck]: { id: 3, name: 'ck', component: BenchType.RECORD, kind: 'primitive', primitiveType: PrimitiveType.UUID, isRequired: true, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
-  [RecordProperty.source]: { id: 8, name: 'source', component: BenchType.RECORD, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true },
-  [RecordProperty.revision]: { id: 10, name: 'revision', component: BenchType.RECORD, kind: 'primitive', primitiveType: PrimitiveType.INT64, isRequired: true, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
-  [RecordProperty.createdAt]: { id: 11, name: 'created_at', component: BenchType.RECORD, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isRequired: true, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
-  [RecordProperty.updatedAt]: { id: 12, name: 'updated_at', component: BenchType.RECORD, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isRequired: true, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
-  [RecordProperty.deletedAt]: { id: 13, name: 'deleted_at', component: BenchType.RECORD, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
-  [RecordProperty.archivedAt]: { id: 14, name: 'archived_at', component: BenchType.RECORD, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
-  [RecordProperty.parentPtr]: { id: 4, name: 'parent_ptr', component: BenchType.RECORD, kind: 'reference', isInternal: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_PARENT, referenceNodes: [NodeType.BLOCK], referenceStruct: StructType.NODE_REFERENCE },
-  [RecordProperty.packagePtr]: { id: 6, name: 'package_ptr', component: BenchType.RECORD, kind: 'reference', isRequired: true, isInternal: true, isComputed: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_ANCESTOR_FIRST, referenceNodes: [NodeType.PACKAGE], referenceStruct: StructType.NODE_REFERENCE },
-  [RecordProperty.benchPtr]: { id: 7, name: 'bench_ptr', component: BenchType.RECORD, kind: 'reference', isRequired: true, isInternal: true, isComputed: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_ANCESTOR_FIRST, referenceNodes: [NodeType.BENCH], referenceStruct: StructType.NODE_REFERENCE },
-  [RecordProperty.createdByPtr]: { id: 17, name: 'created_by_ptr', component: BenchType.RECORD, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.USER, NodeType.RUN], referenceStruct: StructType.NODE_REFERENCE },
-  [RecordProperty.updatedByPtr]: { id: 18, name: 'updated_by_ptr', component: BenchType.RECORD, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.USER, NodeType.RUN], referenceStruct: StructType.NODE_REFERENCE },
+  [RecordProperty.metatype]: { id: 1, name: 'metatype', component: ObjectType.RECORD, kind: 'enum', primitiveType: PrimitiveType.STRING, isRequired: true, isInternal: true, isComputed: true, isWired: true },
+  [RecordProperty.valuePacked]: { id: 30, name: 'value_packed', component: ObjectType.RECORD, kind: 'primitive', primitiveType: PrimitiveType.JSON, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true, isValuePacked: true },
+  [RecordProperty.secretValuePacked]: { id: 31, name: 'secret_value_packed', component: ObjectType.RECORD, kind: 'primitive', primitiveType: PrimitiveType.JSON, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true, isDeferred: true, isSensitive: true, isEncrypted: true, isValuePacked: true },
+  [RecordProperty.id]: { id: 2, name: 'id', component: ObjectType.RECORD, kind: 'primitive', primitiveType: PrimitiveType.UUID, isRequired: true, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
+  [RecordProperty.setProperties]: { id: 22, name: 'set_properties', component: ObjectType.RECORD, kind: 'primitive', primitiveType: PrimitiveType.INT32, isList: true, isRequired: true, isRuntime: true, isWired: true, isStored: true },
+  [RecordProperty.ck]: { id: 3, name: 'ck', component: ObjectType.RECORD, kind: 'primitive', primitiveType: PrimitiveType.UUID, isRequired: true, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
+  [RecordProperty.source]: { id: 8, name: 'source', component: ObjectType.RECORD, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true },
+  [RecordProperty.revision]: { id: 10, name: 'revision', component: ObjectType.RECORD, kind: 'primitive', primitiveType: PrimitiveType.INT64, isRequired: true, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
+  [RecordProperty.createdAt]: { id: 11, name: 'created_at', component: ObjectType.RECORD, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isRequired: true, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
+  [RecordProperty.updatedAt]: { id: 12, name: 'updated_at', component: ObjectType.RECORD, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isRequired: true, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
+  [RecordProperty.deletedAt]: { id: 13, name: 'deleted_at', component: ObjectType.RECORD, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
+  [RecordProperty.archivedAt]: { id: 14, name: 'archived_at', component: ObjectType.RECORD, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
+  [RecordProperty.parentPtr]: { id: 4, name: 'parent_ptr', component: ObjectType.RECORD, kind: 'reference', isInternal: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_PARENT, referenceNodes: [NodeType.BLOCK], referenceStruct: StructType.NODE_REFERENCE },
+  [RecordProperty.packagePtr]: { id: 6, name: 'package_ptr', component: ObjectType.RECORD, kind: 'reference', isRequired: true, isInternal: true, isComputed: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_ANCESTOR_FIRST, referenceNodes: [NodeType.PACKAGE], referenceStruct: StructType.NODE_REFERENCE },
+  [RecordProperty.benchPtr]: { id: 7, name: 'bench_ptr', component: ObjectType.RECORD, kind: 'reference', isRequired: true, isInternal: true, isComputed: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_ANCESTOR_FIRST, referenceNodes: [NodeType.BENCH], referenceStruct: StructType.NODE_REFERENCE },
+  [RecordProperty.createdByPtr]: { id: 17, name: 'created_by_ptr', component: ObjectType.RECORD, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.USER, NodeType.RUN], referenceStruct: StructType.NODE_REFERENCE },
+  [RecordProperty.updatedByPtr]: { id: 18, name: 'updated_by_ptr', component: ObjectType.RECORD, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.USER, NodeType.RUN], referenceStruct: StructType.NODE_REFERENCE },
 }
 export const QueryDataInfo: Record<QueryProperty, PropertyInfo> = {
-  [QueryProperty.metatype]: { id: 1, name: 'metatype', component: BenchType.QUERY, kind: 'enum', primitiveType: PrimitiveType.STRING, isRequired: true, isInternal: true, isComputed: true, isWired: true },
-  [QueryProperty.name]: { id: 30, name: 'name', component: BenchType.QUERY, kind: 'primitive', primitiveType: PrimitiveType.STRING, isRuntime: true, isWired: true, isStored: true },
-  [QueryProperty.orderKey]: { id: 31, name: 'order_key', component: BenchType.QUERY, kind: 'primitive', primitiveType: PrimitiveType.STRING, isRequired: true, isRuntime: true, isWired: true, isStored: true },
-  [QueryProperty.nodeType]: { id: 32, name: 'node_type', component: BenchType.QUERY, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isRuntime: true, isWired: true, isStored: true },
-  [QueryProperty.filter]: { id: 34, name: 'filter', component: BenchType.QUERY, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.EXPRESSION },
-  [QueryProperty.sort]: { id: 35, name: 'sort', component: BenchType.QUERY, kind: 'reference', primitiveType: PrimitiveType.JSON, isList: true, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.EXPRESSION },
-  [QueryProperty.id]: { id: 2, name: 'id', component: BenchType.QUERY, kind: 'primitive', primitiveType: PrimitiveType.UUID, isRequired: true, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
-  [QueryProperty.setProperties]: { id: 22, name: 'set_properties', component: BenchType.QUERY, kind: 'primitive', primitiveType: PrimitiveType.INT32, isList: true, isRequired: true, isRuntime: true, isWired: true, isStored: true },
-  [QueryProperty.ck]: { id: 3, name: 'ck', component: BenchType.QUERY, kind: 'primitive', primitiveType: PrimitiveType.UUID, isRequired: true, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
-  [QueryProperty.source]: { id: 8, name: 'source', component: BenchType.QUERY, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true },
-  [QueryProperty.revision]: { id: 10, name: 'revision', component: BenchType.QUERY, kind: 'primitive', primitiveType: PrimitiveType.INT64, isRequired: true, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
-  [QueryProperty.createdAt]: { id: 11, name: 'created_at', component: BenchType.QUERY, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isRequired: true, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
-  [QueryProperty.updatedAt]: { id: 12, name: 'updated_at', component: BenchType.QUERY, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isRequired: true, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
-  [QueryProperty.deletedAt]: { id: 13, name: 'deleted_at', component: BenchType.QUERY, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
-  [QueryProperty.archivedAt]: { id: 14, name: 'archived_at', component: BenchType.QUERY, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
-  [QueryProperty.parentPtr]: { id: 4, name: 'parent_ptr', component: BenchType.QUERY, kind: 'reference', isInternal: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_PARENT, referenceNodes: [NodeType.BLOCK], referenceStruct: StructType.NODE_REFERENCE },
-  [QueryProperty.basePtr]: { id: 33, name: 'base_ptr', component: BenchType.QUERY, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.BLOCK], referenceStruct: StructType.NODE_REFERENCE },
-  [QueryProperty.packagePtr]: { id: 6, name: 'package_ptr', component: BenchType.QUERY, kind: 'reference', isRequired: true, isInternal: true, isComputed: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_ANCESTOR_FIRST, referenceNodes: [NodeType.PACKAGE], referenceStruct: StructType.NODE_REFERENCE },
-  [QueryProperty.benchPtr]: { id: 7, name: 'bench_ptr', component: BenchType.QUERY, kind: 'reference', isRequired: true, isInternal: true, isComputed: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_ANCESTOR_FIRST, referenceNodes: [NodeType.BENCH], referenceStruct: StructType.NODE_REFERENCE },
-  [QueryProperty.createdByPtr]: { id: 17, name: 'created_by_ptr', component: BenchType.QUERY, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.USER, NodeType.RUN], referenceStruct: StructType.NODE_REFERENCE },
-  [QueryProperty.updatedByPtr]: { id: 18, name: 'updated_by_ptr', component: BenchType.QUERY, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.USER, NodeType.RUN], referenceStruct: StructType.NODE_REFERENCE },
+  [QueryProperty.metatype]: { id: 1, name: 'metatype', component: ObjectType.QUERY, kind: 'enum', primitiveType: PrimitiveType.STRING, isRequired: true, isInternal: true, isComputed: true, isWired: true },
+  [QueryProperty.name]: { id: 30, name: 'name', component: ObjectType.QUERY, kind: 'primitive', primitiveType: PrimitiveType.STRING, isRuntime: true, isWired: true, isStored: true },
+  [QueryProperty.orderKey]: { id: 31, name: 'order_key', component: ObjectType.QUERY, kind: 'primitive', primitiveType: PrimitiveType.STRING, isRequired: true, isRuntime: true, isWired: true, isStored: true },
+  [QueryProperty.nodeType]: { id: 32, name: 'node_type', component: ObjectType.QUERY, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isRuntime: true, isWired: true, isStored: true },
+  [QueryProperty.filter]: { id: 34, name: 'filter', component: ObjectType.QUERY, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.EXPRESSION },
+  [QueryProperty.sort]: { id: 35, name: 'sort', component: ObjectType.QUERY, kind: 'reference', primitiveType: PrimitiveType.JSON, isList: true, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.EXPRESSION },
+  [QueryProperty.id]: { id: 2, name: 'id', component: ObjectType.QUERY, kind: 'primitive', primitiveType: PrimitiveType.UUID, isRequired: true, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
+  [QueryProperty.setProperties]: { id: 22, name: 'set_properties', component: ObjectType.QUERY, kind: 'primitive', primitiveType: PrimitiveType.INT32, isList: true, isRequired: true, isRuntime: true, isWired: true, isStored: true },
+  [QueryProperty.ck]: { id: 3, name: 'ck', component: ObjectType.QUERY, kind: 'primitive', primitiveType: PrimitiveType.UUID, isRequired: true, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
+  [QueryProperty.source]: { id: 8, name: 'source', component: ObjectType.QUERY, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true },
+  [QueryProperty.revision]: { id: 10, name: 'revision', component: ObjectType.QUERY, kind: 'primitive', primitiveType: PrimitiveType.INT64, isRequired: true, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
+  [QueryProperty.createdAt]: { id: 11, name: 'created_at', component: ObjectType.QUERY, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isRequired: true, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
+  [QueryProperty.updatedAt]: { id: 12, name: 'updated_at', component: ObjectType.QUERY, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isRequired: true, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
+  [QueryProperty.deletedAt]: { id: 13, name: 'deleted_at', component: ObjectType.QUERY, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
+  [QueryProperty.archivedAt]: { id: 14, name: 'archived_at', component: ObjectType.QUERY, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
+  [QueryProperty.parentPtr]: { id: 4, name: 'parent_ptr', component: ObjectType.QUERY, kind: 'reference', isInternal: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_PARENT, referenceNodes: [NodeType.BLOCK], referenceStruct: StructType.NODE_REFERENCE },
+  [QueryProperty.basePtr]: { id: 33, name: 'base_ptr', component: ObjectType.QUERY, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.BLOCK], referenceStruct: StructType.NODE_REFERENCE },
+  [QueryProperty.packagePtr]: { id: 6, name: 'package_ptr', component: ObjectType.QUERY, kind: 'reference', isRequired: true, isInternal: true, isComputed: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_ANCESTOR_FIRST, referenceNodes: [NodeType.PACKAGE], referenceStruct: StructType.NODE_REFERENCE },
+  [QueryProperty.benchPtr]: { id: 7, name: 'bench_ptr', component: ObjectType.QUERY, kind: 'reference', isRequired: true, isInternal: true, isComputed: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_ANCESTOR_FIRST, referenceNodes: [NodeType.BENCH], referenceStruct: StructType.NODE_REFERENCE },
+  [QueryProperty.createdByPtr]: { id: 17, name: 'created_by_ptr', component: ObjectType.QUERY, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.USER, NodeType.RUN], referenceStruct: StructType.NODE_REFERENCE },
+  [QueryProperty.updatedByPtr]: { id: 18, name: 'updated_by_ptr', component: ObjectType.QUERY, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.USER, NodeType.RUN], referenceStruct: StructType.NODE_REFERENCE },
 }
 export const ViewDataInfo: Record<ViewProperty, PropertyInfo> = {
-  [ViewProperty.metatype]: { id: 1, name: 'metatype', component: BenchType.VIEW, kind: 'enum', primitiveType: PrimitiveType.STRING, isRequired: true, isInternal: true, isComputed: true, isWired: true },
-  [ViewProperty.type]: { id: 30, name: 'type', component: BenchType.VIEW, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isRuntime: true, isWired: true, isStored: true },
-  [ViewProperty.name]: { id: 31, name: 'name', component: BenchType.VIEW, kind: 'primitive', primitiveType: PrimitiveType.STRING, isRequired: true, isRuntime: true, isWired: true, isStored: true },
-  [ViewProperty.title]: { id: 32, name: 'title', component: BenchType.VIEW, kind: 'primitive', primitiveType: PrimitiveType.STRING, isRuntime: true, isWired: true, isStored: true },
-  [ViewProperty.text]: { id: 33, name: 'text', component: BenchType.VIEW, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.TEXT },
-  [ViewProperty.orderKey]: { id: 34, name: 'order_key', component: BenchType.VIEW, kind: 'primitive', primitiveType: PrimitiveType.STRING, isRequired: true, isInternal: true, isRuntime: true, isWired: true, isStored: true },
-  [ViewProperty.icon]: { id: 35, name: 'icon', component: BenchType.VIEW, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.ICON },
-  [ViewProperty.valueType]: { id: 40, name: 'value_type', component: BenchType.VIEW, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.TYPE_INFO },
-  [ViewProperty.valuePacked]: { id: 41, name: 'value_packed', component: BenchType.VIEW, kind: 'primitive', primitiveType: PrimitiveType.JSON, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true, isValuePacked: true },
-  [ViewProperty.variant]: { id: 50, name: 'variant', component: BenchType.VIEW, kind: 'enum', primitiveType: PrimitiveType.INT16, isRuntime: true, isWired: true, isStored: true },
-  [ViewProperty.font]: { id: 51, name: 'font', component: BenchType.VIEW, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.FONT },
-  [ViewProperty.position]: { id: 60, name: 'position', component: BenchType.VIEW, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.OFFSET },
-  [ViewProperty.size]: { id: 61, name: 'size', component: BenchType.VIEW, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.BOX },
-  [ViewProperty.margin]: { id: 62, name: 'margin', component: BenchType.VIEW, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.OFFSET },
-  [ViewProperty.padding]: { id: 63, name: 'padding', component: BenchType.VIEW, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.OFFSET },
-  [ViewProperty.orientation]: { id: 64, name: 'orientation', component: BenchType.VIEW, kind: 'enum', primitiveType: PrimitiveType.INT16, isRuntime: true, isWired: true, isStored: true },
-  [ViewProperty.alignment]: { id: 65, name: 'alignment', component: BenchType.VIEW, kind: 'enum', primitiveType: PrimitiveType.INT16, isRuntime: true, isWired: true, isStored: true },
-  [ViewProperty.selection]: { id: 70, name: 'selection', component: BenchType.VIEW, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.SELECTION },
-  [ViewProperty.focus]: { id: 71, name: 'focus', component: BenchType.VIEW, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.SELECTION },
-  [ViewProperty.expansion]: { id: 72, name: 'expansion', component: BenchType.VIEW, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.SELECTION },
-  [ViewProperty.isVisible]: { id: 80, name: 'is_visible', component: BenchType.VIEW, kind: 'primitive', primitiveType: PrimitiveType.BOOLEAN, isRuntime: true, isWired: true, isStored: true },
-  [ViewProperty.isDisabled]: { id: 81, name: 'is_disabled', component: BenchType.VIEW, kind: 'primitive', primitiveType: PrimitiveType.BOOLEAN, isRuntime: true, isWired: true, isStored: true },
-  [ViewProperty.isInput]: { id: 82, name: 'is_input', component: BenchType.VIEW, kind: 'primitive', primitiveType: PrimitiveType.BOOLEAN, isRuntime: true, isWired: true, isStored: true },
-  [ViewProperty.isInline]: { id: 83, name: 'is_inline', component: BenchType.VIEW, kind: 'primitive', primitiveType: PrimitiveType.BOOLEAN, isRuntime: true, isWired: true, isStored: true },
-  [ViewProperty.isLoading]: { id: 90, name: 'is_loading', component: BenchType.VIEW, kind: 'primitive', primitiveType: PrimitiveType.BOOLEAN, isRuntime: true, isWired: true, isStored: true },
-  [ViewProperty.id]: { id: 2, name: 'id', component: BenchType.VIEW, kind: 'primitive', primitiveType: PrimitiveType.UUID, isRequired: true, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
-  [ViewProperty.setProperties]: { id: 22, name: 'set_properties', component: BenchType.VIEW, kind: 'primitive', primitiveType: PrimitiveType.INT32, isList: true, isRequired: true, isRuntime: true, isWired: true, isStored: true },
-  [ViewProperty.ck]: { id: 3, name: 'ck', component: BenchType.VIEW, kind: 'primitive', primitiveType: PrimitiveType.UUID, isRequired: true, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
-  [ViewProperty.source]: { id: 8, name: 'source', component: BenchType.VIEW, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true },
-  [ViewProperty.revision]: { id: 10, name: 'revision', component: BenchType.VIEW, kind: 'primitive', primitiveType: PrimitiveType.INT64, isRequired: true, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
-  [ViewProperty.createdAt]: { id: 11, name: 'created_at', component: BenchType.VIEW, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isRequired: true, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
-  [ViewProperty.updatedAt]: { id: 12, name: 'updated_at', component: BenchType.VIEW, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isRequired: true, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
-  [ViewProperty.deletedAt]: { id: 13, name: 'deleted_at', component: BenchType.VIEW, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
-  [ViewProperty.archivedAt]: { id: 14, name: 'archived_at', component: BenchType.VIEW, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
-  [ViewProperty.parentPtr]: { id: 4, name: 'parent_ptr', component: BenchType.VIEW, kind: 'reference', isInternal: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_PARENT, referenceNodes: [NodeType.SPACE, NodeType.VIEW, NodeType.BLOCK], referenceStruct: StructType.NODE_REFERENCE },
-  [ViewProperty.nodePtr]: { id: 42, name: 'node_ptr', component: BenchType.VIEW, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.DEPENDENCY, NodeType.UPGRADE, NodeType.SPACE, NodeType.SKIP, NodeType.NOTICE, NodeType.BLOCK, NodeType.TRIGGER, NodeType.FIELD, NodeType.RECORD, NodeType.QUERY, NodeType.VIEW, NodeType.STEP, NodeType.BADGE, NodeType.ROLE, NodeType.IDENTITY, NodeType.MEMBERSHIP, NodeType.INVITE], referenceStruct: StructType.NODE_REFERENCE },
-  [ViewProperty.packagePtr]: { id: 6, name: 'package_ptr', component: BenchType.VIEW, kind: 'reference', isRequired: true, isInternal: true, isComputed: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_ANCESTOR_FIRST, referenceNodes: [NodeType.PACKAGE], referenceStruct: StructType.NODE_REFERENCE },
-  [ViewProperty.benchPtr]: { id: 7, name: 'bench_ptr', component: BenchType.VIEW, kind: 'reference', isRequired: true, isInternal: true, isComputed: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_ANCESTOR_FIRST, referenceNodes: [NodeType.BENCH], referenceStruct: StructType.NODE_REFERENCE },
-  [ViewProperty.createdByPtr]: { id: 17, name: 'created_by_ptr', component: BenchType.VIEW, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.USER, NodeType.RUN], referenceStruct: StructType.NODE_REFERENCE },
-  [ViewProperty.updatedByPtr]: { id: 18, name: 'updated_by_ptr', component: BenchType.VIEW, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.USER, NodeType.RUN], referenceStruct: StructType.NODE_REFERENCE },
+  [ViewProperty.metatype]: { id: 1, name: 'metatype', component: ObjectType.VIEW, kind: 'enum', primitiveType: PrimitiveType.STRING, isRequired: true, isInternal: true, isComputed: true, isWired: true },
+  [ViewProperty.type]: { id: 30, name: 'type', component: ObjectType.VIEW, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isRuntime: true, isWired: true, isStored: true },
+  [ViewProperty.name]: { id: 31, name: 'name', component: ObjectType.VIEW, kind: 'primitive', primitiveType: PrimitiveType.STRING, isRequired: true, isRuntime: true, isWired: true, isStored: true },
+  [ViewProperty.title]: { id: 32, name: 'title', component: ObjectType.VIEW, kind: 'primitive', primitiveType: PrimitiveType.STRING, isRuntime: true, isWired: true, isStored: true },
+  [ViewProperty.text]: { id: 33, name: 'text', component: ObjectType.VIEW, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.TEXT },
+  [ViewProperty.orderKey]: { id: 34, name: 'order_key', component: ObjectType.VIEW, kind: 'primitive', primitiveType: PrimitiveType.STRING, isRequired: true, isInternal: true, isRuntime: true, isWired: true, isStored: true },
+  [ViewProperty.icon]: { id: 35, name: 'icon', component: ObjectType.VIEW, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.ICON },
+  [ViewProperty.valueType]: { id: 40, name: 'value_type', component: ObjectType.VIEW, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.TYPE_INFO },
+  [ViewProperty.valuePacked]: { id: 41, name: 'value_packed', component: ObjectType.VIEW, kind: 'primitive', primitiveType: PrimitiveType.JSON, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true, isValuePacked: true },
+  [ViewProperty.variant]: { id: 50, name: 'variant', component: ObjectType.VIEW, kind: 'enum', primitiveType: PrimitiveType.INT16, isRuntime: true, isWired: true, isStored: true },
+  [ViewProperty.font]: { id: 51, name: 'font', component: ObjectType.VIEW, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.FONT },
+  [ViewProperty.position]: { id: 60, name: 'position', component: ObjectType.VIEW, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.OFFSET },
+  [ViewProperty.size]: { id: 61, name: 'size', component: ObjectType.VIEW, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.BOX },
+  [ViewProperty.margin]: { id: 62, name: 'margin', component: ObjectType.VIEW, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.OFFSET },
+  [ViewProperty.padding]: { id: 63, name: 'padding', component: ObjectType.VIEW, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.OFFSET },
+  [ViewProperty.orientation]: { id: 64, name: 'orientation', component: ObjectType.VIEW, kind: 'enum', primitiveType: PrimitiveType.INT16, isRuntime: true, isWired: true, isStored: true },
+  [ViewProperty.alignment]: { id: 65, name: 'alignment', component: ObjectType.VIEW, kind: 'enum', primitiveType: PrimitiveType.INT16, isRuntime: true, isWired: true, isStored: true },
+  [ViewProperty.selection]: { id: 70, name: 'selection', component: ObjectType.VIEW, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.SELECTION },
+  [ViewProperty.focus]: { id: 71, name: 'focus', component: ObjectType.VIEW, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.SELECTION },
+  [ViewProperty.expansion]: { id: 72, name: 'expansion', component: ObjectType.VIEW, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.SELECTION },
+  [ViewProperty.isVisible]: { id: 80, name: 'is_visible', component: ObjectType.VIEW, kind: 'primitive', primitiveType: PrimitiveType.BOOLEAN, isRuntime: true, isWired: true, isStored: true },
+  [ViewProperty.isDisabled]: { id: 81, name: 'is_disabled', component: ObjectType.VIEW, kind: 'primitive', primitiveType: PrimitiveType.BOOLEAN, isRuntime: true, isWired: true, isStored: true },
+  [ViewProperty.isInput]: { id: 82, name: 'is_input', component: ObjectType.VIEW, kind: 'primitive', primitiveType: PrimitiveType.BOOLEAN, isRuntime: true, isWired: true, isStored: true },
+  [ViewProperty.isInline]: { id: 83, name: 'is_inline', component: ObjectType.VIEW, kind: 'primitive', primitiveType: PrimitiveType.BOOLEAN, isRuntime: true, isWired: true, isStored: true },
+  [ViewProperty.isLoading]: { id: 90, name: 'is_loading', component: ObjectType.VIEW, kind: 'primitive', primitiveType: PrimitiveType.BOOLEAN, isRuntime: true, isWired: true, isStored: true },
+  [ViewProperty.id]: { id: 2, name: 'id', component: ObjectType.VIEW, kind: 'primitive', primitiveType: PrimitiveType.UUID, isRequired: true, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
+  [ViewProperty.setProperties]: { id: 22, name: 'set_properties', component: ObjectType.VIEW, kind: 'primitive', primitiveType: PrimitiveType.INT32, isList: true, isRequired: true, isRuntime: true, isWired: true, isStored: true },
+  [ViewProperty.ck]: { id: 3, name: 'ck', component: ObjectType.VIEW, kind: 'primitive', primitiveType: PrimitiveType.UUID, isRequired: true, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
+  [ViewProperty.source]: { id: 8, name: 'source', component: ObjectType.VIEW, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true },
+  [ViewProperty.revision]: { id: 10, name: 'revision', component: ObjectType.VIEW, kind: 'primitive', primitiveType: PrimitiveType.INT64, isRequired: true, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
+  [ViewProperty.createdAt]: { id: 11, name: 'created_at', component: ObjectType.VIEW, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isRequired: true, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
+  [ViewProperty.updatedAt]: { id: 12, name: 'updated_at', component: ObjectType.VIEW, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isRequired: true, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
+  [ViewProperty.deletedAt]: { id: 13, name: 'deleted_at', component: ObjectType.VIEW, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
+  [ViewProperty.archivedAt]: { id: 14, name: 'archived_at', component: ObjectType.VIEW, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
+  [ViewProperty.parentPtr]: { id: 4, name: 'parent_ptr', component: ObjectType.VIEW, kind: 'reference', isInternal: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_PARENT, referenceNodes: [NodeType.SPACE, NodeType.VIEW, NodeType.BLOCK], referenceStruct: StructType.NODE_REFERENCE },
+  [ViewProperty.nodePtr]: { id: 42, name: 'node_ptr', component: ObjectType.VIEW, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.DEPENDENCY, NodeType.UPGRADE, NodeType.SPACE, NodeType.SKIP, NodeType.NOTICE, NodeType.BLOCK, NodeType.TRIGGER, NodeType.FIELD, NodeType.RECORD, NodeType.QUERY, NodeType.VIEW, NodeType.STEP, NodeType.BADGE, NodeType.ROLE, NodeType.IDENTITY, NodeType.MEMBERSHIP, NodeType.INVITE], referenceStruct: StructType.NODE_REFERENCE },
+  [ViewProperty.packagePtr]: { id: 6, name: 'package_ptr', component: ObjectType.VIEW, kind: 'reference', isRequired: true, isInternal: true, isComputed: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_ANCESTOR_FIRST, referenceNodes: [NodeType.PACKAGE], referenceStruct: StructType.NODE_REFERENCE },
+  [ViewProperty.benchPtr]: { id: 7, name: 'bench_ptr', component: ObjectType.VIEW, kind: 'reference', isRequired: true, isInternal: true, isComputed: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_ANCESTOR_FIRST, referenceNodes: [NodeType.BENCH], referenceStruct: StructType.NODE_REFERENCE },
+  [ViewProperty.createdByPtr]: { id: 17, name: 'created_by_ptr', component: ObjectType.VIEW, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.USER, NodeType.RUN], referenceStruct: StructType.NODE_REFERENCE },
+  [ViewProperty.updatedByPtr]: { id: 18, name: 'updated_by_ptr', component: ObjectType.VIEW, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.USER, NodeType.RUN], referenceStruct: StructType.NODE_REFERENCE },
 }
 export const StepDataInfo: Record<StepProperty, PropertyInfo> = {
-  [StepProperty.metatype]: { id: 1, name: 'metatype', component: BenchType.STEP, kind: 'enum', primitiveType: PrimitiveType.STRING, isRequired: true, isInternal: true, isComputed: true, isWired: true },
-  [StepProperty.type]: { id: 30, name: 'type', component: BenchType.STEP, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isRuntime: true, isWired: true, isStored: true },
-  [StepProperty.name]: { id: 32, name: 'name', component: BenchType.STEP, kind: 'primitive', primitiveType: PrimitiveType.STRING, isRuntime: true, isWired: true, isStored: true },
-  [StepProperty.orderKey]: { id: 33, name: 'order_key', component: BenchType.STEP, kind: 'primitive', primitiveType: PrimitiveType.STRING, isRequired: true, isInternal: true, isRuntime: true, isWired: true, isStored: true },
-  [StepProperty.text]: { id: 34, name: 'text', component: BenchType.STEP, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.TEXT },
-  [StepProperty.code]: { id: 35, name: 'code', component: BenchType.STEP, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.CODE },
-  [StepProperty.connections]: { id: 36, name: 'connections', component: BenchType.STEP, kind: 'reference', primitiveType: PrimitiveType.JSON, isList: true, isRequired: true, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.STEP_CONNECTION },
-  [StepProperty.valueType]: { id: 40, name: 'value_type', component: BenchType.STEP, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.TYPE_INFO },
-  [StepProperty.valuePacked]: { id: 41, name: 'value_packed', component: BenchType.STEP, kind: 'primitive', primitiveType: PrimitiveType.JSON, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true, isValuePacked: true },
-  [StepProperty.secretValuePacked]: { id: 42, name: 'secret_value_packed', component: BenchType.STEP, kind: 'primitive', primitiveType: PrimitiveType.JSON, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true, isDeferred: true, isSensitive: true, isEncrypted: true, isValuePacked: true },
-  [StepProperty.condition]: { id: 46, name: 'condition', component: BenchType.STEP, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.EXPRESSION },
-  [StepProperty.id]: { id: 2, name: 'id', component: BenchType.STEP, kind: 'primitive', primitiveType: PrimitiveType.UUID, isRequired: true, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
-  [StepProperty.setProperties]: { id: 22, name: 'set_properties', component: BenchType.STEP, kind: 'primitive', primitiveType: PrimitiveType.INT32, isList: true, isRequired: true, isRuntime: true, isWired: true, isStored: true },
-  [StepProperty.ck]: { id: 3, name: 'ck', component: BenchType.STEP, kind: 'primitive', primitiveType: PrimitiveType.UUID, isRequired: true, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
-  [StepProperty.source]: { id: 8, name: 'source', component: BenchType.STEP, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true },
-  [StepProperty.revision]: { id: 10, name: 'revision', component: BenchType.STEP, kind: 'primitive', primitiveType: PrimitiveType.INT64, isRequired: true, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
-  [StepProperty.createdAt]: { id: 11, name: 'created_at', component: BenchType.STEP, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isRequired: true, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
-  [StepProperty.updatedAt]: { id: 12, name: 'updated_at', component: BenchType.STEP, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isRequired: true, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
-  [StepProperty.deletedAt]: { id: 13, name: 'deleted_at', component: BenchType.STEP, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
-  [StepProperty.archivedAt]: { id: 14, name: 'archived_at', component: BenchType.STEP, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
-  [StepProperty.parentPtr]: { id: 4, name: 'parent_ptr', component: BenchType.STEP, kind: 'reference', isInternal: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_PARENT, referenceNodes: [NodeType.BLOCK, NodeType.STEP], referenceStruct: StructType.NODE_REFERENCE },
-  [StepProperty.nodePtr]: { id: 43, name: 'node_ptr', component: BenchType.STEP, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.BLOCK], referenceStruct: StructType.NODE_REFERENCE },
-  [StepProperty.packagePtr]: { id: 6, name: 'package_ptr', component: BenchType.STEP, kind: 'reference', isRequired: true, isInternal: true, isComputed: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_ANCESTOR_FIRST, referenceNodes: [NodeType.PACKAGE], referenceStruct: StructType.NODE_REFERENCE },
-  [StepProperty.benchPtr]: { id: 7, name: 'bench_ptr', component: BenchType.STEP, kind: 'reference', isRequired: true, isInternal: true, isComputed: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_ANCESTOR_FIRST, referenceNodes: [NodeType.BENCH], referenceStruct: StructType.NODE_REFERENCE },
-  [StepProperty.createdByPtr]: { id: 17, name: 'created_by_ptr', component: BenchType.STEP, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.USER, NodeType.RUN], referenceStruct: StructType.NODE_REFERENCE },
-  [StepProperty.updatedByPtr]: { id: 18, name: 'updated_by_ptr', component: BenchType.STEP, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.USER, NodeType.RUN], referenceStruct: StructType.NODE_REFERENCE },
+  [StepProperty.metatype]: { id: 1, name: 'metatype', component: ObjectType.STEP, kind: 'enum', primitiveType: PrimitiveType.STRING, isRequired: true, isInternal: true, isComputed: true, isWired: true },
+  [StepProperty.type]: { id: 30, name: 'type', component: ObjectType.STEP, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isRuntime: true, isWired: true, isStored: true },
+  [StepProperty.name]: { id: 32, name: 'name', component: ObjectType.STEP, kind: 'primitive', primitiveType: PrimitiveType.STRING, isRuntime: true, isWired: true, isStored: true },
+  [StepProperty.orderKey]: { id: 33, name: 'order_key', component: ObjectType.STEP, kind: 'primitive', primitiveType: PrimitiveType.STRING, isRequired: true, isInternal: true, isRuntime: true, isWired: true, isStored: true },
+  [StepProperty.text]: { id: 34, name: 'text', component: ObjectType.STEP, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.TEXT },
+  [StepProperty.code]: { id: 35, name: 'code', component: ObjectType.STEP, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.CODE },
+  [StepProperty.connections]: { id: 36, name: 'connections', component: ObjectType.STEP, kind: 'reference', primitiveType: PrimitiveType.JSON, isList: true, isRequired: true, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.STEP_CONNECTION },
+  [StepProperty.valueType]: { id: 40, name: 'value_type', component: ObjectType.STEP, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.TYPE_INFO },
+  [StepProperty.valuePacked]: { id: 41, name: 'value_packed', component: ObjectType.STEP, kind: 'primitive', primitiveType: PrimitiveType.JSON, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true, isValuePacked: true },
+  [StepProperty.secretValuePacked]: { id: 42, name: 'secret_value_packed', component: ObjectType.STEP, kind: 'primitive', primitiveType: PrimitiveType.JSON, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true, isDeferred: true, isSensitive: true, isEncrypted: true, isValuePacked: true },
+  [StepProperty.condition]: { id: 46, name: 'condition', component: ObjectType.STEP, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.EXPRESSION },
+  [StepProperty.id]: { id: 2, name: 'id', component: ObjectType.STEP, kind: 'primitive', primitiveType: PrimitiveType.UUID, isRequired: true, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
+  [StepProperty.setProperties]: { id: 22, name: 'set_properties', component: ObjectType.STEP, kind: 'primitive', primitiveType: PrimitiveType.INT32, isList: true, isRequired: true, isRuntime: true, isWired: true, isStored: true },
+  [StepProperty.ck]: { id: 3, name: 'ck', component: ObjectType.STEP, kind: 'primitive', primitiveType: PrimitiveType.UUID, isRequired: true, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
+  [StepProperty.source]: { id: 8, name: 'source', component: ObjectType.STEP, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true },
+  [StepProperty.revision]: { id: 10, name: 'revision', component: ObjectType.STEP, kind: 'primitive', primitiveType: PrimitiveType.INT64, isRequired: true, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
+  [StepProperty.createdAt]: { id: 11, name: 'created_at', component: ObjectType.STEP, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isRequired: true, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
+  [StepProperty.updatedAt]: { id: 12, name: 'updated_at', component: ObjectType.STEP, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isRequired: true, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
+  [StepProperty.deletedAt]: { id: 13, name: 'deleted_at', component: ObjectType.STEP, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
+  [StepProperty.archivedAt]: { id: 14, name: 'archived_at', component: ObjectType.STEP, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
+  [StepProperty.parentPtr]: { id: 4, name: 'parent_ptr', component: ObjectType.STEP, kind: 'reference', isInternal: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_PARENT, referenceNodes: [NodeType.BLOCK, NodeType.STEP], referenceStruct: StructType.NODE_REFERENCE },
+  [StepProperty.nodePtr]: { id: 43, name: 'node_ptr', component: ObjectType.STEP, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.BLOCK], referenceStruct: StructType.NODE_REFERENCE },
+  [StepProperty.packagePtr]: { id: 6, name: 'package_ptr', component: ObjectType.STEP, kind: 'reference', isRequired: true, isInternal: true, isComputed: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_ANCESTOR_FIRST, referenceNodes: [NodeType.PACKAGE], referenceStruct: StructType.NODE_REFERENCE },
+  [StepProperty.benchPtr]: { id: 7, name: 'bench_ptr', component: ObjectType.STEP, kind: 'reference', isRequired: true, isInternal: true, isComputed: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_ANCESTOR_FIRST, referenceNodes: [NodeType.BENCH], referenceStruct: StructType.NODE_REFERENCE },
+  [StepProperty.createdByPtr]: { id: 17, name: 'created_by_ptr', component: ObjectType.STEP, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.USER, NodeType.RUN], referenceStruct: StructType.NODE_REFERENCE },
+  [StepProperty.updatedByPtr]: { id: 18, name: 'updated_by_ptr', component: ObjectType.STEP, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.USER, NodeType.RUN], referenceStruct: StructType.NODE_REFERENCE },
 }
 export const BadgeDataInfo: Record<BadgeProperty, PropertyInfo> = {
-  [BadgeProperty.metatype]: { id: 1, name: 'metatype', component: BenchType.BADGE, kind: 'enum', primitiveType: PrimitiveType.STRING, isRequired: true, isInternal: true, isComputed: true, isWired: true },
-  [BadgeProperty.name]: { id: 31, name: 'name', component: BenchType.BADGE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isRequired: true, isRuntime: true, isWired: true, isStored: true },
-  [BadgeProperty.delegatedPolicies]: { id: 32, name: 'delegated_policies', component: BenchType.BADGE, kind: 'reference', primitiveType: PrimitiveType.JSON, isList: true, isRequired: true, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.POLICY },
-  [BadgeProperty.expiresAt]: { id: 33, name: 'expires_at', component: BenchType.BADGE, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isRuntime: true, isWired: true, isStored: true },
-  [BadgeProperty.key]: { id: 40, name: 'key', component: BenchType.BADGE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isRuntime: true, isWired: true, isStored: true, isUnique: true, isDeferred: true, isSensitive: true, isEncrypted: true },
-  [BadgeProperty.keyHash]: { id: 41, name: 'key_hash', component: BenchType.BADGE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isRuntime: true, isWired: true, isStored: true, isUnique: true, isDeferred: true, isSensitive: true, isEncrypted: true },
-  [BadgeProperty.password]: { id: 42, name: 'password', component: BenchType.BADGE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isRuntime: true, isWired: true, isStored: true, isDeferred: true, isSensitive: true, isEncrypted: true },
-  [BadgeProperty.passwordHash]: { id: 43, name: 'password_hash', component: BenchType.BADGE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isRuntime: true, isWired: true, isStored: true, isDeferred: true, isSensitive: true, isEncrypted: true },
-  [BadgeProperty.id]: { id: 2, name: 'id', component: BenchType.BADGE, kind: 'primitive', primitiveType: PrimitiveType.UUID, isRequired: true, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
-  [BadgeProperty.setProperties]: { id: 22, name: 'set_properties', component: BenchType.BADGE, kind: 'primitive', primitiveType: PrimitiveType.INT32, isList: true, isRequired: true, isRuntime: true, isWired: true, isStored: true },
-  [BadgeProperty.ck]: { id: 3, name: 'ck', component: BenchType.BADGE, kind: 'primitive', primitiveType: PrimitiveType.UUID, isRequired: true, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
-  [BadgeProperty.source]: { id: 8, name: 'source', component: BenchType.BADGE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true },
-  [BadgeProperty.revision]: { id: 10, name: 'revision', component: BenchType.BADGE, kind: 'primitive', primitiveType: PrimitiveType.INT64, isRequired: true, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
-  [BadgeProperty.createdAt]: { id: 11, name: 'created_at', component: BenchType.BADGE, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isRequired: true, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
-  [BadgeProperty.updatedAt]: { id: 12, name: 'updated_at', component: BenchType.BADGE, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isRequired: true, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
-  [BadgeProperty.deletedAt]: { id: 13, name: 'deleted_at', component: BenchType.BADGE, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
-  [BadgeProperty.archivedAt]: { id: 14, name: 'archived_at', component: BenchType.BADGE, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
-  [BadgeProperty.parentPtr]: { id: 4, name: 'parent_ptr', component: BenchType.BADGE, kind: 'reference', isInternal: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_PARENT, referenceNodes: [NodeType.PACKAGE, NodeType.BLOCK], referenceStruct: StructType.NODE_REFERENCE },
-  [BadgeProperty.packagePtr]: { id: 6, name: 'package_ptr', component: BenchType.BADGE, kind: 'reference', isRequired: true, isInternal: true, isComputed: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_ANCESTOR_FIRST, referenceNodes: [NodeType.PACKAGE], referenceStruct: StructType.NODE_REFERENCE },
-  [BadgeProperty.benchPtr]: { id: 7, name: 'bench_ptr', component: BenchType.BADGE, kind: 'reference', isRequired: true, isInternal: true, isComputed: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_ANCESTOR_FIRST, referenceNodes: [NodeType.BENCH], referenceStruct: StructType.NODE_REFERENCE },
-  [BadgeProperty.createdByPtr]: { id: 17, name: 'created_by_ptr', component: BenchType.BADGE, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.USER, NodeType.RUN], referenceStruct: StructType.NODE_REFERENCE },
-  [BadgeProperty.updatedByPtr]: { id: 18, name: 'updated_by_ptr', component: BenchType.BADGE, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.USER, NodeType.RUN], referenceStruct: StructType.NODE_REFERENCE },
+  [BadgeProperty.metatype]: { id: 1, name: 'metatype', component: ObjectType.BADGE, kind: 'enum', primitiveType: PrimitiveType.STRING, isRequired: true, isInternal: true, isComputed: true, isWired: true },
+  [BadgeProperty.name]: { id: 31, name: 'name', component: ObjectType.BADGE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isRequired: true, isRuntime: true, isWired: true, isStored: true },
+  [BadgeProperty.delegatedPolicies]: { id: 32, name: 'delegated_policies', component: ObjectType.BADGE, kind: 'reference', primitiveType: PrimitiveType.JSON, isList: true, isRequired: true, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.POLICY },
+  [BadgeProperty.expiresAt]: { id: 33, name: 'expires_at', component: ObjectType.BADGE, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isRuntime: true, isWired: true, isStored: true },
+  [BadgeProperty.key]: { id: 40, name: 'key', component: ObjectType.BADGE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isRuntime: true, isWired: true, isStored: true, isUnique: true, isDeferred: true, isSensitive: true, isEncrypted: true },
+  [BadgeProperty.keyHash]: { id: 41, name: 'key_hash', component: ObjectType.BADGE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isRuntime: true, isWired: true, isStored: true, isUnique: true, isDeferred: true, isSensitive: true, isEncrypted: true },
+  [BadgeProperty.password]: { id: 42, name: 'password', component: ObjectType.BADGE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isRuntime: true, isWired: true, isStored: true, isDeferred: true, isSensitive: true, isEncrypted: true },
+  [BadgeProperty.passwordHash]: { id: 43, name: 'password_hash', component: ObjectType.BADGE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isRuntime: true, isWired: true, isStored: true, isDeferred: true, isSensitive: true, isEncrypted: true },
+  [BadgeProperty.id]: { id: 2, name: 'id', component: ObjectType.BADGE, kind: 'primitive', primitiveType: PrimitiveType.UUID, isRequired: true, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
+  [BadgeProperty.setProperties]: { id: 22, name: 'set_properties', component: ObjectType.BADGE, kind: 'primitive', primitiveType: PrimitiveType.INT32, isList: true, isRequired: true, isRuntime: true, isWired: true, isStored: true },
+  [BadgeProperty.ck]: { id: 3, name: 'ck', component: ObjectType.BADGE, kind: 'primitive', primitiveType: PrimitiveType.UUID, isRequired: true, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
+  [BadgeProperty.source]: { id: 8, name: 'source', component: ObjectType.BADGE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true },
+  [BadgeProperty.revision]: { id: 10, name: 'revision', component: ObjectType.BADGE, kind: 'primitive', primitiveType: PrimitiveType.INT64, isRequired: true, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
+  [BadgeProperty.createdAt]: { id: 11, name: 'created_at', component: ObjectType.BADGE, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isRequired: true, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
+  [BadgeProperty.updatedAt]: { id: 12, name: 'updated_at', component: ObjectType.BADGE, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isRequired: true, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
+  [BadgeProperty.deletedAt]: { id: 13, name: 'deleted_at', component: ObjectType.BADGE, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
+  [BadgeProperty.archivedAt]: { id: 14, name: 'archived_at', component: ObjectType.BADGE, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
+  [BadgeProperty.parentPtr]: { id: 4, name: 'parent_ptr', component: ObjectType.BADGE, kind: 'reference', isInternal: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_PARENT, referenceNodes: [NodeType.PACKAGE, NodeType.BLOCK], referenceStruct: StructType.NODE_REFERENCE },
+  [BadgeProperty.packagePtr]: { id: 6, name: 'package_ptr', component: ObjectType.BADGE, kind: 'reference', isRequired: true, isInternal: true, isComputed: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_ANCESTOR_FIRST, referenceNodes: [NodeType.PACKAGE], referenceStruct: StructType.NODE_REFERENCE },
+  [BadgeProperty.benchPtr]: { id: 7, name: 'bench_ptr', component: ObjectType.BADGE, kind: 'reference', isRequired: true, isInternal: true, isComputed: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_ANCESTOR_FIRST, referenceNodes: [NodeType.BENCH], referenceStruct: StructType.NODE_REFERENCE },
+  [BadgeProperty.createdByPtr]: { id: 17, name: 'created_by_ptr', component: ObjectType.BADGE, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.USER, NodeType.RUN], referenceStruct: StructType.NODE_REFERENCE },
+  [BadgeProperty.updatedByPtr]: { id: 18, name: 'updated_by_ptr', component: ObjectType.BADGE, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.USER, NodeType.RUN], referenceStruct: StructType.NODE_REFERENCE },
 }
 export const RoleDataInfo: Record<RoleProperty, PropertyInfo> = {
-  [RoleProperty.metatype]: { id: 1, name: 'metatype', component: BenchType.ROLE, kind: 'enum', primitiveType: PrimitiveType.STRING, isRequired: true, isInternal: true, isComputed: true, isWired: true },
-  [RoleProperty.id]: { id: 2, name: 'id', component: BenchType.ROLE, kind: 'primitive', primitiveType: PrimitiveType.UUID, isRequired: true, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
-  [RoleProperty.setProperties]: { id: 22, name: 'set_properties', component: BenchType.ROLE, kind: 'primitive', primitiveType: PrimitiveType.INT32, isList: true, isRequired: true, isRuntime: true, isWired: true, isStored: true },
-  [RoleProperty.ck]: { id: 3, name: 'ck', component: BenchType.ROLE, kind: 'primitive', primitiveType: PrimitiveType.UUID, isRequired: true, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
-  [RoleProperty.source]: { id: 8, name: 'source', component: BenchType.ROLE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true },
-  [RoleProperty.revision]: { id: 10, name: 'revision', component: BenchType.ROLE, kind: 'primitive', primitiveType: PrimitiveType.INT64, isRequired: true, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
-  [RoleProperty.createdAt]: { id: 11, name: 'created_at', component: BenchType.ROLE, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isRequired: true, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
-  [RoleProperty.updatedAt]: { id: 12, name: 'updated_at', component: BenchType.ROLE, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isRequired: true, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
-  [RoleProperty.deletedAt]: { id: 13, name: 'deleted_at', component: BenchType.ROLE, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
-  [RoleProperty.archivedAt]: { id: 14, name: 'archived_at', component: BenchType.ROLE, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
-  [RoleProperty.parentPtr]: { id: 4, name: 'parent_ptr', component: BenchType.ROLE, kind: 'reference', isInternal: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_PARENT, referenceNodes: [NodeType.BLOCK, NodeType.MEMBERSHIP], referenceStruct: StructType.NODE_REFERENCE },
-  [RoleProperty.typePtr]: { id: 30, name: 'type_ptr', component: BenchType.ROLE, kind: 'reference', isRequired: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.BLOCK], referenceStruct: StructType.NODE_REFERENCE },
-  [RoleProperty.packagePtr]: { id: 6, name: 'package_ptr', component: BenchType.ROLE, kind: 'reference', isRequired: true, isInternal: true, isComputed: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_ANCESTOR_FIRST, referenceNodes: [NodeType.PACKAGE], referenceStruct: StructType.NODE_REFERENCE },
-  [RoleProperty.benchPtr]: { id: 7, name: 'bench_ptr', component: BenchType.ROLE, kind: 'reference', isRequired: true, isInternal: true, isComputed: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_ANCESTOR_FIRST, referenceNodes: [NodeType.BENCH], referenceStruct: StructType.NODE_REFERENCE },
-  [RoleProperty.createdByPtr]: { id: 17, name: 'created_by_ptr', component: BenchType.ROLE, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.USER, NodeType.RUN], referenceStruct: StructType.NODE_REFERENCE },
-  [RoleProperty.updatedByPtr]: { id: 18, name: 'updated_by_ptr', component: BenchType.ROLE, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.USER, NodeType.RUN], referenceStruct: StructType.NODE_REFERENCE },
+  [RoleProperty.metatype]: { id: 1, name: 'metatype', component: ObjectType.ROLE, kind: 'enum', primitiveType: PrimitiveType.STRING, isRequired: true, isInternal: true, isComputed: true, isWired: true },
+  [RoleProperty.id]: { id: 2, name: 'id', component: ObjectType.ROLE, kind: 'primitive', primitiveType: PrimitiveType.UUID, isRequired: true, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
+  [RoleProperty.setProperties]: { id: 22, name: 'set_properties', component: ObjectType.ROLE, kind: 'primitive', primitiveType: PrimitiveType.INT32, isList: true, isRequired: true, isRuntime: true, isWired: true, isStored: true },
+  [RoleProperty.ck]: { id: 3, name: 'ck', component: ObjectType.ROLE, kind: 'primitive', primitiveType: PrimitiveType.UUID, isRequired: true, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
+  [RoleProperty.source]: { id: 8, name: 'source', component: ObjectType.ROLE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true },
+  [RoleProperty.revision]: { id: 10, name: 'revision', component: ObjectType.ROLE, kind: 'primitive', primitiveType: PrimitiveType.INT64, isRequired: true, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
+  [RoleProperty.createdAt]: { id: 11, name: 'created_at', component: ObjectType.ROLE, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isRequired: true, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
+  [RoleProperty.updatedAt]: { id: 12, name: 'updated_at', component: ObjectType.ROLE, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isRequired: true, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
+  [RoleProperty.deletedAt]: { id: 13, name: 'deleted_at', component: ObjectType.ROLE, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
+  [RoleProperty.archivedAt]: { id: 14, name: 'archived_at', component: ObjectType.ROLE, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
+  [RoleProperty.parentPtr]: { id: 4, name: 'parent_ptr', component: ObjectType.ROLE, kind: 'reference', isInternal: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_PARENT, referenceNodes: [NodeType.BLOCK, NodeType.MEMBERSHIP], referenceStruct: StructType.NODE_REFERENCE },
+  [RoleProperty.typePtr]: { id: 30, name: 'type_ptr', component: ObjectType.ROLE, kind: 'reference', isRequired: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.BLOCK], referenceStruct: StructType.NODE_REFERENCE },
+  [RoleProperty.packagePtr]: { id: 6, name: 'package_ptr', component: ObjectType.ROLE, kind: 'reference', isRequired: true, isInternal: true, isComputed: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_ANCESTOR_FIRST, referenceNodes: [NodeType.PACKAGE], referenceStruct: StructType.NODE_REFERENCE },
+  [RoleProperty.benchPtr]: { id: 7, name: 'bench_ptr', component: ObjectType.ROLE, kind: 'reference', isRequired: true, isInternal: true, isComputed: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_ANCESTOR_FIRST, referenceNodes: [NodeType.BENCH], referenceStruct: StructType.NODE_REFERENCE },
+  [RoleProperty.createdByPtr]: { id: 17, name: 'created_by_ptr', component: ObjectType.ROLE, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.USER, NodeType.RUN], referenceStruct: StructType.NODE_REFERENCE },
+  [RoleProperty.updatedByPtr]: { id: 18, name: 'updated_by_ptr', component: ObjectType.ROLE, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.USER, NodeType.RUN], referenceStruct: StructType.NODE_REFERENCE },
 }
 export const IdentityDataInfo: Record<IdentityProperty, PropertyInfo> = {
-  [IdentityProperty.metatype]: { id: 1, name: 'metatype', component: BenchType.IDENTITY, kind: 'enum', primitiveType: PrimitiveType.STRING, isRequired: true, isInternal: true, isComputed: true, isWired: true },
-  [IdentityProperty.id]: { id: 2, name: 'id', component: BenchType.IDENTITY, kind: 'primitive', primitiveType: PrimitiveType.UUID, isRequired: true, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
-  [IdentityProperty.setProperties]: { id: 22, name: 'set_properties', component: BenchType.IDENTITY, kind: 'primitive', primitiveType: PrimitiveType.INT32, isList: true, isRequired: true, isRuntime: true, isWired: true, isStored: true },
-  [IdentityProperty.ck]: { id: 3, name: 'ck', component: BenchType.IDENTITY, kind: 'primitive', primitiveType: PrimitiveType.UUID, isRequired: true, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
-  [IdentityProperty.source]: { id: 8, name: 'source', component: BenchType.IDENTITY, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true },
-  [IdentityProperty.revision]: { id: 10, name: 'revision', component: BenchType.IDENTITY, kind: 'primitive', primitiveType: PrimitiveType.INT64, isRequired: true, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
-  [IdentityProperty.createdAt]: { id: 11, name: 'created_at', component: BenchType.IDENTITY, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isRequired: true, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
-  [IdentityProperty.updatedAt]: { id: 12, name: 'updated_at', component: BenchType.IDENTITY, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isRequired: true, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
-  [IdentityProperty.deletedAt]: { id: 13, name: 'deleted_at', component: BenchType.IDENTITY, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
-  [IdentityProperty.archivedAt]: { id: 14, name: 'archived_at', component: BenchType.IDENTITY, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
-  [IdentityProperty.parentPtr]: { id: 4, name: 'parent_ptr', component: BenchType.IDENTITY, kind: 'reference', isInternal: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_PARENT, referenceNodes: [NodeType.BLOCK, NodeType.MEMBERSHIP, NodeType.USER], referenceStruct: StructType.NODE_REFERENCE },
-  [IdentityProperty.typePtr]: { id: 30, name: 'type_ptr', component: BenchType.IDENTITY, kind: 'reference', isRequired: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.BLOCK], referenceStruct: StructType.NODE_REFERENCE },
-  [IdentityProperty.packagePtr]: { id: 6, name: 'package_ptr', component: BenchType.IDENTITY, kind: 'reference', isRequired: true, isInternal: true, isComputed: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_ANCESTOR_FIRST, referenceNodes: [NodeType.PACKAGE], referenceStruct: StructType.NODE_REFERENCE },
-  [IdentityProperty.benchPtr]: { id: 7, name: 'bench_ptr', component: BenchType.IDENTITY, kind: 'reference', isRequired: true, isInternal: true, isComputed: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_ANCESTOR_FIRST, referenceNodes: [NodeType.BENCH], referenceStruct: StructType.NODE_REFERENCE },
-  [IdentityProperty.createdByPtr]: { id: 17, name: 'created_by_ptr', component: BenchType.IDENTITY, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.USER, NodeType.RUN], referenceStruct: StructType.NODE_REFERENCE },
-  [IdentityProperty.updatedByPtr]: { id: 18, name: 'updated_by_ptr', component: BenchType.IDENTITY, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.USER, NodeType.RUN], referenceStruct: StructType.NODE_REFERENCE },
+  [IdentityProperty.metatype]: { id: 1, name: 'metatype', component: ObjectType.IDENTITY, kind: 'enum', primitiveType: PrimitiveType.STRING, isRequired: true, isInternal: true, isComputed: true, isWired: true },
+  [IdentityProperty.id]: { id: 2, name: 'id', component: ObjectType.IDENTITY, kind: 'primitive', primitiveType: PrimitiveType.UUID, isRequired: true, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
+  [IdentityProperty.setProperties]: { id: 22, name: 'set_properties', component: ObjectType.IDENTITY, kind: 'primitive', primitiveType: PrimitiveType.INT32, isList: true, isRequired: true, isRuntime: true, isWired: true, isStored: true },
+  [IdentityProperty.ck]: { id: 3, name: 'ck', component: ObjectType.IDENTITY, kind: 'primitive', primitiveType: PrimitiveType.UUID, isRequired: true, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
+  [IdentityProperty.source]: { id: 8, name: 'source', component: ObjectType.IDENTITY, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true },
+  [IdentityProperty.revision]: { id: 10, name: 'revision', component: ObjectType.IDENTITY, kind: 'primitive', primitiveType: PrimitiveType.INT64, isRequired: true, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
+  [IdentityProperty.createdAt]: { id: 11, name: 'created_at', component: ObjectType.IDENTITY, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isRequired: true, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
+  [IdentityProperty.updatedAt]: { id: 12, name: 'updated_at', component: ObjectType.IDENTITY, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isRequired: true, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
+  [IdentityProperty.deletedAt]: { id: 13, name: 'deleted_at', component: ObjectType.IDENTITY, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
+  [IdentityProperty.archivedAt]: { id: 14, name: 'archived_at', component: ObjectType.IDENTITY, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
+  [IdentityProperty.parentPtr]: { id: 4, name: 'parent_ptr', component: ObjectType.IDENTITY, kind: 'reference', isInternal: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_PARENT, referenceNodes: [NodeType.BLOCK, NodeType.MEMBERSHIP, NodeType.USER], referenceStruct: StructType.NODE_REFERENCE },
+  [IdentityProperty.typePtr]: { id: 30, name: 'type_ptr', component: ObjectType.IDENTITY, kind: 'reference', isRequired: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.BLOCK], referenceStruct: StructType.NODE_REFERENCE },
+  [IdentityProperty.packagePtr]: { id: 6, name: 'package_ptr', component: ObjectType.IDENTITY, kind: 'reference', isRequired: true, isInternal: true, isComputed: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_ANCESTOR_FIRST, referenceNodes: [NodeType.PACKAGE], referenceStruct: StructType.NODE_REFERENCE },
+  [IdentityProperty.benchPtr]: { id: 7, name: 'bench_ptr', component: ObjectType.IDENTITY, kind: 'reference', isRequired: true, isInternal: true, isComputed: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_ANCESTOR_FIRST, referenceNodes: [NodeType.BENCH], referenceStruct: StructType.NODE_REFERENCE },
+  [IdentityProperty.createdByPtr]: { id: 17, name: 'created_by_ptr', component: ObjectType.IDENTITY, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.USER, NodeType.RUN], referenceStruct: StructType.NODE_REFERENCE },
+  [IdentityProperty.updatedByPtr]: { id: 18, name: 'updated_by_ptr', component: ObjectType.IDENTITY, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.USER, NodeType.RUN], referenceStruct: StructType.NODE_REFERENCE },
 }
 export const MembershipDataInfo: Record<MembershipProperty, PropertyInfo> = {
-  [MembershipProperty.metatype]: { id: 1, name: 'metatype', component: BenchType.MEMBERSHIP, kind: 'enum', primitiveType: PrimitiveType.STRING, isRequired: true, isInternal: true, isComputed: true, isWired: true },
-  [MembershipProperty.isOwner]: { id: 31, name: 'is_owner', component: BenchType.MEMBERSHIP, kind: 'primitive', primitiveType: PrimitiveType.BOOLEAN, isRequired: true, isRuntime: true, isWired: true, isStored: true },
-  [MembershipProperty.id]: { id: 2, name: 'id', component: BenchType.MEMBERSHIP, kind: 'primitive', primitiveType: PrimitiveType.UUID, isRequired: true, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
-  [MembershipProperty.setProperties]: { id: 22, name: 'set_properties', component: BenchType.MEMBERSHIP, kind: 'primitive', primitiveType: PrimitiveType.INT32, isList: true, isRequired: true, isRuntime: true, isWired: true, isStored: true },
-  [MembershipProperty.ck]: { id: 3, name: 'ck', component: BenchType.MEMBERSHIP, kind: 'primitive', primitiveType: PrimitiveType.UUID, isRequired: true, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
-  [MembershipProperty.source]: { id: 8, name: 'source', component: BenchType.MEMBERSHIP, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true },
-  [MembershipProperty.revision]: { id: 10, name: 'revision', component: BenchType.MEMBERSHIP, kind: 'primitive', primitiveType: PrimitiveType.INT64, isRequired: true, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
-  [MembershipProperty.createdAt]: { id: 11, name: 'created_at', component: BenchType.MEMBERSHIP, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isRequired: true, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
-  [MembershipProperty.updatedAt]: { id: 12, name: 'updated_at', component: BenchType.MEMBERSHIP, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isRequired: true, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
-  [MembershipProperty.deletedAt]: { id: 13, name: 'deleted_at', component: BenchType.MEMBERSHIP, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
-  [MembershipProperty.archivedAt]: { id: 14, name: 'archived_at', component: BenchType.MEMBERSHIP, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
-  [MembershipProperty.parentPtr]: { id: 4, name: 'parent_ptr', component: BenchType.MEMBERSHIP, kind: 'reference', isInternal: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_PARENT, referenceNodes: [NodeType.PACKAGE], referenceStruct: StructType.NODE_REFERENCE },
-  [MembershipProperty.userPtr]: { id: 30, name: 'user_ptr', component: BenchType.MEMBERSHIP, kind: 'reference', isRequired: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.USER], referenceStruct: StructType.NODE_REFERENCE },
-  [MembershipProperty.packagePtr]: { id: 6, name: 'package_ptr', component: BenchType.MEMBERSHIP, kind: 'reference', isRequired: true, isInternal: true, isComputed: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_ANCESTOR_FIRST, referenceNodes: [NodeType.PACKAGE], referenceStruct: StructType.NODE_REFERENCE },
-  [MembershipProperty.benchPtr]: { id: 7, name: 'bench_ptr', component: BenchType.MEMBERSHIP, kind: 'reference', isRequired: true, isInternal: true, isComputed: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_ANCESTOR_FIRST, referenceNodes: [NodeType.BENCH], referenceStruct: StructType.NODE_REFERENCE },
-  [MembershipProperty.createdByPtr]: { id: 17, name: 'created_by_ptr', component: BenchType.MEMBERSHIP, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.USER, NodeType.RUN], referenceStruct: StructType.NODE_REFERENCE },
-  [MembershipProperty.updatedByPtr]: { id: 18, name: 'updated_by_ptr', component: BenchType.MEMBERSHIP, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.USER, NodeType.RUN], referenceStruct: StructType.NODE_REFERENCE },
+  [MembershipProperty.metatype]: { id: 1, name: 'metatype', component: ObjectType.MEMBERSHIP, kind: 'enum', primitiveType: PrimitiveType.STRING, isRequired: true, isInternal: true, isComputed: true, isWired: true },
+  [MembershipProperty.isOwner]: { id: 31, name: 'is_owner', component: ObjectType.MEMBERSHIP, kind: 'primitive', primitiveType: PrimitiveType.BOOLEAN, isRequired: true, isRuntime: true, isWired: true, isStored: true },
+  [MembershipProperty.id]: { id: 2, name: 'id', component: ObjectType.MEMBERSHIP, kind: 'primitive', primitiveType: PrimitiveType.UUID, isRequired: true, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
+  [MembershipProperty.setProperties]: { id: 22, name: 'set_properties', component: ObjectType.MEMBERSHIP, kind: 'primitive', primitiveType: PrimitiveType.INT32, isList: true, isRequired: true, isRuntime: true, isWired: true, isStored: true },
+  [MembershipProperty.ck]: { id: 3, name: 'ck', component: ObjectType.MEMBERSHIP, kind: 'primitive', primitiveType: PrimitiveType.UUID, isRequired: true, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
+  [MembershipProperty.source]: { id: 8, name: 'source', component: ObjectType.MEMBERSHIP, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true },
+  [MembershipProperty.revision]: { id: 10, name: 'revision', component: ObjectType.MEMBERSHIP, kind: 'primitive', primitiveType: PrimitiveType.INT64, isRequired: true, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
+  [MembershipProperty.createdAt]: { id: 11, name: 'created_at', component: ObjectType.MEMBERSHIP, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isRequired: true, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
+  [MembershipProperty.updatedAt]: { id: 12, name: 'updated_at', component: ObjectType.MEMBERSHIP, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isRequired: true, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
+  [MembershipProperty.deletedAt]: { id: 13, name: 'deleted_at', component: ObjectType.MEMBERSHIP, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
+  [MembershipProperty.archivedAt]: { id: 14, name: 'archived_at', component: ObjectType.MEMBERSHIP, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
+  [MembershipProperty.parentPtr]: { id: 4, name: 'parent_ptr', component: ObjectType.MEMBERSHIP, kind: 'reference', isInternal: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_PARENT, referenceNodes: [NodeType.PACKAGE], referenceStruct: StructType.NODE_REFERENCE },
+  [MembershipProperty.userPtr]: { id: 30, name: 'user_ptr', component: ObjectType.MEMBERSHIP, kind: 'reference', isRequired: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.USER], referenceStruct: StructType.NODE_REFERENCE },
+  [MembershipProperty.packagePtr]: { id: 6, name: 'package_ptr', component: ObjectType.MEMBERSHIP, kind: 'reference', isRequired: true, isInternal: true, isComputed: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_ANCESTOR_FIRST, referenceNodes: [NodeType.PACKAGE], referenceStruct: StructType.NODE_REFERENCE },
+  [MembershipProperty.benchPtr]: { id: 7, name: 'bench_ptr', component: ObjectType.MEMBERSHIP, kind: 'reference', isRequired: true, isInternal: true, isComputed: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_ANCESTOR_FIRST, referenceNodes: [NodeType.BENCH], referenceStruct: StructType.NODE_REFERENCE },
+  [MembershipProperty.createdByPtr]: { id: 17, name: 'created_by_ptr', component: ObjectType.MEMBERSHIP, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.USER, NodeType.RUN], referenceStruct: StructType.NODE_REFERENCE },
+  [MembershipProperty.updatedByPtr]: { id: 18, name: 'updated_by_ptr', component: ObjectType.MEMBERSHIP, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.USER, NodeType.RUN], referenceStruct: StructType.NODE_REFERENCE },
 }
 export const InviteDataInfo: Record<InviteProperty, PropertyInfo> = {
-  [InviteProperty.metatype]: { id: 1, name: 'metatype', component: BenchType.INVITE, kind: 'enum', primitiveType: PrimitiveType.STRING, isRequired: true, isInternal: true, isComputed: true, isWired: true },
-  [InviteProperty.userEmail]: { id: 31, name: 'user_email', component: BenchType.INVITE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isRuntime: true, isWired: true, isStored: true },
-  [InviteProperty.isOwner]: { id: 32, name: 'is_owner', component: BenchType.INVITE, kind: 'primitive', primitiveType: PrimitiveType.BOOLEAN, isRequired: true, isRuntime: true, isWired: true, isStored: true },
-  [InviteProperty.id]: { id: 2, name: 'id', component: BenchType.INVITE, kind: 'primitive', primitiveType: PrimitiveType.UUID, isRequired: true, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
-  [InviteProperty.setProperties]: { id: 22, name: 'set_properties', component: BenchType.INVITE, kind: 'primitive', primitiveType: PrimitiveType.INT32, isList: true, isRequired: true, isRuntime: true, isWired: true, isStored: true },
-  [InviteProperty.ck]: { id: 3, name: 'ck', component: BenchType.INVITE, kind: 'primitive', primitiveType: PrimitiveType.UUID, isRequired: true, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
-  [InviteProperty.source]: { id: 8, name: 'source', component: BenchType.INVITE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true },
-  [InviteProperty.revision]: { id: 10, name: 'revision', component: BenchType.INVITE, kind: 'primitive', primitiveType: PrimitiveType.INT64, isRequired: true, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
-  [InviteProperty.createdAt]: { id: 11, name: 'created_at', component: BenchType.INVITE, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isRequired: true, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
-  [InviteProperty.updatedAt]: { id: 12, name: 'updated_at', component: BenchType.INVITE, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isRequired: true, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
-  [InviteProperty.deletedAt]: { id: 13, name: 'deleted_at', component: BenchType.INVITE, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
-  [InviteProperty.archivedAt]: { id: 14, name: 'archived_at', component: BenchType.INVITE, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
-  [InviteProperty.parentPtr]: { id: 4, name: 'parent_ptr', component: BenchType.INVITE, kind: 'reference', isInternal: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_PARENT, referenceNodes: [NodeType.PACKAGE], referenceStruct: StructType.NODE_REFERENCE },
-  [InviteProperty.userPtr]: { id: 30, name: 'user_ptr', component: BenchType.INVITE, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.USER], referenceStruct: StructType.NODE_REFERENCE },
-  [InviteProperty.rolesPtr]: { id: 33, name: 'roles_ptr', component: BenchType.INVITE, kind: 'reference', isList: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.ROLE], referenceStruct: StructType.NODE_REFERENCE },
-  [InviteProperty.packagePtr]: { id: 6, name: 'package_ptr', component: BenchType.INVITE, kind: 'reference', isRequired: true, isInternal: true, isComputed: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_ANCESTOR_FIRST, referenceNodes: [NodeType.PACKAGE], referenceStruct: StructType.NODE_REFERENCE },
-  [InviteProperty.benchPtr]: { id: 7, name: 'bench_ptr', component: BenchType.INVITE, kind: 'reference', isRequired: true, isInternal: true, isComputed: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_ANCESTOR_FIRST, referenceNodes: [NodeType.BENCH], referenceStruct: StructType.NODE_REFERENCE },
-  [InviteProperty.createdByPtr]: { id: 17, name: 'created_by_ptr', component: BenchType.INVITE, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.USER, NodeType.RUN], referenceStruct: StructType.NODE_REFERENCE },
-  [InviteProperty.updatedByPtr]: { id: 18, name: 'updated_by_ptr', component: BenchType.INVITE, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.USER, NodeType.RUN], referenceStruct: StructType.NODE_REFERENCE },
+  [InviteProperty.metatype]: { id: 1, name: 'metatype', component: ObjectType.INVITE, kind: 'enum', primitiveType: PrimitiveType.STRING, isRequired: true, isInternal: true, isComputed: true, isWired: true },
+  [InviteProperty.userEmail]: { id: 31, name: 'user_email', component: ObjectType.INVITE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isRuntime: true, isWired: true, isStored: true },
+  [InviteProperty.isOwner]: { id: 32, name: 'is_owner', component: ObjectType.INVITE, kind: 'primitive', primitiveType: PrimitiveType.BOOLEAN, isRequired: true, isRuntime: true, isWired: true, isStored: true },
+  [InviteProperty.id]: { id: 2, name: 'id', component: ObjectType.INVITE, kind: 'primitive', primitiveType: PrimitiveType.UUID, isRequired: true, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
+  [InviteProperty.setProperties]: { id: 22, name: 'set_properties', component: ObjectType.INVITE, kind: 'primitive', primitiveType: PrimitiveType.INT32, isList: true, isRequired: true, isRuntime: true, isWired: true, isStored: true },
+  [InviteProperty.ck]: { id: 3, name: 'ck', component: ObjectType.INVITE, kind: 'primitive', primitiveType: PrimitiveType.UUID, isRequired: true, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
+  [InviteProperty.source]: { id: 8, name: 'source', component: ObjectType.INVITE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true },
+  [InviteProperty.revision]: { id: 10, name: 'revision', component: ObjectType.INVITE, kind: 'primitive', primitiveType: PrimitiveType.INT64, isRequired: true, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
+  [InviteProperty.createdAt]: { id: 11, name: 'created_at', component: ObjectType.INVITE, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isRequired: true, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
+  [InviteProperty.updatedAt]: { id: 12, name: 'updated_at', component: ObjectType.INVITE, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isRequired: true, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
+  [InviteProperty.deletedAt]: { id: 13, name: 'deleted_at', component: ObjectType.INVITE, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
+  [InviteProperty.archivedAt]: { id: 14, name: 'archived_at', component: ObjectType.INVITE, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
+  [InviteProperty.parentPtr]: { id: 4, name: 'parent_ptr', component: ObjectType.INVITE, kind: 'reference', isInternal: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_PARENT, referenceNodes: [NodeType.PACKAGE], referenceStruct: StructType.NODE_REFERENCE },
+  [InviteProperty.userPtr]: { id: 30, name: 'user_ptr', component: ObjectType.INVITE, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.USER], referenceStruct: StructType.NODE_REFERENCE },
+  [InviteProperty.rolesPtr]: { id: 33, name: 'roles_ptr', component: ObjectType.INVITE, kind: 'reference', isList: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.ROLE], referenceStruct: StructType.NODE_REFERENCE },
+  [InviteProperty.packagePtr]: { id: 6, name: 'package_ptr', component: ObjectType.INVITE, kind: 'reference', isRequired: true, isInternal: true, isComputed: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_ANCESTOR_FIRST, referenceNodes: [NodeType.PACKAGE], referenceStruct: StructType.NODE_REFERENCE },
+  [InviteProperty.benchPtr]: { id: 7, name: 'bench_ptr', component: ObjectType.INVITE, kind: 'reference', isRequired: true, isInternal: true, isComputed: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_ANCESTOR_FIRST, referenceNodes: [NodeType.BENCH], referenceStruct: StructType.NODE_REFERENCE },
+  [InviteProperty.createdByPtr]: { id: 17, name: 'created_by_ptr', component: ObjectType.INVITE, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.USER, NodeType.RUN], referenceStruct: StructType.NODE_REFERENCE },
+  [InviteProperty.updatedByPtr]: { id: 18, name: 'updated_by_ptr', component: ObjectType.INVITE, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.USER, NodeType.RUN], referenceStruct: StructType.NODE_REFERENCE },
 }
 export const SessionDataInfo: Record<SessionProperty, PropertyInfo> = {
-  [SessionProperty.metatype]: { id: 1, name: 'metatype', component: BenchType.SESSION, kind: 'enum', primitiveType: PrimitiveType.STRING, isRequired: true, isInternal: true, isComputed: true, isWired: true },
-  [SessionProperty.openedAt]: { id: 32, name: 'opened_at', component: BenchType.SESSION, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
-  [SessionProperty.closedAt]: { id: 33, name: 'closed_at', component: BenchType.SESSION, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
-  [SessionProperty.duration]: { id: 34, name: 'duration', component: BenchType.SESSION, kind: 'primitive', primitiveType: PrimitiveType.FLOAT32, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
-  [SessionProperty.isRuntime]: { id: 40, name: 'is_runtime', component: BenchType.SESSION, kind: 'primitive', primitiveType: PrimitiveType.BOOLEAN, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
-  [SessionProperty.isReadonly]: { id: 41, name: 'is_readonly', component: BenchType.SESSION, kind: 'primitive', primitiveType: PrimitiveType.BOOLEAN, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
-  [SessionProperty.id]: { id: 2, name: 'id', component: BenchType.SESSION, kind: 'primitive', primitiveType: PrimitiveType.UUID, isRequired: true, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
-  [SessionProperty.setProperties]: { id: 22, name: 'set_properties', component: BenchType.SESSION, kind: 'primitive', primitiveType: PrimitiveType.INT32, isList: true, isRequired: true, isRuntime: true, isWired: true, isStored: true },
-  [SessionProperty.ck]: { id: 3, name: 'ck', component: BenchType.SESSION, kind: 'primitive', primitiveType: PrimitiveType.UUID, isRequired: true, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
-  [SessionProperty.source]: { id: 8, name: 'source', component: BenchType.SESSION, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true },
-  [SessionProperty.revision]: { id: 10, name: 'revision', component: BenchType.SESSION, kind: 'primitive', primitiveType: PrimitiveType.INT64, isRequired: true, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
-  [SessionProperty.createdAt]: { id: 11, name: 'created_at', component: BenchType.SESSION, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isRequired: true, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
-  [SessionProperty.updatedAt]: { id: 12, name: 'updated_at', component: BenchType.SESSION, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isRequired: true, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
-  [SessionProperty.deletedAt]: { id: 13, name: 'deleted_at', component: BenchType.SESSION, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
-  [SessionProperty.archivedAt]: { id: 14, name: 'archived_at', component: BenchType.SESSION, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
-  [SessionProperty.parentPtr]: { id: 4, name: 'parent_ptr', component: BenchType.SESSION, kind: 'reference', isInternal: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_PARENT, referenceNodes: [NodeType.PACKAGE], referenceStruct: StructType.NODE_REFERENCE },
-  [SessionProperty.serverPtr]: { id: 31, name: 'server_ptr', component: BenchType.SESSION, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.SERVER], referenceStruct: StructType.NODE_REFERENCE },
-  [SessionProperty.packagePtr]: { id: 6, name: 'package_ptr', component: BenchType.SESSION, kind: 'reference', isRequired: true, isInternal: true, isComputed: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_ANCESTOR_FIRST, referenceNodes: [NodeType.PACKAGE], referenceStruct: StructType.NODE_REFERENCE },
-  [SessionProperty.benchPtr]: { id: 7, name: 'bench_ptr', component: BenchType.SESSION, kind: 'reference', isRequired: true, isInternal: true, isComputed: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_ANCESTOR_FIRST, referenceNodes: [NodeType.BENCH], referenceStruct: StructType.NODE_REFERENCE },
-  [SessionProperty.createdByPtr]: { id: 17, name: 'created_by_ptr', component: BenchType.SESSION, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.USER, NodeType.RUN], referenceStruct: StructType.NODE_REFERENCE },
-  [SessionProperty.updatedByPtr]: { id: 18, name: 'updated_by_ptr', component: BenchType.SESSION, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.USER, NodeType.RUN], referenceStruct: StructType.NODE_REFERENCE },
+  [SessionProperty.metatype]: { id: 1, name: 'metatype', component: ObjectType.SESSION, kind: 'enum', primitiveType: PrimitiveType.STRING, isRequired: true, isInternal: true, isComputed: true, isWired: true },
+  [SessionProperty.openedAt]: { id: 32, name: 'opened_at', component: ObjectType.SESSION, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
+  [SessionProperty.closedAt]: { id: 33, name: 'closed_at', component: ObjectType.SESSION, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
+  [SessionProperty.duration]: { id: 34, name: 'duration', component: ObjectType.SESSION, kind: 'primitive', primitiveType: PrimitiveType.FLOAT32, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
+  [SessionProperty.isRuntime]: { id: 40, name: 'is_runtime', component: ObjectType.SESSION, kind: 'primitive', primitiveType: PrimitiveType.BOOLEAN, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
+  [SessionProperty.isReadonly]: { id: 41, name: 'is_readonly', component: ObjectType.SESSION, kind: 'primitive', primitiveType: PrimitiveType.BOOLEAN, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
+  [SessionProperty.id]: { id: 2, name: 'id', component: ObjectType.SESSION, kind: 'primitive', primitiveType: PrimitiveType.UUID, isRequired: true, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
+  [SessionProperty.setProperties]: { id: 22, name: 'set_properties', component: ObjectType.SESSION, kind: 'primitive', primitiveType: PrimitiveType.INT32, isList: true, isRequired: true, isRuntime: true, isWired: true, isStored: true },
+  [SessionProperty.ck]: { id: 3, name: 'ck', component: ObjectType.SESSION, kind: 'primitive', primitiveType: PrimitiveType.UUID, isRequired: true, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
+  [SessionProperty.source]: { id: 8, name: 'source', component: ObjectType.SESSION, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true },
+  [SessionProperty.revision]: { id: 10, name: 'revision', component: ObjectType.SESSION, kind: 'primitive', primitiveType: PrimitiveType.INT64, isRequired: true, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
+  [SessionProperty.createdAt]: { id: 11, name: 'created_at', component: ObjectType.SESSION, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isRequired: true, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
+  [SessionProperty.updatedAt]: { id: 12, name: 'updated_at', component: ObjectType.SESSION, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isRequired: true, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
+  [SessionProperty.deletedAt]: { id: 13, name: 'deleted_at', component: ObjectType.SESSION, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
+  [SessionProperty.archivedAt]: { id: 14, name: 'archived_at', component: ObjectType.SESSION, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
+  [SessionProperty.parentPtr]: { id: 4, name: 'parent_ptr', component: ObjectType.SESSION, kind: 'reference', isInternal: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_PARENT, referenceNodes: [NodeType.PACKAGE], referenceStruct: StructType.NODE_REFERENCE },
+  [SessionProperty.serverPtr]: { id: 31, name: 'server_ptr', component: ObjectType.SESSION, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.SERVER], referenceStruct: StructType.NODE_REFERENCE },
+  [SessionProperty.packagePtr]: { id: 6, name: 'package_ptr', component: ObjectType.SESSION, kind: 'reference', isRequired: true, isInternal: true, isComputed: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_ANCESTOR_FIRST, referenceNodes: [NodeType.PACKAGE], referenceStruct: StructType.NODE_REFERENCE },
+  [SessionProperty.benchPtr]: { id: 7, name: 'bench_ptr', component: ObjectType.SESSION, kind: 'reference', isRequired: true, isInternal: true, isComputed: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_ANCESTOR_FIRST, referenceNodes: [NodeType.BENCH], referenceStruct: StructType.NODE_REFERENCE },
+  [SessionProperty.createdByPtr]: { id: 17, name: 'created_by_ptr', component: ObjectType.SESSION, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.USER, NodeType.RUN], referenceStruct: StructType.NODE_REFERENCE },
+  [SessionProperty.updatedByPtr]: { id: 18, name: 'updated_by_ptr', component: ObjectType.SESSION, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.USER, NodeType.RUN], referenceStruct: StructType.NODE_REFERENCE },
 }
 export const RunDataInfo: Record<RunProperty, PropertyInfo> = {
-  [RunProperty.metatype]: { id: 1, name: 'metatype', component: BenchType.RUN, kind: 'enum', primitiveType: PrimitiveType.STRING, isRequired: true, isInternal: true, isComputed: true, isWired: true },
-  [RunProperty.scheduledAt]: { id: 35, name: 'scheduled_at', component: BenchType.RUN, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isRuntime: true, isWired: true, isStored: true },
-  [RunProperty.startedAt]: { id: 36, name: 'started_at', component: BenchType.RUN, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isRuntime: true, isWired: true, isStored: true },
-  [RunProperty.terminatedAt]: { id: 37, name: 'terminated_at', component: BenchType.RUN, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isRuntime: true, isWired: true, isStored: true },
-  [RunProperty.duration]: { id: 38, name: 'duration', component: BenchType.RUN, kind: 'primitive', primitiveType: PrimitiveType.FLOAT32, isRequired: true, isInternal: true, isRuntime: true, isWired: true, isStored: true },
-  [RunProperty.status]: { id: 39, name: 'status', component: BenchType.RUN, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isRuntime: true, isWired: true, isStored: true },
-  [RunProperty.inputsPacked]: { id: 50, name: 'inputs_packed', component: BenchType.RUN, kind: 'primitive', primitiveType: PrimitiveType.JSON, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true, isValuePacked: true },
-  [RunProperty.inputsSecretPacked]: { id: 51, name: 'inputs_secret_packed', component: BenchType.RUN, kind: 'primitive', primitiveType: PrimitiveType.JSON, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true, isDeferred: true, isSensitive: true, isEncrypted: true, isValuePacked: true },
-  [RunProperty.outputsPacked]: { id: 52, name: 'outputs_packed', component: BenchType.RUN, kind: 'primitive', primitiveType: PrimitiveType.JSON, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true, isValuePacked: true },
-  [RunProperty.outputsSecretPacked]: { id: 53, name: 'outputs_secret_packed', component: BenchType.RUN, kind: 'primitive', primitiveType: PrimitiveType.JSON, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true, isDeferred: true, isSensitive: true, isEncrypted: true, isValuePacked: true },
-  [RunProperty.valuePacked]: { id: 54, name: 'value_packed', component: BenchType.RUN, kind: 'primitive', primitiveType: PrimitiveType.JSON, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true, isValuePacked: true },
-  [RunProperty.valueSecretPacked]: { id: 55, name: 'value_secret_packed', component: BenchType.RUN, kind: 'primitive', primitiveType: PrimitiveType.JSON, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true, isDeferred: true, isSensitive: true, isEncrypted: true, isValuePacked: true },
-  [RunProperty.error]: { id: 56, name: 'error', component: BenchType.RUN, kind: 'primitive', primitiveType: PrimitiveType.JSON, isInternal: true, isRuntime: true, isWired: true, isStored: true },
-  [RunProperty.id]: { id: 2, name: 'id', component: BenchType.RUN, kind: 'primitive', primitiveType: PrimitiveType.UUID, isRequired: true, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
-  [RunProperty.setProperties]: { id: 22, name: 'set_properties', component: BenchType.RUN, kind: 'primitive', primitiveType: PrimitiveType.INT32, isList: true, isRequired: true, isRuntime: true, isWired: true, isStored: true },
-  [RunProperty.ck]: { id: 3, name: 'ck', component: BenchType.RUN, kind: 'primitive', primitiveType: PrimitiveType.UUID, isRequired: true, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
-  [RunProperty.source]: { id: 8, name: 'source', component: BenchType.RUN, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true },
-  [RunProperty.revision]: { id: 10, name: 'revision', component: BenchType.RUN, kind: 'primitive', primitiveType: PrimitiveType.INT64, isRequired: true, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
-  [RunProperty.createdAt]: { id: 11, name: 'created_at', component: BenchType.RUN, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isRequired: true, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
-  [RunProperty.updatedAt]: { id: 12, name: 'updated_at', component: BenchType.RUN, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isRequired: true, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
-  [RunProperty.deletedAt]: { id: 13, name: 'deleted_at', component: BenchType.RUN, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
-  [RunProperty.archivedAt]: { id: 14, name: 'archived_at', component: BenchType.RUN, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
-  [RunProperty.parentPtr]: { id: 4, name: 'parent_ptr', component: BenchType.RUN, kind: 'reference', isInternal: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_PARENT, referenceNodes: [NodeType.SESSION, NodeType.RUN], referenceStruct: StructType.NODE_REFERENCE },
-  [RunProperty.sessionPtr]: { id: 30, name: 'session_ptr', component: BenchType.RUN, kind: 'reference', isRequired: true, isInternal: true, isComputed: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_ANCESTOR_FIRST, referenceNodes: [NodeType.SESSION], referenceStruct: StructType.NODE_REFERENCE },
-  [RunProperty.rootPtr]: { id: 31, name: 'root_ptr', component: BenchType.RUN, kind: 'reference', isInternal: true, isComputed: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_ANCESTOR_ROOT, referenceNodes: [NodeType.RUN], referenceStruct: StructType.NODE_REFERENCE },
-  [RunProperty.serverPtr]: { id: 32, name: 'server_ptr', component: BenchType.RUN, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.SERVER], referenceStruct: StructType.NODE_REFERENCE },
-  [RunProperty.blockPtr]: { id: 33, name: 'block_ptr', component: BenchType.RUN, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.BLOCK], referenceStruct: StructType.NODE_REFERENCE },
-  [RunProperty.packagePtr]: { id: 6, name: 'package_ptr', component: BenchType.RUN, kind: 'reference', isRequired: true, isInternal: true, isComputed: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_ANCESTOR_FIRST, referenceNodes: [NodeType.PACKAGE], referenceStruct: StructType.NODE_REFERENCE },
-  [RunProperty.benchPtr]: { id: 7, name: 'bench_ptr', component: BenchType.RUN, kind: 'reference', isRequired: true, isInternal: true, isComputed: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_ANCESTOR_FIRST, referenceNodes: [NodeType.BENCH], referenceStruct: StructType.NODE_REFERENCE },
-  [RunProperty.createdByPtr]: { id: 17, name: 'created_by_ptr', component: BenchType.RUN, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.USER, NodeType.RUN], referenceStruct: StructType.NODE_REFERENCE },
-  [RunProperty.updatedByPtr]: { id: 18, name: 'updated_by_ptr', component: BenchType.RUN, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.USER, NodeType.RUN], referenceStruct: StructType.NODE_REFERENCE },
+  [RunProperty.metatype]: { id: 1, name: 'metatype', component: ObjectType.RUN, kind: 'enum', primitiveType: PrimitiveType.STRING, isRequired: true, isInternal: true, isComputed: true, isWired: true },
+  [RunProperty.scheduledAt]: { id: 35, name: 'scheduled_at', component: ObjectType.RUN, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isRuntime: true, isWired: true, isStored: true },
+  [RunProperty.startedAt]: { id: 36, name: 'started_at', component: ObjectType.RUN, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isRuntime: true, isWired: true, isStored: true },
+  [RunProperty.terminatedAt]: { id: 37, name: 'terminated_at', component: ObjectType.RUN, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isRuntime: true, isWired: true, isStored: true },
+  [RunProperty.duration]: { id: 38, name: 'duration', component: ObjectType.RUN, kind: 'primitive', primitiveType: PrimitiveType.FLOAT32, isRequired: true, isInternal: true, isRuntime: true, isWired: true, isStored: true },
+  [RunProperty.status]: { id: 39, name: 'status', component: ObjectType.RUN, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isRuntime: true, isWired: true, isStored: true },
+  [RunProperty.inputsPacked]: { id: 50, name: 'inputs_packed', component: ObjectType.RUN, kind: 'primitive', primitiveType: PrimitiveType.JSON, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true, isValuePacked: true },
+  [RunProperty.inputsSecretPacked]: { id: 51, name: 'inputs_secret_packed', component: ObjectType.RUN, kind: 'primitive', primitiveType: PrimitiveType.JSON, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true, isDeferred: true, isSensitive: true, isEncrypted: true, isValuePacked: true },
+  [RunProperty.outputsPacked]: { id: 52, name: 'outputs_packed', component: ObjectType.RUN, kind: 'primitive', primitiveType: PrimitiveType.JSON, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true, isValuePacked: true },
+  [RunProperty.outputsSecretPacked]: { id: 53, name: 'outputs_secret_packed', component: ObjectType.RUN, kind: 'primitive', primitiveType: PrimitiveType.JSON, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true, isDeferred: true, isSensitive: true, isEncrypted: true, isValuePacked: true },
+  [RunProperty.valuePacked]: { id: 54, name: 'value_packed', component: ObjectType.RUN, kind: 'primitive', primitiveType: PrimitiveType.JSON, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true, isValuePacked: true },
+  [RunProperty.valueSecretPacked]: { id: 55, name: 'value_secret_packed', component: ObjectType.RUN, kind: 'primitive', primitiveType: PrimitiveType.JSON, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true, isDeferred: true, isSensitive: true, isEncrypted: true, isValuePacked: true },
+  [RunProperty.error]: { id: 56, name: 'error', component: ObjectType.RUN, kind: 'primitive', primitiveType: PrimitiveType.JSON, isInternal: true, isRuntime: true, isWired: true, isStored: true },
+  [RunProperty.id]: { id: 2, name: 'id', component: ObjectType.RUN, kind: 'primitive', primitiveType: PrimitiveType.UUID, isRequired: true, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
+  [RunProperty.setProperties]: { id: 22, name: 'set_properties', component: ObjectType.RUN, kind: 'primitive', primitiveType: PrimitiveType.INT32, isList: true, isRequired: true, isRuntime: true, isWired: true, isStored: true },
+  [RunProperty.ck]: { id: 3, name: 'ck', component: ObjectType.RUN, kind: 'primitive', primitiveType: PrimitiveType.UUID, isRequired: true, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
+  [RunProperty.source]: { id: 8, name: 'source', component: ObjectType.RUN, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true },
+  [RunProperty.revision]: { id: 10, name: 'revision', component: ObjectType.RUN, kind: 'primitive', primitiveType: PrimitiveType.INT64, isRequired: true, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
+  [RunProperty.createdAt]: { id: 11, name: 'created_at', component: ObjectType.RUN, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isRequired: true, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
+  [RunProperty.updatedAt]: { id: 12, name: 'updated_at', component: ObjectType.RUN, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isRequired: true, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
+  [RunProperty.deletedAt]: { id: 13, name: 'deleted_at', component: ObjectType.RUN, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
+  [RunProperty.archivedAt]: { id: 14, name: 'archived_at', component: ObjectType.RUN, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
+  [RunProperty.parentPtr]: { id: 4, name: 'parent_ptr', component: ObjectType.RUN, kind: 'reference', isInternal: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_PARENT, referenceNodes: [NodeType.SESSION, NodeType.RUN], referenceStruct: StructType.NODE_REFERENCE },
+  [RunProperty.sessionPtr]: { id: 30, name: 'session_ptr', component: ObjectType.RUN, kind: 'reference', isRequired: true, isInternal: true, isComputed: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_ANCESTOR_FIRST, referenceNodes: [NodeType.SESSION], referenceStruct: StructType.NODE_REFERENCE },
+  [RunProperty.rootPtr]: { id: 31, name: 'root_ptr', component: ObjectType.RUN, kind: 'reference', isInternal: true, isComputed: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_ANCESTOR_ROOT, referenceNodes: [NodeType.RUN], referenceStruct: StructType.NODE_REFERENCE },
+  [RunProperty.serverPtr]: { id: 32, name: 'server_ptr', component: ObjectType.RUN, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.SERVER], referenceStruct: StructType.NODE_REFERENCE },
+  [RunProperty.blockPtr]: { id: 33, name: 'block_ptr', component: ObjectType.RUN, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.BLOCK], referenceStruct: StructType.NODE_REFERENCE },
+  [RunProperty.packagePtr]: { id: 6, name: 'package_ptr', component: ObjectType.RUN, kind: 'reference', isRequired: true, isInternal: true, isComputed: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_ANCESTOR_FIRST, referenceNodes: [NodeType.PACKAGE], referenceStruct: StructType.NODE_REFERENCE },
+  [RunProperty.benchPtr]: { id: 7, name: 'bench_ptr', component: ObjectType.RUN, kind: 'reference', isRequired: true, isInternal: true, isComputed: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_ANCESTOR_FIRST, referenceNodes: [NodeType.BENCH], referenceStruct: StructType.NODE_REFERENCE },
+  [RunProperty.createdByPtr]: { id: 17, name: 'created_by_ptr', component: ObjectType.RUN, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.USER, NodeType.RUN], referenceStruct: StructType.NODE_REFERENCE },
+  [RunProperty.updatedByPtr]: { id: 18, name: 'updated_by_ptr', component: ObjectType.RUN, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.USER, NodeType.RUN], referenceStruct: StructType.NODE_REFERENCE },
 }
 export const PauseDataInfo: Record<PauseProperty, PropertyInfo> = {
-  [PauseProperty.metatype]: { id: 1, name: 'metatype', component: BenchType.PAUSE, kind: 'enum', primitiveType: PrimitiveType.STRING, isRequired: true, isInternal: true, isComputed: true, isWired: true },
-  [PauseProperty.id]: { id: 2, name: 'id', component: BenchType.PAUSE, kind: 'primitive', primitiveType: PrimitiveType.UUID, isRequired: true, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
-  [PauseProperty.setProperties]: { id: 22, name: 'set_properties', component: BenchType.PAUSE, kind: 'primitive', primitiveType: PrimitiveType.INT32, isList: true, isRequired: true, isRuntime: true, isWired: true, isStored: true },
-  [PauseProperty.ck]: { id: 3, name: 'ck', component: BenchType.PAUSE, kind: 'primitive', primitiveType: PrimitiveType.UUID, isRequired: true, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
-  [PauseProperty.source]: { id: 8, name: 'source', component: BenchType.PAUSE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true },
-  [PauseProperty.revision]: { id: 10, name: 'revision', component: BenchType.PAUSE, kind: 'primitive', primitiveType: PrimitiveType.INT64, isRequired: true, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
-  [PauseProperty.createdAt]: { id: 11, name: 'created_at', component: BenchType.PAUSE, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isRequired: true, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
-  [PauseProperty.updatedAt]: { id: 12, name: 'updated_at', component: BenchType.PAUSE, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isRequired: true, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
-  [PauseProperty.deletedAt]: { id: 13, name: 'deleted_at', component: BenchType.PAUSE, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
-  [PauseProperty.archivedAt]: { id: 14, name: 'archived_at', component: BenchType.PAUSE, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
-  [PauseProperty.parentPtr]: { id: 4, name: 'parent_ptr', component: BenchType.PAUSE, kind: 'reference', isInternal: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_PARENT, referenceNodes: [NodeType.RUN], referenceStruct: StructType.NODE_REFERENCE },
-  [PauseProperty.sessionPtr]: { id: 30, name: 'session_ptr', component: BenchType.PAUSE, kind: 'reference', isRequired: true, isInternal: true, isComputed: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_ANCESTOR_FIRST, referenceNodes: [NodeType.SESSION], referenceStruct: StructType.NODE_REFERENCE },
-  [PauseProperty.packagePtr]: { id: 6, name: 'package_ptr', component: BenchType.PAUSE, kind: 'reference', isRequired: true, isInternal: true, isComputed: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_ANCESTOR_FIRST, referenceNodes: [NodeType.PACKAGE], referenceStruct: StructType.NODE_REFERENCE },
-  [PauseProperty.benchPtr]: { id: 7, name: 'bench_ptr', component: BenchType.PAUSE, kind: 'reference', isRequired: true, isInternal: true, isComputed: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_ANCESTOR_FIRST, referenceNodes: [NodeType.BENCH], referenceStruct: StructType.NODE_REFERENCE },
-  [PauseProperty.createdByPtr]: { id: 17, name: 'created_by_ptr', component: BenchType.PAUSE, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.USER, NodeType.RUN], referenceStruct: StructType.NODE_REFERENCE },
-  [PauseProperty.updatedByPtr]: { id: 18, name: 'updated_by_ptr', component: BenchType.PAUSE, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.USER, NodeType.RUN], referenceStruct: StructType.NODE_REFERENCE },
+  [PauseProperty.metatype]: { id: 1, name: 'metatype', component: ObjectType.PAUSE, kind: 'enum', primitiveType: PrimitiveType.STRING, isRequired: true, isInternal: true, isComputed: true, isWired: true },
+  [PauseProperty.id]: { id: 2, name: 'id', component: ObjectType.PAUSE, kind: 'primitive', primitiveType: PrimitiveType.UUID, isRequired: true, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
+  [PauseProperty.setProperties]: { id: 22, name: 'set_properties', component: ObjectType.PAUSE, kind: 'primitive', primitiveType: PrimitiveType.INT32, isList: true, isRequired: true, isRuntime: true, isWired: true, isStored: true },
+  [PauseProperty.ck]: { id: 3, name: 'ck', component: ObjectType.PAUSE, kind: 'primitive', primitiveType: PrimitiveType.UUID, isRequired: true, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
+  [PauseProperty.source]: { id: 8, name: 'source', component: ObjectType.PAUSE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true },
+  [PauseProperty.revision]: { id: 10, name: 'revision', component: ObjectType.PAUSE, kind: 'primitive', primitiveType: PrimitiveType.INT64, isRequired: true, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
+  [PauseProperty.createdAt]: { id: 11, name: 'created_at', component: ObjectType.PAUSE, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isRequired: true, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
+  [PauseProperty.updatedAt]: { id: 12, name: 'updated_at', component: ObjectType.PAUSE, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isRequired: true, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
+  [PauseProperty.deletedAt]: { id: 13, name: 'deleted_at', component: ObjectType.PAUSE, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
+  [PauseProperty.archivedAt]: { id: 14, name: 'archived_at', component: ObjectType.PAUSE, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
+  [PauseProperty.parentPtr]: { id: 4, name: 'parent_ptr', component: ObjectType.PAUSE, kind: 'reference', isInternal: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_PARENT, referenceNodes: [NodeType.RUN], referenceStruct: StructType.NODE_REFERENCE },
+  [PauseProperty.sessionPtr]: { id: 30, name: 'session_ptr', component: ObjectType.PAUSE, kind: 'reference', isRequired: true, isInternal: true, isComputed: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_ANCESTOR_FIRST, referenceNodes: [NodeType.SESSION], referenceStruct: StructType.NODE_REFERENCE },
+  [PauseProperty.packagePtr]: { id: 6, name: 'package_ptr', component: ObjectType.PAUSE, kind: 'reference', isRequired: true, isInternal: true, isComputed: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_ANCESTOR_FIRST, referenceNodes: [NodeType.PACKAGE], referenceStruct: StructType.NODE_REFERENCE },
+  [PauseProperty.benchPtr]: { id: 7, name: 'bench_ptr', component: ObjectType.PAUSE, kind: 'reference', isRequired: true, isInternal: true, isComputed: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_ANCESTOR_FIRST, referenceNodes: [NodeType.BENCH], referenceStruct: StructType.NODE_REFERENCE },
+  [PauseProperty.createdByPtr]: { id: 17, name: 'created_by_ptr', component: ObjectType.PAUSE, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.USER, NodeType.RUN], referenceStruct: StructType.NODE_REFERENCE },
+  [PauseProperty.updatedByPtr]: { id: 18, name: 'updated_by_ptr', component: ObjectType.PAUSE, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.USER, NodeType.RUN], referenceStruct: StructType.NODE_REFERENCE },
 }
 export const SignalDataInfo: Record<SignalProperty, PropertyInfo> = {
-  [SignalProperty.metatype]: { id: 1, name: 'metatype', component: BenchType.SIGNAL, kind: 'enum', primitiveType: PrimitiveType.STRING, isRequired: true, isInternal: true, isComputed: true, isWired: true },
-  [SignalProperty.valuePacked]: { id: 34, name: 'value_packed', component: BenchType.SIGNAL, kind: 'primitive', primitiveType: PrimitiveType.JSON, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true, isValuePacked: true },
-  [SignalProperty.secretValuePacked]: { id: 35, name: 'secret_value_packed', component: BenchType.SIGNAL, kind: 'primitive', primitiveType: PrimitiveType.JSON, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true, isDeferred: true, isSensitive: true, isEncrypted: true, isValuePacked: true },
-  [SignalProperty.id]: { id: 2, name: 'id', component: BenchType.SIGNAL, kind: 'primitive', primitiveType: PrimitiveType.UUID, isRequired: true, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
-  [SignalProperty.setProperties]: { id: 22, name: 'set_properties', component: BenchType.SIGNAL, kind: 'primitive', primitiveType: PrimitiveType.INT32, isList: true, isRequired: true, isRuntime: true, isWired: true, isStored: true },
-  [SignalProperty.ck]: { id: 3, name: 'ck', component: BenchType.SIGNAL, kind: 'primitive', primitiveType: PrimitiveType.UUID, isRequired: true, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
-  [SignalProperty.source]: { id: 8, name: 'source', component: BenchType.SIGNAL, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true },
-  [SignalProperty.revision]: { id: 10, name: 'revision', component: BenchType.SIGNAL, kind: 'primitive', primitiveType: PrimitiveType.INT64, isRequired: true, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
-  [SignalProperty.createdAt]: { id: 11, name: 'created_at', component: BenchType.SIGNAL, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isRequired: true, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
-  [SignalProperty.updatedAt]: { id: 12, name: 'updated_at', component: BenchType.SIGNAL, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isRequired: true, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
-  [SignalProperty.deletedAt]: { id: 13, name: 'deleted_at', component: BenchType.SIGNAL, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
-  [SignalProperty.archivedAt]: { id: 14, name: 'archived_at', component: BenchType.SIGNAL, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
-  [SignalProperty.parentPtr]: { id: 4, name: 'parent_ptr', component: BenchType.SIGNAL, kind: 'reference', isInternal: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_PARENT, referenceNodes: [NodeType.PACKAGE], referenceStruct: StructType.NODE_REFERENCE },
-  [SignalProperty.typePtr]: { id: 31, name: 'type_ptr', component: BenchType.SIGNAL, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.BLOCK], referenceStruct: StructType.NODE_REFERENCE },
-  [SignalProperty.senderPtr]: { id: 33, name: 'sender_ptr', component: BenchType.SIGNAL, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.BLOCK], referenceStruct: StructType.NODE_REFERENCE },
-  [SignalProperty.packagePtr]: { id: 6, name: 'package_ptr', component: BenchType.SIGNAL, kind: 'reference', isRequired: true, isInternal: true, isComputed: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_ANCESTOR_FIRST, referenceNodes: [NodeType.PACKAGE], referenceStruct: StructType.NODE_REFERENCE },
-  [SignalProperty.benchPtr]: { id: 7, name: 'bench_ptr', component: BenchType.SIGNAL, kind: 'reference', isRequired: true, isInternal: true, isComputed: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_ANCESTOR_FIRST, referenceNodes: [NodeType.BENCH], referenceStruct: StructType.NODE_REFERENCE },
-  [SignalProperty.createdByPtr]: { id: 17, name: 'created_by_ptr', component: BenchType.SIGNAL, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.USER, NodeType.RUN], referenceStruct: StructType.NODE_REFERENCE },
-  [SignalProperty.updatedByPtr]: { id: 18, name: 'updated_by_ptr', component: BenchType.SIGNAL, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.USER, NodeType.RUN], referenceStruct: StructType.NODE_REFERENCE },
+  [SignalProperty.metatype]: { id: 1, name: 'metatype', component: ObjectType.SIGNAL, kind: 'enum', primitiveType: PrimitiveType.STRING, isRequired: true, isInternal: true, isComputed: true, isWired: true },
+  [SignalProperty.valuePacked]: { id: 34, name: 'value_packed', component: ObjectType.SIGNAL, kind: 'primitive', primitiveType: PrimitiveType.JSON, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true, isValuePacked: true },
+  [SignalProperty.secretValuePacked]: { id: 35, name: 'secret_value_packed', component: ObjectType.SIGNAL, kind: 'primitive', primitiveType: PrimitiveType.JSON, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true, isDeferred: true, isSensitive: true, isEncrypted: true, isValuePacked: true },
+  [SignalProperty.id]: { id: 2, name: 'id', component: ObjectType.SIGNAL, kind: 'primitive', primitiveType: PrimitiveType.UUID, isRequired: true, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
+  [SignalProperty.setProperties]: { id: 22, name: 'set_properties', component: ObjectType.SIGNAL, kind: 'primitive', primitiveType: PrimitiveType.INT32, isList: true, isRequired: true, isRuntime: true, isWired: true, isStored: true },
+  [SignalProperty.ck]: { id: 3, name: 'ck', component: ObjectType.SIGNAL, kind: 'primitive', primitiveType: PrimitiveType.UUID, isRequired: true, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
+  [SignalProperty.source]: { id: 8, name: 'source', component: ObjectType.SIGNAL, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true },
+  [SignalProperty.revision]: { id: 10, name: 'revision', component: ObjectType.SIGNAL, kind: 'primitive', primitiveType: PrimitiveType.INT64, isRequired: true, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
+  [SignalProperty.createdAt]: { id: 11, name: 'created_at', component: ObjectType.SIGNAL, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isRequired: true, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
+  [SignalProperty.updatedAt]: { id: 12, name: 'updated_at', component: ObjectType.SIGNAL, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isRequired: true, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
+  [SignalProperty.deletedAt]: { id: 13, name: 'deleted_at', component: ObjectType.SIGNAL, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
+  [SignalProperty.archivedAt]: { id: 14, name: 'archived_at', component: ObjectType.SIGNAL, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
+  [SignalProperty.parentPtr]: { id: 4, name: 'parent_ptr', component: ObjectType.SIGNAL, kind: 'reference', isInternal: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_PARENT, referenceNodes: [NodeType.PACKAGE], referenceStruct: StructType.NODE_REFERENCE },
+  [SignalProperty.typePtr]: { id: 31, name: 'type_ptr', component: ObjectType.SIGNAL, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.BLOCK], referenceStruct: StructType.NODE_REFERENCE },
+  [SignalProperty.senderPtr]: { id: 33, name: 'sender_ptr', component: ObjectType.SIGNAL, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.BLOCK], referenceStruct: StructType.NODE_REFERENCE },
+  [SignalProperty.packagePtr]: { id: 6, name: 'package_ptr', component: ObjectType.SIGNAL, kind: 'reference', isRequired: true, isInternal: true, isComputed: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_ANCESTOR_FIRST, referenceNodes: [NodeType.PACKAGE], referenceStruct: StructType.NODE_REFERENCE },
+  [SignalProperty.benchPtr]: { id: 7, name: 'bench_ptr', component: ObjectType.SIGNAL, kind: 'reference', isRequired: true, isInternal: true, isComputed: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_ANCESTOR_FIRST, referenceNodes: [NodeType.BENCH], referenceStruct: StructType.NODE_REFERENCE },
+  [SignalProperty.createdByPtr]: { id: 17, name: 'created_by_ptr', component: ObjectType.SIGNAL, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.USER, NodeType.RUN], referenceStruct: StructType.NODE_REFERENCE },
+  [SignalProperty.updatedByPtr]: { id: 18, name: 'updated_by_ptr', component: ObjectType.SIGNAL, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.USER, NodeType.RUN], referenceStruct: StructType.NODE_REFERENCE },
 }
 export const LogDataInfo: Record<LogProperty, PropertyInfo> = {
-  [LogProperty.metatype]: { id: 1, name: 'metatype', component: BenchType.LOG, kind: 'enum', primitiveType: PrimitiveType.STRING, isRequired: true, isInternal: true, isComputed: true, isWired: true },
-  [LogProperty.kind]: { id: 30, name: 'kind', component: BenchType.LOG, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
-  [LogProperty.level]: { id: 31, name: 'level', component: BenchType.LOG, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
-  [LogProperty.logger]: { id: 32, name: 'logger', component: BenchType.LOG, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
-  [LogProperty.event]: { id: 33, name: 'event', component: BenchType.LOG, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
-  [LogProperty.message]: { id: 34, name: 'message', component: BenchType.LOG, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isRuntime: true, isWired: true, isStored: true },
-  [LogProperty.text]: { id: 35, name: 'text', component: BenchType.LOG, kind: 'reference', primitiveType: PrimitiveType.JSON, isInternal: true, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.TEXT },
-  [LogProperty.valuePacked]: { id: 36, name: 'value_packed', component: BenchType.LOG, kind: 'primitive', primitiveType: PrimitiveType.JSON, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true, isValuePacked: true },
-  [LogProperty.request]: { id: 37, name: 'request', component: BenchType.LOG, kind: 'reference', primitiveType: PrimitiveType.JSON, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.REQUEST },
-  [LogProperty.id]: { id: 2, name: 'id', component: BenchType.LOG, kind: 'primitive', primitiveType: PrimitiveType.UUID, isRequired: true, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
-  [LogProperty.setProperties]: { id: 22, name: 'set_properties', component: BenchType.LOG, kind: 'primitive', primitiveType: PrimitiveType.INT32, isList: true, isRequired: true, isRuntime: true, isWired: true, isStored: true },
-  [LogProperty.source]: { id: 8, name: 'source', component: BenchType.LOG, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true },
-  [LogProperty.revision]: { id: 10, name: 'revision', component: BenchType.LOG, kind: 'primitive', primitiveType: PrimitiveType.INT64, isRequired: true, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
-  [LogProperty.createdAt]: { id: 11, name: 'created_at', component: BenchType.LOG, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isRequired: true, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
-  [LogProperty.updatedAt]: { id: 12, name: 'updated_at', component: BenchType.LOG, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isRequired: true, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
-  [LogProperty.deletedAt]: { id: 13, name: 'deleted_at', component: BenchType.LOG, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
-  [LogProperty.archivedAt]: { id: 14, name: 'archived_at', component: BenchType.LOG, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
-  [LogProperty.parentPtr]: { id: 4, name: 'parent_ptr', component: BenchType.LOG, kind: 'reference', isInternal: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_PARENT, referenceNodes: [NodeType.PACKAGE], referenceStruct: StructType.NODE_REFERENCE },
-  [LogProperty.sessionPtr]: { id: 40, name: 'session_ptr', component: BenchType.LOG, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.SESSION], referenceStruct: StructType.NODE_REFERENCE },
-  [LogProperty.runPtr]: { id: 41, name: 'run_ptr', component: BenchType.LOG, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.RUN], referenceStruct: StructType.NODE_REFERENCE },
-  [LogProperty.blockPtr]: { id: 42, name: 'block_ptr', component: BenchType.LOG, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.BLOCK], referenceStruct: StructType.NODE_REFERENCE },
-  [LogProperty.packagePtr]: { id: 6, name: 'package_ptr', component: BenchType.LOG, kind: 'reference', isRequired: true, isInternal: true, isComputed: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_ANCESTOR_FIRST, referenceNodes: [NodeType.PACKAGE], referenceStruct: StructType.NODE_REFERENCE },
-  [LogProperty.benchPtr]: { id: 7, name: 'bench_ptr', component: BenchType.LOG, kind: 'reference', isRequired: true, isInternal: true, isComputed: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_ANCESTOR_FIRST, referenceNodes: [NodeType.BENCH], referenceStruct: StructType.NODE_REFERENCE },
-  [LogProperty.createdByPtr]: { id: 17, name: 'created_by_ptr', component: BenchType.LOG, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.USER, NodeType.RUN], referenceStruct: StructType.NODE_REFERENCE },
-  [LogProperty.updatedByPtr]: { id: 18, name: 'updated_by_ptr', component: BenchType.LOG, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.USER, NodeType.RUN], referenceStruct: StructType.NODE_REFERENCE },
+  [LogProperty.metatype]: { id: 1, name: 'metatype', component: ObjectType.LOG, kind: 'enum', primitiveType: PrimitiveType.STRING, isRequired: true, isInternal: true, isComputed: true, isWired: true },
+  [LogProperty.kind]: { id: 30, name: 'kind', component: ObjectType.LOG, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
+  [LogProperty.level]: { id: 31, name: 'level', component: ObjectType.LOG, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
+  [LogProperty.logger]: { id: 32, name: 'logger', component: ObjectType.LOG, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
+  [LogProperty.event]: { id: 33, name: 'event', component: ObjectType.LOG, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
+  [LogProperty.message]: { id: 34, name: 'message', component: ObjectType.LOG, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isRuntime: true, isWired: true, isStored: true },
+  [LogProperty.text]: { id: 35, name: 'text', component: ObjectType.LOG, kind: 'reference', primitiveType: PrimitiveType.JSON, isInternal: true, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.TEXT },
+  [LogProperty.valuePacked]: { id: 36, name: 'value_packed', component: ObjectType.LOG, kind: 'primitive', primitiveType: PrimitiveType.JSON, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true, isValuePacked: true },
+  [LogProperty.request]: { id: 37, name: 'request', component: ObjectType.LOG, kind: 'reference', primitiveType: PrimitiveType.JSON, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.REQUEST },
+  [LogProperty.id]: { id: 2, name: 'id', component: ObjectType.LOG, kind: 'primitive', primitiveType: PrimitiveType.UUID, isRequired: true, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
+  [LogProperty.setProperties]: { id: 22, name: 'set_properties', component: ObjectType.LOG, kind: 'primitive', primitiveType: PrimitiveType.INT32, isList: true, isRequired: true, isRuntime: true, isWired: true, isStored: true },
+  [LogProperty.source]: { id: 8, name: 'source', component: ObjectType.LOG, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true },
+  [LogProperty.revision]: { id: 10, name: 'revision', component: ObjectType.LOG, kind: 'primitive', primitiveType: PrimitiveType.INT64, isRequired: true, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
+  [LogProperty.createdAt]: { id: 11, name: 'created_at', component: ObjectType.LOG, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isRequired: true, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
+  [LogProperty.updatedAt]: { id: 12, name: 'updated_at', component: ObjectType.LOG, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isRequired: true, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
+  [LogProperty.deletedAt]: { id: 13, name: 'deleted_at', component: ObjectType.LOG, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
+  [LogProperty.archivedAt]: { id: 14, name: 'archived_at', component: ObjectType.LOG, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
+  [LogProperty.parentPtr]: { id: 4, name: 'parent_ptr', component: ObjectType.LOG, kind: 'reference', isInternal: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_PARENT, referenceNodes: [NodeType.PACKAGE], referenceStruct: StructType.NODE_REFERENCE },
+  [LogProperty.sessionPtr]: { id: 40, name: 'session_ptr', component: ObjectType.LOG, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.SESSION], referenceStruct: StructType.NODE_REFERENCE },
+  [LogProperty.runPtr]: { id: 41, name: 'run_ptr', component: ObjectType.LOG, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.RUN], referenceStruct: StructType.NODE_REFERENCE },
+  [LogProperty.blockPtr]: { id: 42, name: 'block_ptr', component: ObjectType.LOG, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.BLOCK], referenceStruct: StructType.NODE_REFERENCE },
+  [LogProperty.packagePtr]: { id: 6, name: 'package_ptr', component: ObjectType.LOG, kind: 'reference', isRequired: true, isInternal: true, isComputed: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_ANCESTOR_FIRST, referenceNodes: [NodeType.PACKAGE], referenceStruct: StructType.NODE_REFERENCE },
+  [LogProperty.benchPtr]: { id: 7, name: 'bench_ptr', component: ObjectType.LOG, kind: 'reference', isRequired: true, isInternal: true, isComputed: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_ANCESTOR_FIRST, referenceNodes: [NodeType.BENCH], referenceStruct: StructType.NODE_REFERENCE },
+  [LogProperty.createdByPtr]: { id: 17, name: 'created_by_ptr', component: ObjectType.LOG, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.USER, NodeType.RUN], referenceStruct: StructType.NODE_REFERENCE },
+  [LogProperty.updatedByPtr]: { id: 18, name: 'updated_by_ptr', component: ObjectType.LOG, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.USER, NodeType.RUN], referenceStruct: StructType.NODE_REFERENCE },
 }
 export const NotificationDataInfo: Record<NotificationProperty, PropertyInfo> = {
-  [NotificationProperty.metatype]: { id: 1, name: 'metatype', component: BenchType.NOTIFICATION, kind: 'enum', primitiveType: PrimitiveType.STRING, isRequired: true, isInternal: true, isComputed: true, isWired: true },
-  [NotificationProperty.kind]: { id: 30, name: 'kind', component: BenchType.NOTIFICATION, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isRuntime: true, isWired: true, isStored: true },
-  [NotificationProperty.expiresAt]: { id: 33, name: 'expires_at', component: BenchType.NOTIFICATION, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isRuntime: true, isWired: true, isStored: true },
-  [NotificationProperty.readAt]: { id: 34, name: 'read_at', component: BenchType.NOTIFICATION, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isRuntime: true, isWired: true, isStored: true },
-  [NotificationProperty.title]: { id: 40, name: 'title', component: BenchType.NOTIFICATION, kind: 'primitive', primitiveType: PrimitiveType.STRING, isRuntime: true, isWired: true, isStored: true },
-  [NotificationProperty.text]: { id: 41, name: 'text', component: BenchType.NOTIFICATION, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.TEXT },
-  [NotificationProperty.valuePacked]: { id: 42, name: 'value_packed', component: BenchType.NOTIFICATION, kind: 'primitive', primitiveType: PrimitiveType.JSON, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true, isValuePacked: true },
-  [NotificationProperty.secretValuePacked]: { id: 43, name: 'secret_value_packed', component: BenchType.NOTIFICATION, kind: 'primitive', primitiveType: PrimitiveType.JSON, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true, isDeferred: true, isSensitive: true, isEncrypted: true, isValuePacked: true },
-  [NotificationProperty.id]: { id: 2, name: 'id', component: BenchType.NOTIFICATION, kind: 'primitive', primitiveType: PrimitiveType.UUID, isRequired: true, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
-  [NotificationProperty.setProperties]: { id: 22, name: 'set_properties', component: BenchType.NOTIFICATION, kind: 'primitive', primitiveType: PrimitiveType.INT32, isList: true, isRequired: true, isRuntime: true, isWired: true, isStored: true },
-  [NotificationProperty.ck]: { id: 3, name: 'ck', component: BenchType.NOTIFICATION, kind: 'primitive', primitiveType: PrimitiveType.UUID, isRequired: true, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
-  [NotificationProperty.source]: { id: 8, name: 'source', component: BenchType.NOTIFICATION, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true },
-  [NotificationProperty.revision]: { id: 10, name: 'revision', component: BenchType.NOTIFICATION, kind: 'primitive', primitiveType: PrimitiveType.INT64, isRequired: true, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
-  [NotificationProperty.createdAt]: { id: 11, name: 'created_at', component: BenchType.NOTIFICATION, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isRequired: true, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
-  [NotificationProperty.updatedAt]: { id: 12, name: 'updated_at', component: BenchType.NOTIFICATION, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isRequired: true, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
-  [NotificationProperty.deletedAt]: { id: 13, name: 'deleted_at', component: BenchType.NOTIFICATION, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
-  [NotificationProperty.archivedAt]: { id: 14, name: 'archived_at', component: BenchType.NOTIFICATION, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
-  [NotificationProperty.parentPtr]: { id: 4, name: 'parent_ptr', component: BenchType.NOTIFICATION, kind: 'reference', isInternal: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_PARENT, referenceNodes: [NodeType.PACKAGE], referenceStruct: StructType.NODE_REFERENCE },
-  [NotificationProperty.typePtr]: { id: 32, name: 'type_ptr', component: BenchType.NOTIFICATION, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.BLOCK], referenceStruct: StructType.NODE_REFERENCE },
-  [NotificationProperty.senderPtr]: { id: 35, name: 'sender_ptr', component: BenchType.NOTIFICATION, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.BLOCK], referenceStruct: StructType.NODE_REFERENCE },
-  [NotificationProperty.packagePtr]: { id: 6, name: 'package_ptr', component: BenchType.NOTIFICATION, kind: 'reference', isRequired: true, isInternal: true, isComputed: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_ANCESTOR_FIRST, referenceNodes: [NodeType.PACKAGE], referenceStruct: StructType.NODE_REFERENCE },
-  [NotificationProperty.benchPtr]: { id: 7, name: 'bench_ptr', component: BenchType.NOTIFICATION, kind: 'reference', isRequired: true, isInternal: true, isComputed: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_ANCESTOR_FIRST, referenceNodes: [NodeType.BENCH], referenceStruct: StructType.NODE_REFERENCE },
-  [NotificationProperty.createdByPtr]: { id: 17, name: 'created_by_ptr', component: BenchType.NOTIFICATION, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.USER, NodeType.RUN], referenceStruct: StructType.NODE_REFERENCE },
-  [NotificationProperty.updatedByPtr]: { id: 18, name: 'updated_by_ptr', component: BenchType.NOTIFICATION, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.USER, NodeType.RUN], referenceStruct: StructType.NODE_REFERENCE },
+  [NotificationProperty.metatype]: { id: 1, name: 'metatype', component: ObjectType.NOTIFICATION, kind: 'enum', primitiveType: PrimitiveType.STRING, isRequired: true, isInternal: true, isComputed: true, isWired: true },
+  [NotificationProperty.kind]: { id: 30, name: 'kind', component: ObjectType.NOTIFICATION, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isRuntime: true, isWired: true, isStored: true },
+  [NotificationProperty.expiresAt]: { id: 33, name: 'expires_at', component: ObjectType.NOTIFICATION, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isRuntime: true, isWired: true, isStored: true },
+  [NotificationProperty.readAt]: { id: 34, name: 'read_at', component: ObjectType.NOTIFICATION, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isRuntime: true, isWired: true, isStored: true },
+  [NotificationProperty.title]: { id: 40, name: 'title', component: ObjectType.NOTIFICATION, kind: 'primitive', primitiveType: PrimitiveType.STRING, isRuntime: true, isWired: true, isStored: true },
+  [NotificationProperty.text]: { id: 41, name: 'text', component: ObjectType.NOTIFICATION, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.TEXT },
+  [NotificationProperty.valuePacked]: { id: 42, name: 'value_packed', component: ObjectType.NOTIFICATION, kind: 'primitive', primitiveType: PrimitiveType.JSON, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true, isValuePacked: true },
+  [NotificationProperty.secretValuePacked]: { id: 43, name: 'secret_value_packed', component: ObjectType.NOTIFICATION, kind: 'primitive', primitiveType: PrimitiveType.JSON, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true, isDeferred: true, isSensitive: true, isEncrypted: true, isValuePacked: true },
+  [NotificationProperty.id]: { id: 2, name: 'id', component: ObjectType.NOTIFICATION, kind: 'primitive', primitiveType: PrimitiveType.UUID, isRequired: true, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
+  [NotificationProperty.setProperties]: { id: 22, name: 'set_properties', component: ObjectType.NOTIFICATION, kind: 'primitive', primitiveType: PrimitiveType.INT32, isList: true, isRequired: true, isRuntime: true, isWired: true, isStored: true },
+  [NotificationProperty.ck]: { id: 3, name: 'ck', component: ObjectType.NOTIFICATION, kind: 'primitive', primitiveType: PrimitiveType.UUID, isRequired: true, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
+  [NotificationProperty.source]: { id: 8, name: 'source', component: ObjectType.NOTIFICATION, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true },
+  [NotificationProperty.revision]: { id: 10, name: 'revision', component: ObjectType.NOTIFICATION, kind: 'primitive', primitiveType: PrimitiveType.INT64, isRequired: true, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
+  [NotificationProperty.createdAt]: { id: 11, name: 'created_at', component: ObjectType.NOTIFICATION, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isRequired: true, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
+  [NotificationProperty.updatedAt]: { id: 12, name: 'updated_at', component: ObjectType.NOTIFICATION, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isRequired: true, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
+  [NotificationProperty.deletedAt]: { id: 13, name: 'deleted_at', component: ObjectType.NOTIFICATION, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
+  [NotificationProperty.archivedAt]: { id: 14, name: 'archived_at', component: ObjectType.NOTIFICATION, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
+  [NotificationProperty.parentPtr]: { id: 4, name: 'parent_ptr', component: ObjectType.NOTIFICATION, kind: 'reference', isInternal: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_PARENT, referenceNodes: [NodeType.PACKAGE], referenceStruct: StructType.NODE_REFERENCE },
+  [NotificationProperty.typePtr]: { id: 32, name: 'type_ptr', component: ObjectType.NOTIFICATION, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.BLOCK], referenceStruct: StructType.NODE_REFERENCE },
+  [NotificationProperty.senderPtr]: { id: 35, name: 'sender_ptr', component: ObjectType.NOTIFICATION, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.BLOCK], referenceStruct: StructType.NODE_REFERENCE },
+  [NotificationProperty.packagePtr]: { id: 6, name: 'package_ptr', component: ObjectType.NOTIFICATION, kind: 'reference', isRequired: true, isInternal: true, isComputed: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_ANCESTOR_FIRST, referenceNodes: [NodeType.PACKAGE], referenceStruct: StructType.NODE_REFERENCE },
+  [NotificationProperty.benchPtr]: { id: 7, name: 'bench_ptr', component: ObjectType.NOTIFICATION, kind: 'reference', isRequired: true, isInternal: true, isComputed: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_ANCESTOR_FIRST, referenceNodes: [NodeType.BENCH], referenceStruct: StructType.NODE_REFERENCE },
+  [NotificationProperty.createdByPtr]: { id: 17, name: 'created_by_ptr', component: ObjectType.NOTIFICATION, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.USER, NodeType.RUN], referenceStruct: StructType.NODE_REFERENCE },
+  [NotificationProperty.updatedByPtr]: { id: 18, name: 'updated_by_ptr', component: ObjectType.NOTIFICATION, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.USER, NodeType.RUN], referenceStruct: StructType.NODE_REFERENCE },
 }
 export const ServerDataInfo: Record<ServerProperty, PropertyInfo> = {
-  [ServerProperty.metatype]: { id: 1, name: 'metatype', component: BenchType.SERVER, kind: 'enum', primitiveType: PrimitiveType.STRING, isRequired: true, isInternal: true, isComputed: true, isWired: true },
-  [ServerProperty.profile]: { id: 40, name: 'profile', component: BenchType.SERVER, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isRuntime: true, isWired: true, isStored: true },
-  [ServerProperty.version]: { id: 42, name: 'version', component: BenchType.SERVER, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
-  [ServerProperty.isPaused]: { id: 43, name: 'is_paused', component: BenchType.SERVER, kind: 'primitive', primitiveType: PrimitiveType.BOOLEAN, isRequired: true, isRuntime: true, isWired: true, isStored: true },
-  [ServerProperty.currentProfile]: { id: 51, name: 'current_profile', component: BenchType.SERVER, kind: 'enum', primitiveType: PrimitiveType.INT16, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
-  [ServerProperty.currentVersion]: { id: 53, name: 'current_version', component: BenchType.SERVER, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
-  [ServerProperty.lastActiveAt]: { id: 54, name: 'last_active_at', component: BenchType.SERVER, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isRuntime: true, isWired: true, isStored: true },
-  [ServerProperty.lastBumpedAt]: { id: 55, name: 'last_bumped_at', component: BenchType.SERVER, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isRuntime: true, isWired: true, isStored: true },
-  [ServerProperty.id]: { id: 2, name: 'id', component: BenchType.SERVER, kind: 'primitive', primitiveType: PrimitiveType.UUID, isRequired: true, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
-  [ServerProperty.setProperties]: { id: 22, name: 'set_properties', component: BenchType.SERVER, kind: 'primitive', primitiveType: PrimitiveType.INT32, isList: true, isRequired: true, isRuntime: true, isWired: true, isStored: true },
-  [ServerProperty.source]: { id: 8, name: 'source', component: BenchType.SERVER, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true },
-  [ServerProperty.revision]: { id: 10, name: 'revision', component: BenchType.SERVER, kind: 'primitive', primitiveType: PrimitiveType.INT64, isRequired: true, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
-  [ServerProperty.createdAt]: { id: 11, name: 'created_at', component: BenchType.SERVER, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isRequired: true, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
-  [ServerProperty.updatedAt]: { id: 12, name: 'updated_at', component: BenchType.SERVER, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isRequired: true, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
-  [ServerProperty.deletedAt]: { id: 13, name: 'deleted_at', component: BenchType.SERVER, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
-  [ServerProperty.archivedAt]: { id: 14, name: 'archived_at', component: BenchType.SERVER, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
-  [ServerProperty.name]: { id: 32, name: 'name', component: BenchType.SERVER, kind: 'primitive', primitiveType: PrimitiveType.STRING, isRequired: true, isRuntime: true, isWired: true, isStored: true },
-  [ServerProperty.text]: { id: 34, name: 'text', component: BenchType.SERVER, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.TEXT },
-  [ServerProperty.region]: { id: 35, name: 'region', component: BenchType.SERVER, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
-  [ServerProperty.tenancy]: { id: 36, name: 'tenancy', component: BenchType.SERVER, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
-  [ServerProperty.status]: { id: 37, name: 'status', component: BenchType.SERVER, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
-  [ServerProperty.parentPtr]: { id: 4, name: 'parent_ptr', component: BenchType.SERVER, kind: 'reference', isInternal: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_PARENT, referenceNodes: [NodeType.BENCH], referenceStruct: StructType.NODE_REFERENCE },
-  [ServerProperty.benchPtr]: { id: 7, name: 'bench_ptr', component: BenchType.SERVER, kind: 'reference', isRequired: true, isInternal: true, isComputed: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_ANCESTOR_FIRST, referenceNodes: [NodeType.BENCH], referenceStruct: StructType.NODE_REFERENCE },
-  [ServerProperty.createdByPtr]: { id: 17, name: 'created_by_ptr', component: BenchType.SERVER, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.USER, NodeType.RUN], referenceStruct: StructType.NODE_REFERENCE },
-  [ServerProperty.updatedByPtr]: { id: 18, name: 'updated_by_ptr', component: BenchType.SERVER, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.USER, NodeType.RUN], referenceStruct: StructType.NODE_REFERENCE },
+  [ServerProperty.metatype]: { id: 1, name: 'metatype', component: ObjectType.SERVER, kind: 'enum', primitiveType: PrimitiveType.STRING, isRequired: true, isInternal: true, isComputed: true, isWired: true },
+  [ServerProperty.profile]: { id: 40, name: 'profile', component: ObjectType.SERVER, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isRuntime: true, isWired: true, isStored: true },
+  [ServerProperty.version]: { id: 42, name: 'version', component: ObjectType.SERVER, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
+  [ServerProperty.isPaused]: { id: 43, name: 'is_paused', component: ObjectType.SERVER, kind: 'primitive', primitiveType: PrimitiveType.BOOLEAN, isRequired: true, isRuntime: true, isWired: true, isStored: true },
+  [ServerProperty.currentProfile]: { id: 51, name: 'current_profile', component: ObjectType.SERVER, kind: 'enum', primitiveType: PrimitiveType.INT16, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
+  [ServerProperty.currentVersion]: { id: 53, name: 'current_version', component: ObjectType.SERVER, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
+  [ServerProperty.lastActiveAt]: { id: 54, name: 'last_active_at', component: ObjectType.SERVER, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isRuntime: true, isWired: true, isStored: true },
+  [ServerProperty.lastBumpedAt]: { id: 55, name: 'last_bumped_at', component: ObjectType.SERVER, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isRuntime: true, isWired: true, isStored: true },
+  [ServerProperty.id]: { id: 2, name: 'id', component: ObjectType.SERVER, kind: 'primitive', primitiveType: PrimitiveType.UUID, isRequired: true, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
+  [ServerProperty.setProperties]: { id: 22, name: 'set_properties', component: ObjectType.SERVER, kind: 'primitive', primitiveType: PrimitiveType.INT32, isList: true, isRequired: true, isRuntime: true, isWired: true, isStored: true },
+  [ServerProperty.source]: { id: 8, name: 'source', component: ObjectType.SERVER, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true },
+  [ServerProperty.revision]: { id: 10, name: 'revision', component: ObjectType.SERVER, kind: 'primitive', primitiveType: PrimitiveType.INT64, isRequired: true, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
+  [ServerProperty.createdAt]: { id: 11, name: 'created_at', component: ObjectType.SERVER, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isRequired: true, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
+  [ServerProperty.updatedAt]: { id: 12, name: 'updated_at', component: ObjectType.SERVER, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isRequired: true, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
+  [ServerProperty.deletedAt]: { id: 13, name: 'deleted_at', component: ObjectType.SERVER, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
+  [ServerProperty.archivedAt]: { id: 14, name: 'archived_at', component: ObjectType.SERVER, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
+  [ServerProperty.name]: { id: 32, name: 'name', component: ObjectType.SERVER, kind: 'primitive', primitiveType: PrimitiveType.STRING, isRequired: true, isRuntime: true, isWired: true, isStored: true },
+  [ServerProperty.text]: { id: 34, name: 'text', component: ObjectType.SERVER, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.TEXT },
+  [ServerProperty.region]: { id: 35, name: 'region', component: ObjectType.SERVER, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
+  [ServerProperty.tenancy]: { id: 36, name: 'tenancy', component: ObjectType.SERVER, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
+  [ServerProperty.status]: { id: 37, name: 'status', component: ObjectType.SERVER, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
+  [ServerProperty.parentPtr]: { id: 4, name: 'parent_ptr', component: ObjectType.SERVER, kind: 'reference', isInternal: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_PARENT, referenceNodes: [NodeType.BENCH], referenceStruct: StructType.NODE_REFERENCE },
+  [ServerProperty.benchPtr]: { id: 7, name: 'bench_ptr', component: ObjectType.SERVER, kind: 'reference', isRequired: true, isInternal: true, isComputed: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_ANCESTOR_FIRST, referenceNodes: [NodeType.BENCH], referenceStruct: StructType.NODE_REFERENCE },
+  [ServerProperty.createdByPtr]: { id: 17, name: 'created_by_ptr', component: ObjectType.SERVER, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.USER, NodeType.RUN], referenceStruct: StructType.NODE_REFERENCE },
+  [ServerProperty.updatedByPtr]: { id: 18, name: 'updated_by_ptr', component: ObjectType.SERVER, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.USER, NodeType.RUN], referenceStruct: StructType.NODE_REFERENCE },
 }
 export const StoreDataInfo: Record<StoreProperty, PropertyInfo> = {
-  [StoreProperty.metatype]: { id: 1, name: 'metatype', component: BenchType.STORE, kind: 'enum', primitiveType: PrimitiveType.STRING, isRequired: true, isInternal: true, isComputed: true, isWired: true },
-  [StoreProperty.kind]: { id: 40, name: 'kind', component: BenchType.STORE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
-  [StoreProperty.engine]: { id: 41, name: 'engine', component: BenchType.STORE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
-  [StoreProperty.version]: { id: 42, name: 'version', component: BenchType.STORE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
-  [StoreProperty.host]: { id: 50, name: 'host', component: BenchType.STORE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isSystem: true, isKernel: true, isRuntime: true, isWired: true, isStored: true, isSensitive: true },
-  [StoreProperty.database]: { id: 51, name: 'database', component: BenchType.STORE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isSystem: true, isKernel: true, isRuntime: true, isWired: true, isStored: true, isSensitive: true },
-  [StoreProperty.schema]: { id: 52, name: 'schema', component: BenchType.STORE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isSystem: true, isKernel: true, isRuntime: true, isWired: true, isStored: true, isSensitive: true },
-  [StoreProperty.mainCredential]: { id: 54, name: 'main_credential', component: BenchType.STORE, kind: 'reference', primitiveType: PrimitiveType.JSON, isInternal: true, isSystem: true, isKernel: true, isRuntime: true, isWired: true, isStored: true, isDeferred: true, isSensitive: true, isEncrypted: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.RESOURCE_CREDENTIAL },
-  [StoreProperty.id]: { id: 2, name: 'id', component: BenchType.STORE, kind: 'primitive', primitiveType: PrimitiveType.UUID, isRequired: true, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
-  [StoreProperty.setProperties]: { id: 22, name: 'set_properties', component: BenchType.STORE, kind: 'primitive', primitiveType: PrimitiveType.INT32, isList: true, isRequired: true, isRuntime: true, isWired: true, isStored: true },
-  [StoreProperty.source]: { id: 8, name: 'source', component: BenchType.STORE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true },
-  [StoreProperty.revision]: { id: 10, name: 'revision', component: BenchType.STORE, kind: 'primitive', primitiveType: PrimitiveType.INT64, isRequired: true, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
-  [StoreProperty.createdAt]: { id: 11, name: 'created_at', component: BenchType.STORE, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isRequired: true, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
-  [StoreProperty.updatedAt]: { id: 12, name: 'updated_at', component: BenchType.STORE, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isRequired: true, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
-  [StoreProperty.deletedAt]: { id: 13, name: 'deleted_at', component: BenchType.STORE, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
-  [StoreProperty.archivedAt]: { id: 14, name: 'archived_at', component: BenchType.STORE, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
-  [StoreProperty.name]: { id: 32, name: 'name', component: BenchType.STORE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isRequired: true, isRuntime: true, isWired: true, isStored: true },
-  [StoreProperty.text]: { id: 34, name: 'text', component: BenchType.STORE, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.TEXT },
-  [StoreProperty.region]: { id: 35, name: 'region', component: BenchType.STORE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
-  [StoreProperty.tenancy]: { id: 36, name: 'tenancy', component: BenchType.STORE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
-  [StoreProperty.status]: { id: 37, name: 'status', component: BenchType.STORE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
-  [StoreProperty.parentPtr]: { id: 4, name: 'parent_ptr', component: BenchType.STORE, kind: 'reference', isInternal: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_PARENT, referenceNodes: [NodeType.BENCH], referenceStruct: StructType.NODE_REFERENCE },
-  [StoreProperty.benchPtr]: { id: 7, name: 'bench_ptr', component: BenchType.STORE, kind: 'reference', isRequired: true, isInternal: true, isComputed: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_ANCESTOR_FIRST, referenceNodes: [NodeType.BENCH], referenceStruct: StructType.NODE_REFERENCE },
-  [StoreProperty.createdByPtr]: { id: 17, name: 'created_by_ptr', component: BenchType.STORE, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.USER, NodeType.RUN], referenceStruct: StructType.NODE_REFERENCE },
-  [StoreProperty.updatedByPtr]: { id: 18, name: 'updated_by_ptr', component: BenchType.STORE, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.USER, NodeType.RUN], referenceStruct: StructType.NODE_REFERENCE },
+  [StoreProperty.metatype]: { id: 1, name: 'metatype', component: ObjectType.STORE, kind: 'enum', primitiveType: PrimitiveType.STRING, isRequired: true, isInternal: true, isComputed: true, isWired: true },
+  [StoreProperty.kind]: { id: 40, name: 'kind', component: ObjectType.STORE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
+  [StoreProperty.engine]: { id: 41, name: 'engine', component: ObjectType.STORE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
+  [StoreProperty.version]: { id: 42, name: 'version', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
+  [StoreProperty.host]: { id: 50, name: 'host', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isSystem: true, isKernel: true, isRuntime: true, isWired: true, isStored: true, isSensitive: true },
+  [StoreProperty.database]: { id: 51, name: 'database', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isSystem: true, isKernel: true, isRuntime: true, isWired: true, isStored: true, isSensitive: true },
+  [StoreProperty.schema]: { id: 52, name: 'schema', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isSystem: true, isKernel: true, isRuntime: true, isWired: true, isStored: true, isSensitive: true },
+  [StoreProperty.mainCredential]: { id: 54, name: 'main_credential', component: ObjectType.STORE, kind: 'reference', primitiveType: PrimitiveType.JSON, isInternal: true, isSystem: true, isKernel: true, isRuntime: true, isWired: true, isStored: true, isDeferred: true, isSensitive: true, isEncrypted: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.RESOURCE_CREDENTIAL },
+  [StoreProperty.id]: { id: 2, name: 'id', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.UUID, isRequired: true, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
+  [StoreProperty.setProperties]: { id: 22, name: 'set_properties', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.INT32, isList: true, isRequired: true, isRuntime: true, isWired: true, isStored: true },
+  [StoreProperty.source]: { id: 8, name: 'source', component: ObjectType.STORE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true },
+  [StoreProperty.revision]: { id: 10, name: 'revision', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.INT64, isRequired: true, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
+  [StoreProperty.createdAt]: { id: 11, name: 'created_at', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isRequired: true, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
+  [StoreProperty.updatedAt]: { id: 12, name: 'updated_at', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isRequired: true, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
+  [StoreProperty.deletedAt]: { id: 13, name: 'deleted_at', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
+  [StoreProperty.archivedAt]: { id: 14, name: 'archived_at', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
+  [StoreProperty.name]: { id: 32, name: 'name', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isRequired: true, isRuntime: true, isWired: true, isStored: true },
+  [StoreProperty.text]: { id: 34, name: 'text', component: ObjectType.STORE, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.TEXT },
+  [StoreProperty.region]: { id: 35, name: 'region', component: ObjectType.STORE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
+  [StoreProperty.tenancy]: { id: 36, name: 'tenancy', component: ObjectType.STORE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
+  [StoreProperty.status]: { id: 37, name: 'status', component: ObjectType.STORE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
+  [StoreProperty.parentPtr]: { id: 4, name: 'parent_ptr', component: ObjectType.STORE, kind: 'reference', isInternal: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_PARENT, referenceNodes: [NodeType.BENCH], referenceStruct: StructType.NODE_REFERENCE },
+  [StoreProperty.benchPtr]: { id: 7, name: 'bench_ptr', component: ObjectType.STORE, kind: 'reference', isRequired: true, isInternal: true, isComputed: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_ANCESTOR_FIRST, referenceNodes: [NodeType.BENCH], referenceStruct: StructType.NODE_REFERENCE },
+  [StoreProperty.createdByPtr]: { id: 17, name: 'created_by_ptr', component: ObjectType.STORE, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.USER, NodeType.RUN], referenceStruct: StructType.NODE_REFERENCE },
+  [StoreProperty.updatedByPtr]: { id: 18, name: 'updated_by_ptr', component: ObjectType.STORE, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.USER, NodeType.RUN], referenceStruct: StructType.NODE_REFERENCE },
 }
 export const DriveDataInfo: Record<DriveProperty, PropertyInfo> = {
-  [DriveProperty.metatype]: { id: 1, name: 'metatype', component: BenchType.DRIVE, kind: 'enum', primitiveType: PrimitiveType.STRING, isRequired: true, isInternal: true, isComputed: true, isWired: true },
-  [DriveProperty.id]: { id: 2, name: 'id', component: BenchType.DRIVE, kind: 'primitive', primitiveType: PrimitiveType.UUID, isRequired: true, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
-  [DriveProperty.setProperties]: { id: 22, name: 'set_properties', component: BenchType.DRIVE, kind: 'primitive', primitiveType: PrimitiveType.INT32, isList: true, isRequired: true, isRuntime: true, isWired: true, isStored: true },
-  [DriveProperty.source]: { id: 8, name: 'source', component: BenchType.DRIVE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true },
-  [DriveProperty.revision]: { id: 10, name: 'revision', component: BenchType.DRIVE, kind: 'primitive', primitiveType: PrimitiveType.INT64, isRequired: true, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
-  [DriveProperty.createdAt]: { id: 11, name: 'created_at', component: BenchType.DRIVE, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isRequired: true, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
-  [DriveProperty.updatedAt]: { id: 12, name: 'updated_at', component: BenchType.DRIVE, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isRequired: true, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
-  [DriveProperty.deletedAt]: { id: 13, name: 'deleted_at', component: BenchType.DRIVE, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
-  [DriveProperty.archivedAt]: { id: 14, name: 'archived_at', component: BenchType.DRIVE, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
-  [DriveProperty.name]: { id: 32, name: 'name', component: BenchType.DRIVE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isRequired: true, isRuntime: true, isWired: true, isStored: true },
-  [DriveProperty.text]: { id: 34, name: 'text', component: BenchType.DRIVE, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.TEXT },
-  [DriveProperty.region]: { id: 35, name: 'region', component: BenchType.DRIVE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
-  [DriveProperty.tenancy]: { id: 36, name: 'tenancy', component: BenchType.DRIVE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
-  [DriveProperty.status]: { id: 37, name: 'status', component: BenchType.DRIVE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
-  [DriveProperty.parentPtr]: { id: 4, name: 'parent_ptr', component: BenchType.DRIVE, kind: 'reference', isInternal: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_PARENT, referenceNodes: [NodeType.BENCH], referenceStruct: StructType.NODE_REFERENCE },
-  [DriveProperty.benchPtr]: { id: 7, name: 'bench_ptr', component: BenchType.DRIVE, kind: 'reference', isRequired: true, isInternal: true, isComputed: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_ANCESTOR_FIRST, referenceNodes: [NodeType.BENCH], referenceStruct: StructType.NODE_REFERENCE },
-  [DriveProperty.createdByPtr]: { id: 17, name: 'created_by_ptr', component: BenchType.DRIVE, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.USER, NodeType.RUN], referenceStruct: StructType.NODE_REFERENCE },
-  [DriveProperty.updatedByPtr]: { id: 18, name: 'updated_by_ptr', component: BenchType.DRIVE, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.USER, NodeType.RUN], referenceStruct: StructType.NODE_REFERENCE },
+  [DriveProperty.metatype]: { id: 1, name: 'metatype', component: ObjectType.DRIVE, kind: 'enum', primitiveType: PrimitiveType.STRING, isRequired: true, isInternal: true, isComputed: true, isWired: true },
+  [DriveProperty.id]: { id: 2, name: 'id', component: ObjectType.DRIVE, kind: 'primitive', primitiveType: PrimitiveType.UUID, isRequired: true, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
+  [DriveProperty.setProperties]: { id: 22, name: 'set_properties', component: ObjectType.DRIVE, kind: 'primitive', primitiveType: PrimitiveType.INT32, isList: true, isRequired: true, isRuntime: true, isWired: true, isStored: true },
+  [DriveProperty.source]: { id: 8, name: 'source', component: ObjectType.DRIVE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true },
+  [DriveProperty.revision]: { id: 10, name: 'revision', component: ObjectType.DRIVE, kind: 'primitive', primitiveType: PrimitiveType.INT64, isRequired: true, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
+  [DriveProperty.createdAt]: { id: 11, name: 'created_at', component: ObjectType.DRIVE, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isRequired: true, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
+  [DriveProperty.updatedAt]: { id: 12, name: 'updated_at', component: ObjectType.DRIVE, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isRequired: true, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
+  [DriveProperty.deletedAt]: { id: 13, name: 'deleted_at', component: ObjectType.DRIVE, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
+  [DriveProperty.archivedAt]: { id: 14, name: 'archived_at', component: ObjectType.DRIVE, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
+  [DriveProperty.name]: { id: 32, name: 'name', component: ObjectType.DRIVE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isRequired: true, isRuntime: true, isWired: true, isStored: true },
+  [DriveProperty.text]: { id: 34, name: 'text', component: ObjectType.DRIVE, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.TEXT },
+  [DriveProperty.region]: { id: 35, name: 'region', component: ObjectType.DRIVE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
+  [DriveProperty.tenancy]: { id: 36, name: 'tenancy', component: ObjectType.DRIVE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
+  [DriveProperty.status]: { id: 37, name: 'status', component: ObjectType.DRIVE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
+  [DriveProperty.parentPtr]: { id: 4, name: 'parent_ptr', component: ObjectType.DRIVE, kind: 'reference', isInternal: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_PARENT, referenceNodes: [NodeType.BENCH], referenceStruct: StructType.NODE_REFERENCE },
+  [DriveProperty.benchPtr]: { id: 7, name: 'bench_ptr', component: ObjectType.DRIVE, kind: 'reference', isRequired: true, isInternal: true, isComputed: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_ANCESTOR_FIRST, referenceNodes: [NodeType.BENCH], referenceStruct: StructType.NODE_REFERENCE },
+  [DriveProperty.createdByPtr]: { id: 17, name: 'created_by_ptr', component: ObjectType.DRIVE, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.USER, NodeType.RUN], referenceStruct: StructType.NODE_REFERENCE },
+  [DriveProperty.updatedByPtr]: { id: 18, name: 'updated_by_ptr', component: ObjectType.DRIVE, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.USER, NodeType.RUN], referenceStruct: StructType.NODE_REFERENCE },
 }
 export const CacheDataInfo: Record<CacheProperty, PropertyInfo> = {
-  [CacheProperty.metatype]: { id: 1, name: 'metatype', component: BenchType.CACHE, kind: 'enum', primitiveType: PrimitiveType.STRING, isRequired: true, isInternal: true, isComputed: true, isWired: true },
-  [CacheProperty.id]: { id: 2, name: 'id', component: BenchType.CACHE, kind: 'primitive', primitiveType: PrimitiveType.UUID, isRequired: true, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
-  [CacheProperty.setProperties]: { id: 22, name: 'set_properties', component: BenchType.CACHE, kind: 'primitive', primitiveType: PrimitiveType.INT32, isList: true, isRequired: true, isRuntime: true, isWired: true, isStored: true },
-  [CacheProperty.source]: { id: 8, name: 'source', component: BenchType.CACHE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true },
-  [CacheProperty.revision]: { id: 10, name: 'revision', component: BenchType.CACHE, kind: 'primitive', primitiveType: PrimitiveType.INT64, isRequired: true, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
-  [CacheProperty.createdAt]: { id: 11, name: 'created_at', component: BenchType.CACHE, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isRequired: true, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
-  [CacheProperty.updatedAt]: { id: 12, name: 'updated_at', component: BenchType.CACHE, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isRequired: true, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
-  [CacheProperty.deletedAt]: { id: 13, name: 'deleted_at', component: BenchType.CACHE, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
-  [CacheProperty.archivedAt]: { id: 14, name: 'archived_at', component: BenchType.CACHE, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
-  [CacheProperty.name]: { id: 32, name: 'name', component: BenchType.CACHE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isRequired: true, isRuntime: true, isWired: true, isStored: true },
-  [CacheProperty.text]: { id: 34, name: 'text', component: BenchType.CACHE, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.TEXT },
-  [CacheProperty.region]: { id: 35, name: 'region', component: BenchType.CACHE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
-  [CacheProperty.tenancy]: { id: 36, name: 'tenancy', component: BenchType.CACHE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
-  [CacheProperty.status]: { id: 37, name: 'status', component: BenchType.CACHE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
-  [CacheProperty.parentPtr]: { id: 4, name: 'parent_ptr', component: BenchType.CACHE, kind: 'reference', isInternal: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_PARENT, referenceNodes: [NodeType.BENCH], referenceStruct: StructType.NODE_REFERENCE },
-  [CacheProperty.benchPtr]: { id: 7, name: 'bench_ptr', component: BenchType.CACHE, kind: 'reference', isRequired: true, isInternal: true, isComputed: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_ANCESTOR_FIRST, referenceNodes: [NodeType.BENCH], referenceStruct: StructType.NODE_REFERENCE },
-  [CacheProperty.createdByPtr]: { id: 17, name: 'created_by_ptr', component: BenchType.CACHE, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.USER, NodeType.RUN], referenceStruct: StructType.NODE_REFERENCE },
-  [CacheProperty.updatedByPtr]: { id: 18, name: 'updated_by_ptr', component: BenchType.CACHE, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.USER, NodeType.RUN], referenceStruct: StructType.NODE_REFERENCE },
+  [CacheProperty.metatype]: { id: 1, name: 'metatype', component: ObjectType.CACHE, kind: 'enum', primitiveType: PrimitiveType.STRING, isRequired: true, isInternal: true, isComputed: true, isWired: true },
+  [CacheProperty.id]: { id: 2, name: 'id', component: ObjectType.CACHE, kind: 'primitive', primitiveType: PrimitiveType.UUID, isRequired: true, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
+  [CacheProperty.setProperties]: { id: 22, name: 'set_properties', component: ObjectType.CACHE, kind: 'primitive', primitiveType: PrimitiveType.INT32, isList: true, isRequired: true, isRuntime: true, isWired: true, isStored: true },
+  [CacheProperty.source]: { id: 8, name: 'source', component: ObjectType.CACHE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true },
+  [CacheProperty.revision]: { id: 10, name: 'revision', component: ObjectType.CACHE, kind: 'primitive', primitiveType: PrimitiveType.INT64, isRequired: true, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
+  [CacheProperty.createdAt]: { id: 11, name: 'created_at', component: ObjectType.CACHE, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isRequired: true, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
+  [CacheProperty.updatedAt]: { id: 12, name: 'updated_at', component: ObjectType.CACHE, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isRequired: true, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
+  [CacheProperty.deletedAt]: { id: 13, name: 'deleted_at', component: ObjectType.CACHE, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
+  [CacheProperty.archivedAt]: { id: 14, name: 'archived_at', component: ObjectType.CACHE, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
+  [CacheProperty.name]: { id: 32, name: 'name', component: ObjectType.CACHE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isRequired: true, isRuntime: true, isWired: true, isStored: true },
+  [CacheProperty.text]: { id: 34, name: 'text', component: ObjectType.CACHE, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.TEXT },
+  [CacheProperty.region]: { id: 35, name: 'region', component: ObjectType.CACHE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
+  [CacheProperty.tenancy]: { id: 36, name: 'tenancy', component: ObjectType.CACHE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
+  [CacheProperty.status]: { id: 37, name: 'status', component: ObjectType.CACHE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
+  [CacheProperty.parentPtr]: { id: 4, name: 'parent_ptr', component: ObjectType.CACHE, kind: 'reference', isInternal: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_PARENT, referenceNodes: [NodeType.BENCH], referenceStruct: StructType.NODE_REFERENCE },
+  [CacheProperty.benchPtr]: { id: 7, name: 'bench_ptr', component: ObjectType.CACHE, kind: 'reference', isRequired: true, isInternal: true, isComputed: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_ANCESTOR_FIRST, referenceNodes: [NodeType.BENCH], referenceStruct: StructType.NODE_REFERENCE },
+  [CacheProperty.createdByPtr]: { id: 17, name: 'created_by_ptr', component: ObjectType.CACHE, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.USER, NodeType.RUN], referenceStruct: StructType.NODE_REFERENCE },
+  [CacheProperty.updatedByPtr]: { id: 18, name: 'updated_by_ptr', component: ObjectType.CACHE, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.USER, NodeType.RUN], referenceStruct: StructType.NODE_REFERENCE },
 }
 export const FileContentDataInfo: Record<FileContentProperty, PropertyInfo> = {
-  [FileContentProperty.metatype]: { id: 1, name: 'metatype', component: BenchType.FILE_CONTENT, kind: 'enum', primitiveType: PrimitiveType.STRING, isRequired: true, isInternal: true, isComputed: true, isWired: true },
-  [FileContentProperty.sha512]: { id: 30, name: 'sha512', component: BenchType.FILE_CONTENT, kind: 'primitive', primitiveType: PrimitiveType.STRING, isRequired: true, isInternal: true, isRuntime: true, isWired: true, isStored: true },
-  [FileContentProperty.size]: { id: 31, name: 'size', component: BenchType.FILE_CONTENT, kind: 'primitive', primitiveType: PrimitiveType.INT64, isRequired: true, isInternal: true, isRuntime: true, isWired: true, isStored: true },
-  [FileContentProperty.type]: { id: 32, name: 'type', component: BenchType.FILE_CONTENT, kind: 'primitive', primitiveType: PrimitiveType.STRING, isRequired: true, isInternal: true, isRuntime: true, isWired: true, isStored: true },
-  [FileContentProperty.status]: { id: 33, name: 'status', component: BenchType.FILE_CONTENT, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isRuntime: true, isWired: true, isStored: true },
-  [FileContentProperty.retention]: { id: 34, name: 'retention', component: BenchType.FILE_CONTENT, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isRuntime: true, isWired: true, isStored: true },
-  [FileContentProperty.expiresAt]: { id: 35, name: 'expires_at', component: BenchType.FILE_CONTENT, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isRuntime: true, isWired: true, isStored: true },
-  [FileContentProperty.id]: { id: 2, name: 'id', component: BenchType.FILE_CONTENT, kind: 'primitive', primitiveType: PrimitiveType.UUID, isRequired: true, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
-  [FileContentProperty.setProperties]: { id: 22, name: 'set_properties', component: BenchType.FILE_CONTENT, kind: 'primitive', primitiveType: PrimitiveType.INT32, isList: true, isRequired: true, isRuntime: true, isWired: true, isStored: true },
-  [FileContentProperty.source]: { id: 8, name: 'source', component: BenchType.FILE_CONTENT, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true },
-  [FileContentProperty.revision]: { id: 10, name: 'revision', component: BenchType.FILE_CONTENT, kind: 'primitive', primitiveType: PrimitiveType.INT64, isRequired: true, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
-  [FileContentProperty.createdAt]: { id: 11, name: 'created_at', component: BenchType.FILE_CONTENT, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isRequired: true, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
-  [FileContentProperty.updatedAt]: { id: 12, name: 'updated_at', component: BenchType.FILE_CONTENT, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isRequired: true, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
-  [FileContentProperty.deletedAt]: { id: 13, name: 'deleted_at', component: BenchType.FILE_CONTENT, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
-  [FileContentProperty.archivedAt]: { id: 14, name: 'archived_at', component: BenchType.FILE_CONTENT, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
-  [FileContentProperty.parentPtr]: { id: 4, name: 'parent_ptr', component: BenchType.FILE_CONTENT, kind: 'reference', isInternal: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_PARENT, referenceNodes: [NodeType.DRIVE], referenceStruct: StructType.NODE_REFERENCE },
-  [FileContentProperty.benchPtr]: { id: 7, name: 'bench_ptr', component: BenchType.FILE_CONTENT, kind: 'reference', isRequired: true, isInternal: true, isComputed: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_ANCESTOR_FIRST, referenceNodes: [NodeType.BENCH], referenceStruct: StructType.NODE_REFERENCE },
-  [FileContentProperty.createdByPtr]: { id: 17, name: 'created_by_ptr', component: BenchType.FILE_CONTENT, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.USER, NodeType.RUN], referenceStruct: StructType.NODE_REFERENCE },
-  [FileContentProperty.updatedByPtr]: { id: 18, name: 'updated_by_ptr', component: BenchType.FILE_CONTENT, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.USER, NodeType.RUN], referenceStruct: StructType.NODE_REFERENCE },
+  [FileContentProperty.metatype]: { id: 1, name: 'metatype', component: ObjectType.FILE_CONTENT, kind: 'enum', primitiveType: PrimitiveType.STRING, isRequired: true, isInternal: true, isComputed: true, isWired: true },
+  [FileContentProperty.sha512]: { id: 30, name: 'sha512', component: ObjectType.FILE_CONTENT, kind: 'primitive', primitiveType: PrimitiveType.STRING, isRequired: true, isInternal: true, isRuntime: true, isWired: true, isStored: true },
+  [FileContentProperty.size]: { id: 31, name: 'size', component: ObjectType.FILE_CONTENT, kind: 'primitive', primitiveType: PrimitiveType.INT64, isRequired: true, isInternal: true, isRuntime: true, isWired: true, isStored: true },
+  [FileContentProperty.type]: { id: 32, name: 'type', component: ObjectType.FILE_CONTENT, kind: 'primitive', primitiveType: PrimitiveType.STRING, isRequired: true, isInternal: true, isRuntime: true, isWired: true, isStored: true },
+  [FileContentProperty.status]: { id: 33, name: 'status', component: ObjectType.FILE_CONTENT, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isRuntime: true, isWired: true, isStored: true },
+  [FileContentProperty.retention]: { id: 34, name: 'retention', component: ObjectType.FILE_CONTENT, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isRuntime: true, isWired: true, isStored: true },
+  [FileContentProperty.expiresAt]: { id: 35, name: 'expires_at', component: ObjectType.FILE_CONTENT, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isRuntime: true, isWired: true, isStored: true },
+  [FileContentProperty.id]: { id: 2, name: 'id', component: ObjectType.FILE_CONTENT, kind: 'primitive', primitiveType: PrimitiveType.UUID, isRequired: true, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
+  [FileContentProperty.setProperties]: { id: 22, name: 'set_properties', component: ObjectType.FILE_CONTENT, kind: 'primitive', primitiveType: PrimitiveType.INT32, isList: true, isRequired: true, isRuntime: true, isWired: true, isStored: true },
+  [FileContentProperty.source]: { id: 8, name: 'source', component: ObjectType.FILE_CONTENT, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true },
+  [FileContentProperty.revision]: { id: 10, name: 'revision', component: ObjectType.FILE_CONTENT, kind: 'primitive', primitiveType: PrimitiveType.INT64, isRequired: true, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
+  [FileContentProperty.createdAt]: { id: 11, name: 'created_at', component: ObjectType.FILE_CONTENT, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isRequired: true, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
+  [FileContentProperty.updatedAt]: { id: 12, name: 'updated_at', component: ObjectType.FILE_CONTENT, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isRequired: true, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
+  [FileContentProperty.deletedAt]: { id: 13, name: 'deleted_at', component: ObjectType.FILE_CONTENT, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
+  [FileContentProperty.archivedAt]: { id: 14, name: 'archived_at', component: ObjectType.FILE_CONTENT, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
+  [FileContentProperty.parentPtr]: { id: 4, name: 'parent_ptr', component: ObjectType.FILE_CONTENT, kind: 'reference', isInternal: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_PARENT, referenceNodes: [NodeType.DRIVE], referenceStruct: StructType.NODE_REFERENCE },
+  [FileContentProperty.benchPtr]: { id: 7, name: 'bench_ptr', component: ObjectType.FILE_CONTENT, kind: 'reference', isRequired: true, isInternal: true, isComputed: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_ANCESTOR_FIRST, referenceNodes: [NodeType.BENCH], referenceStruct: StructType.NODE_REFERENCE },
+  [FileContentProperty.createdByPtr]: { id: 17, name: 'created_by_ptr', component: ObjectType.FILE_CONTENT, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.USER, NodeType.RUN], referenceStruct: StructType.NODE_REFERENCE },
+  [FileContentProperty.updatedByPtr]: { id: 18, name: 'updated_by_ptr', component: ObjectType.FILE_CONTENT, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.USER, NodeType.RUN], referenceStruct: StructType.NODE_REFERENCE },
 }
 export const HandleDataInfo: Record<HandleProperty, PropertyInfo> = {
-  [HandleProperty.metatype]: { id: 1, name: 'metatype', component: BenchType.HANDLE, kind: 'enum', primitiveType: PrimitiveType.STRING, isRequired: true, isInternal: true, isComputed: true, isWired: true },
-  [HandleProperty.slug]: { id: 30, name: 'slug', component: BenchType.HANDLE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true, isUnique: true },
-  [HandleProperty.id]: { id: 2, name: 'id', component: BenchType.HANDLE, kind: 'primitive', primitiveType: PrimitiveType.UUID, isRequired: true, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
-  [HandleProperty.setProperties]: { id: 22, name: 'set_properties', component: BenchType.HANDLE, kind: 'primitive', primitiveType: PrimitiveType.INT32, isList: true, isRequired: true, isRuntime: true, isWired: true, isStored: true },
-  [HandleProperty.source]: { id: 8, name: 'source', component: BenchType.HANDLE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true },
-  [HandleProperty.revision]: { id: 10, name: 'revision', component: BenchType.HANDLE, kind: 'primitive', primitiveType: PrimitiveType.INT64, isRequired: true, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
-  [HandleProperty.createdAt]: { id: 11, name: 'created_at', component: BenchType.HANDLE, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isRequired: true, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
-  [HandleProperty.updatedAt]: { id: 12, name: 'updated_at', component: BenchType.HANDLE, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isRequired: true, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
-  [HandleProperty.deletedAt]: { id: 13, name: 'deleted_at', component: BenchType.HANDLE, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
-  [HandleProperty.archivedAt]: { id: 14, name: 'archived_at', component: BenchType.HANDLE, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
-  [HandleProperty.parentPtr]: { id: 4, name: 'parent_ptr', component: BenchType.HANDLE, kind: 'reference', isInternal: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_PARENT, referenceNodes: [NodeType.USER, NodeType.ORGANIZATION, NodeType.BENCH], referenceStruct: StructType.NODE_REFERENCE },
-  [HandleProperty.benchPtr]: { id: 7, name: 'bench_ptr', component: BenchType.HANDLE, kind: 'reference', isInternal: true, isComputed: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_ANCESTOR_FIRST, referenceNodes: [NodeType.BENCH], referenceStruct: StructType.NODE_REFERENCE },
-  [HandleProperty.createdByPtr]: { id: 17, name: 'created_by_ptr', component: BenchType.HANDLE, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.USER, NodeType.RUN], referenceStruct: StructType.NODE_REFERENCE },
-  [HandleProperty.updatedByPtr]: { id: 18, name: 'updated_by_ptr', component: BenchType.HANDLE, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.USER, NodeType.RUN], referenceStruct: StructType.NODE_REFERENCE },
+  [HandleProperty.metatype]: { id: 1, name: 'metatype', component: ObjectType.HANDLE, kind: 'enum', primitiveType: PrimitiveType.STRING, isRequired: true, isInternal: true, isComputed: true, isWired: true },
+  [HandleProperty.slug]: { id: 30, name: 'slug', component: ObjectType.HANDLE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true, isUnique: true },
+  [HandleProperty.id]: { id: 2, name: 'id', component: ObjectType.HANDLE, kind: 'primitive', primitiveType: PrimitiveType.UUID, isRequired: true, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
+  [HandleProperty.setProperties]: { id: 22, name: 'set_properties', component: ObjectType.HANDLE, kind: 'primitive', primitiveType: PrimitiveType.INT32, isList: true, isRequired: true, isRuntime: true, isWired: true, isStored: true },
+  [HandleProperty.source]: { id: 8, name: 'source', component: ObjectType.HANDLE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true },
+  [HandleProperty.revision]: { id: 10, name: 'revision', component: ObjectType.HANDLE, kind: 'primitive', primitiveType: PrimitiveType.INT64, isRequired: true, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
+  [HandleProperty.createdAt]: { id: 11, name: 'created_at', component: ObjectType.HANDLE, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isRequired: true, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
+  [HandleProperty.updatedAt]: { id: 12, name: 'updated_at', component: ObjectType.HANDLE, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isRequired: true, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
+  [HandleProperty.deletedAt]: { id: 13, name: 'deleted_at', component: ObjectType.HANDLE, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
+  [HandleProperty.archivedAt]: { id: 14, name: 'archived_at', component: ObjectType.HANDLE, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
+  [HandleProperty.parentPtr]: { id: 4, name: 'parent_ptr', component: ObjectType.HANDLE, kind: 'reference', isInternal: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_PARENT, referenceNodes: [NodeType.USER, NodeType.ORGANIZATION, NodeType.BENCH], referenceStruct: StructType.NODE_REFERENCE },
+  [HandleProperty.benchPtr]: { id: 7, name: 'bench_ptr', component: ObjectType.HANDLE, kind: 'reference', isInternal: true, isComputed: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_ANCESTOR_FIRST, referenceNodes: [NodeType.BENCH], referenceStruct: StructType.NODE_REFERENCE },
+  [HandleProperty.createdByPtr]: { id: 17, name: 'created_by_ptr', component: ObjectType.HANDLE, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.USER, NodeType.RUN], referenceStruct: StructType.NODE_REFERENCE },
+  [HandleProperty.updatedByPtr]: { id: 18, name: 'updated_by_ptr', component: ObjectType.HANDLE, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.USER, NodeType.RUN], referenceStruct: StructType.NODE_REFERENCE },
 }
 export const UserDataInfo: Record<UserProperty, PropertyInfo> = {
-  [UserProperty.metatype]: { id: 1, name: 'metatype', component: BenchType.USER, kind: 'enum', primitiveType: PrimitiveType.STRING, isRequired: true, isInternal: true, isComputed: true, isWired: true },
-  [UserProperty.slug]: { id: 32, name: 'slug', component: BenchType.USER, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true, isUnique: true },
-  [UserProperty.name]: { id: 33, name: 'name', component: BenchType.USER, kind: 'primitive', primitiveType: PrimitiveType.STRING, isRequired: true, isRuntime: true, isWired: true, isStored: true },
-  [UserProperty.text]: { id: 34, name: 'text', component: BenchType.USER, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.TEXT },
-  [UserProperty.email]: { id: 35, name: 'email', component: BenchType.USER, kind: 'primitive', primitiveType: PrimitiveType.STRING, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true, isUnique: true, isDeferred: true, isSensitive: true },
-  [UserProperty.icon]: { id: 36, name: 'icon', component: BenchType.USER, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.ICON },
-  [UserProperty.status]: { id: 38, name: 'status', component: BenchType.USER, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
-  [UserProperty.passwordSalt]: { id: 50, name: 'password_salt', component: BenchType.USER, kind: 'primitive', primitiveType: PrimitiveType.BYTES, isInternal: true, isSystem: true, isKernel: true, isRuntime: true, isWired: true, isStored: true, isDeferred: true, isSensitive: true, isEncrypted: true },
-  [UserProperty.passwordHash]: { id: 51, name: 'password_hash', component: BenchType.USER, kind: 'primitive', primitiveType: PrimitiveType.BYTES, isInternal: true, isSystem: true, isKernel: true, isRuntime: true, isWired: true, isStored: true, isDeferred: true, isSensitive: true, isEncrypted: true },
-  [UserProperty.lastLoggedInAt]: { id: 70, name: 'last_logged_in_at', component: BenchType.USER, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
-  [UserProperty.isStaff]: { id: 90, name: 'is_staff', component: BenchType.USER, kind: 'primitive', primitiveType: PrimitiveType.BOOLEAN, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
-  [UserProperty.id]: { id: 2, name: 'id', component: BenchType.USER, kind: 'primitive', primitiveType: PrimitiveType.UUID, isRequired: true, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
-  [UserProperty.setProperties]: { id: 22, name: 'set_properties', component: BenchType.USER, kind: 'primitive', primitiveType: PrimitiveType.INT32, isList: true, isRequired: true, isRuntime: true, isWired: true, isStored: true },
-  [UserProperty.source]: { id: 8, name: 'source', component: BenchType.USER, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true },
-  [UserProperty.revision]: { id: 10, name: 'revision', component: BenchType.USER, kind: 'primitive', primitiveType: PrimitiveType.INT64, isRequired: true, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
-  [UserProperty.createdAt]: { id: 11, name: 'created_at', component: BenchType.USER, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isRequired: true, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
-  [UserProperty.updatedAt]: { id: 12, name: 'updated_at', component: BenchType.USER, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isRequired: true, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
-  [UserProperty.deletedAt]: { id: 13, name: 'deleted_at', component: BenchType.USER, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
-  [UserProperty.archivedAt]: { id: 14, name: 'archived_at', component: BenchType.USER, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
-  [UserProperty.mainHandlePtr]: { id: 31, name: 'main_handle_ptr', component: BenchType.USER, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.HANDLE], referenceStruct: StructType.NODE_REFERENCE },
-  [UserProperty.mainBenchPtr]: { id: 37, name: 'main_bench_ptr', component: BenchType.USER, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.BENCH], referenceStruct: StructType.NODE_REFERENCE },
-  [UserProperty.parentPtr]: { id: 4, name: 'parent_ptr', component: BenchType.USER, kind: 'reference', isInternal: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_PARENT, referenceStruct: StructType.NODE_REFERENCE },
-  [UserProperty.createdByPtr]: { id: 17, name: 'created_by_ptr', component: BenchType.USER, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.USER, NodeType.RUN], referenceStruct: StructType.NODE_REFERENCE },
-  [UserProperty.updatedByPtr]: { id: 18, name: 'updated_by_ptr', component: BenchType.USER, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.USER, NodeType.RUN], referenceStruct: StructType.NODE_REFERENCE },
+  [UserProperty.metatype]: { id: 1, name: 'metatype', component: ObjectType.USER, kind: 'enum', primitiveType: PrimitiveType.STRING, isRequired: true, isInternal: true, isComputed: true, isWired: true },
+  [UserProperty.slug]: { id: 32, name: 'slug', component: ObjectType.USER, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true, isUnique: true },
+  [UserProperty.name]: { id: 33, name: 'name', component: ObjectType.USER, kind: 'primitive', primitiveType: PrimitiveType.STRING, isRequired: true, isRuntime: true, isWired: true, isStored: true },
+  [UserProperty.text]: { id: 34, name: 'text', component: ObjectType.USER, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.TEXT },
+  [UserProperty.email]: { id: 35, name: 'email', component: ObjectType.USER, kind: 'primitive', primitiveType: PrimitiveType.STRING, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true, isUnique: true, isDeferred: true, isSensitive: true },
+  [UserProperty.icon]: { id: 36, name: 'icon', component: ObjectType.USER, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.ICON },
+  [UserProperty.status]: { id: 38, name: 'status', component: ObjectType.USER, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
+  [UserProperty.passwordSalt]: { id: 50, name: 'password_salt', component: ObjectType.USER, kind: 'primitive', primitiveType: PrimitiveType.BYTES, isInternal: true, isSystem: true, isKernel: true, isRuntime: true, isWired: true, isStored: true, isDeferred: true, isSensitive: true, isEncrypted: true },
+  [UserProperty.passwordHash]: { id: 51, name: 'password_hash', component: ObjectType.USER, kind: 'primitive', primitiveType: PrimitiveType.BYTES, isInternal: true, isSystem: true, isKernel: true, isRuntime: true, isWired: true, isStored: true, isDeferred: true, isSensitive: true, isEncrypted: true },
+  [UserProperty.lastLoggedInAt]: { id: 70, name: 'last_logged_in_at', component: ObjectType.USER, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
+  [UserProperty.isStaff]: { id: 90, name: 'is_staff', component: ObjectType.USER, kind: 'primitive', primitiveType: PrimitiveType.BOOLEAN, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
+  [UserProperty.id]: { id: 2, name: 'id', component: ObjectType.USER, kind: 'primitive', primitiveType: PrimitiveType.UUID, isRequired: true, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
+  [UserProperty.setProperties]: { id: 22, name: 'set_properties', component: ObjectType.USER, kind: 'primitive', primitiveType: PrimitiveType.INT32, isList: true, isRequired: true, isRuntime: true, isWired: true, isStored: true },
+  [UserProperty.source]: { id: 8, name: 'source', component: ObjectType.USER, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true },
+  [UserProperty.revision]: { id: 10, name: 'revision', component: ObjectType.USER, kind: 'primitive', primitiveType: PrimitiveType.INT64, isRequired: true, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
+  [UserProperty.createdAt]: { id: 11, name: 'created_at', component: ObjectType.USER, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isRequired: true, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
+  [UserProperty.updatedAt]: { id: 12, name: 'updated_at', component: ObjectType.USER, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isRequired: true, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
+  [UserProperty.deletedAt]: { id: 13, name: 'deleted_at', component: ObjectType.USER, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
+  [UserProperty.archivedAt]: { id: 14, name: 'archived_at', component: ObjectType.USER, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
+  [UserProperty.mainHandlePtr]: { id: 31, name: 'main_handle_ptr', component: ObjectType.USER, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.HANDLE], referenceStruct: StructType.NODE_REFERENCE },
+  [UserProperty.mainBenchPtr]: { id: 37, name: 'main_bench_ptr', component: ObjectType.USER, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.BENCH], referenceStruct: StructType.NODE_REFERENCE },
+  [UserProperty.parentPtr]: { id: 4, name: 'parent_ptr', component: ObjectType.USER, kind: 'reference', isInternal: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_PARENT, referenceStruct: StructType.NODE_REFERENCE },
+  [UserProperty.createdByPtr]: { id: 17, name: 'created_by_ptr', component: ObjectType.USER, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.USER, NodeType.RUN], referenceStruct: StructType.NODE_REFERENCE },
+  [UserProperty.updatedByPtr]: { id: 18, name: 'updated_by_ptr', component: ObjectType.USER, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.USER, NodeType.RUN], referenceStruct: StructType.NODE_REFERENCE },
 }
 export const OrganizationDataInfo: Record<OrganizationProperty, PropertyInfo> = {
-  [OrganizationProperty.metatype]: { id: 1, name: 'metatype', component: BenchType.ORGANIZATION, kind: 'enum', primitiveType: PrimitiveType.STRING, isRequired: true, isInternal: true, isComputed: true, isWired: true },
-  [OrganizationProperty.slug]: { id: 32, name: 'slug', component: BenchType.ORGANIZATION, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true, isUnique: true },
-  [OrganizationProperty.name]: { id: 33, name: 'name', component: BenchType.ORGANIZATION, kind: 'primitive', primitiveType: PrimitiveType.STRING, isRequired: true, isRuntime: true, isWired: true, isStored: true },
-  [OrganizationProperty.text]: { id: 34, name: 'text', component: BenchType.ORGANIZATION, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.TEXT },
-  [OrganizationProperty.icon]: { id: 35, name: 'icon', component: BenchType.ORGANIZATION, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.ICON },
-  [OrganizationProperty.status]: { id: 37, name: 'status', component: BenchType.ORGANIZATION, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
-  [OrganizationProperty.id]: { id: 2, name: 'id', component: BenchType.ORGANIZATION, kind: 'primitive', primitiveType: PrimitiveType.UUID, isRequired: true, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
-  [OrganizationProperty.setProperties]: { id: 22, name: 'set_properties', component: BenchType.ORGANIZATION, kind: 'primitive', primitiveType: PrimitiveType.INT32, isList: true, isRequired: true, isRuntime: true, isWired: true, isStored: true },
-  [OrganizationProperty.source]: { id: 8, name: 'source', component: BenchType.ORGANIZATION, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true },
-  [OrganizationProperty.revision]: { id: 10, name: 'revision', component: BenchType.ORGANIZATION, kind: 'primitive', primitiveType: PrimitiveType.INT64, isRequired: true, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
-  [OrganizationProperty.createdAt]: { id: 11, name: 'created_at', component: BenchType.ORGANIZATION, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isRequired: true, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
-  [OrganizationProperty.updatedAt]: { id: 12, name: 'updated_at', component: BenchType.ORGANIZATION, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isRequired: true, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
-  [OrganizationProperty.deletedAt]: { id: 13, name: 'deleted_at', component: BenchType.ORGANIZATION, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
-  [OrganizationProperty.archivedAt]: { id: 14, name: 'archived_at', component: BenchType.ORGANIZATION, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
-  [OrganizationProperty.mainHandlePtr]: { id: 31, name: 'main_handle_ptr', component: BenchType.ORGANIZATION, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.HANDLE], referenceStruct: StructType.NODE_REFERENCE },
-  [OrganizationProperty.mainBenchPtr]: { id: 36, name: 'main_bench_ptr', component: BenchType.ORGANIZATION, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.BENCH], referenceStruct: StructType.NODE_REFERENCE },
-  [OrganizationProperty.parentPtr]: { id: 4, name: 'parent_ptr', component: BenchType.ORGANIZATION, kind: 'reference', isInternal: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_PARENT, referenceStruct: StructType.NODE_REFERENCE },
-  [OrganizationProperty.createdByPtr]: { id: 17, name: 'created_by_ptr', component: BenchType.ORGANIZATION, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.USER, NodeType.RUN], referenceStruct: StructType.NODE_REFERENCE },
-  [OrganizationProperty.updatedByPtr]: { id: 18, name: 'updated_by_ptr', component: BenchType.ORGANIZATION, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.USER, NodeType.RUN], referenceStruct: StructType.NODE_REFERENCE },
+  [OrganizationProperty.metatype]: { id: 1, name: 'metatype', component: ObjectType.ORGANIZATION, kind: 'enum', primitiveType: PrimitiveType.STRING, isRequired: true, isInternal: true, isComputed: true, isWired: true },
+  [OrganizationProperty.slug]: { id: 32, name: 'slug', component: ObjectType.ORGANIZATION, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true, isUnique: true },
+  [OrganizationProperty.name]: { id: 33, name: 'name', component: ObjectType.ORGANIZATION, kind: 'primitive', primitiveType: PrimitiveType.STRING, isRequired: true, isRuntime: true, isWired: true, isStored: true },
+  [OrganizationProperty.text]: { id: 34, name: 'text', component: ObjectType.ORGANIZATION, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.TEXT },
+  [OrganizationProperty.icon]: { id: 35, name: 'icon', component: ObjectType.ORGANIZATION, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.ICON },
+  [OrganizationProperty.status]: { id: 37, name: 'status', component: ObjectType.ORGANIZATION, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
+  [OrganizationProperty.id]: { id: 2, name: 'id', component: ObjectType.ORGANIZATION, kind: 'primitive', primitiveType: PrimitiveType.UUID, isRequired: true, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
+  [OrganizationProperty.setProperties]: { id: 22, name: 'set_properties', component: ObjectType.ORGANIZATION, kind: 'primitive', primitiveType: PrimitiveType.INT32, isList: true, isRequired: true, isRuntime: true, isWired: true, isStored: true },
+  [OrganizationProperty.source]: { id: 8, name: 'source', component: ObjectType.ORGANIZATION, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true },
+  [OrganizationProperty.revision]: { id: 10, name: 'revision', component: ObjectType.ORGANIZATION, kind: 'primitive', primitiveType: PrimitiveType.INT64, isRequired: true, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
+  [OrganizationProperty.createdAt]: { id: 11, name: 'created_at', component: ObjectType.ORGANIZATION, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isRequired: true, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
+  [OrganizationProperty.updatedAt]: { id: 12, name: 'updated_at', component: ObjectType.ORGANIZATION, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isRequired: true, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
+  [OrganizationProperty.deletedAt]: { id: 13, name: 'deleted_at', component: ObjectType.ORGANIZATION, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
+  [OrganizationProperty.archivedAt]: { id: 14, name: 'archived_at', component: ObjectType.ORGANIZATION, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
+  [OrganizationProperty.mainHandlePtr]: { id: 31, name: 'main_handle_ptr', component: ObjectType.ORGANIZATION, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.HANDLE], referenceStruct: StructType.NODE_REFERENCE },
+  [OrganizationProperty.mainBenchPtr]: { id: 36, name: 'main_bench_ptr', component: ObjectType.ORGANIZATION, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.BENCH], referenceStruct: StructType.NODE_REFERENCE },
+  [OrganizationProperty.parentPtr]: { id: 4, name: 'parent_ptr', component: ObjectType.ORGANIZATION, kind: 'reference', isInternal: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_PARENT, referenceStruct: StructType.NODE_REFERENCE },
+  [OrganizationProperty.createdByPtr]: { id: 17, name: 'created_by_ptr', component: ObjectType.ORGANIZATION, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.USER, NodeType.RUN], referenceStruct: StructType.NODE_REFERENCE },
+  [OrganizationProperty.updatedByPtr]: { id: 18, name: 'updated_by_ptr', component: ObjectType.ORGANIZATION, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.USER, NodeType.RUN], referenceStruct: StructType.NODE_REFERENCE },
 }
 export const ClientDataInfo: Record<ClientProperty, PropertyInfo> = {
-  [ClientProperty.metatype]: { id: 1, name: 'metatype', component: BenchType.CLIENT, kind: 'enum', primitiveType: PrimitiveType.STRING, isRequired: true, isInternal: true, isComputed: true, isWired: true },
-  [ClientProperty.name]: { id: 32, name: 'name', component: BenchType.CLIENT, kind: 'primitive', primitiveType: PrimitiveType.STRING, isRequired: true, isRuntime: true, isWired: true, isStored: true },
-  [ClientProperty.deviceName]: { id: 40, name: 'device_name', component: BenchType.CLIENT, kind: 'primitive', primitiveType: PrimitiveType.STRING, isRuntime: true, isWired: true, isStored: true },
-  [ClientProperty.deviceType]: { id: 41, name: 'device_type', component: BenchType.CLIENT, kind: 'primitive', primitiveType: PrimitiveType.STRING, isRuntime: true, isWired: true, isStored: true },
-  [ClientProperty.operatingSystem]: { id: 42, name: 'operating_system', component: BenchType.CLIENT, kind: 'primitive', primitiveType: PrimitiveType.STRING, isRuntime: true, isWired: true, isStored: true },
-  [ClientProperty.browserName]: { id: 43, name: 'browser_name', component: BenchType.CLIENT, kind: 'primitive', primitiveType: PrimitiveType.STRING, isRuntime: true, isWired: true, isStored: true },
-  [ClientProperty.browserVersion]: { id: 44, name: 'browser_version', component: BenchType.CLIENT, kind: 'primitive', primitiveType: PrimitiveType.STRING, isRuntime: true, isWired: true, isStored: true },
-  [ClientProperty.placeId]: { id: 45, name: 'place_id', component: BenchType.CLIENT, kind: 'primitive', primitiveType: PrimitiveType.STRING, isRuntime: true, isWired: true, isStored: true },
-  [ClientProperty.accessToken]: { id: 50, name: 'access_token', component: BenchType.CLIENT, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isSystem: true, isKernel: true, isRuntime: true, isWired: true, isStored: true, isUnique: true, isDeferred: true, isSensitive: true },
-  [ClientProperty.lastSeenAt]: { id: 51, name: 'last_seen_at', component: BenchType.CLIENT, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
-  [ClientProperty.loggedInAt]: { id: 52, name: 'logged_in_at', component: BenchType.CLIENT, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
-  [ClientProperty.id]: { id: 2, name: 'id', component: BenchType.CLIENT, kind: 'primitive', primitiveType: PrimitiveType.UUID, isRequired: true, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
-  [ClientProperty.setProperties]: { id: 22, name: 'set_properties', component: BenchType.CLIENT, kind: 'primitive', primitiveType: PrimitiveType.INT32, isList: true, isRequired: true, isRuntime: true, isWired: true, isStored: true },
-  [ClientProperty.source]: { id: 8, name: 'source', component: BenchType.CLIENT, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true },
-  [ClientProperty.revision]: { id: 10, name: 'revision', component: BenchType.CLIENT, kind: 'primitive', primitiveType: PrimitiveType.INT64, isRequired: true, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
-  [ClientProperty.createdAt]: { id: 11, name: 'created_at', component: BenchType.CLIENT, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isRequired: true, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
-  [ClientProperty.updatedAt]: { id: 12, name: 'updated_at', component: BenchType.CLIENT, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isRequired: true, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
-  [ClientProperty.deletedAt]: { id: 13, name: 'deleted_at', component: BenchType.CLIENT, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
-  [ClientProperty.archivedAt]: { id: 14, name: 'archived_at', component: BenchType.CLIENT, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
-  [ClientProperty.parentPtr]: { id: 4, name: 'parent_ptr', component: BenchType.CLIENT, kind: 'reference', isInternal: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_PARENT, referenceNodes: [NodeType.USER, NodeType.SERVER], referenceStruct: StructType.NODE_REFERENCE },
-  [ClientProperty.mainSpacePtr]: { id: 60, name: 'main_space_ptr', component: BenchType.CLIENT, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.SPACE], referenceStruct: StructType.NODE_REFERENCE },
-  [ClientProperty.benchPtr]: { id: 7, name: 'bench_ptr', component: BenchType.CLIENT, kind: 'reference', isInternal: true, isComputed: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_ANCESTOR_FIRST, referenceNodes: [NodeType.BENCH], referenceStruct: StructType.NODE_REFERENCE },
-  [ClientProperty.createdByPtr]: { id: 17, name: 'created_by_ptr', component: BenchType.CLIENT, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.USER, NodeType.RUN], referenceStruct: StructType.NODE_REFERENCE },
-  [ClientProperty.updatedByPtr]: { id: 18, name: 'updated_by_ptr', component: BenchType.CLIENT, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.USER, NodeType.RUN], referenceStruct: StructType.NODE_REFERENCE },
+  [ClientProperty.metatype]: { id: 1, name: 'metatype', component: ObjectType.CLIENT, kind: 'enum', primitiveType: PrimitiveType.STRING, isRequired: true, isInternal: true, isComputed: true, isWired: true },
+  [ClientProperty.name]: { id: 32, name: 'name', component: ObjectType.CLIENT, kind: 'primitive', primitiveType: PrimitiveType.STRING, isRequired: true, isRuntime: true, isWired: true, isStored: true },
+  [ClientProperty.deviceName]: { id: 40, name: 'device_name', component: ObjectType.CLIENT, kind: 'primitive', primitiveType: PrimitiveType.STRING, isRuntime: true, isWired: true, isStored: true },
+  [ClientProperty.deviceType]: { id: 41, name: 'device_type', component: ObjectType.CLIENT, kind: 'primitive', primitiveType: PrimitiveType.STRING, isRuntime: true, isWired: true, isStored: true },
+  [ClientProperty.operatingSystem]: { id: 42, name: 'operating_system', component: ObjectType.CLIENT, kind: 'primitive', primitiveType: PrimitiveType.STRING, isRuntime: true, isWired: true, isStored: true },
+  [ClientProperty.browserName]: { id: 43, name: 'browser_name', component: ObjectType.CLIENT, kind: 'primitive', primitiveType: PrimitiveType.STRING, isRuntime: true, isWired: true, isStored: true },
+  [ClientProperty.browserVersion]: { id: 44, name: 'browser_version', component: ObjectType.CLIENT, kind: 'primitive', primitiveType: PrimitiveType.STRING, isRuntime: true, isWired: true, isStored: true },
+  [ClientProperty.placeId]: { id: 45, name: 'place_id', component: ObjectType.CLIENT, kind: 'primitive', primitiveType: PrimitiveType.STRING, isRuntime: true, isWired: true, isStored: true },
+  [ClientProperty.accessToken]: { id: 50, name: 'access_token', component: ObjectType.CLIENT, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isSystem: true, isKernel: true, isRuntime: true, isWired: true, isStored: true, isUnique: true, isDeferred: true, isSensitive: true },
+  [ClientProperty.lastSeenAt]: { id: 51, name: 'last_seen_at', component: ObjectType.CLIENT, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
+  [ClientProperty.loggedInAt]: { id: 52, name: 'logged_in_at', component: ObjectType.CLIENT, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
+  [ClientProperty.id]: { id: 2, name: 'id', component: ObjectType.CLIENT, kind: 'primitive', primitiveType: PrimitiveType.UUID, isRequired: true, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
+  [ClientProperty.setProperties]: { id: 22, name: 'set_properties', component: ObjectType.CLIENT, kind: 'primitive', primitiveType: PrimitiveType.INT32, isList: true, isRequired: true, isRuntime: true, isWired: true, isStored: true },
+  [ClientProperty.source]: { id: 8, name: 'source', component: ObjectType.CLIENT, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true },
+  [ClientProperty.revision]: { id: 10, name: 'revision', component: ObjectType.CLIENT, kind: 'primitive', primitiveType: PrimitiveType.INT64, isRequired: true, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
+  [ClientProperty.createdAt]: { id: 11, name: 'created_at', component: ObjectType.CLIENT, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isRequired: true, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
+  [ClientProperty.updatedAt]: { id: 12, name: 'updated_at', component: ObjectType.CLIENT, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isRequired: true, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
+  [ClientProperty.deletedAt]: { id: 13, name: 'deleted_at', component: ObjectType.CLIENT, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
+  [ClientProperty.archivedAt]: { id: 14, name: 'archived_at', component: ObjectType.CLIENT, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
+  [ClientProperty.parentPtr]: { id: 4, name: 'parent_ptr', component: ObjectType.CLIENT, kind: 'reference', isInternal: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_PARENT, referenceNodes: [NodeType.USER, NodeType.SERVER], referenceStruct: StructType.NODE_REFERENCE },
+  [ClientProperty.mainSpacePtr]: { id: 60, name: 'main_space_ptr', component: ObjectType.CLIENT, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.SPACE], referenceStruct: StructType.NODE_REFERENCE },
+  [ClientProperty.benchPtr]: { id: 7, name: 'bench_ptr', component: ObjectType.CLIENT, kind: 'reference', isInternal: true, isComputed: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_ANCESTOR_FIRST, referenceNodes: [NodeType.BENCH], referenceStruct: StructType.NODE_REFERENCE },
+  [ClientProperty.createdByPtr]: { id: 17, name: 'created_by_ptr', component: ObjectType.CLIENT, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.USER, NodeType.RUN], referenceStruct: StructType.NODE_REFERENCE },
+  [ClientProperty.updatedByPtr]: { id: 18, name: 'updated_by_ptr', component: ObjectType.CLIENT, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.USER, NodeType.RUN], referenceStruct: StructType.NODE_REFERENCE },
 }
-export const PROPERTY_INFOS_BY_TYPE: Record<BenchType, Record<any, PropertyInfo>> = {
-  [BenchType.UNSPECIFIED]: {},
-  [BenchType.PATH]: PathDataInfo,
-  [BenchType.PATH_SEGMENT]: PathSegmentDataInfo,
-  [BenchType.PATH_TOKEN]: PathTokenDataInfo,
-  [BenchType.NODE_REFERENCE]: NodeReferenceDataInfo,
-  [BenchType.PROPERTY_REFERENCE]: PropertyReferenceDataInfo,
-  [BenchType.VALUE_REFERENCE]: ValueReferenceDataInfo,
-  [BenchType.TYPE_INFO]: TypeInfoDataInfo,
-  [BenchType.CONTEXT]: ContextDataInfo,
-  [BenchType.SCHEDULE]: ScheduleDataInfo,
-  [BenchType.PROJECTION]: ProjectionDataInfo,
-  [BenchType.FILE]: FileDataInfo,
-  [BenchType.ICON]: IconDataInfo,
-  [BenchType.POLICY]: PolicyDataInfo,
-  [BenchType.POLICY_RULE]: PolicyRuleDataInfo,
-  [BenchType.SUBJECT]: SubjectDataInfo,
-  [BenchType.ACCESS_ZONE]: AccessZoneDataInfo,
-  [BenchType.ACCESS_MATRIX]: AccessMatrixDataInfo,
-  [BenchType.ACCESS]: AccessDataInfo,
-  [BenchType.ACCESS_TRACE]: AccessTraceDataInfo,
-  [BenchType.REQUEST]: RequestDataInfo,
-  [BenchType.READ_OPTIONS]: ReadOptionsDataInfo,
-  [BenchType.EXPRESSION]: ExpressionDataInfo,
-  [BenchType.AGGREGATION]: AggregationDataInfo,
-  [BenchType.AGGREGATION_BUCKET]: AggregationBucketDataInfo,
-  [BenchType.SELECTION]: SelectionDataInfo,
-  [BenchType.CODE]: CodeDataInfo,
-  [BenchType.CODE_LINE]: CodeLineDataInfo,
-  [BenchType.STEP_CONNECTION]: StepConnectionDataInfo,
-  [BenchType.RUN_CODE_FRAME]: RunCodeFrameDataInfo,
-  [BenchType.RUN_ERROR]: RunErrorDataInfo,
-  [BenchType.RESOURCE_CREDENTIAL]: ResourceCredentialDataInfo,
-  [BenchType.TEXT]: TextDataInfo,
-  [BenchType.TEXT_LINE]: TextLineDataInfo,
-  [BenchType.TEXT_SPAN]: TextSpanDataInfo,
-  [BenchType.COLOR]: ColorDataInfo,
-  [BenchType.FONT]: FontDataInfo,
-  [BenchType.BOX]: BoxDataInfo,
-  [BenchType.OFFSET]: OffsetDataInfo,
-  [BenchType.BENCH]: BenchDataInfo,
-  [BenchType.ENVIRONMENT]: EnvironmentDataInfo,
-  [BenchType.BRANCH]: BranchDataInfo,
-  [BenchType.PACKAGE]: PackageDataInfo,
-  [BenchType.DEPENDENCY]: DependencyDataInfo,
-  [BenchType.UPGRADE]: UpgradeDataInfo,
-  [BenchType.SPACE]: SpaceDataInfo,
-  [BenchType.LINK]: LinkDataInfo,
-  [BenchType.SKIP]: SkipDataInfo,
-  [BenchType.NOTICE]: NoticeDataInfo,
-  [BenchType.BLOCK]: BlockDataInfo,
-  [BenchType.TRIGGER]: TriggerDataInfo,
-  [BenchType.FIELD]: FieldDataInfo,
-  [BenchType.RECORD]: RecordDataInfo,
-  [BenchType.QUERY]: QueryDataInfo,
-  [BenchType.VIEW]: ViewDataInfo,
-  [BenchType.STEP]: StepDataInfo,
-  [BenchType.BADGE]: BadgeDataInfo,
-  [BenchType.ROLE]: RoleDataInfo,
-  [BenchType.IDENTITY]: IdentityDataInfo,
-  [BenchType.MEMBERSHIP]: MembershipDataInfo,
-  [BenchType.INVITE]: InviteDataInfo,
-  [BenchType.SESSION]: SessionDataInfo,
-  [BenchType.RUN]: RunDataInfo,
-  [BenchType.PAUSE]: PauseDataInfo,
-  [BenchType.SIGNAL]: SignalDataInfo,
-  [BenchType.LOG]: LogDataInfo,
-  [BenchType.NOTIFICATION]: NotificationDataInfo,
-  [BenchType.SERVER]: ServerDataInfo,
-  [BenchType.STORE]: StoreDataInfo,
-  [BenchType.DRIVE]: DriveDataInfo,
-  [BenchType.CACHE]: CacheDataInfo,
-  [BenchType.FILE_CONTENT]: FileContentDataInfo,
-  [BenchType.HANDLE]: HandleDataInfo,
-  [BenchType.USER]: UserDataInfo,
-  [BenchType.ORGANIZATION]: OrganizationDataInfo,
-  [BenchType.CLIENT]: ClientDataInfo,
+export const PROPERTY_INFOS_BY_TYPE: Record<ObjectType, Record<any, PropertyInfo>> = {
+  [ObjectType.UNSPECIFIED]: {},
+  [ObjectType.PATH]: PathDataInfo,
+  [ObjectType.PATH_SEGMENT]: PathSegmentDataInfo,
+  [ObjectType.PATH_TOKEN]: PathTokenDataInfo,
+  [ObjectType.NODE_REFERENCE]: NodeReferenceDataInfo,
+  [ObjectType.PROPERTY_REFERENCE]: PropertyReferenceDataInfo,
+  [ObjectType.VALUE_REFERENCE]: ValueReferenceDataInfo,
+  [ObjectType.TYPE_INFO]: TypeInfoDataInfo,
+  [ObjectType.CONTEXT]: ContextDataInfo,
+  [ObjectType.SCHEDULE]: ScheduleDataInfo,
+  [ObjectType.PROJECTION]: ProjectionDataInfo,
+  [ObjectType.FILE]: FileDataInfo,
+  [ObjectType.ICON]: IconDataInfo,
+  [ObjectType.POLICY]: PolicyDataInfo,
+  [ObjectType.POLICY_RULE]: PolicyRuleDataInfo,
+  [ObjectType.SUBJECT]: SubjectDataInfo,
+  [ObjectType.ACCESS_ZONE]: AccessZoneDataInfo,
+  [ObjectType.ACCESS_MATRIX]: AccessMatrixDataInfo,
+  [ObjectType.ACCESS]: AccessDataInfo,
+  [ObjectType.ACCESS_TRACE]: AccessTraceDataInfo,
+  [ObjectType.REQUEST]: RequestDataInfo,
+  [ObjectType.READ_OPTIONS]: ReadOptionsDataInfo,
+  [ObjectType.EXPRESSION]: ExpressionDataInfo,
+  [ObjectType.AGGREGATION]: AggregationDataInfo,
+  [ObjectType.AGGREGATION_BUCKET]: AggregationBucketDataInfo,
+  [ObjectType.SELECTION]: SelectionDataInfo,
+  [ObjectType.CODE]: CodeDataInfo,
+  [ObjectType.CODE_LINE]: CodeLineDataInfo,
+  [ObjectType.STEP_CONNECTION]: StepConnectionDataInfo,
+  [ObjectType.RUN_CODE_FRAME]: RunCodeFrameDataInfo,
+  [ObjectType.RUN_ERROR]: RunErrorDataInfo,
+  [ObjectType.RESOURCE_CREDENTIAL]: ResourceCredentialDataInfo,
+  [ObjectType.TEXT]: TextDataInfo,
+  [ObjectType.TEXT_LINE]: TextLineDataInfo,
+  [ObjectType.TEXT_SPAN]: TextSpanDataInfo,
+  [ObjectType.COLOR]: ColorDataInfo,
+  [ObjectType.FONT]: FontDataInfo,
+  [ObjectType.BOX]: BoxDataInfo,
+  [ObjectType.OFFSET]: OffsetDataInfo,
+  [ObjectType.BENCH]: BenchDataInfo,
+  [ObjectType.ENVIRONMENT]: EnvironmentDataInfo,
+  [ObjectType.BRANCH]: BranchDataInfo,
+  [ObjectType.PACKAGE]: PackageDataInfo,
+  [ObjectType.DEPENDENCY]: DependencyDataInfo,
+  [ObjectType.UPGRADE]: UpgradeDataInfo,
+  [ObjectType.SPACE]: SpaceDataInfo,
+  [ObjectType.LINK]: LinkDataInfo,
+  [ObjectType.SKIP]: SkipDataInfo,
+  [ObjectType.NOTICE]: NoticeDataInfo,
+  [ObjectType.BLOCK]: BlockDataInfo,
+  [ObjectType.TRIGGER]: TriggerDataInfo,
+  [ObjectType.FIELD]: FieldDataInfo,
+  [ObjectType.RECORD]: RecordDataInfo,
+  [ObjectType.QUERY]: QueryDataInfo,
+  [ObjectType.VIEW]: ViewDataInfo,
+  [ObjectType.STEP]: StepDataInfo,
+  [ObjectType.BADGE]: BadgeDataInfo,
+  [ObjectType.ROLE]: RoleDataInfo,
+  [ObjectType.IDENTITY]: IdentityDataInfo,
+  [ObjectType.MEMBERSHIP]: MembershipDataInfo,
+  [ObjectType.INVITE]: InviteDataInfo,
+  [ObjectType.SESSION]: SessionDataInfo,
+  [ObjectType.RUN]: RunDataInfo,
+  [ObjectType.PAUSE]: PauseDataInfo,
+  [ObjectType.SIGNAL]: SignalDataInfo,
+  [ObjectType.LOG]: LogDataInfo,
+  [ObjectType.NOTIFICATION]: NotificationDataInfo,
+  [ObjectType.SERVER]: ServerDataInfo,
+  [ObjectType.STORE]: StoreDataInfo,
+  [ObjectType.DRIVE]: DriveDataInfo,
+  [ObjectType.CACHE]: CacheDataInfo,
+  [ObjectType.FILE_CONTENT]: FileContentDataInfo,
+  [ObjectType.HANDLE]: HandleDataInfo,
+  [ObjectType.USER]: UserDataInfo,
+  [ObjectType.ORGANIZATION]: OrganizationDataInfo,
+  [ObjectType.CLIENT]: ClientDataInfo,
 }
 
     

@@ -1,4 +1,4 @@
-import { BenchType, ViewData } from "@/proto/wire";
+import { ObjectType, ViewData } from "@/proto/wire";
 import { toNodeReference } from "@/proto/wiring";
 import { NodeGraph } from "@/system/graph";
 import { fabricate } from "@/system/graph.test";
@@ -11,11 +11,11 @@ describe("order keys", () => {
   test("fix", () => {
     // a1: 1 duplicate, a2: 2 duplicates
     const badNodes = ["a0", "a1", "a1", "a2", "a2", "a2", "a3"].map((orderKey) =>
-      fabricate(BenchType.VIEW, { set: { orderKey }, unset: ["parentPtr", "valuePacked"] }),
+      fabricate(ObjectType.VIEW, { set: { orderKey }, unset: ["parentPtr", "valuePacked"] }),
     );
 
     // 'fix' order keys with minimal edits
-    const tx = new TransactionBuilder({}, v4(), toNodeReference(fabricate(BenchType.USER)));
+    const tx = new TransactionBuilder({}, v4(), toNodeReference(fabricate(ObjectType.USER)));
     fixOrderKeys(tx, badNodes);
     expect(tx.edits.length).toBe(3);
 

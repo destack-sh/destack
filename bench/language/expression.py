@@ -8,12 +8,12 @@ from bench.language.const import (
     IN_BENCH_NODE_TYPES,
     SUB_BENCH_NODE_TYPES,
     AggregationOp,
-    BenchType,
     ConditionalOp,
     EnumType,
     ExpressionKind,
     ExpressionOp,
     NodeType,
+    ObjectType,
     SortMode,
     SortOp,
     StructType,
@@ -164,7 +164,7 @@ class NodeReference(Struct):
 
 @struct(StructType.PROPERTY_REFERENCE, inline=True)
 class PropertyReference(Struct):
-    type: Optional[BenchType] = p_regular(30, require=False)
+    type: Optional[ObjectType] = p_regular(30, require=False)
     id: int = p_regular(31)
     # to disambiguate contributed properties
     references_type: Optional[NodeType] = p_regular(32)

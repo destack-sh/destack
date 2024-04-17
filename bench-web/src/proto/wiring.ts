@@ -1,6 +1,6 @@
 import {
-  BenchType,
-  MESSAGE_TYPE_BY_BENCH_TYPE,
+  ObjectType,
+  MESSAGE_TYPE_BY_OBJECT_TYPE,
   NODE_PROPERTY_ENUM_BY_TYPE,
   NodeReferenceData,
   NodeSource,
@@ -27,7 +27,7 @@ import { computed, toRef, type MaybeRef, type Ref } from "vue";
 
 export const NODE_TYPE_NAME: Record<NodeType, string> = reverseRecord(NodeType);
 export const STRUCT_TYPE_NAME: Record<StructType, string> = reverseRecord(StructType);
-export const BENCH_TYPE_NAME: Record<BenchType, string> = reverseRecord(BenchType);
+export const OBJECT_TYPE_NAME: Record<ObjectType, string> = reverseRecord(ObjectType);
 
 export type TypedNodeReferenceData<T extends NodeType> = NodeReferenceData & { type: T };
 export type AnyNodeReferenceData = NodeReferenceData | TypedNodeReferenceData<NodeType>;
@@ -35,9 +35,9 @@ export type SomeNodeReferenceData<T extends NodeType> = NodeReferenceData | Type
 
 /** Short string representation of the node (pointer) */
 export function describeNode(node: {
-  metatype?: NodeType | BenchType | any | null;
+  metatype?: NodeType | ObjectType | any | null;
   parentPtr?: NodeReferenceData | null;
-  type?: NodeType | BenchType | any | null;
+  type?: NodeType | ObjectType | any | null;
   id?: string | null;
   ck?: string | null;
   slug?: string | null;
@@ -53,7 +53,7 @@ export function describeNode(node: {
   if (node.parentPtr) nodeParts.push(`parent=${toCamelName(NodeType, node.parentPtr.type)}:${node.parentPtr.id}`);
   if ("benchId" in node) nodeParts.push(`benchId=${node.benchId}`);
   if ("benchCk" in node) nodeParts.push(`benchId=${node.benchCk}`);
-  const type = node.metatype == BenchType.NODE_REFERENCE ? (node as NodeReferenceData).type : node.metatype;
+  const type = node.metatype == ObjectType.NODE_REFERENCE ? (node as NodeReferenceData).type : node.metatype;
   const typeName = type == null ? "Node" : toCamelName(NodeType, type);
   return `${typeName}:[${nodeParts.join(", ")}]`;
 }
@@ -67,7 +67,7 @@ export function newStructId(): number {
 export function makeStruct<T extends StructType>(
   data: Omit<StructTypeMapping[T], "metatype" | "id"> & { metatype: T },
 ): StructTypeMapping[T] {
-  const properties = STRUCT_PROPERTY_ENUM_BY_TYPE[data.metatype as unknown as BenchType]!;
+  const properties = STRUCT_PROPERTY_ENUM_BY_TYPE[data.metatype as unknown as ObjectType]!;
   let struct;
   if ("id" in properties) {
     struct = {
@@ -84,8 +84,8 @@ export function makeStruct<T extends StructType>(
 export function makeDefaultStruct<T extends StructType>(
   data: Partial<Omit<StructTypeMapping[T], "metatype" | "id">> & { metatype: T },
 ): StructTypeMapping[T] {
-  const allProperties: AnyPropertyType = STRUCT_PROPERTY_ENUM_BY_TYPE[data.metatype as unknown as BenchType]!;
-  const messageType = MESSAGE_TYPE_BY_BENCH_TYPE[data.metatype as unknown as BenchType]!;
+  const allProperties: AnyPropertyType = STRUCT_PROPERTY_ENUM_BY_TYPE[data.metatype as unknown as ObjectType]!;
+  const messageType = MESSAGE_TYPE_BY_OBJECT_TYPE[data.metatype as unknown as ObjectType]!;
   let ord = 1; // skip metatype
   const struct = { ...data } as unknown as StructTypeMapping[T];
   for (const propName of Object.keys(allProperties)) {
@@ -116,9 +116,9 @@ export const SCALAR_DEFAULTS: Partial<Record<ScalarType, any>> = {
 };
 
 /** Initializes the Bench type proto with default proto values. */
-export function makeDefaultBenchProto<T extends BenchType>(metatype: T): AnyTypeMapping[T] {
-  const allProperties: AnyPropertyType = PROPERTY_ENUM_BY_TYPE[metatype as unknown as BenchType]!;
-  const messageType = MESSAGE_TYPE_BY_BENCH_TYPE[metatype as unknown as BenchType]!;
+export function makeDefaultBenchProto<T extends ObjectType>(metatype: T): AnyTypeMapping[T] {
+  const allProperties: AnyPropertyType = PROPERTY_ENUM_BY_TYPE[metatype as unknown as ObjectType]!;
+  const messageType = MESSAGE_TYPE_BY_OBJECT_TYPE[metatype as unknown as ObjectType]!;
   let ord = 1; // skip metatype
   const proto = { metatype } as AnyTypeMapping[T];
   for (const propName of Object.keys(allProperties)) {
@@ -183,7 +183,7 @@ export function makeNode<T extends NodeType>(
     revision: 0,
     setProperties: [],
   } as unknown as NodeTypeMapping[T];
-  const properties = NODE_PROPERTY_ENUM_BY_TYPE[data.metatype as unknown as BenchType]!;
+  const properties = NODE_PROPERTY_ENUM_BY_TYPE[data.metatype as unknown as ObjectType]!;
 
   // assign id/ck/scope
   if (!options?.omit?.includes("id")) {
@@ -203,7 +203,7 @@ export function makeNode<T extends NodeType>(
   }
 
   // assign default values to unset properties
-  const messageType = MESSAGE_TYPE_BY_BENCH_TYPE[data.metatype as unknown as BenchType]!;
+  const messageType = MESSAGE_TYPE_BY_OBJECT_TYPE[data.metatype as unknown as ObjectType]!;
   let ord = 1; // skip metatype
   for (const propName of Object.keys(properties)) {
     if (!isNaN(Number(propName))) continue; // skip numeric keys
@@ -232,7 +232,7 @@ export function isNode<T extends NodeType = NodeType>(
   type?: T,
 ): value is NodeTypeMapping[T] {
   if (value == null) return false;
-  else if (type != null) return value.metatype == (type as unknown as BenchType);
+  else if (type != null) return value.metatype == (type as unknown as ObjectType);
   else return value.metatype < 500;
 }
 
@@ -241,7 +241,7 @@ export function isStruct<T extends StructType = StructType>(
   type?: T,
 ): value is StructTypeMapping[T] {
   if (value == null) return false;
-  else if (type != null) return value.metatype == (type as unknown as BenchType);
+  else if (type != null) return value.metatype == (type as unknown as ObjectType);
   else return value.metatype >= 500;
 }
 
@@ -255,7 +255,7 @@ export function nodeReference<T extends NodeType>(
     baseBenchId?: string;
   },
 ): TypedNodeReferenceData<T> {
-  const ptr = { metatype: BenchType.NODE_REFERENCE, type: nodeType, ...meta, id };
+  const ptr = { metatype: ObjectType.NODE_REFERENCE, type: nodeType, ...meta, id };
   if (nodeType == NodeType.BENCH && ptr.benchId == null) ptr.benchId = id;
   return ptr;
 }
@@ -273,8 +273,8 @@ export function typeNodeReferenceMaybe<T extends NodeType>(
   return typeNodeReference(nodeType, ref);
 }
 
-export function propertyReference<T extends BenchType>(metatype: T, id: number): PropertyReferenceData {
-  return { metatype: BenchType.PROPERTY_REFERENCE, type: metatype, id };
+export function propertyReference<T extends ObjectType>(metatype: T, id: number): PropertyReferenceData {
+  return { metatype: ObjectType.PROPERTY_REFERENCE, type: metatype, id };
 }
 
 export function toNodeReference(node: null): null;
@@ -282,10 +282,10 @@ export function toNodeReference<T extends NodeType>(node: TypedNodeReferenceData
 export function toNodeReference<T extends NodeType>(node: NodeTypeMapping[T]): TypedNodeReferenceData<T>;
 export function toNodeReference<T extends NodeType>(node: NodeTypeMapping[T] | null): TypedNodeReferenceData<T> | null {
   if (!node) return null;
-  if (node.metatype == BenchType.NODE_REFERENCE) return node as unknown as TypedNodeReferenceData<T>;
+  if (node.metatype == ObjectType.NODE_REFERENCE) return node as unknown as TypedNodeReferenceData<T>;
   const allProperties: AnyPropertyType = NODE_PROPERTY_ENUM_BY_TYPE[node.metatype]!;
   const reference: TypedNodeReferenceData<T> = {
-    metatype: BenchType.NODE_REFERENCE,
+    metatype: ObjectType.NODE_REFERENCE,
     type: node.metatype as unknown as T,
     id: node.id,
   };
@@ -294,7 +294,7 @@ export function toNodeReference<T extends NodeType>(node: NodeTypeMapping[T] | n
     reference.ck = (node as { ck: string }).ck;
   }
   // benchId
-  if (node.metatype == BenchType.BENCH) {
+  if (node.metatype == ObjectType.BENCH) {
     reference.benchId = node.id;
   } else if ("packagePtr" in node) {
     reference.benchId = node.packagePtr?.benchId;
@@ -331,12 +331,12 @@ export function toNodeReferenceInPackage<T extends NodeType>(
 }
 
 export function getNodeType(node: AnyNodeData | AnyNodeReferenceData): NodeType {
-  if (node.metatype == BenchType.NODE_REFERENCE) return (node as NodeReferenceData).type;
+  if (node.metatype == ObjectType.NODE_REFERENCE) return (node as NodeReferenceData).type;
   else return node.metatype as unknown as NodeType;
 }
 
-export function toBenchType(type: NodeType | StructType): BenchType {
-  return type as unknown as BenchType;
+export function toObjectType(type: NodeType | StructType): ObjectType {
+  return type as unknown as ObjectType;
 }
 
 export function toProtoOneOf<T extends object>(value: T): T & { oneofKind: keyof T } {
@@ -346,7 +346,7 @@ export function toProtoOneOf<T extends object>(value: T): T & { oneofKind: keyof
 }
 
 export function wrapSomeNode(node: AnyNodeData): SomeNodeData {
-  const fieldName = toCasing(BENCH_TYPE_NAME[node.metatype], Casing.SNAKE);
+  const fieldName = toCasing(OBJECT_TYPE_NAME[node.metatype], Casing.SNAKE);
   return { node: { [fieldName]: node, oneofKind: fieldName as any } };
 }
 

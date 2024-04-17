@@ -10,7 +10,7 @@ import structlog
 from betterproto.lib.google.protobuf import Struct as BetterprotoStruct
 
 from bench.language import Property
-from bench.language.const import BenchType, NodeType
+from bench.language.const import NodeType, ObjectType
 from bench.language.graph import NodeDataGraph
 from bench.language.node import NODE_CLASS_BY_TYPE, InterpStatus, Node, NodeGraph, Struct
 from bench.language.notice import NoticeHandler, on_notice_ignore, on_warning_raise
@@ -26,17 +26,19 @@ from bench.utils.func import IdEnum, to_uuid
 
 logger = structlog.get_logger(__name__)
 
-PROTO_CLASS_BY_TYPE: dict[BenchType, type[Union[AnyNodeData, AnyStructData]]] = {
+PROTO_CLASS_BY_TYPE: dict[ObjectType, type[Union[AnyNodeData, AnyStructData]]] = {
     _type: getattr(wire, _type.bench_name + "Data")
-    for _type in BenchType
+    for _type in ObjectType
     if hasattr(wire, _type.bench_name + "Data")  # may just be creating it
 }
-BENCH_TYPE_BY_PROTO_CLASS: dict[type[Union[AnyNodeData, AnyStructData]], BenchType] = {
-    cls: bench_type for bench_type, cls in PROTO_CLASS_BY_TYPE.items()
+OBJECT_TYPE_BY_PROTO_CLASS: dict[type[Union[AnyNodeData, AnyStructData]], ObjectType] = {
+    cls: object_type for object_type, cls in PROTO_CLASS_BY_TYPE.items()
 }
 BENCH_CLASS_BY_PROTO_CLASS: dict[
     type[Union[AnyNodeData, AnyStructData]], type[Union[Node, Struct]]
-] = {cls: BENCH_CLASS_BY_TYPE[bench_type] for cls, bench_type in BENCH_TYPE_BY_PROTO_CLASS.items()}
+] = {
+    cls: BENCH_CLASS_BY_TYPE[object_type] for cls, object_type in OBJECT_TYPE_BY_PROTO_CLASS.items()
+}
 
 NodeT = TypeVar("NodeT", bound=Node)
 NodeDataT = TypeVar("NodeDataT", bound=AnyNodeData)
@@ -103,8 +105,8 @@ def _pack_struct_prop(prop: Property, value: Any, ignore_array: bool) -> Any:
     elif prop.reference_kind is not None and not prop.reference_kind.is_struct_tree:
         # struct references are just integers
         return NodeReferenceData(
-            metatype=wire.BenchType.NODE_REFERENCE,
-            type=pack_enum(BenchType, value.type),
+            metatype=wire.ObjectType.NODE_REFERENCE,
+            type=pack_enum(ObjectType, value.type),
             id=str(value.id),
             ck=str(value.ck) if value.ck is not None else None,
         )
@@ -148,7 +150,7 @@ def _unpack_struct_prop(prop: Property, value: Any, ignore_array: bool) -> Any:
 def pack_struct(struct: StructT) -> StructDataT:
     """Pack a struct and any contained structs."""
     data_cls = PROTO_CLASS_BY_TYPE[struct.metatype]
-    metatype = pack_enum(BenchType, struct.metatype)
+    metatype = pack_enum(ObjectType, struct.metatype)
     data = data_cls(metatype=metatype)
     try:
         for prop in struct.__wired_properties__.values():
@@ -168,7 +170,7 @@ def pack_struct_maybe(struct: StructT | None) -> StructDataT | None:
 
 def unpack_struct(struct_data: StructDataT) -> StructT:
     """Unpack a struct and any contained structs."""
-    struct_cls = BENCH_CLASS_BY_TYPE[BenchType(struct_data.metatype)]
+    struct_cls = BENCH_CLASS_BY_TYPE[ObjectType(struct_data.metatype)]
     struct_kwargs = {}
     try:
         for prop in struct_cls.__wired_properties__.values():

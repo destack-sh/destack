@@ -7,7 +7,7 @@ import {
   NodeType,
   BlockType,
   BlockData,
-  BenchType,
+  ObjectType,
   type AnyNodeData,
 } from "@/proto/wire";
 import { makeIcon } from "@/system/icon";
@@ -937,7 +937,7 @@ contributeActionMap<"developer">({
     action: () => {
       const tx = pkgConnection.tx;
       const existingNodes = pkgGraph.nodes.filter(
-        (n) => n.metatype == BenchType.BLOCK || n.metatype == BenchType.PACKAGE,
+        (n) => n.metatype == ObjectType.BLOCK || n.metatype == ObjectType.PACKAGE,
       );
       for (let i = 0; i < 10; i++) {
         const name = generateRandomName();

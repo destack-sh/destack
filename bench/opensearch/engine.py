@@ -18,7 +18,7 @@ from bench.language import (
     SortOp,
     Store,
 )
-from bench.language.const import BenchType, BlockType, EditType, NodeType, StoreEngineType
+from bench.language.const import BlockType, EditType, NodeType, ObjectType, StoreEngineType
 from bench.language.expression import METATYPE_KEY, Expression, ExpressionOps, S
 from bench.language.node import STRUCT_CLASS_BY_TYPE, Node, Struct
 from bench.language.query import StoreEngineError, StoreEngineIncapableError
@@ -220,7 +220,7 @@ def compile_os_sort(ctx: CompilationContext, sort: Expression) -> dict[str, Any]
 class OsSearch:
     """Compiled search query for OS."""
 
-    metatype: BenchType
+    metatype: ObjectType
     limit: int | None = None
     skip: int | None = None
     count: bool = True
@@ -266,7 +266,7 @@ class OsSearchResult:
 
 
 def os_compile_search(
-    metatype: BenchType,
+    metatype: ObjectType,
     query: Optional[Expression] = None,
     sort: Optional[list[Expression]] = None,
     limit: int | None = None,
@@ -309,7 +309,7 @@ def _wrap_os_error(
 
 async def os_search(
     store: Store,
-    metatype: BenchType,
+    metatype: ObjectType,
     filter: Optional[Expression] = None,
     sort: Optional[list[Expression]] = None,
     limit: int | None = None,
@@ -434,7 +434,7 @@ def _unpack_struct_prop(prop: Property, value: Any, ignore_array: bool) -> Any:
 
 
 def pack_struct(node: wire.AnyNodeData | wire.AnyStructData) -> dict:
-    metatype = wiring.unpack_enum(BenchType, node.metatype)
+    metatype = wiring.unpack_enum(ObjectType, node.metatype)
     bench_cls = BENCH_CLASS_BY_TYPE[metatype]
     document: dict[str, Any] = {METATYPE_KEY: metatype.name}
     for prop in bench_cls.__stored_properties__.values():
@@ -446,7 +446,7 @@ def pack_struct(node: wire.AnyNodeData | wire.AnyStructData) -> dict:
 
 
 def unpack_struct(source: dict) -> wire.AnyNodeData | wire.AnyStructData:
-    metatype = BenchType(source[METATYPE_KEY])
+    metatype = ObjectType(source[METATYPE_KEY])
     bench_cls = BENCH_CLASS_BY_TYPE[metatype]
     proto_cls = wiring.PROTO_CLASS_BY_TYPE[metatype]
     proto_kwargs = {}
@@ -619,7 +619,7 @@ async def os_write_edits(module: Package, edits: list[EditData]) -> None:
             ops.clear()
 
         for edit in edits:
-            metatype = wiring.unpack_enum(BenchType, edit.node.metatype)
+            metatype = wiring.unpack_enum(ObjectType, edit.node.metatype)
             node_cls = BENCH_CLASS_BY_TYPE[metatype]
             index = module.os_name if node_cls.__is_local__ else os.GLOBAL_INDEX_NAME
             if not node_cls.__is_indexed_in_search__:

@@ -1,5 +1,5 @@
 import {
-  BenchType,
+  ObjectType,
   DESCENDANT_NODE_TYPES,
   IconData,
   NodeReferenceData,
@@ -248,7 +248,7 @@ export class ViewCanvas {
 
   /** Resolve the view data */
   getViewData(view: SomeView): ViewData | null {
-    if (view.metatype == BenchType.VIEW) return view as ViewData;
+    if (view.metatype == ObjectType.VIEW) return view as ViewData;
     else return this.graph.get(view as NodeKey<NodeType.VIEW>) as ViewData | null;
   }
 
@@ -400,7 +400,7 @@ export class ViewCanvas {
     let child = this.getViewData(focus.view);
     if (child == null) throw new Error(`no view in graph for ${focus.view}`);
     let parent: ViewData | SpaceData | null = this.getViewData(focus.parent ?? child.parentPtr!);
-    while (parent?.metatype == BenchType.VIEW || parent?.metatype == BenchType.SPACE) {
+    while (parent?.metatype == ObjectType.VIEW || parent?.metatype == ObjectType.SPACE) {
       tx.updateDebounced(parent, { focus: makeSelection([child]) });
       child = parent as ViewData;
       parent = this.graph.getMaybe(child.parentPtr) as ViewData | SpaceData | null;
@@ -678,7 +678,7 @@ export class ViewCanvas {
     options?: { graph?: ReadNodeGraph; skipSelf?: boolean } & OpenViewOptions,
   ) {
     const nodeRef =
-      node.metatype == BenchType.NODE_REFERENCE ? (node as NodeReferenceData) : toNodeReference(node as AnyNodeData);
+      node.metatype == ObjectType.NODE_REFERENCE ? (node as NodeReferenceData) : toNodeReference(node as AnyNodeData);
     log.debug("canvas.goToNode", node);
     const tx = this.txFactory();
     if (nodeRef.type == NodeType.VIEW && this.isInSpace(node)) {
@@ -780,9 +780,9 @@ export class ViewCanvas {
     let split: ViewData | null = null;
     if (parent.type == ViewType.WINDOW) split = parent;
     else if (parent.parentPtr != null) split = graph.get(parent.parentPtr) as ViewData;
-    if (split?.metatype != BenchType.VIEW)
+    if (split?.metatype != ObjectType.VIEW)
       throw new Error(
-        `no enclosing split view: [parent=${BenchType[parent.metatype]}, parent.type=${ViewType[parent.type]}]`,
+        `no enclosing split view: [parent=${ObjectType[parent.metatype]}, parent.type=${ViewType[parent.type]}]`,
       );
     const isHorizontal = anchor == "left" || anchor == "right";
     const orientation = isHorizontal ? Orientation.HORIZONTAL : Orientation.VERTICAL;
@@ -855,7 +855,7 @@ export function focusInElement(element: MaybeElement): boolean {
       return true;
     } else if ("focus" in element) {
       const focusResult = (element as any).focus();
-      if (focusResult === true) return true;
+      if (focusResult !== false && focusResult !== null) return true;
       else element = focusResult;
     } else {
       return false;
@@ -1010,10 +1010,10 @@ export function makeSelection(
 ): SelectionData {
   nodes = Array.isArray(nodes) ? nodes : [nodes];
   return {
-    metatype: BenchType.SELECTION,
+    metatype: ObjectType.SELECTION,
     kind: SelectionKind.LIST,
     nodesPtr: nodes.map((n) =>
-      n.metatype == BenchType.NODE_REFERENCE ? (n as NodeReferenceData) : toNodeReference(n as AnyNodeData),
+      n.metatype == ObjectType.NODE_REFERENCE ? (n as NodeReferenceData) : toNodeReference(n as AnyNodeData),
     ),
   };
 }
@@ -1030,11 +1030,11 @@ export function expandSelection(
   nodes: (AnyNodeData | NodeReferenceData)[],
 ): SelectionData {
   return {
-    ...(selection ?? { metatype: BenchType.SELECTION, kind: SelectionKind.LIST }),
+    ...(selection ?? { metatype: ObjectType.SELECTION, kind: SelectionKind.LIST }),
     nodesPtr: [
       ...(selection?.nodesPtr ?? []),
       ...nodes.map((n) =>
-        n.metatype == BenchType.NODE_REFERENCE ? (n as NodeReferenceData) : toNodeReference(n as AnyNodeData),
+        n.metatype == ObjectType.NODE_REFERENCE ? (n as NodeReferenceData) : toNodeReference(n as AnyNodeData),
       ),
     ],
   };
@@ -1046,7 +1046,7 @@ export function collapseSelection(selection: SelectionData, nodes: (AnyNodeData 
     nodesPtr: selection.nodesPtr.filter(
       (n) =>
         !nodes.some((m) => {
-          if (m.metatype == BenchType.NODE_REFERENCE) return m.id == n.id;
+          if (m.metatype == ObjectType.NODE_REFERENCE) return m.id == n.id;
           else return m.id == n.id;
         }),
     ),

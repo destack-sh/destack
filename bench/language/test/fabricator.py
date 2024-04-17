@@ -11,7 +11,7 @@ from bench.language import NodeReference, Property
 from bench.language.const import (
     EMPTY_DICT,
     NODE_TYPES,
-    BenchType,
+    ObjectType,
     PrimitiveType,
     ReferenceKind,
     StructType,
@@ -39,7 +39,7 @@ class Fabricator:
             datetime: lambda: datetime.utcnow().replace(tzinfo=pytz.utc),
         }
 
-    def fabricate_prop_scalar(self, prop: Property, path: tuple[BenchType, ...] = ()) -> any:
+    def fabricate_prop_scalar(self, prop: Property, path: tuple[ObjectType, ...] = ()) -> any:
         if prop.is_enum:
             enum_cls = cast(type[enum.Enum], prop.py_type_stripped)
             return random.choice(tuple(enum_cls)) if len(enum_cls) > 0 else None
@@ -63,13 +63,13 @@ class Fabricator:
             raise ValueError(f"cannot fabricate {prop!r}")
 
     def fabricate(
-        self, bench_type: BenchType, path: tuple[BenchType, ...] = (), **override
+        self, object_type: ObjectType, path: tuple[ObjectType, ...] = (), **override
     ) -> NodeT | StructT:
-        path = path + (bench_type,)
+        path = path + (object_type,)
         override = override or EMPTY_DICT
 
         # special cases for semantic correctness
-        if bench_type == StructType.NODE_REFERENCE:
+        if object_type == StructType.NODE_REFERENCE:
             type = random.choice(NODE_TYPES)
             id = uuid.uuid4()
             if "ck" in NODE_CLASS_BY_TYPE[type].__properties__:
@@ -77,7 +77,7 @@ class Fabricator:
             else:
                 ck = None
             return NodeReference(type=type, id=id, ck=ck)
-        elif bench_type == StructType.PROPERTY_REFERENCE:
+        elif object_type == StructType.PROPERTY_REFERENCE:
             type = random.choice(NODE_TYPES)
             prop = random.choice(
                 tuple(p for p in NODE_CLASS_BY_TYPE[type].__properties__.values() if p.id)
@@ -85,7 +85,7 @@ class Fabricator:
             return prop.to_ref()
         else:  # default unconstrained random jumble of properties
             kwargs = {**override}
-            bench_cls = BENCH_CLASS_BY_TYPE[bench_type]
+            bench_cls = BENCH_CLASS_BY_TYPE[object_type]
             for prop in bench_cls.__wired_properties__.values():
                 if prop.name in override:
                     continue
@@ -105,5 +105,7 @@ class Fabricator:
                 else:
                     kwargs[prop.name] = self.fabricate_prop_scalar(prop, path)
             fabricated = bench_cls(**kwargs)
-            assert fabricated.metatype == bench_type, f"{fabricated!r}.metatype is not {bench_type}"
+            assert (
+                fabricated.metatype == object_type
+            ), f"{fabricated!r}.metatype is not {object_type}"
             return fabricated

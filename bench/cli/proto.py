@@ -141,16 +141,16 @@ AnyStructData = Union[{', '.join([cls.__name__ + 'Data' for cls in STRUCT_CLASSE
     # message type mappings
     message_type_map_parts = []
     for cls in chain(NODE_CLASSES, STRUCT_CLASSES):
-        message_type_map_parts.append(f"  [BenchType.{cls.metatype.name}]: {cls.__name__}Data,\n")
+        message_type_map_parts.append(f"  [ObjectType.{cls.metatype.name}]: {cls.__name__}Data,\n")
     message_type_map_str = (
-        "export const MESSAGE_TYPE_BY_BENCH_TYPE: Partial<Record<BenchType, MessageType<any>>> = {\n"
+        "export const MESSAGE_TYPE_BY_OBJECT_TYPE: Partial<Record<ObjectType, MessageType<any>>> = {\n"
         + "".join(message_type_map_parts)
         + "}\n"
     )
     message_type_inv_map_str = (
-        "export const BENCH_TYPE_BY_MESSAGE_TYPE_NAME: Record<string, BenchType> = {\n"
+        "export const OBJECT_TYPE_BY_MESSAGE_TYPE_NAME: Record<string, ObjectType> = {\n"
         + "".join(
-            f'  ["symbolx.bench.{cls.__name__}Data"]: BenchType.{cls.metatype.name},\n'
+            f'  ["symbolx.bench.{cls.__name__}Data"]: ObjectType.{cls.metatype.name},\n'
             for cls in chain(NODE_CLASSES, STRUCT_CLASSES)
         )
         + "}\n"
@@ -174,10 +174,10 @@ AnyStructData = Union[{', '.join([cls.__name__ + 'Data' for cls in STRUCT_CLASSE
     node_mapping_parts.append("}\n")
     node_mapping_str = "".join(node_mapping_parts)
     any_mapping_parts = [
-        "export interface AnyTypeMapping extends Record<BenchType, AnyStructData | AnyNodeData> {\n"
+        "export interface AnyTypeMapping extends Record<ObjectType, AnyStructData | AnyNodeData> {\n"
     ]
     for cls in chain(NODE_CLASSES, STRUCT_CLASSES):
-        any_mapping_parts.append(f"  [BenchType.{cls.metatype.name}]: {cls.__name__}Data,\n")
+        any_mapping_parts.append(f"  [ObjectType.{cls.metatype.name}]: {cls.__name__}Data,\n")
     any_mapping_parts.append("}\n")
     any_mapping_str = "".join(any_mapping_parts)
 
@@ -203,10 +203,10 @@ AnyStructData = Union[{', '.join([cls.__name__ + 'Data' for cls in STRUCT_CLASSE
         property_enum_map_parts: list[str] = []
         for cls in classes:
             property_enum_map_parts.append(
-                f"  [BenchType.{cls.metatype.name}]: {cls.__name__}Property,\n"
+                f"  [ObjectType.{cls.metatype.name}]: {cls.__name__}Property,\n"
             )
         property_enum_map_str = (
-            f"export const {upper_prefix}PROPERTY_ENUM_BY_TYPE: Partial<Record<BenchType, Any{camel_prefix}PropertyType>> = {{\n"
+            f"export const {upper_prefix}PROPERTY_ENUM_BY_TYPE: Partial<Record<ObjectType, Any{camel_prefix}PropertyType>> = {{\n"
             + "".join(property_enum_map_parts)
             + "}\n"
         )
@@ -265,7 +265,7 @@ export type PropertyInfo = {
     // basics
     id: number;
     name: string;
-    component: BenchType;
+    component: ObjectType;
     kind: PropertyKind;
     primitiveType?: PrimitiveType;
     default?: any;
@@ -299,8 +299,8 @@ export type PropertyInfo = {
 }
     """
     type_info_definitions_parts = []
-    for bench_type in chain(STRUCT_TYPES, NODE_TYPES):
-        bench_cls = NODE_CLASS_BY_TYPE.get(bench_type) or STRUCT_CLASS_BY_TYPE.get(bench_type)
+    for object_type in chain(STRUCT_TYPES, NODE_TYPES):
+        bench_cls = NODE_CLASS_BY_TYPE.get(object_type) or STRUCT_CLASS_BY_TYPE.get(object_type)
         prop_infos_strs: list[str] = []
         for prop in bench_cls.__properties__.values():
             if not prop.is_wired:
@@ -309,7 +309,7 @@ export type PropertyInfo = {
             prop_info_parts: dict[str, str] = {
                 "id": str(prop.id),
                 "name": repr(prop.name),
-                "component": f"BenchType.{bench_cls.metatype.name}",
+                "component": f"ObjectType.{bench_cls.metatype.name}",
             }
             if prop.reference_kind:
                 kind = "reference"
@@ -372,13 +372,13 @@ export type PropertyInfo = {
 
     # map
     type_info_map_parts = [
-        "export const PROPERTY_INFOS_BY_TYPE: Record<BenchType, Record<any, PropertyInfo>> = {\n"
-        "  [BenchType.UNSPECIFIED]: {},\n"
+        "export const PROPERTY_INFOS_BY_TYPE: Record<ObjectType, Record<any, PropertyInfo>> = {\n"
+        "  [ObjectType.UNSPECIFIED]: {},\n"
     ]
-    for bench_type in chain(STRUCT_TYPES, NODE_TYPES):
-        bench_cls = NODE_CLASS_BY_TYPE.get(bench_type) or STRUCT_CLASS_BY_TYPE.get(bench_type)
+    for object_type in chain(STRUCT_TYPES, NODE_TYPES):
+        bench_cls = NODE_CLASS_BY_TYPE.get(object_type) or STRUCT_CLASS_BY_TYPE.get(object_type)
         type_info_map_parts.append(
-            f"  [BenchType.{bench_type.name}]: {bench_cls.__name__}DataInfo,\n"
+            f"  [ObjectType.{object_type.name}]: {bench_cls.__name__}DataInfo,\n"
         )
     type_info_map_parts.append("}\n")
     type_info_map_str = "".join(type_info_map_parts)
@@ -395,7 +395,7 @@ export type AnyNodeDataType = {' | '.join('typeof ' + cls.__name__ + 'Data' for 
 export type AnyStructDataType = {' | '.join('typeof ' + cls.__name__ + 'Data' for cls in STRUCT_CLASSES)}
 
 // type lists
-export const BENCH_TYPES: BenchType[] = Object.values(BenchType).filter(v => typeof v === 'number' && v > 0) as BenchType[]
+export const OBJECT_TYPES: ObjectType[] = Object.values(ObjectType).filter(v => typeof v === 'number' && v > 0) as ObjectType[]
 export const NODE_TYPES: NodeType[] = Object.values(NodeType).filter(v => typeof v === 'number' && v > 0) as NodeType[]
 export const STRUCT_TYPES: StructType[] = Object.values(StructType).filter(v => typeof v === 'number' && v > 0) as StructType[]
 

@@ -17,10 +17,10 @@ from bench.language.const import (
     AccessMode,
     AccessType,
     BenchError,
-    BenchType,
     ConditionalOp,
     EditType,
     NodeType,
+    ObjectType,
     PolicyEffect,
     ReadType,
     StructType,
@@ -485,7 +485,7 @@ class PolicyRule(Struct):
 
     def object(
         self,
-        node_types: tuple[BenchType, ...] = (),
+        node_types: tuple[ObjectType, ...] = (),
         properties: tuple[Property, ...] = (),
         properties_is_system: Optional[bool] = None,
         properties_is_sensitive: Optional[bool] = None,
@@ -640,7 +640,7 @@ class Access(Struct):
     mode: AccessMode = p_system(30, require=True)
     decision: PolicyEffect = p_system(31, require=True)
     verb: AccessType = p_system(32, require=True)
-    object_type: BenchType = p_system(33, require=True)
+    object_type: ObjectType = p_system(33, require=True)
     object_properties: list[Property] = p_system(
         34, require=False, array=True, struct=StructType.PROPERTY_REFERENCE
     )

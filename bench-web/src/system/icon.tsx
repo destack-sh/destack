@@ -1,4 +1,4 @@
-import { IconKind, type IconData, BenchType } from "@/proto/wire";
+import { IconKind, type IconData, ObjectType } from "@/proto/wire";
 import type { FunctionalComponent } from "vue";
 
 export const IconInline: FunctionalComponent<Pick<IconData, "emoji" | "file" | "faName">> = (props) => {
@@ -16,7 +16,7 @@ type IconIn = string | Pick<IconData, "emoji" | "file" | "faName">;
 export function makeIcon(icon: IconIn): IconData {
   let kind: IconKind;
   if (typeof icon == "string") {
-    return { metatype: BenchType.ICON, kind: IconKind.FONT_AWESOME, faName: icon, setProperties: [] };
+    return { metatype: ObjectType.ICON, kind: IconKind.FONT_AWESOME, faName: icon, setProperties: [] };
   } else if (icon.emoji) {
     kind = IconKind.EMOJI;
   } else if (icon.file) {
@@ -27,7 +27,7 @@ export function makeIcon(icon: IconIn): IconData {
     throw new Error(`unexpected icon ${icon}`);
   }
   return {
-    metatype: BenchType.ICON,
+    metatype: ObjectType.ICON,
     kind,
     ...icon,
     setProperties: [],
