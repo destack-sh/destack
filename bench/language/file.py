@@ -4,10 +4,9 @@ from typing import TYPE_CHECKING, BinaryIO, Optional
 import aiohttp
 import structlog
 
-from bench.language.const import FileStatus, NodeType, StructType
+from bench.language.const import EnumType, FileStatus, NodeType, StructType, enum_
 from bench.language.node import Struct, struct
 from bench.language.property import Property, p_internal, p_regular, p_runtime
-from bench.language.setup import _well_known_enum
 from bench.language.validation import ValidationHandler, validate_name
 from bench.utils.func import IdEnum, _auto_async_to_sync
 from bench.utils.utils import get_from_env
@@ -93,7 +92,7 @@ class File(Struct):
         return io.BytesIO(await self.download())
 
 
-@_well_known_enum
+@enum_(EnumType.ICON_KIND)
 class IconKind(IdEnum):
     EMOJI = 1
     FILE = 2

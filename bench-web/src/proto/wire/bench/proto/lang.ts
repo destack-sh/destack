@@ -5697,6 +5697,33 @@ export enum Alignment {
     SPACE_BETWEEN = 4
 }
 /**
+ * An anchor in 2D space.
+ *
+ * @generated from protobuf enum symbolx.bench.Anchor
+ */
+export enum Anchor {
+    /**
+     * @generated from protobuf enum value: ANCHOR_UNSPECIFIED = 0;
+     */
+    UNSPECIFIED = 0,
+    /**
+     * @generated from protobuf enum value: ANCHOR_TOP_LEFT = 1;
+     */
+    TOP_LEFT = 1,
+    /**
+     * @generated from protobuf enum value: ANCHOR_TOP_RIGHT = 3;
+     */
+    TOP_RIGHT = 3,
+    /**
+     * @generated from protobuf enum value: ANCHOR_BOTTOM_RIGHT = 5;
+     */
+    BOTTOM_RIGHT = 5,
+    /**
+     * @generated from protobuf enum value: ANCHOR_BOTTOM_LEFT = 7;
+     */
+    BOTTOM_LEFT = 7
+}
+/**
  * @generated from protobuf enum symbolx.bench.BenchType
  */
 export enum BenchType {
@@ -5853,157 +5880,157 @@ export enum BenchType {
      */
     CLIENT = 223,
     /**
-     * @generated from protobuf enum value: BENCH_TYPE_PATH = 500;
+     * @generated from protobuf enum value: BENCH_TYPE_PATH = 1000;
      */
-    PATH = 500,
+    PATH = 1000,
     /**
-     * @generated from protobuf enum value: BENCH_TYPE_PATH_SEGMENT = 501;
+     * @generated from protobuf enum value: BENCH_TYPE_PATH_SEGMENT = 1001;
      */
-    PATH_SEGMENT = 501,
+    PATH_SEGMENT = 1001,
     /**
-     * @generated from protobuf enum value: BENCH_TYPE_PATH_TOKEN = 502;
+     * @generated from protobuf enum value: BENCH_TYPE_PATH_TOKEN = 1002;
      */
-    PATH_TOKEN = 502,
+    PATH_TOKEN = 1002,
     /**
-     * @generated from protobuf enum value: BENCH_TYPE_NODE_REFERENCE = 503;
+     * @generated from protobuf enum value: BENCH_TYPE_NODE_REFERENCE = 1003;
      */
-    NODE_REFERENCE = 503,
+    NODE_REFERENCE = 1003,
     /**
-     * @generated from protobuf enum value: BENCH_TYPE_PROPERTY_REFERENCE = 504;
+     * @generated from protobuf enum value: BENCH_TYPE_PROPERTY_REFERENCE = 1004;
      */
-    PROPERTY_REFERENCE = 504,
+    PROPERTY_REFERENCE = 1004,
     /**
-     * @generated from protobuf enum value: BENCH_TYPE_VALUE_REFERENCE = 505;
+     * @generated from protobuf enum value: BENCH_TYPE_VALUE_REFERENCE = 1005;
      */
-    VALUE_REFERENCE = 505,
+    VALUE_REFERENCE = 1005,
     /**
-     * @generated from protobuf enum value: BENCH_TYPE_TYPE_INFO = 510;
+     * @generated from protobuf enum value: BENCH_TYPE_TYPE_INFO = 1010;
      */
-    TYPE_INFO = 510,
+    TYPE_INFO = 1010,
     /**
-     * @generated from protobuf enum value: BENCH_TYPE_CONTEXT = 511;
+     * @generated from protobuf enum value: BENCH_TYPE_CONTEXT = 1011;
      */
-    CONTEXT = 511,
+    CONTEXT = 1011,
     /**
-     * @generated from protobuf enum value: BENCH_TYPE_SCHEDULE = 512;
+     * @generated from protobuf enum value: BENCH_TYPE_SCHEDULE = 1012;
      */
-    SCHEDULE = 512,
+    SCHEDULE = 1012,
     /**
-     * @generated from protobuf enum value: BENCH_TYPE_PROJECTION = 513;
+     * @generated from protobuf enum value: BENCH_TYPE_PROJECTION = 1013;
      */
-    PROJECTION = 513,
+    PROJECTION = 1013,
     /**
-     * @generated from protobuf enum value: BENCH_TYPE_FILE = 520;
+     * @generated from protobuf enum value: BENCH_TYPE_FILE = 1020;
      */
-    FILE = 520,
+    FILE = 1020,
     /**
-     * @generated from protobuf enum value: BENCH_TYPE_ICON = 521;
+     * @generated from protobuf enum value: BENCH_TYPE_ICON = 1021;
      */
-    ICON = 521,
+    ICON = 1021,
     /**
-     * @generated from protobuf enum value: BENCH_TYPE_POLICY = 530;
+     * @generated from protobuf enum value: BENCH_TYPE_POLICY = 1030;
      */
-    POLICY = 530,
+    POLICY = 1030,
     /**
-     * @generated from protobuf enum value: BENCH_TYPE_POLICY_RULE = 531;
+     * @generated from protobuf enum value: BENCH_TYPE_POLICY_RULE = 1031;
      */
-    POLICY_RULE = 531,
+    POLICY_RULE = 1031,
     /**
-     * @generated from protobuf enum value: BENCH_TYPE_SUBJECT = 532;
+     * @generated from protobuf enum value: BENCH_TYPE_SUBJECT = 1032;
      */
-    SUBJECT = 532,
+    SUBJECT = 1032,
     /**
-     * @generated from protobuf enum value: BENCH_TYPE_ACCESS_ZONE = 534;
+     * @generated from protobuf enum value: BENCH_TYPE_ACCESS_ZONE = 1034;
      */
-    ACCESS_ZONE = 534,
+    ACCESS_ZONE = 1034,
     /**
-     * @generated from protobuf enum value: BENCH_TYPE_ACCESS_MATRIX = 535;
+     * @generated from protobuf enum value: BENCH_TYPE_ACCESS_MATRIX = 1035;
      */
-    ACCESS_MATRIX = 535,
+    ACCESS_MATRIX = 1035,
     /**
-     * @generated from protobuf enum value: BENCH_TYPE_ACCESS = 537;
+     * @generated from protobuf enum value: BENCH_TYPE_ACCESS = 1037;
      */
-    ACCESS = 537,
+    ACCESS = 1037,
     /**
-     * @generated from protobuf enum value: BENCH_TYPE_ACCESS_TRACE = 538;
+     * @generated from protobuf enum value: BENCH_TYPE_ACCESS_TRACE = 1038;
      */
-    ACCESS_TRACE = 538,
+    ACCESS_TRACE = 1038,
     /**
-     * @generated from protobuf enum value: BENCH_TYPE_REQUEST = 536;
+     * @generated from protobuf enum value: BENCH_TYPE_REQUEST = 1036;
      */
-    REQUEST = 536,
+    REQUEST = 1036,
     /**
-     * @generated from protobuf enum value: BENCH_TYPE_READ_OPTIONS = 550;
+     * @generated from protobuf enum value: BENCH_TYPE_READ_OPTIONS = 1050;
      */
-    READ_OPTIONS = 550,
+    READ_OPTIONS = 1050,
     /**
-     * @generated from protobuf enum value: BENCH_TYPE_EXPRESSION = 560;
+     * @generated from protobuf enum value: BENCH_TYPE_EXPRESSION = 1060;
      */
-    EXPRESSION = 560,
+    EXPRESSION = 1060,
     /**
-     * @generated from protobuf enum value: BENCH_TYPE_AGGREGATION = 561;
+     * @generated from protobuf enum value: BENCH_TYPE_AGGREGATION = 1061;
      */
-    AGGREGATION = 561,
+    AGGREGATION = 1061,
     /**
-     * @generated from protobuf enum value: BENCH_TYPE_AGGREGATION_BUCKET = 562;
+     * @generated from protobuf enum value: BENCH_TYPE_AGGREGATION_BUCKET = 1062;
      */
-    AGGREGATION_BUCKET = 562,
+    AGGREGATION_BUCKET = 1062,
     /**
-     * @generated from protobuf enum value: BENCH_TYPE_SELECTION = 563;
+     * @generated from protobuf enum value: BENCH_TYPE_SELECTION = 1063;
      */
-    SELECTION = 563,
+    SELECTION = 1063,
     /**
-     * @generated from protobuf enum value: BENCH_TYPE_CODE = 590;
+     * @generated from protobuf enum value: BENCH_TYPE_CODE = 1090;
      */
-    CODE = 590,
+    CODE = 1090,
     /**
-     * @generated from protobuf enum value: BENCH_TYPE_CODE_LINE = 591;
+     * @generated from protobuf enum value: BENCH_TYPE_CODE_LINE = 1091;
      */
-    CODE_LINE = 591,
+    CODE_LINE = 1091,
     /**
-     * @generated from protobuf enum value: BENCH_TYPE_STEP_CONNECTION = 600;
+     * @generated from protobuf enum value: BENCH_TYPE_STEP_CONNECTION = 1100;
      */
-    STEP_CONNECTION = 600,
+    STEP_CONNECTION = 1100,
     /**
-     * @generated from protobuf enum value: BENCH_TYPE_RUN_CODE_FRAME = 610;
+     * @generated from protobuf enum value: BENCH_TYPE_RUN_CODE_FRAME = 1110;
      */
-    RUN_CODE_FRAME = 610,
+    RUN_CODE_FRAME = 1110,
     /**
-     * @generated from protobuf enum value: BENCH_TYPE_RUN_ERROR = 611;
+     * @generated from protobuf enum value: BENCH_TYPE_RUN_ERROR = 1111;
      */
-    RUN_ERROR = 611,
+    RUN_ERROR = 1111,
     /**
-     * @generated from protobuf enum value: BENCH_TYPE_RESOURCE_CREDENTIAL = 632;
+     * @generated from protobuf enum value: BENCH_TYPE_RESOURCE_CREDENTIAL = 1132;
      */
-    RESOURCE_CREDENTIAL = 632,
+    RESOURCE_CREDENTIAL = 1132,
     /**
-     * @generated from protobuf enum value: BENCH_TYPE_TEXT = 660;
+     * @generated from protobuf enum value: BENCH_TYPE_TEXT = 1160;
      */
-    TEXT = 660,
+    TEXT = 1160,
     /**
-     * @generated from protobuf enum value: BENCH_TYPE_TEXT_LINE = 661;
+     * @generated from protobuf enum value: BENCH_TYPE_TEXT_LINE = 1161;
      */
-    TEXT_LINE = 661,
+    TEXT_LINE = 1161,
     /**
-     * @generated from protobuf enum value: BENCH_TYPE_TEXT_SPAN = 662;
+     * @generated from protobuf enum value: BENCH_TYPE_TEXT_SPAN = 1162;
      */
-    TEXT_SPAN = 662,
+    TEXT_SPAN = 1162,
     /**
-     * @generated from protobuf enum value: BENCH_TYPE_COLOR = 700;
+     * @generated from protobuf enum value: BENCH_TYPE_COLOR = 1200;
      */
-    COLOR = 700,
+    COLOR = 1200,
     /**
-     * @generated from protobuf enum value: BENCH_TYPE_FONT = 701;
+     * @generated from protobuf enum value: BENCH_TYPE_FONT = 1201;
      */
-    FONT = 701,
+    FONT = 1201,
     /**
-     * @generated from protobuf enum value: BENCH_TYPE_BOX = 702;
+     * @generated from protobuf enum value: BENCH_TYPE_BOX = 1202;
      */
-    BOX = 702,
+    BOX = 1202,
     /**
-     * @generated from protobuf enum value: BENCH_TYPE_OFFSET = 703;
+     * @generated from protobuf enum value: BENCH_TYPE_OFFSET = 1203;
      */
-    OFFSET = 703
+    OFFSET = 1203
 }
 /**
  * @generated from protobuf enum symbolx.bench.BlockType
@@ -6407,6 +6434,219 @@ export enum EditType {
      * @generated from protobuf enum value: EDIT_TYPE_DELETE = 20;
      */
     DELETE = 20
+}
+/**
+ * @generated from protobuf enum symbolx.bench.EnumType
+ */
+export enum EnumType {
+    /**
+     * @generated from protobuf enum value: ENUM_TYPE_UNSPECIFIED = 0;
+     */
+    UNSPECIFIED = 0,
+    /**
+     * @generated from protobuf enum value: ENUM_TYPE_ENUM_TYPE = 2001;
+     */
+    ENUM_TYPE = 2001,
+    /**
+     * @generated from protobuf enum value: ENUM_TYPE_NODE_TYPE = 2002;
+     */
+    NODE_TYPE = 2002,
+    /**
+     * @generated from protobuf enum value: ENUM_TYPE_STRUCT_TYPE = 2003;
+     */
+    STRUCT_TYPE = 2003,
+    /**
+     * @generated from protobuf enum value: ENUM_TYPE_BENCH_TYPE = 2004;
+     */
+    BENCH_TYPE = 2004,
+    /**
+     * @generated from protobuf enum value: ENUM_TYPE_NODE_VISIBILITY = 2010;
+     */
+    NODE_VISIBILITY = 2010,
+    /**
+     * @generated from protobuf enum value: ENUM_TYPE_ACCESS_KIND = 2030;
+     */
+    ACCESS_KIND = 2030,
+    /**
+     * @generated from protobuf enum value: ENUM_TYPE_READ_TYPE = 2031;
+     */
+    READ_TYPE = 2031,
+    /**
+     * @generated from protobuf enum value: ENUM_TYPE_EDIT_TYPE = 2032;
+     */
+    EDIT_TYPE = 2032,
+    /**
+     * @generated from protobuf enum value: ENUM_TYPE_USE_TYPE = 2033;
+     */
+    USE_TYPE = 2033,
+    /**
+     * @generated from protobuf enum value: ENUM_TYPE_ACCESS_TYPE = 2034;
+     */
+    ACCESS_TYPE = 2034,
+    /**
+     * @generated from protobuf enum value: ENUM_TYPE_POLICY_EFFECT = 2035;
+     */
+    POLICY_EFFECT = 2035,
+    /**
+     * @generated from protobuf enum value: ENUM_TYPE_REGION = 2050;
+     */
+    REGION = 2050,
+    /**
+     * @generated from protobuf enum value: ENUM_TYPE_TENANCY = 2051;
+     */
+    TENANCY = 2051,
+    /**
+     * @generated from protobuf enum value: ENUM_TYPE_STORE_KIND = 2052;
+     */
+    STORE_KIND = 2052,
+    /**
+     * @generated from protobuf enum value: ENUM_TYPE_STORE_ENGINE_TYPE = 2053;
+     */
+    STORE_ENGINE_TYPE = 2053,
+    /**
+     * @generated from protobuf enum value: ENUM_TYPE_SERVER_PROFILE = 2055;
+     */
+    SERVER_PROFILE = 2055,
+    /**
+     * @generated from protobuf enum value: ENUM_TYPE_RESOURCE_STATUS = 2056;
+     */
+    RESOURCE_STATUS = 2056,
+    /**
+     * @generated from protobuf enum value: ENUM_TYPE_BLOCK_TYPE = 2070;
+     */
+    BLOCK_TYPE = 2070,
+    /**
+     * @generated from protobuf enum value: ENUM_TYPE_SCHEDULE_TYPE = 2071;
+     */
+    SCHEDULE_TYPE = 2071,
+    /**
+     * @generated from protobuf enum value: ENUM_TYPE_PRIMITIVE_TYPE = 2080;
+     */
+    PRIMITIVE_TYPE = 2080,
+    /**
+     * @generated from protobuf enum value: ENUM_TYPE_FORMAT_HINT = 2081;
+     */
+    FORMAT_HINT = 2081,
+    /**
+     * @generated from protobuf enum value: ENUM_TYPE_FILE_STATUS = 2100;
+     */
+    FILE_STATUS = 2100,
+    /**
+     * @generated from protobuf enum value: ENUM_TYPE_FILE_RETENTION_MODE = 21012;
+     */
+    FILE_RETENTION_MODE = 21012,
+    /**
+     * @generated from protobuf enum value: ENUM_TYPE_STEP_TYPE = 2150;
+     */
+    STEP_TYPE = 2150,
+    /**
+     * @generated from protobuf enum value: ENUM_TYPE_VIEW_TYPE = 2200;
+     */
+    VIEW_TYPE = 2200,
+    /**
+     * @generated from protobuf enum value: ENUM_TYPE_VARIANT = 2201;
+     */
+    VARIANT = 2201,
+    /**
+     * @generated from protobuf enum value: ENUM_TYPE_COLOR_TYPE = 2202;
+     */
+    COLOR_TYPE = 2202,
+    /**
+     * @generated from protobuf enum value: ENUM_TYPE_COLOR_SHADE = 2203;
+     */
+    COLOR_SHADE = 2203,
+    /**
+     * @generated from protobuf enum value: ENUM_TYPE_FONT_TYPE = 2204;
+     */
+    FONT_TYPE = 2204,
+    /**
+     * @generated from protobuf enum value: ENUM_TYPE_FONT_WEIGHT = 2205;
+     */
+    FONT_WEIGHT = 2205,
+    /**
+     * @generated from protobuf enum value: ENUM_TYPE_FONT_SIZE = 2206;
+     */
+    FONT_SIZE = 2206,
+    /**
+     * @generated from protobuf enum value: ENUM_TYPE_SPACING = 2207;
+     */
+    SPACING = 2207,
+    /**
+     * @generated from protobuf enum value: ENUM_TYPE_ANCHOR = 2208;
+     */
+    ANCHOR = 2208,
+    /**
+     * @generated from protobuf enum value: ENUM_TYPE_ORIENTATION = 2209;
+     */
+    ORIENTATION = 2209,
+    /**
+     * @generated from protobuf enum value: ENUM_TYPE_ALIGNMENT = 2210;
+     */
+    ALIGNMENT = 2210,
+    /**
+     * @generated from protobuf enum value: ENUM_TYPE_ICON_KIND = 2211;
+     */
+    ICON_KIND = 2211,
+    /**
+     * @generated from protobuf enum value: ENUM_TYPE_LOG_KIND = 2250;
+     */
+    LOG_KIND = 2250,
+    /**
+     * @generated from protobuf enum value: ENUM_TYPE_LOG_LEVEL = 2251;
+     */
+    LOG_LEVEL = 2251,
+    /**
+     * @generated from protobuf enum value: ENUM_TYPE_TRIGGER_TYPE = 2263;
+     */
+    TRIGGER_TYPE = 2263,
+    /**
+     * @generated from protobuf enum value: ENUM_TYPE_RUN_STATUS = 2254;
+     */
+    RUN_STATUS = 2254,
+    /**
+     * @generated from protobuf enum value: ENUM_TYPE_RUN_ERROR_KIND = 2255;
+     */
+    RUN_ERROR_KIND = 2255,
+    /**
+     * @generated from protobuf enum value: ENUM_TYPE_NOTICE_KIND = 2260;
+     */
+    NOTICE_KIND = 2260,
+    /**
+     * @generated from protobuf enum value: ENUM_TYPE_NOTIFICATION_KIND = 2261;
+     */
+    NOTIFICATION_KIND = 2261,
+    /**
+     * @generated from protobuf enum value: ENUM_TYPE_EXPRESSION_KIND = 2300;
+     */
+    EXPRESSION_KIND = 2300,
+    /**
+     * @generated from protobuf enum value: ENUM_TYPE_CONDITIONAL_OP = 2301;
+     */
+    CONDITIONAL_OP = 2301,
+    /**
+     * @generated from protobuf enum value: ENUM_TYPE_AGGREGATION_OP = 2302;
+     */
+    AGGREGATION_OP = 2302,
+    /**
+     * @generated from protobuf enum value: ENUM_TYPE_SORT_OP = 2303;
+     */
+    SORT_OP = 2303,
+    /**
+     * @generated from protobuf enum value: ENUM_TYPE_SORT_MODE = 2304;
+     */
+    SORT_MODE = 2304,
+    /**
+     * @generated from protobuf enum value: ENUM_TYPE_SELECTION_KIND = 2305;
+     */
+    SELECTION_KIND = 2305,
+    /**
+     * @generated from protobuf enum value: ENUM_TYPE_USER_STATUS = 2500;
+     */
+    USER_STATUS = 2500,
+    /**
+     * @generated from protobuf enum value: ENUM_TYPE_ORGANIZATION_STATUS = 2501;
+     */
+    ORGANIZATION_STATUS = 2501
 }
 /**
  * @generated from protobuf enum symbolx.bench.ExpressionKind
@@ -7710,6 +7950,154 @@ export enum SortOp {
     DESCENDING = 201
 }
 /**
+ * The spacing scale for positions, padding, margin, etc. We don't enforce this.
+ * This is reminiscent of Tailwind's spacing scale.
+ *
+ * @generated from protobuf enum symbolx.bench.Spacing
+ */
+export enum Spacing {
+    /**
+     * @generated from protobuf enum value: SPACING_UNSPECIFIED = 0;
+     */
+    UNSPECIFIED = 0,
+    /**
+     * @generated from protobuf enum value: SPACING_S1 = 1;
+     */
+    S1 = 1,
+    /**
+     * @generated from protobuf enum value: SPACING_S2 = 2;
+     */
+    S2 = 2,
+    /**
+     * @generated from protobuf enum value: SPACING_S3 = 3;
+     */
+    S3 = 3,
+    /**
+     * @generated from protobuf enum value: SPACING_S4 = 4;
+     */
+    S4 = 4,
+    /**
+     * @generated from protobuf enum value: SPACING_S5 = 5;
+     */
+    S5 = 5,
+    /**
+     * @generated from protobuf enum value: SPACING_S6 = 6;
+     */
+    S6 = 6,
+    /**
+     * @generated from protobuf enum value: SPACING_S7 = 7;
+     */
+    S7 = 7,
+    /**
+     * @generated from protobuf enum value: SPACING_S8 = 8;
+     */
+    S8 = 8,
+    /**
+     * @generated from protobuf enum value: SPACING_S9 = 9;
+     */
+    S9 = 9,
+    /**
+     * @generated from protobuf enum value: SPACING_S10 = 10;
+     */
+    S10 = 10,
+    /**
+     * @generated from protobuf enum value: SPACING_S11 = 11;
+     */
+    S11 = 11,
+    /**
+     * @generated from protobuf enum value: SPACING_S12 = 12;
+     */
+    S12 = 12,
+    /**
+     * @generated from protobuf enum value: SPACING_S14 = 14;
+     */
+    S14 = 14,
+    /**
+     * @generated from protobuf enum value: SPACING_S16 = 16;
+     */
+    S16 = 16,
+    /**
+     * @generated from protobuf enum value: SPACING_S20 = 20;
+     */
+    S20 = 20,
+    /**
+     * @generated from protobuf enum value: SPACING_S24 = 24;
+     */
+    S24 = 24,
+    /**
+     * @generated from protobuf enum value: SPACING_S28 = 28;
+     */
+    S28 = 28,
+    /**
+     * @generated from protobuf enum value: SPACING_S32 = 32;
+     */
+    S32 = 32,
+    /**
+     * @generated from protobuf enum value: SPACING_S36 = 36;
+     */
+    S36 = 36,
+    /**
+     * @generated from protobuf enum value: SPACING_S40 = 40;
+     */
+    S40 = 40,
+    /**
+     * @generated from protobuf enum value: SPACING_S44 = 44;
+     */
+    S44 = 44,
+    /**
+     * @generated from protobuf enum value: SPACING_S48 = 48;
+     */
+    S48 = 48,
+    /**
+     * @generated from protobuf enum value: SPACING_S52 = 52;
+     */
+    S52 = 52,
+    /**
+     * @generated from protobuf enum value: SPACING_S56 = 56;
+     */
+    S56 = 56,
+    /**
+     * @generated from protobuf enum value: SPACING_S60 = 60;
+     */
+    S60 = 60,
+    /**
+     * @generated from protobuf enum value: SPACING_S64 = 64;
+     */
+    S64 = 64,
+    /**
+     * @generated from protobuf enum value: SPACING_S72 = 72;
+     */
+    S72 = 72,
+    /**
+     * @generated from protobuf enum value: SPACING_S80 = 80;
+     */
+    S80 = 80,
+    /**
+     * @generated from protobuf enum value: SPACING_S96 = 96;
+     */
+    S96 = 96,
+    /**
+     * @generated from protobuf enum value: SPACING_S128 = 128;
+     */
+    S128 = 128,
+    /**
+     * @generated from protobuf enum value: SPACING_S160 = 160;
+     */
+    S160 = 160,
+    /**
+     * @generated from protobuf enum value: SPACING_S192 = 192;
+     */
+    S192 = 192,
+    /**
+     * @generated from protobuf enum value: SPACING_S224 = 224;
+     */
+    S224 = 224,
+    /**
+     * @generated from protobuf enum value: SPACING_S256 = 256;
+     */
+    S256 = 256
+}
+/**
  * @generated from protobuf enum symbolx.bench.StepType
  */
 export enum StepType {
@@ -7801,157 +8189,157 @@ export enum StructType {
      */
     UNSPECIFIED = 0,
     /**
-     * @generated from protobuf enum value: STRUCT_TYPE_PATH = 500;
+     * @generated from protobuf enum value: STRUCT_TYPE_PATH = 1000;
      */
-    PATH = 500,
+    PATH = 1000,
     /**
-     * @generated from protobuf enum value: STRUCT_TYPE_PATH_SEGMENT = 501;
+     * @generated from protobuf enum value: STRUCT_TYPE_PATH_SEGMENT = 1001;
      */
-    PATH_SEGMENT = 501,
+    PATH_SEGMENT = 1001,
     /**
-     * @generated from protobuf enum value: STRUCT_TYPE_PATH_TOKEN = 502;
+     * @generated from protobuf enum value: STRUCT_TYPE_PATH_TOKEN = 1002;
      */
-    PATH_TOKEN = 502,
+    PATH_TOKEN = 1002,
     /**
-     * @generated from protobuf enum value: STRUCT_TYPE_NODE_REFERENCE = 503;
+     * @generated from protobuf enum value: STRUCT_TYPE_NODE_REFERENCE = 1003;
      */
-    NODE_REFERENCE = 503,
+    NODE_REFERENCE = 1003,
     /**
-     * @generated from protobuf enum value: STRUCT_TYPE_PROPERTY_REFERENCE = 504;
+     * @generated from protobuf enum value: STRUCT_TYPE_PROPERTY_REFERENCE = 1004;
      */
-    PROPERTY_REFERENCE = 504,
+    PROPERTY_REFERENCE = 1004,
     /**
-     * @generated from protobuf enum value: STRUCT_TYPE_VALUE_REFERENCE = 505;
+     * @generated from protobuf enum value: STRUCT_TYPE_VALUE_REFERENCE = 1005;
      */
-    VALUE_REFERENCE = 505,
+    VALUE_REFERENCE = 1005,
     /**
-     * @generated from protobuf enum value: STRUCT_TYPE_TYPE_INFO = 510;
+     * @generated from protobuf enum value: STRUCT_TYPE_TYPE_INFO = 1010;
      */
-    TYPE_INFO = 510,
+    TYPE_INFO = 1010,
     /**
-     * @generated from protobuf enum value: STRUCT_TYPE_CONTEXT = 511;
+     * @generated from protobuf enum value: STRUCT_TYPE_CONTEXT = 1011;
      */
-    CONTEXT = 511,
+    CONTEXT = 1011,
     /**
-     * @generated from protobuf enum value: STRUCT_TYPE_SCHEDULE = 512;
+     * @generated from protobuf enum value: STRUCT_TYPE_SCHEDULE = 1012;
      */
-    SCHEDULE = 512,
+    SCHEDULE = 1012,
     /**
-     * @generated from protobuf enum value: STRUCT_TYPE_PROJECTION = 513;
+     * @generated from protobuf enum value: STRUCT_TYPE_PROJECTION = 1013;
      */
-    PROJECTION = 513,
+    PROJECTION = 1013,
     /**
-     * @generated from protobuf enum value: STRUCT_TYPE_FILE = 520;
+     * @generated from protobuf enum value: STRUCT_TYPE_FILE = 1020;
      */
-    FILE = 520,
+    FILE = 1020,
     /**
-     * @generated from protobuf enum value: STRUCT_TYPE_ICON = 521;
+     * @generated from protobuf enum value: STRUCT_TYPE_ICON = 1021;
      */
-    ICON = 521,
+    ICON = 1021,
     /**
-     * @generated from protobuf enum value: STRUCT_TYPE_POLICY = 530;
+     * @generated from protobuf enum value: STRUCT_TYPE_POLICY = 1030;
      */
-    POLICY = 530,
+    POLICY = 1030,
     /**
-     * @generated from protobuf enum value: STRUCT_TYPE_POLICY_RULE = 531;
+     * @generated from protobuf enum value: STRUCT_TYPE_POLICY_RULE = 1031;
      */
-    POLICY_RULE = 531,
+    POLICY_RULE = 1031,
     /**
-     * @generated from protobuf enum value: STRUCT_TYPE_SUBJECT = 532;
+     * @generated from protobuf enum value: STRUCT_TYPE_SUBJECT = 1032;
      */
-    SUBJECT = 532,
+    SUBJECT = 1032,
     /**
-     * @generated from protobuf enum value: STRUCT_TYPE_ACCESS_ZONE = 534;
+     * @generated from protobuf enum value: STRUCT_TYPE_ACCESS_ZONE = 1034;
      */
-    ACCESS_ZONE = 534,
+    ACCESS_ZONE = 1034,
     /**
-     * @generated from protobuf enum value: STRUCT_TYPE_ACCESS_MATRIX = 535;
+     * @generated from protobuf enum value: STRUCT_TYPE_ACCESS_MATRIX = 1035;
      */
-    ACCESS_MATRIX = 535,
+    ACCESS_MATRIX = 1035,
     /**
-     * @generated from protobuf enum value: STRUCT_TYPE_ACCESS = 537;
+     * @generated from protobuf enum value: STRUCT_TYPE_ACCESS = 1037;
      */
-    ACCESS = 537,
+    ACCESS = 1037,
     /**
-     * @generated from protobuf enum value: STRUCT_TYPE_ACCESS_TRACE = 538;
+     * @generated from protobuf enum value: STRUCT_TYPE_ACCESS_TRACE = 1038;
      */
-    ACCESS_TRACE = 538,
+    ACCESS_TRACE = 1038,
     /**
-     * @generated from protobuf enum value: STRUCT_TYPE_REQUEST = 536;
+     * @generated from protobuf enum value: STRUCT_TYPE_REQUEST = 1036;
      */
-    REQUEST = 536,
+    REQUEST = 1036,
     /**
-     * @generated from protobuf enum value: STRUCT_TYPE_READ_OPTIONS = 550;
+     * @generated from protobuf enum value: STRUCT_TYPE_READ_OPTIONS = 1050;
      */
-    READ_OPTIONS = 550,
+    READ_OPTIONS = 1050,
     /**
-     * @generated from protobuf enum value: STRUCT_TYPE_EXPRESSION = 560;
+     * @generated from protobuf enum value: STRUCT_TYPE_EXPRESSION = 1060;
      */
-    EXPRESSION = 560,
+    EXPRESSION = 1060,
     /**
-     * @generated from protobuf enum value: STRUCT_TYPE_AGGREGATION = 561;
+     * @generated from protobuf enum value: STRUCT_TYPE_AGGREGATION = 1061;
      */
-    AGGREGATION = 561,
+    AGGREGATION = 1061,
     /**
-     * @generated from protobuf enum value: STRUCT_TYPE_AGGREGATION_BUCKET = 562;
+     * @generated from protobuf enum value: STRUCT_TYPE_AGGREGATION_BUCKET = 1062;
      */
-    AGGREGATION_BUCKET = 562,
+    AGGREGATION_BUCKET = 1062,
     /**
-     * @generated from protobuf enum value: STRUCT_TYPE_SELECTION = 563;
+     * @generated from protobuf enum value: STRUCT_TYPE_SELECTION = 1063;
      */
-    SELECTION = 563,
+    SELECTION = 1063,
     /**
-     * @generated from protobuf enum value: STRUCT_TYPE_CODE = 590;
+     * @generated from protobuf enum value: STRUCT_TYPE_CODE = 1090;
      */
-    CODE = 590,
+    CODE = 1090,
     /**
-     * @generated from protobuf enum value: STRUCT_TYPE_CODE_LINE = 591;
+     * @generated from protobuf enum value: STRUCT_TYPE_CODE_LINE = 1091;
      */
-    CODE_LINE = 591,
+    CODE_LINE = 1091,
     /**
-     * @generated from protobuf enum value: STRUCT_TYPE_STEP_CONNECTION = 600;
+     * @generated from protobuf enum value: STRUCT_TYPE_STEP_CONNECTION = 1100;
      */
-    STEP_CONNECTION = 600,
+    STEP_CONNECTION = 1100,
     /**
-     * @generated from protobuf enum value: STRUCT_TYPE_RUN_CODE_FRAME = 610;
+     * @generated from protobuf enum value: STRUCT_TYPE_RUN_CODE_FRAME = 1110;
      */
-    RUN_CODE_FRAME = 610,
+    RUN_CODE_FRAME = 1110,
     /**
-     * @generated from protobuf enum value: STRUCT_TYPE_RUN_ERROR = 611;
+     * @generated from protobuf enum value: STRUCT_TYPE_RUN_ERROR = 1111;
      */
-    RUN_ERROR = 611,
+    RUN_ERROR = 1111,
     /**
-     * @generated from protobuf enum value: STRUCT_TYPE_RESOURCE_CREDENTIAL = 632;
+     * @generated from protobuf enum value: STRUCT_TYPE_RESOURCE_CREDENTIAL = 1132;
      */
-    RESOURCE_CREDENTIAL = 632,
+    RESOURCE_CREDENTIAL = 1132,
     /**
-     * @generated from protobuf enum value: STRUCT_TYPE_TEXT = 660;
+     * @generated from protobuf enum value: STRUCT_TYPE_TEXT = 1160;
      */
-    TEXT = 660,
+    TEXT = 1160,
     /**
-     * @generated from protobuf enum value: STRUCT_TYPE_TEXT_LINE = 661;
+     * @generated from protobuf enum value: STRUCT_TYPE_TEXT_LINE = 1161;
      */
-    TEXT_LINE = 661,
+    TEXT_LINE = 1161,
     /**
-     * @generated from protobuf enum value: STRUCT_TYPE_TEXT_SPAN = 662;
+     * @generated from protobuf enum value: STRUCT_TYPE_TEXT_SPAN = 1162;
      */
-    TEXT_SPAN = 662,
+    TEXT_SPAN = 1162,
     /**
-     * @generated from protobuf enum value: STRUCT_TYPE_COLOR = 700;
+     * @generated from protobuf enum value: STRUCT_TYPE_COLOR = 1200;
      */
-    COLOR = 700,
+    COLOR = 1200,
     /**
-     * @generated from protobuf enum value: STRUCT_TYPE_FONT = 701;
+     * @generated from protobuf enum value: STRUCT_TYPE_FONT = 1201;
      */
-    FONT = 701,
+    FONT = 1201,
     /**
-     * @generated from protobuf enum value: STRUCT_TYPE_BOX = 702;
+     * @generated from protobuf enum value: STRUCT_TYPE_BOX = 1202;
      */
-    BOX = 702,
+    BOX = 1202,
     /**
-     * @generated from protobuf enum value: STRUCT_TYPE_OFFSET = 703;
+     * @generated from protobuf enum value: STRUCT_TYPE_OFFSET = 1203;
      */
-    OFFSET = 703
+    OFFSET = 1203
 }
 /**
  * How a Resource is shared (if at all).

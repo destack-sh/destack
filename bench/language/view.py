@@ -1,6 +1,6 @@
 from typing import TYPE_CHECKING, Any, Optional, Union
 
-from bench.language.const import NODE_TYPES, NodeType, StructType
+from bench.language.const import NODE_TYPES, EnumType, NodeType, StructType, enum_
 from bench.language.expression import Selection
 from bench.language.node import LINK_TARGET_NODE_TYPES, Node, Struct, node, node_component, struct
 from bench.language.property import (
@@ -11,7 +11,6 @@ from bench.language.property import (
     p_value_packed,
     p_value_runtime,
 )
-from bench.language.setup import _well_known_enum
 from bench.language.validation import enum_validator, validate_name
 from bench.language.value import HasValues
 from bench.utils.casing import IdentifierType
@@ -22,7 +21,7 @@ if TYPE_CHECKING:
     from bench.language import Block, Icon, Package, Policy, Text, TypeInfo
 
 
-@_well_known_enum
+@enum_(EnumType.VIEW_TYPE)
 class ViewType(IdEnum):
     #
     # Intrinsics
@@ -114,7 +113,7 @@ class ViewType(IdEnum):
     ...
 
 
-@_well_known_enum
+@enum_(EnumType.VARIANT)
 class Variant(IdEnum):
     """The style variant of a view."""
 
@@ -125,7 +124,7 @@ class Variant(IdEnum):
     # ... may have more later
 
 
-@_well_known_enum
+@enum_(EnumType.COLOR_TYPE)
 class ColorType(IdEnum):
     """Built-in color types a la SwiftUI or Tailwind."""
 
@@ -160,7 +159,7 @@ class ColorType(IdEnum):
     ROSE = 47
 
 
-@_well_known_enum
+@enum_(EnumType.COLOR_SHADE)
 class ColorShade(IdEnum):
     """Built-in color shades a la Tailwind."""
 
@@ -189,14 +188,14 @@ class Color(Struct):
     hex: Optional[str] = p_regular(33, default=None)
 
 
-@_well_known_enum
+@enum_(EnumType.FONT_TYPE)
 class FontType(IdEnum):
     SERIF = 1
     SANS = 2
     MONO = 3
 
 
-@_well_known_enum
+@enum_(EnumType.FONT_WEIGHT)
 class FontWeight(IdEnum):
     THIN = 100
     EXTRA_LIGHT = 200
@@ -209,7 +208,7 @@ class FontWeight(IdEnum):
     BLACK = 900
 
 
-@_well_known_enum
+@enum_(EnumType.FONT_SIZE)
 class FontSize(IdEnum):
     XS = 12
     SM = 14
@@ -233,7 +232,7 @@ class Font(Struct):
     size: Optional[FontSize] = p_regular(33, default=None, validate=enum_validator(FontSize))
 
 
-@_well_known_enum
+@enum_(EnumType.SPACING)
 class Spacing(IdEnum):
     """
     The spacing scale for positions, padding, margin, etc. We don't enforce this.
@@ -276,7 +275,7 @@ class Spacing(IdEnum):
     S256 = 256
 
 
-@_well_known_enum
+@enum_(EnumType.ANCHOR)
 class Anchor(IdEnum):
     """An anchor in 2D space."""
 
@@ -311,7 +310,7 @@ class Box(Struct):
     height_relative: Optional[float] = p_regular(53, default=None)
 
 
-@_well_known_enum
+@enum_(EnumType.ORIENTATION)
 class Orientation(IdEnum):
     """Which way to orient the contents/subviews of a view."""
 
@@ -321,7 +320,7 @@ class Orientation(IdEnum):
     # VERTICAL_REVERSED = 12
 
 
-@_well_known_enum
+@enum_(EnumType.ALIGNMENT)
 class Alignment(IdEnum):
     """How to align the contents/subviews of a view along its orientation."""
 

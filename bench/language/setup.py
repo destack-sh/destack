@@ -2,14 +2,16 @@ import enum
 import functools
 from collections import defaultdict
 from itertools import chain
-from typing import TYPE_CHECKING, Callable, TypeVar, Union
+from typing import TYPE_CHECKING, Callable, Union
 
 from bench.language.const import (
+    _ENUM_CLASS_BY_TYPE,
     IN_BENCH_NODE_TYPES,
     IN_PACKAGE_NODE_TYPES,
     NODE_TYPES,
     STRUCT_TYPES,
     BenchType,
+    EnumType,
     NodeType,
     StructType,
 )
@@ -20,6 +22,7 @@ if TYPE_CHECKING:
     from bench.language import Node, Property, Struct
 
 # some global indexes for language types/classes
+ENUM_CLASS_BY_TYPE = _ENUM_CLASS_BY_TYPE  # re-exported to avoid circular imports
 NODE_CLASS_BY_TYPE: dict[NodeType, type["Node"]] = {}
 NODE_COMPONENT_CLASS_BY_NAME: dict[str, type["Node"]] = {}
 STRUCT_CLASS_BY_TYPE: dict[StructType, type["Struct"]] = {}
@@ -57,16 +60,6 @@ def _on_completing_setup(func: Callable = None):
     return func
 
 
-IdEnumT = TypeVar("IdEnumT", bound=IdEnum)
-
-
-def _well_known_enum(enum_cls: type[IdEnumT]) -> type[IdEnumT]:
-    """Makes a Bench enum not in const available to other files."""
-    BENCH_CLASSES.append(enum_cls)
-    BENCH_CLASSES_BY_NAME[enum_cls.__name__] = enum_cls
-    return enum_cls
-
-
 def _complete_bench_setup():
     """Finalize setup of all language constructs after everything is imported."""
     from bench.language import Node, Struct, Value, const
@@ -94,6 +87,16 @@ def _complete_bench_setup():
         BENCH_CLASS_BY_TYPE[struct_t] = STRUCT_CLASS_BY_TYPE[struct_t]
         STRUCT_CLASSES.append(STRUCT_CLASS_BY_TYPE[struct_t])
 
+    # check that we have all the enums & add them
+    missing_enums = set(EnumType) - set(ENUM_CLASS_BY_TYPE)
+    if missing_enums:
+        raise ValueError(f"missing enums: {missing_enums}")
+    for enum_t in ENUM_CLASS_BY_TYPE.values():
+        BENCH_CLASSES_BY_NAME[enum_t.__name__] = enum_t
+        BENCH_CLASSES.append(enum_t)
+        FINAL_BENCH_CLASSES_BY_NAME[enum_t.__name__] = enum_t
+        FINAL_BENCH_CLASSES.append(enum_t)
+
     # finalize classes
     for cls in get_subclasses(Struct):
         # misc finalization on properties
@@ -114,7 +117,6 @@ def _complete_bench_setup():
             # set introspectable properties as <cls>.<property>
             if prop.is_introspectable:
                 setattr(cls, name, prop)
-                prop._as_type  # noqa: cache introspected type info
 
             # check deferred/encrypted properties
             if prop.is_deferred and not prop.is_stored:

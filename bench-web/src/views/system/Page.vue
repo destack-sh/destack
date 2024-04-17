@@ -18,6 +18,7 @@ import { menuActionsLike, type OverlayMenuInfo } from "@/utils/menu";
 import { startDragging, useMultiDropZone } from "@/utils/drag";
 import { type ViewExposed } from "@/views/common";
 import { useHierarchicalNodeMoveActions } from "@/system/block";
+import { makeTypeInfo } from "@/system/value";
 
 const HEADER_HEIGHT = 24;
 const DEPTH_OFFSET = 40;
@@ -279,7 +280,7 @@ defineExpose<ViewExposed>({ self, actions, focus });
                 kind: 'component',
                 component: Picker,
                 placement: 'bottom',
-                props: { isInline: true }
+                props: { isInline: true, valueType: makeTypeInfo({ }) },
               })"
             >
               <!-- Line with a gap for the button -->
