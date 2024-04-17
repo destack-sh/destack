@@ -6,13 +6,15 @@ import { canvas } from "@/system/space";
 import { DEFAULT_ORIENTATION, MIN_SPLIT_SIZE, useSplitView } from "@/utils/layout";
 import type { SplitLayout } from "@/utils/layout";
 import { getViewBinding, getViewComponent } from "@/views";
-import { viewEmits, type ViewExposed } from "@/views/common";
+import { viewEmits } from "@/views/common";
+import type { ViewExposed } from "@/views/common";
 import { computed, ref, toRef, type Ref } from "vue";
 import Empty from "@/views/private/Empty.vue";
+import type { TypedNodeReferenceData } from "@/proto/wiring";
 
 const props = defineProps<
   {
-    self: NodeReferenceData;
+    self: TypedNodeReferenceData<NodeType.VIEW>;
     size: Required<Pick<BoxData, "width" | "height">>;
   } & Pick<ViewData, "type" | "name" | "title" | "text" | "icon" | "orientation" | "focus">
 >();

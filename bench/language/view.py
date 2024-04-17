@@ -58,11 +58,11 @@ class ViewType(IdEnum):
     WINDOW = 500
     TAB = 502
     SPLIT = 503
-    SPLIT_COLLAPSIBLE = 504
+    SPLIT_DRAWER = 504
     # containers (layout)
     WIZARD = 505
     STACK = 510
-    COLLAPSIBLE = 511
+    DRAWER = 511
     GRID = 512
     ROW = 513
     COLUMN = 514

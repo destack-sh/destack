@@ -1,5 +1,6 @@
 <script lang="tsx" setup>
-import { BoxData, NodeReferenceData, Orientation, ViewData } from "@/proto/wire/";
+import { BoxData, NodeType, Orientation, ViewData } from "@/proto/wire/";
+import type { TypedNodeReferenceData } from "@/proto/wiring";
 import { canvas } from "@/system/space";
 import { ScrollbarWidth, useScrollArea } from "@/utils/layout";
 import { makeViewId } from "@/views";
@@ -9,7 +10,7 @@ import { computed, ref, toRef, watch } from "vue";
 
 const props = defineProps<
   {
-    self?: NodeReferenceData;
+    self?: TypedNodeReferenceData<NodeType.VIEW>;
     trackWidth: ScrollbarWidth;
     trackIsOverlay?: boolean;
     trackIsAlwaysVisible?: boolean;

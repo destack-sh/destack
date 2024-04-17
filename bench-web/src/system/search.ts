@@ -1,15 +1,16 @@
-import type { AnyNodeData, ObjectType, IconData, NodeReferenceData, NodeType } from "@/proto/wire";
+import type { AnyNodeData, ObjectType, IconData, NodeReferenceData, NodeType, EnumType } from "@/proto/wire";
 import { describeNode, toNodeReference } from "@/proto/wiring";
 import { ACTION_BUILTIN_IDS_INDEX, IMPLEMENTED_ACTIONS, type Action } from "@/system/action";
 import type { ReadNodeGraph } from "@/system/graph";
 import { markRaw, shallowRef, type Ref, watch, type MaybeRef, toRef, toValue } from "vue";
 import uFuzzy from "@leeoniya/ufuzzy";
 import { getNodeIcon } from "@/system/icon";
+import { getEnumOptions, type EnumOption } from "@/system/lang";
 
 export type NodeItem = Omit<NodeReferenceData, "metatype" | "id"> & {
+  metatype: "node";
   node: AnyNodeData;
   id: string;
-  metatype: "node";
   path: string; // the ancestor path to display
   pathToIndex?: string; // alternative path to index for searching (length must match path for highlighting!)
   ancestors: NodeItem[]; // in order of traversal up, excl. self
@@ -17,12 +18,15 @@ export type NodeItem = Omit<NodeReferenceData, "metatype" | "id"> & {
   title: string;
 };
 export type ActionItem = Omit<Action, "title"> & {
+  metatype: "action";
   title: string;
   path?: string;
   pathToIndex?: string;
-  metatype: "action";
 };
-export type SearchItem = (NodeItem | ActionItem) & { title: string; category?: string };
+export type EnumOptionItem = EnumOption & {
+  metatype: "enum-option";
+};
+export type SearchItem = (NodeItem | ActionItem | EnumOptionItem) & { title: string; category?: string };
 
 export type SearchCandidate = SearchItem & { candidate: string; category: string; index: string };
 
@@ -125,6 +129,19 @@ export function graphIndex(toIndex: {
   return markRaw(index);
 }
 
+/*
+ * Searches the available options of an enum.
+ */
+export function enumIndex(enumTypes: EnumType[]): SearchIndex<EnumOptionItem> {
+  const index: SearchIndex<EnumOptionItem> = {
+    candidates: () =>
+      enumTypes
+        .flatMap((enumType) => getEnumOptions(enumType))
+        .map((option) => ({ ...option, metatype: "enum-option" })),
+  };
+  return markRaw(index);
+}
+
 /**
  * Search the currently available actions.
  */
@@ -205,7 +222,7 @@ export function useSearch(search: {
           start: indexedStr.length - candidate.title.length,
           end: indexedStr.length,
         });
-        if (candidate.path != null) {
+        if ('path' in candidate && candidate.path != null) {
           result.pathMarked = highlight(candidate.path, info.ranges[infoIdx] as any, {
             start: 0,
             end: indexedStr.length - candidate.title.length - HIDDEN_SEPARATOR.length,
@@ -222,7 +239,7 @@ export function useSearch(search: {
   }
 
   function getIndexedStr(item: SearchItem): { str: string; isPathIncluded: boolean } {
-    if (item.path != null) {
+    if ('path' in item && item.path != null) {
       // index path (which excludes item itself) + title
       return { str: (item.pathToIndex ?? item.path) + HIDDEN_SEPARATOR + item.title, isPathIncluded: true };
     } else {

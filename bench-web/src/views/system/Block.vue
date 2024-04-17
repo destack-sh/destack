@@ -15,6 +15,7 @@ import type { TooltipInfo } from "@/utils/tooltip";
 import type { ActionMapImplementation } from "@/system/action";
 import PlainText from "@/views/content/PlainText.vue";
 import type { OverlayMenuInfo } from "@/utils/menu";
+import { isDeveloperMode } from "@/utils/globals";
 
 const props = defineProps<
   { self?: NodeReferenceData; preparedConnection?: PreparedGetConnection } & Pick<ViewData, "nodePtr">
@@ -43,7 +44,16 @@ const block = pkgGraph.getRef(nodePtr, { ignoreAncestors: props.self == null });
 // Interaction
 //
 
-const actions: Partial<ActionMapImplementation<"common">> = {};
+const actions: Partial<ActionMapImplementation<"common">> = {
+  "common.block.toggleIsPage": {
+    isChecked: () => block.value?.isPage ?? false,
+    action: () => pkgConnection.tx.updateDebounced(block.value!, { isPage: !block.value!.isPage }),
+  },
+  "common.block.toggleIsProtocol": {
+    isChecked: () => block.value?.isProtocol ?? false,
+    action: () => pkgConnection.tx.updateDebounced(block.value!, { isProtocol: !block.value!.isProtocol }),
+  },
+};
 
 // focus
 function focus(anchor: FocusAnchor | NodeReferenceData) {

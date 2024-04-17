@@ -2,28 +2,50 @@
  * Many constants are generated into proto/wire, here some additional ones.
  */
 
+import type { EnumTypeMapping } from "@/proto/wire";
 import {
-  ObjectType,
-  NodeType,
-  type AnyNodeData,
+  ENUM_BY_TYPE,
+  EnumType,
+  IconData,
   NodeReferenceData,
+  NodeType,
+  NotificationData,
+  ObjectType,
   RecordData,
   RunData,
   SignalData,
-  NotificationData,
-  type NodeTypeMapping,
-  NODE_PROPERTY_ENUM_BY_TYPE,
+  StructType,
   ViewType,
-  IconData,
-  BlockType,
-  BlockData,
-  ViewData,
+  type AnyNodeData,
 } from "@/proto/wire";
-import { makeIcon } from "@/system/icon";
 import type { Transaction } from "@/system/transaction";
-import { generateOrderKey, generateNKeysBetween, isValidOrderKey } from "@/utils/fractional";
+import { generateNKeysBetween, generateOrderKey, isValidOrderKey } from "@/utils/fractional";
 import { Casing, toCasing } from "@/utils/string";
-import type { AnyNode } from "postcss";
+
+export const NODE_TYPES = Object.values(NodeType).filter((v) => typeof v == "number" && v > 0) as NodeType[];
+export const NODE_TYPES_SET = new Set(NODE_TYPES);
+export const STRUCT_TYPES = Object.values(StructType).filter((v) => typeof v == "number" && v > 0) as StructType[];
+export const STRUCT_TYPES_SET = new Set(STRUCT_TYPES);
+export const OBJECT_TYPES = Object.values(ObjectType).filter((v) => typeof v == "number" && v > 0) as ObjectType[];
+export const OBJECT_TYPES_SET = new Set(OBJECT_TYPES);
+export const ENUM_TYPES = Object.values(EnumType).filter((v) => typeof v == "number" && v > 0) as EnumType[];
+export const ENUM_TYPES_SET = new Set(ENUM_TYPES);
+
+export function isNodeType(object: any): object is NodeType {
+  return typeof object == "number" && NODE_TYPES_SET.has(object);
+}
+
+export function isStructType(object: any): object is StructType {
+  return typeof object == "number" && STRUCT_TYPES_SET.has(object);
+}
+
+export function isObjectType(object: any): object is ObjectType {
+  return typeof object == "number" && OBJECT_TYPES_SET.has(object);
+}
+
+export function isEnumType(object: any): object is EnumType {
+  return typeof object == "number" && ENUM_TYPES_SET.has(object);
+}
 
 export const ROOT_NODE_TYPES = [NodeType.USER, NodeType.ORGANIZATION, NodeType.BENCH];
 export const BASED_NODE_TYPES = [NodeType.RECORD, NodeType.RUN, NodeType.SIGNAL, NodeType.NOTIFICATION];
@@ -36,7 +58,7 @@ export const RUNTIME_NODE_TYPES = [
   NodeType.NOTIFICATION,
 ];
 export const LOCAL_NODE_TYPES = [NodeType.RECORD, ...RUNTIME_NODE_TYPES];
-export const LOADED_SOURCE_NODE_TYPES = [
+export const DEFAULT_LOADED_SOURCE_NODE_TYPES = [
   NodeType.PACKAGE,
   NodeType.DEPENDENCY,
   NodeType.UPGRADE,
@@ -193,4 +215,25 @@ export const RIDEALONG_VIEW_TYPES = new Set([ViewType.EXPLORE, ViewType.OUTLINE,
 
 export function toCamelName<T extends object>(cls: T, key: any) {
   return toCasing(cls[key as keyof T] as string, Casing.CAMEL);
+}
+
+export type EnumOption<T extends EnumType = EnumType> = {
+  id: string;
+  icon?: IconData;
+  title: string;
+  value: keyof EnumTypeMapping[T];
+  isHidden?: boolean;
+};
+
+export function getEnumOptions<T extends EnumType>(enumType: T): EnumOption<T>[] {
+  const protoEnum = ENUM_BY_TYPE[enumType];
+  const options: EnumOption<T>[] = Object.values(protoEnum)
+    .filter((value) => typeof value == "number" && value > 0)
+    .map((value) => {
+      const name = protoEnum[value] as string;
+      const title = toCasing(name, Casing.CAMEL, true);
+      const option: EnumOption<T> = { id: value.toString(), title, value: value as keyof EnumTypeMapping[T] };
+      return option;
+    });
+  return options;
 }

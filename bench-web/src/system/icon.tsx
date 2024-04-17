@@ -169,11 +169,11 @@ export const ICON_BY_VIEW_TYPE: Partial<Record<ViewType, IconData>> = _makeIcons
   [ViewType.WINDOW]: "fas fa-window",
   [ViewType.TAB]: "fas fa-sidebar",
   [ViewType.SPLIT]: "fas fa-reflect-horizontal",
-  [ViewType.SPLIT_COLLAPSIBLE]: "fas fa-reflect-horizontal",
+  [ViewType.SPLIT_DRAWER]: "fas fa-reflect-horizontal",
   // containers (layout)
   [ViewType.WIZARD]: "fas fa-hat-wizard",
   [ViewType.STACK]: "fas fa-layer-group",
-  [ViewType.COLLAPSIBLE]: "fas fa-chevron-circle-down",
+  [ViewType.DRAWER]: "fas fa-square-minus",
   [ViewType.GRID]: "fas fa-table-cells-large",
   [ViewType.ROW]: "fas fa-table-rows",
   [ViewType.COLUMN]: "fas fa-table-columns",

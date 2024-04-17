@@ -3,7 +3,7 @@ import {
   fireAction,
   getAction,
   getActionsLike,
-  isActionImplemented,
+  getImplementingAction,
   type Action,
   type ActionBuiltinId,
   type ActionContext,
@@ -63,7 +63,7 @@ export function menuItemFromAction(
 
   // figure out whether the action is available in this context
   const contextViews = override?.contextViews ?? getMenuContextViews(override?.context);
-  const isDisabled = !isActionImplemented(action, contextViews);
+  const implementation = getImplementingAction(action, contextViews);
 
   // map to action
   return {
@@ -72,8 +72,8 @@ export function menuItemFromAction(
     icon: action.icon?.faName,
     title: toValue(action.title),
     shortcuts: action.shortcuts,
-    isDisabled,
-    isChecked: action.type == "toggle" && action.isChecked?.value,
+    isDisabled: implementation == null,
+    isChecked: action.type == "toggle" && toValue(implementation?.isChecked),
     // default to subcategory since we usually group menus by category(ish)
     category: action.subcategory ?? action.category,
     action: (menu: MenuInfo) => {
