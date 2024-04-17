@@ -1,9 +1,9 @@
 import {
-  ObjectType,
   DESCENDANT_NODE_TYPES,
   IconData,
   NodeReferenceData,
   NodeType,
+  ObjectType,
   Orientation,
   SelectionData,
   SelectionKind,
@@ -22,8 +22,7 @@ import {
   toNodeReference,
   typeNodeReferenceMaybe,
   type AnyNodeReferenceData,
-  type SomeNodeReferenceData,
-  type TypedNodeReferenceData,
+  type TypedNodeReferenceData
 } from "@/proto/wiring";
 import type { GraphConnection } from "@/system/connection";
 import { generateNodeName, isDescendantOf, type NodeKey, type ReadNodeGraph } from "@/system/graph";
@@ -31,10 +30,9 @@ import { toIconMaybe } from "@/system/icon";
 import {
   NODE_VIEW_TYPES,
   RIDEALONG_VIEW_TYPES,
-  ROOT_NODE_TYPES,
   ROOT_VIEW_TYPES,
   getOrderKey,
-  updateOrder,
+  updateOrder
 } from "@/system/lang";
 import { inspectionBasePtr, inspectionPtr } from "@/system/space";
 import type { Transaction } from "@/system/transaction";
@@ -42,7 +40,7 @@ import type { SplitAnchor } from "@/utils/drag";
 import { generateOrderKey } from "@/utils/fractional";
 import { DEFAULT_ORIENTATION, splitBox } from "@/utils/layout";
 import { log } from "@/utils/log";
-import { computedValue, toValueRef } from "@/utils/ref";
+import { toValueRef } from "@/utils/ref";
 import { Casing, toCasing } from "@/utils/string";
 import type { ViewComponent } from "@/views";
 import type { FocusAnchor } from "@/views/common";
@@ -855,7 +853,7 @@ export function focusInElement(element: MaybeElement): boolean {
       return true;
     } else if ("focus" in element) {
       const focusResult = (element as any).focus();
-      if (focusResult !== false && focusResult !== null) return true;
+      if (focusResult === true || focusResult === undefined) return true;
       else element = focusResult;
     } else {
       return false;

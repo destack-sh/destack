@@ -11,7 +11,7 @@ from bench.sql.core import (
     Table,
 )
 
-VERSION = "2024.04.17.2"
+VERSION = "2024.04.17.3"
 
 BENCH_TABLE = Table(
     "bench_bench",
@@ -725,8 +725,7 @@ FIELD_TABLE = Table(
         Column("icon", PrimitiveType.JSON, is_nullable=True),
         Column("value_packed", PrimitiveType.JSON, is_nullable=True),
         Column("primitive_type", PrimitiveType.INT16, is_nullable=True),
-        Column("node_type", PrimitiveType.INT16, is_nullable=True),
-        Column("struct_type", PrimitiveType.INT16, is_nullable=True),
+        Column("bench_type", PrimitiveType.INT16, is_nullable=True),
         Column("base_type_id", PrimitiveType.UUID, is_nullable=True),
         Column("base_type_ck", PrimitiveType.UUID, is_nullable=True),
         Column("base_type_bench_id", PrimitiveType.UUID, is_nullable=True),

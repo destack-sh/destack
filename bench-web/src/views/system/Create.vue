@@ -1,13 +1,13 @@
 <script lang="tsx" setup>
-import { ViewData, NodeReferenceData } from "@/proto/wire";
+import { ViewData, NodeReferenceData, NodeType } from "@/proto/wire";
 import { viewEmits, type ViewExposed } from "@/views/common";
 import { canvas, inspectionBasePtr, inspectionPtr } from "@/system/space";
 import { useExistingConnection } from "@/system/connection";
 import { computed, toRef } from "vue";
-import { describeNode } from "@/proto/wiring";
+import { describeNode, type TypedNodeReferenceData } from "@/proto/wiring";
 
 const props = defineProps<
-  { self: NodeReferenceData } & Pick<ViewData, "name" | "title" | "text" | "icon" | "nodePtr">
+  { self: TypedNodeReferenceData<NodeType.VIEW> } & Pick<ViewData, "name" | "title" | "text" | "icon" | "nodePtr">
 >();
 const emit = defineEmits(viewEmits());
 const self = toRef(props, "self");

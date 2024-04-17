@@ -1067,10 +1067,10 @@ class ViewType(betterproto.Enum):
     WINDOW = 500
     TAB = 502
     SPLIT = 503
-    SPLIT_COLLAPSIBLE = 504
+    SPLIT_DRAWER = 504
     WIZARD = 505
     STACK = 510
-    COLLAPSIBLE = 511
+    DRAWER = 511
     GRID = 512
     ROW = 513
     COLUMN = 514
@@ -1765,7 +1765,7 @@ class TextSpanData(betterproto.Message):
 @dataclass(eq=False, repr=False)
 class TypeInfoData(betterproto.Message):
     """
-    TypeInfo(id: Optional[int] = <factory>, parent: Union[ForwardRef('Struct'), ForwardRef('Node'), ForwardRef('Value'), NoneType] = None, order_key: str | None = None, set_properties: list[int] = <factory>, _status: bench.language.const.InterpStatus = None, _updated_properties: bitarray.bitarray | None = None, primitive_type: Optional[bench.language.const.PrimitiveType] = None, node_type: Optional[bench.language.const.NodeType] = None, struct_type: Optional[bench.language.const.StructType] = None, base_type: Optional[ForwardRef('Block')] = None, visibility: bench.language.const.NodeVisibility = <NodeVisibility.ALL: 10>, format_hint: Optional[bench.language.const.FormatHint] = None, condition: Optional[ForwardRef('Expression')] = None, length: Optional[int] = None, precision: Optional[int] = None, scale: Optional[int] = None, default_packed: Optional[Any] = None, default: None = None, is_list: bool = False, is_required: bool = False, is_secret: bool = False, _fields: tuple['Field', ...] | None = None, _resolved_type: Optional[ForwardRef('TypeInfo')] = None, parent_id: int = None, parent_key: str = None, base_type_ptr: 'NodeReference' = None)
+    TypeInfo(id: Optional[int] = <factory>, parent: Union[ForwardRef('Struct'), ForwardRef('Node'), ForwardRef('Value'), NoneType] = None, order_key: str | None = None, set_properties: list[int] = <factory>, _status: bench.language.const.InterpStatus = None, _updated_properties: bitarray.bitarray | None = None, primitive_type: Optional[bench.language.const.PrimitiveType] = None, bench_type: Optional[bench.utils.func.BenchType] = None, base_type: Optional[ForwardRef('Block')] = None, visibility: bench.language.const.NodeVisibility = <NodeVisibility.ALL: 10>, format_hint: Optional[bench.language.const.FormatHint] = None, condition: Optional[ForwardRef('Expression')] = None, length: Optional[int] = None, precision: Optional[int] = None, scale: Optional[int] = None, default_packed: Optional[Any] = None, default: None = None, is_list: bool = False, is_required: bool = False, is_secret: bool = False, _fields: tuple['Field', ...] | None = None, _resolved_type: Optional[ForwardRef('TypeInfo')] = None, parent_id: int = None, parent_key: str = None, base_type_ptr: 'NodeReference' = None)
     """
 
     metatype: "ObjectType" = betterproto.enum_field(1)
@@ -1775,21 +1775,20 @@ class TypeInfoData(betterproto.Message):
     order_key: Optional[str] = betterproto.string_field(5, optional=True)
     set_properties: List[int] = betterproto.int32_field(22)
     primitive_type: Optional["PrimitiveType"] = betterproto.enum_field(40, optional=True)
-    node_type: Optional["NodeType"] = betterproto.enum_field(41, optional=True)
-    struct_type: Optional["StructType"] = betterproto.enum_field(42, optional=True)
-    base_type_ptr: Optional["NodeReferenceData"] = betterproto.message_field(43, optional=True)
-    visibility: "NodeVisibility" = betterproto.enum_field(44)
-    format_hint: Optional["FormatHint"] = betterproto.enum_field(45, optional=True)
-    condition: Optional["ExpressionData"] = betterproto.message_field(46, optional=True)
-    length: Optional[int] = betterproto.int32_field(47, optional=True)
-    precision: Optional[int] = betterproto.int32_field(48, optional=True)
-    scale: Optional[int] = betterproto.int32_field(49, optional=True)
+    bench_type: Optional["BenchType"] = betterproto.enum_field(41, optional=True)
+    base_type_ptr: Optional["NodeReferenceData"] = betterproto.message_field(42, optional=True)
+    visibility: "NodeVisibility" = betterproto.enum_field(43)
+    format_hint: Optional["FormatHint"] = betterproto.enum_field(44, optional=True)
+    condition: Optional["ExpressionData"] = betterproto.message_field(45, optional=True)
+    length: Optional[int] = betterproto.int32_field(46, optional=True)
+    precision: Optional[int] = betterproto.int32_field(47, optional=True)
+    scale: Optional[int] = betterproto.int32_field(48, optional=True)
     default_packed: Optional["betterproto_lib_google_protobuf.Struct"] = betterproto.message_field(
         50, optional=True
     )
-    is_list: bool = betterproto.bool_field(53)
-    is_required: bool = betterproto.bool_field(54)
-    is_secret: bool = betterproto.bool_field(55)
+    is_list: bool = betterproto.bool_field(54)
+    is_required: bool = betterproto.bool_field(55)
+    is_secret: bool = betterproto.bool_field(56)
 
 
 @dataclass(eq=False, repr=False)
@@ -2107,21 +2106,20 @@ class FieldData(betterproto.Message):
         35, optional=True
     )
     primitive_type: Optional["PrimitiveType"] = betterproto.enum_field(40, optional=True)
-    node_type: Optional["NodeType"] = betterproto.enum_field(41, optional=True)
-    struct_type: Optional["StructType"] = betterproto.enum_field(42, optional=True)
-    base_type_ptr: Optional["NodeReferenceData"] = betterproto.message_field(43, optional=True)
-    visibility: "NodeVisibility" = betterproto.enum_field(44)
-    format_hint: Optional["FormatHint"] = betterproto.enum_field(45, optional=True)
-    condition: Optional["ExpressionData"] = betterproto.message_field(46, optional=True)
-    length: Optional[int] = betterproto.int32_field(47, optional=True)
-    precision: Optional[int] = betterproto.int32_field(48, optional=True)
-    scale: Optional[int] = betterproto.int32_field(49, optional=True)
+    bench_type: Optional["BenchType"] = betterproto.enum_field(41, optional=True)
+    base_type_ptr: Optional["NodeReferenceData"] = betterproto.message_field(42, optional=True)
+    visibility: "NodeVisibility" = betterproto.enum_field(43)
+    format_hint: Optional["FormatHint"] = betterproto.enum_field(44, optional=True)
+    condition: Optional["ExpressionData"] = betterproto.message_field(45, optional=True)
+    length: Optional[int] = betterproto.int32_field(46, optional=True)
+    precision: Optional[int] = betterproto.int32_field(47, optional=True)
+    scale: Optional[int] = betterproto.int32_field(48, optional=True)
     default_packed: Optional["betterproto_lib_google_protobuf.Struct"] = betterproto.message_field(
         50, optional=True
     )
-    is_list: bool = betterproto.bool_field(53)
-    is_required: bool = betterproto.bool_field(54)
-    is_secret: bool = betterproto.bool_field(55)
+    is_list: bool = betterproto.bool_field(54)
+    is_required: bool = betterproto.bool_field(55)
+    is_secret: bool = betterproto.bool_field(56)
     is_input: bool = betterproto.bool_field(60)
     is_output: bool = betterproto.bool_field(61)
     is_option: bool = betterproto.bool_field(62)
@@ -4796,7 +4794,7 @@ class RuntimeBase(ServiceBase):
 
 from typing import TYPE_CHECKING  # noqa: E402
 
-VERSION = "2024.04.17.2"
+VERSION = "2024.04.17.3"
 
 if TYPE_CHECKING:
     from bench.language import Subject

@@ -1,26 +1,61 @@
 <script lang="tsx" setup>
-import { ViewData, NodeReferenceData } from "@/proto/wire";
-import { viewEmits, type ViewExposed } from "@/views/common";
+import { ViewData, NodeReferenceData, NodeType, BenchType } from "@/proto/wire";
+import { viewEmits, type FocusAnchor, type ViewExposed } from "@/views/common";
 import { canvas } from "@/system/space";
-import { toRef } from "vue";
+import { ref, toRef, type Ref } from "vue";
 import { makeViewId } from "@/views";
+import type { TypedNodeReferenceData } from "@/proto/wiring";
+import { getEnumOptions, toCamelName, type EnumOption } from "@/system/lang";
+import { EnumType } from "@/proto/wire";
+import type { EnumOptionItem } from "@/system/search";
+import type { NodeItem } from "@/system/search";
 
 const props = defineProps<
-  { self?: NodeReferenceData } & Pick<
+  { self?: TypedNodeReferenceData<NodeType.VIEW> } & Pick<
     ViewData,
-    "name" | "title" | "text" | "icon" | "valueType" | "isInput" | "isInline" | "isDisabled"
+    "title" | "text" | "icon" | "valuePacked" | "valueType" | "isInput" | "isInline" | "isDisabled"
   >
 >();
 const emit = defineEmits(viewEmits());
 const self = toRef(props, "self");
 const id = makeViewId(props);
 
+const query: Ref<string> = ref("");
+const queryRef: Ref<HTMLInputElement | null> = ref(null);
+
+const options = getEnumOptions(EnumType.BLOCK_TYPE); // nocheckin: get generic options (use SearchIndex)
+const results = options; // nocheckin: search results
+
+//
+// Interaction
+//
+
+function apply(option: EnumOptionItem | NodeItem) {
+  emit("update:modelValue", option);
+  emit("apply", option);
+}
+
+function focus(anchor?: FocusAnchor | NodeReferenceData) {
+  return true; // nocheckin: interaction
+}
+
 canvas.registerView(self, id);
-defineExpose<ViewExposed>({ self, id });
+defineExpose<ViewExposed>({ self, id, focus });
 </script>
 <template>
+  <!-- nocheckin: Picker variants/isInput/isInline/isDisabled/... -->
   <div>
-    I'm a picker
+    Pick:{{ toCamelName(BenchType, valueType?.benchType) }}
+    <div>
+      <!-- Query -->
+      <input ref="queryRef" type="text" class="bg-transparent" />
+      <!-- Results -->
+      <ul class="flex flex-col">
+        <li v-for="option in results" :key="option.id" @click="apply(option)">
+          {{ option.title }}
+        </li>
+      </ul>
+    </div>
     <!-- nocheckin -->
   </div>
 </template>

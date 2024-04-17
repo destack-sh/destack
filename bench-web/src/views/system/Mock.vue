@@ -1,5 +1,6 @@
 <script lang="tsx" setup>
-import { BoxData, NodeReferenceData, Orientation, ViewData } from "@/proto/wire/";
+import { BoxData, NodeReferenceData, NodeType, Orientation, ViewData } from "@/proto/wire/";
+import type { TypedNodeReferenceData } from "@/proto/wiring";
 import { canvas } from "@/system/space";
 import { ScrollbarWidth } from "@/utils/layout";
 import { type ViewExposed, viewEmits } from "@/views/common";
@@ -7,7 +8,7 @@ import Scroll from "@/views/containers/Scroll.vue";
 import { toRef } from "vue";
 
 const props = defineProps<
-  { self: NodeReferenceData; size: Required<Pick<BoxData, "width" | "height">> } & Pick<
+  { self: TypedNodeReferenceData<NodeType.VIEW>; size: Required<Pick<BoxData, "width" | "height">> } & Pick<
     ViewData,
     "name" | "title" | "text" | "icon" | "nodePtr" | "archivedAt" | "deletedAt"
   >

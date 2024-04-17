@@ -11,7 +11,7 @@ from bench.utils.utils import frozendict
 if typing.TYPE_CHECKING:
     from bench.language import Session, Transaction
 
-VERSION = "2024.04.17.2"
+VERSION = "2024.04.17.3"
 UNSET = object()
 EMPTY_LIST: list = []
 EMPTY_SET: frozenset = frozenset()
@@ -118,6 +118,7 @@ class EnumType(IdEnum):
 
 
 enum_(EnumType.ENUM_TYPE)(EnumType)
+ENUM_TYPES: bytetuple[EnumType] = bytetuple(tuple(EnumType))
 
 
 #

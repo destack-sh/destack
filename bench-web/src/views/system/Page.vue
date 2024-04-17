@@ -1,5 +1,14 @@
 <script lang="tsx" setup>
-import { BlockData, BoxData, NodeReferenceData, NodeType, Orientation, ViewData } from "@/proto/wire/";
+import {
+  BenchType,
+  BlockData,
+  BlockType,
+  BoxData,
+  NodeReferenceData,
+  NodeType,
+  Orientation,
+  ViewData,
+} from "@/proto/wire/";
 import { useExistingConnection, useGetConnection } from "@/system/connection";
 import { canvas, inspectionPtr } from "@/system/space";
 import { makeSelection } from "@/views/canvas";
@@ -7,7 +16,7 @@ import { ScrollbarWidth } from "@/utils/layout";
 import { viewEmits, type FocusAnchor } from "@/views/common";
 import Scroll from "@/views/containers/Scroll.vue";
 import Inaccessible from "@/views/private/Inaccessible.vue";
-import { computed, ref, toRef, type Ref } from "vue";
+import { computed, ref, toRef, type Ref, watch } from "vue";
 import { isDescendantOf, moveNode, walkDescendantsRef } from "@/system/graph";
 import NavigationBar from "@/views/private/NavigationBar.vue";
 import type { ActionContext, ActionMapImplementation } from "@/system/action";
@@ -19,6 +28,7 @@ import { startDragging, useMultiDropZone } from "@/utils/drag";
 import { type ViewExposed } from "@/views/common";
 import { useHierarchicalNodeMoveActions } from "@/system/block";
 import { makeTypeInfo } from "@/system/value";
+import type { TypedNodeReferenceData } from "@/proto/wiring";
 
 const HEADER_HEIGHT = 24;
 const DEPTH_OFFSET = 40;
@@ -29,7 +39,7 @@ const ROOT_BLOCK_GAP_Y = 16;
 const NESTED_BLOCK_GAP_Y = 8;
 
 const props = defineProps<
-  { self: NodeReferenceData; size: Required<Pick<BoxData, "width" | "height">> } & Pick<
+  { self: TypedNodeReferenceData<NodeType.VIEW>; size: Required<Pick<BoxData, "width" | "height">> } & Pick<
     ViewData,
     "name" | "text" | "icon" | "nodePtr" | "focus" | "selection" | "expansion"
   >
@@ -38,6 +48,7 @@ const emit = defineEmits(viewEmits());
 const self = toRef(props, "self");
 
 const { graph: spaceGraph, connection: spaceConnection } = useExistingConnection(self);
+const selfView = spaceGraph.getRef(self);
 const preparedPkgConnection = useGetConnection(
   { name: `page.${props.nodePtr?.id}` },
   computed(() => ({
@@ -47,7 +58,7 @@ const preparedPkgConnection = useGetConnection(
   })),
 );
 const { graph: pkgGraph, connection: pkgConnection } = preparedPkgConnection;
-const page = pkgGraph.getRef(toRef(props, "nodePtr")) as Ref<BlockData> | undefined;
+const page = pkgGraph.getRef(toRef(props, "nodePtr")) as Ref<BlockData | undefined>;
 const { items: expandedItems } = walkDescendantsRef({
   graph: pkgGraph,
   rootPtr: toRef(props, "nodePtr"),
@@ -83,8 +94,12 @@ function getAnchorPosition(anchor: "start" | "end", blockIdx: number, anchorWidt
   }
 }
 
-// sync title with page name
-// nocheckin
+// sync page name with view title
+watch(toRef(props, "name"), () => {
+  if (page.value?.name != selfView.value?.title) {
+    pkgConnection.tx.update(page.value!, { name: selfView.value?.title });
+  }
+});
 
 //
 // Interaction
@@ -205,7 +220,7 @@ defineExpose<ViewExposed>({ self, actions, focus });
   >
     <!-- Page header -->
     <NavigationBar
-      class="border-b border-gray-300"
+      class="border-b border-gray-200"
       :width="size.width"
       :height="HEADER_HEIGHT"
       :self="nodePtr"
@@ -225,7 +240,7 @@ defineExpose<ViewExposed>({ self, actions, focus });
         <div
           class="mb-2 w-full border-b py-1.5"
           :class="[
-            props.nodePtr?.id == focusedNodePtr?.id ? 'border-primary-900' : 'border-gray-300',
+            props.nodePtr?.id == focusedNodePtr?.id ? 'border-primary-900' : 'border-gray-200',
             props.nodePtr?.id == inspectionPtr?.id ? 'bg-primary-100' : 'bg-white',
           ]"
         >
@@ -280,16 +295,19 @@ defineExpose<ViewExposed>({ self, actions, focus });
                 kind: 'component',
                 component: Picker,
                 placement: 'bottom',
-                props: { isInline: true, valueType: makeTypeInfo({ }) },
+                props: { isInline: true, valueType: makeTypeInfo({ 
+                  benchType: BenchType.BLOCK_TYPE,
+                  isRequired: true,
+                }) },
               })"
             >
               <!-- Line with a gap for the button -->
               <div class="relative">
                 <div
-                  class="absolute left-0 h-[1px] w-[48.5%] translate-y-1 bg-gray-300 transition-colors duration-100 group-hover/create:bg-primary-900"
+                  class="absolute left-0 h-[1px] w-[48.5%] translate-y-1 bg-gray-300 transition-colors duration-100 group-hover/create:bg-primary-400"
                 />
                 <div
-                  class="absolute right-0 h-[1px] w-[48.5%] translate-y-1 bg-gray-300 transition-colors duration-100 group-hover/create:bg-primary-900"
+                  class="absolute right-0 h-[1px] w-[48.5%] translate-y-1 bg-gray-300 transition-colors duration-100 group-hover/create:bg-primary-400"
                 />
               </div>
               <button
@@ -311,13 +329,13 @@ defineExpose<ViewExposed>({ self, actions, focus });
               :ref="(ref: any) => ref ? (expandedBlockRefs[blockPtr.id!] = ref) : delete expandedBlockRefs[blockPtr.id!]"
               class="rounded-md border"
               :class="[
-                blockPtr.id == focusedNodePtr?.id ? 'border-primary-900' : 'border-gray-300 hover:border-primary-900',
+                blockPtr.id == focusedNodePtr?.id ? 'border-primary-900' : 'border-gray-200 hover:border-primary-900',
                 blockPtr.id == inspectionPtr?.id ? 'bg-primary-100' : 'bg-white',
               ]"
               :node-ptr="blockPtr"
               :prepared-connection="preparedPkgConnection"
               v-contextmenu="(): OverlayMenuInfo => {
-                return { kind: 'menu', placement: 'bottom-right', items: menuActionsLike({wildcard: ['common.edit.*']}, {context: {triggerNode: blockPtr}})}
+                return { kind: 'menu', placement: 'bottom-right', items: menuActionsLike({ wildcard: ['common.edit.*', 'common.block.*'] }, { context: { triggerNode: blockPtr } })}
               }"
               :draggable="true"
               @dragstart="(e: DragEvent) => startDragging(e, pkgGraph, blockPtr)"

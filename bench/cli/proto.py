@@ -10,11 +10,12 @@ import typer
 
 from bench.cli.utils import _shell
 from bench.language import VERSION, Node
-from bench.language.const import NODE_TYPES, STRUCT_TYPES, UNSET
+from bench.language.const import ENUM_TYPES, NODE_TYPES, STRUCT_TYPES, UNSET
 from bench.language.setup import (
     ANCESTOR_NODE_TYPES,
     CHILD_NODE_TYPES,
     DESCENDANT_NODE_TYPES,
+    ENUM_CLASS_BY_TYPE,
     FINAL_BENCH_CLASSES,
     NODE_CLASS_BY_TYPE,
     NODE_CLASSES,
@@ -155,6 +156,15 @@ AnyStructData = Union[{', '.join([cls.__name__ + 'Data' for cls in STRUCT_CLASSE
         )
         + "}\n"
     )
+    enum_by_type_parts = [
+        "export const ENUM_BY_TYPE: Record<EnumType, Record<number | string, number | string>> = {\n",
+        "  [EnumType.UNSPECIFIED]: {},\n",
+    ]
+    for enum_t in ENUM_TYPES:
+        enum_cls = ENUM_CLASS_BY_TYPE.get(enum_t)
+        enum_by_type_parts.append(f"  [EnumType.{enum_t.name}]: {enum_cls.__name__},\n")
+    enum_by_type_parts.append("}\n")
+    enum_by_type_str = "".join(enum_by_type_parts)
 
     # type mappings
     struct_mapping_parts = [
@@ -179,7 +189,16 @@ AnyStructData = Union[{', '.join([cls.__name__ + 'Data' for cls in STRUCT_CLASSE
     for cls in chain(NODE_CLASSES, STRUCT_CLASSES):
         any_mapping_parts.append(f"  [ObjectType.{cls.metatype.name}]: {cls.__name__}Data,\n")
     any_mapping_parts.append("}\n")
-    any_mapping_str = "".join(any_mapping_parts)
+    object_mapping_str = "".join(any_mapping_parts)
+    enum_mapping_parts = [
+        "export interface EnumTypeMapping extends Record<EnumType, any> {\n",
+        "  [EnumType.UNSPECIFIED]: {},\n",
+    ]
+    for enum_t in ENUM_TYPES:
+        enum_cls = ENUM_CLASS_BY_TYPE.get(enum_t)
+        enum_mapping_parts.append(f"  [EnumType.{enum_t.name}]: {enum_cls.__name__},\n")
+    enum_mapping_parts.append("}\n")
+    enum_mapping_str = "".join(enum_mapping_parts)
 
     # property enum for each class
     property_enums_parts: list[str] = []
@@ -213,53 +232,7 @@ AnyStructData = Union[{', '.join([cls.__name__ + 'Data' for cls in STRUCT_CLASSE
         property_enum_maps_parts.append(property_enum_map_str)
     property_enum_maps_str = "\n".join(property_enum_maps_parts)
 
-    # type info
-    # type info
-    # type PropertyKind = 'primitive' | 'enum' | 'reference';
-    # type PropertyInfo = {
-    #                     // basics
-    # id: number;
-    # name: string;
-    # description: string;
-    # component: NodeType | StructType;
-    # kind: PropertyKind;
-    # primitiveType: PrimitiveType;
-    #
-    # // flags
-    # isList: boolean;
-    # isRequired: boolean;
-    # isInternal: boolean;
-    # isSystem: boolean;
-    # isKernel: boolean;
-    # isAutoset: boolean;
-    # isComputed: boolean;
-    # isRuntime: boolean;
-    # isWired: boolean;
-    # isStored: boolean;
-    # isUnique: boolean;
-    # isDeferred: boolean;
-    # isSensitive: boolean;
-    # isEncrypted: boolean;
-    #
-    # // value
-    # isValueRuntime: boolean;
-    # isValuePacked: boolean;
-    # valuePackedId: number;
-    # secretValuePackedId: number;
-    #
-    # // references
-    # referenceKind: ReferenceKind | undefined;
-    # referenceNodes: NodeType[] | undefined;
-    # referenceStruct: StructType | undefined;
-    #
-    # default: any | undefined;
-    # }
-    #
-    # export
-    # const
-    # BlockDataInfo: Record < BlockProperty, PropertyInfo > = {
-    # }
-    type_info_type_str = """
+    object_info_type_str = """
 export type PropertyKind = 'primitive' | 'enum' | 'reference';
 export type PropertyInfo = {
     // basics
@@ -368,7 +341,7 @@ export type PropertyInfo = {
         ]
         type_info_definitions_parts.append("\n".join(type_info_parts))
 
-    type_info_definitions_str = "\n".join(type_info_definitions_parts)
+    object_info_definitions_str = "\n".join(type_info_definitions_parts)
 
     # map
     type_info_map_parts = [
@@ -381,7 +354,7 @@ export type PropertyInfo = {
             f"  [ObjectType.{object_type.name}]: {bench_cls.__name__}DataInfo,\n"
         )
     type_info_map_parts.append("}\n")
-    type_info_map_str = "".join(type_info_map_parts)
+    object_info_map_str = "".join(type_info_map_parts)
 
     patch_postfix_code = f"""
 //
@@ -394,22 +367,19 @@ export type AnyStructData = {' | '.join(cls.__name__ + 'Data' for cls in STRUCT_
 export type AnyNodeDataType = {' | '.join('typeof ' + cls.__name__ + 'Data' for cls in NODE_CLASSES)}
 export type AnyStructDataType = {' | '.join('typeof ' + cls.__name__ + 'Data' for cls in STRUCT_CLASSES)}
 
-// type lists
-export const OBJECT_TYPES: ObjectType[] = Object.values(ObjectType).filter(v => typeof v === 'number' && v > 0) as ObjectType[]
-export const NODE_TYPES: NodeType[] = Object.values(NodeType).filter(v => typeof v === 'number' && v > 0) as NodeType[]
-export const STRUCT_TYPES: StructType[] = Object.values(StructType).filter(v => typeof v === 'number' && v > 0) as StructType[]
-
-// ancestry maps
+// Ancestry maps
 {ancestry_maps_str}
 
 // Message types
 {message_type_map_str}
 {message_type_inv_map_str}
+{enum_by_type_str}
 
 // Type mappings
 {struct_mapping_str}
 {node_mapping_str}
-{any_mapping_str}
+{object_mapping_str}
+{enum_mapping_str}
 
 // Property enums
 {property_enums_str}
@@ -422,9 +392,9 @@ export type AnyPropertyType = {' | '.join('typeof ' + cls.__name__ + 'Property' 
 {property_enum_maps_str}
 
 // Type info
-{type_info_type_str}
-{type_info_definitions_str}
-{type_info_map_str}
+{object_info_type_str}
+{object_info_definitions_str}
+{object_info_map_str}
     """
     lang_ts = Path(WIRE_TS_DIR + "/bench/proto/lang.ts").read_text()
     Path(WIRE_TS_DIR + "/bench/proto/lang.ts").write_text(lang_ts + "\n\n" + patch_postfix_code)

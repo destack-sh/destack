@@ -1581,7 +1581,7 @@ export interface TextSpanData {
     isCode: boolean;
 }
 /**
- * TypeInfo(id: Optional[int] = <factory>, parent: Union[ForwardRef('Struct'), ForwardRef('Node'), ForwardRef('Value'), NoneType] = None, order_key: str | None = None, set_properties: list[int] = <factory>, _status: bench.language.const.InterpStatus = None, _updated_properties: bitarray.bitarray | None = None, primitive_type: Optional[bench.language.const.PrimitiveType] = None, node_type: Optional[bench.language.const.NodeType] = None, struct_type: Optional[bench.language.const.StructType] = None, base_type: Optional[ForwardRef('Block')] = None, visibility: bench.language.const.NodeVisibility = <NodeVisibility.ALL: 10>, format_hint: Optional[bench.language.const.FormatHint] = None, condition: Optional[ForwardRef('Expression')] = None, length: Optional[int] = None, precision: Optional[int] = None, scale: Optional[int] = None, default_packed: Optional[Any] = None, default: None = None, is_list: bool = False, is_required: bool = False, is_secret: bool = False, _fields: tuple['Field', ...] | None = None, _resolved_type: Optional[ForwardRef('TypeInfo')] = None, parent_id: int = None, parent_key: str = None, base_type_ptr: 'NodeReference' = None)
+ * TypeInfo(id: Optional[int] = <factory>, parent: Union[ForwardRef('Struct'), ForwardRef('Node'), ForwardRef('Value'), NoneType] = None, order_key: str | None = None, set_properties: list[int] = <factory>, _status: bench.language.const.InterpStatus = None, _updated_properties: bitarray.bitarray | None = None, primitive_type: Optional[bench.language.const.PrimitiveType] = None, bench_type: Optional[bench.utils.func.BenchType] = None, base_type: Optional[ForwardRef('Block')] = None, visibility: bench.language.const.NodeVisibility = <NodeVisibility.ALL: 10>, format_hint: Optional[bench.language.const.FormatHint] = None, condition: Optional[ForwardRef('Expression')] = None, length: Optional[int] = None, precision: Optional[int] = None, scale: Optional[int] = None, default_packed: Optional[Any] = None, default: None = None, is_list: bool = False, is_required: bool = False, is_secret: bool = False, _fields: tuple['Field', ...] | None = None, _resolved_type: Optional[ForwardRef('TypeInfo')] = None, parent_id: int = None, parent_key: str = None, base_type_ptr: 'NodeReference' = None)
  *
  * @generated from protobuf message symbolx.bench.TypeInfoData
  */
@@ -1615,39 +1615,35 @@ export interface TypeInfoData {
      */
     primitiveType?: PrimitiveType;
     /**
-     * @generated from protobuf field: optional symbolx.bench.NodeType node_type = 41;
+     * @generated from protobuf field: optional symbolx.bench.BenchType bench_type = 41;
      */
-    nodeType?: NodeType;
+    benchType?: BenchType;
     /**
-     * @generated from protobuf field: optional symbolx.bench.StructType struct_type = 42;
-     */
-    structType?: StructType;
-    /**
-     * @generated from protobuf field: optional symbolx.bench.NodeReferenceData base_type_ptr = 43;
+     * @generated from protobuf field: optional symbolx.bench.NodeReferenceData base_type_ptr = 42;
      */
     baseTypePtr?: NodeReferenceData;
     /**
-     * @generated from protobuf field: symbolx.bench.NodeVisibility visibility = 44;
+     * @generated from protobuf field: symbolx.bench.NodeVisibility visibility = 43;
      */
     visibility: NodeVisibility;
     /**
-     * @generated from protobuf field: optional symbolx.bench.FormatHint format_hint = 45;
+     * @generated from protobuf field: optional symbolx.bench.FormatHint format_hint = 44;
      */
     formatHint?: FormatHint;
     /**
-     * @generated from protobuf field: optional symbolx.bench.ExpressionData condition = 46;
+     * @generated from protobuf field: optional symbolx.bench.ExpressionData condition = 45;
      */
     condition?: ExpressionData;
     /**
-     * @generated from protobuf field: optional int32 length = 47;
+     * @generated from protobuf field: optional int32 length = 46;
      */
     length?: number;
     /**
-     * @generated from protobuf field: optional int32 precision = 48;
+     * @generated from protobuf field: optional int32 precision = 47;
      */
     precision?: number;
     /**
-     * @generated from protobuf field: optional int32 scale = 49;
+     * @generated from protobuf field: optional int32 scale = 48;
      */
     scale?: number;
     /**
@@ -1655,15 +1651,15 @@ export interface TypeInfoData {
      */
     defaultPacked?: Struct;
     /**
-     * @generated from protobuf field: bool is_list = 53;
+     * @generated from protobuf field: bool is_list = 54;
      */
     isList: boolean;
     /**
-     * @generated from protobuf field: bool is_required = 54;
+     * @generated from protobuf field: bool is_required = 55;
      */
     isRequired: boolean;
     /**
-     * @generated from protobuf field: bool is_secret = 55;
+     * @generated from protobuf field: bool is_secret = 56;
      */
     isSecret: boolean;
 }
@@ -2656,39 +2652,35 @@ export interface FieldData {
      */
     primitiveType?: PrimitiveType;
     /**
-     * @generated from protobuf field: optional symbolx.bench.NodeType node_type = 41;
+     * @generated from protobuf field: optional symbolx.bench.BenchType bench_type = 41;
      */
-    nodeType?: NodeType;
+    benchType?: BenchType;
     /**
-     * @generated from protobuf field: optional symbolx.bench.StructType struct_type = 42;
-     */
-    structType?: StructType;
-    /**
-     * @generated from protobuf field: optional symbolx.bench.NodeReferenceData base_type_ptr = 43;
+     * @generated from protobuf field: optional symbolx.bench.NodeReferenceData base_type_ptr = 42;
      */
     baseTypePtr?: NodeReferenceData;
     /**
-     * @generated from protobuf field: symbolx.bench.NodeVisibility visibility = 44;
+     * @generated from protobuf field: symbolx.bench.NodeVisibility visibility = 43;
      */
     visibility: NodeVisibility;
     /**
-     * @generated from protobuf field: optional symbolx.bench.FormatHint format_hint = 45;
+     * @generated from protobuf field: optional symbolx.bench.FormatHint format_hint = 44;
      */
     formatHint?: FormatHint;
     /**
-     * @generated from protobuf field: optional symbolx.bench.ExpressionData condition = 46;
+     * @generated from protobuf field: optional symbolx.bench.ExpressionData condition = 45;
      */
     condition?: ExpressionData;
     /**
-     * @generated from protobuf field: optional int32 length = 47;
+     * @generated from protobuf field: optional int32 length = 46;
      */
     length?: number;
     /**
-     * @generated from protobuf field: optional int32 precision = 48;
+     * @generated from protobuf field: optional int32 precision = 47;
      */
     precision?: number;
     /**
-     * @generated from protobuf field: optional int32 scale = 49;
+     * @generated from protobuf field: optional int32 scale = 48;
      */
     scale?: number;
     /**
@@ -2696,15 +2688,15 @@ export interface FieldData {
      */
     defaultPacked?: Struct;
     /**
-     * @generated from protobuf field: bool is_list = 53;
+     * @generated from protobuf field: bool is_list = 54;
      */
     isList: boolean;
     /**
-     * @generated from protobuf field: bool is_required = 54;
+     * @generated from protobuf field: bool is_required = 55;
      */
     isRequired: boolean;
     /**
-     * @generated from protobuf field: bool is_secret = 55;
+     * @generated from protobuf field: bool is_secret = 56;
      */
     isSecret: boolean;
     /**
@@ -9117,9 +9109,9 @@ export enum ViewType {
      */
     SPLIT = 503,
     /**
-     * @generated from protobuf enum value: VIEW_TYPE_SPLIT_COLLAPSIBLE = 504;
+     * @generated from protobuf enum value: VIEW_TYPE_SPLIT_DRAWER = 504;
      */
-    SPLIT_COLLAPSIBLE = 504,
+    SPLIT_DRAWER = 504,
     /**
      * @generated from protobuf enum value: VIEW_TYPE_WIZARD = 505;
      */
@@ -9129,9 +9121,9 @@ export enum ViewType {
      */
     STACK = 510,
     /**
-     * @generated from protobuf enum value: VIEW_TYPE_COLLAPSIBLE = 511;
+     * @generated from protobuf enum value: VIEW_TYPE_DRAWER = 511;
      */
-    COLLAPSIBLE = 511,
+    DRAWER = 511,
     /**
      * @generated from protobuf enum value: VIEW_TYPE_GRID = 512;
      */
@@ -13187,19 +13179,18 @@ class TypeInfoData$Type extends MessageType<TypeInfoData> {
             { no: 5, name: "order_key", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
             { no: 22, name: "set_properties", kind: "scalar", repeat: 1 /*RepeatType.PACKED*/, T: 5 /*ScalarType.INT32*/ },
             { no: 40, name: "primitive_type", kind: "enum", opt: true, T: () => ["symbolx.bench.PrimitiveType", PrimitiveType, "PRIMITIVE_TYPE_"] },
-            { no: 41, name: "node_type", kind: "enum", opt: true, T: () => ["symbolx.bench.NodeType", NodeType, "NODE_TYPE_"] },
-            { no: 42, name: "struct_type", kind: "enum", opt: true, T: () => ["symbolx.bench.StructType", StructType, "STRUCT_TYPE_"] },
-            { no: 43, name: "base_type_ptr", kind: "message", T: () => NodeReferenceData },
-            { no: 44, name: "visibility", kind: "enum", T: () => ["symbolx.bench.NodeVisibility", NodeVisibility, "NODE_VISIBILITY_"] },
-            { no: 45, name: "format_hint", kind: "enum", opt: true, T: () => ["symbolx.bench.FormatHint", FormatHint, "FORMAT_HINT_"] },
-            { no: 46, name: "condition", kind: "message", T: () => ExpressionData },
-            { no: 47, name: "length", kind: "scalar", opt: true, T: 5 /*ScalarType.INT32*/ },
-            { no: 48, name: "precision", kind: "scalar", opt: true, T: 5 /*ScalarType.INT32*/ },
-            { no: 49, name: "scale", kind: "scalar", opt: true, T: 5 /*ScalarType.INT32*/ },
+            { no: 41, name: "bench_type", kind: "enum", opt: true, T: () => ["symbolx.bench.BenchType", BenchType, "BENCH_TYPE_"] },
+            { no: 42, name: "base_type_ptr", kind: "message", T: () => NodeReferenceData },
+            { no: 43, name: "visibility", kind: "enum", T: () => ["symbolx.bench.NodeVisibility", NodeVisibility, "NODE_VISIBILITY_"] },
+            { no: 44, name: "format_hint", kind: "enum", opt: true, T: () => ["symbolx.bench.FormatHint", FormatHint, "FORMAT_HINT_"] },
+            { no: 45, name: "condition", kind: "message", T: () => ExpressionData },
+            { no: 46, name: "length", kind: "scalar", opt: true, T: 5 /*ScalarType.INT32*/ },
+            { no: 47, name: "precision", kind: "scalar", opt: true, T: 5 /*ScalarType.INT32*/ },
+            { no: 48, name: "scale", kind: "scalar", opt: true, T: 5 /*ScalarType.INT32*/ },
             { no: 50, name: "default_packed", kind: "message", T: () => Struct },
-            { no: 53, name: "is_list", kind: "scalar", T: 8 /*ScalarType.BOOL*/ },
-            { no: 54, name: "is_required", kind: "scalar", T: 8 /*ScalarType.BOOL*/ },
-            { no: 55, name: "is_secret", kind: "scalar", T: 8 /*ScalarType.BOOL*/ }
+            { no: 54, name: "is_list", kind: "scalar", T: 8 /*ScalarType.BOOL*/ },
+            { no: 55, name: "is_required", kind: "scalar", T: 8 /*ScalarType.BOOL*/ },
+            { no: 56, name: "is_secret", kind: "scalar", T: 8 /*ScalarType.BOOL*/ }
         ]);
     }
     create(value?: PartialMessage<TypeInfoData>): TypeInfoData {
@@ -13244,43 +13235,40 @@ class TypeInfoData$Type extends MessageType<TypeInfoData> {
                 case /* optional symbolx.bench.PrimitiveType primitive_type */ 40:
                     message.primitiveType = reader.int32();
                     break;
-                case /* optional symbolx.bench.NodeType node_type */ 41:
-                    message.nodeType = reader.int32();
+                case /* optional symbolx.bench.BenchType bench_type */ 41:
+                    message.benchType = reader.int32();
                     break;
-                case /* optional symbolx.bench.StructType struct_type */ 42:
-                    message.structType = reader.int32();
-                    break;
-                case /* optional symbolx.bench.NodeReferenceData base_type_ptr */ 43:
+                case /* optional symbolx.bench.NodeReferenceData base_type_ptr */ 42:
                     message.baseTypePtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.baseTypePtr);
                     break;
-                case /* symbolx.bench.NodeVisibility visibility */ 44:
+                case /* symbolx.bench.NodeVisibility visibility */ 43:
                     message.visibility = reader.int32();
                     break;
-                case /* optional symbolx.bench.FormatHint format_hint */ 45:
+                case /* optional symbolx.bench.FormatHint format_hint */ 44:
                     message.formatHint = reader.int32();
                     break;
-                case /* optional symbolx.bench.ExpressionData condition */ 46:
+                case /* optional symbolx.bench.ExpressionData condition */ 45:
                     message.condition = ExpressionData.internalBinaryRead(reader, reader.uint32(), options, message.condition);
                     break;
-                case /* optional int32 length */ 47:
+                case /* optional int32 length */ 46:
                     message.length = reader.int32();
                     break;
-                case /* optional int32 precision */ 48:
+                case /* optional int32 precision */ 47:
                     message.precision = reader.int32();
                     break;
-                case /* optional int32 scale */ 49:
+                case /* optional int32 scale */ 48:
                     message.scale = reader.int32();
                     break;
                 case /* optional google.protobuf.Struct default_packed */ 50:
                     message.defaultPacked = Struct.internalBinaryRead(reader, reader.uint32(), options, message.defaultPacked);
                     break;
-                case /* bool is_list */ 53:
+                case /* bool is_list */ 54:
                     message.isList = reader.bool();
                     break;
-                case /* bool is_required */ 54:
+                case /* bool is_required */ 55:
                     message.isRequired = reader.bool();
                     break;
-                case /* bool is_secret */ 55:
+                case /* bool is_secret */ 56:
                     message.isSecret = reader.bool();
                     break;
                 default:
@@ -13320,45 +13308,42 @@ class TypeInfoData$Type extends MessageType<TypeInfoData> {
         /* optional symbolx.bench.PrimitiveType primitive_type = 40; */
         if (message.primitiveType !== undefined)
             writer.tag(40, WireType.Varint).int32(message.primitiveType);
-        /* optional symbolx.bench.NodeType node_type = 41; */
-        if (message.nodeType !== undefined)
-            writer.tag(41, WireType.Varint).int32(message.nodeType);
-        /* optional symbolx.bench.StructType struct_type = 42; */
-        if (message.structType !== undefined)
-            writer.tag(42, WireType.Varint).int32(message.structType);
-        /* optional symbolx.bench.NodeReferenceData base_type_ptr = 43; */
+        /* optional symbolx.bench.BenchType bench_type = 41; */
+        if (message.benchType !== undefined)
+            writer.tag(41, WireType.Varint).int32(message.benchType);
+        /* optional symbolx.bench.NodeReferenceData base_type_ptr = 42; */
         if (message.baseTypePtr)
-            NodeReferenceData.internalBinaryWrite(message.baseTypePtr, writer.tag(43, WireType.LengthDelimited).fork(), options).join();
-        /* symbolx.bench.NodeVisibility visibility = 44; */
+            NodeReferenceData.internalBinaryWrite(message.baseTypePtr, writer.tag(42, WireType.LengthDelimited).fork(), options).join();
+        /* symbolx.bench.NodeVisibility visibility = 43; */
         if (message.visibility !== 0)
-            writer.tag(44, WireType.Varint).int32(message.visibility);
-        /* optional symbolx.bench.FormatHint format_hint = 45; */
+            writer.tag(43, WireType.Varint).int32(message.visibility);
+        /* optional symbolx.bench.FormatHint format_hint = 44; */
         if (message.formatHint !== undefined)
-            writer.tag(45, WireType.Varint).int32(message.formatHint);
-        /* optional symbolx.bench.ExpressionData condition = 46; */
+            writer.tag(44, WireType.Varint).int32(message.formatHint);
+        /* optional symbolx.bench.ExpressionData condition = 45; */
         if (message.condition)
-            ExpressionData.internalBinaryWrite(message.condition, writer.tag(46, WireType.LengthDelimited).fork(), options).join();
-        /* optional int32 length = 47; */
+            ExpressionData.internalBinaryWrite(message.condition, writer.tag(45, WireType.LengthDelimited).fork(), options).join();
+        /* optional int32 length = 46; */
         if (message.length !== undefined)
-            writer.tag(47, WireType.Varint).int32(message.length);
-        /* optional int32 precision = 48; */
+            writer.tag(46, WireType.Varint).int32(message.length);
+        /* optional int32 precision = 47; */
         if (message.precision !== undefined)
-            writer.tag(48, WireType.Varint).int32(message.precision);
-        /* optional int32 scale = 49; */
+            writer.tag(47, WireType.Varint).int32(message.precision);
+        /* optional int32 scale = 48; */
         if (message.scale !== undefined)
-            writer.tag(49, WireType.Varint).int32(message.scale);
+            writer.tag(48, WireType.Varint).int32(message.scale);
         /* optional google.protobuf.Struct default_packed = 50; */
         if (message.defaultPacked)
             Struct.internalBinaryWrite(message.defaultPacked, writer.tag(50, WireType.LengthDelimited).fork(), options).join();
-        /* bool is_list = 53; */
+        /* bool is_list = 54; */
         if (message.isList !== false)
-            writer.tag(53, WireType.Varint).bool(message.isList);
-        /* bool is_required = 54; */
+            writer.tag(54, WireType.Varint).bool(message.isList);
+        /* bool is_required = 55; */
         if (message.isRequired !== false)
-            writer.tag(54, WireType.Varint).bool(message.isRequired);
-        /* bool is_secret = 55; */
+            writer.tag(55, WireType.Varint).bool(message.isRequired);
+        /* bool is_secret = 56; */
         if (message.isSecret !== false)
-            writer.tag(55, WireType.Varint).bool(message.isSecret);
+            writer.tag(56, WireType.Varint).bool(message.isSecret);
         let u = options.writeUnknownFields;
         if (u !== false)
             (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
@@ -15386,19 +15371,18 @@ class FieldData$Type extends MessageType<FieldData> {
             { no: 34, name: "icon", kind: "message", T: () => IconData },
             { no: 35, name: "value_packed", kind: "message", T: () => Struct },
             { no: 40, name: "primitive_type", kind: "enum", opt: true, T: () => ["symbolx.bench.PrimitiveType", PrimitiveType, "PRIMITIVE_TYPE_"] },
-            { no: 41, name: "node_type", kind: "enum", opt: true, T: () => ["symbolx.bench.NodeType", NodeType, "NODE_TYPE_"] },
-            { no: 42, name: "struct_type", kind: "enum", opt: true, T: () => ["symbolx.bench.StructType", StructType, "STRUCT_TYPE_"] },
-            { no: 43, name: "base_type_ptr", kind: "message", T: () => NodeReferenceData },
-            { no: 44, name: "visibility", kind: "enum", T: () => ["symbolx.bench.NodeVisibility", NodeVisibility, "NODE_VISIBILITY_"] },
-            { no: 45, name: "format_hint", kind: "enum", opt: true, T: () => ["symbolx.bench.FormatHint", FormatHint, "FORMAT_HINT_"] },
-            { no: 46, name: "condition", kind: "message", T: () => ExpressionData },
-            { no: 47, name: "length", kind: "scalar", opt: true, T: 5 /*ScalarType.INT32*/ },
-            { no: 48, name: "precision", kind: "scalar", opt: true, T: 5 /*ScalarType.INT32*/ },
-            { no: 49, name: "scale", kind: "scalar", opt: true, T: 5 /*ScalarType.INT32*/ },
+            { no: 41, name: "bench_type", kind: "enum", opt: true, T: () => ["symbolx.bench.BenchType", BenchType, "BENCH_TYPE_"] },
+            { no: 42, name: "base_type_ptr", kind: "message", T: () => NodeReferenceData },
+            { no: 43, name: "visibility", kind: "enum", T: () => ["symbolx.bench.NodeVisibility", NodeVisibility, "NODE_VISIBILITY_"] },
+            { no: 44, name: "format_hint", kind: "enum", opt: true, T: () => ["symbolx.bench.FormatHint", FormatHint, "FORMAT_HINT_"] },
+            { no: 45, name: "condition", kind: "message", T: () => ExpressionData },
+            { no: 46, name: "length", kind: "scalar", opt: true, T: 5 /*ScalarType.INT32*/ },
+            { no: 47, name: "precision", kind: "scalar", opt: true, T: 5 /*ScalarType.INT32*/ },
+            { no: 48, name: "scale", kind: "scalar", opt: true, T: 5 /*ScalarType.INT32*/ },
             { no: 50, name: "default_packed", kind: "message", T: () => Struct },
-            { no: 53, name: "is_list", kind: "scalar", T: 8 /*ScalarType.BOOL*/ },
-            { no: 54, name: "is_required", kind: "scalar", T: 8 /*ScalarType.BOOL*/ },
-            { no: 55, name: "is_secret", kind: "scalar", T: 8 /*ScalarType.BOOL*/ },
+            { no: 54, name: "is_list", kind: "scalar", T: 8 /*ScalarType.BOOL*/ },
+            { no: 55, name: "is_required", kind: "scalar", T: 8 /*ScalarType.BOOL*/ },
+            { no: 56, name: "is_secret", kind: "scalar", T: 8 /*ScalarType.BOOL*/ },
             { no: 60, name: "is_input", kind: "scalar", T: 8 /*ScalarType.BOOL*/ },
             { no: 61, name: "is_output", kind: "scalar", T: 8 /*ScalarType.BOOL*/ },
             { no: 62, name: "is_option", kind: "scalar", T: 8 /*ScalarType.BOOL*/ }
@@ -15496,43 +15480,40 @@ class FieldData$Type extends MessageType<FieldData> {
                 case /* optional symbolx.bench.PrimitiveType primitive_type */ 40:
                     message.primitiveType = reader.int32();
                     break;
-                case /* optional symbolx.bench.NodeType node_type */ 41:
-                    message.nodeType = reader.int32();
+                case /* optional symbolx.bench.BenchType bench_type */ 41:
+                    message.benchType = reader.int32();
                     break;
-                case /* optional symbolx.bench.StructType struct_type */ 42:
-                    message.structType = reader.int32();
-                    break;
-                case /* optional symbolx.bench.NodeReferenceData base_type_ptr */ 43:
+                case /* optional symbolx.bench.NodeReferenceData base_type_ptr */ 42:
                     message.baseTypePtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.baseTypePtr);
                     break;
-                case /* symbolx.bench.NodeVisibility visibility */ 44:
+                case /* symbolx.bench.NodeVisibility visibility */ 43:
                     message.visibility = reader.int32();
                     break;
-                case /* optional symbolx.bench.FormatHint format_hint */ 45:
+                case /* optional symbolx.bench.FormatHint format_hint */ 44:
                     message.formatHint = reader.int32();
                     break;
-                case /* optional symbolx.bench.ExpressionData condition */ 46:
+                case /* optional symbolx.bench.ExpressionData condition */ 45:
                     message.condition = ExpressionData.internalBinaryRead(reader, reader.uint32(), options, message.condition);
                     break;
-                case /* optional int32 length */ 47:
+                case /* optional int32 length */ 46:
                     message.length = reader.int32();
                     break;
-                case /* optional int32 precision */ 48:
+                case /* optional int32 precision */ 47:
                     message.precision = reader.int32();
                     break;
-                case /* optional int32 scale */ 49:
+                case /* optional int32 scale */ 48:
                     message.scale = reader.int32();
                     break;
                 case /* optional google.protobuf.Struct default_packed */ 50:
                     message.defaultPacked = Struct.internalBinaryRead(reader, reader.uint32(), options, message.defaultPacked);
                     break;
-                case /* bool is_list */ 53:
+                case /* bool is_list */ 54:
                     message.isList = reader.bool();
                     break;
-                case /* bool is_required */ 54:
+                case /* bool is_required */ 55:
                     message.isRequired = reader.bool();
                     break;
-                case /* bool is_secret */ 55:
+                case /* bool is_secret */ 56:
                     message.isSecret = reader.bool();
                     break;
                 case /* bool is_input */ 60:
@@ -15623,45 +15604,42 @@ class FieldData$Type extends MessageType<FieldData> {
         /* optional symbolx.bench.PrimitiveType primitive_type = 40; */
         if (message.primitiveType !== undefined)
             writer.tag(40, WireType.Varint).int32(message.primitiveType);
-        /* optional symbolx.bench.NodeType node_type = 41; */
-        if (message.nodeType !== undefined)
-            writer.tag(41, WireType.Varint).int32(message.nodeType);
-        /* optional symbolx.bench.StructType struct_type = 42; */
-        if (message.structType !== undefined)
-            writer.tag(42, WireType.Varint).int32(message.structType);
-        /* optional symbolx.bench.NodeReferenceData base_type_ptr = 43; */
+        /* optional symbolx.bench.BenchType bench_type = 41; */
+        if (message.benchType !== undefined)
+            writer.tag(41, WireType.Varint).int32(message.benchType);
+        /* optional symbolx.bench.NodeReferenceData base_type_ptr = 42; */
         if (message.baseTypePtr)
-            NodeReferenceData.internalBinaryWrite(message.baseTypePtr, writer.tag(43, WireType.LengthDelimited).fork(), options).join();
-        /* symbolx.bench.NodeVisibility visibility = 44; */
+            NodeReferenceData.internalBinaryWrite(message.baseTypePtr, writer.tag(42, WireType.LengthDelimited).fork(), options).join();
+        /* symbolx.bench.NodeVisibility visibility = 43; */
         if (message.visibility !== 0)
-            writer.tag(44, WireType.Varint).int32(message.visibility);
-        /* optional symbolx.bench.FormatHint format_hint = 45; */
+            writer.tag(43, WireType.Varint).int32(message.visibility);
+        /* optional symbolx.bench.FormatHint format_hint = 44; */
         if (message.formatHint !== undefined)
-            writer.tag(45, WireType.Varint).int32(message.formatHint);
-        /* optional symbolx.bench.ExpressionData condition = 46; */
+            writer.tag(44, WireType.Varint).int32(message.formatHint);
+        /* optional symbolx.bench.ExpressionData condition = 45; */
         if (message.condition)
-            ExpressionData.internalBinaryWrite(message.condition, writer.tag(46, WireType.LengthDelimited).fork(), options).join();
-        /* optional int32 length = 47; */
+            ExpressionData.internalBinaryWrite(message.condition, writer.tag(45, WireType.LengthDelimited).fork(), options).join();
+        /* optional int32 length = 46; */
         if (message.length !== undefined)
-            writer.tag(47, WireType.Varint).int32(message.length);
-        /* optional int32 precision = 48; */
+            writer.tag(46, WireType.Varint).int32(message.length);
+        /* optional int32 precision = 47; */
         if (message.precision !== undefined)
-            writer.tag(48, WireType.Varint).int32(message.precision);
-        /* optional int32 scale = 49; */
+            writer.tag(47, WireType.Varint).int32(message.precision);
+        /* optional int32 scale = 48; */
         if (message.scale !== undefined)
-            writer.tag(49, WireType.Varint).int32(message.scale);
+            writer.tag(48, WireType.Varint).int32(message.scale);
         /* optional google.protobuf.Struct default_packed = 50; */
         if (message.defaultPacked)
             Struct.internalBinaryWrite(message.defaultPacked, writer.tag(50, WireType.LengthDelimited).fork(), options).join();
-        /* bool is_list = 53; */
+        /* bool is_list = 54; */
         if (message.isList !== false)
-            writer.tag(53, WireType.Varint).bool(message.isList);
-        /* bool is_required = 54; */
+            writer.tag(54, WireType.Varint).bool(message.isList);
+        /* bool is_required = 55; */
         if (message.isRequired !== false)
-            writer.tag(54, WireType.Varint).bool(message.isRequired);
-        /* bool is_secret = 55; */
+            writer.tag(55, WireType.Varint).bool(message.isRequired);
+        /* bool is_secret = 56; */
         if (message.isSecret !== false)
-            writer.tag(55, WireType.Varint).bool(message.isSecret);
+            writer.tag(56, WireType.Varint).bool(message.isSecret);
         /* bool is_input = 60; */
         if (message.isInput !== false)
             writer.tag(60, WireType.Varint).bool(message.isInput);
@@ -21715,12 +21693,7 @@ export type AnyStructData = PathData | PathSegmentData | PathTokenData | NodeRef
 export type AnyNodeDataType = typeof BenchData | typeof EnvironmentData | typeof BranchData | typeof PackageData | typeof DependencyData | typeof UpgradeData | typeof SpaceData | typeof LinkData | typeof SkipData | typeof NoticeData | typeof BlockData | typeof TriggerData | typeof FieldData | typeof RecordData | typeof QueryData | typeof ViewData | typeof StepData | typeof BadgeData | typeof RoleData | typeof IdentityData | typeof MembershipData | typeof InviteData | typeof SessionData | typeof RunData | typeof PauseData | typeof SignalData | typeof LogData | typeof NotificationData | typeof ServerData | typeof StoreData | typeof DriveData | typeof CacheData | typeof FileContentData | typeof HandleData | typeof UserData | typeof OrganizationData | typeof ClientData
 export type AnyStructDataType = typeof PathData | typeof PathSegmentData | typeof PathTokenData | typeof NodeReferenceData | typeof PropertyReferenceData | typeof ValueReferenceData | typeof TypeInfoData | typeof ContextData | typeof ScheduleData | typeof ProjectionData | typeof FileData | typeof IconData | typeof PolicyData | typeof PolicyRuleData | typeof SubjectData | typeof AccessZoneData | typeof AccessMatrixData | typeof AccessData | typeof AccessTraceData | typeof RequestData | typeof ReadOptionsData | typeof ExpressionData | typeof AggregationData | typeof AggregationBucketData | typeof SelectionData | typeof CodeData | typeof CodeLineData | typeof StepConnectionData | typeof RunCodeFrameData | typeof RunErrorData | typeof ResourceCredentialData | typeof TextData | typeof TextLineData | typeof TextSpanData | typeof ColorData | typeof FontData | typeof BoxData | typeof OffsetData
 
-// type lists
-export const OBJECT_TYPES: ObjectType[] = Object.values(ObjectType).filter(v => typeof v === 'number' && v > 0) as ObjectType[]
-export const NODE_TYPES: NodeType[] = Object.values(NodeType).filter(v => typeof v === 'number' && v > 0) as NodeType[]
-export const STRUCT_TYPES: StructType[] = Object.values(StructType).filter(v => typeof v === 'number' && v > 0) as StructType[]
-
-// ancestry maps
+// Ancestry maps
 export const PARENT_NODE_TYPES: Record<NodeType, NodeType[]> = {
   [NodeType.UNSPECIFIED]: [],
   [NodeType.BENCH]: [],
@@ -22043,6 +22016,62 @@ export const OBJECT_TYPE_BY_MESSAGE_TYPE_NAME: Record<string, ObjectType> = {
   ["symbolx.bench.OffsetData"]: ObjectType.OFFSET,
 }
 
+export const ENUM_BY_TYPE: Record<EnumType, Record<number | string, string | number>> = {
+  [EnumType.UNSPECIFIED]: {},
+  [EnumType.ENUM_TYPE]: EnumType,
+  [EnumType.NODE_TYPE]: NodeType,
+  [EnumType.STRUCT_TYPE]: StructType,
+  [EnumType.OBJECT_TYPE]: ObjectType,
+  [EnumType.BENCH_TYPE]: BenchType,
+  [EnumType.NODE_VISIBILITY]: NodeVisibility,
+  [EnumType.ACCESS_KIND]: AccessKind,
+  [EnumType.READ_TYPE]: ReadType,
+  [EnumType.EDIT_TYPE]: EditType,
+  [EnumType.USE_TYPE]: UseType,
+  [EnumType.ACCESS_TYPE]: AccessType,
+  [EnumType.POLICY_EFFECT]: PolicyEffect,
+  [EnumType.REGION]: Region,
+  [EnumType.TENANCY]: Tenancy,
+  [EnumType.STORE_KIND]: StoreKind,
+  [EnumType.STORE_ENGINE_TYPE]: StoreEngineType,
+  [EnumType.SERVER_PROFILE]: ServerProfile,
+  [EnumType.RESOURCE_STATUS]: ResourceStatus,
+  [EnumType.BLOCK_TYPE]: BlockType,
+  [EnumType.SCHEDULE_TYPE]: ScheduleType,
+  [EnumType.PRIMITIVE_TYPE]: PrimitiveType,
+  [EnumType.FORMAT_HINT]: FormatHint,
+  [EnumType.FILE_STATUS]: FileStatus,
+  [EnumType.FILE_RETENTION_MODE]: FileRetentionMode,
+  [EnumType.STEP_TYPE]: StepType,
+  [EnumType.VIEW_TYPE]: ViewType,
+  [EnumType.VARIANT]: Variant,
+  [EnumType.COLOR_TYPE]: ColorType,
+  [EnumType.COLOR_SHADE]: ColorShade,
+  [EnumType.FONT_TYPE]: FontType,
+  [EnumType.FONT_WEIGHT]: FontWeight,
+  [EnumType.FONT_SIZE]: FontSize,
+  [EnumType.SPACING]: Spacing,
+  [EnumType.ANCHOR]: Anchor,
+  [EnumType.ORIENTATION]: Orientation,
+  [EnumType.ALIGNMENT]: Alignment,
+  [EnumType.ICON_KIND]: IconKind,
+  [EnumType.LOG_KIND]: LogKind,
+  [EnumType.LOG_LEVEL]: LogLevel,
+  [EnumType.TRIGGER_TYPE]: TriggerType,
+  [EnumType.RUN_STATUS]: RunStatus,
+  [EnumType.RUN_ERROR_KIND]: RunErrorKind,
+  [EnumType.NOTICE_KIND]: NoticeKind,
+  [EnumType.NOTIFICATION_KIND]: NotificationKind,
+  [EnumType.EXPRESSION_KIND]: ExpressionKind,
+  [EnumType.CONDITIONAL_OP]: ConditionalOp,
+  [EnumType.AGGREGATION_OP]: AggregationOp,
+  [EnumType.SORT_OP]: SortOp,
+  [EnumType.SORT_MODE]: SortMode,
+  [EnumType.SELECTION_KIND]: SelectionKind,
+  [EnumType.USER_STATUS]: UserStatus,
+  [EnumType.ORGANIZATION_STATUS]: OrganizationStatus,
+}
+
 
 // Type mappings
 export interface StructTypeMapping extends Record<StructType, AnyStructData> {
@@ -22202,6 +22231,62 @@ export interface AnyTypeMapping extends Record<ObjectType, AnyStructData | AnyNo
   [ObjectType.FONT]: FontData,
   [ObjectType.BOX]: BoxData,
   [ObjectType.OFFSET]: OffsetData,
+}
+
+export interface EnumTypeMapping extends Record<EnumType, any> {
+  [EnumType.UNSPECIFIED]: {},
+  [EnumType.ENUM_TYPE]: EnumType,
+  [EnumType.NODE_TYPE]: NodeType,
+  [EnumType.STRUCT_TYPE]: StructType,
+  [EnumType.OBJECT_TYPE]: ObjectType,
+  [EnumType.BENCH_TYPE]: BenchType,
+  [EnumType.NODE_VISIBILITY]: NodeVisibility,
+  [EnumType.ACCESS_KIND]: AccessKind,
+  [EnumType.READ_TYPE]: ReadType,
+  [EnumType.EDIT_TYPE]: EditType,
+  [EnumType.USE_TYPE]: UseType,
+  [EnumType.ACCESS_TYPE]: AccessType,
+  [EnumType.POLICY_EFFECT]: PolicyEffect,
+  [EnumType.REGION]: Region,
+  [EnumType.TENANCY]: Tenancy,
+  [EnumType.STORE_KIND]: StoreKind,
+  [EnumType.STORE_ENGINE_TYPE]: StoreEngineType,
+  [EnumType.SERVER_PROFILE]: ServerProfile,
+  [EnumType.RESOURCE_STATUS]: ResourceStatus,
+  [EnumType.BLOCK_TYPE]: BlockType,
+  [EnumType.SCHEDULE_TYPE]: ScheduleType,
+  [EnumType.PRIMITIVE_TYPE]: PrimitiveType,
+  [EnumType.FORMAT_HINT]: FormatHint,
+  [EnumType.FILE_STATUS]: FileStatus,
+  [EnumType.FILE_RETENTION_MODE]: FileRetentionMode,
+  [EnumType.STEP_TYPE]: StepType,
+  [EnumType.VIEW_TYPE]: ViewType,
+  [EnumType.VARIANT]: Variant,
+  [EnumType.COLOR_TYPE]: ColorType,
+  [EnumType.COLOR_SHADE]: ColorShade,
+  [EnumType.FONT_TYPE]: FontType,
+  [EnumType.FONT_WEIGHT]: FontWeight,
+  [EnumType.FONT_SIZE]: FontSize,
+  [EnumType.SPACING]: Spacing,
+  [EnumType.ANCHOR]: Anchor,
+  [EnumType.ORIENTATION]: Orientation,
+  [EnumType.ALIGNMENT]: Alignment,
+  [EnumType.ICON_KIND]: IconKind,
+  [EnumType.LOG_KIND]: LogKind,
+  [EnumType.LOG_LEVEL]: LogLevel,
+  [EnumType.TRIGGER_TYPE]: TriggerType,
+  [EnumType.RUN_STATUS]: RunStatus,
+  [EnumType.RUN_ERROR_KIND]: RunErrorKind,
+  [EnumType.NOTICE_KIND]: NoticeKind,
+  [EnumType.NOTIFICATION_KIND]: NotificationKind,
+  [EnumType.EXPRESSION_KIND]: ExpressionKind,
+  [EnumType.CONDITIONAL_OP]: ConditionalOp,
+  [EnumType.AGGREGATION_OP]: AggregationOp,
+  [EnumType.SORT_OP]: SortOp,
+  [EnumType.SORT_MODE]: SortMode,
+  [EnumType.SELECTION_KIND]: SelectionKind,
+  [EnumType.USER_STATUS]: UserStatus,
+  [EnumType.ORGANIZATION_STATUS]: OrganizationStatus,
 }
 
 
@@ -22515,19 +22600,18 @@ export enum FieldProperty {
   icon = 34,
   valuePacked = 35,
   primitiveType = 40,
-  nodeType = 41,
-  structType = 42,
-  baseTypePtr = 43,
-  visibility = 44,
-  formatHint = 45,
-  condition = 46,
-  length = 47,
-  precision = 48,
-  scale = 49,
+  benchType = 41,
+  baseTypePtr = 42,
+  visibility = 43,
+  formatHint = 44,
+  condition = 45,
+  length = 46,
+  precision = 47,
+  scale = 48,
   defaultPacked = 50,
-  isList = 53,
-  isRequired = 54,
-  isSecret = 55,
+  isList = 54,
+  isRequired = 55,
+  isSecret = 56,
   isInput = 60,
   isOutput = 61,
   isOption = 62,
@@ -23180,19 +23264,18 @@ export enum TypeInfoProperty {
   orderKey = 5,
   setProperties = 22,
   primitiveType = 40,
-  nodeType = 41,
-  structType = 42,
-  baseTypePtr = 43,
-  visibility = 44,
-  formatHint = 45,
-  condition = 46,
-  length = 47,
-  precision = 48,
-  scale = 49,
+  benchType = 41,
+  baseTypePtr = 42,
+  visibility = 43,
+  formatHint = 44,
+  condition = 45,
+  length = 46,
+  precision = 47,
+  scale = 48,
   defaultPacked = 50,
-  isList = 53,
-  isRequired = 54,
-  isSecret = 55,
+  isList = 54,
+  isRequired = 55,
+  isSecret = 56,
 }
 
 export enum ContextProperty {
@@ -23828,21 +23911,20 @@ export const TypeInfoDataInfo: Record<TypeInfoProperty, PropertyInfo> = {
   [TypeInfoProperty.orderKey]: { id: 5, name: 'order_key', component: ObjectType.TYPE_INFO, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [TypeInfoProperty.setProperties]: { id: 22, name: 'set_properties', component: ObjectType.TYPE_INFO, kind: 'primitive', primitiveType: PrimitiveType.INT32, isList: true, isRequired: true, isRuntime: true, isWired: true, isStored: true },
   [TypeInfoProperty.primitiveType]: { id: 40, name: 'primitive_type', component: ObjectType.TYPE_INFO, kind: 'enum', primitiveType: PrimitiveType.INT16, isRuntime: true, isWired: true, isStored: true },
-  [TypeInfoProperty.nodeType]: { id: 41, name: 'node_type', component: ObjectType.TYPE_INFO, kind: 'enum', primitiveType: PrimitiveType.INT16, isRuntime: true, isWired: true, isStored: true },
-  [TypeInfoProperty.structType]: { id: 42, name: 'struct_type', component: ObjectType.TYPE_INFO, kind: 'enum', primitiveType: PrimitiveType.INT16, isRuntime: true, isWired: true, isStored: true },
-  [TypeInfoProperty.visibility]: { id: 44, name: 'visibility', component: ObjectType.TYPE_INFO, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isRuntime: true, isWired: true, isStored: true },
-  [TypeInfoProperty.formatHint]: { id: 45, name: 'format_hint', component: ObjectType.TYPE_INFO, kind: 'enum', primitiveType: PrimitiveType.INT16, isRuntime: true, isWired: true, isStored: true },
-  [TypeInfoProperty.condition]: { id: 46, name: 'condition', component: ObjectType.TYPE_INFO, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.EXPRESSION },
-  [TypeInfoProperty.length]: { id: 47, name: 'length', component: ObjectType.TYPE_INFO, kind: 'primitive', primitiveType: PrimitiveType.INT32, isRuntime: true, isWired: true, isStored: true },
-  [TypeInfoProperty.precision]: { id: 48, name: 'precision', component: ObjectType.TYPE_INFO, kind: 'primitive', primitiveType: PrimitiveType.INT32, isRuntime: true, isWired: true, isStored: true },
-  [TypeInfoProperty.scale]: { id: 49, name: 'scale', component: ObjectType.TYPE_INFO, kind: 'primitive', primitiveType: PrimitiveType.INT32, isRuntime: true, isWired: true, isStored: true },
+  [TypeInfoProperty.benchType]: { id: 41, name: 'bench_type', component: ObjectType.TYPE_INFO, kind: 'enum', primitiveType: PrimitiveType.INT16, isRuntime: true, isWired: true, isStored: true },
+  [TypeInfoProperty.visibility]: { id: 43, name: 'visibility', component: ObjectType.TYPE_INFO, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isRuntime: true, isWired: true, isStored: true },
+  [TypeInfoProperty.formatHint]: { id: 44, name: 'format_hint', component: ObjectType.TYPE_INFO, kind: 'enum', primitiveType: PrimitiveType.INT16, isRuntime: true, isWired: true, isStored: true },
+  [TypeInfoProperty.condition]: { id: 45, name: 'condition', component: ObjectType.TYPE_INFO, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.EXPRESSION },
+  [TypeInfoProperty.length]: { id: 46, name: 'length', component: ObjectType.TYPE_INFO, kind: 'primitive', primitiveType: PrimitiveType.INT32, isRuntime: true, isWired: true, isStored: true },
+  [TypeInfoProperty.precision]: { id: 47, name: 'precision', component: ObjectType.TYPE_INFO, kind: 'primitive', primitiveType: PrimitiveType.INT32, isRuntime: true, isWired: true, isStored: true },
+  [TypeInfoProperty.scale]: { id: 48, name: 'scale', component: ObjectType.TYPE_INFO, kind: 'primitive', primitiveType: PrimitiveType.INT32, isRuntime: true, isWired: true, isStored: true },
   [TypeInfoProperty.defaultPacked]: { id: 50, name: 'default_packed', component: ObjectType.TYPE_INFO, kind: 'primitive', primitiveType: PrimitiveType.JSON, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true, isValuePacked: true },
-  [TypeInfoProperty.isList]: { id: 53, name: 'is_list', component: ObjectType.TYPE_INFO, kind: 'primitive', primitiveType: PrimitiveType.BOOLEAN, isRequired: true, isRuntime: true, isWired: true, isStored: true },
-  [TypeInfoProperty.isRequired]: { id: 54, name: 'is_required', component: ObjectType.TYPE_INFO, kind: 'primitive', primitiveType: PrimitiveType.BOOLEAN, isRequired: true, isRuntime: true, isWired: true, isStored: true },
-  [TypeInfoProperty.isSecret]: { id: 55, name: 'is_secret', component: ObjectType.TYPE_INFO, kind: 'primitive', primitiveType: PrimitiveType.BOOLEAN, isRequired: true, isRuntime: true, isWired: true, isStored: true },
+  [TypeInfoProperty.isList]: { id: 54, name: 'is_list', component: ObjectType.TYPE_INFO, kind: 'primitive', primitiveType: PrimitiveType.BOOLEAN, isRequired: true, isRuntime: true, isWired: true, isStored: true },
+  [TypeInfoProperty.isRequired]: { id: 55, name: 'is_required', component: ObjectType.TYPE_INFO, kind: 'primitive', primitiveType: PrimitiveType.BOOLEAN, isRequired: true, isRuntime: true, isWired: true, isStored: true },
+  [TypeInfoProperty.isSecret]: { id: 56, name: 'is_secret', component: ObjectType.TYPE_INFO, kind: 'primitive', primitiveType: PrimitiveType.BOOLEAN, isRequired: true, isRuntime: true, isWired: true, isStored: true },
   [TypeInfoProperty.parentId]: { id: 3, name: 'parent_id', component: ObjectType.TYPE_INFO, kind: 'reference', primitiveType: PrimitiveType.INT32, isInternal: true, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_PARENT },
   [TypeInfoProperty.parentKey]: { id: 4, name: 'parent_key', component: ObjectType.TYPE_INFO, kind: 'reference', primitiveType: PrimitiveType.STRING, isInternal: true, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_PARENT },
-  [TypeInfoProperty.baseTypePtr]: { id: 43, name: 'base_type_ptr', component: ObjectType.TYPE_INFO, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.BLOCK], referenceStruct: StructType.NODE_REFERENCE },
+  [TypeInfoProperty.baseTypePtr]: { id: 42, name: 'base_type_ptr', component: ObjectType.TYPE_INFO, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.BLOCK], referenceStruct: StructType.NODE_REFERENCE },
 }
 export const ContextDataInfo: Record<ContextProperty, PropertyInfo> = {
   [ContextProperty.metatype]: { id: 1, name: 'metatype', component: ObjectType.CONTEXT, kind: 'enum', primitiveType: PrimitiveType.STRING, isRequired: true, isInternal: true, isComputed: true, isWired: true },
@@ -24475,18 +24557,17 @@ export const FieldDataInfo: Record<FieldProperty, PropertyInfo> = {
   [FieldProperty.isOutput]: { id: 61, name: 'is_output', component: ObjectType.FIELD, kind: 'primitive', primitiveType: PrimitiveType.BOOLEAN, isRequired: true, isRuntime: true, isWired: true, isStored: true },
   [FieldProperty.isOption]: { id: 62, name: 'is_option', component: ObjectType.FIELD, kind: 'primitive', primitiveType: PrimitiveType.BOOLEAN, isRequired: true, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [FieldProperty.primitiveType]: { id: 40, name: 'primitive_type', component: ObjectType.FIELD, kind: 'enum', primitiveType: PrimitiveType.INT16, isRuntime: true, isWired: true, isStored: true },
-  [FieldProperty.nodeType]: { id: 41, name: 'node_type', component: ObjectType.FIELD, kind: 'enum', primitiveType: PrimitiveType.INT16, isRuntime: true, isWired: true, isStored: true },
-  [FieldProperty.structType]: { id: 42, name: 'struct_type', component: ObjectType.FIELD, kind: 'enum', primitiveType: PrimitiveType.INT16, isRuntime: true, isWired: true, isStored: true },
-  [FieldProperty.visibility]: { id: 44, name: 'visibility', component: ObjectType.FIELD, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isRuntime: true, isWired: true, isStored: true },
-  [FieldProperty.formatHint]: { id: 45, name: 'format_hint', component: ObjectType.FIELD, kind: 'enum', primitiveType: PrimitiveType.INT16, isRuntime: true, isWired: true, isStored: true },
-  [FieldProperty.condition]: { id: 46, name: 'condition', component: ObjectType.FIELD, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.EXPRESSION },
-  [FieldProperty.length]: { id: 47, name: 'length', component: ObjectType.FIELD, kind: 'primitive', primitiveType: PrimitiveType.INT32, isRuntime: true, isWired: true, isStored: true },
-  [FieldProperty.precision]: { id: 48, name: 'precision', component: ObjectType.FIELD, kind: 'primitive', primitiveType: PrimitiveType.INT32, isRuntime: true, isWired: true, isStored: true },
-  [FieldProperty.scale]: { id: 49, name: 'scale', component: ObjectType.FIELD, kind: 'primitive', primitiveType: PrimitiveType.INT32, isRuntime: true, isWired: true, isStored: true },
+  [FieldProperty.benchType]: { id: 41, name: 'bench_type', component: ObjectType.FIELD, kind: 'enum', primitiveType: PrimitiveType.INT16, isRuntime: true, isWired: true, isStored: true },
+  [FieldProperty.visibility]: { id: 43, name: 'visibility', component: ObjectType.FIELD, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isRuntime: true, isWired: true, isStored: true },
+  [FieldProperty.formatHint]: { id: 44, name: 'format_hint', component: ObjectType.FIELD, kind: 'enum', primitiveType: PrimitiveType.INT16, isRuntime: true, isWired: true, isStored: true },
+  [FieldProperty.condition]: { id: 45, name: 'condition', component: ObjectType.FIELD, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.EXPRESSION },
+  [FieldProperty.length]: { id: 46, name: 'length', component: ObjectType.FIELD, kind: 'primitive', primitiveType: PrimitiveType.INT32, isRuntime: true, isWired: true, isStored: true },
+  [FieldProperty.precision]: { id: 47, name: 'precision', component: ObjectType.FIELD, kind: 'primitive', primitiveType: PrimitiveType.INT32, isRuntime: true, isWired: true, isStored: true },
+  [FieldProperty.scale]: { id: 48, name: 'scale', component: ObjectType.FIELD, kind: 'primitive', primitiveType: PrimitiveType.INT32, isRuntime: true, isWired: true, isStored: true },
   [FieldProperty.defaultPacked]: { id: 50, name: 'default_packed', component: ObjectType.FIELD, kind: 'primitive', primitiveType: PrimitiveType.JSON, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true, isValuePacked: true },
-  [FieldProperty.isList]: { id: 53, name: 'is_list', component: ObjectType.FIELD, kind: 'primitive', primitiveType: PrimitiveType.BOOLEAN, isRequired: true, isRuntime: true, isWired: true, isStored: true },
-  [FieldProperty.isRequired]: { id: 54, name: 'is_required', component: ObjectType.FIELD, kind: 'primitive', primitiveType: PrimitiveType.BOOLEAN, isRequired: true, isRuntime: true, isWired: true, isStored: true },
-  [FieldProperty.isSecret]: { id: 55, name: 'is_secret', component: ObjectType.FIELD, kind: 'primitive', primitiveType: PrimitiveType.BOOLEAN, isRequired: true, isRuntime: true, isWired: true, isStored: true },
+  [FieldProperty.isList]: { id: 54, name: 'is_list', component: ObjectType.FIELD, kind: 'primitive', primitiveType: PrimitiveType.BOOLEAN, isRequired: true, isRuntime: true, isWired: true, isStored: true },
+  [FieldProperty.isRequired]: { id: 55, name: 'is_required', component: ObjectType.FIELD, kind: 'primitive', primitiveType: PrimitiveType.BOOLEAN, isRequired: true, isRuntime: true, isWired: true, isStored: true },
+  [FieldProperty.isSecret]: { id: 56, name: 'is_secret', component: ObjectType.FIELD, kind: 'primitive', primitiveType: PrimitiveType.BOOLEAN, isRequired: true, isRuntime: true, isWired: true, isStored: true },
   [FieldProperty.id]: { id: 2, name: 'id', component: ObjectType.FIELD, kind: 'primitive', primitiveType: PrimitiveType.UUID, isRequired: true, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
   [FieldProperty.setProperties]: { id: 22, name: 'set_properties', component: ObjectType.FIELD, kind: 'primitive', primitiveType: PrimitiveType.INT32, isList: true, isRequired: true, isRuntime: true, isWired: true, isStored: true },
   [FieldProperty.ck]: { id: 3, name: 'ck', component: ObjectType.FIELD, kind: 'primitive', primitiveType: PrimitiveType.UUID, isRequired: true, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
@@ -24497,7 +24578,7 @@ export const FieldDataInfo: Record<FieldProperty, PropertyInfo> = {
   [FieldProperty.deletedAt]: { id: 13, name: 'deleted_at', component: ObjectType.FIELD, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
   [FieldProperty.archivedAt]: { id: 14, name: 'archived_at', component: ObjectType.FIELD, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
   [FieldProperty.parentPtr]: { id: 4, name: 'parent_ptr', component: ObjectType.FIELD, kind: 'reference', isInternal: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_PARENT, referenceNodes: [NodeType.BLOCK, NodeType.STEP], referenceStruct: StructType.NODE_REFERENCE },
-  [FieldProperty.baseTypePtr]: { id: 43, name: 'base_type_ptr', component: ObjectType.FIELD, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.BLOCK], referenceStruct: StructType.NODE_REFERENCE },
+  [FieldProperty.baseTypePtr]: { id: 42, name: 'base_type_ptr', component: ObjectType.FIELD, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.BLOCK], referenceStruct: StructType.NODE_REFERENCE },
   [FieldProperty.packagePtr]: { id: 6, name: 'package_ptr', component: ObjectType.FIELD, kind: 'reference', isRequired: true, isInternal: true, isComputed: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_ANCESTOR_FIRST, referenceNodes: [NodeType.PACKAGE], referenceStruct: StructType.NODE_REFERENCE },
   [FieldProperty.benchPtr]: { id: 7, name: 'bench_ptr', component: ObjectType.FIELD, kind: 'reference', isRequired: true, isInternal: true, isComputed: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_ANCESTOR_FIRST, referenceNodes: [NodeType.BENCH], referenceStruct: StructType.NODE_REFERENCE },
   [FieldProperty.createdByPtr]: { id: 17, name: 'created_by_ptr', component: ObjectType.FIELD, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.USER, NodeType.RUN], referenceStruct: StructType.NODE_REFERENCE },

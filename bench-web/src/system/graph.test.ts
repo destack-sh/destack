@@ -1,5 +1,4 @@
 import {
-  OBJECT_TYPES,
   OBJECT_TYPE_BY_MESSAGE_TYPE_NAME,
   ObjectType,
   ClientData,
@@ -22,6 +21,7 @@ import {
   type ReadNodeGraph,
   DEFAULT_NODE_FILTER,
 } from "@/system/graph";
+import { OBJECT_TYPES } from "@/system/lang";
 import { ScalarType, type FieldInfo } from "@protobuf-ts/runtime";
 import { v4 } from "uuid";
 import { describe, expect, test } from "vitest";
@@ -58,7 +58,8 @@ export function fabricate<T extends ObjectType>(
   metatype: T,
   options?: { path?: ObjectType[]; unset?: (keyof AnyTypeMapping[T])[]; set?: Partial<AnyTypeMapping[T]> },
 ): AnyTypeMapping[T] {
-  const allProperties: AnyPropertyType = PROPERTY_ENUM_BY_TYPE[metatype]!;
+  const allProperties: AnyPropertyType | undefined = PROPERTY_ENUM_BY_TYPE[metatype];
+  if (allProperties == null) throw new Error(`no properties for ${ObjectType[metatype]}`);
   const messageType = MESSAGE_TYPE_BY_OBJECT_TYPE[metatype]!;
 
   function fabricateScalarProp(propName: string, field: FieldInfo): any {

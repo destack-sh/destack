@@ -10,6 +10,7 @@ import {
   ViewType,
   type AnyNodeData,
 } from "@/proto/wire";
+import type { TypedNodeReferenceData } from "@/proto/wiring";
 import type { ActionContext, ActionMapImplementation } from "@/system/action";
 import { useHierarchicalNodeMoveActions } from "@/system/block";
 import { packagePtr } from "@/system/client";
@@ -31,7 +32,7 @@ import { computed, ref, toRef, watch, type Ref } from "vue";
 const DEPTH_OFFSET = 12;
 
 const props = defineProps<
-  { self: NodeReferenceData; size: Required<Pick<BoxData, "width" | "height">> } & Pick<
+  { self: TypedNodeReferenceData<NodeType.VIEW>; size: Required<Pick<BoxData, "width" | "height">> } & Pick<
     ViewData,
     "type" | "name" | "title" | "text" | "icon" | "nodePtr" | "focus" | "selection" | "expansion"
   >

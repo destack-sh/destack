@@ -1,5 +1,6 @@
 <script lang="tsx" setup>
-import { NodeReferenceData, Variant, ViewData } from "@/proto/wire";
+import { NodeReferenceData, NodeType, Variant, ViewData } from "@/proto/wire";
+import type { TypedNodeReferenceData } from "@/proto/wiring";
 import { IconInline } from "@/system/icon";
 import { canvas } from "@/system/space";
 import { makeViewId } from "@/views";
@@ -7,7 +8,7 @@ import { viewEmits, type ViewExposed } from "@/views/common";
 import { computed, ref, toRef, type Ref } from "vue";
 
 const props = defineProps<
-  { self?: NodeReferenceData } & Pick<
+  { self?: TypedNodeReferenceData<NodeType.VIEW> } & Pick<
     ViewData,
     "name" | "title" | "text" | "icon" | "variant" | "isDisabled" | "isLoading"
   >

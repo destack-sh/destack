@@ -208,13 +208,13 @@ defineExpose({ focus, clear, query });
     </div>
 
     <!-- Header -->
-    <div v-if="$slots.header" class="mb-1 border-b border-gray-400">
+    <div v-if="$slots.header" class="mb-1 border-b border-gray-300">
       <slot name="header" :focus="focus" />
     </div>
     <!-- Items -->
     <template v-for="(item, i) in items" :key="item.id">
       <!-- Category -->
-      <div v-if="i != 0 && items[i - 1].category != item.category" class="my-1 h-[1px] w-full bg-gray-400" />
+      <div v-if="i != 0 && items[i - 1].category != item.category" class="my-1 h-[1px] w-full bg-gray-300" />
       <!-- Item -->
       <li
         :ref="(ref?: any) => ref != null ? (itemRefs[i] = ref) : (delete itemRefs[i])"
@@ -268,7 +268,7 @@ defineExpose({ focus, clear, query });
       <span class="text-gray-500">Nothing here</span>
     </div>
     <!-- Footer -->
-    <div v-if="$slots.footer" class="mt-1 border-t border-gray-400">
+    <div v-if="$slots.footer" class="mt-1 border-t border-gray-300">
       <slot name="footer" :focus="focus" />
     </div>
 

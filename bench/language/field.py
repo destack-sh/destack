@@ -5,6 +5,7 @@ import structlog
 
 from bench.language.const import (
     BenchError,
+    BenchType,
     BlockType,
     FormatHint,
     NodeType,
@@ -123,29 +124,28 @@ class TypeInfoBase(HasValues):
 
     # type identity (must set at least one of these)
     primitive_type: Optional[PrimitiveType] = p_regular(40, default=None)
-    node_type: Optional[NodeType] = p_regular(41, default=None)
-    struct_type: Optional[StructType] = p_regular(42, default=None)
+    bench_type: Optional[BenchType] = p_regular(41, default=None)
     base_type: Optional["Block"] = p_regular(
-        43, array=False, require=False, default=None, references=NodeType.BLOCK
+        42, array=False, require=False, default=None, references=NodeType.BLOCK
     )
 
     # + bonus info/constraints
-    visibility: NodeVisibility = p_regular(44, default=NodeVisibility.ALL)
-    format_hint: Optional[FormatHint] = p_regular(45, default=None)
+    visibility: NodeVisibility = p_regular(43, default=NodeVisibility.ALL)
+    format_hint: Optional[FormatHint] = p_regular(44, default=None)
     condition: Optional["Expression"] = p_regular(
-        46, require=False, array=False, default=None, struct=StructType.EXPRESSION
+        45, require=False, array=False, default=None, struct=StructType.EXPRESSION
     )
-    length: Optional[int] = p_regular(47, require=False, default=None)
-    precision: Optional[int] = p_regular(48, require=False, default=None)
-    scale: Optional[int] = p_regular(49, require=False, default=None)
+    length: Optional[int] = p_regular(46, require=False, default=None)
+    precision: Optional[int] = p_regular(47, require=False, default=None)
+    scale: Optional[int] = p_regular(48, require=False, default=None)
     # default for this type
     default_packed: Optional[Any] = p_value_packed(50)
     default = p_value_runtime(packed=50)
 
     # flags
-    is_list: bool = p_regular(53, default=False)
-    is_required: bool = p_regular(54, default=False)
-    is_secret: bool = p_regular(55, default=False)
+    is_list: bool = p_regular(54, default=False)
+    is_required: bool = p_regular(55, default=False)
+    is_secret: bool = p_regular(56, default=False)
     # is_instance to disambiguate?
 
     # separate _fields for restricting base type to a subset of fields? (e.g., only inputs)

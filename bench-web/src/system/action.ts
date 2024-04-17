@@ -1,42 +1,40 @@
 import {
+  BlockData,
+  BlockType,
+  NodeType,
+  ObjectType,
   ViewType,
+  type AnyNodeData,
   type IconData,
   type NodeReferenceData,
   type TextData,
-  LogLevel,
-  NodeType,
-  BlockType,
-  BlockData,
-  ObjectType,
-  type AnyNodeData,
 } from "@/proto/wire";
-import { makeIcon } from "@/system/icon";
+import { toNodeReference, type AnyNodeReferenceData } from "@/proto/wiring";
 import { isDeveloperMode, packagePtr } from "@/system/client";
-import { canvas, hasLocalBench, pkg, pkgConnection, pkgGraph, space } from "@/system/space";
+import { makeIcon } from "@/system/icon";
+import { canvas, hasLocalBench, pkgConnection, pkgGraph, space } from "@/system/space";
 import { toaster } from "@/system/toast";
-import { getRandomEnum, type FilterPrefix as FilterPrefix } from "@/utils/functools";
+import { getAllTransactionBuffers } from "@/system/transaction";
+import { generateOrderKey } from "@/utils/fractional";
+import { getRandomEnum, type FilterPrefix } from "@/utils/functools";
 import { DISCORD_URL, IS_DEBUG } from "@/utils/globals";
 import { keytrap, type KeySignature } from "@/utils/keymap";
 import { log } from "@/utils/log";
+import { generateRandomName } from "@/utils/naming";
 import { Casing, toCasing } from "@/utils/string";
 import type { ViewComponent } from "@/views";
 import { clearCanvas, collectViewComponentsUp, setupDefaultCanvas, setupEmptyCanvas } from "@/views/canvas";
 import {
   computed,
   getCurrentInstance,
+  ref,
   shallowRef,
+  toValue,
   triggerRef,
   watch,
-  type Ref,
-  ref,
   type MaybeRef,
-  toValue,
+  type Ref,
 } from "vue";
-import { graphConnections } from "@/system/connection";
-import { flushTransactionBuffers, getAllTransactionBuffers } from "@/system/transaction";
-import { generateRandomName } from "@/utils/naming";
-import { generateOrderKey } from "@/utils/fractional";
-import { toNodeReference, type AnyNodeReferenceData } from "@/proto/wiring";
 
 // :OmnibarModes
 export const OMNIBAR_MODES = ["everywhere", "actions", "space", "views", "view"];
@@ -121,6 +119,8 @@ export const ACTION_BUILTIN_IDS = [
   "common.sense.goToDefinition",
   "common.sense.findReferences",
   "common.sense.findImplementations",
+  "common.block.toggleIsPage",
+  "common.block.toggleIsProtocol",
   "common.session.run",
   "common.session.debug",
   "common.session.pause",
@@ -210,7 +210,7 @@ export type Action = {
   action: ActionCallable;
   // additional metadata
   url?: string; // for external URLs
-  isChecked?: Ref<boolean>; // for toggle actions
+  isChecked?: Ref<boolean> | (() => boolean); // for toggle actions
 };
 
 export const DECLARED_ACTIONS_BY_ID: Ref<Partial<Record<string, Action>>> = shallowRef({});
@@ -223,7 +223,7 @@ type ActionIn = Pick<Action, "title" | "text" | "shortcuts" | "isEnabled" | "act
 };
 export type ActionDeclaration = Omit<ActionIn, "id" | "enabled" | "action">;
 export type ActionMapDeclaration<T extends string> = Record<FilterPrefix<ActionBuiltinId, T>, ActionDeclaration>;
-export type ActionImplementation = Pick<Action, "isEnabled" | "action">;
+export type ActionImplementation = Pick<Action, "isEnabled" | "action" | "isChecked">;
 export type ActionMapImplementation<T extends string> = Record<FilterPrefix<ActionBuiltinId, T>, ActionImplementation>;
 export type ActionContribution = ActionDeclaration & ActionImplementation;
 export type ActionMapContribution<T extends string> = Record<FilterPrefix<ActionBuiltinId, T>, ActionContribution>;
@@ -350,13 +350,19 @@ export function fireActionFromEvent(action: Action, e: KeyboardEvent, context?: 
  * Checks whether the context implements the action.
  * NOTE: does not 'call' the action, so we can't know if the action is refused dynamically.
  */
-export function isActionImplemented(action: Action, context: ViewComponent[]): boolean {
-  if (action.kind == "static") return action.isEnabled == null || action.isEnabled.value == true;
-  for (const view of context) {
-    const impl = view.exposed?.actions?.[action.id];
-    if (impl != null && (impl.isEnabled == null || impl.isEnabled.value == true)) return true;
+export function getImplementingAction(action: Action, context: ViewComponent[]): ActionImplementation | null {
+  if (action.kind == "static") {
+    if (action.isEnabled == null || action.isEnabled.value == true) return action;
+    else return null;
+  } else if (action.kind == "virtual") {
+    for (const view of context) {
+      const impl = view.exposed?.actions?.[action.id];
+      if (impl != null && (impl.isEnabled == null || impl.isEnabled.value == true)) return impl;
+    }
+    return null;
+  } else {
+    throw new Error(`unexpected action kind: ${action.kind}`);
   }
-  return false;
 }
 
 /** Triggers the bound action from a given view (as starting point). */
@@ -676,6 +682,19 @@ declareActionMap<"common">({
     icon: "fas fa-turn-down-left",
     title: "Find Implementations",
     text: "Find implementations of the current node",
+  },
+  // block
+  "common.block.toggleIsPage": {
+    type: "toggle",
+    icon: "fas fa-memo-pad",
+    title: "Block Is Page",
+    text: "Mark the current block as a page",
+  },
+  "common.block.toggleIsProtocol": {
+    type: "toggle",
+    icon: "fas fa-list-check",
+    title: "Block Is Protocol",
+    text: "Mark the current block as a protocol",
   },
   // session
   "common.session.run": {
