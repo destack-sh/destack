@@ -19,71 +19,112 @@ EMPTY_DICT: typing.Mapping = frozendict()
 EMPTY_SCOPE = GraphScope()
 REVISION_PENDING = -1
 
+# NOTE: we have the enum registry here to avoid circular imports
+_ENUM_CLASS_BY_TYPE: dict["EnumType", type[IdEnum]] = {}
+
+IdEnumT = typing.TypeVar("IdEnumT", bound=IdEnum)
+
+
+def enum_(enum_type: "EnumType"):
+    """Register a Bench enum."""
+
+    def register_enum(cls: type[IdEnumT]) -> type[IdEnumT]:
+        if enum_type in _ENUM_CLASS_BY_TYPE:
+            raise ValueError(f"enum {enum_type} duplicate: {_ENUM_CLASS_BY_TYPE[enum_type]}")
+        _ENUM_CLASS_BY_TYPE[enum_type] = cls
+        return cls
+
+    return register_enum
+
+
+#
+# Enums
+#
+
 
 class EnumType(IdEnum):
-    # general
-    ENUM_TYPE = 1  # so meta
-    NODE_TYPE = 2
-    STRUCT_TYPE = 3
-    BENCH_TYPE = 4  # NodeType | StructType
-    CASING = 5
-    NODE_VISIBILITY = 6
-    NODE_SOURCE = 7
+    ENUM_TYPE = 2001  # so meta
+    NODE_TYPE = 2002
+    STRUCT_TYPE = 2003
+    BENCH_TYPE = 2004  # NodeType | StructType | EnumType
+    NODE_VISIBILITY = 2010
+
     # access
-    ACCESS_KIND = 30
-    READ_TYPE = 31
-    EDIT_TYPE = 32
-    USE_TYPE = 33
-    ACCESS_TYPE = 34  # ReadType | EditType | UseType
+    ACCESS_KIND = 2030
+    READ_TYPE = 2031
+    EDIT_TYPE = 2032
+    USE_TYPE = 2033
+    ACCESS_TYPE = 2034  # ReadType | EditType | UseType
+    POLICY_EFFECT = 2035
 
     # bench
-    STORE_KIND = 50
-    SERVER_PROFILE = 51
+    REGION = 2050
+    TENANCY = 2051
+    STORE_KIND = 2052
+    STORE_ENGINE_TYPE = 2053
+    SERVER_PROFILE = 2055
+    RESOURCE_STATUS = 2056
 
     # block
-    BLOCK_TYPE = 70
-    FORMAT_HINT = 71
+    BLOCK_TYPE = 2070
+    SCHEDULE_TYPE = 2071
+
+    # type
+    PRIMITIVE_TYPE = 2080
+    FORMAT_HINT = 2081
+
+    # file
+    FILE_STATUS = 2100
+    FILE_RETENTION_MODE = 21012
 
     # flow
-    STEP_TYPE = 80
+    STEP_TYPE = 2150
 
     # view
-    VIEW_TYPE = 100
-    VARIANT = 101
-    COLOR_TYPE = 102
-    COLOR_SHADE = 103
-    FONT_TYPE = 104
-    FONT_WEIGHT = 105
-    FONT_SIZE = 106
-    SPACING = 107
-    ANCHOR = 108
-    ORIENTATION = 109
-    ALIGNMENT = 110
-    ICON_KIND = 111
+    VIEW_TYPE = 2200
+    VARIANT = 2201
+    COLOR_TYPE = 2202
+    COLOR_SHADE = 2203
+    FONT_TYPE = 2204
+    FONT_WEIGHT = 2205
+    FONT_SIZE = 2206
+    SPACING = 2207
+    ANCHOR = 2208
+    ORIENTATION = 2209
+    ALIGNMENT = 2210
+    ICON_KIND = 2211
 
     # session
-    LOG_KIND = 150
-    LOG_LEVEL = 151
-    TRIGGER_TYPE = 163
-    RUN_STATUS = 154
-    RUN_ERROR_KIND = 155
-    NOTICE_KIND = 160
-    NOTIFICATION_KIND = 161
+    LOG_KIND = 2250
+    LOG_LEVEL = 2251
+    TRIGGER_TYPE = 2263
+    RUN_STATUS = 2254
+    RUN_ERROR_KIND = 2255
+    NOTICE_KIND = 2260
+    NOTIFICATION_KIND = 2261
 
     # expression
-    EXPRESSION_KIND = 200
-    CONDITIONAL_OP = 201
-    AGGREGATION_OP = 202
-    SORT_OP = 203
-    SORT_MODE = 204
-    SELECTION_KIND = 205
+    EXPRESSION_KIND = 2300
+    CONDITIONAL_OP = 2301
+    AGGREGATION_OP = 2302
+    SORT_OP = 2303
+    SORT_MODE = 2304
+    SELECTION_KIND = 2305
+
+    # user
+    USER_STATUS = 2500
+    ORGANIZATION_STATUS = 2501
+
+
+enum_(EnumType.ENUM_TYPE)(EnumType)
 
 
 #
-# Metatypes for Nodes/Structs
+# Struct/Node metatypes
 #
 
 
+@enum_(EnumType.NODE_TYPE)
 class NodeType(IdEnum):
     # root
     BENCH = 1
@@ -175,62 +216,63 @@ PUBLIC_NODE_TYPES: bytetuple[NodeType] = bytetuple((NodeType.USER, NodeType.ORGA
 USER_NODE_TYPES = bytetuple(tuple(nt for nt in NODE_TYPES if nt.id >= 200))
 
 
+@enum_(EnumType.STRUCT_TYPE)
 class StructType(IdEnum):
     # core
-    PATH = 500
-    PATH_SEGMENT = 501
-    PATH_TOKEN = 502
-    NODE_REFERENCE = 503
-    PROPERTY_REFERENCE = 504
-    VALUE_REFERENCE = 505
-    TYPE_INFO = 510
-    CONTEXT = 511
-    SCHEDULE = 512
-    PROJECTION = 513
+    PATH = 1000
+    PATH_SEGMENT = 1001
+    PATH_TOKEN = 1002
+    NODE_REFERENCE = 1003
+    PROPERTY_REFERENCE = 1004
+    VALUE_REFERENCE = 1005
+    TYPE_INFO = 1010
+    CONTEXT = 1011
+    SCHEDULE = 1012
+    PROJECTION = 1013
 
     # files
-    FILE = 520
-    ICON = 521
+    FILE = 1020
+    ICON = 1021
 
     # access
-    POLICY = 530
-    POLICY_RULE = 531
-    SUBJECT = 532
-    ACCESS_ZONE = 534
-    ACCESS_MATRIX = 535
-    ACCESS = 537
-    ACCESS_TRACE = 538
-    REQUEST = 536
+    POLICY = 1030
+    POLICY_RULE = 1031
+    SUBJECT = 1032
+    ACCESS_ZONE = 1034
+    ACCESS_MATRIX = 1035
+    ACCESS = 1037
+    ACCESS_TRACE = 1038
+    REQUEST = 1036
     ...
-    READ_OPTIONS = 550
+    READ_OPTIONS = 1050
 
     # expressions
-    EXPRESSION = 560
-    AGGREGATION = 561
-    AGGREGATION_BUCKET = 562
-    SELECTION = 563
+    EXPRESSION = 1060
+    AGGREGATION = 1061
+    AGGREGATION_BUCKET = 1062
+    SELECTION = 1063
 
     # code
-    CODE = 590
-    CODE_LINE = 591
+    CODE = 1090
+    CODE_LINE = 1091
     # flow
-    STEP_CONNECTION = 600
-    RUN_CODE_FRAME = 610
-    RUN_ERROR = 611
+    STEP_CONNECTION = 1100
+    RUN_CODE_FRAME = 1110
+    RUN_ERROR = 1111
     # CURSOR?
 
-    RESOURCE_CREDENTIAL = 632
+    RESOURCE_CREDENTIAL = 1132
 
     # text
-    TEXT = 660
-    TEXT_LINE = 661
-    TEXT_SPAN = 662
+    TEXT = 1160
+    TEXT_LINE = 1161
+    TEXT_SPAN = 1162
 
     # views
-    COLOR = 700
-    FONT = 701
-    BOX = 702
-    OFFSET = 703
+    COLOR = 1200
+    FONT = 1201
+    BOX = 1202
+    OFFSET = 1203
     ...
 
     # space
@@ -246,11 +288,12 @@ if typing.TYPE_CHECKING:
     BenchType = NodeType | StructType
 else:
     BenchType = IdEnum.combine("BenchType", NodeType, StructType)
+    enum_(EnumType.BENCH_TYPE)(BenchType)
 
 BENCH_TYPES: bytetuple[BenchType] = bytetuple(tuple(BenchType))
-INTERP_NODE_TYPES = (NodeType.NOTICE,)
 
 
+@enum_(EnumType.BLOCK_TYPE)
 class BlockType(IdEnum):
     ALIAS = 1  # refer to / 'redefine' an existing block or builtin (like a 'newtype')
     PAGE = 2  # group of blocks
@@ -310,6 +353,7 @@ class NodeSource(IdEnum):
     LOCAL = 3
 
 
+@enum_(EnumType.NODE_VISIBILITY)
 class NodeVisibility(IdEnum):
     # ...?
     BLOCK = 2
@@ -393,6 +437,7 @@ class InterpStatus(IdEnum):
 #
 
 
+@enum_(EnumType.READ_TYPE)
 class ReadType(IdEnum):
     """A type of Read access on nodes."""
 
@@ -406,6 +451,7 @@ class ReadType(IdEnum):
         return AccessKind.READ
 
 
+@enum_(EnumType.EDIT_TYPE)
 class EditType(IdEnum):
     """A type of Edit access on nodes."""
 
@@ -426,6 +472,7 @@ class EditType(IdEnum):
         return AccessKind.EDIT
 
 
+@enum_(EnumType.USE_TYPE)
 class UseType(IdEnum):
     """A type of Run access on nodes."""
 
@@ -441,6 +488,7 @@ class UseType(IdEnum):
         return AccessKind.USE
 
 
+@enum_(EnumType.ACCESS_KIND)
 class AccessKind(IdEnum):
     READ = 1
     EDIT = 10
@@ -460,6 +508,7 @@ if typing.TYPE_CHECKING:
 else:
     AccessType = IdEnum.combine("AccessType", ReadType, EditType, UseType)
     AccessType.kind = property(lambda self: ACCESS_KIND_BY_ACCESS[self])
+    enum_(EnumType.ACCESS_TYPE)(AccessType)
 
 READ_TYPES: bytetuple[ReadType] = bytetuple(tuple(ReadType))
 EDIT_TYPES: bytetuple[EditType] = bytetuple(tuple(EditType))
@@ -492,12 +541,14 @@ class AccessMode(IdEnum):
 #
 
 
+@enum_(EnumType.STORE_KIND)
 class StoreKind(IdEnum):
     RELATIONAL = 1
     SEARCH = 2
     ANALYTICAL = 3
 
 
+@enum_(EnumType.STORE_ENGINE_TYPE)
 class StoreEngineType(IdEnum):
     INMEMORY = 1
     REMOTE = 2
@@ -506,12 +557,14 @@ class StoreEngineType(IdEnum):
     CLICKHOUSE = 5
 
 
+@enum_(EnumType.POLICY_EFFECT)
 class PolicyEffect(IdEnum):
     ALLOW = 1
     DENY = 2
     # DEFER?, METER, LIMIT, ...
 
 
+@enum_(EnumType.PRIMITIVE_TYPE)
 class PrimitiveType(IdEnum):
     """
     Fundamental column / storage types we support (subset of SQL types, used directly in sql/core).
@@ -538,6 +591,7 @@ class PrimitiveType(IdEnum):
     INTERVAL = 21
 
 
+@enum_(EnumType.FORMAT_HINT)
 class FormatHint(IdEnum):
     """Extra semantic hint for types."""
 
@@ -558,12 +612,14 @@ class FormatHint(IdEnum):
     AUDIO = 62
 
 
+@enum_(EnumType.FILE_STATUS)
 class FileStatus(IdEnum):
     PENDING = 1
     UPLOADING = 2
     AVAILABLE = 3
 
 
+@enum_(EnumType.TRIGGER_TYPE)
 class TriggerType(IdEnum):
     """Triggers for blocks (for both actual runs and pre-defined triggers)."""
 
@@ -571,11 +627,13 @@ class TriggerType(IdEnum):
     SIGNAL = 2
 
 
+@enum_(EnumType.SCHEDULE_TYPE)
 class ScheduleType(IdEnum):
     INTERVAL = 1
     CRON = 2
 
 
+@enum_(EnumType.NOTICE_KIND)
 class NoticeKind(IdEnum):
     """Type of diagnostic in increasing severity."""
 
@@ -585,6 +643,7 @@ class NoticeKind(IdEnum):
     ERROR = 4
 
 
+@enum_(EnumType.RUN_STATUS)
 class RunStatus(IdEnum):
     SCHEDULED = 1
     QUEUED = 2
@@ -609,6 +668,7 @@ ACTIVE_RUN_STATUSES = bytetuple(
 )
 
 
+@enum_(EnumType.RUN_ERROR_KIND)
 class RunErrorKind(IdEnum):
     INTERNAL = 1
     PARSE = 2
@@ -617,12 +677,14 @@ class RunErrorKind(IdEnum):
     UNTRUSTED = 5
 
 
+@enum_(EnumType.EXPRESSION_KIND)
 class ExpressionKind(IdEnum):
     CONDITIONAL = 1
     SORT = 2
     AGGREGATION = 3
 
 
+@enum_(EnumType.CONDITIONAL_OP)
 class ConditionalOp(IdEnum):
     # logical
     TRUE = 1
@@ -653,6 +715,7 @@ class ConditionalOp(IdEnum):
     NEAR = 50
 
 
+@enum_(EnumType.AGGREGATION_OP)
 class AggregationOp(IdEnum):
     EXISTS = 100
     COUNT = 101
@@ -664,11 +727,13 @@ class AggregationOp(IdEnum):
     HISTOGRAM = 107
 
 
+@enum_(EnumType.SORT_OP)
 class SortOp(IdEnum):
     ASCENDING = 200
     DESCENDING = 201
 
 
+@enum_(EnumType.SORT_MODE)
 class SortMode(IdEnum):
     MAX = 1
     MIN = 2
@@ -683,6 +748,7 @@ else:
     ExpressionOp = IdEnum.combine("ExpressionOp", ConditionalOp, AggregationOp, SortOp)
 
 
+@enum_(EnumType.USER_STATUS)
 class UserStatus(IdEnum):
     INVITED = 1  # invited via email
     RESERVED = 2  # reserved a handle, unconfirmed
@@ -691,12 +757,14 @@ class UserStatus(IdEnum):
     ACTIVATED = 10  # has main bench, all ready to go
 
 
+@enum_(EnumType.ORGANIZATION_STATUS)
 class OrganizationStatus(IdEnum):
     # NOTE UserStatus/OrganizationStatus ids for same statuses should match
     REGISTERED = 4  # created org
     ACTIVATED = 10  # has main bench
 
 
+@enum_(EnumType.NOTIFICATION_KIND)
 class NotificationKind(IdEnum):
     """
     The level of interaction required for a notification.

@@ -10,16 +10,18 @@ from bench.language.const import (
     AggregationOp,
     BenchType,
     ConditionalOp,
+    EnumType,
     ExpressionKind,
     ExpressionOp,
     NodeType,
     SortMode,
     SortOp,
     StructType,
+    enum_,
 )
 from bench.language.node import HasBase, Node, Property, Struct, struct
 from bench.language.property import p_regular, p_value_packed, p_value_runtime
-from bench.language.setup import BENCH_CLASS_BY_TYPE, _well_known_enum
+from bench.language.setup import BENCH_CLASS_BY_TYPE
 from bench.language.validation import ValidationHandler
 from bench.language.value import HasValues
 from bench.proto.wire import AnyNodeData, NodeReferenceData
@@ -191,7 +193,7 @@ class ValueReference(Struct):
             return f"<detached>:{self.path.__content_str__()}"
 
 
-@_well_known_enum
+@enum_(EnumType.SELECTION_KIND)
 class SelectionKind(IdEnum):
     RANGE = 1
     LIST = 2

@@ -15,12 +15,14 @@ from asgiref.sync import async_to_sync, sync_to_async
 from bench.language.const import (
     TERMINAL_RUN_STATUSES,
     BenchError,
+    EnumType,
     InterpStatus,
     NodeType,
     RunErrorKind,
     RunStatus,
     StructType,
     _active_session,
+    enum_,
 )
 from bench.language.field import TypeInfo
 from bench.language.node import HasBase, Node, Struct, _Passthrough, node, node_component, struct
@@ -95,11 +97,13 @@ class Signal(HasBase, HasValues):
         return data.type_ptr
 
 
+@enum_(EnumType.LOG_KIND)
 class LogKind(IdEnum):
     MESSAGE = 1
     ACCESS = 2
 
 
+@enum_(EnumType.LOG_LEVEL)
 class LogLevel(IdEnum):
     TRACE = 1
     DEBUG = 2

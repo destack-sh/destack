@@ -78,6 +78,16 @@ class Alignment(betterproto.Enum):
     SPACE_BETWEEN = 4
 
 
+class Anchor(betterproto.Enum):
+    """An anchor in 2D space."""
+
+    UNSPECIFIED = 0
+    TOP_LEFT = 1
+    TOP_RIGHT = 3
+    BOTTOM_RIGHT = 5
+    BOTTOM_LEFT = 7
+
+
 class BenchType(betterproto.Enum):
     UNSPECIFIED = 0
     BENCH = 1
@@ -117,44 +127,44 @@ class BenchType(betterproto.Enum):
     USER = 221
     ORGANIZATION = 222
     CLIENT = 223
-    PATH = 500
-    PATH_SEGMENT = 501
-    PATH_TOKEN = 502
-    NODE_REFERENCE = 503
-    PROPERTY_REFERENCE = 504
-    VALUE_REFERENCE = 505
-    TYPE_INFO = 510
-    CONTEXT = 511
-    SCHEDULE = 512
-    PROJECTION = 513
-    FILE = 520
-    ICON = 521
-    POLICY = 530
-    POLICY_RULE = 531
-    SUBJECT = 532
-    ACCESS_ZONE = 534
-    ACCESS_MATRIX = 535
-    ACCESS = 537
-    ACCESS_TRACE = 538
-    REQUEST = 536
-    READ_OPTIONS = 550
-    EXPRESSION = 560
-    AGGREGATION = 561
-    AGGREGATION_BUCKET = 562
-    SELECTION = 563
-    CODE = 590
-    CODE_LINE = 591
-    STEP_CONNECTION = 600
-    RUN_CODE_FRAME = 610
-    RUN_ERROR = 611
-    RESOURCE_CREDENTIAL = 632
-    TEXT = 660
-    TEXT_LINE = 661
-    TEXT_SPAN = 662
-    COLOR = 700
-    FONT = 701
-    BOX = 702
-    OFFSET = 703
+    PATH = 1000
+    PATH_SEGMENT = 1001
+    PATH_TOKEN = 1002
+    NODE_REFERENCE = 1003
+    PROPERTY_REFERENCE = 1004
+    VALUE_REFERENCE = 1005
+    TYPE_INFO = 1010
+    CONTEXT = 1011
+    SCHEDULE = 1012
+    PROJECTION = 1013
+    FILE = 1020
+    ICON = 1021
+    POLICY = 1030
+    POLICY_RULE = 1031
+    SUBJECT = 1032
+    ACCESS_ZONE = 1034
+    ACCESS_MATRIX = 1035
+    ACCESS = 1037
+    ACCESS_TRACE = 1038
+    REQUEST = 1036
+    READ_OPTIONS = 1050
+    EXPRESSION = 1060
+    AGGREGATION = 1061
+    AGGREGATION_BUCKET = 1062
+    SELECTION = 1063
+    CODE = 1090
+    CODE_LINE = 1091
+    STEP_CONNECTION = 1100
+    RUN_CODE_FRAME = 1110
+    RUN_ERROR = 1111
+    RESOURCE_CREDENTIAL = 1132
+    TEXT = 1160
+    TEXT_LINE = 1161
+    TEXT_SPAN = 1162
+    COLOR = 1200
+    FONT = 1201
+    BOX = 1202
+    OFFSET = 1203
 
 
 class BlockType(betterproto.Enum):
@@ -269,6 +279,61 @@ class EditType(betterproto.Enum):
     SOFT_DELETE = 18
     RESTORE = 19
     DELETE = 20
+
+
+class EnumType(betterproto.Enum):
+    UNSPECIFIED = 0
+    ENUM_TYPE = 2001
+    NODE_TYPE = 2002
+    STRUCT_TYPE = 2003
+    BENCH_TYPE = 2004
+    NODE_VISIBILITY = 2010
+    ACCESS_KIND = 2030
+    READ_TYPE = 2031
+    EDIT_TYPE = 2032
+    USE_TYPE = 2033
+    ACCESS_TYPE = 2034
+    POLICY_EFFECT = 2035
+    REGION = 2050
+    TENANCY = 2051
+    STORE_KIND = 2052
+    STORE_ENGINE_TYPE = 2053
+    SERVER_PROFILE = 2055
+    RESOURCE_STATUS = 2056
+    BLOCK_TYPE = 2070
+    SCHEDULE_TYPE = 2071
+    PRIMITIVE_TYPE = 2080
+    FORMAT_HINT = 2081
+    FILE_STATUS = 2100
+    FILE_RETENTION_MODE = 21012
+    STEP_TYPE = 2150
+    VIEW_TYPE = 2200
+    VARIANT = 2201
+    COLOR_TYPE = 2202
+    COLOR_SHADE = 2203
+    FONT_TYPE = 2204
+    FONT_WEIGHT = 2205
+    FONT_SIZE = 2206
+    SPACING = 2207
+    ANCHOR = 2208
+    ORIENTATION = 2209
+    ALIGNMENT = 2210
+    ICON_KIND = 2211
+    LOG_KIND = 2250
+    LOG_LEVEL = 2251
+    TRIGGER_TYPE = 2263
+    RUN_STATUS = 2254
+    RUN_ERROR_KIND = 2255
+    NOTICE_KIND = 2260
+    NOTIFICATION_KIND = 2261
+    EXPRESSION_KIND = 2300
+    CONDITIONAL_OP = 2301
+    AGGREGATION_OP = 2302
+    SORT_OP = 2303
+    SORT_MODE = 2304
+    SELECTION_KIND = 2305
+    USER_STATUS = 2500
+    ORGANIZATION_STATUS = 2501
 
 
 class ExpressionKind(betterproto.Enum):
@@ -679,6 +744,49 @@ class SortOp(betterproto.Enum):
     DESCENDING = 201
 
 
+class Spacing(betterproto.Enum):
+    """
+    The spacing scale for positions, padding, margin, etc. We don't enforce this.
+     This is reminiscent of Tailwind's spacing scale.
+    """
+
+    UNSPECIFIED = 0
+    S1 = 1
+    S2 = 2
+    S3 = 3
+    S4 = 4
+    S5 = 5
+    S6 = 6
+    S7 = 7
+    S8 = 8
+    S9 = 9
+    S10 = 10
+    S11 = 11
+    S12 = 12
+    S14 = 14
+    S16 = 16
+    S20 = 20
+    S24 = 24
+    S28 = 28
+    S32 = 32
+    S36 = 36
+    S40 = 40
+    S44 = 44
+    S48 = 48
+    S52 = 52
+    S56 = 56
+    S60 = 60
+    S64 = 64
+    S72 = 72
+    S80 = 80
+    S96 = 96
+    S128 = 128
+    S160 = 160
+    S192 = 192
+    S224 = 224
+    S256 = 256
+
+
 class StepType(betterproto.Enum):
     UNSPECIFIED = 0
     BLANK = 1
@@ -707,44 +815,44 @@ class StoreKind(betterproto.Enum):
 
 class StructType(betterproto.Enum):
     UNSPECIFIED = 0
-    PATH = 500
-    PATH_SEGMENT = 501
-    PATH_TOKEN = 502
-    NODE_REFERENCE = 503
-    PROPERTY_REFERENCE = 504
-    VALUE_REFERENCE = 505
-    TYPE_INFO = 510
-    CONTEXT = 511
-    SCHEDULE = 512
-    PROJECTION = 513
-    FILE = 520
-    ICON = 521
-    POLICY = 530
-    POLICY_RULE = 531
-    SUBJECT = 532
-    ACCESS_ZONE = 534
-    ACCESS_MATRIX = 535
-    ACCESS = 537
-    ACCESS_TRACE = 538
-    REQUEST = 536
-    READ_OPTIONS = 550
-    EXPRESSION = 560
-    AGGREGATION = 561
-    AGGREGATION_BUCKET = 562
-    SELECTION = 563
-    CODE = 590
-    CODE_LINE = 591
-    STEP_CONNECTION = 600
-    RUN_CODE_FRAME = 610
-    RUN_ERROR = 611
-    RESOURCE_CREDENTIAL = 632
-    TEXT = 660
-    TEXT_LINE = 661
-    TEXT_SPAN = 662
-    COLOR = 700
-    FONT = 701
-    BOX = 702
-    OFFSET = 703
+    PATH = 1000
+    PATH_SEGMENT = 1001
+    PATH_TOKEN = 1002
+    NODE_REFERENCE = 1003
+    PROPERTY_REFERENCE = 1004
+    VALUE_REFERENCE = 1005
+    TYPE_INFO = 1010
+    CONTEXT = 1011
+    SCHEDULE = 1012
+    PROJECTION = 1013
+    FILE = 1020
+    ICON = 1021
+    POLICY = 1030
+    POLICY_RULE = 1031
+    SUBJECT = 1032
+    ACCESS_ZONE = 1034
+    ACCESS_MATRIX = 1035
+    ACCESS = 1037
+    ACCESS_TRACE = 1038
+    REQUEST = 1036
+    READ_OPTIONS = 1050
+    EXPRESSION = 1060
+    AGGREGATION = 1061
+    AGGREGATION_BUCKET = 1062
+    SELECTION = 1063
+    CODE = 1090
+    CODE_LINE = 1091
+    STEP_CONNECTION = 1100
+    RUN_CODE_FRAME = 1110
+    RUN_ERROR = 1111
+    RESOURCE_CREDENTIAL = 1132
+    TEXT = 1160
+    TEXT_LINE = 1161
+    TEXT_SPAN = 1162
+    COLOR = 1200
+    FONT = 1201
+    BOX = 1202
+    OFFSET = 1203
 
 
 class Tenancy(betterproto.Enum):

@@ -2,12 +2,14 @@ from datetime import datetime
 from typing import TYPE_CHECKING, Optional
 
 from bench.language.const import (
+    EnumType,
     FileStatus,
     NodeType,
     PrimitiveType,
     StoreEngineType,
     StoreKind,
     StructType,
+    enum_,
 )
 from bench.language.graph import NodeList
 from bench.language.node import Node, Struct, node, node_component, struct
@@ -19,7 +21,6 @@ from bench.language.property import (
     p_regular,
     p_system,
 )
-from bench.language.setup import _well_known_enum
 from bench.language.text import Text
 from bench.utils.func import IdEnum
 
@@ -27,7 +28,7 @@ if TYPE_CHECKING:
     from bench.language import Bench, Client
 
 
-@_well_known_enum
+@enum_(EnumType.REGION)
 class Region(IdEnum):
     """Where a Resource is located (physically)."""
 
@@ -38,7 +39,7 @@ class Region(IdEnum):
     ...
 
 
-@_well_known_enum
+@enum_(EnumType.TENANCY)
 class Tenancy(IdEnum):
     """How a Resource is shared (if at all)."""
 
@@ -46,7 +47,7 @@ class Tenancy(IdEnum):
     DEDICATED = 7
 
 
-@_well_known_enum
+@enum_(EnumType.RESOURCE_STATUS)
 class ResourceStatus(IdEnum):
     """Generalized status of a Resource in its lifecycle."""
 
@@ -73,6 +74,7 @@ class Resource(Node):
         return f"{self.status.bench_name}, {self.tenancy.bench_name}, {self.region.bench_name}"
 
 
+@enum_(EnumType.SERVER_PROFILE)
 class ServerProfile(IdEnum):
     TINY = 3
     SMALL = 5
@@ -148,6 +150,7 @@ class Drive(Resource):
     ...
 
 
+@enum_(EnumType.FILE_RETENTION_MODE)
 class FileRetentionMode(IdEnum):
     AUTOMATIC = 1  # garbage collected if no references
     MANUAL = 2  # never garbage collected

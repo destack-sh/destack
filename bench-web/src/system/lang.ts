@@ -354,8 +354,6 @@ export const ICON_BY_VIEW_TYPE: Partial<Record<ViewType, IconData>> = _makeIcons
   // selection
   [ViewType.TOGGLE]: "fas fa-toggle-large-on",
   [ViewType.PICKER]: "fas fa-caret-circle-down",
-  [ViewType.DATE]: "fas fa-calendar-days",
-  [ViewType.TIME]: "fas fa-clock",
   [ViewType.CALENDAR]: "fas fa-calendar",
   [ViewType.COLOR]: "fas fa-palette",
   // file

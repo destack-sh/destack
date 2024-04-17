@@ -1,6 +1,6 @@
 from typing import TYPE_CHECKING, Any, Optional, Union
 
-from bench.language.const import NodeType, StructType
+from bench.language.const import EnumType, NodeType, StructType, enum_
 from bench.language.node import Node, Struct, node, struct
 from bench.language.property import (
     p_internal,
@@ -10,7 +10,6 @@ from bench.language.property import (
     p_value_packed,
     p_value_runtime,
 )
-from bench.language.setup import _well_known_enum
 from bench.language.validation import validate_name
 from bench.language.value import HasValues
 from bench.utils.fractional import INTEGER_ZERO
@@ -20,7 +19,7 @@ if TYPE_CHECKING:
     from bench.language import Block, Code, Expression, Text, Trigger, TypeInfo
 
 
-@_well_known_enum
+@enum_(EnumType.STEP_TYPE)
 class StepType(IdEnum):
     BLANK = 1
     # trigger
