@@ -767,9 +767,8 @@ enum Variant {
   VARIANT_UNSPECIFIED = 0;
   VARIANT_PRIMARY = 1;
   VARIANT_SECONDARY = 2;
-  VARIANT_ALTERNATE = 3;
+  VARIANT_COMPACT = 3;
   VARIANT_STEALTH = 4;
-  VARIANT_WEIRD = 5;
 }
 
 enum ViewType {
@@ -824,10 +823,9 @@ enum ViewType {
   VIEW_TYPE_JSON = 643;
   VIEW_TYPE_TOGGLE = 650;
   VIEW_TYPE_PICKER = 653;
-  VIEW_TYPE_DATE = 656;
-  VIEW_TYPE_TIME = 658;
-  VIEW_TYPE_CALENDAR = 660;
-  VIEW_TYPE_COLOR = 663;
+  VIEW_TYPE_CALENDAR = 656;
+  VIEW_TYPE_MAP = 658;
+  VIEW_TYPE_COLOR = 660;
   VIEW_TYPE_FILE = 670;
   VIEW_TYPE_ICON = 672;
   VIEW_TYPE_IMAGE = 673;
@@ -2389,7 +2387,8 @@ message ViewData {
   optional bool is_visible = 80;
   optional bool is_disabled = 81;
   optional bool is_input = 82;
-  optional bool is_loading = 83;
+  optional bool is_inline = 83;
+  optional bool is_loading = 90;
 }
 
 message SomeNodeData {

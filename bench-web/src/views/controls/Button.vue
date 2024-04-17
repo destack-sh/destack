@@ -35,7 +35,7 @@ const classByVariant: Ref<Partial<Record<Variant, string[]>>> = computed(() => (
       : "text-gray-900 hover:border-gray-400 hover:bg-gray-100 focus:shadow-primary-600",
   ],
   // 'link' button
-  [Variant.ALTERNATE]: [
+  [Variant.COMPACT]: [
     "rounded-md underline decoration-2 underline-offset-4",
     props.isDisabled
       ? "text-gray-500 decoration-gray-200 hover:cursor-not-allowed"
@@ -52,7 +52,7 @@ canvas.registerView(self, id);
 defineExpose<ViewExposed>({
   self,
   id,
-  variants: [Variant.PRIMARY, Variant.SECONDARY, Variant.ALTERNATE, Variant.STEALTH],
+  variants: [Variant.PRIMARY, Variant.SECONDARY, Variant.COMPACT, Variant.STEALTH],
   focus: () => buttonRef.value,
 });
 </script>

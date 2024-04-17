@@ -5256,7 +5256,11 @@ export interface ViewData {
      */
     isInput?: boolean;
     /**
-     * @generated from protobuf field: optional bool is_loading = 83;
+     * @generated from protobuf field: optional bool is_inline = 83;
+     */
+    isInline?: boolean;
+    /**
+     * @generated from protobuf field: optional bool is_loading = 90;
      */
     isLoading?: boolean;
 }
@@ -8111,17 +8115,13 @@ export enum Variant {
      */
     SECONDARY = 2,
     /**
-     * @generated from protobuf enum value: VARIANT_ALTERNATE = 3;
+     * @generated from protobuf enum value: VARIANT_COMPACT = 3;
      */
-    ALTERNATE = 3,
+    COMPACT = 3,
     /**
      * @generated from protobuf enum value: VARIANT_STEALTH = 4;
      */
-    STEALTH = 4,
-    /**
-     * @generated from protobuf enum value: VARIANT_WEIRD = 5;
-     */
-    WEIRD = 5
+    STEALTH = 4
 }
 /**
  * @generated from protobuf enum symbolx.bench.ViewType
@@ -8332,21 +8332,17 @@ export enum ViewType {
      */
     PICKER = 653,
     /**
-     * @generated from protobuf enum value: VIEW_TYPE_DATE = 656;
+     * @generated from protobuf enum value: VIEW_TYPE_CALENDAR = 656;
      */
-    DATE = 656,
+    CALENDAR = 656,
     /**
-     * @generated from protobuf enum value: VIEW_TYPE_TIME = 658;
+     * @generated from protobuf enum value: VIEW_TYPE_MAP = 658;
      */
-    TIME = 658,
+    MAP = 658,
     /**
-     * @generated from protobuf enum value: VIEW_TYPE_CALENDAR = 660;
+     * @generated from protobuf enum value: VIEW_TYPE_COLOR = 660;
      */
-    CALENDAR = 660,
-    /**
-     * @generated from protobuf enum value: VIEW_TYPE_COLOR = 663;
-     */
-    COLOR = 663,
+    COLOR = 660,
     /**
      * @generated from protobuf enum value: VIEW_TYPE_FILE = 670;
      */
@@ -20093,7 +20089,8 @@ class ViewData$Type extends MessageType<ViewData> {
             { no: 80, name: "is_visible", kind: "scalar", opt: true, T: 8 /*ScalarType.BOOL*/ },
             { no: 81, name: "is_disabled", kind: "scalar", opt: true, T: 8 /*ScalarType.BOOL*/ },
             { no: 82, name: "is_input", kind: "scalar", opt: true, T: 8 /*ScalarType.BOOL*/ },
-            { no: 83, name: "is_loading", kind: "scalar", opt: true, T: 8 /*ScalarType.BOOL*/ }
+            { no: 83, name: "is_inline", kind: "scalar", opt: true, T: 8 /*ScalarType.BOOL*/ },
+            { no: 90, name: "is_loading", kind: "scalar", opt: true, T: 8 /*ScalarType.BOOL*/ }
         ]);
     }
     create(value?: PartialMessage<ViewData>): ViewData {
@@ -20234,7 +20231,10 @@ class ViewData$Type extends MessageType<ViewData> {
                 case /* optional bool is_input */ 82:
                     message.isInput = reader.bool();
                     break;
-                case /* optional bool is_loading */ 83:
+                case /* optional bool is_inline */ 83:
+                    message.isInline = reader.bool();
+                    break;
+                case /* optional bool is_loading */ 90:
                     message.isLoading = reader.bool();
                     break;
                 default:
@@ -20367,9 +20367,12 @@ class ViewData$Type extends MessageType<ViewData> {
         /* optional bool is_input = 82; */
         if (message.isInput !== undefined)
             writer.tag(82, WireType.Varint).bool(message.isInput);
-        /* optional bool is_loading = 83; */
+        /* optional bool is_inline = 83; */
+        if (message.isInline !== undefined)
+            writer.tag(83, WireType.Varint).bool(message.isInline);
+        /* optional bool is_loading = 90; */
         if (message.isLoading !== undefined)
-            writer.tag(83, WireType.Varint).bool(message.isLoading);
+            writer.tag(90, WireType.Varint).bool(message.isLoading);
         let u = options.writeUnknownFields;
         if (u !== false)
             (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
@@ -21704,7 +21707,8 @@ export enum ViewProperty {
   isVisible = 80,
   isDisabled = 81,
   isInput = 82,
-  isLoading = 83,
+  isInline = 83,
+  isLoading = 90,
 }
 
 export enum StepProperty {
@@ -23656,7 +23660,8 @@ export const ViewDataInfo: Record<ViewProperty, PropertyInfo> = {
   [ViewProperty.isVisible]: { id: 80, name: 'is_visible', component: BenchType.VIEW, kind: 'primitive', primitiveType: PrimitiveType.BOOLEAN, isRuntime: true, isWired: true, isStored: true },
   [ViewProperty.isDisabled]: { id: 81, name: 'is_disabled', component: BenchType.VIEW, kind: 'primitive', primitiveType: PrimitiveType.BOOLEAN, isRuntime: true, isWired: true, isStored: true },
   [ViewProperty.isInput]: { id: 82, name: 'is_input', component: BenchType.VIEW, kind: 'primitive', primitiveType: PrimitiveType.BOOLEAN, isRuntime: true, isWired: true, isStored: true },
-  [ViewProperty.isLoading]: { id: 83, name: 'is_loading', component: BenchType.VIEW, kind: 'primitive', primitiveType: PrimitiveType.BOOLEAN, isRuntime: true, isWired: true, isStored: true },
+  [ViewProperty.isInline]: { id: 83, name: 'is_inline', component: BenchType.VIEW, kind: 'primitive', primitiveType: PrimitiveType.BOOLEAN, isRuntime: true, isWired: true, isStored: true },
+  [ViewProperty.isLoading]: { id: 90, name: 'is_loading', component: BenchType.VIEW, kind: 'primitive', primitiveType: PrimitiveType.BOOLEAN, isRuntime: true, isWired: true, isStored: true },
   [ViewProperty.id]: { id: 2, name: 'id', component: BenchType.VIEW, kind: 'primitive', primitiveType: PrimitiveType.UUID, isRequired: true, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
   [ViewProperty.setProperties]: { id: 22, name: 'set_properties', component: BenchType.VIEW, kind: 'primitive', primitiveType: PrimitiveType.INT32, isList: true, isRequired: true, isRuntime: true, isWired: true, isStored: true },
   [ViewProperty.ck]: { id: 3, name: 'ck', component: BenchType.VIEW, kind: 'primitive', primitiveType: PrimitiveType.UUID, isRequired: true, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },

@@ -6,16 +6,19 @@ import { computed, getCurrentInstance, type ComponentInstance, type Ref } from "
 
 export type ViewComponent = {
   new (): ComponentInstance<any>;
-  props: { self: NodeReferenceData };
+  props: { self?: NodeReferenceData } & Partial<
+    Omit<ViewData, "metatype" | "id" | "ck" | "revision" | "setProperties">
+  >;
   exposed: ViewExposed;
 };
 
-// TODO :Architecture: how to register, type & wrap Views/Components?
-//  This setup is kind of annoying because it forces a complete reload during development.
+// NOTE: Architecture: we register these components lazily to avoid force reloading everything during local development.
+//  (Otherwise any change in any component requires this file to be reloaded, forcing *all* components to be reloaded.)
 const COMPONENT_BY_VIEW_TYPE_LAZY = {
   // kernel
   [ViewType.USER_WIZARD]: import("@/views/kernel/UserWizard.vue"),
   [ViewType.BENCH_WIZARD]: import("@/views/kernel/BenchWizard.vue"),
+
   // system
   [ViewType.PAGE]: import("@/views/system/Page.vue"),
   [ViewType.BLOCK]: import("@/views/system/Block.vue"),
@@ -24,16 +27,21 @@ const COMPONENT_BY_VIEW_TYPE_LAZY = {
   [ViewType.OUTLINE]: import("@/views/system/Explore.vue"), // shared with Explore
   [ViewType.INSPECT]: import("@/views/system/Inspect.vue"),
   [ViewType.CREATE]: import("@/views/system/Create.vue"),
+
   // containers
   [ViewType.WINDOW]: import("@/views/containers/Split.vue"), // shared with Split
   [ViewType.TAB]: import("@/views/containers/Tab.vue"),
   [ViewType.SPLIT]: import("@/views/containers/Split.vue"),
   [ViewType.GROUP]: import("@/views/containers/Group.vue"),
+
   // controls
   [ViewType.BUTTON]: import("@/views/controls/Button.vue"),
+
   // content
   [ViewType.PLAIN_TEXT]: import("@/views/content/PlainText.vue"),
+  [ViewType.PICKER]: import("@/views/content/Picker.vue"),
 };
+
 const COMPONENT_BY_VIEW_TYPE = {} as Record<ViewType, ViewComponent>;
 let didRegisterComponents = false;
 export async function registerViewComponents() {

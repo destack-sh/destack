@@ -11,7 +11,7 @@ from bench.sql.core import (
     Table,
 )
 
-VERSION = "2024.04.17.0"
+VERSION = "2024.04.17.1"
 
 BENCH_TABLE = Table(
     "bench_bench",
@@ -877,6 +877,7 @@ VIEW_TABLE = Table(
         Column("is_visible", PrimitiveType.BOOLEAN, is_nullable=True, default="true"),
         Column("is_disabled", PrimitiveType.BOOLEAN, is_nullable=True, default="false"),
         Column("is_input", PrimitiveType.BOOLEAN, is_nullable=True, default="false"),
+        Column("is_inline", PrimitiveType.BOOLEAN, is_nullable=True, default="false"),
         Column("is_loading", PrimitiveType.BOOLEAN, is_nullable=True, default="false"),
     ),
     indexes=(

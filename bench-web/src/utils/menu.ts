@@ -107,13 +107,15 @@ export const OVERLAY_MENU_DEFAULT_FLOATING_OPTIONS: FloatingOptions = {
   containerMargin: 8,
 };
 
-type ComponentMenuInfo<T extends { props: object }> = {
-  kind: "component";
-  component: T;
-  props: T["props"];
-  context?: MenuContext;
-};
-export type OverlayMenuInfo = (({ kind: "menu" } & MenuInfo) | ComponentMenuInfo<any>) & {
+export type OverlayMenuInfo = (
+  | ({ kind: "menu" } & MenuInfo)
+  | {
+      kind: "component";
+      component: any;
+      props: ViewComponent["props"];
+      context?: MenuContext;
+    }
+) & {
   onApply?(value?: any): void;
   onClose?(): void;
 } & FloatingOptions;
