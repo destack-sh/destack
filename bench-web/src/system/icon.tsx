@@ -8,6 +8,7 @@ import {
   type AnyNodeData,
   BlockData,
   ViewData,
+  EnumType,
 } from "@/proto/wire";
 import type { FunctionalComponent } from "vue";
 
@@ -181,7 +182,7 @@ export const ICON_BY_VIEW_TYPE: Partial<Record<ViewType, IconData>> = _makeIcons
   [ViewType.LIST]: "fas fa-list",
   [ViewType.TABLE]: "fas fa-table",
   [ViewType.FEED]: "fas fa-list-timeline",
-  // containers (group)
+  // containers (group).
   [ViewType.GROUP]: "fas fa-object-group",
   [ViewType.SECTION]: "fas fa-xmark-lines",
 
@@ -222,27 +223,22 @@ export const ICON_BY_VIEW_TYPE: Partial<Record<ViewType, IconData>> = _makeIcons
   [ViewType.AUDIO]: "fas fa-volume",
 });
 
-export function getNodeTypeIcon(nodeType: NodeType): IconData | null {
-  return ICON_BY_NODE_TYPE[nodeType] ?? null;
-}
 
-export function getBlockTypeIcon(blockType: BlockType): IconData | null {
-  return ICON_BY_BLOCK_TYPE[blockType] ?? null;
-}
-
-export function getViewTypeIcon(viewType: ViewType): IconData | null {
-  return ICON_BY_VIEW_TYPE[viewType] ?? null;
-}
+export const ENUM_ICONS_BY_TYPE: Partial<Record<EnumType, Record<any, IconData>>> = {
+  [EnumType.NODE_TYPE]: ICON_BY_NODE_TYPE,
+  [EnumType.BLOCK_TYPE]: ICON_BY_BLOCK_TYPE,
+  [EnumType.VIEW_TYPE]: ICON_BY_VIEW_TYPE,
+};
 
 export function getNodeIcon(node: AnyNodeData | { metatype: ObjectType; type?: BlockType | ViewType }) {
   if ((node as any).icon != null) {
     return (node as any).icon;
   } else if (node.metatype == ObjectType.BLOCK) {
-    const icon = getBlockTypeIcon((node as BlockData).type! as BlockType);
+    const icon = ICON_BY_BLOCK_TYPE[(node as BlockData).type! as BlockType];
     if (icon != null) return icon;
   } else if (node.metatype == ObjectType.VIEW) {
-    const icon = getViewTypeIcon((node as ViewData).type! as ViewType);
+    const icon = ICON_BY_VIEW_TYPE[(node as ViewData).type! as ViewType];
     if (icon != null) return icon;
   }
-  return getNodeTypeIcon(node.metatype as unknown as NodeType);
+  return ICON_BY_NODE_TYPE[node.metatype! as unknown as NodeType];
 }

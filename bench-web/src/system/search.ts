@@ -28,9 +28,9 @@ export type EnumOptionItem = EnumOption & {
 };
 export type SearchItem = (NodeItem | ActionItem | EnumOptionItem) & { title: string; category?: string };
 
-export type SearchCandidate = SearchItem & { candidate: string; category: string; index: string };
+export type SearchCandidateInfo = { candidate: string; category: string; index: string };
 
-export type SearchResult = SearchCandidate & {
+export type SearchResultInfo = {
   pathMarked?: string;
   titleMarked?: string;
 };
@@ -156,18 +156,23 @@ export function actionIndex(): SearchIndex<ActionItem> {
   return markRaw(index);
 }
 
-export function useSearch(search: {
+// NOTE: :Cleanup: useSearch.indices should type with T, but T is usually a union of different item types,
+//  which are distinct per index. So we need multiple Ts for SearchIndex<A>, SearchIndex<B>, etc. How?
+export function useSearch<T extends SearchItem>(search: {
   query: Ref<string>;
-  enabled?: Ref<boolean>;
   indices: Ref<Record<string, SearchIndex<any>>>;
+  isEnabled: Ref<boolean>;
   options?: SearchOptions;
 }): {
-  candidates: Ref<SearchCandidate[]>;
-  results: Ref<SearchResult[]>;
+  candidates: Ref<(T & SearchCandidateInfo)[]>;
+  results: Ref<(T & SearchCandidateInfo & SearchResultInfo)[]>;
   resultsTotal: Ref<number>;
   updateCandidates: () => void;
   updateResults: () => void;
 } {
+  type SearchCandidate = T & SearchCandidateInfo;
+  type SearchResult = T & SearchCandidateInfo & SearchResultInfo;
+
   const candidatesRef = shallowRef<SearchCandidate[]>([]);
   const resultsRef = shallowRef<SearchResult[]>([]);
   const resultsTotal = shallowRef(0);
@@ -177,26 +182,28 @@ export function useSearch(search: {
     const candidates: SearchCandidate[] = [];
     for (const [indexName, index] of Object.entries(search.indices.value)) {
       candidates.push(
-        ...index.candidates().map((item) => ({
-          ...item,
-          candidate: item.name ?? item.id,
-          category: item.category ?? indexName,
-          index: indexName,
-        })),
+        ...index.candidates().map(
+          (item) =>
+            ({
+              ...item,
+              category: item.category ?? indexName,
+              index: indexName,
+            }) as SearchCandidate,
+        ),
       );
     }
     candidatesRef.value = candidates;
   }
 
   function updateResults() {
-    if (!search.enabled?.value) {
+    if (!search.isEnabled?.value) {
       resultsRef.value = [];
       resultsTotal.value = 0;
       return;
     }
     const candidates = candidatesRef.value;
     if (!search.query.value) {
-      resultsRef.value = candidates;
+      resultsRef.value = candidates as SearchResult[];
       resultsTotal.value = candidates.length;
       return;
     }
@@ -222,7 +229,7 @@ export function useSearch(search: {
           start: indexedStr.length - candidate.title.length,
           end: indexedStr.length,
         });
-        if ('path' in candidate && candidate.path != null) {
+        if ("path" in candidate && candidate.path != null) {
           result.pathMarked = highlight(candidate.path, info.ranges[infoIdx] as any, {
             start: 0,
             end: indexedStr.length - candidate.title.length - HIDDEN_SEPARATOR.length,
@@ -239,7 +246,7 @@ export function useSearch(search: {
   }
 
   function getIndexedStr(item: SearchItem): { str: string; isPathIncluded: boolean } {
-    if ('path' in item && item.path != null) {
+    if ("path" in item && item.path != null) {
       // index path (which excludes item itself) + title
       return { str: (item.pathToIndex ?? item.path) + HIDDEN_SEPARATOR + item.title, isPathIncluded: true };
     } else {
@@ -248,10 +255,10 @@ export function useSearch(search: {
   }
 
   // refresh candidates on index change
-  watch([search.enabled, search.indices], updateCandidates, { immediate: true });
+  watch([search.isEnabled, search.indices], updateCandidates, { immediate: true });
 
   // update results on query change
-  watch([search.enabled, search.indices, search.query], updateResults, { immediate: true });
+  watch([search.isEnabled, search.indices, search.query], updateResults, { immediate: true });
 
   return { candidates: candidatesRef, results: resultsRef, resultsTotal, updateCandidates, updateResults };
 }

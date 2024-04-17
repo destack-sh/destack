@@ -6,6 +6,7 @@ import {
   BoxData,
   NodeReferenceData,
   NodeType,
+  ObjectType,
   Orientation,
   ViewData,
 } from "@/proto/wire/";
@@ -17,7 +18,7 @@ import { viewEmits, type FocusAnchor } from "@/views/common";
 import Scroll from "@/views/containers/Scroll.vue";
 import Inaccessible from "@/views/private/Inaccessible.vue";
 import { computed, ref, toRef, type Ref, watch } from "vue";
-import { isDescendantOf, moveNode, walkDescendantsRef } from "@/system/graph";
+import { generateNodeName, isDescendantOf, makeNodeName, moveNode, walkDescendantsRef } from "@/system/graph";
 import NavigationBar from "@/views/private/NavigationBar.vue";
 import type { ActionContext, ActionMapImplementation } from "@/system/action";
 import Block from "@/views/system/Block.vue";
@@ -29,6 +30,7 @@ import { type ViewExposed } from "@/views/common";
 import { useHierarchicalNodeMoveActions } from "@/system/block";
 import { makeTypeInfo } from "@/system/value";
 import type { TypedNodeReferenceData } from "@/proto/wiring";
+import { updateOrder } from "@/system/lang";
 
 const HEADER_HEIGHT = 24;
 const DEPTH_OFFSET = 40;
@@ -182,6 +184,27 @@ const actions: Partial<ActionMapImplementation<"common">> = {
     },
   }),
 };
+function createBlock(
+  blockIn: { type: BlockType },
+  anchor: "before" | "after",
+  targetPtr: TypedNodeReferenceData<NodeType.BLOCK>,
+) {
+  const target = pkgGraph.getOrFail(targetPtr);
+  const block = pkgConnection.tx.create({
+    metatype: NodeType.BLOCK,
+    parentPtr: targetPtr,
+    type: blockIn.type,
+    orderKey: "a0",
+    name: makeNodeName(pkgGraph, { metatype: ObjectType.BLOCK, type: blockIn.type, parentPtr: target.parentPtr }),
+  });
+  updateOrder({
+    tx: pkgConnection.tx,
+    node: block,
+    position: anchor,
+    reference: target,
+    getNodes: () => pkgGraph.getChildren(target.parentPtr!, NodeType.BLOCK),
+  });
+}
 
 // focus
 function focus(anchor: FocusAnchor | NodeReferenceData) {
@@ -298,7 +321,8 @@ defineExpose<ViewExposed>({ self, actions, focus });
                 props: { isInline: true, valueType: makeTypeInfo({ 
                   benchType: BenchType.BLOCK_TYPE,
                   isRequired: true,
-                }) },
+                })},
+                onApply: (blockType: BlockType) => createBlock({ type: blockType}, anchor == 'start' ? 'before' : 'after', blockPtr),
               })"
             >
               <!-- Line with a gap for the button -->

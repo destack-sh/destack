@@ -18,6 +18,7 @@ import {
   ViewType,
   type AnyNodeData,
 } from "@/proto/wire";
+import { ENUM_ICONS_BY_TYPE } from "@/system/icon";
 import type { Transaction } from "@/system/transaction";
 import { generateNKeysBetween, generateOrderKey, isValidOrderKey } from "@/utils/fractional";
 import { Casing, toCasing } from "@/utils/string";
@@ -227,12 +228,14 @@ export type EnumOption<T extends EnumType = EnumType> = {
 
 export function getEnumOptions<T extends EnumType>(enumType: T): EnumOption<T>[] {
   const protoEnum = ENUM_BY_TYPE[enumType];
+  const icons = ENUM_ICONS_BY_TYPE[enumType];
   const options: EnumOption<T>[] = Object.values(protoEnum)
     .filter((value) => typeof value == "number" && value > 0)
     .map((value) => {
+      const icon = icons?.[value];
       const name = protoEnum[value] as string;
       const title = toCasing(name, Casing.CAMEL, true);
-      const option: EnumOption<T> = { id: value.toString(), title, value: value as keyof EnumTypeMapping[T] };
+      const option: EnumOption<T> = { id: value.toString(), icon, title, value: value as keyof EnumTypeMapping[T] };
       return option;
     });
   return options;
