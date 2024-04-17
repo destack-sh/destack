@@ -802,9 +802,8 @@ class Variant(betterproto.Enum):
     UNSPECIFIED = 0
     PRIMARY = 1
     SECONDARY = 2
-    ALTERNATE = 3
+    COMPACT = 3
     STEALTH = 4
-    WEIRD = 5
 
 
 class ViewType(betterproto.Enum):
@@ -859,10 +858,9 @@ class ViewType(betterproto.Enum):
     JSON = 643
     TOGGLE = 650
     PICKER = 653
-    DATE = 656
-    TIME = 658
-    CALENDAR = 660
-    COLOR = 663
+    CALENDAR = 656
+    MAP = 658
+    COLOR = 660
     FILE = 670
     ICON = 672
     IMAGE = 673
@@ -2722,7 +2720,8 @@ class ViewData(betterproto.Message):
     is_visible: Optional[bool] = betterproto.bool_field(80, optional=True)
     is_disabled: Optional[bool] = betterproto.bool_field(81, optional=True)
     is_input: Optional[bool] = betterproto.bool_field(82, optional=True)
-    is_loading: Optional[bool] = betterproto.bool_field(83, optional=True)
+    is_inline: Optional[bool] = betterproto.bool_field(83, optional=True)
+    is_loading: Optional[bool] = betterproto.bool_field(90, optional=True)
 
 
 @dataclass(eq=False, repr=False)
@@ -4557,7 +4556,7 @@ class RuntimeBase(ServiceBase):
 
 from typing import TYPE_CHECKING  # noqa: E402
 
-VERSION = "2024.04.17.0"
+VERSION = "2024.04.17.1"
 
 if TYPE_CHECKING:
     from bench.language import Subject

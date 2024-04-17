@@ -105,7 +105,7 @@ defineExpose({ self, focus });
         :icon="makeIcon({ faName: 'fas fa-xmark' })"
         title="Close"
         class="w-full"
-        :variant="Variant.ALTERNATE"
+        :variant="Variant.COMPACT"
         @click="() => canvas.removeView(spaceConnection.tx, spaceGraph, spaceGraph.get(self) as ViewData)"
       />
     </div>

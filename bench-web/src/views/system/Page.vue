@@ -12,6 +12,7 @@ import { isDescendantOf, moveNode, walkDescendantsRef } from "@/system/graph";
 import NavigationBar from "@/views/private/NavigationBar.vue";
 import type { ActionContext, ActionMapImplementation } from "@/system/action";
 import Block from "@/views/system/Block.vue";
+import Picker from "@/views/content/Picker.vue";
 import { computedValue } from "@/utils/ref";
 import { menuActionsLike, type OverlayMenuInfo } from "@/utils/menu";
 import { startDragging, useMultiDropZone } from "@/utils/drag";
@@ -274,6 +275,12 @@ defineExpose<ViewExposed>({ self, actions, focus });
               role="button"
               class="group/create absolute z-10 h-[6px] w-full flex-shrink-0 text-center opacity-0 transition-colors duration-100 hover:opacity-100"
               :style="getAnchorPosition(anchor as 'start' | 'end', i, (anchor == 'start' || depth != expandedItems[i + 1]?.depth) ? 8  : 4)"
+              v-menu="(): OverlayMenuInfo => ({
+                kind: 'component',
+                component: Picker,
+                placement: 'bottom',
+                props: { isInline: true }
+              })"
             >
               <!-- Line with a gap for the button -->
               <div class="relative">
@@ -284,11 +291,11 @@ defineExpose<ViewExposed>({ self, actions, focus });
                   class="absolute right-0 h-[1px] w-[48.5%] translate-y-1 bg-gray-300 transition-colors duration-100 group-hover/create:bg-primary-900"
                 />
               </div>
-              <button
+              <span
                 class="-translate-y-[6px] px-1 text-gray-300 transition-colors duration-100 group-hover/create:text-primary-900"
               >
                 &plus;
-              </button>
+              </span>
             </div>
 
             <!-- Drag above/below -->

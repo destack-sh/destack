@@ -90,7 +90,7 @@ class ViewType(IdEnum):
     LINK = 610
 
     # content
-    VALUE = 620  # (generic content based on ... type?)
+    VALUE = 620  # (generic content routed with valueType)
     # numeric
     NUMBER = 632
     SLIDER = 633
@@ -102,10 +102,9 @@ class ViewType(IdEnum):
     # selection
     TOGGLE = 650
     PICKER = 653
-    DATE = 656
-    TIME = 658
-    CALENDAR = 660
-    COLOR = 663
+    CALENDAR = 656
+    MAP = 658
+    COLOR = 660
     # file
     FILE = 670
     ICON = 672
@@ -121,9 +120,9 @@ class Variant(IdEnum):
 
     PRIMARY = 1
     SECONDARY = 2
-    ALTERNATE = 3
+    COMPACT = 3
     STEALTH = 4
-    WEIRD = 5  # not sure how many variants we need
+    # ... may have more later
 
 
 @_well_known_enum
@@ -406,16 +405,11 @@ class View(HasViews, HasValues):
     is_visible: Optional[bool] = p_regular(80, default=True)
     is_disabled: Optional[bool] = p_regular(81, default=False)
     is_input: Optional[bool] = p_regular(82, default=False)
-    is_loading: Optional[bool] = p_regular(83, default=False)
+    is_inline: Optional[bool] = p_regular(83, default=False)
+    is_loading: Optional[bool] = p_regular(90, default=False)
 
     def __repr__(self):  # noqa: we want to override the default repr
         return f"<{self.type.bench_name}View {self}>"
-
-
-@_well_known_enum
-class PageViewMode(IdEnum):
-    NOTEBOOK = 1
-    SCRIPT = 2
 
 
 @node(NodeType.SPACE, identifier=IdentifierType.VARIABLE)

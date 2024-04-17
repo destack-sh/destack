@@ -11,13 +11,72 @@ from bench.utils.utils import frozendict
 if typing.TYPE_CHECKING:
     from bench.language import Session, Transaction
 
-VERSION = "2024.04.17.0"
+VERSION = "2024.04.17.1"
 UNSET = object()
 EMPTY_LIST: list = []
 EMPTY_SET: frozenset = frozenset()
 EMPTY_DICT: typing.Mapping = frozendict()
 EMPTY_SCOPE = GraphScope()
 REVISION_PENDING = -1
+
+
+class EnumType(IdEnum):
+    # general
+    ENUM_TYPE = 1  # so meta
+    NODE_TYPE = 2
+    STRUCT_TYPE = 3
+    BENCH_TYPE = 4  # NodeType | StructType
+    CASING = 5
+    NODE_VISIBILITY = 6
+    NODE_SOURCE = 7
+    # access
+    ACCESS_KIND = 30
+    READ_TYPE = 31
+    EDIT_TYPE = 32
+    USE_TYPE = 33
+    ACCESS_TYPE = 34  # ReadType | EditType | UseType
+
+    # bench
+    STORE_KIND = 50
+    SERVER_PROFILE = 51
+
+    # block
+    BLOCK_TYPE = 70
+    FORMAT_HINT = 71
+
+    # flow
+    STEP_TYPE = 80
+
+    # view
+    VIEW_TYPE = 100
+    VARIANT = 101
+    COLOR_TYPE = 102
+    COLOR_SHADE = 103
+    FONT_TYPE = 104
+    FONT_WEIGHT = 105
+    FONT_SIZE = 106
+    SPACING = 107
+    ANCHOR = 108
+    ORIENTATION = 109
+    ALIGNMENT = 110
+    ICON_KIND = 111
+
+    # session
+    LOG_KIND = 150
+    LOG_LEVEL = 151
+    TRIGGER_TYPE = 163
+    RUN_STATUS = 154
+    RUN_ERROR_KIND = 155
+    NOTICE_KIND = 160
+    NOTIFICATION_KIND = 161
+
+    # expression
+    EXPRESSION_KIND = 200
+    CONDITIONAL_OP = 201
+    AGGREGATION_OP = 202
+    SORT_OP = 203
+    SORT_MODE = 204
+    SELECTION_KIND = 205
 
 
 #
