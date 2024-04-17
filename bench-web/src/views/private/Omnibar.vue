@@ -3,7 +3,7 @@ import { NodeType, Orientation, ViewData, ViewType } from "@/proto/wire";
 import { OMNIBAR_MODES, addAction, fireAction, type ActionBuiltinId, type OmnibarMode } from "@/system/action";
 import { packagePtr } from "@/system/client";
 import { IconInline, makeIcon } from "@/system/icon";
-import { actionIndex, graphIndex, useSearch, type SearchIndex } from "@/system/search";
+import { actionIndex, graphIndex, useSearch, type SearchIndex, type NodeItem, type ActionItem } from "@/system/search";
 import { bench, spaceGraph, canvas, pkgGraph, space, hasLocalPkg } from "@/system/space";
 import { nowOrNextTick } from "@/utils/functools";
 import { ScrollbarWidth } from "@/utils/layout";
@@ -25,7 +25,7 @@ const query = ref<"">("");
 
 const containerRef = ref<HTMLElement | null>(null);
 const queryRef = ref<HTMLInputElement | null>(null);
-const selectedResultId: Ref<string | null> = ref(null);
+const activeResultId: Ref<string | null> = ref(null);
 
 const isQueryEmpty = computed(() => query.value.length === 0);
 const indices = computed(() => {
@@ -59,14 +59,18 @@ const indices = computed(() => {
 
   return indices;
 });
-const { candidates, results, resultsTotal, updateCandidates } = useSearch({ query, enabled: isActive, indices });
+const { candidates, results, resultsTotal, updateCandidates } = useSearch<NodeItem | ActionItem>({
+  query,
+  isEnabled: isActive,
+  indices,
+});
 const resultsRefs: Record<string, HTMLElement | null> = {};
 const showResultCategory = computed(() => query.value.length === 0);
 
 /** Go to the selected result */
 function go() {
-  if (!selectedResultId.value) throw new Error("no result selected");
-  fire(selectedResultId.value);
+  if (!activeResultId.value) throw new Error("no result selected");
+  fire(activeResultId.value);
 }
 
 /** Fires the action associated with the given result  */
@@ -86,23 +90,23 @@ async function fire(id: string) {
 /** Select absolute/relative result */
 function select(option: string | number | null) {
   if (typeof option === "string" || option == null) {
-    selectedResultId.value = option;
+    activeResultId.value = option;
   } else {
-    const index = results.value.findIndex((r) => r.id === selectedResultId.value);
+    const index = results.value.findIndex((r) => r.id === activeResultId.value);
     if (index === -1) {
-      selectedResultId.value = results.value[0].id ?? null;
+      activeResultId.value = results.value[0].id ?? null;
     } else {
-      selectedResultId.value = results.value[(index + option + results.value.length) % results.value.length].id ?? null;
+      activeResultId.value = results.value[(index + option + results.value.length) % results.value.length].id ?? null;
     }
   }
-  if (selectedResultId.value != null)
-    resultsRefs[selectedResultId.value]?.scrollIntoView({ block: "center", behavior: "instant" });
+  if (activeResultId.value != null)
+    resultsRefs[activeResultId.value]?.scrollIntoView({ block: "center", behavior: "instant" });
 }
 
 // auto-select first result if nothing matches (anymore)
 watch(results, () => {
-  if (selectedResultId.value == null || !results.value.some((r) => r.id === selectedResultId.value)) {
-    selectedResultId.value = results.value[0]?.id ?? null;
+  if (activeResultId.value == null || !results.value.some((r) => r.id === activeResultId.value)) {
+    activeResultId.value = results.value[0]?.id ?? null;
   }
 });
 
@@ -260,49 +264,41 @@ defineExpose({ isActive, open });
           >
             <!-- Results -->
             <ul v-if="results.length > 0" class="flex w-full select-none flex-col px-2 py-1 text-gray-900">
-              <template v-for="(result, i) in results" :key="i">
+              <template v-for="(item, i) in results" :key="i">
                 <!-- Category -->
                 <div
-                  v-if="showResultCategory && (i === 0 || results[i - 1].category !== result.category)"
+                  v-if="showResultCategory && (i === 0 || results[i - 1].category !== item.category)"
                   class="-mx-2 mb-0.5 px-4 pt-0.5"
                   :class="[i > 0 ? 'mt-1' : '']"
                 >
                   <span class="text-xs font-semibold text-gray-500">
-                    {{ toCasing(result.category, Casing.CAMEL) }}
+                    {{ toCasing(item.category, Casing.CAMEL) }}
                   </span>
                 </div>
                 <!-- Result -->
                 <li
-                  :ref="(ref: any | undefined) => (ref != null ? (resultsRefs[result.id] = ref) : delete resultsRefs[result.id])"
+                  :ref="(ref: any | undefined) => (ref != null ? (resultsRefs[item.id] = ref) : delete resultsRefs[item.id])"
                   role="button"
-                  :data-selected="result.id === selectedResultId"
+                  :data-selected="item.id === activeResultId"
                   class="my-0.5 flex w-full flex-row items-center rounded-md border border-transparent px-2 py-1 hover:bg-primary-300 data-[selected=true]:border-gray-900 data-[selected=true]:bg-primary-300"
-                  @click.stop.prevent="() => fire(result.id)"
+                  @click.stop.prevent="() => fire(item.id)"
                 >
                   <!-- Content -->
-                  <IconInline v-bind="result.icon ?? DEFAULT_ACTION_ICON" class="text-gray-700" />
-                  <!-- Content (Action) -->
-                  <span v-if="result.metatype == 'action'" class="ml-2 truncate">
-                    <span v-html="result.titleMarked ?? result.title" />
-                    <span v-if="!showResultCategory" class="ml-1.5 text-gray-500">
-                      <span v-html="result.pathMarked ?? result.path" />
-                    </span>
-                  </span>
-                  <!-- Content (Node) -->
-                  <span v-else-if="result.metatype == 'node'" class="ml-2 truncate">
-                    <span v-html="result.titleMarked ?? result.title" />
+                  <IconInline v-bind="item.icon ?? DEFAULT_ACTION_ICON" class="text-gray-700" />
+                  <span class="ml-2 truncate">
+                    <span v-html="item.titleMarked ?? item.title" />
                     <span class="ml-1.5 text-gray-500">
-                      <span v-html="result.pathMarked ?? result.path" />
+                      <span v-html="item.pathMarked ?? item.path" />
                     </span>
                   </span>
                   <!-- Metadata (shortcut, last edited, etc.) -->
                   <span class="ml-auto flex flex-shrink-0 flex-row items-center gap-x-2">
                     <Shortcut
-                      v-if="result.metatype == 'action' && (result.shortcuts?.length ?? 0) > 0"
+                      v-if="item.metatype == 'action' && (item.shortcuts?.length ?? 0) > 0"
                       class="text-gray-700"
-                      :shortcut="result.shortcuts![0]"
+                      :shortcut="item.shortcuts![0]"
                     />
-                    <span class="text-gray-500" v-if="!showResultCategory">{{ result.index }}</span>
+                    <span class="text-gray-500" v-if="!showResultCategory">{{ item.index }}</span>
                   </span>
                 </li>
               </template>

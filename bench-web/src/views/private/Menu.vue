@@ -20,7 +20,7 @@ const emit = defineEmits<{
 const query: Ref<string> = ref("");
 const queryRef: Ref<HTMLInputElement | null> = ref(null);
 const itemRefs: Ref<Record<number, HTMLElement | null>> = ref({});
-const focusedItemIdx: Ref<number | null> = ref(null);
+const activeItemIdx: Ref<number | null> = ref(null);
 
 const activeNestedItemIdx: Ref<number | null> = ref(null);
 const activeNestedItemRef: Ref<ComponentPublicInstance<any> | null> = ref(null);
@@ -41,12 +41,12 @@ function onMouseEnter(itemIdx: number) {
   if (props.items[itemIdx].isDisabled) return;
 
   // immediately focus
-  focusedItemIdx.value = itemIdx;
+  activeItemIdx.value = itemIdx;
 
   if (hoverItemTimeout.value != null) clearTimeout(hoverItemTimeout.value);
   /**  */
   const openOrCloseFocused = () => {
-    if (itemIdx == focusedItemIdx.value) {
+    if (itemIdx == activeItemIdx.value) {
       if (isNestedItem(props.items[itemIdx].action)) {
         openNestedMenu(itemIdx);
       } else {
@@ -79,11 +79,11 @@ function focus(idx: number | "next" | "previous" | "top" | "bottom") {
       .reverse()
       .findIndex((item) => !item.isDisabled);
   } else if (idx == "next") {
-    const offset = (focusedItemIdx.value ?? 0) + 1;
+    const offset = (activeItemIdx.value ?? 0) + 1;
     const forwardIdx = props.items.slice(offset).findIndex((item) => !item.isDisabled);
     idx = forwardIdx == -1 ? -1 : offset + forwardIdx;
   } else if (idx == "previous") {
-    const offset = focusedItemIdx.value ?? 1;
+    const offset = activeItemIdx.value ?? 1;
     const reverseIdx = props.items
       .slice(0, offset)
       .reverse()
@@ -91,20 +91,20 @@ function focus(idx: number | "next" | "previous" | "top" | "bottom") {
     idx = reverseIdx == -1 ? -1 : offset - reverseIdx - 1;
   }
   if (idx != -1) {
-    focusedItemIdx.value = idx;
+    activeItemIdx.value = idx;
   }
 }
 
 function clear() {
   query.value = "";
-  focusedItemIdx.value = null;
+  activeItemIdx.value = null;
 }
 
 /** Triggers the action for the given item */
 function fire(itemIdx: number) {
   const item = props.items[itemIdx];
   log.debug("menu.fire", item.id);
-  focusedItemIdx.value = itemIdx;
+  activeItemIdx.value = itemIdx;
   if (typeof item.action == "object") {
     if (activeNestedItemIdx.value == itemIdx) {
       activeNestedItemIdx.value = null;
@@ -128,16 +128,16 @@ function openNestedMenu(itemIdx: number) {
 
 /** Navigate horizontally to open/close nested menus if relevant */
 function onNavigateHorizontal(direction: "left" | "right") {
-  const item = focusedItemIdx.value != null ? props.items[focusedItemIdx.value] : null;
+  const item = activeItemIdx.value != null ? props.items[activeItemIdx.value] : null;
 
   if (props.parent == null) {
     // in root menu
     if (item != null && !isNestedItem(item.action)) return;
-    openNestedMenu(focusedItemIdx.value!);
+    openNestedMenu(activeItemIdx.value!);
   } else {
     // in nested menu
     if (item != null && isNestedItem(item.action)) {
-      openNestedMenu(focusedItemIdx.value!);
+      openNestedMenu(activeItemIdx.value!);
     } else if (props.placement?.startsWith("left") && direction == "right") {
       emit("close");
     } else if (props.placement?.startsWith("right") && direction == "left") {
@@ -197,7 +197,7 @@ defineExpose({ focus, clear, query });
           class="max-w-60 cursor-default rounded-md border-0 bg-transparent font-semibold text-gray-900 decoration-2 underline-offset-2 caret-transparent outline-none ring-0 focus:underline focus:ring-0"
           v-model="query"
           spellcheck="false"
-          @keydown.enter.stop.prevent="fire(focusedItemIdx ?? 0)"
+          @keydown.enter.stop.prevent="fire(activeItemIdx ?? 0)"
           @keydown.up.stop.prevent="focus('previous')"
           @keydown.down.stop.prevent="focus('next')"
           @keydown.right.stop.prevent="onNavigateHorizontal('right')"
@@ -219,13 +219,13 @@ defineExpose({ focus, clear, query });
       <li
         :ref="(ref?: any) => ref != null ? (itemRefs[i] = ref) : (delete itemRefs[i])"
         role="menuitem"
-        :data-selected="focusedItemIdx === i"
+        :data-active="activeItemIdx === i"
         class="mx-1 mb-[1px] mt-[2px] flex h-[28px] flex-row items-center rounded-md border border-transparent px-2"
         :class="[
           item.isDisabled
             ? 'text-gray-500'
-            : 'hover:cursor-pointer hover:bg-primary-300 data-[selected=true]:border-gray-400',
-          activeNestedItemIdx == i ? 'bg-primary-200' : 'data-[selected=true]:bg-primary-300',
+            : 'hover:cursor-pointer hover:bg-primary-300 data-[active=true]:border-gray-400',
+          activeNestedItemIdx == i ? 'bg-primary-200' : 'data-[active=true]:bg-primary-300',
         ]"
         @click.prevent="(e) => !item.isDisabled && (e.stopPropagation(), fire(i))"
         @mouseenter="() => onMouseEnter(i)"
