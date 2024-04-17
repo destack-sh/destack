@@ -654,12 +654,10 @@ class InMemoryGraphNodeList(NodeList[NodeT]):
             self.remove(n)
 
     def get(self, some_id: str) -> Optional[NodeT]:
-        if not (self._flags & NRel.KEYED) and not (self._flags & NRel.NAMED):
+        if not (self._flags & NRel.NAMED):
             raise ValueError(f"cannot get {some_id!r} from {self!r}")
         for child in self.nodes:
-            if (self._flags & NRel.KEYED and child.dynamic_key == some_id) or (
-                self._flags & NRel.NAMED and (child.name == some_id or child.py_ident == some_id)
-            ):
+            if child.name == some_id or child.py_ident == some_id:
                 return child
         return None
 
@@ -668,9 +666,7 @@ class InMemoryGraphNodeList(NodeList[NodeT]):
 
     def __contains__(self, obj: object) -> bool:
         # special case to unwrap key (e.g. for tagging/tag objects)
-        if self._flags & NRel.KEYED and hasattr(obj, "dynamic_key"):
-            obj = obj.dynamic_key
-        if isinstance(obj, str) and (self._flags & NRel.KEYED or self._flags & NRel.NAMED):
+        if isinstance(obj, str) and (self._flags & NRel.NAMED):
             return self.get(obj) is not None
         elif isinstance(obj, Node):
             if obj.metatype != self._property.reference_nodes[0]:

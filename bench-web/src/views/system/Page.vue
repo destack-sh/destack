@@ -179,6 +179,7 @@ function focus(anchor: FocusAnchor | NodeReferenceData) {
   } else {
     if (anchor.id == props.nodePtr?.id) {
       // just focus first
+      if (expandedItems.value.length == 0) return true; // nothing to focus
       expandedBlockRefs.value[expandedItems.value[0].nodePtr.id!].$el.scrollIntoView({
         block: "start",
         behavior: "instant",

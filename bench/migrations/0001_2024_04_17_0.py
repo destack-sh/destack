@@ -1,8 +1,8 @@
-# This migration was automatically generated on 2024.04.11. Edit as needed.
+# This migration was automatically generated on 2024.04.17. Edit as needed.
 import psycopg
 
 ID = 1
-VERSION = "2024.04.11.5"
+VERSION = "2024.04.17.0"
 HAS_GLOBAL = True
 HAS_LOCAL = True
 
@@ -242,7 +242,13 @@ async def upgrade_global(cur: psycopg.AsyncCursor):
         inspection_type smallint,
         inspection_bench_id uuid,
         inspection_base_ck uuid,
-        inspection_base_bench_id uuid
+        inspection_base_bench_id uuid,
+        base_id uuid,
+        base_ck uuid,
+        base_type smallint,
+        base_bench_id uuid,
+        base_base_ck uuid,
+        base_base_bench_id uuid
     )
     """
     )
@@ -342,7 +348,6 @@ async def upgrade_global(cur: psycopg.AsyncCursor):
         bases_ck uuid[],
         bases_bench_id uuid[],
         builtin_base jsonb,
-        dynamic_key varchar,
         text jsonb,
         code jsonb,
         value_packed jsonb,
@@ -352,12 +357,9 @@ async def upgrade_global(cur: psycopg.AsyncCursor):
         reference_ck uuid,
         reference_bench_id uuid,
         delegated_policies jsonb[] NOT NULL,
-        is_page boolean NOT NULL DEFAULT false,
-        is_module boolean NOT NULL DEFAULT false,
-        is_unique boolean NOT NULL DEFAULT false,
         is_intrinsic boolean NOT NULL DEFAULT false,
+        is_page boolean NOT NULL DEFAULT false,
         is_protocol boolean NOT NULL DEFAULT false,
-        is_method boolean NOT NULL DEFAULT false,
         paused_at timestamp
     )
     """
@@ -420,7 +422,6 @@ async def upgrade_global(cur: psycopg.AsyncCursor):
         set_properties integer[] NOT NULL,
         name varchar,
         order_key varchar NOT NULL DEFAULT 'a0'::character varying,
-        dynamic_key varchar,
         text jsonb,
         icon jsonb,
         value_packed jsonb,
@@ -530,8 +531,8 @@ async def upgrade_global(cur: psycopg.AsyncCursor):
         expansion jsonb,
         is_visible boolean DEFAULT true,
         is_disabled boolean DEFAULT false,
-        is_loading boolean DEFAULT false,
-        is_input boolean DEFAULT false
+        is_input boolean DEFAULT false,
+        is_loading boolean DEFAULT false
     )
     """
     )
@@ -1696,7 +1697,7 @@ async def upgrade_local(cur: psycopg.AsyncCursor):
         updated_at timestamp NOT NULL DEFAULT now(),
         deleted_at timestamp,
         archived_at timestamp,
-        block_key varchar NOT NULL,
+        block_sk uuid NOT NULL,
         block_ck uuid NOT NULL,
         block_id uuid NOT NULL,
         value_packed jsonb,
@@ -1941,19 +1942,10 @@ async def upgrade_local(cur: psycopg.AsyncCursor):
 
     # bench_record_ephemeral
     await cur.execute(
-        "CREATE INDEX bench_record_ephemeral_bench_idx_block_key_deleted_at ON bench_record_ephemeral USING BTREE (block_key, deleted_at)"
+        "CREATE INDEX bench_record_ephemeral_bench_idx_block_ck_deleted_at ON bench_record_ephemeral USING BTREE (block_ck, deleted_at)"
     )
     await cur.execute(
-        "CREATE INDEX bench_record_ephemeral_bench_idx_block_key_archive_at ON bench_record_ephemeral USING BTREE (archived_at, block_key)"
-    )
-    await cur.execute(
-        "CREATE UNIQUE INDEX bench_record_ephemeral_bench_idx_ck_block_key ON bench_record_ephemeral USING BTREE (block_key, ck)"
-    )
-    await cur.execute(
-        """
-        ALTER TABLE bench_record_ephemeral    
-        ADD CONSTRAINT bench_record_ephemeral_bench_idx_ck_block_key UNIQUE USING INDEX bench_record_ephemeral_bench_idx_ck_block_key
-    """
+        "CREATE INDEX bench_record_ephemeral_bench_idx_block_key_archived_at ON bench_record_ephemeral USING BTREE (archived_at, block_ck)"
     )
 
     # bench_session

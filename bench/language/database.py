@@ -3,7 +3,7 @@ from uuid import UUID
 
 import structlog
 
-from bench.language.const import UNSET, AggregationOp, ConditionalOp, NodeType, new_dynamic_node_key
+from bench.language.const import AggregationOp, ConditionalOp, NodeType
 from bench.language.expression import C
 from bench.language.node import (
     HasBase,
@@ -18,7 +18,6 @@ from bench.language.node import (
 from bench.language.notice import NoticeHandler
 from bench.language.property import (
     Property,
-    p_internal,
     p_node_child,
     p_node_parent,
     p_runtime,
@@ -137,6 +136,9 @@ class RecordConnection(PostgresConnection[Record, RecordData]):
             pg_select_records_data,
         )
 
+        # TODO :Broken: Record/Database queries are still using dynamic_key
+        #  but we've switched to block_ck/block_sk (where block_sk is implicit in materialized tables).
+        #  So we need to handle ephemeral/materialized tables & database versioning.
         filter = query._filter & C(
             ConditionalOp.EQUALS, field_key="block_key", value=query._base.dynamic_key
         )
@@ -165,6 +167,7 @@ class RecordConnection(PostgresConnection[Record, RecordData]):
     async def aggregate(self, query: "QueryBuilder[Record, RecordData]") -> AggregateResult:
         from bench.sql.engine import compile_pg_conditional_maybe, pg_count, pg_exists
 
+        # NOTE: also :Broken (see above).
         filter = query._filter & C(
             ConditionalOp.EQUALS, field_key="block_key", value=query._base.dynamic_key
         )
@@ -219,18 +222,11 @@ class RecordList(NodeList[Record], QueryBuilder[Record, RecordData]):
 
 @node_component
 class HasDatabase(Node):
-    dynamic_key: str | None = p_internal(UNSET, default=None)
     queries: NodeList["Query"] = p_node_child(
         NodeType.QUERY, NRel.NAMED | NRel.SCOPED | NRel.ORDERED
     )
     records: RecordList[Record] = p_node_child(NodeType.RECORD, NRel.STORED_CUSTOM, list=RecordList)
     _table: Optional[Table] = p_runtime(default=None)
-
-    def _init_inner(self):
-        # this runs before HasFields because of the ordering in
-        #  (which is necessary because HasFields also sets key)
-        if self._is_new and self.dynamic_key is None:
-            self.dynamic_key = self._derive_dynamic_key()
 
     def _clear_inner(self, scope: Optional["Node"] = None) -> None:
         self._table = None
@@ -251,13 +247,3 @@ class HasDatabase(Node):
     @property
     def ephemeral(self) -> bool:
         return not self.is_materialized
-
-    @staticmethod
-    def _derive_dynamic_key(instance: "HasDatabase") -> str | None:
-        if not instance.shared:
-            if instance.id is not None:
-                return new_dynamic_node_key(instance.id)
-            else:
-                return None
-        else:
-            return new_dynamic_node_key(instance.ck)

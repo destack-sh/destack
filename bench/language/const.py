@@ -11,7 +11,7 @@ from bench.utils.utils import frozendict
 if typing.TYPE_CHECKING:
     from bench.language import Session, Transaction
 
-VERSION = "2024.04.16.1"
+VERSION = "2024.04.17.0"
 UNSET = object()
 EMPTY_LIST: list = []
 EMPTY_SET: frozenset = frozenset()
@@ -193,10 +193,12 @@ INTERP_NODE_TYPES = (NodeType.NOTICE,)
 
 
 class BlockType(IdEnum):
-    PAGE = 1  # group of blocks
-    BLANK = 2  # placeholder/spacer
-    ALIAS = 3  # refer to / 'redefine' an existing block or builtin (like a 'newtype')
+    ALIAS = 1  # refer to / 'redefine' an existing block or builtin (like a 'newtype')
+    PAGE = 2  # group of blocks
+    MODULE = 3  # group of blocks with a 'namespace'
+    BLANK = 4  # placeholder/spacer?
 
+    # types
     CLASS = 10  # define a class type with fields
     CHOICE = 11  # define a choice type with fields (as literal options)
     # TAG = 12  # define a tag type with fields
@@ -207,21 +209,24 @@ class BlockType(IdEnum):
     # METRIC = ...  # define a new metric type
     # BLOCK = ...  # define a new block type?
 
-    VARIABLE = 20  # define a single-value variable
-    MULTI_VARIABLE = 21  # define a variable with (multiple) fields
-
+    # runnable
     TEXT = 30  # define a 'paragraph' of text/comment/instruction with fields (incl. input/output)
     CODE = 31  # define a code function with fields (incl. input/output)
     SCRIPT = 32  # define a code script with exported code-level constructs
     FLOW = 33  # define a flow with steps and fields (optionally incl. input/output)
 
-    QUERY = 40  # define a set of queries
-    DATABASE = 41  # define a database with records & queries
+    # state
+    VARIABLE = 50  # define a single-value variable
+    MULTI_VARIABLE = 51  # define a variable with (multiple) fields
+    QUERY = 52  # define a set of queries
+    DATABASE = 53  # define a database with records & queries
 
-    SCREEN = 50  # define a screen with views
+    # view
+    SCREEN = 70  # define a screen with views
 
-    ROLE = 60  # define a role with policies
-    IDENTITY = 61  # define an identity with roles & policies
+    # auth
+    ROLE = 90  # define a role with policies
+    IDENTITY = 91  # define an identity with roles & policies
 
     @property
     def is_type(self) -> bool:
@@ -231,10 +236,6 @@ class BlockType(IdEnum):
     def is_runnable(self) -> bool:
         return self in BlockTypes.RUNNABLE
 
-    @property
-    def is_scriptable(self) -> bool:
-        return self in BlockTypes.SCRIPTABLE
-
 
 BLOCK_TYPES: tuple[BlockType, ...] = tuple(BlockType)
 
@@ -242,7 +243,6 @@ BLOCK_TYPES: tuple[BlockType, ...] = tuple(BlockType)
 class BlockTypes:
     TYPES = bytetuple(tuple(t for t in BLOCK_TYPES if 10 <= t.id < 20))
     RUNNABLE = bytetuple(tuple(t for t in BLOCK_TYPES if 30 <= t.id < 40))
-    SCRIPTABLE = bytetuple(tuple(t for t in BLOCK_TYPES if 10 <= t.id < 50) + (BlockType.ALIAS,))
 
 
 class NodeSource(IdEnum):
@@ -314,8 +314,7 @@ class NodeRelationFlag(enum.IntFlag):
     CUMULATIVE = 2**1  # sum of descendants: Package->Issue, Block->Issue, ...
     NAMED = 2**2  # indexed by name: Package->Block, Block->Block, ...
     SCOPED = 2**3  # scoped by name: Package->Block, Block->Block, ...
-    KEYED = 2**4  # indexed by key: Block->Tagging, Block->Tagging, ...
-    ORDERED = 2**5  # ordered: Block->Block, Block->Field, ...
+    ORDERED = 2**4  # ordered: Block->Block, Block->Field, ...
 
 
 NRel = NodeRelationFlag

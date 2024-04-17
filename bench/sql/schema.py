@@ -11,7 +11,7 @@ from bench.sql.core import (
     Table,
 )
 
-VERSION = "2024.04.16.1"
+VERSION = "2024.04.17.0"
 
 BENCH_TABLE = Table(
     "bench_bench",
@@ -608,7 +608,6 @@ BLOCK_TABLE = Table(
         Column("bases_ck", PrimitiveType.UUID, is_array=True, is_nullable=True),
         Column("bases_bench_id", PrimitiveType.UUID, is_array=True, is_nullable=True),
         Column("builtin_base", PrimitiveType.JSON, is_nullable=True),
-        Column("dynamic_key", PrimitiveType.STRING, is_nullable=True),
         Column("text", PrimitiveType.JSON, is_nullable=True),
         Column("code", PrimitiveType.JSON, is_nullable=True),
         Column("value_packed", PrimitiveType.JSON, is_nullable=True),
@@ -618,12 +617,9 @@ BLOCK_TABLE = Table(
         Column("reference_ck", PrimitiveType.UUID, is_nullable=True),
         Column("reference_bench_id", PrimitiveType.UUID, is_nullable=True),
         Column("delegated_policies", PrimitiveType.JSON, is_array=True),
-        Column("is_page", PrimitiveType.BOOLEAN, default="false"),
-        Column("is_module", PrimitiveType.BOOLEAN, default="false"),
-        Column("is_unique", PrimitiveType.BOOLEAN, default="false"),
         Column("is_intrinsic", PrimitiveType.BOOLEAN, default="false"),
+        Column("is_page", PrimitiveType.BOOLEAN, default="false"),
         Column("is_protocol", PrimitiveType.BOOLEAN, default="false"),
-        Column("is_method", PrimitiveType.BOOLEAN, default="false"),
         Column("paused_at", PrimitiveType.DATETIME, is_nullable=True),
     ),
     indexes=(
@@ -725,7 +721,6 @@ FIELD_TABLE = Table(
         Column("set_properties", PrimitiveType.INT32, is_array=True),
         Column("name", PrimitiveType.STRING, is_nullable=True),
         Column("order_key", PrimitiveType.STRING, default="'a0'::character varying"),
-        Column("dynamic_key", PrimitiveType.STRING, is_nullable=True),
         Column("text", PrimitiveType.JSON, is_nullable=True),
         Column("icon", PrimitiveType.JSON, is_nullable=True),
         Column("value_packed", PrimitiveType.JSON, is_nullable=True),
@@ -881,8 +876,8 @@ VIEW_TABLE = Table(
         Column("expansion", PrimitiveType.JSON, is_nullable=True),
         Column("is_visible", PrimitiveType.BOOLEAN, is_nullable=True, default="true"),
         Column("is_disabled", PrimitiveType.BOOLEAN, is_nullable=True, default="false"),
-        Column("is_loading", PrimitiveType.BOOLEAN, is_nullable=True, default="false"),
         Column("is_input", PrimitiveType.BOOLEAN, is_nullable=True, default="false"),
+        Column("is_loading", PrimitiveType.BOOLEAN, is_nullable=True, default="false"),
     ),
     indexes=(
         Index("bench_idx_package_deleted_at", IndexType.BTREE, ("deleted_at", "package_id")),

@@ -61,28 +61,29 @@ class _BlockTypeDescriptor:
 
 IdentT = IdentifierType
 
-_block = _BlockTypeDescriptor
-_block(BlockType.PAGE, (), IdentT.VARIABLE)
-_block(BlockType.BLANK, (), IdentT.VARIABLE)
-_block(BlockType.ALIAS, (IsInstantiable,), IdentT.VARIABLE)
-_block(BlockType.CLASS, (IsInstantiable,), IdentT.TYPE)
-_block(BlockType.SIGNAL, (IsInstantiable,), IdentT.TYPE)
-_block(BlockType.CHOICE, (IsInstantiable,), IdentT.TYPE)
-_block(BlockType.PROTOCOL, (), IdentT.TYPE)
-_block(BlockType.TEXT, (HasRun,), IdentT.FUNCTION)
-_block(BlockType.CODE, (HasRun,), IdentT.FUNCTION)
-_block(BlockType.SCRIPT, (HasRun,), IdentT.FUNCTION)
-_block(BlockType.FLOW, (HasRun,), IdentT.FUNCTION)
-_block(BlockType.VARIABLE, (), IdentT.VARIABLE)
-_block(BlockType.MULTI_VARIABLE, (), IdentT.VARIABLE)
-_block(BlockType.DATABASE, (HasDatabase,), IdentT.TYPE)
-_block(BlockType.QUERY, (), IdentT.VARIABLE)
-_block(BlockType.SCREEN, (), IdentT.TYPE)
-_block(BlockType.ROLE, (), IdentT.TYPE)
-_block(BlockType.IDENTITY, (), IdentT.TYPE)
+_describe_block = _BlockTypeDescriptor
+_describe_block(BlockType.ALIAS, (IsInstantiable,), IdentT.VARIABLE)
+_describe_block(BlockType.PAGE, (), IdentT.VARIABLE)
+_describe_block(BlockType.MODULE, (), IdentT.VARIABLE)
+_describe_block(BlockType.BLANK, (), IdentT.VARIABLE)
+_describe_block(BlockType.CLASS, (IsInstantiable,), IdentT.TYPE)
+_describe_block(BlockType.SIGNAL, (IsInstantiable,), IdentT.TYPE)
+_describe_block(BlockType.CHOICE, (IsInstantiable,), IdentT.TYPE)
+_describe_block(BlockType.PROTOCOL, (), IdentT.TYPE)
+_describe_block(BlockType.TEXT, (HasRun,), IdentT.FUNCTION)
+_describe_block(BlockType.CODE, (HasRun,), IdentT.FUNCTION)
+_describe_block(BlockType.SCRIPT, (HasRun,), IdentT.FUNCTION)
+_describe_block(BlockType.FLOW, (HasRun,), IdentT.FUNCTION)
+_describe_block(BlockType.VARIABLE, (), IdentT.VARIABLE)
+_describe_block(BlockType.MULTI_VARIABLE, (), IdentT.VARIABLE)
+_describe_block(BlockType.DATABASE, (HasDatabase,), IdentT.TYPE)
+_describe_block(BlockType.QUERY, (), IdentT.VARIABLE)
+_describe_block(BlockType.SCREEN, (), IdentT.TYPE)
+_describe_block(BlockType.ROLE, (), IdentT.TYPE)
+_describe_block(BlockType.IDENTITY, (), IdentT.TYPE)
 
 assert len(_BLOCK_DESCRIPTORS) == len(BlockType), "missing block descriptors"
-del _block
+del _describe_block
 
 _IDENTIFIER_BY_TYPE: dict[BlockType, IdentifierType] = {
     t.type: t.identifier for t in _BLOCK_DESCRIPTORS.values()
@@ -127,7 +128,6 @@ class Block(Node, HasValues):
         36, default=None, require=False, array=True, references=NodeType.BLOCK
     )
     builtin_base: Optional["TypeInfo"] = p_regular(37, default=None, struct=StructType.TYPE_INFO)
-    dynamic_key: str | None = p_internal(38, default=None)
 
     text: Optional["Text"] = p_regular(
         40, default=None, require=False, array=False, struct=StructType.TEXT
@@ -147,15 +147,13 @@ class Block(Node, HasValues):
     delegated_policies: list["Policy"] = p_regular(46, array=True, struct=StructType.POLICY)
 
     # flags
-    is_page: bool = p_regular(60, default=False)  # on its own page
-    is_module: bool = p_regular(61, default=False)  # has a module scope
-    is_unique: bool = p_regular(62, default=False)  # unique by name in parent module
-    is_intrinsic: bool = p_system(63, default=False)  # provided by the system
-    is_protocol: bool = p_regular(64, default=False)  # has a protocol
-    is_method: bool = p_regular(65, default=False)  # bound to instances of parent (with 'self')
+    is_intrinsic: bool = p_system(60, default=False)  # provided by the system
+    is_page: bool = p_regular(61, default=False)  # on its own page
+    is_protocol: bool = p_regular(62, default=False)  # defines a protocol
     # paused_at acts like a flag (see setter/getter below)
     paused_at: datetime | None = p_internal(66, default=None)  # triggers <=block are paused
-
+    # is_method? (bound to instances of parent)
+    # is_unique? (by name in parent module)
     # is_frozen? (read-only in instances of template)
 
     @staticmethod
@@ -207,6 +205,10 @@ class Block(Node, HasValues):
     ) -> None:
         if self.type == BlockType.PAGE and not self.is_page:
             on_invalid(self, "type=Page must have is_page=True", (Block.type, Block.is_page))
+        elif self.type == BlockType.PROTOCOL and not self.is_protocol:
+            on_invalid(
+                self, "type=Protocol must have is_protocol=True", (Block.type, Block.is_protocol)
+            )
 
     @property
     def is_type(self) -> bool:
@@ -215,10 +217,6 @@ class Block(Node, HasValues):
     @property
     def is_runnable(self) -> bool:
         return self.type.is_runnable
-
-    @property
-    def is_scriptable(self) -> bool:
-        return self.type.is_scriptable
 
     @property
     def is_paused(self) -> bool:

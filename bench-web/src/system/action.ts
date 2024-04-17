@@ -939,7 +939,7 @@ contributeActionMap<"developer">({
       const existingNodes = pkgGraph.nodes.filter(
         (n) => n.metatype == BenchType.BLOCK || n.metatype == BenchType.PACKAGE,
       );
-      for (let i = 0; i < 5; i++) {
+      for (let i = 0; i < 10; i++) {
         const name = generateRandomName();
         const parent = existingNodes[Math.floor(Math.random() * existingNodes.length)];
         const existingChildren = pkgGraph.getChildren(parent);
@@ -950,6 +950,7 @@ contributeActionMap<"developer">({
           packagePtr: packagePtr.value!,
           type,
           isPage: type == BlockType.PAGE,
+          isProtocol: type == BlockType.PROTOCOL,
           name,
           orderKey: generateOrderKey((existingChildren[existingChildren.length - 1] as any)?.orderKey ?? null, null),
         });

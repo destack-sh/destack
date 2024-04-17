@@ -1997,10 +1997,6 @@ export interface BlockData {
      */
     builtinBase?: TypeInfoData;
     /**
-     * @generated from protobuf field: optional string dynamic_key = 38;
-     */
-    dynamicKey?: string;
-    /**
      * @generated from protobuf field: optional symbolx.bench.TextData text = 40;
      */
     text?: TextData;
@@ -2029,29 +2025,17 @@ export interface BlockData {
      */
     delegatedPolicies: PolicyData[];
     /**
-     * @generated from protobuf field: bool is_page = 60;
-     */
-    isPage: boolean;
-    /**
-     * @generated from protobuf field: bool is_module = 61;
-     */
-    isModule: boolean;
-    /**
-     * @generated from protobuf field: bool is_unique = 62;
-     */
-    isUnique: boolean;
-    /**
-     * @generated from protobuf field: bool is_intrinsic = 63;
+     * @generated from protobuf field: bool is_intrinsic = 60;
      */
     isIntrinsic: boolean;
     /**
-     * @generated from protobuf field: bool is_protocol = 64;
+     * @generated from protobuf field: bool is_page = 61;
+     */
+    isPage: boolean;
+    /**
+     * @generated from protobuf field: bool is_protocol = 62;
      */
     isProtocol: boolean;
-    /**
-     * @generated from protobuf field: bool is_method = 65;
-     */
-    isMethod: boolean;
     /**
      * @generated from protobuf field: optional google.protobuf.Timestamp paused_at = 66;
      */
@@ -2655,10 +2639,6 @@ export interface FieldData {
      * @generated from protobuf field: string order_key = 31;
      */
     orderKey: string;
-    /**
-     * @generated from protobuf field: optional string dynamic_key = 32;
-     */
-    dynamicKey?: string;
     /**
      * @generated from protobuf field: optional symbolx.bench.TextData text = 33;
      */
@@ -3303,10 +3283,10 @@ export interface MembershipData {
     isOwner: boolean;
 }
 /**
- * A node in the Bench graph: it's a struct with a globally unique identity.
- * Source nodes also have a constant identifier key (ck) used to derive the id per Package.
- * All template instances keep the first half of the ck constant
- * (so 'all' instances of a node share the first ck half across templates & versions).
+ * A node in the Bench graph: a struct with a globally unique identity.
+ * Every node has a stable key 'sk', a per 'instance' constant key 'ck' and a per instance 'id'.
+ * The 'sk' is just the first half of the 'ck'.
+ * For sub package nodes the 'id' is derived from the 'ck' per Package, else it's just the id.
  *
  * @generated from protobuf message symbolx.bench.BaseNodeData
  */
@@ -5272,13 +5252,13 @@ export interface ViewData {
      */
     isDisabled?: boolean;
     /**
-     * @generated from protobuf field: optional bool is_loading = 82;
-     */
-    isLoading?: boolean;
-    /**
-     * @generated from protobuf field: optional bool is_input = 83;
+     * @generated from protobuf field: optional bool is_input = 82;
      */
     isInput?: boolean;
+    /**
+     * @generated from protobuf field: optional bool is_loading = 83;
+     */
+    isLoading?: boolean;
 }
 /**
  * @generated from protobuf message symbolx.bench.SomeNodeData
@@ -6030,17 +6010,21 @@ export enum BlockType {
      */
     UNSPECIFIED = 0,
     /**
-     * @generated from protobuf enum value: BLOCK_TYPE_PAGE = 1;
+     * @generated from protobuf enum value: BLOCK_TYPE_ALIAS = 1;
      */
-    PAGE = 1,
+    ALIAS = 1,
     /**
-     * @generated from protobuf enum value: BLOCK_TYPE_BLANK = 2;
+     * @generated from protobuf enum value: BLOCK_TYPE_PAGE = 2;
      */
-    BLANK = 2,
+    PAGE = 2,
     /**
-     * @generated from protobuf enum value: BLOCK_TYPE_ALIAS = 3;
+     * @generated from protobuf enum value: BLOCK_TYPE_MODULE = 3;
      */
-    ALIAS = 3,
+    MODULE = 3,
+    /**
+     * @generated from protobuf enum value: BLOCK_TYPE_BLANK = 4;
+     */
+    BLANK = 4,
     /**
      * @generated from protobuf enum value: BLOCK_TYPE_CLASS = 10;
      */
@@ -6058,14 +6042,6 @@ export enum BlockType {
      */
     PROTOCOL = 14,
     /**
-     * @generated from protobuf enum value: BLOCK_TYPE_VARIABLE = 20;
-     */
-    VARIABLE = 20,
-    /**
-     * @generated from protobuf enum value: BLOCK_TYPE_MULTI_VARIABLE = 21;
-     */
-    MULTI_VARIABLE = 21,
-    /**
      * @generated from protobuf enum value: BLOCK_TYPE_TEXT = 30;
      */
     TEXT = 30,
@@ -6082,25 +6058,33 @@ export enum BlockType {
      */
     FLOW = 33,
     /**
-     * @generated from protobuf enum value: BLOCK_TYPE_QUERY = 40;
+     * @generated from protobuf enum value: BLOCK_TYPE_VARIABLE = 50;
      */
-    QUERY = 40,
+    VARIABLE = 50,
     /**
-     * @generated from protobuf enum value: BLOCK_TYPE_DATABASE = 41;
+     * @generated from protobuf enum value: BLOCK_TYPE_MULTI_VARIABLE = 51;
      */
-    DATABASE = 41,
+    MULTI_VARIABLE = 51,
     /**
-     * @generated from protobuf enum value: BLOCK_TYPE_SCREEN = 50;
+     * @generated from protobuf enum value: BLOCK_TYPE_QUERY = 52;
      */
-    SCREEN = 50,
+    QUERY = 52,
     /**
-     * @generated from protobuf enum value: BLOCK_TYPE_ROLE = 60;
+     * @generated from protobuf enum value: BLOCK_TYPE_DATABASE = 53;
      */
-    ROLE = 60,
+    DATABASE = 53,
     /**
-     * @generated from protobuf enum value: BLOCK_TYPE_IDENTITY = 61;
+     * @generated from protobuf enum value: BLOCK_TYPE_SCREEN = 70;
      */
-    IDENTITY = 61
+    SCREEN = 70,
+    /**
+     * @generated from protobuf enum value: BLOCK_TYPE_ROLE = 90;
+     */
+    ROLE = 90,
+    /**
+     * @generated from protobuf enum value: BLOCK_TYPE_IDENTITY = 91;
+     */
+    IDENTITY = 91
 }
 /**
  * Built-in color shades a la Tailwind.
@@ -13037,7 +13021,6 @@ class BlockData$Type extends MessageType<BlockData> {
             { no: 35, name: "policies", kind: "message", repeat: 1 /*RepeatType.PACKED*/, T: () => PolicyData },
             { no: 36, name: "bases_ptr", kind: "message", repeat: 1 /*RepeatType.PACKED*/, T: () => NodeReferenceData },
             { no: 37, name: "builtin_base", kind: "message", T: () => TypeInfoData },
-            { no: 38, name: "dynamic_key", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
             { no: 40, name: "text", kind: "message", T: () => TextData },
             { no: 41, name: "code", kind: "message", T: () => CodeData },
             { no: 42, name: "value_packed", kind: "message", T: () => Struct },
@@ -13045,12 +13028,9 @@ class BlockData$Type extends MessageType<BlockData> {
             { no: 44, name: "icon", kind: "message", T: () => IconData },
             { no: 45, name: "reference_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 46, name: "delegated_policies", kind: "message", repeat: 1 /*RepeatType.PACKED*/, T: () => PolicyData },
-            { no: 60, name: "is_page", kind: "scalar", T: 8 /*ScalarType.BOOL*/ },
-            { no: 61, name: "is_module", kind: "scalar", T: 8 /*ScalarType.BOOL*/ },
-            { no: 62, name: "is_unique", kind: "scalar", T: 8 /*ScalarType.BOOL*/ },
-            { no: 63, name: "is_intrinsic", kind: "scalar", T: 8 /*ScalarType.BOOL*/ },
-            { no: 64, name: "is_protocol", kind: "scalar", T: 8 /*ScalarType.BOOL*/ },
-            { no: 65, name: "is_method", kind: "scalar", T: 8 /*ScalarType.BOOL*/ },
+            { no: 60, name: "is_intrinsic", kind: "scalar", T: 8 /*ScalarType.BOOL*/ },
+            { no: 61, name: "is_page", kind: "scalar", T: 8 /*ScalarType.BOOL*/ },
+            { no: 62, name: "is_protocol", kind: "scalar", T: 8 /*ScalarType.BOOL*/ },
             { no: 66, name: "paused_at", kind: "message", T: () => Timestamp }
         ]);
     }
@@ -13068,12 +13048,9 @@ class BlockData$Type extends MessageType<BlockData> {
         message.policies = [];
         message.basesPtr = [];
         message.delegatedPolicies = [];
-        message.isPage = false;
-        message.isModule = false;
-        message.isUnique = false;
         message.isIntrinsic = false;
+        message.isPage = false;
         message.isProtocol = false;
-        message.isMethod = false;
         if (value !== undefined)
             reflectionMergePartial<BlockData>(this, message, value);
         return message;
@@ -13153,9 +13130,6 @@ class BlockData$Type extends MessageType<BlockData> {
                 case /* optional symbolx.bench.TypeInfoData builtin_base */ 37:
                     message.builtinBase = TypeInfoData.internalBinaryRead(reader, reader.uint32(), options, message.builtinBase);
                     break;
-                case /* optional string dynamic_key */ 38:
-                    message.dynamicKey = reader.string();
-                    break;
                 case /* optional symbolx.bench.TextData text */ 40:
                     message.text = TextData.internalBinaryRead(reader, reader.uint32(), options, message.text);
                     break;
@@ -13177,23 +13151,14 @@ class BlockData$Type extends MessageType<BlockData> {
                 case /* repeated symbolx.bench.PolicyData delegated_policies */ 46:
                     message.delegatedPolicies.push(PolicyData.internalBinaryRead(reader, reader.uint32(), options));
                     break;
-                case /* bool is_page */ 60:
-                    message.isPage = reader.bool();
-                    break;
-                case /* bool is_module */ 61:
-                    message.isModule = reader.bool();
-                    break;
-                case /* bool is_unique */ 62:
-                    message.isUnique = reader.bool();
-                    break;
-                case /* bool is_intrinsic */ 63:
+                case /* bool is_intrinsic */ 60:
                     message.isIntrinsic = reader.bool();
                     break;
-                case /* bool is_protocol */ 64:
-                    message.isProtocol = reader.bool();
+                case /* bool is_page */ 61:
+                    message.isPage = reader.bool();
                     break;
-                case /* bool is_method */ 65:
-                    message.isMethod = reader.bool();
+                case /* bool is_protocol */ 62:
+                    message.isProtocol = reader.bool();
                     break;
                 case /* optional google.protobuf.Timestamp paused_at */ 66:
                     message.pausedAt = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.pausedAt);
@@ -13280,9 +13245,6 @@ class BlockData$Type extends MessageType<BlockData> {
         /* optional symbolx.bench.TypeInfoData builtin_base = 37; */
         if (message.builtinBase)
             TypeInfoData.internalBinaryWrite(message.builtinBase, writer.tag(37, WireType.LengthDelimited).fork(), options).join();
-        /* optional string dynamic_key = 38; */
-        if (message.dynamicKey !== undefined)
-            writer.tag(38, WireType.LengthDelimited).string(message.dynamicKey);
         /* optional symbolx.bench.TextData text = 40; */
         if (message.text)
             TextData.internalBinaryWrite(message.text, writer.tag(40, WireType.LengthDelimited).fork(), options).join();
@@ -13304,24 +13266,15 @@ class BlockData$Type extends MessageType<BlockData> {
         /* repeated symbolx.bench.PolicyData delegated_policies = 46; */
         for (let i = 0; i < message.delegatedPolicies.length; i++)
             PolicyData.internalBinaryWrite(message.delegatedPolicies[i], writer.tag(46, WireType.LengthDelimited).fork(), options).join();
-        /* bool is_page = 60; */
-        if (message.isPage !== false)
-            writer.tag(60, WireType.Varint).bool(message.isPage);
-        /* bool is_module = 61; */
-        if (message.isModule !== false)
-            writer.tag(61, WireType.Varint).bool(message.isModule);
-        /* bool is_unique = 62; */
-        if (message.isUnique !== false)
-            writer.tag(62, WireType.Varint).bool(message.isUnique);
-        /* bool is_intrinsic = 63; */
+        /* bool is_intrinsic = 60; */
         if (message.isIntrinsic !== false)
-            writer.tag(63, WireType.Varint).bool(message.isIntrinsic);
-        /* bool is_protocol = 64; */
+            writer.tag(60, WireType.Varint).bool(message.isIntrinsic);
+        /* bool is_page = 61; */
+        if (message.isPage !== false)
+            writer.tag(61, WireType.Varint).bool(message.isPage);
+        /* bool is_protocol = 62; */
         if (message.isProtocol !== false)
-            writer.tag(64, WireType.Varint).bool(message.isProtocol);
-        /* bool is_method = 65; */
-        if (message.isMethod !== false)
-            writer.tag(65, WireType.Varint).bool(message.isMethod);
+            writer.tag(62, WireType.Varint).bool(message.isProtocol);
         /* optional google.protobuf.Timestamp paused_at = 66; */
         if (message.pausedAt)
             Timestamp.internalBinaryWrite(message.pausedAt, writer.tag(66, WireType.LengthDelimited).fork(), options).join();
@@ -14524,7 +14477,6 @@ class FieldData$Type extends MessageType<FieldData> {
             { no: 22, name: "set_properties", kind: "scalar", repeat: 1 /*RepeatType.PACKED*/, T: 5 /*ScalarType.INT32*/ },
             { no: 30, name: "name", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
             { no: 31, name: "order_key", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
-            { no: 32, name: "dynamic_key", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
             { no: 33, name: "text", kind: "message", T: () => TextData },
             { no: 34, name: "icon", kind: "message", T: () => IconData },
             { no: 35, name: "value_packed", kind: "message", T: () => Struct },
@@ -14626,9 +14578,6 @@ class FieldData$Type extends MessageType<FieldData> {
                     break;
                 case /* string order_key */ 31:
                     message.orderKey = reader.string();
-                    break;
-                case /* optional string dynamic_key */ 32:
-                    message.dynamicKey = reader.string();
                     break;
                 case /* optional symbolx.bench.TextData text */ 33:
                     message.text = TextData.internalBinaryRead(reader, reader.uint32(), options, message.text);
@@ -14757,9 +14706,6 @@ class FieldData$Type extends MessageType<FieldData> {
         /* string order_key = 31; */
         if (message.orderKey !== "")
             writer.tag(31, WireType.LengthDelimited).string(message.orderKey);
-        /* optional string dynamic_key = 32; */
-        if (message.dynamicKey !== undefined)
-            writer.tag(32, WireType.LengthDelimited).string(message.dynamicKey);
         /* optional symbolx.bench.TextData text = 33; */
         if (message.text)
             TextData.internalBinaryWrite(message.text, writer.tag(33, WireType.LengthDelimited).fork(), options).join();
@@ -20146,8 +20092,8 @@ class ViewData$Type extends MessageType<ViewData> {
             { no: 72, name: "expansion", kind: "message", T: () => SelectionData },
             { no: 80, name: "is_visible", kind: "scalar", opt: true, T: 8 /*ScalarType.BOOL*/ },
             { no: 81, name: "is_disabled", kind: "scalar", opt: true, T: 8 /*ScalarType.BOOL*/ },
-            { no: 82, name: "is_loading", kind: "scalar", opt: true, T: 8 /*ScalarType.BOOL*/ },
-            { no: 83, name: "is_input", kind: "scalar", opt: true, T: 8 /*ScalarType.BOOL*/ }
+            { no: 82, name: "is_input", kind: "scalar", opt: true, T: 8 /*ScalarType.BOOL*/ },
+            { no: 83, name: "is_loading", kind: "scalar", opt: true, T: 8 /*ScalarType.BOOL*/ }
         ]);
     }
     create(value?: PartialMessage<ViewData>): ViewData {
@@ -20285,11 +20231,11 @@ class ViewData$Type extends MessageType<ViewData> {
                 case /* optional bool is_disabled */ 81:
                     message.isDisabled = reader.bool();
                     break;
-                case /* optional bool is_loading */ 82:
-                    message.isLoading = reader.bool();
-                    break;
-                case /* optional bool is_input */ 83:
+                case /* optional bool is_input */ 82:
                     message.isInput = reader.bool();
+                    break;
+                case /* optional bool is_loading */ 83:
+                    message.isLoading = reader.bool();
                     break;
                 default:
                     let u = options.readUnknownField;
@@ -20418,12 +20364,12 @@ class ViewData$Type extends MessageType<ViewData> {
         /* optional bool is_disabled = 81; */
         if (message.isDisabled !== undefined)
             writer.tag(81, WireType.Varint).bool(message.isDisabled);
-        /* optional bool is_loading = 82; */
-        if (message.isLoading !== undefined)
-            writer.tag(82, WireType.Varint).bool(message.isLoading);
-        /* optional bool is_input = 83; */
+        /* optional bool is_input = 82; */
         if (message.isInput !== undefined)
-            writer.tag(83, WireType.Varint).bool(message.isInput);
+            writer.tag(82, WireType.Varint).bool(message.isInput);
+        /* optional bool is_loading = 83; */
+        if (message.isLoading !== undefined)
+            writer.tag(83, WireType.Varint).bool(message.isLoading);
         let u = options.writeUnknownFields;
         if (u !== false)
             (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
@@ -21599,7 +21545,6 @@ export enum BlockProperty {
   policies = 35,
   basesPtr = 36,
   builtinBase = 37,
-  dynamicKey = 38,
   text = 40,
   code = 41,
   valuePacked = 42,
@@ -21607,12 +21552,9 @@ export enum BlockProperty {
   icon = 44,
   referencePtr = 45,
   delegatedPolicies = 46,
-  isPage = 60,
-  isModule = 61,
-  isUnique = 62,
-  isIntrinsic = 63,
-  isProtocol = 64,
-  isMethod = 65,
+  isIntrinsic = 60,
+  isPage = 61,
+  isProtocol = 62,
   pausedAt = 66,
 }
 
@@ -21657,7 +21599,6 @@ export enum FieldProperty {
   setProperties = 22,
   name = 30,
   orderKey = 31,
-  dynamicKey = 32,
   text = 33,
   icon = 34,
   valuePacked = 35,
@@ -21762,8 +21703,8 @@ export enum ViewProperty {
   expansion = 72,
   isVisible = 80,
   isDisabled = 81,
-  isLoading = 82,
-  isInput = 83,
+  isInput = 82,
+  isLoading = 83,
 }
 
 export enum StepProperty {
@@ -23561,19 +23502,15 @@ export const BlockDataInfo: Record<BlockProperty, PropertyInfo> = {
   [BlockProperty.visibility]: { id: 34, name: 'visibility', component: BenchType.BLOCK, kind: 'enum', primitiveType: PrimitiveType.INT16, isRuntime: true, isWired: true, isStored: true },
   [BlockProperty.policies]: { id: 35, name: 'policies', component: BenchType.BLOCK, kind: 'reference', primitiveType: PrimitiveType.JSON, isList: true, isRequired: true, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.POLICY },
   [BlockProperty.builtinBase]: { id: 37, name: 'builtin_base', component: BenchType.BLOCK, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.TYPE_INFO },
-  [BlockProperty.dynamicKey]: { id: 38, name: 'dynamic_key', component: BenchType.BLOCK, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [BlockProperty.text]: { id: 40, name: 'text', component: BenchType.BLOCK, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.TEXT },
   [BlockProperty.code]: { id: 41, name: 'code', component: BenchType.BLOCK, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.CODE },
   [BlockProperty.valuePacked]: { id: 42, name: 'value_packed', component: BenchType.BLOCK, kind: 'primitive', primitiveType: PrimitiveType.JSON, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true, isValuePacked: true },
   [BlockProperty.secretValuePacked]: { id: 43, name: 'secret_value_packed', component: BenchType.BLOCK, kind: 'primitive', primitiveType: PrimitiveType.JSON, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true, isDeferred: true, isSensitive: true, isEncrypted: true, isValuePacked: true },
   [BlockProperty.icon]: { id: 44, name: 'icon', component: BenchType.BLOCK, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.ICON },
   [BlockProperty.delegatedPolicies]: { id: 46, name: 'delegated_policies', component: BenchType.BLOCK, kind: 'reference', primitiveType: PrimitiveType.JSON, isList: true, isRequired: true, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.POLICY },
-  [BlockProperty.isPage]: { id: 60, name: 'is_page', component: BenchType.BLOCK, kind: 'primitive', primitiveType: PrimitiveType.BOOLEAN, isRequired: true, isRuntime: true, isWired: true, isStored: true },
-  [BlockProperty.isModule]: { id: 61, name: 'is_module', component: BenchType.BLOCK, kind: 'primitive', primitiveType: PrimitiveType.BOOLEAN, isRequired: true, isRuntime: true, isWired: true, isStored: true },
-  [BlockProperty.isUnique]: { id: 62, name: 'is_unique', component: BenchType.BLOCK, kind: 'primitive', primitiveType: PrimitiveType.BOOLEAN, isRequired: true, isRuntime: true, isWired: true, isStored: true },
-  [BlockProperty.isIntrinsic]: { id: 63, name: 'is_intrinsic', component: BenchType.BLOCK, kind: 'primitive', primitiveType: PrimitiveType.BOOLEAN, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
-  [BlockProperty.isProtocol]: { id: 64, name: 'is_protocol', component: BenchType.BLOCK, kind: 'primitive', primitiveType: PrimitiveType.BOOLEAN, isRequired: true, isRuntime: true, isWired: true, isStored: true },
-  [BlockProperty.isMethod]: { id: 65, name: 'is_method', component: BenchType.BLOCK, kind: 'primitive', primitiveType: PrimitiveType.BOOLEAN, isRequired: true, isRuntime: true, isWired: true, isStored: true },
+  [BlockProperty.isIntrinsic]: { id: 60, name: 'is_intrinsic', component: BenchType.BLOCK, kind: 'primitive', primitiveType: PrimitiveType.BOOLEAN, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
+  [BlockProperty.isPage]: { id: 61, name: 'is_page', component: BenchType.BLOCK, kind: 'primitive', primitiveType: PrimitiveType.BOOLEAN, isRequired: true, isRuntime: true, isWired: true, isStored: true },
+  [BlockProperty.isProtocol]: { id: 62, name: 'is_protocol', component: BenchType.BLOCK, kind: 'primitive', primitiveType: PrimitiveType.BOOLEAN, isRequired: true, isRuntime: true, isWired: true, isStored: true },
   [BlockProperty.pausedAt]: { id: 66, name: 'paused_at', component: BenchType.BLOCK, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [BlockProperty.id]: { id: 2, name: 'id', component: BenchType.BLOCK, kind: 'primitive', primitiveType: PrimitiveType.UUID, isRequired: true, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
   [BlockProperty.setProperties]: { id: 22, name: 'set_properties', component: BenchType.BLOCK, kind: 'primitive', primitiveType: PrimitiveType.INT32, isList: true, isRequired: true, isRuntime: true, isWired: true, isStored: true },
@@ -23618,7 +23555,6 @@ export const FieldDataInfo: Record<FieldProperty, PropertyInfo> = {
   [FieldProperty.metatype]: { id: 1, name: 'metatype', component: BenchType.FIELD, kind: 'enum', primitiveType: PrimitiveType.STRING, isRequired: true, isInternal: true, isComputed: true, isWired: true },
   [FieldProperty.name]: { id: 30, name: 'name', component: BenchType.FIELD, kind: 'primitive', primitiveType: PrimitiveType.STRING, isRuntime: true, isWired: true, isStored: true },
   [FieldProperty.orderKey]: { id: 31, name: 'order_key', component: BenchType.FIELD, kind: 'primitive', primitiveType: PrimitiveType.STRING, isRequired: true, isInternal: true, isRuntime: true, isWired: true, isStored: true },
-  [FieldProperty.dynamicKey]: { id: 32, name: 'dynamic_key', component: BenchType.FIELD, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [FieldProperty.text]: { id: 33, name: 'text', component: BenchType.FIELD, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.TEXT },
   [FieldProperty.icon]: { id: 34, name: 'icon', component: BenchType.FIELD, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.ICON },
   [FieldProperty.valuePacked]: { id: 35, name: 'value_packed', component: BenchType.FIELD, kind: 'primitive', primitiveType: PrimitiveType.JSON, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true, isValuePacked: true },
@@ -23719,8 +23655,8 @@ export const ViewDataInfo: Record<ViewProperty, PropertyInfo> = {
   [ViewProperty.expansion]: { id: 72, name: 'expansion', component: BenchType.VIEW, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.SELECTION },
   [ViewProperty.isVisible]: { id: 80, name: 'is_visible', component: BenchType.VIEW, kind: 'primitive', primitiveType: PrimitiveType.BOOLEAN, isRuntime: true, isWired: true, isStored: true },
   [ViewProperty.isDisabled]: { id: 81, name: 'is_disabled', component: BenchType.VIEW, kind: 'primitive', primitiveType: PrimitiveType.BOOLEAN, isRuntime: true, isWired: true, isStored: true },
-  [ViewProperty.isLoading]: { id: 82, name: 'is_loading', component: BenchType.VIEW, kind: 'primitive', primitiveType: PrimitiveType.BOOLEAN, isRuntime: true, isWired: true, isStored: true },
-  [ViewProperty.isInput]: { id: 83, name: 'is_input', component: BenchType.VIEW, kind: 'primitive', primitiveType: PrimitiveType.BOOLEAN, isRuntime: true, isWired: true, isStored: true },
+  [ViewProperty.isInput]: { id: 82, name: 'is_input', component: BenchType.VIEW, kind: 'primitive', primitiveType: PrimitiveType.BOOLEAN, isRuntime: true, isWired: true, isStored: true },
+  [ViewProperty.isLoading]: { id: 83, name: 'is_loading', component: BenchType.VIEW, kind: 'primitive', primitiveType: PrimitiveType.BOOLEAN, isRuntime: true, isWired: true, isStored: true },
   [ViewProperty.id]: { id: 2, name: 'id', component: BenchType.VIEW, kind: 'primitive', primitiveType: PrimitiveType.UUID, isRequired: true, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
   [ViewProperty.setProperties]: { id: 22, name: 'set_properties', component: BenchType.VIEW, kind: 'primitive', primitiveType: PrimitiveType.INT32, isList: true, isRequired: true, isRuntime: true, isWired: true, isStored: true },
   [ViewProperty.ck]: { id: 3, name: 'ck', component: BenchType.VIEW, kind: 'primitive', primitiveType: PrimitiveType.UUID, isRequired: true, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
