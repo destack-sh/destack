@@ -594,43 +594,16 @@ RECORD_BASE_TABLE = Table(
         Column("updated_at", PrimitiveType.DATETIME, default="now()", _source=12),
         Column("deleted_at", PrimitiveType.DATETIME, is_nullable=True, _source=13),
         Column("archived_at", PrimitiveType.DATETIME, is_nullable=True, _source=14),
-        Column("block_key", PrimitiveType.STRING, _source=20),
     ),
-    indexes=(
-        # for fetching all records of a database
-        Index(
-            "bench_idx_block_key_deleted_at",
-            IndexType.BTREE,
-            columns=("block_key", "deleted_at"),
-        ),
-        Index(
-            "bench_idx_block_key_archive_at",
-            IndexType.BTREE,
-            columns=("block_key", "archived_at"),
-        ),
-        # control the unique index for the ck/block_key
-        # ck + block_key must be unique (order is deliberate to get ck_ and block_key_ indices)
-        Index(
-            "bench_idx_ck_block_key",
-            IndexType.BTREE,
-            is_unique=True,
-            columns=("ck", "block_key"),
-        ),
-    ),
-    constraints=(
-        Constraint(
-            "bench_idx_ck_block_key",
-            ConstraintType.UNIQUE,
-            columns=("ck", "block_key"),
-            index="bench_idx_ck_block_key",
-        ),
-    ),
+    indexes=(),
+    constraints=(),
 )
 # 'hufflepuff' table for ephemeral 'tables' without real tables
 RECORD_EPHEMERAL_TABLE = Table(
     "bench_record_ephemeral",
     columns=(
         *(c.clone() for c in RECORD_BASE_TABLE.columns),
+        Column("block_sk", PrimitiveType.UUID, _source=21),
         Column("block_ck", PrimitiveType.UUID, _source=21),
         Column("block_id", PrimitiveType.UUID, _source=22),
         Column("value_packed", PrimitiveType.JSON, is_nullable=True, _source=30),
@@ -642,7 +615,19 @@ RECORD_EPHEMERAL_TABLE = Table(
             _source=31,
         ),
     ),
-    indexes=(*(i.clone() for i in RECORD_BASE_TABLE.indexes),),
+    indexes=(
+        *(i.clone() for i in RECORD_BASE_TABLE.indexes),
+        Index(
+            "bench_idx_block_ck_deleted_at",
+            IndexType.BTREE,
+            columns=("block_ck", "deleted_at"),
+        ),
+        Index(
+            "bench_idx_block_key_archived_at",
+            IndexType.BTREE,
+            columns=("block_ck", "archived_at"),
+        ),
+    ),
     constraints=(*(c.clone() for c in RECORD_BASE_TABLE.constraints),),
 )
 

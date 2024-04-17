@@ -211,12 +211,12 @@ POSTGRES_SORT_OP_BY_BENCH: dict[SortOp, PostgresSortOp] = {
 }
 
 
-def get_database_table_name(block_ck: UUID) -> str:
+def get_database_table_name(database: Block) -> str:
     """
     Gets the name for a table with the Records of a dynamically created DatabaseBlock.
     NOTE: we rely on this table prefix to remain constant
     """
-    return f"bench_record_{str(block_ck).replace('-', '')}"
+    return f"bench_record_{database.sk.replace('-', '')}"
 
 
 def get_bench_table_name(node_type: NodeType) -> str:
@@ -357,7 +357,7 @@ def map_database_to_pg_table(database: Block) -> Table:
 
     return Table(
         _source=str(database.ck),
-        name=get_database_table_name(database.ck),
+        name=get_database_table_name(database),
         columns=(*(c.clone() for c in RECORD_BASE_TABLE.columns), *columns),
         indexes=(*(i.clone() for i in RECORD_BASE_TABLE.indexes), *indexes),
         constraints=(*(c.clone() for c in RECORD_BASE_TABLE.constraints), *constraints),

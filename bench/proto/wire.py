@@ -159,24 +159,25 @@ class BenchType(betterproto.Enum):
 
 class BlockType(betterproto.Enum):
     UNSPECIFIED = 0
-    PAGE = 1
-    BLANK = 2
-    ALIAS = 3
+    ALIAS = 1
+    PAGE = 2
+    MODULE = 3
+    BLANK = 4
     CLASS = 10
     CHOICE = 11
     SIGNAL = 13
     PROTOCOL = 14
-    VARIABLE = 20
-    MULTI_VARIABLE = 21
     TEXT = 30
     CODE = 31
     SCRIPT = 32
     FLOW = 33
-    QUERY = 40
-    DATABASE = 41
-    SCREEN = 50
-    ROLE = 60
-    IDENTITY = 61
+    VARIABLE = 50
+    MULTI_VARIABLE = 51
+    QUERY = 52
+    DATABASE = 53
+    SCREEN = 70
+    ROLE = 90
+    IDENTITY = 91
 
 
 class ColorShade(betterproto.Enum):
@@ -1662,7 +1663,6 @@ class BlockData(betterproto.Message):
     policies: List["PolicyData"] = betterproto.message_field(35)
     bases_ptr: List["NodeReferenceData"] = betterproto.message_field(36)
     builtin_base: Optional["TypeInfoData"] = betterproto.message_field(37, optional=True)
-    dynamic_key: Optional[str] = betterproto.string_field(38, optional=True)
     text: Optional["TextData"] = betterproto.message_field(40, optional=True)
     code: Optional["CodeData"] = betterproto.message_field(41, optional=True)
     value_packed: Optional["betterproto_lib_google_protobuf.Struct"] = betterproto.message_field(
@@ -1674,12 +1674,9 @@ class BlockData(betterproto.Message):
     icon: Optional["IconData"] = betterproto.message_field(44, optional=True)
     reference_ptr: Optional["NodeReferenceData"] = betterproto.message_field(45, optional=True)
     delegated_policies: List["PolicyData"] = betterproto.message_field(46)
-    is_page: bool = betterproto.bool_field(60)
-    is_module: bool = betterproto.bool_field(61)
-    is_unique: bool = betterproto.bool_field(62)
-    is_intrinsic: bool = betterproto.bool_field(63)
-    is_protocol: bool = betterproto.bool_field(64)
-    is_method: bool = betterproto.bool_field(65)
+    is_intrinsic: bool = betterproto.bool_field(60)
+    is_page: bool = betterproto.bool_field(61)
+    is_protocol: bool = betterproto.bool_field(62)
     paused_at: Optional[datetime] = betterproto.message_field(66, optional=True)
 
 
@@ -1866,7 +1863,6 @@ class FieldData(betterproto.Message):
     set_properties: List[int] = betterproto.int32_field(22)
     name: Optional[str] = betterproto.string_field(30, optional=True)
     order_key: str = betterproto.string_field(31)
-    dynamic_key: Optional[str] = betterproto.string_field(32, optional=True)
     text: Optional["TextData"] = betterproto.message_field(33, optional=True)
     icon: Optional["IconData"] = betterproto.message_field(34, optional=True)
     value_packed: Optional["betterproto_lib_google_protobuf.Struct"] = betterproto.message_field(
@@ -2080,10 +2076,10 @@ class MembershipData(betterproto.Message):
 @dataclass(eq=False, repr=False)
 class BaseNodeData(betterproto.Message):
     """
-    A node in the Bench graph: it's a struct with a globally unique identity.
-     Source nodes also have a constant identifier key (ck) used to derive the id per Package.
-     All template instances keep the first half of the ck constant
-     (so 'all' instances of a node share the first ck half across templates & versions).
+    A node in the Bench graph: a struct with a globally unique identity.
+     Every node has a stable key 'sk', a per 'instance' constant key 'ck' and a per instance 'id'.
+     The 'sk' is just the first half of the 'ck'.
+     For sub package nodes the 'id' is derived from the 'ck' per Package, else it's just the id.
     """
 
     metatype: "BenchType" = betterproto.enum_field(1)
@@ -2725,8 +2721,8 @@ class ViewData(betterproto.Message):
     expansion: Optional["SelectionData"] = betterproto.message_field(72, optional=True)
     is_visible: Optional[bool] = betterproto.bool_field(80, optional=True)
     is_disabled: Optional[bool] = betterproto.bool_field(81, optional=True)
-    is_loading: Optional[bool] = betterproto.bool_field(82, optional=True)
-    is_input: Optional[bool] = betterproto.bool_field(83, optional=True)
+    is_input: Optional[bool] = betterproto.bool_field(82, optional=True)
+    is_loading: Optional[bool] = betterproto.bool_field(83, optional=True)
 
 
 @dataclass(eq=False, repr=False)
@@ -4561,7 +4557,7 @@ class RuntimeBase(ServiceBase):
 
 from typing import TYPE_CHECKING  # noqa: E402
 
-VERSION = "2024.04.16.1"
+VERSION = "2024.04.17.0"
 
 if TYPE_CHECKING:
     from bench.language import Subject

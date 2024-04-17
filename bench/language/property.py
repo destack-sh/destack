@@ -141,7 +141,6 @@ class Property(_TypeQueryBuilder if TYPE_CHECKING else object):
         elif self.primitive_type is not UNSET:
             non_default.append(self.primitive_type.bench_name)
         for k in (
-            "alias",
             "is_list",
             "is_required",
             "is_runtime",

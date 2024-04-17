@@ -120,7 +120,12 @@ def new_struct_id() -> int:
 new_node_id = uuid4
 
 
-def derive_package_node_id(package_id: UUID, ck: UUID):
+def get_stable_ck_part(ck: UUID) -> str:
+    """Gets the stable across templates first half of the ck"""
+    return str(ck)[:8]
+
+
+def derive_source_node_id(package_id: UUID, ck: UUID):
     """Derive the version-specific node id from its constant key"""
     return uuid.uuid5(package_id, str(ck))
 
@@ -1305,10 +1310,10 @@ def _make_rec_method(
 @node_component
 class Node(Struct, _NodeQueryBuilder if TYPE_CHECKING else object):
     """
-    A node in the Bench graph: it's a struct with a globally unique identity.
-    Source nodes also have a constant identifier key (ck) used to derive the id per Package.
-    All template instances keep the first half of the ck constant
-     (so 'all' instances of a node share the first ck half across templates & versions).
+    A node in the Bench graph: a struct with a globally unique identity.
+    Every node has a stable key 'sk', a per 'instance' constant key 'ck' and a per instance 'id'.
+    The 'sk' is just the first half of the 'ck'.
+    For sub package nodes the 'id' is derived from the 'ck' per Package, else it's just the id.
     """
 
     metatype: ClassVar[NodeType]
@@ -1344,8 +1349,6 @@ class Node(Struct, _NodeQueryBuilder if TYPE_CHECKING else object):
     package: "Package" = p_node_ancestor(
         6, NodeType.PACKAGE, require=True, store=True, wire=True, is_bench_implicit=True
     )
-    # TODO :Performance: only encode bench_ptr for wiring if needed
-    #  (we should be able to derive that from package_ptr if that's also present)
     bench: "Bench" = p_node_ancestor(7, NodeType.BENCH, require=True, store=True, wire=True)
     source: NodeSource = p_system(8, default=NodeSource.STORE, store=False, wire=True, require=True)
 
@@ -1426,7 +1429,7 @@ class Node(Struct, _NodeQueryBuilder if TYPE_CHECKING else object):
         assert package_id, f"cannot assign id to {self!r} without a package id"
         assert self.id is None, f"cannot assign id to {self!r} twice"
         assert self.ck is not None, f"cannot assign id to {self!r} without ck"
-        self.id = derive_package_node_id(package_id, self.ck)
+        self.id = derive_source_node_id(package_id, self.ck)
 
     @property
     def _components(self) -> tuple[type["Node"], ...]:
@@ -1503,8 +1506,9 @@ class Node(Struct, _NodeQueryBuilder if TYPE_CHECKING else object):
             return True
 
     @property
-    def scope(self) -> Optional["Node"]:
-        return self.parent
+    def sk(self) -> str:
+        """The stable key of this node lineage."""
+        return get_stable_ck_part(self.ck)
 
     @property
     def identifier_type(self) -> IdentifierType:

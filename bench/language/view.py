@@ -405,8 +405,8 @@ class View(HasViews, HasValues):
     # flags
     is_visible: Optional[bool] = p_regular(80, default=True)
     is_disabled: Optional[bool] = p_regular(81, default=False)
-    is_loading: Optional[bool] = p_regular(82, default=False)
-    is_input: Optional[bool] = p_regular(83, default=False)
+    is_input: Optional[bool] = p_regular(82, default=False)
+    is_loading: Optional[bool] = p_regular(83, default=False)
 
     def __repr__(self):  # noqa: we want to override the default repr
         return f"<{self.type.bench_name}View {self}>"

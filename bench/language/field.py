@@ -10,7 +10,6 @@ from bench.language.const import (
     NodeType,
     NodeVisibility,
     StructType,
-    new_dynamic_node_key,
 )
 from bench.language.expression import _TypeQueryBuilder
 from bench.language.node import Node, NodeList, node, struct, struct_component
@@ -66,10 +65,36 @@ class TypeError(BenchError, TypeError):
         self.suberrors = suberrors or []
 
 
+def encode_type_info_identity(type: "TypeInfoBase") -> str:
+    """Encodes the type info into a key for storage & implicit typing. :TypeInfoEncoding"""
+    # assert type.primitive_type is not None, f"no column type in {type!r}"
+    # key_parts = [str(type.primitive_type.id)]
+    # if type.is_list:
+    #     key_parts.append("a")
+    # if type.is_secret:
+    #     key_parts.append("s")
+    # if type.length:
+    #     key_parts.append(f"l{type.length}")
+    # if type.precision:
+    #     key_parts.append(f"p{type.precision}")
+    # if type.scale:
+    #     key_parts.append(f"s{type.scale}")
+    # if type.base_type:
+    #     key_parts.append(type.base_type.sk)
+    # key = "".join(key_parts)
+    # return key
+    raise NotImplementedError
+
+
+def decode_type_info_identity(identity_key: str) -> "TypeInfoBase":
+    """Decodes the type-related info back from the identity key. :TypeInfoEncoding"""
+    raise NotImplementedError
+
+
 @struct_component
 class TypeInfoBase(HasValues):
     """
-    A type is a kind of value that can go somewhere, typically a field.
+    A type is a kind of value that can go somewhere, typically in place of a Field.
 
     A type is either:
        1. primitive type (= column type, value is scalar, like int32, string, bool, datetime, ...)
@@ -165,22 +190,10 @@ class TypeInfoBase(HasValues):
 
     @property
     def identity_key(self) -> str:
-        """The identity of this type for storing. Different keys mean you won't get the value back out."""
-        assert self.primitive_type is not None, f"no column type in {self!r}"
-        key = str(self.primitive_type.id)
-        if self.is_list:
-            key += "a"
-        if self.is_secret:
-            key += "e"
-        if self.length:
-            key += f"l{self.length}"
-        if self.precision:
-            key += f"p{self.precision}"
-        if self.scale:
-            key += f"s{self.scale}"
-        if self.base_type:
-            key += "-" + self.base_type.dynamic_key
-        return key
+        """
+        The identity of this type for storing. Different keys mean you won't get the value back out.
+        """
+        return encode_type_info_identity(self)
 
     @property
     def is_nested(self) -> bool:
@@ -209,7 +222,6 @@ class Field(Node, TypeInfoBase, _TypeQueryBuilder):
     parent: Union["Block", "Step", None] = p_node_parent(4, NodeType.BLOCK, NodeType.STEP)
     name: str | None = p_regular(30, default=None, validate=validate_name)
     order_key: str = p_internal(31, default=INTEGER_ZERO)
-    dynamic_key: str | None = p_internal(32, default=None)
     text: Optional["Text"] = p_regular(
         33, default=None, require=False, array=False, struct=StructType.TEXT
     )
@@ -259,10 +271,6 @@ class Field(Node, TypeInfoBase, _TypeQueryBuilder):
     def _as_type(self) -> "TypeInfo":
         return self._resolved_type
 
-    def _init_inner(self):
-        if self._is_new:
-            self.dynamic_key = self.dynamic_key or new_dynamic_node_key(self.ck)
-
     def __eq__(self, other):
         return _TypeQueryBuilder.__eq__(self, other)  # override to avoid recursion
 
@@ -275,4 +283,4 @@ class Field(Node, TypeInfoBase, _TypeQueryBuilder):
 
     @property
     def storage_key(self) -> str:
-        return f"{self.dynamic_key}-{self.resolved_type.identity_key}"
+        return f"{self.sk}-{self.resolved_type.identity_key}"

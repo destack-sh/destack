@@ -145,24 +145,25 @@ enum BenchType {
 
 enum BlockType {
   BLOCK_TYPE_UNSPECIFIED = 0;
-  BLOCK_TYPE_PAGE = 1;
-  BLOCK_TYPE_BLANK = 2;
-  BLOCK_TYPE_ALIAS = 3;
+  BLOCK_TYPE_ALIAS = 1;
+  BLOCK_TYPE_PAGE = 2;
+  BLOCK_TYPE_MODULE = 3;
+  BLOCK_TYPE_BLANK = 4;
   BLOCK_TYPE_CLASS = 10;
   BLOCK_TYPE_CHOICE = 11;
   BLOCK_TYPE_SIGNAL = 13;
   BLOCK_TYPE_PROTOCOL = 14;
-  BLOCK_TYPE_VARIABLE = 20;
-  BLOCK_TYPE_MULTI_VARIABLE = 21;
   BLOCK_TYPE_TEXT = 30;
   BLOCK_TYPE_CODE = 31;
   BLOCK_TYPE_SCRIPT = 32;
   BLOCK_TYPE_FLOW = 33;
-  BLOCK_TYPE_QUERY = 40;
-  BLOCK_TYPE_DATABASE = 41;
-  BLOCK_TYPE_SCREEN = 50;
-  BLOCK_TYPE_ROLE = 60;
-  BLOCK_TYPE_IDENTITY = 61;
+  BLOCK_TYPE_VARIABLE = 50;
+  BLOCK_TYPE_MULTI_VARIABLE = 51;
+  BLOCK_TYPE_QUERY = 52;
+  BLOCK_TYPE_DATABASE = 53;
+  BLOCK_TYPE_SCREEN = 70;
+  BLOCK_TYPE_ROLE = 90;
+  BLOCK_TYPE_IDENTITY = 91;
 }
 
 // Built-in color shades a la Tailwind.
@@ -1481,7 +1482,6 @@ message BlockData {
   repeated PolicyData policies = 35;
   repeated NodeReferenceData bases_ptr = 36;
   optional TypeInfoData builtin_base = 37;
-  optional string dynamic_key = 38;
   optional TextData text = 40;
   optional CodeData code = 41;
   optional google.protobuf.Struct value_packed = 42;
@@ -1489,12 +1489,9 @@ message BlockData {
   optional IconData icon = 44;
   optional NodeReferenceData reference_ptr = 45;
   repeated PolicyData delegated_policies = 46;
-  bool is_page = 60;
-  bool is_module = 61;
-  bool is_unique = 62;
-  bool is_intrinsic = 63;
-  bool is_protocol = 64;
-  bool is_method = 65;
+  bool is_intrinsic = 60;
+  bool is_page = 61;
+  bool is_protocol = 62;
   optional google.protobuf.Timestamp paused_at = 66;
 }
 
@@ -1663,7 +1660,6 @@ message FieldData {
   repeated int32 set_properties = 22;
   optional string name = 30;
   string order_key = 31;
-  optional string dynamic_key = 32;
   optional TextData text = 33;
   optional IconData icon = 34;
   optional google.protobuf.Struct value_packed = 35;
@@ -1846,10 +1842,10 @@ message MembershipData {
   bool is_owner = 31;
 }
 
-// A node in the Bench graph: it's a struct with a globally unique identity.
-// Source nodes also have a constant identifier key (ck) used to derive the id per Package.
-// All template instances keep the first half of the ck constant
-// (so 'all' instances of a node share the first ck half across templates & versions).
+// A node in the Bench graph: a struct with a globally unique identity.
+// Every node has a stable key 'sk', a per 'instance' constant key 'ck' and a per instance 'id'.
+// The 'sk' is just the first half of the 'ck'.
+// For sub package nodes the 'id' is derived from the 'ck' per Package, else it's just the id.
 message BaseNodeData {
   BenchType metatype = 1;
   string id = 2;
@@ -2392,8 +2388,8 @@ message ViewData {
   optional SelectionData expansion = 72;
   optional bool is_visible = 80;
   optional bool is_disabled = 81;
-  optional bool is_loading = 82;
-  optional bool is_input = 83;
+  optional bool is_input = 82;
+  optional bool is_loading = 83;
 }
 
 message SomeNodeData {
