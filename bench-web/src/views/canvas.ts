@@ -33,6 +33,7 @@ import type { Transaction } from "@/system/transaction";
 import type { SplitAnchor } from "@/utils/drag";
 import { getElement } from "@/utils/element";
 import { generateOrderKey } from "@/utils/fractional";
+import { IS_DEBUG, isDeveloperMode } from "@/utils/globals";
 import { DEFAULT_ORIENTATION, splitBox } from "@/utils/layout";
 import { log } from "@/utils/log";
 import { toValueRef } from "@/utils/ref";
@@ -527,9 +528,9 @@ export class ViewCanvas {
           delete this.viewRefsById.value[oldComponentId];
         const componentId = self.value?.id ?? id?.value!;
         const existingComponent = this.viewRefsById.value[componentId];
-        if (existingComponent != null) {
+        if (existingComponent != null && (IS_DEBUG || isDeveloperMode.value)) {
           // NOTE: checking for duplicate components only works reliably on next tick
-          //  because we may be registering a new component before the old component is unmounted
+          //  (because we may be registering a new component before the old component is unmounted)
           nextTick(() => {
             if (
               (existingComponent as any).vnode?.el != null &&

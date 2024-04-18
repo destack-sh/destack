@@ -323,7 +323,7 @@ defineExpose<ViewExposed>({ self, actions, focus });
             return {
               kind: 'menu',
               placement: 'bottom-right',
-              items: menuActionsLike({ wildcard: ['common.sense.*', 'common.edit.*'] }, { context }),
+              items: menuActionsLike(['common.sense.*', 'common.edit.*'], { context }),
               context,
             };
           }

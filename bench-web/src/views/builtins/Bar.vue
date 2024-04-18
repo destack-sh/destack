@@ -45,47 +45,47 @@ const BENCH_MENU_ITEMS = computed(() => {
     // main
     {
       id: "omnibar",
-      type: 'generic',
+      type: "generic",
       category: "main",
       icon: "fas fa-magnifying-glass",
       title: "Search",
-      action: { items: menuActionsLike({ wildcard: ["space.omnibar*", "common.search*"] }) },
+      action: { items: menuActionsLike(["space.omnibar*", "common.search*"]) },
     },
     {
       id: "view",
-      type: 'generic',
+      type: "generic",
       category: "main",
       icon: ICON_BY_NODE_TYPE[NodeType.VIEW],
       title: "View",
-      action: { items: menuActionsLike({ wildcard: ["view*"] }) },
+      action: { items: menuActionsLike(["view*"]) },
     },
     {
       id: "edit",
-      type: 'generic',
+      type: "generic",
       category: "main",
       icon: "fas fa-hammer",
       title: "Edit",
       action: {
-        items: menuActionsLike({ wildcard: ["common.history*", "common.edit*", "common.move*"] }),
+        items: menuActionsLike(["common.history*", "common.edit*", "common.move*"]),
       },
     },
     {
       id: "sense",
-      type: 'generic',
+      type: "generic",
       category: "main",
       icon: "fas fa-telescope",
       title: "Analyze",
       action: {
-        items: [menuItemFromAction("space.launch.inspect"), ...menuActionsLike({ wildcard: ["common.sense*"] })],
+        items: [menuItemFromAction("space.launch.inspect"), ...menuActionsLike(["common.sense*"])],
       },
     },
     {
       id: "session",
-      type: 'generic',
+      type: "generic",
       category: "main",
       icon: "fas fa-play",
       title: "Run",
-      action: { items: menuActionsLike({ wildcard: ["common.session*"] }) },
+      action: { items: menuActionsLike(["common.session*"]) },
     },
     // extra
     menuItemFromAction("space.launch.explorer"),
@@ -98,11 +98,11 @@ const BENCH_MENU_ITEMS = computed(() => {
   if (isDeveloperMode.value) {
     items.push({
       id: "developer",
-      type: 'generic',
+      type: "generic",
       category: "developer",
       icon: "fas fa-binary",
       title: "Developer",
-      action: { items: menuActionsLike({ wildcard: ["developer*"] }) },
+      action: { items: menuActionsLike(["developer*"]) },
     });
   }
 
@@ -283,7 +283,7 @@ const USER_MENU_ITEMS = computed(() => {
         <div v-if="isDeveloperMode">
           <span
             class="select-none text-hint-700"
-            v-tooltip="{icon: 'fas fa-binary', title: 'Developer Mode Enabled'} as TooltipInfo"
+            v-tooltip="{ icon: 'fas fa-binary', title: 'Developer Mode Enabled' } as TooltipInfo"
           >
             <button class="hover:text-hint-800" @click="fireActionById('developer.misc.toggleDeveloperMode')">
               <i class="fas fa-binary" />

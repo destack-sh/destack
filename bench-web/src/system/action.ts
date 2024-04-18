@@ -287,7 +287,8 @@ export type ActionFilter = {
  * Filters actions with a simple OR filter of clauses.
  * The order of the input filter is preserved in order of matching.
  */
-export function getActionsLike(like: ActionFilter): Action[] {
+export function getActionsLike(like: ActionFilter | string[]): Action[] {
+  like = Array.isArray(like) ? { wildcard: like } : like;
   const wildcards = (like.wildcard == null ? [] : Array.isArray(like.wildcard) ? like.wildcard : [like.wildcard]).map(
     (w) => new RegExp("^" + w.toLowerCase().replace(/\*/g, ".*") + "$"),
   );
@@ -758,34 +759,37 @@ declareActionMap<"common">({
 declareActionMap<"text">({
   // format
   "text.format.bold": {
+    type: "toggle",
     icon: "fas fa-bold",
     title: "Bold",
     text: "Bold text",
     shortcuts: ["mod+b"],
   },
   "text.format.italic": {
+    type: "toggle",
     icon: "fas fa-italic",
     title: "Italic",
     text: "Italicize text",
     shortcuts: ["mod+i"],
   },
   "text.format.strikethrough": {
+    type: "toggle",
     icon: "fas fa-strikethrough",
     title: "Strikethrough",
     text: "Strikethrough text",
-    shortcuts: ["mod+shift+x"],
   },
   "text.format.underline": {
+    type: "toggle",
     icon: "fas fa-underline",
     title: "Underline",
     text: "Underline text",
     shortcuts: ["mod+u"],
   },
   "text.format.code": {
+    type: "toggle",
     icon: "fas fa-code",
     title: "Code",
     text: "Code text",
-    shortcuts: ["mod+`"],
   },
 });
 

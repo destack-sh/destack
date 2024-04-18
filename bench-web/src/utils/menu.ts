@@ -87,7 +87,7 @@ export function menuItemFromAction(
 
 /** Convenience wrapper around action filter & menu item mapping */
 export function menuActionsLike(
-  filter: ActionFilter,
+  filter: ActionFilter | string[],
   override?: Partial<MenuItem> & { context?: MenuContext },
 ): MenuItem[] {
   const contextViews = getMenuContextViews(override?.context);
@@ -119,6 +119,7 @@ export type OverlayMenuInfo = (
       context?: MenuContext;
     }
 ) & {
+  dontFocus?: boolean;
   onApply?(value?: any): void;
   onClose?(): void;
 } & FloatingOptions;

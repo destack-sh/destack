@@ -120,7 +120,8 @@ defineExpose<ViewExposed>({ self, id, actions, focus });
     <div class="py-1">
       nocheckin: Body
       <Text
-        title="my text"
+        is-input
+        :variant="Variant.STEALTH"
         :model-value="block.text"
         @update:modelValue="
           (newText) => {
