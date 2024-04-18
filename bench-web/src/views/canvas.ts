@@ -506,13 +506,14 @@ export class ViewCanvas {
     // mark element with component
     function markEl() {
       // NOTE: we enforce that el must be a single element for all Views with a lint rule
+      //  (unfortunately this doesn't prevent comments from forcing the root into a #text node, so we just error below)
       const el = (instance as any).vnode.el as HTMLElement | null;
       if (!el) {
         log.warn("canvas.missingEl", getVueComponentType(instance), instance);
       } else {
         (el as any).__viewComponent = instance;
         if ("dataset" in el) el.dataset.view = "true";
-        // else.. is this an error? why are there still #text nodes?
+        else throw new Error(`invalid root element in ${getVueComponentType(instance)}: ${el}`);
       }
     }
     onMounted(markEl);

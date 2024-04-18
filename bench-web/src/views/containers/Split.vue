@@ -123,7 +123,6 @@ canvas.registerView(self);
 defineExpose<ViewExposed>({ self, actions });
 </script>
 <template>
-  <!-- Container -->
   <div
     ref="containerRef"
     class="relative bg-gray-100"
