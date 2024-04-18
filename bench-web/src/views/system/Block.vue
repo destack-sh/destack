@@ -15,10 +15,12 @@ import type { TooltipInfo } from "@/utils/tooltip";
 import type { ActionMapImplementation } from "@/system/action";
 import PlainText from "@/views/content/PlainText.vue";
 import type { OverlayMenuInfo } from "@/utils/menu";
-import { isDeveloperMode } from "@/utils/globals";
 
 const props = defineProps<
-  { self?: NodeReferenceData; preparedConnection?: PreparedGetConnection } & Pick<ViewData, "nodePtr">
+  { self?: TypedNodeReferenceData<NodeType.VIEW>; preparedConnection?: PreparedGetConnection } & Pick<
+    ViewData,
+    "nodePtr"
+  >
 >();
 const emit = defineEmits(viewEmits());
 const self = toRef(props, "self");

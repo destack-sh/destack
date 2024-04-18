@@ -22,6 +22,7 @@ import { startDragging, useMultiDropZone } from "@/utils/drag";
 import { ScrollbarWidth } from "@/utils/layout";
 import { menuActionsLike, type OverlayMenuInfo } from "@/utils/menu";
 import { computedValue } from "@/utils/ref";
+import type { ViewComponent } from "@/views";
 import { viewEmits, type FocusAnchor, type ViewExposed } from "@/views/common";
 import Scroll from "@/views/containers/Scroll.vue";
 import Picker from "@/views/content/Picker.vue";
@@ -32,7 +33,7 @@ import { computed, ref, toRef, watch, type Ref, nextTick } from "vue";
 
 const HEADER_HEIGHT = 24;
 const DEPTH_OFFSET = 40;
-const MIN_BLOCK_WIDTH = 600;
+const MIN_BLOCK_WIDTH = 500;
 const MAX_BLOCK_WIDTH = 800;
 const MIN_GUTTER_WIDTH = 80;
 const ROOT_BLOCK_GAP_Y = 16;
@@ -59,6 +60,7 @@ const preparedPkgConnection = useGetConnection(
 );
 const { graph: pkgGraph, connection: pkgConnection } = preparedPkgConnection;
 const page = pkgGraph.getRef(toRef(props, "nodePtr")) as Ref<BlockData | undefined>;
+const selfBlockRef = ref<InstanceType<typeof Block> | null>(null);
 const { items: expandedItems } = walkDescendantsRef({
   graph: pkgGraph,
   rootPtr: toRef(props, "nodePtr"),
@@ -241,6 +243,10 @@ function focus(anchor: FocusAnchor | NodeReferenceData) {
   return false;
 }
 
+// function mapToNode(element: HTMLElement | ViewComponent): NodeReferenceData | null {
+//   // nocheckin: keep inspection/base if clicking outside Block element (e.g. to add block)
+// }
+
 canvas.registerView(self);
 defineExpose<ViewExposed>({ self, actions, focus });
 </script>
@@ -270,15 +276,16 @@ defineExpose<ViewExposed>({ self, actions, focus });
       <div ref="contentRef" class="mb-16 flex flex-col">
         <!-- Self Block (=this Page block) -->
         <div
-          class="mb-2 w-full border-b py-1.5"
+          class="mb-2 min-w-fit border-b py-1.5"
           :class="[
             props.nodePtr?.id == focusedNodePtr?.id ? 'border-primary-900' : 'border-gray-200',
             props.nodePtr?.id == inspectionPtr?.id ? 'bg-primary-100' : 'bg-white',
           ]"
         >
           <Block
+            ref="selfBlockRef"
             class=""
-            :style="{ width: widths.block + 'px', marginLeft: widths.gutter + 'px' }"
+            :style="{ width: widths.block + 'px', marginLeft: widths.gutter + 'px', marginRight: widths.gutter + 'px' }"
             :node-ptr="props.nodePtr"
             :prepared-connection="preparedPkgConnection"
           />
@@ -289,7 +296,7 @@ defineExpose<ViewExposed>({ self, actions, focus });
         <div
           v-for="({ nodePtr: blockPtr, depth }, i) in expandedItems"
           :key="blockPtr.id"
-          class="group/block-line relative flex flex-row"
+          class="group/block-line relative flex min-w-fit flex-row"
           :style="{
             marginTop: depth == 0 ? ROOT_BLOCK_GAP_Y + 'px' : '0',
           }"
@@ -334,6 +341,7 @@ defineExpose<ViewExposed>({ self, actions, focus });
                 })},
                 onApply: (blockType: BlockType) => createBlock({ type: blockType }, anchor == 'start' ? 'before' : 'after', blockPtr),
               })"
+              data-keep-inspection-in-base="true"
             >
               <!-- Line with a gap for the button -->
               <div class="relative">
@@ -355,7 +363,7 @@ defineExpose<ViewExposed>({ self, actions, focus });
             <!-- Block -->
             <Block
               :ref="(ref: any) => ref ? (expandedBlockRefs[blockPtr.id!] = ref) : delete expandedBlockRefs[blockPtr.id!]"
-              class="rounded-md border"
+              class="w-full rounded-md border"
               :class="[
                 blockPtr.id == focusedNodePtr?.id ? 'border-primary-900' : 'border-gray-200 hover:border-primary-900',
                 blockPtr.id == inspectionPtr?.id ? 'bg-primary-100' : 'bg-white',

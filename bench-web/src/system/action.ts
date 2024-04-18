@@ -447,12 +447,12 @@ watch(
 // declare common actions
 declareActionMap<"common">({
   "common.create.above": {
-    icon: "fas fa-arrow-up",
+    icon: "fas fa-angles-up",
     title: "Create Above",
     text: "Create a new item above the current item",
   },
   "common.create.below": {
-    icon: "fas fa-arrow-down",
+    icon: "fas fa-angles-down",
     title: "Create Below",
     text: "Create a new item below the current item",
   },

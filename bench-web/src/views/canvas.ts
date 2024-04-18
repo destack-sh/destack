@@ -22,21 +22,16 @@ import {
   toNodeReference,
   typeNodeReferenceMaybe,
   type AnyNodeReferenceData,
-  type TypedNodeReferenceData
+  type TypedNodeReferenceData,
 } from "@/proto/wiring";
 import type { GraphConnection } from "@/system/connection";
 import { generateNodeName, isDescendantOf, type NodeKey, type ReadNodeGraph } from "@/system/graph";
 import { toIconMaybe } from "@/system/icon";
-import {
-  NODE_VIEW_TYPES,
-  RIDEALONG_VIEW_TYPES,
-  ROOT_VIEW_TYPES,
-  getOrderKey,
-  updateOrder
-} from "@/system/lang";
+import { NODE_VIEW_TYPES, RIDEALONG_VIEW_TYPES, ROOT_VIEW_TYPES, getOrderKey, updateOrder } from "@/system/lang";
 import { inspectionBasePtr, inspectionPtr } from "@/system/space";
 import type { Transaction } from "@/system/transaction";
 import type { SplitAnchor } from "@/utils/drag";
+import { getElement } from "@/utils/element";
 import { generateOrderKey } from "@/utils/fractional";
 import { DEFAULT_ORIENTATION, splitBox } from "@/utils/layout";
 import { log } from "@/utils/log";
@@ -51,6 +46,7 @@ import {
   nextTick,
   onBeforeUnmount,
   onMounted,
+  onUpdated,
   shallowRef,
   triggerRef,
   watch,
@@ -286,17 +282,21 @@ export class ViewCanvas {
       const baseView = this.graph.getMaybe(baseViewPtr);
       const nodeView = viewComponents.find((v) => isViewComponentIn(v, NODE_VIEW_TYPES));
       const linkedNodePtr = nodeView && element ? this.getViewNodePtr(nodeView, element) : null;
+      const keepInspectionInBase =
+        getElement(element)?.closest("[data-keep-inspection-in-base]") != null &&
+        inspectionBasePtr.value != null &&
+        isDescendantOf(this.graph, inspectionBasePtr.value, linkedNodePtr);
+
       if (
         baseView != null &&
         linkedNodePtr != null &&
         !RIDEALONG_VIEW_TYPES.has(baseView.type) &&
-        linkedNodePtr != inspectionPtr.value?.id
+        linkedNodePtr != inspectionPtr.value?.id &&
+        !keepInspectionInBase
       ) {
         this.inspect(tx, { node: linkedNodePtr, view: this.focusedViewPtr.value! });
       }
-
-      // update graph focus state
-      if (this.focusedViewPtr.value != null && wasDifferent) {
+      if (this.focusedViewPtr.value != null && wasDifferent && !keepInspectionInBase) {
         const focusInView = makeSelectionMaybe(linkedNodePtr);
         this.focusInGraph(tx, { view: this.focusedViewPtr.value, focus: focusInView });
       }
@@ -502,11 +502,19 @@ export class ViewCanvas {
     if (instance == null) throw new Error("no current Vue instance");
 
     // mark element with component
-    onMounted(() => {
+    function markEl() {
       // NOTE: we enforce that el must be a single element for all Views with a lint rule
-      if ((instance as any).vnode.el == null) console.warn("canvas.missingEl", getVueComponentType(instance), instance);
-      else (instance as any).vnode.el.__viewComponent = instance;
-    });
+      const el = (instance as any).vnode.el as HTMLElement | null;
+      if (!el) {
+        console.warn("canvas.missingEl", getVueComponentType(instance), instance);
+      } else {
+        (el as any).__viewComponent = instance;
+        if ("dataset" in el) el.dataset.view = "true";
+        // else.. is this an error? why are there still #text nodes?
+      }
+    }
+    onMounted(markEl);
+    onUpdated(markEl);
 
     // register
     // NOTE @Cleanup: 'self'/'id' should never change, so no need to watch in Canvas.registerView?
