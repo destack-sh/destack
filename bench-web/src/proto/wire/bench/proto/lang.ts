@@ -1471,7 +1471,7 @@ export interface TextData {
     lines: TextLineData[];
 }
 /**
- * TextLine(type: bench.language.text.TextLineType = <TextLineType.PLAIN: 1>, spans: list['TextSpan'] = None, id: Optional[int] = <factory>, parent: Union[ForwardRef('Struct'), ForwardRef('Node'), ForwardRef('Value'), NoneType] = None, order_key: str | None = None, set_properties: list[int] = <factory>, _status: bench.language.const.InterpStatus = None, _updated_properties: bitarray.bitarray | None = None, color: Optional[ForwardRef('ColorType')] = None, is_bold: bool = False, is_italic: bool = False, is_strikethrough: bool = False, is_underline: bool = False, is_code: bool = False, parent_id: int = None, parent_key: str = None)
+ * TextLine(type: bench.language.text.TextLineType = <TextLineType.PLAIN: 1>, spans: list['TextSpan'] = None, id: Optional[int] = <factory>, parent: Union[ForwardRef('Struct'), ForwardRef('Node'), ForwardRef('Value'), NoneType] = None, order_key: str | None = None, set_properties: list[int] = <factory>, _status: bench.language.const.InterpStatus = None, _updated_properties: bitarray.bitarray | None = None, color: Optional[ForwardRef('ColorType')] = None, is_bold: Optional[bool] = None, is_italic: Optional[bool] = None, is_strikethrough: Optional[bool] = None, is_underline: Optional[bool] = None, is_code: Optional[bool] = None, parent_id: int = None, parent_key: str = None)
  *
  * @generated from protobuf message symbolx.bench.TextLineData
  */
@@ -1513,28 +1513,28 @@ export interface TextLineData {
      */
     color?: ColorType;
     /**
-     * @generated from protobuf field: bool is_bold = 60;
+     * @generated from protobuf field: optional bool is_bold = 60;
      */
-    isBold: boolean;
+    isBold?: boolean;
     /**
-     * @generated from protobuf field: bool is_italic = 61;
+     * @generated from protobuf field: optional bool is_italic = 61;
      */
-    isItalic: boolean;
+    isItalic?: boolean;
     /**
-     * @generated from protobuf field: bool is_strikethrough = 62;
+     * @generated from protobuf field: optional bool is_strikethrough = 62;
      */
-    isStrikethrough: boolean;
+    isStrikethrough?: boolean;
     /**
-     * @generated from protobuf field: bool is_underline = 63;
+     * @generated from protobuf field: optional bool is_underline = 63;
      */
-    isUnderline: boolean;
+    isUnderline?: boolean;
     /**
-     * @generated from protobuf field: bool is_code = 64;
+     * @generated from protobuf field: optional bool is_code = 64;
      */
-    isCode: boolean;
+    isCode?: boolean;
 }
 /**
- * TextSpan(content: str | None = None, node: Optional[bench.language.node.Node] = None, id: Optional[int] = <factory>, parent: Union[ForwardRef('Struct'), ForwardRef('Node'), ForwardRef('Value'), NoneType] = None, _status: bench.language.const.InterpStatus = None, _updated_properties: bitarray.bitarray | None = None, color: Optional[ForwardRef('ColorType')] = None, is_bold: bool = False, is_italic: bool = False, is_strikethrough: bool = False, is_underline: bool = False, is_code: bool = False, node_ptr: 'NodeReference' = None, parent_id: int = None, parent_key: str = None)
+ * TextSpan(content: Optional[str] = None, node: Optional[bench.language.node.Node] = None, id: Optional[int] = <factory>, parent: Union[ForwardRef('Struct'), ForwardRef('Node'), ForwardRef('Value'), NoneType] = None, _status: bench.language.const.InterpStatus = None, _updated_properties: bitarray.bitarray | None = None, color: Optional[ForwardRef('ColorType')] = None, is_bold: Optional[bool] = None, is_italic: Optional[bool] = None, is_strikethrough: Optional[bool] = None, is_underline: Optional[bool] = None, is_code: Optional[bool] = None, node_ptr: 'NodeReference' = None, parent_id: int = None, parent_key: str = None)
  *
  * @generated from protobuf message symbolx.bench.TextSpanData
  */
@@ -1560,25 +1560,25 @@ export interface TextSpanData {
      */
     color?: ColorType;
     /**
-     * @generated from protobuf field: bool is_bold = 60;
+     * @generated from protobuf field: optional bool is_bold = 60;
      */
-    isBold: boolean;
+    isBold?: boolean;
     /**
-     * @generated from protobuf field: bool is_italic = 61;
+     * @generated from protobuf field: optional bool is_italic = 61;
      */
-    isItalic: boolean;
+    isItalic?: boolean;
     /**
-     * @generated from protobuf field: bool is_strikethrough = 62;
+     * @generated from protobuf field: optional bool is_strikethrough = 62;
      */
-    isStrikethrough: boolean;
+    isStrikethrough?: boolean;
     /**
-     * @generated from protobuf field: bool is_underline = 63;
+     * @generated from protobuf field: optional bool is_underline = 63;
      */
-    isUnderline: boolean;
+    isUnderline?: boolean;
     /**
-     * @generated from protobuf field: bool is_code = 64;
+     * @generated from protobuf field: optional bool is_code = 64;
      */
-    isCode: boolean;
+    isCode?: boolean;
 }
 /**
  * TypeInfo(id: Optional[int] = <factory>, parent: Union[ForwardRef('Struct'), ForwardRef('Node'), ForwardRef('Value'), NoneType] = None, order_key: str | None = None, set_properties: list[int] = <factory>, _status: bench.language.const.InterpStatus = None, _updated_properties: bitarray.bitarray | None = None, primitive_type: Optional[bench.language.const.PrimitiveType] = None, bench_type: Optional[bench.utils.func.BenchType] = None, base_type: Optional[ForwardRef('Block')] = None, visibility: bench.language.const.NodeVisibility = <NodeVisibility.ALL: 10>, format_hint: Optional[bench.language.const.FormatHint] = None, condition: Optional[ForwardRef('Expression')] = None, length: Optional[int] = None, precision: Optional[int] = None, scale: Optional[int] = None, default_packed: Optional[Any] = None, default: None = None, is_list: bool = False, is_required: bool = False, is_secret: bool = False, _fields: tuple['Field', ...] | None = None, _resolved_type: Optional[ForwardRef('TypeInfo')] = None, parent_id: int = None, parent_key: str = None, base_type_ptr: 'NodeReference' = None)
@@ -6112,13 +6112,17 @@ export enum BenchType {
      */
     FORMAT_HINT = 2081,
     /**
+     * @generated from protobuf enum value: BENCH_TYPE_TEXT_LINE_TYPE = 2090;
+     */
+    TEXT_LINE_TYPE = 2090,
+    /**
      * @generated from protobuf enum value: BENCH_TYPE_FILE_STATUS = 2100;
      */
     FILE_STATUS = 2100,
     /**
-     * @generated from protobuf enum value: BENCH_TYPE_FILE_RETENTION_MODE = 21012;
+     * @generated from protobuf enum value: BENCH_TYPE_FILE_RETENTION_MODE = 2101;
      */
-    FILE_RETENTION_MODE = 21012,
+    FILE_RETENTION_MODE = 2101,
     /**
      * @generated from protobuf enum value: BENCH_TYPE_STEP_TYPE = 2150;
      */
@@ -6732,13 +6736,17 @@ export enum EnumType {
      */
     FORMAT_HINT = 2081,
     /**
+     * @generated from protobuf enum value: ENUM_TYPE_TEXT_LINE_TYPE = 2090;
+     */
+    TEXT_LINE_TYPE = 2090,
+    /**
      * @generated from protobuf enum value: ENUM_TYPE_FILE_STATUS = 2100;
      */
     FILE_STATUS = 2100,
     /**
-     * @generated from protobuf enum value: ENUM_TYPE_FILE_RETENTION_MODE = 21012;
+     * @generated from protobuf enum value: ENUM_TYPE_FILE_RETENTION_MODE = 2101;
      */
-    FILE_RETENTION_MODE = 21012,
+    FILE_RETENTION_MODE = 2101,
     /**
      * @generated from protobuf enum value: ENUM_TYPE_STEP_TYPE = 2150;
      */
@@ -8886,33 +8894,37 @@ export enum TextLineType {
      */
     PLAIN = 1,
     /**
-     * @generated from protobuf enum value: TEXT_LINE_TYPE_HEADING_SMALL = 6;
+     * @generated from protobuf enum value: TEXT_LINE_TYPE_HEADING_SMALL = 10;
      */
-    HEADING_SMALL = 6,
+    HEADING_SMALL = 10,
     /**
-     * @generated from protobuf enum value: TEXT_LINE_TYPE_HEADING_MEDIUM = 7;
+     * @generated from protobuf enum value: TEXT_LINE_TYPE_HEADING_MEDIUM = 11;
      */
-    HEADING_MEDIUM = 7,
+    HEADING_MEDIUM = 11,
     /**
-     * @generated from protobuf enum value: TEXT_LINE_TYPE_HEADING_LARGE = 8;
+     * @generated from protobuf enum value: TEXT_LINE_TYPE_HEADING_LARGE = 12;
      */
-    HEADING_LARGE = 8,
+    HEADING_LARGE = 12,
     /**
-     * @generated from protobuf enum value: TEXT_LINE_TYPE_CALLOUT = 12;
+     * @generated from protobuf enum value: TEXT_LINE_TYPE_CALLOUT = 20;
      */
-    CALLOUT = 12,
+    CALLOUT = 20,
     /**
-     * @generated from protobuf enum value: TEXT_LINE_TYPE_LIST_BULLET = 16;
+     * @generated from protobuf enum value: TEXT_LINE_TYPE_QUOTE = 21;
      */
-    LIST_BULLET = 16,
+    QUOTE = 21,
     /**
-     * @generated from protobuf enum value: TEXT_LINE_TYPE_LIST_NUMBERED = 17;
+     * @generated from protobuf enum value: TEXT_LINE_TYPE_LIST_BULLET = 30;
      */
-    LIST_NUMBERED = 17,
+    LIST_BULLET = 30,
     /**
-     * @generated from protobuf enum value: TEXT_LINE_TYPE_DIVIDER = 21;
+     * @generated from protobuf enum value: TEXT_LINE_TYPE_LIST_NUMBERED = 31;
      */
-    DIVIDER = 21
+    LIST_NUMBERED = 31,
+    /**
+     * @generated from protobuf enum value: TEXT_LINE_TYPE_DIVIDER = 40;
+     */
+    DIVIDER = 40
 }
 /**
  * Triggers for blocks (for both actual runs and pre-defined triggers).
@@ -12912,11 +12924,11 @@ class TextLineData$Type extends MessageType<TextLineData> {
             { no: 30, name: "type", kind: "enum", T: () => ["symbolx.bench.TextLineType", TextLineType, "TEXT_LINE_TYPE_"] },
             { no: 33, name: "spans", kind: "message", repeat: 1 /*RepeatType.PACKED*/, T: () => TextSpanData },
             { no: 50, name: "color", kind: "enum", opt: true, T: () => ["symbolx.bench.ColorType", ColorType, "COLOR_TYPE_"] },
-            { no: 60, name: "is_bold", kind: "scalar", T: 8 /*ScalarType.BOOL*/ },
-            { no: 61, name: "is_italic", kind: "scalar", T: 8 /*ScalarType.BOOL*/ },
-            { no: 62, name: "is_strikethrough", kind: "scalar", T: 8 /*ScalarType.BOOL*/ },
-            { no: 63, name: "is_underline", kind: "scalar", T: 8 /*ScalarType.BOOL*/ },
-            { no: 64, name: "is_code", kind: "scalar", T: 8 /*ScalarType.BOOL*/ }
+            { no: 60, name: "is_bold", kind: "scalar", opt: true, T: 8 /*ScalarType.BOOL*/ },
+            { no: 61, name: "is_italic", kind: "scalar", opt: true, T: 8 /*ScalarType.BOOL*/ },
+            { no: 62, name: "is_strikethrough", kind: "scalar", opt: true, T: 8 /*ScalarType.BOOL*/ },
+            { no: 63, name: "is_underline", kind: "scalar", opt: true, T: 8 /*ScalarType.BOOL*/ },
+            { no: 64, name: "is_code", kind: "scalar", opt: true, T: 8 /*ScalarType.BOOL*/ }
         ]);
     }
     create(value?: PartialMessage<TextLineData>): TextLineData {
@@ -12925,11 +12937,6 @@ class TextLineData$Type extends MessageType<TextLineData> {
         message.setProperties = [];
         message.type = 0;
         message.spans = [];
-        message.isBold = false;
-        message.isItalic = false;
-        message.isStrikethrough = false;
-        message.isUnderline = false;
-        message.isCode = false;
         if (value !== undefined)
             reflectionMergePartial<TextLineData>(this, message, value);
         return message;
@@ -12970,19 +12977,19 @@ class TextLineData$Type extends MessageType<TextLineData> {
                 case /* optional symbolx.bench.ColorType color */ 50:
                     message.color = reader.int32();
                     break;
-                case /* bool is_bold */ 60:
+                case /* optional bool is_bold */ 60:
                     message.isBold = reader.bool();
                     break;
-                case /* bool is_italic */ 61:
+                case /* optional bool is_italic */ 61:
                     message.isItalic = reader.bool();
                     break;
-                case /* bool is_strikethrough */ 62:
+                case /* optional bool is_strikethrough */ 62:
                     message.isStrikethrough = reader.bool();
                     break;
-                case /* bool is_underline */ 63:
+                case /* optional bool is_underline */ 63:
                     message.isUnderline = reader.bool();
                     break;
-                case /* bool is_code */ 64:
+                case /* optional bool is_code */ 64:
                     message.isCode = reader.bool();
                     break;
                 default:
@@ -13028,20 +13035,20 @@ class TextLineData$Type extends MessageType<TextLineData> {
         /* optional symbolx.bench.ColorType color = 50; */
         if (message.color !== undefined)
             writer.tag(50, WireType.Varint).int32(message.color);
-        /* bool is_bold = 60; */
-        if (message.isBold !== false)
+        /* optional bool is_bold = 60; */
+        if (message.isBold !== undefined)
             writer.tag(60, WireType.Varint).bool(message.isBold);
-        /* bool is_italic = 61; */
-        if (message.isItalic !== false)
+        /* optional bool is_italic = 61; */
+        if (message.isItalic !== undefined)
             writer.tag(61, WireType.Varint).bool(message.isItalic);
-        /* bool is_strikethrough = 62; */
-        if (message.isStrikethrough !== false)
+        /* optional bool is_strikethrough = 62; */
+        if (message.isStrikethrough !== undefined)
             writer.tag(62, WireType.Varint).bool(message.isStrikethrough);
-        /* bool is_underline = 63; */
-        if (message.isUnderline !== false)
+        /* optional bool is_underline = 63; */
+        if (message.isUnderline !== undefined)
             writer.tag(63, WireType.Varint).bool(message.isUnderline);
-        /* bool is_code = 64; */
-        if (message.isCode !== false)
+        /* optional bool is_code = 64; */
+        if (message.isCode !== undefined)
             writer.tag(64, WireType.Varint).bool(message.isCode);
         let u = options.writeUnknownFields;
         if (u !== false)
@@ -13062,21 +13069,16 @@ class TextSpanData$Type extends MessageType<TextSpanData> {
             { no: 33, name: "content", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
             { no: 34, name: "node_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 50, name: "color", kind: "enum", opt: true, T: () => ["symbolx.bench.ColorType", ColorType, "COLOR_TYPE_"] },
-            { no: 60, name: "is_bold", kind: "scalar", T: 8 /*ScalarType.BOOL*/ },
-            { no: 61, name: "is_italic", kind: "scalar", T: 8 /*ScalarType.BOOL*/ },
-            { no: 62, name: "is_strikethrough", kind: "scalar", T: 8 /*ScalarType.BOOL*/ },
-            { no: 63, name: "is_underline", kind: "scalar", T: 8 /*ScalarType.BOOL*/ },
-            { no: 64, name: "is_code", kind: "scalar", T: 8 /*ScalarType.BOOL*/ }
+            { no: 60, name: "is_bold", kind: "scalar", opt: true, T: 8 /*ScalarType.BOOL*/ },
+            { no: 61, name: "is_italic", kind: "scalar", opt: true, T: 8 /*ScalarType.BOOL*/ },
+            { no: 62, name: "is_strikethrough", kind: "scalar", opt: true, T: 8 /*ScalarType.BOOL*/ },
+            { no: 63, name: "is_underline", kind: "scalar", opt: true, T: 8 /*ScalarType.BOOL*/ },
+            { no: 64, name: "is_code", kind: "scalar", opt: true, T: 8 /*ScalarType.BOOL*/ }
         ]);
     }
     create(value?: PartialMessage<TextSpanData>): TextSpanData {
         const message = globalThis.Object.create((this.messagePrototype!));
         message.metatype = 0;
-        message.isBold = false;
-        message.isItalic = false;
-        message.isStrikethrough = false;
-        message.isUnderline = false;
-        message.isCode = false;
         if (value !== undefined)
             reflectionMergePartial<TextSpanData>(this, message, value);
         return message;
@@ -13101,19 +13103,19 @@ class TextSpanData$Type extends MessageType<TextSpanData> {
                 case /* optional symbolx.bench.ColorType color */ 50:
                     message.color = reader.int32();
                     break;
-                case /* bool is_bold */ 60:
+                case /* optional bool is_bold */ 60:
                     message.isBold = reader.bool();
                     break;
-                case /* bool is_italic */ 61:
+                case /* optional bool is_italic */ 61:
                     message.isItalic = reader.bool();
                     break;
-                case /* bool is_strikethrough */ 62:
+                case /* optional bool is_strikethrough */ 62:
                     message.isStrikethrough = reader.bool();
                     break;
-                case /* bool is_underline */ 63:
+                case /* optional bool is_underline */ 63:
                     message.isUnderline = reader.bool();
                     break;
-                case /* bool is_code */ 64:
+                case /* optional bool is_code */ 64:
                     message.isCode = reader.bool();
                     break;
                 default:
@@ -13143,20 +13145,20 @@ class TextSpanData$Type extends MessageType<TextSpanData> {
         /* optional symbolx.bench.ColorType color = 50; */
         if (message.color !== undefined)
             writer.tag(50, WireType.Varint).int32(message.color);
-        /* bool is_bold = 60; */
-        if (message.isBold !== false)
+        /* optional bool is_bold = 60; */
+        if (message.isBold !== undefined)
             writer.tag(60, WireType.Varint).bool(message.isBold);
-        /* bool is_italic = 61; */
-        if (message.isItalic !== false)
+        /* optional bool is_italic = 61; */
+        if (message.isItalic !== undefined)
             writer.tag(61, WireType.Varint).bool(message.isItalic);
-        /* bool is_strikethrough = 62; */
-        if (message.isStrikethrough !== false)
+        /* optional bool is_strikethrough = 62; */
+        if (message.isStrikethrough !== undefined)
             writer.tag(62, WireType.Varint).bool(message.isStrikethrough);
-        /* bool is_underline = 63; */
-        if (message.isUnderline !== false)
+        /* optional bool is_underline = 63; */
+        if (message.isUnderline !== undefined)
             writer.tag(63, WireType.Varint).bool(message.isUnderline);
-        /* bool is_code = 64; */
-        if (message.isCode !== false)
+        /* optional bool is_code = 64; */
+        if (message.isCode !== undefined)
             writer.tag(64, WireType.Varint).bool(message.isCode);
         let u = options.writeUnknownFields;
         if (u !== false)
@@ -22016,7 +22018,7 @@ export const OBJECT_TYPE_BY_MESSAGE_TYPE_NAME: Record<string, ObjectType> = {
   ["symbolx.bench.OffsetData"]: ObjectType.OFFSET,
 }
 
-export const ENUM_BY_TYPE: Record<EnumType, Record<number | string, string | number>> = {
+export const ENUM_BY_TYPE: Record<EnumType, Record<number | string, number | string>> = {
   [EnumType.UNSPECIFIED]: {},
   [EnumType.ENUM_TYPE]: EnumType,
   [EnumType.NODE_TYPE]: NodeType,
@@ -22040,6 +22042,7 @@ export const ENUM_BY_TYPE: Record<EnumType, Record<number | string, string | num
   [EnumType.SCHEDULE_TYPE]: ScheduleType,
   [EnumType.PRIMITIVE_TYPE]: PrimitiveType,
   [EnumType.FORMAT_HINT]: FormatHint,
+  [EnumType.TEXT_LINE_TYPE]: TextLineType,
   [EnumType.FILE_STATUS]: FileStatus,
   [EnumType.FILE_RETENTION_MODE]: FileRetentionMode,
   [EnumType.STEP_TYPE]: StepType,
@@ -22257,6 +22260,7 @@ export interface EnumTypeMapping extends Record<EnumType, any> {
   [EnumType.SCHEDULE_TYPE]: ScheduleType,
   [EnumType.PRIMITIVE_TYPE]: PrimitiveType,
   [EnumType.FORMAT_HINT]: FormatHint,
+  [EnumType.TEXT_LINE_TYPE]: TextLineType,
   [EnumType.FILE_STATUS]: FileStatus,
   [EnumType.FILE_RETENTION_MODE]: FileRetentionMode,
   [EnumType.STEP_TYPE]: StepType,
@@ -24217,11 +24221,11 @@ export const TextLineDataInfo: Record<TextLineProperty, PropertyInfo> = {
   [TextLineProperty.orderKey]: { id: 5, name: 'order_key', component: ObjectType.TEXT_LINE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [TextLineProperty.setProperties]: { id: 22, name: 'set_properties', component: ObjectType.TEXT_LINE, kind: 'primitive', primitiveType: PrimitiveType.INT32, isList: true, isRequired: true, isRuntime: true, isWired: true, isStored: true },
   [TextLineProperty.color]: { id: 50, name: 'color', component: ObjectType.TEXT_LINE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRuntime: true, isWired: true, isStored: true },
-  [TextLineProperty.isBold]: { id: 60, name: 'is_bold', component: ObjectType.TEXT_LINE, kind: 'primitive', primitiveType: PrimitiveType.BOOLEAN, isRequired: true, isRuntime: true, isWired: true, isStored: true },
-  [TextLineProperty.isItalic]: { id: 61, name: 'is_italic', component: ObjectType.TEXT_LINE, kind: 'primitive', primitiveType: PrimitiveType.BOOLEAN, isRequired: true, isRuntime: true, isWired: true, isStored: true },
-  [TextLineProperty.isStrikethrough]: { id: 62, name: 'is_strikethrough', component: ObjectType.TEXT_LINE, kind: 'primitive', primitiveType: PrimitiveType.BOOLEAN, isRequired: true, isRuntime: true, isWired: true, isStored: true },
-  [TextLineProperty.isUnderline]: { id: 63, name: 'is_underline', component: ObjectType.TEXT_LINE, kind: 'primitive', primitiveType: PrimitiveType.BOOLEAN, isRequired: true, isRuntime: true, isWired: true, isStored: true },
-  [TextLineProperty.isCode]: { id: 64, name: 'is_code', component: ObjectType.TEXT_LINE, kind: 'primitive', primitiveType: PrimitiveType.BOOLEAN, isRequired: true, isRuntime: true, isWired: true, isStored: true },
+  [TextLineProperty.isBold]: { id: 60, name: 'is_bold', component: ObjectType.TEXT_LINE, kind: 'primitive', primitiveType: PrimitiveType.BOOLEAN, isRuntime: true, isWired: true, isStored: true },
+  [TextLineProperty.isItalic]: { id: 61, name: 'is_italic', component: ObjectType.TEXT_LINE, kind: 'primitive', primitiveType: PrimitiveType.BOOLEAN, isRuntime: true, isWired: true, isStored: true },
+  [TextLineProperty.isStrikethrough]: { id: 62, name: 'is_strikethrough', component: ObjectType.TEXT_LINE, kind: 'primitive', primitiveType: PrimitiveType.BOOLEAN, isRuntime: true, isWired: true, isStored: true },
+  [TextLineProperty.isUnderline]: { id: 63, name: 'is_underline', component: ObjectType.TEXT_LINE, kind: 'primitive', primitiveType: PrimitiveType.BOOLEAN, isRuntime: true, isWired: true, isStored: true },
+  [TextLineProperty.isCode]: { id: 64, name: 'is_code', component: ObjectType.TEXT_LINE, kind: 'primitive', primitiveType: PrimitiveType.BOOLEAN, isRuntime: true, isWired: true, isStored: true },
   [TextLineProperty.parentId]: { id: 3, name: 'parent_id', component: ObjectType.TEXT_LINE, kind: 'reference', primitiveType: PrimitiveType.INT32, isInternal: true, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_PARENT },
   [TextLineProperty.parentKey]: { id: 4, name: 'parent_key', component: ObjectType.TEXT_LINE, kind: 'reference', primitiveType: PrimitiveType.STRING, isInternal: true, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_PARENT },
 }
@@ -24230,11 +24234,11 @@ export const TextSpanDataInfo: Record<TextSpanProperty, PropertyInfo> = {
   [TextSpanProperty.content]: { id: 33, name: 'content', component: ObjectType.TEXT_SPAN, kind: 'primitive', primitiveType: PrimitiveType.STRING, isRuntime: true, isWired: true, isStored: true },
   [TextSpanProperty.id]: { id: 2, name: 'id', component: ObjectType.TEXT_SPAN, kind: 'primitive', primitiveType: PrimitiveType.INT32, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [TextSpanProperty.color]: { id: 50, name: 'color', component: ObjectType.TEXT_SPAN, kind: 'enum', primitiveType: PrimitiveType.INT16, isRuntime: true, isWired: true, isStored: true },
-  [TextSpanProperty.isBold]: { id: 60, name: 'is_bold', component: ObjectType.TEXT_SPAN, kind: 'primitive', primitiveType: PrimitiveType.BOOLEAN, isRequired: true, isRuntime: true, isWired: true, isStored: true },
-  [TextSpanProperty.isItalic]: { id: 61, name: 'is_italic', component: ObjectType.TEXT_SPAN, kind: 'primitive', primitiveType: PrimitiveType.BOOLEAN, isRequired: true, isRuntime: true, isWired: true, isStored: true },
-  [TextSpanProperty.isStrikethrough]: { id: 62, name: 'is_strikethrough', component: ObjectType.TEXT_SPAN, kind: 'primitive', primitiveType: PrimitiveType.BOOLEAN, isRequired: true, isRuntime: true, isWired: true, isStored: true },
-  [TextSpanProperty.isUnderline]: { id: 63, name: 'is_underline', component: ObjectType.TEXT_SPAN, kind: 'primitive', primitiveType: PrimitiveType.BOOLEAN, isRequired: true, isRuntime: true, isWired: true, isStored: true },
-  [TextSpanProperty.isCode]: { id: 64, name: 'is_code', component: ObjectType.TEXT_SPAN, kind: 'primitive', primitiveType: PrimitiveType.BOOLEAN, isRequired: true, isRuntime: true, isWired: true, isStored: true },
+  [TextSpanProperty.isBold]: { id: 60, name: 'is_bold', component: ObjectType.TEXT_SPAN, kind: 'primitive', primitiveType: PrimitiveType.BOOLEAN, isRuntime: true, isWired: true, isStored: true },
+  [TextSpanProperty.isItalic]: { id: 61, name: 'is_italic', component: ObjectType.TEXT_SPAN, kind: 'primitive', primitiveType: PrimitiveType.BOOLEAN, isRuntime: true, isWired: true, isStored: true },
+  [TextSpanProperty.isStrikethrough]: { id: 62, name: 'is_strikethrough', component: ObjectType.TEXT_SPAN, kind: 'primitive', primitiveType: PrimitiveType.BOOLEAN, isRuntime: true, isWired: true, isStored: true },
+  [TextSpanProperty.isUnderline]: { id: 63, name: 'is_underline', component: ObjectType.TEXT_SPAN, kind: 'primitive', primitiveType: PrimitiveType.BOOLEAN, isRuntime: true, isWired: true, isStored: true },
+  [TextSpanProperty.isCode]: { id: 64, name: 'is_code', component: ObjectType.TEXT_SPAN, kind: 'primitive', primitiveType: PrimitiveType.BOOLEAN, isRuntime: true, isWired: true, isStored: true },
   [TextSpanProperty.nodePtr]: { id: 34, name: 'node_ptr', component: ObjectType.TEXT_SPAN, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.DEPENDENCY, NodeType.UPGRADE, NodeType.SPACE, NodeType.SKIP, NodeType.NOTICE, NodeType.BLOCK, NodeType.TRIGGER, NodeType.FIELD, NodeType.RECORD, NodeType.QUERY, NodeType.VIEW, NodeType.STEP, NodeType.BADGE, NodeType.ROLE, NodeType.IDENTITY, NodeType.MEMBERSHIP, NodeType.INVITE], referenceStruct: StructType.NODE_REFERENCE },
 }
 export const ColorDataInfo: Record<ColorProperty, PropertyInfo> = {

@@ -1,4 +1,4 @@
-<script lang="tsx" setup>
+<script lang="ts" setup>
 import { BoxData, NodeType, Orientation, ViewData } from "@/proto/wire/";
 import type { TypedNodeReferenceData } from "@/proto/wiring";
 import { canvas } from "@/system/space";

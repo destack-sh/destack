@@ -187,8 +187,9 @@ class BenchType(betterproto.Enum):
     SCHEDULE_TYPE = 2071
     PRIMITIVE_TYPE = 2080
     FORMAT_HINT = 2081
+    TEXT_LINE_TYPE = 2090
     FILE_STATUS = 2100
-    FILE_RETENTION_MODE = 21012
+    FILE_RETENTION_MODE = 2101
     STEP_TYPE = 2150
     VIEW_TYPE = 2200
     VARIANT = 2201
@@ -357,8 +358,9 @@ class EnumType(betterproto.Enum):
     SCHEDULE_TYPE = 2071
     PRIMITIVE_TYPE = 2080
     FORMAT_HINT = 2081
+    TEXT_LINE_TYPE = 2090
     FILE_STATUS = 2100
-    FILE_RETENTION_MODE = 21012
+    FILE_RETENTION_MODE = 2101
     STEP_TYPE = 2150
     VIEW_TYPE = 2200
     VARIANT = 2201
@@ -998,13 +1000,14 @@ class Tenancy(betterproto.Enum):
 class TextLineType(betterproto.Enum):
     UNSPECIFIED = 0
     PLAIN = 1
-    HEADING_SMALL = 6
-    HEADING_MEDIUM = 7
-    HEADING_LARGE = 8
-    CALLOUT = 12
-    LIST_BULLET = 16
-    LIST_NUMBERED = 17
-    DIVIDER = 21
+    HEADING_SMALL = 10
+    HEADING_MEDIUM = 11
+    HEADING_LARGE = 12
+    CALLOUT = 20
+    QUOTE = 21
+    LIST_BULLET = 30
+    LIST_NUMBERED = 31
+    DIVIDER = 40
 
 
 class TriggerType(betterproto.Enum):
@@ -1725,7 +1728,7 @@ class TextData(betterproto.Message):
 @dataclass(eq=False, repr=False)
 class TextLineData(betterproto.Message):
     """
-    TextLine(type: bench.language.text.TextLineType = <TextLineType.PLAIN: 1>, spans: list['TextSpan'] = None, id: Optional[int] = <factory>, parent: Union[ForwardRef('Struct'), ForwardRef('Node'), ForwardRef('Value'), NoneType] = None, order_key: str | None = None, set_properties: list[int] = <factory>, _status: bench.language.const.InterpStatus = None, _updated_properties: bitarray.bitarray | None = None, color: Optional[ForwardRef('ColorType')] = None, is_bold: bool = False, is_italic: bool = False, is_strikethrough: bool = False, is_underline: bool = False, is_code: bool = False, parent_id: int = None, parent_key: str = None)
+    TextLine(type: bench.language.text.TextLineType = <TextLineType.PLAIN: 1>, spans: list['TextSpan'] = None, id: Optional[int] = <factory>, parent: Union[ForwardRef('Struct'), ForwardRef('Node'), ForwardRef('Value'), NoneType] = None, order_key: str | None = None, set_properties: list[int] = <factory>, _status: bench.language.const.InterpStatus = None, _updated_properties: bitarray.bitarray | None = None, color: Optional[ForwardRef('ColorType')] = None, is_bold: Optional[bool] = None, is_italic: Optional[bool] = None, is_strikethrough: Optional[bool] = None, is_underline: Optional[bool] = None, is_code: Optional[bool] = None, parent_id: int = None, parent_key: str = None)
     """
 
     metatype: "ObjectType" = betterproto.enum_field(1)
@@ -1737,17 +1740,17 @@ class TextLineData(betterproto.Message):
     type: "TextLineType" = betterproto.enum_field(30)
     spans: List["TextSpanData"] = betterproto.message_field(33)
     color: Optional["ColorType"] = betterproto.enum_field(50, optional=True)
-    is_bold: bool = betterproto.bool_field(60)
-    is_italic: bool = betterproto.bool_field(61)
-    is_strikethrough: bool = betterproto.bool_field(62)
-    is_underline: bool = betterproto.bool_field(63)
-    is_code: bool = betterproto.bool_field(64)
+    is_bold: Optional[bool] = betterproto.bool_field(60, optional=True)
+    is_italic: Optional[bool] = betterproto.bool_field(61, optional=True)
+    is_strikethrough: Optional[bool] = betterproto.bool_field(62, optional=True)
+    is_underline: Optional[bool] = betterproto.bool_field(63, optional=True)
+    is_code: Optional[bool] = betterproto.bool_field(64, optional=True)
 
 
 @dataclass(eq=False, repr=False)
 class TextSpanData(betterproto.Message):
     """
-    TextSpan(content: str | None = None, node: Optional[bench.language.node.Node] = None, id: Optional[int] = <factory>, parent: Union[ForwardRef('Struct'), ForwardRef('Node'), ForwardRef('Value'), NoneType] = None, _status: bench.language.const.InterpStatus = None, _updated_properties: bitarray.bitarray | None = None, color: Optional[ForwardRef('ColorType')] = None, is_bold: bool = False, is_italic: bool = False, is_strikethrough: bool = False, is_underline: bool = False, is_code: bool = False, node_ptr: 'NodeReference' = None, parent_id: int = None, parent_key: str = None)
+    TextSpan(content: Optional[str] = None, node: Optional[bench.language.node.Node] = None, id: Optional[int] = <factory>, parent: Union[ForwardRef('Struct'), ForwardRef('Node'), ForwardRef('Value'), NoneType] = None, _status: bench.language.const.InterpStatus = None, _updated_properties: bitarray.bitarray | None = None, color: Optional[ForwardRef('ColorType')] = None, is_bold: Optional[bool] = None, is_italic: Optional[bool] = None, is_strikethrough: Optional[bool] = None, is_underline: Optional[bool] = None, is_code: Optional[bool] = None, node_ptr: 'NodeReference' = None, parent_id: int = None, parent_key: str = None)
     """
 
     metatype: "ObjectType" = betterproto.enum_field(1)
@@ -1755,11 +1758,11 @@ class TextSpanData(betterproto.Message):
     content: Optional[str] = betterproto.string_field(33, optional=True)
     node_ptr: Optional["NodeReferenceData"] = betterproto.message_field(34, optional=True)
     color: Optional["ColorType"] = betterproto.enum_field(50, optional=True)
-    is_bold: bool = betterproto.bool_field(60)
-    is_italic: bool = betterproto.bool_field(61)
-    is_strikethrough: bool = betterproto.bool_field(62)
-    is_underline: bool = betterproto.bool_field(63)
-    is_code: bool = betterproto.bool_field(64)
+    is_bold: Optional[bool] = betterproto.bool_field(60, optional=True)
+    is_italic: Optional[bool] = betterproto.bool_field(61, optional=True)
+    is_strikethrough: Optional[bool] = betterproto.bool_field(62, optional=True)
+    is_underline: Optional[bool] = betterproto.bool_field(63, optional=True)
+    is_code: Optional[bool] = betterproto.bool_field(64, optional=True)
 
 
 @dataclass(eq=False, repr=False)

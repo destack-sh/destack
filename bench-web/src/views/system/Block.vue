@@ -1,4 +1,4 @@
-<script lang="tsx" setup>
+<script lang="ts" setup>
 import { BlockType, NodeReferenceData, NodeType, Variant, ViewData } from "@/proto/wire";
 import type { TypedNodeReferenceData } from "@/proto/wiring";
 import { useGetConnection } from "@/system/connection";
@@ -75,25 +75,41 @@ defineExpose<ViewExposed>({ self, id, actions, focus });
       <!-- Icon/Name (also drag handle) -->
       <span
         class=""
-        @mousedown="() => (blockRef!.draggable || (blockRef!.draggable = true, onMouseNotPressedOnce(() => blockRef!.draggable = false)))"
+        @mousedown="
+          () =>
+            blockRef!.draggable ||
+            ((blockRef!.draggable = true), onMouseNotPressedOnce(() => (blockRef!.draggable = false)))
+        "
       >
         <IconInline
           v-bind="getNodeIcon(block)"
           class="rounded-md px-0.5 py-0.5 text-gray-600 hover:cursor-pointer hover:bg-primary-100 hover:text-primary-900"
-          v-tooltip="({showDelay: 400, hideDelay: 200, placement: 'top', small: true, text: `Change icon (${toCamelName(BlockType, block.type)})`} as TooltipInfo)"
+          v-tooltip="
+            {
+              showDelay: 400,
+              hideDelay: 200,
+              placement: 'top',
+              small: true,
+              text: `Change icon (${toCamelName(BlockType, block.type)})`,
+            } as TooltipInfo
+          "
         />
         <span
           role="button"
           class="ml-1 rounded-md px-0.5 py-0.5 hover:cursor-pointer hover:bg-primary-100 hover:text-primary-900"
-          v-menu="(): OverlayMenuInfo => ({
-            kind: 'component',
-            placement: 'inside-top-left',
-            referenceOffset: { x: 0, y: -2 },
-            fitToContainer: 'width',
-            props: { modelValue: block!.name, isInput: true, variant: Variant.STEALTH },
-            onApply: (name: string) => { pkgConnection.tx.updateDebounced(block!, { name }) },
-            component: PlainText,
-          })"
+          v-menu="
+            (): OverlayMenuInfo => ({
+              kind: 'component',
+              placement: 'inside-top-left',
+              referenceOffset: { x: 0, y: -2 },
+              fitToContainer: 'width',
+              props: { modelValue: block!.name, isInput: true, variant: Variant.STEALTH },
+              onApply: (name: string) => {
+                pkgConnection.tx.updateDebounced(block!, { name });
+              },
+              component: PlainText,
+            })
+          "
         >
           {{ block.name }}
         </span>
@@ -103,7 +119,15 @@ defineExpose<ViewExposed>({ self, id, actions, focus });
     <!-- Body -->
     <div class="py-1">
       nocheckin: Body
-      <Text title="my text" />
+      <Text
+        title="my text"
+        :model-value="block.text"
+        @update:modelValue="
+          (newText) => {
+            pkgConnection.tx.update(block!, { text: newText });
+          }
+        "
+      />
     </div>
   </div>
   <Inaccessible v-else class="h-full w-full bg-white" :node="nodePtr" :is-connected="pkgConnection.isConnected.value" />

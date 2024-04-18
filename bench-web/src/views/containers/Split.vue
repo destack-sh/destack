@@ -1,4 +1,4 @@
-<script lang="tsx" setup>
+<script lang="ts" setup>
 import { BoxData, NodeReferenceData, NodeType, Orientation, ViewData, ViewType } from "@/proto/wire";
 import type { ActionContext, ActionMapImplementation } from "@/system/action";
 import { useExistingConnection } from "@/system/connection";

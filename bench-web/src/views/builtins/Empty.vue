@@ -1,4 +1,4 @@
-<script lang="tsx" setup>
+<script lang="ts" setup>
 import { ViewType } from "@/proto/wire";
 import { toCamelName } from "@/system/lang";
 

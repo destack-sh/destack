@@ -13,7 +13,7 @@ import {
   StepType,
 } from "@/proto/wire";
 import { describeNode, toNodeReference, type AnyNodeReferenceData, type TypedNodeReferenceData } from "@/proto/wiring";
-import { defaultSort, toCamelName, updateOrder } from "@/system/lang";
+import { defaultSortNode, toCamelName, updateOrder } from "@/system/lang";
 import type { Transaction } from "@/system/transaction";
 import { manualSubRef, watchValue, type SubRef } from "@/utils/ref";
 import { Casing, toCasing } from "@/utils/string";
@@ -542,13 +542,13 @@ export class NodeGraph extends BaseNodeGraphMixin implements ReadNodeGraph, Writ
           children.push(this.nodesById[id]);
         }
       }
-      defaultSort(children);
+      defaultSortNode(children);
       return children as NodeTypeMapping[T][];
     } else {
       const childrenIds = this.nodesByParentIdAndType[parent.id!]?.[metatype];
       if (!childrenIds) return [];
       const children = childrenIds.map((id) => this.nodesById[id]) as NodeTypeMapping[T][];
-      defaultSort(children);
+      defaultSortNode(children);
       return children;
     }
   }
@@ -881,7 +881,7 @@ export class LayerNodeGraph extends FilterBaseNodeGraphMixin implements ReadNode
       }
     }
     const children = Object.values(mergedChildrenById).filter((n) => this.isNodeVisibleSelf(n));
-    defaultSort(children);
+    defaultSortNode(children);
     return children;
   }
 

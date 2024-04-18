@@ -1,4 +1,4 @@
-<script lang="tsx" setup>
+<script lang="ts" setup>
 import { NodeType, Orientation, ViewData, ViewType } from "@/proto/wire";
 import { OMNIBAR_MODES, addAction, fireAction, type ActionBuiltinId, type OmnibarMode } from "@/system/action";
 import { packagePtr } from "@/system/client";

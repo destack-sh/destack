@@ -1,6 +1,6 @@
-<script lang="tsx" setup>
-import { BoxData, NodeReferenceData, NodeType, Orientation, ViewData, ViewType } from "@/proto/wire";
-import { toNodeReference } from "@/proto/wiring";
+<script lang="ts" setup>
+import { BoxData, NodeType, Orientation, ViewData, ViewType } from "@/proto/wire";
+import { toNodeReference, type TypedNodeReferenceData } from "@/proto/wiring";
 import { type Action, type ActionContext, type ActionMapImplementation } from "@/system/action";
 import { useExistingConnection } from "@/system/connection";
 import { ICON_BY_NODE_TYPE, ICON_BY_VIEW_TYPE, IconInline } from "@/system/icon";
@@ -9,17 +9,19 @@ import { canvas } from "@/system/space";
 import { startDragging, useMultiDropZone, useSplitDropZone, type SplitAnchor } from "@/utils/drag";
 import { IS_DEBUG, isDeveloperMode } from "@/utils/globals";
 import { ScrollbarWidth } from "@/utils/layout";
-import { menuActionsLike, type OverlayMenuInfo, type MenuContext } from "@/utils/menu";
-import { toCasing, Casing } from "@/utils/string";
+import { menuActionsLike, type MenuContext, type OverlayMenuInfo } from "@/utils/menu";
 import type { TooltipInfo } from "@/utils/tooltip";
 import { getViewBinding, getViewComponent } from "@/views";
+import Empty from "@/views/builtins/Empty.vue";
 import { viewEmits, type ViewExposed } from "@/views/common";
 import Scroll from "@/views/containers/Scroll.vue";
-import Empty from "@/views/builtins/Empty.vue";
 import { computed, nextTick, ref, toRef, type Ref } from "vue";
 
 const props = defineProps<
-  { self: NodeReferenceData; size: Required<Pick<BoxData, "width" | "height">> } & Pick<ViewData, "focus">
+  { self: TypedNodeReferenceData<NodeType.VIEW>; size: Required<Pick<BoxData, "width" | "height">> } & Pick<
+    ViewData,
+    "focus"
+  >
 >();
 const emit = defineEmits(viewEmits());
 const self = toRef(props, "self");

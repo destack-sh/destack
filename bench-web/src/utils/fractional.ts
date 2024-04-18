@@ -211,7 +211,7 @@ export function generateOrderKey(a: string | null, b: string | null, digits: str
 // If a and b are both null, returns [a0, a1, ...]
 // If one or the other is null, returns consecutive "integer" keys.
 // Otherwise, returns relatively short keys between a and b.
-export function generateNKeysBetween(
+export function generateOrderKeys(
   a: string | null,
   b: string | null,
   n: number,
@@ -241,5 +241,5 @@ export function generateNKeysBetween(
   }
   const mid = Math.floor(n / 2);
   const c = generateOrderKey(a, b, digits);
-  return [...generateNKeysBetween(a, c, mid, digits), c, ...generateNKeysBetween(c, b, n - mid - 1, digits)];
+  return [...generateOrderKeys(a, c, mid, digits), c, ...generateOrderKeys(c, b, n - mid - 1, digits)];
 }

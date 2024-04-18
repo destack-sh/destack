@@ -1,5 +1,6 @@
-<script lang="tsx" setup>
+<script lang="ts" setup>
 import { NodeType, Region, Variant, ViewData, type NodeReferenceData } from "@/proto/wire";
+import type { TypedNodeReferenceData } from "@/proto/wiring";
 import { benchPtr } from "@/system/client";
 import { useExistingConnection } from "@/system/connection";
 import { makeIcon } from "@/system/icon";
@@ -13,7 +14,7 @@ import PlainText from "@/views/content/PlainText.vue";
 import Button from "@/views/controls/Button.vue";
 import { ref, toRef, watch, type Ref } from "vue";
 
-const props = defineProps<{ self: NodeReferenceData } & Pick<ViewData, "title">>();
+const props = defineProps<{ self: TypedNodeReferenceData<NodeType.VIEW> } & Pick<ViewData, "title">>();
 const emit = defineEmits(viewEmits());
 const self = toRef(props, "self");
 

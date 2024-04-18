@@ -3,7 +3,7 @@
 		"prefix": "vsfc",
 		"description": "Insert styleless Vue SFC in TS with setup sugar",
 		"body": [
-			"<script lang=\"tsx\" setup>\n$2\n</script>",
+			"<script lang=\"ts\" setup>\n$2\n</script>",
 			"<template>",
 			"  <div>$1</div>",
 			"</template>",
@@ -13,7 +13,7 @@
 		"prefix": "view",
 		"description": "A Bench View as a Vue SFC. Detachable = can be used without 'self' view identity.",
 		"body": [
-			"<script lang=\"tsx\" setup>",
+			"<script lang=\"ts\" setup>",
 			"import { ViewData, NodeType } from \"@/proto/wire\";",
 			"import { type TypedNodeReferenceData } from \"@/proto/wire\";",
 			"import { viewEmits, type ViewExposed } from \"@/views/common\";",
@@ -39,7 +39,7 @@
 		"prefix": "viewd",
 		"description": "A Bench View as a Vue SFC. Detachable = can be used without 'self' view identity.",
 		"body": [
-			"<script lang=\"tsx\" setup>",
+			"<script lang=\"ts\" setup>",
 			"import { ViewData, NodeType } from \"@/proto/wire\";",
 			"import { type TypedNodeReferenceData } from \"@/proto/wiring\";",
 			"import { viewEmits, type ViewExposed } from \"@/views/common\";",

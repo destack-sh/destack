@@ -1,4 +1,4 @@
-<script lang="tsx" setup>
+<script lang="ts" setup>
 import { ViewData, NodeReferenceData, NodeType } from "@/proto/wire";
 import { viewEmits, type ViewExposed } from "@/views/common";
 import { canvas, inspectionBasePtr, inspectionPtr } from "@/system/space";

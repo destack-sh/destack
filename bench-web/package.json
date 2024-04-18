@@ -37,6 +37,7 @@
     "luxon": "^3.4.4",
     "posthog-js": "^1.108.2",
     "prosemirror-commands": "^1.5.2",
+    "prosemirror-inputrules": "^1.4.0",
     "prosemirror-keymap": "^1.2.2",
     "prosemirror-model": "^1.20.0",
     "prosemirror-state": "^1.4.3",

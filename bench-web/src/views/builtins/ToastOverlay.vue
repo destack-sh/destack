@@ -1,4 +1,4 @@
-<script lang="tsx" setup>
+<script lang="ts" setup>
 import { IconInline } from "@/system/icon";
 import { toaster, type ToastAnchor } from "@/system/toast";
 import { computed } from "vue";

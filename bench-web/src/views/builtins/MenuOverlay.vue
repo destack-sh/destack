@@ -1,4 +1,4 @@
-<script lang="tsx" setup>
+<script lang="ts" setup>
 import { canvas } from "@/system/space";
 import { focusInElement } from "@/views/canvas";
 import { getElement } from "@/utils/element";

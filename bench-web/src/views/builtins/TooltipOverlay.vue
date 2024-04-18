@@ -1,4 +1,4 @@
-<script lang="tsx" setup>
+<script lang="ts" setup>
 import { getFloatingPosition, type FloatingOptions } from "@/utils/floating";
 import { Shortcut, activeTooltips, type TooltipInstance } from "@/utils/tooltip";
 import { ref, type Ref } from "vue";
