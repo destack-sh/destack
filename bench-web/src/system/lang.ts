@@ -2,7 +2,7 @@
  * Many constants are generated into proto/wire, here some additional ones.
  */
 
-import type { EnumTypeMapping } from "@/proto/wire";
+import type { AnyStructData, EnumTypeMapping } from "@/proto/wire";
 import {
   ENUM_BY_TYPE,
   EnumType,
@@ -20,7 +20,7 @@ import {
 } from "@/proto/wire";
 import { ENUM_ICONS_BY_TYPE } from "@/system/icon";
 import type { Transaction } from "@/system/transaction";
-import { generateNKeysBetween, generateOrderKey, isValidOrderKey } from "@/utils/fractional";
+import { generateOrderKeys, generateOrderKey, isValidOrderKey } from "@/utils/fractional";
 import { Casing, toCasing } from "@/utils/string";
 
 export const NODE_TYPES = Object.values(NodeType).filter((v) => typeof v == "number" && v > 0) as NodeType[];
@@ -89,10 +89,8 @@ export function getBaseFromNode(node: AnyNodeData): NodeReferenceData | null {
   }
 }
 
-/**
- * Sorts the given nodes using explicit order keys if available, createdAt otherwise, then id.
- */
-export function defaultSort(nodes: AnyNodeData[]): void {
+/** Sorts the given nodes using explicit order keys if available, createdAt otherwise, then id. */
+export function defaultSortNode<T extends AnyNodeData>(nodes: T[]): void {
   nodes.sort((a, b) => {
     if ((a as any).orderKey != null && (b as any).orderKey != null && (a as any).orderKey != (b as any).orderKey) {
       return (a as any).orderKey > (b as any).orderKey ? 1 : -1;
@@ -102,6 +100,18 @@ export function defaultSort(nodes: AnyNodeData[]): void {
       return a.id > b.id ? 1 : -1;
     }
   });
+}
+
+/** Sorts the given structs using explicit order keys if available, otherwise retains input order. */
+export function defaultSortStruct<T extends AnyStructData>(structs: T[]): void {
+  if (structs.length == 0) return;
+  if ("orderKey" in structs[0]) {
+    structs.sort((a, b) => {
+      return (a as any).orderKey > (b as any).orderKey ? 1 : -1;
+    });
+  } else {
+    // retain input order
+  }
 }
 
 /**
@@ -166,7 +176,7 @@ export function getOrderKey<T extends { id: string; orderKey: string }>(order: {
  */
 export function fixOrderKeys<T extends AnyNodeData & { orderKey: string }>(tx: Transaction, nodes: T[]) {
   // ensure nodes are in current order
-  defaultSort(nodes);
+  defaultSortNode(nodes);
 
   // scan for successive duplicates (they must be successive now)
   let i = 0;
@@ -181,7 +191,7 @@ export function fixOrderKeys<T extends AnyNodeData & { orderKey: string }>(tx: T
       // find all duplicates with same key from here and fix them in one go
       const numDuplicates = nodes.slice(i).filter((n) => n.orderKey == node.orderKey).length;
       const duplicates = nodes.slice(i, i + numDuplicates);
-      const orderKeys = generateNKeysBetween(prevOrderKey, nodes[i + numDuplicates]?.orderKey ?? null, numDuplicates);
+      const orderKeys = generateOrderKeys(prevOrderKey, nodes[i + numDuplicates]?.orderKey ?? null, numDuplicates);
       for (let j = 0; j < numDuplicates; j++) {
         // @ts-ignore: orderKey must exist
         tx.update({ ...duplicates[j], orderKey: orderKeys[j] }, ["orderKey"]);

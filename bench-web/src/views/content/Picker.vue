@@ -1,17 +1,16 @@
-<script lang="tsx" setup>
-import { ViewData, NodeReferenceData, NodeType, BenchType, Variant, Orientation } from "@/proto/wire";
-import { viewEmits, type FocusAnchor, type ViewExposed } from "@/views/common";
-import { canvas, pkgGraph } from "@/system/space";
-import { ref, toRef, type Ref, computed, watch } from "vue";
-import { makeViewId } from "@/views";
+<script lang="ts" setup>
+import { BenchType, NodeReferenceData, NodeType, Orientation, Variant, ViewData } from "@/proto/wire";
 import type { TypedNodeReferenceData } from "@/proto/wiring";
-import { getEnumOptions, toCamelName, type EnumOption, isEnumType, isNodeType } from "@/system/lang";
-import { EnumType } from "@/proto/wire";
-import { enumIndex, graphIndex, type EnumOptionItem, type SearchIndex, useSearch } from "@/system/search";
-import type { NodeItem } from "@/system/search";
-import Scroll from "@/views/containers/Scroll.vue";
-import { ScrollbarWidth } from "@/utils/layout";
 import { IconInline, makeIcon } from "@/system/icon";
+import { isEnumType, isNodeType, toCamelName } from "@/system/lang";
+import type { NodeItem } from "@/system/search";
+import { enumIndex, graphIndex, useSearch, type EnumOptionItem, type SearchIndex } from "@/system/search";
+import { canvas, pkgGraph } from "@/system/space";
+import { ScrollbarWidth } from "@/utils/layout";
+import { makeViewId } from "@/views";
+import { viewEmits, type FocusAnchor, type ViewExposed } from "@/views/common";
+import Scroll from "@/views/containers/Scroll.vue";
+import { computed, ref, toRef, watch, type Ref } from "vue";
 
 const DEFAULT_WIDTH = 280;
 const MAX_HEIGHT = 360;

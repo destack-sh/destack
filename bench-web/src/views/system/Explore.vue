@@ -1,4 +1,4 @@
-<script lang="tsx" setup>
+<script lang="ts" setup>
 import {
   ObjectType,
   BlockData,
@@ -218,7 +218,7 @@ const { activeDropZone } = useMultiDropZone({
     const target = inspectedGraph.get({ id: targetId });
     if (target == null || isDescendantOf(inspectedGraph, target, dragged.node)) return false;
     const targetParentType = anchor == "center" ? (target.metatype as unknown as NodeType) : target.parentPtr!.type;
-    if (!CHILD_NODE_TYPES[targetParentType].includes(dragged.node.metatype as unknown as NodeType)) return false;
+    if (!CHILD_NODE_TYPES[targetParentType].includes(dragged.node.type)) return false;
     return true;
   },
   onDrop: (dragged, anchor, targetId) => {
@@ -299,7 +299,7 @@ defineExpose<ViewExposed>({ self, actions, focus });
     <ul ref="containerRef" v-if="expandedItems.length > 0" class="my-1 flex flex-col text-gray-900">
       <!-- Node -->
       <li
-        :ref="(ref?: any) => ref != null ? (expandedNodesRefs[node.id] = ref) : (delete expandedNodesRefs[node.id])"
+        :ref="(ref?: any) => (ref != null ? (expandedNodesRefs[node.id] = ref) : delete expandedNodesRefs[node.id])"
         v-for="({ node, depth, hasChildren }, i) in expandedItems"
         :key="node.id"
         class="group relative mx-1 mt-[1px] flex flex-row items-center rounded-md border py-0.5 hover:cursor-pointer hover:text-primary-900"
@@ -316,11 +316,18 @@ defineExpose<ViewExposed>({ self, actions, focus });
         @click.stop="fire(node)"
         :draggable="true"
         @dragstart="(e: DragEvent) => startDragging(e, inspectedGraph, node)"
-        v-contextmenu="(context: MenuContext): OverlayMenuInfo => {
-          doFocus(node);
-          context = { ...context, triggerNode: node };
-          return { kind: 'menu', placement: 'bottom-right', items: menuActionsLike({ wildcard: ['common.sense.*','common.edit.*'] }, { context }), context }
-      }"
+        v-contextmenu="
+          (context: MenuContext): OverlayMenuInfo => {
+            doFocus(node);
+            context = { ...context, triggerNode: node };
+            return {
+              kind: 'menu',
+              placement: 'bottom-right',
+              items: menuActionsLike({ wildcard: ['common.sense.*', 'common.edit.*'] }, { context }),
+              context,
+            };
+          }
+        "
       >
         <!-- Drop indicator -->
         <div

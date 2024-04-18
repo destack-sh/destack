@@ -1,4 +1,4 @@
-<script lang="tsx" setup>
+<script lang="ts" setup>
 /* eslint-disable vue/no-multiple-template-root */
 import { useFloating, type FloatingOptions, type FloatingPlacement } from "@/utils/floating";
 import { ref } from "vue";

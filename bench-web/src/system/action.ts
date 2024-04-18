@@ -96,6 +96,8 @@ export const ACTION_BUILTIN_IDS = [
   "common.navigate.down",
   "common.navigate.left",
   "common.navigate.right",
+  "common.navigate.in",
+  "common.navigate.out",
   "common.navigate.pageUp",
   "common.navigate.pageDown",
   "common.navigate.goBack",
@@ -128,6 +130,12 @@ export const ACTION_BUILTIN_IDS = [
   "common.session.stop",
   "common.session.kill",
   "common.session.logs",
+  // text
+  "text.format.bold",
+  "text.format.italic",
+  "text.format.strikethrough",
+  "text.format.underline",
+  "text.format.code",
   // view
   "view.navigate.focusPreviousTab",
   "view.navigate.focusNextTab",
@@ -541,6 +549,18 @@ declareActionMap<"common">({
     text: "Navigate right",
     shortcuts: ["right"],
   },
+  "common.navigate.in": {
+    icon: "fas fa-arrow-in",
+    title: "Navigate In",
+    text: "Navigate in",
+    shortcuts: ["enter"],
+  },
+  "common.navigate.out": {
+    icon: "fas fa-arrow-out",
+    title: "Navigate Out",
+    text: "Navigate out",
+    shortcuts: ["esc"],
+  },
   "common.navigate.pageUp": {
     icon: "fas fa-arrow-up-to-line",
     title: "Page Up",
@@ -731,6 +751,41 @@ declareActionMap<"common">({
     icon: "fas fa-clipboard-list",
     title: "View Logs",
     text: "View the logs of the current run",
+  },
+});
+
+// text
+declareActionMap<"text">({
+  // format
+  "text.format.bold": {
+    icon: "fas fa-bold",
+    title: "Bold",
+    text: "Bold text",
+    shortcuts: ["mod+b"],
+  },
+  "text.format.italic": {
+    icon: "fas fa-italic",
+    title: "Italic",
+    text: "Italicize text",
+    shortcuts: ["mod+i"],
+  },
+  "text.format.strikethrough": {
+    icon: "fas fa-strikethrough",
+    title: "Strikethrough",
+    text: "Strikethrough text",
+    shortcuts: ["mod+shift+x"],
+  },
+  "text.format.underline": {
+    icon: "fas fa-underline",
+    title: "Underline",
+    text: "Underline text",
+    shortcuts: ["mod+u"],
+  },
+  "text.format.code": {
+    icon: "fas fa-code",
+    title: "Code",
+    text: "Code text",
+    shortcuts: ["mod+`"],
   },
 });
 

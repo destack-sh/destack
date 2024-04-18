@@ -1,4 +1,4 @@
-<script lang="tsx" setup></script>
+<script lang="ts" setup></script>
 <template>
   <div>
 		Not found

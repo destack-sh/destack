@@ -1,4 +1,4 @@
-<script lang="tsx" setup>
+<script lang="ts" setup>
 import { NodeType } from "@/proto/wire";
 import type { NodeReferenceData } from "@/proto/wire";
 import { fireActionById } from "@/system/action";

@@ -172,8 +172,9 @@ enum BenchType {
   BENCH_TYPE_SCHEDULE_TYPE = 2071;
   BENCH_TYPE_PRIMITIVE_TYPE = 2080;
   BENCH_TYPE_FORMAT_HINT = 2081;
+  BENCH_TYPE_TEXT_LINE_TYPE = 2090;
   BENCH_TYPE_FILE_STATUS = 2100;
-  BENCH_TYPE_FILE_RETENTION_MODE = 21012;
+  BENCH_TYPE_FILE_RETENTION_MODE = 2101;
   BENCH_TYPE_STEP_TYPE = 2150;
   BENCH_TYPE_VIEW_TYPE = 2200;
   BENCH_TYPE_VARIANT = 2201;
@@ -339,8 +340,9 @@ enum EnumType {
   ENUM_TYPE_SCHEDULE_TYPE = 2071;
   ENUM_TYPE_PRIMITIVE_TYPE = 2080;
   ENUM_TYPE_FORMAT_HINT = 2081;
+  ENUM_TYPE_TEXT_LINE_TYPE = 2090;
   ENUM_TYPE_FILE_STATUS = 2100;
-  ENUM_TYPE_FILE_RETENTION_MODE = 21012;
+  ENUM_TYPE_FILE_RETENTION_MODE = 2101;
   ENUM_TYPE_STEP_TYPE = 2150;
   ENUM_TYPE_VIEW_TYPE = 2200;
   ENUM_TYPE_VARIANT = 2201;
@@ -962,13 +964,14 @@ enum Tenancy {
 enum TextLineType {
   TEXT_LINE_TYPE_UNSPECIFIED = 0;
   TEXT_LINE_TYPE_PLAIN = 1;
-  TEXT_LINE_TYPE_HEADING_SMALL = 6;
-  TEXT_LINE_TYPE_HEADING_MEDIUM = 7;
-  TEXT_LINE_TYPE_HEADING_LARGE = 8;
-  TEXT_LINE_TYPE_CALLOUT = 12;
-  TEXT_LINE_TYPE_LIST_BULLET = 16;
-  TEXT_LINE_TYPE_LIST_NUMBERED = 17;
-  TEXT_LINE_TYPE_DIVIDER = 21;
+  TEXT_LINE_TYPE_HEADING_SMALL = 10;
+  TEXT_LINE_TYPE_HEADING_MEDIUM = 11;
+  TEXT_LINE_TYPE_HEADING_LARGE = 12;
+  TEXT_LINE_TYPE_CALLOUT = 20;
+  TEXT_LINE_TYPE_QUOTE = 21;
+  TEXT_LINE_TYPE_LIST_BULLET = 30;
+  TEXT_LINE_TYPE_LIST_NUMBERED = 31;
+  TEXT_LINE_TYPE_DIVIDER = 40;
 }
 
 // Triggers for blocks (for both actual runs and pre-defined triggers).
@@ -1569,7 +1572,7 @@ message TextData {
   repeated TextLineData lines = 32;
 }
 
-// TextLine(type: bench.language.text.TextLineType = <TextLineType.PLAIN: 1>, spans: list['TextSpan'] = None, id: Optional[int] = <factory>, parent: Union[ForwardRef('Struct'), ForwardRef('Node'), ForwardRef('Value'), NoneType] = None, order_key: str | None = None, set_properties: list[int] = <factory>, _status: bench.language.const.InterpStatus = None, _updated_properties: bitarray.bitarray | None = None, color: Optional[ForwardRef('ColorType')] = None, is_bold: bool = False, is_italic: bool = False, is_strikethrough: bool = False, is_underline: bool = False, is_code: bool = False, parent_id: int = None, parent_key: str = None)
+// TextLine(type: bench.language.text.TextLineType = <TextLineType.PLAIN: 1>, spans: list['TextSpan'] = None, id: Optional[int] = <factory>, parent: Union[ForwardRef('Struct'), ForwardRef('Node'), ForwardRef('Value'), NoneType] = None, order_key: str | None = None, set_properties: list[int] = <factory>, _status: bench.language.const.InterpStatus = None, _updated_properties: bitarray.bitarray | None = None, color: Optional[ForwardRef('ColorType')] = None, is_bold: Optional[bool] = None, is_italic: Optional[bool] = None, is_strikethrough: Optional[bool] = None, is_underline: Optional[bool] = None, is_code: Optional[bool] = None, parent_id: int = None, parent_key: str = None)
 message TextLineData {
   ObjectType metatype = 1;
   optional int32 id = 2;
@@ -1580,25 +1583,25 @@ message TextLineData {
   TextLineType type = 30;
   repeated TextSpanData spans = 33;
   optional ColorType color = 50;
-  bool is_bold = 60;
-  bool is_italic = 61;
-  bool is_strikethrough = 62;
-  bool is_underline = 63;
-  bool is_code = 64;
+  optional bool is_bold = 60;
+  optional bool is_italic = 61;
+  optional bool is_strikethrough = 62;
+  optional bool is_underline = 63;
+  optional bool is_code = 64;
 }
 
-// TextSpan(content: str | None = None, node: Optional[bench.language.node.Node] = None, id: Optional[int] = <factory>, parent: Union[ForwardRef('Struct'), ForwardRef('Node'), ForwardRef('Value'), NoneType] = None, _status: bench.language.const.InterpStatus = None, _updated_properties: bitarray.bitarray | None = None, color: Optional[ForwardRef('ColorType')] = None, is_bold: bool = False, is_italic: bool = False, is_strikethrough: bool = False, is_underline: bool = False, is_code: bool = False, node_ptr: 'NodeReference' = None, parent_id: int = None, parent_key: str = None)
+// TextSpan(content: Optional[str] = None, node: Optional[bench.language.node.Node] = None, id: Optional[int] = <factory>, parent: Union[ForwardRef('Struct'), ForwardRef('Node'), ForwardRef('Value'), NoneType] = None, _status: bench.language.const.InterpStatus = None, _updated_properties: bitarray.bitarray | None = None, color: Optional[ForwardRef('ColorType')] = None, is_bold: Optional[bool] = None, is_italic: Optional[bool] = None, is_strikethrough: Optional[bool] = None, is_underline: Optional[bool] = None, is_code: Optional[bool] = None, node_ptr: 'NodeReference' = None, parent_id: int = None, parent_key: str = None)
 message TextSpanData {
   ObjectType metatype = 1;
   optional int32 id = 2;
   optional string content = 33;
   optional NodeReferenceData node_ptr = 34;
   optional ColorType color = 50;
-  bool is_bold = 60;
-  bool is_italic = 61;
-  bool is_strikethrough = 62;
-  bool is_underline = 63;
-  bool is_code = 64;
+  optional bool is_bold = 60;
+  optional bool is_italic = 61;
+  optional bool is_strikethrough = 62;
+  optional bool is_underline = 63;
+  optional bool is_code = 64;
 }
 
 // TypeInfo(id: Optional[int] = <factory>, parent: Union[ForwardRef('Struct'), ForwardRef('Node'), ForwardRef('Value'), NoneType] = None, order_key: str | None = None, set_properties: list[int] = <factory>, _status: bench.language.const.InterpStatus = None, _updated_properties: bitarray.bitarray | None = None, primitive_type: Optional[bench.language.const.PrimitiveType] = None, bench_type: Optional[bench.utils.func.BenchType] = None, base_type: Optional[ForwardRef('Block')] = None, visibility: bench.language.const.NodeVisibility = <NodeVisibility.ALL: 10>, format_hint: Optional[bench.language.const.FormatHint] = None, condition: Optional[ForwardRef('Expression')] = None, length: Optional[int] = None, precision: Optional[int] = None, scale: Optional[int] = None, default_packed: Optional[Any] = None, default: None = None, is_list: bool = False, is_required: bool = False, is_secret: bool = False, _fields: tuple['Field', ...] | None = None, _resolved_type: Optional[ForwardRef('TypeInfo')] = None, parent_id: int = None, parent_key: str = None, base_type_ptr: 'NodeReference' = None)

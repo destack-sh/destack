@@ -1,4 +1,4 @@
-<script lang="tsx" setup>
+<script lang="ts" setup>
 import { NodeType, Orientation } from "@/proto/wire";
 import { fireActionById } from "@/system/action";
 import { isDeveloperMode } from "@/system/client";

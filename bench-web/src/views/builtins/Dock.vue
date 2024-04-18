@@ -1,4 +1,4 @@
-<script lang="tsx" setup>
+<script lang="ts" setup>
 import { DECLARED_ACTIONS_BY_ID, fireAction, type Action, type ActionBuiltinId } from "@/system/action";
 import { tooltipFromAction } from "@/utils/tooltip";
 import Button from "@/views/controls/Button.vue";

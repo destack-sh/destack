@@ -1,4 +1,4 @@
-<script lang="tsx" setup>
+<script lang="ts" setup>
 import { ViewData, NodeReferenceData, Region, UserStatus, Variant } from "@/proto/wire/";
 import { useExistingConnection } from "@/system/connection";
 import { makeIcon } from "@/system/icon";

@@ -1,4 +1,4 @@
-<script lang="tsx" setup>
+<script lang="ts" setup>
 import { IconInline, toIconMaybe } from "@/system/icon";
 import { highlightMatches } from "@/system/search";
 import { useFloating } from "@/utils/floating";

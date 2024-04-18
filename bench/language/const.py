@@ -74,9 +74,12 @@ class EnumType(IdEnum):
     PRIMITIVE_TYPE = 2080
     FORMAT_HINT = 2081
 
+    # text
+    TEXT_LINE_TYPE = 2090
+
     # file
     FILE_STATUS = 2100
-    FILE_RETENTION_MODE = 21012
+    FILE_RETENTION_MODE = 2101
 
     # flow
     STEP_TYPE = 2150
