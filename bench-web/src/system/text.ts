@@ -124,8 +124,6 @@ export const PM_SCHEMA = new PmSchema({
   },
 });
 
-// nocheckin: text.marks
-
 export function mapTextToPmNode(text: TextData, prev: PmNode | undefined): PmNode {
   const schema = PM_SCHEMA;
   defaultSortStruct(text.lines);
@@ -228,7 +226,7 @@ export function mapPmNodeToText(node: PmNode, prev: TextData | undefined): TextD
       id: lineNode.attrs.id ?? newStructId(),
       orderKey: orderKeys[lineIdx],
       setProperties: [],
-      type: TextLineType.PLAIN,
+      type: lineNode.attrs.type,
       spans,
     };
     lines.push(line);

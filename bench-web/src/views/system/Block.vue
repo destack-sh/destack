@@ -118,7 +118,6 @@ defineExpose<ViewExposed>({ self, id, actions, focus });
     </div>
     <!-- Body -->
     <div class="py-1">
-      nocheckin: Body
       <Text
         is-input
         :variant="Variant.STEALTH"
