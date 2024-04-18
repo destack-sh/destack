@@ -61,11 +61,13 @@ function focus() {
   if (!focusInElement(menuRef.value)) throw new Error(`failed to focus in ${activeOverlayMenu.value?.info.kind}`);
 }
 whenever(menuRef, () => {
-  // auto-focus when created
-  // NOTE: We must focus in the *next* tick even though we're already mounted.
-  //  Chromium has a bug where it gets confused about the actual position of the containing elements (?)
-  //    if we immediately focus it, breaking our floating positioning.
-  nextTick(focus);
+  if (!activeOverlayMenu.value?.info.dontFocus) {
+    // auto-focus when created
+    // NOTE: We must focus in the *next* tick even though we're already mounted.
+    //  Chromium has a bug where it gets confused about the actual position of the containing elements (?)
+    //    if we immediately focus it, breaking our floating positioning.
+    nextTick(focus);
+  }
 });
 
 function fire() {
@@ -73,9 +75,10 @@ function fire() {
 }
 
 function close() {
+  if (!activeOverlayMenu.value) return;
   activeOverlayMenu.value?.info.onClose?.();
   destroyOverlayMenu();
-  canvas.restoreComponentFocus();
+  if (!activeOverlayMenu.value?.info.dontFocus) canvas.restoreComponentFocus();
 }
 </script>
 <template>
@@ -102,7 +105,7 @@ function close() {
     <div
       ref="menuRefContainer"
       v-else-if="activeOverlayMenu?.info.kind == 'component'"
-      class="pointer-events-auto absolute z-70 flex min-w-60 flex-col rounded-md border border-gray-400 bg-white text-gray-900 shadow-md shadow-gray-400"
+      class="pointer-events-auto absolute z-70 flex min-w-60 flex-col rounded-md border border-gray-400 bg-white px-2 py-1 text-gray-900 shadow-md shadow-gray-400"
       v-outside.mousedown.stop="close"
       @keydown.enter.stop.prevent="fire(), close()"
       @keydown.esc.stop.prevent="close"

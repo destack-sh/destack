@@ -232,8 +232,8 @@ function focus(anchor: FocusAnchor | NodeReferenceData) {
   } else {
     if (anchor.id == props.nodePtr?.id) {
       // just focus first
-      if (expandedItems.value.length >= 0) {
-        expandedBlockRefs.value[expandedItems.value[0].nodePtr.id!].$el.scrollIntoView({
+      if (expandedItems.value.length > 0) {
+        expandedBlockRefs.value[expandedItems.value[0].nodePtr.id!]?.$el.scrollIntoView({
           block: "start",
           behavior: "instant",
         });
@@ -330,18 +330,30 @@ defineExpose<ViewExposed>({ self, actions, focus });
               :key="anchor"
               role="button"
               class="absolute z-10 h-[6px] w-full flex-shrink-0 text-center text-gray-300 opacity-0 transition-colors duration-100 hover/create:text-primary-400 hover:opacity-100 data-[menu=true]:text-primary-900 data-[menu=true]:opacity-100"
-              :style="getAnchorPosition(anchor as 'start' | 'end', i, (anchor == 'start' || depth != expandedItems[i + 1]?.depth) ? 8  : 4)"
-              v-menu="(): OverlayMenuInfo => ({
-                kind: 'component',
-                component: Picker,
-                placement: 'bottom',
-                referenceMargin: 4,
-                props: { isInline: true, valueType: makeTypeInfo({ 
-                  benchType: BenchType.BLOCK_TYPE,
-                  isRequired: true,
-                })},
-                onApply: (blockType: BlockType) => createBlock({ type: blockType }, anchor == 'start' ? 'before' : 'after', blockPtr),
-              })"
+              :style="
+                getAnchorPosition(
+                  anchor as 'start' | 'end',
+                  i,
+                  anchor == 'start' || depth != expandedItems[i + 1]?.depth ? 8 : 4,
+                )
+              "
+              v-menu="
+                (): OverlayMenuInfo => ({
+                  kind: 'component',
+                  component: Picker,
+                  placement: 'bottom',
+                  referenceMargin: 4,
+                  props: {
+                    isInline: true,
+                    valueType: makeTypeInfo({
+                      benchType: BenchType.BLOCK_TYPE,
+                      isRequired: true,
+                    }),
+                  },
+                  onApply: (blockType: BlockType) =>
+                    createBlock({ type: blockType }, anchor == 'start' ? 'before' : 'after', blockPtr),
+                })
+              "
               data-keep-inspection-in-base="true"
             >
               <!-- Line with a gap for the button -->
@@ -363,7 +375,9 @@ defineExpose<ViewExposed>({ self, actions, focus });
 
             <!-- Block -->
             <Block
-              :ref="(ref: any) => ref ? (expandedBlockRefs[blockPtr.id!] = ref) : delete expandedBlockRefs[blockPtr.id!]"
+              :ref="
+                (ref: any) => (ref ? (expandedBlockRefs[blockPtr.id!] = ref) : delete expandedBlockRefs[blockPtr.id!])
+              "
               class="w-full rounded-md border"
               :class="[
                 blockPtr.id == focusedNodePtr?.id ? 'border-primary-900' : 'border-gray-200 hover:border-primary-900',
@@ -371,9 +385,18 @@ defineExpose<ViewExposed>({ self, actions, focus });
               ]"
               :node-ptr="blockPtr"
               :prepared-connection="preparedPkgConnection"
-              v-contextmenu="(): OverlayMenuInfo => {
-                return { kind: 'menu', placement: 'bottom-right', items: menuActionsLike({ wildcard: ['common.edit.*', 'common.create.above', 'common.create.below', 'common.block.*'] }, { context: { triggerNode: blockPtr } })}
-              }"
+              v-contextmenu="
+                (): OverlayMenuInfo => {
+                  return {
+                    kind: 'menu',
+                    placement: 'bottom-right',
+                    items: menuActionsLike(
+                      ['common.edit.*', 'common.create.above', 'common.create.below', 'common.block.*'],
+                      { context: { triggerNode: blockPtr } },
+                    ),
+                  };
+                }
+              "
               :draggable="true"
               @dragstart="(e: DragEvent) => startDragging(e, pkgGraph, blockPtr)"
             />

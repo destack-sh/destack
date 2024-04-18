@@ -1,22 +1,25 @@
 <script lang="ts" setup>
-import { TextData, ViewData, NodeType } from "@/proto/wire";
+import { NodeType, TextData, Variant, ViewData } from "@/proto/wire";
 import { type TypedNodeReferenceData } from "@/proto/wiring";
-import { viewEmits, type ViewExposed } from "@/views/common";
+import { type ActionImplementation, type ActionMapImplementation } from "@/system/action";
 import { canvas } from "@/system/space";
-import { onMounted, ref, toRef, watch } from "vue";
+import { PM_SCHEMA, PM_INPUT_RULES, mapPmNodeToText, mapTextToPmNode, type TextMarkType } from "@/system/text";
+import { menuActionsLike, type MenuContext, type OverlayMenuInfo } from "@/utils/menu";
+import { deepValueEquals } from "@/utils/ref";
 import { makeViewId } from "@/views";
+import { viewEmits, type ViewExposed } from "@/views/common";
+import { whenever } from "@vueuse/core";
+import * as commands from "prosemirror-commands";
+import { keymap } from "prosemirror-keymap";
+import { InputRule, inputRules, smartQuotes } from "prosemirror-inputrules";
 import { EditorState } from "prosemirror-state";
 import { EditorView } from "prosemirror-view";
-import { keymap } from "prosemirror-keymap";
-import { baseKeymap } from "prosemirror-commands";
-import { whenever } from "@vueuse/core";
-import { PROSE_MIRROR_SCHEMA, type TextMarkType, mapTextToPmNode, mapPmNodeToText } from "@/system/text";
-import { type ActionMapImplementation, type ActionImplementation, ACTION_COMING_SOON } from "@/system/action";
+import { ref, toRef, watch } from "vue";
 
 const props = defineProps<
   { self?: TypedNodeReferenceData<NodeType.VIEW>; modelValue?: TextData } & Pick<
     ViewData,
-    "title" | "icon" | "variant" | "nodePtr"
+    "title" | "icon" | "variant" | "nodePtr" | "isInput"
   >
 >();
 const emit = defineEmits(viewEmits());
@@ -29,8 +32,8 @@ let view: EditorView | null = null;
 function makeEditorState(text?: TextData) {
   return EditorState.create({
     doc: props.modelValue != null ? mapTextToPmNode(props.modelValue, undefined) : undefined,
-    schema: PROSE_MIRROR_SCHEMA,
-    plugins: [keymap(baseKeymap)],
+    schema: PM_SCHEMA,
+    plugins: [keymap(commands.baseKeymap), inputRules({ rules: PM_INPUT_RULES })],
   });
 }
 
@@ -54,41 +57,99 @@ whenever(textRef, () => {
       const newState = view!.state.apply(transaction);
       view!.updateState(newState);
       const updatedText = mapPmNodeToText(newState.doc, props.modelValue);
-      console.log("pm.dispatchTransaction", transaction, updatedText); // nocheckin
-      emit("update:modelValue", updatedText);
+      // PM triggers transactions even when only the selection changes?
+      if (!deepValueEquals(updatedText, props.modelValue)) {
+        console.log("pm.dispatchTransaction", transaction, updatedText); // nocheckin
+        emit("update:modelValue", updatedText);
+      }
     },
   });
 });
 
 function formatAction(mark: TextMarkType): ActionImplementation {
   return {
-    action: ACTION_COMING_SOON,
+    isEnabled: () => props.isInput,
+    isChecked: () => {
+      return true; // nocheckin
+    },
+    action: () => {
+      if (view == null) throw new Error("view not mounted");
+      const { state, dispatch } = view;
+      if (state.selection.empty) {
+        // switch to that mark
+        dispatch(state.tr.setStoredMarks([state.schema.marks[mark].create()]));
+      } else {
+        // add or remove the mark from the selection
+        commands.toggleMark(state.schema.marks[mark])(state, dispatch);
+      }
+    },
   };
 }
-const actions: ActionMapImplementation<"text"> = {
+const actions: ActionMapImplementation<"text"> & Partial<ActionMapImplementation<"common">> = {
+  // nocheckin: actions not working because this view component does not show up in collectViewComponents???
+  // text
   "text.format.bold": formatAction("bold"),
   "text.format.italic": formatAction("italic"),
   "text.format.strikethrough": formatAction("strikethrough"),
   "text.format.underline": formatAction("underline"),
   "text.format.code": formatAction("code"),
+  // common
+  "common.select.all": {
+    action: () => commands.selectAll(view!.state, view!.dispatch),
+  },
 };
-
-canvas.registerView(self, id);
 
 function focus() {
   view!.focus();
 }
 
-defineExpose<ViewExposed>({ self, id, actions, focus });
+canvas.registerView(self, id);
+defineExpose<ViewExposed>({ self, id, variants: [Variant.PRIMARY, Variant.STEALTH], actions, focus });
 </script>
 <template>
+  <!-- TODO :UX: Text menus (insert, morph, bubble, etc.) -->
   <div>
     <label v-if="title" class="mb-0.5 block font-medium text-gray-900">{{ title }}</label>
-		<!-- NOTE: textRef must be in a stable fragment to mount the editor view -->
-    <div ref="textRef" class="px-2 py-0.5 focus-within:border-primary-400"></div>
+    <!-- NOTE: textRef must be in a stable fragment to mount the editor view -->
+    <div
+      ref="textRef"
+      class="prose rounded-md"
+      :class="[variant != Variant.STEALTH ? 'border border-gray-200 px-2 py-0.5 focus-within:border-primary-400' : '']"
+      v-contextmenu="
+        (context: MenuContext): OverlayMenuInfo => ({
+          kind: 'menu',
+          placement: 'bottom-right',
+          items: menuActionsLike(
+            ['text.*', 'common.edit.morph', 'common.edit.copy', 'common.edit.cut', 'common.edit.paste'],
+            { context },
+          ),
+          context,
+          dontFocus: true, // keep focus on the editor
+        })
+      "
+    ></div>
   </div>
 </template>
 <style>
+/* Prose */
+.prose {
+	@apply text-gray-900;
+}
+.prose hr {
+  @apply border-gray-700 py-2;
+}
+.prose h1 {
+  @apply text-2xl font-semibold mt-2 mb-4;
+}
+.prose h2 {
+	@apply text-xl font-semibold mt-1 mb-3;
+}
+.prose h3 {
+	@apply text-lg font-semibold mt-1 mb-2;
+}
+</style>
+<style>
+/* PM */
 @import url("/node_modules/prosemirror-view/style/prosemirror.css");
 
 .ProseMirror-focused {

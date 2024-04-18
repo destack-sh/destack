@@ -70,7 +70,6 @@ function fire(option: EnumOptionItem | NodeItem) {
 }
 
 function focus(anchor?: "previous" | "next" | FocusAnchor | NodeReferenceData) {
-  // nocheckin: interaction
   const idx = results.value.findIndex((r) => r.id === activeResultId.value);
   if (anchor == "previous") {
     activeResultId.value = results.value[idx > 0 ? idx - 1 : results.value.length - 1].id;
