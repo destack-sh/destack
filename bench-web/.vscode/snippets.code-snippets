@@ -15,7 +15,7 @@
 		"body": [
 			"<script lang=\"tsx\" setup>",
 			"import { ViewData, NodeType } from \"@/proto/wire\";",
-			"import { TypedNodeReferenceData } from \"@/proto/wire\";",
+			"import { type TypedNodeReferenceData } from \"@/proto/wire\";",
 			"import { viewEmits, type ViewExposed } from \"@/views/common\";",
 			"import { canvas } from \"@/system/space\";",
 			"import { useExistingConnection } from \"@/system/connection\";",
@@ -41,7 +41,7 @@
 		"body": [
 			"<script lang=\"tsx\" setup>",
 			"import { ViewData, NodeType } from \"@/proto/wire\";",
-			"import { TypedNodeReferenceData } from \"@/proto/wiring\";",
+			"import { type TypedNodeReferenceData } from \"@/proto/wiring\";",
 			"import { viewEmits, type ViewExposed } from \"@/views/common\";",
 			"import { canvas } from \"@/system/space\";",
 			"import { toRef } from \"vue\";",

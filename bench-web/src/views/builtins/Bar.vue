@@ -14,9 +14,9 @@ import { formatDurationFromNow } from "@/utils/time";
 import type { TooltipInfo } from "@/utils/tooltip";
 import Scroll from "@/views/containers/Scroll.vue";
 import Button from "@/views/controls/Button.vue";
-import Dock from "@/views/private/Dock.vue";
-import Menu from "@/views/private/Menu.vue";
-import Popover from "@/views/private/Popover.vue";
+import Dock from "@/views/builtins/Dock.vue";
+import Menu from "@/views/builtins/Menu.vue";
+import Popover from "@/views/builtins/Popover.vue";
 import { useElementSize, useFps, useMemory } from "@vueuse/core";
 import { computed, ref } from "vue";
 

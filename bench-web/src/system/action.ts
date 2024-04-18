@@ -202,7 +202,7 @@ export type Action = {
   title: MaybeRef<string>;
   text: string | TextData;
   shortcuts?: KeySignature[]; // TODO :Feature: define shortcuts in per-Space & per-User keymap
-  isEnabled?: Ref<boolean>;
+  isEnabled?: Ref<boolean> | (() => boolean);
   source: ActionSource;
   category: string;
   subcategory?: string;
@@ -331,7 +331,7 @@ export function fireActionById(id: ActionBuiltinId, context?: ActionContext) {
 
 /** Triggers the bound action from a keyboard event. */
 export function fireActionFromEvent(action: Action, e: KeyboardEvent, context?: ActionContext): boolean {
-  if (action.isEnabled != null && !action.isEnabled.value) {
+  if (action.isEnabled != null && !toValue(action.isEnabled)) {
     log.debug("action.disabled", action.id);
     return false;
   }
@@ -352,12 +352,12 @@ export function fireActionFromEvent(action: Action, e: KeyboardEvent, context?: 
  */
 export function getImplementingAction(action: Action, context: ViewComponent[]): ActionImplementation | null {
   if (action.kind == "static") {
-    if (action.isEnabled == null || action.isEnabled.value == true) return action;
+    if (action.isEnabled == null || toValue(action.isEnabled)) return action;
     else return null;
   } else if (action.kind == "virtual") {
     for (const view of context) {
       const impl = view.exposed?.actions?.[action.id];
-      if (impl != null && (impl.isEnabled == null || impl.isEnabled.value == true)) return impl;
+      if (impl != null && (impl.isEnabled == null || toValue(impl.isEnabled) == true)) return impl;
     }
     return null;
   } else {
@@ -371,7 +371,7 @@ export function fireAction(
   viewsInOrder: ViewComponent[] | null = canvas.focusedViewComponents,
   context?: ActionContext,
 ) {
-  if (action.isEnabled != null && !action.isEnabled.value) return false;
+  if (action.isEnabled != null && !toValue(action.isEnabled)) return false;
   if (action.kind == "static") {
     // static: just call callback directly
     log.info("action.static", action.id);
@@ -381,7 +381,7 @@ export function fireAction(
     // virtual: find first component implementing that action
     for (const view of viewsInOrder ?? []) {
       const impl = view.exposed?.actions?.[action.id];
-      if (impl != null && (impl.isEnabled == null || impl.isEnabled.value == true)) {
+      if (impl != null && (impl.isEnabled == null || toValue(impl.isEnabled) == true)) {
         log.info("action.virtual", action.id);
         const ret = impl.action(action, context);
         if (typeof ret != "boolean" || ret === true) return true;
@@ -995,7 +995,7 @@ contributeActionMap<"space">({
   "space.launch.create": {
     title: "Open Creator",
     text: "Get relevant building blocks and templates",
-    icon: "fas fa-hexagon-plus",
+    icon: "fas fa-plus",
     action: () => {
       canvas.addView({ type: ViewType.CREATE, title: "Create" }, { ifPresent: "upsertAndFocus" });
     },

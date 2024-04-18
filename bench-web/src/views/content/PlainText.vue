@@ -10,7 +10,7 @@ import { ref, toRef } from "vue";
 const props = defineProps<
   { self?: TypedNodeReferenceData<NodeType.VIEW> } & Pick<
     ViewData,
-    "title" | "text" | "icon" | "variant" | "valueType" | "orientation" | "isInput" | "isDisabled"
+    "title" | "text" | "icon" | "variant" | "valueType" | "isInput" | "isDisabled"
   >
 >();
 const emit = defineEmits(viewEmits());
@@ -25,15 +25,22 @@ defineExpose<ViewExposed>({ self, id, variants: [Variant.PRIMARY, Variant.STEALT
 <template>
   <div>
     <label v-if="title" class="mb-0.5 block font-medium text-gray-900">{{ title }}</label>
-    <div v-if="isInput"
+    <div
+      v-if="isInput"
       class="group flex flex-row items-center rounded-md border-gray-300 px-2 py-0.5 focus-within:border-primary-400"
       :class="[
-      isDisabled ? 'bg-gray-100 text-gray-700' : 'bg-white text-gray-900',
-      variant != Variant.STEALTH ? 'border focus-within:ring-1 focus-within:ring-primary-400' : '',
-    ]">
+        isDisabled ? 'bg-gray-100 text-gray-700' : 'bg-white text-gray-900',
+        variant != Variant.STEALTH ? 'border focus-within:ring-1 focus-within:ring-primary-400' : '',
+      ]"
+    >
       <IconInline v-if="icon" v-bind="icon" class="mr-2 text-gray-400" />
-      <input ref="inputRef" :type="valueType?.isSecret ? 'password' : 'text'" v-model="modelValue"
-        class="w-full border-0 bg-transparent p-0 outline-none ring-0 focus:ring-0" :disabled="isDisabled" />
+      <input
+        ref="inputRef"
+        :type="valueType?.isSecret ? 'password' : 'text'"
+        v-model="modelValue"
+        class="w-full border-0 bg-transparent p-0 outline-none ring-0 focus:ring-0"
+        :disabled="isDisabled"
+      />
     </div>
     <span v-else>{{ modelValue }}</span>
   </div>
