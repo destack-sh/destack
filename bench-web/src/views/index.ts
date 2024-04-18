@@ -39,6 +39,7 @@ const COMPONENT_BY_VIEW_TYPE_LAZY = {
 
   // content
   [ViewType.PLAIN_TEXT]: import("@/views/content/PlainText.vue"),
+  [ViewType.TEXT]: import("@/views/content/Text.vue"),
   [ViewType.PICKER]: import("@/views/content/Picker.vue"),
 };
 

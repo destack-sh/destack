@@ -9,6 +9,10 @@ import {
 } from "@vueuse/core";
 import { computed, onUpdated, ref, watch, type ComponentInstance, type ComponentPublicInstance, type Ref } from "vue";
 
+export function blurDocument() {
+  if (document.activeElement instanceof HTMLElement) document.activeElement.blur();
+}
+
 /** Gets the underlying HTML/SVG element of an HTML/SVG/Vue thing */
 export function getElement(el: MaybeElement | ViewComponent): HTMLElement | SVGElement | null {
   if (el instanceof HTMLElement || el instanceof SVGElement) return el;

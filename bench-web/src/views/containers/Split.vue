@@ -9,7 +9,7 @@ import { getViewBinding, getViewComponent } from "@/views";
 import { viewEmits } from "@/views/common";
 import type { ViewExposed } from "@/views/common";
 import { computed, ref, toRef, type Ref } from "vue";
-import Empty from "@/views/private/Empty.vue";
+import Empty from "@/views/builtins/Empty.vue";
 import type { TypedNodeReferenceData } from "@/proto/wiring";
 
 const props = defineProps<

@@ -254,8 +254,6 @@ export class ViewCanvas {
   /** Updates our internal focus state in response to a browser event */
   private onComponentFocused(element: ViewComponent | HTMLElement | null) {
     const component = element instanceof HTMLElement ? findViewComponent(element) : element;
-    const wasDifferent = this.focusedViewComponent.value !== component;
-    const tx = this.txFactory();
 
     // update component focus state
     if (component == null) {
@@ -263,43 +261,46 @@ export class ViewCanvas {
       this.focusedViewComponent.value = null;
       this.focusedViewComponentsById.value = {};
       this.focusedViewPtr.value = null;
-    } else if (this.focusedViewComponent.value !== component) {
-      // refresh
+    } else if (this.focusedViewComponent.value === component) return;
 
-      // update focus
-      this.focusedViewComponent.value = component;
-      const componentsById: Record<string, ViewComponent> = {};
-      const viewComponents = collectViewComponentsUp(component);
-      viewComponents.forEach((c) => {
-        componentsById[getViewComponentId(c)] = c;
-      });
-      this.focusedViewComponentsById.value = componentsById;
-      this.focusedViewPtr.value = getViewComponentPtrMaybe(viewComponents.find(isIdentifiedViewComponent));
+    // refresh
+    const wasDifferent = this.focusedViewComponent.value !== component;
+    const tx = this.txFactory();
 
-      // update root/inspection if not in a 'ridealong' view
-      const rootViewComponentIdx = viewComponents.findIndex((v) => isViewComponentIn(v, ROOT_VIEW_TYPES));
-      const baseViewPtr = getViewComponentPtrMaybe(viewComponents[rootViewComponentIdx - 1]);
-      const baseView = this.graph.getMaybe(baseViewPtr);
-      const nodeView = viewComponents.find((v) => isViewComponentIn(v, NODE_VIEW_TYPES));
-      const linkedNodePtr = nodeView && element ? this.getViewNodePtr(nodeView, element) : null;
-      const keepInspectionInBase =
-        getElement(element)?.closest("[data-keep-inspection-in-base]") != null &&
-        inspectionBasePtr.value != null &&
-        isDescendantOf(this.graph, inspectionBasePtr.value, linkedNodePtr);
+    // update focus
+    this.focusedViewComponent.value = component;
+    const componentsById: Record<string, ViewComponent> = {};
+    const viewComponents = collectViewComponentsUp(component);
+    viewComponents.forEach((c) => {
+      componentsById[getViewComponentId(c)] = c;
+    });
+    this.focusedViewComponentsById.value = componentsById;
+    this.focusedViewPtr.value = getViewComponentPtrMaybe(viewComponents.find(isIdentifiedViewComponent));
 
-      if (
-        baseView != null &&
-        linkedNodePtr != null &&
-        !RIDEALONG_VIEW_TYPES.has(baseView.type) &&
-        linkedNodePtr != inspectionPtr.value?.id &&
-        !keepInspectionInBase
-      ) {
-        this.inspect(tx, { node: linkedNodePtr, view: this.focusedViewPtr.value! });
-      }
-      if (this.focusedViewPtr.value != null && wasDifferent && !keepInspectionInBase) {
-        const focusInView = makeSelectionMaybe(linkedNodePtr);
-        this.focusInGraph(tx, { view: this.focusedViewPtr.value, focus: focusInView });
-      }
+    // update root/inspection if not in a 'ridealong' view
+    const rootViewComponentIdx = viewComponents.findIndex((v) => isViewComponentIn(v, ROOT_VIEW_TYPES));
+    const baseViewPtr = getViewComponentPtrMaybe(viewComponents[rootViewComponentIdx - 1]);
+    const baseView = this.graph.getMaybe(baseViewPtr);
+    const nodeView = viewComponents.find((v) => isViewComponentIn(v, NODE_VIEW_TYPES));
+    const linkedNodePtr = nodeView && element ? this.getViewNodePtr(nodeView, element) : null;
+    const keepInspectionInBase =
+      getElement(element)?.closest?.("[data-keep-inspection-in-base]") != null &&
+      inspectionBasePtr.value != null &&
+      linkedNodePtr != null &&
+      isDescendantOf(this.graph, inspectionBasePtr.value, linkedNodePtr);
+
+    if (
+      baseView != null &&
+      linkedNodePtr != null &&
+      !RIDEALONG_VIEW_TYPES.has(baseView.type) &&
+      linkedNodePtr != inspectionPtr.value?.id &&
+      !keepInspectionInBase
+    ) {
+      this.inspect(tx, { node: linkedNodePtr, view: this.focusedViewPtr.value! });
+    }
+    if (this.focusedViewPtr.value != null && wasDifferent && !keepInspectionInBase) {
+      const focusInView = makeSelectionMaybe(linkedNodePtr);
+      this.focusInGraph(tx, { view: this.focusedViewPtr.value, focus: focusInView });
     }
   }
 
@@ -506,7 +507,7 @@ export class ViewCanvas {
       // NOTE: we enforce that el must be a single element for all Views with a lint rule
       const el = (instance as any).vnode.el as HTMLElement | null;
       if (!el) {
-        console.warn("canvas.missingEl", getVueComponentType(instance), instance);
+        log.warn("canvas.missingEl", getVueComponentType(instance), instance);
       } else {
         (el as any).__viewComponent = instance;
         if ("dataset" in el) el.dataset.view = "true";

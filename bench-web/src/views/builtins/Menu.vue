@@ -12,7 +12,7 @@ import type { Ref, ComponentPublicInstance } from "vue";
 
 const SHOW_NESTED_DELAY = 200;
 
-const props = defineProps<MenuInfo & { parent?: MenuInfo; placement?: FloatingPlacement }>();
+const props = defineProps<{ items: MenuItem[]; parent?: MenuInfo; placement?: FloatingPlacement }>();
 const emit = defineEmits<{
   close: [bubble?: boolean];
 }>();
@@ -145,7 +145,6 @@ function onNavigateHorizontal(direction: "left" | "right") {
     }
   }
 }
-
 
 // highlight and focus best match when typing
 const uf = new uFuzzy({ intraMode: 1 });

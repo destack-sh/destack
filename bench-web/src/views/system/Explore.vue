@@ -9,6 +9,7 @@ import {
   ViewData,
   ViewType,
   type AnyNodeData,
+  CHILD_NODE_TYPES,
 } from "@/proto/wire";
 import type { TypedNodeReferenceData } from "@/proto/wiring";
 import type { ActionContext, ActionMapImplementation } from "@/system/action";
@@ -213,8 +214,12 @@ const { activeDropZone } = useMultiDropZone({
   kinds: ["node"],
   metatypes: inspectedNodeTypes,
   allowDrop: (dragged, anchor, targetId) => {
+    if (dragged.kind != "node") return false;
     const target = inspectedGraph.get({ id: targetId });
-    return dragged.kind == "node" && target != null && !isDescendantOf(inspectedGraph, target, dragged.node);
+    if (target == null || isDescendantOf(inspectedGraph, target, dragged.node)) return false;
+    const targetParentType = anchor == "center" ? (target.metatype as unknown as NodeType) : target.parentPtr!.type;
+    if (!CHILD_NODE_TYPES[targetParentType].includes(dragged.node.metatype as unknown as NodeType)) return false;
+    return true;
   },
   onDrop: (dragged, anchor, targetId) => {
     if (targetId != null && dragged.kind == "node") {
@@ -327,8 +332,9 @@ defineExpose<ViewExposed>({ self, actions, focus });
         <!-- Expand button (or placeholder) -->
         <button
           v-if="hasChildren"
-          class="group mr-1 w-5 rounded-md hover:bg-primary-200 hover:text-primary-900"
+          class="group mr-1 w-5 rounded-md enabled:hover:bg-primary-200 enabled:hover:text-primary-900"
           :class="focusedNode?.id == node.id ? '' : 'text-gray-400'"
+          :disabled="props.type == ViewType.OUTLINE"
           @click.stop="toggleExpanded(node), doFocus(node)"
         >
           <i

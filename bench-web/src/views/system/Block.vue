@@ -9,12 +9,13 @@ import { onMouseNotPressedOnce } from "@/utils/layout";
 import { canvas } from "@/system/space";
 import { makeViewId } from "@/views";
 import { viewEmits, type FocusAnchor, type ViewExposed } from "@/views/common";
-import Inaccessible from "@/views/private/Inaccessible.vue";
+import Inaccessible from "@/views/builtins/Inaccessible.vue";
 import { computed, toRef, type Ref, ref } from "vue";
 import type { TooltipInfo } from "@/utils/tooltip";
 import type { ActionMapImplementation } from "@/system/action";
 import PlainText from "@/views/content/PlainText.vue";
 import type { OverlayMenuInfo } from "@/utils/menu";
+import Text from "@/views/content/Text.vue";
 
 const props = defineProps<
   { self?: TypedNodeReferenceData<NodeType.VIEW>; preparedConnection?: PreparedGetConnection } & Pick<
@@ -48,6 +49,7 @@ const block = pkgGraph.getRef(nodePtr, { ignoreAncestors: props.self == null });
 
 const actions: Partial<ActionMapImplementation<"common">> = {
   "common.block.toggleIsPage": {
+    isEnabled: () => block.value != null,
     isChecked: () => block.value?.isPage ?? false,
     action: () => pkgConnection.tx.updateDebounced(block.value!, { isPage: !block.value!.isPage }),
   },
@@ -99,7 +101,10 @@ defineExpose<ViewExposed>({ self, id, actions, focus });
       <!-- Tags, triggers, roles, queries, etc. -->
     </div>
     <!-- Body -->
-    <div class="py-1">nocheckin: Body</div>
+    <div class="py-1">
+      nocheckin: Body
+      <Text title="my text" />
+    </div>
   </div>
   <Inaccessible v-else class="h-full w-full bg-white" :node="nodePtr" :is-connected="pkgConnection.isConnected.value" />
 </template>

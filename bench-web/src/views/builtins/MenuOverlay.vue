@@ -4,7 +4,7 @@ import { focusInElement } from "@/views/canvas";
 import { getElement } from "@/utils/element";
 import { getFloatingPosition, type FloatingPlacement } from "@/utils/floating";
 import { activeOverlayMenu, destroyOverlayMenu } from "@/utils/menu";
-import Menu from "@/views/private/Menu.vue";
+import Menu from "@/views/builtins/Menu.vue";
 import { useElementSize, whenever, type MaybeElement } from "@vueuse/core";
 import { computed, nextTick, ref, watch, type Ref } from "vue";
 

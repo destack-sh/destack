@@ -20,14 +20,14 @@ import { canvas, inspectionPtr } from "@/system/space";
 import { makeTypeInfo } from "@/system/value";
 import { startDragging, useMultiDropZone } from "@/utils/drag";
 import { ScrollbarWidth } from "@/utils/layout";
+import { blurDocument } from "@/utils/element";
 import { menuActionsLike, type OverlayMenuInfo } from "@/utils/menu";
 import { computedValue } from "@/utils/ref";
-import type { ViewComponent } from "@/views";
 import { viewEmits, type FocusAnchor, type ViewExposed } from "@/views/common";
 import Scroll from "@/views/containers/Scroll.vue";
 import Picker from "@/views/content/Picker.vue";
-import Inaccessible from "@/views/private/Inaccessible.vue";
-import NavigationBar from "@/views/private/NavigationBar.vue";
+import Inaccessible from "@/views/builtins/Inaccessible.vue";
+import NavigationBar from "@/views/builtins/NavigationBar.vue";
 import Block from "@/views/system/Block.vue";
 import { computed, ref, toRef, watch, type Ref, nextTick } from "vue";
 
@@ -35,7 +35,8 @@ const HEADER_HEIGHT = 24;
 const DEPTH_OFFSET = 40;
 const MIN_BLOCK_WIDTH = 500;
 const MAX_BLOCK_WIDTH = 800;
-const MIN_GUTTER_WIDTH = 80;
+const MIN_GUTTER_WIDTH = 40;
+const TARGET_GUTTER_WIDTH = 80;
 const ROOT_BLOCK_GAP_Y = 16;
 const NESTED_BLOCK_GAP_Y = 8;
 
@@ -75,6 +76,7 @@ const focusedNodePtr = computedValue(() => props.focus?.nodesPtr[0]);
 
 // size block/gutter horizontally (try to fit both until min block width, ignoring depth)
 const widths = computed(() => {
+  // divide space between block and gutter up to target gutter width
   const blockWidth = Math.min(MAX_BLOCK_WIDTH, Math.max(MIN_BLOCK_WIDTH, props.size.width - MIN_GUTTER_WIDTH * 2));
   const gutterWidth = Math.max(MIN_GUTTER_WIDTH, (props.size.width - blockWidth) / 2);
   return { block: blockWidth, gutter: gutterWidth };
@@ -230,22 +232,21 @@ function focus(anchor: FocusAnchor | NodeReferenceData) {
   } else {
     if (anchor.id == props.nodePtr?.id) {
       // just focus first
-      if (expandedItems.value.length == 0) return true; // nothing to focus
-      expandedBlockRefs.value[expandedItems.value[0].nodePtr.id!].$el.scrollIntoView({
-        block: "start",
-        behavior: "instant",
-      });
+      if (expandedItems.value.length >= 0) {
+        expandedBlockRefs.value[expandedItems.value[0].nodePtr.id!].$el.scrollIntoView({
+          block: "start",
+          behavior: "instant",
+        });
+      }
     } else {
       const block = expandedBlockRefs.value[anchor.id!];
       block?.$el.scrollIntoView({ block: "nearest", behavior: "instant" });
     }
   }
-  return false;
-}
 
-// function mapToNode(element: HTMLElement | ViewComponent): NodeReferenceData | null {
-//   // nocheckin: keep inspection/base if clicking outside Block element (e.g. to add block)
-// }
+  blurDocument(); // nothing to focus directly
+  return true;
+}
 
 canvas.registerView(self);
 defineExpose<ViewExposed>({ self, actions, focus });

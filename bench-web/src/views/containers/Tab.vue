@@ -15,7 +15,7 @@ import type { TooltipInfo } from "@/utils/tooltip";
 import { getViewBinding, getViewComponent } from "@/views";
 import { viewEmits, type ViewExposed } from "@/views/common";
 import Scroll from "@/views/containers/Scroll.vue";
-import Empty from "@/views/private/Empty.vue";
+import Empty from "@/views/builtins/Empty.vue";
 import { computed, nextTick, ref, toRef, type Ref } from "vue";
 
 const props = defineProps<

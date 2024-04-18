@@ -12,11 +12,11 @@ import { isDraggingGlobal } from "@/utils/layout";
 import { hasActiveOverlayMenu } from "@/utils/menu";
 import { Casing, toCasing } from "@/utils/string";
 import Split from "@/views/containers/Split.vue";
-import Bar from "@/views/private/Bar.vue";
-import MenuOverlay from "@/views/private/MenuOverlay.vue";
-import Omnibar from "@/views/private/Omnibar.vue";
-import ToastOverlay from "@/views/private/ToastOverlay.vue";
-import TooltipOverlay from "@/views/private/TooltipOverlay.vue";
+import Bar from "@/views/builtins/Bar.vue";
+import MenuOverlay from "@/views/builtins/MenuOverlay.vue";
+import Omnibar from "@/views/builtins/Omnibar.vue";
+import ToastOverlay from "@/views/builtins/ToastOverlay.vue";
+import TooltipOverlay from "@/views/builtins/TooltipOverlay.vue";
 import { useTitle, useWindowSize } from "@vueuse/core";
 import { computed, onBeforeUnmount, ref, watch } from "vue";
 
