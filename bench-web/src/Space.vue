@@ -2,21 +2,18 @@
 import { NodeType, Orientation, ViewType } from "@/proto/wire";
 import { toNodeReference } from "@/proto/wiring";
 import { spacePtr } from "@/system/client";
-import { IconInline, getNodeIcon } from "@/system/icon";
-import { toCamelName } from "@/system/lang";
 import { bench, canvas, spaceConnection, spaceGraph } from "@/system/space";
 import { toaster } from "@/system/toast";
-import { _setDragImage, activeDragged } from "@/utils/drag";
 import { keytrap } from "@/utils/keymap";
 import { isDraggingGlobal } from "@/utils/layout";
 import { hasActiveOverlayMenu } from "@/utils/menu";
-import { Casing, toCasing } from "@/utils/string";
-import Split from "@/views/containers/Split.vue";
 import Bar from "@/views/builtins/Bar.vue";
+import DragOverlay from "@/views/builtins/DragOverlay.vue";
 import MenuOverlay from "@/views/builtins/MenuOverlay.vue";
 import Omnibar from "@/views/builtins/Omnibar.vue";
 import ToastOverlay from "@/views/builtins/ToastOverlay.vue";
 import TooltipOverlay from "@/views/builtins/TooltipOverlay.vue";
+import Split from "@/views/containers/Split.vue";
 import { useTitle, useWindowSize } from "@vueuse/core";
 import { computed, onBeforeUnmount, ref, watch } from "vue";
 
@@ -115,29 +112,7 @@ watch([canvas.focusedViewPtr, bench], () => {
     <Omnibar ref="omnibarRef" :box="mainBox" />
     <TooltipOverlay />
     <MenuOverlay />
-    <!-- Drag image overlay -->
-    <!-- Wrapper to ensure dragImageRef is always set -->
-    <div :ref="(ref) => _setDragImage(ref as any)" class="absolute -top-[100px] left-20 py-1 pl-2">
-      <div
-        v-if="activeDragged"
-        class="max-w-48 rounded-md border border-gray-400 bg-white px-2 py-1 text-gray-900 shadow-md shadow-gray-400"
-      >
-        <!-- And wrapper to offset within the image to ensure the text isn't obscured by the cursor -->
-        <div v-if="activeDragged.kind == 'node'" class="flex flex-row items-center">
-          <IconInline v-bind="getNodeIcon(activeDragged.nodes[0])" class="mr-1 text-gray-700" />
-          <span class="truncate">
-            {{
-              (activeDragged.nodes[0] as any).title ??
-              (activeDragged.nodes[0] as any).name ??
-              toCamelName(NodeType, activeDragged.node.type)
-            }}
-          </span>
-        </div>
-        <div v-else>
-          <span class="text-gray-700">{{ toCasing(activeDragged.kind, Casing.CAMEL) }}</span>
-        </div>
-      </div>
-    </div>
+    <DragOverlay />
   </div>
 </template>
 <style>

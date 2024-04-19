@@ -1,6 +1,16 @@
 <script lang="ts" setup>
-import { BlockType, NodeReferenceData, NodeType, Variant, ViewData } from "@/proto/wire";
-import type { TypedNodeReferenceData } from "@/proto/wiring";
+import {
+  BlockType,
+  NodeReferenceData,
+  NodeType,
+  ObjectType,
+  StructType,
+  TextData,
+  TextLineType,
+  Variant,
+  ViewData,
+} from "@/proto/wire";
+import { toNodeReference, type TypedNodeReferenceData } from "@/proto/wiring";
 import { useGetConnection } from "@/system/connection";
 import type { PreparedGetConnection } from "@/system/connection";
 import { IconInline, getNodeIcon } from "@/system/icon";

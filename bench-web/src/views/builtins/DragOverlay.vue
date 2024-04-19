@@ -1,0 +1,32 @@
+<script lang="ts" setup>
+import { NodeType } from "@/proto/wire";
+import { IconInline, getNodeIcon } from "@/system/icon";
+import { toCamelName } from "@/system/lang";
+import { _setDragImage, activeDragged } from "@/utils/drag";
+import { Casing, toCasing } from "@/utils/string";
+</script>
+<template>
+  <!-- Drag image overlay -->
+  <!-- Wrapper to ensure dragImageRef is always set -->
+  <div :ref="(ref) => _setDragImage(ref as any)" class="absolute -top-[100px] left-20 py-1 pl-2">
+    <div
+      v-if="activeDragged"
+      class="max-w-48 rounded-md border border-gray-400 bg-white px-2 py-1 text-gray-900 shadow-md shadow-gray-400"
+    >
+      <!-- And wrapper to offset within the image to ensure the text isn't obscured by the cursor -->
+      <div v-if="activeDragged.kind == 'node'" class="flex flex-row items-center">
+        <IconInline v-bind="getNodeIcon(activeDragged.nodes[0])" class="mr-1 text-gray-700" />
+        <span class="truncate">
+          {{
+            (activeDragged.nodes[0] as any).title ??
+            (activeDragged.nodes[0] as any).name ??
+            toCamelName(NodeType, activeDragged.node.type)
+          }}
+        </span>
+      </div>
+      <div v-else>
+        <span class="text-gray-700">{{ toCasing(activeDragged.kind, Casing.CAMEL) }}</span>
+      </div>
+    </div>
+  </div>
+</template>

@@ -28,7 +28,6 @@ const STRIKETHROUGH_DOM: DOMOutputSpec = ["s", 0];
 const UNDERLINE_DOM: DOMOutputSpec = ["u", 0];
 const CODE_DOM: DOMOutputSpec = ["code", 0];
 
-
 export const PM_SCHEMA = new PmSchema({
   nodes: {
     doc: { content: "line+" },
@@ -97,10 +96,7 @@ export const PM_SCHEMA = new PmSchema({
       atom: true,
       marks: "",
       attrs: { nodePtr: {} },
-      toDOM(node) {
-        return ["span", { class: "mention", "data-node-id": node.attrs.nodePtr.id }, 0];
-      },
-      // can't parse mention nodes
+      // render manually, can't parse mention nodes
     },
   },
   marks: {

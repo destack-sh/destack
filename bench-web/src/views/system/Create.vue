@@ -21,7 +21,6 @@ canvas.registerView(self);
 defineExpose<ViewExposed>({ self });
 </script>
 <template>
-  <!-- Library -->
   <div v-if="basePtr" class="h-full w-full bg-white">
     <!-- nocheckin :Incomplete: Creator -->
     Creator for {{ describeNode(basePtr) }}
