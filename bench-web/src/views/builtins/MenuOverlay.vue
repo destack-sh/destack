@@ -105,7 +105,8 @@ function close() {
     <div
       ref="menuRefContainer"
       v-else-if="activeOverlayMenu?.info.kind == 'component'"
-      class="pointer-events-auto absolute z-70 flex min-w-60 flex-col rounded-md border border-gray-400 bg-white px-1 py-0.5 text-gray-900 shadow-md shadow-gray-400"
+      class="pointer-events-auto absolute z-70 flex min-w-60 flex-col rounded-md border border-gray-400 bg-white  text-gray-900 shadow-md shadow-gray-400"
+      :class="activeOverlayMenu.info.containerClass"
       v-outside.mousedown.stop="close"
       @keydown.enter.stop.prevent="fire(), close()"
       @keydown.esc.stop.prevent="close"

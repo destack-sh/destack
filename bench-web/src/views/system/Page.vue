@@ -381,13 +381,13 @@ defineExpose<ViewExposed>({ self, actions, focus });
               :ref="
                 (ref: any) => (ref ? (expandedBlockRefs[blockPtr.id!] = ref) : delete expandedBlockRefs[blockPtr.id!])
               "
-              class="w-full rounded-md border hover:border-primary-900"
+              class="w-full rounded-md border"
               :class="[
                 blockPtr.id == focusedNodePtr?.id
                   ? blockPtr.id == inspectionPtr?.id
                     ? 'border-primary-900'
                     : 'border-gray-400'
-                  : 'border-gray-100',
+                  : 'border-gray-100 hover:border-gray-400',
               ]"
               :node-ptr="blockPtr"
               :prepared-connection="preparedPkgConnection"

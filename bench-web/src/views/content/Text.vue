@@ -3,8 +3,10 @@ import { NodeType, TextData, Variant, ViewData } from "@/proto/wire";
 import { type TypedNodeReferenceData } from "@/proto/wiring";
 import { type ActionImplementation, type ActionMapImplementation } from "@/system/action";
 import { canvas } from "@/system/space";
-import { PM_INPUT_RULES, PM_SCHEMA, mapPmNodeToText, mapTextToPmNode, type TextMarkType } from "@/system/text";
+import { mapPmNodeToText, mapTextToPmNode } from "@/system/text";
+import { useDropZone, useSingleDropZone } from "@/utils/drag";
 import { menuActionsLike, type MenuContext, type OverlayMenuInfo } from "@/utils/menu";
+import { PM_SCHEMA, PM_INPUT_RULES, type TextMarkType } from "@/utils/prosemirror";
 import { deepValueEquals } from "@/utils/ref";
 import { makeViewId } from "@/views";
 import { viewEmits, type ViewExposed } from "@/views/common";
@@ -12,9 +14,11 @@ import { whenever } from "@vueuse/core";
 import * as commands from "prosemirror-commands";
 import { inputRules } from "prosemirror-inputrules";
 import { keymap } from "prosemirror-keymap";
-import { EditorState } from "prosemirror-state";
+import { Plugin, EditorState } from "prosemirror-state";
 import { EditorView } from "prosemirror-view";
-import { getCurrentInstance, onBeforeUnmount, onMounted, onUpdated, ref, toRef, watch } from "vue";
+import { onBeforeUnmount, ref, toRef, watch } from "vue";
+
+const MENTION_TRIGGER_CHAR = "@";
 
 const props = defineProps<
   { self?: TypedNodeReferenceData<NodeType.VIEW>; modelValue?: TextData } & Pick<
@@ -34,7 +38,13 @@ function makeEditorState(text?: TextData) {
   return EditorState.create({
     doc: text != null ? mapTextToPmNode(text, undefined) : undefined,
     schema: PM_SCHEMA,
-    plugins: [keymap(commands.baseKeymap), inputRules({ rules: PM_INPUT_RULES })],
+    plugins: [
+      keymap(commands.baseKeymap),
+      inputRules({ rules: PM_INPUT_RULES }),
+      new Plugin({
+        // suggestion/mention plugin
+      }),
+    ],
   });
 }
 
@@ -72,6 +82,17 @@ onBeforeUnmount(() => {
   view = null;
 });
 
+// drag/drop
+const { isInDropZone } = useDropZone({
+  name: "text",
+  container: textRef,
+  enabled: toRef(props, "isInput"),
+  kinds: ["node"],
+  onDrop: (dragged) => {
+    console.log("text drop", dragged); // nocheckin
+  },
+});
+
 function formatAction(mark: TextMarkType): ActionImplementation {
   return {
     isEnabled: () => props.isInput,
@@ -88,18 +109,7 @@ function formatAction(mark: TextMarkType): ActionImplementation {
     },
     action: () => {
       if (view == null) throw new Error("view not mounted");
-      const { state, dispatch } = view;
-      if (state.selection.empty) {
-        // toggle the stored mark
-        if (!state.tr.storedMarks?.some((storedMark) => storedMark.type.name === mark)) {
-          dispatch(state.tr.addStoredMark(state.schema.marks[mark].create()));
-        } else {
-          dispatch(state.tr.removeStoredMark(state.schema.marks[mark]));
-        }
-      } else {
-        // add or remove the mark from the selection
-        commands.toggleMark(state.schema.marks[mark])(state, dispatch);
-      }
+      commands.toggleMark(view.state.schema.marks[mark])(view.state, view.dispatch);
     },
   };
 }
@@ -134,7 +144,10 @@ defineExpose<ViewExposed>({ self, id, variants: [Variant.PRIMARY, Variant.STEALT
     <div
       ref="textRef"
       class="prose rounded-md"
-      :class="[variant != Variant.STEALTH ? 'border border-gray-200 px-2 py-0.5 focus-within:border-primary-400' : '']"
+      :class="[
+        variant != Variant.STEALTH ? 'border border-gray-200 px-2 py-0.5 focus-within:border-primary-400' : '',
+        isInDropZone ? 'rounded-md bg-primary-200' : '',
+      ]"
       v-contextmenu="
         (context: MenuContext): OverlayMenuInfo => ({
           kind: 'menu',
@@ -177,7 +190,13 @@ defineExpose<ViewExposed>({ self, id, variants: [Variant.PRIMARY, Variant.STEALT
   @apply my-1.5 border-l-2 border-gray-700 pl-2;
 }
 .prose div.callout {
-  @apply my-1.5 rounded-md border border-gray-700 bg-gray-100 p-1;
+  @apply my-1.5 rounded-md  bg-gray-100 px-2 py-2.5;
+}
+/* TODO: UI: callout/heading/etc. line icons should be editable */
+.prose div.callout::before {
+  content: "\f06a"; /* fa-icon: exclamation-circle */
+  font-family: "Font Awesome 6 Pro";
+  @apply mr-1 px-1 text-gray-700;
 }
 </style>
 <style>
