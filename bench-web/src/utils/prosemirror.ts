@@ -42,7 +42,7 @@ export const PM_SCHEMA = new PmSchema({
     },
     lineHeading: {
       group: "line",
-      content: "text*",
+      content: "span*",
       attrs: { id: { default: null }, type: { default: TextLineType.HEADING_LARGE } },
       toDOM(node) {
         const type = node.attrs.type;
