@@ -89,7 +89,8 @@ defineExpose<ViewExposed>({ self, id, actions, focus });
       >
         <IconInline
           v-bind="getNodeIcon(block)"
-          class="rounded-md px-0.5 py-0.5 text-gray-600 hover:cursor-pointer hover:bg-primary-100 hover:text-primary-900"
+          class="rounded-md px-0.5 py-0.5 hover:cursor-pointer hover:bg-primary-100 hover:text-primary-900"
+          :class="[block.type == BlockType.TEXT && isGeneratedName ? 'text-gray-400' : 'text-gray-600']"
           v-tooltip="
             {
               showDelay: 400,
@@ -102,7 +103,8 @@ defineExpose<ViewExposed>({ self, id, actions, focus });
         />
         <span
           role="button"
-          class="ml-1 rounded-md px-0.5 py-0.5 font-semibold hover:cursor-pointer hover:bg-primary-100 hover:text-primary-900"
+          class="ml-1 rounded-md px-0.5 py-0.5 hover:cursor-pointer hover:bg-primary-100 hover:text-primary-900"
+          :class="[block.type == BlockType.TEXT && isGeneratedName ? 'text-gray-600' : 'font-semibold']"
           v-menu="
             (): OverlayMenuInfo => ({
               kind: 'component',
