@@ -648,6 +648,30 @@ abstract class FilterBaseNodeGraphMixin extends BaseNodeGraphMixin {
     this.filter = isRef(filter) ? filter : shallowRef(filter);
   }
 
+  get roots() {
+    // unlike in general graphs, here we need to walk the graph properly to respect the filters
+    const roots: AnyNodeData[] = [];
+    for (const node of this.nodes) {
+      // node is root if itself is visible but none of its ancestors are
+      if (node.parentPtr == null) {
+        roots.push(node);
+      } else {
+        let parent = node.parentPtr;
+        let isRoot = false;
+        while (parent != null) {
+          const parentNode = this.get(parent);
+          if (parentNode == null || !this.isNodeVisibleSelf(parentNode)) {
+            isRoot = true;
+            break;
+          }
+          parent = parentNode.parentPtr;
+        }
+        if (isRoot) roots.push(node);
+      }
+    }
+    return roots;
+  }
+
   abstract getUnfiltered<T extends NodeType>(key: NodeKey<T>): NodeTypeMapping[T] | null;
   get<T extends NodeType>(key: NodeKey<T>): NodeTypeMapping[T] | null {
     const node = this.getUnfiltered(key);

@@ -1,32 +1,22 @@
 <script lang="ts" setup>
-import {
-  BlockType,
-  NodeReferenceData,
-  NodeType,
-  ObjectType,
-  StructType,
-  TextData,
-  TextLineType,
-  Variant,
-  ViewData,
-} from "@/proto/wire";
-import { toNodeReference, type TypedNodeReferenceData } from "@/proto/wiring";
-import { useGetConnection } from "@/system/connection";
+import { BlockType, NodeReferenceData, NodeType, Variant, ViewData } from "@/proto/wire";
+import { type TypedNodeReferenceData } from "@/proto/wiring";
+import type { ActionMapImplementation } from "@/system/action";
 import type { PreparedGetConnection } from "@/system/connection";
+import { useGetConnection } from "@/system/connection";
+import { isGeneratedNodeName } from "@/system/graph";
 import { IconInline, getNodeIcon } from "@/system/icon";
 import { toCamelName } from "@/system/lang";
-import { onMouseNotPressedOnce } from "@/utils/layout";
 import { canvas } from "@/system/space";
-import { makeViewId } from "@/views";
-import { viewEmits, type FocusAnchor, type ViewExposed } from "@/views/common";
-import Inaccessible from "@/views/builtins/Inaccessible.vue";
-import { computed, toRef, type Ref, ref } from "vue";
-import type { TooltipInfo } from "@/utils/tooltip";
-import type { ActionMapImplementation } from "@/system/action";
-import PlainText from "@/views/content/PlainText.vue";
+import { onMouseNotPressedOnce } from "@/utils/layout";
 import type { OverlayMenuInfo } from "@/utils/menu";
+import type { TooltipInfo } from "@/utils/tooltip";
+import { makeViewId } from "@/views";
+import Inaccessible from "@/views/builtins/Inaccessible.vue";
+import { viewEmits, type FocusAnchor, type ViewExposed } from "@/views/common";
+import PlainText from "@/views/content/PlainText.vue";
 import Text from "@/views/content/Text.vue";
-import { isGeneratedNodeName } from "@/system/graph";
+import { computed, ref, toRef, type Ref } from "vue";
 
 const props = defineProps<
   { self?: TypedNodeReferenceData<NodeType.VIEW>; preparedConnection?: PreparedGetConnection } & Pick<

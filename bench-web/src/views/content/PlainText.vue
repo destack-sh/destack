@@ -27,10 +27,10 @@ defineExpose<ViewExposed>({ self, id, variants: [Variant.PRIMARY, Variant.STEALT
     <label v-if="title" class="mb-0.5 block font-medium text-gray-900">{{ title }}</label>
     <div
       v-if="isInput"
-      class="group flex flex-row items-center rounded-md border-gray-200 focus-within:border-primary-400"
+      class="group flex flex-row items-center rounded-md border-gray-200 focus-within:border-primary-900"
       :class="[
         isDisabled ? 'bg-gray-100 text-gray-700' : 'bg-white text-gray-900',
-        variant != Variant.STEALTH ? 'border px-2  py-0.5 focus-within:ring-1 focus-within:ring-primary-400' : '',
+        variant != Variant.STEALTH ? 'border px-2  py-0.5 focus-within:ring-1 focus-within:ring-primary-900' : '',
       ]"
     >
       <IconInline v-if="icon" v-bind="icon" class="mr-2 text-gray-400" />

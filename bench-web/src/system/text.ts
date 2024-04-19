@@ -16,7 +16,9 @@ export function mapTextToPmNode(text: TextData, prev: PmNode | undefined): PmNod
     const spanNodes: PmNode[] = [];
     for (const span of line.spans) {
       let spanNode;
-      if (span.content != null) {
+      if (span.content == "\n") {
+        spanNode = schema.node("hardBreak");
+      } else if (span.content != null) {
         spanNode = schema.text(span.content);
       } else if (span.nodePtr != null) {
         spanNode = schema.node("mention", { nodePtr: span.nodePtr });
@@ -79,7 +81,9 @@ export function mapPmNodeToText(node: PmNode, prev: TextData | undefined): TextD
     for (let spanIdx = 0; spanIdx < lineNode.childCount; spanIdx++) {
       const spanNode = lineNode.child(spanIdx);
       let span: TextSpanData;
-      if (spanNode.type.name == "text") {
+      if (spanNode.type.name == "hardBreak") {
+        span = { metatype: ObjectType.TEXT_SPAN, id: spanIdx, content: "\n" };
+      } else if (spanNode.type.name == "text") {
         span = { metatype: ObjectType.TEXT_SPAN, id: spanIdx, content: spanNode.text };
       } else if (spanNode.type.name == "mention") {
         span = { metatype: ObjectType.TEXT_SPAN, id: spanIdx, nodePtr: spanNode.attrs.nodePtr };
