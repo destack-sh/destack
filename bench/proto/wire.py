@@ -1728,7 +1728,7 @@ class TextData(betterproto.Message):
 @dataclass(eq=False, repr=False)
 class TextLineData(betterproto.Message):
     """
-    TextLine(type: bench.language.text.TextLineType = <TextLineType.PLAIN: 1>, spans: list['TextSpan'] = None, id: Optional[int] = <factory>, parent: Union[ForwardRef('Struct'), ForwardRef('Node'), ForwardRef('Value'), NoneType] = None, order_key: str | None = None, set_properties: list[int] = <factory>, _status: bench.language.const.InterpStatus = None, _updated_properties: bitarray.bitarray | None = None, color: Optional[ForwardRef('ColorType')] = None, is_bold: Optional[bool] = None, is_italic: Optional[bool] = None, is_strikethrough: Optional[bool] = None, is_underline: Optional[bool] = None, is_code: Optional[bool] = None, parent_id: int = None, parent_key: str = None)
+    TextLine(type: bench.language.text.TextLineType = <TextLineType.PLAIN: 1>, spans: list['TextSpan'] = None, icon: Optional[ForwardRef('Icon')] = None, id: Optional[int] = <factory>, parent: Union[ForwardRef('Struct'), ForwardRef('Node'), ForwardRef('Value'), NoneType] = None, order_key: str | None = None, set_properties: list[int] = <factory>, _status: bench.language.const.InterpStatus = None, _updated_properties: bitarray.bitarray | None = None, color: Optional[ForwardRef('ColorType')] = None, is_bold: Optional[bool] = None, is_italic: Optional[bool] = None, is_strikethrough: Optional[bool] = None, is_underline: Optional[bool] = None, is_code: Optional[bool] = None, parent_id: int = None, parent_key: str = None)
     """
 
     metatype: "ObjectType" = betterproto.enum_field(1)
@@ -1739,6 +1739,7 @@ class TextLineData(betterproto.Message):
     set_properties: List[int] = betterproto.int32_field(22)
     type: "TextLineType" = betterproto.enum_field(30)
     spans: List["TextSpanData"] = betterproto.message_field(33)
+    icon: Optional["IconData"] = betterproto.message_field(34, optional=True)
     color: Optional["ColorType"] = betterproto.enum_field(50, optional=True)
     is_bold: Optional[bool] = betterproto.bool_field(60, optional=True)
     is_italic: Optional[bool] = betterproto.bool_field(61, optional=True)

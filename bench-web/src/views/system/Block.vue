@@ -104,11 +104,12 @@ defineExpose<ViewExposed>({ self, id, actions, focus });
         <span
           role="button"
           class="ml-1 rounded-md px-0.5 py-0.5 hover:cursor-pointer hover:bg-primary-100 hover:text-primary-900"
-          :class="[block.type == BlockType.TEXT && isGeneratedName ? 'text-gray-600' : 'font-semibold']"
+          :class="[block.type == BlockType.TEXT && isGeneratedName ? 'text-gray-500' : 'font-semibold']"
           v-menu="
             (): OverlayMenuInfo => ({
               kind: 'component',
               placement: 'inside-top-left',
+              containerClass: 'px-2 py-1',
               referenceOffset: { x: 0, y: -2 },
               fitToContainer: 'width',
               props: { modelValue: block!.name, isInput: true, variant: Variant.STEALTH },

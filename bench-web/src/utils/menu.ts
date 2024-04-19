@@ -119,6 +119,7 @@ export type OverlayMenuInfo = (
       context?: MenuContext;
     }
 ) & {
+  containerClass?: string;
   dontFocus?: boolean;
   onApply?(value?: any): void;
   onClose?(): void;

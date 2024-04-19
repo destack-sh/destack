@@ -6,7 +6,7 @@ from bench.language.property import p_regular
 from bench.utils.func import IdEnum
 
 if TYPE_CHECKING:
-    from bench.language.view import ColorType
+    from bench.language import ColorType, Icon
 
 
 @struct(StructType.TEXT)
@@ -54,6 +54,7 @@ class TextLineType(IdEnum):
 class TextLine(TextOptions):
     type: TextLineType = p_regular(30, default=TextLineType.PLAIN)
     spans: list["TextSpan"] = p_regular(33, array=True, struct=StructType.TEXT_SPAN)
+    icon: Optional["Icon"] = p_regular(34, default=None, struct=StructType.ICON)
 
     def __content_str__(self):
         return "".join(span.__content_str__() for span in self.spans)
