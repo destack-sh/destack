@@ -231,13 +231,13 @@ export function useSearch<T extends SearchItem>(search: {
         // highlight
         const { str: indexedStr } = getIndexedStr(candidate);
         result.titleMarked = highlight(candidate.title, info.ranges[infoIdx] as any, {
-          start: indexedStr.length - candidate.title.length,
-          end: indexedStr.length,
+          start: 0,
+          end: candidate.title.length,
         });
         if ("path" in candidate && candidate.path != null) {
           result.pathMarked = highlight(candidate.path, info.ranges[infoIdx] as any, {
-            start: 0,
-            end: indexedStr.length - candidate.title.length - HIDDEN_SEPARATOR.length,
+            start: candidate.title.length + HIDDEN_SEPARATOR.length,
+            end: indexedStr.length,
           });
         }
         results.push(result);
@@ -253,7 +253,7 @@ export function useSearch<T extends SearchItem>(search: {
   function getIndexedStr(item: SearchItem): { str: string; isPathIncluded: boolean } {
     if ("path" in item && item.path != null) {
       // index path (which excludes item itself) + title
-      return { str: (item.pathToIndex ?? item.path) + HIDDEN_SEPARATOR + item.title, isPathIncluded: true };
+      return { str: item.title + HIDDEN_SEPARATOR + (item.pathToIndex ?? item.path), isPathIncluded: true };
     } else {
       return { str: item.title, isPathIncluded: false };
     }
