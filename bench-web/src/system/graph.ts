@@ -656,10 +656,10 @@ abstract class FilterBaseNodeGraphMixin extends BaseNodeGraphMixin {
       if (node.parentPtr == null) {
         roots.push(node);
       } else {
-        let parent = node.parentPtr;
+        let parent: NodeReferenceData | undefined = node.parentPtr;
         let isRoot = false;
         while (parent != null) {
-          const parentNode = this.get(parent);
+          const parentNode: AnyNodeData | null = this.get(parent);
           if (parentNode == null || !this.isNodeVisibleSelf(parentNode)) {
             isRoot = true;
             break;

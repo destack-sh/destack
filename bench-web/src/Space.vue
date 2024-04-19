@@ -14,6 +14,7 @@ import Omnibar from "@/views/builtins/Omnibar.vue";
 import ToastOverlay from "@/views/builtins/ToastOverlay.vue";
 import TooltipOverlay from "@/views/builtins/TooltipOverlay.vue";
 import Split from "@/views/containers/Split.vue";
+import { IS_IN_ALT_MODE } from "@/system/action";
 import { useTitle, useWindowSize } from "@vueuse/core";
 import { computed, onBeforeUnmount, ref, watch } from "vue";
 
@@ -67,7 +68,10 @@ watch([canvas.focusedViewPtr, bench], () => {
   <div
     ref="spaceRef"
     class="scrollbar-none max-h-screen w-full overflow-hidden overscroll-none bg-gray-100 text-sm"
-    :class="[isDraggingGlobal || hasActiveOverlayMenu ? 'pointer-events-none select-none' : '']"
+    :class="[
+      isDraggingGlobal || hasActiveOverlayMenu ? 'pointer-events-none select-none' : '',
+      IS_IN_ALT_MODE ? 'altmode' : '',
+    ]"
     :style="{ width: spaceWidth + 'px', height: spaceHeight + 'px' }"
     @contextmenu.stop.prevent="() => {} /* suppress generic context menu */"
   >
