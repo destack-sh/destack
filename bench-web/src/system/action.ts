@@ -24,6 +24,7 @@ import { generateRandomName } from "@/utils/naming";
 import { Casing, toCasing } from "@/utils/string";
 import type { ViewComponent } from "@/views";
 import { clearCanvas, collectViewComponentsUp, setupDefaultCanvas, setupEmptyCanvas } from "@/views/canvas";
+import { useKeyModifier } from "@vueuse/core";
 import {
   computed,
   getCurrentInstance,
@@ -35,6 +36,8 @@ import {
   type MaybeRef,
   type Ref,
 } from "vue";
+
+export const IS_IN_ALT_MODE = useKeyModifier("Alt");
 
 // :OmnibarModes
 export const OMNIBAR_MODES = ["everywhere", "actions", "space", "views", "view"];

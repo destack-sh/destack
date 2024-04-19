@@ -1,7 +1,7 @@
 <script lang="ts" setup>
 import { BenchType, NodeReferenceData, NodeType, TextData, Variant, ViewData, type AnyNodeData } from "@/proto/wire";
 import { toNodeReference, type TypedNodeReferenceData } from "@/proto/wiring";
-import { type ActionImplementation, type ActionMapImplementation } from "@/system/action";
+import { IS_IN_ALT_MODE, type ActionImplementation, type ActionMapImplementation } from "@/system/action";
 import { ICON_BY_NODE_TYPE, getNodeIcon } from "@/system/icon";
 import { canvas, pkgGraph } from "@/system/space";
 import { mapPmNodeToText, mapTextToPmNode } from "@/system/text";
@@ -90,7 +90,6 @@ function makeEditorView(): EditorView {
         selection.$head.nodeBefore?.text?.endsWith(MENTION_TRIGGER_CHAR)
       ) {
         const referencePos = view.coordsAtPos(selection.$head.pos);
-
         createOverlayMenu({
           trigger: getElement(textRef.value)!,
           reference: { x: referencePos.left, y: referencePos.top },
@@ -147,6 +146,12 @@ class MentionView implements PmNodeView {
     this.nameDom = this.dom.appendChild(document.createElement("span"));
     this.nameDom.classList.add("name");
     this.nameDom.textContent = "???";
+
+    this.dom.addEventListener("click", () => {
+      if (IS_IN_ALT_MODE.value) {
+        canvas.goToNode(pmNode.attrs.nodePtr);
+      }
+    });
 
     const node = resolveMention(pmNode.attrs.nodePtr);
     if (node != null) this.updateNode(node);
@@ -334,6 +339,7 @@ defineExpose<ViewExposed>({ self, id, variants: [Variant.PRIMARY, Variant.STEALT
 .prose div.callout::before {
   content: "\f06a"; /* fa-icon: exclamation-circle */
   font-family: "Font Awesome 6 Pro";
+  font-weight: 900;
   @apply mr-1 px-1 text-gray-700;
 }
 
@@ -353,8 +359,14 @@ defineExpose<ViewExposed>({ self, id, variants: [Variant.PRIMARY, Variant.STEALT
 .prose span.mention .name {
   @apply underline-offset-3  underline decoration-gray-300;
 }
-.ProseMirror-selectednode.mention {
+.prose span.ProseMirror-selectednode.mention .name {
   @apply bg-primary-100 text-primary-900  decoration-primary-900;
+}
+.altmode .prose span.mention:hover {
+  @apply cursor-pointer;
+}
+.altmode .prose span.mention:hover .name {
+  @apply decoration-primary-900;
 }
 </style>
 <style>
