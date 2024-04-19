@@ -151,11 +151,16 @@ const { isInDropZone } = useDropZone({
   kinds: ["node"],
   onDrop: (dragged, event) => {
     if (view == null || dragged.kind != "node") return;
-    // insert node mention at position
+    // insert node mention at position (surrounded by spaces)
     const pos = view.posAtCoords({ left: event.clientX, top: event.clientY });
     if (pos == null) return; // not in editor
     const pmNode = PM_SCHEMA.node("mention", { nodePtr: toNodeReference(dragged.node) });
-    view.dispatch(view.state.tr.insert(pos.pos, pmNode));
+    view.dispatch(
+      view.state.tr
+        .insertText(" ", pos.pos, pos.pos)
+        .insert(pos.pos + 1, pmNode)
+        .insertText(" ", pos.pos + 2, pos.pos + 2),
+    );
   },
 });
 
@@ -212,7 +217,7 @@ defineExpose<ViewExposed>({ self, id, variants: [Variant.PRIMARY, Variant.STEALT
       class="prose rounded-md hover:cursor-text"
       :class="[
         variant != Variant.STEALTH ? 'border border-gray-200 px-2 py-0.5 focus-within:border-primary-400' : '',
-        isInDropZone ? 'outline-2 outline-dashed outline-primary-400' : '',
+        isInDropZone ? 'outline-dashed outline-2 outline-primary-400' : '',
       ]"
       v-contextmenu="
         (context: MenuContext): OverlayMenuInfo => ({
@@ -265,17 +270,24 @@ defineExpose<ViewExposed>({ self, id, variants: [Variant.PRIMARY, Variant.STEALT
   @apply mr-1 px-1 text-gray-700;
 }
 
+/* Mentions */
 .prose span.mention {
-  @apply mx-1 rounded-md px-1 py-0;
+  @apply rounded-md px-1 py-0;
+}
+.prose span.mention:hover {
+  @apply bg-primary-100 text-primary-900;
 }
 .prose span.mention .icon {
   @apply mr-1.5 text-gray-700;
 }
+.prose span.mention:hover .icon {
+  @apply text-primary-900;
+}
 .prose span.mention .name {
-  @apply underline-offset-3 text-gray-900 underline decoration-gray-300;
+  @apply underline-offset-3  underline decoration-gray-300;
 }
 .ProseMirror-selectednode.mention {
-  @apply bg-primary-100 text-white decoration-red-900;
+  @apply bg-primary-100 text-primary-900  decoration-primary-900;
 }
 </style>
 <style>
