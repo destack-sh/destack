@@ -130,11 +130,14 @@ defineExpose<ViewExposed>({ self, id, variants: [Variant.PRIMARY, Variant.COMPAC
               <IconInline v-if="item.icon" v-bind="item.icon" class="mr-1.5 flex-shrink-0 text-gray-700" />
               <span v-else class="mr-1.5 w-[18px] flex-shrink-0 text-gray-700" />
               <span class="select-none truncate" v-html="item.titleMarked ?? item.title" />
-              <span v-if="'path' in item" class="ml-1.5 truncate text-gray-500">
-                <span v-html="item.pathMarked ?? item.path" />
+              <!-- Metadata -->
+              <span class="ml-auto truncate pl-2">
+                <span v-if="'path' in item" class="pl-2 truncate text-gray-500">
+                  <span v-html="item.pathMarked ?? item.path" />
+                </span>
+                <!-- Checked -->
+                <i v-if="item.id === modelValue?.id" class="flex-shrink-0 fas fa-check pl-2 pr-1 text-gray-700" />
               </span>
-              <!-- Checked -->
-              <i v-if="item.id === modelValue?.id" class="fas fa-check ml-auto pl-4 pr-1 text-gray-700" />
             </li>
           </template>
         </ul>
