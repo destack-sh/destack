@@ -60,6 +60,9 @@ export default {
         "-3xs": { max: "319px" },
         "-4xs": { max: "239px" },
       },
+      textUnderlineOffset: {
+        3: "3px",
+      },
       colors: {
         primary: colors.amber,
         secondary: colors.sky,
