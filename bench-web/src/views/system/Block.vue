@@ -16,6 +16,7 @@ import type { ActionMapImplementation } from "@/system/action";
 import PlainText from "@/views/content/PlainText.vue";
 import type { OverlayMenuInfo } from "@/utils/menu";
 import Text from "@/views/content/Text.vue";
+import { isGeneratedNodeName } from "@/system/graph";
 
 const props = defineProps<
   { self?: TypedNodeReferenceData<NodeType.VIEW>; preparedConnection?: PreparedGetConnection } & Pick<
@@ -40,6 +41,11 @@ const { graph: pkgGraph, connection: pkgConnection } =
     })),
   );
 const block = pkgGraph.getRef(nodePtr, { ignoreAncestors: props.self == null });
+const isGeneratedName = computed(
+  () =>
+    block.value != null &&
+    isGeneratedNodeName(block.value.metatype as unknown as NodeType, block.value.type, block.value.name),
+);
 
 // nocheckin :Incomplete: Block
 
@@ -96,7 +102,7 @@ defineExpose<ViewExposed>({ self, id, actions, focus });
         />
         <span
           role="button"
-          class="ml-1 rounded-md px-0.5 py-0.5 hover:cursor-pointer hover:bg-primary-100 hover:text-primary-900"
+          class="ml-1 rounded-md px-0.5 py-0.5 font-semibold hover:cursor-pointer hover:bg-primary-100 hover:text-primary-900"
           v-menu="
             (): OverlayMenuInfo => ({
               kind: 'component',

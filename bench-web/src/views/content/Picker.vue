@@ -87,8 +87,8 @@ canvas.registerView(self, id);
 defineExpose<ViewExposed>({ self, id, variants: [Variant.PRIMARY, Variant.COMPACT], focus });
 </script>
 <template>
-  <!-- nocheckin: Picker variants/isInput/isInline/isDisabled/... -->
   <div>
+    <!-- nocheckin: Picker variants/isInput/isInline/isDisabled/... -->
     <!-- Inline Primary: classic typeahead/combobox -->
     <div :style="{ width: DEFAULT_WIDTH + 'px' }">
       <!-- Header -->

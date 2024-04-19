@@ -1103,7 +1103,7 @@ export function extractNameId(name: string): number | null {
 
 /** Generates a node name for our :AutoNaming. */
 export function generateNodeName(metatype: NodeType, type: any, siblings: AnyNodeData[]): string {
-  if (metatype == NodeType.BLOCK || metatype == NodeType.VIEW) {
+  if (metatype == NodeType.BLOCK || metatype == NodeType.VIEW || metatype == NodeType.STEP) {
     if (type == null) throw new Error(`expected type for ${metatype}, got ${type}`);
     let typeName = BlockType[type] ?? ViewType[type] ?? StepType[type];
     if (typeName == null) throw new Error(`unknown type ${type} for ${NodeType[metatype]}`);
@@ -1117,6 +1117,24 @@ export function generateNodeName(metatype: NodeType, type: any, siblings: AnyNod
     const metatypeName = toCamelName(NodeType, metatype);
     const maxId = Math.max(...siblings.map((n) => extractNameId((n as any).name) ?? 0), 0);
     return `${metatypeName}${maxId + 1}`;
+  }
+}
+
+/** Checks whether the node name was likely generated */
+export function isGeneratedNodeName(metatype: NodeType, type: any, name: string): boolean {
+  // match name as <type><id> (groups)
+  const match = name.match(/([a-zA-Z]+)(\d+)/);
+  if (match == null) return false;
+  const typeName = toCasing(match[1], Casing.ALL_CAPS);
+
+  if (metatype == NodeType.BLOCK) {
+    return BlockType[typeName as any] != null;
+  } else if (metatype == NodeType.VIEW) {
+    return ViewType[typeName as any] != null;
+  } else if (metatype == NodeType.STEP) {
+    return StepType[typeName as any] != null;
+  } else {
+    return NodeType[typeName as any] != null;
   }
 }
 

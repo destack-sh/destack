@@ -54,6 +54,24 @@ export const PM_SCHEMA = new PmSchema({
         { tag: "h3", attrs: { type: TextLineType.HEADING_SMALL } },
       ],
     },
+    lineCallout: {
+      group: "line",
+      content: "span*",
+      attrs: { id: { default: null }, type: { default: TextLineType.CALLOUT } },
+      toDOM(node) {
+        return ["div", { class: "callout" }, 0];
+      },
+      parseDOM: [{ tag: "div.callout", attrs: { type: TextLineType.CALLOUT } }],
+    },
+    lineQuote: {
+      group: "line",
+      content: "span*",
+      attrs: { id: { default: null }, type: { default: TextLineType.QUOTE } },
+      toDOM(node) {
+        return ["blockquote", 0];
+      },
+      parseDOM: [{ tag: "blockquote", attrs: { type: TextLineType.QUOTE } }],
+    },
     lineDivider: {
       group: "line",
       attrs: { id: { default: null }, type: { default: TextLineType.DIVIDER } },
@@ -103,7 +121,7 @@ export const PM_SCHEMA = new PmSchema({
         return ITALIC_DOM;
       },
     },
-    striketrough: {
+    strikethrough: {
       parseDOM: [{ tag: "s" }, { tag: "del" }, { tag: "strike" }],
       toDOM() {
         return ["s", 0];
@@ -169,6 +187,10 @@ export function mapTextToPmNode(text: TextData, prev: PmNode | undefined): PmNod
       lineNode = schema.node("lineHeading", attrs, spanNodes);
     } else if (line.type == TextLineType.DIVIDER) {
       lineNode = schema.node("lineDivider", attrs);
+    } else if (line.type == TextLineType.QUOTE) {
+      lineNode = schema.node("lineQuote", attrs, spanNodes);
+    } else if (line.type == TextLineType.CALLOUT) {
+      lineNode = schema.node("lineCallout", attrs, spanNodes);
     } else {
       throw new Error(`unexpected line type: ${line.type}`);
     }
@@ -236,20 +258,31 @@ export function mapPmNodeToText(node: PmNode, prev: TextData | undefined): TextD
   return text;
 }
 
-const headingRule = (char: string, type: TextLineType) => {
+const lineHeadingRule = (char: string, type: TextLineType) => {
   return new InputRule(new RegExp(`^(#{${char.length}})\\s$`), (state, match, start, end) => {
     const { tr } = state;
     // replace with heading line
-    tr.replaceWith(start - char.length, end, state.schema.nodes.lineHeading.create({ type }));
+    tr.replaceWith(start - match.length + 1, end, state.schema.nodes.lineHeading.create({ type }));
     // and move cursor to the end of the line
     tr.setSelection(TextSelection.near(tr.doc.resolve(start - char.length + 1)));
     return tr;
   });
 };
-
-const dividerRule = new InputRule(/(^---$)|(^—-$)/, (state, match, start, end) => {
+const lineDividerRule = new InputRule(/(^---$)|(^—-$)/, (state, match, start, end) => {
   const { tr } = state;
   tr.replaceWith(start, end, state.schema.nodes.lineDivider.create());
+  return tr;
+});
+const lineQuoteRule = new InputRule(/(^> )/, (state, match, start, end) => {
+  const { tr } = state;
+  tr.replaceWith(start - match.length, end, state.schema.nodes.lineQuote.create());
+  tr.setSelection(TextSelection.near(tr.doc.resolve(start)));
+  return tr;
+});
+const lineCalloutRule = new InputRule(/(^! )/, (state, match, start, end) => {
+  const { tr } = state;
+  tr.replaceWith(start - match.length, end, state.schema.nodes.lineCallout.create());
+  tr.setSelection(TextSelection.near(tr.doc.resolve(start)));
   return tr;
 });
 
@@ -262,9 +295,11 @@ export const PM_INPUT_RULES: InputRule[] = [
   openSingleQuote,
   closeSingleQuote,
   ...smartQuotes,
-  // specific rules
-  headingRule("#", TextLineType.HEADING_LARGE),
-  headingRule("##", TextLineType.HEADING_MEDIUM),
-  headingRule("###", TextLineType.HEADING_SMALL),
-  dividerRule,
+  // line rules
+  lineHeadingRule("#", TextLineType.HEADING_LARGE),
+  lineHeadingRule("##", TextLineType.HEADING_MEDIUM),
+  lineHeadingRule("###", TextLineType.HEADING_SMALL),
+  lineDividerRule,
+  lineQuoteRule,
+  lineCalloutRule,
 ];
