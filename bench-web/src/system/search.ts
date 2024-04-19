@@ -2,10 +2,11 @@ import type { AnyNodeData, ObjectType, IconData, NodeReferenceData, NodeType, En
 import { describeNode, toNodeReference } from "@/proto/wiring";
 import { ACTION_BUILTIN_IDS_INDEX, IMPLEMENTED_ACTIONS, type Action } from "@/system/action";
 import type { ReadNodeGraph } from "@/system/graph";
-import { markRaw, shallowRef, type Ref, watch, type MaybeRef, toRef, toValue } from "vue";
+import { markRaw, shallowRef, type Ref, watch, type MaybeRef, toRef, toValue, getCurrentInstance } from "vue";
 import uFuzzy from "@leeoniya/ufuzzy";
 import { getNodeIcon } from "@/system/icon";
 import { getEnumOptions, type EnumOption } from "@/system/lang";
+import { tryOnBeforeUnmount } from "@vueuse/core";
 
 export type NodeItem = Omit<NodeReferenceData, "metatype" | "id"> & {
   metatype: "node";
@@ -177,39 +178,43 @@ export function useSearch<T extends SearchItem>(search: {
   const resultsRef = shallowRef<SearchResult[]>([]);
   const resultsTotal = shallowRef(0);
   const uf = new uFuzzy({ intraMode: 1 });
+  const subs: (() => void)[] = [];
 
   function updateCandidates() {
+    if (!search.isEnabled.value) {
+      candidatesRef.value = [];
+      return;
+    }
     const candidates: SearchCandidate[] = [];
     for (const [indexName, index] of Object.entries(search.indices.value)) {
-      candidates.push(
-        ...index.candidates().map(
-          (item) =>
-            ({
-              ...item,
-              category: item.category ?? indexName,
-              index: indexName,
-            }) as SearchCandidate,
-        ),
+      const indexCandidates = index.candidates().map(
+        (item) =>
+          ({
+            ...item,
+            category: item.category ?? indexName,
+            index: indexName,
+          }) as SearchCandidate,
       );
+      candidates.push(...indexCandidates);
     }
     candidatesRef.value = candidates;
   }
 
   function updateResults() {
-    if (!search.isEnabled?.value) {
+    if (!search.isEnabled.value) {
       resultsRef.value = [];
       resultsTotal.value = 0;
       return;
     }
     const candidates = candidatesRef.value;
+    const options = { ...DEFAULT_SEARCH_OPTIONS, ...search.options };
     if (!search.query.value) {
-      resultsRef.value = candidates as SearchResult[];
+      resultsRef.value = candidates.slice(0, options.maxResults) as SearchResult[];
       resultsTotal.value = candidates.length;
       return;
     }
 
     // search
-    const options = { ...DEFAULT_SEARCH_OPTIONS, ...search.options };
     const [idxs, info, order] = uf.search(
       candidates.map((c) => getIndexedStr(c).str),
       search.query.value,
@@ -255,10 +260,12 @@ export function useSearch<T extends SearchItem>(search: {
   }
 
   // refresh candidates on index change
-  watch([search.isEnabled, search.indices], updateCandidates, { immediate: true });
+  subs.push(watch([search.isEnabled, search.indices], updateCandidates, { immediate: true }));
 
   // update results on query change
-  watch([search.isEnabled, search.indices, search.query], updateResults, { immediate: true });
+  subs.push(watch([search.isEnabled, search.indices, search.query], updateResults, { immediate: true }));
+
+  tryOnBeforeUnmount(() => subs.forEach((sub) => sub()));
 
   return { candidates: candidatesRef, results: resultsRef, resultsTotal, updateCandidates, updateResults };
 }

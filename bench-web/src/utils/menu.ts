@@ -133,7 +133,7 @@ type OverlayMenuTriggerElement = HTMLElement & {
 type OverlayMenuInstance = {
   id: number;
   info: OverlayMenuInfo;
-  trigger: HTMLElement;
+  trigger: HTMLElement | SVGElement;
   reference: { x: number; y: number } | HTMLElement | SVGElement;
   container?: HTMLElement | SVGElement;
 };
@@ -147,17 +147,18 @@ function newOverlayMenuId() {
   return overlayMenuId++;
 }
 
-export function createOverlayMenu(
-  trigger: HTMLElement,
-  reference: { x: number; y: number } | HTMLElement | SVGElement,
-  container: HTMLElement | SVGElement | undefined,
-  info: OverlayMenuInfo | ((ctx: MenuContext) => OverlayMenuInfo),
-): OverlayMenuInstance {
+export function createOverlayMenu(create: {
+  trigger: HTMLElement | SVGElement;
+  reference: { x: number; y: number } | HTMLElement | SVGElement;
+  container?: HTMLElement | SVGElement | undefined;
+  info: OverlayMenuInfo | ((ctx: MenuContext) => OverlayMenuInfo);
+}): OverlayMenuInstance {
+  const { trigger, reference, container } = create;
   const triggerNode = canvas.findViewData(trigger) ?? undefined;
   const context: MenuContext = { triggerElement: trigger, triggerNode };
-  info = {
+  const info = {
     ...OVERLAY_MENU_DEFAULT_FLOATING_OPTIONS,
-    ...(typeof info === "function" ? info(context) : info),
+    ...(typeof create.info === "function" ? create.info(context) : create.info),
     context,
   };
   if (info.kind != "component" && info.kind != "menu")
@@ -190,7 +191,7 @@ function makeOverlayMenuDirective(options: {
         e.preventDefault();
         e.stopPropagation();
         const reference = options.reference == "self" ? triggerEl : { x: e.clientX, y: e.clientY };
-        createOverlayMenu(triggerEl, reference, undefined, binding.value);
+        createOverlayMenu({ trigger: triggerEl, reference, info: binding.value });
       };
       triggerEl.addEventListener(options.event, triggerEl.contextMenuOnEvent);
     },

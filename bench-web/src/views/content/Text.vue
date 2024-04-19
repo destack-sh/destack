@@ -1,12 +1,12 @@
 <script lang="ts" setup>
-import { NodeReferenceData, NodeType, TextData, Variant, ViewData, type AnyNodeData } from "@/proto/wire";
+import { BenchType, NodeReferenceData, NodeType, TextData, Variant, ViewData, type AnyNodeData } from "@/proto/wire";
 import { toNodeReference, type TypedNodeReferenceData } from "@/proto/wiring";
 import { type ActionImplementation, type ActionMapImplementation } from "@/system/action";
 import { ICON_BY_NODE_TYPE, getNodeIcon } from "@/system/icon";
 import { canvas, pkgGraph } from "@/system/space";
 import { mapPmNodeToText, mapTextToPmNode } from "@/system/text";
 import { useDropZone } from "@/utils/drag";
-import { menuActionsLike, type MenuContext, type OverlayMenuInfo } from "@/utils/menu";
+import { createOverlayMenu, menuActionsLike, type MenuContext, type OverlayMenuInfo } from "@/utils/menu";
 import { PM_INPUT_RULES, PM_SCHEMA, type TextMarkType } from "@/utils/prosemirror";
 import { deepValueEquals } from "@/utils/ref";
 import { makeViewId } from "@/views";
@@ -20,6 +20,9 @@ import { EditorState } from "prosemirror-state";
 import { EditorView, type NodeView as PmNodeView } from "prosemirror-view";
 import { dropCursor } from "prosemirror-dropcursor";
 import { computed, onBeforeUnmount, ref, toRef, watch } from "vue";
+import { getElement } from "@/utils/element";
+import Picker from "@/views/content/Picker.vue";
+import { makeTypeInfo } from "@/system/value";
 
 const MENTION_TRIGGER_CHAR = "@";
 
@@ -56,6 +59,75 @@ function makeEditorState(text?: TextData) {
     doc: text != null ? mapTextToPmNode(text, undefined) : undefined,
     schema: PM_SCHEMA,
     plugins: [keymap(commands.baseKeymap), inputRules({ rules: PM_INPUT_RULES })],
+  });
+}
+
+function makeEditorView(): EditorView {
+  return new EditorView(textRef.value, {
+    state: makeEditorState(props.modelValue),
+    nodeViews: {
+      mention: (node, view, getPos) => new MentionView(node, view, getPos),
+    },
+    plugins: [dropCursor({ width: 2, color: "#fbbf24" })],
+    dispatchTransaction(transaction) {
+      if (view == null) throw new Error("view not mounted");
+
+      // update the state directly for responsiveness & performance
+      const newState = view.state.apply(transaction);
+      view.updateState(newState);
+      // also update the modelValue if underlying doc changed
+      if (transaction.docChanged) {
+        const updatedText = mapPmNodeToText(newState.doc, props.modelValue);
+        lastAppliedModelValue = updatedText;
+        emit("update:modelValue", updatedText);
+      }
+
+      // trigger mention if we just typed the trigger char
+      const { selection } = newState;
+      if (
+        transaction.docChanged &&
+        selection.empty &&
+        selection.$head.nodeBefore?.text?.endsWith(MENTION_TRIGGER_CHAR)
+      ) {
+        const referencePos = view.coordsAtPos(selection.$head.pos);
+
+        let applied = false;
+        createOverlayMenu({
+          trigger: getElement(textRef.value)!,
+          reference: { x: referencePos.left, y: referencePos.top },
+          info: {
+            kind: "component",
+            component: Picker,
+            referenceMargin: 2,
+            referenceOffset: { x: 0, y: -10 }, // align query text with line
+            placement: "inside-top-left",
+            props: {
+              valueType: makeTypeInfo({ benchType: BenchType.BLOCK }),
+              isInline: true,
+            },
+            onApply(node) {
+              if (view == null) throw new Error("view no longer mounted");
+              // replace @ with mention (incl spaces) and focus right after
+              const mention = PM_SCHEMA.node("mention", { nodePtr: toNodeReference(node) });
+              view.dispatch(
+                view.state.tr
+                  .replaceWith(selection.$head.pos - 1, selection.$head.pos, PM_SCHEMA.text(" "))
+                  .insert(selection.$head.pos, mention)
+                  .insert(selection.$head.pos + 1, PM_SCHEMA.text(" ")),
+              );
+              applied = true;
+            },
+            onClose: () => {
+              if (!applied) {
+                // refocus where we were
+                view!.focus();
+                view!.dispatch(view!.state.tr.setSelection(selection));
+              }
+            },
+          },
+        });
+      }
+    },
   });
 }
 
@@ -120,23 +192,7 @@ watch(
 whenever(textRef, () => {
   if (view) throw new Error("view already exists");
   lastAppliedModelValue = props.modelValue ?? null;
-  view = new EditorView(textRef.value, {
-    state: makeEditorState(props.modelValue),
-    nodeViews: {
-      mention: (node, view, getPos) => new MentionView(node, view, getPos),
-    },
-    plugins: [dropCursor({ width: 2, color: "#fbbf24" })],
-    dispatchTransaction(transaction) {
-      // update the state directly for responsiveness & performance
-      const newState = view!.state.apply(transaction);
-      view!.updateState(newState);
-      if (transaction.docChanged) {
-        const updatedText = mapPmNodeToText(newState.doc, props.modelValue);
-        lastAppliedModelValue = updatedText;
-        emit("update:modelValue", updatedText);
-      }
-    },
-  });
+  view = makeEditorView();
 });
 onBeforeUnmount(() => {
   view?.destroy();
@@ -191,6 +247,15 @@ const actions: ActionMapImplementation<"text"> & Partial<ActionMapImplementation
   "text.format.strikethrough": formatAction("strikethrough"),
   "text.format.underline": formatAction("underline"),
   "text.format.code": formatAction("code"),
+  "text.edit.hardBreak": {
+    action: () => {
+      // insert 'hardBreak' node at cursor
+      if (view == null) return;
+      const { from } = view.state.selection;
+      const hardBreak = PM_SCHEMA.node("hardBreak");
+      view.dispatch(view.state.tr.insert(from, hardBreak));
+    },
+  },
   // common
   "common.edit.delete": {
     action: () => commands.deleteSelection(view!.state, view!.dispatch),
@@ -219,6 +284,8 @@ defineExpose<ViewExposed>({ self, id, variants: [Variant.PRIMARY, Variant.STEALT
         variant != Variant.STEALTH ? 'border border-gray-200 px-2 py-0.5 focus-within:border-primary-400' : '',
         isInDropZone ? 'outline-dashed outline-2 outline-primary-400' : '',
       ]"
+      :draggable="true"
+      @dragstart.stop.prevent="false /* prevent accidentally dragging ancestors from text selection here */"
       v-contextmenu="
         (context: MenuContext): OverlayMenuInfo => ({
           kind: 'menu',
@@ -238,21 +305,31 @@ defineExpose<ViewExposed>({ self, id, variants: [Variant.PRIMARY, Variant.STEALT
 /* Prose */
 .prose {
   @apply text-gray-900;
+  line-height: 1.65;
 }
-.prose p:not(:first-of-type):not(:last-of-type) {
-  @apply my-0.5;
+.prose strong {
+  @apply font-semibold;
+}
+.prose p:first-of-type {
+  @apply mt-0;
+}
+.prose p {
+  @apply my-[4px];
 }
 .prose hr {
   @apply my-2 border-gray-700 p-0 focus:outline-none focus:ring-0;
 }
 .prose h1 {
-  @apply mb-1.5 mt-3 text-2xl font-semibold;
+  @apply mb-2 mt-4 text-2xl font-bold;
+  line-height: 1.2;
 }
 .prose h2 {
-  @apply mb-1 mt-2 text-xl font-semibold;
+  @apply mb-1.5 mt-2.5 text-xl font-bold;
+  line-height: 1.4;
 }
 .prose h3 {
-  @apply mb-0.5 mt-1 text-lg font-semibold;
+  @apply mb-0.5 mt-1.5 text-lg font-bold;
+  line-height: 1.5;
 }
 .prose code {
   @apply rounded-md bg-gray-100 px-0.5;

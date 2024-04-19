@@ -140,10 +140,10 @@ const operationsTracker = {
     // subscribe to call events
     if ("responses" in op.call) {
       // streaming
-      op.call.responses.onNext(() => {
+      op.call.responses.onNext((r) => {
         op.updatedAt = DateTime.now();
         op.numResponses = (op.numResponses ?? 0) + 1;
-        log.trace(rpcName, "update", op.numResponses);
+        log.trace(rpcName, "update", op.numResponses, (r as any)?.epoch);
       });
       op.call.responses.onComplete(() => {
         terminate();

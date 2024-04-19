@@ -98,6 +98,15 @@ export const PM_SCHEMA = new PmSchema({
       attrs: { nodePtr: {} },
       // render manually, can't parse mention nodes
     },
+    hardBreak: {
+      inline: true,
+      group: "span",
+      selectable: false,
+      toDOM() {
+        return ["br"];
+      },
+      parseDOM: [{ tag: "br" }],
+    },
   },
   marks: {
     bold: {

@@ -136,6 +136,7 @@ export const ACTION_BUILTIN_IDS = [
   "text.format.strikethrough",
   "text.format.underline",
   "text.format.code",
+  "text.edit.hardBreak",
   // view
   "view.navigate.focusPreviousTab",
   "view.navigate.focusNextTab",
@@ -706,13 +707,13 @@ declareActionMap<"common">({
   "common.block.toggleIsPage": {
     type: "toggle",
     icon: "fas fa-memo-pad",
-    title: "Block Is Page",
+    title: "Page",
     text: "Mark the current block as a page",
   },
   "common.block.toggleIsProtocol": {
     type: "toggle",
     icon: "fas fa-list-check",
-    title: "Block Is Protocol",
+    title: "Protocol",
     text: "Mark the current block as a protocol",
   },
   // session
@@ -790,6 +791,13 @@ declareActionMap<"text">({
     icon: "fas fa-code",
     title: "Code",
     text: "Code text",
+  },
+  // edit
+  "text.edit.hardBreak": {
+    icon: "fas fa-arrow-down",
+    title: "Hard Break",
+    text: "Insert a hard break",
+    shortcuts: ["shift+enter"],
   },
 });
 
