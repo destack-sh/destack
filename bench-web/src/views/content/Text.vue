@@ -14,7 +14,7 @@ import { inputRules } from "prosemirror-inputrules";
 import { keymap } from "prosemirror-keymap";
 import { EditorState } from "prosemirror-state";
 import { EditorView } from "prosemirror-view";
-import { getCurrentInstance, onMounted, onUpdated, ref, toRef, watch } from "vue";
+import { getCurrentInstance, onBeforeUnmount, onMounted, onUpdated, ref, toRef, watch } from "vue";
 
 const props = defineProps<
   { self?: TypedNodeReferenceData<NodeType.VIEW>; modelValue?: TextData } & Pick<
@@ -28,6 +28,7 @@ const id = makeViewId(props);
 
 const textRef = ref<HTMLDivElement | null>(null);
 let view: EditorView | null = null;
+let lastAppliedModelValue: TextData | null = null;
 
 function makeEditorState(text?: TextData) {
   return EditorState.create({
@@ -41,7 +42,8 @@ function makeEditorState(text?: TextData) {
 watch(
   () => props.modelValue,
   () => {
-    if (view == null || view.hasFocus()) return;
+    if (view == null) return;
+    if (deepValueEquals(props.modelValue, lastAppliedModelValue)) return;
     const updatedState = makeEditorState(props.modelValue);
     view.updateState(updatedState);
   },
@@ -50,6 +52,7 @@ watch(
 // mount the editor view
 whenever(textRef, () => {
   if (view) throw new Error("view already exists");
+  lastAppliedModelValue = props.modelValue ?? null;
   view = new EditorView(textRef.value, {
     state: makeEditorState(props.modelValue),
     dispatchTransaction(transaction) {
@@ -58,10 +61,15 @@ whenever(textRef, () => {
       view!.updateState(newState);
       if (transaction.docChanged) {
         const updatedText = mapPmNodeToText(newState.doc, props.modelValue);
+        lastAppliedModelValue = updatedText;
         emit("update:modelValue", updatedText);
       }
     },
   });
+});
+onBeforeUnmount(() => {
+  view?.destroy();
+  view = null;
 });
 
 function formatAction(mark: TextMarkType): ActionImplementation {
@@ -148,10 +156,10 @@ defineExpose<ViewExposed>({ self, id, variants: [Variant.PRIMARY, Variant.STEALT
   @apply text-gray-900;
 }
 .prose p:not(:first-of-type):not(:last-of-type) {
-  @apply my-1;
+  @apply my-0.5;
 }
 .prose hr {
-  @apply my-2 border-gray-700 focus:outline-none focus:ring-0;
+  @apply my-2 border-gray-700 p-0 focus:outline-none focus:ring-0;
 }
 .prose h1 {
   @apply mb-1.5 mt-3 text-2xl font-semibold;
