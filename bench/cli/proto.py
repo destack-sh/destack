@@ -30,6 +30,7 @@ LANG_PROTO = "bench/proto/lang.proto"
 TEMP_PY_DIR = "bench/proto/wire.tmp"
 TEMP_PY_FILE = "bench/proto/wire.py.tmp"
 WIRE_PY_FILE = "bench/proto/wire.py"
+TEMP_TS_DIR = "bench-web/src/proto/wire.tmp"
 WIRE_TS_DIR = "bench-web/src/proto/wire"
 EXTRA_PROTO_PY_FILES = "bench/proto/common.proto bench/proto/services.proto"
 EXTRA_PROTO_TS_FILES = "bench/proto/common.proto bench/proto/services.proto bench/proto/web.proto"
@@ -57,6 +58,9 @@ def _generate_proto_schema() -> str:
 
 def _regen_proto_artifacts(schema_str: str) -> None:
     """Regenerate external artifacts from the proto schema."""
+
+    on_apply = []
+
     # regenerate python & TS proto files
     Path(LANG_PROTO).write_text(schema_str)
 
@@ -104,19 +108,20 @@ AnyStructData = Union[{', '.join([cls.__name__ + 'Data' for cls in STRUCT_CLASSE
         patch_prefix_code + "\n\n" + wire_py + "\n\n" + patch_postfix_code
     )
     shutil.rmtree(TEMP_PY_DIR, ignore_errors=True)
-    _shell(f"ruff {TEMP_PY_FILE} --fix", check=False, stdout=DEVNULL)
-    _shell(f"pre-commit run black --files {TEMP_PY_FILE}", check=False, stdout=DEVNULL)
-    _shell(f"mv {TEMP_PY_FILE} {WIRE_PY_FILE}")
+    _shell(f"ruff {TEMP_PY_FILE} --fix", check=True, stdout=DEVNULL)
+    _shell(f"black {TEMP_PY_FILE}", check=True, stdout=DEVNULL)
+    _shell(f"isort {TEMP_PY_FILE}", check=True, stdout=DEVNULL)
+    on_apply.append(lambda: shutil.move(TEMP_PY_FILE, WIRE_PY_FILE))
 
     #
     # TypeScript (protobuf-ts)
     #
 
     logger.info("proto.regen.ts")
-    shutil.rmtree(WIRE_TS_DIR, ignore_errors=True)
-    Path(WIRE_TS_DIR).mkdir(parents=True, exist_ok=True)
+    shutil.rmtree(TEMP_TS_DIR, ignore_errors=True)
+    Path(TEMP_TS_DIR).mkdir(parents=True, exist_ok=True)
     _shell(
-        f"bun x protoc --ts_out {WIRE_TS_DIR} --proto_path . {LANG_PROTO} {EXTRA_PROTO_TS_FILES}",
+        f"bun x protoc --ts_out {TEMP_TS_DIR} --proto_path . {LANG_PROTO} {EXTRA_PROTO_TS_FILES}",
     )
 
     # ancestry maps
@@ -396,11 +401,11 @@ export type AnyPropertyType = {' | '.join('typeof ' + cls.__name__ + 'Property' 
 {object_info_definitions_str}
 {object_info_map_str}
     """
-    lang_ts = Path(WIRE_TS_DIR + "/bench/proto/lang.ts").read_text()
-    Path(WIRE_TS_DIR + "/bench/proto/lang.ts").write_text(lang_ts + "\n\n" + patch_postfix_code)
+    lang_ts = Path(TEMP_TS_DIR + "/bench/proto/lang.ts").read_text()
+    Path(TEMP_TS_DIR + "/bench/proto/lang.ts").write_text(lang_ts + "\n\n" + patch_postfix_code)
 
     # index.ts
-    Path(WIRE_TS_DIR + "/index.ts").write_text(
+    Path(TEMP_TS_DIR + "/index.ts").write_text(
         """
 // re-export generated wire files
 export * from './bench/proto/common';
@@ -415,15 +420,28 @@ export * from './google/protobuf/timestamp';
     )
 
     # prepend every TS file in $TARGET_TS_DIR with /* eslint-disable */
-    for path in Path(WIRE_TS_DIR).glob("**/*.ts"):
+    for path in Path(TEMP_TS_DIR).glob("**/*.ts"):
         path.write_text("/* eslint-disable */\n" + path.read_text())
 
     # amend every .client.ts file with our OperationOptions
-    for path in Path(WIRE_TS_DIR).glob("**/*.client.ts"):
+    for path in Path(TEMP_TS_DIR).glob("**/*.client.ts"):
         patched_file = path.read_text().replace(": RpcOptions", ": OperationOptions")
         # append import
         patched_file = patched_file + '\nimport type { OperationOptions } from "@/proto/services";'
         path.write_text(patched_file)
+
+    # overwrite WIRE_TS_DIR with TEMP_TS_DIR
+    on_apply.append(
+        lambda: (
+            shutil.rmtree(WIRE_TS_DIR, ignore_errors=True),
+            shutil.move(TEMP_TS_DIR, WIRE_TS_DIR),
+        )
+    )
+
+    # and apply
+    logger.info("proto.regen.apply")
+    for apply in on_apply:
+        apply()
 
 
 @app.command()

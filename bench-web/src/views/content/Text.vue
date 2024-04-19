@@ -187,10 +187,10 @@ defineExpose<ViewExposed>({ self, id, variants: [Variant.PRIMARY, Variant.STEALT
   @apply rounded-md bg-gray-100 px-0.5;
 }
 .prose blockquote {
-  @apply my-1.5 border-l-2 border-gray-700 pl-2;
+  @apply my-2 border-l-2 border-gray-700 py-[1px] pl-2;
 }
 .prose div.callout {
-  @apply my-1.5 rounded-md  bg-gray-100 px-2 py-2.5;
+  @apply my-2 rounded-md  bg-gray-100 px-2 py-2.5;
 }
 /* TODO: UI: callout/heading/etc. line icons should be editable */
 .prose div.callout::before {
