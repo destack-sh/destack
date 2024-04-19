@@ -19,7 +19,7 @@ import { Node as PmNode } from "prosemirror-model";
 import { EditorState } from "prosemirror-state";
 import { EditorView, type NodeView as PmNodeView } from "prosemirror-view";
 import { dropCursor } from "prosemirror-dropcursor";
-import { computed, onBeforeUnmount, ref, toRef, watch } from "vue";
+import { computed, nextTick, onBeforeUnmount, ref, toRef, watch } from "vue";
 import { getElement } from "@/utils/element";
 import Picker from "@/views/content/Picker.vue";
 import { makeTypeInfo } from "@/system/value";
@@ -91,7 +91,6 @@ function makeEditorView(): EditorView {
       ) {
         const referencePos = view.coordsAtPos(selection.$head.pos);
 
-        let applied = false;
         createOverlayMenu({
           trigger: getElement(textRef.value)!,
           reference: { x: referencePos.left, y: referencePos.top },
@@ -107,22 +106,18 @@ function makeEditorView(): EditorView {
             },
             onApply(node) {
               if (view == null) throw new Error("view no longer mounted");
-              // replace @ with mention (incl spaces) and focus right after
+              // replace @ with mention and focus there
               const mention = PM_SCHEMA.node("mention", { nodePtr: toNodeReference(node) });
               view.dispatch(
                 view.state.tr
-                  .replaceWith(selection.$head.pos - 1, selection.$head.pos, PM_SCHEMA.text(" "))
-                  .insert(selection.$head.pos, mention)
-                  .insert(selection.$head.pos + 1, PM_SCHEMA.text(" ")),
+                  .delete(selection.$head.pos - 1, selection.$head.pos)
+                  .insert(selection.$head.pos - 1, mention)
+                  .insert(selection.$head.pos, PM_SCHEMA.text(" ")),
               );
-              applied = true;
             },
             onClose: () => {
-              if (!applied) {
-                // refocus where we were
-                view!.focus();
-                view!.dispatch(view!.state.tr.setSelection(selection));
-              }
+              if (view == null) throw new Error("view no longer mounted");
+              nextTick(() => view!.focus());
             },
           },
         });
@@ -211,12 +206,7 @@ const { isInDropZone } = useDropZone({
     const pos = view.posAtCoords({ left: event.clientX, top: event.clientY });
     if (pos == null) return; // not in editor
     const pmNode = PM_SCHEMA.node("mention", { nodePtr: toNodeReference(dragged.node) });
-    view.dispatch(
-      view.state.tr
-        .insertText(" ", pos.pos, pos.pos)
-        .insert(pos.pos + 1, pmNode)
-        .insertText(" ", pos.pos + 2, pos.pos + 2),
-    );
+    view.dispatch(view.state.tr.insert(pos.pos, pmNode).insertText(" ", pos.pos + 1, pos.pos + 1));
   },
 });
 
