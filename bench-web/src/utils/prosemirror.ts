@@ -14,13 +14,20 @@ import { TextSelection } from "prosemirror-state";
 
 export type TextMarkType = "bold" | "italic" | "strikethrough" | "underline" | "code";
 
-const P_DOM: DOMOutputSpec = ["p", 0];
-const H1_DOM: DOMOutputSpec = ["h1", 0];
-const H2_DOM: DOMOutputSpec = ["h2", 0];
-const H3_DOM: DOMOutputSpec = ["h3", 0];
-const HR_DOM: DOMOutputSpec = ["hr"];
+const P_DOM: DOMOutputSpec = ["p", { class: "line" }, 0];
+const H1_DOM: DOMOutputSpec = ["h1", { class: "line" }, 0];
+const H2_DOM: DOMOutputSpec = ["h2", { class: "line" }, 0];
+const H3_DOM: DOMOutputSpec = ["h3", { class: "line" }, 0];
+const HR_DOM: DOMOutputSpec = ["hr", { clas: "line" }];
+const CALLOUT_DOM: DOMOutputSpec = ["div", { class: "line callout" }, 0];
+const QUOTE_DOM: DOMOutputSpec = ["blockquote", { class: "line" }, 0];
+
 const STRONG_DOM: DOMOutputSpec = ["strong", 0];
 const ITALIC_DOM: DOMOutputSpec = ["em", 0];
+const STRIKETHROUGH_DOM: DOMOutputSpec = ["s", 0];
+const UNDERLINE_DOM: DOMOutputSpec = ["u", 0];
+const CODE_DOM: DOMOutputSpec = ["code", 0];
+
 
 export const PM_SCHEMA = new PmSchema({
   nodes: {
@@ -56,7 +63,7 @@ export const PM_SCHEMA = new PmSchema({
       content: "span*",
       attrs: { id: { default: null }, type: { default: TextLineType.CALLOUT } },
       toDOM(node) {
-        return ["div", { class: "callout" }, 0];
+        return CALLOUT_DOM;
       },
       parseDOM: [{ tag: "div.callout", attrs: { type: TextLineType.CALLOUT } }],
     },
@@ -65,7 +72,7 @@ export const PM_SCHEMA = new PmSchema({
       content: "span*",
       attrs: { id: { default: null }, type: { default: TextLineType.QUOTE } },
       toDOM(node) {
-        return ["blockquote", 0];
+        return QUOTE_DOM;
       },
       parseDOM: [{ tag: "blockquote", attrs: { type: TextLineType.QUOTE } }],
     },
@@ -125,19 +132,19 @@ export const PM_SCHEMA = new PmSchema({
     strikethrough: {
       parseDOM: [{ tag: "s" }, { tag: "del" }, { tag: "strike" }],
       toDOM() {
-        return ["s", 0];
+        return STRIKETHROUGH_DOM;
       },
     },
     underline: {
       parseDOM: [{ tag: "u" }, { style: "text-decoration=underline" }],
       toDOM() {
-        return ["u", 0];
+        return UNDERLINE_DOM;
       },
     },
     code: {
       parseDOM: [{ tag: "code" }],
       toDOM() {
-        return ["code", 0];
+        return CODE_DOM;
       },
     },
   },

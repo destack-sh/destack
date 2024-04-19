@@ -1,5 +1,6 @@
 import asyncio
 import functools
+import os
 import subprocess
 from typing import TYPE_CHECKING
 
@@ -48,7 +49,8 @@ def _async_to_sync_blocking(func=None):
 
 def _shell(cmd: str, check=True, **kwargs):
     """Executes a shell command in a subprocess."""
-    logger.debug("shell", cmd=cmd, check=check, **kwargs)
+    cwd = os.getcwd()
+    logger.debug("shell", cmd=cmd, cwd=cwd, check=check, **kwargs)
     subprocess.run(cmd, shell=True, check=check, **kwargs)
 
 
