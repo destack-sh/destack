@@ -31,7 +31,7 @@ let view: EditorView | null = null;
 
 function makeEditorState(text?: TextData) {
   return EditorState.create({
-    doc: props.modelValue != null ? mapTextToPmNode(props.modelValue, undefined) : undefined,
+    doc: text != null ? mapTextToPmNode(text, undefined) : undefined,
     schema: PM_SCHEMA,
     plugins: [keymap(commands.baseKeymap), inputRules({ rules: PM_INPUT_RULES })],
   });
@@ -56,10 +56,8 @@ whenever(textRef, () => {
       // update the state directly for responsiveness & performance
       const newState = view!.state.apply(transaction);
       view!.updateState(newState);
-      const updatedText = mapPmNodeToText(newState.doc, props.modelValue);
-      // PM triggers transactions even when only the selection changes?
-      if (!deepValueEquals(updatedText, props.modelValue)) {
-        console.log("pm.dispatchTransaction", transaction, updatedText); // nocheckin
+      if (transaction.docChanged) {
+        const updatedText = mapPmNodeToText(newState.doc, props.modelValue);
         emit("update:modelValue", updatedText);
       }
     },
@@ -70,7 +68,7 @@ function formatAction(mark: TextMarkType): ActionImplementation {
   return {
     isEnabled: () => props.isInput,
     isChecked: () => {
-      if (!view || !view.state) return false; 
+      if (view == null) return false;
       const { from, to } = view.state.selection;
       let hasMark = false;
       view.state.doc.nodesBetween(from, to, (node) => {
@@ -84,8 +82,12 @@ function formatAction(mark: TextMarkType): ActionImplementation {
       if (view == null) throw new Error("view not mounted");
       const { state, dispatch } = view;
       if (state.selection.empty) {
-        // switch to that mark
-        dispatch(state.tr.setStoredMarks([state.schema.marks[mark].create()]));
+        // toggle the stored mark
+        if (!state.tr.storedMarks?.some((storedMark) => storedMark.type.name === mark)) {
+          dispatch(state.tr.addStoredMark(state.schema.marks[mark].create()));
+        } else {
+          dispatch(state.tr.removeStoredMark(state.schema.marks[mark]));
+        }
       } else {
         // add or remove the mark from the selection
         commands.toggleMark(state.schema.marks[mark])(state, dispatch);
@@ -101,6 +103,9 @@ const actions: ActionMapImplementation<"text"> & Partial<ActionMapImplementation
   "text.format.underline": formatAction("underline"),
   "text.format.code": formatAction("code"),
   // common
+  "common.edit.delete": {
+    action: () => commands.deleteSelection(view!.state, view!.dispatch),
+  },
   "common.select.all": {
     action: () => commands.selectAll(view!.state, view!.dispatch),
   },
@@ -142,6 +147,9 @@ defineExpose<ViewExposed>({ self, id, variants: [Variant.PRIMARY, Variant.STEALT
 .prose {
   @apply text-gray-900;
 }
+.prose p:not(:first-of-type):not(:last-of-type) {
+  @apply my-1;
+}
 .prose hr {
   @apply my-2 border-gray-700 focus:outline-none focus:ring-0;
 }
@@ -154,6 +162,15 @@ defineExpose<ViewExposed>({ self, id, variants: [Variant.PRIMARY, Variant.STEALT
 .prose h3 {
   @apply mb-0.5 mt-1 text-lg font-semibold;
 }
+.prose code {
+  @apply rounded-md bg-gray-100 px-0.5;
+}
+.prose blockquote {
+  @apply my-1.5 border-l-2 border-gray-700 pl-2;
+}
+.prose div.callout {
+  @apply my-1.5 rounded-md border border-gray-700 bg-gray-100 p-1;
+}
 </style>
 <style>
 /* PM */
@@ -161,5 +178,8 @@ defineExpose<ViewExposed>({ self, id, variants: [Variant.PRIMARY, Variant.STEALT
 
 .ProseMirror-focused {
   outline: none;
+}
+.ProseMirror-selectednode {
+  @apply p-2 outline-primary-400;
 }
 </style>

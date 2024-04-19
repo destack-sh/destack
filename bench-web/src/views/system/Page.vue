@@ -277,10 +277,13 @@ defineExpose<ViewExposed>({ self, actions, focus });
       <div ref="contentRef" class="mb-16 flex flex-col">
         <!-- Self Block (=this Page block) -->
         <div
-          class="mb-2 min-w-fit border-b py-1.5"
+          class="mb-2 min-w-fit border-b py-1.5 hover:border-primary-900"
           :class="[
-            props.nodePtr?.id == focusedNodePtr?.id ? 'border-primary-900' : 'border-gray-200',
-            props.nodePtr?.id == inspectionPtr?.id ? 'bg-primary-100' : 'bg-white',
+            props.nodePtr?.id == focusedNodePtr?.id
+              ? props.nodePtr?.id == inspectionPtr?.id
+                ? 'border-primary-900'
+                : 'border-gray-400'
+              : 'border-gray-200',
           ]"
         >
           <Block
@@ -358,7 +361,7 @@ defineExpose<ViewExposed>({ self, actions, focus });
             >
               <!-- Line with a gap for the button -->
               <div class="relative">
-                <svg class="translate-y-1" width="100%" height="2px" viewBox="0 0 100 1" preserveAspectRatio="none">
+                <svg class="translate-y-1" width="100%" height="1px" viewBox="0 0 100 1" preserveAspectRatio="none">
                   <path d="M0,0.5 L49,0.5" fill="none" stroke="currentColor" stroke-width="1" />
                   <path d="M100,0.5 L51,0.5" fill="none" stroke="currentColor" stroke-width="1" />
                 </svg>
@@ -378,10 +381,13 @@ defineExpose<ViewExposed>({ self, actions, focus });
               :ref="
                 (ref: any) => (ref ? (expandedBlockRefs[blockPtr.id!] = ref) : delete expandedBlockRefs[blockPtr.id!])
               "
-              class="w-full rounded-md border"
+              class="w-full rounded-md border hover:border-primary-900"
               :class="[
-                blockPtr.id == focusedNodePtr?.id ? 'border-primary-900' : 'border-gray-200 hover:border-primary-900',
-                blockPtr.id == inspectionPtr?.id ? 'bg-primary-100' : 'bg-white',
+                blockPtr.id == focusedNodePtr?.id
+                  ? blockPtr.id == inspectionPtr?.id
+                    ? 'border-primary-900'
+                    : 'border-gray-400'
+                  : 'border-gray-100',
               ]"
               :node-ptr="blockPtr"
               :prepared-connection="preparedPkgConnection"
