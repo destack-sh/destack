@@ -5,9 +5,9 @@ import { type ActionImplementation, type ActionMapImplementation } from "@/syste
 import { ICON_BY_NODE_TYPE, getNodeIcon } from "@/system/icon";
 import { canvas, pkgGraph } from "@/system/space";
 import { mapPmNodeToText, mapTextToPmNode } from "@/system/text";
-import { useDropZone, useSingleDropZone } from "@/utils/drag";
+import { useDropZone } from "@/utils/drag";
 import { menuActionsLike, type MenuContext, type OverlayMenuInfo } from "@/utils/menu";
-import { PM_SCHEMA, PM_INPUT_RULES, type TextMarkType } from "@/utils/prosemirror";
+import { PM_INPUT_RULES, PM_SCHEMA, type TextMarkType } from "@/utils/prosemirror";
 import { deepValueEquals } from "@/utils/ref";
 import { makeViewId } from "@/views";
 import { viewEmits, type ViewExposed } from "@/views/common";
@@ -16,8 +16,9 @@ import * as commands from "prosemirror-commands";
 import { inputRules } from "prosemirror-inputrules";
 import { keymap } from "prosemirror-keymap";
 import { Node as PmNode } from "prosemirror-model";
-import { Plugin, EditorState } from "prosemirror-state";
-import { Decoration, EditorView, type DecorationSource, type NodeView as PmNodeView } from "prosemirror-view";
+import { EditorState } from "prosemirror-state";
+import { EditorView, type NodeView as PmNodeView } from "prosemirror-view";
+import { dropCursor } from "prosemirror-dropcursor";
 import { computed, onBeforeUnmount, ref, toRef, watch } from "vue";
 
 const MENTION_TRIGGER_CHAR = "@";
@@ -54,13 +55,7 @@ function makeEditorState(text?: TextData) {
   return EditorState.create({
     doc: text != null ? mapTextToPmNode(text, undefined) : undefined,
     schema: PM_SCHEMA,
-    plugins: [
-      keymap(commands.baseKeymap),
-      inputRules({ rules: PM_INPUT_RULES }),
-      new Plugin({
-        // suggestion/mention plugin
-      }),
-    ],
+    plugins: [keymap(commands.baseKeymap), inputRules({ rules: PM_INPUT_RULES })],
   });
 }
 
@@ -130,6 +125,7 @@ whenever(textRef, () => {
     nodeViews: {
       mention: (node, view, getPos) => new MentionView(node, view, getPos),
     },
+    plugins: [dropCursor({ width: 2, color: "#fbbf24" })],
     dispatchTransaction(transaction) {
       // update the state directly for responsiveness & performance
       const newState = view!.state.apply(transaction);
@@ -153,12 +149,13 @@ const { isInDropZone } = useDropZone({
   container: textRef,
   enabled: toRef(props, "isInput"),
   kinds: ["node"],
-  onDrop: (dragged) => {
+  onDrop: (dragged, event) => {
     if (view == null || dragged.kind != "node") return;
-    // insert node mention at cursor
-    const node = dragged.node;
-    const pmNode = PM_SCHEMA.node("mention", { nodePtr: toNodeReference(node) });
-    view.dispatch(view.state.tr.insert(view.state.selection.to, pmNode));
+    // insert node mention at position
+    const pos = view.posAtCoords({ left: event.clientX, top: event.clientY });
+    if (pos == null) return; // not in editor
+    const pmNode = PM_SCHEMA.node("mention", { nodePtr: toNodeReference(dragged.node) });
+    view.dispatch(view.state.tr.insert(pos.pos, pmNode));
   },
 });
 
@@ -213,7 +210,10 @@ defineExpose<ViewExposed>({ self, id, variants: [Variant.PRIMARY, Variant.STEALT
     <div
       ref="textRef"
       class="prose rounded-md hover:cursor-text"
-      :class="[variant != Variant.STEALTH ? 'border border-gray-200 px-2 py-0.5 focus-within:border-primary-400' : '']"
+      :class="[
+        variant != Variant.STEALTH ? 'border border-gray-200 px-2 py-0.5 focus-within:border-primary-400' : '',
+        isInDropZone ? 'outline-2 outline-dashed outline-primary-400' : '',
+      ]"
       v-contextmenu="
         (context: MenuContext): OverlayMenuInfo => ({
           kind: 'menu',

@@ -151,7 +151,7 @@ type DropOptions = {
 type DropZone = DropOptions & {
   id: number;
   containerEl: Ref<HTMLElement | SVGElement | null>;
-  onDrop?: (dragged: DraggedData) => void;
+  onDrop?: (dragged: DraggedData, event: DragEvent) => void;
 };
 let dropZoneId = 0;
 function newDropZoneId(): number {
@@ -205,7 +205,7 @@ useEventListener("drop", (event) => {
   const zone = findCompatibleDropZone(event.target as HTMLElement | SVGElement, dragged);
   if (zone) {
     log.debug("drag.drop", dragged, zone);
-    zone.onDrop?.(dragged);
+    zone.onDrop?.(dragged, event);
   }
   resetDrag();
 });
@@ -216,7 +216,7 @@ useEventListener("dragend", resetDrag);
  */
 export function useDropZone(
   options: DropOptions & {
-    onDrop?: (dragged: DraggedData) => void;
+    onDrop?: (dragged: DraggedData, event: DragEvent) => void;
   },
 ): { isInDropZone: Ref<boolean> } {
   const enabled = options.enabled ?? ref(true);
@@ -253,13 +253,13 @@ export function useDropZone(
 export function useSingleDropZone(
   options: DropOptions & {
     orientation: MaybeRef<Orientation>;
-    onDrop?: (dragged: DraggedData, anchor: "start" | "end") => void;
+    onDrop?: (dragged: DraggedData, anchor: "start" | "end", event: DragEvent) => void;
   },
 ): { activeDropZone: Ref<{ anchor: "start" | "end" } | null>; getActiveDropZone: () => { anchor: "start" | "end" } } {
   const { isInDropZone } = useDropZone({
     ...options,
-    onDrop: (dragged) => {
-      options.onDrop?.(dragged, getActiveDropZone().anchor);
+    onDrop: (dragged, event) => {
+      options.onDrop?.(dragged, getActiveDropZone().anchor, event);
     },
   });
 
@@ -294,15 +294,15 @@ export const SPLIT_EDGE_ZONE_FRACTION = 0.12;
  */
 export function useSplitDropZone(
   options: DropOptions & {
-    onDrop?: (dragged: DraggedData, anchor: SplitAnchor) => void;
+    onDrop?: (dragged: DraggedData, anchor: SplitAnchor, event: DragEvent) => void;
   },
 ): {
   activeDropZone: Ref<{ anchor: SplitAnchor; splitClass: string } | null>;
 } {
   const { isInDropZone } = useDropZone({
     ...options,
-    onDrop: (dragged) => {
-      options.onDrop?.(dragged, getActiveDropZone().anchor);
+    onDrop: (dragged, event) => {
+      options.onDrop?.(dragged, getActiveDropZone().anchor, event);
     },
   });
   const position = useMouseInElement(options.container);
@@ -367,17 +367,17 @@ export function useMultiDropZone(
     orientation: MaybeRef<Orientation>;
     fallbackToClosest?: boolean;
     hasCenterAnchor?: boolean;
-    allowDrop?: (dragged: DraggedData, anchor: MultiAnchor, targetId: string) => boolean;
-    onDrop?: (dragged: DraggedData, anchor: MultiAnchor, targetId: string | null) => void;
+    allowDrop?: (dragged: DraggedData, anchor: MultiAnchor, targetId: string, event?: DragEvent) => boolean;
+    onDrop?: (dragged: DraggedData, anchor: MultiAnchor, targetId: string | null, event: DragEvent) => void;
   },
 ): { activeDropZone: Ref<{ anchor: MultiAnchor; targetId: string | null } | null> } {
   const { activeDropZone: singleDropZone, getActiveDropZone: getSingleActiveDropZone } = useSingleDropZone({
     ...options,
     orientation: options.orientation,
-    onDrop: (dragged) => {
+    onDrop: (dragged, _, event) => {
       const { anchor, targetId } = getActiveDropZone()!;
-      if (targetId == null || options.allowDrop?.(dragged, anchor, targetId) !== false) {
-        options.onDrop?.(dragged, anchor, targetId);
+      if (targetId == null || options.allowDrop?.(dragged, anchor, targetId, event) !== false) {
+        options.onDrop?.(dragged, anchor, targetId, event);
       }
     },
   });
