@@ -22,8 +22,8 @@ defineExpose<ViewExposed>({ self });
 </script>
 <template>
   <div v-if="basePtr" class="h-full w-full bg-white">
-    <!-- nocheckin :Incomplete: Creator -->
-    Creator for {{ describeNode(basePtr) }}
+    <!-- TODO :Incomplete: Creator -->
+    Create:{{ describeNode(basePtr) }}
   </div>
   <div v-else class="flex h-full w-full flex-col justify-center bg-white text-center">
     <!-- Empty state -->

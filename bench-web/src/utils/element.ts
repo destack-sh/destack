@@ -7,7 +7,16 @@ import {
   type MaybeComputedElementRef,
   type MaybeElement,
 } from "@vueuse/core";
-import { computed, onUpdated, ref, watch, type ComponentInstance, type ComponentPublicInstance, type Ref } from "vue";
+import {
+  computed,
+  onUpdated,
+  ref,
+  watch,
+  type ComponentInstance,
+  type ComponentPublicInstance,
+  type Directive,
+  type Ref,
+} from "vue";
 
 export function blurDocument() {
   if (document.activeElement instanceof HTMLElement) document.activeElement.blur();

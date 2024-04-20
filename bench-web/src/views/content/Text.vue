@@ -273,7 +273,9 @@ defineExpose<ViewExposed>({ self, id, variants: [Variant.PRIMARY, Variant.STEALT
       ref="textRef"
       class="text rounded-md hover:cursor-text"
       :class="[
-        variant != Variant.STEALTH ? 'border border-gray-200 px-2 py-0.5 focus-within:border-primary-400' : '',
+        variant != Variant.STEALTH
+          ? 'border border-gray-200 px-2 py-0.5 focus-within:border-primary-900'
+          : 'outline-1 outline-primary-900 focus-within:outline-dashed',
         isInDropZone ? 'outline-dashed outline-2 outline-primary-400' : '',
       ]"
       :draggable="true"

@@ -2566,7 +2566,8 @@ export interface EnvironmentData {
     cachePtr?: NodeReferenceData;
 }
 /**
- * A used-defined attribute of some value.
+ * A used-defined attribute of some value
+ * (Bench defines Properties for Nodes/Structs, Users define Fields for Values inside those).
  *
  * @generated from protobuf message symbolx.bench.FieldData
  */

@@ -30,7 +30,9 @@ defineExpose<ViewExposed>({ self, id, variants: [Variant.PRIMARY, Variant.STEALT
       class="group flex flex-row items-center rounded-md border-gray-200 focus-within:border-primary-900"
       :class="[
         isDisabled ? 'bg-gray-100 text-gray-700' : 'bg-white text-gray-900',
-        variant != Variant.STEALTH ? 'border px-2  py-0.5 focus-within:ring-1 focus-within:ring-primary-900' : '',
+        variant != Variant.STEALTH
+          ? 'border px-2 py-0.5 focus-within:ring-1 focus-within:ring-primary-900'
+          : 'outline-1 outline-primary-900 focus-within:outline-dashed',
       ]"
     >
       <IconInline v-if="icon" v-bind="icon" class="mr-2 text-gray-400" />

@@ -1878,7 +1878,8 @@ message EnvironmentData {
   optional NodeReferenceData cache_ptr = 45;
 }
 
-// A used-defined attribute of some value.
+// A used-defined attribute of some value
+// (Bench defines Properties for Nodes/Structs, Users define Fields for Values inside those).
 message FieldData {
   ObjectType metatype = 1;
   string id = 2;

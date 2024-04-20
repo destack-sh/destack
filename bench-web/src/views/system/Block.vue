@@ -7,22 +7,20 @@ import { useGetConnection } from "@/system/connection";
 import { isGeneratedNodeName } from "@/system/graph";
 import { IconInline, getNodeIcon } from "@/system/icon";
 import { toCamelName } from "@/system/lang";
-import { canvas } from "@/system/space";
+import { canvas, inspectionPtr } from "@/system/space";
 import { onMouseNotPressedOnce } from "@/utils/layout";
-import type { OverlayMenuInfo } from "@/utils/menu";
 import type { TooltipInfo } from "@/utils/tooltip";
 import { makeViewId } from "@/views";
 import Inaccessible from "@/views/builtins/Inaccessible.vue";
 import { viewEmits, type FocusAnchor, type ViewExposed } from "@/views/common";
 import Code from "@/views/content/Code.vue";
-import PlainText from "@/views/content/PlainText.vue";
 import Text from "@/views/content/Text.vue";
 import { computed, ref, toRef, type Ref } from "vue";
 
 const props = defineProps<
   { self?: TypedNodeReferenceData<NodeType.VIEW>; preparedConnection?: PreparedGetConnection } & Pick<
     ViewData,
-    "nodePtr"
+    "variant" | "nodePtr"
   >
 >();
 const emit = defineEmits(viewEmits());
@@ -47,8 +45,7 @@ const isGeneratedName = computed(
     block.value != null &&
     isGeneratedNodeName(block.value.metatype as unknown as NodeType, block.value.type, block.value.name),
 );
-
-// nocheckin :Incomplete: Block
+const isThinTextWrapper = computed(() => isGeneratedName.value && block.value?.type == BlockType.TEXT);
 
 //
 // Interaction
@@ -73,13 +70,20 @@ function focus(anchor: FocusAnchor | NodeReferenceData) {
 }
 
 canvas.registerView(self, id);
-defineExpose<ViewExposed>({ self, id, actions, focus });
+defineExpose<ViewExposed>({ self, id, variants: [Variant.PRIMARY, Variant.STEALTH], actions, focus });
 </script>
 <template>
-  <div ref="blockRef" v-if="block" class="group/block px-2 py-1.5">
+  <div
+    ref="blockRef"
+    v-if="block"
+    class="group/block relative rounded-md border bg-white px-2 py-1.5"
+    :class="[nodePtr?.id == inspectionPtr?.id ? 'border-primary-900' : 'border-gray-200 hover:border-gray-400']"
+  >
     <!-- Header -->
-    <div>
-      <!-- Icon/Name (also drag handle) -->
+    <!-- TODO: :UX: the floating headers are intended to make simple text blocks less obtrusive.. not great yet -->
+    <!-- (floats into border if just a thin wrapper) -->
+    <div :class="[isThinTextWrapper ? 'absolute -top-2.5 left-2 bg-white px-0.5' : '']">
+      <!-- Icon/Name (also drag handle if container is not already draggable) -->
       <span
         class=""
         @mousedown="
@@ -91,7 +95,7 @@ defineExpose<ViewExposed>({ self, id, actions, focus });
         <IconInline
           v-bind="getNodeIcon(block)"
           class="rounded-md px-0.5 py-0.5 hover:cursor-pointer hover:bg-primary-100 hover:text-primary-900"
-          :class="[block.type == BlockType.TEXT && isGeneratedName ? 'text-gray-400' : 'text-gray-600']"
+          :class="[isThinTextWrapper ? ' text-gray-500' : 'text-gray-700']"
           v-tooltip="
             {
               showDelay: 400,
@@ -104,21 +108,14 @@ defineExpose<ViewExposed>({ self, id, actions, focus });
         />
         <span
           role="button"
-          class="ml-1 rounded-md px-0.5 py-0.5 hover:cursor-pointer hover:bg-primary-100 hover:text-primary-900"
-          :class="[block.type == BlockType.TEXT && isGeneratedName ? 'text-gray-500' : 'font-semibold']"
-          v-menu="
-            (): OverlayMenuInfo => ({
-              kind: 'component',
-              placement: 'inside-top-left',
-              containerClass: 'px-2 py-1',
-              referenceOffset: { x: 0, y: -2 },
-              fitToContainer: 'width',
-              props: { modelValue: block!.name, isInput: true, variant: Variant.STEALTH },
-              onApply: (name: string) => {
-                pkgConnection.tx.updateDebounced(block!, { name });
-              },
-              component: PlainText,
-            })
+          class="min-w-fit max-w-fit rounded-md border-0 px-1 py-0.5 outline-none ring-0 hover:bg-primary-100 hover:text-primary-900 focus:ring-0"
+          :class="[isThinTextWrapper ? 'px-0.5 text-gray-500' : 'ml-0.5 px-1 font-semibold']"
+          contenteditable
+          :value="block.name"
+          @input="
+            (event) => {
+              pkgConnection.tx.updateDebounced(block!, { name: (event.target as HTMLSpanElement).innerText });
+            }
           "
         >
           {{ block.name }}
