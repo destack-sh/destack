@@ -38,8 +38,13 @@ function positionTooltip(tooltip: TooltipInstance, el: HTMLDivElement) {
   >
     <template v-for="tooltip in activeTooltips" :key="tooltip.id">
       <div
-        :ref="(ref?: any) => (ref != null ? (tooltipRefs[tooltip.id] = ref, positionTooltip(tooltip, ref)) : (delete tooltipRefs[tooltip.id]))"
-        class="absolute z-70 w-fit max-w-80 whitespace-nowrap rounded-md border border-gray-300 bg-white text-gray-700 shadow-sm shadow-gray-300"
+        :ref="
+          (ref?: any) =>
+            ref != null
+              ? ((tooltipRefs[tooltip.id] = ref), positionTooltip(tooltip, ref))
+              : delete tooltipRefs[tooltip.id]
+        "
+        class="absolute z-70 w-fit max-w-80 whitespace-nowrap rounded-md border border-gray-300 bg-white text-gray-700"
         :class="[tooltip.info.small ? 'px-1.5 py-0.5' : 'px-2.5 py-1']"
         @mouseenter="tooltip.reference.tooltipOnMouseEnter"
         @mouseleave="tooltip.reference.tooltipOnMouseLeave"

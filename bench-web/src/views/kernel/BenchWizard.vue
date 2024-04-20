@@ -67,9 +67,7 @@ function focus(anchor: FocusAnchor | NodeReferenceData) {
 defineExpose({ self, focus });
 </script>
 <template>
-  <div
-    class="mx-auto mt-24 min-w-80 max-w-96 rounded-md border border-gray-300 bg-white px-9 py-7 text-gray-900 shadow-md shadow-gray-300"
-  >
+  <div class="mx-auto mt-24 min-w-80 max-w-96 rounded-md border border-gray-300 bg-white px-9 py-7 text-gray-900">
     <!-- Header -->
     <div>
       <h2 class="text-2xl font-semibold">Create your Bench</h2>
@@ -83,7 +81,14 @@ defineExpose({ self, focus });
       <!-- Owner -->
       <!-- ... -->
       <!-- Slug must match user slug for main bench -->
-      <PlainText :icon="makeIcon({ faName: 'fas fa-at' })" name="Slug" title="Slug" is-input is-disabled v-model="slug" />
+      <PlainText
+        :icon="makeIcon({ faName: 'fas fa-at' })"
+        name="Slug"
+        title="Slug"
+        is-input
+        is-disabled
+        v-model="slug"
+      />
       <!-- Region -->
       <!-- ... -->
     </div>
