@@ -100,8 +100,8 @@ function getAnchorPosition(anchor: "start" | "end", blockIdx: number, anchorWidt
 
 // sync page name with view title
 watch(toRef(props, "name"), () => {
-  if (page.value?.name != selfView.value?.title) {
-    pkgConnection.tx.update(page.value!, { name: selfView.value?.title });
+  if (page.value != null && page.value?.name != selfView.value?.title) {
+    pkgConnection.tx.update(page.value, { name: selfView.value?.title });
   }
 });
 
@@ -277,7 +277,7 @@ defineExpose<ViewExposed>({ self, actions, focus });
       <div ref="contentRef" class="mb-16 flex flex-col">
         <!-- Self Block (=this Page block) -->
         <div
-          class="mb-2 min-w-fit border-b py-1.5 hover:border-primary-900"
+          class="mb-2 min-w-fit border-b py-1.5 hover:border-gray-400"
           :class="[
             props.nodePtr?.id == focusedNodePtr?.id
               ? props.nodePtr?.id == inspectionPtr?.id

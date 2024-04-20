@@ -9,8 +9,9 @@ import {
   openSingleQuote,
   smartQuotes,
 } from "prosemirror-inputrules";
-import { Schema as PmSchema, type DOMOutputSpec } from "prosemirror-model";
-import { TextSelection } from "prosemirror-state";
+import * as commands from "prosemirror-commands";
+import { NodeType as PmNodeType, Schema as PmSchema, type DOMOutputSpec } from "prosemirror-model";
+import { EditorState, TextSelection, Transaction as PmTransaction } from "prosemirror-state";
 
 export type TextMarkType = "bold" | "italic" | "strikethrough" | "underline" | "code";
 
@@ -155,30 +156,19 @@ export const PM_SCHEMA = new PmSchema({
   },
 });
 
-const lineHeadingRule = (char: string, type: TextLineType) => {
-  return new InputRule(new RegExp(`^(#{${char.length}})\\s$`), (state, match, start, end) => {
+function blockTypeRule(char: string, nodeType: PmNodeType, type: TextLineType) {
+  return new InputRule(new RegExp(`^(${char})\\s$`), (state, match, start, end) => {
     const { tr } = state;
-    // replace with heading line
-    tr.replaceWith(start - match.length + 1, end, state.schema.nodes.lineHeading.create({ type }));
-    // and move cursor to the end of the line
-    tr.setSelection(TextSelection.near(tr.doc.resolve(start - char.length + 1)));
+    tr.setBlockType(start, end, nodeType, { type });
+    tr.delete(start, end);
+    tr.setSelection(TextSelection.near(tr.doc.resolve(start)));
     return tr;
   });
-};
+}
 const lineDividerRule = new InputRule(/(^---$)|(^—-$)/, (state, match, start, end) => {
   const { tr } = state;
-  tr.replaceWith(start, end, state.schema.nodes.lineDivider.create());
-  return tr;
-});
-const lineQuoteRule = new InputRule(/(^> )/, (state, match, start, end) => {
-  const { tr } = state;
-  tr.replaceWith(start - match.length, end, state.schema.nodes.lineQuote.create());
-  tr.setSelection(TextSelection.near(tr.doc.resolve(start)));
-  return tr;
-});
-const lineCalloutRule = new InputRule(/(^! )/, (state, match, start, end) => {
-  const { tr } = state;
-  tr.replaceWith(start - match.length, end, state.schema.nodes.lineCallout.create());
+  tr.replaceWith(start - 1, end, state.schema.nodes.lineDivider.create());
+  tr.insert(start, state.schema.nodes.linePlain.create());
   tr.setSelection(TextSelection.near(tr.doc.resolve(start)));
   return tr;
 });
@@ -193,10 +183,27 @@ export const PM_INPUT_RULES: InputRule[] = [
   closeSingleQuote,
   ...smartQuotes,
   // line rules
-  lineHeadingRule("#", TextLineType.HEADING_LARGE),
-  lineHeadingRule("##", TextLineType.HEADING_MEDIUM),
-  lineHeadingRule("###", TextLineType.HEADING_SMALL),
+  blockTypeRule("#", PM_SCHEMA.nodes.lineHeading, TextLineType.HEADING_LARGE),
+  blockTypeRule("##", PM_SCHEMA.nodes.lineHeading, TextLineType.HEADING_MEDIUM),
+  blockTypeRule("###", PM_SCHEMA.nodes.lineHeading, TextLineType.HEADING_SMALL),
   lineDividerRule,
-  lineQuoteRule,
-  lineCalloutRule,
+  blockTypeRule(">", PM_SCHEMA.nodes.lineQuote, TextLineType.QUOTE),
+  blockTypeRule("!", PM_SCHEMA.nodes.lineCallout, TextLineType.CALLOUT),
 ];
+
+/* Convert non-plain text nodes to plain text nodes when deleting */
+function convertHeadingToParagraph(state: EditorState, dispatch?: (tr: PmTransaction) => void) {
+  const { $from, $to } = state.selection;
+  if ($from.node().type.name !== "linePlain" && $from.parentOffset === 0 && $to.pos === $from.end()) {
+    if (dispatch) {
+      dispatch(state.tr.setBlockType($from.pos, $to.pos, state.schema.nodes.linePlain, { type: TextLineType.PLAIN }));
+    }
+    return true;
+  }
+  return false;
+}
+
+// Keymap integration
+export const PM_KEYMAP_EXTRA = {
+  Backspace: convertHeadingToParagraph,
+};

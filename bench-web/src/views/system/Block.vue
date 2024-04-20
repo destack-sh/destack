@@ -14,6 +14,7 @@ import type { TooltipInfo } from "@/utils/tooltip";
 import { makeViewId } from "@/views";
 import Inaccessible from "@/views/builtins/Inaccessible.vue";
 import { viewEmits, type FocusAnchor, type ViewExposed } from "@/views/common";
+import Code from "@/views/content/Code.vue";
 import PlainText from "@/views/content/PlainText.vue";
 import Text from "@/views/content/Text.vue";
 import { computed, ref, toRef, type Ref } from "vue";
@@ -128,12 +129,23 @@ defineExpose<ViewExposed>({ self, id, actions, focus });
     <!-- Body -->
     <div class="py-1">
       <Text
+        v-if="block.type == BlockType.TEXT"
         is-input
         :variant="Variant.STEALTH"
         :model-value="block.text"
         @update:modelValue="
           (newText) => {
             pkgConnection.tx.update(block!, { text: newText });
+          }
+        "
+      />
+      <Code
+        v-else-if="block.type == BlockType.CODE"
+        :variant="Variant.STEALTH"
+        :model-value="block.code"
+        @update:modelValue="
+          (newCode) => {
+            pkgConnection.tx.update(block!, { code: newCode });
           }
         "
       />

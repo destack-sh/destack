@@ -2,7 +2,7 @@
 import { NodeType, Orientation } from "@/proto/wire";
 import { fireActionById } from "@/system/action";
 import { isDeveloperMode } from "@/system/client";
-import { graphConnections } from "@/system/connection";
+import { graphConnections, hasPendingConnections } from "@/system/connection";
 import { DEFAULT_USER_ICON, ICON_BY_NODE_TYPE, IconInline, makeIcon } from "@/system/icon";
 import { bench, hasLocalBench } from "@/system/space";
 import { client, clientsSorted, isAuthenticated, user } from "@/system/user";
@@ -137,7 +137,7 @@ const USER_MENU_ITEMS = computed(() => {
       <Popover placement="bottom-left" :reference-margin="4" :container-margin="4">
         <template v-slot:trigger="{ toggle, isOpen }">
           <button
-            class="flex select-none flex-row items-center rounded-md border px-2 py-1 text-gray-900 shadow-sm shadow-gray-300 hover:cursor-pointer hover:border-gray-400 hover:bg-gray-100"
+            class="flex select-none flex-row items-center rounded-md border px-2 py-1 text-gray-900 hover:cursor-pointer hover:border-gray-400 hover:bg-gray-100"
             :class="[isOpen ? 'border-gray-400 bg-gray-100' : 'border-gray-300 bg-white']"
             @click="toggle"
           >
@@ -190,19 +190,19 @@ const USER_MENU_ITEMS = computed(() => {
         <Popover placement="bottom" :reference-margin="8" :container-margin="4">
           <template #trigger="{ toggle }">
             <button
+              v-if="isDeveloperMode || hasPendingConnections"
               class="select-none rounded-md border-2 px-1 py-0.5 transition-colors"
               :class="
                 graphConnections.some((c) => c.isPaused.value || c.txBuffer.isPaused.value)
                   ? 'border-secondary-600'
                   : 'border-transparent'
               "
-              :disabled="!isDeveloperMode"
               @click.stop="toggle"
             >
               <i
                 class="fas"
                 :class="
-                  graphConnections.every((c) => c.isConnected.value)
+                  !hasPendingConnections
                     ? 'fa-cloud text-success-600 hover:text-success-700'
                     : 'fa-cloud-slash text-warning-600 hover:text-warning-700'
                 "
@@ -317,7 +317,7 @@ const USER_MENU_ITEMS = computed(() => {
         <Popover placement="bottom-right" :reference-margin="4" :container-margin="4">
           <template v-slot:trigger="{ toggle, isOpen }">
             <button
-              class="rounded-md border px-2 py-1 text-gray-900 shadow-sm shadow-gray-300 hover:border-gray-400 hover:bg-gray-100 focus:shadow-primary-600"
+              class="rounded-md border px-2 py-1 text-gray-900 hover:border-gray-400 hover:bg-gray-100 focus:shadow-primary-600"
               :class="[isOpen ? 'border-gray-400 bg-gray-100' : 'border-gray-300 bg-white']"
               @click="toggle"
             >

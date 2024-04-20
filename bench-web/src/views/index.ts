@@ -40,10 +40,12 @@ const COMPONENT_BY_VIEW_TYPE_LAZY = {
   // content
   [ViewType.PLAIN_TEXT]: import("@/views/content/PlainText.vue"),
   [ViewType.TEXT]: import("@/views/content/Text.vue"),
+  [ViewType.CODE]: import("@/views/content/Code.vue"),
   [ViewType.PICKER]: import("@/views/content/Picker.vue"),
 };
 
-const COMPONENT_BY_VIEW_TYPE = {} as Record<ViewType, ViewComponent>;
+export const AVAILABLE_VIEW_TYPES = Object.keys(COMPONENT_BY_VIEW_TYPE_LAZY) as unknown as ViewType[];
+export const COMPONENT_BY_VIEW_TYPE = {} as Record<ViewType, ViewComponent>;
 let didRegisterComponents = false;
 export async function registerViewComponents() {
   if (didRegisterComponents) throw new Error("components already registered");

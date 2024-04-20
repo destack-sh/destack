@@ -749,6 +749,7 @@ const _graphConnections: Ref<GraphConnectionBase<any, any>[]> = shallowRef([
   ),
 ]);
 export const graphConnections = pretendReadonly(_graphConnections);
+export const hasPendingConnections = computed(() => graphConnections.value.some((c) => !c.isConnected.value));
 
 export function addGraphConnection(connection: GraphConnectionBase<any, any>): void {
   _graphConnections.value = [..._graphConnections.value, connection];

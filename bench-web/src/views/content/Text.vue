@@ -7,7 +7,7 @@ import { canvas, pkgGraph } from "@/system/space";
 import { mapPmNodeToText, mapTextToPmNode } from "@/system/text";
 import { useDropZone } from "@/utils/drag";
 import { createOverlayMenu, menuActionsLike, type MenuContext, type OverlayMenuInfo } from "@/utils/menu";
-import { PM_INPUT_RULES, PM_SCHEMA, type TextMarkType } from "@/utils/prosemirror";
+import { PM_INPUT_RULES, PM_SCHEMA, type TextMarkType, PM_KEYMAP_EXTRA } from "@/utils/prosemirror";
 import { deepValueEquals } from "@/utils/ref";
 import { makeViewId } from "@/views";
 import { viewEmits, type ViewExposed } from "@/views/common";
@@ -54,11 +54,11 @@ function resolveMention(mention: { id: string; ck?: string }): AnyNodeData | nul
   return pkgGraph.get(mention);
 }
 
-function makeEditorState(text?: TextData) {
+function makeEditorState(text?: TextData): EditorState {
   return EditorState.create({
     doc: text != null ? mapTextToPmNode(text, undefined) : undefined,
     schema: PM_SCHEMA,
-    plugins: [keymap(commands.baseKeymap), inputRules({ rules: PM_INPUT_RULES })],
+    plugins: [keymap({ ...commands.baseKeymap, ...PM_KEYMAP_EXTRA }), inputRules({ rules: PM_INPUT_RULES })],
   });
 }
 
@@ -177,17 +177,6 @@ watch(mentions, () => {
   });
 });
 
-// overwrite state from modelValue if changed and not focused
-watch(
-  () => props.modelValue,
-  () => {
-    if (view == null) return;
-    if (deepValueEquals(props.modelValue, lastAppliedModelValue)) return;
-    const updatedState = makeEditorState(props.modelValue);
-    view.updateState(updatedState);
-  },
-);
-
 // mount the editor view
 whenever(textRef, () => {
   if (view) throw new Error("view already exists");
@@ -197,6 +186,14 @@ whenever(textRef, () => {
 onBeforeUnmount(() => {
   view?.destroy();
   view = null;
+});
+
+// overwrite state from modelValue if different
+watch(toRef(props, "modelValue"), () => {
+  if (view == null) return;
+  if (deepValueEquals(props.modelValue, lastAppliedModelValue)) return;
+  const updatedState = makeEditorState(props.modelValue);
+  view.updateState(updatedState);
 });
 
 // drag/drop
@@ -274,7 +271,7 @@ defineExpose<ViewExposed>({ self, id, variants: [Variant.PRIMARY, Variant.STEALT
     <!-- NOTE: textRef must be in a stable fragment to mount the editor view -->
     <div
       ref="textRef"
-      class="prose rounded-md hover:cursor-text"
+      class="text rounded-md hover:cursor-text"
       :class="[
         variant != Variant.STEALTH ? 'border border-gray-200 px-2 py-0.5 focus-within:border-primary-400' : '',
         isInDropZone ? 'outline-dashed outline-2 outline-primary-400' : '',
@@ -298,45 +295,48 @@ defineExpose<ViewExposed>({ self, id, variants: [Variant.PRIMARY, Variant.STEALT
 </template>
 <style>
 /* Prose */
-.prose {
+.text {
   @apply text-gray-900;
   line-height: 1.65;
 }
-.prose strong {
+.text strong {
   @apply font-semibold;
 }
-.prose p:first-of-type {
-  @apply mt-0;
+.text .line:first-child {
+  @apply mt-0; /* ignore top margin */
 }
-.prose p {
+.text .line:last-child {
+  @apply mb-0; /* ignore bottom margin */
+}
+.text p {
   @apply my-[4px];
 }
-.prose hr {
+.text hr {
   @apply my-2 border-gray-700 p-0 focus:outline-none focus:ring-0;
 }
-.prose h1 {
+.text h1 {
   @apply mb-2 mt-4 text-2xl font-bold;
   line-height: 1.2;
 }
-.prose h2 {
+.text h2 {
   @apply mb-1.5 mt-2.5 text-xl font-bold;
   line-height: 1.4;
 }
-.prose h3 {
+.text h3 {
   @apply mb-0.5 mt-1.5 text-lg font-bold;
   line-height: 1.5;
 }
-.prose code {
+.text code {
   @apply rounded-md bg-gray-100 px-0.5;
 }
-.prose blockquote {
+.text blockquote {
   @apply my-2 border-l-2 border-gray-700 py-[1px] pl-2;
 }
-.prose div.callout {
+.text div.callout {
   @apply my-2 rounded-md  bg-gray-100 px-2 py-2.5;
 }
 /* TODO: UI: callout/heading/etc. line icons should be editable */
-.prose div.callout::before {
+.text div.callout::before {
   content: "\f06a"; /* fa-icon: exclamation-circle */
   font-family: "Font Awesome 6 Pro";
   font-weight: 900;
@@ -344,28 +344,28 @@ defineExpose<ViewExposed>({ self, id, variants: [Variant.PRIMARY, Variant.STEALT
 }
 
 /* Mentions */
-.prose span.mention {
+.text span.mention {
   @apply rounded-md px-1 py-0;
 }
-.prose span.mention:hover {
+.text span.mention:hover {
   @apply bg-primary-100 text-primary-900;
 }
-.prose span.mention .icon {
+.text span.mention .icon {
   @apply mr-1.5 text-gray-700;
 }
-.prose span.mention:hover .icon {
+.text span.mention:hover .icon {
   @apply text-primary-900;
 }
-.prose span.mention .name {
+.text span.mention .name {
   @apply underline-offset-3  underline decoration-gray-300;
 }
-.prose span.ProseMirror-selectednode.mention .name {
+.text span.textMirror-selectednode.mention .name {
   @apply bg-primary-100 text-primary-900  decoration-primary-900;
 }
-.altmode .prose span.mention:hover {
+.altmode .text span.mention:hover {
   @apply cursor-pointer;
 }
-.altmode .prose span.mention:hover .name {
+.altmode .text span.mention:hover .name {
   @apply decoration-primary-900;
 }
 </style>
@@ -373,10 +373,10 @@ defineExpose<ViewExposed>({ self, id, variants: [Variant.PRIMARY, Variant.STEALT
 /* PM */
 @import url("/node_modules/prosemirror-view/style/prosemirror.css");
 
-.ProseMirror-focused {
+.textMirror-focused {
   outline: none;
 }
-.ProseMirror-selectednode {
+.textMirror-selectednode {
   @apply p-2 outline-primary-400;
 }
 </style>

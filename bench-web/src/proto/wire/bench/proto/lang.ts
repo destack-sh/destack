@@ -282,7 +282,7 @@ export interface BoxData {
     heightRelative?: number;
 }
 /**
- * Code(lines: list[bench.language.code_.CodeLine] = None, _is_async: Optional[bool] = None, _transform: Optional[bench.language.code_.CodeTransformation] = None, _block_references: dict[str, 'Block'] | None = None, _cached_exports: dict[str, typing.Any] | None = None, id: Optional[int] = <factory>, parent: Union[ForwardRef('Struct'), ForwardRef('Node'), ForwardRef('Value'), NoneType] = None, order_key: str | None = None, set_properties: list[int] = <factory>, _status: bench.language.const.InterpStatus = None, _updated_properties: bitarray.bitarray | None = None, parent_id: int = None, parent_key: str = None)
+ * Code(lines: list[bench.language.code_.CodeLine] = None, id: Optional[int] = <factory>, parent: Union[ForwardRef('Struct'), ForwardRef('Node'), ForwardRef('Value'), NoneType] = None, order_key: str | None = None, set_properties: list[int] = <factory>, _status: bench.language.const.InterpStatus = None, _updated_properties: bitarray.bitarray | None = None, parent_id: int = None, parent_key: str = None)
  *
  * @generated from protobuf message symbolx.bench.CodeData
  */
@@ -317,7 +317,7 @@ export interface CodeData {
     lines: CodeLineData[];
 }
 /**
- * CodeLine(line: str = <factory>, id: Optional[int] = <factory>, parent: Union[ForwardRef('Struct'), ForwardRef('Node'), ForwardRef('Value'), NoneType] = None, order_key: str | None = None, set_properties: list[int] = <factory>, _status: bench.language.const.InterpStatus = None, _updated_properties: bitarray.bitarray | None = None, parent_id: int = None, parent_key: str = None)
+ * CodeLine(content: str = <factory>, id: Optional[int] = <factory>, parent: Union[ForwardRef('Struct'), ForwardRef('Node'), ForwardRef('Value'), NoneType] = None, order_key: str | None = None, set_properties: list[int] = <factory>, _status: bench.language.const.InterpStatus = None, _updated_properties: bitarray.bitarray | None = None, parent_id: int = None, parent_key: str = None)
  *
  * @generated from protobuf message symbolx.bench.CodeLineData
  */
@@ -347,9 +347,9 @@ export interface CodeLineData {
      */
     setProperties: number[];
     /**
-     * @generated from protobuf field: string line = 32;
+     * @generated from protobuf field: string content = 32;
      */
-    line: string;
+    content: string;
 }
 /**
  * A color value.
@@ -10099,14 +10099,14 @@ class CodeLineData$Type extends MessageType<CodeLineData> {
             { no: 4, name: "parent_key", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
             { no: 5, name: "order_key", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
             { no: 22, name: "set_properties", kind: "scalar", repeat: 1 /*RepeatType.PACKED*/, T: 5 /*ScalarType.INT32*/ },
-            { no: 32, name: "line", kind: "scalar", T: 9 /*ScalarType.STRING*/ }
+            { no: 32, name: "content", kind: "scalar", T: 9 /*ScalarType.STRING*/ }
         ]);
     }
     create(value?: PartialMessage<CodeLineData>): CodeLineData {
         const message = globalThis.Object.create((this.messagePrototype!));
         message.metatype = 0;
         message.setProperties = [];
-        message.line = "";
+        message.content = "";
         if (value !== undefined)
             reflectionMergePartial<CodeLineData>(this, message, value);
         return message;
@@ -10138,8 +10138,8 @@ class CodeLineData$Type extends MessageType<CodeLineData> {
                     else
                         message.setProperties.push(reader.int32());
                     break;
-                case /* string line */ 32:
-                    message.line = reader.string();
+                case /* string content */ 32:
+                    message.content = reader.string();
                     break;
                 default:
                     let u = options.readUnknownField;
@@ -10175,9 +10175,9 @@ class CodeLineData$Type extends MessageType<CodeLineData> {
                 writer.int32(message.setProperties[i]);
             writer.join();
         }
-        /* string line = 32; */
-        if (message.line !== "")
-            writer.tag(32, WireType.LengthDelimited).string(message.line);
+        /* string content = 32; */
+        if (message.content !== "")
+            writer.tag(32, WireType.LengthDelimited).string(message.content);
         let u = options.writeUnknownFields;
         if (u !== false)
             (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
@@ -23544,7 +23544,7 @@ export enum CodeLineProperty {
   parentKey = 4,
   orderKey = 5,
   setProperties = 22,
-  line = 32,
+  content = 32,
 }
 
 export enum StepConnectionProperty {
@@ -24169,7 +24169,7 @@ export const CodeDataInfo: Record<CodeProperty, PropertyInfo> = {
 }
 export const CodeLineDataInfo: Record<CodeLineProperty, PropertyInfo> = {
   [CodeLineProperty.metatype]: { id: 1, name: 'metatype', component: ObjectType.CODE_LINE, kind: 'enum', primitiveType: PrimitiveType.STRING, isRequired: true, isInternal: true, isComputed: true, isWired: true },
-  [CodeLineProperty.line]: { id: 32, name: 'line', component: ObjectType.CODE_LINE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isRequired: true, isRuntime: true, isWired: true, isStored: true },
+  [CodeLineProperty.content]: { id: 32, name: 'content', component: ObjectType.CODE_LINE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isRequired: true, isRuntime: true, isWired: true, isStored: true },
   [CodeLineProperty.id]: { id: 2, name: 'id', component: ObjectType.CODE_LINE, kind: 'primitive', primitiveType: PrimitiveType.INT32, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [CodeLineProperty.orderKey]: { id: 5, name: 'order_key', component: ObjectType.CODE_LINE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [CodeLineProperty.setProperties]: { id: 22, name: 'set_properties', component: ObjectType.CODE_LINE, kind: 'primitive', primitiveType: PrimitiveType.INT32, isList: true, isRequired: true, isRuntime: true, isWired: true, isStored: true },
