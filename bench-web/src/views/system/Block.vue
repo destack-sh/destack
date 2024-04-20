@@ -54,13 +54,13 @@ const isGeneratedName = computed(
 // Interaction
 //
 
-const actions: Partial<ActionMapImplementation<"common">> = {
-  "common.block.toggleIsPage": {
+const actions: Partial<ActionMapImplementation<"block">> = {
+  "block.edit.isPage": {
     isEnabled: () => block.value != null,
     isChecked: () => block.value?.isPage ?? false,
     action: () => pkgConnection.tx.updateDebounced(block.value!, { isPage: !block.value!.isPage }),
   },
-  "common.block.toggleIsProtocol": {
+  "block.edit.isProtocol": {
     isChecked: () => block.value?.isProtocol ?? false,
     action: () => pkgConnection.tx.updateDebounced(block.value!, { isProtocol: !block.value!.isProtocol }),
   },
@@ -141,6 +141,7 @@ defineExpose<ViewExposed>({ self, id, actions, focus });
       />
       <Code
         v-else-if="block.type == BlockType.CODE"
+        is-input
         :variant="Variant.STEALTH"
         :model-value="block.code"
         @update:modelValue="
