@@ -1,6 +1,7 @@
 import {
   BlockData,
   BlockType,
+  EnumType,
   NodeType,
   ObjectType,
   ViewType,
@@ -12,6 +13,7 @@ import {
 import { toNodeReference, type AnyNodeReferenceData } from "@/proto/wiring";
 import { isDeveloperMode, packagePtr } from "@/system/client";
 import { makeIcon } from "@/system/icon";
+import { getRandomEnumOption } from "@/system/lang";
 import { canvas, hasLocalBench, pkgConnection, pkgGraph, space } from "@/system/space";
 import { toaster } from "@/system/toast";
 import { getAllTransactionBuffers } from "@/system/transaction";
@@ -159,7 +161,6 @@ export const ACTION_BUILTIN_IDS = [
   "view.layout.splitLeft",
   "view.layout.splitRight",
   "view.layout.pinSplit",
-  "view.layout.unpinSplit",
   "view.canvas.resetDefault",
   "view.canvas.resetEmpty",
   // user
@@ -222,7 +223,7 @@ export type Action = {
   action: ActionCallable;
   // additional metadata
   url?: string; // for external URLs
-  isChecked?: Ref<boolean> | (() => boolean); // for toggle actions
+  isChecked?: Ref<boolean> | ((action: Action, ctx?: ActionContext) => boolean); // for toggle actions
 };
 
 export const DECLARED_ACTIONS_BY_ID: Ref<Partial<Record<string, Action>>> = shallowRef({});
@@ -899,14 +900,10 @@ declareActionMap<"view">({
     text: "Split the current view horizontally (new split right)",
   },
   "view.layout.pinSplit": {
+    type: "toggle",
     icon: "fas fa-lock",
     title: "Pin Split",
     text: "Pin the current split to an absolute size",
-  },
-  "view.layout.unpinSplit": {
-    icon: "fas fa-unlock",
-    title: "Unpin Split",
-    text: "Unpin the current split back to relative size",
   },
 });
 contributeActionMap<"view">({
@@ -1030,7 +1027,7 @@ contributeActionMap<"developer">({
         const name = generateRandomName();
         const parent = existingNodes[Math.floor(Math.random() * existingNodes.length)];
         const existingChildren = pkgGraph.getChildren(parent);
-        const type = getRandomEnum(BlockType);
+        const type = getRandomEnumOption(EnumType.BLOCK_TYPE);
         const node = tx.create({
           metatype: NodeType.BLOCK,
           parentPtr: toNodeReference(parent),

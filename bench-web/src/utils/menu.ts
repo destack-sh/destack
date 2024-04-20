@@ -64,6 +64,14 @@ export function menuItemFromAction(
   // figure out whether the action is available in this context
   const contextViews = override?.contextViews ?? getMenuContextViews(override?.context);
   const implementation = getImplementingAction(action, contextViews);
+  let isChecked = undefined;
+  if (action.type == "toggle") {
+    if (typeof implementation?.isChecked == "object") {
+      isChecked = implementation.isChecked.value;
+    } else if (typeof implementation?.isChecked == "function") {
+      isChecked = implementation.isChecked(action, override?.context);
+    }
+  }
 
   // map to action
   return {
@@ -73,7 +81,7 @@ export function menuItemFromAction(
     title: toValue(action.title),
     shortcuts: action.shortcuts,
     isDisabled: implementation == null,
-    isChecked: action.type == "toggle" && toValue(implementation?.isChecked),
+    isChecked,
     // default to subcategory since we usually group menus by category(ish)
     category: action.subcategory ?? action.category,
     action: (menu: MenuInfo) => {

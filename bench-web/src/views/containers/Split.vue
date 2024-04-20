@@ -61,6 +61,7 @@ const getSplitFromContext = (ctx: ActionContext | undefined) => {
   return matchingSplit ?? splits.value[focusedSplitIdx.value!];
 };
 const actions: Partial<ActionMapImplementation<"view">> = {
+  // navigate
   "view.navigate.closeFrame": {
     isEnabled: computed(() => hasFocusedSplit.value && isWindow.value),
     action: (action, ctx) => {
@@ -115,6 +116,16 @@ const actions: Partial<ActionMapImplementation<"view">> = {
       const focusedSplitIdx = splits.value.findIndex((split) => split.id == focusedSplit.id);
       const prevIdx = (focusedSplitIdx - 1 + splits.value.length) % splits.value.length;
       canvas.focus(spaceConnection.tx, { node: splits.value[prevIdx] });
+    },
+  },
+  //
+  "view.layout.pinSplit": {
+    isChecked: (action, ctx) => {
+      const focusedSplit = getSplitFromContext(ctx);
+      return focusedSplit?.size?.width != null || focusedSplit?.size?.height != null;
+    },
+    action: (action, ctx) => {
+      // TODO :Incomplete: pin/unpin split
     },
   },
 };

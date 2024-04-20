@@ -4,6 +4,7 @@
 
 import type { AnyStructData, EnumTypeMapping } from "@/proto/wire";
 import {
+  BlockType,
   ENUM_BY_TYPE,
   EnumType,
   IconData,
@@ -22,6 +23,7 @@ import { ENUM_ICONS_BY_TYPE } from "@/system/icon";
 import type { Transaction } from "@/system/transaction";
 import { generateOrderKeys, generateOrderKey, isValidOrderKey } from "@/utils/fractional";
 import { Casing, toCasing } from "@/utils/string";
+import { AVAILABLE_VIEW_TYPES } from "@/views";
 
 export const NODE_TYPES = Object.values(NodeType).filter((v) => typeof v == "number" && v > 0) as NodeType[];
 export const NODE_TYPES_SET = new Set(NODE_TYPES);
@@ -73,6 +75,38 @@ export const DEFAULT_LOADED_SOURCE_NODE_TYPES = [
   NodeType.STEP,
   NodeType.VIEW,
 ];
+
+export const ROOT_VIEW_TYPES = new Set<ViewType>([ViewType.WINDOW, ViewType.TAB, ViewType.SPLIT]);
+export const NODE_VIEW_TYPES = new Set<ViewType>([
+  ViewType.PAGE,
+  ViewType.BLOCK,
+  ViewType.SCREEN,
+  ViewType.DATABASE,
+  ViewType.FLOW,
+  ViewType.FIELD,
+  ViewType.STEP,
+]);
+// views that have a white background
+export const FULL_VIEW_TYPES = new Set<ViewType>([
+  ...NODE_VIEW_TYPES,
+  ViewType.EXPLORE,
+  ViewType.OUTLINE,
+  ViewType.CREATE,
+  ViewType.INSPECT,
+]);
+
+export const ENABLED_BLOCK_TYPES = [
+  BlockType.BLANK,
+  BlockType.PAGE,
+  BlockType.TEXT,
+  BlockType.CLASS,
+  BlockType.CHOICE,
+  BlockType.CODE,
+  BlockType.VARIABLE,
+];
+
+// views that aren't about a specific node but should just keep the current root view node
+export const RIDEALONG_VIEW_TYPES = new Set([ViewType.EXPLORE, ViewType.OUTLINE, ViewType.CREATE, ViewType.INSPECT]);
 
 /**
  * Gets the 'base' node defining a certain node. See HasBase.
@@ -203,50 +237,40 @@ export function fixOrderKeys<T extends AnyNodeData & { orderKey: string }>(tx: T
   }
 }
 
-export const ROOT_VIEW_TYPES = new Set<ViewType>([ViewType.WINDOW, ViewType.TAB, ViewType.SPLIT]);
-export const NODE_VIEW_TYPES = new Set<ViewType>([
-  ViewType.PAGE,
-  ViewType.BLOCK,
-  ViewType.SCREEN,
-  ViewType.DATABASE,
-  ViewType.FLOW,
-  ViewType.FIELD,
-  ViewType.STEP,
-]);
-// views that have a white background
-export const FULL_VIEW_TYPES = new Set<ViewType>([
-  ...NODE_VIEW_TYPES,
-  ViewType.EXPLORE,
-  ViewType.OUTLINE,
-  ViewType.CREATE,
-  ViewType.INSPECT,
-]);
-// views that aren't about a specific node but should just keep the current root view node
-export const RIDEALONG_VIEW_TYPES = new Set([ViewType.EXPLORE, ViewType.OUTLINE, ViewType.CREATE, ViewType.INSPECT]);
-
 export function toCamelName<T extends object>(cls: T, key: any) {
   return toCasing(cls[key as keyof T] as string, Casing.CAMEL);
 }
+
+export const FILTERED_ENUMS: Partial<Record<EnumType, number[]>> = {
+  [EnumType.BLOCK_TYPE]: ENABLED_BLOCK_TYPES,
+  [EnumType.VIEW_TYPE]: AVAILABLE_VIEW_TYPES,
+};
 
 export type EnumOption<T extends EnumType = EnumType> = {
   id: string;
   icon?: IconData;
   title: string;
-  value: keyof EnumTypeMapping[T];
+  value: EnumTypeMapping[T];
   isHidden?: boolean;
 };
 
 export function getEnumOptions<T extends EnumType>(enumType: T): EnumOption<T>[] {
   const protoEnum = ENUM_BY_TYPE[enumType];
   const icons = ENUM_ICONS_BY_TYPE[enumType];
-  const options: EnumOption<T>[] = Object.values(protoEnum)
-    .filter((value) => typeof value == "number" && value > 0)
-    .map((value) => {
-      const icon = icons?.[value];
-      const name = protoEnum[value] as string;
-      const title = toCasing(name, Casing.CAMEL, true);
-      const option: EnumOption<T> = { id: value.toString(), icon, title, value: value as keyof EnumTypeMapping[T] };
-      return option;
-    });
+  const availableEnums =
+    FILTERED_ENUMS[enumType] ?? Object.values(protoEnum).filter((v) => typeof v == "number" && v > 0);
+  const options: EnumOption<T>[] = availableEnums.map((value) => {
+    const icon = icons?.[value];
+    const name = protoEnum[value] as string;
+    const title = toCasing(name, Casing.CAMEL, true);
+    const option: EnumOption<T> = { id: value.toString(), icon, title, value: value as EnumTypeMapping[T] };
+    return option;
+  });
   return options;
+}
+
+/** Gets a random value from an enum, ignoring the number keys (which are for protobuf). */
+export function getRandomEnumOption<T extends EnumType>(enumType: T): EnumTypeMapping[T] {
+  const options = getEnumOptions(enumType);
+  return options[Math.floor(Math.random() * options.length)].value;
 }

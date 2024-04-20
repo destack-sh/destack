@@ -1,6 +1,6 @@
 {
   "name": "bench-web",
-  "version": "2024.04.17.3",
+  "version": "2024.04.20.0",
   "private": true,
   "type": "module",
   "scripts": {
@@ -20,6 +20,7 @@
   "dependencies": {
     "@codemirror/autocomplete": "^6.16.0",
     "@codemirror/commands": "^6.4.0",
+    "@codemirror/lang-python": "^6.1.5",
     "@codemirror/language": "^6.10.1",
     "@codemirror/lint": "^6.5.0",
     "@codemirror/search": "^6.5.6",
