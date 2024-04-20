@@ -212,10 +212,7 @@ const USER_MENU_ITEMS = computed(() => {
           <template #content="{ close }">
             <!-- Connection summary -->
             <!-- will probably move this to a Connections View (maybe keep summary on hover) -->
-            <div
-              class="p z-50 rounded-md border border-gray-400 bg-white text-gray-900 shadow-md shadow-gray-400"
-              v-outside.click.stop="close"
-            >
+            <div class="p z-50 rounded-md border border-gray-400 bg-white text-gray-900" v-outside.click.stop="close">
               <div class="my-1 border-b border-gray-400 px-3 py-1">
                 <span class="font-semibold">Graph Connections ({{ graphConnections.length }})</span>
               </div>
@@ -317,7 +314,7 @@ const USER_MENU_ITEMS = computed(() => {
         <Popover placement="bottom-right" :reference-margin="4" :container-margin="4">
           <template v-slot:trigger="{ toggle, isOpen }">
             <button
-              class="rounded-md border px-2 py-1 text-gray-900 hover:border-gray-400 hover:bg-gray-100 focus:shadow-primary-600"
+              class="rounded-md border px-2 py-1 text-gray-900 hover:border-gray-400 hover:bg-gray-100 focus:border-primary-900"
               :class="[isOpen ? 'border-gray-400 bg-gray-100' : 'border-gray-300 bg-white']"
               @click="toggle"
             >

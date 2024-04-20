@@ -193,7 +193,7 @@ defineExpose<ViewExposed>({ self, actions });
         :key="tab.id"
         class="group relative flex h-full max-w-52 select-none flex-row items-center justify-center whitespace-nowrap border-r border-gray-300 px-2.5 hover:cursor-pointer"
         :class="[
-          i == focusedTabIdx ? 'bg-white text-primary-900  shadow-primary-900' : 'border-b hover:text-primary-900',
+          i == focusedTabIdx ? 'bg-white text-primary-900  ' : 'border-b hover:text-primary-900',
           i == focusedTabIdx && !FULL_VIEW_TYPES.has(tab.type) ? 'border-b' : '',
           i == focusedTabIdx && isFocusAbsolute ? 'shadow-inset-md' : '',
           i != focusedTabIdx ? (isFocusAbsolute ? 'text-gray-700' : 'text-gray-600') : '',

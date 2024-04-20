@@ -213,7 +213,7 @@ defineExpose({ isActive, open });
         <div
           v-if="isActive /* trigger inner transition */"
           ref="containerRef"
-          class="fixed z-60 h-fit rounded-md border border-gray-700 bg-white text-sm opacity-100 shadow-md shadow-gray-700 transition-transform duration-150"
+          class="fixed z-60 h-fit rounded-md border border-gray-700 bg-white text-sm opacity-100 transition-transform duration-150"
           :style="{
             top: box.top + 'px',
             width: PANEL_WIDTH + 'px',
