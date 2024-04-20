@@ -8,6 +8,7 @@ import {
   NodeType,
   ObjectType,
   Orientation,
+  Variant,
   ViewData,
 } from "@/proto/wire/";
 import { isNode, toNodeReference, type TypedNodeReferenceData } from "@/proto/wiring";
@@ -98,12 +99,16 @@ function getAnchorPosition(anchor: "start" | "end", blockIdx: number, anchorWidt
   }
 }
 
-// sync page name with view title
-watch(toRef(props, "name"), () => {
-  if (page.value != null && page.value?.name != selfView.value?.title) {
-    pkgConnection.tx.update(page.value, { name: selfView.value?.title });
-  }
-});
+// sync view title with page name
+// NOTE: syncing page view titles with their block's names only when active means they may be stale sometimes.
+watch(
+  () => page.value?.name,
+  () => {
+    if (page.value != null && selfView.value != null && page.value?.name != selfView.value?.title) {
+      pkgConnection.tx.update(selfView.value, { title: page.value?.name });
+    }
+  },
+);
 
 //
 // Interaction
@@ -289,6 +294,7 @@ defineExpose<ViewExposed>({ self, actions, focus });
           <Block
             ref="selfBlockRef"
             class=""
+            :variant="Variant.STEALTH"
             :style="{ width: widths.block + 'px', marginLeft: widths.gutter + 'px', marginRight: widths.gutter + 'px' }"
             :node-ptr="props.nodePtr"
             :prepared-connection="preparedPkgConnection"
@@ -332,7 +338,7 @@ defineExpose<ViewExposed>({ self, actions, focus });
               v-for="anchor in i < expandedItems.length - 1 ? ['start'] : ['start', 'end']"
               :key="anchor"
               role="button"
-              class="absolute z-10 h-[6px] w-full flex-shrink-0 text-center text-gray-300 opacity-0 transition-colors duration-100 hover:text-gray-400 hover:opacity-100 data-[menu=true]:text-primary-900 data-[menu=true]:opacity-100"
+              class="absolute h-[6px] w-full flex-shrink-0 text-center text-gray-300 opacity-0 transition-colors duration-100 hover:z-10 hover:text-gray-400 hover:opacity-100 data-[menu=true]:text-primary-900 data-[menu=true]:opacity-100"
               :style="
                 getAnchorPosition(
                   anchor as 'start' | 'end',
@@ -382,13 +388,6 @@ defineExpose<ViewExposed>({ self, actions, focus });
                 (ref: any) => (ref ? (expandedBlockRefs[blockPtr.id!] = ref) : delete expandedBlockRefs[blockPtr.id!])
               "
               class="w-full rounded-md border"
-              :class="[
-                blockPtr.id == focusedNodePtr?.id
-                  ? blockPtr.id == inspectionPtr?.id
-                    ? 'border-primary-900'
-                    : 'border-gray-400'
-                  : 'border-gray-200 hover:border-gray-400',
-              ]"
               :node-ptr="blockPtr"
               :prepared-connection="preparedPkgConnection"
               v-contextmenu="

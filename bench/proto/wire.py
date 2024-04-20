@@ -2085,7 +2085,10 @@ class EnvironmentData(betterproto.Message):
 
 @dataclass(eq=False, repr=False)
 class FieldData(betterproto.Message):
-    """A used-defined attribute of some value."""
+    """
+    A used-defined attribute of some value
+     (Bench defines Properties for Nodes/Structs, Users define Fields for Values inside those).
+    """
 
     metatype: "ObjectType" = betterproto.enum_field(1)
     id: str = betterproto.string_field(2)
@@ -4798,7 +4801,7 @@ class RuntimeBase(ServiceBase):
 
 from typing import TYPE_CHECKING  # noqa: E402
 
-VERSION = "2024.04.20.0"
+VERSION = "2024.04.20.1"
 
 if TYPE_CHECKING:
     from bench.language import Subject

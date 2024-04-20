@@ -4,13 +4,13 @@ import { toaster } from "@/system/toast";
 import { setupTransactionManagement } from "@/system/transaction";
 import { COMMIT, IS_DEBUG, SUPERVISOR_URL, VERSION } from "@/utils/globals";
 import { keytrap } from "@/utils/keymap";
+import { CONTEXT_MENU_DIRECTIVE, MENU_DIRECTIVE } from "@/utils/menu";
 import { EVENT_OUTSIDE_DIRECTIVE, HOVER_DIRECTIVE, TOOLTIP_DIRECTIVE } from "@/utils/tooltip";
 import { registerViewComponents } from "@/views";
 import * as Sentry from "@sentry/vue";
 import posthog from "posthog-js";
 import { createApp } from "vue";
 import Space from "./Space.vue";
-import { MENU_DIRECTIVE, CONTEXT_MENU_DIRECTIVE } from "@/utils/menu";
 
 async function init() {
   const app = createApp(Space);

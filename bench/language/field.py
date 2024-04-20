@@ -217,7 +217,10 @@ class TypeInfo(TypeInfoBase):
 
 @node(NodeType.FIELD)
 class Field(Node, TypeInfoBase, _TypeQueryBuilder):
-    """A used-defined attribute of some value."""
+    """
+    A used-defined attribute of some value
+     (Bench defines Properties for Nodes/Structs, Users define Fields for Values inside those).
+    """
 
     parent: Union["Block", "Step", None] = p_node_parent(4, NodeType.BLOCK, NodeType.STEP)
     name: str | None = p_regular(30, default=None, validate=validate_name)

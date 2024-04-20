@@ -169,7 +169,9 @@ defineExpose<ViewExposed>({ self, id, actions });
       ref="codeRef"
       class="code rounded-md bg-gray-100 py-1 hover:cursor-text"
       :class="[
-        variant != Variant.STEALTH ? 'border border-gray-200 focus-within:border-primary-400' : '',
+        variant != Variant.STEALTH
+          ? 'border border-gray-200 focus-within:border-primary-900'
+          : 'outline-1 outline-primary-900 focus-within:outline-dashed',
         isInDropZone ? 'outline-dashed outline-2 outline-primary-400' : '',
       ]"
       :draggable="true"
