@@ -126,8 +126,6 @@ export const ACTION_BUILTIN_IDS = [
   "common.sense.goToDefinition",
   "common.sense.findReferences",
   "common.sense.findImplementations",
-  "common.block.toggleIsPage",
-  "common.block.toggleIsProtocol",
   "common.session.run",
   "common.session.debug",
   "common.session.pause",
@@ -135,6 +133,9 @@ export const ACTION_BUILTIN_IDS = [
   "common.session.stop",
   "common.session.kill",
   "common.session.logs",
+  // block
+  "block.edit.isPage",
+  "block.edit.isProtocol",
   // text
   "text.format.bold",
   "text.format.italic",
@@ -142,6 +143,9 @@ export const ACTION_BUILTIN_IDS = [
   "text.format.underline",
   "text.format.code",
   "text.edit.hardBreak",
+  // code
+  "code.edit.format",
+  "code.edit.comment",
   // view
   "view.navigate.focusPreviousTab",
   "view.navigate.focusNextTab",
@@ -707,19 +711,6 @@ declareActionMap<"common">({
     title: "Find Implementations",
     text: "Find implementations of the current node",
   },
-  // block
-  "common.block.toggleIsPage": {
-    type: "toggle",
-    icon: "fas fa-memo-pad",
-    title: "Page",
-    text: "Mark the current block as a page",
-  },
-  "common.block.toggleIsProtocol": {
-    type: "toggle",
-    icon: "fas fa-list-check",
-    title: "Protocol",
-    text: "Mark the current block as a protocol",
-  },
   // session
   "common.session.run": {
     icon: "fas fa-play",
@@ -757,6 +748,23 @@ declareActionMap<"common">({
     icon: "fas fa-clipboard-list",
     title: "View Logs",
     text: "View the logs of the current run",
+  },
+});
+
+// block
+declareActionMap<"block">({
+  // block
+  "block.edit.isPage": {
+    type: "toggle",
+    icon: "fas fa-memo-pad",
+    title: "Page",
+    text: "Mark the current block as a page",
+  },
+  "block.edit.isProtocol": {
+    type: "toggle",
+    icon: "fas fa-list-check",
+    title: "Protocol",
+    text: "Mark the current block as a protocol",
   },
 });
 
@@ -805,7 +813,24 @@ declareActionMap<"text">({
   },
 });
 
-// view actions
+// code
+declareActionMap<"code">({
+  // edit
+  "code.edit.format": {
+    icon: "fas fa-code",
+    title: "Format",
+    text: "Reformat the code",
+    shortcuts: ["mod+alt+l"],
+  },
+  "code.edit.comment": {
+    icon: "fas fa-code",
+    title: "Comment",
+    text: "Comment/uncomment these lines",
+    shortcuts: ["ctrl+t"],
+  },
+});
+
+// view
 declareActionMap<"view">({
   // navigate
   "view.navigate.focusPreviousTab": {

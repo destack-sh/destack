@@ -96,7 +96,6 @@ export const FULL_VIEW_TYPES = new Set<ViewType>([
 ]);
 
 export const ENABLED_BLOCK_TYPES = [
-  BlockType.BLANK,
   BlockType.PAGE,
   BlockType.TEXT,
   BlockType.CLASS,

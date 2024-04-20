@@ -373,10 +373,10 @@ defineExpose<ViewExposed>({ self, id, variants: [Variant.PRIMARY, Variant.STEALT
 /* PM */
 @import url("/node_modules/prosemirror-view/style/prosemirror.css");
 
-.textMirror-focused {
+.ProseMirror-focused {
   outline: none;
 }
-.textMirror-selectednode {
+.ProseMirror-selectednode {
   @apply p-2 outline-primary-400;
 }
 </style>
