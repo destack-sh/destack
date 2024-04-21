@@ -4,7 +4,7 @@ import { ACTION_BUILTIN_IDS_INDEX, IMPLEMENTED_ACTIONS, type Action } from "@/sy
 import type { ReadNodeGraph } from "@/system/graph";
 import { markRaw, shallowRef, type Ref, watch, type MaybeRef, toRef, toValue, getCurrentInstance } from "vue";
 import uFuzzy from "@leeoniya/ufuzzy";
-import { getNodeIcon } from "@/system/icon";
+import { AVAILABLE_FA_ICONS, getNodeIcon, type IconMetadata } from "@/system/icon";
 import { getEnumOptions, type EnumOption } from "@/system/lang";
 import { tryOnBeforeUnmount } from "@vueuse/core";
 
@@ -27,7 +27,8 @@ export type ActionItem = Omit<Action, "title"> & {
 export type EnumOptionItem = EnumOption & {
   metatype: "enum-option";
 };
-export type SearchItem = (NodeItem | ActionItem | EnumOptionItem) & { title: string; category?: string };
+export type IconItem = IconMetadata & { metatype: "icon" };
+export type SearchItem = (NodeItem | ActionItem | EnumOptionItem | IconItem) & { title: string; category?: string };
 
 export type SearchCandidateInfo = { candidate: string; category: string; index: string };
 
@@ -48,11 +49,13 @@ export type SearchOptions = {
   /** Term permutations */
   outOfOrder?: number;
   maxResults?: number;
+  highlight?: boolean;
 };
 
 const DEFAULT_SEARCH_OPTIONS: Required<SearchOptions> = {
   outOfOrder: 2,
   maxResults: 40,
+  highlight: true,
 };
 
 const HIDDEN_SEPARATOR = ` ; `;
@@ -130,19 +133,6 @@ export function graphIndex(toIndex: {
   return markRaw(index);
 }
 
-/*
- * Searches the available options of an enum.
- */
-export function enumIndex(enumTypes: EnumType[]): SearchIndex<EnumOptionItem> {
-  const index: SearchIndex<EnumOptionItem> = {
-    candidates: () =>
-      enumTypes
-        .flatMap((enumType) => getEnumOptions(enumType))
-        .map((option) => ({ ...option, metatype: "enum-option" })),
-  };
-  return markRaw(index);
-}
-
 /**
  * Search the currently available actions.
  */
@@ -157,11 +147,39 @@ export function actionIndex(): SearchIndex<ActionItem> {
   return markRaw(index);
 }
 
+/*
+ * Search the available options of an enum.
+ */
+export function enumIndex(enumTypes: EnumType[]): SearchIndex<EnumOptionItem> {
+  const index: SearchIndex<EnumOptionItem> = {
+    candidates: () =>
+      enumTypes
+        .flatMap((enumType) => getEnumOptions(enumType))
+        .map((option) => ({ ...option, metatype: "enum-option" })),
+  };
+  return markRaw(index);
+}
+
+/*
+ * Search available icons.
+ */
+const AVAILABLE_FA_ICONS_ITEMS = AVAILABLE_FA_ICONS.map((i) => ({
+  metatype: "icon",
+  ...i,
+  path: i.alias.join(HIDDEN_SEPARATOR),
+})) as IconItem[];
+export function iconIndex(): SearchIndex<IconItem> {
+  const index: SearchIndex<IconItem> = {
+    candidates: () => AVAILABLE_FA_ICONS_ITEMS,
+  };
+  return markRaw(index);
+}
+
 // NOTE: :Cleanup: useSearch.indices should type with T, but T is usually a union of different item types,
 //  which are distinct per index. So we need multiple Ts for SearchIndex<A>, SearchIndex<B>, etc. How?
 export function useSearch<T extends SearchItem>(search: {
   query: Ref<string>;
-  indices: Ref<Record<string, SearchIndex<any>>>;
+  indices: MaybeRef<Record<string, SearchIndex<any>>>;
   isEnabled: Ref<boolean>;
   options?: SearchOptions;
 }): {
@@ -174,6 +192,7 @@ export function useSearch<T extends SearchItem>(search: {
   type SearchCandidate = T & SearchCandidateInfo;
   type SearchResult = T & SearchCandidateInfo & SearchResultInfo;
 
+  const indicesRef = toRef(search.indices) as Ref<Record<string, SearchIndex<T>>>;
   const candidatesRef = shallowRef<SearchCandidate[]>([]);
   const resultsRef = shallowRef<SearchResult[]>([]);
   const resultsTotal = shallowRef(0);
@@ -186,7 +205,7 @@ export function useSearch<T extends SearchItem>(search: {
       return;
     }
     const candidates: SearchCandidate[] = [];
-    for (const [indexName, index] of Object.entries(search.indices.value)) {
+    for (const [indexName, index] of Object.entries(indicesRef.value)) {
       const indexCandidates = index.candidates().map(
         (item) =>
           ({
@@ -229,16 +248,18 @@ export function useSearch<T extends SearchItem>(search: {
         const candidate = candidates[idxs[infoIdx]];
         const result = { ...candidate } as SearchResult;
         // highlight
-        const { str: indexedStr } = getIndexedStr(candidate);
-        result.titleMarked = highlight(candidate.title, info.ranges[infoIdx] as any, {
-          start: 0,
-          end: candidate.title.length,
-        });
-        if ("path" in candidate && candidate.path != null) {
-          result.pathMarked = highlight(candidate.path, info.ranges[infoIdx] as any, {
-            start: candidate.title.length + HIDDEN_SEPARATOR.length,
-            end: indexedStr.length,
+        if (options.highlight) {
+          const { str: indexedStr } = getIndexedStr(candidate);
+          result.titleMarked = highlight(candidate.title, info.ranges[infoIdx] as any, {
+            start: 0,
+            end: candidate.title.length,
           });
+          if ("path" in candidate && candidate.path != null) {
+            result.pathMarked = highlight(candidate.path, info.ranges[infoIdx] as any, {
+              start: candidate.title.length + HIDDEN_SEPARATOR.length,
+              end: indexedStr.length,
+            });
+          }
         }
         results.push(result);
       }
@@ -260,10 +281,10 @@ export function useSearch<T extends SearchItem>(search: {
   }
 
   // refresh candidates on index change
-  subs.push(watch([search.isEnabled, search.indices], updateCandidates, { immediate: true }));
+  subs.push(watch([search.isEnabled, indicesRef], updateCandidates, { immediate: true }));
 
   // update results on query change
-  subs.push(watch([search.isEnabled, search.indices, search.query], updateResults, { immediate: true }));
+  subs.push(watch([search.isEnabled, indicesRef, search.query], updateResults, { immediate: true }));
 
   tryOnBeforeUnmount(() => subs.forEach((sub) => sub()));
 

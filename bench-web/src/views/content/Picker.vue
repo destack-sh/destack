@@ -92,7 +92,7 @@ defineExpose<ViewExposed>({ self, id, variants: [Variant.PRIMARY, Variant.COMPAC
     <!-- Inline Primary: classic typeahead/combobox -->
     <div :style="{ width: DEFAULT_WIDTH + 'px' }">
       <!-- Header -->
-      <div class="flex w-full flex-row items-center border-b border-gray-200 px-2.5 py-1.5">
+      <div class="flex w-full flex-row items-center border-b border-gray-200 px-3 py-1.5">
         <IconInline v-bind="icon ?? makeIcon({ faName: 'fas fa-caret-circle-down' })" class="mr-1.5 text-gray-700" />
         <!-- Query -->
         <input
@@ -132,16 +132,16 @@ defineExpose<ViewExposed>({ self, id, variants: [Variant.PRIMARY, Variant.COMPAC
               <span class="select-none truncate" v-html="item.titleMarked ?? item.title" />
               <!-- Metadata -->
               <span class="ml-auto truncate pl-2">
-                <span v-if="'path' in item" class="pl-2 truncate text-gray-500">
+                <span v-if="'path' in item" class="truncate pl-2 text-gray-500">
                   <span v-html="item.pathMarked ?? item.path" />
                 </span>
                 <!-- Checked -->
-                <i v-if="item.id === modelValue?.id" class="flex-shrink-0 fas fa-check pl-2 pr-1 text-gray-700" />
+                <i v-if="item.id === modelValue?.id" class="fas fa-check flex-shrink-0 pl-2 pr-1 text-gray-700" />
               </span>
             </li>
           </template>
         </ul>
-        <!-- NOTE: Picker no results/overflow is very similar to Omnibar -->
+        <!-- NOTE: Picker no results/overflow is very similar to Omnibar/Icon/etc. :ResultInfo -->
         <!-- Too many results (truncated) -->
         <div v-if="results.length < resultsTotal" class="my-1 max-w-full px-3 pb-2 text-gray-500">
           <i class="fas fas fa-ellipsis" />
