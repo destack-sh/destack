@@ -79,7 +79,7 @@ defineExpose<ViewExposed>({ self, id });
       <!-- Scroll thumb -->
       <div
         v-if="isOverflown"
-        class="absolute z-40 rounded-md transition-colors duration-300"
+        class="absolute z-40 rounded transition-colors duration-300"
         :class="[
           'hover:opacity-100 group-hover:opacity-80',
           trackIsAlwaysVisible || isVisiblyScrolling

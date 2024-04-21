@@ -137,11 +137,11 @@ const USER_MENU_ITEMS = computed(() => {
       <Popover placement="bottom-left" :reference-margin="4" :container-margin="4">
         <template v-slot:trigger="{ toggle, isOpen }">
           <button
-            class="flex select-none flex-row items-center rounded-md border px-2 py-1 text-gray-900 hover:cursor-pointer hover:border-gray-400 hover:bg-gray-100"
+            class="flex select-none flex-row items-center rounded border px-2 py-1 text-gray-900 hover:cursor-pointer hover:border-gray-400 hover:bg-gray-100"
             :class="[isOpen ? 'border-gray-400 bg-gray-100' : 'border-gray-300 bg-white']"
             @click="toggle"
           >
-            <div class="mr-2 h-5 w-6 rounded-md border border-gray-300 bg-primary-300 px-0.5"></div>
+            <div class="mr-2 h-5 w-6 rounded border border-gray-300 bg-primary-300 px-0.5"></div>
             <template v-if="bench">
               <span class="select-all font-semibold">{{ bench.slug }}</span>
             </template>
@@ -160,7 +160,7 @@ const USER_MENU_ITEMS = computed(() => {
             <!-- Bench Info -->
             <template v-if="bench" #header>
               <div class="flex flex-row px-2.5 pb-2 pt-1.5">
-                <div class="mr-2 w-10 rounded-md border border-gray-300 bg-primary-300 py-0.5 text-center text-lg">
+                <div class="mr-2 w-10 rounded border border-gray-300 bg-primary-300 py-0.5 text-center text-lg">
                   <IconInline v-if="bench.icon" class="" v-bind="bench.icon" />
                 </div>
                 <div class="flex flex-col leading-tight">
@@ -191,7 +191,7 @@ const USER_MENU_ITEMS = computed(() => {
           <template #trigger="{ toggle }">
             <button
               v-if="isDeveloperMode || hasPendingConnections"
-              class="select-none rounded-md border-2 px-1 py-0.5 transition-colors"
+              class="select-none rounded border-2 px-1 py-0.5 transition-colors"
               :class="
                 graphConnections.some((c) => c.isPaused.value || c.txBuffer.isPaused.value)
                   ? 'border-secondary-600'
@@ -212,7 +212,7 @@ const USER_MENU_ITEMS = computed(() => {
           <template #content="{ close }">
             <!-- Connection summary -->
             <!-- will probably move this to a Connections View (maybe keep summary on hover) -->
-            <div class="p z-50 rounded-md border border-gray-400 bg-white text-gray-900" v-outside.click.stop="close">
+            <div class="p z-50 rounded border border-gray-400 bg-white text-gray-900" v-outside.click.stop="close">
               <div class="my-1 border-b border-gray-400 px-3 py-1">
                 <span class="font-semibold">Graph Connections ({{ graphConnections.length }})</span>
               </div>
@@ -225,7 +225,7 @@ const USER_MENU_ITEMS = computed(() => {
                 <ul class="my-1.5 flex min-w-[320px] flex-col gap-y-1 px-3">
                   <li v-for="connection in graphConnections" :key="connection.id" class="flex flex-row py-0.5">
                     <!-- Metadata -->
-                    <span class="rounded-md bg-secondary-100 px-2 font-mono uppercase text-secondary-900">
+                    <span class="rounded bg-secondary-100 px-2 font-mono uppercase text-secondary-900">
                       {{ connection.kind }}
                     </span>
                     <span class="ml-2 font-semibold">{{ connection.name }}</span>
@@ -236,7 +236,7 @@ const USER_MENU_ITEMS = computed(() => {
                         {{ connection.referenceCount }}
                       </span>
                       <!-- Connected (status) -->
-                      <span class="rounded-md px-1 py-0.5">
+                      <span class="rounded px-1 py-0.5">
                         <i
                           class="fas"
                           :class="
@@ -247,7 +247,7 @@ const USER_MENU_ITEMS = computed(() => {
                         />
                       </span>
                       <!-- Down (status & toggle) -->
-                      <button class="rounded-md px-1 py-0.5 hover:bg-primary-200" @click="connection.togglePaused()">
+                      <button class="rounded px-1 py-0.5 hover:bg-primary-200" @click="connection.togglePaused()">
                         <i
                           :class="
                             connection.isFetching.value
@@ -260,7 +260,7 @@ const USER_MENU_ITEMS = computed(() => {
                       </button>
                       <!-- Up (toggle) -->
                       <button
-                        class="rounded-md px-1 py-0.5 hover:bg-primary-200"
+                        class="rounded px-1 py-0.5 hover:bg-primary-200"
                         @click="connection.txBuffer.togglePaused()"
                       >
                         <i
@@ -314,7 +314,7 @@ const USER_MENU_ITEMS = computed(() => {
         <Popover placement="bottom-right" :reference-margin="4" :container-margin="4">
           <template v-slot:trigger="{ toggle, isOpen }">
             <button
-              class="rounded-md border px-2 py-1 text-gray-900 hover:border-gray-400 hover:bg-gray-100 focus:border-primary-900"
+              class="rounded border px-2 py-1 text-gray-900 hover:border-gray-400 hover:bg-gray-100 focus:border-primary-900"
               :class="[isOpen ? 'border-gray-400 bg-gray-100' : 'border-gray-300 bg-white']"
               @click="toggle"
             >
@@ -326,7 +326,7 @@ const USER_MENU_ITEMS = computed(() => {
               <!-- User Info -->
               <template #header>
                 <div class="flex flex-row px-2.5 pb-2 pt-1.5">
-                  <div class="mr-2 rounded-md border border-gray-700 bg-primary-300 px-2.5 py-0.5 text-xl">
+                  <div class="mr-2 rounded border border-gray-700 bg-primary-300 px-2.5 py-0.5 text-xl">
                     <IconInline class="" v-bind="user.icon ?? DEFAULT_USER_ICON" />
                   </div>
                   <div class="flex flex-col leading-tight">

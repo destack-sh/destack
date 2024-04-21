@@ -282,7 +282,7 @@ defineExpose<ViewExposed>({ self, actions, focus });
       <div class="absolute -top-5 left-0 px-2 pl-4">
         <input
           ref="queryRef"
-          class="max-w-60 cursor-default rounded-md border-0 bg-transparent font-semibold text-gray-900 decoration-2 underline-offset-2 caret-transparent outline-none ring-0 focus:underline focus:ring-0"
+          class="max-w-60 cursor-default rounded border-0 bg-transparent font-semibold text-gray-900 decoration-2 underline-offset-2 caret-transparent outline-none ring-0 focus:underline focus:ring-0"
           v-model="query"
           spellcheck="false"
           :data-suppress-actions="'common.edit,common.navigate' /* allow select & move */"
@@ -302,7 +302,7 @@ defineExpose<ViewExposed>({ self, actions, focus });
         :ref="(ref?: any) => (ref != null ? (expandedNodesRefs[node.id] = ref) : delete expandedNodesRefs[node.id])"
         v-for="({ node, depth, hasChildren }, i) in expandedItems"
         :key="node.id"
-        class="group relative mx-1 mt-[1px] flex flex-row items-center rounded-md border py-0.5 hover:cursor-pointer hover:text-primary-900"
+        class="group relative mx-1 mt-[1px] flex flex-row items-center rounded border py-0.5 hover:cursor-pointer hover:text-primary-900"
         :class="[
           focusedNode?.id == node.id && isFocusAbsolute ? 'border-orange-900' : 'border-transparent',
           isFocusedAbsolute(node) ? 'bg-gray-100' : '',
@@ -339,7 +339,7 @@ defineExpose<ViewExposed>({ self, actions, focus });
         <!-- Expand button (or placeholder) -->
         <button
           v-if="hasChildren"
-          class="group mr-1 w-5 rounded-md enabled:hover:bg-primary-200 enabled:hover:text-primary-900"
+          class="group mr-1 w-5 rounded enabled:hover:bg-primary-200 enabled:hover:text-primary-900"
           :class="focusedNode?.id == node.id ? '' : 'text-gray-400'"
           :disabled="props.type == ViewType.OUTLINE"
           @click.stop="toggleExpanded(node), doFocus(node)"

@@ -167,7 +167,7 @@ defineExpose<ViewExposed>({ self, id, actions });
     <!-- NOTE: textRef must be in a stable fragment to mount the editor view -->
     <div
       ref="codeRef"
-      class="code rounded-md bg-gray-100 py-1 hover:cursor-text"
+      class="code rounded bg-gray-100 py-1 hover:cursor-text"
       :class="[
         variant != Variant.STEALTH
           ? 'border border-gray-200 focus-within:border-primary-900'
@@ -191,16 +191,16 @@ defineExpose<ViewExposed>({ self, id, actions });
 <style>
 /* Code */
 .code .cm-editor .cm-content {
-  @apply rounded-md py-0 font-mono;
+  @apply rounded py-0 font-mono;
 }
 .code .cm-editor.cm-focused {
   @apply outline-0;
 }
 .code .cm-editor .cm-tooltip {
-  @apply overflow-hidden rounded-md border border-gray-400 bg-white p-1 font-mono text-gray-900;
+  @apply overflow-hidden rounded border border-gray-400 bg-white p-1 font-mono text-gray-900;
 }
 .code .cm-editor .cm-tooltip > ul > li {
-  @apply rounded-md border border-transparent px-0.5 py-0.5;
+  @apply rounded border border-transparent px-0.5 py-0.5;
 }
 .code .cm-editor .cm-tooltip > ul > li[aria-selected] {
   @apply bg-primary-300 text-gray-900;

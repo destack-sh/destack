@@ -27,7 +27,7 @@ const path = computed(() => ancestors.value.slice().reverse());
     <div class="flex flex-row items-center gap-x-1.5 truncate">
       <template v-for="(node, i) in path" :key="i">
         <span
-          class="flex cursor-pointer flex-row items-center rounded-md hover:bg-primary-100 hover:text-primary-900"
+          class="flex cursor-pointer flex-row items-center rounded hover:bg-primary-100 hover:text-primary-900"
           role="button"
           :class="node.id == self?.id || node.id == focus?.id ? 'text-primary-900' : 'text-gray-600'"
           @click.stop="canvas.goToNode(node)"
@@ -41,7 +41,7 @@ const path = computed(() => ancestors.value.slice().reverse());
     <!-- Search & such -->
     <div class="ml-auto flex flex-shrink-0 flex-row gap-x-1.5 pl-1">
       <button
-        class="rounded-md px-1 text-gray-500 hover:bg-gray-100 hover:text-primary-900"
+        class="rounded px-1 text-gray-500 hover:bg-gray-100 hover:text-primary-900"
         @click="fireActionById('common.search.findInView')"
       >
         <i class="fas fa-magnifying-glass text-xs" />
