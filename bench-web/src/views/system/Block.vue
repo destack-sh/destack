@@ -9,11 +9,13 @@ import { IconInline, getNodeIcon } from "@/system/icon";
 import { toCamelName } from "@/system/lang";
 import { canvas, inspectionPtr } from "@/system/space";
 import { onMouseNotPressedOnce } from "@/utils/layout";
+import type { OverlayMenuInfo } from "@/utils/menu";
 import type { TooltipInfo } from "@/utils/tooltip";
 import { makeViewId } from "@/views";
 import Inaccessible from "@/views/builtins/Inaccessible.vue";
 import { viewEmits, type FocusAnchor, type ViewExposed } from "@/views/common";
 import Code from "@/views/content/Code.vue";
+import Icon from "@/views/content/Icon.vue";
 import Text from "@/views/content/Text.vue";
 import { computed, ref, toRef, type Ref } from "vue";
 
@@ -85,7 +87,6 @@ defineExpose<ViewExposed>({ self, id, variants: [Variant.PRIMARY, Variant.STEALT
     <div :class="[isThinTextWrapper ? 'absolute -top-2.5 left-2 bg-white px-0.5' : '']">
       <!-- Icon/Name (also drag handle if container is not already draggable) -->
       <span
-        class=""
         @mousedown="
           () =>
             blockRef!.draggable ||
@@ -94,7 +95,7 @@ defineExpose<ViewExposed>({ self, id, variants: [Variant.PRIMARY, Variant.STEALT
       >
         <IconInline
           v-bind="getNodeIcon(block)"
-          class="rounded px-0.5 py-0.5 hover:cursor-pointer hover:bg-primary-100 hover:text-primary-900"
+          class="rounded px-0.5 py-0.5 hover:cursor-pointer hover:bg-primary-100 hover:text-primary-900 data-[menu=true]:bg-primary-100"
           :class="[isThinTextWrapper ? ' text-gray-500' : 'text-gray-700']"
           v-tooltip="
             {
@@ -104,6 +105,20 @@ defineExpose<ViewExposed>({ self, id, variants: [Variant.PRIMARY, Variant.STEALT
               small: true,
               text: `Change icon (${toCamelName(BlockType, block.type)})`,
             } as TooltipInfo
+          "
+          v-menu="
+            () =>
+              ({
+                kind: 'component',
+                referenceMargin: 4,
+                referenceOffset: { x: -28, y: 0 },
+                placement: 'bottom-right',
+                component: Icon,
+                props: { modelValue: block!.icon, isInline: true },
+                onApply: (newIcon) => {
+                  pkgConnection.tx.update(block!, { icon: newIcon });
+                },
+              }) as OverlayMenuInfo
           "
         />
         <span

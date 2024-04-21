@@ -42,6 +42,7 @@ const COMPONENT_BY_VIEW_TYPE_LAZY = {
   [ViewType.TEXT]: import("@/views/content/Text.vue"),
   [ViewType.CODE]: import("@/views/content/Code.vue"),
   [ViewType.PICKER]: import("@/views/content/Picker.vue"),
+  [ViewType.ICON]: import("@/views/content/Icon.vue"),
 };
 
 export const AVAILABLE_VIEW_TYPES = Object.keys(COMPONENT_BY_VIEW_TYPE_LAZY) as unknown as ViewType[];

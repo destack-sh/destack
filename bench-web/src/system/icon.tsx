@@ -11,6 +11,35 @@ import {
   EnumType,
 } from "@/proto/wire";
 import type { FunctionalComponent } from "vue";
+// file is generated with:
+// curl https://raw.githubusercontent.com/FortAwesome/Font-Awesome/6.x/metadata/icons.json
+//  | jq 'to_entries | map(select(.value.free | index("solid") or index("brands")) | {"id": .key, label: .value.label, unicode: .value.unicode, alias: .value.search.terms, family: (if .value.free | index("solid") then "fas" else "fab" end)})'
+//  > fa-icons.json
+import _AVAILABLE_FA_ICONS from "@/assets/fa-icons.json";
+
+export type IconMetadata = {
+  id: string;
+  title: string;
+  unicode: string;
+  alias: string[];
+  family: "fas" | "fab";
+  faName: string;
+};
+export function metadataToIcon(metadata: IconMetadata): IconData {
+  return {
+    metatype: ObjectType.ICON,
+    kind: IconKind.FONT_AWESOME,
+    faName: `${metadata.family} fa-${metadata.id}`,
+    setProperties: [],
+  };
+}
+
+export const AVAILABLE_FA_ICONS: IconMetadata[] = _AVAILABLE_FA_ICONS.map((i) => ({
+  ...i,
+  faName: `${i.family} fa-${i.id}`,
+})) as IconMetadata[];
+
+
 
 export const IconInline: FunctionalComponent<Pick<IconData, "emoji" | "file" | "faName">> = (props) => {
   if (props.faName) {
@@ -222,7 +251,6 @@ export const ICON_BY_VIEW_TYPE: Partial<Record<ViewType, IconData>> = _makeIcons
   [ViewType.VIDEO]: "fas fa-video",
   [ViewType.AUDIO]: "fas fa-volume",
 });
-
 
 export const ENUM_ICONS_BY_TYPE: Partial<Record<EnumType, Record<any, IconData>>> = {
   [EnumType.NODE_TYPE]: ICON_BY_NODE_TYPE,

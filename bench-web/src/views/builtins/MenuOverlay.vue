@@ -52,7 +52,7 @@ watch([menuRef, menuContainerSize.width, menuContainerSize.height, activeOverlay
 // init menuRefValue if set
 whenever(activeOverlayMenu, () => {
   if (activeOverlayMenu.value?.info.kind == "component") {
-    menuRefValue.value = (activeOverlayMenu.value.info.props as any).modelValue ?? null;
+    menuRefValue.value = (activeOverlayMenu.value.info.props as any)?.modelValue ?? null;
   }
 });
 
@@ -114,7 +114,7 @@ function close() {
       <component
         ref="menuRefInner"
         :is="activeOverlayMenu.info.component"
-        v-bind="activeOverlayMenu.info.props"
+        v-bind="(activeOverlayMenu.info.props ?? {})"
         v-model="menuRefValue"
         @apply="fire(), close()"
       />
