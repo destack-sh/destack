@@ -76,7 +76,7 @@ defineExpose<ViewExposed>({ self, id, variants: [Variant.PRIMARY, Variant.STEALT
   <div
     ref="blockRef"
     v-if="block"
-    class="group/block relative rounded-md border bg-white px-2 py-1.5"
+    class="group/block relative rounded border bg-white px-2 py-1.5"
     :class="[nodePtr?.id == inspectionPtr?.id ? 'border-primary-900' : 'border-gray-200 hover:border-gray-400']"
   >
     <!-- Header -->
@@ -94,7 +94,7 @@ defineExpose<ViewExposed>({ self, id, variants: [Variant.PRIMARY, Variant.STEALT
       >
         <IconInline
           v-bind="getNodeIcon(block)"
-          class="rounded-md px-0.5 py-0.5 hover:cursor-pointer hover:bg-primary-100 hover:text-primary-900"
+          class="rounded px-0.5 py-0.5 hover:cursor-pointer hover:bg-primary-100 hover:text-primary-900"
           :class="[isThinTextWrapper ? ' text-gray-500' : 'text-gray-700']"
           v-tooltip="
             {
@@ -108,7 +108,7 @@ defineExpose<ViewExposed>({ self, id, variants: [Variant.PRIMARY, Variant.STEALT
         />
         <span
           role="button"
-          class="min-w-fit max-w-fit rounded-md border-0 px-1 py-0.5 outline-none ring-0 hover:bg-primary-100 hover:text-primary-900 focus:ring-0"
+          class="min-w-fit max-w-fit rounded border-0 px-1 py-0.5 outline-none ring-0 hover:bg-primary-100 hover:text-primary-900 focus:ring-0"
           :class="[isThinTextWrapper ? 'px-0.5 text-gray-500' : 'ml-0.5 px-1 font-semibold']"
           contenteditable
           :value="block.name"

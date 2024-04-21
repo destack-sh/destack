@@ -66,11 +66,11 @@ const absoluteStyle = computed(() => {
       v-for="toast in visibleToasts"
       :key="toast.id"
       :style="{ width: TOAST_WIDTH + 'px' }"
-      class="group relative rounded-md border border-gray-300 bg-white px-4 py-3"
+      class="group relative rounded border border-gray-300 bg-white px-4 py-3"
     >
       <!-- Level indicator -->
       <div
-        class="absolute left-0 top-0 h-1 w-full rounded-md transition-transform duration-200"
+        class="absolute left-0 top-0 h-1 w-full rounded transition-transform duration-200"
         :class="BG_COLOR_BY_LEVEL[toast.level]"
       />
       <!-- Body -->

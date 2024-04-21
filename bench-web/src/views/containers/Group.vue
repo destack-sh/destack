@@ -17,7 +17,7 @@ canvas.registerView(self, id);
 defineExpose<ViewExposed>({ self, id });
 </script>
 <template>
-  <div class="rounded-md border border-gray-300 bg-white">
+  <div class="rounded border border-gray-300 bg-white">
     <slot>
       <!-- TODO :Incomplete: default group content from inner nodes -->
     </slot>

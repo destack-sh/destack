@@ -271,7 +271,7 @@ defineExpose<ViewExposed>({ self, id, variants: [Variant.PRIMARY, Variant.STEALT
     <!-- NOTE: textRef must be in a stable fragment to mount the editor view -->
     <div
       ref="textRef"
-      class="text rounded-md hover:cursor-text"
+      class="text rounded hover:cursor-text"
       :class="[
         variant != Variant.STEALTH
           ? 'border border-gray-200 px-2 py-0.5 focus-within:border-primary-900'
@@ -329,13 +329,13 @@ defineExpose<ViewExposed>({ self, id, variants: [Variant.PRIMARY, Variant.STEALT
   line-height: 1.5;
 }
 .text code {
-  @apply rounded-md bg-gray-100 px-0.5;
+  @apply rounded bg-gray-100 px-0.5;
 }
 .text blockquote {
   @apply my-2 border-l-2 border-gray-700 py-[1px] pl-2;
 }
 .text div.callout {
-  @apply my-2 rounded-md  bg-gray-100 px-2 py-2.5;
+  @apply my-2 rounded  bg-gray-100 px-2 py-2.5;
 }
 /* TODO: UI: callout/heading/etc. line icons should be editable */
 .text div.callout::before {
@@ -347,7 +347,7 @@ defineExpose<ViewExposed>({ self, id, variants: [Variant.PRIMARY, Variant.STEALT
 
 /* Mentions */
 .text span.mention {
-  @apply rounded-md px-1 py-0;
+  @apply rounded px-1 py-0;
 }
 .text span.mention:hover {
   @apply bg-primary-100 text-primary-900;

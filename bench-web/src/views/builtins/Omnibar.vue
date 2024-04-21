@@ -213,7 +213,7 @@ defineExpose({ isActive, open });
         <div
           v-if="isActive /* trigger inner transition */"
           ref="containerRef"
-          class="fixed z-60 h-fit rounded-md border border-gray-700 bg-white text-sm opacity-100 transition-transform duration-150"
+          class="fixed z-60 h-fit rounded border border-gray-700 bg-white text-sm opacity-100 transition-transform duration-150"
           :style="{
             top: box.top + 'px',
             width: PANEL_WIDTH + 'px',
@@ -280,7 +280,7 @@ defineExpose({ isActive, open });
                   :ref="(ref: any | undefined) => (ref != null ? (resultsRefs[item.id] = ref) : delete resultsRefs[item.id])"
                   role="button"
                   :data-selected="item.id === activeResultId"
-                  class="fleyx-row my-0.5 flex w-full items-center rounded-md border border-transparent px-2 py-1 hover:bg-primary-300 data-[selected=true]:border-gray-900 data-[selected=true]:bg-primary-300"
+                  class="fleyx-row my-0.5 flex w-full items-center rounded border border-transparent px-2 py-1 hover:bg-primary-300 data-[selected=true]:border-gray-900 data-[selected=true]:bg-primary-300"
                   @click.stop.prevent="() => fire(item.id)"
                 >
                   <!-- Content -->

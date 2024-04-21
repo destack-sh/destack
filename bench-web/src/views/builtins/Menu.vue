@@ -181,7 +181,7 @@ defineExpose({ focus, clear, query });
 </script>
 <template>
   <ul
-    class="flex min-w-60 max-w-[360px] flex-col rounded-md border border-gray-400 bg-white py-1 text-gray-900"
+    class="flex min-w-60 max-w-[360px] flex-col rounded border border-gray-400 bg-white py-1 text-gray-900"
     role="menu"
     @keydown.escape.stop.prevent="emit('close')"
     @click.stop="queryRef?.focus()"
@@ -193,7 +193,7 @@ defineExpose({ focus, clear, query });
       <div class="absolute -top-5 left-0 px-2 pl-4">
         <input
           ref="queryRef"
-          class="max-w-60 cursor-default rounded-md border-0 bg-transparent font-semibold text-gray-900 decoration-2 underline-offset-2 caret-transparent outline-none ring-0 focus:underline focus:ring-0"
+          class="max-w-60 cursor-default rounded border-0 bg-transparent font-semibold text-gray-900 decoration-2 underline-offset-2 caret-transparent outline-none ring-0 focus:underline focus:ring-0"
           v-model="query"
           spellcheck="false"
           @keydown.enter.stop.prevent="fire(activeItemIdx ?? 0)"
@@ -219,7 +219,7 @@ defineExpose({ focus, clear, query });
         :ref="(ref?: any) => (ref != null ? (itemRefs[i] = ref) : delete itemRefs[i])"
         role="menuitem"
         :data-active="activeItemIdx === i"
-        class="mx-1 mb-[1px] mt-[2px] flex h-[28px] flex-row items-center rounded-md border border-transparent px-2"
+        class="mx-1 mb-[1px] mt-[2px] flex h-[28px] flex-row items-center rounded border border-transparent px-2"
         :class="[
           item.isDisabled
             ? 'text-gray-500'
