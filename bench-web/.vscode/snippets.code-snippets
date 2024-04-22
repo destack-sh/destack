@@ -47,7 +47,7 @@
 			"import { toRef } from \"vue\";",
 			"import { makeViewId } from \"@/views\";",
 			"",
-			"const props = defineProps<{self?: TypedNodeReferenceData<NodeType.VIEW>} & Pick<ViewData, \"name\" | \"title\" | \"text\" | \"icon\" | \"nodePtr\">>();",
+			"const props = defineProps<{self?: TypedNodeReferenceData<NodeType.VIEW>} & Partial<Pick<ViewData, \"name\" | \"title\" | \"text\" | \"icon\" | \"nodePtr\">>>();",
 			"const emit = defineEmits(viewEmits());",
 			"const self = toRef(props, \"self\");",
 			"const id = makeViewId(props);",

@@ -20,11 +20,19 @@ export type FloatingPlacement =
   | "inside-top-right";
 
 export type FloatingOptions = {
-  placement: FloatingPlacement; // relative to the reference
-  fitToContainer?: "width" | "height" | "both"; // fit the floating element to the container
-  containerMargin?: number; // margin around the container
-  referenceMargin?: number; // margin around the reference
-  referenceOffset?: { x: number; y: number }; // offset the reference position
+  /* place floating relative to the reference */
+  placement: FloatingPlacement;
+  /* margin around the container on all axes */
+  containerMargin?: number;
+  /* margin around the reference along the main axis */
+  referenceMargin?: number;
+  /* offset the reference position */
+  offset?:
+    | { x: number; y: number }
+    | "referenceWidth"
+    | "-referenceWidth"
+    | "referenceHeight"
+    | "-referenceHeight";
 };
 
 /**
@@ -45,9 +53,17 @@ export function getFloatingPosition(float: {
   let placement = options.placement;
 
   // convenience offset the reference via options
-  if (options.referenceOffset != null) {
-    reference.x += options.referenceOffset.x;
-    reference.y += options.referenceOffset.y;
+  if (options.offset == "referenceWidth") {
+    reference.x += reference.width;
+  } else if (options.offset == "-referenceWidth") {
+    reference.x -= reference.width;
+  } else if (options.offset == "referenceHeight") {
+    reference.y += reference.height;
+  } else if (options.offset == "-referenceHeight") {
+    reference.y -= reference.height;
+  } else if (options.offset != null) {
+    reference.x += options.offset.x;
+    reference.y += options.offset.y;
   }
 
   const recomputePosition = () => {

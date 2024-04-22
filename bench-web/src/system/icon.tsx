@@ -201,7 +201,6 @@ export const ICON_BY_VIEW_TYPE: Partial<Record<ViewType, IconData>> = _makeIcons
   [ViewType.SPLIT]: "fas fa-reflect-horizontal",
   [ViewType.SPLIT_DRAWER]: "fas fa-reflect-horizontal",
   // containers (layout)
-  [ViewType.WIZARD]: "fas fa-hat-wizard",
   [ViewType.STACK]: "fas fa-layer-group",
   [ViewType.DRAWER]: "fas fa-square-minus",
   [ViewType.GRID]: "fas fa-table-cells-large",
@@ -211,7 +210,7 @@ export const ICON_BY_VIEW_TYPE: Partial<Record<ViewType, IconData>> = _makeIcons
   [ViewType.LIST]: "fas fa-list",
   [ViewType.TABLE]: "fas fa-table",
   [ViewType.FEED]: "fas fa-list-timeline",
-  // containers (group).
+  // containers (group)
   [ViewType.GROUP]: "fas fa-object-group",
   [ViewType.SECTION]: "fas fa-xmark-lines",
 
@@ -230,7 +229,8 @@ export const ICON_BY_VIEW_TYPE: Partial<Record<ViewType, IconData>> = _makeIcons
   [ViewType.LINK]: "fas fa-link",
 
   // content
-  [ViewType.VALUE]: "fas fa-box",
+  [ViewType.VALUE]: "fas fa-box-taped",
+  [ViewType.TYPE]: "fas fa-tilde",
   // numeric
   [ViewType.NUMBER]: "fas fa-hashtag",
   [ViewType.SLIDER]: "fas fa-slider",
@@ -238,7 +238,7 @@ export const ICON_BY_VIEW_TYPE: Partial<Record<ViewType, IconData>> = _makeIcons
   [ViewType.PLAIN_TEXT]: "fas fa-text",
   [ViewType.TEXT]: "fas fa-font",
   [ViewType.CODE]: "fas fa-code",
-  [ViewType.JSON]: "fas fa-binary",
+  [ViewType.JSON]: "fas fa-brackets-curly",
   // selection
   [ViewType.TOGGLE]: "fas fa-toggle-large-on",
   [ViewType.PICKER]: "fas fa-caret-circle-down",

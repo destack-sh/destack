@@ -929,6 +929,7 @@ class StepType(betterproto.Enum):
     BRANCH = 30
     FILTER = 31
     LOOP = 32
+    GROUP = 40
 
 
 class StoreEngineType(betterproto.Enum):
@@ -1071,7 +1072,6 @@ class ViewType(betterproto.Enum):
     TAB = 502
     SPLIT = 503
     SPLIT_DRAWER = 504
-    WIZARD = 505
     STACK = 510
     DRAWER = 511
     GRID = 512
@@ -1080,8 +1080,8 @@ class ViewType(betterproto.Enum):
     LIST = 520
     TABLE = 521
     FEED = 522
-    GROUP = 535
-    SECTION = 538
+    GROUP = 530
+    SECTION = 531
     SPACER = 540
     DIVIDER = 541
     SHAPE = 543
@@ -1093,6 +1093,7 @@ class ViewType(betterproto.Enum):
     MULTI_BUTTON = 601
     LINK = 610
     VALUE = 620
+    TYPE = 111
     NUMBER = 632
     SLIDER = 633
     PLAIN_TEXT = 640
@@ -1918,6 +1919,7 @@ class BlockData(betterproto.Message):
     is_intrinsic: bool = betterproto.bool_field(60)
     is_page: bool = betterproto.bool_field(61)
     is_protocol: bool = betterproto.bool_field(62)
+    is_template: bool = betterproto.bool_field(63)
     paused_at: Optional[datetime] = betterproto.message_field(66, optional=True)
 
 
@@ -4801,7 +4803,7 @@ class RuntimeBase(ServiceBase):
 
 from typing import TYPE_CHECKING  # noqa: E402
 
-VERSION = "2024.04.20.1"
+VERSION = "2024.04.22.1"
 
 if TYPE_CHECKING:
     from bench.language import Subject

@@ -60,7 +60,6 @@ class ViewType(IdEnum):
     SPLIT = 503
     SPLIT_DRAWER = 504
     # containers (layout)
-    WIZARD = 505
     STACK = 510
     DRAWER = 511
     GRID = 512
@@ -71,8 +70,8 @@ class ViewType(IdEnum):
     TABLE = 521
     FEED = 522
     # containers (group)
-    GROUP = 535
-    SECTION = 538
+    GROUP = 530
+    SECTION = 531
 
     # presentation
     SPACER = 540
@@ -90,6 +89,7 @@ class ViewType(IdEnum):
 
     # content
     VALUE = 620  # (generic content routed with valueType)
+    TYPE = 111
     # numeric
     NUMBER = 632
     SLIDER = 633

@@ -83,7 +83,7 @@ export function menuItemFromAction(
     isDisabled: implementation == null,
     isChecked,
     // default to subcategory since we usually group menus by category(ish)
-    category: action.subcategory ?? action.category,
+    category: `${action.category}.${action.subcategory}`,
     action: (menu: MenuInfo) => {
       const contextViews = getMenuContextViews(menu.context);
       const actionContext = { ...menu.context, ...(override?.context ?? {}) };
@@ -135,7 +135,7 @@ export type OverlayMenuInfo = (
 
 /** The triggering element with some extra state */
 type OverlayMenuTriggerElement = HTMLElement & {
-  contextMenuOnEvent?: (e: MouseEvent) => void;
+  menuOnEvent?: (e: MouseEvent) => void;
 };
 
 type OverlayMenuInstance = {
@@ -195,18 +195,18 @@ function makeOverlayMenuDirective(options: {
   return {
     mounted(el, binding) {
       const triggerEl = el as OverlayMenuTriggerElement;
-      triggerEl.contextMenuOnEvent = (e: MouseEvent) => {
+      triggerEl.menuOnEvent = (e: MouseEvent) => {
         e.preventDefault();
         e.stopPropagation();
         const reference = options.reference == "self" ? triggerEl : { x: e.clientX, y: e.clientY };
         createOverlayMenu({ trigger: triggerEl, reference, info: binding.value });
       };
-      triggerEl.addEventListener(options.event, triggerEl.contextMenuOnEvent);
+      triggerEl.addEventListener(options.event, triggerEl.menuOnEvent);
     },
 
     unmounted(el) {
       const triggerEl = el as OverlayMenuTriggerElement;
-      if (triggerEl.contextMenuOnEvent) triggerEl.removeEventListener(options.event, triggerEl.contextMenuOnEvent);
+      if (triggerEl.menuOnEvent) triggerEl.removeEventListener(options.event, triggerEl.menuOnEvent);
     },
   };
 }

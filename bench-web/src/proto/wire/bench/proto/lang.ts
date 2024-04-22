@@ -2037,6 +2037,10 @@ export interface BlockData {
      */
     isProtocol: boolean;
     /**
+     * @generated from protobuf field: bool is_template = 63;
+     */
+    isTemplate: boolean;
+    /**
      * @generated from protobuf field: optional google.protobuf.Timestamp paused_at = 66;
      */
     pausedAt?: Timestamp;
@@ -8654,7 +8658,11 @@ export enum StepType {
     /**
      * @generated from protobuf enum value: STEP_TYPE_LOOP = 32;
      */
-    LOOP = 32
+    LOOP = 32,
+    /**
+     * @generated from protobuf enum value: STEP_TYPE_GROUP = 40;
+     */
+    GROUP = 40
 }
 /**
  * @generated from protobuf enum symbolx.bench.StoreEngineType
@@ -9130,10 +9138,6 @@ export enum ViewType {
      */
     SPLIT_DRAWER = 504,
     /**
-     * @generated from protobuf enum value: VIEW_TYPE_WIZARD = 505;
-     */
-    WIZARD = 505,
-    /**
      * @generated from protobuf enum value: VIEW_TYPE_STACK = 510;
      */
     STACK = 510,
@@ -9166,13 +9170,13 @@ export enum ViewType {
      */
     FEED = 522,
     /**
-     * @generated from protobuf enum value: VIEW_TYPE_GROUP = 535;
+     * @generated from protobuf enum value: VIEW_TYPE_GROUP = 530;
      */
-    GROUP = 535,
+    GROUP = 530,
     /**
-     * @generated from protobuf enum value: VIEW_TYPE_SECTION = 538;
+     * @generated from protobuf enum value: VIEW_TYPE_SECTION = 531;
      */
-    SECTION = 538,
+    SECTION = 531,
     /**
      * @generated from protobuf enum value: VIEW_TYPE_SPACER = 540;
      */
@@ -9217,6 +9221,10 @@ export enum ViewType {
      * @generated from protobuf enum value: VIEW_TYPE_VALUE = 620;
      */
     VALUE = 620,
+    /**
+     * @generated from protobuf enum value: VIEW_TYPE_TYPE = 111;
+     */
+    TYPE = 111,
     /**
      * @generated from protobuf enum value: VIEW_TYPE_NUMBER = 632;
      */
@@ -13935,6 +13943,7 @@ class BlockData$Type extends MessageType<BlockData> {
             { no: 60, name: "is_intrinsic", kind: "scalar", T: 8 /*ScalarType.BOOL*/ },
             { no: 61, name: "is_page", kind: "scalar", T: 8 /*ScalarType.BOOL*/ },
             { no: 62, name: "is_protocol", kind: "scalar", T: 8 /*ScalarType.BOOL*/ },
+            { no: 63, name: "is_template", kind: "scalar", T: 8 /*ScalarType.BOOL*/ },
             { no: 66, name: "paused_at", kind: "message", T: () => Timestamp }
         ]);
     }
@@ -13955,6 +13964,7 @@ class BlockData$Type extends MessageType<BlockData> {
         message.isIntrinsic = false;
         message.isPage = false;
         message.isProtocol = false;
+        message.isTemplate = false;
         if (value !== undefined)
             reflectionMergePartial<BlockData>(this, message, value);
         return message;
@@ -14063,6 +14073,9 @@ class BlockData$Type extends MessageType<BlockData> {
                     break;
                 case /* bool is_protocol */ 62:
                     message.isProtocol = reader.bool();
+                    break;
+                case /* bool is_template */ 63:
+                    message.isTemplate = reader.bool();
                     break;
                 case /* optional google.protobuf.Timestamp paused_at */ 66:
                     message.pausedAt = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.pausedAt);
@@ -14179,6 +14192,9 @@ class BlockData$Type extends MessageType<BlockData> {
         /* bool is_protocol = 62; */
         if (message.isProtocol !== false)
             writer.tag(62, WireType.Varint).bool(message.isProtocol);
+        /* bool is_template = 63; */
+        if (message.isTemplate !== false)
+            writer.tag(63, WireType.Varint).bool(message.isTemplate);
         /* optional google.protobuf.Timestamp paused_at = 66; */
         if (message.pausedAt)
             Timestamp.internalBinaryWrite(message.pausedAt, writer.tag(66, WireType.LengthDelimited).fork(), options).join();
@@ -22568,6 +22584,7 @@ export enum BlockProperty {
   isIntrinsic = 60,
   isPage = 61,
   isProtocol = 62,
+  isTemplate = 63,
   pausedAt = 66,
 }
 
@@ -24524,6 +24541,7 @@ export const BlockDataInfo: Record<BlockProperty, PropertyInfo> = {
   [BlockProperty.isIntrinsic]: { id: 60, name: 'is_intrinsic', component: ObjectType.BLOCK, kind: 'primitive', primitiveType: PrimitiveType.BOOLEAN, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [BlockProperty.isPage]: { id: 61, name: 'is_page', component: ObjectType.BLOCK, kind: 'primitive', primitiveType: PrimitiveType.BOOLEAN, isRequired: true, isRuntime: true, isWired: true, isStored: true },
   [BlockProperty.isProtocol]: { id: 62, name: 'is_protocol', component: ObjectType.BLOCK, kind: 'primitive', primitiveType: PrimitiveType.BOOLEAN, isRequired: true, isRuntime: true, isWired: true, isStored: true },
+  [BlockProperty.isTemplate]: { id: 63, name: 'is_template', component: ObjectType.BLOCK, kind: 'primitive', primitiveType: PrimitiveType.BOOLEAN, isRequired: true, isRuntime: true, isWired: true, isStored: true },
   [BlockProperty.pausedAt]: { id: 66, name: 'paused_at', component: ObjectType.BLOCK, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [BlockProperty.id]: { id: 2, name: 'id', component: ObjectType.BLOCK, kind: 'primitive', primitiveType: PrimitiveType.UUID, isRequired: true, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
   [BlockProperty.setProperties]: { id: 22, name: 'set_properties', component: ObjectType.BLOCK, kind: 'primitive', primitiveType: PrimitiveType.INT32, isList: true, isRequired: true, isRuntime: true, isWired: true, isStored: true },

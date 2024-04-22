@@ -894,6 +894,7 @@ enum StepType {
   STEP_TYPE_BRANCH = 30;
   STEP_TYPE_FILTER = 31;
   STEP_TYPE_LOOP = 32;
+  STEP_TYPE_GROUP = 40;
 }
 
 enum StoreEngineType {
@@ -1032,7 +1033,6 @@ enum ViewType {
   VIEW_TYPE_TAB = 502;
   VIEW_TYPE_SPLIT = 503;
   VIEW_TYPE_SPLIT_DRAWER = 504;
-  VIEW_TYPE_WIZARD = 505;
   VIEW_TYPE_STACK = 510;
   VIEW_TYPE_DRAWER = 511;
   VIEW_TYPE_GRID = 512;
@@ -1041,8 +1041,8 @@ enum ViewType {
   VIEW_TYPE_LIST = 520;
   VIEW_TYPE_TABLE = 521;
   VIEW_TYPE_FEED = 522;
-  VIEW_TYPE_GROUP = 535;
-  VIEW_TYPE_SECTION = 538;
+  VIEW_TYPE_GROUP = 530;
+  VIEW_TYPE_SECTION = 531;
   VIEW_TYPE_SPACER = 540;
   VIEW_TYPE_DIVIDER = 541;
   VIEW_TYPE_SHAPE = 543;
@@ -1054,6 +1054,7 @@ enum ViewType {
   VIEW_TYPE_MULTI_BUTTON = 601;
   VIEW_TYPE_LINK = 610;
   VIEW_TYPE_VALUE = 620;
+  VIEW_TYPE_TYPE = 111;
   VIEW_TYPE_NUMBER = 632;
   VIEW_TYPE_SLIDER = 633;
   VIEW_TYPE_PLAIN_TEXT = 640;
@@ -1729,6 +1730,7 @@ message BlockData {
   bool is_intrinsic = 60;
   bool is_page = 61;
   bool is_protocol = 62;
+  bool is_template = 63;
   optional google.protobuf.Timestamp paused_at = 66;
 }
 

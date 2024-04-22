@@ -5,6 +5,9 @@ import { generateOrderKeys } from "@/utils/fractional";
 import { PM_SCHEMA, type TextMarkType } from "@/utils/prosemirror";
 import { Node as PmNode } from "prosemirror-model";
 
+// TODO :Performance: mapTextToPmNode/mapPmNodeToText should cache somehow?
+//  (we re-create the entire deep object on every conversion)
+
 export function mapTextToPmNode(text: TextData, prev: PmNode | undefined): PmNode {
   const schema = PM_SCHEMA;
   defaultSortStruct(text.lines);

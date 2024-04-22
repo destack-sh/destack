@@ -114,7 +114,7 @@ function close() {
       <component
         ref="menuRefInner"
         :is="activeOverlayMenu.info.component"
-        v-bind="(activeOverlayMenu.info.props ?? {})"
+        v-bind="{ isInline: true, ...(activeOverlayMenu.info.props ?? {}) }"
         v-model="menuRefValue"
         @apply="fire(), close()"
       />

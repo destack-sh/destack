@@ -79,6 +79,7 @@ export type TooltipInfo = Omit<FloatingOptions, "placement"> & {
   showDelay?: number;
   hideDelay?: number;
   placement?: FloatingPlacement;
+  isEnabled?: boolean | (() => boolean);
 };
 
 export function tooltipFromAction(action: Action): TooltipInfo {
@@ -139,8 +140,6 @@ function destroyTooltip(instance: TooltipInstance) {
 export const TOOLTIP_DIRECTIVE: Directive<MaybeElement, TooltipInfo> = {
   mounted(el, binding) {
     const triggerEl = el as TooltipTriggerElement;
-    const info = binding.value;
-    const { showDelay = DEFAULT_HOVER_SHOW_DELAY, hideDelay = DEFAULT_HOVER_HIDE_DELAY } = info;
 
     triggerEl.tooltipOnMouseEnter = (e: MouseEvent) => {
       if (e.target == triggerEl) {
@@ -148,8 +147,9 @@ export const TOOLTIP_DIRECTIVE: Directive<MaybeElement, TooltipInfo> = {
         const container = findFloatingContainer(triggerEl) ?? undefined;
         if (triggerEl.tooltipShowTimeout != null) clearTimeout(triggerEl.tooltipShowTimeout);
         triggerEl.tooltipShowTimeout = window.setTimeout(() => {
-          triggerEl.tooltipInstance = createTooltip(triggerEl, info, container);
-        }, showDelay);
+          if (binding.value.isEnabled != null && !toValue(binding.value.isEnabled)) return;
+          triggerEl.tooltipInstance = createTooltip(triggerEl, binding.value, container);
+        }, binding.value.showDelay ?? DEFAULT_HOVER_SHOW_DELAY);
       } else if (triggerEl.tooltipInstance != null) {
         // some part of the tooltip is hovered, so cancel the hide timeout
         if (triggerEl.tooltipHideTimeout != null) clearTimeout(triggerEl.tooltipHideTimeout);
@@ -161,7 +161,7 @@ export const TOOLTIP_DIRECTIVE: Directive<MaybeElement, TooltipInfo> = {
         if (triggerEl.tooltipInstance != null) {
           destroyTooltip(triggerEl.tooltipInstance);
         }
-      }, hideDelay);
+      }, binding.value.hideDelay ?? DEFAULT_HOVER_HIDE_DELAY);
     };
     triggerEl.addEventListener("mouseenter", triggerEl.tooltipOnMouseEnter);
     triggerEl.addEventListener("mouseleave", triggerEl.tooltipOnMouseLeave);

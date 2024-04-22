@@ -9,15 +9,16 @@ import { IconInline, getNodeIcon } from "@/system/icon";
 import { toCamelName } from "@/system/lang";
 import { canvas, inspectionPtr } from "@/system/space";
 import { onMouseNotPressedOnce } from "@/utils/layout";
-import type { OverlayMenuInfo } from "@/utils/menu";
+import { menuActionsLike, type OverlayMenuInfo } from "@/utils/menu";
 import type { TooltipInfo } from "@/utils/tooltip";
 import { makeViewId } from "@/views";
+import Class from "@/views/builtins/Class.vue";
 import Inaccessible from "@/views/builtins/Inaccessible.vue";
 import { viewEmits, type FocusAnchor, type ViewExposed } from "@/views/common";
 import Code from "@/views/content/Code.vue";
 import Icon from "@/views/content/Icon.vue";
 import Text from "@/views/content/Text.vue";
-import { computed, ref, toRef, type Ref } from "vue";
+import { computed, nextTick, ref, toRef, type Ref } from "vue";
 
 const props = defineProps<
   { self?: TypedNodeReferenceData<NodeType.VIEW>; preparedConnection?: PreparedGetConnection } & Pick<
@@ -30,8 +31,10 @@ const self = toRef(props, "self");
 const id = makeViewId(props);
 
 const blockRef = ref<HTMLElement | null>(null);
+const nameRef = ref<HTMLElement | null>(null);
+
 const nodePtr = toRef(props, "nodePtr") as Ref<TypedNodeReferenceData<NodeType.BLOCK>>;
-const { graph: pkgGraph, connection: pkgConnection } =
+const pkgGetConnection =
   props.preparedConnection ??
   useGetConnection(
     { name: `block.${nodePtr.value.id}` },
@@ -41,6 +44,7 @@ const { graph: pkgGraph, connection: pkgConnection } =
       isEnabled: nodePtr.value != null,
     })),
   );
+const { graph: pkgGraph, connection: pkgConnection } = pkgGetConnection;
 const block = pkgGraph.getRef(nodePtr, { ignoreAncestors: props.self == null });
 const isGeneratedName = computed(
   () =>
@@ -48,20 +52,31 @@ const isGeneratedName = computed(
     isGeneratedNodeName(block.value.metatype as unknown as NodeType, block.value.type, block.value.name),
 );
 const isThinTextWrapper = computed(() => isGeneratedName.value && block.value?.type == BlockType.TEXT);
+const fields = pkgGraph.getChildrenRef(nodePtr, NodeType.FIELD, { ignoreAncestors: true });
 
 //
 // Interaction
 //
 
-const actions: Partial<ActionMapImplementation<"block">> = {
+const actions: Partial<ActionMapImplementation<"common">> & ActionMapImplementation<"block"> = {
+  // common
+  "common.edit.rename": {
+    action: () => {
+      nextTick(() => nameRef.value!.focus());
+    },
+  },
+  // block
   "block.edit.isPage": {
-    isEnabled: () => block.value != null,
     isChecked: () => block.value?.isPage ?? false,
     action: () => pkgConnection.tx.updateDebounced(block.value!, { isPage: !block.value!.isPage }),
   },
   "block.edit.isProtocol": {
     isChecked: () => block.value?.isProtocol ?? false,
     action: () => pkgConnection.tx.updateDebounced(block.value!, { isProtocol: !block.value!.isProtocol }),
+  },
+  "block.edit.isTemplate": {
+    isChecked: () => block.value?.isTemplate ?? false,
+    action: () => pkgConnection.tx.updateDebounced(block.value!, { isTemplate: !block.value!.isTemplate }),
   },
 };
 
@@ -85,10 +100,9 @@ defineExpose<ViewExposed>({ self, id, variants: [Variant.PRIMARY, Variant.STEALT
     ]"
   >
     <!-- Header -->
-    <!-- TODO: :UX: the floating headers are intended to make simple text blocks less obtrusive.. not great yet -->
-    <div :class="[isThinTextWrapper ? 'absolute -top-2.5 left-2 bg-white px-0.5' : '']">
+    <div class="flex flex-row">
       <!-- Icon/Name (also drag handle if container is not already draggable) -->
-      <span
+      <div
         @mousedown="
           () =>
             blockRef!.draggable ||
@@ -97,7 +111,7 @@ defineExpose<ViewExposed>({ self, id, variants: [Variant.PRIMARY, Variant.STEALT
       >
         <IconInline
           v-bind="getNodeIcon(block)"
-          class="w-5 rounded border border-transparent py-0.5 hover:cursor-pointer hover:bg-primary-100 hover:text-primary-900 data-[menu=true]:border-primary-900 data-[menu=true]:bg-primary-100"
+          class="w-5 rounded border border-transparent py-0.5 hover:cursor-pointer hover:bg-primary-100 hover:text-primary-900 data-[menu=true]:border-primary-900 data-[menu=true]:bg-primary-100 data-[menu=true]:text-primary-900"
           :class="[isThinTextWrapper ? ' text-gray-500' : 'text-gray-700']"
           v-tooltip="
             {
@@ -112,36 +126,73 @@ defineExpose<ViewExposed>({ self, id, variants: [Variant.PRIMARY, Variant.STEALT
             () =>
               ({
                 kind: 'component',
+                placement: 'bottom-right',
+                offset: '-referenceWidth',
                 referenceMargin: 4,
-                placement: 'bottom',
                 component: Icon,
-                props: { modelValue: block!.icon, isInline: true },
+                props: { modelValue: block!.icon },
                 onApply: (newIcon) => {
                   pkgConnection.tx.update(block!, { icon: newIcon });
                 },
               }) as OverlayMenuInfo
           "
         />
-        <span
-          role="button"
-          class="min-w-fit max-w-fit rounded border-0 px-1 py-0.5 outline-none ring-0 hover:bg-primary-100 hover:text-primary-900 focus:ring-0"
+        <input
+          ref="nameRef"
+          class="w-fit min-w-fit max-w-fit rounded border-0 px-1 outline-none ring-0 hover:bg-primary-100 hover:text-primary-900 focus:ring-0"
           :class="[isThinTextWrapper ? 'px-0.5 text-gray-500' : 'ml-0.5 px-1 font-semibold']"
-          contenteditable
+          spellcheck="false"
           :value="block.name"
+          :size="block.name.length"
           @input="
             (event) => {
-              pkgConnection.tx.updateDebounced(block!, { name: (event.target as HTMLSpanElement).innerText });
+              pkgConnection.tx.updateDebounced(block!, { name: (event.target as HTMLInputElement).value });
             }
           "
-        >
-          {{ block.name }}
-        </span>
-      </span>
+        />
+      </div>
       <!-- Tags, triggers, roles, queries, etc. -->
+      <div class="ml-auto pl-2 pr-0.5">
+        <!-- Quick actions -->
+        <span class="flex flex-row gap-x-0.5">
+          <!-- Quick add -->
+          <button class="rounded px-1 text-gray-400 hover:bg-gray-100 hover:text-primary-900">
+            <i class="fas fa-plus" />
+          </button>
+          <!-- Menu -->
+          <button
+            class="rounded border border-transparent px-2 text-gray-400 hover:bg-gray-100 hover:text-primary-900 data-[menu=true]:border-primary-900 data-[menu=true]:bg-primary-100 data-[menu=true]:text-primary-900"
+            v-menu="
+              (): OverlayMenuInfo => ({
+                kind: 'menu',
+                placement: 'bottom-left',
+                offset: 'referenceWidth',
+                referenceMargin: 4,
+                items: menuActionsLike(['common.edit.*', 'block.*'], { context: { triggerNode: nodePtr } }),
+              })
+            "
+          >
+            <i class="fas fa-ellipsis-v" />
+          </button>
+        </span>
+      </div>
       <!-- ... -->
     </div>
     <!-- Body -->
-    <div class="py-1">
+    <div class="flex flex-col gap-y-1">
+      <Class
+        v-if="
+          block.type == BlockType.SIGNAL ||
+          block.type == BlockType.CLASS ||
+          block.type == BlockType.TEXT ||
+          block.type == BlockType.CODE ||
+          block.type == BlockType.FLOW
+        "
+        :node="block"
+        :prepared-connection="pkgGetConnection"
+        :fields="fields"
+        :is-function="block.type != BlockType.CLASS"
+      />
       <Text
         v-if="block.type == BlockType.TEXT"
         is-input
