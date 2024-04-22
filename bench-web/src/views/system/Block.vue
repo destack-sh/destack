@@ -78,8 +78,14 @@ defineExpose<ViewExposed>({ self, id, variants: [Variant.PRIMARY, Variant.STEALT
   <div
     ref="blockRef"
     v-if="block"
-    class="group/block relative rounded border bg-white px-2 py-1.5"
-    :class="[nodePtr?.id == inspectionPtr?.id ? 'border-primary-900' : 'border-gray-200 hover:border-gray-400']"
+    class="group/block relative rounded bg-white px-2 py-1.5"
+    :class="[
+      variant != Variant.STEALTH
+        ? 'border'
+        : nodePtr?.id == inspectionPtr?.id
+          ? 'border-primary-900'
+          : 'border-gray-200 hover:border-gray-400',
+    ]"
   >
     <!-- Header -->
     <!-- TODO: :UX: the floating headers are intended to make simple text blocks less obtrusive.. not great yet -->
@@ -95,7 +101,7 @@ defineExpose<ViewExposed>({ self, id, variants: [Variant.PRIMARY, Variant.STEALT
       >
         <IconInline
           v-bind="getNodeIcon(block)"
-          class="rounded px-0.5 py-0.5 hover:cursor-pointer hover:bg-primary-100 hover:text-primary-900 data-[menu=true]:bg-primary-100"
+          class="w-5 rounded border border-transparent py-0.5 hover:cursor-pointer hover:bg-primary-100 hover:text-primary-900 data-[menu=true]:border-primary-900 data-[menu=true]:bg-primary-100"
           :class="[isThinTextWrapper ? ' text-gray-500' : 'text-gray-700']"
           v-tooltip="
             {
@@ -111,8 +117,7 @@ defineExpose<ViewExposed>({ self, id, variants: [Variant.PRIMARY, Variant.STEALT
               ({
                 kind: 'component',
                 referenceMargin: 4,
-                referenceOffset: { x: -28, y: 0 },
-                placement: 'bottom-right',
+                placement: 'bottom',
                 component: Icon,
                 props: { modelValue: block!.icon, isInline: true },
                 onApply: (newIcon) => {

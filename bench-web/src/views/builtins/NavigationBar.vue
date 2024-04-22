@@ -24,7 +24,7 @@ const path = computed(() => ancestors.value.slice().reverse());
 <template>
   <div class="flex w-full max-w-full flex-row px-2.5" :style="{ height: height + 'px' }">
     <!-- Breadcrumb -->
-    <div class="flex flex-row items-center gap-x-1.5 truncate">
+    <div class="flex flex-row items-center gap-x-2 truncate">
       <template v-for="(node, i) in path" :key="i">
         <span
           class="flex cursor-pointer flex-row items-center rounded hover:bg-primary-100 hover:text-primary-900"
@@ -32,7 +32,7 @@ const path = computed(() => ancestors.value.slice().reverse());
           :class="node.id == self?.id || node.id == focus?.id ? 'text-primary-900' : 'text-gray-600'"
           @click.stop="canvas.goToNode(node)"
         >
-          <IconInline v-bind="getNodeIcon(node)" class="mr-1" />
+          <IconInline v-bind="getNodeIcon(node)" class="mr-1.5" />
           <span class="">{{ node.name }}</span>
         </span>
         <i v-if="i < path.length - 1" class="fas fa-chevron-right text-xs text-gray-500" />

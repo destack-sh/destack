@@ -44,7 +44,7 @@ export const AVAILABLE_FA_ICONS: IconMetadata[] = _AVAILABLE_FA_ICONS.map((i) =>
 export const IconInline: FunctionalComponent<Pick<IconData, "emoji" | "file" | "faName">> = (props) => {
   if (props.faName) {
     // font awesome
-    return <i class={props.faName + " w-[18px] text-center"} />;
+    return <i class={props.faName + "  text-center"} />;
   } else if (props.emoji) {
     return <span>{props.emoji}</span>;
   } else {

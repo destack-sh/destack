@@ -69,6 +69,9 @@ function focus(anchor?: "up" | "down" | "left" | "right" | FocusAnchor | NodeRef
   }
   nextIdx = Math.max(0, Math.min(results.value.length - 1, nextIdx));
   activeResultId.value = results.value[nextIdx].id;
+  if (resultsRefs.value[activeResultId.value] != null) {
+    resultsRefs.value[activeResultId.value]?.scrollIntoView({ block: "center", behavior: "instant" });
+  }
   queryRef.value?.focus();
 }
 
@@ -77,6 +80,7 @@ defineExpose<ViewExposed>({ self, id, focus });
 </script>
 <template>
   <div>
+    <!-- TODO :Incomplete: Icon.isInput/isDisabled/variants/... -->
     <div :style="{ width: DEFAULT_WIDTH + 'px' }">
       <!-- Header -->
       <div class="flex w-full flex-row items-center border-b border-gray-200 px-2.5 py-1.5">
@@ -104,7 +108,7 @@ defineExpose<ViewExposed>({ self, id, focus });
         track-is-overlay
       >
         <!-- Results -->
-        <ul v-if="results.length > 0" class="grid grid-cols-10 gap-y-1 px-2 py-2">
+        <ul v-if="results.length > 0" class="grid grid-cols-10 gap-x-1 gap-y-1 px-2 py-2">
           <template v-for="(item, i) in results" :key="i">
             <span
               :ref="(ref?: any) => (ref != null ? (resultsRefs[item.id] = ref) : delete resultsRefs[item.id])"

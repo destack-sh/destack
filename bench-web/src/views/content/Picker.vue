@@ -93,7 +93,10 @@ defineExpose<ViewExposed>({ self, id, variants: [Variant.PRIMARY, Variant.COMPAC
     <div :style="{ width: DEFAULT_WIDTH + 'px' }">
       <!-- Header -->
       <div class="flex w-full flex-row items-center border-b border-gray-200 px-3 py-1.5">
-        <IconInline v-bind="icon ?? makeIcon({ faName: 'fas fa-caret-circle-down' })" class="mr-1.5 text-gray-700" />
+        <IconInline
+          v-bind="icon ?? makeIcon({ faName: 'fas fa-caret-circle-down' })"
+          class="mr-1.5 w-5 text-gray-700"
+        />
         <!-- Query -->
         <input
           ref="queryRef"
@@ -127,7 +130,7 @@ defineExpose<ViewExposed>({ self, id, variants: [Variant.PRIMARY, Variant.COMPAC
               @click.prevent="fire(item)"
             >
               <!-- Content -->
-              <IconInline v-if="item.icon" v-bind="item.icon" class="mr-1.5 flex-shrink-0 text-gray-700" />
+              <IconInline v-if="item.icon" v-bind="item.icon" class="mr-1.5 w-5 flex-shrink-0 text-gray-700" />
               <span v-else class="mr-1.5 w-[18px] flex-shrink-0 text-gray-700" />
               <span class="select-none truncate" v-html="item.titleMarked ?? item.title" />
               <!-- Metadata -->

@@ -62,7 +62,7 @@ defineExpose<ViewExposed>({
 <template>
   <button ref="buttonRef" :class="[classByVariant[variant!] ?? classByVariant[Variant.PRIMARY]]" :disabled="isDisabled">
     <i v-if="isLoading" class="fas fa-spinner-third mr-2 animate-spin no-underline" />
-    <IconInline v-else-if="icon" v-bind="icon" class="no-underline" :class="title ? 'mr-2' : ''" />
+    <IconInline v-else-if="icon" v-bind="icon" class="w-[18px] text-center no-underline" :class="title ? 'mr-2' : ''" />
     <span v-if="title" class="select-none font-semibold">{{ title }}</span>
   </button>
 </template>

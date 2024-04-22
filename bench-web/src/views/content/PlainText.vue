@@ -35,7 +35,7 @@ defineExpose<ViewExposed>({ self, id, variants: [Variant.PRIMARY, Variant.STEALT
           : 'outline-1 outline-primary-900 focus-within:outline-dashed',
       ]"
     >
-      <IconInline v-if="icon" v-bind="icon" class="mr-2 text-gray-400" />
+      <IconInline v-if="icon" v-bind="icon" class="mr-1.5 w-5 text-gray-400" />
       <input
         ref="inputRef"
         :type="valueType?.isSecret ? 'password' : 'text'"
