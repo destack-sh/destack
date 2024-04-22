@@ -282,7 +282,7 @@ const USER_MENU_ITEMS = computed(() => {
             class="select-none text-hint-700"
             v-tooltip="{ icon: 'fas fa-binary', title: 'Developer Mode Enabled' } as TooltipInfo"
           >
-            <button class="hover:text-hint-800" @click="fireActionById('developer.misc.toggleDeveloperMode')">
+            <button class="hover:text-hint-800" @click="fireActionById('developer.developerMode')">
               <i class="fas fa-binary" />
             </button>
             <span class="ml-1">{{ fps }}fps</span>

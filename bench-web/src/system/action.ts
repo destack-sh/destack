@@ -10,11 +10,11 @@ import {
   type NodeReferenceData,
   type TextData,
 } from "@/proto/wire";
-import { toNodeReference, type AnyNodeReferenceData } from "@/proto/wiring";
+import { isNode, toNodeReference, type AnyNodeReferenceData } from "@/proto/wiring";
 import { isDeveloperMode, packagePtr } from "@/system/client";
 import { makeIcon } from "@/system/icon";
 import { getRandomEnumOption } from "@/system/lang";
-import { canvas, hasLocalBench, pkgConnection, pkgGraph, space } from "@/system/space";
+import { canvas, hasLocalBench, inspectionPtr, pkgConnection, pkgGraph, space } from "@/system/space";
 import { toaster } from "@/system/toast";
 import { getAllTransactionBuffers } from "@/system/transaction";
 import { generateOrderKey } from "@/utils/fractional";
@@ -136,6 +136,7 @@ export const ACTION_BUILTIN_IDS = [
   // block
   "block.edit.isPage",
   "block.edit.isProtocol",
+  "block.edit.isTemplate",
   // text
   "text.format.bold",
   "text.format.italic",
@@ -178,11 +179,12 @@ export const ACTION_BUILTIN_IDS = [
   // organization
   "organization.create",
   // developer
-  "developer.misc.toggleDeveloperMode",
+  "developer.developerMode",
   "developer.tx.retryAllFailed",
   "developer.view.addMockView",
   "developer.create.addRootPages",
   "developer.create.addRandomBlocks",
+  "developer.create.addRandomFields",
 ] as const;
 export const ACTION_BUILTIN_IDS_INDEX: Record<ActionBuiltinId, number> = ACTION_BUILTIN_IDS.reduce(
   (acc, id, idx) => ({ ...acc, [id]: idx }),
@@ -767,6 +769,12 @@ declareActionMap<"block">({
     title: "Protocol",
     text: "Mark the current block as a protocol",
   },
+  "block.edit.isTemplate": {
+    type: "toggle",
+    icon: "fas fa-puzzle-piece",
+    title: "Template",
+    text: "Mark the current block as a template",
+  },
 });
 
 // text
@@ -960,7 +968,7 @@ contributeActionMap<"view">({
 
 // developer actions
 contributeActionMap<"developer">({
-  "developer.misc.toggleDeveloperMode": {
+  "developer.developerMode": {
     type: "toggle",
     icon: "fas fa-binary",
     title: "Developer Mode",
@@ -1063,6 +1071,25 @@ contributeActionMap<"developer">({
           isProtocol: type == BlockType.PROTOCOL,
           name,
           orderKey: generateOrderKey((existingChildren[existingChildren.length - 1] as any)?.orderKey ?? null, null),
+        });
+      }
+    },
+  },
+  "developer.create.addRandomFields": {
+    isEnabled: computed(() => isDeveloperMode.value && hasLocalBench.value),
+    icon: "fas fa-cube",
+    title: "Add Random Fields",
+    text: "Add some random fields to the current block",
+    action: () => {
+      const tx = pkgConnection.tx;
+      const block = pkgGraph.getMaybe(inspectionPtr.value);
+      if (!isNode(block, NodeType.BLOCK)) return false;
+      for (let i = 0; i < 5; i++) {
+        const name = generateRandomName();
+        const field = tx.create({
+          metatype: NodeType.FIELD,
+          parentPtr: toNodeReference(block),
+          packagePtr: packagePtr.value!,
         });
       }
     },

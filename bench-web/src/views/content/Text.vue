@@ -27,9 +27,8 @@ import { makeTypeInfo } from "@/system/value";
 const MENTION_TRIGGER_CHAR = "@";
 
 const props = defineProps<
-  { self?: TypedNodeReferenceData<NodeType.VIEW>; modelValue?: TextData } & Pick<
-    ViewData,
-    "title" | "icon" | "variant" | "nodePtr" | "isInput"
+  { self?: TypedNodeReferenceData<NodeType.VIEW>; modelValue?: TextData } & Partial<
+    Pick<ViewData, "name" | "title" | "icon" | "variant" | "nodePtr" | "isInput">
   >
 >();
 const emit = defineEmits(viewEmits());
@@ -97,11 +96,10 @@ function makeEditorView(): EditorView {
             kind: "component",
             component: Picker,
             referenceMargin: 2,
-            referenceOffset: { x: 0, y: -10 }, // align query text with line
+            offset: { x: 0, y: -10 }, // align query text with line
             placement: "inside-top-left",
             props: {
               valueType: makeTypeInfo({ benchType: BenchType.BLOCK }),
-              isInline: true,
             },
             onApply(node) {
               if (view == null) throw new Error("view no longer mounted");

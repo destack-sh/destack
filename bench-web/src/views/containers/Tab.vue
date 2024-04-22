@@ -212,7 +212,6 @@ defineExpose<ViewExposed>({ self, actions });
             };
           }
         "
-        v-tooltip="{ title: tab.name, referenceMargin: 0, showDelay: 2000 } as TooltipInfo"
       >
         <!-- Tab header  -->
         <IconInline

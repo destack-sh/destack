@@ -16,9 +16,20 @@ const DEFAULT_WIDTH = 280;
 const MAX_HEIGHT = 360;
 
 const props = defineProps<
-  { self?: TypedNodeReferenceData<NodeType.VIEW>; modelValue?: any } & Pick<
-    ViewData,
-    "title" | "text" | "icon" | "valuePacked" | "valueType" | "variant" | "isInput" | "isInline" | "isDisabled"
+  { self?: TypedNodeReferenceData<NodeType.VIEW>; modelValue?: any } & Partial<
+    Pick<
+      ViewData,
+      | "name"
+      | "title"
+      | "text"
+      | "icon"
+      | "valuePacked"
+      | "valueType"
+      | "variant"
+      | "isInput"
+      | "isInline"
+      | "isDisabled"
+    >
   >
 >();
 const emit = defineEmits(viewEmits());
@@ -149,7 +160,8 @@ defineExpose<ViewExposed>({ self, id, variants: [Variant.PRIMARY, Variant.COMPAC
         <div v-if="results.length < resultsTotal" class="my-1 max-w-full px-3 pb-2 text-gray-500">
           <i class="fas fas fa-ellipsis" />
           <span class="ml-2">
-            <span class="font-semibold">{{ resultsTotal - results.length }}</span> more results for
+            <span class="font-semibold">{{ resultsTotal - results.length }}</span> more results
+            <template v-if="query.length > 0">for </template>
             <span class="truncate font-semibold">{{ query }}</span>
             (showing {{ results.length }})
           </span>

@@ -150,8 +150,10 @@ class Block(Node, HasValues):
     is_intrinsic: bool = p_system(60, default=False)  # provided by the system
     is_page: bool = p_regular(61, default=False)  # on its own page
     is_protocol: bool = p_regular(62, default=False)  # defines a protocol
+    is_template: bool = p_regular(63, default=False)  # mark as template
     # paused_at acts like a flag (see setter/getter below)
     paused_at: datetime | None = p_internal(66, default=None)  # triggers <=block are paused
+
     # is_method? (bound to instances of parent)
     # is_unique? (by name in parent module)
     # is_frozen? (read-only in instances of template)

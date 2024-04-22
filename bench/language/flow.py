@@ -30,6 +30,8 @@ class StepType(IdEnum):
     BRANCH = 30
     FILTER = 31
     LOOP = 32
+    # organizational
+    GROUP = 40
 
 
 @struct(StructType.STEP_CONNECTION)

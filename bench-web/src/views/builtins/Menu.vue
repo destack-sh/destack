@@ -174,7 +174,7 @@ const { placement: nestedPlacement } = useFloating({
   floating: activeNestedItemRef,
   reference: computed(() => itemRefs.value[activeNestedItemIdx.value ?? 0]),
   isEnabled: computed(() => activeNestedItemIdx.value != null && activeNestedItemRef.value != null),
-  options: { placement: "right-top", referenceMargin: 8, referenceOffset: { x: 0, y: -7 } },
+  options: { placement: "right-top", referenceMargin: 8, offset: { x: 0, y: -7 } },
 });
 
 defineExpose({ focus, clear, query });

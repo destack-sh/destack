@@ -352,7 +352,6 @@ defineExpose<ViewExposed>({ self, actions, focus });
                   placement: 'bottom',
                   referenceMargin: 4,
                   props: {
-                    isInline: true,
                     valueType: makeTypeInfo({
                       benchType: BenchType.BLOCK_TYPE,
                       isRequired: true,
@@ -394,10 +393,9 @@ defineExpose<ViewExposed>({ self, actions, focus });
                   return {
                     kind: 'menu',
                     placement: 'bottom-right',
-                    items: menuActionsLike(
-                      ['common.edit.*', 'common.create.above', 'common.create.below', 'common.block.*'],
-                      { context: { triggerNode: blockPtr } },
-                    ),
+                    items: menuActionsLike(['common.edit.*', 'common.create.above', 'common.create.below', 'block.*'], {
+                      context: { triggerNode: blockPtr },
+                    }),
                   };
                 }
               "

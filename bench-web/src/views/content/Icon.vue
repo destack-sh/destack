@@ -9,15 +9,15 @@ import Scroll from "@/views/containers/Scroll.vue";
 import { IconInline, makeIcon, metadataToIcon, type IconMetadata } from "@/system/icon";
 import { ScrollbarWidth } from "@/utils/layout";
 import { iconIndex, useSearch, type IconItem, type SearchIndex } from "@/system/search";
+import type { TooltipInfo } from "@/utils/tooltip";
 
 const DEFAULT_WIDTH = 380;
 const MAX_HEIGHT = 280;
 const ITEMS_PER_ROW = 10;
 
 const props = defineProps<
-  { self?: TypedNodeReferenceData<NodeType.VIEW>; modelValue?: IconData } & Pick<
-    ViewData,
-    "title" | "text" | "icon" | "variant" | "isInput" | "isInline" | "isDisabled"
+  { self?: TypedNodeReferenceData<NodeType.VIEW>; modelValue?: IconData } & Partial<
+    Pick<ViewData, "name" | "title" | "text" | "icon" | "variant" | "isInput" | "isInline" | "isDisabled">
   >
 >();
 const emit = defineEmits(viewEmits());
@@ -37,7 +37,7 @@ const { results, resultsTotal } = useSearch<IconItem>({
   query,
   indices,
   isEnabled: computed(() => props.isInline),
-  options: { highlight: false, maxResults: 32 * ITEMS_PER_ROW },
+  options: { outOfOrder: 0, highlight: false, maxResults: 32 * ITEMS_PER_ROW },
 });
 
 // auto-select best match when searching
@@ -117,6 +117,15 @@ defineExpose<ViewExposed>({ self, id, focus });
               role="menuitem"
               :data-selected="item.faName == modelValue?.faName"
               :data-active="item.id === activeResultId"
+              v-tooltip="
+                {
+                  isEnabled: results[i] != null,
+                  title: () => results[i]?.title /* results[i] because 'item' is captured once and never updated */,
+                  showDelay: 200,
+                  hideDelay: 100,
+                  small: true,
+                } as TooltipInfo
+              "
               @click.stop.prevent="fire(item)"
             />
           </template>
@@ -126,7 +135,8 @@ defineExpose<ViewExposed>({ self, id, focus });
         <div v-if="results.length < resultsTotal" class="my-1 max-w-full px-3 pb-2 text-gray-500">
           <i class="fas fas fa-ellipsis" />
           <span class="ml-2">
-            <span class="font-semibold">{{ resultsTotal - results.length }}</span> more results for
+            <span class="font-semibold">{{ resultsTotal - results.length }}</span> more results
+            <template v-if="query.length > 0">for </template>
             <span class="truncate font-semibold">{{ query }}</span>
             (showing {{ results.length }})
           </span>

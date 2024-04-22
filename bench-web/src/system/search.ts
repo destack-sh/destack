@@ -47,9 +47,9 @@ export type SearchIndex<T extends SearchItem> = {
 
 export type SearchOptions = {
   /** Term permutations */
-  outOfOrder?: number;
   maxResults?: number;
   highlight?: boolean;
+  outOfOrder?: number;
 };
 
 const DEFAULT_SEARCH_OPTIONS: Required<SearchOptions> = {
@@ -234,11 +234,8 @@ export function useSearch<T extends SearchItem>(search: {
     }
 
     // search
-    const [idxs, info, order] = uf.search(
-      candidates.map((c) => getIndexedStr(c).str),
-      search.query.value,
-      options.outOfOrder,
-    );
+    const haystack = candidates.map((c) => getIndexedStr(c).str);
+    const [idxs, info, order] = uf.search(haystack, search.query.value, options.outOfOrder, candidates.length);
     // collect
     if (idxs && order) {
       const results: SearchResult[] = [];

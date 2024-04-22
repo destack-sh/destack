@@ -33,6 +33,7 @@ defineExpose<ViewExposed>({ self, id });
 </script>
 <template>
   <div v-if="field">
+		<!-- nocheckin: Field -->
     {{ field.name }}
   </div>
   <Inaccessible v-else class="bg-white" :node="nodePtr" :is-connected="pkgConnection.isConnected.value" />

@@ -20,8 +20,11 @@ const COMPONENT_BY_VIEW_TYPE_LAZY = {
   [ViewType.BENCH_WIZARD]: import("@/views/kernel/BenchWizard.vue"),
 
   // system
+  // nodes
   [ViewType.PAGE]: import("@/views/system/Page.vue"),
   [ViewType.BLOCK]: import("@/views/system/Block.vue"),
+  [ViewType.FIELD]: import("@/views/system/Field.vue"),
+  // helpers
   [ViewType.MOCK]: import("@/views/system/Mock.vue"),
   [ViewType.EXPLORE]: import("@/views/system/Explore.vue"),
   [ViewType.OUTLINE]: import("@/views/system/Explore.vue"), // shared with Explore

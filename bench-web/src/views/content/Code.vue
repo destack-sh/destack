@@ -20,9 +20,8 @@ import { autocompletion } from "@codemirror/autocomplete";
 import { Casing, toCasing } from "@/utils/string";
 
 const props = defineProps<
-  { self?: TypedNodeReferenceData<NodeType.VIEW>; modelValue?: CodeData } & Pick<
-    ViewData,
-    "title" | "icon" | "variant" | "nodePtr" | "isInput"
+  { self?: TypedNodeReferenceData<NodeType.VIEW>; modelValue?: CodeData } & Partial<
+    Pick<ViewData, "name" | "title" | "icon" | "variant" | "nodePtr" | "isInput">
   >
 >();
 const emit = defineEmits(viewEmits());
