@@ -80,16 +80,12 @@ defineExpose<ViewExposed>({ self, id, variants: [Variant.PRIMARY, Variant.STEALT
     v-if="block"
     class="group/block relative rounded bg-white px-2 py-1.5"
     :class="[
-      variant != Variant.STEALTH
-        ? 'border'
-        : nodePtr?.id == inspectionPtr?.id
-          ? 'border-primary-900'
-          : 'border-gray-200 hover:border-gray-400',
+      variant != Variant.STEALTH ? 'border' : '',
+      nodePtr?.id == inspectionPtr?.id ? 'border-primary-900' : 'border-gray-200 hover:border-gray-400',
     ]"
   >
     <!-- Header -->
     <!-- TODO: :UX: the floating headers are intended to make simple text blocks less obtrusive.. not great yet -->
-    <!-- (floats into border if just a thin wrapper) -->
     <div :class="[isThinTextWrapper ? 'absolute -top-2.5 left-2 bg-white px-0.5' : '']">
       <!-- Icon/Name (also drag handle if container is not already draggable) -->
       <span

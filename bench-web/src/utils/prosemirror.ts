@@ -194,19 +194,24 @@ export const PM_INPUT_RULES: InputRule[] = [
 /* Convert non-plain text nodes to plain text nodes when deleting */
 function convertToPlainBeforeDelete(state: EditorState, dispatch?: (tr: PmTransaction) => void) {
   const { $from, $to } = state.selection;
-  if (!dispatch) return false;
-  else if ($from.node().type.name !== "linePlain" && $from.parentOffset === 0 && $to.pos === $from.end()) {
-    // conver to plain
+  if (!dispatch) {
+    return false;
+  } else if (
+    $from.node().type.name !== "linePlain" &&
+    $from.parentOffset === 0 &&
+    $from.start() == $from.end() &&
+    $to.pos === $from.end()
+  ) {
+    // convert to plain
     dispatch(state.tr.setBlockType($from.pos, $to.pos, state.schema.nodes.linePlain, { type: TextLineType.PLAIN }));
     return true;
   } else {
     // imitate default behavior
-    commands.chainCommands(
+    return commands.chainCommands(
       commands.deleteSelection,
       commands.joinBackward,
       commands.selectNodeBackward,
     )(state, dispatch);
-    return true;
   }
 }
 
