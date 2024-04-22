@@ -322,7 +322,7 @@ export class ViewCanvas {
     const rootViewIdx = viewAncestors.findIndex((v) => ROOT_VIEW_TYPES.has(v.type));
     const baseNodePtr = viewAncestors[rootViewIdx - 1]?.nodePtr;
     if (inspectionPtr.value?.id != nodePtr.id || inspectionBasePtr.value?.id != baseNodePtr?.id) {
-      const space = this.graph.getOrFail(this.spacePtr.value!);
+      const space = this.graph.getOrError(this.spacePtr.value!);
       tx.updateDebounced(space, { inspectionPtr: nodePtr, basePtr: baseNodePtr });
     }
 
@@ -644,7 +644,7 @@ export class ViewCanvas {
       if (parent == null) {
         // no parent at all, reset space
         log.info("canvas.repairCanvas", this.spacePtr.value);
-        const space = this.graph.getOrFail(this.spacePtr.value!);
+        const space = this.graph.getOrError(this.spacePtr.value!);
         parent = setupEmptyCanvas(tx, space).primary;
       }
 
@@ -1087,7 +1087,7 @@ export function useExpansion(options: {
   const expansion = computed(() => selfNode.value?.expansion);
 
   function toggleExpanded(node: AnyNodeData | AnyNodeReferenceData) {
-    const selfNode = options.graph.getOrFail(options.self.value) as ViewData;
+    const selfNode = options.graph.getOrError(options.self.value) as ViewData;
     if (isExpanded(node)) {
       options.connection.tx.updateDebounced(selfNode, {
         expansion: collapseSelection(selfNode.expansion!, [node]),

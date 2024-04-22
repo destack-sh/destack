@@ -11,7 +11,7 @@ from bench.utils.utils import frozendict
 if typing.TYPE_CHECKING:
     from bench.language import Session, Transaction
 
-VERSION = "2024.04.22.1"
+VERSION = "2024.04.22.3"
 UNSET = object()
 EMPTY_LIST: list = []
 EMPTY_SET: frozenset = frozenset()
@@ -73,6 +73,7 @@ class EnumType(IdEnum):
     # type
     PRIMITIVE_TYPE = 2080
     FORMAT_HINT = 2081
+    FIELD_KIND = 2082
 
     # text
     TEXT_LINE_TYPE = 2090

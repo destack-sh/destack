@@ -156,7 +156,7 @@ function focus(anchor: "next" | "previous" | number | FocusAnchor | NodeReferenc
 
 function doFocus(node: AnyNodeData | NodeReferenceData) {
   if (focusedNode.value?.id != node.id) {
-    const selfNode = spaceGraph.getOrFail(self.value) as ViewData;
+    const selfNode = spaceGraph.getOrError(self.value) as ViewData;
     spaceConnection.tx.updateDebounced(selfNode, { focus: makeSelection([node]) });
   }
   queryRef.value?.focus();
@@ -223,7 +223,7 @@ const { activeDropZone } = useMultiDropZone({
   },
   onDrop: (dragged, anchor, targetId) => {
     if (targetId != null && dragged.kind == "node") {
-      const target = inspectedGraph.getOrFail({ id: targetId });
+      const target = inspectedGraph.getOrError({ id: targetId });
       moveNode(inspectedConnection.tx, inspectedGraph, dragged.node, anchor, target);
     }
   },
@@ -315,7 +315,7 @@ defineExpose<ViewExposed>({ self, actions, focus });
         role="treeitem"
         @click.stop="fire(node)"
         :draggable="true"
-        @dragstart="(e: DragEvent) => startDragging(e, inspectedGraph, node)"
+        @dragstart.stop="(e: DragEvent) => startDragging(e, inspectedGraph, node)"
         v-contextmenu="
           (context: MenuContext): OverlayMenuInfo => {
             doFocus(node);

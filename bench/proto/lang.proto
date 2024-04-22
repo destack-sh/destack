@@ -172,6 +172,7 @@ enum BenchType {
   BENCH_TYPE_SCHEDULE_TYPE = 2071;
   BENCH_TYPE_PRIMITIVE_TYPE = 2080;
   BENCH_TYPE_FORMAT_HINT = 2081;
+  BENCH_TYPE_FIELD_KIND = 2082;
   BENCH_TYPE_TEXT_LINE_TYPE = 2090;
   BENCH_TYPE_FILE_STATUS = 2100;
   BENCH_TYPE_FILE_RETENTION_MODE = 2101;
@@ -340,6 +341,7 @@ enum EnumType {
   ENUM_TYPE_SCHEDULE_TYPE = 2071;
   ENUM_TYPE_PRIMITIVE_TYPE = 2080;
   ENUM_TYPE_FORMAT_HINT = 2081;
+  ENUM_TYPE_FIELD_KIND = 2082;
   ENUM_TYPE_TEXT_LINE_TYPE = 2090;
   ENUM_TYPE_FILE_STATUS = 2100;
   ENUM_TYPE_FILE_RETENTION_MODE = 2101;
@@ -412,6 +414,15 @@ enum ExpressionOp {
   EXPRESSION_OP_HISTOGRAM = 107;
   EXPRESSION_OP_ASCENDING = 200;
   EXPRESSION_OP_DESCENDING = 201;
+}
+
+enum FieldKind {
+  FIELD_KIND_UNSPECIFIED = 0;
+  FIELD_KIND_VARIABLE = 1;
+  FIELD_KIND_MEMBER = 2;
+  FIELD_KIND_INPUT = 3;
+  FIELD_KIND_OUTPUT = 4;
+  FIELD_KIND_OPTION = 5;
 }
 
 enum FileRetentionMode {
@@ -1025,6 +1036,9 @@ enum ViewType {
   VIEW_TYPE_SCREEN = 105;
   VIEW_TYPE_FLOW = 106;
   VIEW_TYPE_STEP = 107;
+  VIEW_TYPE_CLASS = 108;
+  VIEW_TYPE_CHOICE = 109;
+  VIEW_TYPE_VARIABLE = 110;
   VIEW_TYPE_EXPLORE = 150;
   VIEW_TYPE_OUTLINE = 151;
   VIEW_TYPE_INSPECT = 153;
@@ -1606,7 +1620,7 @@ message TextSpanData {
   optional bool is_code = 64;
 }
 
-// TypeInfo(id: Optional[int] = <factory>, parent: Union[ForwardRef('Struct'), ForwardRef('Node'), ForwardRef('Value'), NoneType] = None, order_key: str | None = None, set_properties: list[int] = <factory>, _status: bench.language.const.InterpStatus = None, _updated_properties: bitarray.bitarray | None = None, primitive_type: Optional[bench.language.const.PrimitiveType] = None, bench_type: Optional[bench.utils.func.BenchType] = None, base_type: Optional[ForwardRef('Block')] = None, visibility: bench.language.const.NodeVisibility = <NodeVisibility.ALL: 10>, format_hint: Optional[bench.language.const.FormatHint] = None, condition: Optional[ForwardRef('Expression')] = None, length: Optional[int] = None, precision: Optional[int] = None, scale: Optional[int] = None, default_packed: Optional[Any] = None, default: None = None, is_list: bool = False, is_required: bool = False, is_secret: bool = False, _fields: tuple['Field', ...] | None = None, _resolved_type: Optional[ForwardRef('TypeInfo')] = None, parent_id: int = None, parent_key: str = None, base_type_ptr: 'NodeReference' = None)
+// TypeInfo(id: Optional[int] = <factory>, parent: Union[ForwardRef('Struct'), ForwardRef('Node'), ForwardRef('Value'), NoneType] = None, order_key: str | None = None, set_properties: list[int] = <factory>, _status: bench.language.const.InterpStatus = None, _updated_properties: bitarray.bitarray | None = None, primitive_type: Optional[bench.language.const.PrimitiveType] = None, bench_type: Optional[bench.utils.func.BenchType] = None, base_type: Optional[ForwardRef('Block')] = None, visibility: Optional[bench.language.const.NodeVisibility] = None, format_hint: Optional[bench.language.const.FormatHint] = None, condition: Optional[ForwardRef('Expression')] = None, length: Optional[int] = None, precision: Optional[int] = None, scale: Optional[int] = None, default_packed: Optional[Any] = None, default: None = None, is_list: bool = False, is_required: bool = False, is_secret: bool = False, _fields: tuple['Field', ...] | None = None, _resolved_type: Optional[ForwardRef('TypeInfo')] = None, parent_id: int = None, parent_key: str = None, base_type_ptr: 'NodeReference' = None)
 message TypeInfoData {
   ObjectType metatype = 1;
   optional int32 id = 2;
@@ -1617,7 +1631,7 @@ message TypeInfoData {
   optional PrimitiveType primitive_type = 40;
   optional BenchType bench_type = 41;
   optional NodeReferenceData base_type_ptr = 42;
-  NodeVisibility visibility = 43;
+  optional NodeVisibility visibility = 43;
   optional FormatHint format_hint = 44;
   optional ExpressionData condition = 45;
   optional int32 length = 46;
@@ -1903,10 +1917,11 @@ message FieldData {
   optional TextData text = 33;
   optional IconData icon = 34;
   optional google.protobuf.Struct value_packed = 35;
+  FieldKind kind = 36;
   optional PrimitiveType primitive_type = 40;
   optional BenchType bench_type = 41;
   optional NodeReferenceData base_type_ptr = 42;
-  NodeVisibility visibility = 43;
+  optional NodeVisibility visibility = 43;
   optional FormatHint format_hint = 44;
   optional ExpressionData condition = 45;
   optional int32 length = 46;
@@ -1916,9 +1931,6 @@ message FieldData {
   bool is_list = 54;
   bool is_required = 55;
   bool is_secret = 56;
-  bool is_input = 60;
-  bool is_output = 61;
-  bool is_option = 62;
 }
 
 // (A pointer to) the actual file stored in a Drive. De-duped to 1 per sha512.

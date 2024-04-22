@@ -2,6 +2,7 @@ import {
   BlockData,
   BlockType,
   EnumType,
+  FieldKind,
   NodeType,
   ObjectType,
   ViewType,
@@ -1086,10 +1087,26 @@ contributeActionMap<"developer">({
       if (!isNode(block, NodeType.BLOCK)) return false;
       for (let i = 0; i < 5; i++) {
         const name = generateRandomName();
+        let kind: FieldKind;
+        if (block.type == BlockType.CLASS) {
+          kind = FieldKind.MEMBER;
+        } else if (block.type == BlockType.CHOICE) {
+          kind = FieldKind.OPTION;
+        } else {
+          kind = getRandomEnumOption(EnumType.FIELD_KIND);
+        }
+        const existingChildren = pkgGraph.getChildren(block, NodeType.FIELD);
         const field = tx.create({
           metatype: NodeType.FIELD,
           parentPtr: toNodeReference(block),
           packagePtr: packagePtr.value!,
+          name,
+          kind,
+          benchType: getRandomEnumOption(EnumType.BENCH_TYPE),
+          isList: Math.random() > 0.5,
+          isRequired: Math.random() > 0.4,
+          isSecret: Math.random() > 0.8,
+          orderKey: generateOrderKey((existingChildren[existingChildren.length - 1] as any)?.orderKey ?? null, null),
         });
       }
     },

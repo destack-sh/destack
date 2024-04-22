@@ -65,14 +65,14 @@ export function startDragging(
         id: uuidt(),
         kind: "node",
         node: data as NodeReferenceData,
-        nodes: [graph.getOrFail(data as NodeReferenceData)],
+        nodes: [graph.getOrError(data as NodeReferenceData)],
       };
     } else if (data.metatype == ObjectType.SELECTION) {
       dragged = {
         id: uuidt(),
         kind: "selection",
         selection: data as SelectionData,
-        nodes: (data as SelectionData).nodesPtr.map((n) => graph.getOrFail(n)),
+        nodes: (data as SelectionData).nodesPtr.map((n) => graph.getOrError(n)),
       };
     } else {
       dragged = {
@@ -107,8 +107,11 @@ function getDraggedData(event: DragEvent): DraggedData | null {
     ?.split(".")
     .pop();
   if (draggedId != null) {
-    if (activeDragged.value?.id == draggedId) return activeDragged.value;
-    else log.warn("drag.notFound", draggedId, activeDragged);
+    if (activeDragged.value?.id == draggedId) {
+      return activeDragged.value;
+    } else {
+      log.warn("drag.notFound", draggedId, activeDragged);
+    }
   }
 
   // might be a file drop

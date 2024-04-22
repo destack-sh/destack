@@ -2,7 +2,7 @@
  * Many constants are generated into proto/wire, here some additional ones.
  */
 
-import type { AnyStructData, EnumTypeMapping } from "@/proto/wire";
+import type { AnyStructData, BlockData, EnumTypeMapping } from "@/proto/wire";
 import {
   BlockType,
   ENUM_BY_TYPE,
@@ -19,9 +19,11 @@ import {
   ViewType,
   type AnyNodeData,
 } from "@/proto/wire";
+import { isNode, type TypedNodeReferenceData } from "@/proto/wiring";
+import { makeNodeName, type ReadNodeGraph } from "@/system/graph";
 import { ENUM_ICONS_BY_TYPE } from "@/system/icon";
 import type { Transaction } from "@/system/transaction";
-import { generateOrderKeys, generateOrderKey, isValidOrderKey } from "@/utils/fractional";
+import { generateOrderKeys, generateOrderKey, isValidOrderKey, INTEGER_ZERO } from "@/utils/fractional";
 import { Casing, toCasing } from "@/utils/string";
 import { AVAILABLE_VIEW_TYPES } from "@/views";
 
@@ -272,4 +274,26 @@ export function getEnumOptions<T extends EnumType>(enumType: T): EnumOption<T>[]
 export function getRandomEnumOption<T extends EnumType>(enumType: T): EnumTypeMapping[T] {
   const options = getEnumOptions(enumType);
   return options[Math.floor(Math.random() * options.length)].value;
+}
+
+export function createBlock(
+  tx: Transaction,
+  graph: ReadNodeGraph,
+  blockIn: { type: BlockType; isPage?: boolean; isProtocol?: boolean },
+  anchor: "before" | "after",
+  targetPtr: BlockData | TypedNodeReferenceData<NodeType.BLOCK>,
+) {
+  const target = isNode(targetPtr) ? targetPtr : graph.getOrError(targetPtr);
+  const siblings = graph.getChildren(target.parentPtr!, NodeType.BLOCK);
+  const block = tx.create({
+    metatype: NodeType.BLOCK,
+    parentPtr: target.parentPtr,
+    packagePtr: target.packagePtr,
+    type: blockIn.type,
+    isPage: blockIn.isPage || blockIn.type == BlockType.PAGE,
+    isProtocol: blockIn.isProtocol || blockIn.type == BlockType.PROTOCOL,
+    orderKey: getOrderKey({ position: anchor, reference: target, nodes: siblings }),
+    name: makeNodeName(graph, { metatype: ObjectType.BLOCK, type: blockIn.type, parentPtr: target.parentPtr }),
+  });
+  return block;
 }

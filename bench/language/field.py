@@ -7,10 +7,12 @@ from bench.language.const import (
     BenchError,
     BenchType,
     BlockType,
+    EnumType,
     FormatHint,
     NodeType,
     NodeVisibility,
     StructType,
+    enum_,
 )
 from bench.language.expression import _TypeQueryBuilder
 from bench.language.node import Node, NodeList, node, struct, struct_component
@@ -28,6 +30,7 @@ from bench.language.value import HasValues
 from bench.sql.core import PrimitiveType
 from bench.utils.casing import IdentifierType
 from bench.utils.fractional import INTEGER_ZERO
+from bench.utils.func import IdEnum
 
 if typing.TYPE_CHECKING:
     from bench.language import Block, Expression, Icon, Step, Text
@@ -130,7 +133,7 @@ class TypeInfoBase(HasValues):
     )
 
     # + bonus info/constraints
-    visibility: NodeVisibility = p_regular(43, default=NodeVisibility.ALL)
+    visibility: Optional[NodeVisibility] = p_regular(43, default=None)
     format_hint: Optional[FormatHint] = p_regular(44, default=None)
     condition: Optional["Expression"] = p_regular(
         45, require=False, array=False, default=None, struct=StructType.EXPRESSION
@@ -215,6 +218,15 @@ class TypeInfo(TypeInfoBase):
     pass
 
 
+@enum_(EnumType.FIELD_KIND)
+class FieldKind(IdEnum):
+    VARIABLE = 1
+    MEMBER = 2
+    INPUT = 3
+    OUTPUT = 4
+    OPTION = 5
+
+
 @node(NodeType.FIELD)
 class Field(Node, TypeInfoBase, _TypeQueryBuilder):
     """
@@ -231,15 +243,13 @@ class Field(Node, TypeInfoBase, _TypeQueryBuilder):
     icon: Optional["Icon"] = p_regular(34, require=False, array=False, struct=StructType.ICON)
     value_packed: Any | None = p_value_packed(35)
     value = p_value_runtime(35)
+    kind: FieldKind = p_regular(36, default=FieldKind.VARIABLE)
 
     # type identity
     # ...TypeInfo
     # ...literal_value? (for options)
 
     # field-only flags
-    is_input: bool = p_regular(60, default=False)
-    is_output: bool = p_regular(61, default=False)
-    is_option: bool = p_internal(62, default=False)  # a 'literal' option (for Choice types)
     # is_indexed: bool = ... # for database fields
     # is_unique: bool = ... # for database fields
     # is_context: bool = ... # for variable fields (contribute to Context)
@@ -249,10 +259,8 @@ class Field(Node, TypeInfoBase, _TypeQueryBuilder):
     def __content_str__(self) -> str:
         if self.base_type is not None:
             info_str = self.base_type.absolute_path
-        elif self.node_type is not None:
-            info_str = self.node_type.bench_name
-        elif self.struct_type is not None:
-            info_str = self.struct_type.bench_name
+        elif self.bench_type is not None:
+            info_str = self.bench_type.bench_name
         elif self.primitive_type is not None:
             info_str = self.primitive_type.name
         else:

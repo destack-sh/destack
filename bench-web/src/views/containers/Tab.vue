@@ -200,7 +200,7 @@ defineExpose<ViewExposed>({ self, actions });
         ]"
         @click="focus(tab)"
         :draggable="true"
-        @dragstart="(e: DragEvent) => startDragging(e, spaceGraph, tab)"
+        @dragstart.stop="(e: DragEvent) => startDragging(e, spaceGraph, tab)"
         v-contextmenu="
           (context: MenuContext): OverlayMenuInfo => {
             context = { ...context, triggerNode: tab };
