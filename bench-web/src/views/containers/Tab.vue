@@ -217,7 +217,7 @@ defineExpose<ViewExposed>({ self, actions });
         <!-- Tab header  -->
         <IconInline
           v-bind="tab.icon ?? ICON_BY_VIEW_TYPE[tab.type] ?? ICON_BY_NODE_TYPE[NodeType.VIEW]"
-          class="mr-1.5"
+          class="mr-1.5 w-5"
           :class="i == focusedTabIdx ? '' : ' group-hover:text-primary-900'"
         />
         <span class="truncate" :class="[tab.title ? '' : 'italic']">{{ tab.title ?? tab.name }}</span>

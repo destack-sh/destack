@@ -192,18 +192,25 @@ export const PM_INPUT_RULES: InputRule[] = [
 ];
 
 /* Convert non-plain text nodes to plain text nodes when deleting */
-function convertHeadingToParagraph(state: EditorState, dispatch?: (tr: PmTransaction) => void) {
+function convertToPlainBeforeDelete(state: EditorState, dispatch?: (tr: PmTransaction) => void) {
   const { $from, $to } = state.selection;
-  if ($from.node().type.name !== "linePlain" && $from.parentOffset === 0 && $to.pos === $from.end()) {
-    if (dispatch) {
-      dispatch(state.tr.setBlockType($from.pos, $to.pos, state.schema.nodes.linePlain, { type: TextLineType.PLAIN }));
-    }
+  if (!dispatch) return false;
+  else if ($from.node().type.name !== "linePlain" && $from.parentOffset === 0 && $to.pos === $from.end()) {
+    // conver to plain
+    dispatch(state.tr.setBlockType($from.pos, $to.pos, state.schema.nodes.linePlain, { type: TextLineType.PLAIN }));
+    return true;
+  } else {
+    // imitate default behavior
+    commands.chainCommands(
+      commands.deleteSelection,
+      commands.joinBackward,
+      commands.selectNodeBackward,
+    )(state, dispatch);
     return true;
   }
-  return false;
 }
 
 // Keymap integration
 export const PM_KEYMAP_EXTRA = {
-  Backspace: convertHeadingToParagraph,
+  Backspace: convertToPlainBeforeDelete,
 };

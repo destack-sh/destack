@@ -352,7 +352,7 @@ defineExpose<ViewExposed>({ self, actions, focus });
         <!-- Icon / title -->
         <IconInline
           v-bind="(node as any).icon ?? getNodeIcon(node)"
-          class="mr-1.5"
+          class="mr-1.5 w-5"
           :class="[
             isFocusedAbsolute(node) ? 'text-primary-900' : 'text-gray-600 group-hover:text-primary-900',
             hasChildren ? '' : 'ml-6',

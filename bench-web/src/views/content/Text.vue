@@ -147,6 +147,7 @@ class MentionView implements PmNodeView {
     this.nameDom.classList.add("name");
     this.nameDom.textContent = "???";
 
+    // go to mention on alt-click
     this.dom.addEventListener("click", () => {
       if (IS_IN_ALT_MODE.value) {
         canvas.goToNode(pmNode.attrs.nodePtr);
@@ -159,8 +160,7 @@ class MentionView implements PmNodeView {
 
   updateNode(node: AnyNodeData) {
     const icon = getNodeIcon(node);
-    this.iconDom.className = "";
-    this.iconDom.classList.add("icon", ...(icon?.faName?.split(" ") ?? ["fas", "fa-question"]));
+    this.iconDom.className = icon?.faName != null ? `icon ${icon.faName}` : "icon fa fa-question";
     this.nameDom.textContent = (node as any).name ?? "???";
   }
 }
@@ -170,9 +170,9 @@ watch(mentions, () => {
   if (view == null) return;
   view.dom.querySelectorAll(".mention").forEach((mentionDom) => {
     if (!(mentionDom instanceof HTMLElement)) return;
-    const node = resolveMention({ id: mentionDom.dataset.id!, ck: mentionDom.dataset.ck });
-    if (node == null) return;
+    const node = resolveMention({ id: mentionDom.dataset.nodeId!, ck: mentionDom.dataset.nodeCk });
     const pmView = (mentionDom as any).__pmView as MentionView;
+    if (node == null || pmView == null) return;
     pmView.updateNode(node);
   });
 });
