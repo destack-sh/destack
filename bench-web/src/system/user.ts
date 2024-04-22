@@ -33,7 +33,7 @@ export const { graph: userGraph, connection: userConnection } = useGetConnection
       descendantTypes: [NodeType.CLIENT],
       includePropertiesPtr: [propertyReference(ObjectType.USER, UserProperty.email)],
     },
-    enabled: isAuthenticated.value,
+    isEnabled: isAuthenticated.value,
   })),
 );
 export const user = userGraph.getRef(

@@ -177,23 +177,34 @@ export class Keytrap {
   bind(
     signature: KeySignature | ParsedKeySignature | Array<KeySignature | ParsedKeySignature>,
     callback: KeymapCallback,
-    opaque: unknown = undefined,
+    options?: { key?: string; replace?: boolean },
   ): () => void {
     const signatures = Array.isArray(signature) ? signature : [signature];
     const parsedSignatures: ParsedKeySignature[] = [];
     for (const signature of signatures) {
       // normalize
       const parsed = typeof signature == "string" ? parseKeymapSignature(signature) : signature;
-      const binding = { signature: renderKeymapSignature(parsed), parsedSignature: parsed, callback, opaque };
+      const binding = {
+        signature: renderKeymapSignature(parsed),
+        parsedSignature: parsed,
+        callback,
+        opaque: options?.key,
+      };
       if (parsed.chords.length != 1) throw new Error("only :SingleChord is supported for now");
       parsedSignatures.push(parsed);
 
       // bind
       const existing = this.bindings[binding.signature];
-      if (existing)
-        throw new Error(
-          `${binding.signature} already bound: ${existing.opaque ?? existing.callback} vs ${opaque ?? callback}`,
-        );
+      if (existing) {
+        if (options?.replace) {
+          delete this.bindings[binding.signature];
+          delete this.bindingsByChord[renderChord(parsed.chords[0])]; // :SingleChord
+        } else {
+          throw new Error(
+            `${binding.signature} already bound: ${existing.opaque ?? existing.callback} vs ${options?.key ?? callback}`,
+          );
+        }
+      }
       this.bindings[binding.signature] = binding;
       this.bindingsByChord[renderChord(parsed.chords[0])] = binding; // :SingleChord
     }
@@ -209,9 +220,10 @@ export class Keytrap {
 
       // unbind
       const binding = this.bindings[key];
-      if (binding == null) throw new Error(`keymap signature ${key} not bound`);
-      delete this.bindings[key];
-      delete this.bindingsByChord[renderChord(parsed.chords[0])]; // :SingleChord
+      if (binding != null) {
+        delete this.bindings[key];
+        delete this.bindingsByChord[renderChord(parsed.chords[0])]; // :SingleChord
+      }
     }
   }
 }

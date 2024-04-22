@@ -142,6 +142,7 @@ defineExpose<ViewExposed>({ self, id, variants: [Variant.PRIMARY, Variant.STEALT
         </span>
       </span>
       <!-- Tags, triggers, roles, queries, etc. -->
+      <!-- ... -->
     </div>
     <!-- Body -->
     <div class="py-1">

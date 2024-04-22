@@ -46,15 +46,15 @@ export const {
 export const pkg = pkgGraph.getRef(local.packagePtr);
 export const hasLocalPkg = computed(() => pkg.value != null);
 export const hasLocalBench = computed(() => bench.value != null);
-pkgConnection.onError(e => {
+pkgConnection.onError((e) => {
   if (e == "NOT_FOUND" || e == "PERMISSION_DENIED") {
     toaster.error({
       title: "Bench unavailable",
       text: "That Bench is no longer accessible.",
-    })
+    });
     local.clearBench();
   }
-})
+});
 
 // space (local if we don't have a Space in that Bench, otherwise from the current Package)
 export const spaceGraph = new ProxyNodeGraph({ graph: spaceGraphLocal });
