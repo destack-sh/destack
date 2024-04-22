@@ -187,6 +187,7 @@ class BenchType(betterproto.Enum):
     SCHEDULE_TYPE = 2071
     PRIMITIVE_TYPE = 2080
     FORMAT_HINT = 2081
+    FIELD_KIND = 2082
     TEXT_LINE_TYPE = 2090
     FILE_STATUS = 2100
     FILE_RETENTION_MODE = 2101
@@ -358,6 +359,7 @@ class EnumType(betterproto.Enum):
     SCHEDULE_TYPE = 2071
     PRIMITIVE_TYPE = 2080
     FORMAT_HINT = 2081
+    FIELD_KIND = 2082
     TEXT_LINE_TYPE = 2090
     FILE_STATUS = 2100
     FILE_RETENTION_MODE = 2101
@@ -430,6 +432,15 @@ class ExpressionOp(betterproto.Enum):
     HISTOGRAM = 107
     ASCENDING = 200
     DESCENDING = 201
+
+
+class FieldKind(betterproto.Enum):
+    UNSPECIFIED = 0
+    VARIABLE = 1
+    MEMBER = 2
+    INPUT = 3
+    OUTPUT = 4
+    OPTION = 5
 
 
 class FileRetentionMode(betterproto.Enum):
@@ -1064,6 +1075,9 @@ class ViewType(betterproto.Enum):
     SCREEN = 105
     FLOW = 106
     STEP = 107
+    CLASS = 108
+    CHOICE = 109
+    VARIABLE = 110
     EXPLORE = 150
     OUTLINE = 151
     INSPECT = 153
@@ -1770,7 +1784,7 @@ class TextSpanData(betterproto.Message):
 @dataclass(eq=False, repr=False)
 class TypeInfoData(betterproto.Message):
     """
-    TypeInfo(id: Optional[int] = <factory>, parent: Union[ForwardRef('Struct'), ForwardRef('Node'), ForwardRef('Value'), NoneType] = None, order_key: str | None = None, set_properties: list[int] = <factory>, _status: bench.language.const.InterpStatus = None, _updated_properties: bitarray.bitarray | None = None, primitive_type: Optional[bench.language.const.PrimitiveType] = None, bench_type: Optional[bench.utils.func.BenchType] = None, base_type: Optional[ForwardRef('Block')] = None, visibility: bench.language.const.NodeVisibility = <NodeVisibility.ALL: 10>, format_hint: Optional[bench.language.const.FormatHint] = None, condition: Optional[ForwardRef('Expression')] = None, length: Optional[int] = None, precision: Optional[int] = None, scale: Optional[int] = None, default_packed: Optional[Any] = None, default: None = None, is_list: bool = False, is_required: bool = False, is_secret: bool = False, _fields: tuple['Field', ...] | None = None, _resolved_type: Optional[ForwardRef('TypeInfo')] = None, parent_id: int = None, parent_key: str = None, base_type_ptr: 'NodeReference' = None)
+    TypeInfo(id: Optional[int] = <factory>, parent: Union[ForwardRef('Struct'), ForwardRef('Node'), ForwardRef('Value'), NoneType] = None, order_key: str | None = None, set_properties: list[int] = <factory>, _status: bench.language.const.InterpStatus = None, _updated_properties: bitarray.bitarray | None = None, primitive_type: Optional[bench.language.const.PrimitiveType] = None, bench_type: Optional[bench.utils.func.BenchType] = None, base_type: Optional[ForwardRef('Block')] = None, visibility: Optional[bench.language.const.NodeVisibility] = None, format_hint: Optional[bench.language.const.FormatHint] = None, condition: Optional[ForwardRef('Expression')] = None, length: Optional[int] = None, precision: Optional[int] = None, scale: Optional[int] = None, default_packed: Optional[Any] = None, default: None = None, is_list: bool = False, is_required: bool = False, is_secret: bool = False, _fields: tuple['Field', ...] | None = None, _resolved_type: Optional[ForwardRef('TypeInfo')] = None, parent_id: int = None, parent_key: str = None, base_type_ptr: 'NodeReference' = None)
     """
 
     metatype: "ObjectType" = betterproto.enum_field(1)
@@ -1782,7 +1796,7 @@ class TypeInfoData(betterproto.Message):
     primitive_type: Optional["PrimitiveType"] = betterproto.enum_field(40, optional=True)
     bench_type: Optional["BenchType"] = betterproto.enum_field(41, optional=True)
     base_type_ptr: Optional["NodeReferenceData"] = betterproto.message_field(42, optional=True)
-    visibility: "NodeVisibility" = betterproto.enum_field(43)
+    visibility: Optional["NodeVisibility"] = betterproto.enum_field(43, optional=True)
     format_hint: Optional["FormatHint"] = betterproto.enum_field(44, optional=True)
     condition: Optional["ExpressionData"] = betterproto.message_field(45, optional=True)
     length: Optional[int] = betterproto.int32_field(46, optional=True)
@@ -2114,10 +2128,11 @@ class FieldData(betterproto.Message):
     value_packed: Optional["betterproto_lib_google_protobuf.Struct"] = betterproto.message_field(
         35, optional=True
     )
+    kind: "FieldKind" = betterproto.enum_field(36)
     primitive_type: Optional["PrimitiveType"] = betterproto.enum_field(40, optional=True)
     bench_type: Optional["BenchType"] = betterproto.enum_field(41, optional=True)
     base_type_ptr: Optional["NodeReferenceData"] = betterproto.message_field(42, optional=True)
-    visibility: "NodeVisibility" = betterproto.enum_field(43)
+    visibility: Optional["NodeVisibility"] = betterproto.enum_field(43, optional=True)
     format_hint: Optional["FormatHint"] = betterproto.enum_field(44, optional=True)
     condition: Optional["ExpressionData"] = betterproto.message_field(45, optional=True)
     length: Optional[int] = betterproto.int32_field(46, optional=True)
@@ -2129,9 +2144,6 @@ class FieldData(betterproto.Message):
     is_list: bool = betterproto.bool_field(54)
     is_required: bool = betterproto.bool_field(55)
     is_secret: bool = betterproto.bool_field(56)
-    is_input: bool = betterproto.bool_field(60)
-    is_output: bool = betterproto.bool_field(61)
-    is_option: bool = betterproto.bool_field(62)
 
 
 @dataclass(eq=False, repr=False)
@@ -4803,7 +4815,7 @@ class RuntimeBase(ServiceBase):
 
 from typing import TYPE_CHECKING  # noqa: E402
 
-VERSION = "2024.04.22.1"
+VERSION = "2024.04.22.3"
 
 if TYPE_CHECKING:
     from bench.language import Subject

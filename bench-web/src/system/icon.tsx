@@ -39,8 +39,6 @@ export const AVAILABLE_FA_ICONS: IconMetadata[] = _AVAILABLE_FA_ICONS.map((i) =>
   faName: `${i.family} fa-${i.id}`,
 })) as IconMetadata[];
 
-
-
 export const IconInline: FunctionalComponent<Pick<IconData, "emoji" | "file" | "faName">> = (props) => {
   if (props.faName) {
     // font awesome
@@ -190,6 +188,9 @@ export const ICON_BY_VIEW_TYPE: Partial<Record<ViewType, IconData>> = _makeIcons
   [ViewType.OUTLINE]: "fas fa-list-tree",
   [ViewType.INSPECT]: "fas fa-eye",
   [ViewType.CREATE]: "fas fa-plus",
+  [ViewType.CLASS]: "fas fa-objects-column",
+  [ViewType.CHOICE]: "fas fa-circle-chevron-down",
+  [ViewType.VARIABLE]: "fas fa-sliders",
 
   //
   // General

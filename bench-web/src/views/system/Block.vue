@@ -12,7 +12,7 @@ import { onMouseNotPressedOnce } from "@/utils/layout";
 import { menuActionsLike, type OverlayMenuInfo } from "@/utils/menu";
 import type { TooltipInfo } from "@/utils/tooltip";
 import { makeViewId } from "@/views";
-import Class from "@/views/builtins/Class.vue";
+import Class from "@/views/system/Class.vue";
 import Inaccessible from "@/views/builtins/Inaccessible.vue";
 import { viewEmits, type FocusAnchor, type ViewExposed } from "@/views/common";
 import Code from "@/views/content/Code.vue";
@@ -32,6 +32,7 @@ const id = makeViewId(props);
 
 const blockRef = ref<HTMLElement | null>(null);
 const nameRef = ref<HTMLElement | null>(null);
+const textRef: Ref<InstanceType<typeof Text> | null> = ref(null);
 
 const nodePtr = toRef(props, "nodePtr") as Ref<TypedNodeReferenceData<NodeType.BLOCK>>;
 const pkgGetConnection =
@@ -46,13 +47,15 @@ const pkgGetConnection =
   );
 const { graph: pkgGraph, connection: pkgConnection } = pkgGetConnection;
 const block = pkgGraph.getRef(nodePtr, { ignoreAncestors: props.self == null });
+
 const isGeneratedName = computed(
   () =>
     block.value != null &&
     isGeneratedNodeName(block.value.metatype as unknown as NodeType, block.value.type, block.value.name),
 );
 const isThinTextWrapper = computed(() => isGeneratedName.value && block.value?.type == BlockType.TEXT);
-const fields = pkgGraph.getChildrenRef(nodePtr, NodeType.FIELD, { ignoreAncestors: true });
+const hasText = computed(() => block.value?.text != null);
+const forceShowText: Ref<boolean> = ref(false);
 
 //
 // Interaction
@@ -155,6 +158,19 @@ defineExpose<ViewExposed>({ self, id, variants: [Variant.PRIMARY, Variant.STEALT
       <div class="ml-auto pl-2 pr-0.5">
         <!-- Quick actions -->
         <span class="flex flex-row gap-x-0.5">
+          <!-- Add/edit text -->
+          <button
+            v-if="!hasText && block.type != BlockType.TEXT"
+            class="rounded px-1 text-gray-400 hover:bg-gray-100 hover:text-primary-900"
+            @click="
+              () => {
+                forceShowText = true;
+                nextTick(() => textRef?.focus?.('center'));
+              }
+            "
+          >
+            <i class="fas fa-text" />
+          </button>
           <!-- Quick add -->
           <button class="rounded px-1 text-gray-400 hover:bg-gray-100 hover:text-primary-900">
             <i class="fas fa-plus" />
@@ -190,11 +206,11 @@ defineExpose<ViewExposed>({ self, id, variants: [Variant.PRIMARY, Variant.STEALT
         "
         :node="block"
         :prepared-connection="pkgGetConnection"
-        :fields="fields"
-        :is-function="block.type != BlockType.CLASS"
+        :node-ptr="nodePtr"
       />
       <Text
-        v-if="block.type == BlockType.TEXT"
+        ref="textRef"
+        v-if="block.type == BlockType.TEXT || block.text != null || forceShowText"
         is-input
         :variant="Variant.STEALTH"
         :model-value="block.text"

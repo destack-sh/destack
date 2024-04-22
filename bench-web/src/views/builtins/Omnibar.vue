@@ -52,7 +52,7 @@ const indices = computed(() => {
     indices["Package"] = graphIndex({
       graph: pkgGraph,
       metatypes: [NodeType.BLOCK],
-      roots: [pkgGraph.getOrFail(packagePtr.value)],
+      roots: [pkgGraph.getOrError(packagePtr.value)],
       skipDepth: 1,
       maxDepth: isQueryEmpty.value ? 1 : undefined,
     });

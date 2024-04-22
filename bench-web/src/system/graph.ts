@@ -71,7 +71,7 @@ export interface ReadNodeGraph {
   //
 
   /** Gets the current node with that given key (error if not found) */
-  getOrFail<T extends NodeType>(node: NodeKey<T>): NodeTypeMapping[T];
+  getOrError<T extends NodeType>(node: NodeKey<T>): NodeTypeMapping[T];
 
   /** Gets the current node with the key if the key is given */
   getMaybe<T extends NodeType>(key: NodeKey<T> | undefined | null): NodeTypeMapping[T] | null;
@@ -173,7 +173,7 @@ abstract class BaseNodeGraphMixin implements Omit<ReadNodeGraph, "scope" | "isOv
     return `${this.constructor.name}(${rootsStr}, ${this.size} nodes)`;
   }
 
-  getOrFail<T extends NodeType>(key: NodeKey<T>): NodeTypeMapping[T] {
+  getOrError<T extends NodeType>(key: NodeKey<T>): NodeTypeMapping[T] {
     const node = this.get(key);
     if (node == null) throw new Error(`node ${describeNode(key)} not found in ${this.describeSelf()}`);
     return node;
@@ -992,7 +992,7 @@ export function mergeNode<T extends NodeType>(
 /** Resolve the node in the given graph if it's a reference */
 export function resolveNode(graph: ReadNodeGraph, node: AnyNodeData | AnyNodeReferenceData): AnyNodeData {
   return node.metatype == ObjectType.NODE_REFERENCE
-    ? graph.getOrFail(node as NodeReferenceData)
+    ? graph.getOrError(node as NodeReferenceData)
     : (node as AnyNodeData);
 }
 
@@ -1013,7 +1013,7 @@ export function moveNode(
 
   if (anchor == "start" || anchor == "end" || anchor == "before" || anchor == "after") {
     // move before target (in its parent's children = target siblings)
-    const targetParent = graph.getOrFail(target.parentPtr!);
+    const targetParent = graph.getOrError(target.parentPtr!);
     if ("orderKey" in node && "orderKey" in target) {
       updateOrder({
         tx,

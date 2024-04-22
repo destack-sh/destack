@@ -10,6 +10,7 @@ import { describe, expect, test } from "vitest";
 describe("order keys", () => {
   test("fix", () => {
     // a1: 1 duplicate, a2: 2 duplicates
+    // TODO :Robustness: fix order keys if some keys are invalid
     const badNodes = ["a0", "a1", "a1", "a2", "a2", "a2", "a3"].map((orderKey) =>
       fabricate(ObjectType.VIEW, { set: { orderKey }, unset: ["parentPtr", "valuePacked"] }),
     );

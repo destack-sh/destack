@@ -16,7 +16,7 @@ import type { ActionContext, ActionMapImplementation } from "@/system/action";
 import { useHierarchicalNodeMoveActions } from "@/system/block";
 import { useExistingConnection, useGetConnection } from "@/system/connection";
 import { isDescendantOf, makeNodeName, moveNode, walkDescendantsRef } from "@/system/graph";
-import { getOrderKey, updateOrder } from "@/system/lang";
+import { createBlock, getOrderKey, updateOrder } from "@/system/lang";
 import { canvas, inspectionPtr } from "@/system/space";
 import { makeTypeInfo } from "@/system/value";
 import { startDragging, useMultiDropZone } from "@/utils/drag";
@@ -129,7 +129,7 @@ const { activeDropZone } = useMultiDropZone({
   },
   onDrop: (dragged, anchor, targetId) => {
     if (targetId != null && dragged.kind == "node") {
-      const target = pkgGraph.getOrFail({ id: targetId });
+      const target = pkgGraph.getOrError({ id: targetId });
       moveNode(pkgConnection.tx, pkgGraph, dragged.node, anchor, target);
     }
   },
@@ -149,14 +149,14 @@ const actions: Partial<ActionMapImplementation<"common">> = {
     action: (action, context) => {
       const { block } = getBlockFromContext(context);
       if (block == null) return false;
-      createBlock({ type: BlockType.TEXT }, "before", block);
+      createAndFocusBlock({ type: BlockType.TEXT }, "before", block);
     },
   },
   "common.create.below": {
     action: (action, context) => {
       const { block } = getBlockFromContext(context);
       if (block == null) return false;
-      createBlock({ type: BlockType.TEXT }, "after", block);
+      createAndFocusBlock({ type: BlockType.TEXT }, "after", block);
     },
   },
   // edit
@@ -204,23 +204,12 @@ const actions: Partial<ActionMapImplementation<"common">> = {
     },
   }),
 };
-function createBlock(
+function createAndFocusBlock(
   blockIn: { type: BlockType; isPage?: boolean; isProtocol?: boolean },
   anchor: "before" | "after",
   targetPtr: BlockData | TypedNodeReferenceData<NodeType.BLOCK>,
 ) {
-  const target = isNode(targetPtr) ? targetPtr : pkgGraph.getOrFail(targetPtr);
-  const siblings = pkgGraph.getChildren(target.parentPtr!, NodeType.BLOCK);
-  const block = pkgConnection.tx.create({
-    metatype: NodeType.BLOCK,
-    parentPtr: target.parentPtr,
-    packagePtr: target.packagePtr,
-    type: blockIn.type,
-    isPage: blockIn.isPage || blockIn.type == BlockType.PAGE,
-    isProtocol: blockIn.isProtocol || blockIn.type == BlockType.PROTOCOL,
-    orderKey: getOrderKey({ position: anchor, reference: target, nodes: siblings }),
-    name: makeNodeName(pkgGraph, { metatype: ObjectType.BLOCK, type: blockIn.type, parentPtr: target.parentPtr }),
-  });
+  const block = createBlock(pkgConnection.tx, pkgGraph, blockIn, anchor, targetPtr);
   nextTick(() => focus(toNodeReference(block)));
 }
 
@@ -239,7 +228,7 @@ function focus(anchor: FocusAnchor | NodeReferenceData) {
       // just focus first
       if (expandedItems.value.length > 0) {
         expandedBlockRefs.value[expandedItems.value[0].nodePtr.id!]?.$el.scrollIntoView({
-          block: "start",
+          block: "nearest",
           behavior: "instant",
         });
       }
@@ -358,7 +347,7 @@ defineExpose<ViewExposed>({ self, actions, focus });
                     }),
                   },
                   onApply: (blockType: BlockType) =>
-                    createBlock({ type: blockType }, anchor == 'start' ? 'before' : 'after', blockPtr),
+                    createAndFocusBlock({ type: blockType }, anchor == 'start' ? 'before' : 'after', blockPtr),
                 })
               "
               data-keep-inspection-in-base="true"
@@ -400,7 +389,7 @@ defineExpose<ViewExposed>({ self, actions, focus });
                 }
               "
               :draggable="true"
-              @dragstart="(e: DragEvent) => startDragging(e, pkgGraph, blockPtr)"
+              @dragstart.stop="(e: DragEvent) => startDragging(e, pkgGraph, blockPtr)"
             />
           </div>
 
