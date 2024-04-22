@@ -83,7 +83,7 @@ watch(toRef(props, "modelValue"), () => {
 const { isInDropZone } = useDropZone({
   name: "text",
   container: codeRef,
-  enabled: toRef(props, "isInput"),
+  isEnabled: toRef(props, "isInput"),
   kinds: ["node"],
   onDrop: (dragged, event) => {
     if (view == null || dragged.kind != "node") return;
@@ -171,8 +171,8 @@ defineExpose<ViewExposed>({ self, id, actions });
       :class="[
         variant != Variant.STEALTH
           ? 'border border-gray-200 focus-within:border-primary-900'
-          : 'outline-1 outline-primary-900 focus-within:outline-dashed',
-        isInDropZone ? 'outline-dashed outline-2 outline-primary-400' : '',
+          : 'outline-1 outline-primary-900 focus-within:outline-dotted',
+        isInDropZone ? 'outline-dotted outline-2 outline-primary-400' : '',
       ]"
       :draggable="true"
       @dragstart.stop.prevent="false /* prevent accidentally dragging ancestors from text selection here */"

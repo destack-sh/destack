@@ -453,8 +453,9 @@ watch(
     removedActions.forEach((id) => keytrap.unbind(oldImplemented[id].shortcuts ?? []));
     addedActions.forEach((id) => {
       const action = implemented[id];
-      if ((action.shortcuts?.length ?? 0) > 0)
-        keytrap.bind(action.shortcuts!, (e) => fireActionFromEvent(action, e), id);
+      if ((action.shortcuts?.length ?? 0) > 0) {
+        keytrap.bind(action.shortcuts!, (e) => fireActionFromEvent(action, e), { key: id, replace: true });
+      }
     });
 
     IMPLEMENTED_ACTIONS_BY_ID.value = implemented;

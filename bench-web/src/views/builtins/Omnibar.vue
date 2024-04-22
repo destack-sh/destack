@@ -48,11 +48,11 @@ const indices = computed(() => {
 
   // package
   // NOTE: we only search package deeply if we have a query for performance & clarity
-  if (hasLocalPkg.value && ["everywhere", "space", "bench", "package"].includes(m))
+  if (packagePtr.value != null && hasLocalPkg.value && ["everywhere", "space", "bench", "package"].includes(m))
     indices["Package"] = graphIndex({
       graph: pkgGraph,
       metatypes: [NodeType.BLOCK],
-      roots: [spaceGraph.getOrFail(packagePtr.value!)],
+      roots: [pkgGraph.getOrFail(packagePtr.value)],
       skipDepth: 1,
       maxDepth: isQueryEmpty.value ? 1 : undefined,
     });

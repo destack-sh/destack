@@ -300,7 +300,6 @@ defineExpose<ViewExposed>({ self, actions, focus });
             :prepared-connection="preparedPkgConnection"
           />
         </div>
-
         <!-- In-page Blocks -->
         <!-- Block 'line' -->
         <div

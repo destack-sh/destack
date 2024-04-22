@@ -140,7 +140,7 @@ type DropOptions = {
   /** The allowed file types for file drops. */
   fileTypes?: MaybeRef<string[]>;
   /** Whether the drop zone is enabled. */
-  enabled?: Ref<boolean>;
+  isEnabled?: Ref<boolean>;
 };
 
 //
@@ -219,7 +219,7 @@ export function useDropZone(
     onDrop?: (dragged: DraggedData, event: DragEvent) => void;
   },
 ): { isInDropZone: Ref<boolean> } {
-  const enabled = options.enabled ?? ref(true);
+  const isEnabled = options.isEnabled ?? ref(true);
 
   // create & register/deregister zone
   const zone = {
@@ -243,7 +243,7 @@ export function useDropZone(
   });
 
   return {
-    isInDropZone: computed(() => enabled.value && activeDropZone.value?.id == zone.id),
+    isInDropZone: computed(() => isEnabled.value && activeDropZone.value?.id == zone.id),
   };
 }
 

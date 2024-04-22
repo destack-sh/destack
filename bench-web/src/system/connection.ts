@@ -925,7 +925,7 @@ export function useExistingConnection<T extends NodeType = any>(
       );
       if (newConnection == null && !options?.isOptional)
         throw new Error(
-          `missing connection for ${describeNode(nodeRef.value)} (available: ${_graphConnections.value.map((c) => c.name)})`,
+          `missing connection for ${describeNode(nodeRef.value)} (available: ${_graphConnections.value.map((c) => c.name) ?? "<none>"})`,
         );
     }
     if (newConnection !== oldConnection) connection.value = newConnection as GraphConnectionBase<"get", T> | null;

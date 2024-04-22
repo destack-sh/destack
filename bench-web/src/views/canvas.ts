@@ -188,7 +188,7 @@ export class ViewCanvas {
   spacePtr: Ref<TypedNodeReferenceData<NodeType.SPACE> | null>;
   graph: ReadNodeGraph;
   txFactory: () => Transaction; // for when we're not given a transaction to work with (e.g. browser events)
-  private viewRefsById: Ref<Record<string, ViewComponent>> = shallowRef({});
+  viewRefsById: Ref<Record<string, ViewComponent>> = shallowRef({});
 
   // absolutely focused views/components (focused from the top down)
   focusedViewComponent: Ref<ViewComponent | null> = shallowRef(null);
@@ -220,6 +220,11 @@ export class ViewCanvas {
     });
 
     this.focusedView = toValueRef(this.graph.getRef(this.focusedViewPtr));
+  }
+
+  /** Whether there are any active views here */
+  get isEmpty() {
+    return this.viewRefsById.value == null || Object.keys(this.viewRefsById.value).length === 0;
   }
 
   /** Gets the absolutely focused view components in bottom up order */
@@ -427,7 +432,7 @@ export class ViewCanvas {
     }
     if (component == null) {
       const viewPtr = viewData ?? (view as ViewComponent).exposed?.self.value;
-      throw new Error(`no component for view ${viewPtr != null ? describeNode(viewPtr) : getVueComponentType(view)}`);
+      throw new Error(`no component for view: ${viewPtr != null ? describeNode(viewPtr) : getVueComponentType(view)}`);
     }
 
     // if no anchor is given, try to use existing focus state
@@ -506,7 +511,7 @@ export class ViewCanvas {
     // mark element with component
     function markEl() {
       // NOTE: we enforce that el must be a single element for all Views with a lint rule
-      //  (unfortunately this doesn't prevent comments from forcing the root into a #text node, so we just error below)
+      //  (unfortunately this doesn't prevent comments from forcing the root into a #text node during development, so we error below)
       const el = (instance as any).vnode.el as HTMLElement | null;
       if (!el) {
         log.warn("canvas.missingEl", getVueComponentType(instance), instance);
@@ -525,8 +530,10 @@ export class ViewCanvas {
     watch(
       () => self.value?.id ?? id?.value ?? null,
       () => {
-        if (oldComponentId != null && this.viewRefsById.value[oldComponentId] === instance)
+        if (oldComponentId != null && this.viewRefsById.value[oldComponentId] === instance) {
           delete this.viewRefsById.value[oldComponentId];
+        }
+
         const componentId = self.value?.id ?? id?.value!;
         const existingComponent = this.viewRefsById.value[componentId];
         if (existingComponent != null && (IS_DEBUG || isDeveloperMode.value)) {
@@ -985,7 +992,7 @@ export function setupDefaultCanvas(
   // secondary
   let secondary: ViewData | null = null;
   if (options.secondary == "split" || options.secondary == "side") {
-    if (options.secondary == 'split') {
+    if (options.secondary == "split") {
       secondary = tx.create({
         metatype: NodeType.VIEW,
         type: ViewType.TAB,
