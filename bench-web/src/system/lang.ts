@@ -2,8 +2,9 @@
  * Many constants are generated into proto/wire, here some additional ones.
  */
 
-import type { AnyStructData, BlockData, EnumTypeMapping } from "@/proto/wire";
+import type { AnyStructData, BlockData, EnumTypeMapping, PropertyInfo } from "@/proto/wire";
 import {
+  BlockProperty,
   BlockType,
   ENUM_BY_TYPE,
   EnumType,
@@ -12,10 +13,12 @@ import {
   NodeType,
   NotificationData,
   ObjectType,
+  PROPERTY_INFOS_BY_TYPE,
   RecordData,
   RunData,
   SignalData,
   StructType,
+  ViewProperty,
   ViewType,
   type AnyNodeData,
 } from "@/proto/wire";
@@ -25,7 +28,7 @@ import { ENUM_ICONS_BY_TYPE } from "@/system/icon";
 import type { Transaction } from "@/system/transaction";
 import { generateOrderKeys, generateOrderKey, isValidOrderKey, INTEGER_ZERO } from "@/utils/fractional";
 import { Casing, toCasing } from "@/utils/string";
-import { AVAILABLE_VIEW_TYPES } from "@/views";
+import { AVAILABLE_VIEW_TYPES, type ViewComponent } from "@/views";
 
 export const NODE_TYPES = Object.values(NodeType).filter((v) => typeof v == "number" && v > 0) as NodeType[];
 export const NODE_TYPES_SET = new Set(NODE_TYPES);
@@ -297,4 +300,88 @@ export function createBlock(
     name: makeNodeName(graph, { metatype: ObjectType.BLOCK, type: blockIn.type, parentPtr: target.parentPtr }),
   });
   return block;
+}
+
+type InspectionCategory = {
+  category: string;
+  properties: ({ from?: number; to?: number; excluding?: number[] } | number)[];
+};
+const INSPECTION_INFO_BY_TYPE: Partial<Record<ObjectType, InspectionCategory[]>> = {
+  [ObjectType.FIELD]: [
+    { category: "common", properties: [{ to: 40 }, { from: 60 }] },
+    { category: "constraint", properties: [{ from: 40, to: 60 }] },
+  ],
+  [ObjectType.BLOCK]: [
+    { category: "common", properties: [{ to: 40, excluding: [BlockProperty.policies] }] },
+    { category: "content", properties: [{ from: 40, to: 60 }] },
+    { category: "flags", properties: [{ from: 60, to: 70 }] },
+    { category: "policy", properties: [BlockProperty.policies] },
+  ],
+  [ObjectType.VIEW]: [
+    { category: "common", properties: [{ to: 40 }, ViewProperty.isInput] },
+    { category: "content", properties: [{ from: 40, to: 50 }] },
+    { category: "style", properties: [{ from: 50, to: 60 }] },
+    { category: "layout", properties: [{ from: 60, to: 70 }] },
+    { category: "behavior", properties: [{ from: 70, to: 80 }] },
+  ],
+};
+
+type InspectedProperty = {
+  title: string;
+  category: string;
+  property: PropertyInfo;
+  component?: ViewComponent;
+  props?: Record<string, any>;
+  isFullWidth?: boolean;
+};
+type InspectionLayout = {
+  properties: InspectedProperty[];
+};
+
+export function getInspectionLayout(node: AnyNodeData): InspectionLayout {
+  const propertyInfos = PROPERTY_INFOS_BY_TYPE[node.metatype];
+  const seenProperties: Record<number, PropertyInfo> = {};
+  const inspectedProperties: InspectedProperty[] = [];
+
+  const categories = INSPECTION_INFO_BY_TYPE[node.metatype] ?? [
+    { category: "common", properties: [{ from: undefined, to: undefined }] },
+  ];
+
+  for (const category of categories) {
+    // assemble all properties in category
+    const categoryPropertyInfos: PropertyInfo[] = [];
+    for (const range of category.properties) {
+      let propertiesInRange;
+      if (typeof range == "object") {
+        propertiesInRange = Object.values(propertyInfos).filter((property) => {
+          if ((range.from != null && property.id < range.from) || (range.to != null && property.id >= range.to))
+            return false;
+          if (range.excluding != null && range.excluding.includes(property.id)) return false;
+          return true;
+        });
+      } else {
+        propertiesInRange = Object.values(propertyInfos).filter((property) => property.id == range);
+      }
+      for (const property of propertiesInRange) {
+        if (seenProperties[property.id]) continue;
+        seenProperties[property.id] = property;
+        categoryPropertyInfos.push(property);
+      }
+    }
+
+    // map properties to components
+    for (const property of categoryPropertyInfos) {
+      if (property.id < 30 || property.isInternal || property.isAutoset || property.isComputed || property.isSystem)
+        continue;
+      let cleanName = property.name;
+      if (cleanName.endsWith("_ptr")) cleanName = cleanName.slice(0, -4);
+      const title = toCasing(cleanName, Casing.CAMEL, true);
+      inspectedProperties.push({
+        title,
+        category: category.category,
+        property,
+      });
+    }
+  }
+  return { properties: inspectedProperties };
 }
