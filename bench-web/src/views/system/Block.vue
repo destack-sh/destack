@@ -9,7 +9,7 @@ import { IconInline, getNodeIcon } from "@/system/icon";
 import { toCamelName } from "@/system/lang";
 import { canvas, inspectionPtr } from "@/system/space";
 import { onMouseReleasedOnce } from "@/utils/layout";
-import { menuActionsLike, type OverlayMenuInfo } from "@/utils/menu";
+import { menuActionsLike, type OverlayMenuInfo, type OverlayMenuInfoIn } from "@/utils/menu";
 import type { TooltipInfo } from "@/utils/tooltip";
 import { makeViewId } from "@/views";
 import Class from "@/views/system/Class.vue";
@@ -118,22 +118,19 @@ defineExpose<ViewExposed>({ self, id, variants: [Variant.PRIMARY, Variant.STEALT
           :class="[isThinTextWrapper ? ' text-gray-500' : 'text-gray-700']"
           v-tooltip="{ small: true, text: `Change icon (${toCamelName(BlockType, block.type)})` } as TooltipInfo"
           v-menu="
-            () =>
-              ({
-                kind: 'component',
-                component: Icon,
-                placement: 'bottom-right',
-                offset: '-referenceWidth',
-                referenceMargin: 4,
-                props: { modelValue: block!.icon },
-                onApply: (newIcon) => pkgConnection.tx.update(block!, { icon: newIcon }),
-              }) as OverlayMenuInfo
+            (): OverlayMenuInfoIn => ({
+              component: Icon,
+              placement: 'bottom-right',
+              offset: '-referenceWidth',
+              props: { modelValue: block!.icon },
+              onApply: (newIcon) => pkgConnection.tx.update(block!, { icon: newIcon }),
+            })
           "
         />
         <input
           ref="nameRef"
           class="w-fit min-w-fit max-w-fit rounded border-0 px-1 outline-none ring-0 hover:bg-primary-100 hover:text-primary-900 focus:ring-0"
-          :class="[isThinTextWrapper ? 'px-0.5 text-gray-500' : 'ml-0.5 px-1 font-semibold']"
+          :class="[isThinTextWrapper ? 'px-0.5 text-gray-500' : 'ml-0.5 px-1 font-medium']"
           spellcheck="false"
           :value="block.name"
           :size="block.name.length"
@@ -178,7 +175,6 @@ defineExpose<ViewExposed>({ self, id, variants: [Variant.PRIMARY, Variant.STEALT
                 kind: 'menu',
                 placement: 'bottom-left',
                 offset: 'referenceWidth',
-                referenceMargin: 4,
                 items: menuActionsLike(['common.edit.*', 'block.*'], { context: { triggerNode: nodePtr } }),
               })
             "

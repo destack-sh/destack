@@ -28,9 +28,8 @@ export function getViewComponentForValueType(type: Pick<TypeInfoData, "primitive
   viewType: ViewType;
   props?: ViewProps;
 } {
-  if (type.baseTypePtr != null) {
-    return { viewType: ViewType.PICKER };
-  } else if (type.benchType != null) {
+  // TODO :Incomplete: getViewComponentForValueType
+  if (type.benchType != null) {
     if (VIEW_TYPE_BY_BENCH_TYPE[type.benchType] != null) return { viewType: VIEW_TYPE_BY_BENCH_TYPE[type.benchType]! };
     else return { viewType: ViewType.PICKER, props: { valueType: makeTypeInfo(type) } };
   } else if (VIEW_TYPE_BY_PRIMITIVE_TYPE[type.primitiveType!] != null) {

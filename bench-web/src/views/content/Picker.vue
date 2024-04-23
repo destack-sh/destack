@@ -1,13 +1,23 @@
 <script lang="ts" setup>
-import { BenchType, NodeReferenceData, NodeType, Orientation, Variant, ViewData, ViewType } from "@/proto/wire";
-import type { TypedNodeReferenceData } from "@/proto/wiring";
+import {
+  BenchType,
+  ENUM_BY_TYPE,
+  NodeReferenceData,
+  NodeType,
+  Orientation,
+  Variant,
+  ViewData,
+  ViewType,
+} from "@/proto/wire";
+import { isNode, type TypedNodeReferenceData } from "@/proto/wiring";
 import { IconInline, getNodeIcon, makeIcon } from "@/system/icon";
 import { isEnumType, isNodeType, toCamelName } from "@/system/lang";
 import type { NodeItem } from "@/system/search";
 import { enumIndex, graphIndex, useSearch, type EnumOptionItem, type SearchIndex } from "@/system/search";
 import { canvas, pkgGraph } from "@/system/space";
 import { ScrollbarWidth } from "@/utils/layout";
-import type { OverlayMenuInfo } from "@/utils/menu";
+import type { OverlayMenuInfo, OverlayMenuInfoIn } from "@/utils/menu";
+import { Casing, toCasing } from "@/utils/string";
 import { makeViewId } from "@/views";
 import { ViewContentWrapper, viewEmits, type FocusAnchor, type ViewExposed } from "@/views/common";
 import Scroll from "@/views/containers/Scroll.vue";
@@ -49,6 +59,16 @@ const topicName = computed(() => {
   } else {
     return null;
   }
+});
+const modelValueTitle = computed(() => {
+  if (isNode(props.modelValue) && "name" in props.modelValue) {
+    return props.modelValue.name;
+  } else if (isEnumType(props.valueType?.benchType)) {
+    const enumType = ENUM_BY_TYPE[props.valueType.benchType];
+    return toCasing(enumType[props.modelValue], Casing.CAMEL, true);
+  }
+
+  return null;
 });
 const indices: Ref<Record<string, SearchIndex<any>>> = computed(() => {
   const indices: Record<string, SearchIndex<any>> = {};
@@ -107,25 +127,23 @@ defineExpose<ViewExposed>({ self, id, variants: [Variant.PRIMARY, Variant.COMPAC
     <!-- Dropdown -->
     <button
       v-if="!isInline"
-      class="group flex flex-row items-center rounded border border-gray-200 px-2 py-1 hover:border-gray-400 data-[menu=true]:border-gray-400"
+      class="group flex w-full flex-row items-center rounded border border-gray-200 px-2 py-1 hover:border-gray-400 data-[menu=true]:border-gray-400"
       v-menu="
-        (): OverlayMenuInfo => ({
-          kind: 'component',
+        (): OverlayMenuInfoIn => ({
           component: ViewType.PICKER,
           placement: 'bottom-left',
           offset: 'referenceWidth',
-          referenceMargin: 4,
           props: { ...props, isInline: true },
           onApply: (value) => apply(value),
         })
       "
     >
       <template v-if="modelValue != null">
-        <IconInline v-bind="getNodeIcon(modelValue)" class="mr-1.5 w-5" />
-        <span class="truncate">{{ modelValue.title }}</span>
+        <IconInline v-if="isNode(modelValue)" v-bind="getNodeIcon(modelValue)" class="mr-1.5 w-5" />
+        <span class="truncate">{{ modelValueTitle ?? "???" }}</span>
       </template>
-      <span v-else class="text-gray-400 group-hover:text-gray-700">{{ topicName ?? "???" }}</span>
-      <i class="fas fa-caret-down ml-1.5 text-gray-400" />
+      <span v-else class="truncate text-gray-400 group-hover:text-gray-700">{{ topicName ?? "???" }}</span>
+      <i class="fas fa-caret-down ml-auto pl-1.5 text-gray-400" />
     </button>
 
     <!-- Inline: multi-toggle -->

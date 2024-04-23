@@ -114,7 +114,7 @@ const MENU_DATA_ID_ATTRIBUTE = "menuid";
 
 export const OVERLAY_MENU_DEFAULT_FLOATING_OPTIONS: FloatingOptions = {
   placement: "bottom-right",
-  referenceMargin: 0,
+  referenceMargin: 4,
   containerMargin: 8,
 };
 
@@ -127,11 +127,13 @@ export type OverlayMenuInfo = (
       context?: MenuContext;
     }
 ) & {
+  isEnabled?: boolean;
   containerClass?: string;
   dontFocus?: boolean;
   onApply?(value?: any): void;
   onClose?(): void;
 } & FloatingOptions;
+export type OverlayMenuInfoIn = Partial<OverlayMenuInfo>;
 
 /** The triggering element with some extra state */
 type OverlayMenuTriggerElement = HTMLElement & {
@@ -159,18 +161,17 @@ export function createOverlayMenu(create: {
   trigger: HTMLElement | SVGElement;
   reference: { x: number; y: number } | HTMLElement | SVGElement;
   container?: HTMLElement | SVGElement | undefined;
-  info: OverlayMenuInfo | ((ctx: MenuContext) => OverlayMenuInfo);
+  info: OverlayMenuInfoIn;
 }): OverlayMenuInstance {
   const { trigger, reference, container } = create;
   const triggerNode = canvas.findViewData(trigger) ?? undefined;
   const context: MenuContext = { triggerElement: trigger, triggerNode };
   const info = {
     ...OVERLAY_MENU_DEFAULT_FLOATING_OPTIONS,
-    ...(typeof create.info === "function" ? create.info(context) : create.info),
+    ...create.info,
     context,
-  };
-  if (info.kind != "component" && info.kind != "menu")
-    throw new Error(`invalid overlay menu kind: ${(info as any).kind}`);
+    kind: "component" in create.info ? "component" : "menu",
+  } as OverlayMenuInfo;
 
   const instance = { id: newOverlayMenuId(), info, trigger, reference, container };
   _activeOverlayMenu.value = instance;
@@ -191,7 +192,7 @@ export function destroyOverlayMenu(instance?: OverlayMenuInstance | null) {
 function makeOverlayMenuDirective(options: {
   event: "contextmenu" | "click";
   reference: "trigger" | "self";
-}): Directive<MaybeElement, OverlayMenuInfo> {
+}): Directive<MaybeElement, OverlayMenuInfoIn | (() => OverlayMenuInfoIn)> {
   return {
     mounted(el, binding) {
       const triggerEl = el as OverlayMenuTriggerElement;
@@ -199,7 +200,9 @@ function makeOverlayMenuDirective(options: {
         e.preventDefault();
         e.stopPropagation();
         const reference = options.reference == "self" ? triggerEl : { x: e.clientX, y: e.clientY };
-        createOverlayMenu({ trigger: triggerEl, reference, info: binding.value });
+        const info = typeof binding.value == "function" ? binding.value() : binding.value;
+        if (info.isEnabled === false) return;
+        createOverlayMenu({ trigger: triggerEl, reference, info });
       };
       triggerEl.addEventListener(options.event, triggerEl.menuOnEvent);
     },

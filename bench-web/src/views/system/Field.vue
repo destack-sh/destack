@@ -10,7 +10,7 @@ import Inaccessible from "@/views/builtins/Inaccessible.vue";
 import { IconInline, getNodeIcon } from "@/system/icon";
 import type { ActionMapImplementation } from "@/system/action";
 import Icon from "@/views/content/Icon.vue";
-import { type OverlayMenuInfo } from "@/utils/menu";
+import { type OverlayMenuInfo, type OverlayMenuInfoIn } from "@/utils/menu";
 import type { TooltipInfo } from "@/utils/tooltip";
 
 const props = defineProps<
@@ -88,16 +88,13 @@ defineExpose<ViewExposed>({ self, id, actions });
       class="mr-1 w-5 rounded border border-transparent p-0.5 hover:cursor-pointer hover:bg-primary-100 data-[menu=true]:border-primary-900 data-[menu=true]:bg-primary-100 data-[menu=true]:text-primary-900"
       v-tooltip="{ small: true, text: `Change icon` } as TooltipInfo"
       v-menu="
-        () =>
-          ({
-            kind: 'component',
-            component: Icon,
-            placement: 'bottom-right',
-            offset: '-referenceWidth',
-            referenceMargin: 4,
-            props: { modelValue: field!.icon },
-            onApply: (newIcon) => pkgConnection.tx.update(field!, { icon: newIcon }),
-          }) as OverlayMenuInfo
+        (): OverlayMenuInfoIn => ({
+          component: Icon,
+          placement: 'bottom-right',
+          offset: '-referenceWidth',
+          props: { modelValue: field!.icon },
+          onApply: (newIcon) => pkgConnection.tx.update(field!, { icon: newIcon }),
+        })
       "
     />
     <input

@@ -6,11 +6,11 @@ import { canvas } from "@/system/space";
 import { computed, ref, toRef, watch, type Ref } from "vue";
 import { makeViewId } from "@/views";
 import Scroll from "@/views/containers/Scroll.vue";
-import { IconInline, makeIcon, metadataToIcon, type IconMetadata } from "@/system/icon";
+import { IconInline, getIconMetadata, makeIcon, metadataToIcon, type IconMetadata } from "@/system/icon";
 import { ScrollbarWidth } from "@/utils/layout";
 import { iconIndex, useSearch, type IconItem, type SearchIndex } from "@/system/search";
 import type { TooltipInfo } from "@/utils/tooltip";
-import type { OverlayMenuInfo } from "@/utils/menu";
+import type { OverlayMenuInfo, OverlayMenuInfoIn } from "@/utils/menu";
 
 const DEFAULT_WIDTH = 380;
 const MAX_HEIGHT = 280;
@@ -88,20 +88,26 @@ defineExpose<ViewExposed>({ self, id, focus });
     <!-- Dropdown -->
     <button
       v-if="!isInline"
-      class="flex flex-row items-center rounded border border-gray-200 px-2 py-1 hover:border-gray-400 data-[menu=true]:border-gray-400"
+      class="group flex w-full items-center rounded border border-gray-200 px-2 py-1 hover:border-gray-400 data-[menu=true]:border-gray-400"
       v-menu="
-        (): OverlayMenuInfo => ({
-          kind: 'component',
+        (): OverlayMenuInfoIn => ({
           component: ViewType.ICON,
           placement: 'bottom-left',
           offset: 'referenceWidth',
-          referenceMargin: 4,
           props: { ...props, isInline: true },
           onApply: (value) => apply(value),
         })
       "
     >
-      <IconInline v-bind="icon ?? makeIcon({ faName: 'fas fa-icons' })" class="text-gray-700" />
+      <template v-if="icon != null">
+        <IconInline v-bind="icon" class="" />
+        <span class="ml-1.5">{{ getIconMetadata(icon)?.title ?? "Custom Icon" }}</span>
+      </template>
+      <template v-else>
+        <i class="fas fa-icons text-gray-400 group-hover:text-gray-700" />
+        <span class="ml-1.5 text-gray-400 group-hover:text-gray-700">Select Icon</span>
+      </template>
+      <i class="fas fa-caret-down ml-auto pl-1.5 text-gray-400" />
     </button>
 
     <!-- Inline Combobox -->
