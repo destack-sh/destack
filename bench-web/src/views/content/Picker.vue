@@ -135,7 +135,7 @@ defineExpose<ViewExposed>({ self, id, variants: [Variant.PRIMARY, Variant.COMPAC
             <li
               :ref="(ref?: any) => (ref != null ? (resultsRefs[item.id] = ref) : delete resultsRefs[item.id])"
               role="menuitem"
-              class="mx-0.5 mb-[1px] mr-1.5 mt-[1px] flex h-[28px] max-w-full flex-row items-center rounded border border-transparent px-2 hover:border-gray-400 hover:bg-primary-300 data-[active=true]:border-gray-400 data-[active=true]:bg-primary-300"
+              class="mx-0.5 mb-[1px] mr-1.5 mt-[1px] flex h-[28px] max-w-full flex-row items-center rounded border border-transparent px-2 hover:border-gray-300 hover:bg-primary-300 data-[active=true]:border-gray-300 data-[active=true]:bg-primary-300"
               :data-selected="item.id === modelValue?.id"
               :data-active="item.id === activeResultId"
               @click.prevent="fire(item)"

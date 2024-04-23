@@ -144,7 +144,7 @@ defineExpose<ViewExposed>({ self, actions });
     <template v-for="({ left, top, width, height, view }, viewIdx) in sizedViews" :key="view.id">
       <!-- Frame -->
       <div
-        class="absolute border-gray-300 bg-gray-100"
+        class="absolute border-gray-200 bg-gray-100"
         :style="{
           borderLeftWidth: viewIdx > 0 && isHorizontal ? BORDER_SIZE + 'px' : '0',
           borderTopWidth: viewIdx > 0 && !isHorizontal ? BORDER_SIZE + 'px' : '0',

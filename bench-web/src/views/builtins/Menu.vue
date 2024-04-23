@@ -181,7 +181,7 @@ defineExpose({ focus, clear, query });
 </script>
 <template>
   <ul
-    class="flex min-w-60 max-w-[360px] flex-col rounded border border-gray-400 bg-white py-1 text-gray-900"
+    class="flex min-w-60 max-w-[360px] flex-col rounded border border-gray-300 bg-white py-1 text-gray-900"
     role="menu"
     @keydown.escape.stop.prevent="emit('close')"
     @click.stop="queryRef?.focus()"
@@ -207,13 +207,13 @@ defineExpose({ focus, clear, query });
     </div>
 
     <!-- Header -->
-    <div v-if="$slots.header" class="mb-1 border-b border-gray-300">
+    <div v-if="$slots.header" class="mb-1 border-b border-gray-200">
       <slot name="header" :focus="focus" />
     </div>
     <!-- Items -->
     <template v-for="(item, i) in items" :key="item.id">
       <!-- Category -->
-      <div v-if="i != 0 && items[i - 1].category != item.category" class="my-1 h-[1px] w-full bg-gray-300" />
+      <div v-if="i != 0 && items[i - 1].category != item.category" class="my-1 h-[1px] w-full bg-gray-200" />
       <!-- Item -->
       <li
         :ref="(ref?: any) => (ref != null ? (itemRefs[i] = ref) : delete itemRefs[i])"
@@ -223,7 +223,7 @@ defineExpose({ focus, clear, query });
         :class="[
           item.isDisabled
             ? 'text-gray-500'
-            : 'hover:cursor-pointer hover:bg-primary-300 data-[active=true]:border-gray-400',
+            : 'hover:cursor-pointer hover:bg-primary-300 data-[active=true]:border-gray-300',
           activeNestedItemIdx == i ? 'bg-primary-200' : 'data-[active=true]:bg-primary-300',
         ]"
         @click.prevent="(e) => !item.isDisabled && (e.stopPropagation(), fire(i))"
@@ -267,7 +267,7 @@ defineExpose({ focus, clear, query });
       <span class="text-gray-500">Nothing here</span>
     </div>
     <!-- Footer -->
-    <div v-if="$slots.footer" class="mt-1 border-t border-gray-300">
+    <div v-if="$slots.footer" class="mt-1 border-t border-gray-200">
       <slot name="footer" :focus="focus" />
     </div>
 

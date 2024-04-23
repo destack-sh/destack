@@ -112,7 +112,7 @@ defineExpose<ViewExposed>({ self, id, focus });
           <template v-for="(item, i) in results" :key="i">
             <span
               :ref="(ref?: any) => (ref != null ? (resultsRefs[item.id] = ref) : delete resultsRefs[item.id])"
-              class="select-none rounded border border-transparent py-1.5 text-center text-gray-700 hover:cursor-pointer hover:border-gray-400 hover:bg-primary-200 hover:text-gray-900 data-[active=true]:border-gray-400 data-[active=true]:bg-primary-200"
+              class="select-none rounded border border-transparent py-1.5 text-center text-gray-700 hover:cursor-pointer hover:border-gray-300 hover:bg-primary-200 hover:text-gray-900 data-[active=true]:border-gray-300 data-[active=true]:bg-primary-200"
               :class="item.faName"
               role="menuitem"
               :data-selected="item.faName == modelValue?.faName"

@@ -137,8 +137,8 @@ const USER_MENU_ITEMS = computed(() => {
       <Popover placement="bottom-left" :reference-margin="4" :container-margin="4">
         <template v-slot:trigger="{ toggle, isOpen }">
           <button
-            class="flex select-none flex-row items-center rounded border px-2 py-1 text-gray-900 hover:cursor-pointer hover:border-gray-400 hover:bg-gray-100"
-            :class="[isOpen ? 'border-gray-400 bg-gray-100' : 'border-gray-300 bg-white']"
+            class="flex select-none flex-row items-center rounded border px-2 py-1 text-gray-900 hover:cursor-pointer hover:border-gray-300 hover:bg-gray-100"
+            :class="[isOpen ? 'border-gray-300 bg-gray-100' : 'border-gray-300 bg-white']"
             @click="toggle"
           >
             <div class="mr-2 h-5 w-6 rounded border border-gray-300 bg-primary-300 px-0.5"></div>
@@ -212,8 +212,8 @@ const USER_MENU_ITEMS = computed(() => {
           <template #content="{ close }">
             <!-- Connection summary -->
             <!-- will probably move this to a Connections View (maybe keep summary on hover) -->
-            <div class="p z-50 rounded border border-gray-400 bg-white text-gray-900" v-outside.click.stop="close">
-              <div class="my-1 border-b border-gray-400 px-3 py-1">
+            <div class="p z-50 rounded border border-gray-300 bg-white text-gray-900" v-outside.click.stop="close">
+              <div class="my-1 border-b border-gray-300 px-3 py-1">
                 <span class="font-semibold">Graph Connections ({{ graphConnections.length }})</span>
               </div>
               <Scroll
@@ -314,8 +314,8 @@ const USER_MENU_ITEMS = computed(() => {
         <Popover placement="bottom-right" :reference-margin="4" :container-margin="4">
           <template v-slot:trigger="{ toggle, isOpen }">
             <button
-              class="rounded border px-2 py-1 text-gray-900 hover:border-gray-400 hover:bg-gray-100 focus:border-primary-900"
-              :class="[isOpen ? 'border-gray-400 bg-gray-100' : 'border-gray-300 bg-white']"
+              class="rounded border px-2 py-1 text-gray-900 hover:border-gray-300 hover:bg-gray-100 focus:border-primary-900"
+              :class="[isOpen ? 'border-gray-300 bg-gray-100' : 'border-gray-300 bg-white']"
               @click="toggle"
             >
               <IconInline class="" v-bind="user.icon ?? DEFAULT_USER_ICON" />
