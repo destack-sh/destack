@@ -211,6 +211,7 @@ const { activeDropZone } = useMultiDropZone({
   targets: expandedNodesRefs,
   orientation: Orientation.VERTICAL,
   hasCenterAnchor: true,
+  fallbackToClosest: true,
   kinds: ["node"],
   metatypes: inspectedNodeTypes,
   allowDrop: (dragged, anchor, targetId) => {

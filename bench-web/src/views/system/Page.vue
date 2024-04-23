@@ -326,7 +326,7 @@ defineExpose<ViewExposed>({ self, actions, focus });
               v-for="anchor in i < expandedItems.length - 1 ? ['start'] : ['start', 'end']"
               :key="anchor"
               role="button"
-              class="absolute h-[6px] w-full flex-shrink-0 text-center text-gray-300 opacity-0 transition-colors duration-100 hover:z-10 hover:text-gray-400 hover:opacity-100 data-[menu=true]:text-primary-900 data-[menu=true]:opacity-100"
+              class="absolute h-[6px] w-full flex-shrink-0 text-center text-gray-300 opacity-0 hover:z-10 hover:text-gray-400 hover:opacity-100 data-[menu=true]:text-primary-900 data-[menu=true]:opacity-100"
               :style="
                 getAnchorPosition(
                   anchor as 'start' | 'end',
@@ -378,15 +378,13 @@ defineExpose<ViewExposed>({ self, actions, focus });
               :node-ptr="blockPtr"
               :prepared-connection="preparedPkgConnection"
               v-contextmenu="
-                (): OverlayMenuInfo => {
-                  return {
-                    kind: 'menu',
-                    placement: 'bottom-right',
-                    items: menuActionsLike(['common.edit.*', 'common.create.above', 'common.create.below', 'block.*'], {
-                      context: { triggerNode: blockPtr },
-                    }),
-                  };
-                }
+                (): OverlayMenuInfo => ({
+                  kind: 'menu',
+                  placement: 'bottom-right',
+                  items: menuActionsLike(['common.edit.*', 'common.create.above', 'common.create.below', 'block.*'], {
+                    context: { triggerNode: blockPtr },
+                  }),
+                })
               "
               :draggable="true"
               @dragstart.stop="(e: DragEvent) => startDragging(e, pkgGraph, blockPtr)"

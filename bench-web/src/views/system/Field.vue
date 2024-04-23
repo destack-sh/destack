@@ -1,15 +1,17 @@
 <script lang="ts" setup>
-import { ViewData, NodeType } from "@/proto/wire";
+import { ViewData, NodeType, Variant } from "@/proto/wire";
 import { type TypedNodeReferenceData } from "@/proto/wiring";
 import { viewEmits, type ViewExposed } from "@/views/common";
-import { canvas } from "@/system/space";
+import { canvas, inspectionPtr } from "@/system/space";
 import { computed, ref, toRef, type Ref } from "vue";
 import { makeViewId } from "@/views";
 import { useGetConnection, type PreparedGetConnection } from "@/system/connection";
 import Inaccessible from "@/views/builtins/Inaccessible.vue";
 import { IconInline, getNodeIcon } from "@/system/icon";
 import type { ActionMapImplementation } from "@/system/action";
-import { startDragging } from "@/utils/drag";
+import Icon from "@/views/content/Icon.vue";
+import { type OverlayMenuInfo } from "@/utils/menu";
+import type { TooltipInfo } from "@/utils/tooltip";
 
 const props = defineProps<
   { self?: TypedNodeReferenceData<NodeType.VIEW>; preparedConnection?: PreparedGetConnection } & Pick<
@@ -22,6 +24,8 @@ const self = toRef(props, "self");
 const id = makeViewId(props);
 
 const fieldRef = ref<HTMLElement | null>(null);
+const nameRef = ref<HTMLElement | null>(null);
+
 const nodePtr = toRef(props, "nodePtr") as Ref<TypedNodeReferenceData<NodeType.FIELD>>;
 const { graph: pkgGraph, connection: pkgConnection } =
   props.preparedConnection ??
@@ -33,24 +37,77 @@ const field = pkgGraph.getRef(nodePtr, { ignoreAncestors: props.self == null });
 
 // actions
 // nocheckin: Field.actions
-const actions: Partial<ActionMapImplementation<"common">> = {
+const actions: Partial<ActionMapImplementation<"common">> & ActionMapImplementation<"type"> = {
+  // common
   "common.edit.rename": {
-    action: () => {},
+    action: () => {
+      nameRef.value?.focus();
+    },
+  },
+  // type
+  "type.edit.isList": {
+    isChecked: () => field.value?.isList ?? false,
+    action: () => {
+      if (field.value == null) return;
+      pkgConnection.tx.update(field.value!, { isList: !field.value!.isList });
+    },
+  },
+  "type.edit.isRequired": {
+    isChecked: () => field.value?.isRequired ?? false,
+    action: () => {
+      if (field.value == null) return;
+      pkgConnection.tx.update(field.value!, { isRequired: !field.value!.isRequired });
+    },
+  },
+  "type.edit.isSecret": {
+    isChecked: () => field.value?.isSecret ?? false,
+    action: () => {
+      if (field.value == null) return;
+      pkgConnection.tx.update(field.value!, { isSecret: !field.value!.isSecret });
+    },
   },
 };
 
 canvas.registerView(self, id);
-defineExpose<ViewExposed>({ self, id });
+defineExpose<ViewExposed>({ self, id, actions });
 </script>
 <template>
   <div
     ref="fieldRef"
     v-if="field"
-    class="flex w-fit flex-row items-center rounded border border-gray-300 bg-white px-1.5 py-[3px] hover:border-primary-900 hover:bg-primary-100"
+    class="flex w-fit flex-row items-center rounded border bg-white px-1.5 py-[3px]"
+    :class="[
+      inspectionPtr?.id == field.id
+        ? 'border-primary-900'
+        : [variant != Variant.STEALTH ? 'border-gray-300' : 'border-transparent', 'hover:border-gray-400'],
+    ]"
   >
     <!-- nocheckin: Field -->
-    <IconInline v-bind="getNodeIcon(field)" class="mr-1 w-5" />
-    <span>{{ field.name }}</span>
+    <IconInline
+      v-bind="getNodeIcon(field)"
+      class="mr-1 w-5 rounded border border-transparent p-0.5 hover:cursor-pointer hover:bg-primary-100 data-[menu=true]:border-primary-900 data-[menu=true]:bg-primary-100 data-[menu=true]:text-primary-900"
+      v-tooltip="{ small: true, text: `Change icon` } as TooltipInfo"
+      v-menu="
+        () =>
+          ({
+            kind: 'component',
+            component: Icon,
+            placement: 'bottom-right',
+            offset: '-referenceWidth',
+            referenceMargin: 4,
+            props: { modelValue: field!.icon },
+            onApply: (newIcon) => pkgConnection.tx.update(field!, { icon: newIcon }),
+          }) as OverlayMenuInfo
+      "
+    />
+    <input
+      ref="nameRef"
+      class="w-fit min-w-fit max-w-fit truncate rounded border-0 outline-none ring-0 hover:bg-primary-100 hover:text-primary-900 focus:ring-0"
+      spellcheck="false"
+      :value="field.name"
+      :size="field.name?.length"
+      @input="pkgConnection.tx.update(field!, { name: ($event.target as HTMLInputElement).value })"
+    />
   </div>
   <Inaccessible v-else class="bg-white" :node="nodePtr" :is-connected="pkgConnection.isConnected.value" />
 </template>

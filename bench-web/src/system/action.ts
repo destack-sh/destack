@@ -134,6 +134,10 @@ export const ACTION_BUILTIN_IDS = [
   "common.session.stop",
   "common.session.kill",
   "common.session.logs",
+  // type
+  "type.edit.isList",
+  "type.edit.isRequired",
+  "type.edit.isSecret",
   // block
   "block.edit.isPage",
   "block.edit.isProtocol",
@@ -752,6 +756,29 @@ declareActionMap<"common">({
     icon: "fas fa-clipboard-list",
     title: "View Logs",
     text: "View the logs of the current run",
+  },
+});
+
+// type
+declareActionMap<"type">({
+  // edit
+  "type.edit.isList": {
+    type: "toggle",
+    icon: "fas fa-list",
+    title: "List",
+    text: "Mark the current type as a list",
+  },
+  "type.edit.isRequired": {
+    type: "toggle",
+    icon: "fas fa-check",
+    title: "Required",
+    text: "Mark the current type as required",
+  },
+  "type.edit.isSecret": {
+    type: "toggle",
+    icon: "fas fa-lock",
+    title: "Secret",
+    text: "Mark the current type as secret",
   },
 });
 
