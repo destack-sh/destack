@@ -100,7 +100,7 @@ defineExpose<ViewExposed>({ self, id, focus });
       "
     >
       <template v-if="icon != null">
-        <IconInline v-bind="icon" class="" />
+        <IconInline v-bind="icon" class="text-gray-700" />
         <span class="ml-1.5">{{ getIconMetadata(icon)?.title ?? "Custom Icon" }}</span>
       </template>
       <template v-else>

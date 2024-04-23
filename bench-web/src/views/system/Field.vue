@@ -99,7 +99,7 @@ defineExpose<ViewExposed>({ self, id, actions });
     />
     <input
       ref="nameRef"
-      class="w-fit min-w-fit max-w-fit truncate rounded border-0 outline-none ring-0 hover:bg-primary-100 hover:text-primary-900 focus:ring-0"
+      class="w-fit min-w-fit font-medium max-w-fit truncate rounded border-0 outline-none ring-0 hover:bg-primary-100 hover:text-primary-900 focus:ring-0"
       spellcheck="false"
       :value="field.name"
       :size="field.name?.length"

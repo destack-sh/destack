@@ -1,12 +1,12 @@
 import { HUMANIZED_OPERATION_STATUS, getHostClient, supervisor } from "@/proto/services";
 import {
-  ObjectType,
+  CommitTransactionRequest,
   EditType,
   GraphScope,
-  MESSAGE_TYPE_BY_OBJECT_TYPE,
   NODE_PROPERTY_ENUM_BY_TYPE,
   NodeReferenceData,
   NodeType,
+  ObjectType,
   PROPERTY_ENUM_BY_TYPE,
   Timestamp,
   type AnyNodeData,
@@ -14,11 +14,9 @@ import {
   type EditData,
   type IGraphIOClient,
   type NodeTypeMapping,
-  CommitTransactionRequest,
 } from "@/proto/wire";
 import {
   describeNode,
-  getDefaultProtoValue,
   makeNode,
   nodeReference,
   unwrapSomeNode,
@@ -27,7 +25,7 @@ import {
   type TypedNodeReferenceData,
 } from "@/proto/wiring";
 import { nonce, origin, userPtr } from "@/system/client";
-import { NodeGraph, type ReadNodeGraph, type WriteNodeGraph } from "@/system/graph";
+import { type ReadNodeGraph, type WriteNodeGraph } from "@/system/graph";
 import { makeIcon } from "@/system/icon";
 import { toaster } from "@/system/toast";
 import { AsyncEvent } from "@/utils/functools";

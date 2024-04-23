@@ -365,10 +365,10 @@ class NodeSource(IdEnum):
 @enum_(EnumType.NODE_VISIBILITY)
 class NodeVisibility(IdEnum):
     # ...?
-    BLOCK = 2
+    # BLOCK = 2
     PAGE = 4
     MODULE = 6
-    BENCH = 8
+    # BENCH = 8
     ALL = 10
 
 

@@ -96,6 +96,7 @@ export const NODE_VIEW_TYPES = new Set<ViewType>([
 ]);
 
 export const ENABLED_BLOCK_TYPES = [
+  BlockType.MODULE,
   BlockType.PAGE,
   BlockType.TEXT,
   BlockType.CLASS,
@@ -296,30 +297,14 @@ export function createBlock(
   return block;
 }
 
+//
+// Inspection
+//
+
 type InspectionCategory = {
   category: string;
   properties: ({ from?: number; to?: number; excluding?: number[] } | number)[];
 };
-const INSPECTION_INFO_BY_TYPE: Partial<Record<ObjectType, InspectionCategory[]>> = {
-  [ObjectType.FIELD]: [
-    { category: "Common", properties: [{ to: 43 }, { from: 60 }] },
-    { category: "Constraint", properties: [{ from: 43, to: 60 }] },
-  ],
-  [ObjectType.BLOCK]: [
-    { category: "Common", properties: [{ to: 40, excluding: [BlockProperty.builtinBase, BlockProperty.policies] }] },
-    // { category: "Content", properties: [{ from: 40, to: 60 }] }, // not needed yet
-    { category: "Flags", properties: [{ from: 60, to: 70 }] },
-    // { category: "Policy", properties: [BlockProperty.policies] }, // don't have it yet
-  ],
-  [ObjectType.VIEW]: [
-    { category: "Common", properties: [{ to: 40 }, ViewProperty.isInput] },
-    { category: "Content", properties: [{ from: 40, to: 50 }] },
-    { category: "Style", properties: [{ from: 50, to: 60 }] },
-    { category: "Layout", properties: [{ from: 60, to: 70 }] },
-    { category: "Behavior", properties: [{ from: 70, to: 80 }] },
-  ],
-};
-
 type InspectedProperty = {
   title: string;
   protoName: string;
@@ -332,12 +317,42 @@ type InspectedProperty = {
 type InspectionLayout = {
   properties: InspectedProperty[];
 };
+
+const INSPECTION_INFO_BY_TYPE: Partial<Record<ObjectType, InspectionCategory[]>> = {
+  [ObjectType.FIELD]: [
+    { category: "Common", properties: [{ to: 43 }, { from: 60 }] },
+    { category: "Constraint", properties: [{ from: 43, to: 60 }] },
+  ],
+  [ObjectType.BLOCK]: [
+    {
+      category: "Common",
+      properties: [
+        {
+          to: 40,
+          excluding: [BlockProperty.text, BlockProperty.basesPtr, BlockProperty.builtinBase, BlockProperty.policies],
+        },
+      ],
+    },
+    // { category: "Content", properties: [{ from: 40, to: 60 }] }, // not needed yet
+    { category: "Flags", properties: [{ from: 60, to: 70 }] },
+    // { category: "Policy", properties: [BlockProperty.policies] }, // don't have it yet
+  ],
+  [ObjectType.VIEW]: [
+    { category: "Common", properties: [{ to: 40 }, ViewProperty.isInput] },
+    { category: "Content", properties: [{ from: 40, to: 50 }] },
+    { category: "Style", properties: [{ from: 50, to: 60 }] },
+    { category: "Layout", properties: [{ from: 60, to: 70 }] },
+    { category: "Behavior", properties: [{ from: 70, to: 80 }] },
+  ],
+};
 const FULL_WIDTH_VIEW_TYPES = [ViewType.TEXT, ViewType.CODE];
+const ALWAYS_EXCLUDED_PROPERTIES: string[] = ["order_key"];
 
 export function getInspectionLayout(node: AnyNodeData, options?: { exclude?: string[] }): InspectionLayout {
   const propertyInfos = PROPERTY_INFOS_BY_TYPE[node.metatype];
   const seenProperties: Record<number, PropertyInfo> = {};
   const inspectedProperties: InspectedProperty[] = [];
+  const excluded = ALWAYS_EXCLUDED_PROPERTIES.concat(options?.exclude ?? []);
 
   const allProperties = PROPERTY_ENUM_BY_TYPE[node.metatype] ?? [];
   const categories = INSPECTION_INFO_BY_TYPE[node.metatype] ?? [
@@ -361,9 +376,8 @@ export function getInspectionLayout(node: AnyNodeData, options?: { exclude?: str
       }
       for (const property of propertiesInRange) {
         if (seenProperties[property.id]) continue;
-        if (property.id < 30 || property.isInternal || property.isAutoset || property.isComputed || property.isSystem)
-          continue;
-        if (options?.exclude?.includes(property.name)) continue;
+        if (property.id < 30 || property.isAutoset || property.isComputed || property.isSystem) continue;
+        if (excluded.includes(property.name)) continue;
         seenProperties[property.id] = property;
         categoryPropertyInfos.push(property);
       }

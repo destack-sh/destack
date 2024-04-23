@@ -10,13 +10,13 @@ import {
   ViewType,
 } from "@/proto/wire";
 import { isNode, type TypedNodeReferenceData } from "@/proto/wiring";
-import { IconInline, getNodeIcon, makeIcon } from "@/system/icon";
+import { ENUM_ICONS_BY_TYPE, IconInline, getNodeIcon, makeIcon } from "@/system/icon";
 import { isEnumType, isNodeType, toCamelName } from "@/system/lang";
 import type { NodeItem } from "@/system/search";
 import { enumIndex, graphIndex, useSearch, type EnumOptionItem, type SearchIndex } from "@/system/search";
 import { canvas, pkgGraph } from "@/system/space";
 import { ScrollbarWidth } from "@/utils/layout";
-import type { OverlayMenuInfo, OverlayMenuInfoIn } from "@/utils/menu";
+import type { OverlayMenuInfoIn } from "@/utils/menu";
 import { Casing, toCasing } from "@/utils/string";
 import { makeViewId } from "@/views";
 import { ViewContentWrapper, viewEmits, type FocusAnchor, type ViewExposed } from "@/views/common";
@@ -67,9 +67,17 @@ const modelValueTitle = computed(() => {
     const enumType = ENUM_BY_TYPE[props.valueType.benchType];
     return toCasing(enumType[props.modelValue], Casing.CAMEL, true);
   }
-
   return null;
 });
+const modelValueIcon = computed(() => {
+  if (isNode(props.modelValue)) {
+    return getNodeIcon(props.modelValue);
+  } else if (isEnumType(props.valueType?.benchType)) {
+    return ENUM_ICONS_BY_TYPE[props.valueType.benchType][props.modelValue];
+  }
+  return null;
+});
+
 const indices: Ref<Record<string, SearchIndex<any>>> = computed(() => {
   const indices: Record<string, SearchIndex<any>> = {};
   if (isEnumType(props.valueType?.benchType)) {
@@ -119,14 +127,14 @@ function focus(anchor?: "previous" | "next" | FocusAnchor | NodeReferenceData) {
 }
 
 canvas.registerView(self, id);
-defineExpose<ViewExposed>({ self, id, variants: [Variant.PRIMARY, Variant.COMPACT], focus });
+defineExpose<ViewExposed>({ self, id, variants: [Variant.PRIMARY, Variant.COMPACT, Variant.STEALTH], focus });
 </script>
 <template>
   <ViewContentWrapper v-bind="props">
     <!-- TODO :Incomplete: Picker variants/isInput/isInline/isDisabled/... -->
     <!-- Dropdown -->
     <button
-      v-if="!isInline"
+      v-if="!isInline && variant != Variant.COMPACT"
       class="group flex w-full flex-row items-center rounded border border-gray-200 px-2 py-1 hover:border-gray-400 data-[menu=true]:border-gray-400"
       v-menu="
         (): OverlayMenuInfoIn => ({
@@ -139,7 +147,7 @@ defineExpose<ViewExposed>({ self, id, variants: [Variant.PRIMARY, Variant.COMPAC
       "
     >
       <template v-if="modelValue != null">
-        <IconInline v-if="isNode(modelValue)" v-bind="getNodeIcon(modelValue)" class="mr-1.5 w-5" />
+        <IconInline v-if="modelValueIcon" v-bind="modelValueIcon" class="mr-1.5 w-5 text-gray-700" />
         <span class="truncate">{{ modelValueTitle ?? "???" }}</span>
       </template>
       <span v-else class="truncate text-gray-400 group-hover:text-gray-700">{{ topicName ?? "???" }}</span>
@@ -147,11 +155,25 @@ defineExpose<ViewExposed>({ self, id, variants: [Variant.PRIMARY, Variant.COMPAC
     </button>
 
     <!-- Inline: multi-toggle -->
-    <div v-else-if="isInline && variant == Variant.COMPACT" class="flex max-w-full flex-row truncate">
+    <div
+      v-else-if="variant == Variant.COMPACT || variant == Variant.STEALTH"
+      class="flex h-7 w-full flex-row items-center justify-between gap-x-2 truncate rounded bg-gray-100 px-2"
+    >
       <!-- Inline choice -->
-      nocheckin: compact Picker
-      <div v-for="result in results" :key="result.id">
-        {{ result.title }}
+      <!-- nocheckin: compact picker -->
+      <button
+        v-for="item in results"
+        :key="item.id"
+        :data-selected="item.id == modelValue?.id"
+        class="flex-1 flex-shrink-0 rounded text-center font-medium text-gray-500 hover:text-primary-900 data-[selected=true]:bg-white data-[selected=true]:text-gray-700"
+        @click.prevent="fire(item)"
+      >
+        <IconInline v-if="variant == Variant.STEALTH && item.icon" v-bind="item.icon" class="w-5 text-gray-700" />
+        <template v-else>{{ item.title }}</template>
+      </button>
+      <div v-if="results.length == 0" class="mx-auto">
+        <i class="fas fa-empty-set mr-1.5 text-gray-600" />
+        <span class="text-gray-500">No options</span>
       </div>
     </div>
 

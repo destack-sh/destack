@@ -2,7 +2,7 @@
 import { BoxData, NodeType, ObjectType, Orientation, ViewData, ViewType } from "@/proto/wire";
 import { type TypedNodeReferenceData } from "@/proto/wiring";
 import { useExistingConnection } from "@/system/connection";
-import { IconInline, getNodeIcon } from "@/system/icon";
+import { ICON_BY_NODE_TYPE, IconInline, getNodeIcon } from "@/system/icon";
 import { getInspectionLayout, toCamelName } from "@/system/lang";
 import { canvas, inspectionPtr } from "@/system/space";
 import { ScrollbarWidth } from "@/utils/layout";
@@ -28,6 +28,8 @@ const self = toRef(props, "self");
 const { graph: spaceGraph, connection: spaceConnection } = useExistingConnection(self);
 const { graph: pkgGraph, connection: pkgConnection } = useExistingConnection(inspectionPtr);
 const pkgNode = pkgGraph.getRef(inspectionPtr);
+const ancestors = pkgGraph.getAncestorsRef(pkgNode, { includeSelf: true });
+const path = computed(() => ancestors.value.slice().reverse());
 
 const inspectionLayout = computed(() => {
   if (pkgNode.value == null) return null;
@@ -40,11 +42,13 @@ defineExpose<ViewExposed>({ self });
 </script>
 <template>
   <div v-if="pkgNode && inspectionLayout" class="h-full w-full bg-white">
+    <!-- Header -->
     <div class="group w-full border-b border-gray-200" :style="{ height: HEADER_HEIGHT + 'px' }">
       <div
         class="mx-auto flex h-full max-w-full flex-row items-center px-4"
         :style="{ minWidth: MIN_WIDTH + 'px', maxWidth: MAX_WIDTH + 'px' }"
       >
+        <!-- Icon -->
         <IconInline
           v-bind="getNodeIcon(pkgNode)"
           class="w-5 rounded border border-transparent p-1 text-gray-700 hover:cursor-pointer hover:bg-primary-100 hover:text-primary-900 data-[menu=true]:border-primary-900 data-[menu=true]:bg-primary-100 data-[menu=true]:text-primary-900"
@@ -59,6 +63,7 @@ defineExpose<ViewExposed>({ self });
             })
           "
         />
+        <!-- Name -->
         <input
           class="ml-0.5 truncate rounded border-0 px-1 py-0.5 font-medium outline-none ring-0 hover:bg-primary-100 hover:text-primary-900 focus:ring-0"
           spellcheck="false"
@@ -68,15 +73,24 @@ defineExpose<ViewExposed>({ self });
             (event) => pkgConnection.tx.updateDebounced(pkgNode!, { name: (event.target as HTMLInputElement).value })
           "
         />
+        <!-- Meta & Controls  -->
+        <div class="ml-auto flex flex-row items-center pl-1.5">
+          <IconInline
+            v-bind="ICON_BY_NODE_TYPE[pkgNode.metatype as unknown as NodeType]"
+            class="mr-1 w-5 text-gray-500"
+          />
+          <span class="text-gray-500">{{ toCamelName(ObjectType, pkgNode.metatype) }}</span>
+        </div>
       </div>
     </div>
+    <!-- Inspection content -->
     <Scroll
       :size="{ width: props.size.width, height: props.size.height - HEADER_HEIGHT }"
       :orientation="Orientation.VERTICAL"
       :track-width="ScrollbarWidth.sm"
       track-is-overlay
     >
-      <ul class="flex flex-col gap-y-2 py-3">
+      <ul class="flex flex-col gap-y-2.5 py-3">
         <template
           v-for="(
             { title, protoName, category, property, viewType, props, isFullWidth }, i
@@ -96,7 +110,7 @@ defineExpose<ViewExposed>({ self });
           <!-- Property -->
           <li
             class="mx-auto w-full px-5"
-            :class="[isFullWidth ? 'flex flex-col' : 'flex flex-row flex-wrap items-baseline gap-x-[10%]']"
+            :class="[isFullWidth ? 'flex flex-col' : 'flex flex-row flex-wrap items-center gap-x-[10%]']"
             :style="{ minWidth: MIN_WIDTH + 'px', maxWidth: MAX_WIDTH + 'px' }"
           >
             <!-- Title & Controls -->
@@ -113,7 +127,7 @@ defineExpose<ViewExposed>({ self });
               :modelValue="(pkgNode as any)[protoName]"
               @update:modelValue="(value: any) => pkgConnection.tx.updateDebounced(pkgNode!, { [protoName]: value })"
             />
-            <div v-else class="text-danger-600">
+            <div v-else class="ml-auto text-danger-600">
               {{ viewType != null ? ViewType[viewType] : "???" }}
             </div>
           </li>
