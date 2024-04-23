@@ -7,7 +7,10 @@ import { viewEmits, type ViewExposed } from "@/views/common";
 import { toRef } from "vue";
 
 const props = defineProps<
-  { self?: TypedNodeReferenceData<NodeType.VIEW> } & Pick<ViewData, "name" | "title" | "text" | "icon" | "nodePtr">
+  { self?: TypedNodeReferenceData<NodeType.VIEW> } & Pick<
+    ViewData,
+    "name" | "title" | "text" | "icon" | "nodePtr" | "variant"
+  >
 >();
 const emit = defineEmits(viewEmits());
 const self = toRef(props, "self");

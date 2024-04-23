@@ -189,7 +189,7 @@ defineExpose<ViewExposed>({ self, actions });
         :ref="(ref) => (ref != null ? (tabsRef[tab.id] = ref as HTMLElement) : delete tabsRef[tab.id])"
         v-for="(tab, i) in tabs"
         :key="tab.id"
-        class="group relative flex h-full max-w-52 select-none flex-row items-center justify-center whitespace-nowrap border-r border-gray-300 px-2.5 hover:cursor-pointer"
+        class="group relative flex h-full max-w-52 select-none flex-row items-center justify-center whitespace-nowrap border-r border-gray-200 px-2.5 hover:cursor-pointer"
         :class="[
           i == focusedTabIdx ? 'bg-white text-primary-900  ' : 'border-b hover:text-primary-900',
           i == focusedTabIdx && isFocusAbsolute ? 'shadow-inset-md shadow-primary-900' : '',
@@ -233,7 +233,7 @@ defineExpose<ViewExposed>({ self, actions });
         />
       </button>
       <!-- Remaining space -->
-      <div class="flex-1 border-b border-gray-300" />
+      <div class="flex-1 border-b border-gray-200" />
       <!-- Drop indicator if no tab -->
       <div
         v-if="activeHeaderDropZone != null && activeHeaderDropZone.targetId == null"

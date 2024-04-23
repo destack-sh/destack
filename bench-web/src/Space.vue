@@ -78,7 +78,7 @@ watch([canvas.focusedViewPtr, bench], () => {
     <!-- Bar -->
     <Bar
       ref="barRef"
-      class="w-full border-b border-gray-300"
+      class="w-full border-b border-gray-200"
       :style="{ height: BAR_HEIGHT + 'px' }"
       :space-graph="spaceGraph"
       :space-connection="spaceConnection"
