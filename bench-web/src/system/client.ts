@@ -22,7 +22,7 @@ export const LOCAL_SPACE_PTR = nodeReference(NodeType.SPACE, LOCAL_SPACE_ID, { b
 
 //
 // NOTE: we use a simple semi-randomised XOR shift encoding for local storage.
-//  This isn't meant to be secure, just to make it annoying to read out & modify the data.
+//  This isn't meant to be secure, just to make it marginally more annoying to read & modify the data.
 //
 const ENCODE_LOCAL_STORAGE = true;
 

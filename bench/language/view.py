@@ -68,6 +68,7 @@ class ViewType(IdEnum):
     GRID = 512
     ROW = 513
     COLUMN = 514
+    SCROLL = 515
     # containers (data)
     LIST = 520
     TABLE = 521
@@ -97,7 +98,7 @@ class ViewType(IdEnum):
     NUMBER = 632
     SLIDER = 633
     # stringy
-    PLAIN_TEXT = 640
+    STRING = 640
     TEXT = 641
     CODE = 642
     JSON = 643

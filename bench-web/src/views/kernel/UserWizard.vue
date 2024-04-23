@@ -10,7 +10,7 @@ import { makeTypeInfo } from "@/system/value";
 import { reverseRecord } from "@/utils/functools";
 import { getViewComponentChildren, isVueInstanceOf } from "@/views/canvas";
 import { viewEmits, type FocusAnchor, type ViewExposed } from "@/views/common";
-import PlainText from "@/views/content/PlainText.vue";
+import HtmlInput from "@/views/content/HtmlInput.vue";
 import Button from "@/views/controls/Button.vue";
 import { ref, toRef, watch, type Ref } from "vue";
 
@@ -90,7 +90,7 @@ const instance = canvas.registerView(self);
 function focus(anchor: FocusAnchor | NodeReferenceData) {
   const childViews = getViewComponentChildren(instance);
   if (anchor != "bottom") {
-    return childViews.find((v) => isVueInstanceOf(v, PlainText));
+    return childViews.find((v) => isVueInstanceOf(v, HtmlInput));
   } else {
     return childViews.reverse().find((v) => isVueInstanceOf(v, Button));
   }
@@ -113,7 +113,7 @@ defineExpose<ViewExposed>({ self, focus });
     </div>
     <!-- Data -->
     <div v-if="state == 'sign-up' || state == 'log-in'" class="mt-5 flex w-full flex-col gap-y-3">
-      <PlainText
+      <HtmlInput
         v-if="state === 'sign-up'"
         :icon="makeIcon({ faName: 'fas fa-user' })"
         name="Name"
@@ -122,7 +122,7 @@ defineExpose<ViewExposed>({ self, focus });
         is-input
         v-model="name"
       />
-      <PlainText
+      <HtmlInput
         :icon="makeIcon({ faName: 'fas fa-at' })"
         name="slug"
         title="Username"
@@ -130,7 +130,7 @@ defineExpose<ViewExposed>({ self, focus });
         is-input
         v-model="slug"
       />
-      <PlainText
+      <HtmlInput
         v-if="state === 'sign-up'"
         :icon="makeIcon({ faName: 'fas fa-envelope' })"
         name="Email"
@@ -139,7 +139,7 @@ defineExpose<ViewExposed>({ self, focus });
         is-input
         v-model="email"
       />
-      <PlainText
+      <HtmlInput
         :icon="makeIcon({ faName: 'fas fa-key' })"
         name="Password"
         title="Password"

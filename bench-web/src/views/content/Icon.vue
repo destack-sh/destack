@@ -1,5 +1,5 @@
 <script lang="ts" setup>
-import { ViewData, NodeType, IconData, NodeReferenceData, Orientation } from "@/proto/wire";
+import { ViewData, NodeType, IconData, NodeReferenceData, Orientation, ViewType } from "@/proto/wire";
 import { type TypedNodeReferenceData } from "@/proto/wiring";
 import { ViewContentWrapper, viewEmits, type FocusAnchor, type ViewExposed } from "@/views/common";
 import { canvas } from "@/system/space";
@@ -10,6 +10,7 @@ import { IconInline, makeIcon, metadataToIcon, type IconMetadata } from "@/syste
 import { ScrollbarWidth } from "@/utils/layout";
 import { iconIndex, useSearch, type IconItem, type SearchIndex } from "@/system/search";
 import type { TooltipInfo } from "@/utils/tooltip";
+import type { OverlayMenuInfo } from "@/utils/menu";
 
 const DEFAULT_WIDTH = 380;
 const MAX_HEIGHT = 280;
@@ -49,6 +50,9 @@ watch(results, () => {
 
 function fire(item: IconMetadata) {
   const icon = metadataToIcon(item);
+  apply(icon);
+}
+function apply(icon: IconData) {
   emit("update:modelValue", icon);
   emit("apply", icon);
 }
@@ -81,7 +85,27 @@ defineExpose<ViewExposed>({ self, id, focus });
 <template>
   <ViewContentWrapper v-bind="props">
     <!-- TODO :Incomplete: Icon.isInput/isDisabled/variants/... -->
-    <div :style="{ width: DEFAULT_WIDTH + 'px' }">
+    <!-- Dropdown -->
+    <button
+      v-if="!isInline"
+      class="flex flex-row items-center rounded border border-gray-200 px-2 py-1 hover:border-gray-400 data-[menu=true]:border-gray-400"
+      v-menu="
+        (): OverlayMenuInfo => ({
+          kind: 'component',
+          component: ViewType.ICON,
+          placement: 'bottom-left',
+          offset: 'referenceWidth',
+          referenceMargin: 4,
+          props: { ...props, isInline: true },
+          onApply: (value) => apply(value),
+        })
+      "
+    >
+      <IconInline v-bind="icon ?? makeIcon({ faName: 'fas fa-icons' })" class="text-gray-700" />
+    </button>
+
+    <!-- Inline Combobox -->
+    <div v-else-if="isInline" :style="{ width: DEFAULT_WIDTH + 'px' }">
       <!-- Header -->
       <div class="flex w-full flex-row items-center border-b border-gray-200 px-2.5 py-1.5">
         <IconInline v-bind="icon ?? makeIcon({ faName: 'fas fa-magnifying-glass' })" class="mr-1.5 text-gray-700" />

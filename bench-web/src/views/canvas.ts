@@ -38,7 +38,7 @@ import { DEFAULT_ORIENTATION, splitBox } from "@/utils/layout";
 import { log } from "@/utils/log";
 import { toValueRef } from "@/utils/ref";
 import { Casing, toCasing } from "@/utils/string";
-import type { ViewComponent } from "@/views";
+import { getViewTypeByComponentName, type ViewComponent } from "@/views";
 import type { FocusAnchor } from "@/views/common";
 import { useActiveElement, useEventListener, type MaybeElement } from "@vueuse/core";
 import {
@@ -56,7 +56,7 @@ import {
 } from "vue";
 
 export function getVueComponentType(component: ComponentInstance<any>): string {
-  return (component as any).type.__name;
+  return component.__name ?? (component as any).type.__name;
 }
 
 export function describeVueComponent(component: ComponentInstance<any>): string {
@@ -91,8 +91,9 @@ export function isIdentifiedViewComponent(
 
 function isViewComponentIn(component: ViewComponent, viewTypes: Set<ViewType>): boolean {
   const componentType = getVueComponentType(component);
-  const viewType = ViewType[toCasing(componentType, Casing.ALL_CAPS) as any] as unknown as ViewType;
-  return viewType != null && viewTypes.has(viewType);
+  const viewType = getViewTypeByComponentName(componentType);
+  if (viewType == null) throw new Error(`no view type for component: ${componentType}`);
+  return viewTypes.has(viewType);
 }
 
 export function getViewComponentId(component: ViewComponent): string {

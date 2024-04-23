@@ -1,5 +1,6 @@
 import { BoxData, NodeReferenceData, ViewData, ViewType } from "@/proto/wire";
 import { toNodeReference } from "@/proto/wiring";
+import { getVueComponentType } from "@/views/canvas";
 import type { ViewExposed } from "@/views/common";
 import { v4 } from "uuid";
 import { computed, getCurrentInstance, type ComponentInstance, type Ref } from "vue";
@@ -38,34 +39,48 @@ const COMPONENT_BY_VIEW_TYPE_LAZY = {
   [ViewType.TAB]: import("@/views/containers/Tab.vue"),
   [ViewType.SPLIT]: import("@/views/containers/Split.vue"),
   [ViewType.GROUP]: import("@/views/containers/Group.vue"),
+  [ViewType.SCROLL]: import("@/views/containers/Scroll.vue"),
 
   // controls
   [ViewType.BUTTON]: import("@/views/controls/Button.vue"),
 
   // content
   [ViewType.TYPE]: import("@/views/content/Type.vue"),
-  [ViewType.PLAIN_TEXT]: import("@/views/content/PlainText.vue"),
+  [ViewType.STRING]: import("@/views/content/HtmlInput.vue"),
+  [ViewType.NUMBER]: import("@/views/content/HtmlInput.vue"),
   [ViewType.TEXT]: import("@/views/content/Text.vue"),
   [ViewType.CODE]: import("@/views/content/Code.vue"),
+  [ViewType.TOGGLE]: import("@/views/content/Toggle.vue"),
   [ViewType.PICKER]: import("@/views/content/Picker.vue"),
   [ViewType.ICON]: import("@/views/content/Icon.vue"),
 };
-
 export const AVAILABLE_VIEW_TYPES = Object.keys(COMPONENT_BY_VIEW_TYPE_LAZY) as unknown as ViewType[];
 export const COMPONENT_BY_VIEW_TYPE = {} as Record<ViewType, ViewComponent>;
+export const VIEW_TYPE_BY_COMPONENT_NAME = {} as Record<string, ViewType>;
 let didRegisterComponents = false;
 export async function registerViewComponents() {
   if (didRegisterComponents) throw new Error("components already registered");
-  for (const [viewType, component] of Object.entries(COMPONENT_BY_VIEW_TYPE_LAZY)) {
-    COMPONENT_BY_VIEW_TYPE[viewType as unknown as ViewType] = (await component).default as unknown as ViewComponent;
+  for (const [key, componentLazy] of Object.entries(COMPONENT_BY_VIEW_TYPE_LAZY)) {
+    const component = (await componentLazy).default as unknown as ViewComponent;
+    const viewType = Number(key); // not sure why this is a string?
+    if (isNaN(viewType)) throw new Error(`invalid view type: ${key}`);
+    COMPONENT_BY_VIEW_TYPE[viewType as ViewType] = component;
+    VIEW_TYPE_BY_COMPONENT_NAME[getVueComponentType(component)] = viewType as ViewType;
   }
   didRegisterComponents = true;
 }
 
 export function getViewComponent<T extends ViewType>(viewType: T): (typeof COMPONENT_BY_VIEW_TYPE)[T] | null {
   if (!didRegisterComponents) throw new Error("Components not registered");
+  if (typeof viewType != "number") throw new Error(`invalid view type: ${viewType} (${typeof viewType})`);
   const component = COMPONENT_BY_VIEW_TYPE[viewType];
   return component ?? null;
+}
+
+export function getViewTypeByComponentName(componentName: string): ViewType | null {
+  if (!didRegisterComponents) throw new Error("Components not registered");
+  const viewType = VIEW_TYPE_BY_COMPONENT_NAME[componentName];
+  return viewType ?? null;
 }
 
 export function getViewBinding(view: ViewData, size: Omit<BoxData, "metatype">): Record<string, any> {

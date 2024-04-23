@@ -1091,6 +1091,7 @@ class ViewType(betterproto.Enum):
     GRID = 512
     ROW = 513
     COLUMN = 514
+    SCROLL = 515
     LIST = 520
     TABLE = 521
     FEED = 522
@@ -1110,7 +1111,7 @@ class ViewType(betterproto.Enum):
     TYPE = 111
     NUMBER = 632
     SLIDER = 633
-    PLAIN_TEXT = 640
+    STRING = 640
     TEXT = 641
     CODE = 642
     JSON = 643

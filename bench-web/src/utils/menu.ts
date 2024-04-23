@@ -1,4 +1,4 @@
-import type { IconData } from "@/proto/wire";
+import type { IconData, ViewType } from "@/proto/wire";
 import {
   fireAction,
   getAction,
@@ -122,7 +122,7 @@ export type OverlayMenuInfo = (
   | ({ kind: "menu" } & MenuInfo)
   | {
       kind: "component";
-      component: any;
+      component: any | ViewType;
       props: ViewComponent["props"];
       context?: MenuContext;
     }

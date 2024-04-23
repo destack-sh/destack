@@ -1,24 +1,29 @@
 <script lang="ts" setup>
-import { NodeType, Variant, type ViewData } from "@/proto/wire";
+import { NodeType, Variant, ViewType, type ViewData } from "@/proto/wire";
 import type { TypedNodeReferenceData } from "@/proto/wiring";
 import { IconInline } from "@/system/icon";
 import { canvas } from "@/system/space";
 import { makeViewId } from "@/views";
 import { ViewContentWrapper, viewEmits, type ViewExposed } from "@/views/common";
-import { ref, toRef } from "vue";
+import { computed, ref, toRef } from "vue";
 
 const props = defineProps<
   { self?: TypedNodeReferenceData<NodeType.VIEW> } & Partial<
     Pick<
       ViewData,
-      "name" | "title" | "text" | "icon" | "variant" | "valueType" | "orientation" | "isInput" | "isDisabled"
+      "type" | "name" | "title" | "text" | "icon" | "variant" | "valueType" | "orientation" | "isInput" | "isDisabled"
     >
   >
 >();
 const emit = defineEmits(viewEmits());
 const self = toRef(props, "self");
-const modelValue = defineModel<string>();
+const modelValue = defineModel<string | number>();
 const inputRef = ref<HTMLInputElement | null>(null);
+const inputType = computed(() => {
+  if (props.valueType?.isSecret) return "password";
+  else if (props.type == ViewType.NUMBER) return "number";
+  else return "text";
+});
 
 const id = makeViewId(props);
 canvas.registerView(self, id);
@@ -42,7 +47,7 @@ defineExpose<ViewExposed>({
       <IconInline v-if="icon" v-bind="icon" class="mr-1.5 w-5 text-gray-400" />
       <input
         ref="inputRef"
-        :type="valueType?.isSecret ? 'password' : 'text'"
+        :type="inputType"
         v-model="modelValue"
         class="w-full border-0 bg-transparent p-0 outline-none ring-0 focus:ring-0"
         :disabled="isDisabled"

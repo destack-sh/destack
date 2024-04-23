@@ -9199,6 +9199,10 @@ export enum ViewType {
      */
     COLUMN = 514,
     /**
+     * @generated from protobuf enum value: VIEW_TYPE_SCROLL = 515;
+     */
+    SCROLL = 515,
+    /**
      * @generated from protobuf enum value: VIEW_TYPE_LIST = 520;
      */
     LIST = 520,
@@ -9275,9 +9279,9 @@ export enum ViewType {
      */
     SLIDER = 633,
     /**
-     * @generated from protobuf enum value: VIEW_TYPE_PLAIN_TEXT = 640;
+     * @generated from protobuf enum value: VIEW_TYPE_STRING = 640;
      */
-    PLAIN_TEXT = 640,
+    STRING = 640,
     /**
      * @generated from protobuf enum value: VIEW_TYPE_TEXT = 641;
      */

@@ -12,7 +12,7 @@ const VIEW_TYPE_BY_BENCH_TYPE: Partial<Record<BenchType, ViewType>> = {
   [BenchType.TEXT]: ViewType.TEXT,
 };
 const VIEW_TYPE_BY_PRIMITIVE_TYPE: Partial<Record<PrimitiveType, ViewType>> = {
-  [PrimitiveType.STRING]: ViewType.PLAIN_TEXT,
+  [PrimitiveType.STRING]: ViewType.STRING,
   [PrimitiveType.INT16]: ViewType.NUMBER,
   [PrimitiveType.INT32]: ViewType.NUMBER,
   [PrimitiveType.INT64]: ViewType.NUMBER,
