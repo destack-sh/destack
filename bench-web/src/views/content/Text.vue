@@ -333,7 +333,7 @@ defineExpose<ViewExposed>({ self, id, variants: [Variant.PRIMARY, Variant.STEALT
   @apply my-2 border-l-2 border-gray-700 py-[1px] pl-2;
 }
 .text div.callout {
-  @apply my-2 rounded  bg-gray-100 px-2 py-2.5;
+  @apply my-2 rounded bg-secondary-100 px-2 py-2.5;
 }
 /* TODO: UI: callout/heading/etc. line icons should be editable */
 .text div.callout::before {

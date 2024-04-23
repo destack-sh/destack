@@ -360,7 +360,7 @@ export function useSplitDropZone(
   return { activeDropZone };
 }
 
-type MultiAnchor = "start" | "center" | "end";
+export type MultiAnchor = "start" | "center" | "end";
 /**
  * Track certain drop zone events across dynamic target regions in a single parent container.
  */

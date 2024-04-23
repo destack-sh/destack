@@ -116,27 +116,17 @@ defineExpose<ViewExposed>({ self, id, variants: [Variant.PRIMARY, Variant.STEALT
           v-bind="getNodeIcon(block)"
           class="w-5 rounded border border-transparent py-0.5 hover:cursor-pointer hover:bg-primary-100 hover:text-primary-900 data-[menu=true]:border-primary-900 data-[menu=true]:bg-primary-100 data-[menu=true]:text-primary-900"
           :class="[isThinTextWrapper ? ' text-gray-500' : 'text-gray-700']"
-          v-tooltip="
-            {
-              showDelay: 400,
-              hideDelay: 200,
-              placement: 'top',
-              small: true,
-              text: `Change icon (${toCamelName(BlockType, block.type)})`,
-            } as TooltipInfo
-          "
+          v-tooltip="{ small: true, text: `Change icon (${toCamelName(BlockType, block.type)})` } as TooltipInfo"
           v-menu="
             () =>
               ({
                 kind: 'component',
+                component: Icon,
                 placement: 'bottom-right',
                 offset: '-referenceWidth',
                 referenceMargin: 4,
-                component: Icon,
                 props: { modelValue: block!.icon },
-                onApply: (newIcon) => {
-                  pkgConnection.tx.update(block!, { icon: newIcon });
-                },
+                onApply: (newIcon) => pkgConnection.tx.update(block!, { icon: newIcon }),
               }) as OverlayMenuInfo
           "
         />
@@ -157,11 +147,16 @@ defineExpose<ViewExposed>({ self, id, variants: [Variant.PRIMARY, Variant.STEALT
       <!-- Tags, triggers, roles, queries, etc. -->
       <div class="ml-auto pl-2 pr-0.5">
         <!-- Quick actions -->
-        <span class="flex flex-row gap-x-0.5">
+        <span
+          class="flex flex-row gap-x-0.5"
+          :class="[
+            nodePtr?.id == inspectionPtr?.id ? 'text-gray-400' : 'text-gray-300 group-hover/block:text-gray-400',
+          ]"
+        >
           <!-- Add/edit text -->
           <button
             v-if="!hasText && block.type != BlockType.TEXT"
-            class="rounded px-1 text-gray-400 hover:bg-gray-100 hover:text-primary-900"
+            class="t rounded px-1 hover:bg-gray-100 hover:text-primary-900"
             @click="
               () => {
                 forceShowText = true;
@@ -172,12 +167,12 @@ defineExpose<ViewExposed>({ self, id, variants: [Variant.PRIMARY, Variant.STEALT
             <i class="fas fa-text" />
           </button>
           <!-- Quick add -->
-          <button class="rounded px-1 text-gray-400 hover:bg-gray-100 hover:text-primary-900">
+          <button class="rounded px-1 hover:bg-gray-100 hover:text-primary-900">
             <i class="fas fa-plus" />
           </button>
           <!-- Menu -->
           <button
-            class="rounded border border-transparent px-2 text-gray-400 hover:bg-gray-100 hover:text-primary-900 data-[menu=true]:border-primary-900 data-[menu=true]:bg-primary-100 data-[menu=true]:text-primary-900"
+            class="rounded border border-transparent px-2 hover:bg-gray-100 hover:text-primary-900 data-[menu=true]:border-primary-900 data-[menu=true]:bg-primary-100 data-[menu=true]:text-primary-900"
             v-menu="
               (): OverlayMenuInfo => ({
                 kind: 'menu',
