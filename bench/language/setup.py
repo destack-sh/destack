@@ -23,6 +23,7 @@ if TYPE_CHECKING:
 
 # some global indexes for language types/classes
 ENUM_CLASS_BY_TYPE = _ENUM_CLASS_BY_TYPE  # re-exported to avoid circular imports
+ENUM_TYPE_BY_CLASS: dict[type, EnumType] = {}
 NODE_CLASS_BY_TYPE: dict[NodeType, type["Node"]] = {}
 NODE_COMPONENT_CLASS_BY_NAME: dict[str, type["Node"]] = {}
 STRUCT_CLASS_BY_TYPE: dict[StructType, type["Struct"]] = {}
@@ -91,11 +92,12 @@ def _complete_bench_setup():
     missing_enums = set(EnumType) - set(ENUM_CLASS_BY_TYPE)
     if missing_enums:
         raise ValueError(f"missing enums: {missing_enums}")
-    for enum_t in ENUM_CLASS_BY_TYPE.values():
-        BENCH_CLASSES_BY_NAME[enum_t.__name__] = enum_t
-        BENCH_CLASSES.append(enum_t)
-        FINAL_BENCH_CLASSES_BY_NAME[enum_t.__name__] = enum_t
-        FINAL_BENCH_CLASSES.append(enum_t)
+    for enum_type, enum_cls in ENUM_CLASS_BY_TYPE.items():
+        BENCH_CLASSES_BY_NAME[enum_cls.__name__] = enum_cls
+        BENCH_CLASSES.append(enum_cls)
+        FINAL_BENCH_CLASSES_BY_NAME[enum_cls.__name__] = enum_cls
+        FINAL_BENCH_CLASSES.append(enum_cls)
+        ENUM_TYPE_BY_CLASS[enum_cls] = enum_type
 
     # finalize classes
     for cls in get_subclasses(Struct):

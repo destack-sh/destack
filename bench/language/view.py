@@ -391,7 +391,7 @@ class View(HasViews, HasValues):
     orientation: Optional[Orientation] = p_regular(64, default=None, require=False)
     alignment: Optional[Alignment] = p_regular(65, default=None, require=False)
 
-    # interaction
+    # behavior
     selection: Optional[Selection] = p_regular(
         70, default=None, require=False, struct=StructType.SELECTION
     )
@@ -401,7 +401,7 @@ class View(HasViews, HasValues):
     expansion: Optional[Selection] = p_regular(
         72, default=None, require=False, struct=StructType.SELECTION
     )
-    ...  # behavior/actions/effects/...
+    ...  # actions/effects/...
 
     # flags
     is_visible: Optional[bool] = p_regular(80, default=True)

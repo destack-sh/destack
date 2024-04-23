@@ -33,10 +33,10 @@ defineExpose<ViewExposed>({
   <ViewContentWrapper v-bind="props">
     <div
       v-if="isInput"
-      class="group flex flex-1 flex-row items-center rounded border-gray-200 outline-2 outline-primary-900 focus-within:outline-dotted hover:border-gray-400"
+      class="group flex flex-1 flex-row items-center rounded outline-1 outline-primary-900 focus-within:outline-dotted hover:border-gray-400"
       :class="[
         isDisabled ? 'bg-gray-100 text-gray-700' : 'bg-white text-gray-900',
-        variant != Variant.STEALTH ? 'border px-2 py-0.5' : '',
+        variant != Variant.STEALTH ? 'border border-gray-200 px-2 py-1' : '',
       ]"
     >
       <IconInline v-if="icon" v-bind="icon" class="mr-1.5 w-5 text-gray-400" />

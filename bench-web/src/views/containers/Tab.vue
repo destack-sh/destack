@@ -4,13 +4,11 @@ import { toNodeReference, type TypedNodeReferenceData } from "@/proto/wiring";
 import { type Action, type ActionContext, type ActionMapImplementation } from "@/system/action";
 import { useExistingConnection } from "@/system/connection";
 import { ICON_BY_NODE_TYPE, ICON_BY_VIEW_TYPE, IconInline } from "@/system/icon";
-import { FULL_VIEW_TYPES } from "@/system/lang";
 import { canvas } from "@/system/space";
 import { startDragging, useMultiDropZone, useSplitDropZone, type SplitAnchor } from "@/utils/drag";
 import { IS_DEBUG, isDeveloperMode } from "@/utils/globals";
 import { ScrollbarWidth } from "@/utils/layout";
 import { menuActionsLike, type MenuContext, type OverlayMenuInfo } from "@/utils/menu";
-import type { TooltipInfo } from "@/utils/tooltip";
 import { getViewBinding, getViewComponent } from "@/views";
 import Empty from "@/views/builtins/Empty.vue";
 import { viewEmits, type ViewExposed } from "@/views/common";
@@ -194,7 +192,6 @@ defineExpose<ViewExposed>({ self, actions });
         class="group relative flex h-full max-w-52 select-none flex-row items-center justify-center whitespace-nowrap border-r border-gray-300 px-2.5 hover:cursor-pointer"
         :class="[
           i == focusedTabIdx ? 'bg-white text-primary-900  ' : 'border-b hover:text-primary-900',
-          i == focusedTabIdx && !FULL_VIEW_TYPES.has(tab.type) ? 'border-b' : '',
           i == focusedTabIdx && isFocusAbsolute ? 'shadow-inset-md shadow-primary-900' : '',
           i != focusedTabIdx ? (isFocusAbsolute ? 'text-gray-700' : 'text-gray-600') : '',
         ]"
@@ -246,7 +243,7 @@ defineExpose<ViewExposed>({ self, actions });
     <!-- Tab body -->
     <div
       ref="bodyRef"
-      class="absolute bg-gray-100"
+      class="absolute bg-white"
       :style="{ left: '0px', top: '30px', width: innerSize.width + 'px', height: innerSize.height + 'px' }"
       data-root-element="true"
     >
