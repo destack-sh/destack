@@ -36,7 +36,7 @@ defineExpose<ViewExposed>({ self, id, variants: [Variant.PRIMARY, Variant.SECOND
       v-if="variant == null || variant == Variant.PRIMARY"
       role="switch"
       class="relative inline-flex h-[20px] w-12 flex-shrink-0 cursor-pointer rounded border border-gray-200 transition-colors duration-75 ease-in-out focus:outline-none"
-      :class="modelValue ? 'bg-gray-700' : 'bg-gray-100'"
+      :class="modelValue ? 'bg-gray-700' : 'bg-gray-200'"
       @click="toggle"
     >
       <span

@@ -9,6 +9,7 @@ import {
   BlockData,
   ViewData,
   EnumType,
+  NodeVisibility,
 } from "@/proto/wire";
 import type { FunctionalComponent } from "vue";
 // file is generated with:
@@ -155,6 +156,7 @@ export const ICON_BY_NODE_TYPE: Partial<Record<NodeType, IconData>> = _makeIcons
 });
 
 export const ICON_BY_BLOCK_TYPE: Partial<Record<BlockType, IconData>> = _makeIcons<BlockType>({
+  [BlockType.MODULE]: "fas fa-box-open",
   [BlockType.PAGE]: "fas fa-memo",
   [BlockType.BLANK]: "fas fa-empty-set",
   [BlockType.ALIAS]: "fas fa-link",
@@ -267,10 +269,17 @@ export const ICON_BY_VIEW_TYPE: Partial<Record<ViewType, IconData>> = _makeIcons
   [ViewType.AUDIO]: "fas fa-volume",
 });
 
+export const ICON_BY_VISIBILITY: Partial<Record<NodeVisibility, IconData>> = _makeIcons({
+  [NodeVisibility.PAGE]: "fas fa-memo-pad",
+  [NodeVisibility.MODULE]: "fas fa-box-open",
+  [NodeVisibility.ALL]: "fas fa-globe",
+});
+
 export const ENUM_ICONS_BY_TYPE: Partial<Record<EnumType, Record<any, IconData>>> = {
   [EnumType.NODE_TYPE]: ICON_BY_NODE_TYPE,
   [EnumType.BLOCK_TYPE]: ICON_BY_BLOCK_TYPE,
   [EnumType.VIEW_TYPE]: ICON_BY_VIEW_TYPE,
+  [EnumType.NODE_VISIBILITY]: ICON_BY_VISIBILITY,
 };
 
 export function getNodeIcon(node: AnyNodeData | { metatype: ObjectType; type?: BlockType | ViewType }) {

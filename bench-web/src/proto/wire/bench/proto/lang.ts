@@ -7556,10 +7556,6 @@ export enum NodeVisibility {
      */
     UNSPECIFIED = 0,
     /**
-     * @generated from protobuf enum value: NODE_VISIBILITY_BLOCK = 2;
-     */
-    BLOCK = 2,
-    /**
      * @generated from protobuf enum value: NODE_VISIBILITY_PAGE = 4;
      */
     PAGE = 4,
@@ -7567,10 +7563,6 @@ export enum NodeVisibility {
      * @generated from protobuf enum value: NODE_VISIBILITY_MODULE = 6;
      */
     MODULE = 6,
-    /**
-     * @generated from protobuf enum value: NODE_VISIBILITY_BENCH = 8;
-     */
-    BENCH = 8,
     /**
      * @generated from protobuf enum value: NODE_VISIBILITY_ALL = 10;
      */
