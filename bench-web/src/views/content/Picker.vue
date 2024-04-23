@@ -8,7 +8,7 @@ import { enumIndex, graphIndex, useSearch, type EnumOptionItem, type SearchIndex
 import { canvas, pkgGraph } from "@/system/space";
 import { ScrollbarWidth } from "@/utils/layout";
 import { makeViewId } from "@/views";
-import { viewEmits, type FocusAnchor, type ViewExposed } from "@/views/common";
+import { ViewContentWrapper, viewEmits, type FocusAnchor, type ViewExposed } from "@/views/common";
 import Scroll from "@/views/containers/Scroll.vue";
 import { computed, ref, toRef, watch, type Ref } from "vue";
 
@@ -98,7 +98,7 @@ canvas.registerView(self, id);
 defineExpose<ViewExposed>({ self, id, variants: [Variant.PRIMARY, Variant.COMPACT], focus });
 </script>
 <template>
-  <div>
+  <ViewContentWrapper v-bind="props">
     <!-- nocheckin: Picker variants/isInput/isInline/isDisabled/... -->
     <!-- Inline Primary: classic typeahead/combobox -->
     <div :style="{ width: DEFAULT_WIDTH + 'px' }">
@@ -181,5 +181,5 @@ defineExpose<ViewExposed>({ self, id, variants: [Variant.PRIMARY, Variant.COMPAC
         </div>
       </Scroll>
     </div>
-  </div>
+  </ViewContentWrapper>
 </template>

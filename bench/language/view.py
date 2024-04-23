@@ -345,9 +345,9 @@ class View(HasViews, HasValues):
     parent: Union["Space", "View", "Block"] = p_node_parent(
         4, NodeType.SPACE, NodeType.VIEW, NodeType.BLOCK
     )
-    type: ViewType = p_regular(30, require=True, validate=enum_validator(ViewType))
 
     # common
+    type: ViewType = p_regular(30, require=True, validate=enum_validator(ViewType))
     name: str = p_regular(31, validate=validate_name)
     title: Optional[str] = p_regular(32, default=None, validate=validate_name)
     text: Optional["Text"] = p_regular(33, default=None, struct=StructType.TEXT)

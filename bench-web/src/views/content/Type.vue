@@ -1,7 +1,7 @@
 <script lang="ts" setup>
 import { ViewData, NodeType, TypeInfoData } from "@/proto/wire";
 import { type TypedNodeReferenceData } from "@/proto/wiring";
-import { viewEmits, type ViewExposed } from "@/views/common";
+import { ViewContentWrapper, viewEmits, type ViewExposed } from "@/views/common";
 import { canvas } from "@/system/space";
 import { toRef } from "vue";
 import { makeViewId } from "@/views";
@@ -19,8 +19,8 @@ canvas.registerView(self, id);
 defineExpose<ViewExposed>({ self, id });
 </script>
 <template>
-  <div>
+  <ViewContentWrapper v-bind="props">
     <!-- nocheckin: Type -->
     Type!
-  </div>
+  </ViewContentWrapper>
 </template>

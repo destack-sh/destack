@@ -85,6 +85,7 @@ defineExpose({ self, focus });
         :icon="makeIcon({ faName: 'fas fa-at' })"
         name="Slug"
         title="Slug"
+        :variant="Variant.PRIMARY"
         is-input
         is-disabled
         v-model="slug"

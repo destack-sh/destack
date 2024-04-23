@@ -192,9 +192,20 @@ defineExpose<ViewExposed>({ self, id, actions });
               (): OverlayMenuInfo => ({
                 kind: 'menu',
                 placement: 'bottom-right',
-                items: menuActionsLike(['common.edit.*', 'common.create.above', 'common.create.below', 'type*'], {
-                  context: { triggerNode: field },
-                }),
+                items: menuActionsLike(
+                  [
+                    'common.edit.rename',
+                    'common.edit.morph',
+                    'common.edit.copy',
+                    'common.edit.duplicate',
+                    'common.create.above',
+                    'common.create.below',
+                    'type*',
+                  ],
+                  {
+                    context: { triggerNode: field },
+                  },
+                ),
               })
             "
           />

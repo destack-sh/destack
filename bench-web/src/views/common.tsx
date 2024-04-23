@@ -1,15 +1,15 @@
 // TODO :Architecture: figure out proper all-encompassing event system/bus
 
-import type { NodeReferenceData, NodeType, Variant } from "@/proto/wire";
+import { Orientation, Variant, type NodeReferenceData, type NodeType } from "@/proto/wire";
 import type { TypedNodeReferenceData } from "@/proto/wiring";
 import type { ActionMapImplementation } from "@/system/action";
 import type { ViewComponent } from "@/views";
-import type { Ref } from "vue";
+import type { FunctionalComponent, Ref } from "vue";
 
 export const VIEW_EMITS = {
   apply: null,
   cancel: null,
-  ['update:modelValue']: null,
+  ["update:modelValue"]: null,
 };
 
 export function viewEmits(): Partial<typeof VIEW_EMITS> {
@@ -43,3 +43,26 @@ export type ViewExposed = (
   /** Map the relevant node at the given element. */
   mapToNode?: (element: HTMLElement | ViewComponent) => NodeReferenceData | null;
 } & {};
+
+// TODO :Architecture :Performance: revisit content view wrapper for vapor mode
+export const ViewContentWrapper: FunctionalComponent<{ title?: string; variant?: Variant; orientation?: Orientation }> = (
+  props,
+  { slots },
+) => {
+  const classBase =
+    props.title == null
+      ? ""
+      : props.orientation === Orientation.HORIZONTAL
+        ? "flex flex-row items-center justify-between gap-x-5"
+        : "flex flex-col";
+
+  const labelClass =
+    props.variant === Variant.PRIMARY ? "mb-0.5 block font-semibold text-gray-900" : "mb-0.5 block text-gray-700";
+
+  return (
+    <div class={classBase}>
+      {props.title && <label class={labelClass}>{props.title}</label>}
+      {slots.default ? slots.default() : null}
+    </div>
+  );
+};

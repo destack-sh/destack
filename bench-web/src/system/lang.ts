@@ -276,6 +276,7 @@ export function getRandomEnumOption<T extends EnumType>(enumType: T): EnumTypeMa
   return options[Math.floor(Math.random() * options.length)].value;
 }
 
+/** Create a Block relative to another. */
 export function createBlock(
   tx: Transaction,
   graph: ReadNodeGraph,
