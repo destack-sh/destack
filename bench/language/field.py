@@ -247,7 +247,6 @@ class Field(Node, TypeInfoBase, _TypeQueryBuilder):
 
     # type identity
     # ...TypeInfo
-    # ...literal_value? (for options)
 
     # field-only flags
     # is_indexed: bool = ... # for database fields

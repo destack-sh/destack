@@ -575,6 +575,7 @@ class Property(_TypeQueryBuilder if TYPE_CHECKING else object):
                 is_runtime=True,
                 is_wired=True,
                 is_stored=False,
+                is_autoset=self.is_autoset,
                 is_computed=is_computed,
                 is_list=is_list,
                 is_required=is_required,

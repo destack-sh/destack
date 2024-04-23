@@ -1,7 +1,7 @@
 <script lang="ts" setup>
 import { ViewData, NodeType, CodeData, Variant } from "@/proto/wire";
 import { type TypedNodeReferenceData } from "@/proto/wiring";
-import { viewEmits, type ViewExposed } from "@/views/common";
+import { ViewContentWrapper, viewEmits, type ViewExposed } from "@/views/common";
 import { canvas } from "@/system/space";
 import { onBeforeUnmount, ref, toRef, watch } from "vue";
 import { makeViewId } from "@/views";
@@ -21,7 +21,7 @@ import { Casing, toCasing } from "@/utils/string";
 
 const props = defineProps<
   { self?: TypedNodeReferenceData<NodeType.VIEW>; modelValue?: CodeData } & Partial<
-    Pick<ViewData, "name" | "title" | "icon" | "variant" | "nodePtr" | "isInput">
+    Pick<ViewData, "name" | "title" | "icon" | "variant" | "orientation" | "nodePtr" | "isInput">
   >
 >();
 const emit = defineEmits(viewEmits());
@@ -160,9 +160,8 @@ canvas.registerView(self, id);
 defineExpose<ViewExposed>({ self, id, actions });
 </script>
 <template>
-  <div>
+  <ViewContentWrapper :title="title" :variant="variant" :orientation="orientation">
     <!-- TODO :UX: Code menus (autocomplete, refactor, etc.)  -->
-    <label v-if="title" class="mb-0.5 block font-medium text-gray-900">{{ title }}</label>
     <!-- NOTE: textRef must be in a stable fragment to mount the editor view -->
     <div
       ref="codeRef"
@@ -185,7 +184,7 @@ defineExpose<ViewExposed>({ self, id, actions });
         })
       "
     />
-  </div>
+  </ViewContentWrapper>
 </template>
 <style>
 /* Code */

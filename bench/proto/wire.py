@@ -1915,21 +1915,21 @@ class BlockData(betterproto.Message):
     type: "BlockType" = betterproto.enum_field(30)
     name: str = betterproto.string_field(32)
     order_key: str = betterproto.string_field(33)
-    visibility: Optional["NodeVisibility"] = betterproto.enum_field(34, optional=True)
-    policies: List["PolicyData"] = betterproto.message_field(35)
-    bases_ptr: List["NodeReferenceData"] = betterproto.message_field(36)
-    builtin_base: Optional["TypeInfoData"] = betterproto.message_field(37, optional=True)
-    text: Optional["TextData"] = betterproto.message_field(40, optional=True)
-    code: Optional["CodeData"] = betterproto.message_field(41, optional=True)
+    policies: List["PolicyData"] = betterproto.message_field(34)
+    bases_ptr: List["NodeReferenceData"] = betterproto.message_field(35)
+    builtin_base: Optional["TypeInfoData"] = betterproto.message_field(36, optional=True)
+    text: Optional["TextData"] = betterproto.message_field(37, optional=True)
+    icon: Optional["IconData"] = betterproto.message_field(38, optional=True)
+    visibility: Optional["NodeVisibility"] = betterproto.enum_field(39, optional=True)
     value_packed: Optional["betterproto_lib_google_protobuf.Struct"] = betterproto.message_field(
-        42, optional=True
+        40, optional=True
     )
     secret_value_packed: Optional[
         "betterproto_lib_google_protobuf.Struct"
-    ] = betterproto.message_field(43, optional=True)
-    icon: Optional["IconData"] = betterproto.message_field(44, optional=True)
-    reference_ptr: Optional["NodeReferenceData"] = betterproto.message_field(45, optional=True)
-    delegated_policies: List["PolicyData"] = betterproto.message_field(46)
+    ] = betterproto.message_field(41, optional=True)
+    code: Optional["CodeData"] = betterproto.message_field(42, optional=True)
+    reference_ptr: Optional["NodeReferenceData"] = betterproto.message_field(43, optional=True)
+    delegated_policies: List["PolicyData"] = betterproto.message_field(44)
     is_intrinsic: bool = betterproto.bool_field(60)
     is_page: bool = betterproto.bool_field(61)
     is_protocol: bool = betterproto.bool_field(62)

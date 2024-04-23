@@ -1,15 +1,18 @@
 <script lang="ts" setup>
-import { NodeReferenceData, NodeType, Variant, type ViewData } from "@/proto/wire";
+import { NodeType, Variant, type ViewData } from "@/proto/wire";
 import type { TypedNodeReferenceData } from "@/proto/wiring";
 import { IconInline } from "@/system/icon";
 import { canvas } from "@/system/space";
 import { makeViewId } from "@/views";
-import { type ViewExposed, viewEmits } from "@/views/common";
+import { ViewContentWrapper, viewEmits, type ViewExposed } from "@/views/common";
 import { ref, toRef } from "vue";
 
 const props = defineProps<
   { self?: TypedNodeReferenceData<NodeType.VIEW> } & Partial<
-    Pick<ViewData, "name" | "title" | "text" | "icon" | "variant" | "valueType" | "isInput" | "isDisabled">
+    Pick<
+      ViewData,
+      "name" | "title" | "text" | "icon" | "variant" | "valueType" | "orientation" | "isInput" | "isDisabled"
+    >
   >
 >();
 const emit = defineEmits(viewEmits());
@@ -19,14 +22,18 @@ const inputRef = ref<HTMLInputElement | null>(null);
 
 const id = makeViewId(props);
 canvas.registerView(self, id);
-defineExpose<ViewExposed>({ self, id, variants: [Variant.PRIMARY, Variant.STEALTH], focus: () => inputRef.value });
+defineExpose<ViewExposed>({
+  self,
+  id,
+  variants: [Variant.PRIMARY, Variant.SECONDARY, Variant.STEALTH],
+  focus: () => inputRef.value,
+});
 </script>
 <template>
-  <div>
-    <label v-if="title" class="mb-0.5 block font-medium text-gray-900">{{ title }}</label>
+  <ViewContentWrapper v-bind="props">
     <div
       v-if="isInput"
-      class="group flex flex-row items-center rounded border-gray-200 outline-1 outline-primary-900 focus-within:outline-dotted"
+      class="group flex flex-1 flex-row items-center rounded border-gray-200 outline-2 outline-primary-900 focus-within:outline-dotted hover:border-gray-400"
       :class="[
         isDisabled ? 'bg-gray-100 text-gray-700' : 'bg-white text-gray-900',
         variant != Variant.STEALTH ? 'border px-2 py-0.5' : '',
@@ -42,5 +49,5 @@ defineExpose<ViewExposed>({ self, id, variants: [Variant.PRIMARY, Variant.STEALT
       />
     </div>
     <span v-else>{{ modelValue }}</span>
-  </div>
+  </ViewContentWrapper>
 </template>

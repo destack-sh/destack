@@ -118,15 +118,24 @@ defineExpose<ViewExposed>({ self, focus });
         :icon="makeIcon({ faName: 'fas fa-user' })"
         name="Name"
         title="Name"
+        :variant="Variant.PRIMARY"
         is-input
         v-model="name"
       />
-      <PlainText :icon="makeIcon({ faName: 'fas fa-at' })" name="slug" title="Username" is-input v-model="slug" />
+      <PlainText
+        :icon="makeIcon({ faName: 'fas fa-at' })"
+        name="slug"
+        title="Username"
+        :variant="Variant.PRIMARY"
+        is-input
+        v-model="slug"
+      />
       <PlainText
         v-if="state === 'sign-up'"
         :icon="makeIcon({ faName: 'fas fa-envelope' })"
         name="Email"
         title="Email"
+        :variant="Variant.PRIMARY"
         is-input
         v-model="email"
       />
@@ -134,6 +143,7 @@ defineExpose<ViewExposed>({ self, focus });
         :icon="makeIcon({ faName: 'fas fa-key' })"
         name="Password"
         title="Password"
+        :variant="Variant.PRIMARY"
         is-input
         :value-type="makeTypeInfo({ isSecret: true })"
         v-model="password"

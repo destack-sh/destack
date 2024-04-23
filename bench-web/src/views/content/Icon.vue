@@ -1,7 +1,7 @@
 <script lang="ts" setup>
 import { ViewData, NodeType, IconData, NodeReferenceData, Orientation } from "@/proto/wire";
 import { type TypedNodeReferenceData } from "@/proto/wiring";
-import { viewEmits, type FocusAnchor, type ViewExposed } from "@/views/common";
+import { ViewContentWrapper, viewEmits, type FocusAnchor, type ViewExposed } from "@/views/common";
 import { canvas } from "@/system/space";
 import { computed, ref, toRef, watch, type Ref } from "vue";
 import { makeViewId } from "@/views";
@@ -79,7 +79,7 @@ canvas.registerView(self, id);
 defineExpose<ViewExposed>({ self, id, focus });
 </script>
 <template>
-  <div>
+  <ViewContentWrapper v-bind="props">
     <!-- TODO :Incomplete: Icon.isInput/isDisabled/variants/... -->
     <div :style="{ width: DEFAULT_WIDTH + 'px' }">
       <!-- Header -->
@@ -156,5 +156,5 @@ defineExpose<ViewExposed>({ self, id, focus });
         </div>
       </Scroll>
     </div>
-  </div>
+  </ViewContentWrapper>
 </template>

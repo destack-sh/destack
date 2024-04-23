@@ -122,29 +122,29 @@ class Block(Node, HasValues):
     #  see :AutoNaming
     name: str = p_regular(32, validate=validate_name)
     order_key: str = p_internal(33, default=INTEGER_ZERO)
-    visibility: Optional[NodeVisibility] = p_regular(34, require=False, default=NodeVisibility.ALL)
-    policies: list["Policy"] = p_regular(35, array=True, struct=StructType.POLICY)
+    policies: list["Policy"] = p_regular(34, array=True, struct=StructType.POLICY)
     bases: list["Block"] = p_regular(
-        36, default=None, require=False, array=True, references=NodeType.BLOCK
+        35, default=None, require=False, array=True, references=NodeType.BLOCK
     )
-    builtin_base: Optional["TypeInfo"] = p_regular(37, default=None, struct=StructType.TYPE_INFO)
-
+    builtin_base: Optional["TypeInfo"] = p_regular(36, default=None, struct=StructType.TYPE_INFO)
     text: Optional["Text"] = p_regular(
-        40, default=None, require=False, array=False, struct=StructType.TEXT
+        37, default=None, require=False, array=False, struct=StructType.TEXT
     )
-    code: Optional["Code"] = p_regular(
-        41, default=None, require=False, array=False, struct=StructType.CODE
-    )
-    value_packed: Any = p_value_packed(42)
-    secret_value_packed: Any | None = p_secret_value_packed(43)
-    value = p_value_runtime(42, 43)
     icon: Optional["Icon"] = p_regular(
-        44, default=None, require=False, array=False, struct=StructType.ICON
+        38, default=None, require=False, array=False, struct=StructType.ICON
+    )
+    visibility: Optional[NodeVisibility] = p_regular(39, require=False, default=NodeVisibility.ALL)
+
+    value_packed: Any = p_value_packed(40)
+    secret_value_packed: Any | None = p_secret_value_packed(41)
+    value = p_value_runtime(40, 41)
+    code: Optional["Code"] = p_regular(
+        42, default=None, require=False, array=False, struct=StructType.CODE
     )
     reference: Optional["Block"] = p_regular(
-        45, require=False, array=False, references=NodeType.BLOCK
+        43, require=False, array=False, references=NodeType.BLOCK
     )
-    delegated_policies: list["Policy"] = p_regular(46, array=True, struct=StructType.POLICY)
+    delegated_policies: list["Policy"] = p_regular(44, array=True, struct=StructType.POLICY)
 
     # flags
     is_intrinsic: bool = p_system(60, default=False)  # provided by the system

@@ -280,7 +280,8 @@ export type PropertyInfo = {
     for object_type in chain(STRUCT_TYPES, NODE_TYPES):
         bench_cls = NODE_CLASS_BY_TYPE.get(object_type) or STRUCT_CLASS_BY_TYPE.get(object_type)
         prop_infos_strs: list[str] = []
-        for prop in bench_cls.__properties__.values():
+        properties = list(bench_cls.__properties__.values())
+        for prop in sorted(properties, key=lambda p: p.id or 0):
             if not prop.is_wired:
                 continue
 

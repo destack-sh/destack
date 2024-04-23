@@ -10,7 +10,7 @@ import { createOverlayMenu, menuActionsLike, type MenuContext, type OverlayMenuI
 import { PM_INPUT_RULES, PM_SCHEMA, type TextMarkType, PM_KEYMAP_EXTRA } from "@/utils/prosemirror";
 import { deepValueEquals } from "@/utils/ref";
 import { makeViewId } from "@/views";
-import { viewEmits, type ViewExposed } from "@/views/common";
+import { ViewContentWrapper, viewEmits, type ViewExposed } from "@/views/common";
 import { whenever } from "@vueuse/core";
 import * as commands from "prosemirror-commands";
 import { inputRules } from "prosemirror-inputrules";
@@ -263,9 +263,8 @@ canvas.registerView(self, id);
 defineExpose<ViewExposed>({ self, id, variants: [Variant.PRIMARY, Variant.STEALTH], actions, focus });
 </script>
 <template>
-  <div>
+  <ViewContentWrapper v-bind="props">
     <!-- TODO :UX: Text menus (insert, morph, bubble, etc.) -->
-    <label v-if="title" class="mb-0.5 block font-medium text-gray-900">{{ title }}</label>
     <!-- NOTE: textRef must be in a stable fragment to mount the editor view -->
     <div
       ref="textRef"
@@ -291,7 +290,7 @@ defineExpose<ViewExposed>({ self, id, variants: [Variant.PRIMARY, Variant.STEALT
         })
       "
     />
-  </div>
+  </ViewContentWrapper>
 </template>
 <style>
 /* Prose */
@@ -357,7 +356,7 @@ defineExpose<ViewExposed>({ self, id, variants: [Variant.PRIMARY, Variant.STEALT
   @apply text-primary-900;
 }
 .text span.mention .name {
-  @apply underline-offset-3  underline decoration-gray-300;
+  @apply underline  decoration-gray-300 underline-offset-3;
 }
 .text span.textMirror-selectednode.mention .name {
   @apply bg-primary-100 text-primary-900  decoration-primary-900;
