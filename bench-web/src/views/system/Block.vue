@@ -8,7 +8,7 @@ import { isGeneratedNodeName } from "@/system/graph";
 import { IconInline, getNodeIcon } from "@/system/icon";
 import { toCamelName } from "@/system/lang";
 import { canvas, inspectionPtr } from "@/system/space";
-import { onMouseNotPressedOnce } from "@/utils/layout";
+import { onMouseReleasedOnce } from "@/utils/layout";
 import { menuActionsLike, type OverlayMenuInfo } from "@/utils/menu";
 import type { TooltipInfo } from "@/utils/tooltip";
 import { makeViewId } from "@/views";
@@ -109,7 +109,7 @@ defineExpose<ViewExposed>({ self, id, variants: [Variant.PRIMARY, Variant.STEALT
         @mousedown="
           () =>
             blockRef!.draggable ||
-            ((blockRef!.draggable = true), onMouseNotPressedOnce(() => (blockRef!.draggable = false)))
+            ((blockRef!.draggable = true), onMouseReleasedOnce(() => (blockRef!.draggable = false)))
         "
       >
         <IconInline

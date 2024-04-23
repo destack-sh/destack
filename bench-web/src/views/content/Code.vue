@@ -169,7 +169,7 @@ defineExpose<ViewExposed>({ self, id, actions });
       :class="[
         variant != Variant.STEALTH
           ? 'border border-gray-200 focus-within:border-primary-900 hover:border-gray-300'
-          : 'outline-dotted outline-1 outline-primary-900 focus-within:outline-dotted',
+          : 'outline-1 outline-primary-900 focus-within:outline-dotted',
         isInDropZone ? 'outline-dotted outline-2 outline-primary-400' : '',
       ]"
       :draggable="true"

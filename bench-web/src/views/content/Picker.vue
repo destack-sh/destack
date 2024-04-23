@@ -1,12 +1,13 @@
 <script lang="ts" setup>
-import { BenchType, NodeReferenceData, NodeType, Orientation, Variant, ViewData } from "@/proto/wire";
+import { BenchType, NodeReferenceData, NodeType, Orientation, Variant, ViewData, ViewType } from "@/proto/wire";
 import type { TypedNodeReferenceData } from "@/proto/wiring";
-import { IconInline, makeIcon } from "@/system/icon";
+import { IconInline, getNodeIcon, makeIcon } from "@/system/icon";
 import { isEnumType, isNodeType, toCamelName } from "@/system/lang";
 import type { NodeItem } from "@/system/search";
 import { enumIndex, graphIndex, useSearch, type EnumOptionItem, type SearchIndex } from "@/system/search";
 import { canvas, pkgGraph } from "@/system/space";
 import { ScrollbarWidth } from "@/utils/layout";
+import type { OverlayMenuInfo } from "@/utils/menu";
 import { makeViewId } from "@/views";
 import { ViewContentWrapper, viewEmits, type FocusAnchor, type ViewExposed } from "@/views/common";
 import Scroll from "@/views/containers/Scroll.vue";
@@ -76,8 +77,11 @@ watch(results, () => {
 
 function fire(option: EnumOptionItem | NodeItem) {
   const value = option.metatype == "enum-option" ? option.value : option.node;
+  apply(value);
+}
+function apply(value: any) {
   emit("update:modelValue", value);
-  emit("apply", option);
+  emit("apply", value);
 }
 
 function focus(anchor?: "previous" | "next" | FocusAnchor | NodeReferenceData) {
@@ -99,9 +103,42 @@ defineExpose<ViewExposed>({ self, id, variants: [Variant.PRIMARY, Variant.COMPAC
 </script>
 <template>
   <ViewContentWrapper v-bind="props">
-    <!-- nocheckin: Picker variants/isInput/isInline/isDisabled/... -->
-    <!-- Inline Primary: classic typeahead/combobox -->
-    <div :style="{ width: DEFAULT_WIDTH + 'px' }">
+    <!-- TODO :Incomplete: Picker variants/isInput/isInline/isDisabled/... -->
+    <!-- Dropdown -->
+    <button
+      v-if="!isInline"
+      class="group flex flex-row items-center rounded border border-gray-200 px-2 py-1 hover:border-gray-400 data-[menu=true]:border-gray-400"
+      v-menu="
+        (): OverlayMenuInfo => ({
+          kind: 'component',
+          component: ViewType.PICKER,
+          placement: 'bottom-left',
+          offset: 'referenceWidth',
+          referenceMargin: 4,
+          props: { ...props, isInline: true },
+          onApply: (value) => apply(value),
+        })
+      "
+    >
+      <template v-if="modelValue != null">
+        <IconInline v-bind="getNodeIcon(modelValue)" class="mr-1.5 w-5" />
+        <span class="truncate">{{ modelValue.title }}</span>
+      </template>
+      <span v-else class="text-gray-400 group-hover:text-gray-700">{{ topicName ?? "???" }}</span>
+      <i class="fas fa-caret-down ml-1.5 text-gray-400" />
+    </button>
+
+    <!-- Inline: multi-toggle -->
+    <div v-else-if="isInline && variant == Variant.COMPACT" class="flex max-w-full flex-row truncate">
+      <!-- Inline choice -->
+      nocheckin: compact Picker
+      <div v-for="result in results" :key="result.id">
+        {{ result.title }}
+      </div>
+    </div>
+
+    <!-- Inline Combobox -->
+    <div v-else-if="isInline" :style="{ width: DEFAULT_WIDTH + 'px' }">
       <!-- Header -->
       <div class="flex w-full flex-row items-center border-b border-gray-200 px-3 py-1.5">
         <IconInline

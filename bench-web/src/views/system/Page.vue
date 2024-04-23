@@ -6,33 +6,32 @@ import {
   BoxData,
   NodeReferenceData,
   NodeType,
-  ObjectType,
   Orientation,
   Variant,
-  ViewData,
+  ViewData
 } from "@/proto/wire/";
-import { isNode, toNodeReference, type TypedNodeReferenceData } from "@/proto/wiring";
+import { toNodeReference, type TypedNodeReferenceData } from "@/proto/wiring";
 import type { ActionContext, ActionMapImplementation } from "@/system/action";
 import { useHierarchicalNodeMoveActions } from "@/system/block";
 import { useExistingConnection, useGetConnection } from "@/system/connection";
-import { isDescendantOf, makeNodeName, moveNode, walkDescendantsRef } from "@/system/graph";
-import { createBlock, getOrderKey, updateOrder } from "@/system/lang";
+import { isDescendantOf, moveNode, walkDescendantsRef } from "@/system/graph";
+import { createBlock } from "@/system/lang";
 import { canvas, inspectionPtr } from "@/system/space";
 import { makeTypeInfo } from "@/system/value";
 import { startDragging, useMultiDropZone } from "@/utils/drag";
-import { ScrollbarWidth } from "@/utils/layout";
 import { blurDocument } from "@/utils/element";
+import { ScrollbarWidth } from "@/utils/layout";
 import { menuActionsLike, type OverlayMenuInfo } from "@/utils/menu";
 import { computedValue } from "@/utils/ref";
+import Inaccessible from "@/views/builtins/Inaccessible.vue";
+import NavigationBar from "@/views/builtins/NavigationBar.vue";
 import { viewEmits, type FocusAnchor, type ViewExposed } from "@/views/common";
 import Scroll from "@/views/containers/Scroll.vue";
 import Picker from "@/views/content/Picker.vue";
-import Inaccessible from "@/views/builtins/Inaccessible.vue";
-import NavigationBar from "@/views/builtins/NavigationBar.vue";
 import Block from "@/views/system/Block.vue";
-import { computed, ref, toRef, watch, type Ref, nextTick } from "vue";
+import { computed, nextTick, ref, toRef, watch, type Ref } from "vue";
 
-const HEADER_HEIGHT = 24;
+const HEADER_HEIGHT = 28;
 const DEPTH_OFFSET = 40;
 const MIN_BLOCK_WIDTH = 500;
 const MAX_BLOCK_WIDTH = 800;
@@ -253,7 +252,6 @@ defineExpose<ViewExposed>({ self, actions, focus });
   >
     <!-- Page header -->
     <NavigationBar
-      class="border-b border-gray-200"
       :width="size.width"
       :height="HEADER_HEIGHT"
       :self="nodePtr"

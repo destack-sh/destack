@@ -3,10 +3,11 @@ import { canvas } from "@/system/space";
 import { focusInElement } from "@/views/canvas";
 import { getElement } from "@/utils/element";
 import { getFloatingPosition, type FloatingPlacement } from "@/utils/floating";
-import { activeOverlayMenu, destroyOverlayMenu } from "@/utils/menu";
+import { activeOverlayMenu, destroyOverlayMenu, type OverlayMenuInfo } from "@/utils/menu";
 import Menu from "@/views/builtins/Menu.vue";
 import { useElementSize, whenever, type MaybeElement } from "@vueuse/core";
 import { computed, nextTick, ref, watch, type Ref } from "vue";
+import { getViewComponent } from "@/views";
 
 const menuRefContainer: Ref<MaybeElement> = ref(null);
 const menuRefInner: Ref<MaybeElement> = ref(null);
@@ -70,6 +71,12 @@ whenever(menuRef, () => {
   }
 });
 
+function toComponent(info: OverlayMenuInfo): any {
+  if (info.kind != "component") throw new Error("not a component menu");
+  else if (typeof info.component == "object") return info.component;
+  else return getViewComponent(info.component);
+}
+
 function fire() {
   activeOverlayMenu.value?.info.onApply?.(menuRefValue.value);
 }
@@ -113,7 +120,7 @@ function close() {
     >
       <component
         ref="menuRefInner"
-        :is="activeOverlayMenu.info.component"
+        :is="toComponent(activeOverlayMenu.info)"
         v-bind="{ isInline: true, ...(activeOverlayMenu.info.props ?? {}) }"
         v-model="menuRefValue"
         @apply="fire(), close()"

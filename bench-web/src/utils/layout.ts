@@ -152,7 +152,7 @@ export function splitView(
 export const mousePressed = useMousePressed();
 export const mouseNotPressed = computed(() => !mousePressed.pressed.value);
 
-export function onMouseNotPressedOnce(callback: () => void) {
+export function onMouseReleasedOnce(callback: () => void) {
   whenever(mouseNotPressed, callback, { once: true });
 }
 

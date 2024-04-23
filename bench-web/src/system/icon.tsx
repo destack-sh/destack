@@ -236,8 +236,8 @@ export const ICON_BY_VIEW_TYPE: Partial<Record<ViewType, IconData>> = _makeIcons
   [ViewType.NUMBER]: "fas fa-hashtag",
   [ViewType.SLIDER]: "fas fa-slider",
   // stringy
-  [ViewType.PLAIN_TEXT]: "fas fa-text",
-  [ViewType.TEXT]: "fas fa-font",
+  [ViewType.STRING]: "fas fa-font-case",
+  [ViewType.TEXT]: "fas fa-text",
   [ViewType.CODE]: "fas fa-code",
   [ViewType.JSON]: "fas fa-brackets-curly",
   // selection

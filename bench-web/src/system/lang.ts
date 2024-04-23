@@ -2,7 +2,7 @@
  * Many constants are generated into proto/wire, here some additional ones.
  */
 
-import type { AnyStructData, BenchType, BlockData, EnumTypeMapping, PropertyInfo, ViewData } from "@/proto/wire";
+import type { AnyStructData, BenchType, BlockData, EnumTypeMapping, PropertyInfo } from "@/proto/wire";
 import {
   BlockProperty,
   BlockType,
@@ -27,10 +27,10 @@ import { makeNodeName, type ReadNodeGraph } from "@/system/graph";
 import { ENUM_ICONS_BY_TYPE } from "@/system/icon";
 import type { Transaction } from "@/system/transaction";
 import { getViewComponentForValueType } from "@/system/value";
-import { generateOrderKeys, generateOrderKey, isValidOrderKey, INTEGER_ZERO } from "@/utils/fractional";
-import { log } from "@/utils/log";
+import { generateOrderKey, generateOrderKeys, isValidOrderKey } from "@/utils/fractional";
 import { Casing, toCasing } from "@/utils/string";
-import { AVAILABLE_VIEW_TYPES, getViewComponent, type ViewProps } from "@/views";
+import type { ViewProps } from "@/views";
+
 
 export const NODE_TYPES = Object.values(NodeType).filter((v) => typeof v == "number" && v > 0) as NodeType[];
 export const NODE_TYPES_SET = new Set(NODE_TYPES);
@@ -92,14 +92,6 @@ export const NODE_VIEW_TYPES = new Set<ViewType>([
   ViewType.FLOW,
   ViewType.FIELD,
   ViewType.STEP,
-]);
-// views that have a white background
-export const FULL_VIEW_TYPES = new Set<ViewType>([
-  ...NODE_VIEW_TYPES,
-  ViewType.EXPLORE,
-  ViewType.OUTLINE,
-  ViewType.CREATE,
-  ViewType.INSPECT,
 ]);
 
 export const ENABLED_BLOCK_TYPES = [
@@ -244,12 +236,11 @@ export function fixOrderKeys<T extends AnyNodeData & { orderKey: string }>(tx: T
 }
 
 export function toCamelName<T extends object>(cls: T, key: any) {
-  return toCasing(cls[key as keyof T] as string, Casing.CAMEL);
+  return toCasing(cls[key as keyof T] as string, Casing.CAMEL, true);
 }
 
 export const FILTERED_ENUMS: Partial<Record<EnumType, number[]>> = {
   [EnumType.BLOCK_TYPE]: ENABLED_BLOCK_TYPES,
-  [EnumType.VIEW_TYPE]: AVAILABLE_VIEW_TYPES,
 };
 
 export type EnumOption<T extends EnumType = EnumType> = {
