@@ -4,6 +4,7 @@
 
 import type { AnyStructData, BenchType, BlockData, EnumTypeMapping, PropertyInfo } from "@/proto/wire";
 import {
+  BenchProperty,
   BlockProperty,
   BlockType,
   ENUM_BY_TYPE,
@@ -13,6 +14,7 @@ import {
   NodeType,
   NotificationData,
   ObjectType,
+  PROPERTY_ENUM_BY_TYPE,
   PROPERTY_INFOS_BY_TYPE,
   RecordData,
   RunData,
@@ -30,7 +32,6 @@ import { getViewComponentForValueType } from "@/system/value";
 import { generateOrderKey, generateOrderKeys, isValidOrderKey } from "@/utils/fractional";
 import { Casing, toCasing } from "@/utils/string";
 import type { ViewProps } from "@/views";
-
 
 export const NODE_TYPES = Object.values(NodeType).filter((v) => typeof v == "number" && v > 0) as NodeType[];
 export const NODE_TYPES_SET = new Set(NODE_TYPES);
@@ -305,10 +306,10 @@ const INSPECTION_INFO_BY_TYPE: Partial<Record<ObjectType, InspectionCategory[]>>
     { category: "Constraint", properties: [{ from: 43, to: 60 }] },
   ],
   [ObjectType.BLOCK]: [
-    { category: "Common", properties: [{ to: 40, excluding: [BlockProperty.policies] }] },
-    { category: "Content", properties: [{ from: 40, to: 60 }] },
+    { category: "Common", properties: [{ to: 40, excluding: [BlockProperty.builtinBase, BlockProperty.policies] }] },
+    // { category: "Content", properties: [{ from: 40, to: 60 }] }, // not needed yet
     { category: "Flags", properties: [{ from: 60, to: 70 }] },
-    { category: "Policy", properties: [BlockProperty.policies] },
+    // { category: "Policy", properties: [BlockProperty.policies] }, // don't have it yet
   ],
   [ObjectType.VIEW]: [
     { category: "Common", properties: [{ to: 40 }, ViewProperty.isInput] },
@@ -321,6 +322,7 @@ const INSPECTION_INFO_BY_TYPE: Partial<Record<ObjectType, InspectionCategory[]>>
 
 type InspectedProperty = {
   title: string;
+  protoName: string;
   category: string;
   property: PropertyInfo;
   viewType?: ViewType;
@@ -332,11 +334,12 @@ type InspectionLayout = {
 };
 const FULL_WIDTH_VIEW_TYPES = [ViewType.TEXT, ViewType.CODE];
 
-export function getInspectionLayout(node: AnyNodeData): InspectionLayout {
+export function getInspectionLayout(node: AnyNodeData, options?: { exclude?: string[] }): InspectionLayout {
   const propertyInfos = PROPERTY_INFOS_BY_TYPE[node.metatype];
   const seenProperties: Record<number, PropertyInfo> = {};
   const inspectedProperties: InspectedProperty[] = [];
 
+  const allProperties = PROPERTY_ENUM_BY_TYPE[node.metatype] ?? [];
   const categories = INSPECTION_INFO_BY_TYPE[node.metatype] ?? [
     { category: "common", properties: [{ from: undefined, to: undefined }] },
   ];
@@ -358,6 +361,9 @@ export function getInspectionLayout(node: AnyNodeData): InspectionLayout {
       }
       for (const property of propertiesInRange) {
         if (seenProperties[property.id]) continue;
+        if (property.id < 30 || property.isInternal || property.isAutoset || property.isComputed || property.isSystem)
+          continue;
+        if (options?.exclude?.includes(property.name)) continue;
         seenProperties[property.id] = property;
         categoryPropertyInfos.push(property);
       }
@@ -365,20 +371,22 @@ export function getInspectionLayout(node: AnyNodeData): InspectionLayout {
 
     // map properties to components
     for (const property of categoryPropertyInfos) {
-      if (property.id < 30 || property.isInternal || property.isAutoset || property.isComputed || property.isSystem)
-        continue;
-      let cleanName = property.name;
-      if (cleanName.endsWith("_ptr")) cleanName = cleanName.slice(0, -4);
-      const title = toCasing(cleanName, Casing.CAMEL, true);
+      let pythonName = property.name;
+      if (pythonName.endsWith("_ptr")) pythonName = pythonName.slice(0, -4);
+      if (pythonName.startsWith("is_")) pythonName = pythonName.slice(3);
+      const title = toCasing(pythonName, Casing.CAMEL, true);
       const inspectedProperty: InspectedProperty = {
         title,
+        protoName: allProperties[property.id],
         category: category.category,
         property,
       };
       try {
         const { viewType, props } = getViewComponentForValueType({
           primitiveType: property.primitiveType,
-          benchType: (property.enumType ?? property.referenceStruct) as BenchType | undefined,
+          benchType: (property.enumType ?? property.referenceNodes?.[0] ?? property.referenceStruct) as unknown as
+            | BenchType
+            | undefined,
         });
         inspectedProperty.viewType = viewType;
         inspectedProperty.props = { ...props, isInput: true };

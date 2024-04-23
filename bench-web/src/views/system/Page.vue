@@ -8,7 +8,8 @@ import {
   NodeType,
   Orientation,
   Variant,
-  ViewData
+  ViewData,
+  ViewType,
 } from "@/proto/wire/";
 import { toNodeReference, type TypedNodeReferenceData } from "@/proto/wiring";
 import type { ActionContext, ActionMapImplementation } from "@/system/action";
@@ -21,7 +22,7 @@ import { makeTypeInfo } from "@/system/value";
 import { startDragging, useMultiDropZone } from "@/utils/drag";
 import { blurDocument } from "@/utils/element";
 import { ScrollbarWidth } from "@/utils/layout";
-import { menuActionsLike, type OverlayMenuInfo } from "@/utils/menu";
+import { menuActionsLike, type OverlayMenuInfo, type OverlayMenuInfoIn } from "@/utils/menu";
 import { computedValue } from "@/utils/ref";
 import Inaccessible from "@/views/builtins/Inaccessible.vue";
 import NavigationBar from "@/views/builtins/NavigationBar.vue";
@@ -333,17 +334,10 @@ defineExpose<ViewExposed>({ self, actions, focus });
                 )
               "
               v-menu="
-                (): OverlayMenuInfo => ({
-                  kind: 'component',
-                  component: Picker,
+                (): OverlayMenuInfoIn => ({
+                  component: ViewType.PICKER,
                   placement: 'bottom',
-                  referenceMargin: 4,
-                  props: {
-                    valueType: makeTypeInfo({
-                      benchType: BenchType.BLOCK_TYPE,
-                      isRequired: true,
-                    }),
-                  },
+                  props: { valueType: makeTypeInfo({ benchType: BenchType.BLOCK_TYPE, isRequired: true }) },
                   onApply: (blockType: BlockType) =>
                     createAndFocusBlock({ type: blockType }, anchor == 'start' ? 'before' : 'after', blockPtr),
                 })

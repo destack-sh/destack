@@ -16,6 +16,7 @@ import type { FunctionalComponent } from "vue";
 //  | jq 'to_entries | map(select(.value.free | index("solid") or index("brands")) | {"id": .key, label: .value.label, unicode: .value.unicode, alias: .value.search.terms, family: (if .value.free | index("solid") then "fas" else "fab" end)})'
 //  > fa-icons.json
 import _AVAILABLE_FA_ICONS from "@/assets/fa-icons.json";
+import { IS_DEBUG, isDeveloperMode } from "@/utils/globals";
 
 export type IconMetadata = {
   id: string;
@@ -38,6 +39,9 @@ export const AVAILABLE_FA_ICONS: IconMetadata[] = _AVAILABLE_FA_ICONS.map((i) =>
   ...i,
   faName: `${i.family} fa-${i.id}`,
 })) as IconMetadata[];
+export const AVAILABLE_ICONS_BY_ID: Record<string, IconMetadata> = Object.fromEntries(
+  AVAILABLE_FA_ICONS.map((i) => [i.id, i]),
+);
 
 export const IconInline: FunctionalComponent<Pick<IconData, "emoji" | "file" | "faName">> = (props) => {
   if (props.faName) {
@@ -46,9 +50,19 @@ export const IconInline: FunctionalComponent<Pick<IconData, "emoji" | "file" | "
   } else if (props.emoji) {
     return <span>{props.emoji}</span>;
   } else {
-    throw new Error(`unexpected icon ${props}`);
+    if (IS_DEBUG || isDeveloperMode.value) return <span>{JSON.stringify(props)}`</span>;
+    else return <span>???</span>;
   }
 };
+
+export function getIconMetadata(icon: IconData): IconMetadata | undefined {
+  if (icon.kind == IconKind.FONT_AWESOME) {
+    const id = icon.faName!.split(" ")[1].split("-")[1];
+    return AVAILABLE_ICONS_BY_ID[id];
+  } else {
+    return undefined;
+  }
+}
 
 type IconIn = string | Pick<IconData, "emoji" | "file" | "faName">;
 export function makeIcon(icon: IconIn): IconData {
@@ -269,5 +283,5 @@ export function getNodeIcon(node: AnyNodeData | { metatype: ObjectType; type?: B
     const icon = ICON_BY_VIEW_TYPE[(node as ViewData).type! as ViewType];
     if (icon != null) return icon;
   }
-  return ICON_BY_NODE_TYPE[node.metatype! as unknown as NodeType];
+  return ICON_BY_NODE_TYPE[node.metatype! as unknown as NodeType] ?? DEFAULT_MISSING_ICON;
 }
