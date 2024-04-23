@@ -4,11 +4,12 @@ import type { ViewExposed } from "@/views/common";
 import { v4 } from "uuid";
 import { computed, getCurrentInstance, type ComponentInstance, type Ref } from "vue";
 
+export type ViewProps = { self?: NodeReferenceData; modelValue?: any } & Partial<
+  Omit<ViewData, "metatype" | "id" | "ck" | "revision" | "setProperties">
+>;
 export type ViewComponent = {
   new (): ComponentInstance<any>;
-  props: { self?: NodeReferenceData; modelValue?: any } & Partial<
-    Omit<ViewData, "metatype" | "id" | "ck" | "revision" | "setProperties">
-  >;
+  props: ViewProps;
   exposed: ViewExposed;
 };
 
@@ -31,16 +32,16 @@ const COMPONENT_BY_VIEW_TYPE_LAZY = {
   [ViewType.OUTLINE]: import("@/views/system/Explore.vue"), // shared with Explore
   [ViewType.INSPECT]: import("@/views/system/Inspect.vue"),
   [ViewType.CREATE]: import("@/views/system/Create.vue"),
-  
+
   // containers
   [ViewType.WINDOW]: import("@/views/containers/Split.vue"), // shared with Split
   [ViewType.TAB]: import("@/views/containers/Tab.vue"),
   [ViewType.SPLIT]: import("@/views/containers/Split.vue"),
   [ViewType.GROUP]: import("@/views/containers/Group.vue"),
-  
+
   // controls
   [ViewType.BUTTON]: import("@/views/controls/Button.vue"),
-  
+
   // content
   [ViewType.TYPE]: import("@/views/content/Type.vue"),
   [ViewType.PLAIN_TEXT]: import("@/views/content/PlainText.vue"),

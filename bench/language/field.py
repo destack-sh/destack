@@ -146,9 +146,9 @@ class TypeInfoBase(HasValues):
     default = p_value_runtime(packed=50)
 
     # flags
-    is_list: bool = p_regular(54, default=False)
-    is_required: bool = p_regular(55, default=False)
-    is_secret: bool = p_regular(56, default=False)
+    is_list: bool = p_regular(60, default=False)
+    is_required: bool = p_regular(61, default=False)
+    is_secret: bool = p_regular(62, default=False)
     # is_instance to disambiguate?
 
     # separate _fields for restricting base type to a subset of fields? (e.g., only inputs)
@@ -243,7 +243,7 @@ class Field(Node, TypeInfoBase, _TypeQueryBuilder):
     icon: Optional["Icon"] = p_regular(34, require=False, array=False, struct=StructType.ICON)
     value_packed: Any | None = p_value_packed(35)
     value = p_value_runtime(35)
-    kind: FieldKind = p_regular(36, default=FieldKind.VARIABLE)
+    kind: FieldKind = p_internal(36, default=FieldKind.VARIABLE)
 
     # type identity
     # ...TypeInfo

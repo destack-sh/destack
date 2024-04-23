@@ -1638,9 +1638,9 @@ message TypeInfoData {
   optional int32 precision = 47;
   optional int32 scale = 48;
   optional google.protobuf.Struct default_packed = 50;
-  bool is_list = 54;
-  bool is_required = 55;
-  bool is_secret = 56;
+  bool is_list = 60;
+  bool is_required = 61;
+  bool is_secret = 62;
 }
 
 // Reference a value at a path of a Node.
@@ -1928,9 +1928,9 @@ message FieldData {
   optional int32 precision = 47;
   optional int32 scale = 48;
   optional google.protobuf.Struct default_packed = 50;
-  bool is_list = 54;
-  bool is_required = 55;
-  bool is_secret = 56;
+  bool is_list = 60;
+  bool is_required = 61;
+  bool is_secret = 62;
 }
 
 // (A pointer to) the actual file stored in a Drive. De-duped to 1 per sha512.

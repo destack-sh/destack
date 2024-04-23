@@ -1805,9 +1805,9 @@ class TypeInfoData(betterproto.Message):
     default_packed: Optional["betterproto_lib_google_protobuf.Struct"] = betterproto.message_field(
         50, optional=True
     )
-    is_list: bool = betterproto.bool_field(54)
-    is_required: bool = betterproto.bool_field(55)
-    is_secret: bool = betterproto.bool_field(56)
+    is_list: bool = betterproto.bool_field(60)
+    is_required: bool = betterproto.bool_field(61)
+    is_secret: bool = betterproto.bool_field(62)
 
 
 @dataclass(eq=False, repr=False)
@@ -2141,9 +2141,9 @@ class FieldData(betterproto.Message):
     default_packed: Optional["betterproto_lib_google_protobuf.Struct"] = betterproto.message_field(
         50, optional=True
     )
-    is_list: bool = betterproto.bool_field(54)
-    is_required: bool = betterproto.bool_field(55)
-    is_secret: bool = betterproto.bool_field(56)
+    is_list: bool = betterproto.bool_field(60)
+    is_required: bool = betterproto.bool_field(61)
+    is_secret: bool = betterproto.bool_field(62)
 
 
 @dataclass(eq=False, repr=False)

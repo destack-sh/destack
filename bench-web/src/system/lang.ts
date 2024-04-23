@@ -2,7 +2,7 @@
  * Many constants are generated into proto/wire, here some additional ones.
  */
 
-import type { AnyStructData, BlockData, EnumTypeMapping, PropertyInfo } from "@/proto/wire";
+import type { AnyStructData, BenchType, BlockData, EnumTypeMapping, PropertyInfo, ViewData } from "@/proto/wire";
 import {
   BlockProperty,
   BlockType,
@@ -26,9 +26,11 @@ import { isNode, type TypedNodeReferenceData } from "@/proto/wiring";
 import { makeNodeName, type ReadNodeGraph } from "@/system/graph";
 import { ENUM_ICONS_BY_TYPE } from "@/system/icon";
 import type { Transaction } from "@/system/transaction";
+import { getViewComponentForValueType } from "@/system/value";
 import { generateOrderKeys, generateOrderKey, isValidOrderKey, INTEGER_ZERO } from "@/utils/fractional";
+import { log } from "@/utils/log";
 import { Casing, toCasing } from "@/utils/string";
-import { AVAILABLE_VIEW_TYPES, type ViewComponent } from "@/views";
+import { AVAILABLE_VIEW_TYPES, getViewComponent, type ViewProps } from "@/views";
 
 export const NODE_TYPES = Object.values(NodeType).filter((v) => typeof v == "number" && v > 0) as NodeType[];
 export const NODE_TYPES_SET = new Set(NODE_TYPES);
@@ -308,21 +310,21 @@ type InspectionCategory = {
 };
 const INSPECTION_INFO_BY_TYPE: Partial<Record<ObjectType, InspectionCategory[]>> = {
   [ObjectType.FIELD]: [
-    { category: "common", properties: [{ to: 40 }, { from: 60 }] },
-    { category: "constraint", properties: [{ from: 40, to: 60 }] },
+    { category: "Common", properties: [{ to: 43 }, { from: 60 }] },
+    { category: "Constraint", properties: [{ from: 43, to: 60 }] },
   ],
   [ObjectType.BLOCK]: [
-    { category: "common", properties: [{ to: 40, excluding: [BlockProperty.policies] }] },
-    { category: "content", properties: [{ from: 40, to: 60 }] },
-    { category: "flags", properties: [{ from: 60, to: 70 }] },
-    { category: "policy", properties: [BlockProperty.policies] },
+    { category: "Common", properties: [{ to: 40, excluding: [BlockProperty.policies] }] },
+    { category: "Content", properties: [{ from: 40, to: 60 }] },
+    { category: "Flags", properties: [{ from: 60, to: 70 }] },
+    { category: "Policy", properties: [BlockProperty.policies] },
   ],
   [ObjectType.VIEW]: [
-    { category: "common", properties: [{ to: 40 }, ViewProperty.isInput] },
-    { category: "content", properties: [{ from: 40, to: 50 }] },
-    { category: "style", properties: [{ from: 50, to: 60 }] },
-    { category: "layout", properties: [{ from: 60, to: 70 }] },
-    { category: "behavior", properties: [{ from: 70, to: 80 }] },
+    { category: "Common", properties: [{ to: 40 }, ViewProperty.isInput] },
+    { category: "Content", properties: [{ from: 40, to: 50 }] },
+    { category: "Style", properties: [{ from: 50, to: 60 }] },
+    { category: "Layout", properties: [{ from: 60, to: 70 }] },
+    { category: "Behavior", properties: [{ from: 70, to: 80 }] },
   ],
 };
 
@@ -330,13 +332,14 @@ type InspectedProperty = {
   title: string;
   category: string;
   property: PropertyInfo;
-  component?: ViewComponent;
-  props?: Record<string, any>;
+  viewType?: ViewType;
+  props?: ViewProps;
   isFullWidth?: boolean;
 };
 type InspectionLayout = {
   properties: InspectedProperty[];
 };
+const FULL_WIDTH_VIEW_TYPES = [ViewType.TEXT, ViewType.CODE];
 
 export function getInspectionLayout(node: AnyNodeData): InspectionLayout {
   const propertyInfos = PROPERTY_INFOS_BY_TYPE[node.metatype];
@@ -376,11 +379,23 @@ export function getInspectionLayout(node: AnyNodeData): InspectionLayout {
       let cleanName = property.name;
       if (cleanName.endsWith("_ptr")) cleanName = cleanName.slice(0, -4);
       const title = toCasing(cleanName, Casing.CAMEL, true);
-      inspectedProperties.push({
+      const inspectedProperty: InspectedProperty = {
         title,
         category: category.category,
         property,
-      });
+      };
+      try {
+        const { viewType, props } = getViewComponentForValueType({
+          primitiveType: property.primitiveType,
+          benchType: (property.enumType ?? property.referenceStruct) as BenchType | undefined,
+        });
+        inspectedProperty.viewType = viewType;
+        inspectedProperty.props = { ...props, isInput: true };
+        inspectedProperty.isFullWidth = FULL_WIDTH_VIEW_TYPES.includes(viewType);
+      } catch {
+        // will show missing component
+      }
+      inspectedProperties.push(inspectedProperty);
     }
   }
   return { properties: inspectedProperties };
