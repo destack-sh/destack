@@ -1655,15 +1655,15 @@ export interface TypeInfoData {
      */
     defaultPacked?: Struct;
     /**
-     * @generated from protobuf field: bool is_list = 54;
+     * @generated from protobuf field: bool is_list = 60;
      */
     isList: boolean;
     /**
-     * @generated from protobuf field: bool is_required = 55;
+     * @generated from protobuf field: bool is_required = 61;
      */
     isRequired: boolean;
     /**
-     * @generated from protobuf field: bool is_secret = 56;
+     * @generated from protobuf field: bool is_secret = 62;
      */
     isSecret: boolean;
 }
@@ -2701,15 +2701,15 @@ export interface FieldData {
      */
     defaultPacked?: Struct;
     /**
-     * @generated from protobuf field: bool is_list = 54;
+     * @generated from protobuf field: bool is_list = 60;
      */
     isList: boolean;
     /**
-     * @generated from protobuf field: bool is_required = 55;
+     * @generated from protobuf field: bool is_required = 61;
      */
     isRequired: boolean;
     /**
-     * @generated from protobuf field: bool is_secret = 56;
+     * @generated from protobuf field: bool is_secret = 62;
      */
     isSecret: boolean;
 }
@@ -13251,9 +13251,9 @@ class TypeInfoData$Type extends MessageType<TypeInfoData> {
             { no: 47, name: "precision", kind: "scalar", opt: true, T: 5 /*ScalarType.INT32*/ },
             { no: 48, name: "scale", kind: "scalar", opt: true, T: 5 /*ScalarType.INT32*/ },
             { no: 50, name: "default_packed", kind: "message", T: () => Struct },
-            { no: 54, name: "is_list", kind: "scalar", T: 8 /*ScalarType.BOOL*/ },
-            { no: 55, name: "is_required", kind: "scalar", T: 8 /*ScalarType.BOOL*/ },
-            { no: 56, name: "is_secret", kind: "scalar", T: 8 /*ScalarType.BOOL*/ }
+            { no: 60, name: "is_list", kind: "scalar", T: 8 /*ScalarType.BOOL*/ },
+            { no: 61, name: "is_required", kind: "scalar", T: 8 /*ScalarType.BOOL*/ },
+            { no: 62, name: "is_secret", kind: "scalar", T: 8 /*ScalarType.BOOL*/ }
         ]);
     }
     create(value?: PartialMessage<TypeInfoData>): TypeInfoData {
@@ -13324,13 +13324,13 @@ class TypeInfoData$Type extends MessageType<TypeInfoData> {
                 case /* optional google.protobuf.Struct default_packed */ 50:
                     message.defaultPacked = Struct.internalBinaryRead(reader, reader.uint32(), options, message.defaultPacked);
                     break;
-                case /* bool is_list */ 54:
+                case /* bool is_list */ 60:
                     message.isList = reader.bool();
                     break;
-                case /* bool is_required */ 55:
+                case /* bool is_required */ 61:
                     message.isRequired = reader.bool();
                     break;
-                case /* bool is_secret */ 56:
+                case /* bool is_secret */ 62:
                     message.isSecret = reader.bool();
                     break;
                 default:
@@ -13397,15 +13397,15 @@ class TypeInfoData$Type extends MessageType<TypeInfoData> {
         /* optional google.protobuf.Struct default_packed = 50; */
         if (message.defaultPacked)
             Struct.internalBinaryWrite(message.defaultPacked, writer.tag(50, WireType.LengthDelimited).fork(), options).join();
-        /* bool is_list = 54; */
+        /* bool is_list = 60; */
         if (message.isList !== false)
-            writer.tag(54, WireType.Varint).bool(message.isList);
-        /* bool is_required = 55; */
+            writer.tag(60, WireType.Varint).bool(message.isList);
+        /* bool is_required = 61; */
         if (message.isRequired !== false)
-            writer.tag(55, WireType.Varint).bool(message.isRequired);
-        /* bool is_secret = 56; */
+            writer.tag(61, WireType.Varint).bool(message.isRequired);
+        /* bool is_secret = 62; */
         if (message.isSecret !== false)
-            writer.tag(56, WireType.Varint).bool(message.isSecret);
+            writer.tag(62, WireType.Varint).bool(message.isSecret);
         let u = options.writeUnknownFields;
         if (u !== false)
             (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
@@ -15451,9 +15451,9 @@ class FieldData$Type extends MessageType<FieldData> {
             { no: 47, name: "precision", kind: "scalar", opt: true, T: 5 /*ScalarType.INT32*/ },
             { no: 48, name: "scale", kind: "scalar", opt: true, T: 5 /*ScalarType.INT32*/ },
             { no: 50, name: "default_packed", kind: "message", T: () => Struct },
-            { no: 54, name: "is_list", kind: "scalar", T: 8 /*ScalarType.BOOL*/ },
-            { no: 55, name: "is_required", kind: "scalar", T: 8 /*ScalarType.BOOL*/ },
-            { no: 56, name: "is_secret", kind: "scalar", T: 8 /*ScalarType.BOOL*/ }
+            { no: 60, name: "is_list", kind: "scalar", T: 8 /*ScalarType.BOOL*/ },
+            { no: 61, name: "is_required", kind: "scalar", T: 8 /*ScalarType.BOOL*/ },
+            { no: 62, name: "is_secret", kind: "scalar", T: 8 /*ScalarType.BOOL*/ }
         ]);
     }
     create(value?: PartialMessage<FieldData>): FieldData {
@@ -15575,13 +15575,13 @@ class FieldData$Type extends MessageType<FieldData> {
                 case /* optional google.protobuf.Struct default_packed */ 50:
                     message.defaultPacked = Struct.internalBinaryRead(reader, reader.uint32(), options, message.defaultPacked);
                     break;
-                case /* bool is_list */ 54:
+                case /* bool is_list */ 60:
                     message.isList = reader.bool();
                     break;
-                case /* bool is_required */ 55:
+                case /* bool is_required */ 61:
                     message.isRequired = reader.bool();
                     break;
-                case /* bool is_secret */ 56:
+                case /* bool is_secret */ 62:
                     message.isSecret = reader.bool();
                     break;
                 default:
@@ -15693,15 +15693,15 @@ class FieldData$Type extends MessageType<FieldData> {
         /* optional google.protobuf.Struct default_packed = 50; */
         if (message.defaultPacked)
             Struct.internalBinaryWrite(message.defaultPacked, writer.tag(50, WireType.LengthDelimited).fork(), options).join();
-        /* bool is_list = 54; */
+        /* bool is_list = 60; */
         if (message.isList !== false)
-            writer.tag(54, WireType.Varint).bool(message.isList);
-        /* bool is_required = 55; */
+            writer.tag(60, WireType.Varint).bool(message.isList);
+        /* bool is_required = 61; */
         if (message.isRequired !== false)
-            writer.tag(55, WireType.Varint).bool(message.isRequired);
-        /* bool is_secret = 56; */
+            writer.tag(61, WireType.Varint).bool(message.isRequired);
+        /* bool is_secret = 62; */
         if (message.isSecret !== false)
-            writer.tag(56, WireType.Varint).bool(message.isSecret);
+            writer.tag(62, WireType.Varint).bool(message.isSecret);
         let u = options.writeUnknownFields;
         if (u !== false)
             (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
@@ -22668,9 +22668,9 @@ export enum FieldProperty {
   precision = 47,
   scale = 48,
   defaultPacked = 50,
-  isList = 54,
-  isRequired = 55,
-  isSecret = 56,
+  isList = 60,
+  isRequired = 61,
+  isSecret = 62,
 }
 
 export enum RecordProperty {
@@ -23329,9 +23329,9 @@ export enum TypeInfoProperty {
   precision = 47,
   scale = 48,
   defaultPacked = 50,
-  isList = 54,
-  isRequired = 55,
-  isSecret = 56,
+  isList = 60,
+  isRequired = 61,
+  isSecret = 62,
 }
 
 export enum ContextProperty {
@@ -23979,9 +23979,9 @@ export const TypeInfoDataInfo: Record<TypeInfoProperty, PropertyInfo> = {
   [TypeInfoProperty.precision]: { id: 47, name: 'precision', component: ObjectType.TYPE_INFO, kind: 'primitive', primitiveType: PrimitiveType.INT32, isRuntime: true, isWired: true, isStored: true },
   [TypeInfoProperty.scale]: { id: 48, name: 'scale', component: ObjectType.TYPE_INFO, kind: 'primitive', primitiveType: PrimitiveType.INT32, isRuntime: true, isWired: true, isStored: true },
   [TypeInfoProperty.defaultPacked]: { id: 50, name: 'default_packed', component: ObjectType.TYPE_INFO, kind: 'primitive', primitiveType: PrimitiveType.JSON, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true, isValuePacked: true },
-  [TypeInfoProperty.isList]: { id: 54, name: 'is_list', component: ObjectType.TYPE_INFO, kind: 'primitive', primitiveType: PrimitiveType.BOOLEAN, isRequired: true, isRuntime: true, isWired: true, isStored: true },
-  [TypeInfoProperty.isRequired]: { id: 55, name: 'is_required', component: ObjectType.TYPE_INFO, kind: 'primitive', primitiveType: PrimitiveType.BOOLEAN, isRequired: true, isRuntime: true, isWired: true, isStored: true },
-  [TypeInfoProperty.isSecret]: { id: 56, name: 'is_secret', component: ObjectType.TYPE_INFO, kind: 'primitive', primitiveType: PrimitiveType.BOOLEAN, isRequired: true, isRuntime: true, isWired: true, isStored: true },
+  [TypeInfoProperty.isList]: { id: 60, name: 'is_list', component: ObjectType.TYPE_INFO, kind: 'primitive', primitiveType: PrimitiveType.BOOLEAN, isRequired: true, isRuntime: true, isWired: true, isStored: true },
+  [TypeInfoProperty.isRequired]: { id: 61, name: 'is_required', component: ObjectType.TYPE_INFO, kind: 'primitive', primitiveType: PrimitiveType.BOOLEAN, isRequired: true, isRuntime: true, isWired: true, isStored: true },
+  [TypeInfoProperty.isSecret]: { id: 62, name: 'is_secret', component: ObjectType.TYPE_INFO, kind: 'primitive', primitiveType: PrimitiveType.BOOLEAN, isRequired: true, isRuntime: true, isWired: true, isStored: true },
 }
 export const ContextDataInfo: Record<ContextProperty, PropertyInfo> = {
   [ContextProperty.metatype]: { id: 1, name: 'metatype', component: ObjectType.CONTEXT, kind: 'enum', primitiveType: PrimitiveType.STRING, isRequired: true, isInternal: true, isComputed: true, isWired: true },
@@ -24637,9 +24637,9 @@ export const FieldDataInfo: Record<FieldProperty, PropertyInfo> = {
   [FieldProperty.precision]: { id: 47, name: 'precision', component: ObjectType.FIELD, kind: 'primitive', primitiveType: PrimitiveType.INT32, isRuntime: true, isWired: true, isStored: true },
   [FieldProperty.scale]: { id: 48, name: 'scale', component: ObjectType.FIELD, kind: 'primitive', primitiveType: PrimitiveType.INT32, isRuntime: true, isWired: true, isStored: true },
   [FieldProperty.defaultPacked]: { id: 50, name: 'default_packed', component: ObjectType.FIELD, kind: 'primitive', primitiveType: PrimitiveType.JSON, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true, isValuePacked: true },
-  [FieldProperty.isList]: { id: 54, name: 'is_list', component: ObjectType.FIELD, kind: 'primitive', primitiveType: PrimitiveType.BOOLEAN, isRequired: true, isRuntime: true, isWired: true, isStored: true },
-  [FieldProperty.isRequired]: { id: 55, name: 'is_required', component: ObjectType.FIELD, kind: 'primitive', primitiveType: PrimitiveType.BOOLEAN, isRequired: true, isRuntime: true, isWired: true, isStored: true },
-  [FieldProperty.isSecret]: { id: 56, name: 'is_secret', component: ObjectType.FIELD, kind: 'primitive', primitiveType: PrimitiveType.BOOLEAN, isRequired: true, isRuntime: true, isWired: true, isStored: true },
+  [FieldProperty.isList]: { id: 60, name: 'is_list', component: ObjectType.FIELD, kind: 'primitive', primitiveType: PrimitiveType.BOOLEAN, isRequired: true, isRuntime: true, isWired: true, isStored: true },
+  [FieldProperty.isRequired]: { id: 61, name: 'is_required', component: ObjectType.FIELD, kind: 'primitive', primitiveType: PrimitiveType.BOOLEAN, isRequired: true, isRuntime: true, isWired: true, isStored: true },
+  [FieldProperty.isSecret]: { id: 62, name: 'is_secret', component: ObjectType.FIELD, kind: 'primitive', primitiveType: PrimitiveType.BOOLEAN, isRequired: true, isRuntime: true, isWired: true, isStored: true },
 }
 export const RecordDataInfo: Record<RecordProperty, PropertyInfo> = {
   [RecordProperty.metatype]: { id: 1, name: 'metatype', component: ObjectType.RECORD, kind: 'enum', primitiveType: PrimitiveType.STRING, isRequired: true, isInternal: true, isComputed: true, isWired: true },
