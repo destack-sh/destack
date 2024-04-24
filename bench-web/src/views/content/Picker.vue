@@ -67,8 +67,12 @@ const facetName = computed(() => {
   }
 });
 // NOTE: technically modelValueTitle/Icon aren't fully reactive in themself (requires modelValue to change)
-const modelValueTitle = computed(() => index.value.fromValue(props.modelValue)?.title);
-const modelValueIcon = computed(() => index.value.fromValue(props.modelValue)?.icon);
+const modelValueTitle = computed(() =>
+  props.modelValue != null ? index.value.fromValue(props.modelValue)?.title : null,
+);
+const modelValueIcon = computed(() =>
+  props.modelValue != null ? index.value.fromValue(props.modelValue)?.icon : null,
+);
 
 type PickerItem = EnumOptionItem | NodeItem | TypeItem;
 const index: Ref<SearchIndex<any>> = computed(() => {
@@ -97,7 +101,7 @@ watch(results, () => {
 });
 
 function isSelected(value: PickerItem) {
-  return index.value.valueEquals(value, props.modelValue);
+  return props.modelValue != null && index.value.valueEquals(value, props.modelValue);
 }
 function isActive(item: PickerItem) {
   return item.id === activeResultId.value;
@@ -171,11 +175,15 @@ defineExpose<ViewExposed>({ self, id, variants: [Variant.PRIMARY, Variant.COMPAC
         :key="item.id"
         :data-selected="isSelected(item)"
         :disabled="props.isDisabled"
-        class="flex-1 flex-shrink-0 truncate rounded px-0.5 text-center font-medium hover:text-primary-900 enabled:text-gray-500 disabled:text-gray-400 data-[selected=true]:bg-white data-[selected=true]:text-gray-700"
+        class="group flex-1 flex-shrink-0 truncate rounded px-0.5 text-center font-medium hover:text-primary-900 enabled:text-gray-500 disabled:text-gray-400 data-[selected=true]:bg-white data-[selected=true]:text-gray-700"
         @click.prevent="fire(item)"
         v-tooltip="{ icon: item.icon, title: item.title, small: true }"
       >
-        <IconInline v-if="variant == Variant.STEALTH && item.icon" v-bind="item.icon" class="w-5 text-gray-700" />
+        <IconInline
+          v-if="variant == Variant.STEALTH && item.icon"
+          v-bind="item.icon"
+          class="w-5 text-gray-700 group-hover:text-primary-900"
+        />
         <template v-else>{{ item.title }}</template>
       </button>
       <div v-if="results.length == 0" class="mx-auto">

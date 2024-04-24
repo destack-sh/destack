@@ -577,7 +577,8 @@ enum NodeVisibility {
   NODE_VISIBILITY_UNSPECIFIED = 0;
   NODE_VISIBILITY_PAGE = 4;
   NODE_VISIBILITY_MODULE = 6;
-  NODE_VISIBILITY_ALL = 10;
+  NODE_VISIBILITY_BENCH = 8;
+  NODE_VISIBILITY_PUBLIC = 10;
 }
 
 // Type of diagnostic in increasing severity.

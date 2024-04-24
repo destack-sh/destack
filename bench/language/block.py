@@ -133,7 +133,9 @@ class Block(Node, HasValues):
     icon: Optional["Icon"] = p_regular(
         38, default=None, require=False, array=False, struct=StructType.ICON
     )
-    visibility: Optional[NodeVisibility] = p_regular(39, require=False, default=NodeVisibility.ALL)
+    visibility: Optional[NodeVisibility] = p_regular(
+        39, require=False, default=NodeVisibility.PUBLIC
+    )
 
     value_packed: Any = p_value_packed(40)
     secret_value_packed: Any | None = p_secret_value_packed(41)

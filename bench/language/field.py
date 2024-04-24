@@ -1,5 +1,5 @@
 import typing
-from typing import Any, Optional, Union, Collection
+from typing import Any, Collection, Optional, Union
 
 import structlog
 
@@ -25,7 +25,7 @@ from bench.language.property import (
     p_value_packed,
     p_value_runtime,
 )
-from bench.language.validation import validate_name, ValidationHandler
+from bench.language.validation import ValidationHandler, validate_name
 from bench.language.value import HasValues
 from bench.sql.core import PrimitiveType
 from bench.utils.casing import IdentifierType
@@ -194,7 +194,7 @@ class TypeInfoBase(HasValues):
     def _validate_inner(
         self, properties: Collection[Property], on_invalid: "ValidationHandler"
     ) -> None:
-        if self.primitive_type is None and self.bench_type is None and self.base_type is None:
+        if self.primitive_type is None and self.bench_type is None and self.base_type_ptr is None:
             on_invalid(self, "missing type identity")
 
     @property

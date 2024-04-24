@@ -368,8 +368,8 @@ class NodeVisibility(IdEnum):
     # BLOCK = 2
     PAGE = 4
     MODULE = 6
-    # BENCH = 8
-    ALL = 10
+    BENCH = 8
+    PUBLIC = 10
 
 
 DYNAMIC_NODE_KEY_LENGTH = 8

@@ -14,6 +14,7 @@ import {
   PrimitiveType,
   StructType,
   BenchType,
+  FieldKind,
 } from "@/proto/wire";
 import type { FunctionalComponent } from "vue";
 // file is generated with:
@@ -313,7 +314,8 @@ export const ICON_BY_VIEW_TYPE: Partial<Record<ViewType, IconData>> = _makeIcons
 export const ICON_BY_VISIBILITY: Partial<Record<NodeVisibility, IconData>> = _makeIcons({
   [NodeVisibility.PAGE]: "fas fa-memo-pad",
   [NodeVisibility.MODULE]: "fas fa-box-open",
-  [NodeVisibility.ALL]: "fas fa-globe",
+  [NodeVisibility.BENCH]: "fas fa-fort",
+  [NodeVisibility.PUBLIC]: "fas fa-globe",
 });
 
 export const ICON_BY_PRIMITIVE_TYPE: Partial<Record<PrimitiveType, IconData>> = _makeIcons({
@@ -349,6 +351,14 @@ export const ICON_BY_FORMAT_HINT: Partial<Record<FormatHint, IconData>> = _makeI
   [FormatHint.AUDIO]: "fas fa-volume",
 });
 
+export const ICON_BY_FIELD_KIND: Partial<Record<FieldKind, IconData>> = _makeIcons({
+  [FieldKind.VARIABLE]: "fas fa-sliders",
+  [FieldKind.MEMBER]: "fas fa-objects-column",
+  [FieldKind.INPUT]: "fas fa-arrow-down-right",
+  [FieldKind.OUTPUT]: "fas fa-arrow-up-right",
+  [FieldKind.OPTION]: "fas fa-chevron-circle-down",
+});
+
 export const ENUM_ICONS_BY_TYPE: Partial<Record<EnumType, Record<any, IconData>>> = {
   [EnumType.NODE_TYPE]: ICON_BY_NODE_TYPE,
   [EnumType.STRUCT_TYPE]: ICON_BY_STRUCT_TYPE,
@@ -359,6 +369,7 @@ export const ENUM_ICONS_BY_TYPE: Partial<Record<EnumType, Record<any, IconData>>
   [EnumType.NODE_VISIBILITY]: ICON_BY_VISIBILITY,
   [EnumType.PRIMITIVE_TYPE]: ICON_BY_PRIMITIVE_TYPE,
   [EnumType.FORMAT_HINT]: ICON_BY_FORMAT_HINT,
+  [EnumType.FIELD_KIND]: ICON_BY_FIELD_KIND,
 };
 
 export function getNodeIcon(node: AnyNodeData | { metatype: ObjectType; type?: BlockType | ViewType }) {
