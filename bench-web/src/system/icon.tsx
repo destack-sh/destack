@@ -10,6 +10,8 @@ import {
   ViewData,
   EnumType,
   NodeVisibility,
+  FormatHint,
+  PrimitiveType,
 } from "@/proto/wire";
 import type { FunctionalComponent } from "vue";
 // file is generated with:
@@ -275,11 +277,46 @@ export const ICON_BY_VISIBILITY: Partial<Record<NodeVisibility, IconData>> = _ma
   [NodeVisibility.ALL]: "fas fa-globe",
 });
 
+export const ICON_BY_PRIMITIVE_TYPE: Partial<Record<PrimitiveType, IconData>> = _makeIcons({
+  [PrimitiveType.BOOLEAN]: "fas fa-toggle-large-on",
+  [PrimitiveType.INT16]: "fas fa-tally-4",
+  [PrimitiveType.INT32]: "fas fa-tally-4",
+  [PrimitiveType.INT64]: "fas fa-tally-4",
+  [PrimitiveType.FLOAT32]: "fas fa-hashtag",
+  [PrimitiveType.FLOAT64]: "fas fa-hashtag",
+  [PrimitiveType.STRING]: "fas fa-font-case",
+  [PrimitiveType.JSON]: "fas fa-brackets-curly",
+  [PrimitiveType.BYTES]: "fas fa-binary",
+  [PrimitiveType.UUID]: "fas fa-fingerprint",
+  [PrimitiveType.DATETIME]: "fas fa-calendar",
+  [PrimitiveType.INTERVAL]: "fas fa-calendar",
+});
+
+export const ICON_BY_FORMAT_HINT: Partial<Record<FormatHint, IconData>> = _makeIcons({
+  // string
+  [FormatHint.TITLE]: "fas fa-heading",
+  [FormatHint.EMAIL]: "fas fa-at",
+  [FormatHint.URL]: "fas fa-link",
+  [FormatHint.MARKDOWN]: "fas fa-m",
+  [FormatHint.CODE]: "fas fa-code",
+  [FormatHint.EMOJI]: "fas fa-smile",
+  // number
+  [FormatHint.PHONE]: "fas fa-phone",
+  [FormatHint.RATING]: "fas fa-star",
+  [FormatHint.SLIDER]: "fas fa-slider",
+  // files
+  [FormatHint.IMAGE]: "fas fa-image",
+  [FormatHint.VIDEO]: "fas fa-video",
+  [FormatHint.AUDIO]: "fas fa-volume",
+});
+
 export const ENUM_ICONS_BY_TYPE: Partial<Record<EnumType, Record<any, IconData>>> = {
   [EnumType.NODE_TYPE]: ICON_BY_NODE_TYPE,
   [EnumType.BLOCK_TYPE]: ICON_BY_BLOCK_TYPE,
   [EnumType.VIEW_TYPE]: ICON_BY_VIEW_TYPE,
   [EnumType.NODE_VISIBILITY]: ICON_BY_VISIBILITY,
+  [EnumType.PRIMITIVE_TYPE]: ICON_BY_PRIMITIVE_TYPE,
+  [EnumType.FORMAT_HINT]: ICON_BY_FORMAT_HINT,
 };
 
 export function getNodeIcon(node: AnyNodeData | { metatype: ObjectType; type?: BlockType | ViewType }) {

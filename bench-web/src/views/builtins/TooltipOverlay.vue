@@ -1,4 +1,5 @@
 <script lang="ts" setup>
+import { IconInline, toIconMaybe } from "@/system/icon";
 import { getFloatingPosition, type FloatingOptions } from "@/utils/floating";
 import { Shortcut, activeTooltips, type TooltipInstance } from "@/utils/tooltip";
 import { ref, type Ref } from "vue";
@@ -52,7 +53,11 @@ function positionTooltip(tooltip: TooltipInstance, el: HTMLDivElement) {
       >
         <!-- Header -->
         <p v-if="tooltip.info.icon || tooltip.info.title" class="mb-0.5 flex flex-row items-center">
-          <i v-if="tooltip.info.icon" class="mr-1.5 text-gray-600" :class="tooltip.info.icon" />
+          <IconInline
+            v-if="tooltip.info.icon"
+            class="mr-1.5 w-5 text-gray-600"
+            v-bind="toIconMaybe(tooltip.info.icon)"
+          />
           <span v-if="tooltip.info.title" class="truncate font-semibold">
             {{ typeof tooltip.info.title == "function" ? tooltip.info.title() : tooltip.info.title }}
           </span>

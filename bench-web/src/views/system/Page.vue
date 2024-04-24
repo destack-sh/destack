@@ -105,7 +105,7 @@ watch(
   () => page.value?.name,
   () => {
     if (page.value != null && selfView.value != null && page.value?.name != selfView.value?.title) {
-      pkgConnection.tx.update(selfView.value, { title: page.value?.name });
+      pkgConnection.tx.updateDebounced(selfView.value, { title: page.value?.name });
     }
   },
 );
@@ -270,7 +270,7 @@ defineExpose<ViewExposed>({ self, actions, focus });
       <div ref="contentRef" class="mb-16 flex flex-col">
         <!-- Self Block (=this Page block) -->
         <div
-          class="mb-2 min-w-fit border-b py-1.5 hover:border-gray-400"
+          class="mb-2 min-w-fit border-b py-1.5 hover:border-gray-300"
           :class="[
             props.nodePtr?.id == focusedNodePtr?.id
               ? props.nodePtr?.id == inspectionPtr?.id
@@ -325,7 +325,7 @@ defineExpose<ViewExposed>({ self, actions, focus });
               v-for="anchor in i < expandedItems.length - 1 ? ['start'] : ['start', 'end']"
               :key="anchor"
               role="button"
-              class="absolute h-[6px] w-full flex-shrink-0 text-center text-gray-300 opacity-0 hover:z-10 hover:text-gray-400 hover:opacity-100 data-[menu=true]:text-primary-900 data-[menu=true]:opacity-100"
+              class="absolute h-[6px] w-full flex-shrink-0 text-center text-gray-300 opacity-0 hover:z-10 hover:text-gray-300 hover:opacity-100 data-[menu=true]:text-primary-900 data-[menu=true]:opacity-100"
               :style="
                 getAnchorPosition(
                   anchor as 'start' | 'end',

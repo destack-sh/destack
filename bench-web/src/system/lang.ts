@@ -9,6 +9,8 @@ import {
   BlockType,
   ENUM_BY_TYPE,
   EnumType,
+  FieldProperty,
+  FileProperty,
   IconData,
   NodeReferenceData,
   NodeType,
@@ -16,6 +18,7 @@ import {
   ObjectType,
   PROPERTY_ENUM_BY_TYPE,
   PROPERTY_INFOS_BY_TYPE,
+  PrimitiveType,
   RecordData,
   RunData,
   SignalData,
@@ -94,16 +97,6 @@ export const NODE_VIEW_TYPES = new Set<ViewType>([
   ViewType.FIELD,
   ViewType.STEP,
 ]);
-
-export const ENABLED_BLOCK_TYPES = [
-  BlockType.MODULE,
-  BlockType.PAGE,
-  BlockType.TEXT,
-  BlockType.CLASS,
-  BlockType.CHOICE,
-  BlockType.CODE,
-  BlockType.VARIABLE,
-];
 
 // views that aren't about a specific node but should just keep the current root view node
 export const RIDEALONG_VIEW_TYPES = new Set([ViewType.EXPLORE, ViewType.OUTLINE, ViewType.CREATE, ViewType.INSPECT]);
@@ -241,8 +234,36 @@ export function toCamelName<T extends object>(cls: T, key: any) {
   return toCasing(cls[key as keyof T] as string, Casing.CAMEL, true);
 }
 
+// NOTE: we soft-limit the subset of available enum options in bench-web
+//  (in code and backend the entire ranges are available)
+export const ENABLED_BLOCK_TYPES = [
+  BlockType.MODULE,
+  BlockType.PAGE,
+  BlockType.TEXT,
+  BlockType.CLASS,
+  BlockType.CHOICE,
+  BlockType.CODE,
+  BlockType.VARIABLE,
+];
+export const ENABLED_PRIMITIVE_TYPES = [
+  PrimitiveType.BOOLEAN,
+  PrimitiveType.INT64,
+  PrimitiveType.FLOAT64,
+  PrimitiveType.STRING,
+  PrimitiveType.JSON,
+  PrimitiveType.BYTES,
+  PrimitiveType.UUID,
+  PrimitiveType.DATETIME,
+];
 export const FILTERED_ENUMS: Partial<Record<EnumType, number[]>> = {
   [EnumType.BLOCK_TYPE]: ENABLED_BLOCK_TYPES,
+  [EnumType.PRIMITIVE_TYPE]: ENABLED_PRIMITIVE_TYPES,
+};
+export const ENUM_TITLE_BY_TYPE: Partial<Record<EnumType, Record<any, string>>> = {
+  [EnumType.PRIMITIVE_TYPE]: {
+    [PrimitiveType.INT64]: "Integer",
+    [PrimitiveType.FLOAT64]: "Number",
+  },
 };
 
 export type EnumOption<T extends EnumType = EnumType> = {
@@ -253,19 +274,28 @@ export type EnumOption<T extends EnumType = EnumType> = {
   isHidden?: boolean;
 };
 
-export function getEnumOptions<T extends EnumType>(enumType: T): EnumOption<T>[] {
+const ENUM_OPTIONS_BY_TYPE: Record<EnumType, EnumOption[]> = Object.fromEntries(
+  ENUM_TYPES.map((enumType) => [enumType, makeEnumOptions(enumType)]),
+) as Record<EnumType, EnumOption[]>;
+
+function makeEnumOptions<T extends EnumType>(enumType: T): EnumOption<T>[] {
   const protoEnum = ENUM_BY_TYPE[enumType];
   const icons = ENUM_ICONS_BY_TYPE[enumType];
+  const titles = ENUM_TITLE_BY_TYPE[enumType];
   const availableEnums =
     FILTERED_ENUMS[enumType] ?? Object.values(protoEnum).filter((v) => typeof v == "number" && v > 0);
   const options: EnumOption<T>[] = availableEnums.map((value) => {
     const icon = icons?.[value];
     const name = protoEnum[value] as string;
-    const title = toCasing(name, Casing.CAMEL, true);
+    const title = titles?.[value] ?? toCasing(name, Casing.CAMEL, true);
     const option: EnumOption<T> = { id: value.toString(), icon, title, value: value as EnumTypeMapping[T] };
     return option;
   });
   return options;
+}
+
+export function getEnumOptions<T extends EnumType>(enumType: T): EnumOption<T>[] {
+  return ENUM_OPTIONS_BY_TYPE[enumType] as EnumOption<T>[];
 }
 
 /** Gets a random value from an enum, ignoring the number keys (which are for protobuf). */
@@ -320,8 +350,11 @@ type InspectionLayout = {
 
 const INSPECTION_INFO_BY_TYPE: Partial<Record<ObjectType, InspectionCategory[]>> = {
   [ObjectType.FIELD]: [
-    { category: "Common", properties: [{ to: 43 }, { from: 60 }] },
-    { category: "Constraint", properties: [{ from: 43, to: 60 }] },
+    {
+      category: "Common",
+      properties: [{ to: 43, excluding: [FieldProperty.kind] }, { from: 60 }, FieldProperty.visibility],
+    },
+    { category: "Constraint", properties: [FieldProperty.formatHint] },
   ],
   [ObjectType.BLOCK]: [
     {
@@ -333,9 +366,7 @@ const INSPECTION_INFO_BY_TYPE: Partial<Record<ObjectType, InspectionCategory[]>>
         },
       ],
     },
-    // { category: "Content", properties: [{ from: 40, to: 60 }] }, // not needed yet
-    { category: "Flags", properties: [{ from: 60, to: 70 }] },
-    // { category: "Policy", properties: [BlockProperty.policies] }, // don't have it yet
+    { category: "Flags", properties: [{ from: 60, to: 70, excluding: [BlockProperty.pausedAt] }] },
   ],
   [ObjectType.VIEW]: [
     { category: "Common", properties: [{ to: 40 }, ViewProperty.isInput] },
@@ -348,14 +379,14 @@ const INSPECTION_INFO_BY_TYPE: Partial<Record<ObjectType, InspectionCategory[]>>
 const FULL_WIDTH_VIEW_TYPES = [ViewType.TEXT, ViewType.CODE];
 const ALWAYS_EXCLUDED_PROPERTIES: string[] = ["order_key"];
 
-export function getInspectionLayout(node: AnyNodeData, options?: { exclude?: string[] }): InspectionLayout {
-  const propertyInfos = PROPERTY_INFOS_BY_TYPE[node.metatype];
+export function getInspectionLayout(metatype: ObjectType, options?: { exclude?: string[] }): InspectionLayout {
+  const propertyInfos = PROPERTY_INFOS_BY_TYPE[metatype];
   const seenProperties: Record<number, PropertyInfo> = {};
   const inspectedProperties: InspectedProperty[] = [];
   const excluded = ALWAYS_EXCLUDED_PROPERTIES.concat(options?.exclude ?? []);
 
-  const allProperties = PROPERTY_ENUM_BY_TYPE[node.metatype] ?? [];
-  const categories = INSPECTION_INFO_BY_TYPE[node.metatype] ?? [
+  const allProperties = PROPERTY_ENUM_BY_TYPE[metatype] ?? [];
+  const categories = INSPECTION_INFO_BY_TYPE[metatype] ?? [
     { category: "common", properties: [{ from: undefined, to: undefined }] },
   ];
 

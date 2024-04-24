@@ -28,12 +28,13 @@ const self = toRef(props, "self");
 const { graph: spaceGraph, connection: spaceConnection } = useExistingConnection(self);
 const { graph: pkgGraph, connection: pkgConnection } = useExistingConnection(inspectionPtr);
 const pkgNode = pkgGraph.getRef(inspectionPtr);
+const pkgNodeMetatype = computed(() => pkgNode.value?.metatype);
 const ancestors = pkgGraph.getAncestorsRef(pkgNode, { includeSelf: true });
 const path = computed(() => ancestors.value.slice().reverse());
 
 const inspectionLayout = computed(() => {
-  if (pkgNode.value == null) return null;
-  const layout = getInspectionLayout(pkgNode.value, { exclude: ["icon", "name"] });
+  if (pkgNodeMetatype.value == null) return null;
+  const layout = getInspectionLayout(pkgNodeMetatype.value, { exclude: ["icon", "name"] /* separate in header */ });
   return layout;
 });
 
@@ -99,7 +100,7 @@ defineExpose<ViewExposed>({ self });
         >
           <!-- Category Header -->
           <div v-if="i != 0 && inspectionLayout.properties[i - 1].category != category" class="mt-2">
-            <div class="mb-3 h-[1px] w-full bg-gray-200" />
+            <div class="mb-3 h-[1px] w-full min-w-fit bg-gray-200" />
             <div
               class="mx-auto px-5 font-semibold text-gray-900"
               :style="{ minWidth: MIN_WIDTH + 'px', maxWidth: MAX_WIDTH + 'px' }"
