@@ -1,17 +1,21 @@
 import {
+  BenchType,
+  BlockData,
+  BlockType,
   ENUM_BY_TYPE,
+  EnumType,
+  NodeType,
+  PrimitiveType,
   type AnyNodeData,
-  type EnumType,
   type IconData,
   type NodeReferenceData,
-  type NodeType,
 } from "@/proto/wire";
 import { toNodeReference } from "@/proto/wiring";
 import { ACTION_BUILTIN_IDS_INDEX, IMPLEMENTED_ACTIONS, type Action } from "@/system/action";
 import type { ReadNodeGraph, NodeKey } from "@/system/graph";
-import { AVAILABLE_FA_ICONS, getNodeIcon, type IconMetadata } from "@/system/icon";
-import { getEnumOptions, type EnumOption } from "@/system/lang";
-import type { Type } from "@/system/value";
+import { AVAILABLE_FA_ICONS, DEFAULT_ENUM_ICON, getNodeIcon, type IconMetadata } from "@/system/icon";
+import { TYPE_BLOCK_TYPES, getEnumOptions, type EnumOption } from "@/system/lang";
+import type { TypeIdentity } from "@/system/value";
 import uFuzzy from "@leeoniya/ufuzzy";
 import { tryOnBeforeUnmount } from "@vueuse/core";
 import { markRaw, shallowRef, toRef, toValue, watch, type MaybeRef, type Ref } from "vue";
@@ -20,11 +24,11 @@ export type NodeItem = Omit<NodeReferenceData, "metatype" | "id"> & {
   metatype: "node";
   node: AnyNodeData;
   id: string;
+  icon: IconData;
+  title: string;
   path?: string; // the ancestor path to display
   pathToIndex?: string; // alternative path to index for searching (length must match path for highlighting!)
   ancestors: NodeItem[]; // in order of traversal up, excl. self
-  icon: IconData;
-  title: string;
 };
 export type ActionItem = Omit<Action, "title"> & {
   metatype: "action";
@@ -35,14 +39,20 @@ export type ActionItem = Omit<Action, "title"> & {
 export type EnumOptionItem = EnumOption & {
   metatype: "enum-option";
 };
-export type TypeItem = Type & {
+export type TypeItem = TypeIdentity & {
   metatype: "type";
-}
+  id: string;
+  icon?: IconData;
+  title: string;
+  path?: string;
+  pathToIndex?: string;
+};
 export type IconItem = IconMetadata & { metatype: "icon"; path?: string; pathToIndex?: string };
-export type SearchItem = (NodeItem | ActionItem | EnumOptionItem | IconItem) & { title: string; category?: string };
-
+export type SearchItem = (NodeItem | ActionItem | EnumOptionItem | TypeItem | IconItem) & {
+  title: string;
+  category?: string;
+};
 export type SearchCandidateInfo = { candidate: string; category: string; index: string };
-
 export type SearchResultInfo = {
   pathMarked?: string;
   titleMarked?: string;
@@ -51,7 +61,9 @@ export type SearchResultInfo = {
 /** An index of searchable items. */
 export type SearchIndex<T extends SearchItem> = {
   /** Maps a value to a candidate. To reverse lookup existing values. */
-  map: (value: any) => T | null;
+  fromValue: (value: any) => T | null;
+  /** Gets the value from a candidate */
+  toValue: (candidate: T) => any;
   /** Produces the current list of candidates. This is non-reactive for search stability & performance. */
   candidates: () => T[];
 };
@@ -74,26 +86,23 @@ const VISIBLE_SEPARATOR = ` / `;
 const VISIBLE_UNNAMED = `...`;
 const HIDDEN_UNNAMED = ` \\ `;
 
-/**
- * Search nodes in a graph.
- */
-export function graphIndex(toIndex: {
-  graph: ReadNodeGraph;
-  metatypes: NodeType[];
-  roots?: AnyNodeData[];
-  filter?: (node: AnyNodeData, ancestors: NodeItem[]) => boolean;
-  skipDepth?: number;
-  maxDepth?: MaybeRef<number>;
-}): SearchIndex<NodeItem> {
-  const maxDepthRef = toRef(toIndex.maxDepth) as Ref<number | undefined>;
-
+function walkGraph(
+  graph: ReadNodeGraph,
+  options: {
+    metatypes: NodeType[];
+    roots?: AnyNodeData[];
+    skipDepth?: number;
+    maxDepth?: number;
+    filter?: (node: AnyNodeData, ancestors: NodeItem[]) => boolean;
+  },
+): NodeItem[] {
   /**
    * Walks the descendants from a node.
    */
-  function walkGraph(node: AnyNodeData, ancestors: NodeItem[]): NodeItem[] {
+  function walkNode(node: AnyNodeData, ancestors: NodeItem[]): NodeItem[] {
     // title is composed of nodes in path
     const pathParts = [];
-    for (let i = ancestors.length - 1 - (toIndex.skipDepth ?? 0); i >= 0; i--) {
+    for (let i = ancestors.length - 1 - (options.skipDepth ?? 0); i >= 0; i--) {
       pathParts.push(ancestors[i].title);
     }
     const path = pathParts.map((p) => p ?? VISIBLE_UNNAMED).join(VISIBLE_SEPARATOR);
@@ -115,45 +124,62 @@ export function graphIndex(toIndex: {
     };
     const items = [];
     if (
-      toIndex.metatypes.includes(node.metatype as unknown as NodeType) &&
-      (toIndex.filter == null || toIndex.filter(node, ancestors)) &&
-      (toIndex.skipDepth == null || ancestors.length >= toIndex.skipDepth)
+      options.metatypes.includes(node.metatype as unknown as NodeType) &&
+      (options.filter == null || options.filter(node, ancestors)) &&
+      (options.skipDepth == null || ancestors.length >= options.skipDepth)
     )
       items.push(item);
 
     // descend
     const nextAncestors = [item, ...ancestors];
-    if (maxDepthRef.value == null || ancestors.length < maxDepthRef.value) {
-      for (const child of toIndex.graph.getChildren(node)) {
-        items.push(...walkGraph(child, nextAncestors));
+    if (options.maxDepth == null || ancestors.length < options.maxDepth) {
+      for (const child of graph.getChildren(node)) {
+        items.push(...walkNode(child, nextAncestors));
       }
     }
 
     return items;
   }
 
+  const roots = options.roots ?? graph.roots;
+  const items = [];
+  for (const root of roots) {
+    items.push(...walkNode(root, []));
+  }
+  return items;
+}
+
+function mapNode(graph: ReadNodeGraph, value: NodeKey<any>): NodeItem | null {
+  const node = graph.getMaybe(value);
+  if (node == null) return null;
+  const item: NodeItem = {
+    ...(toNodeReference(node)! as NodeReferenceData & { id: string }),
+    metatype: "node",
+    node,
+    title: (node as any).title ?? (node as any).name ?? "",
+    icon: getNodeIcon(node),
+    ancestors: [], // not needed?
+  };
+  return item;
+}
+
+/**
+ * Search nodes in a graph.
+ */
+export function graphIndex(options: {
+  graph: ReadNodeGraph;
+  metatypes: NodeType[];
+  roots?: AnyNodeData[];
+  filter?: (node: AnyNodeData, ancestors: NodeItem[]) => boolean;
+  skipDepth?: number;
+  maxDepth?: MaybeRef<number>;
+}): SearchIndex<NodeItem> {
+  const maxDepthRef = toRef(options.maxDepth) as Ref<number | undefined>;
+
   const index: SearchIndex<NodeItem> = {
-    map(value: NodeKey<any>): NodeItem | null {
-      const node = toIndex.graph.getMaybe(value);
-      if (node == null) return null;
-      const item: NodeItem = {
-        ...(toNodeReference(node)! as NodeReferenceData & { id: string }),
-        metatype: "node",
-        node,
-        title: (node as any).title ?? (node as any).name ?? "",
-        icon: getNodeIcon(node),
-        ancestors: [], // not needed?
-      };
-      return item;
-    },
-    candidates: () => {
-      const candidates: NodeItem[] = [];
-      const roots = toIndex.roots ?? toIndex.graph.roots;
-      for (const root of roots) {
-        candidates.push(...walkGraph(root, []));
-      }
-      return candidates;
-    },
+    fromValue: (value: NodeKey<any>) => mapNode(options.graph, value),
+    toValue: (candidate: NodeItem) => toNodeReference(candidate.node),
+    candidates: () => walkGraph(options.graph, { ...options, maxDepth: maxDepthRef.value }),
   };
 
   return markRaw(index);
@@ -167,7 +193,8 @@ export function actionIndex(): SearchIndex<ActionItem> {
     return { ...value, title: toValue(value.title), metatype: "action" };
   }
   const index: SearchIndex<ActionItem> = {
-    map,
+    fromValue: map,
+    toValue: (candidate: ActionItem) => candidate.id,
     candidates: () =>
       IMPLEMENTED_ACTIONS.value
         .filter((a) => a.isEnabled == null || toValue(a.isEnabled))
@@ -177,27 +204,103 @@ export function actionIndex(): SearchIndex<ActionItem> {
   return markRaw(index);
 }
 
+function mapEnumOption(enumTypes: EnumType[], value: EnumOption | number): EnumOptionItem | null {
+  if (typeof value == "object") {
+    return { ...value, metatype: "enum-option" };
+  } else {
+    // find enum option
+    for (const enumType of enumTypes) {
+      if (ENUM_BY_TYPE[enumType][value] != null) {
+        const enumOption = getEnumOptions(enumType).find((o) => o.value === value);
+        if (enumOption != null) return { ...enumOption, metatype: "enum-option" };
+      }
+    }
+  }
+  return null;
+}
+
 /*
  * Search the available options of an enum.
  */
 export function enumIndex(enumTypes: EnumType[]): SearchIndex<EnumOptionItem> {
-  function map(value: EnumOption | number): EnumOptionItem | null {
-    if (typeof value == "object") {
-      return { ...value, metatype: "enum-option" };
-    } else {
-      // find enum option
-      for (const enumType of enumTypes) {
-        if (ENUM_BY_TYPE[enumType][value] != null) {
-          const enumOption = getEnumOptions(enumType).find((o) => o.value === value);
-          if (enumOption != null) return { ...enumOption, metatype: "enum-option" };
-        }
-      }
+  const index: SearchIndex<EnumOptionItem> = {
+    fromValue: (value: EnumOption | number) => mapEnumOption(enumTypes, value),
+    toValue: (candidate: EnumOptionItem) => candidate.value,
+    candidates: () =>
+      enumTypes
+        .flatMap((enumType) => getEnumOptions(enumType))
+        .map((enumOption) => mapEnumOption(enumTypes, enumOption)!),
+  };
+  return markRaw(index);
+}
+
+/**
+ * Search the available type identities (built-ins plus from graph).
+ */
+export function typeIndex(options: {
+  graph: ReadNodeGraph;
+  skipDepth?: number;
+  maxDepth?: number;
+}): SearchIndex<TypeItem> {
+  const enumTypes = [EnumType.PRIMITIVE_TYPE, EnumType.BENCH_TYPE];
+
+  function map(value: TypeIdentity): TypeItem | null {
+    if (value.baseTypePtr != null) {
+      const nodeItem = mapNode(options.graph, value.baseTypePtr);
+      if (nodeItem != null) return mapFromNode(nodeItem);
+    } else if (value.primitiveType != null) {
+      const enumOption = getEnumOptions(EnumType.PRIMITIVE_TYPE).find((option) => option.value == value.primitiveType);
+      if (enumOption != null) return mapFromOption(EnumType.PRIMITIVE_TYPE, enumOption);
+    } else if (value.benchType != null) {
+      const enumOption = getEnumOptions(EnumType.BENCH_TYPE).find((option) => option.value == value.benchType);
+      if (enumOption != null) return mapFromOption(EnumType.BENCH_TYPE, enumOption);
     }
     return null;
   }
-  const index: SearchIndex<EnumOptionItem> = {
-    map,
-    candidates: () => enumTypes.flatMap((enumType) => getEnumOptions(enumType)).map((enumOption) => map(enumOption)!),
+
+  function mapFromOption(enumType: EnumType, option: EnumOption): TypeItem {
+    const item: TypeItem = { ...option, id: `${enumType}-${option.id}`, metatype: "type" };
+    if (item.icon == null) item.icon = DEFAULT_ENUM_ICON;
+    if (enumType == EnumType.PRIMITIVE_TYPE) item.primitiveType = option.value as PrimitiveType;
+    else if (enumType == EnumType.BENCH_TYPE) item.benchType = option.value as BenchType;
+    else throw new Error(`unexpected enum type: ${enumType}`);
+    return item;
+  }
+
+  function mapFromNode(nodeItem: NodeItem): TypeItem {
+    const blockType = (nodeItem.node as BlockData).type;
+    const item: TypeItem = { ...nodeItem, metatype: "type" };
+    if (blockType == BlockType.CHOICE) item.benchType = BenchType.FIELD;
+    else if (blockType == BlockType.SIGNAL) item.benchType = BenchType.SIGNAL;
+    else if (blockType == BlockType.DATABASE) item.benchType = BenchType.RECORD;
+    return item;
+  }
+
+  const index: SearchIndex<TypeItem> = {
+    fromValue: map,
+    toValue: (candidate: TypeItem) => candidate,
+    candidates: () => {
+      // intrinsic types
+      const enumItems: TypeItem[] = enumTypes.flatMap((enumType) =>
+        getEnumOptions(enumType).map((option) => mapFromOption(enumType, option)),
+      );
+
+      // and any block 'type' definitoin
+      const graphItems: TypeItem[] = walkGraph(options.graph, {
+        metatypes: [NodeType.BLOCK],
+        filter: (node) => {
+          return (
+            TYPE_BLOCK_TYPES.includes((node as BlockData).type) ||
+            (node as BlockData).isProtocol ||
+            (node as BlockData).isTemplate
+          );
+        },
+        skipDepth: options.skipDepth,
+        maxDepth: options.maxDepth,
+      }).map(mapFromNode);
+
+      return [...enumItems, ...graphItems];
+    },
   };
   return markRaw(index);
 }
@@ -211,7 +314,8 @@ const AVAILABLE_FA_ICONS_ITEMS: IconItem[] = AVAILABLE_FA_ICONS.map(mapIcon);
  */
 export function iconIndex(): SearchIndex<IconItem> {
   const index: SearchIndex<IconItem> = {
-    map: mapIcon,
+    fromValue: mapIcon,
+    toValue: (candiate: IconItem) => candiate,
     candidates: () => AVAILABLE_FA_ICONS_ITEMS,
   };
   return markRaw(index);

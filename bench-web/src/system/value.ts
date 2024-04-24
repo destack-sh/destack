@@ -4,7 +4,7 @@ import { ENUM_ICONS_BY_TYPE } from "@/system/icon";
 import { getEnumOptions, isEnumType } from "@/system/lang";
 import type { ViewProps } from "@/views";
 
-export type Type = Pick<TypeInfoData, "primitiveType" | "benchType" | "baseTypePtr">;
+export type TypeIdentity = Pick<TypeInfoData, "primitiveType" | "benchType" | "baseTypePtr">;
 
 export function makeTypeInfo(partial: Partial<Omit<TypeInfoData, "metatype">>): TypeInfoData {
   return makeDefaultStruct({ metatype: StructType.TYPE_INFO, ...partial });
@@ -28,15 +28,15 @@ const VIEW_TYPE_BY_PRIMITIVE_TYPE: Partial<Record<PrimitiveType, ViewType>> = {
   [PrimitiveType.JSON]: ViewType.JSON,
 };
 
-export function getViewComponentForValueType(type: Type): {
+export function getViewComponentForValueType(type: TypeIdentity): {
   viewType: ViewType;
   props?: ViewProps;
 } {
-  // TODO :Incomplete: getViewComponentForValueType
   if (type.benchType != null) {
     if (VIEW_TYPE_BY_BENCH_TYPE[type.benchType] != null) {
       return { viewType: VIEW_TYPE_BY_BENCH_TYPE[type.benchType]! };
     } else {
+      // prefer inline picker if possible
       if (isEnumType(type.benchType) && getEnumOptions(type.benchType).length <= 5) {
         const variant = ENUM_ICONS_BY_TYPE[type.benchType] != null ? Variant.STEALTH : Variant.COMPACT;
         return {
