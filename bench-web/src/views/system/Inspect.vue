@@ -46,7 +46,7 @@ defineExpose<ViewExposed>({ self });
     <!-- Header -->
     <div class="group w-full border-b border-gray-200" :style="{ height: HEADER_HEIGHT + 'px' }">
       <div
-        class="mx-auto flex h-full max-w-full flex-row items-center px-4"
+        class="mx-auto flex h-full max-w-full flex-row items-center pl-4 pr-5"
         :style="{ minWidth: MIN_WIDTH + 'px', maxWidth: MAX_WIDTH + 'px' }"
       >
         <!-- Icon -->
@@ -94,7 +94,7 @@ defineExpose<ViewExposed>({ self });
       <ul class="flex flex-col gap-y-2.5 py-3">
         <template
           v-for="(
-            { title, protoName, category, property, viewType, props, isFullWidth }, i
+            { title, protoName, category, property, viewType, props, isFullWidth, read, write }, i
           ) of inspectionLayout.properties"
           :key="property.id"
         >
@@ -125,8 +125,13 @@ defineExpose<ViewExposed>({ self });
               class="ml-auto flex-shrink-0"
               :style="{ width: isFullWidth ? '100%' : 'calc(90% - 100px)' }"
               v-bind="props"
-              :modelValue="(pkgNode as any)[protoName]"
-              @update:modelValue="(value: any) => pkgConnection.tx.updateDebounced(pkgNode!, { [protoName]: value })"
+              :modelValue="read != null ? read(pkgNode) : (pkgNode as any)[protoName!]"
+              @update:modelValue="
+                (value: any) => {
+                  if (write != null) write(pkgConnection.tx, pkgNode!, value);
+                  else pkgConnection.tx.updateDebounced(pkgNode!, { [protoName!]: value });
+                }
+              "
             />
             <div v-else class="ml-auto text-danger-600">
               {{ viewType != null ? ViewType[viewType] : "???" }}

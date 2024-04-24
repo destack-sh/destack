@@ -249,7 +249,6 @@ export const ICON_BY_VIEW_TYPE: Partial<Record<ViewType, IconData>> = _makeIcons
 
   // content
   [ViewType.VALUE]: "fas fa-box-taped",
-  [ViewType.TYPE]: "fas fa-tilde",
   // numeric
   [ViewType.NUMBER]: "fas fa-hashtag",
   [ViewType.SLIDER]: "fas fa-slider",

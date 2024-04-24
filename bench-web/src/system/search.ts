@@ -1,18 +1,26 @@
-import type { AnyNodeData, ObjectType, IconData, NodeReferenceData, NodeType, EnumType } from "@/proto/wire";
-import { describeNode, toNodeReference } from "@/proto/wiring";
+import {
+  ENUM_BY_TYPE,
+  type AnyNodeData,
+  type EnumType,
+  type IconData,
+  type NodeReferenceData,
+  type NodeType,
+} from "@/proto/wire";
+import { toNodeReference } from "@/proto/wiring";
 import { ACTION_BUILTIN_IDS_INDEX, IMPLEMENTED_ACTIONS, type Action } from "@/system/action";
-import type { ReadNodeGraph } from "@/system/graph";
-import { markRaw, shallowRef, type Ref, watch, type MaybeRef, toRef, toValue, getCurrentInstance } from "vue";
-import uFuzzy from "@leeoniya/ufuzzy";
+import type { ReadNodeGraph, NodeKey } from "@/system/graph";
 import { AVAILABLE_FA_ICONS, getNodeIcon, type IconMetadata } from "@/system/icon";
 import { getEnumOptions, type EnumOption } from "@/system/lang";
+import type { Type } from "@/system/value";
+import uFuzzy from "@leeoniya/ufuzzy";
 import { tryOnBeforeUnmount } from "@vueuse/core";
+import { markRaw, shallowRef, toRef, toValue, watch, type MaybeRef, type Ref } from "vue";
 
 export type NodeItem = Omit<NodeReferenceData, "metatype" | "id"> & {
   metatype: "node";
   node: AnyNodeData;
   id: string;
-  path: string; // the ancestor path to display
+  path?: string; // the ancestor path to display
   pathToIndex?: string; // alternative path to index for searching (length must match path for highlighting!)
   ancestors: NodeItem[]; // in order of traversal up, excl. self
   icon: IconData;
@@ -27,7 +35,10 @@ export type ActionItem = Omit<Action, "title"> & {
 export type EnumOptionItem = EnumOption & {
   metatype: "enum-option";
 };
-export type IconItem = IconMetadata & { metatype: "icon" };
+export type TypeItem = Type & {
+  metatype: "type";
+}
+export type IconItem = IconMetadata & { metatype: "icon"; path?: string; pathToIndex?: string };
 export type SearchItem = (NodeItem | ActionItem | EnumOptionItem | IconItem) & { title: string; category?: string };
 
 export type SearchCandidateInfo = { candidate: string; category: string; index: string };
@@ -39,10 +50,10 @@ export type SearchResultInfo = {
 
 /** An index of searchable items. */
 export type SearchIndex<T extends SearchItem> = {
+  /** Maps a value to a candidate. To reverse lookup existing values. */
+  map: (value: any) => T | null;
   /** Produces the current list of candidates. This is non-reactive for search stability & performance. */
   candidates: () => T[];
-  /** Enrichs a lazy search item before we turn it into a candidate/result. */
-  enrich?: (item: T) => T;
 };
 
 export type SearchOptions = {
@@ -75,6 +86,7 @@ export function graphIndex(toIndex: {
   maxDepth?: MaybeRef<number>;
 }): SearchIndex<NodeItem> {
   const maxDepthRef = toRef(toIndex.maxDepth) as Ref<number | undefined>;
+
   /**
    * Walks the descendants from a node.
    */
@@ -121,6 +133,19 @@ export function graphIndex(toIndex: {
   }
 
   const index: SearchIndex<NodeItem> = {
+    map(value: NodeKey<any>): NodeItem | null {
+      const node = toIndex.graph.getMaybe(value);
+      if (node == null) return null;
+      const item: NodeItem = {
+        ...(toNodeReference(node)! as NodeReferenceData & { id: string }),
+        metatype: "node",
+        node,
+        title: (node as any).title ?? (node as any).name ?? "",
+        icon: getNodeIcon(node),
+        ancestors: [], // not needed?
+      };
+      return item;
+    },
     candidates: () => {
       const candidates: NodeItem[] = [];
       const roots = toIndex.roots ?? toIndex.graph.roots;
@@ -130,6 +155,7 @@ export function graphIndex(toIndex: {
       return candidates;
     },
   };
+
   return markRaw(index);
 }
 
@@ -137,12 +163,16 @@ export function graphIndex(toIndex: {
  * Search the currently available actions.
  */
 export function actionIndex(): SearchIndex<ActionItem> {
+  function map(value: Action): ActionItem {
+    return { ...value, title: toValue(value.title), metatype: "action" };
+  }
   const index: SearchIndex<ActionItem> = {
+    map,
     candidates: () =>
       IMPLEMENTED_ACTIONS.value
         .filter((a) => a.isEnabled == null || toValue(a.isEnabled))
         .sort((a, b) => ACTION_BUILTIN_IDS_INDEX[a.id] - ACTION_BUILTIN_IDS_INDEX[b.id])
-        .map((a) => ({ ...a, title: toValue(a.title), metatype: "action" }) as ActionItem),
+        .map(map),
   };
   return markRaw(index);
 }
@@ -151,25 +181,37 @@ export function actionIndex(): SearchIndex<ActionItem> {
  * Search the available options of an enum.
  */
 export function enumIndex(enumTypes: EnumType[]): SearchIndex<EnumOptionItem> {
+  function map(value: EnumOption | number): EnumOptionItem | null {
+    if (typeof value == "object") {
+      return { ...value, metatype: "enum-option" };
+    } else {
+      // find enum option
+      for (const enumType of enumTypes) {
+        if (ENUM_BY_TYPE[enumType][value] != null) {
+          const enumOption = getEnumOptions(enumType).find((o) => o.value === value);
+          if (enumOption != null) return { ...enumOption, metatype: "enum-option" };
+        }
+      }
+    }
+    return null;
+  }
   const index: SearchIndex<EnumOptionItem> = {
-    candidates: () =>
-      enumTypes
-        .flatMap((enumType) => getEnumOptions(enumType))
-        .map((option) => ({ ...option, metatype: "enum-option" })),
+    map,
+    candidates: () => enumTypes.flatMap((enumType) => getEnumOptions(enumType)).map((enumOption) => map(enumOption)!),
   };
   return markRaw(index);
 }
 
+function mapIcon(value: IconMetadata): IconItem {
+  return { ...value, metatype: "icon", path: value.alias.join(HIDDEN_SEPARATOR) };
+}
+const AVAILABLE_FA_ICONS_ITEMS: IconItem[] = AVAILABLE_FA_ICONS.map(mapIcon);
 /*
  * Search available icons.
  */
-const AVAILABLE_FA_ICONS_ITEMS = AVAILABLE_FA_ICONS.map((i) => ({
-  metatype: "icon",
-  ...i,
-  path: i.alias.join(HIDDEN_SEPARATOR),
-})) as IconItem[];
 export function iconIndex(): SearchIndex<IconItem> {
   const index: SearchIndex<IconItem> = {
+    map: mapIcon,
     candidates: () => AVAILABLE_FA_ICONS_ITEMS,
   };
   return markRaw(index);

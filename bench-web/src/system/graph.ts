@@ -1165,7 +1165,7 @@ export function isGeneratedNodeName(metatype: NodeType, type: any, name: string)
 /** Generates the name for a node in the given graph */
 export function makeNodeName(
   graph: ReadNodeGraph,
-  node: { metatype: ObjectType; parentPtr?: NodeReferenceData; type: any },
+  node: { metatype: ObjectType; parentPtr?: NodeReferenceData; type?: any },
 ): string {
   if (node.parentPtr == null) throw new Error("parentPtr is required");
   const siblings = graph.getChildren(node.parentPtr, node.metatype as unknown as NodeType);

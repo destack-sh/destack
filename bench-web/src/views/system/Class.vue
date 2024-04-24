@@ -4,7 +4,7 @@ import { describeNode, isNode, toNodeReference, type TypedNodeReferenceData } fr
 import type { ActionContext, ActionMapImplementation } from "@/system/action";
 import { useGetConnection, type PreparedGetConnection } from "@/system/connection";
 import { moveNode } from "@/system/graph";
-import { toCamelName } from "@/system/lang";
+import { createField, toCamelName } from "@/system/lang";
 import { canvas } from "@/system/space";
 import { startDragging, useMultiDropZone, type Dragged, type DraggedData, type MultiAnchor } from "@/utils/drag";
 import { menuActionsLike, type OverlayMenuInfo } from "@/utils/menu";
@@ -137,6 +137,20 @@ const actions: Partial<ActionMapImplementation<"common">> = {
       pkgConnection.tx.softDelete(field);
     },
   },
+  "common.create.above": {
+    action: (action, ctx) => {
+      const { field } = getFieldFromContext(ctx);
+      if (field == null) return false;
+      createField(pkgConnection.tx, pkgGraph, "before", field);
+    },
+  },
+  "common.create.below": {
+    action: (action, ctx) => {
+      const { field } = getFieldFromContext(ctx);
+      if (field == null) return false;
+      createField(pkgConnection.tx, pkgGraph, "after", field);
+    },
+  },
 };
 
 canvas.registerView(self, id);
@@ -153,7 +167,7 @@ defineExpose<ViewExposed>({ self, id, actions });
       <!-- Fields in zone -->
       <ul
         :ref="(ref: any) => (side == 'left' ? (leftRef = ref) : (rightRef = ref))"
-        class="relative flex flex-1 flex-col gap-y-0.5"
+        class="relative flex flex-1 flex-col gap-y-1"
         :class="[activeDropZoneSide == side ? 'rounded outline-dotted outline-2 outline-primary-900' : '']"
       >
         <!-- Drop indicator -->

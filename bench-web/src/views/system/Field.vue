@@ -75,11 +75,11 @@ defineExpose<ViewExposed>({ self, id, actions });
   <div
     ref="fieldRef"
     v-if="field"
-    class="flex w-fit flex-row items-center rounded border bg-white px-1.5 py-[3px]"
+    class="flex w-fit flex-row items-center rounded border bg-gray-100 px-1.5 py-[3px]"
     :class="[
       inspectionPtr?.id == field.id
         ? 'border-primary-900'
-        : [variant != Variant.STEALTH ? 'border-gray-300' : 'border-transparent', 'hover:border-gray-300'],
+        : [variant != Variant.STEALTH ? 'border-gray-200' : 'border-gray-200', 'hover:border-gray-300'],
     ]"
   >
     <!-- nocheckin: Field -->
@@ -99,7 +99,7 @@ defineExpose<ViewExposed>({ self, id, actions });
     />
     <input
       ref="nameRef"
-      class="w-fit min-w-fit font-medium max-w-fit truncate rounded border-0 outline-none ring-0 hover:bg-primary-100 hover:text-primary-900 focus:ring-0"
+      class="w-fit min-w-fit max-w-fit truncate rounded border-0 bg-transparent font-medium outline-none ring-0 hover:bg-primary-100 hover:text-primary-900 focus:ring-0"
       spellcheck="false"
       :value="field.name"
       :size="field.name?.length"
