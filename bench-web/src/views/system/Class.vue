@@ -67,6 +67,7 @@ const rightFields = computed(() => {
 });
 
 // dragging
+// NOTE: we have separate drop zones for left/right (for function types)
 function allowDrop(dragged: DraggedData, anchor: MultiAnchor, targetId: string | null, event?: DragEvent): boolean {
   if (dragged.kind != "node") return false;
   const node = pkgGraph.get(dragged.node);

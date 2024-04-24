@@ -4,20 +4,12 @@
 
 import {
   BenchType,
-  type AnyStructData,
-  type BlockData,
-  type EnumTypeMapping,
-  type FieldData,
-  type PropertyInfo,
-} from "@/proto/wire";
-import {
-  BenchProperty,
   BlockProperty,
   BlockType,
   ENUM_BY_TYPE,
   EnumType,
+  FieldKind,
   FieldProperty,
-  FileProperty,
   IconData,
   NodeReferenceData,
   NodeType,
@@ -33,8 +25,13 @@ import {
   ViewProperty,
   ViewType,
   type AnyNodeData,
+  type AnyStructData,
+  type BlockData,
+  type EnumTypeMapping,
+  type FieldData,
+  type PropertyInfo,
 } from "@/proto/wire";
-import { isNode, type TypedNodeReferenceData } from "@/proto/wiring";
+import { describeNode, isNode, toNodeReference, type TypedNodeReferenceData } from "@/proto/wiring";
 import { makeNodeName, type ReadNodeGraph } from "@/system/graph";
 import { ENUM_ICONS_BY_TYPE } from "@/system/icon";
 import type { Transaction } from "@/system/transaction";
@@ -95,6 +92,7 @@ export const DEFAULT_LOADED_SOURCE_NODE_TYPES = [
 ];
 
 export const TYPE_BLOCK_TYPES = [BlockType.CLASS, BlockType.CHOICE, BlockType.SIGNAL, BlockType.DATABASE];
+export const RUNNABLE_BLOCK_TYPES = [BlockType.TEXT, BlockType.CODE, BlockType.FLOW];
 
 export const ROOT_VIEW_TYPES = new Set<ViewType>([ViewType.WINDOW, ViewType.TAB, ViewType.SPLIT]);
 export const NODE_VIEW_TYPES = new Set<ViewType>([
@@ -370,23 +368,48 @@ export function createBlock(
   return block;
 }
 
-/** Create a Field relative to another. */
+/** Create a Field relative to a Field or a Block. */
 export function createField(
   tx: Transaction,
   graph: ReadNodeGraph,
-  anchor: "before" | "above" | "after" | "below",
-  targetPtr: FieldData | TypedNodeReferenceData<NodeType.FIELD>,
+  anchor: "before" | "above" | "after" | "below" | "inside" | "center",
+  targetPtr: FieldData | TypedNodeReferenceData<NodeType.FIELD> | BlockData | TypedNodeReferenceData<NodeType.BLOCK>,
+  fieldIn?: Partial<FieldData>,
 ) {
   const target = isNode(targetPtr) ? targetPtr : graph.getOrError(targetPtr);
-  const siblings = graph.getChildren(target.parentPtr!, NodeType.FIELD);
+  let parentPtr: NodeReferenceData;
+  let orderKey: string;
+  let kind: FieldKind;
+  if (isNode(target, NodeType.BLOCK)) {
+    if (anchor != "inside" && anchor != "center") throw new Error(`unexpected anchor for block: ${anchor}`);
+    const siblings = graph.getChildren(target, NodeType.FIELD);
+    parentPtr = toNodeReference(target);
+    orderKey = getOrderKey({ position: "after", reference: siblings[siblings.length - 1], nodes: siblings });
+    if (target.type == BlockType.CHOICE) kind = FieldKind.OPTION;
+    else if (TYPE_BLOCK_TYPES.includes(target.type)) kind = FieldKind.MEMBER;
+    else if (RUNNABLE_BLOCK_TYPES.includes(target.type)) kind = FieldKind.INPUT;
+    else kind = FieldKind.VARIABLE;
+  } else if (isNode(target, NodeType.FIELD)) {
+    if (anchor == "inside" || anchor == "center") throw new Error(`unexpected anchor for field: ${anchor}`);
+    const siblings = graph.getChildren(target.parentPtr!, NodeType.FIELD);
+    parentPtr = target.parentPtr!;
+    orderKey = getOrderKey({ position: anchor, reference: target, nodes: siblings });
+    kind = target.kind;
+  } else {
+    throw new Error(`unexpected target node type: ${describeNode(target)}`);
+  }
   const field = tx.create({
-    metatype: NodeType.FIELD,
-    parentPtr: target.parentPtr,
-    packagePtr: target.packagePtr,
-    orderKey: getOrderKey({ position: anchor, reference: target, nodes: siblings }),
-    name: makeNodeName(graph, { metatype: ObjectType.FIELD, parentPtr: target.parentPtr }),
-    kind: target.kind,
+    name: makeNodeName(graph, { metatype: ObjectType.FIELD, parentPtr }),
+    kind,
     benchType: BenchType.TEXT,
+    ...fieldIn, 
+    // overwrite non-required properties
+    id: undefined,
+    ck: undefined,
+    metatype: NodeType.FIELD,
+    parentPtr,
+    packagePtr: target.packagePtr,
+    orderKey,
   });
   return field;
 }
@@ -433,7 +456,6 @@ function typeProperty(): InspectedPropertyPartial {
     props: { valueType: makeTypeInfo({ benchType: BenchType.TYPE_INFO }) },
     read: (node) => node,
     write: (tx, node, value: TypeIdentity) => {
-      console.log("write type", value); // nocheckin
       tx.updateDebounced(node, {
         primitiveType: value.primitiveType,
         benchType: value.benchType,
@@ -448,8 +470,9 @@ const INSPECTION_INFO_BY_TYPE: Partial<Record<ObjectType, InspectionCategory[]>>
     {
       category: "Common",
       properties: [
+        FieldProperty.kind,
         { from: 40, to: 43, replace: typeProperty },
-        { to: 43, excluding: [FieldProperty.kind] },
+        { from: 30, to: 43 },
         { from: 60 },
         FieldProperty.visibility,
       ],

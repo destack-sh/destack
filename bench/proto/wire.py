@@ -596,7 +596,8 @@ class NodeVisibility(betterproto.Enum):
     UNSPECIFIED = 0
     PAGE = 4
     MODULE = 6
-    ALL = 10
+    BENCH = 8
+    PUBLIC = 10
 
 
 class NoticeKind(betterproto.Enum):

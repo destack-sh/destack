@@ -7564,9 +7564,13 @@ export enum NodeVisibility {
      */
     MODULE = 6,
     /**
-     * @generated from protobuf enum value: NODE_VISIBILITY_ALL = 10;
+     * @generated from protobuf enum value: NODE_VISIBILITY_BENCH = 8;
      */
-    ALL = 10
+    BENCH = 8,
+    /**
+     * @generated from protobuf enum value: NODE_VISIBILITY_PUBLIC = 10;
+     */
+    PUBLIC = 10
 }
 /**
  * Type of diagnostic in increasing severity.

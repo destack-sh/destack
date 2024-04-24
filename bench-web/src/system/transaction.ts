@@ -170,11 +170,12 @@ export class TransactionBuilder implements Transaction {
     nodeIn: { metatype: T | ObjectType } & Partial<Omit<NodeTypeMapping[NodeType], "metatype">>,
   ): NodeTypeMapping[T] {
     // fill in scope
-    const properties = PROPERTY_ENUM_BY_TYPE[nodeIn.metatype as unknown as ObjectType]!;
-    if ("packagePtr" in properties && (nodeIn as any).packagePtr == null) {
+    const properties = PROPERTY_ENUM_BY_TYPE[nodeIn.metatype as unknown as ObjectType];
+    if (properties == null) {
+      throw new Error(`missing properties for ${nodeIn.metatype}`);
+    } else if ("packagePtr" in properties && (nodeIn as any).packagePtr == null) {
       throw new Error(`missing packagePtr in ${describeNode(nodeIn)}`); // can't infer package
-    }
-    if ("benchPtr" in properties) {
+    } else if ("benchPtr" in properties) {
       if ((nodeIn as any).benchPtr == null) {
         (nodeIn as any).benchPtr = this.benchPtr; // infer bench
       }

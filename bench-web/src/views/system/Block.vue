@@ -1,12 +1,12 @@
 <script lang="ts" setup>
-import { BlockType, NodeReferenceData, NodeType, Variant, ViewData } from "@/proto/wire";
+import { BenchType, BlockType, NodeReferenceData, NodeType, Variant, ViewData, ViewType } from "@/proto/wire";
 import { type TypedNodeReferenceData } from "@/proto/wiring";
 import type { ActionMapImplementation } from "@/system/action";
 import type { PreparedGetConnection } from "@/system/connection";
 import { useGetConnection } from "@/system/connection";
 import { isGeneratedNodeName } from "@/system/graph";
 import { IconInline, getNodeIcon } from "@/system/icon";
-import { toCamelName } from "@/system/lang";
+import { RUNNABLE_BLOCK_TYPES, TYPE_BLOCK_TYPES, createField, toCamelName } from "@/system/lang";
 import { canvas, inspectionPtr } from "@/system/space";
 import { onMouseReleasedOnce } from "@/utils/layout";
 import { menuActionsLike, type OverlayMenuInfo, type OverlayMenuInfoIn } from "@/utils/menu";
@@ -19,6 +19,7 @@ import Code from "@/views/content/Code.vue";
 import Icon from "@/views/content/Icon.vue";
 import Text from "@/views/content/Text.vue";
 import { computed, nextTick, ref, toRef, type Ref } from "vue";
+import { makeTypeInfo, type TypeIdentity } from "@/system/value";
 
 const props = defineProps<
   { self?: TypedNodeReferenceData<NodeType.VIEW>; preparedConnection?: PreparedGetConnection } & Pick<
@@ -164,7 +165,21 @@ defineExpose<ViewExposed>({ self, id, variants: [Variant.PRIMARY, Variant.STEALT
             <i class="fas fa-text" />
           </button>
           <!-- Quick add -->
-          <button class="rounded px-1 hover:bg-gray-100 hover:text-primary-900">
+          <button
+            v-if="RUNNABLE_BLOCK_TYPES.includes(block.type) || TYPE_BLOCK_TYPES.includes(block.type)"
+            class="rounded px-1 hover:bg-gray-100 hover:text-primary-900 data-[menu=true]:border-primary-900 data-[menu=true]:bg-gray-100 data-[menu=true]:text-primary-900"
+            v-menu="
+              (): OverlayMenuInfoIn => ({
+                component: ViewType.PICKER,
+                placement: 'bottom-left',
+                offset: 'referenceWidth',
+                props: { valueType: makeTypeInfo({ benchType: BenchType.TYPE_INFO }) },
+                onApply: (typeInfo: TypeIdentity) => {
+                  createField(pkgConnection.tx, pkgGraph, 'inside', block!, typeInfo)
+                }
+              })
+            "
+          >
             <i class="fas fa-plus" />
           </button>
           <!-- Menu -->
@@ -188,13 +203,7 @@ defineExpose<ViewExposed>({ self, id, variants: [Variant.PRIMARY, Variant.STEALT
     <!-- Body -->
     <div class="flex flex-col gap-y-1">
       <Class
-        v-if="
-          block.type == BlockType.SIGNAL ||
-          block.type == BlockType.CLASS ||
-          block.type == BlockType.TEXT ||
-          block.type == BlockType.CODE ||
-          block.type == BlockType.FLOW
-        "
+        v-if="TYPE_BLOCK_TYPES.includes(block.type) || RUNNABLE_BLOCK_TYPES.includes(block.type)"
         :node="block"
         :prepared-connection="pkgGetConnection"
         :node-ptr="nodePtr"
@@ -212,7 +221,7 @@ defineExpose<ViewExposed>({ self, id, variants: [Variant.PRIMARY, Variant.STEALT
         "
       />
       <Code
-        v-else-if="block.type == BlockType.CODE"
+        v-if="block.type == BlockType.CODE"
         is-input
         :variant="Variant.STEALTH"
         :model-value="block.code"

@@ -13,9 +13,9 @@ import {
 } from "@/proto/wire";
 import { toNodeReference } from "@/proto/wiring";
 import { ACTION_BUILTIN_IDS_INDEX, IMPLEMENTED_ACTIONS, type Action } from "@/system/action";
-import type { ReadNodeGraph, NodeKey } from "@/system/graph";
+import type { NodeKey, ReadNodeGraph } from "@/system/graph";
 import { AVAILABLE_FA_ICONS, DEFAULT_ENUM_ICON, getNodeIcon, type IconMetadata } from "@/system/icon";
-import { NODE_TYPES, TYPE_BLOCK_TYPES, getEnumOptions, type EnumOption } from "@/system/lang";
+import { TYPE_BLOCK_TYPES, getEnumOptions, type EnumOption } from "@/system/lang";
 import type { TypeIdentity } from "@/system/value";
 import uFuzzy from "@leeoniya/ufuzzy";
 import { tryOnBeforeUnmount } from "@vueuse/core";
@@ -231,7 +231,11 @@ export function enumIndex(enumTypes: EnumType[]): SearchIndex<EnumOptionItem> {
   const index: SearchIndex<EnumOptionItem> = {
     fromValue: (value: EnumOption | number) => itemFromEnumOption(enumTypes, value),
     toValue: (candidate: EnumOptionItem) => candidate.value,
-    valueEquals: (a: EnumOption, b: EnumOption) => a === b,
+    valueEquals: (a: EnumOption | number, b: EnumOption | number) => {
+      const aValue = typeof a == "object" ? a.value : a;
+      const bValue = typeof b == "object" ? b.value : b;
+      return aValue === bValue;
+    },
     candidates: () =>
       enumTypes
         .flatMap((enumType) => getEnumOptions(enumType))

@@ -75,7 +75,7 @@ defineExpose<ViewExposed>({ self, id, actions });
   <div
     ref="fieldRef"
     v-if="field"
-    class="flex w-fit flex-row items-center rounded border bg-gray-100 px-1.5 py-[3px]"
+    class="flex w-fit flex-row items-center rounded border bg-gray-50 px-1.5 py-[3px]"
     :class="[
       inspectionPtr?.id == field.id
         ? 'border-primary-900'

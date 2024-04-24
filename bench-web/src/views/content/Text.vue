@@ -335,7 +335,7 @@ defineExpose<ViewExposed>({ self, id, variants: [Variant.PRIMARY, Variant.STEALT
   @apply rounded bg-gray-100 px-0.5;
 }
 .text blockquote {
-  @apply my-2 border-l-2 border-gray-400 py-[1px] pl-2;
+  @apply my-2 border-l-4 border-gray-400 py-[1px] pl-2;
 }
 .text div.callout {
   @apply my-2 rounded bg-secondary-100 px-2 py-2.5;
