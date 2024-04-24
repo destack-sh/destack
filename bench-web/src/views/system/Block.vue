@@ -1,18 +1,26 @@
 <script lang="ts" setup>
-import { BenchType, BlockType, NodeReferenceData, NodeType, Variant, ViewData, ViewType } from "@/proto/wire";
+import {
+  BenchType,
+  BlockType,
+  FieldKind,
+  NodeReferenceData,
+  NodeType,
+  Variant,
+  ViewData,
+  ViewType,
+} from "@/proto/wire";
 import { type TypedNodeReferenceData } from "@/proto/wiring";
 import type { ActionMapImplementation } from "@/system/action";
 import type { PreparedGetConnection } from "@/system/connection";
 import { useGetConnection } from "@/system/connection";
-import { isGeneratedNodeName } from "@/system/graph";
 import { IconInline, getNodeIcon } from "@/system/icon";
-import { RUNNABLE_BLOCK_TYPES, TYPE_BLOCK_TYPES, createField, toCamelName } from "@/system/lang";
+import { RUNNABLE_BLOCK_TYPES, TYPE_BLOCK_TYPES, createField, isGeneratedNodeName, toCamelName } from "@/system/lang";
 import { canvas, inspectionPtr } from "@/system/space";
 import { onMouseReleasedOnce } from "@/utils/layout";
-import { menuActionsLike, type OverlayMenuInfo, type OverlayMenuInfoIn } from "@/utils/menu";
+import { createOverlayMenu, menuActionsLike, type OverlayMenuInfo, type OverlayMenuInfoIn } from "@/utils/menu";
 import type { TooltipInfo } from "@/utils/tooltip";
 import { makeViewId } from "@/views";
-import Class from "@/views/system/Class.vue";
+import Type from "@/views/system/Type.vue";
 import Inaccessible from "@/views/builtins/Inaccessible.vue";
 import { viewEmits, type FocusAnchor, type ViewExposed } from "@/views/common";
 import Code from "@/views/content/Code.vue";
@@ -50,9 +58,7 @@ const { graph: pkgGraph, connection: pkgConnection } = pkgGetConnection;
 const block = pkgGraph.getRef(nodePtr, { ignoreAncestors: props.self == null });
 
 const isGeneratedName = computed(
-  () =>
-    block.value != null &&
-    isGeneratedNodeName(block.value.metatype as unknown as NodeType, block.value.type, block.value.name),
+  () => block.value != null && isGeneratedNodeName(block.value.metatype as unknown as NodeType, block.value.name),
 );
 const isThinTextWrapper = computed(() => isGeneratedName.value && block.value?.type == BlockType.TEXT);
 const hasText = computed(() => block.value?.text != null);
@@ -168,16 +174,26 @@ defineExpose<ViewExposed>({ self, id, variants: [Variant.PRIMARY, Variant.STEALT
           <button
             v-if="RUNNABLE_BLOCK_TYPES.includes(block.type) || TYPE_BLOCK_TYPES.includes(block.type)"
             class="rounded px-1 hover:bg-gray-100 hover:text-primary-900 data-[menu=true]:border-primary-900 data-[menu=true]:bg-gray-100 data-[menu=true]:text-primary-900"
-            v-menu="
-              (): OverlayMenuInfoIn => ({
-                component: ViewType.PICKER,
-                placement: 'bottom-left',
-                offset: 'referenceWidth',
-                props: { valueType: makeTypeInfo({ benchType: BenchType.TYPE_INFO }) },
-                onApply: (typeInfo: TypeIdentity) => {
-                  createField(pkgConnection.tx, pkgGraph, 'inside', block!, typeInfo)
+            @click="
+              (e) => {
+                if (block!.type == BlockType.CHOICE) {
+                  createField(pkgConnection.tx, pkgGraph, 'inside', block!, { kind: FieldKind.OPTION });
+                } else {
+                  createOverlayMenu({
+                    trigger: e.target as HTMLElement,
+                    reference: { x: e.clientX, y: e.clientY },
+                    info: {
+                      component: ViewType.PICKER,
+                      placement: 'bottom-left',
+                      offset: 'referenceWidth',
+                      props: { valueType: makeTypeInfo({ benchType: BenchType.TYPE_INFO }) },
+                      onApply: (typeInfo: TypeIdentity) => {
+                        createField(pkgConnection.tx, pkgGraph, 'inside', block!, typeInfo);
+                      },
+                    },
+                  });
                 }
-              })
+              }
             "
           >
             <i class="fas fa-plus" />
@@ -202,7 +218,7 @@ defineExpose<ViewExposed>({ self, id, variants: [Variant.PRIMARY, Variant.STEALT
     </div>
     <!-- Body -->
     <div class="flex flex-col gap-y-1">
-      <Class
+      <Type
         v-if="TYPE_BLOCK_TYPES.includes(block.type) || RUNNABLE_BLOCK_TYPES.includes(block.type)"
         :node="block"
         :prepared-connection="pkgGetConnection"

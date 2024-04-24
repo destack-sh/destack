@@ -1074,9 +1074,8 @@ class ViewType(betterproto.Enum):
     SCREEN = 105
     FLOW = 106
     STEP = 107
-    CLASS = 108
-    CHOICE = 109
-    VARIABLE = 110
+    TYPE = 108
+    VARIABLE = 109
     EXPLORE = 150
     OUTLINE = 151
     INSPECT = 153

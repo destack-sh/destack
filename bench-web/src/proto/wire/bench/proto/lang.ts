@@ -9131,17 +9131,13 @@ export enum ViewType {
      */
     STEP = 107,
     /**
-     * @generated from protobuf enum value: VIEW_TYPE_CLASS = 108;
+     * @generated from protobuf enum value: VIEW_TYPE_TYPE = 108;
      */
-    CLASS = 108,
+    TYPE = 108,
     /**
-     * @generated from protobuf enum value: VIEW_TYPE_CHOICE = 109;
+     * @generated from protobuf enum value: VIEW_TYPE_VARIABLE = 109;
      */
-    CHOICE = 109,
-    /**
-     * @generated from protobuf enum value: VIEW_TYPE_VARIABLE = 110;
-     */
-    VARIABLE = 110,
+    VARIABLE = 109,
     /**
      * @generated from protobuf enum value: VIEW_TYPE_EXPLORE = 150;
      */

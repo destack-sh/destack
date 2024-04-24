@@ -11,6 +11,8 @@ import {
   type AnyPropertyType,
   type NodeTypeMapping,
   StepType,
+  FieldKind,
+  PROPERTY_INFOS_BY_TYPE,
 } from "@/proto/wire";
 import { describeNode, toNodeReference, type AnyNodeReferenceData, type TypedNodeReferenceData } from "@/proto/wiring";
 import { defaultSortNode, toCamelName, updateOrder } from "@/system/lang";
@@ -1119,55 +1121,3 @@ export function isDescendantOf(graph: ReadNodeGraph, child: NodeKey<any>, parent
   return graph.getAncestors(child, { includeSelf: true }).some((ancestor) => ancestor.id == parent.id);
 }
 
-/** Extracts the last (potentially multi-digit) characters as an integer */
-export function extractNameId(name: string): number | null {
-  const match = name.match(/\d+$/);
-  return match ? parseInt(match[0]) : null;
-}
-
-/** Generates a node name for our :AutoNaming. */
-export function generateNodeName(metatype: NodeType, type: any, siblings: AnyNodeData[]): string {
-  if (metatype == NodeType.BLOCK || metatype == NodeType.VIEW || metatype == NodeType.STEP) {
-    if (type == null) throw new Error(`expected type for ${metatype}, got ${type}`);
-    let typeName = BlockType[type] ?? ViewType[type] ?? StepType[type];
-    if (typeName == null) throw new Error(`unknown type ${type} for ${NodeType[metatype]}`);
-    typeName = toCasing(typeName, Casing.CAMEL);
-    const maxId = Math.max(
-      ...siblings.filter((n) => (n as any).type == type).map((n) => extractNameId((n as any).name) ?? 0),
-      0,
-    );
-    return `${typeName}${maxId + 1}`;
-  } else {
-    const metatypeName = toCamelName(NodeType, metatype);
-    const maxId = Math.max(...siblings.map((n) => extractNameId((n as any).name) ?? 0), 0);
-    return `${metatypeName}${maxId + 1}`;
-  }
-}
-
-/** Checks whether the node name was likely generated */
-export function isGeneratedNodeName(metatype: NodeType, type: any, name: string): boolean {
-  // match name as <type><id> (groups)
-  const match = name.match(/([a-zA-Z]+)(\d+)/);
-  if (match == null) return false;
-  const typeName = toCasing(match[1], Casing.ALL_CAPS);
-
-  if (metatype == NodeType.BLOCK) {
-    return BlockType[typeName as any] != null;
-  } else if (metatype == NodeType.VIEW) {
-    return ViewType[typeName as any] != null;
-  } else if (metatype == NodeType.STEP) {
-    return StepType[typeName as any] != null;
-  } else {
-    return NodeType[typeName as any] != null;
-  }
-}
-
-/** Generates the name for a node in the given graph */
-export function makeNodeName(
-  graph: ReadNodeGraph,
-  node: { metatype: ObjectType; parentPtr?: NodeReferenceData; type?: any },
-): string {
-  if (node.parentPtr == null) throw new Error("parentPtr is required");
-  const siblings = graph.getChildren(node.parentPtr, node.metatype as unknown as NodeType);
-  return generateNodeName(node.metatype as unknown as NodeType, node.type, siblings);
-}

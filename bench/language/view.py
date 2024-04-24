@@ -44,9 +44,8 @@ class ViewType(IdEnum):
     SCREEN = 105
     FLOW = 106
     STEP = 107
-    CLASS = 108
-    CHOICE = 109
-    VARIABLE = 110
+    TYPE = 108
+    VARIABLE = 109
     # helpers
     EXPLORE = 150
     OUTLINE = 151

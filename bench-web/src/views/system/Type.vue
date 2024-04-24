@@ -4,7 +4,7 @@ import { describeNode, isNode, toNodeReference, type TypedNodeReferenceData } fr
 import type { ActionContext, ActionMapImplementation } from "@/system/action";
 import { useGetConnection, type PreparedGetConnection } from "@/system/connection";
 import { moveNode } from "@/system/graph";
-import { createField, toCamelName } from "@/system/lang";
+import { RUNNABLE_BLOCK_TYPES, createField, toCamelName } from "@/system/lang";
 import { canvas } from "@/system/space";
 import { startDragging, useMultiDropZone, type Dragged, type DraggedData, type MultiAnchor } from "@/utils/drag";
 import { menuActionsLike, type OverlayMenuInfo } from "@/utils/menu";
@@ -35,7 +35,7 @@ const { graph: pkgGraph, connection: pkgConnection } =
     computed(() => ({ roots: [nodePtr.value], isEnabled: nodePtr.value != null })),
   );
 const block = pkgGraph.getRef(nodePtr, { ignoreAncestors: props.self == null });
-const isFunction = computed(() => block.value?.type != BlockType.CLASS);
+const isFunction = computed(() => block.value != null && RUNNABLE_BLOCK_TYPES.includes(block.value.type));
 const fields = pkgGraph.getChildrenRef(block, NodeType.FIELD);
 const leftKind = computed(() => {
   if (block.value?.type == BlockType.CLASS) {
