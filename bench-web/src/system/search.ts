@@ -6,6 +6,7 @@ import {
   EnumType,
   NodeType,
   PrimitiveType,
+  StructType,
   type AnyNodeData,
   type IconData,
   type NodeReferenceData,
@@ -14,7 +15,7 @@ import { toNodeReference } from "@/proto/wiring";
 import { ACTION_BUILTIN_IDS_INDEX, IMPLEMENTED_ACTIONS, type Action } from "@/system/action";
 import type { ReadNodeGraph, NodeKey } from "@/system/graph";
 import { AVAILABLE_FA_ICONS, DEFAULT_ENUM_ICON, getNodeIcon, type IconMetadata } from "@/system/icon";
-import { TYPE_BLOCK_TYPES, getEnumOptions, type EnumOption } from "@/system/lang";
+import { NODE_TYPES, TYPE_BLOCK_TYPES, getEnumOptions, type EnumOption } from "@/system/lang";
 import type { TypeIdentity } from "@/system/value";
 import uFuzzy from "@leeoniya/ufuzzy";
 import { tryOnBeforeUnmount } from "@vueuse/core";
@@ -64,6 +65,8 @@ export type SearchIndex<T extends SearchItem> = {
   fromValue: (value: any) => T | null;
   /** Gets the value from a candidate */
   toValue: (candidate: T) => any;
+  /** Whether two values from this index are equal */
+  valueEquals: (a: any, b: any) => boolean;
   /** Produces the current list of candidates. This is non-reactive for search stability & performance. */
   candidates: () => T[];
 };
@@ -149,7 +152,7 @@ function walkGraph(
   return items;
 }
 
-function mapNode(graph: ReadNodeGraph, value: NodeKey<any>): NodeItem | null {
+function itemFromNode(graph: ReadNodeGraph, value: NodeKey<any>): NodeItem | null {
   const node = graph.getMaybe(value);
   if (node == null) return null;
   const item: NodeItem = {
@@ -177,8 +180,9 @@ export function graphIndex(options: {
   const maxDepthRef = toRef(options.maxDepth) as Ref<number | undefined>;
 
   const index: SearchIndex<NodeItem> = {
-    fromValue: (value: NodeKey<any>) => mapNode(options.graph, value),
+    fromValue: (value: NodeKey<any>) => itemFromNode(options.graph, value),
     toValue: (candidate: NodeItem) => toNodeReference(candidate.node),
+    valueEquals: (a: NodeKey<any>, b: NodeKey<any>) => a.id === b.id || a.ck == b.ck,
     candidates: () => walkGraph(options.graph, { ...options, maxDepth: maxDepthRef.value }),
   };
 
@@ -195,6 +199,7 @@ export function actionIndex(): SearchIndex<ActionItem> {
   const index: SearchIndex<ActionItem> = {
     fromValue: map,
     toValue: (candidate: ActionItem) => candidate.id,
+    valueEquals: (a, b) => a.id === b.id,
     candidates: () =>
       IMPLEMENTED_ACTIONS.value
         .filter((a) => a.isEnabled == null || toValue(a.isEnabled))
@@ -204,7 +209,7 @@ export function actionIndex(): SearchIndex<ActionItem> {
   return markRaw(index);
 }
 
-function mapEnumOption(enumTypes: EnumType[], value: EnumOption | number): EnumOptionItem | null {
+function itemFromEnumOption(enumTypes: EnumType[], value: EnumOption | number): EnumOptionItem | null {
   if (typeof value == "object") {
     return { ...value, metatype: "enum-option" };
   } else {
@@ -224,15 +229,25 @@ function mapEnumOption(enumTypes: EnumType[], value: EnumOption | number): EnumO
  */
 export function enumIndex(enumTypes: EnumType[]): SearchIndex<EnumOptionItem> {
   const index: SearchIndex<EnumOptionItem> = {
-    fromValue: (value: EnumOption | number) => mapEnumOption(enumTypes, value),
+    fromValue: (value: EnumOption | number) => itemFromEnumOption(enumTypes, value),
     toValue: (candidate: EnumOptionItem) => candidate.value,
+    valueEquals: (a: EnumOption, b: EnumOption) => a === b,
     candidates: () =>
       enumTypes
         .flatMap((enumType) => getEnumOptions(enumType))
-        .map((enumOption) => mapEnumOption(enumTypes, enumOption)!),
+        .map((enumOption) => itemFromEnumOption(enumTypes, enumOption)!),
   };
   return markRaw(index);
 }
+
+const PREFERRED_TYPE_ORDER: (PrimitiveType | StructType)[] = [
+  StructType.TEXT,
+  PrimitiveType.BOOLEAN,
+  PrimitiveType.FLOAT64,
+  PrimitiveType.DATETIME,
+  StructType.CODE,
+  PrimitiveType.JSON,
+];
 
 /**
  * Search the available type identities (built-ins plus from graph).
@@ -244,9 +259,9 @@ export function typeIndex(options: {
 }): SearchIndex<TypeItem> {
   const enumTypes = [EnumType.PRIMITIVE_TYPE, EnumType.BENCH_TYPE];
 
-  function map(value: TypeIdentity): TypeItem | null {
+  function fromValue(value: TypeIdentity): TypeItem | null {
     if (value.baseTypePtr != null) {
-      const nodeItem = mapNode(options.graph, value.baseTypePtr);
+      const nodeItem = itemFromNode(options.graph, value.baseTypePtr);
       if (nodeItem != null) return mapFromNode(nodeItem);
     } else if (value.primitiveType != null) {
       const enumOption = getEnumOptions(EnumType.PRIMITIVE_TYPE).find((option) => option.value == value.primitiveType);
@@ -273,27 +288,31 @@ export function typeIndex(options: {
     if (blockType == BlockType.CHOICE) item.benchType = BenchType.FIELD;
     else if (blockType == BlockType.SIGNAL) item.benchType = BenchType.SIGNAL;
     else if (blockType == BlockType.DATABASE) item.benchType = BenchType.RECORD;
+    item.baseTypePtr = toNodeReference(nodeItem.node);
     return item;
   }
 
   const index: SearchIndex<TypeItem> = {
-    fromValue: map,
+    fromValue: fromValue,
     toValue: (candidate: TypeItem) => candidate,
+    valueEquals: (a: TypeIdentity, b: TypeIdentity) => {
+      if (a.primitiveType != null) return a.primitiveType === b.primitiveType;
+      else if (a.baseTypePtr != null) return a.baseTypePtr.id === b.baseTypePtr?.id && a.benchType == b.benchType;
+      else if (a.benchType != null) return a.benchType === b.benchType;
+      else return false;
+    },
     candidates: () => {
       // intrinsic types
       const enumItems: TypeItem[] = enumTypes.flatMap((enumType) =>
         getEnumOptions(enumType).map((option) => mapFromOption(enumType, option)),
       );
 
-      // and any block 'type' definitoin
+      // and any type definitions fro blocks
       const graphItems: TypeItem[] = walkGraph(options.graph, {
         metatypes: [NodeType.BLOCK],
         filter: (node) => {
-          return (
-            TYPE_BLOCK_TYPES.includes((node as BlockData).type) ||
-            (node as BlockData).isProtocol ||
-            (node as BlockData).isTemplate
-          );
+          const block = node as BlockData;
+          return TYPE_BLOCK_TYPES.includes(block.type) || block.isProtocol || block.isTemplate;
         },
         skipDepth: options.skipDepth,
         maxDepth: options.maxDepth,
@@ -305,17 +324,18 @@ export function typeIndex(options: {
   return markRaw(index);
 }
 
-function mapIcon(value: IconMetadata): IconItem {
+function itemFromIcon(value: IconMetadata): IconItem {
   return { ...value, metatype: "icon", path: value.alias.join(HIDDEN_SEPARATOR) };
 }
-const AVAILABLE_FA_ICONS_ITEMS: IconItem[] = AVAILABLE_FA_ICONS.map(mapIcon);
+const AVAILABLE_FA_ICONS_ITEMS: IconItem[] = AVAILABLE_FA_ICONS.map(itemFromIcon);
 /*
  * Search available icons.
  */
 export function iconIndex(): SearchIndex<IconItem> {
   const index: SearchIndex<IconItem> = {
-    fromValue: mapIcon,
+    fromValue: itemFromIcon,
     toValue: (candiate: IconItem) => candiate,
+    valueEquals: (a: IconMetadata, b: IconMetadata) => a.faName === b.faName,
     candidates: () => AVAILABLE_FA_ICONS_ITEMS,
   };
   return markRaw(index);

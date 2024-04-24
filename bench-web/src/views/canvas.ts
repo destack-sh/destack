@@ -36,7 +36,7 @@ import { generateOrderKey } from "@/utils/fractional";
 import { IS_DEBUG, isDeveloperMode } from "@/utils/globals";
 import { DEFAULT_ORIENTATION, splitBox } from "@/utils/layout";
 import { log } from "@/utils/log";
-import { toValueRef } from "@/utils/ref";
+import { deepValueEquals, toValueRef } from "@/utils/ref";
 import { Casing, toCasing } from "@/utils/string";
 import { getViewTypeByComponentName, type ViewComponent } from "@/views";
 import type { FocusAnchor } from "@/views/common";
@@ -399,7 +399,7 @@ export class ViewCanvas {
     // focus the given selection within the view
     if (focus.focus != null) {
       const view = this.getViewData(focus.view)!;
-      tx.updateDebounced(view, { focus: focus.focus });
+      if (!deepValueEquals(view.focus, focus.focus)) tx.updateDebounced(view, { focus: focus.focus });
     }
 
     // focus every 'child' in its 'parent' up to space root
@@ -407,7 +407,8 @@ export class ViewCanvas {
     if (child == null) throw new Error(`no view in graph for ${focus.view}`);
     let parent: ViewData | SpaceData | null = this.getViewData(focus.parent ?? child.parentPtr!);
     while (parent?.metatype == ObjectType.VIEW || parent?.metatype == ObjectType.SPACE) {
-      tx.updateDebounced(parent, { focus: makeSelection([child]) });
+      const childFocus = makeSelection([child]);
+      if (!deepValueEquals(parent.focus, childFocus)) tx.updateDebounced(parent, { focus: childFocus });
       child = parent as ViewData;
       parent = this.graph.getMaybe(child.parentPtr) as ViewData | SpaceData | null;
     }

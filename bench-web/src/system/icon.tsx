@@ -174,7 +174,7 @@ export const ICON_BY_STRUCT_TYPE: Partial<Record<StructType, IconData>> = _makeI
   // code
   [StructType.CODE]: "fas fa-code",
   // expression
-  [StructType.EXPRESSION]: "fas fa-math",
+  [StructType.EXPRESSION]: "fas fa-sigma",
   [StructType.SELECTION]: "fas fa-check",
   // views
   [StructType.COLOR]: "fas fa-palette",
@@ -185,6 +185,7 @@ export const ICON_BY_STRUCT_TYPE: Partial<Record<StructType, IconData>> = _makeI
   [StructType.STEP_CONNECTION]: "fas fa-arrow-right",
   // text
   [StructType.TEXT]: "fas fa-text",
+  [StructType.TEXT_LINE]: "fas fa-grip-lines",
 });
 
 export const ICON_BY_OBJECT_TYPE: Partial<Record<ObjectType, IconData>> = {
