@@ -93,7 +93,6 @@ class ViewType(IdEnum):
 
     # content
     VALUE = 620  # (generic content routed with valueType)
-    TYPE = 111
     # numeric
     NUMBER = 632
     SLIDER = 633

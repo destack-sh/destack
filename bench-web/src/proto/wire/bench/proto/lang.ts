@@ -9259,10 +9259,6 @@ export enum ViewType {
      */
     VALUE = 620,
     /**
-     * @generated from protobuf enum value: VIEW_TYPE_TYPE = 111;
-     */
-    TYPE = 111,
-    /**
      * @generated from protobuf enum value: VIEW_TYPE_NUMBER = 632;
      */
     NUMBER = 632,

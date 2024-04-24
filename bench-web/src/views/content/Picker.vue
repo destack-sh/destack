@@ -2,6 +2,7 @@
 import {
   BenchType,
   ENUM_BY_TYPE,
+  EnumType,
   NodeReferenceData,
   NodeType,
   Orientation,
@@ -18,7 +19,6 @@ import { canvas, pkgGraph } from "@/system/space";
 import { ScrollbarWidth } from "@/utils/layout";
 import type { OverlayMenuInfoIn } from "@/utils/menu";
 import { Casing, toCasing } from "@/utils/string";
-import type { TooltipInfo } from "@/utils/tooltip";
 import { makeViewId } from "@/views";
 import { ViewContentWrapper, viewEmits, type FocusAnchor, type ViewExposed } from "@/views/common";
 import Scroll from "@/views/containers/Scroll.vue";
@@ -52,7 +52,7 @@ const query: Ref<string> = ref("");
 const queryRef: Ref<HTMLInputElement | null> = ref(null);
 const activeResultId: Ref<string | null> = ref(null);
 
-const topicName = computed(() => {
+const facetName = computed(() => {
   if (isEnumType(props.valueType?.benchType)) {
     return toCamelName(BenchType, props.valueType.benchType);
   } else if (isNodeType(props.valueType?.benchType)) {
@@ -61,39 +61,26 @@ const topicName = computed(() => {
     return null;
   }
 });
-const modelValueTitle = computed(() => {
-  if (isNode(props.modelValue) && "name" in props.modelValue) {
-    return props.modelValue.name;
-  } else if (isEnumType(props.valueType?.benchType)) {
-    const enumType = ENUM_BY_TYPE[props.valueType.benchType];
-    return toCasing(enumType[props.modelValue], Casing.CAMEL, true);
-  }
-  return null;
-});
-const modelValueIcon = computed(() => {
-  if (isNode(props.modelValue)) {
-    return getNodeIcon(props.modelValue);
-  } else if (isEnumType(props.valueType?.benchType)) {
-    return ENUM_ICONS_BY_TYPE[props.valueType.benchType]?.[props.modelValue];
-  }
-  return null;
-});
+const modelValueTitle = computed(() => index.value.map(props.modelValue)?.title);
+const modelValueIcon = computed(() => index.value.map(props.modelValue)?.icon);
 
-const indices: Ref<Record<string, SearchIndex<any>>> = computed(() => {
-  const indices: Record<string, SearchIndex<any>> = {};
+const index: Ref<SearchIndex<any>> = computed(() => {
   if (isEnumType(props.valueType?.benchType)) {
-    indices["enum"] = enumIndex([props.valueType.benchType]);
+    return enumIndex([props.valueType.benchType]);
   } else if (isNodeType(props.valueType?.benchType)) {
-    indices["graph"] = graphIndex({ graph: pkgGraph, metatypes: [props.valueType.benchType], skipDepth: 2 });
+    return graphIndex({ graph: pkgGraph, metatypes: [props.valueType.benchType], skipDepth: 2 });
+  } else if (props.valueType?.benchType == BenchType.TYPE_INFO) {
+    // nocheckin: use typeIndex
+    return enumIndex([EnumType.PRIMITIVE_TYPE, EnumType.BENCH_TYPE]);
+    // return typeIndex({ graph: pkgGraph });
   } else {
-    // TODO :Incomplete: Picker.indices
+    throw new Error(`unsupported value type: ${props.valueType?.benchType}`);
   }
-  return indices;
 });
 const resultsRefs: Ref<Record<string, HTMLElement | null>> = ref({});
 const { results, resultsTotal } = useSearch<EnumOptionItem | NodeItem>({
   query,
-  indices,
+  indices: computed(() => ({ main: index.value })),
   isEnabled: computed(() => props.isInline),
 });
 
@@ -162,7 +149,7 @@ defineExpose<ViewExposed>({ self, id, variants: [Variant.PRIMARY, Variant.COMPAC
         <IconInline v-if="modelValueIcon" v-bind="modelValueIcon" class="mr-1.5 w-5 text-gray-700" />
         <span class="truncate">{{ modelValueTitle ?? "???" }}</span>
       </template>
-      <span v-else class="truncate text-gray-400 group-hover:text-gray-700">{{ topicName ?? "???" }}</span>
+      <span v-else class="truncate text-gray-400 group-hover:text-gray-700">{{ facetName ?? "???" }}</span>
       <i class="fas fa-caret-down ml-auto pl-1.5 text-gray-400" />
     </button>
 
@@ -177,7 +164,7 @@ defineExpose<ViewExposed>({ self, id, variants: [Variant.PRIMARY, Variant.COMPAC
         :key="item.id"
         :data-selected="isSelected(item)"
         :disabled="props.isDisabled"
-        class="flex-1 px-0.5 truncate flex-shrink-0 rounded text-center font-medium hover:text-primary-900 enabled:text-gray-500 disabled:text-gray-400 data-[selected=true]:bg-white data-[selected=true]:text-gray-700"
+        class="flex-1 flex-shrink-0 truncate rounded px-0.5 text-center font-medium hover:text-primary-900 enabled:text-gray-500 disabled:text-gray-400 data-[selected=true]:bg-white data-[selected=true]:text-gray-700"
         @click.prevent="fire(item)"
         v-tooltip="{ icon: item.icon, title: item.title, small: true }"
       >
@@ -204,7 +191,7 @@ defineExpose<ViewExposed>({ self, id, variants: [Variant.PRIMARY, Variant.COMPAC
           type="text"
           v-model="query"
           class="w-full border-0 bg-transparent p-0 placeholder-gray-500 outline-none ring-0 focus:ring-0"
-          :placeholder="`Select ${topicName ?? '???'}`"
+          :placeholder="`Select ${facetName ?? '???'}`"
           @keydown.enter.stop.prevent="activeResultId != null && fire(results.find((r) => r.id === activeResultId)!)"
           @keydown.up.stop.prevent="focus('previous')"
           @keydown.down.stop.prevent="focus('next')"
@@ -248,7 +235,7 @@ defineExpose<ViewExposed>({ self, id, variants: [Variant.PRIMARY, Variant.COMPAC
         <!-- NOTE: Picker no results/overflow is very similar to Omnibar/Icon/etc. :ResultInfo -->
         <!-- Too many results (truncated) -->
         <div v-if="results.length < resultsTotal" class="my-1 max-w-full px-3 pb-2 text-gray-500">
-          <i class="fas fas fa-ellipsis" />
+          <i class="fas fas fa-ellipsis w-4" />
           <span class="ml-2">
             <span class="font-semibold">{{ resultsTotal - results.length }}</span> more results
             <template v-if="query.length > 0">for </template>
@@ -260,7 +247,7 @@ defineExpose<ViewExposed>({ self, id, variants: [Variant.PRIMARY, Variant.COMPAC
         <div v-if="results.length == 0" class="max-w-full px-1 py-1">
           <!-- Nothing found -->
           <div v-if="results.length === 0" class="px-2 py-1 text-gray-500">
-            <i class="fas fa-empty-set text-gray-600" />
+            <i class="fas fa-empty-set w-4 text-gray-600" />
             <span class="ml-1">
               No results
               <span v-if="query">

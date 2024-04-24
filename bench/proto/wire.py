@@ -1106,7 +1106,6 @@ class ViewType(betterproto.Enum):
     MULTI_BUTTON = 601
     LINK = 610
     VALUE = 620
-    TYPE = 111
     NUMBER = 632
     SLIDER = 633
     STRING = 640

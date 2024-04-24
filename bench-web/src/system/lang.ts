@@ -2,7 +2,14 @@
  * Many constants are generated into proto/wire, here some additional ones.
  */
 
-import type { AnyStructData, BenchType, BlockData, EnumTypeMapping, PropertyInfo } from "@/proto/wire";
+import {
+  BenchType,
+  type AnyStructData,
+  type BlockData,
+  type EnumTypeMapping,
+  type FieldData,
+  type PropertyInfo,
+} from "@/proto/wire";
 import {
   BenchProperty,
   BlockProperty,
@@ -31,7 +38,7 @@ import { isNode, type TypedNodeReferenceData } from "@/proto/wiring";
 import { makeNodeName, type ReadNodeGraph } from "@/system/graph";
 import { ENUM_ICONS_BY_TYPE } from "@/system/icon";
 import type { Transaction } from "@/system/transaction";
-import { getViewComponentForValueType } from "@/system/value";
+import { getViewComponentForValueType, makeTypeInfo } from "@/system/value";
 import { generateOrderKey, generateOrderKeys, isValidOrderKey } from "@/utils/fractional";
 import { Casing, toCasing } from "@/utils/string";
 import type { ViewProps } from "@/views";
@@ -181,12 +188,12 @@ export function updateOrder<T extends AnyNodeData & { orderKey: string }>(order:
  * Gets the order key relative to the reference. Nodes must be in order.
  */
 export function getOrderKey<T extends { id: string; orderKey: string }>(order: {
-  position: "before" | "after";
+  position: "before" | "above" | "after" | "below";
   reference: T | null;
   nodes: T[];
 }) {
   let orderKey;
-  if (order.position == "before") {
+  if (order.position == "before" || order.position == "above") {
     const a =
       order.reference?.id == null ? null : order.nodes[order.nodes.findIndex((n) => n.id == order.reference!.id) - 1];
     orderKey = generateOrderKey(a?.orderKey ?? null, order.reference?.orderKey ?? null);
@@ -327,32 +334,86 @@ export function createBlock(
   return block;
 }
 
+/** Create a Field relative to another. */
+export function createField(
+  tx: Transaction,
+  graph: ReadNodeGraph,
+  anchor: "before" | "above" | "after" | "below",
+  targetPtr: FieldData | TypedNodeReferenceData<NodeType.FIELD>,
+) {
+  const target = isNode(targetPtr) ? targetPtr : graph.getOrError(targetPtr);
+  const siblings = graph.getChildren(target.parentPtr!, NodeType.FIELD);
+  const field = tx.create({
+    metatype: NodeType.FIELD,
+    parentPtr: target.parentPtr,
+    packagePtr: target.packagePtr,
+    orderKey: getOrderKey({ position: anchor, reference: target, nodes: siblings }),
+    name: makeNodeName(graph, { metatype: ObjectType.FIELD, parentPtr: target.parentPtr }),
+    kind: target.kind,
+  });
+  return field;
+}
+
 //
 // Inspection
 //
 
 type InspectionCategory = {
   category: string;
-  properties: ({ from?: number; to?: number; excluding?: number[] } | number)[];
+  properties: (
+    | { from?: number; to?: number; excluding?: number[] }
+    | {
+        from: number;
+        to: number;
+        replace: (properties: PropertyInfo[]) => InspectedPropertyPartial;
+      }
+    | number
+  )[];
 };
 type InspectedProperty = {
   title: string;
-  protoName: string;
+  protoName?: string;
   category: string;
   property: PropertyInfo;
   viewType?: ViewType;
   props?: ViewProps;
   isFullWidth?: boolean;
+  read?: (node: AnyNodeData) => any;
+  write?: (tx: Transaction, node: AnyNodeData, value: any) => void;
 };
+type InspectedPropertyPartial = Pick<
+  InspectedProperty,
+  "title" | "viewType" | "props" | "isFullWidth" | "read" | "write"
+>;
 type InspectionLayout = {
   properties: InspectedProperty[];
 };
+
+function typeProperty(): InspectedPropertyPartial {
+  return {
+    title: "Type",
+    viewType: ViewType.PICKER,
+    props: { valueType: makeTypeInfo({ benchType: BenchType.TYPE_INFO }) },
+    read: (node) => node,
+    write: (tx, node, value) =>
+      tx.updateDebounced(node, {
+        primitiveType: value.primitiveType,
+        benchType: value.benchType,
+        baseTypePtr: value.basePtr,
+      }),
+  };
+}
 
 const INSPECTION_INFO_BY_TYPE: Partial<Record<ObjectType, InspectionCategory[]>> = {
   [ObjectType.FIELD]: [
     {
       category: "Common",
-      properties: [{ to: 43, excluding: [FieldProperty.kind] }, { from: 60 }, FieldProperty.visibility],
+      properties: [
+        { from: 40, to: 43, replace: typeProperty },
+        { to: 43, excluding: [FieldProperty.kind] },
+        { from: 60 },
+        FieldProperty.visibility,
+      ],
     },
     { category: "Constraint", properties: [FieldProperty.formatHint] },
   ],
@@ -392,54 +453,65 @@ export function getInspectionLayout(metatype: ObjectType, options?: { exclude?: 
 
   for (const category of categories) {
     // assemble all properties in category
-    const categoryPropertyInfos: PropertyInfo[] = [];
     for (const range of category.properties) {
       let propertiesInRange;
       if (typeof range == "object") {
         propertiesInRange = Object.values(propertyInfos).filter((property) => {
           if ((range.from != null && property.id < range.from) || (range.to != null && property.id >= range.to))
             return false;
-          if (range.excluding != null && range.excluding.includes(property.id)) return false;
+          if ("excluding" in range && range.excluding != null && range.excluding.includes(property.id)) return false;
           return true;
         });
       } else {
         propertiesInRange = Object.values(propertyInfos).filter((property) => property.id == range);
+      }
+
+      // filter & map
+      if (typeof range == "object" && "replace" in range) {
+        for (const property of propertiesInRange) {
+          seenProperties[property.id] = property;
+        }
+        const replaced = range.replace(propertiesInRange);
+        const inspectedProperty: InspectedProperty = {
+          ...replaced,
+          property: propertiesInRange[0],
+          category: category.category,
+        };
+        inspectedProperties.push(inspectedProperty);
+        continue; // already handled
       }
       for (const property of propertiesInRange) {
         if (seenProperties[property.id]) continue;
         if (property.id < 30 || property.isAutoset || property.isComputed || property.isSystem) continue;
         if (excluded.includes(property.name)) continue;
         seenProperties[property.id] = property;
-        categoryPropertyInfos.push(property);
-      }
-    }
 
-    // map properties to components
-    for (const property of categoryPropertyInfos) {
-      let pythonName = property.name;
-      if (pythonName.endsWith("_ptr")) pythonName = pythonName.slice(0, -4);
-      if (pythonName.startsWith("is_")) pythonName = pythonName.slice(3);
-      const title = toCasing(pythonName, Casing.CAMEL, true);
-      const inspectedProperty: InspectedProperty = {
-        title,
-        protoName: allProperties[property.id],
-        category: category.category,
-        property,
-      };
-      try {
-        const { viewType, props } = getViewComponentForValueType({
-          primitiveType: property.primitiveType,
-          benchType: (property.enumType ?? property.referenceNodes?.[0] ?? property.referenceStruct) as unknown as
-            | BenchType
-            | undefined,
-        });
-        inspectedProperty.viewType = viewType;
-        inspectedProperty.props = { ...props, isInput: true };
-        inspectedProperty.isFullWidth = FULL_WIDTH_VIEW_TYPES.includes(viewType);
-      } catch {
-        // will show missing component
+        // map properties to components
+        let pythonName = property.name;
+        if (pythonName.endsWith("_ptr")) pythonName = pythonName.slice(0, -4);
+        if (pythonName.startsWith("is_")) pythonName = pythonName.slice(3);
+        const title = toCasing(pythonName, Casing.CAMEL, true);
+        const inspectedProperty: InspectedProperty = {
+          title,
+          protoName: allProperties[property.id],
+          category: category.category,
+          property,
+        };
+        try {
+          const { viewType, props } = getViewComponentForValueType({
+            primitiveType: property.primitiveType,
+            benchType: (property.enumType ?? property.referenceNodes?.[0] ?? property.referenceStruct) as unknown as
+              | BenchType
+              | undefined,
+          });
+          inspectedProperty.viewType = viewType;
+          inspectedProperty.props = { ...props, isInput: true };
+          inspectedProperty.isFullWidth = FULL_WIDTH_VIEW_TYPES.includes(viewType);
+        } catch {
+          // will show missing component
+        }
+        inspectedProperties.push(inspectedProperty);
       }
-      inspectedProperties.push(inspectedProperty);
     }
   }
   return { properties: inspectedProperties };
