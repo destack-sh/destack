@@ -25,9 +25,16 @@ import {
   type TypedNodeReferenceData,
 } from "@/proto/wiring";
 import type { GraphConnection } from "@/system/connection";
-import { generateNodeName, isDescendantOf, type NodeKey, type ReadNodeGraph } from "@/system/graph";
+import { isDescendantOf, type NodeKey, type ReadNodeGraph } from "@/system/graph";
 import { toIconMaybe } from "@/system/icon";
-import { NODE_VIEW_TYPES, RIDEALONG_VIEW_TYPES, ROOT_VIEW_TYPES, getOrderKey, updateOrder } from "@/system/lang";
+import {
+  NODE_VIEW_TYPES,
+  RIDEALONG_VIEW_TYPES,
+  ROOT_VIEW_TYPES,
+  generateNodeName,
+  getOrderKey,
+  updateOrder,
+} from "@/system/lang";
 import { inspectionBasePtr, inspectionPtr } from "@/system/space";
 import type { Transaction } from "@/system/transaction";
 import type { SplitAnchor } from "@/utils/drag";
@@ -663,8 +670,8 @@ export class ViewCanvas {
       if ((view.name ?? "").length == 0)
         newView.name = generateNodeName(
           NodeType.VIEW,
-          newView.type,
           this.graph.getDescendants(this.spacePtr.value!, { metatypes: [NodeType.VIEW] }),
+          newView.type,
         );
       tx.create(newView);
       this.focus(tx, { node: newView });

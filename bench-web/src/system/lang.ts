@@ -11,6 +11,7 @@ import {
   FieldKind,
   FieldProperty,
   IconData,
+  MESSAGE_TYPE_BY_OBJECT_TYPE,
   NodeReferenceData,
   NodeType,
   NotificationData,
@@ -21,6 +22,7 @@ import {
   RecordData,
   RunData,
   SignalData,
+  StepType,
   StructType,
   ViewProperty,
   ViewType,
@@ -32,7 +34,7 @@ import {
   type PropertyInfo,
 } from "@/proto/wire";
 import { describeNode, isNode, toNodeReference, type TypedNodeReferenceData } from "@/proto/wiring";
-import { makeNodeName, type ReadNodeGraph } from "@/system/graph";
+import { type ReadNodeGraph } from "@/system/graph";
 import { ENUM_ICONS_BY_TYPE } from "@/system/icon";
 import type { Transaction } from "@/system/transaction";
 import { getViewComponentForValueType, makeTypeInfo, type TypeIdentity } from "@/system/value";
@@ -241,6 +243,68 @@ export function toCamelName<T extends object>(cls: T, key: any) {
   return toCasing(cls[key as keyof T] as string, Casing.CAMEL, true);
 }
 
+/** Extracts the last (potentially multi-digit) characters as an integer */
+export function extractNameId(name: string): number | null {
+  const match = name.match(/\d+$/);
+  return match ? parseInt(match[0]) : null;
+}
+
+const NODE_NAME_DISCRIMINATORS: Partial<Record<NodeType, string>> = {
+  [NodeType.BLOCK]: "type",
+  [NodeType.VIEW]: "type",
+  [NodeType.STEP]: "type",
+};
+
+/** Generates a node name for our :AutoNaming. */
+export function generateNodeName<T extends NodeType>(metatype: T, siblings: AnyNodeData[], value?: number): string {
+  const key = NODE_NAME_DISCRIMINATORS[metatype];
+  if (key != null) {
+    if (value == null) throw new Error(`value is required for discriminator ${key}`);
+    const properties = PROPERTY_ENUM_BY_TYPE[metatype as unknown as ObjectType];
+    const propertyInfos = PROPERTY_INFOS_BY_TYPE[metatype as unknown as ObjectType];
+    const enumType = ENUM_BY_TYPE[propertyInfos[properties![key as any]]?.enumType!];
+    let typeName = enumType[value];
+    if (typeof typeName != "string") throw new Error(`unknown type ${value} for ${NodeType[metatype]}.${key}`);
+    typeName = toCasing(typeName, Casing.CAMEL);
+    const maxId = Math.max(
+      ...siblings.filter((n) => (n as any)[key] == value).map((n) => extractNameId((n as any).name) ?? 0),
+      0,
+    );
+    return `${typeName}${maxId + 1}`;
+  } else {
+    const metatypeName = toCamelName(NodeType, metatype);
+    const maxId = Math.max(...siblings.map((n) => extractNameId((n as any).name) ?? 0), 0);
+    return `${metatypeName}${maxId + 1}`;
+  }
+}
+
+/** Checks whether the node name was likely generated */
+export function isGeneratedNodeName(metatype: NodeType, name: string): boolean {
+  // match name as <type><id> (groups)
+  const match = name.match(/([a-zA-Z]+)(\d+)/);
+  if (match == null) return false;
+  const typeName = toCasing(match[1], Casing.ALL_CAPS);
+  const key = NODE_NAME_DISCRIMINATORS[metatype];
+  if (key != null) {
+    const properties = PROPERTY_ENUM_BY_TYPE[metatype as unknown as ObjectType];
+    const propertyInfos = PROPERTY_INFOS_BY_TYPE[metatype as unknown as ObjectType];
+    const enumType = ENUM_BY_TYPE[propertyInfos[properties![key as any]]?.enumType!];
+    return enumType[typeName as any] != null;
+  } else {
+    return NodeType[typeName as any] != null;
+  }
+}
+
+/** Generates the name for a node in the given graph */
+export function makeNodeName(
+  graph: ReadNodeGraph,
+  node: { metatype: ObjectType; parentPtr?: NodeReferenceData; kind?: any; type?: any },
+): string {
+  if (node.parentPtr == null) throw new Error("parentPtr is required");
+  const siblings = graph.getChildren(node.parentPtr, node.metatype as unknown as NodeType);
+  return generateNodeName(node.metatype as unknown as NodeType, siblings, node.kind ?? node.type);
+}
+
 // NOTE: we soft-limit the subset of available enum options in bench-web
 //  (in code and backend the entire ranges are available)
 export const EXPOSED_BLOCK_TYPES = [
@@ -385,6 +449,7 @@ export function createField(
     const siblings = graph.getChildren(target, NodeType.FIELD);
     parentPtr = toNodeReference(target);
     orderKey = getOrderKey({ position: "after", reference: siblings[siblings.length - 1], nodes: siblings });
+    // figure out field kind based on block type
     if (target.type == BlockType.CHOICE) kind = FieldKind.OPTION;
     else if (TYPE_BLOCK_TYPES.includes(target.type)) kind = FieldKind.MEMBER;
     else if (RUNNABLE_BLOCK_TYPES.includes(target.type)) kind = FieldKind.INPUT;
@@ -399,10 +464,10 @@ export function createField(
     throw new Error(`unexpected target node type: ${describeNode(target)}`);
   }
   const field = tx.create({
-    name: makeNodeName(graph, { metatype: ObjectType.FIELD, parentPtr }),
+    name: makeNodeName(graph, { metatype: ObjectType.FIELD, parentPtr, kind }),
     kind,
     benchType: BenchType.TEXT,
-    ...fieldIn, 
+    ...fieldIn,
     // overwrite non-required properties
     id: undefined,
     ck: undefined,
@@ -502,6 +567,7 @@ const INSPECTION_INFO_BY_TYPE: Partial<Record<ObjectType, InspectionCategory[]>>
 const FULL_WIDTH_VIEW_TYPES = [ViewType.TEXT, ViewType.CODE];
 const ALWAYS_EXCLUDED_PROPERTIES: string[] = ["order_key"];
 
+/** Generates the inspection layout for an object metatype. */
 export function getInspectionLayout(metatype: ObjectType, options?: { exclude?: string[] }): InspectionLayout {
   const propertyInfos = PROPERTY_INFOS_BY_TYPE[metatype];
   const seenProperties: Record<number, PropertyInfo> = {};

@@ -36,14 +36,7 @@ const { graph: pkgGraph, connection: pkgConnection } =
 const field = pkgGraph.getRef(nodePtr, { ignoreAncestors: props.self == null });
 
 // actions
-// nocheckin: Field.actions
 const actions: Partial<ActionMapImplementation<"common">> & ActionMapImplementation<"type"> = {
-  // common
-  "common.edit.rename": {
-    action: () => {
-      nameRef.value?.focus();
-    },
-  },
   // type
   "type.edit.isList": {
     isChecked: () => field.value?.isList ?? false,
