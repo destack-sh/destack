@@ -1,4 +1,4 @@
-import type { TextData } from "@/proto/wire";
+import type { IconData, TextData } from "@/proto/wire";
 import type { Action } from "@/system/action";
 import { isOnMac } from "@/utils/browser";
 import { findFloatingContainer, type FloatingOptions, type FloatingPlacement } from "@/utils/floating";
@@ -71,7 +71,7 @@ const DEFAULT_HOVER_SHOW_DELAY = 500;
 const DEFAULT_HOVER_HIDE_DELAY = 300;
 
 export type TooltipInfo = Omit<FloatingOptions, "placement"> & {
-  icon?: string;
+  icon?: string | IconData;
   title?: string | (() => string);
   text: string | TextData | (() => string | TextData);
   small?: boolean;

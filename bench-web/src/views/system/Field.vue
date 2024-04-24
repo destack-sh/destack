@@ -79,7 +79,7 @@ defineExpose<ViewExposed>({ self, id, actions });
     :class="[
       inspectionPtr?.id == field.id
         ? 'border-primary-900'
-        : [variant != Variant.STEALTH ? 'border-gray-300' : 'border-transparent', 'hover:border-gray-400'],
+        : [variant != Variant.STEALTH ? 'border-gray-300' : 'border-transparent', 'hover:border-gray-300'],
     ]"
   >
     <!-- nocheckin: Field -->

@@ -88,7 +88,7 @@ defineExpose<ViewExposed>({ self, id, focus });
     <!-- Dropdown -->
     <button
       v-if="!isInline"
-      class="group flex w-full items-center rounded border border-gray-200 px-2 py-1 hover:border-gray-400 data-[menu=true]:border-gray-400"
+      class="group flex w-full items-center rounded border border-gray-200 px-2 py-1 hover:border-gray-300 data-[menu=true]:border-gray-300"
       v-menu="
         (): OverlayMenuInfoIn => ({
           component: ViewType.ICON,

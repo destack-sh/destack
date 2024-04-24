@@ -85,7 +85,7 @@ const actions: Partial<ActionMapImplementation<"common">> & ActionMapImplementat
 
 // focus
 function focus(anchor: FocusAnchor | NodeReferenceData) {
-  console.log("Block.focus: nocheckin", anchor);
+  // TODO :Incomplete: focus/navigate nodes and subnodes (Block/Page) :Navigation
   return false;
 }
 
@@ -99,7 +99,7 @@ defineExpose<ViewExposed>({ self, id, variants: [Variant.PRIMARY, Variant.STEALT
     class="group/block relative rounded bg-white px-2 py-1.5"
     :class="[
       variant != Variant.STEALTH ? 'border' : '',
-      nodePtr?.id == inspectionPtr?.id ? 'border-primary-900' : 'border-gray-200 hover:border-gray-400',
+      nodePtr?.id == inspectionPtr?.id ? 'border-primary-900' : 'border-gray-200 hover:border-gray-300',
     ]"
   >
     <!-- Header -->

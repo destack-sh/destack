@@ -18,6 +18,7 @@ import { canvas, pkgGraph } from "@/system/space";
 import { ScrollbarWidth } from "@/utils/layout";
 import type { OverlayMenuInfoIn } from "@/utils/menu";
 import { Casing, toCasing } from "@/utils/string";
+import type { TooltipInfo } from "@/utils/tooltip";
 import { makeViewId } from "@/views";
 import { ViewContentWrapper, viewEmits, type FocusAnchor, type ViewExposed } from "@/views/common";
 import Scroll from "@/views/containers/Scroll.vue";
@@ -73,7 +74,7 @@ const modelValueIcon = computed(() => {
   if (isNode(props.modelValue)) {
     return getNodeIcon(props.modelValue);
   } else if (isEnumType(props.valueType?.benchType)) {
-    return ENUM_ICONS_BY_TYPE[props.valueType.benchType][props.modelValue];
+    return ENUM_ICONS_BY_TYPE[props.valueType.benchType]?.[props.modelValue];
   }
   return null;
 });
@@ -103,6 +104,16 @@ watch(results, () => {
   }
 });
 
+function isSelected(value: EnumOptionItem | NodeItem) {
+  if (isNode(props.modelValue)) {
+    return (value as NodeItem).node?.id === props.modelValue.id;
+  } else {
+    return (value as EnumOptionItem).value === props.modelValue;
+  }
+}
+function isActive(item: EnumOptionItem | NodeItem) {
+  return item.id === activeResultId.value;
+}
 function fire(option: EnumOptionItem | NodeItem) {
   const value = option.metatype == "enum-option" ? option.value : option.node;
   apply(value);
@@ -131,11 +142,12 @@ defineExpose<ViewExposed>({ self, id, variants: [Variant.PRIMARY, Variant.COMPAC
 </script>
 <template>
   <ViewContentWrapper v-bind="props">
-    <!-- TODO :Incomplete: Picker variants/isInput/isInline/isDisabled/... -->
+    <!-- TODO :Incomplete: Picker.isDisabled/... -->
     <!-- Dropdown -->
     <button
       v-if="!isInline && variant != Variant.COMPACT"
-      class="group flex w-full flex-row items-center rounded border border-gray-200 px-2 py-1 hover:border-gray-400 data-[menu=true]:border-gray-400"
+      :disabled="props.isDisabled"
+      class="group flex w-full flex-row items-center rounded border border-gray-200 px-2 py-1 hover:border-gray-300 disabled:bg-gray-100 data-[menu=true]:border-gray-300"
       v-menu="
         (): OverlayMenuInfoIn => ({
           component: ViewType.PICKER,
@@ -160,13 +172,14 @@ defineExpose<ViewExposed>({ self, id, variants: [Variant.PRIMARY, Variant.COMPAC
       class="flex h-7 w-full flex-row items-center justify-between gap-x-2 truncate rounded bg-gray-100 px-2"
     >
       <!-- Inline choice -->
-      <!-- nocheckin: compact picker -->
       <button
         v-for="item in results"
         :key="item.id"
-        :data-selected="item.id == modelValue?.id"
-        class="flex-1 flex-shrink-0 rounded text-center font-medium text-gray-500 hover:text-primary-900 data-[selected=true]:bg-white data-[selected=true]:text-gray-700"
+        :data-selected="isSelected(item)"
+        :disabled="props.isDisabled"
+        class="flex-1 px-0.5 truncate flex-shrink-0 rounded text-center font-medium hover:text-primary-900 enabled:text-gray-500 disabled:text-gray-400 data-[selected=true]:bg-white data-[selected=true]:text-gray-700"
         @click.prevent="fire(item)"
+        v-tooltip="{ icon: item.icon, title: item.title, small: true }"
       >
         <IconInline v-if="variant == Variant.STEALTH && item.icon" v-bind="item.icon" class="w-5 text-gray-700" />
         <template v-else>{{ item.title }}</template>
@@ -213,8 +226,8 @@ defineExpose<ViewExposed>({ self, id, variants: [Variant.PRIMARY, Variant.COMPAC
               :ref="(ref?: any) => (ref != null ? (resultsRefs[item.id] = ref) : delete resultsRefs[item.id])"
               role="menuitem"
               class="mx-0.5 mb-[1px] mr-1.5 mt-[1px] flex h-[28px] max-w-full flex-row items-center rounded border border-transparent px-2 hover:border-gray-300 hover:bg-primary-300 data-[active=true]:border-gray-300 data-[active=true]:bg-primary-300"
-              :data-selected="item.id === modelValue?.id"
-              :data-active="item.id === activeResultId"
+              :data-selected="isSelected(item)"
+              :data-active="isActive(item)"
               @click.prevent="fire(item)"
             >
               <!-- Content -->
@@ -227,7 +240,7 @@ defineExpose<ViewExposed>({ self, id, variants: [Variant.PRIMARY, Variant.COMPAC
                   <span v-html="item.pathMarked ?? item.path" />
                 </span>
                 <!-- Checked -->
-                <i v-if="item.id === modelValue?.id" class="fas fa-check flex-shrink-0 pl-2 pr-1 text-gray-700" />
+                <i v-if="isSelected(item)" class="fas fa-check flex-shrink-0 pl-2 pr-1 text-gray-700" />
               </span>
             </li>
           </template>

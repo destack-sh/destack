@@ -1,6 +1,7 @@
 import { BenchType, EnumType, PrimitiveType, StructType, Variant, ViewType, type TypeInfoData } from "@/proto/wire";
 import { makeDefaultStruct } from "@/proto/wiring";
-import { isEnumType } from "@/system/lang";
+import { ENUM_ICONS_BY_TYPE } from "@/system/icon";
+import { getEnumOptions, isEnumType } from "@/system/lang";
 import type { ViewProps } from "@/views";
 
 export function makeTypeInfo(partial: Partial<Omit<TypeInfoData, "metatype">>): TypeInfoData {
@@ -24,13 +25,6 @@ const VIEW_TYPE_BY_PRIMITIVE_TYPE: Partial<Record<PrimitiveType, ViewType>> = {
   [PrimitiveType.INTERVAL]: ViewType.CALENDAR,
   [PrimitiveType.JSON]: ViewType.JSON,
 };
-const COMPACT_PICKER_ENUM_TYPES: EnumType[] = [
-  EnumType.REGION,
-  EnumType.NODE_VISIBILITY,
-  EnumType.ORIENTATION,
-  EnumType.ALIGNMENT,
-  EnumType.VARIANT,
-];
 
 export function getViewComponentForValueType(type: Pick<TypeInfoData, "primitiveType" | "benchType" | "baseTypePtr">): {
   viewType: ViewType;
@@ -41,10 +35,11 @@ export function getViewComponentForValueType(type: Pick<TypeInfoData, "primitive
     if (VIEW_TYPE_BY_BENCH_TYPE[type.benchType] != null) {
       return { viewType: VIEW_TYPE_BY_BENCH_TYPE[type.benchType]! };
     } else {
-      if (isEnumType(type.benchType) && COMPACT_PICKER_ENUM_TYPES.includes(type.benchType)) {
+      if (isEnumType(type.benchType) && getEnumOptions(type.benchType).length <= 5) {
+        const variant = ENUM_ICONS_BY_TYPE[type.benchType] != null ? Variant.STEALTH : Variant.COMPACT;
         return {
           viewType: ViewType.PICKER,
-          props: { valueType: makeTypeInfo(type), variant: Variant.COMPACT, isInline: true },
+          props: { valueType: makeTypeInfo(type), variant, isInline: true },
         };
       } else {
         return { viewType: ViewType.PICKER, props: { valueType: makeTypeInfo(type) } };
