@@ -1,5 +1,5 @@
 <script lang="ts" setup>
-import { BoxData, NodeType, ObjectType, Orientation, ViewData, ViewType } from "@/proto/wire";
+import { BoxData, NodeType, ObjectType, Orientation, PROPERTY_ENUM_BY_TYPE, ViewData, ViewType } from "@/proto/wire";
 import { type TypedNodeReferenceData } from "@/proto/wiring";
 import { useExistingConnection } from "@/system/connection";
 import { ICON_BY_NODE_TYPE, IconInline, getNodeIcon } from "@/system/icon";
@@ -27,14 +27,15 @@ const self = toRef(props, "self");
 
 const { graph: spaceGraph, connection: spaceConnection } = useExistingConnection(self);
 const { graph: pkgGraph, connection: pkgConnection } = useExistingConnection(inspectionPtr);
-const pkgNode = pkgGraph.getRef(inspectionPtr);
-const pkgNodeMetatype = computed(() => pkgNode.value?.metatype);
-const ancestors = pkgGraph.getAncestorsRef(pkgNode, { includeSelf: true });
+const node = pkgGraph.getRef(inspectionPtr);
+const nodeMetatype = computed(() => node.value?.metatype);
+const nodeProperties = computed(() => (nodeMetatype.value != null ? PROPERTY_ENUM_BY_TYPE[nodeMetatype.value] : null));
+const ancestors = pkgGraph.getAncestorsRef(node, { includeSelf: true });
 const path = computed(() => ancestors.value.slice().reverse());
 
 const inspectionLayout = computed(() => {
-  if (pkgNodeMetatype.value == null) return null;
-  const layout = getInspectionLayout(pkgNodeMetatype.value, { exclude: ["icon", "name"] /* separate in header */ });
+  if (nodeMetatype.value == null) return null;
+  const layout = getInspectionLayout(nodeMetatype.value, { exclude: ["icon", "name"] /* separate in header */ });
   return layout;
 });
 
@@ -42,7 +43,7 @@ canvas.registerView(self);
 defineExpose<ViewExposed>({ self });
 </script>
 <template>
-  <div v-if="pkgNode && inspectionLayout" class="h-full w-full bg-white">
+  <div v-if="node && inspectionLayout" class="h-full w-full bg-white">
     <!-- Header -->
     <div class="group w-full border-b border-gray-200" :style="{ height: HEADER_HEIGHT + 'px' }">
       <div
@@ -51,16 +52,16 @@ defineExpose<ViewExposed>({ self });
       >
         <!-- Icon -->
         <IconInline
-          v-bind="getNodeIcon(pkgNode)"
+          v-bind="getNodeIcon(node)"
           class="w-5 rounded border border-transparent p-1 text-gray-700 hover:cursor-pointer hover:bg-primary-100 hover:text-primary-900 data-[menu=true]:border-primary-900 data-[menu=true]:bg-primary-100 data-[menu=true]:text-primary-900"
           v-menu="
             (): OverlayMenuInfoIn => ({
               component: ViewType.ICON,
               placement: 'bottom-right',
               offset: '-referenceWidth',
-              props: { modelValue: getNodeIcon(pkgNode!) },
-              isEnabled: pkgNode != null && 'icon' in pkgNode,
-              onApply: (newIcon) => pkgConnection.tx.update(pkgNode!, { icon: newIcon }),
+              props: { modelValue: getNodeIcon(node!) },
+              isEnabled: nodeProperties != null && 'icon' in nodeProperties,
+              onApply: (newIcon) => pkgConnection.tx.update(node!, { icon: newIcon }),
             })
           "
         />
@@ -68,19 +69,16 @@ defineExpose<ViewExposed>({ self });
         <input
           class="ml-0.5 truncate rounded border-0 px-1 py-0.5 font-medium outline-none ring-0 hover:bg-primary-100 hover:text-primary-900 focus:ring-0"
           spellcheck="false"
-          :value="'name' in pkgNode ? pkgNode.name : toCamelName(ObjectType, pkgNode.metatype)"
-          :disabled="!('name' in pkgNode)"
+          :value="'name' in node ? node.name : toCamelName(ObjectType, node.metatype)"
+          :disabled="!('name' in node)"
           @input="
-            (event) => pkgConnection.tx.updateDebounced(pkgNode!, { name: (event.target as HTMLInputElement).value })
+            (event) => pkgConnection.tx.updateDebounced(node!, { name: (event.target as HTMLInputElement).value })
           "
         />
         <!-- Meta & Controls  -->
         <div class="ml-auto flex flex-row items-center pl-1.5">
-          <IconInline
-            v-bind="ICON_BY_NODE_TYPE[pkgNode.metatype as unknown as NodeType]"
-            class="mr-1 w-5 text-gray-500"
-          />
-          <span class="text-gray-500">{{ toCamelName(ObjectType, pkgNode.metatype) }}</span>
+          <IconInline v-bind="ICON_BY_NODE_TYPE[node.metatype as unknown as NodeType]" class="mr-1 w-5 text-gray-500" />
+          <span class="text-gray-500">{{ toCamelName(ObjectType, node.metatype) }}</span>
         </div>
       </div>
     </div>
@@ -125,11 +123,11 @@ defineExpose<ViewExposed>({ self });
               class="ml-auto flex-shrink-0"
               :style="{ width: isFullWidth ? '100%' : 'calc(90% - 100px)' }"
               v-bind="props"
-              :modelValue="read != null ? read(pkgNode) : (pkgNode as any)[protoName!]"
+              :modelValue="read != null ? read(node) : (node as any)[protoName!]"
               @update:modelValue="
                 (value: any) => {
-                  if (write != null) write(pkgConnection.tx, pkgNode!, value);
-                  else pkgConnection.tx.updateDebounced(pkgNode!, { [protoName!]: value });
+                  if (write != null) write(pkgConnection.tx, node!, value);
+                  else pkgConnection.tx.updateDebounced(node!, { [protoName!]: value });
                 }
               "
             />

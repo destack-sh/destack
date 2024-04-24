@@ -102,7 +102,7 @@ defineExpose<ViewExposed>({ self, id, actions });
       class="w-fit min-w-fit max-w-fit truncate rounded border-0 bg-transparent font-medium outline-none ring-0 hover:bg-primary-100 hover:text-primary-900 focus:ring-0"
       spellcheck="false"
       :value="field.name"
-      :size="field.name?.length"
+      :size="Math.max(field.name?.length ?? 0, 5)"
       @input="pkgConnection.tx.update(field!, { name: ($event.target as HTMLInputElement).value })"
     />
   </div>

@@ -297,6 +297,8 @@ export const EXPOSED_PRIMITIVE_TYPES = [
 export const FILTERED_ENUMS: Partial<Record<EnumType, number[]>> = {
   [EnumType.BLOCK_TYPE]: EXPOSED_BLOCK_TYPES,
   [EnumType.STRUCT_TYPE]: EXPOSED_STRUCT_TYPES,
+  [EnumType.OBJECT_TYPE]: [...NODE_TYPES, ...EXPOSED_STRUCT_TYPES],
+  [EnumType.BENCH_TYPE]: [...NODE_TYPES, ...EXPOSED_STRUCT_TYPES, ...ENUM_TYPES],
   [EnumType.PRIMITIVE_TYPE]: EXPOSED_PRIMITIVE_TYPES,
 };
 export const ENUM_TITLE_BY_TYPE: Partial<Record<EnumType, Record<any, string>>> = {
@@ -327,6 +329,7 @@ function makeEnumOptions<T extends EnumType>(enumType: T): EnumOption<T>[] {
   const options: EnumOption<T>[] = availableEnums.map((value) => {
     const icon = icons?.[value];
     const name = protoEnum[value] as string;
+    if (name == null) throw new Error(`missing enum option ${value} in ${EnumType[enumType]}`);
     const title = titles?.[value] ?? toCasing(name, Casing.CAMEL, true);
     const option: EnumOption<T> = { id: value.toString(), icon, title, value: value as EnumTypeMapping[T] };
     return option;
@@ -383,6 +386,7 @@ export function createField(
     orderKey: getOrderKey({ position: anchor, reference: target, nodes: siblings }),
     name: makeNodeName(graph, { metatype: ObjectType.FIELD, parentPtr: target.parentPtr }),
     kind: target.kind,
+    benchType: BenchType.TEXT,
   });
   return field;
 }
@@ -428,12 +432,14 @@ function typeProperty(): InspectedPropertyPartial {
     viewType: ViewType.PICKER,
     props: { valueType: makeTypeInfo({ benchType: BenchType.TYPE_INFO }) },
     read: (node) => node,
-    write: (tx, node, value: TypeIdentity) =>
+    write: (tx, node, value: TypeIdentity) => {
+      console.log("write type", value); // nocheckin
       tx.updateDebounced(node, {
         primitiveType: value.primitiveType,
         benchType: value.benchType,
         baseTypePtr: value.baseTypePtr,
-      }),
+      });
+    },
   };
 }
 

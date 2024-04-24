@@ -212,6 +212,7 @@ defineExpose<ViewExposed>({ self, id, actions });
                     'common.edit.morph',
                     'common.edit.copy',
                     'common.edit.duplicate',
+                    'common.edit.delete',
                     'common.create.above',
                     'common.create.below',
                     'type*',

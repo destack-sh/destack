@@ -1,5 +1,5 @@
 import typing
-from typing import Any, Optional, Union
+from typing import Any, Optional, Union, Collection
 
 import structlog
 
@@ -25,7 +25,7 @@ from bench.language.property import (
     p_value_packed,
     p_value_runtime,
 )
-from bench.language.validation import validate_name
+from bench.language.validation import validate_name, ValidationHandler
 from bench.language.value import HasValues
 from bench.sql.core import PrimitiveType
 from bench.utils.casing import IdentifierType
@@ -191,6 +191,12 @@ class TypeInfoBase(HasValues):
         assert self._resolved_type is not None, f"resolved type not ready in {self!r}"
         return self._resolved_type
 
+    def _validate_inner(
+        self, properties: Collection[Property], on_invalid: "ValidationHandler"
+    ) -> None:
+        if self.primitive_type is None and self.bench_type is None and self.base_type is None:
+            on_invalid(self, "missing type identity")
+
     @property
     def identity_key(self) -> str:
         """
@@ -269,11 +275,7 @@ class Field(Node, TypeInfoBase, _TypeQueryBuilder):
         if self.condition:
             info_str += f" [{self.condition}]"
 
-        flags = tuple(
-            f
-            for f in ("is_list", "is_required", "is_secret", "is_input", "is_output", "is_option")
-            if getattr(self, f)
-        )
+        flags = tuple(f for f in ("is_list", "is_required", "is_secret") if getattr(self, f))
         if flags:
             info_str += f" ({', '.join(flags)})"
         return info_str
@@ -286,7 +288,7 @@ class Field(Node, TypeInfoBase, _TypeQueryBuilder):
 
     @property
     def identifier_type(self):
-        if self.is_option:
+        if self.kind == FieldKind.OPTION:
             return IdentifierType.CONSTANT
         else:
             return IdentifierType.PROPERTY

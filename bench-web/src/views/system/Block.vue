@@ -133,7 +133,7 @@ defineExpose<ViewExposed>({ self, id, variants: [Variant.PRIMARY, Variant.STEALT
           :class="[isThinTextWrapper ? 'px-0.5 text-gray-500' : 'ml-0.5 px-1 font-medium']"
           spellcheck="false"
           :value="block.name"
-          :size="block.name.length"
+          :size="Math.max(block.name.length, 5)"
           @input="
             (event) => {
               pkgConnection.tx.updateDebounced(block!, { name: (event.target as HTMLInputElement).value });

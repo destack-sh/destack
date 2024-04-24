@@ -1,6 +1,16 @@
 <script lang="ts" setup>
-import { BenchType, NodeReferenceData, NodeType, Orientation, Variant, ViewData, ViewType } from "@/proto/wire";
-import { isNode, type TypedNodeReferenceData } from "@/proto/wiring";
+import {
+  BenchType,
+  BoxData,
+  NodeReferenceData,
+  NodeType,
+  ObjectType,
+  Orientation,
+  Variant,
+  ViewData,
+  ViewType,
+} from "@/proto/wire";
+import { type TypedNodeReferenceData } from "@/proto/wiring";
 import { IconInline, makeIcon } from "@/system/icon";
 import { isEnumType, isNodeType, toCamelName } from "@/system/lang";
 import type { NodeItem, TypeItem } from "@/system/search";
@@ -9,16 +19,21 @@ import { canvas, pkgGraph } from "@/system/space";
 import { ScrollbarWidth } from "@/utils/layout";
 import type { OverlayMenuInfoIn } from "@/utils/menu";
 import { deepValueEquals } from "@/utils/ref";
-import { makeViewId } from "@/views";
+import { makeViewId, type ViewProps } from "@/views";
 import { ViewContentWrapper, viewEmits, type FocusAnchor, type ViewExposed } from "@/views/common";
 import Scroll from "@/views/containers/Scroll.vue";
 import { computed, ref, toRef, watch, type Ref } from "vue";
 
+const MIN_WIDTH = 200;
 const DEFAULT_WIDTH = 280;
 const MAX_HEIGHT = 360;
 
 const props = defineProps<
-  { self?: TypedNodeReferenceData<NodeType.VIEW>; modelValue?: any } & Partial<
+  {
+    self?: TypedNodeReferenceData<NodeType.VIEW>;
+    modelValue?: any;
+    size?: Partial<Pick<BoxData, "width" | "height">>;
+  } & Partial<
     Pick<
       ViewData,
       | "name"
@@ -38,9 +53,11 @@ const emit = defineEmits(viewEmits());
 const self = toRef(props, "self");
 const id = makeViewId(props);
 
+const buttonRef: Ref<HTMLButtonElement | null> = ref(null);
 const query: Ref<string> = ref("");
 const queryRef: Ref<HTMLInputElement | null> = ref(null);
 const activeResultId: Ref<string | null> = ref(null);
+const width = computed(() => Math.max(MIN_WIDTH, props.size?.width ?? DEFAULT_WIDTH));
 
 const facetName = computed(() => {
   if (props.valueType?.benchType != null) {
@@ -49,6 +66,7 @@ const facetName = computed(() => {
     return null;
   }
 });
+// NOTE: technically modelValueTitle/Icon aren't fully reactive in themself (requires modelValue to change)
 const modelValueTitle = computed(() => index.value.fromValue(props.modelValue)?.title);
 const modelValueIcon = computed(() => index.value.fromValue(props.modelValue)?.icon);
 
@@ -79,7 +97,7 @@ watch(results, () => {
 });
 
 function isSelected(value: PickerItem) {
-  return deepValueEquals(index.value.toValue(value), props.modelValue);
+  return index.value.valueEquals(value, props.modelValue);
 }
 function isActive(item: PickerItem) {
   return item.id === activeResultId.value;
@@ -114,16 +132,22 @@ defineExpose<ViewExposed>({ self, id, variants: [Variant.PRIMARY, Variant.COMPAC
   <ViewContentWrapper v-bind="props">
     <!-- TODO :Incomplete: Picker.isDisabled/... -->
     <!-- Dropdown -->
+    <!-- NOTE: dropdown button style should match inline combobox header style since we overlay them -->
     <button
+      ref="buttonRef"
       v-if="!isInline && variant != Variant.COMPACT"
       :disabled="props.isDisabled"
-      class="group flex w-full flex-row items-center rounded border border-gray-200 px-2 py-1 hover:border-gray-300 disabled:bg-gray-100 data-[menu=true]:border-gray-300"
+      class="group flex w-full flex-row items-center rounded border border-gray-200 px-2.5 py-1 hover:border-gray-300 disabled:bg-gray-100 data-[menu=true]:border-gray-300"
       v-menu="
         (): OverlayMenuInfoIn => ({
           component: ViewType.PICKER,
-          placement: 'bottom-left',
-          offset: 'referenceWidth',
-          props: { ...props, isInline: true },
+          placement: 'inside-top-left',
+          referenceMargin: 0,
+          props: {
+            ...(props as ViewProps),
+            size: { metatype: ObjectType.BOX, width: buttonRef?.getBoundingClientRect().width },
+            isInline: true,
+          },
           onApply: (value) => apply(value),
         })
       "
@@ -161,17 +185,20 @@ defineExpose<ViewExposed>({ self, id, variants: [Variant.PRIMARY, Variant.COMPAC
     </div>
 
     <!-- Inline Combobox -->
-    <div v-else-if="isInline" :style="{ width: DEFAULT_WIDTH + 'px' }">
+    <div v-else-if="isInline" :style="{ width: width + 'px' }">
       <!-- Header -->
-      <div class="flex w-full flex-row items-center border-b border-gray-200 px-3 py-1.5">
-        <IconInline v-bind="icon ?? makeIcon({ faName: 'fas fa-caret-circle-down' })" class="mr-2 w-5 text-gray-700" />
+      <div class="flex h-[30px] w-full flex-row items-center border-b border-gray-200 px-3 py-1">
+        <IconInline
+          v-bind="modelValueIcon ?? icon ?? makeIcon({ faName: 'fas fa-caret-circle-down' })"
+          class="mr-2 w-5 text-gray-700"
+        />
         <!-- Query -->
         <input
           ref="queryRef"
           type="text"
           v-model="query"
           class="w-full border-0 bg-transparent p-0 placeholder-gray-500 outline-none ring-0 focus:ring-0"
-          :placeholder="`Select ${facetName ?? '???'}`"
+          :placeholder="modelValueTitle ?? `Select ${facetName ?? '???'}`"
           @keydown.enter.stop.prevent="activeResultId != null && fire(results.find((r) => r.id === activeResultId)!)"
           @keydown.up.stop.prevent="focus('previous')"
           @keydown.down.stop.prevent="focus('next')"
@@ -180,13 +207,13 @@ defineExpose<ViewExposed>({ self, id, variants: [Variant.PRIMARY, Variant.COMPAC
       <!-- Body -->
       <Scroll
         size-is-dynamic
-        :size="{ width: DEFAULT_WIDTH, height: MAX_HEIGHT }"
+        :size="{ width, height: MAX_HEIGHT }"
         :orientation="Orientation.VERTICAL"
         :track-width="ScrollbarWidth.sm"
         track-is-overlay
       >
         <!-- Results -->
-        <ul v-if="results.length > 0" class="flex flex-col py-1">
+        <ul v-if="results.length > 0" class="flex flex-col py-0.5">
           <template v-for="item in results" :key="item.id">
             <!-- Results -->
             <li

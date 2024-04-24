@@ -33,7 +33,7 @@ class ValidationHandler:
         self,
         subject: "Struct",
         message: str,
-        properties: list["Property"] | None,
+        properties: list["Property"] | None = None,
         cause: Exception | None = None,
     ):
         pass
@@ -57,7 +57,7 @@ class PropertyValidationHandler:
 def on_invalid_raise(
     subject: "Node",
     message: str,
-    properties: list["Property"] | None,
+    properties: list["Property"] | None = None,
     cause: Exception | None = None,
 ):
     raise ValidationError(subject, message, properties, cause)
