@@ -38,7 +38,7 @@ import { isNode, type TypedNodeReferenceData } from "@/proto/wiring";
 import { makeNodeName, type ReadNodeGraph } from "@/system/graph";
 import { ENUM_ICONS_BY_TYPE } from "@/system/icon";
 import type { Transaction } from "@/system/transaction";
-import { getViewComponentForValueType, makeTypeInfo } from "@/system/value";
+import { getViewComponentForValueType, makeTypeInfo, type TypeIdentity } from "@/system/value";
 import { generateOrderKey, generateOrderKeys, isValidOrderKey } from "@/utils/fractional";
 import { Casing, toCasing } from "@/utils/string";
 import type { ViewProps } from "@/views";
@@ -93,6 +93,8 @@ export const DEFAULT_LOADED_SOURCE_NODE_TYPES = [
   NodeType.STEP,
   NodeType.VIEW,
 ];
+
+export const TYPE_BLOCK_TYPES = [BlockType.CLASS, BlockType.CHOICE, BlockType.SIGNAL, BlockType.DATABASE];
 
 export const ROOT_VIEW_TYPES = new Set<ViewType>([ViewType.WINDOW, ViewType.TAB, ViewType.SPLIT]);
 export const NODE_VIEW_TYPES = new Set<ViewType>([
@@ -243,7 +245,7 @@ export function toCamelName<T extends object>(cls: T, key: any) {
 
 // NOTE: we soft-limit the subset of available enum options in bench-web
 //  (in code and backend the entire ranges are available)
-export const ENABLED_BLOCK_TYPES = [
+export const EXPOSED_BLOCK_TYPES = [
   BlockType.MODULE,
   BlockType.PAGE,
   BlockType.TEXT,
@@ -252,7 +254,37 @@ export const ENABLED_BLOCK_TYPES = [
   BlockType.CODE,
   BlockType.VARIABLE,
 ];
-export const ENABLED_PRIMITIVE_TYPES = [
+export const EXPOSED_STRUCT_TYPES = [
+  // core
+  StructType.PATH,
+  StructType.TYPE_INFO,
+  StructType.CONTEXT,
+  StructType.SCHEDULE,
+  StructType.PROJECTION,
+  // files
+  StructType.FILE,
+  StructType.ICON,
+  // code
+  StructType.CODE,
+  // expressions
+  StructType.EXPRESSION,
+  StructType.SELECTION,
+  // views
+  StructType.COLOR,
+  StructType.FONT,
+  StructType.OFFSET,
+  StructType.BOX,
+  // access
+  StructType.POLICY,
+  StructType.POLICY_RULE,
+  StructType.REQUEST,
+  // flow
+  StructType.STEP_CONNECTION,
+  // text
+  StructType.TEXT,
+];
+
+export const EXPOSED_PRIMITIVE_TYPES = [
   PrimitiveType.BOOLEAN,
   PrimitiveType.INT64,
   PrimitiveType.FLOAT64,
@@ -263,8 +295,9 @@ export const ENABLED_PRIMITIVE_TYPES = [
   PrimitiveType.DATETIME,
 ];
 export const FILTERED_ENUMS: Partial<Record<EnumType, number[]>> = {
-  [EnumType.BLOCK_TYPE]: ENABLED_BLOCK_TYPES,
-  [EnumType.PRIMITIVE_TYPE]: ENABLED_PRIMITIVE_TYPES,
+  [EnumType.BLOCK_TYPE]: EXPOSED_BLOCK_TYPES,
+  [EnumType.STRUCT_TYPE]: EXPOSED_STRUCT_TYPES,
+  [EnumType.PRIMITIVE_TYPE]: EXPOSED_PRIMITIVE_TYPES,
 };
 export const ENUM_TITLE_BY_TYPE: Partial<Record<EnumType, Record<any, string>>> = {
   [EnumType.PRIMITIVE_TYPE]: {
@@ -395,11 +428,11 @@ function typeProperty(): InspectedPropertyPartial {
     viewType: ViewType.PICKER,
     props: { valueType: makeTypeInfo({ benchType: BenchType.TYPE_INFO }) },
     read: (node) => node,
-    write: (tx, node, value) =>
+    write: (tx, node, value: TypeIdentity) =>
       tx.updateDebounced(node, {
         primitiveType: value.primitiveType,
         benchType: value.benchType,
-        baseTypePtr: value.basePtr,
+        baseTypePtr: value.baseTypePtr,
       }),
   };
 }

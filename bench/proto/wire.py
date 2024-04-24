@@ -1794,14 +1794,14 @@ class TypeInfoData(betterproto.Message):
     primitive_type: Optional["PrimitiveType"] = betterproto.enum_field(40, optional=True)
     bench_type: Optional["BenchType"] = betterproto.enum_field(41, optional=True)
     base_type_ptr: Optional["NodeReferenceData"] = betterproto.message_field(42, optional=True)
-    visibility: Optional["NodeVisibility"] = betterproto.enum_field(43, optional=True)
-    format_hint: Optional["FormatHint"] = betterproto.enum_field(44, optional=True)
-    condition: Optional["ExpressionData"] = betterproto.message_field(45, optional=True)
-    length: Optional[int] = betterproto.int32_field(46, optional=True)
-    precision: Optional[int] = betterproto.int32_field(47, optional=True)
-    scale: Optional[int] = betterproto.int32_field(48, optional=True)
+    visibility: Optional["NodeVisibility"] = betterproto.enum_field(50, optional=True)
+    format_hint: Optional["FormatHint"] = betterproto.enum_field(51, optional=True)
+    condition: Optional["ExpressionData"] = betterproto.message_field(52, optional=True)
+    length: Optional[int] = betterproto.int32_field(53, optional=True)
+    precision: Optional[int] = betterproto.int32_field(54, optional=True)
+    scale: Optional[int] = betterproto.int32_field(55, optional=True)
     default_packed: Optional["betterproto_lib_google_protobuf.Struct"] = betterproto.message_field(
-        50, optional=True
+        58, optional=True
     )
     is_list: bool = betterproto.bool_field(60)
     is_required: bool = betterproto.bool_field(61)
@@ -2130,14 +2130,14 @@ class FieldData(betterproto.Message):
     primitive_type: Optional["PrimitiveType"] = betterproto.enum_field(40, optional=True)
     bench_type: Optional["BenchType"] = betterproto.enum_field(41, optional=True)
     base_type_ptr: Optional["NodeReferenceData"] = betterproto.message_field(42, optional=True)
-    visibility: Optional["NodeVisibility"] = betterproto.enum_field(43, optional=True)
-    format_hint: Optional["FormatHint"] = betterproto.enum_field(44, optional=True)
-    condition: Optional["ExpressionData"] = betterproto.message_field(45, optional=True)
-    length: Optional[int] = betterproto.int32_field(46, optional=True)
-    precision: Optional[int] = betterproto.int32_field(47, optional=True)
-    scale: Optional[int] = betterproto.int32_field(48, optional=True)
+    visibility: Optional["NodeVisibility"] = betterproto.enum_field(50, optional=True)
+    format_hint: Optional["FormatHint"] = betterproto.enum_field(51, optional=True)
+    condition: Optional["ExpressionData"] = betterproto.message_field(52, optional=True)
+    length: Optional[int] = betterproto.int32_field(53, optional=True)
+    precision: Optional[int] = betterproto.int32_field(54, optional=True)
+    scale: Optional[int] = betterproto.int32_field(55, optional=True)
     default_packed: Optional["betterproto_lib_google_protobuf.Struct"] = betterproto.message_field(
-        50, optional=True
+        58, optional=True
     )
     is_list: bool = betterproto.bool_field(60)
     is_required: bool = betterproto.bool_field(61)

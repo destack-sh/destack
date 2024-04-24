@@ -1,24 +1,14 @@
 <script lang="ts" setup>
-import {
-  BenchType,
-  ENUM_BY_TYPE,
-  EnumType,
-  NodeReferenceData,
-  NodeType,
-  Orientation,
-  Variant,
-  ViewData,
-  ViewType,
-} from "@/proto/wire";
+import { BenchType, NodeReferenceData, NodeType, Orientation, Variant, ViewData, ViewType } from "@/proto/wire";
 import { isNode, type TypedNodeReferenceData } from "@/proto/wiring";
-import { ENUM_ICONS_BY_TYPE, IconInline, getNodeIcon, makeIcon } from "@/system/icon";
+import { IconInline, makeIcon } from "@/system/icon";
 import { isEnumType, isNodeType, toCamelName } from "@/system/lang";
-import type { NodeItem } from "@/system/search";
-import { enumIndex, graphIndex, useSearch, type EnumOptionItem, type SearchIndex } from "@/system/search";
+import type { NodeItem, TypeItem } from "@/system/search";
+import { enumIndex, graphIndex, typeIndex, useSearch, type EnumOptionItem, type SearchIndex } from "@/system/search";
 import { canvas, pkgGraph } from "@/system/space";
 import { ScrollbarWidth } from "@/utils/layout";
 import type { OverlayMenuInfoIn } from "@/utils/menu";
-import { Casing, toCasing } from "@/utils/string";
+import { deepValueEquals } from "@/utils/ref";
 import { makeViewId } from "@/views";
 import { ViewContentWrapper, viewEmits, type FocusAnchor, type ViewExposed } from "@/views/common";
 import Scroll from "@/views/containers/Scroll.vue";
@@ -53,32 +43,29 @@ const queryRef: Ref<HTMLInputElement | null> = ref(null);
 const activeResultId: Ref<string | null> = ref(null);
 
 const facetName = computed(() => {
-  if (isEnumType(props.valueType?.benchType)) {
+  if (props.valueType?.benchType != null) {
     return toCamelName(BenchType, props.valueType.benchType);
-  } else if (isNodeType(props.valueType?.benchType)) {
-    return toCamelName(NodeType, props.valueType.benchType);
   } else {
     return null;
   }
 });
-const modelValueTitle = computed(() => index.value.map(props.modelValue)?.title);
-const modelValueIcon = computed(() => index.value.map(props.modelValue)?.icon);
+const modelValueTitle = computed(() => index.value.fromValue(props.modelValue)?.title);
+const modelValueIcon = computed(() => index.value.fromValue(props.modelValue)?.icon);
 
+type PickerItem = EnumOptionItem | NodeItem | TypeItem;
 const index: Ref<SearchIndex<any>> = computed(() => {
   if (isEnumType(props.valueType?.benchType)) {
     return enumIndex([props.valueType.benchType]);
   } else if (isNodeType(props.valueType?.benchType)) {
     return graphIndex({ graph: pkgGraph, metatypes: [props.valueType.benchType], skipDepth: 2 });
   } else if (props.valueType?.benchType == BenchType.TYPE_INFO) {
-    // nocheckin: use typeIndex
-    return enumIndex([EnumType.PRIMITIVE_TYPE, EnumType.BENCH_TYPE]);
-    // return typeIndex({ graph: pkgGraph });
+    return typeIndex({ graph: pkgGraph, skipDepth: 2 });
   } else {
     throw new Error(`unsupported value type: ${props.valueType?.benchType}`);
   }
 });
 const resultsRefs: Ref<Record<string, HTMLElement | null>> = ref({});
-const { results, resultsTotal } = useSearch<EnumOptionItem | NodeItem>({
+const { results, resultsTotal } = useSearch<PickerItem>({
   query,
   indices: computed(() => ({ main: index.value })),
   isEnabled: computed(() => props.isInline),
@@ -91,18 +78,14 @@ watch(results, () => {
   }
 });
 
-function isSelected(value: EnumOptionItem | NodeItem) {
-  if (isNode(props.modelValue)) {
-    return (value as NodeItem).node?.id === props.modelValue.id;
-  } else {
-    return (value as EnumOptionItem).value === props.modelValue;
-  }
+function isSelected(value: PickerItem) {
+  return deepValueEquals(index.value.toValue(value), props.modelValue);
 }
-function isActive(item: EnumOptionItem | NodeItem) {
+function isActive(item: PickerItem) {
   return item.id === activeResultId.value;
 }
-function fire(option: EnumOptionItem | NodeItem) {
-  const value = option.metatype == "enum-option" ? option.value : option.node;
+function fire(option: PickerItem) {
+  const value = index.value.toValue(option);
   apply(value);
 }
 function apply(value: any) {
@@ -149,7 +132,7 @@ defineExpose<ViewExposed>({ self, id, variants: [Variant.PRIMARY, Variant.COMPAC
         <IconInline v-if="modelValueIcon" v-bind="modelValueIcon" class="mr-1.5 w-5 text-gray-700" />
         <span class="truncate">{{ modelValueTitle ?? "???" }}</span>
       </template>
-      <span v-else class="truncate text-gray-400 group-hover:text-gray-700">{{ facetName ?? "???" }}</span>
+      <span v-else class="truncate text-gray-400 group-hover:text-gray-700">{{ facetName ?? "Select" }}</span>
       <i class="fas fa-caret-down ml-auto pl-1.5 text-gray-400" />
     </button>
 
@@ -181,10 +164,7 @@ defineExpose<ViewExposed>({ self, id, variants: [Variant.PRIMARY, Variant.COMPAC
     <div v-else-if="isInline" :style="{ width: DEFAULT_WIDTH + 'px' }">
       <!-- Header -->
       <div class="flex w-full flex-row items-center border-b border-gray-200 px-3 py-1.5">
-        <IconInline
-          v-bind="icon ?? makeIcon({ faName: 'fas fa-caret-circle-down' })"
-          class="mr-1.5 w-5 text-gray-700"
-        />
+        <IconInline v-bind="icon ?? makeIcon({ faName: 'fas fa-caret-circle-down' })" class="mr-2 w-5 text-gray-700" />
         <!-- Query -->
         <input
           ref="queryRef"
@@ -219,7 +199,7 @@ defineExpose<ViewExposed>({ self, id, variants: [Variant.PRIMARY, Variant.COMPAC
             >
               <!-- Content -->
               <IconInline v-if="item.icon" v-bind="item.icon" class="mr-1.5 w-5 flex-shrink-0 text-gray-700" />
-              <span v-else class="mr-1.5 w-[18px] flex-shrink-0 text-gray-700" />
+              <span v-else class="mr-1.5 w-5 flex-shrink-0 text-gray-700" />
               <span class="select-none truncate" v-html="item.titleMarked ?? item.title" />
               <!-- Metadata -->
               <span class="ml-auto truncate pl-2">

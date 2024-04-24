@@ -133,17 +133,17 @@ class TypeInfoBase(HasValues):
     )
 
     # + bonus info/constraints
-    visibility: Optional[NodeVisibility] = p_regular(43, default=None)
-    format_hint: Optional[FormatHint] = p_regular(44, default=None)
+    visibility: Optional[NodeVisibility] = p_regular(50, default=None)
+    format_hint: Optional[FormatHint] = p_regular(51, default=None)
     condition: Optional["Expression"] = p_regular(
-        45, require=False, array=False, default=None, struct=StructType.EXPRESSION
+        52, require=False, array=False, default=None, struct=StructType.EXPRESSION
     )
-    length: Optional[int] = p_regular(46, require=False, default=None)
-    precision: Optional[int] = p_regular(47, require=False, default=None)
-    scale: Optional[int] = p_regular(48, require=False, default=None)
+    length: Optional[int] = p_regular(53, require=False, default=None)
+    precision: Optional[int] = p_regular(54, require=False, default=None)
+    scale: Optional[int] = p_regular(55, require=False, default=None)
     # default for this type
-    default_packed: Optional[Any] = p_value_packed(50)
-    default = p_value_runtime(packed=50)
+    default_packed: Optional[Any] = p_value_packed(58)
+    default = p_value_runtime(packed=58)
 
     # flags
     is_list: bool = p_regular(60, default=False)

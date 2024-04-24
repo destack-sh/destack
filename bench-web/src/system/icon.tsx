@@ -12,6 +12,8 @@ import {
   NodeVisibility,
   FormatHint,
   PrimitiveType,
+  StructType,
+  BenchType,
 } from "@/proto/wire";
 import type { FunctionalComponent } from "vue";
 // file is generated with:
@@ -106,10 +108,11 @@ export const DEFAULT_MISSING_ICON = makeIcon({ faName: "fas fa-question" });
 export const DEFAULT_VIEW_ICON = makeIcon({ faName: "fas fa-browser" });
 export const DEFAULT_USER_ICON = makeIcon({ faName: "fas fa-user-tie" });
 export const DEFAULT_BENCH_ICON = makeIcon({ faName: "fas fa-fort" });
+export const DEFAULT_ENUM_ICON = makeIcon({ faName: "fas fa-caret-circle-down" });
 
 export const ICON_BY_NODE_TYPE: Partial<Record<NodeType, IconData>> = _makeIcons<NodeType>({
   // root
-  [NodeType.BENCH]: "fas ca-castle",
+  [NodeType.BENCH]: "fas fa-fort",
   [NodeType.ENVIRONMENT]: "fas fa-globe",
   [NodeType.BRANCH]: "fas fa-code-branch",
 
@@ -127,6 +130,7 @@ export const ICON_BY_NODE_TYPE: Partial<Record<NodeType, IconData>> = _makeIcons
   [NodeType.RECORD]: "fas fa-database",
   [NodeType.QUERY]: "fas fa-magnifying-glass",
   [NodeType.VIEW]: "fas fa-browser",
+  [NodeType.STEP]: "fas fa-step-forward",
 
   // auth
   [NodeType.BADGE]: "fas fa-id-badge",
@@ -156,6 +160,41 @@ export const ICON_BY_NODE_TYPE: Partial<Record<NodeType, IconData>> = _makeIcons
   [NodeType.ORGANIZATION]: "fas fa-building",
   [NodeType.CLIENT]: "fas fa-desktop",
 });
+
+export const ICON_BY_STRUCT_TYPE: Partial<Record<StructType, IconData>> = _makeIcons<StructType>({
+  // core
+  [StructType.PATH]: "fas fa-path",
+  [StructType.TYPE_INFO]: "fas fa-tilde",
+  [StructType.CONTEXT]: "fas fa-ellipsis-h",
+  [StructType.SCHEDULE]: "fas fa-calendar",
+  [StructType.PROJECTION]: "fas fa-project-diagram",
+  // files
+  [StructType.FILE]: "fas fa-file",
+  [StructType.ICON]: "fas fa-icons",
+  // code
+  [StructType.CODE]: "fas fa-code",
+  // expression
+  [StructType.EXPRESSION]: "fas fa-math",
+  [StructType.SELECTION]: "fas fa-check",
+  // views
+  [StructType.COLOR]: "fas fa-palette",
+  [StructType.FONT]: "fas fa-font",
+  [StructType.OFFSET]: "fas fa-arrows-alt",
+  [StructType.BOX]: "fas fa-box",
+  // flow
+  [StructType.STEP_CONNECTION]: "fas fa-arrow-right",
+  // text
+  [StructType.TEXT]: "fas fa-text",
+});
+
+export const ICON_BY_OBJECT_TYPE: Partial<Record<ObjectType, IconData>> = {
+  ...ICON_BY_NODE_TYPE,
+  ...ICON_BY_STRUCT_TYPE,
+};
+
+export const ICON_BY_BENCH_TYPE: Partial<Record<BenchType, IconData>> = {
+  ...ICON_BY_OBJECT_TYPE,
+};
 
 export const ICON_BY_BLOCK_TYPE: Partial<Record<BlockType, IconData>> = _makeIcons<BlockType>({
   [BlockType.MODULE]: "fas fa-box-open",
@@ -311,6 +350,9 @@ export const ICON_BY_FORMAT_HINT: Partial<Record<FormatHint, IconData>> = _makeI
 
 export const ENUM_ICONS_BY_TYPE: Partial<Record<EnumType, Record<any, IconData>>> = {
   [EnumType.NODE_TYPE]: ICON_BY_NODE_TYPE,
+  [EnumType.STRUCT_TYPE]: ICON_BY_STRUCT_TYPE,
+  [EnumType.OBJECT_TYPE]: ICON_BY_OBJECT_TYPE,
+  [EnumType.BENCH_TYPE]: ICON_BY_BENCH_TYPE,
   [EnumType.BLOCK_TYPE]: ICON_BY_BLOCK_TYPE,
   [EnumType.VIEW_TYPE]: ICON_BY_VIEW_TYPE,
   [EnumType.NODE_VISIBILITY]: ICON_BY_VISIBILITY,

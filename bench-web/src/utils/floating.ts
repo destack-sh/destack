@@ -27,12 +27,7 @@ export type FloatingOptions = {
   /* margin around the reference along the main axis */
   referenceMargin?: number;
   /* offset the reference position */
-  offset?:
-    | { x: number; y: number }
-    | "referenceWidth"
-    | "-referenceWidth"
-    | "referenceHeight"
-    | "-referenceHeight";
+  offset?: { x: number; y: number } | "referenceWidth" | "-referenceWidth" | "referenceHeight" | "-referenceHeight";
 };
 
 /**
@@ -73,11 +68,11 @@ export function getFloatingPosition(float: {
         y = reference.y - floating.height - referenceMargin;
         break;
       case "top-left":
-        x = reference.x + referenceMargin;
+        x = reference.x - reference.width;
         y = reference.y - floating.height - referenceMargin;
         break;
       case "top-right":
-        x = reference.x + reference.width - floating.width;
+        x = reference.x + reference.width;
         y = reference.y - floating.height - referenceMargin;
         break;
       case "right":

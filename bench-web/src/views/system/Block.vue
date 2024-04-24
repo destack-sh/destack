@@ -114,7 +114,7 @@ defineExpose<ViewExposed>({ self, id, variants: [Variant.PRIMARY, Variant.STEALT
       >
         <IconInline
           v-bind="getNodeIcon(block)"
-          class="w-5 rounded border border-transparent py-0.5 hover:cursor-pointer hover:bg-primary-100 hover:text-primary-900 data-[menu=true]:border-primary-900 data-[menu=true]:bg-primary-100 data-[menu=true]:text-primary-900"
+          class="w-5 rounded border border-transparent py-0.5 hover:cursor-pointer hover:bg-gray-100 hover:text-primary-900 data-[menu=true]:border-primary-900 data-[menu=true]:bg-gray-100 data-[menu=true]:text-primary-900"
           :class="[isThinTextWrapper ? ' text-gray-500' : 'text-gray-700']"
           v-tooltip="{ small: true, text: `Change icon (${toCamelName(BlockType, block.type)})` } as TooltipInfo"
           v-menu="
@@ -129,7 +129,7 @@ defineExpose<ViewExposed>({ self, id, variants: [Variant.PRIMARY, Variant.STEALT
         />
         <input
           ref="nameRef"
-          class="w-fit min-w-fit max-w-fit rounded border-0 px-1 outline-none ring-0 hover:bg-primary-100 hover:text-primary-900 focus:ring-0"
+          class="w-fit min-w-fit max-w-fit rounded border-0 px-1 outline-none ring-0 hover:bg-gray-100 focus:ring-0"
           :class="[isThinTextWrapper ? 'px-0.5 text-gray-500' : 'ml-0.5 px-1 font-medium']"
           spellcheck="false"
           :value="block.name"
