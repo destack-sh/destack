@@ -45,8 +45,7 @@ import { DEFAULT_ORIENTATION, splitBox } from "@/utils/layout";
 import { log } from "@/utils/log";
 import { deepValueEquals, toValueRef } from "@/utils/ref";
 import { Casing, toCasing } from "@/utils/string";
-import { getViewTypeByComponentName, type ViewComponent } from "@/views";
-import type { FocusAnchor } from "@/views/common";
+import { getViewTypeByComponentName, type FocusAnchor, type ViewComponent } from "@/views/common";
 import { useActiveElement, useEventListener, type MaybeElement } from "@vueuse/core";
 import {
   computed,
@@ -931,7 +930,7 @@ export function setupEmptyCanvas(tx: Transaction, space: SpaceData): { primary: 
 export function setupDefaultCanvas(
   tx: Transaction,
   space: SpaceData,
-  options: { secondary: "split" | "side" | false } = { secondary: false },
+  options: { secondary: "split" | "side" | false } = { secondary: "split" },
 ): { side: ViewData; primary: ViewData; secondary: ViewData | null } {
   const window = makeMainWindow(space, tx);
   // root splits
@@ -994,6 +993,15 @@ export function setupDefaultCanvas(
     name: "Outline1",
     title: "Outline",
   });
+  tx.create({
+    metatype: NodeType.VIEW,
+    type: ViewType.CREATE,
+    parentPtr: toNodeReference(sideBottom),
+    packagePtr: space.packagePtr,
+    orderKey: "a2",
+    name: "Create1",
+    title: "Create",
+  });
 
   // primary
   // ...?
@@ -1010,7 +1018,7 @@ export function setupDefaultCanvas(
         orderKey: "a2",
         name: "Secondary",
         title: "Secondary",
-        size: makeStruct({ metatype: StructType.BOX, widthRelative: 1000 }),
+        size: makeStruct({ metatype: StructType.BOX, widthRelative: 700 }),
       });
     } else {
       secondary = sideBottom;
@@ -1023,15 +1031,6 @@ export function setupDefaultCanvas(
       orderKey: "a0",
       name: "Inspect1",
       title: "Inspect",
-    });
-    tx.create({
-      metatype: NodeType.VIEW,
-      type: ViewType.CREATE,
-      parentPtr: toNodeReference(secondary),
-      packagePtr: space.packagePtr,
-      orderKey: "a1",
-      name: "Create1",
-      title: "Create",
     });
   }
 

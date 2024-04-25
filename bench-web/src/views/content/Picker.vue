@@ -18,9 +18,7 @@ import { enumIndex, graphIndex, typeIndex, useSearch, type EnumOptionItem, type 
 import { canvas, pkgGraph } from "@/system/space";
 import { ScrollbarWidth } from "@/utils/layout";
 import type { OverlayMenuInfoIn } from "@/utils/menu";
-import { deepValueEquals } from "@/utils/ref";
-import { makeViewId, type ViewProps } from "@/views";
-import { ViewContentWrapper, viewEmits, type FocusAnchor, type ViewExposed } from "@/views/common";
+import { makeViewId, ViewContentWrapper, viewEmits, type FocusAnchor, type ViewExposed, type ViewProps } from "@/views/common";
 import Scroll from "@/views/containers/Scroll.vue";
 import { computed, ref, toRef, watch, type Ref } from "vue";
 

@@ -18,8 +18,7 @@ import { useDropZone } from "@/utils/drag";
 import { createOverlayMenu, menuActionsLike, type MenuContext, type OverlayMenuInfo } from "@/utils/menu";
 import { PM_INPUT_RULES, PM_SCHEMA, type TextMarkType, PM_KEYMAP_EXTRA } from "@/utils/prosemirror";
 import { deepValueEquals } from "@/utils/ref";
-import { makeViewId } from "@/views";
-import { ViewContentWrapper, viewEmits, type ViewExposed } from "@/views/common";
+import { ViewContentWrapper, makeViewId, viewEmits, type ViewExposed } from "@/views/common";
 import { whenever } from "@vueuse/core";
 import * as commands from "prosemirror-commands";
 import { inputRules } from "prosemirror-inputrules";
@@ -30,7 +29,6 @@ import { EditorView, type NodeView as PmNodeView } from "prosemirror-view";
 import { dropCursor } from "prosemirror-dropcursor";
 import { computed, nextTick, onBeforeUnmount, ref, toRef, watch } from "vue";
 import { getElement } from "@/utils/element";
-import Picker from "@/views/content/Picker.vue";
 import { makeTypeInfo } from "@/system/value";
 
 const MENTION_TRIGGER_CHAR = "@";

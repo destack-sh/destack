@@ -5,8 +5,10 @@ export default {
   content: ["./index.html", "./src/**/*.{vue,js,ts,jsx,tsx}"],
   safelist: [
     // force all foreground/background colors to be included (we use them dynamically)
-    { pattern: /^text-/ },
-    { pattern: /^bg-/ },
+    // nocheckin: re-enable color safelisting, then use direct color values as styles instead
+    //  (this is horrendously slow in the JIT for some reason)
+    // { pattern: /^text-/ },
+    // { pattern: /^bg-/ },
   ],
   theme: {
     boxShadow: {

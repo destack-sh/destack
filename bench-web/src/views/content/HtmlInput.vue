@@ -3,8 +3,7 @@ import { ColorShade, ColorType, NodeType, Variant, ViewType, type ViewData } fro
 import type { TypedNodeReferenceData } from "@/proto/wiring";
 import { IconInline } from "@/system/icon";
 import { canvas } from "@/system/space";
-import { makeViewId } from "@/views";
-import { ViewContentWrapper, viewEmits, type ViewExposed } from "@/views/common";
+import { ViewContentWrapper, makeViewId, viewEmits, type ViewExposed } from "@/views/common";
 import { computed, ref, toRef } from "vue";
 
 const props = defineProps<

@@ -1,10 +1,9 @@
 <script lang="ts" setup>
 import { ViewData, NodeType, CodeData, Variant } from "@/proto/wire";
 import { type TypedNodeReferenceData } from "@/proto/wiring";
-import { ViewContentWrapper, viewEmits, type ViewExposed } from "@/views/common";
+import { ViewContentWrapper, makeViewId, viewEmits, type ViewExposed } from "@/views/common";
 import { canvas } from "@/system/space";
 import { onBeforeUnmount, ref, toRef, watch } from "vue";
-import { makeViewId } from "@/views";
 import { EditorView, keymap } from "@codemirror/view";
 import { EditorState } from "@codemirror/state";
 import { useDropZone } from "@/utils/drag";

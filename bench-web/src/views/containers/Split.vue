@@ -5,7 +5,7 @@ import { useExistingConnection } from "@/system/connection";
 import { canvas } from "@/system/space";
 import { DEFAULT_ORIENTATION, MIN_SPLIT_SIZE, useSplitView } from "@/utils/layout";
 import type { SplitLayout } from "@/utils/layout";
-import { getViewBinding, getViewComponent } from "@/views";
+import { getViewBinding, getViewComponent } from "@/views/registry";
 import { viewEmits } from "@/views/common";
 import type { ViewExposed } from "@/views/common";
 import { computed, ref, toRef, type Ref } from "vue";

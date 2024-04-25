@@ -12,7 +12,7 @@ import {
 import { canvas } from "@/system/space";
 import { type FloatingOptions } from "@/utils/floating";
 import { pretendReadonly } from "@/utils/ref";
-import type { ViewComponent } from "@/views";
+import type { ViewComponent } from "@/views/registry";
 import { collectViewComponentsUp } from "@/views/canvas";
 import type { MaybeElement } from "@vueuse/core";
 import { computed, shallowRef, toValue, type Directive, type Ref } from "vue";

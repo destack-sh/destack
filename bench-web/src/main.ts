@@ -6,7 +6,7 @@ import { COMMIT, IS_DEBUG, SUPERVISOR_URL, VERSION } from "@/utils/globals";
 import { keytrap } from "@/utils/keymap";
 import { CONTEXT_MENU_DIRECTIVE, MENU_DIRECTIVE } from "@/utils/menu";
 import { EVENT_OUTSIDE_DIRECTIVE, HOVER_DIRECTIVE, TOOLTIP_DIRECTIVE } from "@/utils/tooltip";
-import { registerViewComponents } from "@/views";
+import { registerViewComponents } from "@/views/registry";
 import * as Sentry from "@sentry/vue";
 import posthog from "posthog-js";
 import { createApp } from "vue";

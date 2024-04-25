@@ -9,7 +9,7 @@ import { startDragging, useMultiDropZone, useSplitDropZone, type SplitAnchor } f
 import { IS_DEBUG, isDeveloperMode } from "@/utils/globals";
 import { ScrollbarWidth } from "@/utils/layout";
 import { menuActionsLike, type MenuContext, type OverlayMenuInfo } from "@/utils/menu";
-import { getViewBinding, getViewComponent } from "@/views";
+import { getViewBinding, getViewComponent } from "@/views/registry";
 import Empty from "@/views/builtins/Empty.vue";
 import { viewEmits, type ViewExposed } from "@/views/common";
 import Scroll from "@/views/containers/Scroll.vue";
