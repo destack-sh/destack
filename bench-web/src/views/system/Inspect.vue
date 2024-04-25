@@ -89,7 +89,7 @@ defineExpose<ViewExposed>({ self });
           <IconInline
             v-bind="ICON_BY_NODE_TYPE[node.metatype as unknown as NodeType]"
             :shade="ColorShade.S500"
-            class="mr-1 w-5"
+            class="mr-1 w-5 text-gray-500"
           />
           <span class="text-gray-500">{{ toCamelName(ObjectType, node.metatype) }}</span>
         </div>
