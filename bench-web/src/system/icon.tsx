@@ -15,6 +15,11 @@ import {
   StructType,
   BenchType,
   FieldKind,
+  FieldData,
+  ColorType,
+  ColorShade,
+  ColorData,
+  LogLevel,
 } from "@/proto/wire";
 import type { FunctionalComponent } from "vue";
 // file is generated with:
@@ -23,6 +28,7 @@ import type { FunctionalComponent } from "vue";
 //  > fa-icons.json
 import _AVAILABLE_FA_ICONS from "@/assets/fa-icons.json";
 import { IS_DEBUG, isDeveloperMode } from "@/utils/globals";
+import { getColorClass, makeColor } from "@/utils/style";
 
 export type IconMetadata = {
   id: string;
@@ -49,17 +55,28 @@ export const AVAILABLE_ICONS_BY_ID: Record<string, IconMetadata> = Object.fromEn
   AVAILABLE_FA_ICONS.map((i) => [i.id, i]),
 );
 
-export const IconInline: FunctionalComponent<Pick<IconData, "emoji" | "file" | "faName">> = (props) => {
+type IconInlineProps = Pick<IconData, "emoji" | "file" | "faName"> & {
+  color?: ColorType | ColorData;
+  fallbackColor?: ColorType;
+  shade?: ColorShade;
+  ignoreColor?: boolean;
+};
+export const IconInline: FunctionalComponent<IconInlineProps> = (props) => {
+  let colorClass;
+  if (props.ignoreColor) colorClass = null;
+  else if (props.color != null) colorClass = getColorClass(props.color, props.shade);
+  else colorClass = getColorClass(props.fallbackColor ?? ColorType.GRAY, props.shade);
   if (props.faName) {
     // font awesome
-    return <i class={props.faName + "  text-center"} />;
+    return <i class={`${props.faName} text-center ${colorClass}`} />;
   } else if (props.emoji) {
-    return <span>{props.emoji}</span>;
+    return <span class={colorClass}>{props.emoji}</span>;
   } else {
-    if (IS_DEBUG || isDeveloperMode.value) return <span>{JSON.stringify(props)}`</span>;
-    else return <span>???</span>;
+    if (IS_DEBUG || isDeveloperMode.value) return <span class={colorClass}>{JSON.stringify(props)}`</span>;
+    else return <span class={colorClass}>???</span>;
   }
 };
+IconInline.props = ["emoji", "file", "faName", "color", "fallbackColor", "shade", "ignoreColor"];
 
 export function getIconMetadata(icon: IconData): IconMetadata | undefined {
   if (icon.kind == IconKind.FONT_AWESOME) {
@@ -70,7 +87,13 @@ export function getIconMetadata(icon: IconData): IconMetadata | undefined {
   }
 }
 
-type IconIn = string | Pick<IconData, "emoji" | "file" | "faName">;
+export function newIconId(): number {
+  /** Exactly like newStructId for now (but want to avoid importing it due to circularity) */
+  return Math.floor(Math.random() * 0x7fffffff);
+}
+
+type ColorIn = ColorData | ColorType;
+type IconIn = string | (Pick<IconData, "emoji" | "file" | "faName"> & { color?: ColorIn });
 export function makeIcon(icon: IconIn): IconData {
   let kind: IconKind;
   if (typeof icon == "string") {
@@ -84,10 +107,13 @@ export function makeIcon(icon: IconIn): IconData {
   } else {
     throw new Error(`unexpected icon ${icon}`);
   }
+  const color = icon.color != null && typeof icon.color != "object" ? makeColor(icon.color) : icon.color;
   return {
     metatype: ObjectType.ICON,
     kind,
     ...icon,
+    id: newIconId(),
+    color,
     setProperties: [],
   };
 }
@@ -203,8 +229,8 @@ export const ICON_BY_BLOCK_TYPE: Partial<Record<BlockType, IconData>> = _makeIco
   [BlockType.PAGE]: "fas fa-memo",
   [BlockType.BLANK]: "fas fa-empty-set",
   [BlockType.ALIAS]: "fas fa-link",
-
   [BlockType.CLASS]: "fas fa-objects-column",
+
   [BlockType.CHOICE]: "fas fa-circle-chevron-down",
   [BlockType.SIGNAL]: "fas fa-signal-stream",
   [BlockType.PROTOCOL]: "fas fa-list-check",
@@ -298,7 +324,7 @@ export const ICON_BY_VIEW_TYPE: Partial<Record<ViewType, IconData>> = _makeIcons
   [ViewType.CODE]: "fas fa-code",
   [ViewType.JSON]: "fas fa-brackets-curly",
   // selection
-  [ViewType.TOGGLE]: "fas fa-toggle-large-on",
+  [ViewType.TOGGLE]: "fas fa-square-check",
   [ViewType.PICKER]: "fas fa-caret-circle-down",
   [ViewType.CALENDAR]: "fas fa-calendar",
   [ViewType.COLOR]: "fas fa-palette",
@@ -318,7 +344,7 @@ export const ICON_BY_VISIBILITY: Partial<Record<NodeVisibility, IconData>> = _ma
 });
 
 export const ICON_BY_PRIMITIVE_TYPE: Partial<Record<PrimitiveType, IconData>> = _makeIcons({
-  [PrimitiveType.BOOLEAN]: "fas fa-toggle-large-on",
+  [PrimitiveType.BOOLEAN]: "fas fa-square-check",
   [PrimitiveType.INT16]: "fas fa-tally-4",
   [PrimitiveType.INT32]: "fas fa-tally-4",
   [PrimitiveType.INT64]: "fas fa-tally-4",
@@ -355,8 +381,18 @@ export const ICON_BY_FIELD_KIND: Partial<Record<FieldKind, IconData>> = _makeIco
   [FieldKind.MEMBER]: "fas fa-objects-column",
   [FieldKind.INPUT]: "fas fa-arrow-down-right",
   [FieldKind.OUTPUT]: "fas fa-arrow-up-right",
-  [FieldKind.OPTION]: "fas fa-chevron-circle-down",
+  [FieldKind.OPTION]: "fas fa-circle-small",
 });
+
+export const ICON_BY_LEVEL: Record<LogLevel, IconData> = {
+  [LogLevel.UNSPECIFIED]: makeIcon({ faName: "fas fa-bug" }),
+  [LogLevel.TRACE]: makeIcon({ faName: "fas fa-bug" }),
+  [LogLevel.DEBUG]: makeIcon({ faName: "fas fa-bug" }),
+  [LogLevel.INFO]: makeIcon({ faName: "fas fa-circle-check" }),
+  [LogLevel.WARNING]: makeIcon({ faName: "fas fa-exclamation-triangle" }),
+  [LogLevel.ERROR]: makeIcon({ faName: "fas fa-exclamation-circle" }),
+  [LogLevel.FATAL]: makeIcon({ faName: "fas fa-skull" }),
+};
 
 export const ENUM_ICONS_BY_TYPE: Partial<Record<EnumType, Record<any, IconData>>> = {
   [EnumType.NODE_TYPE]: ICON_BY_NODE_TYPE,
@@ -369,6 +405,7 @@ export const ENUM_ICONS_BY_TYPE: Partial<Record<EnumType, Record<any, IconData>>
   [EnumType.PRIMITIVE_TYPE]: ICON_BY_PRIMITIVE_TYPE,
   [EnumType.FORMAT_HINT]: ICON_BY_FORMAT_HINT,
   [EnumType.FIELD_KIND]: ICON_BY_FIELD_KIND,
+  [EnumType.LOG_LEVEL]: ICON_BY_LEVEL,
 };
 
 export function getNodeIcon(node: AnyNodeData | { metatype: ObjectType; type?: BlockType | ViewType }) {
@@ -380,6 +417,10 @@ export function getNodeIcon(node: AnyNodeData | { metatype: ObjectType; type?: B
   } else if (node.metatype == ObjectType.VIEW) {
     const icon = ICON_BY_VIEW_TYPE[(node as ViewData).type! as ViewType];
     if (icon != null) return icon;
+  } else if (node.metatype == ObjectType.FIELD) {
+    if ((node as FieldData).kind == FieldKind.OPTION) {
+      return ICON_BY_FIELD_KIND[FieldKind.OPTION];
+    }
   }
   return ICON_BY_NODE_TYPE[node.metatype! as unknown as NodeType] ?? DEFAULT_MISSING_ICON;
 }

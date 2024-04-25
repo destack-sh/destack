@@ -1,5 +1,5 @@
 <script lang="ts" setup>
-import { ViewData, NodeType, Variant } from "@/proto/wire";
+import { ViewData, NodeType, Variant, ColorShade, FieldKind } from "@/proto/wire";
 import { type TypedNodeReferenceData } from "@/proto/wiring";
 import { viewEmits, type ViewExposed } from "@/views/common";
 import { canvas, inspectionPtr } from "@/system/space";
@@ -78,7 +78,8 @@ defineExpose<ViewExposed>({ self, id, actions });
     <!-- nocheckin: Field -->
     <IconInline
       v-bind="getNodeIcon(field)"
-      class="mr-1 w-5 rounded border border-transparent p-0.5 hover:cursor-pointer hover:bg-primary-100 data-[menu=true]:border-primary-900 data-[menu=true]:bg-primary-100 data-[menu=true]:text-primary-900"
+      :shade="field.kind == FieldKind.OPTION ? ColorShade.S600 : ColorShade.S700"
+      class="mr-1 w-5 rounded border border-transparent p-0.5 hover:cursor-pointer hover:bg-primary-100 data-[menu=true]:border-primary-900 data-[menu=true]:bg-primary-100"
       v-tooltip="{ small: true, text: `Change icon` } as TooltipInfo"
       v-menu="
         (): OverlayMenuInfoIn => ({

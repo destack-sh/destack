@@ -2,6 +2,7 @@
 import {
   BenchType,
   BlockType,
+  ColorShade,
   FieldKind,
   NodeReferenceData,
   NodeType,
@@ -121,8 +122,8 @@ defineExpose<ViewExposed>({ self, id, variants: [Variant.PRIMARY, Variant.STEALT
       >
         <IconInline
           v-bind="getNodeIcon(block)"
-          class="w-5 rounded border border-transparent py-0.5 hover:cursor-pointer hover:bg-gray-100 hover:text-primary-900 data-[menu=true]:border-primary-900 data-[menu=true]:bg-gray-100 data-[menu=true]:text-primary-900"
-          :class="[isThinTextWrapper ? ' text-gray-500' : 'text-gray-700']"
+          class="w-5 rounded border border-transparent py-0.5 hover:cursor-pointer hover:bg-gray-100 data-[menu=true]:border-primary-900 data-[menu=true]:bg-gray-100"
+          :shade="[isThinTextWrapper ? ColorShade.S500 : ColorShade.S700]"
           v-tooltip="{ small: true, text: `Change icon (${toCamelName(BlockType, block.type)})` } as TooltipInfo"
           v-menu="
             (): OverlayMenuInfoIn => ({

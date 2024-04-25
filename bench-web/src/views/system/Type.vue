@@ -197,7 +197,7 @@ defineExpose<ViewExposed>({ self, id, actions });
               }
             "
             role="listitem"
-            class="max-w-full data-[dragging=true]:opacity-50"
+            class="data-[dragging=true]:opacity-50"
             :prepared-connection="preparedConnection"
             :node-ptr="toNodeReference(field)"
             :draggable="true"

@@ -45,10 +45,11 @@ export type ViewExposed = (
 } & {};
 
 // TODO :Architecture :Performance: revisit content view wrapper for vapor mode
-export const ViewContentWrapper: FunctionalComponent<{ title?: string; variant?: Variant; orientation?: Orientation }> = (
-  props,
-  { slots },
-) => {
+export const ViewContentWrapper: FunctionalComponent<{
+  title?: string;
+  variant?: Variant;
+  orientation?: Orientation;
+}> = (props, { slots }) => {
   const classBase =
     props.title == null
       ? ""
@@ -66,3 +67,4 @@ export const ViewContentWrapper: FunctionalComponent<{ title?: string; variant?:
     </div>
   );
 };
+ViewContentWrapper.props = ["title", "variant", "orientation"];

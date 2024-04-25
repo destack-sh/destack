@@ -100,7 +100,7 @@ defineExpose<ViewExposed>({ self, id, focus });
       "
     >
       <template v-if="icon != null">
-        <IconInline v-bind="icon" class="text-gray-700" />
+        <IconInline v-bind="icon" />
         <span class="ml-1.5">{{ getIconMetadata(icon)?.title ?? "Custom Icon" }}</span>
       </template>
       <template v-else>
@@ -114,7 +114,7 @@ defineExpose<ViewExposed>({ self, id, focus });
     <div v-else-if="isInline" :style="{ width: DEFAULT_WIDTH + 'px' }">
       <!-- Header -->
       <div class="flex w-full flex-row items-center border-b border-gray-200 px-2.5 py-1.5">
-        <IconInline v-bind="icon ?? makeIcon({ faName: 'fas fa-magnifying-glass' })" class="mr-1.5 text-gray-700" />
+        <IconInline v-bind="icon ?? makeIcon({ faName: 'fas fa-magnifying-glass' })" class="mr-1.5" />
         <!-- Query -->
         <input
           ref="queryRef"
