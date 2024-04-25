@@ -2,7 +2,7 @@ import { BenchType, EnumType, PrimitiveType, StructType, Variant, ViewType, type
 import { makeDefaultStruct } from "@/proto/wiring";
 import { ENUM_ICONS_BY_TYPE } from "@/system/icon";
 import { getEnumOptions, isEnumType } from "@/system/lang";
-import type { ViewProps } from "@/views";
+import type { ViewProps } from "@/views/registry";
 
 export type TypeIdentity = Pick<TypeInfoData, "primitiveType" | "benchType" | "baseTypePtr">;
 

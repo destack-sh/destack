@@ -1,10 +1,9 @@
 <script lang="ts" setup>
 import { ViewData, NodeType, Variant, ColorShade, FieldKind } from "@/proto/wire";
 import { type TypedNodeReferenceData } from "@/proto/wiring";
-import { viewEmits, type ViewExposed } from "@/views/common";
+import { makeViewId, viewEmits, type ViewExposed } from "@/views/common";
 import { canvas, inspectionPtr } from "@/system/space";
 import { computed, ref, toRef, type Ref } from "vue";
-import { makeViewId } from "@/views";
 import { useGetConnection, type PreparedGetConnection } from "@/system/connection";
 import Inaccessible from "@/views/builtins/Inaccessible.vue";
 import { IconInline, getNodeIcon } from "@/system/icon";

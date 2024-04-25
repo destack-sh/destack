@@ -25,7 +25,7 @@ import { keytrap, type KeySignature } from "@/utils/keymap";
 import { log } from "@/utils/log";
 import { generateRandomName } from "@/utils/naming";
 import { Casing, toCasing } from "@/utils/string";
-import type { ViewComponent } from "@/views";
+import type { ViewComponent } from "@/views/registry";
 import { clearCanvas, collectViewComponentsUp, setupDefaultCanvas, setupEmptyCanvas } from "@/views/canvas";
 import { useKeyModifier } from "@vueuse/core";
 import {

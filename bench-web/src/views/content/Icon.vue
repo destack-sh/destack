@@ -1,10 +1,9 @@
 <script lang="ts" setup>
 import { ViewData, NodeType, IconData, NodeReferenceData, Orientation, ViewType } from "@/proto/wire";
 import { type TypedNodeReferenceData } from "@/proto/wiring";
-import { ViewContentWrapper, viewEmits, type FocusAnchor, type ViewExposed } from "@/views/common";
+import { makeViewId, ViewContentWrapper, viewEmits, type FocusAnchor, type ViewExposed } from "@/views/common";
 import { canvas } from "@/system/space";
 import { computed, ref, toRef, watch, type Ref } from "vue";
-import { makeViewId } from "@/views";
 import Scroll from "@/views/containers/Scroll.vue";
 import { IconInline, getIconMetadata, makeIcon, metadataToIcon, type IconMetadata } from "@/system/icon";
 import { ScrollbarWidth } from "@/utils/layout";

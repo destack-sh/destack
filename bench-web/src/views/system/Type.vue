@@ -8,8 +8,7 @@ import { RUNNABLE_BLOCK_TYPES, createField, toCamelName } from "@/system/lang";
 import { canvas } from "@/system/space";
 import { startDragging, useMultiDropZone, type Dragged, type DraggedData, type MultiAnchor } from "@/utils/drag";
 import { menuActionsLike, type OverlayMenuInfo } from "@/utils/menu";
-import { makeViewId } from "@/views";
-import { viewEmits, type ViewExposed } from "@/views/common";
+import { makeViewId, viewEmits, type ViewExposed } from "@/views/common";
 import Field from "@/views/system/Field.vue";
 import { computed, ref, toRef, type Ref } from "vue";
 

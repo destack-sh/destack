@@ -2,8 +2,7 @@
 import { NodeType, ViewData } from "@/proto/wire/";
 import type { TypedNodeReferenceData } from "@/proto/wiring";
 import { canvas } from "@/system/space";
-import { makeViewId } from "@/views";
-import { viewEmits, type ViewExposed } from "@/views/common";
+import { makeViewId, viewEmits, type ViewExposed } from "@/views/common";
 import { toRef } from "vue";
 
 const props = defineProps<

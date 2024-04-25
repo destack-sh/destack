@@ -12,7 +12,6 @@ import {
   FieldKind,
   FieldProperty,
   IconData,
-  MESSAGE_TYPE_BY_OBJECT_TYPE,
   NodeReferenceData,
   NodeType,
   NotificationData,
@@ -23,7 +22,6 @@ import {
   RecordData,
   RunData,
   SignalData,
-  StepType,
   StructType,
   ViewProperty,
   ViewType,
@@ -42,7 +40,7 @@ import { getViewComponentForValueType, makeTypeInfo, type TypeIdentity } from "@
 import { generateOrderKey, generateOrderKeys, isValidOrderKey } from "@/utils/fractional";
 import { Casing, toCasing } from "@/utils/string";
 import { getRandomColorType } from "@/utils/style";
-import type { ViewProps } from "@/views";
+import type { ViewProps } from "@/views/registry";
 
 export const NODE_TYPES = Object.values(NodeType).filter((v) => typeof v == "number" && v > 0) as NodeType[];
 export const NODE_TYPES_SET = new Set(NODE_TYPES);
@@ -261,8 +259,9 @@ const NODE_NAME_DISCRIMINATORS: Partial<Record<NodeType, string>> = {
 /** Generates a node name for our :AutoNaming. */
 export function generateNodeName<T extends NodeType>(metatype: T, siblings: AnyNodeData[], value?: number): string {
   let key;
-  if (metatype != NodeType.FIELD || (value != FieldKind.VARIABLE && value != FieldKind.MEMBER)) key = NODE_NAME_DISCRIMINATORS[metatype];
-  else key = null; 
+  if (metatype != NodeType.FIELD || (value != FieldKind.VARIABLE && value != FieldKind.MEMBER))
+    key = NODE_NAME_DISCRIMINATORS[metatype];
+  else key = null;
   if (key != null) {
     if (value == null) throw new Error(`value is required for discriminator ${key}`);
     const properties = PROPERTY_ENUM_BY_TYPE[metatype as unknown as ObjectType];

@@ -1,10 +1,9 @@
 <script lang="ts" setup>
-import { NodeReferenceData, NodeType, Variant, ViewData } from "@/proto/wire";
+import { ColorShade, NodeType, Variant, ViewData } from "@/proto/wire";
 import type { TypedNodeReferenceData } from "@/proto/wiring";
 import { IconInline } from "@/system/icon";
 import { canvas } from "@/system/space";
-import { makeViewId } from "@/views";
-import { viewEmits, type ViewExposed } from "@/views/common";
+import { makeViewId, viewEmits, type ViewExposed } from "@/views/common";
 import { computed, ref, toRef, type Ref } from "vue";
 
 const props = defineProps<
@@ -62,7 +61,13 @@ defineExpose<ViewExposed>({
 <template>
   <button ref="buttonRef" :class="[classByVariant[variant!] ?? classByVariant[Variant.PRIMARY]]" :disabled="isDisabled">
     <i v-if="isLoading" class="fas fa-spinner-third mr-2 animate-spin no-underline" />
-    <IconInline v-else-if="icon" v-bind="icon" class="w-5 text-center no-underline" :class="title ? 'mr-1.5' : ''" />
+    <IconInline
+      v-else-if="icon"
+      v-bind="icon"
+      class="w-5 text-center no-underline"
+      :shade="ColorShade.S900"
+      :class="title ? 'mr-1.5' : ''"
+    />
     <span v-if="title" class="select-none font-semibold">{{ title }}</span>
   </button>
 </template>

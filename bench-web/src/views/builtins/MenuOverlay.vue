@@ -7,7 +7,7 @@ import { activeOverlayMenu, destroyOverlayMenu, type OverlayMenuInfo } from "@/u
 import Menu from "@/views/builtins/Menu.vue";
 import { useElementSize, whenever, type MaybeElement } from "@vueuse/core";
 import { computed, nextTick, ref, watch, type Ref } from "vue";
-import { getViewComponent } from "@/views";
+import { getViewComponent } from "@/views/registry";
 
 const menuRefContainer: Ref<MaybeElement> = ref(null);
 const menuRefInner: Ref<MaybeElement> = ref(null);

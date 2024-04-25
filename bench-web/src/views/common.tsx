@@ -1,10 +1,20 @@
 // TODO :Architecture: figure out proper all-encompassing event system/bus
 
-import { Orientation, Variant, type NodeReferenceData, type NodeType } from "@/proto/wire";
+import { Orientation, Variant, ViewData, ViewType, type NodeReferenceData, type NodeType } from "@/proto/wire";
 import type { TypedNodeReferenceData } from "@/proto/wiring";
 import type { ActionMapImplementation } from "@/system/action";
-import type { ViewComponent } from "@/views";
-import type { FunctionalComponent, Ref } from "vue";
+import { Casing, toCasing } from "@/utils/string";
+import { v4 } from "uuid";
+import { computed, getCurrentInstance, type ComponentInstance, type FunctionalComponent, type Ref } from "vue";
+
+export type ViewProps = { self?: NodeReferenceData; modelValue?: any } & Partial<
+  Omit<ViewData, "metatype" | "id" | "ck" | "revision" | "setProperties">
+>;
+export type ViewComponent = {
+  new (): ComponentInstance<any>;
+  props: ViewProps;
+  exposed: ViewExposed;
+};
 
 export const VIEW_EMITS = {
   apply: null,
@@ -68,3 +78,40 @@ export const ViewContentWrapper: FunctionalComponent<{
   );
 };
 ViewContentWrapper.props = ["title", "variant", "orientation"];
+
+/** Creates an id for an 'anonymous' view */
+function deriveViewId(selfId: string, name: string): string {
+  return `${selfId}.${name}`;
+}
+
+/** Creates a dynamic view id ref for View components that sometimes don't have a 'self' node identity */
+export function makeViewId(props: { self?: NodeReferenceData; name?: string | null }): Ref<string> {
+  const instance = getCurrentInstance()!;
+  if (instance == null) throw new Error("no Vue instance");
+  return computed(() => {
+    if (props.self?.id != null) return props.self.id;
+
+    const instanceInternalId = instance.uid;
+    let parent = instance.parent;
+    while (parent != null) {
+      const exposed = (parent as unknown as ViewComponent).exposed;
+      if (exposed?.self?.value?.id != null)
+        return deriveViewId(exposed.self.value.id, props.name ?? instanceInternalId.toString());
+      else if (exposed?.id?.value != null)
+        return deriveViewId(exposed.id.value, props.name ?? instanceInternalId.toString());
+      parent = parent.parent;
+    }
+    // this is a component outside of parent view, just use a random id
+    return v4();
+  });
+}
+
+// inverse :ViewRegistry for lookups without needing to import the registry
+export function getViewTypeByComponentName(name: string): ViewType | null {
+  if (name == "HtmlInput") {
+    return ViewType.STRING;
+  } else {
+    const capsName = toCasing(name, Casing.ALL_CAPS);
+    return (ViewType[capsName as any] as unknown as ViewType) ?? null;
+  }
+}

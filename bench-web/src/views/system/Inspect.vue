@@ -16,13 +16,13 @@ import { getInspectionLayout, toCamelName } from "@/system/lang";
 import { canvas, inspectionPtr } from "@/system/space";
 import { ScrollbarWidth } from "@/utils/layout";
 import type { OverlayMenuInfoIn } from "@/utils/menu";
-import { getViewComponent } from "@/views";
+import { getViewComponent } from "@/views/registry";
 import { viewEmits, type ViewExposed } from "@/views/common";
 import Scroll from "@/views/containers/Scroll.vue";
 import { computed, toRef } from "vue";
 
 const MIN_WIDTH = 320;
-const MAX_WIDTH = 480;
+const MAX_WIDTH = 540;
 const HEADER_HEIGHT = 40;
 
 const props = defineProps<

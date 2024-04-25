@@ -1,10 +1,9 @@
 <script lang="ts" setup>
 import { ViewData, NodeType, Variant } from "@/proto/wire";
 import { type TypedNodeReferenceData } from "@/proto/wiring";
-import { ViewContentWrapper, viewEmits, type ViewExposed } from "@/views/common";
+import { ViewContentWrapper, makeViewId, viewEmits, type ViewExposed } from "@/views/common";
 import { canvas } from "@/system/space";
 import { ref, toRef } from "vue";
-import { makeViewId } from "@/views";
 
 const props = defineProps<
   { self?: TypedNodeReferenceData<NodeType.VIEW>; modelValue?: boolean } & Partial<
@@ -28,7 +27,7 @@ function apply(value: boolean) {
 }
 
 canvas.registerView(self, id);
-defineExpose<ViewExposed>({ self, id, variants: [Variant.PRIMARY, Variant.SECONDARY] });
+defineExpose<ViewExposed>({ self, id, variants: [Variant.PRIMARY, Variant.SECONDARY], focus: () => inputRef.value });
 </script>
 <template>
   <ViewContentWrapper v-bind="props" class="text-right">

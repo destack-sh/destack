@@ -3,8 +3,7 @@ import { BoxData, NodeType, Orientation, ViewData } from "@/proto/wire/";
 import type { TypedNodeReferenceData } from "@/proto/wiring";
 import { canvas } from "@/system/space";
 import { ScrollbarWidth, useScrollArea } from "@/utils/layout";
-import { makeViewId } from "@/views";
-import { viewEmits, type ViewExposed } from "@/views/common";
+import { makeViewId, viewEmits, type ViewExposed } from "@/views/common";
 import { useMouseInElement } from "@vueuse/core";
 import { computed, ref, toRef, watch } from "vue";
 
