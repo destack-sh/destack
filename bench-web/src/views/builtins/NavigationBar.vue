@@ -41,7 +41,7 @@ const path = computed(() => ancestors.value.slice().reverse());
     <!-- Search & such -->
     <div class="ml-auto flex flex-shrink-0 flex-row gap-x-1.5 pl-1">
       <button
-        class="rounded px-1 text-gray-300 hover:bg-gray-100 hover:text-primary-900 group-hover:text-gray-400"
+        class="rounded px-1 text-gray-400 hover:bg-gray-100 hover:text-primary-900 group-hover:text-gray-400"
         @click="fireActionById('common.search.findInView')"
       >
         <i class="fas fa-magnifying-glass text-xs" />

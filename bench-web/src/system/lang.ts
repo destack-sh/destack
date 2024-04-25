@@ -40,7 +40,7 @@ import { getViewComponentForValueType, makeTypeInfo, type TypeIdentity } from "@
 import { generateOrderKey, generateOrderKeys, isValidOrderKey } from "@/utils/fractional";
 import { Casing, toCasing } from "@/utils/string";
 import { getRandomColorType } from "@/utils/style";
-import type { ViewProps } from "@/views/registry";
+import type { ViewProps } from "@/views/common";
 
 export const NODE_TYPES = Object.values(NodeType).filter((v) => typeof v == "number" && v > 0) as NodeType[];
 export const NODE_TYPES_SET = new Set(NODE_TYPES);
@@ -258,10 +258,10 @@ const NODE_NAME_DISCRIMINATORS: Partial<Record<NodeType, string>> = {
 
 /** Generates a node name for our :AutoNaming. */
 export function generateNodeName<T extends NodeType>(metatype: T, siblings: AnyNodeData[], value?: number): string {
-  let key;
+  let key: string | undefined;
   if (metatype != NodeType.FIELD || (value != FieldKind.VARIABLE && value != FieldKind.MEMBER))
     key = NODE_NAME_DISCRIMINATORS[metatype];
-  else key = null;
+  else key = undefined;
   if (key != null) {
     if (value == null) throw new Error(`value is required for discriminator ${key}`);
     const properties = PROPERTY_ENUM_BY_TYPE[metatype as unknown as ObjectType];
@@ -271,7 +271,7 @@ export function generateNodeName<T extends NodeType>(metatype: T, siblings: AnyN
     if (typeof typeName != "string") throw new Error(`unknown type ${value} for ${NodeType[metatype]}.${key}`);
     typeName = toCasing(typeName, Casing.CAMEL);
     const maxId = Math.max(
-      ...siblings.filter((n) => (n as any)[key] == value).map((n) => extractNameId((n as any).name) ?? 0),
+      ...siblings.filter((n) => (n as any)[key!] == value).map((n) => extractNameId((n as any).name) ?? 0),
       0,
     );
     return `${typeName}${maxId + 1}`;

@@ -161,7 +161,7 @@ const USER_MENU_ITEMS = computed(() => {
             <template v-if="bench" #header>
               <div class="flex flex-row px-2.5 pb-2 pt-1.5">
                 <div class="mr-2 w-10 rounded border border-gray-300 bg-primary-300 py-0.5 text-center text-lg">
-                  <IconInline v-if="bench.icon" class="" v-bind="bench.icon" />
+                  <IconInline v-if="bench.icon" class="text-gray-700" v-bind="bench.icon" />
                 </div>
                 <div class="flex flex-col leading-tight">
                   <span class="select-all font-medium">{{ bench?.name ?? "???" }}</span>
@@ -318,7 +318,7 @@ const USER_MENU_ITEMS = computed(() => {
               :class="[isOpen ? 'border-gray-300 bg-gray-100' : 'border-gray-300 bg-white']"
               @click="toggle"
             >
-              <IconInline class="" v-bind="user.icon ?? DEFAULT_USER_ICON" />
+              <IconInline class="text-gray-700" v-bind="user.icon ?? DEFAULT_USER_ICON" />
             </button>
           </template>
           <template v-slot:content="{ close }">
@@ -327,7 +327,7 @@ const USER_MENU_ITEMS = computed(() => {
               <template #header>
                 <div class="flex flex-row px-2.5 pb-2 pt-1.5">
                   <div class="mr-2 rounded border border-gray-700 bg-primary-300 px-2.5 py-0.5 text-xl">
-                    <IconInline class="" v-bind="user.icon ?? DEFAULT_USER_ICON" />
+                    <IconInline class="text-gray-700" v-bind="user.icon ?? DEFAULT_USER_ICON" />
                   </div>
                   <div class="flex flex-col leading-tight">
                     <span class="select-all font-medium">{{ user.name }}</span>

@@ -1,4 +1,4 @@
-import type { ViewComponent } from "@/views/registry";
+import type { ViewComponent } from "@/views/common";
 import {
   unrefElement,
   useEventListener,

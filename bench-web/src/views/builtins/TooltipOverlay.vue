@@ -55,7 +55,7 @@ function positionTooltip(tooltip: TooltipInstance, el: HTMLDivElement) {
         <p v-if="tooltip.info.icon || tooltip.info.title" class="mb-0.5 flex flex-row items-center">
           <IconInline
             v-if="tooltip.info.icon"
-            class="mr-1.5 w-5 text-gray-600"
+            class="mr-1.5 w-5 text-gray-700"
             v-bind="toIconMaybe(tooltip.info.icon)"
           />
           <span v-if="tooltip.info.title" class="truncate font-semibold">
