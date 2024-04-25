@@ -18,7 +18,14 @@ import { enumIndex, graphIndex, typeIndex, useSearch, type EnumOptionItem, type 
 import { canvas, pkgGraph } from "@/system/space";
 import { ScrollbarWidth } from "@/utils/layout";
 import type { OverlayMenuInfoIn } from "@/utils/menu";
-import { makeViewId, ViewContentWrapper, viewEmits, type FocusAnchor, type ViewExposed, type ViewProps } from "@/views/common";
+import {
+  makeViewId,
+  ViewContentWrapper,
+  viewEmits,
+  type FocusAnchor,
+  type ViewExposed,
+  type ViewProps,
+} from "@/views/common";
 import Scroll from "@/views/containers/Scroll.vue";
 import { computed, ref, toRef, watch, type Ref } from "vue";
 
@@ -155,7 +162,7 @@ defineExpose<ViewExposed>({ self, id, variants: [Variant.PRIMARY, Variant.COMPAC
       "
     >
       <template v-if="modelValue != null">
-        <IconInline v-if="modelValueIcon" v-bind="modelValueIcon" class="mr-1.5 w-5" />
+        <IconInline v-if="modelValueIcon" v-bind="modelValueIcon" class="mr-1.5 w-5 text-gray-700" />
         <span class="truncate">{{ modelValueTitle ?? "???" }}</span>
       </template>
       <span v-else class="truncate text-gray-400 group-hover:text-gray-700">{{ facetName ?? "Select" }}</span>
@@ -196,7 +203,7 @@ defineExpose<ViewExposed>({ self, id, variants: [Variant.PRIMARY, Variant.COMPAC
       <div class="flex h-[30px] w-full flex-row items-center border-b border-gray-200 px-3 py-1">
         <IconInline
           v-bind="modelValueIcon ?? icon ?? makeIcon({ faName: 'fas fa-caret-circle-down' })"
-          class="mr-2 w-5"
+          class="mr-2 w-5 text-gray-700"
         />
         <!-- Query -->
         <input
