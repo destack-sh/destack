@@ -51,7 +51,7 @@ const indices = computed(() => {
   if (packagePtr.value != null && hasLocalPkg.value && ["everywhere", "space", "bench", "package"].includes(m))
     indices["Package"] = graphIndex({
       graph: pkgGraph,
-      metatypes: [NodeType.BLOCK],
+      metatypes: [NodeType.BLOCK, NodeType.VIEW, NodeType.BLOCK, NodeType.STEP],
       roots: [pkgGraph.getOrError(packagePtr.value)],
       skipDepth: 1,
       maxDepth: isQueryEmpty.value ? 1 : undefined,
@@ -228,7 +228,7 @@ defineExpose({ isActive, open });
             :style="{ height: PANEL_HEADER_HEIGHT + 'px' }"
           >
             <!-- Icon -->
-            <i class="fas fa-magnifying-glass text-gray-500" />
+            <i class="fas fa-magnifying-glass w-5 text-center text-gray-500" />
             <!-- Mode -->
             <span v-if="mode != 'everywhere'" class="select-none font-semibold">
               {{ toCasing(mode, Casing.CAMEL) }}
@@ -284,7 +284,7 @@ defineExpose({ isActive, open });
                   @click.stop.prevent="() => fire(item.id)"
                 >
                   <!-- Content -->
-                  <IconInline v-bind="item.icon ?? DEFAULT_ACTION_ICON" class="text-gray-700" />
+                  <IconInline v-bind="item.icon ?? DEFAULT_ACTION_ICON" class="w-5 text-gray-700" />
                   <span class="ml-2 truncate">
                     <span v-html="item.titleMarked ?? item.title" />
                     <span class="ml-1.5 text-gray-500">
@@ -305,7 +305,7 @@ defineExpose({ isActive, open });
             </ul>
             <!-- Too many results (truncated) -->
             <div v-if="results.length < resultsTotal" class="my-1 px-5 pb-2 text-gray-500">
-              <i class="fas fas fa-ellipsis" />
+              <i class="fas w-5 text-center fas fa-ellipsis" />
               <span class="ml-2.5">
                 <span class="font-semibold">{{ resultsTotal - results.length }}</span> more results for
                 <span class="font-semibold">{{ query }}</span>
@@ -318,7 +318,7 @@ defineExpose({ isActive, open });
             <div v-else-if="results.length == 0" class="my-1 px-2 py-1">
               <!-- Nothing found -->
               <div v-if="results.length === 0" class="px-2.5 py-1 text-gray-500">
-                <i class="fas fa-empty-set text-gray-600" />
+                <i class="fas w-5 text-center fa-empty-set text-gray-600" />
                 <span class="ml-1">
                   No results
                   <span v-if="query">

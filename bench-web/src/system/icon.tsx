@@ -28,7 +28,7 @@ import type { FunctionalComponent } from "vue";
 //  > fa-icons.json
 import _AVAILABLE_FA_ICONS from "@/assets/fa-icons.json";
 import { IS_DEBUG, isDeveloperMode } from "@/utils/globals";
-import { getColorClass, makeColor } from "@/utils/style";
+import { getColorHex, makeColor } from "@/utils/style";
 
 export type IconMetadata = {
   id: string;
@@ -57,23 +57,23 @@ export const AVAILABLE_ICONS_BY_ID: Record<string, IconMetadata> = Object.fromEn
 
 type IconInlineProps = Pick<IconData, "emoji" | "file" | "faName"> & {
   color?: ColorType | ColorData;
-  fallbackColor?: ColorType;
   shade?: ColorShade;
-  ignoreColor?: boolean;
+  forceColor?: 'inherit' | ColorType;
 };
 export const IconInline: FunctionalComponent<IconInlineProps> = (props) => {
-  let colorClass;
-  if (props.ignoreColor) colorClass = null;
-  else if (props.color != null) colorClass = getColorClass(props.color, props.shade);
-  else colorClass = getColorClass(props.fallbackColor ?? ColorType.GRAY, props.shade);
+  let colorHex;
+  if (props.forceColor == "inherit") colorHex = undefined;
+  else if (props.color != null) colorHex = getColorHex(props.color, props.shade);
+  else if (props.forceColor != null) colorHex = getColorHex(props.forceColor, props.shade);
+  else colorHex = undefined;
   if (props.faName) {
     // font awesome
-    return <i class={`${props.faName} text-center ${colorClass}`} />;
+    return <i class={`${props.faName} text-center`} style={{ color: colorHex }} />;
   } else if (props.emoji) {
-    return <span class={colorClass}>{props.emoji}</span>;
+    return <span style={{ color: colorHex }}>{props.emoji}</span>;
   } else {
-    if (IS_DEBUG || isDeveloperMode.value) return <span class={colorClass}>{JSON.stringify(props)}`</span>;
-    else return <span class={colorClass}>???</span>;
+    if (IS_DEBUG || isDeveloperMode.value) return <span style={{ color: colorHex }}>{JSON.stringify(props)}`</span>;
+    else return <span style={{ color: colorHex }}>???</span>;
   }
 };
 IconInline.props = ["emoji", "file", "faName", "color", "fallbackColor", "shade", "ignoreColor"];

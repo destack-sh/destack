@@ -79,7 +79,7 @@ const absoluteStyle = computed(() => {
         <div class="w-4 text-center">
           <IconInline
             v-bind="toast.icon ?? ICON_BY_LEVEL[toast.level]"
-            :ignore-color="true"
+            force-color="inherit"
             class="mt-0.5"
             :class="[ACCENT_COLOR_BY_LEVEL[toast.level]]"
           />
