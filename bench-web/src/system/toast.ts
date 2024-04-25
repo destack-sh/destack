@@ -11,7 +11,6 @@ export type ToastAnchor = "top-left" | "top-right" | "bottom-left" | "bottom-rig
 export type ToastAction = {
   icon?: IconData;
   title: string;
-  isPrimary?: boolean;
   action: () => void;
 };
 

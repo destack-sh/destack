@@ -355,7 +355,7 @@ defineExpose<ViewExposed>({ self, actions, focus });
           v-bind="getNodeIcon(node)"
           class="mr-1.5 w-5"
           :class="[
-            isFocusedAbsolute(node) ? 'text-primary-900' : 'text-gray-600 group-hover:text-primary-900',
+            isFocusedAbsolute(node) ? 'text-primary-900' : ' group-hover:text-primary-900',
             hasChildren ? '' : 'ml-6',
           ]"
         />

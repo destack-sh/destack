@@ -1,5 +1,5 @@
 <script lang="ts" setup>
-import { NodeType, Variant, ViewType, type ViewData } from "@/proto/wire";
+import { ColorShade, ColorType, NodeType, Variant, ViewType, type ViewData } from "@/proto/wire";
 import type { TypedNodeReferenceData } from "@/proto/wiring";
 import { IconInline } from "@/system/icon";
 import { canvas } from "@/system/space";
@@ -44,7 +44,7 @@ defineExpose<ViewExposed>({
         variant != Variant.STEALTH ? 'border border-gray-200 px-2 py-1' : '',
       ]"
     >
-      <IconInline v-if="icon" v-bind="icon" class="mr-1.5 w-5 text-gray-400" />
+      <IconInline v-if="icon" v-bind="icon" :shade="ColorShade.S400" class="mr-1.5 w-5" />
       <input
         ref="inputRef"
         :type="inputType"

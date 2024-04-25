@@ -1,5 +1,14 @@
 <script lang="ts" setup>
-import { BoxData, NodeType, ObjectType, Orientation, PROPERTY_ENUM_BY_TYPE, ViewData, ViewType } from "@/proto/wire";
+import {
+  BoxData,
+  ColorShade,
+  NodeType,
+  ObjectType,
+  Orientation,
+  PROPERTY_ENUM_BY_TYPE,
+  ViewData,
+  ViewType,
+} from "@/proto/wire";
 import { type TypedNodeReferenceData } from "@/proto/wiring";
 import { useExistingConnection } from "@/system/connection";
 import { ICON_BY_NODE_TYPE, IconInline, getNodeIcon } from "@/system/icon";
@@ -53,7 +62,7 @@ defineExpose<ViewExposed>({ self });
         <!-- Icon -->
         <IconInline
           v-bind="getNodeIcon(node)"
-          class="w-5 rounded border border-transparent p-1 text-gray-700 hover:cursor-pointer hover:bg-primary-100 hover:text-primary-900 data-[menu=true]:border-primary-900 data-[menu=true]:bg-primary-100 data-[menu=true]:text-primary-900"
+          class="w-5 rounded border border-transparent p-1 hover:cursor-pointer hover:bg-primary-100 data-[menu=true]:border-primary-900 data-[menu=true]:bg-primary-100"
           v-menu="
             (): OverlayMenuInfoIn => ({
               component: ViewType.ICON,
@@ -77,7 +86,11 @@ defineExpose<ViewExposed>({ self });
         />
         <!-- Meta & Controls  -->
         <div class="ml-auto flex flex-row items-center pl-1.5">
-          <IconInline v-bind="ICON_BY_NODE_TYPE[node.metatype as unknown as NodeType]" class="mr-1 w-5 text-gray-500" />
+          <IconInline
+            v-bind="ICON_BY_NODE_TYPE[node.metatype as unknown as NodeType]"
+            :shade="ColorShade.S500"
+            class="mr-1 w-5"
+          />
           <span class="text-gray-500">{{ toCamelName(ObjectType, node.metatype) }}</span>
         </div>
       </div>

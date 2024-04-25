@@ -1,8 +1,8 @@
 <script lang="ts" setup>
-import { IconInline } from "@/system/icon";
+import { ICON_BY_LEVEL, IconInline } from "@/system/icon";
 import { toaster, type ToastAnchor } from "@/system/toast";
 import { computed } from "vue";
-import { BG_COLOR_BY_LEVEL, ACCENT_COLOR_BY_LEVEL, DEFAULT_ICON_BY_LEVEL } from "@/utils/style";
+import { BG_COLOR_BY_LEVEL, ACCENT_COLOR_BY_LEVEL } from "@/utils/style";
 
 const props = defineProps<{ anchor: ToastAnchor; box: { left: number; top: number; width: number; height: number } }>();
 // default order is most recent bottom
@@ -66,7 +66,7 @@ const absoluteStyle = computed(() => {
       v-for="toast in visibleToasts"
       :key="toast.id"
       :style="{ width: TOAST_WIDTH + 'px' }"
-      class="group relative rounded border border-gray-300 bg-white px-4 py-3"
+      class="group/toast relative rounded border border-gray-300 bg-white px-4 py-3"
     >
       <!-- Level indicator -->
       <div
@@ -78,7 +78,8 @@ const absoluteStyle = computed(() => {
         <!-- Icon -->
         <div class="w-4 text-center">
           <IconInline
-            v-bind="toast.icon ?? DEFAULT_ICON_BY_LEVEL[toast.level]"
+            v-bind="toast.icon ?? ICON_BY_LEVEL[toast.level]"
+            :ignore-color="true"
             class="mt-0.5"
             :class="[ACCENT_COLOR_BY_LEVEL[toast.level]]"
           />
@@ -95,16 +96,15 @@ const absoluteStyle = computed(() => {
         <button
           v-for="(action, i) in toast.actions"
           :key="i"
-          class="max-w-20 truncate font-medium"
-          :class="[action.isPrimary ? 'text-gray-700 hover:text-primary-900' : 'text-gray-500 hover:text-primary-900']"
+          class="group/action max-w-20 truncate font-medium"
           @click="action.action(), toaster.dismiss(toast)"
         >
           <IconInline v-if="action.icon" v-bind="action.icon" class="mr-1" />
-          <span>{{ action.title }}</span>
+          <span class="text-gray-700 group-hover/action:text-primary-900">{{ action.title }}</span>
         </button>
       </div>
       <!-- Dismiss -->
-      <button class="absolute right-3 top-2.5 text-gray-300 group-hover:text-gray-400" @click="toaster.dismiss(toast)">
+      <button class="absolute right-3 top-2.5 text-gray-300 group-hover/toast:text-gray-400" @click="toaster.dismiss(toast)">
         <i class="fas fa-xmark hover:text-primary-900" />
       </button>
     </li>

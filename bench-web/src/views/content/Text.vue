@@ -104,7 +104,7 @@ function makeEditorView(): EditorView {
           info: {
             component: ViewType.PICKER,
             referenceMargin: 2,
-            offset: { x: 0, y: -10 }, // align query text with line
+            offset: { x: 0, y: -8 }, // align query text with line
             placement: "inside-top-left",
             props: { valueType: makeTypeInfo({ benchType: BenchType.BLOCK }) },
             onApply(node) {

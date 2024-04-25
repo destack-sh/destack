@@ -6,6 +6,7 @@ import {
   BenchType,
   BlockProperty,
   BlockType,
+  ColorType,
   ENUM_BY_TYPE,
   EnumType,
   FieldKind,
@@ -35,11 +36,12 @@ import {
 } from "@/proto/wire";
 import { describeNode, isNode, toNodeReference, type TypedNodeReferenceData } from "@/proto/wiring";
 import { type ReadNodeGraph } from "@/system/graph";
-import { ENUM_ICONS_BY_TYPE } from "@/system/icon";
+import { ENUM_ICONS_BY_TYPE, makeIcon } from "@/system/icon";
 import type { Transaction } from "@/system/transaction";
 import { getViewComponentForValueType, makeTypeInfo, type TypeIdentity } from "@/system/value";
 import { generateOrderKey, generateOrderKeys, isValidOrderKey } from "@/utils/fractional";
 import { Casing, toCasing } from "@/utils/string";
+import { getRandomColorType } from "@/utils/style";
 import type { ViewProps } from "@/views";
 
 export const NODE_TYPES = Object.values(NodeType).filter((v) => typeof v == "number" && v > 0) as NodeType[];
@@ -250,6 +252,7 @@ export function extractNameId(name: string): number | null {
 }
 
 const NODE_NAME_DISCRIMINATORS: Partial<Record<NodeType, string>> = {
+  [NodeType.FIELD]: "kind", // only used for option/input/output
   [NodeType.BLOCK]: "type",
   [NodeType.VIEW]: "type",
   [NodeType.STEP]: "type",
@@ -257,7 +260,9 @@ const NODE_NAME_DISCRIMINATORS: Partial<Record<NodeType, string>> = {
 
 /** Generates a node name for our :AutoNaming. */
 export function generateNodeName<T extends NodeType>(metatype: T, siblings: AnyNodeData[], value?: number): string {
-  const key = NODE_NAME_DISCRIMINATORS[metatype];
+  let key;
+  if (metatype != NodeType.FIELD || (value != FieldKind.VARIABLE && value != FieldKind.MEMBER)) key = NODE_NAME_DISCRIMINATORS[metatype];
+  else key = null; 
   if (key != null) {
     if (value == null) throw new Error(`value is required for discriminator ${key}`);
     const properties = PROPERTY_ENUM_BY_TYPE[metatype as unknown as ObjectType];
@@ -441,12 +446,15 @@ export function createField(
   fieldIn?: Partial<FieldData>,
 ) {
   const target = isNode(targetPtr) ? targetPtr : graph.getOrError(targetPtr);
+
+  // get position within parent
   let parentPtr: NodeReferenceData;
   let orderKey: string;
   let kind: FieldKind;
+  let siblings: FieldData[];
   if (isNode(target, NodeType.BLOCK)) {
     if (anchor != "inside" && anchor != "center") throw new Error(`unexpected anchor for block: ${anchor}`);
-    const siblings = graph.getChildren(target, NodeType.FIELD);
+    siblings = graph.getChildren(target, NodeType.FIELD);
     parentPtr = toNodeReference(target);
     orderKey = getOrderKey({ position: "after", reference: siblings[siblings.length - 1], nodes: siblings });
     // figure out field kind based on block type
@@ -456,13 +464,21 @@ export function createField(
     else kind = FieldKind.VARIABLE;
   } else if (isNode(target, NodeType.FIELD)) {
     if (anchor == "inside" || anchor == "center") throw new Error(`unexpected anchor for field: ${anchor}`);
-    const siblings = graph.getChildren(target.parentPtr!, NodeType.FIELD);
+    siblings = graph.getChildren(target.parentPtr!, NodeType.FIELD);
     parentPtr = target.parentPtr!;
     orderKey = getOrderKey({ position: anchor, reference: target, nodes: siblings });
     kind = target.kind;
   } else {
     throw new Error(`unexpected target node type: ${describeNode(target)}`);
   }
+
+  // assign color if option
+  if (kind == FieldKind.OPTION && !(fieldIn != null && "icon" in fieldIn)) {
+    const occupiedColors = siblings.map((f) => f.icon?.color?.type ?? ColorType.GRAY);
+    const colorType = getRandomColorType({ except: occupiedColors });
+    fieldIn = { ...fieldIn, icon: makeIcon({ faName: "fas fa-circle-small", color: colorType }) };
+  }
+
   const field = tx.create({
     name: makeNodeName(graph, { metatype: ObjectType.FIELD, parentPtr, kind }),
     kind,

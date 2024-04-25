@@ -1089,10 +1089,11 @@ class Struct(abc.ABC):
             self.parent = parent
             self.parent_key = prop_key
             return self
-        if self.parent == parent and self.parent_key == prop_key:  # already the same
+        elif self.parent == parent and self.parent_key == prop_key:  # already the same
             return self
-        copy = self._copy_to(parent, prop)
-        return copy
+        else:
+            copy = self._copy_to(parent, prop)
+            return copy
 
     def _copy_to(self, parent: Union["Node", "Struct", "Value"], prop: Union[Property, "Field"]):
         kwargs = {
@@ -1118,7 +1119,7 @@ class Struct(abc.ABC):
 
     def _init_inner(self):
         for prop in self.__struct_reference_properties__.values():
-            # copy new structs if needed (now that we have an id for sure)
+            # copy new structs if needed (now that we're init & have an id for sure)
             if prop.reference_kind == ReferenceKind.STRUCT_CHILD:
                 existing = getattr(self, prop.name, None)
                 if prop.is_list:

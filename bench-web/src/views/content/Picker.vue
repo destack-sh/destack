@@ -157,7 +157,7 @@ defineExpose<ViewExposed>({ self, id, variants: [Variant.PRIMARY, Variant.COMPAC
       "
     >
       <template v-if="modelValue != null">
-        <IconInline v-if="modelValueIcon" v-bind="modelValueIcon" class="mr-1.5 w-5 text-gray-700" />
+        <IconInline v-if="modelValueIcon" v-bind="modelValueIcon" class="mr-1.5 w-5" />
         <span class="truncate">{{ modelValueTitle ?? "???" }}</span>
       </template>
       <span v-else class="truncate text-gray-400 group-hover:text-gray-700">{{ facetName ?? "Select" }}</span>
@@ -182,7 +182,7 @@ defineExpose<ViewExposed>({ self, id, variants: [Variant.PRIMARY, Variant.COMPAC
         <IconInline
           v-if="variant == Variant.STEALTH && item.icon"
           v-bind="item.icon"
-          class="w-5 text-gray-700 group-hover:text-primary-900"
+          class="w-5 group-hover:text-primary-900"
         />
         <template v-else>{{ item.title }}</template>
       </button>
@@ -198,7 +198,7 @@ defineExpose<ViewExposed>({ self, id, variants: [Variant.PRIMARY, Variant.COMPAC
       <div class="flex h-[30px] w-full flex-row items-center border-b border-gray-200 px-3 py-1">
         <IconInline
           v-bind="modelValueIcon ?? icon ?? makeIcon({ faName: 'fas fa-caret-circle-down' })"
-          class="mr-2 w-5 text-gray-700"
+          class="mr-2 w-5"
         />
         <!-- Query -->
         <input
@@ -233,7 +233,7 @@ defineExpose<ViewExposed>({ self, id, variants: [Variant.PRIMARY, Variant.COMPAC
               @click.prevent="fire(item)"
             >
               <!-- Content -->
-              <IconInline v-if="item.icon" v-bind="item.icon" class="mr-1.5 w-5 flex-shrink-0 text-gray-700" />
+              <IconInline v-if="item.icon" v-bind="item.icon" class="mr-1.5 w-5 flex-shrink-0" />
               <span v-else class="mr-1.5 w-5 flex-shrink-0 text-gray-700" />
               <span class="select-none truncate" v-html="item.titleMarked ?? item.title" />
               <!-- Metadata -->
