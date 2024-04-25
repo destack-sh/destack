@@ -38,7 +38,7 @@ import {
 import { inspectionBasePtr, inspectionPtr } from "@/system/space";
 import type { Transaction } from "@/system/transaction";
 import type { SplitAnchor } from "@/utils/drag";
-import { getElement } from "@/utils/element";
+import { getElement, isFocusableElement } from "@/utils/element";
 import { generateOrderKey } from "@/utils/fractional";
 import { IS_DEBUG, isDeveloperMode } from "@/utils/globals";
 import { DEFAULT_ORIENTATION, splitBox } from "@/utils/layout";
@@ -215,7 +215,15 @@ export class ViewCanvas {
     // respond to 'unmanaged' input from browser
     // active element
     watch(activeElement, () => {
-      if (activeElement.value != null && activeElement.value !== document.body && !isOutsideView(activeElement.value)) {
+      if (
+        activeElement.value != null &&
+        activeElement.value !== document.body &&
+        // NOTE: Chrome pretends that scrollable containers are focusable element, so ignore those.
+        //  (Otherwise we would get confused because activeElement change comes after mousedown event,
+        //   and if the mousedown'ed target was the next higher container will trigger later, changing focus)
+        isFocusableElement(activeElement.value) &&
+        !isOutsideView(activeElement.value)
+      ) {
         this.onComponentFocused(activeElement.value);
       }
     });

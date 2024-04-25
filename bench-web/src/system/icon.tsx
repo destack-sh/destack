@@ -59,12 +59,14 @@ type IconInlineProps = Pick<IconData, "emoji" | "file" | "faName"> & {
   color?: ColorType | ColorData;
   shade?: ColorShade;
   forceColor?: 'inherit' | ColorType;
+  fallbackColor?: ColorType;
 };
 export const IconInline: FunctionalComponent<IconInlineProps> = (props) => {
   let colorHex;
   if (props.forceColor == "inherit") colorHex = undefined;
   else if (props.color != null) colorHex = getColorHex(props.color, props.shade);
   else if (props.forceColor != null) colorHex = getColorHex(props.forceColor, props.shade);
+  else if (props.fallbackColor != null) colorHex = getColorHex(props.fallbackColor, props.shade);
   else colorHex = undefined;
   if (props.faName) {
     // font awesome

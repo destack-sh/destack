@@ -124,8 +124,8 @@ const activeDropZoneSide = computed(() => {
 
 // actions
 const getFieldFromContext = (ctx: ActionContext | undefined): { field: FieldData | null } => {
-  let field = fields.value.find((f) => f.id == ctx?.triggerNode?.id) ?? null;
-  // nocheckin: Class.getFieldFromContext from focused?
+  const field = fields.value.find((f) => f.id == ctx?.triggerNode?.id) ?? null;
+  // TODO :Incomplete: Type fallback to focused/inspection/...? like in other actions?
   return { field };
 };
 const actions: Partial<ActionMapImplementation<"common">> = {
@@ -158,6 +158,8 @@ defineExpose<ViewExposed>({ self, id, actions });
 </script>
 <template>
   <div class="flex flex-row gap-x-3" :class="[fields.length > 0 ? 'py-1' : '']">
+    <!-- nocheckin: Type zone empty state -->
+    <!-- nocheckin: also Text/Code empty states? -->
     <!-- 'Side' zone -->
     <template v-for="side in isFunction ? ['left', 'right'] : ['left']" :key="side">
       <!-- Arrow -->

@@ -22,6 +22,10 @@ export function blurDocument() {
   if (document.activeElement instanceof HTMLElement) document.activeElement.blur();
 }
 
+export function isFocusableElement(el: MaybeElement): el is HTMLElement {
+  return el instanceof HTMLElement && el.tabIndex >= 0;
+}
+
 /** Gets the underlying HTML/SVG element of an HTML/SVG/Vue thing */
 export function getElement(el: MaybeElement | ViewComponent): HTMLElement | SVGElement | null {
   if (el instanceof HTMLElement || el instanceof SVGElement) return el;
