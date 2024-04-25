@@ -366,7 +366,7 @@ defineExpose<ViewExposed>({ self, actions, focus });
               :ref="
                 (ref: any) => (ref ? (expandedBlockRefs[blockPtr.id!] = ref) : delete expandedBlockRefs[blockPtr.id!])
               "
-              class="w-full rounded border"
+              class="w-full rounded border data-[dragging=true]:opacity-50"
               :node-ptr="blockPtr"
               :prepared-connection="preparedPkgConnection"
               v-contextmenu="
