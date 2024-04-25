@@ -38,6 +38,7 @@ export type DraggedData =
     };
 export type Dragged = {
   id: string;
+  trigger: HTMLElement;
 } & DraggedData;
 
 // NOTE: we render the drag image globally in Space
@@ -58,11 +59,13 @@ export function startDragging(
   graph: ReadNodeGraph,
   data: AnyNodeData | AnyNodeReferenceData | SelectionData | DraggedData,
 ) {
+  const trigger = event.target as HTMLElement;
   let dragged: Dragged;
   if ("metatype" in data) {
     if (data.metatype == ObjectType.NODE_REFERENCE) {
       dragged = {
         id: uuidt(),
+        trigger,
         kind: "node",
         node: data as NodeReferenceData,
         nodes: [graph.getOrError(data as NodeReferenceData)],
@@ -70,6 +73,7 @@ export function startDragging(
     } else if (data.metatype == ObjectType.SELECTION) {
       dragged = {
         id: uuidt(),
+        trigger,
         kind: "selection",
         selection: data as SelectionData,
         nodes: (data as SelectionData).nodesPtr.map((n) => graph.getOrError(n)),
@@ -77,24 +81,34 @@ export function startDragging(
     } else {
       dragged = {
         id: uuidt(),
+        trigger,
         kind: "node",
         node: toNodeReference(data as AnyNodeData),
         nodes: [data as AnyNodeData],
       };
     }
   } /* DraggedData */ else {
-    dragged = { id: uuidt(), ...data };
+    dragged = { id: uuidt(), trigger, ...data };
   }
 
   const dt = event.dataTransfer;
   if (!dt) throw new Error(`no dataTransfer on event: ${event}`);
-  dt.setData("application/symbolx.bench." + dragged.id, JSON.stringify({ ...dragged, nodes: [] }));
+  dt.setData("application/symbolx.bench." + dragged.id, JSON.stringify({ ...dragged, trigger: null, nodes: [] }));
   dt.setDragImage(dragImageRef.value!, -10, 0);
 
+  trigger.dataset.dragging = "true";
   if (activeDragged.value != null) log.warn("drag.alreadyExists", activeDragged);
   activeDragged.value = dragged;
   log.trace("drag.start", dragged);
 }
+
+const resetDragging = () => {
+  if (activeDragged.value != null) {
+    delete activeDragged.value.trigger.dataset.dragging;
+  }
+  activeDragged.value = null;
+  activeDropZone.value = null;
+};
 
 /** Gets the current dragged thing. Must match 'activeDragged'. */
 function getDraggedData(event: DragEvent): DraggedData | null {
@@ -195,11 +209,6 @@ function updateDropZone(event: DragEvent) {
   }
 }
 
-const resetDrag = () => {
-  activeDragged.value = null;
-  activeDropZone.value = null;
-};
-
 useEventListener("dragenter", updateDropZone);
 useEventListener("dragover", updateDropZone);
 useEventListener("drop", (event) => {
@@ -210,9 +219,9 @@ useEventListener("drop", (event) => {
     log.debug("drag.drop", dragged, zone);
     zone.onDrop?.(dragged, event);
   }
-  resetDrag();
+  resetDragging();
 });
-useEventListener("dragend", resetDrag);
+useEventListener("dragend", resetDragging);
 
 /**
  * Track certain drop events in a target region.
