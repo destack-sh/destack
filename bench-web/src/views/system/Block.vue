@@ -219,7 +219,8 @@ defineExpose<ViewExposed>({ self, id, variants: [Variant.PRIMARY, Variant.STEALT
       <!-- ... -->
     </div>
     <!-- Body -->
-    <div class="flex flex-col gap-y-1">
+    <div class="flex flex-col gap-y-1 py-1">
+      <!-- TODO :UX: Text/Code empty states? -->
       <Type
         v-if="TYPE_BLOCK_TYPES.includes(block.type) || RUNNABLE_BLOCK_TYPES.includes(block.type)"
         :node="block"
@@ -232,22 +233,14 @@ defineExpose<ViewExposed>({ self, id, variants: [Variant.PRIMARY, Variant.STEALT
         is-input
         :variant="Variant.STEALTH"
         :model-value="block.text"
-        @update:modelValue="
-          (newText) => {
-            pkgConnection.tx.update(block!, { text: newText });
-          }
-        "
+        @update:modelValue="(newText) => pkgConnection.tx.updateDebounced(block!, { text: newText })"
       />
       <Code
         v-if="block.type == BlockType.CODE"
         is-input
         :variant="Variant.STEALTH"
         :model-value="block.code"
-        @update:modelValue="
-          (newCode) => {
-            pkgConnection.tx.update(block!, { code: newCode });
-          }
-        "
+        @update:modelValue="(newCode) => pkgConnection.tx.updateDebounced(block!, { code: newCode })"
       />
     </div>
   </div>

@@ -1,12 +1,12 @@
 <script lang="ts" setup>
 import { BlockType, FieldKind, NodeType, Orientation, Variant, ViewData, type FieldData } from "@/proto/wire";
-import { describeNode, isNode, toNodeReference, type TypedNodeReferenceData } from "@/proto/wiring";
+import { isNode, toNodeReference, type TypedNodeReferenceData } from "@/proto/wiring";
 import type { ActionContext, ActionMapImplementation } from "@/system/action";
 import { useGetConnection, type PreparedGetConnection } from "@/system/connection";
 import { moveNode } from "@/system/graph";
 import { RUNNABLE_BLOCK_TYPES, createField, toCamelName } from "@/system/lang";
 import { canvas } from "@/system/space";
-import { startDragging, useMultiDropZone, type Dragged, type DraggedData, type MultiAnchor } from "@/utils/drag";
+import { startDragging, useMultiDropZone, type DraggedData, type MultiAnchor } from "@/utils/drag";
 import { menuActionsLike, type OverlayMenuInfo } from "@/utils/menu";
 import { makeViewId, viewEmits, type ViewExposed } from "@/views/common";
 import Field from "@/views/system/Field.vue";
@@ -35,6 +35,9 @@ const { graph: pkgGraph, connection: pkgConnection } =
   );
 const block = pkgGraph.getRef(nodePtr, { ignoreAncestors: props.self == null });
 const isFunction = computed(() => block.value != null && RUNNABLE_BLOCK_TYPES.includes(block.value.type));
+const shouldHaveFields = computed(
+  () => block.value != null && block.value.type != BlockType.TEXT && block.value.type != BlockType.CODE,
+);
 const fields = pkgGraph.getChildrenRef(block, NodeType.FIELD);
 const leftKind = computed(() => {
   if (block.value?.type == BlockType.CLASS) {
@@ -128,15 +131,9 @@ const getFieldFromContext = (ctx: ActionContext | undefined): { field: FieldData
   // TODO :Incomplete: Type fallback to focused/inspection/...? like in other actions?
   return { field };
 };
+// TODO :Incomplete: Type.actions (move, navigate, ...)
 const actions: Partial<ActionMapImplementation<"common">> = {
   // common
-  "common.edit.delete": {
-    action: (action, ctx) => {
-      const { field } = getFieldFromContext(ctx);
-      if (field == null) return false;
-      pkgConnection.tx.softDelete(field);
-    },
-  },
   "common.create.above": {
     action: (action, ctx) => {
       const { field } = getFieldFromContext(ctx);
@@ -151,37 +148,57 @@ const actions: Partial<ActionMapImplementation<"common">> = {
       createField(pkgConnection.tx, pkgGraph, "after", field);
     },
   },
+  "common.edit.delete": {
+    action: (action, ctx) => {
+      const { field } = getFieldFromContext(ctx);
+      if (field == null) return false;
+      pkgConnection.tx.softDelete(field);
+    },
+  },
 };
 
 canvas.registerView(self, id);
 defineExpose<ViewExposed>({ self, id, actions });
 </script>
 <template>
-  <div class="flex flex-row gap-x-3" :class="[fields.length > 0 ? 'py-1' : '']">
-    <!-- nocheckin: Type zone empty state -->
-    <!-- nocheckin: also Text/Code empty states? -->
+  <div class="flex flex-row gap-x-3">
     <!-- 'Side' zone -->
-    <template v-for="side in isFunction ? ['left', 'right'] : ['left']" :key="side">
+    <template
+      v-for="{ side, sideFields, sideFieldRefs } in isFunction
+        ? [
+            { side: 'left', sideFields: leftFields, sideFieldRefs: leftFieldRefs },
+            { side: 'right', sideFields: rightFields, sideFieldRefs: rightFieldRefs },
+          ]
+        : [{ side: 'left', sideFields: leftFields, sideFieldRefs: leftFieldRefs }]"
+      :key="side"
+    >
       <!-- Arrow -->
-      <div v-if="side == 'right' && fields.length > 0" class="flex flex-col items-center justify-center">
-        <i class="fas fa-arrow-right-long text-xl text-gray-700" />
+      <div
+        v-if="side == 'right' && fields.length > 0"
+        class="flex flex-shrink-0 flex-col items-center justify-center px-2"
+      >
+        <i class="fas fa-arrow-right-long text-lg text-gray-700" />
       </div>
       <!-- Fields in zone -->
       <ul
         :ref="(ref: any) => (side == 'left' ? (leftRef = ref) : (rightRef = ref))"
-        class="relative flex flex-1 flex-col gap-y-1"
-        :class="[activeDropZoneSide == side ? 'rounded outline-dotted outline-2 outline-primary-900' : '']"
+        class="relative flex flex-1 flex-col gap-y-1 rounded"
+        :class="[
+          activeDropZoneSide == side ? 'outline-dotted outline-2 outline-primary-900' : '',
+          sideFields.length == 0 && shouldHaveFields ? 'min-h-7 justify-center' : '',
+        ]"
       >
+        <!-- Empty state -->
+        <div v-if="sideFields.length == 0 && shouldHaveFields" class="flex flex-row items-center px-1">
+          <i class="fas fa-empty-set mr-1.5 text-gray-400" />
+          <span class="text-gray-500">No {{ toCamelName(FieldKind, side == "left" ? leftKind : rightKind) }}s</span>
+        </div>
         <!-- Drop indicator -->
-        <div v-if="activeDropZoneSide == side" class="absolute right-1 top-1 text-gray-400">
+        <div v-else-if="activeDropZoneSide == side" class="absolute right-1 top-1 text-gray-400">
           {{ toCamelName(FieldKind, side == "left" ? leftKind : rightKind) }}
         </div>
         <!-- Field wrapper -->
-        <li
-          v-for="(field, i) in side == 'left' ? leftFields : rightFields"
-          :key="field.id"
-          class="relative w-fit max-w-[200px]"
-        >
+        <li v-for="(field, i) in sideFields" :key="field.id" class="relative w-fit max-w-[200px]">
           <!-- Drop indicator -->
           <div
             v-if="activeDropZone?.targetId == field.id"
@@ -190,15 +207,9 @@ defineExpose<ViewExposed>({ self, id, actions });
           />
           <!-- Field -->
           <Field
-            :ref="
-              (ref: any) => {
-                const refs = side == 'left' ? leftFieldRefs : rightFieldRefs;
-                if (ref == null) delete refs[field.id];
-                else refs[field.id] = ref;
-              }
-            "
+            :ref="(ref: any) => (ref != null ? (sideFieldRefs[field.id] = ref) : delete sideFieldRefs[field.id])"
             role="listitem"
-            class="data-[dragging=true]:opacity-50"
+            class="max-w-[200px] truncate data-[dragging=true]:opacity-50"
             :prepared-connection="preparedConnection"
             :node-ptr="toNodeReference(field)"
             :draggable="true"

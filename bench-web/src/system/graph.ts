@@ -998,23 +998,30 @@ export function resolveNode(graph: ReadNodeGraph, node: AnyNodeData | AnyNodeRef
     : (node as AnyNodeData);
 }
 
-/** Moves the given node around the target. If the node has an 'orderKey' we respect the anchor. */
+/**
+ * Moves the given node around.
+ * Except for 'up'/'down' requires a target as reference.
+ * If the node has an 'orderKey' we try to respect the anchor.
+ **/
 export function moveNode(
   tx: Transaction,
   graph: ReadNodeGraph,
   node: AnyNodeData | AnyNodeReferenceData,
-  anchor: "start" | "center" | "end" | "before" | "after",
-  target: AnyNodeData | AnyNodeReferenceData,
+  anchor: "start" | "center" | "end" | "before" | "after" | "up" | "down",
+  target?: AnyNodeData | AnyNodeReferenceData,
 ) {
   node = resolveNode(graph, node);
-  target = resolveNode(graph, target);
+  target = target != null ? resolveNode(graph, target) : undefined;
   if (node?.id == target?.id)
     return; // no-op
-  else if (isDescendantOf(graph, target, node))
+  else if (target != null && isDescendantOf(graph, target, node))
     throw new Error(`move ${describeNode(node)} to ${anchor} ${describeNode(target)} would be circular`);
 
-  if (anchor == "start" || anchor == "end" || anchor == "before" || anchor == "after") {
+  if (anchor == "up" || anchor == "down") {
+    throw new Error(`not yet implemented`);
+  } else if (anchor == "start" || anchor == "end" || anchor == "before" || anchor == "after") {
     // move before target (in its parent's children = target siblings)
+    if (target == null) throw new Error(`target required to move node ${anchor} ${describeNode(node)}`);
     const targetParent = graph.getOrError(target.parentPtr!);
     if ("orderKey" in node && "orderKey" in target) {
       updateOrder({
@@ -1028,6 +1035,7 @@ export function moveNode(
     tx.move({ ...node, parentPtr: target.parentPtr });
   } else if (anchor == "center") {
     // move to end of target's children of that type
+    if (target == null) throw new Error(`target required to move node ${anchor} ${describeNode(node)}`);
     if ("orderKey" in node) {
       updateOrder({
         tx,
@@ -1120,4 +1128,3 @@ export function walkDescendantsRef<T extends NodeType>(walk: {
 export function isDescendantOf(graph: ReadNodeGraph, child: NodeKey<any>, parent: NodeKey<any>): boolean {
   return graph.getAncestors(child, { includeSelf: true }).some((ancestor) => ancestor.id == parent.id);
 }
-

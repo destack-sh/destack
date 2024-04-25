@@ -62,7 +62,7 @@ defineExpose<ViewExposed>({ self });
         <!-- Icon -->
         <IconInline
           v-bind="getNodeIcon(node)"
-          class="w-5 rounded border border-transparent p-1 hover:cursor-pointer hover:bg-primary-100 data-[menu=true]:border-primary-900 data-[menu=true]:bg-primary-100"
+          class="w-5 rounded border border-transparent p-1 text-gray-700 hover:cursor-pointer hover:bg-primary-100 data-[menu=true]:border-primary-900 data-[menu=true]:bg-primary-100"
           v-menu="
             (): OverlayMenuInfoIn => ({
               component: ViewType.ICON,
