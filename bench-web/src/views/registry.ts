@@ -63,6 +63,10 @@ export async function registerViewComponents() {
   didRegisterComponents = true;
 }
 
+export function hasViewComponent(viewType: ViewType): boolean {
+  return COMPONENT_BY_VIEW_TYPE[viewType] != null;
+}
+
 export function getViewComponent<T extends ViewType>(viewType: T): (typeof COMPONENT_BY_VIEW_TYPE)[T] | null {
   if (!didRegisterComponents) throw new Error("Components not registered");
   if (typeof viewType != "number") throw new Error(`invalid view type: ${viewType} (${typeof viewType})`);

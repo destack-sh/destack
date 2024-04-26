@@ -16,7 +16,7 @@ import { getInspectionLayout, getNodeSubtype, toCamelName } from "@/system/lang"
 import { canvas, inspectionPtr } from "@/system/space";
 import { ScrollbarWidth } from "@/utils/layout";
 import type { PopoverInfoIn } from "@/utils/menu";
-import { getViewComponent } from "@/views/registry";
+import { getViewComponent, hasViewComponent } from "@/views/registry";
 import { viewEmits, type ViewExposed } from "@/views/common";
 import Scroll from "@/views/containers/Scroll.vue";
 import { computed, toRef } from "vue";
@@ -134,7 +134,7 @@ defineExpose<ViewExposed>({ self });
             </span>
             <!-- Value -->
             <component
-              v-if="viewType != null && getViewComponent(viewType)"
+              v-if="viewType != null && hasViewComponent(viewType)"
               :is="getViewComponent(viewType)"
               class="ml-auto flex-shrink-0"
               :style="{ width: isFullWidth ? '100%' : 'calc(90% - 100px)' }"

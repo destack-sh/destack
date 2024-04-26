@@ -1014,7 +1014,7 @@ def _pack_struct_data_prop(prop: Property, value: Any, ignore_array: bool) -> An
     elif prop.primitive_type == PrimitiveType.UUID:
         return to_uuid(value)
     elif prop.primitive_type == PrimitiveType.JSON:
-        return Jsonb(wiring.unpack_json_value(value))
+        return Jsonb(wiring.unpack_json_struct(value))
     else:
         return value
 
@@ -1038,7 +1038,7 @@ def _unpack_struct_data_prop(prop: Property, value: Any, ignore_array: bool) -> 
     elif prop.primitive_type == PrimitiveType.UUID:
         return str(value)
     elif prop.primitive_type == PrimitiveType.JSON:
-        return wiring.pack_json_value(value)
+        return wiring.pack_json_struct(value)
     else:
         return value
 

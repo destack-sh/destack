@@ -1,6 +1,7 @@
 <script lang="ts" setup>
 import {
   BenchType,
+  ColorShade,
   NodeReferenceData,
   NodeType,
   TextData,
@@ -30,6 +31,7 @@ import { dropCursor } from "prosemirror-dropcursor";
 import { computed, nextTick, onBeforeUnmount, ref, toRef, watch } from "vue";
 import { getElement } from "@/utils/element";
 import { makeTypeInfo } from "@/system/value";
+import { getColorHex } from "@/utils/style";
 
 const MENTION_TRIGGER_CHAR = "@";
 
@@ -163,6 +165,8 @@ class MentionView implements PmNodeView {
   updateNode(node: AnyNodeData) {
     const icon = getNodeIcon(node);
     this.iconDom.className = icon?.faName != null ? `icon ${icon.faName}` : "icon fa fa-question";
+    if (icon.color != null) this.iconDom.style.color = getColorHex(icon.color, ColorShade.S600)!;
+    else this.iconDom.style.removeProperty("color");
     this.nameDom.textContent = (node as any).name ?? "???";
   }
 }
