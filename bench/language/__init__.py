@@ -1,93 +1,173 @@
-from .blob import Blob
+from ..sql.core import PrimitiveType
+from .access import (
+    Access,
+    AccessError,
+    Badge,
+    Identity,
+    Policy,
+    PolicyRule,
+    ReadOptions,
+    Request,
+    Role,
+    Subject,
+)
+from .bench import Bench, Branch, Dependency, Environment, Package, Upgrade
+from .block import Block
+from .code_ import Code, CodeLine
 from .const import (
+    VERSION,
+    AccessType,
+    BenchError,
+    BlockType,
     ConditionalOp,
-    IssueType,
-    QueryEngine,
+    FormatHint,
+    PolicyEffect,
     ScheduleType,
-    SessionAccessLevel,
     SortMode,
     SortOp,
-    StatementType,
+    StoreEngineType,
+    StoreKind,
     TriggerType,
-    TypeFlag,
-    TypeHint,
-    TypeTag,
-    ViewLayout,
 )
-from .database import HasDatabase, Record
-from .edit import render, render_as_python
-from .expression import A, C, E, Expression, S
-from .field import Field, HasFields, HasType, ResolvedField, Type, TypeStorageFormat
-from .file import File
-from .issue import BenchError, Issue
-from .module import Module, Node, Property, ScopeNode, Struct, complete_setup
+from .database import Record
+from .expression import (
+    A,
+    Aggregation,
+    C,
+    Expression,
+    NodeReference,
+    PropertyReference,
+    S,
+    ValueReference,
+)
+from .field import Field, TypeInfo
+from .file import File, Icon
+from .flow import Step, StepType
+from .graph import ValueList
+from .node import Link, Node, Struct
+from .notice import Notice, NoticeError, NoticeType
+from .path import Path
 from .projection import NodeVisitor
-from .run import HasRun, Run, RunError
-from .secret import Secret
-from .session import LogEntry, PermissionError, Session
-from .statement import Statement
-from .tagging import HasTags, Tagging
-from .text import HasText
-from .trigger import HasTriggers, Trigger
-from .value import HasValue
-from .view import View
+from .property import Property
+from .query import Query
+from .render import render
+from .resource import (
+    Cache,
+    Drive,
+    FileContent,
+    Region,
+    Resource,
+    ResourceStatus,
+    Server,
+    ServerProfile,
+    Store,
+    Tenancy,
+)
+from .session import Log, Run, Session, Signal, Transaction
+from .setup import _complete_bench_setup
+from .text import Text, TextSpan
+from .trigger import Trigger
+from .user import Client, Handle, Organization, User
+from .validation import ValidationError
+from .value import Context, Value
+from .view import Color, ColorShade, ColorType, Space, View, ViewType
 
-# NOTE! *All* these imports are auto-imported as prelude in user code.
+# NOTE! *ALL* these imports are auto-imported as prelude in user code.
 __all__ = [
     "A",
+    "Access",
+    "AccessError",
+    "AccessType",
+    "Aggregation",
+    "Badge",
+    "Bench",
     "BenchError",
-    "Blob",
+    "Path",
+    "Block",
+    "BlockType",
+    "Branch",
     "C",
+    "Cache",
+    "Client",
+    "Code",
+    "CodeLine",
+    "Color",
+    "ColorType",
+    "ColorShade",
     "ConditionalOp",
-    "E",
+    "Context",
+    "Dependency",
+    "Drive",
+    "Environment",
     "Expression",
     "Field",
     "File",
-    "HasDatabase",
-    "HasFields",
-    "HasRun",
-    "HasTags",
-    "HasText",
-    "HasTriggers",
-    "HasType",
-    "HasValue",
-    "Issue",
-    "IssueType",
-    "LogEntry",
-    "Module",
+    "FileContent",
+    "FormatHint",
+    "Handle",
+    "Icon",
+    "Identity",
+    "Link",
+    "Log",
     "Node",
+    "Node",
+    "NodeReference",
     "NodeVisitor",
-    "PermissionError",
+    "Notice",
+    "NoticeError",
+    "NoticeType",
+    "Organization",
+    "Package",
+    "Package",
+    "Policy",
+    "PolicyEffect",
+    "PolicyRule",
+    "PrimitiveType",
     "Property",
-    "QueryEngine",
+    "PropertyReference",
+    "Query",
+    "ReadOptions",
     "Record",
+    "Region",
+    "Resource",
+    "ResourceStatus",
     "render",
-    "render_as_python",
-    "ResolvedField",
+    "Request",
+    "Role",
     "Run",
-    "RunError",
     "S",
     "ScheduleType",
-    "ScopeNode",
-    "Secret",
+    "Server",
+    "ServerProfile",
     "Session",
-    "SessionAccessLevel",
+    "Signal",
     "SortMode",
     "SortOp",
-    "Statement",
-    "StatementType",
+    "Space",
+    "Step",
+    "StepType",
+    "Store",
+    "StoreEngineType",
+    "StoreKind",
     "Struct",
-    "Tagging",
+    "Subject",
+    "Tenancy",
+    "Text",
+    "TextSpan",
+    "Transaction",
     "Trigger",
     "TriggerType",
-    "Type",
-    "TypeFlag",
-    "TypeHint",
-    "TypeStorageFormat",
-    "TypeTag",
+    "TypeInfo",
+    "Upgrade",
+    "User",
+    "ValidationError",
+    "Value",
+    "ValueList",
+    "ValueReference",
+    "VERSION",
     "View",
-    "ViewLayout",
+    "ViewType",
 ]
 
 # after all the imports, we can finalize
-complete_setup()
+_complete_bench_setup()

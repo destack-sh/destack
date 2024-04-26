@@ -97,7 +97,7 @@ const GLOBAL_PG_VARS = [
     },
   },
   { name: "GLOBAL_PG_PORT", value: globalDbInstance.port.apply((port) => port.toString()) },
-  { name: "PGCRYPTO_KEY", value: config.requireSecret("PGCRYPTO_KEY") },
+  { name: "GLOBAL_PG_CRYPTO_KEY", value: config.requireSecret("globalPgCryptoKey") },
 ];
 const { dbInstance: userDbInstance } = makeRds("user-db", "db.t3.medium", {
   password: config.requireSecret("userDbPassword"),
@@ -123,24 +123,24 @@ const USER_PG_VARS = [
 ];
 
 // Search: OpenSearch cluster (shared between global and user for now)
-const { osDomain: sharedOsDomain } = makeOpensearch("shared-os", 1, "t3.medium.search", {
-  password: config.requireSecret("sharedOsPassword"),
+const { osDomain: userOsDomain } = makeOpensearch("user-os", 1, "t3.medium.search", {
+  password: config.requireSecret("userOsPassword"),
   vpc: eksVpc,
   region: config.require("awsRegion"),
 });
-const sharedOsSecret = secretFrom("shared-os", config.requireSecret("sharedOsPassword"), {
+const userOsSecret = secretFrom("user-os", config.requireSecret("userOsPassword"), {
   key: "password",
   provider: eksCluster.provider,
 });
-const GLOBAL_OS_VARS = [
-  { name: "GLOBAL_OS_HOST", value: sharedOsDomain.endpoint },
-  { name: "GLOBAL_OS_PORT", value: "443" },
-  { name: "GLOBAL_OS_USERNAME", value: "opensearch" },
+const USER_OS_VARS = [
+  { name: "USER_OS_HOST", value: userOsDomain.endpoint },
+  { name: "USER_OS_PORT", value: "443" },
+  { name: "USER_OS_USERNAME", value: "opensearch" },
   {
-    name: "GLOBAL_OS_PASSWORD",
+    name: "USER_OS_PASSWORD",
     valueFrom: {
       secretKeyRef: {
-        name: sharedOsSecret.metadata.name,
+        name: userOsSecret.metadata.name,
         key: "password",
       },
     },
@@ -190,7 +190,7 @@ const redisRestrictedPassword = new random.RandomPassword("redisRestrictedPasswo
 });
 const redisWorkerUser = new aws.elasticache.User("redisRestrictedUser", {
   engine: "REDIS",
-  // TODO @Security!: don't give worker user full Redis access
+  // TODO :Security!: don't give worker user full Redis access
   accessString: "on ~* -@all +get +set +ping +incrby +expire +multi +exec",
   userId: "worker",
   userName: "worker",
@@ -217,26 +217,6 @@ const redisReplicationGroup = new aws.elasticache.ReplicationGroup("redis", {
 });
 const REDIS_ROOT_URL = pulumi.interpolate`rediss://${redisRootUser.userName}:${redisRootPassword.result}@${redisReplicationGroup.primaryEndpointAddress}:${redisReplicationGroup.port}`;
 const REDIS_WORKER_URL = pulumi.interpolate`rediss://${redisWorkerUser.userName}:${redisRestrictedPassword.result}@${redisReplicationGroup.primaryEndpointAddress}:${redisReplicationGroup.port}`;
-
-// NATS (HELM)
-const nats = new k8s.helm.v3.Release("nats", {
-  namespace: "default",
-  chart: "nats",
-  version: "0.19.12",
-  repositoryOpts: {
-    repo: "https://nats-io.github.io/k8s/helm/charts/",
-  },
-  values: {
-    // disable natbox
-    natsbox: {
-      enabled: false,
-    },
-    limits: {
-      // 256MB max message size
-      maxPayload: 256 * 1024 * 1024,
-    },
-  },
-});
 
 // IAM access to manage bench-user S3 buckets
 const s3AccessKey = getBenchUserS3AccessKey();
@@ -278,11 +258,11 @@ const AWS_BACKEND_VARS = [
 // general backend env vars
 const PUBLIC_BACKEND_VARS = [
   {
-    name: "ENVIRONMENT",
-    value: config.require("env"),
+    name: "JSON_LOGS",
+    value: "1",
   },
   {
-    name: "LOCAL_ENV", // should probably merge this with ENVIRONMENT
+    name: "ENVIRONMENT",
     value: config.require("env"),
   },
   {
@@ -292,10 +272,6 @@ const PUBLIC_BACKEND_VARS = [
   {
     name: "SENTRY_DSN",
     value: config.requireSecret("SENTRY_DSN"),
-  },
-  {
-    name: "NATS_SERVER",
-    value: nats.name.apply((name) => `nats://${name}:4222`),
   },
 ];
 
@@ -310,21 +286,6 @@ const PRIVATE_BACKEND_VARS = [
   value: config.requireSecret(name),
 }));
 
-// public load-balanced API service (also runs internal server)
-const apiName = "api";
-const apiService = new k8s.core.v1.Service(
-  apiName,
-  {
-    spec: {
-      type: "NodePort",
-      ports: [{ port: 80, name: "http" }],
-      selector: { app: apiName },
-    },
-  },
-  { provider: eksCluster.provider, protect: true }
-);
-// internal server service
-const serverName = "server";
 
 const version = config.require("version");
 // if version is 'current', get the current commit hash
@@ -376,16 +337,6 @@ const serverClusterRoleBinding = new k8s.rbac.v1.ClusterRoleBinding("server-depl
   },
 });
 
-const SOCIAL_AUTH_VARS = [
-  "SOCIAL_AUTH_GITHUB_KEY",
-  "SOCIAL_AUTH_GITHUB_SECRET",
-  "SOCIAL_AUTH_GOOGLE_OAUTH2_KEY",
-  "SOCIAL_AUTH_GOOGLE_OAUTH2_SECRET",
-].map((name) => ({
-  name,
-  value: config.requireSecret(name),
-}));
-
 const BASE_PRIVATE_BACKEND_VARS = [
   { name: "LOOPS_API_KEY", value: config.requireSecret("LOOPS_API_KEY") },
   { name: "LOOPS_USER_TRANSACTIONAL_ID", value: config.require("LOOPS_USER_TRANSACTIONAL_ID") },
@@ -409,44 +360,35 @@ const KUBERNETES_VARS = [
   { name: "KUBERNETES_WORKER_IMAGE_PULL_SECRET_NAME", value: imagePullSecret.metadata.name },
 ];
 
-// deployment for API service (ASGI Django with Daphne)
-const apiDeployment = new k8s.apps.v1.Deployment(
-  apiName,
+// get envoy.yaml from this folder and put into configmap
+// (also replace :EnvoyLocalhost with actual localhost)
+const envoyConfigString = fs.readFileSync("envoy.yaml", "utf8")
+const envoyConfig = yaml.load(envoyConfigString.replace('host.docker.internal', 'localhost'));
+const envoyConfigMap = new k8s.core.v1.ConfigMap(
+  "envoy-config",
   {
-    metadata: { namespace: "default", labels: { app: apiName } },
-    spec: {
-      replicas: 1,
-      selector: { matchLabels: { app: apiName } },
-      template: {
-        metadata: { labels: { app: apiName }, annotations: { "prometheus.io/scrape": "true" } },
-        spec: {
-          containers: [
-            {
-              name: apiName,
-              image: `ghcr.io/symbolx/bench-api:${imageVersion}`,
-              ports: [{ containerPort: 80, name: "http" }],
-              env: [
-                ...PUBLIC_BACKEND_VARS,
-                ...GLOBAL_PG_VARS,
-                ...USER_PG_VARS,
-                ...GLOBAL_OS_VARS,
-                ...AWS_BACKEND_VARS,
-                ...BASE_PRIVATE_BACKEND_VARS,
-                ...SOCIAL_AUTH_VARS,
-              ],
-              command: ["sh", "-c"],
-              args: ["daphne -b 0.0.0.0 -p 80 bench.asgi:application"],
-              resources: { requests: { cpu: "500m", memory: "1000Mi" } },
-            },
-          ],
-          imagePullSecrets: [{ name: imagePullSecret.metadata.name }],
-        },
-      },
-    },
+    metadata: { namespace: "default" },
+    data: { "envoy.yaml": yaml.dump(envoyConfig) },
   },
   { provider: eksCluster.provider }
 );
-// master server for language and orchestration
+
+// master server (unsharded / 1 instance for now)
+const serverName = "server";
+const serverService = new k8s.core.v1.Service(
+  serverName,
+  {
+    spec: {
+      type: "NodePort",
+      ports: [
+        { port: 80, name: "http" },
+        { port: 8080, name: "grpc-web" },
+      ],
+      selector: { app: serverName },
+    },
+  },
+  { provider: eksCluster.provider, protect: true }
+);
 const serverDeployment = new k8s.apps.v1.Deployment(
   serverName,
   {
@@ -457,41 +399,58 @@ const serverDeployment = new k8s.apps.v1.Deployment(
       template: {
         metadata: { labels: { app: serverName }, annotations: { "prometheus.io/scrape": "true" } },
         spec: {
-          // auto-migrate
           initContainers: [
+            // auto-migrate
             {
               name: serverName + "-migrate",
-              image: `ghcr.io/symbolx/bench-api:${imageVersion}`,
+              image: `ghcr.io/symbolx/bench-system:${imageVersion}`,
               env: [
                 ...PUBLIC_BACKEND_VARS,
                 ...GLOBAL_PG_VARS,
                 ...USER_PG_VARS,
-                ...GLOBAL_OS_VARS,
+                ...USER_OS_VARS,
                 ...AWS_BACKEND_VARS,
                 ...BASE_PRIVATE_BACKEND_VARS,
-                { name: "SEND_API_PUB_MSG", value: "" },
               ],
               command: ["/bin/sh", "-c"],
-              args: ["python manage.py migrate && python manage.py s3 create && python manage.py libs upsert all"],
+              // TODO :Robustness!: probably don't want to migrate the local Bench DB's all at once
+              args: ["python bench.py sql migrate && python bench.py sql migrate --bench '*'"],
             },
           ],
           containers: [
+            // envoy sidecar to proxy http -> grpc
+            {
+              name: "envoy",
+              image: "envoyproxy/envoy:v1.28-latest",
+              ports: [{ containerPort: 8080, name: "grpc-web" }],
+              volumeMounts: [
+                {
+                  name: "envoy-config",
+                  mountPath: "/etc/envoy",
+                  readOnly: true,
+                },
+              ],
+            },
+            // main server
             {
               name: serverName,
-              image: `ghcr.io/symbolx/bench-api:${imageVersion}`,
-              ports: [{ containerPort: 80, name: "http" }],
+              image: `ghcr.io/symbolx/bench-system:${imageVersion}`,
+              ports: [
+                { containerPort: 80, name: "http" },
+                { containerPort: 50051, name: "grpc" },
+              ],
               env: [
                 ...PUBLIC_BACKEND_VARS,
                 ...GLOBAL_PG_VARS,
                 ...USER_PG_VARS,
-                ...GLOBAL_OS_VARS,
+                ...USER_OS_VARS,
                 ...PRIVATE_BACKEND_VARS,
                 ...AWS_BACKEND_VARS,
                 ...BASE_PRIVATE_BACKEND_VARS,
                 ...KUBERNETES_VARS,
               ],
               command: ["python", "manageserver.py", "all"],
-              resources: { requests: { cpu: "1000m", memory: "2000Mi" } },
+              resources: { requests: { cpu: "2000m", memory: "2000Mi" } },
               readinessProbe: {
                 httpGet: { path: "/ready", port: 80 },
                 initialDelaySeconds: 15,
@@ -504,6 +463,12 @@ const serverDeployment = new k8s.apps.v1.Deployment(
               },
             },
           ],
+          volumes: [
+            {
+              name: "envoy-config",
+              configMap: { name: envoyConfigMap.metadata.name },
+            },
+          ],
           imagePullSecrets: [{ name: imagePullSecret.metadata.name }],
           serviceAccountName: serverServiceAccount.metadata.name,
         },
@@ -513,12 +478,12 @@ const serverDeployment = new k8s.apps.v1.Deployment(
   { provider: eksCluster.provider }
 );
 
-// Expose API service via HTTPS ingress
-const apiDomain = "api.bench.is";
+// Expose server via HTTPS ingress
+const serverDomain = "server.justbench.com";
 // TODO @Infra: manage AWS certificate via aws.acm.Certificate
 // (without causing issues with current certificate)
-const apiIngress = new k8s.networking.v1.Ingress(
-  apiName,
+const serverIngress = new k8s.networking.v1.Ingress(
+  serverName,
   {
     metadata: {
       annotations: {
@@ -526,16 +491,20 @@ const apiIngress = new k8s.networking.v1.Ingress(
         "alb.ingress.kubernetes.io/ssl-redirect": "443",
         "alb.ingress.kubernetes.io/listen-ports": '[{"HTTP": 80}, {"HTTPS":443}]',
         "alb.ingress.kubernetes.io/scheme": "internet-facing",
+        "alb.ingress.kubernetes.io/target-type": "ip",
+        // stickiness for our grpc-web connections
+        "alb.ingress.kubernetes.io/target-group-attributes":
+          "stickiness.enabled=true,stickiness.type=lb_cookie,stickiness.lb_cookie.duration_seconds=86400",
         // ALB doesn't support cert-manager certs, so we need to provision that cert ACM
         "certificate-arn": "arn:aws:acm:eu-central-1:163349077661:certificate/8271c03a-0830-4c02-81af-b5add9429291",
       },
       namespace: "default",
     },
     spec: {
-      tls: [{ hosts: [apiDomain], secretName: "api-cert" }],
+      tls: [{ hosts: [serverDomain], secretName: "server-cert" }],
       rules: [
         {
-          host: apiDomain,
+          host: serverDomain,
           http: {
             paths: [
               {
@@ -543,8 +512,8 @@ const apiIngress = new k8s.networking.v1.Ingress(
                 pathType: "Prefix",
                 backend: {
                   service: {
-                    name: apiService.metadata.name,
-                    port: { number: 80 },
+                    name: serverService.metadata.name,
+                    port: { number: 8080 },
                   },
                 },
               },
@@ -564,7 +533,7 @@ const monitoringNamespace = new k8s.core.v1.Namespace(
   { metadata: { name: "monitoring" } },
   { provider: eksCluster.provider }
 );
-// TODO @Infra @Broken: setting up monitoring with the proper service account fails
+// TODO @Infra :Broken: setting up monitoring with the proper service account fails
 //  which means that kubernetes metrics aren't properly reported
 //  It fails because both we and the chart try to create the service account secret
 //  (even though the chart shouldn't, we disable its service account to give it our own...)

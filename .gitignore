@@ -297,6 +297,7 @@ dist
 
 # VSCode configuration
 .vscode/*
+*.code-workspace
 
 *.gpg
 

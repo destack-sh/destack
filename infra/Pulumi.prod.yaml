@@ -1,7 +1,5 @@
 config:
   aws:region: "eu-central-1"
-  bench:ANTHROPIC_API_KEY:
-    secure: AAABAHyFILHkCEywro2kS7igSsknM+6GFPZ19UFUzGJtdTkO5pja1sGWJdTSo72bbH+Y/xy2wXFGECZ4BJWhuOq+l+i3N5FWPzlCMaZcCAO40aS2tqHTJttfro6EXyef1GXO9CLPjPLG9kFa5ZOns2/XQ0DLNAgthw==
   bench:BETTERSTACK_SECRET:
     secure: AAABAMcwUhrDe9/PMrDDQk9hpHE5QnHFfGG4gdUBTjnOTB+eIKH0syhoPvnBh0In4KlQ2yF4Syc=
   bench:BROWSERLESS_API_KEY:
@@ -15,18 +13,8 @@ config:
   bench:LOOPS_USER_TRANSACTIONAL_ID: cloo304uv01ebjq0olzfb0dfu
   bench:OPENAI_API_KEY:
     secure: AAABAPNZUmkJnMERio8jl0beB7jZJktjMP7yxPSKZNNDygwnkIS2hcc1h/oXFZK/oHgduMzD0Hs8HBkkIgo9DUzqtJOUONv/qb0rXhw8Bxk22Vo=
-  bench:PGCRYPTO_KEY:
-    secure: AAABAA5ya4PoohGOi99WG2nM6k3alA8qx+VaX0Dk8yXlySBciYnCDFBe2ecx6akOW40yw2sPYvFoStp2AqhydDNWOt8cyxN9/eAseA==
   bench:SENTRY_DSN:
     secure: AAABAPr2x2HnBVeoBCFpS2AkZa0HJWnfRHlhML3Reyo8uFnxClxpMNm+fN7xPPUE5o6zFGUgvlErBK/uWPQmjDkwO9tg0tufG56kQa7LFGrFzgp4aTzBHDjCGd6/Xqk9w1rdavoRLltEwYIOdLGeAb6siuqplZPsq+Chuw==
-  bench:SOCIAL_AUTH_GITHUB_KEY:
-    secure: AAABACXZG9EKm0rUANDB1f4shLDl0hVPwERJ2/GVbXxYZSys5UYxe2fa0NEdQlKJ24Dvzg==
-  bench:SOCIAL_AUTH_GITHUB_SECRET:
-    secure: AAABALTUE4BI2csX0KoX7N9hyIbuogh6cXCW4PHNzV2UW/d7Np5x/KnYHrLnras8eAPjm+6NsFUVNT5H8xYlw5rZt46eSTU7
-  bench:SOCIAL_AUTH_GOOGLE_OAUTH2_KEY:
-    secure: AAABAKGJYWYdzK1qSL0JL7dmzsmR55HcceQTZCTm/mtwHJj7bmPxfF1GI+06wXsY7uSISumEejggQqGZv71HrniCm/rMHRLm4/Lola1UsAHdcRrt9OIF+QNvDjLo5+FGQJzic2STT70=
-  bench:SOCIAL_AUTH_GOOGLE_OAUTH2_SECRET:
-    secure: AAABAFDcESm6OkHD9XtpeEsTK7tNRSrIb5zQfb9zIuB83lLcu0vZ7dg+R5RNo5RWud1dwLaGccaBs9UtgTy8PzvKiw==
   bench:apiAllowedHosts: "*"
   bench:apiAllowedOrigins: https://api.bench.is,https://bench.is
   bench:awsRegion: eu-central-1
@@ -35,9 +23,11 @@ config:
   bench:eksNodeInstanceType: t3.medium
   bench:env: prod
   bench:ghcrToken:
-    secure: AAABAEEyRBP91rRUbjQJZ/l3IjF6qVVIPMXxk8yMov7HkCt5ziuHbjqnoFF4OY8HpI9aG6TXmG+bu5NjKViUoeIko4oFM98d5wIWezpMpDGKf8vDZiwBRcl9PeV4RMgvbRD5PQ1Qpok=
+    secure: AAABALGMux0Wk4ggZ2qJYUIIrzyg4g4PE/ljT2MASwztFN9XiMDF+IGA8Cz2Mb6MgueuPV+2Yk8f08T9ALKUBXIhjDSqn0dg
   bench:globalDbPassword:
     secure: AAABAPAK6vinbym9SIGWu6dSO53w7Xk4SnlxxaH7ESjTr8Av9i0vjzk3YzdexRa3epM+hivMoYR0++6IwhM6KnVrCWO/9clEROm1ejQXlz3wTx1DHOk5psxWZ5Wj+Us=
+  bench:globalPgCryptoKey:
+    secure: AAABAKGMJv773Z9IbH1YDlUy+58OxlhKb1h6md0TJDbCE60De9uu5TNH5Hf9mgxR6nQ5j78Wima/Fb4pcKR/DaGKs7llKS8stem/
   bench:maxClusterSize: "4"
   bench:minClusterSize: "2"
   bench:sharedOsPassword:

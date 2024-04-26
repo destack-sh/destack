@@ -1,33 +1,26 @@
-from __future__ import annotations
-
 import asyncio
+import enum
 import functools
-import random
-import secrets
-import string
+import types
+import typing
 from asyncio import CancelledError
 from collections import OrderedDict
 from itertools import filterfalse, tee
-import types
-import typing
-from typing import (
-    Any,
-    Collection,
-    Coroutine,
-    Iterable,
-    Mapping,
-    TypeVar,
-)
+from sys import intern
+from typing import Any, Collection, Coroutine, Iterable, Mapping, TypeVar
 from uuid import UUID
 
 import structlog
+from asgiref.sync import async_to_sync
+from bitarray import bitarray
+from cachetools import cached
+from more_itertools import first
 
 from bench.utils.utils import sentry_capture
 
 logger = structlog.get_logger(__name__)
 
 T = TypeVar("T")
-
 K = TypeVar("K")
 V = TypeVar("V")
 
@@ -39,6 +32,33 @@ def try_to_uuid(id: UUID | str) -> UUID | str:
         return UUID(id)
     except (ValueError, TypeError):
         return id
+
+
+@cached(cache={})
+def to_uuid(id: str | UUID | None) -> UUID | None:
+    if not id:
+        return None  # ignore empty strings
+    elif isinstance(id, str):
+        try:
+            return UUID(id)
+        except ValueError as e:
+            raise ValueError(f"invalid UUID: {id!r} ({type(id)})") from e
+    elif isinstance(id, UUID):
+        return id
+    else:
+        raise TypeError(f"unexpected id type: {id!r}")
+
+
+@cached(cache={})
+def uuid_to_str(id: UUID | str | None) -> str | None:
+    if not id:
+        return None  # ignore empty strings
+    elif isinstance(id, str):
+        return id
+    elif isinstance(id, UUID):
+        return intern(str(id))
+    else:
+        raise TypeError(f"unexpected id type: {id!r}")
 
 
 def get_first(obj: dict, keys: Iterable[str]):
@@ -60,9 +80,17 @@ def next_or_none(iterator: Iterable[Any]) -> Any | None:
         return None
 
 
-def partition(pred, iterable) -> tuple[list[Any], list[Any]]:
+def partition(pred, iterable) -> tuple[tuple[Any, ...], tuple[Any, ...]]:
     t1, t2 = tee(iterable)
-    return list(filterfalse(pred, t1)), list(filter(pred, t2))
+    return tuple(filterfalse(pred, t1)), tuple(filter(pred, t2))
+
+
+def group_by(iterable: Collection[V], key: typing.Callable[[V], K]) -> dict[K, list[V]]:
+    """Groups an iterable by a key function"""
+    result = {}
+    for item in iterable:
+        result.setdefault(key(item), []).append(item)
+    return result
 
 
 def try_tuple(obj: T) -> tuple[T, ...] | None:
@@ -118,6 +146,32 @@ async def wait_then(delay: float, coro_or_func: Coroutine | callable, *args, **k
         coro_or_func(*args, **kwargs)
 
 
+def _auto_async_to_sync(func: typing.Callable[..., T]) -> typing.Callable[..., T]:
+    """Automatically convert async functions to sync if not called in async context."""
+
+    def decorate(func):
+        # check that the func is async
+        if not asyncio.iscoroutinefunction(func):
+            raise TypeError(f"{func} is not a coroutine function")
+
+        @functools.wraps(func)
+        def wrapped(*args, **kwargs):
+            # are we in an async context?
+            try:
+                asyncio.get_running_loop()
+                is_in_loop = True
+            except RuntimeError:
+                is_in_loop = False
+            if is_in_loop:
+                return func(*args, **kwargs)
+            else:
+                return async_to_sync(func)(*args, **kwargs)
+
+        return wrapped
+
+    return decorate(func)
+
+
 def call_later(delay: float, coro_or_func: Coroutine | callable, *args, **kwargs) -> None:
     """
     Call the given coroutine or function with the given arguments after a delay.
@@ -143,34 +197,51 @@ def describe_type(obj: Any) -> str:
         return type(obj).__name__
 
 
-TypeInfo = typing.NamedTuple(
-    "TypeInfo", [("is_optional", bool), ("is_arrayable", bool), ("is_array", bool)]
+TypeAnnotation = typing.NamedTuple(
+    "TypeAnnotation",
+    [("type", type), ("is_union", bool), ("is_optional", bool), ("is_list", bool)],
 )
 
 
-def strip_py_type(py_type: type) -> tuple[type, TypeInfo]:
+def _resolve_py_type(py_type: type | str | typing.ForwardRef, type_map: dict[str, type]) -> type:
+    """Resolves the py type if it's a forward ref"""
+    if isinstance(py_type, str):
+        return type_map[py_type]
+    elif isinstance(py_type, typing.ForwardRef):
+        return type_map[py_type.__forward_arg__]
+    else:
+        return py_type
+
+
+def parse_py_annotation(
+    py_type: type | str | typing.ForwardRef, type_map: dict[str, type]
+) -> TypeAnnotation:
+    """Parses the type information from a given py type. Uses type map to resolve forward refs."""
+    is_union = False
     is_optional = False
-    is_arrayable = False
-    is_array = False
+    is_list = False
+    if not isinstance(py_type, type):
+        py_type = _resolve_py_type(py_type, type_map)
     # strip optional
     if typing.get_origin(py_type) in (typing.Union, types.UnionType):
-        args = typing.get_args(py_type)
-        if len(args) == 2 and args[1] == type(None):  # noqa: E721
-            py_type = args[0]
-            is_optional = True
-        # convert x | list[x] as isarrayable
-        elif len(args) == 2 and typing.get_origin(args[1]) is list:
-            if args[0] != typing.get_args(args[1])[0]:
-                raise ValueError(f"cannot map generic union types: {py_type}")
-            py_type = args[0]
-            is_arrayable = True
+        union_types = typing.get_args(py_type)
+        # it's a true union if there's a non-None type
+        actual_types = tuple(t for t in union_types if t is not type(None))
+        is_union = len(actual_types) > 1
+        is_optional = len(actual_types) < len(union_types)
+        # reconstitute type annotation
+        if is_union:
+            actual_types = tuple(_resolve_py_type(t, type_map) for t in actual_types)
+            py_type = typing.Union[actual_types]
         else:
-            raise ValueError(f"cannot map generic union types: {py_type}")
+            py_type = actual_types[0]
+            py_type = _resolve_py_type(py_type, type_map)
     # strip list
-    if typing.get_origin(py_type) is list:
+    if typing.get_origin(py_type) in (list, tuple):
         py_type = typing.get_args(py_type)[0]
-        is_array = True
-    return py_type, TypeInfo(is_optional, is_arrayable, is_array)
+        py_type = _resolve_py_type(py_type, type_map)
+        is_list = True
+    return TypeAnnotation(py_type, is_union, is_optional, is_list)
 
 
 def levenshtein_distance(s1: str, s2: str) -> int:
@@ -228,6 +299,14 @@ def did_you_mean_str(candidates: dict[str, Any], needle: str, repr: bool = False
     return f"Nothing similar in {len(candidates)} candidates."
 
 
+def assert_collections_equal(a: Collection[T], b: Collection[T]):
+    a = set(a)
+    b = set(b)
+    difference = a.symmetric_difference(b)
+    if difference:
+        raise ValueError(f"collections are not equal: {difference}")
+
+
 def cyrb53a(s: str, seed: int = 0) -> int:
     """
     53-bit cyrb53a hash.
@@ -249,35 +328,132 @@ def cyrb53a(s: str, seed: int = 0) -> int:
     return ((h2 & ((1 << 32) - 1)) << 21) + (h1 >> 11)
 
 
-def generate_random_name(length: int = 32, lowercase: bool = False) -> str:
-    """Random alphanumeric name starting with alphabetic character."""
-    if lowercase:
-        pool = string.ascii_lowercase + string.digits
-    else:
-        pool = string.ascii_letters + string.digits
-    name = random.choice(string.ascii_lowercase)
-    name += "".join(random.choice(pool) for _ in range(length - 1))
-    return name
-
-
-generate_random_lowercase_name = functools.partial(generate_random_name, lowercase=True)
-
-
-def generate_secret_password(length: int = 48) -> str:
-    """URL-safe secret password."""
-    password = secrets.token_urlsafe(length - 4)[: length - 4]
-    # ensure at least one lowercase, uppercase, digit, special character
-    password += random.choice(string.ascii_lowercase)
-    password += random.choice(string.ascii_uppercase)
-    password += random.choice(string.digits)
-    password += random.choice("!@#$%^&*()_+-=")
-    return password
-
-
 def get_subclasses(cls, seen=None):
-    seen = seen or set()
+    """Gets all subclasses of a class recursively."""
+    seen = seen if seen is not None else set()
     seen.add(cls)
+    yield cls
     for subclass in cls.__subclasses__():
         if subclass not in seen:
             yield from get_subclasses(subclass, seen=seen)
-            yield subclass
+
+
+_MIN_ID_BY_ENUM: dict[type, int] = {}
+_MAX_ID_BY_ENUM: dict[type, int] = {}
+
+
+class IdEnum(enum.IntEnum):
+    def __new__(cls, id: int):
+        obj = int.__new__(cls, id)
+        obj._value_ = id
+        obj.ord = len(cls)
+        obj.id = id
+
+        # check id
+        assert id > 0, f"invalid id {id}"
+        existing = first((v for v in cls if v.id == id), None)
+        assert existing is None, f"{cls} has duplicate id {id} for {id} and {existing}"
+
+        return obj
+
+    @functools.cached_property
+    def bench_name(self):
+        from bench.utils.casing import Casing, to_casing
+
+        return to_casing(self.name, Casing.CAMEL)
+
+    @classmethod
+    def get_min_id(cls) -> int:
+        """Get the minimum id."""
+        if cls not in _MIN_ID_BY_ENUM:
+            _MIN_ID_BY_ENUM[cls] = min(v.id for v in cls)
+        return _MIN_ID_BY_ENUM[cls]
+
+    @classmethod
+    def get_max_id(cls) -> int:
+        """Get the maximum id."""
+        if cls not in _MAX_ID_BY_ENUM:
+            _MAX_ID_BY_ENUM[cls] = max(v.id for v in cls)
+        return _MAX_ID_BY_ENUM[cls]
+
+    @classmethod
+    def get_min_ord(cls) -> int:
+        """Get the minimum ord."""
+        return 0
+
+    @classmethod
+    def get_max_ord(cls) -> int:
+        """Get the maximum ord."""
+        return len(cls)
+
+    def to(self, combined_type: type["IdEnum"]) -> "IdEnum":
+        return combined_type(self.id)
+
+    @staticmethod
+    def combine(name: str, *enums: type["IdEnum"]) -> type["IdEnum"]:
+        combined = IdEnum(name, {t.name: t.id for e in enums for t in e})
+        return typing.cast(type["IdEnum"], combined)
+
+
+EnumT = TypeVar("EnumT", bound=IdEnum)
+
+
+# noinspection PyPep8Naming
+class bytetuple(typing.Generic[EnumT]):
+    """
+    Tuple with a bitarray for fast membership check.
+    We accept only IdEnum instances because we use its ordinals for a compact bitarray.
+    """
+
+    def __init__(self, *items, enum_cls: type[EnumT] = None):
+        if len(items) == 1 and isinstance(items[0], Collection):
+            items = tuple(items[0])
+        self.tuple = items
+        if enum_cls is None:
+            assert len(items) > 0, "enum_cls or args is required"
+            enum_cls = items[0].__class__
+        assert issubclass(enum_cls, IdEnum), f"invalid enum_cls: {enum_cls} ({items})"
+        self.enum_cls = enum_cls
+        self.bits = bitarray(enum_cls.get_max_ord() + 1)
+        for arg in items:
+            self.bits[arg.ord] = True
+
+    def __bool__(self):
+        return bool(self.tuple)
+
+    def __contains__(self, item: EnumT):
+        assert isinstance(item, self.enum_cls), f"want {self.enum_cls}, got {item!r} ({type(item)})"
+        return self.bits[item.ord]
+
+    def __and__(self, other: "bytetuple"):
+        assert isinstance(other, bytetuple), f"invalid type: {type(other)}"
+        assert (
+            self.enum_cls == other.enum_cls
+        ), f"invalid enum_cls: {self.enum_cls} != {other.enum_cls}"
+        combined = self.bits & other.bits
+        items = tuple(self.enum_cls(v) for v in range(len(combined)) if combined[v])
+        return bytetuple(*items)
+
+    def __or__(self, other: "bytetuple"):
+        assert isinstance(other, bytetuple), f"invalid type: {type(other)}"
+        assert (
+            self.enum_cls == other.enum_cls
+        ), f"invalid enum_cls: {self.enum_cls} != {other.enum_cls}"
+        combined = self.bits | other.bits
+        items = tuple(self.enum_cls(v) for v in range(len(combined)) if combined[v])
+        return bytetuple(*items)
+
+    def __iter__(self):
+        return iter(self.tuple)
+
+    def __len__(self):
+        return len(self.tuple)
+
+    def __getitem__(self, index):
+        return self.tuple[index]
+
+    def __repr__(self):
+        return f"{self.__class__.__name__}({self.tuple})"
+
+    def __str__(self):
+        return f"{self.__class__.__name__}({self.tuple})"

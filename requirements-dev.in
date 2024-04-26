@@ -1,22 +1,21 @@
 # Run ./scripts/update-requirements.sh to update downstream requirements
 
--c requirements.txt
+-c requirements.in
 
 black==23.7.0
-betterproto[compiler]==2.0.0-beta6
-django-stubs==4.2.3
-djangorestframework-stubs==3.14.2
+betterproto[compiler] @ git+https://github.com/danielgtaylor/python-betterproto.git@5666393f9d10e13609d8eeac8d1ab3815dce5fd6
 flake8-import-order==0.18.1
 flake8==6.1.0
 isort==5.12.0
-mypy==1.5.1
+matplotlib==3.8.2
+networkx==3.2.1
 pip-tools==7.3.0
 pre-commit==3.3.3
-pytest-django==4.5.2
+py-spy==0.3.14
+pyright==1.1.344
+pytest-asyncio==0.23.3
 pytest-xdist==3.0.2
 pytest==7.4.0
-pyright==1.1.322
 ruff==0.0.284
-types-dj-database-url==1.0.0
-types-psycopg2==2.9.21.2
 types-Pygments==2.13.1.1
+watchdog==3.0.0

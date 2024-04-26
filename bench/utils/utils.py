@@ -1,19 +1,10 @@
-import enum
 import inspect
 import os
-import re
-import sys
 import textwrap
 import typing
-from dataclasses import field
-from typing import TYPE_CHECKING, Any, Callable, Generator, Optional
+from typing import Any, Callable, Optional
 
-import cachetools
 import sentry_sdk
-
-
-class UnreachableError(Exception):
-    pass
 
 
 def str_to_bool(value: str) -> bool:
@@ -55,18 +46,6 @@ def get_list(text: str) -> list[str]:
     return [item.strip() for item in text.split(",")]
 
 
-def required_field(**kwargs):
-    """Hacky way to make a field required when subclassing a dataclass with defaults."""
-
-    _field = None
-
-    def _raise_must_set():
-        raise ValueError(f"field '{_field.name}' must be set")
-
-    _field = field(default_factory=_raise_must_set, **kwargs, metadata={"required": True})
-    return _field
-
-
 def get_method_source(method) -> str:
     cleaned_lines = []
     found_def = False
@@ -81,123 +60,11 @@ def get_method_source(method) -> str:
     return textwrap.dedent("".join(cleaned_lines))
 
 
-# :IdentifierStrings
-
-
-class IdentifierType(enum.StrEnum):
-    METHOD = "method"
-    TYPE = "type"
-    CONSTANT = "constant"
-    PATH = "path"
-    VARIABLE = "variable"
-    FIELD = "field"
-
-
-IdentT = IdentifierType
-
-
-@cachetools.cached(cache={})
-def to_pyidentifier(name: str, type: IdentifierType) -> str:
-    """Turns a string into a valid Python identifier."""
-    if type in (
-        IdentifierType.METHOD,
-        IdentifierType.VARIABLE,
-        IdentifierType.FIELD,
-        IdentifierType.PATH,
-    ):
-        # snake_case, turn non-alphanumeric characters into underscores
-        name = re.sub(r"[^a-zA-Z0-9_]", "_", name)
-        name = _strip_alpha_num(name)
-        return name.lower()
-    elif type in (IdentifierType.TYPE,):
-        # if it's already a mix of uppercase and lowercase starting with uppercase, leave it alone
-        if re.match(r"^[A-Z][a-z0-9]+([A-Z]+[a-z0-9]+)+", name):
-            return name
-        # CamelCase, ignore non-alphanumeric characters and capitalize the next character
-        name = re.sub(r"[^a-zA-Z0-9]", " ", name)
-        # split on existing uppercase characters and spaces
-        name = " ".join(re.split(r"(?<=[a-z])(?=[A-Z0-9])", name))
-        return _strip_alpha_num(name).title().replace(" ", "")
-    elif type in (IdentifierType.CONSTANT,):
-        # ALL_CAPS, ignore non-alphanumeric characters and capitalize the next character
-        name = re.sub(r"[^a-zA-Z0-9]", " ", name)
-        # split on existing uppercase characters and spaces
-        name = " ".join(re.split(r"(?<=[a-z])(?=[A-Z0-9])", name))
-        return _strip_alpha_num(name).upper().replace(" ", "_")
-    else:
-        raise ValueError(f"unexpected identifier type: {type}")
-
-
-def to_all_caps(name: str) -> str:
-    # transform somethingNice into SOMETHING_NICE
-    # if it's already all caps, leave it alone
-    # ignore non-alphanumeric characters and capitalize the next character
-    name = re.sub(r"[^a-zA-Z0-9]", " ", name)
-    # split on existing uppercase characters and spaces
-    name = " ".join(re.split(r"(?<=[a-z])(?=[A-Z0-9])", name))
-    name = _strip_alpha_num(name).upper().replace(" ", "_")
-    return name
-
-
-def _strip_alpha_num(name: str) -> str:
-    # remove leading underscores
-    name = re.sub(r"^_+", "", name)
-    # remove trailing underscores
-    name = re.sub(r"_+$", "", name)
-    # remove double underscores
-    name = re.sub(r"__+", "_", name)
-    # remove leading digits
-    name = re.sub(r"^[0-9]+", "", name)
-    return name
-
-
-def to_pyidentifier_multi(*parts: str, type: IdentifierType) -> str:
-    return ".".join(to_pyidentifier(part, type) for part in parts)
-
-
-@cachetools.cached(cache={})
-def to_camel_case(snake_str: str) -> str:
-    components = snake_str.split("_")
-    return components[0] + "".join(x.capitalize() if x else "_" for x in components[1:])
-
-
-def from_camel_case(camel_str: str) -> str:
-    """From camel case to snake case."""
-    components = re.split(r"(?<=[a-z])(?=[A-Z0-9])", camel_str)
-    return "_".join(components).lower()
-
-
-TO_KEBAB_CASE_RE = re.compile("((?<=[a-z0-9])[A-Z]|(?!^)[A-Z](?=[a-z]))")
-
-
-def to_kebab_case(name: str) -> str:
-    return TO_KEBAB_CASE_RE.sub(r"-\1", name).lower()
-
-
-def capitalize_first(name: str) -> str:
-    return name[0].upper() + name[1:]
-
-
 def sentry_capture(e: Exception) -> bool:
     sentry_enabled = sentry_sdk.Hub.current is not None
     if sentry_enabled:
         sentry_sdk.capture_exception(e)
     return sentry_enabled
-
-
-class DotList(list):
-    """
-    Access a list of dictionaries as a list of DotDicts.
-    Attribute and item access (with string) are column slices.
-    """
-
-    def __getitem__(self, item):
-        if isinstance(item, str):
-            return [row[item] for row in self]
-        return super().__getitem__(item)
-
-    def __getattr__(self, name):
-        return [row[name] for row in self]
 
 
 def omit_empty(obj):
@@ -213,32 +80,6 @@ def omit_empty(obj):
 T = typing.TypeVar("T")
 
 
-def flatten(*lists: list[T] | tuple[T]) -> list[T] | tuple[T]:
-    """Flatten a list, generator, element or mixed list of those."""
-    # try to unwrap inner directly
-    if len(lists) == 1:
-        if isinstance(lists[0], (list, tuple)):
-            if len(lists[0]) == 1:
-                if isinstance(lists[0][0], (list, tuple)):
-                    return lists[0][0]
-                elif isinstance(lists[0][0], Generator):
-                    return tuple(lists[0][0])
-            return lists[0]
-        elif isinstance(lists[0], Generator):
-            return tuple(lists[0])
-
-    # flatten out element by element
-    flattened: list[T] = []
-    for item in lists:
-        if isinstance(item, (list, tuple)):
-            flattened.extend(item)
-        elif isinstance(item, Generator):
-            flattened.extend(list(item))
-        else:
-            flattened.append(item)
-    return flattened
-
-
 class frozendict(dict):
     def __setitem__(self, key, value):
         raise TypeError("FrozenDict does not support item assignment")
@@ -251,10 +92,6 @@ def freeze_dict(d: dict):
     return frozendict(d)
 
 
-def identity(a: Any) -> Any:
-    return a
-
-
 def format_python(code: str):
     try:
         import black
@@ -264,15 +101,3 @@ def format_python(code: str):
         raise RuntimeError("black is required to format code") from None
     except Exception as e:
         raise ValueError(f"got bad code:\n{code}") from e
-
-
-ENVIRONMENT = os.environ.get("ENVIRONMENT", "local")
-DEBUG: bool = get_from_env("DEBUG", False, type_cast=str_to_bool)
-TEST: bool = (
-    "test" in sys.argv
-    or "pytest" in sys.argv[0]
-    or get_from_env("TEST", False, type_cast=str_to_bool)
-)
-LOCAL = os.environ.get("LOCAL_ENV", "local") == "local"
-IS_WORKER = "worker" in sys.argv[0]
-SOME_TYPE_CHECKING = TYPE_CHECKING or "mypy" in sys.argv[0] or TEST

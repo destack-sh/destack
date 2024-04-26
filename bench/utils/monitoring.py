@@ -2,8 +2,12 @@ import abc
 import asyncio
 import os
 import sys
+from pathlib import Path
 
+import structlog
 import uvicorn
+
+logger = structlog.get_logger(__name__)
 
 
 class Monitored(abc.ABC):
@@ -14,11 +18,6 @@ class Monitored(abc.ABC):
     @property
     def healthy(self) -> bool:
         return self.ready
-
-    async def launch_monitoring_server(self, host: str, port: int, daemon: bool = True) -> None:
-        """Launches a monitoring server for this monitored thing."""
-        server = MonitoringServer([self])
-        await server.launch(host, port, daemon=daemon)
 
 
 class MonitoringServer:
@@ -78,17 +77,20 @@ async def restart_on_file_changes(on_restart: callable = None):
 
     class Handler(FileSystemEventHandler):
         def on_any_event(self, event):
-            if event.is_directory:
+            if event.is_directory or ".tmp" in event.src_path:
                 return
             if event.src_path.endswith(".py"):
-                print(f"{event.src_path} changed, reloading...")
+                logger.debug("watcher.reload", path=event.src_path)
+                print("-" * 95 + " RESTART " + "-" * 95)  # simple separator
                 if on_restart:
                     on_restart()
                 os.execv(sys.executable, [sys.executable] + sys.argv)
 
+    cwd = str(Path(".").absolute())
     observer = Observer()
-    observer.schedule(Handler(), ".", recursive=True)
+    observer.schedule(Handler(), cwd, recursive=True)
     observer.start()
+    logger.debug("watcher.listen", cwd=cwd)
 
     try:
         while True:

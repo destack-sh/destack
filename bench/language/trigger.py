@@ -1,124 +1,88 @@
 from collections import deque
 from datetime import datetime
-from typing import TYPE_CHECKING, Collection, Deque, Optional
+from typing import TYPE_CHECKING, Deque, Optional
 
 import pytz
 from croniter import croniter
 
-from bench.language.const import NodeType, ScheduleType, TriggerType
-from bench.language.module import (
-    Node,
-    NodeList,
-    node,
-    node_children,
-    node_component,
-    node_parent,
-    struct_property,
+from bench.language.const import NodeType, ScheduleType, StructType, TriggerType
+from bench.language.node import Node, Struct, node, struct
+from bench.language.property import Property, p_node_parent, p_regular
+from bench.language.validation import (
+    ValidationHandler,
+    enum_validator,
+    int_range_validator,
+    validate_name,
 )
-from bench.language.validation import ValidationHandler, enum_validator
-from bench.utils.func import dict_minus
 
 if TYPE_CHECKING:
-    from bench.language.statement import Statement
+    from bench.language.block import Block
 
 # :TriggerSchedule
 TRIGGER_INTERVAL_ORIGIN = datetime(2022, 1, 1, 0, 0, 0, 0).replace(tzinfo=pytz.utc)
 TRIGGER_INTERVAL_ORIGIN_TIMESTAMP = TRIGGER_INTERVAL_ORIGIN.timestamp()
-TRIGGER_INTERVAL_USR_MIN = 300  # seconds :MinTriggerInterval
+TRIGGER_INTERVAL_USR_MIN = 60  # seconds :MinTriggerInterval
 TRIGGER_INTERVAL_ABS_MAX = 60 * 60 * 24 * 365  # seconds :MaxTriggerInterval
 TRIGGER_INTERVAL_ABS_MIN = 60  # seconds :MinTriggerInterval
 
 
+@struct(StructType.SCHEDULE)
+class Schedule(Struct):
+    """The time-based schedule of something."""
+
+    type: ScheduleType = p_regular(30, require=True, validate=enum_validator(ScheduleType))
+    timezone: Optional[str] = p_regular(31, default=pytz.utc.zone)
+    interval: Optional[int] = p_regular(
+        32,
+        default=None,
+        validate=int_range_validator(TRIGGER_INTERVAL_USR_MIN, TRIGGER_INTERVAL_ABS_MAX),
+    )
+    cron: Optional[str] = p_regular(33, default=None)
+
+    def __content_str__(self) -> str:
+        return f"{self.type} {self.timezone} {self.interval or self.cron}"
+
+    def _validate_inner(
+        self, properties: tuple[Property, ...], on_invalid: "ValidationHandler"
+    ) -> None:
+        if self.type == ScheduleType.CRON:
+            if not croniter.is_valid(self.cron):
+                on_invalid(self, f"cron: invalid expression ('{self.cron}')", [Schedule.cron])
+        elif self.type == ScheduleType.INTERVAL:
+            interval = self.interval or 0
+            if interval < TRIGGER_INTERVAL_USR_MIN or interval > TRIGGER_INTERVAL_ABS_MAX:
+                on_invalid(
+                    self,
+                    f"interval: invalid ({interval} not in [{TRIGGER_INTERVAL_USR_MIN}, {TRIGGER_INTERVAL_ABS_MAX}])",
+                    [Schedule.interval],
+                )
+
+
 @node(NodeType.TRIGGER)
 class Trigger(Node):
-    """A trigger for a statement to run."""
-
-    parent: "Statement" = node_parent(3, NodeType.STATEMENT)
-    type: TriggerType = struct_property(20, is_required=True, validate=enum_validator(TriggerType))
-    active: bool = struct_property(21, default=True)
-    schedule_type: Optional[ScheduleType] = struct_property(
-        22, default=None, validate=enum_validator(ScheduleType)
+    parent: "Block" = p_node_parent(4, NodeType.BLOCK)
+    type: TriggerType = p_regular(30, require=True, validate=enum_validator(TriggerType))
+    name: str = p_regular(31, validate=validate_name)
+    active: bool = p_regular(32, default=True)
+    schedule: Optional[Schedule] = p_regular(
+        33, default=None, require=False, array=False, struct=StructType.SCHEDULE
     )
-    timezone: Optional[str] = struct_property(23, default=pytz.utc.zone)
-    interval: Optional[int] = struct_property(24, default=None)
-    cron: Optional[str] = struct_property(25, default=None)
+    signal: Optional["Block"] = p_regular(
+        34, default=None, require=False, array=False, references=NodeType.BLOCK
+    )
+    # cursor, filter, ...
 
-    @staticmethod
-    def new(
-        type: TriggerType = TriggerType.TIME, *args, for_parent: "Statement" = None, **kwargs
-    ) -> "Trigger":
-        if type == TriggerType.TIME:
-            return Trigger.time(*args, **kwargs)
-        else:
-            return Trigger(type=type, *args, **kwargs)
-
-    @staticmethod
-    def time(schedule: str | int, **kwargs) -> "Trigger":
-        if isinstance(schedule, str):
-            return Trigger(
-                type=TriggerType.TIME, schedule_type=ScheduleType.CRON, cron=schedule, **kwargs
-            )
-        elif isinstance(schedule, int):
-            return Trigger(
-                type=TriggerType.TIME,
-                schedule_type=ScheduleType.INTERVAL,
-                interval=schedule,
-                **kwargs,
-            )
-        else:
-            raise ValueError(f"invalid schedule: {schedule}")
-
-    @staticmethod
-    def to_python(
-        node: "Trigger", props: dict, for_parent: "Statement" = None
-    ) -> tuple[str, dict, dict]:
-        if node.type == TriggerType.TIME:
-            return (
-                "Trigger.time",
-                {"schedule": node.cron or node.interval},
-                dict_minus(props, "type", "cron", "interval"),
-            )
-        else:
-            raise ValueError(f"unexpected trigger type: {node!r}")
-
-    def __str__(self):
-        if self.type == TriggerType.TIME:
-            schedule_str = (
-                self.interval if self.schedule_type == ScheduleType.INTERVAL else self.cron
-            )
-            content_str = f"{self.schedule_type} {self.timezone} {schedule_str}"
+    def __content_str__(self):
+        if self.type == TriggerType.SCHEDULE:
+            content_str = self.schedule.__content_str__()
+        elif self.type == TriggerType.SIGNAL:
+            content_str = self.signal.absolute_path
         else:
             content_str = None
-        return (
-            f"{self.type} {content_str or '<none>'} on {self.parent} in {self.scope or '<global>'}"
-        )
-
-    def __repr__(self):
-        return f"<Trigger {self}>"
-
-    # ignore scope and statement for now
-
-    def _validate_inner(self, properties: Collection[str], on_invalid: "ValidationHandler") -> None:
-        if self.type == TriggerType.TIME:
-            if self.schedule_type == ScheduleType.CRON:
-                if not croniter.is_valid(self.cron):
-                    on_invalid(self, f"cron: invalid expression ('{self.cron}')", ["cron"])
-            elif self.schedule_type == ScheduleType.INTERVAL:
-                interval = self.interval or 0
-                if interval < TRIGGER_INTERVAL_USR_MIN or interval > TRIGGER_INTERVAL_ABS_MAX:
-                    on_invalid(
-                        self,
-                        f"interval: invalid ({interval} not in [{TRIGGER_INTERVAL_USR_MIN}, {TRIGGER_INTERVAL_ABS_MAX}])",
-                        ["interval"],
-                    )
+        return f"{self.type} {content_str or '<none>'}"
 
 
-@node_component
-class HasTriggers(Node):
-    triggers: NodeList[Trigger] = node_children(NodeType.TRIGGER)
-
-
-class TriggerScheduleIterator:
+class ScheduleIterator:
     """Iterator for a time trigger schedule."""
 
     def __init__(self, trigger: Trigger, initial_now: datetime, keep: int = 10):
@@ -165,7 +129,7 @@ class TriggerScheduleIterator:
         else:
             raise ValueError(f"unexpected schedule type in {self.trigger}: {self.type}")
 
-    def advance(self, n: int = 1) -> list[datetime]:
+    def advance(self, n: int) -> list[datetime]:
         """Advance the iterator by n steps and return the next n occurrences."""
         # :TriggerSchedule
 
@@ -191,17 +155,3 @@ class TriggerScheduleIterator:
     def next(self) -> datetime:
         """Return the next occurrence."""
         return self.advance(n=1)[0]
-
-
-def is_time_trigger_equal(a: Trigger, b: Trigger) -> bool:
-    """Checks if two time triggers are identical (as pertaining to their schedule)."""
-
-    if a.schedule_type != b.schedule_type:
-        return False
-    if a.timezone != b.timezone:
-        return False
-    if a.schedule_type == ScheduleType.INTERVAL:
-        return a.interval == b.interval
-    if a.schedule_type == ScheduleType.CRON:
-        return a.cron == b.cron
-    return False

@@ -17,13 +17,11 @@ ENV PYTHONUNBUFFERED 1
 ENV PYTHONPATH "${PYTHONPATH}:/bench"
 
 
-# --- API / Server ---
-FROM base as bench-api
+# --- System (Supervisor/Host) ---
+FROM base as bench-system
 
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
-# (also worker requirements for inspection)
-COPY requirements-worker.txt .
 
 # Copy all server files
 COPY bench/ bench/
@@ -39,25 +37,24 @@ ENV VERSION $VERSION
 
 EXPOSE 80
 
-# --- Worker ---
-FROM base as bench-worker
+# --- Runtime ---
+FROM base as bench-runtime
 
-# Install extra requirements for the worker
 RUN apt-get install -y pandoc
 RUN apt-get install -y tesseract-ocr libtesseract-dev libleptonica-dev tesseract-ocr-deu
 RUN apt-get install -y libmagic1 libmagic-dev
 RUN apt-get install -y poppler-utils
-COPY requirements-worker.txt .
-RUN pip install --no-cache-dir -r requirements-worker.txt
+COPY requirements-runtime.txt .
+RUN pip install --no-cache-dir -r requirements-runtime.txt
 
-# Copy worker-specific files (only!)
+# Copy runtime-specific files (only!)
 COPY bench/utils bench/utils
-COPY bench/worker bench/worker
+COPY bench/runtime bench/runtime
 COPY bench/language bench/language
 COPY bench/sql bench/sql
 COPY bench/search bench/search
-COPY bench/msg bench/msg
-COPY manageworker.py .
+COPY bench/proto bench/proto
+COPY manageruntime.py .
 COPY pyproject.toml .
 COPY version .
 

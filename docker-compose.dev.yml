@@ -33,18 +33,6 @@ services:
     entrypoint: sh
     command: -c 'mkdir -p /data/bench && minio server --address ":19000" --console-address ":19001" /data'
 
-  nats:
-    image: nats:2.9
-    restart: on-failure
-    ports:
-      - '4222:4222'
-      - '6222:6222'
-      - '8222:8222'
-    volumes:
-      - ./infra/nats.conf:/nats-server.conf
-    command: ["-c", "nats-server", "--config", "/nats-server.conf"]
-
-
   redis:
     image: redis:7.0-bullseye
     restart: on-failure
@@ -52,5 +40,21 @@ services:
       - '6379:6379'
     command: redis-server --appendonly yes
 
+  envoy:
+    image: envoyproxy/envoy:v1.28-latest
+    restart: on-failure
+    volumes:
+      - ./infra/envoy.yaml:/etc/envoy/envoy.yaml
+      # certificates are generated with openssl for local development:
+      #  openssl req -x509 -newkey rsa:4096 -keyout infra/local_cert.key -out infra/local_cert.pem -days 10000 -nodes -subj "/CN=localhost" -addext "subjectAltName = DNS:localhost,IP:127.0.0.1"
+      # and to make MacOS happy:
+      #  security import infra/local_cert.pem -k ~/Library/Keychains/login.keychain-db
+      #  (and then manually configure this 'localhost' cert as 'Always Trust' in Keychain Access)
+      - ./infra/local_cert.key:/etc/envoy/ssl/cert.key
+      - ./infra/local_cert.pem:/etc/envoy/ssl/cert.pem
+    # can't use network_mode: host because it's only supported on Linux
+    ports:
+      - '8080:8080'
+      - '9901:9901'
 volumes:
   redis-data:

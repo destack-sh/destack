@@ -6,97 +6,11 @@ line-length = 100
 # ignore line too long
 ignore = ["E501"]
 
-[tool.django-stubs]
-django_settings_module = "bench.settings"
-
-[tool.mypy]
-plugins = "mypy_django_plugin.main,mypy_drf_plugin.main,strawberry.ext.mypy_plugin"
-follow_imports = "normal"
-warn_redundant_casts = true
-warn_unused_ignores = true
-check_untyped_defs = true
-ignore_missing_imports = true
-strict_optional = false
-files = ["bench"]
-exclude = ["^bench/migrations", "^venv|^venv-worker", "test_[a-z_]*\\.py"]
-
 [tool.pyright]
 include = ["bench"]
 exclude = ["^bench/migrations", "^venv|^venv-worker", "test_[a-z_]*\\.py"]
 ignore = ["^bench/migrations", "^venv|^venv-worker", "test_[a-z_]*\\.py"]
 venv = "venv"
-
-[[tool.mypy.overrides]]
-module = "uvicorn"
-ignore_missing_imports = true
-
-[[tool.mypy.overrides]]
-module = "gunicorn"
-ignore_missing_imports = true
-
-[[tool.mypy.overrides]]
-module = "django_choices_field"
-ignore_missing_imports = true
-
-[[tool.mypy.overrides]]
-module = "fsspec"
-ignore_missing_imports = true
-
-[[tool.mypy.overrides]]
-module = "rest_framework_nested"
-ignore_missing_imports = true
-
-[[tool.mypy.overrides]]
-module = "hub"
-ignore_missing_imports = true
-
-[[tool.mypy.overrides]]
-module = "sklearn"
-ignore_missing_imports = true
-
-[[tool.mypy.overrides]]
-module = "PIL"
-ignore_missing_imports = true
-
-[[tool.mypy.overrides]]
-module = "PIL.Image"
-ignore_missing_imports = true
-
-[[tool.mypy.overrides]]
-module = "django_filters"
-ignore_missing_imports = true
-
-[[tool.mypy.overrides]]
-module = "django_filters.rest_framework"
-ignore_missing_imports = true
-
-[[tool.mypy.overrides]]
-module = "social_django"
-ignore_missing_imports = true
-
-[[tool.mypy.overrides]]
-module = "social_django.models"
-ignore_missing_imports = true
-
-[[tool.mypy.overrides]]
-module = "cachetools"
-ignore_missing_imports = true
-
-[[tool.mypy.overrides]]
-module = "posthog"
-ignore_missing_imports = true
-
-[[tool.mypy.overrides]]
-module = "botocore"
-ignore_missing_imports = true
-
-[[tool.mypy.overrides]]
-module = "boto3"
-ignore_missing_imports = true
-
-[[tool.mypy.overrides]]
-module = "channels"
-ignore_missing_imports = true
 
 [tool.isort]
 profile = "black"
@@ -109,6 +23,5 @@ known_first_party = "bench"
 skip = "migrations"
 
 [tool.pytest.ini_options]
-addopts = "--ds=bench.settings"
-# use below for distributed pytest
-# addopts = "--ds=bench.settings -n=4 --dist=loadscope"
+asyncio_mode = "auto"
+addopts = ["--color=yes"]
