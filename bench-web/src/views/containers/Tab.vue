@@ -8,7 +8,7 @@ import { canvas } from "@/system/space";
 import { startDragging, useMultiDropZone, useSplitDropZone, type SplitAnchor } from "@/utils/drag";
 import { IS_DEBUG, isDeveloperMode } from "@/utils/globals";
 import { ScrollbarWidth } from "@/utils/layout";
-import { menuActionsLike, type MenuContext, type OverlayMenuInfo } from "@/utils/menu";
+import { menuActionsLike, type MenuContext, type PopoverInfo } from "@/utils/menu";
 import { getViewBinding, getViewComponent } from "@/views/registry";
 import Empty from "@/views/builtins/Empty.vue";
 import { viewEmits, type ViewExposed } from "@/views/common";
@@ -174,7 +174,7 @@ defineExpose<ViewExposed>({ self, actions });
       track-is-overlay
       :size="{ width: innerSize.width, height: 30 }"
       v-contextmenu="
-        (context: MenuContext): OverlayMenuInfo => {
+        (context: MenuContext): PopoverInfo => {
           return {
             kind: 'menu',
             placement: 'bottom-right',
@@ -199,7 +199,7 @@ defineExpose<ViewExposed>({ self, actions });
         :draggable="true"
         @dragstart.stop="(e: DragEvent) => startDragging(e, spaceGraph, tab)"
         v-contextmenu="
-          (context: MenuContext): OverlayMenuInfo => {
+          (context: MenuContext): PopoverInfo => {
             context = { ...context, triggerNode: tab };
             return {
               kind: 'menu',

@@ -1,9 +1,9 @@
 <script lang="ts" setup>
-import { ColorData, ColorShade, NodeType, ViewData, ViewType } from "@/proto/wire";
+import { ColorData, ColorShade, ColorType, NodeType, ViewData, ViewType } from "@/proto/wire";
 import { type TypedNodeReferenceData } from "@/proto/wiring";
 import { canvas } from "@/system/space";
-import type { OverlayMenuInfoIn } from "@/utils/menu";
-import { getColorHex, getColorTitle } from "@/utils/style";
+import type { PopoverInfoIn } from "@/utils/menu";
+import { REAL_COLORS, getColorHex, getColorTitle, makeColor } from "@/utils/style";
 import { ViewContentWrapper, makeViewId, viewEmits, type ViewExposed } from "@/views/common";
 import { ref, toRef, type Ref } from "vue";
 
@@ -23,7 +23,8 @@ const id = makeViewId(props);
 const buttonRef: Ref<HTMLButtonElement | null> = ref(null);
 const activeResultId: Ref<string | null> = ref(null);
 
-function fire(item: ColorData) {
+function fire(item: ColorType | ColorData) {
+  if (typeof item == "number") item = makeColor(item);
   apply(item);
 }
 function apply(color: ColorData) {
@@ -43,7 +44,7 @@ defineExpose<ViewExposed>({ self, id });
       v-if="!isInline"
       class="group flex w-full flex-row items-center rounded border border-gray-200 px-2 py-1 hover:border-gray-300 data-[menu=true]:border-gray-300"
       v-menu="
-        (): OverlayMenuInfoIn => ({
+        (): PopoverInfoIn => ({
           component: ViewType.COLOR,
           placement: 'bottom-left',
           offset: 'referenceWidth',
@@ -53,7 +54,7 @@ defineExpose<ViewExposed>({ self, id });
       "
     >
       <template v-if="modelValue != null">
-        <i class="fas fa-circle-small" :style="{ color: getColorHex(modelValue, ColorShade.S500) }" />
+        <i class="fas fa-circle-small" :style="{ color: getColorHex(modelValue, ColorShade.S600) }" />
         <div class="ml-1.5">{{ getColorTitle(modelValue) ?? "???" }}</div>
       </template>
       <template v-else>
@@ -64,6 +65,17 @@ defineExpose<ViewExposed>({ self, id });
     </button>
 
     <!-- Inline Multi-Toggle -->
-    <div v-else>nocheckin: inline multi-toggle for Color!</div>
+    <div v-else class="grid grid-cols-9 gap-x-0.5 gap-y-0.5 rounded border-gray-200 bg-white px-1 py-1">
+      <button
+        v-for="(color, i) in REAL_COLORS"
+        :key="i"
+        class="rounded border border-transparent px-1 py-0.5 hover:border-gray-300 hover:bg-gray-100"
+        v-tooltip="{ title: getColorTitle(color), showDelay: 200, hideDelay: 100, small: true }"
+        @click.stop.prevent="fire(color)"
+        @keydown.enter.stop.prevent="fire(color)"
+      >
+        <i class="fas fa-circle" :style="{ color: getColorHex(color, ColorShade.S500) }" />
+      </button>
+    </div>
   </ViewContentWrapper>
 </template>

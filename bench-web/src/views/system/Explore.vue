@@ -22,7 +22,7 @@ import { highlightMatches } from "@/system/search";
 import { inspectionBasePtr, canvas, inspectionPtr } from "@/system/space";
 import { startDragging, useMultiDropZone } from "@/utils/drag";
 import { ScrollbarWidth } from "@/utils/layout";
-import { menuActionsLike, type MenuContext, type OverlayMenuInfo } from "@/utils/menu";
+import { menuActionsLike, type MenuContext, type PopoverInfo } from "@/utils/menu";
 import { computedValue } from "@/utils/ref";
 import { makeSelection, useExpansion } from "@/views/canvas";
 import { viewEmits, type FocusAnchor, type ViewExposed } from "@/views/common";
@@ -318,7 +318,7 @@ defineExpose<ViewExposed>({ self, actions, focus });
         :draggable="true"
         @dragstart.stop="(e: DragEvent) => startDragging(e, inspectedGraph, node)"
         v-contextmenu="
-          (context: MenuContext): OverlayMenuInfo => {
+          (context: MenuContext): PopoverInfo => {
             doFocus(node);
             context = { ...context, triggerNode: node };
             return {

@@ -15,7 +15,7 @@ import { pretendReadonly } from "@/utils/ref";
 import { collectViewComponentsUp } from "@/views/canvas";
 import type { ViewComponent } from "@/views/common";
 import type { MaybeElement } from "@vueuse/core";
-import { computed, shallowRef, toValue, type Directive, type Ref } from "vue";
+import { computed, shallowRef, toValue, triggerRef, type Directive, type Ref } from "vue";
 
 export type MenuContext = ActionContext & {
   triggerElement?: MaybeElement;
@@ -118,7 +118,7 @@ export const OVERLAY_MENU_DEFAULT_FLOATING_OPTIONS: FloatingOptions = {
   containerMargin: 8,
 };
 
-export type OverlayMenuInfo = (
+export type PopoverInfo = (
   | ({ kind: "menu" } & MenuInfo)
   | {
       kind: "component";
@@ -128,42 +128,44 @@ export type OverlayMenuInfo = (
     }
 ) & {
   isEnabled?: boolean;
+  reference?: { x: number; y: number } | HTMLElement | SVGElement;
   containerClass?: string;
   dontFocus?: boolean;
   onApply?(value?: any): void;
   onClose?(): void;
 } & FloatingOptions;
-export type OverlayMenuInfoIn = Partial<OverlayMenuInfo>;
+export type PopoverInfoIn = Partial<PopoverInfo>;
 
 /** The triggering element with some extra state */
-type OverlayMenuTriggerElement = HTMLElement & {
+type PopoverTriggerElement = HTMLElement & {
   menuOnEvent?: (e: MouseEvent) => void;
 };
 
-type OverlayMenuInstance = {
+export type PopoverInstance = {
   id: number;
-  info: OverlayMenuInfo;
+  info: PopoverInfo;
   trigger: HTMLElement | SVGElement;
   reference: { x: number; y: number } | HTMLElement | SVGElement;
   container?: HTMLElement | SVGElement;
 };
 
-const _activeOverlayMenu: Ref<OverlayMenuInstance | null> = shallowRef(null);
-export const activeOverlayMenu = pretendReadonly(_activeOverlayMenu);
-export const hasActiveOverlayMenu = computed(() => _activeOverlayMenu.value != null);
+const _activePopovers: Ref<PopoverInstance[]> = shallowRef([]);
+export const activePopovers = pretendReadonly(_activePopovers);
+export const topPopover = computed(() => _activePopovers.value[_activePopovers.value.length - 1]);
+export const hasActivePopover = computed(() => _activePopovers.value.length > 0);
 
-let overlayMenuId = 0;
-function newOverlayMenuId() {
-  return overlayMenuId++;
+let PopoverId = 0;
+function newPopoverId() {
+  return PopoverId++;
 }
 
-export function createOverlayMenu(create: {
+export function pushPopover(create: {
   trigger: HTMLElement | SVGElement;
   reference: { x: number; y: number } | HTMLElement | SVGElement;
   container?: HTMLElement | SVGElement | undefined;
-  info: OverlayMenuInfoIn;
-}): OverlayMenuInstance {
-  const { trigger, reference, container } = create;
+  info: PopoverInfoIn;
+}): PopoverInstance {
+  const { trigger, container } = create;
   const triggerNode = canvas.findViewData(trigger) ?? undefined;
   const context: MenuContext = { triggerElement: trigger, triggerNode };
   const info = {
@@ -171,48 +173,55 @@ export function createOverlayMenu(create: {
     ...create.info,
     context,
     kind: "component" in create.info ? "component" : "menu",
-  } as OverlayMenuInfo;
+  } as PopoverInfo;
 
-  const instance = { id: newOverlayMenuId(), info, trigger, reference, container };
-  _activeOverlayMenu.value = instance;
+  // the info's reference is useful when overriding the actual reference in a directive
+  const instance = { id: newPopoverId(), info, trigger, reference: info.reference ?? create.reference, container };
+  _activePopovers.value.push(instance);
+  triggerRef(_activePopovers);
   trigger.dataset[MENU_DATA_SET_ATTRIBUTE] = "true";
   trigger.dataset[MENU_DATA_ID_ATTRIBUTE] = instance.id.toString();
   return instance;
 }
 
-export function destroyOverlayMenu(instance?: OverlayMenuInstance | null) {
-  if (instance == null) instance = _activeOverlayMenu.value;
-  if (instance != null && instance.trigger.dataset[MENU_DATA_ID_ATTRIBUTE] == instance?.id.toString()) {
-    delete instance.trigger.dataset[MENU_DATA_SET_ATTRIBUTE];
-    delete instance.trigger.dataset[MENU_DATA_ID_ATTRIBUTE];
-  }
-  if (instance == _activeOverlayMenu.value) _activeOverlayMenu.value = null;
+export function popPopover(fromIdx: number = -1) {
+  const closedMenus = activePopovers.value.slice(fromIdx);
+  if (closedMenus.length === 0) return;
+  closedMenus.forEach((instance) => {
+    if (instance != null && instance.trigger.dataset[MENU_DATA_ID_ATTRIBUTE] == instance?.id.toString()) {
+      delete instance.trigger.dataset[MENU_DATA_SET_ATTRIBUTE];
+      delete instance.trigger.dataset[MENU_DATA_ID_ATTRIBUTE];
+    }
+  });
+  if (fromIdx >= 0) _activePopovers.value = _activePopovers.value.slice(0, fromIdx);
+  else _activePopovers.value = [];
+  return closedMenus;
 }
 
-function makeOverlayMenuDirective(options: {
+function makePopoverDirective(options: {
   event: "contextmenu" | "click";
   reference: "trigger" | "self";
-}): Directive<MaybeElement, OverlayMenuInfoIn | (() => OverlayMenuInfoIn)> {
+}): Directive<MaybeElement, PopoverInfoIn | (() => PopoverInfoIn)> {
   return {
     mounted(el, binding) {
-      const triggerEl = el as OverlayMenuTriggerElement;
+      const triggerEl = el as PopoverTriggerElement;
       triggerEl.menuOnEvent = (e: MouseEvent) => {
         e.preventDefault();
         e.stopPropagation();
         const reference = options.reference == "self" ? triggerEl : { x: e.clientX, y: e.clientY };
         const info = typeof binding.value == "function" ? binding.value() : binding.value;
         if (info.isEnabled === false) return;
-        createOverlayMenu({ trigger: triggerEl, reference, info });
+        pushPopover({ trigger: triggerEl, reference, info });
       };
       triggerEl.addEventListener(options.event, triggerEl.menuOnEvent);
     },
 
     unmounted(el) {
-      const triggerEl = el as OverlayMenuTriggerElement;
+      const triggerEl = el as PopoverTriggerElement;
       if (triggerEl.menuOnEvent) triggerEl.removeEventListener(options.event, triggerEl.menuOnEvent);
     },
   };
 }
 
-export const CONTEXT_MENU_DIRECTIVE = makeOverlayMenuDirective({ event: "contextmenu", reference: "trigger" });
-export const MENU_DIRECTIVE = makeOverlayMenuDirective({ event: "click", reference: "self" });
+export const CONTEXT_MENU_DIRECTIVE = makePopoverDirective({ event: "contextmenu", reference: "trigger" });
+export const MENU_DIRECTIVE = makePopoverDirective({ event: "click", reference: "self" });

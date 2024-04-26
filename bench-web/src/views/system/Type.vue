@@ -7,7 +7,7 @@ import { moveNode } from "@/system/graph";
 import { RUNNABLE_BLOCK_TYPES, createField, toCamelName } from "@/system/lang";
 import { canvas } from "@/system/space";
 import { startDragging, useMultiDropZone, type DraggedData, type MultiAnchor } from "@/utils/drag";
-import { menuActionsLike, type OverlayMenuInfo } from "@/utils/menu";
+import { menuActionsLike, type PopoverInfo } from "@/utils/menu";
 import { makeViewId, viewEmits, type ViewExposed } from "@/views/common";
 import Field from "@/views/system/Field.vue";
 import { computed, ref, toRef, type Ref } from "vue";
@@ -216,7 +216,7 @@ defineExpose<ViewExposed>({ self, id, actions });
             @dragstart.stop="(e: DragEvent) => startDragging(e, pkgGraph, field)"
             :variant="Variant.STEALTH"
             v-contextmenu="
-              (): OverlayMenuInfo => ({
+              (): PopoverInfo => ({
                 kind: 'menu',
                 placement: 'bottom-right',
                 items: menuActionsLike(

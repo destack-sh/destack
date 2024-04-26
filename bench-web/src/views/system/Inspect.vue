@@ -15,7 +15,7 @@ import { ICON_BY_NODE_TYPE, IconInline, getNodeIcon } from "@/system/icon";
 import { getInspectionLayout, toCamelName } from "@/system/lang";
 import { canvas, inspectionPtr } from "@/system/space";
 import { ScrollbarWidth } from "@/utils/layout";
-import type { OverlayMenuInfoIn } from "@/utils/menu";
+import type { PopoverInfoIn } from "@/utils/menu";
 import { getViewComponent } from "@/views/registry";
 import { viewEmits, type ViewExposed } from "@/views/common";
 import Scroll from "@/views/containers/Scroll.vue";
@@ -62,9 +62,9 @@ defineExpose<ViewExposed>({ self });
         <!-- Icon -->
         <IconInline
           v-bind="getNodeIcon(node)"
-          class="w-6 rounded border border-transparent p-1 text-gray-700 hover:cursor-pointer hover:bg-primary-100 data-[menu=true]:border-primary-900 data-[menu=true]:bg-primary-100"
+          class="w-6 rounded border border-transparent p-1 text-gray-700 hover:cursor-pointer hover:bg-gray-100 data-[menu=true]:border-primary-900 data-[menu=true]:bg-gray-100"
           v-menu="
-            (): OverlayMenuInfoIn => ({
+            (): PopoverInfoIn => ({
               component: ViewType.ICON,
               placement: 'bottom-right',
               offset: '-referenceWidth',
@@ -76,7 +76,7 @@ defineExpose<ViewExposed>({ self });
         />
         <!-- Name -->
         <input
-          class="ml-1 truncate rounded border-0 px-1 py-0.5 font-medium outline-none ring-0 hover:bg-primary-100 hover:text-primary-900 focus:ring-0"
+          class="ml-1 truncate rounded border-0 px-1 py-0.5 font-medium outline-none ring-0 hover:bg-gray-100 hover:text-primary-900 focus:ring-0"
           spellcheck="false"
           :value="'name' in node ? node.name : toCamelName(ObjectType, node.metatype)"
           :disabled="!('name' in node)"

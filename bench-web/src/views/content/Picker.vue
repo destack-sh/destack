@@ -17,7 +17,7 @@ import type { NodeItem, TypeItem } from "@/system/search";
 import { enumIndex, graphIndex, typeIndex, useSearch, type EnumOptionItem, type SearchIndex } from "@/system/search";
 import { canvas, pkgGraph } from "@/system/space";
 import { ScrollbarWidth } from "@/utils/layout";
-import type { OverlayMenuInfoIn } from "@/utils/menu";
+import type { PopoverInfoIn } from "@/utils/menu";
 import {
   makeViewId,
   ViewContentWrapper,
@@ -148,7 +148,7 @@ defineExpose<ViewExposed>({ self, id, variants: [Variant.PRIMARY, Variant.COMPAC
       :disabled="props.isDisabled"
       class="group flex w-full flex-row items-center rounded border border-gray-200 px-2.5 py-1 hover:border-gray-300 disabled:bg-gray-100 data-[menu=true]:border-gray-300"
       v-menu="
-        (): OverlayMenuInfoIn => ({
+        (): PopoverInfoIn => ({
           component: ViewType.PICKER,
           placement: 'inside-top-left',
           referenceMargin: 0,

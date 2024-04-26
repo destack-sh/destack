@@ -9,7 +9,7 @@ import Inaccessible from "@/views/builtins/Inaccessible.vue";
 import { IconInline, getNodeIcon } from "@/system/icon";
 import type { ActionMapImplementation } from "@/system/action";
 import Icon from "@/views/content/Icon.vue";
-import { type OverlayMenuInfo, type OverlayMenuInfoIn } from "@/utils/menu";
+import { type PopoverInfo, type PopoverInfoIn } from "@/utils/menu";
 import type { TooltipInfo } from "@/utils/tooltip";
 
 const props = defineProps<
@@ -78,10 +78,10 @@ defineExpose<ViewExposed>({ self, id, actions });
     <IconInline
       v-bind="getNodeIcon(field)"
       :shade="field.kind == FieldKind.OPTION ? ColorShade.S500 : ColorShade.S700"
-      class="mr-1 w-5 rounded border border-transparent p-0.5 hover:cursor-pointer hover:bg-primary-100 data-[menu=true]:border-primary-900 data-[menu=true]:bg-primary-100"
+      class="mr-1 w-5 rounded border border-transparent p-0.5 hover:cursor-pointer hover:bg-gray-100 data-[menu=true]:border-primary-900 data-[menu=true]:bg-gray-100"
       v-tooltip="{ small: true, text: `Change icon` } as TooltipInfo"
       v-menu="
-        (): OverlayMenuInfoIn => ({
+        (): PopoverInfoIn => ({
           component: Icon,
           placement: 'bottom-right',
           offset: '-referenceWidth',
@@ -92,7 +92,7 @@ defineExpose<ViewExposed>({ self, id, actions });
     />
     <input
       ref="nameRef"
-      class="w-fit min-w-fit max-w-fit truncate rounded border-0 bg-transparent font-medium outline-none ring-0 hover:bg-primary-100 hover:text-primary-900 focus:ring-0"
+      class="w-fit min-w-fit max-w-fit truncate rounded border-0 bg-transparent font-medium outline-none ring-0 hover:bg-gray-100 hover:text-primary-900 focus:ring-0"
       spellcheck="false"
       :value="field.name"
       :size="Math.max(field.name?.length ?? 0, 5)"

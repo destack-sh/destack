@@ -15,7 +15,7 @@ import { ICON_BY_NODE_TYPE, getNodeIcon } from "@/system/icon";
 import { canvas, pkgGraph } from "@/system/space";
 import { mapPmNodeToText, mapTextToPmNode } from "@/system/text";
 import { useDropZone } from "@/utils/drag";
-import { createOverlayMenu, menuActionsLike, type MenuContext, type OverlayMenuInfo } from "@/utils/menu";
+import { pushPopover, menuActionsLike, type MenuContext, type PopoverInfo } from "@/utils/menu";
 import { PM_INPUT_RULES, PM_SCHEMA, type TextMarkType, PM_KEYMAP_EXTRA } from "@/utils/prosemirror";
 import { deepValueEquals } from "@/utils/ref";
 import { ViewContentWrapper, makeViewId, viewEmits, type ViewExposed } from "@/views/common";
@@ -96,7 +96,7 @@ function makeEditorView(): EditorView {
         selection.$head.nodeBefore?.text?.endsWith(MENTION_TRIGGER_CHAR)
       ) {
         const referencePos = view.coordsAtPos(selection.$head.pos);
-        createOverlayMenu({
+        pushPopover({
           trigger: getElement(textRef.value)!,
           reference: { x: referencePos.left, y: referencePos.top },
           info: {
@@ -282,7 +282,7 @@ defineExpose<ViewExposed>({ self, id, variants: [Variant.PRIMARY, Variant.STEALT
       :draggable="true"
       @dragstart.stop.prevent="false /* prevent accidentally dragging ancestors from text selection here */"
       v-contextmenu="
-        (context: MenuContext): OverlayMenuInfo => ({
+        (context: MenuContext): PopoverInfo => ({
           kind: 'menu',
           placement: 'bottom-right',
           items: menuActionsLike(

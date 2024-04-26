@@ -69,7 +69,7 @@ COLOR_HEX_BY_TYPE[ColorType.SECONDARY] = COLOR_HEX_BY_TYPE[ColorType.GRAY];
 COLOR_HEX_BY_TYPE[ColorType.ACCENT] = COLOR_HEX_BY_TYPE[ColorType.INDIGO];
 COLOR_HEX_BY_TYPE[ColorType.CANVAS] = COLOR_HEX_BY_TYPE[ColorType.GRAY];
 
-const REAL_COLORS: ColorType[] = Object.values(ColorType).filter(
+export const REAL_COLORS: ColorType[] = Object.values(ColorType).filter(
   (v) => typeof v == "number" && v >= ColorType.GRAY,
 ) as ColorType[];
 
@@ -99,8 +99,10 @@ export function getColorHex(color: ColorType | ColorData, shade?: ColorShade): s
   }
 }
 
-export function getColorTitle(color: ColorData): string | null {
-  if (color.type != null) {
+export function getColorTitle(color: ColorType | ColorData): string | null {
+  if (typeof color == "number") {
+    return toCasing(ColorType[color], Casing.CAMEL);
+  } else if (color.type != null) {
     return toCasing(ColorType[color.type], Casing.CAMEL);
   } else if (color.hex != null) {
     return `#${color.hex}`;

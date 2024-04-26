@@ -324,7 +324,9 @@ class Property(_TypeQueryBuilder if TYPE_CHECKING else object):
                 return ref.to_ref()
             elif self.is_struct_reference:
                 if ref.__is_struct_only__ and not ref.__is_struct_inlined__:
-                    assert isinstance(ref.id, int), f"expected int id to wire {self!r}: {ref.id}"
+                    assert isinstance(
+                        ref.id, int
+                    ), f"expected id for {self!r}: {ref!r}.id={ref.id} (assigned id?)"
                     return ref.id
                 else:
                     return None  # not stored
