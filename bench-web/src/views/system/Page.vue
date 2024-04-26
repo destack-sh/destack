@@ -22,7 +22,7 @@ import { makeTypeInfo } from "@/system/value";
 import { startDragging, useMultiDropZone } from "@/utils/drag";
 import { blurDocument } from "@/utils/element";
 import { ScrollbarWidth } from "@/utils/layout";
-import { menuActionsLike, type OverlayMenuInfo, type OverlayMenuInfoIn } from "@/utils/menu";
+import { menuActionsLike, type PopoverInfo, type PopoverInfoIn } from "@/utils/menu";
 import { computedValue } from "@/utils/ref";
 import Inaccessible from "@/views/builtins/Inaccessible.vue";
 import NavigationBar from "@/views/builtins/NavigationBar.vue";
@@ -335,7 +335,7 @@ defineExpose<ViewExposed>({ self, actions, focus });
                 )
               "
               v-menu="
-                (): OverlayMenuInfoIn => ({
+                (): PopoverInfoIn => ({
                   component: ViewType.PICKER,
                   placement: 'bottom',
                   props: { valueType: makeTypeInfo({ benchType: BenchType.BLOCK_TYPE, isRequired: true }) },
@@ -371,7 +371,7 @@ defineExpose<ViewExposed>({ self, actions, focus });
               :node-ptr="blockPtr"
               :prepared-connection="preparedPkgConnection"
               v-contextmenu="
-                (): OverlayMenuInfo => ({
+                (): PopoverInfo => ({
                   kind: 'menu',
                   placement: 'bottom-right',
                   items: menuActionsLike(['common.edit.*', 'common.create.above', 'common.create.below', 'block.*'], {

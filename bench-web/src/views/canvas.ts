@@ -109,7 +109,7 @@ export function getViewComponentId(component: ViewComponent): string {
 }
 
 /** Finds the closest ViewComponent ancestor. */
-export function findViewComponent(
+export function findViewComponentUp(
   el: HTMLElement | ComponentInstance<any>,
   where?: (component: ViewComponent) => boolean,
 ): ViewComponent | null {
@@ -128,7 +128,7 @@ export function findViewComponent(
 
 /** Collect all view components from the given component upwards (inclusive) */
 export function collectViewComponentsUp(componentOrEl: ComponentInstance<any> | HTMLElement): ViewComponent[] {
-  let component = componentOrEl instanceof HTMLElement ? findViewComponent(componentOrEl) : componentOrEl;
+  let component = componentOrEl instanceof HTMLElement ? findViewComponentUp(componentOrEl) : componentOrEl;
   const components = [];
   while (component != null) {
     if (isViewComponent(component)) components.push(component);
@@ -268,13 +268,13 @@ export class ViewCanvas {
   }
 
   findViewData(el: HTMLElement | ComponentInstance<any>): ViewData | null {
-    const component = findViewComponent(el, isIdentifiedViewComponent);
+    const component = findViewComponentUp(el, isIdentifiedViewComponent);
     return component?.exposed.self?.value != null ? this.getViewData(component.exposed.self.value) : null;
   }
 
   /** Updates our internal focus state in response to a browser event */
   private onComponentFocused(element: ViewComponent | HTMLElement | null) {
-    const component = element instanceof HTMLElement ? findViewComponent(element) : element;
+    const component = element instanceof HTMLElement ? findViewComponentUp(element) : element;
 
     // update component focus state
     if (component == null) {
@@ -883,7 +883,11 @@ export class ViewCanvas {
 export function focusInElement(element: MaybeElement): boolean {
   while (element != null) {
     if (element instanceof HTMLElement || element instanceof SVGElement) {
-      element.focus();
+      if (!isFocusableElement(element)) {
+        return false; // don't try to magically find a focusable element, this shouldbe explicit
+      } else {
+        element.focus();
+      }
       return true;
     } else if ("focus" in element) {
       const focusResult = (element as any).focus();

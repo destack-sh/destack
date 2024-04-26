@@ -185,7 +185,6 @@ defineExpose({ focus, clear, query });
     role="menu"
     @keydown.escape.stop.prevent="emit('close')"
     @click.stop="queryRef?.focus()"
-    v-outside.mousedown.stop="() => emit('close')"
   >
     <!-- Magic floating query -->
     <!-- Captures focus for navigation & typing for search/highlight -->
@@ -272,7 +271,7 @@ defineExpose({ focus, clear, query });
     </div>
 
     <!-- Nested menu  -->
-    <!-- TODO :Cleanup: use nested overlay menus for Menu inside Menu? -->
+    <!-- nocheckin? :Cleanup: use nested overlay menus for Menu inside Menu? -->
     <Transition
       enter-active-class="transition-all ease-in duration-75"
       enter-from-class="opacity-0 translate-y-[-6px]"

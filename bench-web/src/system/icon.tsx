@@ -38,11 +38,13 @@ export type IconMetadata = {
   family: "fas" | "fab";
   faName: string;
 };
-export function metadataToIcon(metadata: IconMetadata): IconData {
+export function metadataToIcon(metadata: IconMetadata, color: ColorData | undefined): IconData {
   return {
     metatype: ObjectType.ICON,
     kind: IconKind.FONT_AWESOME,
     faName: `${metadata.family} fa-${metadata.id}`,
+    id: newIconId(),
+    color,
     setProperties: [],
   };
 }
@@ -58,7 +60,7 @@ export const AVAILABLE_ICONS_BY_ID: Record<string, IconMetadata> = Object.fromEn
 type IconInlineProps = Pick<IconData, "emoji" | "file" | "faName"> & {
   color?: ColorType | ColorData;
   shade?: ColorShade;
-  forceColor?: 'inherit' | ColorType;
+  forceColor?: "inherit" | ColorType;
   fallbackColor?: ColorType;
 };
 export const IconInline: FunctionalComponent<IconInlineProps> = (props) => {

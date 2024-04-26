@@ -19,7 +19,7 @@ import { IconInline, getNodeIcon } from "@/system/icon";
 import { RUNNABLE_BLOCK_TYPES, TYPE_BLOCK_TYPES, createField, isGeneratedNodeName, toCamelName } from "@/system/lang";
 import { canvas, inspectionPtr } from "@/system/space";
 import { onMouseReleasedOnce } from "@/utils/layout";
-import { createOverlayMenu, menuActionsLike, type OverlayMenuInfo, type OverlayMenuInfoIn } from "@/utils/menu";
+import { pushPopover, menuActionsLike, type PopoverInfo, type PopoverInfoIn } from "@/utils/menu";
 import type { TooltipInfo } from "@/utils/tooltip";
 import Type from "@/views/system/Type.vue";
 import Inaccessible from "@/views/builtins/Inaccessible.vue";
@@ -126,9 +126,9 @@ defineExpose<ViewExposed>({ self, id, variants: [Variant.PRIMARY, Variant.STEALT
           class="w-5 rounded border border-transparent py-0.5 hover:cursor-pointer hover:bg-gray-100 data-[menu=true]:border-primary-900 data-[menu=true]:bg-gray-100"
           :shade="[isThinTextWrapper ? ColorShade.S500 : ColorShade.S700]"
           :fallback-color="ColorType.GRAY"
-          v-tooltip="{ small: true, text: `Change icon (${toCamelName(BlockType, block.type)})` } as TooltipInfo"
+          v-tooltip="{ small: true, text: `Change icon` }"
           v-menu="
-            (): OverlayMenuInfoIn => ({
+            (): PopoverInfoIn => ({
               component: Icon,
               placement: 'bottom-right',
               offset: '-referenceWidth',
@@ -182,7 +182,7 @@ defineExpose<ViewExposed>({ self, id, variants: [Variant.PRIMARY, Variant.STEALT
                 if (block!.type == BlockType.CHOICE) {
                   createField(pkgConnection.tx, pkgGraph, 'inside', block!, { kind: FieldKind.OPTION });
                 } else {
-                  createOverlayMenu({
+                  pushPopover({
                     trigger: e.target as HTMLElement,
                     reference: { x: e.clientX, y: e.clientY },
                     info: {
@@ -205,7 +205,7 @@ defineExpose<ViewExposed>({ self, id, variants: [Variant.PRIMARY, Variant.STEALT
           <button
             class="rounded border border-transparent px-2 hover:bg-gray-100 hover:text-primary-900 data-[menu=true]:border-primary-900 data-[menu=true]:bg-primary-100 data-[menu=true]:text-primary-900"
             v-menu="
-              (): OverlayMenuInfo => ({
+              (): PopoverInfo => ({
                 kind: 'menu',
                 placement: 'bottom-left',
                 offset: 'referenceWidth',

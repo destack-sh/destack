@@ -8,7 +8,7 @@ import { EditorView, keymap } from "@codemirror/view";
 import { EditorState } from "@codemirror/state";
 import { useDropZone } from "@/utils/drag";
 import type { ActionMapImplementation } from "@/system/action";
-import { menuActionsLike, type MenuContext, type OverlayMenuInfo } from "@/utils/menu";
+import { menuActionsLike, type MenuContext, type PopoverInfo } from "@/utils/menu";
 import { deepValueEquals } from "@/utils/ref";
 import { whenever } from "@vueuse/core";
 import { python } from "@codemirror/lang-python";
@@ -174,7 +174,7 @@ defineExpose<ViewExposed>({ self, id, actions });
       :draggable="true"
       @dragstart.stop.prevent="false /* prevent accidentally dragging ancestors from text selection here */"
       v-contextmenu="
-        (context: MenuContext): OverlayMenuInfo => ({
+        (context: MenuContext): PopoverInfo => ({
           kind: 'menu',
           placement: 'bottom-right',
           items: menuActionsLike(['code.*', 'common.edit.copy', 'common.edit.cut', 'common.edit.paste'], { context }),

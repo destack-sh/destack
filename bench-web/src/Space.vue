@@ -6,10 +6,10 @@ import { bench, canvas, spaceConnection, spaceGraph } from "@/system/space";
 import { toaster } from "@/system/toast";
 import { keytrap } from "@/utils/keymap";
 import { isDraggingGlobal } from "@/utils/layout";
-import { hasActiveOverlayMenu } from "@/utils/menu";
+import { hasActivePopover } from "@/utils/menu";
 import Bar from "@/views/builtins/Bar.vue";
 import DragOverlay from "@/views/builtins/DragOverlay.vue";
-import MenuOverlay from "@/views/builtins/MenuOverlay.vue";
+import PopoverOverlay from "@/views/builtins/PopoverOverlay.vue";
 import Omnibar from "@/views/builtins/Omnibar.vue";
 import ToastOverlay from "@/views/builtins/ToastOverlay.vue";
 import TooltipOverlay from "@/views/builtins/TooltipOverlay.vue";
@@ -69,7 +69,7 @@ watch([canvas.focusedViewPtr, bench], () => {
     ref="spaceRef"
     class="scrollbar-none max-h-screen w-full overflow-hidden overscroll-none bg-gray-100 text-sm"
     :class="[
-      isDraggingGlobal || hasActiveOverlayMenu ? 'pointer-events-none select-none' : '',
+      isDraggingGlobal || hasActivePopover ? 'pointer-events-none select-none' : '',
       IS_IN_ALT_MODE ? 'altmode' : '',
     ]"
     :style="{ width: spaceWidth + 'px', height: spaceHeight + 'px' }"
@@ -115,7 +115,7 @@ watch([canvas.focusedViewPtr, bench], () => {
     <ToastOverlay anchor="bottom-right" :box="mainBox" />
     <Omnibar ref="omnibarRef" :box="mainBox" />
     <TooltipOverlay />
-    <MenuOverlay />
+    <PopoverOverlay />
     <DragOverlay />
   </div>
 </template>

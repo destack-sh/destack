@@ -156,7 +156,7 @@ const USER_MENU_ITEMS = computed(() => {
 
         <template v-slot:content="{ close }">
           <!-- Bench Menu -->
-          <Menu @close="close" :items="BENCH_MENU_ITEMS">
+          <Menu v-outside.mousedown.stop="close" :items="BENCH_MENU_ITEMS">
             <!-- Bench Info -->
             <template v-if="bench" #header>
               <div class="flex flex-row px-2.5 pb-2 pt-1.5">
@@ -322,7 +322,7 @@ const USER_MENU_ITEMS = computed(() => {
             </button>
           </template>
           <template v-slot:content="{ close }">
-            <Menu @close="close" :items="USER_MENU_ITEMS">
+            <Menu v-outside.mousedown.stop="close" :items="USER_MENU_ITEMS">
               <!-- User Info -->
               <template #header>
                 <div class="flex flex-row px-2.5 pb-2 pt-1.5">

@@ -19,7 +19,7 @@ import { IconInline, getIconMetadata, makeIcon, metadataToIcon, type IconMetadat
 import { ScrollbarWidth } from "@/utils/layout";
 import { iconIndex, useSearch, type IconItem, type SearchIndex } from "@/system/search";
 import type { TooltipInfo } from "@/utils/tooltip";
-import type { OverlayMenuInfoIn } from "@/utils/menu";
+import type { PopoverInfoIn } from "@/utils/menu";
 import { getColorHex, makeColor } from "@/utils/style";
 
 const DEFAULT_WIDTH = 380;
@@ -37,8 +37,14 @@ const id = makeViewId(props);
 
 const query: Ref<string> = ref("");
 const queryRef: Ref<HTMLInputElement | null> = ref(null);
+const headerRef: Ref<HTMLDivElement | null> = ref(null);
 const activeResultId: Ref<string | null> = ref(null);
 const color: Ref<ColorData | null> = ref(props.modelValue?.color ?? null);
+const effectiveColorType = computed(() => color.value?.type ?? ColorType.GRAY);
+const effectiveColorHex = computed(() => {
+  if (effectiveColorType.value == ColorType.GRAY) return getColorHex(ColorType.GRAY, ColorShade.S700);
+  else return getColorHex(effectiveColorType.value, ColorShade.S500);
+});
 const indices: Ref<Record<string, SearchIndex<any>>> = computed(() => {
   const indices: Record<string, SearchIndex<any>> = {};
   indices["icon"] = iconIndex();
@@ -60,7 +66,7 @@ watch(results, () => {
 });
 
 function fire(item: IconMetadata) {
-  const icon = metadataToIcon(item);
+  const icon = metadataToIcon(item, color.value ?? undefined);
   apply(icon);
 }
 function apply(icon: IconData) {
@@ -101,7 +107,7 @@ defineExpose<ViewExposed>({ self, id, focus });
       v-if="!isInline"
       class="group flex w-full flex-row items-center rounded border border-gray-200 px-2 py-1 hover:border-gray-300 data-[menu=true]:border-gray-300"
       v-menu="
-        (): OverlayMenuInfoIn => ({
+        (): PopoverInfoIn => ({
           component: ViewType.ICON,
           placement: 'bottom-left',
           offset: 'referenceWidth',
@@ -124,7 +130,7 @@ defineExpose<ViewExposed>({ self, id, focus });
     <!-- Inline Combobox -->
     <div v-else-if="isInline" :style="{ width: DEFAULT_WIDTH + 'px' }">
       <!-- Header -->
-      <div class="flex w-full flex-row items-center border-b border-gray-200 px-3.5 py-1.5">
+      <div ref="headerRef" class="flex w-full flex-row items-center border-b border-gray-200 px-3.5 py-1.5">
         <IconInline v-bind="icon ?? makeIcon({ faName: 'fas fa-magnifying-glass' })" class="mr-1.5 w-5" />
         <!-- Query -->
         <input
@@ -142,17 +148,18 @@ defineExpose<ViewExposed>({ self, id, focus });
         <!-- Color -->
         <button
           class="rounded px-0.5 hover:bg-gray-100"
+          v-tooltip="{ title: 'Change color', small: true }"
           v-menu="
-            (): OverlayMenuInfoIn => ({
+            (): PopoverInfoIn => ({
               component: ViewType.COLOR,
-              placement: 'bottom-left',
-              offset: 'referenceWidth',
+              placement: 'top',
+              reference: headerRef!,
               props: { modelValue: color },
               onApply: (value) => (color = value),
             })
           "
         >
-          <i class="fas fa-circle small" :style="{ color: getColorHex(color ?? ColorType.GRAY, ColorShade.S500) }" />
+          <i class="fas fa-circle small" :style="{ color: effectiveColorHex }" />
         </button>
       </div>
       <!-- Body -->
@@ -167,12 +174,12 @@ defineExpose<ViewExposed>({ self, id, focus });
         <ul
           v-if="results.length > 0"
           class="grid grid-cols-10 gap-x-1 gap-y-1 px-2 py-2 text-center"
-          :style="{ color: getColorHex(color ?? ColorType.GRAY, ColorShade.S500) }"
+          :style="{ color: effectiveColorHex }"
         >
           <template v-for="(item, i) in results" :key="i">
             <span
               :ref="(ref?: any) => (ref != null ? (resultsRefs[item.id] = ref) : delete resultsRefs[item.id])"
-              class="select-none rounded border border-transparent py-1.5 hover:cursor-pointer hover:border-gray-300 hover:bg-gray-200 data-[active=true]:border-gray-300 data-[active=true]:bg-gray-200"
+              class="select-none rounded border border-transparent py-1.5 hover:cursor-pointer hover:border-gray-300 hover:bg-gray-100 data-[active=true]:border-gray-300 data-[active=true]:bg-gray-100"
               :class="item.faName"
               role="menuitem"
               :data-selected="item.faName == modelValue?.faName"
@@ -187,6 +194,7 @@ defineExpose<ViewExposed>({ self, id, focus });
                 } as TooltipInfo
               "
               @click.stop.prevent="fire(item)"
+              @keydown.enter.stop.prevent="fire(item)"
             />
           </template>
         </ul>
