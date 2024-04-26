@@ -37,7 +37,7 @@ import { describeNode, isNode, toNodeReference, type TypedNodeReferenceData } fr
 import { type ReadNodeGraph } from "@/system/graph";
 import { ENUM_ICONS_BY_TYPE, makeIcon } from "@/system/icon";
 import type { Transaction } from "@/system/transaction";
-import { getViewComponentForValueType, makeTypeInfo, type TypeIdentity } from "@/system/value";
+import { getViewForValueType, makeTypeInfo, type TypeIdentity } from "@/system/value";
 import { generateOrderKey, generateOrderKeys, isValidOrderKey } from "@/utils/fractional";
 import { Casing, toCasing } from "@/utils/string";
 import { getRandomColorType } from "@/utils/style";
@@ -669,7 +669,7 @@ export function getInspectionLayout(
         const protoName = allProperties[property.id];
         const inspectedProperty: InspectedProperty = { title, protoName, category, property };
         try {
-          const { viewType, props } = getViewComponentForValueType({
+          const { viewType, props } = getViewForValueType({
             primitiveType: property.primitiveType,
             benchType: (property.enumType ?? property.referenceNodes?.[0] ?? property.referenceStruct) as unknown as
               | BenchType
