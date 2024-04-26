@@ -1029,7 +1029,7 @@ export function moveNode(
         node: node as AnyNodeData & { orderKey: string },
         position: anchor == "start" || anchor == "before" ? "before" : "after",
         reference: target as AnyNodeData & { orderKey: string },
-        getNodes: () => graph.getChildren(targetParent, target.metatype as unknown as NodeType) as any,
+        getNodes: () => graph.getChildren(targetParent, target!.metatype as unknown as NodeType) as any,
       });
     }
     tx.move({ ...node, parentPtr: target.parentPtr });
@@ -1042,7 +1042,7 @@ export function moveNode(
         node: node as AnyNodeData & { orderKey: string },
         position: "after",
         reference: null,
-        getNodes: () => graph.getChildren(target, node.metatype as unknown as NodeType) as any,
+        getNodes: () => graph.getChildren(target!, node.metatype as unknown as NodeType) as any,
       });
     }
     tx.move({ ...node, parentPtr: toNodeReference(target) });
