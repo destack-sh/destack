@@ -29,6 +29,7 @@ import Icon from "@/views/content/Icon.vue";
 import Text from "@/views/content/Text.vue";
 import { computed, nextTick, ref, toRef, type Ref } from "vue";
 import { makeTypeInfo, type TypeIdentity } from "@/system/value";
+import Value from "@/views/content/Value.vue";
 
 const props = defineProps<
   { self?: TypedNodeReferenceData<NodeType.VIEW>; preparedConnection?: PreparedGetConnection } & Pick<
@@ -124,8 +125,7 @@ defineExpose<ViewExposed>({ self, id, variants: [Variant.PRIMARY, Variant.STEALT
         <IconInline
           v-bind="getNodeIcon(block)"
           class="w-5 rounded border border-transparent py-0.5 hover:cursor-pointer hover:bg-gray-100 data-[menu=true]:border-primary-900 data-[menu=true]:bg-gray-100"
-          :shade="[isThinTextWrapper ? ColorShade.S500 : ColorShade.S700]"
-          :fallback-color="ColorType.GRAY"
+          :class="isThinTextWrapper ? 'text-gray-500' : 'text-gray-700'"
           v-tooltip="{ small: true, text: `Change icon` }"
           v-menu="
             (): PopoverInfoIn => ({
@@ -203,7 +203,7 @@ defineExpose<ViewExposed>({ self, id, variants: [Variant.PRIMARY, Variant.STEALT
           </button>
           <!-- Menu -->
           <button
-            class="rounded border border-transparent px-2 hover:bg-gray-100 hover:text-primary-900 data-[menu=true]:border-primary-900 data-[menu=true]:bg-primary-100 data-[menu=true]:text-primary-900"
+            class="rounded border border-transparent px-2 hover:bg-gray-100 hover:text-primary-900 data-[menu=true]:border-primary-900 data-[menu=true]:bg-gray-100 data-[menu=true]:text-primary-900"
             v-menu="
               (): PopoverInfo => ({
                 kind: 'menu',
@@ -221,13 +221,20 @@ defineExpose<ViewExposed>({ self, id, variants: [Variant.PRIMARY, Variant.STEALT
     </div>
     <!-- Body -->
     <div class="flex flex-col gap-y-1 py-1">
-      <!-- TODO :UX: Text/Code empty states? -->
+      <!-- Variable ... -->
+      <Value
+        v-if="block.type == BlockType.VARIABLE"
+        :value-type="block.builtinBase"
+        :model-value="block.valuePacked"
+        @update:modelValue="(newValue) => pkgConnection.tx.updateDebounced(block!, { valuePacked: newValue })"
+      />
       <Type
         v-if="TYPE_BLOCK_TYPES.includes(block.type) || RUNNABLE_BLOCK_TYPES.includes(block.type)"
         :node="block"
         :prepared-connection="pkgGetConnection"
         :node-ptr="nodePtr"
       />
+      <!-- TODO :UX: Text/Code empty states? -->
       <Text
         ref="textRef"
         v-if="block.type == BlockType.TEXT || block.text != null || forceShowText"

@@ -7,10 +7,6 @@ import { REAL_COLORS, getColorHex, getColorTitle, makeColor } from "@/utils/styl
 import { ViewContentWrapper, makeViewId, viewEmits, type ViewExposed } from "@/views/common";
 import { ref, toRef, type Ref } from "vue";
 
-const DEFAULT_WIDTH = 380;
-const MAX_HEIGHT = 280;
-const ITEMS_PER_ROW = 10;
-
 const props = defineProps<
   { self?: TypedNodeReferenceData<NodeType.VIEW>; modelValue?: ColorData } & Partial<
     Pick<ViewData, "name" | "title" | "text" | "icon" | "variant" | "isInput" | "isInline" | "isDisabled">
@@ -74,7 +70,7 @@ defineExpose<ViewExposed>({ self, id });
         @click.stop.prevent="fire(color)"
         @keydown.enter.stop.prevent="fire(color)"
       >
-        <i class="fas fa-circle" :style="{ color: getColorHex(color, ColorShade.S500) }" />
+        <i class="fas fa-circle" :style="{ color: getColorHex(color, ColorShade.S600) }" />
       </button>
     </div>
   </ViewContentWrapper>

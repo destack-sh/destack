@@ -38,6 +38,7 @@ const COMPONENT_BY_VIEW_TYPE_LAZY = {
   [ViewType.BUTTON]: () => import("@/views/controls/Button.vue"),
 
   // content
+  [ViewType.VALUE]: () => import("@/views/content/Value.vue"),
   [ViewType.STRING]: () => import("@/views/content/HtmlInput.vue"),
   [ViewType.NUMBER]: () => import("@/views/content/HtmlInput.vue"),
   [ViewType.TEXT]: () => import("@/views/content/Text.vue"),

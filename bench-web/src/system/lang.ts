@@ -22,6 +22,7 @@ import {
   RecordData,
   RunData,
   SignalData,
+  StepType,
   StructType,
   ViewProperty,
   ViewType,
@@ -498,18 +499,22 @@ export function createField(
 // Inspection
 //
 
-type InspectionCategory = {
-  category: string;
-  properties: (
-    | { from?: number; to?: number; excluding?: number[] }
-    | {
-        from: number;
-        to: number;
-        replace: (properties: PropertyInfo[]) => InspectedPropertyPartial;
-      }
-    | number
-  )[];
-};
+/** Gets the discriminating subtype for a node, if any */
+export function getNodeSubtype(node: AnyNodeData): FieldKind | BlockType | ViewType | StepType | any {
+  if (isNode(node, NodeType.FIELD)) return node.kind;
+  else return (node as any).type;
+}
+
+type InspectionCategory = (
+  | { from?: number; to?: number; excluding?: number[] }
+  | {
+      from: number;
+      to: number;
+      replace: (properties: PropertyInfo[]) => InspectedPropertyIn;
+    }
+  | number
+)[];
+
 type InspectedProperty = {
   title: string;
   protoName?: string;
@@ -521,89 +526,120 @@ type InspectedProperty = {
   read?: (node: AnyNodeData) => any;
   write?: (tx: Transaction, node: AnyNodeData, value: any) => void;
 };
-type InspectedPropertyPartial = Pick<
-  InspectedProperty,
-  "title" | "viewType" | "props" | "isFullWidth" | "read" | "write"
->;
+type InspectedPropertyIn = Pick<InspectedProperty, "title" | "viewType" | "props" | "isFullWidth" | "read" | "write">;
 type InspectionLayout = {
   properties: InspectedProperty[];
 };
 
-function typeProperty(): InspectedPropertyPartial {
-  return {
-    title: "Type",
-    viewType: ViewType.PICKER,
-    props: { valueType: makeTypeInfo({ benchType: BenchType.TYPE_INFO }) },
-    read: (node) => node,
-    write: (tx, node, value: TypeIdentity) => {
-      tx.updateDebounced(node, {
-        primitiveType: value.primitiveType,
-        benchType: value.benchType,
-        baseTypePtr: value.baseTypePtr,
-      });
-    },
-  };
-}
-
-const INSPECTION_INFO_BY_TYPE: Partial<Record<ObjectType, InspectionCategory[]>> = {
-  [ObjectType.FIELD]: [
-    {
-      category: "Common",
-      properties: [
+// NOTE: we (try to) only use metatype/type to avoid recomputing inspection layouts on every change (might have to revisit)
+function getInspectionInfo(metatype: ObjectType, type: any): Record<string, InspectionCategory> | null {
+  if (metatype == ObjectType.FIELD) {
+    const properties = {
+      Common: [
         FieldProperty.kind,
-        { from: 40, to: 43, replace: typeProperty },
+        {
+          from: 40,
+          to: 43,
+          replace: () => ({
+            title: "Type",
+            viewType: ViewType.PICKER,
+            props: { valueType: makeTypeInfo({ benchType: BenchType.TYPE_INFO }) },
+            read: (node: FieldData) => node,
+            write: (tx: Transaction, node: FieldData, value: TypeIdentity) => {
+              tx.updateDebounced(node, {
+                primitiveType: value.primitiveType,
+                benchType: value.benchType,
+                baseTypePtr: value.baseTypePtr,
+              });
+            },
+          }),
+        },
         { from: 30, to: 43 },
         { from: 60 },
-        FieldProperty.visibility,
       ],
-    },
-    { category: "Constraint", properties: [FieldProperty.formatHint] },
-  ],
-  [ObjectType.BLOCK]: [
-    {
-      category: "Common",
-      properties: [
-        {
-          to: 40,
-          excluding: [BlockProperty.text, BlockProperty.basesPtr, BlockProperty.builtinBase, BlockProperty.policies],
-        },
-      ],
-    },
-    { category: "Flags", properties: [{ from: 60, to: 70, excluding: [BlockProperty.pausedAt] }] },
-  ],
-  [ObjectType.VIEW]: [
-    { category: "Common", properties: [{ to: 40 }, ViewProperty.isInput] },
-    { category: "Content", properties: [{ from: 40, to: 50 }] },
-    { category: "Style", properties: [{ from: 50, to: 60 }] },
-    { category: "Layout", properties: [{ from: 60, to: 70 }] },
-    { category: "Behavior", properties: [{ from: 70, to: 80 }] },
-  ],
-};
+      Constraint: [FieldProperty.formatHint],
+    };
+    if (type != FieldKind.OPTION) {
+      properties["Common"].push(FieldProperty.visibility);
+    }
+    return properties;
+    //
+  } else if (metatype == ObjectType.BLOCK) {
+    const properties: Record<string, InspectionCategory> = {
+      Common: [BlockProperty.type],
+      Flags: [{ from: 60, to: 70, excluding: [BlockProperty.pausedAt] }],
+    };
+    if (type == BlockType.ALIAS || type == BlockType.VARIABLE) {
+      properties["Common"].push({
+        from: BlockProperty.builtinBase,
+        to: BlockProperty.builtinBase + 1,
+        replace: () => ({
+          title: "Base",
+          viewType: ViewType.PICKER,
+          props: { valueType: makeTypeInfo({ benchType: BenchType.TYPE_INFO }) },
+          read: (node: AnyNodeData) => (node as BlockData).builtinBase,
+          write: (tx: Transaction, node: AnyNodeData, value: TypeIdentity) => {
+            tx.updateDebounced(node as BlockData, {
+              builtinBase: makeTypeInfo({
+                primitiveType: value.primitiveType,
+                benchType: value.benchType,
+                baseTypePtr: value.baseTypePtr,
+              }),
+            });
+          },
+        }),
+      });
+    }
+    properties.Common.push(BlockProperty.visibility);
+    return properties;
+    //
+  } else if (metatype == ObjectType.VIEW) {
+    const properties = {
+      Common: [{ to: 40 }, ViewProperty.isInput],
+      Content: [{ from: 40, to: 50 }],
+      Style: [{ from: 50, to: 60 }],
+      Layout: [{ from: 60, to: 70 }],
+      Behavior: [{ from: 70, to: 80 }],
+    };
+    return properties;
+  } else {
+    return null;
+  }
+}
+
 const FULL_WIDTH_VIEW_TYPES = [ViewType.TEXT, ViewType.CODE];
 const ALWAYS_EXCLUDED_PROPERTIES: string[] = ["order_key"];
 
 /** Generates the inspection layout for an object metatype. */
-export function getInspectionLayout(metatype: ObjectType, options?: { exclude?: string[] }): InspectionLayout {
+export function getInspectionLayout(
+  metatype: ObjectType,
+  type: any,
+  options?: { exclude?: string[] },
+): InspectionLayout {
   const propertyInfos = PROPERTY_INFOS_BY_TYPE[metatype];
   const seenProperties: Record<number, PropertyInfo> = {};
   const inspectedProperties: InspectedProperty[] = [];
   const excluded = ALWAYS_EXCLUDED_PROPERTIES.concat(options?.exclude ?? []);
 
   const allProperties = PROPERTY_ENUM_BY_TYPE[metatype] ?? [];
-  const categories = INSPECTION_INFO_BY_TYPE[metatype] ?? [
+  const categories = getInspectionInfo(metatype, type) ?? [
     { category: "common", properties: [{ from: undefined, to: undefined }] },
   ];
 
-  for (const category of categories) {
+  for (const category of Object.keys(categories)) {
+    const categoryProperties = categories[category as keyof typeof categories] as InspectionCategory;
     // assemble all properties in category
-    for (const range of category.properties) {
+    for (const range of categoryProperties) {
       let propertiesInRange;
       if (typeof range == "object") {
         propertiesInRange = Object.values(propertyInfos).filter((property) => {
-          if ((range.from != null && property.id < range.from) || (range.to != null && property.id >= range.to))
+          if ((range.from != null && property.id < range.from) || (range.to != null && property.id >= range.to)) {
             return false;
-          if ("excluding" in range && range.excluding != null && range.excluding.includes(property.id)) return false;
-          return true;
+          } else if ("excluding" in range && range.excluding != null && range.excluding.includes(property.id)) {
+            return false;
+          } else {
+            return true;
+          }
         });
       } else {
         propertiesInRange = Object.values(propertyInfos).filter((property) => property.id == range);
@@ -615,11 +651,7 @@ export function getInspectionLayout(metatype: ObjectType, options?: { exclude?: 
           seenProperties[property.id] = property;
         }
         const replaced = range.replace(propertiesInRange);
-        const inspectedProperty: InspectedProperty = {
-          ...replaced,
-          property: propertiesInRange[0],
-          category: category.category,
-        };
+        const inspectedProperty: InspectedProperty = { ...replaced, property: propertiesInRange[0], category };
         inspectedProperties.push(inspectedProperty);
         continue; // already handled
       }
@@ -634,12 +666,8 @@ export function getInspectionLayout(metatype: ObjectType, options?: { exclude?: 
         if (pythonName.endsWith("_ptr")) pythonName = pythonName.slice(0, -4);
         if (pythonName.startsWith("is_")) pythonName = pythonName.slice(3);
         const title = toCasing(pythonName, Casing.CAMEL, true);
-        const inspectedProperty: InspectedProperty = {
-          title,
-          protoName: allProperties[property.id],
-          category: category.category,
-          property,
-        };
+        const protoName = allProperties[property.id];
+        const inspectedProperty: InspectedProperty = { title, protoName, category, property };
         try {
           const { viewType, props } = getViewComponentForValueType({
             primitiveType: property.primitiveType,

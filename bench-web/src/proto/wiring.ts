@@ -84,7 +84,8 @@ export function makeStruct<T extends StructType>(
 export function makeDefaultStruct<T extends StructType>(
   data: Partial<Omit<StructTypeMapping[T], "metatype" | "id">> & { metatype: T },
 ): StructTypeMapping[T] {
-  const allProperties: AnyPropertyType = STRUCT_PROPERTY_ENUM_BY_TYPE[data.metatype as unknown as ObjectType]!;
+  const allProperties = STRUCT_PROPERTY_ENUM_BY_TYPE[data.metatype as unknown as ObjectType];
+  if (allProperties == null) throw new Error(`missing properties for struct type: ${data.metatype} (${typeof data.metatype})`);
   const messageType = MESSAGE_TYPE_BY_OBJECT_TYPE[data.metatype as unknown as ObjectType]!;
   let ord = 1; // skip metatype
   const struct = { ...data } as unknown as StructTypeMapping[T];
