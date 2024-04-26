@@ -1,155 +1,141 @@
+import asyncio
 import base64
 import enum
 import struct
-import typing
+from collections import defaultdict
 from dataclasses import dataclass
 from itertools import chain
-from typing import Any, Collection, Mapping, Optional, Sequence, cast
-from uuid import UUID, uuid4
+from typing import (
+    Any,
+    Collection,
+    Mapping,
+    NamedTuple,
+    Optional,
+    TypeVar,
+    Union,
+    cast,
+)
+from uuid import UUID
 
 import cachetools
-import msgpack
 import psycopg
+import pytz
 import structlog
+from bitarray import bitarray
 from psycopg import sql
 from psycopg.types.json import Jsonb
 
-import bench.language as lang
-from bench.language import ConditionalOp, Field, HasDatabase, Module, QueryEngine, wire
-from bench.language.const import NodeType, TypeFlag, TypeStorageFormat
-from bench.language.edit import EditData, EditKind
-from bench.language.expression import (
-    TYPE_DISCRIMINATOR_KEY,
-    ExpressionOps,
-    FieldReference,
-    QueryEngineIncapableError,
+from bench.language import (
+    Block,
+    ConditionalOp,
+    Field,
+    Package,
+    Property,
+    Store,
+    StoreEngineType,
+    TypeInfo,
 )
-from bench.language.module import UNSET, get_node_id
-from bench.sql.client import async_pg_cursor
+from bench.language.access import ReadOptions
+from bench.language.const import (
+    EMPTY_DICT,
+    NODE_TYPES,
+    BenchError,
+    EditType,
+    NodeType,
+    ReferenceKind,
+    SortOp,
+)
+from bench.language.database import HasDatabase, Record
+from bench.language.expression import METATYPE_KEY, C, Expression, ExpressionOps
+from bench.language.graph import NodeDataGraph
+from bench.language.node import NODE_CLASS_BY_TYPE, UNSET, Node
+from bench.language.query import StoreEngineIncapableError
+from bench.language.setup import NODE_CLASSES, PARENT_NODE_TYPES
+from bench.proto import wire, wiring
+from bench.proto.wire import AnyNodeData, EditData, IdEnum, NodeReferenceData
+from bench.proto.wiring import PROTO_CLASS_BY_TYPE
+from bench.sql import schema
+from bench.sql.client import current_pg_crypto_key, pg_cursor_to_store
 from bench.sql.core import (
-    BASE_RECORD_TABLE,
-    CONSTRUCT_TABLE,
-    INTERNAL_TABLES,
+    DEFAULT_GLOBAL_TABLES,
+    DEFAULT_LOCAL_TABLES,
+    RECORD_BASE_TABLE,
+    CascadeAction,
     Column,
-    ColumnType,
     Constraint,
-    Construct,
-    ConstructInfo,
-    ConstructKind,
+    ConstraintType,
     Index,
+    IndexType,
+    PrimitiveType,
     SqlPrimitive,
     Table,
-    TableConstruct,
-    get_record_table_name,
 )
+from bench.system.client import user_pg_cursor
+from bench.utils.casing import Casing, to_casing
 from bench.utils.dt import utcnow_with_tz
-from bench.utils.utils import DEBUG, LOCAL
+from bench.utils.env import IS_DEBUG, IS_LOCAL, IS_TEST
+from bench.utils.func import describe_type, to_uuid
 
 logger = structlog.get_logger(__name__)
 
-COLUMN_TYPE_BY_STORAGE_FORMAT: dict[TypeStorageFormat, ColumnType] = {
-    TypeStorageFormat.STRING: ColumnType.STRING,
-    TypeStorageFormat.DOUBLE: ColumnType.FLOAT,
-    TypeStorageFormat.LONG: ColumnType.BIGINT,
-    TypeStorageFormat.VECTOR: ColumnType.VECTOR,
-    TypeStorageFormat.BINARY: ColumnType.BINARY,
-    TypeStorageFormat.DATE: ColumnType.DATETIME,
-    TypeStorageFormat.BOOLEAN: ColumnType.BOOLEAN,
-    TypeStorageFormat.KEYWORD: ColumnType.STRING,
-    TypeStorageFormat.OBJECT: ColumnType.JSON,
-    TypeStorageFormat.RELATION: ColumnType.UUID,
+
+class SqlError(BenchError):
+    pass
+
+
+class SqlUndefinedObjectError(SqlError):
+    pass
+
+
+class SqlViolation(SqlError):
+    pass
+
+
+class SqlAlreadyExistsError(SqlError):
+    pass
+
+
+class SqlNotExistsError(SqlError):
+    pass
+
+
+@dataclass(frozen=True)
+class SqlExpression:
+    def sql(self) -> sql.Composable:
+        raise NotImplementedError
+
+
+SqlNode = SqlExpression | SqlPrimitive | sql.SQL
+
+
+def sql_node_to_sql(node: SqlNode) -> sql.Composable:
+    if isinstance(node, SqlExpression):
+        return node.sql()
+    elif isinstance(node, sql.Composable):
+        return node
+    else:
+        return sql.Literal(node)
+
+
+def sqlstr(str: str) -> sql.SQL:
+    # don't care about LiteralString
+    return sql.SQL(str)  # noqa
+
+
+PG_CAST_PRIMITIVE_TYPE: dict[PrimitiveType, str] = {
+    PrimitiveType.BOOLEAN: "boolean",
+    PrimitiveType.INT32: "int",
+    PrimitiveType.INT64: "bigint",
+    PrimitiveType.FLOAT32: "float",
+    PrimitiveType.FLOAT64: "double",
+    PrimitiveType.DECIMAL: "decimal",
+    PrimitiveType.STRING: "text",
+    PrimitiveType.VECTOR: "float[]",
+    PrimitiveType.BYTES: "bytea",
+    PrimitiveType.DATETIME: "timestamptz",
+    PrimitiveType.JSON: "jsonb",
+    PrimitiveType.UUID: "uuid",
 }
-assert len(COLUMN_TYPE_BY_STORAGE_FORMAT) == len(TypeStorageFormat), "missing column type"
-
-CAST_TYPE_BY_STORAGE_FORMAT: dict[TypeStorageFormat, str] = {
-    TypeStorageFormat.STRING: "text",
-    TypeStorageFormat.DOUBLE: "float",
-    TypeStorageFormat.LONG: "bigint",
-    TypeStorageFormat.VECTOR: "float[]",
-    TypeStorageFormat.BINARY: "bytea",
-    TypeStorageFormat.DATE: "timestamptz",
-    TypeStorageFormat.BOOLEAN: "boolean",
-    TypeStorageFormat.KEYWORD: "text",
-    TypeStorageFormat.OBJECT: "jsonb",
-    TypeStorageFormat.RELATION: "uuid",
-}
-
-
-def get_value_column_name(typed_key: str, is_array: bool) -> str:
-    typed_key = typed_key.replace(".", "_").replace("-", "_").lower()
-    return f"value_{typed_key}"
-
-
-def get_field_column_name(field: lang.Field) -> str:
-    return get_value_column_name(field._typed_key, bool(field.flags & TypeFlag.IS_ARRAY))
-
-
-def map_to_pg_column(field: lang.Field) -> Column:
-    """Gets a column from a field. Later, there may be more than one column per field (?)."""
-    column_type = COLUMN_TYPE_BY_STORAGE_FORMAT[field._storage_format]
-    is_array = (
-        field.flags & lang.TypeFlag.IS_ARRAY or field.flags & lang.TypeFlag.IS_ARRAYABLE
-    ) and column_type != ColumnType.JSON
-    return Column(
-        name=get_field_column_name(field),
-        type=column_type,
-        is_array=is_array,
-        is_nullable=True,
-    )
-
-
-def map_to_pg_table(statement: lang.Statement) -> Table:
-    """Gets the full table with all specific fields of a database and general record stuff."""
-    columns = [map_to_pg_column(f) for f in statement.resolved_fields]
-    indexes = []
-    constraints = []
-
-    return Table(
-        name=get_record_table_name(statement.ck),
-        columns=(*(c.clone() for c in BASE_RECORD_TABLE.columns), *columns),
-        indexes=(*(i.clone() for i in BASE_RECORD_TABLE.indexes), *indexes),
-        constraints=(*(c.clone() for c in BASE_RECORD_TABLE.constraints), *constraints),
-    )
-
-
-async def update_pg_schema(pg_name: str, module: Module) -> None:
-    """Updates Postgres tables (i.e. schema) for a module's databases."""
-    log = logger.bind(pg_name=pg_name, module=module)
-    databases: list[lang.Statement] = [
-        s
-        for s in module._nodes
-        if s.node_type == NodeType.STATEMENT and HasDatabase in s._components and not s.ephemeral
-    ]
-    tables = (*INTERNAL_TABLES, *(s._table for s in databases if s._table))
-    log.info("pg.update_schema", databases=len(databases), tables=len(tables))
-
-    try:
-        async with async_pg_cursor(pg_name, autocommit=False) as cur:
-            # get missing constructs (diff existing and current)
-            try:
-                existing_constructs = await pg_get_stored_constructs(cur)
-            except SqlUndefinedConstruct:
-                # TODO @Robustness @Architecture: figure out some simple Migration system
-                # does not exist yet, will be created below
-                await cur.connection.rollback()
-                existing_constructs = {}
-            current_constructs: dict[UUID, Construct] = {c.id: c for t in tables for c in t.walk()}
-            missing_constructs = {
-                id: c for id, c in current_constructs.items() if id not in existing_constructs
-            }
-            if missing_constructs:
-                log.info("pg.update_schema.create", missing=len(missing_constructs))
-                # create missing constructs
-                await pg_create_constructs(cur, missing_constructs)
-                # and remember the state
-                new_constructs = {**existing_constructs}
-                new_constructs.update(missing_constructs)  # retain all old constructs (for now)
-                await pg_replace_stored_constructs(cur, new_constructs)
-            else:
-                log.info("pg.update_schema.skip")
-    except Exception as e:
-        log.exception("pg.update_schema.failed", e=e)
-        raise RuntimeError(f"failed to update {pg_name} schema: {e}") from e
 
 
 class PostgresConditionalOp(enum.StrEnum):
@@ -172,9 +158,8 @@ class PostgresConditionalOp(enum.StrEnum):
     NOT_IN = "NOT IN"
     # string
     LIKE = "LIKE"
-    NOT_LIKE = "NOT LIKE"
     ILIKE = "ILIKE"
-    NOT_ILIKE = "NOT ILIKE"
+    REGEXP = "~"
     # array/json
     CONTAINS = "@>"
     CONTAINED_BY = "<@"
@@ -200,6 +185,7 @@ PG_CONDITIONAL_OP_BY_BENCH: dict[ConditionalOp, PostgresConditionalOp] = {
     # string
     ConditionalOp.MATCHES: PostgresConditionalOp.LIKE,
     ConditionalOp.STARTS_WITH: PostgresConditionalOp.LIKE,
+    ConditionalOp.REGEX: PostgresConditionalOp.REGEXP,
     # containment
     ConditionalOp.CONTAINS: PostgresConditionalOp.CONTAINS,
     ConditionalOp.IN: PostgresConditionalOp.IN,
@@ -219,111 +205,287 @@ class PostgresSortOp(enum.StrEnum):
     DESC = "DESC"
 
 
-POSTGRES_SORT_OP_BY_BENCH: dict[lang.SortOp, PostgresSortOp] = {
-    lang.SortOp.ASCENDING: PostgresSortOp.ASC,
-    lang.SortOp.DESCENDING: PostgresSortOp.DESC,
+POSTGRES_SORT_OP_BY_BENCH: dict[SortOp, PostgresSortOp] = {
+    SortOp.ASCENDING: PostgresSortOp.ASC,
+    SortOp.DESCENDING: PostgresSortOp.DESC,
 }
 
 
-class SqlError(Exception):
-    pass
+def get_database_table_name(database: Block) -> str:
+    """
+    Gets the name for a table with the Records of a dynamically created DatabaseBlock.
+    NOTE: we rely on this table prefix to remain constant
+    """
+    return f"bench_record_{database.sk.replace('-', '')}"
 
 
-class SqlUndefinedConstruct(SqlError):
-    pass
+def get_bench_table_name(node_type: NodeType) -> str:
+    """Gets the name for a regular Bench node table."""
+    return f"bench_{node_type.name.lower().replace('_', '')}"
 
 
-@dataclass(frozen=True)
-class SqlExpression:
-    def sql(self) -> sql.Composable:
-        raise NotImplementedError
+def map_node_class_to_pg_table(node: type[Node]) -> Table:
+    # TODO :Robustness: add Bench check constraints in Postgres
+    table_name = get_bench_table_name(node.metatype)
+    columns: list[Column] = []
+    constraints: list[Constraint] = [*(node.__extra_constraints__ or ())]
+    indexes: list[Index] = [*(node.__extra_indexes__ or ())]
+    properties = list(node.__properties__.values())
+    properties.sort(key=lambda p: p.id or -1)
 
+    # map properties to columns, add per-column indices
+    for prop in properties:
+        if not prop.is_stored:
+            continue
+        column = Column(
+            name=prop.name,
+            type=prop.primitive_type,
+            is_array=prop.is_list,
+            is_nullable=not prop.is_required,
+            is_encrypted=prop.is_encrypted,
+            is_primary_key=prop.name == "id",
+            is_unique=prop.is_unique,
+            _source=prop.id,
+        )
+        # default
+        if prop.default is not UNSET and prop.default is not None:
+            if isinstance(prop.default, IdEnum):
+                column.default = f"'{prop.default.name}'::character varying"
+            elif isinstance(prop.default, bool):
+                column.default = "false" if prop.default is False else "true"
+            elif isinstance(prop.default, int):
+                column.default = str(prop.default)
+            elif isinstance(prop.default, str):
+                column.default = f"'{prop.default}'::character varying"
+            else:
+                raise TypeError(f"unexpected default in {prop!r}: {prop.default!r}")
+        # FKs
+        if (
+            (prop.reference_kind == ReferenceKind.NODE_PARENT or prop.reference_force_fk)
+            and not prop.is_list  # foreign keys must be scalar
+            and node.__is_local__ == NODE_CLASS_BY_TYPE[prop.reference_nodes[0]].__is_local__
+        ):
+            assert len(prop.reference_nodes) == 1, f"stored prop {prop!r} has multiple references"
+            column.is_foreign_key_to = get_bench_table_name(prop.reference_nodes[0])
+            assert isinstance(prop.reference_on_delete, CascadeAction)
+            column.on_delete = prop.reference_on_delete
 
-SqlNode = SqlExpression | SqlPrimitive | sql.SQL
+        if prop.is_indexed_in_pg or prop.is_unique:
+            index = Index(
+                f"bench_idx_{prop.name}",
+                type=IndexType.BTREE,
+                columns=(column.name,),
+                is_unique=prop.is_unique,
+                _source=prop.id,
+            )
+            indexes.append(index)
+            if prop.is_unique:
+                constraint = Constraint(
+                    index.inner_name,  # must be the same as the index name (postgres will rename otherwise)
+                    type=ConstraintType.UNIQUE,
+                    columns=(column.name,),
+                    index=index.inner_name,
+                    _source=prop.id,
+                )
+                constraints.append(constraint)
+        columns.append(column)
 
+    # one of the parent_<type>_id columns must be non-null
+    parent_columns: tuple[str, ...] = tuple(c.name for c in columns if c.name.startswith("parent_"))
+    if parent_columns:
+        constraint = Constraint(
+            "bench_check_one_parent",
+            type=ConstraintType.CHECK,
+            condition=f"({') OR ('.join(f'{c} IS NOT NULL' for c in parent_columns)})",
+            _source=node.metatype.id,
+        )
+        constraints.append(constraint)
 
-def sql_node_to_sql(node: SqlNode) -> sql.Composable:
-    if isinstance(node, SqlExpression):
-        return node.sql()
-    elif isinstance(node, sql.Composable):
-        return node
-    else:
-        return sql.Literal(node)
-
-
-def _compile_field_ref(database: "HasDatabase", field: lang.Field | FieldReference) -> SqlNode:
-    if isinstance(field, lang.Field):
-        if field._reflected:
-            return sql.Identifier(field.py_ident)
-        elif database.ephemeral:
-            return SqlJsonPath(sql.Identifier("value"), [field._typed_key])
+    # index [package] + deleted_at/archived_at if applicable
+    for prop_name in ("deleted_at", "archived_at"):
+        prop = node.__properties__.get(prop_name)
+        if prop is None:
+            continue
+        if node.__is_in_package__ and "package_id" in node.__properties__:
+            index = Index(
+                f"bench_idx_package_{prop_name}",
+                type=IndexType.BTREE,
+                columns=("package_id", prop_name),
+                _source=prop.id,
+            )
         else:
-            return sql.Identifier(get_field_column_name(field))
-    elif isinstance(field, str):
-        return sql.Identifier(field)
+            index = Index(
+                f"bench_idx_{prop_name}",
+                type=IndexType.BTREE,
+                columns=(prop_name,),
+                _source=prop.id,
+            )
+        indexes.append(index)
+
+    table = Table(
+        _source=node.metatype.id,
+        name=table_name,
+        columns=tuple(columns),
+        constraints=tuple(constraints),
+        indexes=tuple(indexes),
+    )
+    return table
+
+
+def get_field_column_name(field: Field) -> str:
+    storage_key = field.storage_key.replace(".", "_").replace("-", "_").lower()
+    return f"value_{storage_key}"
+
+
+def map_database_to_pg_table(database: Block) -> Table:
+    """Gets the full table with all specific fields of a database and general record stuff."""
+    columns: list[Column] = []
+    indexes: list[Index] = []
+    constraints: list[Constraint] = []
+
+    for field in database.fields:
+        type: TypeInfo = field.resolved_type
+        column = Column(
+            _source=str(field.ck),
+            name=get_field_column_name(field),
+            type=type.primitive_type,
+            is_array=type.is_list,
+            is_nullable=True,
+            is_encrypted=type.is_secret,
+        )
+        columns.append(column)
+
+    return Table(
+        _source=str(database.ck),
+        name=get_database_table_name(database),
+        columns=(*(c.clone() for c in RECORD_BASE_TABLE.columns), *columns),
+        indexes=(*(i.clone() for i in RECORD_BASE_TABLE.indexes), *indexes),
+        constraints=(*(c.clone() for c in RECORD_BASE_TABLE.constraints), *constraints),
+    )
+
+
+async def update_dynamic_local_pg_schema(package: Package) -> None:
+    """Updates the dynamic local record Postgres tables for a package's databases."""
+    from bench.sql.migration import (
+        MigrationOpKind,
+        apply_migration_ops,
+        generate_migration_ops,
+        introspect_tables_from_pg,
+    )
+
+    store = package.environment.store
+    log = logger.bind(store=store, package=package)
+    databases: list[Block] = [
+        cast(Block, s)
+        for s in package._nodes
+        if s.metatype == NodeType.BLOCK and HasDatabase in s._components and not s.ephemeral
+    ]
+    tables: list[Table] = [d._table for d in databases]
+    log.info("pg.update_schema", databases=len(databases), tables=len(tables))
+
+    try:
+        async with pg_cursor_to_store(store, autocommit=False) as cur:
+            # introspect and update schema
+            old_tables = await introspect_tables_from_pg(cur, table_prefix="bench_record_")
+            new_tables = [map_database_to_pg_table(d) for d in databases]
+            migration_ops = generate_migration_ops(old_tables, new_tables)
+            # we don't do deletes here
+            migration_ops = [
+                m
+                for m in migration_ops
+                if m.kind
+                in (MigrationOpKind.CREATE, MigrationOpKind.UPDATE, MigrationOpKind.RENAME)
+            ]
+            await apply_migration_ops(cur, migration_ops)
+    except Exception as e:
+        log.exception("pg.update_schema.failed", e=e)
+        raise RuntimeError(f"failed to update {store} schema: {e}") from e
+
+
+def _compile_expression_ref(
+    node: Union[type[Node], Block],
+    expr: Expression,
+) -> SqlNode:
+    if expr.property is not None:
+        return sql.Identifier(expr.property.name)
+    elif expr.field is not None:
+        assert (
+            expr.field._introspected_from is None
+        ), f"cannot use introspected: {expr!r}->{expr.field!r}"
+        if isinstance(node, Block) and node.ephemeral:
+            return SqlJsonPath(sql.Identifier("value"), [expr.field.storage_key])
+        else:
+            return sql.Identifier(get_field_column_name(expr.field))
     else:
-        raise TypeError(f"unexpected field ref: {field!r}")
+        raise TypeError(f"unexpected expression ref: {expr!r}")
+
+
+def compile_pg_conditional_maybe(
+    node: Union[type[Node], Block],
+    cond: Optional[Expression],
+) -> SqlNode:
+    if cond is None:
+        return sqlstr("TRUE")
+    return compile_pg_conditional(node, cond)
 
 
 def compile_pg_conditional(
-    database: "HasDatabase",
-    cond: lang.Expression | None,
+    node: Union[type[Node], Block],
+    cond: Expression,
 ) -> SqlNode:
     if cond.op == ConditionalOp.TRUE:
-        return sql.SQL("TRUE")
+        return sqlstr("TRUE")
     elif cond.op == ConditionalOp.FALSE:
-        return sql.SQL("FALSE")
+        return sqlstr("FALSE")
     elif cond.op in ExpressionOps.COND_LOGICAL and cond.op in PG_CONDITIONAL_OP_BY_BENCH:
-        clauses = [compile_pg_conditional(database, c) for c in cond.clauses]
+        clauses = [compile_pg_conditional(node, c) for c in cond.clauses]
         return SqlCompound(op=PG_CONDITIONAL_OP_BY_BENCH[cond.op], operands=clauses)
     elif (
         cond.op in ExpressionOps.COND_COMPARISON or cond.op in ExpressionOps.COND_STRING
     ) and cond.op in PG_CONDITIONAL_OP_BY_BENCH:
-        left = _compile_field_ref(database, cond.field or cond.field_key)
+        left = _compile_expression_ref(node, cond)
         if isinstance(cond.field, Field):  # add explicit cast to LHS if possible
-            pg_type = CAST_TYPE_BY_STORAGE_FORMAT[cond.field._storage_format]
-            left = sql.SQL("({})::{}").format(sql_node_to_sql(left), sql.SQL(pg_type))
+            pg_type = PG_CAST_PRIMITIVE_TYPE[cond.field._storage_format]
+            left = sqlstr("({})::{}").format(sql_node_to_sql(left), sqlstr(pg_type))
         # map IN to ANY() construct (IN/NOT IN doesn't work in psycopg)
         if cond.op in (ConditionalOp.IN, ConditionalOp.NOT_IN):
-            right = sql.SQL("ANY({})").format(sql.Literal(cond.value))
+            # psycopg also can't handle tuples, so list it is
+            value = list(cond.value) if not isinstance(cond.value, list) else cond.value
+            right = sqlstr("ANY({})").format(sql.Literal(value))
             op = (
                 PostgresConditionalOp.EQ
                 if cond.op == ConditionalOp.IN
                 else PostgresConditionalOp.NEQ
             )
             return SqlComparison(left=left, op=op, right=right)
-
-        if cond.op == ConditionalOp.STARTS_WITH:
-            right = sql.SQL("{} || '%'").format(sql.Literal(cond.value))
+        elif cond.op == ConditionalOp.STARTS_WITH:
+            right = sqlstr("{} || '%'").format(sql.Literal(cond.value))
         elif cond.op == ConditionalOp.MATCHES:
-            right = sql.SQL("'%' || {} || '%'").format(sql.Literal(cond.value))
+            right = sqlstr("'%' || {} || '%'").format(sql.Literal(cond.value))
         else:
+            assert cond.value is not None, f"cannot compare {cond!r} to None"
             right = sql.Literal(cond.value)
 
         return SqlComparison(left=left, op=PG_CONDITIONAL_OP_BY_BENCH[cond.op], right=right)
     elif cond.op in ExpressionOps.COND_EXISTENCE:
         return SqlUnary(
-            left=_compile_field_ref(database, cond.field or cond.field_key),
+            left=_compile_expression_ref(node, cond),
             op=PG_CONDITIONAL_OP_BY_BENCH[cond.op],
         )
-    raise QueryEngineIncapableError(QueryEngine.POSTGRES, cond, "unsupported conditional")
-
-
-def compile_pg_sort(
-    database: "HasDatabase",
-    sort: lang.Expression,
-) -> SqlNode:
-    field_ref = _compile_field_ref(database, sort.field or sort.field_key)
-    return sql.SQL("{} {}").format(
-        sql_node_to_sql(field_ref), sql.SQL(POSTGRES_SORT_OP_BY_BENCH[sort.op])
+    raise StoreEngineIncapableError(
+        StoreEngineType.POSTGRES, expr=cond, reason="unsupported conditional"
     )
 
 
-def compile_pg_sorts(
-    database: "HasDatabase",
-    sorts: list[lang.Expression],
-) -> SqlNode:
-    return sql.SQL(", ").join(compile_pg_sort(database, sort) for sort in sorts)
+def compile_pg_sort(node: Union[type[Node], Block], sort: Expression) -> SqlNode:
+    field_ref = _compile_expression_ref(node, sort)
+    return sqlstr("{} {}").format(
+        sql_node_to_sql(field_ref), sqlstr(POSTGRES_SORT_OP_BY_BENCH[sort.op])
+    )
+
+
+def compile_pg_sorts(node: Union[type[Node], Block], sorts: Collection[Expression]) -> SqlNode:
+    return sqlstr(", ").join(compile_pg_sort(node, sort) for sort in sorts)
 
 
 @dataclass(frozen=True)
@@ -332,9 +494,9 @@ class SqlJsonPath(SqlExpression):
     path: list[str]
 
     def sql(self) -> sql.Composable:
-        return sql.SQL("{}->{}").format(
+        return sqlstr("{}->{}").format(
             sql_node_to_sql(self.field),
-            sql.SQL("->").join(sql.Literal(p) for p in self.path),
+            sqlstr("->").join(sql.Literal(p) for p in self.path),
         )
 
 
@@ -345,9 +507,9 @@ class SqlComparison(SqlExpression):
     right: SqlNode
 
     def sql(self) -> sql.Composable:
-        return sql.SQL("{} {} {}").format(
+        return sqlstr("{} {} {}").format(
             sql_node_to_sql(self.left),
-            sql.SQL(self.op),
+            sqlstr(self.op),
             sql_node_to_sql(self.right),
         )
 
@@ -358,7 +520,7 @@ class SqlCompound(SqlExpression):
     operands: list[SqlNode]
 
     def sql(self) -> sql.Composable:
-        return sql.SQL(f" {self.op} ").join(sql_node_to_sql(o) for o in self.operands)
+        return sqlstr(f" {self.op} ").join(sql_node_to_sql(o) for o in self.operands)
 
 
 @dataclass(frozen=True)
@@ -367,7 +529,7 @@ class SqlUnary(SqlExpression):
     op: PostgresConditionalOp
 
     def sql(self) -> sql.Composable:
-        return sql.SQL("{} {}").format(sql_node_to_sql(self.left), sql.SQL(self.op))
+        return sqlstr("{} {}").format(sql_node_to_sql(self.left), sqlstr(self.op))
 
 
 @dataclass(frozen=True)
@@ -380,8 +542,8 @@ class SqlJoin(SqlExpression):
         foreign_table = self.foreign_table
         if isinstance(foreign_table, Table):
             foreign_table = sql.Identifier(foreign_table.name)
-        return sql.SQL("{} {} ON {}").format(
-            sql.SQL(self.op),
+        return sqlstr("{} {} ON {}").format(
+            sqlstr(self.op),
             foreign_table,
             sql_node_to_sql(self.condition),
         )
@@ -391,11 +553,13 @@ RowIn = dict[str, SqlPrimitive | SqlExpression]
 RowOut = dict[str, SqlPrimitive]
 
 
-def _wrap_pg_error(
-    resource: Table | str, query: sql.Composed, e: psycopg.errors.Error
-) -> Exception:
+def _pg_wrap_error(resource: Any, e: psycopg.errors.Error) -> Exception:
     if isinstance(e, (psycopg.errors.UndefinedTable, psycopg.errors.UndefinedColumn)):
-        wrapped_t = SqlUndefinedConstruct
+        wrapped_t = SqlUndefinedObjectError
+    elif isinstance(e, (psycopg.errors.UniqueViolation,)):
+        wrapped_t = SqlAlreadyExistsError
+    elif "Violation" in e.__class__.__name__:
+        wrapped_t = SqlViolation
     else:
         wrapped_t = SqlError
     e_str = str(e)
@@ -406,29 +570,98 @@ def _wrap_pg_error(
     return wrapped_t(message)
 
 
-async def _do_execute(
-    cur: psycopg.AsyncCursor,
-    resource: Table | str,
-    query: sql.Composed,
-    params: Sequence | Mapping | None = None,
-) -> None:
-    try:
-        await cur.execute(query, params)
-    except psycopg.errors.Error as e:
-        raise _wrap_pg_error(resource, query, e) from e
+async def pg_select_raw(cur: psycopg.AsyncCursor, query: sql.Composed) -> list[dict[str, any]]:
+    """Executes an arbitrary select without any wrapping."""
+    logger.trace("pg.select_raw", query=sql_to_str(cur, query))
+    await cur.execute(query)
+    return await cur.fetchall()
 
 
-async def _do_execute_many(
-    cur: psycopg.AsyncCursor,
-    resource: Table | str,
-    query: sql.Composed,
-    params: Sequence | Mapping | None = None,
-    returning: bool = False,
-) -> None:
-    try:
-        await cur.executemany(query, params, returning=returning)
-    except psycopg.errors.Error as e:
-        raise _wrap_pg_error(resource, query, e) from e
+def _pg_wrap_write_column(column: Column, value: SqlNode) -> SqlNode:
+    if column.is_encrypted:
+        assert not column.is_array, f"cannot encrypt array column: {column!r}"
+        if not isinstance(value, sql.Composable) and column._unencrypted_type == PrimitiveType.JSON:
+            value = Jsonb(value)  # adapt json
+        # first to bytea
+        if column._unencrypted_type == PrimitiveType.BYTES:
+            value = sqlstr("{}::bytea").format(value)
+        elif column._unencrypted_type in (PrimitiveType.STRING, PrimitiveType.JSON):
+            value = sqlstr("convert_to({}::text, 'UTF8')").format(value)
+        else:
+            cast = PG_CAST_PRIMITIVE_TYPE[column._unencrypted_type]
+            value = sqlstr("{}::{}::text::bytea").format(value, sqlstr(cast))
+        # then encrypt with pgp_sym_encrypt_bytea
+        value = sqlstr("pgp_sym_encrypt_bytea({}, %(PG_CRYPTO_KEY)s::text)").format(
+            sql_node_to_sql(value)
+        )
+        # bail if original value is null
+        # value = sqlstr("(CASE WHEN {} IS NULL THEN NULL ELSE {} END)").format(
+        #     sql_node_to_sql(original_value), value
+        # )
+        return value
+    else:
+        return value
+
+
+def _pg_wrap_read_column(column: Column, value: SqlNode) -> SqlNode:
+    if column.is_encrypted:
+        assert not column.is_array, f"cannot encrypt array column: {column!r}"
+        original = value
+        # first decrypt with pgp_sym_decrypt_bytea
+        value = sqlstr("pgp_sym_decrypt_bytea({}, %(PG_CRYPTO_KEY)s::text)").format(
+            sql_node_to_sql(value), sql.Literal(current_pg_crypto_key())
+        )
+        # then convert from bytea to the correct type
+        if column._unencrypted_type == PrimitiveType.BYTES:
+            value = sqlstr("{}::bytea").format(value)
+        else:
+            cast = PG_CAST_PRIMITIVE_TYPE[column._unencrypted_type]
+            value = sqlstr("convert_from({}::bytea, 'UTF8')::text::{}").format(value, sqlstr(cast))
+        # and bail if original value is null
+        value = sqlstr("(CASE WHEN {} IS NULL THEN NULL ELSE {} END)").format(
+            sql_node_to_sql(original), value
+        )
+        # and label column
+        value = sqlstr("{} as {}").format(value, sql.Identifier(column.name))
+        return value
+    else:
+        return value
+
+
+def _pg_adapt_row(table: Table, row: Mapping[str, any]) -> Mapping[str, any]:
+    """Adapts and wraps any values"""
+    wrapped = {}
+    for column in table.columns:
+        if column.name not in row:
+            continue
+        value = row.get(column.name)
+        if value is None:
+            pass
+        elif column.underlying_type == PrimitiveType.JSON:
+            if column.is_array:
+                value = [Jsonb(v) for v in value]
+            else:
+                value = Jsonb(value)
+        wrapped[column.name] = value
+    return wrapped
+
+
+def _pg_adapt_rows(
+    table: Table, rows: tuple[Mapping[str, any], ...]
+) -> tuple[Mapping[str, any], ...]:
+    return tuple(_pg_adapt_row(table, row) for row in rows)
+
+
+async def _pg_fetchall_from_many(cur: psycopg.AsyncCursor, expected: int) -> list[RowOut]:
+    # see https://www.psycopg.org/psycopg3/docs/api/cursors.html#psycopg.Cursor.executemany
+    results: list[RowOut] = []
+    while True:
+        row = await cur.fetchone()
+        results.append(row)
+        if not cur.nextset():
+            break
+    assert len(results) == expected, f"wanted {expected} results, got {len(results)}"
+    return results
 
 
 async def pg_select(
@@ -441,48 +674,32 @@ async def pg_select(
     order_by: SqlNode | None = None,
     first: int | None = None,
     skip: int | None = None,
-    params: Sequence | Mapping | None = None,
-) -> list[dict[str, any]]:
+    params: Mapping | None = None,
+) -> list[RowOut]:
     """Selects from the given table."""
     columns = columns or table.columns
-    statement = pg_select_statement(
-        table=table,
-        columns=columns,
-        joins=joins,
-        where=where,
-        order_by=order_by,
-        first=first,
-        skip=skip,
-    )
-    logger.debug("pg.select_rows", table=table, query=sql_to_str(cur, statement))
-    await _do_execute(cur, table, statement, params)
-    return await cur.fetchall()
-
-
-def pg_select_statement(
-    table: Table,
-    columns: list[Column],
-    joins: list[SqlJoin] | None = None,
-    where: SqlNode | None = None,
-    order_by: SqlNode | None = None,
-    first: int | None = None,
-    skip: int | None = None,
-):
-    statement = sql.SQL("SELECT {fields} FROM {table}").format(
-        fields=sql.SQL(", ").join(sql.Identifier(c.name) for c in columns),
+    statement = sqlstr("SELECT {fields} FROM {table}").format(
+        fields=sqlstr(", ").join(_pg_wrap_read_column(c, sql.Identifier(c.name)) for c in columns),
         table=sql.Identifier(table.name),
     )
     if joins:
-        statement += sql.SQL(" ").join(sql_node_to_sql(j) for j in joins)
+        statement += sqlstr(" ").join(sql_node_to_sql(j) for j in joins)
     if where:
-        statement += sql.SQL(" WHERE {}").format(sql_node_to_sql(where))
+        statement += sqlstr(" WHERE {}").format(sql_node_to_sql(where))
     if order_by:
-        statement += sql.SQL(" ORDER BY {}").format(sql_node_to_sql(order_by))
+        statement += sqlstr(" ORDER BY {}").format(sql_node_to_sql(order_by))
     if first:
-        statement += sql.SQL(" LIMIT {}").format(sql.Literal(first))
+        statement += sqlstr(" LIMIT {}").format(sql.Literal(first))
     if skip:
-        statement += sql.SQL(" OFFSET {}").format(sql.Literal(skip))
-    return statement
+        statement += sqlstr(" OFFSET {}").format(sql.Literal(skip))
+    logger.trace("pg.select", table=table, query=sql_to_str(cur, statement))
+    if any(c.is_encrypted for c in columns):
+        params = {**(params or EMPTY_DICT), "PG_CRYPTO_KEY": current_pg_crypto_key()}
+    try:
+        await cur.execute(statement, params)
+    except psycopg.errors.Error as e:
+        raise _pg_wrap_error(table, e) from e
+    return await cur.fetchall()
 
 
 async def pg_count(
@@ -492,13 +709,16 @@ async def pg_count(
     where: SqlNode | None = None,
 ) -> int:
     """Counts rows matching the given query."""
-    statement = sql.SQL("SELECT COUNT(*) FROM {table}").format(
+    statement = sqlstr("SELECT COUNT(*) FROM {table}").format(
         table=sql.Identifier(table.name),
     )
     if where:
-        statement += sql.SQL(" WHERE {}").format(sql_node_to_sql(where))
-    logger.debug("pg.count_rows", table=table, query=sql_to_str(cur, statement))
-    await _do_execute(cur, table, statement)
+        statement += sqlstr(" WHERE {}").format(sql_node_to_sql(where))
+    logger.trace("pg.count", table=table, query=sql_to_str(cur, statement))
+    try:
+        await cur.execute(statement)
+    except psycopg.errors.Error as e:
+        raise _pg_wrap_error(table, e) from e
     return (await cur.fetchone())["count"]
 
 
@@ -510,44 +730,117 @@ async def pg_exists(
     joins: list[SqlJoin] | None = None,
 ) -> bool:
     """Checks if rows matching the given query exist."""
-    statement = sql.SQL("SELECT EXISTS (SELECT 1 FROM {table}").format(
+    statement = sqlstr("SELECT EXISTS (SELECT 1 FROM {table}").format(
         table=sql.Identifier(table.name),
     )
     if joins:
-        statement += sql.SQL(" ").join(sql_node_to_sql(j) for j in joins)
+        statement += sqlstr(" ").join(sql_node_to_sql(j) for j in joins)
     if where:
-        statement += sql.SQL(" WHERE {}").format(sql_node_to_sql(where))
-    statement += sql.SQL(")")
-    logger.debug("pg.exists_rows", table=table, query=sql_to_str(cur, statement))
-    await _do_execute(cur, table, statement)
+        statement += sqlstr(" WHERE {}").format(sql_node_to_sql(where))
+    statement += sqlstr(")")
+    logger.trace("pg.exists_rows", table=table, query=sql_to_str(cur, statement))
+    try:
+        await cur.execute(statement)
+    except psycopg.errors.Error as e:
+        raise _pg_wrap_error(table, e) from e
     return (await cur.fetchone())["exists"]
 
 
 async def pg_insert(
     cur: psycopg.AsyncCursor,
     table: Table,
-    rows: list[RowIn],
+    rows: tuple[RowIn, ...] | list[RowIn],
     *,
     returning: Collection[Column] | None = None,
-) -> list[RowOut] | None:
-    """Inserts into the given table."""
-    statement = sql.SQL("INSERT INTO {table} ({fields}) VALUES ({values})").format(
+) -> tuple[RowOut, ...] | list[RowOut] | None:
+    """Inserts into the given table. Expects rows to be adapted and wrapped."""
+    statement = sqlstr("INSERT INTO {table} ({fields}) VALUES ({values})").format(
         table=sql.Identifier(table.name),
-        fields=sql.SQL(", ").join(sql.Identifier(c.name) for c in table.columns),
-        values=sql.SQL(", ".join(["%s"] * len(table.columns))),
+        fields=sqlstr(", ").join(sql.Identifier(c.name) for c in table.columns),
+        values=sqlstr(", ").join(
+            _pg_wrap_write_column(c, sqlstr(f"%({c.name})s")) for c in table.columns
+        ),
     )
     if returning:
-        statement += sql.SQL(" RETURNING {}").format(
-            sql.SQL(", ").join(sql.Identifier(c.name) for c in returning)
+        statement += sqlstr(" RETURNING {}").format(
+            sqlstr(", ").join(_pg_wrap_read_column(c, sql.Identifier(c.name)) for c in returning)
         )
-    logger.debug("pg.insert_rows", table=table, query=sql_to_str(cur, statement))
-    values = [tuple(row.get(c.name) for c in table.columns) for row in rows]
-    await _do_execute_many(cur, table, statement, values, returning=bool(returning))
+    logger.trace("pg.insert", table=table, query=sql_to_str(cur, statement))
+
+    if any(c.is_encrypted for c in table.columns):
+        templated_values = tuple({**row, "PG_CRYPTO_KEY": current_pg_crypto_key()} for row in rows)
+    else:
+        templated_values = rows
+    try:
+        await cur.executemany(statement, templated_values, returning=bool(returning))
+    except psycopg.errors.Error as e:
+        raise _pg_wrap_error(table, e) from e
     if returning:
-        return await cur.fetchall()
+        return await _pg_fetchall_from_many(cur, len(rows))
 
 
-async def pg_update_static(
+async def pg_upsert(
+    cur: psycopg.AsyncCursor,
+    table: Table,
+    rows: tuple[RowIn, ...] | list[RowIn],
+    *,
+    conflict_columns: list[Column] | tuple[Column, ...] | None = None,
+    update_columns: list[Column] | tuple[Column, ...] | None = None,
+    update_values: RowIn | None = None,
+    returning: Collection[Column] | None = None,
+) -> tuple[RowOut, ...] | list[RowOut] | None:
+    """Upserts into the given table. Expect rows to be adapted and wrapped."""
+    if conflict_columns is None:
+        conflict_columns = (table._primary_key,)
+    if update_columns is None:
+        update_columns = tuple(c for c in table.columns if c not in conflict_columns)
+    if update_values:
+        static_update_columns = tuple(c for c in update_columns if c.name not in update_values)
+    else:
+        static_update_columns = update_columns
+
+    static_update = tuple(
+        sqlstr("{} = EXCLUDED.{}").format(sql.Identifier(c.name), sql.Identifier(c.name))
+        for c in static_update_columns
+    )
+    if update_values:
+        dynamic_update = tuple(
+            sqlstr("{} = {}").format(sql.Identifier(k), sql_node_to_sql(v))
+            for k, v in update_values.items()
+        )
+    else:
+        dynamic_update = ()
+
+    statement = sqlstr(
+        "INSERT INTO {table} ({fields}) VALUES ({values}) ON CONFLICT ({conflict}) DO UPDATE SET {updates}"
+    ).format(
+        table=sql.Identifier(table.name),
+        fields=sqlstr(", ").join(sql.Identifier(c.name) for c in table.columns),
+        values=sqlstr(", ").join(
+            _pg_wrap_write_column(c, sqlstr(f"%({c.name})s")) for c in table.columns
+        ),
+        conflict=sqlstr(", ").join(sql.Identifier(c.name) for c in conflict_columns),
+        updates=sqlstr(", ").join(chain(static_update, dynamic_update)),
+    )
+    if returning:
+        statement += sqlstr(" RETURNING {}").format(
+            sqlstr(", ").join(_pg_wrap_read_column(c, sql.Identifier(c.name)) for c in returning)
+        )
+    logger.trace("pg.upsert", table=table, query=sql_to_str(cur, statement))
+
+    if any(c.is_encrypted for c in table.columns):
+        templated_values = tuple({**row, "PG_CRYPTO_KEY": current_pg_crypto_key()} for row in rows)
+    else:
+        templated_values = rows
+    try:
+        await cur.executemany(statement, templated_values, returning=bool(returning))
+    except psycopg.errors.Error as e:
+        raise _pg_wrap_error(table, e) from e
+    if returning:
+        return await _pg_fetchall_from_many(cur, len(rows))
+
+
+async def pg_update_constant(
     cur: psycopg.AsyncCursor,
     table: Table,
     *,
@@ -555,68 +848,115 @@ async def pg_update_static(
     static_value: RowIn,
     returning: Collection[Column] | None = None,
 ) -> list[RowOut] | None:
-    """Updates the given table with static values."""
-    statement = sql.SQL("UPDATE {table} SET {values}").format(
+    """Updates the given table with static values. Expects values to be adapted and wrapped."""
+    statement = sqlstr("UPDATE {table} SET {values}").format(
         table=sql.Identifier(table.name),
-        values=sql.SQL(", ").join(
-            sql.SQL("{} = {}").format(sql.Identifier(k), sql_node_to_sql(v))
-            for k, v in static_value.items()
+        values=sqlstr(", ").join(
+            sqlstr("{} = {}").format(
+                sql.Identifier(k),
+                _pg_wrap_write_column(table._columns_by_name[k], sqlstr(f"%({k})s")),
+            )
+            for k in static_value.keys()
         ),
     )
     if where:
-        statement += sql.SQL(" WHERE {}").format(sql_node_to_sql(where))
+        statement += sqlstr(" WHERE {}").format(sql_node_to_sql(where))
     if returning:
-        statement += sql.SQL(" RETURNING {}").format(
-            sql.SQL(", ").join(sql.Identifier(c.name) for c in returning)
+        statement += sqlstr(" RETURNING {}").format(
+            sqlstr(", ").join(_pg_wrap_read_column(c, sql.Identifier(c.name)) for c in returning)
         )
-    logger.debug("pg.update_rows.fixed", table=table, query=sql_to_str(cur, statement))
-    await _do_execute(cur, table, statement)
+    logger.trace("pg.update_constant", table=table, query=sql_to_str(cur, statement))
+
+    if any(c.is_encrypted for c in table.columns):
+        template_values = {**static_value, "PG_CRYPTO_KEY": current_pg_crypto_key()}
+    else:
+        template_values = static_value
+    try:
+        await cur.execute(statement, template_values)
+    except psycopg.errors.Error as e:
+        raise _pg_wrap_error(table, e) from e
     if returning:
         return await cur.fetchall()
 
 
-async def pg_update_list(
+async def pg_update_variable(
     cur: psycopg.AsyncCursor,
     table: Table,
     *,
-    static_values: RowIn,
-    dynamic_columns: list[Column],
-    dynamic_values: list[RowIn],
+    dynamic_columns: Collection[Column],
+    dynamic_values: Collection[RowIn],
+    static_values: RowIn = None,
     returning: Collection[Column] | None = None,
 ) -> list[RowOut] | None:
-    """Updates the given table with a list of values (corresponding to rows)."""
-    assert not any(c.is_primary_key for c in dynamic_columns), f"primary key in {dynamic_columns}"
+    """
+    Updates the given table with a list of values (corresponding to rows).
+    Expects values to be adapted and wrapped.
+    If a column is in dynamic_columns but not in dynamic_values for a row, keep the current value.
+    """
+
+    if not any(c.is_primary_key for c in dynamic_columns):
+        raise ValueError(
+            f"dynamic_columns {dynamic_columns!r} do not contain {table._primary_key!r}"
+        )
     table_name = sql.Identifier(table.name)
+    static_values = static_values or {}
+
     # join fixed and dynamic values
-    values_sql = sql.SQL(", ").join(
-        chain(
-            (
-                sql.SQL("{} = {}").format(sql.Identifier(k), sql_node_to_sql(v))
-                for k, v in static_values.items()
-            ),
-            (sql.SQL("{} = %s").format(sql.Identifier(c.name)) for c in dynamic_columns),
-        ),
+    static_values_sql = (
+        sqlstr("{} = {}").format(
+            sql.Identifier(k), _pg_wrap_write_column(table._columns_by_name[k], v)
+        )
+        for k, v in static_values.items()
     )
-    statement = sql.SQL("UPDATE {table} SET {values} WHERE {pk} = %s").format(
-        table=table_name, pk=sql.Identifier(table.primary_key.name), values=values_sql
+    # only set dynamic columns if they are in the row (otherwise keep current value)
+    dynamic_values_sql = (
+        sqlstr(f"{{}} = CASE WHEN %(__{c.name}_set)s THEN {{}} ELSE {c.name} END").format(
+            sql.Identifier(c.name), _pg_wrap_write_column(c, sqlstr(f"%({c.name})s"))
+        )
+        for c in dynamic_columns
+    )
+    values_sql = sqlstr(", ").join(
+        chain(static_values_sql, dynamic_values_sql),
+    )
+    statement = sqlstr("UPDATE {table} SET {values} WHERE {pk} = %(pk)s").format(
+        table=table_name, pk=sql.Identifier(table._primary_key.name), values=values_sql
     )
     if returning:
-        statement += sql.SQL(" RETURNING {}").format(
-            sql.SQL(", ").join(sql.SQL("{}").format(sql.Identifier(c.name)) for c in returning)
+        statement += sqlstr(" RETURNING {}").format(
+            sqlstr(", ").join(
+                sqlstr("{}").format(_pg_wrap_read_column(c, sql.Identifier(c.name)))
+                for c in returning
+            )
         )
-    logger.debug(
-        "pg.update_rows.list",
+    logger.trace(
+        "pg.update_variable",
         table=table,
         query=sql_to_str(cur, statement),
         rows=len(dynamic_values),
     )
-    dynamic_values = [
-        (*(value.get(c.name) for c in dynamic_columns), value.get(table.primary_key.name))
-        for value in dynamic_values
-    ]
-    await _do_execute_many(cur, table, statement, dynamic_values, returning=bool(returning))
+
+    is_any_encrypted = any(c.is_encrypted for c in table.columns)
+    pg_crypto_key = current_pg_crypto_key()
+    templated_values: list[RowIn] = []
+    for row in dynamic_values:
+        pk = row.get(table._primary_key.name)
+        if not pk:
+            raise ValueError(f"missing primary key {table._primary_key!r} in row {row!r}")
+        templated_value = {**row, "pk": pk}
+        if is_any_encrypted:
+            templated_value["PG_CRYPTO_KEY"] = pg_crypto_key
+        for column in dynamic_columns:
+            row_has_column = column.name in row
+            templated_value[f"__{column.name}_set"] = row_has_column
+            if not row_has_column:
+                templated_value[column.name] = None
+        templated_values.append(templated_value)
+    try:
+        await cur.executemany(statement, templated_values, returning=bool(returning))
+    except psycopg.errors.Error as e:
+        raise _pg_wrap_error(table, e) from e
     if returning:
-        return await cur.fetchall()
+        return await _pg_fetchall_from_many(cur, len(dynamic_values))
 
 
 async def pg_delete(
@@ -628,101 +968,859 @@ async def pg_delete(
 ) -> list[RowOut] | None:
     """Deletes from the given table."""
 
-    statement = sql.SQL("DELETE FROM {table}").format(
+    statement = sqlstr("DELETE FROM {table}").format(
         table=sql.Identifier(table.name),
     )
     if where:
-        statement += sql.SQL(" WHERE {}").format(sql_node_to_sql(where))
+        statement += sqlstr(" WHERE {}").format(sql_node_to_sql(where))
     if returning:
-        statement += sql.SQL(" RETURNING {}").format(
-            sql.SQL(", ").join(sql.Identifier(c.name) for c in returning)
+        statement += sqlstr(" RETURNING {}").format(
+            sqlstr(", ").join(_pg_wrap_read_column(c, sql.Identifier(c.name)) for c in returning)
         )
-    logger.debug("pg.delete_rows", table=table, query=sql_to_str(cur, statement))
-    await _do_execute(cur, table, statement)
+    logger.trace("pg.delete", table=table, query=sql_to_str(cur, statement))
+    try:
+        await cur.execute(statement)
+    except psycopg.errors.Error as e:
+        raise _pg_wrap_error(table, e) from e
     if returning:
         return await cur.fetchall()
 
 
 async def pg_truncate(cur: psycopg.AsyncCursor, table: Table) -> None:
     """Truncates the given table."""
-    await cur.execute(sql.SQL("TRUNCATE TABLE {}").format(sql.Identifier(table.name)))
+    await cur.execute(sqlstr("TRUNCATE TABLE {}").format(sql.Identifier(table.name)))
 
 
 #
-# Migrations
+# Nodes API
+# Higher level methods use Session and return Nodes, but handle respective PG cursors.
+# Lower level methods use data constructs and expect appropriate PG cursors.
 #
 
-
-async def pg_get_stored_constructs(cur: psycopg.AsyncCursor) -> dict[UUID, ConstructInfo]:
-    """Gets the current constructs in the given database (through the CONSTRUCT_TABLE)."""
-    rows = await pg_select(cur, CONSTRUCT_TABLE)
-    construct_infos = [
-        ConstructInfo(
-            id=row["id"],
-            kind=ConstructKind(row["kind"]),
-            table_name=row["table_name"],
-            name=row["name"],
-            hash=row["hash"],
-        )
-        for row in rows
-    ]
-    return {c.id: c for c in construct_infos}
+NodeT = TypeVar("NodeT", bound=Node)
 
 
-async def pg_replace_stored_constructs(cur: psycopg.AsyncCursor, constructs: dict[UUID, Construct]):
-    """Replaces the STORED constructs in construct table (data only, no definitions)."""
-    await pg_truncate(cur, CONSTRUCT_TABLE)
-    rows = [
-        {
-            "id": construct.id,
-            "kind": construct.kind.value,
-            "table_name": construct.table.name if isinstance(construct, TableConstruct) else None,
-            "name": construct.name,
-            "hash": construct.hash,
-        }
-        for construct in constructs.values()
-    ]
-    await pg_insert(cur, CONSTRUCT_TABLE, rows)
+def _pack_struct_data_prop(prop: Property, value: Any, ignore_array: bool) -> Any:
+    """Packs the value of a struct property for storage in Postgres."""
+    if value is None:
+        return None
+    elif prop.is_list and not ignore_array:
+        return [_pack_struct_data_prop(prop, v, ignore_array=True) for v in value]
+    elif prop.is_struct:
+        value = value.to_robust_dict()
+        return Jsonb(value)
+    elif prop.is_enum:
+        return value.value
+    elif prop.primitive_type == PrimitiveType.UUID:
+        return to_uuid(value)
+    elif prop.primitive_type == PrimitiveType.JSON:
+        return Jsonb(wiring.unpack_json_value(value))
+    else:
+        return value
 
 
-async def pg_create_constructs(cur: psycopg.AsyncCursor, constructs: dict[UUID, Construct]):
-    """Creates the given constructs in the given database (not an upsert!)."""
-    for construct in constructs.values():
-        # TODO @Performance: batch pg construct creation where possible
-        if isinstance(construct, Table):
-            statement = sql.SQL("CREATE TABLE {} ()").format(sql.Identifier(construct.name))
-        elif isinstance(construct, Column):
-            statement = sql.SQL("ALTER TABLE {} ADD COLUMN {}").format(
-                sql.Identifier(construct.table.name), sql.SQL(construct.sql())
-            )
-        elif isinstance(construct, Index):
-            statement = sql.SQL("CREATE INDEX {}").format(sql.SQL(construct.sql()))
-        elif isinstance(construct, Constraint):
-            statement = sql.SQL("ALTER TABLE {} ADD CONSTRAINT {}").format(
-                sql.Identifier(construct.table.name),
-                sql.SQL(construct.sql()),
-            )
+def _unpack_struct_data_prop(prop: Property, value: Any, ignore_array: bool) -> Any:
+    """Unpacks the value of a struct property from Postgres."""
+    if value is None:
+        return None
+    elif prop.is_list and not ignore_array:
+        return [_unpack_struct_data_prop(prop, v, ignore_array=True) for v in value]
+    elif prop.is_struct:
+        proto_cls = PROTO_CLASS_BY_TYPE[prop.reference_struct]
+        return proto_cls().from_robust_dict(value)
+    elif prop.is_enum:
+        return wiring.pack_enum(prop.py_type_stripped, prop.py_type_stripped(value))
+    elif prop.primitive_type == PrimitiveType.DATETIME:
+        if value.tzinfo is None:
+            return value.replace(tzinfo=pytz.utc)
         else:
-            raise RuntimeError(f"unexpected construct: {construct}")
-        logger.debug("pg.create_construct", construct=construct, query=sql_to_str(cur, statement))
-        await _do_execute(cur, "schema", statement)
+            return value
+    elif prop.primitive_type == PrimitiveType.UUID:
+        return str(value)
+    elif prop.primitive_type == PrimitiveType.JSON:
+        return wiring.pack_json_value(value)
+    else:
+        return value
+
+
+def _pg_pack_node_reference_into_row(
+    prop: Property, row: RowIn, value: NodeReferenceData | list[NodeReferenceData] | None
+) -> None:
+    """
+    'Unravels' a wired pointer into (one or more) stored columns as needed.
+    pack/unpacking pointers into rows is a bit gnarly, see :StoredPointers
+    """
+    if prop.is_list:
+        value = value or ()
+        # pointer id/ck
+        for stored_prop in prop.reference_stored_ids:
+            row[stored_prop.name] = []
+        for v in value:
+            stored_prop = prop.reference_stored_ids_by_type[v.type]
+            row[stored_prop.name].append(v.id)
+        # additional pointer metadata
+        for extra_key, p in prop.reference_stored_extras.items():
+            row[p.name] = [getattr(v, extra_key) for v in value]
+    else:
+        # pointer id/ck
+        for stored_prop in prop.reference_stored_ids:
+            if value is not None and value.type in stored_prop.reference_nodes:
+                row[stored_prop.name] = value.id
+            else:
+                row[stored_prop.name] = None
+        # additional pointer metadata
+        for extra_key, p in prop.reference_stored_extras.items():
+            row[p.name] = getattr(value, extra_key) if value is not None else None
+
+
+def _pg_unpack_node_reference_from_row(prop: Property, row: RowOut, node: AnyNodeData) -> None:
+    """
+    'Ravels' a wired pointer from (one or more) stored columns.
+    See above and :StoredPointers
+    """
+
+    # bench id
+    if node.metatype == NodeType.BENCH:
+        bench_id = row.get("id")
+    else:
+        bench_id = row.get("bench_id")
+    if bench_id is not None:
+        bench_id = str(bench_id)
+
+    if prop.is_list:
+        # can only be a a set of id props + a single ck prop (:HomogeneousListCk)
+        ptrs = []
+        # pointer id/cks
+        for stored_prop in prop.reference_stored_ids:
+            ids = row.get(stored_prop.name)
+            for id in ids or ():
+                ptr = NodeReferenceData(
+                    metatype=wire.StructType.NODE_REFERENCE,
+                    id=str(id),
+                    type=stored_prop.reference_nodes[0],
+                )
+                ptrs.append(ptr)
+        setattr(node, prop.reference_wired_ptr.name, ptrs)
+        # additional pointer metadata
+        for i, ptr in enumerate(ptrs):
+            for extra_key, p in prop.reference_stored_extras.items():
+                extra_value = row.get(p.name)[i]
+                extra_value = str(extra_value) if isinstance(extra_value, UUID) else extra_value
+                setattr(ptr, extra_key, extra_value)
+            if prop.reference_is_bench_implicit:
+                ptr.bench_id = bench_id
+                if ptr.base_ck:
+                    ptr.base_bench_id = ptr.bench_id
+    else:
+        # pointer id/ck
+        for stored_prop in prop.reference_stored_ids:
+            value: UUID | None = row.get(stored_prop.name)
+            if value is not None:
+                ptr = NodeReferenceData(
+                    metatype=wire.StructType.NODE_REFERENCE,
+                    id=str(value),
+                    # if this is a heterogeneous ck pointer, type will be overwritten from extras
+                    type=stored_prop.reference_nodes[0],
+                )
+                setattr(node, prop.reference_wired_ptr.name, ptr)
+                break
+        else:
+            ptr = None
+        # additional pointer metadata
+        if ptr is not None:
+            for extra_key, p in prop.reference_stored_extras.items():
+                extra_value = row.get(p.name)
+                extra_value = str(extra_value) if isinstance(extra_value, UUID) else extra_value
+                setattr(ptr, extra_key, extra_value)
+            if prop.reference_is_bench_implicit:
+                ptr.bench_id = bench_id
+                if ptr.base_ck:
+                    ptr.base_bench_id = ptr.bench_id
+
+
+def pg_pack_node_data_row(node: AnyNodeData) -> dict[str, any]:
+    """Packs a node's data into a row for the respective table."""
+    node_cls = NODE_CLASS_BY_TYPE[wiring.unpack_enum(NodeType, node.metatype)]
+    try:
+        row: dict[str, any] = {}
+        for name, prop in node_cls.__wired_properties__.items():
+            if prop.reference_source is None:
+                # regular non-ref property
+                value = getattr(node, name)
+                value = _pack_struct_data_prop(prop, value, ignore_array=False)
+                row[name] = value
+            else:
+                # unravel stored node reference :StoredPointers
+                value: NodeReferenceData | list[NodeReferenceData] | None = getattr(
+                    node, prop.reference_source.reference_wired_ptr.name
+                )
+                _pg_pack_node_reference_into_row(prop.reference_source, row, value)
+        return row
+    except (AttributeError, TypeError, ValueError, KeyError) as e:
+        raise ValueError(f"could not pack row {node_cls.metatype.name}: {struct!r}") from e
+
+
+def pg_unpack_node_data_row(node_cls: type[Node], row: dict[str, any]) -> AnyNodeData:
+    """Unpacks a node's data from a row from the respective table."""
+    try:
+        proto_cls = PROTO_CLASS_BY_TYPE[node_cls.metatype]
+        data = proto_cls(
+            metatype=wiring.pack_enum(NodeType, node_cls.metatype), source=wire.NodeSource.STORE
+        )
+        for name, prop in node_cls.__wired_properties__.items():
+            if prop.reference_source is None:
+                # regular non-ref property
+                value = row.get(name)
+                if value is not None:
+                    value = _unpack_struct_data_prop(prop, value, ignore_array=False)
+                    setattr(data, name, value)
+            else:
+                # ravel stored node reference :StoredPointers
+                _pg_unpack_node_reference_from_row(prop.reference_source, row, data)
+        return data
+    except (AttributeError, TypeError, ValueError, KeyError) as e:
+        row_str = repr(row) if IS_DEBUG else describe_type(row)
+        raise ValueError(f"could not unpack row {node_cls.metatype.name}: {row_str}") from e
+
+
+PgSelectNodesDataResult = NamedTuple(
+    "PgSelectNodesDataResult",
+    [
+        ("nodes", tuple[wire.AnyNodeData, ...]),
+        ("cursors", tuple[str, ...]),
+        ("start_cursor", str | None),
+    ],
+)
+
+
+async def pg_select_nodes_data(
+    cur: psycopg.AsyncCursor,
+    node_type: NodeType,
+    *,
+    properties: Collection[Property],
+    filter: Expression | None = None,
+    sort: Collection[Expression] | None = None,
+    first: int | None = None,
+    skip: int | None = None,
+    after: str | None = None,
+) -> PgSelectNodesDataResult:
+    """Selects regular nodes from the given PG database."""
+    node_cls = NODE_CLASS_BY_TYPE[node_type]
+    if after:
+        skip = (skip or 0) + int(decode_pg_cursor(after)) + 1  # 'after' is exclusive
+    columns = [prop.column for prop in properties]
+    assert any(c.is_primary_key for c in columns), f"no primary key selected in {columns!r}"
+    filter = compile_pg_conditional(node_cls, filter) if filter is not None else None
+    sort = compile_pg_sorts(node_cls, sort) if sort is not None else None
+    rows = await pg_select(
+        cur=cur,
+        table=node_cls.__table__,
+        columns=columns,
+        where=filter,
+        order_by=sort,
+        first=first,
+        skip=skip,
+    )
+    nodes_data = tuple(pg_unpack_node_data_row(node_cls, row) for row in rows)
+    cursors = tuple(encode_pg_cursor(i) for i in range(skip or 0, (skip or 0) + len(nodes_data)))
+    assert len(nodes_data) == len(cursors), f"unexpected cursors: {cursors} for {nodes_data}"
+    return PgSelectNodesDataResult(nodes_data, cursors, after)
+
+
+async def pg_get_node_data_graph(
+    cur: psycopg.AsyncCursor,
+    root_type: NodeType,
+    roots: tuple[UUID, ...] | tuple[AnyNodeData, ...],
+    options: ReadOptions,
+    _graph: NodeDataGraph | None = None,
+) -> NodeDataGraph | None:
+    """
+    Reads regular nodes from the given PG database.
+    Returns a graph of nodes that *may* contain the requested nodes.
+    'Root' here is the base level, we get ancestor/descendants relative to the 'roots'.
+    """
+
+    visited_graph = _graph if _graph is not None else NodeDataGraph()
+
+    if not roots:
+        return visited_graph
+
+    # select roots
+    if isinstance(roots[0], UUID):
+        root_filter = options.filter(root_type, C(ConditionalOp.IN, property=Node.id, value=roots))
+        roots = await pg_select_nodes_data(
+            cur=cur,
+            node_type=root_type,
+            filter=root_filter,
+            properties=options.select(root_type),
+        )
+        if not roots.nodes:
+            return None
+        root_nodes = roots.nodes
+    else:  # already got them
+        root_nodes = cast(tuple[AnyNodeData, ...], roots)
+    for node in root_nodes:
+        visited_graph.add(node)
+
+    # select ancestors (recursively)
+    # (basically, walk parent pointer if type is in ancestor_types)
+    if options.ancestor_types:
+        current_parents: list[wire.AnyNodeData] = root_nodes
+        to_select_by_type: dict[NodeType, list[str]] = defaultdict(list)
+        while current_parents:
+            to_select_by_type.clear()
+
+            # traverse unseen parents to select next
+            for node in current_parents:
+                if (
+                    node.parent_ptr is not None
+                    and node.parent_ptr.type in options.ancestor_types
+                    and node.parent_ptr.id not in visited_graph
+                ):
+                    to_select_by_type[node.parent_ptr.type].append(node.parent_ptr.id)
+
+            # select next parents
+            next_parents = []
+            for node_type, node_ids in to_select_by_type.items():
+                layer = await pg_select_nodes_data(
+                    cur=cur,
+                    node_type=node_type,
+                    filter=options.filter(
+                        node_type,
+                        C(ConditionalOp.IN, property=Node.id, value=node_ids),
+                    ),
+                    properties=options.select(node_type),
+                )
+                next_parents.extend(layer.nodes)
+                for node in layer.nodes:
+                    visited_graph.add(node)
+            current_parents = next_parents
+
+    # select descendants (recursively)
+    # TODO :Performance!: recurse read nodes up?/down in SQL
+    #  (take advantage of the ancestry graph to optimize this)
+    if options.descendant_types:
+        current_parents: list[wire.AnyNodeData] = root_nodes
+        while current_parents:
+            next_parents: list[wire.AnyNodeData] = []
+            # traverse all direct children of plausible types
+            for child_type in options.descendant_types:
+                # collect possible parents
+                parents_by_type: dict[NodeType, list[str]] = defaultdict(list)
+                for parent in current_parents:
+                    if parent.metatype in PARENT_NODE_TYPES[child_type]:
+                        parents_by_type[parent.metatype].append(parent.id)
+                if not parents_by_type:
+                    continue
+
+                # build initial filter
+                parents_filters: list[Expression] = []
+                parent_property = NODE_CLASS_BY_TYPE[child_type].__parent_property__
+                for parent_property in parent_property.reference_stored_ids:
+                    filter = C(
+                        op=ConditionalOp.IN,
+                        property=parent_property,
+                        value=parents_by_type[parent_property.reference_nodes[0]],
+                    )
+                    parents_filters.append(filter)
+                parent_filter = C(op=ConditionalOp.OR, clauses=parents_filters)
+
+                # collect children
+                children = await pg_select_nodes_data(
+                    cur=cur,
+                    node_type=child_type,
+                    filter=options.filter(child_type, parent_filter),
+                    properties=options.select(child_type),
+                )
+                next_parents.extend(n for n in children.nodes if n.id not in visited_graph)
+                for child in children.nodes:
+                    visited_graph.add(child)
+
+            current_parents = next_parents
+
+    return visited_graph
+
+
+async def pg_search_nodes_data_graph(
+    cur: psycopg.AsyncCursor,
+    node_type: NodeType,
+    *,
+    options: ReadOptions,
+    filter: Expression | None = None,
+    sort: Collection[Expression] | None = None,
+    first: int | None = None,
+    skip: int | None = None,
+    after: str | None = None,
+) -> tuple[PgSelectNodesDataResult, NodeDataGraph]:
+    """Select root nodes and then read the graph of nodes from the given PG database."""
+
+    if options.ancestor_types or options.descendant_types:
+        # split into two passes if we have other nodes to fetch
+        roots = await pg_select_nodes_data(
+            cur=cur,
+            node_type=node_type,
+            filter=options.filter(node_type, filter),
+            sort=sort,
+            first=first,
+            skip=skip,
+            after=after,
+            properties=options.select(node_type),
+        )
+        if not roots.nodes:
+            return roots, NodeDataGraph()
+        graph = await pg_get_node_data_graph(
+            cur=cur,
+            root_type=node_type,
+            roots=roots.nodes,
+            options=options,
+        )
+        return roots, graph
+    else:
+        # otherwise just select in one go
+        roots = await pg_select_nodes_data(
+            cur=cur,
+            node_type=node_type,
+            filter=options.filter(node_type, filter),
+            sort=sort,
+            first=first,
+            skip=skip,
+            after=after,
+            properties=options.select(node_type),
+        )
+        graph = NodeDataGraph(nodes=roots.nodes)
+        return roots, graph
+
+
+# TODO :Performance: use psycopg3/postgres pipelining to batch edits?
+
+
+async def pg_write_edits(
+    cur: psycopg.AsyncCursor,
+    edits: list[EditData] | tuple[EditData, ...],
+) -> list["int"] | tuple[int, ...]:
+    """
+    Writes 'regular' edits to nodes (that aren't stored specially like records).
+    Returns the new revisions of the edited nodes.
+    Assumes that the edits are evaluated and canonicalized.
+    """
+    if not edits:
+        return ()
+
+    # batch operations by edit kind and node type
+    cur_node_cls = NODE_CLASS_BY_TYPE[wiring.unpack_enum(NodeType, edits[0].node_type)]
+    cur_updated_properties: bitarray = bitarray(cur_node_cls.__max_property_ord__ + 1)
+    cur_batch: list[EditData] = []
+    all_new_revisions: list[int] = []
+    for i in range(len(edits)):
+        edit = edits[i]
+        next_edit = edits[i + 1] if i + 1 < len(edits) else None
+        cur_batch.append(edit)
+
+        # collect updated properties
+        if edit.properties is not None:
+            for prop_id in edit.properties:
+                prop_ord = cur_node_cls.__properties_by_id__[prop_id].ord
+                cur_updated_properties[prop_ord] = True
+
+        # new op or end, flush batch
+        if (
+            next_edit is None
+            or edit.type != next_edit.type
+            or edit.node_type != next_edit.node_type
+        ):
+            edit_type: EditType = wiring.unpack_enum(EditType, edit.type)
+            node_type: NodeType = wiring.unpack_enum(NodeType, edit.node_type)
+            updated_properties = cur_node_cls._unmask_properties(cur_updated_properties)
+            batch_changed_nodes = await _pg_write_edit_batch(
+                cur=cur,
+                edit_type=edit_type,
+                node_type=node_type,
+                batch=cur_batch,
+                return_nodes=True,
+                updated_properties=updated_properties,
+                selected_properties=(cur_node_cls.id, cur_node_cls.revision),
+            )
+            # NOTE: in case of multiple edits to the same node, the returned revision is the latest.
+            new_revisions_by_id = {node.id: node.revision for node in batch_changed_nodes}
+            for edit in cur_batch:
+                node = wiring.unwrap_some_node(edit.node)
+                all_new_revisions.append(new_revisions_by_id[node.id])
+            # start new batch
+            if next_edit is not None:
+                cur_node_cls = NODE_CLASS_BY_TYPE[wiring.unpack_enum(NodeType, next_edit.node_type)]
+                cur_updated_properties = bitarray(cur_node_cls.__max_property_ord__ + 1)
+                cur_batch.clear()
+
+    return all_new_revisions
+
+
+async def _pg_write_edit_batch(
+    *,
+    cur: psycopg.AsyncCursor,
+    edit_type: EditType,
+    node_type: NodeType,
+    batch: list[EditData],
+    updated_properties: list[Property] | tuple[Property, ...] | None,  # across all edits
+    return_nodes: bool,
+    selected_properties: tuple[Property, ...],
+) -> tuple["AnyNodeData", ...] | list["AnyNodeData"] | None:
+    """
+    Writes a batch of regular (not custom stored) node edits of the same edit type.
+    Like pg_write_edits, the edits are expected to be evaluated and canonicalized.
+    """
+
+    node_cls = NODE_CLASS_BY_TYPE[node_type]
+    table = node_cls.__table__
+    if return_nodes:
+        selected_columns = tuple(prop.column for prop in selected_properties)
+    else:
+        selected_columns = None
+
+    if edit_type == EditType.CREATE:
+        nodes = tuple(wiring.unwrap_some_node(edit.node) for edit in batch)
+        rows = tuple(pg_pack_node_data_row(node) for node in nodes)
+        _ = await pg_insert(cur=cur, table=table, rows=rows)
+        if return_nodes:
+            return nodes  # if we get here, the nodes are equivalent to the rows
+        else:
+            return None
+
+    elif edit_type == EditType.UPSERT:
+        nodes = tuple(wiring.unwrap_some_node(edit.node) for edit in batch)
+        rows = tuple(pg_pack_node_data_row(node) for node in nodes)
+        rows = await pg_upsert(
+            cur=cur,
+            table=table,
+            rows=rows,
+            conflict_columns=(table._primary_key,),
+            update_columns=tuple(c for c in table.columns if c != table._primary_key),
+            update_values={"revision": sqlstr(f"{table.name}.revision + 1")},
+            returning=selected_columns if return_nodes else None,
+        )
+        if return_nodes:
+            return tuple(pg_unpack_node_data_row(node_cls, row) for row in rows)
+        else:
+            return None
+
+    elif edit_type in (
+        EditType.UPDATE,
+        EditType.MOVE,
+        EditType.ARCHIVE,
+        EditType.UNARCHIVE,
+        EditType.SOFT_DELETE,
+        EditType.RESTORE,
+    ):
+        dynamic_values: list[RowIn] = []
+        dynamic_columns: list[Column] = [table._primary_key]
+        nodes = tuple(wiring.unwrap_some_node(edit.node) for edit in batch)
+
+        if edit_type == EditType.UPDATE:
+            dynamic_columns.append(node_cls.updated_at.column)
+            dynamic_columns.extend(p.column for p in node_cls.updated_by.reference_stored_props)
+            # user supplied updated properties
+            for prop in updated_properties:
+                if prop.is_node_reference:
+                    dynamic_columns.extend(p.column for p in prop.reference_stored_props)
+                else:
+                    dynamic_columns.append(prop.column)
+            for edit, node in zip(batch, nodes):
+                row = {"id": node.id, "updated_at": node.updated_at}
+                _pg_pack_node_reference_into_row(node_cls.updated_by, row, node.updated_by_ptr)
+                # user supplied updated properties
+                for prop_id in edit.properties:
+                    prop = node_cls.__properties_by_id__[prop_id]
+                    if prop.is_node_reference:
+                        value = getattr(node, prop.reference_wired_ptr.name)
+                        _pg_pack_node_reference_into_row(prop, row, value)
+                    else:
+                        value = getattr(node, prop.name)
+                        value = _pack_struct_data_prop(prop, value, ignore_array=False)
+                        row[prop.name] = value
+                dynamic_values.append(row)
+        elif edit_type == EditType.MOVE:
+            dynamic_columns.append(node_cls.updated_at.column)
+            dynamic_columns.extend(p.column for p in node_cls.parent.reference_stored_props)
+            for edit, node in zip(batch, nodes):
+                row = {"id": node.id, "updated_at": node.updated_at}
+                dynamic_values.append(row)
+                _pg_pack_node_reference_into_row(node_cls.parent, row, node.parent_ptr)
+        elif edit_type in (EditType.ARCHIVE, EditType.UNARCHIVE):
+            dynamic_columns.append(node_cls.archived_at.column)
+            for edit, node in zip(batch, nodes):
+                row = {"id": node.id, "archived_at": node.archived_at}
+                dynamic_values.append(row)
+        elif edit_type in (EditType.SOFT_DELETE, EditType.RESTORE):
+            dynamic_columns.append(node_cls.deleted_at.column)
+            for edit, node in zip(batch, nodes):
+                row = {"id": node.id, "deleted_at": node.deleted_at}
+                dynamic_values.append(row)
+        else:
+            raise ValueError(f"unexpected edit kind {edit_type} {node_type} for {batch!r}")
+
+        static_values = {"revision": sqlstr("revision + 1")}
+        rows = await pg_update_variable(
+            cur=cur,
+            table=table,
+            static_values=static_values,
+            dynamic_columns=dynamic_columns,
+            dynamic_values=dynamic_values,
+            returning=selected_columns if return_nodes else (table._primary_key,),
+        )
+        if len(rows) != len(batch) or any(r is None for r in rows):
+            missing_rows = set(node.id for node in nodes) - {row["id"] for row in rows if row}
+            raise SqlNotExistsError(f"missing {node_type.bench_name}: {missing_rows}")
+        if return_nodes:
+            return tuple(pg_unpack_node_data_row(node_cls, row) for row in rows)
+        else:
+            return None
+
+    elif edit_type == EditType.DELETE:
+        nodes_ids = list(wiring.unwrap_some_node(edit.node).id for edit in batch)
+        where = SqlComparison(
+            left=sql.Identifier("id"),
+            op=PostgresConditionalOp.EQ,
+            right=sqlstr("ANY({})").format(sql.Literal(nodes_ids)),
+        )
+        rows = await pg_delete(
+            cur=cur,
+            table=table,
+            where=where,
+            returning=selected_columns if return_nodes else (table._primary_key,),
+        )
+        if len(rows) != len(batch) or any(r is None for r in rows):
+            missing_rows = set(nodes_ids) - {row["id"] for row in rows if row}
+            raise SqlNotExistsError(f"missing {node_type.bench_name}: {missing_rows}")
+        if return_nodes:
+            return tuple(pg_unpack_node_data_row(node_cls, row) for row in rows)
+        else:
+            return None
+
+    else:
+        raise ValueError(f"unexpected edit kind {edit_type} {node_type} for {batch!r}")
 
 
 #
 # Record API
 #
-MAX_RECORD_TOTAL_VALUE_SIZE = 128 * 1024  # 128 KiB
+
+MAX_RECORD_TOTAL_VALUE_SIZE = 256 * 1024  # 256 KiB
 MAX_RECORD_FIELD_VALUE_SIZE = 32 * 1024  # 32 KiB
 
 
-def pg_pack_record_row(database: "HasDatabase", record: wire.RecordData) -> RowIn:
+async def pg_write_record_edits(
+    cur: psycopg.AsyncCursor,
+    edits: list[EditData],
+    *,
+    return_nodes: bool = False,
+    all_databases_by_id: dict[UUID, Block] | None = None,
+) -> list["AnyNodeData"] | None:
+    """
+    Writes record edits to the given PG database. Unlike regular edits, records are in materialized tables.
+    Pass in databases for all blocks (including deleted ones).
+    Edits must be evaluated and canonicalized.
+    """
+    if not edits:
+        return None
+
+    # batch operations by edit kind and database
+    current_updated_properties: list[int] = list(edits[0].properties or ())
+    current_batch: list[EditData] = []
+    all_returned_nodes: list[AnyNodeData] = [] if return_nodes else None
+    for i in range(len(edits)):
+        edit = edits[i]
+        next_edit = edits[i + 1] if i + 1 < len(edits) else None
+        current_batch.append(edit)
+
+        # collect edited properties
+        if edit.properties is not None:
+            for prop in edit.properties:
+                if prop not in current_updated_properties:
+                    current_updated_properties.append(prop)
+
+        # new op or end, flush current batch
+        if (
+            next_edit is None
+            or edit.type != next_edit.type
+            or edit.node.parent_id != next_edit.node.parent_id
+        ):
+            database = all_databases_by_id[edit.node.parent_id]
+            batch_changed_nodes = await _pg_write_record_edit_batch(
+                cur=cur,
+                edit_type=wiring.unpack_enum(EditType, edit.type),
+                database=database,
+                batch=current_batch,
+                return_nodes=return_nodes,
+            )
+            if batch_changed_nodes:
+                all_returned_nodes.extend(batch_changed_nodes)
+            # start new batch
+            current_updated_properties.clear()
+            current_batch.clear()
+
+    if return_nodes:
+        return all_returned_nodes
+    else:
+        return None
+
+
+async def _pg_write_record_edit_batch(
+    *,
+    cur: psycopg.AsyncCursor,
+    database: Block,
+    edit_type: EditType,
+    batch: list[EditData],
+    updated_properties: list[int] | tuple[int, ...] | None,  # across all edits
+    return_nodes: bool,
+) -> tuple["AnyNodeData", ...] | list["AnyNodeData"] | None:
+    """Writes a batch of record edits of the same kind. Edits must be evaluated and canonicalized."""
+
+    table = database._table
+    if edit_type == EditType.CREATE:
+        records = cast(tuple[wire.RecordData, ...], tuple(edit.node for edit in batch))
+        rows = tuple(pg_pack_record_data_row(database, record) for record in records)
+        _ = await pg_insert(cur=cur, table=table, rows=rows)
+        if return_nodes:
+            return records  # if we get here, the records are equivalent to the rows
+        else:
+            return None
+
+    elif edit_type == EditType.UPSERT:
+        records = cast(tuple[wire.RecordData, ...], tuple(edit.node for edit in batch))
+        rows = tuple(pg_pack_record_data_row(database, record) for record in records)
+        rows = await pg_upsert(
+            cur=cur,
+            table=table,
+            rows=rows,
+            conflict_columns=(table._primary_key,),
+            update_columns=tuple(c for c in table.columns if c != table._primary_key),
+            update_values={"revision": sqlstr(f"{table.name}.revision + 1")},
+            returning=table.columns if return_nodes else None,
+        )
+        if return_nodes:
+            return tuple(pg_unpack_record_data_row(database, row) for row in rows)
+        else:
+            return None
+
+    elif edit_type in (
+        EditType.UPDATE,
+        EditType.MOVE,
+        EditType.ARCHIVE,
+        EditType.UNARCHIVE,
+        EditType.SOFT_DELETE,
+        EditType.RESTORE,
+    ):
+        dynamic_values: list[RowIn] = []
+        dynamic_columns: list[Column]
+
+        if edit_type in (EditType.UPDATE, EditType.MOVE):
+            updated_non_value_columns: tuple[Column, ...] = tuple(
+                Record.__properties_by_id__[p] for p in updated_properties if p != Record.value.id
+            )
+            # expand value properties for materialized tables
+            if database.is_materialized and Record.value.id in updated_properties:
+                all_value_columns = tuple(c for c in table.columns if c.name.startswith("value_"))
+                dynamic_columns: tuple[Column, ...] = updated_non_value_columns + all_value_columns
+            else:
+                dynamic_columns: tuple[Column, ...] = tuple(
+                    Record.__properties_by_id__[p] for p in updated_properties
+                )
+            for edit in batch:
+                record = cast(wire.RecordData, edit.node)
+                row = {"id": record.id}
+                for column_name in updated_non_value_columns:
+                    row[column_name] = getattr(record, column_name)
+                # all 'value' fields are considered changed
+                for field in database.fields:
+                    column_name = get_field_column_name(field)
+                    value = record.value.get(field.storage_key)
+                    row[column_name] = pg_wrap_record_field_value(record, field, value)
+                dynamic_values.append(row)
+        elif edit_type in (EditType.ARCHIVE, EditType.UNARCHIVE):
+            dynamic_columns = (table._columns_by_name["archived_at"],)
+            for edit in batch:
+                record = cast(wire.RecordData, edit.node)
+                row = {"id": record.id, "archived_at": record.archived_at}
+                dynamic_values.append(row)
+        elif edit_type in (EditType.SOFT_DELETE, EditType.RESTORE):
+            dynamic_columns = (table._columns_by_name["deleted_at"],)
+            for edit in batch:
+                record = cast(wire.RecordData, edit.node)
+                row = {"id": record.id, "deleted_at": record.deleted_at}
+                dynamic_values.append(row)
+        else:
+            raise RuntimeError(f"unexpected edit kind: {edit_type} for {batch!r}")
+
+        static_values = {"revision": sqlstr("revision + 1")}
+        rows = await pg_update_variable(
+            cur=cur,
+            table=table,
+            static_values=static_values,
+            dynamic_columns=dynamic_columns,
+            dynamic_values=dynamic_values,
+            returning=table.columns if return_nodes else None,
+        )
+        if return_nodes:
+            return tuple(pg_unpack_record_data_row(database, row) for row in rows)
+        else:
+            return None
+
+    elif edit_type in (
+        EditType.SOFT_DELETE,
+        EditType.RESTORE,
+        EditType.ARCHIVE,
+        EditType.UNARCHIVE,
+    ):
+        records_ids = tuple(edit.node.id for edit in batch)
+        now = utcnow_with_tz()
+        if edit_type == EditType.SOFT_DELETE:
+            row = {"deleted_at": now}
+        elif edit_type == EditType.RESTORE:
+            row = {"deleted_at": None}
+        elif edit_type == EditType.ARCHIVE:
+            row = {"archived_at": now}
+        elif edit_type == EditType.UNARCHIVE:
+            row = {"archived_at": None}
+        where = SqlComparison(
+            sql.Identifier("id"),
+            PostgresConditionalOp.EQ,
+            sqlstr("ANY({})").format(sql.Literal(records_ids)),
+        )
+        rows = await pg_update_constant(
+            cur=cur,
+            table=table,
+            where=where,
+            static_value=row,
+            returning=table.columns if return_nodes else None,
+        )
+        if return_nodes:
+            return tuple(pg_unpack_record_data_row(database, row) for row in rows)
+        else:
+            return None
+
+    elif edit_type == EditType.DELETE:
+        records_ids = tuple(edit.node.id for edit in batch)
+        where = SqlComparison(
+            sql.Identifier("id"),
+            PostgresConditionalOp.EQ,
+            sqlstr("ANY({})").format(sql.Literal(records_ids)),
+        )
+        rows = await pg_delete(cur=cur, table=table, where=where, returning=table.columns)
+        if return_nodes:
+            return tuple(pg_unpack_record_data_row(database, row) for row in rows)
+        else:
+            return None
+
+    else:
+        raise RuntimeError(f"unexpected edit kind: {edit_type} for {batch!r}")
+
+
+def pg_pack_record_data_row(database: Block, record: wire.RecordData) -> RowIn:
     """Packs a record into a row for Postgres (flattened for ephemeral)."""
     # check size
-    # TODO @Performance: measure record value size more efficiently (than msgpack, also see below)
-    msgpack_size = len(msgpack.packb(record.value))
-    if msgpack_size > MAX_RECORD_TOTAL_VALUE_SIZE:
+    record_len_bytes = len(record)
+    if record_len_bytes > MAX_RECORD_TOTAL_VALUE_SIZE:
         raise ValueError(
-            f"record {record.id} is too large: {msgpack_size} > {MAX_RECORD_TOTAL_VALUE_SIZE} bytes (consider storing large values in a Blob instead)"
+            f"record {record.id} is too large: {record_len_bytes} > {MAX_RECORD_TOTAL_VALUE_SIZE} bytes (consider storing large values in a File instead)"
         )
 
     # pack it up
@@ -730,23 +1828,20 @@ def pg_pack_record_row(database: "HasDatabase", record: wire.RecordData) -> RowI
         "id": record.id,
         "ck": record.ck,
         "created_at": record.created_at,
-        "created_by_id": None,
         "updated_at": record.updated_at,
         "deleted_at": record.deleted_at,
-        "last_edited_at": record.last_edited_at,
-        "last_edited_by_id": None,
         "revision": record.revision,
-        "statement_key": database.key,
+        "block_key": database.dynamic_key,
     }
     if database.ephemeral:
-        row["statement_ck"] = database.ck
-        row["statement_id"] = database.id
+        row["block_ck"] = database.ck
+        row["block_id"] = database.id
         row["value"] = Jsonb(record.value)
     else:
-        for field in database.resolved_fields:
+        for field in database.fields:
             column_name = get_field_column_name(field)
-            value = record.value.get(field._typed_key)
-            row[column_name] = pg_wrap_record_field_value(database, record, field, value)
+            value = record.value.get(field.storage_key)
+            row[column_name] = pg_wrap_record_field_value(record, field, value)
     assert len(row) == len(
         database._table.columns
     ), f"row mismatch: {row.keys()} for {database._table!r}"
@@ -754,23 +1849,23 @@ def pg_pack_record_row(database: "HasDatabase", record: wire.RecordData) -> RowI
 
 
 def pg_wrap_record_field_value(
-    database: "HasDatabase", record: Optional[wire.RecordData], field: "Field", value: Any
+    record: Optional[wire.RecordData], field: "Field", value: Any
 ) -> Any:
     # see https://www.psycopg.org/psycopg3/docs/basic/adapt.html
     if value is None:
         return None
-    msgpack_size = len(msgpack.packb(value))
-    if msgpack_size > MAX_RECORD_FIELD_VALUE_SIZE:
+    record_len_bytes = len(record)
+    if record_len_bytes > MAX_RECORD_FIELD_VALUE_SIZE:
         record_str = f"record {record.id}" if record else "record"
         value_str = repr(value)
         if len(value_str) > 256:
             value_str = value_str[:196] + "..." + value_str[-56:]
         raise ValueError(
-            f"{record_str} field value '{field.py_ident}' is too large: {msgpack_size} > {MAX_RECORD_FIELD_VALUE_SIZE} bytes (consider storing large values in a Blob instead)\nValue (truncated): {value_str}"
+            f"{record_str} field value '{field.py_ident}' is too large: {record_len_bytes} > {MAX_RECORD_FIELD_VALUE_SIZE} bytes (consider storing large values in a File instead)\nValue (truncated): {value_str}"
         )
-    if field._storage_format == TypeStorageFormat.OBJECT:
+    if field._storage_format == PrimitiveType.JSON:
         return Jsonb(value)
-    elif field._storage_format == TypeStorageFormat.VECTOR:
+    elif field._storage_format == PrimitiveType.VECTOR:
         if isinstance(value, bytes):
             return value
         elif not isinstance(value, list):
@@ -782,43 +1877,45 @@ def pg_wrap_record_field_value(
         return value
 
 
-def pg_unwrap_record_field_value(database: "HasDatabase", field: "Field", value: Any) -> Any:
+def pg_unwrap_record_field_value(field: "Field", value: Any) -> Any:
     # see https://www.psycopg.org/psycopg3/docs/basic/adapt.html
     if value is None:
         return None
-    elif field._storage_format == TypeStorageFormat.OBJECT:
+    elif field._storage_format == PrimitiveType.JSON:
         return value
-    elif field._storage_format == TypeStorageFormat.VECTOR:
+    elif field._storage_format == PrimitiveType.VECTOR:
         # turn bytea into [-128, 127]
         return [v - 128 for v in value]
     else:
         return value
 
 
-def pg_wrap_record_value(database: "HasDatabase", value: dict) -> dict:
-    assert isinstance(value, dict), f"record value not a dict: {value}"
-    if TYPE_DISCRIMINATOR_KEY in value:  # not stored in database (implicit in statement_key)
-        del value[TYPE_DISCRIMINATOR_KEY]
-    if database.ephemeral:  # lift into generic 'value' JSONB column
-        value = {"value": sql.SQL("value || {}").format(sql.Literal(Jsonb(value)))}
+def pg_wrap_record_value(database: Block, value_packed: dict) -> dict:
+    assert isinstance(value_packed, dict), f"record value not a dict: {value_packed}"
+    if METATYPE_KEY in value_packed:  # not stored in database (implicit in block_key)
+        del value_packed[METATYPE_KEY]
+    if database.ephemeral:  # lift into generic 'value_packed' JSONB column
+        value_packed = {
+            "value_packed": sqlstr("value_packed || {}").format(sql.Literal(Jsonb(value_packed)))
+        }
     else:  # remap typed keys to column names
         value_columnized = {}
-        for field in database.resolved_fields:
-            v = value.get(field._typed_key, UNSET)
+        for field in database.fields:
+            v = value_packed.get(field.storage_key, UNSET)
             if v is not UNSET:
                 column_name = get_field_column_name(field)
-                value_columnized[column_name] = pg_wrap_record_field_value(database, None, field, v)
-        value = value_columnized
-    return value
+                value_columnized[column_name] = pg_wrap_record_field_value(None, field, v)
+        value_packed = value_columnized
+    return value_packed
 
 
-def pg_unpack_record_row(database: "HasDatabase", row: RowOut) -> wire.RecordData:
+def pg_unpack_record_data_row(database: Block, row: RowOut) -> wire.RecordData:
     if database.ephemeral:
-        value = row["value"]
+        value_packed = row["value_packed"]
     else:
-        value = {
-            f._typed_key: pg_unwrap_record_field_value(database, f, row[get_field_column_name(f)])
-            for f in database.resolved_fields
+        value_packed = {
+            f.storage_key: pg_unwrap_record_field_value(f, row[get_field_column_name(f)])
+            for f in database.fields
         }
     return wire.RecordData(
         id=row["id"],
@@ -827,29 +1924,28 @@ def pg_unpack_record_row(database: "HasDatabase", row: RowOut) -> wire.RecordDat
         updated_at=row["updated_at"],
         deleted_at=row["deleted_at"],
         last_edited_at=row["last_edited_at"],
-        last_changed_at=row["last_edited_at"],
         revision=row["revision"],
         parent_id=database.id,
-        value=value,
+        value=value_packed,
     )
 
 
-PgSelectRecordsResult = typing.NamedTuple(
+PgSelectRecordsDataResult = NamedTuple(
     "PgSelectRecordsResult",
     [("records", list[wire.RecordData]), ("cursors", list[str]), ("start_cursor", str | None)],
 )
 
 
-async def pg_select_records(
+async def pg_select_records_data(
     cur: psycopg.AsyncCursor,
-    database: "HasDatabase",
+    database: Block,
     *,
-    where: lang.Expression | None = None,
-    sort: list[lang.Expression] | None = None,
+    where: Expression | None = None,
+    sort: list[Expression] | None = None,
     first: int | None = None,
     skip: int | None = None,
     after: str | None = None,
-) -> PgSelectRecordsResult:
+) -> PgSelectRecordsDataResult:
     """Executes a select query on the given database."""
     if after:
         skip = (skip or 0) + int(decode_pg_cursor(after)) + 1  # 'after' is exclusive
@@ -858,10 +1954,10 @@ async def pg_select_records(
     rows = await pg_select(
         cur=cur, table=database._table, where=where, order_by=sort, first=first, skip=skip
     )
-    records_data = [pg_unpack_record_row(database, row) for row in rows]
+    records_data = [pg_unpack_record_data_row(database, row) for row in rows]
     cursors = [encode_pg_cursor(i) for i in range(skip or 0, (skip or 0) + len(records_data))]
     assert len(records_data) == len(cursors), f"unexpected cursors: {cursors} for {records_data}"
-    return PgSelectRecordsResult(records_data, cursors, after)
+    return PgSelectRecordsDataResult(records_data, cursors, after)
 
 
 @cachetools.cached({})
@@ -876,181 +1972,99 @@ def decode_pg_cursor(s: str) -> int:
     return struct.unpack("q", base64.b64decode(s))[0]
 
 
-async def write_local_edits_to_pg(
-    cur: psycopg.AsyncCursor,
-    module: Module,
-    edits: list[EditData],
-    *,
-    return_nodes: bool = False,
-    old_databases_by_id: dict[UUID, "HasDatabase"] | None = None,
-) -> list[wire.NodeData] | None:
-    """
-    Writes *local* edits to the database. Returns the updated nodes (i.e. records).
-    Pass in databases for statements that are no longer in the module (i.e. deleted record parent).
-    TODO @Performance: use psycopg3 pipelining to batch local edits
-     see https://www.psycopg.org/psycopg3/docs/advanced/pipeline.html
-    """
-    if not edits:
-        return []
-
-    async def _write_record_edit_batch(
-        edit_kind: EditKind, database_id: UUID, batch: list[EditData]
-    ) -> list[wire.NodeData] | None:
-        database = module.lookup(database_id) or old_databases_by_id[database_id]
-        table = database._table
-        materialized_value_columns = tuple(c for c in table.columns if c.name.startswith("value_"))
-        if edit_kind == EditKind.CREATE:
-            records = cast(list[wire.RecordData], [edit.node for edit in batch])
-            rows = [pg_pack_record_row(database, record) for record in records]
-            _ = await pg_insert(cur=cur, table=table, rows=rows)
-            return records
-        elif edit_kind in (EditKind.UPDATE, EditKind.MOVE):
-            properties = batch[
-                0
-            ].properties  # not strictly correct (should be union of all in batch)
-            # expand value properties for materialized tables
-            if not database.ephemeral and "value" in properties:
-                properties = (
-                    *(p for p in properties if p != "value"),
-                    *(c.name for c in materialized_value_columns),
-                )
-            records = cast(list[wire.RecordData], [edit.node for edit in batch])
-            now = utcnow_with_tz()
-            row_values = []
-            for record in records:
-                # keep only properties touched in the edit
-                row = {"id": record.id}
-                for field in database.resolved_fields:  # all 'value' fields are considered changed
-                    column_name = get_field_column_name(field)
-                    value = record.value.get(field._typed_key)
-                    row[column_name] = pg_wrap_record_field_value(database, record, field, value)
-                row_values.append(row)
-            # and update cru info :LocalRecordCru
-            fixed_values = {
-                "revision": sql.SQL("revision + 1"),
-                "updated_at": now,
-                "last_edited_at": now,
-            }
-            rows = await pg_update_list(
-                cur=cur,
-                table=table,
-                static_values=fixed_values,
-                dynamic_columns=[table.columns_by_name[k] for k in properties],
-                dynamic_values=row_values,
-                returning=table.columns if return_nodes else None,
-            )
-            return [pg_unpack_record_row(database, row) for row in rows] if return_nodes else []
-        elif edit_kind in (EditKind.SOFT_DELETE, EditKind.RESTORE):
-            records_ids = [edit.node.id for edit in batch]
-            now = utcnow_with_tz()
-            if edit_kind == EditKind.SOFT_DELETE:
-                row = {"deleted_at": now}
-            else:
-                row = {"deleted_at": None}
-            where = SqlComparison(
-                sql.Identifier("id"),
-                PostgresConditionalOp.EQ,
-                sql.SQL("ANY({})").format(sql.Literal(records_ids)),
-            )
-            rows = await pg_update_static(
-                cur=cur,
-                table=table,
-                where=where,
-                static_value=row,
-                returning=table.columns if return_nodes else None,
-            )
-            return [pg_unpack_record_row(database, row) for row in rows] if return_nodes else []
-        elif edit_kind == EditKind.DELETE:
-            records_ids = [edit.node.id for edit in batch]
-            where = SqlComparison(
-                sql.Identifier("id"),
-                PostgresConditionalOp.EQ,
-                sql.SQL("ANY({})").format(sql.Literal(records_ids)),
-            )
-            await pg_delete(cur=cur, table=table, where=where)
-            return []
-        else:
-            raise RuntimeError(f"unexpected edit kind: {edit_kind} for {batch}")
-
-    # batch operations by edit kind and database
-    current_op: tuple[EditKind, UUID] = edits[0].kind, edits[0].node.parent_id
-    current_batch: list[EditData] = []
-    changed_nodes: list[wire.NodeData] = []
-    for edit in edits:
-        op = (edit.kind, edit.node.parent_id)
-        if current_op != op:
-            # new op, flush current batch
-            edit_kind, database_id = current_op
-            batch_nodes = await _write_record_edit_batch(edit_kind, database_id, current_batch)
-            changed_nodes.extend(batch_nodes)
-            # start new batch
-            current_op = op
-            current_batch = [edit]
-        else:
-            current_batch.append(edit)
-
-    # flush last batch
-    edit_kind, database_id = current_op
-    batch_nodes = await _write_record_edit_batch(edit_kind, database_id, current_batch)
-    changed_nodes.extend(batch_nodes)
-    return changed_nodes if return_nodes else None
-
-
-async def duplicate_records_in_pg(
-    source_cur: psycopg.AsyncCursor,
-    source_database: "HasDatabase",
-    target_cur: psycopg.AsyncCursor,
-    target_database: "HasDatabase",
-    *,
-    keep_cks: bool,
-    where: lang.Expression,
-    copy_revisions: bool,
-    return_nodes: bool = False,
-) -> list[wire.RecordData] | None:
-    """Duplicates records across databases."""
-    source_table = source_database._table
-    target_table = target_database._table
-    if source_database.ephemeral or target_database.ephemeral:
-        raise ValueError(f"cannot duplicate ephemeral: {source_database!r}->{target_database!r}")
-    if not target_table.columns_include(source_table):
-        raise ValueError(f"target {target_table!r} is not superset of source {source_table!r}")
-    target_module_id = target_database.module.id
-
-    # TODO @Performance: duplicate records within same database directly in postgres
-    where = where & lang.C(
-        ConditionalOp.EQUALS, field_key="statement_key", value=source_database.key
-    )
-    log = logger.bind(source=source_database, target=target_database, where=where)
-    log.debug("pg.duplicate_records", copy_revisions=copy_revisions, keep_cks=keep_cks)
-    record_rows = await pg_select(
-        cur=source_cur, table=source_table, where=compile_pg_conditional(source_database, where)
-    )
-    if record_rows:
-        for record_row in record_rows:
-            if not keep_cks:
-                record_row["ck"] = uuid4()
-            record_row["id"] = get_node_id(target_module_id, ck=record_row["ck"])
-            record_row["statement_key"] = target_database.key
-            if not copy_revisions:
-                record_row["revision"] = 0
-        await pg_insert(cur=target_cur, table=target_table, rows=record_rows)
-    log.debug("pg.duplicate_records.done", rows=len(record_rows))
-
-    if return_nodes:
-        return [pg_unpack_record_row(target_database, row) for row in record_rows]
-    else:
-        return None
-
-
-if DEBUG or LOCAL:
-    # pretty print sql statements in dev mode
-    def sql_to_str(c: psycopg.Cursor | psycopg.AsyncCursor, s: sql.Composable) -> str:
+if IS_DEBUG or IS_LOCAL or IS_TEST:
+    # pretty print sql blocks in dev mode
+    def sql_to_str(cur: psycopg.Cursor | psycopg.AsyncCursor, s: sql.Composable) -> str:
         import sqlparse
 
-        s_str = s.as_string(c)
+        s_str = s.as_string(cur)
         return "\n" + sqlparse.format(s_str, reindent=True, keyword_case="upper") + "\n"
 
 else:
 
-    def sql_to_str(c: psycopg.Cursor | psycopg.AsyncCursor, s: sql.Composable) -> str:
-        return s.as_string(c)
+    def sql_to_str(cur: psycopg.Cursor | psycopg.AsyncCursor, s: sql.Composable) -> str:
+        return s.as_string(cur)
+
+
+USER_PRIVILEGES = "SELECT, INSERT, UPDATE, DELETE, TRUNCATE, REFERENCES"
+
+
+async def create_local_pg_store(store: Store) -> None:
+    """
+    Creates the local Postgres database and corresponding roles/user for a bench.
+    """
+    log = logger.bind(store=store)
+    start = asyncio.get_event_loop().time()
+    assert store.database, f"{store!r} has no database"
+
+    # create database from the default one (if not exists)
+    async with user_pg_cursor(autocommit=True) as cur:
+        await cur.execute("SELECT 1 FROM pg_database WHERE datname = %s", (store.database,))
+        exists = bool(await cur.fetchone())
+        if not exists:
+            log.info("pg.create_db.create")
+            await cur.execute(sqlstr("CREATE DATABASE {}").format(sql.Identifier(store.database)))
+        else:
+            log.info("pg.create_db.already_exists")
+
+    # connect to local database and setup auth
+    async with user_pg_cursor(database=store.database) as cur:
+        # create 'root' user (if not exists)
+        root = store.main_credential
+        log.info("pg.create_db.create_root", username=root.username)
+        await cur.execute("SELECT 1 FROM pg_roles WHERE rolname = %s", (root.username,))
+        exists = bool(await cur.fetchone())
+        if not exists:
+            log.info("pg.create_db.create_root.create", username=root.username)
+            await cur.execute(
+                sqlstr("CREATE USER {} WITH PASSWORD {}").format(
+                    sql.Identifier(root.username), sql.Literal(root.password)
+                ),
+            )
+        else:
+            log.info("pg.create_db.create_root.already_exists", username=root.username)
+        # grant full regular CRUD access to 'root' user (no trigger or such)
+        log.info("pg.create_db.create_root.grant")
+        # grant new
+        await cur.execute(
+            sqlstr("GRANT {} ON ALL TABLES IN SCHEMA public TO {}").format(
+                sqlstr(USER_PRIVILEGES),
+                sql.Identifier(root.username),
+            )
+        )
+        # alter default privileges (to apply to all new tables)
+        await cur.execute(
+            sqlstr("ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT {} ON TABLES TO {}").format(
+                sqlstr(USER_PRIVILEGES),
+                sql.Identifier(root.username),
+            )
+        )
+        await cur.connection.commit()
+
+    log.info("pg.create_db", duration=asyncio.get_event_loop().time() - start, store=store)
+
+
+TABLE_BY_NODE_TYPE: dict[NodeType, Table] = {
+    # read previously generated tables in schema.py
+    node_type: getattr(schema, f"{to_casing(node_type.name, Casing.ALL_CAPS)}_TABLE")
+    for node_type in NODE_TYPES
+    if hasattr(schema, f"{to_casing(node_type.name, Casing.ALL_CAPS)}_TABLE")
+}
+NODE_TABLES: tuple[Table, ...] = tuple(TABLE_BY_NODE_TYPE.values())
+GLOBAL_TABLES: tuple[Table, ...] = DEFAULT_GLOBAL_TABLES + tuple(
+    TABLE_BY_NODE_TYPE[node.metatype]
+    for node in NODE_CLASSES
+    if not node.__is_local__
+    and node.__is_stored__
+    and not node.__is_stored_custom__
+    and node.metatype in TABLE_BY_NODE_TYPE
+)
+LOCAL_TABLES: tuple[Table, ...] = DEFAULT_LOCAL_TABLES + tuple(
+    TABLE_BY_NODE_TYPE[node.metatype]
+    for node in NODE_CLASSES
+    if node.__is_local__
+    and node.__is_stored__
+    and not node.__is_stored_custom__
+    and node.metatype in TABLE_BY_NODE_TYPE
+)
+ALL_TABLES: tuple[Table, ...] = GLOBAL_TABLES + LOCAL_TABLES

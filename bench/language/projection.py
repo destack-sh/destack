@@ -1,12 +1,13 @@
 from typing import TYPE_CHECKING, Collection, Iterable
 from uuid import UUID
 
-from bench.language.const import NodeType, SortOp
+from bench.language.const import NodeType, SortOp, StructType
 from bench.language.expression import S
-from bench.language.module import Node, ScopeNode
+from bench.language.node import Node, Struct, struct
+from bench.language.property import p_runtime
 
 if TYPE_CHECKING:
-    from bench.language.statement import IsTyped
+    pass
 
 
 class NodeVisitor:
@@ -27,10 +28,11 @@ class NodeVisitor:
         self._reference_by_ck[node.ck] = node
 
 
-class Projection:
+@struct(StructType.PROJECTION)
+class Projection(Struct):
     """
-    A projection into the module (with inline nodes and out-of-line as needed).
-    'Projecting' is not quite right / complete yet, consider:
+    A projection into the graph.
+    NOTE 'Projecting' is not quite right / complete yet, consider:
      - How do we filter and LoD this?
      - When do we inline out-of-line descendants (like Comments or local Records)?
         (esp. considering some out-of-line nodes would need to be fetched async)
@@ -38,15 +40,13 @@ class Projection:
      - How do we make projections reproducible and inspectable in the editor?
     """
 
-    def __init__(self, scope: ScopeNode):
-        self.scope = scope
-        self._nodes_by_ck: dict[UUID, Node] = {}  # in order of discovery
+    _nodes_by_ck: dict[UUID, Node] = p_runtime(default_factory=dict)
 
     @property
     def nodes(self) -> Iterable[Node]:
         return self._nodes_by_ck.values()
 
-    def view_node(
+    def project_node(
         self, origin: Node | Collection[Node], ancestors_up_to: NodeType, max_distance: int
     ) -> dict[UUID, Node]:
         """Collects the entire inline lineage including references up to max_distance"""
@@ -58,7 +58,7 @@ class Projection:
         seen_by_ck: dict[UUID, Node] = {}
         for origin in origins:
             parent = origin
-            while parent is not None and parent.node_type != ancestors_up_to:
+            while parent is not None and parent.metatype != ancestors_up_to:
                 seen_by_ck[parent.ck] = parent
                 parent = parent.parent
 
@@ -69,8 +69,7 @@ class Projection:
             if depth >= max_distance:
                 return
             n._visit_self(visitor)
-            children = n._local_root_tree.get_descendants(n.ck) if n.__has_scope__ else []
-            for child in children:
+            for child in n._root_graph.iter_descendants(n):
                 _walk_node_descendants_dfs(child, depth + 1)
 
         # walk descendants
@@ -88,12 +87,12 @@ class Projection:
         self._nodes_by_ck.update(seen_by_ck)
         return seen_by_ck
 
-    async def view_records(self, nodes: Collection[Node], limit: int) -> dict[UUID, Node]:
+    async def project_records(self, nodes: Collection[Node], limit: int) -> dict[UUID, Node]:
         from bench.language.database import HasDatabase
 
         seen_by_ck: dict[UUID, Node] = {}
         for node in nodes:
-            if node.node_type != NodeType.STATEMENT or HasDatabase not in node._components:
+            if node.metatype != NodeType.BLOCK or HasDatabase not in node._components:
                 continue
             # sort by ck for consistency
             records = (
@@ -101,25 +100,6 @@ class Projection:
             )
             for record in records:
                 seen_by_ck[record.ck] = record
-
-        self._nodes_by_ck.update(seen_by_ck)
-        return seen_by_ck
-
-    def view_value(self, value: dict, type: "IsTyped", is_output: bool = None) -> dict[UUID, Node]:
-        from bench.language.packer import walk_value
-        from bench.language.text import Text
-
-        seen_by_ck: dict[UUID, Node] = {}
-
-        for n in walk_value(value, type, is_output):  # :VisitValue
-            # there's definitely a more efficient way to do this
-            # also see HasValue._visit_inner
-            if isinstance(n, Node):
-                seen_by_ck[n.ck] = n
-            elif isinstance(n, Text):
-                for mention in n.mentions:
-                    if isinstance(mention.reference, Node):
-                        seen_by_ck[mention.reference.ck] = mention.reference
 
         self._nodes_by_ck.update(seen_by_ck)
         return seen_by_ck

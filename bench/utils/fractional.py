@@ -2,7 +2,9 @@
 # (licensed as CC-0)
 # sync with fractional.ts in frontend
 
-from typing import Optional
+from typing import Optional, TypeVar
+
+from bench.utils.func import nextn
 
 # base digits in lexicographical order
 BASE_10_DIGITS = "0123456789"
@@ -142,29 +144,35 @@ def get_integer_part(key: str) -> str:
     return key[:integer_part_length]
 
 
-def validate_order_key(key: str) -> None:
-    """
-    Validates the given order key.
-    """
+def is_valid_order_key(key: str) -> bool:
     if key == SMALLEST_INTEGER:
-        raise ValueError(f"invalid order key: {key}")
+        return False
     #   getIntegerPart will throw if the first character is bad,
     #   or the key is too short.  we'd call it to check these things
     #   even if we didn't need the result
-    i = get_integer_part(key)
+    try:
+        i = get_integer_part(key)
+    except ValueError:
+        return False
     f = key[len(i) :]
     if len(f) > 0 and f[-1] == "0":
+        return False
+    return True
+
+
+def _validate_order_key(key: str) -> None:
+    if not is_valid_order_key(key):
         raise ValueError(f"invalid order key: {key}")
 
 
-def generate_key_between(a: Optional[str], b: Optional[str], digits: str = BASE_95_DIGITS) -> str:
+def get_order_key(a: Optional[str], b: Optional[str], digits: str = BASE_95_DIGITS) -> str:
     """
     Generates a key between the given keys `a` and `b` (inclusive) with logarithmic fraction growth.
     """
     if a is not None:
-        validate_order_key(a)
+        _validate_order_key(a)
     if b is not None:
-        validate_order_key(b)
+        _validate_order_key(b)
     if a is not None and b is not None and a >= b:
         raise ValueError(f"{a} >= {b}")
     if a is None and b is None:
@@ -190,7 +198,7 @@ def generate_key_between(a: Optional[str], b: Optional[str], digits: str = BASE_
     return i if i < b else ia + midpoint(fa, None, digits)
 
 
-def generate_n_keys_between(
+def get_order_keys(
     a: Optional[str], b: Optional[str], n: int, digits: str = BASE_95_DIGITS
 ) -> list[str]:
     """
@@ -199,29 +207,42 @@ def generate_n_keys_between(
     if n == 0:
         return []
     if n == 1:
-        return [generate_key_between(a, b, digits)]
+        return [get_order_key(a, b, digits)]
     if b is None:
-        c = generate_key_between(a, b, digits)
+        c = get_order_key(a, b, digits)
         result = [c]
         for i in range(n - 1):
-            c = generate_key_between(c, b, digits)
+            c = get_order_key(c, b, digits)
             result.append(c)
         return result
     if a is None:
-        c = generate_key_between(a, b, digits)
+        c = get_order_key(a, b, digits)
         result = [c]
         for i in range(n - 1):
-            c = generate_key_between(a, c, digits)
+            c = get_order_key(a, c, digits)
             result.append(c)
         result.reverse()
         return result
     mid = n // 2
-    c = generate_key_between(a, b, digits)
-    return (
-        generate_n_keys_between(a, c, mid, digits)
-        + [c]
-        + generate_n_keys_between(c, b, n - mid - 1, digits)
-    )
+    c = get_order_key(a, b, digits)
+    return get_order_keys(a, c, mid, digits) + [c] + get_order_keys(c, b, n - mid - 1, digits)
 
 
-INTEGER_MINUS_ONE = generate_key_between(None, INTEGER_ZERO)
+INTEGER_MINUS_ONE = get_order_key(None, INTEGER_ZERO)
+
+ElementT = TypeVar("ElementT")
+
+
+def get_key_bounds(
+    elements: list[ElementT] | tuple[ElementT, ...], after: ElementT = None, before: ElementT = None
+) -> tuple[Optional[str], Optional[str]]:
+    """Gets the order key bounds after the given (default to last)."""
+    if after is not None:
+        next_ok = nextn(e.order_key for e in elements if e.order_key > after.order_key)
+        return after.order_key, next_ok
+    elif before is not None:
+        last_ok = nextn(e.order_key for e in reversed(elements) if e.order_key < before.order_key)
+        return last_ok, before.order_key
+    else:
+        last_ok = nextn((e.order_key for e in reversed(elements)))
+        return last_ok, None

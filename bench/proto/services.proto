@@ -1,0 +1,381 @@
+/*
+All the services and any additional stuff not auto-generated in bench.proto.
+ */
+
+syntax = "proto3";
+
+package symbolx.bench;
+
+import "bench/proto/common.proto";
+import "bench/proto/lang.proto";
+import "google/protobuf/timestamp.proto";
+import "google/protobuf/struct.proto";
+
+//
+// Common graph operations
+//
+
+message GetNodesRequest {
+  GraphScope scope = 1;
+  repeated NodeReferenceData roots = 2;
+  optional ReadOptionsData options = 3;
+  optional bool lock_for_update = 4;
+  optional bool skip_locked = 5;
+}
+message GetNodesResponse {
+  // Nodes in pre-order (parent before children) traversal.
+  repeated SomeNodeData nodes = 1;
+  optional AccessMatrixData access = 2;
+  uint64 epoch = 3;
+}
+
+message SearchNodesRequest {
+  GraphScope scope = 1;
+  NodeType node_type = 2;
+  repeated NodeReferenceData bases = 3;
+  optional ExpressionData filter = 4;
+  repeated ExpressionData sort = 5;
+  optional int32 first = 6;
+  optional int32 skip = 7;
+  optional string after = 8;
+  optional ReadOptionsData options = 9;
+  optional bool count = 10;
+  optional bool lock_for_update = 11;
+  optional bool skip_locked = 12;
+}
+message SearchNodesResponse {
+  // Nodes in pre-order (parent before children) traversal.
+  repeated SomeNodeData nodes = 1;
+  repeated NodeReferenceData roots = 2;
+  repeated string cursors = 3;
+  string start_cursor = 4;
+  optional int32 total = 5;
+  optional AccessMatrixData access = 6;
+  uint64 epoch = 7;
+}
+
+message AggregateNodesRequest {
+  GraphScope scope = 1;
+  NodeType node_type = 2;
+  repeated NodeReferenceData bases = 3;
+  optional ExpressionData filter = 4;
+  repeated ExpressionData sort = 5;
+  ExpressionData aggregation = 6;
+}
+message AggregateNodesResponse {
+  AggregationData aggregation = 1;
+  uint64 epoch = 2;
+}
+
+message CommitTransactionRequest {
+  GraphScope scope = 1;
+  string id = 2;
+  repeated EditData edits = 3;
+}
+message CommitTransactionResponse {
+  repeated int64 revisions = 1;
+  uint64 epoch = 2;
+}
+
+message FlushTransactionRequest {
+  GraphScope scope = 1;
+  string id = 2;
+  repeated EditData edits = 3;
+}
+message FlushTransactionResponse {
+  repeated int64 revisions = 1;
+  uint64 epoch = 2;
+}
+
+message CompleteTransactionRequest {
+  GraphScope scope = 1;
+  string id = 2;
+}
+message CompleteTransactionResponse {
+}
+
+message CommitCompletedTransactionRequest {
+  GraphScope scope = 1;
+  string transaction_id = 2;
+}
+message CommitCompletedTransactionResponse {
+}
+
+message CancelTransactionRequest {
+  GraphScope scope = 1;
+  string transaction_id = 2;
+}
+message CancelTransactionResponse {
+}
+
+message WatchEditsRequest {
+  GraphScope scope = 1;
+  repeated NodeType node_types = 2;
+  optional uint64 since_epoch = 3;
+  map<int32, ExpressionData> filters = 4;
+}
+message WatchEditsResponse {
+  repeated EditData edits = 1;
+  uint64 epoch = 2;
+}
+
+// Common service definition for global and bench-local :GraphIO
+service GraphIO {
+  // Get nodes in this graph. Error if any node is not found/accessible.
+  rpc GetNodes(GetNodesRequest) returns (GetNodesResponse);
+  // Search nodes in this graph..
+  rpc SearchNodes(SearchNodesRequest) returns (SearchNodesResponse);
+  // Aggregate nodes in this graph.
+  rpc AggregateNodes(AggregateNodesRequest) returns (AggregateNodesResponse);
+  // Commit a new or pending completed transaction to this graph.
+  rpc CommitTransaction(CommitTransactionRequest) returns (CommitTransactionResponse);
+  // Begins or extends a pending transaction. Edits are additive.
+  rpc FlushTransaction(FlushTransactionRequest) returns (FlushTransactionResponse);
+  // Prepares a transaction to commit to this graph. Nothing is committed, but no further edits are allowed.
+  rpc CompleteTransaction(CompleteTransactionRequest) returns (CompleteTransactionResponse);
+  // Rolls back a pending or completed transaction to this graph.
+  rpc CancelTransaction(CancelTransactionRequest) returns (CancelTransactionResponse);
+  // Receive any relevant edits to this graph.
+  rpc WatchEdits(WatchEditsRequest) returns (stream WatchEditsResponse);
+}
+
+
+//
+// Supervisor
+//
+
+message SignupUserRequest {
+  optional string id = 1;
+  string slug = 2;
+  optional string name = 3;
+  string email = 4 [(sensitive) = true];
+  string password = 5 [(sensitive) = true];
+  ClientData client = 6;
+}
+message SignupUserResponse {
+  UserData user = 1;
+  ClientData client = 2;
+  string access_token = 3 [(sensitive) = true];
+}
+
+message ChangeUserPasswordRequest {
+  string old_password = 1 [(sensitive) = true];
+  string new_password = 2 [(sensitive) = true];
+}
+message ChangeUserPasswordResponse {
+  UserData user = 1;
+  uint64 epoch = 2;
+}
+
+message LoginUserRequest {
+  oneof user {
+    string id = 1;
+    string slug = 2;
+    string email = 3 [(sensitive) = true];
+  }
+  string password = 4 [(sensitive) = true];
+  ClientData client = 5;
+}
+message LoginUserResponse {
+  UserData user = 1;
+  ClientData client = 2;
+  string access_token = 3 [(sensitive) = true];
+}
+
+message LogoutUserRequest {
+  // If specified, log out only the specified clients (instead of the current client).
+  repeated NodeReferenceData clients = 1;
+  // If specified, log out all clients (incl. current).
+  optional bool logout_all = 2;
+}
+message LogoutUserResponse {
+}
+
+message CreateOrganizationRequest {
+  OrganizationData organization = 1;
+}
+message CreateOrganizationResponse {
+  OrganizationData organization = 1;
+  uint64 epoch = 2;
+}
+
+message CreateBenchRequest {
+  NodeReferenceData owner = 1;
+  string slug = 2;
+  Region region = 3;
+  bool is_main = 4;
+}
+message CreateBenchResponse {
+  BenchData bench = 1;
+}
+
+message GetHostRequest {
+  oneof bench {
+    string id = 1;
+    string slug = 2;
+  }
+}
+message GetHostResponse {
+  string host = 1;
+  NodeReferenceData bench = 2;
+  string bench_slug = 3;
+}
+
+// Global control plane: create & manage the global stuff like Benches, Users, etc..
+service Supervisor {
+  //
+  // Global IO for non-source nodes outside Benches :GraphIO
+  //
+
+  rpc GetNodes(GetNodesRequest) returns (GetNodesResponse);
+  rpc SearchNodes(SearchNodesRequest) returns (SearchNodesResponse);
+  rpc AggregateNodes(AggregateNodesRequest) returns (AggregateNodesResponse);
+  rpc CommitTransaction(CommitTransactionRequest) returns (CommitTransactionResponse);
+  rpc FlushTransaction(FlushTransactionRequest) returns (FlushTransactionResponse);
+  rpc CompleteTransaction(CompleteTransactionRequest) returns (CompleteTransactionResponse);
+  rpc CancelTransaction(CancelTransactionRequest) returns (CancelTransactionResponse);
+  rpc WatchEdits(WatchEditsRequest) returns (stream WatchEditsResponse);
+
+  //
+  // User management
+  //
+
+  // Create user account.
+  rpc SignupUser(SignupUserRequest) returns (SignupUserResponse);
+  // Change user password.
+  rpc ChangeUserPassword(ChangeUserPasswordRequest) returns (ChangeUserPasswordResponse);
+  // Login user account with a new or existing client.
+  rpc LoginUser(LoginUserRequest) returns (LoginUserResponse);
+  // Logout user account with the current or other owned clients.
+  rpc LogoutUser(LogoutUserRequest) returns (LogoutUserResponse);
+
+  //
+  // Bench management
+  //
+
+  // Create a Bench. If this is the first Bench for the owner, we activate the User/Organization.
+  rpc CreateBench(CreateBenchRequest) returns (CreateBenchResponse);
+  // Gets Bench host information.
+  rpc GetHost(GetHostRequest) returns (GetHostResponse);
+}
+
+//
+// Package host
+//
+
+message SnapshotPackageRequest {
+}
+message SnapshotPackageResponse {
+}
+
+message MergePackageRequest {
+}
+message MergePackageResponse {
+}
+
+message UploadFilesRequest {
+  repeated FileData files = 1;
+}
+message UploadFilesResponse {
+  repeated string post_urls = 1;
+  google.protobuf.Timestamp expires_at = 2;
+}
+
+message DownloadFilesRequest {
+  repeated FileData files = 1;
+}
+message DownloadFilesResponse {
+  repeated string get_urls = 1;
+  google.protobuf.Timestamp expires_at = 2;
+}
+
+message RestartServerRequest {
+  GraphScope scope = 1;
+  string server_id = 2;
+}
+message RestartServerResponse {
+}
+
+message PingServerRequest {
+  GraphScope scope = 1;
+  string server_id = 2;
+}
+message PingServerResponse {
+}
+
+message RunIntrinsicBlockRequest {
+  oneof block {
+    PathData path = 1;
+    NodeReferenceData reference = 2;
+  }
+  google.protobuf.Struct inputs = 3;
+  int32 timeout_ms = 4;
+  string run_id = 5;
+  string run_ck = 6;
+}
+message RunIntrinsicBlockResponse {
+  google.protobuf.Struct outputs = 1;
+  optional RunErrorData error = 2;
+}
+
+
+// The host providing access and the persistent 'system-side' OS for a Bench.
+service Host {
+  //
+  // General IO for nodes in this Bench only :GraphIO
+  //
+
+  rpc GetNodes(GetNodesRequest) returns (GetNodesResponse);
+  rpc SearchNodes(SearchNodesRequest) returns (SearchNodesResponse);
+  rpc AggregateNodes(AggregateNodesRequest) returns (AggregateNodesResponse);
+  rpc CommitTransaction(CommitTransactionRequest) returns (CommitTransactionResponse);
+  rpc FlushTransaction(FlushTransactionRequest) returns (FlushTransactionResponse);
+  rpc CompleteTransaction(CompleteTransactionRequest) returns (CompleteTransactionResponse);
+  rpc CancelTransaction(CancelTransactionRequest) returns (CancelTransactionResponse);
+  rpc WatchEdits(WatchEditsRequest) returns (stream WatchEditsResponse);
+
+  //
+  // Packages
+  //
+
+  // Snapshot a Package. A new inactive Package copy is inserted in the history of the given Package.
+  rpc SnapshotPackage(SnapshotPackageRequest) returns (SnapshotPackageResponse);
+  // Merges the edits made in a Package into another package. The source Package is deactivated.
+  rpc MergePackage(MergePackageRequest) returns (MergePackageResponse);
+
+  //
+  // Files
+  //
+
+  // Get a signed URL to upload a file.
+  rpc UploadFiles(UploadFilesRequest) returns (UploadFilesResponse);
+  // Get a signed URL to download a file.
+  rpc DownloadFiles(DownloadFilesRequest) returns (DownloadFilesResponse);
+
+  //
+  // Runs
+  //
+
+  // Force restart the server for a Bench.
+  rpc RestartServer(RestartServerRequest) returns (PingServerResponse);
+  // Ensure the server for a Bench is running.
+  rpc PingServer(PingServerRequest) returns (PingServerResponse);
+  // Runs a system-intrinsic Block.
+  rpc RunIntrinsicBlock(RunIntrinsicBlockRequest) returns (RunIntrinsicBlockResponse);
+
+}
+
+//
+// Runtime service
+//
+
+message RestartRuntimeRequest {
+}
+message RestartRuntimeResponse {
+}
+
+// A Runtime for running a Bench in an isolated environment.
+service Runtime {
+  // Restart this server immediately.
+  rpc Restart(RestartRuntimeRequest) returns (RestartRuntimeResponse);
+}

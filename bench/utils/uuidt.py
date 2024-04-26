@@ -6,12 +6,15 @@ from typing import Any, Dict, Optional
 
 
 class UUIDT(uuid.UUID):
-    """UUID (mostly) sortable by generation time.
+    """
+    UUID, but (mostly) sortable by generation time.
     Adapted from PostHog's UUIDT (https://github.com/PostHog/posthog@5eb98ef),
     which in turn is based on Segment's KSUID (https://github.com/segmentio/ksuid)
     and on Twitter's snowflake ID (https://blog.twitter.com/engineering/en_us/a/2010/announcing-snowflake.html).
-    Description copied below.
 
+
+    QUOTE:
+    ""
     This doesn't adhere to any official UUID version spec, but it is superior as a primary key:
     to incremented integers (as they can reveal sensitive business information about usage volumes and patterns),
     to UUID v4 (as the complete randomness of v4 makes its indexing performance suboptimal),
@@ -23,6 +26,7 @@ class UUIDT(uuid.UUID):
     - 2 bytes - auto-incremented series unsigned integer
                 (per millisecond, rolls over to 0 after reaching 65 535 UUIDs in one ms)
     - 8 bytes - securely random gibberish
+    ""
     """
 
     current_series_per_ms: Dict[int, int] = defaultdict(int)
@@ -34,13 +38,12 @@ class UUIDT(uuid.UUID):
 
         if unix_time_ms is None:
             unix_time_ms = int(time() * 1000)
-        time_component = unix_time_ms.to_bytes(
-            6, "big", signed=False
-        )  # 48 bits for time, WILL FAIL in 10 895 CE
-        series_component = self.get_series(unix_time_ms).to_bytes(
-            2, "big", signed=False
-        )  # 16 bits for series
-        random_component = secrets.token_bytes(8)  # 64 bits for random gibberish
+        # 48 bits for time, WILL FAIL in 10 895 CE
+        time_component = unix_time_ms.to_bytes(6, "big", signed=False)
+        # 16 bits for series
+        series_component = self.get_series(unix_time_ms).to_bytes(2, "big", signed=False)
+        # 64 bits for random gibberish
+        random_component = secrets.token_bytes(8)
         uuid_bytes = time_component + series_component + random_component
         super().__init__(bytes=uuid_bytes)
 

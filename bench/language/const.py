@@ -1,524 +1,814 @@
-from __future__ import annotations
-
+import contextvars
 import enum
-import re
 import typing
-from typing import NamedTuple
+from typing import Optional
 from uuid import UUID
 
-from bench.utils.func import cyrb53a
-from bench.utils.utils import IdentifierType, to_all_caps, to_pyidentifier
+from bench.proto.wire import GraphScope
+from bench.utils.func import IdEnum, bytetuple, cyrb53a
+from bench.utils.utils import frozendict
 
 if typing.TYPE_CHECKING:
-    from bench.language import Node, Statement  # noqa: F401
+    from bench.language import Session, Transaction
 
-# hard-coded, do not change ever :BenchUuidNamespace
-BENCH_UUID_NAMESPACE = UUID("d822dab7-41ad-4706-a9c8-4379e15b2ed0")
+VERSION = "2024.04.22.3"
+UNSET = object()
+EMPTY_LIST: list = []
+EMPTY_SET: frozenset = frozenset()
+EMPTY_DICT: typing.Mapping = frozendict()
+EMPTY_SCOPE = GraphScope()
+REVISION_PENDING = -1
+
+# NOTE: we have the enum registry here to avoid circular imports
+_ENUM_CLASS_BY_TYPE: dict["EnumType", type[IdEnum]] = {}
+
+IdEnumT = typing.TypeVar("IdEnumT", bound=IdEnum)
 
 
-class NodeType(enum.StrEnum):
-    # source
-    MODULE = "MODULE"
-    FILE = "FILE"
-    STATEMENT = "STATEMENT"
-    TRIGGER = "TRIGGER"
-    TAGGING = "TAGGING"
-    FIELD = "FIELD"
-    RECORD = "RECORD"
-    VIEW = "VIEW"
-    # interp
-    ISSUE = "ISSUE"
-    RESOLVED_FIELD = "RESOLVED_FIELD"
-    # user
-    USER = "USER"
-    COMMENT = "COMMENT"
-    ACCESS = "ACCESS"
-    # remote
-    BLOB = "BLOB"
-    SECRET = "SECRET"
+def enum_(enum_type: "EnumType"):
+    """Register a Bench enum."""
+
+    def register_enum(cls: type[IdEnumT]) -> type[IdEnumT]:
+        if enum_type in _ENUM_CLASS_BY_TYPE:
+            raise ValueError(f"enum {enum_type} duplicate: {_ENUM_CLASS_BY_TYPE[enum_type]}")
+        _ENUM_CLASS_BY_TYPE[enum_type] = cls
+        return cls
+
+    return register_enum
+
+
+#
+# Enums
+#
+
+
+class EnumType(IdEnum):
+    ENUM_TYPE = 2001  # so meta
+    NODE_TYPE = 2002
+    STRUCT_TYPE = 2003
+    OBJECT_TYPE = 2004  # NodeType | StructType
+    BENCH_TYPE = 2005  # NodeType | StructType | EnumType
+    NODE_VISIBILITY = 2010
+
+    # access
+    ACCESS_KIND = 2030
+    READ_TYPE = 2031
+    EDIT_TYPE = 2032
+    USE_TYPE = 2033
+    ACCESS_TYPE = 2034  # ReadType | EditType | UseType
+    POLICY_EFFECT = 2035
+
+    # bench
+    REGION = 2050
+    TENANCY = 2051
+    STORE_KIND = 2052
+    STORE_ENGINE_TYPE = 2053
+    SERVER_PROFILE = 2055
+    RESOURCE_STATUS = 2056
+
+    # block
+    BLOCK_TYPE = 2070
+    SCHEDULE_TYPE = 2071
+
+    # type
+    PRIMITIVE_TYPE = 2080
+    FORMAT_HINT = 2081
+    FIELD_KIND = 2082
+
+    # text
+    TEXT_LINE_TYPE = 2090
+
+    # file
+    FILE_STATUS = 2100
+    FILE_RETENTION_MODE = 2101
+
+    # flow
+    STEP_TYPE = 2150
+
+    # view
+    VIEW_TYPE = 2200
+    VARIANT = 2201
+    COLOR_TYPE = 2202
+    COLOR_SHADE = 2203
+    FONT_TYPE = 2204
+    FONT_WEIGHT = 2205
+    FONT_SIZE = 2206
+    SPACING = 2207
+    ANCHOR = 2208
+    ORIENTATION = 2209
+    ALIGNMENT = 2210
+    ICON_KIND = 2211
+
     # session
-    SESSION = "SESSION"
-    RUN = "RUN"
+    LOG_KIND = 2250
+    LOG_LEVEL = 2251
+    TRIGGER_TYPE = 2263
+    RUN_STATUS = 2254
+    RUN_ERROR_KIND = 2255
+    NOTICE_KIND = 2260
+    NOTIFICATION_KIND = 2261
 
-    @property
-    def caps_name(self):
-        return NODE_TYPE_CAPS_CASE[self]
+    # expression
+    EXPRESSION_KIND = 2300
+    CONDITIONAL_OP = 2301
+    AGGREGATION_OP = 2302
+    SORT_OP = 2303
+    SORT_MODE = 2304
+    SELECTION_KIND = 2305
 
-    @property
-    def camel_name(self):
-        return NODE_TYPE_CAMEL_CASE[self]
-
-
-class StructType(enum.StrEnum):
-    EXPRESSION = "EXPRESSION"
-    RUN_CODE_FRAME = "RUN_CODE_FRAME"
-    RUN_ERROR = "RUN_ERROR"
-    LOG_ENTRY = "LOG_ENTRY"
-    PROJECTION = "PROJECTION"
-    WORKER_SET = "WORKER_SET"
+    # user
+    USER_STATUS = 2500
+    ORGANIZATION_STATUS = 2501
 
 
-# local = only stored in user Bench, not host
-LOCAL_NODE_TYPES = (NodeType.RECORD,)
-OUT_OF_LINE_NODE_TYPES = (
-    NodeType.SESSION,
-    NodeType.RUN,
-    NodeType.RECORD,
-    NodeType.BLOB,
-    NodeType.SECRET,
+enum_(EnumType.ENUM_TYPE)(EnumType)
+ENUM_TYPES: bytetuple[EnumType] = bytetuple(tuple(EnumType))
+
+
+#
+# Struct/Node metatypes
+#
+
+
+@enum_(EnumType.NODE_TYPE)
+class NodeType(IdEnum):
+    # root
+    BENCH = 1
+    # PLACE = 2 # isn't Place == Client?
+    ENVIRONMENT = 3
+    BRANCH = 4
+
+    # source
+    PACKAGE = 20
+    DEPENDENCY = 21
+    UPGRADE = 22
+    SPACE = 23
+    LINK = 24
+    SKIP = 25
+    NOTICE = 26
+    BLOCK = 30
+    TRIGGER = 31
+    FIELD = 32
+    RECORD = 33  # (local, based)
+    QUERY = 34
+    VIEW = 35
+    STEP = 36
+    # TAG?  (not sure what to do with tags yet)
+    # COMMENT = ...
+    # REACTION = ...
+    # LOCK?
+    # BREAKPOINT?
+
+    # auth
+    BADGE = 60
+    ROLE = 61
+    IDENTITY = 62
+    MEMBERSHIP = 63
+    INVITE = 64
+
+    # runtime
+    SESSION = 80  # (local)
+    RUN = 81  # (local, based)
+    PAUSE = 82  # (local)
+    SIGNAL = 83  # (local, based)
+    LOG = 84  # (local)
+    NOTIFICATION = 85  # (local, based)
+    # METRIC = ...?
+
+    # resources (compute/storage/external/etc.)
+    SERVER = 160
+    STORE = 161  # any 'database' (Postgres/OpenSearch/ClickHouse)
+    DRIVE = 162  # 'bucket' like S3/MinIO, maybe block storage later
+    CACHE = 163  # KV memory store (Redis/Memcached)
+    # MACHINE = ... # actual machine providing processor/memory/storage for resources
+    # DOMAIN, EMAIL, ...
+    FILE_CONTENT = 180  # in a Drive
+
+    # user
+    HANDLE = 220
+    USER = 221
+    ORGANIZATION = 222
+    CLIENT = 223
+
+
+NODE_TYPES: bytetuple[NodeType] = bytetuple(tuple(NodeType))
+ROOT_NODE_TYPES: bytetuple[NodeType] = bytetuple(
+    (NodeType.BENCH, NodeType.USER, NodeType.ORGANIZATION)
 )
-INLINE_NODE_TYPES = (nt for nt in NodeType if nt not in OUT_OF_LINE_NODE_TYPES)
-HOST_NODE_TYPES = (nt for nt in NodeType if nt not in LOCAL_NODE_TYPES)
+LOCAL_NODE_TYPES: bytetuple[NodeType] = bytetuple(
+    (NodeType.RECORD, NodeType.RUN, NodeType.PAUSE, NodeType.SIGNAL, NodeType.NOTIFICATION)
+)
+GLOBAL_NODE_TYPES: bytetuple[NodeType] = bytetuple(
+    tuple(nt for nt in NODE_TYPES if nt not in LOCAL_NODE_TYPES)
+)
+# based = instances are directly based on some other node
+# (e.g. Run.block->Block, Record.parent->Block)
+BASED_NODE_TYPES: bytetuple[NodeType] = bytetuple(
+    (NodeType.RECORD, NodeType.RUN, NodeType.SIGNAL, NodeType.NOTIFICATION)
+)
+IN_PACKAGE_NODE_TYPES: bytetuple[NodeType] = bytetuple(
+    tuple(nt for nt in NODE_TYPES if 20 <= nt.id < 100)
+)
+SUB_PACKAGE_NODE_TYPES: bytetuple[NodeType] = bytetuple(
+    tuple(nt for nt in NODE_TYPES if 20 < nt.id < 100)
+)
+IN_BENCH_NODE_TYPES: bytetuple[NodeType] = bytetuple(
+    tuple(nt for nt in NODE_TYPES if nt.id < 200) + (NodeType.CLIENT, NodeType.HANDLE)
+)
+SUB_BENCH_NODE_TYPES: bytetuple[NodeType] = bytetuple(
+    tuple(nt for nt in IN_BENCH_NODE_TYPES if nt != NodeType.BENCH)
+)
+PUBLIC_NODE_TYPES: bytetuple[NodeType] = bytetuple((NodeType.USER, NodeType.ORGANIZATION))
+USER_NODE_TYPES = bytetuple(tuple(nt for nt in NODE_TYPES if nt.id >= 200))
 
 
-class StatementType(enum.StrEnum):
-    TAG = "tag"
-    TEXT = "text"
-    BLANK = "blank"
-    CLASS = "class"
-    CHOICE = "choice"
-    TASK = "task"
-    CODE = "code"
-    FLOW = "flow"
-    MODEL = "model"
-    VARIABLE = "variable"
-    DATABASE = "database"
-    VIEW = "view"
-    GROUP = "group"
+@enum_(EnumType.STRUCT_TYPE)
+class StructType(IdEnum):
+    # core
+    PATH = 1000
+    PATH_SEGMENT = 1001
+    PATH_TOKEN = 1002
+    NODE_REFERENCE = 1003
+    PROPERTY_REFERENCE = 1004
+    VALUE_REFERENCE = 1005
+    TYPE_INFO = 1010
+    CONTEXT = 1011
+    SCHEDULE = 1012
+    PROJECTION = 1013
+
+    # files
+    FILE = 1020
+    ICON = 1021
+
+    # access
+    POLICY = 1030
+    POLICY_RULE = 1031
+    SUBJECT = 1032
+    ACCESS_ZONE = 1034
+    ACCESS_MATRIX = 1035
+    ACCESS = 1037
+    ACCESS_TRACE = 1038
+    REQUEST = 1036
+    ...
+    READ_OPTIONS = 1050
+
+    # expressions
+    EXPRESSION = 1060
+    AGGREGATION = 1061
+    AGGREGATION_BUCKET = 1062
+    SELECTION = 1063
+
+    # code
+    CODE = 1090
+    CODE_LINE = 1091
+    # flow
+    STEP_CONNECTION = 1100
+    RUN_CODE_FRAME = 1110
+    RUN_ERROR = 1111
+    # CURSOR?
+
+    RESOURCE_CREDENTIAL = 1132
+
+    # text
+    TEXT = 1160
+    TEXT_LINE = 1161
+    TEXT_SPAN = 1162
+
+    # views
+    COLOR = 1200
+    FONT = 1201
+    BOX = 1202
+    OFFSET = 1203
+    ...
+
+    # space
+    ...
+
+    # shapes
+    ...
+
+
+STRUCT_TYPES: bytetuple[StructType] = bytetuple(tuple(StructType))
+
+if typing.TYPE_CHECKING:
+    ObjectType = NodeType | StructType
+    BenchType = NodeType | StructType | EnumType
+else:
+    ObjectType = IdEnum.combine("ObjectType", NodeType, StructType)
+    enum_(EnumType.OBJECT_TYPE)(ObjectType)
+    BenchType = IdEnum.combine("BenchType", NodeType, StructType, EnumType)
+    enum_(EnumType.BENCH_TYPE)(BenchType)
+
+OBJECT_TYPES: bytetuple[ObjectType] = bytetuple(tuple(ObjectType))
+
+
+@enum_(EnumType.BLOCK_TYPE)
+class BlockType(IdEnum):
+    ALIAS = 1  # refer to / 'redefine' an existing block or builtin (like a 'newtype')
+    PAGE = 2  # group of blocks
+    MODULE = 3  # group of blocks with a 'namespace'
+    BLANK = 4  # placeholder/spacer?
+
+    # types
+    CLASS = 10  # define a class type with fields
+    CHOICE = 11  # define a choice type with fields (as literal options)
+    # TAG = 12  # define a tag type with fields
+    SIGNAL = 13  # define a signal type with fields
+    PROTOCOL = 14  # define a 'protocol' for a block graph/template with fields
+    # NOTICE = ...  # define a new notice type
+    # NOTIFICATION = ...  # define a new notification type
+    # METRIC = ...  # define a new metric type
+    # BLOCK = ...  # define a new block type?
+
+    # runnable
+    TEXT = 30  # define a 'paragraph' of text/comment/instruction with fields (incl. input/output)
+    CODE = 31  # define a code function with fields (incl. input/output)
+    SCRIPT = 32  # define a code script with exported code-level constructs
+    FLOW = 33  # define a flow with steps and fields (optionally incl. input/output)
+
+    # state
+    VARIABLE = 50  # define a single-value variable
+    MULTI_VARIABLE = 51  # define a variable with (multiple) fields
+    QUERY = 52  # define a set of queries
+    DATABASE = 53  # define a database with records & queries
+
+    # view
+    SCREEN = 70  # define a screen with views
+
+    # auth
+    ROLE = 90  # define a role with policies
+    IDENTITY = 91  # define an identity with roles & policies
 
     @property
-    def camel_name(self):
-        return to_pyidentifier(self.name, IdentifierType.TYPE)
+    def is_type(self) -> bool:
+        return self in BlockTypes.TYPES
+
+    @property
+    def is_runnable(self) -> bool:
+        return self in BlockTypes.RUNNABLE
 
 
-RUNNABLE_STATEMENT_TYPES = {
-    StatementType.CODE,
-    StatementType.MODEL,
-    StatementType.TASK,
-    StatementType.FLOW,
-}
+BLOCK_TYPES: tuple[BlockType, ...] = tuple(BlockType)
+
+
+class BlockTypes:
+    TYPES = bytetuple(tuple(t for t in BLOCK_TYPES if 10 <= t.id < 20))
+    RUNNABLE = bytetuple(tuple(t for t in BLOCK_TYPES if 30 <= t.id < 40))
+
+
+class NodeSource(IdEnum):
+    STORE = 1
+    INTERP = 2
+    LOCAL = 3
+
+
+@enum_(EnumType.NODE_VISIBILITY)
+class NodeVisibility(IdEnum):
+    # ...?
+    # BLOCK = 2
+    PAGE = 4
+    MODULE = 6
+    BENCH = 8
+    PUBLIC = 10
+
 
 DYNAMIC_NODE_KEY_LENGTH = 8
 
 
 def new_dynamic_node_key(ck_or_id: UUID) -> str:
     """
-    Gets a 'random' alphabetic key as a persistent key for a node.
-    Also used for dynamic database identities (versioned/un-versioned).
-    (short key length alphabetic characters) :FieldKeys
+    Gets a 'random' alphabetic key as a persistent but self-directed identity key for a node.
+    Used for storing dynamic field values, dynamic database identities (versioned/un-versioned).
+    (short key length alphabetic characters)
     """
     hash_value = cyrb53a(str(ck_or_id))
-    key = ""
-    while len(key) < DYNAMIC_NODE_KEY_LENGTH:
+    key_parts = []
+    for _ in range(DYNAMIC_NODE_KEY_LENGTH):
         hash_value, remainder = divmod(hash_value, 52)
         if remainder < 26:
-            key += chr(ord("a") + remainder)
+            key_parts.append(chr(ord("a") + remainder))
         else:
-            key += chr(ord("A") + remainder - 26)
+            key_parts.append(chr(ord("A") + remainder - 26))
+    key = "".join(key_parts)
     return key
 
 
-class NodeTrackingLevel(enum.IntEnum):
-    NONE = 0
-    ANONYMOUS = 1
-    FULL = 2
+class ReferenceKind(IdEnum):
+    """A reference to a Node or Struct - usually both have an identity (except for inlined Structs)."""
 
-
-NTL = NodeTrackingLevel
-
-
-class SessionAccessLevel(enum.IntEnum):  # SessionAccessLevel
-    Zero = 0
-    Read = 1
-    Create = 2
-    Update = 3
-    Delete = 4
-    Full = Delete
-
-
-NodeType = NodeType
-NODE_TYPE_CAPS_CASE: dict[NodeType, str] = {
-    node_type: to_all_caps(node_type) for node_type in NodeType
-}
-NODE_TYPE_CAMEL_CASE: dict[NodeType, str] = {
-    node_type: to_pyidentifier(node_type, IdentifierType.TYPE) for node_type in NodeType
-}
-INTERP_NODE_TYPES = {NodeType.ISSUE, NodeType.RESOLVED_FIELD}
-
-ModuleReference = typing.NamedTuple(
-    "ModuleReference", [("name", str), ("version", str), ("id", typing.Optional[UUID])]
-)
-NodePath = NamedTuple("NodePath", [("path", str), ("name", str)])
-StatementReference = typing.Union["Statement", NodePath, UUID]
-NodeReference = typing.Union["Node", NodePath, UUID]
-TypedNodeReference = NamedTuple("TypedNodeReference", [("type", NodeType), ("ref", UUID)])
-NODE_REFERENCE_REGEX = re.compile(
-    r"^((?P<module_owner>[\w\- ]+)\.(?P<module_name>[\w\- ]+))?\.(?P<path>[\w.\- ]+)"
-)
-
-
-def parse_absolute_node_reference(path: str) -> tuple[str, str]:
-    match = NODE_REFERENCE_REGEX.match(path)
-    if not match:
-        raise ValueError(f"invalid absolute node reference: {path}")
-    module_name = match.group("module_owner") + "." + match.group("module_name")
-    localized_path = "." + match.group("path")
-    return module_name, localized_path
-
-
-def parse_node_path(node_path: str) -> "NodePath":
-    if "." not in node_path:
-        return NodePath(".", node_path)
-    path, name = node_path.rsplit(".", 1)
-    return NodePath(path, name)
-
-
-def node_path_as_str(node_path: "NodePath") -> str:
-    return f"{node_path.path}:{node_path.name}"
-
-
-class TextHeadingLevel(enum.IntEnum):
-    """Classic headings big to small."""
-
-    H1 = 1
-    H2 = 2
-    H3 = 3
-
-
-class ViewLayout(enum.StrEnum):
-    """The layout of a database view."""
-
-    TABLE = "table"
-
-
-# TODO @Architecture: simplify the TypeTag/TypeHint/TypeFlag/TypeStorageFormat mess
-#  (should probably? just be type + flags with display hints in metadata)
-#  IS_ARRAYABLE -> real unions of X | list[X] or whatever
-#  IS_UNION_WITH -> inherit? from type (could remain flag, though that's not great)
-
-
-class TypeTag(enum.StrEnum):
-    """The Bench primitive type of a field/type."""
-
-    STRING = "string"
-    NUMBER = "number"
-    BOOLEAN = "boolean"
-    VECTOR = "vector"
-    BLOB = "blob"
-    STRUCT = "struct"
-    JSON = "json"
-    FUNCTION = "function"
-    ENUM = "enum"
-    LITERAL = "literal"
-    TYPE_REFERENCE = "ref"
-    NODE = "node"
-    ANY = "any"
-
-
-RESERVED_TYPE_TAGS = (TypeTag.FUNCTION, TypeTag.ENUM, TypeTag.STRUCT)
-
-
-class TypeHint(enum.StrEnum):
-    """Extra representation/semantics of a field/type."""
-
-    # string
-    NAME = "name"
-    UUID = "uuid"
-    DATE = "date"
-    DATETIME = "datetime"
-    TIME = "time"
-    DURATION = "duration"
-    EMAIL = "email"
-    URL = "url"
-    MARKDOWN = "markdown"
-    RICH_TEXT = "rich_text"
-    HTML = "html"
-    CODE = "code"
-    KEY = "key"
-    # number
-    INTEGER = "integer"
-    FLOAT = "float"
-    SLIDER = "slider"
-    PHONE = "phone"
-    RATING = "rating"
-    # boolean
-    TOGGLE = "toggle"
-    CHECKBOX = "checkbox"
-    THUMBS = "thumbs"
-    # vector
-    EMBEDDING = "embedding"
-    # blob
-    IMAGE = "image"
-    VIDEO = "video"
-    AUDIO = "audio"
-    # node (relation)
-    FILE = "file"
-    STATEMENT = "statement"
-    RECORD = "record"  # for relations
-    FIELD = "field"
-    RUN = "run"  # not used yet
-    SECRET = "secret"  # not used as a node yet
-    BLOB = "blob"  # not used as a node yet
-
-
-class TypeFlag(enum.IntFlag):
-    """Extra information for fields"""
-
-    # :TypeFlags
-    ZERO = 0
-    IS_OUTPUT = 2**0
-    IS_ARRAY = 2**1
-    IS_OPTIONAL = 2**2
-    IS_UNION_WITH = 2**3
-    IS_SECRET = 2**4
-    IS_STORE_ONLY = 2**5
-    IS_ARRAYABLE = 2**6
-    IS_META = 2**7
-    IS_CONFIG = 2**8
-    IS_HIDDEN = 2**9
+    NODE_ANCESTOR_ROOT = 1
+    NODE_ANCESTOR_FIRST = 2
+    NODE_PARENT = 3
+    NODE_CHILD = 4
+    NODE_REGULAR = 5
+    STRUCT_PARENT = 6
+    STRUCT_CHILD = 7
+    PROPERTY = 8
 
     @property
-    def short_name(self) -> str:
-        return self.name.replace("Is", "")
+    def is_node_tree(self):
+        return self.id <= 4
+
+    @property
+    def is_node(self):
+        return self.id <= 5
+
+    @property
+    def is_struct_tree(self):
+        return self.id > 5
 
 
-class TypeStorageFormat(enum.StrEnum):
+class NodeRelationFlag(enum.IntFlag):
+    """Parent relation between node and descendants."""
+
+    DEFAULT = 0  # default inline relation
+    STORED_CUSTOM = 2**0  # not inline: Block->Record, ...
+    CUMULATIVE = 2**1  # sum of descendants: Package->Issue, Block->Issue, ...
+    NAMED = 2**2  # indexed by name: Package->Block, Block->Block, ...
+    SCOPED = 2**3  # scoped by name: Package->Block, Block->Block, ...
+    ORDERED = 2**4  # ordered: Block->Block, Block->Field, ...
+
+
+NRel = NodeRelationFlag
+
+
+class InterpStatus(IdEnum):
+    # TODO :Cleanup :Architecture: clarify/simplify node lifecycle
+    #  when interp? what does it do? can Node. _session while status != tracked?
+    SOURCE = 1  # just loaded
+    INTERPED = 2  # everything resolved & ready
+    TRACKED = 3  # live in a session
+
+
+#
+# Access
+# Access types are loosely ranked by access/destructiveness across and within types.
+#
+
+
+@enum_(EnumType.READ_TYPE)
+class ReadType(IdEnum):
+    """A type of Read access on nodes."""
+
+    GET = 1  # any direct read access
+    AGGREGATE_SCALAR = 2  # count, sum, min, etc.
+    AGGREGATE_BUCKET = 3  # histogram, etc.
+    LIST = 4  # list, search, filter, etc.
+
+    @property
+    def kind(self) -> "AccessKind":
+        return AccessKind.READ
+
+
+@enum_(EnumType.EDIT_TYPE)
+class EditType(IdEnum):
+    """A type of Edit access on nodes."""
+
+    BUMP_CHANGED = 10
+    BUMP_ACTIVE = 11
+    CREATE = 12
+    UPSERT = 13
+    UPDATE = 14
+    MOVE = 15
+    ARCHIVE = 16
+    UNARCHIVE = 17
+    SOFT_DELETE = 18
+    RESTORE = 19
+    DELETE = 20
+
+    @property
+    def kind(self) -> "AccessKind":
+        return AccessKind.EDIT
+
+
+@enum_(EnumType.USE_TYPE)
+class UseType(IdEnum):
+    """A type of Run access on nodes."""
+
+    START = 30
+    PAUSE = 31
+    RESUME = 32
+    STOP = 33
+    SEND = 34
+    RECEIVE = 35
+
+    @property
+    def kind(self) -> "AccessKind":
+        return AccessKind.USE
+
+
+@enum_(EnumType.ACCESS_KIND)
+class AccessKind(IdEnum):
+    READ = 1
+    EDIT = 10
+    USE = 30
+
+    @property
+    def from_ord(self) -> int:
+        return ACCESS_CLASS_BY_KIND[self].get_min_ord()
+
+    @property
+    def to_ord(self) -> int:
+        return ACCESS_CLASS_BY_KIND[self].get_max_ord()
+
+
+if typing.TYPE_CHECKING:
+    AccessType = ReadType | EditType | UseType
+else:
+    AccessType = IdEnum.combine("AccessType", ReadType, EditType, UseType)
+    AccessType.kind = property(lambda self: ACCESS_KIND_BY_ACCESS[self])
+    enum_(EnumType.ACCESS_TYPE)(AccessType)
+
+READ_TYPES: bytetuple[ReadType] = bytetuple(tuple(ReadType))
+EDIT_TYPES: bytetuple[EditType] = bytetuple(tuple(EditType))
+USE_TYPES: bytetuple[UseType] = bytetuple(tuple(UseType))
+ACCESS_TYPES: bytetuple[AccessType] = bytetuple(tuple(AccessType))
+ACCESS_CLASSES: tuple[type[AccessType], ...] = (ReadType, EditType, UseType, AccessType)
+ACCESS_KINDS = bytetuple(tuple(AccessKind))
+ACCESS_TYPES_BY_KIND: dict[AccessKind, bytetuple[AccessType]] = {
+    AccessKind.READ: bytetuple(READ_TYPES),
+    AccessKind.EDIT: bytetuple(EDIT_TYPES),
+    AccessKind.USE: bytetuple(USE_TYPES),
+}
+ACCESS_CLASS_BY_KIND: dict[AccessKind, type[AccessType]] = {
+    AccessKind.READ: ReadType,
+    AccessKind.EDIT: EditType,
+    AccessKind.USE: UseType,
+}
+ACCESS_KIND_BY_ACCESS: dict[AccessType, AccessKind] = {
+    access: kind for kind, access_types in ACCESS_TYPES_BY_KIND.items() for access in access_types
+}
+
+
+class AccessMode(IdEnum):
+    ADAPTIVE = 1
+    ATOMIC = 2
+
+
+#
+# Other stuff
+#
+
+
+@enum_(EnumType.STORE_KIND)
+class StoreKind(IdEnum):
+    RELATIONAL = 1
+    SEARCH = 2
+    ANALYTICAL = 3
+
+
+@enum_(EnumType.STORE_ENGINE_TYPE)
+class StoreEngineType(IdEnum):
+    INMEMORY = 1
+    REMOTE = 2
+    POSTGRES = 3
+    OPENSEARCH = 4
+    CLICKHOUSE = 5
+
+
+@enum_(EnumType.POLICY_EFFECT)
+class PolicyEffect(IdEnum):
+    ALLOW = 1
+    DENY = 2
+    # DEFER?, METER, LIMIT, ...
+
+
+@enum_(EnumType.PRIMITIVE_TYPE)
+class PrimitiveType(IdEnum):
     """
-    The fundamental form of a field/type.
-    Since we're using OpenSearch for our user data backend, this
-    needs to be compatible with OpenSearch's field types.
-    However, be mindful of other future storage/indexing backends.
-    :TypeStorageFormat
+    Fundamental column / storage types we support (subset of SQL types, used directly in sql/core).
+    NOTE: the ids here are used in value pack/unpack keys, so any changes are breaking.
     """
 
-    STRING = "str"
-    DOUBLE = "f64"
-    LONG = "s64"
-    VECTOR = "vec"
-    BINARY = "bin"
-    BOOLEAN = "bool"
-    DATE = "date"
-    KEYWORD = "key"
-    OBJECT = "obj"
-    RELATION = "rel"
+    BOOLEAN = 1
+    # ...
+    INT16 = 4  # range: -32768 to 32767
+    INT32 = 5  # range: -2147483648 to 2147483647
+    INT64 = 6  # range: -9223372036854775808 to 9223372036854775807
+    # ...
+    FLOAT32 = 9  # range: 1.175494351e-38 to 3.402823466e+38
+    FLOAT64 = 10  # range: 2.2250738585072014e-308 to 1.7976931348623157e+308
+    # ...
+    DECIMAL = 12  # numeric(precision, scale)
+    # ...
+    STRING = 15
+    JSON = 16
+    BYTES = 17
+    VECTOR = 18
+    UUID = 19
+    DATETIME = 20
+    INTERVAL = 21
 
 
-class BlobStatus(enum.StrEnum):
-    PREPARED = "prepared"
-    UPLOADING = "uploading"
-    AVAILABLE = "available"
+@enum_(EnumType.FORMAT_HINT)
+class FormatHint(IdEnum):
+    """Extra semantic hint for types."""
+
+    # string
+    TITLE = 1
+    EMAIL = 2
+    URL = 3
+    MARKDOWN = 4
+    CODE = 5
+    EMOJI = 6
+    # number
+    PHONE = 20
+    RATING = 21
+    SLIDER = 22
+    # files
+    IMAGE = 60
+    VIDEO = 61
+    AUDIO = 62
 
 
-class TriggerType(enum.StrEnum):
-    """Triggers for statements (for both actual runs and pre-defined triggers)."""
-
-    INVOKE = "invoke"
-    TIME = "time"
-    RUN = "run"
-    EDIT = "edit"
-    MESSAGE = "message"
-    USER = "user"
-    API = "api"
+@enum_(EnumType.FILE_STATUS)
+class FileStatus(IdEnum):
+    PENDING = 1
+    UPLOADING = 2
+    AVAILABLE = 3
 
 
-class ScheduleType(enum.StrEnum):
-    """Schedules for statements."""
+@enum_(EnumType.TRIGGER_TYPE)
+class TriggerType(IdEnum):
+    """Triggers for blocks (for both actual runs and pre-defined triggers)."""
 
-    INTERVAL = "interval"
-    CRON = "cron"
-
-
-class IssueKind(enum.StrEnum):
-    ERROR = "Error"
-    WARNING = "Warning"
-    NOTICE = "Notice"
+    SCHEDULE = 1
+    SIGNAL = 2
 
 
-class IssueType(enum.StrEnum):
-    # errors
-    INTERNAL = "INTERNAL"
-    UNKNOWN_IMPORT_SOURCE = "UNKNOWN_IMPORT_SOURCE"
-    MISSING_REFERENCE = "MISSING_REFERENCE"
-    CIRCULAR_ANCESTRY = "CIRCULAR_ANCESTRY"
-    CIRCULAR_UNION = "CIRCULAR_UNION"
-    MISMATCHED_UNION = "MISMATCHED_UNION"
-    INVALID_DATA = "INVALID_DATA"
-    # warnings
-    AMBIGUOUS_DEFINITION = "AMBIGUOUS_DEFINITION"
-    CODE_NOT_EXPORTABLE = "CODE_NOT_EXPORTABLE"
-    CODE_NOT_CACHEABLE = "CODE_NOT_CACHEABLE"
-    CODE_REFERENCE_NOT_EXPORTED = "CODE_REFERENCE_NOT_EXPORTED"
-    TASK_MISSING_IO = "TASK_MISSING_IO"
-    # notices
-    TASK_IS_STATIC = "TASK_IS_STATIC"
+@enum_(EnumType.SCHEDULE_TYPE)
+class ScheduleType(IdEnum):
+    INTERVAL = 1
+    CRON = 2
 
 
-class ProjectRegion(enum.StrEnum):
-    US_WEST = "US_WEST"
-    EU_CENTRAL = "EU_CENTRAL"
+@enum_(EnumType.NOTICE_KIND)
+class NoticeKind(IdEnum):
+    """Type of diagnostic in increasing severity."""
+
+    HINT = 1
+    INFO = 2
+    WARNING = 3
+    ERROR = 4
 
 
-class WorkerSetStatus(enum.StrEnum):
-    SLEEPING = "SLEEPING"
-    PENDING = "PENDING"
-    UPDATING = "UPDATING"
-    HEALTHY = "HEALTHY"
-    UNHEALTHY = "UNHEALTHY"
-    UNAVAILABLE = "UNAVAILABLE"
-    UNKNOWN = "UNKNOWN"
-
-
-class SessionStatus(enum.StrEnum):
-    ACTIVE = "ACTIVE"
-    SUSPENDED = "SUSPENDED"
-    TERMINATED = "TERMINATED"
-
-
-class RunStatus(enum.StrEnum):
-    SCHEDULED = "Scheduled"
-    QUEUED = "Queued"
-    RUNNING = "Running"
-    SUSPENDED = "Suspended"
-    ABORTING = "Aborting"
+@enum_(EnumType.RUN_STATUS)
+class RunStatus(IdEnum):
+    SCHEDULED = 1
+    QUEUED = 2
+    RUNNING = 3
+    PAUSED = 4
+    ABORTING = 5
     # terminal statuses
-    CANCELLED = "Cancelled"
-    ABORTED = "Aborted"
-    FAILED = "Failed"
-    COMPLETED = "Completed"
+    CANCELLED = 6
+    ABORTED = 7
+    FAILED = 8
+    COMPLETED = 9
 
 
-TERMINAL_RUN_STATUSES = {
+TERMINAL_RUN_STATUSES: bytetuple[RunStatus] = bytetuple(
     RunStatus.CANCELLED,
     RunStatus.ABORTED,
     RunStatus.FAILED,
     RunStatus.COMPLETED,
-}
-PENDING_RUN_STATUSES = {
-    RunStatus.SCHEDULED,
-    RunStatus.QUEUED,
-    RunStatus.RUNNING,
-    RunStatus.SUSPENDED,
-    RunStatus.ABORTING,
-}
-ACTIVE_RUN_STATUSES = {RunStatus.QUEUED, RunStatus.RUNNING, RunStatus.SUSPENDED, RunStatus.ABORTING}
+)
+ACTIVE_RUN_STATUSES = bytetuple(
+    RunStatus.QUEUED, RunStatus.RUNNING, RunStatus.PAUSED, RunStatus.ABORTING
+)
 
 
-class RunErrorKind(enum.StrEnum):
-    Internal = "Internal"
-    Parse = "Parse"
-    Validation = "Validation"
-    Runtime = "Runtime"
-    Untrusted = "Untrusted"
+@enum_(EnumType.RUN_ERROR_KIND)
+class RunErrorKind(IdEnum):
+    INTERNAL = 1
+    PARSE = 2
+    VALIDATION = 3
+    RUNTIME = 4
+    UNTRUSTED = 5
 
 
-class WorkerProfile(enum.StrEnum):
-    TINY = "TINY"
-    SMALL = "SMALL"
-    MEDIUM = "MEDIUM"
-    LARGE = "LARGE"
-    XLARGE_CPU = "XLARGE_CPU"
-    XLARGE_MEM = "XLARGE_MEM"
+@enum_(EnumType.EXPRESSION_KIND)
+class ExpressionKind(IdEnum):
+    CONDITIONAL = 1
+    SORT = 2
+    AGGREGATION = 3
 
 
-class ExpressionKind(enum.StrEnum):
-    CONDITIONAL = "CONDITIONAL"
-    SORT = "SORT"
-    AGGREGATION = "AGGREGATION"
-
-
-class ConditionalOp(enum.StrEnum):
+@enum_(EnumType.CONDITIONAL_OP)
+class ConditionalOp(IdEnum):
     # logical
-    TRUE = "TRUE"
-    FALSE = "FALSE"
-    NOT = "NOT"
-    AND = "AND"
-    OR = "OR"
-    # comparison
-    EQUALS = "EQUALS"
-    NOT_EQUALS = "NOT_EQUALS"
-    GREATER_THAN = "GREATER_THAN"
-    GREATER_THAN_OR_EQUALS = "GREATER_THAN_OR_EQUALS"
-    LESS_THAN = "LESS_THAN"
-    LESS_THAN_OR_EQUALS = "LESS_THAN_OR_EQUALS"
+    TRUE = 1
+    FALSE = 2
+    NOT = 3
+    AND = 4
+    OR = 5
+    # basic comparison
+    EQUALS = 10
+    NOT_EQUALS = 11
+    GREATER_THAN = 12
+    GREATER_THAN_OR_EQUALS = 13
+    LESS_THAN = 14
+    LESS_THAN_OR_EQUALS = 15
     # string comparison
-    MATCHES = "MATCHES"
-    STARTS_WITH = "STARTS_WITH"
+    MATCHES = 20
+    STARTS_WITH = 21
+    REGEX = 22
     # containment
-    CONTAINS = "CONTAINS"
-    NOT_CONTAINS = "NOT_CONTAINS"
-    IN = "IN"
-    NOT_IN = "NOT_IN"
+    CONTAINS = 30
+    NOT_CONTAINS = 31
+    IN = 32
+    NOT_IN = 33
     # existence
-    EXISTS = "EXISTS"
-    NOT_EXISTS = "DOES_NOT_EXIST"
+    EXISTS = 40
+    NOT_EXISTS = 41
     # vector
-    NEAR = "NEAR"
+    NEAR = 50
 
 
-_CONDITIONAL_OP_SIGN: dict[ConditionalOp, str] = {
-    # logical
-    ConditionalOp.NOT: "~",
-    ConditionalOp.AND: "&",
-    ConditionalOp.OR: "|",
-    # comparison
-    ConditionalOp.EQUALS: "==",
-    ConditionalOp.NOT_EQUALS: "!=",
-    ConditionalOp.GREATER_THAN: ">",
-    ConditionalOp.GREATER_THAN_OR_EQUALS: ">=",
-    ConditionalOp.LESS_THAN: "<",
-    ConditionalOp.LESS_THAN_OR_EQUALS: "<=",
-    # string comparison
-    ConditionalOp.MATCHES: "~=",
-    ConditionalOp.STARTS_WITH: "^=",
-    # containment
-    ConditionalOp.CONTAINS: "∋",
-    ConditionalOp.NOT_CONTAINS: "!∋",
-    ConditionalOp.IN: "∈",
-    ConditionalOp.NOT_IN: "!∈",
-    # existence
-    ConditionalOp.EXISTS: "?",
-    ConditionalOp.NOT_EXISTS: "!?",
-    # vector
-    ConditionalOp.NEAR: "~=",
-}
+@enum_(EnumType.AGGREGATION_OP)
+class AggregationOp(IdEnum):
+    EXISTS = 100
+    COUNT = 101
+    SUM = 102
+    AVERAGE = 103
+    MIN = 104
+    MAX = 105
+    MEDIAN = 106
+    HISTOGRAM = 107
 
 
-class AggregationOp(enum.StrEnum):
-    # Single value
-    COUNT = "COUNT"
-    SUM = "SUM"
-    AVERAGE = "AVERAGE"
-    MIN = "MIN"
-    MAX = "MAX"
-    MEDIAN = "MEDIAN"
-    # Bucket value
-    HISTOGRAM = "HISTOGRAM"
+@enum_(EnumType.SORT_OP)
+class SortOp(IdEnum):
+    ASCENDING = 200
+    DESCENDING = 201
 
 
-class SortOp(enum.StrEnum):
-    ASCENDING = "ASCENDING"
-    DESCENDING = "DESCENDING"
-
-
-class QueryEngine(enum.StrEnum):
-    MODULE = "MODULE"
-    HOST = "HOST"
-    OPENSEARCH = "OS"
-    POSTGRES = "PG"
-
-
-class SortMode(enum.StrEnum):
-    MAX = "MAX"
-    MIN = "MIN"
-    AVERAGE = "AVERAGE"
-    SUM = "SUM"
-    MEDIAN = "MEDIAN"
+@enum_(EnumType.SORT_MODE)
+class SortMode(IdEnum):
+    MAX = 1
+    MIN = 2
+    AVERAGE = 3
+    SUM = 4
+    MEDIAN = 5
 
 
 if typing.TYPE_CHECKING:
     ExpressionOp = ConditionalOp | AggregationOp | SortOp
 else:
-    ExpressionOp = enum.StrEnum(
-        "ExpressionOp",
-        {**ConditionalOp.__members__, **AggregationOp.__members__, **SortOp.__members__},
-    )
+    ExpressionOp = IdEnum.combine("ExpressionOp", ConditionalOp, AggregationOp, SortOp)
+
+
+@enum_(EnumType.USER_STATUS)
+class UserStatus(IdEnum):
+    INVITED = 1  # invited via email
+    RESERVED = 2  # reserved a handle, unconfirmed
+    WAITLISTED = 3  # got handle, confirmed email, waiting
+    REGISTERED = 4  # got handle, confirmed email, ready to activate
+    ACTIVATED = 10  # has main bench, all ready to go
+
+
+@enum_(EnumType.ORGANIZATION_STATUS)
+class OrganizationStatus(IdEnum):
+    # NOTE UserStatus/OrganizationStatus ids for same statuses should match
+    REGISTERED = 4  # created org
+    ACTIVATED = 10  # has main bench
+
+
+@enum_(EnumType.NOTIFICATION_KIND)
+class NotificationKind(IdEnum):
+    """
+    The level of interaction required for a notification.
+    """
+
+    PASSIVE = 1  # no quick action required, not urgent
+    ACTIVE = 2  # important action required / may want to know this as soon as possible
+    URGENT = 3  # immediate action required
+
+
+#
+# Other common non-const stuff
+#
+
+
+class BenchError(Exception):
+    """Common base class for any regular errors."""
+
+    pass
+
+
+_active_session: contextvars.ContextVar[Optional["Session"]] = contextvars.ContextVar(
+    "active_session", default=None
+)
+
+
+def active_session() -> "Session":
+    """Gets the currently active Session (error if none)."""
+    session = _active_session.get()
+    assert session is not None, "no active session"
+    return session
+
+
+def active_tx() -> "Transaction":
+    """Gets the currently active Transaction (error if none)."""
+    session = _active_session.get()
+    assert session is not None, "no active session"
+    return session._tx

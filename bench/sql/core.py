@@ -1,15 +1,17 @@
+import dataclasses
 import enum
 import hashlib
-from dataclasses import dataclass, field, is_dataclass, replace
+from dataclasses import dataclass
 from datetime import datetime
 from itertools import chain
-from typing import TYPE_CHECKING, ClassVar, Union
-from uuid import UUID, uuid5
+from typing import TYPE_CHECKING, Any, ClassVar, Union
+from uuid import UUID
 
-import psycopg
+# TODO :Performance: check out asyncpg instead of psycopg (up to 5x faster)
+#  see https://github.com/MagicStack/asyncpg
 from more_itertools import first
 
-from bench.language.const import BENCH_UUID_NAMESPACE
+from bench.language.const import PrimitiveType
 
 
 def stable_hash(*args) -> int:
@@ -19,13 +21,13 @@ def stable_hash(*args) -> int:
     hasher = hashlib.sha256()
 
     def update_hash(value):
-        if is_dataclass(value):
-            hasher.update(str(value.__hash__()).encode())
-        elif isinstance(value, list):
+        if isinstance(value, (list, tuple)):
             for item in value:
                 update_hash(item)
-        else:
+        elif isinstance(value, (str, int, enum.Enum, type(None))):
             hasher.update(str(value).encode())
+        else:
+            raise ValueError(f"cannot hash {value!r}")
 
     for arg in args:
         update_hash(arg)
@@ -33,7 +35,7 @@ def stable_hash(*args) -> int:
     return int(hasher.hexdigest(), 16)
 
 
-class ConstructKind(enum.StrEnum):
+class ObjectKind(enum.StrEnum):
     TABLE = "TABLE"
     COLUMN = "COLUMN"
     CONSTRAINT = "CONSTRAINT"
@@ -41,44 +43,99 @@ class ConstructKind(enum.StrEnum):
 
 
 @dataclass
-class ConstructInfo:
-    """Reconstructed info for a construct."""
-
-    id: UUID
-    kind: ConstructKind
-    table_name: str | None
-    name: str
-    hash: int
-
-
-@dataclass
-class Construct:
-    kind: ClassVar[ConstructKind]
+class Object:
+    FLAT_DATA_FIELDS: ClassVar[tuple[str, ...]]
+    kind: ClassVar[ObjectKind]
 
     if TYPE_CHECKING:
         name: str  # defined in subclasses as either property or field
+        _source: int | str | None  # 'source' of this object (if mapped)
 
     def sql(self) -> str:
+        """Turns this object into a SQL block."""
         raise NotImplementedError
 
-    def walk(self) -> tuple["Construct", ...]:
+    def source_repr(self) -> str:
+        """Turns this object into Python code that defines it."""
+
+        def _source_repr(value: Any) -> str | None:
+            if hasattr(value, "source_repr"):
+                return value.source_repr()
+            elif isinstance(value, tuple):
+                if not value:
+                    return None
+                if len(value) > 1:
+                    return f"({', '.join(_source_repr(v) for v in value)})"
+                else:
+                    return f"({_source_repr(value[0])},)"
+            elif isinstance(value, list):
+                if not value:
+                    return None
+                return f"[{', '.join(_source_repr(v) for v in value)}]"
+            elif isinstance(value, enum.Enum):
+                return f"{value.__class__.__name__}.{value.name}"
+            else:
+                return repr(value)
+
+        fields = dataclasses.fields(self)
+        args = []
+        arg_idx = 0
+        for field_idx, field in enumerate(fields):
+            if field.name.startswith("_"):
+                continue
+            if self.kind == ObjectKind.COLUMN and field.name == "type":
+                # we want to reproduce the original type, not the encrypted type
+                #  (we sneakily change the type in __post_init__)
+                self: Column
+                value = self._unencrypted_type or self.type
+            else:
+                value = getattr(self, field.name)
+            if value == field.default:
+                continue
+            value = _source_repr(value)
+            if value is None:
+                continue
+            if arg_idx == field_idx and field.default:
+                args.append(value)
+            else:
+                args.append(f"{field.name}={value}")
+            arg_idx += 1
+        args_str = ", ".join(args)
+        return f"{self.__class__.__name__}({args_str})"
+
+    def walk(self) -> tuple["Object", ...]:
         return (self,)
 
-    @property
-    def hash(self) -> int:
-        return hash(self)
+    def hash_flat(self) -> int:
+        """Get a stable hash of this object's data attributes, ignoring nested objects."""
+        values = (
+            getattr(self, field_name)
+            for field_name in self.FLAT_DATA_FIELDS
+            if getattr(self, field_name) is not None
+        )
+        return stable_hash(*values)
 
-    def __hash__(self):
-        """Computes a stable hash of this construct and any child constructs."""
-        raise NotImplementedError
+    def diff_flat(self, other: "TableObject") -> dict[str, Any]:
+        """Get a diff of this object's data attributes, ignoring nested objects."""
+        assert type(self) == type(other), f"cannot diff {self!r} with {other!r}"
+        return {
+            field_name: getattr(self, field_name)
+            for field_name in self.FLAT_DATA_FIELDS
+            if getattr(self, field_name) != getattr(other, field_name)
+        }
 
-    @property
-    def id(self):
-        return uuid5(BENCH_UUID_NAMESPACE, f"{self.kind.value}:{self.name}")
+    def diff_keys(self, other: "TableObject") -> tuple[str, ...]:
+        """Get the keys (field names) where this object differs from another."""
+        assert type(self) == type(other), f"cannot diff {self!r} with {other!r}"
+        return tuple(
+            field_name
+            for field_name in self.FLAT_DATA_FIELDS
+            if getattr(self, field_name) != getattr(other, field_name)
+        )
 
 
 @dataclass
-class TableConstruct(Construct):
+class TableObject(Object):
     @property
     def table(self) -> "Table":
         assert self._table is not None, f"{self} is not attached to a table"
@@ -89,128 +146,187 @@ class TableConstruct(Construct):
         return self.table.name
 
     @property
+    def qualified_name(self) -> str:
+        if self.kind == ObjectKind.TABLE or self.kind == ObjectKind.INDEX:
+            return self.name
+        else:
+            return f"{self.table_name}.{self.name}"
+
+    @property
     def _table(self) -> Union["Table", None]:
         raise NotImplementedError
 
-    @property
-    def id(self) -> UUID:
-        return uuid5(BENCH_UUID_NAMESPACE, f"{self.kind.value}:{self._table.name}.{self.name}")
-
-    def clone(self) -> "TableConstruct":
-        """Deep copy this table construct without the table reference."""
-        return replace(self, _table=None)
-
-
-class ColumnType(enum.StrEnum):
-    """
-    Generic SQL column types (akin to Prisma/SQLAlchemy).
-    """
-
-    STRING = "String"
-    BOOLEAN = "Boolean"
-    INT = "Int"  # range: -2147483648 to 2147483647
-    BIGINT = "BigInt"  # range: -9223372036854775808 to 9223372036854775807
-    FLOAT = "Float"
-    DECIMAL = "Decimal"
-    DATETIME = "DateTime"
-    JSON = "Json"
-    BINARY = "Binary"
-    VECTOR = "Vector"
-    UUID = "UUID"
-    BYTES = "Bytes"
+    def clone(self) -> "TableObject":
+        """Deep copy this table object without the table reference."""
+        return dataclasses.replace(self, _table=None)
 
 
 SqlPrimitiveSingle = Union[str, int, float, bool, datetime, UUID, bytes, type(None)]
 SqlPrimitive = Union[SqlPrimitiveSingle, list[SqlPrimitiveSingle], dict[str, SqlPrimitiveSingle]]
 
 
-@dataclass
-class Column(TableConstruct):
+class CascadeAction(enum.StrEnum):
     """
-    A high-level SQL column definition.
+    A SQL cascade action.
     """
 
-    kind: ClassVar[ConstructKind] = ConstructKind.COLUMN
+    RESTRICT = "RESTRICT"
+    CASCADE = "CASCADE"
+    SET_NULL = "SET NULL"
+    NO_ACTION = "NO ACTION"
+    SET_DEFAULT = "SET DEFAULT"
+
+
+@dataclass
+class Column(TableObject):
+    """
+    A SQL column definition.
+    """
+
+    FLAT_DATA_FIELDS: ClassVar[tuple[str, ...]] = (
+        "name",
+        "type",
+        "is_array",
+        "is_primary_key",
+        "is_foreign_key_to",
+        "on_delete",
+        # "is_unique",, handled via constraints
+        "is_nullable",
+        # "is_encrypted", handled in read/write
+        "length",
+        "default",
+    )
+    kind: ClassVar[ObjectKind] = ObjectKind.COLUMN
 
     name: str
-    type: ColumnType
+    type: PrimitiveType
     is_array: bool = False
     is_primary_key: bool = False
-    is_unique: bool = False
+    is_foreign_key_to: str | None = None
+    on_delete: CascadeAction | None = None
+    is_unique: bool = False  # handled via constraints
     is_nullable: bool = False
+    is_encrypted: bool = False  # encrypted columns are always stored as bytes
     length: int | None = None
+    precision: int | None = None
+    scale: int | None = None
     default: str | None = None
+    _source: str | int | None = None
     _table: Union["Table", None] = None
+    _unencrypted_type: PrimitiveType | None = None  # for encrypted columns
+
+    def __post_init__(self):
+        if self.is_encrypted:  # sneakily change the type
+            self._unencrypted_type = self.type
+            self.type = PrimitiveType.BYTES
+
+    @property
+    def underlying_type(self):
+        return self._unencrypted_type or self.type
+
+    def __flags_str__(self):
+        parts = []
+        if self.is_primary_key:
+            parts.append("P")
+        if self.is_foreign_key_to is not None:
+            parts.append("F")
+        if self.is_unique:
+            parts.append("U")
+        if not self.is_nullable:
+            parts.append("!")
+        if self.is_encrypted:
+            parts.append("E")
+        if self.is_array:
+            parts.append("[]")
+        return "".join(parts)
 
     def __str__(self):
         args_str = ", ".join(
-            f"{name}={self.__dict__[name]}"
-            for name in ("is_array", "is_primary_key", "is_unique", "is_nullable", "default")
+            (f"{name}={self.__dict__[name]}" if not isinstance(self.__dict__[name], bool) else name)
+            for name in (
+                "is_array",
+                "is_unique",
+                "is_nullable",
+                "is_encrypted",
+                "default",
+                "is_primary_key",
+                "is_foreign_key_to",
+                "on_delete",
+            )
             if self.__dict__[name]
         )
         table_name = self._table.name if self._table else None
-        return f"{table_name or '<detached>'}.{self.name} ({self.type}) [{args_str}])"
+        if args_str:
+            args_str = ", " + args_str
+        return f"{table_name or '<detached>'}.{self.name} ({self.underlying_type}{args_str}))"
 
     def __repr__(self):
         return f"<Column {self}>"
 
-    def __hash__(self):
-        return stable_hash(
-            self.kind,
-            self.name,
-            self.type,
-            self.is_array,
-            self.is_primary_key,
-            self.is_unique,
-            self.is_nullable,
-            self.default,
-        )
-
-    def __eq__(self, other):
-        return hash(self) == hash(other)
-
-    def sql(self) -> str:
-        if self.type == ColumnType.STRING and self.length is not None:
+    def type_sql(self) -> str:
+        if self.type == PrimitiveType.STRING and self.length is not None:
             pg_type = f"VARCHAR({self.length})"
+        elif self.type == PrimitiveType.DECIMAL:
+            pg_type = f"NUMERIC({self.precision}, {self.scale})"
         else:
-            pg_type = POSTGRES_TYPE_BY_GENERIC_TYPE[self.type]
+            pg_type = POSTGRES_TYPE_BY_PRIMITIVE_TYPE[self.type]
         if self.is_array:
             pg_type += "[]"
-        parts = [self.name, pg_type]
-        if self.is_primary_key:
-            parts.append("PRIMARY KEY")
-        if self.is_unique:
-            parts.append("UNIQUE")
+        return pg_type
+
+    def sql(self) -> str:
+        parts = [self.name, self.type_sql()]
         if not self.is_nullable:
             parts.append("NOT NULL")
+        if self.is_primary_key:
+            parts.append("PRIMARY KEY")
+        # uniqueness is managed via constraints
         if self.default is not None:
             parts.append(f"DEFAULT {self.default}")
+        if self.is_foreign_key_to is not None:
+            parts.append(f"REFERENCES {self.is_foreign_key_to}")
+            if self.on_delete is not None:
+                parts.append(f"ON DELETE {self.on_delete}")
         return " ".join(parts)
 
 
 class ConstraintType(enum.StrEnum):
     """
-    A high-level SQL constraint type (we don't need real foreign keys).
+    A SQL constraint type.
     """
 
     PRIMARY_KEY = "PRIMARY KEY"
+    FOREIGN_KEY = "FOREIGN KEY"
     UNIQUE = "UNIQUE"
     CHECK = "CHECK"
 
 
 @dataclass
-class Constraint(TableConstruct):
+class Constraint(TableObject):
     """
-    A high-level SQL constraint.
+    A SQL constraint.
     """
 
-    kind: ClassVar[ConstructKind] = ConstructKind.CONSTRAINT
+    FLAT_DATA_FIELDS: ClassVar[tuple[str, ...]] = ("inner_name", "type", "columns", "condition")
+    kind: ClassVar[ObjectKind] = ObjectKind.CONSTRAINT
 
     inner_name: str
     type: ConstraintType
-    columns: list[str] | None = None
+    columns: tuple[str, ...] | None = None
     condition: str | None = None
+    index: str | None = None  # existing index to use (name must be relative to same table)
+    _full_name: str | None = None  # as introspected from pg (naming can change)
+    _source: str | int | None = None
     _table: Union["Table", None] = None
+
+    def __post_init__(self):
+        if self.columns is not None:
+            self.columns = tuple(sorted(self.columns))  # ensure consistent sorting
+        if self.condition is not None:
+            # must be wrapped in parentheses
+            assert self.condition.startswith("(") and self.condition.endswith(
+                ")"
+            ), f"invalid condition: {self.condition}"
 
     def __str__(self):
         table_name = self._table.name if self._table else None
@@ -219,28 +335,25 @@ class Constraint(TableConstruct):
     def __repr__(self):
         return f"<Constraint {self}>"
 
-    def __hash__(self):
-        return stable_hash(self.kind, self.name, self.type, self.columns, self.condition)
-
-    def __eq__(self, other):
-        return hash(self) == hash(other)
-
     @property
     def name(self):
-        return f"{self.table_name}_{self.inner_name}"
+        return self._full_name or f"{self.table_name}_{self.inner_name}"
 
     def sql(self) -> str:
         parts = [self.name, self.type]
         if self.type == ConstraintType.CHECK:
             parts.append(f"({self.condition})")
         elif self.type == ConstraintType.UNIQUE:
-            parts.append(f"({', '.join(self.columns)})")
+            if self.index is not None:
+                parts.append(f"USING INDEX {self.table_name}_{self.index}")
+            else:
+                parts.append(f"({', '.join(self.columns)})")
         return " ".join(parts)
 
 
 class IndexType(enum.StrEnum):
     """
-    A high-level SQL index type.
+    A SQL index type.
     """
 
     BTREE = "BTREE"
@@ -250,26 +363,36 @@ class IndexType(enum.StrEnum):
 
 
 @dataclass
-class Index(TableConstruct):
+class Index(TableObject):
     """
-    A high-level SQL index.
+    A SQL index.
     """
 
-    kind: ClassVar[ConstructKind] = ConstructKind.INDEX
+    FLAT_DATA_FIELDS: ClassVar[tuple[str, ...]] = (
+        "inner_name",
+        "type",
+        "columns",
+        "is_unique",
+        "condition",
+    )
+    kind: ClassVar[ObjectKind] = ObjectKind.INDEX
 
     inner_name: str
     type: IndexType
-    columns: list[str]
-    expression: str | None = None
+    columns: tuple[str, ...]
+    is_unique: bool = False
     condition: str | None = None
+    _full_name: str | None = None  # as introspected from pg (naming may change)
+    _source: str | int | None = None
     _table: Union["Table", None] = None
 
     def __post_init__(self):
-        if self.expression is not None:
-            # check that all columns are in the expression
-            for column in self.columns:
-                if column not in self.expression:
-                    raise ValueError(f"{column} is not in {self.expression} (in {self!r})")
+        self.columns = tuple(sorted(self.columns))  # ensure consistent sorting
+        if self.condition is not None:
+            # must be wrapped in parentheses
+            assert self.condition.startswith("(") and self.condition.endswith(
+                ")"
+            ), f"invalid condition: {self!r}"
 
     def __str__(self):
         table_name = self._table.name if self._table else None
@@ -278,56 +401,56 @@ class Index(TableConstruct):
     def __repr__(self):
         return f"<Index {self}>"
 
-    def __hash__(self):
-        return stable_hash(self.kind, self.name, self.type, self.columns, self.condition)
-
-    def __eq__(self, other):
-        return hash(self) == hash(other)
-
     @property
     def name(self):
-        return f"{self.table_name}_{self.inner_name}"
+        return self._full_name or f"{self.table_name}_{self.inner_name}"
 
     def sql(self) -> str:
-        parts = [self.name, f"ON {self._table.name}", f"USING {self.type}"]
-        if self.expression is not None:
-            parts.append(f"({self.expression})")
-        else:
-            parts.append(f"({', '.join(self.columns)})")
+        parts = [
+            self.name,
+            f"ON {self._table.name}",
+            f"USING {self.type}",
+            f"({', '.join(self.columns)})",
+        ]
         if self.condition is not None:
             parts.append(f"WHERE {self.condition}")
         return " ".join(parts)
 
 
 @dataclass
-class Table(Construct):
+class Table(TableObject):
     """
-    A high-level SQL table.
+    A SQL table.
     """
 
-    kind: ClassVar[ConstructKind] = ConstructKind.TABLE
+    FLAT_DATA_FIELDS: ClassVar[tuple[str, ...]] = ("name",)
+    kind: ClassVar[ObjectKind] = ObjectKind.TABLE
 
     name: str
     columns: tuple[Column, ...]
-    columns_by_name: dict[str, Column] = field(init=False)
-    primary_key: Column | None = field(init=False)
-    constraints: tuple[Constraint, ...] = ()
     indexes: tuple[Index, ...] = ()
+    constraints: tuple[Constraint, ...] = ()
+    _source: str | int | None = None
+    _columns_by_name: dict[str, Column] = dataclasses.field(init=False)
+    _primary_key: Column | None = dataclasses.field(init=False)
 
     def __post_init__(self):
-        for construct in chain(self.columns, self.constraints, self.indexes):
-            if construct._table is not None:
-                raise ValueError(f"{construct} is already attached to {construct._table}")
-            construct._table = self
-        self.columns_by_name = {}
+        for object in chain(self.columns, self.indexes, self.constraints):
+            if object._table is not None:
+                raise ValueError(f"{object} is already attached to {object._table}")
+            object._table = self
+        self._columns_by_name = {}
         for column in self.columns:
-            if column.name in self.columns_by_name:
-                raise ValueError(f"column {column.name} is already defined in {self}")
-            self.columns_by_name[column.name] = column
-        self.primary_key = first((c for c in self.columns if c.is_primary_key), None)
+            existing = self._columns_by_name.get(column.name)
+            if existing is not None:
+                raise ValueError(f"column {column!r} is already defined in {self!r}: {existing!r}")
+            self._columns_by_name[column.name] = column
+        self._primary_key = first((c for c in self.columns if c.is_primary_key), None)
 
     def __str__(self):
-        columns_str = ", ".join(f"{c.name} {c.type}" for c in self.columns)
+        columns_str = ", ".join(
+            f"{c.name} {c.underlying_type.bench_name}{c.__flags_str__()}" for c in self.columns
+        )
         constraints_str = ", ".join(f"{c.name} {c.type}" for c in self.constraints)
         indexes_str = ", ".join(f"{c.name} {c.type}" for c in self.indexes)
         return (
@@ -338,121 +461,31 @@ class Table(Construct):
         return f"<Table {self}>"
 
     def __hash__(self):
-        return stable_hash(self.kind, self.name, self.columns, self.constraints, self.indexes)
+        return stable_hash(self.kind, self.name, self.columns, self.indexes, self.constraints)
 
-    def __eq__(self, other):
-        return hash(self) == hash(other)
+    @property
+    def table(self) -> "Table":
+        return self
 
-    def walk(self) -> tuple[Construct, ...]:
-        return self, *self.columns, *self.constraints, *self.indexes
+    @property
+    def _table(self) -> "Table":
+        return self
+
+    def walk(self) -> tuple[TableObject, ...]:
+        # NOTE: the order here matters and is assumed in the diff logic
+        return self, *self.columns, *self.indexes, *self.constraints
 
     def columns_include(self, other: "Table") -> bool:
         """Returns True if the columns are equal, ignoring order."""
-        for column in self.columns_by_name:
-            if column not in other.columns_by_name:
+        for column in self._columns_by_name:
+            if column not in other._columns_by_name:
                 return False
-            if self.columns_by_name[column].type != other.columns_by_name[column].type:
+            if self._columns_by_name[column].type != other._columns_by_name[column].type:
                 return False
         return True
 
-
-# template for actual record tables
-BASE_RECORD_TABLE = Table(
-    "record_base",
-    columns=(
-        Column("id", ColumnType.UUID, is_primary_key=True),
-        Column("ck", ColumnType.UUID),
-        Column("created_at", ColumnType.DATETIME, default="now()"),
-        Column("updated_at", ColumnType.DATETIME, default="now()"),
-        Column("deleted_at", ColumnType.DATETIME, is_nullable=True),
-        Column("created_by_id", ColumnType.UUID, is_nullable=True),
-        Column("last_edited_at", ColumnType.DATETIME, default="now()"),
-        Column("last_edited_by_id", ColumnType.UUID, is_nullable=True),
-        Column("revision", ColumnType.BIGINT, default="0"),
-        Column("statement_key", ColumnType.STRING, length=16),
-    ),
-    constraints=(
-        # ck + statement_key must be unique
-        Constraint(
-            "unique_ck_statement_key", ConstraintType.UNIQUE, columns=["ck", "statement_key"]
-        ),
-    ),
-    indexes=(
-        # for fetching all records of a 'database'
-        Index("statement_key_deleted_at", IndexType.BTREE, columns=["statement_key", "deleted_at"]),
-    ),
-)
-# 'hufflepuff' table for ephemeral 'tables' without real tables
-EPHEMERAL_RECORD_TABLE = Table(
-    "record_ephemeral",
-    columns=(
-        *(c.clone() for c in BASE_RECORD_TABLE.columns),
-        Column("statement_ck", ColumnType.UUID),
-        Column("statement_id", ColumnType.UUID),
-        Column("value", ColumnType.JSON, is_nullable=True),
-    ),
-    constraints=(*(c.clone() for c in BASE_RECORD_TABLE.constraints),),
-    indexes=(*(i.clone() for i in BASE_RECORD_TABLE.indexes),),
-)
-
-
-def get_record_table_name(statement_ck: UUID) -> str:
-    """First 16 hex digits without dashes."""
-    return f"record_{str(statement_ck).replace('-', '')}"
-
-
-# for internal use only
-MIGRATION_TABLE = Table(
-    "_migration",
-    columns=(
-        Column("id", ColumnType.INT, is_primary_key=True),
-        Column("applied_at", ColumnType.DATETIME),
-        Column("runtime_version", ColumnType.STRING),
-        Column("module_version", ColumnType.STRING),
-        Column("hash", ColumnType.BIGINT),
-    ),
-)
-CONSTRUCT_TABLE = Table(
-    "_construct",
-    columns=(
-        Column("id", ColumnType.UUID, is_primary_key=True),
-        Column("kind", ColumnType.STRING),
-        Column("table_name", ColumnType.STRING, is_nullable=True),
-        Column("name", ColumnType.STRING),
-        Column("hash", ColumnType.BIGINT),
-    ),
-)
-
-INTERNAL_TABLES = (EPHEMERAL_RECORD_TABLE, MIGRATION_TABLE, CONSTRUCT_TABLE)
-
-
-@dataclass
-class MigrationInfo:
-    """Reconstructed info for a migration."""
-
-    id: int
-    version: str
-    hash: int
-    applied_at: datetime
-
-
-@dataclass
-class Migration:
-    """
-    A stored SQL migration for internal mappings.
-    This does NOT concern Bench field changes, which nave no 'migration' concept
-      (for now, and if they did it would be separate from this).
-    """
-
-    id: int
-
-    async def apply(
-        self,
-        cur: psycopg.AsyncCursor,
-        tables: dict[str, Table],
-        constructs: dict[UUID, Construct],
-    ):
-        raise NotImplementedError
+    def columns_by_name(self, *names: str) -> tuple[Column, ...]:
+        return tuple(self._columns_by_name[name] for name in names)
 
 
 class PostgresColumnType(enum.StrEnum):
@@ -468,7 +501,7 @@ class PostgresColumnType(enum.StrEnum):
     BOX = "box"
     BYTEA = "bytea"
     CHARACTER = "character"
-    CHARACTER_VARYING = "character_varying"
+    CHARACTER_VARYING = "varchar"
     CIDR = "cidr"
     CIRCLE = "circle"
     DATE = "date"
@@ -497,16 +530,106 @@ class PostgresColumnType(enum.StrEnum):
     XML = "xml"
 
 
-POSTGRES_TYPE_BY_GENERIC_TYPE = {
-    ColumnType.STRING: PostgresColumnType.TEXT,
-    ColumnType.BOOLEAN: PostgresColumnType.BOOLEAN,
-    ColumnType.INT: PostgresColumnType.INTEGER,
-    ColumnType.BIGINT: PostgresColumnType.BIGINT,
-    ColumnType.FLOAT: PostgresColumnType.REAL,
-    ColumnType.DECIMAL: PostgresColumnType.NUMERIC,
-    ColumnType.DATETIME: PostgresColumnType.TIMESTAMP,
-    ColumnType.JSON: PostgresColumnType.JSONB,
-    ColumnType.BINARY: PostgresColumnType.BYTEA,
-    ColumnType.VECTOR: PostgresColumnType.BYTEA,
-    ColumnType.UUID: PostgresColumnType.UUID,
+# internal postgres "udt"s (user-defined types) that we use
+POSTGRES_TYPE_BY_UDT: dict[str, PostgresColumnType] = {
+    "uuid": PostgresColumnType.UUID,
+    "varchar": PostgresColumnType.CHARACTER_VARYING,
+    "bool": PostgresColumnType.BOOLEAN,
+    "int2": PostgresColumnType.SMALLINT,
+    "int4": PostgresColumnType.INTEGER,
+    "int8": PostgresColumnType.BIGINT,
+    "float4": PostgresColumnType.REAL,
+    "float8": PostgresColumnType.DOUBLE_PRECISION,
+    "timestamptz": PostgresColumnType.TIMESTAMP,
+    "timestamp": PostgresColumnType.TIMESTAMP,
+    "interval": PostgresColumnType.INTERVAL,
+    "jsonb": PostgresColumnType.JSONB,
+    "bytea": PostgresColumnType.BYTEA,
+    "text": PostgresColumnType.TEXT,
+    "numeric": PostgresColumnType.NUMERIC,
 }
+
+# our column types
+POSTGRES_TYPE_BY_PRIMITIVE_TYPE: dict[PrimitiveType, PostgresColumnType] = {
+    PrimitiveType.STRING: PostgresColumnType.CHARACTER_VARYING,
+    PrimitiveType.BOOLEAN: PostgresColumnType.BOOLEAN,
+    PrimitiveType.INT16: PostgresColumnType.SMALLINT,
+    PrimitiveType.INT32: PostgresColumnType.INTEGER,
+    PrimitiveType.INT64: PostgresColumnType.BIGINT,
+    PrimitiveType.FLOAT32: PostgresColumnType.REAL,
+    PrimitiveType.DATETIME: PostgresColumnType.TIMESTAMP,
+    PrimitiveType.INTERVAL: PostgresColumnType.INTERVAL,
+    PrimitiveType.JSON: PostgresColumnType.JSONB,
+    PrimitiveType.VECTOR: PostgresColumnType.BYTEA,
+    PrimitiveType.UUID: PostgresColumnType.UUID,
+    PrimitiveType.BYTES: PostgresColumnType.BYTEA,
+}
+PRIMITIVE_TYPE_BY_POSTGRES_TYPE = {v: k for k, v in POSTGRES_TYPE_BY_PRIMITIVE_TYPE.items()}
+
+#
+# Default tables
+#
+
+
+MIGRATION_TABLE = Table(  # see bench/sql/migration.py
+    "bench_migration",
+    columns=(
+        Column("id", PrimitiveType.INT32, is_primary_key=True, _source=2),
+        Column("version", PrimitiveType.STRING, is_unique=True, _source=30),
+        Column("has_global", PrimitiveType.BOOLEAN, _source=31),
+        Column("has_local", PrimitiveType.BOOLEAN, _source=32),
+        Column("applied_at", PrimitiveType.DATETIME, is_nullable=True, _source=33),
+    ),
+)
+
+# 'abstract' template for actual record tables (not a real table) :RecordSchema
+RECORD_BASE_TABLE = Table(
+    "bench_record_base",
+    columns=(
+        # ids should match with Node/RecordData property ids for clarity
+        Column("id", PrimitiveType.UUID, is_primary_key=True, _source=2),
+        Column("ck", PrimitiveType.UUID, _source=3),
+        Column("revision", PrimitiveType.INT64, default="0", _source=10),
+        Column("created_at", PrimitiveType.DATETIME, default="now()", _source=11),
+        Column("updated_at", PrimitiveType.DATETIME, default="now()", _source=12),
+        Column("deleted_at", PrimitiveType.DATETIME, is_nullable=True, _source=13),
+        Column("archived_at", PrimitiveType.DATETIME, is_nullable=True, _source=14),
+    ),
+    indexes=(),
+    constraints=(),
+)
+# 'hufflepuff' table for ephemeral 'tables' without real tables
+RECORD_EPHEMERAL_TABLE = Table(
+    "bench_record_ephemeral",
+    columns=(
+        *(c.clone() for c in RECORD_BASE_TABLE.columns),
+        Column("block_sk", PrimitiveType.UUID, _source=21),
+        Column("block_ck", PrimitiveType.UUID, _source=21),
+        Column("block_id", PrimitiveType.UUID, _source=22),
+        Column("value_packed", PrimitiveType.JSON, is_nullable=True, _source=30),
+        Column(
+            "secret_value_packed",
+            PrimitiveType.JSON,
+            is_nullable=True,
+            is_encrypted=True,
+            _source=31,
+        ),
+    ),
+    indexes=(
+        *(i.clone() for i in RECORD_BASE_TABLE.indexes),
+        Index(
+            "bench_idx_block_ck_deleted_at",
+            IndexType.BTREE,
+            columns=("block_ck", "deleted_at"),
+        ),
+        Index(
+            "bench_idx_block_key_archived_at",
+            IndexType.BTREE,
+            columns=("block_ck", "archived_at"),
+        ),
+    ),
+    constraints=(*(c.clone() for c in RECORD_BASE_TABLE.constraints),),
+)
+
+DEFAULT_LOCAL_TABLES: tuple[Table, ...] = (MIGRATION_TABLE, RECORD_EPHEMERAL_TABLE)
+DEFAULT_GLOBAL_TABLES: tuple[Table, ...] = (MIGRATION_TABLE,)
