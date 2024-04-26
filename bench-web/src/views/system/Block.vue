@@ -111,6 +111,7 @@ defineExpose<ViewExposed>({ self, id, variants: [Variant.PRIMARY, Variant.STEALT
     ]"
   >
     <!-- Header -->
+    <!-- TODO :UX: indicate Block.isPage/isProtocol/isTemplate -->
     <div class="flex flex-row">
       <!-- Icon/Name (also drag handle if container is not already draggable) -->
       <div

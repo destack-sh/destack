@@ -1,5 +1,5 @@
-import { LogLevel } from "@/proto/wire";
-import { ColorData, ColorShade, ColorType, ObjectType } from "@/proto/wire";
+import { ColorData, ColorShade, ColorType, LogLevel, ObjectType } from "@/proto/wire";
+import { Casing, toCasing } from "@/utils/string";
 
 export const BG_COLOR_BY_LEVEL: Record<LogLevel, string> = {
   [LogLevel.UNSPECIFIED]: "bg-gray-500",
@@ -20,39 +20,6 @@ export const ACCENT_COLOR_BY_LEVEL: Record<LogLevel, string> = {
   [LogLevel.FATAL]: "text-danger-500",
 };
 
-export const COLOR_NAME_BY_TYPE: Record<ColorType, string> = {
-  // ColorMapping
-  [ColorType.UNSPECIFIED]: "gray",
-  // surface
-  [ColorType.PRIMARY]: "primary",
-  [ColorType.SECONDARY]: "secondary",
-  [ColorType.ACCENT]: "accent",
-  [ColorType.CANVAS]: "canvas",
-  // semantic
-  [ColorType.SUCCESS]: "success",
-  [ColorType.HINT]: "hint",
-  [ColorType.WARNING]: "warning",
-  [ColorType.DANGER]: "danger",
-  // real
-  [ColorType.GRAY]: "gray",
-  [ColorType.RED]: "red",
-  [ColorType.ORANGE]: "orange",
-  [ColorType.AMBER]: "amber",
-  [ColorType.YELLOW]: "yellow",
-  [ColorType.LIME]: "lime",
-  [ColorType.GREEN]: "green",
-  [ColorType.EMERALD]: "emerald",
-  [ColorType.TEAL]: "teal",
-  [ColorType.CYAN]: "cyan",
-  [ColorType.SKY]: "sky",
-  [ColorType.BLUE]: "blue",
-  [ColorType.INDIGO]: "indigo",
-  [ColorType.VIOLET]: "violet",
-  [ColorType.PURPLE]: "purple",
-  [ColorType.FUCHSIA]: "fuchsia",
-  [ColorType.PINK]: "pink",
-  [ColorType.ROSE]: "rose",
-};
 export const COLOR_SHADE_INDEX: Record<ColorShade, number> = {
   [ColorShade.UNSPECIFIED]: 7,
   [ColorShade.S50]: 0,
@@ -125,8 +92,20 @@ export function getColorHex(color: ColorType | ColorData, shade?: ColorShade): s
     return COLOR_HEX_BY_TYPE[color]?.[COLOR_SHADE_INDEX[shade ?? ColorShade.S700]];
   } else if (color.type != null) {
     return COLOR_HEX_BY_TYPE[color.type]?.[COLOR_SHADE_INDEX[shade ?? color.shade ?? ColorShade.S700]];
+  } else if (color.hex != null) {
+    return color.hex;
   } else {
     return undefined;
+  }
+}
+
+export function getColorTitle(color: ColorData): string | null {
+  if (color.type != null) {
+    return toCasing(ColorType[color.type], Casing.CAMEL);
+  } else if (color.hex != null) {
+    return `#${color.hex}`;
+  } else {
+    return null;
   }
 }
 

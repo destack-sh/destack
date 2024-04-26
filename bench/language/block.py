@@ -149,7 +149,7 @@ class Block(Node, HasValues):
     delegated_policies: list["Policy"] = p_regular(44, array=True, struct=StructType.POLICY)
 
     # flags
-    is_intrinsic: bool = p_system(60, default=False)  # provided by the system
+    is_builtin: bool = p_system(60, default=False)  # intrinsic provided by the system
     is_page: bool = p_regular(61, default=False)  # on its own page
     is_protocol: bool = p_regular(62, default=False)  # defines a protocol
     is_template: bool = p_regular(63, default=False)  # mark as template

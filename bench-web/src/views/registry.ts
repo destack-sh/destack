@@ -44,6 +44,7 @@ const COMPONENT_BY_VIEW_TYPE_LAZY = {
   [ViewType.CODE]: () => import("@/views/content/Code.vue"),
   [ViewType.TOGGLE]: () => import("@/views/content/Toggle.vue"),
   [ViewType.PICKER]: () => import("@/views/content/Picker.vue"),
+  [ViewType.COLOR]: () => import("@/views/content/Color.vue"),
   [ViewType.ICON]: () => import("@/views/content/Icon.vue"),
 };
 const COMPONENT_BY_VIEW_TYPE = {} as Record<ViewType, ViewComponent>;

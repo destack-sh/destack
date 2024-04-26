@@ -1739,7 +1739,7 @@ message BlockData {
   optional CodeData code = 42;
   optional NodeReferenceData reference_ptr = 43;
   repeated PolicyData delegated_policies = 44;
-  bool is_intrinsic = 60;
+  bool is_builtin = 60;
   bool is_page = 61;
   bool is_protocol = 62;
   bool is_template = 63;

@@ -1,5 +1,15 @@
 <script lang="ts" setup>
-import { ViewData, NodeType, IconData, NodeReferenceData, Orientation, ViewType } from "@/proto/wire";
+import {
+  ViewData,
+  NodeType,
+  IconData,
+  NodeReferenceData,
+  Orientation,
+  ViewType,
+  ColorData,
+  ColorType,
+  ColorShade,
+} from "@/proto/wire";
 import { type TypedNodeReferenceData } from "@/proto/wiring";
 import { makeViewId, ViewContentWrapper, viewEmits, type FocusAnchor, type ViewExposed } from "@/views/common";
 import { canvas } from "@/system/space";
@@ -9,7 +19,8 @@ import { IconInline, getIconMetadata, makeIcon, metadataToIcon, type IconMetadat
 import { ScrollbarWidth } from "@/utils/layout";
 import { iconIndex, useSearch, type IconItem, type SearchIndex } from "@/system/search";
 import type { TooltipInfo } from "@/utils/tooltip";
-import type { OverlayMenuInfo, OverlayMenuInfoIn } from "@/utils/menu";
+import type { OverlayMenuInfoIn } from "@/utils/menu";
+import { getColorHex, makeColor } from "@/utils/style";
 
 const DEFAULT_WIDTH = 380;
 const MAX_HEIGHT = 280;
@@ -27,6 +38,7 @@ const id = makeViewId(props);
 const query: Ref<string> = ref("");
 const queryRef: Ref<HTMLInputElement | null> = ref(null);
 const activeResultId: Ref<string | null> = ref(null);
+const color: Ref<ColorData | null> = ref(props.modelValue?.color ?? null);
 const indices: Ref<Record<string, SearchIndex<any>>> = computed(() => {
   const indices: Record<string, SearchIndex<any>> = {};
   indices["icon"] = iconIndex();
@@ -87,7 +99,7 @@ defineExpose<ViewExposed>({ self, id, focus });
     <!-- Dropdown -->
     <button
       v-if="!isInline"
-      class="group flex w-full items-center rounded border border-gray-200 px-2 py-1 hover:border-gray-300 data-[menu=true]:border-gray-300"
+      class="group flex w-full flex-row items-center rounded border border-gray-200 px-2 py-1 hover:border-gray-300 data-[menu=true]:border-gray-300"
       v-menu="
         (): OverlayMenuInfoIn => ({
           component: ViewType.ICON,
@@ -98,9 +110,9 @@ defineExpose<ViewExposed>({ self, id, focus });
         })
       "
     >
-      <template v-if="icon != null">
-        <IconInline v-bind="icon" />
-        <span class="ml-1.5">{{ getIconMetadata(icon)?.title ?? "Custom Icon" }}</span>
+      <template v-if="modelValue != null">
+        <IconInline v-bind="modelValue" />
+        <span class="ml-1.5">{{ getIconMetadata(modelValue)?.title ?? "Custom Icon" }}</span>
       </template>
       <template v-else>
         <i class="fas fa-icons text-gray-400 group-hover:text-gray-700" />
@@ -112,8 +124,8 @@ defineExpose<ViewExposed>({ self, id, focus });
     <!-- Inline Combobox -->
     <div v-else-if="isInline" :style="{ width: DEFAULT_WIDTH + 'px' }">
       <!-- Header -->
-      <div class="flex w-full flex-row items-center border-b border-gray-200 px-2.5 py-1.5">
-        <IconInline v-bind="icon ?? makeIcon({ faName: 'fas fa-magnifying-glass' })" class="mr-1.5" />
+      <div class="flex w-full flex-row items-center border-b border-gray-200 px-3.5 py-1.5">
+        <IconInline v-bind="icon ?? makeIcon({ faName: 'fas fa-magnifying-glass' })" class="mr-1.5 w-5" />
         <!-- Query -->
         <input
           ref="queryRef"
@@ -127,6 +139,21 @@ defineExpose<ViewExposed>({ self, id, focus });
           @keydown.left.stop.prevent="focus('left')"
           @keydown.right.stop.prevent="focus('right')"
         />
+        <!-- Color -->
+        <button
+          class="rounded px-0.5 hover:bg-gray-100"
+          v-menu="
+            (): OverlayMenuInfoIn => ({
+              component: ViewType.COLOR,
+              placement: 'bottom-left',
+              offset: 'referenceWidth',
+              props: { modelValue: color },
+              onApply: (value) => (color = value),
+            })
+          "
+        >
+          <i class="fas fa-circle small" :style="{ color: getColorHex(color ?? ColorType.GRAY, ColorShade.S500) }" />
+        </button>
       </div>
       <!-- Body -->
       <Scroll
@@ -137,11 +164,15 @@ defineExpose<ViewExposed>({ self, id, focus });
         track-is-overlay
       >
         <!-- Results -->
-        <ul v-if="results.length > 0" class="grid grid-cols-10 gap-x-1 gap-y-1 px-2 py-2">
+        <ul
+          v-if="results.length > 0"
+          class="grid grid-cols-10 gap-x-1 gap-y-1 px-2 py-2 text-center"
+          :style="{ color: getColorHex(color ?? ColorType.GRAY, ColorShade.S500) }"
+        >
           <template v-for="(item, i) in results" :key="i">
             <span
               :ref="(ref?: any) => (ref != null ? (resultsRefs[item.id] = ref) : delete resultsRefs[item.id])"
-              class="select-none rounded border border-transparent py-1.5 text-center text-gray-700 hover:cursor-pointer hover:border-gray-300 hover:bg-primary-200 hover:text-gray-900 data-[active=true]:border-gray-300 data-[active=true]:bg-primary-200"
+              class="select-none rounded border border-transparent py-1.5 hover:cursor-pointer hover:border-gray-300 hover:bg-gray-200 data-[active=true]:border-gray-300 data-[active=true]:bg-gray-200"
               :class="item.faName"
               role="menuitem"
               :data-selected="item.faName == modelValue?.faName"
@@ -167,7 +198,6 @@ defineExpose<ViewExposed>({ self, id, focus });
             <span class="font-semibold">{{ resultsTotal - results.length }}</span> more results
             <template v-if="query.length > 0">for </template>
             <span class="truncate font-semibold">{{ query }}</span>
-            (showing {{ results.length }})
           </span>
         </div>
         <!-- Help -->

@@ -1928,7 +1928,7 @@ class BlockData(betterproto.Message):
     code: Optional["CodeData"] = betterproto.message_field(42, optional=True)
     reference_ptr: Optional["NodeReferenceData"] = betterproto.message_field(43, optional=True)
     delegated_policies: List["PolicyData"] = betterproto.message_field(44)
-    is_intrinsic: bool = betterproto.bool_field(60)
+    is_builtin: bool = betterproto.bool_field(60)
     is_page: bool = betterproto.bool_field(61)
     is_protocol: bool = betterproto.bool_field(62)
     is_template: bool = betterproto.bool_field(63)
@@ -4813,7 +4813,7 @@ class RuntimeBase(ServiceBase):
 
 from typing import TYPE_CHECKING  # noqa: E402
 
-VERSION = "2024.04.22.3"
+VERSION = "2024.04.26.0"
 
 if TYPE_CHECKING:
     from bench.language import Subject
