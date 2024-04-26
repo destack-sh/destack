@@ -20,6 +20,7 @@ import {
   ColorShade,
   ColorData,
   LogLevel,
+  Alignment,
 } from "@/proto/wire";
 import type { FunctionalComponent } from "vue";
 // file is generated with:
@@ -239,14 +240,12 @@ export const ICON_BY_BLOCK_TYPE: Partial<Record<BlockType, IconData>> = _makeIco
   [BlockType.SIGNAL]: "fas fa-signal-stream",
   [BlockType.PROTOCOL]: "fas fa-list-check",
 
-  [BlockType.VARIABLE]: "fas fa-sliders",
-  [BlockType.MULTI_VARIABLE]: "fas fa-sliders",
-
   [BlockType.TEXT]: "fas fa-text",
   [BlockType.CODE]: "fas fa-code",
   [BlockType.SCRIPT]: "fas fa-file-code",
   [BlockType.FLOW]: "fas fa-diagram-project",
 
+  [BlockType.VARIABLE]: "fas fa-sliders",
   [BlockType.QUERY]: "fas fa-magnifying-glass",
   [BlockType.DATABASE]: "fas fa-database",
 
@@ -340,6 +339,13 @@ export const ICON_BY_VIEW_TYPE: Partial<Record<ViewType, IconData>> = _makeIcons
   [ViewType.AUDIO]: "fas fa-volume",
 });
 
+export const ICON_BY_ALIGNMENT: Partial<Record<Alignment, IconData>> = _makeIcons({
+  [Alignment.START]: "fas fa-align-left",
+  [Alignment.MIDDLE]: "fas fa-objects-align-center-horizontal",
+  [Alignment.END]: "fas fa-align-right",
+  [Alignment.SPACE_BETWEEN]: "fas fa-distribute-spacing-horizontal",
+});
+
 export const ICON_BY_VISIBILITY: Partial<Record<NodeVisibility, IconData>> = _makeIcons({
   [NodeVisibility.PAGE]: "fas fa-memo-pad",
   [NodeVisibility.MODULE]: "fas fa-box-open",
@@ -405,6 +411,7 @@ export const ENUM_ICONS_BY_TYPE: Partial<Record<EnumType, Record<any, IconData>>
   [EnumType.BENCH_TYPE]: ICON_BY_BENCH_TYPE,
   [EnumType.BLOCK_TYPE]: ICON_BY_BLOCK_TYPE,
   [EnumType.VIEW_TYPE]: ICON_BY_VIEW_TYPE,
+  [EnumType.ALIGNMENT]: ICON_BY_ALIGNMENT,
   [EnumType.NODE_VISIBILITY]: ICON_BY_VISIBILITY,
   [EnumType.PRIMITIVE_TYPE]: ICON_BY_PRIMITIVE_TYPE,
   [EnumType.FORMAT_HINT]: ICON_BY_FORMAT_HINT,

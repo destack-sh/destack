@@ -24,7 +24,6 @@ from bench.language.const import (
     _active_session,
     enum_,
 )
-from bench.language.field import TypeInfo
 from bench.language.node import HasBase, Node, Struct, _Passthrough, node, node_component, struct
 from bench.language.property import (
     Property,
@@ -645,28 +644,7 @@ def _pack_and_truncate_value(
     none_if_invalid: bool = False,
     is_output: bool = None,
 ) -> Any:
-    from bench.language.value import map_value, pack_value_flat
-
-    def _truncate_value(value: Any, type: "TypeInfo", *args, **kwargs) -> Any:
-        if type.primitive_type == PrimitiveType.VECTOR:
-            if type.is_list:
-                return []
-            else:
-                return None
-        else:
-            return value
-
-    return map_value(
-        value=value,
-        type=type,
-        map_k=lambda f: (f.py_ident, f.identity_key),
-        map_v=pack_value_flat,
-        premap_v=_truncate_value,
-        ignore_array=ignore_array,
-        ignore_outer=ignore_outer,
-        none_if_invalid=none_if_invalid,
-        is_output=is_output,
-    )
+    raise NotImplementedError
 
 
 @node_component

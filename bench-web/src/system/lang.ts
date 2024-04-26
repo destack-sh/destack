@@ -669,12 +669,14 @@ export function getInspectionLayout(
         const protoName = allProperties[property.id];
         const inspectedProperty: InspectedProperty = { title, protoName, category, property };
         try {
-          const { viewType, props } = getViewForValueType({
+          const valueView = getViewForValueType({
             primitiveType: property.primitiveType,
             benchType: (property.enumType ?? property.referenceNodes?.[0] ?? property.referenceStruct) as unknown as
               | BenchType
               | undefined,
           });
+          if (valueView == null) throw new Error(`no view for property ${property.id}`);
+          const { viewType, props } = valueView;
           inspectedProperty.viewType = viewType;
           inspectedProperty.props = { ...props, isInput: true };
           inspectedProperty.isFullWidth = FULL_WIDTH_VIEW_TYPES.includes(viewType);

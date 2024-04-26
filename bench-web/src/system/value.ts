@@ -1,10 +1,19 @@
-import { BenchType, EnumType, PrimitiveType, StructType, Variant, ViewType, type TypeInfoData } from "@/proto/wire";
+import {
+  BenchType,
+  EnumType,
+  PrimitiveType,
+  Struct as ProtoStruct,
+  StructType,
+  Variant,
+  ViewType,
+  type TypeInfoData,
+} from "@/proto/wire";
 import { makeDefaultStruct } from "@/proto/wiring";
 import { ENUM_ICONS_BY_TYPE } from "@/system/icon";
 import { getEnumOptions, isEnumType } from "@/system/lang";
 import type { ViewProps } from "@/views/common";
 
-export type TypeIdentity = Pick<TypeInfoData, "primitiveType" | "benchType" | "baseTypePtr">;
+export type TypeIdentity = Pick<TypeInfoData, "primitiveType" | "benchType" | "baseTypePtr" | "formatHint">;
 
 export function makeTypeInfo(partial: Partial<Omit<TypeInfoData, "metatype">>): TypeInfoData {
   return makeDefaultStruct({ metatype: StructType.TYPE_INFO, ...partial });
@@ -31,7 +40,7 @@ const VIEW_TYPE_BY_PRIMITIVE_TYPE: Partial<Record<PrimitiveType, ViewType>> = {
 export function getViewForValueType(type: TypeIdentity): {
   viewType: ViewType;
   props?: ViewProps;
-} {
+} | null {
   if (type.benchType != null) {
     if (VIEW_TYPE_BY_BENCH_TYPE[type.benchType] != null) {
       return { viewType: VIEW_TYPE_BY_BENCH_TYPE[type.benchType]! };
@@ -50,6 +59,18 @@ export function getViewForValueType(type: TypeIdentity): {
   } else if (VIEW_TYPE_BY_PRIMITIVE_TYPE[type.primitiveType!] != null) {
     return { viewType: VIEW_TYPE_BY_PRIMITIVE_TYPE[type.primitiveType!]! };
   } else {
-    throw new Error(`no view component for type: ${type}`);
+    return null;
   }
+}
+
+/** Pack the value into robust wire format. */
+export function packValue(value: any, type: TypeInfoData): ProtoStruct {
+  // nocheckin: store encoded (use field/type key, even for single Variable so we can change types)
+  return ProtoStruct.fromJson({ test: value });
+}
+
+/** Unpack the value from robust wire format. */
+export function unpackValue(value: ProtoStruct | undefined | null, type: TypeInfoData): any {
+  if (value == null) return null;
+  return ProtoStruct.toJson(value)?.test; // nocheckin
 }

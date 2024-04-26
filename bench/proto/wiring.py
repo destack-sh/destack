@@ -74,11 +74,11 @@ def copy_data(data: StructDataT) -> StructDataT:
     return data_cls(**data_kwargs)
 
 
-def pack_json_value(value: dict) -> BetterprotoStruct:
+def pack_json_struct(value: dict) -> BetterprotoStruct:
     return BetterprotoStruct.from_dict(value)
 
 
-def unpack_json_value(value: BetterprotoStruct) -> dict:
+def unpack_json_struct(value: BetterprotoStruct) -> dict:
     return value.to_dict()
 
 
