@@ -169,7 +169,7 @@ defineExpose<ViewExposed>({ self, id, variants: [Variant.PRIMARY, Variant.COMPAC
       <i class="fas fa-caret-down ml-auto pl-1.5 text-gray-400" />
     </button>
 
-    <!-- Inline: multi-toggle -->
+    <!-- Inline Multi-Toggle -->
     <div
       v-else-if="variant == Variant.COMPACT || variant == Variant.STEALTH"
       class="flex h-7 w-full flex-row items-center justify-between gap-x-2 truncate rounded bg-gray-100 px-2"
@@ -238,7 +238,7 @@ defineExpose<ViewExposed>({ self, id, variants: [Variant.PRIMARY, Variant.COMPAC
               @click.prevent="fire(item)"
             >
               <!-- Content -->
-              <IconInline v-if="item.icon" v-bind="item.icon" class="mr-1.5 w-5 flex-shrink-0" />
+              <IconInline v-if="item.icon" v-bind="item.icon" class="mr-1.5 w-5 flex-shrink-0 text-gray-700" />
               <span v-else class="mr-1.5 w-5 flex-shrink-0 text-gray-700" />
               <span class="select-none truncate" v-html="item.titleMarked ?? item.title" />
               <!-- Metadata -->
@@ -260,7 +260,6 @@ defineExpose<ViewExposed>({ self, id, variants: [Variant.PRIMARY, Variant.COMPAC
             <span class="font-semibold">{{ resultsTotal - results.length }}</span> more results
             <template v-if="query.length > 0">for </template>
             <span class="truncate font-semibold">{{ query }}</span>
-            (showing {{ results.length }})
           </span>
         </div>
         <!-- Help -->

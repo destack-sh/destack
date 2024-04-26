@@ -62,7 +62,7 @@ defineExpose<ViewExposed>({ self });
         <!-- Icon -->
         <IconInline
           v-bind="getNodeIcon(node)"
-          class="w-5 rounded border border-transparent p-1 text-gray-700 hover:cursor-pointer hover:bg-primary-100 data-[menu=true]:border-primary-900 data-[menu=true]:bg-primary-100"
+          class="w-6 rounded border border-transparent p-1 text-gray-700 hover:cursor-pointer hover:bg-primary-100 data-[menu=true]:border-primary-900 data-[menu=true]:bg-primary-100"
           v-menu="
             (): OverlayMenuInfoIn => ({
               component: ViewType.ICON,
@@ -76,7 +76,7 @@ defineExpose<ViewExposed>({ self });
         />
         <!-- Name -->
         <input
-          class="ml-0.5 truncate rounded border-0 px-1 py-0.5 font-medium outline-none ring-0 hover:bg-primary-100 hover:text-primary-900 focus:ring-0"
+          class="ml-1 truncate rounded border-0 px-1 py-0.5 font-medium outline-none ring-0 hover:bg-primary-100 hover:text-primary-900 focus:ring-0"
           spellcheck="false"
           :value="'name' in node ? node.name : toCamelName(ObjectType, node.metatype)"
           :disabled="!('name' in node)"

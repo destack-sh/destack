@@ -708,7 +708,7 @@ export function setupTransactionManagement() {
   if (_setupTransactionManagement) return;
   _setupTransactionManagement = true;
   // commit periodically
-  // TODO :UX: tune transaction commit schedule (maybe commit more quickly after non-debounced edits?)
+  // TODO :UX :Performance: tune transaction commit schedule (maybe commit more quickly after non-debounced edits?)
   let flushInterval: any | null = null;
   watch(
     TRANSACTION_FLUSH_INTERVAL,

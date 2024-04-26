@@ -2025,9 +2025,9 @@ export interface BlockData {
      */
     delegatedPolicies: PolicyData[];
     /**
-     * @generated from protobuf field: bool is_intrinsic = 60;
+     * @generated from protobuf field: bool is_builtin = 60;
      */
-    isIntrinsic: boolean;
+    isBuiltin: boolean;
     /**
      * @generated from protobuf field: bool is_page = 61;
      */
@@ -13972,7 +13972,7 @@ class BlockData$Type extends MessageType<BlockData> {
             { no: 42, name: "code", kind: "message", T: () => CodeData },
             { no: 43, name: "reference_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 44, name: "delegated_policies", kind: "message", repeat: 1 /*RepeatType.PACKED*/, T: () => PolicyData },
-            { no: 60, name: "is_intrinsic", kind: "scalar", T: 8 /*ScalarType.BOOL*/ },
+            { no: 60, name: "is_builtin", kind: "scalar", T: 8 /*ScalarType.BOOL*/ },
             { no: 61, name: "is_page", kind: "scalar", T: 8 /*ScalarType.BOOL*/ },
             { no: 62, name: "is_protocol", kind: "scalar", T: 8 /*ScalarType.BOOL*/ },
             { no: 63, name: "is_template", kind: "scalar", T: 8 /*ScalarType.BOOL*/ },
@@ -13993,7 +13993,7 @@ class BlockData$Type extends MessageType<BlockData> {
         message.policies = [];
         message.basesPtr = [];
         message.delegatedPolicies = [];
-        message.isIntrinsic = false;
+        message.isBuiltin = false;
         message.isPage = false;
         message.isProtocol = false;
         message.isTemplate = false;
@@ -14097,8 +14097,8 @@ class BlockData$Type extends MessageType<BlockData> {
                 case /* repeated symbolx.bench.PolicyData delegated_policies */ 44:
                     message.delegatedPolicies.push(PolicyData.internalBinaryRead(reader, reader.uint32(), options));
                     break;
-                case /* bool is_intrinsic */ 60:
-                    message.isIntrinsic = reader.bool();
+                case /* bool is_builtin */ 60:
+                    message.isBuiltin = reader.bool();
                     break;
                 case /* bool is_page */ 61:
                     message.isPage = reader.bool();
@@ -14215,9 +14215,9 @@ class BlockData$Type extends MessageType<BlockData> {
         /* repeated symbolx.bench.PolicyData delegated_policies = 44; */
         for (let i = 0; i < message.delegatedPolicies.length; i++)
             PolicyData.internalBinaryWrite(message.delegatedPolicies[i], writer.tag(44, WireType.LengthDelimited).fork(), options).join();
-        /* bool is_intrinsic = 60; */
-        if (message.isIntrinsic !== false)
-            writer.tag(60, WireType.Varint).bool(message.isIntrinsic);
+        /* bool is_builtin = 60; */
+        if (message.isBuiltin !== false)
+            writer.tag(60, WireType.Varint).bool(message.isBuiltin);
         /* bool is_page = 61; */
         if (message.isPage !== false)
             writer.tag(61, WireType.Varint).bool(message.isPage);
@@ -22598,7 +22598,7 @@ export enum BlockProperty {
   code = 42,
   referencePtr = 43,
   delegatedPolicies = 44,
-  isIntrinsic = 60,
+  isBuiltin = 60,
   isPage = 61,
   isProtocol = 62,
   isTemplate = 63,
@@ -24570,7 +24570,7 @@ export const BlockDataInfo: Record<BlockProperty, PropertyInfo> = {
   [BlockProperty.code]: { id: 42, name: 'code', component: ObjectType.BLOCK, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.CODE },
   [BlockProperty.referencePtr]: { id: 43, name: 'reference_ptr', component: ObjectType.BLOCK, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.BLOCK], referenceStruct: StructType.NODE_REFERENCE },
   [BlockProperty.delegatedPolicies]: { id: 44, name: 'delegated_policies', component: ObjectType.BLOCK, kind: 'reference', primitiveType: PrimitiveType.JSON, isList: true, isRequired: true, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.POLICY },
-  [BlockProperty.isIntrinsic]: { id: 60, name: 'is_intrinsic', component: ObjectType.BLOCK, kind: 'primitive', primitiveType: PrimitiveType.BOOLEAN, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
+  [BlockProperty.isBuiltin]: { id: 60, name: 'is_builtin', component: ObjectType.BLOCK, kind: 'primitive', primitiveType: PrimitiveType.BOOLEAN, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [BlockProperty.isPage]: { id: 61, name: 'is_page', component: ObjectType.BLOCK, kind: 'primitive', primitiveType: PrimitiveType.BOOLEAN, isRequired: true, isRuntime: true, isWired: true, isStored: true },
   [BlockProperty.isProtocol]: { id: 62, name: 'is_protocol', component: ObjectType.BLOCK, kind: 'primitive', primitiveType: PrimitiveType.BOOLEAN, isRequired: true, isRuntime: true, isWired: true, isStored: true },
   [BlockProperty.isTemplate]: { id: 63, name: 'is_template', component: ObjectType.BLOCK, kind: 'primitive', primitiveType: PrimitiveType.BOOLEAN, isRequired: true, isRuntime: true, isWired: true, isStored: true },
