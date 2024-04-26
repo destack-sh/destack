@@ -12,7 +12,7 @@ import {
 import { type TypedNodeReferenceData } from "@/proto/wiring";
 import { useExistingConnection } from "@/system/connection";
 import { ICON_BY_NODE_TYPE, IconInline, getNodeIcon } from "@/system/icon";
-import { getInspectionLayout, toCamelName } from "@/system/lang";
+import { getInspectionLayout, getNodeSubtype, toCamelName } from "@/system/lang";
 import { canvas, inspectionPtr } from "@/system/space";
 import { ScrollbarWidth } from "@/utils/layout";
 import type { PopoverInfoIn } from "@/utils/menu";
@@ -38,13 +38,16 @@ const { graph: spaceGraph, connection: spaceConnection } = useExistingConnection
 const { graph: pkgGraph, connection: pkgConnection } = useExistingConnection(inspectionPtr);
 const node = pkgGraph.getRef(inspectionPtr);
 const nodeMetatype = computed(() => node.value?.metatype);
+const nodeSubtype = computed(() => (node.value != null ? getNodeSubtype(node.value) : null));
 const nodeProperties = computed(() => (nodeMetatype.value != null ? PROPERTY_ENUM_BY_TYPE[nodeMetatype.value] : null));
 const ancestors = pkgGraph.getAncestorsRef(node, { includeSelf: true });
 const path = computed(() => ancestors.value.slice().reverse());
 
 const inspectionLayout = computed(() => {
   if (nodeMetatype.value == null) return null;
-  const layout = getInspectionLayout(nodeMetatype.value, { exclude: ["icon", "name"] /* separate in header */ });
+  const layout = getInspectionLayout(nodeMetatype.value, nodeSubtype.value, {
+    exclude: ["icon", "name"] /* separate in header */,
+  });
   return layout;
 });
 
@@ -76,7 +79,7 @@ defineExpose<ViewExposed>({ self });
         />
         <!-- Name -->
         <input
-          class="ml-1 truncate rounded border-0 px-1 py-0.5 font-medium outline-none ring-0 hover:bg-gray-100 hover:text-primary-900 focus:ring-0"
+          class="ml-1 truncate rounded border-0 px-1 py-0.5 font-medium outline-none ring-0 hover:bg-gray-100 focus:ring-0"
           spellcheck="false"
           :value="'name' in node ? node.name : toCamelName(ObjectType, node.metatype)"
           :disabled="!('name' in node)"

@@ -236,7 +236,6 @@ class BlockType(betterproto.Enum):
     SCRIPT = 32
     FLOW = 33
     VARIABLE = 50
-    MULTI_VARIABLE = 51
     QUERY = 52
     DATABASE = 53
     SCREEN = 70

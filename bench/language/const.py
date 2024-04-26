@@ -328,7 +328,6 @@ class BlockType(IdEnum):
 
     # state
     VARIABLE = 50  # define a single-value variable
-    MULTI_VARIABLE = 51  # define a variable with (multiple) fields
     QUERY = 52  # define a set of queries
     DATABASE = 53  # define a database with records & queries
 

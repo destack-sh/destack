@@ -6302,10 +6302,6 @@ export enum BlockType {
      */
     VARIABLE = 50,
     /**
-     * @generated from protobuf enum value: BLOCK_TYPE_MULTI_VARIABLE = 51;
-     */
-    MULTI_VARIABLE = 51,
-    /**
      * @generated from protobuf enum value: BLOCK_TYPE_QUERY = 52;
      */
     QUERY = 52,

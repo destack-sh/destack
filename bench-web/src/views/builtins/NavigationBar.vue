@@ -24,10 +24,10 @@ const path = computed(() => ancestors.value.slice().reverse());
 <template>
   <div class="group flex w-full max-w-full flex-row px-2.5" :style="{ height: height + 'px' }">
     <!-- Breadcrumb -->
-    <div class="flex flex-row items-center gap-x-2 truncate">
+    <div class="flex flex-row items-center gap-x-1 truncate">
       <template v-for="(node, i) in path" :key="i">
         <span
-          class="flex cursor-pointer flex-row items-center rounded hover:bg-primary-100 hover:text-primary-900"
+          class="flex cursor-pointer flex-row items-center rounded px-1 hover:bg-primary-100 hover:text-primary-900"
           role="button"
           :class="node.id == self?.id || node.id == focus?.id ? 'text-primary-900' : 'text-gray-600'"
           @click.stop="canvas.goToNode(node)"

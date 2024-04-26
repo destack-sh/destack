@@ -84,7 +84,7 @@ IconInline.props = ["emoji", "file", "faName", "color", "fallbackColor", "shade"
 
 export function getIconMetadata(icon: IconData): IconMetadata | undefined {
   if (icon.kind == IconKind.FONT_AWESOME) {
-    const id = icon.faName!.split(" ")[1].split("-")[1];
+    const id = icon.faName!.split(" ")[1].slice(3);
     return AVAILABLE_ICONS_BY_ID[id];
   } else {
     return undefined;

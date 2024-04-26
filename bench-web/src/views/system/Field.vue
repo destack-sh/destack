@@ -77,8 +77,7 @@ defineExpose<ViewExposed>({ self, id, actions });
     <!-- nocheckin: Field -->
     <IconInline
       v-bind="getNodeIcon(field)"
-      :shade="field.kind == FieldKind.OPTION ? ColorShade.S500 : ColorShade.S700"
-      class="mr-1 w-5 rounded border border-transparent p-0.5 hover:cursor-pointer hover:bg-gray-100 data-[menu=true]:border-primary-900 data-[menu=true]:bg-gray-100"
+      class="mr-0.5 w-6 rounded border border-transparent p-0.5 hover:cursor-pointer hover:bg-gray-100 data-[menu=true]:border-primary-900 data-[menu=true]:bg-gray-100"
       v-tooltip="{ small: true, text: `Change icon` } as TooltipInfo"
       v-menu="
         (): PopoverInfoIn => ({
@@ -92,7 +91,7 @@ defineExpose<ViewExposed>({ self, id, actions });
     />
     <input
       ref="nameRef"
-      class="w-fit min-w-fit max-w-fit truncate rounded border-0 bg-transparent font-medium outline-none ring-0 hover:bg-gray-100 hover:text-primary-900 focus:ring-0"
+      class="w-fit min-w-fit max-w-fit truncate rounded border-0 bg-transparent font-medium outline-none ring-0 hover:bg-gray-100 focus:ring-0"
       spellcheck="false"
       :value="field.name"
       :size="Math.max(field.name?.length ?? 0, 5)"
