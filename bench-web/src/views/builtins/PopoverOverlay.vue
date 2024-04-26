@@ -126,6 +126,7 @@ function close(popover: PopoverInstance | undefined) {
 }
 </script>
 <template>
+  <!-- NOTE :Robustness: sometime on hot reload PopoverOverlay recursive updates itself? -->
   <TransitionGroup
     enter-active-class="transition-all ease-in duration-75"
     :enter-from-class="'opacity-0 ' + getEnterFrom(topPopover?.info?.placement ?? 'top')"

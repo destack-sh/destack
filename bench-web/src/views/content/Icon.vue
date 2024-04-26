@@ -75,25 +75,24 @@ function apply(icon: IconData) {
 }
 
 function focus(anchor?: "up" | "down" | "left" | "right" | FocusAnchor | NodeReferenceData) {
-  let nextIdx;
-  const currentIdx = results.value.findIndex((item) => item.id === activeResultId.value);
-  if (anchor === "up") {
-    nextIdx = currentIdx - ITEMS_PER_ROW;
-  } else if (anchor === "down") {
-    nextIdx = currentIdx + ITEMS_PER_ROW;
-  } else if (anchor === "left") {
-    nextIdx = currentIdx - 1;
-  } else if (anchor === "right") {
-    nextIdx = currentIdx + 1;
+  if (props.isInline) {
+    let nextIdx;
+    const currentIdx = results.value.findIndex((item) => item.id === activeResultId.value);
+    if (anchor === "up") nextIdx = currentIdx - ITEMS_PER_ROW;
+    else if (anchor === "down") nextIdx = currentIdx + ITEMS_PER_ROW;
+    else if (anchor === "left") nextIdx = currentIdx - 1;
+    else if (anchor === "right") nextIdx = currentIdx + 1;
+    else nextIdx = 0;
+  
+    nextIdx = Math.max(0, Math.min(results.value.length - 1, nextIdx));
+    activeResultId.value = results.value[nextIdx].id;
+    if (resultsRefs.value[activeResultId.value] != null) {
+      resultsRefs.value[activeResultId.value]?.scrollIntoView({ block: "center", behavior: "instant" });
+    }
+    queryRef.value?.focus();
   } else {
-    nextIdx = 0;
+    return false;
   }
-  nextIdx = Math.max(0, Math.min(results.value.length - 1, nextIdx));
-  activeResultId.value = results.value[nextIdx].id;
-  if (resultsRefs.value[activeResultId.value] != null) {
-    resultsRefs.value[activeResultId.value]?.scrollIntoView({ block: "center", behavior: "instant" });
-  }
-  queryRef.value?.focus();
 }
 
 canvas.registerView(self, id);
