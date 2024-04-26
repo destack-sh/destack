@@ -258,6 +258,7 @@ defineExpose<ViewExposed>({ self, actions, focus });
       :self="nodePtr"
       :focus="props.focus?.nodesPtr[0]"
       :graph="pkgGraph"
+      data-keep-inspection-in-base="true"
     />
 
     <!-- Page content -->
