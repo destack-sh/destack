@@ -36,6 +36,7 @@ if TYPE_CHECKING:
         Text,
         TypeInfo,
     )
+# pyright: reportIncompatibleVariableOverride=false
 
 
 @node_component()

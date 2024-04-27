@@ -212,7 +212,7 @@ def unpack_struct_interp_maybe(
 
 
 def pack_node(node: NodeT) -> NodeDataT:
-    return cast(AnyNodeData, pack_struct(node))
+    return cast(NodeDataT, pack_struct(node))
 
 
 def pack_node_maybe(node: NodeT | None) -> NodeDataT | None:

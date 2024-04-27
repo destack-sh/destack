@@ -1,6 +1,6 @@
 import enum
 import re
-from typing import TYPE_CHECKING, Union
+from typing import TYPE_CHECKING, Any, Union
 
 import betterproto
 import cachetools
@@ -33,7 +33,8 @@ class ValidationHandler:
         self,
         subject: "Struct",
         message: str,
-        properties: list["Property"] | None = None,
+        # NOTE: list[Any] because Node.<property> doesn't type as Property yet
+        properties: list["Property"] | list[Any] | tuple[Any, ...] | None = None,
         cause: Exception | None = None,
     ):
         pass

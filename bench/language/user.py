@@ -1,5 +1,5 @@
 from datetime import datetime
-from typing import TYPE_CHECKING, Any, Optional, Union
+from typing import TYPE_CHECKING, Any, Optional, Union, cast
 
 from bench.language.const import (
     NodeType,
@@ -23,7 +23,7 @@ from bench.language.property import (
 )
 from bench.language.validation import SLUG_REGEX, validate_email, validate_name, validate_slug
 from bench.language.value import HasValues
-from bench.proto.wire import NodeReferenceData, NotificationData
+from bench.proto.wire import AnyNodeData, NodeReferenceData, NotificationData
 from bench.sql.core import Constraint, ConstraintType
 from bench.utils.casing import IdentifierType
 from bench.utils.dt import utcnow_with_tz
@@ -39,6 +39,8 @@ if TYPE_CHECKING:
         Space,
         Text,
     )
+
+# pyright: reportIncompatibleVariableOverride=false
 
 
 @node(
@@ -169,11 +171,14 @@ class Client(Node):
         if self.browser_name:
             return f"{self.device_name} {self.browser_name}"
         else:
-            return self.device_name
+            return self.device_name or "???"
 
     @property
     def user(self) -> User:
-        return self.parent
+        if isinstance(self.parent, User):
+            return self.parent
+        else: 
+            raise ValueError(f"{self!r} is not a User client")
 
 
 @node(NodeType.MEMBERSHIP)
@@ -237,5 +242,5 @@ class Notification(HasBase, HasValues):
         return self.type
 
     @staticmethod
-    def get_base_from_data(self, data: NotificationData) -> Optional[NodeReferenceData]:
-        return data.type_ptr
+    def get_base_from_data(data: AnyNodeData) -> Optional[NodeReferenceData]:
+        return (cast(NotificationData, data)).type_ptr

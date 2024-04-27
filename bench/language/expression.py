@@ -33,6 +33,8 @@ if TYPE_CHECKING:
     from bench.language import Block, Field, Path, TypeInfo
     from bench.language.query import QueryBuilder
 
+# pyright: reportIncompatibleVariableOverride=false
+
 #
 # Expression language. Primarily for package, search and storage (database).
 #
@@ -136,7 +138,9 @@ class NodeReference(Struct):
 
         node_cls = BENCH_CLASS_BY_TYPE[node_data.metatype]
         reference = NodeReferenceData(
-            metatype=wire.ObjectType.NODE_REFERENCE, type=cast(wire.NodeType, node_data.metatype), id=node_data.id
+            metatype=wire.ObjectType.NODE_REFERENCE,
+            type=cast(wire.NodeType, node_data.metatype),
+            id=node_data.id,
         )
 
         # bench_id
@@ -447,7 +451,7 @@ def coerce_conditional(
             field, property = None, target
         else:
             field, property = target, None
-        _check_field_supports(target._as_type, op)
+        _check_type_supports(target._as_type, op)
         if value is None:
             if op == ConditionalOp.EQUALS:
                 op = ConditionalOp.NOT_EXISTS
@@ -505,7 +509,7 @@ def coerce_sort(
                 item = S(op, field=None, property=target)
             else:
                 item = S(op, field=target, property=None)
-            _check_field_supports(target._as_type, op)
+            _check_type_supports(target._as_type, op)
         if not isinstance(item, Expression) or item.kind != ExpressionKind.SORT:
             raise TypeError(f"expected Sort or str, got {item!r}")
         coerced.append(item)
@@ -538,11 +542,11 @@ METATYPE_KEY = "_type"
 
 
 class UnsupportedExpressionError(ValueError):
-    def __init__(self, field: "Field", thing: Any):
-        super().__init__(f"{field!r} does not support {thing!r}")
+    def __init__(self, type: "TypeInfo", thing: Any):
+        super().__init__(f"{type!r} does not support {thing!r}")
 
 
-def _check_field_supports(type: "TypeInfo", op: ExpressionOp):
+def _check_type_supports(type: "TypeInfo", op: ExpressionOp):
     """Asserts that the field supports the given expression operator."""
     if op in SortOp:
         if type.primitive_type in (
@@ -593,7 +597,7 @@ def _require_expression_op(op: ExpressionOp):
     def decorator(func):
         @functools.wraps(func)
         def wrapper(self: "_TypeQueryBuilder", *args, **kwargs):
-            _check_field_supports(self._as_type, op)
+            _check_type_supports(self._as_type, op)
             return func(self, *args, **kwargs)
 
         return wrapper
@@ -657,13 +661,13 @@ class _TypeQueryBuilder:
     def less_than_or_equals(self: Any, value: Any) -> "Expression":
         return _to_conditional(ConditionalOp.LESS_THAN_OR_EQUALS, self, value=value)
 
-    def __eq__(self, other):
+    def __eq__(self, other):  # type: ignore
         if isinstance(self, Node) and isinstance(other, Node):
             return Node.__eq__(self, other)  # imitate Field equality
         else:
             return self.equals(other)
 
-    def __ne__(self, other):
+    def __ne__(self, other):  # type: ignore
         if isinstance(self, Node) and isinstance(other, Node):
             return Node.__ne__(self, other)
         else:

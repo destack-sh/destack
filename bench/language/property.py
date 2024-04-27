@@ -252,7 +252,7 @@ class Property(_TypeQueryBuilder if TYPE_CHECKING else object):
     def column(self) -> Column:
         table = getattr(self.component, "__table__", None)
         assert isinstance(table, Table), f"{self.component} has no table"
-        return self.component.__table__._columns_by_name[self.name]
+        return table._columns_by_name[self.name]
 
     @property
     def type(self) -> Optional[ObjectType]:
@@ -329,6 +329,7 @@ class Property(_TypeQueryBuilder if TYPE_CHECKING else object):
                 ref = cast(Union["NodeReference", "PropertyReference"], ref)
                 return ref.to_ref()
             elif self.is_struct_reference:
+                ref = cast(Union["Node", "Struct"], ref)
                 if ref.__is_struct_only__ and not ref.__is_struct_inlined__:
                     assert isinstance(
                         ref.id, int
@@ -1001,7 +1002,7 @@ p_system = functools.partial(p_property, internal=True, system=True)
 p_kernel = functools.partial(p_property, internal=True, system=True, sensitive=True, kernel=True)
 
 if TYPE_CHECKING:
-    p_regular = p_internal = p_system = p_kernel = p_property
+    p_regular = p_internal = p_system = p_kernel = p_property  # type: ignore
 
 METATYPE_PROPERTY = Property(
     id=1,

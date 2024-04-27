@@ -107,7 +107,7 @@ class Badge(Node):
     The delegated policies apply at the parent scope OR given scopes (which must be below parent's).
     """
 
-    parent: Union["Package", "Block"] = p_node_parent(4, NodeType.PACKAGE, NodeType.BLOCK)
+    parent: Union["Package", "Block"] = p_node_parent(4, NodeType.PACKAGE, NodeType.BLOCK)  # type: ignore
     name: str = p_regular(31, validate=validate_name)
     delegated_policies: list["Policy"] = p_regular(32, array=True, struct=StructType.POLICY)
     expires_at: Optional[datetime] = p_regular(33, default=None)
@@ -131,7 +131,7 @@ class Role(Node):
     The delegated policies apply to all descendant's accesses.
     """
 
-    parent: Union["Block", "Membership"] = p_node_parent(4, NodeType.BLOCK, NodeType.MEMBERSHIP)
+    parent: Union["Block", "Membership"] = p_node_parent(4, NodeType.BLOCK, NodeType.MEMBERSHIP)  # type: ignore
     type: "Block" = p_regular(30, array=False, require=True, references=NodeType.BLOCK)
 
 
@@ -143,7 +143,7 @@ class Identity(Node):
     The delegated policies apply to all descendant's accesses.
     """
 
-    parent: Union["Block", "Membership", "User"] = p_node_parent(
+    parent: Union["Block", "Membership", "User"] = p_node_parent(  # type: ignore
         4, NodeType.BLOCK, NodeType.MEMBERSHIP, NodeType.USER
     )
     type: "Block" = p_regular(30, array=False, require=True, references=NodeType.BLOCK)
@@ -1175,7 +1175,7 @@ def evaluate_and_adapt_read(
                 parent_ptr=n.parent_ptr,
                 revision=n.revision,
                 order_key=getattr(n, "order_key", None),
-                reference_ptr=NodeReference.from_node_data(n)
+                reference_ptr=NodeReference.from_node_data(n),
             )
             skips[n.parent_ptr.id] = skip
             visible_nodes.append(skip)

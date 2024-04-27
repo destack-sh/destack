@@ -1,3 +1,6 @@
+# type: ignore
+# TODO :Robustness :Cleanup: type-check sql engine
+
 import asyncio
 import enum
 import importlib
@@ -104,7 +107,7 @@ def unpack_migration_row(row: dict[str, Any]) -> Migration:
 
 
 async def read_migrations_from_pg(
-    cur: psycopg.AsyncCursor, *, applied: bool = None
+    cur: psycopg.AsyncCursor, *, applied: bool | None = None
 ) -> list[Migration]:
     """Reads the 'bench_migration' table (if it exists) and returns the corresponding Migration."""
     try:

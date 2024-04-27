@@ -1,6 +1,6 @@
 import functools
 
-from typing import TYPE_CHECKING, Optional, Union
+from typing import TYPE_CHECKING, Any, Optional, Union, cast
 from uuid import UUID
 
 from bench.language.const import BenchError, NodeType, NoticeKind, StructType
@@ -53,7 +53,7 @@ class NoticeError(BenchError, ValueError):
 
 @node(NodeType.NOTICE)
 class Notice(Node):
-    parent: Union["Block", "Package"] = p_node_parent(4, NodeType.BLOCK, NodeType.PACKAGE)
+    parent: Union["Block", "Package"] = p_node_parent(4, NodeType.BLOCK, NodeType.PACKAGE)  # type: ignore
     kind: NoticeKind = p_regular(30, default=None, validate=enum_validator(NoticeKind))
     type: NoticeType = p_regular(31, validate=enum_validator(NoticeType))
     # -> builtin_type / custom_type / ... 'type' as union
@@ -82,7 +82,10 @@ class NoticeHandler:
         type: NoticeType,
         message: Optional[str] = None,
         path: Optional["Path"] = None,
-        properties: Optional[list[Property] | tuple[Property, ...]] = None,
+        # NOTE: list[Any] because Node.<property> doesn't type as Property yet
+        properties: Optional[
+            list[Property] | tuple[Property, ...] | list[Any] | tuple[Any, ...]
+        ] = None,
     ):
         pass
 
@@ -92,17 +95,20 @@ def on_warning_raise(
     type: "NoticeType",
     message: Optional[str] = None,
     path: Optional["Path"] = None,
-    properties: list["Property"] | None = None,
+    properties: Optional[
+        list[Property] | tuple[Property, ...] | list[Any] | tuple[Any, ...]
+    ] = None,
     min_level: NoticeKind = NoticeKind.WARNING,
 ):
     if type.kind >= min_level:
+        assert subject.metatype == NodeType.BLOCK or subject.metatype == NodeType.PACKAGE, subject
         notice = Notice(
-            parent=subject,
+            parent=cast(Union["Block", "Package"], subject),
             type=type,
             kind=type.kind,
             message=message,
             path=path,
-            properties=properties,
+            properties=cast(list["Property"], properties),
         )
         raise NoticeError(notice)
 

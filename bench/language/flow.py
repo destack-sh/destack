@@ -18,6 +18,7 @@ from bench.utils.func import IdEnum
 if TYPE_CHECKING:
     from bench.language import Block, Code, Expression, Text, Trigger, TypeInfo
 
+# pyright: reportIncompatibleVariableOverride=false
 
 @enum_(EnumType.STEP_TYPE)
 class StepType(IdEnum):
@@ -51,13 +52,12 @@ class Step(Node, HasValues):
     NOTE: steps only track connections coming in.
     """
 
-    parent: Union["Block", "Step"] = p_node_parent(4, NodeType.BLOCK, NodeType.STEP)
+    parent: Union["Block", "Step"] = p_node_parent(4, NodeType.BLOCK, NodeType.STEP) 
 
     type: StepType = p_internal(30, default=StepType.BLANK)
     # custom type?
     name: str | None = p_regular(32, default=None, validate=validate_name)
-    order_key: str = p_internal(33, default=INTEGER_ZERO)
-    # visibility?
+    order_key: str = p_internal(33, default=INTEGER_ZERO) 
     text: Optional["Text"] = p_regular(
         34, default=None, require=False, array=False, struct=StructType.TEXT
     )

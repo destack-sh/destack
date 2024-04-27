@@ -19,7 +19,7 @@ export function makeTypeInfo(partial: Partial<Omit<TypeInfoData, "metatype">>): 
   return makeDefaultStruct({ metatype: StructType.TYPE_INFO, ...partial });
 }
 
-const VIEW_TYPE_BY_BENCH_TYPE: Partial<Record<BenchType, ViewType>> = {
+const VIEW_TYPE_BY_OBJECT_TYPE: Partial<Record<BenchType, ViewType>> = {
   [BenchType.ICON]: ViewType.ICON,
   [BenchType.CODE]: ViewType.CODE,
   [BenchType.TEXT]: ViewType.TEXT,
@@ -42,8 +42,8 @@ export function getViewForValueType(type: TypeIdentity): {
   props?: ViewProps;
 } | null {
   if (type.benchType != null) {
-    if (VIEW_TYPE_BY_BENCH_TYPE[type.benchType] != null) {
-      return { viewType: VIEW_TYPE_BY_BENCH_TYPE[type.benchType]! };
+    if (VIEW_TYPE_BY_OBJECT_TYPE[type.benchType] != null) {
+      return { viewType: VIEW_TYPE_BY_OBJECT_TYPE[type.benchType]! };
     } else {
       // prefer inline picker if possible
       if (isEnumType(type.benchType) && getEnumOptions(type.benchType).length <= 5) {
