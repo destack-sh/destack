@@ -24,7 +24,6 @@ from bench.language import (
 )
 from bench.language.access import Subject
 from bench.language.const import IN_BENCH_NODE_TYPES, IN_PACKAGE_NODE_TYPES, NodeType
-from bench.language.graph import filter_edits
 from bench.language.query import PostgresEngine, StoreEngine
 from bench.proto.services import BenchServiceBase, RpcCallable
 from bench.proto.wire import (
@@ -127,9 +126,7 @@ class HostMultiplexer(BenchServiceBase, HostBase):
         elif cardinality == grpclib.const.Cardinality.UNARY_STREAM:
 
             @functools.wraps(func)
-            async def _multiplexed_unary_stream_rpc(
-                subject: Subject, request: betterproto.Message
-            ) -> None:
+            async def _multiplexed_unary_stream_rpc(subject: Subject, request: betterproto.Message):
                 host = await _get_host(request)
                 async for response in getattr(host, method_name)(subject, request):
                     yield response
@@ -170,10 +167,6 @@ class Host(GraphIoService, HostBase):
         return self._bench
 
     @property
-    def main_store(self) -> Store:
-        return self.bench.main_environment.store
-
-    @property
     def engines(self) -> tuple[StoreEngine, ...]:
         # TODO :Broken :Performance: use local in memory engines in Host (where possible)
         #  also provide & use bench-specific store engines
@@ -199,18 +192,10 @@ class Host(GraphIoService, HostBase):
     async def wait_closed(self) -> None:
         pass
 
-    def _on_graph_edited_inner(self, scopes: list[GraphScope], edits: list[EditData]):
+    def _on_graph_edited_inner(self, scopes: tuple[GraphScope, ...], edits: list[EditData]):
         # TODO :Incomplete: re-interp packages after edit (update notices, ...?)
         # apply edits to the nodes we have loaded
-        for scope in scopes:
-            if scope.package_id is not None:
-                root = self._packages.get(to_uuid(scope.package_id))
-                if root is None:
-                    continue  # not loaded
-            else:
-                root = self._bench
-            edits = filter_edits(root._read_options, edits)
-            root._apply_edits(edits)
+        pass
 
     #
     # Files

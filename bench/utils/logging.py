@@ -64,18 +64,18 @@ def configure_logging(apply_logging: bool = True, apply_structlog: bool = True):
     # add trace logging level
     TRACE = 5
     _add_logging_level("TRACE", logging.DEBUG - TRACE, "trace")
-    structlog.stdlib.TRACE = TRACE
-    structlog.stdlib._NAME_TO_LEVEL["trace"] = TRACE
-    structlog.stdlib._LEVEL_TO_NAME[TRACE] = "trace"
+    structlog.stdlib.TRACE = TRACE  # type: ignore
+    structlog.stdlib._NAME_TO_LEVEL["trace"] = TRACE  # type: ignore
+    structlog.stdlib._LEVEL_TO_NAME[TRACE] = "trace"  # type: ignore
 
     def trace(self, msg, *args, **kw):
         return self.log(TRACE, msg, *args, **kw)
 
-    for logger in structlog._log_levels._LEVEL_TO_FILTERING_LOGGER.values():
+    for logger in structlog._log_levels._LEVEL_TO_FILTERING_LOGGER.values():  # type: ignore
         logger.trace = trace
 
-    structlog.stdlib._FixedFindCallerLogger.trace = trace
-    structlog.stdlib.BoundLogger.trace = trace
+    structlog.stdlib._FixedFindCallerLogger.trace = trace  # type: ignore
+    structlog.stdlib.BoundLogger.trace = trace  # type: ignore
 
     if apply_logging:
         logging.config.dictConfig(LOGGING)
@@ -161,7 +161,7 @@ def _add_logging_level(
         return conflict
 
     # Lock because logger class and level name are queried and set
-    logging._acquireLock()
+    logging._acquireLock()  # type: ignore
     try:
         registered_num = logging.getLevelName(level_name)
         logger_class = logging.getLoggerClass()
@@ -222,4 +222,4 @@ def _add_logging_level(
         setattr(logger_class, method_name, for_logger_class)
         setattr(logger_adapter, method_name, for_logger_adapter)
     finally:
-        logging._releaseLock()
+        logging._releaseLock()  # type: ignore

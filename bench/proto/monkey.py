@@ -2,19 +2,20 @@
 Patch code for betterproto to make it behave like we want.
 Auto-pasted into the generated wire files.
 """
+
 import dataclasses
 import json
 from base64 import b64decode, b64encode
 from dataclasses import dataclass
 from datetime import datetime, timedelta
-from typing import Any, Iterable, Mapping, Self, Union
+from typing import Any, Iterable, Mapping, Self, Union, cast
 
 import betterproto
 from betterproto import Message as BetterprotoMessage
-from betterproto import hybridmethod
 from betterproto.lib.google.protobuf import ListValue, NullValue
 from betterproto.lib.google.protobuf import Struct as BetterprotoStruct
 from betterproto.lib.google.protobuf import Value as BetterprotoValue
+from betterproto.utils import hybridmethod
 from dateutil.parser import isoparse
 
 from bench.utils.utils import frozendict
@@ -56,13 +57,13 @@ def _get_field_default_gen(cls: type["betterproto.Message"], field: dataclasses.
 
 
 class _PatchedProtoClassMetadata(betterproto.ProtoClassMetadata):
-    def _get_default_gen(
+    def _get_default_gen(  # type: ignore
         self, cls: type[betterproto.Message], fields: Iterable[dataclasses.Field]
     ) -> Any:
         return {field.name: _get_field_default_gen(cls, field) for field in fields}
 
 
-betterproto.ProtoClassMetadata._get_default_gen = _PatchedProtoClassMetadata._get_default_gen
+betterproto.ProtoClassMetadata._get_default_gen = _PatchedProtoClassMetadata._get_default_gen  # type: ignore
 
 
 # monkey-patch betterproto to provide to_robust_dict/from_robust_dict serialization :RobustJson
@@ -99,7 +100,7 @@ class _PatchedMessage(BetterprotoMessage):
         from bench.proto.wiring import BENCH_CLASS_BY_PROTO_CLASS
 
         # we assume this is only called for Bench types, so a bench class must exist
-        struct_cls = BENCH_CLASS_BY_PROTO_CLASS[self.__class__]
+        struct_cls = BENCH_CLASS_BY_PROTO_CLASS[cast(Any, self.__class__)]
         output: dict[str, Any] = {}
         self._type_hints()
         defaults = self._betterproto.default_gen
@@ -185,7 +186,7 @@ class _PatchedMessage(BetterprotoMessage):
         from bench.proto.wiring import BENCH_CLASS_BY_PROTO_CLASS
 
         cls = self.__class__
-        struct_cls = BENCH_CLASS_BY_PROTO_CLASS[self.__class__]
+        struct_cls = BENCH_CLASS_BY_PROTO_CLASS[cast(Any, self.__class__)]
         for key, value in mapping.items():
             prop = struct_cls.__properties_by_id__.get(int(key))
             if prop is None or value is None:
@@ -263,12 +264,12 @@ class _PatchedMessage(BetterprotoMessage):
         return self.from_robust_dict(json.loads(json_string))
 
 
-betterproto.Message.__str__ = _PatchedMessage.__str__
-betterproto.Message.__repr__ = _PatchedMessage.__repr__
-betterproto.Message.to_robust_dict = _PatchedMessage.to_robust_dict
-betterproto.Message.from_robust_dict = _PatchedMessage.from_robust_dict
-betterproto.Message.to_robust_json = _PatchedMessage.to_robust_json
-betterproto.Message.from_robust_json = _PatchedMessage.from_robust_json
+betterproto.Message.__str__ = _PatchedMessage.__str__  # type: ignore
+betterproto.Message.__repr__ = _PatchedMessage.__repr__  # type: ignore
+betterproto.Message.to_robust_dict = _PatchedMessage.to_robust_dict  # type: ignore
+betterproto.Message.from_robust_dict = _PatchedMessage.from_robust_dict  # type: ignore
+betterproto.Message.to_robust_json = _PatchedMessage.to_robust_json  # type: ignore
+betterproto.Message.from_robust_json = _PatchedMessage.from_robust_json  # type: ignore
 
 
 # monkey-patch betterproto 'Struct' to fix from_dict/to_dict for nested messages
@@ -342,12 +343,12 @@ def _unwrap_value(value: BetterprotoValue) -> Any:
 @dataclass(eq=False, repr=False)
 class _PatchedStruct(BetterprotoStruct):
     @hybridmethod
-    def from_dict(cls: type[Self], mapping: Mapping[str, Any]) -> Self:  # noqa
+    def from_dict(cls: type[Self], mapping: Mapping[str, Any]) -> Self:  # type: ignore
         self = cls()
         return self.from_dict(mapping)
 
     @from_dict.instancemethod
-    def from_dict(self, mapping: Mapping[str, Any]) -> Self:
+    def from_dict(self, mapping: Mapping[str, Any]) -> Self:  # type: ignore
         fields = {**mapping}
         for k, v in fields.items():
             if not isinstance(v, BetterprotoValue):
@@ -357,7 +358,7 @@ class _PatchedStruct(BetterprotoStruct):
 
     def to_dict(
         self,
-        casing: betterproto.Casing = betterproto.Casing.CAMEL,
+        casing: betterproto.Casing | None = None,
         include_default_values: bool = False,
     ) -> dict[str, Any]:
         output = {}
@@ -372,8 +373,8 @@ from betterproto.lib.google.protobuf import Value  # noqa
 
 _PatchedStruct()
 
-BetterprotoStruct.from_dict = _PatchedStruct.from_dict
-BetterprotoStruct.to_dict = _PatchedStruct.to_dict
+BetterprotoStruct.from_dict = _PatchedStruct.from_dict  # type: ignore
+BetterprotoStruct.to_dict = _PatchedStruct.to_dict  # type: ignore
 
 # add custom encode/decode methods for headers to RpcMetadata
 from bench.proto.wire import RpcMetadata, RpcMetadataBadgeInfo  # noqa
@@ -414,7 +415,7 @@ class _PatchedRpcMetadata(RpcMetadata):
         self.client_nonce = headers.get("x-bench-3")
         self.client_access_token = headers.get("x-bench-4")
         if headers.get("5"):
-            unpacked_badges = json.loads(b64decode(headers.get("x-bench-5")).decode("utf-8"))
+            unpacked_badges = json.loads(b64decode(headers.get("x-bench-5")).decode("utf-8"))  # type: ignore
             self.badges = [
                 RpcMetadataBadgeInfo(
                     id=badge.get("2"),
@@ -426,6 +427,6 @@ class _PatchedRpcMetadata(RpcMetadata):
         return self
 
 
-RpcMetadata.__repr__ = _PatchedRpcMetadata.__repr__
-RpcMetadata.to_headers = _PatchedRpcMetadata.to_headers
-RpcMetadata.from_headers = _PatchedRpcMetadata.from_headers
+RpcMetadata.__repr__ = _PatchedRpcMetadata.__repr__  # type: ignore
+RpcMetadata.to_headers = _PatchedRpcMetadata.to_headers  # type: ignore
+RpcMetadata.from_headers = _PatchedRpcMetadata.from_headers  # type: ignore

@@ -1,8 +1,8 @@
 import enum
 from itertools import chain
-from typing import TYPE_CHECKING, Collection, Union
+from typing import TYPE_CHECKING, Any, Collection, Union, cast
 
-from bench.proto.core import Enum, EnumValue, Field, FieldType, Message, ProtoObject, ProtoSchema
+from bench.proto.core import Enum, EnumValue, Field, FieldType, Message, ProtoSchema, ProtoThing
 from bench.sql.core import PrimitiveType
 from bench.utils.casing import Casing, to_casing
 from bench.utils.func import IdEnum
@@ -29,10 +29,10 @@ PROTO_FIELD_TYPE_BY_PRIMITIVE_TYPE: dict[PrimitiveType, FieldType] = {
     PrimitiveType.JSON: FieldType.STRUCT,
 }
 
-_ObjectType = type[Union["Node", "Struct", "Property", enum.StrEnum, enum.IntFlag]]
+_ThingType = type[Union["Node", "Struct", "Property", IdEnum, enum.IntFlag]]
 
 
-def map_bench_property_to_proto(prop: "Property", cache: dict[_ObjectType, ProtoObject]) -> Field:
+def map_bench_property_to_proto(prop: "Property", cache: dict[_ThingType, ProtoThing]) -> Field:
     assert prop.id == 1 or not prop.is_ephemeral, f"shouldn't map runtime property: {prop!r}"
     assert isinstance(prop.id, int), f"stored properties need an id: {prop!r}"
     # store typed enum/struct references (except for int/flag enums, which proto doesn't have)
@@ -64,11 +64,11 @@ def map_bench_property_to_proto(prop: "Property", cache: dict[_ObjectType, Proto
             repeated=prop.is_list,
         )
     else:
-        raise TypeError(f"cannot map {prop.primitive_type.bench_name} to proto type: {prop!r}")
+        raise TypeError(f"cannot map to proto type: {prop!r}")
 
 
 def map_bench_struct_to_proto(
-    struct: type["Struct"], cache: dict[_ObjectType, ProtoObject], alias: str = None
+    struct: type["Struct"], cache: dict[_ThingType, ProtoThing], alias: str | None = None
 ) -> Message:
     message = Message(name=alias or struct.__name__, reserved_names=[], reserved_ids=[], fields=[])
     assert struct.__doc__, f"missing docstring for {struct!r}"
@@ -86,14 +86,14 @@ def map_bench_struct_to_proto(
             message.reserved_ids.append(reserved)
         else:
             raise TypeError(f"invalid reserved property: {reserved!r}")
-    message.fields.sort(key=lambda f: f.id)
+    message.fields.sort(key=lambda f: cast(int, f.id))
     return message
 
 
 def map_bench_enum_to_proto(
     bench_t: type[IdEnum] | type[enum.IntFlag],
-    cache: dict[_ObjectType, ProtoObject],
-    alias: str = None,
+    cache: dict[_ThingType, ProtoThing],
+    alias: str | None = None,
 ) -> Enum:
     assert issubclass(bench_t, (IdEnum, enum.IntEnum, enum.IntFlag)), f"invalid enum: {bench_t!r}"
     enum_prefix = to_casing(alias or bench_t.__name__, Casing.ALL_CAPS) + "_"
@@ -119,8 +119,8 @@ def map_bench_enum_to_proto(
 
 
 def map_object_type_to_proto(
-    bench_t: _ObjectType, cache: dict[_ObjectType, ProtoObject], alias: str = None
-) -> ProtoObject:
+    bench_t: _ThingType, cache: dict[_ThingType, ProtoThing], alias: str | None = None
+) -> ProtoThing:
     """Maps a Bench type to a Proto type. If not yet mapped, adds it to the cache."""
     from bench.language import Node, Struct
 
@@ -129,7 +129,7 @@ def map_object_type_to_proto(
         return cache[bench_t]
     if issubclass(bench_t, (Node, Struct)):
         ret = map_bench_struct_to_proto(bench_t, cache, alias=alias)
-    elif issubclass(bench_t, enum.Enum):
+    elif issubclass(bench_t, (IdEnum, enum.IntFlag)):
         ret = map_bench_enum_to_proto(bench_t, cache, alias=alias)
     else:
         raise TypeError(f"invalid bench type: {bench_t!r}")
@@ -139,15 +139,15 @@ def map_object_type_to_proto(
 
 def generate_proto_schema(
     name: str,
-    bench_classes: Collection[type[Union["Node", "Struct", enum.Enum]]],
-    aliases: dict[type[Union["Node", "Struct", enum.Enum]], str],
-    unions: dict[str, tuple[str, Collection[type[Union["Node", "Struct", enum.Enum]]]]],
+    bench_classes: Collection[type[Union["Node", "Struct", IdEnum]]],
+    aliases: dict[type[Union["Node", "Struct", IdEnum]], str],
+    unions: dict[str, tuple[str, Collection[type[Union["Node", "Struct", IdEnum]]]]],
     extras: list[Enum | Message],
     message_postfix: str = "",
 ) -> ProtoSchema:
     from bench.language import Node, Struct
 
-    proto_types_cache: dict[type[_ObjectType], ProtoObject] = {}
+    proto_types_cache: dict[type[_ThingType], ProtoThing] = {}
     for thing in bench_classes:
         _ = map_object_type_to_proto(thing, proto_types_cache, alias=aliases.get(thing))
 
@@ -162,7 +162,8 @@ def generate_proto_schema(
     collected_structs.sort(key=lambda t: t.__name__)
     collected_nodes.sort(key=lambda t: t.__name__)
     proto_types: list[Enum | Message] = [
-        proto_types_cache[t] for t in chain(collected_enums, collected_structs, collected_nodes)
+        cast(Enum | Message, proto_types_cache[cast(Any, t)])
+        for t in chain(collected_enums, collected_structs, collected_nodes)
     ]
 
     # add custom union types
@@ -171,7 +172,7 @@ def generate_proto_schema(
             Field(
                 id=i + 1,
                 name=to_casing(t.__name__, Casing.SNAKE),
-                type=map_object_type_to_proto(t, proto_types_cache),
+                type=cast(Any, map_object_type_to_proto(t, proto_types_cache)),
             )
             for i, t in enumerate(unioned_types)
         ]

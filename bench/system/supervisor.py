@@ -99,7 +99,7 @@ class Supervisor(BenchServiceBase[SupervisorStub], GraphIoService, SupervisorBas
             user = User(
                 id=to_uuid(request.id) or uuid4(),
                 slug=request.slug,
-                name=request.name,
+                name=request.name or request.slug,
                 email=request.email,
                 status=UserStatus.REGISTERED,
                 last_logged_in_at=utcnow_with_tz(),

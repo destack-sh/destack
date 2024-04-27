@@ -12,6 +12,7 @@
 			"**/*.ts": true,
 			"**/*.vue": true,
 			"**/package-lock.json": true,
+			"**/bench-web/**": true,
 		},
 		"python.testing.pytestArgs": [
 			"bench"

@@ -1,7 +1,7 @@
 import random
 import secrets
 import string
-from typing import Optional, cast
+from typing import cast
 
 import boto3
 import structlog
@@ -24,7 +24,6 @@ from bench.language import (
     User,
 )
 from bench.language.resource import ResourceCredential
-from bench.opensearch.engine import create_local_os_store
 from bench.sql.engine import create_local_pg_store
 from bench.system.auth import generate_encryption_key
 from bench.utils.utils import get_from_env
@@ -128,8 +127,6 @@ async def provision_resource(resource: Resource, session: Session) -> None:
         )
         if resource.engine == StoreEngineType.POSTGRES:
             await create_local_pg_store(store)
-        elif resource.engine == StoreEngineType.OPENSEARCH:
-            await create_local_os_store(store)
         else:
             raise NotImplementedError(f"unexpected store {store!r} (yet)")
         store.status = ResourceStatus.HEALTHY
@@ -148,10 +145,10 @@ async def provision_pending_resources(bench: Bench, session: Session):
             await provision_resource(resource, session)
 
 
-_s3_client: Optional["boto3.client"] = None
+_s3_client = None
 
 
-def get_s3_client() -> "boto3.client":
+def get_s3_client():
     global _s3_client
     if _s3_client is None:
         _s3_client = boto3.client(

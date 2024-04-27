@@ -22,7 +22,7 @@ def traces_sampler(sampling_context: dict):
 
 
 def init_sentry():
-    sentry_sdk.utils.MAX_STRING_LENGTH = 10_000_000
+    sentry_sdk.utils.MAX_STRING_LENGTH = 10_000_000  # type: ignore
     # https://docs.sentry.io/platforms/python/
     sentry_logging = LoggingIntegration(level=logging.DEBUG, event_level=None)
     environment = os.getenv("SENTRY_ENVIRONMENT", "production")
@@ -33,7 +33,6 @@ def init_sentry():
         dsn=dsn,
         environment=environment,
         integrations=integrations,
-        request_bodies="always",
         sample_rate=1.0,
         send_default_pii=True,
         traces_sampler=traces_sampler,
@@ -50,7 +49,7 @@ def setup_analytics():
         init_sentry()
 
     # Posthog
-    posthog.bench_api_key = "phc_d8mi3OMdtKSVA8kzHbBoKtYU3ZsMQakAiLpuOn3W9ma"
+    posthog.api_key = "phc_d8mi3OMdtKSVA8kzHbBoKtYU3ZsMQakAiLpuOn3W9ma"
     posthog.host = "https://eu.posthog.com"
 
     if IS_TEST or IS_DEBUG or SOME_TYPE_CHECKING:

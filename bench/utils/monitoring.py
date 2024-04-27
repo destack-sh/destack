@@ -3,6 +3,7 @@ import asyncio
 import os
 import sys
 from pathlib import Path
+from typing import Callable
 
 import structlog
 import uvicorn
@@ -70,7 +71,7 @@ class MonitoringServer:
             self._serve_task = None
 
 
-async def restart_on_file_changes(on_restart: callable = None):
+async def restart_on_file_changes(on_restart: Callable | None = None):
     """Restarts the process when a source file changes."""
     from watchdog.events import FileSystemEventHandler  # noqa
     from watchdog.observers import Observer  # noqa

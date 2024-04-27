@@ -2,7 +2,7 @@
 # (licensed as CC-0)
 # sync with fractional.ts in frontend
 
-from typing import Optional, TypeVar
+from typing import Optional, Protocol, TypeVar, cast
 
 from bench.utils.func import nextn
 
@@ -175,14 +175,14 @@ def get_order_key(a: Optional[str], b: Optional[str], digits: str = BASE_95_DIGI
         _validate_order_key(b)
     if a is not None and b is not None and a >= b:
         raise ValueError(f"{a} >= {b}")
-    if a is None and b is None:
-        return INTEGER_ZERO
     if a is None:
+        if b is None:
+            return INTEGER_ZERO
         ib = get_integer_part(b)
         fb = b[len(ib) :]
         if ib == SMALLEST_INTEGER:
             return ib + midpoint("", fb, digits)
-        return ib if ib < b else decrement_integer(ib, digits)
+        return ib if ib < b else cast(str, decrement_integer(ib, digits))
     if b is None:
         ia = get_integer_part(a)
         fa = a[len(ia) :]
@@ -194,7 +194,7 @@ def get_order_key(a: Optional[str], b: Optional[str], digits: str = BASE_95_DIGI
     fb = b[len(ib) :]
     if ia == ib:
         return ia + midpoint(fa, fb, digits)
-    i = increment_integer(ia, digits)
+    i = cast(str, increment_integer(ia, digits))
     return i if i < b else ia + midpoint(fa, None, digits)
 
 
@@ -230,11 +230,18 @@ def get_order_keys(
 
 INTEGER_MINUS_ONE = get_order_key(None, INTEGER_ZERO)
 
-ElementT = TypeVar("ElementT")
+
+class HasOrderKey(Protocol):
+    order_key: str
+
+
+ElementT = TypeVar("ElementT", bound=HasOrderKey)
 
 
 def get_key_bounds(
-    elements: list[ElementT] | tuple[ElementT, ...], after: ElementT = None, before: ElementT = None
+    elements: list[ElementT] | tuple[ElementT, ...],
+    after: ElementT | None = None,
+    before: ElementT | None = None,
 ) -> tuple[Optional[str], Optional[str]]:
     """Gets the order key bounds after the given (default to last)."""
     if after is not None:

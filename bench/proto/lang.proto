@@ -1885,7 +1885,7 @@ message EnvironmentData {
   repeated PolicyData policies = 36;
   NodeReferenceData server_ptr = 40;
   NodeReferenceData store_ptr = 41;
-  NodeReferenceData search_ptr = 42;
+  optional NodeReferenceData search_ptr = 42;
   optional NodeReferenceData analytics_ptr = 43;
   NodeReferenceData drive_ptr = 44;
   optional NodeReferenceData cache_ptr = 45;

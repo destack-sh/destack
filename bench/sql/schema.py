@@ -11,7 +11,7 @@ from bench.sql.core import (
     Table,
 )
 
-VERSION = "2024.04.26.0"
+VERSION = "2024.04.27.0"
 
 BENCH_TABLE = Table(
     "bench_bench",
@@ -129,6 +129,7 @@ ENVIRONMENT_TABLE = Table(
             PrimitiveType.UUID,
             is_foreign_key_to="bench_store",
             on_delete=CascadeAction.SET_NULL,
+            is_nullable=True,
         ),
         Column(
             "analytics_store_id",

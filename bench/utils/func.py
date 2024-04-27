@@ -7,7 +7,15 @@ from asyncio import CancelledError
 from collections import OrderedDict
 from itertools import filterfalse, tee
 from sys import intern
-from typing import Any, Collection, Coroutine, Iterable, Mapping, TypeVar
+from typing import (
+    Any,
+    Collection,
+    Coroutine,
+    Iterable,
+    Mapping,
+    TypeVar,
+    cast,
+)
 from uuid import UUID
 
 import structlog
@@ -75,7 +83,7 @@ def next_or_none(iterator: Iterable[Any]) -> Any | None:
     Returns the next item in the iterator, or None if the iterator is empty.
     """
     try:
-        return next(iterator)
+        return next(iterator)  # type: ignore
     except StopIteration:
         return None
 
@@ -105,14 +113,13 @@ def try_tuple(obj: tuple[T, ...] | T | None) -> tuple[T, ...] | None:
 nextn = next_or_none
 
 
-def dict_to_ordered(obj: dict[K, V]) -> OrderedDict[K, V]:
+def dict_to_ordered(obj: dict[str, V]) -> OrderedDict[str, V]:
     if isinstance(obj, OrderedDict):
         return obj
-
-    if len(obj) > 1:
+    elif len(obj) > 1:
         raise ValueError("cannot order dict with multiple entries")
-
-    return OrderedDict(**obj)
+    else:
+        return OrderedDict(**obj)
 
 
 def dict_minus(obj: dict[K, V], *keys: Iterable[K]) -> dict[K, V]:
@@ -133,17 +140,6 @@ async def wrap_task(coro: Coroutine, task_id: str | None = None) -> None:
     except BaseException as e:
         logger.exception("task.errored", task_id=task_id, exc_info=e, sentry=sentry_capture(e))
         raise
-
-
-async def wait_then(delay: float, coro_or_func: Coroutine | callable, *args, **kwargs) -> None:
-    """
-    Wait for a delay, then call the given coroutine or function with the given arguments.
-    """
-    await asyncio.sleep(delay)
-    if asyncio.iscoroutine(coro_or_func):
-        await coro_or_func(*args, **kwargs)
-    else:
-        coro_or_func(*args, **kwargs)
 
 
 def _auto_async_to_sync(func: typing.Callable[..., T]) -> typing.Callable[..., T]:
@@ -170,17 +166,6 @@ def _auto_async_to_sync(func: typing.Callable[..., T]) -> typing.Callable[..., T
         return wrapped
 
     return decorate(func)
-
-
-def call_later(delay: float, coro_or_func: Coroutine | callable, *args, **kwargs) -> None:
-    """
-    Call the given coroutine or function with the given arguments after a delay.
-    """
-    loop = asyncio.get_event_loop()
-    if asyncio.iscoroutine(coro_or_func):
-        loop.call_later(delay, asyncio.create_task, coro_or_func(*args, **kwargs))
-    else:
-        loop.call_later(delay, coro_or_func, *args, **kwargs)
 
 
 def describe_type(obj: Any) -> str:
@@ -232,7 +217,7 @@ def parse_py_annotation(
         # reconstitute type annotation
         if is_union:
             actual_types = tuple(_resolve_py_type(t, type_map) for t in actual_types)
-            py_type = typing.Union[actual_types]
+            py_type = cast(type, typing.Union[actual_types])  # type: ignore
         else:
             py_type = actual_types[0]
             py_type = _resolve_py_type(py_type, type_map)
@@ -408,7 +393,7 @@ class bytetuple(typing.Generic[EnumT]):
     We accept only IdEnum instances because we use its ordinals for a compact bitarray.
     """
 
-    def __init__(self, *items, enum_cls: type[EnumT] = None):
+    def __init__(self, *items: EnumT, enum_cls: type[EnumT] | None = None):
         if len(items) == 1 and isinstance(items[0], Collection):
             items = tuple(items[0])
         self.tuple = items
