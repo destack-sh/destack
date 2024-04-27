@@ -10,9 +10,11 @@ import typer
 
 from bench.cli.utils import _shell
 from bench.language import VERSION, Node
-from bench.language.const import ENUM_TYPES, NODE_TYPES, STRUCT_TYPES, UNSET
+from bench.language.const import ENUM_TYPES, NODE_TYPES, STRUCT_TYPES, UNSET, StructType
+from bench.language.property import Property
 from bench.language.setup import (
     ANCESTOR_NODE_TYPES,
+    BENCH_CLASS_BY_TYPE,
     CHILD_NODE_TYPES,
     DESCENDANT_NODE_TYPES,
     ENUM_CLASS_BY_TYPE,
@@ -167,7 +169,7 @@ AnyStructData = Union[{', '.join([cls.__name__ + 'Data' for cls in STRUCT_CLASSE
         "  [EnumType.UNSPECIFIED]: {},\n",
     ]
     for enum_t in ENUM_TYPES:
-        enum_cls = ENUM_CLASS_BY_TYPE.get(enum_t)
+        enum_cls = ENUM_CLASS_BY_TYPE[enum_t]
         enum_by_type_parts.append(f"  [EnumType.{enum_t.name}]: {enum_cls.__name__},\n")
     enum_by_type_parts.append("}\n")
     enum_by_type_str = "".join(enum_by_type_parts)
@@ -201,7 +203,7 @@ AnyStructData = Union[{', '.join([cls.__name__ + 'Data' for cls in STRUCT_CLASSE
         "  [EnumType.UNSPECIFIED]: {},\n",
     ]
     for enum_t in ENUM_TYPES:
-        enum_cls = ENUM_CLASS_BY_TYPE.get(enum_t)
+        enum_cls = ENUM_CLASS_BY_TYPE[enum_t]
         enum_mapping_parts.append(f"  [EnumType.{enum_t.name}]: {enum_cls.__name__},\n")
     enum_mapping_parts.append("}\n")
     enum_mapping_str = "".join(enum_mapping_parts)
@@ -280,7 +282,7 @@ export type PropertyInfo = {
     """
     type_info_definitions_parts = []
     for object_type in chain(STRUCT_TYPES, NODE_TYPES):
-        bench_cls = NODE_CLASS_BY_TYPE.get(object_type) or STRUCT_CLASS_BY_TYPE.get(object_type)
+        bench_cls = BENCH_CLASS_BY_TYPE[object_type]
         prop_infos_strs: list[str] = []
         properties = list(bench_cls.__properties__.values())
         for prop in sorted(properties, key=lambda p: p.id or 0):
@@ -327,8 +329,10 @@ export type PropertyInfo = {
                 if getattr(prop, to_casing(value_flag, Casing.SNAKE)):
                     prop_info_parts[value_flag] = "true"
             if prop.value_packed_ptr:
+                assert isinstance(prop.value_packed_ptr, Property)
                 prop_info_parts["valuePackedId"] = str(prop.value_packed_ptr.id)
             if prop.secret_value_packed_ptr:
+                assert isinstance(prop.secret_value_packed_ptr, Property)
                 prop_info_parts["secretValuePackedId"] = str(prop.secret_value_packed_ptr.id)
 
             if prop.reference_kind:
@@ -360,7 +364,7 @@ export type PropertyInfo = {
         "  [ObjectType.UNSPECIFIED]: {},\n"
     ]
     for object_type in chain(STRUCT_TYPES, NODE_TYPES):
-        bench_cls = NODE_CLASS_BY_TYPE.get(object_type) or STRUCT_CLASS_BY_TYPE.get(object_type)
+        bench_cls = BENCH_CLASS_BY_TYPE[object_type]
         type_info_map_parts.append(
             f"  [ObjectType.{object_type.name}]: {bench_cls.__name__}DataInfo,\n"
         )

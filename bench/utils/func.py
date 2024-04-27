@@ -9,6 +9,7 @@ from itertools import filterfalse, tee
 from sys import intern
 from typing import (
     Any,
+    Callable,
     Collection,
     Coroutine,
     Iterable,

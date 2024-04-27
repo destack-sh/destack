@@ -19,15 +19,6 @@ if typing.TYPE_CHECKING:
 logger = structlog.get_logger(__name__)
 
 
-@dataclass
-class CodeTransformation:
-    original_code: str
-    transformed_code: str
-    method_name: str
-    start_offset: int
-    end_offset: int
-
-
 @struct(StructType.CODE_LINE)
 class CodeLine(Struct):
     content: str = p_regular(32)

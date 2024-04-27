@@ -204,10 +204,6 @@ class Package(Node):
     def is_paused(self, value: bool) -> None:
         self.paused_at = datetime.utcnow() if value else None
 
-    @property
-    def _nodes(self) -> Collection[Node]:
-        return self.root.nodes_by_ck.values()
-
     def __content_str__(self):
         return f"blocks={len(self.blocks)}, spaces={len(self.spaces)}"
 

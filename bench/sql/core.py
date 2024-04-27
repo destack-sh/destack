@@ -4,7 +4,7 @@ import hashlib
 from dataclasses import dataclass
 from datetime import datetime
 from itertools import chain
-from typing import TYPE_CHECKING, Any, ClassVar, Union
+from typing import TYPE_CHECKING, Any, ClassVar, Self, Union, cast
 from uuid import UUID
 
 # TODO :Performance: check out asyncpg instead of psycopg (up to 5x faster)
@@ -47,10 +47,6 @@ class Object:
     FLAT_DATA_FIELDS: ClassVar[tuple[str, ...]]
     kind: ClassVar[ObjectKind]
 
-    if TYPE_CHECKING:
-        name: str  # defined in subclasses as either property or field
-        _source: int | str | None  # 'source' of this object (if mapped)
-
     def sql(self) -> str:
         """Turns this object into a SQL block."""
         raise NotImplementedError
@@ -65,13 +61,13 @@ class Object:
                 if not value:
                     return None
                 if len(value) > 1:
-                    return f"({', '.join(_source_repr(v) for v in value)})"
+                    return f"({', '.join(cast(str, _source_repr(v)) for v in value)})"
                 else:
                     return f"({_source_repr(value[0])},)"
             elif isinstance(value, list):
                 if not value:
                     return None
-                return f"[{', '.join(_source_repr(v) for v in value)}]"
+                return f"[{', '.join(cast(str, _source_repr(v)) for v in value)}]"
             elif isinstance(value, enum.Enum):
                 return f"{value.__class__.__name__}.{value.name}"
             else:
@@ -86,7 +82,7 @@ class Object:
             if self.kind == ObjectKind.COLUMN and field.name == "type":
                 # we want to reproduce the original type, not the encrypted type
                 #  (we sneakily change the type in __post_init__)
-                self: Column
+                assert isinstance(self, Column)
                 value = self._unencrypted_type or self.type
             else:
                 value = getattr(self, field.name)
@@ -147,16 +143,18 @@ class TableObject(Object):
 
     @property
     def qualified_name(self) -> str:
-        if self.kind == ObjectKind.TABLE or self.kind == ObjectKind.INDEX:
-            return self.name
+        if self.kind == ObjectKind.TABLE:
+            return cast("Table", self).name
+        elif self.kind == ObjectKind.INDEX:
+            return cast("Index", self).name
         else:
-            return f"{self.table_name}.{self.name}"
+            return f"{self.table_name}.{getattr(self, 'name')}"
 
     @property
     def _table(self) -> Union["Table", None]:
         raise NotImplementedError
 
-    def clone(self) -> "TableObject":
+    def clone(self) -> "Self":
         """Deep copy this table object without the table reference."""
         return dataclasses.replace(self, _table=None)
 
@@ -190,7 +188,7 @@ class Column(TableObject):
         "is_primary_key",
         "is_foreign_key_to",
         "on_delete",
-        # "is_unique",, handled via constraints
+        # "is_unique", handled via constraints
         "is_nullable",
         # "is_encrypted", handled in read/write
         "length",
@@ -212,7 +210,7 @@ class Column(TableObject):
     scale: int | None = None
     default: str | None = None
     _source: str | int | None = None
-    _table: Union["Table", None] = None
+    _table: Union["Table", None] = None  # type: ignore
     _unencrypted_type: PrimitiveType | None = None  # for encrypted columns
 
     def __post_init__(self):
@@ -317,7 +315,7 @@ class Constraint(TableObject):
     index: str | None = None  # existing index to use (name must be relative to same table)
     _full_name: str | None = None  # as introspected from pg (naming can change)
     _source: str | int | None = None
-    _table: Union["Table", None] = None
+    _table: Union["Table", None] = None  # type: ignore
 
     def __post_init__(self):
         if self.columns is not None:
@@ -336,7 +334,7 @@ class Constraint(TableObject):
         return f"<Constraint {self}>"
 
     @property
-    def name(self):
+    def name(self):  # type: ignore
         return self._full_name or f"{self.table_name}_{self.inner_name}"
 
     def sql(self) -> str:
@@ -347,7 +345,7 @@ class Constraint(TableObject):
             if self.index is not None:
                 parts.append(f"USING INDEX {self.table_name}_{self.index}")
             else:
-                parts.append(f"({', '.join(self.columns)})")
+                parts.append(f"({', '.join(self.columns or ())})")
         return " ".join(parts)
 
 
@@ -384,7 +382,7 @@ class Index(TableObject):
     condition: str | None = None
     _full_name: str | None = None  # as introspected from pg (naming may change)
     _source: str | int | None = None
-    _table: Union["Table", None] = None
+    _table: Union["Table", None] = None  # type: ignore
 
     def __post_init__(self):
         self.columns = tuple(sorted(self.columns))  # ensure consistent sorting
@@ -402,10 +400,11 @@ class Index(TableObject):
         return f"<Index {self}>"
 
     @property
-    def name(self):
+    def name(self):  # type: ignore
         return self._full_name or f"{self.table_name}_{self.inner_name}"
 
     def sql(self) -> str:
+        assert isinstance(self._table, Table), f"{self} is not attached to a table"
         parts = [
             self.name,
             f"ON {self._table.name}",

@@ -1,7 +1,7 @@
 import structlog
 import typer
 
-from bench.cli.utils import _async_to_sync_blocking
+from bench.cli.utils import async_to_sync_blocking
 from bench.language import Bench, Package
 from bench.system.client import global_session
 
@@ -11,8 +11,8 @@ logger = structlog.get_logger(__name__)
 
 
 @app.command(help="IPython shell with a global or Bench-local session")
-@_async_to_sync_blocking
-async def shell(bench: str = None, package: str = None):
+@async_to_sync_blocking
+async def shell(bench: str = None, package: str = None):  # type: ignore
     """Open a Session shell."""
     if bench is not None:
         async with global_session():

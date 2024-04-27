@@ -1,13 +1,14 @@
 import asyncio
 import secrets
 from os import urandom
+from typing import cast
 
 import structlog
 from grpclib import GRPCError
 from grpclib import Status as GRPCStatus
 
 from bench.language import Badge, Bench, Client, Server, User
-from bench.language.access import Subject
+from bench.language.access import Owner, Subject
 from bench.language.const import NodeType
 from bench.language.query import NodeNotFoundError
 from bench.proto.wire import RpcMetadata
@@ -94,7 +95,7 @@ async def _get_client_from_metadata(metadata: RpcMetadata) -> Client | None:
         return None
 
 
-async def _get_badges_from_metadata(metadata: RpcMetadata) -> list[Badge] | tuple[Badge, ...]:
+async def _get_badges_from_metadata(metadata: RpcMetadata) -> list[Badge]:
     """Gets the authenticated badge (if any)."""
 
     if metadata.badges:
@@ -110,7 +111,7 @@ async def _get_badges_from_metadata(metadata: RpcMetadata) -> list[Badge] | tupl
                 raise GRPCError(GRPCStatus.UNAUTHENTICATED, "invalid badge password")
         return badges
     else:
-        return ()
+        return []
 
 
 async def get_subject_from_metadata(metadata: RpcMetadata) -> Subject:
@@ -138,7 +139,7 @@ async def get_subject_from_metadata(metadata: RpcMetadata) -> Subject:
                 client=client,
                 user=client.user,
                 badges=badges,
-                owned=owned,
+                owned=cast(list[Owner], owned),
             )
         else:
             raise ValueError(f"unexpected client: {client!r}")

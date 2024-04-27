@@ -473,7 +473,7 @@ def compile_pg_conditional(
             op=PG_CONDITIONAL_OP_BY_BENCH[cond.op],
         )
     raise StoreEngineIncapableError(
-        StoreEngineType.POSTGRES, expr=cond, reason="unsupported conditional"
+        StoreEngineType.POSTGRES, expression=cond, reason="unsupported conditional"
     )
 
 
@@ -1233,7 +1233,7 @@ async def pg_get_node_data_graph(
     roots: tuple[UUID, ...] | tuple[AnyNodeData, ...],
     options: ReadOptions,
     _graph: NodeDataGraph | None = None,
-) -> NodeDataGraph | None:
+) -> NodeDataGraph[AnyNodeData] | None:
     """
     Reads regular nodes from the given PG database.
     Returns a graph of nodes that *may* contain the requested nodes.
@@ -1351,7 +1351,7 @@ async def pg_search_nodes_data_graph(
     first: int | None = None,
     skip: int | None = None,
     after: str | None = None,
-) -> tuple[PgSelectNodesDataResult, NodeDataGraph]:
+) -> tuple[PgSelectNodesDataResult, NodeDataGraph[AnyNodeData]]:
     """Select root nodes and then read the graph of nodes from the given PG database."""
 
     if options.ancestor_types or options.descendant_types:

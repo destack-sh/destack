@@ -3,7 +3,7 @@ from collections import deque
 from contextlib import asynccontextmanager
 from dataclasses import dataclass, field
 from itertools import chain
-from typing import TYPE_CHECKING, AsyncContextManager, AsyncIterator, Mapping, NamedTuple, final
+from typing import TYPE_CHECKING, AsyncContextManager, AsyncIterator, Mapping, NamedTuple, cast, final
 from uuid import UUID
 
 import betterproto
@@ -29,6 +29,7 @@ from bench.language.validation import ValidationError, on_invalid_raise
 from bench.proto import wiring
 from bench.proto.services import BenchServiceBase
 from bench.proto.wire import (
+    AccessMatrixData,
     AggregateNodesRequest,
     AggregateNodesResponse,
     AnyNodeData,
@@ -86,12 +87,14 @@ def _check_nodes_in_same_store(
     """
 
     if roots and isinstance(roots[0], (NodeReference, NodeReferenceData)):
-        roots = tuple(r.type for r in roots)
+        roots_types = tuple((cast(NodeReference, r)).type for r in roots)
+    else:
+        roots_types = cast(list[NodeType], roots)
 
     has_global = False
     has_local = False
 
-    for node_type in chain(roots, options.ancestor_types, options.descendant_types):
+    for node_type in chain(roots_types, options.ancestor_types, options.descendant_types):
         if NODE_CLASS_BY_TYPE[node_type].__is_local__:
             has_local = True
         else:
@@ -147,6 +150,8 @@ class GraphIoService(GraphIoBase, BenchServiceBase if TYPE_CHECKING else object)
         )
         if not roots:
             raise GRPCError(GRPCStatus.INVALID_ARGUMENT, "no roots provided")
+        if any(not r.id for r in roots):
+            raise GRPCError(GRPCStatus.INVALID_ARGUMENT, "root nodes must have an id")
         options: ReadOptions = (
             wiring.unpack_struct_interp_maybe(request.options) or ReadOptions.default()
         )
@@ -173,7 +178,7 @@ class GraphIoService(GraphIoBase, BenchServiceBase if TYPE_CHECKING else object)
                 )
                 result = await connection.fetch(query, FetchOptions(count=False))
                 graph.extend(result.nodes)
-        if any(root.id not in graph for root in request.roots):
+        if any(cast(str, root.id) not in graph for root in request.roots):
             missing_roots = tuple(root for root in roots if str(root.id) not in graph)
             raise GRPCError(GRPCStatus.NOT_FOUND, f"roots not found: {missing_roots}")
 
@@ -186,7 +191,7 @@ class GraphIoService(GraphIoBase, BenchServiceBase if TYPE_CHECKING else object)
         logger.info("graph.get", subject=subject, request=request, epoch=self.epoch)
         return GetNodesResponse(
             nodes=[wiring.wrap_some_node(n) for n in adapted_nodes],
-            access=access._to_data(),
+            access=cast(AccessMatrixData, access._to_data()),
             epoch=self.epoch,
         )
 
@@ -195,7 +200,7 @@ class GraphIoService(GraphIoBase, BenchServiceBase if TYPE_CHECKING else object)
     ) -> "SearchNodesResponse":
         node_type: NodeType = wiring.unpack_enum(NodeType, request.node_type)
         filter: Expression | None = wiring.unpack_struct_interp_maybe(request.filter)
-        sort: list[Expression] = [wiring.unpack_struct_interp(s) for s in request.sort] or None
+        sort: list[Expression] = [wiring.unpack_struct_interp(s) for s in request.sort] or []
         options: ReadOptions = (
             wiring.unpack_struct_interp_maybe(request.options) or ReadOptions.default()
         )
@@ -208,7 +213,8 @@ class GraphIoService(GraphIoBase, BenchServiceBase if TYPE_CHECKING else object)
                 node_type=node_type, filter=filter, options=adapted_options, sort=sort
             )
             connection = await session.tx.connect_store(request.scope, node_type, AccessKind.READ)
-            result = await connection.fetch(query, FetchOptions(count=request.count))
+            result = await connection.fetch(query, FetchOptions(count=request.count or False))
+            assert result.start_cursor
             graph = NodeDataGraph(result.nodes)
         access = generate_access_matrix(subject, graph)
         evaluated_request, adapted_nodes = evaluate_and_adapt_read(
@@ -223,7 +229,7 @@ class GraphIoService(GraphIoBase, BenchServiceBase if TYPE_CHECKING else object)
             cursors=list(result.cursors),
             start_cursor=result.start_cursor,
             total=result.total,
-            access=access._to_data(),
+            access=cast(AccessMatrixData, access._to_data()),
             epoch=self.epoch,
         )
 
@@ -319,7 +325,7 @@ class GraphIoService(GraphIoBase, BenchServiceBase if TYPE_CHECKING else object)
             )
             self.on_graph_edited(edited_scopes.graph_scopes, request.edits)
 
-        accepted_revisions = [e.revision for e in request.edits]
+        accepted_revisions = [cast(int, e.revision) for e in request.edits]
         return CommitTransactionResponse(revisions=accepted_revisions, epoch=self.epoch)
 
     async def flush_transaction(
@@ -368,7 +374,7 @@ class GraphIoService(GraphIoBase, BenchServiceBase if TYPE_CHECKING else object)
     async def watch_edits(
         self, subject: Subject, request: "WatchEditsRequest"
     ) -> AsyncIterator["WatchEditsResponse"]:
-        node_types = bytetuple(tuple(wiring.unpack_enum(NodeType, t) for t in request.node_types))
+        node_types = bytetuple(*tuple(wiring.unpack_enum(NodeType, t) for t in request.node_types))
         filters: dict[NodeType, Expression] = {
             wiring.unpack_enum(NodeType, k): wiring.unpack_struct_interp(v)
             for k, v in request.filters.items()
@@ -411,12 +417,13 @@ class _EditScopes(NamedTuple):
 
 
 def validate_node_scope(node_data: AnyNodeData, graph_scope: GraphScope):
-    node_bench_id = node_data.bench_ptr.id if getattr(node_data, "bench_ptr", None) else None
-    if node_bench_id != graph_scope.bench_id:
-        raise ValidationError(
-            node_data,
-            f"node {node_data} has bench_id: {node_bench_id} != {graph_scope.bench_id}",
-        )
+    if hasattr(node_data, 'bench_ptr'):
+        node_bench_id = getattr(node_data, 'bench_ptr').id
+        if node_bench_id != graph_scope.bench_id:
+            raise ValidationError(
+                node_data,
+                f"node {node_data} has bench_id: {node_bench_id} != {graph_scope.bench_id}",
+            )
 
 
 def get_validated_edited_scopes(edits: list[EditData]) -> _EditScopes:
@@ -463,7 +470,7 @@ def get_validated_edited_scopes(edits: list[EditData]) -> _EditScopes:
         validate_node_scope(node_data, graph_scope)
 
     node_scopes: dict[UUID, NodeReference] = {
-        to_uuid(k): wiring.unpack_struct(v) for k, v in node_scopes_by_id.items()
+        UUID(k): wiring.unpack_struct(v) for k, v in node_scopes_by_id.items()
     }
     node_scopes_by_type = group_by(node_scopes.values(), lambda n: n.type)
     return _EditScopes(node_scopes_by_type, node_scopes, tuple(graph_scopes.values()))

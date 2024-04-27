@@ -122,7 +122,7 @@ class EnumType(IdEnum):
 
 
 enum_(EnumType.ENUM_TYPE)(EnumType)
-ENUM_TYPES: bytetuple[EnumType] = bytetuple(tuple(EnumType))
+ENUM_TYPES: bytetuple[EnumType] = bytetuple(*EnumType)
 
 
 #
@@ -191,35 +191,35 @@ class NodeType(IdEnum):
     CLIENT = 223
 
 
-NODE_TYPES: bytetuple[NodeType] = bytetuple(tuple(NodeType))
+NODE_TYPES: bytetuple[NodeType] = bytetuple(*NodeType)
 ROOT_NODE_TYPES: bytetuple[NodeType] = bytetuple(
-    (NodeType.BENCH, NodeType.USER, NodeType.ORGANIZATION)
+    NodeType.BENCH, NodeType.USER, NodeType.ORGANIZATION
 )
 LOCAL_NODE_TYPES: bytetuple[NodeType] = bytetuple(
-    (NodeType.RECORD, NodeType.RUN, NodeType.PAUSE, NodeType.SIGNAL, NodeType.NOTIFICATION)
+    NodeType.RECORD, NodeType.RUN, NodeType.PAUSE, NodeType.SIGNAL, NodeType.NOTIFICATION
 )
 GLOBAL_NODE_TYPES: bytetuple[NodeType] = bytetuple(
-    tuple(nt for nt in NODE_TYPES if nt not in LOCAL_NODE_TYPES)
+    *tuple(nt for nt in NODE_TYPES if nt not in LOCAL_NODE_TYPES)
 )
 # based = instances are directly based on some other node
 # (e.g. Run.block->Block, Record.parent->Block)
 BASED_NODE_TYPES: bytetuple[NodeType] = bytetuple(
-    (NodeType.RECORD, NodeType.RUN, NodeType.SIGNAL, NodeType.NOTIFICATION)
+    NodeType.RECORD, NodeType.RUN, NodeType.SIGNAL, NodeType.NOTIFICATION
 )
 IN_PACKAGE_NODE_TYPES: bytetuple[NodeType] = bytetuple(
-    tuple(nt for nt in NODE_TYPES if 20 <= nt.id < 100)
+    *tuple(nt for nt in NODE_TYPES if 20 <= nt.id < 100)
 )
 SUB_PACKAGE_NODE_TYPES: bytetuple[NodeType] = bytetuple(
-    tuple(nt for nt in NODE_TYPES if 20 < nt.id < 100)
+    *tuple(nt for nt in NODE_TYPES if 20 < nt.id < 100)
 )
 IN_BENCH_NODE_TYPES: bytetuple[NodeType] = bytetuple(
-    tuple(nt for nt in NODE_TYPES if nt.id < 200) + (NodeType.CLIENT, NodeType.HANDLE)
+    *tuple(nt for nt in NODE_TYPES if nt.id < 200) + (NodeType.CLIENT, NodeType.HANDLE)
 )
 SUB_BENCH_NODE_TYPES: bytetuple[NodeType] = bytetuple(
-    tuple(nt for nt in IN_BENCH_NODE_TYPES if nt != NodeType.BENCH)
+    *tuple(nt for nt in IN_BENCH_NODE_TYPES if nt != NodeType.BENCH)
 )
-PUBLIC_NODE_TYPES: bytetuple[NodeType] = bytetuple((NodeType.USER, NodeType.ORGANIZATION))
-USER_NODE_TYPES = bytetuple(tuple(nt for nt in NODE_TYPES if nt.id >= 200))
+PUBLIC_NODE_TYPES: bytetuple[NodeType] = bytetuple(NodeType.USER, NodeType.ORGANIZATION)
+USER_NODE_TYPES = bytetuple(*tuple(nt for nt in NODE_TYPES if nt.id >= 200))
 
 
 @enum_(EnumType.STRUCT_TYPE)
@@ -288,7 +288,7 @@ class StructType(IdEnum):
     ...
 
 
-STRUCT_TYPES: bytetuple[StructType] = bytetuple(tuple(StructType))
+STRUCT_TYPES: bytetuple[StructType] = bytetuple(*StructType)
 
 if typing.TYPE_CHECKING:
     ObjectType = NodeType | StructType
@@ -299,7 +299,7 @@ else:
     BenchType = IdEnum.combine("BenchType", NodeType, StructType, EnumType)
     enum_(EnumType.BENCH_TYPE)(BenchType)
 
-OBJECT_TYPES: bytetuple[ObjectType] = bytetuple(tuple(ObjectType))
+OBJECT_TYPES: bytetuple[ObjectType] = bytetuple(*ObjectType)
 
 
 @enum_(EnumType.BLOCK_TYPE)
@@ -351,8 +351,8 @@ BLOCK_TYPES: tuple[BlockType, ...] = tuple(BlockType)
 
 
 class BlockTypes:
-    TYPES = bytetuple(tuple(t for t in BLOCK_TYPES if 10 <= t.id < 20))
-    RUNNABLE = bytetuple(tuple(t for t in BLOCK_TYPES if 30 <= t.id < 40))
+    TYPES = bytetuple(*tuple(t for t in BLOCK_TYPES if 10 <= t.id < 20))
+    RUNNABLE = bytetuple(*tuple(t for t in BLOCK_TYPES if 30 <= t.id < 40))
 
 
 class NodeSource(IdEnum):
@@ -518,16 +518,16 @@ else:
     AccessType.kind = property(lambda self: ACCESS_KIND_BY_ACCESS[self])
     enum_(EnumType.ACCESS_TYPE)(AccessType)
 
-READ_TYPES: bytetuple[ReadType] = bytetuple(tuple(ReadType))
-EDIT_TYPES: bytetuple[EditType] = bytetuple(tuple(EditType))
-USE_TYPES: bytetuple[UseType] = bytetuple(tuple(UseType))
-ACCESS_TYPES: bytetuple[AccessType] = bytetuple(tuple(AccessType))
+READ_TYPES: bytetuple[ReadType] = bytetuple(*ReadType)
+EDIT_TYPES: bytetuple[EditType] = bytetuple(*EditType)
+USE_TYPES: bytetuple[UseType] = bytetuple(*UseType)
+ACCESS_TYPES: bytetuple[AccessType] = bytetuple(*AccessType)
 ACCESS_CLASSES: tuple[type[AccessType], ...] = (ReadType, EditType, UseType, AccessType)
-ACCESS_KINDS = bytetuple(tuple(AccessKind))
+ACCESS_KINDS = bytetuple(*AccessKind)
 ACCESS_TYPES_BY_KIND: dict[AccessKind, bytetuple[AccessType]] = {
-    AccessKind.READ: bytetuple(READ_TYPES),
-    AccessKind.EDIT: bytetuple(EDIT_TYPES),
-    AccessKind.USE: bytetuple(USE_TYPES),
+    AccessKind.READ: bytetuple(*READ_TYPES),
+    AccessKind.EDIT: bytetuple(*EDIT_TYPES),
+    AccessKind.USE: bytetuple(*USE_TYPES),
 }
 ACCESS_CLASS_BY_KIND: dict[AccessKind, type[AccessType]] = {
     AccessKind.READ: ReadType,
@@ -810,4 +810,5 @@ def active_tx() -> "Transaction":
     """Gets the currently active Transaction (error if none)."""
     session = _active_session.get()
     assert session is not None, "no active session"
+    assert session._tx is not None, f"no active transaction in {session!r}"
     return session._tx

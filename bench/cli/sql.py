@@ -10,7 +10,7 @@ import typer
 from more_itertools import first
 from rich import print
 
-from bench.cli.utils import _async_to_sync_blocking
+from bench.cli.utils import async_to_sync_blocking
 from bench.language import Bench, Environment, Store
 from bench.language.const import VERSION, NodeType
 from bench.language.node import NODE_CLASS_BY_TYPE
@@ -71,7 +71,7 @@ def regen():
 
 
 @app.command(help="generate global AND local SQL migrations")
-@_async_to_sync_blocking
+@async_to_sync_blocking
 async def makemigrations(
     bench: str = typer.Option(default="bench", help="the bench to use as local reference"),
     no_downgrade: bool = typer.Option(default=False, help="exclude downgrade operations"),
@@ -87,6 +87,7 @@ async def makemigrations(
     if conflicting_migration:
         if overwrite:
             logger.info("makemigrations.overwrite", migration=conflicting_migration)
+            assert conflicting_migration.path
             Path(conflicting_migration.path).unlink()
             known_migrations.remove(conflicting_migration)
         else:
@@ -116,7 +117,7 @@ async def makemigrations(
                 old_local_tables = ()  # initial migration
         local_migration_ops = generate_migration_ops(old_local_tables, LOCAL_TABLES)
     else:
-        local_migration_ops = ()
+        local_migration_ops = []
 
     # diff global
     async with global_pg_cursor() as cur:
@@ -150,7 +151,7 @@ async def makemigrations(
 
 
 @app.command(help="apply global OR local SQL migrations")
-@_async_to_sync_blocking
+@async_to_sync_blocking
 async def migrate(
     target: Optional[str] = typer.Option(
         default=None, help="the migration to migrate to [default=latest]"
@@ -186,7 +187,7 @@ async def migrate(
 
 
 @app.command(help="delete migrations")
-@_async_to_sync_blocking
+@async_to_sync_blocking
 async def clearmigrations(from_id: int, to_id: int):
     start = time.time()
 
@@ -207,7 +208,7 @@ async def clearmigrations(from_id: int, to_id: int):
 
 
 @app.command()
-@_async_to_sync_blocking
+@async_to_sync_blocking
 async def introspect(bench: str = None):
     """Introspect the current schema of the Postgres instance."""
     start = time.perf_counter()
@@ -242,12 +243,12 @@ async def introspect(bench: str = None):
 
 
 @app.command()
-@_async_to_sync_blocking
-async def shell(bench: str = None):
+@async_to_sync_blocking
+async def shell(bench: str = None):  # type: ignore
     """Open a psql shell to either the global or a Bench-local database."""
     if bench is not None:
         async with global_session():
-            bench: Bench = await Bench.descendants(Environment, Store).include_all().get(slug=bench)
+            bench = await Bench.descendants(Environment, Store).include_all().get(slug=bench)
         connection_str = get_pg_connection_str(bench.main_environment.store)
     else:
         connection_str = get_pg_connection_str(GLOBAL_STORE)

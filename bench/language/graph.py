@@ -12,6 +12,7 @@ from typing import (
     Optional,
     TypeVar,
     Union,
+    cast,
 )
 from uuid import UUID
 
@@ -123,7 +124,7 @@ class NodeGraphBase(abc.ABC, Generic[SomeNodeT, IdT]):
 class NodeGraph(NodeGraphBase[NodeT, UUID]):
     """A graph of Nodes with ids."""
 
-    def __init__(self, nodes: Collection[NodeT] | "NodeGraph" = None):
+    def __init__(self, nodes: Collection[NodeT] | "NodeGraph" | None = None):
         self.nodes_by_id: dict[UUID, NodeT] = {}
         self.nodes_by_ck: dict[UUID, NodeT] = {}  # most nodes have a ck as well
         self.nodes_by_parent_id_and_type: dict[tuple[UUID, NodeType], list[NodeT]] = defaultdict(
@@ -258,9 +259,9 @@ class NodeDataGraph(NodeGraphBase[NodeDataT, str]):
     def __init__(self, nodes: Collection[NodeDataT] | None = None):
         self.nodes_by_id: dict[str, NodeDataT] = {}
         self.nodes_by_ck: dict[str, NodeDataT] = {}  # *most* nodes have a 'ck'
-        self.nodes_by_parent_id_and_type: dict[
-            tuple[str, wire.NodeType], list[NodeDataT]
-        ] = defaultdict(list)
+        self.nodes_by_parent_id_and_type: dict[tuple[str, wire.NodeType], list[NodeDataT]] = (
+            defaultdict(list)
+        )
         if isinstance(nodes, Collection):
             for node in nodes:
                 self.add(node)
@@ -294,7 +295,7 @@ class NodeDataGraph(NodeGraphBase[NodeDataT, str]):
             )
         self.nodes_by_id[node.id] = node
         if hasattr(node, "ck"):
-            self.nodes_by_ck[node.ck] = node
+            self.nodes_by_ck[getattr(node, "ck")] = node
         if node.parent_ptr is not None:
             self.nodes_by_parent_id_and_type[(node.parent_ptr.id, node.metatype)].append(node)
 
@@ -305,7 +306,7 @@ class NodeDataGraph(NodeGraphBase[NodeDataT, str]):
             raise ValueError(f"node {node!r} does not exist in {self!r}")
         self.nodes_by_id[node.id] = node
         if hasattr(node, "ck"):
-            self.nodes_by_ck[node.ck] = node
+            self.nodes_by_ck[getattr(node, "ck")] = node
         if old.parent_ptr is not None:
             self.nodes_by_parent_id_and_type[(old.parent_ptr.id, old.metatype)].remove(old)
         if node.parent_ptr is not None:
@@ -320,7 +321,7 @@ class NodeDataGraph(NodeGraphBase[NodeDataT, str]):
             node = queue.popleft()
             self.nodes_by_id.pop(node.id, None)
             if hasattr(node, "ck"):
-                self.nodes_by_ck.pop(node.ck, None)
+                self.nodes_by_ck.pop(getattr(node, "ck"), None)
             for child in self.nodes_by_parent_id_and_type.get((node.id, node.metatype), ()):
                 self.nodes_by_id.pop(child.id, None)
                 if child is not None:
@@ -528,11 +529,12 @@ class NodeList(abc.ABC, Collection[NodeT], Generic[NodeT]):
             kwargs["name"] = generate_node_name(node_metatype, kwargs.get("type"), self)
         # set new node status to source to prevent activation before it's appended
         if hasattr(node_cls, "new"):
-            node = node_cls.new(
+            node = getattr(node_cls, "new")(
                 *args, **kwargs, for_parent=self._parent, _status=InterpStatus.SOURCE
             )
         else:
             node = node_cls(*args, **kwargs, _status=InterpStatus.SOURCE)
+        node = cast(NodeT, node)
         self.append(node)
         return node
 
@@ -814,8 +816,10 @@ def edit_graph(graph: NodeGraph, options: "ReadOptions", edits: Collection[EditD
     for edit in edits:
         node_data = wiring.unwrap_some_node(edit.node)
         node_id = to_uuid(node_data.id)
+        if node_id is None:
+            raise ValueError(f"invalid node id in edit ${edit!r}: {node_data}")
 
-        edit_type = edit.type  # remap edit according to read options
+        edit_type = cast(EditType, edit.type)  # remap edit according to read options
         if options.include_hidden:
             edit_type = _INCLUDE_HIDDEN_EDIT_TYPE_REMAP.get(edit_type, edit_type)
         else:
@@ -823,7 +827,7 @@ def edit_graph(graph: NodeGraph, options: "ReadOptions", edits: Collection[EditD
 
         if edit_type == EditType.CREATE or edit_type == EditType.UPSERT and node_id not in graph:
             if node_data.parent_ptr is not None:
-                parent = graph.get(to_uuid(node_data.parent_ptr.id))
+                parent = graph.get(UUID(node_data.parent_ptr.id))
             else:
                 parent = None
             node = wiring.unpack_node(node_data, parent)
@@ -849,7 +853,7 @@ def edit_data_graph(
     for edit in edits:
         node_data = wiring.unwrap_some_node(edit.node)
 
-        edit_type = edit.type  # remap edit according to read options
+        edit_type = cast(EditType, edit.type)  # remap edit according to read options
         if options.include_hidden:
             edit_type = _INCLUDE_HIDDEN_EDIT_TYPE_REMAP.get(edit_type, edit_type)
         else:
@@ -864,7 +868,7 @@ def edit_data_graph(
         elif edit_type == EditType.DELETE:
             graph.remove(node_data)
         else:  # some update
-            node_cls = NODE_CLASS_BY_TYPE[edit.node_type]
+            node_cls = NODE_CLASS_BY_TYPE[cast(NodeType, edit.node_type)]
             if edit_type in (EditType.UPDATE, EditType.MOVE):
                 properties = edit.properties
             elif edit_type in (EditType.ARCHIVE, EditType.UNARCHIVE):

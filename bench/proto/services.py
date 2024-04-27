@@ -25,6 +25,7 @@ from bench.language import ValidationError
 from bench.language.access import AccessError, Request, Subject
 from bench.language.const import BenchError, PolicyEffect
 from bench.language.query import NodeNotFoundError
+from bench.proto.monkey import _PatchedRpcMetadata
 from bench.proto.wire import RpcMetadata
 from bench.proto.wiring import BENCH_CLASS_BY_PROTO_CLASS
 from bench.sql.engine import SqlAlreadyExistsError, SqlNotExistsError
@@ -71,7 +72,7 @@ class BenchServiceBase(Generic[StubT]):
     @property
     def loopback(self) -> StubT:
         if self._loopback_stub is not None:
-            return self._loopback_stub
+            return cast(StubT, self._loopback_stub)
         elif self._needs_loopback_stub is None:
             raise RuntimeError(f"loopback stub not configured for {self!r}")
         else:
@@ -129,14 +130,15 @@ class BenchServiceBase(Generic[StubT]):
         # ensure every Bench struct has its metatype set
         struct_cls = BENCH_CLASS_BY_PROTO_CLASS.get(cast(Any, message.__class__))
         if struct_cls is not None:
-            if message.metatype is None:  # type: ignore
+            metatype = getattr(message, "metatype", None)
+            if metatype is None:  # type: ignore
                 raise ValidationError(
                     message, f"missing metatype for {message.__class__.__name__} at {path}"
                 )
-            if message.metatype != struct_cls.metatype:  # type: ignore
+            if metatype != struct_cls.metatype:  # type: ignore
                 raise ValidationError(
                     message,
-                    f"invalid metatype {message.metatype} for {message.__class__.__name__} at {path}",
+                    f"invalid metatype {metatype} for {message.__class__.__name__} at {path}",
                 )
 
         # walk message recursively
@@ -145,13 +147,12 @@ class BenchServiceBase(Generic[StubT]):
             field_is_repeated = defaults[field_name] is list
             if field.proto_type == betterproto.TYPE_MESSAGE:
                 value = getattr(message, field_name)
+                inner_path = path + (field_name,)
                 if isinstance(value, betterproto.Message):
-                    inner_path = path + (field_name,)
-                    if field_is_repeated:
-                        for sub_message in value:
-                            self._validate_message(sub_message, inner_path)
-                    elif value is not None:
-                        self._validate_message(value, inner_path)
+                    self._validate_message(value, inner_path)
+                elif field_is_repeated:
+                    for sub_message in value:
+                        self._validate_message(sub_message, inner_path)
 
     def _validate_request_self(self, subject: Subject, request: betterproto.Message) -> None:
         """Validate a request message for this service."""
@@ -174,18 +175,20 @@ class BenchServiceBase(Generic[StubT]):
             log = logger.bind(service=self, method=method)
             try:
                 # prepare
-                metadata = RpcMetadata().from_headers(stream.metadata)
+                metadata: RpcMetadata = (cast(_PatchedRpcMetadata, RpcMetadata())).from_headers(
+                    stream.metadata or {}
+                )
                 subject = await get_subject_from_metadata(metadata)
                 log = log.bind(subject=subject)
 
                 # call
                 if cardinality == grpclib.const.Cardinality.UNARY_UNARY:
-                    request = await stream.recv_message()
+                    request = cast(betterproto.Message, await stream.recv_message())
                     self._validate_request(subject, request)
                     response = await func(subject, request)
                     await stream.send_message(response)
                 elif cardinality == grpclib.const.Cardinality.UNARY_STREAM:
-                    request = await stream.recv_message()
+                    request = cast(betterproto.Message, await stream.recv_message())
                     self._validate_request(subject, request)
                     async for response in func(subject, request):
                         log.trace(f"{rpc_name}.stream", response=response)
@@ -230,8 +233,7 @@ class MonitoredServiceBase(BenchServiceBase, Monitored):
 class BenchServer(grpclib.server.Server):
     """gRPC server with extra bells and whistles."""
 
-    @functools.wraps(grpclib.server.Server.__init__)
-    def __init__(self, handlers: Collection["IServable"], **kwargs):  # type: ignore
+    def __init__(self, handlers: Collection["IServable"], **kwargs):
         super().__init__(handlers, **kwargs)
         self._services: tuple[BenchServiceBase, ...] = tuple(
             h for h in handlers if isinstance(h, BenchServiceBase)
@@ -245,8 +247,7 @@ class BenchServer(grpclib.server.Server):
     def __repr__(self):
         return f"<BenchServer {self}>"
 
-    @functools.wraps(grpclib.server.Server.start)
-    async def start(self, host: str | None = None, port: int | None = None, **kwargs) -> None:  # type: ignore
+    async def start(self, host: str | None = None, port: int | None = None, **kwargs) -> None:
         self._host = host
         self._port = port
         logger.info("server.start", server=self)
@@ -260,7 +261,6 @@ class BenchServer(grpclib.server.Server):
             task.close()
         super().close()
 
-    @functools.wraps(grpclib.server.Server.wait_closed)  # type: ignore
     async def wait_closed(self) -> None:
         await super().wait_closed()
         await asyncio.gather(*(h.wait_closed() for h in self._services))

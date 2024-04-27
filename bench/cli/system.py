@@ -1,7 +1,7 @@
 import structlog
 import typer
 
-from bench.cli.utils import _async_to_sync_blocking, _check_is_consistent
+from bench.cli.utils import async_to_sync_blocking, _check_is_consistent
 from bench.language import Bench, Region, User
 from bench.language.const import NodeType, UserStatus
 from bench.system.client import global_session
@@ -13,13 +13,13 @@ logger = structlog.get_logger(__name__)
 
 
 @app.command(help="check whether the current Bench state is properly migrated")
-@_async_to_sync_blocking
+@async_to_sync_blocking
 async def check(check_db: bool = False):
     await _check_is_consistent(check_db=check_db)
 
 
 @app.command(help="create 'bench' and 'system' Benches (owned by 'system' User)")
-@_async_to_sync_blocking
+@async_to_sync_blocking
 async def bootstrap(region: Region = Region.EUROPE_CENTRAL):
     async with global_session() as session:
         system_user = User(
@@ -42,8 +42,8 @@ async def bootstrap(region: Region = Region.EUROPE_CENTRAL):
 
 
 @app.command(help="provision all (pending) resources for a Bench")
-@_async_to_sync_blocking
-async def provision(bench: str):
+@async_to_sync_blocking
+async def provision(bench: str):  # type: ignore
     async with global_session() as session:
         bench: Bench = await Bench.descendants(
             NodeType.SERVER, NodeType.STORE, NodeType.DRIVE, NodeType.CACHE

@@ -26,7 +26,7 @@ from bench.language.const import (
     StructType,
     UseType,
 )
-from bench.language.expression import C, Expression
+from bench.language.expression import C, Expression, NodeReference
 from bench.language.graph import NodeDataGraph, NodeGraph, NodeList
 from bench.language.node import NODE_CLASS_BY_TYPE, Node, Struct, _on_completing_setup, node, struct
 from bench.language.notice import NoticeHandler
@@ -88,7 +88,7 @@ LEGISLATIVE_NODE_TYPES: bytetuple[NodeType] = bytetuple(
 @_on_completing_setup
 def _check_legislative_types():
     actual_legislative_node_types: bytetuple[NodeType] = bytetuple(
-        tuple(nt for nt in NODE_TYPES if "policies" in NODE_CLASS_BY_TYPE[nt].__properties__)
+        *tuple(nt for nt in NODE_TYPES if "policies" in NODE_CLASS_BY_TYPE[nt].__properties__)
     )
     assert actual_legislative_node_types.bits == LEGISLATIVE_NODE_TYPES.bits
 
@@ -704,21 +704,21 @@ class AccessError(BenchError, ValueError):
 
 SYSTEM_POLICIES: tuple[Policy, ...] = (
     # NOTE: all policies (incl. these base policies) and their rules are evaluated in order
-    Policy("SystemProtection").append(
+    Policy(name="SystemProtection").append(
         PolicyRule(
-            "CannotAccessKernelProperties",
+            name="CannotAccessKernelProperties",
             text=Text.plain("Kernel properties are inaccessible outside of the system."),
         )
         .deny()
         .object(properties_is_kernel=True),
         PolicyRule(
-            "CannotUpdateSystemProperties",
+            name="CannotUpdateSystemProperties",
             text=Text.plain("System properties must be edited through designated methods."),
         )
         .deny(EditType.UPDATE)
         .object(properties_is_system=True),
         PolicyRule(
-            "CannotCreateOrDeleteSystemNodesDirectly",
+            name="CannotCreateOrDeleteSystemNodesDirectly",
             text=Text.plain("System nodes existence must be managed through special methods."),
         )
         .deny(
@@ -732,7 +732,7 @@ SYSTEM_POLICIES: tuple[Policy, ...] = (
         )
         .object(node_types=(*ROOT_NODE_TYPES.tuple, NodeType.CLIENT)),
         PolicyRule(
-            "CannotEditHandles",
+            name="CannotEditHandles",
             text=Text.plain(
                 "Handles (like usernames) must be edited through special methods."
                 # (explicitly deny this since handles are owned by the root via OwnerAccess)
@@ -741,7 +741,7 @@ SYSTEM_POLICIES: tuple[Policy, ...] = (
         .deny(AccessKind.EDIT)
         .object(node_types=(NodeType.HANDLE,)),
         PolicyRule(
-            "CannotUpsertLegislativeNodes",
+            name="CannotUpsertLegislativeNodes",
             text=Text.plain(
                 "Nodes that define their own policies cannot be upserted to prevent ambiguities in evaluation."
                 # (we could do it, but it would be confusing and tedious)
@@ -750,25 +750,25 @@ SYSTEM_POLICIES: tuple[Policy, ...] = (
         .deny(EditType.UPSERT)
         .object(node_types=LEGISLATIVE_NODE_TYPES.tuple),
     ),
-    Policy("OwnerAccess").append(
+    Policy(name="OwnerAccess").append(
         PolicyRule(
-            "OwnerCanDoAnything",
+            name="OwnerCanDoAnything",
             text=Text.plain("Anyone identified as the owner of a node can always do everything."),
         )
         .subject(is_owner=True)
         .allow(),
     ),
-    Policy("StaffAccess").append(
+    Policy(name="StaffAccess").append(
         PolicyRule(
-            "StaffCanReadAnythingDuringBeta",
+            name="StaffCanReadAnythingDuringBeta",
             text=Text.plain("During the beta, staff users can access anything."),
         )
         .subject(is_staff=True)
         .allow(AccessKind.READ),
     ),
-    Policy("MemberAccess").append(
+    Policy(name="MemberAccess").append(
         PolicyRule(
-            "MemberCanReadBench",
+            name="MemberCanReadBench",
             text=Text.plain(
                 "Every member of your Bench/Organization can read its non-sensitive properties."
             ),
@@ -780,9 +780,9 @@ SYSTEM_POLICIES: tuple[Policy, ...] = (
             properties_is_sensitive=False,
         )
     ),
-    Policy("AuthenticatedAccess").append(
+    Policy(name="AuthenticatedAccess").append(
         PolicyRule(
-            "AuthenticatedCanReadPublic",
+            name="AuthenticatedCanReadPublic",
             text=Text.plain(
                 "Authenticated users can read public nodes like User, Organization, Bench, etc.."
             ),
@@ -791,9 +791,9 @@ SYSTEM_POLICIES: tuple[Policy, ...] = (
         .allow(AccessKind.READ)
         .object(node_types=PUBLIC_NODE_TYPES.tuple, properties_is_sensitive=False),
     ),
-    Policy("AnonymousAccess").append(
+    Policy(name="AnonymousAccess").append(
         PolicyRule(
-            "AnonCanReadHandle",
+            name="AnonCanReadHandle",
             text=Text.plain(
                 "Everyone (incl. anonymous users) can read Handles (to create an account)."
             ),
@@ -823,7 +823,7 @@ def adapt_read_options(
 
     from bench.language.bench import Bench
 
-    options: ReadOptions = options.copy()
+    options = options.copy()
 
     # query ancestors up to root
     for ancestor_type in ANCESTOR_NODE_TYPES[root_node_type]:
@@ -1175,7 +1175,7 @@ def evaluate_and_adapt_read(
                 parent_ptr=n.parent_ptr,
                 revision=n.revision,
                 order_key=getattr(n, "order_key", None),
-                type=n.metatype,
+                reference_ptr=NodeReference.from_node_data(n)
             )
             skips[n.parent_ptr.id] = skip
             visible_nodes.append(skip)

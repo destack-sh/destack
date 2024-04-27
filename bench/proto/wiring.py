@@ -48,8 +48,8 @@ StructDataT = TypeVar("StructDataT", bound=Union[AnyStructData, AnyNodeData])
 
 def copy_data(data: StructDataT) -> StructDataT:
     """Deepcopy a struct data object."""
-    data_cls = PROTO_CLASS_BY_TYPE[data.metatype]
-    bench_cls = BENCH_CLASS_BY_TYPE[data.metatype]
+    data_cls = PROTO_CLASS_BY_TYPE[cast(ObjectType, data.metatype)]
+    bench_cls = BENCH_CLASS_BY_TYPE[cast(ObjectType, data.metatype)]
     data_kwargs = {}
     try:
         for prop in bench_cls.__wired_properties__.values():
@@ -237,7 +237,9 @@ def unpack_node(
         raise ValueError(f"could not unpack {node_data.metatype.name}: {node_data!r}") from e
 
 
-def pack_node_graph(root: Node, exclude: set[NodeType] = None) -> tuple[NodeDataT, list[NodeDataT]]:
+def pack_node_graph(
+    root: Node, exclude: set[NodeType] | tuple[NodeType, ...] = ()
+) -> tuple[NodeDataT, list[NodeDataT]]:
     """Pack a node and all its descendants"""
     exclude = exclude or ()
     packed_by_id: dict[UUID, AnyNodeData] = OrderedDict()
@@ -256,12 +258,12 @@ def unpack_node_graph(
     data_graph: NodeDataGraph,
     parent: Node | None = None,
     session: Session | None = None,
-    exclude: set[NodeType] = None,
+    exclude: set[NodeType] | tuple[NodeType, ...] = (),
 ) -> NodeGraph:
     """Unpacks the node data(s) into a node graph."""
 
+    exclude = exclude or ()
     parent_id = parent.id if parent is not None else None
-    exclude = exclude or tuple()
     unpacked_roots: list[Node] = []
     source_roots = data_graph.find_roots()
     unpacked_graph = NodeGraph()
@@ -297,7 +299,7 @@ def unpack_node_graph(
 
     # index & recover node lists
     for source_root in source_roots:
-        root = unpacked_graph.get(to_uuid(source_root.id))
+        root = unpacked_graph.get(UUID(source_root.id))
         if root is None:
             raise ValueError(f"root {source_root!r} root found in unpacked {unpacked_graph!r}")
         root._graph.set(unpacked_graph.nodes)
@@ -330,7 +332,7 @@ def unpack_roots(
         # recover roots if specified (may not be actual roots)
         recovered_roots = []
         for root in roots:
-            unpacked_root = node_graph.get(to_uuid(root.id))
+            unpacked_root = node_graph.get(UUID(root.id))
             if unpacked_root is not None:
                 recovered_roots.append(unpacked_root)
         return recovered_roots

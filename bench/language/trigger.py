@@ -46,7 +46,7 @@ class Schedule(Struct):
         self, properties: tuple[Property, ...], on_invalid: "ValidationHandler"
     ) -> None:
         if self.type == ScheduleType.CRON:
-            if not croniter.is_valid(self.cron):
+            if not self.cron or not croniter.is_valid(self.cron):
                 on_invalid(self, f"cron: invalid expression ('{self.cron}')", [Schedule.cron])
         elif self.type == ScheduleType.INTERVAL:
             interval = self.interval or 0
@@ -73,9 +73,9 @@ class Trigger(Node):
     # cursor, filter, ...
 
     def __content_str__(self):
-        if self.type == TriggerType.SCHEDULE:
+        if self.type == TriggerType.SCHEDULE and self.schedule:
             content_str = self.schedule.__content_str__()
-        elif self.type == TriggerType.SIGNAL:
+        elif self.type == TriggerType.SIGNAL and self.signal:
             content_str = self.signal.absolute_path
         else:
             content_str = None
@@ -92,7 +92,7 @@ class ScheduleIterator:
         self.last_occurrence_initial: Optional[datetime] = None
         self.next_occurrences_buffer: Deque[datetime] = deque(maxlen=keep)
         # iter state
-        self._next: int | None = None
+        self._next: float | None = None
         self._croniter: croniter | None = None
         self._init()
 
@@ -142,6 +142,7 @@ class ScheduleIterator:
             # timezone doesn't matter here since we use a common origin time
             # will matter once we support in-interval offsets (e.g. every 3 days at 10:00)
         elif self.type == ScheduleType.CRON:
+            assert self._croniter is not None
             next_occurrences = [self._croniter.get_next(datetime) for _ in range(n)]
         else:
             raise ValueError(f"unexpected schedule type in {self.trigger}: {self.type}")

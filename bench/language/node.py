@@ -199,8 +199,11 @@ def _get_component_methods(
     return tuple(methods)
 
 
+_StructT = TypeVar("_StructT", bound="Struct")
+
+
 def _process_struct_base_cls(
-    cls: Union[type["Node"], type["Struct"]],
+    cls: type[_StructT],
     dynamic_components: tuple[type["Node"], ...] = (),
     reserved: set[str | int] | None = None,
     # for nodes only
@@ -212,7 +215,7 @@ def _process_struct_base_cls(
     no_ck: bool = False,
     # for structs only
     is_inlined: bool = False,
-) -> tuple[type["Struct"], dict[str, "Property"]]:
+) -> tuple[type[_StructT], dict[str, "Property"]]:
     """Process a struct base class and return the processed class and its properties."""
     is_node_base = cls.__name__ in "Node"
     is_struct_base = cls.__name__ == "Struct"
@@ -341,18 +344,18 @@ def _process_struct_base_cls(
                     except AttributeError:
                         pass
                 cls.__annotations__.pop(name, None)
-                for name in prop.contributed_props:
-                    _remove_prop(name.name)
+                for contributed_prop in prop.contributed_props:
+                    _remove_prop(contributed_prop.name)
 
         if is_node and not is_sub_bench:
             if cls.__name__ == "Bench":
-                cls.bench = _node_computed_ancestor_prop(properties_by_name["bench"])
+                cls.bench = _node_computed_ancestor_prop(properties_by_name["bench"])  # type: ignore
                 _remove_prop("bench", delete=False)
             else:
                 _remove_prop("bench")
         if is_node and not is_sub_package:
             if cls.__name__ == "Package":
-                cls.package = _node_computed_ancestor_prop(properties_by_name["package"])
+                cls.package = _node_computed_ancestor_prop(properties_by_name["package"])  # type: ignore
                 _remove_prop("package", delete=False)
             else:
                 _remove_prop("package")
@@ -531,14 +534,12 @@ def struct_component(
 def struct(
     struct_type: StructType,
     reserved: set[str | int] | None = None,
-    index_in_search: bool = False,
     inline: bool = False,
 ):
     def decorate(cls: Type[_StructT]) -> Type[_StructT]:
         cls = struct_component(
             struct_type=struct_type, reserved=reserved, is_final=True, is_inlined=inline
         )(cls)
-        cls.__is_indexed_in_search__ = index_in_search
         return cls
 
     return decorate
@@ -587,7 +588,7 @@ def node_component(
                 if cls.__name__ != "Node" and not issubclass(cls, Node) and node_type is not None:
                     raise ValueError(f"{cls} is not a Node for {prop}")
                 list_properties[prop.name] = prop
-                for ref_t in prop.reference_nodes:
+                for ref_t in prop.reference_nodes or ():
                     list_properties_by_child[ref_t].append(prop)
         cls.__node_list_properties__ = frozendict(list_properties)
         cls.__ancestor_properties__ = frozendict(
@@ -671,7 +672,7 @@ def node(
         cls.__extra_indexes__ = tuple(extra_indexes)
         cls.__extra_constraints__ = tuple(extra_constraints)
 
-        cls.__roots__ = bytetuple(roots, enum_cls=NodeType)
+        cls.__roots__ = bytetuple(*roots, enum_cls=NodeType)
         cls.__is_in_package__ = in_package
         cls.__is_sub_package__ = sub_package
         cls.__is_in_bench__ = in_bench
@@ -705,7 +706,7 @@ def _node_computed_ancestor_prop(prop: Property) -> property:
         def get_ancestor_first(self: NodeT) -> Optional[NodeT]:
             parent = self
             while parent is not None:
-                if parent.metatype in prop.reference_nodes:
+                if prop.reference_nodes and parent.metatype in prop.reference_nodes:
                     return parent
                 parent = parent.parent
             return None
@@ -718,7 +719,7 @@ def _node_computed_ancestor_prop(prop: Property) -> property:
             parent = self.parent
             farthest = None
             while parent is not None:
-                if parent.metatype in prop.reference_nodes:
+                if prop.reference_nodes and parent.metatype in prop.reference_nodes:
                     farthest = parent
                 parent = parent.parent
             return farthest
@@ -747,10 +748,12 @@ def _required_prop(prop: Property):
 
 
 def _node_computed_ancestor_ptr_prop(prop: Property) -> property:
+    assert prop.reference_source is not None, f"no source for {prop!r}"
+
     def get_ancestor_ptr(self: NodeT) -> Optional["NodeReference"]:
         from bench.language.expression import NodeReference
 
-        ancestor = getattr(self, prop.reference_source.name)
+        ancestor = getattr(self, cast(Property, prop.reference_source).name)
         if ancestor is None:
             return None
         else:
@@ -835,11 +838,11 @@ class Struct(abc.ABC):
     """
 
     metatype: ClassVar[StructType]  # type discriminator is field 0 if needed?
-    __static_components__: ClassVar[tuple[type["Node"], ...]] = ()
-    __dynamic_components__: ClassVar[tuple[type["Node"], ...]] = ()
+    __static_components__: ClassVar[tuple[type["Node"] | type["Struct"], ...]] = ()
+    __dynamic_components__: ClassVar[tuple[type["Node"] | type["Struct"], ...]] = ()
     __passthrough_targets__: ClassVar[tuple[tuple[str, _Passthrough], ...]] = ()
 
-    __parent_property__: ClassVar[Property] = None
+    __parent_property__: ClassVar[Property] = UNSET
 
     __properties__: ClassVar[dict[str, Property]] = {}
     __own_properties__: ClassVar[dict[str, Property]] = {}
@@ -857,12 +860,12 @@ class Struct(abc.ABC):
     __stored_properties__: ClassVar[dict[str, Property]] = {}
     __wired_properties__: ClassVar[dict[str, Property]] = {}
     __runtime_properties__: ClassVar[dict[str, Property]] = {}
-    __reserved_properties__: ClassVar[set[int | str]] = set()
+    __reserved_properties__: ClassVar[frozenset[int | str]] = frozenset()
     __properties_in_order__: ClassVar[tuple[Property, ...]]
     __properties_id_in_order__: ClassVar[tuple[int, ...]]
-    __max_property_ord__: ClassVar[int] = None
-    __properties_mask_set__: ClassVar[bitarray] = None
-    __properties_mask_unset__: ClassVar[bitarray] = None
+    __max_property_ord__: ClassVar[int] = UNSET
+    __properties_mask_set__: ClassVar[bitarray] = UNSET
+    __properties_mask_unset__: ClassVar[bitarray] = UNSET
 
     __is_struct_only__: ClassVar[bool] = True
     __is_struct_inlined__: ClassVar[bool] = False
@@ -929,7 +932,7 @@ class Struct(abc.ABC):
         return mask
 
     @classmethod
-    def _resolve_property(cls, ptr: "PropertyReference") -> Property | None:
+    def _resolve_property(cls, ptr: "PropertyReference") -> Property:
         prop = cls._get_property(ptr)
         if prop is None:
             raise ValueError(f"unknown property reference: {ptr!r} in {cls!r}")
@@ -941,12 +944,16 @@ class Struct(abc.ABC):
             return cls.__properties_by_id__.get(ptr.id, None)
         else:
             for prop in cls.__stored_properties__.values():
-                if prop.id == ptr.id and prop.reference_nodes[0] == ptr.references_type:
+                if (
+                    prop.id == ptr.id
+                    and prop.reference_nodes
+                    and prop.reference_nodes[0] == ptr.references_type
+                ):
                     return prop
             return None
 
     @property
-    def _components(self) -> tuple[type["Node"], ...]:
+    def _components(self) -> tuple[type["Node"] | type["Struct"], ...]:
         return self.__static_components__
 
     @property
@@ -1033,7 +1040,7 @@ class Struct(abc.ABC):
         did_you_mean = did_you_mean_str(candidates, key)
         raise AttributeError(f"Cannot set '{key}' on {self!r}. {did_you_mean}")
 
-    def __getattr__(self, item):
+    def __getattr__(self, item) -> Any:
         # when using slots so this is not an instance attribute
         attr = UNSET
         # prefer components methods
@@ -1055,7 +1062,7 @@ class Struct(abc.ABC):
         # attribute could be property, method, or just plain value
         if attr is not UNSET:
             if isinstance(attr, property):
-                return attr.fget(self)
+                return attr.fget(self)  # type: ignore
             elif not isinstance(attr, Node) and callable(attr) and not inspect.ismethod(attr):
                 return functools.partial(attr, self)
             else:
@@ -1316,7 +1323,7 @@ class Node(Struct, _NodeQueryBuilder if TYPE_CHECKING else object):
     For sub package nodes the 'id' is derived from the 'ck' per Package, else it's just the id.
     """
 
-    metatype: ClassVar[NodeType]
+    metatype: ClassVar[NodeType]  # type: ignore
     __static_components__: ClassVar[tuple[type["Node"], ...]] = ()
     __dynamic_components__: ClassVar[tuple[type["Node"], ...]] = ()
     __identifier_type__: ClassVar[IdentifierType] = IdentifierType.VARIABLE
@@ -1344,7 +1351,7 @@ class Node(Struct, _NodeQueryBuilder if TYPE_CHECKING else object):
     # NOTE: some node identity props (ck/package/bench/etc.) only exist sometimes :MagicProps
     id: UUID = p_system(2, default=None, require=True, autoset=True)
     ck: UUID = p_system(3, default=None, require=True, autoset=True)
-    parent: Optional["Node"] = p_node_parent(4)
+    parent: Optional["Node"] = p_node_parent(4)  # type: ignore
     # template: Optional["Node"] = node_template(5)
     package: "Package" = p_node_ancestor(
         6, NodeType.PACKAGE, require=True, store=True, wire=True, is_bench_implicit=True
