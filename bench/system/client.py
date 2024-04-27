@@ -3,13 +3,11 @@ from typing import Any, AsyncContextManager
 
 import psycopg
 import structlog
-from opensearchpy import AsyncOpenSearch
 
 from bench.language import Bench, Session, Store, StoreEngineType, StoreKind
 from bench.language.const import GLOBAL_NODE_TYPES, VERSION
 from bench.language.query import PostgresEngine
 from bench.language.resource import Region, ResourceCredential
-from bench.opensearch.client import os_client_to_store
 from bench.sql.client import _PgStoreConnection
 from bench.utils.utils import get_from_env
 
@@ -23,10 +21,6 @@ GLOBAL_PG_PASSWORD = get_from_env("GLOBAL_PG_PASSWORD", default=None)
 USER_PG_HOST = get_from_env("USER_PG_HOST", optional=True)
 USER_PG_USERNAME = get_from_env("USER_PG_USERNAME", optional=True)
 USER_PG_PASSWORD = get_from_env("USER_PG_PASSWORD", optional=True)
-
-USER_OS_HOST = get_from_env("USER_OS_HOST")
-USER_OS_USERNAME = get_from_env("USER_OS_USERNAME")
-USER_OS_PASSWORD = get_from_env("USER_OS_PASSWORD")
 
 GLOBAL_PG_CRYPTO_KEY = get_from_env("GLOBAL_PG_CRYPTO_KEY", default=None)
 SYSTEM_BENCH_STUB = Bench(
@@ -56,16 +50,6 @@ USER_STORE = Store(
     main_credential=ResourceCredential(username=USER_PG_USERNAME, password=USER_PG_PASSWORD),
 )
 
-USER_SEARCH = Store(
-    parent=SYSTEM_BENCH_STUB,
-    name="Global Store",
-    kind=StoreKind.SEARCH,
-    engine=StoreEngineType.OPENSEARCH,
-    version=VERSION,
-    host=USER_OS_HOST,
-    main_credential=ResourceCredential(username=USER_OS_USERNAME, password=USER_OS_PASSWORD),
-)
-
 
 @asynccontextmanager
 async def global_pg_cursor(
@@ -82,12 +66,6 @@ async def user_pg_cursor(
 ) -> AsyncContextManager[psycopg.AsyncCursor[dict[str, Any]]]:
     async with _PgStoreConnection(USER_STORE, database=database, autocommit=autocommit) as cur:
         yield cur
-
-
-@asynccontextmanager
-async def user_os_client() -> AsyncContextManager[AsyncOpenSearch]:
-    async with os_client_to_store(USER_SEARCH) as client:
-        yield client
 
 
 @asynccontextmanager

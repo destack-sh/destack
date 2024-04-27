@@ -71,7 +71,7 @@ def copy_data(data: StructDataT) -> StructDataT:
                 data_kwargs[prop.name] = value
     except (AttributeError, TypeError, ValueError, KeyError) as e:
         raise ValueError(f"could not copy {data.metatype.name}: {data!r}") from e
-    return data_cls(**data_kwargs)
+    return data_cls(**data_kwargs)  # type: ignore
 
 
 def pack_json_struct(value: dict) -> BetterprotoStruct:

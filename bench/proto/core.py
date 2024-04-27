@@ -5,7 +5,7 @@ from dataclasses import dataclass
 from typing import Union
 
 
-class ProtoObject:
+class ProtoThing:
     """Proto thing."""
 
     def to_proto_source(self) -> str:
@@ -14,7 +14,7 @@ class ProtoObject:
 
 
 @dataclass
-class ProtoSchema(ProtoObject):
+class ProtoSchema(ProtoThing):
     """Proto file."""
 
     name: str
@@ -48,7 +48,7 @@ def _to_multi_line_comment(comment: str) -> str:
 
 
 @dataclass
-class Message(ProtoObject):
+class Message(ProtoThing):
     """Proto message."""
 
     name: str
@@ -97,7 +97,7 @@ class FieldType(enum.StrEnum):
 
 
 @dataclass
-class Enum(ProtoObject):
+class Enum(ProtoThing):
     """Proto enum."""
 
     name: str
@@ -119,7 +119,7 @@ class Enum(ProtoObject):
 
 
 @dataclass
-class EnumValue(ProtoObject):
+class EnumValue(ProtoThing):
     """Proto enum value."""
 
     id: int
@@ -131,7 +131,7 @@ class EnumValue(ProtoObject):
 
 
 @dataclass
-class Field(ProtoObject):
+class Field(ProtoThing):
     id: int | None
     name: str
     type: FieldType | Enum | Message | str
@@ -154,7 +154,7 @@ class Field(ProtoObject):
             type = f"{prefix}map<{self.key_type}, {self.value_type}>"
         elif self.type == FieldType.ONE_OF:
             type = f"{prefix}oneof {self.name} {{\n"
-            for sub_field in self.sub_fields:
+            for sub_field in self.sub_fields or ():
                 type += f"  {sub_field.to_proto_source()};\n"
             type += "}"
             return type  # no id for one of

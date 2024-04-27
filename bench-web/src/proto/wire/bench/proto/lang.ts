@@ -2553,7 +2553,7 @@ export interface EnvironmentData {
      */
     storePtr?: NodeReferenceData;
     /**
-     * @generated from protobuf field: symbolx.bench.NodeReferenceData search_ptr = 42;
+     * @generated from protobuf field: optional symbolx.bench.NodeReferenceData search_ptr = 42;
      */
     searchPtr?: NodeReferenceData;
     /**
@@ -15297,7 +15297,7 @@ class EnvironmentData$Type extends MessageType<EnvironmentData> {
                 case /* symbolx.bench.NodeReferenceData store_ptr */ 41:
                     message.storePtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.storePtr);
                     break;
-                case /* symbolx.bench.NodeReferenceData search_ptr */ 42:
+                case /* optional symbolx.bench.NodeReferenceData search_ptr */ 42:
                     message.searchPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.searchPtr);
                     break;
                 case /* optional symbolx.bench.NodeReferenceData analytics_ptr */ 43:
@@ -15382,7 +15382,7 @@ class EnvironmentData$Type extends MessageType<EnvironmentData> {
         /* symbolx.bench.NodeReferenceData store_ptr = 41; */
         if (message.storePtr)
             NodeReferenceData.internalBinaryWrite(message.storePtr, writer.tag(41, WireType.LengthDelimited).fork(), options).join();
-        /* symbolx.bench.NodeReferenceData search_ptr = 42; */
+        /* optional symbolx.bench.NodeReferenceData search_ptr = 42; */
         if (message.searchPtr)
             NodeReferenceData.internalBinaryWrite(message.searchPtr, writer.tag(42, WireType.LengthDelimited).fork(), options).join();
         /* optional symbolx.bench.NodeReferenceData analytics_ptr = 43; */
@@ -23967,7 +23967,7 @@ export const TypeInfoDataInfo: Record<TypeInfoProperty, PropertyInfo> = {
   [TypeInfoProperty.length]: { id: 53, name: 'length', component: ObjectType.TYPE_INFO, kind: 'primitive', primitiveType: PrimitiveType.INT32, isRuntime: true, isWired: true, isStored: true },
   [TypeInfoProperty.precision]: { id: 54, name: 'precision', component: ObjectType.TYPE_INFO, kind: 'primitive', primitiveType: PrimitiveType.INT32, isRuntime: true, isWired: true, isStored: true },
   [TypeInfoProperty.scale]: { id: 55, name: 'scale', component: ObjectType.TYPE_INFO, kind: 'primitive', primitiveType: PrimitiveType.INT32, isRuntime: true, isWired: true, isStored: true },
-  [TypeInfoProperty.defaultPacked]: { id: 58, name: 'default_packed', component: ObjectType.TYPE_INFO, kind: 'primitive', primitiveType: PrimitiveType.JSON, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true, isValuePacked: true },
+  [TypeInfoProperty.defaultPacked]: { id: 58, name: 'default_packed', component: ObjectType.TYPE_INFO, kind: 'primitive', primitiveType: PrimitiveType.JSON, isInternal: true, isRuntime: true, isWired: true, isStored: true, isValuePacked: true },
   [TypeInfoProperty.isList]: { id: 60, name: 'is_list', component: ObjectType.TYPE_INFO, kind: 'primitive', primitiveType: PrimitiveType.BOOLEAN, isRequired: true, isRuntime: true, isWired: true, isStored: true },
   [TypeInfoProperty.isRequired]: { id: 61, name: 'is_required', component: ObjectType.TYPE_INFO, kind: 'primitive', primitiveType: PrimitiveType.BOOLEAN, isRequired: true, isRuntime: true, isWired: true, isStored: true },
   [TypeInfoProperty.isSecret]: { id: 62, name: 'is_secret', component: ObjectType.TYPE_INFO, kind: 'primitive', primitiveType: PrimitiveType.BOOLEAN, isRequired: true, isRuntime: true, isWired: true, isStored: true },
@@ -24158,7 +24158,7 @@ export const ExpressionDataInfo: Record<ExpressionProperty, PropertyInfo> = {
   [ExpressionProperty.fieldPtr]: { id: 31, name: 'field_ptr', component: ObjectType.EXPRESSION, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.FIELD], referenceStruct: StructType.NODE_REFERENCE },
   [ExpressionProperty.propertyPtr]: { id: 32, name: 'property_ptr', component: ObjectType.EXPRESSION, kind: 'primitive', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceStruct: StructType.PROPERTY_REFERENCE },
   [ExpressionProperty.clauses]: { id: 35, name: 'clauses', component: ObjectType.EXPRESSION, kind: 'reference', primitiveType: PrimitiveType.JSON, isList: true, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.EXPRESSION },
-  [ExpressionProperty.valuePacked]: { id: 36, name: 'value_packed', component: ObjectType.EXPRESSION, kind: 'primitive', primitiveType: PrimitiveType.JSON, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true, isValuePacked: true },
+  [ExpressionProperty.valuePacked]: { id: 36, name: 'value_packed', component: ObjectType.EXPRESSION, kind: 'primitive', primitiveType: PrimitiveType.JSON, isInternal: true, isRuntime: true, isWired: true, isStored: true, isValuePacked: true },
   [ExpressionProperty.sortMode]: { id: 37, name: 'sort_mode', component: ObjectType.EXPRESSION, enumType: EnumType.SORT_MODE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRuntime: true, isWired: true, isStored: true },
 }
 export const AggregationDataInfo: Record<AggregationProperty, PropertyInfo> = {
@@ -24364,7 +24364,7 @@ export const EnvironmentDataInfo: Record<EnvironmentProperty, PropertyInfo> = {
   [EnvironmentProperty.policies]: { id: 36, name: 'policies', component: ObjectType.ENVIRONMENT, kind: 'reference', primitiveType: PrimitiveType.JSON, isList: true, isRequired: true, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.POLICY },
   [EnvironmentProperty.serverPtr]: { id: 40, name: 'server_ptr', component: ObjectType.ENVIRONMENT, kind: 'reference', isRequired: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.SERVER], referenceStruct: StructType.NODE_REFERENCE },
   [EnvironmentProperty.storePtr]: { id: 41, name: 'store_ptr', component: ObjectType.ENVIRONMENT, kind: 'reference', isRequired: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.STORE], referenceStruct: StructType.NODE_REFERENCE },
-  [EnvironmentProperty.searchPtr]: { id: 42, name: 'search_ptr', component: ObjectType.ENVIRONMENT, kind: 'reference', isRequired: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.STORE], referenceStruct: StructType.NODE_REFERENCE },
+  [EnvironmentProperty.searchPtr]: { id: 42, name: 'search_ptr', component: ObjectType.ENVIRONMENT, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.STORE], referenceStruct: StructType.NODE_REFERENCE },
   [EnvironmentProperty.analyticsPtr]: { id: 43, name: 'analytics_ptr', component: ObjectType.ENVIRONMENT, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.STORE], referenceStruct: StructType.NODE_REFERENCE },
   [EnvironmentProperty.drivePtr]: { id: 44, name: 'drive_ptr', component: ObjectType.ENVIRONMENT, kind: 'reference', isRequired: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.DRIVE], referenceStruct: StructType.NODE_REFERENCE },
   [EnvironmentProperty.cachePtr]: { id: 45, name: 'cache_ptr', component: ObjectType.ENVIRONMENT, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.CACHE], referenceStruct: StructType.NODE_REFERENCE },
@@ -24561,8 +24561,8 @@ export const BlockDataInfo: Record<BlockProperty, PropertyInfo> = {
   [BlockProperty.text]: { id: 37, name: 'text', component: ObjectType.BLOCK, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.TEXT },
   [BlockProperty.icon]: { id: 38, name: 'icon', component: ObjectType.BLOCK, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.ICON },
   [BlockProperty.visibility]: { id: 39, name: 'visibility', component: ObjectType.BLOCK, enumType: EnumType.NODE_VISIBILITY, kind: 'enum', primitiveType: PrimitiveType.INT16, isRuntime: true, isWired: true, isStored: true },
-  [BlockProperty.valuePacked]: { id: 40, name: 'value_packed', component: ObjectType.BLOCK, kind: 'primitive', primitiveType: PrimitiveType.JSON, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true, isValuePacked: true },
-  [BlockProperty.secretValuePacked]: { id: 41, name: 'secret_value_packed', component: ObjectType.BLOCK, kind: 'primitive', primitiveType: PrimitiveType.JSON, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true, isDeferred: true, isSensitive: true, isEncrypted: true, isValuePacked: true },
+  [BlockProperty.valuePacked]: { id: 40, name: 'value_packed', component: ObjectType.BLOCK, kind: 'primitive', primitiveType: PrimitiveType.JSON, isInternal: true, isRuntime: true, isWired: true, isStored: true, isValuePacked: true },
+  [BlockProperty.secretValuePacked]: { id: 41, name: 'secret_value_packed', component: ObjectType.BLOCK, kind: 'primitive', primitiveType: PrimitiveType.JSON, isInternal: true, isRuntime: true, isWired: true, isStored: true, isDeferred: true, isSensitive: true, isEncrypted: true, isValuePacked: true },
   [BlockProperty.code]: { id: 42, name: 'code', component: ObjectType.BLOCK, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.CODE },
   [BlockProperty.referencePtr]: { id: 43, name: 'reference_ptr', component: ObjectType.BLOCK, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.BLOCK], referenceStruct: StructType.NODE_REFERENCE },
   [BlockProperty.delegatedPolicies]: { id: 44, name: 'delegated_policies', component: ObjectType.BLOCK, kind: 'reference', primitiveType: PrimitiveType.JSON, isList: true, isRequired: true, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.POLICY },
@@ -24614,7 +24614,7 @@ export const FieldDataInfo: Record<FieldProperty, PropertyInfo> = {
   [FieldProperty.orderKey]: { id: 31, name: 'order_key', component: ObjectType.FIELD, kind: 'primitive', primitiveType: PrimitiveType.STRING, isRequired: true, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [FieldProperty.text]: { id: 33, name: 'text', component: ObjectType.FIELD, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.TEXT },
   [FieldProperty.icon]: { id: 34, name: 'icon', component: ObjectType.FIELD, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.ICON },
-  [FieldProperty.valuePacked]: { id: 35, name: 'value_packed', component: ObjectType.FIELD, kind: 'primitive', primitiveType: PrimitiveType.JSON, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true, isValuePacked: true },
+  [FieldProperty.valuePacked]: { id: 35, name: 'value_packed', component: ObjectType.FIELD, kind: 'primitive', primitiveType: PrimitiveType.JSON, isInternal: true, isRuntime: true, isWired: true, isStored: true, isValuePacked: true },
   [FieldProperty.kind]: { id: 36, name: 'kind', component: ObjectType.FIELD, enumType: EnumType.FIELD_KIND, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [FieldProperty.primitiveType]: { id: 40, name: 'primitive_type', component: ObjectType.FIELD, enumType: EnumType.PRIMITIVE_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRuntime: true, isWired: true, isStored: true },
   [FieldProperty.benchType]: { id: 41, name: 'bench_type', component: ObjectType.FIELD, enumType: EnumType.BENCH_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRuntime: true, isWired: true, isStored: true },
@@ -24625,7 +24625,7 @@ export const FieldDataInfo: Record<FieldProperty, PropertyInfo> = {
   [FieldProperty.length]: { id: 53, name: 'length', component: ObjectType.FIELD, kind: 'primitive', primitiveType: PrimitiveType.INT32, isRuntime: true, isWired: true, isStored: true },
   [FieldProperty.precision]: { id: 54, name: 'precision', component: ObjectType.FIELD, kind: 'primitive', primitiveType: PrimitiveType.INT32, isRuntime: true, isWired: true, isStored: true },
   [FieldProperty.scale]: { id: 55, name: 'scale', component: ObjectType.FIELD, kind: 'primitive', primitiveType: PrimitiveType.INT32, isRuntime: true, isWired: true, isStored: true },
-  [FieldProperty.defaultPacked]: { id: 58, name: 'default_packed', component: ObjectType.FIELD, kind: 'primitive', primitiveType: PrimitiveType.JSON, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true, isValuePacked: true },
+  [FieldProperty.defaultPacked]: { id: 58, name: 'default_packed', component: ObjectType.FIELD, kind: 'primitive', primitiveType: PrimitiveType.JSON, isInternal: true, isRuntime: true, isWired: true, isStored: true, isValuePacked: true },
   [FieldProperty.isList]: { id: 60, name: 'is_list', component: ObjectType.FIELD, kind: 'primitive', primitiveType: PrimitiveType.BOOLEAN, isRequired: true, isRuntime: true, isWired: true, isStored: true },
   [FieldProperty.isRequired]: { id: 61, name: 'is_required', component: ObjectType.FIELD, kind: 'primitive', primitiveType: PrimitiveType.BOOLEAN, isRequired: true, isRuntime: true, isWired: true, isStored: true },
   [FieldProperty.isSecret]: { id: 62, name: 'is_secret', component: ObjectType.FIELD, kind: 'primitive', primitiveType: PrimitiveType.BOOLEAN, isRequired: true, isRuntime: true, isWired: true, isStored: true },
@@ -24646,8 +24646,8 @@ export const RecordDataInfo: Record<RecordProperty, PropertyInfo> = {
   [RecordProperty.createdByPtr]: { id: 17, name: 'created_by_ptr', component: ObjectType.RECORD, kind: 'reference', isAutoset: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.USER, NodeType.RUN], referenceStruct: StructType.NODE_REFERENCE },
   [RecordProperty.updatedByPtr]: { id: 18, name: 'updated_by_ptr', component: ObjectType.RECORD, kind: 'reference', isAutoset: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.USER, NodeType.RUN], referenceStruct: StructType.NODE_REFERENCE },
   [RecordProperty.setProperties]: { id: 22, name: 'set_properties', component: ObjectType.RECORD, kind: 'primitive', primitiveType: PrimitiveType.INT32, isList: true, isRequired: true, isRuntime: true, isWired: true, isStored: true },
-  [RecordProperty.valuePacked]: { id: 30, name: 'value_packed', component: ObjectType.RECORD, kind: 'primitive', primitiveType: PrimitiveType.JSON, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true, isValuePacked: true },
-  [RecordProperty.secretValuePacked]: { id: 31, name: 'secret_value_packed', component: ObjectType.RECORD, kind: 'primitive', primitiveType: PrimitiveType.JSON, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true, isDeferred: true, isSensitive: true, isEncrypted: true, isValuePacked: true },
+  [RecordProperty.valuePacked]: { id: 30, name: 'value_packed', component: ObjectType.RECORD, kind: 'primitive', primitiveType: PrimitiveType.JSON, isInternal: true, isRuntime: true, isWired: true, isStored: true, isValuePacked: true },
+  [RecordProperty.secretValuePacked]: { id: 31, name: 'secret_value_packed', component: ObjectType.RECORD, kind: 'primitive', primitiveType: PrimitiveType.JSON, isInternal: true, isRuntime: true, isWired: true, isStored: true, isDeferred: true, isSensitive: true, isEncrypted: true, isValuePacked: true },
 }
 export const QueryDataInfo: Record<QueryProperty, PropertyInfo> = {
   [QueryProperty.metatype]: { id: 1, name: 'metatype', component: ObjectType.QUERY, enumType: EnumType.OBJECT_TYPE, kind: 'enum', primitiveType: PrimitiveType.STRING, isRequired: true, isInternal: true, isComputed: true, isWired: true },
@@ -24695,7 +24695,7 @@ export const ViewDataInfo: Record<ViewProperty, PropertyInfo> = {
   [ViewProperty.orderKey]: { id: 34, name: 'order_key', component: ObjectType.VIEW, kind: 'primitive', primitiveType: PrimitiveType.STRING, isRequired: true, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [ViewProperty.icon]: { id: 35, name: 'icon', component: ObjectType.VIEW, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.ICON },
   [ViewProperty.valueType]: { id: 40, name: 'value_type', component: ObjectType.VIEW, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.TYPE_INFO },
-  [ViewProperty.valuePacked]: { id: 41, name: 'value_packed', component: ObjectType.VIEW, kind: 'primitive', primitiveType: PrimitiveType.JSON, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true, isValuePacked: true },
+  [ViewProperty.valuePacked]: { id: 41, name: 'value_packed', component: ObjectType.VIEW, kind: 'primitive', primitiveType: PrimitiveType.JSON, isInternal: true, isRuntime: true, isWired: true, isStored: true, isValuePacked: true },
   [ViewProperty.nodePtr]: { id: 42, name: 'node_ptr', component: ObjectType.VIEW, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.DEPENDENCY, NodeType.UPGRADE, NodeType.SPACE, NodeType.SKIP, NodeType.NOTICE, NodeType.BLOCK, NodeType.TRIGGER, NodeType.FIELD, NodeType.RECORD, NodeType.QUERY, NodeType.VIEW, NodeType.STEP, NodeType.BADGE, NodeType.ROLE, NodeType.IDENTITY, NodeType.MEMBERSHIP, NodeType.INVITE], referenceStruct: StructType.NODE_REFERENCE },
   [ViewProperty.variant]: { id: 50, name: 'variant', component: ObjectType.VIEW, enumType: EnumType.VARIANT, kind: 'enum', primitiveType: PrimitiveType.INT16, isRuntime: true, isWired: true, isStored: true },
   [ViewProperty.font]: { id: 51, name: 'font', component: ObjectType.VIEW, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.FONT },
@@ -24737,8 +24737,8 @@ export const StepDataInfo: Record<StepProperty, PropertyInfo> = {
   [StepProperty.code]: { id: 35, name: 'code', component: ObjectType.STEP, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.CODE },
   [StepProperty.connections]: { id: 36, name: 'connections', component: ObjectType.STEP, kind: 'reference', primitiveType: PrimitiveType.JSON, isList: true, isRequired: true, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.STEP_CONNECTION },
   [StepProperty.valueType]: { id: 40, name: 'value_type', component: ObjectType.STEP, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.TYPE_INFO },
-  [StepProperty.valuePacked]: { id: 41, name: 'value_packed', component: ObjectType.STEP, kind: 'primitive', primitiveType: PrimitiveType.JSON, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true, isValuePacked: true },
-  [StepProperty.secretValuePacked]: { id: 42, name: 'secret_value_packed', component: ObjectType.STEP, kind: 'primitive', primitiveType: PrimitiveType.JSON, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true, isDeferred: true, isSensitive: true, isEncrypted: true, isValuePacked: true },
+  [StepProperty.valuePacked]: { id: 41, name: 'value_packed', component: ObjectType.STEP, kind: 'primitive', primitiveType: PrimitiveType.JSON, isInternal: true, isRuntime: true, isWired: true, isStored: true, isValuePacked: true },
+  [StepProperty.secretValuePacked]: { id: 42, name: 'secret_value_packed', component: ObjectType.STEP, kind: 'primitive', primitiveType: PrimitiveType.JSON, isInternal: true, isRuntime: true, isWired: true, isStored: true, isDeferred: true, isSensitive: true, isEncrypted: true, isValuePacked: true },
   [StepProperty.nodePtr]: { id: 43, name: 'node_ptr', component: ObjectType.STEP, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.BLOCK], referenceStruct: StructType.NODE_REFERENCE },
   [StepProperty.condition]: { id: 46, name: 'condition', component: ObjectType.STEP, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.EXPRESSION },
 }
@@ -24890,12 +24890,12 @@ export const RunDataInfo: Record<RunProperty, PropertyInfo> = {
   [RunProperty.terminatedAt]: { id: 37, name: 'terminated_at', component: ObjectType.RUN, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [RunProperty.duration]: { id: 38, name: 'duration', component: ObjectType.RUN, kind: 'primitive', primitiveType: PrimitiveType.FLOAT32, isRequired: true, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [RunProperty.status]: { id: 39, name: 'status', component: ObjectType.RUN, enumType: EnumType.RUN_STATUS, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isRuntime: true, isWired: true, isStored: true },
-  [RunProperty.inputsPacked]: { id: 50, name: 'inputs_packed', component: ObjectType.RUN, kind: 'primitive', primitiveType: PrimitiveType.JSON, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true, isValuePacked: true },
-  [RunProperty.inputsSecretPacked]: { id: 51, name: 'inputs_secret_packed', component: ObjectType.RUN, kind: 'primitive', primitiveType: PrimitiveType.JSON, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true, isDeferred: true, isSensitive: true, isEncrypted: true, isValuePacked: true },
-  [RunProperty.outputsPacked]: { id: 52, name: 'outputs_packed', component: ObjectType.RUN, kind: 'primitive', primitiveType: PrimitiveType.JSON, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true, isValuePacked: true },
-  [RunProperty.outputsSecretPacked]: { id: 53, name: 'outputs_secret_packed', component: ObjectType.RUN, kind: 'primitive', primitiveType: PrimitiveType.JSON, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true, isDeferred: true, isSensitive: true, isEncrypted: true, isValuePacked: true },
-  [RunProperty.valuePacked]: { id: 54, name: 'value_packed', component: ObjectType.RUN, kind: 'primitive', primitiveType: PrimitiveType.JSON, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true, isValuePacked: true },
-  [RunProperty.valueSecretPacked]: { id: 55, name: 'value_secret_packed', component: ObjectType.RUN, kind: 'primitive', primitiveType: PrimitiveType.JSON, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true, isDeferred: true, isSensitive: true, isEncrypted: true, isValuePacked: true },
+  [RunProperty.inputsPacked]: { id: 50, name: 'inputs_packed', component: ObjectType.RUN, kind: 'primitive', primitiveType: PrimitiveType.JSON, isInternal: true, isRuntime: true, isWired: true, isStored: true, isValuePacked: true },
+  [RunProperty.inputsSecretPacked]: { id: 51, name: 'inputs_secret_packed', component: ObjectType.RUN, kind: 'primitive', primitiveType: PrimitiveType.JSON, isInternal: true, isRuntime: true, isWired: true, isStored: true, isDeferred: true, isSensitive: true, isEncrypted: true, isValuePacked: true },
+  [RunProperty.outputsPacked]: { id: 52, name: 'outputs_packed', component: ObjectType.RUN, kind: 'primitive', primitiveType: PrimitiveType.JSON, isInternal: true, isRuntime: true, isWired: true, isStored: true, isValuePacked: true },
+  [RunProperty.outputsSecretPacked]: { id: 53, name: 'outputs_secret_packed', component: ObjectType.RUN, kind: 'primitive', primitiveType: PrimitiveType.JSON, isInternal: true, isRuntime: true, isWired: true, isStored: true, isDeferred: true, isSensitive: true, isEncrypted: true, isValuePacked: true },
+  [RunProperty.valuePacked]: { id: 54, name: 'value_packed', component: ObjectType.RUN, kind: 'primitive', primitiveType: PrimitiveType.JSON, isInternal: true, isRuntime: true, isWired: true, isStored: true, isValuePacked: true },
+  [RunProperty.valueSecretPacked]: { id: 55, name: 'value_secret_packed', component: ObjectType.RUN, kind: 'primitive', primitiveType: PrimitiveType.JSON, isInternal: true, isRuntime: true, isWired: true, isStored: true, isDeferred: true, isSensitive: true, isEncrypted: true, isValuePacked: true },
   [RunProperty.error]: { id: 56, name: 'error', component: ObjectType.RUN, kind: 'primitive', primitiveType: PrimitiveType.JSON, isInternal: true, isRuntime: true, isWired: true, isStored: true },
 }
 export const PauseDataInfo: Record<PauseProperty, PropertyInfo> = {
@@ -24934,8 +24934,8 @@ export const SignalDataInfo: Record<SignalProperty, PropertyInfo> = {
   [SignalProperty.setProperties]: { id: 22, name: 'set_properties', component: ObjectType.SIGNAL, kind: 'primitive', primitiveType: PrimitiveType.INT32, isList: true, isRequired: true, isRuntime: true, isWired: true, isStored: true },
   [SignalProperty.typePtr]: { id: 31, name: 'type_ptr', component: ObjectType.SIGNAL, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.BLOCK], referenceStruct: StructType.NODE_REFERENCE },
   [SignalProperty.senderPtr]: { id: 33, name: 'sender_ptr', component: ObjectType.SIGNAL, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.BLOCK], referenceStruct: StructType.NODE_REFERENCE },
-  [SignalProperty.valuePacked]: { id: 34, name: 'value_packed', component: ObjectType.SIGNAL, kind: 'primitive', primitiveType: PrimitiveType.JSON, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true, isValuePacked: true },
-  [SignalProperty.secretValuePacked]: { id: 35, name: 'secret_value_packed', component: ObjectType.SIGNAL, kind: 'primitive', primitiveType: PrimitiveType.JSON, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true, isDeferred: true, isSensitive: true, isEncrypted: true, isValuePacked: true },
+  [SignalProperty.valuePacked]: { id: 34, name: 'value_packed', component: ObjectType.SIGNAL, kind: 'primitive', primitiveType: PrimitiveType.JSON, isInternal: true, isRuntime: true, isWired: true, isStored: true, isValuePacked: true },
+  [SignalProperty.secretValuePacked]: { id: 35, name: 'secret_value_packed', component: ObjectType.SIGNAL, kind: 'primitive', primitiveType: PrimitiveType.JSON, isInternal: true, isRuntime: true, isWired: true, isStored: true, isDeferred: true, isSensitive: true, isEncrypted: true, isValuePacked: true },
 }
 export const LogDataInfo: Record<LogProperty, PropertyInfo> = {
   [LogProperty.metatype]: { id: 1, name: 'metatype', component: ObjectType.LOG, enumType: EnumType.OBJECT_TYPE, kind: 'enum', primitiveType: PrimitiveType.STRING, isRequired: true, isInternal: true, isComputed: true, isWired: true },
@@ -24958,7 +24958,7 @@ export const LogDataInfo: Record<LogProperty, PropertyInfo> = {
   [LogProperty.event]: { id: 33, name: 'event', component: ObjectType.LOG, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [LogProperty.message]: { id: 34, name: 'message', component: ObjectType.LOG, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [LogProperty.text]: { id: 35, name: 'text', component: ObjectType.LOG, kind: 'reference', primitiveType: PrimitiveType.JSON, isInternal: true, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.TEXT },
-  [LogProperty.valuePacked]: { id: 36, name: 'value_packed', component: ObjectType.LOG, kind: 'primitive', primitiveType: PrimitiveType.JSON, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true, isValuePacked: true },
+  [LogProperty.valuePacked]: { id: 36, name: 'value_packed', component: ObjectType.LOG, kind: 'primitive', primitiveType: PrimitiveType.JSON, isInternal: true, isRuntime: true, isWired: true, isStored: true, isValuePacked: true },
   [LogProperty.request]: { id: 37, name: 'request', component: ObjectType.LOG, kind: 'reference', primitiveType: PrimitiveType.JSON, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.REQUEST },
   [LogProperty.sessionPtr]: { id: 40, name: 'session_ptr', component: ObjectType.LOG, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.SESSION], referenceStruct: StructType.NODE_REFERENCE },
   [LogProperty.runPtr]: { id: 41, name: 'run_ptr', component: ObjectType.LOG, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.RUN], referenceStruct: StructType.NODE_REFERENCE },
@@ -24987,8 +24987,8 @@ export const NotificationDataInfo: Record<NotificationProperty, PropertyInfo> = 
   [NotificationProperty.senderPtr]: { id: 35, name: 'sender_ptr', component: ObjectType.NOTIFICATION, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.BLOCK], referenceStruct: StructType.NODE_REFERENCE },
   [NotificationProperty.title]: { id: 40, name: 'title', component: ObjectType.NOTIFICATION, kind: 'primitive', primitiveType: PrimitiveType.STRING, isRuntime: true, isWired: true, isStored: true },
   [NotificationProperty.text]: { id: 41, name: 'text', component: ObjectType.NOTIFICATION, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.TEXT },
-  [NotificationProperty.valuePacked]: { id: 42, name: 'value_packed', component: ObjectType.NOTIFICATION, kind: 'primitive', primitiveType: PrimitiveType.JSON, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true, isValuePacked: true },
-  [NotificationProperty.secretValuePacked]: { id: 43, name: 'secret_value_packed', component: ObjectType.NOTIFICATION, kind: 'primitive', primitiveType: PrimitiveType.JSON, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true, isDeferred: true, isSensitive: true, isEncrypted: true, isValuePacked: true },
+  [NotificationProperty.valuePacked]: { id: 42, name: 'value_packed', component: ObjectType.NOTIFICATION, kind: 'primitive', primitiveType: PrimitiveType.JSON, isInternal: true, isRuntime: true, isWired: true, isStored: true, isValuePacked: true },
+  [NotificationProperty.secretValuePacked]: { id: 43, name: 'secret_value_packed', component: ObjectType.NOTIFICATION, kind: 'primitive', primitiveType: PrimitiveType.JSON, isInternal: true, isRuntime: true, isWired: true, isStored: true, isDeferred: true, isSensitive: true, isEncrypted: true, isValuePacked: true },
 }
 export const ServerDataInfo: Record<ServerProperty, PropertyInfo> = {
   [ServerProperty.metatype]: { id: 1, name: 'metatype', component: ObjectType.SERVER, enumType: EnumType.OBJECT_TYPE, kind: 'enum', primitiveType: PrimitiveType.STRING, isRequired: true, isInternal: true, isComputed: true, isWired: true },

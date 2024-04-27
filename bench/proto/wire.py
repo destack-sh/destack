@@ -2090,7 +2090,7 @@ class EnvironmentData(betterproto.Message):
     policies: List["PolicyData"] = betterproto.message_field(36)
     server_ptr: "NodeReferenceData" = betterproto.message_field(40)
     store_ptr: "NodeReferenceData" = betterproto.message_field(41)
-    search_ptr: "NodeReferenceData" = betterproto.message_field(42)
+    search_ptr: Optional["NodeReferenceData"] = betterproto.message_field(42, optional=True)
     analytics_ptr: Optional["NodeReferenceData"] = betterproto.message_field(43, optional=True)
     drive_ptr: "NodeReferenceData" = betterproto.message_field(44)
     cache_ptr: Optional["NodeReferenceData"] = betterproto.message_field(45, optional=True)
@@ -4812,7 +4812,7 @@ class RuntimeBase(ServiceBase):
 
 from typing import TYPE_CHECKING  # noqa: E402
 
-VERSION = "2024.04.26.0"
+VERSION = "2024.04.27.0"
 
 if TYPE_CHECKING:
     from bench.language import Subject

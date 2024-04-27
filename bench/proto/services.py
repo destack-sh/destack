@@ -1,13 +1,14 @@
 import asyncio
 import functools
 from typing import (
-    TYPE_CHECKING,
+    Any,
     AsyncIterable,
     Callable,
     Collection,
     Generic,
     Mapping,
     TypeVar,
+    cast,
     final,
 )
 
@@ -60,7 +61,7 @@ def get_grpc_status_from_bench_error(e: BenchError) -> GRPCStatus:
     return status
 
 
-class BenchServiceBase((IServable, Generic[StubT]) if TYPE_CHECKING else Generic[StubT]):
+class BenchServiceBase(Generic[StubT]):
     """gRPC service with some extra stuff for custom loops, auth, logging, metadata, ..."""
 
     def __init__(self, loopback_stub_to: type[StubT] | None = None):
@@ -126,13 +127,13 @@ class BenchServiceBase((IServable, Generic[StubT]) if TYPE_CHECKING else Generic
     @final
     def _validate_message(self, message: betterproto.Message, path: tuple[str, ...] = ()) -> None:
         # ensure every Bench struct has its metatype set
-        struct_cls = BENCH_CLASS_BY_PROTO_CLASS.get(message.__class__)
+        struct_cls = BENCH_CLASS_BY_PROTO_CLASS.get(cast(Any, message.__class__))
         if struct_cls is not None:
-            if message.metatype is None:
+            if message.metatype is None:  # type: ignore
                 raise ValidationError(
                     message, f"missing metatype for {message.__class__.__name__} at {path}"
                 )
-            if message.metatype != struct_cls.metatype:
+            if message.metatype != struct_cls.metatype:  # type: ignore
                 raise ValidationError(
                     message,
                     f"invalid metatype {message.metatype} for {message.__class__.__name__} at {path}",
@@ -230,7 +231,7 @@ class BenchServer(grpclib.server.Server):
     """gRPC server with extra bells and whistles."""
 
     @functools.wraps(grpclib.server.Server.__init__)
-    def __init__(self, handlers: Collection["IServable"], **kwargs):
+    def __init__(self, handlers: Collection["IServable"], **kwargs):  # type: ignore
         super().__init__(handlers, **kwargs)
         self._services: tuple[BenchServiceBase, ...] = tuple(
             h for h in handlers if isinstance(h, BenchServiceBase)
@@ -245,7 +246,7 @@ class BenchServer(grpclib.server.Server):
         return f"<BenchServer {self}>"
 
     @functools.wraps(grpclib.server.Server.start)
-    async def start(self, host: str = None, port: int = None, **kwargs) -> None:
+    async def start(self, host: str | None = None, port: int | None = None, **kwargs) -> None:  # type: ignore
         self._host = host
         self._port = port
         logger.info("server.start", server=self)
@@ -259,7 +260,7 @@ class BenchServer(grpclib.server.Server):
             task.close()
         super().close()
 
-    @functools.wraps(grpclib.server.Server.wait_closed)
+    @functools.wraps(grpclib.server.Server.wait_closed)  # type: ignore
     async def wait_closed(self) -> None:
         await super().wait_closed()
         await asyncio.gather(*(h.wait_closed() for h in self._services))

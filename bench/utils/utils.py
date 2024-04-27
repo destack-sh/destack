@@ -60,7 +60,7 @@ def get_method_source(method) -> str:
     return textwrap.dedent("".join(cleaned_lines))
 
 
-def sentry_capture(e: Exception) -> bool:
+def sentry_capture(e: BaseException) -> bool:
     sentry_enabled = sentry_sdk.Hub.current is not None
     if sentry_enabled:
         sentry_sdk.capture_exception(e)
@@ -96,7 +96,7 @@ def format_python(code: str):
     try:
         import black
 
-        return black.format_str(code, mode=black.Mode(line_length=100))
+        return black.format_str(code, mode=black.Mode(line_length=100))  # type: ignore
     except ImportError:
         raise RuntimeError("black is required to format code") from None
     except Exception as e:

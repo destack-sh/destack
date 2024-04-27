@@ -792,7 +792,7 @@ def _node_ref_computed_prop(
 def _make_self_method(
     method: _ComponentMethod,
     wraps,
-    to_status: InterpStatus = None,
+    to_status: InterpStatus | None = None,
 ):
     """Creates method that calls _method_inner for all components in call order"""
 
@@ -835,9 +835,9 @@ class Struct(abc.ABC):
     """
 
     metatype: ClassVar[StructType]  # type discriminator is field 0 if needed?
-    __static_components__: ClassVar[tuple[type["Node"], ...]] = []
+    __static_components__: ClassVar[tuple[type["Node"], ...]] = ()
     __dynamic_components__: ClassVar[tuple[type["Node"], ...]] = ()
-    __passthrough_targets__: ClassVar[tuple[tuple[str, _Passthrough]]] = ()
+    __passthrough_targets__: ClassVar[tuple[tuple[str, _Passthrough], ...]] = ()
 
     __parent_property__: ClassVar[Property] = None
 
@@ -874,8 +874,8 @@ class Struct(abc.ABC):
     id: Optional[int] = p_system(2, default_factory=new_struct_id)
     parent: Union["Struct", "Node", "Value", None] = p_struct_parent(3)
     if TYPE_CHECKING:  # contributed via parent, stored/wired only if not inlined
-        parent_id: int | None  # (3)
-        parent_key: str | None  # (4)
+        parent_id: int | None = None  # (3)
+        parent_key: str | None = None  # (4)
     order_key: str | None = p_internal(5, default=None)
     # for source nodes:
     # computed_properties: dict[int, ValueReference] | None = p_regular(21)
@@ -1317,7 +1317,7 @@ class Node(Struct, _NodeQueryBuilder if TYPE_CHECKING else object):
     """
 
     metatype: ClassVar[NodeType]
-    __static_components__: ClassVar[tuple[type["Node"], ...]] = []
+    __static_components__: ClassVar[tuple[type["Node"], ...]] = ()
     __dynamic_components__: ClassVar[tuple[type["Node"], ...]] = ()
     __identifier_type__: ClassVar[IdentifierType] = IdentifierType.VARIABLE
     __id_factory__: ClassVar[Callable[[], UUID]] = None
@@ -1338,7 +1338,7 @@ class Node(Struct, _NodeQueryBuilder if TYPE_CHECKING else object):
     __is_local__: ClassVar[bool] = False  # stored in Bench-local DB (instead of global Bench DB)
     __extra_indexes__: ClassVar[tuple[Index, ...]] = ()  # extra indexes for PG
     __extra_constraints__: ClassVar[tuple[Constraint, ...]] = ()  # extra constraints for PG
-    __table__: ClassVar[Table] = UNSET  # if stored regularly, set after finalization
+    __table__: ClassVar[Table] = None  # if stored regularly, set after finalization
 
     # 1-9: reserved for node identity
     # NOTE: some node identity props (ck/package/bench/etc.) only exist sometimes :MagicProps

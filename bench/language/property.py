@@ -60,8 +60,8 @@ class Property(_TypeQueryBuilder if TYPE_CHECKING else object):
     id: int | None = None  # stable id for wiring properties, must be unique per final struct/node
     id_as_str: str | None = None  # str(id)
     ord: int | None = None  # unstable ordinal for bit-packing
-    name: str | None = None  # name from LHS of assignment
-    component: type["Struct"] | type["Node"] | None = None  # source component class
+    name: str = UNSET  # name from LHS of assignment
+    component: type["Struct"] | type["Node"] = UNSET  # source component class
     py_type_raw: Any = None  # type annotation on LHS of assignment
     py_type_stripped: Any = UNSET  # stripped type annotation
     primitive_type: PrimitiveType | None = UNSET
@@ -163,10 +163,6 @@ class Property(_TypeQueryBuilder if TYPE_CHECKING else object):
                 continue
             elif k == "id":
                 non_default.append(str(v))
-            elif k == "reference_types":
-                types_str = "|".join(t.bench_name for t in v)
-                if types_str:
-                    non_default.append(f"references={types_str}")
             else:
                 if isinstance(v, bool):
                     non_default.append(k)
@@ -195,17 +191,17 @@ class Property(_TypeQueryBuilder if TYPE_CHECKING else object):
 
             if self.reference_kind:
                 # don't have unions yet, doesn't matter
-                node_type = (
+                bench_type = (
                     self.reference_nodes[0] if self.reference_nodes else self.reference_struct
                 )
                 self._cached_as_type = TypeInfo(
-                    node_type=node_type,
+                    bench_type=bench_type,
                     is_list=self.is_list,
                     is_required=self.is_required,
                 )
             elif self.is_struct:
                 self._cached_as_type = TypeInfo(
-                    struct_type=self.reference_struct,
+                    bench_type=self.reference_struct,
                     is_list=self.is_list,
                     is_required=self.is_required,
                 )

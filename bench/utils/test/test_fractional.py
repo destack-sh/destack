@@ -46,7 +46,7 @@ def test_order_keys(test_case: str) -> None:
     expected = test_args[-1]
     if expected == "!error":
         with pytest.raises(ValueError):
-            get_order_key(*test_args[:-1], BASE_62_DIGITS)
+            get_order_key(*test_args[:-1], BASE_62_DIGITS)  # type: ignore
     else:
-        actual = get_order_key(*test_args[:-1], BASE_62_DIGITS)
+        actual = get_order_key(*test_args[:-1], BASE_62_DIGITS)  # type: ignore
         assert actual == expected

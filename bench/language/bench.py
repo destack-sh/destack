@@ -117,8 +117,8 @@ class Environment(Node):
     store: "Store" = p_system(
         41, require=True, array=False, references=NodeType.STORE, fk=True, is_bench_implicit=True
     )
-    search: "Store" = p_system(
-        42, require=True, array=False, references=NodeType.STORE, fk=True, is_bench_implicit=True
+    search: Optional["Store"] = p_system(
+        42, require=False, array=False, references=NodeType.STORE, fk=True, is_bench_implicit=True
     )
     analytics: Optional["Store"] = p_system(
         43,

@@ -158,17 +158,15 @@ class TypeInfoBase(HasValues):
     def __content_str__(self) -> str:
         if self.base_type is not None:
             info_str = self.base_type.absolute_path
-        elif self.node_type is not None:
-            info_str = self.node_type.bench_name
-        elif self.struct_type is not None:
-            info_str = self.struct_type.bench_name
+        elif self.bench_type is not None:
+            info_str = self.bench_type.bench_name
         elif self.primitive_type is not None:
             info_str = self.primitive_type.name
         else:
             info_str = "<no type>"
         if self.format_hint:
             info_str += f" as {self.format_hint}"
-        if self.condition:
+        if self.condition is not None:
             info_str += f" [{self.condition}]"
 
         flags = tuple(f for f in ("is_list", "is_required", "is_secret") if getattr(self, f))
@@ -283,7 +281,7 @@ class Field(Node, TypeInfoBase, _TypeQueryBuilder):
     def _as_type(self) -> "TypeInfo":
         return self._resolved_type
 
-    def __eq__(self, other):
+    def __eq__(self, other):  # type: ignore
         return _TypeQueryBuilder.__eq__(self, other)  # override to avoid recursion
 
     @property
