@@ -95,7 +95,7 @@ def decode_type_info_identity(identity_key: str) -> "TypeInfoBase":
     raise NotImplementedError
 
 
-@struct_component
+@struct_component()
 class TypeInfoBase(HasValues):
     """
     A type is a kind of value that can go somewhere, typically in place of a Field.

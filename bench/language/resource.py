@@ -59,7 +59,7 @@ class ResourceStatus(IdEnum):
     PAUSED = 30
 
 
-@node_component
+@node_component()
 class Resource(Node):
     """A resource owned by a Bench."""
 

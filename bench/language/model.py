@@ -10,7 +10,7 @@ if TYPE_CHECKING:
 logger = structlog.get_logger(__name__)
 
 
-@node_component
+@node_component()
 class HasTask(Node):
     @property
     def _is_async(self):

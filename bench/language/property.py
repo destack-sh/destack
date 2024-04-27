@@ -67,9 +67,9 @@ class Property(_TypeQueryBuilder if TYPE_CHECKING else object):
     primitive_type: PrimitiveType | None = UNSET
     default: Any = UNSET
     default_factory: Callable[[], Any] | None = None
-    custom_validate: Callable[
-        ["Property", Any, "PropertyValidationHandler"], bool | None
-    ] | None = None
+    custom_validate: (
+        Callable[["Property", Any, "PropertyValidationHandler"], bool | None] | None
+    ) = None
 
     # flags
     is_list: bool = UNSET
@@ -138,7 +138,7 @@ class Property(_TypeQueryBuilder if TYPE_CHECKING else object):
                 non_default.append("|".join(t.bench_name for t in self.reference_nodes))
             elif self.reference_struct:
                 non_default.append(self.reference_struct.bench_name)
-        elif self.primitive_type is not UNSET:
+        elif self.primitive_type and self.primitive_type is not UNSET:
             non_default.append(self.primitive_type.bench_name)
         for k in (
             "is_list",
@@ -245,6 +245,7 @@ class Property(_TypeQueryBuilder if TYPE_CHECKING else object):
 
     @property
     def py_ident(self) -> str:
+        assert self.name is not None, f"{self!r} has no name"
         return self.name
 
     @property
@@ -266,11 +267,13 @@ class Property(_TypeQueryBuilder if TYPE_CHECKING else object):
             # exclude our own runtime-only properties
             not self.is_ephemeral
             # exclude empty references type, TypeInfo can't handle that yet
-            and (not self.reference_kind or self.reference_nodes or self.reference_struct)
-            # exclude ancestor properties (they're computed but would be nice to have :c)
+            and (
+                not self.reference_kind or bool(self.reference_nodes) or bool(self.reference_struct)
+            )
+            # # exclude ancestor properties (they're computed but would be nice to have :c)
             and self.reference_kind
             not in (ReferenceKind.NODE_ANCESTOR_FIRST, ReferenceKind.NODE_ANCESTOR_ROOT)
-            # exclude contributed reference properties (like parent_id)
+            # # exclude contributed reference properties (like parent_id)
             and not self.reference_source
         )
 
@@ -596,6 +599,7 @@ class Property(_TypeQueryBuilder if TYPE_CHECKING else object):
             # figure out which reference types (if any) to pack into the shared 'id'/'ck'
             shared_ptr_types: list[NodeType] = []
             if need_fks:
+                assert self.reference_nodes is not None, f"unset reference nodes for {self!r}"
                 for ref_type in self.reference_nodes:
                     if not is_parent and ref_type in SUB_PACKAGE_NODE_TYPES:
                         shared_ptr_types.append(ref_type)
@@ -764,14 +768,14 @@ def p_property(
     system: bool = False,
     kernel: bool = False,
     autoset: bool = False,
-    description: str = None,
+    description: str | None = None,
     default: Any = UNSET,
-    default_factory: Callable[[], Any] = None,
+    default_factory: Callable[[], Any] | None = None,
     require: bool = UNSET,
-    references: tuple[NodeType, ...] | NodeType = None,
+    references: tuple[NodeType, ...] | NodeType | None = None,
     fk: bool = False,
     is_bench_implicit: bool = False,
-    struct: StructType = None,
+    struct: StructType | None = None,
     store: bool = True,
     wire: bool = True,
     primitive_type: PrimitiveType = UNSET,
@@ -782,8 +786,8 @@ def p_property(
     unique: bool = False,
     sensitive: bool = False,
     custom_list: type["ValueList"] | None = None,
-    validate: Callable[["Property", Any, "PropertyValidationHandler"], bool | None] = None,
-):
+    validate: Callable[["Property", Any, "PropertyValidationHandler"], bool | None] | None = None,
+) -> Any:
     if references:
         reference_kind = ReferenceKind.NODE_REGULAR
     elif struct == StructType.PROPERTY_REFERENCE:
@@ -832,8 +836,8 @@ def p_property(
 def p_runtime(
     *,
     default: Any = None,
-    default_factory: Callable[[], Any] = None,
-) -> object:
+    default_factory: Callable[[], Any] | None = None,
+) -> Any:
     """Internal runtime-only struct/node property (not persisted)."""
     return Property(
         is_internal=True,
@@ -848,7 +852,7 @@ def p_runtime(
     )
 
 
-def p_node_parent(id: int, *node_type: NodeType, is_system: bool = False):
+def p_node_parent(id: int, *node_type: NodeType, is_system: bool = False) -> Any:
     """The parent of a node, must be of one of the given types."""
     return Property(
         id=id,
@@ -871,7 +875,7 @@ def p_node_ancestor(
     index_in_pg: bool = False,
     is_bench_implicit: bool = False,
     kind: ReferenceKind = ReferenceKind.NODE_ANCESTOR_FIRST,
-):
+) -> Any:
     """Computed nearest or farthest ancestor of the given type."""
     return Property(
         id=id,
@@ -895,8 +899,8 @@ p_node_ancestor_root = functools.partial(p_node_ancestor, kind=ReferenceKind.NOD
 def p_node_child(
     node_type: NodeType,
     flags: NRel = NRel.DEFAULT,
-    list: type["NodeList"] = None,
-):
+    list: type["NodeList"] | None = None,
+) -> Any:
     """Computed read/write children or descendants of the given type."""
     return Property(
         reference_kind=ReferenceKind.NODE_CHILD,
@@ -910,7 +914,7 @@ def p_node_child(
     )
 
 
-def p_struct_parent(id: int):
+def p_struct_parent(id: int) -> Any:
     """The parent of a struct."""
     return Property(
         id=id,
@@ -928,7 +932,7 @@ def p_value_runtime(
     secret_packed: int | None = None,
     *,
     type: int | Callable[["Node"], "TypeInfo"] | None = None,
-) -> Property:
+) -> Any:
     """Runtime-only property for a Value and secret value."""
     value_type_info_id = None
     value_type_info_getter = None
@@ -955,7 +959,7 @@ def p_value_runtime(
     )
 
 
-def p_value_packed(id: int) -> Property:
+def p_value_packed(id: int) -> Any:
     """Packed value property."""
     return Property(
         id=id,
@@ -970,7 +974,7 @@ def p_value_packed(id: int) -> Property:
     )
 
 
-def p_secret_value_packed(id: int) -> Property:
+def p_secret_value_packed(id: int) -> Any:
     """Packed secret value property."""
     return Property(
         id=id,
@@ -1011,7 +1015,7 @@ METATYPE_PROPERTY = Property(
     is_list=False,
     primitive_type=PrimitiveType.STRING,
 )
-_PROPERTY_SPECIFIERS = (
+_PROPERTY_SPECIFIERS: tuple[Callable, ...] = (
     p_property,
     p_runtime,
     p_node_parent,

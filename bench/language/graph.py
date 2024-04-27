@@ -255,7 +255,7 @@ class NodeGraph(NodeGraphBase[NodeT, UUID]):
 class NodeDataGraph(NodeGraphBase[NodeDataT, str]):
     """A NodeGraph for NodeData objects (strings for ids, parent_ptr)."""
 
-    def __init__(self, nodes: Collection[NodeDataT] = None):
+    def __init__(self, nodes: Collection[NodeDataT] | None = None):
         self.nodes_by_id: dict[str, NodeDataT] = {}
         self.nodes_by_ck: dict[str, NodeDataT] = {}  # *most* nodes have a 'ck'
         self.nodes_by_parent_id_and_type: dict[

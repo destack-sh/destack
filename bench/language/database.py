@@ -220,7 +220,7 @@ class RecordList(NodeList[Record], QueryBuilder[Record, RecordData]):
         node.parent = None
 
 
-@node_component
+@node_component()
 class HasDatabase(Node):
     queries: NodeList["Query"] = p_node_child(
         NodeType.QUERY, NRel.NAMED | NRel.SCOPED | NRel.ORDERED
