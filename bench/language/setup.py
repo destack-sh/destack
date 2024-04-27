@@ -53,7 +53,7 @@ def _is_setup_complete() -> bool:
 _setup_hooks: list[Callable] = []
 
 
-def _on_completing_setup(func: Callable = None):
+def _on_completing_setup(func: Callable | None = None):
     """Register a finalization function."""
     if func is None:
         return functools.partial(_on_completing_setup)
@@ -173,10 +173,10 @@ def _complete_bench_setup():
     global ANCESTOR_NODE_TYPES, DESCENDANT_NODE_TYPES, PARENT_NODE_TYPES, CHILD_NODE_TYPES
     global HAS_CHILD_NODE_TYPES
     for node_type in NODE_TYPES:
-        ANCESTOR_NODE_TYPES[node_type] = bytetuple(ancestor_types[node_type], enum_cls=NodeType)
-        DESCENDANT_NODE_TYPES[node_type] = bytetuple(descendant_types[node_type], enum_cls=NodeType)
-        PARENT_NODE_TYPES[node_type] = bytetuple(parent_types[node_type], enum_cls=NodeType)
-        CHILD_NODE_TYPES[node_type] = bytetuple(child_types[node_type], enum_cls=NodeType)
+        ANCESTOR_NODE_TYPES[node_type] = bytetuple(*ancestor_types[node_type], enum_cls=NodeType)
+        DESCENDANT_NODE_TYPES[node_type] = bytetuple(*descendant_types[node_type], enum_cls=NodeType)
+        PARENT_NODE_TYPES[node_type] = bytetuple(*parent_types[node_type], enum_cls=NodeType)
+        CHILD_NODE_TYPES[node_type] = bytetuple(*child_types[node_type], enum_cls=NodeType)
         if child_types[node_type]:
             HAS_CHILD_NODE_TYPES.add(node_type)
 
@@ -196,10 +196,10 @@ def _complete_bench_setup():
                 f"{node_cls!r} parent types are inconsistent: root={node_cls.__roots__} implies in_bench={in_bench} and in_package={in_package}, but configured in_bench={node_cls.__is_in_bench__} and in_package={node_cls.__is_in_package__}"
             )
     assert_collections_equal(
-        IN_BENCH_NODE_TYPES, [t.metatype for t in NODE_CLASS_BY_TYPE.values() if t.__is_in_bench__]
+        IN_BENCH_NODE_TYPES.tuple, [t.metatype for t in NODE_CLASS_BY_TYPE.values() if t.__is_in_bench__]
     )
     assert_collections_equal(
-        IN_PACKAGE_NODE_TYPES,
+        IN_PACKAGE_NODE_TYPES.tuple,
         [t.metatype for t in NODE_CLASS_BY_TYPE.values() if t.__is_in_package__],
     )
 
@@ -224,6 +224,4 @@ def _complete_bench_setup():
 
     for node_cls in NODE_CLASS_BY_TYPE.values():
         if node_cls.__is_stored__ and not node_cls.__is_stored_custom__:
-            node_cls.__table__ = TABLE_BY_NODE_TYPE.get(node_cls.metatype)
-        else:
-            node_cls.__table__ = None
+            node_cls.__table__ = TABLE_BY_NODE_TYPE[node_cls.metatype]

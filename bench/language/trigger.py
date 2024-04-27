@@ -60,7 +60,7 @@ class Schedule(Struct):
 
 @node(NodeType.TRIGGER)
 class Trigger(Node):
-    parent: "Block" = p_node_parent(4, NodeType.BLOCK)
+    parent: "Block" = p_node_parent(4, NodeType.BLOCK)  # type: ignore
     type: TriggerType = p_regular(30, require=True, validate=enum_validator(TriggerType))
     name: str = p_regular(31, validate=validate_name)
     active: bool = p_regular(32, default=True)

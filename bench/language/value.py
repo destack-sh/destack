@@ -48,7 +48,7 @@ class Value:
         else:
             return self.parent._status
 
-    def _updated_self(self, properties: tuple[Union[Property, "Field"], ...]):
+    def _updated_self(self, properties: tuple[Union[Property, "Field", Any], ...]):
         raise NotImplementedError(":Incomplete")
 
 

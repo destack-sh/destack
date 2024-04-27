@@ -261,7 +261,7 @@ export function typeIndex(options: {
   skipDepth?: number;
   maxDepth?: number;
 }): SearchIndex<TypeItem> {
-  const enumTypes = [EnumType.PRIMITIVE_TYPE, EnumType.BENCH_TYPE];
+  const enumTypes = [EnumType.PRIMITIVE_TYPE, EnumType.OBJECT_TYPE];
 
   function fromValue(value: TypeIdentity): TypeItem | null {
     if (value.baseTypePtr != null) {
@@ -271,8 +271,8 @@ export function typeIndex(options: {
       const enumOption = getEnumOptions(EnumType.PRIMITIVE_TYPE).find((option) => option.value == value.primitiveType);
       if (enumOption != null) return mapFromOption(EnumType.PRIMITIVE_TYPE, enumOption);
     } else if (value.benchType != null) {
-      const enumOption = getEnumOptions(EnumType.BENCH_TYPE).find((option) => option.value == value.benchType);
-      if (enumOption != null) return mapFromOption(EnumType.BENCH_TYPE, enumOption);
+      const enumOption = getEnumOptions(EnumType.OBJECT_TYPE).find((option) => option.value == value.benchType);
+      if (enumOption != null) return mapFromOption(EnumType.OBJECT_TYPE, enumOption);
     }
     return null;
   }
@@ -281,7 +281,7 @@ export function typeIndex(options: {
     const item: TypeItem = { ...option, id: `${enumType}-${option.id}`, metatype: "type" };
     if (item.icon == null) item.icon = DEFAULT_ENUM_ICON;
     if (enumType == EnumType.PRIMITIVE_TYPE) item.primitiveType = option.value as PrimitiveType;
-    else if (enumType == EnumType.BENCH_TYPE) item.benchType = option.value as BenchType;
+    else if (enumType == EnumType.OBJECT_TYPE) item.benchType = option.value as BenchType;
     else throw new Error(`unexpected enum type: ${enumType}`);
     return item;
   }

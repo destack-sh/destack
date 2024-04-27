@@ -1,5 +1,5 @@
 import typing
-from typing import Any, Collection, Optional, Union
+from typing import Any, Collection, Optional, Union, cast
 
 import structlog
 
@@ -36,6 +36,8 @@ if typing.TYPE_CHECKING:
     from bench.language import Block, Expression, Icon, Step, Text
     from bench.language.notice import NoticeHandler
 
+# pyright: reportIncompatibleVariableOverride=false,reportIncompatibleMethodOverride=false
+
 logger = structlog.get_logger(__name__)
 
 
@@ -44,24 +46,15 @@ class TypeError(BenchError, TypeError):
         self,
         value: Any,
         expected: "TypeInfo",
-        message: str = None,
-        suberrors: list["TypeError"] = None,
+        message: str | None = None,
+        suberrors: list["TypeError"] | None = None,
     ):
         value_str = repr(value)
         max_value_str_len = 300
         if len(value_str) > max_value_str_len:
             value_str = value_str[: max_value_str_len - 100] + "..." + value_str[-100:]
-
-        if isinstance(expected, Field) and not expected.fields:
-            expected_str = f"field '{expected.py_ident}' ({expected._type_str})"
-        else:
-            expected_fields_str = ", ".join(
-                f"'{f.py_ident}' ({f._type_str})" for f in expected.fields
-            )
-            expected_str = f"fields {expected_fields_str or '<empty>'} from {expected!r}"
-
         super().__init__(
-            f"{message or 'type mismatch'}: expected {expected_str}, got {value_str} ({type(value).__name__})"
+            f"{message or 'type mismatch'}: expected {expected!r}, got {value_str} ({type(value).__name__})"
         )
         self.value = value
         self.expected = expected
@@ -178,7 +171,7 @@ class TypeInfoBase(HasValues):
         if self.base_type is not None and self.base_type.type == BlockType.ALIAS:
             raise NotImplementedError(f"aliases not yet supported for {self!r}")
         else:
-            self._resolved_type = self
+            self._resolved_type = cast("TypeInfo", self)  # harmless lie (types are equivalent)
 
     @property
     def resolved_type(self) -> "TypeInfo":
@@ -270,8 +263,8 @@ class Field(Node, TypeInfoBase, _TypeQueryBuilder):
             info_str = "<no type>"
         if self.format_hint:
             info_str += f" as {self.format_hint}"
-        if self.condition:
-            info_str += f" [{self.condition}]"
+        if self.condition is not None:
+            info_str += f" [{self.condition!r}]"
 
         flags = tuple(f for f in ("is_list", "is_required", "is_secret") if getattr(self, f))
         if flags:
@@ -279,6 +272,7 @@ class Field(Node, TypeInfoBase, _TypeQueryBuilder):
         return info_str
 
     def _as_type(self) -> "TypeInfo":
+        assert self._resolved_type, f"{self!r} is not resolved"
         return self._resolved_type
 
     def __eq__(self, other):  # type: ignore

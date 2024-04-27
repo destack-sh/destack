@@ -35,6 +35,7 @@ if TYPE_CHECKING:
     )
 
 NodeT = Union[Node, "Node"]
+# pyright: reportIncompatibleVariableOverride=false
 
 
 @node(NodeType.BENCH, roots=(), identifier=IdentifierType.VARIABLE)

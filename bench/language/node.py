@@ -108,6 +108,8 @@ if TYPE_CHECKING:
     from bench.language.expression import _NodeQueryBuilder
     from bench.language.notice import NoticeHandler
 
+# pyright: reportIncompatibleVariableOverride=false,reportIncompatibleMethodOverride=false
+
 logger = structlog.get_logger(__name__)
 
 
@@ -871,6 +873,10 @@ class Struct(abc.ABC):
     __is_struct_inlined__: ClassVar[bool] = False
     __is_node__: ClassVar[bool] = False
 
+    # TODO :Architecture :Cleanup: type Struct.parent/order_key/.. in a covariant way
+    #  (subclasses make it more specific like Field.parent:Block..
+    #   see all the parent # type: ignore / reportIncompatibleVariableOverride errors)
+
     # NOTE: struct identity props (id/parent/....) only exist if not inlined & not node :MagicProps
     # (Struct.id is optional so that external clients don't need to generate ids for every struct,
     #  and also so that its field presence is tracked and we can validate that it is set when needed)
@@ -1324,8 +1330,8 @@ class Node(Struct, _NodeQueryBuilder if TYPE_CHECKING else object):
     """
 
     metatype: ClassVar[NodeType]  # type: ignore
-    __static_components__: ClassVar[tuple[type["Node"], ...]] = ()
-    __dynamic_components__: ClassVar[tuple[type["Node"], ...]] = ()
+    __static_components__: ClassVar[tuple[type["Node"], ...]] = ()  # type: ignore
+    __dynamic_components__: ClassVar[tuple[type["Node"], ...]] = ()  # type: ignore
     __identifier_type__: ClassVar[IdentifierType] = IdentifierType.VARIABLE
     __id_factory__: ClassVar[Callable[[], UUID]] = None
 
@@ -1352,6 +1358,9 @@ class Node(Struct, _NodeQueryBuilder if TYPE_CHECKING else object):
     id: UUID = p_system(2, default=None, require=True, autoset=True)
     ck: UUID = p_system(3, default=None, require=True, autoset=True)
     parent: Optional["Node"] = p_node_parent(4)  # type: ignore
+    if TYPE_CHECKING:
+        parent_id: Optional[UUID]
+        parent_ptr: Optional[NodeReference]
     # template: Optional["Node"] = node_template(5)
     package: "Package" = p_node_ancestor(
         6, NodeType.PACKAGE, require=True, store=True, wire=True, is_bench_implicit=True
@@ -1827,5 +1836,5 @@ class HasBase(Node):
         return self.base.ck if self.base is not None else None
 
     @staticmethod
-    def get_base_from_data(self, data: AnyNodeData) -> Optional[NodeReferenceData]:
+    def get_base_from_data(data: AnyNodeData) -> Optional[NodeReferenceData]:
         raise NotImplementedError

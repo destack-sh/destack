@@ -49,6 +49,8 @@ if TYPE_CHECKING:
     from bench.language import Block, Expression, Field, Property, ReadOptions, Session, Store
     from bench.sql.client import _PgStoreConnection
 
+# pyright: reportIncompatibleVariableOverride=false,reportIncompatibleMethodOverride=false
+
 NodeT = TypeVar("NodeT", bound=Node)
 NodeDataT = TypeVar("NodeDataT", bound=AnyNodeData)
 FieldOrProperty = Union[
@@ -61,7 +63,7 @@ NodeTypeOrClass = Union[NodeType, type[Node]]
 class Query(Node):
     """A stored query."""
 
-    parent: Union["Block"] = p_node_parent(4, NodeType.BLOCK)
+    parent: "Block" = p_node_parent(4, NodeType.BLOCK)
     name: str | None = p_regular(30, default=None)
     order_key: str = p_regular(31, default=INTEGER_ZERO)
     node_type: NodeType = p_regular(32)
@@ -728,7 +730,7 @@ class PostgresConnection(
             total = None
         return FetchResult(
             roots=[NodeReference.from_node_data(r) for r in roots.nodes],
-            nodes=graph.nodes,
+            nodes=list(graph.nodes),
             cursors=roots.cursors,
             start_cursor=roots.start_cursor,
             total=total,

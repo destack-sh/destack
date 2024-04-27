@@ -43,6 +43,8 @@ from bench.utils.func import describe_type
 if TYPE_CHECKING:
     from bench.language import Block, Query
 
+# pyright: reportIncompatibleVariableOverride=false
+
 logger = structlog.get_logger(__name__)
 
 
@@ -72,7 +74,7 @@ class Record(HasBase, HasValues):
         return self.parent
 
     @staticmethod
-    def get_base_from_data(self, data: AnyNodeData) -> Optional[NodeReferenceData]:
+    def get_base_from_data(data: AnyNodeData) -> Optional[NodeReferenceData]:
         return data.parent_ptr
 
     @property
@@ -104,7 +106,7 @@ class RecordConnection(PostgresConnection[Record, RecordData]):
         raise NotImplementedError
 
 
-class RecordList(NodeList[Record], QueryBuilder[Record, RecordData], abc.ABC):
+class RecordList(NodeList[Record], QueryBuilder[Record, RecordData], abc.ABC):  # type: ignore
     """A NodeList for remote records."""
 
     def __init__(self, parent: "Block", property: Property):

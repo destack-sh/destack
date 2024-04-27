@@ -207,7 +207,7 @@ class NodeGraph(NodeGraphBase[NodeT, UUID]):
                             self.nodes_by_id.pop(child.id, None)
                             self.nodes_by_ck.pop(child.ck, None)
 
-    def find_roots(self) -> tuple[NodeDataT, ...]:
+    def find_roots(self) -> tuple[NodeT, ...]:
         return tuple(
             node
             for node in self.nodes_by_id.values()
@@ -259,9 +259,11 @@ class NodeDataGraph(NodeGraphBase[NodeDataT, str]):
     def __init__(self, nodes: Collection[NodeDataT] | None = None):
         self.nodes_by_id: dict[str, NodeDataT] = {}
         self.nodes_by_ck: dict[str, NodeDataT] = {}  # *most* nodes have a 'ck'
-        self.nodes_by_parent_id_and_type: dict[tuple[str, wire.NodeType], list[NodeDataT]] = (
-            defaultdict(list)
-        )
+        self.nodes_by_parent_id_and_type: dict[
+            # NOTE: typing the key broad like this is to avoid casting all the time
+            tuple[Any, wire.NodeType | wire.ObjectType | NodeType],
+            list[NodeDataT],
+        ] = defaultdict(list)
         if isinstance(nodes, Collection):
             for node in nodes:
                 self.add(node)
@@ -297,7 +299,8 @@ class NodeDataGraph(NodeGraphBase[NodeDataT, str]):
         if hasattr(node, "ck"):
             self.nodes_by_ck[getattr(node, "ck")] = node
         if node.parent_ptr is not None:
-            self.nodes_by_parent_id_and_type[(node.parent_ptr.id, node.metatype)].append(node)
+            parent_id = cast(str, node.parent_ptr.id)
+            self.nodes_by_parent_id_and_type[(parent_id, node.metatype)].append(node)
 
     def update(self, node: NodeDataT):
         assert isinstance(node.id, str), f"cannot add {node!r} to {self!r} with id {node.id!r}"
@@ -343,7 +346,7 @@ class NodeDataGraph(NodeGraphBase[NodeDataT, str]):
                 return self.nodes_by_parent_id_and_type.get((node.id, child_node_type), ())
             else:
                 descendants: list[NodeDataT] = []
-                for child_type in CHILD_NODE_TYPES[node.metatype]:
+                for child_type in CHILD_NODE_TYPES[cast(NodeType, node.metatype)]:
                     descendants.extend(
                         self.nodes_by_parent_id_and_type.get((node.id, child_type), ())
                     )
@@ -354,12 +357,12 @@ class NodeDataGraph(NodeGraphBase[NodeDataT, str]):
                 queue = deque(self.nodes_by_parent_id_and_type.get((node.id, child_node_type), ()))
             else:
                 queue = deque()
-                for child_type in CHILD_NODE_TYPES[node.metatype]:
+                for child_type in CHILD_NODE_TYPES[cast(NodeType, node.metatype)]:
                     queue.extend(self.nodes_by_parent_id_and_type.get((node.id, child_type), ()))
             while queue:
                 cur = queue.popleft()
                 descendants.append(cur)
-                for child_type in CHILD_NODE_TYPES[cur.metatype]:
+                for child_type in CHILD_NODE_TYPES[cast(NodeType, cur.metatype)]:
                     queue.extend(self.nodes_by_parent_id_and_type.get((cur.id, child_type), ()))
             return descendants
 
@@ -367,7 +370,7 @@ class NodeDataGraph(NodeGraphBase[NodeDataT, str]):
         """Gets the root node for a given node"""
         root = node
         while root.parent_ptr is not None:
-            root = self.nodes_by_id[root.parent_ptr.id]
+            root = self.nodes_by_id[cast(str, root.parent_ptr.id)]
         return root
 
 
@@ -379,24 +382,24 @@ class DetachedNodeGraph(NodeGraphBase[NodeT, UUID]):
     """
 
     def __init__(self):
-        self.nodes_by_ck: dict[UUID, "Node"] = {}
-        self.nodes_by_parent_ck: dict[UUID, list["Node"]] = defaultdict(list)
+        self.nodes_by_ck: dict[UUID, NodeT] = {}
+        self.nodes_by_parent_ck: dict[UUID, list[NodeT]] = defaultdict(list)
 
     @property
     def nodes(self) -> Collection[NodeT]:
         return self.nodes_by_ck.values()
 
-    def get(self, node_ck: UUID) -> Optional[NodeT]:
+    def get(self, node_id_or_ck: UUID) -> Optional[NodeT]:
         """Gets a node by id"""
-        assert isinstance(node_ck, UUID), f"expected UUID, got {node_ck!r}"
-        return self.nodes_by_ck.get(node_ck)
+        assert isinstance(node_id_or_ck, UUID), f"expected UUID, got {node_id_or_ck!r}"
+        return self.nodes_by_ck.get(node_id_or_ck)
 
     def clear(self):
         """Clear the graph"""
         self.nodes_by_ck.clear()
         self.nodes_by_parent_ck.clear()
 
-    def add(self, node: "Node"):
+    def add(self, node: NodeT):
         """Add a node to the graph (error if node already exists)"""
         if node.ck in self.nodes_by_ck and self.nodes_by_ck[node.ck] is not node:
             raise ValueError(f"node {node!r} (ck={node.ck}) already exists in {self!r}")
@@ -405,7 +408,7 @@ class DetachedNodeGraph(NodeGraphBase[NodeT, UUID]):
         if node.parent is not None:
             self.nodes_by_parent_ck[node.parent.ck].append(node)
 
-    def update(self, node: "Node"):
+    def update(self, node: NodeT):
         """Updates the node in this graph (must exist)"""
         existing = self.nodes_by_ck.get(node.ck)
         if existing is None:
@@ -413,11 +416,11 @@ class DetachedNodeGraph(NodeGraphBase[NodeT, UUID]):
         self.nodes_by_ck[node.ck] = node
 
         if existing.parent is not None and existing.parent in self.nodes_by_parent_ck:
-            self.nodes_by_parent_ck[existing.parent_id].remove(existing)
+            self.nodes_by_parent_ck[existing.parent.ck].remove(existing)
         if node.parent is not None and node not in self.nodes_by_parent_ck[node.parent.ck]:
             self.nodes_by_parent_ck[node.parent.ck].append(node)
 
-    def remove(self, node: "Node"):
+    def remove(self, node: NodeT):
         """Remove a node from the graph (incl. all descendants if recursive)"""
         descendants = self.collect_descendants(node, recursive=True)
         for descendant in chain((node,), descendants):
@@ -522,7 +525,7 @@ class NodeList(abc.ABC, Collection[NodeT], Generic[NodeT]):
             raise ValueError(f"cannot create {args[0]!r}, use append for existing nodes")
         from bench.language.node import NODE_CLASS_BY_TYPE
 
-        node_metatype = self._property.reference_nodes[0]
+        node_metatype = cast(list[NodeType], self._property.reference_nodes)[0]
         node_cls = NODE_CLASS_BY_TYPE[node_metatype]
         # auto-generate name if required and not given :AutoNaming
         if "name" in node_cls.__properties__ and "name" not in kwargs:
@@ -571,7 +574,9 @@ class InMemoryGraphNodeList(NodeList[NodeT]):
 
     def __init__(self, parent: "Node", property: "Property"):
         super().__init__(parent, property)
-        assert len(property.reference_nodes) == 1, f"cannot have many child types: {property!r}"
+        assert (
+            property.reference_nodes and len(property.reference_nodes) == 1
+        ), f"cannot have many child types: {property!r}"
         self._child_node_type: NodeType = property.reference_nodes[0]
         self._flags = property.reference_flags
 
@@ -588,39 +593,39 @@ class InMemoryGraphNodeList(NodeList[NodeT]):
             descendants.sort(key=lambda n: n.order_key)
         return descendants
 
-    def append(self, n: NodeT, after: NodeT = None, before: NodeT = None) -> tuple[NodeT, ...]:
+    def append(self, node: NodeT, after: NodeT | None = None, before: NodeT | None = None) -> tuple[NodeT, ...]:  # type: ignore
         from bench.language.node import Node
 
-        assert isinstance(n, Node), f"cannot append {n!r} to {self!r}"
-        if n.parent is not None:
-            raise ValueError(f"cannot attach {n!r} to {self!r}: attached to {n.parent!r}")
+        assert isinstance(node, Node), f"cannot append {node!r} to {self!r}"
+        if node.parent is not None:
+            raise ValueError(f"cannot attach {node!r} to {self!r}: attached to {node.parent!r}")
 
         # assign ids if newly attached to the package (ids are derived from ck + package)
-        if "ck" in n.__properties__ and not n.is_attached and self._parent.is_attached:
+        if "ck" in node.__properties__ and not node.is_attached and self._parent.is_attached:
             package_id = self._parent.package.id
-            for n in n._walk_rec():
-                if n.id is None:
-                    n._assign_id(package_id)
+            for node in node._walk_rec():
+                if node.id is None:
+                    node._assign_id(package_id)
 
-        n.parent = self._parent
+        node.parent = self._parent
         if self._parent._session is not None:
-            n._validate_self(n.__tracked_properties__.values(), on_invalid=on_invalid_raise)
+            node._validate_self(node.__tracked_properties__.values(), on_invalid=on_invalid_raise)
 
         # add node to parent graph
-        if n._graph is not None:
+        if node._graph is not None:
             # subsume if previously detached
-            added = n._graph.collect_descendants(n, recursive=True)
-            added = added + [n]
-            n._graph.update(n)  # parent updated
-            self._parent._root_graph.add_graph(n._graph)
-            n._graph = None
+            added = node._graph.collect_descendants(node, recursive=True)
+            added = added + [node]
+            node._graph.update(node)  # parent updated
+            self._parent._root_graph.add_graph(node._graph)
+            node._graph = None
         else:
-            added = (n,)
-            self._parent._root_graph.add(n)
+            added = (node,)
+            self._parent._root_graph.add(node)
 
         # assign order key to ordered nodes
-        if self._flags & NRel.ORDERED and n.order_key is None:
-            n.order_key = get_order_key(*get_key_bounds(self.nodes, after, before))
+        if self._flags & NRel.ORDERED and node.order_key is None:
+            node.order_key = get_order_key(*get_key_bounds(self.nodes, after, before))
 
         # 'create' node in session if it's attached
         if self._parent._session and self._parent.is_attached:
@@ -629,7 +634,7 @@ class InMemoryGraphNodeList(NodeList[NodeT]):
 
         return added
 
-    def extend(self, *nodes: NodeT, after: NodeT = None, before: NodeT = None) -> None:
+    def extend(self, *nodes: NodeT, after: NodeT | None = None, before: NodeT | None = None) -> None:  # type: ignore
         if not nodes:
             return
 
@@ -642,7 +647,7 @@ class InMemoryGraphNodeList(NodeList[NodeT]):
         for node in nodes:
             self.append(node)
 
-    def remove(self, n: NodeT):
+    def remove(self, n: NodeT):  # type: ignore
         if self._parent._session:
             self._parent.session.delete(n)
         self._parent._root_graph.remove(n)
@@ -720,7 +725,7 @@ class ValueList(list, Generic[ValueParentT]):
     """
 
     @functools.wraps(list.__init__)
-    def __init__(self, parent: ValueParentT, parent_prop: ValueProperty, *args, **kwargs):
+    def __init__(self, parent: ValueParentT, parent_prop: ValueProperty, *args, **kwargs):  # type: ignore
         from bench.language.node import Property
 
         super().__init__(*args, **kwargs)
@@ -730,7 +735,9 @@ class ValueList(list, Generic[ValueParentT]):
             self.parent_key = parent_prop.id_as_str
             self.is_ordered = (
                 parent_prop.reference_kind == ReferenceKind.STRUCT_CHILD
-                and not STRUCT_CLASS_BY_TYPE[parent_prop.reference_struct].__is_struct_inlined__
+                and not STRUCT_CLASS_BY_TYPE[
+                    cast(Any, parent_prop.reference_struct)
+                ].__is_struct_inlined__
             )
         else:  # Field
             self.parent_key = parent_prop.identity_key
@@ -739,7 +746,7 @@ class ValueList(list, Generic[ValueParentT]):
             isinstance(parent_prop, Property) and parent_prop.is_property_reference
         )
 
-    def append(self, item: ValueT, after: ValueT = None, before: ValueT = None):
+    def append(self, item: ValueT, after: ValueT | None = None, before: ValueT | None = None):
         if not self.is_property_reference:
             item = item._lazy_copy_to(self.parent, self.parent_prop)
         super().append(item)
@@ -747,7 +754,7 @@ class ValueList(list, Generic[ValueParentT]):
             item.order_key = get_order_key(*get_key_bounds(self, after, before))
         self.parent._updated_self((self.parent_prop,))
 
-    def extend(self, items: Collection[ValueT]):
+    def extend(self, items: Collection[ValueT]):  # type: ignore
         super().extend(items)
         if not self.is_property_reference:
             if any(e.parent is not None for e in items):
@@ -872,9 +879,9 @@ def edit_data_graph(
             if edit_type in (EditType.UPDATE, EditType.MOVE):
                 properties = edit.properties
             elif edit_type in (EditType.ARCHIVE, EditType.UNARCHIVE):
-                properties = (node_cls.archived_at.id,)
+                properties = (cast("Property", node_cls.archived_at).id,)
             elif edit_type in (EditType.SOFT_DELETE, EditType.RESTORE):
-                properties = (node_cls.deleted_at.id,)
+                properties = (cast("Property", node_cls.deleted_at).id,)
             else:
                 raise ValueError(f"unexpected edit type: {edit_type.name}")
             existing_node = graph.get(node_data.id)

@@ -6,7 +6,7 @@ from collections import deque
 from concurrent.futures import ThreadPoolExecutor
 from contextvars import ContextVar
 from datetime import datetime
-from typing import TYPE_CHECKING, Any, Callable, Collection, Optional, Union
+from typing import TYPE_CHECKING, Any, Callable, Collection, Optional, Union, cast
 from uuid import UUID, uuid4
 
 import structlog
@@ -48,6 +48,7 @@ from bench.proto.wire import (
     HostStub,
     NodeReferenceData,
     RunData,
+    SignalData,
     SupervisorStub,
 )
 from bench.sql.core import PrimitiveType
@@ -59,10 +60,12 @@ from bench.utils.uuidt import UUIDT
 if TYPE_CHECKING:
     from bench.language import Block, Package, Request, Server
 
+# pyright: reportIncompatibleVariableOverride=false,reportIncompatibleMethodOverride=false
+
 logger = structlog.get_logger(__name__)
 
 # we don't want edits to Signals/Logs to be logged in Signals or Logs (for obvious reasons)
-MUTED_EDIT_NODE_TYPES: bytetuple[NodeType] = bytetuple((NodeType.SIGNAL, NodeType.LOG))
+MUTED_EDIT_NODE_TYPES: bytetuple[NodeType] = bytetuple(NodeType.SIGNAL, NodeType.LOG)
 
 
 @node(
@@ -92,8 +95,8 @@ class Signal(HasBase, HasValues):
         return self.type
 
     @staticmethod
-    def get_base_from_data(self, data: AnyNodeData) -> Optional[NodeReferenceData]:
-        return data.type_ptr
+    def get_base_from_data(data: AnyNodeData) -> Optional[NodeReferenceData]:
+        return (cast(SignalData, data)).type_ptr
 
 
 @enum_(EnumType.LOG_KIND)
@@ -272,18 +275,18 @@ class Session(Node):
     @_auto_async_to_sync
     async def flush(self):
         assert self.is_open, f"cannot flush {self!r} when closed"
-        await self._tx.flush()
+        await self.tx.flush()
 
     @_auto_async_to_sync
     async def commit(self) -> Collection[EditData]:
         assert self.is_open, f"cannot commit {self!r} when closed"
-        await self._tx.commit()
-        return self._tx.edits
+        await self.tx.commit()
+        return self.tx.edits
 
     @_auto_async_to_sync
     async def rollback(self):
         assert self.is_open, f"cannot rollback {self!r} when closed"
-        await self._tx.rollback()
+        await self.tx.rollback()
 
     @_auto_async_to_sync
     async def close(self):
@@ -292,7 +295,7 @@ class Session(Node):
             raise RuntimeError(f"session already closed {self}")
 
         # close transaction
-        await self._tx.close()
+        await self.tx.close()
         self._tx = None
 
         # close session
@@ -602,7 +605,7 @@ class Run(HasBase, HasValues):
         return self.block
 
     @staticmethod
-    def get_base_from_data(self, data: RunData) -> Optional[NodeReferenceData]:
+    def get_base_from_data(data: RunData) -> Optional[NodeReferenceData]:
         return data.block_ptr
 
 
@@ -689,45 +692,6 @@ class RunCodeFrame(Struct):
     line: str = p_internal(33)
 
     # locals?
-
-    @staticmethod
-    def clean(
-        stack: list["RunCodeFrame"], from_block: "Block", session: "Session"
-    ) -> list["RunCodeFrame"]:
-        from bench.language.block import Block
-        from bench.language.code_ import Code
-
-        code_by_method: dict[str, Code] = {
-            node._transform.method_name: node
-            for node in list(session.package._nodes)
-            if isinstance(node, Block) and getattr(node, "_transform", None)
-        }
-        if getattr(from_block, "_transform", None):
-            # from block may not be in package (e.g. if detached when running anonymous code)
-            code_by_method[from_block._transform.method_name] = from_block
-
-        found_start = False
-        cleaned_stack = []
-        for frame in stack:
-            if not found_start:
-                # impute bench source info into instantiated code callables
-                code = code_by_method.get(frame.name)
-                if code is not None:
-                    if code == from_block:
-                        found_start = True
-                    elif not found_start:
-                        continue  # ignore
-                    frame.node = from_block
-                    frame.name = from_block.name or "<unnamed>"
-                    frame.lineno = frame.lineno - code._transform.start_offset
-                    frame.line = code.code.splitlines()[frame.lineno - 1]
-            if found_start:
-                # trim file path for python packages
-                python_version = f"{sys.version_info.major}.{sys.version_info.minor}"
-                if python_version in frame.node:
-                    frame.node = frame.node.split(python_version)[-1][1:]  # skip slash
-                cleaned_stack.append(frame)
-        return [f for f in cleaned_stack if f.line]
 
 
 @struct(StructType.RUN_ERROR)
