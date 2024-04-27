@@ -1,15 +1,5 @@
 from dataclasses import dataclass
-from functools import partial
-from typing import (
-    TYPE_CHECKING,
-    Any,
-    Callable,
-    Collection,
-    Iterable,
-    Mapping,
-    Optional,
-    Union,
-)
+from typing import TYPE_CHECKING, Any, Callable, Collection, Iterable, Optional, Union
 
 import structlog
 
@@ -18,7 +8,6 @@ from bench.language.node import InterpStatus, Node, Property, Struct, struct, st
 from bench.language.notice import NoticeHandler
 from bench.language.property import p_internal
 from bench.language.validation import ValidationHandler, on_invalid_raise
-from bench.sql.core import PrimitiveType
 
 if TYPE_CHECKING:
     from bench.language import Bench, Block, Branch, Environment, NodeVisitor, Package, Session
@@ -63,7 +52,7 @@ class Value:
         raise NotImplementedError(":Incomplete")
 
 
-@struct_component
+@struct_component()
 class HasValues(Struct):
     def _validate_inner(
         self, properties: Collection[Property], on_invalid: "ValidationHandler"
@@ -107,55 +96,7 @@ def map_value(
 ) -> Any | None:
     """Walks the value and reassembles with new keys and values."""
 
-    if premap_v:
-        value = premap_v(value, type, ignore_array)
-
-    if type.is_list and not ignore_array:
-        if not isinstance(value, Collection) or isinstance(value, str):
-            # type error, ignore here
-            return None if none_if_invalid else value
-        return [
-            map_value(
-                item,
-                type=type,
-                map_v=map_v,
-                map_k=map_k,
-                premap_v=premap_v,
-                ignore_array=True,
-                none_if_invalid=none_if_invalid,
-                ignore_empty=ignore_empty,
-            )
-            for item in value
-        ]
-    elif type.is_nested:
-        if not isinstance(value, Mapping):
-            return None if none_if_invalid else value
-        mapped = {}
-        assert type._status >= InterpStatus.INTERPED, f"unexpected unresolved type {type}"
-        for subtype in type.fields:
-            source_k, target_k = map_k(subtype)
-            if source_k not in value:
-                if ignore_empty:
-                    continue
-                target_value = None
-            else:
-                target_value = map_value(
-                    value[source_k],
-                    type=subtype,
-                    map_v=map_v,
-                    map_k=map_k,
-                    premap_v=premap_v,
-                    ignore_empty=ignore_empty,
-                    none_if_invalid=none_if_invalid,
-                )
-            mapped[target_k] = target_value
-        if not ignore_outer:
-            mapped = map_v(value=mapped, type=type, ignore_array=ignore_array)
-        return mapped
-    elif type.primitive_type == PrimitiveType.JSON:
-        return value  # nothing to do ?
-    else:  # scalar
-        return map_v(value=value, type=type, ignore_array=ignore_array)
+    raise NotImplementedError
 
 
 def walk_value(
@@ -165,24 +106,7 @@ def walk_value(
     ignore_array: bool = False,
 ) -> Iterable[Any]:
     """Yields all flat values in the instantiated value recursively."""
-    get_k = get_k or (lambda f: f.py_ident)
-
-    if type.is_list and not ignore_array:
-        if not isinstance(value, Collection) or isinstance(value, str):
-            return  # type error, ignore here
-        for item in value:
-            yield from walk_value(item, type, get_k=get_k, ignore_array=True)
-        return
-    elif type.is_nested:
-        if not isinstance(value, Mapping):
-            return
-        for subtype in type.fields:
-            k = get_k(subtype)
-            if k not in value:
-                continue
-            yield from walk_value(value[k], subtype, get_k=get_k)
-    else:
-        yield value
+    raise NotImplementedError
 
 
 def check_type(
@@ -196,38 +120,7 @@ def check_type(
     Checks whether the given value has the expected type (recursively).
     Raises TypeError if not.
     """
-
-    get_k = get_k or (lambda f: f.py_ident)
-
-    def _check(valid: bool, message: str = None):
-        if not valid:
-            on_invalid(value, type, message)
-        return valid
-
-    # optional / list types
-    if not type.is_required and value is None:
-        return
-    elif type.is_list and not ignore_array:
-        if _check(isinstance(value, Collection)):
-            for item in value:
-                check_type(item, type, get_k=get_k, on_invalid=on_invalid, ignore_array=True)
-        return
-
-    # basic instance value check
-    if not is_instance_value_flat(value, type):
-        on_invalid(value, type)
-
-    # walk nested types
-    fields = type.fields
-    if fields:
-        for f in fields:
-            k = get_k(f)
-            subvalue = getattr(value, k)
-            check_type(subvalue, f, get_k=get_k, on_invalid=on_invalid)
-        if hasattr(value, "keys"):
-            for key in value.keys():
-                exists = any(get_k(f) == key for f in fields)
-                _check(exists, f"extraneous field '{key}'")
+    raise NotImplementedError
 
 
 def is_instance_value_flat(value: Any, type: "TypeInfo") -> bool:
@@ -265,17 +158,7 @@ def unpack_value(
     map_k: Callable[["Field"], tuple[str, str]] = None,
 ):
     """Unpacks/deserializes the given value into a Python/Bench representation."""
-    if scope is None:
-        raise ValueError(f"cannot unpack without scope: {type!r}")
-    return map_value(
-        value=value,
-        type=type,
-        map_k=map_k or (lambda f: (f.storage_key, f.py_ident)),
-        map_v=partial(unpack_value_flat, scope=scope, session=session),
-        ignore_array=ignore_array,
-        ignore_outer=ignore_outer,
-        ignore_empty=ignore_empty,
-    )
+    raise NotImplementedError
 
 
 def pack_value(
@@ -289,30 +172,7 @@ def pack_value(
     filter_v: Callable[[Any], bool] = None,
 ):
     """Packs/serializes the given value into a JSON-able representation."""
-    if filter_v:
-
-        def _filtered_pack_value(value: Any, type: "TypeInfo") -> Any:
-            if not filter_v(value):
-                return None
-            return pack_value_flat(value, type, check=False)
-
-        map_v = _filtered_pack_value
-    else:
-        map_v = pack_value_flat
-    return map_value(
-        value=value,
-        type=type,
-        map_k=map_k or (lambda f: (f.py_ident, f.storage_key)),
-        map_v=map_v,
-        ignore_array=ignore_array,
-        ignore_outer=ignore_outer,
-        ignore_empty=ignore_empty,
-        none_if_invalid=none_if_invalid,
-    )
-
-
-def _curry_path(onfn: Callable[[str], None], key: str) -> Callable[[str], Any]:
-    return lambda path: onfn(f"{key}.{path}")
+    raise NotImplementedError
 
 
 @struct(StructType.CONTEXT)

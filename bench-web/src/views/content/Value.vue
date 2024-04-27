@@ -28,16 +28,14 @@ defineExpose<ViewExposed>({ self, id });
   <ViewContentWrapper v-bind="props">
     <!-- nocheckin: UX: render Variable properly -->
     <component
-      v-if="
-        valueType != null && valueView != null && valueView.viewType != null && hasViewComponent(valueView.viewType)
-      "
+      v-if="valueType != null && valueView?.viewType != null && hasViewComponent(valueView.viewType)"
       :is="getViewComponent(valueView.viewType)"
       class="ml-auto flex-shrink-0"
       v-bind="valueView.props"
       :modelValue="unpackValue(modelValue, valueType)"
       @update:modelValue="$emit('update:modelValue', packValue($event, valueType!))"
     />
-    <div v-else class="flex px-1 py-0.5 flex-row items-center text-warning-600">
+    <div v-else class="flex flex-row items-center px-1 py-0.5 text-warning-600">
       <i class="fas fa-empty-set" />
       <span class="ml-1.5">No View for Value Type</span>
     </div>

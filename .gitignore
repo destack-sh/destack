@@ -296,9 +296,6 @@ dist
 .pnp.*
 
 # VSCode configuration
-.vscode/*
-*.code-workspace
-
 *.gpg
 
 infra/.*

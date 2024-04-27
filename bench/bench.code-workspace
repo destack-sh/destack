@@ -1,0 +1,22 @@
+{
+	"folders": [
+		{
+			"path": ".."
+		}
+	],
+	"settings": {
+		"workbench.colorTheme": "Night Owl (No Italics)",
+		"python.languageServer": "Pylance",
+		"python.analysis.typeCheckingMode": "standard",
+		"search.exclude": {
+			"**/*.ts": true,
+			"**/*.vue": true,
+			"**/package-lock.json": true,
+		},
+		"python.testing.pytestArgs": [
+			"bench"
+		],
+		"python.testing.unittestEnabled": false,
+		"python.testing.pytestEnabled": true,
+	}
+}

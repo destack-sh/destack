@@ -1,7 +1,7 @@
 import contextvars
 import enum
 import typing
-from typing import Optional
+from typing import Any, Optional, cast
 from uuid import UUID
 
 from bench.proto.wire import GraphScope
@@ -12,7 +12,7 @@ if typing.TYPE_CHECKING:
     from bench.language import Session, Transaction
 
 VERSION = "2024.04.26.0"
-UNSET = object()
+UNSET = cast(Any, object())
 EMPTY_LIST: list = []
 EMPTY_SET: frozenset = frozenset()
 EMPTY_DICT: typing.Mapping = frozendict()

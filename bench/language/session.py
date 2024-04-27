@@ -647,7 +647,7 @@ def _pack_and_truncate_value(
     raise NotImplementedError
 
 
-@node_component
+@node_component()
 class HasRun(Node):
     """A runnable block"""
 

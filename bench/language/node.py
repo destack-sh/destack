@@ -19,6 +19,7 @@ from typing import (
     Collection,
     Iterable,
     Optional,
+    Type,
     TypeVar,
     Union,
     cast,
@@ -201,7 +202,7 @@ def _get_component_methods(
 def _process_struct_base_cls(
     cls: Union[type["Node"], type["Struct"]],
     dynamic_components: tuple[type["Node"], ...] = (),
-    reserved: set[str | int] = None,
+    reserved: set[str | int] | None = None,
     # for nodes only
     is_final: bool = False,
     is_sub_package: bool = False,
@@ -211,7 +212,7 @@ def _process_struct_base_cls(
     no_ck: bool = False,
     # for structs only
     is_inlined: bool = False,
-) -> tuple[type["Node"], dict[str, "Property"]]:
+) -> tuple[type["Struct"], dict[str, "Property"]]:
     """Process a struct base class and return the processed class and its properties."""
     is_node_base = cls.__name__ in "Node"
     is_struct_base = cls.__name__ == "Struct"
@@ -219,7 +220,7 @@ def _process_struct_base_cls(
     is_struct = not is_node
     metatype = METATYPE_PROPERTY.clone()
     metatype.component = cls
-    properties_by_name: dict[str, "Property"] = {METATYPE_PROPERTY.name: metatype}
+    properties_by_name: dict[str, "Property"] = {"metatype": metatype}
 
     # check that no forbidden methods are defined in non-base classes
     CORE_TYPES = ("Struct", "Node")
@@ -494,10 +495,13 @@ def _process_struct_base_cls(
     return cls, properties_by_name
 
 
+_StructT = TypeVar("_StructT", bound="Struct")
+
+
+@dataclass_transform(kw_only_default=True, field_specifiers=_PROPERTY_SPECIFIERS)
 def struct_component(
-    cls: Optional[type] = None,
-    struct_type: StructType = None,
-    reserved: set[str | int] = None,
+    struct_type: StructType | None = None,
+    reserved: set[str | int] | None = None,
     is_final: bool = False,
     is_inlined: bool = False,
 ):
@@ -505,10 +509,9 @@ def struct_component(
     Mark a class as a struct component (or concrete struct for a StructType).
     """
 
-    @dataclass_transform(kw_only_default=True, field_specifiers=_PROPERTY_SPECIFIERS)
-    def decorate(cls):
+    def decorate(cls_in: Type[_StructT]) -> Type[_StructT]:
         cls, properties = _process_struct_base_cls(
-            cls=cls, reserved=reserved, is_final=is_final, is_inlined=is_inlined
+            cls=cast(Any, cls_in), reserved=reserved, is_final=is_final, is_inlined=is_inlined
         )
 
         # register struct
@@ -519,36 +522,37 @@ def struct_component(
                     f"struct class conflict for {struct_type}: {cls}, {STRUCT_CLASS_BY_TYPE[struct_type]}"
                 )
             STRUCT_CLASS_BY_TYPE[struct_type] = cls
-        return cls
+        return cast(Type[_StructT], cls)
 
-    if cls is not None:
-        return decorate(cls)
     return decorate
 
 
+@dataclass_transform(kw_only_default=True, field_specifiers=_PROPERTY_SPECIFIERS)
 def struct(
     struct_type: StructType,
-    reserved: set[str | int] = None,
+    reserved: set[str | int] | None = None,
     index_in_search: bool = False,
     inline: bool = False,
 ):
-    @dataclass_transform(kw_only_default=True, field_specifiers=_PROPERTY_SPECIFIERS)
-    def decorate(cls):
+    def decorate(cls: Type[_StructT]) -> Type[_StructT]:
         cls = struct_component(
-            cls, struct_type=struct_type, reserved=reserved, is_final=True, is_inlined=inline
-        )
+            struct_type=struct_type, reserved=reserved, is_final=True, is_inlined=inline
+        )(cls)
         cls.__is_indexed_in_search__ = index_in_search
         return cls
 
     return decorate
 
 
+_NodeT = TypeVar("_NodeT", bound="Node")
+
+
+@dataclass_transform(kw_only_default=True, field_specifiers=_PROPERTY_SPECIFIERS)
 def node_component(
-    cls: Optional[type] = None,
-    node_type: NodeType = None,
-    passthrough: tuple[tuple[str, "_Passthrough"]] = (),
+    node_type: NodeType | None = None,
+    passthrough: tuple[tuple[str, "_Passthrough"], ...] = (),
     dynamic_components: tuple[type["Node"], ...] = (),
-    reserved: set[str | int] = None,
+    reserved: set[str | int] | None = None,
     is_variable_root: bool = False,
     is_sub_package: bool = False,
     is_sub_bench: bool = False,
@@ -560,8 +564,7 @@ def node_component(
     Mark a class as a node component (or concrete node for a NodeType).
     """
 
-    @dataclass_transform(kw_only_default=True, field_specifiers=_PROPERTY_SPECIFIERS)
-    def decorate(cls):
+    def decorate(cls: Type[_NodeT]) -> Type[_NodeT]:
         cls, properties = _process_struct_base_cls(
             cls=cls,
             dynamic_components=dynamic_components,
@@ -603,15 +606,13 @@ def node_component(
 
         return cls
 
-    if cls is not None:
-        return decorate(cls)
-
     return decorate
 
 
+@dataclass_transform(kw_only_default=True, field_specifiers=_PROPERTY_SPECIFIERS)
 def node(
     node_type: NodeType,
-    passthrough: tuple[tuple[str, "_Passthrough"]] = (),
+    passthrough: tuple[tuple[str, "_Passthrough"], ...] = (),
     dynamic_components: tuple[type["Node"], ...] = (),
     stored: bool = True,
     stored_custom: bool = False,
@@ -619,7 +620,7 @@ def node(
     no_ck: bool = False,
     local: bool = False,
     roots: tuple[NodeType, ...] = (NodeType.BENCH,),
-    reserved: set[str | int] = None,
+    reserved: set[str | int] | None = None,
     indexes: tuple[Index, ...] = (),
     constraints: tuple[Constraint, ...] = (),
     unique_together: tuple[tuple[str, ...], ...] = (),
@@ -633,10 +634,8 @@ def node(
     in_bench = node_type in IN_BENCH_NODE_TYPES
     sub_bench = node_type in SUB_BENCH_NODE_TYPES
 
-    @dataclass_transform(kw_only_default=True, field_specifiers=_PROPERTY_SPECIFIERS)
-    def decorate(cls):
+    def decorate(cls: Type[_NodeT]) -> Type[_NodeT]:
         cls = node_component(
-            cls,
             node_type=node_type,
             passthrough=passthrough,
             dynamic_components=dynamic_components,
@@ -647,7 +646,7 @@ def node(
             no_ck=no_ck,
             is_final=True,
             is_local=local,
-        )
+        )(cls)
         cls.__is_stored__ = stored
         cls.__is_stored_custom__ = stored_custom
         cls.__is_indexed_in_search__ = index_in_search
@@ -828,7 +827,7 @@ class _Passthrough(enum.StrEnum):
     Scope = "scope"
 
 
-@struct_component
+@struct_component()
 class Struct(abc.ABC):
     """
     A non-node data structure, usually inside a node (which is the only way to store/retrieve it).
@@ -1308,7 +1307,7 @@ def _make_rec_method(
     return rec_method
 
 
-@node_component
+@node_component()
 class Node(Struct, _NodeQueryBuilder if TYPE_CHECKING else object):
     """
     A node in the Bench graph: a struct with a globally unique identity.
@@ -1808,7 +1807,7 @@ class Skip(Node):
     order_key: Optional[str] = p_internal(31, default=None)
 
 
-@node_component
+@node_component()
 class HasBase(Node):
     """A node that requires an explicit base (parent, type, whatever) in another node."""
 

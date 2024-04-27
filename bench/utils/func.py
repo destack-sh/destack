@@ -93,7 +93,7 @@ def group_by(iterable: Collection[V], key: typing.Callable[[V], K]) -> dict[K, l
     return result
 
 
-def try_tuple(obj: T) -> tuple[T, ...] | None:
+def try_tuple(obj: tuple[T, ...] | T | None) -> tuple[T, ...] | None:
     """To tuple if not None and not already a tuple"""
     if obj is None:
         return None
@@ -343,6 +343,9 @@ _MAX_ID_BY_ENUM: dict[type, int] = {}
 
 
 class IdEnum(enum.IntEnum):
+    id: int
+    ord: int
+
     def __new__(cls, id: int):
         obj = int.__new__(cls, id)
         obj._value_ = id

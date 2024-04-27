@@ -332,7 +332,7 @@ class Alignment(IdEnum):
     SPACE_BETWEEN = 4
 
 
-@node_component
+@node_component()
 class HasViews(Node):
     views: list["View"] = p_node_child(NodeType.VIEW)
 

@@ -38,7 +38,7 @@ if TYPE_CHECKING:
     )
 
 
-@node_component
+@node_component()
 class IsInstantiable(Node):
     def _call_inner(self, *args, **kwargs) -> Any:
         raise NotImplementedError("create value :Incomplete")

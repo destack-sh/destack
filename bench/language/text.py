@@ -21,7 +21,7 @@ class Text(Struct):
         return Text(lines=[TextLine.plain(text)])
 
 
-@struct_component
+@struct_component()
 class TextOptions(Struct):
     # color?
     color: Optional["ColorType"] = p_regular(50, default=None)

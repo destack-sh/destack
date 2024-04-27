@@ -3,5 +3,9 @@
   "search.searchOnTypeDebouncePeriod": 201,
   "css.lint.unknownAtRules": "ignore",
   "scss.lint.unknownAtRules": "ignore",
-  "less.lint.unknownAtRules": "ignore"
+  "less.lint.unknownAtRules": "ignore",
+  "search.exclude": {
+    "**/*.py": true,
+    "**/package-lock.json": true
+  }
 }
