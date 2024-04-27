@@ -101,6 +101,7 @@ def validate_email(prop: "Property", value: str, on_invalid: PropertyValidationH
 @cachetools.cached({})
 def parent_validator():
     def validate_parent(prop: "Property", value: "Node", on_invalid: PropertyValidationHandler):
+        assert prop.reference_nodes is not None, f"missing reference_nodes for {prop!r}"
         if value.metatype not in prop.reference_nodes:
             on_invalid(f"invalid parent type ({value.metatype} not in {prop.reference_nodes})")
 

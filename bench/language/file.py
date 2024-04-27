@@ -48,7 +48,7 @@ class File(Struct):
                 self,
                 f"{self} name is too long ({len(self.name)} > {FILE_MAX_NAME_LENGTH})",
             )
-        if self.size > FILE_MAX_SIZE:
+        if self.size and self.size > FILE_MAX_SIZE:
             on_invalid(
                 self,
                 f"{self} is too big ({self.size} > {FILE_MAX_SIZE} bytes)",
@@ -72,9 +72,7 @@ class File(Struct):
 
     @_auto_async_to_sync
     async def get_url(self):
-        if self.status != FileStatus.AVAILABLE:
-            raise ValueError(f"unable to read {self}")
-        return await self.session.host.download_file(self)
+        raise NotImplementedError
 
     @_auto_async_to_sync
     async def text(self) -> str:

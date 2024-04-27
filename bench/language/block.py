@@ -161,8 +161,8 @@ class Block(Node, HasValues):
 
     @staticmethod
     def new(
-        type: Union[str, BlockType] = None,
-        name: str = None,
+        type: BlockType,
+        name: str,
         *args,
         for_parent: Union["Block", "Package", None] = None,
         **kwargs,
@@ -192,11 +192,11 @@ class Block(Node, HasValues):
         return init_name, init_args, dict_minus(props, "name", "type", "tag", "flags")
 
     @property
-    def _components(self) -> tuple[typing.Type[Node]]:
+    def _components(self) -> tuple[typing.Type[Node], ...]:
         return _ALL_COMPONENTS_BY_TYPE[self.type]
 
     @property
-    def _dynamic_components(self) -> tuple[typing.Type[Node]]:
+    def _dynamic_components(self) -> tuple[typing.Type[Node], ...]:
         return _DYNAMIC_COMPONENTS_BY_TYPE[self.type]
 
     @property
@@ -244,7 +244,7 @@ class Block(Node, HasValues):
     def __content_str__(self):
         return ""  # implemented by dynamic components
 
-    def __repr__(self):  # noqa: we want to override the default repr
+    def __repr__(self):  # type: ignore we want to override the default repr
         return f"<{self.type.bench_name}Block {self}>"
 
     def _init_inner(self) -> None:
@@ -258,18 +258,10 @@ class Block(Node, HasValues):
         raise NotImplementedError(f"{self!r} does not support morphing yet")
 
     @property
-    def identifier_type(self) -> Optional[IdentifierType]:
+    def identifier_type(self) -> IdentifierType:
         return _IDENTIFIER_BY_TYPE[self.type]
 
 
-# Block.<type> convenience constructors
-for _t in BlockType:
-    method = staticmethod(
-        lambda name=None, _type=_t, *args, **kwargs: Block.new(_type, name=name, *args, **kwargs)
-    )
-    method_name = "new_" + _t.name.lower()
-    setattr(Block, method_name, method)
-
-_ALL_COMPONENTS_BY_TYPE: dict[BlockType, tuple[typing.Type[Node]]] = {
+_ALL_COMPONENTS_BY_TYPE: dict[BlockType, tuple[typing.Type[Node], ...]] = {
     t: _DYNAMIC_COMPONENTS_BY_TYPE[t] + Block.__static_components__ for t in BlockType
 }

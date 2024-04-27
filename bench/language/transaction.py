@@ -2,7 +2,7 @@ import asyncio
 import dataclasses
 from collections import defaultdict
 from datetime import datetime
-from typing import TYPE_CHECKING, Any, Collection, Optional, Union
+from typing import TYPE_CHECKING, Any, Collection, Optional, Union, cast
 from uuid import UUID
 
 import structlog
@@ -10,13 +10,14 @@ import structlog
 from bench.language.const import EMPTY_SCOPE, AccessKind, BenchError, EditType, NodeType
 from bench.language.node import Node, Property
 from bench.language.query import StoreConnection, StoreEngine
-from bench.proto.wire import EditData, GraphScope
+from bench.proto import wire
+from bench.proto.wire import AnyNodeData, EditData, GraphScope
 from bench.utils.dt import utcnow_with_tz
 from bench.utils.func import uuid_to_str
 from bench.utils.uuidt import UUIDT
 
 if TYPE_CHECKING:
-    from bench.language import Session
+    from bench.language import Session, User, Run
 
 logger = structlog.get_logger(__name__)
 
@@ -36,9 +37,9 @@ class Transaction:
     """
 
     id: UUID = dcfield(default_factory=UUIDT)
-    session: "Session" = dcfield(default=None)
+    session: Optional["Session"] = dcfield(default=None)
     is_readonly: bool = dcfield(default=False)
-    _connections_by_engine_id: dict[Any, StoreConnection | None] = dcfield(default_factory=dict)
+    _connections_by_engine_id: dict[Any, StoreConnection] = dcfield(default_factory=dict)
 
     edits: list[EditData] = dcfield(default_factory=list)
     _pending_edits_by_engine_id: dict[Any, list[EditData]] = dcfield(
@@ -64,17 +65,11 @@ class Transaction:
     def has_pending_edits(self) -> bool:
         return any(self._pending_edits_by_engine_id.values())
 
-    @staticmethod
-    def from_existing(edits: Collection[EditData]):
-        tx = Transaction()
-        for edit in edits:  # replay edits
-            tx._add_pending_edit(edit)
-        return tx
-
     async def connect_store(
         self, base: Node | GraphScope | None, node_type: NodeType, access_kind: AccessKind
     ) -> StoreConnection:
         """Gets a connection to the Store for some access."""
+        assert self.session is not None, f"no session in {self!r}"
         if isinstance(base, Node):
             scope = GraphScope(
                 bench_id=uuid_to_str(base.root.bench_id),
@@ -93,6 +88,7 @@ class Transaction:
     async def _get_engine_connection(self, engine: StoreEngine) -> StoreConnection:
         connection = self._connections_by_engine_id.get(engine.id)
         if connection is None:
+            assert self.session is not None, f"no session in {self!r}"
             connection = await engine.connect(self.session)
             self._connections_by_engine_id[engine.id] = connection
         return connection
@@ -100,6 +96,7 @@ class Transaction:
     def _get_engine_for_edit(
         self, scope: GraphScope, node_type: NodeType, edit_type: EditType
     ) -> StoreEngine:
+        assert self.session is not None, f"no session in {self!r}"
         for engine in self.session._engines:
             if engine.supports(scope, node_type, AccessKind.EDIT):
                 return engine
@@ -113,7 +110,7 @@ class Transaction:
     # Edits
     #
 
-    def _make_edit(self, type: EditType, n: Node, subject: EditSubject) -> EditData:
+    def _make_edit(self, type: EditType, n: Node, subject: EditSubject | None) -> EditData:
         """Creates an edit and adds it to the pending edits."""
         if self.is_readonly:
             raise RuntimeError(f"cannot {type.bench_name} {n!r} in read-only {self.session}")
@@ -121,7 +118,7 @@ class Transaction:
         from bench.proto import wiring
 
         # TODO :Performance: pack only edited node properties
-        node_data = n._to_data()
+        node_data = cast(AnyNodeData, n._to_data())
         if n._updated_properties:
             properties = n._unmask_properties_ids(n._updated_properties)
         else:
@@ -136,11 +133,11 @@ class Transaction:
         edit = EditData(
             id=new_edit_id(),
             type=wiring.pack_enum(EditType, type),
-            node_type=node_data.metatype,
+            node_type=cast(wire.NodeType, node_data.metatype),
             node=wiring.wrap_some_node(node_data),
-            properties=list(properties) if properties is not None else None,
+            properties=list(properties) if properties is not None else [],
             scope=scope,
-            subject=subject.to_ref() if subject is not None else None,
+            subject=wiring.pack_struct(subject.to_ref()) if subject is not None else None,
             revision=None,  # not known yet
         )
         return edit
@@ -152,7 +149,7 @@ class Transaction:
             self._schema_changed = True
 
         node_type = wiring.unpack_enum(NodeType, edit.node_type)
-        engine = self._get_engine_for_edit(edit.scope, node_type, edit.type)
+        engine = self._get_engine_for_edit(edit.scope, node_type, cast(EditType, edit.type))
         self.edits.append(edit)
         self._pending_edits_by_engine_id[engine.id].append(edit)
         if node is not None:
@@ -185,6 +182,7 @@ class Transaction:
         else:
             # update existing edit in place
             #  (to avoid re-packing everything for successive updates)
+            assert n._updated_properties is not None, f"missing property mask for {n!r}"
             engine_id, current_update_idx = existing_edit_idx
             edit = self._pending_edits_by_engine_id[engine_id][current_update_idx]
             edit.properties = list(n._unmask_properties_ids(n._updated_properties))
@@ -266,6 +264,7 @@ class Transaction:
         If specific engines are given, only flushes to those engines.
         """
 
+        assert self.session is not None, f"no session for {self!r}"
         log = logger.bind(edits=len(self.edits), transaction=self)
         now = utcnow_with_tz()
         for engine in self.session._engines:
@@ -275,7 +274,7 @@ class Transaction:
                 connection = await self._get_engine_connection(engine)
                 log.debug("transaction.flush", engine=engine, flushed=len(pending_edits))
                 accepted_revisions = await connection.flush(pending_edits)
-                for edit, new_revision in zip(pending_edits, accepted_revisions):
+                for edit, new_revision in zip(pending_edits, cast(list[int], accepted_revisions)):
                     edit.revision = new_revision
                 pending_edits.clear()
         self._pending_updates_idx.clear()
@@ -287,6 +286,7 @@ class Transaction:
 
     async def commit(self):
         """Commits the transaction (flushing any pending edits). Syncs to secondary stores."""
+        assert self.session is not None, f"no session for {self!r}"
         log = logger.bind(edits=len(self.edits), transaction=self)
         start = asyncio.get_running_loop().time()
 
@@ -294,13 +294,16 @@ class Transaction:
         #  (if there are more than 2 engines to commit to)
         now = utcnow_with_tz()
         for engine in self.session._engines:
-            pending_edits = self._pending_edits_by_engine_id.get(engine.id, ())
+            pending_edits = self._pending_edits_by_engine_id.get(engine.id, [])
             if pending_edits or engine.id in self._connections_by_engine_id:
                 Transaction.canonicalize_edits(now, pending_edits)
                 connection = await self._get_engine_connection(engine)
                 log.trace("transaction.commit.engine", engine=engine, flushed=len(pending_edits))
                 accepted_revisions = await connection.commit(pending_edits)
-                for edit, new_revision in zip(pending_edits, accepted_revisions):
+                assert len(accepted_revisions or ()) == len(
+                    pending_edits
+                ), f"accepted revision mismatch: {accepted_revisions}"
+                for edit, new_revision in zip(pending_edits, cast(list[int], accepted_revisions)):
                     edit.revision = new_revision
                 if len(pending_edits) > 0:
                     pending_edits.clear()

@@ -4,7 +4,7 @@ import functools
 from dataclasses import dataclass
 from datetime import datetime
 from sys import intern
-from typing import TYPE_CHECKING, Any, Callable, Iterable, Literal, Optional, Union
+from typing import TYPE_CHECKING, Any, Callable, Iterable, Literal, Optional, Union, cast
 from uuid import UUID
 
 from bench.language.const import (
@@ -57,9 +57,13 @@ class Property(_TypeQueryBuilder if TYPE_CHECKING else object):
     """A system-defined attribute of a node or struct."""
 
     # basics
-    id: int | None = None  # stable id for wiring properties, must be unique per final struct/node
-    id_as_str: str | None = None  # str(id)
-    ord: int | None = None  # unstable ordinal for bit-packing
+    # NOTE: yes cast(int, None) is a bit evil but we almost always immediately assign it here and
+    #  don't want to deal with asserting id is not None everywhere.
+    id: int = cast(
+        int, None
+    )  # stable id for wiring properties, must be unique per final struct/node
+    id_as_str: str = UNSET  # str(id)
+    ord: int = cast(int, None)  # unstable ordinal for bit-packing
     name: str = UNSET  # name from LHS of assignment
     component: type["Struct"] | type["Node"] = UNSET  # source component class
     py_type_raw: Any = None  # type annotation on LHS of assignment
@@ -246,7 +250,8 @@ class Property(_TypeQueryBuilder if TYPE_CHECKING else object):
 
     @property
     def column(self) -> Column:
-        assert isinstance(self.component.__table__, Table), f"{self.component} has no table"
+        table = getattr(self.component, "__table__", None)
+        assert isinstance(table, Table), f"{self.component} has no table"
         return self.component.__table__._columns_by_name[self.name]
 
     @property
@@ -266,10 +271,10 @@ class Property(_TypeQueryBuilder if TYPE_CHECKING else object):
             and (
                 not self.reference_kind or bool(self.reference_nodes) or bool(self.reference_struct)
             )
-            # # exclude ancestor properties (they're computed but would be nice to have :c)
+            # exclude ancestor properties (they're computed but would be nice to have :c)
             and self.reference_kind
             not in (ReferenceKind.NODE_ANCESTOR_FIRST, ReferenceKind.NODE_ANCESTOR_ROOT)
-            # # exclude contributed reference properties (like parent_id)
+            # exclude contributed reference properties (like parent_id)
             and not self.reference_source
         )
 
@@ -317,9 +322,11 @@ class Property(_TypeQueryBuilder if TYPE_CHECKING else object):
             return None
         elif self.is_list:
             if self.is_node_reference or self.is_property_reference:
+                assert isinstance(ref, (list, tuple)), f"expected list for {self!r}: {ref!r}"
                 return [r.to_ref() for r in ref]
         else:
             if self.is_node_reference or self.is_property_reference:
+                ref = cast(Union["NodeReference", "PropertyReference"], ref)
                 return ref.to_ref()
             elif self.is_struct_reference:
                 if ref.__is_struct_only__ and not ref.__is_struct_inlined__:
@@ -625,7 +632,7 @@ class Property(_TypeQueryBuilder if TYPE_CHECKING else object):
                         is_indexed_in_pg=self.is_indexed_in_pg,
                     )
                     stored_ids.append(id_ref_prop)
-            else:
+            elif self.reference_nodes:
                 shared_ptr_types.extend(self.reference_nodes)
 
             if shared_ptr_types:
@@ -683,7 +690,7 @@ class Property(_TypeQueryBuilder if TYPE_CHECKING else object):
                     )
 
             # we need the 'bench_id' for the reference if it could be in a Bench
-            is_sub_bench = any(t in SUB_BENCH_NODE_TYPES for t in self.reference_nodes)
+            is_sub_bench = any(t in SUB_BENCH_NODE_TYPES for t in self.reference_nodes or ())
             if is_sub_bench and not is_parent and not self.reference_is_bench_implicit:
                 extra_stored_props["bench_id"] = Property(
                     id=self.id,

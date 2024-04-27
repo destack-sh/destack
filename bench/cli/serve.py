@@ -4,8 +4,8 @@ import structlog
 import typer
 from grpclib.utils import graceful_exit
 
-from bench.cli.utils import _async_to_sync_blocking, _check_is_consistent
-from bench.proto.services import BenchServer
+from bench.cli.utils import async_to_sync_blocking, _check_is_consistent
+from bench.proto.services import BenchServer, BenchServiceBase
 from bench.runtime.process import Runtime
 from bench.system.host import HostMultiplexer
 from bench.system.supervisor import Supervisor
@@ -18,14 +18,14 @@ logger = structlog.get_logger(__name__)
 
 
 @app.command()
-@_async_to_sync_blocking
+@async_to_sync_blocking
 async def system(host: str, port: int, watch: bool = False, no_supervisor: bool = False):
     await _check_is_consistent(check_db=True)
     logger.info("serve.system", host=host, port=port)
-    services = [HostMultiplexer()]
+    services: list[BenchServiceBase] = [HostMultiplexer()]
     if not no_supervisor:
         services.append(Supervisor())
-    server = BenchServer(services)
+    server = BenchServer(handlers=services)
     if IS_DEBUG and watch:
         _ = asyncio.create_task(restart_on_file_changes())
     with graceful_exit([server]):
@@ -34,7 +34,7 @@ async def system(host: str, port: int, watch: bool = False, no_supervisor: bool 
 
 
 @app.command()
-@_async_to_sync_blocking
+@async_to_sync_blocking
 async def runtime(host: str, port: int, watch: bool = False):
     await _check_is_consistent(check_db=True)
     logger.info("serve.runtime", host=host, port=port)

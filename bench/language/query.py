@@ -37,6 +37,7 @@ from bench.proto.wire import (
     AggregationData,
     AnyNodeData,
     EditData,
+    ExpressionData,
     GraphIoStub,
     GraphScope,
     NodeReferenceData,
@@ -79,7 +80,7 @@ class Query(Node):
     def node_cls(self) -> type[Node]:
         return NODE_CLASS_BY_TYPE[self.node_type]
 
-    def query(self) -> "QueryBuilder":
+    def into(self) -> "QueryBuilder":
         return QueryBuilder(
             node_type=self.node_type,
             base=self.base,
@@ -113,16 +114,20 @@ class StoreEngineError(BenchError, ValueError):
     def __init__(
         self,
         engine: Union["StoreEngine", "StoreConnection", StoreEngineType],
-        query: "QueryBuilder" = None,
-        expr: Union["Expression", list["Expression"]] = None,
-        reason: str = None,
+        query: Optional["QueryBuilder"] = None,
+        expression: Union["Expression", list["Expression"], None] = None,
+        reason: str | None = None,
     ):
-        super().__init__(
-            f"{engine} cannot {query or expr or 'do this'}: {reason or '<unknown error>'}"
-        )
+        if query is not None:
+            action = repr(query)
+        elif expression is not None:
+            action = repr(expression)
+        else:
+            action = "<unknown action>"
+        super().__init__(f"{engine} cannot {action}: {reason or '<unknown error>'}")
         self.engine = engine
         self.query = query
-        self.expr = expr
+        self.expression = expression
         self.reason = reason
 
 
@@ -133,11 +138,15 @@ class StoreEngineIncapableError(StoreEngineError):
 class MakeQueryBase(abc.ABC, Generic[NodeT, NodeDataT]):
     """Build or modify a query. :ReadQueryBase"""
 
-    def filter(self, filter: "Expression" = None, **kwargs) -> "QueryBuilder[NodeT, NodeDataT]":
+    def filter(
+        self, filter: Optional["Expression"] = None, **kwargs
+    ) -> "QueryBuilder[NodeT, NodeDataT]":
         raise NotImplementedError
 
     def sort(
-        self, sort: Union[list[Union["Expression", str]], str, "Expression"] = None, *args: str
+        self,
+        sort: Union[list[Union["Expression", str]], str, "Expression", None] = None,
+        *args: str,
     ) -> "QueryBuilder[NodeT, NodeDataT]":
         raise NotImplementedError
 
@@ -184,7 +193,7 @@ class ReadQueryBase(abc.ABC, Generic[NodeT, NodeDataT]):
     async def __aiter__(self):
         raise NotImplementedError
 
-    def tolist(self) -> list[NodeT]:
+    async def tolist(self) -> list[NodeT]:
         raise NotImplementedError
 
     def __iter__(self):
@@ -196,13 +205,13 @@ class ReadQueryBase(abc.ABC, Generic[NodeT, NodeDataT]):
     def __getitem__(self, item: slice | int) -> Union[Self, NodeT]:
         raise NotImplementedError
 
-    def get(self, filter: "Expression" = None, **kwargs) -> NodeT:
+    async def get(self, filter: Optional["Expression"] = None, **kwargs) -> NodeT:
         raise NotImplementedError
 
-    def exists(self, filter: "Expression" = None, **kwargs) -> bool:
+    async def exists(self, filter: Optional["Expression"] = None, **kwargs) -> bool:
         raise NotImplementedError
 
-    def count(self, filter: "Expression" = None, **kwargs) -> int:
+    async def count(self, filter: Optional["Expression"] = None, **kwargs) -> int:
         raise NotImplementedError
 
 
@@ -251,7 +260,7 @@ class QueryBuilder(
         return args_str
 
     def __repr__(self):
-        if self._aggregation:
+        if self._aggregation is not None:
             query_type = self._aggregation.op.bench_name
         else:
             query_type = "Fetch"
@@ -286,24 +295,29 @@ class QueryBuilder(
         else:
             return self._options.copy()
 
-    def filter(self, filter: "Expression" = None, **kwargs) -> "QueryBuilder[NodeT, NodeDataT]":
+    def filter(
+        self, filter: Optional["Expression"] = None, **kwargs
+    ) -> "QueryBuilder[NodeT, NodeDataT]":
         """Adds a filter clause to the query."""
         from bench.language.expression import coerce_conditional
 
         filter = coerce_conditional(self._node_cls, filter, kwargs)
         copy = self.copy()
-        copy._filter = filter & self._filter if self._filter is not None else filter
+        copy._filter = (
+            filter & self._filter if filter is not None and self._filter is not None else filter
+        )
         return copy
 
     def sort(
-        self, sort: Union[list[Union["Expression", str]], str, "Expression"] = None, *args: str
+        self,
+        sort: Union[list[Union["Expression", str]], str, "Expression", None] = None,
+        *args: str,
     ) -> "QueryBuilder[NodeT, NodeDataT]":
         """Sorts the query results by the given sort criteria."""
         from bench.language.expression import coerce_sort
 
         copy = self.copy()
-        sort = coerce_sort(self._node_cls, sort, *args)
-        copy._sort = sort
+        copy._sort = coerce_sort(self._node_cls, sort, *args)
         return copy
 
     def first(self, count: int) -> "QueryBuilder[NodeT, NodeDataT]":
@@ -330,10 +344,18 @@ class QueryBuilder(
         copy._aggregation = aggregation
         return copy
 
+    @staticmethod
+    def _to_properties(properties: tuple[FieldOrProperty, ...]) -> tuple["Property", ...]:
+        return cast(tuple["Property"], properties)
+
+    @staticmethod
+    def _to_node_types(node_types: tuple[NodeTypeOrClass, ...]) -> list[NodeType]:
+        return [cast(type[Node], t).metatype if isinstance(t, type) else t for t in node_types]
+
     def include(self, *properties: FieldOrProperty) -> "QueryBuilder":
         copy = self.copy()
         copy._options = self._copy_options()
-        copy._options.include_properties.extend(properties)
+        copy._options.include_properties.extend(self._to_properties(properties))
         return copy
 
     def include_all(self) -> "QueryBuilder[NodeT, NodeDataT]":
@@ -345,13 +367,13 @@ class QueryBuilder(
     def exclude(self, *properties: FieldOrProperty) -> "QueryBuilder":
         copy = self.copy()
         copy._options = self._copy_options()
-        copy._options.exclude_properties.extend(*properties)
+        copy._options.exclude_properties.extend(self._to_properties(properties))
         return copy
 
     def related(self, *properties: FieldOrProperty) -> "QueryBuilder":
         copy = self.copy()
         copy._options = self._copy_options()
-        copy._options.related_properties.extend(*properties)
+        copy._options.related_properties.extend(self._to_properties(properties))
         return copy
 
     def include_ancestors(self) -> "QueryBuilder":
@@ -362,24 +384,20 @@ class QueryBuilder(
     def ancestors(self, *node_types: NodeTypeOrClass) -> "QueryBuilder":
         copy = self.copy()
         copy._options = self._copy_options()
-        copy._options.ancestor_types = tuple(
-            cast(type[Node], t).metatype if isinstance(t, type) else t for t in node_types
-        )
+        copy._options.ancestor_types = self._to_node_types(node_types)
         return copy
 
     def descendants(self, *node_types: NodeTypeOrClass) -> "QueryBuilder":
         copy = self.copy()
         copy._options = self._copy_options()
-        copy._options.descendant_types = tuple(
-            cast(type[Node], t).metatype if isinstance(t, type) else t for t in node_types
-        )
+        copy._options.descendant_types = self._to_node_types(node_types)
         return copy
 
     #
     # Fetch
     #
 
-    def __getitem__(self, item: slice) -> Union["QueryBuilder[NodeT, NodeDataT]", NodeT]:
+    def __getitem__(self, item: slice) -> Union["QueryBuilder[NodeT, NodeDataT]", NodeT]:  # type: ignore
         if isinstance(item, slice):
             if item.stop is None:
                 return self.skip(item.start or 0)
@@ -400,7 +418,7 @@ class QueryBuilder(
         return self.count()
 
     @_auto_async_to_sync
-    async def get(self, filter: "Expression" = None, **kwargs) -> NodeT:
+    async def get(self, filter: Optional["Expression"] = None, **kwargs) -> NodeT:
         """Returns the unique result matching the query (errors otherwise)."""
         from bench.language.expression import coerce_conditional
 
@@ -426,12 +444,12 @@ class QueryBuilder(
         result = await connection.fetch(self, FetchOptions())
         data_graph = NodeDataGraph(result.nodes)
         roots = unpack_roots(data_graph, parent=self._base, session=tx.session, roots=result.roots)
-        return roots
+        return cast(tuple[NodeT, ...], roots)
 
-    tolist = fetch
+    tolist = fetch  # type: ignore
 
     @_auto_async_to_sync
-    async def count(self, filter: "Expression" = None, **kwargs) -> int:
+    async def count(self, filter: Optional["Expression"] = None, **kwargs) -> int:
         """Returns the number of results. May refine the query."""
         from bench.language.expression import A, coerce_conditional
 
@@ -442,10 +460,11 @@ class QueryBuilder(
             base=query._base, node_type=query._node_type, access_kind=AccessKind.READ
         )
         result = await connection.aggregate(query)
+        assert result.aggregation.count is not None
         return result.aggregation.count
 
     @_auto_async_to_sync
-    async def exists(self, filter: "Expression" = None, **kwargs) -> bool:
+    async def exists(self, filter: Optional["Expression"] = None, **kwargs) -> bool:
         """Whether any results exist. May refine the query."""
         from bench.language.expression import A, coerce_conditional
 
@@ -456,17 +475,18 @@ class QueryBuilder(
             base=query._base, node_type=query._node_type, access_kind=AccessKind.READ
         )
         result = await connection.aggregate(query)
+        assert result.aggregation.exists is not None
         return result.aggregation.exists
 
 
 class FetchOptions(NamedTuple):
-    count: bool = False
+    count: bool = False  # type: ignore
     lock_for_update: bool = False
     skip_locked: bool = False
 
 
 class FetchResult(NamedTuple):
-    nodes: list[NodeDataT] | tuple[NodeDataT, ...]
+    nodes: list[AnyNodeData] | tuple[AnyNodeData, ...]
     roots: list[NodeReferenceData] | tuple[NodeReferenceData, ...]
     cursors: list[str] | tuple[str, ...]
     start_cursor: str | None
@@ -510,7 +530,7 @@ class StoreEngine(abc.ABC, Generic[NodeT, NodeDataT]):
             return False
         return True
 
-    async def connect(self, session: "Session") -> "StoreConnection[NodeT, NodeDataT]":
+    async def connect(self, session: "Session") -> "StoreConnection":
         """Opens the store engine for a session."""
         raise NotImplementedError
 
@@ -519,7 +539,7 @@ StoreEngineT = TypeVar("StoreEngineT", bound=StoreEngine)
 
 
 class StoreConnection(abc.ABC, Generic[StoreEngineT, NodeT, NodeDataT]):
-    def __init__(self, engine: "StoreEngineT[NodeT, NodeDataT]", session: "Session"):
+    def __init__(self, engine: "StoreEngineT", session: "Session"):
         self.engine = engine
         self.session = session
 
@@ -597,7 +617,7 @@ class RemoteEngine(StoreEngine[NodeT, NodeDataT]):
         node_types: bytetuple[NodeType],
         remote: GraphIoStub,
     ):
-        super().__init__(store, node_types)
+        super().__init__(store, scope, node_types)
         self.remote = remote
 
     def __str__(self):
@@ -613,15 +633,15 @@ class RemoteConnection(StoreConnection[RemoteEngine, NodeT, NodeDataT]):
         request = wire.SearchNodesRequest(
             node_type=wiring.pack_enum(NodeType, query._node_type),
             filter=wiring.pack_struct_maybe(query._filter),
-            sort=[wiring.pack_struct(s) for s in query._sort] if query._sort else None,
-            limit=query._first,
+            sort=[wiring.pack_struct(s) for s in query._sort] if query._sort else [],
+            first=query._first,
             options=wiring.pack_struct_maybe(query._options),
             count=options.count,
         )
         response = await self.engine.remote.search_nodes(request)
         return FetchResult(
             nodes=[wiring.unwrap_some_node(n) for n in response.nodes],
-            roots=response.rootsy,
+            roots=response.roots,
             cursors=response.cursors,
             start_cursor=response.start_cursor,
         )
@@ -629,11 +649,11 @@ class RemoteConnection(StoreConnection[RemoteEngine, NodeT, NodeDataT]):
     async def aggregate(self, query: "QueryBuilder[NodeT, NodeDataT]") -> AggregateResult:
         from bench.proto import wire, wiring
 
+        assert query._aggregation is not None
         request = wire.AggregateNodesRequest(
             node_type=wiring.pack_enum(NodeType, query._node_type),
             filter=wiring.pack_struct_maybe(query._filter),
-            limit=query._first,
-            aggregation=query._aggregation._to_data(),
+            aggregation=cast(ExpressionData, query._aggregation._to_data()),
         )
         response = await self.engine.remote.aggregate_nodes(request)
         return AggregateResult(response.aggregation)
@@ -641,6 +661,7 @@ class RemoteConnection(StoreConnection[RemoteEngine, NodeT, NodeDataT]):
     async def commit(self, edits: list[EditData] | tuple[EditData, ...]) -> list[int]:
         from bench.proto import wire
 
+        edits = list(edits)
         request = wire.CommitTransactionRequest(id=str(self.session.tx.id), edits=edits)
         response = await self.engine.remote.commit_transaction(request)
         return response.revisions
@@ -716,6 +737,7 @@ class PostgresConnection(
     async def aggregate(self, query: "QueryBuilder[NodeT, NodeDataT]") -> AggregateResult:
         from bench.sql.engine import compile_pg_conditional_maybe, pg_count, pg_exists
 
+        assert query._aggregation is not None
         where = compile_pg_conditional_maybe(query._node_cls, query._filter)
         if query._aggregation.op == AggregationOp.EXISTS:
             exists = await pg_exists(self.cur, query._node_cls.__table__, where=where)
@@ -725,16 +747,20 @@ class PostgresConnection(
             return AggregateResult(AggregationData(count=count))
         else:
             raise StoreEngineIncapableError(
-                self, query, expr=query._aggregation, reason="unsupported"
+                self, query, expression=query._aggregation, reason="unsupported"
             )
 
-    async def flush(self, edits: list[EditData] | tuple[EditData, ...]) -> tuple[int, ...]:
+    async def flush(
+        self, edits: list[EditData] | tuple[EditData, ...]
+    ) -> list[int] | tuple[int, ...]:
         from bench.sql.engine import pg_write_edits
 
         new_revisions = await pg_write_edits(self.cur, edits)
         return new_revisions
 
-    async def commit(self, edits: list[EditData] | tuple[EditData, ...]) -> tuple[int, ...]:
+    async def commit(
+        self, edits: list[EditData] | tuple[EditData, ...]
+    ) -> list[int] | tuple[int, ...]:
         from bench.sql.engine import pg_write_edits
 
         new_revisions = await pg_write_edits(self.cur, edits)

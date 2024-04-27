@@ -86,13 +86,6 @@ def _map_k_noop(field: "Field"):
 def map_value(
     value: Any,
     type: "TypeInfo",
-    map_v: Callable[[Any, "Field", bool], Any] = _map_v_noop,
-    map_k: Callable[["Field"], tuple[str, str]] = _map_k_noop,
-    premap_v: Callable[[Any, "Field", bool], Any] = None,
-    ignore_array: bool = False,
-    ignore_outer: bool = False,
-    none_if_invalid: bool = False,
-    ignore_empty: bool = True,
 ) -> Any | None:
     """Walks the value and reassembles with new keys and values."""
 
@@ -102,8 +95,6 @@ def map_value(
 def walk_value(
     value: Any,
     type: "TypeInfo",
-    get_k: Callable[["Field"], str] = None,
-    ignore_array: bool = False,
 ) -> Iterable[Any]:
     """Yields all flat values in the instantiated value recursively."""
     raise NotImplementedError
@@ -112,9 +103,6 @@ def walk_value(
 def check_type(
     value: Any,
     type: "TypeInfo",
-    get_k: Callable[["Field"], str] = None,
-    on_invalid=on_invalid_raise,
-    ignore_array: bool = False,
 ) -> None:
     """
     Checks whether the given value has the expected type (recursively).
@@ -123,39 +111,11 @@ def check_type(
     raise NotImplementedError
 
 
-def is_instance_value_flat(value: Any, type: "TypeInfo") -> bool:
-    raise NotImplementedError
-
-
-def unpack_value_flat(
-    value: Any,
-    type: "TypeInfo",
-    scope: Node,
-    on_notice: "NoticeHandler",
-    ignore_array: bool = False,
-) -> Any:
-    """Unpacks into the proper Python representation of the given packed value."""
-    if value is None:
-        return None
-    raise NotImplementedError
-
-
-def pack_value_flat(value: Any, type: "TypeInfo") -> Any:
-    """Packs the value into a robust JSON value from the Python representation."""
-    if value is None:
-        return None
-    raise NotImplementedError
-
-
 def unpack_value(
     value: Any,
     type: "TypeInfo",
     scope: Node,
     session: Optional["Session"] = None,
-    ignore_array: bool = False,
-    ignore_outer: bool = False,
-    ignore_empty: bool = True,
-    map_k: Callable[["Field"], tuple[str, str]] = None,
 ):
     """Unpacks/deserializes the given value into a Python/Bench representation."""
     raise NotImplementedError
@@ -164,12 +124,6 @@ def unpack_value(
 def pack_value(
     value: Any,
     type: "TypeInfo",
-    ignore_array: bool = False,
-    ignore_outer: bool = False,
-    ignore_empty: bool = True,
-    none_if_invalid: bool = False,
-    map_k: Callable[["Field"], tuple[str, str]] = None,
-    filter_v: Callable[[Any], bool] = None,
 ):
     """Packs/serializes the given value into a JSON-able representation."""
     raise NotImplementedError

@@ -18,7 +18,7 @@ if TYPE_CHECKING:
 logger = structlog.get_logger(__name__)
 
 
-def _async_to_sync_blocking(func=None):
+def async_to_sync_blocking(func=None):
     """Automatically convert async functions to sync if not called in async context."""
 
     def decorate(func):

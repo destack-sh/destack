@@ -191,7 +191,7 @@ def _load_migration_from_path(migration: Migration) -> MigrationFile:
 
 async def migrate_to(
     cur: psycopg.AsyncCursor,
-    target: str | int,
+    target: str | int | None,
     *,
     is_global: bool,
 ) -> list[Migration]:

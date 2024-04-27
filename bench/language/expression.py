@@ -1,6 +1,6 @@
 import functools
 import re
-from typing import TYPE_CHECKING, Any, Optional, TypeVar, Union
+from typing import TYPE_CHECKING, Any, Optional, TypeVar, Union, cast
 from uuid import UUID
 
 from bench.language.const import (
@@ -110,9 +110,7 @@ class NodeReference(Struct):
             on_invalid(self, "base_ck is required", (NodeReference.base_ck,))
 
     @staticmethod
-    def from_node(node: Optional[Node]) -> Optional["NodeReference"]:
-        if node is None:
-            return None
+    def from_node(node: Node) -> "NodeReference":
         assert isinstance(node, Node), f"expected Node, got {node!r}"
         reference = NodeReference(type=node.metatype, id=node.id)
 
@@ -127,20 +125,18 @@ class NodeReference(Struct):
         # base
         if node.metatype in BASED_NODE_TYPES:
             node: HasBase
-            reference.base_ck = node.base.ck
+            reference.base_ck = getattr(node.base, "ck")
             reference.base_bench_id = node.base.bench_id
 
         return reference
 
     @staticmethod
-    def from_node_data(node_data: Optional[AnyNodeData]) -> Optional["NodeReferenceData"]:
+    def from_node_data(node_data: AnyNodeData) -> "NodeReferenceData":
         from bench.proto import wire
 
-        if node_data is None:
-            return None
         node_cls = BENCH_CLASS_BY_TYPE[node_data.metatype]
         reference = NodeReferenceData(
-            metatype=wire.StructType.NODE_REFERENCE, type=node_data.metatype, id=node_data.id
+            metatype=wire.ObjectType.NODE_REFERENCE, type=cast(wire.NodeType, node_data.metatype), id=node_data.id
         )
 
         # bench_id
@@ -151,7 +147,7 @@ class NodeReference(Struct):
         # ck
         if "ck" in node_cls.__properties__:
             node_cls: type[HasBase]
-            reference.ck = node_data.ck
+            reference.ck = getattr(node_data, "ck")
         # base
         if NodeType(node_data.metatype) in BASED_NODE_TYPES:
             base = node_cls.get_base_from_data(node_data)
@@ -170,7 +166,10 @@ class PropertyReference(Struct):
     references_type: Optional[NodeType] = p_regular(32)
 
     def __content_str__(self):
-        return f"{self.type.bench_name}.[id={self.id}]"
+        if self.type is not None:
+            return f"{self.type.bench_name}.[id={self.id}]"
+        else:
+            return f"???.[id={self.id}]"
 
     def resolve(self) -> Property:
         if self.type is not None:
@@ -243,20 +242,23 @@ class Expression(HasValues):
         if self.op in ExpressionOps.COND_STATIC:
             return to_casing(self.op.name, Casing.CAMEL)
         elif self.op in ExpressionOps.COND_LOGICAL:
-            return f" {_CONDITIONAL_OP_SIGN[self.op]} ".join(str(q) for q in self.clauses)
+            return f" {_CONDITIONAL_OP_SIGN[self.op]} ".join(str(q) for q in self.clauses or ())
         elif (
             self.op in ExpressionOps.COND_EXACT
             or self.op in ExpressionOps.COND_RANGE
             or self.op in ExpressionOps.COND_STRING
         ):
+            py_ident = self.target.py_ident if self.target is not None else "???"
             value_str = str(self.value)
             if len(value_str) > 32:
                 value_str = f"{value_str[:24]}...{value_str[-12:]}"
-            return f"{self.target.py_ident}{_CONDITIONAL_OP_SIGN[self.op]}{value_str}"
+            return f"{py_ident}{_CONDITIONAL_OP_SIGN[self.op]}{value_str}"
         elif self.op in ExpressionOps.COND_EXISTENCE:
-            return f"{self.target.py_ident}{_CONDITIONAL_OP_SIGN[self.op]}"
+            py_ident = self.target.py_ident if self.target is not None else "???"
+            return f"{py_ident}{_CONDITIONAL_OP_SIGN[self.op]}"
         elif self.op in ExpressionOps.SORT:
-            return f"{'-' if self.op == SortOp.DESCENDING else ''}{self.target.py_ident}"
+            py_ident = self.target.py_ident if self.target is not None else "???"
+            return f"{'-' if self.op == SortOp.DESCENDING else ''}{py_ident}"
         return to_casing(self.op.name, Casing.CAMEL)
 
     def __invert__(self):
@@ -267,6 +269,9 @@ class Expression(HasValues):
         elif self.op == ConditionalOp.FALSE:
             return C(ConditionalOp.TRUE)
         elif self.op == ConditionalOp.NOT:
+            assert (
+                self.clauses is not None and len(self.clauses) == 1
+            ), f"expected 1 clause, got {self}"
             return self.clauses[0]
         elif self.op == ConditionalOp.EXISTS:
             return C(ConditionalOp.NOT_EXISTS, field=self.field, property=self.property)
@@ -280,9 +285,9 @@ class Expression(HasValues):
             raise TypeError(f"unsupported operand type(s) for &: {type(self)} and {type(other)}")
         if self.op == ConditionalOp.AND:
             if isinstance(other, Expression) and other.op == ConditionalOp.AND:
-                return C(ConditionalOp.AND, clauses=[*self.clauses, *other.clauses])
+                return C(ConditionalOp.AND, clauses=[*(self.clauses or ()), *(other.clauses or ())])
             else:
-                return C(ConditionalOp.AND, clauses=[*self.clauses, other])
+                return C(ConditionalOp.AND, clauses=[*(self.clauses or ()), other])
         else:
             return C(ConditionalOp.AND, clauses=[self, other])
 
@@ -291,9 +296,9 @@ class Expression(HasValues):
             raise TypeError(f"unsupported operand type(s) for |: {type(self)} and {type(other)}")
         if self.op == ConditionalOp.OR:
             if isinstance(other, Expression) and other.op == ConditionalOp.OR:
-                return C(ConditionalOp.OR, clauses=[*self.clauses, *other.clauses])
+                return C(ConditionalOp.OR, clauses=[*(self.clauses or ()), *(other.clauses or ())])
             else:
-                return C(ConditionalOp.OR, clauses=[*self.clauses, other])
+                return C(ConditionalOp.OR, clauses=[*(self.clauses or ()), other])
         else:
             return C(ConditionalOp.OR, clauses=[self, other])
 
@@ -412,7 +417,7 @@ def coerce_conditional(
     expr: Optional[Expression] = None,
     kwargs: Optional[dict[str, Any]] = None,
     return_none_if_empty: bool = False,
-) -> Optional[Expression]:
+) -> Expression | None:
     """
     Coerce a conditional expression from either the given expression or kwargs.
     Useful for basic Django-style querying (with optional __<op>, but no relation support yet).
@@ -425,7 +430,7 @@ def coerce_conditional(
         return expr
 
     clauses = []
-    for arg, value in kwargs.items():
+    for arg, value in (kwargs or {}).items():
         if "__" in arg:
             field_key, op = arg.split("__", 1)
             op = CONDITIONAL_OP_BY_DJANGO_STR[op]
@@ -470,7 +475,7 @@ def coerce_sort(
     if sort is None:
         if args is None:
             return None
-        sort = args
+        sort = list(args)
     elif isinstance(sort, str):
         sort = [sort]
     elif isinstance(sort, Expression) and sort.kind == ExpressionKind.SORT:
@@ -478,7 +483,8 @@ def coerce_sort(
     if not isinstance(sort, (list, tuple)):
         raise TypeError(f"expected sort to be a list or tuple, got {sort}")
     if args:
-        sort = (*sort, *args)
+        sort = cast(list[Expression | str], (*sort, *args))
+    sort = cast(list[Expression | str], sort)
     coerced = []
     for item in sort:
         if isinstance(item, str):
@@ -749,7 +755,7 @@ class _NodeQueryBuilder:
     #
 
     @classmethod
-    def query(cls: type["Node"]):
+    def query(cls: type[NodeT]) -> "QueryBuilder[NodeT, NodeDataT]":
         from bench.language.query import QueryBuilder
 
         return QueryBuilder(node_type=cls.metatype)
