@@ -5,6 +5,7 @@ import {
   ENUM_BY_TYPE,
   EnumType,
   NodeType,
+  ObjectType,
   PrimitiveType,
   StructType,
   type AnyNodeData,
@@ -271,8 +272,8 @@ export function typeIndex(options: {
       const enumOption = getEnumOptions(EnumType.PRIMITIVE_TYPE).find((option) => option.value == value.primitiveType);
       if (enumOption != null) return mapFromOption(EnumType.PRIMITIVE_TYPE, enumOption);
     } else if (value.benchType != null) {
-      const enumOption = getEnumOptions(EnumType.OBJECT_TYPE).find((option) => option.value == value.benchType);
-      if (enumOption != null) return mapFromOption(EnumType.OBJECT_TYPE, enumOption);
+      const enumOption = getEnumOptions(EnumType.BENCH_TYPE).find((option) => option.value == value.benchType);
+      if (enumOption != null) return mapFromOption(EnumType.BENCH_TYPE, enumOption);
     }
     return null;
   }

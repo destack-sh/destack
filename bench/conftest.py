@@ -3,7 +3,6 @@ from contextlib import asynccontextmanager, contextmanager
 from typing import TYPE_CHECKING
 
 import grpclib
-import psycopg
 import pytest
 from pytest_asyncio import is_async_test
 
@@ -69,7 +68,7 @@ async def prepared_test_db():
 
 
 @pytest.fixture(scope="function")
-async def test_cur() -> psycopg.AsyncCursor:
+async def test_cur():
     from bench.sql.client import get_pg_connection_str, pg_cursor
     from bench.system.client import GLOBAL_STORE
 
@@ -78,8 +77,7 @@ async def test_cur() -> psycopg.AsyncCursor:
 
 
 @asynccontextmanager
-async def test_session() -> "Session":
-    from bench.language import Session
+async def test_session():
     from bench.system.client import GLOBAL_POSTGRES_ENGINE
 
     session = Session(
@@ -91,9 +89,7 @@ async def test_session() -> "Session":
 
 
 @pytest.fixture(scope="function")
-async def fabricator() -> "Fabricator":
-    from bench.language.test.fabricator import Fabricator
-
+async def fabricator():
     yield Fabricator(seed=42)
 
 

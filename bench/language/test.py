@@ -31,4 +31,4 @@ class User(Node):
     b: str = test_property("b", 3)
 
 
-component_2 = User(id=2, b="", a=True)
+component_2 = User(id="hey", b="", a=True)

@@ -29,7 +29,6 @@ from bench.proto.wire import (
     SignupUserRequest,
     SignupUserResponse,
     SupervisorBase,
-    SupervisorStub,
 )
 from bench.system.auth import check_password, generate_access_token, generate_salt, hash_password
 from bench.system.client import GLOBAL_POSTGRES_ENGINE, global_session
@@ -42,9 +41,9 @@ logger = structlog.get_logger(__name__)
 GLOBAL_SCOPE = GraphScope()
 
 
-class Supervisor(BenchServiceBase[SupervisorStub], GraphIoService, SupervisorBase):
+class Supervisor(GraphIoService, SupervisorBase):
     def __init__(self):
-        BenchServiceBase.__init__(self, loopback_stub_to=SupervisorStub)
+        BenchServiceBase.__init__(self)
         GraphIoService.__init__(self, bench_id=None, node_types=USER_NODE_TYPES)
 
     def __str__(self):

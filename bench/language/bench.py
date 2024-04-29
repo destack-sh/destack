@@ -1,6 +1,7 @@
 from datetime import datetime
 from itertools import chain
 from typing import TYPE_CHECKING, Iterable, Optional, Union
+from uuid import UUID
 
 from bench.language.const import NodeType, StructType
 from bench.language.graph import NodeList
@@ -63,9 +64,12 @@ class Bench(Node[BenchData]):
         34, default=None, require=False, array=False, struct=StructType.TEXT
     )
     icon: Optional["Icon"] = p_regular(35, default=None, struct=StructType.ICON)
-    owner: Union["User", "Organization"] = p_system(
+    owner: Union["User", "Organization", None] = p_system(
         36, require=False, array=False, references=(NodeType.USER, NodeType.ORGANIZATION)
     )
+    if TYPE_CHECKING:
+        owner_id: Optional[UUID] = None
+        owner_type: Optional[NodeType] = None
     region: "Region" = p_regular(37, require=True, array=False)
     encryption_key: str = p_kernel(38, require=True, encrypt=True, defer=True, sensitive=True)
     policies: list["Policy"] = p_regular(39, struct=StructType.POLICY, array=True)

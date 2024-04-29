@@ -146,14 +146,15 @@ class GraphIoService(GraphIoBase, BenchServiceBase if TYPE_CHECKING else object)
 
     async def get_nodes(self, subject: Subject, request: "GetNodesRequest") -> "GetNodesResponse":
         roots: tuple[NodeReference, ...] = tuple(
-            wiring.unpack_struct_interp(r) for r in request.roots
+            wiring.unpack_struct_interp(r, expect=NodeReference) for r in request.roots
         )
         if not roots:
             raise GRPCError(GRPCStatus.INVALID_ARGUMENT, "no roots provided")
         if any(not r.id for r in roots):
             raise GRPCError(GRPCStatus.INVALID_ARGUMENT, "root nodes must have an id")
         options: ReadOptions = (
-            wiring.unpack_struct_interp_maybe(request.options) or ReadOptions.default()
+            wiring.unpack_struct_interp_maybe(request.options, expect=ReadOptions)
+            or ReadOptions.default()
         )
         _check_nodes_in_same_store(roots, options)
 
@@ -198,10 +199,15 @@ class GraphIoService(GraphIoBase, BenchServiceBase if TYPE_CHECKING else object)
         self, subject: Subject, request: "SearchNodesRequest"
     ) -> "SearchNodesResponse":
         node_type: NodeType = wiring.unpack_enum(NodeType, request.node_type)
-        filter: Expression | None = wiring.unpack_struct_interp_maybe(request.filter)
-        sort: list[Expression] = [wiring.unpack_struct_interp(s) for s in request.sort] or []
+        filter: Expression | None = wiring.unpack_struct_interp_maybe(
+            request.filter, expect=Expression
+        )
+        sort: list[Expression] = [
+            wiring.unpack_struct_interp(s, expect=Expression) for s in request.sort
+        ] or []
         options: ReadOptions = (
-            wiring.unpack_struct_interp_maybe(request.options) or ReadOptions.default()
+            wiring.unpack_struct_interp_maybe(request.options, expect=ReadOptions)
+            or ReadOptions.default()
         )
         _check_nodes_in_same_store((node_type,), options)
 
@@ -372,7 +378,7 @@ class GraphIoService(GraphIoBase, BenchServiceBase if TYPE_CHECKING else object)
     ) -> AsyncIterator["WatchEditsResponse"]:
         node_types = bytetuple(*tuple(wiring.unpack_enum(NodeType, t) for t in request.node_types))
         filters: dict[NodeType, Expression] = {
-            wiring.unpack_enum(NodeType, k): wiring.unpack_struct_interp(v)
+            wiring.unpack_enum(NodeType, k): cast(Expression, wiring.unpack_struct_interp(v))
             for k, v in request.filters.items()
         }
         watcher = EditWatcher(subject=subject, node_types=node_types, filters=filters)
@@ -466,7 +472,7 @@ def get_validated_edited_scopes(edits: list[EditData]) -> _EditScopes:
         validate_node_scope(node_data, graph_scope)
 
     node_scopes: dict[UUID, NodeReference] = {
-        UUID(k): wiring.unpack_struct(v) for k, v in node_scopes_by_id.items()
+        UUID(k): cast(NodeReference, wiring.unpack_struct(v)) for k, v in node_scopes_by_id.items()
     }
     node_scopes_by_type = group_by(node_scopes.values(), lambda n: n.type)
     return _EditScopes(node_scopes_by_type, node_scopes, tuple(graph_scopes.values()))

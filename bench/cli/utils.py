@@ -105,6 +105,8 @@ async def _check_is_consistent(*, check_db: bool, check_db_bench: str = "bench")
             bench = (
                 await Bench.descendants(Environment, Store).include_all().get(slug=check_db_bench)
             )
+            if bench.main_environment is None:
+                raise RuntimeError(f"bench {check_db_bench!r} has no main environment")
         async with pg_cursor_to_store(bench.main_environment.store) as cur:
             old_local_tables = await introspect_tables_from_pg(cur)
             await cur.connection.rollback()

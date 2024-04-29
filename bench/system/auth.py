@@ -10,6 +10,7 @@ from grpclib import Status as GRPCStatus
 from bench.language import Badge, Bench, Client, Server, User
 from bench.language.access import Owner, Subject
 from bench.language.const import NodeType
+from bench.language.node import Node
 from bench.language.query import NodeNotFoundError
 from bench.proto.wire import RpcMetadata
 from bench.system.client import global_session
@@ -127,9 +128,9 @@ async def get_subject_from_metadata(metadata: RpcMetadata) -> Subject:
         if client is None:
             return Subject(is_authenticated=False, badges=badges)
         elif client.parent_type == NodeType.USER:
-            # TODO :Broken: fetch all subject memberships/owned/roles
+            # TODO :Broken :Performance: fetch all subject memberships/owned/roles
             #  (probably only on-demand to reduce latency)
-            owned = [client.user]
+            owned: list[Node] = [client.user]
             if client.user.main_bench_ptr:  # (we cheat a little and get only the main Bench)
                 main_bench = await Bench.get(id=client.user.main_bench_ptr.id)
                 owned.append(main_bench)

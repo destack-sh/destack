@@ -2,16 +2,16 @@ import random
 import secrets
 import string
 from dataclasses import dataclass
-from typing import TYPE_CHECKING, Mapping
+from typing import TYPE_CHECKING, Mapping, cast
 
 import pytest
 from grpclib.testing import ChannelFor
 
 from bench.utils.dt import utcnow_with_tz
+from bench.proto.wire import ClientOrigin, NodeReferenceData, RpcMetadata, SupervisorStub
 
 if TYPE_CHECKING:
     from bench.language.user import Client, User
-    from bench.proto.wire import ClientOrigin, NodeReferenceData, RpcMetadata, SupervisorStub
 
 
 @dataclass(slots=True)
@@ -21,10 +21,7 @@ class UserHandle:
     subject: "NodeReferenceData"
     origin: "ClientOrigin"
     metadata: "RpcMetadata"
-
-    @property
-    def headers(self) -> Mapping[str, str]:
-        return self.metadata.to_headers()
+    headers: Mapping[str, str]
 
 
 async def make_new_user_handle(
@@ -50,7 +47,7 @@ async def make_new_user_handle(
     )
     signup_req = SignupUserRequest(
         id=str(user.id),
-        slug=user.slug,
+        slug=cast(str, user.slug),
         name=user.name,
         email=user.email,
         password=password,
@@ -59,10 +56,18 @@ async def make_new_user_handle(
     signup_rep = await supervisor.signup_user(signup_req)
     origin = ClientOrigin(id=str(client.id), nonce=str(random.randint(0, 2**32)))
     subject = NodeReferenceData(
-        metatype=wire.StructType.NODE_REFERENCE, type=wire.NodeType.USER, id=str(user.id)
+        metatype=wire.ObjectType.NODE_REFERENCE, type=wire.NodeType.USER, id=str(user.id)
     )
     metadata = RpcMetadata(client_id=str(client.id), client_access_token=signup_rep.access_token)
-    return UserHandle(user=user, client=client, origin=origin, subject=subject, metadata=metadata)
+    handle = UserHandle(
+        user=user,
+        client=client,
+        origin=origin,
+        subject=subject,
+        metadata=metadata,
+        headers=metadata.to_headers(),  # type: ignore
+    )
+    return handle
 
 
 async def make_existing_user_handle(
@@ -82,7 +87,7 @@ async def make_existing_user_handle(
     )
     login_req = LoginUserRequest(
         id=str(user.id),
-        slug=user.slug,
+        slug=cast(str, user.slug),
         email=user.email,
         password=password,
         client=client._to_data(),
@@ -90,10 +95,18 @@ async def make_existing_user_handle(
     login_rep = await supervisor.login_user(login_req)
     origin = ClientOrigin(id=str(client.id), nonce=str(random.randint(0, 2**32)))
     subject = NodeReferenceData(
-        metatype=wire.StructType.NODE_REFERENCE, type=wire.NodeType.USER, id=str(user.id)
+        metatype=wire.ObjectType.NODE_REFERENCE, type=wire.NodeType.USER, id=str(user.id)
     )
     metadata = RpcMetadata(client_id=str(client.id), client_access_token=login_rep.access_token)
-    return UserHandle(user=user, client=client, origin=origin, subject=subject, metadata=metadata)
+    handle = UserHandle(
+        user=user,
+        client=client,
+        origin=origin,
+        subject=subject,
+        metadata=metadata,
+        headers=metadata.to_headers(),  # type: ignore
+    )
+    return handle
 
 
 async def make_random_user_handle(supervisor: "SupervisorStub") -> UserHandle:
@@ -114,8 +127,8 @@ async def some_user(supervisor: "SupervisorStub") -> UserHandle:
 
 
 @pytest.fixture(scope="function")
-async def supervisor() -> "SupervisorStub":
-    from bench.system.supervisor import Supervisor, SupervisorStub
+async def supervisor():
+    from bench.system.supervisor import Supervisor
 
     service = Supervisor()
     await service.start()

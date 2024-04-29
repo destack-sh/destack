@@ -159,14 +159,6 @@ class Path(Struct):
     def render(self) -> str:
         return ":Incomplete"
 
-    @property
-    def is_absolute(self) -> bool:
-        return self.bench_slug is not None
-
-    @property
-    def is_relative(self) -> bool:
-        return self.bench_slug is None
-
     @staticmethod
     def parse(path: str) -> "Path":
         """Parses a path string into a BenchPath."""

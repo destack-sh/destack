@@ -5,7 +5,6 @@ from typing import (
     AsyncIterable,
     Callable,
     Collection,
-    Generic,
     Mapping,
     TypeVar,
     cast,
@@ -19,7 +18,6 @@ from betterproto import ServiceStub
 from grpclib import GRPCError
 from grpclib import Status as GRPCStatus
 from grpclib._typing import IServable
-from grpclib.testing import ChannelFor
 
 from bench.language import ValidationError
 from bench.language.access import AccessError, Request, Subject
@@ -62,21 +60,8 @@ def get_grpc_status_from_bench_error(e: BenchError) -> GRPCStatus:
     return status
 
 
-class BenchServiceBase(Generic[StubT]):
+class BenchServiceBase:
     """gRPC service with some extra stuff for custom loops, auth, logging, metadata, ..."""
-
-    def __init__(self, loopback_stub_to: type[StubT] | None = None):
-        self._loopback_stub: type[StubT] | None = None
-        self._needs_loopback_stub = loopback_stub_to
-
-    @property
-    def loopback(self) -> StubT:
-        if self._loopback_stub is not None:
-            return cast(StubT, self._loopback_stub)
-        elif self._needs_loopback_stub is None:
-            raise RuntimeError(f"loopback stub not configured for {self!r}")
-        else:
-            raise RuntimeError(f"loopback stub not ready for {self!r}")
 
     async def log_and_check_access(self, request: Request):
         """Logs accesses for the audit log (soon). Raises if access was denied."""
@@ -88,11 +73,7 @@ class BenchServiceBase(Generic[StubT]):
 
     async def start(self) -> None:
         """Start the service. Should be ready for service when returning."""
-        if self._needs_loopback_stub:
-            # create a loopback like the one used for testing
-            channel = ChannelFor([self])
-            await channel.__aenter__()
-            self._loopback_stub = self._loopback_stub(channel)
+        pass
 
     def close(self) -> None:
         """Close the service.."""
@@ -100,8 +81,7 @@ class BenchServiceBase(Generic[StubT]):
 
     async def wait_closed(self) -> None:
         """Wait for the service to be fully closed."""
-        if self._loopback_stub is not None:
-            await self._loopback_stub.channel.__aexit__(None, None, None)
+        pass
 
     def __mapping__(self) -> Mapping[str, grpclib.const.Handler]:
         # combine mappings from non-overlapping superclasses

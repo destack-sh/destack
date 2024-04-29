@@ -424,9 +424,9 @@ class PolicyRule(Struct):
             self._object_properties_masks[cast(NodeType, prop.type)][prop.ord] = True
 
     def _update_verb_mask(self):
-        self._verb_mask = bitarray(AccessType.get_max_ord())
+        self._verb_mask = bitarray(AccessType.get_max_ord())  # type: ignore
         if not self.verbs and not self.verb_kinds:
-            self._verb_mask[AccessType.get_min_ord() : AccessType.get_max_ord()] = True
+            self._verb_mask[AccessType.get_min_ord() : AccessType.get_max_ord()] = True  # type: ignore
         else:
             for verb in self.verbs or ():
                 assert type(verb) is AccessType, f"unexpected verb {verb!r}"
@@ -455,8 +455,9 @@ class PolicyRule(Struct):
         return True  # no mismatch -> match
 
     def matches_verb(self, verb: AccessType) -> bool:
+        assert self._verb_mask is not None, f"verb mask not updated in {self!r}"
         assert type(verb) is AccessType, f"unexpected verb {verb!r}"
-        return self._verb_mask[verb.ord]
+        return cast(bool, self._verb_mask[verb.ord])
 
     #
     # Builder-style methods
@@ -820,7 +821,9 @@ def _interp_system_policies():
     from bench.language.notice import on_warning_raise
 
     for policy in SYSTEM_POLICIES:
-        policy._interp_rec(None, on_warning_raise)
+        policy._interp_rec(None, on_warning_raise)  # type: ignore
+        # (None isn't a valid scope, but we don't need it yet and not sure what to pass;
+        #  when this errors, we'll come back and fix it)
 
 
 def adapt_read_options(
@@ -867,17 +870,18 @@ def generate_access_matrix(
     applied_policies_by_node_id: dict[str, list[Policy]] = defaultdict(list)
 
     def _assign_access_zones(
-        current_node: AnyNodeData, owner: Owner, parent_zones_by_identity: dict[int, int]
+        node_data: AnyNodeData, owner: Owner, parent_zones_by_identity: dict[int, int]
     ):
         """Generates any new applicable access zones downstream from the node for all identities."""
 
         # if this node defines new policies, apply them to their scope
-        if getattr(current_node, "policies", None):
+        if getattr(node_data, "policies", None):
             if unpacked_graph:
-                new_policies: list[Policy] = unpacked_graph.get(UUID(current_node.id)).policies
+                node = unpacked_graph.get(UUID(node_data.id))
+                new_policies: list[Policy] = getattr(node, "policies")
             else:
                 new_policies: list[Policy] = [
-                    wiring.unpack_struct_interp(p) for p in current_node.policies
+                    wiring.unpack_struct_interp(p) for p in getattr(node_data, "policies")
                 ]
             for policy in new_policies:
                 if policy.scopes:
@@ -886,35 +890,35 @@ def generate_access_matrix(
                         #  (it's validated in Policy and ancestor policies were already considered)
                         applied_policies_by_node_id[str(scope.id)].append(policy)
                 else:
-                    applied_policies_by_node_id[current_node.id].append(policy)
+                    applied_policies_by_node_id[node_data.id].append(policy)
 
         # gather all the policy rules that apply in this context (per identity)
-        applied_policies = applied_policies_by_node_id.get(current_node.id, ())
-        new_zones_by_identity: dict[int, int | None] | None = None
+        applied_policies = applied_policies_by_node_id.get(node_data.id, ())
+        new_zones_by_identity: dict[int, int] | None = None
         if applied_policies:
             for identity in identities:
-                applicable_rules = tuple(
+                applicable_rules = [
                     rule
                     for policy in applied_policies
                     for rule in policy.rules
                     if rule.matches_subject(identity, owner)
-                )
+                ]
                 if applicable_rules:
                     # we got a new zone with different roles down here
                     zone = AccessZone(
                         parent_id=parent_zones_by_identity.get(identity.id),
-                        scope_id=current_node.id,
-                        _scope=current_node,
+                        scope_id=node_data.id,
+                        _scope=node_data,
                         identity_id=identity.id,
                         _identity=identity,
                         rules=applicable_rules,
                     )
                     matrix.scoped_zones.append(zone)
-                    matrix._scoped_zones_by_id[cast(int, zone.id)] = zone
+                    matrix._scoped_zones_by_id[zone.id] = zone
                     # update parent zones for the next level
                     if new_zones_by_identity is None:
                         new_zones_by_identity = {}
-                    new_zones_by_identity[cast(int, identity.id)] = zone.id
+                    new_zones_by_identity[identity.id] = zone.id
         if new_zones_by_identity is None:
             new_zones_by_identity = parent_zones_by_identity
         else:  # merge update
@@ -925,14 +929,15 @@ def generate_access_matrix(
         # update 'lowest zone' shortcuts (per identity)
         for identity in identities:
             zone_id = new_zones_by_identity.get(identity.id)
-            zone = matrix._scoped_zones_by_id[zone_id] if zone_id is not None else None
-            matrix._lowest_zone_by_scope[(identity.id, current_node.id)] = zone
+            if zone_id is not None:
+                zone = matrix._scoped_zones_by_id[zone_id]
+                matrix._lowest_zone_by_scope[(identity.id, node_data.id)] = zone
 
         # descend into children
         #  (even if they don't have any legislative nodes since we want the runtime-only zone mapping)
-        current_type: NodeType = wiring.unpack_enum(NodeType, current_node.metatype)
+        current_type: NodeType = wiring.unpack_enum(NodeType, node_data.metatype)
         for child_type in CHILD_NODE_TYPES[current_type]:
-            for child_node in graph.iter_descendants(current_node, child_type):
+            for child_node in graph.iter_descendants(node_data, child_type):
                 _assign_access_zones(child_node, owner, new_zones_by_identity)
 
     # start at root
@@ -951,7 +956,6 @@ def generate_access_matrix(
         # base zones are checked before all others (typically for system policies)
         #  but are specific to each root (=owner)
         for identity in identities:
-            identity_id = cast(int, identity.id)
             base_rules = [
                 rule
                 for policy in base_policies
@@ -962,12 +966,12 @@ def generate_access_matrix(
                 scope_id=root.id,
                 _scope=root,
                 parent_id=None,
-                identity_id=identity_id,
+                identity_id=identity.id,
                 _identity=identity,
                 rules=base_rules,
             )
             matrix.base_zones.append(base_zone)
-            matrix._base_zone_by_root[(identity_id, root.id)] = base_zone
+            matrix._base_zone_by_root[(identity.id, root.id)] = base_zone
 
         # add nested zones if there are any legislative nodes down here
         _assign_access_zones(root, owner, root_zones_by_identity)
@@ -994,7 +998,7 @@ def evaluate_access(
     scope_id: str | None,
     trace: bool = False,
     cache: dict[_EvalCacheKey, bitarray] | None = None,
-) -> tuple[bitarray, Access | None, bool]:
+) -> tuple[bitarray, Access, bool]:
     """
     Evaluates Access for the given object type and properties in that scope.
     Returns the *allowed* properties and the Access.
@@ -1010,10 +1014,9 @@ def evaluate_access(
 
     # check the zones for each identity (separately)
     for identity in matrix.identities:
-        identity_id = cast(int, identity.id)
-        base_zone: AccessZone = matrix._base_zone_by_root[(identity_id, root_id)]
+        base_zone: AccessZone = matrix._base_zone_by_root[(identity.id, root_id)]
         if scope_id is not None:
-            start_scoped_zone = matrix._lowest_zone_by_scope[(identity_id, scope_id)]
+            start_scoped_zone = matrix._lowest_zone_by_scope[(identity.id, scope_id)]
         else:
             start_scoped_zone = None
 
@@ -1022,7 +1025,7 @@ def evaluate_access(
             object_node_type=node_type,
             root_id=root_id,
             start_scope_id=start_scoped_zone.id if start_scoped_zone is not None else None,
-            identity_id=identity_id,
+            identity_id=identity.id,
         )
         if cache is not None:
             allowed_properties = cache.get(cache_key)
@@ -1091,22 +1094,18 @@ def evaluate_access(
         decided_properties = ~composite_allowed_properties & wanted_properties
     else:
         raise ValueError(f"unexpected decision {decision!r}")
-    if num_cached_identities < len(matrix.identities):
-        if decided_properties.all():
-            object_properties = ()
-        else:
-            object_properties = object_node_cls._unmask_properties(decided_properties)
-        access = Access(
-            mode=mode,
-            decision=decision,
-            verb=verb,
-            object_type=node_type,
-            object_properties=list(object_properties),
-        )
-        was_cached = False
+    if decided_properties.all():
+        object_properties = ()
     else:
-        access = None
-        was_cached = True
+        object_properties = object_node_cls._unmask_properties(decided_properties)
+    access = Access(
+        mode=mode,
+        decision=decision,
+        verb=verb,
+        object_type=node_type,
+        object_properties=list(object_properties),
+    )
+    was_cached = num_cached_identities == len(matrix.identities)
     return composite_allowed_properties, access, was_cached
 
 
@@ -1193,7 +1192,7 @@ def evaluate_and_adapt_read(
                 order_key=getattr(n, "order_key", None),
                 reference_ptr=NodeReference.from_node_data(n),
             )
-            skips[n.parent_id] = skip
+            skips[cast(str, n.parent_ptr.id)] = skip
             visible_nodes.append(skip)
 
     if required_nodes and any(n.id in skips for n in required_nodes):
@@ -1234,7 +1233,8 @@ def evaluate_edit(
         if node_cls.__roots__:
             # regular non-root node: scope = parent if creating, else scope = node :NodeEditScope
             if edit.type in (EditType.CREATE, EditType.UPSERT):
-                scope_id = node.parent_ptr.id
+                assert node.parent_ptr, f"no parent for {edit!r}"
+                scope_id = cast(str, node.parent_ptr.id)
                 while scope_id in new_node_scopes_by_child_id:
                     scope_id = new_node_scopes_by_child_id[scope_id]
                 new_node_scopes_by_child_id[node.id] = scope_id
@@ -1276,8 +1276,6 @@ def evaluate_edit(
             trace=trace,
             cache=cache,
         )
-        if access is None:
-            continue  # already evaluated
         if not was_cached:
             accesses.append(access)
         if access.decision == PolicyEffect.DENY:
@@ -1310,5 +1308,4 @@ def evaluate_use(
         mode=AccessMode.ATOMIC,
         trace=trace,
     )
-    assert access is not None  # only if cached, but no cache here
     return Request(decision=access.decision, subject=matrix.subject, accesses=[access])

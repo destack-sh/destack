@@ -18,7 +18,7 @@ async def shell(bench: str = None, package: str = None):  # type: ignore
         async with global_session():
             bench: Bench = await Bench.get(slug=bench)
             if package is not None:
-                package = await Package.get(parent=bench, slug=package)
+                package: Package = await Package.get(parent=bench, slug=package)
     else:
         if package is not None:
             raise ValueError(f"Package {package} must be relative to a Bench")
