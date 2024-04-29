@@ -17,8 +17,10 @@ from typing import (
     Callable,
     ClassVar,
     Collection,
+    Generic,
     Iterable,
     Optional,
+    Self,
     Type,
     TypeVar,
     Union,
@@ -47,13 +49,7 @@ from bench.language.const import (
     StructType,
     _active_session,
 )
-from bench.language.graph import (
-    DetachedNodeGraph,
-    NodeDataGraph,
-    NodeGraph,
-    NodeList,
-    ValueList,
-)
+from bench.language.graph import DetachedNodeGraph, NodeDataGraph, NodeGraph, NodeList, ValueList
 from bench.language.property import (
     _PROPERTY_SPECIFIERS,
     METATYPE_PROPERTY,
@@ -72,7 +68,6 @@ from bench.language.setup import (
     NODE_CLASS_BY_TYPE,
     NODE_COMPONENT_CLASS_BY_NAME,
     STRUCT_CLASS_BY_TYPE,
-    _on_completing_setup,
 )
 from bench.language.validation import (
     PropertyValidationHandler,
@@ -90,6 +85,7 @@ from bench.utils.utils import frozendict
 if TYPE_CHECKING:
     from bench.language import (
         Bench,
+        Expression,
         Field,
         NodeReference,
         NodeVisitor,
@@ -103,8 +99,8 @@ if TYPE_CHECKING:
         User,
         Value,
     )
-    from bench.language.expression import _NodeQueryBuilder
     from bench.language.notice import NoticeHandler
+    from bench.language.query import QueryBuilder
 
 # pyright: reportIncompatibleVariableOverride=false,reportIncompatibleMethodOverride=false
 
@@ -162,7 +158,6 @@ class _ComponentMethod(enum.Enum):
 
 
 # :NodeMethods
-_COMPONENT_INNER_METHODS: tuple[str, ...] = tuple(m.inner for m in _ComponentMethod)
 _FORBIDDEN_COMPONENT_METHODS = (
     tuple(m.self for m in _ComponentMethod)
     + tuple(m.rec for m in _ComponentMethod)
@@ -812,8 +807,11 @@ class _Passthrough(enum.StrEnum):
     Scope = "scope"
 
 
+StructDataT = TypeVar("StructDataT", bound="Union[AnyStructData, AnyNodeData]")
+
+
 @struct_component()
-class Struct(abc.ABC):
+class Struct(abc.ABC, Generic[StructDataT]):
     """
     A non-node data structure, usually inside a node (which is the only way to store/retrieve it).
     Will track, track, etc. when we start using these in nodes.
@@ -1320,15 +1318,22 @@ class Struct(abc.ABC):
         for inner_struct in self._walk_self():
             inner_struct._validate_self(properties, on_invalid)
 
-    def _to_data(self) -> AnyNodeData | AnyStructData:
+    def _to_data(self) -> StructDataT:
         """Convert to wire format"""
         from bench.proto.wiring import pack_struct
 
         return pack_struct(self)
 
 
+NodeDataT = TypeVar("NodeDataT", bound="AnyNodeData")
+FieldOrProperty = Union[
+    Field if TYPE_CHECKING else "Field", Property if TYPE_CHECKING else "Property", Any
+]
+NodeTypeOrClass = Union[NodeType, type["Node"]]
+
+
 @node_component()
-class Node(Struct, _NodeQueryBuilder if TYPE_CHECKING else object):
+class Node(Struct[NodeDataT], Generic[NodeDataT]):
     """
     A node in the Bench graph: a struct with a globally unique identity.
     Every node has a stable key 'sk', a per 'instance' constant key 'ck' and a per instance 'id'.
@@ -1406,6 +1411,11 @@ class Node(Struct, _NodeQueryBuilder if TYPE_CHECKING else object):
         references=(NodeType.USER, NodeType.RUN),
         is_bench_implicit=True,
     )
+    if TYPE_CHECKING:
+        created_by_id: Optional[UUID] = None
+        created_by_type: NodeType | None = None
+        updated_by_id: Optional[UUID] = None
+        updated_by_type: NodeType | None = None
     # changed_by (19)?, active_by (20)?, ...
     # from Struct: computed_properties (21), set_properties (22)
 
@@ -1689,6 +1699,10 @@ class Node(Struct, _NodeQueryBuilder if TYPE_CHECKING else object):
 
         return wrap_some_node(pack_node(self))
 
+    #
+    # The :ComponentMethods
+    #
+
     def _init_inner(self) -> None:
         if self.parent is None:
             # if we're not in a graph, start a new one
@@ -1741,8 +1755,6 @@ class Node(Struct, _NodeQueryBuilder if TYPE_CHECKING else object):
 
     def __bool__(self):
         return True  # allow truthy checks for nodes
-
-    # final :ComponentMethods
 
     @final
     def _init_self(self):
@@ -1817,14 +1829,79 @@ class Node(Struct, _NodeQueryBuilder if TYPE_CHECKING else object):
         if self.metatype in HAS_CHILD_NODE_TYPES:
             yield from self._root_graph.collect_descendants(self, recursive=True)
 
+    #
+    # Querying
+    #
 
-@_on_completing_setup
-def _add_node_expression_base():
-    from bench.language.expression import _NodeQueryBuilder
+    @classmethod
+    def query(cls) -> "QueryBuilder[Self, NodeDataT]":
+        from bench.language.query import QueryBuilder
 
-    for name, attr in _NodeQueryBuilder.__dict__.items():
-        if name not in Property.__dict__ and name not in ("__annotations__", "__dict__"):
-            setattr(Node, name, attr)
+        return QueryBuilder(node_type=cls.metatype)
+
+    @classmethod
+    async def get(cls, conditional: Optional["Expression"] = None, **kwargs) -> Self:
+        return await cls.query().get(conditional, **kwargs)
+
+    @classmethod
+    def where(
+        cls, filter: Optional["Expression"] = None, **kwargs
+    ) -> "QueryBuilder[Self, NodeDataT]":
+        return cls.query().filter(filter, **kwargs)
+
+    @classmethod
+    def order_by(
+        cls, sort: Optional["Expression"] = None, *args: str
+    ) -> "QueryBuilder[Self, NodeDataT]":
+        return cls.query().sort(sort, *args)
+
+    @classmethod
+    def include(cls, *properties: FieldOrProperty) -> "QueryBuilder[Self, NodeDataT]":
+        return cls.query().include(*properties)
+
+    @classmethod
+    def include_all(cls) -> "QueryBuilder[Self, NodeDataT]":
+        return cls.query().include_all()
+
+    @classmethod
+    def exclude(cls, *properties: FieldOrProperty) -> "QueryBuilder[Self, NodeDataT]":
+        return cls.query().exclude(*properties)
+
+    @classmethod
+    def related(cls, *properties: FieldOrProperty) -> "QueryBuilder[Self, NodeDataT]":
+        return cls.query().related(*properties)
+
+    @classmethod
+    def include_ancestors(cls) -> "QueryBuilder[Self, NodeDataT]":
+        return cls.query().include_ancestors()
+
+    @classmethod
+    def ancestors(cls, *node_types: NodeTypeOrClass) -> "QueryBuilder[Self, NodeDataT]":
+        return cls.query().ancestors(*node_types)
+
+    @classmethod
+    def descendants(cls, *node_types: NodeTypeOrClass) -> "QueryBuilder[Self, NodeDataT]":
+        return cls.query().descendants(*node_types)
+
+    #
+    # Fetch
+    #
+
+    @classmethod
+    async def tolist(cls) -> list[Self]:
+        return await cls.query().tolist()
+
+    @classmethod
+    def first(cls, count: int) -> "QueryBuilder[Self, NodeDataT]":
+        return cls.query().first(count)
+
+    @classmethod
+    async def count(cls, filter: Optional["Expression"] = None, **kwargs) -> int:
+        return await cls.query().count(filter, **kwargs)
+
+    @classmethod
+    async def exists(cls, filter: Optional["Expression"] = None, **kwargs) -> bool:
+        return await cls.query().exists(filter, **kwargs)
 
 
 LINK_TARGET_NODE_TYPES: tuple[NodeType, ...] = tuple(
@@ -1862,7 +1939,7 @@ class Skip(Node):
 
 
 @node_component()
-class HasBase(Node):
+class BasedNode(Node[NodeDataT], Generic[NodeDataT]):
     """A node that requires an explicit base (parent, type, whatever) in another node."""
 
     @property

@@ -1,7 +1,5 @@
 from contextlib import asynccontextmanager
-from typing import Any, AsyncContextManager
 
-import psycopg
 import structlog
 
 from bench.language import Bench, Session, Store, StoreEngineType, StoreKind
@@ -52,24 +50,22 @@ USER_STORE = Store(
 
 
 @asynccontextmanager
-async def global_pg_cursor(
-    autocommit: bool = False,
-) -> AsyncContextManager[psycopg.AsyncCursor[dict[str, Any]]]:
+async def global_pg_cursor(autocommit: bool = False):
     async with _PgStoreConnection(GLOBAL_STORE, autocommit=autocommit) as cur:
         yield cur
 
 
 @asynccontextmanager
 async def user_pg_cursor(
-    database: str = None,
+    database: str | None = None,
     autocommit: bool = False,
-) -> AsyncContextManager[psycopg.AsyncCursor[dict[str, Any]]]:
+):
     async with _PgStoreConnection(USER_STORE, database=database, autocommit=autocommit) as cur:
         yield cur
 
 
 @asynccontextmanager
-async def global_session() -> AsyncContextManager[Session]:
+async def global_session():
     async with Session(
         parent=None, _engines=(GLOBAL_POSTGRES_ENGINE,), _fallback_engine=GLOBAL_POSTGRES_ENGINE
     ) as session:

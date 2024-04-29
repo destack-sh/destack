@@ -1,7 +1,6 @@
 import contextvars
 import re
 from contextlib import asynccontextmanager
-from typing import Any, AsyncContextManager
 
 import psycopg
 import psycopg_pool
@@ -60,7 +59,7 @@ _CONNECTION_STR_REGEX = re.compile(
 )
 
 
-def get_pg_connection_str(store: Store, database: str = None) -> str:
+def get_pg_connection_str(store: Store, database: str | None = None) -> str:
     # TODO :Security :Scalability: route store clients/hosts better :StoreRouting
     from bench.system.client import USER_PG_HOST
 
@@ -71,21 +70,7 @@ def get_pg_connection_str(store: Store, database: str = None) -> str:
 
 
 @asynccontextmanager
-async def pg_connection(
-    local_pg_name: str | None = None, autocommit: bool = False
-) -> AsyncContextManager[psycopg.AsyncConnection[dict[str, Any]]]:
-    """Gets a psycopg cursor to the given database"""
-    pool = await get_pg_connection_pool(local_pg_name)
-    async with pool.connection() as conn:
-        if conn.autocommit != autocommit:
-            await conn.set_autocommit(autocommit)
-        yield conn
-
-
-@asynccontextmanager
-async def pg_cursor(
-    connection_str: str, autocommit: bool = False
-) -> AsyncContextManager[psycopg.AsyncCursor[dict[str, Any]]]:
+async def pg_cursor(connection_str: str, autocommit: bool = False):
     pool = await get_pg_connection_pool(connection_str)
     async with pool.connection() as conn:
         if conn.autocommit != autocommit:
@@ -97,7 +82,7 @@ async def pg_cursor(
 class _PgStoreConnection:
     __slots__ = ("store", "database", "autocommit", "_reset_token", "_conn", "_pool")
 
-    def __init__(self, store: Store, database: str = None, autocommit: bool = False):
+    def __init__(self, store: Store, database: str | None = None, autocommit: bool = False):
         self.store = store
         self.database = database
         self.autocommit = autocommit
@@ -120,7 +105,7 @@ class _PgStoreConnection:
 
     async def close(self) -> None:
         _current_store.set(None)
-        if self._conn is not None:
+        if self._pool is not None and self._conn is not None:
             await self._pool.putconn(self._conn)
 
     async def __aenter__(self) -> psycopg.AsyncCursor:
@@ -131,9 +116,7 @@ class _PgStoreConnection:
 
 
 @asynccontextmanager
-async def pg_cursor_to_store(
-    store: Store, autocommit: bool = False
-) -> AsyncContextManager[psycopg.AsyncCursor[dict[str, Any]]]:
+async def pg_cursor_to_store(store: Store, autocommit: bool = False):
     async with _PgStoreConnection(store, autocommit=autocommit) as cur:
         yield cur
 

@@ -2,7 +2,7 @@ import enum
 import functools
 from collections import defaultdict
 from itertools import chain
-from typing import TYPE_CHECKING, Callable, Union
+from typing import TYPE_CHECKING, Callable, Union, cast
 
 from bench.language.const import (
     _ENUM_CLASS_BY_TYPE,
@@ -64,7 +64,7 @@ def _on_completing_setup(func: Callable | None = None):
 def _complete_bench_setup():
     """Finalize setup of all language constructs after everything is imported."""
     from bench.language import Node, Struct, Value, const
-    from bench.language.node import HasBase
+    from bench.language.node import BasedNode
 
     global _COMPLETED_SETUP
     if _COMPLETED_SETUP:
@@ -174,7 +174,9 @@ def _complete_bench_setup():
     global HAS_CHILD_NODE_TYPES
     for node_type in NODE_TYPES:
         ANCESTOR_NODE_TYPES[node_type] = bytetuple(*ancestor_types[node_type], enum_cls=NodeType)
-        DESCENDANT_NODE_TYPES[node_type] = bytetuple(*descendant_types[node_type], enum_cls=NodeType)
+        DESCENDANT_NODE_TYPES[node_type] = bytetuple(
+            *descendant_types[node_type], enum_cls=NodeType
+        )
         PARENT_NODE_TYPES[node_type] = bytetuple(*parent_types[node_type], enum_cls=NodeType)
         CHILD_NODE_TYPES[node_type] = bytetuple(*child_types[node_type], enum_cls=NodeType)
         if child_types[node_type]:
@@ -196,7 +198,8 @@ def _complete_bench_setup():
                 f"{node_cls!r} parent types are inconsistent: root={node_cls.__roots__} implies in_bench={in_bench} and in_package={in_package}, but configured in_bench={node_cls.__is_in_bench__} and in_package={node_cls.__is_in_package__}"
             )
     assert_collections_equal(
-        IN_BENCH_NODE_TYPES.tuple, [t.metatype for t in NODE_CLASS_BY_TYPE.values() if t.__is_in_bench__]
+        IN_BENCH_NODE_TYPES.tuple,
+        [t.metatype for t in NODE_CLASS_BY_TYPE.values() if t.__is_in_bench__],
     )
     assert_collections_equal(
         IN_PACKAGE_NODE_TYPES.tuple,
@@ -204,7 +207,9 @@ def _complete_bench_setup():
     )
 
     # check that BASED_NODE_TYPES is consistent with HasBase
-    base_node_types = [n.metatype for n in get_subclasses(HasBase) if hasattr(n, "metatype")]
+    base_node_types = [
+        cast(Node, n).metatype for n in get_subclasses(BasedNode) if hasattr(n, "metatype")
+    ]
     assert_collections_equal(base_node_types, const.BASED_NODE_TYPES.tuple)
 
     # check that all enum types are valid proto-able enums

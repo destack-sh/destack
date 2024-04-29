@@ -4,15 +4,7 @@ from typing import TYPE_CHECKING, Any, Optional, cast
 import structlog
 
 from bench.language.const import NodeType
-from bench.language.node import (
-    HasBase,
-    Node,
-    NodeList,
-    NRel,
-    _Passthrough,
-    node,
-    node_component,
-)
+from bench.language.node import BasedNode, Node, NodeList, NRel, _Passthrough, node, node_component
 from bench.language.notice import NoticeHandler
 from bench.language.property import (
     Property,
@@ -51,7 +43,7 @@ logger = structlog.get_logger(__name__)
     index_in_search=True,
     local=True,
 )
-class Record(HasBase, HasValues):
+class Record(BasedNode[RecordData], HasValues):
     """A record in a database. The containing table is usually a real Postgres table."""
 
     # :RecordSchema

@@ -6,6 +6,7 @@ from bench.language.const import BenchError, NodeType, NoticeKind, StructType
 from bench.language.node import Node, Property, node
 from bench.language.property import p_node_parent, p_regular
 from bench.language.validation import enum_validator
+from bench.proto.wire import NoticeData
 from bench.utils.func import IdEnum
 
 if TYPE_CHECKING:
@@ -51,7 +52,7 @@ class NoticeError(BenchError, ValueError):
 
 
 @node(NodeType.NOTICE)
-class Notice(Node):
+class Notice(Node[NoticeData]):
     parent: Union["Block", "Package"] = p_node_parent(4, NodeType.BLOCK, NodeType.PACKAGE)  # type: ignore
     kind: NoticeKind = p_regular(30, default=None, validate=enum_validator(NoticeKind))
     type: NoticeType = p_regular(31, validate=enum_validator(NoticeType))

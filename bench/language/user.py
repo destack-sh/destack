@@ -9,7 +9,7 @@ from bench.language.const import (
     UserStatus,
 )
 from bench.language.graph import NodeList
-from bench.language.node import HasBase, Node, _Passthrough, node
+from bench.language.node import BasedNode, Node, _Passthrough, node
 from bench.language.property import (
     p_internal,
     p_kernel,
@@ -23,7 +23,17 @@ from bench.language.property import (
 )
 from bench.language.validation import SLUG_REGEX, validate_email, validate_name, validate_slug
 from bench.language.value import HasValues
-from bench.proto.wire import AnyNodeData, NodeReferenceData, NotificationData
+from bench.proto.wire import (
+    AnyNodeData,
+    ClientData,
+    HandleData,
+    InviteData,
+    MembershipData,
+    NodeReferenceData,
+    NotificationData,
+    OrganizationData,
+    UserData,
+)
 from bench.sql.core import Constraint, ConstraintType
 from bench.utils.casing import IdentifierType
 from bench.utils.dt import utcnow_with_tz
@@ -56,7 +66,7 @@ if TYPE_CHECKING:
         ),
     ),
 )
-class Handle(Node):
+class Handle(Node[HandleData]):
     """A Bench @handle. Can only be created/edited by the system."""
 
     parent: Union["User", "Organization", "Bench"] = p_node_parent(
@@ -66,7 +76,7 @@ class Handle(Node):
 
 
 @node(NodeType.USER, roots=(), identifier=IdentifierType.VARIABLE)
-class User(Node):
+class User(Node[UserData]):
     """A Bench user."""
 
     # ordinal/number: ...?
@@ -83,6 +93,8 @@ class User(Node):
     main_bench: Optional["Bench"] = p_system(
         37, array=False, require=False, references=NodeType.BENCH, fk=True
     )
+    if TYPE_CHECKING:
+        main_bench_ptr: Optional[NodeReferenceData] = None
     status: UserStatus = p_system(38)
 
     # auth
@@ -113,7 +125,7 @@ class User(Node):
 
 
 @node(NodeType.ORGANIZATION, roots=(), identifier=IdentifierType.VARIABLE)
-class Organization(Node):
+class Organization(Node[OrganizationData]):
     """
     A Bench organization with Users as members.
     Until activation only its creator has access.
@@ -142,7 +154,7 @@ class Organization(Node):
 
 
 @node(NodeType.CLIENT, roots=(NodeType.USER, NodeType.BENCH), identifier=IdentifierType.VARIABLE)
-class Client(Node):
+class Client(Node[ClientData]):
     """A client to this Bench."""
 
     parent: Union[User, "Server"] = p_node_parent(4, NodeType.USER, NodeType.SERVER)
@@ -177,12 +189,12 @@ class Client(Node):
     def user(self) -> User:
         if isinstance(self.parent, User):
             return self.parent
-        else: 
+        else:
             raise ValueError(f"{self!r} is not a User client")
 
 
 @node(NodeType.MEMBERSHIP)
-class Membership(Node):
+class Membership(Node[MembershipData]):
     """
     A membership to this Bench (and its owner if it's the main Bench).
     """
@@ -196,7 +208,7 @@ class Membership(Node):
 
 
 @node(NodeType.INVITE)
-class Invite(Node):
+class Invite(Node[InviteData]):
     """An invitation to become a member of this Bench."""
 
     parent: "Package" = p_node_parent(4, NodeType.PACKAGE)
@@ -214,7 +226,7 @@ class Invite(Node):
     index_in_search=True,
     local=True,
 )
-class Notification(HasBase, HasValues):
+class Notification(BasedNode[NotificationData], HasValues):
     """
     A notification for the Bench's owner.
     As with most Bench stuff, the main Bench's main package is the 'truth'.

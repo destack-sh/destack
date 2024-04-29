@@ -2,7 +2,7 @@ from typing import TYPE_CHECKING, Any, Optional, Union
 
 from bench.language.const import NODE_TYPES, EnumType, NodeType, StructType, enum_
 from bench.language.expression import Selection
-from bench.language.node import LINK_TARGET_NODE_TYPES, Node, Struct, node, node_component, struct
+from bench.language.node import LINK_TARGET_NODE_TYPES, Node, Struct, node, struct
 from bench.language.property import (
     p_internal,
     p_node_child,
@@ -13,6 +13,7 @@ from bench.language.property import (
 )
 from bench.language.validation import enum_validator, validate_name
 from bench.language.value import HasValues
+from bench.proto.wire import SpaceData, ViewData
 from bench.utils.casing import IdentifierType
 from bench.utils.fractional import INTEGER_ZERO
 from bench.utils.func import IdEnum
@@ -334,13 +335,8 @@ class Alignment(IdEnum):
     SPACE_BETWEEN = 4
 
 
-@node_component()
-class HasViews(Node):
-    views: list["View"] = p_node_child(NodeType.VIEW)
-
-
 @node(NodeType.VIEW, identifier=IdentifierType.VARIABLE)
-class View(HasViews, HasValues):
+class View(Node[ViewData], HasValues):
     """A view of a user interface in a Bench."""
 
     parent: Union["Space", "View", "Block"] = p_node_parent(
@@ -411,12 +407,14 @@ class View(HasViews, HasValues):
     is_inline: Optional[bool] = p_regular(83, default=False)
     is_loading: Optional[bool] = p_regular(90, default=False)
 
+    views: list["View"] = p_node_child(NodeType.VIEW)
+
     def __repr__(self):  # type: ignore we want to override the default repr
         return f"<{self.type.bench_name}View {self}>"
 
 
 @node(NodeType.SPACE, identifier=IdentifierType.VARIABLE)
-class Space(HasViews):
+class Space(Node[SpaceData]):
     """A space for a user to interact with the Bench."""
 
     parent: "Package" = p_node_parent(4, NodeType.PACKAGE)
@@ -425,7 +423,7 @@ class Space(HasViews):
     text: Optional["Text"] = p_regular(32, default=None, struct=StructType.TEXT)
     order_key: str = p_internal(33)
     policies: list["Policy"] | None = p_regular(34, struct=StructType.POLICY, array=True)
-    # layout/views/...
+    views: list["View"] = p_node_child(NodeType.VIEW)
 
     focus: Optional[Selection] = p_regular(
         70, default=None, require=False, struct=StructType.SELECTION

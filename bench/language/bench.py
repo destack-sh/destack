@@ -14,6 +14,14 @@ from bench.language.property import (
     p_system,
 )
 from bench.language.validation import validate_name, validate_slug
+from bench.proto.wire import (
+    BenchData,
+    BranchData,
+    DependencyData,
+    EnvironmentData,
+    PackageData,
+    UpgradeData,
+)
 from bench.utils.casing import IdentifierType
 
 if TYPE_CHECKING:
@@ -39,7 +47,7 @@ NodeT = Union[Node, "Node"]
 
 
 @node(NodeType.BENCH, roots=(), identifier=IdentifierType.VARIABLE)
-class Bench(Node):
+class Bench(Node[BenchData]):
     """
     A Bench is an AI-native operating system for a new generation of fully integrated, fluid software.
     """
@@ -103,7 +111,7 @@ class Bench(Node):
 
 
 @node(NodeType.ENVIRONMENT, identifier=IdentifierType.VARIABLE)
-class Environment(Node):
+class Environment(Node[EnvironmentData]):
     """An environment of resources for a Bench's packages."""
 
     parent: Bench = p_node_parent(4, NodeType.BENCH)
@@ -149,7 +157,7 @@ class Environment(Node):
     identifier=IdentifierType.VARIABLE,
     unique_together=(("parent_bench_id", "slug"),),
 )
-class Branch(Node):
+class Branch(Node[BranchData]):
     """A branch is a Git-like pointer to the head of a lineage of packages."""
 
     parent: Bench = p_node_parent(4, NodeType.BENCH)
@@ -169,7 +177,7 @@ class Branch(Node):
     identifier=IdentifierType.VARIABLE,
     unique_together=(("parent_bench_id", "slug"),),
 )
-class Package(Node):
+class Package(Node[PackageData]):
     """A package is a semi-isolated version of a Bench."""
 
     parent: Bench = p_node_parent(4, NodeType.BENCH)
@@ -210,7 +218,7 @@ class Package(Node):
 
 
 @node(NodeType.DEPENDENCY, identifier=IdentifierType.VARIABLE)
-class Dependency(Node):
+class Dependency(Node[DependencyData]):
     """
     A dependency on another Bench (pointing to a specific Package).
     If scopes are given, only those blocks are included.
@@ -228,7 +236,7 @@ class Dependency(Node):
 
 
 @node(NodeType.UPGRADE, identifier=IdentifierType.VARIABLE)
-class Upgrade(Node):
+class Upgrade(Node[UpgradeData]):
     """An 'upgrade' to a Package, marking changes made to the containing Package."""
 
     parent: Package = p_node_parent(4, NodeType.PACKAGE)
