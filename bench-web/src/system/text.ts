@@ -26,7 +26,7 @@ export function mapTextToPmNode(text: TextData, prev: PmNode | undefined): PmNod
       } else if (span.nodePtr != null) {
         spanNode = schema.node("mention", { nodePtr: span.nodePtr });
       } else {
-        throw new Error(`unexpected span: ${span.id}`);
+        throw new Error(`unexpected span: ${JSON.stringify(span)}`);
       }
       // map marks
       const markTypes: TextMarkType[] = [];
@@ -85,11 +85,11 @@ export function mapPmNodeToText(node: PmNode, prev: TextData | undefined): TextD
       const spanNode = lineNode.child(spanIdx);
       let span: TextSpanData;
       if (spanNode.type.name == "hardBreak") {
-        span = { metatype: ObjectType.TEXT_SPAN, id: spanIdx, content: "\n" };
+        span = { metatype: ObjectType.TEXT_SPAN, content: "\n" };
       } else if (spanNode.type.name == "text") {
-        span = { metatype: ObjectType.TEXT_SPAN, id: spanIdx, content: spanNode.text };
+        span = { metatype: ObjectType.TEXT_SPAN, content: spanNode.text };
       } else if (spanNode.type.name == "mention") {
-        span = { metatype: ObjectType.TEXT_SPAN, id: spanIdx, nodePtr: spanNode.attrs.nodePtr };
+        span = { metatype: ObjectType.TEXT_SPAN, nodePtr: spanNode.attrs.nodePtr };
       } else {
         throw new Error(`unexpected span node type: ${spanNode.type.name}`);
       }

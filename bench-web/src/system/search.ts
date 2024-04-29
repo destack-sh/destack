@@ -282,7 +282,7 @@ export function typeIndex(options: {
     const item: TypeItem = { ...option, id: `${enumType}-${option.id}`, metatype: "type" };
     if (item.icon == null) item.icon = DEFAULT_ENUM_ICON;
     if (enumType == EnumType.PRIMITIVE_TYPE) item.primitiveType = option.value as PrimitiveType;
-    else if (enumType == EnumType.OBJECT_TYPE) item.benchType = option.value as BenchType;
+    else if (enumType == EnumType.BENCH_TYPE) item.benchType = option.value as BenchType;
     else throw new Error(`unexpected enum type: ${enumType}`);
     return item;
   }

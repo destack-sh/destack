@@ -80,7 +80,7 @@ class Supervisor(GraphIoService, SupervisorBase):
         name = client_data.name
         if not name:
             name = generate_node_name(NodeType.CLIENT, type=None, siblings=user.clients)
-        return Client(
+        client = Client(
             id=client_id or uuid4(),
             parent=user,
             name=name,
@@ -92,6 +92,7 @@ class Supervisor(GraphIoService, SupervisorBase):
             last_seen_at=utcnow_with_tz(),
             _is_new=True,  # force create
         )
+        return client
 
     async def signup_user(
         self, subject: Subject, request: "SignupUserRequest"
@@ -131,11 +132,10 @@ class Supervisor(GraphIoService, SupervisorBase):
     async def change_user_password(
         self, subject: Subject, request: "ChangeUserPasswordRequest"
     ) -> "ChangeUserPasswordResponse":
-        if not subject.is_authenticated:
+        if not subject.user:
             raise GRPCError(GRPCStatus.UNAUTHENTICATED, "not logged in")
 
         async with global_session() as session:
-            assert subject.user is not None, "subject is not authenticated"
             user = subject.user
             if user.password_salt is None or user.password_hash is None:
                 raise GRPCError(GRPCStatus.FAILED_PRECONDITION, "password not set")
