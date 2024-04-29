@@ -332,37 +332,40 @@ def _process_struct_base_cls(
 
     if is_final:
         # prune :MagicProps that shouldn't exist on this node type
-        def _remove_prop(name: str, delete: bool = True):
-            prop = properties_by_name.pop(name, None)
-            if prop is not None:
-                if delete:
+        def _remove_magic_prop(name: str, delete_attr: bool = True):
+            prop = properties_by_name.get(name)
+            # property may be overwritten (like in PropertyReference.id)
+            if prop is not None and prop.id < 30:
+                del properties_by_name[name]
+                if delete_attr:
                     try:
                         delattr(cls, name)
                     except AttributeError:
                         pass
                 cls.__annotations__.pop(name, None)
                 for contributed_prop in prop.contributed_props:
-                    _remove_prop(contributed_prop.name)
+                    _remove_magic_prop(contributed_prop.name)
 
         if is_node and not is_sub_bench:
             if cls.__name__ == "Bench":
                 cls.bench = _node_computed_ancestor_prop(properties_by_name["bench"])  # type: ignore
-                _remove_prop("bench", delete=False)
+                _remove_magic_prop("bench", delete_attr=False)
             else:
-                _remove_prop("bench")
+                _remove_magic_prop("bench")
         if is_node and not is_sub_package:
             if cls.__name__ == "Package":
                 cls.package = _node_computed_ancestor_prop(properties_by_name["package"])  # type: ignore
-                _remove_prop("package", delete=False)
+                _remove_magic_prop("package", delete_attr=False)
             else:
-                _remove_prop("package")
+                _remove_magic_prop("package")
         if is_node and (no_ck or not is_sub_package):
-            _remove_prop("ck")
+            _remove_magic_prop("ck")
             setattr(cls, "ck", _node_ck_from_id_prop(properties_by_name["id"]))
         if is_struct and is_inlined:
-            _remove_prop("order_key")
-            _remove_prop("computed_properties")
-            _remove_prop("set_properties")
+            _remove_magic_prop("id")
+            _remove_magic_prop("order_key")
+            _remove_magic_prop("computed_properties")
+            _remove_magic_prop("set_properties")
 
     # create class (map properties to dataclass fields)
     for name, prop in list(properties_by_name.items()):
@@ -402,6 +405,8 @@ def _process_struct_base_cls(
                 ("ck", "ck", "ck"),
                 ("type", "metatype", "type"),
             ):
+                if postfix == "type" and len(cast(tuple[NodeType, ...], prop.reference_nodes)) <= 1:
+                    continue  # no need for type if only one possible node type
                 computed_prop = _node_ref_computed_prop(
                     ref_key, ptr_key, prop, prop.reference_wired_ptr
                 )

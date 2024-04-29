@@ -1,14 +1,9 @@
 import os
 from contextlib import asynccontextmanager, contextmanager
-from typing import TYPE_CHECKING
 
 import grpclib
 import pytest
 from pytest_asyncio import is_async_test
-
-if TYPE_CHECKING:
-    from bench.language import Session
-    from bench.language.test.fabricator import Fabricator
 
 
 def pytest_configure(config):
@@ -78,6 +73,7 @@ async def test_cur():
 
 @asynccontextmanager
 async def test_session():
+    from bench.language.session import Session
     from bench.system.client import GLOBAL_POSTGRES_ENGINE
 
     session = Session(
@@ -90,6 +86,8 @@ async def test_session():
 
 @pytest.fixture(scope="function")
 async def fabricator():
+    from bench.language.test.fabricator import Fabricator
+
     yield Fabricator(seed=42)
 
 

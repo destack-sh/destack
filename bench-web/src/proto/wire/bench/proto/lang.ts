@@ -26,10 +26,6 @@ export interface AccessData {
      */
     metatype: ObjectType;
     /**
-     * @generated from protobuf field: optional int32 id = 2;
-     */
-    id?: number;
-    /**
      * @generated from protobuf field: symbolx.bench.AccessMode mode = 30;
      */
     mode: AccessMode;
@@ -61,9 +57,9 @@ export interface AccessMatrixData {
      */
     metatype: ObjectType;
     /**
-     * @generated from protobuf field: optional int32 id = 2;
+     * @generated from protobuf field: int32 id = 2;
      */
-    id?: number;
+    id: number;
     /**
      * @generated from protobuf field: optional int32 parent_id = 3;
      */
@@ -108,9 +104,9 @@ export interface AccessTraceData {
      */
     metatype: ObjectType;
     /**
-     * @generated from protobuf field: optional int32 id = 2;
+     * @generated from protobuf field: int32 id = 2;
      */
-    id?: number;
+    id: number;
     /**
      * @generated from protobuf field: optional int32 parent_id = 3;
      */
@@ -144,9 +140,9 @@ export interface AccessZoneData {
      */
     metatype: ObjectType;
     /**
-     * @generated from protobuf field: optional int32 id = 2;
+     * @generated from protobuf field: int32 id = 2;
      */
-    id?: number;
+    id: number;
     /**
      * @generated from protobuf field: optional int32 parent_id = 3;
      */
@@ -187,9 +183,9 @@ export interface AggregationData {
      */
     metatype: ObjectType;
     /**
-     * @generated from protobuf field: optional int32 id = 2;
+     * @generated from protobuf field: int32 id = 2;
      */
-    id?: number;
+    id: number;
     /**
      * @generated from protobuf field: optional int32 parent_id = 3;
      */
@@ -238,10 +234,6 @@ export interface AggregationBucketData {
      */
     metatype: ObjectType;
     /**
-     * @generated from protobuf field: optional int32 id = 2;
-     */
-    id?: number;
-    /**
      * @generated from protobuf field: google.protobuf.Struct key = 30;
      */
     key?: Struct;
@@ -261,10 +253,6 @@ export interface BoxData {
      */
     metatype: ObjectType;
     /**
-     * @generated from protobuf field: optional int32 id = 2;
-     */
-    id?: number;
-    /**
      * @generated from protobuf field: optional int32 width = 50;
      */
     width?: number;
@@ -282,7 +270,7 @@ export interface BoxData {
     heightRelative?: number;
 }
 /**
- * Code(lines: list[bench.language.code_.CodeLine] = None, id: Optional[int] = <factory>, parent: Union[ForwardRef('Struct'), ForwardRef('Node'), ForwardRef('Value'), NoneType] = None, order_key: str | None = None, set_properties: list[int] = <factory>, _status: bench.language.const.InterpStatus = None, _updated_properties: bitarray.bitarray | None = None, parent_id: int = None, parent_key: str = None)
+ * Code(lines: list[bench.language.code_.CodeLine] = None, id: int = <factory>, parent: Union[ForwardRef('Struct'), ForwardRef('Node'), ForwardRef('Value'), NoneType] = None, order_key: str | None = None, set_properties: list[int] = <factory>, _status: bench.language.const.InterpStatus = None, _updated_properties: bitarray.bitarray | None = None, parent_id: int = None, parent_key: str = None)
  *
  * @generated from protobuf message symbolx.bench.CodeData
  */
@@ -292,9 +280,9 @@ export interface CodeData {
      */
     metatype: ObjectType;
     /**
-     * @generated from protobuf field: optional int32 id = 2;
+     * @generated from protobuf field: int32 id = 2;
      */
-    id?: number;
+    id: number;
     /**
      * @generated from protobuf field: optional int32 parent_id = 3;
      */
@@ -317,7 +305,7 @@ export interface CodeData {
     lines: CodeLineData[];
 }
 /**
- * CodeLine(content: str = <factory>, id: Optional[int] = <factory>, parent: Union[ForwardRef('Struct'), ForwardRef('Node'), ForwardRef('Value'), NoneType] = None, order_key: str | None = None, set_properties: list[int] = <factory>, _status: bench.language.const.InterpStatus = None, _updated_properties: bitarray.bitarray | None = None, parent_id: int = None, parent_key: str = None)
+ * CodeLine(content: str = <factory>, id: int = <factory>, parent: Union[ForwardRef('Struct'), ForwardRef('Node'), ForwardRef('Value'), NoneType] = None, order_key: str | None = None, set_properties: list[int] = <factory>, _status: bench.language.const.InterpStatus = None, _updated_properties: bitarray.bitarray | None = None, parent_id: int = None, parent_key: str = None)
  *
  * @generated from protobuf message symbolx.bench.CodeLineData
  */
@@ -327,9 +315,9 @@ export interface CodeLineData {
      */
     metatype: ObjectType;
     /**
-     * @generated from protobuf field: optional int32 id = 2;
+     * @generated from protobuf field: int32 id = 2;
      */
-    id?: number;
+    id: number;
     /**
      * @generated from protobuf field: optional int32 parent_id = 3;
      */
@@ -362,10 +350,6 @@ export interface ColorData {
      */
     metatype: ObjectType;
     /**
-     * @generated from protobuf field: optional int32 id = 2;
-     */
-    id?: number;
-    /**
      * @generated from protobuf field: optional symbolx.bench.ColorType type = 31;
      */
     type?: ColorType;
@@ -389,9 +373,9 @@ export interface ContextData {
      */
     metatype: ObjectType;
     /**
-     * @generated from protobuf field: optional int32 id = 2;
+     * @generated from protobuf field: int32 id = 2;
      */
-    id?: number;
+    id: number;
     /**
      * @generated from protobuf field: optional int32 parent_id = 3;
      */
@@ -444,9 +428,9 @@ export interface ExpressionData {
      */
     metatype: ObjectType;
     /**
-     * @generated from protobuf field: optional int32 id = 2;
+     * @generated from protobuf field: int32 id = 2;
      */
-    id?: number;
+    id: number;
     /**
      * @generated from protobuf field: optional int32 parent_id = 3;
      */
@@ -499,10 +483,6 @@ export interface FileData {
      */
     metatype: ObjectType;
     /**
-     * @generated from protobuf field: optional int32 id = 2;
-     */
-    id?: number;
-    /**
      * @generated from protobuf field: optional string type = 31;
      */
     type?: string;
@@ -538,10 +518,6 @@ export interface FontData {
      */
     metatype: ObjectType;
     /**
-     * @generated from protobuf field: optional int32 id = 2;
-     */
-    id?: number;
-    /**
      * @generated from protobuf field: optional symbolx.bench.FontType type = 31;
      */
     type?: FontType;
@@ -555,7 +531,7 @@ export interface FontData {
     size?: FontSize;
 }
 /**
- * Icon(kind: bench.language.file.IconKind = False, emoji: Optional[str] = <factory>, file: Optional[ForwardRef('File')] = None, fa_name: Optional[str] = <factory>, color: Optional[ForwardRef('Color')] = None, id: Optional[int] = <factory>, parent: Union[ForwardRef('Struct'), ForwardRef('Node'), ForwardRef('Value'), NoneType] = None, order_key: str | None = None, set_properties: list[int] = <factory>, _status: bench.language.const.InterpStatus = None, _updated_properties: bitarray.bitarray | None = None, parent_id: int = None, parent_key: str = None)
+ * Icon(kind: bench.language.file.IconKind = False, emoji: Optional[str] = <factory>, file: Optional[ForwardRef('File')] = None, fa_name: Optional[str] = <factory>, color: Optional[ForwardRef('Color')] = None, id: int = <factory>, parent: Union[ForwardRef('Struct'), ForwardRef('Node'), ForwardRef('Value'), NoneType] = None, order_key: str | None = None, set_properties: list[int] = <factory>, _status: bench.language.const.InterpStatus = None, _updated_properties: bitarray.bitarray | None = None, parent_id: int = None, parent_key: str = None)
  *
  * @generated from protobuf message symbolx.bench.IconData
  */
@@ -565,9 +541,9 @@ export interface IconData {
      */
     metatype: ObjectType;
     /**
-     * @generated from protobuf field: optional int32 id = 2;
+     * @generated from protobuf field: int32 id = 2;
      */
-    id?: number;
+    id: number;
     /**
      * @generated from protobuf field: optional int32 parent_id = 3;
      */
@@ -653,10 +629,6 @@ export interface OffsetData {
      * @generated from protobuf field: symbolx.bench.ObjectType metatype = 1;
      */
     metatype: ObjectType;
-    /**
-     * @generated from protobuf field: optional int32 id = 2;
-     */
-    id?: number;
     /**
      * @generated from protobuf field: optional int32 top = 40;
      */
@@ -750,9 +722,9 @@ export interface PathData {
      */
     metatype: ObjectType;
     /**
-     * @generated from protobuf field: optional int32 id = 2;
+     * @generated from protobuf field: int32 id = 2;
      */
-    id?: number;
+    id: number;
     /**
      * @generated from protobuf field: optional int32 parent_id = 3;
      */
@@ -775,7 +747,7 @@ export interface PathData {
     segments: PathSegmentData[];
 }
 /**
- * PathSegment(type: bench.language.path.PathSegmentType = <factory>, name: Optional[str] = None, reference: Optional[ForwardRef('Node')] = None, id: Optional[int] = <factory>, parent: Union[ForwardRef('Struct'), ForwardRef('Node'), ForwardRef('Value'), NoneType] = None, _status: bench.language.const.InterpStatus = None, _updated_properties: bitarray.bitarray | None = None, reference_ptr: 'NodeReference' = None, parent_id: int = None, parent_key: str = None)
+ * PathSegment(type: bench.language.path.PathSegmentType = <factory>, name: Optional[str] = None, reference: Optional[ForwardRef('Node')] = None, parent: Union[ForwardRef('Struct'), ForwardRef('Node'), ForwardRef('Value'), NoneType] = None, _status: bench.language.const.InterpStatus = None, _updated_properties: bitarray.bitarray | None = None, reference_ptr: 'NodeReference' = None, parent_id: int = None, parent_key: str = None)
  *
  * @generated from protobuf message symbolx.bench.PathSegmentData
  */
@@ -784,10 +756,6 @@ export interface PathSegmentData {
      * @generated from protobuf field: symbolx.bench.ObjectType metatype = 1;
      */
     metatype: ObjectType;
-    /**
-     * @generated from protobuf field: optional int32 id = 2;
-     */
-    id?: number;
     /**
      * @generated from protobuf field: symbolx.bench.PathSegmentType type = 31;
      */
@@ -802,7 +770,7 @@ export interface PathSegmentData {
     referencePtr?: NodeReferenceData;
 }
 /**
- * PathToken(type: bench.language.path.PathTokenType = <factory>, id: Optional[int] = <factory>, parent: Union[ForwardRef('Struct'), ForwardRef('Node'), ForwardRef('Value'), NoneType] = None, _status: bench.language.const.InterpStatus = None, _updated_properties: bitarray.bitarray | None = None, parent_id: int = None, parent_key: str = None)
+ * PathToken(type: bench.language.path.PathTokenType = <factory>, parent: Union[ForwardRef('Struct'), ForwardRef('Node'), ForwardRef('Value'), NoneType] = None, _status: bench.language.const.InterpStatus = None, _updated_properties: bitarray.bitarray | None = None, parent_id: int = None, parent_key: str = None)
  *
  * @generated from protobuf message symbolx.bench.PathTokenData
  */
@@ -811,10 +779,6 @@ export interface PathTokenData {
      * @generated from protobuf field: symbolx.bench.ObjectType metatype = 1;
      */
     metatype: ObjectType;
-    /**
-     * @generated from protobuf field: optional int32 id = 2;
-     */
-    id?: number;
     /**
      * @generated from protobuf field: symbolx.bench.PathTokenType type = 31;
      */
@@ -845,9 +809,9 @@ export interface PolicyData {
      */
     metatype: ObjectType;
     /**
-     * @generated from protobuf field: optional int32 id = 2;
+     * @generated from protobuf field: int32 id = 2;
      */
-    id?: number;
+    id: number;
     /**
      * @generated from protobuf field: optional int32 parent_id = 3;
      */
@@ -894,9 +858,9 @@ export interface PolicyRuleData {
      */
     metatype: ObjectType;
     /**
-     * @generated from protobuf field: optional int32 id = 2;
+     * @generated from protobuf field: int32 id = 2;
      */
-    id?: number;
+    id: number;
     /**
      * @generated from protobuf field: optional int32 parent_id = 3;
      */
@@ -991,9 +955,9 @@ export interface ProjectionData {
      */
     metatype: ObjectType;
     /**
-     * @generated from protobuf field: optional int32 id = 2;
+     * @generated from protobuf field: int32 id = 2;
      */
-    id?: number;
+    id: number;
     /**
      * @generated from protobuf field: optional int32 parent_id = 3;
      */
@@ -1046,10 +1010,6 @@ export interface ReadOptionsData {
      */
     metatype: ObjectType;
     /**
-     * @generated from protobuf field: optional int32 id = 2;
-     */
-    id?: number;
-    /**
      * @generated from protobuf field: repeated symbolx.bench.NodeType ancestor_types = 31;
      */
     ancestorTypes: NodeType[];
@@ -1093,9 +1053,9 @@ export interface RequestData {
      */
     metatype: ObjectType;
     /**
-     * @generated from protobuf field: optional int32 id = 2;
+     * @generated from protobuf field: int32 id = 2;
      */
-    id?: number;
+    id: number;
     /**
      * @generated from protobuf field: optional int32 parent_id = 3;
      */
@@ -1130,7 +1090,7 @@ export interface RequestData {
     transactionId?: string;
 }
 /**
- * ResourceCredential(username: str = <factory>, password: str = <factory>, id: Optional[int] = <factory>, parent: Union[ForwardRef('Struct'), ForwardRef('Node'), ForwardRef('Value'), NoneType] = None, _status: bench.language.const.InterpStatus = None, _updated_properties: bitarray.bitarray | None = None, parent_id: int = None, parent_key: str = None)
+ * ResourceCredential(username: str = <factory>, password: str = <factory>, parent: Union[ForwardRef('Struct'), ForwardRef('Node'), ForwardRef('Value'), NoneType] = None, _status: bench.language.const.InterpStatus = None, _updated_properties: bitarray.bitarray | None = None, parent_id: int = None, parent_key: str = None)
  *
  * @generated from protobuf message symbolx.bench.ResourceCredentialData
  */
@@ -1139,10 +1099,6 @@ export interface ResourceCredentialData {
      * @generated from protobuf field: symbolx.bench.ObjectType metatype = 1;
      */
     metatype: ObjectType;
-    /**
-     * @generated from protobuf field: optional int32 id = 2;
-     */
-    id?: number;
     /**
      * @generated from protobuf field: optional string username = 31;
      */
@@ -1153,7 +1109,7 @@ export interface ResourceCredentialData {
     password?: string;
 }
 /**
- * RunCodeFrame(node: bench.language.node.Node = None, lineno: int = <factory>, name: str = <factory>, line: str = <factory>, id: Optional[int] = <factory>, parent: Union[ForwardRef('Struct'), ForwardRef('Node'), ForwardRef('Value'), NoneType] = None, order_key: str | None = None, set_properties: list[int] = <factory>, _status: bench.language.const.InterpStatus = None, _updated_properties: bitarray.bitarray | None = None, node_ptr: 'NodeReference' = None, parent_id: int = None, parent_key: str = None)
+ * RunCodeFrame(node: bench.language.node.Node = None, lineno: int = <factory>, name: str = <factory>, line: str = <factory>, id: int = <factory>, parent: Union[ForwardRef('Struct'), ForwardRef('Node'), ForwardRef('Value'), NoneType] = None, order_key: str | None = None, set_properties: list[int] = <factory>, _status: bench.language.const.InterpStatus = None, _updated_properties: bitarray.bitarray | None = None, node_ptr: 'NodeReference' = None, parent_id: int = None, parent_key: str = None)
  *
  * @generated from protobuf message symbolx.bench.RunCodeFrameData
  */
@@ -1163,9 +1119,9 @@ export interface RunCodeFrameData {
      */
     metatype: ObjectType;
     /**
-     * @generated from protobuf field: optional int32 id = 2;
+     * @generated from protobuf field: int32 id = 2;
      */
-    id?: number;
+    id: number;
     /**
      * @generated from protobuf field: optional int32 parent_id = 3;
      */
@@ -1200,7 +1156,7 @@ export interface RunCodeFrameData {
     line: string;
 }
 /**
- * RunError(kind: bench.language.const.RunErrorKind = <factory>, type: str = <factory>, message: Optional[str] = None, node: Optional[ForwardRef('Node')] = None, traceback: list[bench.language.session.RunCodeFrame] = None, id: Optional[int] = <factory>, parent: Union[ForwardRef('Struct'), ForwardRef('Node'), ForwardRef('Value'), NoneType] = None, order_key: str | None = None, set_properties: list[int] = <factory>, _status: bench.language.const.InterpStatus = None, _updated_properties: bitarray.bitarray | None = None, node_ptr: 'NodeReference' = None, parent_id: int = None, parent_key: str = None)
+ * RunError(kind: bench.language.const.RunErrorKind = <factory>, type: str = <factory>, message: Optional[str] = None, node: Optional[ForwardRef('Node')] = None, traceback: list[bench.language.session.RunCodeFrame] = None, id: int = <factory>, parent: Union[ForwardRef('Struct'), ForwardRef('Node'), ForwardRef('Value'), NoneType] = None, order_key: str | None = None, set_properties: list[int] = <factory>, _status: bench.language.const.InterpStatus = None, _updated_properties: bitarray.bitarray | None = None, node_ptr: 'NodeReference' = None, parent_id: int = None, parent_key: str = None)
  *
  * @generated from protobuf message symbolx.bench.RunErrorData
  */
@@ -1210,9 +1166,9 @@ export interface RunErrorData {
      */
     metatype: ObjectType;
     /**
-     * @generated from protobuf field: optional int32 id = 2;
+     * @generated from protobuf field: int32 id = 2;
      */
-    id?: number;
+    id: number;
     /**
      * @generated from protobuf field: optional int32 parent_id = 3;
      */
@@ -1261,9 +1217,9 @@ export interface ScheduleData {
      */
     metatype: ObjectType;
     /**
-     * @generated from protobuf field: optional int32 id = 2;
+     * @generated from protobuf field: int32 id = 2;
      */
-    id?: number;
+    id: number;
     /**
      * @generated from protobuf field: optional int32 parent_id = 3;
      */
@@ -1308,10 +1264,6 @@ export interface SelectionData {
      */
     metatype: ObjectType;
     /**
-     * @generated from protobuf field: optional int32 id = 2;
-     */
-    id?: number;
-    /**
      * @generated from protobuf field: symbolx.bench.SelectionKind kind = 30;
      */
     kind: SelectionKind;
@@ -1339,9 +1291,9 @@ export interface StepConnectionData {
      */
     metatype: ObjectType;
     /**
-     * @generated from protobuf field: optional int32 id = 2;
+     * @generated from protobuf field: int32 id = 2;
      */
-    id?: number;
+    id: number;
     /**
      * @generated from protobuf field: optional int32 parent_id = 3;
      */
@@ -1375,9 +1327,9 @@ export interface SubjectData {
      */
     metatype: ObjectType;
     /**
-     * @generated from protobuf field: optional int32 id = 2;
+     * @generated from protobuf field: int32 id = 2;
      */
-    id?: number;
+    id: number;
     /**
      * @generated from protobuf field: optional int32 parent_id = 3;
      */
@@ -1436,7 +1388,7 @@ export interface SubjectData {
     rolesPtr: NodeReferenceData[];
 }
 /**
- * Text(lines: list['TextLine'] = None, id: Optional[int] = <factory>, parent: Union[ForwardRef('Struct'), ForwardRef('Node'), ForwardRef('Value'), NoneType] = None, order_key: str | None = None, set_properties: list[int] = <factory>, _status: bench.language.const.InterpStatus = None, _updated_properties: bitarray.bitarray | None = None, parent_id: int = None, parent_key: str = None)
+ * Text(lines: list['TextLine'] = None, id: int = <factory>, parent: Union[ForwardRef('Struct'), ForwardRef('Node'), ForwardRef('Value'), NoneType] = None, order_key: str | None = None, set_properties: list[int] = <factory>, _status: bench.language.const.InterpStatus = None, _updated_properties: bitarray.bitarray | None = None, parent_id: int = None, parent_key: str = None)
  *
  * @generated from protobuf message symbolx.bench.TextData
  */
@@ -1446,9 +1398,9 @@ export interface TextData {
      */
     metatype: ObjectType;
     /**
-     * @generated from protobuf field: optional int32 id = 2;
+     * @generated from protobuf field: int32 id = 2;
      */
-    id?: number;
+    id: number;
     /**
      * @generated from protobuf field: optional int32 parent_id = 3;
      */
@@ -1471,7 +1423,7 @@ export interface TextData {
     lines: TextLineData[];
 }
 /**
- * TextLine(type: bench.language.text.TextLineType = <TextLineType.PLAIN: 1>, spans: list['TextSpan'] = None, icon: Optional[ForwardRef('Icon')] = None, id: Optional[int] = <factory>, parent: Union[ForwardRef('Struct'), ForwardRef('Node'), ForwardRef('Value'), NoneType] = None, order_key: str | None = None, set_properties: list[int] = <factory>, _status: bench.language.const.InterpStatus = None, _updated_properties: bitarray.bitarray | None = None, color: Optional[ForwardRef('ColorType')] = None, is_bold: Optional[bool] = None, is_italic: Optional[bool] = None, is_strikethrough: Optional[bool] = None, is_underline: Optional[bool] = None, is_code: Optional[bool] = None, parent_id: int = None, parent_key: str = None)
+ * TextLine(type: bench.language.text.TextLineType = <TextLineType.PLAIN: 1>, spans: list['TextSpan'] = None, icon: Optional[ForwardRef('Icon')] = None, id: int = <factory>, parent: Union[ForwardRef('Struct'), ForwardRef('Node'), ForwardRef('Value'), NoneType] = None, order_key: str | None = None, set_properties: list[int] = <factory>, _status: bench.language.const.InterpStatus = None, _updated_properties: bitarray.bitarray | None = None, color: Optional[ForwardRef('ColorType')] = None, is_bold: Optional[bool] = None, is_italic: Optional[bool] = None, is_strikethrough: Optional[bool] = None, is_underline: Optional[bool] = None, is_code: Optional[bool] = None, parent_id: int = None, parent_key: str = None)
  *
  * @generated from protobuf message symbolx.bench.TextLineData
  */
@@ -1481,9 +1433,9 @@ export interface TextLineData {
      */
     metatype: ObjectType;
     /**
-     * @generated from protobuf field: optional int32 id = 2;
+     * @generated from protobuf field: int32 id = 2;
      */
-    id?: number;
+    id: number;
     /**
      * @generated from protobuf field: optional int32 parent_id = 3;
      */
@@ -1538,7 +1490,7 @@ export interface TextLineData {
     isCode?: boolean;
 }
 /**
- * TextSpan(content: Optional[str] = None, node: Optional[bench.language.node.Node] = None, id: Optional[int] = <factory>, parent: Union[ForwardRef('Struct'), ForwardRef('Node'), ForwardRef('Value'), NoneType] = None, _status: bench.language.const.InterpStatus = None, _updated_properties: bitarray.bitarray | None = None, color: Optional[ForwardRef('ColorType')] = None, is_bold: Optional[bool] = None, is_italic: Optional[bool] = None, is_strikethrough: Optional[bool] = None, is_underline: Optional[bool] = None, is_code: Optional[bool] = None, node_ptr: 'NodeReference' = None, parent_id: int = None, parent_key: str = None)
+ * TextSpan(content: Optional[str] = None, node: Optional[bench.language.node.Node] = None, parent: Union[ForwardRef('Struct'), ForwardRef('Node'), ForwardRef('Value'), NoneType] = None, _status: bench.language.const.InterpStatus = None, _updated_properties: bitarray.bitarray | None = None, color: Optional[ForwardRef('ColorType')] = None, is_bold: Optional[bool] = None, is_italic: Optional[bool] = None, is_strikethrough: Optional[bool] = None, is_underline: Optional[bool] = None, is_code: Optional[bool] = None, node_ptr: 'NodeReference' = None, parent_id: int = None, parent_key: str = None)
  *
  * @generated from protobuf message symbolx.bench.TextSpanData
  */
@@ -1547,10 +1499,6 @@ export interface TextSpanData {
      * @generated from protobuf field: symbolx.bench.ObjectType metatype = 1;
      */
     metatype: ObjectType;
-    /**
-     * @generated from protobuf field: optional int32 id = 2;
-     */
-    id?: number;
     /**
      * @generated from protobuf field: optional string content = 33;
      */
@@ -1585,7 +1533,7 @@ export interface TextSpanData {
     isCode?: boolean;
 }
 /**
- * TypeInfo(id: Optional[int] = <factory>, parent: Union[ForwardRef('Struct'), ForwardRef('Node'), ForwardRef('Value'), NoneType] = None, order_key: str | None = None, set_properties: list[int] = <factory>, _status: bench.language.const.InterpStatus = None, _updated_properties: bitarray.bitarray | None = None, primitive_type: Optional[bench.language.const.PrimitiveType] = None, bench_type: Optional[bench.utils.func.BenchType] = None, base_type: Optional[ForwardRef('Block')] = None, visibility: Optional[bench.language.const.NodeVisibility] = None, format_hint: Optional[bench.language.const.FormatHint] = None, condition: Optional[ForwardRef('Expression')] = None, length: Optional[int] = None, precision: Optional[int] = None, scale: Optional[int] = None, default_packed: Optional[Any] = None, default: None = None, is_list: bool = False, is_required: bool = False, is_secret: bool = False, _fields: tuple['Field', ...] | None = None, _resolved_type: Optional[ForwardRef('TypeInfo')] = None, parent_id: int = None, parent_key: str = None, base_type_ptr: 'NodeReference' = None)
+ * TypeInfo(id: int = <factory>, parent: Union[ForwardRef('Struct'), ForwardRef('Node'), ForwardRef('Value'), NoneType] = None, order_key: str | None = None, set_properties: list[int] = <factory>, _status: bench.language.const.InterpStatus = None, _updated_properties: bitarray.bitarray | None = None, primitive_type: Optional[bench.language.const.PrimitiveType] = None, bench_type: Optional[bench.utils.func.BenchType] = None, base_type: Optional[ForwardRef('Block')] = None, visibility: Optional[bench.language.const.NodeVisibility] = None, format_hint: Optional[bench.language.const.FormatHint] = None, condition: Optional[ForwardRef('Expression')] = None, length: Optional[int] = None, precision: Optional[int] = None, scale: Optional[int] = None, default_packed: Optional[Any] = None, default: None = None, is_list: bool = False, is_required: bool = False, is_secret: bool = False, _fields: tuple['Field', ...] | None = None, _resolved_type: Optional[ForwardRef('TypeInfo')] = None, parent_id: int = None, parent_key: str = None, base_type_ptr: 'NodeReference' = None)
  *
  * @generated from protobuf message symbolx.bench.TypeInfoData
  */
@@ -1595,9 +1543,9 @@ export interface TypeInfoData {
      */
     metatype: ObjectType;
     /**
-     * @generated from protobuf field: optional int32 id = 2;
+     * @generated from protobuf field: int32 id = 2;
      */
-    id?: number;
+    id: number;
     /**
      * @generated from protobuf field: optional int32 parent_id = 3;
      */
@@ -1678,9 +1626,9 @@ export interface ValueReferenceData {
      */
     metatype: ObjectType;
     /**
-     * @generated from protobuf field: optional int32 id = 2;
+     * @generated from protobuf field: int32 id = 2;
      */
-    id?: number;
+    id: number;
     /**
      * @generated from protobuf field: optional int32 parent_id = 3;
      */
@@ -3277,8 +3225,8 @@ export interface MembershipData {
 }
 /**
  * A node in the Bench graph: a struct with a globally unique identity.
- * Every node has a stable key 'sk', a per 'instance' constant key 'ck' and a per instance 'id'.
- * The 'sk' is just the first half of the 'ck'.
+ * Every node has a 'constant' key (ck) identifying its global (id)entity across versions.
+ * The first part of the constant key is the stable key (sk), which is constant in all instances of a template.
  * For sub package nodes the 'id' is derived from the 'ck' per Package, else it's just the id.
  *
  * @generated from protobuf message symbolx.bench.BaseNodeData
@@ -9324,7 +9272,6 @@ class AccessData$Type extends MessageType<AccessData> {
     constructor() {
         super("symbolx.bench.AccessData", [
             { no: 1, name: "metatype", kind: "enum", T: () => ["symbolx.bench.ObjectType", ObjectType, "OBJECT_TYPE_"] },
-            { no: 2, name: "id", kind: "scalar", opt: true, T: 5 /*ScalarType.INT32*/ },
             { no: 30, name: "mode", kind: "enum", T: () => ["symbolx.bench.AccessMode", AccessMode, "ACCESS_MODE_"] },
             { no: 31, name: "decision", kind: "enum", T: () => ["symbolx.bench.PolicyEffect", PolicyEffect, "POLICY_EFFECT_"] },
             { no: 32, name: "verb", kind: "enum", T: () => ["symbolx.bench.AccessType", AccessType, "ACCESS_TYPE_"] },
@@ -9351,9 +9298,6 @@ class AccessData$Type extends MessageType<AccessData> {
             switch (fieldNo) {
                 case /* symbolx.bench.ObjectType metatype */ 1:
                     message.metatype = reader.int32();
-                    break;
-                case /* optional int32 id */ 2:
-                    message.id = reader.int32();
                     break;
                 case /* symbolx.bench.AccessMode mode */ 30:
                     message.mode = reader.int32();
@@ -9385,9 +9329,6 @@ class AccessData$Type extends MessageType<AccessData> {
         /* symbolx.bench.ObjectType metatype = 1; */
         if (message.metatype !== 0)
             writer.tag(1, WireType.Varint).int32(message.metatype);
-        /* optional int32 id = 2; */
-        if (message.id !== undefined)
-            writer.tag(2, WireType.Varint).int32(message.id);
         /* symbolx.bench.AccessMode mode = 30; */
         if (message.mode !== 0)
             writer.tag(30, WireType.Varint).int32(message.mode);
@@ -9418,7 +9359,7 @@ class AccessMatrixData$Type extends MessageType<AccessMatrixData> {
     constructor() {
         super("symbolx.bench.AccessMatrixData", [
             { no: 1, name: "metatype", kind: "enum", T: () => ["symbolx.bench.ObjectType", ObjectType, "OBJECT_TYPE_"] },
-            { no: 2, name: "id", kind: "scalar", opt: true, T: 5 /*ScalarType.INT32*/ },
+            { no: 2, name: "id", kind: "scalar", T: 5 /*ScalarType.INT32*/ },
             { no: 3, name: "parent_id", kind: "scalar", opt: true, T: 5 /*ScalarType.INT32*/ },
             { no: 4, name: "parent_key", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
             { no: 5, name: "order_key", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
@@ -9432,6 +9373,7 @@ class AccessMatrixData$Type extends MessageType<AccessMatrixData> {
     create(value?: PartialMessage<AccessMatrixData>): AccessMatrixData {
         const message = globalThis.Object.create((this.messagePrototype!));
         message.metatype = 0;
+        message.id = 0;
         message.setProperties = [];
         message.identities = [];
         message.scopedZones = [];
@@ -9448,7 +9390,7 @@ class AccessMatrixData$Type extends MessageType<AccessMatrixData> {
                 case /* symbolx.bench.ObjectType metatype */ 1:
                     message.metatype = reader.int32();
                     break;
-                case /* optional int32 id */ 2:
+                case /* int32 id */ 2:
                     message.id = reader.int32();
                     break;
                 case /* optional int32 parent_id */ 3:
@@ -9494,8 +9436,8 @@ class AccessMatrixData$Type extends MessageType<AccessMatrixData> {
         /* symbolx.bench.ObjectType metatype = 1; */
         if (message.metatype !== 0)
             writer.tag(1, WireType.Varint).int32(message.metatype);
-        /* optional int32 id = 2; */
-        if (message.id !== undefined)
+        /* int32 id = 2; */
+        if (message.id !== 0)
             writer.tag(2, WireType.Varint).int32(message.id);
         /* optional int32 parent_id = 3; */
         if (message.parentId !== undefined)
@@ -9540,7 +9482,7 @@ class AccessTraceData$Type extends MessageType<AccessTraceData> {
     constructor() {
         super("symbolx.bench.AccessTraceData", [
             { no: 1, name: "metatype", kind: "enum", T: () => ["symbolx.bench.ObjectType", ObjectType, "OBJECT_TYPE_"] },
-            { no: 2, name: "id", kind: "scalar", opt: true, T: 5 /*ScalarType.INT32*/ },
+            { no: 2, name: "id", kind: "scalar", T: 5 /*ScalarType.INT32*/ },
             { no: 3, name: "parent_id", kind: "scalar", opt: true, T: 5 /*ScalarType.INT32*/ },
             { no: 4, name: "parent_key", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
             { no: 5, name: "order_key", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
@@ -9551,6 +9493,7 @@ class AccessTraceData$Type extends MessageType<AccessTraceData> {
     create(value?: PartialMessage<AccessTraceData>): AccessTraceData {
         const message = globalThis.Object.create((this.messagePrototype!));
         message.metatype = 0;
+        message.id = 0;
         message.setProperties = [];
         message.matchedRules = [];
         if (value !== undefined)
@@ -9565,7 +9508,7 @@ class AccessTraceData$Type extends MessageType<AccessTraceData> {
                 case /* symbolx.bench.ObjectType metatype */ 1:
                     message.metatype = reader.int32();
                     break;
-                case /* optional int32 id */ 2:
+                case /* int32 id */ 2:
                     message.id = reader.int32();
                     break;
                 case /* optional int32 parent_id */ 3:
@@ -9602,8 +9545,8 @@ class AccessTraceData$Type extends MessageType<AccessTraceData> {
         /* symbolx.bench.ObjectType metatype = 1; */
         if (message.metatype !== 0)
             writer.tag(1, WireType.Varint).int32(message.metatype);
-        /* optional int32 id = 2; */
-        if (message.id !== undefined)
+        /* int32 id = 2; */
+        if (message.id !== 0)
             writer.tag(2, WireType.Varint).int32(message.id);
         /* optional int32 parent_id = 3; */
         if (message.parentId !== undefined)
@@ -9639,7 +9582,7 @@ class AccessZoneData$Type extends MessageType<AccessZoneData> {
     constructor() {
         super("symbolx.bench.AccessZoneData", [
             { no: 1, name: "metatype", kind: "enum", T: () => ["symbolx.bench.ObjectType", ObjectType, "OBJECT_TYPE_"] },
-            { no: 2, name: "id", kind: "scalar", opt: true, T: 5 /*ScalarType.INT32*/ },
+            { no: 2, name: "id", kind: "scalar", T: 5 /*ScalarType.INT32*/ },
             { no: 3, name: "parent_id", kind: "scalar", opt: true, T: 5 /*ScalarType.INT32*/ },
             { no: 4, name: "parent_key", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
             { no: 5, name: "order_key", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
@@ -9652,6 +9595,7 @@ class AccessZoneData$Type extends MessageType<AccessZoneData> {
     create(value?: PartialMessage<AccessZoneData>): AccessZoneData {
         const message = globalThis.Object.create((this.messagePrototype!));
         message.metatype = 0;
+        message.id = 0;
         message.setProperties = [];
         message.scopeId = "";
         message.identityId = 0;
@@ -9668,7 +9612,7 @@ class AccessZoneData$Type extends MessageType<AccessZoneData> {
                 case /* symbolx.bench.ObjectType metatype */ 1:
                     message.metatype = reader.int32();
                     break;
-                case /* optional int32 id */ 2:
+                case /* int32 id */ 2:
                     message.id = reader.int32();
                     break;
                 case /* optional int32 parent_id */ 3:
@@ -9711,8 +9655,8 @@ class AccessZoneData$Type extends MessageType<AccessZoneData> {
         /* symbolx.bench.ObjectType metatype = 1; */
         if (message.metatype !== 0)
             writer.tag(1, WireType.Varint).int32(message.metatype);
-        /* optional int32 id = 2; */
-        if (message.id !== undefined)
+        /* int32 id = 2; */
+        if (message.id !== 0)
             writer.tag(2, WireType.Varint).int32(message.id);
         /* optional int32 parent_id = 3; */
         if (message.parentId !== undefined)
@@ -9754,7 +9698,7 @@ class AggregationData$Type extends MessageType<AggregationData> {
     constructor() {
         super("symbolx.bench.AggregationData", [
             { no: 1, name: "metatype", kind: "enum", T: () => ["symbolx.bench.ObjectType", ObjectType, "OBJECT_TYPE_"] },
-            { no: 2, name: "id", kind: "scalar", opt: true, T: 5 /*ScalarType.INT32*/ },
+            { no: 2, name: "id", kind: "scalar", T: 5 /*ScalarType.INT32*/ },
             { no: 3, name: "parent_id", kind: "scalar", opt: true, T: 5 /*ScalarType.INT32*/ },
             { no: 4, name: "parent_key", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
             { no: 5, name: "order_key", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
@@ -9769,6 +9713,7 @@ class AggregationData$Type extends MessageType<AggregationData> {
     create(value?: PartialMessage<AggregationData>): AggregationData {
         const message = globalThis.Object.create((this.messagePrototype!));
         message.metatype = 0;
+        message.id = 0;
         message.setProperties = [];
         message.op = 0;
         message.buckets = [];
@@ -9784,7 +9729,7 @@ class AggregationData$Type extends MessageType<AggregationData> {
                 case /* symbolx.bench.ObjectType metatype */ 1:
                     message.metatype = reader.int32();
                     break;
-                case /* optional int32 id */ 2:
+                case /* int32 id */ 2:
                     message.id = reader.int32();
                     break;
                 case /* optional int32 parent_id */ 3:
@@ -9833,8 +9778,8 @@ class AggregationData$Type extends MessageType<AggregationData> {
         /* symbolx.bench.ObjectType metatype = 1; */
         if (message.metatype !== 0)
             writer.tag(1, WireType.Varint).int32(message.metatype);
-        /* optional int32 id = 2; */
-        if (message.id !== undefined)
+        /* int32 id = 2; */
+        if (message.id !== 0)
             writer.tag(2, WireType.Varint).int32(message.id);
         /* optional int32 parent_id = 3; */
         if (message.parentId !== undefined)
@@ -9882,7 +9827,6 @@ class AggregationBucketData$Type extends MessageType<AggregationBucketData> {
     constructor() {
         super("symbolx.bench.AggregationBucketData", [
             { no: 1, name: "metatype", kind: "enum", T: () => ["symbolx.bench.ObjectType", ObjectType, "OBJECT_TYPE_"] },
-            { no: 2, name: "id", kind: "scalar", opt: true, T: 5 /*ScalarType.INT32*/ },
             { no: 30, name: "key", kind: "message", T: () => Struct },
             { no: 31, name: "count", kind: "scalar", T: 5 /*ScalarType.INT32*/ }
         ]);
@@ -9902,9 +9846,6 @@ class AggregationBucketData$Type extends MessageType<AggregationBucketData> {
             switch (fieldNo) {
                 case /* symbolx.bench.ObjectType metatype */ 1:
                     message.metatype = reader.int32();
-                    break;
-                case /* optional int32 id */ 2:
-                    message.id = reader.int32();
                     break;
                 case /* google.protobuf.Struct key */ 30:
                     message.key = Struct.internalBinaryRead(reader, reader.uint32(), options, message.key);
@@ -9927,9 +9868,6 @@ class AggregationBucketData$Type extends MessageType<AggregationBucketData> {
         /* symbolx.bench.ObjectType metatype = 1; */
         if (message.metatype !== 0)
             writer.tag(1, WireType.Varint).int32(message.metatype);
-        /* optional int32 id = 2; */
-        if (message.id !== undefined)
-            writer.tag(2, WireType.Varint).int32(message.id);
         /* google.protobuf.Struct key = 30; */
         if (message.key)
             Struct.internalBinaryWrite(message.key, writer.tag(30, WireType.LengthDelimited).fork(), options).join();
@@ -9951,7 +9889,6 @@ class BoxData$Type extends MessageType<BoxData> {
     constructor() {
         super("symbolx.bench.BoxData", [
             { no: 1, name: "metatype", kind: "enum", T: () => ["symbolx.bench.ObjectType", ObjectType, "OBJECT_TYPE_"] },
-            { no: 2, name: "id", kind: "scalar", opt: true, T: 5 /*ScalarType.INT32*/ },
             { no: 50, name: "width", kind: "scalar", opt: true, T: 5 /*ScalarType.INT32*/ },
             { no: 51, name: "height", kind: "scalar", opt: true, T: 5 /*ScalarType.INT32*/ },
             { no: 52, name: "width_relative", kind: "scalar", opt: true, T: 2 /*ScalarType.FLOAT*/ },
@@ -9972,9 +9909,6 @@ class BoxData$Type extends MessageType<BoxData> {
             switch (fieldNo) {
                 case /* symbolx.bench.ObjectType metatype */ 1:
                     message.metatype = reader.int32();
-                    break;
-                case /* optional int32 id */ 2:
-                    message.id = reader.int32();
                     break;
                 case /* optional int32 width */ 50:
                     message.width = reader.int32();
@@ -10003,9 +9937,6 @@ class BoxData$Type extends MessageType<BoxData> {
         /* symbolx.bench.ObjectType metatype = 1; */
         if (message.metatype !== 0)
             writer.tag(1, WireType.Varint).int32(message.metatype);
-        /* optional int32 id = 2; */
-        if (message.id !== undefined)
-            writer.tag(2, WireType.Varint).int32(message.id);
         /* optional int32 width = 50; */
         if (message.width !== undefined)
             writer.tag(50, WireType.Varint).int32(message.width);
@@ -10033,7 +9964,7 @@ class CodeData$Type extends MessageType<CodeData> {
     constructor() {
         super("symbolx.bench.CodeData", [
             { no: 1, name: "metatype", kind: "enum", T: () => ["symbolx.bench.ObjectType", ObjectType, "OBJECT_TYPE_"] },
-            { no: 2, name: "id", kind: "scalar", opt: true, T: 5 /*ScalarType.INT32*/ },
+            { no: 2, name: "id", kind: "scalar", T: 5 /*ScalarType.INT32*/ },
             { no: 3, name: "parent_id", kind: "scalar", opt: true, T: 5 /*ScalarType.INT32*/ },
             { no: 4, name: "parent_key", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
             { no: 5, name: "order_key", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
@@ -10044,6 +9975,7 @@ class CodeData$Type extends MessageType<CodeData> {
     create(value?: PartialMessage<CodeData>): CodeData {
         const message = globalThis.Object.create((this.messagePrototype!));
         message.metatype = 0;
+        message.id = 0;
         message.setProperties = [];
         message.lines = [];
         if (value !== undefined)
@@ -10058,7 +9990,7 @@ class CodeData$Type extends MessageType<CodeData> {
                 case /* symbolx.bench.ObjectType metatype */ 1:
                     message.metatype = reader.int32();
                     break;
-                case /* optional int32 id */ 2:
+                case /* int32 id */ 2:
                     message.id = reader.int32();
                     break;
                 case /* optional int32 parent_id */ 3:
@@ -10095,8 +10027,8 @@ class CodeData$Type extends MessageType<CodeData> {
         /* symbolx.bench.ObjectType metatype = 1; */
         if (message.metatype !== 0)
             writer.tag(1, WireType.Varint).int32(message.metatype);
-        /* optional int32 id = 2; */
-        if (message.id !== undefined)
+        /* int32 id = 2; */
+        if (message.id !== 0)
             writer.tag(2, WireType.Varint).int32(message.id);
         /* optional int32 parent_id = 3; */
         if (message.parentId !== undefined)
@@ -10132,7 +10064,7 @@ class CodeLineData$Type extends MessageType<CodeLineData> {
     constructor() {
         super("symbolx.bench.CodeLineData", [
             { no: 1, name: "metatype", kind: "enum", T: () => ["symbolx.bench.ObjectType", ObjectType, "OBJECT_TYPE_"] },
-            { no: 2, name: "id", kind: "scalar", opt: true, T: 5 /*ScalarType.INT32*/ },
+            { no: 2, name: "id", kind: "scalar", T: 5 /*ScalarType.INT32*/ },
             { no: 3, name: "parent_id", kind: "scalar", opt: true, T: 5 /*ScalarType.INT32*/ },
             { no: 4, name: "parent_key", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
             { no: 5, name: "order_key", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
@@ -10143,6 +10075,7 @@ class CodeLineData$Type extends MessageType<CodeLineData> {
     create(value?: PartialMessage<CodeLineData>): CodeLineData {
         const message = globalThis.Object.create((this.messagePrototype!));
         message.metatype = 0;
+        message.id = 0;
         message.setProperties = [];
         message.content = "";
         if (value !== undefined)
@@ -10157,7 +10090,7 @@ class CodeLineData$Type extends MessageType<CodeLineData> {
                 case /* symbolx.bench.ObjectType metatype */ 1:
                     message.metatype = reader.int32();
                     break;
-                case /* optional int32 id */ 2:
+                case /* int32 id */ 2:
                     message.id = reader.int32();
                     break;
                 case /* optional int32 parent_id */ 3:
@@ -10194,8 +10127,8 @@ class CodeLineData$Type extends MessageType<CodeLineData> {
         /* symbolx.bench.ObjectType metatype = 1; */
         if (message.metatype !== 0)
             writer.tag(1, WireType.Varint).int32(message.metatype);
-        /* optional int32 id = 2; */
-        if (message.id !== undefined)
+        /* int32 id = 2; */
+        if (message.id !== 0)
             writer.tag(2, WireType.Varint).int32(message.id);
         /* optional int32 parent_id = 3; */
         if (message.parentId !== undefined)
@@ -10231,7 +10164,6 @@ class ColorData$Type extends MessageType<ColorData> {
     constructor() {
         super("symbolx.bench.ColorData", [
             { no: 1, name: "metatype", kind: "enum", T: () => ["symbolx.bench.ObjectType", ObjectType, "OBJECT_TYPE_"] },
-            { no: 2, name: "id", kind: "scalar", opt: true, T: 5 /*ScalarType.INT32*/ },
             { no: 31, name: "type", kind: "enum", opt: true, T: () => ["symbolx.bench.ColorType", ColorType, "COLOR_TYPE_"] },
             { no: 32, name: "shade", kind: "enum", opt: true, T: () => ["symbolx.bench.ColorShade", ColorShade, "COLOR_SHADE_"] },
             { no: 33, name: "hex", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ }
@@ -10251,9 +10183,6 @@ class ColorData$Type extends MessageType<ColorData> {
             switch (fieldNo) {
                 case /* symbolx.bench.ObjectType metatype */ 1:
                     message.metatype = reader.int32();
-                    break;
-                case /* optional int32 id */ 2:
-                    message.id = reader.int32();
                     break;
                 case /* optional symbolx.bench.ColorType type */ 31:
                     message.type = reader.int32();
@@ -10279,9 +10208,6 @@ class ColorData$Type extends MessageType<ColorData> {
         /* symbolx.bench.ObjectType metatype = 1; */
         if (message.metatype !== 0)
             writer.tag(1, WireType.Varint).int32(message.metatype);
-        /* optional int32 id = 2; */
-        if (message.id !== undefined)
-            writer.tag(2, WireType.Varint).int32(message.id);
         /* optional symbolx.bench.ColorType type = 31; */
         if (message.type !== undefined)
             writer.tag(31, WireType.Varint).int32(message.type);
@@ -10306,7 +10232,7 @@ class ContextData$Type extends MessageType<ContextData> {
     constructor() {
         super("symbolx.bench.ContextData", [
             { no: 1, name: "metatype", kind: "enum", T: () => ["symbolx.bench.ObjectType", ObjectType, "OBJECT_TYPE_"] },
-            { no: 2, name: "id", kind: "scalar", opt: true, T: 5 /*ScalarType.INT32*/ },
+            { no: 2, name: "id", kind: "scalar", T: 5 /*ScalarType.INT32*/ },
             { no: 3, name: "parent_id", kind: "scalar", opt: true, T: 5 /*ScalarType.INT32*/ },
             { no: 4, name: "parent_key", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
             { no: 5, name: "order_key", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
@@ -10322,6 +10248,7 @@ class ContextData$Type extends MessageType<ContextData> {
     create(value?: PartialMessage<ContextData>): ContextData {
         const message = globalThis.Object.create((this.messagePrototype!));
         message.metatype = 0;
+        message.id = 0;
         message.setProperties = [];
         if (value !== undefined)
             reflectionMergePartial<ContextData>(this, message, value);
@@ -10335,7 +10262,7 @@ class ContextData$Type extends MessageType<ContextData> {
                 case /* symbolx.bench.ObjectType metatype */ 1:
                     message.metatype = reader.int32();
                     break;
-                case /* optional int32 id */ 2:
+                case /* int32 id */ 2:
                     message.id = reader.int32();
                     break;
                 case /* optional int32 parent_id */ 3:
@@ -10387,8 +10314,8 @@ class ContextData$Type extends MessageType<ContextData> {
         /* symbolx.bench.ObjectType metatype = 1; */
         if (message.metatype !== 0)
             writer.tag(1, WireType.Varint).int32(message.metatype);
-        /* optional int32 id = 2; */
-        if (message.id !== undefined)
+        /* int32 id = 2; */
+        if (message.id !== 0)
             writer.tag(2, WireType.Varint).int32(message.id);
         /* optional int32 parent_id = 3; */
         if (message.parentId !== undefined)
@@ -10439,7 +10366,7 @@ class ExpressionData$Type extends MessageType<ExpressionData> {
     constructor() {
         super("symbolx.bench.ExpressionData", [
             { no: 1, name: "metatype", kind: "enum", T: () => ["symbolx.bench.ObjectType", ObjectType, "OBJECT_TYPE_"] },
-            { no: 2, name: "id", kind: "scalar", opt: true, T: 5 /*ScalarType.INT32*/ },
+            { no: 2, name: "id", kind: "scalar", T: 5 /*ScalarType.INT32*/ },
             { no: 3, name: "parent_id", kind: "scalar", opt: true, T: 5 /*ScalarType.INT32*/ },
             { no: 4, name: "parent_key", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
             { no: 5, name: "order_key", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
@@ -10455,6 +10382,7 @@ class ExpressionData$Type extends MessageType<ExpressionData> {
     create(value?: PartialMessage<ExpressionData>): ExpressionData {
         const message = globalThis.Object.create((this.messagePrototype!));
         message.metatype = 0;
+        message.id = 0;
         message.setProperties = [];
         message.op = 0;
         message.clauses = [];
@@ -10470,7 +10398,7 @@ class ExpressionData$Type extends MessageType<ExpressionData> {
                 case /* symbolx.bench.ObjectType metatype */ 1:
                     message.metatype = reader.int32();
                     break;
-                case /* optional int32 id */ 2:
+                case /* int32 id */ 2:
                     message.id = reader.int32();
                     break;
                 case /* optional int32 parent_id */ 3:
@@ -10522,8 +10450,8 @@ class ExpressionData$Type extends MessageType<ExpressionData> {
         /* symbolx.bench.ObjectType metatype = 1; */
         if (message.metatype !== 0)
             writer.tag(1, WireType.Varint).int32(message.metatype);
-        /* optional int32 id = 2; */
-        if (message.id !== undefined)
+        /* int32 id = 2; */
+        if (message.id !== 0)
             writer.tag(2, WireType.Varint).int32(message.id);
         /* optional int32 parent_id = 3; */
         if (message.parentId !== undefined)
@@ -10574,7 +10502,6 @@ class FileData$Type extends MessageType<FileData> {
     constructor() {
         super("symbolx.bench.FileData", [
             { no: 1, name: "metatype", kind: "enum", T: () => ["symbolx.bench.ObjectType", ObjectType, "OBJECT_TYPE_"] },
-            { no: 2, name: "id", kind: "scalar", opt: true, T: 5 /*ScalarType.INT32*/ },
             { no: 31, name: "type", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
             { no: 33, name: "name", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 34, name: "size", kind: "scalar", opt: true, T: 5 /*ScalarType.INT32*/ },
@@ -10598,9 +10525,6 @@ class FileData$Type extends MessageType<FileData> {
             switch (fieldNo) {
                 case /* symbolx.bench.ObjectType metatype */ 1:
                     message.metatype = reader.int32();
-                    break;
-                case /* optional int32 id */ 2:
-                    message.id = reader.int32();
                     break;
                 case /* optional string type */ 31:
                     message.type = reader.string();
@@ -10635,9 +10559,6 @@ class FileData$Type extends MessageType<FileData> {
         /* symbolx.bench.ObjectType metatype = 1; */
         if (message.metatype !== 0)
             writer.tag(1, WireType.Varint).int32(message.metatype);
-        /* optional int32 id = 2; */
-        if (message.id !== undefined)
-            writer.tag(2, WireType.Varint).int32(message.id);
         /* optional string type = 31; */
         if (message.type !== undefined)
             writer.tag(31, WireType.LengthDelimited).string(message.type);
@@ -10671,7 +10592,6 @@ class FontData$Type extends MessageType<FontData> {
     constructor() {
         super("symbolx.bench.FontData", [
             { no: 1, name: "metatype", kind: "enum", T: () => ["symbolx.bench.ObjectType", ObjectType, "OBJECT_TYPE_"] },
-            { no: 2, name: "id", kind: "scalar", opt: true, T: 5 /*ScalarType.INT32*/ },
             { no: 31, name: "type", kind: "enum", opt: true, T: () => ["symbolx.bench.FontType", FontType, "FONT_TYPE_"] },
             { no: 32, name: "weight", kind: "enum", opt: true, T: () => ["symbolx.bench.FontWeight", FontWeight, "FONT_WEIGHT_"] },
             { no: 33, name: "size", kind: "enum", opt: true, T: () => ["symbolx.bench.FontSize", FontSize, "FONT_SIZE_"] }
@@ -10691,9 +10611,6 @@ class FontData$Type extends MessageType<FontData> {
             switch (fieldNo) {
                 case /* symbolx.bench.ObjectType metatype */ 1:
                     message.metatype = reader.int32();
-                    break;
-                case /* optional int32 id */ 2:
-                    message.id = reader.int32();
                     break;
                 case /* optional symbolx.bench.FontType type */ 31:
                     message.type = reader.int32();
@@ -10719,9 +10636,6 @@ class FontData$Type extends MessageType<FontData> {
         /* symbolx.bench.ObjectType metatype = 1; */
         if (message.metatype !== 0)
             writer.tag(1, WireType.Varint).int32(message.metatype);
-        /* optional int32 id = 2; */
-        if (message.id !== undefined)
-            writer.tag(2, WireType.Varint).int32(message.id);
         /* optional symbolx.bench.FontType type = 31; */
         if (message.type !== undefined)
             writer.tag(31, WireType.Varint).int32(message.type);
@@ -10746,7 +10660,7 @@ class IconData$Type extends MessageType<IconData> {
     constructor() {
         super("symbolx.bench.IconData", [
             { no: 1, name: "metatype", kind: "enum", T: () => ["symbolx.bench.ObjectType", ObjectType, "OBJECT_TYPE_"] },
-            { no: 2, name: "id", kind: "scalar", opt: true, T: 5 /*ScalarType.INT32*/ },
+            { no: 2, name: "id", kind: "scalar", T: 5 /*ScalarType.INT32*/ },
             { no: 3, name: "parent_id", kind: "scalar", opt: true, T: 5 /*ScalarType.INT32*/ },
             { no: 4, name: "parent_key", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
             { no: 5, name: "order_key", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
@@ -10761,6 +10675,7 @@ class IconData$Type extends MessageType<IconData> {
     create(value?: PartialMessage<IconData>): IconData {
         const message = globalThis.Object.create((this.messagePrototype!));
         message.metatype = 0;
+        message.id = 0;
         message.setProperties = [];
         message.kind = 0;
         if (value !== undefined)
@@ -10775,7 +10690,7 @@ class IconData$Type extends MessageType<IconData> {
                 case /* symbolx.bench.ObjectType metatype */ 1:
                     message.metatype = reader.int32();
                     break;
-                case /* optional int32 id */ 2:
+                case /* int32 id */ 2:
                     message.id = reader.int32();
                     break;
                 case /* optional int32 parent_id */ 3:
@@ -10824,8 +10739,8 @@ class IconData$Type extends MessageType<IconData> {
         /* symbolx.bench.ObjectType metatype = 1; */
         if (message.metatype !== 0)
             writer.tag(1, WireType.Varint).int32(message.metatype);
-        /* optional int32 id = 2; */
-        if (message.id !== undefined)
+        /* int32 id = 2; */
+        if (message.id !== 0)
             writer.tag(2, WireType.Varint).int32(message.id);
         /* optional int32 parent_id = 3; */
         if (message.parentId !== undefined)
@@ -10963,7 +10878,6 @@ class OffsetData$Type extends MessageType<OffsetData> {
     constructor() {
         super("symbolx.bench.OffsetData", [
             { no: 1, name: "metatype", kind: "enum", T: () => ["symbolx.bench.ObjectType", ObjectType, "OBJECT_TYPE_"] },
-            { no: 2, name: "id", kind: "scalar", opt: true, T: 5 /*ScalarType.INT32*/ },
             { no: 40, name: "top", kind: "scalar", opt: true, T: 5 /*ScalarType.INT32*/ },
             { no: 41, name: "right", kind: "scalar", opt: true, T: 5 /*ScalarType.INT32*/ },
             { no: 42, name: "bottom", kind: "scalar", opt: true, T: 5 /*ScalarType.INT32*/ },
@@ -10988,9 +10902,6 @@ class OffsetData$Type extends MessageType<OffsetData> {
             switch (fieldNo) {
                 case /* symbolx.bench.ObjectType metatype */ 1:
                     message.metatype = reader.int32();
-                    break;
-                case /* optional int32 id */ 2:
-                    message.id = reader.int32();
                     break;
                 case /* optional int32 top */ 40:
                     message.top = reader.int32();
@@ -11031,9 +10942,6 @@ class OffsetData$Type extends MessageType<OffsetData> {
         /* symbolx.bench.ObjectType metatype = 1; */
         if (message.metatype !== 0)
             writer.tag(1, WireType.Varint).int32(message.metatype);
-        /* optional int32 id = 2; */
-        if (message.id !== undefined)
-            writer.tag(2, WireType.Varint).int32(message.id);
         /* optional int32 top = 40; */
         if (message.top !== undefined)
             writer.tag(40, WireType.Varint).int32(message.top);
@@ -11073,7 +10981,7 @@ class PathData$Type extends MessageType<PathData> {
     constructor() {
         super("symbolx.bench.PathData", [
             { no: 1, name: "metatype", kind: "enum", T: () => ["symbolx.bench.ObjectType", ObjectType, "OBJECT_TYPE_"] },
-            { no: 2, name: "id", kind: "scalar", opt: true, T: 5 /*ScalarType.INT32*/ },
+            { no: 2, name: "id", kind: "scalar", T: 5 /*ScalarType.INT32*/ },
             { no: 3, name: "parent_id", kind: "scalar", opt: true, T: 5 /*ScalarType.INT32*/ },
             { no: 4, name: "parent_key", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
             { no: 5, name: "order_key", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
@@ -11084,6 +10992,7 @@ class PathData$Type extends MessageType<PathData> {
     create(value?: PartialMessage<PathData>): PathData {
         const message = globalThis.Object.create((this.messagePrototype!));
         message.metatype = 0;
+        message.id = 0;
         message.setProperties = [];
         message.segments = [];
         if (value !== undefined)
@@ -11098,7 +11007,7 @@ class PathData$Type extends MessageType<PathData> {
                 case /* symbolx.bench.ObjectType metatype */ 1:
                     message.metatype = reader.int32();
                     break;
-                case /* optional int32 id */ 2:
+                case /* int32 id */ 2:
                     message.id = reader.int32();
                     break;
                 case /* optional int32 parent_id */ 3:
@@ -11135,8 +11044,8 @@ class PathData$Type extends MessageType<PathData> {
         /* symbolx.bench.ObjectType metatype = 1; */
         if (message.metatype !== 0)
             writer.tag(1, WireType.Varint).int32(message.metatype);
-        /* optional int32 id = 2; */
-        if (message.id !== undefined)
+        /* int32 id = 2; */
+        if (message.id !== 0)
             writer.tag(2, WireType.Varint).int32(message.id);
         /* optional int32 parent_id = 3; */
         if (message.parentId !== undefined)
@@ -11172,7 +11081,6 @@ class PathSegmentData$Type extends MessageType<PathSegmentData> {
     constructor() {
         super("symbolx.bench.PathSegmentData", [
             { no: 1, name: "metatype", kind: "enum", T: () => ["symbolx.bench.ObjectType", ObjectType, "OBJECT_TYPE_"] },
-            { no: 2, name: "id", kind: "scalar", opt: true, T: 5 /*ScalarType.INT32*/ },
             { no: 31, name: "type", kind: "enum", T: () => ["symbolx.bench.PathSegmentType", PathSegmentType, "PATH_SEGMENT_TYPE_"] },
             { no: 32, name: "name", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
             { no: 33, name: "reference_ptr", kind: "message", T: () => NodeReferenceData }
@@ -11193,9 +11101,6 @@ class PathSegmentData$Type extends MessageType<PathSegmentData> {
             switch (fieldNo) {
                 case /* symbolx.bench.ObjectType metatype */ 1:
                     message.metatype = reader.int32();
-                    break;
-                case /* optional int32 id */ 2:
-                    message.id = reader.int32();
                     break;
                 case /* symbolx.bench.PathSegmentType type */ 31:
                     message.type = reader.int32();
@@ -11221,9 +11126,6 @@ class PathSegmentData$Type extends MessageType<PathSegmentData> {
         /* symbolx.bench.ObjectType metatype = 1; */
         if (message.metatype !== 0)
             writer.tag(1, WireType.Varint).int32(message.metatype);
-        /* optional int32 id = 2; */
-        if (message.id !== undefined)
-            writer.tag(2, WireType.Varint).int32(message.id);
         /* symbolx.bench.PathSegmentType type = 31; */
         if (message.type !== 0)
             writer.tag(31, WireType.Varint).int32(message.type);
@@ -11248,7 +11150,6 @@ class PathTokenData$Type extends MessageType<PathTokenData> {
     constructor() {
         super("symbolx.bench.PathTokenData", [
             { no: 1, name: "metatype", kind: "enum", T: () => ["symbolx.bench.ObjectType", ObjectType, "OBJECT_TYPE_"] },
-            { no: 2, name: "id", kind: "scalar", opt: true, T: 5 /*ScalarType.INT32*/ },
             { no: 31, name: "type", kind: "enum", T: () => ["symbolx.bench.PathTokenType", PathTokenType, "PATH_TOKEN_TYPE_"] }
         ]);
     }
@@ -11268,9 +11169,6 @@ class PathTokenData$Type extends MessageType<PathTokenData> {
                 case /* symbolx.bench.ObjectType metatype */ 1:
                     message.metatype = reader.int32();
                     break;
-                case /* optional int32 id */ 2:
-                    message.id = reader.int32();
-                    break;
                 case /* symbolx.bench.PathTokenType type */ 31:
                     message.type = reader.int32();
                     break;
@@ -11289,9 +11187,6 @@ class PathTokenData$Type extends MessageType<PathTokenData> {
         /* symbolx.bench.ObjectType metatype = 1; */
         if (message.metatype !== 0)
             writer.tag(1, WireType.Varint).int32(message.metatype);
-        /* optional int32 id = 2; */
-        if (message.id !== undefined)
-            writer.tag(2, WireType.Varint).int32(message.id);
         /* symbolx.bench.PathTokenType type = 31; */
         if (message.type !== 0)
             writer.tag(31, WireType.Varint).int32(message.type);
@@ -11310,7 +11205,7 @@ class PolicyData$Type extends MessageType<PolicyData> {
     constructor() {
         super("symbolx.bench.PolicyData", [
             { no: 1, name: "metatype", kind: "enum", T: () => ["symbolx.bench.ObjectType", ObjectType, "OBJECT_TYPE_"] },
-            { no: 2, name: "id", kind: "scalar", opt: true, T: 5 /*ScalarType.INT32*/ },
+            { no: 2, name: "id", kind: "scalar", T: 5 /*ScalarType.INT32*/ },
             { no: 3, name: "parent_id", kind: "scalar", opt: true, T: 5 /*ScalarType.INT32*/ },
             { no: 4, name: "parent_key", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
             { no: 5, name: "order_key", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
@@ -11324,6 +11219,7 @@ class PolicyData$Type extends MessageType<PolicyData> {
     create(value?: PartialMessage<PolicyData>): PolicyData {
         const message = globalThis.Object.create((this.messagePrototype!));
         message.metatype = 0;
+        message.id = 0;
         message.setProperties = [];
         message.name = "";
         message.rules = [];
@@ -11340,7 +11236,7 @@ class PolicyData$Type extends MessageType<PolicyData> {
                 case /* symbolx.bench.ObjectType metatype */ 1:
                     message.metatype = reader.int32();
                     break;
-                case /* optional int32 id */ 2:
+                case /* int32 id */ 2:
                     message.id = reader.int32();
                     break;
                 case /* optional int32 parent_id */ 3:
@@ -11386,8 +11282,8 @@ class PolicyData$Type extends MessageType<PolicyData> {
         /* symbolx.bench.ObjectType metatype = 1; */
         if (message.metatype !== 0)
             writer.tag(1, WireType.Varint).int32(message.metatype);
-        /* optional int32 id = 2; */
-        if (message.id !== undefined)
+        /* int32 id = 2; */
+        if (message.id !== 0)
             writer.tag(2, WireType.Varint).int32(message.id);
         /* optional int32 parent_id = 3; */
         if (message.parentId !== undefined)
@@ -11432,7 +11328,7 @@ class PolicyRuleData$Type extends MessageType<PolicyRuleData> {
     constructor() {
         super("symbolx.bench.PolicyRuleData", [
             { no: 1, name: "metatype", kind: "enum", T: () => ["symbolx.bench.ObjectType", ObjectType, "OBJECT_TYPE_"] },
-            { no: 2, name: "id", kind: "scalar", opt: true, T: 5 /*ScalarType.INT32*/ },
+            { no: 2, name: "id", kind: "scalar", T: 5 /*ScalarType.INT32*/ },
             { no: 3, name: "parent_id", kind: "scalar", opt: true, T: 5 /*ScalarType.INT32*/ },
             { no: 4, name: "parent_key", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
             { no: 5, name: "order_key", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
@@ -11457,6 +11353,7 @@ class PolicyRuleData$Type extends MessageType<PolicyRuleData> {
     create(value?: PartialMessage<PolicyRuleData>): PolicyRuleData {
         const message = globalThis.Object.create((this.messagePrototype!));
         message.metatype = 0;
+        message.id = 0;
         message.setProperties = [];
         message.name = "";
         message.effect = 0;
@@ -11476,7 +11373,7 @@ class PolicyRuleData$Type extends MessageType<PolicyRuleData> {
                 case /* symbolx.bench.ObjectType metatype */ 1:
                     message.metatype = reader.int32();
                     break;
-                case /* optional int32 id */ 2:
+                case /* int32 id */ 2:
                     message.id = reader.int32();
                     break;
                 case /* optional int32 parent_id */ 3:
@@ -11567,8 +11464,8 @@ class PolicyRuleData$Type extends MessageType<PolicyRuleData> {
         /* symbolx.bench.ObjectType metatype = 1; */
         if (message.metatype !== 0)
             writer.tag(1, WireType.Varint).int32(message.metatype);
-        /* optional int32 id = 2; */
-        if (message.id !== undefined)
+        /* int32 id = 2; */
+        if (message.id !== 0)
             writer.tag(2, WireType.Varint).int32(message.id);
         /* optional int32 parent_id = 3; */
         if (message.parentId !== undefined)
@@ -11658,7 +11555,7 @@ class ProjectionData$Type extends MessageType<ProjectionData> {
     constructor() {
         super("symbolx.bench.ProjectionData", [
             { no: 1, name: "metatype", kind: "enum", T: () => ["symbolx.bench.ObjectType", ObjectType, "OBJECT_TYPE_"] },
-            { no: 2, name: "id", kind: "scalar", opt: true, T: 5 /*ScalarType.INT32*/ },
+            { no: 2, name: "id", kind: "scalar", T: 5 /*ScalarType.INT32*/ },
             { no: 3, name: "parent_id", kind: "scalar", opt: true, T: 5 /*ScalarType.INT32*/ },
             { no: 4, name: "parent_key", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
             { no: 5, name: "order_key", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
@@ -11668,6 +11565,7 @@ class ProjectionData$Type extends MessageType<ProjectionData> {
     create(value?: PartialMessage<ProjectionData>): ProjectionData {
         const message = globalThis.Object.create((this.messagePrototype!));
         message.metatype = 0;
+        message.id = 0;
         message.setProperties = [];
         if (value !== undefined)
             reflectionMergePartial<ProjectionData>(this, message, value);
@@ -11681,7 +11579,7 @@ class ProjectionData$Type extends MessageType<ProjectionData> {
                 case /* symbolx.bench.ObjectType metatype */ 1:
                     message.metatype = reader.int32();
                     break;
-                case /* optional int32 id */ 2:
+                case /* int32 id */ 2:
                     message.id = reader.int32();
                     break;
                 case /* optional int32 parent_id */ 3:
@@ -11715,8 +11613,8 @@ class ProjectionData$Type extends MessageType<ProjectionData> {
         /* symbolx.bench.ObjectType metatype = 1; */
         if (message.metatype !== 0)
             writer.tag(1, WireType.Varint).int32(message.metatype);
-        /* optional int32 id = 2; */
-        if (message.id !== undefined)
+        /* int32 id = 2; */
+        if (message.id !== 0)
             writer.tag(2, WireType.Varint).int32(message.id);
         /* optional int32 parent_id = 3; */
         if (message.parentId !== undefined)
@@ -11818,7 +11716,6 @@ class ReadOptionsData$Type extends MessageType<ReadOptionsData> {
     constructor() {
         super("symbolx.bench.ReadOptionsData", [
             { no: 1, name: "metatype", kind: "enum", T: () => ["symbolx.bench.ObjectType", ObjectType, "OBJECT_TYPE_"] },
-            { no: 2, name: "id", kind: "scalar", opt: true, T: 5 /*ScalarType.INT32*/ },
             { no: 31, name: "ancestor_types", kind: "enum", repeat: 1 /*RepeatType.PACKED*/, T: () => ["symbolx.bench.NodeType", NodeType, "NODE_TYPE_"] },
             { no: 32, name: "descendant_types", kind: "enum", repeat: 1 /*RepeatType.PACKED*/, T: () => ["symbolx.bench.NodeType", NodeType, "NODE_TYPE_"] },
             { no: 33, name: "related_properties_ptr", kind: "message", repeat: 1 /*RepeatType.PACKED*/, T: () => PropertyReferenceData },
@@ -11851,9 +11748,6 @@ class ReadOptionsData$Type extends MessageType<ReadOptionsData> {
             switch (fieldNo) {
                 case /* symbolx.bench.ObjectType metatype */ 1:
                     message.metatype = reader.int32();
-                    break;
-                case /* optional int32 id */ 2:
-                    message.id = reader.int32();
                     break;
                 case /* repeated symbolx.bench.NodeType ancestor_types */ 31:
                     if (wireType === WireType.LengthDelimited)
@@ -11902,9 +11796,6 @@ class ReadOptionsData$Type extends MessageType<ReadOptionsData> {
         /* symbolx.bench.ObjectType metatype = 1; */
         if (message.metatype !== 0)
             writer.tag(1, WireType.Varint).int32(message.metatype);
-        /* optional int32 id = 2; */
-        if (message.id !== undefined)
-            writer.tag(2, WireType.Varint).int32(message.id);
         /* repeated symbolx.bench.NodeType ancestor_types = 31; */
         if (message.ancestorTypes.length) {
             writer.tag(31, WireType.LengthDelimited).fork();
@@ -11952,7 +11843,7 @@ class RequestData$Type extends MessageType<RequestData> {
     constructor() {
         super("symbolx.bench.RequestData", [
             { no: 1, name: "metatype", kind: "enum", T: () => ["symbolx.bench.ObjectType", ObjectType, "OBJECT_TYPE_"] },
-            { no: 2, name: "id", kind: "scalar", opt: true, T: 5 /*ScalarType.INT32*/ },
+            { no: 2, name: "id", kind: "scalar", T: 5 /*ScalarType.INT32*/ },
             { no: 3, name: "parent_id", kind: "scalar", opt: true, T: 5 /*ScalarType.INT32*/ },
             { no: 4, name: "parent_key", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
             { no: 5, name: "order_key", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
@@ -11966,6 +11857,7 @@ class RequestData$Type extends MessageType<RequestData> {
     create(value?: PartialMessage<RequestData>): RequestData {
         const message = globalThis.Object.create((this.messagePrototype!));
         message.metatype = 0;
+        message.id = 0;
         message.setProperties = [];
         message.decision = 0;
         message.accesses = [];
@@ -11981,7 +11873,7 @@ class RequestData$Type extends MessageType<RequestData> {
                 case /* symbolx.bench.ObjectType metatype */ 1:
                     message.metatype = reader.int32();
                     break;
-                case /* optional int32 id */ 2:
+                case /* int32 id */ 2:
                     message.id = reader.int32();
                     break;
                 case /* optional int32 parent_id */ 3:
@@ -12027,8 +11919,8 @@ class RequestData$Type extends MessageType<RequestData> {
         /* symbolx.bench.ObjectType metatype = 1; */
         if (message.metatype !== 0)
             writer.tag(1, WireType.Varint).int32(message.metatype);
-        /* optional int32 id = 2; */
-        if (message.id !== undefined)
+        /* int32 id = 2; */
+        if (message.id !== 0)
             writer.tag(2, WireType.Varint).int32(message.id);
         /* optional int32 parent_id = 3; */
         if (message.parentId !== undefined)
@@ -12073,7 +11965,6 @@ class ResourceCredentialData$Type extends MessageType<ResourceCredentialData> {
     constructor() {
         super("symbolx.bench.ResourceCredentialData", [
             { no: 1, name: "metatype", kind: "enum", T: () => ["symbolx.bench.ObjectType", ObjectType, "OBJECT_TYPE_"] },
-            { no: 2, name: "id", kind: "scalar", opt: true, T: 5 /*ScalarType.INT32*/ },
             { no: 31, name: "username", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
             { no: 32, name: "password", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ }
         ]);
@@ -12092,9 +11983,6 @@ class ResourceCredentialData$Type extends MessageType<ResourceCredentialData> {
             switch (fieldNo) {
                 case /* symbolx.bench.ObjectType metatype */ 1:
                     message.metatype = reader.int32();
-                    break;
-                case /* optional int32 id */ 2:
-                    message.id = reader.int32();
                     break;
                 case /* optional string username */ 31:
                     message.username = reader.string();
@@ -12117,9 +12005,6 @@ class ResourceCredentialData$Type extends MessageType<ResourceCredentialData> {
         /* symbolx.bench.ObjectType metatype = 1; */
         if (message.metatype !== 0)
             writer.tag(1, WireType.Varint).int32(message.metatype);
-        /* optional int32 id = 2; */
-        if (message.id !== undefined)
-            writer.tag(2, WireType.Varint).int32(message.id);
         /* optional string username = 31; */
         if (message.username !== undefined)
             writer.tag(31, WireType.LengthDelimited).string(message.username);
@@ -12141,7 +12026,7 @@ class RunCodeFrameData$Type extends MessageType<RunCodeFrameData> {
     constructor() {
         super("symbolx.bench.RunCodeFrameData", [
             { no: 1, name: "metatype", kind: "enum", T: () => ["symbolx.bench.ObjectType", ObjectType, "OBJECT_TYPE_"] },
-            { no: 2, name: "id", kind: "scalar", opt: true, T: 5 /*ScalarType.INT32*/ },
+            { no: 2, name: "id", kind: "scalar", T: 5 /*ScalarType.INT32*/ },
             { no: 3, name: "parent_id", kind: "scalar", opt: true, T: 5 /*ScalarType.INT32*/ },
             { no: 4, name: "parent_key", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
             { no: 5, name: "order_key", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
@@ -12155,6 +12040,7 @@ class RunCodeFrameData$Type extends MessageType<RunCodeFrameData> {
     create(value?: PartialMessage<RunCodeFrameData>): RunCodeFrameData {
         const message = globalThis.Object.create((this.messagePrototype!));
         message.metatype = 0;
+        message.id = 0;
         message.setProperties = [];
         message.lineno = 0;
         message.name = "";
@@ -12171,7 +12057,7 @@ class RunCodeFrameData$Type extends MessageType<RunCodeFrameData> {
                 case /* symbolx.bench.ObjectType metatype */ 1:
                     message.metatype = reader.int32();
                     break;
-                case /* optional int32 id */ 2:
+                case /* int32 id */ 2:
                     message.id = reader.int32();
                     break;
                 case /* optional int32 parent_id */ 3:
@@ -12217,8 +12103,8 @@ class RunCodeFrameData$Type extends MessageType<RunCodeFrameData> {
         /* symbolx.bench.ObjectType metatype = 1; */
         if (message.metatype !== 0)
             writer.tag(1, WireType.Varint).int32(message.metatype);
-        /* optional int32 id = 2; */
-        if (message.id !== undefined)
+        /* int32 id = 2; */
+        if (message.id !== 0)
             writer.tag(2, WireType.Varint).int32(message.id);
         /* optional int32 parent_id = 3; */
         if (message.parentId !== undefined)
@@ -12263,7 +12149,7 @@ class RunErrorData$Type extends MessageType<RunErrorData> {
     constructor() {
         super("symbolx.bench.RunErrorData", [
             { no: 1, name: "metatype", kind: "enum", T: () => ["symbolx.bench.ObjectType", ObjectType, "OBJECT_TYPE_"] },
-            { no: 2, name: "id", kind: "scalar", opt: true, T: 5 /*ScalarType.INT32*/ },
+            { no: 2, name: "id", kind: "scalar", T: 5 /*ScalarType.INT32*/ },
             { no: 3, name: "parent_id", kind: "scalar", opt: true, T: 5 /*ScalarType.INT32*/ },
             { no: 4, name: "parent_key", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
             { no: 5, name: "order_key", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
@@ -12278,6 +12164,7 @@ class RunErrorData$Type extends MessageType<RunErrorData> {
     create(value?: PartialMessage<RunErrorData>): RunErrorData {
         const message = globalThis.Object.create((this.messagePrototype!));
         message.metatype = 0;
+        message.id = 0;
         message.setProperties = [];
         message.kind = 0;
         message.type = "";
@@ -12294,7 +12181,7 @@ class RunErrorData$Type extends MessageType<RunErrorData> {
                 case /* symbolx.bench.ObjectType metatype */ 1:
                     message.metatype = reader.int32();
                     break;
-                case /* optional int32 id */ 2:
+                case /* int32 id */ 2:
                     message.id = reader.int32();
                     break;
                 case /* optional int32 parent_id */ 3:
@@ -12343,8 +12230,8 @@ class RunErrorData$Type extends MessageType<RunErrorData> {
         /* symbolx.bench.ObjectType metatype = 1; */
         if (message.metatype !== 0)
             writer.tag(1, WireType.Varint).int32(message.metatype);
-        /* optional int32 id = 2; */
-        if (message.id !== undefined)
+        /* int32 id = 2; */
+        if (message.id !== 0)
             writer.tag(2, WireType.Varint).int32(message.id);
         /* optional int32 parent_id = 3; */
         if (message.parentId !== undefined)
@@ -12392,7 +12279,7 @@ class ScheduleData$Type extends MessageType<ScheduleData> {
     constructor() {
         super("symbolx.bench.ScheduleData", [
             { no: 1, name: "metatype", kind: "enum", T: () => ["symbolx.bench.ObjectType", ObjectType, "OBJECT_TYPE_"] },
-            { no: 2, name: "id", kind: "scalar", opt: true, T: 5 /*ScalarType.INT32*/ },
+            { no: 2, name: "id", kind: "scalar", T: 5 /*ScalarType.INT32*/ },
             { no: 3, name: "parent_id", kind: "scalar", opt: true, T: 5 /*ScalarType.INT32*/ },
             { no: 4, name: "parent_key", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
             { no: 5, name: "order_key", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
@@ -12406,6 +12293,7 @@ class ScheduleData$Type extends MessageType<ScheduleData> {
     create(value?: PartialMessage<ScheduleData>): ScheduleData {
         const message = globalThis.Object.create((this.messagePrototype!));
         message.metatype = 0;
+        message.id = 0;
         message.setProperties = [];
         message.type = 0;
         if (value !== undefined)
@@ -12420,7 +12308,7 @@ class ScheduleData$Type extends MessageType<ScheduleData> {
                 case /* symbolx.bench.ObjectType metatype */ 1:
                     message.metatype = reader.int32();
                     break;
-                case /* optional int32 id */ 2:
+                case /* int32 id */ 2:
                     message.id = reader.int32();
                     break;
                 case /* optional int32 parent_id */ 3:
@@ -12466,8 +12354,8 @@ class ScheduleData$Type extends MessageType<ScheduleData> {
         /* symbolx.bench.ObjectType metatype = 1; */
         if (message.metatype !== 0)
             writer.tag(1, WireType.Varint).int32(message.metatype);
-        /* optional int32 id = 2; */
-        if (message.id !== undefined)
+        /* int32 id = 2; */
+        if (message.id !== 0)
             writer.tag(2, WireType.Varint).int32(message.id);
         /* optional int32 parent_id = 3; */
         if (message.parentId !== undefined)
@@ -12512,7 +12400,6 @@ class SelectionData$Type extends MessageType<SelectionData> {
     constructor() {
         super("symbolx.bench.SelectionData", [
             { no: 1, name: "metatype", kind: "enum", T: () => ["symbolx.bench.ObjectType", ObjectType, "OBJECT_TYPE_"] },
-            { no: 2, name: "id", kind: "scalar", opt: true, T: 5 /*ScalarType.INT32*/ },
             { no: 30, name: "kind", kind: "enum", T: () => ["symbolx.bench.SelectionKind", SelectionKind, "SELECTION_KIND_"] },
             { no: 31, name: "nodes_ptr", kind: "message", repeat: 1 /*RepeatType.PACKED*/, T: () => NodeReferenceData },
             { no: 32, name: "from_node_ptr", kind: "message", T: () => NodeReferenceData },
@@ -12535,9 +12422,6 @@ class SelectionData$Type extends MessageType<SelectionData> {
             switch (fieldNo) {
                 case /* symbolx.bench.ObjectType metatype */ 1:
                     message.metatype = reader.int32();
-                    break;
-                case /* optional int32 id */ 2:
-                    message.id = reader.int32();
                     break;
                 case /* symbolx.bench.SelectionKind kind */ 30:
                     message.kind = reader.int32();
@@ -12566,9 +12450,6 @@ class SelectionData$Type extends MessageType<SelectionData> {
         /* symbolx.bench.ObjectType metatype = 1; */
         if (message.metatype !== 0)
             writer.tag(1, WireType.Varint).int32(message.metatype);
-        /* optional int32 id = 2; */
-        if (message.id !== undefined)
-            writer.tag(2, WireType.Varint).int32(message.id);
         /* symbolx.bench.SelectionKind kind = 30; */
         if (message.kind !== 0)
             writer.tag(30, WireType.Varint).int32(message.kind);
@@ -12596,7 +12477,7 @@ class StepConnectionData$Type extends MessageType<StepConnectionData> {
     constructor() {
         super("symbolx.bench.StepConnectionData", [
             { no: 1, name: "metatype", kind: "enum", T: () => ["symbolx.bench.ObjectType", ObjectType, "OBJECT_TYPE_"] },
-            { no: 2, name: "id", kind: "scalar", opt: true, T: 5 /*ScalarType.INT32*/ },
+            { no: 2, name: "id", kind: "scalar", T: 5 /*ScalarType.INT32*/ },
             { no: 3, name: "parent_id", kind: "scalar", opt: true, T: 5 /*ScalarType.INT32*/ },
             { no: 4, name: "parent_key", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
             { no: 5, name: "order_key", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
@@ -12607,6 +12488,7 @@ class StepConnectionData$Type extends MessageType<StepConnectionData> {
     create(value?: PartialMessage<StepConnectionData>): StepConnectionData {
         const message = globalThis.Object.create((this.messagePrototype!));
         message.metatype = 0;
+        message.id = 0;
         message.setProperties = [];
         if (value !== undefined)
             reflectionMergePartial<StepConnectionData>(this, message, value);
@@ -12620,7 +12502,7 @@ class StepConnectionData$Type extends MessageType<StepConnectionData> {
                 case /* symbolx.bench.ObjectType metatype */ 1:
                     message.metatype = reader.int32();
                     break;
-                case /* optional int32 id */ 2:
+                case /* int32 id */ 2:
                     message.id = reader.int32();
                     break;
                 case /* optional int32 parent_id */ 3:
@@ -12657,8 +12539,8 @@ class StepConnectionData$Type extends MessageType<StepConnectionData> {
         /* symbolx.bench.ObjectType metatype = 1; */
         if (message.metatype !== 0)
             writer.tag(1, WireType.Varint).int32(message.metatype);
-        /* optional int32 id = 2; */
-        if (message.id !== undefined)
+        /* int32 id = 2; */
+        if (message.id !== 0)
             writer.tag(2, WireType.Varint).int32(message.id);
         /* optional int32 parent_id = 3; */
         if (message.parentId !== undefined)
@@ -12694,7 +12576,7 @@ class SubjectData$Type extends MessageType<SubjectData> {
     constructor() {
         super("symbolx.bench.SubjectData", [
             { no: 1, name: "metatype", kind: "enum", T: () => ["symbolx.bench.ObjectType", ObjectType, "OBJECT_TYPE_"] },
-            { no: 2, name: "id", kind: "scalar", opt: true, T: 5 /*ScalarType.INT32*/ },
+            { no: 2, name: "id", kind: "scalar", T: 5 /*ScalarType.INT32*/ },
             { no: 3, name: "parent_id", kind: "scalar", opt: true, T: 5 /*ScalarType.INT32*/ },
             { no: 4, name: "parent_key", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
             { no: 5, name: "order_key", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
@@ -12714,6 +12596,7 @@ class SubjectData$Type extends MessageType<SubjectData> {
     create(value?: PartialMessage<SubjectData>): SubjectData {
         const message = globalThis.Object.create((this.messagePrototype!));
         message.metatype = 0;
+        message.id = 0;
         message.setProperties = [];
         message.badgesPtr = [];
         message.ownedPtr = [];
@@ -12731,7 +12614,7 @@ class SubjectData$Type extends MessageType<SubjectData> {
                 case /* symbolx.bench.ObjectType metatype */ 1:
                     message.metatype = reader.int32();
                     break;
-                case /* optional int32 id */ 2:
+                case /* int32 id */ 2:
                     message.id = reader.int32();
                     break;
                 case /* optional int32 parent_id */ 3:
@@ -12795,8 +12678,8 @@ class SubjectData$Type extends MessageType<SubjectData> {
         /* symbolx.bench.ObjectType metatype = 1; */
         if (message.metatype !== 0)
             writer.tag(1, WireType.Varint).int32(message.metatype);
-        /* optional int32 id = 2; */
-        if (message.id !== undefined)
+        /* int32 id = 2; */
+        if (message.id !== 0)
             writer.tag(2, WireType.Varint).int32(message.id);
         /* optional int32 parent_id = 3; */
         if (message.parentId !== undefined)
@@ -12859,7 +12742,7 @@ class TextData$Type extends MessageType<TextData> {
     constructor() {
         super("symbolx.bench.TextData", [
             { no: 1, name: "metatype", kind: "enum", T: () => ["symbolx.bench.ObjectType", ObjectType, "OBJECT_TYPE_"] },
-            { no: 2, name: "id", kind: "scalar", opt: true, T: 5 /*ScalarType.INT32*/ },
+            { no: 2, name: "id", kind: "scalar", T: 5 /*ScalarType.INT32*/ },
             { no: 3, name: "parent_id", kind: "scalar", opt: true, T: 5 /*ScalarType.INT32*/ },
             { no: 4, name: "parent_key", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
             { no: 5, name: "order_key", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
@@ -12870,6 +12753,7 @@ class TextData$Type extends MessageType<TextData> {
     create(value?: PartialMessage<TextData>): TextData {
         const message = globalThis.Object.create((this.messagePrototype!));
         message.metatype = 0;
+        message.id = 0;
         message.setProperties = [];
         message.lines = [];
         if (value !== undefined)
@@ -12884,7 +12768,7 @@ class TextData$Type extends MessageType<TextData> {
                 case /* symbolx.bench.ObjectType metatype */ 1:
                     message.metatype = reader.int32();
                     break;
-                case /* optional int32 id */ 2:
+                case /* int32 id */ 2:
                     message.id = reader.int32();
                     break;
                 case /* optional int32 parent_id */ 3:
@@ -12921,8 +12805,8 @@ class TextData$Type extends MessageType<TextData> {
         /* symbolx.bench.ObjectType metatype = 1; */
         if (message.metatype !== 0)
             writer.tag(1, WireType.Varint).int32(message.metatype);
-        /* optional int32 id = 2; */
-        if (message.id !== undefined)
+        /* int32 id = 2; */
+        if (message.id !== 0)
             writer.tag(2, WireType.Varint).int32(message.id);
         /* optional int32 parent_id = 3; */
         if (message.parentId !== undefined)
@@ -12958,7 +12842,7 @@ class TextLineData$Type extends MessageType<TextLineData> {
     constructor() {
         super("symbolx.bench.TextLineData", [
             { no: 1, name: "metatype", kind: "enum", T: () => ["symbolx.bench.ObjectType", ObjectType, "OBJECT_TYPE_"] },
-            { no: 2, name: "id", kind: "scalar", opt: true, T: 5 /*ScalarType.INT32*/ },
+            { no: 2, name: "id", kind: "scalar", T: 5 /*ScalarType.INT32*/ },
             { no: 3, name: "parent_id", kind: "scalar", opt: true, T: 5 /*ScalarType.INT32*/ },
             { no: 4, name: "parent_key", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
             { no: 5, name: "order_key", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
@@ -12977,6 +12861,7 @@ class TextLineData$Type extends MessageType<TextLineData> {
     create(value?: PartialMessage<TextLineData>): TextLineData {
         const message = globalThis.Object.create((this.messagePrototype!));
         message.metatype = 0;
+        message.id = 0;
         message.setProperties = [];
         message.type = 0;
         message.spans = [];
@@ -12992,7 +12877,7 @@ class TextLineData$Type extends MessageType<TextLineData> {
                 case /* symbolx.bench.ObjectType metatype */ 1:
                     message.metatype = reader.int32();
                     break;
-                case /* optional int32 id */ 2:
+                case /* int32 id */ 2:
                     message.id = reader.int32();
                     break;
                 case /* optional int32 parent_id */ 3:
@@ -13053,8 +12938,8 @@ class TextLineData$Type extends MessageType<TextLineData> {
         /* symbolx.bench.ObjectType metatype = 1; */
         if (message.metatype !== 0)
             writer.tag(1, WireType.Varint).int32(message.metatype);
-        /* optional int32 id = 2; */
-        if (message.id !== undefined)
+        /* int32 id = 2; */
+        if (message.id !== 0)
             writer.tag(2, WireType.Varint).int32(message.id);
         /* optional int32 parent_id = 3; */
         if (message.parentId !== undefined)
@@ -13114,7 +12999,6 @@ class TextSpanData$Type extends MessageType<TextSpanData> {
     constructor() {
         super("symbolx.bench.TextSpanData", [
             { no: 1, name: "metatype", kind: "enum", T: () => ["symbolx.bench.ObjectType", ObjectType, "OBJECT_TYPE_"] },
-            { no: 2, name: "id", kind: "scalar", opt: true, T: 5 /*ScalarType.INT32*/ },
             { no: 33, name: "content", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
             { no: 34, name: "node_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 50, name: "color", kind: "enum", opt: true, T: () => ["symbolx.bench.ColorType", ColorType, "COLOR_TYPE_"] },
@@ -13139,9 +13023,6 @@ class TextSpanData$Type extends MessageType<TextSpanData> {
             switch (fieldNo) {
                 case /* symbolx.bench.ObjectType metatype */ 1:
                     message.metatype = reader.int32();
-                    break;
-                case /* optional int32 id */ 2:
-                    message.id = reader.int32();
                     break;
                 case /* optional string content */ 33:
                     message.content = reader.string();
@@ -13182,9 +13063,6 @@ class TextSpanData$Type extends MessageType<TextSpanData> {
         /* symbolx.bench.ObjectType metatype = 1; */
         if (message.metatype !== 0)
             writer.tag(1, WireType.Varint).int32(message.metatype);
-        /* optional int32 id = 2; */
-        if (message.id !== undefined)
-            writer.tag(2, WireType.Varint).int32(message.id);
         /* optional string content = 33; */
         if (message.content !== undefined)
             writer.tag(33, WireType.LengthDelimited).string(message.content);
@@ -13224,7 +13102,7 @@ class TypeInfoData$Type extends MessageType<TypeInfoData> {
     constructor() {
         super("symbolx.bench.TypeInfoData", [
             { no: 1, name: "metatype", kind: "enum", T: () => ["symbolx.bench.ObjectType", ObjectType, "OBJECT_TYPE_"] },
-            { no: 2, name: "id", kind: "scalar", opt: true, T: 5 /*ScalarType.INT32*/ },
+            { no: 2, name: "id", kind: "scalar", T: 5 /*ScalarType.INT32*/ },
             { no: 3, name: "parent_id", kind: "scalar", opt: true, T: 5 /*ScalarType.INT32*/ },
             { no: 4, name: "parent_key", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
             { no: 5, name: "order_key", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
@@ -13247,6 +13125,7 @@ class TypeInfoData$Type extends MessageType<TypeInfoData> {
     create(value?: PartialMessage<TypeInfoData>): TypeInfoData {
         const message = globalThis.Object.create((this.messagePrototype!));
         message.metatype = 0;
+        message.id = 0;
         message.setProperties = [];
         message.isList = false;
         message.isRequired = false;
@@ -13263,7 +13142,7 @@ class TypeInfoData$Type extends MessageType<TypeInfoData> {
                 case /* symbolx.bench.ObjectType metatype */ 1:
                     message.metatype = reader.int32();
                     break;
-                case /* optional int32 id */ 2:
+                case /* int32 id */ 2:
                     message.id = reader.int32();
                     break;
                 case /* optional int32 parent_id */ 3:
@@ -13336,8 +13215,8 @@ class TypeInfoData$Type extends MessageType<TypeInfoData> {
         /* symbolx.bench.ObjectType metatype = 1; */
         if (message.metatype !== 0)
             writer.tag(1, WireType.Varint).int32(message.metatype);
-        /* optional int32 id = 2; */
-        if (message.id !== undefined)
+        /* int32 id = 2; */
+        if (message.id !== 0)
             writer.tag(2, WireType.Varint).int32(message.id);
         /* optional int32 parent_id = 3; */
         if (message.parentId !== undefined)
@@ -13409,7 +13288,7 @@ class ValueReferenceData$Type extends MessageType<ValueReferenceData> {
     constructor() {
         super("symbolx.bench.ValueReferenceData", [
             { no: 1, name: "metatype", kind: "enum", T: () => ["symbolx.bench.ObjectType", ObjectType, "OBJECT_TYPE_"] },
-            { no: 2, name: "id", kind: "scalar", opt: true, T: 5 /*ScalarType.INT32*/ },
+            { no: 2, name: "id", kind: "scalar", T: 5 /*ScalarType.INT32*/ },
             { no: 3, name: "parent_id", kind: "scalar", opt: true, T: 5 /*ScalarType.INT32*/ },
             { no: 4, name: "parent_key", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
             { no: 5, name: "order_key", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
@@ -13420,6 +13299,7 @@ class ValueReferenceData$Type extends MessageType<ValueReferenceData> {
     create(value?: PartialMessage<ValueReferenceData>): ValueReferenceData {
         const message = globalThis.Object.create((this.messagePrototype!));
         message.metatype = 0;
+        message.id = 0;
         message.setProperties = [];
         if (value !== undefined)
             reflectionMergePartial<ValueReferenceData>(this, message, value);
@@ -13433,7 +13313,7 @@ class ValueReferenceData$Type extends MessageType<ValueReferenceData> {
                 case /* symbolx.bench.ObjectType metatype */ 1:
                     message.metatype = reader.int32();
                     break;
-                case /* optional int32 id */ 2:
+                case /* int32 id */ 2:
                     message.id = reader.int32();
                     break;
                 case /* optional int32 parent_id */ 3:
@@ -13470,8 +13350,8 @@ class ValueReferenceData$Type extends MessageType<ValueReferenceData> {
         /* symbolx.bench.ObjectType metatype = 1; */
         if (message.metatype !== 0)
             writer.tag(1, WireType.Varint).int32(message.metatype);
-        /* optional int32 id = 2; */
-        if (message.id !== undefined)
+        /* int32 id = 2; */
+        if (message.id !== 0)
             writer.tag(2, WireType.Varint).int32(message.id);
         /* optional int32 parent_id = 3; */
         if (message.parentId !== undefined)
@@ -23261,7 +23141,6 @@ export enum PathProperty {
 
 export enum PathSegmentProperty {
   metatype = 1,
-  id = 2,
   type = 31,
   name = 32,
   referencePtr = 33,
@@ -23269,7 +23148,6 @@ export enum PathSegmentProperty {
 
 export enum PathTokenProperty {
   metatype = 1,
-  id = 2,
   type = 31,
 }
 
@@ -23361,7 +23239,6 @@ export enum ProjectionProperty {
 
 export enum FileProperty {
   metatype = 1,
-  id = 2,
   type = 31,
   name = 33,
   size = 34,
@@ -23467,7 +23344,6 @@ export enum AccessMatrixProperty {
 
 export enum AccessProperty {
   metatype = 1,
-  id = 2,
   mode = 30,
   decision = 31,
   verb = 32,
@@ -23500,7 +23376,6 @@ export enum RequestProperty {
 
 export enum ReadOptionsProperty {
   metatype = 1,
-  id = 2,
   ancestorTypes = 31,
   descendantTypes = 32,
   relatedPropertiesPtr = 33,
@@ -23542,14 +23417,12 @@ export enum AggregationProperty {
 
 export enum AggregationBucketProperty {
   metatype = 1,
-  id = 2,
   key = 30,
   count = 31,
 }
 
 export enum SelectionProperty {
   metatype = 1,
-  id = 2,
   kind = 30,
   nodesPtr = 31,
   fromNodePtr = 32,
@@ -23615,7 +23488,6 @@ export enum RunErrorProperty {
 
 export enum ResourceCredentialProperty {
   metatype = 1,
-  id = 2,
   username = 31,
   password = 32,
 }
@@ -23650,7 +23522,6 @@ export enum TextLineProperty {
 
 export enum TextSpanProperty {
   metatype = 1,
-  id = 2,
   content = 33,
   nodePtr = 34,
   color = 50,
@@ -23663,7 +23534,6 @@ export enum TextSpanProperty {
 
 export enum ColorProperty {
   metatype = 1,
-  id = 2,
   type = 31,
   shade = 32,
   hex = 33,
@@ -23671,7 +23541,6 @@ export enum ColorProperty {
 
 export enum FontProperty {
   metatype = 1,
-  id = 2,
   type = 31,
   weight = 32,
   size = 33,
@@ -23679,7 +23548,6 @@ export enum FontProperty {
 
 export enum BoxProperty {
   metatype = 1,
-  id = 2,
   width = 50,
   height = 51,
   widthRelative = 52,
@@ -23688,7 +23556,6 @@ export enum BoxProperty {
 
 export enum OffsetProperty {
   metatype = 1,
-  id = 2,
   top = 40,
   right = 41,
   bottom = 42,
@@ -23908,7 +23775,7 @@ export type PropertyInfo = {
     
 export const PathDataInfo: Record<PathProperty, PropertyInfo> = {
   [PathProperty.metatype]: { id: 1, name: 'metatype', component: ObjectType.PATH, enumType: EnumType.OBJECT_TYPE, kind: 'enum', primitiveType: PrimitiveType.STRING, isRequired: true, isInternal: true, isComputed: true, isWired: true },
-  [PathProperty.id]: { id: 2, name: 'id', component: ObjectType.PATH, kind: 'primitive', primitiveType: PrimitiveType.INT32, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
+  [PathProperty.id]: { id: 2, name: 'id', component: ObjectType.PATH, kind: 'primitive', primitiveType: PrimitiveType.INT32, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [PathProperty.parentId]: { id: 3, name: 'parent_id', component: ObjectType.PATH, kind: 'reference', primitiveType: PrimitiveType.INT32, isInternal: true, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_PARENT },
   [PathProperty.parentKey]: { id: 4, name: 'parent_key', component: ObjectType.PATH, kind: 'reference', primitiveType: PrimitiveType.STRING, isInternal: true, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_PARENT },
   [PathProperty.orderKey]: { id: 5, name: 'order_key', component: ObjectType.PATH, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isRuntime: true, isWired: true, isStored: true },
@@ -23917,14 +23784,12 @@ export const PathDataInfo: Record<PathProperty, PropertyInfo> = {
 }
 export const PathSegmentDataInfo: Record<PathSegmentProperty, PropertyInfo> = {
   [PathSegmentProperty.metatype]: { id: 1, name: 'metatype', component: ObjectType.PATH_SEGMENT, enumType: EnumType.OBJECT_TYPE, kind: 'enum', primitiveType: PrimitiveType.STRING, isRequired: true, isInternal: true, isComputed: true, isWired: true },
-  [PathSegmentProperty.id]: { id: 2, name: 'id', component: ObjectType.PATH_SEGMENT, kind: 'primitive', primitiveType: PrimitiveType.INT32, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [PathSegmentProperty.type]: { id: 31, name: 'type', component: ObjectType.PATH_SEGMENT, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isRuntime: true, isWired: true, isStored: true },
   [PathSegmentProperty.name]: { id: 32, name: 'name', component: ObjectType.PATH_SEGMENT, kind: 'primitive', primitiveType: PrimitiveType.STRING, isRuntime: true, isWired: true, isStored: true },
   [PathSegmentProperty.referencePtr]: { id: 33, name: 'reference_ptr', component: ObjectType.PATH_SEGMENT, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.BENCH, NodeType.ENVIRONMENT, NodeType.BRANCH, NodeType.PACKAGE, NodeType.BLOCK, NodeType.FIELD, NodeType.VIEW], referenceStruct: StructType.NODE_REFERENCE },
 }
 export const PathTokenDataInfo: Record<PathTokenProperty, PropertyInfo> = {
   [PathTokenProperty.metatype]: { id: 1, name: 'metatype', component: ObjectType.PATH_TOKEN, enumType: EnumType.OBJECT_TYPE, kind: 'enum', primitiveType: PrimitiveType.STRING, isRequired: true, isInternal: true, isComputed: true, isWired: true },
-  [PathTokenProperty.id]: { id: 2, name: 'id', component: ObjectType.PATH_TOKEN, kind: 'primitive', primitiveType: PrimitiveType.INT32, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [PathTokenProperty.type]: { id: 31, name: 'type', component: ObjectType.PATH_TOKEN, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isRuntime: true, isWired: true, isStored: true },
 }
 export const NodeReferenceDataInfo: Record<NodeReferenceProperty, PropertyInfo> = {
@@ -23944,7 +23809,7 @@ export const PropertyReferenceDataInfo: Record<PropertyReferenceProperty, Proper
 }
 export const ValueReferenceDataInfo: Record<ValueReferenceProperty, PropertyInfo> = {
   [ValueReferenceProperty.metatype]: { id: 1, name: 'metatype', component: ObjectType.VALUE_REFERENCE, enumType: EnumType.OBJECT_TYPE, kind: 'enum', primitiveType: PrimitiveType.STRING, isRequired: true, isInternal: true, isComputed: true, isWired: true },
-  [ValueReferenceProperty.id]: { id: 2, name: 'id', component: ObjectType.VALUE_REFERENCE, kind: 'primitive', primitiveType: PrimitiveType.INT32, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
+  [ValueReferenceProperty.id]: { id: 2, name: 'id', component: ObjectType.VALUE_REFERENCE, kind: 'primitive', primitiveType: PrimitiveType.INT32, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [ValueReferenceProperty.parentId]: { id: 3, name: 'parent_id', component: ObjectType.VALUE_REFERENCE, kind: 'reference', primitiveType: PrimitiveType.INT32, isInternal: true, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_PARENT },
   [ValueReferenceProperty.parentKey]: { id: 4, name: 'parent_key', component: ObjectType.VALUE_REFERENCE, kind: 'reference', primitiveType: PrimitiveType.STRING, isInternal: true, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_PARENT },
   [ValueReferenceProperty.orderKey]: { id: 5, name: 'order_key', component: ObjectType.VALUE_REFERENCE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isRuntime: true, isWired: true, isStored: true },
@@ -23953,7 +23818,7 @@ export const ValueReferenceDataInfo: Record<ValueReferenceProperty, PropertyInfo
 }
 export const TypeInfoDataInfo: Record<TypeInfoProperty, PropertyInfo> = {
   [TypeInfoProperty.metatype]: { id: 1, name: 'metatype', component: ObjectType.TYPE_INFO, enumType: EnumType.OBJECT_TYPE, kind: 'enum', primitiveType: PrimitiveType.STRING, isRequired: true, isInternal: true, isComputed: true, isWired: true },
-  [TypeInfoProperty.id]: { id: 2, name: 'id', component: ObjectType.TYPE_INFO, kind: 'primitive', primitiveType: PrimitiveType.INT32, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
+  [TypeInfoProperty.id]: { id: 2, name: 'id', component: ObjectType.TYPE_INFO, kind: 'primitive', primitiveType: PrimitiveType.INT32, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [TypeInfoProperty.parentId]: { id: 3, name: 'parent_id', component: ObjectType.TYPE_INFO, kind: 'reference', primitiveType: PrimitiveType.INT32, isInternal: true, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_PARENT },
   [TypeInfoProperty.parentKey]: { id: 4, name: 'parent_key', component: ObjectType.TYPE_INFO, kind: 'reference', primitiveType: PrimitiveType.STRING, isInternal: true, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_PARENT },
   [TypeInfoProperty.orderKey]: { id: 5, name: 'order_key', component: ObjectType.TYPE_INFO, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isRuntime: true, isWired: true, isStored: true },
@@ -23974,7 +23839,7 @@ export const TypeInfoDataInfo: Record<TypeInfoProperty, PropertyInfo> = {
 }
 export const ContextDataInfo: Record<ContextProperty, PropertyInfo> = {
   [ContextProperty.metatype]: { id: 1, name: 'metatype', component: ObjectType.CONTEXT, enumType: EnumType.OBJECT_TYPE, kind: 'enum', primitiveType: PrimitiveType.STRING, isRequired: true, isInternal: true, isComputed: true, isWired: true },
-  [ContextProperty.id]: { id: 2, name: 'id', component: ObjectType.CONTEXT, kind: 'primitive', primitiveType: PrimitiveType.INT32, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
+  [ContextProperty.id]: { id: 2, name: 'id', component: ObjectType.CONTEXT, kind: 'primitive', primitiveType: PrimitiveType.INT32, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [ContextProperty.parentId]: { id: 3, name: 'parent_id', component: ObjectType.CONTEXT, kind: 'reference', primitiveType: PrimitiveType.INT32, isInternal: true, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_PARENT },
   [ContextProperty.parentKey]: { id: 4, name: 'parent_key', component: ObjectType.CONTEXT, kind: 'reference', primitiveType: PrimitiveType.STRING, isInternal: true, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_PARENT },
   [ContextProperty.orderKey]: { id: 5, name: 'order_key', component: ObjectType.CONTEXT, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isRuntime: true, isWired: true, isStored: true },
@@ -23988,7 +23853,7 @@ export const ContextDataInfo: Record<ContextProperty, PropertyInfo> = {
 }
 export const ScheduleDataInfo: Record<ScheduleProperty, PropertyInfo> = {
   [ScheduleProperty.metatype]: { id: 1, name: 'metatype', component: ObjectType.SCHEDULE, enumType: EnumType.OBJECT_TYPE, kind: 'enum', primitiveType: PrimitiveType.STRING, isRequired: true, isInternal: true, isComputed: true, isWired: true },
-  [ScheduleProperty.id]: { id: 2, name: 'id', component: ObjectType.SCHEDULE, kind: 'primitive', primitiveType: PrimitiveType.INT32, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
+  [ScheduleProperty.id]: { id: 2, name: 'id', component: ObjectType.SCHEDULE, kind: 'primitive', primitiveType: PrimitiveType.INT32, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [ScheduleProperty.parentId]: { id: 3, name: 'parent_id', component: ObjectType.SCHEDULE, kind: 'reference', primitiveType: PrimitiveType.INT32, isInternal: true, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_PARENT },
   [ScheduleProperty.parentKey]: { id: 4, name: 'parent_key', component: ObjectType.SCHEDULE, kind: 'reference', primitiveType: PrimitiveType.STRING, isInternal: true, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_PARENT },
   [ScheduleProperty.orderKey]: { id: 5, name: 'order_key', component: ObjectType.SCHEDULE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isRuntime: true, isWired: true, isStored: true },
@@ -24000,7 +23865,7 @@ export const ScheduleDataInfo: Record<ScheduleProperty, PropertyInfo> = {
 }
 export const ProjectionDataInfo: Record<ProjectionProperty, PropertyInfo> = {
   [ProjectionProperty.metatype]: { id: 1, name: 'metatype', component: ObjectType.PROJECTION, enumType: EnumType.OBJECT_TYPE, kind: 'enum', primitiveType: PrimitiveType.STRING, isRequired: true, isInternal: true, isComputed: true, isWired: true },
-  [ProjectionProperty.id]: { id: 2, name: 'id', component: ObjectType.PROJECTION, kind: 'primitive', primitiveType: PrimitiveType.INT32, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
+  [ProjectionProperty.id]: { id: 2, name: 'id', component: ObjectType.PROJECTION, kind: 'primitive', primitiveType: PrimitiveType.INT32, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [ProjectionProperty.parentId]: { id: 3, name: 'parent_id', component: ObjectType.PROJECTION, kind: 'reference', primitiveType: PrimitiveType.INT32, isInternal: true, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_PARENT },
   [ProjectionProperty.parentKey]: { id: 4, name: 'parent_key', component: ObjectType.PROJECTION, kind: 'reference', primitiveType: PrimitiveType.STRING, isInternal: true, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_PARENT },
   [ProjectionProperty.orderKey]: { id: 5, name: 'order_key', component: ObjectType.PROJECTION, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isRuntime: true, isWired: true, isStored: true },
@@ -24008,7 +23873,6 @@ export const ProjectionDataInfo: Record<ProjectionProperty, PropertyInfo> = {
 }
 export const FileDataInfo: Record<FileProperty, PropertyInfo> = {
   [FileProperty.metatype]: { id: 1, name: 'metatype', component: ObjectType.FILE, enumType: EnumType.OBJECT_TYPE, kind: 'enum', primitiveType: PrimitiveType.STRING, isRequired: true, isInternal: true, isComputed: true, isWired: true },
-  [FileProperty.id]: { id: 2, name: 'id', component: ObjectType.FILE, kind: 'primitive', primitiveType: PrimitiveType.INT32, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [FileProperty.type]: { id: 31, name: 'type', component: ObjectType.FILE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [FileProperty.name]: { id: 33, name: 'name', component: ObjectType.FILE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isRequired: true, isRuntime: true, isWired: true, isStored: true },
   [FileProperty.size]: { id: 34, name: 'size', component: ObjectType.FILE, kind: 'primitive', primitiveType: PrimitiveType.INT32, isInternal: true, isRuntime: true, isWired: true, isStored: true },
@@ -24018,7 +23882,7 @@ export const FileDataInfo: Record<FileProperty, PropertyInfo> = {
 }
 export const IconDataInfo: Record<IconProperty, PropertyInfo> = {
   [IconProperty.metatype]: { id: 1, name: 'metatype', component: ObjectType.ICON, enumType: EnumType.OBJECT_TYPE, kind: 'enum', primitiveType: PrimitiveType.STRING, isRequired: true, isInternal: true, isComputed: true, isWired: true },
-  [IconProperty.id]: { id: 2, name: 'id', component: ObjectType.ICON, kind: 'primitive', primitiveType: PrimitiveType.INT32, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
+  [IconProperty.id]: { id: 2, name: 'id', component: ObjectType.ICON, kind: 'primitive', primitiveType: PrimitiveType.INT32, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [IconProperty.parentId]: { id: 3, name: 'parent_id', component: ObjectType.ICON, kind: 'reference', primitiveType: PrimitiveType.INT32, isInternal: true, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_PARENT },
   [IconProperty.parentKey]: { id: 4, name: 'parent_key', component: ObjectType.ICON, kind: 'reference', primitiveType: PrimitiveType.STRING, isInternal: true, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_PARENT },
   [IconProperty.orderKey]: { id: 5, name: 'order_key', component: ObjectType.ICON, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isRuntime: true, isWired: true, isStored: true },
@@ -24031,7 +23895,7 @@ export const IconDataInfo: Record<IconProperty, PropertyInfo> = {
 }
 export const PolicyDataInfo: Record<PolicyProperty, PropertyInfo> = {
   [PolicyProperty.metatype]: { id: 1, name: 'metatype', component: ObjectType.POLICY, enumType: EnumType.OBJECT_TYPE, kind: 'enum', primitiveType: PrimitiveType.STRING, isRequired: true, isInternal: true, isComputed: true, isWired: true },
-  [PolicyProperty.id]: { id: 2, name: 'id', component: ObjectType.POLICY, kind: 'primitive', primitiveType: PrimitiveType.INT32, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
+  [PolicyProperty.id]: { id: 2, name: 'id', component: ObjectType.POLICY, kind: 'primitive', primitiveType: PrimitiveType.INT32, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [PolicyProperty.parentId]: { id: 3, name: 'parent_id', component: ObjectType.POLICY, kind: 'reference', primitiveType: PrimitiveType.INT32, isInternal: true, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_PARENT },
   [PolicyProperty.parentKey]: { id: 4, name: 'parent_key', component: ObjectType.POLICY, kind: 'reference', primitiveType: PrimitiveType.STRING, isInternal: true, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_PARENT },
   [PolicyProperty.orderKey]: { id: 5, name: 'order_key', component: ObjectType.POLICY, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isRuntime: true, isWired: true, isStored: true },
@@ -24043,7 +23907,7 @@ export const PolicyDataInfo: Record<PolicyProperty, PropertyInfo> = {
 }
 export const PolicyRuleDataInfo: Record<PolicyRuleProperty, PropertyInfo> = {
   [PolicyRuleProperty.metatype]: { id: 1, name: 'metatype', component: ObjectType.POLICY_RULE, enumType: EnumType.OBJECT_TYPE, kind: 'enum', primitiveType: PrimitiveType.STRING, isRequired: true, isInternal: true, isComputed: true, isWired: true },
-  [PolicyRuleProperty.id]: { id: 2, name: 'id', component: ObjectType.POLICY_RULE, kind: 'primitive', primitiveType: PrimitiveType.INT32, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
+  [PolicyRuleProperty.id]: { id: 2, name: 'id', component: ObjectType.POLICY_RULE, kind: 'primitive', primitiveType: PrimitiveType.INT32, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [PolicyRuleProperty.parentId]: { id: 3, name: 'parent_id', component: ObjectType.POLICY_RULE, kind: 'reference', primitiveType: PrimitiveType.INT32, isInternal: true, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_PARENT },
   [PolicyRuleProperty.parentKey]: { id: 4, name: 'parent_key', component: ObjectType.POLICY_RULE, kind: 'reference', primitiveType: PrimitiveType.STRING, isInternal: true, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_PARENT },
   [PolicyRuleProperty.orderKey]: { id: 5, name: 'order_key', component: ObjectType.POLICY_RULE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isRuntime: true, isWired: true, isStored: true },
@@ -24066,7 +23930,7 @@ export const PolicyRuleDataInfo: Record<PolicyRuleProperty, PropertyInfo> = {
 }
 export const SubjectDataInfo: Record<SubjectProperty, PropertyInfo> = {
   [SubjectProperty.metatype]: { id: 1, name: 'metatype', component: ObjectType.SUBJECT, enumType: EnumType.OBJECT_TYPE, kind: 'enum', primitiveType: PrimitiveType.STRING, isRequired: true, isInternal: true, isComputed: true, isWired: true },
-  [SubjectProperty.id]: { id: 2, name: 'id', component: ObjectType.SUBJECT, kind: 'primitive', primitiveType: PrimitiveType.INT32, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
+  [SubjectProperty.id]: { id: 2, name: 'id', component: ObjectType.SUBJECT, kind: 'primitive', primitiveType: PrimitiveType.INT32, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [SubjectProperty.parentId]: { id: 3, name: 'parent_id', component: ObjectType.SUBJECT, kind: 'reference', primitiveType: PrimitiveType.INT32, isInternal: true, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_PARENT },
   [SubjectProperty.parentKey]: { id: 4, name: 'parent_key', component: ObjectType.SUBJECT, kind: 'reference', primitiveType: PrimitiveType.STRING, isInternal: true, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_PARENT },
   [SubjectProperty.orderKey]: { id: 5, name: 'order_key', component: ObjectType.SUBJECT, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isRuntime: true, isWired: true, isStored: true },
@@ -24084,7 +23948,7 @@ export const SubjectDataInfo: Record<SubjectProperty, PropertyInfo> = {
 }
 export const AccessZoneDataInfo: Record<AccessZoneProperty, PropertyInfo> = {
   [AccessZoneProperty.metatype]: { id: 1, name: 'metatype', component: ObjectType.ACCESS_ZONE, enumType: EnumType.OBJECT_TYPE, kind: 'enum', primitiveType: PrimitiveType.STRING, isRequired: true, isInternal: true, isComputed: true, isWired: true },
-  [AccessZoneProperty.id]: { id: 2, name: 'id', component: ObjectType.ACCESS_ZONE, kind: 'primitive', primitiveType: PrimitiveType.INT32, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
+  [AccessZoneProperty.id]: { id: 2, name: 'id', component: ObjectType.ACCESS_ZONE, kind: 'primitive', primitiveType: PrimitiveType.INT32, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [AccessZoneProperty.parentId]: { id: 3, name: 'parent_id', component: ObjectType.ACCESS_ZONE, kind: 'reference', primitiveType: PrimitiveType.INT32, isInternal: true, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_PARENT },
   [AccessZoneProperty.parentKey]: { id: 4, name: 'parent_key', component: ObjectType.ACCESS_ZONE, kind: 'reference', primitiveType: PrimitiveType.STRING, isInternal: true, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_PARENT },
   [AccessZoneProperty.orderKey]: { id: 5, name: 'order_key', component: ObjectType.ACCESS_ZONE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isRuntime: true, isWired: true, isStored: true },
@@ -24095,7 +23959,7 @@ export const AccessZoneDataInfo: Record<AccessZoneProperty, PropertyInfo> = {
 }
 export const AccessMatrixDataInfo: Record<AccessMatrixProperty, PropertyInfo> = {
   [AccessMatrixProperty.metatype]: { id: 1, name: 'metatype', component: ObjectType.ACCESS_MATRIX, enumType: EnumType.OBJECT_TYPE, kind: 'enum', primitiveType: PrimitiveType.STRING, isRequired: true, isInternal: true, isComputed: true, isWired: true },
-  [AccessMatrixProperty.id]: { id: 2, name: 'id', component: ObjectType.ACCESS_MATRIX, kind: 'primitive', primitiveType: PrimitiveType.INT32, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
+  [AccessMatrixProperty.id]: { id: 2, name: 'id', component: ObjectType.ACCESS_MATRIX, kind: 'primitive', primitiveType: PrimitiveType.INT32, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [AccessMatrixProperty.parentId]: { id: 3, name: 'parent_id', component: ObjectType.ACCESS_MATRIX, kind: 'reference', primitiveType: PrimitiveType.INT32, isInternal: true, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_PARENT },
   [AccessMatrixProperty.parentKey]: { id: 4, name: 'parent_key', component: ObjectType.ACCESS_MATRIX, kind: 'reference', primitiveType: PrimitiveType.STRING, isInternal: true, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_PARENT },
   [AccessMatrixProperty.orderKey]: { id: 5, name: 'order_key', component: ObjectType.ACCESS_MATRIX, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isRuntime: true, isWired: true, isStored: true },
@@ -24107,7 +23971,6 @@ export const AccessMatrixDataInfo: Record<AccessMatrixProperty, PropertyInfo> = 
 }
 export const AccessDataInfo: Record<AccessProperty, PropertyInfo> = {
   [AccessProperty.metatype]: { id: 1, name: 'metatype', component: ObjectType.ACCESS, enumType: EnumType.OBJECT_TYPE, kind: 'enum', primitiveType: PrimitiveType.STRING, isRequired: true, isInternal: true, isComputed: true, isWired: true },
-  [AccessProperty.id]: { id: 2, name: 'id', component: ObjectType.ACCESS, kind: 'primitive', primitiveType: PrimitiveType.INT32, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [AccessProperty.mode]: { id: 30, name: 'mode', component: ObjectType.ACCESS, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [AccessProperty.decision]: { id: 31, name: 'decision', component: ObjectType.ACCESS, enumType: EnumType.POLICY_EFFECT, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [AccessProperty.verb]: { id: 32, name: 'verb', component: ObjectType.ACCESS, enumType: EnumType.ACCESS_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
@@ -24116,7 +23979,7 @@ export const AccessDataInfo: Record<AccessProperty, PropertyInfo> = {
 }
 export const AccessTraceDataInfo: Record<AccessTraceProperty, PropertyInfo> = {
   [AccessTraceProperty.metatype]: { id: 1, name: 'metatype', component: ObjectType.ACCESS_TRACE, enumType: EnumType.OBJECT_TYPE, kind: 'enum', primitiveType: PrimitiveType.STRING, isRequired: true, isInternal: true, isComputed: true, isWired: true },
-  [AccessTraceProperty.id]: { id: 2, name: 'id', component: ObjectType.ACCESS_TRACE, kind: 'primitive', primitiveType: PrimitiveType.INT32, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
+  [AccessTraceProperty.id]: { id: 2, name: 'id', component: ObjectType.ACCESS_TRACE, kind: 'primitive', primitiveType: PrimitiveType.INT32, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [AccessTraceProperty.parentId]: { id: 3, name: 'parent_id', component: ObjectType.ACCESS_TRACE, kind: 'reference', primitiveType: PrimitiveType.INT32, isInternal: true, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_PARENT },
   [AccessTraceProperty.parentKey]: { id: 4, name: 'parent_key', component: ObjectType.ACCESS_TRACE, kind: 'reference', primitiveType: PrimitiveType.STRING, isInternal: true, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_PARENT },
   [AccessTraceProperty.orderKey]: { id: 5, name: 'order_key', component: ObjectType.ACCESS_TRACE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isRuntime: true, isWired: true, isStored: true },
@@ -24125,7 +23988,7 @@ export const AccessTraceDataInfo: Record<AccessTraceProperty, PropertyInfo> = {
 }
 export const RequestDataInfo: Record<RequestProperty, PropertyInfo> = {
   [RequestProperty.metatype]: { id: 1, name: 'metatype', component: ObjectType.REQUEST, enumType: EnumType.OBJECT_TYPE, kind: 'enum', primitiveType: PrimitiveType.STRING, isRequired: true, isInternal: true, isComputed: true, isWired: true },
-  [RequestProperty.id]: { id: 2, name: 'id', component: ObjectType.REQUEST, kind: 'primitive', primitiveType: PrimitiveType.INT32, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
+  [RequestProperty.id]: { id: 2, name: 'id', component: ObjectType.REQUEST, kind: 'primitive', primitiveType: PrimitiveType.INT32, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [RequestProperty.parentId]: { id: 3, name: 'parent_id', component: ObjectType.REQUEST, kind: 'reference', primitiveType: PrimitiveType.INT32, isInternal: true, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_PARENT },
   [RequestProperty.parentKey]: { id: 4, name: 'parent_key', component: ObjectType.REQUEST, kind: 'reference', primitiveType: PrimitiveType.STRING, isInternal: true, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_PARENT },
   [RequestProperty.orderKey]: { id: 5, name: 'order_key', component: ObjectType.REQUEST, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isRuntime: true, isWired: true, isStored: true },
@@ -24137,7 +24000,6 @@ export const RequestDataInfo: Record<RequestProperty, PropertyInfo> = {
 }
 export const ReadOptionsDataInfo: Record<ReadOptionsProperty, PropertyInfo> = {
   [ReadOptionsProperty.metatype]: { id: 1, name: 'metatype', component: ObjectType.READ_OPTIONS, enumType: EnumType.OBJECT_TYPE, kind: 'enum', primitiveType: PrimitiveType.STRING, isRequired: true, isInternal: true, isComputed: true, isWired: true },
-  [ReadOptionsProperty.id]: { id: 2, name: 'id', component: ObjectType.READ_OPTIONS, kind: 'primitive', primitiveType: PrimitiveType.INT32, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [ReadOptionsProperty.ancestorTypes]: { id: 31, name: 'ancestor_types', component: ObjectType.READ_OPTIONS, enumType: EnumType.NODE_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isList: true, isRuntime: true, isWired: true, isStored: true },
   [ReadOptionsProperty.descendantTypes]: { id: 32, name: 'descendant_types', component: ObjectType.READ_OPTIONS, enumType: EnumType.NODE_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isList: true, isRuntime: true, isWired: true, isStored: true },
   [ReadOptionsProperty.relatedPropertiesPtr]: { id: 33, name: 'related_properties_ptr', component: ObjectType.READ_OPTIONS, kind: 'primitive', primitiveType: PrimitiveType.JSON, isList: true, isRuntime: true, isWired: true, isStored: true, referenceStruct: StructType.PROPERTY_REFERENCE },
@@ -24149,7 +24011,7 @@ export const ReadOptionsDataInfo: Record<ReadOptionsProperty, PropertyInfo> = {
 }
 export const ExpressionDataInfo: Record<ExpressionProperty, PropertyInfo> = {
   [ExpressionProperty.metatype]: { id: 1, name: 'metatype', component: ObjectType.EXPRESSION, enumType: EnumType.OBJECT_TYPE, kind: 'enum', primitiveType: PrimitiveType.STRING, isRequired: true, isInternal: true, isComputed: true, isWired: true },
-  [ExpressionProperty.id]: { id: 2, name: 'id', component: ObjectType.EXPRESSION, kind: 'primitive', primitiveType: PrimitiveType.INT32, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
+  [ExpressionProperty.id]: { id: 2, name: 'id', component: ObjectType.EXPRESSION, kind: 'primitive', primitiveType: PrimitiveType.INT32, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [ExpressionProperty.parentId]: { id: 3, name: 'parent_id', component: ObjectType.EXPRESSION, kind: 'reference', primitiveType: PrimitiveType.INT32, isInternal: true, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_PARENT },
   [ExpressionProperty.parentKey]: { id: 4, name: 'parent_key', component: ObjectType.EXPRESSION, kind: 'reference', primitiveType: PrimitiveType.STRING, isInternal: true, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_PARENT },
   [ExpressionProperty.orderKey]: { id: 5, name: 'order_key', component: ObjectType.EXPRESSION, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isRuntime: true, isWired: true, isStored: true },
@@ -24163,7 +24025,7 @@ export const ExpressionDataInfo: Record<ExpressionProperty, PropertyInfo> = {
 }
 export const AggregationDataInfo: Record<AggregationProperty, PropertyInfo> = {
   [AggregationProperty.metatype]: { id: 1, name: 'metatype', component: ObjectType.AGGREGATION, enumType: EnumType.OBJECT_TYPE, kind: 'enum', primitiveType: PrimitiveType.STRING, isRequired: true, isInternal: true, isComputed: true, isWired: true },
-  [AggregationProperty.id]: { id: 2, name: 'id', component: ObjectType.AGGREGATION, kind: 'primitive', primitiveType: PrimitiveType.INT32, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
+  [AggregationProperty.id]: { id: 2, name: 'id', component: ObjectType.AGGREGATION, kind: 'primitive', primitiveType: PrimitiveType.INT32, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [AggregationProperty.parentId]: { id: 3, name: 'parent_id', component: ObjectType.AGGREGATION, kind: 'reference', primitiveType: PrimitiveType.INT32, isInternal: true, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_PARENT },
   [AggregationProperty.parentKey]: { id: 4, name: 'parent_key', component: ObjectType.AGGREGATION, kind: 'reference', primitiveType: PrimitiveType.STRING, isInternal: true, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_PARENT },
   [AggregationProperty.orderKey]: { id: 5, name: 'order_key', component: ObjectType.AGGREGATION, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isRuntime: true, isWired: true, isStored: true },
@@ -24176,13 +24038,11 @@ export const AggregationDataInfo: Record<AggregationProperty, PropertyInfo> = {
 }
 export const AggregationBucketDataInfo: Record<AggregationBucketProperty, PropertyInfo> = {
   [AggregationBucketProperty.metatype]: { id: 1, name: 'metatype', component: ObjectType.AGGREGATION_BUCKET, enumType: EnumType.OBJECT_TYPE, kind: 'enum', primitiveType: PrimitiveType.STRING, isRequired: true, isInternal: true, isComputed: true, isWired: true },
-  [AggregationBucketProperty.id]: { id: 2, name: 'id', component: ObjectType.AGGREGATION_BUCKET, kind: 'primitive', primitiveType: PrimitiveType.INT32, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [AggregationBucketProperty.key]: { id: 30, name: 'key', component: ObjectType.AGGREGATION_BUCKET, kind: 'primitive', primitiveType: PrimitiveType.JSON, isRequired: true, isRuntime: true, isWired: true, isStored: true },
   [AggregationBucketProperty.count]: { id: 31, name: 'count', component: ObjectType.AGGREGATION_BUCKET, kind: 'primitive', primitiveType: PrimitiveType.INT32, isRequired: true, isRuntime: true, isWired: true, isStored: true },
 }
 export const SelectionDataInfo: Record<SelectionProperty, PropertyInfo> = {
   [SelectionProperty.metatype]: { id: 1, name: 'metatype', component: ObjectType.SELECTION, enumType: EnumType.OBJECT_TYPE, kind: 'enum', primitiveType: PrimitiveType.STRING, isRequired: true, isInternal: true, isComputed: true, isWired: true },
-  [SelectionProperty.id]: { id: 2, name: 'id', component: ObjectType.SELECTION, kind: 'primitive', primitiveType: PrimitiveType.INT32, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [SelectionProperty.kind]: { id: 30, name: 'kind', component: ObjectType.SELECTION, enumType: EnumType.SELECTION_KIND, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isRuntime: true, isWired: true, isStored: true },
   [SelectionProperty.nodesPtr]: { id: 31, name: 'nodes_ptr', component: ObjectType.SELECTION, kind: 'reference', isList: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.BENCH, NodeType.ENVIRONMENT, NodeType.BRANCH, NodeType.PACKAGE, NodeType.DEPENDENCY, NodeType.UPGRADE, NodeType.SPACE, NodeType.LINK, NodeType.SKIP, NodeType.NOTICE, NodeType.BLOCK, NodeType.TRIGGER, NodeType.FIELD, NodeType.RECORD, NodeType.QUERY, NodeType.VIEW, NodeType.STEP, NodeType.BADGE, NodeType.ROLE, NodeType.IDENTITY, NodeType.MEMBERSHIP, NodeType.INVITE, NodeType.SESSION, NodeType.RUN, NodeType.PAUSE, NodeType.SIGNAL, NodeType.LOG, NodeType.NOTIFICATION, NodeType.SERVER, NodeType.STORE, NodeType.DRIVE, NodeType.CACHE, NodeType.FILE_CONTENT, NodeType.CLIENT, NodeType.HANDLE], referenceStruct: StructType.NODE_REFERENCE },
   [SelectionProperty.fromNodePtr]: { id: 32, name: 'from_node_ptr', component: ObjectType.SELECTION, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.BENCH, NodeType.ENVIRONMENT, NodeType.BRANCH, NodeType.PACKAGE, NodeType.DEPENDENCY, NodeType.UPGRADE, NodeType.SPACE, NodeType.LINK, NodeType.SKIP, NodeType.NOTICE, NodeType.BLOCK, NodeType.TRIGGER, NodeType.FIELD, NodeType.RECORD, NodeType.QUERY, NodeType.VIEW, NodeType.STEP, NodeType.BADGE, NodeType.ROLE, NodeType.IDENTITY, NodeType.MEMBERSHIP, NodeType.INVITE, NodeType.SESSION, NodeType.RUN, NodeType.PAUSE, NodeType.SIGNAL, NodeType.LOG, NodeType.NOTIFICATION, NodeType.SERVER, NodeType.STORE, NodeType.DRIVE, NodeType.CACHE, NodeType.FILE_CONTENT, NodeType.CLIENT, NodeType.HANDLE], referenceStruct: StructType.NODE_REFERENCE },
@@ -24190,7 +24050,7 @@ export const SelectionDataInfo: Record<SelectionProperty, PropertyInfo> = {
 }
 export const CodeDataInfo: Record<CodeProperty, PropertyInfo> = {
   [CodeProperty.metatype]: { id: 1, name: 'metatype', component: ObjectType.CODE, enumType: EnumType.OBJECT_TYPE, kind: 'enum', primitiveType: PrimitiveType.STRING, isRequired: true, isInternal: true, isComputed: true, isWired: true },
-  [CodeProperty.id]: { id: 2, name: 'id', component: ObjectType.CODE, kind: 'primitive', primitiveType: PrimitiveType.INT32, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
+  [CodeProperty.id]: { id: 2, name: 'id', component: ObjectType.CODE, kind: 'primitive', primitiveType: PrimitiveType.INT32, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [CodeProperty.parentId]: { id: 3, name: 'parent_id', component: ObjectType.CODE, kind: 'reference', primitiveType: PrimitiveType.INT32, isInternal: true, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_PARENT },
   [CodeProperty.parentKey]: { id: 4, name: 'parent_key', component: ObjectType.CODE, kind: 'reference', primitiveType: PrimitiveType.STRING, isInternal: true, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_PARENT },
   [CodeProperty.orderKey]: { id: 5, name: 'order_key', component: ObjectType.CODE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isRuntime: true, isWired: true, isStored: true },
@@ -24199,7 +24059,7 @@ export const CodeDataInfo: Record<CodeProperty, PropertyInfo> = {
 }
 export const CodeLineDataInfo: Record<CodeLineProperty, PropertyInfo> = {
   [CodeLineProperty.metatype]: { id: 1, name: 'metatype', component: ObjectType.CODE_LINE, enumType: EnumType.OBJECT_TYPE, kind: 'enum', primitiveType: PrimitiveType.STRING, isRequired: true, isInternal: true, isComputed: true, isWired: true },
-  [CodeLineProperty.id]: { id: 2, name: 'id', component: ObjectType.CODE_LINE, kind: 'primitive', primitiveType: PrimitiveType.INT32, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
+  [CodeLineProperty.id]: { id: 2, name: 'id', component: ObjectType.CODE_LINE, kind: 'primitive', primitiveType: PrimitiveType.INT32, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [CodeLineProperty.parentId]: { id: 3, name: 'parent_id', component: ObjectType.CODE_LINE, kind: 'reference', primitiveType: PrimitiveType.INT32, isInternal: true, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_PARENT },
   [CodeLineProperty.parentKey]: { id: 4, name: 'parent_key', component: ObjectType.CODE_LINE, kind: 'reference', primitiveType: PrimitiveType.STRING, isInternal: true, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_PARENT },
   [CodeLineProperty.orderKey]: { id: 5, name: 'order_key', component: ObjectType.CODE_LINE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isRuntime: true, isWired: true, isStored: true },
@@ -24208,7 +24068,7 @@ export const CodeLineDataInfo: Record<CodeLineProperty, PropertyInfo> = {
 }
 export const StepConnectionDataInfo: Record<StepConnectionProperty, PropertyInfo> = {
   [StepConnectionProperty.metatype]: { id: 1, name: 'metatype', component: ObjectType.STEP_CONNECTION, enumType: EnumType.OBJECT_TYPE, kind: 'enum', primitiveType: PrimitiveType.STRING, isRequired: true, isInternal: true, isComputed: true, isWired: true },
-  [StepConnectionProperty.id]: { id: 2, name: 'id', component: ObjectType.STEP_CONNECTION, kind: 'primitive', primitiveType: PrimitiveType.INT32, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
+  [StepConnectionProperty.id]: { id: 2, name: 'id', component: ObjectType.STEP_CONNECTION, kind: 'primitive', primitiveType: PrimitiveType.INT32, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [StepConnectionProperty.parentId]: { id: 3, name: 'parent_id', component: ObjectType.STEP_CONNECTION, kind: 'reference', primitiveType: PrimitiveType.INT32, isInternal: true, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_PARENT },
   [StepConnectionProperty.parentKey]: { id: 4, name: 'parent_key', component: ObjectType.STEP_CONNECTION, kind: 'reference', primitiveType: PrimitiveType.STRING, isInternal: true, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_PARENT },
   [StepConnectionProperty.orderKey]: { id: 5, name: 'order_key', component: ObjectType.STEP_CONNECTION, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isRuntime: true, isWired: true, isStored: true },
@@ -24217,7 +24077,7 @@ export const StepConnectionDataInfo: Record<StepConnectionProperty, PropertyInfo
 }
 export const RunCodeFrameDataInfo: Record<RunCodeFrameProperty, PropertyInfo> = {
   [RunCodeFrameProperty.metatype]: { id: 1, name: 'metatype', component: ObjectType.RUN_CODE_FRAME, enumType: EnumType.OBJECT_TYPE, kind: 'enum', primitiveType: PrimitiveType.STRING, isRequired: true, isInternal: true, isComputed: true, isWired: true },
-  [RunCodeFrameProperty.id]: { id: 2, name: 'id', component: ObjectType.RUN_CODE_FRAME, kind: 'primitive', primitiveType: PrimitiveType.INT32, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
+  [RunCodeFrameProperty.id]: { id: 2, name: 'id', component: ObjectType.RUN_CODE_FRAME, kind: 'primitive', primitiveType: PrimitiveType.INT32, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [RunCodeFrameProperty.parentId]: { id: 3, name: 'parent_id', component: ObjectType.RUN_CODE_FRAME, kind: 'reference', primitiveType: PrimitiveType.INT32, isInternal: true, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_PARENT },
   [RunCodeFrameProperty.parentKey]: { id: 4, name: 'parent_key', component: ObjectType.RUN_CODE_FRAME, kind: 'reference', primitiveType: PrimitiveType.STRING, isInternal: true, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_PARENT },
   [RunCodeFrameProperty.orderKey]: { id: 5, name: 'order_key', component: ObjectType.RUN_CODE_FRAME, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isRuntime: true, isWired: true, isStored: true },
@@ -24229,7 +24089,7 @@ export const RunCodeFrameDataInfo: Record<RunCodeFrameProperty, PropertyInfo> = 
 }
 export const RunErrorDataInfo: Record<RunErrorProperty, PropertyInfo> = {
   [RunErrorProperty.metatype]: { id: 1, name: 'metatype', component: ObjectType.RUN_ERROR, enumType: EnumType.OBJECT_TYPE, kind: 'enum', primitiveType: PrimitiveType.STRING, isRequired: true, isInternal: true, isComputed: true, isWired: true },
-  [RunErrorProperty.id]: { id: 2, name: 'id', component: ObjectType.RUN_ERROR, kind: 'primitive', primitiveType: PrimitiveType.INT32, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
+  [RunErrorProperty.id]: { id: 2, name: 'id', component: ObjectType.RUN_ERROR, kind: 'primitive', primitiveType: PrimitiveType.INT32, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [RunErrorProperty.parentId]: { id: 3, name: 'parent_id', component: ObjectType.RUN_ERROR, kind: 'reference', primitiveType: PrimitiveType.INT32, isInternal: true, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_PARENT },
   [RunErrorProperty.parentKey]: { id: 4, name: 'parent_key', component: ObjectType.RUN_ERROR, kind: 'reference', primitiveType: PrimitiveType.STRING, isInternal: true, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_PARENT },
   [RunErrorProperty.orderKey]: { id: 5, name: 'order_key', component: ObjectType.RUN_ERROR, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isRuntime: true, isWired: true, isStored: true },
@@ -24242,13 +24102,12 @@ export const RunErrorDataInfo: Record<RunErrorProperty, PropertyInfo> = {
 }
 export const ResourceCredentialDataInfo: Record<ResourceCredentialProperty, PropertyInfo> = {
   [ResourceCredentialProperty.metatype]: { id: 1, name: 'metatype', component: ObjectType.RESOURCE_CREDENTIAL, enumType: EnumType.OBJECT_TYPE, kind: 'enum', primitiveType: PrimitiveType.STRING, isRequired: true, isInternal: true, isComputed: true, isWired: true },
-  [ResourceCredentialProperty.id]: { id: 2, name: 'id', component: ObjectType.RESOURCE_CREDENTIAL, kind: 'primitive', primitiveType: PrimitiveType.INT32, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [ResourceCredentialProperty.username]: { id: 31, name: 'username', component: ObjectType.RESOURCE_CREDENTIAL, kind: 'primitive', primitiveType: PrimitiveType.STRING, isRequired: true, isRuntime: true, isWired: true, isStored: true, isSensitive: true },
   [ResourceCredentialProperty.password]: { id: 32, name: 'password', component: ObjectType.RESOURCE_CREDENTIAL, kind: 'primitive', primitiveType: PrimitiveType.STRING, isRequired: true, isRuntime: true, isWired: true, isStored: true, isSensitive: true },
 }
 export const TextDataInfo: Record<TextProperty, PropertyInfo> = {
   [TextProperty.metatype]: { id: 1, name: 'metatype', component: ObjectType.TEXT, enumType: EnumType.OBJECT_TYPE, kind: 'enum', primitiveType: PrimitiveType.STRING, isRequired: true, isInternal: true, isComputed: true, isWired: true },
-  [TextProperty.id]: { id: 2, name: 'id', component: ObjectType.TEXT, kind: 'primitive', primitiveType: PrimitiveType.INT32, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
+  [TextProperty.id]: { id: 2, name: 'id', component: ObjectType.TEXT, kind: 'primitive', primitiveType: PrimitiveType.INT32, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [TextProperty.parentId]: { id: 3, name: 'parent_id', component: ObjectType.TEXT, kind: 'reference', primitiveType: PrimitiveType.INT32, isInternal: true, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_PARENT },
   [TextProperty.parentKey]: { id: 4, name: 'parent_key', component: ObjectType.TEXT, kind: 'reference', primitiveType: PrimitiveType.STRING, isInternal: true, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_PARENT },
   [TextProperty.orderKey]: { id: 5, name: 'order_key', component: ObjectType.TEXT, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isRuntime: true, isWired: true, isStored: true },
@@ -24257,7 +24116,7 @@ export const TextDataInfo: Record<TextProperty, PropertyInfo> = {
 }
 export const TextLineDataInfo: Record<TextLineProperty, PropertyInfo> = {
   [TextLineProperty.metatype]: { id: 1, name: 'metatype', component: ObjectType.TEXT_LINE, enumType: EnumType.OBJECT_TYPE, kind: 'enum', primitiveType: PrimitiveType.STRING, isRequired: true, isInternal: true, isComputed: true, isWired: true },
-  [TextLineProperty.id]: { id: 2, name: 'id', component: ObjectType.TEXT_LINE, kind: 'primitive', primitiveType: PrimitiveType.INT32, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
+  [TextLineProperty.id]: { id: 2, name: 'id', component: ObjectType.TEXT_LINE, kind: 'primitive', primitiveType: PrimitiveType.INT32, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [TextLineProperty.parentId]: { id: 3, name: 'parent_id', component: ObjectType.TEXT_LINE, kind: 'reference', primitiveType: PrimitiveType.INT32, isInternal: true, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_PARENT },
   [TextLineProperty.parentKey]: { id: 4, name: 'parent_key', component: ObjectType.TEXT_LINE, kind: 'reference', primitiveType: PrimitiveType.STRING, isInternal: true, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_PARENT },
   [TextLineProperty.orderKey]: { id: 5, name: 'order_key', component: ObjectType.TEXT_LINE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isRuntime: true, isWired: true, isStored: true },
@@ -24274,7 +24133,6 @@ export const TextLineDataInfo: Record<TextLineProperty, PropertyInfo> = {
 }
 export const TextSpanDataInfo: Record<TextSpanProperty, PropertyInfo> = {
   [TextSpanProperty.metatype]: { id: 1, name: 'metatype', component: ObjectType.TEXT_SPAN, enumType: EnumType.OBJECT_TYPE, kind: 'enum', primitiveType: PrimitiveType.STRING, isRequired: true, isInternal: true, isComputed: true, isWired: true },
-  [TextSpanProperty.id]: { id: 2, name: 'id', component: ObjectType.TEXT_SPAN, kind: 'primitive', primitiveType: PrimitiveType.INT32, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [TextSpanProperty.content]: { id: 33, name: 'content', component: ObjectType.TEXT_SPAN, kind: 'primitive', primitiveType: PrimitiveType.STRING, isRuntime: true, isWired: true, isStored: true },
   [TextSpanProperty.nodePtr]: { id: 34, name: 'node_ptr', component: ObjectType.TEXT_SPAN, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.DEPENDENCY, NodeType.UPGRADE, NodeType.SPACE, NodeType.SKIP, NodeType.NOTICE, NodeType.BLOCK, NodeType.TRIGGER, NodeType.FIELD, NodeType.RECORD, NodeType.QUERY, NodeType.VIEW, NodeType.STEP, NodeType.BADGE, NodeType.ROLE, NodeType.IDENTITY, NodeType.MEMBERSHIP, NodeType.INVITE], referenceStruct: StructType.NODE_REFERENCE },
   [TextSpanProperty.color]: { id: 50, name: 'color', component: ObjectType.TEXT_SPAN, enumType: EnumType.COLOR_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRuntime: true, isWired: true, isStored: true },
@@ -24286,21 +24144,18 @@ export const TextSpanDataInfo: Record<TextSpanProperty, PropertyInfo> = {
 }
 export const ColorDataInfo: Record<ColorProperty, PropertyInfo> = {
   [ColorProperty.metatype]: { id: 1, name: 'metatype', component: ObjectType.COLOR, enumType: EnumType.OBJECT_TYPE, kind: 'enum', primitiveType: PrimitiveType.STRING, isRequired: true, isInternal: true, isComputed: true, isWired: true },
-  [ColorProperty.id]: { id: 2, name: 'id', component: ObjectType.COLOR, kind: 'primitive', primitiveType: PrimitiveType.INT32, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [ColorProperty.type]: { id: 31, name: 'type', component: ObjectType.COLOR, enumType: EnumType.COLOR_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRuntime: true, isWired: true, isStored: true },
   [ColorProperty.shade]: { id: 32, name: 'shade', component: ObjectType.COLOR, enumType: EnumType.COLOR_SHADE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRuntime: true, isWired: true, isStored: true },
   [ColorProperty.hex]: { id: 33, name: 'hex', component: ObjectType.COLOR, kind: 'primitive', primitiveType: PrimitiveType.STRING, isRuntime: true, isWired: true, isStored: true },
 }
 export const FontDataInfo: Record<FontProperty, PropertyInfo> = {
   [FontProperty.metatype]: { id: 1, name: 'metatype', component: ObjectType.FONT, enumType: EnumType.OBJECT_TYPE, kind: 'enum', primitiveType: PrimitiveType.STRING, isRequired: true, isInternal: true, isComputed: true, isWired: true },
-  [FontProperty.id]: { id: 2, name: 'id', component: ObjectType.FONT, kind: 'primitive', primitiveType: PrimitiveType.INT32, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [FontProperty.type]: { id: 31, name: 'type', component: ObjectType.FONT, enumType: EnumType.FONT_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRuntime: true, isWired: true, isStored: true },
   [FontProperty.weight]: { id: 32, name: 'weight', component: ObjectType.FONT, enumType: EnumType.FONT_WEIGHT, kind: 'enum', primitiveType: PrimitiveType.INT16, isRuntime: true, isWired: true, isStored: true },
   [FontProperty.size]: { id: 33, name: 'size', component: ObjectType.FONT, enumType: EnumType.FONT_SIZE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRuntime: true, isWired: true, isStored: true },
 }
 export const BoxDataInfo: Record<BoxProperty, PropertyInfo> = {
   [BoxProperty.metatype]: { id: 1, name: 'metatype', component: ObjectType.BOX, enumType: EnumType.OBJECT_TYPE, kind: 'enum', primitiveType: PrimitiveType.STRING, isRequired: true, isInternal: true, isComputed: true, isWired: true },
-  [BoxProperty.id]: { id: 2, name: 'id', component: ObjectType.BOX, kind: 'primitive', primitiveType: PrimitiveType.INT32, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [BoxProperty.width]: { id: 50, name: 'width', component: ObjectType.BOX, kind: 'primitive', primitiveType: PrimitiveType.INT32, isRuntime: true, isWired: true, isStored: true },
   [BoxProperty.height]: { id: 51, name: 'height', component: ObjectType.BOX, kind: 'primitive', primitiveType: PrimitiveType.INT32, isRuntime: true, isWired: true, isStored: true },
   [BoxProperty.widthRelative]: { id: 52, name: 'width_relative', component: ObjectType.BOX, kind: 'primitive', primitiveType: PrimitiveType.FLOAT32, isRuntime: true, isWired: true, isStored: true },
@@ -24308,7 +24163,6 @@ export const BoxDataInfo: Record<BoxProperty, PropertyInfo> = {
 }
 export const OffsetDataInfo: Record<OffsetProperty, PropertyInfo> = {
   [OffsetProperty.metatype]: { id: 1, name: 'metatype', component: ObjectType.OFFSET, enumType: EnumType.OBJECT_TYPE, kind: 'enum', primitiveType: PrimitiveType.STRING, isRequired: true, isInternal: true, isComputed: true, isWired: true },
-  [OffsetProperty.id]: { id: 2, name: 'id', component: ObjectType.OFFSET, kind: 'primitive', primitiveType: PrimitiveType.INT32, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [OffsetProperty.top]: { id: 40, name: 'top', component: ObjectType.OFFSET, kind: 'primitive', primitiveType: PrimitiveType.INT32, isRuntime: true, isWired: true, isStored: true },
   [OffsetProperty.right]: { id: 41, name: 'right', component: ObjectType.OFFSET, kind: 'primitive', primitiveType: PrimitiveType.INT32, isRuntime: true, isWired: true, isStored: true },
   [OffsetProperty.bottom]: { id: 42, name: 'bottom', component: ObjectType.OFFSET, kind: 'primitive', primitiveType: PrimitiveType.INT32, isRuntime: true, isWired: true, isStored: true },
