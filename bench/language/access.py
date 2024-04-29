@@ -1016,7 +1016,7 @@ def evaluate_access(
     for identity in matrix.identities:
         base_zone: AccessZone = matrix._base_zone_by_root[(identity.id, root_id)]
         if scope_id is not None:
-            start_scoped_zone = matrix._lowest_zone_by_scope[(identity.id, scope_id)]
+            start_scoped_zone = matrix._lowest_zone_by_scope.get((identity.id, scope_id))
         else:
             start_scoped_zone = None
 

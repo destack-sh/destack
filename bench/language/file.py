@@ -100,7 +100,7 @@ class IconKind(IdEnum):
     FONT_AWESOME = 3
 
 
-@struct(StructType.ICON)
+@struct(StructType.ICON, inline=True)
 class Icon(Struct):
     kind: IconKind = p_internal(30, default=False)
     # content

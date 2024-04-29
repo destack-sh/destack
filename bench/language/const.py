@@ -11,7 +11,7 @@ from bench.utils.utils import frozendict
 if typing.TYPE_CHECKING:
     from bench.language import Session, Transaction
 
-VERSION = "2024.04.29.1"
+VERSION = "2024.04.29.2"
 UNSET = cast(Any, object())
 EMPTY_LIST: list = []
 EMPTY_SET: frozenset = frozenset()
@@ -768,7 +768,7 @@ EXPRESSION_OPS_BY_KIND: dict[ExpressionKind, bytetuple["ExpressionOp"]] = {
     ExpressionKind.SORT: bytetuple(*SortOp),
 }
 EXPRESSION_KIND_BY_OP: dict["ExpressionOp", ExpressionKind] = {
-    op: kind for kind, ops in EXPRESSION_OPS_BY_KIND.items() for op in ops
+    op: kind for kind, ops in EXPRESSION_OPS_BY_KIND.items() for op in ops  # type: ignore
 }
 
 if typing.TYPE_CHECKING:

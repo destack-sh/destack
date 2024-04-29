@@ -126,13 +126,17 @@ class BenchServiceBase:
         for field_name, field in message._betterproto_meta.meta_by_field_name.items():
             field_is_repeated = defaults[field_name] is list
             if field.proto_type == betterproto.TYPE_MESSAGE:
-                value = getattr(message, field_name)
-                inner_path = path + (field_name,)
-                if isinstance(value, betterproto.Message):
-                    self._validate_message(value, inner_path)
-                elif field_is_repeated:
-                    for sub_message in value:
-                        self._validate_message(sub_message, inner_path)
+                try:
+                    value = getattr(message, field_name)
+                except AttributeError:
+                    pass  # this union is not set
+                else:
+                    inner_path = path + (field_name,)
+                    if isinstance(value, betterproto.Message):
+                        self._validate_message(value, inner_path)
+                    elif field_is_repeated:
+                        for sub_message in value:
+                            self._validate_message(sub_message, inner_path)
 
     def _validate_request_self(self, subject: Subject, request: betterproto.Message) -> None:
         """Validate a request message for this service."""
@@ -155,9 +159,7 @@ class BenchServiceBase:
             log = logger.bind(service=self, method=method)
             try:
                 # prepare
-                metadata: RpcMetadata = (cast(_PatchedRpcMetadata, RpcMetadata())).from_headers(
-                    stream.metadata or {}
-                )
+                metadata: RpcMetadata = RpcMetadata().from_headers(stream.metadata or {})  # type: ignore
                 subject = await get_subject_from_metadata(metadata)
                 log = log.bind(subject=subject)
 

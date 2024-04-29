@@ -112,10 +112,5 @@ export function getColorTitle(color: ColorType | ColorData): string | null {
 }
 
 export function makeColor(type: ColorType, shade?: ColorShade): ColorData {
-  return {
-    metatype: ObjectType.COLOR,
-    id: type,
-    type,
-    shade,
-  };
+  return { metatype: ObjectType.COLOR, type, shade };
 }

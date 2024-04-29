@@ -44,9 +44,7 @@ export function metadataToIcon(metadata: IconMetadata, color: ColorData | undefi
     metatype: ObjectType.ICON,
     kind: IconKind.FONT_AWESOME,
     faName: `${metadata.family} fa-${metadata.id}`,
-    id: newIconId(),
     color,
-    setProperties: [],
   };
 }
 
@@ -102,7 +100,7 @@ type IconIn = string | (Pick<IconData, "emoji" | "file" | "faName"> & { color?: 
 export function makeIcon(icon: IconIn): IconData {
   let kind: IconKind;
   if (typeof icon == "string") {
-    return { metatype: ObjectType.ICON, kind: IconKind.FONT_AWESOME, faName: icon, setProperties: [] };
+    return { metatype: ObjectType.ICON, kind: IconKind.FONT_AWESOME, faName: icon };
   } else if (icon.emoji) {
     kind = IconKind.EMOJI;
   } else if (icon.file) {
@@ -113,14 +111,7 @@ export function makeIcon(icon: IconIn): IconData {
     throw new Error(`unexpected icon ${icon}`);
   }
   const color = icon.color != null && typeof icon.color != "object" ? makeColor(icon.color) : icon.color;
-  return {
-    metatype: ObjectType.ICON,
-    kind,
-    ...icon,
-    id: newIconId(),
-    color,
-    setProperties: [],
-  };
+  return { metatype: ObjectType.ICON, kind, ...icon, color };
 }
 
 export function toIconMaybe(icon?: IconIn | null): IconData | undefined {
