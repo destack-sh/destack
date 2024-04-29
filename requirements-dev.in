@@ -12,7 +12,7 @@ networkx==3.2.1
 pip-tools==7.3.0
 pre-commit==3.3.3
 py-spy==0.3.14
-pyright==1.1.344
+pyright==1.1.360
 pytest-asyncio==0.23.3
 pytest-xdist==3.0.2
 pytest==7.4.0

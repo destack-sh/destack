@@ -1,5 +1,6 @@
 from datetime import datetime
 from typing import TYPE_CHECKING, Any, Optional, Union, cast
+from uuid import UUID
 
 from bench.language.const import (
     NodeType,
@@ -94,6 +95,7 @@ class User(Node[UserData]):
         37, array=False, require=False, references=NodeType.BENCH, fk=True
     )
     if TYPE_CHECKING:
+        main_bench_id: Optional[UUID] = None
         main_bench_ptr: Optional[NodeReferenceData] = None
     status: UserStatus = p_system(38)
 

@@ -592,7 +592,9 @@ class InMemoryGraphNodeList(NodeList[NodeT]):
             descendants.sort(key=lambda n: n.order_key)
         return descendants
 
-    def append(self, node: NodeT, after: NodeT | None = None, before: NodeT | None = None) -> tuple[NodeT, ...]:  # type: ignore
+    def append(  # type: ignore
+        self, node: NodeT, after: NodeT | None = None, before: NodeT | None = None
+    ) -> tuple[NodeT, ...]:
         from bench.language.node import Node
 
         assert isinstance(node, Node), f"cannot append {node!r} to {self!r}"
@@ -726,7 +728,14 @@ class ValueList(list, Generic[ValueParentT]):
     Unlike a NodeList, value lists are actual lists and not computed on access.
     """
 
-    def __init__(self, parent: ValueParentT, parent_prop: ValueProperty, ancestor_prop: Optional[Property] = None, *args, **kwargs):  # type: ignore
+    def __init__(
+        self,
+        parent: ValueParentT,
+        parent_prop: ValueProperty,
+        ancestor_prop: Optional["Property"] = None,
+        *args,
+        **kwargs,
+    ):  # type: ignore
         from bench.language.node import Property
 
         super().__init__(*args, **kwargs)
@@ -785,7 +794,7 @@ class ValueList(list, Generic[ValueParentT]):
         values: Collection[ValueT],
         parent: ValueParentT,
         parent_prop: ValueProperty,
-        ancestor_prop: Optional[Property] = None,
+        ancestor_prop: Optional["Property"] = None,
     ):
         """Copies the values in the list if they belong to a different parent."""
         from bench.language.node import Property
