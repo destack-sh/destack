@@ -53,8 +53,6 @@ from bench.language.graph import (
     NodeGraph,
     NodeList,
     ValueList,
-    edit_data_graph,
-    edit_graph,
 )
 from bench.language.property import (
     _PROPERTY_SPECIFIERS,
@@ -82,7 +80,7 @@ from bench.language.validation import (
     ValidationHandler,
     on_invalid_raise,
 )
-from bench.proto.wire import AnyNodeData, AnyStructData, EditData, NodeReferenceData, SomeNodeData
+from bench.proto.wire import AnyNodeData, AnyStructData, NodeReferenceData, SomeNodeData
 from bench.sql.core import Constraint, ConstraintType, Index, IndexType, PrimitiveType, Table
 from bench.utils.casing import PYTHON_CASING, IdentifierType, to_casing
 from bench.utils.dt import utcnow_with_tz
@@ -175,7 +173,7 @@ _COMPONENT_CALL_ORDER: tuple[str, ...] = ("Node",)  # ... the rest
 
 
 def _sort_components_in_call_order(
-    components: Collection[type["Node"]],
+    components: Collection[type["Node"] | type["Struct"]],
 ) -> list[type["Node"]]:
     """Sorts components by call order. Nodes without call order are left as-is."""
     sorted_components = []
@@ -191,7 +189,9 @@ def _sort_components_in_call_order(
 
 @cached(cache={}, key=lambda components, method, concrete_key: f"{concrete_key}.{method.name}")
 def _get_component_methods(
-    components: Collection[type["Node"]], method: _ComponentMethod, concrete_key: str
+    components: Collection[type["Node"] | type["Struct"]],
+    method: _ComponentMethod,
+    concrete_key: str,
 ) -> tuple[Callable, ...]:
     """Get the actually implemented methods in the given components in call order."""
     methods = []
@@ -418,10 +418,10 @@ def _process_struct_base_cls(
         if meth is not None and not any(
             meth is getattr(base, meth_type.inner, None) for base in cls.__bases__
         ):
-            _COMPONENT_METHODS[(meth_type, cls)] = meth
+            _COMPONENT_METHODS[(meth_type, cls)] = meth  # type: ignore
 
     # register components and index properties
-    cls.__static_components__ = tuple(static_components)
+    cls.__static_components__ = tuple(static_components)  # type: ignore
     cls.__dynamic_components__ = tuple(dynamic_components or ())
     cls.__is_struct_inlined__ = is_inlined
     cls.__properties__ = frozendict(properties_by_name)
@@ -691,10 +691,10 @@ NodeT = TypeVar("NodeT", bound="Node")
 def _node_ck_from_id_prop(prop: Property) -> property:
     """Get ck from id (read-only)."""
 
-    def get(self: NodeT) -> UUID:
+    def get(self: Node) -> UUID:
         return self.id
 
-    def set(self: NodeT, value: UUID):
+    def set(self: Node, value: UUID):
         raise NotImplementedError(f"cannot set computed property {prop!r}: {value!r}")
 
     return property(get, set)
@@ -752,7 +752,7 @@ def _required_prop(prop: Property):
 def _node_computed_ancestor_ptr_prop(prop: Property) -> property:
     assert prop.reference_source is not None, f"no source for {prop!r}"
 
-    def get_ancestor_ptr(self: NodeT) -> Optional["NodeReference"]:
+    def get_ancestor_ptr(self: "Node") -> Optional["NodeReference"]:
         from bench.language.expression import NodeReference
 
         ancestor = getattr(self, cast(Property, prop.reference_source).name)
@@ -761,7 +761,7 @@ def _node_computed_ancestor_ptr_prop(prop: Property) -> property:
         else:
             return NodeReference.from_node(ancestor)
 
-    def set(self: NodeT, value: "NodeReference"):
+    def set(self: Node, value: "NodeReference"):
         raise NotImplementedError(f"cannot set computed property {prop!r}: {value!r}")
 
     return property(get_ancestor_ptr, set)
@@ -772,7 +772,7 @@ def _node_ref_computed_prop(
 ) -> property:
     """Computed value from another property. If prop is not set, use backup prop."""
 
-    def get(self: NodeT) -> Optional[Any]:
+    def get(self: "Node") -> Optional[Any]:
         ref = getattr(self, ref_prop.name)
         ptr = getattr(self, ptr_prop.name) if ptr_prop else None
         if ref_prop.is_list:
@@ -788,30 +788,10 @@ def _node_ref_computed_prop(
             else:
                 return None
 
-    def set(self: NodeT, value: Any):
+    def set(self: "Node", value: Any):
         raise NotImplementedError(f"cannot set computed property {ref_prop!r}: {value!r}")
 
     return property(get, set)
-
-
-def _make_self_method(
-    method: _ComponentMethod,
-    wraps,
-    to_status: InterpStatus | None = None,
-):
-    """Creates method that calls _method_inner for all components in call order"""
-
-    @functools.wraps(wraps)
-    def self_method(self: "Struct", *args, _coerce: bool = True, _ignore: bool = False, **kwargs):
-        if self._status == to_status:
-            return
-        for meth in _get_component_methods(self._components, method, self._instance_cache_key):
-            meth(self, *args, **kwargs)
-        if to_status is not None:
-            self._status = to_status
-
-    self_method.__name__ = method.self
-    return self_method
 
 
 def _make_inner_dunder_method(method: _ComponentMethod):
@@ -882,9 +862,10 @@ class Struct(abc.ABC):
     #  and also so that its field presence is tracked and we can validate that it is set when needed)
     id: Optional[int] = p_system(2, default_factory=new_struct_id)
     parent: Union["Struct", "Node", "Value", None] = p_struct_parent(3)
-    if TYPE_CHECKING:  # contributed via parent, stored/wired only if not inlined
-        parent_id: int | None = None  # (3)
-        parent_key: str | None = None  # (4)
+    if TYPE_CHECKING:
+        parent_type: NodeType | None = p_internal(4, default=None)
+        parent_id: int | None = None
+        parent_key: str | None = None
     order_key: str | None = p_internal(5, default=None)
     # for source nodes:
     # computed_properties: dict[int, ValueReference] | None = p_regular(21)
@@ -1046,55 +1027,57 @@ class Struct(abc.ABC):
         did_you_mean = did_you_mean_str(candidates, key)
         raise AttributeError(f"Cannot set '{key}' on {self!r}. {did_you_mean}")
 
-    def __getattr__(self, item) -> Any:
-        # when using slots so this is not an instance attribute
-        attr = UNSET
-        # prefer components methods
-        for component in self._components:
-            attr = getattr(component, item, UNSET)
-            if attr is not UNSET:
-                break
-        # check passthrough targets if tracked in session
-        if attr is UNSET and self._status == InterpStatus.TRACKED:
-            for target, mode in self.__passthrough_targets__:
-                target = getattr(self, target)
-                if mode == _Passthrough.Full:
-                    attr = getattr(target, item, UNSET)
-                elif mode == _Passthrough.Scope:
-                    assert isinstance(target, NodeList), f"invalid scope passthrough: {attr!r}"
-                    attr = target.get(item) or UNSET
+    if not TYPE_CHECKING:
+        # NOTE: __getattr__ breaks type checking, so only use it in runtime
+        def __getattr__(self, item):
+            # when using slots so this is not an instance attribute
+            attr = UNSET
+            # prefer components methods
+            for component in self._components:
+                attr = getattr(component, item, UNSET)
                 if attr is not UNSET:
                     break
-        # attribute could be property, method, or just plain value
-        if attr is not UNSET:
-            if isinstance(attr, property):
-                return attr.fget(self)  # type: ignore
-            elif not isinstance(attr, Node) and callable(attr) and not inspect.ismethod(attr):
-                return functools.partial(attr, self)
-            else:
-                return attr
+            # check passthrough targets if tracked in session
+            if attr is UNSET and self._status == InterpStatus.TRACKED:
+                for target, mode in self.__passthrough_targets__:
+                    target = getattr(self, target)
+                    if mode == _Passthrough.Full:
+                        attr = getattr(target, item, UNSET)
+                    elif mode == _Passthrough.Scope:
+                        assert isinstance(target, NodeList), f"invalid scope passthrough: {attr!r}"
+                        attr = target.get(item) or UNSET
+                    if attr is not UNSET:
+                        break
+            # attribute could be property, method, or just plain value
+            if attr is not UNSET:
+                if isinstance(attr, property):
+                    return attr.fget(self)  # type: ignore
+                elif not isinstance(attr, Node) and callable(attr) and not inspect.ismethod(attr):
+                    return functools.partial(attr, self)
+                else:
+                    return attr
 
-        # report get error with additional info
-        if self._status == InterpStatus.TRACKED:
-            candidates = {
-                # own properties
-                **{
-                    p.name: p
-                    for p in self.__properties__.values()
-                    if p.reference_kind or not p.is_ephemeral
-                },
-                # public methods
-                **{m: None for m in dir(self) if not m.startswith("_")},
-            }
-            did_you_mean = did_you_mean_str(candidates, item)
-            raise AttributeError(f"{self!r} has no attribute '{item}'. {did_you_mean}")
-        else:
-            raise AttributeError(f"{self.__class__} has no attribute '{item}'")
+            # report get error with additional info
+            if self._status == InterpStatus.TRACKED:
+                candidates = {
+                    # own properties
+                    **{
+                        p.name: p
+                        for p in self.__properties__.values()
+                        if p.reference_kind or not p.is_ephemeral
+                    },
+                    # public methods
+                    **{m: None for m in dir(self) if not m.startswith("_")},
+                }
+                did_you_mean = did_you_mean_str(candidates, item)
+                raise AttributeError(f"{self!r} has no attribute '{item}'. {did_you_mean}")
+            else:
+                raise AttributeError(f"{self.__class__} has no attribute '{item}'")
 
     def _lazy_copy_to(
         self, parent: Union["Node", "Struct", "Value"], prop: Union[Property, "Field"]
     ) -> "Struct":
-        """Create a copy of this struct for the given parent/prop if it's assigned and different."""
+        """Create a copy of this struct for the given parent/prop if different."""
         assert self.__is_struct_only__, f"cannot copy non-struct {self!r}"
         prop_key = prop.id_as_str if isinstance(prop, Property) else prop.identity_key
         if self.parent is None:  # not assigned
@@ -1108,6 +1091,7 @@ class Struct(abc.ABC):
             return copy
 
     def _copy_to(self, parent: Union["Node", "Struct", "Value"], prop: Union[Property, "Field"]):
+        """Create a copy of this struct for the given parent/prop."""
         kwargs = {
             p.name: getattr(self, p.name)
             for p in self.__properties__.values()
@@ -1135,7 +1119,8 @@ class Struct(abc.ABC):
             if prop.reference_kind == ReferenceKind.STRUCT_CHILD:
                 existing = getattr(self, prop.name, None)
                 if prop.is_list:
-                    self.__dict__[prop.name] = prop.reference_list_type(self, prop)
+                    assert prop.reference_list_type is not None
+                    self.__dict__[prop.name] = prop.reference_list_type(cast(Node, self), prop)
                     if existing:
                         # will auto copy if needed
                         self.__dict__[prop.name].extend(existing)
@@ -1145,6 +1130,7 @@ class Struct(abc.ABC):
 
             # init property reference pointers if references are set
             if prop.reference_kind == ReferenceKind.PROPERTY:
+                assert prop.reference_wired_ptr is not None, f"no wired ptr for {prop!r}"
                 existing = getattr(self, prop.name, None)
                 if prop.is_list:
                     if existing:
@@ -1167,12 +1153,13 @@ class Struct(abc.ABC):
     def _interp_inner(self, scope: "Node", on_notice: "NoticeHandler"):
         from bench.language.notice import NoticeType
 
-        # TODO :Broken: turn all node references into computer properties (against graph)
+        # TODO :Broken: turn all node references into computer propertied (against graph)
         # (using parent, so parent is still a proper reference?)
         # resolve node references
         for prop in self.__node_reference_properties__.values():
             if prop.is_wired or prop.is_stored or prop.reference_kind != ReferenceKind.NODE_REGULAR:
                 continue  # already resolved
+            assert prop.reference_wired_ptr is not None, f"no wired ptr for {prop!r}"
             ptr = getattr(self, prop.reference_wired_ptr.name)
             if ptr is None:
                 continue
@@ -1180,21 +1167,22 @@ class Struct(abc.ABC):
                 ptr = cast(list["NodeReference"], ptr)
                 resolved = []
                 for p in ptr:
-                    r = scope._root_graph.get(p.id or p.ck)
+                    r = scope._root_graph.get(cast(UUID, p.id or p.ck))
                     if r is None:
-                        on_notice(self, NoticeType.MISSING_REFERENCE, properties=(prop,))
+                        on_notice(self, NoticeType.MISSING_REFERENCE, None, None, (prop,))
                     resolved.append(r)
                 self.__dict__[prop.name] = resolved
             else:
                 ptr = cast("NodeReference", ptr)
-                resolved = scope._root_graph.get(ptr.id or ptr.ck)
+                resolved = scope._root_graph.get(cast(UUID, ptr.id or ptr.ck))
                 if resolved is None:
-                    on_notice(self, NoticeType.MISSING_REFERENCE, properties=(prop,))
+                    on_notice(self, NoticeType.MISSING_REFERENCE, None, None, (prop,))
                 self.__dict__[prop.name] = resolved
         # resolve property references
         for prop in self.__property_reference_properties__.values():
             if prop.is_wired or prop.is_stored or getattr(self, prop.name, None):
                 continue  # already resolved
+            assert prop.reference_wired_ptr is not None, f"no wired ptr for {prop!r}"
             ptr = getattr(self, prop.reference_wired_ptr.name)
             if ptr is None:
                 continue
@@ -1213,7 +1201,7 @@ class Struct(abc.ABC):
                 visitor.visit_reference(value)
 
     def _validate_inner(
-        self, properties: tuple[Property, ...], on_invalid: "ValidationHandler"
+        self, properties: Collection[Property], on_invalid: "ValidationHandler"
     ) -> None:
         """Validate properties for illegal values that should not or cannot be stored."""
 
@@ -1225,7 +1213,7 @@ class Struct(abc.ABC):
                 # TODO :Robustness: track whether property was deferred
                 #  (so we can validate it appropriately, and probably a bunch of other stuff)
                 if prop.is_required and not (prop.is_sensitive or prop.is_deferred):
-                    on_invalid(self, f"{prop.name} is required", [prop])
+                    on_invalid(self, f"{prop.name} is required", [prop], None)
             elif prop.custom_validate is not None:
                 handler = PropertyValidationHandler(self, prop, on_invalid)
                 prop.custom_validate(prop, value, handler)
@@ -1233,31 +1221,66 @@ class Struct(abc.ABC):
     def _flushed_self(self):
         """Called when this struct has been flushed to the store."""
         if self.__is_node__:
-            self: "Node"
-            self._is_new = False
+            (cast("Node", self))._is_new = False
         self._updated_properties = None
 
-    def _updated_inner(self, properties: tuple[Property, ...]) -> None:
+    def _updated_inner(self, properties: Collection[Property]) -> None:
         """Called when properties in this struct have been updated successfully."""
         if self._status == InterpStatus.TRACKED:
             if self.__is_node__:
-                self: "Node"
-                if not self._is_new:
+                if not cast("Node", self)._is_new:
+                    session = cast("Node", self)._session
+                    assert session
                     if self._updated_properties is None:
                         self._updated_properties = bitarray(self.__max_property_ord__ + 1)
                     for prop in properties:
                         self._updated_properties[prop.ord] = True
-                        self._session.update(self, properties=properties)
+                        session.update(cast("Node", self), properties=properties)
             else:  # is struct
+                # will need to deal with Value parents eventually...
+                assert isinstance(self.parent, Struct), f"unexpected parent: {self.parent!r}"
                 if self.parent is not None:
                     self.parent._updated_inner(properties)
 
-    _init_self = _make_self_method(_ComponentMethod.init, _init_inner)
-    _clear_self = _make_self_method(_ComponentMethod.clear, _clear_inner, InterpStatus.SOURCE)
-    _interp_self = _make_self_method(_ComponentMethod.interp, _interp_inner, InterpStatus.INTERPED)
-    _visit_self = _make_self_method(_ComponentMethod.visit, _visit_inner)
-    _validate_self = _make_self_method(_ComponentMethod.validate, _validate_inner)
-    _updated_self = _make_self_method(_ComponentMethod.updated, _updated_inner)
+    def _init_self(self):
+        for meth in _get_component_methods(
+            self._components, _ComponentMethod.init, self._instance_cache_key
+        ):
+            meth(self)
+
+    def _clear_self(self, scope: Optional["Node"] = None):
+        for meth in _get_component_methods(
+            self._components, _ComponentMethod.clear, self._instance_cache_key
+        ):
+            meth(self, scope)
+        self._status = InterpStatus.SOURCE
+
+    def _interp_self(self, scope: "Node", on_notice: "NoticeHandler"):
+        for meth in _get_component_methods(
+            self._components, _ComponentMethod.interp, self._instance_cache_key
+        ):
+            meth(self, scope, on_notice)
+        self._status = InterpStatus.INTERPED
+
+    def _visit_self(self, visitor: "NodeVisitor"):
+        for meth in _get_component_methods(
+            self._components, _ComponentMethod.visit, self._instance_cache_key
+        ):
+            meth(self, visitor)
+
+    def _validate_self(
+        self, properties: Collection[Property], on_invalid: "ValidationHandler"
+    ) -> None:
+        for meth in _get_component_methods(
+            self._components, _ComponentMethod.validate, self._instance_cache_key
+        ):
+            meth(self, properties, on_invalid)
+
+    def _updated_self(self, properties: Collection[Property]) -> None:
+        for meth in _get_component_methods(
+            self._components, _ComponentMethod.updated, self._instance_cache_key
+        ):
+            meth(self, properties)
 
     def _walk_self(self) -> Iterable["Struct"]:
         yield self
@@ -1283,41 +1306,25 @@ class Struct(abc.ABC):
         rec_method.__name__ = method.rec
         return rec_method
 
-    _clear_rec = _make_rec_method(_ComponentMethod.clear, _clear_self)
-    _interp_rec = _make_rec_method(_ComponentMethod.interp, _interp_self)
-    _validate_rec = _make_rec_method(_ComponentMethod.validate, _validate_self)
-    _visit_rec = _make_rec_method(_ComponentMethod.visit, _visit_self)
+    def _clear_rec(self, scope: Optional["Node"] = None):
+        for inner_struct in self._walk_self():
+            inner_struct._clear_self(scope)
+
+    def _interp_rec(self, scope: "Node", on_notice: "NoticeHandler"):
+        for inner_struct in self._walk_self():
+            inner_struct._interp_self(scope, on_notice)
+
+    def _validate_rec(
+        self, properties: tuple[Property, ...], on_invalid: "ValidationHandler"
+    ) -> None:
+        for inner_struct in self._walk_self():
+            inner_struct._validate_self(properties, on_invalid)
 
     def _to_data(self) -> AnyNodeData | AnyStructData:
         """Convert to wire format"""
         from bench.proto.wiring import pack_struct
 
         return pack_struct(self)
-
-
-def _make_rec_method(
-    method: _ComponentMethod, wraps, custom_kwargs: Callable[["Node"], dict] = None
-):
-    """Creates method that calls _method_self for self and all descendants"""
-
-    @functools.wraps(wraps)
-    def rec_method(self: "Node", *args, **kwargs):
-        # graph has only host and inlined nodes, so this ignores out-of-line descendants (like records)
-        descendants = self._root_graph.collect_descendants(self, recursive=True)
-        method_name = method.self
-        if custom_kwargs:
-            for node in descendants:
-                node_kwargs = custom_kwargs(node)
-                getattr(node, method_name)(*args, **kwargs, **node_kwargs)
-            node_kwargs = custom_kwargs(self)
-            getattr(self, method_name)(*args, **kwargs, **node_kwargs)
-        else:
-            for node in descendants:
-                getattr(node, method_name)(*args, **kwargs)
-            getattr(self, method_name)(*args, **kwargs)
-
-    rec_method.__name__ = method.rec
-    return rec_method
 
 
 @node_component()
@@ -1333,7 +1340,7 @@ class Node(Struct, _NodeQueryBuilder if TYPE_CHECKING else object):
     __static_components__: ClassVar[tuple[type["Node"], ...]] = ()  # type: ignore
     __dynamic_components__: ClassVar[tuple[type["Node"], ...]] = ()  # type: ignore
     __identifier_type__: ClassVar[IdentifierType] = IdentifierType.VARIABLE
-    __id_factory__: ClassVar[Callable[[], UUID]] = None
+    __id_factory__: ClassVar[Callable[[], UUID]] = new_node_id
 
     __ancestor_properties__: ClassVar[dict[str, Property]] = {}
     __node_list_properties__: ClassVar[dict[str, Property]] = {}
@@ -1351,7 +1358,7 @@ class Node(Struct, _NodeQueryBuilder if TYPE_CHECKING else object):
     __is_local__: ClassVar[bool] = False  # stored in Bench-local DB (instead of global Bench DB)
     __extra_indexes__: ClassVar[tuple[Index, ...]] = ()  # extra indexes for PG
     __extra_constraints__: ClassVar[tuple[Constraint, ...]] = ()  # extra constraints for PG
-    __table__: ClassVar[Table] = None  # if stored regularly, set after finalization
+    __table__: ClassVar[Table | None] = None  # if stored regularly, set after finalization
 
     # 1-9: reserved for node identity
     # NOTE: some node identity props (ck/package/bench/etc.) only exist sometimes :MagicProps
@@ -1359,13 +1366,16 @@ class Node(Struct, _NodeQueryBuilder if TYPE_CHECKING else object):
     ck: UUID = p_system(3, default=None, require=True, autoset=True)
     parent: Optional["Node"] = p_node_parent(4)  # type: ignore
     if TYPE_CHECKING:
-        parent_id: Optional[UUID]
-        parent_ptr: Optional[NodeReference]
+        parent_id: Optional[UUID] = None
+        parent_ptr: Optional[NodeReference] = None
     # template: Optional["Node"] = node_template(5)
     package: "Package" = p_node_ancestor(
         6, NodeType.PACKAGE, require=True, store=True, wire=True, is_bench_implicit=True
     )
     bench: "Bench" = p_node_ancestor(7, NodeType.BENCH, require=True, store=True, wire=True)
+    if TYPE_CHECKING:
+        package_id: Optional[UUID] = None
+        bench_id: Optional[UUID] = None
     source: NodeSource = p_system(8, default=NodeSource.STORE, store=False, wire=True, require=True)
 
     # 10-29: reserved for node tracking
@@ -1413,7 +1423,7 @@ class Node(Struct, _NodeQueryBuilder if TYPE_CHECKING else object):
     _is_new: bool = p_runtime(default=False)
 
     def __post_init__(self):
-        # init ck/id/timestamps
+        # init ck/id
         if self.__is_sub_package__:
             if self.ck is None:
                 self.ck = self.__class__.__id_factory__()
@@ -1423,6 +1433,7 @@ class Node(Struct, _NodeQueryBuilder if TYPE_CHECKING else object):
         elif self.id is None:
             self.id = self.__class__.__id_factory__()
             self._is_new = True
+        # init timestamps
         if self.created_at is None:
             now = utcnow_with_tz()
             self.created_at = now
@@ -1474,13 +1485,6 @@ class Node(Struct, _NodeQueryBuilder if TYPE_CHECKING else object):
         graph = root._graph
         assert graph is not None, f"no graph for root {root!r} (from {self!r})"
         return graph
-
-    def _apply_edits(self, edits: Collection[EditData]):
-        """Applies the edits to this root node."""
-        assert self._graph is not None, f"no graph for {self!r}"
-        edit_graph(self._graph, edits, update_nodes_in_place=True)
-        if self._data_graph is not None:
-            edit_data_graph(self._data_graph, edits, update_nodes_in_place=True)
 
     @final
     def __str__(self):  # noqa
@@ -1542,7 +1546,7 @@ class Node(Struct, _NodeQueryBuilder if TYPE_CHECKING else object):
         return getattr(self, "name", None)
 
     @property
-    def bench_path_ident(self) -> Optional[str]:
+    def bench_path_key(self) -> Optional[str]:
         """The Bench *path* identifier of this node (prefers bench_ident, ck/id filter otherwise)"""
         bench_ident = self.bench_ident
         if bench_ident is not None:
@@ -1569,28 +1573,35 @@ class Node(Struct, _NodeQueryBuilder if TYPE_CHECKING else object):
     @property
     def absolute_path(self) -> str:
         if self.__parent_property__ is None or not self.__parent_property__.reference_nodes:
-            return self.bench_ident
+            ident = self.bench_ident
+            assert ident is not None, f"no bench ident for {self!r}"
+            return ident
         elif self.parent is None:
-            return f"<detached>/{self.bench_path_ident}"
+            return f"<detached>/{self.bench_path_key}"
         else:
             path_segments: list[str] = []
             current = self
             while True:
                 # skip bench (same path as pkg)
-                path_segments.append(current.bench_path_ident)
+                path_key = current.bench_path_key
+                assert path_key is not None, f"no path key for {current!r}"
+                path_segments.append(path_key)
                 next_parent = current.parent
                 has_next = next_parent is not None and (
                     not self.__is_in_package__ or next_parent.metatype != NodeType.BENCH
                 )
                 if not has_next:
                     break
-                if current.metatype == NodeType.FIELD:
+                elif current.metatype == NodeType.FIELD:
                     path_segments.append(".")
-                elif current.metatype != NodeType.BLOCK and next_parent.metatype == NodeType.BLOCK:
+                elif (
+                    current.metatype != NodeType.BLOCK
+                    and cast(Node, next_parent).metatype == NodeType.BLOCK
+                ):
                     path_segments.append(":")
                 else:
                     path_segments.append("/")
-                current = next_parent
+                current = cast(Node, next_parent)
 
             path_segments.reverse()
             path = "".join(path_segments)
@@ -1641,7 +1652,7 @@ class Node(Struct, _NodeQueryBuilder if TYPE_CHECKING else object):
         parent: "Node",
         after: Optional["Node"],
         before: Optional["Node"],
-        order_key: str = None,
+        order_key: str | None = None,
     ):
         raise NotImplementedError
 
@@ -1661,15 +1672,16 @@ class Node(Struct, _NodeQueryBuilder if TYPE_CHECKING else object):
 
     def _on_notice(
         self,
-        subject: "Node",
+        subject: "Struct",
         type: "NoticeType",
-        message: Optional[str] = None,
-        path: Optional["Path"] = None,
-        properties: Optional[list[Property] | tuple[Property, ...]] = None,
+        message: Optional[str],
+        path: Optional["Path"],
+        properties: Optional[Collection[Property] | Collection[Any]],
     ) -> None:
-        subject.notices.create(
-            type=type, message=message, path=path, properties=properties, source=NodeSource.INTERP
-        )
+        pass  # TODO :Incomplete: Notices
+        # subject.notices.create(
+        #     type=type, message=message, path=path, properties=properties, source=NodeSource.INTERP
+        # )
 
     def _to_data_wrapped(self) -> SomeNodeData:
         """To wire format, wrapped in the generic any node container."""
@@ -1738,6 +1750,7 @@ class Node(Struct, _NodeQueryBuilder if TYPE_CHECKING else object):
         existing_lists: dict[str, Any] | None = None
         for name, prop in self.__node_list_properties__.items():
             existing = getattr(self, name, None)
+            assert prop.reference_list_type is not None
             node_list = prop.reference_list_type(self, prop)
             setattr(self, name, node_list)
             if existing and not isinstance(existing, NodeList):
@@ -1766,13 +1779,38 @@ class Node(Struct, _NodeQueryBuilder if TYPE_CHECKING else object):
         ):
             self._validate_self(self.__tracked_properties__.values(), on_invalid=on_invalid_raise)
 
-    _clear_self = _make_self_method(_ComponentMethod.clear, _clear_inner, InterpStatus.SOURCE)
-    _interp_self = _make_self_method(_ComponentMethod.interp, _interp_inner, InterpStatus.INTERPED)
-    _track_self = _make_self_method(_ComponentMethod.track, _track_inner)
-    _untrack_self = _make_self_method(
-        _ComponentMethod.untrack, _untrack_inner, InterpStatus.INTERPED
-    )
-    _visit_self = _make_self_method(_ComponentMethod.visit, Struct._visit_inner)
+    def _clear_self(self, scope: Optional["Node"] = None):
+        for meth in _get_component_methods(
+            self._components, _ComponentMethod.clear, self._instance_cache_key
+        ):
+            meth(self, scope)
+        self._status = InterpStatus.SOURCE
+
+    def _interp_self(self, scope: "Node", on_notice: "NoticeHandler"):
+        for meth in _get_component_methods(
+            self._components, _ComponentMethod.interp, self._instance_cache_key
+        ):
+            meth(self, scope, on_notice)
+        self._status = InterpStatus.INTERPED
+
+    def _track_self(self, session: "Session"):
+        for meth in _get_component_methods(
+            self._components, _ComponentMethod.track, self._instance_cache_key
+        ):
+            meth(self, session)
+
+    def _untrack_self(self):
+        for meth in _get_component_methods(
+            self._components, _ComponentMethod.untrack, self._instance_cache_key
+        ):
+            meth(self)
+        self._status = InterpStatus.INTERPED
+
+    def _visit_self(self, visitor: "NodeVisitor"):
+        for meth in _get_component_methods(
+            self._components, _ComponentMethod.visit, self._instance_cache_key
+        ):
+            meth(self, visitor)
 
     def _walk_rec(self) -> Iterable["Node"]:
         yield self

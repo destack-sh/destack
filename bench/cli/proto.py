@@ -10,7 +10,7 @@ import typer
 
 from bench.cli.utils import _shell
 from bench.language import VERSION, Node
-from bench.language.const import ENUM_TYPES, NODE_TYPES, STRUCT_TYPES, UNSET, StructType
+from bench.language.const import ENUM_TYPES, NODE_TYPES, STRUCT_TYPES, UNSET
 from bench.language.property import Property
 from bench.language.setup import (
     ANCESTOR_NODE_TYPES,

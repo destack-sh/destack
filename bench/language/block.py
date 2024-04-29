@@ -208,10 +208,13 @@ class Block(Node, HasValues):
         self, properties: Collection["Property"], on_invalid: "ValidationHandler"
     ) -> None:
         if self.type == BlockType.PAGE and not self.is_page:
-            on_invalid(self, "type=Page must have is_page=True", (Block.type, Block.is_page))
+            on_invalid(self, "type=Page must have is_page=True", (Block.type, Block.is_page), None)
         elif self.type == BlockType.PROTOCOL and not self.is_protocol:
             on_invalid(
-                self, "type=Protocol must have is_protocol=True", (Block.type, Block.is_protocol)
+                self,
+                "type=Protocol must have is_protocol=True",
+                (Block.type, Block.is_protocol),
+                None,
             )
 
     @property
@@ -235,7 +238,9 @@ class Block(Node, HasValues):
         if is_paused:
             if self.paused_at is None:
                 pausing_ancestor = self.parent
-                while pausing_ancestor is not None and pausing_ancestor.paused_at is None:
+                while pausing_ancestor is not None and not getattr(
+                    pausing_ancestor, "paused_at", None
+                ):
                     pausing_ancestor = pausing_ancestor.parent
                 raise ValueError(f"{self!r} is not paused but its ancestor {pausing_ancestor!r} is")
             self.paused_at = None

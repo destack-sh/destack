@@ -722,6 +722,10 @@ class ConditionalOp(IdEnum):
     # vector
     NEAR = 50
 
+    @property
+    def kind(self) -> "ExpressionKind":
+        return ExpressionKind.CONDITIONAL
+
 
 @enum_(EnumType.AGGREGATION_OP)
 class AggregationOp(IdEnum):
@@ -734,11 +738,19 @@ class AggregationOp(IdEnum):
     MEDIAN = 106
     HISTOGRAM = 107
 
+    @property
+    def kind(self) -> "ExpressionKind":
+        return ExpressionKind.AGGREGATION
+
 
 @enum_(EnumType.SORT_OP)
 class SortOp(IdEnum):
     ASCENDING = 200
     DESCENDING = 201
+
+    @property
+    def kind(self) -> "ExpressionKind":
+        return ExpressionKind.SORT
 
 
 @enum_(EnumType.SORT_MODE)
@@ -750,10 +762,20 @@ class SortMode(IdEnum):
     MEDIAN = 5
 
 
+EXPRESSION_OPS_BY_KIND: dict[ExpressionKind, bytetuple["ExpressionOp"]] = {
+    ExpressionKind.CONDITIONAL: bytetuple(*ConditionalOp),
+    ExpressionKind.AGGREGATION: bytetuple(*AggregationOp),
+    ExpressionKind.SORT: bytetuple(*SortOp),
+}
+EXPRESSION_KIND_BY_OP: dict["ExpressionOp", ExpressionKind] = {
+    op: kind for kind, ops in EXPRESSION_OPS_BY_KIND.items() for op in ops
+}
+
 if typing.TYPE_CHECKING:
     ExpressionOp = ConditionalOp | AggregationOp | SortOp
 else:
     ExpressionOp = IdEnum.combine("ExpressionOp", ConditionalOp, AggregationOp, SortOp)
+    ExpressionOp.kind = property(lambda self: EXPRESSION_KIND_BY_OP[self])
 
 
 @enum_(EnumType.USER_STATUS)

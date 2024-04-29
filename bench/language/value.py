@@ -1,5 +1,5 @@
 from dataclasses import dataclass
-from typing import TYPE_CHECKING, Any, Callable, Collection, Iterable, Optional, Union
+from typing import TYPE_CHECKING, Any, Collection, Iterable, Optional, Union
 
 import structlog
 
@@ -7,7 +7,7 @@ from bench.language.const import NodeType, StructType
 from bench.language.node import InterpStatus, Node, Property, Struct, struct, struct_component
 from bench.language.notice import NoticeHandler
 from bench.language.property import p_internal
-from bench.language.validation import ValidationHandler, on_invalid_raise
+from bench.language.validation import ValidationHandler
 
 if TYPE_CHECKING:
     from bench.language import Bench, Block, Branch, Environment, NodeVisitor, Package, Session

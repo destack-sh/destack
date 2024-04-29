@@ -1,5 +1,5 @@
 import typing
-from typing import Any, Collection, Optional, Union, cast
+from typing import TYPE_CHECKING, Any, Collection, Optional, Union, cast
 
 import structlog
 
@@ -27,6 +27,7 @@ from bench.language.property import (
 )
 from bench.language.validation import ValidationHandler, validate_name
 from bench.language.value import HasValues
+from bench.proto.wire import NodeReferenceData
 from bench.sql.core import PrimitiveType
 from bench.utils.casing import IdentifierType
 from bench.utils.fractional import INTEGER_ZERO
@@ -124,6 +125,8 @@ class TypeInfoBase(HasValues):
     base_type: Optional["Block"] = p_regular(
         42, array=False, require=False, default=None, references=NodeType.BLOCK
     )
+    if TYPE_CHECKING:
+        base_type_ptr: Optional[NodeReferenceData] = None
 
     # + bonus info/constraints
     visibility: Optional[NodeVisibility] = p_regular(50, default=None)
@@ -186,7 +189,7 @@ class TypeInfoBase(HasValues):
         self, properties: Collection[Property], on_invalid: "ValidationHandler"
     ) -> None:
         if self.primitive_type is None and self.bench_type is None and self.base_type_ptr is None:
-            on_invalid(self, "missing type identity")
+            on_invalid(self, "missing type identity", None, None)
 
     @property
     def identity_key(self) -> str:
@@ -271,7 +274,8 @@ class Field(Node, TypeInfoBase, _TypeQueryBuilder):
             info_str += f" ({', '.join(flags)})"
         return info_str
 
-    def _as_type(self) -> "TypeInfo":
+    @property
+    def as_type(self) -> "TypeInfo":
         assert self._resolved_type, f"{self!r} is not resolved"
         return self._resolved_type
 

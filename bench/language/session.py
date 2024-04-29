@@ -1,13 +1,11 @@
 import asyncio
-import sys
 import threading
-import traceback
 from collections import deque
 from concurrent.futures import ThreadPoolExecutor
 from contextvars import ContextVar
 from datetime import datetime
-from typing import TYPE_CHECKING, Any, Callable, Collection, Optional, Union, cast
-from uuid import UUID, uuid4
+from typing import TYPE_CHECKING, Any, Collection, Optional, Union, cast
+from uuid import UUID
 
 import structlog
 from asgiref.sync import async_to_sync, sync_to_async
@@ -187,8 +185,6 @@ class Session(Node):
     _cached_logs: deque[Log] | None = p_runtime(default=None)
     _pending_logs: list[Log] | None = p_runtime(default=None)
     _flush_session_loop: asyncio.Task | None = p_runtime(default=None)
-    _stdout_collector: Optional["LogCollector"] = p_runtime(default=None)
-    _stderr_collector: Optional["LogCollector"] = p_runtime(default=None)
 
     def __content_str__(self):
         if self.closed_at:
@@ -249,18 +245,6 @@ class Session(Node):
             # log collection
             self._pending_logs = []
             self._cached_logs = deque(maxlen=LOG_CACHE_SIZE)
-            self._stdout_collector = LogCollector(self._track_log, "stdout", self)
-            self._stderr_collector = LogCollector(self._track_log, "stderr", self)
-            self._stdout_collector.start()
-            self._stderr_collector.start()
-
-            # auto-flush session/runs/etc.
-            async def _flush_session_loop():
-                while True:
-                    await asyncio.sleep(session_flush_interval)
-                    await self.flush_session()
-
-            self._flush_session_loop = asyncio.create_task(_flush_session_loop())
             self._runs_by_id = {}
             self._pending_runs_by_id = {}
             self._active_nodes_by_ck = {}
@@ -291,6 +275,7 @@ class Session(Node):
     @_auto_async_to_sync
     async def close(self):
         """Closes the session, rolling back uncommitted edits. Prevents further runs/edits."""
+        assert self.opened_at is not None, f"session not open {self!r}"
         if self.closed_at is not None:
             raise RuntimeError(f"session already closed {self}")
 
@@ -304,9 +289,7 @@ class Session(Node):
         _active_session.set(None)
 
         # close runtime
-        if self.is_runtime:
-            self._stdout_collector.stop()
-            self._stderr_collector.stop()
+        if self._flush_session_loop is not None:
             self._flush_session_loop.cancel()
         logger.trace("session.close", duration=self.duration)
 
@@ -334,12 +317,12 @@ class Session(Node):
 
     def untrack(self, node: Node):
         """Stop tracking the node in this session."""
-        node._untrack_self(self)
+        node._untrack_self()
 
     def untrack_many(self, *nodes: Node):
         """Stop tracking the nodes in this session."""
         for n in nodes:
-            n._untrack_self(self)
+            n._untrack_self()
 
     #
     # Transaction
@@ -364,7 +347,7 @@ class Session(Node):
         for n in nodes:
             self._tx.upsert(n, self._edit_subject)
 
-    def update(self, *nodes: Node, properties: tuple[Property, ...]):
+    def update(self, *nodes: Node, properties: Collection[Property]):
         """Updates an existing node. Cannot move. The given properties are overwritten."""
         assert self._tx is not None, f"no active transaction in {self!r}"
         for n in nodes:
@@ -392,7 +375,6 @@ class Session(Node):
         """Marks a node as archived, so it will be hidden by default."""
         assert self._tx is not None, f"no active transaction in {self!r}"
         for n in nodes:
-            self._check_not_active(n)
             self._tx.archive(n, self._edit_subject)
 
     def unarchive(self, *nodes: Node):
@@ -405,14 +387,7 @@ class Session(Node):
         """Irreversibly deletes a node."""
         assert self._tx is not None, f"no active transaction in {self!r}"
         for n in nodes:
-            self._check_not_active(n)
             self._tx.delete(n, self._edit_subject)
-
-    def _check_not_active(self, n: Node):
-        """Checks if the node or any of its ancestors are active."""
-        if n.ck in self._active_nodes_by_ck:
-            block = self._active_nodes_by_ck[n.ck]
-            raise RuntimeError(f"cannot delete ancestor {n!r} of running block: {block!r}")
 
     #
     # Stack: runs/logs
@@ -421,128 +396,6 @@ class Session(Node):
     @property
     def stacktrace(self):
         return self._stacktrace
-
-    def _track_run(self, run: "Run"):
-        # replace if already exists by id (runs are updated)
-        self._runs_by_id[run.id] = run
-        self._pending_runs_by_id[run.id] = run
-
-    def _track_log(self, log: Log):
-        self._pending_logs.append(log)
-        self._cached_logs.append(log)
-
-    def _pop_stacktrace(self) -> "Run":
-        run = self._stacktrace.pop()
-        self._update_stacktrace_ancestors()
-        # update cached info in parent(s)
-        if run.value.cached_at is not None:
-            self._update_cached_info()
-        return run
-
-    def _update_stacktrace_ancestors(self):
-        """Maintains the stacktrace ancestors cache (using the current traced stacktrace)."""
-        self._active_nodes_by_ck.clear()
-        for run in self._stacktrace:
-            parent = run.block
-            while parent is not None and parent.ck not in self._active_nodes_by_ck:
-                self._active_nodes_by_ck[parent.ck] = run.block
-                parent = parent.parent
-
-    def _run_enter(self, block: "Block", inputs):
-        # we set invalid values to none here unlike in other packing places because
-        #  these values may be written even if invalid
-        from bench.language.value import check_type, pack_value
-
-        assert not self.session.closed_at, f"cannot run {block!r} in session {self.session!r}"
-
-        run = self._create_run(
-            block=block,
-            inputs=pack_value(inputs, block, is_output=False, none_if_invalid=True),
-        )
-        with self._runtime_tracing_lock:
-            self._stacktrace.append(run)
-            self._update_stacktrace_ancestors()
-            _set_active_run(run)
-            self._track_run(run)  # tracker may mutate/do other things, so log after it's run
-        logger.debug("trace.run.enter", run=run, stackdepth=len(self._stacktrace))
-
-        # pre-run validation
-        try:
-            if len(self.stacktrace) >= MAX_STACK_DEPTH:
-                raise RecursionError(f"maximum stack depth exceeded: {MAX_STACK_DEPTH}")
-            check_type(inputs, block, is_output=False)
-        except BaseException as e:
-            self._run_exception(block, e)
-            raise e
-
-    def _run_exit(self, block: "Block", outputs):
-        from bench.language.value import check_type
-
-        assert not self.session.closed_at, f"cannot run {block!r} in session {self.session!r}"
-
-        # post-run validation
-        try:
-            check_type(outputs, block, is_output=True)
-        except BaseException as e:
-            self._run_exception(block, e)
-            raise e
-
-        with self._runtime_tracing_lock:
-            run = self._pop_stacktrace()
-            assert run.block == block, f"bad stack in {self!r}: {run!r} got {block!r}"
-            run.terminated_at = utcnow_with_tz()
-            run.outputs_packed = _pack_and_truncate_value(
-                outputs, block, is_output=True, none_if_invalid=True
-            )
-            run.status = RunStatus.COMPLETED
-            self._track_run(run)
-            _clear_active_run(run)
-        logger.debug("trace.run.exit", run=run, stackdepth=len(self.stacktrace))
-
-    def _run_exception(self, block: "Block", exception: BaseException):
-        assert not self.session.closed_at, f"cannot run {block!r} in session {self.session!r}"
-        with self._runtime_tracing_lock:
-            run = self._pop_stacktrace()
-            assert run.block == block, f"bad stack in {self!r}: {run!r} got {block!r}"
-            run.terminated_at = utcnow_with_tz()
-            run.error = RunError.from_exception(exception, block)
-            if isinstance(exception, asyncio.CancelledError):
-                run.status = RunStatus.ABORTED
-            else:
-                run.status = RunStatus.FAILED
-            self._track_run(run)
-            _clear_active_run(run)
-        logger.debug("trace.run.exception", run=run, stackdepth=len(self.stacktrace))
-
-    def _run_cached(
-        self,
-        block: "Block",
-        inputs,
-        outputs,
-        generated_at: datetime,
-        generated_in: UUID,
-        duration: float,
-    ):
-        assert not self.session.closed_at, f"cannot run {block!r} in session {self.session!r}"
-        run = self._create_run(block=block, trace=True)
-        run.terminated_at = utcnow_with_tz()
-        run.inputs_packed = _pack_and_truncate_value(
-            inputs, block, is_output=False, none_if_invalid=True
-        )
-        run.outputs_packed = _pack_and_truncate_value(
-            outputs, block, is_output=True, none_if_invalid=True
-        )
-        run.status = RunStatus.COMPLETED
-        run.value.cached_at = generated_at
-        run.value.cached_in = generated_in
-        run.value.cached_duration = duration
-        custom_value = _custom_value.get()
-        for k, v in (custom_value or {}).items():
-            run.value[k] = v
-        with self._runtime_tracing_lock:
-            self._track_run(run)
-            self._update_cached_info()
-        logger.debug("trace.run.cached", run=run, stackdepth=len(self.stacktrace))
 
     # TODO :Broken: track sessions/runs (and signals/logs)
     #  what should session nodes be scoped to? what parent?
@@ -611,43 +464,6 @@ class Run(HasBase, HasValues):
 
 _active_root_run: ContextVar[Run | None] = ContextVar("active_root_run", default=None)
 _active_run_by_root: dict[UUID, Run] = {}
-_custom_value: ContextVar[dict[str, Any] | None] = ContextVar("custom_value", default=None)
-
-
-def _get_active_run() -> Run | None:
-    root = _active_root_run.get()
-    if root is not None:
-        return _active_run_by_root[root.id]
-    return None
-
-
-def _clear_active_run(run: Run):
-    root = run.root or run
-    if root.id in _active_run_by_root:
-        if run.parent is None:
-            del _active_run_by_root[root.id]
-        else:
-            _active_run_by_root[root.id] = run.parent
-    if _active_root_run.get() == run:
-        _active_root_run.set(None)
-
-
-def _set_active_run(run: Run):
-    root = run.root or run
-    _active_run_by_root[root.id] = run
-    if _active_root_run.get() is None:
-        _active_root_run.set(root)
-
-
-def _pack_and_truncate_value(
-    value: Any,
-    type: "Block",
-    ignore_array: bool = False,
-    ignore_outer: bool = False,
-    none_if_invalid: bool = False,
-    is_output: bool = None,
-) -> Any:
-    raise NotImplementedError
 
 
 @node_component()
@@ -702,24 +518,6 @@ class RunError(Struct, BenchError):
     node: Optional["Node"] = p_internal(33, require=False, array=False, references=NodeType.BLOCK)
     traceback: list[RunCodeFrame] = p_internal(34, array=True, struct=StructType.RUN_CODE_FRAME)
 
-    @staticmethod
-    def from_exception(e: BaseException, block: Optional["Block"]) -> "RunError":
-        if isinstance(e, RunError):
-            return e
-        stack = RunCodeFrame.from_stack(traceback.extract_tb(e.__traceback__))
-        stack = RunCodeFrame.clean(stack, block, block.session)
-        if isinstance(e, SyntaxError):  # ignore (..., line x) because it's not useful
-            err_str = e.msg
-        else:
-            err_str = str(e)
-        return RunError(
-            kind=RunErrorKind.RUNTIME,
-            type=type(e).__name__,
-            message=err_str,
-            block=block,
-            traceback=stack,
-        )
-
 
 @node(NodeType.PAUSE, local=True)
 class Pause(Node):
@@ -730,95 +528,6 @@ class Pause(Node):
         30, NodeType.SESSION, require=True, store=True, wire=True, index_in_pg=True
     )
     # (placeholder)
-
-
-#
-# Log collection
-# (will obviously move out soon)
-# TODO :Performance!: revamp contextual stdout/stderr capture
-
-stderr_track: ContextVar[Callable[[str], None] | None] = ContextVar("stderr_track", default=None)
-stdout_track: ContextVar[Callable[[str], None] | None] = ContextVar("stdout_track", default=None)
-
-
-class _ContextRedirectedStream:
-    """Redirect stdout/stderr for dual-writing to context-specific track functions."""
-
-    def __init__(self, native, contextvar: ContextVar[Callable[[str], None]]):
-        self.native = native
-        self.contextvar = contextvar
-        self._just_saw_newline = False
-
-    def write(self, data: str) -> int:
-        ret = self.native.write(data)
-        track = self.contextvar.get()
-        if track and (data != "\n" or self._just_saw_newline):
-            # TODO :Robustness: figure out better way of collecting stdout/stderr
-            #  This is very hacky because we don't know who called print and want to skip
-            #  some of our own log messages. Unfortunately we can't just trivially
-            #  provide a custom 'print' since many libraries use the real 'print' internally (?)
-            if not ("[debug" in data or "[info" in data):
-                track(data)
-        self._just_saw_newline = data == "\n"
-        return ret
-
-    def flush(self) -> None:
-        self.native.flush()
-
-
-def _redirect_std_streams_if_needed():
-    """Redirect stdout/stderr to the current context's track functions if they are set."""
-    if not isinstance(sys.stdout, _ContextRedirectedStream):
-        sys.stdout = _ContextRedirectedStream(sys.stdout, stdout_track)
-    if not isinstance(sys.stderr, _ContextRedirectedStream):
-        sys.stderr = _ContextRedirectedStream(sys.stderr, stderr_track)
-
-
-class LogCollector:
-    def __init__(self, track: Callable[[Log], None], stream: str, session: "Session"):
-        self.track = track
-        self.session = session
-        self.stream = stream
-        self.package_id = session.package.id
-
-    def _track(self, message: str) -> None:
-        active_run = _get_active_run()
-        if active_run:
-            block = active_run.block
-            run = active_run
-        else:
-            block = None
-            run = None
-        package = self.session.package
-        log_entry = Log(
-            id=uuid4(),
-            bench_id=package.bench_id,
-            package=package,
-            created_at=utcnow_with_tz(),
-            stream=self.stream,
-            session=self.session,
-            block=block,
-            run=run,
-            message=message,
-        )
-        self.track(log_entry)
-
-    def start(self):
-        _redirect_std_streams_if_needed()
-        if self.stream == "stderr":
-            stderr_track.set(self._track)
-        elif self.stream == "stdout":
-            stdout_track.set(self._track)
-        else:
-            raise ValueError(f"invalid stream: {self.stream}")
-
-    def stop(self):
-        if self.stream == "stderr":
-            stderr_track.set(None)
-        elif self.stream == "stdout":
-            stdout_track.set(None)
-        else:
-            raise ValueError(f"invalid stream: {self.stream}")
 
 
 LOG_CACHE_SIZE = 1000

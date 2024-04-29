@@ -1,7 +1,6 @@
 import itertools
 import types
 import typing
-from dataclasses import dataclass
 from typing import Any, Optional
 
 import more_itertools

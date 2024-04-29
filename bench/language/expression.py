@@ -1,6 +1,6 @@
 import functools
 import re
-from typing import TYPE_CHECKING, Any, Optional, TypeVar, Union, cast
+from typing import TYPE_CHECKING, Any, Generic, Optional, TypeVar, Union, cast
 from uuid import UUID
 
 from bench.language.const import (
@@ -33,7 +33,7 @@ if TYPE_CHECKING:
     from bench.language import Block, Field, Path, TypeInfo
     from bench.language.query import QueryBuilder
 
-# pyright: reportIncompatibleVariableOverride=false
+# pyright: reportIncompatibleVariableOverride=false,reportIncompatibleMethodOverride=false
 
 #
 # Expression language. Primarily for package, search and storage (database).
@@ -105,14 +105,14 @@ class NodeReference(Struct):
         self, properties: tuple[Property, ...], on_invalid: "ValidationHandler"
     ) -> None:
         if self.id is None:
-            on_invalid(self, "id is required", (NodeReference.id,))
+            on_invalid(self, "id is required", (NodeReference.id,), None)
         if self.type in SUB_BENCH_NODE_TYPES and self.bench_id is None:
-            on_invalid(self, "bench_id is required", (NodeReference.bench_id,))
+            on_invalid(self, "bench_id is required", (NodeReference.bench_id,), None)
         if self.type in BASED_NODE_TYPES and self.base_ck is None:
-            on_invalid(self, "base_ck is required", (NodeReference.base_ck,))
+            on_invalid(self, "base_ck is required", (NodeReference.base_ck,), None)
 
     @staticmethod
-    def from_node(node: Node) -> "NodeReference":
+    def from_node(node: Node) -> "NodeReference":  # type: ignore
         assert isinstance(node, Node), f"expected Node, got {node!r}"
         reference = NodeReference(type=node.metatype, id=node.id)
 
@@ -126,9 +126,10 @@ class NodeReference(Struct):
             reference.ck = node.ck
         # base
         if node.metatype in BASED_NODE_TYPES:
-            node: HasBase
-            reference.base_ck = getattr(node.base, "ck")
-            reference.base_bench_id = node.base.bench_id
+            base = cast(HasBase, node).base
+            if base is not None:
+                reference.base_ck = base.ck
+                reference.base_bench_id = base.bench_id
 
         return reference
 
@@ -136,7 +137,7 @@ class NodeReference(Struct):
     def from_node_data(node_data: AnyNodeData) -> "NodeReferenceData":
         from bench.proto import wire
 
-        node_cls = BENCH_CLASS_BY_TYPE[node_data.metatype]
+        node_cls = BENCH_CLASS_BY_TYPE[cast(ObjectType, node_data.metatype)]
         reference = NodeReferenceData(
             metatype=wire.ObjectType.NODE_REFERENCE,
             type=cast(wire.NodeType, node_data.metatype),
@@ -150,11 +151,10 @@ class NodeReference(Struct):
             reference.bench_id = node_data.parent_ptr.bench_id
         # ck
         if "ck" in node_cls.__properties__:
-            node_cls: type[HasBase]
             reference.ck = getattr(node_data, "ck")
         # base
         if NodeType(node_data.metatype) in BASED_NODE_TYPES:
-            base = node_cls.get_base_from_data(node_data)
+            base = cast(HasBase, node_cls).get_base_from_data(node_data)
             if base is not None:
                 reference.base_ck = base.ck
                 reference.base_bench_id = base.bench_id
@@ -190,10 +190,7 @@ class ValueReference(Struct):
     path: "Path" = p_regular(31, require=True, struct=StructType.PATH)
 
     def __content_str__(self):
-        if self.node is not None:
-            return f"{self.node.absolute_path}.{self.path.__content_str__()}"
-        else:
-            return f"<detached>:{self.path.__content_str__()}"
+        return f"@{self.path}" if self.path is not None else "@???"
 
 
 @enum_(EnumType.SELECTION_KIND)
@@ -451,7 +448,7 @@ def coerce_conditional(
             field, property = None, target
         else:
             field, property = target, None
-        _check_type_supports(target._as_type, op)
+        _check_type_supports(target.as_type, op)
         if value is None:
             if op == ConditionalOp.EQUALS:
                 op = ConditionalOp.NOT_EXISTS
@@ -502,14 +499,14 @@ def coerce_sort(
             if field_key in node.__properties__:
                 target = node.__properties__[field_key]
             elif isinstance(node, Node) and "fields" in node.__node_list_properties__:
-                target = node.fields.get(field_key)
+                target = getattr(node, "fields").get(field_key)
             if target is None:
                 raise TypeError(f"{node!r} has no field {item!r}")
             elif isinstance(target, Property):
                 item = S(op, field=None, property=target)
             else:
                 item = S(op, field=target, property=None)
-            _check_type_supports(target._as_type, op)
+            _check_type_supports(target.as_type, op)
         if not isinstance(item, Expression) or item.kind != ExpressionKind.SORT:
             raise TypeError(f"expected Sort or str, got {item!r}")
         coerced.append(item)
@@ -519,7 +516,9 @@ def coerce_sort(
 
 
 # single-letter convenience constructors
-def E(op: ExpressionOp, *, _expect_kind: type[ExpressionKind] = None, **kwargs) -> Expression:
+def E(
+    op: ExpressionOp, *, _expect_kind: type[ExpressionKind] | None = None, **kwargs
+) -> Expression:
     if _expect_kind is not None and op.kind != _expect_kind:
         raise TypeError(f"expected {_expect_kind}, got {op} ({op.kind})")
     kwargs = {k: v for k, v in kwargs.items() if v is not None and k in Expression.__properties__}
@@ -563,7 +562,7 @@ def _check_type_supports(type: "TypeInfo", op: ExpressionOp):
             type.primitive_type, _EMPTY_SET
         ):
             return True
-        elif type.node_type is not None and op in SUPPORTED_NODE_OPS:
+        elif type.bench_type is not None and op in SUPPORTED_NODE_OPS:
             return True
     raise UnsupportedExpressionError(type, op)
 
@@ -597,7 +596,7 @@ def _require_expression_op(op: ExpressionOp):
     def decorator(func):
         @functools.wraps(func)
         def wrapper(self: "_TypeQueryBuilder", *args, **kwargs):
-            _check_type_supports(self._as_type, op)
+            _check_type_supports(self.as_type, op)
             return func(self, *args, **kwargs)
 
         return wrapper
@@ -626,7 +625,7 @@ class _TypeQueryBuilder:
     """
 
     @property
-    def _as_type(self) -> "TypeInfo":
+    def as_type(self) -> "TypeInfo":
         raise NotImplementedError(f"{self!r} does not implement type")
 
     #
@@ -751,7 +750,7 @@ class _TypeQueryBuilder:
     ...
 
 
-class _NodeQueryBuilder:
+class _NodeQueryBuilder(Generic[NodeT, NodeDataT]):
     """Basically Query but for the Node class. :ReadQueryBase"""
 
     #
@@ -759,62 +758,64 @@ class _NodeQueryBuilder:
     #
 
     @classmethod
-    def query(cls: type[NodeT]) -> "QueryBuilder[NodeT, NodeDataT]":
+    def query(cls: type[NodeT]) -> "QueryBuilder[NodeT, NodeDataT]":  # type: ignore
         from bench.language.query import QueryBuilder
 
         return QueryBuilder(node_type=cls.metatype)
 
     @classmethod
-    def get(cls: type["Node"], conditional: "Expression" = None, **kwargs) -> "NodeT":
-        return cls.query().get(conditional, **kwargs)
+    async def get(cls: type["Node"], conditional: "Expression" = None, **kwargs) -> "NodeT":  # type: ignore
+        return await cls.query().get(conditional, **kwargs)
 
+    # nocheckin: rename NodeQueryBuilder/MakeQueryBase.filter/sort to where/order_by
+    #  (avoids conflict with Query.filter/sort)
     @classmethod
     def filter(
-        cls: type["Node"], filter: "Expression" = None, **kwargs
+        cls: type["Node"], filter: Optional["Expression"] = None, **kwargs  # type: ignore
     ) -> "QueryBuilder[NodeT, NodeDataT]":
         return cls.query().filter(filter, **kwargs)
 
     @classmethod
     def sort(
-        cls: type["Node"], sort: "Expression" = None, *args: str
+        cls: type["Node"], sort: Optional["Expression"] = None, *args: str  # type: ignore
     ) -> "QueryBuilder[NodeT, NodeDataT]":
         return cls.query().sort(sort, *args)
 
     @classmethod
     def include(
-        cls: type["Node"], *properties: FieldOrProperty
+        cls: type["Node"], *properties: FieldOrProperty  # type: ignore
     ) -> "QueryBuilder[NodeT, NodeDataT]":
         return cls.query().include(*properties)
 
     @classmethod
-    def include_all(cls: type["Node"]) -> "QueryBuilder[NodeT, NodeDataT]":
+    def include_all(cls: type["Node"]) -> "QueryBuilder[NodeT, NodeDataT]":  # type: ignore
         return cls.query().include_all()
 
     @classmethod
     def exclude(
-        cls: type["Node"], *properties: FieldOrProperty
+        cls: type["Node"], *properties: FieldOrProperty  # type: ignore
     ) -> "QueryBuilder[NodeT, NodeDataT]":
         return cls.query().exclude(*properties)
 
     @classmethod
     def related(
-        cls: type["Node"], *properties: FieldOrProperty
+        cls: type["Node"], *properties: FieldOrProperty  # type: ignore
     ) -> "QueryBuilder[NodeT, NodeDataT]":
         return cls.query().related(*properties)
 
     @classmethod
-    def include_ancestors(cls) -> "QueryBuilder[NodeT, NodeDataT]":
+    def include_ancestors(cls: type["Node"]) -> "QueryBuilder[NodeT, NodeDataT]":  # type: ignore
         return cls.query().include_ancestors()
 
     @classmethod
     def ancestors(
-        cls: type["Node"], *node_types: NodeTypeOrClass
+        cls: type["Node"], *node_types: NodeTypeOrClass  # type: ignore
     ) -> "QueryBuilder[NodeT, NodeDataT]":
         return cls.query().ancestors(*node_types)
 
     @classmethod
     def descendants(
-        cls: type["Node"], *node_types: NodeTypeOrClass
+        cls: type["Node"], *node_types: NodeTypeOrClass  # type: ignore
     ) -> "QueryBuilder[NodeT, NodeDataT]":
         return cls.query().descendants(*node_types)
 
@@ -823,17 +824,17 @@ class _NodeQueryBuilder:
     #
 
     @classmethod
-    async def tolist(cls: type["Node"]) -> list[NodeT]:
+    async def tolist(cls: type["Node"]) -> list[NodeT]:  # type: ignore
         return await cls.query().tolist()
 
     @classmethod
-    def first(cls: type["Node"], count: int) -> "QueryBuilder[NodeT, NodeDataT]":
+    def first(cls: type["Node"], count: int) -> "QueryBuilder[NodeT, NodeDataT]":  # type: ignore
         return cls.query().first(count)
 
     @classmethod
-    async def count(cls: type["Node"], filter: "Expression" = None, **kwargs) -> int:
-        return cls.query().count(filter, **kwargs)
+    async def count(cls: type["Node"], filter: "Expression" = None, **kwargs) -> int:  # type: ignore
+        return await cls.query().count(filter, **kwargs)
 
     @classmethod
-    async def exists(cls: type["Node"], filter: "Expression" = None, **kwargs) -> bool:
-        return cls.query().exists(filter, **kwargs)
+    async def exists(cls: type["Node"], filter: "Expression" = None, **kwargs) -> bool:  # type: ignore
+        return await cls.query().exists(filter, **kwargs)

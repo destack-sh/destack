@@ -1,14 +1,11 @@
 import abc
 from typing import TYPE_CHECKING, Any, Optional, cast
-from uuid import UUID
 
 import structlog
 
-from bench.language.const import AggregationOp, ConditionalOp, NodeType
-from bench.language.expression import C
+from bench.language.const import NodeType
 from bench.language.node import (
     HasBase,
-    InterpStatus,
     Node,
     NodeList,
     NRel,
@@ -33,15 +30,14 @@ from bench.language.query import (
     PostgresConnection,
     PostgresEngine,
     QueryBuilder,
-    StoreEngineIncapableError,
 )
 from bench.language.value import HasValues
-from bench.proto.wire import AggregationData, AnyNodeData, NodeReferenceData, RecordData
+from bench.proto.wire import AnyNodeData, NodeReferenceData, RecordData
 from bench.sql.core import RECORD_EPHEMERAL_TABLE, Table
 from bench.utils.func import describe_type
 
 if TYPE_CHECKING:
-    from bench.language import Block, Query
+    from bench.language import Block, Query, TypeInfo
 
 # pyright: reportIncompatibleVariableOverride=false
 
@@ -78,8 +74,8 @@ class Record(HasBase, HasValues):
         return data.parent_ptr
 
     @property
-    def _type(self) -> Optional["Block"]:
-        return self.parent._as_type
+    def _type(self) -> "TypeInfo":
+        return getattr(self.parent, "as_type")
 
     @property
     def keys(self):

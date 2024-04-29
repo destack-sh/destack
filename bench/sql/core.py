@@ -4,7 +4,7 @@ import hashlib
 from dataclasses import dataclass
 from datetime import datetime
 from itertools import chain
-from typing import TYPE_CHECKING, Any, ClassVar, Self, Union, cast
+from typing import Any, ClassVar, Self, Union, cast
 from uuid import UUID
 
 # TODO :Performance: check out asyncpg instead of psycopg (up to 5x faster)

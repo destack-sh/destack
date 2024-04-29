@@ -27,6 +27,8 @@ from bench.utils.func import IdEnum
 if TYPE_CHECKING:
     from bench.language import Bench, Client
 
+# pyright: reportIncompatibleVariableOverride=false,reportIncompatibleMethodOverride=false
+
 
 @enum_(EnumType.REGION)
 class Region(IdEnum):
@@ -123,7 +125,7 @@ class Store(Resource):
     version: Optional[str] = p_system(42, default=None)
 
     host: Optional[str] = p_kernel(50, require=False, default=None, sensitive=True)
-    database: Optional[str] = p_kernel(51, require=None, default=None, sensitive=True)
+    database: Optional[str] = p_kernel(51, require=False, default=None, sensitive=True)
     schema: Optional[str] = p_kernel(52, require=False, default=None, sensitive=True)
     main_credential: Optional[ResourceCredential] = p_kernel(
         54,
