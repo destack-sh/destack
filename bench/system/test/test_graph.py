@@ -1,7 +1,7 @@
 import asyncio
 import random
 import secrets
-from typing import NamedTuple, cast
+from typing import Any, NamedTuple, cast
 from uuid import uuid4
 
 import grpclib
@@ -76,7 +76,7 @@ class EditProducer:
         seed_nodes: list[Node],
         edit_types: list[EditType],
         node_types: list[NodeType],
-        update_properties: dict[NodeType, list[Property]],
+        update_properties: dict[NodeType, list[Property | Any]],
     ):
         self.client = client
         self.edits: list[EditData] = []
@@ -97,7 +97,7 @@ class EditProducer:
             elif prop.reference_struct == StructType.TEXT:
                 new_value = Text.plain(f"{prop.name} {self.client.client.name}:{round}")._to_data()
             else:
-                raise ValueError(f"unsupported primitive type: {prop.primitive_type.name}")
+                raise ValueError(f"unsupported primitive type: {prop.primitive_type}")
             node_data = wiring.pack_node(node)
             setattr(node_data, prop.name, new_value)
             edit = EditData(
@@ -266,7 +266,7 @@ async def test_graph_update_node_with_invalid_property(
         type=wiring.pack_enum(EditType, EditType.UPDATE),
         node_type=wiring.pack_enum(NodeType, NodeType.USER),
         node=wiring.wrap_some_node(wiring.pack_node(user)),
-        properties=[User.name.id],
+        properties=[cast(Property, User.name).id],
     )
     with raises_grpc_error(grpclib.Status.INVALID_ARGUMENT):
         _ = await supervisor.commit_transaction(

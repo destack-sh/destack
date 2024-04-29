@@ -327,6 +327,8 @@ def get_subclasses(cls, seen=None):
 _MIN_ID_BY_ENUM: dict[type, int] = {}
 _MAX_ID_BY_ENUM: dict[type, int] = {}
 
+IdEnumT = TypeVar("IdEnumT", bound="IdEnum")
+
 
 class IdEnum(enum.IntEnum):
     id: int
@@ -375,8 +377,8 @@ class IdEnum(enum.IntEnum):
         """Get the maximum ord."""
         return len(cls)
 
-    def to(self, combined_type: type["IdEnum"]) -> "IdEnum":
-        return combined_type(self.id)
+    def to(self, combined_type: Union[IdEnumT, "IdEnumOrUnion"]) -> IdEnumT:
+        return combined_type(self.id)  # type: ignore
 
     @staticmethod
     def combine(name: str, *enums: type["IdEnum"]) -> type["IdEnum"]:
@@ -385,6 +387,9 @@ class IdEnum(enum.IntEnum):
 
 
 IdEnumOrUnion = Union[IdEnum, Union[IdEnum, Any]]
+# NOTE: IdEnumOrOnion is intended for stuff like AccessType = IdEnum.combine("AccessType", ReadType, ...)
+#  But for type checking we have it as AccessType = ReadType | ...
+#  So we make these methods accept 'Any' for compliance. Not great but it's a small footprint.
 EnumT = TypeVar("EnumT", bound=IdEnum)
 
 

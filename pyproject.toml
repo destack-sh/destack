@@ -8,8 +8,8 @@ ignore = ["E501"]
 
 [tool.pyright]
 include = ["bench"]
-exclude = ["^bench/migrations", "^venv|^venv-worker", "test_[a-z_]*\\.py"]
-ignore = ["^bench/migrations", "^venv|^venv-worker", "test_[a-z_]*\\.py"]
+exclude = ["^bench/migrations", "^venv|^venv-runtime", "test_[a-z_]*\\.py"]
+ignore = ["^bench/migrations", "^venv|^venv-runtime", "test_[a-z_]*\\.py"]
 venv = "venv"
 
 [tool.isort]

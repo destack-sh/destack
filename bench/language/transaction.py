@@ -11,7 +11,7 @@ from bench.language.const import EMPTY_SCOPE, AccessKind, BenchError, EditType, 
 from bench.language.node import Node, Property
 from bench.language.query import StoreConnection, StoreEngine
 from bench.proto import wire
-from bench.proto.wire import AnyNodeData, EditData, GraphScope
+from bench.proto.wire import AnyNodeData, EditData, GraphScope, NodeReferenceData
 from bench.utils.dt import utcnow_with_tz
 from bench.utils.func import uuid_to_str
 from bench.utils.uuidt import UUIDT
@@ -130,6 +130,11 @@ class Transaction:
             )
         else:
             scope = EMPTY_SCOPE
+        subject_data = (
+            cast(NodeReferenceData, wiring.pack_struct(subject.to_ref()))
+            if subject is not None
+            else None
+        )
         edit = EditData(
             id=new_edit_id(),
             type=wiring.pack_enum(EditType, type),
@@ -137,7 +142,7 @@ class Transaction:
             node=wiring.wrap_some_node(node_data),
             properties=list(properties) if properties is not None else [],
             scope=scope,
-            subject=wiring.pack_struct(subject.to_ref()) if subject is not None else None,
+            subject=subject_data,
             revision=None,  # not known yet
         )
         return edit

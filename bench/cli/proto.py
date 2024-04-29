@@ -91,6 +91,7 @@ def _regen_proto_artifacts(schema_str: str) -> None:
     wire_py = re.sub(r"\w[a-z_]+request,", "request,", wire_py)
     wire_py = re.sub(r"\w[a-z_]+request:", "request:", wire_py)
     patch_prefix_code = """
+# type: ignore
 """
     patch_postfix_code = f"""
 from typing import TYPE_CHECKING # noqa: E402

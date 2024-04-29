@@ -42,6 +42,7 @@ from bench.proto.wire import (
     GraphScope,
     NodeReferenceData,
     QueryData,
+    ReadOptionsData,
 )
 from bench.utils.fractional import INTEGER_ZERO
 from bench.utils.func import _auto_async_to_sync, bytetuple
@@ -635,10 +636,10 @@ class RemoteConnection(StoreConnection[RemoteEngine, NodeT, NodeDataT]):
 
         request = wire.SearchNodesRequest(
             node_type=wiring.pack_enum(NodeType, query._node_type),
-            filter=wiring.pack_struct_maybe(query._filter),
-            sort=[wiring.pack_struct(s) for s in query._sort] if query._sort else [],
+            filter=wiring.pack_struct_maybe(query._filter, ExpressionData),
+            sort=[wiring.pack_struct(s, ExpressionData) for s in query._sort] if query._sort else [],
             first=query._first,
-            options=wiring.pack_struct_maybe(query._options),
+            options=wiring.pack_struct_maybe(query._options, ReadOptionsData),
             count=options.count,
         )
         response = await self.engine.remote.search_nodes(request)
@@ -655,7 +656,7 @@ class RemoteConnection(StoreConnection[RemoteEngine, NodeT, NodeDataT]):
         assert query._aggregation is not None
         request = wire.AggregateNodesRequest(
             node_type=wiring.pack_enum(NodeType, query._node_type),
-            filter=wiring.pack_struct_maybe(query._filter),
+            filter=wiring.pack_struct_maybe(query._filter, expect=ExpressionData),
             aggregation=cast(ExpressionData, query._aggregation._to_data()),
         )
         response = await self.engine.remote.aggregate_nodes(request)

@@ -21,15 +21,15 @@ logger = structlog.get_logger(__name__)
 async def blank_test_db(request: pytest.FixtureRequest):
     db_name = f"migrate_test_{request.function.__name__}"
     async with global_pg_cursor(autocommit=True) as cur:
-        await cur.execute(f"DROP DATABASE IF EXISTS {db_name}")
-        await cur.execute(f"CREATE DATABASE {db_name}")
+        await cur.execute(f"DROP DATABASE IF EXISTS {db_name}")  # type: ignore
+        await cur.execute(f"CREATE DATABASE {db_name}")  # type: ignore
         yield db_name
 
 
 @pytest.fixture(scope="function")
-async def blank_test_cur(blank_test_db: str) -> psycopg.AsyncCursor:
+async def blank_test_cur(blank_test_db: str):
     connection_str = get_pg_connection_str(GLOBAL_STORE, blank_test_db)
-    async with pg_cursor(connection_str, blank_test_db) as cur:
+    async with pg_cursor(connection_str) as cur:
         yield cur
     await cur.connection.close()
 

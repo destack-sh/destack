@@ -851,14 +851,16 @@ class Struct(abc.ABC, Generic[StructDataT]):
     __is_struct_inlined__: ClassVar[bool] = False
     __is_node__: ClassVar[bool] = False
 
-    # TODO :Architecture :Cleanup: type Struct.parent/order_key/.. in a covariant way
+    # TODO :Architecture :Cleanup: extract & type (Inline)Struct/Node parent/order_key/etc.
+    #   Struct.parent/order_key/.. in a covariant and specialized way.
+    #   Probably want a more general uber-class like Object, then InlineStruct/Struct/Node.
     #  (subclasses make it more specific like Field.parent:Block..
     #   see all the parent # type: ignore / reportIncompatibleVariableOverride errors)
 
     # NOTE: struct identity props (id/parent/....) only exist if not inlined & not node :MagicProps
     # (Struct.id is optional so that external clients don't need to generate ids for every struct,
     #  and also so that its field presence is tracked and we can validate that it is set when needed)
-    id: Optional[int] = p_system(2, default_factory=new_struct_id)
+    id: int = p_system(2, default_factory=new_struct_id)
     parent: Union["Struct", "Node", "Value", None] = p_struct_parent(3)
     if TYPE_CHECKING:
         parent_type: NodeType | None = p_internal(4, default=None)
@@ -985,7 +987,7 @@ class Struct(abc.ABC, Generic[StructDataT]):
             ):
                 # copy struct if needed (only after init since child struct needs our id)
                 if prop.is_list:
-                    value = ValueList._lazy_copy_for(value, self, prop)
+                    value = ValueList._lazy_copy_for(value, self, prop, prop)
                 else:
                     value = value._lazy_copy_to(self, prop)
             elif prop.is_computed:
@@ -1497,7 +1499,7 @@ class Node(Struct[NodeDataT], Generic[NodeDataT]):
         return graph
 
     @final
-    def __str__(self):  # noqa
+    def __str__(self):  # type: ignore
         # override the default __str__ for nodes
         content_str = self.__content_str__()
         ident_str = self.py_ident
@@ -1520,7 +1522,7 @@ class Node(Struct[NodeDataT], Generic[NodeDataT]):
             return f"'{self.absolute_path}'{content_str}{status_str}"
 
     @final
-    def __repr__(self):  # noqa
+    def __repr__(self):  # type: ignore
         # override the default __repr__ for nodes
         return f"<{self.__class__.__name__} {str(self)}>"
 

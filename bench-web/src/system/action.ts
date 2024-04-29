@@ -1129,7 +1129,7 @@ contributeActionMap<"developer">({
           packagePtr: packagePtr.value!,
           name,
           kind,
-          benchType: getRandomEnumOption(EnumType.OBJECT_TYPE),
+          benchType: getRandomEnumOption(EnumType.BENCH_TYPE),
           isList: Math.random() > 0.5,
           isRequired: Math.random() > 0.4,
           isSecret: Math.random() > 0.8,

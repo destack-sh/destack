@@ -1,4 +1,5 @@
 from dataclasses import dataclass
+from typing import cast
 
 import pytest
 from grpclib.testing import ChannelFor
@@ -36,15 +37,15 @@ class BenchHandle:
 
 
 @pytest.fixture(scope="function")
-async def some_bench(supervisor: SupervisorStub, some_user: UserHandle) -> BenchHandle:
+async def some_bench(supervisor: SupervisorStub, some_user: UserHandle):
     create_bench_req = CreateBenchRequest(
         owner=some_user.user.to_ref()._to_data(),
-        slug=some_user.user.slug,
+        slug=cast(str, some_user.user.slug),
         is_main=True,
         region=wire.Region.EUROPE_CENTRAL,
     )
     create_bench_rep = await supervisor.create_bench(create_bench_req, metadata=some_user.headers)
-    bench: Bench = wiring.unpack_node(create_bench_rep.bench)
+    bench: Bench = cast(Bench, wiring.unpack_node(create_bench_rep.bench))
 
     service = HostMultiplexer()
     await service.start()
@@ -95,7 +96,8 @@ async def test_user_activate(some_bench: BenchHandle):
     )
     read_bench_rep = await some_bench.host.get_nodes(read_bench_req, metadata=some_bench.headers)
     node_graph = NodeDataGraph([wiring.unwrap_some_node(n) for n in read_bench_rep.nodes])
-    bench: Bench = wiring.unpack_roots(node_graph)[0]
+    bench: Bench = cast(Bench, wiring.unpack_roots(node_graph)[0])
     assert bench.owner_id == some_bench.owner.id
+    assert bench.main_environment
     assert bench.main_environment.store
     assert not bench.main_environment.store.main_credential  # can't read kernel

@@ -726,13 +726,14 @@ class ValueList(list, Generic[ValueParentT]):
     Unlike a NodeList, value lists are actual lists and not computed on access.
     """
 
-    def __init__(self, parent: ValueParentT, parent_prop: ValueProperty, *args, **kwargs):  # type: ignore
+    def __init__(self, parent: ValueParentT, parent_prop: ValueProperty, ancestor_prop: Optional[Property] = None, *args, **kwargs):  # type: ignore
         from bench.language.node import Property
 
         super().__init__(*args, **kwargs)
         self.parent = parent
         self.parent_prop = parent_prop
         if isinstance(parent_prop, Property):
+            self.ancestor_prop = parent_prop
             self.parent_key = parent_prop.id_as_str
             self.is_ordered = (
                 parent_prop.reference_kind == ReferenceKind.STRUCT_CHILD
@@ -741,6 +742,8 @@ class ValueList(list, Generic[ValueParentT]):
                 ].__is_struct_inlined__
             )
         else:  # Field
+            assert ancestor_prop is not None, f"expected ancestor_prop for {parent_prop!r}"
+            self.ancestor_prop = ancestor_prop
             self.parent_key = parent_prop.identity_key
             self.is_ordered = True
         self.is_property_reference = (
@@ -755,7 +758,7 @@ class ValueList(list, Generic[ValueParentT]):
             cast(Union["Value", "Struct"], item).order_key = get_order_key(
                 *get_key_bounds(self, after, before)
             )
-        self.parent._updated_self((self.parent_prop,))
+        self.parent._updated_self((self.ancestor_prop,))
 
     def extend(self, items: Collection[ValueT]):  # type: ignore
         super().extend(items)
@@ -771,15 +774,18 @@ class ValueList(list, Generic[ValueParentT]):
                 order_keys = get_order_keys(*get_key_bounds(self), n=len(items))
                 for item, order_key in zip(values, order_keys):
                     item.order_key = order_key
-        self.parent._updated_self((self.parent_prop,))
+        self.parent._updated_self((self.ancestor_prop,))
 
     def clear(self):
         super().clear()
-        self.parent._updated_self((self.parent_prop,))
+        self.parent._updated_self((self.ancestor_prop,))
 
     @staticmethod
     def _lazy_copy_for(
-        values: Collection[ValueT], parent: ValueParentT, parent_prop: ValueProperty
+        values: Collection[ValueT],
+        parent: ValueParentT,
+        parent_prop: ValueProperty,
+        ancestor_prop: Optional[Property] = None,
     ):
         """Copies the values in the list if they belong to a different parent."""
         from bench.language.node import Property
@@ -792,7 +798,7 @@ class ValueList(list, Generic[ValueParentT]):
             for v in cast(list[Union["Value", "Struct"]], values)
         ):
             values = [v._copy_to(parent, parent_prop) for v in values]  # type: ignore
-        return ValueList(parent, parent_prop, values)
+        return ValueList(parent, parent_prop, ancestor_prop, values)
 
 
 # poor mans filters, see FilterNodeGraph in bench-web

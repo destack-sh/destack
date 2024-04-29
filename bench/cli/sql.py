@@ -110,8 +110,11 @@ async def makemigrations(
     if not no_local:
         async with global_session():
             try:
-                bench = await Bench.descendants(Environment, Store).include_all().get(slug=bench)
-                async with pg_cursor_to_store(bench.main_environment.store) as cur:
+                bench_node = (
+                    await Bench.descendants(Environment, Store).include_all().get(slug=bench)
+                )
+                assert bench_node.main_environment, f"{bench!r} has no main environment"
+                async with pg_cursor_to_store(bench_node.main_environment.store) as cur:
                     old_local_tables = await introspect_tables_from_pg(cur)
             except (NodeNotFoundError, SqlUndefinedObjectError):
                 old_local_tables = ()  # initial migration
@@ -167,8 +170,10 @@ async def migrate(
     if bench is not None:
         async with global_session():
             if bench != "*":
-                bench = await Bench.descendants(Environment, Store).include_all().get(slug=bench)
-                stores = tuple(e.store for e in bench.environments)
+                bench_node = (
+                    await Bench.descendants(Environment, Store).include_all().get(slug=bench)
+                )
+                stores = tuple(e.store for e in bench_node.environments)
             else:
                 benches = await Bench.descendants(Environment, Store).include_all().tolist()
                 stores = tuple(e.store for b in benches for e in b.environments)
@@ -209,17 +214,20 @@ async def clearmigrations(from_id: int, to_id: int):
 
 @app.command()
 @async_to_sync_blocking
-async def introspect(bench: str = None):
+async def introspect(bench: str = None):  # type: ignore
     """Introspect the current schema of the Postgres instance."""
     start = time.perf_counter()
 
     if bench is not None:
         async with global_session():
-            bench = Bench.descendants(NodeType.ENVIRONMENT, NodeType.STORE).get(slug=bench)
-            async with pg_cursor_to_store(bench.main_environment.store) as cur:
-                tables = await introspect_tables_from_pg(
-                    cur, include_columns=True, include_indexes=True, include_constraints=True
-                )
+            bench_node = await Bench.descendants(NodeType.ENVIRONMENT, NodeType.STORE).get(
+                slug=bench
+            )
+            assert bench_node.main_environment, f"{bench!r} has no main environment"
+        async with pg_cursor_to_store(bench_node.main_environment.store) as cur:
+            tables = await introspect_tables_from_pg(
+                cur, include_columns=True, include_indexes=True, include_constraints=True
+            )
     else:
         async with global_pg_cursor() as cur:
             tables = await introspect_tables_from_pg(
@@ -248,8 +256,9 @@ async def shell(bench: str = None):  # type: ignore
     """Open a psql shell to either the global or a Bench-local database."""
     if bench is not None:
         async with global_session():
-            bench = await Bench.descendants(Environment, Store).include_all().get(slug=bench)
-        connection_str = get_pg_connection_str(bench.main_environment.store)
+            bench_node = await Bench.descendants(Environment, Store).include_all().get(slug=bench)
+            assert bench_node.main_environment, f"{bench!r} has no main environment"
+            connection_str = get_pg_connection_str(bench_node.main_environment.store)
     else:
         connection_str = get_pg_connection_str(GLOBAL_STORE)
 
