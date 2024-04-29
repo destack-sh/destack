@@ -11,7 +11,7 @@ from bench.utils.utils import frozendict
 if typing.TYPE_CHECKING:
     from bench.language import Session, Transaction
 
-VERSION = "2024.04.27.0"
+VERSION = "2024.04.29.1"
 UNSET = cast(Any, object())
 EMPTY_LIST: list = []
 EMPTY_SET: frozenset = frozenset()

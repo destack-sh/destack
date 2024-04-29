@@ -12,6 +12,7 @@ from psycopg import sql
 from bench.conftest import test_session
 from bench.language import (
     Bench,
+    BenchType,
     Block,
     BlockType,
     Client,
@@ -206,7 +207,7 @@ async def test_crud_node_pointers(fabricator: "Fabricator"):
         bench_a.branches.create(name="main a")
         package_a = bench_a.packages.create(environment=environment_a)
         block_a_1 = package_a.blocks.create(type=BlockType.CODE)
-        block_a_1.fields.create(name="foo")
+        block_a_1.fields.create(name="foo", bench_type=BenchType.PRIMITIVE_TYPE)
         await session.commit()
 
     # read back
