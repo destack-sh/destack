@@ -1,5 +1,5 @@
 from datetime import datetime
-from typing import TYPE_CHECKING, Optional
+from typing import TYPE_CHECKING, Generic, Optional, TypeVar
 
 from bench.language.const import (
     EnumType,
@@ -22,6 +22,14 @@ from bench.language.property import (
     p_system,
 )
 from bench.language.text import Text
+from bench.proto.wire import (
+    AnyNodeData,
+    CacheData,
+    DriveData,
+    FileContentData,
+    ServerData,
+    StoreData,
+)
 from bench.utils.func import IdEnum
 
 if TYPE_CHECKING:
@@ -61,8 +69,11 @@ class ResourceStatus(IdEnum):
     PAUSED = 30
 
 
+NodeDataT = TypeVar("NodeDataT", bound=AnyNodeData)
+
+
 @node_component()
-class Resource(Node):
+class Resource(Node[NodeDataT], Generic[NodeDataT]):
     """A resource owned by a Bench."""
 
     parent: "Bench" = p_node_parent(4, NodeType.BENCH, is_system=True)
@@ -85,7 +96,7 @@ class ServerProfile(IdEnum):
 
 
 @node(NodeType.SERVER)
-class Server(Resource):
+class Server(Resource[ServerData]):
     """
     A server providing the Runtime for a Bench.
     Similar to other resources, a Server virtualizes a compute allocation that is
@@ -114,7 +125,7 @@ class ResourceCredential(Struct):
 
 
 @node(NodeType.STORE)
-class Store(Resource):
+class Store(Resource[StoreData]):
     """
     A store for database-like storage in a Bench.
     Virtualizes a physical database of that kind/engine (may be a sub-database/schema or such).
@@ -143,7 +154,7 @@ class Store(Resource):
 
 
 @node(NodeType.DRIVE)
-class Drive(Resource):
+class Drive(Resource[DriveData]):
     """
     A drive for file-like storage in a Bench.
     Virtualizes simple bucket-style access to some S3-like storage.
@@ -160,7 +171,7 @@ class FileRetentionMode(IdEnum):
 
 
 @node(NodeType.FILE_CONTENT, unique_together=(("parent_drive_id", "sha512"),))
-class FileContent(Node):
+class FileContent(Node[FileContentData]):
     """(A pointer to) the actual file stored in a Drive. De-duped to 1 per sha512."""
 
     parent: Drive = p_node_parent(4, NodeType.DRIVE, is_system=True)
@@ -173,7 +184,7 @@ class FileContent(Node):
 
 
 @node(NodeType.CACHE)
-class Cache(Resource):
+class Cache(Resource[CacheData]):
     """Cache for ephemeral data."""
 
     ...

@@ -37,7 +37,7 @@ from bench.language.const import (
 )
 from bench.language.expression import C, Expression, NodeReference
 from bench.language.graph import NodeDataGraph, NodeGraph, NodeList
-from bench.language.node import NODE_CLASS_BY_TYPE, Node, Struct, _on_completing_setup, node, struct
+from bench.language.node import NODE_CLASS_BY_TYPE, Node, Struct, node, struct
 from bench.language.notice import NoticeHandler
 from bench.language.property import (
     Property,
@@ -53,6 +53,7 @@ from bench.language.setup import (
     ANCESTOR_NODE_TYPES,
     CHILD_NODE_TYPES,
     NODE_CLASSES,
+    _on_completing_setup,
 )
 from bench.language.text import Text
 from bench.language.user import Membership, User

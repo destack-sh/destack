@@ -14,6 +14,7 @@ from bench.language.validation import (
     int_range_validator,
     validate_name,
 )
+from bench.proto.wire import TriggerData
 
 if TYPE_CHECKING:
     from bench.language.block import Block
@@ -62,7 +63,7 @@ class Schedule(Struct):
 
 
 @node(NodeType.TRIGGER)
-class Trigger(Node):
+class Trigger(Node[TriggerData]):
     parent: "Block" = p_node_parent(4, NodeType.BLOCK)  # type: ignore
     type: TriggerType = p_regular(30, require=True, validate=enum_validator(TriggerType))
     name: str = p_regular(31, validate=validate_name)

@@ -1,5 +1,4 @@
-from typing import cast
-from uuid import uuid4, uuid5
+from uuid import UUID, uuid4, uuid5
 
 import betterproto
 import structlog
@@ -8,7 +7,7 @@ from grpclib import Status as GRPCStatus
 
 from bench.language import Bench, Client, NodeReference, User
 from bench.language.access import Subject
-from bench.language.const import USER_NODE_TYPES, NodeType
+from bench.language.const import USER_NODE_TYPES, NodeType, OrganizationStatus
 from bench.language.graph import generate_node_name
 from bench.language.resource import Region
 from bench.language.user import Handle, Organization, UserStatus
@@ -31,7 +30,6 @@ from bench.proto.wire import (
     SignupUserResponse,
     SupervisorBase,
     SupervisorStub,
-    UserData,
 )
 from bench.system.auth import check_password, generate_access_token, generate_salt, hash_password
 from bench.system.client import GLOBAL_POSTGRES_ENGINE, global_session
@@ -74,12 +72,17 @@ class Supervisor(BenchServiceBase[SupervisorStub], GraphIoService, SupervisorBas
 
     async def _make_client(self, user: User, client_data: ClientData) -> Client:
         """Maps the given client info to a Client instance, trying to preserve a stable identity."""
-        id = to_uuid(client_data.id) if client_data.id else uuid5(user.id, client_data.place_id)
+        if client_data.id:
+            client_id = UUID(client_data.id)
+        elif client_data.place_id:
+            client_id = uuid5(user.id, client_data.place_id)
+        else:
+            client_id = None
         name = client_data.name
         if not name:
             name = generate_node_name(NodeType.CLIENT, type=None, siblings=user.clients)
         return Client(
-            id=id,
+            id=client_id,
             parent=user,
             name=name,
             device_name=client_data.device_name,
@@ -121,8 +124,8 @@ class Supervisor(BenchServiceBase[SupervisorStub], GraphIoService, SupervisorBas
 
         logger.info("supervisor.signup_user", user=user, client=client)
         return SignupUserResponse(
-            user=cast(UserData, user._to_data()),
-            client=cast(ClientData, client._to_data()),
+            user=user._to_data(),
+            client=client._to_data(),
             access_token=client.access_token,
         )
 
@@ -135,6 +138,8 @@ class Supervisor(BenchServiceBase[SupervisorStub], GraphIoService, SupervisorBas
         async with global_session() as session:
             assert subject.user is not None, "subject is not authenticated"
             user = subject.user
+            if user.password_salt is None or user.password_hash is None:
+                raise GRPCError(GRPCStatus.FAILED_PRECONDITION, "password not set")
             if not await check_password(
                 request.old_password, user.password_salt, user.password_hash
             ):
@@ -165,6 +170,8 @@ class Supervisor(BenchServiceBase[SupervisorStub], GraphIoService, SupervisorBas
                 .descendants(NodeType.CLIENT)
                 .get(User.__properties__[key_name] == key_value)
             )
+            if user.password_salt is None or user.password_hash is None:
+                raise GRPCError(GRPCStatus.FAILED_PRECONDITION, "password not set")
             if not await check_password(request.password, user.password_salt, user.password_hash):
                 raise GRPCError(GRPCStatus.UNAUTHENTICATED, "incorrect password")
 
@@ -177,8 +184,8 @@ class Supervisor(BenchServiceBase[SupervisorStub], GraphIoService, SupervisorBas
 
         logger.info("supervisor.login_user", user=user, client=client)
         return LoginUserResponse(
-            user=cast(UserData, user._to_data()),
-            client=cast(ClientData, client._to_data()),
+            user=user._to_data(),
+            client=client._to_data(),
             access_token=client.access_token,
         )
 
@@ -192,12 +199,12 @@ class Supervisor(BenchServiceBase[SupervisorStub], GraphIoService, SupervisorBas
             # log out the current or the specified clients
             if request.clients:
                 client_ids = {to_uuid(c.id) for c in request.clients}
-                clients = await Client.filter(parent=subject.user, id__in=client_ids).tolist()
+                clients = await Client.where(parent=subject.user, id__in=client_ids).tolist()
                 if len(clients) != len(request.clients):
                     missing_ids = client_ids - {c.id for c in clients}
                     raise GRPCError(GRPCStatus.NOT_FOUND, f"clients not found: {missing_ids}")
             elif request.logout_all:
-                clients = await Client.filter(parent=subject.user).tolist()
+                clients = await Client.where(parent=subject.user).tolist()
             else:
                 clients = (subject.client,)
                 session.track(subject.client)
@@ -232,7 +239,6 @@ class Supervisor(BenchServiceBase[SupervisorStub], GraphIoService, SupervisorBas
         owner_ptr: NodeReference = wiring.unpack_struct(request.owner)
         async with global_session() as session:
             # check (and reload owner to get Handles)
-            owner: Organization | User
             if owner_ptr.type == NodeType.USER:
                 if owner_ptr.id != user.id:
                     raise GRPCError(
@@ -259,15 +265,20 @@ class Supervisor(BenchServiceBase[SupervisorStub], GraphIoService, SupervisorBas
             )
 
             # 'activate' owner
-            if owner.status != UserStatus.ACTIVATED:
+            if isinstance(owner, User) and owner.status != UserStatus.ACTIVATED:
                 owner.main_bench = bench
                 owner.status = UserStatus.ACTIVATED
+            elif isinstance(owner, Organization) and owner.status != OrganizationStatus.ACTIVATED:
+                owner.main_bench = bench
+                owner.status = OrganizationStatus.ACTIVATED
+            else:
+                raise RuntimeError(f"unexpected owner/owner status: {owner!r}")
 
             await session.commit()
             self.on_graph_edited((GLOBAL_SCOPE,), session.tx.edits)
 
         logger.info("supervisor.create_bench", bench=bench)
-        return CreateBenchResponse(bench=cast(BenchData, bench._to_data()))
+        return CreateBenchResponse(bench=bench._to_data())
 
     async def get_host(self, subject: "Subject", request: "GetHostRequest") -> "GetHostResponse":
         key, value = betterproto.which_one_of(request, "bench")

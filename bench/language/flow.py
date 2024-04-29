@@ -12,6 +12,7 @@ from bench.language.property import (
 )
 from bench.language.validation import validate_name
 from bench.language.value import HasValues
+from bench.proto.wire import StepData
 from bench.utils.fractional import INTEGER_ZERO
 from bench.utils.func import IdEnum
 
@@ -19,6 +20,7 @@ if TYPE_CHECKING:
     from bench.language import Block, Code, Expression, Text, Trigger, TypeInfo
 
 # pyright: reportIncompatibleVariableOverride=false
+
 
 @enum_(EnumType.STEP_TYPE)
 class StepType(IdEnum):
@@ -46,18 +48,18 @@ class StepConnection(Struct):
 
 
 @node(NodeType.STEP)
-class Step(Node, HasValues):
+class Step(Node[StepData], HasValues):
     """
     A logic, data or control flow unit in a Flow (Block).
     NOTE: steps only track connections coming in.
     """
 
-    parent: Union["Block", "Step"] = p_node_parent(4, NodeType.BLOCK, NodeType.STEP) 
+    parent: Union["Block", "Step"] = p_node_parent(4, NodeType.BLOCK, NodeType.STEP)
 
     type: StepType = p_internal(30, default=StepType.BLANK)
     # custom type?
     name: str | None = p_regular(32, default=None, validate=validate_name)
-    order_key: str = p_internal(33, default=INTEGER_ZERO) 
+    order_key: str = p_internal(33, default=INTEGER_ZERO)
     text: Optional["Text"] = p_regular(
         34, default=None, require=False, array=False, struct=StructType.TEXT
     )

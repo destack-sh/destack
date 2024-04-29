@@ -27,7 +27,7 @@ from bench.language.property import (
 )
 from bench.language.validation import ValidationHandler, validate_name
 from bench.language.value import HasValues
-from bench.proto.wire import NodeReferenceData
+from bench.proto.wire import FieldData, NodeReferenceData
 from bench.sql.core import PrimitiveType
 from bench.utils.casing import IdentifierType
 from bench.utils.fractional import INTEGER_ZERO
@@ -228,7 +228,7 @@ class FieldKind(IdEnum):
 
 
 @node(NodeType.FIELD)
-class Field(Node, TypeInfoBase, _TypeQueryBuilder):
+class Field(Node[FieldData], TypeInfoBase, _TypeQueryBuilder):
     """
     A used-defined attribute of some value
      (Bench defines Properties for Nodes/Structs, Users define Fields for Values inside those).

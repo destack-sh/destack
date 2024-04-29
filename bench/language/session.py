@@ -1,7 +1,5 @@
 import asyncio
-import threading
 from collections import deque
-from concurrent.futures import ThreadPoolExecutor
 from contextvars import ContextVar
 from datetime import datetime
 from typing import TYPE_CHECKING, Any, Collection, Optional, Union, cast
@@ -22,7 +20,7 @@ from bench.language.const import (
     _active_session,
     enum_,
 )
-from bench.language.node import HasBase, Node, Struct, _Passthrough, node, node_component, struct
+from bench.language.node import BasedNode, Node, Struct, _Passthrough, node, node_component, struct
 from bench.language.property import (
     Property,
     p_internal,
@@ -46,6 +44,7 @@ from bench.proto.wire import (
     HostStub,
     NodeReferenceData,
     RunData,
+    SessionData,
     SignalData,
     SupervisorStub,
 )
@@ -73,7 +72,7 @@ MUTED_EDIT_NODE_TYPES: bytetuple[NodeType] = bytetuple(NodeType.SIGNAL, NodeType
     index_in_search=True,
     id_factory=UUIDT,
 )
-class Signal(HasBase, HasValues):
+class Signal(BasedNode[SignalData], HasValues):
     """A signal emitted in this Bench."""
 
     parent: "Package" = p_node_parent(4, NodeType.PACKAGE)
@@ -147,17 +146,13 @@ class Log(Node):
         return f"[{self.kind.bench_name}:{self.level.bench_name}] '{self.event or self.message}' ({self.created_at})"
 
 
-_executor: ThreadPoolExecutor | None = ThreadPoolExecutor(max_workers=1)
-_runtime_tracing_lock: threading.Lock = threading.Lock()
-
-
 @node(NodeType.SESSION, index_in_search=True, local=True, id_factory=UUIDT)
-class Session(Node):
+class Session(Node[SessionData]):
     """
     A managed session for interacting with Bench nodes and (if on a Server) running them.
     """
 
-    parent: "Package" = p_node_parent(4, NodeType.PACKAGE, is_system=True)
+    parent: Optional["Package"] = p_node_parent(4, NodeType.PACKAGE, is_system=True)
     server: Optional["Server"] = p_system(
         31, require=False, array=False, references=NodeType.SERVER
     )
@@ -405,7 +400,7 @@ class Session(Node):
 #  because they may be in different contexts, and we cannot reset across contexts.
 # This will need to be expanded when we get to parallel runs.
 @node(NodeType.RUN, index_in_search=True, local=True, id_factory=UUIDT)
-class Run(HasBase, HasValues):
+class Run(BasedNode[RunData], HasValues):
     """
     A 'run' of a Block or something (in a session).
     """

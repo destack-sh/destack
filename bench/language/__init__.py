@@ -50,7 +50,6 @@ from .path import Path
 from .projection import NodeVisitor
 from .property import Property
 from .query import Query
-from .render import render
 from .resource import (
     Cache,
     Drive,
@@ -131,7 +130,6 @@ __all__ = [
     "Region",
     "Resource",
     "ResourceStatus",
-    "render",
     "Request",
     "Role",
     "Run",

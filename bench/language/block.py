@@ -19,6 +19,7 @@ from bench.language.property import (
 from bench.language.session import HasRun
 from bench.language.validation import ValidationHandler, enum_validator, validate_name
 from bench.language.value import HasValues
+from bench.proto.wire import BlockData
 from bench.utils.casing import IdentifierType
 from bench.utils.dt import utcnow_with_tz
 from bench.utils.fractional import INTEGER_ZERO
@@ -101,7 +102,7 @@ _ALL_DYNAMIC_COMPONENTS: tuple[typing.Type[Node], ...] = tuple(
     passthrough=(("value", _Passthrough.Full),),
     dynamic_components=_ALL_DYNAMIC_COMPONENTS,
 )
-class Block(Node, HasValues):
+class Block(Node[BlockData], HasValues):
     """A building block containing logic, types, UI, data, AI, - any Bench program source."""
 
     parent: Union["Block", "Package"] = p_node_parent(4, NodeType.BLOCK, NodeType.PACKAGE)

@@ -3,7 +3,7 @@ from collections import deque
 from contextlib import asynccontextmanager
 from dataclasses import dataclass, field
 from itertools import chain
-from typing import TYPE_CHECKING, AsyncContextManager, AsyncIterator, Mapping, NamedTuple, cast, final
+from typing import TYPE_CHECKING, AsyncIterator, Mapping, NamedTuple, cast, final
 from uuid import UUID
 
 import betterproto
@@ -135,7 +135,7 @@ class GraphIoService(GraphIoBase, BenchServiceBase if TYPE_CHECKING else object)
             raise GRPCError(GRPCStatus.INVALID_ARGUMENT, "service scope mismatch")
 
     @asynccontextmanager
-    async def session(self) -> AsyncContextManager[Session]:
+    async def session(self):
         async with Session(parent=None, _engines=self.engines) as session:
             yield session
 
@@ -160,7 +160,6 @@ class GraphIoService(GraphIoBase, BenchServiceBase if TYPE_CHECKING else object)
         roots_by_type: dict[NodeType, list[NodeReference]] = group_by(roots, lambda r: r.type)
         graph = NodeDataGraph()
         async with self.session() as session:
-            session: Session
             for root_node_type, root_node_references in roots_by_type.items():
                 adapted_options = adapt_read_options(subject, root_node_type, options)
                 node_type = wiring.unpack_enum(NodeType, root_node_type)
@@ -208,7 +207,6 @@ class GraphIoService(GraphIoBase, BenchServiceBase if TYPE_CHECKING else object)
 
         adapted_options = adapt_read_options(subject, node_type, options)
         async with self.session() as session:
-            session: Session
             query = QueryBuilder(
                 node_type=node_type, filter=filter, options=adapted_options, sort=sort
             )
@@ -244,7 +242,6 @@ class GraphIoService(GraphIoBase, BenchServiceBase if TYPE_CHECKING else object)
 
         adapted_options = adapt_read_options(subject, node_type, ReadOptions())
         async with self.session() as session:
-            session: Session
             query = QueryBuilder(
                 node_type=node_type, filter=filter, options=adapted_options, aggregation=aggregation
             )
@@ -261,7 +258,6 @@ class GraphIoService(GraphIoBase, BenchServiceBase if TYPE_CHECKING else object)
         edited_scopes = get_validated_edited_scopes(request.edits)
         start = asyncio.get_event_loop().time()
         async with self.session() as session:
-            session: Session
             # read the required nodes into a single graph for evaluation
             data_graph = NodeDataGraph()
             for node_type, node_references in edited_scopes.node_scopes_by_type.items():
@@ -417,8 +413,8 @@ class _EditScopes(NamedTuple):
 
 
 def validate_node_scope(node_data: AnyNodeData, graph_scope: GraphScope):
-    if hasattr(node_data, 'bench_ptr'):
-        node_bench_id = getattr(node_data, 'bench_ptr').id
+    if hasattr(node_data, "bench_ptr"):
+        node_bench_id = getattr(node_data, "bench_ptr").id
         if node_bench_id != graph_scope.bench_id:
             raise ValidationError(
                 node_data,

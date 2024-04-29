@@ -41,6 +41,7 @@ from bench.proto.wire import (
     GraphIoStub,
     GraphScope,
     NodeReferenceData,
+    QueryData,
 )
 from bench.utils.fractional import INTEGER_ZERO
 from bench.utils.func import _auto_async_to_sync, bytetuple
@@ -60,7 +61,7 @@ NodeTypeOrClass = Union[NodeType, type[Node]]
 
 
 @node(NodeType.QUERY)
-class Query(Node):
+class Query(Node[QueryData]):
     """A stored query."""
 
     parent: "Block" = p_node_parent(4, NodeType.BLOCK)
@@ -334,12 +335,12 @@ class QueryBuilder(
         copy._skip = count
         return copy
 
-    def after(self, cursor: str) -> "QueryBuilder":
+    def after(self, cursor: str) -> "QueryBuilder[NodeT, NodeDataT]":
         copy = self.copy()
         copy._after = cursor
         return copy
 
-    def aggregate(self, aggregation: "Expression") -> "QueryBuilder":
+    def aggregate(self, aggregation: "Expression") -> "QueryBuilder[NodeT, NodeDataT]":
         if aggregation.kind != ExpressionKind.AGGREGATION:
             raise ValueError(f"expected aggregation expression, got {aggregation!r}")
         copy = self.copy()
@@ -354,7 +355,7 @@ class QueryBuilder(
     def _to_node_types(node_types: tuple[NodeTypeOrClass, ...]) -> list[NodeType]:
         return [cast(type[Node], t).metatype if isinstance(t, type) else t for t in node_types]
 
-    def include(self, *properties: FieldOrProperty) -> "QueryBuilder":
+    def include(self, *properties: FieldOrProperty) -> "QueryBuilder[NodeT, NodeDataT]":
         copy = self.copy()
         copy._options = self._copy_options()
         copy._options.include_properties.extend(self._to_properties(properties))
@@ -366,30 +367,30 @@ class QueryBuilder(
         copy._options.select_all_properties = True
         return copy
 
-    def exclude(self, *properties: FieldOrProperty) -> "QueryBuilder":
+    def exclude(self, *properties: FieldOrProperty) -> "QueryBuilder[NodeT, NodeDataT]":
         copy = self.copy()
         copy._options = self._copy_options()
         copy._options.exclude_properties.extend(self._to_properties(properties))
         return copy
 
-    def related(self, *properties: FieldOrProperty) -> "QueryBuilder":
+    def related(self, *properties: FieldOrProperty) -> "QueryBuilder[NodeT, NodeDataT]":
         copy = self.copy()
         copy._options = self._copy_options()
         copy._options.related_properties.extend(self._to_properties(properties))
         return copy
 
-    def include_ancestors(self) -> "QueryBuilder":
+    def include_ancestors(self) -> "QueryBuilder[NodeT, NodeDataT]":
         # not quite happy with this API for getting a 'full' node yet, see :LoadOrphanNode
         ancestors = ANCESTOR_NODE_TYPES[self._node_type]
         return self.ancestors(*ancestors)
 
-    def ancestors(self, *node_types: NodeTypeOrClass) -> "QueryBuilder":
+    def ancestors(self, *node_types: NodeTypeOrClass) -> "QueryBuilder[NodeT, NodeDataT]":
         copy = self.copy()
         copy._options = self._copy_options()
         copy._options.ancestor_types = self._to_node_types(node_types)
         return copy
 
-    def descendants(self, *node_types: NodeTypeOrClass) -> "QueryBuilder":
+    def descendants(self, *node_types: NodeTypeOrClass) -> "QueryBuilder[NodeT, NodeDataT]":
         copy = self.copy()
         copy._options = self._copy_options()
         copy._options.descendant_types = self._to_node_types(node_types)
