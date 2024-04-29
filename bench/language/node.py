@@ -967,68 +967,71 @@ class Struct(abc.ABC, Generic[StructDataT]):
     def __eq__(self, other):
         return other is not None and self.metatype == other.metatype and self.id == other.id
 
-    def __setattr__(self, key, value):
-        """Sets *any* attribute on this node (incl. slots)."""
-        is_tracked = self._status == InterpStatus.TRACKED
-        prop = self.__properties__.get(key)
-        if prop is not None:
-            if prop.is_ephemeral or prop.is_autoset:  # untracked
-                return object.__setattr__(self, key, value)
-            elif prop.reference_kind == ReferenceKind.NODE_CHILD:
-                attr = object.__getattribute__(self, key)
-                if attr is None or type(attr) is Property:  # initial set
-                    return object.__setattr__(self, key, value)
-                else:
-                    return attr.set(value)  # has its own set
-            elif (
-                prop.reference_kind == ReferenceKind.STRUCT_CHILD
-                and self._status is not None
-                and value is not None
-            ):
-                # copy struct if needed (only after init since child struct needs our id)
-                if prop.is_list:
-                    value = ValueList._lazy_copy_for(value, self, prop, prop)
-                else:
-                    value = value._lazy_copy_to(self, prop)
-            elif prop.is_computed:
-                raise AttributeError(f"cannot set computed property {prop!r}: {value!r}")
-
-            # validate set
-            if is_tracked:
-                prev = getattr(self, key)
-                object.__setattr__(self, key, value)
-                try:
-                    self._validate_self((prop,), on_invalid=on_invalid_raise)
-                except ValidationError:  # reset on error
-                    object.__setattr__(self, key, prev)
-                    raise
-            else:
-                object.__setattr__(self, key, value)
-
-            # update reference pointers
-            if self._status is not None and prop.reference_wired_ptr is not None:
-                object.__setattr__(self, prop.reference_wired_ptr.name, prop.to_wired_ptr(value))
-
-            # report edit
-            if is_tracked:
-                self._updated_self((prop,))
-            return
-
-        if is_tracked:
-            # also try first full passthrough target (if any)
-            for target, mode in self.__passthrough_targets__:
-                target = getattr(self, target)
-                if mode == _Passthrough.Full:
-                    setattr(target, key, value)
-                    return  # success
-
-        # report set error with additional info
-        candidates = {p.name: p for p in self.__properties__.values() if not p.is_computed}
-        did_you_mean = did_you_mean_str(candidates, key)
-        raise AttributeError(f"Cannot set '{key}' on {self!r}. {did_you_mean}")
-
     if not TYPE_CHECKING:
-        # NOTE: __getattr__ breaks type checking, so only use it in runtime
+        # NOTE: __setattr__/__getattr__ confuses type checking, so only use it in runtime
+        #  (unfortunately this means we also don't get type-checking in here)
+        def __setattr__(self, key, value):
+            """Sets *any* attribute on this node (incl. slots)."""
+            is_tracked = self._status == InterpStatus.TRACKED
+            prop = self.__properties__.get(key)
+            if prop is not None:
+                if prop.is_ephemeral or prop.is_autoset:  # untracked
+                    return object.__setattr__(self, key, value)
+                elif prop.reference_kind == ReferenceKind.NODE_CHILD:
+                    attr = object.__getattribute__(self, key)
+                    if attr is None or type(attr) is Property:  # initial set
+                        return object.__setattr__(self, key, value)
+                    else:
+                        return attr.set(value)  # has its own set
+                elif (
+                    prop.reference_kind == ReferenceKind.STRUCT_CHILD
+                    and self._status is not None
+                    and value is not None
+                ):
+                    # copy struct if needed (only after init since child struct needs our id)
+                    if prop.is_list:
+                        value = ValueList._lazy_copy_for(value, self, prop, prop)
+                    else:
+                        value = value._lazy_copy_to(self, prop)
+                elif prop.is_computed:
+                    raise AttributeError(f"cannot set computed property {prop!r}: {value!r}")
+
+                # validate set
+                if is_tracked:
+                    prev = getattr(self, key)
+                    object.__setattr__(self, key, value)
+                    try:
+                        self._validate_self((prop,), on_invalid=on_invalid_raise)
+                    except ValidationError:  # reset on error
+                        object.__setattr__(self, key, prev)
+                        raise
+                else:
+                    object.__setattr__(self, key, value)
+
+                # update reference pointers
+                if self._status is not None and prop.reference_wired_ptr is not None:
+                    object.__setattr__(
+                        self, prop.reference_wired_ptr.name, prop.to_wired_ptr(value)
+                    )
+
+                # report edit
+                if is_tracked:
+                    self._updated_self((prop,))
+                return
+
+            if is_tracked:
+                # also try first full passthrough target (if any)
+                for target, mode in self.__passthrough_targets__:
+                    target = getattr(self, target)
+                    if mode == _Passthrough.Full:
+                        setattr(target, key, value)
+                        return  # success
+
+            # report set error with additional info
+            candidates = {p.name: p for p in self.__properties__.values() if not p.is_computed}
+            did_you_mean = did_you_mean_str(candidates, key)
+            raise AttributeError(f"Cannot set '{key}' on {self!r}. {did_you_mean}")
+
         def __getattr__(self, item):
             # when using slots so this is not an instance attribute
             attr = UNSET
@@ -1338,8 +1341,8 @@ NodeTypeOrClass = Union[NodeType, type["Node"]]
 class Node(Struct[NodeDataT], Generic[NodeDataT]):
     """
     A node in the Bench graph: a struct with a globally unique identity.
-    Every node has a stable key 'sk', a per 'instance' constant key 'ck' and a per instance 'id'.
-    The 'sk' is just the first half of the 'ck'.
+    Every node has a 'constant' key (ck) identifying its global (id)entity across versions.
+    The first part of the constant key is the stable key (sk), which is constant in all instances of a template.
     For sub package nodes the 'id' is derived from the 'ck' per Package, else it's just the id.
     """
 

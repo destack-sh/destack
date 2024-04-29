@@ -63,6 +63,7 @@ class Object:
                 if len(value) > 1:
                     return f"({', '.join(cast(str, _source_repr(v)) for v in value)})"
                 else:
+                    assert len(value) > 0, f"empty tuple: {value!r}"
                     return f"({_source_repr(value[0])},)"
             elif isinstance(value, list):
                 if not value:

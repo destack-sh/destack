@@ -10,8 +10,9 @@
     "test": "vitest",
     "build-only": "vite build",
     "build-unminified": "vite build --mode unminified",
-    "type-check": "vue-tsc --build --force",
-    "lint": "eslint . --ext .vue,.js,.jsx,.cjs,.mjs,.ts,.tsx,.cts,.mts --fix --ignore-path .gitignore",
+    "type": "vue-tsc --build --force",
+    "lint": "eslint . --ext .vue,.js,.jsx,.ts,.tsx --fix --ignore-path .gitignore",
+    "check": "vue-tsc --build --force && eslint . --ext .vue,.js,.jsx,.ts,.tsx --fix --ignore-path .gitignore",
     "format": "prettier --write src/"
   },
   "engines": {

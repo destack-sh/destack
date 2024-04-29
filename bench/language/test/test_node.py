@@ -23,7 +23,7 @@ def test_get_set_non_existing_property(fabricator: "Fabricator"):
     client = fabricator.fabricate(Client)
     client._status = InterpStatus.TRACKED
     with pytest.raises(AttributeError):
-        client.wadabadaboo = "wadabadaboo"
+        client.wadabadaboo = "wadabadaboo"  # type: ignore
     with pytest.raises(AttributeError):
         _ = client.wadabadaboo  # type: ignore
 

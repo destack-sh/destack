@@ -16,28 +16,26 @@ repos:
     hooks:
       - id: isort
         name: isort (py)
-  #  TODO :Cleanup :Robustness: fix Python typechecking
-  #   (and re-enable pyright pre-commit hook)
-  #  - repo: https://github.com/RobertCraigie/pyright-python
-  #    rev: v1.1.322
-  #    hooks:
-  #      - id: pyright
+  - repo: local
+    hooks: # (on all files)
+      - id: pyright
+        name: pyright (py)
+        entry: pyright
+        language: system
+        always_run: true
+        types: [ python ]
 
   # JS/TS
   - repo: local
     hooks:
-      - id: bun-lint
-        name: bun-lint (ts)
-        entry: cd bench-web && bun run lint
+      - id: bun-check
+        name: bun-check (ts)
+        entry: bun
+        args: [ run, --cwd, bench-web, check ]
         language: system
-        types_or: [ javascript, jsx, ts, tsx, vue ]
-  - repo: local
-    hooks:
-      - id: bun-type-check
-        name: bun-type-check (ts)
-        entry: cd bench-web && bun run type-check
-        language: system
-        types_or: [ javascript, jsx, ts, tsx, vue ]
+        verbose: true
+        always_run: true
+        types: [ javascript, jsx, ts, tsx, vue ]
 
   # General
   - repo: https://github.com/compilerla/conventional-pre-commit

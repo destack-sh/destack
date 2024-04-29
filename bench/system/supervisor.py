@@ -81,7 +81,7 @@ class Supervisor(GraphIoService, SupervisorBase):
         if not name:
             name = generate_node_name(NodeType.CLIENT, type=None, siblings=user.clients)
         return Client(
-            id=client_id,
+            id=client_id or uuid4(),
             parent=user,
             name=name,
             device_name=client_data.device_name,
@@ -90,7 +90,7 @@ class Supervisor(GraphIoService, SupervisorBase):
             browser_name=client_data.browser_name,
             browser_version=client_data.browser_version,
             last_seen_at=utcnow_with_tz(),
-            _is_new=True,
+            _is_new=True,  # force create
         )
 
     async def signup_user(
@@ -107,7 +107,7 @@ class Supervisor(GraphIoService, SupervisorBase):
                 email=request.email,
                 status=UserStatus.REGISTERED,
                 last_logged_in_at=utcnow_with_tz(),
-                _is_new=True,  # force create (despite already having an id)
+                _is_new=True,  # force create
             )
             user.password_salt = generate_salt()
             user.password_hash = hash_password(request.password, user.password_salt)
