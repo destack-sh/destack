@@ -75,6 +75,6 @@ class TextSpan(TextOptions):
         if self.content:
             return repr(self.content)
         elif self.node:
-            return f"@{self.node_reference!r}"
+            return f"@{self.node!r}"
         else:
             return ""

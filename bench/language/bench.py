@@ -1,6 +1,6 @@
 from datetime import datetime
 from itertools import chain
-from typing import TYPE_CHECKING, Collection, Iterable, Optional, Union
+from typing import TYPE_CHECKING, Iterable, Optional, Union
 
 from bench.language.const import NodeType, StructType
 from bench.language.graph import NodeList

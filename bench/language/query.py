@@ -711,6 +711,7 @@ class PostgresConnection(
             pg_search_nodes_data_graph,
         )
 
+        assert query._node_cls.__table__ is not None, f"{query._node_cls} has no table"
         roots, graph = await pg_search_nodes_data_graph(
             cur=self.cur,
             node_type=query._node_type,
@@ -739,6 +740,7 @@ class PostgresConnection(
     async def aggregate(self, query: "QueryBuilder[NodeT, NodeDataT]") -> AggregateResult:
         from bench.sql.engine import compile_pg_conditional_maybe, pg_count, pg_exists
 
+        assert query._node_cls.__table__ is not None, f"{query._node_cls} has no table"
         assert query._aggregation is not None
         where = compile_pg_conditional_maybe(query._node_cls, query._filter)
         if query._aggregation.op == AggregationOp.EXISTS:

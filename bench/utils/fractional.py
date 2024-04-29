@@ -2,7 +2,7 @@
 # (licensed as CC-0)
 # sync with fractional.ts in frontend
 
-from typing import Optional, Protocol, TypeVar, cast
+from typing import Any, Optional, Protocol, cast
 
 from bench.utils.func import nextn
 
@@ -235,7 +235,8 @@ class HasOrderKey(Protocol):
     order_key: str
 
 
-ElementT = TypeVar("ElementT", bound=HasOrderKey)
+# NOTE :Robustness: not sure how to structure type ElementT to have .order_key: str
+ElementT = Any  # TypeVar("ElementT", bound=HasOrderKey)
 
 
 def get_key_bounds(

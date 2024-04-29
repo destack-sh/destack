@@ -1,6 +1,6 @@
 import enum
 import re
-from typing import TYPE_CHECKING, Any, Union
+from typing import TYPE_CHECKING, Any, Callable, Collection, Optional, Union
 
 import betterproto
 import cachetools
@@ -17,8 +17,8 @@ class ValidationError(BenchError, ValueError):
     def __init__(
         self,
         subject: Union["Struct", "AnyStructData", "AnyNodeData", betterproto.Message],
-        message: str,
-        properties: list["Property"] | None = None,
+        message: Optional[str],
+        properties: Collection["Property"] | Collection[Any] | None = None,
         cause: Exception | None = None,
     ):
         super().__init__(f"{subject!r}: {message}" + (f" at {properties}" if properties else ""))
@@ -28,16 +28,24 @@ class ValidationError(BenchError, ValueError):
         self.cause = cause
 
 
-class ValidationHandler:
-    def __call__(
-        self,
-        subject: "Struct",
-        message: str,
-        # NOTE: list[Any] because Node.<property> doesn't type as Property yet
-        properties: list["Property"] | list[Any] | tuple[Any, ...] | None = None,
-        cause: Exception | None = None,
-    ):
-        pass
+ValidationHandler = Callable[
+    [
+        "Struct",
+        Optional[str],
+        Collection["Property"] | Collection[Any] | None,
+        Exception | None,
+    ],
+    None,
+]
+
+
+def on_invalid_raise(
+    subject: "Struct",
+    message: Optional[str],
+    properties: Collection["Property"] | Collection[Any] | None = None,
+    cause: Exception | None = None,
+):
+    raise ValidationError(subject, message, properties, cause)
 
 
 class PropertyValidationHandler:
@@ -53,15 +61,6 @@ class PropertyValidationHandler:
     ):
         message = f"{self.prop.name}: {message}"
         self.handler(self.subject, message, [self.prop], cause)
-
-
-def on_invalid_raise(
-    subject: "Node",
-    message: str,
-    properties: list["Property"] | None = None,
-    cause: Exception | None = None,
-):
-    raise ValidationError(subject, message, properties, cause)
 
 
 MIN_NAME_LENGTH = 1

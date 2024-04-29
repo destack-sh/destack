@@ -22,6 +22,7 @@ if TYPE_CHECKING:
 
 # pyright: reportIncompatibleVariableOverride=false
 
+
 @enum_(EnumType.VIEW_TYPE)
 class ViewType(IdEnum):
     #
@@ -342,7 +343,7 @@ class HasViews(Node):
 class View(HasViews, HasValues):
     """A view of a user interface in a Bench."""
 
-    parent: Union["Space", "View", "Block"] = p_node_parent( 
+    parent: Union["Space", "View", "Block"] = p_node_parent(
         4, NodeType.SPACE, NodeType.VIEW, NodeType.BLOCK
     )
 

@@ -9,12 +9,12 @@ from itertools import filterfalse, tee
 from sys import intern
 from typing import (
     Any,
-    Callable,
     Collection,
     Coroutine,
     Iterable,
     Mapping,
     TypeVar,
+    Union,
     cast,
 )
 from uuid import UUID
@@ -384,6 +384,7 @@ class IdEnum(enum.IntEnum):
         return typing.cast(type["IdEnum"], combined)
 
 
+IdEnumOrUnion = Union[IdEnum, Union[IdEnum, Any]]
 EnumT = TypeVar("EnumT", bound=IdEnum)
 
 
@@ -394,14 +395,16 @@ class bytetuple(typing.Generic[EnumT]):
     We accept only IdEnum instances because we use its ordinals for a compact bitarray.
     """
 
-    def __init__(self, *items: EnumT, enum_cls: type[EnumT] | None = None):
+    def __init__(self, *items: EnumT, enum_cls: type[EnumT] | Union[EnumT, Any] | None = None):
         if len(items) == 1 and isinstance(items[0], Collection):
             items = tuple(items[0])
         self.tuple = items
         if enum_cls is None:
             assert len(items) > 0, "enum_cls or args is required"
             enum_cls = items[0].__class__
-        assert issubclass(enum_cls, IdEnum), f"invalid enum_cls: {enum_cls} ({items})"
+        assert isinstance(enum_cls, type) and issubclass(
+            enum_cls, IdEnum
+        ), f"invalid enum_cls: {enum_cls} ({items})"
         self.enum_cls = enum_cls
         self.bits = bitarray(enum_cls.get_max_ord() + 1)
         for arg in items:

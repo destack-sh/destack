@@ -4,7 +4,16 @@ import functools
 from dataclasses import dataclass
 from datetime import datetime
 from sys import intern
-from typing import TYPE_CHECKING, Any, Callable, Iterable, Literal, Optional, Union, cast
+from typing import (
+    TYPE_CHECKING,
+    Any,
+    Callable,
+    Iterable,
+    Literal,
+    Optional,
+    Union,
+    cast,
+)
 from uuid import UUID
 
 from bench.language.const import (
@@ -186,7 +195,7 @@ class Property(_TypeQueryBuilder if TYPE_CHECKING else object):
         )
 
     @property
-    def _as_type(self) -> "TypeInfo":
+    def as_type(self) -> "TypeInfo":
         """The type info for this property (can't extend TypeInfo because circles)."""
 
         if self._cached_as_type is None:
@@ -323,11 +332,10 @@ class Property(_TypeQueryBuilder if TYPE_CHECKING else object):
         elif self.is_list:
             if self.is_node_reference or self.is_property_reference:
                 assert isinstance(ref, (list, tuple)), f"expected list for {self!r}: {ref!r}"
-                return [r.to_ref() for r in ref]
+                return [cast("Node", r).to_ref() for r in ref]
         else:
             if self.is_node_reference or self.is_property_reference:
-                ref = cast(Union["NodeReference", "PropertyReference"], ref)
-                return ref.to_ref()
+                return (cast(Union["Node", "Property"], ref)).to_ref()
             elif self.is_struct_reference:
                 ref = cast(Union["Node", "Struct"], ref)
                 if ref.__is_struct_only__ and not ref.__is_struct_inlined__:
@@ -795,6 +803,7 @@ def p_property(
     if references:
         reference_kind = ReferenceKind.NODE_REGULAR
     elif struct == StructType.PROPERTY_REFERENCE:
+        assert custom_list is None, "can't set custom list for property reference"
         reference_kind = ReferenceKind.PROPERTY
         struct = None
         custom_list = ValueList

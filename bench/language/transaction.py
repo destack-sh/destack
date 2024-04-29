@@ -17,7 +17,7 @@ from bench.utils.func import uuid_to_str
 from bench.utils.uuidt import UUIDT
 
 if TYPE_CHECKING:
-    from bench.language import Session, User, Run
+    from bench.language import Run, Session, User
 
 logger = structlog.get_logger(__name__)
 
@@ -161,7 +161,7 @@ class Transaction:
         for edit in edits:
             self._add_pending_edit(edit, node=None)
 
-    def create(self, n: Node, subject: EditSubject):
+    def create(self, n: Node, subject: EditSubject | None):
         edit = self._make_edit(EditType.CREATE, n, subject)
         self._add_pending_edit(edit, n)
 
@@ -169,7 +169,7 @@ class Transaction:
         edit = self._make_edit(EditType.UPSERT, n, subject)
         self._add_pending_edit(edit, n)
 
-    def update(self, n: Node, subject: EditSubject | None, properties: tuple[Property, ...]):
+    def update(self, n: Node, subject: EditSubject | None, properties: Collection[Property]):
         from bench.proto import wiring
 
         existing_edit_idx = self._pending_updates_idx.get(n)

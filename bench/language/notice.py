@@ -1,16 +1,15 @@
 import functools
-
-from typing import TYPE_CHECKING, Any, Optional, Union, cast
+from typing import TYPE_CHECKING, Any, Callable, Collection, Optional, Union, cast
 from uuid import UUID
 
 from bench.language.const import BenchError, NodeType, NoticeKind, StructType
-from bench.language.node import Node, node, Property
+from bench.language.node import Node, Property, node
 from bench.language.property import p_node_parent, p_regular
 from bench.language.validation import enum_validator
 from bench.utils.func import IdEnum
 
 if TYPE_CHECKING:
-    from bench.language import Block, Package, Path
+    from bench.language import Block, Package, Path, Struct
 
 
 class NoticeType(IdEnum):
@@ -75,29 +74,24 @@ class Notice(Node):
         return self.parent.id if self.parent is not None else None
 
 
-class NoticeHandler:
-    def __call__(
-        self,
-        subject: Node,
-        type: NoticeType,
-        message: Optional[str] = None,
-        path: Optional["Path"] = None,
-        # NOTE: list[Any] because Node.<property> doesn't type as Property yet
-        properties: Optional[
-            list[Property] | tuple[Property, ...] | list[Any] | tuple[Any, ...]
-        ] = None,
-    ):
-        pass
+NoticeHandler = Callable[
+    [
+        "Struct",
+        NoticeType,
+        Optional[str],
+        Optional["Path"],
+        Optional[Collection[Property] | Collection[Any]],
+    ],
+    None,
+]
 
 
 def on_warning_raise(
-    subject: "Node",
+    subject: "Struct",
     type: "NoticeType",
     message: Optional[str] = None,
     path: Optional["Path"] = None,
-    properties: Optional[
-        list[Property] | tuple[Property, ...] | list[Any] | tuple[Any, ...]
-    ] = None,
+    properties: Optional[Collection[Property] | Collection[Any]] = None,
     min_level: NoticeKind = NoticeKind.WARNING,
 ):
     if type.kind >= min_level:

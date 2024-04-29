@@ -1,3 +1,4 @@
+from typing import cast
 from uuid import uuid4, uuid5
 
 import betterproto
@@ -30,6 +31,7 @@ from bench.proto.wire import (
     SignupUserResponse,
     SupervisorBase,
     SupervisorStub,
+    UserData,
 )
 from bench.system.auth import check_password, generate_access_token, generate_salt, hash_password
 from bench.system.client import GLOBAL_POSTGRES_ENGINE, global_session
@@ -119,7 +121,9 @@ class Supervisor(BenchServiceBase[SupervisorStub], GraphIoService, SupervisorBas
 
         logger.info("supervisor.signup_user", user=user, client=client)
         return SignupUserResponse(
-            user=user._to_data(), client=client._to_data(), access_token=client.access_token
+            user=cast(UserData, user._to_data()),
+            client=cast(ClientData, client._to_data()),
+            access_token=client.access_token,
         )
 
     async def change_user_password(
@@ -129,6 +133,7 @@ class Supervisor(BenchServiceBase[SupervisorStub], GraphIoService, SupervisorBas
             raise GRPCError(GRPCStatus.UNAUTHENTICATED, "not logged in")
 
         async with global_session() as session:
+            assert subject.user is not None, "subject is not authenticated"
             user = subject.user
             if not await check_password(
                 request.old_password, user.password_salt, user.password_hash
@@ -138,7 +143,7 @@ class Supervisor(BenchServiceBase[SupervisorStub], GraphIoService, SupervisorBas
             # set new password
             session.track(user)  # user is from another session
             user.password_salt = generate_salt()
-            user.password_hash = hash_password(request.password, user.password_salt)
+            user.password_hash = hash_password(request.new_password, user.password_salt)
             await session.commit()
             self.on_graph_edited((GLOBAL_SCOPE,), session.tx.edits)
 
@@ -172,7 +177,9 @@ class Supervisor(BenchServiceBase[SupervisorStub], GraphIoService, SupervisorBas
 
         logger.info("supervisor.login_user", user=user, client=client)
         return LoginUserResponse(
-            user=user._to_data(), client=client._to_data(), access_token=client.access_token
+            user=cast(UserData, user._to_data()),
+            client=cast(ClientData, client._to_data()),
+            access_token=client.access_token,
         )
 
     async def logout_user(
@@ -260,7 +267,7 @@ class Supervisor(BenchServiceBase[SupervisorStub], GraphIoService, SupervisorBas
             self.on_graph_edited((GLOBAL_SCOPE,), session.tx.edits)
 
         logger.info("supervisor.create_bench", bench=bench)
-        return CreateBenchResponse(bench=bench._to_data())
+        return CreateBenchResponse(bench=cast(BenchData, bench._to_data()))
 
     async def get_host(self, subject: "Subject", request: "GetHostRequest") -> "GetHostResponse":
         key, value = betterproto.which_one_of(request, "bench")

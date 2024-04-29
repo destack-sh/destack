@@ -1,5 +1,4 @@
 import abc
-import functools
 from collections import defaultdict, deque
 from itertools import chain
 from typing import (
@@ -225,7 +224,7 @@ class NodeGraph(NodeGraphBase[NodeT, UUID]):
             return EMPTY_LIST
         if not recursive:
             if child_node_type is not None:  # best case
-                return self.nodes_by_parent_id_and_type.get((node.id, child_node_type), ())
+                return self.nodes_by_parent_id_and_type.get((node.id, child_node_type), [])
             else:
                 descendants: list[NodeT] = []
                 for child_type in CHILD_NODE_TYPES[node.metatype]:
@@ -343,7 +342,7 @@ class NodeDataGraph(NodeGraphBase[NodeDataT, str]):
         assert isinstance(node.id, str), f"expected NodeData, got {Node!r}"
         if not recursive:
             if child_node_type is not None:
-                return self.nodes_by_parent_id_and_type.get((node.id, child_node_type), ())
+                return self.nodes_by_parent_id_and_type.get((node.id, child_node_type), [])
             else:
                 descendants: list[NodeDataT] = []
                 for child_type in CHILD_NODE_TYPES[cast(NodeType, node.metatype)]:
@@ -489,10 +488,10 @@ def generate_node_name(
     metatype: NodeType, type: Optional[Any], siblings: Collection["Node"]
 ) -> str:
     """Generates a new name for the given node based on its siblings. :AutoNaming"""
-    if metatype == NodeType.BLOCK or metatype == NodeType.VIEW:
+    if metatype == NodeType.BLOCK or metatype == NodeType.VIEW or metatype == NodeType.STEP:
         assert isinstance(type, IdEnum), f"expected type for {metatype!r}, got {type!r}"
         base_name = to_casing(type.name, Casing.CAMEL)
-        type_siblings = tuple(n for n in siblings if n.type == type)
+        type_siblings = tuple(n for n in siblings if getattr(n, "type") == type)
     else:
         base_name = to_casing(metatype.name, Casing.CAMEL)
         type_siblings = tuple(n for n in siblings if n.metatype == metatype)
@@ -500,7 +499,7 @@ def generate_node_name(
     if len(type_siblings) == 0:
         max_id = 0
     else:
-        max_id = max((extract_name_id(n.name) or 0) for n in type_siblings)
+        max_id = max((extract_name_id(getattr(n, "name")) or 0) for n in type_siblings)
     return f"{base_name}{max_id + 1}"
 
 
@@ -545,7 +544,7 @@ class NodeList(abc.ABC, Collection[NodeT], Generic[NodeT]):
         """Attaches a child node to a parent through a list."""
         raise NotImplementedError
 
-    def extend(self, *nodes: Collection[NodeT]):
+    def extend(self, *nodes: NodeT):
         """Attaches a list of child nodes to a parent. See append."""
         raise NotImplementedError
 
@@ -603,9 +602,9 @@ class InMemoryGraphNodeList(NodeList[NodeT]):
         # assign ids if newly attached to the package (ids are derived from ck + package)
         if "ck" in node.__properties__ and not node.is_attached and self._parent.is_attached:
             package_id = self._parent.package.id
-            for node in node._walk_rec():
-                if node.id is None:
-                    node._assign_id(package_id)
+            for n in node._walk_rec():
+                if n.id is None:
+                    n._assign_id(package_id)
 
         node.parent = self._parent
         if self._parent._session is not None:
@@ -615,7 +614,7 @@ class InMemoryGraphNodeList(NodeList[NodeT]):
         if node._graph is not None:
             # subsume if previously detached
             added = node._graph.collect_descendants(node, recursive=True)
-            added = added + [node]
+            added = tuple(added + [node])
             node._graph.update(node)  # parent updated
             self._parent._root_graph.add_graph(node._graph)
             node._graph = None
@@ -664,7 +663,7 @@ class InMemoryGraphNodeList(NodeList[NodeT]):
         if not (self._flags & NRel.NAMED):
             raise ValueError(f"cannot get {some_id!r} from {self!r}")
         for child in self.nodes:
-            if child.name == some_id or child.py_ident == some_id:
+            if getattr(child, "name") == some_id or child.py_ident == some_id:
                 return child
         return None
 
@@ -672,21 +671,24 @@ class InMemoryGraphNodeList(NodeList[NodeT]):
         return len(self.nodes) > 0
 
     def __contains__(self, obj: object) -> bool:
-        # special case to unwrap key (e.g. for tagging/tag objects)
-        if isinstance(obj, str) and (self._flags & NRel.NAMED):
-            return self.get(obj) is not None
-        elif isinstance(obj, Node):
-            if obj.metatype != self._property.reference_nodes[0]:
-                raise TypeError(f"{self!r} cannot contain {obj!r}")
-            return obj in self.nodes
+        if isinstance(obj, Node):
+            if obj in self.nodes:
+                return True
+            else:
+                if (
+                    self._property.reference_nodes
+                    and obj.metatype != self._property.reference_nodes[0]
+                ):
+                    raise TypeError(f"{self!r} cannot contain {obj!r}")
+                return False
         else:
             return False
 
     def __getitem__(self, item: int | slice | str) -> NodeT | list[NodeT]:
         if isinstance(item, (int, slice)):
-            return self.nodes[item]
+            return cast(list[NodeT], self.nodes[item])
         elif isinstance(item, str):
-            return self.get(item)
+            return cast(NodeT, self.get(item))
         else:
             raise TypeError(f"invalid index for {self!r}: {item} ({type(item)})")
 
@@ -705,7 +707,7 @@ class InMemoryGraphNodeList(NodeList[NodeT]):
         return len(self.nodes)
 
     def __eq__(self, other: object) -> bool:
-        if isinstance(other, NodeList):
+        if isinstance(other, InMemoryGraphNodeList):
             return self.nodes == other.nodes
         elif isinstance(other, list):
             return self.nodes == other
@@ -724,7 +726,6 @@ class ValueList(list, Generic[ValueParentT]):
     Unlike a NodeList, value lists are actual lists and not computed on access.
     """
 
-    @functools.wraps(list.__init__)
     def __init__(self, parent: ValueParentT, parent_prop: ValueProperty, *args, **kwargs):  # type: ignore
         from bench.language.node import Property
 
@@ -748,24 +749,27 @@ class ValueList(list, Generic[ValueParentT]):
 
     def append(self, item: ValueT, after: ValueT | None = None, before: ValueT | None = None):
         if not self.is_property_reference:
-            item = item._lazy_copy_to(self.parent, self.parent_prop)
+            item = item._lazy_copy_to(self.parent, self.parent_prop)  # type: ignore
         super().append(item)
         if self.is_ordered:
-            item.order_key = get_order_key(*get_key_bounds(self, after, before))
+            cast(Union["Value", "Struct"], item).order_key = get_order_key(
+                *get_key_bounds(self, after, before)
+            )
         self.parent._updated_self((self.parent_prop,))
 
     def extend(self, items: Collection[ValueT]):  # type: ignore
         super().extend(items)
         if not self.is_property_reference:
-            if any(e.parent is not None for e in items):
-                items = [e._copy_to(self.parent, self.parent_prop) for e in items]
+            values = cast(list[Union["Value", "Struct"]], items)
+            if any(item.parent is not None for item in values):
+                values = [e._copy_to(self.parent, self.parent_prop) for e in items]  # type: ignore
             else:
-                for item in items:
+                for item in values:
                     item.parent = self.parent
                     item.parent_key = self.parent_key
             if self.is_ordered:
                 order_keys = get_order_keys(*get_key_bounds(self), n=len(items))
-                for item, order_key in zip(items, order_keys):
+                for item, order_key in zip(values, order_keys):
                     item.order_key = order_key
         self.parent._updated_self((self.parent_prop,))
 
@@ -785,35 +789,25 @@ class ValueList(list, Generic[ValueParentT]):
         )
         if any(
             v.parent is not None and (v.parent != parent or v.parent_key != parent_key)
-            for v in values
+            for v in cast(list[Union["Value", "Struct"]], values)
         ):
-            values = [v._copy_to(parent, parent_prop) for v in values]
+            values = [v._copy_to(parent, parent_prop) for v in values]  # type: ignore
         return ValueList(parent, parent_prop, values)
 
 
+# poor mans filters, see FilterNodeGraph in bench-web
 _EXCLUDE_HIDDEN_EDIT_TYPE_REMAP: dict[EditType, EditType] = {
     EditType.ARCHIVE: EditType.DELETE,
     EditType.UNARCHIVE: EditType.CREATE,
     EditType.SOFT_DELETE: EditType.DELETE,
     EditType.RESTORE: EditType.CREATE,
 }
-
 _INCLUDE_HIDDEN_EDIT_TYPE_REMAP: dict[EditType, EditType] = {
     EditType.ARCHIVE: EditType.UPDATE,
     EditType.UNARCHIVE: EditType.UPDATE,
     EditType.SOFT_DELETE: EditType.UPDATE,
     EditType.RESTORE: EditType.UPDATE,
 }
-
-
-def filter_edits(options: "ReadOptions", edits: Collection[EditData]) -> list[EditData]:
-    """Filters the edits according to the read options."""
-
-    filtered: list[EditData] = []
-    for edit in edits:
-        if options.has_node_type(edit.node_type):
-            filtered.append(edit)
-    return filtered
 
 
 def edit_graph(graph: NodeGraph, options: "ReadOptions", edits: Collection[EditData]) -> None:

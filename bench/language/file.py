@@ -4,7 +4,7 @@ from typing import TYPE_CHECKING, BinaryIO, Optional
 import aiohttp
 import structlog
 
-from bench.language.const import EnumType, FileStatus, NodeType, StructType, enum_
+from bench.language.const import EnumType, NodeType, StructType, enum_
 from bench.language.node import Struct, struct
 from bench.language.property import Property, p_internal, p_regular, p_runtime
 from bench.language.validation import ValidationHandler, validate_name
@@ -20,6 +20,8 @@ FILE_HASH_LENGTH = 128  # 512 bits
 FILE_MAX_SIZE = 1024 * 1024 * 1024  # 1GB
 FILE_MAX_NAME_LENGTH = 256
 GLOBAL_PROJECT_BUCKET_NAME = get_from_env("GLOBAL_PROJECT_BUCKET_NAME", optional=True)
+
+# pyright: reportIncompatibleVariableOverride=false,reportIncompatibleMethodOverride=false
 
 
 @struct(StructType.FILE, inline=True)
@@ -38,7 +40,7 @@ class File(Struct):
     _cached_bytes: Optional[bytes] = p_runtime(default=None)
 
     def __content_str__(self):
-        return f"{self.name} {self.status}, {self.type}, {self.size} bytes"
+        return f"{self.name} {self.type}, {self.size} bytes"
 
     def _validate_inner(
         self, properties: tuple[Property, ...], on_invalid: ValidationHandler
@@ -47,11 +49,12 @@ class File(Struct):
             on_invalid(
                 self,
                 f"{self} name is too long ({len(self.name)} > {FILE_MAX_NAME_LENGTH})",
+                (File.name,),
+                None,
             )
         if self.size and self.size > FILE_MAX_SIZE:
             on_invalid(
-                self,
-                f"{self} is too big ({self.size} > {FILE_MAX_SIZE} bytes)",
+                self, f"{self} is too big ({self.size} > {FILE_MAX_SIZE} bytes)", (File.size,), None
             )
 
     @_auto_async_to_sync
