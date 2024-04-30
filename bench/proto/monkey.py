@@ -97,37 +97,31 @@ class _PatchedMessage(BetterprotoMessage):
     def to_robust_dict(self):
         """Patched betterproto.Message.to_dict that handles RobustJson for Structs."""
 
-        from bench.proto.wiring import BENCH_CLASS_BY_PROTO_CLASS
-
-        # we assume this is only called for Bench types, so a bench class must exist
-        struct_cls = BENCH_CLASS_BY_PROTO_CLASS[cast(Any, self.__class__)]
         output: dict[str, Any] = {}
         self._type_hints()
         defaults = self._betterproto.default_gen
-        for field_name, meta in self._betterproto.meta_by_field_name.items():
+        for field_name, field_meta in self._betterproto.meta_by_field_name.items():
             field_is_repeated = defaults[field_name] is list
             try:
                 value = getattr(self, field_name)
             except AttributeError:
                 value = self._get_field_default(field_name)
-            # prop lookup here error here -> proto schema locally out of sync (tested against)
-            prop = struct_cls.__properties__[field_name]
-            key = str(prop.id)
-            if meta.proto_type == betterproto.TYPE_MESSAGE:
+            key = str(field_meta.number)
+            if field_meta.proto_type == betterproto.TYPE_MESSAGE:
                 if isinstance(value, datetime):
                     if value != betterproto.DATETIME_ZERO or self._include_default_value_for_oneof(
-                        field_name=field_name, meta=meta
+                        field_name=field_name, meta=field_meta
                     ):
                         output[key] = betterproto._Timestamp.timestamp_to_json(value)
                 elif isinstance(value, timedelta):
                     if value != timedelta(0) or self._include_default_value_for_oneof(
-                        field_name=field_name, meta=meta
+                        field_name=field_name, meta=field_meta
                     ):
                         output[key] = betterproto._Duration.delta_to_json(value)
                 elif isinstance(value, BetterprotoStruct):
                     if len(value) > 0:
                         output[key] = value.to_dict()
-                elif meta.wraps:
+                elif field_meta.wraps:
                     if value is not None:
                         output[key] = value
                 elif field_is_repeated:
@@ -146,34 +140,34 @@ class _PatchedMessage(BetterprotoMessage):
                 elif value is None:
                     pass
                 elif value._serialized_on_wire or self._include_default_value_for_oneof(
-                    field_name=field_name, meta=meta
+                    field_name=field_name, meta=field_meta
                 ):
                     output[key] = value.to_robust_dict()
-            elif meta.proto_type == betterproto.TYPE_MAP:
+            elif field_meta.proto_type == betterproto.TYPE_MAP:
                 raise NotImplementedError("proto maps are not yet supported")
             elif value != self._get_field_default(
                 field_name
-            ) or self._include_default_value_for_oneof(field_name=field_name, meta=meta):
-                if meta.proto_type in betterproto.INT_64_TYPES:
+            ) or self._include_default_value_for_oneof(field_name=field_name, meta=field_meta):
+                if field_meta.proto_type in betterproto.INT_64_TYPES:
                     if field_is_repeated:
                         output[key] = [str(n) for n in value]
                     elif value is not None:
                         output[key] = str(value)
-                elif meta.proto_type == betterproto.TYPE_BYTES:
+                elif field_meta.proto_type == betterproto.TYPE_BYTES:
                     if field_is_repeated:
                         output[key] = [b64encode(b).decode("utf8") for b in value]
                     elif value is not None:
                         output[key] = b64encode(value).decode("utf8")
-                elif meta.proto_type == betterproto.TYPE_ENUM:
+                elif field_meta.proto_type == betterproto.TYPE_ENUM:
                     if field_is_repeated:
-                        if isinstance(value, Iterable) and not isinstance(value, int):
+                        if isinstance(value, Iterable):
                             output[key] = [*value]
                         else:
                             # transparently upgrade single value to repeated
                             output[key] = [value]
                     elif value is not None:
                         output[key] = value
-                elif meta.proto_type in (betterproto.TYPE_FLOAT, betterproto.TYPE_DOUBLE):
+                elif field_meta.proto_type in (betterproto.TYPE_FLOAT, betterproto.TYPE_DOUBLE):
                     if field_is_repeated:
                         output[key] = [betterproto._dump_float(n) for n in value]
                     else:

@@ -22,5 +22,6 @@
 		"python.experiments.optInto": [
 			"pythonTestAdapter"
 		],
+		"python.analysis.diagnosticMode": "workspace",
 	}
 }
