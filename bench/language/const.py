@@ -11,15 +11,16 @@ from bench.utils.utils import frozendict
 if typing.TYPE_CHECKING:
     from bench.language import Session, Transaction
 
-VERSION = "2024.04.30.1"
+VERSION = "2024.04.30.2"
+REVISION_PENDING = -1
+TK_LENGTH_BYTES = 8
+TK_LENGTH_B64 = 12  # 1.5 * TK_LENGTH_BYTES (must be integer)
 UNSET = cast(Any, object())
 EMPTY_LIST: list = []
 EMPTY_SET: frozenset = frozenset()
 EMPTY_DICT: typing.Mapping = frozendict()
 EMPTY_SCOPE = GraphScope()
-REVISION_PENDING = -1
-SK_LENGTH_BYTES = 8
-SK_LENGTH_B64 = 12
+
 
 # NOTE: we have the enum registry here to avoid circular imports
 _ENUM_CLASS_BY_TYPE: dict["EnumType", type[IdEnum]] = {}

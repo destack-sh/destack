@@ -603,7 +603,7 @@ RECORD_EPHEMERAL_TABLE = Table(
     "bench_record_ephemeral",
     columns=(
         *(c.clone() for c in RECORD_BASE_TABLE.columns),
-        Column("block_sk", PrimitiveType.UUID, _source=21),
+        Column("block_tk", PrimitiveType.UUID, _source=21),
         Column("block_ck", PrimitiveType.UUID, _source=21),
         Column("block_id", PrimitiveType.UUID, _source=22),
         Column("value_packed", PrimitiveType.JSON, is_nullable=True, _source=30),

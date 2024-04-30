@@ -5,7 +5,7 @@ import pytest
 from bench.language.const import EnumType, NodeType, PrimitiveType, StructType
 from bench.language.expression import NodeReference
 from bench.language.field import TypeInfo, decode_type_identity, encode_type_identity
-from bench.language.node import get_sk_from_ptr_maybe
+from bench.language.node import get_tk_from_ptr_maybe
 
 TYPE_IDENTITIES = (
     TypeInfo(primitive_type=PrimitiveType.DATETIME),
@@ -34,7 +34,7 @@ def test_roundtrip_type_identity(type_info: TypeInfo):
     decoded = decode_type_identity(identity_key)
     assert decoded.primitive_type == type_info.primitive_type
     assert decoded.bench_type == type_info.bench_type
-    assert get_sk_from_ptr_maybe(decoded.base_type_ptr) == get_sk_from_ptr_maybe(
+    assert get_tk_from_ptr_maybe(decoded.base_type_ptr) == get_tk_from_ptr_maybe(
         type_info.base_type_ptr
     )
     assert decoded.is_list == type_info.is_list

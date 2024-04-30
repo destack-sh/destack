@@ -39,9 +39,9 @@ from bench.language.const import (
     IN_BENCH_NODE_TYPES,
     IN_PACKAGE_NODE_TYPES,
     NODE_TYPES,
-    SK_LENGTH_BYTES,
     SUB_BENCH_NODE_TYPES,
     SUB_PACKAGE_NODE_TYPES,
+    TK_LENGTH_BYTES,
     UNSET,
     InterpStatus,
     NodeSource,
@@ -119,43 +119,43 @@ def new_struct_id() -> int:
 new_node_id = uuid4
 
 
-def get_sk_from_ck(ck: UUID) -> str:
+def get_tk_from_ck(ck: UUID) -> str:
     """Gets the stable across templates first 6 bytes of the ck."""
-    return ck.bytes[:SK_LENGTH_BYTES].hex()
+    return ck.bytes[:TK_LENGTH_BYTES].hex()
 
 
-def get_sk_from_ptr(ptr: "NodeReference") -> str:
+def get_tk_from_ptr(ptr: "NodeReference") -> str:
     if ptr.ck:
-        return ptr.ck.bytes[:SK_LENGTH_BYTES].hex()
+        return ptr.ck.bytes[:TK_LENGTH_BYTES].hex()
     elif ptr.id:
-        return ptr.id.bytes[:SK_LENGTH_BYTES].hex()
+        return ptr.id.bytes[:TK_LENGTH_BYTES].hex()
     else:
         raise ValueError(f"invalid ptr: {ptr!r}")
 
 
-def get_sk_from_ptr_maybe(ptr: Optional["NodeReference"]) -> Optional[str]:
+def get_tk_from_ptr_maybe(ptr: Optional["NodeReference"]) -> Optional[str]:
     if ptr is None:
         return None
     elif ptr.ck:
-        return ptr.ck.bytes[:SK_LENGTH_BYTES].hex()
+        return ptr.ck.bytes[:TK_LENGTH_BYTES].hex()
     elif ptr.id:
-        return ptr.id.bytes[:SK_LENGTH_BYTES].hex()
+        return ptr.id.bytes[:TK_LENGTH_BYTES].hex()
     else:
         raise ValueError(f"invalid ptr: {ptr!r}")
 
 
-def get_sk_b64_from_ptr(ptr: "NodeReference") -> str:
+def get_tk_b64_from_ptr(ptr: "NodeReference") -> str:
     if ptr.ck:
-        return base64.b64encode(ptr.ck.bytes[:SK_LENGTH_BYTES]).decode()
+        return base64.b64encode(ptr.ck.bytes[:TK_LENGTH_BYTES]).decode()
     elif ptr.id:
-        return base64.b64encode(ptr.id.bytes[:SK_LENGTH_BYTES]).decode()
+        return base64.b64encode(ptr.id.bytes[:TK_LENGTH_BYTES]).decode()
     else:
         raise ValueError(f"invalid ptr: {ptr!r}")
 
 
-def pad_ck_from_sk_b64(sk_b64: str) -> UUID:
+def pad_ck_from_tk_b64(sk_b64: str) -> UUID:
     """Pads the remainder with zeros"""
-    bytes = base64.b64decode(sk_b64.encode()) + (16 - SK_LENGTH_BYTES) * b"\x00"
+    bytes = base64.b64decode(sk_b64.encode()) + (16 - TK_LENGTH_BYTES) * b"\x00"
     return UUID(bytes=bytes)
 
 
@@ -1394,8 +1394,8 @@ NodeTypeOrClass = Union[NodeType, type["Node"]]
 class Node(Struct[NodeDataT], Generic[NodeDataT]):
     """
     A node in the Bench graph: a struct with a globally unique identity.
-    Every node has a 'constant' key (ck) identifying its global (id)entity across versions.
-    The first part of the constant key is the stable key (sk), which is constant in all instances of a template.
+    Every node has a 'constant' key (ck) identifying its constant (id)entity across versions.
+    The first part of the constant key is the template key (tk), which is constant in all instances of a template.
     For sub package nodes the 'id' is derived from the 'ck' per Package, else it's just the id.
     """
 
@@ -1594,9 +1594,9 @@ class Node(Struct[NodeDataT], Generic[NodeDataT]):
             return True
 
     @property
-    def sk(self) -> str:
-        """The stable key of this node lineage."""
-        return get_sk_from_ck(self.ck)
+    def tk(self) -> str:
+        """The template key of this node lineage."""
+        return get_tk_from_ck(self.ck)
 
     @property
     def identifier_type(self) -> IdentifierType:

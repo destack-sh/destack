@@ -6,7 +6,7 @@ from uuid import UUID
 import structlog
 
 from bench.language.const import (
-    SK_LENGTH_B64,
+    TK_LENGTH_B64,
     BenchError,
     BenchType,
     BlockType,
@@ -24,9 +24,9 @@ from bench.language.expression import NodeReference, _TypeQueryBuilder
 from bench.language.node import (
     Node,
     NodeList,
-    get_sk_b64_from_ptr,
+    get_tk_b64_from_ptr,
     node,
-    pad_ck_from_sk_b64,
+    pad_ck_from_tk_b64,
     struct,
     struct_component,
 )
@@ -107,7 +107,7 @@ def encode_type_identity(type: "TypeInfoBase") -> str:
             else:
                 kind = TypeKind.BASE.value
                 value = (
-                    f"{get_sk_b64_from_ptr(type.base_type_ptr)}{encode_b64vlq(type.bench_type.id)}"
+                    f"{get_tk_b64_from_ptr(type.base_type_ptr)}{encode_b64vlq(type.bench_type.id)}"
                 )
         elif is_struct_type(type.bench_type):
             kind = TypeKind.STRUCT.value
@@ -117,7 +117,7 @@ def encode_type_identity(type: "TypeInfoBase") -> str:
             value = encode_b64vlq(type.bench_type.id)
     elif type.base_type_ptr:
         kind = TypeKind.ALIAS.value
-        value = get_sk_b64_from_ptr(type.base_type_ptr)
+        value = get_tk_b64_from_ptr(type.base_type_ptr)
 
     if kind is None:
         raise ValueError(f"unsupported type {type!r}")
@@ -158,15 +158,15 @@ def decode_type_identity(key: str) -> "TypeInfoBase":
         return TypeInfo(bench_type=bench_type, is_list=is_list, is_secret=is_secret)
     elif kind == TypeKind.BASE.value:
         base_type_ptr = NodeReference(
-            type=NodeType.BLOCK, ck=pad_ck_from_sk_b64(value[:SK_LENGTH_B64])
+            type=NodeType.BLOCK, ck=pad_ck_from_tk_b64(value[:TK_LENGTH_B64])
         )
-        bench_type = BenchType(decode_b64vlq(value[SK_LENGTH_B64:]))  # type: ignore
+        bench_type = BenchType(decode_b64vlq(value[TK_LENGTH_B64:]))  # type: ignore
         return TypeInfo(
             base_type_ptr=base_type_ptr, bench_type=bench_type, is_list=is_list, is_secret=is_secret
         )
     elif kind == TypeKind.ALIAS.value:
         base_type_ptr = NodeReference(
-            type=NodeType.BLOCK, ck=pad_ck_from_sk_b64(value[:SK_LENGTH_B64])
+            type=NodeType.BLOCK, ck=pad_ck_from_tk_b64(value[:TK_LENGTH_B64])
         )
         return TypeInfo(base_type_ptr=base_type_ptr, is_list=is_list, is_secret=is_secret)
 
@@ -372,4 +372,4 @@ class Field(Node[FieldData], TypeInfoBase, _TypeQueryBuilder):
 
     @property
     def storage_key(self) -> str:
-        return f"{self.sk}-{self.resolved_type.identity_key}"
+        return f"{self.tk}-{self.resolved_type.identity_key}"
