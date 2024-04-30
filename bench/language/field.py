@@ -6,10 +6,7 @@ from uuid import UUID
 import structlog
 
 from bench.language.const import (
-    ENUM_TYPES,
-    NODE_TYPES,
-    SK_LENGTH_BYTES,
-    STRUCT_TYPES,
+    SK_LENGTH_B64,
     BenchError,
     BenchType,
     BlockType,
@@ -19,14 +16,17 @@ from bench.language.const import (
     NodeVisibility,
     StructType,
     enum_,
+    is_enum_type,
+    is_node_type,
+    is_struct_type,
 )
 from bench.language.expression import NodeReference, _TypeQueryBuilder
 from bench.language.node import (
     Node,
     NodeList,
-    get_ck_from_sk_b64,
     get_sk_b64_from_ptr,
     node,
+    pad_ck_from_sk_b64,
     struct,
     struct_component,
 )
@@ -94,46 +94,81 @@ def encode_type_identity(type: "TypeInfoBase") -> str:
     Format is <kind>[id] (with id encoded as base64).
     :TypeInfoEncoding
     """
+    kind = None
+    value = None
     if type.primitive_type:
-        return f"{TypeKind.PRIMITIVE.value}{encode_b64vlq(type.primitive_type.id)}"
+        kind = TypeKind.PRIMITIVE.value
+        value = encode_b64vlq(type.primitive_type.id)
     elif type.bench_type:
-        if NodeType(type.bench_type) in NODE_TYPES:
+        if is_node_type(type.bench_type):
             if not type.base_type_ptr:
-                return f"{TypeKind.NODE.value}{encode_b64vlq(type.bench_type.id)}"
+                kind = TypeKind.NODE.value
+                value = encode_b64vlq(type.bench_type.id)
             else:
-                return f"{TypeKind.BASE.value}{get_sk_b64_from_ptr(type.base_type_ptr)}{encode_b64vlq(type.bench_type.id)}"
-        elif StructType(type.bench_type) in STRUCT_TYPES:
-            return f"{TypeKind.STRUCT.value}{encode_b64vlq(type.bench_type.id)}"
-        elif EnumType(type.bench_type) in ENUM_TYPES:
-            return f"{TypeKind.ENUM.value}{encode_b64vlq(type.bench_type.id)}"
+                kind = TypeKind.BASE.value
+                value = (
+                    f"{get_sk_b64_from_ptr(type.base_type_ptr)}{encode_b64vlq(type.bench_type.id)}"
+                )
+        elif is_struct_type(type.bench_type):
+            kind = TypeKind.STRUCT.value
+            value = encode_b64vlq(type.bench_type.id)
+        elif is_enum_type(type.bench_type):
+            kind = TypeKind.ENUM.value
+            value = encode_b64vlq(type.bench_type.id)
     elif type.base_type_ptr:
-        return f"{TypeKind.ALIAS.value}{get_sk_b64_from_ptr(type.base_type_ptr)}"
+        kind = TypeKind.ALIAS.value
+        value = get_sk_b64_from_ptr(type.base_type_ptr)
 
-    raise ValueError(f"unsupported type {type!r}")
+    if kind is None:
+        raise ValueError(f"unsupported type {type!r}")
+
+    if type.is_list:
+        prefix = kind.upper()
+    else:
+        prefix = kind
+    if type.is_secret:
+        prefix = "!" + prefix
+    return f"{prefix}{value}"
 
 
 def decode_type_identity(key: str) -> "TypeInfoBase":
     """Decodes the type-related info back from the identity key. See encode. :TypeInfoEncoding"""
-    kind = key[0]
+    # prefix
+    if key[0] == "!":
+        key = key[1:]
+        is_secret = True
+    else:
+        is_secret = False
+    if key[0].isupper():
+        is_list = True
+        kind = key[0].lower()
+    else:
+        is_list = False
+        kind = key[0]
+    value = key[1:]
+
+    # value
     if kind == TypeKind.PRIMITIVE.value:
-        primitive_type = PrimitiveType(decode_b64vlq(key[1:]))
-        return TypeInfoBase(primitive_type=primitive_type)
+        primitive_type = PrimitiveType(decode_b64vlq(value))
+        return TypeInfo(primitive_type=primitive_type, is_list=is_list, is_secret=is_secret)
     elif (
         kind == TypeKind.NODE.value or kind == TypeKind.STRUCT.value or kind == TypeKind.ENUM.value
     ):
-        bench_type = BenchType(decode_b64vlq(key[1:]))  # type: ignore
-        return TypeInfoBase(bench_type=bench_type)
+        bench_type = BenchType(decode_b64vlq(value))  # type: ignore
+        return TypeInfo(bench_type=bench_type, is_list=is_list, is_secret=is_secret)
     elif kind == TypeKind.BASE.value:
         base_type_ptr = NodeReference(
-            type=NodeType.BLOCK, ck=get_ck_from_sk_b64(key[1 : SK_LENGTH_BYTES + 1])
+            type=NodeType.BLOCK, ck=pad_ck_from_sk_b64(value[:SK_LENGTH_B64])
         )
-        bench_type = BenchType(decode_b64vlq(key[SK_LENGTH_BYTES + 1 :]))  # type: ignore
-        return TypeInfoBase(base_type_ptr=base_type_ptr, bench_type=bench_type)
+        bench_type = BenchType(decode_b64vlq(value[SK_LENGTH_B64:]))  # type: ignore
+        return TypeInfo(
+            base_type_ptr=base_type_ptr, bench_type=bench_type, is_list=is_list, is_secret=is_secret
+        )
     elif kind == TypeKind.ALIAS.value:
         base_type_ptr = NodeReference(
-            type=NodeType.BLOCK, ck=get_ck_from_sk_b64(key[1 : SK_LENGTH_BYTES + 1])
+            type=NodeType.BLOCK, ck=pad_ck_from_sk_b64(value[:SK_LENGTH_B64])
         )
-        return TypeInfoBase(base_type_ptr=base_type_ptr)
+        return TypeInfo(base_type_ptr=base_type_ptr, is_list=is_list, is_secret=is_secret)
 
     raise ValueError(f"unsupported type kind {kind}")
 
