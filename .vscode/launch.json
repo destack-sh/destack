@@ -2,7 +2,7 @@
   "version": "0.2.0",
   "configurations": [
     {
-      "name": "bench [serve.system]",
+      "name": "bench [serve.system, debug]",
       "type": "debugpy",
       "request": "launch",
       "program": "${workspaceFolder}/bench.py",
@@ -13,7 +13,7 @@
       },
       "console": "integratedTerminal",
       "cwd": "${workspaceFolder}",
-      "justMyCode": true
-    }
+      "justMyCode": false
+    }, 
   ]
 }

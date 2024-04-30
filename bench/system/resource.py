@@ -88,19 +88,10 @@ async def create_default_bench(
         engine=StoreEngineType.POSTGRES,
         name="Store",
     )
-    search = bench.stores.create(
-        region=bench.region,
-        tenancy=Tenancy.DEDICATED,
-        kind=StoreKind.SEARCH,
-        engine=StoreEngineType.OPENSEARCH,
-        name="Search",
-    )
     drive = bench.drives.create(region=bench.region, tenancy=Tenancy.SHARED, name="Drive")
 
     # create main environment/branch/package
-    environment = bench.environments.create(
-        name="Main", store=store, search=search, drive=drive, server=server
-    )
+    environment = bench.environments.create(name="Main", store=store, drive=drive, server=server)
     branch = bench.branches.create(name="Main", slug="main")
     package = bench.packages.create(environment=environment)
     await session.flush()

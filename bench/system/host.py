@@ -38,7 +38,7 @@ from bench.proto.wire import (
     UploadFilesResponse,
 )
 from bench.system.client import GLOBAL_STORE, global_session
-from bench.system.graph import GraphIoService
+from bench.system.graph import GraphIoServiceBase
 from bench.system.resource import provision_pending_resources
 from bench.utils.func import to_uuid
 
@@ -137,14 +137,14 @@ class HostMultiplexer(BenchServiceBase, HostBase):
             raise NotImplementedError(f"unexpected cardinality in {method_name}: {cardinality}")
 
 
-class Host(GraphIoService, HostBase):
+class Host(GraphIoServiceBase, HostBase):
     """
     Host for a Bench, providing the OS-level functions (lifecycle, resources & runtime management)..
     Clients interact with a Bench exclusively through its Host.
     """
 
     def __init__(self, bench_id: UUID):
-        GraphIoService.__init__(self, bench_id=bench_id, node_types=IN_BENCH_NODE_TYPES)
+        GraphIoServiceBase.__init__(self, bench_id=bench_id, node_types=IN_BENCH_NODE_TYPES)
         self.bench_id = bench_id
         self._bench: Bench | None = None
         self._bench_scope: GraphScope = GraphScope(bench_id=str(bench_id))

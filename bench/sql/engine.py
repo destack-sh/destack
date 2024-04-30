@@ -79,7 +79,6 @@ from bench.utils.dt import utcnow_with_tz
 from bench.utils.env import IS_DEBUG, IS_LOCAL, IS_TEST
 from bench.utils.func import describe_type, to_uuid
 
-
 logger = structlog.get_logger(__name__)
 
 
@@ -1215,7 +1214,7 @@ async def pg_select_nodes_data(
     columns = [prop.column for prop in properties]
     assert any(c.is_primary_key for c in columns), f"no primary key selected in {columns!r}"
     filter = compile_pg_conditional(node_cls, filter) if filter is not None else None
-    sort = compile_pg_sorts(node_cls, sort) if sort is not None else None
+    sort = compile_pg_sorts(node_cls, sort) if sort else None
     rows = await pg_select(
         cur=cur,
         table=node_cls.__table__,

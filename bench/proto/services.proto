@@ -48,7 +48,7 @@ message SearchNodesResponse {
   repeated SomeNodeData nodes = 1;
   repeated NodeReferenceData roots = 2;
   repeated string cursors = 3;
-  string start_cursor = 4;
+  optional string start_cursor = 4;
   optional int32 total = 5;
   optional AccessMatrixData access = 6;
   uint64 epoch = 7;

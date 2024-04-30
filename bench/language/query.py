@@ -142,12 +142,12 @@ class StoreEngineIncapableError(StoreEngineError):
 class MakeQueryBase(abc.ABC, Generic[NodeT, NodeDataT]):
     """Build or modify a query. :ReadQueryBase"""
 
-    def filter(
+    def where(
         self, filter: Optional["Expression"] = None, **kwargs
     ) -> "QueryBuilder[NodeT, NodeDataT]":
         raise NotImplementedError
 
-    def sort(
+    def order_by(
         self,
         sort: Union[list[Union["Expression", str]], str, "Expression", None] = None,
         *args: str,
@@ -299,7 +299,7 @@ class QueryBuilder(
         else:
             return self._options.copy()
 
-    def filter(
+    def where(
         self, filter: Optional["Expression"] = None, **kwargs
     ) -> "QueryBuilder[NodeT, NodeDataT]":
         """Adds a filter clause to the query."""
@@ -312,7 +312,7 @@ class QueryBuilder(
         )
         return copy
 
-    def sort(
+    def order_by(
         self,
         sort: Union[list[Union["Expression", str]], str, "Expression", None] = None,
         *args: str,
@@ -427,7 +427,7 @@ class QueryBuilder(
         from bench.language.expression import coerce_conditional
 
         filter = coerce_conditional(self._node_cls, filter, kwargs)
-        combined_query = self.filter(filter)
+        combined_query = self.where(filter)
         results = await combined_query.fetch()
         if len(results) == 1:
             return results[0]
@@ -458,7 +458,7 @@ class QueryBuilder(
         from bench.language.expression import A, coerce_conditional
 
         filter = coerce_conditional(self._node_cls, filter, kwargs, return_none_if_empty=True)
-        query = self.filter(filter) if filter is not None else self
+        query = self.where(filter) if filter is not None else self
         query = query.aggregate(A(AggregationOp.COUNT))
         connection = await active_tx().connect_store(
             base=query._base, node_type=query._node_type, access_kind=AccessKind.READ
@@ -473,7 +473,7 @@ class QueryBuilder(
         from bench.language.expression import A, coerce_conditional
 
         filter = coerce_conditional(self._node_cls, filter, kwargs, return_none_if_empty=True)
-        query = self.filter(filter) if filter is not None else self
+        query = self.where(filter) if filter is not None else self
         query = query.aggregate(A(AggregationOp.EXISTS))
         connection = await active_tx().connect_store(
             base=query._base, node_type=query._node_type, access_kind=AccessKind.READ
@@ -637,7 +637,9 @@ class RemoteConnection(StoreConnection[RemoteEngine, NodeT, NodeDataT]):
         request = wire.SearchNodesRequest(
             node_type=wiring.pack_enum(NodeType, query._node_type),
             filter=wiring.pack_struct_maybe(query._filter, ExpressionData),
-            sort=[wiring.pack_struct(s, ExpressionData) for s in query._sort] if query._sort else [],
+            sort=[wiring.pack_struct(s, ExpressionData) for s in query._sort]
+            if query._sort
+            else [],
             first=query._first,
             options=wiring.pack_struct_maybe(query._options, ReadOptionsData),
             count=options.count,

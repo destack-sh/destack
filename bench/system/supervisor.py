@@ -12,7 +12,6 @@ from bench.language.graph import generate_node_name
 from bench.language.resource import Region
 from bench.language.user import Handle, Organization, UserStatus
 from bench.proto import wiring
-from bench.proto.services import BenchServiceBase
 from bench.proto.wire import (
     ChangeUserPasswordRequest,
     ChangeUserPasswordResponse,
@@ -32,7 +31,7 @@ from bench.proto.wire import (
 )
 from bench.system.auth import check_password, generate_access_token, generate_salt, hash_password
 from bench.system.client import GLOBAL_POSTGRES_ENGINE, global_session
-from bench.system.graph import GraphIoService
+from bench.system.graph import GraphIoServiceBase
 from bench.system.resource import create_default_bench
 from bench.utils.dt import utcnow_with_tz
 from bench.utils.func import to_uuid
@@ -41,10 +40,9 @@ logger = structlog.get_logger(__name__)
 GLOBAL_SCOPE = GraphScope()
 
 
-class Supervisor(GraphIoService, SupervisorBase):
+class Supervisor(GraphIoServiceBase, SupervisorBase):
     def __init__(self):
-        BenchServiceBase.__init__(self)
-        GraphIoService.__init__(self, bench_id=None, node_types=USER_NODE_TYPES)
+        GraphIoServiceBase.__init__(self, bench_id=None, node_types=USER_NODE_TYPES)
 
     def __str__(self):
         return "shards=[*]"

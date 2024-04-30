@@ -23,7 +23,6 @@ from bench.language import ValidationError
 from bench.language.access import AccessError, Request, Subject
 from bench.language.const import BenchError, PolicyEffect
 from bench.language.query import NodeNotFoundError
-from bench.proto.monkey import _PatchedRpcMetadata
 from bench.proto.wire import RpcMetadata
 from bench.proto.wiring import BENCH_CLASS_BY_PROTO_CLASS
 from bench.sql.engine import SqlAlreadyExistsError, SqlNotExistsError
@@ -87,7 +86,7 @@ class BenchServiceBase:
         # combine mappings from non-overlapping superclasses
         patched_mapping = {}
         for cls in self.__class__.__bases__:
-            if cls is BenchServiceBase:
+            if cls.__mapping__ == BenchServiceBase.__mapping__:
                 continue
             for method, handler in cls.__mapping__(self).items():
                 patched_mapping[method] = self._wrap_rpc(method, handler)

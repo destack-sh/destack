@@ -41,7 +41,7 @@ BENCH_CLASS_BY_PROTO_CLASS: dict[
 
 NodeT = TypeVar("NodeT", bound=Node)
 NodeDataT = TypeVar("NodeDataT", bound=AnyNodeData)
-StructT = TypeVar("StructT", bound=Struct|Node)
+StructT = TypeVar("StructT", bound=Struct | Node)
 StructDataT = TypeVar("StructDataT", bound=Union[AnyStructData, AnyNodeData])
 
 
@@ -206,8 +206,7 @@ def unpack_struct_interp(
 ) -> StructT:
     """Unpack, interpret and validate a Struct."""
     struct = unpack_struct(struct_data, expect=expect)
-    if scope is not None:
-        struct._interp_rec(scope=scope, on_notice=on_notice)
+    struct._interp_rec(scope=scope, on_notice=on_notice)
     struct._validate_rec(properties=(), on_invalid=on_invalid_raise)
     return struct
 
@@ -220,7 +219,8 @@ def unpack_struct_interp_maybe(
 ) -> StructT | None:
     if struct_data is None:
         return None
-    return unpack_struct_interp(struct_data, scope=scope, on_notice=on_notice, expect=expect)
+    else:
+        return unpack_struct_interp(struct_data, scope=scope, on_notice=on_notice, expect=expect)
 
 
 def pack_node(node: Node, expect: type[NodeT] | None = None) -> NodeT:
