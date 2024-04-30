@@ -219,7 +219,7 @@ def get_database_table_name(database: Block) -> str:
     Gets the name for a table with the Records of a dynamically created DatabaseBlock.
     NOTE: we rely on this table prefix to remain constant
     """
-    return f"bench_record_{database.sk.replace('-', '')}"
+    return f"bench_record_{database.tk.replace('-', '')}"
 
 
 def get_bench_table_name(node_type: NodeType) -> str:

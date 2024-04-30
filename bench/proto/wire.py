@@ -2310,8 +2310,8 @@ class MembershipData(betterproto.Message):
 class BaseNodeData(betterproto.Message):
     """
     A node in the Bench graph: a struct with a globally unique identity.
-     Every node has a 'constant' key (ck) identifying its global (id)entity across versions.
-     The first part of the constant key is the stable key (sk), which is constant in all instances of a template.
+     Every node has a 'constant' key (ck) identifying its constant (id)entity across versions.
+     The first part of the constant key is the template key (tk), which is constant in all instances of a template.
      For sub package nodes the 'id' is derived from the 'ck' per Package, else it's just the id.
     """
 
@@ -4791,7 +4791,7 @@ class RuntimeBase(ServiceBase):
 
 from typing import TYPE_CHECKING  # noqa: E402
 
-VERSION = "2024.04.30.1"
+VERSION = "2024.04.30.2"
 
 if TYPE_CHECKING:
     from bench.language import Subject

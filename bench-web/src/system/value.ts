@@ -66,6 +66,14 @@ export function getViewForValueType(type: TypeIdentity): {
   }
 }
 
+export function encodeTypeIdentity(type: TypeIdentity): string {
+  throw new Error("not implemented");
+}
+
+export function decodeTypeIdentity(encoded: string): TypeIdentity {
+  throw new Error("not implemented");
+}
+
 /** Pack the value into robust wire format. */
 export function packValue(value: any, type: TypeInfoData): ProtoStruct {
   // nocheckin: store encoded (use field/type key, even for single Variable so we can change types)

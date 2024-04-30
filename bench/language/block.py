@@ -273,7 +273,7 @@ class Block(Node[BlockData], HasValues):
         if self.builtin_base is None:
             return None
         else:
-            return f"{self.sk}-{self.builtin_base.identity_key}"
+            return f"{self.tk}-{self.builtin_base.identity_key}"
 
 
 _ALL_COMPONENTS_BY_TYPE: dict[BlockType, tuple[typing.Type[Node], ...]] = {

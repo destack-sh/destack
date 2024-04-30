@@ -3181,8 +3181,8 @@ export interface MembershipData {
 }
 /**
  * A node in the Bench graph: a struct with a globally unique identity.
- * Every node has a 'constant' key (ck) identifying its global (id)entity across versions.
- * The first part of the constant key is the stable key (sk), which is constant in all instances of a template.
+ * Every node has a 'constant' key (ck) identifying its constant (id)entity across versions.
+ * The first part of the constant key is the template key (tk), which is constant in all instances of a template.
  * For sub package nodes the 'id' is derived from the 'ck' per Package, else it's just the id.
  *
  * @generated from protobuf message symbolx.bench.BaseNodeData
