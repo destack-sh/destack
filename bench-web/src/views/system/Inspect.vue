@@ -136,7 +136,7 @@ defineExpose<ViewExposed>({ self });
             <component
               v-if="viewType != null && hasViewComponent(viewType)"
               :is="getViewComponent(viewType)"
-              class="ml-auto flex-shrink-0"
+              class="ml-auto flex-shrink-0 text-right"
               :style="{ width: isFullWidth ? '100%' : 'calc(90% - 100px)' }"
               v-bind="props"
               :modelValue="read != null ? read(node) : (node as any)[protoName!]"

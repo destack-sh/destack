@@ -11,6 +11,7 @@ import {
   type TypeInfoData,
 } from "@/proto/wire";
 import { makeDefaultStruct } from "@/proto/wiring";
+import type { ReadNodeGraph } from "@/system/graph";
 import { ENUM_ICONS_BY_TYPE } from "@/system/icon";
 import {
   TK_LENGTH_B64,
@@ -27,7 +28,7 @@ import type { ViewProps } from "@/views/common";
 export type TypeIdentity = Pick<
   TypeInfoData,
   "primitiveType" | "benchType" | "baseTypePtr" | "formatHint" | "isList" | "isSecret"
->;
+> & { ck?: string };
 
 export function makeTypeInfo(partial: Partial<Omit<TypeInfoData, "metatype">>): TypeInfoData {
   return makeDefaultStruct({ metatype: StructType.TYPE_INFO, ...partial });
@@ -167,14 +168,42 @@ export function decodeTypeIdentity(key: string): TypeIdentity {
   }
 }
 
-/** Pack the value into robust wire format. */
-export function packValue(value: any, type: TypeInfoData): ProtoStruct {
-  // nocheckin: store encoded (use field/type key, even for single Variable so we can change types)
-  return ProtoStruct.fromJson({ test: value });
+/** Pack the value into robust wire format. If previous is passed, old values with different types will be retained. */
+export function packValue(
+  value: any,
+  type: TypeIdentity,
+  graph: ReadNodeGraph,
+  previous?: { valuePacked?: ProtoStruct; secretValuePacked?: ProtoStruct | undefined },
+): { valuePacked: ProtoStruct; secretValuePacked: ProtoStruct | undefined } {
+  // nocheckin: packValue
+  const identityKey = encodeTypeIdentity(type);
+  const valuePacked = { [identityKey]: value };
+  const secretValuePacked = undefined; // TODO :Incomplete: handle :SecretValues
+
+  // merge in previous values
+  if (previous?.valuePacked != null) {
+    const previousValue = ProtoStruct.toJson(previous.valuePacked) as any;
+    for (const key in previousValue) {
+      if (key !== identityKey) {
+        valuePacked[key] = previousValue[key];
+      }
+    }
+  }
+
+  const packed = { valuePacked: ProtoStruct.fromJson(valuePacked), secretValuePacked: undefined };
+  return packed;
 }
 
 /** Unpack the value from robust wire format. */
-export function unpackValue(value: ProtoStruct | undefined | null, type: TypeInfoData): any {
-  if (value == null) return null;
-  return (ProtoStruct.toJson(value) as any)?.test; // nocheckin
+export function unpackValue(
+  packed: { valuePacked?: ProtoStruct; secretValuePacked?: ProtoStruct },
+  type: TypeIdentity,
+  graph: ReadNodeGraph,
+): any {
+  // nocheckin: unpackValue
+  if (packed.valuePacked == null) return null;
+  const valuePacked = ProtoStruct.toJson(packed.valuePacked) as any;
+  const identityKey = encodeTypeIdentity(type);
+  const unpacked = valuePacked[identityKey];
+  return unpacked;
 }

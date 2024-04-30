@@ -28,7 +28,7 @@ import Code from "@/views/content/Code.vue";
 import Icon from "@/views/content/Icon.vue";
 import Text from "@/views/content/Text.vue";
 import { computed, nextTick, ref, toRef, type Ref } from "vue";
-import { makeTypeInfo, type TypeIdentity } from "@/system/value";
+import { makeTypeInfo, packValue, unpackValue, type TypeIdentity } from "@/system/value";
 import Value from "@/views/content/Value.vue";
 
 const props = defineProps<
@@ -225,8 +225,11 @@ defineExpose<ViewExposed>({ self, id, variants: [Variant.PRIMARY, Variant.STEALT
       <Value
         v-if="block.type == BlockType.VARIABLE"
         :value-type="block.builtinBase"
-        :model-value="block.valuePacked"
-        @update:modelValue="(newValue) => pkgConnection.tx.updateDebounced(block!, { valuePacked: newValue })"
+        :model-value="unpackValue(block!, block.builtinBase!, pkgGraph)"
+        @update:modelValue="
+          (newValue) =>
+            pkgConnection.tx.updateDebounced(block!, packValue(newValue, block?.builtinBase!, pkgGraph, block!))
+        "
       />
       <Type
         v-if="TYPE_BLOCK_TYPES.includes(block.type) || RUNNABLE_BLOCK_TYPES.includes(block.type)"

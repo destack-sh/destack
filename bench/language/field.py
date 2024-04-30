@@ -305,6 +305,7 @@ class FieldKind(IdEnum):
     INPUT = 3
     OUTPUT = 4
     OPTION = 5
+    # LITERAL? (or does having value + Option make it a Literal?)
 
 
 @node(NodeType.FIELD)
