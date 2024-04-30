@@ -1,14 +1,14 @@
 import itertools
 import types
 import typing
-from typing import Any, Optional
+from typing import Any
 
 import more_itertools
 import structlog
 from more_itertools import first, last
 
 from bench.language.const import StructType
-from bench.language.node import Node, Struct, struct
+from bench.language.node import Struct, struct
 from bench.language.property import p_regular
 from bench.utils.utils import get_from_env
 
@@ -27,12 +27,6 @@ class CodeLine(Struct):
 class Code(Struct):
     # language: ...
     lines: list[CodeLine] = p_regular(30, require=True, array=True, struct=StructType.CODE_LINE)
-
-    def _clear_inner(self, scope: Optional[Node] = None) -> None:
-        pass
-
-    def _untrack_inner(self) -> None:
-        pass
 
     async def _call_inner_async(self, *args, **kwargs):
         raise NotImplementedError

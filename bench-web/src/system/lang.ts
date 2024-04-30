@@ -554,13 +554,12 @@ function getInspectionInfo(metatype: ObjectType, type: any): Record<string, Insp
             },
           }),
         },
-        { from: 30, to: 43 },
-        { from: 60 },
+        { from: 30, to: 43, excluding: [FieldProperty.valuePacked] },
       ],
-      Constraint: [FieldProperty.formatHint],
+      Constraint: [FieldProperty.formatHint, { from: 60 }],
     };
     if (type != FieldKind.OPTION) {
-      properties["Common"].push(FieldProperty.visibility);
+      properties.Common.push(FieldProperty.visibility);
     }
     return properties;
     //
@@ -570,7 +569,8 @@ function getInspectionInfo(metatype: ObjectType, type: any): Record<string, Insp
       Flags: [{ from: 60, to: 70, excluding: [BlockProperty.pausedAt] }],
     };
     if (type == BlockType.ALIAS || type == BlockType.VARIABLE) {
-      properties["Common"].push({
+      // base type
+      properties.Common.push({
         from: BlockProperty.builtinBase,
         to: BlockProperty.builtinBase + 1,
         replace: () => ({
@@ -674,6 +674,8 @@ export function getInspectionLayout(
             benchType: (property.enumType ?? property.referenceNodes?.[0] ?? property.referenceStruct) as unknown as
               | BenchType
               | undefined,
+            isList: property.isList ?? false,
+            isSecret: property.isEncrypted ?? false,
           });
           if (valueView == null) throw new Error(`no view for property ${property.id}`);
           const { viewType, props } = valueView;

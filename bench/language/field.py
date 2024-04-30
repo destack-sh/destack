@@ -1,9 +1,15 @@
+import enum
 import typing
 from typing import TYPE_CHECKING, Any, Collection, Optional, Union, cast
+from uuid import UUID
 
 import structlog
 
 from bench.language.const import (
+    ENUM_TYPES,
+    NODE_TYPES,
+    SK_LENGTH_BYTES,
+    STRUCT_TYPES,
     BenchError,
     BenchType,
     BlockType,
@@ -14,8 +20,16 @@ from bench.language.const import (
     StructType,
     enum_,
 )
-from bench.language.expression import _TypeQueryBuilder
-from bench.language.node import Node, NodeList, node, struct, struct_component
+from bench.language.expression import NodeReference, _TypeQueryBuilder
+from bench.language.node import (
+    Node,
+    NodeList,
+    get_ck_from_sk_b64,
+    get_sk_b64_from_ptr,
+    node,
+    struct,
+    struct_component,
+)
 from bench.language.property import (
     Property,
     p_internal,
@@ -27,11 +41,11 @@ from bench.language.property import (
 )
 from bench.language.validation import ValidationHandler, validate_name
 from bench.language.value import HasValues
-from bench.proto.wire import FieldData, NodeReferenceData
+from bench.proto.wire import FieldData
 from bench.sql.core import PrimitiveType
 from bench.utils.casing import IdentifierType
 from bench.utils.fractional import INTEGER_ZERO
-from bench.utils.func import IdEnum
+from bench.utils.func import IdEnum, decode_b64vlq, encode_b64vlq
 
 if typing.TYPE_CHECKING:
     from bench.language import Block, Expression, Icon, Step, Text
@@ -63,60 +77,97 @@ class TypeError(BenchError, TypeError):
         self.suberrors = suberrors or []
 
 
-def encode_type_info_identity(type: "TypeInfoBase") -> str:
-    """Encodes the type info into a key for storage & implicit typing. :TypeInfoEncoding"""
-    # assert type.primitive_type is not None, f"no column type in {type!r}"
-    # key_parts = [str(type.primitive_type.id)]
-    # if type.is_list:
-    #     key_parts.append("a")
-    # if type.is_secret:
-    #     key_parts.append("s")
-    # if type.length:
-    #     key_parts.append(f"l{type.length}")
-    # if type.precision:
-    #     key_parts.append(f"p{type.precision}")
-    # if type.scale:
-    #     key_parts.append(f"s{type.scale}")
-    # if type.base_type:
-    #     key_parts.append(type.base_type.sk)
-    # key = "".join(key_parts)
-    # return key
-    raise NotImplementedError
+class TypeKind(enum.StrEnum):
+    """The 'kind' of a Type. Only for encoding for now. :TypeInfoEncoding"""
+
+    PRIMITIVE = "p"
+    STRUCT = "s"
+    NODE = "n"
+    ENUM = "e"
+    BASE = "b"
+    ALIAS = "a"
 
 
-def decode_type_info_identity(identity_key: str) -> "TypeInfoBase":
-    """Decodes the type-related info back from the identity key. :TypeInfoEncoding"""
-    raise NotImplementedError
+def encode_type_identity(type: "TypeInfoBase") -> str:
+    """
+    Encodes the type identity into a key for storage & implicit typing.
+    Format is <kind>[id] (with id encoded as base64).
+    :TypeInfoEncoding
+    """
+    if type.primitive_type:
+        return f"{TypeKind.PRIMITIVE.value}{encode_b64vlq(type.primitive_type.id)}"
+    elif type.bench_type:
+        if NodeType(type.bench_type) in NODE_TYPES:
+            if not type.base_type_ptr:
+                return f"{TypeKind.NODE.value}{encode_b64vlq(type.bench_type.id)}"
+            else:
+                return f"{TypeKind.BASE.value}{get_sk_b64_from_ptr(type.base_type_ptr)}{encode_b64vlq(type.bench_type.id)}"
+        elif StructType(type.bench_type) in STRUCT_TYPES:
+            return f"{TypeKind.STRUCT.value}{encode_b64vlq(type.bench_type.id)}"
+        elif EnumType(type.bench_type) in ENUM_TYPES:
+            return f"{TypeKind.ENUM.value}{encode_b64vlq(type.bench_type.id)}"
+    elif type.base_type_ptr:
+        return f"{TypeKind.ALIAS.value}{get_sk_b64_from_ptr(type.base_type_ptr)}"
+
+    raise ValueError(f"unsupported type {type!r}")
+
+
+def decode_type_identity(key: str) -> "TypeInfoBase":
+    """Decodes the type-related info back from the identity key. See encode. :TypeInfoEncoding"""
+    kind = key[0]
+    if kind == TypeKind.PRIMITIVE.value:
+        primitive_type = PrimitiveType(decode_b64vlq(key[1:]))
+        return TypeInfoBase(primitive_type=primitive_type)
+    elif (
+        kind == TypeKind.NODE.value or kind == TypeKind.STRUCT.value or kind == TypeKind.ENUM.value
+    ):
+        bench_type = BenchType(decode_b64vlq(key[1:]))  # type: ignore
+        return TypeInfoBase(bench_type=bench_type)
+    elif kind == TypeKind.BASE.value:
+        base_type_ptr = NodeReference(
+            type=NodeType.BLOCK, ck=get_ck_from_sk_b64(key[1 : SK_LENGTH_BYTES + 1])
+        )
+        bench_type = BenchType(decode_b64vlq(key[SK_LENGTH_BYTES + 1 :]))  # type: ignore
+        return TypeInfoBase(base_type_ptr=base_type_ptr, bench_type=bench_type)
+    elif kind == TypeKind.ALIAS.value:
+        base_type_ptr = NodeReference(
+            type=NodeType.BLOCK, ck=get_ck_from_sk_b64(key[1 : SK_LENGTH_BYTES + 1])
+        )
+        return TypeInfoBase(base_type_ptr=base_type_ptr)
+
+    raise ValueError(f"unsupported type kind {kind}")
 
 
 @struct_component()
 class TypeInfoBase(HasValues):
     """
-    A type is a kind of value that can go somewhere, typically in place of a Field.
+    A type is a kind of value that can go somewhere, typically in a place designated by a Field.
 
     A type is either:
        1. primitive type (= column type, value is scalar, like int32, string, bool, datetime, ...)
           [primitive_type] | [base_type = Block aliased to primitive_type]
-       2. struct type (value is 'robust json', like Expression, File, BenchPath, RichText, ...)
-          [struct_type] | [base_type is newtype with object_type]
-       3. node type (value is NodeReference, like Package, Block, Field, Record, Run, Signal, ...)
-          [node_type] | [base_type = Block aliased to object_type]
-       4. reference to a block (value is NodeReference that is an 'instance' of the block)
-          [node_type & base_type = Block]
-           type = Record, base = DatabaseBlock -> values must be Records in that database
-           type = Run, base = Block -> values must be Runs of that block
-           type = Field, base = Block -> values must be a Field in that block
-           type = Signal, base = Block -> values must be Signals of that block type
-           type = Block, base = Block -> values must be Blocks conforming to that block protocol
-           type = Block, base = None -> values must be instances of the resolved type
+       2. node type (value is NodeReference, like Package, Block, Field, Record, Run, Signal, ...)
+          [bench_type~NodeType]
+       3. struct type (value is 'robust json', like Expression, File, Path, Text, Code, ...)
+          [bench_type~StructType]
+       4. enum type (value is builtin IdEnum, like FieldKind, NodeType, BenchType, EnumType, ...)
+          [bench_type~EnumType]
+       5. node type + base block (value is NodeReference that is an 'instance' of the block)
+          [bench_type~NodeType & base_type]
+           type = Record, base = Block -> values are Records in that database
+           type = Run, base = Block -> values are Runs of that block
+           type = Field, base = Block -> values are Fields in that block
+           type = Signal, base = Block -> values are Signals of that block type
+           type = Block, base = Block -> values are Blocks conforming to that block protocol
             ...
+       6. base block (value is whatever that resolves to)
 
     Types may also specify:
-       - a format hint (which may impact the unpacked/instantiated Python representation, like for Image)
+       - a format hint (which may impact the unpacked representation, like for Image)
        - an additional condition instances must satisfy
        - combination flags for arrays, optionals, ...
 
-    Type checking is done in ./value.py. You'll note that we can only check some things without querying.
+    Type checking is done in ./value.py. Checking certain invariants requires querying the graph.
     """
 
     # type identity (must set at least one of these)
@@ -126,7 +177,8 @@ class TypeInfoBase(HasValues):
         42, array=False, require=False, default=None, references=NodeType.BLOCK
     )
     if TYPE_CHECKING:
-        base_type_ptr: Optional[NodeReferenceData] = None
+        base_type_id: Optional[UUID] = None
+        base_type_ptr: Optional["NodeReference"] = None
 
     # + bonus info/constraints
     visibility: Optional[NodeVisibility] = p_regular(50, default=None)
@@ -134,17 +186,13 @@ class TypeInfoBase(HasValues):
     condition: Optional["Expression"] = p_regular(
         52, require=False, array=False, default=None, struct=StructType.EXPRESSION
     )
-    length: Optional[int] = p_regular(53, require=False, default=None)
-    precision: Optional[int] = p_regular(54, require=False, default=None)
-    scale: Optional[int] = p_regular(55, require=False, default=None)
-    # default for this type
-    default_packed: Optional[Any] = p_value_packed(58)
-    default = p_value_runtime(packed=58)
+    default_packed: Optional[Any] = p_value_packed(53)
+    default = p_value_runtime(packed=53)
 
     # flags
     is_list: bool = p_regular(60, default=False)
-    is_required: bool = p_regular(61, default=False)
-    is_secret: bool = p_regular(62, default=False)
+    is_secret: bool = p_regular(61, default=False)
+    is_required: bool = p_regular(62, default=False)
     # is_instance to disambiguate?
 
     # separate _fields for restricting base type to a subset of fields? (e.g., only inputs)
@@ -193,10 +241,8 @@ class TypeInfoBase(HasValues):
 
     @property
     def identity_key(self) -> str:
-        """
-        The identity of this type for storing. Different keys mean you won't get the value back out.
-        """
-        return encode_type_info_identity(self)
+        """The identity of this type for packing."""
+        return encode_type_identity(self)
 
     @property
     def is_nested(self) -> bool:

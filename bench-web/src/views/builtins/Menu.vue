@@ -271,7 +271,7 @@ defineExpose({ focus, clear, query });
     </div>
 
     <!-- Nested menu  -->
-    <!-- nocheckin? :Cleanup: use nested overlay menus for Menu inside Menu? -->
+    <!-- TODO :Cleanup :Architecture: use nested overlay menus for Menu inside Menu? -->
     <Transition
       enter-active-class="transition-all ease-in duration-75"
       enter-from-class="opacity-0 translate-y-[-6px]"

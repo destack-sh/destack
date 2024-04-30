@@ -279,17 +279,24 @@ export function typeIndex(options: {
   }
 
   function mapFromOption(enumType: EnumType, option: EnumOption): TypeItem {
-    const item: TypeItem = { ...option, id: `${enumType}-${option.id}`, metatype: "type" };
+    const item: TypeItem = {
+      ...option,
+      id: `${enumType}-${option.id}`,
+      isList: false,
+      isSecret: false,
+      metatype: "type",
+    };
     if (item.icon == null) item.icon = DEFAULT_ENUM_ICON;
     if (enumType == EnumType.PRIMITIVE_TYPE) item.primitiveType = option.value as PrimitiveType;
-    else if (enumType == EnumType.BENCH_TYPE) item.benchType = option.value as BenchType;
+    else if (enumType == EnumType.OBJECT_TYPE || enumType == EnumType.BENCH_TYPE)
+      item.benchType = option.value as BenchType;
     else throw new Error(`unexpected enum type: ${enumType}`);
     return item;
   }
 
   function mapFromNode(nodeItem: NodeItem): TypeItem {
     const blockType = (nodeItem.node as BlockData).type;
-    const item: TypeItem = { ...nodeItem, metatype: "type" };
+    const item: TypeItem = { ...nodeItem, isList: false, isSecret: false, metatype: "type" };
     if (blockType == BlockType.CHOICE) item.benchType = BenchType.FIELD;
     else if (blockType == BlockType.SIGNAL) item.benchType = BenchType.SIGNAL;
     else if (blockType == BlockType.DATABASE) item.benchType = BenchType.RECORD;
