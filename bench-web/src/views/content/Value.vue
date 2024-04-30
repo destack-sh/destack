@@ -8,7 +8,10 @@ import { getViewComponent, hasViewComponent } from "@/views/registry";
 import { getViewForValueType, packValue, unpackValue } from "@/system/value";
 
 const props = defineProps<
-  { self?: TypedNodeReferenceData<NodeType.VIEW>; modelValue?: any } & Partial<
+  {
+    self?: TypedNodeReferenceData<NodeType.VIEW>;
+    modelValue?: any;
+  } & Partial<
     Pick<ViewData, "name" | "title" | "text" | "icon" | "valueType" | "variant" | "isInput" | "isInline" | "isDisabled">
   >
 >();
@@ -26,14 +29,13 @@ defineExpose<ViewExposed>({ self, id });
 </script>
 <template>
   <ViewContentWrapper v-bind="props">
-    <!-- nocheckin: UX: render Variable properly -->
     <component
       v-if="valueType != null && valueView?.viewType != null && hasViewComponent(valueView.viewType)"
       :is="getViewComponent(valueView.viewType)"
       class="ml-auto flex-shrink-0"
-      v-bind="valueView.props"
-      :modelValue="unpackValue(modelValue, valueType)"
-      @update:modelValue="$emit('update:modelValue', packValue($event, valueType!))"
+      v-bind="{ isInput: true, ...valueView.props }"
+      :modelValue="modelValue"
+      @update:modelValue="$emit('update:modelValue', $event)"
     />
     <div v-else class="flex flex-row items-center px-1 py-0.5 text-warning-600">
       <i class="fas fa-empty-set" />

@@ -30,7 +30,7 @@ canvas.registerView(self, id);
 defineExpose<ViewExposed>({ self, id, variants: [Variant.PRIMARY, Variant.SECONDARY], focus: () => inputRef.value });
 </script>
 <template>
-  <ViewContentWrapper v-bind="props" class="text-right">
+  <ViewContentWrapper v-bind="props">
     <button
       v-if="variant == null || variant == Variant.PRIMARY"
       role="switch"
