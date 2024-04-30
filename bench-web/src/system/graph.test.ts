@@ -10,6 +10,8 @@ import {
   type AnyNodeData,
   type AnyPropertyType,
   type AnyTypeMapping,
+  Timestamp,
+  Struct,
 } from "@/proto/wire";
 import { toNodeReference } from "@/proto/wiring";
 import {
@@ -42,8 +44,8 @@ const SCALAR_GENERATORS: Partial<Record<ScalarType, () => any>> = {
 };
 
 const MESSAGE_TYPE_GENERATORS: Record<string, () => any> = {
-  "google.protobuf.Struct": () => {},
-  "google.protobuf.Timestamp": () => new Date().toISOString(),
+  "google.protobuf.Struct": () => Struct.fromJson({}),
+  "google.protobuf.Timestamp": () => Timestamp.now(),
   "google.protobuf.Duration": () => Math.random(),
   "symbolx.bench.NodeReferenceData": () => ({ metatype: ObjectType.NODE_REFERENCE, id: v4(), type: NodeType.USER }),
 };
@@ -53,6 +55,8 @@ const PROP_NAME_GENERATORS: Record<string, () => any> = {
 };
 
 const MEMBERS_BY_ENUM: Record<string, number[]> = {};
+
+class CircularError extends Error {}
 
 export function fabricate<T extends ObjectType>(
   metatype: T,
@@ -68,7 +72,7 @@ export function fabricate<T extends ObjectType>(
       value = (options.set as any)[propName];
     } else if (options?.unset?.includes(propName as any)) {
       value = undefined;
-    } else if (field.name.endsWith("id") || field.name.endsWith("ck")) {
+    } else if (field.name.endsWith("_id") || field.name.endsWith("_ck")) {
       value = v4();
     } else if (field.kind == "scalar" && SCALAR_GENERATORS[field.T] != null) {
       value = SCALAR_GENERATORS[field.T]!();
@@ -84,7 +88,7 @@ export function fabricate<T extends ObjectType>(
     } else if (field.kind == "message" && OBJECT_TYPE_BY_MESSAGE_TYPE_NAME[field.T().typeName]) {
       const benchType = OBJECT_TYPE_BY_MESSAGE_TYPE_NAME[field.T().typeName]!;
       if (options?.path?.includes(benchType)) {
-        value = null;
+        throw new CircularError(`circular reference for ${ObjectType[metatype]} -> ${ObjectType[benchType]}`);
       } else {
         const path = (options?.path ?? []).concat(metatype);
         value = fabricate(benchType, { path });
@@ -104,17 +108,22 @@ export function fabricate<T extends ObjectType>(
   for (const propName of Object.keys(allProperties)) {
     const field = messageType.fields[ord];
     if (!Number.isNaN(Number(propName))) continue; // skip numeric keys
-    let value: any;
-    if (propName == "metatype") {
-      value = metatype;
-    } else if (propName == "setProperties") {
-      value = []; // never
-    } else if (field.repeat) {
-      value = [fabricateScalarProp(propName, field)];
-    } else {
-      value = fabricateScalarProp(propName, field);
+    try {
+      let value: any;
+      if (propName == "metatype") {
+        value = metatype;
+      } else if (propName == "setProperties") {
+        value = []; // never
+      } else if (field.repeat) {
+        value = [fabricateScalarProp(propName, field)];
+      } else {
+        value = fabricateScalarProp(propName, field);
+      }
+      (struct as any)[propName] = value;
+    } catch (e) {
+      if (!(e instanceof CircularError)) throw e;
+      // ignore circular references
     }
-    (struct as any)[propName] = value;
     ord += 1;
   }
   return struct as AnyTypeMapping[T];
