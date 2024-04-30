@@ -118,7 +118,6 @@ def encode_type_identity(type: "TypeInfoBase") -> str:
     elif type.base_type_ptr:
         kind = TypeKind.ALIAS.value
         value = get_tk_b64_from_ptr(type.base_type_ptr)
-
     if kind is None:
         raise ValueError(f"unsupported type {type!r}")
 

@@ -126,6 +126,44 @@ export function getBaseFromNode(node: AnyNodeData): NodeReferenceData | null {
   }
 }
 
+export const TK_LENGTH_BYTES = 8;
+export const TK_LENGTH_HEX = TK_LENGTH_BYTES * 2;
+export const TK_LENGHT_IN_CK = TK_LENGTH_HEX + 2; // 2 for the dashes
+export const TK_LENGTH_B64 = 12; // 8 * 1.5
+
+export function getTkFromCk(ck: string) {
+  return ck.slice(0, TK_LENGTH_HEX);
+}
+
+export function getTkFromPtr(ptr: NodeReferenceData) {
+  if (ptr.ck) return ptr.ck.slice(0, TK_LENGTH_HEX);
+  else if (ptr.id) return ptr.id.slice(0, TK_LENGTH_HEX);
+  else throw new Error(`invalid ptr: ${ptr}`);
+}
+
+export function getTkFromPtrMaybe(ptr: NodeReferenceData | undefined | null) {
+  if (ptr == null) return null;
+  if (ptr.ck) return ptr.ck.slice(0, TK_LENGTH_HEX);
+  else if (ptr.id) return ptr.id.slice(0, TK_LENGTH_HEX);
+  else throw new Error(`invalid ptr: ${ptr}`);
+}
+
+export function getTkB64FromPtr(ptr: NodeReferenceData) {
+  const ck = ptr.ck ?? ptr.id;
+  if (ck == null) throw new Error(`invalid ptr: ${ptr}`);
+  const hex = ck.replace(/-/g, "");
+  const bytes = Buffer.from(hex, "hex");
+  return bytes.slice(0, TK_LENGTH_BYTES).toString("base64");
+}
+
+export function padCkFromTkB64(tkB64: string) {
+  const bytes = Buffer.from(tkB64, "base64");
+  const padded = Buffer.alloc(16);
+  bytes.copy(padded);
+  const hex = padded.toString("hex");
+  return `${hex.slice(0, 8)}-${hex.slice(8, 12)}-${hex.slice(12, 16)}-${hex.slice(16, 20)}-${hex.slice(20)}`;
+}
+
 /** Sorts the given nodes using explicit order keys if available, createdAt otherwise, then id. */
 export function defaultSortNode<T extends AnyNodeData>(nodes: T[]): void {
   nodes.sort((a, b) => {

@@ -37,6 +37,31 @@ export function roundToDigits(value: number, digits: number): number {
   return Math.round(value * factor) / factor;
 }
 
+const BASE_64 = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
+
+export function encodeB64VLQ(value: number): string {
+  if (value == 0) return "A";
+  else if (value < 0) throw new Error(`cannot encode negative value: ${value}`);
+  else {
+    let result = "";
+    while (value) {
+      result += BASE_64[value & 63];
+      value >>= 6;
+    }
+    return result;
+  }
+}
+
+export function decodeB64VLQ(value: string): number {
+  let result = 0;
+  let shift = 0;
+  for (const c of value) {
+    result += BASE_64.indexOf(c) << shift;
+    shift += 6;
+  }
+  return result;
+}
+
 /**
  * A simple wrapper around Promises to behave like Python's asyncio.Event
  * Can be reset, set, and waited on.

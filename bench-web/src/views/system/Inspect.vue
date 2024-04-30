@@ -65,7 +65,7 @@ defineExpose<ViewExposed>({ self });
         <!-- Icon -->
         <IconInline
           v-bind="getNodeIcon(node)"
-          class="w-6 rounded border border-transparent p-1 text-gray-700 hover:cursor-pointer hover:bg-gray-100 data-[menu=true]:border-primary-900 data-[menu=true]:bg-gray-100"
+          class="w-5 rounded border border-transparent p-1 text-gray-700 hover:cursor-pointer hover:bg-gray-100 data-[menu=true]:border-primary-900 data-[menu=true]:bg-gray-100"
           v-menu="
             (): PopoverInfoIn => ({
               component: ViewType.ICON,
