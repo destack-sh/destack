@@ -13,7 +13,7 @@ from bench.language.property import p_regular
 from bench.utils.utils import get_from_env
 
 if typing.TYPE_CHECKING:
-    from bench.language.notice import NoticeHandler
+    pass
 
 logger = structlog.get_logger(__name__)
 
@@ -29,9 +29,6 @@ class Code(Struct):
     lines: list[CodeLine] = p_regular(30, require=True, array=True, struct=StructType.CODE_LINE)
 
     def _clear_inner(self, scope: Optional[Node] = None) -> None:
-        pass
-
-    def _interp_inner(self, scope: Node, on_notice: "NoticeHandler") -> None:
         pass
 
     def _untrack_inner(self) -> None:

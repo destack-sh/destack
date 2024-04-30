@@ -65,7 +65,7 @@ class HasValues(Struct):
     def _clear_inner(self, scope: Optional["Node"] = None):
         pass
 
-    def _interp_inner(self, scope: "Node", on_notice: "NoticeHandler"):
+    def _interp_inner(self, scope: Optional["Node"], on_notice: "NoticeHandler"):
         pass
 
     def _track_inner(self, session: "Session") -> None:

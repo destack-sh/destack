@@ -74,13 +74,11 @@ async def test_user_registration(supervisor: SupervisorStub):
     assert login_rep.access_token
 
     # read user with sensitive data, authorized -> success
-    read_user_req = GetNodesRequest(
-        roots=[user.to_ref()._to_data()],
-        options=ReadOptions(
-            include_properties=[cast(Property, User.email)],
-            descendant_types=[NodeType.CLIENT, NodeType.HANDLE],
-        )._to_data(),
-    )
+    options = ReadOptions(
+        include_properties=[cast(Property, User.email)],
+        descendant_types=[NodeType.CLIENT, NodeType.HANDLE],
+    )._to_data()
+    read_user_req = GetNodesRequest(roots=[user.to_ref()._to_data()], options=options)
     access_metadata = RpcMetadata(
         client_id=str(client.id), client_access_token=login_rep.access_token
     )

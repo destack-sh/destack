@@ -102,7 +102,7 @@ async def _get_badges_from_metadata(metadata: RpcMetadata) -> list[Badge]:
     if metadata.badges:
         badges: list[Badge] = (
             await Badge.include(Badge.key, Badge.password)
-            .filter(id__in=tuple(to_uuid(b.id) for b in metadata.badges))
+            .where(id__in=tuple(to_uuid(b.id) for b in metadata.badges))
             .tolist()
         )
         for actual_badge, expected_badge in zip(badges, metadata.badges):

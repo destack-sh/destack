@@ -155,9 +155,9 @@ export interface SearchNodesResponse {
      */
     cursors: string[];
     /**
-     * @generated from protobuf field: string start_cursor = 4;
+     * @generated from protobuf field: optional string start_cursor = 4;
      */
-    startCursor: string;
+    startCursor?: string;
     /**
      * @generated from protobuf field: optional int32 total = 5;
      */
@@ -1047,7 +1047,7 @@ class SearchNodesResponse$Type extends MessageType<SearchNodesResponse> {
             { no: 1, name: "nodes", kind: "message", repeat: 1 /*RepeatType.PACKED*/, T: () => SomeNodeData },
             { no: 2, name: "roots", kind: "message", repeat: 1 /*RepeatType.PACKED*/, T: () => NodeReferenceData },
             { no: 3, name: "cursors", kind: "scalar", repeat: 2 /*RepeatType.UNPACKED*/, T: 9 /*ScalarType.STRING*/ },
-            { no: 4, name: "start_cursor", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
+            { no: 4, name: "start_cursor", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
             { no: 5, name: "total", kind: "scalar", opt: true, T: 5 /*ScalarType.INT32*/ },
             { no: 6, name: "access", kind: "message", T: () => AccessMatrixData },
             { no: 7, name: "epoch", kind: "scalar", T: 4 /*ScalarType.UINT64*/, L: 0 /*LongType.BIGINT*/ }
@@ -1058,7 +1058,6 @@ class SearchNodesResponse$Type extends MessageType<SearchNodesResponse> {
         message.nodes = [];
         message.roots = [];
         message.cursors = [];
-        message.startCursor = "";
         message.epoch = 0n;
         if (value !== undefined)
             reflectionMergePartial<SearchNodesResponse>(this, message, value);
@@ -1078,7 +1077,7 @@ class SearchNodesResponse$Type extends MessageType<SearchNodesResponse> {
                 case /* repeated string cursors */ 3:
                     message.cursors.push(reader.string());
                     break;
-                case /* string start_cursor */ 4:
+                case /* optional string start_cursor */ 4:
                     message.startCursor = reader.string();
                     break;
                 case /* optional int32 total */ 5:
@@ -1111,8 +1110,8 @@ class SearchNodesResponse$Type extends MessageType<SearchNodesResponse> {
         /* repeated string cursors = 3; */
         for (let i = 0; i < message.cursors.length; i++)
             writer.tag(3, WireType.LengthDelimited).string(message.cursors[i]);
-        /* string start_cursor = 4; */
-        if (message.startCursor !== "")
+        /* optional string start_cursor = 4; */
+        if (message.startCursor !== undefined)
             writer.tag(4, WireType.LengthDelimited).string(message.startCursor);
         /* optional int32 total = 5; */
         if (message.total !== undefined)

@@ -393,7 +393,7 @@ class PolicyRule(Struct):
         if self._object_properties_masks is not None:
             self._object_properties_masks.clear()
 
-    def _interp_inner(self, scope: "Node", on_notice: "NoticeHandler"):
+    def _interp_inner(self, scope: Optional["Node"], on_notice: "NoticeHandler"):
         self._update_verb_mask()
         self._update_object_mask()
 

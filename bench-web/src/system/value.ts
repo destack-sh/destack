@@ -72,5 +72,5 @@ export function packValue(value: any, type: TypeInfoData): ProtoStruct {
 /** Unpack the value from robust wire format. */
 export function unpackValue(value: ProtoStruct | undefined | null, type: TypeInfoData): any {
   if (value == null) return null;
-  return ProtoStruct.toJson(value)?.test; // nocheckin
+  return (ProtoStruct.toJson(value) as any)?.test; // nocheckin
 }

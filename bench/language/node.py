@@ -970,7 +970,12 @@ class Struct(abc.ABC, Generic[StructDataT]):
         return True
 
     def __eq__(self, other):
-        return other is not None and self.metatype == other.metatype and self.id == other.id
+        if other is None:
+            return False
+        elif self.__is_struct_inlined__:
+            return self.equals_content(other)
+        else:
+            return self.metatype == other.metatype and self.id == other.id
 
     if not TYPE_CHECKING:
         # NOTE: __setattr__/__getattr__ confuses type checking, so only use it in runtime
@@ -1158,34 +1163,40 @@ class Struct(abc.ABC, Generic[StructDataT]):
     def _clear_inner(self, scope: Optional["Node"] = None):
         pass
 
-    def _interp_inner(self, scope: "Node", on_notice: "NoticeHandler"):
+    def _interp_inner(self, scope: Optional["Node"], on_notice: "NoticeHandler"):
         from bench.language.notice import NoticeType
 
         # TODO :Broken: turn all node references into computer propertied (against graph)
         # (using parent, so parent is still a proper reference?)
-        # resolve node references
-        for prop in self.__node_reference_properties__.values():
-            if prop.is_wired or prop.is_stored or prop.reference_kind != ReferenceKind.NODE_REGULAR:
-                continue  # already resolved
-            assert prop.reference_wired_ptr is not None, f"no wired ptr for {prop!r}"
-            ptr = getattr(self, prop.reference_wired_ptr.name)
-            if ptr is None:
-                continue
-            if prop.is_list:
-                ptr = cast(list["NodeReference"], ptr)
-                resolved = []
-                for p in ptr:
-                    r = scope._root_graph.get(cast(UUID, p.id or p.ck))
-                    if r is None:
+        if scope is not None:
+            # resolve node references
+            for prop in self.__node_reference_properties__.values():
+                if (
+                    prop.is_wired
+                    or prop.is_stored
+                    or prop.reference_kind != ReferenceKind.NODE_REGULAR
+                ):
+                    continue  # already resolved
+                assert prop.reference_wired_ptr is not None, f"no wired ptr for {prop!r}"
+                ptr = getattr(self, prop.reference_wired_ptr.name)
+                if ptr is None:
+                    continue
+                if prop.is_list:
+                    ptr = cast(list["NodeReference"], ptr)
+                    resolved = []
+                    for p in ptr:
+                        r = scope._root_graph.get(cast(UUID, p.id or p.ck))
+                        if r is None:
+                            on_notice(self, NoticeType.MISSING_REFERENCE, None, None, (prop,))
+                        resolved.append(r)
+                    self.__dict__[prop.name] = resolved
+                else:
+                    ptr = cast("NodeReference", ptr)
+                    resolved = scope._root_graph.get(cast(UUID, ptr.id or ptr.ck))
+                    if resolved is None:
                         on_notice(self, NoticeType.MISSING_REFERENCE, None, None, (prop,))
-                    resolved.append(r)
-                self.__dict__[prop.name] = resolved
-            else:
-                ptr = cast("NodeReference", ptr)
-                resolved = scope._root_graph.get(cast(UUID, ptr.id or ptr.ck))
-                if resolved is None:
-                    on_notice(self, NoticeType.MISSING_REFERENCE, None, None, (prop,))
-                self.__dict__[prop.name] = resolved
+                    self.__dict__[prop.name] = resolved
+
         # resolve property references
         for prop in self.__property_reference_properties__.values():
             if prop.is_wired or prop.is_stored or getattr(self, prop.name, None):
@@ -1263,7 +1274,7 @@ class Struct(abc.ABC, Generic[StructDataT]):
             meth(self, scope)
         self._status = InterpStatus.SOURCE
 
-    def _interp_self(self, scope: "Node", on_notice: "NoticeHandler"):
+    def _interp_self(self, scope: Optional["Node"], on_notice: "NoticeHandler"):
         for meth in _get_component_methods(
             self._components, _ComponentMethod.interp, self._instance_cache_key
         ):
@@ -1318,7 +1329,7 @@ class Struct(abc.ABC, Generic[StructDataT]):
         for inner_struct in self._walk_self():
             inner_struct._clear_self(scope)
 
-    def _interp_rec(self, scope: "Node", on_notice: "NoticeHandler"):
+    def _interp_rec(self, scope: Optional["Node"], on_notice: "NoticeHandler"):
         for inner_struct in self._walk_self():
             inner_struct._interp_self(scope, on_notice)
 
@@ -1728,7 +1739,7 @@ class Node(Struct[NodeDataT], Generic[NodeDataT]):
         for s in self._walk_structs():
             s._clear_rec()
 
-    def _interp_inner(self, scope: "Node", on_notice: "NoticeHandler"):
+    def _interp_inner(self, scope: Optional["Node"], on_notice: "NoticeHandler"):
         """Interp this node."""
         # interp all structs recursive
         for s in self._walk_structs():
@@ -1808,7 +1819,7 @@ class Node(Struct[NodeDataT], Generic[NodeDataT]):
             meth(self, scope)
         self._status = InterpStatus.SOURCE
 
-    def _interp_self(self, scope: "Node", on_notice: "NoticeHandler"):
+    def _interp_self(self, scope: Optional["Node"], on_notice: "NoticeHandler"):
         for meth in _get_component_methods(
             self._components, _ComponentMethod.interp, self._instance_cache_key
         ):
@@ -1857,13 +1868,13 @@ class Node(Struct[NodeDataT], Generic[NodeDataT]):
     def where(
         cls, filter: Optional["Expression"] = None, **kwargs
     ) -> "QueryBuilder[Self, NodeDataT]":
-        return cls.query().filter(filter, **kwargs)
+        return cls.query().where(filter, **kwargs)
 
     @classmethod
     def order_by(
         cls, sort: Optional["Expression"] = None, *args: str
     ) -> "QueryBuilder[Self, NodeDataT]":
-        return cls.query().sort(sort, *args)
+        return cls.query().order_by(sort, *args)
 
     @classmethod
     def include(cls, *properties: FieldOrProperty) -> "QueryBuilder[Self, NodeDataT]":

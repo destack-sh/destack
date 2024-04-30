@@ -3121,7 +3121,7 @@ class SearchNodesResponse(betterproto.Message):
 
     roots: List["NodeReferenceData"] = betterproto.message_field(2)
     cursors: List[str] = betterproto.string_field(3)
-    start_cursor: str = betterproto.string_field(4)
+    start_cursor: Optional[str] = betterproto.string_field(4, optional=True)
     total: Optional[int] = betterproto.int32_field(5, optional=True)
     access: Optional["AccessMatrixData"] = betterproto.message_field(6, optional=True)
     epoch: int = betterproto.uint64_field(7)

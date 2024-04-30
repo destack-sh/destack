@@ -170,7 +170,7 @@ class TypeInfoBase(HasValues):
             info_str += f" ({', '.join(flags)})"
         return info_str
 
-    def _interp_inner(self, scope: "Node", on_notice: "NoticeHandler"):
+    def _interp_inner(self, scope: Optional["Node"], on_notice: "NoticeHandler"):
         if self.base_type is not None and self.base_type.type == BlockType.ALIAS:
             raise NotImplementedError(f"aliases not yet supported for {self!r}")
         else:

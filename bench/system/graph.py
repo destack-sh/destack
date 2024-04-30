@@ -3,7 +3,7 @@ from collections import deque
 from contextlib import asynccontextmanager
 from dataclasses import dataclass, field
 from itertools import chain
-from typing import TYPE_CHECKING, AsyncIterator, Mapping, NamedTuple, cast, final
+from typing import AsyncIterator, Mapping, NamedTuple, cast, final
 from uuid import UUID
 
 import betterproto
@@ -111,7 +111,7 @@ def _check_nodes_in_same_store(
         )
 
 
-class GraphIoService(GraphIoBase, BenchServiceBase if TYPE_CHECKING else object):
+class GraphIoServiceBase(BenchServiceBase, GraphIoBase):
     """Common base for global & Bench-local graph I/O operations."""
 
     def __init__(self, *, bench_id: UUID | None, node_types: bytetuple[NodeType]):
@@ -129,8 +129,7 @@ class GraphIoService(GraphIoBase, BenchServiceBase if TYPE_CHECKING else object)
 
     def _validate_request_self(self, subject: Subject, request: betterproto.Message) -> None:
         """Validate a request message for this service."""
-        scope: GraphScope | None = getattr(request, "scope", None)
-        assert scope is not None, f"{request!r} is missing 'scope' property required for {self!r}"
+        scope: GraphScope = getattr(request, "scope", GraphScope())
         if to_uuid(scope.bench_id) != self.bench_id:
             raise GRPCError(GRPCStatus.INVALID_ARGUMENT, "service scope mismatch")
 
@@ -218,7 +217,6 @@ class GraphIoService(GraphIoBase, BenchServiceBase if TYPE_CHECKING else object)
             )
             connection = await session.tx.connect_store(request.scope, node_type, AccessKind.READ)
             result = await connection.fetch(query, FetchOptions(count=request.count or False))
-            assert result.start_cursor
             graph = NodeDataGraph(result.nodes)
         access = generate_access_matrix(subject, graph)
         evaluated_request, adapted_nodes = evaluate_and_adapt_read(
@@ -419,13 +417,12 @@ class _EditScopes(NamedTuple):
 
 
 def validate_node_scope(node_data: AnyNodeData, graph_scope: GraphScope):
-    if hasattr(node_data, "bench_ptr"):
-        node_bench_id = getattr(node_data, "bench_ptr").id
-        if node_bench_id != graph_scope.bench_id:
-            raise ValidationError(
-                node_data,
-                f"node {node_data} has bench_id: {node_bench_id} != {graph_scope.bench_id}",
-            )
+    bench_ptr = getattr(node_data, "bench_ptr", None)
+    if bench_ptr and bench_ptr.id != graph_scope.bench_id:
+        raise ValidationError(
+            node_data,
+            f"node {node_data} has bench_id: {bench_ptr.id} != {graph_scope.bench_id}",
+        )
 
 
 def get_validated_edited_scopes(edits: list[EditData]) -> _EditScopes:
