@@ -133,6 +133,17 @@ def get_sk_from_ptr(ptr: "NodeReference") -> str:
         raise ValueError(f"invalid ptr: {ptr!r}")
 
 
+def get_sk_from_ptr_maybe(ptr: Optional["NodeReference"]) -> Optional[str]:
+    if ptr is None:
+        return None
+    elif ptr.ck:
+        return ptr.ck.bytes[:SK_LENGTH_BYTES].hex()
+    elif ptr.id:
+        return ptr.id.bytes[:SK_LENGTH_BYTES].hex()
+    else:
+        raise ValueError(f"invalid ptr: {ptr!r}")
+
+
 def get_sk_b64_from_ptr(ptr: "NodeReference") -> str:
     if ptr.ck:
         return base64.b64encode(ptr.ck.bytes[:SK_LENGTH_BYTES]).decode()
@@ -142,9 +153,9 @@ def get_sk_b64_from_ptr(ptr: "NodeReference") -> str:
         raise ValueError(f"invalid ptr: {ptr!r}")
 
 
-def get_ck_from_sk_b64(sk_b64: str) -> UUID:
+def pad_ck_from_sk_b64(sk_b64: str) -> UUID:
     """Pads the remainder with zeros"""
-    bytes = base64.b64decode(sk_b64) + (16 - SK_LENGTH_BYTES) * b"\x00"
+    bytes = base64.b64decode(sk_b64.encode()) + (16 - SK_LENGTH_BYTES) * b"\x00"
     return UUID(bytes=bytes)
 
 

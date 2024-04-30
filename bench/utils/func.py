@@ -445,9 +445,12 @@ class bytetuple(typing.Generic[EnumT]):
     def __bool__(self):
         return bool(self.tuple)
 
-    def __contains__(self, item: EnumT):
+    def has(self, item: EnumT) -> bool:
+        """Checks whether the item is of the correct type and is in the tuple."""
         assert isinstance(item, self.enum_cls), f"want {self.enum_cls}, got {item!r} ({type(item)})"
-        return self.bits[item.ord]
+        return bool(self.bits[item.ord])
+
+    __container__ = has
 
     def __and__(self, other: "bytetuple"):
         assert isinstance(other, bytetuple), f"invalid type: {type(other)}"

@@ -19,6 +19,7 @@ EMPTY_DICT: typing.Mapping = frozendict()
 EMPTY_SCOPE = GraphScope()
 REVISION_PENDING = -1
 SK_LENGTH_BYTES = 8
+SK_LENGTH_B64 = 12
 
 # NOTE: we have the enum registry here to avoid circular imports
 _ENUM_CLASS_BY_TYPE: dict["EnumType", type[IdEnum]] = {}
@@ -124,7 +125,7 @@ class EnumType(IdEnum):
 
 enum_(EnumType.ENUM_TYPE)(EnumType)
 ENUM_TYPES: bytetuple[EnumType] = bytetuple(*EnumType)
-
+ENUM_TYPES_SET: frozenset[EnumType] = frozenset(ENUM_TYPES)
 
 #
 # Struct/Node metatypes
@@ -193,6 +194,7 @@ class NodeType(IdEnum):
 
 
 NODE_TYPES: bytetuple[NodeType] = bytetuple(*NodeType)
+NODE_TYPES_SET: frozenset[NodeType] = frozenset(NODE_TYPES)
 ROOT_NODE_TYPES: bytetuple[NodeType] = bytetuple(
     NodeType.BENCH, NodeType.USER, NodeType.ORGANIZATION
 )
@@ -290,6 +292,7 @@ class StructType(IdEnum):
 
 
 STRUCT_TYPES: bytetuple[StructType] = bytetuple(*StructType)
+STRUCT_TYPES_SET: frozenset[StructType] = frozenset(STRUCT_TYPES)
 
 if typing.TYPE_CHECKING:
     ObjectType = NodeType | StructType
@@ -301,6 +304,24 @@ else:
     enum_(EnumType.BENCH_TYPE)(BenchType)
 
 OBJECT_TYPES: bytetuple[ObjectType] = bytetuple(*ObjectType)
+OBJECT_TYPES_SET: frozenset[ObjectType] = frozenset(OBJECT_TYPES)
+BENCH_TYPES: bytetuple[BenchType] = bytetuple(*BenchType)
+
+
+def is_node_type(obj: IdEnum | int) -> bool:
+    return obj in NODE_TYPES_SET
+
+
+def is_struct_type(obj: IdEnum | int) -> bool:
+    return obj in STRUCT_TYPES_SET
+
+
+def is_object_type(obj: IdEnum | int) -> bool:
+    return obj in OBJECT_TYPES_SET
+
+
+def is_enum_type(obj: IdEnum | int) -> bool:
+    return obj in ENUM_TYPES_SET
 
 
 @enum_(EnumType.BLOCK_TYPE)
