@@ -1766,7 +1766,7 @@ class TextSpanData(betterproto.Message):
 @dataclass(eq=False, repr=False)
 class TypeInfoData(betterproto.Message):
     """
-    TypeInfo(id: int = <factory>, parent: Union[ForwardRef('Struct'), ForwardRef('Node'), ForwardRef('Value'), NoneType] = None, order_key: str | None = None, set_properties: list[int] = <factory>, _status: bench.language.const.InterpStatus = None, _updated_properties: bitarray.bitarray | None = None, primitive_type: Optional[bench.language.const.PrimitiveType] = None, bench_type: Optional[bench.utils.func.BenchType] = None, base_type: Optional[ForwardRef('Block')] = None, visibility: Optional[bench.language.const.NodeVisibility] = None, format_hint: Optional[bench.language.const.FormatHint] = None, condition: Optional[ForwardRef('Expression')] = None, length: Optional[int] = None, precision: Optional[int] = None, scale: Optional[int] = None, default_packed: Optional[Any] = None, default: None = None, is_list: bool = False, is_required: bool = False, is_secret: bool = False, _fields: tuple['Field', ...] | None = None, _resolved_type: Optional[ForwardRef('TypeInfo')] = None, parent_id: int = None, parent_key: str = None, base_type_ptr: 'NodeReference' = None)
+    TypeInfo(id: int = <factory>, parent: Union[ForwardRef('Struct'), ForwardRef('Node'), ForwardRef('Value'), NoneType] = None, order_key: str | None = None, set_properties: list[int] = <factory>, _status: bench.language.const.InterpStatus = None, _updated_properties: bitarray.bitarray | None = None, primitive_type: Optional[bench.language.const.PrimitiveType] = None, bench_type: Optional[bench.utils.func.BenchType] = None, base_type: Optional[ForwardRef('Block')] = None, visibility: Optional[bench.language.const.NodeVisibility] = None, format_hint: Optional[bench.language.const.FormatHint] = None, condition: Optional[ForwardRef('Expression')] = None, default_packed: Optional[Any] = None, default: None = None, is_list: bool = False, is_secret: bool = False, is_required: bool = False, _fields: tuple['Field', ...] | None = None, _resolved_type: Optional[ForwardRef('TypeInfo')] = None, parent_id: int = None, parent_key: str = None, base_type_ptr: 'NodeReference' = None)
     """
 
     metatype: "ObjectType" = betterproto.enum_field(1)
@@ -1781,15 +1781,12 @@ class TypeInfoData(betterproto.Message):
     visibility: Optional["NodeVisibility"] = betterproto.enum_field(50, optional=True)
     format_hint: Optional["FormatHint"] = betterproto.enum_field(51, optional=True)
     condition: Optional["ExpressionData"] = betterproto.message_field(52, optional=True)
-    length: Optional[int] = betterproto.int32_field(53, optional=True)
-    precision: Optional[int] = betterproto.int32_field(54, optional=True)
-    scale: Optional[int] = betterproto.int32_field(55, optional=True)
     default_packed: Optional["betterproto_lib_google_protobuf.Struct"] = betterproto.message_field(
-        58, optional=True
+        53, optional=True
     )
     is_list: bool = betterproto.bool_field(60)
-    is_required: bool = betterproto.bool_field(61)
-    is_secret: bool = betterproto.bool_field(62)
+    is_secret: bool = betterproto.bool_field(61)
+    is_required: bool = betterproto.bool_field(62)
 
 
 @dataclass(eq=False, repr=False)
@@ -2117,15 +2114,12 @@ class FieldData(betterproto.Message):
     visibility: Optional["NodeVisibility"] = betterproto.enum_field(50, optional=True)
     format_hint: Optional["FormatHint"] = betterproto.enum_field(51, optional=True)
     condition: Optional["ExpressionData"] = betterproto.message_field(52, optional=True)
-    length: Optional[int] = betterproto.int32_field(53, optional=True)
-    precision: Optional[int] = betterproto.int32_field(54, optional=True)
-    scale: Optional[int] = betterproto.int32_field(55, optional=True)
     default_packed: Optional["betterproto_lib_google_protobuf.Struct"] = betterproto.message_field(
-        58, optional=True
+        53, optional=True
     )
     is_list: bool = betterproto.bool_field(60)
-    is_required: bool = betterproto.bool_field(61)
-    is_secret: bool = betterproto.bool_field(62)
+    is_secret: bool = betterproto.bool_field(61)
+    is_required: bool = betterproto.bool_field(62)
 
 
 @dataclass(eq=False, repr=False)
@@ -4797,7 +4791,7 @@ class RuntimeBase(ServiceBase):
 
 from typing import TYPE_CHECKING  # noqa: E402
 
-VERSION = "2024.04.29.2"
+VERSION = "2024.04.30.1"
 
 if TYPE_CHECKING:
     from bench.language import Subject

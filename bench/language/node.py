@@ -1,4 +1,5 @@
 import abc
+import base64
 import dataclasses
 import enum
 import functools
@@ -38,6 +39,7 @@ from bench.language.const import (
     IN_BENCH_NODE_TYPES,
     IN_PACKAGE_NODE_TYPES,
     NODE_TYPES,
+    SK_LENGTH_BYTES,
     SUB_BENCH_NODE_TYPES,
     SUB_PACKAGE_NODE_TYPES,
     UNSET,
@@ -117,9 +119,33 @@ def new_struct_id() -> int:
 new_node_id = uuid4
 
 
-def get_stable_ck_part(ck: UUID) -> str:
-    """Gets the stable across templates first half of the ck"""
-    return str(ck)[:8]
+def get_sk_from_ck(ck: UUID) -> str:
+    """Gets the stable across templates first 6 bytes of the ck."""
+    return ck.bytes[:SK_LENGTH_BYTES].hex()
+
+
+def get_sk_from_ptr(ptr: "NodeReference") -> str:
+    if ptr.ck:
+        return ptr.ck.bytes[:SK_LENGTH_BYTES].hex()
+    elif ptr.id:
+        return ptr.id.bytes[:SK_LENGTH_BYTES].hex()
+    else:
+        raise ValueError(f"invalid ptr: {ptr!r}")
+
+
+def get_sk_b64_from_ptr(ptr: "NodeReference") -> str:
+    if ptr.ck:
+        return base64.b64encode(ptr.ck.bytes[:SK_LENGTH_BYTES]).decode()
+    elif ptr.id:
+        return base64.b64encode(ptr.id.bytes[:SK_LENGTH_BYTES]).decode()
+    else:
+        raise ValueError(f"invalid ptr: {ptr!r}")
+
+
+def get_ck_from_sk_b64(sk_b64: str) -> UUID:
+    """Pads the remainder with zeros"""
+    bytes = base64.b64decode(sk_b64) + (16 - SK_LENGTH_BYTES) * b"\x00"
+    return UUID(bytes=bytes)
 
 
 def derive_source_node_id(package_id: UUID, ck: UUID):
@@ -1559,7 +1585,7 @@ class Node(Struct[NodeDataT], Generic[NodeDataT]):
     @property
     def sk(self) -> str:
         """The stable key of this node lineage."""
-        return get_stable_ck_part(self.ck)
+        return get_sk_from_ck(self.ck)
 
     @property
     def identifier_type(self) -> IdentifierType:

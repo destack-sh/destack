@@ -324,6 +324,33 @@ def get_subclasses(cls, seen=None):
             yield from get_subclasses(subclass, seen=seen)
 
 
+BASE_64 = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/"
+
+
+def encode_b64vlq(value: int) -> str:
+    """Encodes an integer as a variable length quantity B64 string for concise."""
+    if value == 0:
+        return "A"
+    elif value < 0:
+        raise ValueError(f"cannot encode negative value: {value}")
+    else:
+        result = ""
+        while value:
+            result += BASE_64[value & 63]
+            value >>= 6
+        return result
+
+
+def decode_b64vlq(value: str) -> int:
+    """Decodes a variable length quantity B64 string into an integer."""
+    result = 0
+    shift = 0
+    for c in value:
+        result += BASE_64.index(c) << shift
+        shift += 6
+    return result
+
+
 _MIN_ID_BY_ENUM: dict[type, int] = {}
 _MAX_ID_BY_ENUM: dict[type, int] = {}
 

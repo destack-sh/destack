@@ -1,5 +1,6 @@
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any, Collection, Iterable, Optional, Union
+from uuid import UUID
 
 import structlog
 
@@ -16,9 +17,6 @@ if TYPE_CHECKING:
 logger = structlog.get_logger(__name__)
 
 
-# TODO :Broken: implement Value
-
-
 @dataclass(slots=True)
 class Value:
     """
@@ -29,14 +27,15 @@ class Value:
     # local identity (matches Struct)
     id: int
     parent: Union["Value", Struct, Node, None]
-    parent_id: int | None
+    parent_id: int | UUID | None
     parent_key: str | None
     order_key: str | None
 
     # content
     _type: "TypeInfo"
     _key: Union[Property, "Field"] | None
-    _value: dict[str, Any]
+    _value_packed: dict[str, Any]
+    _secret_value_packed: dict[str, Any] | None
 
     # use
     ...  # getattr/setattr
@@ -73,14 +72,6 @@ class HasValues(Struct):
 
     def _untrack_inner(self) -> None:
         pass
-
-
-def _map_v_noop(value: Any, *args, **kwargs):
-    return value
-
-
-def _map_k_noop(field: "Field"):
-    return field.py_ident, field.py_ident
 
 
 def map_value(

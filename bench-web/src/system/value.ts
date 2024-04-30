@@ -13,7 +13,10 @@ import { ENUM_ICONS_BY_TYPE } from "@/system/icon";
 import { getEnumOptions, isEnumType } from "@/system/lang";
 import type { ViewProps } from "@/views/common";
 
-export type TypeIdentity = Pick<TypeInfoData, "primitiveType" | "benchType" | "baseTypePtr" | "formatHint">;
+export type TypeIdentity = Pick<
+  TypeInfoData,
+  "primitiveType" | "benchType" | "baseTypePtr" | "formatHint" | "isList" | "isSecret"
+>;
 
 export function makeTypeInfo(partial: Partial<Omit<TypeInfoData, "metatype">>): TypeInfoData {
   return makeDefaultStruct({ metatype: StructType.TYPE_INFO, ...partial });

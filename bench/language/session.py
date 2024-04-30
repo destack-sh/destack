@@ -396,9 +396,6 @@ class Session(Node[SessionData]):
     #  what should session nodes be scoped to? what parent?
 
 
-# We track the active root in a contextvar but not children
-#  because they may be in different contexts, and we cannot reset across contexts.
-# This will need to be expanded when we get to parallel runs.
 @node(NodeType.RUN, index_in_search=True, local=True, id_factory=UUIDT)
 class Run(BasedNode[RunData], HasValues):
     """
