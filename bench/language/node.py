@@ -163,7 +163,6 @@ def derive_source_node_id(package_id: UUID, ck: UUID):
 class _ComponentMethod(enum.Enum):
     # lifecycle
     init = "init"
-    clear = "clear"
     interp = "interp"
     validate = "validate"
     updated = "updated"
@@ -1148,16 +1147,17 @@ class Struct(abc.ABC, Generic[StructDataT]):
         copy = self.__class__(**kwargs)
         return copy
 
-    def _walk_structs(self) -> Iterable["Struct"]:
+    def _walk_struct(self) -> Iterable["Struct"]:
+        yield self
         for prop in self.__struct_properties__.values():
-            value = getattr(self, prop.name)
+            value: Struct | list[Struct] | None = getattr(self, prop.name)
             if value is None:
                 continue
             elif not prop.is_list:
-                yield from value._walk_self()
-            elif len(value) > 0:
-                for item in value:
-                    yield from item._walk_self()
+                yield from (cast(Struct, value))._walk_struct()
+            elif len(cast(list, value)) > 0:
+                for item in cast(list[Struct], value):
+                    yield from item._walk_struct()
 
     def _init_component(self):
         for prop in self.__struct_reference_properties__.values():
@@ -1316,27 +1316,15 @@ class Struct(abc.ABC, Generic[StructDataT]):
             meth(self, properties)
 
     @final
-    def _walk_self(self) -> Iterable["Struct"]:
-        yield self
-        for prop in self.__struct_properties__.values():
-            value = getattr(self, prop.name)
-            if value:
-                if prop.is_list:
-                    for item in value:
-                        yield from item._walk_self()
-                else:
-                    yield from value._walk_self()
-
-    @final
     def _interp_rec(self, scope: Optional["Node"], on_notice: "NoticeHandler"):
-        for inner_struct in self._walk_self():
+        for inner_struct in self._walk_struct():
             inner_struct._interp_self(scope, on_notice)
 
     @final
     def _validate_rec(
         self, properties: tuple[Property, ...], on_invalid: "ValidationHandler"
     ) -> None:
-        for inner_struct in self._walk_self():
+        for inner_struct in self._walk_struct():
             inner_struct._validate_self(properties, on_invalid)
 
     @final
@@ -1728,12 +1716,6 @@ class Node(Struct[NodeDataT], Generic[NodeDataT]):
                 self._graph = NodeGraph()
             self._graph.add(self)
 
-    def _interp_component(self, scope: Optional["Node"], on_notice: "NoticeHandler"):
-        """Interp this node."""
-        # interp all structs recursive
-        for s in self._walk_structs():
-            s._interp_rec(scope, on_notice)
-
     def _track_component(self, session: "Session") -> None:
         """Track this object in the given session."""
         self._session = session
@@ -1742,14 +1724,6 @@ class Node(Struct[NodeDataT], Generic[NodeDataT]):
     def _untrack_component(self) -> None:
         """Stop tracking this object."""
         self._session = None
-
-    def _attached_component(self) -> None:
-        """Called when this node is attached to a root graph."""
-        pass
-
-    def _detached_component(self) -> None:
-        """Called when this node is detached from a root graph."""
-        pass
 
     _call_component = _make_component_dunder_method(_ComponentMethod.call)
     _iter_component = _make_component_dunder_method(_ComponentMethod.iter)
@@ -1825,10 +1799,24 @@ class Node(Struct[NodeDataT], Generic[NodeDataT]):
         self._status = InterpStatus.INTERPED
 
     @final
-    def _walk_rec(self) -> Iterable["Node"]:
+    def _walk_descendants(self) -> Iterable["Node"]:
         yield self
         if self.metatype in HAS_CHILD_NODE_TYPES:
             yield from self._root_graph.collect_descendants(self, recursive=True)
+
+    @final
+    def _interp_rec(self, scope: Optional["Node"], on_notice: "NoticeHandler"):
+        super()._interp_rec(scope, on_notice)  # interp structs
+        for inner_node in self._walk_descendants():
+            inner_node._interp_self(scope, on_notice)
+
+    @final
+    def _validate_rec(
+        self, properties: tuple[Property, ...], on_invalid: "ValidationHandler"
+    ) -> None:
+        super()._validate_rec(properties, on_invalid)  # validate structs
+        for inner_node in self._walk_descendants():
+            inner_node._validate_self(properties, on_invalid)
 
     #
     # Querying

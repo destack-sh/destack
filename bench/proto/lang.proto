@@ -419,7 +419,7 @@ enum ExpressionOp {
   EXPRESSION_OP_DESCENDING = 201;
 }
 
-// The zone of a Field.
+// The 'zone' of a Field within its Block.
 enum FieldZone {
   FIELD_ZONE_UNSPECIFIED = 0;
   FIELD_ZONE_VARIABLE = 1;
@@ -1232,6 +1232,8 @@ message ContextData {
   optional NodeReferenceData package_ptr = 33;
   optional NodeReferenceData module_ptr = 34;
   optional NodeReferenceData page_ptr = 35;
+  optional NodeReferenceData user_ptr = 40;
+  optional NodeReferenceData trigger_ptr = 41;
 }
 
 // An expression (conditional, aggregation, sort, etc).
@@ -1621,7 +1623,7 @@ message TextSpanData {
   optional bool is_code = 64;
 }
 
-// TypeInfo(id: int = <factory>, parent: Union[ForwardRef('Struct'), ForwardRef('Node'), ForwardRef('Value'), NoneType] = None, order_key: str | None = None, set_properties: list[int] = <factory>, _status: bench.language.const.InterpStatus = None, _updated_properties: bitarray.bitarray | None = None, kind: bench.language.field.TypeKind = None, primitive_type: Optional[bench.language.const.PrimitiveType] = None, bench_type: Optional[bench.utils.func.BenchType] = None, base_type: Optional[ForwardRef('Block')] = None, base_field_zone: Optional[ForwardRef('FieldZone')] = None, visibility: Optional[bench.language.const.NodeVisibility] = None, format_hint: Optional[bench.language.const.FormatHint] = None, condition: Optional[ForwardRef('Expression')] = None, default_packed: Optional[Any] = None, default: None = None, is_list: bool = False, is_secret: bool = False, is_required: bool = False, parent_id: int = None, parent_key: str = None, base_type_ptr: 'NodeReference' = None)
+// TypeInfo(id: int = <factory>, parent: Union[ForwardRef('Struct'), ForwardRef('Node'), ForwardRef('Value'), NoneType] = None, order_key: str | None = None, set_properties: list[int] = <factory>, _status: bench.language.const.InterpStatus = None, _updated_properties: bitarray.bitarray | None = None, kind: Optional[bench.language.const.TypeKind] = None, primitive_type: Optional[bench.language.const.PrimitiveType] = None, bench_type: Optional[bench.utils.func.BenchType] = None, base_type: Union[ForwardRef('Block'), ForwardRef('Step')] = None, base_field_zone: Optional[ForwardRef('FieldZone')] = None, visibility: Optional[bench.language.const.NodeVisibility] = None, format_hint: Optional[bench.language.const.FormatHint] = None, condition: Optional[ForwardRef('Expression')] = None, default_packed: Optional[Any] = None, default: None = None, is_list: bool = False, is_secret: bool = False, is_required: bool = False, _resolved_type: Optional[ForwardRef('TypeInfoBase')] = None, _resolved_identity_key: str | None = None, parent_id: int = None, parent_key: str = None, base_type_ptr: 'NodeReference' = None)
 message TypeInfoData {
   ObjectType metatype = 1;
   int32 id = 2;
@@ -1739,8 +1741,7 @@ message BlockData {
   optional google.protobuf.Struct value_packed = 40;
   optional google.protobuf.Struct secret_value_packed = 41;
   optional CodeData code = 42;
-  optional NodeReferenceData reference_ptr = 43;
-  repeated PolicyData delegated_policies = 44;
+  repeated PolicyData delegated_policies = 43;
   bool is_builtin = 60;
   bool is_page = 61;
   bool is_protocol = 62;
@@ -1914,10 +1915,10 @@ message FieldData {
   repeated int32 set_properties = 22;
   optional string name = 30;
   string order_key = 31;
+  FieldZone zone = 32;
   optional TextData text = 33;
   optional IconData icon = 34;
   optional google.protobuf.Struct value_packed = 35;
-  FieldZone zone = 36;
   optional TypeKind kind = 40;
   optional PrimitiveType primitive_type = 41;
   optional BenchType bench_type = 42;

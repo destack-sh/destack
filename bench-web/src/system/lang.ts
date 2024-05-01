@@ -32,6 +32,7 @@ import {
   type EnumTypeMapping,
   type FieldData,
   type PropertyInfo,
+  TypeKind,
 } from "@/proto/wire";
 import { describeNode, isNode, toNodeReference, type TypedNodeReferenceData } from "@/proto/wiring";
 import { type ReadNodeGraph } from "@/system/graph";
@@ -520,7 +521,8 @@ export function createField(
   const field = tx.create({
     name: makeNodeName(graph, { metatype: ObjectType.FIELD, parentPtr, zone: zone }),
     zone,
-    benchType: BenchType.TEXT,
+    kind: zone == FieldZone.OPTION ? undefined : TypeKind.STRUCT,
+    benchType: zone == FieldZone.OPTION ? undefined : BenchType.TEXT,
     ...fieldIn,
     // overwrite non-required properties
     id: undefined,
@@ -539,7 +541,7 @@ export function createField(
 
 /** Gets the discriminating subtype for a node, if any */
 export function getNodeSubtype(node: AnyNodeData): FieldZone | BlockType | ViewType | StepType | any {
-  if (isNode(node, NodeType.FIELD)) return node.kind;
+  if (isNode(node, NodeType.FIELD)) return node.zone;
   else return (node as any).type;
 }
 
@@ -572,6 +574,9 @@ type InspectionLayout = {
 // NOTE: we (try to) only use metatype/type to avoid recomputing inspection layouts on every change (might have to revisit)
 function getInspectionInfo(metatype: ObjectType, type: any): Record<string, InspectionCategory> | null {
   if (metatype == ObjectType.FIELD) {
+    if (type == FieldZone.OPTION) {
+      return { Common: [FieldProperty.zone, FieldProperty.text, FieldProperty.visibility] };
+    }
     const properties = {
       Common: [
         FieldProperty.zone,
@@ -593,12 +598,10 @@ function getInspectionInfo(metatype: ObjectType, type: any): Record<string, Insp
           }),
         },
         { from: 30, to: 43, excluding: [FieldProperty.valuePacked] },
+        FieldProperty.visibility,
       ],
       Constraint: [FieldProperty.formatHint, { from: 60 }],
     };
-    if (type != FieldZone.OPTION) {
-      properties.Common.push(FieldProperty.visibility);
-    }
     return properties;
     //
   } else if (metatype == ObjectType.BLOCK) {

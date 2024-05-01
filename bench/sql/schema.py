@@ -11,7 +11,7 @@ from bench.sql.core import (
     Table,
 )
 
-VERSION = "2024.05.01.5"
+VERSION = "2024.05.01.7"
 
 BENCH_TABLE = Table(
     "bench_bench",
@@ -642,9 +642,6 @@ BLOCK_TABLE = Table(
         Column("value_packed", PrimitiveType.JSON, is_nullable=True),
         Column("secret_value_packed", PrimitiveType.JSON, is_nullable=True, is_encrypted=True),
         Column("code", PrimitiveType.JSON, is_nullable=True),
-        Column("reference_id", PrimitiveType.UUID, is_nullable=True),
-        Column("reference_ck", PrimitiveType.UUID, is_nullable=True),
-        Column("reference_bench_id", PrimitiveType.UUID, is_nullable=True),
         Column("delegated_policies", PrimitiveType.JSON, is_array=True),
         Column("is_builtin", PrimitiveType.BOOLEAN, default="false"),
         Column("is_page", PrimitiveType.BOOLEAN, default="false"),
@@ -751,15 +748,16 @@ FIELD_TABLE = Table(
         Column("set_properties", PrimitiveType.INT32, is_array=True),
         Column("name", PrimitiveType.STRING, is_nullable=True),
         Column("order_key", PrimitiveType.STRING, default="'a0'::character varying"),
+        Column("zone", PrimitiveType.INT16, default="1"),
         Column("text", PrimitiveType.JSON, is_nullable=True),
         Column("icon", PrimitiveType.JSON, is_nullable=True),
         Column("value_packed", PrimitiveType.JSON, is_nullable=True),
-        Column("zone", PrimitiveType.INT16, default="1"),
         Column("kind", PrimitiveType.INT16, is_nullable=True),
         Column("primitive_type", PrimitiveType.INT16, is_nullable=True),
         Column("bench_type", PrimitiveType.INT16, is_nullable=True),
         Column("base_type_id", PrimitiveType.UUID, is_nullable=True),
         Column("base_type_ck", PrimitiveType.UUID, is_nullable=True),
+        Column("base_type_type", PrimitiveType.INT16, is_nullable=True),
         Column("base_type_bench_id", PrimitiveType.UUID, is_nullable=True),
         Column("base_field_zone", PrimitiveType.INT16, is_nullable=True),
         Column("visibility", PrimitiveType.INT16, is_nullable=True),

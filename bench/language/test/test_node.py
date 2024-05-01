@@ -69,7 +69,7 @@ async def test_node_pointers_consistency(fabricator: "Fabricator"):
         NodeReference(type=NodeType.BLOCK, ck=block_a_1.ck, id=block_a_1.id, bench_id=bench_a.id)
     )
     block_a_2 = package_a.blocks.create(type=BlockType.CODE)
-    block_a_1.reference = block_a_2
+    block_a_1.bases = [block_a_2]
 
     # based pointers
     signal_a = Signal(parent=package_a, type=block_a_1)
@@ -89,10 +89,10 @@ async def test_node_pointers_consistency(fabricator: "Fabricator"):
     bench_b = fabricator.fabricate(Bench, slug="test_b", name="test_b")
     environment_b = Environment(parent=bench_b, name="Production B")
     package_b = bench_b.packages.create(environment=environment_b)
-    block_b = package_b.blocks.create(type=BlockType.CODE, reference=block_a_1)
+    block_b = package_b.blocks.create(type=BlockType.CODE, bases=[block_a_1])
     assert block_b.bench_id == bench_b.id
-    assert block_b.reference
-    assert block_b.reference.bench_id == bench_a.id
+    assert block_b.bases
+    assert block_b.bases[0].bench_id == bench_a.id
     signal_b = Signal(parent=package_b, type=block_a_1)
     assert signal_b.bench_id == bench_b.id
     assert signal_b.to_ref().equals_content(

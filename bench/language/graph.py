@@ -518,10 +518,8 @@ class NodeList(abc.ABC, Collection[NodeT], Generic[NodeT]):
     def __repr__(self):
         return f"<{self.__class__.__name__} {self._parent.absolute_path}.{self._property.name}: {self}>"
 
-    def create(self, *args, **kwargs) -> NodeT:
+    def create(self, **kwargs) -> NodeT:
         """Creates a new node in the list."""
-        if len(args) == 1 and isinstance(args[0], Node):
-            raise ValueError(f"cannot create {args[0]!r}, use append for existing nodes")
         from bench.language.node import NODE_CLASS_BY_TYPE
 
         node_metatype = cast(list[NodeType], self._property.reference_nodes)[0]
@@ -532,10 +530,10 @@ class NodeList(abc.ABC, Collection[NodeT], Generic[NodeT]):
         # set new node status to source to prevent activation before it's appended
         if hasattr(node_cls, "new"):
             node = getattr(node_cls, "new")(
-                *args, **kwargs, for_parent=self._parent, _status=InterpStatus.SOURCE
+                **kwargs, for_parent=self._parent, _status=InterpStatus.SOURCE
             )
         else:
-            node = node_cls(*args, **kwargs, _status=InterpStatus.SOURCE)
+            node = node_cls(**kwargs, _status=InterpStatus.SOURCE)
         node = cast(NodeT, node)
         self.append(node)
         return node
@@ -604,7 +602,7 @@ class InMemoryGraphNodeList(NodeList[NodeT]):
         # assign ids if newly attached to the package (ids are derived from ck + package)
         if "ck" in node.__properties__ and not node.is_attached and self._parent.is_attached:
             package_id = self._parent.package.id
-            for n in node._walk_rec():
+            for n in node._walk_descendants():
                 if n.id is None:
                     n._assign_id(package_id)
 

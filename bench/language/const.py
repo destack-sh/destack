@@ -12,7 +12,7 @@ from bench.utils.utils import frozendict
 if typing.TYPE_CHECKING:
     from bench.language import Session, Transaction
 
-VERSION = "2024.05.01.5"
+VERSION = "2024.05.01.7"
 REVISION_PENDING = -1
 TK_LENGTH_BYTES = 8
 TK_LENGTH_B64 = 12  # 1.5 * TK_LENGTH_BYTES (must be integer)
@@ -379,6 +379,9 @@ BLOCK_TYPES: tuple[BlockType, ...] = tuple(BlockType)
 class BlockTypes:
     TYPES = bytetuple(*tuple(t for t in BLOCK_TYPES if 10 <= t.id < 20))
     RUNNABLE = bytetuple(*tuple(t for t in BLOCK_TYPES if 30 <= t.id < 40))
+    CLASSES = bytetuple(
+        BlockType.CLASS, BlockType.SIGNAL, *RUNNABLE, BlockType.VARIABLE, BlockType.DATABASE
+    )
 
 
 class NodeSource(IdEnum):
@@ -643,6 +646,29 @@ class FormatHint(IdEnum):
     IMAGE = 60
     VIDEO = 61
     AUDIO = 62
+
+
+@enum_(EnumType.TYPE_KIND)
+class TypeKind(IdEnum):
+    """The 'kind' of a Type."""
+
+    PRIMITIVE = 1
+    STRUCT = 2
+    NODE = 3
+    ENUM = 4
+    BASE = 5
+    ALIAS = 6
+
+
+@enum_(EnumType.FIELD_ZONE)
+class FieldZone(IdEnum):
+    """The 'zone' of a Field within its Block."""
+
+    VARIABLE = 1
+    MEMBER = 2
+    INPUT = 3
+    OUTPUT = 4
+    OPTION = 5
 
 
 @enum_(EnumType.FILE_STATUS)

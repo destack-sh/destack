@@ -20,7 +20,7 @@ from bench.utils.fractional import INTEGER_ZERO
 from bench.utils.func import IdEnum
 
 if TYPE_CHECKING:
-    from bench.language import Block, Code, Expression, Text, Trigger, TypeInfo
+    from bench.language import Block, Code, Expression, Field, Text, Trigger, TypeInfo
 
 # pyright: reportIncompatibleVariableOverride=false
 
@@ -82,4 +82,6 @@ class Step(Node[StepData], HasValues):
 
     # flags
     # ...?
+    steps: NodeList["Step"] = p_node_child(NodeType.STEP)
+    fields: NodeList["Field"] = p_node_child(NodeType.FIELD)
     notices: NodeList["Notice"] = p_node_child(NodeType.NOTICE)
