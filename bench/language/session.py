@@ -6,8 +6,8 @@ from typing import TYPE_CHECKING, Any, Collection, Optional, Union, cast
 from uuid import UUID
 
 import structlog
-from asgiref.sync import async_to_sync, sync_to_async
 
+from bench.language.code_ import Code
 from bench.language.const import (
     TERMINAL_RUN_STATUSES,
     BenchError,
@@ -20,7 +20,8 @@ from bench.language.const import (
     _active_session,
     enum_,
 )
-from bench.language.node import BasedNode, Node, Struct, _Passthrough, node, node_component, struct
+from bench.language.flow import Step
+from bench.language.node import BasedNode, Node, Struct, _Passthrough, node, struct
 from bench.language.property import (
     Property,
     p_internal,
@@ -48,7 +49,6 @@ from bench.proto.wire import (
     SignalData,
     SupervisorStub,
 )
-from bench.sql.core import PrimitiveType
 from bench.utils.dt import utcnow_with_tz
 from bench.utils.env import IS_DEBUG
 from bench.utils.func import IdEnum, _auto_async_to_sync, bytetuple
@@ -80,7 +80,7 @@ class Signal(BasedNode[SignalData], HasValues):
     type: Optional["Block"] = p_internal(
         31, require=False, array=False, references=NodeType.BLOCK, index_in_pg=True
     )
-    sender: Optional["Block"] = p_internal(
+    origin: Optional["Block"] = p_internal(
         33, require=False, array=False, references=NodeType.BLOCK, index_in_pg=True
     )
     value_packed: Any | None = p_value_packed(34)
@@ -109,13 +109,13 @@ class LogLevel(IdEnum):
     INFO = 3
     WARNING = 4
     ERROR = 5
-    FATAL = 6
+    CRITICAL = 6
 
 
 @node(NodeType.LOG, stored=True, local=True, index_in_search=True, no_ck=True, id_factory=UUIDT)
-class Log(Node):
+class Log(Node, HasValues):
     """
-    A log (entry) is a timestamped event of something happening:
+    A Log (entry) is a timestamped event of something happening:
      a message, some Access (read, edit, use), etc.
     """
 
@@ -126,11 +126,12 @@ class Log(Node):
     level: LogLevel = p_system(31)
     logger: Optional[str] = p_system(32, default=None)
     event: Optional[str] = p_system(33, default=None)
-    message: Optional[str] = p_internal(34, default=None)  # the rendered 'text' (if any)
+    title: Optional[str] = p_internal(34, default=None)
     text: Optional[Text] = p_internal(
         35, default=None, require=False, array=False, struct=StructType.TEXT
     )
     value_packed: Any | None = p_value_packed(36)
+    value: Any = p_value_runtime(36)
     request: Optional["Request"] = p_system(
         37, require=False, array=False, struct=StructType.REQUEST
     )
@@ -141,15 +142,16 @@ class Log(Node):
     )
     run: Optional["Run"] = p_system(41, require=False, array=False, references=NodeType.RUN)
     block: Optional["Block"] = p_system(42, require=False, array=False, references=NodeType.BLOCK)
+    step: Optional["Step"] = p_system(43, require=False, array=False, references=NodeType.STEP)
 
     def __content_str__(self):
-        return f"[{self.kind.bench_name}:{self.level.bench_name}] '{self.event or self.message}' ({self.created_at})"
+        return f"[{self.kind.bench_name}:{self.level.bench_name}] '{self.event or self.title or self.text or '<empty>'}' ({self.created_at})"
 
 
 @node(NodeType.SESSION, index_in_search=True, local=True, id_factory=UUIDT)
 class Session(Node[SessionData]):
     """
-    A managed session for interacting with Bench nodes and (if on a Server) running them.
+    A managed Session for interacting with Bench nodes and running them (in a Runtime).
     """
 
     parent: Optional["Package"] = p_node_parent(4, NodeType.PACKAGE, is_system=True)
@@ -177,8 +179,6 @@ class Session(Node[SessionData]):
     _active_nodes_by_ck: dict[UUID, Node] | None = p_runtime(default=None)
 
     # logs
-    _cached_logs: deque[Log] | None = p_runtime(default=None)
-    _pending_logs: list[Log] | None = p_runtime(default=None)
     _flush_session_loop: asyncio.Task | None = p_runtime(default=None)
 
     def __content_str__(self):
@@ -392,16 +392,16 @@ class Session(Node[SessionData]):
     def stacktrace(self):
         return self._stacktrace
 
-    # TODO :Broken: track sessions/runs (and signals/logs)
-    #  what should session nodes be scoped to? what parent?
-
 
 @node(NodeType.RUN, index_in_search=True, local=True, id_factory=UUIDT)
 class Run(BasedNode[RunData], HasValues):
     """
-    A 'run' of a Block or something (in a session).
+    A 'run' of something. Can run Blocks (and Steps within them) or 'lambdas' (just Code/Text).
+    When 'running' something that's not directly runnable (like a Text Block, Text Step or Text Lambda),
+     we figure
     """
 
+    # context
     parent: Union["Session", "Run"] = p_node_parent(4, NodeType.SESSION, NodeType.RUN)
     session: "Session" = p_node_ancestor(
         30, NodeType.SESSION, require=True, store=True, wire=True, index_in_pg=True
@@ -415,13 +415,19 @@ class Run(BasedNode[RunData], HasValues):
     block: Optional["Block"] = p_internal(
         33, references=NodeType.BLOCK, require=False, array=False, index_in_pg=True
     )
-    # block_path?
-    scheduled_at: Optional[datetime] = p_internal(35, default=None)
-    started_at: Optional[datetime] = p_internal(36, default=None)
-    terminated_at: Optional[datetime] = p_internal(37, default=None)
-    duration: float = p_internal(38, default=0)
-    status: RunStatus = p_internal(39, index_in_pg=True)
+    step: Optional["Step"] = p_internal(34, require=False, array=False, references=NodeType.STEP)
+    code: Optional["Code"] = p_internal(35, require=False, array=False, struct=StructType.CODE)
+    text: Optional["Text"] = p_internal(36, require=False, array=False, struct=StructType.TEXT)
 
+    # status
+    status: RunStatus = p_internal(40, index_in_pg=True)
+    scheduled_at: Optional[datetime] = p_internal(41, default=None)
+    started_at: Optional[datetime] = p_internal(42, default=None)
+    paused_at: Optional[datetime] = p_internal(43, default=None)
+    terminated_at: Optional[datetime] = p_internal(44, default=None)
+    duration: Optional[float] = p_internal(45)
+
+    # value
     inputs_packed: Any = p_value_packed(50)
     inputs_secret_packed: Any = p_secret_value_packed(51)
     inputs: Any = p_value_runtime(50, 51)
@@ -435,9 +441,9 @@ class Run(BasedNode[RunData], HasValues):
         56, default=None, require=False, array=False, struct=StructType.RUN_ERROR
     )
 
+    # NOTE :Architecture :Performance: (some) Runs will likely be stored outside the main user DB later.
+    #  And maybe we'll also have 'inline runs' for non-Bench constructs that were run (like deeper profiling).
     runs: list["Run"] = p_node_child(NodeType.RUN)
-
-    # inline_runs: list["Run"] = p_internal(60, require=False, array=True, struct=NodeType.RUN)?
 
     def __content_str__(self):
         value_keys_str = ", ".join(self.value.keys()) if self.value else ""

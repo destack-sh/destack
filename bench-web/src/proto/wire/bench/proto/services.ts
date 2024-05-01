@@ -712,13 +712,13 @@ export interface PingServerRequest {
 export interface PingServerResponse {
 }
 /**
- * @generated from protobuf message symbolx.bench.RunIntrinsicBlockRequest
+ * @generated from protobuf message symbolx.bench.RunIntrinsicRequest
  */
-export interface RunIntrinsicBlockRequest {
+export interface RunIntrinsicRequest {
     /**
-     * @generated from protobuf oneof: block
+     * @generated from protobuf oneof: node
      */
-    block: {
+    node: {
         oneofKind: "path";
         /**
          * @generated from protobuf field: symbolx.bench.PathData path = 1;
@@ -751,9 +751,9 @@ export interface RunIntrinsicBlockRequest {
     runCk: string;
 }
 /**
- * @generated from protobuf message symbolx.bench.RunIntrinsicBlockResponse
+ * @generated from protobuf message symbolx.bench.RunIntrinsicResponse
  */
-export interface RunIntrinsicBlockResponse {
+export interface RunIntrinsicResponse {
     /**
      * @generated from protobuf field: google.protobuf.Struct outputs = 1;
      */
@@ -3187,42 +3187,42 @@ class PingServerResponse$Type extends MessageType<PingServerResponse> {
  */
 export const PingServerResponse = new PingServerResponse$Type();
 // @generated message type with reflection information, may provide speed optimized methods
-class RunIntrinsicBlockRequest$Type extends MessageType<RunIntrinsicBlockRequest> {
+class RunIntrinsicRequest$Type extends MessageType<RunIntrinsicRequest> {
     constructor() {
-        super("symbolx.bench.RunIntrinsicBlockRequest", [
-            { no: 1, name: "path", kind: "message", oneof: "block", T: () => PathData },
-            { no: 2, name: "reference", kind: "message", oneof: "block", T: () => NodeReferenceData },
+        super("symbolx.bench.RunIntrinsicRequest", [
+            { no: 1, name: "path", kind: "message", oneof: "node", T: () => PathData },
+            { no: 2, name: "reference", kind: "message", oneof: "node", T: () => NodeReferenceData },
             { no: 3, name: "inputs", kind: "message", T: () => Struct },
             { no: 4, name: "timeout_ms", kind: "scalar", T: 5 /*ScalarType.INT32*/ },
             { no: 5, name: "run_id", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 6, name: "run_ck", kind: "scalar", T: 9 /*ScalarType.STRING*/ }
         ]);
     }
-    create(value?: PartialMessage<RunIntrinsicBlockRequest>): RunIntrinsicBlockRequest {
+    create(value?: PartialMessage<RunIntrinsicRequest>): RunIntrinsicRequest {
         const message = globalThis.Object.create((this.messagePrototype!));
-        message.block = { oneofKind: undefined };
+        message.node = { oneofKind: undefined };
         message.timeoutMs = 0;
         message.runId = "";
         message.runCk = "";
         if (value !== undefined)
-            reflectionMergePartial<RunIntrinsicBlockRequest>(this, message, value);
+            reflectionMergePartial<RunIntrinsicRequest>(this, message, value);
         return message;
     }
-    internalBinaryRead(reader: IBinaryReader, length: number, options: BinaryReadOptions, target?: RunIntrinsicBlockRequest): RunIntrinsicBlockRequest {
+    internalBinaryRead(reader: IBinaryReader, length: number, options: BinaryReadOptions, target?: RunIntrinsicRequest): RunIntrinsicRequest {
         let message = target ?? this.create(), end = reader.pos + length;
         while (reader.pos < end) {
             let [fieldNo, wireType] = reader.tag();
             switch (fieldNo) {
                 case /* symbolx.bench.PathData path */ 1:
-                    message.block = {
+                    message.node = {
                         oneofKind: "path",
-                        path: PathData.internalBinaryRead(reader, reader.uint32(), options, (message.block as any).path)
+                        path: PathData.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).path)
                     };
                     break;
                 case /* symbolx.bench.NodeReferenceData reference */ 2:
-                    message.block = {
+                    message.node = {
                         oneofKind: "reference",
-                        reference: NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, (message.block as any).reference)
+                        reference: NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).reference)
                     };
                     break;
                 case /* google.protobuf.Struct inputs */ 3:
@@ -3248,13 +3248,13 @@ class RunIntrinsicBlockRequest$Type extends MessageType<RunIntrinsicBlockRequest
         }
         return message;
     }
-    internalBinaryWrite(message: RunIntrinsicBlockRequest, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
+    internalBinaryWrite(message: RunIntrinsicRequest, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
         /* symbolx.bench.PathData path = 1; */
-        if (message.block.oneofKind === "path")
-            PathData.internalBinaryWrite(message.block.path, writer.tag(1, WireType.LengthDelimited).fork(), options).join();
+        if (message.node.oneofKind === "path")
+            PathData.internalBinaryWrite(message.node.path, writer.tag(1, WireType.LengthDelimited).fork(), options).join();
         /* symbolx.bench.NodeReferenceData reference = 2; */
-        if (message.block.oneofKind === "reference")
-            NodeReferenceData.internalBinaryWrite(message.block.reference, writer.tag(2, WireType.LengthDelimited).fork(), options).join();
+        if (message.node.oneofKind === "reference")
+            NodeReferenceData.internalBinaryWrite(message.node.reference, writer.tag(2, WireType.LengthDelimited).fork(), options).join();
         /* google.protobuf.Struct inputs = 3; */
         if (message.inputs)
             Struct.internalBinaryWrite(message.inputs, writer.tag(3, WireType.LengthDelimited).fork(), options).join();
@@ -3274,24 +3274,24 @@ class RunIntrinsicBlockRequest$Type extends MessageType<RunIntrinsicBlockRequest
     }
 }
 /**
- * @generated MessageType for protobuf message symbolx.bench.RunIntrinsicBlockRequest
+ * @generated MessageType for protobuf message symbolx.bench.RunIntrinsicRequest
  */
-export const RunIntrinsicBlockRequest = new RunIntrinsicBlockRequest$Type();
+export const RunIntrinsicRequest = new RunIntrinsicRequest$Type();
 // @generated message type with reflection information, may provide speed optimized methods
-class RunIntrinsicBlockResponse$Type extends MessageType<RunIntrinsicBlockResponse> {
+class RunIntrinsicResponse$Type extends MessageType<RunIntrinsicResponse> {
     constructor() {
-        super("symbolx.bench.RunIntrinsicBlockResponse", [
+        super("symbolx.bench.RunIntrinsicResponse", [
             { no: 1, name: "outputs", kind: "message", T: () => Struct },
             { no: 2, name: "error", kind: "message", T: () => RunErrorData }
         ]);
     }
-    create(value?: PartialMessage<RunIntrinsicBlockResponse>): RunIntrinsicBlockResponse {
+    create(value?: PartialMessage<RunIntrinsicResponse>): RunIntrinsicResponse {
         const message = globalThis.Object.create((this.messagePrototype!));
         if (value !== undefined)
-            reflectionMergePartial<RunIntrinsicBlockResponse>(this, message, value);
+            reflectionMergePartial<RunIntrinsicResponse>(this, message, value);
         return message;
     }
-    internalBinaryRead(reader: IBinaryReader, length: number, options: BinaryReadOptions, target?: RunIntrinsicBlockResponse): RunIntrinsicBlockResponse {
+    internalBinaryRead(reader: IBinaryReader, length: number, options: BinaryReadOptions, target?: RunIntrinsicResponse): RunIntrinsicResponse {
         let message = target ?? this.create(), end = reader.pos + length;
         while (reader.pos < end) {
             let [fieldNo, wireType] = reader.tag();
@@ -3313,7 +3313,7 @@ class RunIntrinsicBlockResponse$Type extends MessageType<RunIntrinsicBlockRespon
         }
         return message;
     }
-    internalBinaryWrite(message: RunIntrinsicBlockResponse, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
+    internalBinaryWrite(message: RunIntrinsicResponse, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
         /* google.protobuf.Struct outputs = 1; */
         if (message.outputs)
             Struct.internalBinaryWrite(message.outputs, writer.tag(1, WireType.LengthDelimited).fork(), options).join();
@@ -3327,9 +3327,9 @@ class RunIntrinsicBlockResponse$Type extends MessageType<RunIntrinsicBlockRespon
     }
 }
 /**
- * @generated MessageType for protobuf message symbolx.bench.RunIntrinsicBlockResponse
+ * @generated MessageType for protobuf message symbolx.bench.RunIntrinsicResponse
  */
-export const RunIntrinsicBlockResponse = new RunIntrinsicBlockResponse$Type();
+export const RunIntrinsicResponse = new RunIntrinsicResponse$Type();
 // @generated message type with reflection information, may provide speed optimized methods
 class RestartRuntimeRequest$Type extends MessageType<RestartRuntimeRequest> {
     constructor() {
@@ -3430,7 +3430,7 @@ export const Host = new ServiceType("symbolx.bench.Host", [
     { name: "DownloadFiles", options: {}, I: DownloadFilesRequest, O: DownloadFilesResponse },
     { name: "RestartServer", options: {}, I: RestartServerRequest, O: PingServerResponse },
     { name: "PingServer", options: {}, I: PingServerRequest, O: PingServerResponse },
-    { name: "RunIntrinsicBlock", options: {}, I: RunIntrinsicBlockRequest, O: RunIntrinsicBlockResponse }
+    { name: "RunIntrinsic", options: {}, I: RunIntrinsicRequest, O: RunIntrinsicResponse }
 ]);
 /**
  * @generated ServiceType for protobuf service symbolx.bench.Runtime

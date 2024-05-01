@@ -5,7 +5,6 @@ from uuid import UUID
 import structlog
 
 from bench.language.const import NodeType, PrimitiveValue, StructType
-from bench.language.field import encode_type_identity
 from bench.language.graph import NodeGraph
 from bench.language.node import InterpStatus, Node, Property, Struct, struct, struct_component
 from bench.language.notice import NoticeHandler
@@ -109,7 +108,6 @@ def unpack_value(
 def pack_value(value: SomeValue, type: "TypeInfo", graph: NodeGraph) -> tuple[Any, Any | None]:
     """Packs/serializes the given value into a JSON-able representation."""
     # nocheckin: pack_value
-    identity_key = encode_type_identity(type)
 
     if type.base_type_ptr:
         base_type = graph.get(type.base_type_ptr)
