@@ -11,6 +11,10 @@ include = ["bench"]
 exclude = ["^bench/migrations", "^venv|^venv-runtime", "test_[a-z_]*\\.py"]
 ignore = ["^bench/migrations", "^venv|^venv-runtime", "test_[a-z_]*\\.py"]
 venv = "venv"
+strictDictionaryInference = true
+strictListInference = true
+strictTupleInference = true
+strictSetInference = true
 
 [tool.isort]
 profile = "black"

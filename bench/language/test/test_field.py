@@ -41,7 +41,7 @@ TEST_TYPE_IDENTITIES: tuple[tuple[TypeInfo, str], ...] = (
 def test_roundtrip_type_identity(target: tuple[TypeInfo, str]):
     type_info, target_key = target
     identity_key = encode_type_identity(type_info)
-    assert identity_key == target_key
+    assert identity_key and identity_key == target_key
     decoded = decode_type_identity(identity_key)
     assert decoded.primitive_type == type_info.primitive_type
     assert decoded.bench_type == type_info.bench_type

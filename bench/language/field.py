@@ -8,12 +8,12 @@ from bench.language.const import (
     TK_LENGTH_B64,
     BenchError,
     BenchType,
-    EnumType,
+    FieldZone,
     FormatHint,
     NodeType,
     NodeVisibility,
     StructType,
-    enum_,
+    TypeKind,
     is_enum_type,
     is_node_type,
     is_struct_type,
@@ -45,7 +45,7 @@ from bench.proto.wire import FieldData
 from bench.sql.core import PrimitiveType
 from bench.utils.casing import IdentifierType
 from bench.utils.fractional import INTEGER_ZERO
-from bench.utils.func import IdEnum, decode_b64vlq, encode_b64vlq
+from bench.utils.func import decode_b64vlq, encode_b64vlq
 
 if typing.TYPE_CHECKING:
     from bench.language import Block, Expression, Icon, Step, Text
@@ -77,18 +77,6 @@ class TypeError(BenchError, TypeError):
         self.suberrors = suberrors or []
 
 
-@enum_(EnumType.TYPE_KIND)
-class TypeKind(IdEnum):
-    """The 'kind' of a Type."""
-
-    PRIMITIVE = 1
-    STRUCT = 2
-    NODE = 3
-    ENUM = 4
-    BASE = 5
-    ALIAS = 6
-
-
 LETTER_BY_TYPE_KIND: dict[TypeKind, str] = {
     TypeKind.PRIMITIVE: "p",
     TypeKind.STRUCT: "s",
@@ -116,7 +104,7 @@ def get_implied_type_kind(type: "TypeInfoBase") -> TypeKind | None:
     return None
 
 
-def encode_type_identity(type: "TypeInfoBase") -> str:
+def encode_type_identity(type: "TypeInfoBase") -> str | None:
     """
     Encodes the type identity into a key for storage & implicit typing.
     Format is <kind>[id] (with id encoded as base64).
@@ -137,7 +125,7 @@ def encode_type_identity(type: "TypeInfoBase") -> str:
         assert type.base_type_ptr is not None
         value = get_tk_b64_from_ptr(type.base_type_ptr)
     else:
-        raise ValueError(f"unsupported type {type!r}")
+        return None
 
     if type.is_list:
         prefix = LETTER_BY_TYPE_KIND[type.kind].upper()
@@ -195,16 +183,16 @@ class TypeInfoBase(HasValues):
     """
     A type is a kind of value that can go somewhere, typically in a place designated by a Field.
 
-    A type is either:
-       1. primitive type (= column type, value is scalar, like int32, string, bool, datetime, ...)
+    A type one of these TypeKinds:
+       1. Primitive (= column type, value is scalar, like int32, string, bool, datetime, ...)
           [primitive_type] | [base_type = Block aliased to primitive_type]
-       2. node type (value is NodeReference, like Package, Block, Field, Record, Run, Signal, ...)
+       2. Node (value is NodeReference, like Package, Block, Field, Record, Run, Signal, ...)
           [bench_type~NodeType]
-       3. struct type (value is 'robust json', like Expression, File, Path, Text, Code, ...)
+       3. Struct (value is 'robust json', like Expression, File, Path, Text, Code, ...)
           [bench_type~StructType]
-       4. enum type (value is builtin IdEnum, like FieldKind, NodeType, BenchType, EnumType, ...)
+       4. Enum (value is builtin IdEnum, like FieldKind, NodeType, BenchType, EnumType, ...)
           [bench_type~EnumType]
-       5. node type + base type (value is NodeReference that is an 'instance' of the block)
+       5. Base (value is NodeReference that is an 'instance' of the block)
           [bench_type~NodeType & base_type]
            type = Record, base = Block -> values are Records in that database
            type = Run, base = Block -> values are Runs of that block
@@ -212,23 +200,23 @@ class TypeInfoBase(HasValues):
            type = Signal, base = Block -> values are Signals of that block type
            type = Block, base = Block -> values are Blocks conforming to that block protocol
             ...
-       6. base type (value is whatever that resolves to)
+       6. Alias (value is whatever that resolves to)
 
     Types may also specify:
-       - a field kind, narrowing the fields included from the base type (if any)
-       - a format hint (which may impact the unpacked representation, like for Image)
-       - an additional condition instances must satisfy
+       - field zone, narrowing the fields included from the base type (if any)
+       - format hint (which may impact the unpacked representation, like for Image)
+       - condition which instances must satisfy
        - combination flags for arrays, optionals, ...
 
     Type checking is done in ./value.py. Checking certain invariants requires querying the graph.
     """
 
-    # type identity (must set at least one of these)
-    kind: TypeKind = p_internal(40, require=False, default=None)
+    # type identity (if unset this isn't a valid type (used for Field Options))
+    kind: Optional[TypeKind] = p_internal(40, require=False, default=None)
     primitive_type: Optional[PrimitiveType] = p_regular(41, default=None)
     bench_type: Optional[BenchType] = p_regular(42, default=None)
-    base_type: Optional["Block"] = p_regular(
-        43, array=False, require=False, default=None, references=NodeType.BLOCK
+    base_type: Union["Block", "Step"] = p_regular(
+        43, array=False, require=False, default=None, references=(NodeType.BLOCK, NodeType.STEP)
     )
     if TYPE_CHECKING:
         base_type_id: Optional[UUID] = None
@@ -248,6 +236,10 @@ class TypeInfoBase(HasValues):
     is_list: bool = p_regular(60, default=False)
     is_secret: bool = p_regular(61, default=False)
     is_required: bool = p_regular(62, default=False)
+
+    # resolved
+    _resolved_type: Optional["TypeInfoBase"] = p_runtime(default=None)
+    _resolved_identity_key: str | None = p_runtime(default=None)
 
     def __content_str__(self) -> str:
         if self.base_type is not None:
@@ -269,38 +261,45 @@ class TypeInfoBase(HasValues):
         return info_str
 
     def _interp_component(self, scope: Optional["Node"], on_notice: "NoticeHandler"):
-        pass
+        # TODO :Incomplete: type resolution
+        self._resolved_identity_key = encode_type_identity(self)
+        self._resolved_type = self
 
     def _validate_component(
         self, properties: Collection[Property], on_invalid: "ValidationHandler"
     ) -> None:
         implied_kind = get_implied_type_kind(self)
-        if implied_kind is None:
-            on_invalid(self, "missing type identity", None, None)
-        elif implied_kind != self.kind:
-            on_invalid(self, f"implied kind {implied_kind} does not match {self.kind}", None, None)
+        if implied_kind is not None and implied_kind != self.kind:
+            on_invalid(
+                self,
+                f"implied kind {implied_kind.name} does not match {self.kind.name if self.kind else 'None'}",
+                None,
+                None,
+            )
 
     @property
     def identity_key(self) -> str:
         """The identity of this type for packing."""
-        # TODO :Performance: cache Field.identity_key (in interp?)
-        return encode_type_identity(self)
+        assert self._resolved_identity_key is not None, f"unresolved type {self!r}"
+        return self._resolved_identity_key
+
+    @property
+    def _resolved_fields(self) -> NodeList["Field"]:
+        assert self._resolved_type is not None, f"unresolved type {self!r}"
+        assert self._resolved_type.base_type is not None, f"missing base type {self!r}"
+        return self._resolved_type.base_type.fields
+
+    def _resolve_field(self, ident: str) -> Optional["Field"]:
+        """Resolves a field in this type by an identifier (name or py_ident)"""
+        for field in self._resolved_fields:
+            if field.py_ident == ident or field.name == ident:
+                return field
+        return None
 
 
 @struct(StructType.TYPE_INFO)
 class TypeInfo(TypeInfoBase):
     pass
-
-
-@enum_(EnumType.FIELD_ZONE)
-class FieldZone(IdEnum):
-    """The zone of a Field."""
-
-    VARIABLE = 1
-    MEMBER = 2
-    INPUT = 3
-    OUTPUT = 4
-    OPTION = 5
 
 
 @node(NodeType.FIELD)
@@ -313,13 +312,13 @@ class Field(Node[FieldData], TypeInfoBase, _TypeQueryBuilder):
     parent: Union["Block", "Step", None] = p_node_parent(4, NodeType.BLOCK, NodeType.STEP)
     name: str | None = p_regular(30, default=None, validate=validate_name)
     order_key: str = p_internal(31, default=INTEGER_ZERO)
+    zone: FieldZone = p_internal(32, default=FieldZone.VARIABLE)
     text: Optional["Text"] = p_regular(
         33, default=None, require=False, array=False, struct=StructType.TEXT
     )
     icon: Optional["Icon"] = p_regular(34, require=False, array=False, struct=StructType.ICON)
     value_packed: Any | None = p_value_packed(35)
     value = p_value_runtime(35)
-    zone: FieldZone = p_internal(36, default=FieldZone.VARIABLE)
 
     # type identity
     # ...TypeInfo

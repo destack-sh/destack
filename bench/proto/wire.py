@@ -441,7 +441,7 @@ class ExpressionOp(betterproto.Enum):
 
 
 class FieldZone(betterproto.Enum):
-    """The zone of a Field."""
+    """The 'zone' of a Field within its Block."""
 
     UNSPECIFIED = 0
     VARIABLE = 1
@@ -1310,6 +1310,8 @@ class ContextData(betterproto.Message):
     package_ptr: Optional["NodeReferenceData"] = betterproto.message_field(33, optional=True)
     module_ptr: Optional["NodeReferenceData"] = betterproto.message_field(34, optional=True)
     page_ptr: Optional["NodeReferenceData"] = betterproto.message_field(35, optional=True)
+    user_ptr: Optional["NodeReferenceData"] = betterproto.message_field(40, optional=True)
+    trigger_ptr: Optional["NodeReferenceData"] = betterproto.message_field(41, optional=True)
 
 
 @dataclass(eq=False, repr=False)
@@ -1790,7 +1792,7 @@ class TextSpanData(betterproto.Message):
 @dataclass(eq=False, repr=False)
 class TypeInfoData(betterproto.Message):
     """
-    TypeInfo(id: int = <factory>, parent: Union[ForwardRef('Struct'), ForwardRef('Node'), ForwardRef('Value'), NoneType] = None, order_key: str | None = None, set_properties: list[int] = <factory>, _status: bench.language.const.InterpStatus = None, _updated_properties: bitarray.bitarray | None = None, kind: bench.language.field.TypeKind = None, primitive_type: Optional[bench.language.const.PrimitiveType] = None, bench_type: Optional[bench.utils.func.BenchType] = None, base_type: Optional[ForwardRef('Block')] = None, base_field_zone: Optional[ForwardRef('FieldZone')] = None, visibility: Optional[bench.language.const.NodeVisibility] = None, format_hint: Optional[bench.language.const.FormatHint] = None, condition: Optional[ForwardRef('Expression')] = None, default_packed: Optional[Any] = None, default: None = None, is_list: bool = False, is_secret: bool = False, is_required: bool = False, parent_id: int = None, parent_key: str = None, base_type_ptr: 'NodeReference' = None)
+    TypeInfo(id: int = <factory>, parent: Union[ForwardRef('Struct'), ForwardRef('Node'), ForwardRef('Value'), NoneType] = None, order_key: str | None = None, set_properties: list[int] = <factory>, _status: bench.language.const.InterpStatus = None, _updated_properties: bitarray.bitarray | None = None, kind: Optional[bench.language.const.TypeKind] = None, primitive_type: Optional[bench.language.const.PrimitiveType] = None, bench_type: Optional[bench.utils.func.BenchType] = None, base_type: Union[ForwardRef('Block'), ForwardRef('Step')] = None, base_field_zone: Optional[ForwardRef('FieldZone')] = None, visibility: Optional[bench.language.const.NodeVisibility] = None, format_hint: Optional[bench.language.const.FormatHint] = None, condition: Optional[ForwardRef('Expression')] = None, default_packed: Optional[Any] = None, default: None = None, is_list: bool = False, is_secret: bool = False, is_required: bool = False, _resolved_type: Optional[ForwardRef('TypeInfoBase')] = None, _resolved_identity_key: str | None = None, parent_id: int = None, parent_key: str = None, base_type_ptr: 'NodeReference' = None)
     """
 
     metatype: "ObjectType" = betterproto.enum_field(1)
@@ -1933,8 +1935,7 @@ class BlockData(betterproto.Message):
         "betterproto_lib_google_protobuf.Struct"
     ] = betterproto.message_field(41, optional=True)
     code: Optional["CodeData"] = betterproto.message_field(42, optional=True)
-    reference_ptr: Optional["NodeReferenceData"] = betterproto.message_field(43, optional=True)
-    delegated_policies: List["PolicyData"] = betterproto.message_field(44)
+    delegated_policies: List["PolicyData"] = betterproto.message_field(43)
     is_builtin: bool = betterproto.bool_field(60)
     is_page: bool = betterproto.bool_field(61)
     is_protocol: bool = betterproto.bool_field(62)
@@ -2128,12 +2129,12 @@ class FieldData(betterproto.Message):
     set_properties: List[int] = betterproto.int32_field(22)
     name: Optional[str] = betterproto.string_field(30, optional=True)
     order_key: str = betterproto.string_field(31)
+    zone: "FieldZone" = betterproto.enum_field(32)
     text: Optional["TextData"] = betterproto.message_field(33, optional=True)
     icon: Optional["IconData"] = betterproto.message_field(34, optional=True)
     value_packed: Optional["betterproto_lib_google_protobuf.Struct"] = betterproto.message_field(
         35, optional=True
     )
-    zone: "FieldZone" = betterproto.enum_field(36)
     kind: Optional["TypeKind"] = betterproto.enum_field(40, optional=True)
     primitive_type: Optional["PrimitiveType"] = betterproto.enum_field(41, optional=True)
     bench_type: Optional["BenchType"] = betterproto.enum_field(42, optional=True)
@@ -4828,7 +4829,7 @@ class RuntimeBase(ServiceBase):
 
 from typing import TYPE_CHECKING  # noqa: E402
 
-VERSION = "2024.05.01.5"
+VERSION = "2024.05.01.7"
 
 if TYPE_CHECKING:
     from bench.language import Subject

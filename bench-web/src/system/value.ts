@@ -169,18 +169,11 @@ export function packValue(
 ): { valuePacked: ProtoStruct; secretValuePacked: ProtoStruct | undefined } {
   // nocheckin: packValue
   const identityKey = encodeTypeIdentity(type);
-  const valuePacked = { [identityKey]: value };
+  const valuePacked = {
+    ...(previous?.valuePacked != null ? ProtoStruct.toJson(previous.valuePacked) as object : {}),
+    [identityKey]: value,
+  };
   const secretValuePacked = undefined; // TODO :Incomplete: handle :SecretValues
-
-  // merge in previous values
-  if (previous?.valuePacked != null) {
-    const previousValue = ProtoStruct.toJson(previous.valuePacked) as any;
-    for (const key in previousValue) {
-      if (key !== identityKey) {
-        valuePacked[key] = previousValue[key];
-      }
-    }
-  }
 
   const packed = { valuePacked: ProtoStruct.fromJson(valuePacked), secretValuePacked: undefined };
   return packed;

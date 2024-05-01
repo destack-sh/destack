@@ -1,11 +1,11 @@
 <script lang="ts" setup>
-import { ViewData, NodeType, Variant } from "@/proto/wire";
+import { NodeType, ViewData } from "@/proto/wire";
 import { type TypedNodeReferenceData } from "@/proto/wiring";
-import { ViewContentWrapper, makeViewId, viewEmits, type ViewExposed } from "@/views/common";
 import { canvas } from "@/system/space";
-import { computed, toRef } from "vue";
+import { getViewForValueType } from "@/system/value";
+import { ViewContentWrapper, makeViewId, viewEmits, type ViewExposed } from "@/views/common";
 import { getViewComponent, hasViewComponent } from "@/views/registry";
-import { getViewForValueType, packValue, unpackValue } from "@/system/value";
+import { computed, toRef } from "vue";
 
 const props = defineProps<
   {
@@ -33,7 +33,7 @@ defineExpose<ViewExposed>({ self, id });
       v-if="valueType != null && valueView?.viewType != null && hasViewComponent(valueView.viewType)"
       :is="getViewComponent(valueView.viewType)"
       class="ml-auto flex-shrink-0"
-      v-bind="{ isInput: true, ...valueView.props }"
+      v-bind="{ isInput: true, variant: props.variant, ...valueView.props }"
       :modelValue="modelValue"
       @update:modelValue="$emit('update:modelValue', $event)"
     />

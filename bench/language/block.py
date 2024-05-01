@@ -34,10 +34,10 @@ if TYPE_CHECKING:
         Package,
         Policy,
         Property,
-        Text,
-        TypeInfo,
         Step,
+        Text,
         Trigger,
+        TypeInfo,
     )
 
 # pyright: reportIncompatibleVariableOverride=false
@@ -92,6 +92,11 @@ _ALL_DYNAMIC_COMPONENTS: tuple[typing.Type[Node], ...] = tuple(
     c for t in _BLOCK_DESCRIPTORS.values() for c in t.dynamic_components
 )
 
+# TODO :UX: auto-generate node names in code just like in the UI (if unset -> block7, etc.)
+#  (Maybe postpone name validation if detached so we can leave it unset?,
+#   auto-naming currently only works in NodeList where we know the siblings).
+#  see :AutoNaming
+
 
 @node(
     NodeType.BLOCK,
@@ -111,11 +116,6 @@ class Block(Node[BlockData], HasValues):
 
     # core
     type: BlockType = p_internal(30, validate=enum_validator(BlockType))
-    # custom type..?
-    # TODO :UX: auto-generate node names in code just like in the UI (if unset -> block7, etc.)
-    #  (Maybe postpone name validation if detached so we can leave it unset?,
-    #   auto-naming currently only works in NodeList where we know the siblings).
-    #  see :AutoNaming
     name: str = p_regular(32, validate=validate_name)
     order_key: str = p_internal(33, default=INTEGER_ZERO)
     policies: list["Policy"] = p_regular(34, array=True, struct=StructType.POLICY)
@@ -132,17 +132,13 @@ class Block(Node[BlockData], HasValues):
     visibility: Optional[NodeVisibility] = p_regular(
         39, require=False, default=NodeVisibility.PUBLIC
     )
-
     value_packed: Any = p_value_packed(40)
     secret_value_packed: Any | None = p_secret_value_packed(41)
     value = p_value_runtime(40, 41)
     code: Optional["Code"] = p_regular(
         42, default=None, require=False, array=False, struct=StructType.CODE
     )
-    reference: Optional["Block"] = p_regular(
-        43, require=False, array=False, references=NodeType.BLOCK
-    )
-    delegated_policies: list["Policy"] = p_regular(44, array=True, struct=StructType.POLICY)
+    delegated_policies: list["Policy"] = p_regular(43, array=True, struct=StructType.POLICY)
 
     # flags
     is_builtin: bool = p_system(60, default=False)  # intrinsic provided by the system
