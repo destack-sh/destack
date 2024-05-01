@@ -1,10 +1,11 @@
 from dataclasses import dataclass
-from typing import TYPE_CHECKING, Any, Collection, Iterable, Optional, Union
+from typing import TYPE_CHECKING, Any, Collection, Optional, Union
 from uuid import UUID
 
 import structlog
 
-from bench.language.const import NodeType, StructType
+from bench.language.const import NodeType, PrimitiveValue, StructType
+from bench.language.graph import NodeGraph
 from bench.language.node import InterpStatus, Node, Property, Struct, struct, struct_component
 from bench.language.notice import NoticeHandler
 from bench.language.property import p_internal
@@ -12,30 +13,35 @@ from bench.language.validation import ValidationHandler
 
 if TYPE_CHECKING:
     from bench.language import Bench, Block, Branch, Environment, NodeVisitor, Package, Session
-    from bench.language.field import Field, TypeInfo
+    from bench.language.field import Field, FieldKind, TypeInfo
 
 logger = structlog.get_logger(__name__)
+
+OneValue = Union["Value", PrimitiveValue]
+ManyValue = Union[Collection["Value"], Collection[PrimitiveValue]]
+SomeValue = Union[OneValue, ManyValue]
 
 
 @dataclass(slots=True)
 class Value:
     """
-    Any value with fields and an identity that's not a Node (and not inlined).
-
+    Any user-defined non-primitive Value
+    (e.g., the variable value of a Block, inputs to a Run, an Object instance).
     """
 
     # local identity (matches Struct)
     id: int
     parent: Union["Value", Struct, Node, None]
     parent_id: int | UUID | None
+    parent_prop: Union[Property, "Field", None]
     parent_key: str | None
     order_key: str | None
 
     # content
     _type: "TypeInfo"
-    _key: Union[Property, "Field"] | None
-    _value_packed: dict[str, Any]
-    _secret_value_packed: dict[str, Any] | None
+    _base: Optional["Block"]
+    _base_field_kind: Optional["FieldKind"]
+    _value: dict[str, SomeValue] | None
 
     # use
     ...  # getattr/setattr
@@ -74,27 +80,16 @@ class HasValues(Struct):
         pass
 
 
-def map_value(
-    value: Any,
-    type: "TypeInfo",
-) -> Any | None:
-    """Walks the value and reassembles with new keys and values."""
-
+def coerce_value(value: Any, type: "TypeInfo") -> SomeValue:
+    """
+    Coerces the given value to the expected type (recursively).
+    Returns value as is if already correct.
+    Raises TypeError if not possible.
+    """
     raise NotImplementedError
 
 
-def walk_value(
-    value: Any,
-    type: "TypeInfo",
-) -> Iterable[Any]:
-    """Yields all flat values in the instantiated value recursively."""
-    raise NotImplementedError
-
-
-def check_type(
-    value: Any,
-    type: "TypeInfo",
-) -> None:
+def type_value(value: Any, type: "TypeInfo") -> None:
     """
     Checks whether the given value has the expected type (recursively).
     Raises TypeError if not.
@@ -103,19 +98,17 @@ def check_type(
 
 
 def unpack_value(
-    value: Any,
+    value_packed: Any,
+    secret_value_packed: Any | None,
     type: "TypeInfo",
-    scope: Node,
+    graph: NodeGraph,
     session: Optional["Session"] = None,
-):
-    """Unpacks/deserializes the given value into a Python/Bench representation."""
+) -> SomeValue:
+    """Unpacks/deserializes the given value into a Bench Value representation."""
     raise NotImplementedError
 
 
-def pack_value(
-    value: Any,
-    type: "TypeInfo",
-):
+def pack_value(value: SomeValue, type: "TypeInfo", graph: NodeGraph) -> tuple[Any, Any | None]:
     """Packs/serializes the given value into a JSON-able representation."""
     raise NotImplementedError
 
@@ -139,7 +132,7 @@ class Context(Struct):
         34, require=False, array=False, references=NodeType.BLOCK
     )
     page: Optional["Block"] = p_internal(35, require=False, array=False, references=NodeType.BLOCK)
-    # log: ...
+    # user/trigger/...?
 
     # custom
     # value_packed: Any = p_value_packed(40)

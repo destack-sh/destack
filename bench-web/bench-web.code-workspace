@@ -1,11 +1,12 @@
 {
-	"folders": [
-		{
-			"path": "."
-		}
-	],
-	"settings": {
-		"typescript.tsdk": "node_modules/typescript/lib",
-		"search.searchOnTypeDebouncePeriod": 201
-	}
+  "folders": [
+    {
+      "path": ".",
+    },
+  ],
+  "settings": {
+    "typescript.tsdk": "node_modules/typescript/lib",
+    "search.searchOnTypeDebouncePeriod": 201,
+    "css.lint.unknownAtRules": "ignore",
+  },
 }

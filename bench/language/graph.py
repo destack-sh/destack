@@ -15,7 +15,7 @@ from typing import (
 )
 from uuid import UUID
 
-from bench.language.const import EMPTY_LIST, EditType, InterpStatus, NodeType, NRel, ReferenceKind
+from bench.language.const import EMPTY_LIST, EditType, InterpStatus, NodeType, ReferenceKind
 from bench.language.setup import CHILD_NODE_TYPES, NODE_CLASS_BY_TYPE, STRUCT_CLASS_BY_TYPE
 from bench.language.validation import on_invalid_raise
 from bench.proto import wire
@@ -561,8 +561,8 @@ class NodeList(abc.ABC, Collection[NodeT], Generic[NodeT]):
         self.clear()
         self.extend(*nodes)
 
-    def get(self, some_id: str) -> Optional[NodeT]:
-        """Gets a node by some id (as determined by the logic of the list)."""
+    def get(self, some_name: str) -> Optional[NodeT]:
+        """Gets a node by some name (actual name or identifier)."""
         raise NotImplementedError
 
 
@@ -586,9 +586,9 @@ class InMemoryGraphNodeList(NodeList[NodeT]):
     def nodes(self) -> tuple[NodeT, ...] | list[NodeT]:
         """Access the computed nodes"""
         descendants = self._parent._root_graph.collect_descendants(
-            self._parent, self._child_node_type, recursive=bool(self._flags & NRel.CUMULATIVE)
+            self._parent, self._child_node_type, recursive=False
         )
-        if self._flags & NRel.ORDERED and len(descendants) > 1:
+        if len(descendants) > 1 and hasattr(descendants[0], "order_key"):
             descendants.sort(key=lambda n: n.order_key)
         return descendants
 
@@ -625,7 +625,7 @@ class InMemoryGraphNodeList(NodeList[NodeT]):
             self._parent._root_graph.add(node)
 
         # assign order key to ordered nodes
-        if self._flags & NRel.ORDERED and node.order_key is None:
+        if hasattr(node, "order_key") and getattr(node, "order_key") is None:
             node.order_key = get_order_key(*get_key_bounds(self.nodes, after, before))
 
         # 'create' node in session if it's attached
@@ -640,7 +640,7 @@ class InMemoryGraphNodeList(NodeList[NodeT]):
             return
 
         # pre-assign order keys since we don't trigger between appends (meaning last_ok is wrong)
-        if self._flags & NRel.ORDERED:
+        if hasattr(nodes[0], "order_key") and getattr(nodes[0], "order_key") is None:
             oks = get_order_keys(*get_key_bounds(self.nodes, after, before), n=len(nodes))
             for node, ok in zip(nodes, oks):
                 node.order_key = ok
@@ -661,11 +661,9 @@ class InMemoryGraphNodeList(NodeList[NodeT]):
         for n in removed:
             self.remove(n)
 
-    def get(self, some_id: str) -> Optional[NodeT]:
-        if not (self._flags & NRel.NAMED):
-            raise ValueError(f"cannot get {some_id!r} from {self!r}")
+    def get(self, some_name: str) -> Optional[NodeT]:
         for child in self.nodes:
-            if getattr(child, "name") == some_id or child.py_ident == some_id:
+            if getattr(child, "name") == some_name or child.py_ident == some_name:
                 return child
         return None
 

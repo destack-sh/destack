@@ -299,3 +299,4 @@ dist
 *.gpg
 
 infra/.*
+.DS_Store

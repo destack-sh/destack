@@ -767,7 +767,7 @@ class PolicyEffect(betterproto.Enum):
 class PrimitiveType(betterproto.Enum):
     """
     Fundamental column / storage types we support (subset of SQL types, used directly in sql/core).
-     NOTE: the ids here are used in value pack/unpack keys, so any changes are breaking.
+     NOTE: the ids here are used in type identity keys, so any change is breaking.
     """
 
     UNSPECIFIED = 0
@@ -1067,8 +1067,7 @@ class ViewType(betterproto.Enum):
     USER_WIZARD = 1
     BENCH_WIZARD = 2
     CHALLENGE_WIZARD = 3
-    KEYMAP = 40
-    MOCK = 70
+    MOCK = 90
     PAGE = 101
     BLOCK = 102
     FIELD = 103
@@ -1078,6 +1077,7 @@ class ViewType(betterproto.Enum):
     STEP = 107
     TYPE = 108
     VARIABLE = 109
+    OBJECT = 110
     EXPLORE = 150
     OUTLINE = 151
     INSPECT = 153
@@ -1766,7 +1766,7 @@ class TextSpanData(betterproto.Message):
 @dataclass(eq=False, repr=False)
 class TypeInfoData(betterproto.Message):
     """
-    TypeInfo(id: int = <factory>, parent: Union[ForwardRef('Struct'), ForwardRef('Node'), ForwardRef('Value'), NoneType] = None, order_key: str | None = None, set_properties: list[int] = <factory>, _status: bench.language.const.InterpStatus = None, _updated_properties: bitarray.bitarray | None = None, primitive_type: Optional[bench.language.const.PrimitiveType] = None, bench_type: Optional[bench.utils.func.BenchType] = None, base_type: Optional[ForwardRef('Block')] = None, visibility: Optional[bench.language.const.NodeVisibility] = None, format_hint: Optional[bench.language.const.FormatHint] = None, condition: Optional[ForwardRef('Expression')] = None, default_packed: Optional[Any] = None, default: None = None, is_list: bool = False, is_secret: bool = False, is_required: bool = False, _fields: tuple['Field', ...] | None = None, _resolved_type: Optional[ForwardRef('TypeInfo')] = None, parent_id: int = None, parent_key: str = None, base_type_ptr: 'NodeReference' = None)
+    TypeInfo(id: int = <factory>, parent: Union[ForwardRef('Struct'), ForwardRef('Node'), ForwardRef('Value'), NoneType] = None, order_key: str | None = None, set_properties: list[int] = <factory>, _status: bench.language.const.InterpStatus = None, _updated_properties: bitarray.bitarray | None = None, primitive_type: Optional[bench.language.const.PrimitiveType] = None, bench_type: Optional[bench.utils.func.BenchType] = None, base_type: Optional[ForwardRef('Block')] = None, base_field_kind: Optional[ForwardRef('FieldKind')] = None, visibility: Optional[bench.language.const.NodeVisibility] = None, format_hint: Optional[bench.language.const.FormatHint] = None, condition: Optional[ForwardRef('Expression')] = None, default_packed: Optional[Any] = None, default: None = None, is_list: bool = False, is_secret: bool = False, is_required: bool = False, parent_id: int = None, parent_key: str = None, base_type_ptr: 'NodeReference' = None)
     """
 
     metatype: "ObjectType" = betterproto.enum_field(1)
@@ -1778,6 +1778,7 @@ class TypeInfoData(betterproto.Message):
     primitive_type: Optional["PrimitiveType"] = betterproto.enum_field(40, optional=True)
     bench_type: Optional["BenchType"] = betterproto.enum_field(41, optional=True)
     base_type_ptr: Optional["NodeReferenceData"] = betterproto.message_field(42, optional=True)
+    base_field_kind: Optional["FieldKind"] = betterproto.enum_field(43, optional=True)
     visibility: Optional["NodeVisibility"] = betterproto.enum_field(50, optional=True)
     format_hint: Optional["FormatHint"] = betterproto.enum_field(51, optional=True)
     condition: Optional["ExpressionData"] = betterproto.message_field(52, optional=True)
@@ -2111,6 +2112,7 @@ class FieldData(betterproto.Message):
     primitive_type: Optional["PrimitiveType"] = betterproto.enum_field(40, optional=True)
     bench_type: Optional["BenchType"] = betterproto.enum_field(41, optional=True)
     base_type_ptr: Optional["NodeReferenceData"] = betterproto.message_field(42, optional=True)
+    base_field_kind: Optional["FieldKind"] = betterproto.enum_field(43, optional=True)
     visibility: Optional["NodeVisibility"] = betterproto.enum_field(50, optional=True)
     format_hint: Optional["FormatHint"] = betterproto.enum_field(51, optional=True)
     condition: Optional["ExpressionData"] = betterproto.message_field(52, optional=True)
@@ -2335,7 +2337,7 @@ class BaseNodeData(betterproto.Message):
 @dataclass(eq=False, repr=False)
 class NoticeData(betterproto.Message):
     """
-    Notice(parent: Union[ForwardRef('Block'), ForwardRef('Package')] = None, kind: bench.language.const.NoticeKind = None, type: bench.language.notice.NoticeType = <factory>, message: Optional[str] = None, path: Optional[ForwardRef('Path')] = None, properties: Optional[list[bench.language.property.Property]] = <factory>, id: uuid.UUID = None, set_properties: list[int] = <factory>, _status: bench.language.const.InterpStatus = None, _updated_properties: bitarray.bitarray | None = None, ck: uuid.UUID = None, source: bench.language.const.NodeSource = <NodeSource.STORE: 1>, revision: int = 0, created_at: datetime.datetime = None, updated_at: datetime.datetime = None, deleted_at: Optional[datetime.datetime] = None, archived_at: Optional[datetime.datetime] = None, created_by: Union[ForwardRef('User'), ForwardRef('Run'), NoneType] = None, updated_by: Union[ForwardRef('User'), ForwardRef('Run'), NoneType] = None, notices: bench.language.graph.NodeList['Notice'] = None, links: bench.language.graph.NodeList['Link'] = None, _graph: Union[ForwardRef('NodeGraph'), ForwardRef('DetachedNodeGraph'), NoneType] = None, _data_graph: Optional[ForwardRef('NodeDataGraph')] = None, _session: Optional[ForwardRef('Session')] = None, _is_new: bool = False, parent_ptr: 'NodeReference' = None, properties_ptr: list['PropertyReference'] = None, created_by_ptr: 'NodeReference' = None, updated_by_ptr: 'NodeReference' = None)
+    Notice(parent: Union[ForwardRef('Block'), ForwardRef('Field'), ForwardRef('Step'), ForwardRef('View'), ForwardRef('Trigger')] = None, kind: bench.language.const.NoticeKind = None, type: bench.language.notice.NoticeType = <factory>, message: Optional[str] = None, path: Optional[ForwardRef('Path')] = None, properties: Optional[list[bench.language.property.Property]] = <factory>, id: uuid.UUID = None, set_properties: list[int] = <factory>, _status: bench.language.const.InterpStatus = None, _updated_properties: bitarray.bitarray | None = None, ck: uuid.UUID = None, source: bench.language.const.NodeSource = <NodeSource.STORE: 1>, revision: int = 0, created_at: datetime.datetime = None, updated_at: datetime.datetime = None, deleted_at: Optional[datetime.datetime] = None, archived_at: Optional[datetime.datetime] = None, created_by: Union[ForwardRef('User'), ForwardRef('Run'), NoneType] = None, updated_by: Union[ForwardRef('User'), ForwardRef('Run'), NoneType] = None, links: bench.language.graph.NodeList['Link'] = None, _graph: Union[ForwardRef('NodeGraph'), ForwardRef('DetachedNodeGraph'), NoneType] = None, _data_graph: Optional[ForwardRef('NodeDataGraph')] = None, _session: Optional[ForwardRef('Session')] = None, _is_new: bool = False, parent_ptr: 'NodeReference' = None, properties_ptr: list['PropertyReference'] = None, created_by_ptr: 'NodeReference' = None, updated_by_ptr: 'NodeReference' = None)
     """
 
     metatype: "ObjectType" = betterproto.enum_field(1)
@@ -2756,7 +2758,7 @@ class SpaceData(betterproto.Message):
 class StepData(betterproto.Message):
     """
     A logic, data or control flow unit in a Flow (Block).
-     NOTE: steps only track connections coming in.
+     NOTE: steps only track incoming connections.
     """
 
     metatype: "ObjectType" = betterproto.enum_field(1)
@@ -2830,7 +2832,7 @@ class StoreData(betterproto.Message):
 @dataclass(eq=False, repr=False)
 class TriggerData(betterproto.Message):
     """
-    Trigger(parent: 'Block' = None, type: bench.language.const.TriggerType = <factory>, name: str = <factory>, active: bool = True, schedule: Optional[bench.language.trigger.Schedule] = None, signal: Optional[ForwardRef('Block')] = None, id: uuid.UUID = None, set_properties: list[int] = <factory>, _status: bench.language.const.InterpStatus = None, _updated_properties: bitarray.bitarray | None = None, ck: uuid.UUID = None, source: bench.language.const.NodeSource = <NodeSource.STORE: 1>, revision: int = 0, created_at: datetime.datetime = None, updated_at: datetime.datetime = None, deleted_at: Optional[datetime.datetime] = None, archived_at: Optional[datetime.datetime] = None, created_by: Union[ForwardRef('User'), ForwardRef('Run'), NoneType] = None, updated_by: Union[ForwardRef('User'), ForwardRef('Run'), NoneType] = None, notices: bench.language.graph.NodeList['Notice'] = None, links: bench.language.graph.NodeList['Link'] = None, _graph: Union[ForwardRef('NodeGraph'), ForwardRef('DetachedNodeGraph'), NoneType] = None, _data_graph: Optional[ForwardRef('NodeDataGraph')] = None, _session: Optional[ForwardRef('Session')] = None, _is_new: bool = False, parent_ptr: 'NodeReference' = None, signal_ptr: 'NodeReference' = None, created_by_ptr: 'NodeReference' = None, updated_by_ptr: 'NodeReference' = None)
+    Trigger(parent: 'Block' = None, type: bench.language.const.TriggerType = <factory>, name: str = <factory>, active: bool = True, schedule: Optional[bench.language.trigger.Schedule] = None, signal: Optional[ForwardRef('Block')] = None, notices: bench.language.graph.NodeList['Notice'] = None, id: uuid.UUID = None, set_properties: list[int] = <factory>, _status: bench.language.const.InterpStatus = None, _updated_properties: bitarray.bitarray | None = None, ck: uuid.UUID = None, source: bench.language.const.NodeSource = <NodeSource.STORE: 1>, revision: int = 0, created_at: datetime.datetime = None, updated_at: datetime.datetime = None, deleted_at: Optional[datetime.datetime] = None, archived_at: Optional[datetime.datetime] = None, created_by: Union[ForwardRef('User'), ForwardRef('Run'), NoneType] = None, updated_by: Union[ForwardRef('User'), ForwardRef('Run'), NoneType] = None, links: bench.language.graph.NodeList['Link'] = None, _graph: Union[ForwardRef('NodeGraph'), ForwardRef('DetachedNodeGraph'), NoneType] = None, _data_graph: Optional[ForwardRef('NodeDataGraph')] = None, _session: Optional[ForwardRef('Session')] = None, _is_new: bool = False, parent_ptr: 'NodeReference' = None, signal_ptr: 'NodeReference' = None, created_by_ptr: 'NodeReference' = None, updated_by_ptr: 'NodeReference' = None)
     """
 
     metatype: "ObjectType" = betterproto.enum_field(1)
@@ -4791,7 +4793,7 @@ class RuntimeBase(ServiceBase):
 
 from typing import TYPE_CHECKING  # noqa: E402
 
-VERSION = "2024.04.30.2"
+VERSION = "2024.05.01.1"
 
 if TYPE_CHECKING:
     from bench.language import Subject

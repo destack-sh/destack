@@ -1,8 +1,8 @@
-# This migration was automatically generated on 2024.04.17. Edit as needed.
+# This migration was automatically generated on 2024.05.01. Edit as needed.
 import psycopg
 
 ID = 1
-VERSION = "2024.04.17.0"
+VERSION = "2024.05.01.1"
 HAS_GLOBAL = True
 HAS_LOCAL = True
 
@@ -342,24 +342,25 @@ async def upgrade_global(cur: psycopg.AsyncCursor):
         type smallint NOT NULL,
         name varchar NOT NULL,
         order_key varchar NOT NULL DEFAULT 'a0'::character varying,
-        visibility smallint DEFAULT 10,
         policies jsonb[] NOT NULL,
         bases_id uuid[],
         bases_ck uuid[],
         bases_bench_id uuid[],
         builtin_base jsonb,
         text jsonb,
-        code jsonb,
+        icon jsonb,
+        visibility smallint DEFAULT 10,
         value_packed jsonb,
         secret_value_packed bytea,
-        icon jsonb,
+        code jsonb,
         reference_id uuid,
         reference_ck uuid,
         reference_bench_id uuid,
         delegated_policies jsonb[] NOT NULL,
-        is_intrinsic boolean NOT NULL DEFAULT false,
+        is_builtin boolean NOT NULL DEFAULT false,
         is_page boolean NOT NULL DEFAULT false,
         is_protocol boolean NOT NULL DEFAULT false,
+        is_template boolean NOT NULL DEFAULT false,
         paused_at timestamp
     )
     """
@@ -425,25 +426,20 @@ async def upgrade_global(cur: psycopg.AsyncCursor):
         text jsonb,
         icon jsonb,
         value_packed jsonb,
+        kind smallint NOT NULL DEFAULT 1,
         primitive_type smallint,
-        node_type smallint,
-        struct_type smallint,
+        bench_type smallint,
         base_type_id uuid,
         base_type_ck uuid,
         base_type_bench_id uuid,
-        visibility smallint NOT NULL DEFAULT 10,
+        base_field_kind smallint,
+        visibility smallint,
         format_hint smallint,
         condition jsonb,
-        length integer,
-        precision integer,
-        scale integer,
         default_packed jsonb,
         is_list boolean NOT NULL DEFAULT false,
-        is_required boolean NOT NULL DEFAULT false,
         is_secret boolean NOT NULL DEFAULT false,
-        is_input boolean NOT NULL DEFAULT false,
-        is_output boolean NOT NULL DEFAULT false,
-        is_option boolean NOT NULL DEFAULT false
+        is_required boolean NOT NULL DEFAULT false
     )
     """
     )
@@ -532,6 +528,7 @@ async def upgrade_global(cur: psycopg.AsyncCursor):
         is_visible boolean DEFAULT true,
         is_disabled boolean DEFAULT false,
         is_input boolean DEFAULT false,
+        is_inline boolean DEFAULT false,
         is_loading boolean DEFAULT false
     )
     """
@@ -1045,7 +1042,7 @@ async def upgrade_global(cur: psycopg.AsyncCursor):
         ADD COLUMN parent_bench_id uuid REFERENCES bench_bench ON DELETE CASCADE,
         ADD COLUMN server_id uuid NOT NULL REFERENCES bench_server ON DELETE SET NULL,
         ADD COLUMN store_id uuid NOT NULL REFERENCES bench_store ON DELETE SET NULL,
-        ADD COLUMN search_store_id uuid NOT NULL REFERENCES bench_store ON DELETE SET NULL,
+        ADD COLUMN search_store_id uuid REFERENCES bench_store ON DELETE SET NULL,
         ADD COLUMN analytics_store_id uuid REFERENCES bench_store ON DELETE SET NULL,
         ADD COLUMN drive_id uuid NOT NULL REFERENCES bench_drive ON DELETE SET NULL,
         ADD COLUMN cache_id uuid REFERENCES bench_cache ON DELETE SET NULL
@@ -1201,7 +1198,10 @@ async def upgrade_global(cur: psycopg.AsyncCursor):
         """
         ALTER TABLE bench_notice    
         ADD COLUMN parent_block_id uuid REFERENCES bench_block ON DELETE CASCADE,
-        ADD COLUMN parent_package_id uuid REFERENCES bench_package ON DELETE CASCADE
+        ADD COLUMN parent_field_id uuid REFERENCES bench_field ON DELETE CASCADE,
+        ADD COLUMN parent_step_id uuid REFERENCES bench_step ON DELETE CASCADE,
+        ADD COLUMN parent_view_id uuid REFERENCES bench_view ON DELETE CASCADE,
+        ADD COLUMN parent_trigger_id uuid REFERENCES bench_trigger ON DELETE CASCADE
     """
     )
     await cur.execute(
@@ -1213,7 +1213,7 @@ async def upgrade_global(cur: psycopg.AsyncCursor):
     await cur.execute(
         """
         ALTER TABLE bench_notice    
-        ADD CONSTRAINT bench_notice_bench_check_one_parent CHECK ((parent_block_id IS NOT NULL) OR (parent_package_id IS NOT NULL))
+        ADD CONSTRAINT bench_notice_bench_check_one_parent CHECK ((parent_block_id IS NOT NULL) OR (parent_field_id IS NOT NULL) OR (parent_step_id IS NOT NULL) OR (parent_view_id IS NOT NULL) OR (parent_trigger_id IS NOT NULL))
     """
     )
 
@@ -1664,7 +1664,610 @@ async def upgrade_global(cur: psycopg.AsyncCursor):
 
 
 async def downgrade_global(cur: psycopg.AsyncCursor):
-    raise NotImplementedError
+    # bench_client
+    await cur.execute(
+        """
+        ALTER TABLE bench_client    
+        DROP CONSTRAINT bench_client_bench_check_one_parent,
+        DROP CONSTRAINT bench_client_bench_idx_access_token
+    """
+    )
+    await cur.execute("DROP INDEX bench_client_bench_idx_archived_at")
+    await cur.execute("DROP INDEX bench_client_bench_idx_deleted_at")
+    await cur.execute("DROP INDEX bench_client_bench_idx_access_token")
+    await cur.execute(
+        """
+        ALTER TABLE bench_client    
+        DROP COLUMN parent_server_id,
+        DROP COLUMN parent_user_id
+    """
+    )
+
+    # bench_organization
+    await cur.execute(
+        """
+        ALTER TABLE bench_organization    
+        DROP CONSTRAINT bench_organization_bench_idx_slug
+    """
+    )
+    await cur.execute("DROP INDEX bench_organization_bench_idx_archived_at")
+    await cur.execute("DROP INDEX bench_organization_bench_idx_deleted_at")
+    await cur.execute("DROP INDEX bench_organization_bench_idx_slug")
+    await cur.execute(
+        """
+        ALTER TABLE bench_organization    
+        DROP COLUMN main_bench_id,
+        DROP COLUMN main_handle_id
+    """
+    )
+
+    # bench_user
+    await cur.execute(
+        """
+        ALTER TABLE bench_user    
+        DROP CONSTRAINT bench_user_bench_idx_email,
+        DROP CONSTRAINT bench_user_bench_idx_slug
+    """
+    )
+    await cur.execute("DROP INDEX bench_user_bench_idx_archived_at")
+    await cur.execute("DROP INDEX bench_user_bench_idx_deleted_at")
+    await cur.execute("DROP INDEX bench_user_bench_idx_email")
+    await cur.execute("DROP INDEX bench_user_bench_idx_slug")
+    await cur.execute(
+        """
+        ALTER TABLE bench_user    
+        DROP COLUMN main_bench_id,
+        DROP COLUMN main_handle_id
+    """
+    )
+
+    # bench_handle
+    await cur.execute(
+        """
+        ALTER TABLE bench_handle    
+        DROP CONSTRAINT bench_handle_bench_check_one_parent,
+        DROP CONSTRAINT bench_handle_bench_idx_slug,
+        DROP CONSTRAINT bench_handle_bench_slug_is_slug
+    """
+    )
+    await cur.execute("DROP INDEX bench_handle_bench_idx_archived_at")
+    await cur.execute("DROP INDEX bench_handle_bench_idx_deleted_at")
+    await cur.execute("DROP INDEX bench_handle_bench_idx_slug")
+    await cur.execute(
+        """
+        ALTER TABLE bench_handle    
+        DROP COLUMN parent_bench_id,
+        DROP COLUMN parent_organization_id,
+        DROP COLUMN parent_user_id
+    """
+    )
+
+    # bench_filecontent
+    await cur.execute(
+        """
+        ALTER TABLE bench_filecontent    
+        DROP CONSTRAINT bench_filecontent_bench_check_one_parent,
+        DROP CONSTRAINT bench_filecontent_bench_idx_parent_drive_id_sha512
+    """
+    )
+    await cur.execute("DROP INDEX bench_filecontent_bench_idx_archived_at")
+    await cur.execute("DROP INDEX bench_filecontent_bench_idx_deleted_at")
+    await cur.execute("DROP INDEX bench_filecontent_bench_idx_parent_drive_id_sha512")
+    await cur.execute(
+        """
+        ALTER TABLE bench_filecontent    
+        DROP COLUMN parent_drive_id
+    """
+    )
+
+    # bench_cache
+    await cur.execute(
+        """
+        ALTER TABLE bench_cache    
+        DROP CONSTRAINT bench_cache_bench_check_one_parent
+    """
+    )
+    await cur.execute("DROP INDEX bench_cache_bench_idx_archived_at")
+    await cur.execute("DROP INDEX bench_cache_bench_idx_deleted_at")
+    await cur.execute(
+        """
+        ALTER TABLE bench_cache    
+        DROP COLUMN parent_bench_id
+    """
+    )
+
+    # bench_drive
+    await cur.execute(
+        """
+        ALTER TABLE bench_drive    
+        DROP CONSTRAINT bench_drive_bench_check_one_parent
+    """
+    )
+    await cur.execute("DROP INDEX bench_drive_bench_idx_archived_at")
+    await cur.execute("DROP INDEX bench_drive_bench_idx_deleted_at")
+    await cur.execute(
+        """
+        ALTER TABLE bench_drive    
+        DROP COLUMN parent_bench_id
+    """
+    )
+
+    # bench_store
+    await cur.execute(
+        """
+        ALTER TABLE bench_store    
+        DROP CONSTRAINT bench_store_bench_check_one_parent
+    """
+    )
+    await cur.execute("DROP INDEX bench_store_bench_idx_archived_at")
+    await cur.execute("DROP INDEX bench_store_bench_idx_deleted_at")
+    await cur.execute(
+        """
+        ALTER TABLE bench_store    
+        DROP COLUMN parent_bench_id
+    """
+    )
+
+    # bench_server
+    await cur.execute(
+        """
+        ALTER TABLE bench_server    
+        DROP CONSTRAINT bench_server_bench_check_one_parent
+    """
+    )
+    await cur.execute("DROP INDEX bench_server_bench_idx_archived_at")
+    await cur.execute("DROP INDEX bench_server_bench_idx_deleted_at")
+    await cur.execute(
+        """
+        ALTER TABLE bench_server    
+        DROP COLUMN parent_bench_id
+    """
+    )
+
+    # bench_invite
+    await cur.execute(
+        """
+        ALTER TABLE bench_invite    
+        DROP CONSTRAINT bench_invite_bench_check_one_parent
+    """
+    )
+    await cur.execute("DROP INDEX bench_invite_bench_idx_package_archived_at")
+    await cur.execute("DROP INDEX bench_invite_bench_idx_package_deleted_at")
+    await cur.execute(
+        """
+        ALTER TABLE bench_invite    
+        DROP COLUMN parent_package_id
+    """
+    )
+
+    # bench_membership
+    await cur.execute(
+        """
+        ALTER TABLE bench_membership    
+        DROP CONSTRAINT bench_membership_bench_check_one_parent
+    """
+    )
+    await cur.execute("DROP INDEX bench_membership_bench_idx_package_archived_at")
+    await cur.execute("DROP INDEX bench_membership_bench_idx_package_deleted_at")
+    await cur.execute(
+        """
+        ALTER TABLE bench_membership    
+        DROP COLUMN parent_package_id
+    """
+    )
+
+    # bench_identity
+    await cur.execute(
+        """
+        ALTER TABLE bench_identity    
+        DROP CONSTRAINT bench_identity_bench_check_one_parent
+    """
+    )
+    await cur.execute("DROP INDEX bench_identity_bench_idx_package_archived_at")
+    await cur.execute("DROP INDEX bench_identity_bench_idx_package_deleted_at")
+    await cur.execute(
+        """
+        ALTER TABLE bench_identity    
+        DROP COLUMN parent_user_id,
+        DROP COLUMN parent_membership_id,
+        DROP COLUMN parent_block_id
+    """
+    )
+
+    # bench_role
+    await cur.execute(
+        """
+        ALTER TABLE bench_role    
+        DROP CONSTRAINT bench_role_bench_check_one_parent
+    """
+    )
+    await cur.execute("DROP INDEX bench_role_bench_idx_package_archived_at")
+    await cur.execute("DROP INDEX bench_role_bench_idx_package_deleted_at")
+    await cur.execute(
+        """
+        ALTER TABLE bench_role    
+        DROP COLUMN parent_membership_id,
+        DROP COLUMN parent_block_id
+    """
+    )
+
+    # bench_badge
+    await cur.execute(
+        """
+        ALTER TABLE bench_badge    
+        DROP CONSTRAINT bench_badge_bench_check_one_parent,
+        DROP CONSTRAINT bench_badge_bench_idx_key_hash,
+        DROP CONSTRAINT bench_badge_bench_idx_key
+    """
+    )
+    await cur.execute("DROP INDEX bench_badge_bench_idx_package_archived_at")
+    await cur.execute("DROP INDEX bench_badge_bench_idx_package_deleted_at")
+    await cur.execute("DROP INDEX bench_badge_bench_idx_key_hash")
+    await cur.execute("DROP INDEX bench_badge_bench_idx_key")
+    await cur.execute(
+        """
+        ALTER TABLE bench_badge    
+        DROP COLUMN parent_block_id,
+        DROP COLUMN parent_package_id
+    """
+    )
+
+    # bench_step
+    await cur.execute(
+        """
+        ALTER TABLE bench_step    
+        DROP CONSTRAINT bench_step_bench_check_one_parent
+    """
+    )
+    await cur.execute("DROP INDEX bench_step_bench_idx_package_archived_at")
+    await cur.execute("DROP INDEX bench_step_bench_idx_package_deleted_at")
+    await cur.execute(
+        """
+        ALTER TABLE bench_step    
+        DROP COLUMN parent_step_id,
+        DROP COLUMN parent_block_id
+    """
+    )
+
+    # bench_view
+    await cur.execute(
+        """
+        ALTER TABLE bench_view    
+        DROP CONSTRAINT bench_view_bench_check_one_parent
+    """
+    )
+    await cur.execute("DROP INDEX bench_view_bench_idx_package_archived_at")
+    await cur.execute("DROP INDEX bench_view_bench_idx_package_deleted_at")
+    await cur.execute(
+        """
+        ALTER TABLE bench_view    
+        DROP COLUMN parent_block_id,
+        DROP COLUMN parent_view_id,
+        DROP COLUMN parent_space_id
+    """
+    )
+
+    # bench_query
+    await cur.execute(
+        """
+        ALTER TABLE bench_query    
+        DROP CONSTRAINT bench_query_bench_check_one_parent
+    """
+    )
+    await cur.execute("DROP INDEX bench_query_bench_idx_package_archived_at")
+    await cur.execute("DROP INDEX bench_query_bench_idx_package_deleted_at")
+    await cur.execute(
+        """
+        ALTER TABLE bench_query    
+        DROP COLUMN parent_block_id
+    """
+    )
+
+    # bench_field
+    await cur.execute(
+        """
+        ALTER TABLE bench_field    
+        DROP CONSTRAINT bench_field_bench_check_one_parent
+    """
+    )
+    await cur.execute("DROP INDEX bench_field_bench_idx_package_archived_at")
+    await cur.execute("DROP INDEX bench_field_bench_idx_package_deleted_at")
+    await cur.execute(
+        """
+        ALTER TABLE bench_field    
+        DROP COLUMN parent_step_id,
+        DROP COLUMN parent_block_id
+    """
+    )
+
+    # bench_trigger
+    await cur.execute(
+        """
+        ALTER TABLE bench_trigger    
+        DROP CONSTRAINT bench_trigger_bench_check_one_parent
+    """
+    )
+    await cur.execute("DROP INDEX bench_trigger_bench_idx_package_archived_at")
+    await cur.execute("DROP INDEX bench_trigger_bench_idx_package_deleted_at")
+    await cur.execute(
+        """
+        ALTER TABLE bench_trigger    
+        DROP COLUMN parent_block_id
+    """
+    )
+
+    # bench_block
+    await cur.execute(
+        """
+        ALTER TABLE bench_block    
+        DROP CONSTRAINT bench_block_bench_check_one_parent
+    """
+    )
+    await cur.execute("DROP INDEX bench_block_bench_idx_package_archived_at")
+    await cur.execute("DROP INDEX bench_block_bench_idx_package_deleted_at")
+    await cur.execute(
+        """
+        ALTER TABLE bench_block    
+        DROP COLUMN parent_package_id,
+        DROP COLUMN parent_block_id
+    """
+    )
+
+    # bench_notice
+    await cur.execute(
+        """
+        ALTER TABLE bench_notice    
+        DROP CONSTRAINT bench_notice_bench_check_one_parent
+    """
+    )
+    await cur.execute("DROP INDEX bench_notice_bench_idx_package_archived_at")
+    await cur.execute("DROP INDEX bench_notice_bench_idx_package_deleted_at")
+    await cur.execute(
+        """
+        ALTER TABLE bench_notice    
+        DROP COLUMN parent_trigger_id,
+        DROP COLUMN parent_view_id,
+        DROP COLUMN parent_step_id,
+        DROP COLUMN parent_field_id,
+        DROP COLUMN parent_block_id
+    """
+    )
+
+    # bench_link
+    await cur.execute(
+        """
+        ALTER TABLE bench_link    
+        DROP CONSTRAINT bench_link_bench_check_one_parent
+    """
+    )
+    await cur.execute("DROP INDEX bench_link_bench_idx_package_archived_at")
+    await cur.execute("DROP INDEX bench_link_bench_idx_package_deleted_at")
+    await cur.execute(
+        """
+        ALTER TABLE bench_link    
+        DROP COLUMN parent_block_id,
+        DROP COLUMN parent_package_id
+    """
+    )
+
+    # bench_space
+    await cur.execute(
+        """
+        ALTER TABLE bench_space    
+        DROP CONSTRAINT bench_space_bench_check_one_parent
+    """
+    )
+    await cur.execute("DROP INDEX bench_space_bench_idx_package_archived_at")
+    await cur.execute("DROP INDEX bench_space_bench_idx_package_deleted_at")
+    await cur.execute(
+        """
+        ALTER TABLE bench_space    
+        DROP COLUMN parent_package_id
+    """
+    )
+
+    # bench_upgrade
+    await cur.execute(
+        """
+        ALTER TABLE bench_upgrade    
+        DROP CONSTRAINT bench_upgrade_bench_check_one_parent
+    """
+    )
+    await cur.execute("DROP INDEX bench_upgrade_bench_idx_package_archived_at")
+    await cur.execute("DROP INDEX bench_upgrade_bench_idx_package_deleted_at")
+    await cur.execute(
+        """
+        ALTER TABLE bench_upgrade    
+        DROP COLUMN parent_package_id
+    """
+    )
+
+    # bench_dependency
+    await cur.execute(
+        """
+        ALTER TABLE bench_dependency    
+        DROP CONSTRAINT bench_dependency_bench_check_one_parent
+    """
+    )
+    await cur.execute("DROP INDEX bench_dependency_bench_idx_package_archived_at")
+    await cur.execute("DROP INDEX bench_dependency_bench_idx_package_deleted_at")
+    await cur.execute(
+        """
+        ALTER TABLE bench_dependency    
+        DROP COLUMN parent_block_id,
+        DROP COLUMN parent_package_id
+    """
+    )
+
+    # bench_package
+    await cur.execute(
+        """
+        ALTER TABLE bench_package    
+        DROP CONSTRAINT bench_package_bench_check_one_parent,
+        DROP CONSTRAINT bench_package_bench_idx_parent_bench_id_slug
+    """
+    )
+    await cur.execute("DROP INDEX bench_package_bench_idx_archived_at")
+    await cur.execute("DROP INDEX bench_package_bench_idx_deleted_at")
+    await cur.execute("DROP INDEX bench_package_bench_idx_parent_bench_id_slug")
+    await cur.execute(
+        """
+        ALTER TABLE bench_package    
+        DROP COLUMN environment_id,
+        DROP COLUMN parent_bench_id
+    """
+    )
+
+    # bench_branch
+    await cur.execute(
+        """
+        ALTER TABLE bench_branch    
+        DROP CONSTRAINT bench_branch_bench_check_one_parent,
+        DROP CONSTRAINT bench_branch_bench_idx_parent_bench_id_slug
+    """
+    )
+    await cur.execute("DROP INDEX bench_branch_bench_idx_archived_at")
+    await cur.execute("DROP INDEX bench_branch_bench_idx_deleted_at")
+    await cur.execute("DROP INDEX bench_branch_bench_idx_parent_bench_id_slug")
+    await cur.execute(
+        """
+        ALTER TABLE bench_branch    
+        DROP COLUMN main_package_id,
+        DROP COLUMN parent_bench_id
+    """
+    )
+
+    # bench_environment
+    await cur.execute(
+        """
+        ALTER TABLE bench_environment    
+        DROP CONSTRAINT bench_environment_bench_check_one_parent
+    """
+    )
+    await cur.execute("DROP INDEX bench_environment_bench_idx_archived_at")
+    await cur.execute("DROP INDEX bench_environment_bench_idx_deleted_at")
+    await cur.execute(
+        """
+        ALTER TABLE bench_environment    
+        DROP COLUMN cache_id,
+        DROP COLUMN drive_id,
+        DROP COLUMN analytics_store_id,
+        DROP COLUMN search_store_id,
+        DROP COLUMN store_id,
+        DROP COLUMN server_id,
+        DROP COLUMN parent_bench_id
+    """
+    )
+
+    # bench_bench
+    await cur.execute(
+        """
+        ALTER TABLE bench_bench    
+        DROP CONSTRAINT bench_bench_bench_idx_slug
+    """
+    )
+    await cur.execute("DROP INDEX bench_bench_bench_idx_archived_at")
+    await cur.execute("DROP INDEX bench_bench_bench_idx_deleted_at")
+    await cur.execute("DROP INDEX bench_bench_bench_idx_slug")
+    await cur.execute(
+        """
+        ALTER TABLE bench_bench    
+        DROP COLUMN published_branch_id,
+        DROP COLUMN main_branch_id,
+        DROP COLUMN main_environment_id,
+        DROP COLUMN main_handle_id
+    """
+    )
+
+    # bench_client
+    await cur.execute("DROP TABLE bench_client")
+
+    # bench_organization
+    await cur.execute("DROP TABLE bench_organization")
+
+    # bench_user
+    await cur.execute("DROP TABLE bench_user")
+
+    # bench_handle
+    await cur.execute("DROP TABLE bench_handle")
+
+    # bench_filecontent
+    await cur.execute("DROP TABLE bench_filecontent")
+
+    # bench_cache
+    await cur.execute("DROP TABLE bench_cache")
+
+    # bench_drive
+    await cur.execute("DROP TABLE bench_drive")
+
+    # bench_store
+    await cur.execute("DROP TABLE bench_store")
+
+    # bench_server
+    await cur.execute("DROP TABLE bench_server")
+
+    # bench_invite
+    await cur.execute("DROP TABLE bench_invite")
+
+    # bench_membership
+    await cur.execute("DROP TABLE bench_membership")
+
+    # bench_identity
+    await cur.execute("DROP TABLE bench_identity")
+
+    # bench_role
+    await cur.execute("DROP TABLE bench_role")
+
+    # bench_badge
+    await cur.execute("DROP TABLE bench_badge")
+
+    # bench_step
+    await cur.execute("DROP TABLE bench_step")
+
+    # bench_view
+    await cur.execute("DROP TABLE bench_view")
+
+    # bench_query
+    await cur.execute("DROP TABLE bench_query")
+
+    # bench_field
+    await cur.execute("DROP TABLE bench_field")
+
+    # bench_trigger
+    await cur.execute("DROP TABLE bench_trigger")
+
+    # bench_block
+    await cur.execute("DROP TABLE bench_block")
+
+    # bench_notice
+    await cur.execute("DROP TABLE bench_notice")
+
+    # bench_link
+    await cur.execute("DROP TABLE bench_link")
+
+    # bench_space
+    await cur.execute("DROP TABLE bench_space")
+
+    # bench_upgrade
+    await cur.execute("DROP TABLE bench_upgrade")
+
+    # bench_dependency
+    await cur.execute("DROP TABLE bench_dependency")
+
+    # bench_package
+    await cur.execute("DROP TABLE bench_package")
+
+    # bench_branch
+    await cur.execute("DROP TABLE bench_branch")
+
+    # bench_environment
+    await cur.execute("DROP TABLE bench_environment")
+
+    # bench_bench
+    await cur.execute("DROP TABLE bench_bench")
+
+    # bench_migration
+    await cur.execute("DROP TABLE bench_migration")
 
 
 #
@@ -1697,7 +2300,7 @@ async def upgrade_local(cur: psycopg.AsyncCursor):
         updated_at timestamp NOT NULL DEFAULT now(),
         deleted_at timestamp,
         archived_at timestamp,
-        block_sk uuid NOT NULL,
+        block_tk uuid NOT NULL,
         block_ck uuid NOT NULL,
         block_id uuid NOT NULL,
         value_packed jsonb,
@@ -2048,4 +2651,104 @@ async def upgrade_local(cur: psycopg.AsyncCursor):
 
 
 async def downgrade_local(cur: psycopg.AsyncCursor):
-    raise NotImplementedError
+    # bench_notification
+    await cur.execute(
+        """
+        ALTER TABLE bench_notification    
+        DROP CONSTRAINT bench_notification_bench_check_one_parent
+    """
+    )
+    await cur.execute("DROP INDEX bench_notification_bench_idx_package_archived_at")
+    await cur.execute("DROP INDEX bench_notification_bench_idx_package_deleted_at")
+
+    # bench_log
+    await cur.execute(
+        """
+        ALTER TABLE bench_log    
+        DROP CONSTRAINT bench_log_bench_check_one_parent
+    """
+    )
+    await cur.execute("DROP INDEX bench_log_bench_idx_package_archived_at")
+    await cur.execute("DROP INDEX bench_log_bench_idx_package_deleted_at")
+
+    # bench_signal
+    await cur.execute(
+        """
+        ALTER TABLE bench_signal    
+        DROP CONSTRAINT bench_signal_bench_check_one_parent
+    """
+    )
+    await cur.execute("DROP INDEX bench_signal_bench_idx_package_archived_at")
+    await cur.execute("DROP INDEX bench_signal_bench_idx_package_deleted_at")
+
+    # bench_pause
+    await cur.execute(
+        """
+        ALTER TABLE bench_pause    
+        DROP CONSTRAINT bench_pause_bench_check_one_parent
+    """
+    )
+    await cur.execute("DROP INDEX bench_pause_bench_idx_package_archived_at")
+    await cur.execute("DROP INDEX bench_pause_bench_idx_package_deleted_at")
+    await cur.execute(
+        """
+        ALTER TABLE bench_pause    
+        DROP COLUMN parent_run_id
+    """
+    )
+
+    # bench_run
+    await cur.execute(
+        """
+        ALTER TABLE bench_run    
+        DROP CONSTRAINT bench_run_bench_check_one_parent
+    """
+    )
+    await cur.execute("DROP INDEX bench_run_bench_idx_package_archived_at")
+    await cur.execute("DROP INDEX bench_run_bench_idx_package_deleted_at")
+    await cur.execute("DROP INDEX bench_run_bench_idx_status")
+    await cur.execute(
+        """
+        ALTER TABLE bench_run    
+        DROP COLUMN parent_run_id,
+        DROP COLUMN parent_session_id
+    """
+    )
+
+    # bench_session
+    await cur.execute(
+        """
+        ALTER TABLE bench_session    
+        DROP CONSTRAINT bench_session_bench_check_one_parent
+    """
+    )
+    await cur.execute("DROP INDEX bench_session_bench_idx_package_archived_at")
+    await cur.execute("DROP INDEX bench_session_bench_idx_package_deleted_at")
+
+    # bench_record_ephemeral
+    await cur.execute("DROP INDEX bench_record_ephemeral_bench_idx_block_key_archived_at")
+    await cur.execute("DROP INDEX bench_record_ephemeral_bench_idx_block_ck_deleted_at")
+
+    # bench_notification
+    await cur.execute("DROP TABLE bench_notification")
+
+    # bench_log
+    await cur.execute("DROP TABLE bench_log")
+
+    # bench_signal
+    await cur.execute("DROP TABLE bench_signal")
+
+    # bench_pause
+    await cur.execute("DROP TABLE bench_pause")
+
+    # bench_run
+    await cur.execute("DROP TABLE bench_run")
+
+    # bench_session
+    await cur.execute("DROP TABLE bench_session")
+
+    # bench_record_ephemeral
+    await cur.execute("DROP TABLE bench_record_ephemeral")
+
+    # bench_migration
+    await cur.execute("DROP TABLE bench_migration")

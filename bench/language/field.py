@@ -21,18 +21,20 @@ from bench.language.const import (
     is_struct_type,
 )
 from bench.language.expression import NodeReference, _TypeQueryBuilder
+from bench.language.graph import NodeList
 from bench.language.node import (
     Node,
-    NodeList,
     get_tk_b64_from_ptr,
     node,
     pad_ck_from_tk_b64,
     struct,
     struct_component,
 )
+from bench.language.notice import Notice
 from bench.language.property import (
     Property,
     p_internal,
+    p_node_child,
     p_node_parent,
     p_regular,
     p_runtime,
@@ -186,7 +188,7 @@ class TypeInfoBase(HasValues):
           [bench_type~StructType]
        4. enum type (value is builtin IdEnum, like FieldKind, NodeType, BenchType, EnumType, ...)
           [bench_type~EnumType]
-       5. node type + base block (value is NodeReference that is an 'instance' of the block)
+       5. node type + base type (value is NodeReference that is an 'instance' of the block)
           [bench_type~NodeType & base_type]
            type = Record, base = Block -> values are Records in that database
            type = Run, base = Block -> values are Runs of that block
@@ -194,9 +196,10 @@ class TypeInfoBase(HasValues):
            type = Signal, base = Block -> values are Signals of that block type
            type = Block, base = Block -> values are Blocks conforming to that block protocol
             ...
-       6. base block (value is whatever that resolves to)
+       6. base type (value is whatever that resolves to)
 
     Types may also specify:
+       - a field kind, narrowing the fields included from the base type (if any)
        - a format hint (which may impact the unpacked representation, like for Image)
        - an additional condition instances must satisfy
        - combination flags for arrays, optionals, ...
@@ -213,6 +216,7 @@ class TypeInfoBase(HasValues):
     if TYPE_CHECKING:
         base_type_id: Optional[UUID] = None
         base_type_ptr: Optional["NodeReference"] = None
+    base_field_kind: Optional["FieldKind"] = p_internal(43, require=False, default=None)
 
     # + bonus info/constraints
     visibility: Optional[NodeVisibility] = p_regular(50, default=None)
@@ -227,11 +231,6 @@ class TypeInfoBase(HasValues):
     is_list: bool = p_regular(60, default=False)
     is_secret: bool = p_regular(61, default=False)
     is_required: bool = p_regular(62, default=False)
-    # is_instance to disambiguate?
-
-    # separate _fields for restricting base type to a subset of fields? (e.g., only inputs)
-    _fields: tuple["Field", ...] | None = p_runtime(default=None)
-    _resolved_type: Optional["TypeInfo"] = p_runtime(default=None)
 
     def __content_str__(self) -> str:
         if self.base_type is not None:
@@ -258,15 +257,6 @@ class TypeInfoBase(HasValues):
         else:
             self._resolved_type = cast("TypeInfo", self)  # harmless lie (types are equivalent)
 
-    @property
-    def resolved_type(self) -> "TypeInfo":
-        """
-        The complete type of this field including any bases.
-        The resolved type is generally the same except when we have aliases.
-        """
-        assert self._resolved_type is not None, f"resolved type not ready in {self!r}"
-        return self._resolved_type
-
     def _validate_inner(
         self, properties: Collection[Property], on_invalid: "ValidationHandler"
     ) -> None:
@@ -277,20 +267,6 @@ class TypeInfoBase(HasValues):
     def identity_key(self) -> str:
         """The identity of this type for packing."""
         return encode_type_identity(self)
-
-    @property
-    def is_nested(self) -> bool:
-        """Whether the value of this type has fields."""
-        return self._fields is not None or self.base_type is not None
-
-    @property
-    def fields(self) -> NodeList["Field"] | tuple["Field", ...] | None:
-        if self._fields is not None:
-            return self._fields
-        elif self.base_type:
-            return self.base_type.fields
-        else:
-            return None
 
 
 @struct(StructType.TYPE_INFO)
@@ -305,7 +281,7 @@ class FieldKind(IdEnum):
     INPUT = 3
     OUTPUT = 4
     OPTION = 5
-    # LITERAL? (or does having value + Option make it a Literal?)
+    # LITERAL? (or does Field.value + kind=Option make it a Literal?)
 
 
 @node(NodeType.FIELD)
@@ -333,6 +309,8 @@ class Field(Node[FieldData], TypeInfoBase, _TypeQueryBuilder):
     # is_indexed: bool = ... # for database fields
     # is_unique: bool = ... # for database fields
     # is_context: bool = ... # for variable fields (contribute to Context)
+
+    notices: NodeList["Notice"] = p_node_child(NodeType.NOTICE)
 
     _introspected_from: Optional[Property] = p_runtime(default=None)
 
@@ -372,4 +350,4 @@ class Field(Node[FieldData], TypeInfoBase, _TypeQueryBuilder):
 
     @property
     def storage_key(self) -> str:
-        return f"{self.tk}-{self.resolved_type.identity_key}"
+        return f"{self.tk}-{self.identity_key}"

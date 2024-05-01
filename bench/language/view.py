@@ -2,7 +2,9 @@ from typing import TYPE_CHECKING, Any, Optional, Union
 
 from bench.language.const import NODE_TYPES, EnumType, NodeType, StructType, enum_
 from bench.language.expression import Selection
+from bench.language.graph import NodeList
 from bench.language.node import LINK_TARGET_NODE_TYPES, Node, Struct, node, struct
+from bench.language.notice import Notice
 from bench.language.property import (
     p_internal,
     p_node_child,
@@ -35,8 +37,8 @@ class ViewType(IdEnum):
     USER_WIZARD = 1
     BENCH_WIZARD = 2
     CHALLENGE_WIZARD = 3
-    KEYMAP = 40
-    MOCK = 70
+    # debugging
+    MOCK = 90
 
     # 'system'
     # nodes
@@ -49,6 +51,7 @@ class ViewType(IdEnum):
     STEP = 107
     TYPE = 108
     VARIABLE = 109
+    OBJECT = 110
     # helpers
     EXPLORE = 150
     OUTLINE = 151
@@ -407,7 +410,8 @@ class View(Node[ViewData], HasValues):
     is_inline: Optional[bool] = p_regular(83, default=False)
     is_loading: Optional[bool] = p_regular(90, default=False)
 
-    views: list["View"] = p_node_child(NodeType.VIEW)
+    views: NodeList["View"] = p_node_child(NodeType.VIEW)
+    notices: NodeList["Notice"] = p_node_child(NodeType.NOTICE)
 
     def __repr__(self):  # type: ignore we want to override the default repr
         return f"<{self.type.bench_name}View {self}>"

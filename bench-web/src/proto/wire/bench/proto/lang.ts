@@ -1513,7 +1513,7 @@ export interface TextSpanData {
     isCode?: boolean;
 }
 /**
- * TypeInfo(id: int = <factory>, parent: Union[ForwardRef('Struct'), ForwardRef('Node'), ForwardRef('Value'), NoneType] = None, order_key: str | None = None, set_properties: list[int] = <factory>, _status: bench.language.const.InterpStatus = None, _updated_properties: bitarray.bitarray | None = None, primitive_type: Optional[bench.language.const.PrimitiveType] = None, bench_type: Optional[bench.utils.func.BenchType] = None, base_type: Optional[ForwardRef('Block')] = None, visibility: Optional[bench.language.const.NodeVisibility] = None, format_hint: Optional[bench.language.const.FormatHint] = None, condition: Optional[ForwardRef('Expression')] = None, default_packed: Optional[Any] = None, default: None = None, is_list: bool = False, is_secret: bool = False, is_required: bool = False, _fields: tuple['Field', ...] | None = None, _resolved_type: Optional[ForwardRef('TypeInfo')] = None, parent_id: int = None, parent_key: str = None, base_type_ptr: 'NodeReference' = None)
+ * TypeInfo(id: int = <factory>, parent: Union[ForwardRef('Struct'), ForwardRef('Node'), ForwardRef('Value'), NoneType] = None, order_key: str | None = None, set_properties: list[int] = <factory>, _status: bench.language.const.InterpStatus = None, _updated_properties: bitarray.bitarray | None = None, primitive_type: Optional[bench.language.const.PrimitiveType] = None, bench_type: Optional[bench.utils.func.BenchType] = None, base_type: Optional[ForwardRef('Block')] = None, base_field_kind: Optional[ForwardRef('FieldKind')] = None, visibility: Optional[bench.language.const.NodeVisibility] = None, format_hint: Optional[bench.language.const.FormatHint] = None, condition: Optional[ForwardRef('Expression')] = None, default_packed: Optional[Any] = None, default: None = None, is_list: bool = False, is_secret: bool = False, is_required: bool = False, parent_id: int = None, parent_key: str = None, base_type_ptr: 'NodeReference' = None)
  *
  * @generated from protobuf message symbolx.bench.TypeInfoData
  */
@@ -1554,6 +1554,10 @@ export interface TypeInfoData {
      * @generated from protobuf field: optional symbolx.bench.NodeReferenceData base_type_ptr = 42;
      */
     baseTypePtr?: NodeReferenceData;
+    /**
+     * @generated from protobuf field: optional symbolx.bench.FieldKind base_field_kind = 43;
+     */
+    baseFieldKind?: FieldKind;
     /**
      * @generated from protobuf field: optional symbolx.bench.NodeVisibility visibility = 50;
      */
@@ -2589,6 +2593,10 @@ export interface FieldData {
      */
     baseTypePtr?: NodeReferenceData;
     /**
+     * @generated from protobuf field: optional symbolx.bench.FieldKind base_field_kind = 43;
+     */
+    baseFieldKind?: FieldKind;
+    /**
      * @generated from protobuf field: optional symbolx.bench.NodeVisibility visibility = 50;
      */
     visibility?: NodeVisibility;
@@ -3250,7 +3258,7 @@ export interface BaseNodeData {
     setProperties: number[];
 }
 /**
- * Notice(parent: Union[ForwardRef('Block'), ForwardRef('Package')] = None, kind: bench.language.const.NoticeKind = None, type: bench.language.notice.NoticeType = <factory>, message: Optional[str] = None, path: Optional[ForwardRef('Path')] = None, properties: Optional[list[bench.language.property.Property]] = <factory>, id: uuid.UUID = None, set_properties: list[int] = <factory>, _status: bench.language.const.InterpStatus = None, _updated_properties: bitarray.bitarray | None = None, ck: uuid.UUID = None, source: bench.language.const.NodeSource = <NodeSource.STORE: 1>, revision: int = 0, created_at: datetime.datetime = None, updated_at: datetime.datetime = None, deleted_at: Optional[datetime.datetime] = None, archived_at: Optional[datetime.datetime] = None, created_by: Union[ForwardRef('User'), ForwardRef('Run'), NoneType] = None, updated_by: Union[ForwardRef('User'), ForwardRef('Run'), NoneType] = None, notices: bench.language.graph.NodeList['Notice'] = None, links: bench.language.graph.NodeList['Link'] = None, _graph: Union[ForwardRef('NodeGraph'), ForwardRef('DetachedNodeGraph'), NoneType] = None, _data_graph: Optional[ForwardRef('NodeDataGraph')] = None, _session: Optional[ForwardRef('Session')] = None, _is_new: bool = False, parent_ptr: 'NodeReference' = None, properties_ptr: list['PropertyReference'] = None, created_by_ptr: 'NodeReference' = None, updated_by_ptr: 'NodeReference' = None)
+ * Notice(parent: Union[ForwardRef('Block'), ForwardRef('Field'), ForwardRef('Step'), ForwardRef('View'), ForwardRef('Trigger')] = None, kind: bench.language.const.NoticeKind = None, type: bench.language.notice.NoticeType = <factory>, message: Optional[str] = None, path: Optional[ForwardRef('Path')] = None, properties: Optional[list[bench.language.property.Property]] = <factory>, id: uuid.UUID = None, set_properties: list[int] = <factory>, _status: bench.language.const.InterpStatus = None, _updated_properties: bitarray.bitarray | None = None, ck: uuid.UUID = None, source: bench.language.const.NodeSource = <NodeSource.STORE: 1>, revision: int = 0, created_at: datetime.datetime = None, updated_at: datetime.datetime = None, deleted_at: Optional[datetime.datetime] = None, archived_at: Optional[datetime.datetime] = None, created_by: Union[ForwardRef('User'), ForwardRef('Run'), NoneType] = None, updated_by: Union[ForwardRef('User'), ForwardRef('Run'), NoneType] = None, links: bench.language.graph.NodeList['Link'] = None, _graph: Union[ForwardRef('NodeGraph'), ForwardRef('DetachedNodeGraph'), NoneType] = None, _data_graph: Optional[ForwardRef('NodeDataGraph')] = None, _session: Optional[ForwardRef('Session')] = None, _is_new: bool = False, parent_ptr: 'NodeReference' = None, properties_ptr: list['PropertyReference'] = None, created_by_ptr: 'NodeReference' = None, updated_by_ptr: 'NodeReference' = None)
  *
  * @generated from protobuf message symbolx.bench.NoticeData
  */
@@ -4507,7 +4515,7 @@ export interface SpaceData {
 }
 /**
  * A logic, data or control flow unit in a Flow (Block).
- * NOTE: steps only track connections coming in.
+ * NOTE: steps only track incoming connections.
  *
  * @generated from protobuf message symbolx.bench.StepData
  */
@@ -4726,7 +4734,7 @@ export interface StoreData {
     mainCredential?: ResourceCredentialData;
 }
 /**
- * Trigger(parent: 'Block' = None, type: bench.language.const.TriggerType = <factory>, name: str = <factory>, active: bool = True, schedule: Optional[bench.language.trigger.Schedule] = None, signal: Optional[ForwardRef('Block')] = None, id: uuid.UUID = None, set_properties: list[int] = <factory>, _status: bench.language.const.InterpStatus = None, _updated_properties: bitarray.bitarray | None = None, ck: uuid.UUID = None, source: bench.language.const.NodeSource = <NodeSource.STORE: 1>, revision: int = 0, created_at: datetime.datetime = None, updated_at: datetime.datetime = None, deleted_at: Optional[datetime.datetime] = None, archived_at: Optional[datetime.datetime] = None, created_by: Union[ForwardRef('User'), ForwardRef('Run'), NoneType] = None, updated_by: Union[ForwardRef('User'), ForwardRef('Run'), NoneType] = None, notices: bench.language.graph.NodeList['Notice'] = None, links: bench.language.graph.NodeList['Link'] = None, _graph: Union[ForwardRef('NodeGraph'), ForwardRef('DetachedNodeGraph'), NoneType] = None, _data_graph: Optional[ForwardRef('NodeDataGraph')] = None, _session: Optional[ForwardRef('Session')] = None, _is_new: bool = False, parent_ptr: 'NodeReference' = None, signal_ptr: 'NodeReference' = None, created_by_ptr: 'NodeReference' = None, updated_by_ptr: 'NodeReference' = None)
+ * Trigger(parent: 'Block' = None, type: bench.language.const.TriggerType = <factory>, name: str = <factory>, active: bool = True, schedule: Optional[bench.language.trigger.Schedule] = None, signal: Optional[ForwardRef('Block')] = None, notices: bench.language.graph.NodeList['Notice'] = None, id: uuid.UUID = None, set_properties: list[int] = <factory>, _status: bench.language.const.InterpStatus = None, _updated_properties: bitarray.bitarray | None = None, ck: uuid.UUID = None, source: bench.language.const.NodeSource = <NodeSource.STORE: 1>, revision: int = 0, created_at: datetime.datetime = None, updated_at: datetime.datetime = None, deleted_at: Optional[datetime.datetime] = None, archived_at: Optional[datetime.datetime] = None, created_by: Union[ForwardRef('User'), ForwardRef('Run'), NoneType] = None, updated_by: Union[ForwardRef('User'), ForwardRef('Run'), NoneType] = None, links: bench.language.graph.NodeList['Link'] = None, _graph: Union[ForwardRef('NodeGraph'), ForwardRef('DetachedNodeGraph'), NoneType] = None, _data_graph: Optional[ForwardRef('NodeDataGraph')] = None, _session: Optional[ForwardRef('Session')] = None, _is_new: bool = False, parent_ptr: 'NodeReference' = None, signal_ptr: 'NodeReference' = None, created_by_ptr: 'NodeReference' = None, updated_by_ptr: 'NodeReference' = None)
  *
  * @generated from protobuf message symbolx.bench.TriggerData
  */
@@ -8035,7 +8043,7 @@ export enum PolicyEffect {
 }
 /**
  * Fundamental column / storage types we support (subset of SQL types, used directly in sql/core).
- * NOTE: the ids here are used in value pack/unpack keys, so any changes are breaking.
+ * NOTE: the ids here are used in type identity keys, so any change is breaking.
  *
  * @generated from protobuf enum symbolx.bench.PrimitiveType
  */
@@ -8995,13 +9003,9 @@ export enum ViewType {
      */
     CHALLENGE_WIZARD = 3,
     /**
-     * @generated from protobuf enum value: VIEW_TYPE_KEYMAP = 40;
+     * @generated from protobuf enum value: VIEW_TYPE_MOCK = 90;
      */
-    KEYMAP = 40,
-    /**
-     * @generated from protobuf enum value: VIEW_TYPE_MOCK = 70;
-     */
-    MOCK = 70,
+    MOCK = 90,
     /**
      * @generated from protobuf enum value: VIEW_TYPE_PAGE = 101;
      */
@@ -9038,6 +9042,10 @@ export enum ViewType {
      * @generated from protobuf enum value: VIEW_TYPE_VARIABLE = 109;
      */
     VARIABLE = 109,
+    /**
+     * @generated from protobuf enum value: VIEW_TYPE_OBJECT = 110;
+     */
+    OBJECT = 110,
     /**
      * @generated from protobuf enum value: VIEW_TYPE_EXPLORE = 150;
      */
@@ -13021,6 +13029,7 @@ class TypeInfoData$Type extends MessageType<TypeInfoData> {
             { no: 40, name: "primitive_type", kind: "enum", opt: true, T: () => ["symbolx.bench.PrimitiveType", PrimitiveType, "PRIMITIVE_TYPE_"] },
             { no: 41, name: "bench_type", kind: "enum", opt: true, T: () => ["symbolx.bench.BenchType", BenchType, "BENCH_TYPE_"] },
             { no: 42, name: "base_type_ptr", kind: "message", T: () => NodeReferenceData },
+            { no: 43, name: "base_field_kind", kind: "enum", opt: true, T: () => ["symbolx.bench.FieldKind", FieldKind, "FIELD_KIND_"] },
             { no: 50, name: "visibility", kind: "enum", opt: true, T: () => ["symbolx.bench.NodeVisibility", NodeVisibility, "NODE_VISIBILITY_"] },
             { no: 51, name: "format_hint", kind: "enum", opt: true, T: () => ["symbolx.bench.FormatHint", FormatHint, "FORMAT_HINT_"] },
             { no: 52, name: "condition", kind: "message", T: () => ExpressionData },
@@ -13077,6 +13086,9 @@ class TypeInfoData$Type extends MessageType<TypeInfoData> {
                     break;
                 case /* optional symbolx.bench.NodeReferenceData base_type_ptr */ 42:
                     message.baseTypePtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.baseTypePtr);
+                    break;
+                case /* optional symbolx.bench.FieldKind base_field_kind */ 43:
+                    message.baseFieldKind = reader.int32();
                     break;
                 case /* optional symbolx.bench.NodeVisibility visibility */ 50:
                     message.visibility = reader.int32();
@@ -13142,6 +13154,9 @@ class TypeInfoData$Type extends MessageType<TypeInfoData> {
         /* optional symbolx.bench.NodeReferenceData base_type_ptr = 42; */
         if (message.baseTypePtr)
             NodeReferenceData.internalBinaryWrite(message.baseTypePtr, writer.tag(42, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbolx.bench.FieldKind base_field_kind = 43; */
+        if (message.baseFieldKind !== undefined)
+            writer.tag(43, WireType.Varint).int32(message.baseFieldKind);
         /* optional symbolx.bench.NodeVisibility visibility = 50; */
         if (message.visibility !== undefined)
             writer.tag(50, WireType.Varint).int32(message.visibility);
@@ -15202,6 +15217,7 @@ class FieldData$Type extends MessageType<FieldData> {
             { no: 40, name: "primitive_type", kind: "enum", opt: true, T: () => ["symbolx.bench.PrimitiveType", PrimitiveType, "PRIMITIVE_TYPE_"] },
             { no: 41, name: "bench_type", kind: "enum", opt: true, T: () => ["symbolx.bench.BenchType", BenchType, "BENCH_TYPE_"] },
             { no: 42, name: "base_type_ptr", kind: "message", T: () => NodeReferenceData },
+            { no: 43, name: "base_field_kind", kind: "enum", opt: true, T: () => ["symbolx.bench.FieldKind", FieldKind, "FIELD_KIND_"] },
             { no: 50, name: "visibility", kind: "enum", opt: true, T: () => ["symbolx.bench.NodeVisibility", NodeVisibility, "NODE_VISIBILITY_"] },
             { no: 51, name: "format_hint", kind: "enum", opt: true, T: () => ["symbolx.bench.FormatHint", FormatHint, "FORMAT_HINT_"] },
             { no: 52, name: "condition", kind: "message", T: () => ExpressionData },
@@ -15308,6 +15324,9 @@ class FieldData$Type extends MessageType<FieldData> {
                     break;
                 case /* optional symbolx.bench.NodeReferenceData base_type_ptr */ 42:
                     message.baseTypePtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.baseTypePtr);
+                    break;
+                case /* optional symbolx.bench.FieldKind base_field_kind */ 43:
+                    message.baseFieldKind = reader.int32();
                     break;
                 case /* optional symbolx.bench.NodeVisibility visibility */ 50:
                     message.visibility = reader.int32();
@@ -15418,6 +15437,9 @@ class FieldData$Type extends MessageType<FieldData> {
         /* optional symbolx.bench.NodeReferenceData base_type_ptr = 42; */
         if (message.baseTypePtr)
             NodeReferenceData.internalBinaryWrite(message.baseTypePtr, writer.tag(42, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbolx.bench.FieldKind base_field_kind = 43; */
+        if (message.baseFieldKind !== undefined)
+            writer.tag(43, WireType.Varint).int32(message.baseFieldKind);
         /* optional symbolx.bench.NodeVisibility visibility = 50; */
         if (message.visibility !== undefined)
             writer.tag(50, WireType.Varint).int32(message.visibility);
@@ -21495,7 +21517,7 @@ export const PARENT_NODE_TYPES: Record<NodeType, NodeType[]> = {
   [NodeType.SPACE]: [NodeType.PACKAGE],
   [NodeType.LINK]: [NodeType.PACKAGE, NodeType.BLOCK],
   [NodeType.SKIP]: [NodeType.PACKAGE, NodeType.BLOCK],
-  [NodeType.NOTICE]: [NodeType.PACKAGE, NodeType.BLOCK],
+  [NodeType.NOTICE]: [NodeType.FIELD, NodeType.VIEW, NodeType.STEP, NodeType.BLOCK, NodeType.TRIGGER],
   [NodeType.BLOCK]: [NodeType.PACKAGE, NodeType.BLOCK],
   [NodeType.TRIGGER]: [NodeType.BLOCK],
   [NodeType.FIELD]: [NodeType.STEP, NodeType.BLOCK],
@@ -21530,7 +21552,7 @@ export const CHILD_NODE_TYPES: Record<NodeType, NodeType[]> = {
   [NodeType.BENCH]: [NodeType.SERVER, NodeType.STORE, NodeType.DRIVE, NodeType.ENVIRONMENT, NodeType.BRANCH, NodeType.CACHE, NodeType.PACKAGE, NodeType.HANDLE],
   [NodeType.ENVIRONMENT]: [],
   [NodeType.BRANCH]: [],
-  [NodeType.PACKAGE]: [NodeType.INVITE, NodeType.SESSION, NodeType.SIGNAL, NodeType.LOG, NodeType.NOTIFICATION, NodeType.DEPENDENCY, NodeType.UPGRADE, NodeType.LINK, NodeType.SKIP, NodeType.NOTICE, NodeType.SPACE, NodeType.BADGE, NodeType.BLOCK, NodeType.MEMBERSHIP],
+  [NodeType.PACKAGE]: [NodeType.INVITE, NodeType.SESSION, NodeType.SIGNAL, NodeType.LOG, NodeType.NOTIFICATION, NodeType.DEPENDENCY, NodeType.UPGRADE, NodeType.LINK, NodeType.SKIP, NodeType.SPACE, NodeType.BADGE, NodeType.BLOCK, NodeType.MEMBERSHIP],
   [NodeType.DEPENDENCY]: [],
   [NodeType.UPGRADE]: [],
   [NodeType.SPACE]: [NodeType.VIEW],
@@ -21538,12 +21560,12 @@ export const CHILD_NODE_TYPES: Record<NodeType, NodeType[]> = {
   [NodeType.SKIP]: [],
   [NodeType.NOTICE]: [],
   [NodeType.BLOCK]: [NodeType.FIELD, NodeType.RECORD, NodeType.QUERY, NodeType.VIEW, NodeType.STEP, NodeType.DEPENDENCY, NodeType.BLOCK, NodeType.LINK, NodeType.SKIP, NodeType.NOTICE, NodeType.BADGE, NodeType.ROLE, NodeType.IDENTITY, NodeType.TRIGGER],
-  [NodeType.TRIGGER]: [],
-  [NodeType.FIELD]: [],
+  [NodeType.TRIGGER]: [NodeType.NOTICE],
+  [NodeType.FIELD]: [NodeType.NOTICE],
   [NodeType.RECORD]: [],
   [NodeType.QUERY]: [],
-  [NodeType.VIEW]: [NodeType.VIEW],
-  [NodeType.STEP]: [NodeType.FIELD, NodeType.STEP],
+  [NodeType.VIEW]: [NodeType.NOTICE, NodeType.VIEW],
+  [NodeType.STEP]: [NodeType.FIELD, NodeType.NOTICE, NodeType.STEP],
   [NodeType.BADGE]: [],
   [NodeType.ROLE]: [],
   [NodeType.IDENTITY]: [],
@@ -21577,7 +21599,7 @@ export const ANCESTOR_NODE_TYPES: Record<NodeType, NodeType[]> = {
   [NodeType.SPACE]: [NodeType.BENCH, NodeType.PACKAGE],
   [NodeType.LINK]: [NodeType.BENCH, NodeType.PACKAGE, NodeType.BLOCK],
   [NodeType.SKIP]: [NodeType.BENCH, NodeType.PACKAGE, NodeType.BLOCK],
-  [NodeType.NOTICE]: [NodeType.BENCH, NodeType.PACKAGE, NodeType.BLOCK],
+  [NodeType.NOTICE]: [NodeType.FIELD, NodeType.BENCH, NodeType.VIEW, NodeType.STEP, NodeType.PACKAGE, NodeType.SPACE, NodeType.BLOCK, NodeType.TRIGGER],
   [NodeType.BLOCK]: [NodeType.BENCH, NodeType.PACKAGE, NodeType.BLOCK],
   [NodeType.TRIGGER]: [NodeType.BENCH, NodeType.PACKAGE, NodeType.BLOCK],
   [NodeType.FIELD]: [NodeType.BENCH, NodeType.PACKAGE, NodeType.BLOCK, NodeType.STEP],
@@ -21615,17 +21637,17 @@ export const DESCENDANT_NODE_TYPES: Record<NodeType, NodeType[]> = {
   [NodeType.PACKAGE]: [NodeType.DEPENDENCY, NodeType.UPGRADE, NodeType.SPACE, NodeType.LINK, NodeType.SKIP, NodeType.NOTICE, NodeType.BLOCK, NodeType.TRIGGER, NodeType.FIELD, NodeType.RECORD, NodeType.QUERY, NodeType.VIEW, NodeType.STEP, NodeType.BADGE, NodeType.ROLE, NodeType.IDENTITY, NodeType.MEMBERSHIP, NodeType.INVITE, NodeType.SESSION, NodeType.RUN, NodeType.PAUSE, NodeType.SIGNAL, NodeType.LOG, NodeType.NOTIFICATION],
   [NodeType.DEPENDENCY]: [],
   [NodeType.UPGRADE]: [],
-  [NodeType.SPACE]: [NodeType.VIEW],
+  [NodeType.SPACE]: [NodeType.NOTICE, NodeType.VIEW],
   [NodeType.LINK]: [],
   [NodeType.SKIP]: [],
   [NodeType.NOTICE]: [],
   [NodeType.BLOCK]: [NodeType.FIELD, NodeType.RECORD, NodeType.QUERY, NodeType.VIEW, NodeType.STEP, NodeType.DEPENDENCY, NodeType.BLOCK, NodeType.LINK, NodeType.SKIP, NodeType.NOTICE, NodeType.BADGE, NodeType.ROLE, NodeType.IDENTITY, NodeType.TRIGGER],
-  [NodeType.TRIGGER]: [],
-  [NodeType.FIELD]: [],
+  [NodeType.TRIGGER]: [NodeType.NOTICE],
+  [NodeType.FIELD]: [NodeType.NOTICE],
   [NodeType.RECORD]: [],
   [NodeType.QUERY]: [],
-  [NodeType.VIEW]: [NodeType.VIEW],
-  [NodeType.STEP]: [NodeType.FIELD, NodeType.STEP],
+  [NodeType.VIEW]: [NodeType.NOTICE, NodeType.VIEW],
+  [NodeType.STEP]: [NodeType.FIELD, NodeType.NOTICE, NodeType.STEP],
   [NodeType.BADGE]: [],
   [NodeType.ROLE]: [],
   [NodeType.IDENTITY]: [],
@@ -22398,6 +22420,7 @@ export enum FieldProperty {
   primitiveType = 40,
   benchType = 41,
   baseTypePtr = 42,
+  baseFieldKind = 43,
   visibility = 50,
   formatHint = 51,
   condition = 52,
@@ -23054,6 +23077,7 @@ export enum TypeInfoProperty {
   primitiveType = 40,
   benchType = 41,
   baseTypePtr = 42,
+  baseFieldKind = 43,
   visibility = 50,
   formatHint = 51,
   condition = 52,
@@ -23684,6 +23708,7 @@ export const TypeInfoDataInfo: Record<TypeInfoProperty, PropertyInfo> = {
   [TypeInfoProperty.primitiveType]: { id: 40, name: 'primitive_type', component: ObjectType.TYPE_INFO, enumType: EnumType.PRIMITIVE_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRuntime: true, isWired: true, isStored: true },
   [TypeInfoProperty.benchType]: { id: 41, name: 'bench_type', component: ObjectType.TYPE_INFO, enumType: EnumType.BENCH_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRuntime: true, isWired: true, isStored: true },
   [TypeInfoProperty.baseTypePtr]: { id: 42, name: 'base_type_ptr', component: ObjectType.TYPE_INFO, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.BLOCK], referenceStruct: StructType.NODE_REFERENCE },
+  [TypeInfoProperty.baseFieldKind]: { id: 43, name: 'base_field_kind', component: ObjectType.TYPE_INFO, enumType: EnumType.FIELD_KIND, kind: 'enum', primitiveType: PrimitiveType.INT16, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [TypeInfoProperty.visibility]: { id: 50, name: 'visibility', component: ObjectType.TYPE_INFO, enumType: EnumType.NODE_VISIBILITY, kind: 'enum', primitiveType: PrimitiveType.INT16, isRuntime: true, isWired: true, isStored: true },
   [TypeInfoProperty.formatHint]: { id: 51, name: 'format_hint', component: ObjectType.TYPE_INFO, enumType: EnumType.FORMAT_HINT, kind: 'enum', primitiveType: PrimitiveType.INT16, isRuntime: true, isWired: true, isStored: true },
   [TypeInfoProperty.condition]: { id: 52, name: 'condition', component: ObjectType.TYPE_INFO, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.EXPRESSION },
@@ -24222,7 +24247,7 @@ export const NoticeDataInfo: Record<NoticeProperty, PropertyInfo> = {
   [NoticeProperty.metatype]: { id: 1, name: 'metatype', component: ObjectType.NOTICE, enumType: EnumType.OBJECT_TYPE, kind: 'enum', primitiveType: PrimitiveType.STRING, isRequired: true, isInternal: true, isComputed: true, isWired: true },
   [NoticeProperty.id]: { id: 2, name: 'id', component: ObjectType.NOTICE, kind: 'primitive', primitiveType: PrimitiveType.UUID, isRequired: true, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
   [NoticeProperty.ck]: { id: 3, name: 'ck', component: ObjectType.NOTICE, kind: 'primitive', primitiveType: PrimitiveType.UUID, isRequired: true, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
-  [NoticeProperty.parentPtr]: { id: 4, name: 'parent_ptr', component: ObjectType.NOTICE, kind: 'reference', isInternal: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_PARENT, referenceNodes: [NodeType.BLOCK, NodeType.PACKAGE], referenceStruct: StructType.NODE_REFERENCE },
+  [NoticeProperty.parentPtr]: { id: 4, name: 'parent_ptr', component: ObjectType.NOTICE, kind: 'reference', isInternal: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_PARENT, referenceNodes: [NodeType.BLOCK, NodeType.FIELD, NodeType.STEP, NodeType.VIEW, NodeType.TRIGGER], referenceStruct: StructType.NODE_REFERENCE },
   [NoticeProperty.packagePtr]: { id: 6, name: 'package_ptr', component: ObjectType.NOTICE, kind: 'reference', isRequired: true, isInternal: true, isComputed: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_ANCESTOR_FIRST, referenceNodes: [NodeType.PACKAGE], referenceStruct: StructType.NODE_REFERENCE },
   [NoticeProperty.benchPtr]: { id: 7, name: 'bench_ptr', component: ObjectType.NOTICE, kind: 'reference', isRequired: true, isInternal: true, isComputed: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_ANCESTOR_FIRST, referenceNodes: [NodeType.BENCH], referenceStruct: StructType.NODE_REFERENCE },
   [NoticeProperty.source]: { id: 8, name: 'source', component: ObjectType.NOTICE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true },
@@ -24323,6 +24348,7 @@ export const FieldDataInfo: Record<FieldProperty, PropertyInfo> = {
   [FieldProperty.primitiveType]: { id: 40, name: 'primitive_type', component: ObjectType.FIELD, enumType: EnumType.PRIMITIVE_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRuntime: true, isWired: true, isStored: true },
   [FieldProperty.benchType]: { id: 41, name: 'bench_type', component: ObjectType.FIELD, enumType: EnumType.BENCH_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRuntime: true, isWired: true, isStored: true },
   [FieldProperty.baseTypePtr]: { id: 42, name: 'base_type_ptr', component: ObjectType.FIELD, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.BLOCK], referenceStruct: StructType.NODE_REFERENCE },
+  [FieldProperty.baseFieldKind]: { id: 43, name: 'base_field_kind', component: ObjectType.FIELD, enumType: EnumType.FIELD_KIND, kind: 'enum', primitiveType: PrimitiveType.INT16, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [FieldProperty.visibility]: { id: 50, name: 'visibility', component: ObjectType.FIELD, enumType: EnumType.NODE_VISIBILITY, kind: 'enum', primitiveType: PrimitiveType.INT16, isRuntime: true, isWired: true, isStored: true },
   [FieldProperty.formatHint]: { id: 51, name: 'format_hint', component: ObjectType.FIELD, enumType: EnumType.FORMAT_HINT, kind: 'enum', primitiveType: PrimitiveType.INT16, isRuntime: true, isWired: true, isStored: true },
   [FieldProperty.condition]: { id: 52, name: 'condition', component: ObjectType.FIELD, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.EXPRESSION },

@@ -3,8 +3,8 @@ from typing import TYPE_CHECKING, Any, Optional, cast
 
 import structlog
 
-from bench.language.const import NodeType
-from bench.language.node import BasedNode, Node, NodeList, NRel, _Passthrough, node, node_component
+from bench.language.const import NodeType, NRel
+from bench.language.node import BasedNode, Node, NodeList, _Passthrough, node, node_component
 from bench.language.notice import NoticeHandler
 from bench.language.property import (
     Property,
@@ -104,9 +104,7 @@ class RecordList(NodeList[Record], QueryBuilder[Record, RecordData], abc.ABC):  
 
 @node_component()
 class HasDatabase(Node):
-    queries: NodeList["Query"] = p_node_child(
-        NodeType.QUERY, NRel.NAMED | NRel.SCOPED | NRel.ORDERED
-    )
+    queries: NodeList["Query"] = p_node_child(NodeType.QUERY)
     records: RecordList = p_node_child(NodeType.RECORD, NRel.STORED_CUSTOM, list=RecordList)
     _table: Optional[Table] = p_runtime(default=None)
 

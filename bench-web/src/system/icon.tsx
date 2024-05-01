@@ -255,7 +255,6 @@ export const ICON_BY_VIEW_TYPE: Partial<Record<ViewType, IconData>> = _makeIcons
   [ViewType.USER_WIZARD]: "fas fa-user",
   [ViewType.BENCH_WIZARD]: "fas fa-fort",
   [ViewType.CHALLENGE_WIZARD]: "fas fa-trophy",
-  [ViewType.KEYMAP]: "fas fa-keyboard",
   [ViewType.MOCK]: "fas fa-bug",
 
   // system

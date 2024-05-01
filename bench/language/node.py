@@ -46,7 +46,6 @@ from bench.language.const import (
     InterpStatus,
     NodeSource,
     NodeType,
-    NRel,
     ReferenceKind,
     StructType,
     _active_session,
@@ -91,7 +90,6 @@ if TYPE_CHECKING:
         Field,
         NodeReference,
         NodeVisitor,
-        Notice,
         NoticeType,
         Package,
         Path,
@@ -1480,8 +1478,7 @@ class Node(Struct[NodeDataT], Generic[NodeDataT]):
     # 30+ for 'user' node/struct properties
     # <... defined in concrete type ...>
 
-    notices: NodeList["Notice"] = p_node_child(NodeType.NOTICE, NRel.CUMULATIVE)
-    links: NodeList["Link"] = p_node_child(NodeType.LINK, NRel.CUMULATIVE)
+    links: NodeList["Link"] = p_node_child(NodeType.LINK)
 
     # the node graph is maintained at the highest root node
     _graph: Union["NodeGraph", "DetachedNodeGraph", None] = p_runtime(default=None)

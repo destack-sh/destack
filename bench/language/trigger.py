@@ -6,8 +6,10 @@ import pytz
 from croniter import croniter
 
 from bench.language.const import NodeType, ScheduleType, StructType, TriggerType
+from bench.language.graph import NodeList
 from bench.language.node import Node, Struct, node, struct
-from bench.language.property import Property, p_node_parent, p_regular
+from bench.language.notice import Notice
+from bench.language.property import Property, p_node_child, p_node_parent, p_regular
 from bench.language.validation import (
     ValidationHandler,
     enum_validator,
@@ -75,6 +77,8 @@ class Trigger(Node[TriggerData]):
         34, default=None, require=False, array=False, references=NodeType.BLOCK
     )
     # cursor, filter, ...
+
+    notices: NodeList["Notice"] = p_node_child(NodeType.NOTICE)
 
     def __content_str__(self):
         if self.type == TriggerType.SCHEDULE and self.schedule:

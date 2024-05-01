@@ -220,7 +220,7 @@ defineExpose<ViewExposed>({ self, id, variants: [Variant.PRIMARY, Variant.STEALT
       <!-- ... -->
     </div>
     <!-- Body -->
-    <div class="flex flex-col gap-y-1 py-1">
+    <div class="flex flex-col gap-y-1.5 py-1">
       <!-- Variable ... -->
       <Value
         v-if="block.type == BlockType.VARIABLE"

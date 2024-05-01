@@ -5,7 +5,7 @@ from typing import TYPE_CHECKING, Any, Collection, Optional, Union
 
 from bench.language.const import BlockType, NodeType, NodeVisibility, StructType
 from bench.language.database import HasDatabase
-from bench.language.node import Node, NodeList, NRel, _Passthrough, node, node_component
+from bench.language.node import Node, NodeList, _Passthrough, node, node_component
 from bench.language.property import (
     p_internal,
     p_node_child,
@@ -31,6 +31,7 @@ if TYPE_CHECKING:
         Code,
         Field,
         Icon,
+        Notice,
         Package,
         Policy,
         Property,
@@ -106,13 +107,10 @@ class Block(Node[BlockData], HasValues):
     """A building block containing logic, types, UI, data, AI, - any Bench program source."""
 
     parent: Union["Block", "Package"] = p_node_parent(4, NodeType.BLOCK, NodeType.PACKAGE)
-    blocks: NodeList["Block"] = p_node_child(
-        NodeType.BLOCK, NRel.NAMED | NRel.SCOPED | NRel.ORDERED
-    )
+    blocks: NodeList["Block"] = p_node_child(NodeType.BLOCK)
     badges: NodeList["Badge"] = p_node_child(NodeType.BADGE)
-    fields: NodeList["Field"] = p_node_child(
-        NodeType.FIELD, NRel.NAMED | NRel.SCOPED | NRel.ORDERED
-    )
+    fields: NodeList["Field"] = p_node_child(NodeType.FIELD)
+    notices: NodeList["Notice"] = p_node_child(NodeType.NOTICE)
 
     # core
     type: BlockType = p_internal(30, validate=enum_validator(BlockType))

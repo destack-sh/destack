@@ -1,6 +1,7 @@
 import contextvars
 import enum
 import typing
+from datetime import datetime, timedelta
 from typing import Any, Optional, cast
 from uuid import UUID
 
@@ -11,7 +12,7 @@ from bench.utils.utils import frozendict
 if typing.TYPE_CHECKING:
     from bench.language import Session, Transaction
 
-VERSION = "2024.04.30.2"
+VERSION = "2024.05.01.1"
 REVISION_PENDING = -1
 TK_LENGTH_BYTES = 8
 TK_LENGTH_B64 = 12  # 1.5 * TK_LENGTH_BYTES (must be integer)
@@ -445,10 +446,6 @@ class NodeRelationFlag(enum.IntFlag):
 
     DEFAULT = 0  # default inline relation
     STORED_CUSTOM = 2**0  # not inline: Block->Record, ...
-    CUMULATIVE = 2**1  # sum of descendants: Package->Issue, Block->Issue, ...
-    NAMED = 2**2  # indexed by name: Package->Block, Block->Block, ...
-    SCOPED = 2**3  # scoped by name: Package->Block, Block->Block, ...
-    ORDERED = 2**4  # ordered: Block->Block, Block->Field, ...
 
 
 NRel = NodeRelationFlag
@@ -599,7 +596,7 @@ class PolicyEffect(IdEnum):
 class PrimitiveType(IdEnum):
     """
     Fundamental column / storage types we support (subset of SQL types, used directly in sql/core).
-    NOTE: the ids here are used in value pack/unpack keys, so any changes are breaking.
+    NOTE: the ids here are used in type identity keys, so any change is breaking.
     """
 
     BOOLEAN = 1
@@ -620,6 +617,9 @@ class PrimitiveType(IdEnum):
     UUID = 19
     DATETIME = 20
     INTERVAL = 21
+
+
+PrimitiveValue = bool | int | float | str | bytes | UUID | datetime | timedelta
 
 
 @enum_(EnumType.FORMAT_HINT)
