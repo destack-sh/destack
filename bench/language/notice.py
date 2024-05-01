@@ -1,16 +1,17 @@
 import functools
-from typing import TYPE_CHECKING, Any, Callable, Collection, Optional, TypedDict, Union, cast
+from typing import TYPE_CHECKING, Any, Callable, Collection, Optional, TypedDict, Union
 from uuid import UUID
 
 from bench.language.const import BenchError, NodeType, NoticeKind, StructType
 from bench.language.node import LINK_TARGET_NODE_TYPES, Node, Property, node
 from bench.language.property import p_node_parent, p_regular
+from bench.language.text import Text
 from bench.language.validation import enum_validator
 from bench.proto.wire import NoticeData
 from bench.utils.func import IdEnum
 
 if TYPE_CHECKING:
-    from bench.language import Block, Field, Path, Step, Struct, Trigger, View, Text
+    from bench.language import Block, Field, Path, Step, Struct, Trigger, View
 
 # pyright: reportIncompatibleVariableOverride=false
 
@@ -89,7 +90,7 @@ class Notice(Node[NoticeData]):
         return self.parent.id if self.parent is not None else None
 
 
-class NoticeExtra(TypedDict):
+class NoticeOptions(TypedDict, total=False):
     origin: Optional["Node"]  # if distinct form subject/parent
     title: Optional[str]
     text: Optional[str | Text]
@@ -97,29 +98,19 @@ class NoticeExtra(TypedDict):
     properties: Optional[Collection[Property] | Collection[Any]]
 
 
-NoticeHandler = Callable[
-    ["Struct", NoticeType, Optional[NoticeExtra]],
-    None,
-]
+NoticeHandler = Callable[["Struct", NoticeType, Optional[NoticeOptions]], None]
 
 
 def on_warning_raise(
     subject: "Struct",
     type: "NoticeType",
-    extra: Optional[NoticeExtra] = None,
+    options: Optional[NoticeOptions] = None,
     min_level: NoticeKind = NoticeKind.WARNING,
 ):
-    if type.kind >= min_level:
-        assert subject.metatype in NOTICE_PARENT_TYPES
-        notice = Notice(
-            parent=cast(NoticeParent, subject),
-            type=type,
-            kind=type.kind,
-            message=message,
-            path=path,
-            properties=cast(list["Property"], properties),
-        )
-        raise NoticeError(notice)
+    if type.kind < min_level:
+        return
+    options = options or {}
+    raise NotImplementedError(":Incomplete Notices")
 
 
 on_error_raise = functools.partial(on_warning_raise, min_level=NoticeKind.ERROR)

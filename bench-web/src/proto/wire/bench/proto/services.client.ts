@@ -10,8 +10,8 @@ import { Runtime } from "./services";
 import type { RestartRuntimeResponse } from "./services";
 import type { RestartRuntimeRequest } from "./services";
 import { Host } from "./services";
-import type { RunIntrinsicBlockResponse } from "./services";
-import type { RunIntrinsicBlockRequest } from "./services";
+import type { RunIntrinsicResponse } from "./services";
+import type { RunIntrinsicRequest } from "./services";
 import type { PingServerRequest } from "./services";
 import type { PingServerResponse } from "./services";
 import type { RestartServerRequest } from "./services";
@@ -512,9 +512,9 @@ export interface IHostClient {
     /**
      * Runs a system-intrinsic Block.
      *
-     * @generated from protobuf rpc: RunIntrinsicBlock(symbolx.bench.RunIntrinsicBlockRequest) returns (symbolx.bench.RunIntrinsicBlockResponse);
+     * @generated from protobuf rpc: RunIntrinsic(symbolx.bench.RunIntrinsicRequest) returns (symbolx.bench.RunIntrinsicResponse);
      */
-    runIntrinsicBlock(input: RunIntrinsicBlockRequest, options?: OperationOptions): UnaryCall<RunIntrinsicBlockRequest, RunIntrinsicBlockResponse>;
+    runIntrinsic(input: RunIntrinsicRequest, options?: OperationOptions): UnaryCall<RunIntrinsicRequest, RunIntrinsicResponse>;
 }
 /**
  * The host providing access and the persistent 'system-side' OS for a Bench.
@@ -656,11 +656,11 @@ export class HostClient implements IHostClient, ServiceInfo {
     /**
      * Runs a system-intrinsic Block.
      *
-     * @generated from protobuf rpc: RunIntrinsicBlock(symbolx.bench.RunIntrinsicBlockRequest) returns (symbolx.bench.RunIntrinsicBlockResponse);
+     * @generated from protobuf rpc: RunIntrinsic(symbolx.bench.RunIntrinsicRequest) returns (symbolx.bench.RunIntrinsicResponse);
      */
-    runIntrinsicBlock(input: RunIntrinsicBlockRequest, options?: OperationOptions): UnaryCall<RunIntrinsicBlockRequest, RunIntrinsicBlockResponse> {
+    runIntrinsic(input: RunIntrinsicRequest, options?: OperationOptions): UnaryCall<RunIntrinsicRequest, RunIntrinsicResponse> {
         const method = this.methods[14], opt = this._transport.mergeOptions(options);
-        return stackIntercept<RunIntrinsicBlockRequest, RunIntrinsicBlockResponse>("unary", this._transport, method, opt, input);
+        return stackIntercept<RunIntrinsicRequest, RunIntrinsicResponse>("unary", this._transport, method, opt, input);
     }
 }
 /**

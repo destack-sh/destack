@@ -12,7 +12,7 @@ from bench.utils.utils import frozendict
 if typing.TYPE_CHECKING:
     from bench.language import Session, Transaction
 
-VERSION = "2024.05.01.2"
+VERSION = "2024.05.01.3"
 REVISION_PENDING = -1
 TK_LENGTH_BYTES = 8
 TK_LENGTH_B64 = 12  # 1.5 * TK_LENGTH_BYTES (must be integer)
@@ -78,6 +78,7 @@ class EnumType(IdEnum):
     PRIMITIVE_TYPE = 2080
     FORMAT_HINT = 2081
     FIELD_KIND = 2082
+    TYPE_KIND = 2083
 
     # text
     TEXT_LINE_TYPE = 2090
@@ -106,11 +107,12 @@ class EnumType(IdEnum):
     # session
     LOG_KIND = 2250
     LOG_LEVEL = 2251
-    TRIGGER_TYPE = 2263
-    RUN_STATUS = 2254
-    RUN_ERROR_KIND = 2255
-    NOTICE_KIND = 2260
-    NOTIFICATION_KIND = 2261
+    RUN_STATUS = 2260
+    RUN_KIND = 2261
+    RUN_ERROR_KIND = 2262
+    TRIGGER_TYPE = 2270
+    NOTICE_KIND = 2280
+    NOTIFICATION_KIND = 2281
 
     # expression
     EXPRESSION_KIND = 2300

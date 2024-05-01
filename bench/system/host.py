@@ -32,8 +32,8 @@ from bench.proto.wire import (
     EditData,
     GraphScope,
     HostBase,
-    RunIntrinsicBlockRequest,
-    RunIntrinsicBlockResponse,
+    RunIntrinsicRequest,
+    RunIntrinsicResponse,
     UploadFilesRequest,
     UploadFilesResponse,
 )
@@ -215,6 +215,6 @@ class Host(GraphIoServiceBase, HostBase):
     #
 
     async def run_intrinsic_block(
-        self, subject: Subject, request: "RunIntrinsicBlockRequest"
-    ) -> "RunIntrinsicBlockResponse":
+        self, subject: Subject, request: "RunIntrinsicRequest"
+    ) -> "RunIntrinsicResponse":
         raise GRPCError(GRPCStatus.UNIMPLEMENTED)

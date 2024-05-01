@@ -303,8 +303,8 @@ message PingServerRequest {
 message PingServerResponse {
 }
 
-message RunIntrinsicBlockRequest {
-  oneof block {
+message RunIntrinsicRequest {
+  oneof node {
     PathData path = 1;
     NodeReferenceData reference = 2;
   }
@@ -313,7 +313,7 @@ message RunIntrinsicBlockRequest {
   string run_id = 5;
   string run_ck = 6;
 }
-message RunIntrinsicBlockResponse {
+message RunIntrinsicResponse {
   google.protobuf.Struct outputs = 1;
   optional RunErrorData error = 2;
 }
@@ -361,7 +361,7 @@ service Host {
   // Ensure the server for a Bench is running.
   rpc PingServer(PingServerRequest) returns (PingServerResponse);
   // Runs a system-intrinsic Block.
-  rpc RunIntrinsicBlock(RunIntrinsicBlockRequest) returns (RunIntrinsicBlockResponse);
+  rpc RunIntrinsic(RunIntrinsicRequest) returns (RunIntrinsicResponse);
 
 }
 

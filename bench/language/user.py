@@ -230,7 +230,7 @@ class Invite(Node[InviteData]):
 )
 class Notification(BasedNode[NotificationData], HasValues):
     """
-    A notification for the Bench's owner.
+    A Notification for someone in that Bench.
     As with most Bench stuff, the main Bench's main package is the 'truth'.
     """
 
@@ -240,7 +240,7 @@ class Notification(BasedNode[NotificationData], HasValues):
     type: Optional["Block"] = p_system(32, require=False, array=False, references=NodeType.BLOCK)
     expires_at: Optional[datetime] = p_internal(33, default=None)
     read_at: Optional[datetime] = p_internal(34, default=None)
-    sender: Optional["Block"] = p_internal(
+    origin: Optional["Block"] = p_internal(
         35, require=False, array=False, references=NodeType.BLOCK
     )
 

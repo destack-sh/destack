@@ -543,7 +543,7 @@ class LogLevel(betterproto.Enum):
     INFO = 3
     WARNING = 4
     ERROR = 5
-    FATAL = 6
+    CRITICAL = 6
 
 
 class NodeSource(betterproto.Enum):
@@ -2252,7 +2252,7 @@ class LinkData(betterproto.Message):
 @dataclass(eq=False, repr=False)
 class LogData(betterproto.Message):
     """
-    A log (entry) is a timestamped event of something happening:
+    A Log (entry) is a timestamped event of something happening:
      a message, some Access (read, edit, use), etc.
     """
 
@@ -2274,7 +2274,7 @@ class LogData(betterproto.Message):
     level: "LogLevel" = betterproto.enum_field(31)
     logger: Optional[str] = betterproto.string_field(32, optional=True)
     event: Optional[str] = betterproto.string_field(33, optional=True)
-    message: Optional[str] = betterproto.string_field(34, optional=True)
+    title: Optional[str] = betterproto.string_field(34, optional=True)
     text: Optional["TextData"] = betterproto.message_field(35, optional=True)
     value_packed: Optional["betterproto_lib_google_protobuf.Struct"] = betterproto.message_field(
         36, optional=True
@@ -2283,6 +2283,7 @@ class LogData(betterproto.Message):
     session_ptr: Optional["NodeReferenceData"] = betterproto.message_field(40, optional=True)
     run_ptr: Optional["NodeReferenceData"] = betterproto.message_field(41, optional=True)
     block_ptr: Optional["NodeReferenceData"] = betterproto.message_field(42, optional=True)
+    step_ptr: Optional["NodeReferenceData"] = betterproto.message_field(43, optional=True)
 
 
 @dataclass(eq=False, repr=False)
@@ -2337,7 +2338,7 @@ class BaseNodeData(betterproto.Message):
 @dataclass(eq=False, repr=False)
 class NoticeData(betterproto.Message):
     """
-    Notice(parent: Union[ForwardRef('Block'), ForwardRef('Field'), ForwardRef('Step'), ForwardRef('View'), ForwardRef('Trigger')] = None, kind: bench.language.const.NoticeKind = None, type: bench.language.notice.NoticeType = <factory>, origin: Optional[ForwardRef('Node')] = None, message: Optional[str] = None, path: Optional[ForwardRef('Path')] = None, properties: Optional[list[bench.language.property.Property]] = <factory>, id: uuid.UUID = None, set_properties: list[int] = <factory>, _status: bench.language.const.InterpStatus = None, _updated_properties: bitarray.bitarray | None = None, ck: uuid.UUID = None, source: bench.language.const.NodeSource = <NodeSource.STORE: 1>, revision: int = 0, created_at: datetime.datetime = None, updated_at: datetime.datetime = None, deleted_at: Optional[datetime.datetime] = None, archived_at: Optional[datetime.datetime] = None, created_by: Union[ForwardRef('User'), ForwardRef('Run'), NoneType] = None, updated_by: Union[ForwardRef('User'), ForwardRef('Run'), NoneType] = None, links: bench.language.graph.NodeList['Link'] = None, _graph: Union[ForwardRef('NodeGraph'), ForwardRef('DetachedNodeGraph'), NoneType] = None, _data_graph: Optional[ForwardRef('NodeDataGraph')] = None, _session: Optional[ForwardRef('Session')] = None, _is_new: bool = False, parent_ptr: 'NodeReference' = None, origin_ptr: 'NodeReference' = None, properties_ptr: list['PropertyReference'] = None, created_by_ptr: 'NodeReference' = None, updated_by_ptr: 'NodeReference' = None)
+    Notice(parent: Union[ForwardRef('Block'), ForwardRef('Field'), ForwardRef('Step'), ForwardRef('View'), ForwardRef('Trigger')] = None, kind: bench.language.const.NoticeKind = None, type: bench.language.notice.NoticeType = <factory>, origin: Optional[ForwardRef('Node')] = None, path: Optional[ForwardRef('Path')] = None, title: Optional[str] = None, text: Optional[ForwardRef('Text')] = None, properties: Optional[list[bench.language.property.Property]] = <factory>, id: uuid.UUID = None, set_properties: list[int] = <factory>, _status: bench.language.const.InterpStatus = None, _updated_properties: bitarray.bitarray | None = None, ck: uuid.UUID = None, source: bench.language.const.NodeSource = <NodeSource.STORE: 1>, revision: int = 0, created_at: datetime.datetime = None, updated_at: datetime.datetime = None, deleted_at: Optional[datetime.datetime] = None, archived_at: Optional[datetime.datetime] = None, created_by: Union[ForwardRef('User'), ForwardRef('Run'), NoneType] = None, updated_by: Union[ForwardRef('User'), ForwardRef('Run'), NoneType] = None, links: bench.language.graph.NodeList['Link'] = None, _graph: Union[ForwardRef('NodeGraph'), ForwardRef('DetachedNodeGraph'), NoneType] = None, _data_graph: Optional[ForwardRef('NodeDataGraph')] = None, _session: Optional[ForwardRef('Session')] = None, _is_new: bool = False, parent_ptr: 'NodeReference' = None, origin_ptr: 'NodeReference' = None, properties_ptr: list['PropertyReference'] = None, created_by_ptr: 'NodeReference' = None, updated_by_ptr: 'NodeReference' = None)
     """
 
     metatype: "ObjectType" = betterproto.enum_field(1)
@@ -2358,15 +2359,16 @@ class NoticeData(betterproto.Message):
     kind: "NoticeKind" = betterproto.enum_field(30)
     type: "NoticeType" = betterproto.enum_field(31)
     origin_ptr: Optional["NodeReferenceData"] = betterproto.message_field(33, optional=True)
-    message: Optional[str] = betterproto.string_field(34, optional=True)
-    path: Optional["PathData"] = betterproto.message_field(35, optional=True)
-    properties_ptr: List["PropertyReferenceData"] = betterproto.message_field(36)
+    path: Optional["PathData"] = betterproto.message_field(34, optional=True)
+    title: Optional[str] = betterproto.string_field(35, optional=True)
+    text: Optional["TextData"] = betterproto.message_field(36, optional=True)
+    properties_ptr: List["PropertyReferenceData"] = betterproto.message_field(37)
 
 
 @dataclass(eq=False, repr=False)
 class NotificationData(betterproto.Message):
     """
-    A notification for the Bench's owner.
+    A Notification for someone in that Bench.
      As with most Bench stuff, the main Bench's main package is the 'truth'.
     """
 
@@ -2389,7 +2391,7 @@ class NotificationData(betterproto.Message):
     type_ptr: Optional["NodeReferenceData"] = betterproto.message_field(32, optional=True)
     expires_at: Optional[datetime] = betterproto.message_field(33, optional=True)
     read_at: Optional[datetime] = betterproto.message_field(34, optional=True)
-    sender_ptr: Optional["NodeReferenceData"] = betterproto.message_field(35, optional=True)
+    origin_ptr: Optional["NodeReferenceData"] = betterproto.message_field(35, optional=True)
     title: Optional[str] = betterproto.string_field(40, optional=True)
     text: Optional["TextData"] = betterproto.message_field(41, optional=True)
     value_packed: Optional["betterproto_lib_google_protobuf.Struct"] = betterproto.message_field(
@@ -2560,7 +2562,11 @@ class RoleData(betterproto.Message):
 
 @dataclass(eq=False, repr=False)
 class RunData(betterproto.Message):
-    """A 'run' of a Block or something (in a session)."""
+    """
+    A 'run' of something. Can run Blocks (and Steps within them) or 'lambdas' (just Code/Text).
+     When 'running' something that's not directly runnable (like a Text Block, Text Step or Text Lambda),
+     we figure
+    """
 
     metatype: "ObjectType" = betterproto.enum_field(1)
     id: str = betterproto.string_field(2)
@@ -2581,11 +2587,15 @@ class RunData(betterproto.Message):
     root_ptr: Optional["NodeReferenceData"] = betterproto.message_field(31, optional=True)
     server_ptr: Optional["NodeReferenceData"] = betterproto.message_field(32, optional=True)
     block_ptr: Optional["NodeReferenceData"] = betterproto.message_field(33, optional=True)
-    scheduled_at: Optional[datetime] = betterproto.message_field(35, optional=True)
-    started_at: Optional[datetime] = betterproto.message_field(36, optional=True)
-    terminated_at: Optional[datetime] = betterproto.message_field(37, optional=True)
-    duration: float = betterproto.float_field(38)
-    status: "RunStatus" = betterproto.enum_field(39)
+    step_ptr: Optional["NodeReferenceData"] = betterproto.message_field(34, optional=True)
+    code: Optional["CodeData"] = betterproto.message_field(35, optional=True)
+    text: Optional["TextData"] = betterproto.message_field(36, optional=True)
+    status: "RunStatus" = betterproto.enum_field(40)
+    scheduled_at: Optional[datetime] = betterproto.message_field(41, optional=True)
+    started_at: Optional[datetime] = betterproto.message_field(42, optional=True)
+    paused_at: Optional[datetime] = betterproto.message_field(43, optional=True)
+    terminated_at: Optional[datetime] = betterproto.message_field(44, optional=True)
+    duration: Optional[float] = betterproto.float_field(45, optional=True)
     inputs_packed: Optional["betterproto_lib_google_protobuf.Struct"] = betterproto.message_field(
         50, optional=True
     )
@@ -2604,9 +2614,7 @@ class RunData(betterproto.Message):
     value_secret_packed: Optional[
         "betterproto_lib_google_protobuf.Struct"
     ] = betterproto.message_field(55, optional=True)
-    error: Optional["betterproto_lib_google_protobuf.Struct"] = betterproto.message_field(
-        56, optional=True
-    )
+    error: Optional["RunErrorData"] = betterproto.message_field(56, optional=True)
 
 
 @dataclass(eq=False, repr=False)
@@ -2647,7 +2655,7 @@ class ServerData(betterproto.Message):
 @dataclass(eq=False, repr=False)
 class SessionData(betterproto.Message):
     """
-    A managed session for interacting with Bench nodes and (if on a Server) running them.
+    A managed Session for interacting with Bench nodes and running them (in a Runtime).
     """
 
     metatype: "ObjectType" = betterproto.enum_field(1)
@@ -2693,7 +2701,7 @@ class SignalData(betterproto.Message):
     updated_by_ptr: Optional["NodeReferenceData"] = betterproto.message_field(18, optional=True)
     set_properties: List[int] = betterproto.int32_field(22)
     type_ptr: Optional["NodeReferenceData"] = betterproto.message_field(31, optional=True)
-    sender_ptr: Optional["NodeReferenceData"] = betterproto.message_field(33, optional=True)
+    origin_ptr: Optional["NodeReferenceData"] = betterproto.message_field(33, optional=True)
     value_packed: Optional["betterproto_lib_google_protobuf.Struct"] = betterproto.message_field(
         34, optional=True
     )
@@ -3378,9 +3386,9 @@ class PingServerResponse(betterproto.Message):
 
 
 @dataclass(eq=False, repr=False)
-class RunIntrinsicBlockRequest(betterproto.Message):
-    path: "PathData" = betterproto.message_field(1, group="block")
-    reference: "NodeReferenceData" = betterproto.message_field(2, group="block")
+class RunIntrinsicRequest(betterproto.Message):
+    path: "PathData" = betterproto.message_field(1, group="node")
+    reference: "NodeReferenceData" = betterproto.message_field(2, group="node")
     inputs: "betterproto_lib_google_protobuf.Struct" = betterproto.message_field(3)
     timeout_ms: int = betterproto.int32_field(4)
     run_id: str = betterproto.string_field(5)
@@ -3388,7 +3396,7 @@ class RunIntrinsicBlockRequest(betterproto.Message):
 
 
 @dataclass(eq=False, repr=False)
-class RunIntrinsicBlockResponse(betterproto.Message):
+class RunIntrinsicResponse(betterproto.Message):
     outputs: "betterproto_lib_google_protobuf.Struct" = betterproto.message_field(1)
     error: Optional["RunErrorData"] = betterproto.message_field(2, optional=True)
 
@@ -4023,18 +4031,18 @@ class HostStub(betterproto.ServiceStub):
             metadata=metadata,
         )
 
-    async def run_intrinsic_block(
+    async def run_intrinsic(
         self,
-        request: "RunIntrinsicBlockRequest",
+        request: "RunIntrinsicRequest",
         *,
         timeout: Optional[float] = None,
         deadline: Optional["Deadline"] = None,
         metadata: Optional["MetadataLike"] = None
-    ) -> "RunIntrinsicBlockResponse":
+    ) -> "RunIntrinsicResponse":
         return await self._unary_unary(
-            "/symbolx.bench.Host/RunIntrinsicBlock",
+            "/symbolx.bench.Host/RunIntrinsic",
             request,
-            RunIntrinsicBlockResponse,
+            RunIntrinsicResponse,
             timeout=timeout,
             deadline=deadline,
             metadata=metadata,
@@ -4551,9 +4559,9 @@ class HostBase(ServiceBase):
     ) -> "PingServerResponse":
         raise grpclib.GRPCError(grpclib.const.Status.UNIMPLEMENTED)
 
-    async def run_intrinsic_block(
-        self, subject: "Subject", request: "RunIntrinsicBlockRequest"
-    ) -> "RunIntrinsicBlockResponse":
+    async def run_intrinsic(
+        self, subject: "Subject", request: "RunIntrinsicRequest"
+    ) -> "RunIntrinsicResponse":
         raise grpclib.GRPCError(grpclib.const.Status.UNIMPLEMENTED)
 
     async def __rpc_get_nodes(
@@ -4664,12 +4672,11 @@ class HostBase(ServiceBase):
         response = await self.ping_server(request)
         await stream.send_message(response)
 
-    async def __rpc_run_intrinsic_block(
-        self,
-        stream: "grpclib.server.Stream[RunIntrinsicBlockRequest, RunIntrinsicBlockResponse]",
+    async def __rpc_run_intrinsic(
+        self, stream: "grpclib.server.Stream[RunIntrinsicRequest, RunIntrinsicResponse]"
     ) -> None:
         request = await stream.recv_message()
-        response = await self.run_intrinsic_block(request)
+        response = await self.run_intrinsic(request)
         await stream.send_message(response)
 
     def __mapping__(self) -> Dict[str, grpclib.const.Handler]:
@@ -4758,11 +4765,11 @@ class HostBase(ServiceBase):
                 PingServerRequest,
                 PingServerResponse,
             ),
-            "/symbolx.bench.Host/RunIntrinsicBlock": grpclib.const.Handler(
-                self.__rpc_run_intrinsic_block,
+            "/symbolx.bench.Host/RunIntrinsic": grpclib.const.Handler(
+                self.__rpc_run_intrinsic,
                 grpclib.const.Cardinality.UNARY_UNARY,
-                RunIntrinsicBlockRequest,
-                RunIntrinsicBlockResponse,
+                RunIntrinsicRequest,
+                RunIntrinsicResponse,
             ),
         }
 
@@ -4794,7 +4801,7 @@ class RuntimeBase(ServiceBase):
 
 from typing import TYPE_CHECKING  # noqa: E402
 
-VERSION = "2024.05.01.2"
+VERSION = "2024.05.01.3"
 
 if TYPE_CHECKING:
     from bench.language import Subject

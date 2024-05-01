@@ -1,4 +1,4 @@
-from typing import TYPE_CHECKING, Optional
+from typing import TYPE_CHECKING, Optional, Union
 
 from bench.language.const import EnumType, StructType, enum_
 from bench.language.node import LINK_TARGET_NODE_TYPES, Node, Struct, struct, struct_component
@@ -19,6 +19,20 @@ class Text(Struct):
     @staticmethod
     def plain(text: str) -> "Text":
         return Text(lines=[TextLine.plain(text)])
+
+    @staticmethod
+    def to_text(value: Union[str, "Text"]) -> "Text":
+        if isinstance(value, str):
+            return Text.plain(value)
+        else:
+            return value
+
+    @staticmethod
+    def to_text_maybe(value: Optional[Union[str, "Text"]]) -> Optional["Text"]:
+        if value is None:
+            return None
+        else:
+            return Text.to_text(value)
 
 
 @struct_component()

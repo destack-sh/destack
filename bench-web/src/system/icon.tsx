@@ -391,7 +391,7 @@ export const ICON_BY_LEVEL: Record<LogLevel, IconData> = {
   [LogLevel.INFO]: makeIcon({ faName: "fas fa-circle-check" }),
   [LogLevel.WARNING]: makeIcon({ faName: "fas fa-exclamation-triangle" }),
   [LogLevel.ERROR]: makeIcon({ faName: "fas fa-exclamation-circle" }),
-  [LogLevel.FATAL]: makeIcon({ faName: "fas fa-skull" }),
+  [LogLevel.CRITICAL]: makeIcon({ faName: "fas fa-skull" }),
 };
 
 export const ENUM_ICONS_BY_TYPE: Partial<Record<EnumType, Record<any, IconData>>> = {

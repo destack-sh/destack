@@ -91,14 +91,13 @@ if TYPE_CHECKING:
         NodeReference,
         NoticeType,
         Package,
-        Path,
         PropertyReference,
         Run,
         Session,
         User,
         Value,
     )
-    from bench.language.notice import NoticeHandler
+    from bench.language.notice import NoticeHandler, NoticeOptions
     from bench.language.query import QueryBuilder
 
 # pyright: reportIncompatibleVariableOverride=false,reportIncompatibleMethodOverride=false
@@ -1218,14 +1217,14 @@ class Struct(abc.ABC, Generic[StructDataT]):
                     for p in ptr:
                         r = scope._root_graph.get(cast(UUID, p.id or p.ck))
                         if r is None:
-                            on_notice(self, NoticeType.MISSING_REFERENCE, {'properties': (prop,)})
+                            on_notice(self, NoticeType.MISSING_REFERENCE, {"properties": (prop,)})
                         resolved.append(r)
                     self.__dict__[prop.name] = resolved
                 else:
                     ptr = cast("NodeReference", ptr)
                     resolved = scope._root_graph.get(cast(UUID, ptr.id or ptr.ck))
                     if resolved is None:
-                        on_notice(self, NoticeType.MISSING_REFERENCE, None, None, (prop,))
+                        on_notice(self, NoticeType.MISSING_REFERENCE, {"properties": (prop,)})
                     self.__dict__[prop.name] = resolved
 
         # resolve property references
@@ -1706,14 +1705,9 @@ class Node(Struct[NodeDataT], Generic[NodeDataT]):
         self,
         subject: "Struct",
         type: "NoticeType",
-        message: Optional[str],
-        path: Optional["Path"],
-        properties: Optional[Collection[Property] | Collection[Any]],
+        options: Optional["NoticeOptions"],
     ) -> None:
         pass  # TODO :Incomplete: Notices
-        # subject.notices.create(
-        #     type=type, message=message, path=path, properties=properties, source=NodeSource.INTERP
-        # )
 
     def _to_data_wrapped(self) -> SomeNodeData:
         """To wire format, wrapped in the generic any node container."""

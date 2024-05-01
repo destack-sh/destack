@@ -521,7 +521,7 @@ enum LogLevel {
   LOG_LEVEL_INFO = 3;
   LOG_LEVEL_WARNING = 4;
   LOG_LEVEL_ERROR = 5;
-  LOG_LEVEL_FATAL = 6;
+  LOG_LEVEL_CRITICAL = 6;
 }
 
 enum NodeSource {
@@ -2017,7 +2017,7 @@ message LinkData {
   optional string order_key = 32;
 }
 
-// A log (entry) is a timestamped event of something happening:
+// A Log (entry) is a timestamped event of something happening:
 // a message, some Access (read, edit, use), etc.
 message LogData {
   ObjectType metatype = 1;
@@ -2038,13 +2038,14 @@ message LogData {
   LogLevel level = 31;
   optional string logger = 32;
   optional string event = 33;
-  optional string message = 34;
+  optional string title = 34;
   optional TextData text = 35;
   optional google.protobuf.Struct value_packed = 36;
   optional RequestData request = 37;
   optional NodeReferenceData session_ptr = 40;
   optional NodeReferenceData run_ptr = 41;
   optional NodeReferenceData block_ptr = 42;
+  optional NodeReferenceData step_ptr = 43;
 }
 
 // A membership to this Bench (and its owner if it's the main Bench).
@@ -2090,7 +2091,7 @@ message BaseNodeData {
   repeated int32 set_properties = 22;
 }
 
-// Notice(parent: Union[ForwardRef('Block'), ForwardRef('Field'), ForwardRef('Step'), ForwardRef('View'), ForwardRef('Trigger')] = None, kind: bench.language.const.NoticeKind = None, type: bench.language.notice.NoticeType = <factory>, origin: Optional[ForwardRef('Node')] = None, message: Optional[str] = None, path: Optional[ForwardRef('Path')] = None, properties: Optional[list[bench.language.property.Property]] = <factory>, id: uuid.UUID = None, set_properties: list[int] = <factory>, _status: bench.language.const.InterpStatus = None, _updated_properties: bitarray.bitarray | None = None, ck: uuid.UUID = None, source: bench.language.const.NodeSource = <NodeSource.STORE: 1>, revision: int = 0, created_at: datetime.datetime = None, updated_at: datetime.datetime = None, deleted_at: Optional[datetime.datetime] = None, archived_at: Optional[datetime.datetime] = None, created_by: Union[ForwardRef('User'), ForwardRef('Run'), NoneType] = None, updated_by: Union[ForwardRef('User'), ForwardRef('Run'), NoneType] = None, links: bench.language.graph.NodeList['Link'] = None, _graph: Union[ForwardRef('NodeGraph'), ForwardRef('DetachedNodeGraph'), NoneType] = None, _data_graph: Optional[ForwardRef('NodeDataGraph')] = None, _session: Optional[ForwardRef('Session')] = None, _is_new: bool = False, parent_ptr: 'NodeReference' = None, origin_ptr: 'NodeReference' = None, properties_ptr: list['PropertyReference'] = None, created_by_ptr: 'NodeReference' = None, updated_by_ptr: 'NodeReference' = None)
+// Notice(parent: Union[ForwardRef('Block'), ForwardRef('Field'), ForwardRef('Step'), ForwardRef('View'), ForwardRef('Trigger')] = None, kind: bench.language.const.NoticeKind = None, type: bench.language.notice.NoticeType = <factory>, origin: Optional[ForwardRef('Node')] = None, path: Optional[ForwardRef('Path')] = None, title: Optional[str] = None, text: Optional[ForwardRef('Text')] = None, properties: Optional[list[bench.language.property.Property]] = <factory>, id: uuid.UUID = None, set_properties: list[int] = <factory>, _status: bench.language.const.InterpStatus = None, _updated_properties: bitarray.bitarray | None = None, ck: uuid.UUID = None, source: bench.language.const.NodeSource = <NodeSource.STORE: 1>, revision: int = 0, created_at: datetime.datetime = None, updated_at: datetime.datetime = None, deleted_at: Optional[datetime.datetime] = None, archived_at: Optional[datetime.datetime] = None, created_by: Union[ForwardRef('User'), ForwardRef('Run'), NoneType] = None, updated_by: Union[ForwardRef('User'), ForwardRef('Run'), NoneType] = None, links: bench.language.graph.NodeList['Link'] = None, _graph: Union[ForwardRef('NodeGraph'), ForwardRef('DetachedNodeGraph'), NoneType] = None, _data_graph: Optional[ForwardRef('NodeDataGraph')] = None, _session: Optional[ForwardRef('Session')] = None, _is_new: bool = False, parent_ptr: 'NodeReference' = None, origin_ptr: 'NodeReference' = None, properties_ptr: list['PropertyReference'] = None, created_by_ptr: 'NodeReference' = None, updated_by_ptr: 'NodeReference' = None)
 message NoticeData {
   ObjectType metatype = 1;
   string id = 2;
@@ -2110,12 +2111,13 @@ message NoticeData {
   NoticeKind kind = 30;
   NoticeType type = 31;
   optional NodeReferenceData origin_ptr = 33;
-  optional string message = 34;
-  optional PathData path = 35;
-  repeated PropertyReferenceData properties_ptr = 36;
+  optional PathData path = 34;
+  optional string title = 35;
+  optional TextData text = 36;
+  repeated PropertyReferenceData properties_ptr = 37;
 }
 
-// A notification for the Bench's owner.
+// A Notification for someone in that Bench.
 // As with most Bench stuff, the main Bench's main package is the 'truth'.
 message NotificationData {
   ObjectType metatype = 1;
@@ -2137,7 +2139,7 @@ message NotificationData {
   optional NodeReferenceData type_ptr = 32;
   optional google.protobuf.Timestamp expires_at = 33;
   optional google.protobuf.Timestamp read_at = 34;
-  optional NodeReferenceData sender_ptr = 35;
+  optional NodeReferenceData origin_ptr = 35;
   optional string title = 40;
   optional TextData text = 41;
   optional google.protobuf.Struct value_packed = 42;
@@ -2280,7 +2282,9 @@ message RoleData {
   NodeReferenceData type_ptr = 30;
 }
 
-// A 'run' of a Block or something (in a session).
+// A 'run' of something. Can run Blocks (and Steps within them) or 'lambdas' (just Code/Text).
+// When 'running' something that's not directly runnable (like a Text Block, Text Step or Text Lambda),
+// we figure
 message RunData {
   ObjectType metatype = 1;
   string id = 2;
@@ -2301,18 +2305,22 @@ message RunData {
   optional NodeReferenceData root_ptr = 31;
   optional NodeReferenceData server_ptr = 32;
   optional NodeReferenceData block_ptr = 33;
-  optional google.protobuf.Timestamp scheduled_at = 35;
-  optional google.protobuf.Timestamp started_at = 36;
-  optional google.protobuf.Timestamp terminated_at = 37;
-  float duration = 38;
-  RunStatus status = 39;
+  optional NodeReferenceData step_ptr = 34;
+  optional CodeData code = 35;
+  optional TextData text = 36;
+  RunStatus status = 40;
+  optional google.protobuf.Timestamp scheduled_at = 41;
+  optional google.protobuf.Timestamp started_at = 42;
+  optional google.protobuf.Timestamp paused_at = 43;
+  optional google.protobuf.Timestamp terminated_at = 44;
+  optional float duration = 45;
   optional google.protobuf.Struct inputs_packed = 50;
   optional google.protobuf.Struct inputs_secret_packed = 51;
   optional google.protobuf.Struct outputs_packed = 52;
   optional google.protobuf.Struct outputs_secret_packed = 53;
   optional google.protobuf.Struct value_packed = 54;
   optional google.protobuf.Struct value_secret_packed = 55;
-  optional google.protobuf.Struct error = 56;
+  optional RunErrorData error = 56;
 }
 
 // A server providing the Runtime for a Bench.
@@ -2346,7 +2354,7 @@ message ServerData {
   optional google.protobuf.Timestamp last_bumped_at = 55;
 }
 
-// A managed session for interacting with Bench nodes and (if on a Server) running them.
+// A managed Session for interacting with Bench nodes and running them (in a Runtime).
 message SessionData {
   ObjectType metatype = 1;
   string id = 2;
@@ -2389,7 +2397,7 @@ message SignalData {
   optional NodeReferenceData updated_by_ptr = 18;
   repeated int32 set_properties = 22;
   optional NodeReferenceData type_ptr = 31;
-  optional NodeReferenceData sender_ptr = 33;
+  optional NodeReferenceData origin_ptr = 33;
   optional google.protobuf.Struct value_packed = 34;
   optional google.protobuf.Struct secret_value_packed = 35;
 }
