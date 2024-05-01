@@ -1,9 +1,12 @@
 from typing import TYPE_CHECKING, Any, Optional, Union
 
 from bench.language.const import EnumType, NodeType, StructType, enum_
+from bench.language.graph import NodeList
 from bench.language.node import Node, Struct, node, struct
+from bench.language.notice import Notice
 from bench.language.property import (
     p_internal,
+    p_node_child,
     p_node_parent,
     p_regular,
     p_secret_value_packed,
@@ -51,7 +54,7 @@ class StepConnection(Struct):
 class Step(Node[StepData], HasValues):
     """
     A logic, data or control flow unit in a Flow (Block).
-    NOTE: steps only track connections coming in.
+    NOTE: steps only track incoming connections.
     """
 
     parent: Union["Block", "Step"] = p_node_parent(4, NodeType.BLOCK, NodeType.STEP)
@@ -79,3 +82,4 @@ class Step(Node[StepData], HasValues):
 
     # flags
     # ...?
+    notices: NodeList["Notice"] = p_node_child(NodeType.NOTICE)

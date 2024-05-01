@@ -10,7 +10,9 @@ from bench.proto.wire import NoticeData
 from bench.utils.func import IdEnum
 
 if TYPE_CHECKING:
-    from bench.language import Block, Package, Path, Struct
+    from bench.language import Block, Field, Path, Step, Struct, Trigger, View
+
+# pyright: reportIncompatibleVariableOverride=false
 
 
 class NoticeType(IdEnum):
@@ -51,9 +53,19 @@ class NoticeError(BenchError, ValueError):
         self.cause = cause
 
 
+NoticeParent = Union["Block", "Field", "Step", "View", "Trigger"]
+NOTICE_PARENT_TYPES: tuple[NodeType, ...] = (
+    NodeType.BLOCK,
+    NodeType.FIELD,
+    NodeType.STEP,
+    NodeType.VIEW,
+    NodeType.TRIGGER,
+)
+
+
 @node(NodeType.NOTICE)
 class Notice(Node[NoticeData]):
-    parent: Union["Block", "Package"] = p_node_parent(4, NodeType.BLOCK, NodeType.PACKAGE)  # type: ignore
+    parent: NoticeParent = p_node_parent(4, *NOTICE_PARENT_TYPES)
     kind: NoticeKind = p_regular(30, default=None, validate=enum_validator(NoticeKind))
     type: NoticeType = p_regular(31, validate=enum_validator(NoticeType))
     # -> builtin_type / custom_type / ... 'type' as union
@@ -96,9 +108,9 @@ def on_warning_raise(
     min_level: NoticeKind = NoticeKind.WARNING,
 ):
     if type.kind >= min_level:
-        assert subject.metatype == NodeType.BLOCK or subject.metatype == NodeType.PACKAGE, subject
+        assert subject.metatype in NOTICE_PARENT_TYPES
         notice = Notice(
-            parent=cast(Union["Block", "Package"], subject),
+            parent=cast(NoticeParent, subject),
             type=type,
             kind=type.kind,
             message=message,

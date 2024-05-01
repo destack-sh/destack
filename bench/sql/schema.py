@@ -11,7 +11,7 @@ from bench.sql.core import (
     Table,
 )
 
-VERSION = "2024.04.30.2"
+VERSION = "2024.05.01.1"
 
 BENCH_TABLE = Table(
     "bench_bench",
@@ -524,9 +524,30 @@ NOTICE_TABLE = Table(
             is_nullable=True,
         ),
         Column(
-            "parent_package_id",
+            "parent_field_id",
             PrimitiveType.UUID,
-            is_foreign_key_to="bench_package",
+            is_foreign_key_to="bench_field",
+            on_delete=CascadeAction.CASCADE,
+            is_nullable=True,
+        ),
+        Column(
+            "parent_step_id",
+            PrimitiveType.UUID,
+            is_foreign_key_to="bench_step",
+            on_delete=CascadeAction.CASCADE,
+            is_nullable=True,
+        ),
+        Column(
+            "parent_view_id",
+            PrimitiveType.UUID,
+            is_foreign_key_to="bench_view",
+            on_delete=CascadeAction.CASCADE,
+            is_nullable=True,
+        ),
+        Column(
+            "parent_trigger_id",
+            PrimitiveType.UUID,
+            is_foreign_key_to="bench_trigger",
             on_delete=CascadeAction.CASCADE,
             is_nullable=True,
         ),
@@ -560,7 +581,7 @@ NOTICE_TABLE = Table(
         Constraint(
             "bench_check_one_parent",
             ConstraintType.CHECK,
-            condition="(parent_block_id IS NOT NULL) OR (parent_package_id IS NOT NULL)",
+            condition="(parent_block_id IS NOT NULL) OR (parent_field_id IS NOT NULL) OR (parent_step_id IS NOT NULL) OR (parent_view_id IS NOT NULL) OR (parent_trigger_id IS NOT NULL)",
         ),
     ),
 )
@@ -732,6 +753,7 @@ FIELD_TABLE = Table(
         Column("base_type_id", PrimitiveType.UUID, is_nullable=True),
         Column("base_type_ck", PrimitiveType.UUID, is_nullable=True),
         Column("base_type_bench_id", PrimitiveType.UUID, is_nullable=True),
+        Column("base_field_kind", PrimitiveType.INT16, is_nullable=True),
         Column("visibility", PrimitiveType.INT16, is_nullable=True),
         Column("format_hint", PrimitiveType.INT16, is_nullable=True),
         Column("condition", PrimitiveType.JSON, is_nullable=True),
