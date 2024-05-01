@@ -8,7 +8,7 @@ export const BG_COLOR_BY_LEVEL: Record<LogLevel, string> = {
   [LogLevel.INFO]: "bg-hint-500",
   [LogLevel.WARNING]: "bg-yellow-400",
   [LogLevel.ERROR]: "bg-danger-500",
-  [LogLevel.FATAL]: "bg-danger-500",
+  [LogLevel.CRITICAL]: "bg-danger-500",
 };
 export const ACCENT_COLOR_BY_LEVEL: Record<LogLevel, string> = {
   [LogLevel.UNSPECIFIED]: "text-gray-500",
@@ -17,7 +17,7 @@ export const ACCENT_COLOR_BY_LEVEL: Record<LogLevel, string> = {
   [LogLevel.INFO]: "text-hint-500",
   [LogLevel.WARNING]: "text-warning-400",
   [LogLevel.ERROR]: "text-danger-500",
-  [LogLevel.FATAL]: "text-danger-500",
+  [LogLevel.CRITICAL]: "text-danger-500",
 };
 
 export const COLOR_SHADE_INDEX: Record<ColorShade, number> = {

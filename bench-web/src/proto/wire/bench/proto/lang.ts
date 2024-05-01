@@ -1513,7 +1513,7 @@ export interface TextSpanData {
     isCode?: boolean;
 }
 /**
- * TypeInfo(id: int = <factory>, parent: Union[ForwardRef('Struct'), ForwardRef('Node'), ForwardRef('Value'), NoneType] = None, order_key: str | None = None, set_properties: list[int] = <factory>, _status: bench.language.const.InterpStatus = None, _updated_properties: bitarray.bitarray | None = None, primitive_type: Optional[bench.language.const.PrimitiveType] = None, bench_type: Optional[bench.utils.func.BenchType] = None, base_type: Optional[ForwardRef('Block')] = None, base_field_kind: Optional[ForwardRef('FieldKind')] = None, visibility: Optional[bench.language.const.NodeVisibility] = None, format_hint: Optional[bench.language.const.FormatHint] = None, condition: Optional[ForwardRef('Expression')] = None, default_packed: Optional[Any] = None, default: None = None, is_list: bool = False, is_secret: bool = False, is_required: bool = False, parent_id: int = None, parent_key: str = None, base_type_ptr: 'NodeReference' = None)
+ * TypeInfo(id: int = <factory>, parent: Union[ForwardRef('Struct'), ForwardRef('Node'), ForwardRef('Value'), NoneType] = None, order_key: str | None = None, set_properties: list[int] = <factory>, _status: bench.language.const.InterpStatus = None, _updated_properties: bitarray.bitarray | None = None, kind: bench.language.field.TypeKind = None, primitive_type: Optional[bench.language.const.PrimitiveType] = None, bench_type: Optional[bench.utils.func.BenchType] = None, base_type: Optional[ForwardRef('Block')] = None, base_field_zone: Optional[ForwardRef('FieldZone')] = None, visibility: Optional[bench.language.const.NodeVisibility] = None, format_hint: Optional[bench.language.const.FormatHint] = None, condition: Optional[ForwardRef('Expression')] = None, default_packed: Optional[Any] = None, default: None = None, is_list: bool = False, is_secret: bool = False, is_required: bool = False, parent_id: int = None, parent_key: str = None, base_type_ptr: 'NodeReference' = None)
  *
  * @generated from protobuf message symbolx.bench.TypeInfoData
  */
@@ -1543,21 +1543,25 @@ export interface TypeInfoData {
      */
     setProperties: number[];
     /**
-     * @generated from protobuf field: optional symbolx.bench.PrimitiveType primitive_type = 40;
+     * @generated from protobuf field: optional symbolx.bench.TypeKind kind = 40;
+     */
+    kind?: TypeKind;
+    /**
+     * @generated from protobuf field: optional symbolx.bench.PrimitiveType primitive_type = 41;
      */
     primitiveType?: PrimitiveType;
     /**
-     * @generated from protobuf field: optional symbolx.bench.BenchType bench_type = 41;
+     * @generated from protobuf field: optional symbolx.bench.BenchType bench_type = 42;
      */
     benchType?: BenchType;
     /**
-     * @generated from protobuf field: optional symbolx.bench.NodeReferenceData base_type_ptr = 42;
+     * @generated from protobuf field: optional symbolx.bench.NodeReferenceData base_type_ptr = 43;
      */
     baseTypePtr?: NodeReferenceData;
     /**
-     * @generated from protobuf field: optional symbolx.bench.FieldKind base_field_kind = 43;
+     * @generated from protobuf field: optional symbolx.bench.FieldZone base_field_zone = 44;
      */
-    baseFieldKind?: FieldKind;
+    baseFieldZone?: FieldZone;
     /**
      * @generated from protobuf field: optional symbolx.bench.NodeVisibility visibility = 50;
      */
@@ -2577,25 +2581,29 @@ export interface FieldData {
      */
     valuePacked?: Struct;
     /**
-     * @generated from protobuf field: symbolx.bench.FieldKind kind = 36;
+     * @generated from protobuf field: symbolx.bench.FieldZone zone = 36;
      */
-    kind: FieldKind;
+    zone: FieldZone;
     /**
-     * @generated from protobuf field: optional symbolx.bench.PrimitiveType primitive_type = 40;
+     * @generated from protobuf field: optional symbolx.bench.TypeKind kind = 40;
+     */
+    kind?: TypeKind;
+    /**
+     * @generated from protobuf field: optional symbolx.bench.PrimitiveType primitive_type = 41;
      */
     primitiveType?: PrimitiveType;
     /**
-     * @generated from protobuf field: optional symbolx.bench.BenchType bench_type = 41;
+     * @generated from protobuf field: optional symbolx.bench.BenchType bench_type = 42;
      */
     benchType?: BenchType;
     /**
-     * @generated from protobuf field: optional symbolx.bench.NodeReferenceData base_type_ptr = 42;
+     * @generated from protobuf field: optional symbolx.bench.NodeReferenceData base_type_ptr = 43;
      */
     baseTypePtr?: NodeReferenceData;
     /**
-     * @generated from protobuf field: optional symbolx.bench.FieldKind base_field_kind = 43;
+     * @generated from protobuf field: optional symbolx.bench.FieldZone base_field_zone = 44;
      */
-    baseFieldKind?: FieldKind;
+    baseFieldZone?: FieldZone;
     /**
      * @generated from protobuf field: optional symbolx.bench.NodeVisibility visibility = 50;
      */
@@ -4010,31 +4018,35 @@ export interface RunData {
      */
     setProperties: number[];
     /**
-     * @generated from protobuf field: symbolx.bench.NodeReferenceData session_ptr = 30;
+     * @generated from protobuf field: symbolx.bench.RunKind kind = 30;
+     */
+    kind: RunKind;
+    /**
+     * @generated from protobuf field: symbolx.bench.NodeReferenceData session_ptr = 31;
      */
     sessionPtr?: NodeReferenceData;
     /**
-     * @generated from protobuf field: optional symbolx.bench.NodeReferenceData root_ptr = 31;
+     * @generated from protobuf field: optional symbolx.bench.NodeReferenceData root_ptr = 32;
      */
     rootPtr?: NodeReferenceData;
     /**
-     * @generated from protobuf field: optional symbolx.bench.NodeReferenceData server_ptr = 32;
+     * @generated from protobuf field: optional symbolx.bench.NodeReferenceData server_ptr = 33;
      */
     serverPtr?: NodeReferenceData;
     /**
-     * @generated from protobuf field: optional symbolx.bench.NodeReferenceData block_ptr = 33;
+     * @generated from protobuf field: optional symbolx.bench.NodeReferenceData block_ptr = 34;
      */
     blockPtr?: NodeReferenceData;
     /**
-     * @generated from protobuf field: optional symbolx.bench.NodeReferenceData step_ptr = 34;
+     * @generated from protobuf field: optional symbolx.bench.NodeReferenceData step_ptr = 35;
      */
     stepPtr?: NodeReferenceData;
     /**
-     * @generated from protobuf field: optional symbolx.bench.CodeData code = 35;
+     * @generated from protobuf field: optional symbolx.bench.CodeData code = 36;
      */
     code?: CodeData;
     /**
-     * @generated from protobuf field: optional symbolx.bench.TextData text = 36;
+     * @generated from protobuf field: optional symbolx.bench.TextData text = 37;
      */
     text?: TextData;
     /**
@@ -6055,9 +6067,13 @@ export enum BenchType {
      */
     FORMAT_HINT = 2081,
     /**
-     * @generated from protobuf enum value: BENCH_TYPE_FIELD_KIND = 2082;
+     * @generated from protobuf enum value: BENCH_TYPE_FIELD_ZONE = 2082;
      */
-    FIELD_KIND = 2082,
+    FIELD_ZONE = 2082,
+    /**
+     * @generated from protobuf enum value: BENCH_TYPE_TYPE_KIND = 2083;
+     */
+    TYPE_KIND = 2083,
     /**
      * @generated from protobuf enum value: BENCH_TYPE_TEXT_LINE_TYPE = 2090;
      */
@@ -6131,25 +6147,29 @@ export enum BenchType {
      */
     LOG_LEVEL = 2251,
     /**
-     * @generated from protobuf enum value: BENCH_TYPE_TRIGGER_TYPE = 2263;
+     * @generated from protobuf enum value: BENCH_TYPE_RUN_STATUS = 2260;
      */
-    TRIGGER_TYPE = 2263,
+    RUN_STATUS = 2260,
     /**
-     * @generated from protobuf enum value: BENCH_TYPE_RUN_STATUS = 2254;
+     * @generated from protobuf enum value: BENCH_TYPE_RUN_KIND = 2261;
      */
-    RUN_STATUS = 2254,
+    RUN_KIND = 2261,
     /**
-     * @generated from protobuf enum value: BENCH_TYPE_RUN_ERROR_KIND = 2255;
+     * @generated from protobuf enum value: BENCH_TYPE_RUN_ERROR_KIND = 2262;
      */
-    RUN_ERROR_KIND = 2255,
+    RUN_ERROR_KIND = 2262,
     /**
-     * @generated from protobuf enum value: BENCH_TYPE_NOTICE_KIND = 2260;
+     * @generated from protobuf enum value: BENCH_TYPE_TRIGGER_TYPE = 2270;
      */
-    NOTICE_KIND = 2260,
+    TRIGGER_TYPE = 2270,
     /**
-     * @generated from protobuf enum value: BENCH_TYPE_NOTIFICATION_KIND = 2261;
+     * @generated from protobuf enum value: BENCH_TYPE_NOTICE_KIND = 2280;
      */
-    NOTIFICATION_KIND = 2261,
+    NOTICE_KIND = 2280,
+    /**
+     * @generated from protobuf enum value: BENCH_TYPE_NOTIFICATION_KIND = 2281;
+     */
+    NOTIFICATION_KIND = 2281,
     /**
      * @generated from protobuf enum value: BENCH_TYPE_EXPRESSION_KIND = 2300;
      */
@@ -6679,9 +6699,13 @@ export enum EnumType {
      */
     FORMAT_HINT = 2081,
     /**
-     * @generated from protobuf enum value: ENUM_TYPE_FIELD_KIND = 2082;
+     * @generated from protobuf enum value: ENUM_TYPE_FIELD_ZONE = 2082;
      */
-    FIELD_KIND = 2082,
+    FIELD_ZONE = 2082,
+    /**
+     * @generated from protobuf enum value: ENUM_TYPE_TYPE_KIND = 2083;
+     */
+    TYPE_KIND = 2083,
     /**
      * @generated from protobuf enum value: ENUM_TYPE_TEXT_LINE_TYPE = 2090;
      */
@@ -6755,25 +6779,29 @@ export enum EnumType {
      */
     LOG_LEVEL = 2251,
     /**
-     * @generated from protobuf enum value: ENUM_TYPE_TRIGGER_TYPE = 2263;
+     * @generated from protobuf enum value: ENUM_TYPE_RUN_STATUS = 2260;
      */
-    TRIGGER_TYPE = 2263,
+    RUN_STATUS = 2260,
     /**
-     * @generated from protobuf enum value: ENUM_TYPE_RUN_STATUS = 2254;
+     * @generated from protobuf enum value: ENUM_TYPE_RUN_KIND = 2261;
      */
-    RUN_STATUS = 2254,
+    RUN_KIND = 2261,
     /**
-     * @generated from protobuf enum value: ENUM_TYPE_RUN_ERROR_KIND = 2255;
+     * @generated from protobuf enum value: ENUM_TYPE_RUN_ERROR_KIND = 2262;
      */
-    RUN_ERROR_KIND = 2255,
+    RUN_ERROR_KIND = 2262,
     /**
-     * @generated from protobuf enum value: ENUM_TYPE_NOTICE_KIND = 2260;
+     * @generated from protobuf enum value: ENUM_TYPE_TRIGGER_TYPE = 2270;
      */
-    NOTICE_KIND = 2260,
+    TRIGGER_TYPE = 2270,
     /**
-     * @generated from protobuf enum value: ENUM_TYPE_NOTIFICATION_KIND = 2261;
+     * @generated from protobuf enum value: ENUM_TYPE_NOTICE_KIND = 2280;
      */
-    NOTIFICATION_KIND = 2261,
+    NOTICE_KIND = 2280,
+    /**
+     * @generated from protobuf enum value: ENUM_TYPE_NOTIFICATION_KIND = 2281;
+     */
+    NOTIFICATION_KIND = 2281,
     /**
      * @generated from protobuf enum value: ENUM_TYPE_EXPRESSION_KIND = 2300;
      */
@@ -6958,31 +6986,33 @@ export enum ExpressionOp {
     DESCENDING = 201
 }
 /**
- * @generated from protobuf enum symbolx.bench.FieldKind
+ * The zone of a Field.
+ *
+ * @generated from protobuf enum symbolx.bench.FieldZone
  */
-export enum FieldKind {
+export enum FieldZone {
     /**
-     * @generated from protobuf enum value: FIELD_KIND_UNSPECIFIED = 0;
+     * @generated from protobuf enum value: FIELD_ZONE_UNSPECIFIED = 0;
      */
     UNSPECIFIED = 0,
     /**
-     * @generated from protobuf enum value: FIELD_KIND_VARIABLE = 1;
+     * @generated from protobuf enum value: FIELD_ZONE_VARIABLE = 1;
      */
     VARIABLE = 1,
     /**
-     * @generated from protobuf enum value: FIELD_KIND_MEMBER = 2;
+     * @generated from protobuf enum value: FIELD_ZONE_MEMBER = 2;
      */
     MEMBER = 2,
     /**
-     * @generated from protobuf enum value: FIELD_KIND_INPUT = 3;
+     * @generated from protobuf enum value: FIELD_ZONE_INPUT = 3;
      */
     INPUT = 3,
     /**
-     * @generated from protobuf enum value: FIELD_KIND_OUTPUT = 4;
+     * @generated from protobuf enum value: FIELD_ZONE_OUTPUT = 4;
      */
     OUTPUT = 4,
     /**
-     * @generated from protobuf enum value: FIELD_KIND_OPTION = 5;
+     * @generated from protobuf enum value: FIELD_ZONE_OPTION = 5;
      */
     OPTION = 5
 }
@@ -8293,6 +8323,23 @@ export enum RunErrorKind {
     UNTRUSTED = 5
 }
 /**
+ * @generated from protobuf enum symbolx.bench.RunKind
+ */
+export enum RunKind {
+    /**
+     * @generated from protobuf enum value: RUN_KIND_UNSPECIFIED = 0;
+     */
+    UNSPECIFIED = 0,
+    /**
+     * @generated from protobuf enum value: RUN_KIND_BLOCK = 1;
+     */
+    BLOCK = 1,
+    /**
+     * @generated from protobuf enum value: RUN_KIND_LAMBDA = 10;
+     */
+    LAMBDA = 10
+}
+/**
  * @generated from protobuf enum symbolx.bench.RunStatus
  */
 export enum RunStatus {
@@ -8920,6 +8967,41 @@ export enum TriggerType {
      * @generated from protobuf enum value: TRIGGER_TYPE_SIGNAL = 2;
      */
     SIGNAL = 2
+}
+/**
+ * The 'kind' of a Type.
+ *
+ * @generated from protobuf enum symbolx.bench.TypeKind
+ */
+export enum TypeKind {
+    /**
+     * @generated from protobuf enum value: TYPE_KIND_UNSPECIFIED = 0;
+     */
+    UNSPECIFIED = 0,
+    /**
+     * @generated from protobuf enum value: TYPE_KIND_PRIMITIVE = 1;
+     */
+    PRIMITIVE = 1,
+    /**
+     * @generated from protobuf enum value: TYPE_KIND_STRUCT = 2;
+     */
+    STRUCT = 2,
+    /**
+     * @generated from protobuf enum value: TYPE_KIND_NODE = 3;
+     */
+    NODE = 3,
+    /**
+     * @generated from protobuf enum value: TYPE_KIND_ENUM = 4;
+     */
+    ENUM = 4,
+    /**
+     * @generated from protobuf enum value: TYPE_KIND_BASE = 5;
+     */
+    BASE = 5,
+    /**
+     * @generated from protobuf enum value: TYPE_KIND_ALIAS = 6;
+     */
+    ALIAS = 6
 }
 /**
  * A type of Run access on nodes.
@@ -13056,10 +13138,11 @@ class TypeInfoData$Type extends MessageType<TypeInfoData> {
             { no: 4, name: "parent_key", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
             { no: 5, name: "order_key", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
             { no: 22, name: "set_properties", kind: "scalar", repeat: 1 /*RepeatType.PACKED*/, T: 5 /*ScalarType.INT32*/ },
-            { no: 40, name: "primitive_type", kind: "enum", opt: true, T: () => ["symbolx.bench.PrimitiveType", PrimitiveType, "PRIMITIVE_TYPE_"] },
-            { no: 41, name: "bench_type", kind: "enum", opt: true, T: () => ["symbolx.bench.BenchType", BenchType, "BENCH_TYPE_"] },
-            { no: 42, name: "base_type_ptr", kind: "message", T: () => NodeReferenceData },
-            { no: 43, name: "base_field_kind", kind: "enum", opt: true, T: () => ["symbolx.bench.FieldKind", FieldKind, "FIELD_KIND_"] },
+            { no: 40, name: "kind", kind: "enum", opt: true, T: () => ["symbolx.bench.TypeKind", TypeKind, "TYPE_KIND_"] },
+            { no: 41, name: "primitive_type", kind: "enum", opt: true, T: () => ["symbolx.bench.PrimitiveType", PrimitiveType, "PRIMITIVE_TYPE_"] },
+            { no: 42, name: "bench_type", kind: "enum", opt: true, T: () => ["symbolx.bench.BenchType", BenchType, "BENCH_TYPE_"] },
+            { no: 43, name: "base_type_ptr", kind: "message", T: () => NodeReferenceData },
+            { no: 44, name: "base_field_zone", kind: "enum", opt: true, T: () => ["symbolx.bench.FieldZone", FieldZone, "FIELD_ZONE_"] },
             { no: 50, name: "visibility", kind: "enum", opt: true, T: () => ["symbolx.bench.NodeVisibility", NodeVisibility, "NODE_VISIBILITY_"] },
             { no: 51, name: "format_hint", kind: "enum", opt: true, T: () => ["symbolx.bench.FormatHint", FormatHint, "FORMAT_HINT_"] },
             { no: 52, name: "condition", kind: "message", T: () => ExpressionData },
@@ -13108,17 +13191,20 @@ class TypeInfoData$Type extends MessageType<TypeInfoData> {
                     else
                         message.setProperties.push(reader.int32());
                     break;
-                case /* optional symbolx.bench.PrimitiveType primitive_type */ 40:
+                case /* optional symbolx.bench.TypeKind kind */ 40:
+                    message.kind = reader.int32();
+                    break;
+                case /* optional symbolx.bench.PrimitiveType primitive_type */ 41:
                     message.primitiveType = reader.int32();
                     break;
-                case /* optional symbolx.bench.BenchType bench_type */ 41:
+                case /* optional symbolx.bench.BenchType bench_type */ 42:
                     message.benchType = reader.int32();
                     break;
-                case /* optional symbolx.bench.NodeReferenceData base_type_ptr */ 42:
+                case /* optional symbolx.bench.NodeReferenceData base_type_ptr */ 43:
                     message.baseTypePtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.baseTypePtr);
                     break;
-                case /* optional symbolx.bench.FieldKind base_field_kind */ 43:
-                    message.baseFieldKind = reader.int32();
+                case /* optional symbolx.bench.FieldZone base_field_zone */ 44:
+                    message.baseFieldZone = reader.int32();
                     break;
                 case /* optional symbolx.bench.NodeVisibility visibility */ 50:
                     message.visibility = reader.int32();
@@ -13175,18 +13261,21 @@ class TypeInfoData$Type extends MessageType<TypeInfoData> {
                 writer.int32(message.setProperties[i]);
             writer.join();
         }
-        /* optional symbolx.bench.PrimitiveType primitive_type = 40; */
+        /* optional symbolx.bench.TypeKind kind = 40; */
+        if (message.kind !== undefined)
+            writer.tag(40, WireType.Varint).int32(message.kind);
+        /* optional symbolx.bench.PrimitiveType primitive_type = 41; */
         if (message.primitiveType !== undefined)
-            writer.tag(40, WireType.Varint).int32(message.primitiveType);
-        /* optional symbolx.bench.BenchType bench_type = 41; */
+            writer.tag(41, WireType.Varint).int32(message.primitiveType);
+        /* optional symbolx.bench.BenchType bench_type = 42; */
         if (message.benchType !== undefined)
-            writer.tag(41, WireType.Varint).int32(message.benchType);
-        /* optional symbolx.bench.NodeReferenceData base_type_ptr = 42; */
+            writer.tag(42, WireType.Varint).int32(message.benchType);
+        /* optional symbolx.bench.NodeReferenceData base_type_ptr = 43; */
         if (message.baseTypePtr)
-            NodeReferenceData.internalBinaryWrite(message.baseTypePtr, writer.tag(42, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbolx.bench.FieldKind base_field_kind = 43; */
-        if (message.baseFieldKind !== undefined)
-            writer.tag(43, WireType.Varint).int32(message.baseFieldKind);
+            NodeReferenceData.internalBinaryWrite(message.baseTypePtr, writer.tag(43, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbolx.bench.FieldZone base_field_zone = 44; */
+        if (message.baseFieldZone !== undefined)
+            writer.tag(44, WireType.Varint).int32(message.baseFieldZone);
         /* optional symbolx.bench.NodeVisibility visibility = 50; */
         if (message.visibility !== undefined)
             writer.tag(50, WireType.Varint).int32(message.visibility);
@@ -15243,11 +15332,12 @@ class FieldData$Type extends MessageType<FieldData> {
             { no: 33, name: "text", kind: "message", T: () => TextData },
             { no: 34, name: "icon", kind: "message", T: () => IconData },
             { no: 35, name: "value_packed", kind: "message", T: () => Struct },
-            { no: 36, name: "kind", kind: "enum", T: () => ["symbolx.bench.FieldKind", FieldKind, "FIELD_KIND_"] },
-            { no: 40, name: "primitive_type", kind: "enum", opt: true, T: () => ["symbolx.bench.PrimitiveType", PrimitiveType, "PRIMITIVE_TYPE_"] },
-            { no: 41, name: "bench_type", kind: "enum", opt: true, T: () => ["symbolx.bench.BenchType", BenchType, "BENCH_TYPE_"] },
-            { no: 42, name: "base_type_ptr", kind: "message", T: () => NodeReferenceData },
-            { no: 43, name: "base_field_kind", kind: "enum", opt: true, T: () => ["symbolx.bench.FieldKind", FieldKind, "FIELD_KIND_"] },
+            { no: 36, name: "zone", kind: "enum", T: () => ["symbolx.bench.FieldZone", FieldZone, "FIELD_ZONE_"] },
+            { no: 40, name: "kind", kind: "enum", opt: true, T: () => ["symbolx.bench.TypeKind", TypeKind, "TYPE_KIND_"] },
+            { no: 41, name: "primitive_type", kind: "enum", opt: true, T: () => ["symbolx.bench.PrimitiveType", PrimitiveType, "PRIMITIVE_TYPE_"] },
+            { no: 42, name: "bench_type", kind: "enum", opt: true, T: () => ["symbolx.bench.BenchType", BenchType, "BENCH_TYPE_"] },
+            { no: 43, name: "base_type_ptr", kind: "message", T: () => NodeReferenceData },
+            { no: 44, name: "base_field_zone", kind: "enum", opt: true, T: () => ["symbolx.bench.FieldZone", FieldZone, "FIELD_ZONE_"] },
             { no: 50, name: "visibility", kind: "enum", opt: true, T: () => ["symbolx.bench.NodeVisibility", NodeVisibility, "NODE_VISIBILITY_"] },
             { no: 51, name: "format_hint", kind: "enum", opt: true, T: () => ["symbolx.bench.FormatHint", FormatHint, "FORMAT_HINT_"] },
             { no: 52, name: "condition", kind: "message", T: () => ExpressionData },
@@ -15266,7 +15356,7 @@ class FieldData$Type extends MessageType<FieldData> {
         message.revision = 0n;
         message.setProperties = [];
         message.orderKey = "";
-        message.kind = 0;
+        message.zone = 0;
         message.isList = false;
         message.isSecret = false;
         message.isRequired = false;
@@ -15343,20 +15433,23 @@ class FieldData$Type extends MessageType<FieldData> {
                 case /* optional google.protobuf.Struct value_packed */ 35:
                     message.valuePacked = Struct.internalBinaryRead(reader, reader.uint32(), options, message.valuePacked);
                     break;
-                case /* symbolx.bench.FieldKind kind */ 36:
+                case /* symbolx.bench.FieldZone zone */ 36:
+                    message.zone = reader.int32();
+                    break;
+                case /* optional symbolx.bench.TypeKind kind */ 40:
                     message.kind = reader.int32();
                     break;
-                case /* optional symbolx.bench.PrimitiveType primitive_type */ 40:
+                case /* optional symbolx.bench.PrimitiveType primitive_type */ 41:
                     message.primitiveType = reader.int32();
                     break;
-                case /* optional symbolx.bench.BenchType bench_type */ 41:
+                case /* optional symbolx.bench.BenchType bench_type */ 42:
                     message.benchType = reader.int32();
                     break;
-                case /* optional symbolx.bench.NodeReferenceData base_type_ptr */ 42:
+                case /* optional symbolx.bench.NodeReferenceData base_type_ptr */ 43:
                     message.baseTypePtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.baseTypePtr);
                     break;
-                case /* optional symbolx.bench.FieldKind base_field_kind */ 43:
-                    message.baseFieldKind = reader.int32();
+                case /* optional symbolx.bench.FieldZone base_field_zone */ 44:
+                    message.baseFieldZone = reader.int32();
                     break;
                 case /* optional symbolx.bench.NodeVisibility visibility */ 50:
                     message.visibility = reader.int32();
@@ -15455,21 +15548,24 @@ class FieldData$Type extends MessageType<FieldData> {
         /* optional google.protobuf.Struct value_packed = 35; */
         if (message.valuePacked)
             Struct.internalBinaryWrite(message.valuePacked, writer.tag(35, WireType.LengthDelimited).fork(), options).join();
-        /* symbolx.bench.FieldKind kind = 36; */
-        if (message.kind !== 0)
-            writer.tag(36, WireType.Varint).int32(message.kind);
-        /* optional symbolx.bench.PrimitiveType primitive_type = 40; */
+        /* symbolx.bench.FieldZone zone = 36; */
+        if (message.zone !== 0)
+            writer.tag(36, WireType.Varint).int32(message.zone);
+        /* optional symbolx.bench.TypeKind kind = 40; */
+        if (message.kind !== undefined)
+            writer.tag(40, WireType.Varint).int32(message.kind);
+        /* optional symbolx.bench.PrimitiveType primitive_type = 41; */
         if (message.primitiveType !== undefined)
-            writer.tag(40, WireType.Varint).int32(message.primitiveType);
-        /* optional symbolx.bench.BenchType bench_type = 41; */
+            writer.tag(41, WireType.Varint).int32(message.primitiveType);
+        /* optional symbolx.bench.BenchType bench_type = 42; */
         if (message.benchType !== undefined)
-            writer.tag(41, WireType.Varint).int32(message.benchType);
-        /* optional symbolx.bench.NodeReferenceData base_type_ptr = 42; */
+            writer.tag(42, WireType.Varint).int32(message.benchType);
+        /* optional symbolx.bench.NodeReferenceData base_type_ptr = 43; */
         if (message.baseTypePtr)
-            NodeReferenceData.internalBinaryWrite(message.baseTypePtr, writer.tag(42, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbolx.bench.FieldKind base_field_kind = 43; */
-        if (message.baseFieldKind !== undefined)
-            writer.tag(43, WireType.Varint).int32(message.baseFieldKind);
+            NodeReferenceData.internalBinaryWrite(message.baseTypePtr, writer.tag(43, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbolx.bench.FieldZone base_field_zone = 44; */
+        if (message.baseFieldZone !== undefined)
+            writer.tag(44, WireType.Varint).int32(message.baseFieldZone);
         /* optional symbolx.bench.NodeVisibility visibility = 50; */
         if (message.visibility !== undefined)
             writer.tag(50, WireType.Varint).int32(message.visibility);
@@ -18471,13 +18567,14 @@ class RunData$Type extends MessageType<RunData> {
             { no: 17, name: "created_by_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 18, name: "updated_by_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 22, name: "set_properties", kind: "scalar", repeat: 1 /*RepeatType.PACKED*/, T: 5 /*ScalarType.INT32*/ },
-            { no: 30, name: "session_ptr", kind: "message", T: () => NodeReferenceData },
-            { no: 31, name: "root_ptr", kind: "message", T: () => NodeReferenceData },
-            { no: 32, name: "server_ptr", kind: "message", T: () => NodeReferenceData },
-            { no: 33, name: "block_ptr", kind: "message", T: () => NodeReferenceData },
-            { no: 34, name: "step_ptr", kind: "message", T: () => NodeReferenceData },
-            { no: 35, name: "code", kind: "message", T: () => CodeData },
-            { no: 36, name: "text", kind: "message", T: () => TextData },
+            { no: 30, name: "kind", kind: "enum", T: () => ["symbolx.bench.RunKind", RunKind, "RUN_KIND_"] },
+            { no: 31, name: "session_ptr", kind: "message", T: () => NodeReferenceData },
+            { no: 32, name: "root_ptr", kind: "message", T: () => NodeReferenceData },
+            { no: 33, name: "server_ptr", kind: "message", T: () => NodeReferenceData },
+            { no: 34, name: "block_ptr", kind: "message", T: () => NodeReferenceData },
+            { no: 35, name: "step_ptr", kind: "message", T: () => NodeReferenceData },
+            { no: 36, name: "code", kind: "message", T: () => CodeData },
+            { no: 37, name: "text", kind: "message", T: () => TextData },
             { no: 40, name: "status", kind: "enum", T: () => ["symbolx.bench.RunStatus", RunStatus, "RUN_STATUS_"] },
             { no: 41, name: "scheduled_at", kind: "message", T: () => Timestamp },
             { no: 42, name: "started_at", kind: "message", T: () => Timestamp },
@@ -18501,6 +18598,7 @@ class RunData$Type extends MessageType<RunData> {
         message.source = 0;
         message.revision = 0n;
         message.setProperties = [];
+        message.kind = 0;
         message.status = 0;
         if (value !== undefined)
             reflectionMergePartial<RunData>(this, message, value);
@@ -18560,25 +18658,28 @@ class RunData$Type extends MessageType<RunData> {
                     else
                         message.setProperties.push(reader.int32());
                     break;
-                case /* symbolx.bench.NodeReferenceData session_ptr */ 30:
+                case /* symbolx.bench.RunKind kind */ 30:
+                    message.kind = reader.int32();
+                    break;
+                case /* symbolx.bench.NodeReferenceData session_ptr */ 31:
                     message.sessionPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.sessionPtr);
                     break;
-                case /* optional symbolx.bench.NodeReferenceData root_ptr */ 31:
+                case /* optional symbolx.bench.NodeReferenceData root_ptr */ 32:
                     message.rootPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.rootPtr);
                     break;
-                case /* optional symbolx.bench.NodeReferenceData server_ptr */ 32:
+                case /* optional symbolx.bench.NodeReferenceData server_ptr */ 33:
                     message.serverPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.serverPtr);
                     break;
-                case /* optional symbolx.bench.NodeReferenceData block_ptr */ 33:
+                case /* optional symbolx.bench.NodeReferenceData block_ptr */ 34:
                     message.blockPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.blockPtr);
                     break;
-                case /* optional symbolx.bench.NodeReferenceData step_ptr */ 34:
+                case /* optional symbolx.bench.NodeReferenceData step_ptr */ 35:
                     message.stepPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.stepPtr);
                     break;
-                case /* optional symbolx.bench.CodeData code */ 35:
+                case /* optional symbolx.bench.CodeData code */ 36:
                     message.code = CodeData.internalBinaryRead(reader, reader.uint32(), options, message.code);
                     break;
-                case /* optional symbolx.bench.TextData text */ 36:
+                case /* optional symbolx.bench.TextData text */ 37:
                     message.text = TextData.internalBinaryRead(reader, reader.uint32(), options, message.text);
                     break;
                 case /* symbolx.bench.RunStatus status */ 40:
@@ -18681,27 +18782,30 @@ class RunData$Type extends MessageType<RunData> {
                 writer.int32(message.setProperties[i]);
             writer.join();
         }
-        /* symbolx.bench.NodeReferenceData session_ptr = 30; */
+        /* symbolx.bench.RunKind kind = 30; */
+        if (message.kind !== 0)
+            writer.tag(30, WireType.Varint).int32(message.kind);
+        /* symbolx.bench.NodeReferenceData session_ptr = 31; */
         if (message.sessionPtr)
-            NodeReferenceData.internalBinaryWrite(message.sessionPtr, writer.tag(30, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbolx.bench.NodeReferenceData root_ptr = 31; */
+            NodeReferenceData.internalBinaryWrite(message.sessionPtr, writer.tag(31, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbolx.bench.NodeReferenceData root_ptr = 32; */
         if (message.rootPtr)
-            NodeReferenceData.internalBinaryWrite(message.rootPtr, writer.tag(31, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbolx.bench.NodeReferenceData server_ptr = 32; */
+            NodeReferenceData.internalBinaryWrite(message.rootPtr, writer.tag(32, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbolx.bench.NodeReferenceData server_ptr = 33; */
         if (message.serverPtr)
-            NodeReferenceData.internalBinaryWrite(message.serverPtr, writer.tag(32, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbolx.bench.NodeReferenceData block_ptr = 33; */
+            NodeReferenceData.internalBinaryWrite(message.serverPtr, writer.tag(33, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbolx.bench.NodeReferenceData block_ptr = 34; */
         if (message.blockPtr)
-            NodeReferenceData.internalBinaryWrite(message.blockPtr, writer.tag(33, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbolx.bench.NodeReferenceData step_ptr = 34; */
+            NodeReferenceData.internalBinaryWrite(message.blockPtr, writer.tag(34, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbolx.bench.NodeReferenceData step_ptr = 35; */
         if (message.stepPtr)
-            NodeReferenceData.internalBinaryWrite(message.stepPtr, writer.tag(34, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbolx.bench.CodeData code = 35; */
+            NodeReferenceData.internalBinaryWrite(message.stepPtr, writer.tag(35, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbolx.bench.CodeData code = 36; */
         if (message.code)
-            CodeData.internalBinaryWrite(message.code, writer.tag(35, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbolx.bench.TextData text = 36; */
+            CodeData.internalBinaryWrite(message.code, writer.tag(36, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbolx.bench.TextData text = 37; */
         if (message.text)
-            TextData.internalBinaryWrite(message.text, writer.tag(36, WireType.LengthDelimited).fork(), options).join();
+            TextData.internalBinaryWrite(message.text, writer.tag(37, WireType.LengthDelimited).fork(), options).join();
         /* symbolx.bench.RunStatus status = 40; */
         if (message.status !== 0)
             writer.tag(40, WireType.Varint).int32(message.status);
@@ -21930,7 +22034,8 @@ export const ENUM_BY_TYPE: Record<EnumType, Record<number | string, number | str
   [EnumType.SCHEDULE_TYPE]: ScheduleType,
   [EnumType.PRIMITIVE_TYPE]: PrimitiveType,
   [EnumType.FORMAT_HINT]: FormatHint,
-  [EnumType.FIELD_KIND]: FieldKind,
+  [EnumType.FIELD_ZONE]: FieldZone,
+  [EnumType.TYPE_KIND]: TypeKind,
   [EnumType.TEXT_LINE_TYPE]: TextLineType,
   [EnumType.FILE_STATUS]: FileStatus,
   [EnumType.FILE_RETENTION_MODE]: FileRetentionMode,
@@ -21949,9 +22054,10 @@ export const ENUM_BY_TYPE: Record<EnumType, Record<number | string, number | str
   [EnumType.ICON_KIND]: IconKind,
   [EnumType.LOG_KIND]: LogKind,
   [EnumType.LOG_LEVEL]: LogLevel,
-  [EnumType.TRIGGER_TYPE]: TriggerType,
   [EnumType.RUN_STATUS]: RunStatus,
+  [EnumType.RUN_KIND]: RunKind,
   [EnumType.RUN_ERROR_KIND]: RunErrorKind,
+  [EnumType.TRIGGER_TYPE]: TriggerType,
   [EnumType.NOTICE_KIND]: NoticeKind,
   [EnumType.NOTIFICATION_KIND]: NotificationKind,
   [EnumType.EXPRESSION_KIND]: ExpressionKind,
@@ -22149,7 +22255,8 @@ export interface EnumTypeMapping extends Record<EnumType, any> {
   [EnumType.SCHEDULE_TYPE]: ScheduleType,
   [EnumType.PRIMITIVE_TYPE]: PrimitiveType,
   [EnumType.FORMAT_HINT]: FormatHint,
-  [EnumType.FIELD_KIND]: FieldKind,
+  [EnumType.FIELD_ZONE]: FieldZone,
+  [EnumType.TYPE_KIND]: TypeKind,
   [EnumType.TEXT_LINE_TYPE]: TextLineType,
   [EnumType.FILE_STATUS]: FileStatus,
   [EnumType.FILE_RETENTION_MODE]: FileRetentionMode,
@@ -22168,9 +22275,10 @@ export interface EnumTypeMapping extends Record<EnumType, any> {
   [EnumType.ICON_KIND]: IconKind,
   [EnumType.LOG_KIND]: LogKind,
   [EnumType.LOG_LEVEL]: LogLevel,
-  [EnumType.TRIGGER_TYPE]: TriggerType,
   [EnumType.RUN_STATUS]: RunStatus,
+  [EnumType.RUN_KIND]: RunKind,
   [EnumType.RUN_ERROR_KIND]: RunErrorKind,
+  [EnumType.TRIGGER_TYPE]: TriggerType,
   [EnumType.NOTICE_KIND]: NoticeKind,
   [EnumType.NOTIFICATION_KIND]: NotificationKind,
   [EnumType.EXPRESSION_KIND]: ExpressionKind,
@@ -22496,11 +22604,12 @@ export enum FieldProperty {
   text = 33,
   icon = 34,
   valuePacked = 35,
-  kind = 36,
-  primitiveType = 40,
-  benchType = 41,
-  baseTypePtr = 42,
-  baseFieldKind = 43,
+  zone = 36,
+  kind = 40,
+  primitiveType = 41,
+  benchType = 42,
+  baseTypePtr = 43,
+  baseFieldZone = 44,
   visibility = 50,
   formatHint = 51,
   condition = 52,
@@ -22771,13 +22880,14 @@ export enum RunProperty {
   createdByPtr = 17,
   updatedByPtr = 18,
   setProperties = 22,
-  sessionPtr = 30,
-  rootPtr = 31,
-  serverPtr = 32,
-  blockPtr = 33,
-  stepPtr = 34,
-  code = 35,
-  text = 36,
+  kind = 30,
+  sessionPtr = 31,
+  rootPtr = 32,
+  serverPtr = 33,
+  blockPtr = 34,
+  stepPtr = 35,
+  code = 36,
+  text = 37,
   status = 40,
   scheduledAt = 41,
   startedAt = 42,
@@ -23159,10 +23269,11 @@ export enum TypeInfoProperty {
   parentKey = 4,
   orderKey = 5,
   setProperties = 22,
-  primitiveType = 40,
-  benchType = 41,
-  baseTypePtr = 42,
-  baseFieldKind = 43,
+  kind = 40,
+  primitiveType = 41,
+  benchType = 42,
+  baseTypePtr = 43,
+  baseFieldZone = 44,
   visibility = 50,
   formatHint = 51,
   condition = 52,
@@ -23790,10 +23901,11 @@ export const TypeInfoDataInfo: Record<TypeInfoProperty, PropertyInfo> = {
   [TypeInfoProperty.parentKey]: { id: 4, name: 'parent_key', component: ObjectType.TYPE_INFO, kind: 'reference', primitiveType: PrimitiveType.STRING, isInternal: true, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_PARENT },
   [TypeInfoProperty.orderKey]: { id: 5, name: 'order_key', component: ObjectType.TYPE_INFO, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [TypeInfoProperty.setProperties]: { id: 22, name: 'set_properties', component: ObjectType.TYPE_INFO, kind: 'primitive', primitiveType: PrimitiveType.INT32, isList: true, isRequired: true, isRuntime: true, isWired: true, isStored: true },
-  [TypeInfoProperty.primitiveType]: { id: 40, name: 'primitive_type', component: ObjectType.TYPE_INFO, enumType: EnumType.PRIMITIVE_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRuntime: true, isWired: true, isStored: true },
-  [TypeInfoProperty.benchType]: { id: 41, name: 'bench_type', component: ObjectType.TYPE_INFO, enumType: EnumType.BENCH_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRuntime: true, isWired: true, isStored: true },
-  [TypeInfoProperty.baseTypePtr]: { id: 42, name: 'base_type_ptr', component: ObjectType.TYPE_INFO, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.BLOCK], referenceStruct: StructType.NODE_REFERENCE },
-  [TypeInfoProperty.baseFieldKind]: { id: 43, name: 'base_field_kind', component: ObjectType.TYPE_INFO, enumType: EnumType.FIELD_KIND, kind: 'enum', primitiveType: PrimitiveType.INT16, isInternal: true, isRuntime: true, isWired: true, isStored: true },
+  [TypeInfoProperty.kind]: { id: 40, name: 'kind', component: ObjectType.TYPE_INFO, enumType: EnumType.TYPE_KIND, kind: 'enum', primitiveType: PrimitiveType.INT16, isInternal: true, isRuntime: true, isWired: true, isStored: true },
+  [TypeInfoProperty.primitiveType]: { id: 41, name: 'primitive_type', component: ObjectType.TYPE_INFO, enumType: EnumType.PRIMITIVE_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRuntime: true, isWired: true, isStored: true },
+  [TypeInfoProperty.benchType]: { id: 42, name: 'bench_type', component: ObjectType.TYPE_INFO, enumType: EnumType.BENCH_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRuntime: true, isWired: true, isStored: true },
+  [TypeInfoProperty.baseTypePtr]: { id: 43, name: 'base_type_ptr', component: ObjectType.TYPE_INFO, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.BLOCK], referenceStruct: StructType.NODE_REFERENCE },
+  [TypeInfoProperty.baseFieldZone]: { id: 44, name: 'base_field_zone', component: ObjectType.TYPE_INFO, enumType: EnumType.FIELD_ZONE, kind: 'enum', primitiveType: PrimitiveType.INT16, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [TypeInfoProperty.visibility]: { id: 50, name: 'visibility', component: ObjectType.TYPE_INFO, enumType: EnumType.NODE_VISIBILITY, kind: 'enum', primitiveType: PrimitiveType.INT16, isRuntime: true, isWired: true, isStored: true },
   [TypeInfoProperty.formatHint]: { id: 51, name: 'format_hint', component: ObjectType.TYPE_INFO, enumType: EnumType.FORMAT_HINT, kind: 'enum', primitiveType: PrimitiveType.INT16, isRuntime: true, isWired: true, isStored: true },
   [TypeInfoProperty.condition]: { id: 52, name: 'condition', component: ObjectType.TYPE_INFO, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.EXPRESSION },
@@ -24431,11 +24543,12 @@ export const FieldDataInfo: Record<FieldProperty, PropertyInfo> = {
   [FieldProperty.text]: { id: 33, name: 'text', component: ObjectType.FIELD, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.TEXT },
   [FieldProperty.icon]: { id: 34, name: 'icon', component: ObjectType.FIELD, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.ICON },
   [FieldProperty.valuePacked]: { id: 35, name: 'value_packed', component: ObjectType.FIELD, kind: 'primitive', primitiveType: PrimitiveType.JSON, isInternal: true, isRuntime: true, isWired: true, isStored: true, isValuePacked: true },
-  [FieldProperty.kind]: { id: 36, name: 'kind', component: ObjectType.FIELD, enumType: EnumType.FIELD_KIND, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isRuntime: true, isWired: true, isStored: true },
-  [FieldProperty.primitiveType]: { id: 40, name: 'primitive_type', component: ObjectType.FIELD, enumType: EnumType.PRIMITIVE_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRuntime: true, isWired: true, isStored: true },
-  [FieldProperty.benchType]: { id: 41, name: 'bench_type', component: ObjectType.FIELD, enumType: EnumType.BENCH_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRuntime: true, isWired: true, isStored: true },
-  [FieldProperty.baseTypePtr]: { id: 42, name: 'base_type_ptr', component: ObjectType.FIELD, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.BLOCK], referenceStruct: StructType.NODE_REFERENCE },
-  [FieldProperty.baseFieldKind]: { id: 43, name: 'base_field_kind', component: ObjectType.FIELD, enumType: EnumType.FIELD_KIND, kind: 'enum', primitiveType: PrimitiveType.INT16, isInternal: true, isRuntime: true, isWired: true, isStored: true },
+  [FieldProperty.zone]: { id: 36, name: 'zone', component: ObjectType.FIELD, enumType: EnumType.FIELD_ZONE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isRuntime: true, isWired: true, isStored: true },
+  [FieldProperty.kind]: { id: 40, name: 'kind', component: ObjectType.FIELD, enumType: EnumType.TYPE_KIND, kind: 'enum', primitiveType: PrimitiveType.INT16, isInternal: true, isRuntime: true, isWired: true, isStored: true },
+  [FieldProperty.primitiveType]: { id: 41, name: 'primitive_type', component: ObjectType.FIELD, enumType: EnumType.PRIMITIVE_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRuntime: true, isWired: true, isStored: true },
+  [FieldProperty.benchType]: { id: 42, name: 'bench_type', component: ObjectType.FIELD, enumType: EnumType.BENCH_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRuntime: true, isWired: true, isStored: true },
+  [FieldProperty.baseTypePtr]: { id: 43, name: 'base_type_ptr', component: ObjectType.FIELD, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.BLOCK], referenceStruct: StructType.NODE_REFERENCE },
+  [FieldProperty.baseFieldZone]: { id: 44, name: 'base_field_zone', component: ObjectType.FIELD, enumType: EnumType.FIELD_ZONE, kind: 'enum', primitiveType: PrimitiveType.INT16, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [FieldProperty.visibility]: { id: 50, name: 'visibility', component: ObjectType.FIELD, enumType: EnumType.NODE_VISIBILITY, kind: 'enum', primitiveType: PrimitiveType.INT16, isRuntime: true, isWired: true, isStored: true },
   [FieldProperty.formatHint]: { id: 51, name: 'format_hint', component: ObjectType.FIELD, enumType: EnumType.FORMAT_HINT, kind: 'enum', primitiveType: PrimitiveType.INT16, isRuntime: true, isWired: true, isStored: true },
   [FieldProperty.condition]: { id: 52, name: 'condition', component: ObjectType.FIELD, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.EXPRESSION },
@@ -24695,13 +24808,14 @@ export const RunDataInfo: Record<RunProperty, PropertyInfo> = {
   [RunProperty.createdByPtr]: { id: 17, name: 'created_by_ptr', component: ObjectType.RUN, kind: 'reference', isAutoset: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.USER, NodeType.RUN], referenceStruct: StructType.NODE_REFERENCE },
   [RunProperty.updatedByPtr]: { id: 18, name: 'updated_by_ptr', component: ObjectType.RUN, kind: 'reference', isAutoset: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.USER, NodeType.RUN], referenceStruct: StructType.NODE_REFERENCE },
   [RunProperty.setProperties]: { id: 22, name: 'set_properties', component: ObjectType.RUN, kind: 'primitive', primitiveType: PrimitiveType.INT32, isList: true, isRequired: true, isRuntime: true, isWired: true, isStored: true },
-  [RunProperty.sessionPtr]: { id: 30, name: 'session_ptr', component: ObjectType.RUN, kind: 'reference', isRequired: true, isInternal: true, isComputed: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_ANCESTOR_FIRST, referenceNodes: [NodeType.SESSION], referenceStruct: StructType.NODE_REFERENCE },
-  [RunProperty.rootPtr]: { id: 31, name: 'root_ptr', component: ObjectType.RUN, kind: 'reference', isInternal: true, isComputed: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_ANCESTOR_ROOT, referenceNodes: [NodeType.RUN], referenceStruct: StructType.NODE_REFERENCE },
-  [RunProperty.serverPtr]: { id: 32, name: 'server_ptr', component: ObjectType.RUN, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.SERVER], referenceStruct: StructType.NODE_REFERENCE },
-  [RunProperty.blockPtr]: { id: 33, name: 'block_ptr', component: ObjectType.RUN, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.BLOCK], referenceStruct: StructType.NODE_REFERENCE },
-  [RunProperty.stepPtr]: { id: 34, name: 'step_ptr', component: ObjectType.RUN, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.STEP], referenceStruct: StructType.NODE_REFERENCE },
-  [RunProperty.code]: { id: 35, name: 'code', component: ObjectType.RUN, kind: 'reference', primitiveType: PrimitiveType.JSON, isInternal: true, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.CODE },
-  [RunProperty.text]: { id: 36, name: 'text', component: ObjectType.RUN, kind: 'reference', primitiveType: PrimitiveType.JSON, isInternal: true, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.TEXT },
+  [RunProperty.kind]: { id: 30, name: 'kind', component: ObjectType.RUN, enumType: EnumType.RUN_KIND, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
+  [RunProperty.sessionPtr]: { id: 31, name: 'session_ptr', component: ObjectType.RUN, kind: 'reference', isRequired: true, isInternal: true, isComputed: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_ANCESTOR_FIRST, referenceNodes: [NodeType.SESSION], referenceStruct: StructType.NODE_REFERENCE },
+  [RunProperty.rootPtr]: { id: 32, name: 'root_ptr', component: ObjectType.RUN, kind: 'reference', isInternal: true, isComputed: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_ANCESTOR_ROOT, referenceNodes: [NodeType.RUN], referenceStruct: StructType.NODE_REFERENCE },
+  [RunProperty.serverPtr]: { id: 33, name: 'server_ptr', component: ObjectType.RUN, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.SERVER], referenceStruct: StructType.NODE_REFERENCE },
+  [RunProperty.blockPtr]: { id: 34, name: 'block_ptr', component: ObjectType.RUN, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.BLOCK], referenceStruct: StructType.NODE_REFERENCE },
+  [RunProperty.stepPtr]: { id: 35, name: 'step_ptr', component: ObjectType.RUN, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.STEP], referenceStruct: StructType.NODE_REFERENCE },
+  [RunProperty.code]: { id: 36, name: 'code', component: ObjectType.RUN, kind: 'reference', primitiveType: PrimitiveType.JSON, isInternal: true, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.CODE },
+  [RunProperty.text]: { id: 37, name: 'text', component: ObjectType.RUN, kind: 'reference', primitiveType: PrimitiveType.JSON, isInternal: true, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.TEXT },
   [RunProperty.status]: { id: 40, name: 'status', component: ObjectType.RUN, enumType: EnumType.RUN_STATUS, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [RunProperty.scheduledAt]: { id: 41, name: 'scheduled_at', component: ObjectType.RUN, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [RunProperty.startedAt]: { id: 42, name: 'started_at', component: ObjectType.RUN, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isRuntime: true, isWired: true, isStored: true },

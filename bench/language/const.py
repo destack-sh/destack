@@ -12,7 +12,7 @@ from bench.utils.utils import frozendict
 if typing.TYPE_CHECKING:
     from bench.language import Session, Transaction
 
-VERSION = "2024.05.01.3"
+VERSION = "2024.05.01.5"
 REVISION_PENDING = -1
 TK_LENGTH_BYTES = 8
 TK_LENGTH_B64 = 12  # 1.5 * TK_LENGTH_BYTES (must be integer)
@@ -77,7 +77,7 @@ class EnumType(IdEnum):
     # type
     PRIMITIVE_TYPE = 2080
     FORMAT_HINT = 2081
-    FIELD_KIND = 2082
+    FIELD_ZONE = 2082
     TYPE_KIND = 2083
 
     # text

@@ -4,7 +4,7 @@ import {
   BlockType,
   ColorShade,
   ColorType,
-  FieldKind,
+  FieldZone,
   NodeReferenceData,
   NodeType,
   Variant,
@@ -180,7 +180,7 @@ defineExpose<ViewExposed>({ self, id, variants: [Variant.PRIMARY, Variant.STEALT
             @click="
               (e) => {
                 if (block!.type == BlockType.CHOICE) {
-                  createField(pkgConnection.tx, pkgGraph, 'inside', block!, { kind: FieldKind.OPTION });
+                  createField(pkgConnection.tx, pkgGraph, 'inside', block!, { zone: FieldZone.OPTION });
                 } else {
                   pushPopover({
                     trigger: e.target as HTMLElement,

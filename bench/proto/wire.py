@@ -190,7 +190,8 @@ class BenchType(betterproto.Enum):
     SCHEDULE_TYPE = 2071
     PRIMITIVE_TYPE = 2080
     FORMAT_HINT = 2081
-    FIELD_KIND = 2082
+    FIELD_ZONE = 2082
+    TYPE_KIND = 2083
     TEXT_LINE_TYPE = 2090
     FILE_STATUS = 2100
     FILE_RETENTION_MODE = 2101
@@ -209,11 +210,12 @@ class BenchType(betterproto.Enum):
     ICON_KIND = 2211
     LOG_KIND = 2250
     LOG_LEVEL = 2251
-    TRIGGER_TYPE = 2263
-    RUN_STATUS = 2254
-    RUN_ERROR_KIND = 2255
-    NOTICE_KIND = 2260
-    NOTIFICATION_KIND = 2261
+    RUN_STATUS = 2260
+    RUN_KIND = 2261
+    RUN_ERROR_KIND = 2262
+    TRIGGER_TYPE = 2270
+    NOTICE_KIND = 2280
+    NOTIFICATION_KIND = 2281
     EXPRESSION_KIND = 2300
     CONDITIONAL_OP = 2301
     AGGREGATION_OP = 2302
@@ -361,7 +363,8 @@ class EnumType(betterproto.Enum):
     SCHEDULE_TYPE = 2071
     PRIMITIVE_TYPE = 2080
     FORMAT_HINT = 2081
-    FIELD_KIND = 2082
+    FIELD_ZONE = 2082
+    TYPE_KIND = 2083
     TEXT_LINE_TYPE = 2090
     FILE_STATUS = 2100
     FILE_RETENTION_MODE = 2101
@@ -380,11 +383,12 @@ class EnumType(betterproto.Enum):
     ICON_KIND = 2211
     LOG_KIND = 2250
     LOG_LEVEL = 2251
-    TRIGGER_TYPE = 2263
-    RUN_STATUS = 2254
-    RUN_ERROR_KIND = 2255
-    NOTICE_KIND = 2260
-    NOTIFICATION_KIND = 2261
+    RUN_STATUS = 2260
+    RUN_KIND = 2261
+    RUN_ERROR_KIND = 2262
+    TRIGGER_TYPE = 2270
+    NOTICE_KIND = 2280
+    NOTIFICATION_KIND = 2281
     EXPRESSION_KIND = 2300
     CONDITIONAL_OP = 2301
     AGGREGATION_OP = 2302
@@ -436,7 +440,9 @@ class ExpressionOp(betterproto.Enum):
     DESCENDING = 201
 
 
-class FieldKind(betterproto.Enum):
+class FieldZone(betterproto.Enum):
+    """The zone of a Field."""
+
     UNSPECIFIED = 0
     VARIABLE = 1
     MEMBER = 2
@@ -842,6 +848,12 @@ class RunErrorKind(betterproto.Enum):
     UNTRUSTED = 5
 
 
+class RunKind(betterproto.Enum):
+    UNSPECIFIED = 0
+    BLOCK = 1
+    LAMBDA = 10
+
+
 class RunStatus(betterproto.Enum):
     UNSPECIFIED = 0
     SCHEDULED = 1
@@ -1029,6 +1041,18 @@ class TriggerType(betterproto.Enum):
     UNSPECIFIED = 0
     SCHEDULE = 1
     SIGNAL = 2
+
+
+class TypeKind(betterproto.Enum):
+    """The 'kind' of a Type."""
+
+    UNSPECIFIED = 0
+    PRIMITIVE = 1
+    STRUCT = 2
+    NODE = 3
+    ENUM = 4
+    BASE = 5
+    ALIAS = 6
 
 
 class UseType(betterproto.Enum):
@@ -1766,7 +1790,7 @@ class TextSpanData(betterproto.Message):
 @dataclass(eq=False, repr=False)
 class TypeInfoData(betterproto.Message):
     """
-    TypeInfo(id: int = <factory>, parent: Union[ForwardRef('Struct'), ForwardRef('Node'), ForwardRef('Value'), NoneType] = None, order_key: str | None = None, set_properties: list[int] = <factory>, _status: bench.language.const.InterpStatus = None, _updated_properties: bitarray.bitarray | None = None, primitive_type: Optional[bench.language.const.PrimitiveType] = None, bench_type: Optional[bench.utils.func.BenchType] = None, base_type: Optional[ForwardRef('Block')] = None, base_field_kind: Optional[ForwardRef('FieldKind')] = None, visibility: Optional[bench.language.const.NodeVisibility] = None, format_hint: Optional[bench.language.const.FormatHint] = None, condition: Optional[ForwardRef('Expression')] = None, default_packed: Optional[Any] = None, default: None = None, is_list: bool = False, is_secret: bool = False, is_required: bool = False, parent_id: int = None, parent_key: str = None, base_type_ptr: 'NodeReference' = None)
+    TypeInfo(id: int = <factory>, parent: Union[ForwardRef('Struct'), ForwardRef('Node'), ForwardRef('Value'), NoneType] = None, order_key: str | None = None, set_properties: list[int] = <factory>, _status: bench.language.const.InterpStatus = None, _updated_properties: bitarray.bitarray | None = None, kind: bench.language.field.TypeKind = None, primitive_type: Optional[bench.language.const.PrimitiveType] = None, bench_type: Optional[bench.utils.func.BenchType] = None, base_type: Optional[ForwardRef('Block')] = None, base_field_zone: Optional[ForwardRef('FieldZone')] = None, visibility: Optional[bench.language.const.NodeVisibility] = None, format_hint: Optional[bench.language.const.FormatHint] = None, condition: Optional[ForwardRef('Expression')] = None, default_packed: Optional[Any] = None, default: None = None, is_list: bool = False, is_secret: bool = False, is_required: bool = False, parent_id: int = None, parent_key: str = None, base_type_ptr: 'NodeReference' = None)
     """
 
     metatype: "ObjectType" = betterproto.enum_field(1)
@@ -1775,10 +1799,11 @@ class TypeInfoData(betterproto.Message):
     parent_key: Optional[str] = betterproto.string_field(4, optional=True)
     order_key: Optional[str] = betterproto.string_field(5, optional=True)
     set_properties: List[int] = betterproto.int32_field(22)
-    primitive_type: Optional["PrimitiveType"] = betterproto.enum_field(40, optional=True)
-    bench_type: Optional["BenchType"] = betterproto.enum_field(41, optional=True)
-    base_type_ptr: Optional["NodeReferenceData"] = betterproto.message_field(42, optional=True)
-    base_field_kind: Optional["FieldKind"] = betterproto.enum_field(43, optional=True)
+    kind: Optional["TypeKind"] = betterproto.enum_field(40, optional=True)
+    primitive_type: Optional["PrimitiveType"] = betterproto.enum_field(41, optional=True)
+    bench_type: Optional["BenchType"] = betterproto.enum_field(42, optional=True)
+    base_type_ptr: Optional["NodeReferenceData"] = betterproto.message_field(43, optional=True)
+    base_field_zone: Optional["FieldZone"] = betterproto.enum_field(44, optional=True)
     visibility: Optional["NodeVisibility"] = betterproto.enum_field(50, optional=True)
     format_hint: Optional["FormatHint"] = betterproto.enum_field(51, optional=True)
     condition: Optional["ExpressionData"] = betterproto.message_field(52, optional=True)
@@ -2108,11 +2133,12 @@ class FieldData(betterproto.Message):
     value_packed: Optional["betterproto_lib_google_protobuf.Struct"] = betterproto.message_field(
         35, optional=True
     )
-    kind: "FieldKind" = betterproto.enum_field(36)
-    primitive_type: Optional["PrimitiveType"] = betterproto.enum_field(40, optional=True)
-    bench_type: Optional["BenchType"] = betterproto.enum_field(41, optional=True)
-    base_type_ptr: Optional["NodeReferenceData"] = betterproto.message_field(42, optional=True)
-    base_field_kind: Optional["FieldKind"] = betterproto.enum_field(43, optional=True)
+    zone: "FieldZone" = betterproto.enum_field(36)
+    kind: Optional["TypeKind"] = betterproto.enum_field(40, optional=True)
+    primitive_type: Optional["PrimitiveType"] = betterproto.enum_field(41, optional=True)
+    bench_type: Optional["BenchType"] = betterproto.enum_field(42, optional=True)
+    base_type_ptr: Optional["NodeReferenceData"] = betterproto.message_field(43, optional=True)
+    base_field_zone: Optional["FieldZone"] = betterproto.enum_field(44, optional=True)
     visibility: Optional["NodeVisibility"] = betterproto.enum_field(50, optional=True)
     format_hint: Optional["FormatHint"] = betterproto.enum_field(51, optional=True)
     condition: Optional["ExpressionData"] = betterproto.message_field(52, optional=True)
@@ -2583,13 +2609,14 @@ class RunData(betterproto.Message):
     created_by_ptr: Optional["NodeReferenceData"] = betterproto.message_field(17, optional=True)
     updated_by_ptr: Optional["NodeReferenceData"] = betterproto.message_field(18, optional=True)
     set_properties: List[int] = betterproto.int32_field(22)
-    session_ptr: "NodeReferenceData" = betterproto.message_field(30)
-    root_ptr: Optional["NodeReferenceData"] = betterproto.message_field(31, optional=True)
-    server_ptr: Optional["NodeReferenceData"] = betterproto.message_field(32, optional=True)
-    block_ptr: Optional["NodeReferenceData"] = betterproto.message_field(33, optional=True)
-    step_ptr: Optional["NodeReferenceData"] = betterproto.message_field(34, optional=True)
-    code: Optional["CodeData"] = betterproto.message_field(35, optional=True)
-    text: Optional["TextData"] = betterproto.message_field(36, optional=True)
+    kind: "RunKind" = betterproto.enum_field(30)
+    session_ptr: "NodeReferenceData" = betterproto.message_field(31)
+    root_ptr: Optional["NodeReferenceData"] = betterproto.message_field(32, optional=True)
+    server_ptr: Optional["NodeReferenceData"] = betterproto.message_field(33, optional=True)
+    block_ptr: Optional["NodeReferenceData"] = betterproto.message_field(34, optional=True)
+    step_ptr: Optional["NodeReferenceData"] = betterproto.message_field(35, optional=True)
+    code: Optional["CodeData"] = betterproto.message_field(36, optional=True)
+    text: Optional["TextData"] = betterproto.message_field(37, optional=True)
     status: "RunStatus" = betterproto.enum_field(40)
     scheduled_at: Optional[datetime] = betterproto.message_field(41, optional=True)
     started_at: Optional[datetime] = betterproto.message_field(42, optional=True)
@@ -4801,7 +4828,7 @@ class RuntimeBase(ServiceBase):
 
 from typing import TYPE_CHECKING  # noqa: E402
 
-VERSION = "2024.05.01.3"
+VERSION = "2024.05.01.5"
 
 if TYPE_CHECKING:
     from bench.language import Subject

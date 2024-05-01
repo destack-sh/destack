@@ -14,7 +14,7 @@ import {
   PrimitiveType,
   StructType,
   BenchType,
-  FieldKind,
+  FieldZone,
   FieldData,
   ColorType,
   ColorShade,
@@ -376,12 +376,12 @@ export const ICON_BY_FORMAT_HINT: Partial<Record<FormatHint, IconData>> = _makeI
   [FormatHint.AUDIO]: "fas fa-volume",
 });
 
-export const ICON_BY_FIELD_KIND: Partial<Record<FieldKind, IconData>> = _makeIcons({
-  [FieldKind.VARIABLE]: "fas fa-sliders",
-  [FieldKind.MEMBER]: "fas fa-objects-column",
-  [FieldKind.INPUT]: "fas fa-arrow-down-right",
-  [FieldKind.OUTPUT]: "fas fa-arrow-up-right",
-  [FieldKind.OPTION]: "fas fa-circle-small",
+export const ICON_BY_FIELD_ZONE: Partial<Record<FieldZone, IconData>> = _makeIcons({
+  [FieldZone.VARIABLE]: "fas fa-sliders",
+  [FieldZone.MEMBER]: "fas fa-objects-column",
+  [FieldZone.INPUT]: "fas fa-arrow-down-right",
+  [FieldZone.OUTPUT]: "fas fa-arrow-up-right",
+  [FieldZone.OPTION]: "fas fa-circle-small",
 });
 
 export const ICON_BY_LEVEL: Record<LogLevel, IconData> = {
@@ -405,7 +405,7 @@ export const ENUM_ICONS_BY_TYPE: Partial<Record<EnumType, Record<any, IconData>>
   [EnumType.NODE_VISIBILITY]: ICON_BY_VISIBILITY,
   [EnumType.PRIMITIVE_TYPE]: ICON_BY_PRIMITIVE_TYPE,
   [EnumType.FORMAT_HINT]: ICON_BY_FORMAT_HINT,
-  [EnumType.FIELD_KIND]: ICON_BY_FIELD_KIND,
+  [EnumType.FIELD_ZONE]: ICON_BY_FIELD_ZONE,
   [EnumType.LOG_LEVEL]: ICON_BY_LEVEL,
 };
 
@@ -419,8 +419,8 @@ export function getNodeIcon(node: AnyNodeData | { metatype: ObjectType; type?: B
     const icon = ICON_BY_VIEW_TYPE[(node as ViewData).type! as ViewType];
     if (icon != null) return icon;
   } else if (node.metatype == ObjectType.FIELD) {
-    if ((node as FieldData).kind == FieldKind.OPTION) {
-      return ICON_BY_FIELD_KIND[FieldKind.OPTION];
+    if ((node as FieldData).zone == FieldZone.OPTION) {
+      return ICON_BY_FIELD_ZONE[FieldZone.OPTION];
     }
   }
   return ICON_BY_NODE_TYPE[node.metatype! as unknown as NodeType] ?? DEFAULT_MISSING_ICON;

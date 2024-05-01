@@ -13,7 +13,7 @@ from bench.language.validation import ValidationHandler
 
 if TYPE_CHECKING:
     from bench.language import Bench, Block, Branch, Environment, Package, Session
-    from bench.language.field import Field, FieldKind, TypeInfo
+    from bench.language.field import Field, FieldZone, TypeInfo
 
 logger = structlog.get_logger(__name__)
 
@@ -40,7 +40,7 @@ class Value:
     # content
     _type: "TypeInfo"
     _base: Optional["Block"]
-    _base_field_kind: Optional["FieldKind"]
+    _base_field_kind: Optional["FieldZone"]
     _value: dict[str, SomeValue] | None
 
     # use

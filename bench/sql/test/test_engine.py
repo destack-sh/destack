@@ -25,6 +25,7 @@ from bench.language import (
     StoreKind,
 )
 from bench.language.const import NodeType
+from bench.language.field import TypeKind
 from bench.language.test.fabricator import Fabricator
 from bench.sql.core import Column, Table
 from bench.sql.engine import (
@@ -207,7 +208,7 @@ async def test_crud_node_pointers(fabricator: "Fabricator"):
         bench_a.branches.create(name="main a")
         package_a = bench_a.packages.create(environment=environment_a)
         block_a_1 = package_a.blocks.create(type=BlockType.CODE)
-        block_a_1.fields.create(name="foo", bench_type=BenchType.PRIMITIVE_TYPE)
+        block_a_1.fields.create(name="foo", kind=TypeKind.ENUM, bench_type=BenchType.PRIMITIVE_TYPE)
         await session.commit()
 
     # read back

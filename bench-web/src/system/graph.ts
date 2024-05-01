@@ -11,7 +11,7 @@ import {
   type AnyPropertyType,
   type NodeTypeMapping,
   StepType,
-  FieldKind,
+  FieldZone,
   PROPERTY_INFOS_BY_TYPE,
 } from "@/proto/wire";
 import { describeNode, toNodeReference, type AnyNodeReferenceData, type TypedNodeReferenceData } from "@/proto/wiring";
