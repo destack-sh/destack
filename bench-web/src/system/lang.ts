@@ -9,7 +9,7 @@ import {
   ColorType,
   ENUM_BY_TYPE,
   EnumType,
-  FieldKind,
+  FieldZone,
   FieldProperty,
   IconData,
   NodeReferenceData,
@@ -289,7 +289,7 @@ export function extractNameId(name: string): number | null {
 }
 
 const NODE_NAME_DISCRIMINATORS: Partial<Record<NodeType, string>> = {
-  [NodeType.FIELD]: "kind", // only used for option/input/output
+  [NodeType.FIELD]: "zone", // only used for option/input/output
   [NodeType.BLOCK]: "type",
   [NodeType.VIEW]: "type",
   [NodeType.STEP]: "type",
@@ -298,7 +298,7 @@ const NODE_NAME_DISCRIMINATORS: Partial<Record<NodeType, string>> = {
 /** Generates a node name for our :AutoNaming. */
 export function generateNodeName<T extends NodeType>(metatype: T, siblings: AnyNodeData[], value?: number): string {
   let key: string | undefined;
-  if (metatype != NodeType.FIELD || (value != FieldKind.VARIABLE && value != FieldKind.MEMBER))
+  if (metatype != NodeType.FIELD || (value != FieldZone.VARIABLE && value != FieldZone.MEMBER))
     key = NODE_NAME_DISCRIMINATORS[metatype];
   else key = undefined;
   if (key != null) {
@@ -341,11 +341,11 @@ export function isGeneratedNodeName(metatype: NodeType, name: string): boolean {
 /** Generates the name for a node in the given graph */
 export function makeNodeName(
   graph: ReadNodeGraph,
-  node: { metatype: ObjectType; parentPtr?: NodeReferenceData; kind?: any; type?: any },
+  node: { metatype: ObjectType; parentPtr?: NodeReferenceData; zone?: any; type?: any },
 ): string {
   if (node.parentPtr == null) throw new Error("parentPtr is required");
   const siblings = graph.getChildren(node.parentPtr, node.metatype as unknown as NodeType);
-  return generateNodeName(node.metatype as unknown as NodeType, siblings, node.kind ?? node.type);
+  return generateNodeName(node.metatype as unknown as NodeType, siblings, node.zone ?? node.type);
 }
 
 // NOTE: we soft-limit the subset of available enum options in bench-web
@@ -488,7 +488,7 @@ export function createField(
   // get position within parent
   let parentPtr: NodeReferenceData;
   let orderKey: string;
-  let kind: FieldKind;
+  let zone: FieldZone;
   let siblings: FieldData[];
   if (isNode(target, NodeType.BLOCK)) {
     if (anchor != "inside" && anchor != "center") throw new Error(`unexpected anchor for block: ${anchor}`);
@@ -496,30 +496,30 @@ export function createField(
     parentPtr = toNodeReference(target);
     orderKey = getOrderKey({ position: "after", reference: siblings[siblings.length - 1], nodes: siblings });
     // figure out field kind based on block type
-    if (target.type == BlockType.CHOICE) kind = FieldKind.OPTION;
-    else if (TYPE_BLOCK_TYPES.includes(target.type)) kind = FieldKind.MEMBER;
-    else if (RUNNABLE_BLOCK_TYPES.includes(target.type)) kind = FieldKind.INPUT;
-    else kind = FieldKind.VARIABLE;
+    if (target.type == BlockType.CHOICE) zone = FieldZone.OPTION;
+    else if (TYPE_BLOCK_TYPES.includes(target.type)) zone = FieldZone.MEMBER;
+    else if (RUNNABLE_BLOCK_TYPES.includes(target.type)) zone = FieldZone.INPUT;
+    else zone = FieldZone.VARIABLE;
   } else if (isNode(target, NodeType.FIELD)) {
     if (anchor == "inside" || anchor == "center") throw new Error(`unexpected anchor for field: ${anchor}`);
     siblings = graph.getChildren(target.parentPtr!, NodeType.FIELD);
     parentPtr = target.parentPtr!;
     orderKey = getOrderKey({ position: anchor, reference: target, nodes: siblings });
-    kind = target.kind;
+    zone = target.zone;
   } else {
     throw new Error(`unexpected target node type: ${describeNode(target)}`);
   }
 
   // assign color if option
-  if (kind == FieldKind.OPTION && !(fieldIn != null && "icon" in fieldIn)) {
+  if (zone == FieldZone.OPTION && !(fieldIn != null && "icon" in fieldIn)) {
     const occupiedColors = siblings.map((f) => f.icon?.color?.type ?? ColorType.GRAY);
     const colorType = getRandomColorType({ except: occupiedColors });
     fieldIn = { ...fieldIn, icon: makeIcon({ faName: "fas fa-circle-small", color: colorType }) };
   }
 
   const field = tx.create({
-    name: makeNodeName(graph, { metatype: ObjectType.FIELD, parentPtr, kind }),
-    kind,
+    name: makeNodeName(graph, { metatype: ObjectType.FIELD, parentPtr, zone: zone }),
+    zone,
     benchType: BenchType.TEXT,
     ...fieldIn,
     // overwrite non-required properties
@@ -538,7 +538,7 @@ export function createField(
 //
 
 /** Gets the discriminating subtype for a node, if any */
-export function getNodeSubtype(node: AnyNodeData): FieldKind | BlockType | ViewType | StepType | any {
+export function getNodeSubtype(node: AnyNodeData): FieldZone | BlockType | ViewType | StepType | any {
   if (isNode(node, NodeType.FIELD)) return node.kind;
   else return (node as any).type;
 }
@@ -574,7 +574,7 @@ function getInspectionInfo(metatype: ObjectType, type: any): Record<string, Insp
   if (metatype == ObjectType.FIELD) {
     const properties = {
       Common: [
-        FieldProperty.kind,
+        FieldProperty.zone,
         {
           from: 40,
           to: 43,
@@ -596,7 +596,7 @@ function getInspectionInfo(metatype: ObjectType, type: any): Record<string, Insp
       ],
       Constraint: [FieldProperty.formatHint, { from: 60 }],
     };
-    if (type != FieldKind.OPTION) {
+    if (type != FieldZone.OPTION) {
       properties.Common.push(FieldProperty.visibility);
     }
     return properties;

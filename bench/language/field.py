@@ -1,4 +1,3 @@
-import enum
 import typing
 from typing import TYPE_CHECKING, Any, Collection, Optional, Union
 from uuid import UUID
@@ -78,15 +77,43 @@ class TypeError(BenchError, TypeError):
         self.suberrors = suberrors or []
 
 
-class TypeKind(enum.StrEnum):
-    """The 'kind' of a Type. Only for encoding for now. :TypeInfoEncoding"""
+@enum_(EnumType.TYPE_KIND)
+class TypeKind(IdEnum):
+    """The 'kind' of a Type."""
 
-    PRIMITIVE = "p"
-    STRUCT = "s"
-    NODE = "n"
-    ENUM = "e"
-    BASE = "b"
-    ALIAS = "a"
+    PRIMITIVE = 1
+    STRUCT = 2
+    NODE = 3
+    ENUM = 4
+    BASE = 5
+    ALIAS = 6
+
+
+LETTER_BY_TYPE_KIND: dict[TypeKind, str] = {
+    TypeKind.PRIMITIVE: "p",
+    TypeKind.STRUCT: "s",
+    TypeKind.NODE: "n",
+    TypeKind.ENUM: "e",
+    TypeKind.BASE: "b",
+    TypeKind.ALIAS: "a",
+}
+TYPE_KIND_BY_LETTER: dict[str, TypeKind] = {v: k for k, v in LETTER_BY_TYPE_KIND.items()}
+
+
+def get_implied_type_kind(type: "TypeInfoBase") -> TypeKind | None:
+    if type.primitive_type:
+        return TypeKind.PRIMITIVE
+    elif type.bench_type:
+        if is_node_type(type.bench_type):
+            return TypeKind.NODE
+        elif is_struct_type(type.bench_type):
+            return TypeKind.STRUCT
+        elif is_enum_type(type.bench_type):
+            return TypeKind.ENUM
+    elif type.base_type_ptr:
+        return TypeKind.BASE
+
+    return None
 
 
 def encode_type_identity(type: "TypeInfoBase") -> str:
@@ -95,37 +122,27 @@ def encode_type_identity(type: "TypeInfoBase") -> str:
     Format is <kind>[id] (with id encoded as base64).
     :TypeInfoEncoding
     """
-    kind = None
-    value = None
-    if type.primitive_type:
-        kind = TypeKind.PRIMITIVE.value
+
+    if type.kind == TypeKind.PRIMITIVE:
+        assert type.primitive_type is not None
         value = encode_b64vlq(type.primitive_type.id)
-    elif type.bench_type:
-        if is_node_type(type.bench_type):
-            if not type.base_type_ptr:
-                kind = TypeKind.NODE.value
-                value = encode_b64vlq(type.bench_type.id)
-            else:
-                kind = TypeKind.BASE.value
-                value = (
-                    f"{get_tk_b64_from_ptr(type.base_type_ptr)}{encode_b64vlq(type.bench_type.id)}"
-                )
-        elif is_struct_type(type.bench_type):
-            kind = TypeKind.STRUCT.value
-            value = encode_b64vlq(type.bench_type.id)
-        elif is_enum_type(type.bench_type):
-            kind = TypeKind.ENUM.value
-            value = encode_b64vlq(type.bench_type.id)
-    elif type.base_type_ptr:
-        kind = TypeKind.ALIAS.value
+    elif type.kind == TypeKind.NODE or type.kind == TypeKind.STRUCT or type.kind == TypeKind.ENUM:
+        assert type.bench_type is not None
+        value = encode_b64vlq(type.bench_type.id)
+    elif type.kind == TypeKind.BASE:
+        assert type.base_type_ptr is not None
+        assert type.bench_type is not None
+        value = f"{get_tk_b64_from_ptr(type.base_type_ptr)}{encode_b64vlq(type.bench_type.id)}"
+    elif type.kind == TypeKind.ALIAS:
+        assert type.base_type_ptr is not None
         value = get_tk_b64_from_ptr(type.base_type_ptr)
-    if kind is None:
+    else:
         raise ValueError(f"unsupported type {type!r}")
 
     if type.is_list:
-        prefix = kind.upper()
+        prefix = LETTER_BY_TYPE_KIND[type.kind].upper()
     else:
-        prefix = kind
+        prefix = LETTER_BY_TYPE_KIND[type.kind]
     if type.is_secret:
         prefix = "!" + prefix
     return f"{prefix}{value}"
@@ -141,10 +158,10 @@ def decode_type_identity(key: str) -> "TypeInfoBase":
         is_secret = False
     if key[0].isupper():
         is_list = True
-        kind = key[0].lower()
+        kind = TYPE_KIND_BY_LETTER.get(key[0].lower())
     else:
         is_list = False
-        kind = key[0]
+        kind = TYPE_KIND_BY_LETTER.get(key[0])
     value = key[1:]
 
     # value
@@ -207,15 +224,16 @@ class TypeInfoBase(HasValues):
     """
 
     # type identity (must set at least one of these)
-    primitive_type: Optional[PrimitiveType] = p_regular(40, default=None)
-    bench_type: Optional[BenchType] = p_regular(41, default=None)
+    kind: TypeKind = p_internal(40, require=False, default=None)
+    primitive_type: Optional[PrimitiveType] = p_regular(41, default=None)
+    bench_type: Optional[BenchType] = p_regular(42, default=None)
     base_type: Optional["Block"] = p_regular(
-        42, array=False, require=False, default=None, references=NodeType.BLOCK
+        43, array=False, require=False, default=None, references=NodeType.BLOCK
     )
     if TYPE_CHECKING:
         base_type_id: Optional[UUID] = None
         base_type_ptr: Optional["NodeReference"] = None
-    base_field_kind: Optional["FieldKind"] = p_internal(43, require=False, default=None)
+    base_field_zone: Optional["FieldZone"] = p_internal(44, require=False, default=None)
 
     # + bonus info/constraints
     visibility: Optional[NodeVisibility] = p_regular(50, default=None)
@@ -256,12 +274,16 @@ class TypeInfoBase(HasValues):
     def _validate_component(
         self, properties: Collection[Property], on_invalid: "ValidationHandler"
     ) -> None:
-        if self.primitive_type is None and self.bench_type is None and self.base_type_ptr is None:
+        implied_kind = get_implied_type_kind(self)
+        if implied_kind is None:
             on_invalid(self, "missing type identity", None, None)
+        elif implied_kind != self.kind:
+            on_invalid(self, f"implied kind {implied_kind} does not match {self.kind}", None, None)
 
     @property
     def identity_key(self) -> str:
         """The identity of this type for packing."""
+        # TODO :Performance: cache Field.identity_key (in interp?)
         return encode_type_identity(self)
 
 
@@ -270,14 +292,15 @@ class TypeInfo(TypeInfoBase):
     pass
 
 
-@enum_(EnumType.FIELD_KIND)
-class FieldKind(IdEnum):
+@enum_(EnumType.FIELD_ZONE)
+class FieldZone(IdEnum):
+    """The zone of a Field."""
+
     VARIABLE = 1
     MEMBER = 2
     INPUT = 3
     OUTPUT = 4
     OPTION = 5
-    # LITERAL? (or does Field.value + kind=Option make it a Literal?)
 
 
 @node(NodeType.FIELD)
@@ -296,7 +319,7 @@ class Field(Node[FieldData], TypeInfoBase, _TypeQueryBuilder):
     icon: Optional["Icon"] = p_regular(34, require=False, array=False, struct=StructType.ICON)
     value_packed: Any | None = p_value_packed(35)
     value = p_value_runtime(35)
-    kind: FieldKind = p_internal(36, default=FieldKind.VARIABLE)
+    zone: FieldZone = p_internal(36, default=FieldZone.VARIABLE)
 
     # type identity
     # ...TypeInfo
@@ -334,7 +357,7 @@ class Field(Node[FieldData], TypeInfoBase, _TypeQueryBuilder):
 
     @property
     def identifier_type(self):
-        if self.kind == FieldKind.OPTION:
+        if self.kind == FieldZone.OPTION:
             return IdentifierType.CONSTANT
         else:
             return IdentifierType.PROPERTY

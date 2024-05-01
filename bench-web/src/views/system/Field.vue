@@ -1,5 +1,5 @@
 <script lang="ts" setup>
-import { ViewData, NodeType, Variant, ColorShade, FieldKind } from "@/proto/wire";
+import { ViewData, NodeType, Variant, ColorShade, FieldZone } from "@/proto/wire";
 import { type TypedNodeReferenceData } from "@/proto/wiring";
 import { makeViewId, viewEmits, type ViewExposed } from "@/views/common";
 import { canvas, inspectionPtr } from "@/system/space";

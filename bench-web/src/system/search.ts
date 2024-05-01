@@ -8,6 +8,7 @@ import {
   ObjectType,
   PrimitiveType,
   StructType,
+  TypeKind,
   type AnyNodeData,
   type IconData,
   type NodeReferenceData,
@@ -16,7 +17,7 @@ import { toNodeReference } from "@/proto/wiring";
 import { ACTION_BUILTIN_IDS_INDEX, IMPLEMENTED_ACTIONS, type Action } from "@/system/action";
 import type { NodeKey, ReadNodeGraph } from "@/system/graph";
 import { AVAILABLE_FA_ICONS, DEFAULT_ENUM_ICON, getNodeIcon, type IconMetadata } from "@/system/icon";
-import { TYPE_BLOCK_TYPES, getEnumOptions, type EnumOption } from "@/system/lang";
+import { TYPE_BLOCK_TYPES, getEnumOptions, isStructType, type EnumOption } from "@/system/lang";
 import type { TypeIdentity } from "@/system/value";
 import uFuzzy from "@leeoniya/ufuzzy";
 import { tryOnBeforeUnmount } from "@vueuse/core";
@@ -287,19 +288,33 @@ export function typeIndex(options: {
       metatype: "type",
     };
     if (item.icon == null) item.icon = DEFAULT_ENUM_ICON;
-    if (enumType == EnumType.PRIMITIVE_TYPE) item.primitiveType = option.value as PrimitiveType;
-    else if (enumType == EnumType.OBJECT_TYPE || enumType == EnumType.BENCH_TYPE)
+    if (enumType == EnumType.PRIMITIVE_TYPE) {
+      item.primitiveType = option.value as PrimitiveType;
+      item.kind = TypeKind.PRIMITIVE;
+    } else if (enumType == EnumType.OBJECT_TYPE || enumType == EnumType.BENCH_TYPE) {
       item.benchType = option.value as BenchType;
-    else throw new Error(`unexpected enum type: ${enumType}`);
+      item.kind = isStructType(option.value) ? TypeKind.STRUCT : TypeKind.NODE;
+    } else {
+      throw new Error(`unexpected enum type: ${enumType}`);
+    }
     return item;
   }
 
   function mapFromNode(nodeItem: NodeItem): TypeItem {
     const blockType = (nodeItem.node as BlockData).type;
     const item: TypeItem = { ...nodeItem, isList: false, isSecret: false, metatype: "type" };
-    if (blockType == BlockType.CHOICE) item.benchType = BenchType.FIELD;
-    else if (blockType == BlockType.SIGNAL) item.benchType = BenchType.SIGNAL;
-    else if (blockType == BlockType.DATABASE) item.benchType = BenchType.RECORD;
+    if (blockType == BlockType.CHOICE) {
+      item.benchType = BenchType.FIELD;
+      item.kind == TypeKind.BASE;
+    } else if (blockType == BlockType.SIGNAL) {
+      item.benchType = BenchType.SIGNAL;
+      item.kind == TypeKind.BASE;
+    } else if (blockType == BlockType.DATABASE) {
+      item.benchType = BenchType.RECORD;
+      item.kind == TypeKind.BASE;
+    } else {
+      item.kind = TypeKind.ALIAS;
+    }
     item.baseTypePtr = toNodeReference(nodeItem.node);
     return item;
   }

@@ -393,6 +393,12 @@ class Session(Node[SessionData]):
         return self._stacktrace
 
 
+@enum_(EnumType.RUN_KIND)
+class RunKind(IdEnum):
+    BLOCK = 1
+    LAMBDA = 10
+
+
 @node(NodeType.RUN, index_in_search=True, local=True, id_factory=UUIDT)
 class Run(BasedNode[RunData], HasValues):
     """
@@ -403,21 +409,22 @@ class Run(BasedNode[RunData], HasValues):
 
     # context
     parent: Union["Session", "Run"] = p_node_parent(4, NodeType.SESSION, NodeType.RUN)
+    kind: RunKind = p_system(30)
     session: "Session" = p_node_ancestor(
-        30, NodeType.SESSION, require=True, store=True, wire=True, index_in_pg=True
+        31, NodeType.SESSION, require=True, store=True, wire=True, index_in_pg=True
     )
     root: Optional["Run"] = p_node_ancestor_root(
-        31, NodeType.RUN, require=False, store=True, wire=True, index_in_pg=True
+        32, NodeType.RUN, require=False, store=True, wire=True, index_in_pg=True
     )
     server: Optional["Server"] = p_internal(
-        32, require=False, array=False, references=NodeType.SERVER
+        33, require=False, array=False, references=NodeType.SERVER
     )
     block: Optional["Block"] = p_internal(
-        33, references=NodeType.BLOCK, require=False, array=False, index_in_pg=True
+        34, references=NodeType.BLOCK, require=False, array=False, index_in_pg=True
     )
-    step: Optional["Step"] = p_internal(34, require=False, array=False, references=NodeType.STEP)
-    code: Optional["Code"] = p_internal(35, require=False, array=False, struct=StructType.CODE)
-    text: Optional["Text"] = p_internal(36, require=False, array=False, struct=StructType.TEXT)
+    step: Optional["Step"] = p_internal(35, require=False, array=False, references=NodeType.STEP)
+    code: Optional["Code"] = p_internal(36, require=False, array=False, struct=StructType.CODE)
+    text: Optional["Text"] = p_internal(37, require=False, array=False, struct=StructType.TEXT)
 
     # status
     status: RunStatus = p_internal(40, index_in_pg=True)

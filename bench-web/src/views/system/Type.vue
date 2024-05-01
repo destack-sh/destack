@@ -1,5 +1,5 @@
 <script lang="ts" setup>
-import { BlockType, FieldKind, NodeType, Orientation, Variant, ViewData, type FieldData } from "@/proto/wire";
+import { BlockType, FieldZone, NodeType, Orientation, Variant, ViewData, type FieldData } from "@/proto/wire";
 import { isNode, toNodeReference, type TypedNodeReferenceData } from "@/proto/wiring";
 import type { ActionContext, ActionMapImplementation } from "@/system/action";
 import { useGetConnection, type PreparedGetConnection } from "@/system/connection";
@@ -39,30 +39,30 @@ const shouldHaveFields = computed(
   () => block.value != null && block.value.type != BlockType.TEXT && block.value.type != BlockType.CODE,
 );
 const fields = pkgGraph.getChildrenRef(block, NodeType.FIELD);
-const leftKind = computed(() => {
+const leftZone = computed(() => {
   if (block.value?.type == BlockType.CLASS) {
-    return FieldKind.MEMBER;
+    return FieldZone.MEMBER;
   } else if (block.value?.type == BlockType.CHOICE) {
-    return FieldKind.OPTION;
+    return FieldZone.OPTION;
   } else if (isFunction.value) {
-    return FieldKind.INPUT;
+    return FieldZone.INPUT;
   } else {
     return null;
   }
 });
-const rightKind = computed(() => {
+const rightZone = computed(() => {
   if (isFunction.value) {
-    return FieldKind.OUTPUT;
+    return FieldZone.OUTPUT;
   } else {
     return null;
   }
 });
 const leftFields = computed(() => {
-  return leftKind.value == null ? fields.value : fields.value.filter((f) => f.kind == leftKind.value);
+  return leftZone.value == null ? fields.value : fields.value.filter((f) => f.zone == leftZone.value);
 });
 const rightFields = computed(() => {
   if (isFunction.value) {
-    return fields.value.filter((f) => f.kind == FieldKind.OUTPUT);
+    return fields.value.filter((f) => f.zone == FieldZone.OUTPUT);
   } else {
     return [];
   }
@@ -74,24 +74,24 @@ function allowDrop(dragged: DraggedData, anchor: MultiAnchor, targetId: string |
   if (dragged.kind != "node") return false;
   const node = pkgGraph.get(dragged.node);
   if (!isNode(node, NodeType.FIELD)) return false;
-  if ((node.kind == FieldKind.OPTION) != (block.value?.type == BlockType.CHOICE)) return false;
+  if ((node.zone == FieldZone.OPTION) != (block.value?.type == BlockType.CHOICE)) return false;
   return true;
 }
 function onDrop(dragged: DraggedData, anchor: MultiAnchor, targetId: string | null, event: DragEvent) {
   if (dragged.kind == "node") {
     const node = pkgGraph.getOrError(dragged.node) as FieldData;
     const side = leftRef.value?.contains(event.target as Node) ? "left" : "right";
-    const sideKind = side == "left" ? leftKind.value : rightKind.value;
+    const sideZone = side == "left" ? leftZone.value : rightZone.value;
     if (targetId != null) {
       const target = pkgGraph.getOrError({ id: targetId }) as FieldData;
       moveNode(pkgConnection.tx, pkgGraph, dragged.node, anchor, target);
-      if (node.kind != target.kind) {
-        pkgConnection.tx.update(node, { kind: target.kind });
+      if (node.zone != target.zone) {
+        pkgConnection.tx.update(node, { zone: target.zone });
       }
     } else {
       moveNode(pkgConnection.tx, pkgGraph, dragged.node, "center", block.value!);
-      if (node.kind != sideKind) {
-        pkgConnection.tx.updateDebounced(node, { kind: sideKind ?? undefined });
+      if (node.zone != sideZone) {
+        pkgConnection.tx.updateDebounced(node, { zone: sideZone ?? undefined });
       }
     }
   }
@@ -191,11 +191,11 @@ defineExpose<ViewExposed>({ self, id, actions });
         <!-- Empty state -->
         <div v-if="sideFields.length == 0 && shouldHaveFields" class="flex flex-row items-center px-1">
           <i class="fas fa-empty-set mr-1.5 text-gray-400" />
-          <span class="text-gray-500">No {{ toCamelName(FieldKind, side == "left" ? leftKind : rightKind) }}s</span>
+          <span class="text-gray-500">No {{ toCamelName(FieldZone, side == "left" ? leftZone : rightZone) }}s</span>
         </div>
         <!-- Drop indicator -->
         <div v-else-if="activeDropZoneSide == side" class="absolute right-1 top-1 text-gray-400">
-          {{ toCamelName(FieldKind, side == "left" ? leftKind : rightKind) }}
+          {{ toCamelName(FieldZone, side == "left" ? leftZone : rightZone) }}
         </div>
         <!-- Field wrapper -->
         <li v-for="(field, i) in sideFields" :key="field.id" class="relative w-fit max-w-[200px]">

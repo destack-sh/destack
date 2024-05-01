@@ -1,4 +1,4 @@
-import { BenchType, EnumType, NodeType, ObjectType, PrimitiveType, StructType } from "@/proto/wire";
+import { BenchType, EnumType, NodeType, ObjectType, PrimitiveType, StructType, TypeKind } from "@/proto/wire";
 import { getTkFromPtrMaybe } from "@/system/lang";
 import { decodeTypeIdentity, encodeTypeIdentity, type TypeIdentity } from "@/system/value";
 import { describe, expect, test } from "vitest";
@@ -31,11 +31,12 @@ import { describe, expect, test } from "vitest";
 
 // the test data & targets are from the backend bench implementation
 const TEST_TYPE_IDENTITIES: (Partial<TypeIdentity> & { identityKey: string })[] = [
-  { primitiveType: PrimitiveType.DATETIME, isSecret: false, isList: false, identityKey: "pU" },
-  { benchType: BenchType.USER, isSecret: false, isList: true, identityKey: "NdD" },
-  { benchType: BenchType.TEXT, isSecret: false, isList: false, identityKey: "sIS" },
-  { benchType: BenchType.OBJECT_TYPE, isSecret: true, isList: false, identityKey: "!eUf" },
+  { kind: TypeKind.PRIMITIVE, primitiveType: PrimitiveType.DATETIME, isSecret: false, isList: false, identityKey: "pU" },
+  { kind: TypeKind.NODE, benchType: BenchType.USER, isSecret: false, isList: true, identityKey: "NdD" },
+  { kind: TypeKind.STRUCT, benchType: BenchType.TEXT, isSecret: false, isList: false, identityKey: "sIS" },
+  { kind: TypeKind.ENUM, benchType: BenchType.OBJECT_TYPE, isSecret: true, isList: false, identityKey: "!eUf" },
   {
+    kind: TypeKind.BASE,
     benchType: BenchType.FIELD,
     baseTypePtr: {
       metatype: ObjectType.NODE_REFERENCE,
@@ -47,6 +48,7 @@ const TEST_TYPE_IDENTITIES: (Partial<TypeIdentity> & { identityKey: string })[] 
     identityKey: "!BEjRWeP//AAA=g",
   },
   {
+    kind: TypeKind.ALIAS,
     baseTypePtr: {
       metatype: ObjectType.NODE_REFERENCE,
       type: NodeType.BLOCK,

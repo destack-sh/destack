@@ -2,7 +2,7 @@ import {
   BlockData,
   BlockType,
   EnumType,
-  FieldKind,
+  FieldZone,
   NodeType,
   ObjectType,
   ViewType,
@@ -1115,13 +1115,13 @@ contributeActionMap<"developer">({
       if (!isNode(block, NodeType.BLOCK)) return false;
       for (let i = 0; i < 5; i++) {
         const name = generateRandomName();
-        let kind: FieldKind;
+        let zone: FieldZone;
         if (block.type == BlockType.CLASS) {
-          kind = FieldKind.MEMBER;
+          zone = FieldZone.MEMBER;
         } else if (block.type == BlockType.CHOICE) {
-          kind = FieldKind.OPTION;
+          zone = FieldZone.OPTION;
         } else {
-          kind = getRandomEnumOption(EnumType.FIELD_KIND);
+          zone = getRandomEnumOption(EnumType.FIELD_ZONE);
         }
         const existingChildren = pkgGraph.getChildren(block, NodeType.FIELD);
         const field = tx.create({
@@ -1129,7 +1129,7 @@ contributeActionMap<"developer">({
           parentPtr: toNodeReference(block),
           packagePtr: packagePtr.value!,
           name,
-          kind,
+          zone,
           benchType: getRandomEnumOption(EnumType.BENCH_TYPE),
           isList: Math.random() > 0.5,
           isRequired: Math.random() > 0.4,

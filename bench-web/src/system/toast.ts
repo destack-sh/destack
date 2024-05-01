@@ -48,7 +48,7 @@ export const DEFAULT_TOAST_DURATION_BY_LEVEL: Record<LogLevel, ToastDuration> = 
   [LogLevel.INFO]: ToastDuration.md,
   [LogLevel.WARNING]: ToastDuration.md,
   [LogLevel.ERROR]: ToastDuration.lg,
-  [LogLevel.FATAL]: ToastDuration["2xl"],
+  [LogLevel.CRITICAL]: ToastDuration["2xl"],
 };
 
 export type ToastIn = Pick<Toast, "title" | "text" | "level"> &
@@ -106,8 +106,8 @@ export class Toaster {
     this.add({ ...toast, level: LogLevel.ERROR });
   }
 
-  fatal(toast: Omit<ToastIn, "level">) {
-    this.add({ ...toast, level: LogLevel.FATAL });
+  critical(toast: Omit<ToastIn, "level">) {
+    this.add({ ...toast, level: LogLevel.CRITICAL });
   }
 
   dismiss(toast: Toast) {

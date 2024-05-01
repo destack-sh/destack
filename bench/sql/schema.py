@@ -11,7 +11,7 @@ from bench.sql.core import (
     Table,
 )
 
-VERSION = "2024.05.01.3"
+VERSION = "2024.05.01.5"
 
 BENCH_TABLE = Table(
     "bench_bench",
@@ -754,13 +754,14 @@ FIELD_TABLE = Table(
         Column("text", PrimitiveType.JSON, is_nullable=True),
         Column("icon", PrimitiveType.JSON, is_nullable=True),
         Column("value_packed", PrimitiveType.JSON, is_nullable=True),
-        Column("kind", PrimitiveType.INT16, default="1"),
+        Column("zone", PrimitiveType.INT16, default="1"),
+        Column("kind", PrimitiveType.INT16, is_nullable=True),
         Column("primitive_type", PrimitiveType.INT16, is_nullable=True),
         Column("bench_type", PrimitiveType.INT16, is_nullable=True),
         Column("base_type_id", PrimitiveType.UUID, is_nullable=True),
         Column("base_type_ck", PrimitiveType.UUID, is_nullable=True),
         Column("base_type_bench_id", PrimitiveType.UUID, is_nullable=True),
-        Column("base_field_kind", PrimitiveType.INT16, is_nullable=True),
+        Column("base_field_zone", PrimitiveType.INT16, is_nullable=True),
         Column("visibility", PrimitiveType.INT16, is_nullable=True),
         Column("format_hint", PrimitiveType.INT16, is_nullable=True),
         Column("condition", PrimitiveType.JSON, is_nullable=True),
@@ -1328,6 +1329,7 @@ RUN_TABLE = Table(
         Column("updated_by_type", PrimitiveType.INT16, is_nullable=True),
         Column("updated_by_base_ck", PrimitiveType.UUID, is_nullable=True),
         Column("set_properties", PrimitiveType.INT32, is_array=True),
+        Column("kind", PrimitiveType.INT16),
         Column("session_id", PrimitiveType.UUID),
         Column("session_ck", PrimitiveType.UUID),
         Column("session_bench_id", PrimitiveType.UUID),
