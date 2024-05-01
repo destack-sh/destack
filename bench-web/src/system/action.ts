@@ -1088,7 +1088,8 @@ contributeActionMap<"developer">({
       for (let i = 0; i < 10; i++) {
         const name = generateRandomName();
         const parent = existingNodes[Math.floor(Math.random() * existingNodes.length)];
-        const existingChildren = pkgGraph.getChildren(parent);
+        const existingChildren = pkgGraph.getChildren(parent, NodeType.BLOCK);
+        const prevOrderKey = (existingChildren[existingChildren.length - 1] as any)?.orderKey ?? null;
         const type = getRandomEnumOption(EnumType.BLOCK_TYPE);
         const node = tx.create({
           metatype: NodeType.BLOCK,
@@ -1098,7 +1099,7 @@ contributeActionMap<"developer">({
           isPage: type == BlockType.PAGE,
           isProtocol: type == BlockType.PROTOCOL,
           name,
-          orderKey: generateOrderKey((existingChildren[existingChildren.length - 1] as any)?.orderKey ?? null, null),
+          orderKey: generateOrderKey(prevOrderKey, null),
         });
       }
     },

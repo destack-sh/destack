@@ -5,6 +5,7 @@ from uuid import UUID
 import structlog
 
 from bench.language.const import NodeType, PrimitiveValue, StructType
+from bench.language.field import encode_type_identity
 from bench.language.graph import NodeGraph
 from bench.language.node import InterpStatus, Node, Property, Struct, struct, struct_component
 from bench.language.notice import NoticeHandler
@@ -12,7 +13,7 @@ from bench.language.property import p_internal
 from bench.language.validation import ValidationHandler
 
 if TYPE_CHECKING:
-    from bench.language import Bench, Block, Branch, Environment, NodeVisitor, Package, Session
+    from bench.language import Bench, Block, Branch, Environment, Package, Session
     from bench.language.field import Field, FieldKind, TypeInfo
 
 logger = structlog.get_logger(__name__)
@@ -59,24 +60,18 @@ class Value:
 
 @struct_component()
 class HasValues(Struct):
-    def _validate_inner(
+    def _validate_component(
         self, properties: Collection[Property], on_invalid: "ValidationHandler"
     ) -> None:
         pass
 
-    def _visit_inner(self, visitor: "NodeVisitor") -> None:
+    def _interp_component(self, scope: Optional["Node"], on_notice: "NoticeHandler"):
         pass
 
-    def _clear_inner(self, scope: Optional["Node"] = None):
+    def _track_component(self, session: "Session") -> None:
         pass
 
-    def _interp_inner(self, scope: Optional["Node"], on_notice: "NoticeHandler"):
-        pass
-
-    def _track_inner(self, session: "Session") -> None:
-        pass
-
-    def _untrack_inner(self) -> None:
+    def _untrack_component(self) -> None:
         pass
 
 
@@ -86,6 +81,7 @@ def coerce_value(value: Any, type: "TypeInfo") -> SomeValue:
     Returns value as is if already correct.
     Raises TypeError if not possible.
     """
+    # nocheckin: coerce_value
     raise NotImplementedError
 
 
@@ -94,6 +90,7 @@ def type_value(value: Any, type: "TypeInfo") -> None:
     Checks whether the given value has the expected type (recursively).
     Raises TypeError if not.
     """
+    # nocheckin: type_value
     raise NotImplementedError
 
 
@@ -105,11 +102,20 @@ def unpack_value(
     session: Optional["Session"] = None,
 ) -> SomeValue:
     """Unpacks/deserializes the given value into a Bench Value representation."""
+    # nocheckin: unpack_value
     raise NotImplementedError
 
 
 def pack_value(value: SomeValue, type: "TypeInfo", graph: NodeGraph) -> tuple[Any, Any | None]:
     """Packs/serializes the given value into a JSON-able representation."""
+    # nocheckin: pack_value
+    identity_key = encode_type_identity(type)
+
+    if type.base_type_ptr:
+        base_type = graph.get(type.base_type_ptr)
+        if base_type is None:
+            pass  # nocheckin: panic?
+
     raise NotImplementedError
 
 

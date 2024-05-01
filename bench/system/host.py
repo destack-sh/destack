@@ -139,7 +139,7 @@ class HostMultiplexer(BenchServiceBase, HostBase):
 
 class Host(GraphIoServiceBase, HostBase):
     """
-    Host for a Bench, providing the OS-level functions (lifecycle, resources & runtime management)..
+    Host for a Bench, providing the OS-level functions (lifecycle, resources & runtime management).
     Clients interact with a Bench exclusively through its Host.
     """
 
@@ -169,7 +169,6 @@ class Host(GraphIoServiceBase, HostBase):
     @property
     def engines(self) -> tuple[StoreEngine, ...]:
         # TODO :Broken :Performance: use local in memory engines in Host (where possible)
-        #  also provide & use bench-specific store engines
         return (self._bench_pg_engine,)
 
     async def start(self) -> None:
@@ -192,7 +191,7 @@ class Host(GraphIoServiceBase, HostBase):
     async def wait_closed(self) -> None:
         pass
 
-    def _on_graph_edited_inner(self, scopes: tuple[GraphScope, ...], edits: list[EditData]):
+    def _on_graph_edited(self, scopes: tuple[GraphScope, ...], edits: list[EditData]):
         # TODO :Incomplete: re-interp packages after edit (update notices, ...?)
         # apply edits to the nodes we have loaded
         pass

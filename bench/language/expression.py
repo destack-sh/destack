@@ -100,7 +100,7 @@ class NodeReference(Struct):
         selector_str = ", ".join(selector_str_parts)
         return f"{self.type.bench_name}:[{selector_str}]"
 
-    def _validate_inner(
+    def _validate_component(
         self, properties: tuple[Property, ...], on_invalid: "ValidationHandler"
     ) -> None:
         if self.id is None:

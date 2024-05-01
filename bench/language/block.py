@@ -5,7 +5,7 @@ from typing import TYPE_CHECKING, Any, Collection, Optional, Union
 
 from bench.language.const import BlockType, NodeType, NodeVisibility, StructType
 from bench.language.database import HasDatabase
-from bench.language.node import Node, NodeList, _Passthrough, node, node_component
+from bench.language.node import Node, NodeList, _Passthrough, node
 from bench.language.property import (
     p_internal,
     p_node_child,
@@ -16,7 +16,6 @@ from bench.language.property import (
     p_value_packed,
     p_value_runtime,
 )
-from bench.language.session import HasRun
 from bench.language.validation import ValidationHandler, enum_validator, validate_name
 from bench.language.value import HasValues
 from bench.proto.wire import BlockData
@@ -37,15 +36,11 @@ if TYPE_CHECKING:
         Property,
         Text,
         TypeInfo,
+        Step,
+        Trigger,
     )
+
 # pyright: reportIncompatibleVariableOverride=false
-
-
-@node_component()
-class IsInstantiable(Node):
-    def _call_inner(self, *args, **kwargs) -> Any:
-        raise NotImplementedError("create value :Incomplete")
-
 
 _BLOCK_DESCRIPTORS: dict[BlockType, "_BlockTypeDescriptor"] = {}
 
@@ -65,18 +60,18 @@ class _BlockTypeDescriptor:
 IdentT = IdentifierType
 
 _describe_block = _BlockTypeDescriptor
-_describe_block(BlockType.ALIAS, (IsInstantiable,), IdentT.VARIABLE)
+_describe_block(BlockType.ALIAS, (), IdentT.VARIABLE)
 _describe_block(BlockType.PAGE, (), IdentT.VARIABLE)
 _describe_block(BlockType.MODULE, (), IdentT.VARIABLE)
 _describe_block(BlockType.BLANK, (), IdentT.VARIABLE)
-_describe_block(BlockType.CLASS, (IsInstantiable,), IdentT.TYPE)
-_describe_block(BlockType.SIGNAL, (IsInstantiable,), IdentT.TYPE)
-_describe_block(BlockType.CHOICE, (IsInstantiable,), IdentT.TYPE)
+_describe_block(BlockType.CLASS, (), IdentT.TYPE)
+_describe_block(BlockType.SIGNAL, (), IdentT.TYPE)
+_describe_block(BlockType.CHOICE, (), IdentT.TYPE)
 _describe_block(BlockType.PROTOCOL, (), IdentT.TYPE)
-_describe_block(BlockType.TEXT, (HasRun,), IdentT.FUNCTION)
-_describe_block(BlockType.CODE, (HasRun,), IdentT.FUNCTION)
-_describe_block(BlockType.SCRIPT, (HasRun,), IdentT.FUNCTION)
-_describe_block(BlockType.FLOW, (HasRun,), IdentT.FUNCTION)
+_describe_block(BlockType.TEXT, (), IdentT.FUNCTION)
+_describe_block(BlockType.CODE, (), IdentT.FUNCTION)
+_describe_block(BlockType.SCRIPT, (), IdentT.FUNCTION)
+_describe_block(BlockType.FLOW, (), IdentT.FUNCTION)
 _describe_block(BlockType.VARIABLE, (), IdentT.VARIABLE)
 _describe_block(BlockType.DATABASE, (HasDatabase,), IdentT.TYPE)
 _describe_block(BlockType.QUERY, (), IdentT.VARIABLE)
@@ -111,6 +106,8 @@ class Block(Node[BlockData], HasValues):
     badges: NodeList["Badge"] = p_node_child(NodeType.BADGE)
     fields: NodeList["Field"] = p_node_child(NodeType.FIELD)
     notices: NodeList["Notice"] = p_node_child(NodeType.NOTICE)
+    steps: NodeList["Step"] = p_node_child(NodeType.STEP)
+    triggers: NodeList["Trigger"] = p_node_child(NodeType.TRIGGER)
 
     # core
     type: BlockType = p_internal(30, validate=enum_validator(BlockType))
@@ -203,7 +200,7 @@ class Block(Node[BlockData], HasValues):
     def _instance_cache_key(self) -> str:
         return self.type.name
 
-    def _validate_inner(
+    def _validate_component(
         self, properties: Collection["Property"], on_invalid: "ValidationHandler"
     ) -> None:
         if self.type == BlockType.PAGE and not self.is_page:
@@ -252,7 +249,7 @@ class Block(Node[BlockData], HasValues):
     def __repr__(self):  # type: ignore we want to override the default repr
         return f"<{self.type.bench_name}Block {self}>"
 
-    def _init_inner(self) -> None:
+    def _init_component(self) -> None:
         # add runtime properties from dynamic components
         for component in self._dynamic_components:
             for prop in component.__properties__.values():

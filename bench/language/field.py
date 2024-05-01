@@ -1,6 +1,6 @@
 import enum
 import typing
-from typing import TYPE_CHECKING, Any, Collection, Optional, Union, cast
+from typing import TYPE_CHECKING, Any, Collection, Optional, Union
 from uuid import UUID
 
 import structlog
@@ -9,7 +9,6 @@ from bench.language.const import (
     TK_LENGTH_B64,
     BenchError,
     BenchType,
-    BlockType,
     EnumType,
     FormatHint,
     NodeType,
@@ -251,13 +250,10 @@ class TypeInfoBase(HasValues):
             info_str += f" ({', '.join(flags)})"
         return info_str
 
-    def _interp_inner(self, scope: Optional["Node"], on_notice: "NoticeHandler"):
-        if self.base_type is not None and self.base_type.type == BlockType.ALIAS:
-            raise NotImplementedError(f"aliases not yet supported for {self!r}")
-        else:
-            self._resolved_type = cast("TypeInfo", self)  # harmless lie (types are equivalent)
+    def _interp_component(self, scope: Optional["Node"], on_notice: "NoticeHandler"):
+        pass
 
-    def _validate_inner(
+    def _validate_component(
         self, properties: Collection[Property], on_invalid: "ValidationHandler"
     ) -> None:
         if self.primitive_type is None and self.bench_type is None and self.base_type_ptr is None:
@@ -332,11 +328,6 @@ class Field(Node[FieldData], TypeInfoBase, _TypeQueryBuilder):
         if flags:
             info_str += f" ({', '.join(flags)})"
         return info_str
-
-    @property
-    def as_type(self) -> "TypeInfo":
-        assert self._resolved_type, f"{self!r} is not resolved"
-        return self._resolved_type
 
     def __eq__(self, other):  # type: ignore
         return _TypeQueryBuilder.__eq__(self, other)  # override to avoid recursion

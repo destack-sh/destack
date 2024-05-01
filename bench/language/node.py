@@ -89,7 +89,6 @@ if TYPE_CHECKING:
         Expression,
         Field,
         NodeReference,
-        NodeVisitor,
         NoticeType,
         Package,
         Path,
@@ -181,7 +180,7 @@ class _ComponentMethod(enum.Enum):
 
     @property
     def inner(self) -> str:
-        return f"_{self.value}_inner"
+        return f"_{self.value}_component"
 
     @property
     def self(self) -> str:
@@ -829,8 +828,8 @@ def _node_ref_computed_prop(
     return property(get, set)
 
 
-def _make_inner_dunder_method(method: _ComponentMethod):
-    """Creates method that proxies a builtin dunder method to the first _method_inner"""
+def _make_component_dunder_method(method: _ComponentMethod):
+    """Creates method that proxies a builtin dunder method to the first _method_component"""
 
     def inner_method(self: "Node", *args, **kwargs):
         meths = _get_component_methods(self._components, method, self._instance_cache_key)
@@ -1161,7 +1160,7 @@ class Struct(abc.ABC, Generic[StructDataT]):
                 for item in value:
                     yield from item._walk_self()
 
-    def _init_inner(self):
+    def _init_component(self):
         for prop in self.__struct_reference_properties__.values():
             # copy new structs if needed (now that we're init & have an id for sure)
             if prop.reference_kind == ReferenceKind.STRUCT_CHILD:
@@ -1195,10 +1194,7 @@ class Struct(abc.ABC, Generic[StructDataT]):
                 if value is not None:  # keep old value)
                     self.__dict__[prop.reference_wired_ptr.name] = prop.to_wired_ptr(value)
 
-    def _clear_inner(self, scope: Optional["Node"] = None):
-        pass
-
-    def _interp_inner(self, scope: Optional["Node"], on_notice: "NoticeHandler"):
+    def _interp_component(self, scope: Optional["Node"], on_notice: "NoticeHandler"):
         from bench.language.notice import NoticeType
 
         # TODO :Broken: turn all node references into computer propertied (against graph)
@@ -1222,7 +1218,7 @@ class Struct(abc.ABC, Generic[StructDataT]):
                     for p in ptr:
                         r = scope._root_graph.get(cast(UUID, p.id or p.ck))
                         if r is None:
-                            on_notice(self, NoticeType.MISSING_REFERENCE, None, None, (prop,))
+                            on_notice(self, NoticeType.MISSING_REFERENCE, {'properties': (prop,)})
                         resolved.append(r)
                     self.__dict__[prop.name] = resolved
                 else:
@@ -1247,14 +1243,7 @@ class Struct(abc.ABC, Generic[StructDataT]):
                 ptr = cast("PropertyReference", ptr)
                 setattr(self, prop.name, ptr.resolve())
 
-    def _visit_inner(self, visitor: "NodeVisitor"):
-        # visit node references
-        for prop in self.__node_reference_properties__.values():
-            value = getattr(self, prop.name)
-            if isinstance(value, Node):
-                visitor.visit_reference(value)
-
-    def _validate_inner(
+    def _validate_component(
         self, properties: Collection[Property], on_invalid: "ValidationHandler"
     ) -> None:
         """Validate properties for illegal values that should not or cannot be stored."""
@@ -1278,7 +1267,7 @@ class Struct(abc.ABC, Generic[StructDataT]):
             (cast("Node", self))._is_new = False
         self._updated_properties = None
 
-    def _updated_inner(self, properties: Collection[Property]) -> None:
+    def _updated_component(self, properties: Collection[Property]) -> None:
         """Called when properties in this struct have been updated successfully."""
         if self._status == InterpStatus.TRACKED:
             if self.__is_node__:
@@ -1294,21 +1283,16 @@ class Struct(abc.ABC, Generic[StructDataT]):
                 # will need to deal with Value parents eventually...
                 assert isinstance(self.parent, Struct), f"unexpected parent: {self.parent!r}"
                 if self.parent is not None:
-                    self.parent._updated_inner(properties)
+                    self.parent._updated_component(properties)
 
+    @final
     def _init_self(self):
         for meth in _get_component_methods(
             self._components, _ComponentMethod.init, self._instance_cache_key
         ):
             meth(self)
 
-    def _clear_self(self, scope: Optional["Node"] = None):
-        for meth in _get_component_methods(
-            self._components, _ComponentMethod.clear, self._instance_cache_key
-        ):
-            meth(self, scope)
-        self._status = InterpStatus.SOURCE
-
+    @final
     def _interp_self(self, scope: Optional["Node"], on_notice: "NoticeHandler"):
         for meth in _get_component_methods(
             self._components, _ComponentMethod.interp, self._instance_cache_key
@@ -1316,12 +1300,7 @@ class Struct(abc.ABC, Generic[StructDataT]):
             meth(self, scope, on_notice)
         self._status = InterpStatus.INTERPED
 
-    def _visit_self(self, visitor: "NodeVisitor"):
-        for meth in _get_component_methods(
-            self._components, _ComponentMethod.visit, self._instance_cache_key
-        ):
-            meth(self, visitor)
-
+    @final
     def _validate_self(
         self, properties: Collection[Property], on_invalid: "ValidationHandler"
     ) -> None:
@@ -1330,12 +1309,14 @@ class Struct(abc.ABC, Generic[StructDataT]):
         ):
             meth(self, properties, on_invalid)
 
+    @final
     def _updated_self(self, properties: Collection[Property]) -> None:
         for meth in _get_component_methods(
             self._components, _ComponentMethod.updated, self._instance_cache_key
         ):
             meth(self, properties)
 
+    @final
     def _walk_self(self) -> Iterable["Struct"]:
         yield self
         for prop in self.__struct_properties__.values():
@@ -1347,33 +1328,19 @@ class Struct(abc.ABC, Generic[StructDataT]):
                 else:
                     yield from value._walk_self()
 
-    @staticmethod
-    def _make_rec_method(method: _ComponentMethod, wraps):
-        """Creates method that calls _method_self for all contained structs"""
-
-        @functools.wraps(wraps)
-        def rec_method(self: "Node", *args, **kwargs):
-            # just walk self, every struct can only appear once
-            for inner_struct in self._walk_self():
-                getattr(inner_struct, method.self)(*args, **kwargs)
-
-        rec_method.__name__ = method.rec
-        return rec_method
-
-    def _clear_rec(self, scope: Optional["Node"] = None):
-        for inner_struct in self._walk_self():
-            inner_struct._clear_self(scope)
-
+    @final
     def _interp_rec(self, scope: Optional["Node"], on_notice: "NoticeHandler"):
         for inner_struct in self._walk_self():
             inner_struct._interp_self(scope, on_notice)
 
+    @final
     def _validate_rec(
         self, properties: tuple[Property, ...], on_invalid: "ValidationHandler"
     ) -> None:
         for inner_struct in self._walk_self():
             inner_struct._validate_self(properties, on_invalid)
 
+    @final
     def _to_data(self) -> StructDataT:
         """Convert to wire format"""
         from bench.proto.wiring import pack_struct
@@ -1758,7 +1725,7 @@ class Node(Struct[NodeDataT], Generic[NodeDataT]):
     # The :ComponentMethods
     #
 
-    def _init_inner(self) -> None:
+    def _init_component(self) -> None:
         if self.parent is None:
             # if we're not in a graph, start a new one
             if NodeType.BENCH in self.__roots__:
@@ -1767,46 +1734,40 @@ class Node(Struct[NodeDataT], Generic[NodeDataT]):
                 self._graph = NodeGraph()
             self._graph.add(self)
 
-    def _clear_inner(self, scope: Optional["Node"] = None):
-        """Clear this node."""
-        # clear all structs recursive
-        for s in self._walk_structs():
-            s._clear_rec()
-
-    def _interp_inner(self, scope: Optional["Node"], on_notice: "NoticeHandler"):
+    def _interp_component(self, scope: Optional["Node"], on_notice: "NoticeHandler"):
         """Interp this node."""
         # interp all structs recursive
         for s in self._walk_structs():
             s._interp_rec(scope, on_notice)
 
-    def _track_inner(self, session: "Session") -> None:
+    def _track_component(self, session: "Session") -> None:
         """Track this object in the given session."""
         self._session = session
         self._status = InterpStatus.TRACKED
 
-    def _untrack_inner(self) -> None:
+    def _untrack_component(self) -> None:
         """Stop tracking this object."""
         self._session = None
 
-    def _attached_inner(self) -> None:
+    def _attached_component(self) -> None:
         """Called when this node is attached to a root graph."""
         pass
 
-    def _detached_inner(self) -> None:
+    def _detached_component(self) -> None:
         """Called when this node is detached from a root graph."""
         pass
 
-    _call_inner = _make_inner_dunder_method(_ComponentMethod.call)
-    _iter_inner = _make_inner_dunder_method(_ComponentMethod.iter)
-    _aiter_inner = _make_inner_dunder_method(_ComponentMethod.aiter)
-    _len_inner = _make_inner_dunder_method(_ComponentMethod.len)
-    _getitem_inner = _make_inner_dunder_method(_ComponentMethod.getitem)
+    _call_component = _make_component_dunder_method(_ComponentMethod.call)
+    _iter_component = _make_component_dunder_method(_ComponentMethod.iter)
+    _aiter_component = _make_component_dunder_method(_ComponentMethod.aiter)
+    _len_component = _make_component_dunder_method(_ComponentMethod.len)
+    _getitem_component = _make_component_dunder_method(_ComponentMethod.getitem)
 
-    __call__ = _call_inner
-    __iter__ = _iter_inner
-    __aiter__ = _aiter_inner
-    __len__ = _len_inner
-    __getitem__ = _getitem_inner
+    __call__ = _call_component
+    __iter__ = _iter_component
+    __aiter__ = _aiter_component
+    __len__ = _len_component
+    __getitem__ = _getitem_component
 
     def __bool__(self):
         return True  # allow truthy checks for nodes
@@ -1846,13 +1807,7 @@ class Node(Struct[NodeDataT], Generic[NodeDataT]):
         ):
             self._validate_self(self.__tracked_properties__.values(), on_invalid=on_invalid_raise)
 
-    def _clear_self(self, scope: Optional["Node"] = None):
-        for meth in _get_component_methods(
-            self._components, _ComponentMethod.clear, self._instance_cache_key
-        ):
-            meth(self, scope)
-        self._status = InterpStatus.SOURCE
-
+    @final
     def _interp_self(self, scope: Optional["Node"], on_notice: "NoticeHandler"):
         for meth in _get_component_methods(
             self._components, _ComponentMethod.interp, self._instance_cache_key
@@ -1860,12 +1815,14 @@ class Node(Struct[NodeDataT], Generic[NodeDataT]):
             meth(self, scope, on_notice)
         self._status = InterpStatus.INTERPED
 
+    @final
     def _track_self(self, session: "Session"):
         for meth in _get_component_methods(
             self._components, _ComponentMethod.track, self._instance_cache_key
         ):
             meth(self, session)
 
+    @final
     def _untrack_self(self):
         for meth in _get_component_methods(
             self._components, _ComponentMethod.untrack, self._instance_cache_key
@@ -1873,12 +1830,7 @@ class Node(Struct[NodeDataT], Generic[NodeDataT]):
             meth(self)
         self._status = InterpStatus.INTERPED
 
-    def _visit_self(self, visitor: "NodeVisitor"):
-        for meth in _get_component_methods(
-            self._components, _ComponentMethod.visit, self._instance_cache_key
-        ):
-            meth(self, visitor)
-
+    @final
     def _walk_rec(self) -> Iterable["Node"]:
         yield self
         if self.metatype in HAS_CHILD_NODE_TYPES:

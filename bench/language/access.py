@@ -387,13 +387,7 @@ class PolicyRule(Struct):
 
         return f"{self.name or '<unnamed>'} {self.effect.bench_name} {subject_str} {verb_str} {object_str}"
 
-    def _clear_inner(self, scope: Optional["Node"] = None):
-        self._verb_mask = None
-        self._object_node_types_mask = None
-        if self._object_properties_masks is not None:
-            self._object_properties_masks.clear()
-
-    def _interp_inner(self, scope: Optional["Node"], on_notice: "NoticeHandler"):
+    def _interp_component(self, scope: Optional["Node"], on_notice: "NoticeHandler"):
         self._update_verb_mask()
         self._update_object_mask()
 

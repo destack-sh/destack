@@ -354,9 +354,9 @@ class GraphIoServiceBase(BenchServiceBase, GraphIoBase):
             if adapted_edits:
                 watcher.sink.put_nowait(Epoch(self.epoch, adapted_edits))
 
-        self._on_graph_edited_inner(scopes=scopes, edits=edits)
+        self._on_graph_edited(scopes=scopes, edits=edits)
 
-    def _on_graph_edited_inner(self, scopes: tuple[GraphScope, ...], edits: list[EditData]):
+    def _on_graph_edited(self, scopes: tuple[GraphScope, ...], edits: list[EditData]):
         pass
 
     @final
