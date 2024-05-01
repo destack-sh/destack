@@ -194,7 +194,7 @@ class Session(Node[SessionData]):
             f"{len(self._runs_by_id) if self._runs_by_id is not None else 0} runs"
         )
 
-    def _init_inner(self) -> None:
+    def _init_component(self) -> None:
         self._session = self
 
     @property
@@ -431,7 +431,9 @@ class Run(BasedNode[RunData], HasValues):
     value_packed: Any = p_value_packed(54)
     value_secret_packed: Any = p_secret_value_packed(55)
     value: Any = p_value_runtime(54, 55)
-    error: Optional["RunError"] = p_internal(56, default=None, primitive_type=PrimitiveType.JSON)
+    error: Optional["RunError"] = p_internal(
+        56, default=None, require=False, array=False, struct=StructType.RUN_ERROR
+    )
 
     runs: list["Run"] = p_node_child(NodeType.RUN)
 
@@ -456,40 +458,6 @@ class Run(BasedNode[RunData], HasValues):
 
 _active_root_run: ContextVar[Run | None] = ContextVar("active_root_run", default=None)
 _active_run_by_root: dict[UUID, Run] = {}
-
-
-@node_component()
-class HasRun(Node):
-    """A runnable block"""
-
-    @property
-    def _is_async(self) -> Optional[bool]:  # set in supporting components e.g. HasCode
-        """Whether this block is async."""
-        return None
-
-    def _call_inner(self, *args, **kwargs):
-        assert (
-            self.is_attached and self._status == InterpStatus.TRACKED
-        ), f"cannot call {self!r} (status={self._status!r})"
-        try:
-            asyncio.get_running_loop()
-            is_outer_async = True
-        except RuntimeError:
-            is_outer_async = False
-        inner_call = self._call_inner_async if self._is_async else self._call_inner_sync
-
-        if is_outer_async and not self._is_async:
-            inner_call = sync_to_async(inner_call)
-        elif not is_outer_async and self._is_async:
-            inner_call = async_to_sync(inner_call)
-
-        return inner_call(*args, **kwargs)
-
-    def _call_inner_sync(self, *args, **kwargs):
-        raise NotImplementedError
-
-    async def _call_inner_async(self, *args, **kwargs):
-        raise NotImplementedError
 
 
 @struct(StructType.RUN_CODE_FRAME)

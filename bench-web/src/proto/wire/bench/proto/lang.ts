@@ -3258,7 +3258,7 @@ export interface BaseNodeData {
     setProperties: number[];
 }
 /**
- * Notice(parent: Union[ForwardRef('Block'), ForwardRef('Field'), ForwardRef('Step'), ForwardRef('View'), ForwardRef('Trigger')] = None, kind: bench.language.const.NoticeKind = None, type: bench.language.notice.NoticeType = <factory>, message: Optional[str] = None, path: Optional[ForwardRef('Path')] = None, properties: Optional[list[bench.language.property.Property]] = <factory>, id: uuid.UUID = None, set_properties: list[int] = <factory>, _status: bench.language.const.InterpStatus = None, _updated_properties: bitarray.bitarray | None = None, ck: uuid.UUID = None, source: bench.language.const.NodeSource = <NodeSource.STORE: 1>, revision: int = 0, created_at: datetime.datetime = None, updated_at: datetime.datetime = None, deleted_at: Optional[datetime.datetime] = None, archived_at: Optional[datetime.datetime] = None, created_by: Union[ForwardRef('User'), ForwardRef('Run'), NoneType] = None, updated_by: Union[ForwardRef('User'), ForwardRef('Run'), NoneType] = None, links: bench.language.graph.NodeList['Link'] = None, _graph: Union[ForwardRef('NodeGraph'), ForwardRef('DetachedNodeGraph'), NoneType] = None, _data_graph: Optional[ForwardRef('NodeDataGraph')] = None, _session: Optional[ForwardRef('Session')] = None, _is_new: bool = False, parent_ptr: 'NodeReference' = None, properties_ptr: list['PropertyReference'] = None, created_by_ptr: 'NodeReference' = None, updated_by_ptr: 'NodeReference' = None)
+ * Notice(parent: Union[ForwardRef('Block'), ForwardRef('Field'), ForwardRef('Step'), ForwardRef('View'), ForwardRef('Trigger')] = None, kind: bench.language.const.NoticeKind = None, type: bench.language.notice.NoticeType = <factory>, origin: Optional[ForwardRef('Node')] = None, message: Optional[str] = None, path: Optional[ForwardRef('Path')] = None, properties: Optional[list[bench.language.property.Property]] = <factory>, id: uuid.UUID = None, set_properties: list[int] = <factory>, _status: bench.language.const.InterpStatus = None, _updated_properties: bitarray.bitarray | None = None, ck: uuid.UUID = None, source: bench.language.const.NodeSource = <NodeSource.STORE: 1>, revision: int = 0, created_at: datetime.datetime = None, updated_at: datetime.datetime = None, deleted_at: Optional[datetime.datetime] = None, archived_at: Optional[datetime.datetime] = None, created_by: Union[ForwardRef('User'), ForwardRef('Run'), NoneType] = None, updated_by: Union[ForwardRef('User'), ForwardRef('Run'), NoneType] = None, links: bench.language.graph.NodeList['Link'] = None, _graph: Union[ForwardRef('NodeGraph'), ForwardRef('DetachedNodeGraph'), NoneType] = None, _data_graph: Optional[ForwardRef('NodeDataGraph')] = None, _session: Optional[ForwardRef('Session')] = None, _is_new: bool = False, parent_ptr: 'NodeReference' = None, origin_ptr: 'NodeReference' = None, properties_ptr: list['PropertyReference'] = None, created_by_ptr: 'NodeReference' = None, updated_by_ptr: 'NodeReference' = None)
  *
  * @generated from protobuf message symbolx.bench.NoticeData
  */
@@ -3332,15 +3332,19 @@ export interface NoticeData {
      */
     type: NoticeType;
     /**
-     * @generated from protobuf field: optional string message = 33;
+     * @generated from protobuf field: optional symbolx.bench.NodeReferenceData origin_ptr = 33;
+     */
+    originPtr?: NodeReferenceData;
+    /**
+     * @generated from protobuf field: optional string message = 34;
      */
     message?: string;
     /**
-     * @generated from protobuf field: optional symbolx.bench.PathData path = 34;
+     * @generated from protobuf field: optional symbolx.bench.PathData path = 35;
      */
     path?: PathData;
     /**
-     * @generated from protobuf field: repeated symbolx.bench.PropertyReferenceData properties_ptr = 35;
+     * @generated from protobuf field: repeated symbolx.bench.PropertyReferenceData properties_ptr = 36;
      */
     propertiesPtr: PropertyReferenceData[];
 }
@@ -16918,9 +16922,10 @@ class NoticeData$Type extends MessageType<NoticeData> {
             { no: 22, name: "set_properties", kind: "scalar", repeat: 1 /*RepeatType.PACKED*/, T: 5 /*ScalarType.INT32*/ },
             { no: 30, name: "kind", kind: "enum", T: () => ["symbolx.bench.NoticeKind", NoticeKind, "NOTICE_KIND_"] },
             { no: 31, name: "type", kind: "enum", T: () => ["symbolx.bench.NoticeType", NoticeType, "NOTICE_TYPE_"] },
-            { no: 33, name: "message", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
-            { no: 34, name: "path", kind: "message", T: () => PathData },
-            { no: 35, name: "properties_ptr", kind: "message", repeat: 1 /*RepeatType.PACKED*/, T: () => PropertyReferenceData }
+            { no: 33, name: "origin_ptr", kind: "message", T: () => NodeReferenceData },
+            { no: 34, name: "message", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
+            { no: 35, name: "path", kind: "message", T: () => PathData },
+            { no: 36, name: "properties_ptr", kind: "message", repeat: 1 /*RepeatType.PACKED*/, T: () => PropertyReferenceData }
         ]);
     }
     create(value?: PartialMessage<NoticeData>): NoticeData {
@@ -16998,13 +17003,16 @@ class NoticeData$Type extends MessageType<NoticeData> {
                 case /* symbolx.bench.NoticeType type */ 31:
                     message.type = reader.int32();
                     break;
-                case /* optional string message */ 33:
+                case /* optional symbolx.bench.NodeReferenceData origin_ptr */ 33:
+                    message.originPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.originPtr);
+                    break;
+                case /* optional string message */ 34:
                     message.message = reader.string();
                     break;
-                case /* optional symbolx.bench.PathData path */ 34:
+                case /* optional symbolx.bench.PathData path */ 35:
                     message.path = PathData.internalBinaryRead(reader, reader.uint32(), options, message.path);
                     break;
-                case /* repeated symbolx.bench.PropertyReferenceData properties_ptr */ 35:
+                case /* repeated symbolx.bench.PropertyReferenceData properties_ptr */ 36:
                     message.propertiesPtr.push(PropertyReferenceData.internalBinaryRead(reader, reader.uint32(), options));
                     break;
                 default:
@@ -17074,15 +17082,18 @@ class NoticeData$Type extends MessageType<NoticeData> {
         /* symbolx.bench.NoticeType type = 31; */
         if (message.type !== 0)
             writer.tag(31, WireType.Varint).int32(message.type);
-        /* optional string message = 33; */
+        /* optional symbolx.bench.NodeReferenceData origin_ptr = 33; */
+        if (message.originPtr)
+            NodeReferenceData.internalBinaryWrite(message.originPtr, writer.tag(33, WireType.LengthDelimited).fork(), options).join();
+        /* optional string message = 34; */
         if (message.message !== undefined)
-            writer.tag(33, WireType.LengthDelimited).string(message.message);
-        /* optional symbolx.bench.PathData path = 34; */
+            writer.tag(34, WireType.LengthDelimited).string(message.message);
+        /* optional symbolx.bench.PathData path = 35; */
         if (message.path)
-            PathData.internalBinaryWrite(message.path, writer.tag(34, WireType.LengthDelimited).fork(), options).join();
-        /* repeated symbolx.bench.PropertyReferenceData properties_ptr = 35; */
+            PathData.internalBinaryWrite(message.path, writer.tag(35, WireType.LengthDelimited).fork(), options).join();
+        /* repeated symbolx.bench.PropertyReferenceData properties_ptr = 36; */
         for (let i = 0; i < message.propertiesPtr.length; i++)
-            PropertyReferenceData.internalBinaryWrite(message.propertiesPtr[i], writer.tag(35, WireType.LengthDelimited).fork(), options).join();
+            PropertyReferenceData.internalBinaryWrite(message.propertiesPtr[i], writer.tag(36, WireType.LengthDelimited).fork(), options).join();
         let u = options.writeUnknownFields;
         if (u !== false)
             (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
@@ -22330,9 +22341,10 @@ export enum NoticeProperty {
   setProperties = 22,
   kind = 30,
   type = 31,
-  message = 33,
-  path = 34,
-  propertiesPtr = 35,
+  originPtr = 33,
+  message = 34,
+  path = 35,
+  propertiesPtr = 36,
 }
 
 export enum BlockProperty {
@@ -24261,9 +24273,10 @@ export const NoticeDataInfo: Record<NoticeProperty, PropertyInfo> = {
   [NoticeProperty.setProperties]: { id: 22, name: 'set_properties', component: ObjectType.NOTICE, kind: 'primitive', primitiveType: PrimitiveType.INT32, isList: true, isRequired: true, isRuntime: true, isWired: true, isStored: true },
   [NoticeProperty.kind]: { id: 30, name: 'kind', component: ObjectType.NOTICE, enumType: EnumType.NOTICE_KIND, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isRuntime: true, isWired: true, isStored: true },
   [NoticeProperty.type]: { id: 31, name: 'type', component: ObjectType.NOTICE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isRuntime: true, isWired: true, isStored: true },
-  [NoticeProperty.message]: { id: 33, name: 'message', component: ObjectType.NOTICE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isRuntime: true, isWired: true, isStored: true },
-  [NoticeProperty.path]: { id: 34, name: 'path', component: ObjectType.NOTICE, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.PATH },
-  [NoticeProperty.propertiesPtr]: { id: 35, name: 'properties_ptr', component: ObjectType.NOTICE, kind: 'primitive', primitiveType: PrimitiveType.JSON, isList: true, isRuntime: true, isWired: true, isStored: true, referenceStruct: StructType.PROPERTY_REFERENCE },
+  [NoticeProperty.originPtr]: { id: 33, name: 'origin_ptr', component: ObjectType.NOTICE, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.DEPENDENCY, NodeType.UPGRADE, NodeType.SPACE, NodeType.SKIP, NodeType.NOTICE, NodeType.BLOCK, NodeType.TRIGGER, NodeType.FIELD, NodeType.RECORD, NodeType.QUERY, NodeType.VIEW, NodeType.STEP, NodeType.BADGE, NodeType.ROLE, NodeType.IDENTITY, NodeType.MEMBERSHIP, NodeType.INVITE], referenceStruct: StructType.NODE_REFERENCE },
+  [NoticeProperty.message]: { id: 34, name: 'message', component: ObjectType.NOTICE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isRuntime: true, isWired: true, isStored: true },
+  [NoticeProperty.path]: { id: 35, name: 'path', component: ObjectType.NOTICE, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.PATH },
+  [NoticeProperty.propertiesPtr]: { id: 36, name: 'properties_ptr', component: ObjectType.NOTICE, kind: 'primitive', primitiveType: PrimitiveType.JSON, isList: true, isRuntime: true, isWired: true, isStored: true, referenceStruct: StructType.PROPERTY_REFERENCE },
 }
 export const BlockDataInfo: Record<BlockProperty, PropertyInfo> = {
   [BlockProperty.metatype]: { id: 1, name: 'metatype', component: ObjectType.BLOCK, enumType: EnumType.OBJECT_TYPE, kind: 'enum', primitiveType: PrimitiveType.STRING, isRequired: true, isInternal: true, isComputed: true, isWired: true },

@@ -320,7 +320,7 @@ def unpack_node_graph(
         for node in unpacked_graph.nodes_by_id.values():
             # status is auto-set to interpreted if a session is active, but that's wrong here
             node._status = InterpStatus.SOURCE
-            # TODO :Cleanup: it feels weird to manually interp *and* track in unpack?
+            # TODO :Cleanup :Architecture: it feels weird to manually interp *and* track in unpack?
             #  (we want to resolve node references and such)
             node._interp_self(node, on_notice=on_notice_ignore)
             if session is not None:

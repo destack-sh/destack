@@ -108,10 +108,7 @@ class HasDatabase(Node):
     records: RecordList = p_node_child(NodeType.RECORD, NRel.STORED_CUSTOM, list=RecordList)
     _table: Optional[Table] = p_runtime(default=None)
 
-    def _clear_inner(self, scope: Optional["Node"] = None) -> None:
-        self._table = None
-
-    def _interp_inner(self, scope: Optional["Node"], on_notice: "NoticeHandler") -> None:
+    def _interp_component(self, scope: Optional["Node"], on_notice: "NoticeHandler") -> None:
         from bench.sql.engine import map_database_to_pg_table
 
         if self.ephemeral:

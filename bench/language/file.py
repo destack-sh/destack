@@ -42,7 +42,7 @@ class File(Struct):
     def __content_str__(self):
         return f"{self.name} {self.type}, {self.size} bytes"
 
-    def _validate_inner(
+    def _validate_component(
         self, properties: tuple[Property, ...], on_invalid: ValidationHandler
     ) -> None:
         if len(self.name) > FILE_MAX_NAME_LENGTH:

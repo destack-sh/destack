@@ -28,10 +28,10 @@ class Code(Struct):
     # language: ...
     lines: list[CodeLine] = p_regular(30, require=True, array=True, struct=StructType.CODE_LINE)
 
-    async def _call_inner_async(self, *args, **kwargs):
+    async def _call_component_async(self, *args, **kwargs):
         raise NotImplementedError
 
-    def _call_inner_sync(self, *args, **kwargs):
+    def _call_component_sync(self, *args, **kwargs):
         raise NotImplementedError
 
 

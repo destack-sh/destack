@@ -6,14 +6,21 @@
 	],
 	"settings": {
 		"workbench.colorTheme": "Night Owl (No Italics)",
-		"python.languageServer": "Pylance",
-		"python.analysis.typeCheckingMode": "standard",
 		"search.exclude": {
 			"**/*.ts": true,
 			"**/*.vue": true,
 			"**/package-lock.json": true,
 			"**/bench-web/**": true,
 		},
+		"python.languageServer": "Pylance",
+		"python.analysis.typeCheckingMode": "standard",
+		"python.analysis.diagnosticMode": "workspace",
+		"python.analysis.inlayHints.callArgumentNames": "all",
+		"python.analysis.inlayHints.functionReturnTypes": true,
+		"python.analysis.inlayHints.variableTypes": true,
+		"python.analysis.inlayHints.pytestParameters": true,
+		"python.analysis.autoFormatStrings": true,
+		"python.analysis.autoImportCompletions": true,
 		"python.testing.pytestArgs": [
 			"bench", "-n", "1"
 		],
@@ -22,6 +29,5 @@
 		"python.experiments.optInto": [
 			"pythonTestAdapter"
 		],
-		"python.analysis.diagnosticMode": "workspace",
 	}
 }

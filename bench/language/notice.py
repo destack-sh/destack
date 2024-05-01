@@ -1,16 +1,16 @@
 import functools
-from typing import TYPE_CHECKING, Any, Callable, Collection, Optional, Union, cast
+from typing import TYPE_CHECKING, Any, Callable, Collection, Optional, TypedDict, Union, cast
 from uuid import UUID
 
 from bench.language.const import BenchError, NodeType, NoticeKind, StructType
-from bench.language.node import Node, Property, node
+from bench.language.node import LINK_TARGET_NODE_TYPES, Node, Property, node
 from bench.language.property import p_node_parent, p_regular
 from bench.language.validation import enum_validator
 from bench.proto.wire import NoticeData
 from bench.utils.func import IdEnum
 
 if TYPE_CHECKING:
-    from bench.language import Block, Field, Path, Step, Struct, Trigger, View
+    from bench.language import Block, Field, Path, Step, Struct, Trigger, View, Text
 
 # pyright: reportIncompatibleVariableOverride=false
 
@@ -69,32 +69,36 @@ class Notice(Node[NoticeData]):
     kind: NoticeKind = p_regular(30, default=None, validate=enum_validator(NoticeKind))
     type: NoticeType = p_regular(31, validate=enum_validator(NoticeType))
     # -> builtin_type / custom_type / ... 'type' as union
-    message: Optional[str] = p_regular(33, require=False, default=None)
+    origin: Optional["Node"] = p_regular(33, require=False, references=LINK_TARGET_NODE_TYPES)
     path: Optional["Path"] = p_regular(34, require=False, array=False, struct=StructType.PATH)
+    title: Optional[str] = p_regular(35, require=False, default=None)
+    text: Optional["Text"] = p_regular(36, require=False, default=None, struct=StructType.TEXT)
     properties: Optional[list[Property]] = p_regular(
-        35, require=False, array=True, struct=StructType.PROPERTY_REFERENCE
+        37, require=False, array=True, struct=StructType.PROPERTY_REFERENCE
     )
     # value_packed, value: ... # custom value
 
-    def _init_inner(self):
+    def _init_component(self):
         self.kind = self.type.kind
 
     def __content_str__(self):
-        return f"{self.kind.bench_name}: {self.type} {self.message}"
+        return f"{self.kind.bench_name}: {self.type} {self.text}"
 
     @property
     def subject_id(self) -> UUID | None:
         return self.parent.id if self.parent is not None else None
 
 
+class NoticeExtra(TypedDict):
+    origin: Optional["Node"]  # if distinct form subject/parent
+    title: Optional[str]
+    text: Optional[str | Text]
+    path: Optional["Path"]
+    properties: Optional[Collection[Property] | Collection[Any]]
+
+
 NoticeHandler = Callable[
-    [
-        "Struct",
-        NoticeType,
-        Optional[str],
-        Optional["Path"],
-        Optional[Collection[Property] | Collection[Any]],
-    ],
+    ["Struct", NoticeType, Optional[NoticeExtra]],
     None,
 ]
 
@@ -102,9 +106,7 @@ NoticeHandler = Callable[
 def on_warning_raise(
     subject: "Struct",
     type: "NoticeType",
-    message: Optional[str] = None,
-    path: Optional["Path"] = None,
-    properties: Optional[Collection[Property] | Collection[Any]] = None,
+    extra: Optional[NoticeExtra] = None,
     min_level: NoticeKind = NoticeKind.WARNING,
 ):
     if type.kind >= min_level:
