@@ -28,7 +28,6 @@ import Inaccessible from "@/views/builtins/Inaccessible.vue";
 import NavigationBar from "@/views/builtins/NavigationBar.vue";
 import { viewEmits, type FocusAnchor, type ViewExposed } from "@/views/common";
 import Scroll from "@/views/containers/Scroll.vue";
-import Picker from "@/views/content/Picker.vue";
 import Block from "@/views/system/Block.vue";
 import { computed, nextTick, ref, toRef, watch, type Ref } from "vue";
 
@@ -37,8 +36,7 @@ const DEPTH_OFFSET = 40;
 const MIN_BLOCK_WIDTH = 500;
 const MAX_BLOCK_WIDTH = 800;
 const MIN_GUTTER_WIDTH = 40;
-const TARGET_GUTTER_WIDTH = 80;
-const ROOT_BLOCK_GAP_Y = 16;
+const ROOT_BLOCK_GAP_Y = 12;
 const NESTED_BLOCK_GAP_Y = 8;
 
 const props = defineProps<
@@ -282,7 +280,7 @@ defineExpose<ViewExposed>({ self, actions, focus });
         >
           <Block
             ref="selfBlockRef"
-            class=""
+            class="border-0"
             :variant="Variant.STEALTH"
             :style="{ width: widths.block + 'px', marginLeft: widths.gutter + 'px', marginRight: widths.gutter + 'px' }"
             :node-ptr="props.nodePtr"
@@ -367,7 +365,8 @@ defineExpose<ViewExposed>({ self, actions, focus });
               :ref="
                 (ref: any) => (ref ? (expandedBlockRefs[blockPtr.id!] = ref) : delete expandedBlockRefs[blockPtr.id!])
               "
-              class="w-full rounded border data-[dragging=true]:opacity-50"
+              class="w-full data-[dragging=true]:opacity-50"
+              :variant="Variant.STEALTH"
               :node-ptr="blockPtr"
               :prepared-connection="preparedPkgConnection"
               v-contextmenu="
