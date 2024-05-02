@@ -55,7 +55,17 @@ from bench.utils.func import IdEnum, _auto_async_to_sync, bytetuple
 from bench.utils.uuidt import UUIDT
 
 if TYPE_CHECKING:
-    from bench.language import Block, Package, Request, Server
+    from bench.language import (
+        Bench,
+        Block,
+        Branch,
+        Environment,
+        Package,
+        Request,
+        Server,
+        Trigger,
+        User,
+    )
 
 # pyright: reportIncompatibleVariableOverride=false,reportIncompatibleMethodOverride=false
 
@@ -499,3 +509,34 @@ class Pause(Node):
 
 LOG_CACHE_SIZE = 1000
 MAX_STACK_DEPTH = 8 if IS_DEBUG else 16
+
+
+@struct(StructType.CONTEXT)
+class Context(Struct):
+    """A semi-magical value that accumulates context down the graph (starting with system context)."""
+
+    # system
+    bench: Optional["Bench"] = p_internal(30, require=False, array=False, references=NodeType.BENCH)
+    environment: Optional["Environment"] = p_internal(
+        31, require=False, array=False, references=NodeType.ENVIRONMENT
+    )
+    branch: Optional["Branch"] = p_internal(
+        32, require=False, array=False, references=NodeType.BRANCH
+    )
+    package: Optional["Package"] = p_internal(
+        33, require=False, array=False, references=NodeType.PACKAGE
+    )
+    module: Optional["Block"] = p_internal(
+        34, require=False, array=False, references=NodeType.BLOCK
+    )
+    page: Optional["Block"] = p_internal(35, require=False, array=False, references=NodeType.BLOCK)
+
+    user: Optional["User"] = p_internal(40, require=False, array=False, references=NodeType.USER)
+    trigger: Optional["Trigger"] = p_internal(
+        41, require=False, array=False, references=NodeType.TRIGGER
+    )
+
+    # custom
+    # value_packed: Any = p_value_packed(50)
+    # secret_value_packed: Any = p_secret_value_packed(51)
+    # value: Any = p_value_runtime(50, 51)

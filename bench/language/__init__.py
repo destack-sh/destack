@@ -64,13 +64,13 @@ from .resource import (
     Store,
     Tenancy,
 )
-from .session import Log, Run, Session, Signal, Transaction
+from .session import Context, Log, Run, Session, Signal, Transaction
 from .setup import _complete_bench_setup
 from .text import Text, TextSpan
 from .trigger import Trigger
 from .user import Client, Handle, Organization, User
 from .validation import ValidationError
-from .value import Context, Object
+from .value import Object
 from .view import Color, ColorShade, ColorType, Space, View, ViewType
 
 # NOTE! *ALL* these imports are auto-imported as prelude in user code.

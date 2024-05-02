@@ -280,7 +280,7 @@ defineExpose<ViewExposed>({ self, actions, focus });
         >
           <Block
             ref="selfBlockRef"
-            class="border-0"
+            :class="'border-0' /* slightly hacky way to force Block to never show its border */"
             :variant="Variant.STEALTH"
             :style="{ width: widths.block + 'px', marginLeft: widths.gutter + 'px', marginRight: widths.gutter + 'px' }"
             :node-ptr="props.nodePtr"

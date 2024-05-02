@@ -5,7 +5,6 @@ import enum
 import functools
 import inspect
 import math
-import secrets
 import uuid
 from collections import defaultdict
 from dataclasses import dataclass
@@ -29,7 +28,7 @@ from typing import (
     dataclass_transform,
     final,
 )
-from uuid import UUID, uuid4
+from uuid import UUID
 
 import structlog
 from bitarray import bitarray
@@ -49,6 +48,8 @@ from bench.language.const import (
     ReferenceKind,
     StructType,
     _active_session,
+    new_node_id,
+    new_struct_id,
 )
 from bench.language.graph import DetachedNodeGraph, NodeDataGraph, NodeGraph, NodeList, ValueList
 from bench.language.property import (
@@ -103,16 +104,6 @@ if TYPE_CHECKING:
 # pyright: reportIncompatibleVariableOverride=false,reportIncompatibleMethodOverride=false
 
 logger = structlog.get_logger(__name__)
-
-
-def new_struct_id() -> int:
-    id = secrets.randbits(32)
-    if id < 0:
-        id = -id
-    return id
-
-
-new_node_id = uuid4
 
 
 def get_tk_from_ck(ck: UUID) -> str:
@@ -618,7 +609,7 @@ def node_component(
         list_properties: dict[str, Property] = {}
         list_properties_by_child: dict[NodeType, list[Property]] = defaultdict(list)
         for prop in properties.values():
-            if prop.reference_kind == ReferenceKind.NODE_CHILD:
+            if prop.reference_kind == ReferenceKind.NODE_CHILDREN:
                 if cls.__name__ != "Node" and not issubclass(cls, Node) and node_type is not None:
                     raise ValueError(f"{cls} is not a Node for {prop}")
                 list_properties[prop.name] = prop
@@ -1004,14 +995,59 @@ class Struct(abc.ABC, Generic[StructDataT]):
         else:
             return self.metatype == other.metatype and self.id == other.id
 
+    def __getattr(self, item):
+        attr = self.__dict__.get(item, UNSET)
+        if attr is not UNSET:
+            return attr
+        else:
+            # try components methods
+            for component in self._components:
+                attr = getattr(component, item, UNSET)
+                if attr is not UNSET:
+                    break
+            else:
+                # check passthrough if tracked in session
+                if (
+                    attr is UNSET
+                    and self._status == InterpStatus.TRACKED
+                    and self.__passthrough__ is not None
+                ):
+                    target = getattr(self, self.__passthrough__)
+                    attr = getattr(target, item, UNSET)
+            # attribute could be property, method, or just plain value
+            if attr is not UNSET:
+                if type(attr) is property:
+                    return attr.fget(self)  # type: ignore
+                elif callable(attr) and not isinstance(attr, Node) and not inspect.ismethod(attr):
+                    return functools.partial(attr, self)
+                else:
+                    return attr
+
+        # report attribute error
+        if self._status == InterpStatus.TRACKED:
+            candidates = {
+                # own properties
+                **{
+                    p.name: p
+                    for p in self.__properties__.values()
+                    if p.reference_kind or not p.is_ephemeral
+                },
+                # public methods
+                **{m: None for m in dir(self) if not m.startswith("_")},
+            }
+            did_you_mean = did_you_mean_str(candidates, item)
+            raise AttributeError(f"{self!r} has no attribute '{item}'. {did_you_mean}")
+        else:
+            raise AttributeError(f"{self.__class__} has no attribute '{item}'")
+
     def __setattr(self, key, value):
         """Sets *any* attribute on this node (incl. slots)."""
-        is_tracked = self._status == InterpStatus.TRACKED
+        is_tracked = self.__dict__.get("status", UNSET) == InterpStatus.TRACKED
         prop = self.__properties__.get(key)
         if prop is not None:
             if prop.is_ephemeral or prop.is_autoset:  # untracked
                 return object.__setattr__(self, key, value)
-            elif prop.reference_kind == ReferenceKind.NODE_CHILD:
+            elif prop.reference_kind == ReferenceKind.NODE_CHILDREN:
                 attr = object.__getattribute__(self, key)
                 if attr is None or type(attr) is Property:  # initial set
                     return object.__setattr__(self, key, value)
@@ -1030,7 +1066,7 @@ class Struct(abc.ABC, Generic[StructDataT]):
             elif prop.is_computed:
                 raise AttributeError(f"cannot set computed property {prop!r}: {value!r}")
 
-            # validate set
+            # validate
             if is_tracked:
                 prev = getattr(self, key)
                 object.__setattr__(self, key, value)
@@ -1043,6 +1079,7 @@ class Struct(abc.ABC, Generic[StructDataT]):
                 object.__setattr__(self, key, value)
 
             # update reference pointers
+            # nocheckin: store/query references directly from graph
             if self._status is not None and prop.reference_wired_ptr is not None:
                 object.__setattr__(self, prop.reference_wired_ptr.name, prop.to_wired_ptr(value))
 
@@ -1062,52 +1099,10 @@ class Struct(abc.ABC, Generic[StructDataT]):
         did_you_mean = did_you_mean_str(candidates, key)
         raise AttributeError(f"Cannot set '{key}' on {self!r}. {did_you_mean}")
 
-    def __getattr(self, item):
-        # when using slots so this is not an instance attribute
-        attr = UNSET
-        # try components methods
-        for component in self._components:
-            attr = getattr(component, item, UNSET)
-            if attr is not UNSET:
-                break
-        # check passthrough if tracked in session
-        if (
-            attr is UNSET
-            and self._status == InterpStatus.TRACKED
-            and self.__passthrough__ is not None
-        ):
-            target = getattr(self, self.__passthrough__)
-            attr = getattr(target, item, UNSET)
-        # attribute could be property, method, or just plain value
-        if attr is not UNSET:
-            if isinstance(attr, property):
-                return attr.fget(self)  # type: ignore
-            elif not isinstance(attr, Node) and callable(attr) and not inspect.ismethod(attr):
-                return functools.partial(attr, self)
-            else:
-                return attr
-
-        # report get error with additional info
-        if self._status == InterpStatus.TRACKED:
-            candidates = {
-                # own properties
-                **{
-                    p.name: p
-                    for p in self.__properties__.values()
-                    if p.reference_kind or not p.is_ephemeral
-                },
-                # public methods
-                **{m: None for m in dir(self) if not m.startswith("_")},
-            }
-            did_you_mean = did_you_mean_str(candidates, item)
-            raise AttributeError(f"{self!r} has no attribute '{item}'. {did_you_mean}")
-        else:
-            raise AttributeError(f"{self.__class__} has no attribute '{item}'")
-
     if not TYPE_CHECKING:
         # NOTE: __setattr__/__getattr__ confuses type checking, so only define it at runtime
-        __setattr__ = __setattr
         __getattr__ = __getattr
+        __setattr__ = __setattr
 
     def _lazy_copy_to(
         self, parent: Union["Node", "Struct", "Object"], prop: Union[Property, "Field"]

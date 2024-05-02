@@ -2,36 +2,26 @@ import base64
 import dataclasses
 from dataclasses import dataclass
 from datetime import datetime, timedelta
-from typing import TYPE_CHECKING, Any, Collection, Optional, Union, cast
+from typing import TYPE_CHECKING, Any, Collection, Union, cast
 from uuid import UUID
 
 import structlog
 
 from bench.language.const import (
     EnumType,
-    NodeType,
     PrimitiveType,
     PrimitiveValue,
     StructType,
     TypeKind,
+    is_node_type,
+    new_struct_id,
 )
-from bench.language.node import Node, Property, Struct, new_struct_id, struct, struct_component
-from bench.language.property import p_internal
-from bench.language.setup import ENUM_CLASS_BY_TYPE
-from bench.proto.wire import AnyStructData, NodeReferenceData
+from bench.language.setup import ENUM_CLASS_BY_TYPE, STRUCT_CLASS_BY_TYPE
+from bench.proto.monkey import _PatchedMessage
+from bench.proto.wire import AnyStructData
 
 if TYPE_CHECKING:
-    from bench.language import (
-        Bench,
-        Block,
-        Branch,
-        Environment,
-        Field,
-        NodeReference,
-        Package,
-        Trigger,
-        User,
-    )
+    from bench.language import Field, Node, NodeReference, Property
     from bench.language.field import TypeInfoBase
 
 logger = structlog.get_logger(__name__)
@@ -68,15 +58,51 @@ class Object:
 
     @staticmethod
     def new(
-        value: dict[str, SomeValue] | None, type: "TypeInfoBase", is_revealed: bool = True
+        value: dict[str, SomeValue] | None,
+        type: "TypeInfoBase",
+        is_revealed: bool = True,
+        parent: ValueParent | None = None,
+        parent_property: ValueProperty | None = None,
     ) -> "Object":
-        return Object(_type=type, _value=value, _is_revealed=is_revealed)
+        return Object(
+            _type=type,
+            _value=value,
+            _is_revealed=is_revealed,
+            parent=parent,
+            parent_prop=parent_property,
+        )
+
+    def __str__(self) -> str:
+        if self._value is None:
+            return ""
+        set_fields: list[str] = []
+        for field in self._type._base_fields:
+            field_value = self._value.get(field.storage_key)
+            if field_value:
+                if type(field_value) is list:
+                    set_fields.append(f"{field.py_ident}({len(field_value)})")
+                else:
+                    set_fields.append(field.py_ident or field.name)
+        return ", ".join(set_fields)
+
+    def __repr__(self) -> str:
+        if self._type.kind != TypeKind.OBJECT or self._type.base_type is None:
+            if self._type._resolved_type is not None:
+                type_name = cast(TypeKind, self._type._resolved_type.kind).bench_name
+            elif self._type.kind is not None:
+                type_name = self._type.kind.bench_name
+            else:
+                type_name = "?Value"
+            return f"<{type_name} ({str(self)})>"
+        else:
+            type_name = self._type.base_type.absolute_path
+            return f"<{type_name} ({str(self)})>"
 
     def equals_content(self, other: Any) -> bool:
         """Checks if all fields of the two Values are equal (recursively)."""
         if other is None or type(other) is not Object:
             return False
-        for field in self._type._resolved_fields:
+        for field in self._type._base_fields:
             if getattr(self, field.storage_key) != getattr(other, field.storage_key):
                 return False
         return True
@@ -86,7 +112,7 @@ class Object:
 
     def __getattr__(self, ident: str) -> SomeValue:
         # NOTE: __getattr__ is called only when ident is not in the slots, so this is a value lookup
-        field = self._type._resolve_field(ident)
+        field = self._type._get_field(ident)
         if field is None:
             raise AttributeError(f"{self._type!r} has no field with identifier {ident}")
         if self._type.base_field_zone is not None and field.zone != self._type.base_field_zone:
@@ -103,41 +129,58 @@ class Object:
         # NOTE: __setattr__ is also called for slots so we have to check and set directly
         if ident in VALUE_SLOTS:
             return object.__setattr__(self, ident, value)
-        field: Field | None = self._type._resolve_field(ident)
+        field: Field | None = self._type._get_field(ident)
         if field is None:
             raise AttributeError(f"{self._type!r} has no field with identifier {ident}")
         if self._type.base_field_zone is not None and field.zone != self._type.base_field_zone:
             raise AttributeError(f"{field!r} is not in the same zone as {self._type!r}")
         if self._value is None:
             self._value = {}
+        value = coerce_value(value, field)
         self._value[field.storage_key] = value
+        # nocheckin: notify update
 
-    def _updated_self(self, properties: tuple[Union[Property, "Field", Any], ...]) -> None:
+    def _updated_self(self, properties: tuple[Union["Property", "Field", Any], ...]) -> None:
         raise NotImplementedError(":Incomplete")
 
 
 VALUE_SLOTS: set[str] = set(Object.__dataclass_fields__.keys())
 
 
-@struct_component()
-class HasValues(Struct):
-    pass
-
-
 def coerce_value(value: Any, typ: "TypeInfoBase") -> SomeValue:
     """
-    Coerces the given value to the expected type (recursively).
-    Returns value as is if already correct.
+    Coerces the given value to the expected type (recursively). Returns value as is if already of correct type.
+    To maintain clarity, we try to coerce as little as possible outside the typical python cases.
     Raises TypeError if not possible.
+    NOTE :Performance: we re-create and copy lists during coercion even if the type was already good
     """
-    raise NotImplementedError
+    if typ.kind == TypeKind.OBJECT:
+        if not typ.is_list:
+            return _coerce_object_scalar(cast(dict, value), typ)
+        else:
+            assert isinstance(value, list), f"{value!r} is not a list (expected {typ!r})"
+            return [_coerce_object_scalar(cast(dict, element), typ) for element in value]
+    else:
+        if not typ.is_list:
+            return _coerce_value_scalar(value, typ)
+        else:
+            assert isinstance(value, list), f"{value!r} is not a list (expected {typ!r})"
+            return [_coerce_value_scalar(element, typ) for element in value]
 
 
 def _coerce_value_scalar(value: ScalarValue, typ: "TypeInfoBase") -> ScalarValue:
-    raise NotImplementedError
+    # coerce nodes to node references
+    if typ.kind == TypeKind.NODE or typ.kind == TypeKind.BASED_NODE:
+        if not isinstance(value, Struct):
+            raise TypeError(f"{value!r} is not a Struct (expected {typ!r})")
+        if is_node_type(value.metatype):
+            value = cast("Node", value).to_ref()
+
+    return value
 
 
-def _coerce_object_scalar(value: Object, typ: "TypeInfoBase") -> Object:
+def _coerce_object_scalar(value: dict, typ: "TypeInfoBase") -> Object:
+    """Coerces a single object from a dict representation (recursively)."""
     raise NotImplementedError
 
 
@@ -163,11 +206,14 @@ def _pack_value_scalar(value: ScalarValue, typ: "TypeInfoBase") -> JsonValue:
         else:
             return cast(JsonValue, value)
     elif typ.kind == TypeKind.NODE or typ.kind == TypeKind.BASED_NODE:
-        return cast("NodeReference", value)._to_data().to_robust_json()
+        assert (
+            cast("Struct", value).metatype == StructType.NODE_REFERENCE
+        ), f"{value!r} is not a NodeReference (expected {typ!r})"
+        return cast("NodeReference", value)._to_data().to_robust_dict()
     elif typ.kind == TypeKind.ENUM:
         return cast(int, value)
     elif typ.kind == TypeKind.STRUCT:
-        return cast(Struct, value)._to_data().to_robust_json()
+        return cast(Struct, value)._to_data().to_robust_dict()
     else:
         raise TypeError(f"cannot pack value of type {typ!r}")
 
@@ -188,12 +234,21 @@ def _unpack_value_scalar(value_packed: JsonValue, typ: "TypeInfoBase") -> Scalar
     elif typ.kind == TypeKind.NODE or typ.kind == TypeKind.BASED_NODE:
         from bench.proto import wiring
 
-        return wiring.unpack_struct(cast(NodeReferenceData, value_packed))
+        assert isinstance(value_packed, dict), f"{value_packed!r} is not a dict (expected {typ!r})"
+        value_struct_cls = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE]
+        value_struct = cast(_PatchedMessage, value_struct_cls()).from_robust_dict(value_packed)
+        return wiring.unpack_struct(cast(AnyStructData, value_struct))
     elif typ.kind == TypeKind.ENUM:
         enum_cls = ENUM_CLASS_BY_TYPE[cast(EnumType, typ.bench_type)]
         return enum_cls(cast(int, value_packed))
     elif typ.kind == TypeKind.STRUCT:
-        return Struct._from_data(cast(AnyStructData, value_packed))
+        from bench.proto import wiring
+
+        assert typ.bench_type is not None, f"unresolved type {typ!r}"
+        assert isinstance(value_packed, dict), f"{value_packed!r} is not a dict (expected {typ!r})"
+        value_struct_cls = STRUCT_CLASS_BY_TYPE[cast(StructType, typ.bench_type)]
+        value_struct = cast(_PatchedMessage, value_struct_cls()).from_robust_dict(value_packed)
+        return wiring.unpack_struct(cast(AnyStructData, value_struct))
     else:
         raise TypeError(f"cannot unpack value of type {typ!r}")
 
@@ -204,7 +259,7 @@ def _pack_object_scalar(value: Object, typ: "TypeInfoBase") -> tuple[JsonValue, 
     The secret split applies only to nested values within the type, not the type itself.
     """
     value_packed: dict[str, JsonValue] = {}
-    for field in typ._resolved_fields:
+    for field in typ._base_fields:
         field_value = cast(SomeValue, getattr(value, field.name, None))
         if field_value is None:
             continue
@@ -231,7 +286,7 @@ def _unpack_object_scalar(
     Unpacks an object value from a packed value & secret packed value.
     """
     value: dict[str, SomeValue] = {}
-    for field in typ._resolved_fields:
+    for field in typ._base_fields:
         field_value_packed = value_packed.get(field.storage_key)
         if field_value_packed is None:
             continue
@@ -258,6 +313,7 @@ def pack_value(
     Only minimal type checks are performed, invalid values will error in various ways.
     TODO :Incomplete: handle :SecretValues
     """
+    typ = typ._as_resolved()
     assert typ.kind != TypeKind.ALIAS, f"unresolved type {typ!r}"
     if typ.kind == TypeKind.OBJECT:
         # nested object
@@ -300,6 +356,7 @@ def unpack_value(
     Only minimal type checks are performed, invalid values will error in various ways.
     TODO :Incomplete: handle :SecretValues
     """
+    typ = typ._as_resolved()
     assert typ.kind != TypeKind.ALIAS, f"unresolved type {typ!r}"
     if typ.kind == TypeKind.OBJECT:
         # nested object
@@ -331,32 +388,10 @@ def unpack_value(
             return [_unpack_value_scalar(element, typ) for element in value_packed]
 
 
-@struct(StructType.CONTEXT)
-class Context(Struct):
-    """A semi-magical value that accumulates context down the graph (starting with system context)."""
+# import later to avoid circular imports
+from bench.language.node import Struct, struct_component  # noqa: E402
 
-    # system
-    bench: Optional["Bench"] = p_internal(30, require=False, array=False, references=NodeType.BENCH)
-    environment: Optional["Environment"] = p_internal(
-        31, require=False, array=False, references=NodeType.ENVIRONMENT
-    )
-    branch: Optional["Branch"] = p_internal(
-        32, require=False, array=False, references=NodeType.BRANCH
-    )
-    package: Optional["Package"] = p_internal(
-        33, require=False, array=False, references=NodeType.PACKAGE
-    )
-    module: Optional["Block"] = p_internal(
-        34, require=False, array=False, references=NodeType.BLOCK
-    )
-    page: Optional["Block"] = p_internal(35, require=False, array=False, references=NodeType.BLOCK)
 
-    user: Optional["User"] = p_internal(40, require=False, array=False, references=NodeType.USER)
-    trigger: Optional["Trigger"] = p_internal(
-        41, require=False, array=False, references=NodeType.TRIGGER
-    )
-
-    # custom
-    # value_packed: Any = p_value_packed(50)
-    # secret_value_packed: Any = p_secret_value_packed(51)
-    # value: Any = p_value_runtime(50, 51)
+@struct_component()
+class HasValues(Struct):
+    pass

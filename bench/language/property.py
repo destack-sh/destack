@@ -402,7 +402,7 @@ class Property(_TypeQueryBuilder if TYPE_CHECKING else object):
                 ]
 
         # resolve py type
-        if self.is_ephemeral or self.reference_kind == ReferenceKind.NODE_CHILD:
+        if self.is_ephemeral or self.reference_kind == ReferenceKind.NODE_CHILDREN:
             # can't resolve these because they may point to non-Bench types
             self.py_type_stripped = self.py_type_raw
             return
@@ -916,7 +916,7 @@ def p_node_child(
 ) -> Any:
     """Computed read/write children or descendants of the given type."""
     return Property(
-        reference_kind=ReferenceKind.NODE_CHILD,
+        reference_kind=ReferenceKind.NODE_CHILDREN,
         reference_nodes=(node_type,),
         reference_flags=flags,
         is_internal=True,
