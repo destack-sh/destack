@@ -1062,7 +1062,7 @@ class Struct(abc.ABC, Generic[StructDataT]):
                 if prop.is_list:
                     value = ValueList._lazy_copy_for(value, self, prop, prop)
                 else:
-                    value = value._lazy_copy_to(self, prop)
+                    value = cast(Struct, value)._lazy_copy_to(self, prop)
             elif prop.is_computed:
                 raise AttributeError(f"cannot set computed property {prop!r}: {value!r}")
 

@@ -2,7 +2,7 @@ import base64
 import dataclasses
 from dataclasses import dataclass
 from datetime import datetime, timedelta
-from typing import TYPE_CHECKING, Any, Collection, Union, cast
+from typing import TYPE_CHECKING, Any, Collection, Optional, Union, cast
 from uuid import UUID
 
 import structlog
@@ -16,12 +16,13 @@ from bench.language.const import (
     is_node_type,
     new_struct_id,
 )
-from bench.language.setup import ENUM_CLASS_BY_TYPE, STRUCT_CLASS_BY_TYPE
+from bench.language.property import Property
+from bench.language.setup import ENUM_CLASS_BY_TYPE
 from bench.proto.monkey import _PatchedMessage
 from bench.proto.wire import AnyStructData
 
 if TYPE_CHECKING:
-    from bench.language import Field, Node, NodeReference, Property
+    from bench.language import Field, Node, NodeReference
     from bench.language.field import TypeInfoBase
 
 logger = structlog.get_logger(__name__)
@@ -53,8 +54,15 @@ class Object:
     parent: ValueParent | None = None
     parent_id: int | UUID | None = None
     parent_prop: ValueProperty | None = None
+    ancestor_prop: Optional["Property"] = None
     parent_key: str | None = None
     order_key: str | None = None
+
+    def __post_init__(self):
+        if self.parent is not None and self.ancestor_prop is None:
+            if type(self.parent_prop) is not Property:
+                raise ValueError(f"{self.parent_prop!r} is not a Property")
+            self.ancestor_prop = self.parent_prop
 
     @staticmethod
     def new(
@@ -102,8 +110,12 @@ class Object:
         """Checks if all fields of the two Values are equal (recursively)."""
         if other is None or type(other) is not Object:
             return False
+        elif self._value is None:
+            return other._value is None
+        elif other._value is None:
+            return False
         for field in self._type._base_fields:
-            if getattr(self, field.storage_key) != getattr(other, field.storage_key):
+            if self._value.get(field.storage_key) != other._value.get(field.storage_key):
                 return False
         return True
 
@@ -134,14 +146,29 @@ class Object:
             raise AttributeError(f"{self._type!r} has no field with identifier {ident}")
         if self._type.base_field_zone is not None and field.zone != self._type.base_field_zone:
             raise AttributeError(f"{field!r} is not in the same zone as {self._type!r}")
+
+        # coerce & copy if needed
+        value = coerce_value(value, field)
+        # if field.kind == TypeKind.OBJECT or field.kind == TypeKind.STRUCT:
+        #     if not field.is_list:
+        #         value = cast("Object | Struct", value)._lazy_copy_to(self, field)
+        #     else:
+        #         value = ValueList._lazy_copy_for(cast(list["Object | Struct"], value), self, field)
         if self._value is None:
             self._value = {}
-        value = coerce_value(value, field)
         self._value[field.storage_key] = value
-        # nocheckin: notify update
+
+        # notify
+        self._updated_self((field,))
+
+    def _lazy_copy_to(self, parent: ValueParent, prop: ValueProperty) -> "Object":
+        raise NotImplementedError("nocheckin: _lazy_copy_to")
 
     def _updated_self(self, properties: tuple[Union["Property", "Field", Any], ...]) -> None:
-        raise NotImplementedError(":Incomplete")
+        if self.parent is not None:
+            prop = self.ancestor_prop if self.ancestor_prop is not None else self.parent_prop
+            assert type(prop) is Property, f"{prop!r} is not a Property"
+            self.parent._updated_self((prop,))
 
 
 VALUE_SLOTS: set[str] = set(Object.__dataclass_fields__.keys())
@@ -231,23 +258,23 @@ def _unpack_value_scalar(value_packed: JsonValue, typ: "TypeInfoBase") -> Scalar
             return timedelta(seconds=cast(int, value_packed))
         else:
             return cast(PrimitiveValue, value_packed)
+    elif typ.kind == TypeKind.ENUM:
+        enum_cls = ENUM_CLASS_BY_TYPE[cast(EnumType, typ.bench_type)]
+        return enum_cls(cast(int, value_packed))
     elif typ.kind == TypeKind.NODE or typ.kind == TypeKind.BASED_NODE:
         from bench.proto import wiring
 
         assert isinstance(value_packed, dict), f"{value_packed!r} is not a dict (expected {typ!r})"
-        value_struct_cls = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE]
-        value_struct = cast(_PatchedMessage, value_struct_cls()).from_robust_dict(value_packed)
+        data_cls = wiring.PROTO_CLASS_BY_TYPE[StructType.NODE_REFERENCE]
+        value_struct = cast(_PatchedMessage, data_cls()).from_robust_dict(value_packed)
         return wiring.unpack_struct(cast(AnyStructData, value_struct))
-    elif typ.kind == TypeKind.ENUM:
-        enum_cls = ENUM_CLASS_BY_TYPE[cast(EnumType, typ.bench_type)]
-        return enum_cls(cast(int, value_packed))
     elif typ.kind == TypeKind.STRUCT:
         from bench.proto import wiring
 
         assert typ.bench_type is not None, f"unresolved type {typ!r}"
         assert isinstance(value_packed, dict), f"{value_packed!r} is not a dict (expected {typ!r})"
-        value_struct_cls = STRUCT_CLASS_BY_TYPE[cast(StructType, typ.bench_type)]
-        value_struct = cast(_PatchedMessage, value_struct_cls()).from_robust_dict(value_packed)
+        data_cls = wiring.PROTO_CLASS_BY_TYPE[cast(StructType, typ.bench_type)]
+        value_struct = cast(_PatchedMessage, data_cls()).from_robust_dict(value_packed)
         return wiring.unpack_struct(cast(AnyStructData, value_struct))
     else:
         raise TypeError(f"cannot unpack value of type {typ!r}")
@@ -313,7 +340,7 @@ def pack_value(
     Only minimal type checks are performed, invalid values will error in various ways.
     TODO :Incomplete: handle :SecretValues
     """
-    typ = typ._as_resolved()
+    typ = typ._to_resolved()
     assert typ.kind != TypeKind.ALIAS, f"unresolved type {typ!r}"
     if typ.kind == TypeKind.OBJECT:
         # nested object
@@ -356,7 +383,7 @@ def unpack_value(
     Only minimal type checks are performed, invalid values will error in various ways.
     TODO :Incomplete: handle :SecretValues
     """
-    typ = typ._as_resolved()
+    typ = typ._to_resolved()
     assert typ.kind != TypeKind.ALIAS, f"unresolved type {typ!r}"
     if typ.kind == TypeKind.OBJECT:
         # nested object
