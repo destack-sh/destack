@@ -36,7 +36,7 @@ import {
 } from "@/proto/wire";
 import { describeNode, isNode, toNodeReference, type TypedNodeReferenceData } from "@/proto/wiring";
 import { type ReadNodeGraph } from "@/system/graph";
-import { ENUM_ICONS_BY_TYPE, makeIcon } from "@/system/icon";
+import { ENUM_ICONS_BY_TYPE, getNodeIcon, makeIcon } from "@/system/icon";
 import type { Transaction } from "@/system/transaction";
 import { getViewForValueType, makeTypeInfo, type TypeIdentity } from "@/system/value";
 import { generateOrderKey, generateOrderKeys, isValidOrderKey } from "@/utils/fractional";
@@ -518,11 +518,22 @@ export function createField(
     fieldIn = { ...fieldIn, icon: makeIcon({ faName: "fas fa-circle-small", color: colorType }) };
   }
 
+  // default to Text if no type given
+  if (zone != FieldZone.OPTION && fieldIn?.kind == null) {
+    fieldIn = { ...fieldIn, kind: TypeKind.STRUCT, benchType: BenchType.TEXT };
+  }
+
+  // reset icon if it's the default one (so we can easily change the type & icon will auto-change too)
+  if (
+    fieldIn?.icon != null &&
+    fieldIn?.icon?.faName == getNodeIcon({ metatype: ObjectType.FIELD, ...fieldIn })?.faName
+  ) {
+    fieldIn = { ...fieldIn, icon: undefined };
+  }
+
   const field = tx.create({
     name: makeNodeName(graph, { metatype: ObjectType.FIELD, parentPtr, zone: zone }),
     zone,
-    kind: zone == FieldZone.OPTION ? undefined : TypeKind.STRUCT,
-    benchType: zone == FieldZone.OPTION ? undefined : BenchType.TEXT,
     ...fieldIn,
     // overwrite non-required properties
     id: undefined,
@@ -590,6 +601,7 @@ function getInspectionInfo(metatype: ObjectType, type: any): Record<string, Insp
             read: (node: FieldData) => node,
             write: (tx: Transaction, node: FieldData, value: TypeIdentity) => {
               tx.updateDebounced(node, {
+                kind: value.kind,
                 primitiveType: value.primitiveType,
                 benchType: value.benchType,
                 baseTypePtr: value.baseTypePtr,
@@ -622,6 +634,7 @@ function getInspectionInfo(metatype: ObjectType, type: any): Record<string, Insp
           write: (tx: Transaction, node: AnyNodeData, value: TypeIdentity) => {
             tx.updateDebounced(node as BlockData, {
               builtinBase: makeTypeInfo({
+                kind: value.kind,
                 primitiveType: value.primitiveType,
                 benchType: value.benchType,
                 baseTypePtr: value.baseTypePtr,

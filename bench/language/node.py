@@ -1009,115 +1009,115 @@ class Struct(abc.ABC, Generic[StructDataT]):
         else:
             return self.metatype == other.metatype and self.id == other.id
 
-    if not TYPE_CHECKING:
-        # NOTE: __setattr__/__getattr__ confuses type checking, so only use it in runtime
-        #  (unfortunately this means we also don't get type-checking in here)
-        def __setattr__(self, key, value):
-            """Sets *any* attribute on this node (incl. slots)."""
-            is_tracked = self._status == InterpStatus.TRACKED
-            prop = self.__properties__.get(key)
-            if prop is not None:
-                if prop.is_ephemeral or prop.is_autoset:  # untracked
+    def __setattr(self, key, value):
+        """Sets *any* attribute on this node (incl. slots)."""
+        is_tracked = self._status == InterpStatus.TRACKED
+        prop = self.__properties__.get(key)
+        if prop is not None:
+            if prop.is_ephemeral or prop.is_autoset:  # untracked
+                return object.__setattr__(self, key, value)
+            elif prop.reference_kind == ReferenceKind.NODE_CHILD:
+                attr = object.__getattribute__(self, key)
+                if attr is None or type(attr) is Property:  # initial set
                     return object.__setattr__(self, key, value)
-                elif prop.reference_kind == ReferenceKind.NODE_CHILD:
-                    attr = object.__getattribute__(self, key)
-                    if attr is None or type(attr) is Property:  # initial set
-                        return object.__setattr__(self, key, value)
-                    else:
-                        return attr.set(value)  # has its own set
-                elif (
-                    prop.reference_kind == ReferenceKind.STRUCT_CHILD
-                    and self._status is not None
-                    and value is not None
-                ):
-                    # copy struct if needed (only after init since child struct needs our id)
-                    if prop.is_list:
-                        value = ValueList._lazy_copy_for(value, self, prop, prop)
-                    else:
-                        value = value._lazy_copy_to(self, prop)
-                elif prop.is_computed:
-                    raise AttributeError(f"cannot set computed property {prop!r}: {value!r}")
-
-                # validate set
-                if is_tracked:
-                    prev = getattr(self, key)
-                    object.__setattr__(self, key, value)
-                    try:
-                        self._validate_self((prop,), on_invalid=on_invalid_raise)
-                    except ValidationError:  # reset on error
-                        object.__setattr__(self, key, prev)
-                        raise
                 else:
-                    object.__setattr__(self, key, value)
+                    return attr.set(value)  # has its own set
+            elif (
+                prop.reference_kind == ReferenceKind.STRUCT_CHILD
+                and self._status is not None
+                and value is not None
+            ):
+                # copy struct if needed (only after init since child struct needs our id)
+                if prop.is_list:
+                    value = ValueList._lazy_copy_for(value, self, prop, prop)
+                else:
+                    value = value._lazy_copy_to(self, prop)
+            elif prop.is_computed:
+                raise AttributeError(f"cannot set computed property {prop!r}: {value!r}")
 
-                # update reference pointers
-                if self._status is not None and prop.reference_wired_ptr is not None:
-                    object.__setattr__(
-                        self, prop.reference_wired_ptr.name, prop.to_wired_ptr(value)
-                    )
-
-                # report edit
-                if is_tracked:
-                    self._updated_self((prop,))
-                return
-
+            # validate set
             if is_tracked:
-                # also try first full passthrough target (if any)
-                for target, mode in self.__passthrough_targets__:
-                    target = getattr(self, target)
-                    if mode == _Passthrough.Full:
-                        setattr(target, key, value)
-                        return  # success
+                prev = getattr(self, key)
+                object.__setattr__(self, key, value)
+                try:
+                    self._validate_self((prop,), invalid=on_invalid_raise)
+                except ValidationError:  # reset on error
+                    object.__setattr__(self, key, prev)
+                    raise
+            else:
+                object.__setattr__(self, key, value)
 
-            # report set error with additional info
-            candidates = {p.name: p for p in self.__properties__.values() if not p.is_computed}
-            did_you_mean = did_you_mean_str(candidates, key)
-            raise AttributeError(f"Cannot set '{key}' on {self!r}. {did_you_mean}")
+            # update reference pointers
+            if self._status is not None and prop.reference_wired_ptr is not None:
+                object.__setattr__(self, prop.reference_wired_ptr.name, prop.to_wired_ptr(value))
 
-        def __getattr__(self, item):
-            # when using slots so this is not an instance attribute
-            attr = UNSET
-            # prefer components methods
-            for component in self._components:
-                attr = getattr(component, item, UNSET)
+            # report edit
+            if is_tracked:
+                self._updated_self((prop,))
+            return
+
+        if is_tracked:
+            # also try first full passthrough target (if any)
+            for target, mode in self.__passthrough_targets__:
+                target = getattr(self, target)
+                if mode == _Passthrough.Full:
+                    setattr(target, key, value)
+                    return  # success
+
+        # report set error with additional info
+        candidates = {p.name: p for p in self.__properties__.values() if not p.is_computed}
+        did_you_mean = did_you_mean_str(candidates, key)
+        raise AttributeError(f"Cannot set '{key}' on {self!r}. {did_you_mean}")
+
+    def __getattr(self, item):
+        # when using slots so this is not an instance attribute
+        attr = UNSET
+        # prefer components methods
+        for component in self._components:
+            attr = getattr(component, item, UNSET)
+            if attr is not UNSET:
+                break
+        # check passthrough targets if tracked in session
+        if attr is UNSET and self._status == InterpStatus.TRACKED:
+            for target, mode in self.__passthrough_targets__:
+                target = getattr(self, target)
+                if mode == _Passthrough.Full:
+                    attr = getattr(target, item, UNSET)
+                elif mode == _Passthrough.Scope:
+                    assert isinstance(target, NodeList), f"invalid scope passthrough: {attr!r}"
+                    attr = target.get(item) or UNSET
                 if attr is not UNSET:
                     break
-            # check passthrough targets if tracked in session
-            if attr is UNSET and self._status == InterpStatus.TRACKED:
-                for target, mode in self.__passthrough_targets__:
-                    target = getattr(self, target)
-                    if mode == _Passthrough.Full:
-                        attr = getattr(target, item, UNSET)
-                    elif mode == _Passthrough.Scope:
-                        assert isinstance(target, NodeList), f"invalid scope passthrough: {attr!r}"
-                        attr = target.get(item) or UNSET
-                    if attr is not UNSET:
-                        break
-            # attribute could be property, method, or just plain value
-            if attr is not UNSET:
-                if isinstance(attr, property):
-                    return attr.fget(self)  # type: ignore
-                elif not isinstance(attr, Node) and callable(attr) and not inspect.ismethod(attr):
-                    return functools.partial(attr, self)
-                else:
-                    return attr
-
-            # report get error with additional info
-            if self._status == InterpStatus.TRACKED:
-                candidates = {
-                    # own properties
-                    **{
-                        p.name: p
-                        for p in self.__properties__.values()
-                        if p.reference_kind or not p.is_ephemeral
-                    },
-                    # public methods
-                    **{m: None for m in dir(self) if not m.startswith("_")},
-                }
-                did_you_mean = did_you_mean_str(candidates, item)
-                raise AttributeError(f"{self!r} has no attribute '{item}'. {did_you_mean}")
+        # attribute could be property, method, or just plain value
+        if attr is not UNSET:
+            if isinstance(attr, property):
+                return attr.fget(self)  # type: ignore
+            elif not isinstance(attr, Node) and callable(attr) and not inspect.ismethod(attr):
+                return functools.partial(attr, self)
             else:
-                raise AttributeError(f"{self.__class__} has no attribute '{item}'")
+                return attr
+
+        # report get error with additional info
+        if self._status == InterpStatus.TRACKED:
+            candidates = {
+                # own properties
+                **{
+                    p.name: p
+                    for p in self.__properties__.values()
+                    if p.reference_kind or not p.is_ephemeral
+                },
+                # public methods
+                **{m: None for m in dir(self) if not m.startswith("_")},
+            }
+            did_you_mean = did_you_mean_str(candidates, item)
+            raise AttributeError(f"{self!r} has no attribute '{item}'. {did_you_mean}")
+        else:
+            raise AttributeError(f"{self.__class__} has no attribute '{item}'")
+
+    if not TYPE_CHECKING:
+        # NOTE: __setattr__/__getattr__ confuses type checking, so only define it at runtime
+        __setattr__ = __setattr
+        __getattr__ = __getattr
 
     def _lazy_copy_to(
         self, parent: Union["Node", "Struct", "Value"], prop: Union[Property, "Field"]
@@ -1193,7 +1193,7 @@ class Struct(abc.ABC, Generic[StructDataT]):
                 if value is not None:  # keep old value)
                     self.__dict__[prop.reference_wired_ptr.name] = prop.to_wired_ptr(value)
 
-    def _interp_component(self, scope: Optional["Node"], on_notice: "NoticeHandler"):
+    def _interp_component(self, scope: Optional["Node"], notice: "NoticeHandler"):
         from bench.language.notice import NoticeType
 
         # TODO :Broken: turn all node references into computer propertied (against graph)
@@ -1217,14 +1217,14 @@ class Struct(abc.ABC, Generic[StructDataT]):
                     for p in ptr:
                         r = scope._root_graph.get(cast(UUID, p.id or p.ck))
                         if r is None:
-                            on_notice(self, NoticeType.MISSING_REFERENCE, {"properties": (prop,)})
+                            notice(self, NoticeType.MISSING_REFERENCE, {"properties": (prop,)})
                         resolved.append(r)
                     self.__dict__[prop.name] = resolved
                 else:
                     ptr = cast("NodeReference", ptr)
                     resolved = scope._root_graph.get(cast(UUID, ptr.id or ptr.ck))
                     if resolved is None:
-                        on_notice(self, NoticeType.MISSING_REFERENCE, {"properties": (prop,)})
+                        notice(self, NoticeType.MISSING_REFERENCE, {"properties": (prop,)})
                     self.__dict__[prop.name] = resolved
 
         # resolve property references
@@ -1243,7 +1243,7 @@ class Struct(abc.ABC, Generic[StructDataT]):
                 setattr(self, prop.name, ptr.resolve())
 
     def _validate_component(
-        self, properties: Collection[Property], on_invalid: "ValidationHandler"
+        self, properties: Collection[Property], invalid: "ValidationHandler"
     ) -> None:
         """Validate properties for illegal values that should not or cannot be stored."""
 
@@ -1255,9 +1255,9 @@ class Struct(abc.ABC, Generic[StructDataT]):
                 # TODO :Robustness: track whether property was deferred
                 #  (so we can validate it appropriately, and probably a bunch of other stuff)
                 if prop.is_required and not (prop.is_sensitive or prop.is_deferred):
-                    on_invalid(self, f"{prop.name} is required", [prop], None)
+                    invalid(self, f"{prop.name} is required", {"properties": (prop,)})
             elif prop.custom_validate is not None:
-                handler = PropertyValidationHandler(self, prop, on_invalid)
+                handler = PropertyValidationHandler(self, prop, invalid)
                 prop.custom_validate(prop, value, handler)
 
     def _flushed_self(self):
@@ -1292,21 +1292,21 @@ class Struct(abc.ABC, Generic[StructDataT]):
             meth(self)
 
     @final
-    def _interp_self(self, scope: Optional["Node"], on_notice: "NoticeHandler"):
+    def _interp_self(self, scope: Optional["Node"], notice: "NoticeHandler"):
         for meth in _get_component_methods(
             self._components, _ComponentMethod.interp, self._instance_cache_key
         ):
-            meth(self, scope, on_notice)
+            meth(self, scope, notice)
         self._status = InterpStatus.INTERPED
 
     @final
     def _validate_self(
-        self, properties: Collection[Property], on_invalid: "ValidationHandler"
+        self, properties: Collection[Property], invalid: "ValidationHandler"
     ) -> None:
         for meth in _get_component_methods(
             self._components, _ComponentMethod.validate, self._instance_cache_key
         ):
-            meth(self, properties, on_invalid)
+            meth(self, properties, invalid)
 
     @final
     def _updated_self(self, properties: Collection[Property]) -> None:
@@ -1316,16 +1316,21 @@ class Struct(abc.ABC, Generic[StructDataT]):
             meth(self, properties)
 
     @final
-    def _interp_rec(self, scope: Optional["Node"], on_notice: "NoticeHandler"):
+    def _interp_rec(self, scope: Optional["Node"], notice: "NoticeHandler"):
         for inner_struct in self._walk_struct():
-            inner_struct._interp_self(scope, on_notice)
+            inner_struct._interp_self(scope, notice)
 
     @final
-    def _validate_rec(
-        self, properties: tuple[Property, ...], on_invalid: "ValidationHandler"
-    ) -> None:
+    def _validate_rec(self, properties: tuple[Property, ...], invalid: "ValidationHandler") -> None:
         for inner_struct in self._walk_struct():
-            inner_struct._validate_self(properties, on_invalid)
+            inner_struct._validate_self(properties, invalid)
+
+    @classmethod
+    def _from_data(cls, data: StructDataT) -> Self:
+        """Convert from wire format"""
+        from bench.proto.wiring import unpack_struct
+
+        return unpack_struct(cast(AnyStructData, data))
 
     @final
     def _to_data(self) -> StructDataT:
@@ -1468,7 +1473,7 @@ class Node(Struct[NodeDataT], Generic[NodeDataT]):
         self._init_self()
         # track if in session
         if self._status == InterpStatus.INTERPED and self._session is not None:
-            self._interp_self(self, on_notice=self._on_notice)
+            self._interp_self(self, notice=self._on_notice)
             self._track_self(self._session)
 
     def _assign_id(self, package_id: UUID):
@@ -1773,14 +1778,14 @@ class Node(Struct[NodeDataT], Generic[NodeDataT]):
             and self._session is not None
             and self._session is not UNSET
         ):
-            self._validate_self(self.__tracked_properties__.values(), on_invalid=on_invalid_raise)
+            self._validate_self(self.__tracked_properties__.values(), invalid=on_invalid_raise)
 
     @final
-    def _interp_self(self, scope: Optional["Node"], on_notice: "NoticeHandler"):
+    def _interp_self(self, scope: Optional["Node"], notice: "NoticeHandler"):
         for meth in _get_component_methods(
             self._components, _ComponentMethod.interp, self._instance_cache_key
         ):
-            meth(self, scope, on_notice)
+            meth(self, scope, notice)
         self._status = InterpStatus.INTERPED
 
     @final
@@ -1805,18 +1810,16 @@ class Node(Struct[NodeDataT], Generic[NodeDataT]):
             yield from self._root_graph.collect_descendants(self, recursive=True)
 
     @final
-    def _interp_rec(self, scope: Optional["Node"], on_notice: "NoticeHandler"):
-        super()._interp_rec(scope, on_notice)  # interp structs
+    def _interp_rec(self, scope: Optional["Node"], notice: "NoticeHandler"):
+        super()._interp_rec(scope, notice)  # interp structs
         for inner_node in self._walk_descendants():
-            inner_node._interp_self(scope, on_notice)
+            inner_node._interp_self(scope, notice)
 
     @final
-    def _validate_rec(
-        self, properties: tuple[Property, ...], on_invalid: "ValidationHandler"
-    ) -> None:
-        super()._validate_rec(properties, on_invalid)  # validate structs
+    def _validate_rec(self, properties: tuple[Property, ...], invalid: "ValidationHandler") -> None:
+        super()._validate_rec(properties, invalid)  # validate structs
         for inner_node in self._walk_descendants():
-            inner_node._validate_self(properties, on_invalid)
+            inner_node._validate_self(properties, invalid)
 
     #
     # Querying

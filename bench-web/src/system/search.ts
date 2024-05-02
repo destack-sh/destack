@@ -301,17 +301,19 @@ export function typeIndex(options: {
   }
 
   function mapFromNode(nodeItem: NodeItem): TypeItem {
+    // NOTE: technically there is more than one possible mapping from node to type identity
+    //  (for instance Signal blocks could give both Signal nodes based in that block or Values of that Signal type)
     const blockType = (nodeItem.node as BlockData).type;
     const item: TypeItem = { ...nodeItem, isList: false, isSecret: false, metatype: "type" };
     if (blockType == BlockType.CHOICE) {
       item.benchType = BenchType.FIELD;
-      item.kind == TypeKind.BASE;
+      item.kind == TypeKind.BASED_NODE;
     } else if (blockType == BlockType.SIGNAL) {
       item.benchType = BenchType.SIGNAL;
-      item.kind == TypeKind.BASE;
+      item.kind == TypeKind.BASED_NODE;
     } else if (blockType == BlockType.DATABASE) {
       item.benchType = BenchType.RECORD;
-      item.kind == TypeKind.BASE;
+      item.kind == TypeKind.BASED_NODE;
     } else {
       item.kind = TypeKind.ALIAS;
     }

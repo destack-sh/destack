@@ -48,19 +48,22 @@ class Schedule(Struct):
         return f"{self.type} {self.timezone} {self.interval or self.cron}"
 
     def _validate_component(
-        self, properties: tuple[Property, ...], on_invalid: "ValidationHandler"
+        self, properties: tuple[Property, ...], invalid: "ValidationHandler"
     ) -> None:
         if self.type == ScheduleType.CRON:
             if not self.cron or not croniter.is_valid(self.cron):
-                on_invalid(self, f"cron: invalid expression ('{self.cron}')", [Schedule.cron], None)
+                invalid(
+                    self,
+                    f"cron: invalid expression ('{self.cron}')",
+                    {"properties": (Schedule.cron,)},
+                )
         elif self.type == ScheduleType.INTERVAL:
             interval = self.interval or 0
             if interval < TRIGGER_INTERVAL_USR_MIN or interval > TRIGGER_INTERVAL_ABS_MAX:
-                on_invalid(
+                invalid(
                     self,
                     f"interval: invalid ({interval} not in [{TRIGGER_INTERVAL_USR_MIN}, {TRIGGER_INTERVAL_ABS_MAX}])",
-                    [Schedule.interval],
-                    None,
+                    {"properties": (Schedule.interval,)},
                 )
 
 

@@ -4,7 +4,7 @@ from datetime import datetime
 from typing import TYPE_CHECKING, Any, Collection, Optional, Union
 
 from bench.language.const import BlockType, NodeType, NodeVisibility, StructType
-from bench.language.database import HasDatabase
+from bench.language.database import Database
 from bench.language.node import Node, NodeList, _Passthrough, node
 from bench.language.property import (
     p_internal,
@@ -73,7 +73,7 @@ _describe_block(BlockType.CODE, (), IdentT.FUNCTION)
 _describe_block(BlockType.SCRIPT, (), IdentT.FUNCTION)
 _describe_block(BlockType.FLOW, (), IdentT.FUNCTION)
 _describe_block(BlockType.VARIABLE, (), IdentT.VARIABLE)
-_describe_block(BlockType.DATABASE, (HasDatabase,), IdentT.TYPE)
+_describe_block(BlockType.DATABASE, (Database,), IdentT.TYPE)
 _describe_block(BlockType.QUERY, (), IdentT.VARIABLE)
 _describe_block(BlockType.SCREEN, (), IdentT.TYPE)
 _describe_block(BlockType.ROLE, (), IdentT.TYPE)
@@ -197,16 +197,19 @@ class Block(Node[BlockData], HasValues):
         return self.type.name
 
     def _validate_component(
-        self, properties: Collection["Property"], on_invalid: "ValidationHandler"
+        self, properties: Collection["Property"], invalid: "ValidationHandler"
     ) -> None:
         if self.type == BlockType.PAGE and not self.is_page:
-            on_invalid(self, "type=Page must have is_page=True", (Block.type, Block.is_page), None)
+            invalid(
+                self,
+                "type=Page must have is_page=True",
+                {"properties": (Block.type, Block.is_page)},
+            )
         elif self.type == BlockType.PROTOCOL and not self.is_protocol:
-            on_invalid(
+            invalid(
                 self,
                 "type=Protocol must have is_protocol=True",
-                (Block.type, Block.is_protocol),
-                None,
+                {"properties": (Block.type, Block.is_protocol)},
             )
 
     @property

@@ -16,7 +16,7 @@
 		"python.languageServer": "Pylance",
 		"python.analysis.typeCheckingMode": "standard",
 		"python.analysis.diagnosticMode": "workspace",
-		"python.analysis.inlayHints.callArgumentNames": "all",
+		"python.analysis.inlayHints.callArgumentNames": "off",
 		"python.analysis.inlayHints.functionReturnTypes": true,
 		"python.analysis.inlayHints.variableTypes": true,
 		"python.analysis.inlayHints.pytestParameters": true,

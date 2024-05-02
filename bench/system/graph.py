@@ -309,7 +309,7 @@ class GraphIoServiceBase(BenchServiceBase, GraphIoBase):
                 node = unpacked_graph.get(node_id)
                 if node is None:
                     raise RuntimeError(f"node {node_id} not found in unpacked {unpacked_graph!r}")
-                node._validate_self(properties=(), on_invalid=on_invalid_raise)
+                node._validate_self(properties=(), invalid=on_invalid_raise)
             # TODO :Robustness! :Test: prevent circular parent/child references
 
             # apply edits

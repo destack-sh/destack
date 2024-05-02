@@ -7596,11 +7596,7 @@ export enum NoticeType {
     /**
      * @generated from protobuf enum value: NOTICE_TYPE_AMBIGUOUS_NAME = 100;
      */
-    AMBIGUOUS_NAME = 100,
-    /**
-     * @generated from protobuf enum value: NOTICE_TYPE_BAD_NAME = 300;
-     */
-    BAD_NAME = 300
+    AMBIGUOUS_NAME = 100
 }
 /**
  * The level of interaction required for a notification.
@@ -8121,57 +8117,57 @@ export enum PrimitiveType {
      */
     BOOLEAN = 1,
     /**
-     * @generated from protobuf enum value: PRIMITIVE_TYPE_INT16 = 4;
+     * @generated from protobuf enum value: PRIMITIVE_TYPE_INT16 = 5;
      */
-    INT16 = 4,
+    INT16 = 5,
     /**
-     * @generated from protobuf enum value: PRIMITIVE_TYPE_INT32 = 5;
+     * @generated from protobuf enum value: PRIMITIVE_TYPE_INT32 = 6;
      */
-    INT32 = 5,
+    INT32 = 6,
     /**
-     * @generated from protobuf enum value: PRIMITIVE_TYPE_INT64 = 6;
+     * @generated from protobuf enum value: PRIMITIVE_TYPE_INT64 = 7;
      */
-    INT64 = 6,
+    INT64 = 7,
     /**
-     * @generated from protobuf enum value: PRIMITIVE_TYPE_FLOAT32 = 9;
+     * @generated from protobuf enum value: PRIMITIVE_TYPE_DECIMAL = 9;
      */
-    FLOAT32 = 9,
+    DECIMAL = 9,
     /**
-     * @generated from protobuf enum value: PRIMITIVE_TYPE_FLOAT64 = 10;
+     * @generated from protobuf enum value: PRIMITIVE_TYPE_FLOAT32 = 12;
      */
-    FLOAT64 = 10,
+    FLOAT32 = 12,
     /**
-     * @generated from protobuf enum value: PRIMITIVE_TYPE_DECIMAL = 12;
+     * @generated from protobuf enum value: PRIMITIVE_TYPE_FLOAT64 = 13;
      */
-    DECIMAL = 12,
+    FLOAT64 = 13,
     /**
-     * @generated from protobuf enum value: PRIMITIVE_TYPE_STRING = 15;
+     * @generated from protobuf enum value: PRIMITIVE_TYPE_STRING = 20;
      */
-    STRING = 15,
+    STRING = 20,
     /**
-     * @generated from protobuf enum value: PRIMITIVE_TYPE_JSON = 16;
+     * @generated from protobuf enum value: PRIMITIVE_TYPE_UUID = 21;
      */
-    JSON = 16,
+    UUID = 21,
     /**
-     * @generated from protobuf enum value: PRIMITIVE_TYPE_BYTES = 17;
+     * @generated from protobuf enum value: PRIMITIVE_TYPE_JSON = 22;
      */
-    BYTES = 17,
+    JSON = 22,
     /**
-     * @generated from protobuf enum value: PRIMITIVE_TYPE_VECTOR = 18;
+     * @generated from protobuf enum value: PRIMITIVE_TYPE_BYTES = 25;
      */
-    VECTOR = 18,
+    BYTES = 25,
     /**
-     * @generated from protobuf enum value: PRIMITIVE_TYPE_UUID = 19;
+     * @generated from protobuf enum value: PRIMITIVE_TYPE_VECTOR = 26;
      */
-    UUID = 19,
+    VECTOR = 26,
     /**
-     * @generated from protobuf enum value: PRIMITIVE_TYPE_DATETIME = 20;
+     * @generated from protobuf enum value: PRIMITIVE_TYPE_DATETIME = 30;
      */
-    DATETIME = 20,
+    DATETIME = 30,
     /**
-     * @generated from protobuf enum value: PRIMITIVE_TYPE_INTERVAL = 21;
+     * @generated from protobuf enum value: PRIMITIVE_TYPE_INTERVAL = 31;
      */
-    INTERVAL = 21
+    INTERVAL = 31
 }
 /**
  * A type of Read access on nodes.
@@ -8495,7 +8491,6 @@ export enum SortOp {
 }
 /**
  * The spacing scale for positions, padding, margin, etc. We don't enforce this.
- * This is reminiscent of Tailwind's spacing scale.
  *
  * @generated from protobuf enum symbolx.bench.Spacing
  */
@@ -8521,33 +8516,17 @@ export enum Spacing {
      */
     S4 = 4,
     /**
-     * @generated from protobuf enum value: SPACING_S5 = 5;
-     */
-    S5 = 5,
-    /**
      * @generated from protobuf enum value: SPACING_S6 = 6;
      */
     S6 = 6,
-    /**
-     * @generated from protobuf enum value: SPACING_S7 = 7;
-     */
-    S7 = 7,
     /**
      * @generated from protobuf enum value: SPACING_S8 = 8;
      */
     S8 = 8,
     /**
-     * @generated from protobuf enum value: SPACING_S9 = 9;
-     */
-    S9 = 9,
-    /**
      * @generated from protobuf enum value: SPACING_S10 = 10;
      */
     S10 = 10,
-    /**
-     * @generated from protobuf enum value: SPACING_S11 = 11;
-     */
-    S11 = 11,
     /**
      * @generated from protobuf enum value: SPACING_S12 = 12;
      */
@@ -8999,13 +8978,17 @@ export enum TypeKind {
      */
     ENUM = 4,
     /**
-     * @generated from protobuf enum value: TYPE_KIND_BASE = 5;
+     * @generated from protobuf enum value: TYPE_KIND_BASED_NODE = 5;
      */
-    BASE = 5,
+    BASED_NODE = 5,
     /**
-     * @generated from protobuf enum value: TYPE_KIND_ALIAS = 6;
+     * @generated from protobuf enum value: TYPE_KIND_VALUE = 6;
      */
-    ALIAS = 6
+    VALUE = 6,
+    /**
+     * @generated from protobuf enum value: TYPE_KIND_ALIAS = 10;
+     */
+    ALIAS = 10
 }
 /**
  * A type of Run access on nodes.

@@ -626,7 +626,6 @@ class NoticeType(betterproto.Enum):
     CIRCULAR_BASE = 2
     MISMATCHED_BASE = 3
     AMBIGUOUS_NAME = 100
-    BAD_NAME = 300
 
 
 class NotificationKind(betterproto.Enum):
@@ -778,19 +777,19 @@ class PrimitiveType(betterproto.Enum):
 
     UNSPECIFIED = 0
     BOOLEAN = 1
-    INT16 = 4
-    INT32 = 5
-    INT64 = 6
-    FLOAT32 = 9
-    FLOAT64 = 10
-    DECIMAL = 12
-    STRING = 15
-    JSON = 16
-    BYTES = 17
-    VECTOR = 18
-    UUID = 19
-    DATETIME = 20
-    INTERVAL = 21
+    INT16 = 5
+    INT32 = 6
+    INT64 = 7
+    DECIMAL = 9
+    FLOAT32 = 12
+    FLOAT64 = 13
+    STRING = 20
+    UUID = 21
+    JSON = 22
+    BYTES = 25
+    VECTOR = 26
+    DATETIME = 30
+    INTERVAL = 31
 
 
 class ReadType(betterproto.Enum):
@@ -905,7 +904,6 @@ class SortOp(betterproto.Enum):
 class Spacing(betterproto.Enum):
     """
     The spacing scale for positions, padding, margin, etc. We don't enforce this.
-     This is reminiscent of Tailwind's spacing scale.
     """
 
     UNSPECIFIED = 0
@@ -913,13 +911,9 @@ class Spacing(betterproto.Enum):
     S2 = 2
     S3 = 3
     S4 = 4
-    S5 = 5
     S6 = 6
-    S7 = 7
     S8 = 8
-    S9 = 9
     S10 = 10
-    S11 = 11
     S12 = 12
     S14 = 14
     S16 = 16
@@ -1051,8 +1045,9 @@ class TypeKind(betterproto.Enum):
     STRUCT = 2
     NODE = 3
     ENUM = 4
-    BASE = 5
-    ALIAS = 6
+    BASED_NODE = 5
+    VALUE = 6
+    ALIAS = 10
 
 
 class UseType(betterproto.Enum):
@@ -4829,7 +4824,7 @@ class RuntimeBase(ServiceBase):
 
 from typing import TYPE_CHECKING  # noqa: E402
 
-VERSION = "2024.05.01.7"
+VERSION = "2024.05.02.0"
 
 if TYPE_CHECKING:
     from bench.language import Subject

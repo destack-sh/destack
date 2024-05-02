@@ -28,9 +28,10 @@ class NoticeType(IdEnum):
     AMBIGUOUS_NAME = 100
 
     # information
+    ...
 
     # hints
-    BAD_NAME = 300
+    ...
 
     @property
     def kind(self) -> NoticeKind:

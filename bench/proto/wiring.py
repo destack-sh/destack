@@ -201,26 +201,26 @@ def unpack_struct_maybe(
 def unpack_struct_interp(
     struct_data: AnyStructData,
     scope: Node | None = None,
-    on_notice: NoticeHandler = on_warning_raise,
+    notice: NoticeHandler = on_warning_raise,
     expect: type[StructT] | None = None,
 ) -> StructT:
     """Unpack, interpret and validate a Struct."""
     struct = unpack_struct(struct_data, expect=expect)
-    struct._interp_rec(scope=scope, on_notice=on_notice)
-    struct._validate_rec(properties=(), on_invalid=on_invalid_raise)
+    struct._interp_rec(scope=scope, notice=notice)
+    struct._validate_rec(properties=(), invalid=on_invalid_raise)
     return struct
 
 
 def unpack_struct_interp_maybe(
     struct_data: AnyStructData | None,
     scope: Node | None = None,
-    on_notice: NoticeHandler = on_warning_raise,
+    notice: NoticeHandler = on_warning_raise,
     expect: type[StructT] | None = None,
 ) -> StructT | None:
     if struct_data is None:
         return None
     else:
-        return unpack_struct_interp(struct_data, scope=scope, on_notice=on_notice, expect=expect)
+        return unpack_struct_interp(struct_data, scope=scope, notice=notice, expect=expect)
 
 
 def pack_node(node: Node, expect: type[NodeT] | None = None) -> NodeT:
@@ -322,7 +322,7 @@ def unpack_node_graph(
             node._status = InterpStatus.SOURCE
             # TODO :Cleanup :Architecture: it feels weird to manually interp *and* track in unpack?
             #  (we want to resolve node references and such)
-            node._interp_self(node, on_notice=on_notice_ignore)
+            node._interp_self(node, notice=on_notice_ignore)
             if session is not None:
                 node._track_self(session)
         unpacked_roots.append(root)

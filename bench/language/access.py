@@ -387,7 +387,7 @@ class PolicyRule(Struct):
 
         return f"{self.name or '<unnamed>'} {self.effect.bench_name} {subject_str} {verb_str} {object_str}"
 
-    def _interp_component(self, scope: Optional["Node"], on_notice: "NoticeHandler"):
+    def _interp_component(self, scope: Optional["Node"], notice: "NoticeHandler"):
         self._update_verb_mask()
         self._update_object_mask()
 

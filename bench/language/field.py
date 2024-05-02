@@ -1,5 +1,6 @@
 import typing
-from typing import TYPE_CHECKING, Any, Collection, Optional, Union
+from datetime import datetime, timedelta
+from typing import TYPE_CHECKING, Any, Collection, Optional, Union, cast
 from uuid import UUID
 
 import structlog
@@ -55,6 +56,20 @@ if typing.TYPE_CHECKING:
 
 logger = structlog.get_logger(__name__)
 
+PYTON_TYPE_BY_PRIMITIVE_TYPE: dict[PrimitiveType, type] = {
+    PrimitiveType.BOOLEAN: bool,
+    PrimitiveType.INT16: int,
+    PrimitiveType.INT32: int,
+    PrimitiveType.INT64: int,
+    PrimitiveType.FLOAT32: float,
+    PrimitiveType.FLOAT64: float,
+    PrimitiveType.STRING: str,
+    PrimitiveType.BYTES: bytes,
+    PrimitiveType.UUID: UUID,
+    PrimitiveType.DATETIME: datetime,
+    PrimitiveType.INTERVAL: timedelta,
+}
+
 
 class TypeError(BenchError, TypeError):
     def __init__(
@@ -82,8 +97,8 @@ LETTER_BY_TYPE_KIND: dict[TypeKind, str] = {
     TypeKind.STRUCT: "s",
     TypeKind.NODE: "n",
     TypeKind.ENUM: "e",
-    TypeKind.BASE: "b",
-    TypeKind.ALIAS: "a",
+    TypeKind.BASED_NODE: "b",
+    TypeKind.VALUE: "v",
 }
 TYPE_KIND_BY_LETTER: dict[str, TypeKind] = {v: k for k, v in LETTER_BY_TYPE_KIND.items()}
 
@@ -93,13 +108,20 @@ def get_implied_type_kind(type: "TypeInfoBase") -> TypeKind | None:
         return TypeKind.PRIMITIVE
     elif type.bench_type:
         if is_node_type(type.bench_type):
-            return TypeKind.NODE
+            if type.base_type_ptr:
+                return TypeKind.BASED_NODE
+            else:
+                return TypeKind.NODE
         elif is_struct_type(type.bench_type):
             return TypeKind.STRUCT
         elif is_enum_type(type.bench_type):
             return TypeKind.ENUM
     elif type.base_type_ptr:
-        return TypeKind.BASE
+        base_type = type.base_type
+        if base_type is None:
+            return TypeKind.ALIAS
+        elif base_type.metatype == NodeType.STEP or cast("Block", base_type).type.is_classy:
+            return TypeKind.VALUE
 
     return None
 
@@ -111,22 +133,24 @@ def encode_type_identity(type: "TypeInfoBase") -> str | None:
     :TypeInfoEncoding
     """
 
+    value: str
     if type.kind == TypeKind.PRIMITIVE:
         assert type.primitive_type is not None
         value = encode_b64vlq(type.primitive_type.id)
     elif type.kind == TypeKind.NODE or type.kind == TypeKind.STRUCT or type.kind == TypeKind.ENUM:
         assert type.bench_type is not None
         value = encode_b64vlq(type.bench_type.id)
-    elif type.kind == TypeKind.BASE:
+    elif type.kind == TypeKind.BASED_NODE:
         assert type.base_type_ptr is not None
         assert type.bench_type is not None
         value = f"{get_tk_b64_from_ptr(type.base_type_ptr)}{encode_b64vlq(type.bench_type.id)}"
-    elif type.kind == TypeKind.ALIAS:
+    elif type.kind == TypeKind.VALUE:
         assert type.base_type_ptr is not None
         value = get_tk_b64_from_ptr(type.base_type_ptr)
     else:
         return None
 
+    prefix: str
     if type.is_list:
         prefix = LETTER_BY_TYPE_KIND[type.kind].upper()
     else:
@@ -161,7 +185,7 @@ def decode_type_identity(key: str) -> "TypeInfoBase":
     ):
         bench_type = BenchType(decode_b64vlq(value))  # type: ignore
         return TypeInfo(bench_type=bench_type, is_list=is_list, is_secret=is_secret)
-    elif kind == TypeKind.BASE.value:
+    elif kind == TypeKind.BASED_NODE.value:
         base_type_ptr = NodeReference(
             type=NodeType.BLOCK, ck=pad_ck_from_tk_b64(value[:TK_LENGTH_B64])
         )
@@ -169,7 +193,7 @@ def decode_type_identity(key: str) -> "TypeInfoBase":
         return TypeInfo(
             base_type_ptr=base_type_ptr, bench_type=bench_type, is_list=is_list, is_secret=is_secret
         )
-    elif kind == TypeKind.ALIAS.value:
+    elif kind == TypeKind.VALUE.value:
         base_type_ptr = NodeReference(
             type=NodeType.BLOCK, ck=pad_ck_from_tk_b64(value[:TK_LENGTH_B64])
         )
@@ -192,15 +216,16 @@ class TypeInfoBase(HasValues):
           [bench_type~StructType]
        4. Enum (value is builtin IdEnum, like FieldKind, NodeType, BenchType, EnumType, ...)
           [bench_type~EnumType]
-       5. Base (value is NodeReference that is an 'instance' of the block)
+       5. Based Node (value is NodeReference that is an 'instance' of the block)
           [bench_type~NodeType & base_type]
            type = Record, base = Block -> values are Records in that database
            type = Run, base = Block -> values are Runs of that block
            type = Field, base = Block -> values are Fields in that block
            type = Signal, base = Block -> values are Signals of that block type
-           type = Block, base = Block -> values are Blocks conforming to that block protocol
             ...
-       6. Alias (value is whatever that resolves to)
+       6. Value (value is Value of classy type, like Code inputs, Step outputs, Record value, ...)
+          [base_type~Block[is_classy]|Step]
+       7. Alias (value is whatever base_type resolves to, must be resolved to pack/unpack)
 
     Types may also specify:
        - field zone, narrowing the fields included from the base type (if any)
@@ -260,22 +285,18 @@ class TypeInfoBase(HasValues):
             info_str += f" ({', '.join(flags)})"
         return info_str
 
-    def _interp_component(self, scope: Optional["Node"], on_notice: "NoticeHandler"):
+    def _interp_component(self, scope: Optional["Node"], notice: "NoticeHandler"):
         # TODO :Incomplete: type resolution
         self._resolved_identity_key = encode_type_identity(self)
         self._resolved_type = self
 
     def _validate_component(
-        self, properties: Collection[Property], on_invalid: "ValidationHandler"
+        self, properties: Collection[Property], invalid: "ValidationHandler"
     ) -> None:
         implied_kind = get_implied_type_kind(self)
         if implied_kind is not None and implied_kind != self.kind:
-            on_invalid(
-                self,
-                f"implied kind {implied_kind.name} does not match {self.kind.name if self.kind else 'None'}",
-                None,
-                None,
-            )
+            actual_kind = self.kind.name if self.kind else "None"
+            invalid(self, f"implied kind {implied_kind.name} does not match {actual_kind}", None)
 
     @property
     def identity_key(self) -> str:
@@ -353,6 +374,12 @@ class Field(Node[FieldData], TypeInfoBase, _TypeQueryBuilder):
 
     def __eq__(self, other):  # type: ignore
         return _TypeQueryBuilder.__eq__(self, other)  # override to avoid recursion
+
+    def _validate_component(
+        self, properties: Collection[Property], invalid: ValidationHandler
+    ) -> None:
+        if self.zone != FieldZone.OPTION and self.kind is None:
+            invalid(self, "missing type identity", None)
 
     @property
     def identifier_type(self):
