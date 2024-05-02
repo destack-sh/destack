@@ -2,7 +2,7 @@ from typing import TYPE_CHECKING, Any, Optional, Union
 
 from bench.language.const import EnumType, NodeType, StructType, enum_
 from bench.language.graph import NodeList
-from bench.language.node import Node, Struct, node, struct
+from bench.language.node import Node, Struct, node, node_component, struct
 from bench.language.notice import Notice
 from bench.language.property import (
     p_internal,
@@ -85,3 +85,8 @@ class Step(Node[StepData], HasValues):
     steps: NodeList["Step"] = p_node_child(NodeType.STEP)
     fields: NodeList["Field"] = p_node_child(NodeType.FIELD)
     notices: NodeList["Notice"] = p_node_child(NodeType.NOTICE)
+
+
+@node_component()
+class Flow(Node):
+    pass

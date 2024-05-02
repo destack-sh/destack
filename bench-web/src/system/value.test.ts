@@ -36,7 +36,7 @@ const TEST_TYPE_IDENTITIES: (Partial<TypeIdentity> & { identityKey: string })[] 
   { kind: TypeKind.STRUCT, benchType: BenchType.TEXT, isSecret: false, isList: false, identityKey: "sIS" },
   { kind: TypeKind.ENUM, benchType: BenchType.OBJECT_TYPE, isSecret: true, isList: false, identityKey: "!eUf" },
   {
-    kind: TypeKind.BASE,
+    kind: TypeKind.BASED_NODE,
     benchType: BenchType.FIELD,
     baseTypePtr: {
       metatype: ObjectType.NODE_REFERENCE,
@@ -48,7 +48,7 @@ const TEST_TYPE_IDENTITIES: (Partial<TypeIdentity> & { identityKey: string })[] 
     identityKey: "!BEjRWeP//AAA=g",
   },
   {
-    kind: TypeKind.ALIAS,
+    kind: TypeKind.VALUE,
     baseTypePtr: {
       metatype: ObjectType.NODE_REFERENCE,
       type: NodeType.BLOCK,
@@ -56,7 +56,7 @@ const TEST_TYPE_IDENTITIES: (Partial<TypeIdentity> & { identityKey: string })[] 
     },
     isSecret: false,
     isList: false,
-    identityKey: "aEjRWeP//AAA=",
+    identityKey: "vEjRWeP//AAA=",
   },
 ];
 

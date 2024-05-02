@@ -12,7 +12,9 @@ anyio==4.3.0
     # via starlette
 asgiref==3.7.2
 async-timeout==4.0.3
-    # via aiohttp
+    # via
+    #   aiohttp
+    #   redis
 attrs==23.2.0
     # via aiohttp
 backoff==2.2.1
@@ -191,7 +193,7 @@ pyparsing==3.1.1
     # via matplotlib
 pyproject-hooks==1.0.0
     # via build
-pyright==1.1.360
+pyright==1.1.361
 pytest==7.4.0
     # via
     #   pytest-asyncio

@@ -101,14 +101,14 @@ class NodeReference(Struct):
         return f"{self.type.bench_name}:[{selector_str}]"
 
     def _validate_component(
-        self, properties: tuple[Property, ...], on_invalid: "ValidationHandler"
+        self, properties: tuple[Property, ...], invalid: "ValidationHandler"
     ) -> None:
         if self.id is None:
-            on_invalid(self, "id is required", (NodeReference.id,), None)
+            invalid(self, "id is required", {"properties": (NodeReference.id,)})
         if self.type in SUB_BENCH_NODE_TYPES and self.bench_id is None:
-            on_invalid(self, "bench_id is required", (NodeReference.bench_id,), None)
+            invalid(self, "bench_id is required", {"properties": (NodeReference.bench_id,)})
         if self.type in BASED_NODE_TYPES and self.base_ck is None:
-            on_invalid(self, "base_ck is required", (NodeReference.base_ck,), None)
+            invalid(self, "base_ck is required", {"properties": (NodeReference.base_ck,)})
 
     @staticmethod
     def from_node(node: Node) -> "NodeReference":  # type: ignore

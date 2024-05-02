@@ -48,7 +48,7 @@ from bench.language.const import (
     ReferenceKind,
     SortOp,
 )
-from bench.language.database import HasDatabase, Record
+from bench.language.database import Database, Record
 from bench.language.expression import METATYPE_KEY, C, Expression, ExpressionOps
 from bench.language.graph import NodeDataGraph
 from bench.language.node import NODE_CLASS_BY_TYPE, UNSET, Node
@@ -381,7 +381,7 @@ async def update_dynamic_local_pg_schema(package: Package) -> None:
     databases: list[Block] = [
         cast(Block, s)
         for s in package._nodes
-        if s.metatype == NodeType.BLOCK and HasDatabase in s._components and not s.ephemeral
+        if s.metatype == NodeType.BLOCK and Database in s._components and not s.ephemeral
     ]
     tables: list[Table] = [d._table for d in databases]
     log.info("pg.update_schema", databases=len(databases), tables=len(tables))

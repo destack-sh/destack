@@ -21,6 +21,7 @@ import {
   ColorData,
   LogLevel,
   Alignment,
+  StepType,
 } from "@/proto/wire";
 import type { FunctionalComponent } from "vue";
 // file is generated with:
@@ -409,7 +410,16 @@ export const ENUM_ICONS_BY_TYPE: Partial<Record<EnumType, Record<any, IconData>>
   [EnumType.LOG_LEVEL]: ICON_BY_LEVEL,
 };
 
-export function getNodeIcon(node: AnyNodeData | { metatype: ObjectType; type?: BlockType | ViewType }) {
+export function getNodeIcon(
+  node:
+    | AnyNodeData
+    | {
+        metatype: ObjectType;
+        type?: BlockType | ViewType | StepType;
+        primitiveType?: PrimitiveType;
+        benchType?: BenchType;
+      },
+) {
   if ((node as any).icon != null) {
     return (node as any).icon;
   } else if (node.metatype == ObjectType.BLOCK) {
@@ -421,6 +431,12 @@ export function getNodeIcon(node: AnyNodeData | { metatype: ObjectType; type?: B
   } else if (node.metatype == ObjectType.FIELD) {
     if ((node as FieldData).zone == FieldZone.OPTION) {
       return ICON_BY_FIELD_ZONE[FieldZone.OPTION];
+    } else if ("primitiveType" in node) {
+      const icon = ICON_BY_PRIMITIVE_TYPE[node.primitiveType!];
+      if (icon != null) return icon;
+    } else if ("benchType" in node) {
+      const icon = ICON_BY_BENCH_TYPE[node.benchType!];
+      if (icon != null) return icon;
     }
   }
   return ICON_BY_NODE_TYPE[node.metatype! as unknown as NodeType] ?? DEFAULT_MISSING_ICON;

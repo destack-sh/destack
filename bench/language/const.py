@@ -2,7 +2,7 @@ import contextvars
 import enum
 import typing
 from datetime import datetime, timedelta
-from typing import Any, Optional, cast
+from typing import Any, Mapping, Optional, cast
 from uuid import UUID
 
 from bench.proto.wire import GraphScope
@@ -12,7 +12,7 @@ from bench.utils.utils import frozendict
 if typing.TYPE_CHECKING:
     from bench.language import Session, Transaction
 
-VERSION = "2024.05.01.7"
+VERSION = "2024.05.02.0"
 REVISION_PENDING = -1
 TK_LENGTH_BYTES = 8
 TK_LENGTH_B64 = 12  # 1.5 * TK_LENGTH_BYTES (must be integer)
@@ -369,6 +369,10 @@ class BlockType(IdEnum):
         return self in BlockTypes.TYPES
 
     @property
+    def is_classy(self) -> bool:
+        return self in BlockTypes.CLASSES
+
+    @property
     def is_runnable(self) -> bool:
         return self in BlockTypes.RUNNABLE
 
@@ -606,22 +610,21 @@ class PrimitiveType(IdEnum):
 
     BOOLEAN = 1
     # ...
-    INT16 = 4  # range: -32768 to 32767
-    INT32 = 5  # range: -2147483648 to 2147483647
-    INT64 = 6  # range: -9223372036854775808 to 9223372036854775807
+    INT16 = 5  # range: -32768 to 32767
+    INT32 = 6  # range: -2147483648 to 2147483647
+    INT64 = 7  # range: -9223372036854775808 to 9223372036854775807
+    DECIMAL = 9  # numeric(precision, scale)
     # ...
-    FLOAT32 = 9  # range: 1.175494351e-38 to 3.402823466e+38
-    FLOAT64 = 10  # range: 2.2250738585072014e-308 to 1.7976931348623157e+308
+    FLOAT32 = 12  # range: 1.175494351e-38 to 3.402823466e+38
+    FLOAT64 = 13  # range: 2.2250738585072014e-308 to 1.7976931348623157e+308
     # ...
-    DECIMAL = 12  # numeric(precision, scale)
-    # ...
-    STRING = 15
-    JSON = 16
-    BYTES = 17
-    VECTOR = 18
-    UUID = 19
-    DATETIME = 20
-    INTERVAL = 21
+    STRING = 20
+    UUID = 21
+    JSON = 22
+    BYTES = 25
+    VECTOR = 26
+    DATETIME = 30
+    INTERVAL = 31
 
 
 PrimitiveValue = bool | int | float | str | bytes | UUID | datetime | timedelta
@@ -656,8 +659,9 @@ class TypeKind(IdEnum):
     STRUCT = 2
     NODE = 3
     ENUM = 4
-    BASE = 5
-    ALIAS = 6
+    BASED_NODE = 5
+    VALUE = 6
+    ALIAS = 10
 
 
 @enum_(EnumType.FIELD_ZONE)
@@ -813,12 +817,12 @@ class SortMode(IdEnum):
     MEDIAN = 5
 
 
-EXPRESSION_OPS_BY_KIND: dict[ExpressionKind, bytetuple["ExpressionOp"]] = {
+EXPRESSION_OPS_BY_KIND: Mapping[ExpressionKind, bytetuple["ExpressionOp"]] = {  # type: ignore
     ExpressionKind.CONDITIONAL: bytetuple(*ConditionalOp),
     ExpressionKind.AGGREGATION: bytetuple(*AggregationOp),
     ExpressionKind.SORT: bytetuple(*SortOp),
 }
-EXPRESSION_KIND_BY_OP: dict["ExpressionOp", ExpressionKind] = {
+EXPRESSION_KIND_BY_OP: Mapping["ExpressionOp", ExpressionKind] = {
     op: kind for kind, ops in EXPRESSION_OPS_BY_KIND.items() for op in ops  # type: ignore
 }
 

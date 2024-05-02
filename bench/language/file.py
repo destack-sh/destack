@@ -18,7 +18,6 @@ logger = structlog.get_logger(__name__)
 
 FILE_HASH_LENGTH = 128  # 512 bits
 FILE_MAX_SIZE = 1024 * 1024 * 1024  # 1GB
-FILE_MAX_NAME_LENGTH = 256
 GLOBAL_PROJECT_BUCKET_NAME = get_from_env("GLOBAL_PROJECT_BUCKET_NAME", optional=True)
 
 # pyright: reportIncompatibleVariableOverride=false,reportIncompatibleMethodOverride=false
@@ -43,18 +42,13 @@ class File(Struct):
         return f"{self.name} {self.type}, {self.size} bytes"
 
     def _validate_component(
-        self, properties: tuple[Property, ...], on_invalid: ValidationHandler
+        self, properties: tuple[Property, ...], invalid: ValidationHandler
     ) -> None:
-        if len(self.name) > FILE_MAX_NAME_LENGTH:
-            on_invalid(
-                self,
-                f"{self} name is too long ({len(self.name)} > {FILE_MAX_NAME_LENGTH})",
-                (File.name,),
-                None,
-            )
         if self.size and self.size > FILE_MAX_SIZE:
-            on_invalid(
-                self, f"{self} is too big ({self.size} > {FILE_MAX_SIZE} bytes)", (File.size,), None
+            invalid(
+                self,
+                f"{self} is too big ({self.size} > {FILE_MAX_SIZE} bytes)",
+                {"properties": (File.size,)},
             )
 
     @_auto_async_to_sync

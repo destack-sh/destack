@@ -518,6 +518,10 @@ class NodeList(abc.ABC, Collection[NodeT], Generic[NodeT]):
     def __repr__(self):
         return f"<{self.__class__.__name__} {self._parent.absolute_path}.{self._property.name}: {self}>"
 
+    @property
+    def nodes(self) -> tuple[NodeT, ...] | list[NodeT]:
+        raise NotImplementedError
+
     def create(self, **kwargs) -> NodeT:
         """Creates a new node in the list."""
         from bench.language.node import NODE_CLASS_BY_TYPE
@@ -559,9 +563,32 @@ class NodeList(abc.ABC, Collection[NodeT], Generic[NodeT]):
         self.clear()
         self.extend(*nodes)
 
-    def get(self, some_name: str) -> Optional[NodeT]:
-        """Gets a node by some name (actual name or identifier)."""
+    def get(self, key: UUID | str | int) -> NodeT | None:
+        """Gets a node by some key (id/ck, actual name or identifier)."""
         raise NotImplementedError
+
+    def __contains__(self, obj: object | NodeT | str | UUID) -> bool:
+        """Checks if a node is in the list."""
+        if type(obj) is str or type(obj) is UUID:  # noqa: E721
+            return self.get(obj) is not None
+        else:
+            return obj in self
+
+    def __getitem__(
+        self, item: str | UUID | int | slice
+    ) -> None | NodeT | tuple[NodeT, ...] | list[NodeT]:
+        """Gets a node by index or name."""
+        if type(item) is str or type(item) is UUID:  # noqa: E721
+            return self.get(item)
+        else:
+            return self.nodes[cast(int | slice, item)]
+
+    def __getattr__(self, item: str) -> NodeT:
+        """Gets a node by name."""
+        node = self.get(item)
+        if node is None:
+            raise AttributeError(f"{self!r} has no node {item!r}")
+        return node
 
 
 class InMemoryGraphNodeList(NodeList[NodeT]):
@@ -608,7 +635,7 @@ class InMemoryGraphNodeList(NodeList[NodeT]):
 
         node.parent = self._parent
         if self._parent._session is not None:
-            node._validate_self(node.__tracked_properties__.values(), on_invalid=on_invalid_raise)
+            node._validate_self(node.__tracked_properties__.values(), invalid=on_invalid_raise)
 
         # add node to parent graph
         if node._graph is not None:
@@ -659,12 +686,6 @@ class InMemoryGraphNodeList(NodeList[NodeT]):
         for n in removed:
             self.remove(n)
 
-    def get(self, some_name: str) -> Optional[NodeT]:
-        for child in self.nodes:
-            if getattr(child, "name") == some_name or child.py_ident == some_name:
-                return child
-        return None
-
     def __bool__(self):
         return len(self.nodes) > 0
 
@@ -681,22 +702,6 @@ class InMemoryGraphNodeList(NodeList[NodeT]):
                 return False
         else:
             return False
-
-    def __getitem__(self, item: int | slice | str) -> NodeT | list[NodeT]:
-        if isinstance(item, (int, slice)):
-            return cast(list[NodeT], self.nodes[item])
-        elif isinstance(item, str):
-            return cast(NodeT, self.get(item))
-        else:
-            raise TypeError(f"invalid index for {self!r}: {item} ({type(item)})")
-
-    def __getattr__(self, item):
-        if item.startswith("_"):
-            return super().__getattribute__(item)
-        node = self.get(item)
-        if node is None:
-            raise AttributeError(f"no node '{item}' in {self!r}")
-        return node
 
     def __iter__(self) -> Iterator[NodeT]:
         yield from self.nodes

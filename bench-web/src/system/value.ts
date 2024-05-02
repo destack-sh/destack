@@ -84,16 +84,16 @@ const LETTER_BY_TYPE_KIND: Partial<Record<TypeKind, string>> = {
   [TypeKind.STRUCT]: "s",
   [TypeKind.NODE]: "n",
   [TypeKind.ENUM]: "e",
-  [TypeKind.BASE]: "b",
-  [TypeKind.ALIAS]: "a",
+  [TypeKind.BASED_NODE]: "b",
+  [TypeKind.VALUE]: "v",
 };
 const TYPE_KIND_BY_LETTER: Partial<Record<string, TypeKind>> = {
   p: TypeKind.PRIMITIVE,
   s: TypeKind.STRUCT,
   n: TypeKind.NODE,
   e: TypeKind.ENUM,
-  b: TypeKind.BASE,
-  a: TypeKind.ALIAS,
+  b: TypeKind.BASED_NODE,
+  v: TypeKind.ALIAS,
 };
 
 /**
@@ -107,9 +107,9 @@ export function encodeTypeIdentity(type: TypeIdentity): string {
     value = encodeB64VLQ(type.primitiveType!);
   } else if (type.kind == TypeKind.NODE || type.kind == TypeKind.STRUCT || type.kind == TypeKind.ENUM) {
     value = encodeB64VLQ(type.benchType!);
-  } else if (type.kind == TypeKind.BASE) {
+  } else if (type.kind == TypeKind.BASED_NODE) {
     value = `${getTkB64FromPtr(type.baseTypePtr!)}${encodeB64VLQ(type.benchType!)}`;
-  } else if (type.kind == TypeKind.ALIAS) {
+  } else if (type.kind == TypeKind.VALUE) {
     value = getTkB64FromPtr(type.baseTypePtr!);
   } else {
     throw new Error(`unsupported type kind ${type?.kind}`);
@@ -144,7 +144,7 @@ export function decodeTypeIdentity(key: string): TypeIdentity {
     return { kind, primitiveType: decodeB64VLQ(value) as PrimitiveType, isList, isSecret };
   } else if (kind === TypeKind.NODE || kind === TypeKind.STRUCT || kind === TypeKind.ENUM) {
     return { kind, benchType: decodeB64VLQ(value) as BenchType, isList, isSecret };
-  } else if (kind === TypeKind.BASE) {
+  } else if (kind === TypeKind.BASED_NODE) {
     const baseTypePtr = {
       metatype: ObjectType.NODE_REFERENCE,
       type: NodeType.BLOCK,
@@ -160,6 +160,11 @@ export function decodeTypeIdentity(key: string): TypeIdentity {
   }
 }
 
+// TODO :Architecture :Performance: encode/decode protoStruct/Json in connections (at the fetch/commit boundary)
+//  (Currently, we have to eagerly encode/decode for every single edit, which is possibly every frame or keystroke,
+//   It's likely possible to just cheat a little and auto-encode/decode ProtoStruct properties at the boundary
+//   without introducing an entire new layer like in the backend).
+
 /** Pack the value into robust wire format. If previous is passed, old values with different types will be retained. */
 export function packValue(
   value: any,
@@ -170,7 +175,7 @@ export function packValue(
   // nocheckin: packValue
   const identityKey = encodeTypeIdentity(type);
   const valuePacked = {
-    ...(previous?.valuePacked != null ? ProtoStruct.toJson(previous.valuePacked) as object : {}),
+    ...(previous?.valuePacked != null ? (ProtoStruct.toJson(previous.valuePacked) as object) : {}),
     [identityKey]: value,
   };
   const secretValuePacked = undefined; // TODO :Incomplete: handle :SecretValues
