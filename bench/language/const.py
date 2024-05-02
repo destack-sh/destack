@@ -12,7 +12,7 @@ from bench.utils.utils import frozendict
 if typing.TYPE_CHECKING:
     from bench.language import Session, Transaction
 
-VERSION = "2024.05.02.0"
+VERSION = "2024.05.02.1"
 REVISION_PENDING = -1
 TK_LENGTH_BYTES = 8
 TK_LENGTH_B64 = 12  # 1.5 * TK_LENGTH_BYTES (must be integer)
@@ -660,7 +660,7 @@ class TypeKind(IdEnum):
     NODE = 3
     ENUM = 4
     BASED_NODE = 5
-    VALUE = 6
+    OBJECT = 6
     ALIAS = 10
 
 

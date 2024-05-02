@@ -15,6 +15,8 @@ from typing import (
 )
 from uuid import UUID
 
+from more_itertools import first
+
 from bench.language.const import EMPTY_LIST, EditType, InterpStatus, NodeType, ReferenceKind
 from bench.language.setup import CHILD_NODE_TYPES, NODE_CLASS_BY_TYPE, STRUCT_CLASS_BY_TYPE
 from bench.language.validation import on_invalid_raise
@@ -26,7 +28,7 @@ from bench.utils.func import IdEnum, to_uuid
 
 if TYPE_CHECKING:
     # noinspection PyUnresolvedReferences
-    from bench.language import Field, Node, Property, ReadOptions, Struct, Value
+    from bench.language import Field, Node, Object, Property, ReadOptions, Struct
 
 NodeT = TypeVar("NodeT", bound="Node")
 NodeDataT = TypeVar("NodeDataT", bound=AnyNodeData)
@@ -591,7 +593,7 @@ class NodeList(abc.ABC, Collection[NodeT], Generic[NodeT]):
         return node
 
 
-class InMemoryGraphNodeList(NodeList[NodeT]):
+class GraphNodeList(NodeList[NodeT]):
     # TODO :Cleanup :Architecture: use ReadQuery/WriteQuery in NodeList?
     #  (with InMemoryGraphEngine to query)
     __slots__ = ("_child_node_type", "_flags")
@@ -606,6 +608,17 @@ class InMemoryGraphNodeList(NodeList[NodeT]):
 
     def __str__(self):
         return str(self.nodes)
+
+    def get(self, key: UUID | str | int) -> NodeT | None:
+        if isinstance(key, UUID):
+            return self._parent._root_graph.get(key)
+        elif isinstance(key, str):
+            return first(
+                (n for n in self.nodes if n.py_ident == key or getattr(n, "name", None) == key),
+                None,
+            )
+        else:
+            return self.nodes[key]
 
     @property
     def nodes(self) -> tuple[NodeT, ...] | list[NodeT]:
@@ -710,7 +723,7 @@ class InMemoryGraphNodeList(NodeList[NodeT]):
         return len(self.nodes)
 
     def __eq__(self, other: object) -> bool:
-        if isinstance(other, InMemoryGraphNodeList):
+        if isinstance(other, GraphNodeList):
             return self.nodes == other.nodes
         elif isinstance(other, list):
             return self.nodes == other
@@ -718,8 +731,8 @@ class InMemoryGraphNodeList(NodeList[NodeT]):
             return False
 
 
-ValueParentT = TypeVar("ValueParentT", bound=Union["Value", "Struct", "Node"])
-ValueT = TypeVar("ValueT", bound=Union["Value", "Struct", "Property"])
+ValueParentT = TypeVar("ValueParentT", bound=Union["Object", "Struct", "Node"])
+ValueT = TypeVar("ValueT", bound=Union["Object", "Struct", "Property"])
 ValueProperty = Union["Property", "Field"]
 
 
@@ -765,7 +778,7 @@ class ValueList(list, Generic[ValueParentT]):
             item = item._lazy_copy_to(self.parent, self.parent_prop)  # type: ignore
         super().append(item)
         if self.is_ordered:
-            cast(Union["Value", "Struct"], item).order_key = get_order_key(
+            cast(Union["Object", "Struct"], item).order_key = get_order_key(
                 *get_key_bounds(self, after, before)
             )
         self.parent._updated_self((self.ancestor_prop,))
@@ -773,7 +786,7 @@ class ValueList(list, Generic[ValueParentT]):
     def extend(self, items: Collection[ValueT]):  # type: ignore
         super().extend(items)
         if not self.is_property_reference:
-            values = cast(list[Union["Value", "Struct"]], items)
+            values = cast(list[Union["Object", "Struct"]], items)
             if any(item.parent is not None for item in values):
                 values = [e._copy_to(self.parent, self.parent_prop) for e in items]  # type: ignore
             else:
@@ -805,7 +818,7 @@ class ValueList(list, Generic[ValueParentT]):
         )
         if any(
             v.parent is not None and (v.parent != parent or v.parent_key != parent_key)
-            for v in cast(list[Union["Value", "Struct"]], values)
+            for v in cast(list[Union["Object", "Struct"]], values)
         ):
             values = [v._copy_to(parent, parent_prop) for v in values]  # type: ignore
         return ValueList(parent, parent_prop, ancestor_prop, values)

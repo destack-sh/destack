@@ -5,7 +5,7 @@ from typing import TYPE_CHECKING, Any, Collection, Optional, Union
 
 from bench.language.const import BlockType, NodeType, NodeVisibility, StructType
 from bench.language.database import Database
-from bench.language.node import Node, NodeList, _Passthrough, node
+from bench.language.node import Node, NodeList, node
 from bench.language.property import (
     p_internal,
     p_node_child,
@@ -98,11 +98,7 @@ _ALL_DYNAMIC_COMPONENTS: tuple[typing.Type[Node], ...] = tuple(
 #  see :AutoNaming
 
 
-@node(
-    NodeType.BLOCK,
-    passthrough=(("value", _Passthrough.Full),),
-    dynamic_components=_ALL_DYNAMIC_COMPONENTS,
-)
+@node(NodeType.BLOCK, passthrough="value", dynamic_components=_ALL_DYNAMIC_COMPONENTS)
 class Block(Node[BlockData], HasValues):
     """A building block containing logic, types, UI, data, AI, - any Bench program source."""
 

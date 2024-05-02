@@ -10,7 +10,7 @@ from bench.language.const import (
     UserStatus,
 )
 from bench.language.graph import NodeList
-from bench.language.node import BasedNode, Node, _Passthrough, node
+from bench.language.node import BasedNode, Node, node
 from bench.language.property import (
     p_internal,
     p_kernel,
@@ -222,12 +222,7 @@ class Invite(Node[InviteData]):
     roles: list["Role"] = p_regular(33, require=False, array=True, references=NodeType.ROLE)
 
 
-@node(
-    NodeType.NOTIFICATION,
-    passthrough=(("value", _Passthrough.Full),),
-    index_in_search=True,
-    local=True,
-)
+@node(NodeType.NOTIFICATION, passthrough="value", index_in_search=True, local=True)
 class Notification(BasedNode[NotificationData], HasValues):
     """
     A Notification for someone in that Bench.

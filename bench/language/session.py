@@ -21,7 +21,7 @@ from bench.language.const import (
     enum_,
 )
 from bench.language.flow import Step
-from bench.language.node import BasedNode, Node, Struct, _Passthrough, node, struct
+from bench.language.node import BasedNode, Node, Struct, node, struct
 from bench.language.property import (
     Property,
     p_internal,
@@ -65,13 +65,7 @@ logger = structlog.get_logger(__name__)
 MUTED_EDIT_NODE_TYPES: bytetuple[NodeType] = bytetuple(NodeType.SIGNAL, NodeType.LOG)
 
 
-@node(
-    NodeType.SIGNAL,
-    passthrough=(("value", _Passthrough.Full),),
-    local=True,
-    index_in_search=True,
-    id_factory=UUIDT,
-)
+@node(NodeType.SIGNAL, passthrough="value", local=True, index_in_search=True, id_factory=UUIDT)
 class Signal(BasedNode[SignalData], HasValues):
     """A signal emitted in this Bench."""
 

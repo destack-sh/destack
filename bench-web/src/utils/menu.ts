@@ -185,7 +185,7 @@ export function pushPopover(create: {
 }
 
 export function popPopover(fromIdx: number = -1) {
-  const closedMenus = activePopovers.value.slice(fromIdx);
+  const closedMenus = activePopovers.value.slice(fromIdx < 0 ? 0 : fromIdx);
   if (closedMenus.length === 0) return;
   closedMenus.forEach((instance) => {
     if (instance != null && instance.trigger.dataset[MENU_DATA_ID_ATTRIBUTE] == instance?.id.toString()) {

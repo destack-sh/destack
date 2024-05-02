@@ -98,7 +98,7 @@ LETTER_BY_TYPE_KIND: dict[TypeKind, str] = {
     TypeKind.NODE: "n",
     TypeKind.ENUM: "e",
     TypeKind.BASED_NODE: "b",
-    TypeKind.VALUE: "v",
+    TypeKind.OBJECT: "o",
 }
 TYPE_KIND_BY_LETTER: dict[str, TypeKind] = {v: k for k, v in LETTER_BY_TYPE_KIND.items()}
 
@@ -121,7 +121,7 @@ def get_implied_type_kind(type: "TypeInfoBase") -> TypeKind | None:
         if base_type is None:
             return TypeKind.ALIAS
         elif base_type.metatype == NodeType.STEP or cast("Block", base_type).type.is_classy:
-            return TypeKind.VALUE
+            return TypeKind.OBJECT
 
     return None
 
@@ -144,7 +144,7 @@ def encode_type_identity(type: "TypeInfoBase") -> str | None:
         assert type.base_type_ptr is not None
         assert type.bench_type is not None
         value = f"{get_tk_b64_from_ptr(type.base_type_ptr)}{encode_b64vlq(type.bench_type.id)}"
-    elif type.kind == TypeKind.VALUE:
+    elif type.kind == TypeKind.OBJECT:
         assert type.base_type_ptr is not None
         value = get_tk_b64_from_ptr(type.base_type_ptr)
     else:
@@ -193,7 +193,7 @@ def decode_type_identity(key: str) -> "TypeInfoBase":
         return TypeInfo(
             base_type_ptr=base_type_ptr, bench_type=bench_type, is_list=is_list, is_secret=is_secret
         )
-    elif kind == TypeKind.VALUE.value:
+    elif kind == TypeKind.OBJECT.value:
         base_type_ptr = NodeReference(
             type=NodeType.BLOCK, ck=pad_ck_from_tk_b64(value[:TK_LENGTH_B64])
         )
@@ -240,7 +240,7 @@ class TypeInfoBase(HasValues):
     kind: Optional[TypeKind] = p_internal(40, require=False, default=None)
     primitive_type: Optional[PrimitiveType] = p_regular(41, default=None)
     bench_type: Optional[BenchType] = p_regular(42, default=None)
-    base_type: Union["Block", "Step"] = p_regular(
+    base_type: Union["Block", "Step", None] = p_regular(
         43, array=False, require=False, default=None, references=(NodeType.BLOCK, NodeType.STEP)
     )
     if TYPE_CHECKING:
@@ -331,7 +331,7 @@ class Field(Node[FieldData], TypeInfoBase, _TypeQueryBuilder):
     """
 
     parent: Union["Block", "Step", None] = p_node_parent(4, NodeType.BLOCK, NodeType.STEP)
-    name: str | None = p_regular(30, default=None, validate=validate_name)
+    name: str = p_regular(30, validate=validate_name)
     order_key: str = p_internal(31, default=INTEGER_ZERO)
     zone: FieldZone = p_internal(32, default=FieldZone.VARIABLE)
     text: Optional["Text"] = p_regular(

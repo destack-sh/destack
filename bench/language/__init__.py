@@ -70,7 +70,7 @@ from .text import Text, TextSpan
 from .trigger import Trigger
 from .user import Client, Handle, Organization, User
 from .validation import ValidationError
-from .value import Context, Value
+from .value import Context, Object
 from .view import Color, ColorShade, ColorType, Space, View, ViewType
 
 # NOTE! *ALL* these imports are auto-imported as prelude in user code.
@@ -163,7 +163,7 @@ __all__ = [
     "Upgrade",
     "User",
     "ValidationError",
-    "Value",
+    "Object",
     "ValueList",
     "ValueReference",
     "VERSION",

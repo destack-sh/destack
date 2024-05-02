@@ -13,7 +13,7 @@ import { deepValueEquals } from "@/utils/ref";
 import { whenever } from "@vueuse/core";
 import { python } from "@codemirror/lang-python";
 import * as commands from "@codemirror/commands";
-import { defaultHighlightStyle, syntaxHighlighting } from "@codemirror/language";
+import { defaultHighlightStyle, syntaxHighlighting, indentUnit } from "@codemirror/language";
 import { mapCodeToCmDoc, mapPmDocToCode } from "@/system/code";
 import { autocompletion } from "@codemirror/autocomplete";
 import { Casing, toCasing } from "@/utils/string";
@@ -34,7 +34,13 @@ let lastAppliedModelValue: CodeData | null = null;
 function makeEditorState(code?: CodeData): EditorState {
   return EditorState.create({
     doc: code != null ? mapCodeToCmDoc(code) : undefined,
-    extensions: [EditorView.lineWrapping, syntaxHighlighting(defaultHighlightStyle), autocompletion({}), python()],
+    extensions: [
+      EditorView.lineWrapping,
+      syntaxHighlighting(defaultHighlightStyle),
+      autocompletion({}),
+      python(),
+      indentUnit.of("    "), // 4 spaces
+    ],
   });
 }
 
