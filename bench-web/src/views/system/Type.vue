@@ -175,7 +175,7 @@ defineExpose<ViewExposed>({ self, id, actions });
         v-if="side == 'right' && fields.length > 0"
         class="flex flex-shrink-0 flex-col items-center justify-center px-2"
       >
-        <i class="fas fa-arrow-right-long text-lg text-gray-700" />
+        <i class="fas fa-arrow-right-long text-lg text-gray-400" />
       </div>
       <!-- Fields in zone -->
       <ul
@@ -187,7 +187,15 @@ defineExpose<ViewExposed>({ self, id, actions });
         ]"
       >
         <!-- Empty state -->
-        <div v-if="sideFields.length == 0 && shouldHaveFields" class="flex flex-row items-center px-1">
+        <div
+          v-if="sideFields.length == 0"
+          class="flex flex-row items-center px-1"
+          :class="
+            sideFields.length == 0 && leftFields.length + rightFields.length > 0
+              ? 'my-1' /* extra padding if other side is not empty */
+              : ''
+          "
+        >
           <i class="fas fa-empty-set mr-1.5 text-gray-400" />
           <span class="text-gray-500">No {{ toCamelName(FieldZone, side == "left" ? leftZone : rightZone) }}s</span>
         </div>
@@ -221,7 +229,6 @@ defineExpose<ViewExposed>({ self, id, actions });
                   [
                     'common.edit.rename',
                     'common.edit.morph',
-                    'common.edit.copy',
                     'common.edit.duplicate',
                     'common.edit.delete',
                     'common.create.above',

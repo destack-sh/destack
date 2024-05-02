@@ -31,7 +31,7 @@ import { describe, expect, test } from "vitest";
 
 // the test data & targets are from the backend bench implementation
 const TEST_TYPE_IDENTITIES: (Partial<TypeIdentity> & { identityKey: string })[] = [
-  { kind: TypeKind.PRIMITIVE, primitiveType: PrimitiveType.DATETIME, isSecret: false, isList: false, identityKey: "pU" },
+  { kind: TypeKind.PRIMITIVE, primitiveType: PrimitiveType.DATETIME, isSecret: false, isList: false, identityKey: "pe" },
   { kind: TypeKind.NODE, benchType: BenchType.USER, isSecret: false, isList: true, identityKey: "NdD" },
   { kind: TypeKind.STRUCT, benchType: BenchType.TEXT, isSecret: false, isList: false, identityKey: "sIS" },
   { kind: TypeKind.ENUM, benchType: BenchType.OBJECT_TYPE, isSecret: true, isList: false, identityKey: "!eUf" },
@@ -48,7 +48,7 @@ const TEST_TYPE_IDENTITIES: (Partial<TypeIdentity> & { identityKey: string })[] 
     identityKey: "!BEjRWeP//AAA=g",
   },
   {
-    kind: TypeKind.VALUE,
+    kind: TypeKind.OBJECT,
     baseTypePtr: {
       metatype: ObjectType.NODE_REFERENCE,
       type: NodeType.BLOCK,
@@ -56,7 +56,7 @@ const TEST_TYPE_IDENTITIES: (Partial<TypeIdentity> & { identityKey: string })[] 
     },
     isSecret: false,
     isList: false,
-    identityKey: "vEjRWeP//AAA=",
+    identityKey: "oEjRWeP//AAA=",
   },
 ];
 

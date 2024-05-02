@@ -85,7 +85,7 @@ const LETTER_BY_TYPE_KIND: Partial<Record<TypeKind, string>> = {
   [TypeKind.NODE]: "n",
   [TypeKind.ENUM]: "e",
   [TypeKind.BASED_NODE]: "b",
-  [TypeKind.VALUE]: "v",
+  [TypeKind.OBJECT]: "o",
 };
 const TYPE_KIND_BY_LETTER: Partial<Record<string, TypeKind>> = {
   p: TypeKind.PRIMITIVE,
@@ -93,7 +93,7 @@ const TYPE_KIND_BY_LETTER: Partial<Record<string, TypeKind>> = {
   n: TypeKind.NODE,
   e: TypeKind.ENUM,
   b: TypeKind.BASED_NODE,
-  v: TypeKind.ALIAS,
+  o: TypeKind.OBJECT,
 };
 
 /**
@@ -109,7 +109,7 @@ export function encodeTypeIdentity(type: TypeIdentity): string {
     value = encodeB64VLQ(type.benchType!);
   } else if (type.kind == TypeKind.BASED_NODE) {
     value = `${getTkB64FromPtr(type.baseTypePtr!)}${encodeB64VLQ(type.benchType!)}`;
-  } else if (type.kind == TypeKind.VALUE) {
+  } else if (type.kind == TypeKind.OBJECT) {
     value = getTkB64FromPtr(type.baseTypePtr!);
   } else {
     throw new Error(`unsupported type kind ${type?.kind}`);
@@ -152,7 +152,7 @@ export function decodeTypeIdentity(key: string): TypeIdentity {
     };
     const benchType = decodeB64VLQ(value.slice(TK_LENGTH_B64)) as BenchType;
     return { kind, baseTypePtr, benchType, isList, isSecret };
-  } else if (kind === TypeKind.ALIAS) {
+  } else if (kind === TypeKind.OBJECT) {
     const baseTypePtr = { metatype: ObjectType.NODE_REFERENCE, type: NodeType.BLOCK, ck: padCkFromTkB64(value) };
     return { kind, baseTypePtr, isList, isSecret };
   } else {

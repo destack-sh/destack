@@ -373,9 +373,20 @@ defineExpose<ViewExposed>({ self, actions, focus });
                 (): PopoverInfo => ({
                   kind: 'menu',
                   placement: 'bottom-right',
-                  items: menuActionsLike(['common.edit.*', 'common.create.above', 'common.create.below', 'block.*'], {
-                    context: { triggerNode: blockPtr },
-                  }),
+                  items: menuActionsLike(
+                    [
+                      'common.edit.rename',
+                      'common.edit.morph',
+                      'common.edit.move',
+                      'common.edit.duplicate',
+                      'common.create.above',
+                      'common.create.below',
+                      'block.*',
+                    ],
+                    {
+                      context: { triggerNode: blockPtr },
+                    },
+                  ),
                 })
               "
               :draggable="true"

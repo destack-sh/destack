@@ -220,7 +220,17 @@ defineExpose<ViewExposed>({ self, id, variants: [Variant.PRIMARY, Variant.STEALT
                 kind: 'menu',
                 placement: 'bottom-left',
                 offset: 'referenceWidth',
-                items: menuActionsLike(['common.edit.*', 'block.*'], { context: { triggerNode: nodePtr } }),
+                items: menuActionsLike(
+                  [
+                    'common.edit.rename',
+                    'common.edit.morph',
+                    'common.edit.move',
+                    'common.edit.duplicate',
+                    'common.edit.delete',
+                    'block.*',
+                  ],
+                  { context: { triggerNode: nodePtr } },
+                ),
               })
             "
           >

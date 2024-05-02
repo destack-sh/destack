@@ -90,12 +90,12 @@ if TYPE_CHECKING:
         Field,
         NodeReference,
         NoticeType,
+        Object,
         Package,
         PropertyReference,
         Run,
         Session,
         User,
-        Value,
     )
     from bench.language.notice import NoticeHandler, NoticeOptions
     from bench.language.query import QueryBuilder
@@ -585,7 +585,7 @@ _NodeT = TypeVar("_NodeT", bound="Node")
 @dataclass_transform(kw_only_default=True, field_specifiers=_PROPERTY_SPECIFIERS)
 def node_component(
     node_type: NodeType | None = None,
-    passthrough: tuple[tuple[str, "_Passthrough"], ...] = (),
+    passthrough: str | None = None,
     dynamic_components: tuple[type["Node"], ...] = (),
     reserved: set[str | int] | None = None,
     is_variable_root: bool = False,
@@ -611,7 +611,7 @@ def node_component(
             is_local=is_local,
             no_ck=no_ck,
         )
-        cls.__passthrough_targets__ = passthrough
+        cls.__passthrough__ = passthrough
 
         # register node properties
         props = properties.values()
@@ -647,7 +647,7 @@ def node_component(
 @dataclass_transform(kw_only_default=True, field_specifiers=_PROPERTY_SPECIFIERS)
 def node(
     node_type: NodeType,
-    passthrough: tuple[tuple[str, "_Passthrough"], ...] = (),
+    passthrough: str | None = None,
     dynamic_components: tuple[type["Node"], ...] = (),
     stored: bool = True,
     stored_custom: bool = False,
@@ -839,11 +839,6 @@ def _make_component_dunder_method(method: _ComponentMethod):
     return inner_method
 
 
-class _Passthrough(enum.StrEnum):
-    Full = "full"
-    Scope = "scope"
-
-
 StructDataT = TypeVar("StructDataT", bound="Union[AnyStructData, AnyNodeData]")
 
 
@@ -857,7 +852,7 @@ class Struct(abc.ABC, Generic[StructDataT]):
     metatype: ClassVar[StructType]  # type discriminator is field 0 if needed?
     __static_components__: ClassVar[tuple[type["Node"] | type["Struct"], ...]] = ()
     __dynamic_components__: ClassVar[tuple[type["Node"] | type["Struct"], ...]] = ()
-    __passthrough_targets__: ClassVar[tuple[tuple[str, _Passthrough], ...]] = ()
+    __passthrough__: ClassVar[str | None] = None
 
     __parent_property__: ClassVar[Property] = UNSET
 
@@ -898,7 +893,7 @@ class Struct(abc.ABC, Generic[StructDataT]):
     # (Struct.id is optional so that external clients don't need to generate ids for every struct,
     #  and also so that its field presence is tracked and we can validate that it is set when needed)
     id: int = p_system(2, default_factory=new_struct_id)
-    parent: Union["Struct", "Node", "Value", None] = p_struct_parent(3)
+    parent: Union["Struct", "Node", "Object", None] = p_struct_parent(3)
     if TYPE_CHECKING:
         parent_type: NodeType | None = p_internal(4, default=None)
         parent_id: int | None = None
@@ -1056,13 +1051,11 @@ class Struct(abc.ABC, Generic[StructDataT]):
                 self._updated_self((prop,))
             return
 
-        if is_tracked:
-            # also try first full passthrough target (if any)
-            for target, mode in self.__passthrough_targets__:
-                target = getattr(self, target)
-                if mode == _Passthrough.Full:
-                    setattr(target, key, value)
-                    return  # success
+        if is_tracked and self.__passthrough__ is not None:
+            # also try passthrough target (if any)
+            target = getattr(self, self.__passthrough__)
+            setattr(target, key, value)
+            return  # success
 
         # report set error with additional info
         candidates = {p.name: p for p in self.__properties__.values() if not p.is_computed}
@@ -1072,22 +1065,19 @@ class Struct(abc.ABC, Generic[StructDataT]):
     def __getattr(self, item):
         # when using slots so this is not an instance attribute
         attr = UNSET
-        # prefer components methods
+        # try components methods
         for component in self._components:
             attr = getattr(component, item, UNSET)
             if attr is not UNSET:
                 break
-        # check passthrough targets if tracked in session
-        if attr is UNSET and self._status == InterpStatus.TRACKED:
-            for target, mode in self.__passthrough_targets__:
-                target = getattr(self, target)
-                if mode == _Passthrough.Full:
-                    attr = getattr(target, item, UNSET)
-                elif mode == _Passthrough.Scope:
-                    assert isinstance(target, NodeList), f"invalid scope passthrough: {attr!r}"
-                    attr = target.get(item) or UNSET
-                if attr is not UNSET:
-                    break
+        # check passthrough if tracked in session
+        if (
+            attr is UNSET
+            and self._status == InterpStatus.TRACKED
+            and self.__passthrough__ is not None
+        ):
+            target = getattr(self, self.__passthrough__)
+            attr = getattr(target, item, UNSET)
         # attribute could be property, method, or just plain value
         if attr is not UNSET:
             if isinstance(attr, property):
@@ -1120,7 +1110,7 @@ class Struct(abc.ABC, Generic[StructDataT]):
         __getattr__ = __getattr
 
     def _lazy_copy_to(
-        self, parent: Union["Node", "Struct", "Value"], prop: Union[Property, "Field"]
+        self, parent: Union["Node", "Struct", "Object"], prop: Union[Property, "Field"]
     ) -> "Struct":
         """Create a copy of this struct for the given parent/prop if different."""
         assert self.__is_struct_only__, f"cannot copy non-struct {self!r}"
@@ -1135,7 +1125,7 @@ class Struct(abc.ABC, Generic[StructDataT]):
             copy = self._copy_to(parent, prop)
             return copy
 
-    def _copy_to(self, parent: Union["Node", "Struct", "Value"], prop: Union[Property, "Field"]):
+    def _copy_to(self, parent: Union["Node", "Struct", "Object"], prop: Union[Property, "Field"]):
         """Create a copy of this struct for the given parent/prop."""
         kwargs = {
             p.name: getattr(self, p.name)

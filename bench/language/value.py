@@ -30,46 +30,51 @@ if TYPE_CHECKING:
         NodeReference,
         Package,
         Trigger,
-        TypeInfo,
         User,
     )
+    from bench.language.field import TypeInfoBase
 
 logger = structlog.get_logger(__name__)
 
-ScalarValue = Union["Value", PrimitiveValue, "Struct", "Node"]
+ScalarValue = Union["Object", PrimitiveValue, "Struct", "Node"]
 SomeValue = Union[ScalarValue, Collection[ScalarValue]]
 JsonPrimitive = Union[str, int, float, bool, None]
 JsonValue = Union[JsonPrimitive, dict[str, "JsonValue"], list["JsonValue"]]
 
+ValueParent = Union["Object", "Struct", "Node"]
+ValueProperty = Union["Property", "Field"]
+
 
 @dataclass(slots=True)
-class Value:
+class Object:
     """
-    Any user-defined non-primitive Value (unpacked).
-    (e.g., the variable value of a Block, inputs to a Run, an Object instance).
+    Any user-defined Value that's not builtin (has nested fields), can also be partial.
+    (e.g., the variable value of a Block, inputs to a Run, a Class instance).
     TODO :Incomplete: handle :SecretValues
     """
 
     # content
-    _type: "TypeInfo"
-    _value: dict[str, SomeValue] | None = None
+    _type: "TypeInfoBase"
+    _value: dict[str, SomeValue] | None = None  # in unpacked form
     _is_revealed: bool = False
 
     # local identity (conforms with Struct protocol)
     id: int = dataclasses.field(default_factory=new_struct_id)
-    parent: Union["Value", Struct, Node, None] = None
+    parent: ValueParent | None = None
     parent_id: int | UUID | None = None
-    parent_prop: Union[Property, "Field", None] = None
+    parent_prop: ValueProperty | None = None
     parent_key: str | None = None
     order_key: str | None = None
 
     @staticmethod
-    def new(value: dict[str, SomeValue] | None, type: "TypeInfo") -> "Value":
-        return Value(_type=type, _value=value)
+    def new(
+        value: dict[str, SomeValue] | None, type: "TypeInfoBase", is_revealed: bool = True
+    ) -> "Object":
+        return Object(_type=type, _value=value, _is_revealed=is_revealed)
 
     def equals_content(self, other: Any) -> bool:
         """Checks if all fields of the two Values are equal (recursively)."""
-        if other is None or type(other) is not Value:
+        if other is None or type(other) is not Object:
             return False
         for field in self._type._resolved_fields:
             if getattr(self, field.storage_key) != getattr(other, field.storage_key):
@@ -111,7 +116,7 @@ class Value:
         raise NotImplementedError(":Incomplete")
 
 
-VALUE_SLOTS: set[str] = set(Value.__dataclass_fields__.keys())
+VALUE_SLOTS: set[str] = set(Object.__dataclass_fields__.keys())
 
 
 @struct_component()
@@ -119,7 +124,7 @@ class HasValues(Struct):
     pass
 
 
-def coerce_value(value: Any, type: "TypeInfo") -> SomeValue:
+def coerce_value(value: Any, typ: "TypeInfoBase") -> SomeValue:
     """
     Coerces the given value to the expected type (recursively).
     Returns value as is if already correct.
@@ -128,7 +133,15 @@ def coerce_value(value: Any, type: "TypeInfo") -> SomeValue:
     raise NotImplementedError
 
 
-def check_value(value: Any, type: "TypeInfo") -> None:
+def _coerce_value_scalar(value: ScalarValue, typ: "TypeInfoBase") -> ScalarValue:
+    raise NotImplementedError
+
+
+def _coerce_object_scalar(value: Object, typ: "TypeInfoBase") -> Object:
+    raise NotImplementedError
+
+
+def check_value(value: Any, typ: "TypeInfoBase") -> None:
     """
     Checks whether the given value has the expected type (recursively).
     Raises TypeError if not.
@@ -136,74 +149,186 @@ def check_value(value: Any, type: "TypeInfo") -> None:
     raise NotImplementedError
 
 
-def pack_value_scalar(value: ScalarValue, type: "TypeInfo") -> JsonValue:
+def _pack_value_scalar(value: ScalarValue, typ: "TypeInfoBase") -> JsonValue:
     """
-    Packs the given scalar value into a JSON-able representation.
+    Packs the given scalar runtime value into a JSON-able representation.
     """
-    if type.kind == TypeKind.PRIMITIVE:
-        if type.primitive_type == PrimitiveType.BYTES:
+    if typ.kind == TypeKind.PRIMITIVE:
+        if typ.primitive_type == PrimitiveType.BYTES:
             return base64.b64encode(cast(bytes, value)).decode()
-        elif type.primitive_type == PrimitiveType.DATETIME:
+        elif typ.primitive_type == PrimitiveType.DATETIME:
             return cast(datetime, value).isoformat()
-        elif type.primitive_type == PrimitiveType.INTERVAL:
+        elif typ.primitive_type == PrimitiveType.INTERVAL:
             return cast(timedelta, value).total_seconds()
         else:
             return cast(JsonValue, value)
-    elif type.kind == TypeKind.NODE or type.kind == TypeKind.BASED_NODE:
+    elif typ.kind == TypeKind.NODE or typ.kind == TypeKind.BASED_NODE:
         return cast("NodeReference", value)._to_data().to_robust_json()
-    elif type.kind == TypeKind.ENUM:
+    elif typ.kind == TypeKind.ENUM:
         return cast(int, value)
-    elif type.kind == TypeKind.STRUCT:
+    elif typ.kind == TypeKind.STRUCT:
         return cast(Struct, value)._to_data().to_robust_json()
     else:
-        raise TypeError(f"cannot pack value of type {type!r}")
+        raise TypeError(f"cannot pack value of type {typ!r}")
 
 
-def unpack_value_scalar(value_packed: JsonValue, type: "TypeInfo") -> ScalarValue:
+def _unpack_value_scalar(value_packed: JsonValue, typ: "TypeInfoBase") -> ScalarValue:
     """
-    Unpacks the given value into a Bench Value representation.
+    Unpacks the given scalar value into its runtime representation.
     """
-    if type.kind == TypeKind.PRIMITIVE:
-        if type.primitive_type == PrimitiveType.BYTES:
+    if typ.kind == TypeKind.PRIMITIVE:
+        if typ.primitive_type == PrimitiveType.BYTES:
             return base64.b64decode(cast(str, value_packed))
-        elif type.primitive_type == PrimitiveType.DATETIME:
+        elif typ.primitive_type == PrimitiveType.DATETIME:
             return datetime.fromisoformat(cast(str, value_packed))
-        elif type.primitive_type == PrimitiveType.INTERVAL:
+        elif typ.primitive_type == PrimitiveType.INTERVAL:
             return timedelta(seconds=cast(int, value_packed))
         else:
             return cast(PrimitiveValue, value_packed)
-    elif type.kind == TypeKind.NODE or type.kind == TypeKind.BASED_NODE:
+    elif typ.kind == TypeKind.NODE or typ.kind == TypeKind.BASED_NODE:
         from bench.proto import wiring
 
         return wiring.unpack_struct(cast(NodeReferenceData, value_packed))
-    elif type.kind == TypeKind.ENUM:
-        enum_cls = ENUM_CLASS_BY_TYPE[cast(EnumType, type.bench_type)]
+    elif typ.kind == TypeKind.ENUM:
+        enum_cls = ENUM_CLASS_BY_TYPE[cast(EnumType, typ.bench_type)]
         return enum_cls(cast(int, value_packed))
-    elif type.kind == TypeKind.STRUCT:
+    elif typ.kind == TypeKind.STRUCT:
         return Struct._from_data(cast(AnyStructData, value_packed))
     else:
-        raise TypeError(f"cannot unpack value of type {type!r}")
+        raise TypeError(f"cannot unpack value of type {typ!r}")
 
 
-def pack_value(value: SomeValue, type: "TypeInfo") -> tuple[JsonValue, JsonValue | None]:
+def _pack_object_scalar(value: Object, typ: "TypeInfoBase") -> tuple[JsonValue, JsonValue | None]:
+    """
+    Packs an object value into a packed value & secret packed value.
+    The secret split applies only to nested values within the type, not the type itself.
+    """
+    value_packed: dict[str, JsonValue] = {}
+    for field in typ._resolved_fields:
+        field_value = cast(SomeValue, getattr(value, field.name, None))
+        if field_value is None:
+            continue
+        elif field.kind == TypeKind.OBJECT:
+            value_packed[field.storage_key], _ = pack_value(field_value, field)
+        elif not field.is_list:
+            value_packed[field.storage_key] = _pack_value_scalar(
+                cast(ScalarValue, field_value), field
+            )
+        else:  # scalar list
+            assert isinstance(
+                field_value, list
+            ), f"{field_value!r} is not a list (expected {field!r})"
+            value_packed[field.storage_key] = [
+                _pack_value_scalar(element, field) for element in field_value
+            ]
+    return value_packed, None
+
+
+def _unpack_object_scalar(
+    value_packed: dict[str, JsonValue], secret_value_packed: JsonValue | None, typ: "TypeInfoBase"
+) -> Object:
+    """
+    Unpacks an object value from a packed value & secret packed value.
+    """
+    value: dict[str, SomeValue] = {}
+    for field in typ._resolved_fields:
+        field_value_packed = value_packed.get(field.storage_key)
+        if field_value_packed is None:
+            continue
+        elif field.kind == TypeKind.OBJECT:
+            field_value = unpack_value(field_value_packed, None, field)
+            if field_value is None:
+                continue
+        elif not field.is_list:
+            field_value = _unpack_value_scalar(field_value_packed, field)
+        else:  # scalar list
+            assert isinstance(
+                field_value_packed, list
+            ), f"{field_value_packed!r} is not a list (expected {field!r})"
+            field_value = [_unpack_value_scalar(element, field) for element in field_value_packed]
+        value[field.storage_key] = field_value
+    return Object.new(value, typ, is_revealed=secret_value_packed is not None)
+
+
+def pack_value(
+    value: SomeValue | None, typ: "TypeInfoBase", wrap_scalar: bool = True
+) -> tuple[JsonValue, JsonValue | None]:
     """
     Packs a value into its constituent JSON-able parts (packed value & secret packed value).
+    Only minimal type checks are performed, invalid values will error in various ways.
     TODO :Incomplete: handle :SecretValues
     """
-
-    # if type.kind == TypeKind.ALIAS and type.base_type is not None and type.base_type.type in
-    raise NotImplementedError("nocheckin: pack_value")
+    assert typ.kind != TypeKind.ALIAS, f"unresolved type {typ!r}"
+    if typ.kind == TypeKind.OBJECT:
+        # nested object
+        if not typ.is_list:
+            assert type(value) is Object, f"{value!r} is not an Object (expected {typ!r})"
+            return _pack_object_scalar(value, typ)
+        else:
+            assert isinstance(value, list), f"{value!r} is not a list (expected {typ!r})"
+            value_packed: JsonValue = []
+            secret_value_packed: JsonValue = []
+            for element in value:
+                assert type(element) is Object, f"{element!r} is not an Object (expected {typ!r})"
+                inner_value_packed, inner_secret_value_packed = _pack_object_scalar(element, typ)
+                value_packed.append(inner_value_packed)
+                secret_value_packed.append(inner_secret_value_packed)
+            return value_packed, secret_value_packed
+    else:
+        # wrap scalar
+        value_packed: JsonValue
+        if value is None:
+            value_packed = None  # no value
+        elif not typ.is_list:
+            value_packed = _pack_value_scalar(cast(ScalarValue, value), typ)
+        else:
+            assert isinstance(value, list), f"{value!r} is not a list (expected {typ!r})"
+            value_packed = [_pack_value_scalar(element, typ) for element in value]
+        if wrap_scalar:
+            value_packed = {typ.identity_key: value_packed}
+        return value_packed, None
 
 
 def unpack_value(
-    value_packed: JsonValue, secret_value_packed: JsonValue | None, type: "TypeInfo"
-) -> SomeValue:
+    value_packed: JsonValue,
+    secret_value_packed: JsonValue | None,
+    typ: "TypeInfoBase",
+    unwrap_scalar: bool = True,
+) -> SomeValue | None:
     """
-    Unpacks a value from its constituent JSON-able parts.
+    Unpacks a value from its constituent JSON-able parts (packed value & secret packed value).
+    Only minimal type checks are performed, invalid values will error in various ways.
     TODO :Incomplete: handle :SecretValues
     """
-
-    raise NotImplementedError("nocheckin: unpack_value")
+    assert typ.kind != TypeKind.ALIAS, f"unresolved type {typ!r}"
+    if typ.kind == TypeKind.OBJECT:
+        # nested object
+        if not typ.is_list:
+            assert isinstance(
+                value_packed, dict
+            ), f"{value_packed!r} is not a dict (expected {typ!r})"
+            return _unpack_object_scalar(value_packed, secret_value_packed, typ)
+        else:
+            assert isinstance(
+                value_packed, list
+            ), f"{value_packed!r} is not a list (expected {typ!r})"
+            return [
+                _unpack_object_scalar(cast(dict[str, JsonValue], element), None, typ)
+                for element in value_packed
+            ]
+    else:
+        # unwrap scalar
+        if unwrap_scalar and isinstance(value_packed, dict):
+            value_packed = value_packed.get(typ.identity_key)
+        if value_packed is None:
+            return None
+        elif not typ.is_list:
+            return _unpack_value_scalar(value_packed, typ)
+        else:
+            assert isinstance(
+                value_packed, list
+            ), f"{value_packed!r} is not a list (expected {typ!r})"
+            return [_unpack_value_scalar(element, typ) for element in value_packed]
 
 
 @struct(StructType.CONTEXT)

@@ -4,7 +4,7 @@ from typing import TYPE_CHECKING, Any, Optional, cast
 import structlog
 
 from bench.language.const import NodeType, NRel
-from bench.language.node import BasedNode, Node, NodeList, _Passthrough, node, node_component
+from bench.language.node import BasedNode, Node, NodeList, node, node_component
 from bench.language.notice import NoticeHandler
 from bench.language.property import (
     Property,
@@ -36,13 +36,7 @@ if TYPE_CHECKING:
 logger = structlog.get_logger(__name__)
 
 
-@node(
-    NodeType.RECORD,
-    passthrough=(("value", _Passthrough.Full),),
-    stored_custom=True,
-    index_in_search=True,
-    local=True,
-)
+@node(NodeType.RECORD, passthrough="value", stored_custom=True, index_in_search=True, local=True)
 class Record(BasedNode[RecordData], HasValues):
     """A record in a database. The containing table is usually a real Postgres table."""
 

@@ -29,7 +29,7 @@ from bench.language.const import (
     ReferenceKind,
     StructType,
 )
-from bench.language.graph import InMemoryGraphNodeList, NodeList, ValueList
+from bench.language.graph import GraphNodeList, NodeList, ValueList
 from bench.language.setup import BENCH_CLASSES_BY_NAME, STRUCT_CLASS_BY_TYPE, _on_completing_setup
 from bench.language.validation import PropertyValidationHandler, parent_validator
 from bench.sql.core import CascadeAction, Column, Table
@@ -922,7 +922,7 @@ def p_node_child(
         is_internal=True,
         is_required=True,
         is_list=True,
-        reference_list_type=list or InMemoryGraphNodeList,
+        reference_list_type=list or GraphNodeList,
         is_stored=False,
     )
 

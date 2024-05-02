@@ -615,7 +615,6 @@ function getInspectionInfo(metatype: ObjectType, type: any): Record<string, Insp
       Constraint: [FieldProperty.formatHint, { from: 60 }],
     };
     return properties;
-    //
   } else if (metatype == ObjectType.BLOCK) {
     const properties: Record<string, InspectionCategory> = {
       Common: [BlockProperty.type],
@@ -646,7 +645,6 @@ function getInspectionInfo(metatype: ObjectType, type: any): Record<string, Insp
     }
     properties.Common.push(BlockProperty.visibility);
     return properties;
-    //
   } else if (metatype == ObjectType.VIEW) {
     const properties = {
       Common: [{ to: 40 }, ViewProperty.isInput],
