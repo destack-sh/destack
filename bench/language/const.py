@@ -1,9 +1,10 @@
 import contextvars
 import enum
+import secrets
 import typing
 from datetime import datetime, timedelta
 from typing import Any, Mapping, Optional, cast
-from uuid import UUID
+from uuid import UUID, uuid4
 
 from bench.proto.wire import GraphScope
 from bench.utils.func import IdEnum, bytetuple, cyrb53a
@@ -22,6 +23,15 @@ EMPTY_SET: frozenset = frozenset()
 EMPTY_DICT: typing.Mapping = frozendict()
 EMPTY_SCOPE = GraphScope()
 
+
+def new_struct_id() -> int:
+    id = secrets.randbits(32)
+    if id < 0:
+        id = -id
+    return id
+
+
+new_node_id = uuid4
 
 # NOTE: we have the enum registry here to avoid circular imports
 _ENUM_CLASS_BY_TYPE: dict["EnumType", type[IdEnum]] = {}
@@ -431,7 +441,7 @@ class ReferenceKind(IdEnum):
     NODE_ANCESTOR_ROOT = 1
     NODE_ANCESTOR_FIRST = 2
     NODE_PARENT = 3
-    NODE_CHILD = 4
+    NODE_CHILDREN = 4
     NODE_REGULAR = 5
     STRUCT_PARENT = 6
     STRUCT_CHILD = 7

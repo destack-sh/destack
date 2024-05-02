@@ -7,7 +7,6 @@ import structlog
 
 from bench.language.const import (
     TK_LENGTH_B64,
-    BenchError,
     BenchType,
     FieldZone,
     FormatHint,
@@ -71,27 +70,6 @@ PYTON_TYPE_BY_PRIMITIVE_TYPE: dict[PrimitiveType, type] = {
 }
 
 
-class TypeError(BenchError, TypeError):
-    def __init__(
-        self,
-        value: Any,
-        expected: "TypeInfo",
-        message: str | None = None,
-        suberrors: list["TypeError"] | None = None,
-    ):
-        value_str = repr(value)
-        max_value_str_len = 300
-        if len(value_str) > max_value_str_len:
-            value_str = value_str[: max_value_str_len - 100] + "..." + value_str[-100:]
-        super().__init__(
-            f"{message or 'type mismatch'}: expected {expected!r}, got {value_str} ({type(value).__name__})"
-        )
-        self.value = value
-        self.expected = expected
-        self.message = message
-        self.suberrors = suberrors or []
-
-
 LETTER_BY_TYPE_KIND: dict[TypeKind, str] = {
     TypeKind.PRIMITIVE: "p",
     TypeKind.STRUCT: "s",
@@ -103,30 +81,31 @@ LETTER_BY_TYPE_KIND: dict[TypeKind, str] = {
 TYPE_KIND_BY_LETTER: dict[str, TypeKind] = {v: k for k, v in LETTER_BY_TYPE_KIND.items()}
 
 
-def get_implied_type_kind(type: "TypeInfoBase") -> TypeKind | None:
-    if type.primitive_type:
+def get_implied_type_kind(typ: "TypeInfoBase") -> TypeKind | None:
+    if typ.primitive_type:
         return TypeKind.PRIMITIVE
-    elif type.bench_type:
-        if is_node_type(type.bench_type):
-            if type.base_type_ptr:
+    elif typ.bench_type:
+        if is_node_type(typ.bench_type):
+            if typ.base_type_ptr:
                 return TypeKind.BASED_NODE
             else:
                 return TypeKind.NODE
-        elif is_struct_type(type.bench_type):
+        elif is_struct_type(typ.bench_type):
             return TypeKind.STRUCT
-        elif is_enum_type(type.bench_type):
+        elif is_enum_type(typ.bench_type):
             return TypeKind.ENUM
-    elif type.base_type_ptr:
-        base_type = type.base_type
-        if base_type is None:
-            return TypeKind.ALIAS
-        elif base_type.metatype == NodeType.STEP or cast("Block", base_type).type.is_classy:
-            return TypeKind.OBJECT
-
+    elif typ.base_type_ptr:
+        base_type = typ.base_type
+        if base_type is not None:
+            if base_type.metatype == NodeType.STEP or cast("Block", base_type).type.is_classy:
+                return TypeKind.OBJECT
+            else:
+                return TypeKind.ALIAS
+    # couldn't figure it out
     return None
 
 
-def encode_type_identity(type: "TypeInfoBase") -> str | None:
+def encode_type_identity(typ: "TypeInfoBase") -> str | None:
     """
     Encodes the type identity into a key for storage & implicit typing.
     Format is <kind>[id] (with id encoded as base64).
@@ -134,28 +113,28 @@ def encode_type_identity(type: "TypeInfoBase") -> str | None:
     """
 
     value: str
-    if type.kind == TypeKind.PRIMITIVE:
-        assert type.primitive_type is not None
-        value = encode_b64vlq(type.primitive_type.id)
-    elif type.kind == TypeKind.NODE or type.kind == TypeKind.STRUCT or type.kind == TypeKind.ENUM:
-        assert type.bench_type is not None
-        value = encode_b64vlq(type.bench_type.id)
-    elif type.kind == TypeKind.BASED_NODE:
-        assert type.base_type_ptr is not None
-        assert type.bench_type is not None
-        value = f"{get_tk_b64_from_ptr(type.base_type_ptr)}{encode_b64vlq(type.bench_type.id)}"
-    elif type.kind == TypeKind.OBJECT:
-        assert type.base_type_ptr is not None
-        value = get_tk_b64_from_ptr(type.base_type_ptr)
+    if typ.kind == TypeKind.PRIMITIVE:
+        assert typ.primitive_type is not None
+        value = encode_b64vlq(typ.primitive_type.id)
+    elif typ.kind == TypeKind.NODE or typ.kind == TypeKind.STRUCT or typ.kind == TypeKind.ENUM:
+        assert typ.bench_type is not None
+        value = encode_b64vlq(typ.bench_type.id)
+    elif typ.kind == TypeKind.BASED_NODE:
+        assert typ.base_type_ptr is not None
+        assert typ.bench_type is not None
+        value = f"{get_tk_b64_from_ptr(typ.base_type_ptr)}{encode_b64vlq(typ.bench_type.id)}"
+    elif typ.kind == TypeKind.OBJECT:
+        assert typ.base_type_ptr is not None
+        value = get_tk_b64_from_ptr(typ.base_type_ptr)
     else:
         return None
 
     prefix: str
-    if type.is_list:
-        prefix = LETTER_BY_TYPE_KIND[type.kind].upper()
+    if typ.is_list:
+        prefix = LETTER_BY_TYPE_KIND[typ.kind].upper()
     else:
-        prefix = LETTER_BY_TYPE_KIND[type.kind]
-    if type.is_secret:
+        prefix = LETTER_BY_TYPE_KIND[typ.kind]
+    if typ.is_secret:
         prefix = "!" + prefix
     return f"{prefix}{value}"
 
@@ -267,14 +246,15 @@ class TypeInfoBase(HasValues):
     _resolved_identity_key: str | None = p_runtime(default=None)
 
     def __content_str__(self) -> str:
+        kind_str = self.kind.bench_name if self.kind else "<no type>"
         if self.base_type is not None:
-            info_str = self.base_type.absolute_path
+            info_str = f"{kind_str}->{self.base_type.absolute_path}"
         elif self.bench_type is not None:
             info_str = self.bench_type.bench_name
         elif self.primitive_type is not None:
             info_str = self.primitive_type.name
         else:
-            info_str = "<no type>"
+            info_str = kind_str
         if self.format_hint:
             info_str += f" as {self.format_hint}"
         if self.condition is not None:
@@ -286,9 +266,24 @@ class TypeInfoBase(HasValues):
         return info_str
 
     def _interp_component(self, scope: Optional["Node"], notice: "NoticeHandler"):
-        # TODO :Incomplete: type resolution
-        self._resolved_identity_key = encode_type_identity(self)
-        self._resolved_type = self
+        # TODO :Incomplete: proper type resolution (consider multi-step aliases, inheritance, ...)
+        if self.kind == TypeKind.ALIAS:
+            assert self.base_type is not None, f"missing base type for alias {self!r}"
+            if (
+                self.base_type.metatype == NodeType.STEP
+                or cast("Block", self.base_type).type.is_classy
+            ):
+                resolved_type = TypeInfo(kind=TypeKind.OBJECT, base_type=self.base_type)
+            elif (
+                self.base_type.metatype == NodeType.BLOCK
+                and cast("Block", self.base_type).builtin_base
+            ):
+                resolved_type = cast("Block", self.base_type).builtin_base
+            else:
+                resolved_type = None
+        else:
+            resolved_type = self
+        self._do_resolve_to(resolved_type)
 
     def _validate_component(
         self, properties: Collection[Property], invalid: "ValidationHandler"
@@ -304,15 +299,28 @@ class TypeInfoBase(HasValues):
         assert self._resolved_identity_key is not None, f"unresolved type {self!r}"
         return self._resolved_identity_key
 
+    def _do_resolve_to(self, typ: Optional["TypeInfoBase"]) -> None:
+        self._resolved_type = typ
+        self._resolved_identity_key = encode_type_identity(typ) if typ else None
+        if typ is not None and typ is not self:
+            # ensure the resolved type resolves to itself
+            typ._resolved_type = typ
+            typ._resolved_identity_key = self._resolved_identity_key
+
+    def _as_resolved(self) -> "TypeInfoBase":
+        assert self._resolved_type is not None, f"unresolved type {self!r}"
+        assert self._resolved_type.kind is not None, f"missing type identity {self!r}"
+        return self._resolved_type
+
     @property
-    def _resolved_fields(self) -> NodeList["Field"]:
+    def _base_fields(self) -> NodeList["Field"]:
         assert self._resolved_type is not None, f"unresolved type {self!r}"
         assert self._resolved_type.base_type is not None, f"missing base type {self!r}"
         return self._resolved_type.base_type.fields
 
-    def _resolve_field(self, ident: str) -> Optional["Field"]:
+    def _get_field(self, ident: str) -> Optional["Field"]:
         """Resolves a field in this type by an identifier (name or py_ident)"""
-        for field in self._resolved_fields:
+        for field in self._base_fields:
             if field.py_ident == ident or field.name == ident:
                 return field
         return None
@@ -347,7 +355,6 @@ class Field(Node[FieldData], TypeInfoBase, _TypeQueryBuilder):
     # field-only flags
     # is_indexed: bool = ... # for database fields
     # is_unique: bool = ... # for database fields
-    # is_context: bool = ... # for variable fields (contribute to Context)
 
     notices: NodeList["Notice"] = p_node_child(NodeType.NOTICE)
 

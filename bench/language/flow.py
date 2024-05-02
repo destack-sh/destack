@@ -53,7 +53,7 @@ class StepConnection(Struct):
 @node(NodeType.STEP)
 class Step(Node[StepData], HasValues):
     """
-    A logic, data or control flow unit in a Flow (Block).
+    An informational, logic, data or control flow unit in a Flow (Block).
     NOTE: steps only track incoming connections.
     """
 
@@ -82,6 +82,7 @@ class Step(Node[StepData], HasValues):
 
     # flags
     # ...?
+
     steps: NodeList["Step"] = p_node_child(NodeType.STEP)
     fields: NodeList["Field"] = p_node_child(NodeType.FIELD)
     notices: NodeList["Notice"] = p_node_child(NodeType.NOTICE)
