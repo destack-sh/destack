@@ -161,7 +161,7 @@ defineExpose<ViewExposed>({ self, id, actions });
 <template>
   <ViewContentWrapper :title="title" :variant="variant" :orientation="orientation">
     <!-- TODO :UX: Code menus (autocomplete, refactor, etc.)  -->
-    <!-- NOTE: textRef must be in a stable fragment to mount the editor view -->
+    <!-- NOTE: codeRef must be in a stable fragment to mount the editor view -->
     <div
       ref="codeRef"
       class="code rounded bg-gray-100 py-1 hover:cursor-text"

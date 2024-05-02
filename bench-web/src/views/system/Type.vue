@@ -35,9 +35,7 @@ const { graph: pkgGraph, connection: pkgConnection } =
   );
 const block = pkgGraph.getRef(nodePtr, { ignoreAncestors: props.self == null });
 const isFunction = computed(() => block.value != null && RUNNABLE_BLOCK_TYPES.includes(block.value.type));
-const shouldHaveFields = computed(
-  () => block.value != null && block.value.type != BlockType.TEXT && block.value.type != BlockType.CODE,
-);
+const shouldHaveFields = computed(() => block.value != null && !isFunction.value);
 const fields = pkgGraph.getChildrenRef(block, NodeType.FIELD);
 const leftZone = computed(() => {
   if (block.value?.type == BlockType.CLASS) {

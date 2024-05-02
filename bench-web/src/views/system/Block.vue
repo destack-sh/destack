@@ -58,12 +58,17 @@ const pkgGetConnection =
   );
 const { graph: pkgGraph, connection: pkgConnection } = pkgGetConnection;
 const block = pkgGraph.getRef(nodePtr, { ignoreAncestors: props.self == null });
+const fields = pkgGraph.getChildrenRef(block, NodeType.FIELD);
 
+const isRunnable = computed(() => RUNNABLE_BLOCK_TYPES.includes(block.value?.type!));
 const isGeneratedName = computed(
   () => block.value != null && isGeneratedNodeName(block.value.metatype as unknown as NodeType, block.value.name),
 );
 const isThinTextWrapper = computed(() => isGeneratedName.value && block.value?.type == BlockType.TEXT);
 const hasText = computed(() => block.value?.text != null);
+const hasFunctionFields = computed(
+  () => isRunnable.value && fields.value.some((f) => f.zone == FieldZone.INPUT || f.zone == FieldZone.OUTPUT),
+);
 const forceShowText: Ref<boolean> = ref(false);
 
 //
@@ -105,10 +110,11 @@ defineExpose<ViewExposed>({ self, id, variants: [Variant.PRIMARY, Variant.STEALT
   <div
     ref="blockRef"
     v-if="block"
-    class="group/block relative rounded bg-white px-2 py-1.5"
+    class="group/block relative rounded border bg-white px-2 py-1.5"
     :class="[
-      variant != Variant.STEALTH ? 'border' : '',
-      nodePtr?.id == inspectionPtr?.id ? 'border-primary-900' : 'border-gray-200 hover:border-gray-300',
+      nodePtr?.id == inspectionPtr?.id
+        ? 'border-primary-900'
+        : [variant != Variant.STEALTH ? 'border-gray-200' : 'border-transparent', 'hover:border-gray-300'],
     ]"
   >
     <!-- Header -->
@@ -157,7 +163,12 @@ defineExpose<ViewExposed>({ self, id, variants: [Variant.PRIMARY, Variant.STEALT
         <span
           class="flex flex-row gap-x-0.5"
           :class="[
-            nodePtr?.id == inspectionPtr?.id ? 'text-gray-400' : 'text-gray-300 group-hover/block:text-gray-400',
+            nodePtr?.id == inspectionPtr?.id
+              ? 'text-gray-400'
+              : [
+                  variant != Variant.STEALTH ? '' : 'opacity-0  group-hover/block:opacity-100',
+                  'text-gray-300  group-hover/block:text-gray-400',
+                ],
           ]"
         >
           <!-- Add/edit text -->
@@ -175,7 +186,7 @@ defineExpose<ViewExposed>({ self, id, variants: [Variant.PRIMARY, Variant.STEALT
           </button>
           <!-- Quick add -->
           <button
-            v-if="RUNNABLE_BLOCK_TYPES.includes(block.type) || TYPE_BLOCK_TYPES.includes(block.type)"
+            v-if="TYPE_BLOCK_TYPES.includes(block.type) || RUNNABLE_BLOCK_TYPES.includes(block.type)"
             class="rounded px-1 hover:bg-gray-100 hover:text-primary-900 data-[menu=true]:border-primary-900 data-[menu=true]:bg-gray-100 data-[menu=true]:text-primary-900"
             @click="
               (e) => {
@@ -220,7 +231,7 @@ defineExpose<ViewExposed>({ self, id, variants: [Variant.PRIMARY, Variant.STEALT
       <!-- ... -->
     </div>
     <!-- Body -->
-    <div class="flex flex-col gap-y-1.5 py-1">
+    <div class="flex flex-col gap-y-1.5 py-0.5">
       <!-- Variable ... -->
       <Value
         v-if="block.type == BlockType.VARIABLE"
@@ -232,7 +243,7 @@ defineExpose<ViewExposed>({ self, id, variants: [Variant.PRIMARY, Variant.STEALT
         "
       />
       <Type
-        v-if="TYPE_BLOCK_TYPES.includes(block.type) || RUNNABLE_BLOCK_TYPES.includes(block.type)"
+        v-if="TYPE_BLOCK_TYPES.includes(block.type) || (RUNNABLE_BLOCK_TYPES.includes(block.type) && hasFunctionFields)"
         :node="block"
         :prepared-connection="pkgGetConnection"
         :node-ptr="nodePtr"
@@ -249,7 +260,6 @@ defineExpose<ViewExposed>({ self, id, variants: [Variant.PRIMARY, Variant.STEALT
       <Code
         v-if="block.type == BlockType.CODE"
         is-input
-        :variant="Variant.STEALTH"
         :model-value="block.code"
         @update:modelValue="(newCode) => pkgConnection.tx.updateDebounced(block!, { code: newCode })"
       />
