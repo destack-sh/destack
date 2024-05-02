@@ -307,7 +307,7 @@ class TypeInfoBase(HasValues):
             typ._resolved_type = typ
             typ._resolved_identity_key = self._resolved_identity_key
 
-    def _as_resolved(self) -> "TypeInfoBase":
+    def _to_resolved(self) -> "TypeInfoBase":
         assert self._resolved_type is not None, f"unresolved type {self!r}"
         assert self._resolved_type.kind is not None, f"missing type identity {self!r}"
         return self._resolved_type
@@ -390,7 +390,7 @@ class Field(Node[FieldData], TypeInfoBase, _TypeQueryBuilder):
 
     @property
     def identifier_type(self):
-        if self.kind == FieldZone.OPTION:
+        if self.zone == FieldZone.OPTION:
             return IdentifierType.CONSTANT
         else:
             return IdentifierType.PROPERTY

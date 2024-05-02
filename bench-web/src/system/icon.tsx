@@ -345,7 +345,7 @@ export const ICON_BY_VISIBILITY: Partial<Record<NodeVisibility, IconData>> = _ma
 });
 
 export const ICON_BY_PRIMITIVE_TYPE: Partial<Record<PrimitiveType, IconData>> = _makeIcons({
-  [PrimitiveType.BOOLEAN]: "fas fa-square-check",
+  [PrimitiveType.BOOLEAN]: "fas fa-toggle-large-on",
   [PrimitiveType.INT16]: "fas fa-tally-4",
   [PrimitiveType.INT32]: "fas fa-tally-4",
   [PrimitiveType.INT64]: "fas fa-tally-4",

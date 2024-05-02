@@ -770,7 +770,7 @@ declareActionMap<"type">({
   },
   "type.edit.isRequired": {
     type: "toggle",
-    icon: "fas fa-check",
+    icon: "fas fa-shield-check",
     title: "Required",
     text: "Mark the current type as required",
   },

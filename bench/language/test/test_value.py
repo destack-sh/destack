@@ -27,7 +27,7 @@ def test_roundtrip_simple_value():
     type1._interp_rec(None, on_notice_ignore)
 
     value = Object.new({}, type1)
-    value.Field1 = choice1.fields.Option1
+    value.field1 = choice1.fields.Option1
     value.field2 = False
     value.field3 = Text.plain("hello bench!")
 
@@ -35,4 +35,5 @@ def test_roundtrip_simple_value():
     unpacked_value = unpack_value(value_packed, secret_value_packed, type1)
     assert unpacked_value == value
 
-    # nocheckin: auto generate :Test types & values
+
+# nocheckin: auto generate :Test types & values
