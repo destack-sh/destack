@@ -433,7 +433,13 @@ def _process_struct_base_cls(
                 computed_prop = _node_ref_computed_prop(
                     ref_key, ptr_key, prop, prop.reference_wired_ptr
                 )
-                setattr(cls, prop.name + "_" + postfix, computed_prop)
+                computed_prop_name = prop.name + "_" + postfix
+                existing = properties_by_name.get(computed_prop_name)
+                if existing is not None and existing.reference_source is not prop:
+                    raise ValueError(
+                        f"computed property conflict '{computed_prop_name}': {computed_prop!r}, {existing!r}"
+                    )
+                setattr(cls, computed_prop_name, computed_prop)
 
     # collect component methods implemented in this component
     for meth_type in _ComponentMethod:
@@ -1060,9 +1066,9 @@ class Struct(abc.ABC, Generic[StructDataT]):
             ):
                 # copy struct if needed (only after init since child struct needs our id)
                 if prop.is_list:
-                    value = ValueList._lazy_copy_for(value, self, prop, prop)
+                    value = ValueList._move_list(value, self, prop, prop)
                 else:
-                    value = cast(Struct, value)._lazy_copy_to(self, prop)
+                    value = cast(Struct, value)._move_to(self, prop)
             elif prop.is_computed:
                 raise AttributeError(f"cannot set computed property {prop!r}: {value!r}")
 
@@ -1075,46 +1081,47 @@ class Struct(abc.ABC, Generic[StructDataT]):
                 except ValidationError:  # reset on error
                     object.__setattr__(self, key, prev)
                     raise
+                # notify
+                self._updated_self((prop,))
             else:
                 object.__setattr__(self, key, value)
 
-            # update reference pointers
-            # nocheckin: store/query references directly from graph
+            # update reference pointers :NodeRefs
             if self._status is not None and prop.reference_wired_ptr is not None:
                 object.__setattr__(self, prop.reference_wired_ptr.name, prop.to_wired_ptr(value))
-
-            # report edit
-            if is_tracked:
-                self._updated_self((prop,))
-            return
-
-        if is_tracked and self.__passthrough__ is not None:
-            # also try passthrough target (if any)
+        elif is_tracked and self.__passthrough__ is not None:
+            # try passthrough target (if any)
             target = getattr(self, self.__passthrough__)
             setattr(target, key, value)
-            return  # success
-
-        # report set error with additional info
-        candidates = {p.name: p for p in self.__properties__.values() if not p.is_computed}
-        did_you_mean = did_you_mean_str(candidates, key)
-        raise AttributeError(f"Cannot set '{key}' on {self!r}. {did_you_mean}")
+        else:
+            # report set error with additional info
+            candidates = {p.name: p for p in self.__properties__.values() if not p.is_computed}
+            did_you_mean = did_you_mean_str(candidates, key)
+            raise AttributeError(f"Cannot set '{key}' on {self!r}. {did_you_mean}")
 
     if not TYPE_CHECKING:
         # NOTE: __setattr__/__getattr__ confuses type checking, so only define it at runtime
+        #  (we don't need it since for Structs/Nodes dynamic access is only for Values at runtime anyway)
         __getattr__ = __getattr
         __setattr__ = __setattr
 
-    def _lazy_copy_to(
-        self, parent: Union["Node", "Struct", "Object"], prop: Union[Property, "Field"]
+    def _move_to(
+        self,
+        parent: Union["Node", "Struct", "Object"],
+        prop: Union[Property, "Field"],
+        ancestor_prop: Property | None = None,
     ) -> "Struct":
-        """Create a copy of this struct for the given parent/prop if different."""
-        assert self.__is_struct_only__, f"cannot copy non-struct {self!r}"
+        """Move or copy this struct into given parent/prop."""
+        assert (
+            self.__is_struct_only__
+        ), f"cannot copy non-struct {self!r}"  # this is overriden by Node
         prop_key = prop.id_as_str if isinstance(prop, Property) else prop.identity_key
         if self.parent is None:  # not assigned
             self.parent = parent
             self.parent_key = prop_key
             return self
-        elif self.parent == parent and self.parent_key == prop_key:  # already the same
+        elif self.parent is parent and self.parent_key == prop_key:
+            # already there
             return self
         else:
             copy = self._copy_to(parent, prop)
@@ -1157,7 +1164,7 @@ class Struct(abc.ABC, Generic[StructDataT]):
                         self.__dict__[prop.name].extend(existing)
                 elif existing is not None:
                     if prop.reference_kind == ReferenceKind.STRUCT_CHILD:
-                        self.__dict__[prop.name] = existing._lazy_copy_to(self, prop)
+                        self.__dict__[prop.name] = existing._move_to(self, prop)
 
             # init property reference pointers if references are set
             if prop.reference_kind == ReferenceKind.PROPERTY:
@@ -1181,17 +1188,20 @@ class Struct(abc.ABC, Generic[StructDataT]):
     def _interp_component(self, scope: Optional["Node"], notice: "NoticeHandler"):
         from bench.language.notice import NoticeType
 
-        # TODO :Broken: turn all node references into computer propertied (against graph)
-        # (using parent, so parent is still a proper reference?)
+        # TODO :Robustness? :Architecture: turn regular node refs into computed properties? :NodeRefs
+        #  Currently, we manually set wired ptrs on set and resolve on interp.
+        #  If we had immediate (=fast) access to a graph in all Object/Struct/Nodes,
+        #  we could skip having to resolve during interp and leaving stale refs until re-interp.
+        #  I'm not sure how Nodes that aren't in our current graph should be treated then.
         if scope is not None:
-            # resolve node references
+            graph = scope._root_graph
             for prop in self.__node_reference_properties__.values():
                 if (
                     prop.is_wired
                     or prop.is_stored
                     or prop.reference_kind != ReferenceKind.NODE_REGULAR
                 ):
-                    continue  # already resolved
+                    continue
                 assert prop.reference_wired_ptr is not None, f"no wired ptr for {prop!r}"
                 ptr = getattr(self, prop.reference_wired_ptr.name)
                 if ptr is None:
@@ -1200,14 +1210,14 @@ class Struct(abc.ABC, Generic[StructDataT]):
                     ptr = cast(list["NodeReference"], ptr)
                     resolved = []
                     for p in ptr:
-                        r = scope._root_graph.get(cast(UUID, p.id or p.ck))
+                        r = graph.get(cast(UUID, p.id or p.ck))
                         if r is None:
                             notice(self, NoticeType.MISSING_REFERENCE, {"properties": (prop,)})
                         resolved.append(r)
                     self.__dict__[prop.name] = resolved
                 else:
                     ptr = cast("NodeReference", ptr)
-                    resolved = scope._root_graph.get(cast(UUID, ptr.id or ptr.ck))
+                    resolved = graph.get(cast(UUID, ptr.id or ptr.ck))
                     if resolved is None:
                         notice(self, NoticeType.MISSING_REFERENCE, {"properties": (prop,)})
                     self.__dict__[prop.name] = resolved

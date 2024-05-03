@@ -38,7 +38,7 @@ from bench.utils.utils import frozendict
 
 if TYPE_CHECKING:
     # noinspection PyUnresolvedReferences
-    from bench.language import Node, NodeReference, PropertyReference, Struct, TypeInfo
+    from bench.language import Node, NodeReference, Object, PropertyReference, Struct, TypeInfo
     from bench.language.expression import _TypeQueryBuilder
 
 PRIMITIVE_TYPE_BY_PY_TYPE: dict[type, PrimitiveType] = {
@@ -325,8 +325,17 @@ class Property(_TypeQueryBuilder if TYPE_CHECKING else object):
         return isinstance(self.py_type_stripped, enum.EnumMeta)
 
     def to_wired_ptr(
-        self, ref: Union["Node", "Struct", list["Node"], list["Struct"], None]
-    ) -> Union[Any, None]:
+        self,
+        ref: Union["Object", "Node", "Struct", list["Object"], list["Node"], list["Struct"], None],
+    ) -> Union[
+        "NodeReference",
+        "PropertyReference",
+        list["NodeReference"],
+        list["PropertyReference"],
+        int,
+        None,
+    ]:
+        """Transforms the given instantiated reference value for this property int its wired form."""
         if ref is None:
             return None
         elif self.is_list:
@@ -337,11 +346,11 @@ class Property(_TypeQueryBuilder if TYPE_CHECKING else object):
             if self.is_node_reference or self.is_property_reference:
                 return (cast(Union["Node", "Property"], ref)).to_ref()
             elif self.is_struct_reference:
-                ref = cast(Union["Node", "Struct"], ref)
-                if ref.__is_struct_only__ and not ref.__is_struct_inlined__:
-                    assert isinstance(
-                        ref.id, int
-                    ), f"expected id for {self!r}: {ref!r}.id={ref.id} (assigned id?)"
+                from bench.language.value import Object
+
+                ref = cast(Union["Node", "Struct", "Object"], ref)
+                if type(ref) is Object or ref.__is_struct_only__ and not ref.__is_struct_inlined__:
+                    assert isinstance(ref.id, int), f"expected id for {self!r}: {ref!r}.id={ref.id}"
                     return ref.id
                 else:
                     return None  # not stored

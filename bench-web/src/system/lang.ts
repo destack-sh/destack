@@ -363,7 +363,6 @@ export function makeNodeName(graph: ReadNodeGraph, node: { metatype: ObjectType 
  *  (e.g. from Choice1 to Variable2, or Input3 to Output2)
  **/
 export function onNodeMorphed(tx: Transaction, graph: ReadNodeGraph, node: AnyNodeData) {
-  // nocheckin
   node = graph.getOrError({ id: node.id, ck: (node as any).ck }); // 'refresh' from graph with any optimistic changes
 
   // auto update node name
