@@ -811,7 +811,7 @@ class ReferenceKind(betterproto.Enum):
     NODE_ANCESTOR_ROOT = 1
     NODE_ANCESTOR_FIRST = 2
     NODE_PARENT = 3
-    NODE_CHILD = 4
+    NODE_CHILDREN = 4
     NODE_REGULAR = 5
     STRUCT_PARENT = 6
     STRUCT_CHILD = 7
@@ -1026,6 +1026,8 @@ class TextLineType(betterproto.Enum):
     QUOTE = 21
     LIST_BULLET = 30
     LIST_NUMBERED = 31
+    LIST_UNCHECKED = 32
+    LIST_CHECKED = 33
     DIVIDER = 40
 
 
@@ -1732,7 +1734,9 @@ class SubjectData(betterproto.Message):
 @dataclass(eq=False, repr=False)
 class TextData(betterproto.Message):
     """
-    Text(lines: list['TextLine'] = None, id: int = <factory>, parent: Union[ForwardRef('Struct'), ForwardRef('Node'), ForwardRef('Object'), NoneType] = None, order_key: str | None = None, set_properties: list[int] = <factory>, _status: bench.language.const.InterpStatus = None, _updated_properties: bitarray.bitarray | None = None, parent_id: int = None, parent_key: str = None)
+    Rich, markdown-inspired Text with mentions, tables & other extensions.
+     Text is structured into lines, which contain spans.
+     Formatting may be applied at the block (Text), line and span levels.
     """
 
     metatype: "ObjectType" = betterproto.enum_field(1)
@@ -1747,7 +1751,8 @@ class TextData(betterproto.Message):
 @dataclass(eq=False, repr=False)
 class TextLineData(betterproto.Message):
     """
-    TextLine(type: bench.language.text.TextLineType = <TextLineType.PLAIN: 1>, spans: list['TextSpan'] = None, icon: Optional[ForwardRef('Icon')] = None, id: int = <factory>, parent: Union[ForwardRef('Struct'), ForwardRef('Node'), ForwardRef('Object'), NoneType] = None, order_key: str | None = None, set_properties: list[int] = <factory>, _status: bench.language.const.InterpStatus = None, _updated_properties: bitarray.bitarray | None = None, color: Optional[ForwardRef('ColorType')] = None, is_bold: Optional[bool] = None, is_italic: Optional[bool] = None, is_strikethrough: Optional[bool] = None, is_underline: Optional[bool] = None, is_code: Optional[bool] = None, parent_id: int = None, parent_key: str = None)
+    A single line of Text with formatting, composed of spans.
+     A line may contain hard breaks, so it's effectively a paragraph.
     """
 
     metatype: "ObjectType" = betterproto.enum_field(1)
@@ -2789,7 +2794,7 @@ class SpaceData(betterproto.Message):
 @dataclass(eq=False, repr=False)
 class StepData(betterproto.Message):
     """
-    A logic, data or control flow unit in a Flow (Block).
+    An informational, logic, data or control flow unit in a Flow (Block).
      NOTE: steps only track incoming connections.
     """
 
