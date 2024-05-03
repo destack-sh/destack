@@ -31,7 +31,7 @@ def test_roundtrip_simple_value():
     class1.fields.create(name="Field3", bench_type=StructType.TEXT, kind=TypeKind.STRUCT)
     class1.fields.create(name="Field4", base_type=class2, kind=TypeKind.ALIAS)
 
-    # NOTE: interp/to_resolved shit should not be necessary 
+    # NOTE: interp/to_resolved shit should not be necessary
     choice1._interp_rec(None, on_notice_ignore)
     class2._interp_rec(None, on_notice_ignore)
     class1._interp_rec(None, on_notice_ignore)
@@ -54,4 +54,4 @@ def test_roundtrip_simple_value():
     assert unpacked_value == value
 
 
-# nocheckin: auto generate :Test types & values
+# TODO :Test: auto generate :Test types & values
