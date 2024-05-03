@@ -140,9 +140,14 @@ def get_tk_b64_from_ptr(ptr: "NodeReference") -> str:
         raise ValueError(f"invalid ptr: {ptr!r}")
 
 
-def pad_ck_from_tk_b64(sk_b64: str) -> UUID:
+def get_tk_b64_from_ck(ck: UUID) -> str:
+    """Gets the stable across templates first 6 bytes of the ck."""
+    return base64.b64encode(ck.bytes[:TK_LENGTH_BYTES]).decode()
+
+
+def pad_ck_from_tk_b64(tk_b64: str) -> UUID:
     """Pads the remainder with zeros"""
-    bytes = base64.b64decode(sk_b64.encode()) + (16 - TK_LENGTH_BYTES) * b"\x00"
+    bytes = base64.b64decode(tk_b64.encode()) + (16 - TK_LENGTH_BYTES) * b"\x00"
     return UUID(bytes=bytes)
 
 
@@ -996,10 +1001,8 @@ class Struct(abc.ABC, Generic[StructDataT]):
     def __eq__(self, other):
         if other is None:
             return False
-        elif self.__is_struct_inlined__:
-            return self.equals_content(other)
         else:
-            return self.metatype == other.metatype and self.id == other.id
+            return self.equals_content(other)
 
     def __getattr(self, item):
         attr = self.__dict__.get(item, UNSET)
