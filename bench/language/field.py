@@ -22,6 +22,7 @@ from bench.language.expression import NodeReference, _TypeQueryBuilder
 from bench.language.graph import NodeList
 from bench.language.node import (
     Node,
+    get_tk_b64_from_ck,
     get_tk_b64_from_ptr,
     node,
     pad_ck_from_tk_b64,
@@ -397,4 +398,4 @@ class Field(Node[FieldData], TypeInfoBase, _TypeQueryBuilder):
 
     @property
     def storage_key(self) -> str:
-        return f"{self.tk}-{self.identity_key}"
+        return f"{get_tk_b64_from_ck(self.ck)}-{self.identity_key}"

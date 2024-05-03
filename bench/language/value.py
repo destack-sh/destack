@@ -46,7 +46,7 @@ class Object:
 
     # content
     _type: "TypeInfoBase"
-    _value: dict[str, SomeValue] | None = None  # in unpacked form
+    _value: dict[str, SomeValue] | None = None  # in unpacked representation
     _is_revealed: bool = False
 
     # local identity (conforms with Struct protocol)
@@ -82,6 +82,18 @@ class Object:
             ancestor_prop=ancestor_property,
         )
 
+    @property
+    def _type_name(self) -> str:
+        if self._type.kind != TypeKind.OBJECT or self._type.base_type is None:
+            if self._type._resolved_type is not None:
+                return cast(TypeKind, self._type._resolved_type.kind).bench_name
+            elif self._type.kind is not None:
+                return self._type.kind.bench_name
+            else:
+                return "?Object"
+        else:
+            return self._type.base_type.absolute_path
+
     def __str__(self) -> str:
         if self._value is None:
             return ""
@@ -89,24 +101,17 @@ class Object:
         for field in self._type._base_fields:
             field_value = self._value.get(field.storage_key)
             if field_value:
+                key = field.py_ident or field.name
                 if type(field_value) is list:
-                    set_fields.append(f"{field.py_ident}({len(field_value)})")
+                    set_fields.append(f"{key}({len(field_value)})")
+                elif type(field_value) is Object:
+                    set_fields.append(f"{key}=<{field_value._type_name} (...)>")
                 else:
-                    set_fields.append(field.py_ident or field.name)
+                    set_fields.append(f"{key}={field_value!r}")
         return ", ".join(set_fields)
 
     def __repr__(self) -> str:
-        if self._type.kind != TypeKind.OBJECT or self._type.base_type is None:
-            if self._type._resolved_type is not None:
-                type_name = cast(TypeKind, self._type._resolved_type.kind).bench_name
-            elif self._type.kind is not None:
-                type_name = self._type.kind.bench_name
-            else:
-                type_name = "?Value"
-            return f"<{type_name} ({str(self)})>"
-        else:
-            type_name = self._type.base_type.absolute_path
-            return f"<{type_name} ({str(self)})>"
+        return f"<{self._type_name} ({self!s})>"
 
     def equals_content(self, other: Any) -> bool:
         """Checks if all fields of the two Values are equal (recursively)."""
@@ -312,21 +317,22 @@ def _pack_object_scalar(
     """
     value_packed: dict[str, JsonValue] = {}
     for field in typ._base_fields:
+        field_type = field._to_resolved()
         field_value = cast(SomeValue, getattr(value, field.name, None))
         if field_value is None:
             continue
-        elif field.kind == TypeKind.OBJECT:
-            value_packed[field.storage_key], _ = pack_value(field_value, field)
-        elif not field.is_list:
+        elif field_type.kind == TypeKind.OBJECT:
+            value_packed[field.storage_key], _ = pack_value(field_value, field_type)
+        elif not field_type.is_list:
             value_packed[field.storage_key] = _pack_value_scalar(
-                cast(ScalarValue, field_value), field
+                cast(ScalarValue, field_value), field_type
             )
         else:  # scalar list
             assert isinstance(
                 field_value, list
             ), f"{field_value!r} is not a list (expected {field!r})"
             value_packed[field.storage_key] = [
-                _pack_value_scalar(element, field) for element in field_value
+                _pack_value_scalar(element, field_type) for element in field_value
             ]
     return value_packed, None
 
@@ -339,20 +345,23 @@ def _unpack_object_scalar(
     """
     value: dict[str, SomeValue] = {}
     for field in typ._base_fields:
+        field_type = field._to_resolved()
         field_value_packed = value_packed.get(field.storage_key)
         if field_value_packed is None:
             continue
-        elif field.kind == TypeKind.OBJECT:
-            field_value = unpack_value(field_value_packed, None, field)
+        elif field_type.kind == TypeKind.OBJECT:
+            field_value = unpack_value(field_value_packed, None, field_type)
             if field_value is None:
                 continue
-        elif not field.is_list:
-            field_value = _unpack_value_scalar(field_value_packed, field)
+        elif not field_type.is_list:
+            field_value = _unpack_value_scalar(field_value_packed, field_type)
         else:  # scalar list
             assert isinstance(
                 field_value_packed, list
             ), f"{field_value_packed!r} is not a list (expected {field!r})"
-            field_value = [_unpack_value_scalar(element, field) for element in field_value_packed]
+            field_value = [
+                _unpack_value_scalar(element, field_type) for element in field_value_packed
+            ]
         value[field.storage_key] = field_value
     return Object.new(value, typ, is_revealed=secret_value_packed is not None)
 
