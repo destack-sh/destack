@@ -177,6 +177,7 @@ export function pushPopover(create: {
 
   // the info's reference is useful when overriding the actual reference in a directive
   const instance = { id: newPopoverId(), info, trigger, reference: info.reference ?? create.reference, container };
+  console.log("push popover", instance); // nocheckin
   _activePopovers.value.push(instance);
   triggerRef(_activePopovers);
   trigger.dataset[MENU_DATA_SET_ATTRIBUTE] = "true";
@@ -206,11 +207,11 @@ function makePopoverDirective(options: {
     mounted(el, binding) {
       const triggerEl = el as PopoverTriggerElement;
       triggerEl.menuOnEvent = (e: MouseEvent) => {
-        e.preventDefault();
-        e.stopPropagation();
         const reference = options.reference == "self" ? triggerEl : { x: e.clientX, y: e.clientY };
         const info = typeof binding.value == "function" ? binding.value() : binding.value;
         if (info.isEnabled === false) return;
+        e.preventDefault();
+        e.stopPropagation();
         pushPopover({ trigger: triggerEl, reference, info });
       };
       triggerEl.addEventListener(options.event, triggerEl.menuOnEvent);
