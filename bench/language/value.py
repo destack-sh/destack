@@ -13,9 +13,9 @@ from bench.language.const import (
     PrimitiveValue,
     StructType,
     TypeKind,
-    is_node_type,
     new_struct_id,
 )
+from bench.language.graph import ValueList
 from bench.language.property import Property
 from bench.language.setup import ENUM_CLASS_BY_TYPE
 from bench.proto.monkey import _PatchedMessage
@@ -39,8 +39,8 @@ ValueProperty = Union["Property", "Field"]
 @dataclass(slots=True)
 class Object:
     """
-    Any user-defined Value that's not builtin (has nested fields), can also be partial.
-    (e.g., the variable value of a Block, inputs to a Run, a Class instance).
+    Any user-defined Value with fields, can also be partial (e.g., Block variable, Run inputs, Class instance).
+    This is the user-defined equivalent of our built-in Objects (Structs/Nodes).
     TODO :Incomplete: handle :SecretValues
     """
 
@@ -71,6 +71,7 @@ class Object:
         is_revealed: bool = True,
         parent: ValueParent | None = None,
         parent_property: ValueProperty | None = None,
+        ancestor_property: Optional["Property"] = None,
     ) -> "Object":
         return Object(
             _type=type,
@@ -78,6 +79,7 @@ class Object:
             _is_revealed=is_revealed,
             parent=parent,
             parent_prop=parent_property,
+            ancestor_prop=ancestor_property,
         )
 
     def __str__(self) -> str:
@@ -132,9 +134,8 @@ class Object:
         if self._value is None:
             return field.default
         value = self._value.get(field.storage_key)
-        # nocheckin: resolve against graph if value is node reference
         if value is None:
-            return field.default
+            value = field.default
         return value
 
     def __setattr__(self, ident: str, value: SomeValue) -> None:
@@ -149,11 +150,13 @@ class Object:
 
         # coerce & copy if needed
         value = coerce_value(value, field)
-        # if field.kind == TypeKind.OBJECT or field.kind == TypeKind.STRUCT:
-        #     if not field.is_list:
-        #         value = cast("Object | Struct", value)._lazy_copy_to(self, field)
-        #     else:
-        #         value = ValueList._lazy_copy_for(cast(list["Object | Struct"], value), self, field)
+        if field.kind == TypeKind.OBJECT or field.kind == TypeKind.STRUCT:
+            if not field.is_list:
+                value = cast("Object | Struct", value)._move_to(self, field, self.ancestor_prop)
+            else:
+                value = ValueList._move_list(
+                    cast(list["Object | Struct"], value), self, field, self.ancestor_prop
+                )
         if self._value is None:
             self._value = {}
         self._value[field.storage_key] = value
@@ -161,8 +164,36 @@ class Object:
         # notify
         self._updated_self((field,))
 
-    def _lazy_copy_to(self, parent: ValueParent, prop: ValueProperty) -> "Object":
-        raise NotImplementedError("nocheckin: _lazy_copy_to")
+    def _move_to(
+        self, parent: ValueParent, prop: ValueProperty, ancestor_prop: Optional["Property"]
+    ) -> "Object":
+        """Move or copy this object into the given parent/prop."""
+        prop_key = prop.id_as_str if isinstance(prop, Property) else prop.identity_key
+        if self.parent is None:
+            # not yet assigned
+            self.parent = parent
+            self.parent_prop = prop
+            self.ancestor_prop = ancestor_prop
+            self.parent_key = prop_key
+            return self
+        elif self.parent is parent and self.parent_key == prop_key:
+            # already there
+            return self
+        else:
+            copy = self._copy_to(parent, prop, ancestor_prop)
+            return copy
+
+    def _copy_to(
+        self, parent: ValueParent, prop: ValueProperty, ancestor_prop: Optional["Property"]
+    ) -> "Object":
+        """Copy this object into the given parent/prop."""
+        value_packed, secret_value_packed = _pack_object_scalar(self, self._type)
+        copy = _unpack_object_scalar(value_packed, secret_value_packed, self._type)
+        copy.parent = parent
+        copy.parent_prop = prop
+        copy.ancestor_prop = ancestor_prop
+        copy.parent_key = prop.id_as_str if isinstance(prop, Property) else prop.identity_key
+        return copy
 
     def _updated_self(self, properties: tuple[Union["Property", "Field", Any], ...]) -> None:
         if self.parent is not None:
@@ -196,13 +227,6 @@ def coerce_value(value: Any, typ: "TypeInfoBase") -> SomeValue:
 
 
 def _coerce_value_scalar(value: ScalarValue, typ: "TypeInfoBase") -> ScalarValue:
-    # coerce nodes to node references
-    if typ.kind == TypeKind.NODE or typ.kind == TypeKind.BASED_NODE:
-        if not isinstance(value, Struct):
-            raise TypeError(f"{value!r} is not a Struct (expected {typ!r})")
-        if is_node_type(value.metatype):
-            value = cast("Node", value).to_ref()
-
     return value
 
 
@@ -233,9 +257,8 @@ def _pack_value_scalar(value: ScalarValue, typ: "TypeInfoBase") -> JsonValue:
         else:
             return cast(JsonValue, value)
     elif typ.kind == TypeKind.NODE or typ.kind == TypeKind.BASED_NODE:
-        assert (
-            cast("Struct", value).metatype == StructType.NODE_REFERENCE
-        ), f"{value!r} is not a NodeReference (expected {typ!r})"
+        if cast("Struct", value).metatype != StructType.NODE_REFERENCE:
+            value = cast("Node", value).to_ref()
         return cast("NodeReference", value)._to_data().to_robust_dict()
     elif typ.kind == TypeKind.ENUM:
         return cast(int, value)
@@ -280,7 +303,9 @@ def _unpack_value_scalar(value_packed: JsonValue, typ: "TypeInfoBase") -> Scalar
         raise TypeError(f"cannot unpack value of type {typ!r}")
 
 
-def _pack_object_scalar(value: Object, typ: "TypeInfoBase") -> tuple[JsonValue, JsonValue | None]:
+def _pack_object_scalar(
+    value: Object, typ: "TypeInfoBase"
+) -> tuple[dict[str, JsonValue], dict[str, JsonValue] | None]:
     """
     Packs an object value into a packed value & secret packed value.
     The secret split applies only to nested values within the type, not the type itself.

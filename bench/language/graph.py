@@ -775,7 +775,7 @@ class ValueList(list, Generic[ValueParentT]):
 
     def append(self, item: ValueT, after: ValueT | None = None, before: ValueT | None = None):
         if not self.is_property_reference:
-            item = item._lazy_copy_to(self.parent, self.parent_prop)  # type: ignore
+            item = item._move_to(self.parent, self.parent_prop)  # type: ignore
         super().append(item)
         if self.is_ordered:
             cast(Union["Object", "Struct"], item).order_key = get_order_key(
@@ -804,13 +804,13 @@ class ValueList(list, Generic[ValueParentT]):
         self.parent._updated_self((self.ancestor_prop,))
 
     @staticmethod
-    def _lazy_copy_for(
+    def _move_list(
         values: Collection[ValueT],
         parent: ValueParentT,
         parent_prop: ValueProperty,
         ancestor_prop: Optional["Property"] = None,
     ):
-        """Copies the values in the list if they belong to a different parent."""
+        """Moves or copies the values in the list to the given parent."""
         from bench.language.node import Property
 
         parent_key = (
