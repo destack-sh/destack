@@ -511,13 +511,6 @@ export function createField(
     throw new Error(`unexpected target node type: ${describeNode(target)}`);
   }
 
-  // assign color if option
-  if (zone == FieldZone.OPTION && !(fieldIn != null && "icon" in fieldIn)) {
-    const occupiedColors = siblings.map((f) => f.icon?.color?.type ?? ColorType.GRAY);
-    const colorType = getRandomColorType({ except: occupiedColors });
-    fieldIn = { ...fieldIn, icon: makeIcon({ faName: "fas fa-circle-small", color: colorType }) };
-  }
-
   // default to Text if no type given
   if (zone != FieldZone.OPTION && fieldIn?.kind == null) {
     fieldIn = { ...fieldIn, kind: TypeKind.STRUCT, benchType: BenchType.TEXT };
@@ -529,6 +522,13 @@ export function createField(
     fieldIn?.icon?.faName == getNodeIcon({ metatype: ObjectType.FIELD, ...fieldIn })?.faName
   ) {
     fieldIn = { ...fieldIn, icon: undefined };
+  }
+
+  // assign color if option
+  if (zone == FieldZone.OPTION && !(fieldIn != null && "icon" in fieldIn)) {
+    const occupiedColors = siblings.map((f) => f.icon?.color?.type ?? ColorType.GRAY);
+    const colorType = getRandomColorType({ except: occupiedColors });
+    fieldIn = { ...fieldIn, icon: makeIcon({ faName: "fas fa-circle-small", color: colorType }) };
   }
 
   const field = tx.create({
