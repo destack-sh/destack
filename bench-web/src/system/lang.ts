@@ -34,8 +34,14 @@ import {
   type PropertyInfo,
   TypeKind,
 } from "@/proto/wire";
-import { describeNode, isNode, toNodeReference, type TypedNodeReferenceData } from "@/proto/wiring";
-import { type ReadNodeGraph } from "@/system/graph";
+import {
+  describeNode,
+  isNode,
+  toNodeReference,
+  type AnyNodeReferenceData,
+  type TypedNodeReferenceData,
+} from "@/proto/wiring";
+import { isDescendantOf, resolveNode, type ReadNodeGraph } from "@/system/graph";
 import { ENUM_ICONS_BY_TYPE, getNodeIcon, makeIcon } from "@/system/icon";
 import type { Transaction } from "@/system/transaction";
 import { getViewForValueType, makeTypeInfo, type TypeIdentity } from "@/system/value";
@@ -296,6 +302,12 @@ const NODE_NAME_DISCRIMINATORS: Partial<Record<NodeType, string>> = {
   [NodeType.STEP]: "type",
 };
 
+function getNodeDiscriminator(node: { metatype: ObjectType } & Partial<AnyNodeData>): any | undefined {
+  const key = NODE_NAME_DISCRIMINATORS[node.metatype as unknown as NodeType];
+  if (key != null) return (node as any)[key];
+  else return undefined;
+}
+
 /** Generates a node name for our :AutoNaming. */
 export function generateNodeName<T extends NodeType>(metatype: T, siblings: AnyNodeData[], value?: number): string {
   let key: string | undefined;
@@ -333,21 +345,193 @@ export function isGeneratedNodeName(metatype: NodeType, name: string): boolean {
     const properties = PROPERTY_ENUM_BY_TYPE[metatype as unknown as ObjectType];
     const propertyInfos = PROPERTY_INFOS_BY_TYPE[metatype as unknown as ObjectType];
     const enumType = ENUM_BY_TYPE[propertyInfos[properties![key as any]]?.enumType!];
-    return enumType[typeName as any] != null;
+    return enumType[typeName as any] != null || NodeType[typeName as any] != null;
   } else {
     return NodeType[typeName as any] != null;
   }
 }
 
 /** Generates the name for a node in the given graph */
-export function makeNodeName(
-  graph: ReadNodeGraph,
-  node: { metatype: ObjectType; parentPtr?: NodeReferenceData; zone?: any; type?: any },
-): string {
+export function makeNodeName(graph: ReadNodeGraph, node: { metatype: ObjectType } & Partial<AnyNodeData>): string {
   if (node.parentPtr == null) throw new Error("parentPtr is required");
   const siblings = graph.getChildren(node.parentPtr, node.metatype as unknown as NodeType);
-  return generateNodeName(node.metatype as unknown as NodeType, siblings, node.zone ?? node.type);
+  return generateNodeName(node.metatype as unknown as NodeType, siblings, getNodeDiscriminator(node));
 }
+
+/**
+ * Auto-update any discriminator derived properties like generated name or additional flags.
+ *  (e.g. from Choice1 to Variable2, or Input3 to Output2)
+ **/
+export function onNodeMorphed(tx: Transaction, graph: ReadNodeGraph, node: AnyNodeData) {
+  // nocheckin
+  node = graph.getOrError({ id: node.id, ck: (node as any).ck }); // 'refresh' from graph with any optimistic changes
+
+  // auto update node name
+  if ("name" in node && node.name != null && isGeneratedNodeName(node.metatype as unknown as NodeType, node.name)) {
+    const siblings = graph
+      .getChildren(node.parentPtr!, node.metatype as unknown as NodeType)
+      .filter((n) => n.id != node.id);
+    const name = generateNodeName(node.metatype as unknown as NodeType, siblings, getNodeDiscriminator(node));
+    if (name != node.name) tx.updateDebounced({ ...node, name }, ["name"]);
+  }
+
+  // auto update block flags
+  if (isNode(node, NodeType.BLOCK)) {
+    if (node.type == BlockType.PAGE && !node.isPage) tx.updateDebounced(node, { isPage: true });
+    if (node.type == BlockType.PROTOCOL && !node.isProtocol) tx.updateDebounced(node, { isProtocol: true });
+  }
+}
+
+/**
+ * Moves the given node around.
+ * Except for 'up'/'down' requires a target as reference.
+ * If the node has an 'orderKey' we try to respect the anchor.
+ **/
+export function moveNode(
+  tx: Transaction,
+  graph: ReadNodeGraph,
+  node: AnyNodeData | AnyNodeReferenceData,
+  anchor: "start" | "center" | "end" | "before" | "after" | "up" | "down",
+  target?: AnyNodeData | AnyNodeReferenceData,
+) {
+  node = resolveNode(graph, node);
+  target = target != null ? resolveNode(graph, target) : undefined;
+  if (node?.id == target?.id) {
+    return; // no-op
+  } else if (target != null && isDescendantOf(graph, target, node)) {
+    throw new Error(`move ${describeNode(node)} to ${anchor} ${describeNode(target)} would be circular`);
+  }
+
+  if (anchor == "up" || anchor == "down") {
+    throw new Error(`not yet implemented`);
+  } else if (anchor == "start" || anchor == "end" || anchor == "before" || anchor == "after") {
+    // move before target (in its parent's children = target siblings)
+    if (target == null) throw new Error(`target required to move node ${anchor} ${describeNode(node)}`);
+    const targetParent = graph.getOrError(target.parentPtr!);
+    if ("orderKey" in node && "orderKey" in target) {
+      updateOrder({
+        tx,
+        node: node as AnyNodeData & { orderKey: string },
+        position: anchor == "start" || anchor == "before" ? "before" : "after",
+        reference: target as AnyNodeData & { orderKey: string },
+        getNodes: () => graph.getChildren(targetParent, target!.metatype as unknown as NodeType) as any,
+      });
+    }
+    tx.move({ ...node, parentPtr: target.parentPtr });
+  } else if (anchor == "center") {
+    // move to end of target's children of that type
+    if (target == null) throw new Error(`target required to move node ${anchor} ${describeNode(node)}`);
+    if ("orderKey" in node) {
+      updateOrder({
+        tx,
+        node: node as AnyNodeData & { orderKey: string },
+        position: "after",
+        reference: null,
+        getNodes: () => graph.getChildren(target!, node.metatype as unknown as NodeType) as any,
+      });
+    }
+    tx.move({ ...node, parentPtr: toNodeReference(target) });
+  } else {
+    throw new Error(`unexpected anchor: ${anchor}`);
+  }
+}
+
+/** Create a Block relative to another. */
+export function createBlock(
+  tx: Transaction,
+  graph: ReadNodeGraph,
+  blockIn: { type: BlockType; isPage?: boolean; isProtocol?: boolean },
+  anchor: "before" | "after",
+  targetPtr: BlockData | TypedNodeReferenceData<NodeType.BLOCK>,
+) {
+  const target = isNode(targetPtr) ? targetPtr : graph.getOrError(targetPtr);
+  const siblings = graph.getChildren(target.parentPtr!, NodeType.BLOCK);
+  const block = tx.create({
+    metatype: NodeType.BLOCK,
+    parentPtr: target.parentPtr,
+    packagePtr: target.packagePtr,
+    type: blockIn.type,
+    isPage: blockIn.isPage || blockIn.type == BlockType.PAGE,
+    isProtocol: blockIn.isProtocol || blockIn.type == BlockType.PROTOCOL,
+    orderKey: getOrderKey({ position: anchor, reference: target, nodes: siblings }),
+    name: makeNodeName(graph, { metatype: ObjectType.BLOCK, type: blockIn.type, parentPtr: target.parentPtr }),
+  });
+  return block;
+}
+
+/** Create a Field relative to a Field or a Block. */
+export function createField(
+  tx: Transaction,
+  graph: ReadNodeGraph,
+  anchor: "before" | "above" | "after" | "below" | "inside" | "center",
+  targetPtr: FieldData | TypedNodeReferenceData<NodeType.FIELD> | BlockData | TypedNodeReferenceData<NodeType.BLOCK>,
+  fieldIn?: Partial<FieldData>,
+) {
+  const target = isNode(targetPtr) ? targetPtr : graph.getOrError(targetPtr);
+
+  // get position within parent
+  let parentPtr: NodeReferenceData;
+  let orderKey: string;
+  let zone: FieldZone;
+  let siblings: FieldData[];
+  if (isNode(target, NodeType.BLOCK)) {
+    if (anchor != "inside" && anchor != "center") throw new Error(`unexpected anchor for block: ${anchor}`);
+    siblings = graph.getChildren(target, NodeType.FIELD);
+    parentPtr = toNodeReference(target);
+    orderKey = getOrderKey({ position: "after", reference: siblings[siblings.length - 1], nodes: siblings });
+    // figure out field kind based on block type
+    if (target.type == BlockType.CHOICE) zone = FieldZone.OPTION;
+    else if (TYPE_BLOCK_TYPES.includes(target.type)) zone = FieldZone.MEMBER;
+    else if (RUNNABLE_BLOCK_TYPES.includes(target.type)) zone = FieldZone.INPUT;
+    else zone = FieldZone.VARIABLE;
+  } else if (isNode(target, NodeType.FIELD)) {
+    if (anchor == "inside" || anchor == "center") throw new Error(`unexpected anchor for field: ${anchor}`);
+    siblings = graph.getChildren(target.parentPtr!, NodeType.FIELD);
+    parentPtr = target.parentPtr!;
+    orderKey = getOrderKey({ position: anchor, reference: target, nodes: siblings });
+    zone = target.zone;
+  } else {
+    throw new Error(`unexpected target node type: ${describeNode(target)}`);
+  }
+
+  // default to Text if no type given
+  if (zone != FieldZone.OPTION && fieldIn?.kind == null) {
+    fieldIn = { ...fieldIn, kind: TypeKind.STRUCT, benchType: BenchType.TEXT };
+  }
+
+  // reset icon if it's the default one (so we can easily change the type & icon will auto-change too)
+  if (
+    fieldIn?.icon != null &&
+    fieldIn?.icon?.faName == getNodeIcon({ metatype: ObjectType.FIELD, ...fieldIn })?.faName
+  ) {
+    fieldIn = { ...fieldIn, icon: undefined };
+  }
+
+  // assign color if option
+  if (zone == FieldZone.OPTION && !(fieldIn != null && "icon" in fieldIn)) {
+    const occupiedColors = siblings.map((f) => f.icon?.color?.type ?? ColorType.GRAY);
+    const colorType = getRandomColorType({ except: occupiedColors });
+    fieldIn = { ...fieldIn, icon: makeIcon({ faName: "fas fa-circle-small", color: colorType }) };
+  }
+
+  const field = tx.create({
+    name: makeNodeName(graph, { metatype: ObjectType.FIELD, parentPtr, zone: zone }),
+    zone,
+    ...fieldIn,
+    // overwrite non-required properties
+    id: undefined,
+    ck: undefined,
+    metatype: NodeType.FIELD,
+    parentPtr,
+    packagePtr: target.packagePtr,
+    orderKey,
+  });
+  return field;
+}
+
+//
+// Enums
+//
 
 // NOTE: we soft-limit the subset of available enum options in bench-web
 //  (in code and backend the entire ranges are available)
@@ -453,99 +637,6 @@ export function getRandomEnumOption<T extends EnumType>(enumType: T): EnumTypeMa
   return options[Math.floor(Math.random() * options.length)].value;
 }
 
-/** Create a Block relative to another. */
-export function createBlock(
-  tx: Transaction,
-  graph: ReadNodeGraph,
-  blockIn: { type: BlockType; isPage?: boolean; isProtocol?: boolean },
-  anchor: "before" | "after",
-  targetPtr: BlockData | TypedNodeReferenceData<NodeType.BLOCK>,
-) {
-  const target = isNode(targetPtr) ? targetPtr : graph.getOrError(targetPtr);
-  const siblings = graph.getChildren(target.parentPtr!, NodeType.BLOCK);
-  const block = tx.create({
-    metatype: NodeType.BLOCK,
-    parentPtr: target.parentPtr,
-    packagePtr: target.packagePtr,
-    type: blockIn.type,
-    isPage: blockIn.isPage || blockIn.type == BlockType.PAGE,
-    isProtocol: blockIn.isProtocol || blockIn.type == BlockType.PROTOCOL,
-    orderKey: getOrderKey({ position: anchor, reference: target, nodes: siblings }),
-    name: makeNodeName(graph, { metatype: ObjectType.BLOCK, type: blockIn.type, parentPtr: target.parentPtr }),
-  });
-  return block;
-}
-
-/** Create a Field relative to a Field or a Block. */
-export function createField(
-  tx: Transaction,
-  graph: ReadNodeGraph,
-  anchor: "before" | "above" | "after" | "below" | "inside" | "center",
-  targetPtr: FieldData | TypedNodeReferenceData<NodeType.FIELD> | BlockData | TypedNodeReferenceData<NodeType.BLOCK>,
-  fieldIn?: Partial<FieldData>,
-) {
-  const target = isNode(targetPtr) ? targetPtr : graph.getOrError(targetPtr);
-
-  // get position within parent
-  let parentPtr: NodeReferenceData;
-  let orderKey: string;
-  let zone: FieldZone;
-  let siblings: FieldData[];
-  if (isNode(target, NodeType.BLOCK)) {
-    if (anchor != "inside" && anchor != "center") throw new Error(`unexpected anchor for block: ${anchor}`);
-    siblings = graph.getChildren(target, NodeType.FIELD);
-    parentPtr = toNodeReference(target);
-    orderKey = getOrderKey({ position: "after", reference: siblings[siblings.length - 1], nodes: siblings });
-    // figure out field kind based on block type
-    if (target.type == BlockType.CHOICE) zone = FieldZone.OPTION;
-    else if (TYPE_BLOCK_TYPES.includes(target.type)) zone = FieldZone.MEMBER;
-    else if (RUNNABLE_BLOCK_TYPES.includes(target.type)) zone = FieldZone.INPUT;
-    else zone = FieldZone.VARIABLE;
-  } else if (isNode(target, NodeType.FIELD)) {
-    if (anchor == "inside" || anchor == "center") throw new Error(`unexpected anchor for field: ${anchor}`);
-    siblings = graph.getChildren(target.parentPtr!, NodeType.FIELD);
-    parentPtr = target.parentPtr!;
-    orderKey = getOrderKey({ position: anchor, reference: target, nodes: siblings });
-    zone = target.zone;
-  } else {
-    throw new Error(`unexpected target node type: ${describeNode(target)}`);
-  }
-
-  // default to Text if no type given
-  if (zone != FieldZone.OPTION && fieldIn?.kind == null) {
-    fieldIn = { ...fieldIn, kind: TypeKind.STRUCT, benchType: BenchType.TEXT };
-  }
-
-  // reset icon if it's the default one (so we can easily change the type & icon will auto-change too)
-  if (
-    fieldIn?.icon != null &&
-    fieldIn?.icon?.faName == getNodeIcon({ metatype: ObjectType.FIELD, ...fieldIn })?.faName
-  ) {
-    fieldIn = { ...fieldIn, icon: undefined };
-  }
-
-  // assign color if option
-  if (zone == FieldZone.OPTION && !(fieldIn != null && "icon" in fieldIn)) {
-    const occupiedColors = siblings.map((f) => f.icon?.color?.type ?? ColorType.GRAY);
-    const colorType = getRandomColorType({ except: occupiedColors });
-    fieldIn = { ...fieldIn, icon: makeIcon({ faName: "fas fa-circle-small", color: colorType }) };
-  }
-
-  const field = tx.create({
-    name: makeNodeName(graph, { metatype: ObjectType.FIELD, parentPtr, zone: zone }),
-    zone,
-    ...fieldIn,
-    // overwrite non-required properties
-    id: undefined,
-    ck: undefined,
-    metatype: NodeType.FIELD,
-    parentPtr,
-    packagePtr: target.packagePtr,
-    orderKey,
-  });
-  return field;
-}
-
 //
 // Inspection
 //
@@ -580,6 +671,7 @@ type InspectedProperty = {
 type InspectedPropertyIn = Pick<InspectedProperty, "title" | "viewType" | "props" | "isFullWidth" | "read" | "write">;
 type InspectionLayout = {
   properties: InspectedProperty[];
+  onWrite?: (tx: Transaction, graph: ReadNodeGraph, node: AnyNodeData, property: PropertyInfo) => void;
 };
 
 // NOTE: we (try to) only use metatype/type to avoid recomputing inspection layouts on every change (might have to revisit)
@@ -741,5 +833,14 @@ export function getInspectionLayout(
       }
     }
   }
-  return { properties: inspectedProperties };
+
+  const discriminator = NODE_NAME_DISCRIMINATORS[metatype as unknown as NodeType];
+  function onWrite(tx: Transaction, graph: ReadNodeGraph, node: AnyNodeData, property: PropertyInfo) {
+    // trigger morph
+    if (discriminator == property.name) {
+      onNodeMorphed(tx, graph, node);
+    }
+  }
+
+  return { properties: inspectedProperties, onWrite };
 }

@@ -1,8 +1,8 @@
 import { NodeReferenceData, NodeType } from "@/proto/wire";
 import { describeNode, isNode } from "@/proto/wiring";
 import type { ActionContext, ActionMapImplementation } from "@/system/action";
-import { moveNode, type NodeTreeItem, type ReadNodeGraph } from "@/system/graph";
-import { updateOrder } from "@/system/lang";
+import { type NodeTreeItem, type ReadNodeGraph } from "@/system/graph";
+import { moveNode, updateOrder } from "@/system/lang";
 import { pkgGraph } from "@/system/space";
 import type { Transaction } from "@/system/transaction";
 import type { Ref } from "vue";

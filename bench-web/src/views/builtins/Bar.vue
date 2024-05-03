@@ -57,7 +57,7 @@ const BENCH_MENU_ITEMS = computed(() => {
       category: "main",
       icon: ICON_BY_NODE_TYPE[NodeType.VIEW],
       title: "View",
-      action: { items: menuActionsLike(["view*"]) },
+      action: { items: menuActionsLike(["view.navigate.close*", "view.layout.*", "view.canvas.*"]) },
     },
     {
       id: "edit",

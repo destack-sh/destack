@@ -243,7 +243,7 @@ defineExpose<ViewExposed>({ self, id, variants: [Variant.PRIMARY, Variant.STEALT
     </div>
     <!-- Body -->
     <div class="flex flex-col gap-y-1.5 py-0.5">
-      <!-- Variable ... -->
+      <!-- Variable(s) ... -->
       <Value
         v-if="block.type == BlockType.VARIABLE"
         :value-type="block.builtinBase"

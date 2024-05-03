@@ -177,7 +177,6 @@ export function pushPopover(create: {
 
   // the info's reference is useful when overriding the actual reference in a directive
   const instance = { id: newPopoverId(), info, trigger, reference: info.reference ?? create.reference, container };
-  console.log("push popover", instance); // nocheckin
   _activePopovers.value.push(instance);
   triggerRef(_activePopovers);
   trigger.dataset[MENU_DATA_SET_ATTRIBUTE] = "true";
