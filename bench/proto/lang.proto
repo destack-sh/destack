@@ -777,7 +777,7 @@ enum ReferenceKind {
   REFERENCE_KIND_NODE_ANCESTOR_ROOT = 1;
   REFERENCE_KIND_NODE_ANCESTOR_FIRST = 2;
   REFERENCE_KIND_NODE_PARENT = 3;
-  REFERENCE_KIND_NODE_CHILD = 4;
+  REFERENCE_KIND_NODE_CHILDREN = 4;
   REFERENCE_KIND_NODE_REGULAR = 5;
   REFERENCE_KIND_STRUCT_PARENT = 6;
   REFERENCE_KIND_STRUCT_CHILD = 7;
@@ -986,6 +986,8 @@ enum TextLineType {
   TEXT_LINE_TYPE_QUOTE = 21;
   TEXT_LINE_TYPE_LIST_BULLET = 30;
   TEXT_LINE_TYPE_LIST_NUMBERED = 31;
+  TEXT_LINE_TYPE_LIST_UNCHECKED = 32;
+  TEXT_LINE_TYPE_LIST_CHECKED = 33;
   TEXT_LINE_TYPE_DIVIDER = 40;
 }
 
@@ -1575,7 +1577,9 @@ message SubjectData {
   repeated NodeReferenceData roles_ptr = 46;
 }
 
-// Text(lines: list['TextLine'] = None, id: int = <factory>, parent: Union[ForwardRef('Struct'), ForwardRef('Node'), ForwardRef('Object'), NoneType] = None, order_key: str | None = None, set_properties: list[int] = <factory>, _status: bench.language.const.InterpStatus = None, _updated_properties: bitarray.bitarray | None = None, parent_id: int = None, parent_key: str = None)
+// Rich, markdown-inspired Text with mentions, tables & other extensions.
+// Text is structured into lines, which contain spans.
+// Formatting may be applied at the block (Text), line and span levels.
 message TextData {
   ObjectType metatype = 1;
   int32 id = 2;
@@ -1586,7 +1590,8 @@ message TextData {
   repeated TextLineData lines = 32;
 }
 
-// TextLine(type: bench.language.text.TextLineType = <TextLineType.PLAIN: 1>, spans: list['TextSpan'] = None, icon: Optional[ForwardRef('Icon')] = None, id: int = <factory>, parent: Union[ForwardRef('Struct'), ForwardRef('Node'), ForwardRef('Object'), NoneType] = None, order_key: str | None = None, set_properties: list[int] = <factory>, _status: bench.language.const.InterpStatus = None, _updated_properties: bitarray.bitarray | None = None, color: Optional[ForwardRef('ColorType')] = None, is_bold: Optional[bool] = None, is_italic: Optional[bool] = None, is_strikethrough: Optional[bool] = None, is_underline: Optional[bool] = None, is_code: Optional[bool] = None, parent_id: int = None, parent_key: str = None)
+// A single line of Text with formatting, composed of spans.
+// A line may contain hard breaks, so it's effectively a paragraph.
 message TextLineData {
   ObjectType metatype = 1;
   int32 id = 2;
@@ -2470,7 +2475,7 @@ message SpaceData {
   optional NodeReferenceData base_ptr = 76;
 }
 
-// A logic, data or control flow unit in a Flow (Block).
+// An informational, logic, data or control flow unit in a Flow (Block).
 // NOTE: steps only track incoming connections.
 message StepData {
   ObjectType metatype = 1;

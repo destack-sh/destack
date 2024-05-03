@@ -1376,7 +1376,9 @@ export interface SubjectData {
     rolesPtr: NodeReferenceData[];
 }
 /**
- * Text(lines: list['TextLine'] = None, id: int = <factory>, parent: Union[ForwardRef('Struct'), ForwardRef('Node'), ForwardRef('Object'), NoneType] = None, order_key: str | None = None, set_properties: list[int] = <factory>, _status: bench.language.const.InterpStatus = None, _updated_properties: bitarray.bitarray | None = None, parent_id: int = None, parent_key: str = None)
+ * Rich, markdown-inspired Text with mentions, tables & other extensions.
+ * Text is structured into lines, which contain spans.
+ * Formatting may be applied at the block (Text), line and span levels.
  *
  * @generated from protobuf message symbolx.bench.TextData
  */
@@ -1411,7 +1413,8 @@ export interface TextData {
     lines: TextLineData[];
 }
 /**
- * TextLine(type: bench.language.text.TextLineType = <TextLineType.PLAIN: 1>, spans: list['TextSpan'] = None, icon: Optional[ForwardRef('Icon')] = None, id: int = <factory>, parent: Union[ForwardRef('Struct'), ForwardRef('Node'), ForwardRef('Object'), NoneType] = None, order_key: str | None = None, set_properties: list[int] = <factory>, _status: bench.language.const.InterpStatus = None, _updated_properties: bitarray.bitarray | None = None, color: Optional[ForwardRef('ColorType')] = None, is_bold: Optional[bool] = None, is_italic: Optional[bool] = None, is_strikethrough: Optional[bool] = None, is_underline: Optional[bool] = None, is_code: Optional[bool] = None, parent_id: int = None, parent_key: str = None)
+ * A single line of Text with formatting, composed of spans.
+ * A line may contain hard breaks, so it's effectively a paragraph.
  *
  * @generated from protobuf message symbolx.bench.TextLineData
  */
@@ -4560,7 +4563,7 @@ export interface SpaceData {
     basePtr?: NodeReferenceData;
 }
 /**
- * A logic, data or control flow unit in a Flow (Block).
+ * An informational, logic, data or control flow unit in a Flow (Block).
  * NOTE: steps only track incoming connections.
  *
  * @generated from protobuf message symbolx.bench.StepData
@@ -8219,9 +8222,9 @@ export enum ReferenceKind {
      */
     NODE_PARENT = 3,
     /**
-     * @generated from protobuf enum value: REFERENCE_KIND_NODE_CHILD = 4;
+     * @generated from protobuf enum value: REFERENCE_KIND_NODE_CHILDREN = 4;
      */
-    NODE_CHILD = 4,
+    NODE_CHILDREN = 4,
     /**
      * @generated from protobuf enum value: REFERENCE_KIND_NODE_REGULAR = 5;
      */
@@ -8927,6 +8930,14 @@ export enum TextLineType {
      * @generated from protobuf enum value: TEXT_LINE_TYPE_LIST_NUMBERED = 31;
      */
     LIST_NUMBERED = 31,
+    /**
+     * @generated from protobuf enum value: TEXT_LINE_TYPE_LIST_UNCHECKED = 32;
+     */
+    LIST_UNCHECKED = 32,
+    /**
+     * @generated from protobuf enum value: TEXT_LINE_TYPE_LIST_CHECKED = 33;
+     */
+    LIST_CHECKED = 33,
     /**
      * @generated from protobuf enum value: TEXT_LINE_TYPE_DIVIDER = 40;
      */
