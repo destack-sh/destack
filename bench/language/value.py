@@ -455,4 +455,5 @@ from bench.language.node import Struct, struct_component  # noqa: E402
 
 @struct_component()
 class HasValues(Struct):
+    # nocheckin: HasValues
     pass

@@ -1053,7 +1053,7 @@ class Struct(abc.ABC, Generic[StructDataT]):
 
     def __setattr(self, key, value):
         """Sets *any* attribute on this node (incl. slots)."""
-        is_tracked = self.__dict__.get("status", UNSET) == InterpStatus.TRACKED
+        is_tracked = self.__dict__.get("_status", UNSET) == InterpStatus.TRACKED
         prop = self.__properties__.get(key)
         if prop is not None:
             if prop.is_ephemeral or prop.is_autoset:  # untracked
@@ -1086,14 +1086,16 @@ class Struct(abc.ABC, Generic[StructDataT]):
                 except ValidationError:  # reset on error
                     object.__setattr__(self, key, prev)
                     raise
-                # notify
-                self._updated_self((prop,))
             else:
                 object.__setattr__(self, key, value)
 
             # update reference pointers :NodeRefs
             if self._status is not None and prop.reference_wired_ptr is not None:
                 object.__setattr__(self, prop.reference_wired_ptr.name, prop.to_wired_ptr(value))
+
+            if is_tracked:
+                # notify
+                self._updated_self((prop,))
         elif is_tracked and self.__passthrough__ is not None:
             # try passthrough target (if any)
             target = getattr(self, self.__passthrough__)
