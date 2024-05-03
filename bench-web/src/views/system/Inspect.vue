@@ -144,6 +144,7 @@ defineExpose<ViewExposed>({ self });
                 (value: any) => {
                   if (write != null) write(pkgConnection.tx, node!, value);
                   else pkgConnection.tx.updateDebounced(node!, { [protoName!]: value });
+                  inspectionLayout?.onWrite?.(pkgConnection.tx, pkgGraph, node!, property)
                 }
               "
             />

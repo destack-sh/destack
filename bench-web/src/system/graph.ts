@@ -998,59 +998,6 @@ export function resolveNode(graph: ReadNodeGraph, node: AnyNodeData | AnyNodeRef
     : (node as AnyNodeData);
 }
 
-/**
- * Moves the given node around.
- * Except for 'up'/'down' requires a target as reference.
- * If the node has an 'orderKey' we try to respect the anchor.
- **/
-export function moveNode(
-  tx: Transaction,
-  graph: ReadNodeGraph,
-  node: AnyNodeData | AnyNodeReferenceData,
-  anchor: "start" | "center" | "end" | "before" | "after" | "up" | "down",
-  target?: AnyNodeData | AnyNodeReferenceData,
-) {
-  node = resolveNode(graph, node);
-  target = target != null ? resolveNode(graph, target) : undefined;
-  if (node?.id == target?.id)
-    return; // no-op
-  else if (target != null && isDescendantOf(graph, target, node))
-    throw new Error(`move ${describeNode(node)} to ${anchor} ${describeNode(target)} would be circular`);
-
-  if (anchor == "up" || anchor == "down") {
-    throw new Error(`not yet implemented`);
-  } else if (anchor == "start" || anchor == "end" || anchor == "before" || anchor == "after") {
-    // move before target (in its parent's children = target siblings)
-    if (target == null) throw new Error(`target required to move node ${anchor} ${describeNode(node)}`);
-    const targetParent = graph.getOrError(target.parentPtr!);
-    if ("orderKey" in node && "orderKey" in target) {
-      updateOrder({
-        tx,
-        node: node as AnyNodeData & { orderKey: string },
-        position: anchor == "start" || anchor == "before" ? "before" : "after",
-        reference: target as AnyNodeData & { orderKey: string },
-        getNodes: () => graph.getChildren(targetParent, target!.metatype as unknown as NodeType) as any,
-      });
-    }
-    tx.move({ ...node, parentPtr: target.parentPtr });
-  } else if (anchor == "center") {
-    // move to end of target's children of that type
-    if (target == null) throw new Error(`target required to move node ${anchor} ${describeNode(node)}`);
-    if ("orderKey" in node) {
-      updateOrder({
-        tx,
-        node: node as AnyNodeData & { orderKey: string },
-        position: "after",
-        reference: null,
-        getNodes: () => graph.getChildren(target!, node.metatype as unknown as NodeType) as any,
-      });
-    }
-    tx.move({ ...node, parentPtr: toNodeReference(target) });
-  } else {
-    throw new Error(`unexpected anchor: ${anchor}`);
-  }
-}
-
 export type NodeTreeItem<T extends NodeType> = {
   node: NodeTypeMapping[T];
   nodePtr: TypedNodeReferenceData<T>;

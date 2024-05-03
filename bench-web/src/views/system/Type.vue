@@ -3,8 +3,7 @@ import { BlockType, FieldZone, NodeType, Orientation, Variant, ViewData, type Fi
 import { isNode, toNodeReference, type TypedNodeReferenceData } from "@/proto/wiring";
 import type { ActionContext, ActionMapImplementation } from "@/system/action";
 import { useGetConnection, type PreparedGetConnection } from "@/system/connection";
-import { moveNode } from "@/system/graph";
-import { RUNNABLE_BLOCK_TYPES, createField, toCamelName } from "@/system/lang";
+import { RUNNABLE_BLOCK_TYPES, createField, moveNode, onNodeMorphed, toCamelName } from "@/system/lang";
 import { canvas } from "@/system/space";
 import { startDragging, useMultiDropZone, type DraggedData, type MultiAnchor } from "@/utils/drag";
 import { menuActionsLike, type PopoverInfo } from "@/utils/menu";
@@ -85,11 +84,13 @@ function onDrop(dragged: DraggedData, anchor: MultiAnchor, targetId: string | nu
       moveNode(pkgConnection.tx, pkgGraph, dragged.node, anchor, target);
       if (node.zone != target.zone) {
         pkgConnection.tx.update(node, { zone: target.zone });
+        onNodeMorphed(pkgConnection.tx, pkgGraph, node);
       }
     } else {
       moveNode(pkgConnection.tx, pkgGraph, dragged.node, "center", block.value!);
       if (node.zone != sideZone) {
         pkgConnection.tx.updateDebounced(node, { zone: sideZone ?? undefined });
+        onNodeMorphed(pkgConnection.tx, pkgGraph, node);
       }
     }
   }
