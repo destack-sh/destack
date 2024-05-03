@@ -36,7 +36,7 @@ const DEPTH_OFFSET = 40;
 const MIN_BLOCK_WIDTH = 500;
 const MAX_BLOCK_WIDTH = 800;
 const MIN_GUTTER_WIDTH = 40;
-const ROOT_BLOCK_GAP_Y = 12;
+const ROOT_BLOCK_GAP_Y = 8;
 const NESTED_BLOCK_GAP_Y = 8;
 
 const props = defineProps<
