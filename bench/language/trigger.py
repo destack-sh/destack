@@ -10,12 +10,7 @@ from bench.language.graph import NodeList
 from bench.language.node import Node, Struct, node, struct
 from bench.language.notice import Notice
 from bench.language.property import Property, p_node_child, p_node_parent, p_regular
-from bench.language.validation import (
-    ValidationHandler,
-    enum_validator,
-    int_range_validator,
-    validate_name,
-)
+from bench.language.validation import NAME_CONSTRAINT, ValidationHandler
 from bench.proto.wire import TriggerData
 
 if TYPE_CHECKING:
@@ -35,13 +30,9 @@ TRIGGER_INTERVAL_ABS_MIN = 60  # seconds :MinTriggerInterval
 class Schedule(Struct):
     """The time-based schedule of something."""
 
-    type: ScheduleType = p_regular(30, require=True, validate=enum_validator(ScheduleType))
+    type: ScheduleType = p_regular(30, require=True)
     timezone: Optional[str] = p_regular(31, default=pytz.utc.zone)
-    interval: Optional[int] = p_regular(
-        32,
-        default=None,
-        validate=int_range_validator(TRIGGER_INTERVAL_USR_MIN, TRIGGER_INTERVAL_ABS_MAX),
-    )
+    interval: Optional[int] = p_regular(32, default=None)
     cron: Optional[str] = p_regular(33, default=None)
 
     def __content_str__(self) -> str:
@@ -70,8 +61,8 @@ class Schedule(Struct):
 @node(NodeType.TRIGGER)
 class Trigger(Node[TriggerData]):
     parent: "Block" = p_node_parent(4, NodeType.BLOCK)  # type: ignore
-    type: TriggerType = p_regular(30, require=True, validate=enum_validator(TriggerType))
-    name: str = p_regular(31, validate=validate_name)
+    type: TriggerType = p_regular(30, require=True)
+    name: str = p_regular(31, constraint=NAME_CONSTRAINT)
     active: bool = p_regular(32, default=True)
     schedule: Optional[Schedule] = p_regular(
         33, default=None, require=False, array=False, struct=StructType.SCHEDULE

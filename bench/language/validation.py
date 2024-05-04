@@ -1,15 +1,12 @@
-import enum
-import re
+from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any, Callable, Collection, Optional, TypedDict, Union
 
 import betterproto
-import cachetools
 
 from bench.language.const import BenchError
 
 if TYPE_CHECKING:
-    from bench.language import Property
-    from bench.language.node import Node, Struct
+    from bench.language import Property, Struct, TypeConstraint
     from bench.proto.wire import AnyNodeData, AnyStructData
 
 
@@ -51,114 +48,34 @@ def on_invalid_raise(
     raise ValidationError(subject, message, options)
 
 
-class PropertyValidationHandler:
-    def __init__(self, subject: "Struct", prop: "Property", handler: ValidationHandler):
-        self.subject = subject
-        self.handler = handler
-        self.prop = prop
-
-    def __call__(
-        self,
-        message: str,
-        cause: Exception | None = None,
-    ):
-        message = f"{self.prop.name}: {message}"
-        self.handler(self.subject, message, {"properties": (self.prop,), "cause": cause})
-
-
 MIN_NAME_LENGTH = 1
 MAX_NAME_LENGTH = 128
 SLUG_REGEX = r"^[a-z0-9-]{3,}$"
 EMAIL_REGEX = r"^[a-zA-Z0-9_.+-]+@[a-zA-Z0-9-]+\.[a-zA-Z0-9-.]+$"
 
 
-def validate_name(prop: "Property", value: str, invalid: PropertyValidationHandler):
-    if not isinstance(value, str):
-        invalid(f"not a string ({type(value)})")
-    if len(value) < MIN_NAME_LENGTH:
-        invalid(f"too short ({len(value)} < {MIN_NAME_LENGTH})")
-    if len(value) > MAX_NAME_LENGTH:
-        invalid(f"too long ({len(value)} > {MAX_NAME_LENGTH})")
+@dataclass(slots=True)
+class TypeConstraintIn:
+    """A mini-TypeConstraint so we can define constraints without having to import TypeConstraint."""
+
+    min_value: float | None = None
+    max_value: float | None = None
+    min_length: int | None = None
+    max_length: int | None = None
+    regex: str | None = None
+
+    def into(self) -> "TypeConstraint":
+        from bench.language.field import TypeConstraint
+
+        return TypeConstraint(
+            min_value=self.min_value,
+            max_value=self.max_value,
+            min_length=self.min_length,
+            max_length=self.max_length,
+            regex=self.regex,
+        )
 
 
-def validate_slug(prop: "Property", value: str, invalid: PropertyValidationHandler):
-    if not isinstance(value, str):
-        invalid(f"not a string ({type(value)})")
-    if not re.match(SLUG_REGEX, value):
-        invalid(f"invalid slug ('{value}')")
-
-
-def validate_email(prop: "Property", value: str, invalid: PropertyValidationHandler):
-    if not isinstance(value, str):
-        invalid(f"not a string ({type(value)})")
-    if not re.match(EMAIL_REGEX, value):
-        invalid(f"invalid email ('{value}')")
-
-
-# TODO :Robustness: compile constraints into SQL?
-
-
-# NOTE: we cache these validators not for performance but for reference equality
-
-
-@cachetools.cached({})
-def parent_validator():
-    def validate_parent(prop: "Property", value: "Node", invalid: PropertyValidationHandler):
-        assert prop.reference_nodes is not None, f"missing reference_nodes for {prop!r}"
-        if value.metatype not in prop.reference_nodes:
-            invalid(f"invalid parent type ({value.metatype} not in {prop.reference_nodes})")
-
-    return validate_parent
-
-
-@cachetools.cached({})
-def enum_validator(t: type[enum.StrEnum | enum.IntEnum]):
-    assert issubclass(t, (enum.StrEnum, enum.IntEnum)), f"invalid enum type: {t!r}"
-
-    def validate_enum(prop: "Property", value: str, invalid: PropertyValidationHandler):
-        if not isinstance(value, t) and value not in t.__members__:
-            invalid(f"invalid {t.__name__} ('{value}')")
-
-    return validate_enum
-
-
-@cachetools.cached({})
-def int_range_validator(min: int, max: int):
-    assert min <= max, f"invalid range: {min} > {max}"
-
-    def validate_range(prop: "Property", value: int, invalid: PropertyValidationHandler):
-        if not isinstance(value, int):
-            invalid(f"not an integer ({type(value)})")
-        if value < min:
-            invalid(f"too small ({value} < {min})")
-        if value > max:
-            invalid(f"too large ({value} > {max})")
-
-    return validate_range
-
-
-@cachetools.cached({})
-def float_range_validator(min: float, max: float):
-    assert min <= max, f"invalid range: {min} > {max}"
-
-    def validate_range(prop: "Property", value: float, invalid: PropertyValidationHandler):
-        if not isinstance(value, float):
-            invalid(f"not a float ({type(value)})")
-        if value < min:
-            invalid(f"too small ({value} < {min})")
-        if value > max:
-            invalid(f"too large ({value} > {max})")
-
-    return validate_range
-
-
-@cachetools.cached({})
-def flag_validator(t: type[enum.IntFlag]):
-    assert issubclass(t, enum.IntFlag), f"invalid flag type: {t!r}"
-    valid_mask = sum(t.__members__.values())
-
-    def validate_flag(prop: "Property", value: int, invalid: PropertyValidationHandler):
-        if not isinstance(value, t) and value & ~valid_mask:
-            invalid(f"invalid {t.__name__} ({value} & ~{valid_mask})")
-
-    return validate_flag
+NAME_CONSTRAINT = TypeConstraintIn(min_length=MIN_NAME_LENGTH, max_length=MAX_NAME_LENGTH)
+SLUG_CONSTRAINT = TypeConstraintIn(regex=SLUG_REGEX)
+EMAIL_CONSTRAINT = TypeConstraintIn(regex=EMAIL_REGEX)

@@ -42,7 +42,7 @@ from .expression import (
     S,
     ValueReference,
 )
-from .field import Field, TypeInfo
+from .field import Field, TypeConstraint, TypeInfo, TypeInfoBase
 from .file import File, Icon
 from .flow import Step, StepType
 from .graph import ValueList
@@ -159,7 +159,9 @@ __all__ = [
     "Transaction",
     "Trigger",
     "TriggerType",
+    "TypeConstraint",
     "TypeInfo",
+    "TypeInfoBase",
     "Upgrade",
     "User",
     "ValidationError",

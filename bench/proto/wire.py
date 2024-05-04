@@ -137,11 +137,10 @@ class BenchType(betterproto.Enum):
     PROPERTY_REFERENCE = 1004
     VALUE_REFERENCE = 1005
     TYPE_INFO = 1010
-    CONTEXT = 1011
+    TYPE_CONSTRAINT = 1011
+    CONTEXT = 1020
     SCHEDULE = 1012
     PROJECTION = 1013
-    FILE = 1020
-    ICON = 1021
     POLICY = 1030
     POLICY_RULE = 1031
     SUBJECT = 1032
@@ -168,6 +167,8 @@ class BenchType(betterproto.Enum):
     FONT = 1201
     BOX = 1202
     OFFSET = 1203
+    FILE = 1250
+    ICON = 1251
     ENUM_TYPE = 2001
     NODE_TYPE = 2002
     STRUCT_TYPE = 2003
@@ -683,11 +684,10 @@ class ObjectType(betterproto.Enum):
     PROPERTY_REFERENCE = 1004
     VALUE_REFERENCE = 1005
     TYPE_INFO = 1010
-    CONTEXT = 1011
+    TYPE_CONSTRAINT = 1011
+    CONTEXT = 1020
     SCHEDULE = 1012
     PROJECTION = 1013
-    FILE = 1020
-    ICON = 1021
     POLICY = 1030
     POLICY_RULE = 1031
     SUBJECT = 1032
@@ -714,6 +714,8 @@ class ObjectType(betterproto.Enum):
     FONT = 1201
     BOX = 1202
     OFFSET = 1203
+    FILE = 1250
+    ICON = 1251
 
 
 class OrganizationStatus(betterproto.Enum):
@@ -975,11 +977,10 @@ class StructType(betterproto.Enum):
     PROPERTY_REFERENCE = 1004
     VALUE_REFERENCE = 1005
     TYPE_INFO = 1010
-    CONTEXT = 1011
+    TYPE_CONSTRAINT = 1011
+    CONTEXT = 1020
     SCHEDULE = 1012
     PROJECTION = 1013
-    FILE = 1020
-    ICON = 1021
     POLICY = 1030
     POLICY_RULE = 1031
     SUBJECT = 1032
@@ -1006,6 +1007,8 @@ class StructType(betterproto.Enum):
     FONT = 1201
     BOX = 1202
     OFFSET = 1203
+    FILE = 1250
+    ICON = 1251
 
 
 class Tenancy(betterproto.Enum):
@@ -1790,9 +1793,30 @@ class TextSpanData(betterproto.Message):
 
 
 @dataclass(eq=False, repr=False)
+class TypeConstraintData(betterproto.Message):
+    """
+    A simple constraint on the values of a type. :TypeConstraint
+     NOTE :Architecture: ideally all type constraints should be done in expressions?
+    """
+
+    metatype: "ObjectType" = betterproto.enum_field(1)
+    id: int = betterproto.int32_field(2)
+    parent_id: Optional[int] = betterproto.int32_field(3, optional=True)
+    parent_key: Optional[str] = betterproto.string_field(4, optional=True)
+    order_key: Optional[str] = betterproto.string_field(5, optional=True)
+    set_properties: List[int] = betterproto.int32_field(22)
+    min_value: Optional[float] = betterproto.float_field(40, optional=True)
+    max_value: Optional[float] = betterproto.float_field(41, optional=True)
+    step_value: Optional[float] = betterproto.float_field(42, optional=True)
+    regex: Optional[str] = betterproto.string_field(50, optional=True)
+    min_length: Optional[int] = betterproto.int32_field(51, optional=True)
+    max_length: Optional[int] = betterproto.int32_field(52, optional=True)
+
+
+@dataclass(eq=False, repr=False)
 class TypeInfoData(betterproto.Message):
     """
-    TypeInfo(id: int = <factory>, parent: Union[ForwardRef('Struct'), ForwardRef('Node'), ForwardRef('Object'), NoneType] = None, order_key: str | None = None, set_properties: list[int] = <factory>, _status: bench.language.const.InterpStatus = None, _updated_properties: bitarray.bitarray | None = None, kind: Optional[bench.language.const.TypeKind] = None, primitive_type: Optional[bench.language.const.PrimitiveType] = None, bench_type: Optional[bench.utils.func.BenchType] = None, base_type: Union[ForwardRef('Block'), ForwardRef('Step'), NoneType] = None, base_field_zone: Optional[ForwardRef('FieldZone')] = None, visibility: Optional[bench.language.const.NodeVisibility] = None, format_hint: Optional[bench.language.const.FormatHint] = None, condition: Optional[ForwardRef('Expression')] = None, default_packed: Optional[Any] = None, default: None = None, is_list: bool = False, is_secret: bool = False, is_required: bool = False, _resolved_type: Optional[ForwardRef('TypeInfoBase')] = None, _resolved_identity_key: str | None = None, parent_id: int = None, parent_key: str = None, base_type_ptr: 'NodeReference' = None)
+    TypeInfo(id: int = <factory>, parent: Union[ForwardRef('Struct'), ForwardRef('Node'), ForwardRef('Object'), NoneType] = None, order_key: str | None = None, set_properties: list[int] = <factory>, _status: bench.language.const.InterpStatus = None, _updated_properties: bitarray.bitarray | None = None, kind: Optional[bench.language.const.TypeKind] = None, primitive_type: Optional[bench.language.const.PrimitiveType] = None, bench_type: Optional[bench.utils.func.BenchType] = None, base_type: Union[ForwardRef('Block'), ForwardRef('Step'), NoneType] = None, base_field_zone: Optional[ForwardRef('FieldZone')] = None, default_packed: Optional[Any] = None, default: None = None, visibility: Optional[bench.language.const.NodeVisibility] = None, format_hint: Optional[bench.language.const.FormatHint] = None, condition: Optional[ForwardRef('Expression')] = None, constraint: Optional[ForwardRef('TypeConstraint')] = None, is_list: bool = False, is_secret: bool = False, is_required: bool = False, _resolved_type: Optional[ForwardRef('TypeInfoBase')] = None, _resolved_identity_key: str | None = None, parent_id: int = None, parent_key: str = None, base_type_ptr: 'NodeReference' = None)
     """
 
     metatype: "ObjectType" = betterproto.enum_field(1)
@@ -1806,12 +1830,13 @@ class TypeInfoData(betterproto.Message):
     bench_type: Optional["BenchType"] = betterproto.enum_field(42, optional=True)
     base_type_ptr: Optional["NodeReferenceData"] = betterproto.message_field(43, optional=True)
     base_field_zone: Optional["FieldZone"] = betterproto.enum_field(44, optional=True)
-    visibility: Optional["NodeVisibility"] = betterproto.enum_field(50, optional=True)
-    format_hint: Optional["FormatHint"] = betterproto.enum_field(51, optional=True)
-    condition: Optional["ExpressionData"] = betterproto.message_field(52, optional=True)
     default_packed: Optional["betterproto_lib_google_protobuf.Struct"] = betterproto.message_field(
-        53, optional=True
+        50, optional=True
     )
+    visibility: Optional["NodeVisibility"] = betterproto.enum_field(52, optional=True)
+    format_hint: Optional["FormatHint"] = betterproto.enum_field(53, optional=True)
+    condition: Optional["ExpressionData"] = betterproto.message_field(54, optional=True)
+    constraint: Optional["TypeConstraintData"] = betterproto.message_field(55, optional=True)
     is_list: bool = betterproto.bool_field(60)
     is_secret: bool = betterproto.bool_field(61)
     is_required: bool = betterproto.bool_field(62)
@@ -2140,12 +2165,13 @@ class FieldData(betterproto.Message):
     bench_type: Optional["BenchType"] = betterproto.enum_field(42, optional=True)
     base_type_ptr: Optional["NodeReferenceData"] = betterproto.message_field(43, optional=True)
     base_field_zone: Optional["FieldZone"] = betterproto.enum_field(44, optional=True)
-    visibility: Optional["NodeVisibility"] = betterproto.enum_field(50, optional=True)
-    format_hint: Optional["FormatHint"] = betterproto.enum_field(51, optional=True)
-    condition: Optional["ExpressionData"] = betterproto.message_field(52, optional=True)
     default_packed: Optional["betterproto_lib_google_protobuf.Struct"] = betterproto.message_field(
-        53, optional=True
+        50, optional=True
     )
+    visibility: Optional["NodeVisibility"] = betterproto.enum_field(52, optional=True)
+    format_hint: Optional["FormatHint"] = betterproto.enum_field(53, optional=True)
+    condition: Optional["ExpressionData"] = betterproto.message_field(54, optional=True)
+    constraint: Optional["TypeConstraintData"] = betterproto.message_field(55, optional=True)
     is_list: bool = betterproto.bool_field(60)
     is_secret: bool = betterproto.bool_field(61)
     is_required: bool = betterproto.bool_field(62)
@@ -4829,7 +4855,7 @@ class RuntimeBase(ServiceBase):
 
 from typing import TYPE_CHECKING  # noqa: E402
 
-VERSION = "2024.05.02.1"
+VERSION = "2024.05.04.1"
 
 if TYPE_CHECKING:
     from bench.language import Subject
@@ -4886,11 +4912,10 @@ AnyStructData = Union[
     PropertyReferenceData,
     ValueReferenceData,
     TypeInfoData,
+    TypeConstraintData,
     ContextData,
     ScheduleData,
     ProjectionData,
-    FileData,
-    IconData,
     PolicyData,
     PolicyRuleData,
     SubjectData,
@@ -4917,4 +4942,6 @@ AnyStructData = Union[
     FontData,
     BoxData,
     OffsetData,
+    FileData,
+    IconData,
 ]

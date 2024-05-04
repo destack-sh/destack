@@ -13,7 +13,7 @@ from bench.language.property import (
     p_value_packed,
     p_value_runtime,
 )
-from bench.language.validation import enum_validator, validate_name
+from bench.language.validation import NAME_CONSTRAINT
 from bench.language.value import HasValues
 from bench.proto.wire import SpaceData, ViewData
 from bench.utils.casing import IdentifierType
@@ -191,8 +191,8 @@ class ColorShade(IdEnum):
 class Color(Struct):
     """A color value."""
 
-    type: Optional[ColorType] = p_regular(31, default=None, validate=enum_validator(ColorType))
-    shade: Optional[ColorShade] = p_regular(32, default=None, validate=enum_validator(ColorShade))
+    type: Optional[ColorType] = p_regular(31, default=None)
+    shade: Optional[ColorShade] = p_regular(32, default=None)
     hex: Optional[str] = p_regular(33, default=None)
 
 
@@ -235,9 +235,9 @@ class FontSize(IdEnum):
 class Font(Struct):
     """A font value."""
 
-    type: Optional[FontType] = p_regular(31, default=None, validate=enum_validator(FontType))
-    weight: Optional[FontWeight] = p_regular(32, default=None, validate=enum_validator(FontWeight))
-    size: Optional[FontSize] = p_regular(33, default=None, validate=enum_validator(FontSize))
+    type: Optional[FontType] = p_regular(31, default=None)
+    weight: Optional[FontWeight] = p_regular(32, default=None)
+    size: Optional[FontSize] = p_regular(33, default=None)
 
 
 @enum_(EnumType.SPACING)
@@ -342,9 +342,9 @@ class View(Node[ViewData], HasValues):
     )
 
     # common
-    type: ViewType = p_regular(30, require=True, validate=enum_validator(ViewType))
-    name: str = p_regular(31, validate=validate_name)
-    title: Optional[str] = p_regular(32, default=None, validate=validate_name)
+    type: ViewType = p_regular(30, require=True)
+    name: str = p_regular(31, constraint=NAME_CONSTRAINT)
+    title: Optional[str] = p_regular(32, default=None, constraint=NAME_CONSTRAINT)
     text: Optional["Text"] = p_regular(33, default=None, struct=StructType.TEXT)
     order_key: str = p_internal(34, default=INTEGER_ZERO)
     icon: Optional["Icon"] = p_regular(

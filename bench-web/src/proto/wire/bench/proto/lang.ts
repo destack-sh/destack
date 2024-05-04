@@ -1524,7 +1524,63 @@ export interface TextSpanData {
     isCode?: boolean;
 }
 /**
- * TypeInfo(id: int = <factory>, parent: Union[ForwardRef('Struct'), ForwardRef('Node'), ForwardRef('Object'), NoneType] = None, order_key: str | None = None, set_properties: list[int] = <factory>, _status: bench.language.const.InterpStatus = None, _updated_properties: bitarray.bitarray | None = None, kind: Optional[bench.language.const.TypeKind] = None, primitive_type: Optional[bench.language.const.PrimitiveType] = None, bench_type: Optional[bench.utils.func.BenchType] = None, base_type: Union[ForwardRef('Block'), ForwardRef('Step'), NoneType] = None, base_field_zone: Optional[ForwardRef('FieldZone')] = None, visibility: Optional[bench.language.const.NodeVisibility] = None, format_hint: Optional[bench.language.const.FormatHint] = None, condition: Optional[ForwardRef('Expression')] = None, default_packed: Optional[Any] = None, default: None = None, is_list: bool = False, is_secret: bool = False, is_required: bool = False, _resolved_type: Optional[ForwardRef('TypeInfoBase')] = None, _resolved_identity_key: str | None = None, parent_id: int = None, parent_key: str = None, base_type_ptr: 'NodeReference' = None)
+ * A simple constraint on the values of a type. :TypeConstraint
+ * NOTE :Architecture: ideally all type constraints should be done in expressions?
+ *
+ * @generated from protobuf message symbolx.bench.TypeConstraintData
+ */
+export interface TypeConstraintData {
+    /**
+     * @generated from protobuf field: symbolx.bench.ObjectType metatype = 1;
+     */
+    metatype: ObjectType;
+    /**
+     * @generated from protobuf field: int32 id = 2;
+     */
+    id: number;
+    /**
+     * @generated from protobuf field: optional int32 parent_id = 3;
+     */
+    parentId?: number;
+    /**
+     * @generated from protobuf field: optional string parent_key = 4;
+     */
+    parentKey?: string;
+    /**
+     * @generated from protobuf field: optional string order_key = 5;
+     */
+    orderKey?: string;
+    /**
+     * @generated from protobuf field: repeated int32 set_properties = 22;
+     */
+    setProperties: number[];
+    /**
+     * @generated from protobuf field: optional float min_value = 40;
+     */
+    minValue?: number;
+    /**
+     * @generated from protobuf field: optional float max_value = 41;
+     */
+    maxValue?: number;
+    /**
+     * @generated from protobuf field: optional float step_value = 42;
+     */
+    stepValue?: number;
+    /**
+     * @generated from protobuf field: optional string regex = 50;
+     */
+    regex?: string;
+    /**
+     * @generated from protobuf field: optional int32 min_length = 51;
+     */
+    minLength?: number;
+    /**
+     * @generated from protobuf field: optional int32 max_length = 52;
+     */
+    maxLength?: number;
+}
+/**
+ * TypeInfo(id: int = <factory>, parent: Union[ForwardRef('Struct'), ForwardRef('Node'), ForwardRef('Object'), NoneType] = None, order_key: str | None = None, set_properties: list[int] = <factory>, _status: bench.language.const.InterpStatus = None, _updated_properties: bitarray.bitarray | None = None, kind: Optional[bench.language.const.TypeKind] = None, primitive_type: Optional[bench.language.const.PrimitiveType] = None, bench_type: Optional[bench.utils.func.BenchType] = None, base_type: Union[ForwardRef('Block'), ForwardRef('Step'), NoneType] = None, base_field_zone: Optional[ForwardRef('FieldZone')] = None, default_packed: Optional[Any] = None, default: None = None, visibility: Optional[bench.language.const.NodeVisibility] = None, format_hint: Optional[bench.language.const.FormatHint] = None, condition: Optional[ForwardRef('Expression')] = None, constraint: Optional[ForwardRef('TypeConstraint')] = None, is_list: bool = False, is_secret: bool = False, is_required: bool = False, _resolved_type: Optional[ForwardRef('TypeInfoBase')] = None, _resolved_identity_key: str | None = None, parent_id: int = None, parent_key: str = None, base_type_ptr: 'NodeReference' = None)
  *
  * @generated from protobuf message symbolx.bench.TypeInfoData
  */
@@ -1574,21 +1630,25 @@ export interface TypeInfoData {
      */
     baseFieldZone?: FieldZone;
     /**
-     * @generated from protobuf field: optional symbolx.bench.NodeVisibility visibility = 50;
+     * @generated from protobuf field: optional google.protobuf.Struct default_packed = 50;
+     */
+    defaultPacked?: Struct;
+    /**
+     * @generated from protobuf field: optional symbolx.bench.NodeVisibility visibility = 52;
      */
     visibility?: NodeVisibility;
     /**
-     * @generated from protobuf field: optional symbolx.bench.FormatHint format_hint = 51;
+     * @generated from protobuf field: optional symbolx.bench.FormatHint format_hint = 53;
      */
     formatHint?: FormatHint;
     /**
-     * @generated from protobuf field: optional symbolx.bench.ExpressionData condition = 52;
+     * @generated from protobuf field: optional symbolx.bench.ExpressionData condition = 54;
      */
     condition?: ExpressionData;
     /**
-     * @generated from protobuf field: optional google.protobuf.Struct default_packed = 53;
+     * @generated from protobuf field: optional symbolx.bench.TypeConstraintData constraint = 55;
      */
-    defaultPacked?: Struct;
+    constraint?: TypeConstraintData;
     /**
      * @generated from protobuf field: bool is_list = 60;
      */
@@ -2612,21 +2672,25 @@ export interface FieldData {
      */
     baseFieldZone?: FieldZone;
     /**
-     * @generated from protobuf field: optional symbolx.bench.NodeVisibility visibility = 50;
+     * @generated from protobuf field: optional google.protobuf.Struct default_packed = 50;
+     */
+    defaultPacked?: Struct;
+    /**
+     * @generated from protobuf field: optional symbolx.bench.NodeVisibility visibility = 52;
      */
     visibility?: NodeVisibility;
     /**
-     * @generated from protobuf field: optional symbolx.bench.FormatHint format_hint = 51;
+     * @generated from protobuf field: optional symbolx.bench.FormatHint format_hint = 53;
      */
     formatHint?: FormatHint;
     /**
-     * @generated from protobuf field: optional symbolx.bench.ExpressionData condition = 52;
+     * @generated from protobuf field: optional symbolx.bench.ExpressionData condition = 54;
      */
     condition?: ExpressionData;
     /**
-     * @generated from protobuf field: optional google.protobuf.Struct default_packed = 53;
+     * @generated from protobuf field: optional symbolx.bench.TypeConstraintData constraint = 55;
      */
-    defaultPacked?: Struct;
+    constraint?: TypeConstraintData;
     /**
      * @generated from protobuf field: bool is_list = 60;
      */
@@ -5862,9 +5926,13 @@ export enum BenchType {
      */
     TYPE_INFO = 1010,
     /**
-     * @generated from protobuf enum value: BENCH_TYPE_CONTEXT = 1011;
+     * @generated from protobuf enum value: BENCH_TYPE_TYPE_CONSTRAINT = 1011;
      */
-    CONTEXT = 1011,
+    TYPE_CONSTRAINT = 1011,
+    /**
+     * @generated from protobuf enum value: BENCH_TYPE_CONTEXT = 1020;
+     */
+    CONTEXT = 1020,
     /**
      * @generated from protobuf enum value: BENCH_TYPE_SCHEDULE = 1012;
      */
@@ -5873,14 +5941,6 @@ export enum BenchType {
      * @generated from protobuf enum value: BENCH_TYPE_PROJECTION = 1013;
      */
     PROJECTION = 1013,
-    /**
-     * @generated from protobuf enum value: BENCH_TYPE_FILE = 1020;
-     */
-    FILE = 1020,
-    /**
-     * @generated from protobuf enum value: BENCH_TYPE_ICON = 1021;
-     */
-    ICON = 1021,
     /**
      * @generated from protobuf enum value: BENCH_TYPE_POLICY = 1030;
      */
@@ -5985,6 +6045,14 @@ export enum BenchType {
      * @generated from protobuf enum value: BENCH_TYPE_OFFSET = 1203;
      */
     OFFSET = 1203,
+    /**
+     * @generated from protobuf enum value: BENCH_TYPE_FILE = 1250;
+     */
+    FILE = 1250,
+    /**
+     * @generated from protobuf enum value: BENCH_TYPE_ICON = 1251;
+     */
+    ICON = 1251,
     /**
      * @generated from protobuf enum value: BENCH_TYPE_ENUM_TYPE = 2001;
      */
@@ -7809,9 +7877,13 @@ export enum ObjectType {
      */
     TYPE_INFO = 1010,
     /**
-     * @generated from protobuf enum value: OBJECT_TYPE_CONTEXT = 1011;
+     * @generated from protobuf enum value: OBJECT_TYPE_TYPE_CONSTRAINT = 1011;
      */
-    CONTEXT = 1011,
+    TYPE_CONSTRAINT = 1011,
+    /**
+     * @generated from protobuf enum value: OBJECT_TYPE_CONTEXT = 1020;
+     */
+    CONTEXT = 1020,
     /**
      * @generated from protobuf enum value: OBJECT_TYPE_SCHEDULE = 1012;
      */
@@ -7820,14 +7892,6 @@ export enum ObjectType {
      * @generated from protobuf enum value: OBJECT_TYPE_PROJECTION = 1013;
      */
     PROJECTION = 1013,
-    /**
-     * @generated from protobuf enum value: OBJECT_TYPE_FILE = 1020;
-     */
-    FILE = 1020,
-    /**
-     * @generated from protobuf enum value: OBJECT_TYPE_ICON = 1021;
-     */
-    ICON = 1021,
     /**
      * @generated from protobuf enum value: OBJECT_TYPE_POLICY = 1030;
      */
@@ -7931,7 +7995,15 @@ export enum ObjectType {
     /**
      * @generated from protobuf enum value: OBJECT_TYPE_OFFSET = 1203;
      */
-    OFFSET = 1203
+    OFFSET = 1203,
+    /**
+     * @generated from protobuf enum value: OBJECT_TYPE_FILE = 1250;
+     */
+    FILE = 1250,
+    /**
+     * @generated from protobuf enum value: OBJECT_TYPE_ICON = 1251;
+     */
+    ICON = 1251
 }
 /**
  * @generated from protobuf enum symbolx.bench.OrganizationStatus
@@ -8747,9 +8819,13 @@ export enum StructType {
      */
     TYPE_INFO = 1010,
     /**
-     * @generated from protobuf enum value: STRUCT_TYPE_CONTEXT = 1011;
+     * @generated from protobuf enum value: STRUCT_TYPE_TYPE_CONSTRAINT = 1011;
      */
-    CONTEXT = 1011,
+    TYPE_CONSTRAINT = 1011,
+    /**
+     * @generated from protobuf enum value: STRUCT_TYPE_CONTEXT = 1020;
+     */
+    CONTEXT = 1020,
     /**
      * @generated from protobuf enum value: STRUCT_TYPE_SCHEDULE = 1012;
      */
@@ -8758,14 +8834,6 @@ export enum StructType {
      * @generated from protobuf enum value: STRUCT_TYPE_PROJECTION = 1013;
      */
     PROJECTION = 1013,
-    /**
-     * @generated from protobuf enum value: STRUCT_TYPE_FILE = 1020;
-     */
-    FILE = 1020,
-    /**
-     * @generated from protobuf enum value: STRUCT_TYPE_ICON = 1021;
-     */
-    ICON = 1021,
     /**
      * @generated from protobuf enum value: STRUCT_TYPE_POLICY = 1030;
      */
@@ -8869,7 +8937,15 @@ export enum StructType {
     /**
      * @generated from protobuf enum value: STRUCT_TYPE_OFFSET = 1203;
      */
-    OFFSET = 1203
+    OFFSET = 1203,
+    /**
+     * @generated from protobuf enum value: STRUCT_TYPE_FILE = 1250;
+     */
+    FILE = 1250,
+    /**
+     * @generated from protobuf enum value: STRUCT_TYPE_ICON = 1251;
+     */
+    ICON = 1251
 }
 /**
  * How a Resource is shared (if at all).
@@ -13141,6 +13217,140 @@ class TextSpanData$Type extends MessageType<TextSpanData> {
  */
 export const TextSpanData = new TextSpanData$Type();
 // @generated message type with reflection information, may provide speed optimized methods
+class TypeConstraintData$Type extends MessageType<TypeConstraintData> {
+    constructor() {
+        super("symbolx.bench.TypeConstraintData", [
+            { no: 1, name: "metatype", kind: "enum", T: () => ["symbolx.bench.ObjectType", ObjectType, "OBJECT_TYPE_"] },
+            { no: 2, name: "id", kind: "scalar", T: 5 /*ScalarType.INT32*/ },
+            { no: 3, name: "parent_id", kind: "scalar", opt: true, T: 5 /*ScalarType.INT32*/ },
+            { no: 4, name: "parent_key", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
+            { no: 5, name: "order_key", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
+            { no: 22, name: "set_properties", kind: "scalar", repeat: 1 /*RepeatType.PACKED*/, T: 5 /*ScalarType.INT32*/ },
+            { no: 40, name: "min_value", kind: "scalar", opt: true, T: 2 /*ScalarType.FLOAT*/ },
+            { no: 41, name: "max_value", kind: "scalar", opt: true, T: 2 /*ScalarType.FLOAT*/ },
+            { no: 42, name: "step_value", kind: "scalar", opt: true, T: 2 /*ScalarType.FLOAT*/ },
+            { no: 50, name: "regex", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
+            { no: 51, name: "min_length", kind: "scalar", opt: true, T: 5 /*ScalarType.INT32*/ },
+            { no: 52, name: "max_length", kind: "scalar", opt: true, T: 5 /*ScalarType.INT32*/ }
+        ]);
+    }
+    create(value?: PartialMessage<TypeConstraintData>): TypeConstraintData {
+        const message = globalThis.Object.create((this.messagePrototype!));
+        message.metatype = 0;
+        message.id = 0;
+        message.setProperties = [];
+        if (value !== undefined)
+            reflectionMergePartial<TypeConstraintData>(this, message, value);
+        return message;
+    }
+    internalBinaryRead(reader: IBinaryReader, length: number, options: BinaryReadOptions, target?: TypeConstraintData): TypeConstraintData {
+        let message = target ?? this.create(), end = reader.pos + length;
+        while (reader.pos < end) {
+            let [fieldNo, wireType] = reader.tag();
+            switch (fieldNo) {
+                case /* symbolx.bench.ObjectType metatype */ 1:
+                    message.metatype = reader.int32();
+                    break;
+                case /* int32 id */ 2:
+                    message.id = reader.int32();
+                    break;
+                case /* optional int32 parent_id */ 3:
+                    message.parentId = reader.int32();
+                    break;
+                case /* optional string parent_key */ 4:
+                    message.parentKey = reader.string();
+                    break;
+                case /* optional string order_key */ 5:
+                    message.orderKey = reader.string();
+                    break;
+                case /* repeated int32 set_properties */ 22:
+                    if (wireType === WireType.LengthDelimited)
+                        for (let e = reader.int32() + reader.pos; reader.pos < e;)
+                            message.setProperties.push(reader.int32());
+                    else
+                        message.setProperties.push(reader.int32());
+                    break;
+                case /* optional float min_value */ 40:
+                    message.minValue = reader.float();
+                    break;
+                case /* optional float max_value */ 41:
+                    message.maxValue = reader.float();
+                    break;
+                case /* optional float step_value */ 42:
+                    message.stepValue = reader.float();
+                    break;
+                case /* optional string regex */ 50:
+                    message.regex = reader.string();
+                    break;
+                case /* optional int32 min_length */ 51:
+                    message.minLength = reader.int32();
+                    break;
+                case /* optional int32 max_length */ 52:
+                    message.maxLength = reader.int32();
+                    break;
+                default:
+                    let u = options.readUnknownField;
+                    if (u === "throw")
+                        throw new globalThis.Error(`Unknown field ${fieldNo} (wire type ${wireType}) for ${this.typeName}`);
+                    let d = reader.skip(wireType);
+                    if (u !== false)
+                        (u === true ? UnknownFieldHandler.onRead : u)(this.typeName, message, fieldNo, wireType, d);
+            }
+        }
+        return message;
+    }
+    internalBinaryWrite(message: TypeConstraintData, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
+        /* symbolx.bench.ObjectType metatype = 1; */
+        if (message.metatype !== 0)
+            writer.tag(1, WireType.Varint).int32(message.metatype);
+        /* int32 id = 2; */
+        if (message.id !== 0)
+            writer.tag(2, WireType.Varint).int32(message.id);
+        /* optional int32 parent_id = 3; */
+        if (message.parentId !== undefined)
+            writer.tag(3, WireType.Varint).int32(message.parentId);
+        /* optional string parent_key = 4; */
+        if (message.parentKey !== undefined)
+            writer.tag(4, WireType.LengthDelimited).string(message.parentKey);
+        /* optional string order_key = 5; */
+        if (message.orderKey !== undefined)
+            writer.tag(5, WireType.LengthDelimited).string(message.orderKey);
+        /* repeated int32 set_properties = 22; */
+        if (message.setProperties.length) {
+            writer.tag(22, WireType.LengthDelimited).fork();
+            for (let i = 0; i < message.setProperties.length; i++)
+                writer.int32(message.setProperties[i]);
+            writer.join();
+        }
+        /* optional float min_value = 40; */
+        if (message.minValue !== undefined)
+            writer.tag(40, WireType.Bit32).float(message.minValue);
+        /* optional float max_value = 41; */
+        if (message.maxValue !== undefined)
+            writer.tag(41, WireType.Bit32).float(message.maxValue);
+        /* optional float step_value = 42; */
+        if (message.stepValue !== undefined)
+            writer.tag(42, WireType.Bit32).float(message.stepValue);
+        /* optional string regex = 50; */
+        if (message.regex !== undefined)
+            writer.tag(50, WireType.LengthDelimited).string(message.regex);
+        /* optional int32 min_length = 51; */
+        if (message.minLength !== undefined)
+            writer.tag(51, WireType.Varint).int32(message.minLength);
+        /* optional int32 max_length = 52; */
+        if (message.maxLength !== undefined)
+            writer.tag(52, WireType.Varint).int32(message.maxLength);
+        let u = options.writeUnknownFields;
+        if (u !== false)
+            (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
+        return writer;
+    }
+}
+/**
+ * @generated MessageType for protobuf message symbolx.bench.TypeConstraintData
+ */
+export const TypeConstraintData = new TypeConstraintData$Type();
+// @generated message type with reflection information, may provide speed optimized methods
 class TypeInfoData$Type extends MessageType<TypeInfoData> {
     constructor() {
         super("symbolx.bench.TypeInfoData", [
@@ -13155,10 +13365,11 @@ class TypeInfoData$Type extends MessageType<TypeInfoData> {
             { no: 42, name: "bench_type", kind: "enum", opt: true, T: () => ["symbolx.bench.BenchType", BenchType, "BENCH_TYPE_"] },
             { no: 43, name: "base_type_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 44, name: "base_field_zone", kind: "enum", opt: true, T: () => ["symbolx.bench.FieldZone", FieldZone, "FIELD_ZONE_"] },
-            { no: 50, name: "visibility", kind: "enum", opt: true, T: () => ["symbolx.bench.NodeVisibility", NodeVisibility, "NODE_VISIBILITY_"] },
-            { no: 51, name: "format_hint", kind: "enum", opt: true, T: () => ["symbolx.bench.FormatHint", FormatHint, "FORMAT_HINT_"] },
-            { no: 52, name: "condition", kind: "message", T: () => ExpressionData },
-            { no: 53, name: "default_packed", kind: "message", T: () => Struct },
+            { no: 50, name: "default_packed", kind: "message", T: () => Struct },
+            { no: 52, name: "visibility", kind: "enum", opt: true, T: () => ["symbolx.bench.NodeVisibility", NodeVisibility, "NODE_VISIBILITY_"] },
+            { no: 53, name: "format_hint", kind: "enum", opt: true, T: () => ["symbolx.bench.FormatHint", FormatHint, "FORMAT_HINT_"] },
+            { no: 54, name: "condition", kind: "message", T: () => ExpressionData },
+            { no: 55, name: "constraint", kind: "message", T: () => TypeConstraintData },
             { no: 60, name: "is_list", kind: "scalar", T: 8 /*ScalarType.BOOL*/ },
             { no: 61, name: "is_secret", kind: "scalar", T: 8 /*ScalarType.BOOL*/ },
             { no: 62, name: "is_required", kind: "scalar", T: 8 /*ScalarType.BOOL*/ }
@@ -13218,17 +13429,20 @@ class TypeInfoData$Type extends MessageType<TypeInfoData> {
                 case /* optional symbolx.bench.FieldZone base_field_zone */ 44:
                     message.baseFieldZone = reader.int32();
                     break;
-                case /* optional symbolx.bench.NodeVisibility visibility */ 50:
+                case /* optional google.protobuf.Struct default_packed */ 50:
+                    message.defaultPacked = Struct.internalBinaryRead(reader, reader.uint32(), options, message.defaultPacked);
+                    break;
+                case /* optional symbolx.bench.NodeVisibility visibility */ 52:
                     message.visibility = reader.int32();
                     break;
-                case /* optional symbolx.bench.FormatHint format_hint */ 51:
+                case /* optional symbolx.bench.FormatHint format_hint */ 53:
                     message.formatHint = reader.int32();
                     break;
-                case /* optional symbolx.bench.ExpressionData condition */ 52:
+                case /* optional symbolx.bench.ExpressionData condition */ 54:
                     message.condition = ExpressionData.internalBinaryRead(reader, reader.uint32(), options, message.condition);
                     break;
-                case /* optional google.protobuf.Struct default_packed */ 53:
-                    message.defaultPacked = Struct.internalBinaryRead(reader, reader.uint32(), options, message.defaultPacked);
+                case /* optional symbolx.bench.TypeConstraintData constraint */ 55:
+                    message.constraint = TypeConstraintData.internalBinaryRead(reader, reader.uint32(), options, message.constraint);
                     break;
                 case /* bool is_list */ 60:
                     message.isList = reader.bool();
@@ -13288,18 +13502,21 @@ class TypeInfoData$Type extends MessageType<TypeInfoData> {
         /* optional symbolx.bench.FieldZone base_field_zone = 44; */
         if (message.baseFieldZone !== undefined)
             writer.tag(44, WireType.Varint).int32(message.baseFieldZone);
-        /* optional symbolx.bench.NodeVisibility visibility = 50; */
-        if (message.visibility !== undefined)
-            writer.tag(50, WireType.Varint).int32(message.visibility);
-        /* optional symbolx.bench.FormatHint format_hint = 51; */
-        if (message.formatHint !== undefined)
-            writer.tag(51, WireType.Varint).int32(message.formatHint);
-        /* optional symbolx.bench.ExpressionData condition = 52; */
-        if (message.condition)
-            ExpressionData.internalBinaryWrite(message.condition, writer.tag(52, WireType.LengthDelimited).fork(), options).join();
-        /* optional google.protobuf.Struct default_packed = 53; */
+        /* optional google.protobuf.Struct default_packed = 50; */
         if (message.defaultPacked)
-            Struct.internalBinaryWrite(message.defaultPacked, writer.tag(53, WireType.LengthDelimited).fork(), options).join();
+            Struct.internalBinaryWrite(message.defaultPacked, writer.tag(50, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbolx.bench.NodeVisibility visibility = 52; */
+        if (message.visibility !== undefined)
+            writer.tag(52, WireType.Varint).int32(message.visibility);
+        /* optional symbolx.bench.FormatHint format_hint = 53; */
+        if (message.formatHint !== undefined)
+            writer.tag(53, WireType.Varint).int32(message.formatHint);
+        /* optional symbolx.bench.ExpressionData condition = 54; */
+        if (message.condition)
+            ExpressionData.internalBinaryWrite(message.condition, writer.tag(54, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbolx.bench.TypeConstraintData constraint = 55; */
+        if (message.constraint)
+            TypeConstraintData.internalBinaryWrite(message.constraint, writer.tag(55, WireType.LengthDelimited).fork(), options).join();
         /* bool is_list = 60; */
         if (message.isList !== false)
             writer.tag(60, WireType.Varint).bool(message.isList);
@@ -15343,10 +15560,11 @@ class FieldData$Type extends MessageType<FieldData> {
             { no: 42, name: "bench_type", kind: "enum", opt: true, T: () => ["symbolx.bench.BenchType", BenchType, "BENCH_TYPE_"] },
             { no: 43, name: "base_type_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 44, name: "base_field_zone", kind: "enum", opt: true, T: () => ["symbolx.bench.FieldZone", FieldZone, "FIELD_ZONE_"] },
-            { no: 50, name: "visibility", kind: "enum", opt: true, T: () => ["symbolx.bench.NodeVisibility", NodeVisibility, "NODE_VISIBILITY_"] },
-            { no: 51, name: "format_hint", kind: "enum", opt: true, T: () => ["symbolx.bench.FormatHint", FormatHint, "FORMAT_HINT_"] },
-            { no: 52, name: "condition", kind: "message", T: () => ExpressionData },
-            { no: 53, name: "default_packed", kind: "message", T: () => Struct },
+            { no: 50, name: "default_packed", kind: "message", T: () => Struct },
+            { no: 52, name: "visibility", kind: "enum", opt: true, T: () => ["symbolx.bench.NodeVisibility", NodeVisibility, "NODE_VISIBILITY_"] },
+            { no: 53, name: "format_hint", kind: "enum", opt: true, T: () => ["symbolx.bench.FormatHint", FormatHint, "FORMAT_HINT_"] },
+            { no: 54, name: "condition", kind: "message", T: () => ExpressionData },
+            { no: 55, name: "constraint", kind: "message", T: () => TypeConstraintData },
             { no: 60, name: "is_list", kind: "scalar", T: 8 /*ScalarType.BOOL*/ },
             { no: 61, name: "is_secret", kind: "scalar", T: 8 /*ScalarType.BOOL*/ },
             { no: 62, name: "is_required", kind: "scalar", T: 8 /*ScalarType.BOOL*/ }
@@ -15457,17 +15675,20 @@ class FieldData$Type extends MessageType<FieldData> {
                 case /* optional symbolx.bench.FieldZone base_field_zone */ 44:
                     message.baseFieldZone = reader.int32();
                     break;
-                case /* optional symbolx.bench.NodeVisibility visibility */ 50:
+                case /* optional google.protobuf.Struct default_packed */ 50:
+                    message.defaultPacked = Struct.internalBinaryRead(reader, reader.uint32(), options, message.defaultPacked);
+                    break;
+                case /* optional symbolx.bench.NodeVisibility visibility */ 52:
                     message.visibility = reader.int32();
                     break;
-                case /* optional symbolx.bench.FormatHint format_hint */ 51:
+                case /* optional symbolx.bench.FormatHint format_hint */ 53:
                     message.formatHint = reader.int32();
                     break;
-                case /* optional symbolx.bench.ExpressionData condition */ 52:
+                case /* optional symbolx.bench.ExpressionData condition */ 54:
                     message.condition = ExpressionData.internalBinaryRead(reader, reader.uint32(), options, message.condition);
                     break;
-                case /* optional google.protobuf.Struct default_packed */ 53:
-                    message.defaultPacked = Struct.internalBinaryRead(reader, reader.uint32(), options, message.defaultPacked);
+                case /* optional symbolx.bench.TypeConstraintData constraint */ 55:
+                    message.constraint = TypeConstraintData.internalBinaryRead(reader, reader.uint32(), options, message.constraint);
                     break;
                 case /* bool is_list */ 60:
                     message.isList = reader.bool();
@@ -15572,18 +15793,21 @@ class FieldData$Type extends MessageType<FieldData> {
         /* optional symbolx.bench.FieldZone base_field_zone = 44; */
         if (message.baseFieldZone !== undefined)
             writer.tag(44, WireType.Varint).int32(message.baseFieldZone);
-        /* optional symbolx.bench.NodeVisibility visibility = 50; */
-        if (message.visibility !== undefined)
-            writer.tag(50, WireType.Varint).int32(message.visibility);
-        /* optional symbolx.bench.FormatHint format_hint = 51; */
-        if (message.formatHint !== undefined)
-            writer.tag(51, WireType.Varint).int32(message.formatHint);
-        /* optional symbolx.bench.ExpressionData condition = 52; */
-        if (message.condition)
-            ExpressionData.internalBinaryWrite(message.condition, writer.tag(52, WireType.LengthDelimited).fork(), options).join();
-        /* optional google.protobuf.Struct default_packed = 53; */
+        /* optional google.protobuf.Struct default_packed = 50; */
         if (message.defaultPacked)
-            Struct.internalBinaryWrite(message.defaultPacked, writer.tag(53, WireType.LengthDelimited).fork(), options).join();
+            Struct.internalBinaryWrite(message.defaultPacked, writer.tag(50, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbolx.bench.NodeVisibility visibility = 52; */
+        if (message.visibility !== undefined)
+            writer.tag(52, WireType.Varint).int32(message.visibility);
+        /* optional symbolx.bench.FormatHint format_hint = 53; */
+        if (message.formatHint !== undefined)
+            writer.tag(53, WireType.Varint).int32(message.formatHint);
+        /* optional symbolx.bench.ExpressionData condition = 54; */
+        if (message.condition)
+            ExpressionData.internalBinaryWrite(message.condition, writer.tag(54, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbolx.bench.TypeConstraintData constraint = 55; */
+        if (message.constraint)
+            TypeConstraintData.internalBinaryWrite(message.constraint, writer.tag(55, WireType.LengthDelimited).fork(), options).join();
         /* bool is_list = 60; */
         if (message.isList !== false)
             writer.tag(60, WireType.Varint).bool(message.isList);
@@ -21689,9 +21913,9 @@ export const SomeNodeData = new SomeNodeData$Type();
 
 // Any...
 export type AnyNodeData = BenchData | EnvironmentData | BranchData | PackageData | DependencyData | UpgradeData | SpaceData | LinkData | SkipData | NoticeData | BlockData | TriggerData | FieldData | RecordData | QueryData | ViewData | StepData | BadgeData | RoleData | IdentityData | MembershipData | InviteData | SessionData | RunData | PauseData | SignalData | LogData | NotificationData | ServerData | StoreData | DriveData | CacheData | FileContentData | HandleData | UserData | OrganizationData | ClientData
-export type AnyStructData = PathData | PathSegmentData | PathTokenData | NodeReferenceData | PropertyReferenceData | ValueReferenceData | TypeInfoData | ContextData | ScheduleData | ProjectionData | FileData | IconData | PolicyData | PolicyRuleData | SubjectData | AccessZoneData | AccessMatrixData | AccessData | AccessTraceData | RequestData | ReadOptionsData | ExpressionData | AggregationData | AggregationBucketData | SelectionData | CodeData | CodeLineData | StepConnectionData | RunCodeFrameData | RunErrorData | ResourceCredentialData | TextData | TextLineData | TextSpanData | ColorData | FontData | BoxData | OffsetData
+export type AnyStructData = PathData | PathSegmentData | PathTokenData | NodeReferenceData | PropertyReferenceData | ValueReferenceData | TypeInfoData | TypeConstraintData | ContextData | ScheduleData | ProjectionData | PolicyData | PolicyRuleData | SubjectData | AccessZoneData | AccessMatrixData | AccessData | AccessTraceData | RequestData | ReadOptionsData | ExpressionData | AggregationData | AggregationBucketData | SelectionData | CodeData | CodeLineData | StepConnectionData | RunCodeFrameData | RunErrorData | ResourceCredentialData | TextData | TextLineData | TextSpanData | ColorData | FontData | BoxData | OffsetData | FileData | IconData
 export type AnyNodeDataType = typeof BenchData | typeof EnvironmentData | typeof BranchData | typeof PackageData | typeof DependencyData | typeof UpgradeData | typeof SpaceData | typeof LinkData | typeof SkipData | typeof NoticeData | typeof BlockData | typeof TriggerData | typeof FieldData | typeof RecordData | typeof QueryData | typeof ViewData | typeof StepData | typeof BadgeData | typeof RoleData | typeof IdentityData | typeof MembershipData | typeof InviteData | typeof SessionData | typeof RunData | typeof PauseData | typeof SignalData | typeof LogData | typeof NotificationData | typeof ServerData | typeof StoreData | typeof DriveData | typeof CacheData | typeof FileContentData | typeof HandleData | typeof UserData | typeof OrganizationData | typeof ClientData
-export type AnyStructDataType = typeof PathData | typeof PathSegmentData | typeof PathTokenData | typeof NodeReferenceData | typeof PropertyReferenceData | typeof ValueReferenceData | typeof TypeInfoData | typeof ContextData | typeof ScheduleData | typeof ProjectionData | typeof FileData | typeof IconData | typeof PolicyData | typeof PolicyRuleData | typeof SubjectData | typeof AccessZoneData | typeof AccessMatrixData | typeof AccessData | typeof AccessTraceData | typeof RequestData | typeof ReadOptionsData | typeof ExpressionData | typeof AggregationData | typeof AggregationBucketData | typeof SelectionData | typeof CodeData | typeof CodeLineData | typeof StepConnectionData | typeof RunCodeFrameData | typeof RunErrorData | typeof ResourceCredentialData | typeof TextData | typeof TextLineData | typeof TextSpanData | typeof ColorData | typeof FontData | typeof BoxData | typeof OffsetData
+export type AnyStructDataType = typeof PathData | typeof PathSegmentData | typeof PathTokenData | typeof NodeReferenceData | typeof PropertyReferenceData | typeof ValueReferenceData | typeof TypeInfoData | typeof TypeConstraintData | typeof ContextData | typeof ScheduleData | typeof ProjectionData | typeof PolicyData | typeof PolicyRuleData | typeof SubjectData | typeof AccessZoneData | typeof AccessMatrixData | typeof AccessData | typeof AccessTraceData | typeof RequestData | typeof ReadOptionsData | typeof ExpressionData | typeof AggregationData | typeof AggregationBucketData | typeof SelectionData | typeof CodeData | typeof CodeLineData | typeof StepConnectionData | typeof RunCodeFrameData | typeof RunErrorData | typeof ResourceCredentialData | typeof TextData | typeof TextLineData | typeof TextSpanData | typeof ColorData | typeof FontData | typeof BoxData | typeof OffsetData | typeof FileData | typeof IconData
 
 // Ancestry maps
 export const PARENT_NODE_TYPES: Record<NodeType, NodeType[]> = {
@@ -21905,11 +22129,10 @@ export const MESSAGE_TYPE_BY_OBJECT_TYPE: Partial<Record<ObjectType, MessageType
   [ObjectType.PROPERTY_REFERENCE]: PropertyReferenceData,
   [ObjectType.VALUE_REFERENCE]: ValueReferenceData,
   [ObjectType.TYPE_INFO]: TypeInfoData,
+  [ObjectType.TYPE_CONSTRAINT]: TypeConstraintData,
   [ObjectType.CONTEXT]: ContextData,
   [ObjectType.SCHEDULE]: ScheduleData,
   [ObjectType.PROJECTION]: ProjectionData,
-  [ObjectType.FILE]: FileData,
-  [ObjectType.ICON]: IconData,
   [ObjectType.POLICY]: PolicyData,
   [ObjectType.POLICY_RULE]: PolicyRuleData,
   [ObjectType.SUBJECT]: SubjectData,
@@ -21936,6 +22159,8 @@ export const MESSAGE_TYPE_BY_OBJECT_TYPE: Partial<Record<ObjectType, MessageType
   [ObjectType.FONT]: FontData,
   [ObjectType.BOX]: BoxData,
   [ObjectType.OFFSET]: OffsetData,
+  [ObjectType.FILE]: FileData,
+  [ObjectType.ICON]: IconData,
 }
 
 export const OBJECT_TYPE_BY_MESSAGE_TYPE_NAME: Record<string, ObjectType> = {
@@ -21983,11 +22208,10 @@ export const OBJECT_TYPE_BY_MESSAGE_TYPE_NAME: Record<string, ObjectType> = {
   ["symbolx.bench.PropertyReferenceData"]: ObjectType.PROPERTY_REFERENCE,
   ["symbolx.bench.ValueReferenceData"]: ObjectType.VALUE_REFERENCE,
   ["symbolx.bench.TypeInfoData"]: ObjectType.TYPE_INFO,
+  ["symbolx.bench.TypeConstraintData"]: ObjectType.TYPE_CONSTRAINT,
   ["symbolx.bench.ContextData"]: ObjectType.CONTEXT,
   ["symbolx.bench.ScheduleData"]: ObjectType.SCHEDULE,
   ["symbolx.bench.ProjectionData"]: ObjectType.PROJECTION,
-  ["symbolx.bench.FileData"]: ObjectType.FILE,
-  ["symbolx.bench.IconData"]: ObjectType.ICON,
   ["symbolx.bench.PolicyData"]: ObjectType.POLICY,
   ["symbolx.bench.PolicyRuleData"]: ObjectType.POLICY_RULE,
   ["symbolx.bench.SubjectData"]: ObjectType.SUBJECT,
@@ -22014,6 +22238,8 @@ export const OBJECT_TYPE_BY_MESSAGE_TYPE_NAME: Record<string, ObjectType> = {
   ["symbolx.bench.FontData"]: ObjectType.FONT,
   ["symbolx.bench.BoxData"]: ObjectType.BOX,
   ["symbolx.bench.OffsetData"]: ObjectType.OFFSET,
+  ["symbolx.bench.FileData"]: ObjectType.FILE,
+  ["symbolx.bench.IconData"]: ObjectType.ICON,
 }
 
 export const ENUM_BY_TYPE: Record<EnumType, Record<number | string, number | string>> = {
@@ -22086,11 +22312,10 @@ export interface StructTypeMapping extends Record<StructType, AnyStructData> {
   [StructType.PROPERTY_REFERENCE]: PropertyReferenceData,
   [StructType.VALUE_REFERENCE]: ValueReferenceData,
   [StructType.TYPE_INFO]: TypeInfoData,
+  [StructType.TYPE_CONSTRAINT]: TypeConstraintData,
   [StructType.CONTEXT]: ContextData,
   [StructType.SCHEDULE]: ScheduleData,
   [StructType.PROJECTION]: ProjectionData,
-  [StructType.FILE]: FileData,
-  [StructType.ICON]: IconData,
   [StructType.POLICY]: PolicyData,
   [StructType.POLICY_RULE]: PolicyRuleData,
   [StructType.SUBJECT]: SubjectData,
@@ -22117,6 +22342,8 @@ export interface StructTypeMapping extends Record<StructType, AnyStructData> {
   [StructType.FONT]: FontData,
   [StructType.BOX]: BoxData,
   [StructType.OFFSET]: OffsetData,
+  [StructType.FILE]: FileData,
+  [StructType.ICON]: IconData,
 }
 
 export interface NodeTypeMapping extends Record<NodeType, AnyNodeData> {
@@ -22204,11 +22431,10 @@ export interface AnyTypeMapping extends Record<ObjectType, AnyStructData | AnyNo
   [ObjectType.PROPERTY_REFERENCE]: PropertyReferenceData,
   [ObjectType.VALUE_REFERENCE]: ValueReferenceData,
   [ObjectType.TYPE_INFO]: TypeInfoData,
+  [ObjectType.TYPE_CONSTRAINT]: TypeConstraintData,
   [ObjectType.CONTEXT]: ContextData,
   [ObjectType.SCHEDULE]: ScheduleData,
   [ObjectType.PROJECTION]: ProjectionData,
-  [ObjectType.FILE]: FileData,
-  [ObjectType.ICON]: IconData,
   [ObjectType.POLICY]: PolicyData,
   [ObjectType.POLICY_RULE]: PolicyRuleData,
   [ObjectType.SUBJECT]: SubjectData,
@@ -22235,6 +22461,8 @@ export interface AnyTypeMapping extends Record<ObjectType, AnyStructData | AnyNo
   [ObjectType.FONT]: FontData,
   [ObjectType.BOX]: BoxData,
   [ObjectType.OFFSET]: OffsetData,
+  [ObjectType.FILE]: FileData,
+  [ObjectType.ICON]: IconData,
 }
 
 export interface EnumTypeMapping extends Record<EnumType, any> {
@@ -22615,10 +22843,11 @@ export enum FieldProperty {
   benchType = 42,
   baseTypePtr = 43,
   baseFieldZone = 44,
-  visibility = 50,
-  formatHint = 51,
-  condition = 52,
-  defaultPacked = 53,
+  defaultPacked = 50,
+  visibility = 52,
+  formatHint = 53,
+  condition = 54,
+  constraint = 55,
   isList = 60,
   isSecret = 61,
   isRequired = 62,
@@ -23279,13 +23508,29 @@ export enum TypeInfoProperty {
   benchType = 42,
   baseTypePtr = 43,
   baseFieldZone = 44,
-  visibility = 50,
-  formatHint = 51,
-  condition = 52,
-  defaultPacked = 53,
+  defaultPacked = 50,
+  visibility = 52,
+  formatHint = 53,
+  condition = 54,
+  constraint = 55,
   isList = 60,
   isSecret = 61,
   isRequired = 62,
+}
+
+export enum TypeConstraintProperty {
+  metatype = 1,
+  id = 2,
+  parentId = 3,
+  parentKey = 4,
+  orderKey = 5,
+  setProperties = 22,
+  minValue = 40,
+  maxValue = 41,
+  stepValue = 42,
+  regex = 50,
+  minLength = 51,
+  maxLength = 52,
 }
 
 export enum ContextProperty {
@@ -23325,25 +23570,6 @@ export enum ProjectionProperty {
   parentKey = 4,
   orderKey = 5,
   setProperties = 22,
-}
-
-export enum FileProperty {
-  metatype = 1,
-  type = 31,
-  name = 33,
-  size = 34,
-  sha512 = 35,
-  contentPtr = 36,
-  externalUrl = 37,
-}
-
-export enum IconProperty {
-  metatype = 1,
-  kind = 30,
-  emoji = 31,
-  file = 32,
-  faName = 33,
-  color = 40,
 }
 
 export enum PolicyProperty {
@@ -23651,12 +23877,31 @@ export enum OffsetProperty {
   leftRelative = 47,
 }
 
+export enum FileProperty {
+  metatype = 1,
+  type = 31,
+  name = 33,
+  size = 34,
+  sha512 = 35,
+  contentPtr = 36,
+  externalUrl = 37,
+}
+
+export enum IconProperty {
+  metatype = 1,
+  kind = 30,
+  emoji = 31,
+  file = 32,
+  faName = 33,
+  color = 40,
+}
+
 export type AnyNodeProperty = typeof BenchProperty | typeof EnvironmentProperty | typeof BranchProperty | typeof PackageProperty | typeof DependencyProperty | typeof UpgradeProperty | typeof SpaceProperty | typeof LinkProperty | typeof SkipProperty | typeof NoticeProperty | typeof BlockProperty | typeof TriggerProperty | typeof FieldProperty | typeof RecordProperty | typeof QueryProperty | typeof ViewProperty | typeof StepProperty | typeof BadgeProperty | typeof RoleProperty | typeof IdentityProperty | typeof MembershipProperty | typeof InviteProperty | typeof SessionProperty | typeof RunProperty | typeof PauseProperty | typeof SignalProperty | typeof LogProperty | typeof NotificationProperty | typeof ServerProperty | typeof StoreProperty | typeof DriveProperty | typeof CacheProperty | typeof FileContentProperty | typeof HandleProperty | typeof UserProperty | typeof OrganizationProperty | typeof ClientProperty
-export type AnyStructProperty = typeof PathProperty | typeof PathSegmentProperty | typeof PathTokenProperty | typeof NodeReferenceProperty | typeof PropertyReferenceProperty | typeof ValueReferenceProperty | typeof TypeInfoProperty | typeof ContextProperty | typeof ScheduleProperty | typeof ProjectionProperty | typeof FileProperty | typeof IconProperty | typeof PolicyProperty | typeof PolicyRuleProperty | typeof SubjectProperty | typeof AccessZoneProperty | typeof AccessMatrixProperty | typeof AccessProperty | typeof AccessTraceProperty | typeof RequestProperty | typeof ReadOptionsProperty | typeof ExpressionProperty | typeof AggregationProperty | typeof AggregationBucketProperty | typeof SelectionProperty | typeof CodeProperty | typeof CodeLineProperty | typeof StepConnectionProperty | typeof RunCodeFrameProperty | typeof RunErrorProperty | typeof ResourceCredentialProperty | typeof TextProperty | typeof TextLineProperty | typeof TextSpanProperty | typeof ColorProperty | typeof FontProperty | typeof BoxProperty | typeof OffsetProperty
+export type AnyStructProperty = typeof PathProperty | typeof PathSegmentProperty | typeof PathTokenProperty | typeof NodeReferenceProperty | typeof PropertyReferenceProperty | typeof ValueReferenceProperty | typeof TypeInfoProperty | typeof TypeConstraintProperty | typeof ContextProperty | typeof ScheduleProperty | typeof ProjectionProperty | typeof PolicyProperty | typeof PolicyRuleProperty | typeof SubjectProperty | typeof AccessZoneProperty | typeof AccessMatrixProperty | typeof AccessProperty | typeof AccessTraceProperty | typeof RequestProperty | typeof ReadOptionsProperty | typeof ExpressionProperty | typeof AggregationProperty | typeof AggregationBucketProperty | typeof SelectionProperty | typeof CodeProperty | typeof CodeLineProperty | typeof StepConnectionProperty | typeof RunCodeFrameProperty | typeof RunErrorProperty | typeof ResourceCredentialProperty | typeof TextProperty | typeof TextLineProperty | typeof TextSpanProperty | typeof ColorProperty | typeof FontProperty | typeof BoxProperty | typeof OffsetProperty | typeof FileProperty | typeof IconProperty
 export type AnyProperty = AnyNodeProperty | AnyStructProperty
 export type AnyNodePropertyType = typeof BenchProperty | typeof EnvironmentProperty | typeof BranchProperty | typeof PackageProperty | typeof DependencyProperty | typeof UpgradeProperty | typeof SpaceProperty | typeof LinkProperty | typeof SkipProperty | typeof NoticeProperty | typeof BlockProperty | typeof TriggerProperty | typeof FieldProperty | typeof RecordProperty | typeof QueryProperty | typeof ViewProperty | typeof StepProperty | typeof BadgeProperty | typeof RoleProperty | typeof IdentityProperty | typeof MembershipProperty | typeof InviteProperty | typeof SessionProperty | typeof RunProperty | typeof PauseProperty | typeof SignalProperty | typeof LogProperty | typeof NotificationProperty | typeof ServerProperty | typeof StoreProperty | typeof DriveProperty | typeof CacheProperty | typeof FileContentProperty | typeof HandleProperty | typeof UserProperty | typeof OrganizationProperty | typeof ClientProperty
-export type AnyStructPropertyType = typeof PathProperty | typeof PathSegmentProperty | typeof PathTokenProperty | typeof NodeReferenceProperty | typeof PropertyReferenceProperty | typeof ValueReferenceProperty | typeof TypeInfoProperty | typeof ContextProperty | typeof ScheduleProperty | typeof ProjectionProperty | typeof FileProperty | typeof IconProperty | typeof PolicyProperty | typeof PolicyRuleProperty | typeof SubjectProperty | typeof AccessZoneProperty | typeof AccessMatrixProperty | typeof AccessProperty | typeof AccessTraceProperty | typeof RequestProperty | typeof ReadOptionsProperty | typeof ExpressionProperty | typeof AggregationProperty | typeof AggregationBucketProperty | typeof SelectionProperty | typeof CodeProperty | typeof CodeLineProperty | typeof StepConnectionProperty | typeof RunCodeFrameProperty | typeof RunErrorProperty | typeof ResourceCredentialProperty | typeof TextProperty | typeof TextLineProperty | typeof TextSpanProperty | typeof ColorProperty | typeof FontProperty | typeof BoxProperty | typeof OffsetProperty
-export type AnyPropertyType = typeof BenchProperty | typeof EnvironmentProperty | typeof BranchProperty | typeof PackageProperty | typeof DependencyProperty | typeof UpgradeProperty | typeof SpaceProperty | typeof LinkProperty | typeof SkipProperty | typeof NoticeProperty | typeof BlockProperty | typeof TriggerProperty | typeof FieldProperty | typeof RecordProperty | typeof QueryProperty | typeof ViewProperty | typeof StepProperty | typeof BadgeProperty | typeof RoleProperty | typeof IdentityProperty | typeof MembershipProperty | typeof InviteProperty | typeof SessionProperty | typeof RunProperty | typeof PauseProperty | typeof SignalProperty | typeof LogProperty | typeof NotificationProperty | typeof ServerProperty | typeof StoreProperty | typeof DriveProperty | typeof CacheProperty | typeof FileContentProperty | typeof HandleProperty | typeof UserProperty | typeof OrganizationProperty | typeof ClientProperty | typeof PathProperty | typeof PathSegmentProperty | typeof PathTokenProperty | typeof NodeReferenceProperty | typeof PropertyReferenceProperty | typeof ValueReferenceProperty | typeof TypeInfoProperty | typeof ContextProperty | typeof ScheduleProperty | typeof ProjectionProperty | typeof FileProperty | typeof IconProperty | typeof PolicyProperty | typeof PolicyRuleProperty | typeof SubjectProperty | typeof AccessZoneProperty | typeof AccessMatrixProperty | typeof AccessProperty | typeof AccessTraceProperty | typeof RequestProperty | typeof ReadOptionsProperty | typeof ExpressionProperty | typeof AggregationProperty | typeof AggregationBucketProperty | typeof SelectionProperty | typeof CodeProperty | typeof CodeLineProperty | typeof StepConnectionProperty | typeof RunCodeFrameProperty | typeof RunErrorProperty | typeof ResourceCredentialProperty | typeof TextProperty | typeof TextLineProperty | typeof TextSpanProperty | typeof ColorProperty | typeof FontProperty | typeof BoxProperty | typeof OffsetProperty
+export type AnyStructPropertyType = typeof PathProperty | typeof PathSegmentProperty | typeof PathTokenProperty | typeof NodeReferenceProperty | typeof PropertyReferenceProperty | typeof ValueReferenceProperty | typeof TypeInfoProperty | typeof TypeConstraintProperty | typeof ContextProperty | typeof ScheduleProperty | typeof ProjectionProperty | typeof PolicyProperty | typeof PolicyRuleProperty | typeof SubjectProperty | typeof AccessZoneProperty | typeof AccessMatrixProperty | typeof AccessProperty | typeof AccessTraceProperty | typeof RequestProperty | typeof ReadOptionsProperty | typeof ExpressionProperty | typeof AggregationProperty | typeof AggregationBucketProperty | typeof SelectionProperty | typeof CodeProperty | typeof CodeLineProperty | typeof StepConnectionProperty | typeof RunCodeFrameProperty | typeof RunErrorProperty | typeof ResourceCredentialProperty | typeof TextProperty | typeof TextLineProperty | typeof TextSpanProperty | typeof ColorProperty | typeof FontProperty | typeof BoxProperty | typeof OffsetProperty | typeof FileProperty | typeof IconProperty
+export type AnyPropertyType = typeof BenchProperty | typeof EnvironmentProperty | typeof BranchProperty | typeof PackageProperty | typeof DependencyProperty | typeof UpgradeProperty | typeof SpaceProperty | typeof LinkProperty | typeof SkipProperty | typeof NoticeProperty | typeof BlockProperty | typeof TriggerProperty | typeof FieldProperty | typeof RecordProperty | typeof QueryProperty | typeof ViewProperty | typeof StepProperty | typeof BadgeProperty | typeof RoleProperty | typeof IdentityProperty | typeof MembershipProperty | typeof InviteProperty | typeof SessionProperty | typeof RunProperty | typeof PauseProperty | typeof SignalProperty | typeof LogProperty | typeof NotificationProperty | typeof ServerProperty | typeof StoreProperty | typeof DriveProperty | typeof CacheProperty | typeof FileContentProperty | typeof HandleProperty | typeof UserProperty | typeof OrganizationProperty | typeof ClientProperty | typeof PathProperty | typeof PathSegmentProperty | typeof PathTokenProperty | typeof NodeReferenceProperty | typeof PropertyReferenceProperty | typeof ValueReferenceProperty | typeof TypeInfoProperty | typeof TypeConstraintProperty | typeof ContextProperty | typeof ScheduleProperty | typeof ProjectionProperty | typeof PolicyProperty | typeof PolicyRuleProperty | typeof SubjectProperty | typeof AccessZoneProperty | typeof AccessMatrixProperty | typeof AccessProperty | typeof AccessTraceProperty | typeof RequestProperty | typeof ReadOptionsProperty | typeof ExpressionProperty | typeof AggregationProperty | typeof AggregationBucketProperty | typeof SelectionProperty | typeof CodeProperty | typeof CodeLineProperty | typeof StepConnectionProperty | typeof RunCodeFrameProperty | typeof RunErrorProperty | typeof ResourceCredentialProperty | typeof TextProperty | typeof TextLineProperty | typeof TextSpanProperty | typeof ColorProperty | typeof FontProperty | typeof BoxProperty | typeof OffsetProperty | typeof FileProperty | typeof IconProperty
 export const NODE_PROPERTY_ENUM_BY_TYPE: Partial<Record<ObjectType, AnyNodePropertyType>> = {
   [ObjectType.BENCH]: BenchProperty,
   [ObjectType.ENVIRONMENT]: EnvironmentProperty,
@@ -23705,11 +23950,10 @@ export const STRUCT_PROPERTY_ENUM_BY_TYPE: Partial<Record<ObjectType, AnyStructP
   [ObjectType.PROPERTY_REFERENCE]: PropertyReferenceProperty,
   [ObjectType.VALUE_REFERENCE]: ValueReferenceProperty,
   [ObjectType.TYPE_INFO]: TypeInfoProperty,
+  [ObjectType.TYPE_CONSTRAINT]: TypeConstraintProperty,
   [ObjectType.CONTEXT]: ContextProperty,
   [ObjectType.SCHEDULE]: ScheduleProperty,
   [ObjectType.PROJECTION]: ProjectionProperty,
-  [ObjectType.FILE]: FileProperty,
-  [ObjectType.ICON]: IconProperty,
   [ObjectType.POLICY]: PolicyProperty,
   [ObjectType.POLICY_RULE]: PolicyRuleProperty,
   [ObjectType.SUBJECT]: SubjectProperty,
@@ -23736,6 +23980,8 @@ export const STRUCT_PROPERTY_ENUM_BY_TYPE: Partial<Record<ObjectType, AnyStructP
   [ObjectType.FONT]: FontProperty,
   [ObjectType.BOX]: BoxProperty,
   [ObjectType.OFFSET]: OffsetProperty,
+  [ObjectType.FILE]: FileProperty,
+  [ObjectType.ICON]: IconProperty,
 }
 
 export const PROPERTY_ENUM_BY_TYPE: Partial<Record<ObjectType, AnyPropertyType>> = {
@@ -23783,11 +24029,10 @@ export const PROPERTY_ENUM_BY_TYPE: Partial<Record<ObjectType, AnyPropertyType>>
   [ObjectType.PROPERTY_REFERENCE]: PropertyReferenceProperty,
   [ObjectType.VALUE_REFERENCE]: ValueReferenceProperty,
   [ObjectType.TYPE_INFO]: TypeInfoProperty,
+  [ObjectType.TYPE_CONSTRAINT]: TypeConstraintProperty,
   [ObjectType.CONTEXT]: ContextProperty,
   [ObjectType.SCHEDULE]: ScheduleProperty,
   [ObjectType.PROJECTION]: ProjectionProperty,
-  [ObjectType.FILE]: FileProperty,
-  [ObjectType.ICON]: IconProperty,
   [ObjectType.POLICY]: PolicyProperty,
   [ObjectType.POLICY_RULE]: PolicyRuleProperty,
   [ObjectType.SUBJECT]: SubjectProperty,
@@ -23814,6 +24059,8 @@ export const PROPERTY_ENUM_BY_TYPE: Partial<Record<ObjectType, AnyPropertyType>>
   [ObjectType.FONT]: FontProperty,
   [ObjectType.BOX]: BoxProperty,
   [ObjectType.OFFSET]: OffsetProperty,
+  [ObjectType.FILE]: FileProperty,
+  [ObjectType.ICON]: IconProperty,
 }
 
 
@@ -23913,13 +24160,28 @@ export const TypeInfoDataInfo: Record<TypeInfoProperty, PropertyInfo> = {
   [TypeInfoProperty.benchType]: { id: 42, name: 'bench_type', component: ObjectType.TYPE_INFO, enumType: EnumType.BENCH_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRuntime: true, isWired: true, isStored: true },
   [TypeInfoProperty.baseTypePtr]: { id: 43, name: 'base_type_ptr', component: ObjectType.TYPE_INFO, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.BLOCK, NodeType.STEP], referenceStruct: StructType.NODE_REFERENCE },
   [TypeInfoProperty.baseFieldZone]: { id: 44, name: 'base_field_zone', component: ObjectType.TYPE_INFO, enumType: EnumType.FIELD_ZONE, kind: 'enum', primitiveType: PrimitiveType.INT16, isInternal: true, isRuntime: true, isWired: true, isStored: true },
-  [TypeInfoProperty.visibility]: { id: 50, name: 'visibility', component: ObjectType.TYPE_INFO, enumType: EnumType.NODE_VISIBILITY, kind: 'enum', primitiveType: PrimitiveType.INT16, isRuntime: true, isWired: true, isStored: true },
-  [TypeInfoProperty.formatHint]: { id: 51, name: 'format_hint', component: ObjectType.TYPE_INFO, enumType: EnumType.FORMAT_HINT, kind: 'enum', primitiveType: PrimitiveType.INT16, isRuntime: true, isWired: true, isStored: true },
-  [TypeInfoProperty.condition]: { id: 52, name: 'condition', component: ObjectType.TYPE_INFO, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.EXPRESSION },
-  [TypeInfoProperty.defaultPacked]: { id: 53, name: 'default_packed', component: ObjectType.TYPE_INFO, kind: 'primitive', primitiveType: PrimitiveType.JSON, isInternal: true, isRuntime: true, isWired: true, isStored: true, isValuePacked: true },
+  [TypeInfoProperty.defaultPacked]: { id: 50, name: 'default_packed', component: ObjectType.TYPE_INFO, kind: 'primitive', primitiveType: PrimitiveType.JSON, isInternal: true, isRuntime: true, isWired: true, isStored: true, isValuePacked: true },
+  [TypeInfoProperty.visibility]: { id: 52, name: 'visibility', component: ObjectType.TYPE_INFO, enumType: EnumType.NODE_VISIBILITY, kind: 'enum', primitiveType: PrimitiveType.INT16, isRuntime: true, isWired: true, isStored: true },
+  [TypeInfoProperty.formatHint]: { id: 53, name: 'format_hint', component: ObjectType.TYPE_INFO, enumType: EnumType.FORMAT_HINT, kind: 'enum', primitiveType: PrimitiveType.INT16, isRuntime: true, isWired: true, isStored: true },
+  [TypeInfoProperty.condition]: { id: 54, name: 'condition', component: ObjectType.TYPE_INFO, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.EXPRESSION },
+  [TypeInfoProperty.constraint]: { id: 55, name: 'constraint', component: ObjectType.TYPE_INFO, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.TYPE_CONSTRAINT },
   [TypeInfoProperty.isList]: { id: 60, name: 'is_list', component: ObjectType.TYPE_INFO, kind: 'primitive', primitiveType: PrimitiveType.BOOLEAN, isRequired: true, isRuntime: true, isWired: true, isStored: true },
   [TypeInfoProperty.isSecret]: { id: 61, name: 'is_secret', component: ObjectType.TYPE_INFO, kind: 'primitive', primitiveType: PrimitiveType.BOOLEAN, isRequired: true, isRuntime: true, isWired: true, isStored: true },
   [TypeInfoProperty.isRequired]: { id: 62, name: 'is_required', component: ObjectType.TYPE_INFO, kind: 'primitive', primitiveType: PrimitiveType.BOOLEAN, isRequired: true, isRuntime: true, isWired: true, isStored: true },
+}
+export const TypeConstraintDataInfo: Record<TypeConstraintProperty, PropertyInfo> = {
+  [TypeConstraintProperty.metatype]: { id: 1, name: 'metatype', component: ObjectType.TYPE_CONSTRAINT, enumType: EnumType.OBJECT_TYPE, kind: 'enum', primitiveType: PrimitiveType.STRING, isRequired: true, isInternal: true, isComputed: true, isWired: true },
+  [TypeConstraintProperty.id]: { id: 2, name: 'id', component: ObjectType.TYPE_CONSTRAINT, kind: 'primitive', primitiveType: PrimitiveType.INT32, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
+  [TypeConstraintProperty.parentId]: { id: 3, name: 'parent_id', component: ObjectType.TYPE_CONSTRAINT, kind: 'reference', primitiveType: PrimitiveType.INT32, isInternal: true, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_PARENT },
+  [TypeConstraintProperty.parentKey]: { id: 4, name: 'parent_key', component: ObjectType.TYPE_CONSTRAINT, kind: 'reference', primitiveType: PrimitiveType.STRING, isInternal: true, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_PARENT },
+  [TypeConstraintProperty.orderKey]: { id: 5, name: 'order_key', component: ObjectType.TYPE_CONSTRAINT, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isRuntime: true, isWired: true, isStored: true },
+  [TypeConstraintProperty.setProperties]: { id: 22, name: 'set_properties', component: ObjectType.TYPE_CONSTRAINT, kind: 'primitive', primitiveType: PrimitiveType.INT32, isList: true, isRequired: true, isRuntime: true, isWired: true, isStored: true },
+  [TypeConstraintProperty.minValue]: { id: 40, name: 'min_value', component: ObjectType.TYPE_CONSTRAINT, kind: 'primitive', primitiveType: PrimitiveType.FLOAT32, isRuntime: true, isWired: true, isStored: true },
+  [TypeConstraintProperty.maxValue]: { id: 41, name: 'max_value', component: ObjectType.TYPE_CONSTRAINT, kind: 'primitive', primitiveType: PrimitiveType.FLOAT32, isRuntime: true, isWired: true, isStored: true },
+  [TypeConstraintProperty.stepValue]: { id: 42, name: 'step_value', component: ObjectType.TYPE_CONSTRAINT, kind: 'primitive', primitiveType: PrimitiveType.FLOAT32, isRuntime: true, isWired: true, isStored: true },
+  [TypeConstraintProperty.regex]: { id: 50, name: 'regex', component: ObjectType.TYPE_CONSTRAINT, kind: 'primitive', primitiveType: PrimitiveType.STRING, isRuntime: true, isWired: true, isStored: true },
+  [TypeConstraintProperty.minLength]: { id: 51, name: 'min_length', component: ObjectType.TYPE_CONSTRAINT, kind: 'primitive', primitiveType: PrimitiveType.INT32, isRuntime: true, isWired: true, isStored: true },
+  [TypeConstraintProperty.maxLength]: { id: 52, name: 'max_length', component: ObjectType.TYPE_CONSTRAINT, kind: 'primitive', primitiveType: PrimitiveType.INT32, isRuntime: true, isWired: true, isStored: true },
 }
 export const ContextDataInfo: Record<ContextProperty, PropertyInfo> = {
   [ContextProperty.metatype]: { id: 1, name: 'metatype', component: ObjectType.CONTEXT, enumType: EnumType.OBJECT_TYPE, kind: 'enum', primitiveType: PrimitiveType.STRING, isRequired: true, isInternal: true, isComputed: true, isWired: true },
@@ -23956,23 +24218,6 @@ export const ProjectionDataInfo: Record<ProjectionProperty, PropertyInfo> = {
   [ProjectionProperty.parentKey]: { id: 4, name: 'parent_key', component: ObjectType.PROJECTION, kind: 'reference', primitiveType: PrimitiveType.STRING, isInternal: true, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_PARENT },
   [ProjectionProperty.orderKey]: { id: 5, name: 'order_key', component: ObjectType.PROJECTION, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [ProjectionProperty.setProperties]: { id: 22, name: 'set_properties', component: ObjectType.PROJECTION, kind: 'primitive', primitiveType: PrimitiveType.INT32, isList: true, isRequired: true, isRuntime: true, isWired: true, isStored: true },
-}
-export const FileDataInfo: Record<FileProperty, PropertyInfo> = {
-  [FileProperty.metatype]: { id: 1, name: 'metatype', component: ObjectType.FILE, enumType: EnumType.OBJECT_TYPE, kind: 'enum', primitiveType: PrimitiveType.STRING, isRequired: true, isInternal: true, isComputed: true, isWired: true },
-  [FileProperty.type]: { id: 31, name: 'type', component: ObjectType.FILE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isRuntime: true, isWired: true, isStored: true },
-  [FileProperty.name]: { id: 33, name: 'name', component: ObjectType.FILE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isRequired: true, isRuntime: true, isWired: true, isStored: true },
-  [FileProperty.size]: { id: 34, name: 'size', component: ObjectType.FILE, kind: 'primitive', primitiveType: PrimitiveType.INT32, isInternal: true, isRuntime: true, isWired: true, isStored: true },
-  [FileProperty.sha512]: { id: 35, name: 'sha512', component: ObjectType.FILE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isRuntime: true, isWired: true, isStored: true },
-  [FileProperty.contentPtr]: { id: 36, name: 'content_ptr', component: ObjectType.FILE, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.FILE_CONTENT], referenceStruct: StructType.NODE_REFERENCE },
-  [FileProperty.externalUrl]: { id: 37, name: 'external_url', component: ObjectType.FILE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isRuntime: true, isWired: true, isStored: true },
-}
-export const IconDataInfo: Record<IconProperty, PropertyInfo> = {
-  [IconProperty.metatype]: { id: 1, name: 'metatype', component: ObjectType.ICON, enumType: EnumType.OBJECT_TYPE, kind: 'enum', primitiveType: PrimitiveType.STRING, isRequired: true, isInternal: true, isComputed: true, isWired: true },
-  [IconProperty.kind]: { id: 30, name: 'kind', component: ObjectType.ICON, enumType: EnumType.ICON_KIND, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isRuntime: true, isWired: true, isStored: true },
-  [IconProperty.emoji]: { id: 31, name: 'emoji', component: ObjectType.ICON, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isRuntime: true, isWired: true, isStored: true },
-  [IconProperty.file]: { id: 32, name: 'file', component: ObjectType.ICON, kind: 'reference', primitiveType: PrimitiveType.JSON, isInternal: true, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.FILE },
-  [IconProperty.faName]: { id: 33, name: 'fa_name', component: ObjectType.ICON, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isRuntime: true, isWired: true, isStored: true },
-  [IconProperty.color]: { id: 40, name: 'color', component: ObjectType.ICON, kind: 'reference', primitiveType: PrimitiveType.JSON, isInternal: true, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.COLOR },
 }
 export const PolicyDataInfo: Record<PolicyProperty, PropertyInfo> = {
   [PolicyProperty.metatype]: { id: 1, name: 'metatype', component: ObjectType.POLICY, enumType: EnumType.OBJECT_TYPE, kind: 'enum', primitiveType: PrimitiveType.STRING, isRequired: true, isInternal: true, isComputed: true, isWired: true },
@@ -24252,6 +24497,23 @@ export const OffsetDataInfo: Record<OffsetProperty, PropertyInfo> = {
   [OffsetProperty.rightRelative]: { id: 45, name: 'right_relative', component: ObjectType.OFFSET, kind: 'primitive', primitiveType: PrimitiveType.FLOAT32, isRuntime: true, isWired: true, isStored: true },
   [OffsetProperty.bottomRelative]: { id: 46, name: 'bottom_relative', component: ObjectType.OFFSET, kind: 'primitive', primitiveType: PrimitiveType.FLOAT32, isRuntime: true, isWired: true, isStored: true },
   [OffsetProperty.leftRelative]: { id: 47, name: 'left_relative', component: ObjectType.OFFSET, kind: 'primitive', primitiveType: PrimitiveType.FLOAT32, isRuntime: true, isWired: true, isStored: true },
+}
+export const FileDataInfo: Record<FileProperty, PropertyInfo> = {
+  [FileProperty.metatype]: { id: 1, name: 'metatype', component: ObjectType.FILE, enumType: EnumType.OBJECT_TYPE, kind: 'enum', primitiveType: PrimitiveType.STRING, isRequired: true, isInternal: true, isComputed: true, isWired: true },
+  [FileProperty.type]: { id: 31, name: 'type', component: ObjectType.FILE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isRuntime: true, isWired: true, isStored: true },
+  [FileProperty.name]: { id: 33, name: 'name', component: ObjectType.FILE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isRequired: true, isRuntime: true, isWired: true, isStored: true },
+  [FileProperty.size]: { id: 34, name: 'size', component: ObjectType.FILE, kind: 'primitive', primitiveType: PrimitiveType.INT32, isInternal: true, isRuntime: true, isWired: true, isStored: true },
+  [FileProperty.sha512]: { id: 35, name: 'sha512', component: ObjectType.FILE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isRuntime: true, isWired: true, isStored: true },
+  [FileProperty.contentPtr]: { id: 36, name: 'content_ptr', component: ObjectType.FILE, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.FILE_CONTENT], referenceStruct: StructType.NODE_REFERENCE },
+  [FileProperty.externalUrl]: { id: 37, name: 'external_url', component: ObjectType.FILE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isRuntime: true, isWired: true, isStored: true },
+}
+export const IconDataInfo: Record<IconProperty, PropertyInfo> = {
+  [IconProperty.metatype]: { id: 1, name: 'metatype', component: ObjectType.ICON, enumType: EnumType.OBJECT_TYPE, kind: 'enum', primitiveType: PrimitiveType.STRING, isRequired: true, isInternal: true, isComputed: true, isWired: true },
+  [IconProperty.kind]: { id: 30, name: 'kind', component: ObjectType.ICON, enumType: EnumType.ICON_KIND, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isRuntime: true, isWired: true, isStored: true },
+  [IconProperty.emoji]: { id: 31, name: 'emoji', component: ObjectType.ICON, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isRuntime: true, isWired: true, isStored: true },
+  [IconProperty.file]: { id: 32, name: 'file', component: ObjectType.ICON, kind: 'reference', primitiveType: PrimitiveType.JSON, isInternal: true, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.FILE },
+  [IconProperty.faName]: { id: 33, name: 'fa_name', component: ObjectType.ICON, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isRuntime: true, isWired: true, isStored: true },
+  [IconProperty.color]: { id: 40, name: 'color', component: ObjectType.ICON, kind: 'reference', primitiveType: PrimitiveType.JSON, isInternal: true, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.COLOR },
 }
 export const BenchDataInfo: Record<BenchProperty, PropertyInfo> = {
   [BenchProperty.metatype]: { id: 1, name: 'metatype', component: ObjectType.BENCH, enumType: EnumType.OBJECT_TYPE, kind: 'enum', primitiveType: PrimitiveType.STRING, isRequired: true, isInternal: true, isComputed: true, isWired: true },
@@ -24557,10 +24819,11 @@ export const FieldDataInfo: Record<FieldProperty, PropertyInfo> = {
   [FieldProperty.benchType]: { id: 42, name: 'bench_type', component: ObjectType.FIELD, enumType: EnumType.BENCH_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRuntime: true, isWired: true, isStored: true },
   [FieldProperty.baseTypePtr]: { id: 43, name: 'base_type_ptr', component: ObjectType.FIELD, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.BLOCK, NodeType.STEP], referenceStruct: StructType.NODE_REFERENCE },
   [FieldProperty.baseFieldZone]: { id: 44, name: 'base_field_zone', component: ObjectType.FIELD, enumType: EnumType.FIELD_ZONE, kind: 'enum', primitiveType: PrimitiveType.INT16, isInternal: true, isRuntime: true, isWired: true, isStored: true },
-  [FieldProperty.visibility]: { id: 50, name: 'visibility', component: ObjectType.FIELD, enumType: EnumType.NODE_VISIBILITY, kind: 'enum', primitiveType: PrimitiveType.INT16, isRuntime: true, isWired: true, isStored: true },
-  [FieldProperty.formatHint]: { id: 51, name: 'format_hint', component: ObjectType.FIELD, enumType: EnumType.FORMAT_HINT, kind: 'enum', primitiveType: PrimitiveType.INT16, isRuntime: true, isWired: true, isStored: true },
-  [FieldProperty.condition]: { id: 52, name: 'condition', component: ObjectType.FIELD, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.EXPRESSION },
-  [FieldProperty.defaultPacked]: { id: 53, name: 'default_packed', component: ObjectType.FIELD, kind: 'primitive', primitiveType: PrimitiveType.JSON, isInternal: true, isRuntime: true, isWired: true, isStored: true, isValuePacked: true },
+  [FieldProperty.defaultPacked]: { id: 50, name: 'default_packed', component: ObjectType.FIELD, kind: 'primitive', primitiveType: PrimitiveType.JSON, isInternal: true, isRuntime: true, isWired: true, isStored: true, isValuePacked: true },
+  [FieldProperty.visibility]: { id: 52, name: 'visibility', component: ObjectType.FIELD, enumType: EnumType.NODE_VISIBILITY, kind: 'enum', primitiveType: PrimitiveType.INT16, isRuntime: true, isWired: true, isStored: true },
+  [FieldProperty.formatHint]: { id: 53, name: 'format_hint', component: ObjectType.FIELD, enumType: EnumType.FORMAT_HINT, kind: 'enum', primitiveType: PrimitiveType.INT16, isRuntime: true, isWired: true, isStored: true },
+  [FieldProperty.condition]: { id: 54, name: 'condition', component: ObjectType.FIELD, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.EXPRESSION },
+  [FieldProperty.constraint]: { id: 55, name: 'constraint', component: ObjectType.FIELD, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.TYPE_CONSTRAINT },
   [FieldProperty.isList]: { id: 60, name: 'is_list', component: ObjectType.FIELD, kind: 'primitive', primitiveType: PrimitiveType.BOOLEAN, isRequired: true, isRuntime: true, isWired: true, isStored: true },
   [FieldProperty.isSecret]: { id: 61, name: 'is_secret', component: ObjectType.FIELD, kind: 'primitive', primitiveType: PrimitiveType.BOOLEAN, isRequired: true, isRuntime: true, isWired: true, isStored: true },
   [FieldProperty.isRequired]: { id: 62, name: 'is_required', component: ObjectType.FIELD, kind: 'primitive', primitiveType: PrimitiveType.BOOLEAN, isRequired: true, isRuntime: true, isWired: true, isStored: true },
@@ -25144,11 +25407,10 @@ export const PROPERTY_INFOS_BY_TYPE: Record<ObjectType, Record<any, PropertyInfo
   [ObjectType.PROPERTY_REFERENCE]: PropertyReferenceDataInfo,
   [ObjectType.VALUE_REFERENCE]: ValueReferenceDataInfo,
   [ObjectType.TYPE_INFO]: TypeInfoDataInfo,
+  [ObjectType.TYPE_CONSTRAINT]: TypeConstraintDataInfo,
   [ObjectType.CONTEXT]: ContextDataInfo,
   [ObjectType.SCHEDULE]: ScheduleDataInfo,
   [ObjectType.PROJECTION]: ProjectionDataInfo,
-  [ObjectType.FILE]: FileDataInfo,
-  [ObjectType.ICON]: IconDataInfo,
   [ObjectType.POLICY]: PolicyDataInfo,
   [ObjectType.POLICY_RULE]: PolicyRuleDataInfo,
   [ObjectType.SUBJECT]: SubjectDataInfo,
@@ -25175,6 +25437,8 @@ export const PROPERTY_INFOS_BY_TYPE: Record<ObjectType, Record<any, PropertyInfo
   [ObjectType.FONT]: FontDataInfo,
   [ObjectType.BOX]: BoxDataInfo,
   [ObjectType.OFFSET]: OffsetDataInfo,
+  [ObjectType.FILE]: FileDataInfo,
+  [ObjectType.ICON]: IconDataInfo,
   [ObjectType.BENCH]: BenchDataInfo,
   [ObjectType.ENVIRONMENT]: EnvironmentDataInfo,
   [ObjectType.BRANCH]: BranchDataInfo,

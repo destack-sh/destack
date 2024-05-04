@@ -6,7 +6,6 @@ from bench.language.const import BenchError, NodeType, NoticeKind, StructType
 from bench.language.node import LINK_TARGET_NODE_TYPES, Node, Property, node
 from bench.language.property import p_node_parent, p_regular
 from bench.language.text import Text
-from bench.language.validation import enum_validator
 from bench.proto.wire import NoticeData
 from bench.utils.func import IdEnum
 
@@ -68,8 +67,8 @@ NOTICE_PARENT_TYPES: tuple[NodeType, ...] = (
 @node(NodeType.NOTICE)
 class Notice(Node[NoticeData]):
     parent: NoticeParent = p_node_parent(4, *NOTICE_PARENT_TYPES)
-    kind: NoticeKind = p_regular(30, default=None, validate=enum_validator(NoticeKind))
-    type: NoticeType = p_regular(31, validate=enum_validator(NoticeType))
+    kind: NoticeKind = p_regular(30, default=None)
+    type: NoticeType = p_regular(31)
     # -> builtin_type / custom_type / ... 'type' as union
     origin: Optional["Node"] = p_regular(33, require=False, references=LINK_TARGET_NODE_TYPES)
     path: Optional["Path"] = p_regular(34, require=False, array=False, struct=StructType.PATH)

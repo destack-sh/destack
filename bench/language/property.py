@@ -28,17 +28,26 @@ from bench.language.const import (
     PrimitiveType,
     ReferenceKind,
     StructType,
+    TypeKind,
 )
 from bench.language.graph import GraphNodeList, NodeList, ValueList
 from bench.language.setup import BENCH_CLASSES_BY_NAME, STRUCT_CLASS_BY_TYPE, _on_completing_setup
-from bench.language.validation import PropertyValidationHandler, parent_validator
+from bench.language.validation import TypeConstraintIn
 from bench.sql.core import CascadeAction, Column, Table
 from bench.utils.func import IdEnum, parse_py_annotation, try_tuple
 from bench.utils.utils import frozendict
 
 if TYPE_CHECKING:
     # noinspection PyUnresolvedReferences
-    from bench.language import Node, NodeReference, Object, PropertyReference, Struct, TypeInfo
+    from bench.language import (
+        Node,
+        NodeReference,
+        Object,
+        PropertyReference,
+        Struct,
+        TypeConstraint,
+        TypeInfo,
+    )
     from bench.language.expression import _TypeQueryBuilder
 
 PRIMITIVE_TYPE_BY_PY_TYPE: dict[type, PrimitiveType] = {
@@ -80,9 +89,7 @@ class Property(_TypeQueryBuilder if TYPE_CHECKING else object):
     primitive_type: PrimitiveType | None = UNSET
     default: Any = UNSET
     default_factory: Callable[[], Any] | None = None
-    custom_validate: (
-        Callable[["Property", Any, "PropertyValidationHandler"], bool | None] | None
-    ) = None
+    constraint: "TypeConstraint | TypeConstraintIn | None" = None
 
     # flags
     is_list: bool = UNSET
@@ -127,7 +134,7 @@ class Property(_TypeQueryBuilder if TYPE_CHECKING else object):
     reference_force_fk: bool = False
 
     _cached_as_ref: Optional["PropertyReference"] = None
-    _cached_as_type: Optional["TypeInfo"] = None
+    type_info: Optional["TypeInfo"] = None
     _is_finalized: bool = False
 
     def __post_init__(self):
@@ -198,35 +205,43 @@ class Property(_TypeQueryBuilder if TYPE_CHECKING else object):
     def as_type(self) -> "TypeInfo":
         """The type info for this property (can't extend TypeInfo because circles)."""
 
-        if self._cached_as_type is None:
+        if self.type_info is None:
             assert self.is_introspectable, f"{self!r} is not introspectable"
             from bench.language.field import TypeInfo
 
-            if self.reference_kind:
-                # don't have unions yet, doesn't matter
-                bench_type = (
-                    self.reference_nodes[0] if self.reference_nodes else self.reference_struct
-                )
-                self._cached_as_type = TypeInfo(
-                    bench_type=bench_type,
-                    is_list=self.is_list,
-                    is_required=self.is_required,
-                )
-            elif self.is_struct:
-                self._cached_as_type = TypeInfo(
-                    bench_type=self.reference_struct,
-                    is_list=self.is_list,
-                    is_required=self.is_required,
-                )
+            if isinstance(self.constraint, TypeConstraintIn):
+                constraint = self.constraint.into()
+            else:
+                constraint = self.constraint
+
+            # don't have unions yet, doesn't matter
+            if self.reference_nodes:
+                kind = TypeKind.NODE
+                bench_type = self.reference_nodes[0]
+                primitive_type = None
+            elif self.reference_struct:
+                kind = TypeKind.STRUCT
+                bench_type = self.reference_struct
+                primitive_type = None
             elif self.primitive_type:
-                self._cached_as_type = TypeInfo(
-                    primitive_type=self.primitive_type,
-                    is_list=self.is_list,
-                    is_required=self.is_required,
-                )
+                kind = TypeKind.PRIMITIVE
+                bench_type = None
+                primitive_type = self.primitive_type
             else:
                 raise ValueError(f"cannot determine type info for {self!r}")
-        return self._cached_as_type
+            self.type_info = TypeInfo(
+                kind=kind,
+                bench_type=bench_type,
+                primitive_type=primitive_type,
+                is_list=self.is_list,
+                # NOTE: we ignore is_required if deferred since we don't have a mechanism for determining
+                #  which properties were loaded in a given graph yet.
+                is_required=self.is_required and not self.is_deferred,
+                constraint=constraint,
+                _from_property=self,
+            )
+
+        return self.type_info
 
     def to_ref(self) -> "PropertyReference":
         """A pointer to this property. `to_ref()` for consistency with `Node.to_ref()`."""
@@ -807,7 +822,7 @@ def p_property(
     unique: bool = False,
     sensitive: bool = False,
     custom_list: type["ValueList"] | None = None,
-    validate: Callable[["Property", Any, "PropertyValidationHandler"], bool | None] | None = None,
+    constraint: "TypeConstraint | TypeConstraintIn | None" = None,
 ) -> Any:
     if references:
         reference_kind = ReferenceKind.NODE_REGULAR
@@ -831,7 +846,6 @@ def p_property(
         default=default,
         default_factory=default_factory,
         primitive_type=primitive_type,
-        custom_validate=validate,
         reference_kind=reference_kind,
         reference_nodes=try_tuple(references),
         reference_struct=struct,
@@ -884,7 +898,6 @@ def p_node_parent(id: int, *node_type: NodeType, is_system: bool = False) -> Any
         is_stored=False,
         is_list=False,
         is_system=is_system,
-        custom_validate=parent_validator(),
     )
 
 

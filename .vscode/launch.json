@@ -15,5 +15,19 @@
       "cwd": "${workspaceFolder}",
       "justMyCode": false
     }, 
+    {
+      "name": "bench [makemigrations]",
+      "type": "debugpy",
+      "request": "launch",
+      "program": "${workspaceFolder}/bench.py",
+      "args": ["sql", "makemigrations", "--no-downgrade"],
+      "env": {
+        "PYTHONUNBUFFERED": "1",
+        "DEBUG": "1"
+      },
+      "console": "integratedTerminal",
+      "cwd": "${workspaceFolder}",
+      "justMyCode": false
+    }, 
   ]
 }

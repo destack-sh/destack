@@ -13,7 +13,7 @@ from bench.utils.utils import frozendict
 if typing.TYPE_CHECKING:
     from bench.language import Session, Transaction
 
-VERSION = "2024.05.02.1"
+VERSION = "2024.05.04.1"
 REVISION_PENDING = -1
 TK_LENGTH_BYTES = 8
 TK_LENGTH_B64 = 12  # 1.5 * TK_LENGTH_BYTES (must be integer)
@@ -249,13 +249,10 @@ class StructType(IdEnum):
     PROPERTY_REFERENCE = 1004
     VALUE_REFERENCE = 1005
     TYPE_INFO = 1010
-    CONTEXT = 1011
+    TYPE_CONSTRAINT = 1011
+    CONTEXT = 1020
     SCHEDULE = 1012
     PROJECTION = 1013
-
-    # files
-    FILE = 1020
-    ICON = 1021
 
     # access
     POLICY = 1030
@@ -297,6 +294,10 @@ class StructType(IdEnum):
     BOX = 1202
     OFFSET = 1203
     ...
+
+    # files
+    FILE = 1250
+    ICON = 1251
 
     # space
     ...

@@ -51,7 +51,7 @@ from bench.language.const import (
     new_node_id,
     new_struct_id,
 )
-from bench.language.graph import DetachedNodeGraph, NodeDataGraph, NodeGraph, NodeList, ValueList
+from bench.language.graph import DetachedNodeGraph, NodeDataGraph, NodeGraph, NodeList
 from bench.language.property import (
     _PROPERTY_SPECIFIERS,
     METATYPE_PROPERTY,
@@ -71,12 +71,7 @@ from bench.language.setup import (
     NODE_COMPONENT_CLASS_BY_NAME,
     STRUCT_CLASS_BY_TYPE,
 )
-from bench.language.validation import (
-    PropertyValidationHandler,
-    ValidationError,
-    ValidationHandler,
-    on_invalid_raise,
-)
+from bench.language.validation import ValidationError, ValidationHandler, on_invalid_raise
 from bench.proto.wire import AnyNodeData, AnyStructData, NodeReferenceData, SomeNodeData
 from bench.sql.core import Constraint, ConstraintType, Index, IndexType, PrimitiveType, Table
 from bench.utils.casing import PYTHON_CASING, IdentifierType, to_casing
@@ -1064,22 +1059,18 @@ class Struct(abc.ABC, Generic[StructDataT]):
                     return object.__setattr__(self, key, value)
                 else:
                     return attr.set(value)  # has its own set
-            elif (
-                prop.reference_kind == ReferenceKind.STRUCT_CHILD
-                and self._status is not None
-                and value is not None
-            ):
-                # copy struct if needed (only after init since child struct needs our id)
-                if prop.is_list:
-                    value = ValueList._move_list(value, self, prop, prop)
-                else:
-                    value = cast(Struct, value)._move_to(self, prop)
             elif prop.is_computed:
                 raise AttributeError(f"cannot set computed property {prop!r}: {value!r}")
 
-            # validate
+            # coerce & check type
+            typ = prop.type_info
+            if typ is not None:  # don't run while still setting up
+                value = coerce_value(value, typ, self, prop, prop)
+                check_value(value, typ)
+
+            # set & validate components
             if is_tracked:
-                prev = getattr(self, key)
+                prev = self.__dict__.get(key)
                 object.__setattr__(self, key, value)
                 try:
                     self._validate_self((prop,), invalid=on_invalid_raise)
@@ -1091,7 +1082,8 @@ class Struct(abc.ABC, Generic[StructDataT]):
 
             # update reference pointers :NodeRefs
             if self._status is not None and prop.reference_wired_ptr is not None:
-                object.__setattr__(self, prop.reference_wired_ptr.name, prop.to_wired_ptr(value))
+                wired_ptr = prop.to_wired_ptr(cast(Any, value))
+                object.__setattr__(self, prop.reference_wired_ptr.name, wired_ptr)
 
             if is_tracked:
                 # notify
@@ -1243,24 +1235,6 @@ class Struct(abc.ABC, Generic[StructDataT]):
             else:
                 ptr = cast("PropertyReference", ptr)
                 setattr(self, prop.name, ptr.resolve())
-
-    def _validate_component(
-        self, properties: Collection[Property], invalid: "ValidationHandler"
-    ) -> None:
-        """Validate properties for illegal values that should not or cannot be stored."""
-
-        if properties == ():  # validate all
-            properties = self.__tracked_properties__.values()
-        for prop in properties:
-            value = getattr(self, prop.name)
-            if value is None:
-                # TODO :Robustness: track whether property was deferred
-                #  (so we can validate it appropriately, and probably a bunch of other stuff)
-                if prop.is_required and not (prop.is_sensitive or prop.is_deferred):
-                    invalid(self, f"{prop.name} is required", {"properties": (prop,)})
-            elif prop.custom_validate is not None:
-                handler = PropertyValidationHandler(self, prop, invalid)
-                prop.custom_validate(prop, value, handler)
 
     def _flushed_self(self):
         """Called when this struct has been flushed to the store."""
@@ -1897,6 +1871,10 @@ class Node(Struct[NodeDataT], Generic[NodeDataT]):
     async def exists(cls, filter: Optional["Expression"] = None, **kwargs) -> bool:
         return await cls.query().exists(filter, **kwargs)
 
+
+# NOTE: import from .value later to avoid circular import
+#  (but import at top level to avoid import in critical path)
+from bench.language.value import check_value, coerce_value  # noqa: E402
 
 LINK_TARGET_NODE_TYPES: tuple[NodeType, ...] = tuple(
     nt

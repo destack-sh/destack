@@ -16,7 +16,7 @@ from bench.language.property import (
     p_value_packed,
     p_value_runtime,
 )
-from bench.language.validation import ValidationHandler, enum_validator, validate_name
+from bench.language.validation import NAME_CONSTRAINT, ValidationHandler
 from bench.language.value import HasValues
 from bench.proto.wire import BlockData
 from bench.utils.casing import IdentifierType
@@ -111,8 +111,8 @@ class Block(Node[BlockData], HasValues):
     triggers: NodeList["Trigger"] = p_node_child(NodeType.TRIGGER)
 
     # core
-    type: BlockType = p_internal(30, validate=enum_validator(BlockType))
-    name: str = p_regular(32, validate=validate_name)
+    type: BlockType = p_internal(30)
+    name: str = p_regular(32, constraint=NAME_CONSTRAINT)
     order_key: str = p_internal(33, default=INTEGER_ZERO)
     policies: list["Policy"] = p_regular(34, array=True, struct=StructType.POLICY)
     bases: list["Block"] = p_regular(

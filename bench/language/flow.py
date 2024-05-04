@@ -13,7 +13,7 @@ from bench.language.property import (
     p_value_packed,
     p_value_runtime,
 )
-from bench.language.validation import validate_name
+from bench.language.validation import NAME_CONSTRAINT
 from bench.language.value import HasValues
 from bench.proto.wire import StepData
 from bench.utils.fractional import INTEGER_ZERO
@@ -61,7 +61,7 @@ class Step(Node[StepData], HasValues):
 
     type: StepType = p_internal(30, default=StepType.BLANK)
     # custom type?
-    name: str | None = p_regular(32, default=None, validate=validate_name)
+    name: str | None = p_regular(32, default=None, constraint=NAME_CONSTRAINT)
     order_key: str = p_internal(33, default=INTEGER_ZERO)
     text: Optional["Text"] = p_regular(
         34, default=None, require=False, array=False, struct=StructType.TEXT
