@@ -1,5 +1,5 @@
 <script lang="ts" setup>
-import { ViewData, NodeReferenceData, NodeType } from "@/proto/wire";
+import { ViewData, NodeType } from "@/proto/wire";
 import { viewEmits, type ViewExposed } from "@/views/common";
 import { canvas, inspectionBasePtr, inspectionPtr } from "@/system/space";
 import { useExistingConnection } from "@/system/connection";
