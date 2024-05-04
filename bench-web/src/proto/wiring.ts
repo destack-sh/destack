@@ -3,7 +3,6 @@ import {
   MESSAGE_TYPE_BY_OBJECT_TYPE,
   NODE_PROPERTY_ENUM_BY_TYPE,
   NodeReferenceData,
-  NodeSource,
   NodeType,
   PROPERTY_ENUM_BY_TYPE,
   PropertyReferenceData,
@@ -181,7 +180,6 @@ export function makeNode<T extends NodeType>(
 ): NodeTypeMapping[T] {
   const node = {
     ...data,
-    source: NodeSource.STORE,
     revision: 0,
     setProperties: [],
   } as unknown as NodeTypeMapping[T];
@@ -225,7 +223,7 @@ export function makeNode<T extends NodeType>(
  * Copies all data properties of the node with a new identity.
  */
 export function copyNode<T extends AnyNodeData>(node: T): T {
-  const copy = { ...node, id: undefined, ck: undefined, source: NodeSource.STORE, revision: 0, setProperties: [] };
+  const copy = { ...node, id: undefined, ck: undefined, revision: 0, setProperties: [] };
   return makeNode(copy) as T;
 }
 

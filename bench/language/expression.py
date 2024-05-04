@@ -104,11 +104,11 @@ class NodeReference(Struct):
         self, properties: tuple[Property, ...], invalid: "ValidationHandler"
     ) -> None:
         if self.id is None:
-            invalid(self, "id is required", {"properties": (NodeReference.id,)})
+            invalid(self, "id is required", (NodeReference.id,))
         if self.type in SUB_BENCH_NODE_TYPES and self.bench_id is None:
-            invalid(self, "bench_id is required", {"properties": (NodeReference.bench_id,)})
+            invalid(self, "bench_id is required", (NodeReference.bench_id,))
         if self.type in BASED_NODE_TYPES and self.base_ck is None:
-            invalid(self, "base_ck is required", {"properties": (NodeReference.base_ck,)})
+            invalid(self, "base_ck is required", (NodeReference.base_ck,))
 
     @staticmethod
     def from_node(node: Node) -> "NodeReference":  # type: ignore
@@ -447,7 +447,7 @@ def coerce_conditional(
             field, property = None, target
         else:
             field, property = target, None
-        _check_type_supports(target.as_type, op)
+        _check_type_supports(target.as_type_info, op)
         if value is None:
             if op == ConditionalOp.EQUALS:
                 op = ConditionalOp.NOT_EXISTS
@@ -505,7 +505,7 @@ def coerce_sort(
                 item = S(op, field=None, property=target)
             else:
                 item = S(op, field=target, property=None)
-            _check_type_supports(target.as_type, op)
+            _check_type_supports(target.as_type_info, op)
         if not isinstance(item, Expression) or item.kind != ExpressionKind.SORT:
             raise TypeError(f"expected Sort or str, got {item!r}")
         coerced.append(item)
@@ -594,7 +594,7 @@ def _require_expression_op(op: ExpressionOp):
     def decorator(func):
         @functools.wraps(func)
         def wrapper(self: "_TypeQueryBuilder", *args, **kwargs):
-            _check_type_supports(self.as_type, op)
+            _check_type_supports(self.as_type_info, op)
             return func(self, *args, **kwargs)
 
         return wrapper
@@ -623,7 +623,7 @@ class _TypeQueryBuilder:
     """
 
     @property
-    def as_type(self) -> "TypeInfo":
+    def as_type_info(self) -> "TypeInfo":
         raise NotImplementedError(f"{self!r} does not implement type")
 
     #

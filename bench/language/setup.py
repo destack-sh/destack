@@ -1,4 +1,3 @@
-import enum
 import functools
 from collections import defaultdict
 from itertools import chain
@@ -211,12 +210,6 @@ def _complete_bench_setup():
         cast(Node, n).metatype for n in get_subclasses(BasedNode) if hasattr(n, "metatype")
     ]
     assert_collections_equal(base_node_types, const.BASED_NODE_TYPES.tuple)
-
-    # check that all enum types are valid proto-able enums
-    for struct_t in chain(STRUCT_CLASS_BY_TYPE.values(), NODE_CLASS_BY_TYPE.values()):
-        for prop in struct_t.__properties__.values():
-            if prop.is_enum and not issubclass(prop.py_type_stripped, (IdEnum, enum.IntFlag)):
-                raise ValueError(f"{prop!r} is not a valid proto enum")
 
     _COMPLETED_SETUP = True
 

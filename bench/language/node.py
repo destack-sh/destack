@@ -43,7 +43,6 @@ from bench.language.const import (
     TK_LENGTH_BYTES,
     UNSET,
     InterpStatus,
-    NodeSource,
     NodeType,
     ReferenceKind,
     StructType,
@@ -1062,14 +1061,13 @@ class Struct(abc.ABC, Generic[StructDataT]):
             elif prop.is_computed:
                 raise AttributeError(f"cannot set computed property {prop!r}: {value!r}")
 
-            # coerce & check type
-            typ = prop.type_info
-            if typ is not None:  # don't run while still setting up
-                value = coerce_value(value, typ, self, prop, prop)
-                check_value(value, typ)
-
-            # set & validate components
+            # validate/set
             if is_tracked:
+                # coerce & check type
+                typ = prop.type_info
+                if typ is not None:  # don't run while still setting up
+                    value = coerce_value(value, typ, self, prop, prop)
+                    check_value(value, typ, invalid=on_invalid_raise)
                 prev = self.__dict__.get(key)
                 object.__setattr__(self, key, value)
                 try:
@@ -1183,6 +1181,14 @@ class Struct(abc.ABC, Generic[StructDataT]):
                 value = getattr(self, prop.name)
                 if value is not None:  # keep old value)
                     self.__dict__[prop.reference_wired_ptr.name] = prop.to_wired_ptr(value)
+
+    def _validate_component(self, properties: Collection[Property], invalid: "ValidationHandler"):
+        if properties == ():
+            properties = self.__tracked_properties__.values()
+        for prop in properties:
+            if prop.type_info is not None:
+                value = self.__dict__.get(prop.name)
+                check_value(value, prop.type_info, invalid=invalid)
 
     def _interp_component(self, scope: Optional["Node"], notice: "NoticeHandler"):
         from bench.language.notice import NoticeType
@@ -1372,7 +1378,6 @@ class Node(Struct[NodeDataT], Generic[NodeDataT]):
     if TYPE_CHECKING:
         package_id: Optional[UUID] = None
         bench_id: Optional[UUID] = None
-    source: NodeSource = p_system(8, default=NodeSource.STORE, store=False, wire=True, require=True)
 
     # 10-29: reserved for node tracking
     revision: int = p_system(
@@ -1747,14 +1752,14 @@ class Node(Struct[NodeDataT], Generic[NodeDataT]):
                 if existing and not isinstance(existing, NodeList):
                     getattr(self, name).extend(*existing)
 
-        # validate if in session after all init are done
+        # validate if in session after all inits are done
         if (
             self._status >= InterpStatus.INTERPED
             and self._is_new
             and self._session is not None
             and self._session is not UNSET
         ):
-            self._validate_self(self.__tracked_properties__.values(), invalid=on_invalid_raise)
+            self._validate_self((), invalid=on_invalid_raise)
 
     @final
     def _interp_self(self, scope: Optional["Node"], notice: "NoticeHandler"):

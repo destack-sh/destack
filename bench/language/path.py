@@ -1,7 +1,7 @@
 import re
 from typing import TYPE_CHECKING, Mapping, Optional
 
-from bench.language.const import NodeType, StructType
+from bench.language.const import EnumType, NodeType, StructType, enum_
 from bench.language.node import Struct, struct
 from bench.language.property import p_regular
 from bench.utils.func import IdEnum
@@ -19,6 +19,7 @@ IDENTIFIER_PATTERN = re.compile(r"[\w ]+")
 RELATIVE_PATTERN = re.compile(r"(\.\.)|(\.)")
 
 
+@enum_(EnumType.PATH_TOKEN_TYPE)
 class PathTokenType(IdEnum):
     # special
     SLASH = 1
@@ -52,6 +53,7 @@ class PathToken(Struct):
     type: PathTokenType = p_regular(31)
 
 
+@enum_(EnumType.PATH_SEGMENT_TYPE)
 class PathSegmentType(IdEnum):
     # specific
     BENCH = 1

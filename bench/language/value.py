@@ -1,5 +1,6 @@
 import base64
 import dataclasses
+import re
 from dataclasses import dataclass
 from datetime import datetime, timedelta
 from typing import TYPE_CHECKING, Any, Collection, Optional, TypeGuard, Union, cast
@@ -17,13 +18,16 @@ from bench.language.const import (
 )
 from bench.language.property import Property
 from bench.language.setup import ENUM_CLASS_BY_TYPE
+from bench.language.validation import on_invalid_raise
 from bench.proto.monkey import _PatchedMessage
 from bench.proto.wire import AnyStructData
 
 if TYPE_CHECKING:
     from bench.language import Field, Node, NodeReference
     from bench.language.field import TypeInfoBase
+    from bench.language.node import BasedNode
     from bench.language.notice import NoticeHandler
+    from bench.language.validation import ValidationHandler
 
 logger = structlog.get_logger(__name__)
 
@@ -157,7 +161,7 @@ class Object:
         value = coerce_value(
             value, field, parent=self, parent_prop=field, ancestor_prop=self.ancestor_prop
         )
-        check_value(value, field)
+        check_value(value, field, invalid=on_invalid_raise)
         if self._value is None:
             self._value = {}
         self._value[field.storage_key] = value
@@ -282,91 +286,130 @@ def coerce_value(
             ]
 
 
-def _check_value_scalar(value: ScalarValue, typ: "TypeInfoBase") -> None:
-    """Checks whether the given scalar value has the expected type. Raises TypeError if not."""
+EPSILON = 1e-6
+
+
+def _check_value_scalar(
+    value: SomeValue, typ: "TypeInfoBase", invalid: "ValidationHandler"
+) -> None:
+    """Checks whether the given scalar value has the expected type."""
     if typ.kind == TypeKind.PRIMITIVE:
         expected_type = PYTHON_TYPE_BY_PRIMITIVE_TYPE[cast(PrimitiveType, typ.primitive_type)]
         if type(value) is not expected_type:
-            raise TypeError(f"{value!r} is not of type {expected_type!r} (expected {typ!r})")
-    elif typ.kind == TypeKind.NODE:
+            invalid(value, "not of type", typ)
+        if typ.constraint is not None:
+            if type(value) is int or type(value) is float:  # noqa: E721
+                if typ.constraint.min_value is not None and value < typ.constraint.min_value:
+                    invalid(value, "too small", typ)
+                if typ.constraint.max_value is not None and value > typ.constraint.max_value:
+                    invalid(value, "too large", typ)
+                if (
+                    typ.constraint.step_value is not None
+                    and value % typ.constraint.step_value > EPSILON
+                ):
+                    invalid(value, f"not a multiple of {typ.constraint.step_value}", typ)
+            if type(value) is str:  # noqa: E721
+                if typ.constraint.min_length is not None and len(value) < typ.constraint.min_length:
+                    invalid(value, "too short", typ)
+                if typ.constraint.max_length is not None and len(value) > typ.constraint.max_length:
+                    invalid(value, "too long", typ)
+                if typ.constraint.regex is not None and not re.match(typ.constraint.regex, value):
+                    raise TypeError(f"{value!r} does not match {typ.constraint.regex!r}", typ)
+    elif typ.kind == TypeKind.NODE or typ.kind == TypeKind.BASED_NODE:
         if not getattr(cast("Node", value), "__is_node__", False):
-            raise TypeError(f"{value!r} is not a Node (expected {typ!r})")
-        if typ.bench_type != cast("Node", value).metatype:
-            raise TypeError(f"{value!r} is not of type {typ.bench_type!r} (expected {typ!r})")
+            invalid(value, "not a Node", typ)
+        elif cast("Node", value).metatype != typ.bench_type and (
+            typ._from_property is None
+            # special case :FakeNodePropertyUnion for reference properties
+            or cast("Node", value).metatype not in (typ._from_property.reference_nodes or ())
+        ):
+            invalid(value, "not of type", typ)
+        if typ.kind == TypeKind.BASED_NODE:
+            if typ.base_type is not None and cast("BasedNode", value).base != typ.base_type:
+                invalid(value, f"not based on {typ.base_type}", typ)
     elif typ.kind == TypeKind.STRUCT:
         if not getattr(cast("Struct", value), "__is_struct_only__", False):
-            raise TypeError(f"{value!r} is not a Struct (expected {typ!r})")
-        if typ.bench_type != cast("Struct", value).metatype:
-            raise TypeError(f"{value!r} is not of type {typ.bench_type!r} (expected {typ!r})")
+            invalid(value, "not a Struct", typ)
+        elif cast("Struct", value).metatype != typ.bench_type:
+            invalid(value, "not of type", typ)
     elif typ.kind == TypeKind.ENUM:
-        if type(value) is not int:  # noqa: E721
-            raise TypeError(f"{value!r} is not an int (expected {typ!r})")
+        enum_cls = ENUM_CLASS_BY_TYPE[cast(EnumType, typ.bench_type)]
+        try:
+            enum_cls(cast(int, value))
+        except ValueError:
+            invalid(value, f"not a valid {enum_cls}", typ)
     else:
         raise RuntimeError(f"unexpected type {typ!r}")
 
 
-def _check_list(value: SomeValue, typ: "TypeInfoBase") -> TypeGuard[list]:
+def _check_list(
+    value: SomeValue, typ: "TypeInfoBase", invalid: "ValidationHandler"
+) -> TypeGuard[list]:
+    """Checks whether the given value is a list of the expected dimensions."""
     if not isinstance(value, list):
-        raise TypeError(f"{value!r} is not a list (expected {typ!r})")
+        invalid(value, "not a list", typ)
+        return False
     if typ.constraint is not None:
         if typ.constraint.min_length is not None and len(value) < typ.constraint.min_length:
-            raise TypeError(f"{value!r} is too short (expected {typ!r})")
+            invalid(value, "too short", typ)
         if typ.constraint.max_length is not None and len(value) > typ.constraint.max_length:
-            raise TypeError(f"{value!r} is too long (expected {typ!r})")
+            invalid(value, "too long", typ)
     return True
 
 
-def _check_object_scalar(value: ScalarValue, typ: "TypeInfoBase") -> None:
-    """Checks whether the given object value has the expected type (recursively). Raises TypeError if not."""
+def _check_object_scalar(
+    value: SomeValue, typ: "TypeInfoBase", invalid: "ValidationHandler"
+) -> None:
+    """Checks whether the given object value has the expected type (recursively)."""
     for field in typ._base_fields:
         field_type = field._to_resolved()
-        field_value = getattr(value, field.name, None)
+        field_value = cast(SomeValue, getattr(value, field.name, None))
         if field_value is None:
             if field_type.is_required:
-                raise TypeError(f"{value!r} is missing required field {field!r}")
+                invalid(value, "missing required", field)
             else:
                 continue
         if field_type.kind == TypeKind.OBJECT:
             if not field_type.is_list:
-                _check_object_scalar(field_value, field_type)
-            elif _check_list(field_value, field_type):
+                _check_object_scalar(field_value, field_type, invalid)
+            elif _check_list(field_value, field_type, invalid):
                 for element in field_value:
-                    _check_object_scalar(element, field_type)
+                    _check_object_scalar(element, field_type, invalid)
         else:
             if not field_type.is_list:
-                _check_value_scalar(field_value, field_type)
-            elif _check_list(field_value, field_type):
+                _check_value_scalar(field_value, field_type, invalid)
+            elif _check_list(field_value, field_type, invalid):
                 for element in field_value:
-                    _check_value_scalar(element, field_type)
+                    _check_value_scalar(element, field_type, invalid)
 
 
-def check_value(value: Any, typ: "TypeInfoBase") -> None:
+def check_value(value: Any, typ: "TypeInfoBase", invalid: "ValidationHandler") -> None:
     """
     Checks whether the given value has the expected type (recursively).
-    Raises TypeError at first issue if not.
     """
+    assert typ.kind != TypeKind.ALIAS, f"unresolved type {typ!r}"
     if typ.kind == TypeKind.OBJECT:
         if not typ.is_list:
             if value is None:
                 if typ.is_required:
-                    raise TypeError(f"value is None (expected {typ!r})")
+                    invalid(value, "is None", typ)
                 else:
                     return
-            _check_object_scalar(value, typ)
-        elif _check_list(value, typ):
+            _check_object_scalar(value, typ, invalid)
+        elif _check_list(value, typ, invalid):
             for element in value:
-                _check_object_scalar(element, typ)
+                _check_object_scalar(element, typ, invalid)
     else:
         if not typ.is_list:
             if value is None:
                 if typ.is_required:
-                    raise TypeError(f"value is None (expected {typ!r})")
+                    invalid(value, "is None", typ)
                 else:
                     return
-            _check_value_scalar(value, typ)
-        elif _check_list(value, typ):
+            _check_value_scalar(value, typ, invalid)
+        elif _check_list(value, typ, invalid):
             for element in value:
-                _check_value_scalar(element, typ)
+                _check_value_scalar(element, typ, invalid)
 
 
 def _pack_value_scalar(value: ScalarValue, typ: "TypeInfoBase") -> JsonValue:

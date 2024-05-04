@@ -18,7 +18,6 @@ from bench.language.setup import (
     CHILD_NODE_TYPES,
     DESCENDANT_NODE_TYPES,
     ENUM_CLASS_BY_TYPE,
-    ENUM_TYPE_BY_CLASS,
     FINAL_BENCH_CLASSES,
     NODE_CLASS_BY_TYPE,
     NODE_CLASSES,
@@ -297,11 +296,9 @@ export type PropertyInfo = {
             }
             if prop.reference_kind:
                 kind = "reference"
-            elif prop.is_enum:
+            elif prop.enum_type:
                 kind = "enum"
-                enum_type = ENUM_TYPE_BY_CLASS.get(prop.py_type_stripped)
-                if enum_type:
-                    prop_info_parts["enumType"] = f"EnumType.{enum_type.name}"
+                prop_info_parts["enumType"] = f"EnumType.{prop.enum_type.name}"
             else:
                 kind = "primitive"
             prop_info_parts["kind"] = repr(kind)

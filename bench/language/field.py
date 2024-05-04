@@ -20,6 +20,7 @@ from bench.language.const import (
 from bench.language.expression import NodeReference, _TypeQueryBuilder
 from bench.language.graph import NodeList
 from bench.language.node import (
+    BasedNode,
     Node,
     Struct,
     get_tk_b64_from_ck,
@@ -42,7 +43,7 @@ from bench.language.property import (
 )
 from bench.language.validation import NAME_CONSTRAINT, ValidationHandler
 from bench.language.value import HasValues
-from bench.proto.wire import FieldData
+from bench.proto.wire import FieldData, NodeReferenceData
 from bench.sql.core import PrimitiveType
 from bench.utils.casing import IdentifierType
 from bench.utils.fractional import INTEGER_ZERO
@@ -347,7 +348,7 @@ class TypeInfo(TypeInfoBase):
 
 
 @node(NodeType.FIELD)
-class Field(Node[FieldData], TypeInfoBase, _TypeQueryBuilder):
+class Field(BasedNode[FieldData], TypeInfoBase, _TypeQueryBuilder):
     """
     A used-defined attribute of some value
      (Bench defines Properties for Nodes/Structs, Users define Fields for Values inside those).
@@ -402,6 +403,18 @@ class Field(Node[FieldData], TypeInfoBase, _TypeQueryBuilder):
     ) -> None:
         if self.zone != FieldZone.OPTION and self.kind is None:
             invalid(self, "missing type identity", None)
+
+    @property
+    def base(self) -> Optional[Node]:
+        return self.parent
+
+    @property
+    def base_ck(self) -> Optional[UUID]:
+        return self.base.ck if self.base is not None else None
+
+    @staticmethod
+    def get_base_from_data(data: FieldData) -> Optional[NodeReferenceData]:
+        return data.parent_ptr
 
     @property
     def identifier_type(self):

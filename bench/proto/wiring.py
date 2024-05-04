@@ -272,7 +272,7 @@ def unpack_node_graph(
     parent: Node | None = None,
     session: Session | None = None,
     exclude: set[NodeType] | tuple[NodeType, ...] | None = (),
-) -> NodeGraph:
+) -> NodeGraph["Node"]:
     """Unpacks the node data(s) into a node graph."""
 
     exclude = exclude or ()
