@@ -115,9 +115,7 @@ class Block(Node[BlockData], HasValues):
     name: str = p_regular(32, constraint=NAME_CONSTRAINT)
     order_key: str = p_internal(33, default=INTEGER_ZERO)
     policies: list["Policy"] = p_regular(34, array=True, struct=StructType.POLICY)
-    bases: list["Block"] = p_regular(
-        35, default=None, require=False, array=True, references=NodeType.BLOCK
-    )
+    bases: list["Block"] = p_regular(35, require=False, array=True, references=NodeType.BLOCK)
     builtin_base: Optional["TypeInfo"] = p_regular(36, default=None, struct=StructType.TYPE_INFO)
     text: Optional["Text"] = p_regular(
         37, default=None, require=False, array=False, struct=StructType.TEXT
@@ -196,16 +194,10 @@ class Block(Node[BlockData], HasValues):
         self, properties: Collection["Property"], invalid: "ValidationHandler"
     ) -> None:
         if self.type == BlockType.PAGE and not self.is_page:
-            invalid(
-                self,
-                "type=Page must have is_page=True",
-                {"properties": (Block.type, Block.is_page)},
-            )
+            invalid(self, "type=Page must have is_page=True", (Block.type, Block.is_page))
         elif self.type == BlockType.PROTOCOL and not self.is_protocol:
             invalid(
-                self,
-                "type=Protocol must have is_protocol=True",
-                {"properties": (Block.type, Block.is_protocol)},
+                self, "type=Protocol must have is_protocol=True", (Block.type, Block.is_protocol)
             )
 
     @property

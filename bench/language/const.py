@@ -13,7 +13,7 @@ from bench.utils.utils import frozendict
 if typing.TYPE_CHECKING:
     from bench.language import Session, Transaction
 
-VERSION = "2024.05.04.1"
+VERSION = "2024.05.04.2"
 REVISION_PENDING = -1
 TK_LENGTH_BYTES = 8
 TK_LENGTH_B64 = 12  # 1.5 * TK_LENGTH_BYTES (must be integer)
@@ -65,12 +65,13 @@ class EnumType(IdEnum):
     NODE_VISIBILITY = 2010
 
     # access
-    ACCESS_KIND = 2030
-    READ_TYPE = 2031
-    EDIT_TYPE = 2032
-    USE_TYPE = 2033
-    ACCESS_TYPE = 2034  # ReadType | EditType | UseType
-    POLICY_EFFECT = 2035
+    ACCESS_MODE = 2030
+    ACCESS_KIND = 2033
+    READ_TYPE = 2034
+    EDIT_TYPE = 2035
+    USE_TYPE = 2036
+    ACCESS_TYPE = 2037  # ReadType | EditType | UseType
+    POLICY_EFFECT = 2038
 
     # bench
     REGION = 2050
@@ -97,8 +98,11 @@ class EnumType(IdEnum):
     FILE_STATUS = 2100
     FILE_RETENTION_MODE = 2101
 
+    # notice
+    NOTICE_TYPE = 2170
+
     # flow
-    STEP_TYPE = 2150
+    STEP_TYPE = 2180
 
     # view
     VIEW_TYPE = 2200
@@ -126,11 +130,14 @@ class EnumType(IdEnum):
 
     # expression
     EXPRESSION_KIND = 2300
-    CONDITIONAL_OP = 2301
-    AGGREGATION_OP = 2302
-    SORT_OP = 2303
-    SORT_MODE = 2304
-    SELECTION_KIND = 2305
+    EXPRESSION_OP = 2301
+    CONDITIONAL_OP = 2302
+    AGGREGATION_OP = 2303
+    SORT_OP = 2304
+    SORT_MODE = 2305
+    SELECTION_KIND = 2306
+    PATH_TOKEN_TYPE = 2310
+    PATH_SEGMENT_TYPE = 2311
 
     # user
     USER_STATUS = 2500
@@ -221,7 +228,7 @@ GLOBAL_NODE_TYPES: bytetuple[NodeType] = bytetuple(
 # based = instances are directly based on some other node
 # (e.g. Run.block->Block, Record.parent->Block)
 BASED_NODE_TYPES: bytetuple[NodeType] = bytetuple(
-    NodeType.RECORD, NodeType.RUN, NodeType.SIGNAL, NodeType.NOTIFICATION
+    NodeType.FIELD, NodeType.RECORD, NodeType.RUN, NodeType.SIGNAL, NodeType.NOTIFICATION
 )
 IN_PACKAGE_NODE_TYPES: bytetuple[NodeType] = bytetuple(
     *tuple(nt for nt in NODE_TYPES if 20 <= nt.id < 100)
@@ -399,12 +406,6 @@ class BlockTypes:
     )
 
 
-class NodeSource(IdEnum):
-    STORE = 1
-    INTERP = 2
-    LOCAL = 3
-
-
 @enum_(EnumType.NODE_VISIBILITY)
 class NodeVisibility(IdEnum):
     # ...?
@@ -579,6 +580,7 @@ ACCESS_KIND_BY_ACCESS: dict[AccessType, AccessKind] = {
 }
 
 
+@enum_(EnumType.ACCESS_MODE)
 class AccessMode(IdEnum):
     ADAPTIVE = 1
     ATOMIC = 2
@@ -842,6 +844,7 @@ if typing.TYPE_CHECKING:
 else:
     ExpressionOp = IdEnum.combine("ExpressionOp", ConditionalOp, AggregationOp, SortOp)
     ExpressionOp.kind = property(lambda self: EXPRESSION_KIND_BY_OP[self])
+    enum_(EnumType.EXPRESSION_OP)(ExpressionOp)
 
 
 @enum_(EnumType.USER_STATUS)

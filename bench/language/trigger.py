@@ -21,9 +21,6 @@ if TYPE_CHECKING:
 # :TriggerSchedule
 TRIGGER_INTERVAL_ORIGIN = datetime(2022, 1, 1, 0, 0, 0, 0).replace(tzinfo=pytz.utc)
 TRIGGER_INTERVAL_ORIGIN_TIMESTAMP = TRIGGER_INTERVAL_ORIGIN.timestamp()
-TRIGGER_INTERVAL_USR_MIN = 60  # seconds :MinTriggerInterval
-TRIGGER_INTERVAL_ABS_MAX = 60 * 60 * 24 * 365  # seconds :MaxTriggerInterval
-TRIGGER_INTERVAL_ABS_MIN = 60  # seconds :MinTriggerInterval
 
 
 @struct(StructType.SCHEDULE)
@@ -43,19 +40,7 @@ class Schedule(Struct):
     ) -> None:
         if self.type == ScheduleType.CRON:
             if not self.cron or not croniter.is_valid(self.cron):
-                invalid(
-                    self,
-                    f"cron: invalid expression ('{self.cron}')",
-                    {"properties": (Schedule.cron,)},
-                )
-        elif self.type == ScheduleType.INTERVAL:
-            interval = self.interval or 0
-            if interval < TRIGGER_INTERVAL_USR_MIN or interval > TRIGGER_INTERVAL_ABS_MAX:
-                invalid(
-                    self,
-                    f"interval: invalid ({interval} not in [{TRIGGER_INTERVAL_USR_MIN}, {TRIGGER_INTERVAL_ABS_MAX}])",
-                    {"properties": (Schedule.interval,)},
-                )
+                invalid(self, f"cron: invalid expression ('{self.cron}')", (Schedule.cron,))
 
 
 @node(NodeType.TRIGGER)
@@ -85,7 +70,7 @@ class Trigger(Node[TriggerData]):
 
 
 class ScheduleIterator:
-    """Iterator for a time trigger schedule."""
+    """Iterator through a Schedule."""
 
     def __init__(self, schedule: Schedule, initial_now: datetime, keep: int = 10):
         self.schedule = schedule
@@ -112,7 +97,6 @@ class ScheduleIterator:
         # :TriggerSchedule
         if self.type == ScheduleType.INTERVAL:
             assert self.schedule.interval is not None, f"interval is None in {self.schedule}"
-            assert self.schedule.interval >= TRIGGER_INTERVAL_ABS_MIN, "interval too small"
             self._next = TRIGGER_INTERVAL_ORIGIN_TIMESTAMP
             previous = self._next
             initial_timestamp = self.initial_now.timestamp()

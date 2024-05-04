@@ -2,7 +2,7 @@ import functools
 from typing import TYPE_CHECKING, Any, Callable, Collection, Optional, TypedDict, Union
 from uuid import UUID
 
-from bench.language.const import BenchError, NodeType, NoticeKind, StructType
+from bench.language.const import BenchError, EnumType, NodeType, NoticeKind, StructType, enum_
 from bench.language.node import LINK_TARGET_NODE_TYPES, Node, Property, node
 from bench.language.property import p_node_parent, p_regular
 from bench.language.text import Text
@@ -15,6 +15,7 @@ if TYPE_CHECKING:
 # pyright: reportIncompatibleVariableOverride=false
 
 
+@enum_(EnumType.NOTICE_TYPE)
 class NoticeType(IdEnum):
     """Built-in notice types."""
 

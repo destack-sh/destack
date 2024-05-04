@@ -21,6 +21,7 @@ from bench.language.const import (
     SUB_BENCH_NODE_TYPES,
     SUB_PACKAGE_NODE_TYPES,
     UNSET,
+    EnumType,
     NodeRelationFlag,
     NodeType,
     NRel,
@@ -31,7 +32,12 @@ from bench.language.const import (
     TypeKind,
 )
 from bench.language.graph import GraphNodeList, NodeList, ValueList
-from bench.language.setup import BENCH_CLASSES_BY_NAME, STRUCT_CLASS_BY_TYPE, _on_completing_setup
+from bench.language.setup import (
+    BENCH_CLASSES_BY_NAME,
+    ENUM_TYPE_BY_CLASS,
+    STRUCT_CLASS_BY_TYPE,
+    _on_completing_setup,
+)
 from bench.language.validation import TypeConstraintIn
 from bench.sql.core import CascadeAction, Column, Table
 from bench.utils.func import IdEnum, parse_py_annotation, try_tuple
@@ -87,6 +93,7 @@ class Property(_TypeQueryBuilder if TYPE_CHECKING else object):
     py_type_raw: Any = None  # type annotation on LHS of assignment
     py_type_stripped: Any = UNSET  # stripped type annotation
     primitive_type: PrimitiveType | None = UNSET
+    enum_type: EnumType | None = None
     default: Any = UNSET
     default_factory: Callable[[], Any] | None = None
     constraint: "TypeConstraint | TypeConstraintIn | None" = None
@@ -201,48 +208,6 @@ class Property(_TypeQueryBuilder if TYPE_CHECKING else object):
             reference_stored_ids=None,
         )
 
-    @property
-    def as_type(self) -> "TypeInfo":
-        """The type info for this property (can't extend TypeInfo because circles)."""
-
-        if self.type_info is None:
-            assert self.is_introspectable, f"{self!r} is not introspectable"
-            from bench.language.field import TypeInfo
-
-            if isinstance(self.constraint, TypeConstraintIn):
-                constraint = self.constraint.into()
-            else:
-                constraint = self.constraint
-
-            # don't have unions yet, doesn't matter
-            if self.reference_nodes:
-                kind = TypeKind.NODE
-                bench_type = self.reference_nodes[0]
-                primitive_type = None
-            elif self.reference_struct:
-                kind = TypeKind.STRUCT
-                bench_type = self.reference_struct
-                primitive_type = None
-            elif self.primitive_type:
-                kind = TypeKind.PRIMITIVE
-                bench_type = None
-                primitive_type = self.primitive_type
-            else:
-                raise ValueError(f"cannot determine type info for {self!r}")
-            self.type_info = TypeInfo(
-                kind=kind,
-                bench_type=bench_type,
-                primitive_type=primitive_type,
-                is_list=self.is_list,
-                # NOTE: we ignore is_required if deferred since we don't have a mechanism for determining
-                #  which properties were loaded in a given graph yet.
-                is_required=self.is_required and not self.is_deferred,
-                constraint=constraint,
-                _from_property=self,
-            )
-
-        return self.type_info
-
     def to_ref(self) -> "PropertyReference":
         """A pointer to this property. `to_ref()` for consistency with `Node.to_ref()`."""
 
@@ -337,7 +302,7 @@ class Property(_TypeQueryBuilder if TYPE_CHECKING else object):
 
     @property
     def is_enum(self):
-        return isinstance(self.py_type_stripped, enum.EnumMeta)
+        return self.enum_type is not None
 
     def to_wired_ptr(
         self,
@@ -391,6 +356,52 @@ class Property(_TypeQueryBuilder if TYPE_CHECKING else object):
                 return False
         return True
 
+    def _to_type_info(self) -> "TypeInfo":
+        assert self.is_introspectable, f"{self!r} is not introspectable"
+        from bench.language.field import TypeInfo
+
+        if isinstance(self.constraint, TypeConstraintIn):
+            constraint = self.constraint.into()
+        else:
+            constraint = self.constraint
+
+        if self.reference_nodes:
+            kind = TypeKind.NODE
+            # don't have unions yet so we special case this in validation :FakeNodePropertyUnion
+            bench_type = self.reference_nodes[0]
+            primitive_type = None
+        elif self.reference_struct:
+            kind = TypeKind.STRUCT
+            bench_type = self.reference_struct
+            primitive_type = None
+        elif self.enum_type:
+            kind = TypeKind.ENUM
+            bench_type = self.enum_type
+            primitive_type = None
+        elif self.primitive_type:
+            kind = TypeKind.PRIMITIVE
+            bench_type = None
+            primitive_type = self.primitive_type
+        else:
+            raise ValueError(f"cannot determine type info for {self!r}")
+        return TypeInfo(
+            kind=kind,
+            bench_type=bench_type,
+            primitive_type=primitive_type,
+            is_list=self.is_list,
+            # NOTE: we ignore is_required if deferred since we don't have a mechanism for determining
+            #  which properties were loaded in a given graph yet.
+            is_required=self.is_required and not self.is_deferred,
+            constraint=constraint,
+            _from_property=self,
+        )
+
+    @property
+    def as_type_info(self) -> "TypeInfo":
+        """The type info for this property (can't extend TypeInfo because circles)."""
+        assert self.type_info is not None, f"{self!r} is not finalized"
+        return self.type_info
+
     def _finalize(self) -> None:
         """Analyzes the final type and configures storage options. Must run after all class defs."""
 
@@ -440,6 +451,12 @@ class Property(_TypeQueryBuilder if TYPE_CHECKING else object):
             self.is_required = not annotation.is_optional
         if not self.is_required and self.default is UNSET and self.default_factory is None:
             self.default = None
+        if isinstance(annotation.type, type) and issubclass(annotation.type, enum.Enum):
+            if not issubclass(annotation.type, IdEnum):
+                raise ValueError(f"only IdEnum is supported for enums: {self!r}")
+            self.enum_type = ENUM_TYPE_BY_CLASS.get(annotation.type)
+            if self.enum_type is None:
+                raise ValueError(f"missing enum type for {annotation.type!r} at {self!r}")
 
         # determine storage type
         if self.primitive_type is UNSET and (self.is_stored or self.is_wired):
@@ -485,6 +502,10 @@ class Property(_TypeQueryBuilder if TYPE_CHECKING else object):
             and self.id not in Node.__properties_by_id__
         ):
             raise ValueError(f"can't use system id {self.id} for {self!r}")
+
+        # derive type info
+        if self.is_introspectable:
+            self.type_info = self._to_type_info()
 
     def _contribute_ptrs(self, is_inlined: bool) -> tuple["Property", ...]:
         """
@@ -836,8 +857,14 @@ def p_property(
         custom_list = custom_list or ValueList
     else:
         reference_kind = None
-    if array and not (struct or references):
-        assert default is UNSET and default_factory is None, "can't set default for array"
+    if (
+        array
+        and reference_kind != ReferenceKind.STRUCT_CHILD
+        and reference_kind != ReferenceKind.NODE_CHILDREN
+    ):
+        assert (
+            default is UNSET and default_factory is None
+        ), f"can't set default for array: {default!r}"
         default_factory = list
     if fk:
         assert not array, "can't have foreign key on list"
@@ -846,6 +873,7 @@ def p_property(
         default=default,
         default_factory=default_factory,
         primitive_type=primitive_type,
+        constraint=constraint,
         reference_kind=reference_kind,
         reference_nodes=try_tuple(references),
         reference_struct=struct,
@@ -1048,7 +1076,8 @@ METATYPE_PROPERTY = Property(
     is_wired=True,
     is_stored=False,
     is_list=False,
-    primitive_type=PrimitiveType.STRING,
+    primitive_type=PrimitiveType.INT16,
+    enum_type=EnumType.OBJECT_TYPE,
 )
 _PROPERTY_SPECIFIERS: tuple[Callable, ...] = (
     p_property,

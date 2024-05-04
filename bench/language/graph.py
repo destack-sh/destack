@@ -648,7 +648,7 @@ class GraphNodeList(NodeList[NodeT]):
 
         node.parent = self._parent
         if self._parent._session is not None:
-            node._validate_self(node.__tracked_properties__.values(), invalid=on_invalid_raise)
+            node._validate_self((), invalid=on_invalid_raise)
 
         # add node to parent graph
         if node._graph is not None:

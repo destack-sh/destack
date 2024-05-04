@@ -33,7 +33,8 @@ def test_roundtrip_simple_value():
     )
     class1.fields.create(name="Field4", base_type=class2, kind=TypeKind.ALIAS)
 
-    # NOTE: interp/to_resolved shit should not be necessary
+    # nocheckin: interp/to_resolved shit should not be necessary
+    #  (run this test in session? or somehow in 'tracked' mode)
     choice1._interp_rec(None, on_notice_ignore)
     class2._interp_rec(None, on_notice_ignore)
     class1._interp_rec(None, on_notice_ignore)
@@ -48,7 +49,7 @@ def test_roundtrip_simple_value():
     value = Object.new({}, type1)
     value.field1 = choice1.fields.Option1
     value.field2 = False
-    value.field3 = Text.plain("hello bench!")
+    value.field3 = [Text.plain("hello bench!")]
     value.field4 = Object.new({}, type2)
 
     value_packed, secret_value_packed = pack_value(value, type1)

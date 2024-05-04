@@ -1167,9 +1167,7 @@ def pg_unpack_node_data_row(node_cls: type[Node], row: dict[str, any]) -> AnyNod
     """Unpacks a node's data from a row from the respective table."""
     try:
         proto_cls = PROTO_CLASS_BY_TYPE[node_cls.metatype]
-        data = proto_cls(
-            metatype=wiring.pack_enum(NodeType, node_cls.metatype), source=wire.NodeSource.STORE
-        )
+        data = proto_cls(metatype=wiring.pack_enum(NodeType, node_cls.metatype))
         for name, prop in node_cls.__wired_properties__.items():
             if prop.reference_source is None:
                 # regular non-ref property

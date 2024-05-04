@@ -45,11 +45,7 @@ class File(Struct):
         self, properties: tuple[Property, ...], invalid: ValidationHandler
     ) -> None:
         if self.size and self.size > FILE_MAX_SIZE:
-            invalid(
-                self,
-                f"{self} is too big ({self.size} > {FILE_MAX_SIZE} bytes)",
-                {"properties": (File.size,)},
-            )
+            invalid(self, f"{self} is too big ({self.size} > {FILE_MAX_SIZE} bytes)", (File.size,))
 
     @_auto_async_to_sync
     async def download(self) -> bytes:
