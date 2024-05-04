@@ -247,7 +247,7 @@ def _coerce_object_scalar(
     parent_prop: ValueProperty,
     ancestor_prop: "Property | None",
 ) -> Object:
-    """Coerces a single object from a dict representation (recursively)."""
+    """Coerces a single object from a dict representation or existing Object (recursively)."""
     raise NotImplementedError
 
 
@@ -294,10 +294,12 @@ def _check_value_scalar(
 ) -> None:
     """Checks whether the given scalar value has the expected type."""
     if typ.kind == TypeKind.PRIMITIVE:
-        expected_type = PYTHON_TYPE_BY_PRIMITIVE_TYPE[cast(PrimitiveType, typ.primitive_type)]
-        if type(value) is not expected_type:
+        expected_type = PYTHON_TYPE_BY_PRIMITIVE_TYPE.get(cast(PrimitiveType, typ.primitive_type))
+        if expected_type is None:
+            pass  # nothing to check?
+        elif type(value) is not expected_type:
             invalid(value, "not of type", typ)
-        if typ.constraint is not None:
+        elif typ.constraint is not None:
             if type(value) is int or type(value) is float:  # noqa: E721
                 if typ.constraint.min_value is not None and value < typ.constraint.min_value:
                     invalid(value, "too small", typ)
@@ -569,8 +571,7 @@ def pack_value(
             if not isinstance(value, list):
                 raise TypeError(f"{value!r} is not a list (expected {typ!r})")
             value_packed = [_pack_value_scalar(element, typ) for element in value]
-        if wrap_scalar:
-            value_packed = {typ.identity_key: value_packed}
+        value_packed = {typ.identity_key: value_packed}
         return value_packed, None
 
 
@@ -578,7 +579,6 @@ def unpack_value(
     value_packed: JsonValue,
     secret_value_packed: JsonValue | None,
     typ: "TypeInfoBase",
-    unwrap_scalar: bool = True,
 ) -> SomeValue | None:
     """
     Unpacks a value from its constituent JSON-able parts (packed value & secret packed value).
@@ -602,7 +602,7 @@ def unpack_value(
             ]
     else:
         # unwrap scalar
-        if unwrap_scalar and isinstance(value_packed, dict):
+        if isinstance(value_packed, dict):
             value_packed = value_packed.get(typ.identity_key)
         if value_packed is None:
             return None

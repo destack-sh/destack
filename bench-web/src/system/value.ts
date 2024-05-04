@@ -1,6 +1,6 @@
 import {
   BenchType,
-  EnumType,
+  NodeReferenceData,
   NodeType,
   ObjectType,
   PrimitiveType,
@@ -9,27 +9,43 @@ import {
   TypeKind,
   Variant,
   ViewType,
+  type AnyNodeData,
+  type AnyStructData,
   type TypeInfoData,
 } from "@/proto/wire";
-import { makeDefaultStruct } from "@/proto/wiring";
+import { describeNode, fromRobustJson, isStruct, makeDefaultStruct, toRobustJson } from "@/proto/wiring";
 import type { ReadNodeGraph } from "@/system/graph";
 import { ENUM_ICONS_BY_TYPE } from "@/system/icon";
-import {
-  TK_LENGTH_B64,
-  getEnumOptions,
-  getTkB64FromPtr,
-  isEnumType,
-  isNodeType,
-  isStructType,
-  padCkFromTkB64,
-} from "@/system/lang";
+import { TK_LENGTH_B64, getEnumOptions, getTkB64FromPtr, isEnumType, padCkFromTkB64, toCamelName } from "@/system/lang";
 import { decodeB64VLQ, encodeB64VLQ } from "@/utils/functools";
+import { toCamelCase } from "@/utils/string";
 import type { ViewProps } from "@/views/common";
 
 export type TypeIdentity = Pick<
   TypeInfoData,
-  "kind" | "primitiveType" | "benchType" | "baseTypePtr" | "formatHint" | "isList" | "isSecret"
+  "kind" | "primitiveType" | "benchType" | "baseTypePtr" | "formatHint" | "isList" | "isSecret" | "constraint"
 > & { ck?: string };
+
+export function describeTypeIdentity(type: TypeIdentity & Partial<AnyNodeData>): string {
+  if (type.kind == null) return "<empty>";
+  const typeParts: string[] = [];
+  if ("id" in type) typeParts.push(`id=${type.id}`);
+  if ("ck" in type) typeParts.push(`ck=${type.ck}`);
+  if ("revision" in type) typeParts.push(`r=${type.revision}`);
+  if (type.primitiveType != null) typeParts.push(toCamelName(PrimitiveType, type.primitiveType!));
+  if (type.benchType != null) typeParts.push(toCamelName(BenchType, type.benchType!));
+  if (type.baseTypePtr != null) typeParts.push(`base=${describeNode(type.baseTypePtr)}`);
+  if (type.isList) typeParts.push("list");
+  if (type.isSecret) typeParts.push("secret");
+  const kindName = toCamelName(TypeKind, type.kind);
+  return `${kindName}[${typeParts.join(", ")}]`;
+}
+
+export type JsonPrimimtive = string | number | boolean | null;
+export type JsonValue = JsonPrimimtive | { [key: string]: JsonValue } | JsonValue[];
+export type PrimitiveValue = JsonPrimimtive;
+export type ScalarValue = PrimitiveValue | ProtoStruct | AnyStructData | AnyNodeData;
+export type SomeValue = ScalarValue | ScalarValue[];
 
 export function makeTypeInfo(partial: Partial<Omit<TypeInfoData, "metatype">>): TypeInfoData {
   return makeDefaultStruct({ metatype: StructType.TYPE_INFO, ...partial });
@@ -165,35 +181,146 @@ export function decodeTypeIdentity(key: string): TypeIdentity {
 //   It's likely possible to just cheat a little and auto-encode/decode ProtoStruct properties at the boundary
 //   without introducing an entire new layer like in the backend).
 
-/** Pack the value into robust wire format. If previous is passed, old values with different types will be retained. */
+function _packValueScalar(value: ScalarValue, type: TypeIdentity): JsonValue {
+  if (type.kind == TypeKind.PRIMITIVE) {
+    return value as JsonPrimimtive;
+  } else if (type.kind == TypeKind.NODE || type.kind == TypeKind.BASED_NODE) {
+    if ((value as NodeReferenceData).metatype != ObjectType.NODE_REFERENCE) {
+      throw new Error(`unexpected value ${JSON.stringify(value)} for type ${describeTypeIdentity(type)}`);
+    }
+    return toRobustJson(value as NodeReferenceData);
+  } else if (type.kind == TypeKind.ENUM) {
+    return value as JsonPrimimtive;
+  } else if (type.kind == TypeKind.STRUCT) {
+    if (!isStruct(value)) {
+      throw new Error(`unexpected value ${JSON.stringify(value)} for type ${describeTypeIdentity(type)}`);
+    }
+    return toRobustJson(value);
+  } else {
+    throw new Error(`cannot pack value of type ${describeTypeIdentity(type)}`);
+  }
+}
+
+function _unpackValueScalar(valuePacked: JsonValue, type: TypeIdentity): ScalarValue {
+  if (type.kind == TypeKind.PRIMITIVE) {
+    return valuePacked as PrimitiveValue;
+  } else if (type.kind == TypeKind.NODE || type.kind == TypeKind.BASED_NODE) {
+    if (typeof valuePacked !== "object") {
+      throw new Error(`unexpected value ${JSON.stringify(valuePacked)} for type ${describeTypeIdentity(type)}`);
+    }
+    return fromRobustJson(valuePacked as unknown as NodeReferenceData);
+  } else if (type.kind == TypeKind.ENUM) {
+    return valuePacked as PrimitiveValue;
+  } else if (type.kind == TypeKind.STRUCT) {
+    if (typeof valuePacked !== "object") {
+      throw new Error(`unexpected value ${JSON.stringify(valuePacked)} for type ${describeTypeIdentity(type)}`);
+    }
+    return fromRobustJson(valuePacked as unknown as AnyStructData);
+  } else {
+    throw new Error(`cannot unpack value of type ${describeTypeIdentity(type)}`);
+  }
+}
+
+function _packObjectScalar(
+  value: ScalarValue,
+  type: TypeIdentity,
+  graph: ReadNodeGraph,
+): { valuePacked: JsonValue; secretValuePacked: JsonValue | undefined } {
+  throw new Error(`nocheckin: packObjectScalar`);
+}
+
+function _unpackObjectScalar(
+  valuePacked: JsonValue,
+  secretValuePacked: JsonValue | undefined,
+  type: TypeIdentity,
+  graph: ReadNodeGraph,
+): ScalarValue {
+  throw new Error(`nocheckin: unpackObjectScalar`);
+}
+
+/**
+ * Pack the value into robust wire format.
+ * If previous is passed, old values with different types will be retained.
+ * TODO :Incomplete: handle :SecretValues
+ * */
 export function packValue(
   value: any,
   type: TypeIdentity,
   graph: ReadNodeGraph,
-  previous?: { valuePacked?: ProtoStruct; secretValuePacked?: ProtoStruct | undefined },
-): { valuePacked: ProtoStruct; secretValuePacked: ProtoStruct | undefined } {
+  previous?: { valuePacked?: JsonValue; secretValuePacked?: JsonValue | undefined },
+): { valuePacked: JsonValue; secretValuePacked: JsonValue | undefined } {
   // nocheckin: packValue
-  const identityKey = encodeTypeIdentity(type);
-  const valuePacked = {
-    ...(previous?.valuePacked != null ? (ProtoStruct.toJson(previous.valuePacked) as object) : {}),
-    [identityKey]: value,
-  };
-  const secretValuePacked = undefined; // TODO :Incomplete: handle :SecretValues
-
-  const packed = { valuePacked: ProtoStruct.fromJson(valuePacked), secretValuePacked: undefined };
-  return packed;
+  if (type.kind == TypeKind.ALIAS) {
+    throw new Error(`unresolved type ${describeTypeIdentity(type)}`);
+  } else if (type.kind == TypeKind.OBJECT) {
+    // nested object
+    if (!type.isList) {
+      return _packObjectScalar(value, type, graph);
+    } else {
+      const valuePacked: JsonValue[] = [];
+      const secretValuePacked: JsonValue[] = [];
+      for (let i = 0; i < value.length; i++) {
+        const packed = _packObjectScalar(value[i], type, graph);
+        valuePacked.push(packed.valuePacked);
+        if (packed.secretValuePacked != null) secretValuePacked.push(packed.secretValuePacked);
+      }
+      return { valuePacked, secretValuePacked: secretValuePacked.length > 0 ? secretValuePacked : undefined };
+    }
+  } else {
+    // wrap scalar
+    let valuePacked;
+    if (value == null) {
+      valuePacked = null;
+    } else if (!type.isList) {
+      valuePacked = _packValueScalar(value, type);
+    } else {
+      valuePacked = value.map((v: any) => _packValueScalar(v, type));
+    }
+    valuePacked = { [encodeTypeIdentity(type)]: valuePacked };
+    return { valuePacked, secretValuePacked: undefined };
+  }
 }
 
-/** Unpack the value from robust wire format. */
+/**
+ * Unpack the value from robust wire format.
+ * TODO :Incomplete: handle :SecretValues
+ */
 export function unpackValue(
-  packed: { valuePacked?: ProtoStruct; secretValuePacked?: ProtoStruct },
+  packed: { valuePacked?: JsonValue; secretValuePacked?: JsonValue },
   type: TypeIdentity,
   graph: ReadNodeGraph,
 ): any {
-  // nocheckin: unpackValue
-  if (packed.valuePacked == null) return null;
-  const valuePacked = ProtoStruct.toJson(packed.valuePacked) as any;
-  const identityKey = encodeTypeIdentity(type);
-  const unpacked = valuePacked[identityKey];
-  return unpacked;
+  if (type.kind == TypeKind.ALIAS) {
+    throw new Error(`unresolved type ${describeTypeIdentity(type)}`);
+  } else if (type.kind == TypeKind.OBJECT) {
+    // nested object
+    if (!type.isList) {
+      return _unpackObjectScalar(packed.valuePacked!, packed.secretValuePacked, type, graph);
+    } else {
+      if (!Array.isArray(packed.valuePacked)) {
+        throw new Error(`expected array for list type ${describeTypeIdentity(type)}`);
+      }
+      return packed.valuePacked!.map((v: any, i: number) =>
+        _unpackObjectScalar(v, (packed.secretValuePacked as Array<JsonValue>)?.[i], type, graph),
+      );
+    }
+  } else {
+    // unwrap scalar
+    if (packed.valuePacked == null) {
+      return null;
+    } else if (typeof packed.valuePacked !== "object" || Array.isArray(packed.valuePacked)) {
+      throw new Error(`expected object for scalar type ${describeTypeIdentity(type)}`);
+    }
+    const valuePacked = packed.valuePacked[encodeTypeIdentity(type)];
+    if (valuePacked == null) {
+      return null;
+    } else if (!type.isList) {
+      return _unpackValueScalar(valuePacked, type);
+    } else {
+      if (!Array.isArray(valuePacked)) {
+        throw new Error(`expected array for list type ${describeTypeIdentity(type)}`);
+      }
+      return valuePacked.map((v: any) => _unpackValueScalar(v, type));
+    }
+  }
 }

@@ -228,19 +228,19 @@ export function copyNode<T extends AnyNodeData>(node: T): T {
 }
 
 export function isNode<T extends NodeType = NodeType>(
-  value: AnyNodeData | AnyStructData | null | undefined,
+  value: any | null | undefined,
   type?: T,
 ): value is NodeTypeMapping[T] {
-  if (value == null) return false;
+  if (typeof value != 'object') return false;
   else if (type != null) return value.metatype == (type as unknown as ObjectType);
   else return value.metatype < 500;
 }
 
 export function isStruct<T extends StructType = StructType>(
-  value: AnyNodeData | AnyStructData | null | undefined,
+  value: any | null | undefined,
   type?: T,
 ): value is StructTypeMapping[T] {
-  if (value == null) return false;
+  if (typeof value != 'object') return false;
   else if (type != null) return value.metatype == (type as unknown as ObjectType);
   else return value.metatype >= 500;
 }
