@@ -1,5 +1,4 @@
 import typing
-from datetime import datetime, timedelta
 from typing import TYPE_CHECKING, Any, Collection, Optional, Union, cast
 from uuid import UUID
 
@@ -22,6 +21,7 @@ from bench.language.expression import NodeReference, _TypeQueryBuilder
 from bench.language.graph import NodeList
 from bench.language.node import (
     Node,
+    Struct,
     get_tk_b64_from_ck,
     get_tk_b64_from_ptr,
     node,
@@ -40,7 +40,7 @@ from bench.language.property import (
     p_value_packed,
     p_value_runtime,
 )
-from bench.language.validation import ValidationHandler, validate_name
+from bench.language.validation import NAME_CONSTRAINT, ValidationHandler
 from bench.language.value import HasValues
 from bench.proto.wire import FieldData
 from bench.sql.core import PrimitiveType
@@ -55,20 +55,6 @@ if typing.TYPE_CHECKING:
 # pyright: reportIncompatibleVariableOverride=false,reportIncompatibleMethodOverride=false
 
 logger = structlog.get_logger(__name__)
-
-PYTON_TYPE_BY_PRIMITIVE_TYPE: dict[PrimitiveType, type] = {
-    PrimitiveType.BOOLEAN: bool,
-    PrimitiveType.INT16: int,
-    PrimitiveType.INT32: int,
-    PrimitiveType.INT64: int,
-    PrimitiveType.FLOAT32: float,
-    PrimitiveType.FLOAT64: float,
-    PrimitiveType.STRING: str,
-    PrimitiveType.BYTES: bytes,
-    PrimitiveType.UUID: UUID,
-    PrimitiveType.DATETIME: datetime,
-    PrimitiveType.INTERVAL: timedelta,
-}
 
 
 LETTER_BY_TYPE_KIND: dict[TypeKind, str] = {
@@ -182,6 +168,25 @@ def decode_type_identity(key: str) -> "TypeInfoBase":
     raise ValueError(f"unsupported type kind {kind}")
 
 
+def encode_storage_key(field: "Field") -> str:
+    return f"{get_tk_b64_from_ck(field.ck)}{field.identity_key}"
+
+
+@struct(StructType.TYPE_CONSTRAINT)
+class TypeConstraint(Struct):
+    """
+    A simple constraint on the values of a type. :TypeConstraint
+    NOTE :Architecture: ideally all type constraints should be done in expressions?
+    """
+
+    min_value: Optional[float] = p_regular(40, require=False, default=None)
+    max_value: Optional[float] = p_regular(41, require=False, default=None)
+    step_value: Optional[float] = p_regular(42, require=False, default=None)
+    regex: Optional[str] = p_regular(50, require=False, default=None)
+    min_length: Optional[int] = p_regular(51, require=False, default=None)
+    max_length: Optional[int] = p_regular(52, require=False, default=None)
+
+
 @struct_component()
 class TypeInfoBase(HasValues):
     """
@@ -203,7 +208,7 @@ class TypeInfoBase(HasValues):
            type = Field, base = Block -> values are Fields in that block
            type = Signal, base = Block -> values are Signals of that block type
             ...
-       6. Value (value is Value of classy type, like Code inputs, Step outputs, Record value, ...)
+       6. Object (value is Object value of classy type, like Code inputs, Step outputs, Record value, ...)
           [base_type~Block[is_classy]|Step]
        7. Alias (value is whatever base_type resolves to, must be resolved to pack/unpack)
 
@@ -229,13 +234,16 @@ class TypeInfoBase(HasValues):
     base_field_zone: Optional["FieldZone"] = p_internal(44, require=False, default=None)
 
     # + bonus info/constraints
-    visibility: Optional[NodeVisibility] = p_regular(50, default=None)
-    format_hint: Optional[FormatHint] = p_regular(51, default=None)
+    default_packed: Optional[Any] = p_value_packed(50)
+    default = p_value_runtime(packed=50)
+    visibility: Optional[NodeVisibility] = p_regular(52, default=None)
+    format_hint: Optional[FormatHint] = p_regular(53, default=None)
     condition: Optional["Expression"] = p_regular(
-        52, require=False, array=False, default=None, struct=StructType.EXPRESSION
+        54, require=False, array=False, default=None, struct=StructType.EXPRESSION
     )
-    default_packed: Optional[Any] = p_value_packed(53)
-    default = p_value_runtime(packed=53)
+    constraint: Optional["TypeConstraint"] = p_regular(
+        55, require=False, array=False, default=None, struct=StructType.TYPE_CONSTRAINT
+    )
 
     # flags
     is_list: bool = p_regular(60, default=False)
@@ -246,6 +254,8 @@ class TypeInfoBase(HasValues):
     _resolved_type: Optional["TypeInfoBase"] = p_runtime(default=None)
     _resolved_identity_key: str | None = p_runtime(default=None)
 
+    _from_property: Optional["Property"] = p_runtime(default=None)
+
     def __content_str__(self) -> str:
         kind_str = self.kind.bench_name if self.kind else "<no type>"
         if self.base_type is not None:
@@ -253,7 +263,7 @@ class TypeInfoBase(HasValues):
         elif self.bench_type is not None:
             info_str = self.bench_type.bench_name
         elif self.primitive_type is not None:
-            info_str = self.primitive_type.name
+            info_str = self.primitive_type.bench_name
         else:
             info_str = kind_str
         if self.format_hint:
@@ -264,6 +274,10 @@ class TypeInfoBase(HasValues):
         flags = tuple(f for f in ("is_list", "is_required", "is_secret") if getattr(self, f))
         if flags:
             info_str += f" ({', '.join(flags)})"
+
+        if self._from_property:
+            info_str += f" from {str(self._from_property)}"
+
         return info_str
 
     def _interp_component(self, scope: Optional["Node"], notice: "NoticeHandler"):
@@ -340,7 +354,7 @@ class Field(Node[FieldData], TypeInfoBase, _TypeQueryBuilder):
     """
 
     parent: Union["Block", "Step", None] = p_node_parent(4, NodeType.BLOCK, NodeType.STEP)
-    name: str = p_regular(30, validate=validate_name)
+    name: str = p_regular(30, constraint=NAME_CONSTRAINT)
     order_key: str = p_internal(31, default=INTEGER_ZERO)
     zone: FieldZone = p_internal(32, default=FieldZone.VARIABLE)
     text: Optional["Text"] = p_regular(
@@ -398,4 +412,4 @@ class Field(Node[FieldData], TypeInfoBase, _TypeQueryBuilder):
 
     @property
     def storage_key(self) -> str:
-        return f"{get_tk_b64_from_ck(self.ck)}-{self.identity_key}"
+        return encode_storage_key(self)

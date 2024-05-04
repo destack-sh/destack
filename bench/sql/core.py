@@ -274,7 +274,7 @@ class Column(TableObject):
         return pg_type
 
     def sql(self) -> str:
-        parts = [self.name, self.type_sql()]
+        parts = [f'"{self.name}"', self.type_sql()]
         if not self.is_nullable:
             parts.append("NOT NULL")
         if self.is_primary_key:
@@ -339,7 +339,7 @@ class Constraint(TableObject):
         return self._full_name or f"{self.table_name}_{self.inner_name}"
 
     def sql(self) -> str:
-        parts = [self.name, self.type]
+        parts = [f'"{self.name}"', self.type]
         if self.type == ConstraintType.CHECK:
             parts.append(f"({self.condition})")
         elif self.type == ConstraintType.UNIQUE:
@@ -407,7 +407,7 @@ class Index(TableObject):
     def sql(self) -> str:
         assert isinstance(self._table, Table), f"{self} is not attached to a table"
         parts = [
-            self.name,
+            f'"{self.name}"',
             f"ON {self._table.name}",
             f"USING {self.type}",
             f"({', '.join(self.columns)})",

@@ -2,7 +2,7 @@ import base64
 import dataclasses
 from dataclasses import dataclass
 from datetime import datetime, timedelta
-from typing import TYPE_CHECKING, Any, Collection, Optional, Union, cast
+from typing import TYPE_CHECKING, Any, Collection, Optional, TypeGuard, Union, cast
 from uuid import UUID
 
 import structlog
@@ -15,7 +15,6 @@ from bench.language.const import (
     TypeKind,
     new_struct_id,
 )
-from bench.language.graph import ValueList
 from bench.language.property import Property
 from bench.language.setup import ENUM_CLASS_BY_TYPE
 from bench.proto.monkey import _PatchedMessage
@@ -24,6 +23,7 @@ from bench.proto.wire import AnyStructData
 if TYPE_CHECKING:
     from bench.language import Field, Node, NodeReference
     from bench.language.field import TypeInfoBase
+    from bench.language.notice import NoticeHandler
 
 logger = structlog.get_logger(__name__)
 
@@ -154,14 +154,10 @@ class Object:
             raise AttributeError(f"{field!r} is not in the same zone as {self._type!r}")
 
         # coerce & copy if needed
-        value = coerce_value(value, field)
-        if field.kind == TypeKind.OBJECT or field.kind == TypeKind.STRUCT:
-            if not field.is_list:
-                value = cast("Object | Struct", value)._move_to(self, field, self.ancestor_prop)
-            else:
-                value = ValueList._move_list(
-                    cast(list["Object | Struct"], value), self, field, self.ancestor_prop
-                )
+        value = coerce_value(
+            value, field, parent=self, parent_prop=field, ancestor_prop=self.ancestor_prop
+        )
+        check_value(value, field)
         if self._value is None:
             self._value = {}
         self._value[field.storage_key] = value
@@ -209,8 +205,55 @@ class Object:
 
 VALUE_SLOTS: set[str] = set(Object.__dataclass_fields__.keys())
 
+PYTHON_TYPE_BY_PRIMITIVE_TYPE: dict[PrimitiveType, type] = {
+    PrimitiveType.BOOLEAN: bool,
+    PrimitiveType.INT16: int,
+    PrimitiveType.INT32: int,
+    PrimitiveType.INT64: int,
+    PrimitiveType.FLOAT32: float,
+    PrimitiveType.FLOAT64: float,
+    PrimitiveType.STRING: str,
+    PrimitiveType.BYTES: bytes,
+    PrimitiveType.UUID: UUID,
+    PrimitiveType.DATETIME: datetime,
+    PrimitiveType.INTERVAL: timedelta,
+}
+PRIMITIVE_TYPE_BY_PYTHON_TYPE: dict[type, PrimitiveType] = {
+    v: k for k, v in PYTHON_TYPE_BY_PRIMITIVE_TYPE.items()
+}
 
-def coerce_value(value: Any, typ: "TypeInfoBase") -> SomeValue:
+
+def _coerce_value_scalar(
+    value: ScalarValue,
+    typ: "TypeInfoBase",
+    parent: ValueParent,
+    parent_prop: ValueProperty,
+    ancestor_prop: "Property | None",
+) -> ScalarValue:
+    """Coerces a scalar value (primitive, node, struct)"""
+    if typ.kind == TypeKind.STRUCT:
+        value = cast("Struct", value)._move_to(parent, parent_prop, ancestor_prop)
+    return value
+
+
+def _coerce_object_scalar(
+    value: dict | Object,
+    typ: "TypeInfoBase",
+    parent: ValueParent,
+    parent_prop: ValueProperty,
+    ancestor_prop: "Property | None",
+) -> Object:
+    """Coerces a single object from a dict representation (recursively)."""
+    raise NotImplementedError
+
+
+def coerce_value(
+    value: Any,
+    typ: "TypeInfoBase",
+    parent: ValueParent,
+    parent_prop: ValueProperty,
+    ancestor_prop: "Property | None",
+) -> SomeValue:
     """
     Coerces the given value to the expected type (recursively). Returns value as is if already of correct type.
     To maintain clarity, we try to coerce as little as possible outside the typical python cases.
@@ -219,33 +262,111 @@ def coerce_value(value: Any, typ: "TypeInfoBase") -> SomeValue:
     """
     if typ.kind == TypeKind.OBJECT:
         if not typ.is_list:
-            return _coerce_object_scalar(cast(dict, value), typ)
+            return _coerce_object_scalar(cast(dict, value), typ, parent, parent_prop, ancestor_prop)
         else:
-            assert isinstance(value, list), f"{value!r} is not a list (expected {typ!r})"
-            return [_coerce_object_scalar(cast(dict, element), typ) for element in value]
+            if isinstance(value, list):
+                raise TypeError(f"{value!r} is not a list (expected {typ!r})")
+            return [
+                _coerce_object_scalar(cast(dict, element), typ, parent, parent_prop, ancestor_prop)
+                for element in value
+            ]
     else:
         if not typ.is_list:
-            return _coerce_value_scalar(value, typ)
+            return _coerce_value_scalar(value, typ, parent, parent_prop, ancestor_prop)
         else:
-            assert isinstance(value, list), f"{value!r} is not a list (expected {typ!r})"
-            return [_coerce_value_scalar(element, typ) for element in value]
+            if not isinstance(value, list):
+                raise TypeError(f"{value!r} is not a list (expected {typ!r})")
+            return [
+                _coerce_value_scalar(element, typ, parent, parent_prop, ancestor_prop)
+                for element in value
+            ]
 
 
-def _coerce_value_scalar(value: ScalarValue, typ: "TypeInfoBase") -> ScalarValue:
-    return value
+def _check_value_scalar(value: ScalarValue, typ: "TypeInfoBase") -> None:
+    """Checks whether the given scalar value has the expected type. Raises TypeError if not."""
+    if typ.kind == TypeKind.PRIMITIVE:
+        expected_type = PYTHON_TYPE_BY_PRIMITIVE_TYPE[cast(PrimitiveType, typ.primitive_type)]
+        if type(value) is not expected_type:
+            raise TypeError(f"{value!r} is not of type {expected_type!r} (expected {typ!r})")
+    elif typ.kind == TypeKind.NODE:
+        if not getattr(cast("Node", value), "__is_node__", False):
+            raise TypeError(f"{value!r} is not a Node (expected {typ!r})")
+        if typ.bench_type != cast("Node", value).metatype:
+            raise TypeError(f"{value!r} is not of type {typ.bench_type!r} (expected {typ!r})")
+    elif typ.kind == TypeKind.STRUCT:
+        if not getattr(cast("Struct", value), "__is_struct_only__", False):
+            raise TypeError(f"{value!r} is not a Struct (expected {typ!r})")
+        if typ.bench_type != cast("Struct", value).metatype:
+            raise TypeError(f"{value!r} is not of type {typ.bench_type!r} (expected {typ!r})")
+    elif typ.kind == TypeKind.ENUM:
+        if type(value) is not int:  # noqa: E721
+            raise TypeError(f"{value!r} is not an int (expected {typ!r})")
+    else:
+        raise RuntimeError(f"unexpected type {typ!r}")
 
 
-def _coerce_object_scalar(value: dict, typ: "TypeInfoBase") -> Object:
-    """Coerces a single object from a dict representation (recursively)."""
-    raise NotImplementedError
+def _check_list(value: SomeValue, typ: "TypeInfoBase") -> TypeGuard[list]:
+    if not isinstance(value, list):
+        raise TypeError(f"{value!r} is not a list (expected {typ!r})")
+    if typ.constraint is not None:
+        if typ.constraint.min_length is not None and len(value) < typ.constraint.min_length:
+            raise TypeError(f"{value!r} is too short (expected {typ!r})")
+        if typ.constraint.max_length is not None and len(value) > typ.constraint.max_length:
+            raise TypeError(f"{value!r} is too long (expected {typ!r})")
+    return True
+
+
+def _check_object_scalar(value: ScalarValue, typ: "TypeInfoBase") -> None:
+    """Checks whether the given object value has the expected type (recursively). Raises TypeError if not."""
+    for field in typ._base_fields:
+        field_type = field._to_resolved()
+        field_value = getattr(value, field.name, None)
+        if field_value is None:
+            if field_type.is_required:
+                raise TypeError(f"{value!r} is missing required field {field!r}")
+            else:
+                continue
+        if field_type.kind == TypeKind.OBJECT:
+            if not field_type.is_list:
+                _check_object_scalar(field_value, field_type)
+            elif _check_list(field_value, field_type):
+                for element in field_value:
+                    _check_object_scalar(element, field_type)
+        else:
+            if not field_type.is_list:
+                _check_value_scalar(field_value, field_type)
+            elif _check_list(field_value, field_type):
+                for element in field_value:
+                    _check_value_scalar(element, field_type)
 
 
 def check_value(value: Any, typ: "TypeInfoBase") -> None:
     """
     Checks whether the given value has the expected type (recursively).
-    Raises TypeError if not.
+    Raises TypeError at first issue if not.
     """
-    raise NotImplementedError
+    if typ.kind == TypeKind.OBJECT:
+        if not typ.is_list:
+            if value is None:
+                if typ.is_required:
+                    raise TypeError(f"value is None (expected {typ!r})")
+                else:
+                    return
+            _check_object_scalar(value, typ)
+        elif _check_list(value, typ):
+            for element in value:
+                _check_object_scalar(element, typ)
+    else:
+        if not typ.is_list:
+            if value is None:
+                if typ.is_required:
+                    raise TypeError(f"value is None (expected {typ!r})")
+                else:
+                    return
+            _check_value_scalar(value, typ)
+        elif _check_list(value, typ):
+            for element in value:
+                _check_value_scalar(element, typ)
 
 
 def _pack_value_scalar(value: ScalarValue, typ: "TypeInfoBase") -> JsonValue:
@@ -379,14 +500,17 @@ def pack_value(
     if typ.kind == TypeKind.OBJECT:
         # nested object
         if not typ.is_list:
-            assert type(value) is Object, f"{value!r} is not an Object (expected {typ!r})"
+            if type(value) is not Object:
+                raise TypeError(f"{value!r} is not an Object (expected {typ!r})")
             return _pack_object_scalar(value, typ)
         else:
-            assert isinstance(value, list), f"{value!r} is not a list (expected {typ!r})"
+            if not isinstance(value, list):
+                raise TypeError(f"{value!r} is not a list (expected {typ!r})")
             value_packed: JsonValue = []
             secret_value_packed: JsonValue = []
             for element in value:
-                assert type(element) is Object, f"{element!r} is not an Object (expected {typ!r})"
+                if type(element) is not Object:
+                    raise TypeError(f"{element!r} is not an Object (expected {typ!r})")
                 inner_value_packed, inner_secret_value_packed = _pack_object_scalar(element, typ)
                 value_packed.append(inner_value_packed)
                 secret_value_packed.append(inner_secret_value_packed)
@@ -399,7 +523,8 @@ def pack_value(
         elif not typ.is_list:
             value_packed = _pack_value_scalar(cast(ScalarValue, value), typ)
         else:
-            assert isinstance(value, list), f"{value!r} is not a list (expected {typ!r})"
+            if not isinstance(value, list):
+                raise TypeError(f"{value!r} is not a list (expected {typ!r})")
             value_packed = [_pack_value_scalar(element, typ) for element in value]
         if wrap_scalar:
             value_packed = {typ.identity_key: value_packed}
@@ -422,14 +547,12 @@ def unpack_value(
     if typ.kind == TypeKind.OBJECT:
         # nested object
         if not typ.is_list:
-            assert isinstance(
-                value_packed, dict
-            ), f"{value_packed!r} is not a dict (expected {typ!r})"
+            if not isinstance(value_packed, dict):
+                raise TypeError(f"{value_packed!r} is not a dict (expected {typ!r})")
             return _unpack_object_scalar(value_packed, secret_value_packed, typ)
         else:
-            assert isinstance(
-                value_packed, list
-            ), f"{value_packed!r} is not a list (expected {typ!r})"
+            if not isinstance(value_packed, list):
+                raise TypeError(f"{value_packed!r} is not a list (expected {typ!r})")
             return [
                 _unpack_object_scalar(cast(dict[str, JsonValue], element), None, typ)
                 for element in value_packed
@@ -443,17 +566,17 @@ def unpack_value(
         elif not typ.is_list:
             return _unpack_value_scalar(value_packed, typ)
         else:
-            assert isinstance(
-                value_packed, list
-            ), f"{value_packed!r} is not a list (expected {typ!r})"
+            if not isinstance(value_packed, list):
+                raise TypeError(f"{value_packed!r} is not a list (expected {typ!r})")
             return [_unpack_value_scalar(element, typ) for element in value_packed]
 
 
-# import later to avoid circular imports
+# import later to avoid circular imports (Object is used in node.py)
 from bench.language.node import Struct, struct_component  # noqa: E402
 
 
 @struct_component()
 class HasValues(Struct):
     # nocheckin: HasValues
-    pass
+    def _interp_component(self, scope: "Node | None", notice: "NoticeHandler"):
+        pass

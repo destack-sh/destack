@@ -28,7 +28,9 @@ def test_roundtrip_simple_value():
     class1.fields.create(
         name="Field2", primitive_type=PrimitiveType.BOOLEAN, kind=TypeKind.PRIMITIVE
     )
-    class1.fields.create(name="Field3", bench_type=StructType.TEXT, kind=TypeKind.STRUCT)
+    class1.fields.create(
+        name="Field3", bench_type=StructType.TEXT, kind=TypeKind.STRUCT, is_list=True
+    )
     class1.fields.create(name="Field4", base_type=class2, kind=TypeKind.ALIAS)
 
     # NOTE: interp/to_resolved shit should not be necessary

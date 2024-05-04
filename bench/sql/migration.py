@@ -344,7 +344,7 @@ class MigrationOp:
         return self.new_object.table if self.new_object else self.old_object.table
 
     def invert(self) -> "MigrationOp":
-        """Returns the inverse of this operation."""
+        """Returns the inverse of this operation for undoing migrations."""
         if self.kind == MigrationOpKind.CREATE:
             return MigrationOp(MigrationOpKind.DELETE, None, self.new_object)
         elif self.kind == MigrationOpKind.RENAME:
@@ -625,26 +625,26 @@ def _render_migration_op(op: MigrationOp) -> Optional[str | tuple[str, str]]:
     if op.kind == MigrationOpKind.CREATE:
         if isinstance(op.new_object, Table):
             table_contents = ",\n".join(f"    {col.sql()}" for col in op.new_object.columns)
-            return f"CREATE TABLE {op.new_object.name} (\n{table_contents}\n)"
+            return f'CREATE TABLE "{op.new_object.name}" (\n{table_contents}\n)'
         elif isinstance(op.new_object, Column):
-            return f"ALTER TABLE {op.new_object.table.name} ADD COLUMN {op.new_object.sql()}"
+            return f'ALTER TABLE "{op.new_object.table.name}" ADD COLUMN {op.new_object.sql()}'
         elif isinstance(op.new_object, Index):
             if op.new_object.is_unique:
                 return f"CREATE UNIQUE INDEX {op.new_object.sql()}"
             else:
                 return f"CREATE INDEX {op.new_object.sql()}"
         elif isinstance(op.new_object, Constraint):
-            return f"ALTER TABLE {op.new_object.table.name} ADD CONSTRAINT {op.new_object.sql()}"
+            return f'ALTER TABLE "{op.new_object.table.name}" ADD CONSTRAINT {op.new_object.sql()}'
 
     elif op.kind == MigrationOpKind.RENAME:
         if isinstance(op.old_object, Table):
-            return f"ALTER TABLE {op.old_object.name} RENAME TO {op.new_object.name}"
+            return f'ALTER TABLE "{op.old_object.name}" RENAME TO "{op.new_object.name}"'
         elif isinstance(op.old_object, Column):
-            return f"ALTER TABLE {op.old_object.table.name} RENAME COLUMN {op.old_object.name} TO {op.new_object.name}"
+            return f'ALTER TABLE "{op.old_object.table.name}" RENAME COLUMN "{op.old_object.name}" TO "{op.new_object.name}"'
         elif isinstance(op.old_object, Index):
-            return f"ALTER INDEX {op.old_object.name} RENAME TO {op.new_object.name}"
+            return f'ALTER INDEX "{op.old_object.name}" RENAME TO "{op.new_object.name}"'
         elif isinstance(op.old_object, Constraint):
-            return f"ALTER TABLE {op.old_object.table.name} RENAME CONSTRAINT {op.old_object.name} TO {op.new_object.name}"
+            return f'ALTER TABLE "{op.old_object.table.name}" RENAME CONSTRAINT "{op.old_object.name}" TO "{op.new_object.name}"'
 
     elif op.kind == MigrationOpKind.UPDATE:
         if isinstance(op.old_object, Table):
@@ -689,8 +689,8 @@ def _render_migration_op(op: MigrationOp) -> Optional[str | tuple[str, str]]:
                 if op.new_object.is_foreign_key_to:
                     constraint_name = f"{op.new_object.qualified_name.replace('.', '_')}_fk_{op.new_object.is_foreign_key_to}_id"
                     updates.append(
-                        f"ADD CONSTRAINT {constraint_name}"
-                        f" FOREIGN KEY ({op.new_object.name})"
+                        f'ADD CONSTRAINT "{constraint_name}"'
+                        f' FOREIGN KEY ("{op.new_object.name}")'
                         f" REFERENCES {op.new_object.is_foreign_key_to}(id)"
                         f" ON DELETE {op.new_object.on_delete.value}"
                     )
@@ -712,7 +712,7 @@ def _render_migration_op(op: MigrationOp) -> Optional[str | tuple[str, str]]:
         elif isinstance(op.old_object, Index):
             # drop and recreate
             assert isinstance(op.new_object, Index), f"expected an index: {op.new_object!r}"
-            drop = f"DROP INDEX {op.old_object.name}"
+            drop = f'DROP INDEX "{op.old_object.name}"'
             if op.new_object.is_unique:
                 create = f"CREATE UNIQUE INDEX {op.new_object.sql()}"
             else:
@@ -721,20 +721,22 @@ def _render_migration_op(op: MigrationOp) -> Optional[str | tuple[str, str]]:
         elif isinstance(op.old_object, Constraint):
             # drop and recreate
             return (
-                f"ALTER TABLE {op.old_object.table.name}"
-                f" DROP CONSTRAINT IF EXISTS {op.old_object.name},"  # may have cascaded
+                f'ALTER TABLE "{op.old_object.table.name}"'
+                f' DROP CONSTRAINT IF EXISTS "{op.old_object.name}",'  # may have cascaded
                 f" ADD CONSTRAINT {op.new_object.sql()}"
             )
 
     elif op.kind == MigrationOpKind.DELETE:
         if isinstance(op.old_object, Table):
-            return f"DROP TABLE {op.old_object.name}"
+            return f'DROP TABLE "{op.old_object.name}"'
         elif isinstance(op.old_object, Column):
-            return f"ALTER TABLE {op.old_object.table.name} DROP COLUMN {op.old_object.name}"
+            return f'ALTER TABLE "{op.old_object.table.name}" DROP COLUMN "{op.old_object.name}"'
         elif isinstance(op.old_object, Index):
-            return f"DROP INDEX {op.old_object.name}"
+            return f'DROP INDEX "{op.old_object.name}"'
         elif isinstance(op.old_object, Constraint):
-            return f"ALTER TABLE {op.old_object.table.name} DROP CONSTRAINT {op.old_object.name}"
+            return (
+                f'ALTER TABLE "{op.old_object.table.name}" DROP CONSTRAINT "{op.old_object.name}"'
+            )
 
     raise RuntimeError(f"unexpected migration op: {op!r}")
 

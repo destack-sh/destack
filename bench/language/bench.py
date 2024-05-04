@@ -14,7 +14,7 @@ from bench.language.property import (
     p_regular,
     p_system,
 )
-from bench.language.validation import validate_name, validate_slug
+from bench.language.validation import NAME_CONSTRAINT, SLUG_CONSTRAINT
 from bench.proto.wire import (
     BenchData,
     BranchData,
@@ -59,7 +59,7 @@ class Bench(Node[BenchData]):
     )  # not actually optional but Handle.parent = Bench
     handles: NodeList["Handle"] = p_node_child(NodeType.HANDLE)
     slug: str = p_system(32, unique=True)  # must match main handle
-    name: str = p_regular(33, validate=validate_name)
+    name: str = p_regular(33, constraint=NAME_CONSTRAINT)
     text: Optional["Text"] = p_regular(
         34, default=None, require=False, array=False, struct=StructType.TEXT
     )
@@ -119,7 +119,7 @@ class Environment(Node[EnvironmentData]):
     """An environment of resources for a Bench's packages."""
 
     parent: Bench = p_node_parent(4, NodeType.BENCH)
-    name: str = p_regular(32, validate=validate_name)
+    name: str = p_regular(32, constraint=NAME_CONSTRAINT)
     text: Optional["Text"] = p_regular(34, require=False, array=False, struct=StructType.TEXT)
     icon: Optional["Icon"] = p_regular(35, require=False, array=False, struct=StructType.ICON)
     policies: list["Policy"] = p_regular(36, struct=StructType.POLICY, array=True)
@@ -165,8 +165,8 @@ class Branch(Node[BranchData]):
     """A branch is a Git-like pointer to the head of a lineage of packages."""
 
     parent: Bench = p_node_parent(4, NodeType.BENCH)
-    name: str = p_regular(32, validate=validate_name)
-    slug: Optional[str] = p_regular(33, require=False, default=None, validate=validate_slug)
+    name: str = p_regular(32, constraint=NAME_CONSTRAINT)
+    slug: Optional[str] = p_regular(33, require=False, default=None, constraint=SLUG_CONSTRAINT)
     text: Optional["Text"] = p_regular(34, require=False, array=False, struct=StructType.TEXT)
     icon: Optional["Icon"] = p_regular(35, require=False, array=False, struct=StructType.ICON)
     policies: list["Policy"] = p_regular(36, struct=StructType.POLICY, array=True)
@@ -185,7 +185,7 @@ class Package(Node[PackageData]):
     """A package is a semi-isolated version of a Bench."""
 
     parent: Bench = p_node_parent(4, NodeType.BENCH)
-    slug: Optional[str] = p_regular(33, require=False, default=None, validate=validate_slug)
+    slug: Optional[str] = p_regular(33, require=False, default=None, constraint=SLUG_CONSTRAINT)
     text: Optional["Text"] = p_regular(34, require=False, array=False, struct=StructType.TEXT)
     icon: Optional["Icon"] = p_regular(35, require=False, array=False, struct=StructType.ICON)
     policies: list["Policy"] = p_regular(36, struct=StructType.POLICY, array=True)
@@ -244,6 +244,6 @@ class Upgrade(Node[UpgradeData]):
     """An 'upgrade' to a Package, marking changes made to the containing Package."""
 
     parent: Package = p_node_parent(4, NodeType.PACKAGE)
-    name: str = p_regular(32, validate=validate_name)
+    name: str = p_regular(32, constraint=NAME_CONSTRAINT)
     title: Optional[str] = p_regular(34)
     text: Optional["Text"] = p_regular(35, require=False, array=False, struct=StructType.TEXT)

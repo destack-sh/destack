@@ -22,7 +22,7 @@ from bench.language.property import (
     p_value_packed,
     p_value_runtime,
 )
-from bench.language.validation import SLUG_REGEX, validate_email, validate_name, validate_slug
+from bench.language.validation import EMAIL_CONSTRAINT, NAME_CONSTRAINT, SLUG_CONSTRAINT, SLUG_REGEX
 from bench.language.value import HasValues
 from bench.proto.wire import (
     AnyNodeData,
@@ -73,7 +73,7 @@ class Handle(Node[HandleData]):
     parent: Union["User", "Organization", "Bench"] = p_node_parent(
         4, NodeType.USER, NodeType.ORGANIZATION, NodeType.BENCH
     )
-    slug: str = p_system(30, unique=True, validate=validate_slug)
+    slug: str = p_system(30, unique=True, constraint=SLUG_CONSTRAINT)
 
 
 @node(NodeType.USER, roots=(), identifier=IdentifierType.VARIABLE)
@@ -87,9 +87,9 @@ class User(Node[UserData]):
     )
     handles: NodeList[Handle] = p_node_child(NodeType.HANDLE)
     slug: Optional[str] = p_system(32, unique=True)  # must match main handle
-    name: str = p_regular(33, validate=validate_name)
+    name: str = p_regular(33, constraint=NAME_CONSTRAINT)
     text: Optional["Text"] = p_regular(34, default=None, struct=StructType.TEXT)
-    email: str = p_system(35, defer=True, unique=True, sensitive=True, validate=validate_email)
+    email: str = p_system(35, defer=True, unique=True, sensitive=True, constraint=EMAIL_CONSTRAINT)
     icon: Optional["Icon"] = p_regular(36, default=None, struct=StructType.ICON)
     main_bench: Optional["Bench"] = p_system(
         37, array=False, require=False, references=NodeType.BENCH, fk=True
@@ -138,7 +138,7 @@ class Organization(Node[OrganizationData]):
     )  # not actually optional but Handle.parent = Organization
     handles: NodeList[Handle] = p_node_child(NodeType.HANDLE)
     slug: Optional[str] = p_system(32, unique=True)  # must match main handle
-    name: str = p_regular(33, validate=validate_name)
+    name: str = p_regular(33, constraint=NAME_CONSTRAINT)
     text: Optional["Text"] = p_regular(34, default=None, struct=StructType.TEXT)
     icon: Optional["Icon"] = p_regular(35, default=None, struct=StructType.ICON)
     main_bench: Optional["Bench"] = p_system(
@@ -161,7 +161,7 @@ class Client(Node[ClientData]):
 
     parent: Union[User, "Server"] = p_node_parent(4, NodeType.USER, NodeType.SERVER)
     # type: ...
-    name: str = p_regular(32, validate=validate_name)
+    name: str = p_regular(32, constraint=NAME_CONSTRAINT)
 
     device_name: Optional[str] = p_regular(40, default=None)
     device_type: Optional[str] = p_regular(41, default=None)

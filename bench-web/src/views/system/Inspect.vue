@@ -136,7 +136,7 @@ defineExpose<ViewExposed>({ self });
             <component
               v-if="viewType != null && hasViewComponent(viewType)"
               :is="getViewComponent(viewType)"
-              class="ml-auto flex-shrink-0 text-right"
+              :class="['ml-auto flex-shrink-0', isFullWidth ? '' : 'text-right']"
               :style="{ width: isFullWidth ? '100%' : 'calc(90% - 100px)' }"
               v-bind="props"
               :modelValue="read != null ? read(node) : (node as any)[protoName!]"
@@ -144,7 +144,7 @@ defineExpose<ViewExposed>({ self });
                 (value: any) => {
                   if (write != null) write(pkgConnection.tx, node!, value);
                   else pkgConnection.tx.updateDebounced(node!, { [protoName!]: value });
-                  inspectionLayout?.onWrite?.(pkgConnection.tx, pkgGraph, node!, property)
+                  inspectionLayout?.onWrite?.(pkgConnection.tx, pkgGraph, node!, property);
                 }
               "
             />

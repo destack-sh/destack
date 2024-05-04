@@ -7,7 +7,7 @@ import structlog
 from bench.language.const import EnumType, NodeType, StructType, enum_
 from bench.language.node import Struct, struct
 from bench.language.property import Property, p_internal, p_regular, p_runtime
-from bench.language.validation import ValidationHandler, validate_name
+from bench.language.validation import NAME_CONSTRAINT, ValidationHandler
 from bench.utils.func import IdEnum, _auto_async_to_sync
 from bench.utils.utils import get_from_env
 
@@ -28,7 +28,7 @@ class File(Struct):
     """A reference to a file stored somewhere."""
 
     type: Optional[str] = p_internal(31)
-    name: str = p_regular(33, validate=validate_name)
+    name: str = p_regular(33, constraint=NAME_CONSTRAINT)
     size: Optional[int] = p_internal(34)
     sha512: Optional[str] = p_internal(35)
     content: Optional["FileContent"] = p_internal(
