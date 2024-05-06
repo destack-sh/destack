@@ -30,12 +30,12 @@ defineExpose<ViewExposed>({ self, id });
 <template>
   <ViewContentWrapper v-bind="props">
     <component
-      v-if="valueType != null && valueView?.viewType != null && hasViewComponent(valueView.viewType)"
       :is="getViewComponent(valueView.viewType)"
+      v-if="valueType != null && valueView?.viewType != null && hasViewComponent(valueView.viewType)"
       class="ml-auto flex-shrink-0"
       v-bind="{ isInput: true, variant: props.variant, ...valueView.props }"
-      :modelValue="modelValue"
-      @update:modelValue="$emit('update:modelValue', $event)"
+      :model-value="modelValue"
+      @update:model-value="$emit('update:modelValue', $event)"
     />
     <div v-else class="flex flex-row items-center px-1 py-0.5 text-warning-600">
       <i class="fas fa-empty-set" />

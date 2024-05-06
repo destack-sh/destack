@@ -26,10 +26,10 @@ const actionRefs: Ref<Record<string, Component<typeof Button>>> = ref({});
     <template v-for="action in actions" :key="action.id">
       <Button
         :ref="(ref?: any) => (ref != null ? (actionRefs[action.id] = ref) : (delete actionRefs[action.id]))"
+        v-tooltip="tooltipFromAction(action)"
         :icon="action.icon"
         :name="action.id"
         @click="fireAction(action, null)"
-        v-tooltip="tooltipFromAction(action)"
       />
     </template>
   </div>

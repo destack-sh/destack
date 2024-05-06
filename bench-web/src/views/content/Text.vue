@@ -276,15 +276,6 @@ defineExpose<ViewExposed>({ self, id, variants: [Variant.PRIMARY, Variant.STEALT
     <!-- NOTE: textRef must be in a stable fragment to mount the editor view -->
     <div
       ref="textRef"
-      class="text rounded hover:cursor-text"
-      :class="[
-        variant != Variant.STEALTH
-          ? 'border border-gray-200 px-2 py-0.5 focus-within:border-primary-900 hover:border-gray-300'
-          : '',
-        isInDropZone ? 'outline-dotted outline-2 outline-primary-400' : '',
-      ]"
-      :draggable="true"
-      @dragstart.stop.prevent="false /* prevent accidentally dragging ancestors from text selection here */"
       v-contextmenu="
         (context: MenuContext): PopoverInfo => ({
           kind: 'menu',
@@ -297,6 +288,15 @@ defineExpose<ViewExposed>({ self, id, variants: [Variant.PRIMARY, Variant.STEALT
           dontFocus: true, // keep focus on the editor
         })
       "
+      class="text rounded hover:cursor-text"
+      :class="[
+        variant != Variant.STEALTH
+          ? 'border border-gray-200 px-2 py-0.5 focus-within:border-primary-900 hover:border-gray-300'
+          : '',
+        isInDropZone ? 'outline-dotted outline-2 outline-primary-400' : '',
+      ]"
+      :draggable="true"
+      @dragstart.stop.prevent="false /* prevent accidentally dragging ancestors from text selection here */"
     />
   </ViewContentWrapper>
 </template>

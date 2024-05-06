@@ -109,8 +109,8 @@ defineExpose<ViewExposed>({ self, id, variants: [Variant.PRIMARY, Variant.STEALT
 </script>
 <template>
   <div
-    ref="blockRef"
     v-if="block"
+    ref="blockRef"
     class="group/block relative rounded border bg-white px-2 py-1.5"
     :class="[
       nodePtr?.id == inspectionPtr?.id
@@ -130,9 +130,6 @@ defineExpose<ViewExposed>({ self, id, variants: [Variant.PRIMARY, Variant.STEALT
         "
       >
         <IconInline
-          v-bind="getNodeIcon(block)"
-          class="w-5 rounded border border-transparent py-0.5 hover:cursor-pointer hover:bg-gray-100 data-[menu=true]:border-primary-900 data-[menu=true]:bg-gray-100"
-          :class="isThinTextWrapper ? 'text-gray-500' : 'text-gray-700'"
           v-tooltip="{ small: true, text: `Change icon` }"
           v-menu="
             (): PopoverInfoIn => ({
@@ -143,6 +140,9 @@ defineExpose<ViewExposed>({ self, id, variants: [Variant.PRIMARY, Variant.STEALT
               onApply: (newIcon) => pkgConnection.tx.update(block!, { icon: newIcon }),
             })
           "
+          v-bind="getNodeIcon(block)"
+          class="w-5 rounded border border-transparent py-0.5 hover:cursor-pointer hover:bg-gray-100 data-[menu=true]:border-primary-900 data-[menu=true]:bg-gray-100"
+          :class="isThinTextWrapper ? 'text-gray-500' : 'text-gray-700'"
         />
         <input
           ref="nameRef"
@@ -216,7 +216,6 @@ defineExpose<ViewExposed>({ self, id, variants: [Variant.PRIMARY, Variant.STEALT
           </button>
           <!-- Menu -->
           <button
-            class="rounded border border-transparent px-2 hover:bg-gray-100 hover:text-primary-900 data-[menu=true]:border-primary-900 data-[menu=true]:bg-gray-100 data-[menu=true]:text-primary-900"
             v-menu="
               (): PopoverInfo => ({
                 kind: 'menu',
@@ -235,6 +234,7 @@ defineExpose<ViewExposed>({ self, id, variants: [Variant.PRIMARY, Variant.STEALT
                 ),
               })
             "
+            class="rounded border border-transparent px-2 hover:bg-gray-100 hover:text-primary-900 data-[menu=true]:border-primary-900 data-[menu=true]:bg-gray-100 data-[menu=true]:text-primary-900"
           >
             <i class="fas fa-ellipsis-v" />
           </button>
@@ -261,7 +261,7 @@ defineExpose<ViewExposed>({ self, id, variants: [Variant.PRIMARY, Variant.STEALT
                 pkgGraph,
               )
         "
-        @update:modelValue="
+        @update:model-value="
           (newValue) => {
             const packed = packValue(newValue, block?.builtinBase!, pkgGraph);
             if (packed.secretValuePacked != null) {
@@ -283,18 +283,18 @@ defineExpose<ViewExposed>({ self, id, variants: [Variant.PRIMARY, Variant.STEALT
       />
       <!-- TODO :UX: Text/Code empty states? -->
       <Text
-        ref="textRef"
         v-if="block.type == BlockType.TEXT || block.text != null || forceShowText"
+        ref="textRef"
         is-input
         :variant="Variant.STEALTH"
         :model-value="block.text"
-        @update:modelValue="(newText) => pkgConnection.tx.updateDebounced(block!, { text: newText })"
+        @update:model-value="(newText) => pkgConnection.tx.updateDebounced(block!, { text: newText })"
       />
       <Code
         v-if="block.type == BlockType.CODE"
         is-input
         :model-value="block.code"
-        @update:modelValue="(newCode) => pkgConnection.tx.updateDebounced(block!, { code: newCode })"
+        @update:model-value="(newCode) => pkgConnection.tx.updateDebounced(block!, { code: newCode })"
       />
     </div>
   </div>

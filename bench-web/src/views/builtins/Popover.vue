@@ -37,7 +37,7 @@ useFloating({
   <!-- Popover -->
   <!-- Trigger -->
   <div ref="triggerRef">
-    <slot name="trigger" :isOpen="isOpen" :open="open" :close="close" :toggle="toggle" />
+    <slot name="trigger" :is-open="isOpen" :open="open" :close="close" :toggle="toggle" />
   </div>
 
   <Transition
@@ -49,7 +49,7 @@ useFloating({
     :leave-to-class="'opacity-0 ' + getEnterFrom(props.placement)"
   >
     <!-- Content -->
-    <div class="absolute z-50" ref="contentRef" v-if="isOpen">
+    <div v-if="isOpen" ref="contentRef" class="absolute z-50">
       <slot name="content" :close="close" />
     </div>
   </Transition>

@@ -135,7 +135,7 @@ const USER_MENU_ITEMS = computed(() => {
     <div class="flex flex-shrink-0 flex-row items-center gap-x-4">
       <!-- Bench -->
       <Popover placement="bottom-left" :reference-margin="4" :container-margin="4">
-        <template v-slot:trigger="{ toggle, isOpen }">
+        <template #trigger="{ toggle, isOpen }">
           <button
             class="flex select-none flex-row items-center rounded border px-2 py-1 text-gray-900 hover:cursor-pointer hover:border-gray-300 hover:bg-gray-100"
             :class="[isOpen ? 'border-gray-300 bg-gray-100' : 'border-gray-300 bg-white']"
@@ -154,7 +154,7 @@ const USER_MENU_ITEMS = computed(() => {
           </button>
         </template>
 
-        <template v-slot:content="{ close }">
+        <template #content="{ close }">
           <!-- Bench Menu -->
           <Menu v-outside.mousedown.stop="close" :items="BENCH_MENU_ITEMS">
             <!-- Bench Info -->
@@ -212,7 +212,7 @@ const USER_MENU_ITEMS = computed(() => {
           <template #content="{ close }">
             <!-- Connection summary -->
             <!-- will probably move this to a Connections View (maybe keep summary on hover) -->
-            <div class="p z-50 rounded border border-gray-300 bg-white text-gray-900" v-outside.click.stop="close">
+            <div v-outside.click.stop="close" class="p z-50 rounded border border-gray-300 bg-white text-gray-900">
               <div class="my-1 border-b border-gray-300 px-3 py-1">
                 <span class="font-semibold">Graph Connections ({{ graphConnections.length }})</span>
               </div>
@@ -279,8 +279,8 @@ const USER_MENU_ITEMS = computed(() => {
         <!-- Developer mode -->
         <div v-if="isDeveloperMode">
           <span
-            class="select-none text-hint-700"
             v-tooltip="{ icon: 'fas fa-binary', title: 'Developer Mode Enabled' } as TooltipInfo"
+            class="select-none text-hint-700"
           >
             <button class="hover:text-hint-800" @click="fireActionById('developer.developerMode')">
               <i class="fas fa-binary" />
@@ -312,7 +312,7 @@ const USER_MENU_ITEMS = computed(() => {
       <template v-if="user">
         <!-- User (logged in) -->
         <Popover placement="bottom-right" :reference-margin="4" :container-margin="4">
-          <template v-slot:trigger="{ toggle, isOpen }">
+          <template #trigger="{ toggle, isOpen }">
             <button
               class="rounded border px-2 py-1 text-gray-900 hover:border-gray-300 hover:bg-gray-100 focus:border-primary-900"
               :class="[isOpen ? 'border-gray-300 bg-gray-100' : 'border-gray-300 bg-white']"
@@ -321,7 +321,7 @@ const USER_MENU_ITEMS = computed(() => {
               <IconInline class="text-gray-700" v-bind="user.icon ?? DEFAULT_USER_ICON" />
             </button>
           </template>
-          <template v-slot:content="{ close }">
+          <template #content="{ close }">
             <Menu v-outside.mousedown.stop="close" :items="USER_MENU_ITEMS">
               <!-- User Info -->
               <template #header>

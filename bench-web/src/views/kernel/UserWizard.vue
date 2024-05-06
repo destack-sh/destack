@@ -115,38 +115,38 @@ defineExpose<ViewExposed>({ self, focus });
     <div v-if="state == 'sign-up' || state == 'log-in'" class="mt-5 flex w-full flex-col gap-y-3">
       <HtmlInput
         v-if="state === 'sign-up'"
+        v-model="name"
         :icon="makeIcon({ faName: 'fas fa-user' })"
         name="Name"
         title="Name"
         :variant="Variant.PRIMARY"
         is-input
-        v-model="name"
       />
       <HtmlInput
+        v-model="slug"
         :icon="makeIcon({ faName: 'fas fa-at' })"
         name="slug"
         title="Username"
         :variant="Variant.PRIMARY"
         is-input
-        v-model="slug"
       />
       <HtmlInput
         v-if="state === 'sign-up'"
+        v-model="email"
         :icon="makeIcon({ faName: 'fas fa-envelope' })"
         name="Email"
         title="Email"
         :variant="Variant.PRIMARY"
         is-input
-        v-model="email"
       />
       <HtmlInput
+        v-model="password"
         :icon="makeIcon({ faName: 'fas fa-key' })"
         name="Password"
         title="Password"
         :variant="Variant.PRIMARY"
         is-input
         :value-type="makeTypeInfo({ isSecret: true })"
-        v-model="password"
       />
     </div>
     <!-- Actions -->
@@ -157,9 +157,9 @@ defineExpose<ViewExposed>({ self, focus });
         :icon="makeIcon({ faName: 'fas fa-arrow-right-from-bracket' })"
         :title="state === 'log-in' ? 'Log in' : 'Sign up'"
         class="w-full"
-        @click="submit"
         :is-disabled="isActive"
         :is-loading="isActive"
+        @click="submit"
       />
       <Button
         v-if="state === 'log-in' || state === 'sign-up'"

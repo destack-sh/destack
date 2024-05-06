@@ -236,8 +236,8 @@ defineExpose({ isActive, open });
             <!-- Query -->
             <input
               ref="queryRef"
-              type="text"
               v-model="query"
+              type="text"
               :placeholder="TEXT_BY_MODE[mode] + '...'"
               class="h-full w-full border-0 bg-transparent p-0 placeholder-gray-500 outline-none ring-0 focus:ring-0"
               @keydown.enter.stop.prevent="go"
@@ -255,7 +255,7 @@ defineExpose({ isActive, open });
           <Scroll
             :orientation="Orientation.VERTICAL"
             track-is-always-visible
-            :trackWidth="ScrollbarWidth.sm"
+            :track-width="ScrollbarWidth.sm"
             size-is-dynamic
             :size="{
               width: PANEL_WIDTH,
@@ -298,7 +298,7 @@ defineExpose({ isActive, open });
                       class="text-gray-700"
                       :shortcut="item.shortcuts![0]"
                     />
-                    <span class="text-gray-500" v-if="!showResultCategory">{{ item.index }}</span>
+                    <span v-if="!showResultCategory" class="text-gray-500">{{ item.index }}</span>
                   </span>
                 </li>
               </template>

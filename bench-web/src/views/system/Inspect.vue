@@ -64,8 +64,6 @@ defineExpose<ViewExposed>({ self });
       >
         <!-- Icon -->
         <IconInline
-          v-bind="getNodeIcon(node)"
-          class="w-5 rounded border border-transparent p-1 text-gray-700 hover:cursor-pointer hover:bg-gray-100 data-[menu=true]:border-primary-900 data-[menu=true]:bg-gray-100"
           v-menu="
             (): PopoverInfoIn => ({
               component: ViewType.ICON,
@@ -76,6 +74,8 @@ defineExpose<ViewExposed>({ self });
               onApply: (newIcon) => pkgConnection.tx.update(node!, { icon: newIcon }),
             })
           "
+          v-bind="getNodeIcon(node)"
+          class="w-5 rounded border border-transparent p-1 text-gray-700 hover:cursor-pointer hover:bg-gray-100 data-[menu=true]:border-primary-900 data-[menu=true]:bg-gray-100"
         />
         <!-- Name -->
         <input
@@ -108,7 +108,7 @@ defineExpose<ViewExposed>({ self });
       <ul class="flex flex-col gap-y-2.5 py-3">
         <template
           v-for="(
-            { title, protoName, category, property, viewType, props, isFullWidth, read, write }, i
+            { title, protoName, category, property, viewType, props: viewProps, isFullWidth, read, write }, i
           ) of inspectionLayout.properties"
           :key="property.id"
         >
@@ -134,13 +134,13 @@ defineExpose<ViewExposed>({ self });
             </span>
             <!-- Value -->
             <component
-              v-if="viewType != null && hasViewComponent(viewType)"
               :is="getViewComponent(viewType)"
+              v-if="viewType != null && hasViewComponent(viewType)"
               :class="['ml-auto flex-shrink-0', isFullWidth ? '' : 'text-right']"
               :style="{ width: isFullWidth ? '100%' : 'calc(90% - 100px)' }"
-              v-bind="props"
-              :modelValue="read != null ? read(node) : (node as any)[protoName!]"
-              @update:modelValue="
+              v-bind="viewProps"
+              :model-value="read != null ? read(node) : (node as any)[protoName!]"
+              @update:model-value="
                 (value: any) => {
                   if (write != null) write(pkgConnection.tx, node!, value);
                   else pkgConnection.tx.updateDebounced(node!, { [protoName!]: value });

@@ -167,12 +167,6 @@ defineExpose<ViewExposed>({ self, actions });
     <!-- Tabs header -->
     <Scroll
       ref="headerRef"
-      class="scrollbar-none relative flex w-full flex-row"
-      :class="[activeHeaderDropZone != null ? 'bg-gray-50' : 'bg-gray-100']"
-      :orientation="Orientation.HORIZONTAL"
-      :track-width="ScrollbarWidth.sm"
-      track-is-overlay
-      :size="{ width: innerSize.width, height: 30 }"
       v-contextmenu="
         (context: MenuContext): PopoverInfo => {
           return {
@@ -183,21 +177,18 @@ defineExpose<ViewExposed>({ self, actions });
           };
         }
       "
+      class="scrollbar-none relative flex w-full flex-row"
+      :class="[activeHeaderDropZone != null ? 'bg-gray-50' : 'bg-gray-100']"
+      :orientation="Orientation.HORIZONTAL"
+      :track-width="ScrollbarWidth.sm"
+      track-is-overlay
+      :size="{ width: innerSize.width, height: 30 }"
     >
       <!-- Tab button -->
       <button
-        :ref="(ref) => (ref != null ? (tabsRef[tab.id] = ref as HTMLElement) : delete tabsRef[tab.id])"
         v-for="(tab, i) in tabs"
+        :ref="(ref) => (ref != null ? (tabsRef[tab.id] = ref as HTMLElement) : delete tabsRef[tab.id])"
         :key="tab.id"
-        class="group relative flex h-full max-w-52 select-none flex-row items-center justify-center whitespace-nowrap border-r border-gray-200 px-2.5 hover:cursor-pointer"
-        :class="[
-          i == focusedTabIdx ? 'bg-white text-primary-900  ' : 'border-b hover:text-primary-900',
-          i == focusedTabIdx && isFocusAbsolute ? 'shadow-inset-md shadow-primary-900' : '',
-          i != focusedTabIdx ? (isFocusAbsolute ? 'text-gray-700' : 'text-gray-600') : '',
-        ]"
-        @click="focus(tab)"
-        :draggable="true"
-        @dragstart.stop="(e: DragEvent) => startDragging(e, spaceGraph, tab)"
         v-contextmenu="
           (context: MenuContext): PopoverInfo => {
             context = { ...context, triggerNode: tab };
@@ -209,6 +200,15 @@ defineExpose<ViewExposed>({ self, actions });
             };
           }
         "
+        class="group relative flex h-full max-w-52 select-none flex-row items-center justify-center whitespace-nowrap border-r border-gray-200 px-2.5 hover:cursor-pointer"
+        :class="[
+          i == focusedTabIdx ? 'bg-white text-primary-900  ' : 'border-b hover:text-primary-900',
+          i == focusedTabIdx && isFocusAbsolute ? 'shadow-inset-md shadow-primary-900' : '',
+          i != focusedTabIdx ? (isFocusAbsolute ? 'text-gray-700' : 'text-gray-600') : '',
+        ]"
+        :draggable="true"
+        @click="focus(tab)"
+        @dragstart.stop="(e: DragEvent) => startDragging(e, spaceGraph, tab)"
       >
         <!-- Tab header  -->
         <IconInline
@@ -249,8 +249,8 @@ defineExpose<ViewExposed>({ self, actions });
     >
       <!-- Content -->
       <component
-        v-if="focusedTabIdx != null && getViewComponent(tabs[focusedTabIdx].type) != null"
         :is="getViewComponent(tabs[focusedTabIdx].type)"
+        v-if="focusedTabIdx != null && getViewComponent(tabs[focusedTabIdx].type) != null"
         :self="toNodeReference(tabs[focusedTabIdx])"
         v-bind="getViewBinding(tabs[focusedTabIdx], innerSize)"
       />

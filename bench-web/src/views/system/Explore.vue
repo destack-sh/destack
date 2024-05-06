@@ -284,8 +284,8 @@ defineExpose<ViewExposed>({ self, actions, focus });
       <div class="absolute -top-5 left-0 px-2 pl-4">
         <input
           ref="queryRef"
-          class="max-w-60 cursor-default rounded border-0 bg-transparent font-semibold text-gray-900 decoration-2 underline-offset-2 caret-transparent outline-none ring-0 focus:underline focus:ring-0"
           v-model="query"
+          class="max-w-60 cursor-default rounded border-0 bg-transparent font-semibold text-gray-900 decoration-2 underline-offset-2 caret-transparent outline-none ring-0 focus:underline focus:ring-0"
           spellcheck="false"
           :data-suppress-actions="'common.edit,common.navigate' /* allow select & move */"
           @keydown.enter.stop.prevent="focusedNode != null && fire(focusedNode)"
@@ -298,26 +298,12 @@ defineExpose<ViewExposed>({ self, actions, focus });
     </div>
 
     <!-- Nodes -->
-    <ul ref="containerRef" v-if="expandedItems.length > 0" class="my-1 flex flex-col text-gray-900">
+    <ul v-if="expandedItems.length > 0" ref="containerRef" class="my-1 flex flex-col text-gray-900">
       <!-- Node -->
       <li
-        :ref="(ref?: any) => (ref != null ? (expandedNodesRefs[node.id] = ref) : delete expandedNodesRefs[node.id])"
         v-for="({ node, depth, hasChildren }, i) in expandedItems"
+        :ref="(ref?: any) => (ref != null ? (expandedNodesRefs[node.id] = ref) : delete expandedNodesRefs[node.id])"
         :key="node.id"
-        class="group relative mx-1 mt-[1px] flex flex-row items-center rounded border py-0.5 hover:cursor-pointer hover:text-primary-900 data-[dragging=true]:opacity-50"
-        :class="[
-          focusedNode?.id == node.id && isFocusAbsolute ? 'border-orange-900' : 'border-transparent',
-          isFocusedAbsolute(node) ? 'bg-gray-100' : '',
-          activeDropZone?.targetId == node.id ? '' : 'hover:bg-primary-100',
-          activeDropZone?.targetId == node.id && activeDropZone?.anchor == 'center'
-            ? 'border-primary-400 bg-primary-200'
-            : '',
-        ]"
-        :style="{ paddingLeft: 8 + depth * DEPTH_OFFSET + 'px', paddingRight: 4 + 'px' }"
-        role="treeitem"
-        @click.stop="fire(node)"
-        :draggable="true"
-        @dragstart.stop="(e: DragEvent) => startDragging(e, inspectedGraph, node)"
         v-contextmenu="
           (context: MenuContext): PopoverInfo => {
             doFocus(node);
@@ -330,6 +316,20 @@ defineExpose<ViewExposed>({ self, actions, focus });
             };
           }
         "
+        class="group relative mx-1 mt-[1px] flex flex-row items-center rounded border py-0.5 hover:cursor-pointer hover:text-primary-900 data-[dragging=true]:opacity-50"
+        :class="[
+          focusedNode?.id == node.id && isFocusAbsolute ? 'border-orange-900' : 'border-transparent',
+          isFocusedAbsolute(node) ? 'bg-gray-100' : '',
+          activeDropZone?.targetId == node.id ? '' : 'hover:bg-primary-100',
+          activeDropZone?.targetId == node.id && activeDropZone?.anchor == 'center'
+            ? 'border-primary-400 bg-primary-200'
+            : '',
+        ]"
+        :style="{ paddingLeft: 8 + depth * DEPTH_OFFSET + 'px', paddingRight: 4 + 'px' }"
+        role="treeitem"
+        :draggable="true"
+        @click.stop="fire(node)"
+        @dragstart.stop="(e: DragEvent) => startDragging(e, inspectedGraph, node)"
       >
         <!-- Drop indicator -->
         <div

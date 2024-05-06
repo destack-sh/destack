@@ -82,13 +82,13 @@ defineExpose({ self, focus });
       <!-- ... -->
       <!-- Slug must match user slug for main bench -->
       <HtmlInput
+        v-model="slug"
         :icon="makeIcon({ faName: 'fas fa-at' })"
         name="Slug"
         title="Slug"
         :variant="Variant.PRIMARY"
         is-input
         is-disabled
-        v-model="slug"
       />
       <!-- Region -->
       <!-- ... -->

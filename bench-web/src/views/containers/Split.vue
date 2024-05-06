@@ -157,8 +157,8 @@ defineExpose<ViewExposed>({ self, actions });
       >
         <!-- Frame content -->
         <component
-          v-if="getViewComponent(view.type) != null"
           :is="getViewComponent(view.type)"
+          v-if="getViewComponent(view.type) != null"
           v-bind="
             getViewBinding(view, {
               width: isHorizontal && viewIdx > 0 ? width - BORDER_SIZE : width,
@@ -191,8 +191,8 @@ defineExpose<ViewExposed>({ self, actions });
                 width: width + 'px',
               }
         "
-        @mousedown="draggingIdx = viewIdx - 1"
         data-outside-view="true"
+        @mousedown="draggingIdx = viewIdx - 1"
       />
     </template>
     <!-- No frames -->
