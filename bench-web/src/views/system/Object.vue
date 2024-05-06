@@ -96,7 +96,6 @@ defineExpose<ViewExposed>({ self, id, focus });
       ref="buttonRef"
       v-menu="
         (): PopoverInfoIn => ({
-          // nocheckin: fix sync modelValue into popover object if open
           component: ViewType.OBJECT,
           placement: 'inside-top-left',
           referenceMargin: 0,
@@ -105,6 +104,7 @@ defineExpose<ViewExposed>({ self, id, focus });
             size: { metatype: ObjectType.BOX, width: buttonRef?.getBoundingClientRect().width },
             isInline: true,
           },
+          propsRef: () => ({ modelValue: props.modelValue }),
           onUpdate: (value: any) => emit('update:modelValue', value),
           onApply: (value: any) => apply(value),
         })

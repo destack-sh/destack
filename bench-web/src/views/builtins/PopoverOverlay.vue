@@ -7,7 +7,7 @@ import Menu from "@/views/builtins/Menu.vue";
 import { focusInElement } from "@/views/canvas";
 import { getViewComponent } from "@/views/registry";
 import { useElementSize, useEventListener, type MaybeElement } from "@vueuse/core";
-import { computed, nextTick, ref, shallowRef, triggerRef, watch, type Ref } from "vue";
+import { computed, nextTick, ref, shallowRef, toValue, triggerRef, watch, watchEffect, type Ref } from "vue";
 
 const popoverContainerRefs: Ref<Record<number, MaybeElement>> = shallowRef({});
 const popoverInnerRefs: Ref<Record<number, MaybeElement>> = shallowRef({});
@@ -35,6 +35,17 @@ function getEnterFrom(placement: FloatingPlacement): string {
   else if (placement.startsWith("right")) return "translate-x-[-4px]";
   /* bottom */ else return "translate-y-[-4px]";
 }
+
+// auto update computed props values
+watchEffect(() => {
+  activePopovers.value.forEach((popover) => {
+    if (popover.info.kind == "component" && popover.info.propsRef != null) {
+      popover.info.props = { ...popover.info.props, ...toValue(popover.info.propsRef) };
+      popoverValues.value[popover.id] = popover.info.props.modelValue;
+      triggerRef(popoverValues);
+    }
+  });
+});
 
 // float position for topmost popover (the rest remains fixed)
 watch([popoverContainerRefs, topPopoverSize.width, topPopoverSize.height], () => {
