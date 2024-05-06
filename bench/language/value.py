@@ -482,13 +482,18 @@ def _pack_object_scalar(
     The secret split applies only to nested values within the type, not the type itself.
     """
     value_packed: dict[str, JsonValue] = {}
+    _value = value._value
+    assert _value is not None, f"{value!r} has no value"
+
     for field in typ._base_fields:
         field_type = field._to_resolved()
-        field_value = cast(SomeValue, getattr(value, field.name, None))
+        field_value = cast(SomeValue, _value.get(field.storage_key))
         if field_value is None:
             continue
         elif field_type.kind == TypeKind.OBJECT:
-            value_packed[field.storage_key], _ = pack_value(field_value, field_type)
+            value_packed[field.storage_key], _ = pack_value(
+                field_value, field_type
+            )  # :SecretValues
         elif not field_type.is_list:
             value_packed[field.storage_key] = _pack_value_scalar(
                 cast(ScalarValue, field_value), field_type

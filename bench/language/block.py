@@ -250,13 +250,6 @@ class Block(Node[BlockData], HasValues):
     def identifier_type(self) -> IdentifierType:
         return _IDENTIFIER_BY_TYPE[self.type]
 
-    @property
-    def storage_key(self) -> str | None:
-        if self.builtin_base is None:
-            return None
-        else:
-            return f"{self.tk}-{self.builtin_base.identity_key}"
-
 
 _ALL_COMPONENTS_BY_TYPE: dict[BlockType, tuple[typing.Type[Node], ...]] = {
     t: _DYNAMIC_COMPONENTS_BY_TYPE[t] + Block.__static_components__ for t in BlockType

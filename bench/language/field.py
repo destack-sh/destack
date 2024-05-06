@@ -170,6 +170,7 @@ def decode_type_identity(key: str) -> "TypeInfoBase":
 
 
 def encode_storage_key(field: "Field") -> str:
+    """Gets the key used to identify values of this field in storage. :FieldStorageKey"""
     return f"{get_tk_b64_from_ck(field.ck)}{field.identity_key}"
 
 
@@ -283,6 +284,7 @@ class TypeInfoBase(HasValues):
 
     def _interp_component(self, scope: Optional["Node"], notice: "NoticeHandler"):
         # TODO :Incomplete: proper type resolution (consider multi-step aliases, inheritance, ...)
+        # resolve the actual type :TypeResolution
         if self.kind == TypeKind.ALIAS:
             assert self.base_type is not None, f"missing base type for alias {self!r}"
             if (

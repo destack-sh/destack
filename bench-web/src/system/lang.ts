@@ -103,6 +103,13 @@ export const DEFAULT_LOADED_SOURCE_NODE_TYPES = [
 
 export const TYPE_BLOCK_TYPES = [BlockType.CLASS, BlockType.CHOICE, BlockType.SIGNAL, BlockType.DATABASE];
 export const RUNNABLE_BLOCK_TYPES = [BlockType.TEXT, BlockType.CODE, BlockType.FLOW];
+export const CLASSY_BLOCK_TYPES = [
+  BlockType.CLASS,
+  BlockType.SIGNAL,
+  ...RUNNABLE_BLOCK_TYPES,
+  BlockType.VARIABLE,
+  BlockType.DATABASE,
+];
 
 export const ROOT_VIEW_TYPES = new Set<ViewType>([ViewType.WINDOW, ViewType.TAB, ViewType.SPLIT]);
 export const NODE_VIEW_TYPES = new Set<ViewType>([
@@ -158,6 +165,12 @@ export function getTkFromPtrMaybe(ptr: NodeReferenceData | undefined | null) {
 export function getTkB64FromPtr(ptr: NodeReferenceData) {
   const ck = ptr.ck ?? ptr.id;
   if (ck == null) throw new Error(`invalid ptr: ${ptr}`);
+  const hex = ck.replace(/-/g, "");
+  const bytes = Buffer.from(hex, "hex");
+  return bytes.slice(0, TK_LENGTH_BYTES).toString("base64");
+}
+
+export function getTkB64FromCk(ck: string) {
   const hex = ck.replace(/-/g, "");
   const bytes = Buffer.from(hex, "hex");
   return bytes.slice(0, TK_LENGTH_BYTES).toString("base64");

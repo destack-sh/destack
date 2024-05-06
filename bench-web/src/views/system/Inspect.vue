@@ -22,7 +22,7 @@ import Scroll from "@/views/containers/Scroll.vue";
 import { computed, toRef } from "vue";
 
 const MIN_WIDTH = 320;
-const MAX_WIDTH = 540;
+const MAX_WIDTH = 500;
 const HEADER_HEIGHT = 40;
 
 const props = defineProps<
