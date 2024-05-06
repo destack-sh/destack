@@ -138,8 +138,8 @@ function close(popover: PopoverInstance | undefined) {
     <template v-for="popover in activePopovers" :key="popover.id">
       <!-- Classic popover -->
       <Menu
-        :ref="(el) => registerContainerRef(popover.id, el)"
         v-if="popover?.info.kind == 'menu'"
+        :ref="(el) => registerContainerRef(popover.id, el)"
         :key="popover.id"
         class="pointer-events-auto absolute z-70"
         data-outside-view="true"
@@ -148,8 +148,8 @@ function close(popover: PopoverInstance | undefined) {
       />
       <!-- Generic component popover -->
       <div
-        :ref="(el) => registerContainerRef(popover.id, el)"
         v-else-if="popover?.info.kind == 'component'"
+        :ref="(el) => registerContainerRef(popover.id, el)"
         class="pointer-events-auto absolute z-70 flex flex-col rounded border border-gray-300 bg-white text-gray-900"
         :class="popover.info.containerClass"
         data-outside-view="true"
@@ -157,11 +157,11 @@ function close(popover: PopoverInstance | undefined) {
         @keydown.esc.stop.prevent="() => close(popover)"
       >
         <component
-          :ref="(el: any) => registerInnerRef(popover.id, el)"
           :is="toComponent(popover.info)"
+          :ref="(el: any) => registerInnerRef(popover.id, el)"
           v-bind="{ isInline: true, ...(popover.info.props ?? {}) }"
-          :modelValue="popoverValues[popover.id]"
-          @update:modelValue="popoverValues[popover.id] = $event"
+          :model-value="popoverValues[popover.id]"
+          @update:model-value="popoverValues[popover.id] = $event"
           @apply="() => (fire(popover), close(popover))"
         />
       </div>

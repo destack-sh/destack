@@ -46,8 +46,8 @@ defineExpose<ViewExposed>({
       <IconInline v-if="icon" v-bind="icon" :shade="ColorShade.S400" class="mr-1.5 w-5" />
       <input
         ref="inputRef"
-        :type="inputType"
         v-model="modelValue"
+        :type="inputType"
         class="w-full border-0 bg-transparent p-0 outline-none ring-0 focus:ring-0"
         :disabled="isDisabled"
       />

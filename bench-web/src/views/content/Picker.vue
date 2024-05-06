@@ -154,10 +154,8 @@ defineExpose<ViewExposed>({ self, id, variants: [Variant.PRIMARY, Variant.COMPAC
     <!-- Dropdown -->
     <!-- NOTE: dropdown button style should match inline combobox header style since we overlay them -->
     <button
-      ref="buttonRef"
       v-if="!isInline && variant != Variant.COMPACT"
-      :disabled="props.isDisabled"
-      class="group flex w-full flex-row items-center rounded border border-gray-200 px-2.5 py-1 hover:border-gray-300 disabled:bg-gray-100 data-[menu=true]:border-gray-300"
+      ref="buttonRef"
       v-menu="
         (): PopoverInfoIn => ({
           component: ViewType.PICKER,
@@ -171,6 +169,8 @@ defineExpose<ViewExposed>({ self, id, variants: [Variant.PRIMARY, Variant.COMPAC
           onApply: (value) => apply(value),
         })
       "
+      :disabled="props.isDisabled"
+      class="group flex w-full flex-row items-center rounded border border-gray-200 px-2.5 py-1 hover:border-gray-300 disabled:bg-gray-100 data-[menu=true]:border-gray-300"
     >
       <template v-if="modelValue != null">
         <IconInline v-if="modelValueIcon" v-bind="modelValueIcon" class="mr-1.5 w-5 text-gray-700" />
@@ -189,11 +189,11 @@ defineExpose<ViewExposed>({ self, id, variants: [Variant.PRIMARY, Variant.COMPAC
       <button
         v-for="item in results"
         :key="item.id"
+        v-tooltip="{ icon: item.icon, title: item.title, small: true }"
         :data-selected="isSelected(item)"
         :disabled="props.isDisabled"
         class="group flex-1 flex-shrink-0 truncate rounded px-0.5 text-center font-medium hover:text-primary-900 enabled:text-gray-600 disabled:text-gray-400 data-[selected=true]:bg-white data-[selected=true]:text-gray-700"
         @click.prevent="fire(item)"
-        v-tooltip="{ icon: item.icon, title: item.title, small: true }"
       >
         <IconInline
           v-if="variant == Variant.STEALTH && item.icon"
@@ -219,8 +219,8 @@ defineExpose<ViewExposed>({ self, id, variants: [Variant.PRIMARY, Variant.COMPAC
         <!-- Query -->
         <input
           ref="queryRef"
-          type="text"
           v-model="query"
+          type="text"
           class="w-full border-0 bg-transparent p-0 placeholder-gray-500 outline-none ring-0 focus:ring-0"
           :placeholder="modelValueTitle ?? `Select ${facetName ?? '???'}`"
           @keydown.enter.stop.prevent="activeResultId != null && fire(results.find((r) => r.id === activeResultId)!)"

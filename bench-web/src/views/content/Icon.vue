@@ -104,7 +104,6 @@ defineExpose<ViewExposed>({ self, id, focus });
     <!-- Dropdown -->
     <button
       v-if="!isInline"
-      class="group flex w-full flex-row items-center rounded border border-gray-200 px-2 py-1 hover:border-gray-300 data-[menu=true]:border-gray-300"
       v-menu="
         (): PopoverInfoIn => ({
           component: ViewType.ICON,
@@ -114,6 +113,7 @@ defineExpose<ViewExposed>({ self, id, focus });
           onApply: (value) => apply(value),
         })
       "
+      class="group flex w-full flex-row items-center rounded border border-gray-200 px-2 py-1 hover:border-gray-300 data-[menu=true]:border-gray-300"
     >
       <template v-if="modelValue != null">
         <IconInline v-bind="modelValue" />
@@ -134,8 +134,8 @@ defineExpose<ViewExposed>({ self, id, focus });
         <!-- Query -->
         <input
           ref="queryRef"
-          type="text"
           v-model="query"
+          type="text"
           class="w-full border-0 bg-transparent p-0 placeholder-gray-500 outline-none ring-0 focus:ring-0"
           :placeholder="`Search Icons...`"
           @keydown.enter.stop.prevent="activeResultId != null && fire(results.find((r) => r.id === activeResultId)!)"
@@ -146,7 +146,6 @@ defineExpose<ViewExposed>({ self, id, focus });
         />
         <!-- Color -->
         <button
-          class="rounded px-0.5 hover:bg-gray-100"
           v-tooltip="{ title: 'Change color', small: true }"
           v-menu="
             (): PopoverInfoIn => ({
@@ -157,6 +156,7 @@ defineExpose<ViewExposed>({ self, id, focus });
               onApply: (value) => (color = value),
             })
           "
+          class="rounded px-0.5 hover:bg-gray-100"
         >
           <i class="fas fa-circle small" :style="{ color: effectiveColorHex }" />
         </button>
@@ -178,11 +178,6 @@ defineExpose<ViewExposed>({ self, id, focus });
           <template v-for="(item, i) in results" :key="i">
             <span
               :ref="(ref?: any) => (ref != null ? (resultsRefs[item.id] = ref) : delete resultsRefs[item.id])"
-              class="select-none rounded border border-transparent py-1.5 hover:cursor-pointer hover:border-gray-300 hover:bg-gray-100 data-[active=true]:border-gray-300 data-[active=true]:bg-gray-100"
-              :class="item.faName"
-              role="menuitem"
-              :data-selected="item.faName == modelValue?.faName"
-              :data-active="item.id === activeResultId"
               v-tooltip="
                 {
                   isEnabled: results[i] != null,
@@ -192,6 +187,11 @@ defineExpose<ViewExposed>({ self, id, focus });
                   small: true,
                 } as TooltipInfo
               "
+              class="select-none rounded border border-transparent py-1.5 hover:cursor-pointer hover:border-gray-300 hover:bg-gray-100 data-[active=true]:border-gray-300 data-[active=true]:bg-gray-100"
+              :class="item.faName"
+              role="menuitem"
+              :data-selected="item.faName == modelValue?.faName"
+              :data-active="item.id === activeResultId"
               @click.stop.prevent="fire(item)"
               @keydown.enter.stop.prevent="fire(item)"
             />

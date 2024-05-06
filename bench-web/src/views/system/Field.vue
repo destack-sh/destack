@@ -65,8 +65,8 @@ defineExpose<ViewExposed>({ self, id, actions });
 </script>
 <template>
   <div
-    ref="fieldRef"
     v-if="field"
+    ref="fieldRef"
     class="flex w-fit flex-row items-center rounded border bg-gray-50 px-1.5 py-[3px]"
     :class="[
       inspectionPtr?.id == field.id
@@ -76,8 +76,6 @@ defineExpose<ViewExposed>({ self, id, actions });
   >
     <!-- nocheckin: Field -->
     <IconInline
-      v-bind="getNodeIcon(field)"
-      class="mr-0.5 w-6 rounded border border-transparent p-0.5 hover:cursor-pointer hover:bg-gray-100 data-[menu=true]:border-primary-900 data-[menu=true]:bg-gray-100"
       v-tooltip="{ small: true, text: `Change icon` } as TooltipInfo"
       v-menu="
         (): PopoverInfoIn => ({
@@ -88,6 +86,8 @@ defineExpose<ViewExposed>({ self, id, actions });
           onApply: (newIcon) => pkgConnection.tx.update(field!, { icon: newIcon }),
         })
       "
+      v-bind="getNodeIcon(field)"
+      class="mr-0.5 w-6 rounded border border-transparent p-0.5 hover:cursor-pointer hover:bg-gray-100 data-[menu=true]:border-primary-900 data-[menu=true]:bg-gray-100"
     />
     <input
       ref="nameRef"

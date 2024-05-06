@@ -323,15 +323,6 @@ defineExpose<ViewExposed>({ self, actions, focus });
             <div
               v-for="anchor in i < expandedItems.length - 1 ? ['start'] : ['start', 'end']"
               :key="anchor"
-              role="button"
-              class="absolute h-[6px] w-full flex-shrink-0 text-center text-gray-300 opacity-0 hover:z-10 hover:text-gray-300 hover:opacity-100 data-[menu=true]:text-primary-900 data-[menu=true]:opacity-100"
-              :style="
-                getAnchorPosition(
-                  anchor as 'start' | 'end',
-                  i,
-                  anchor == 'start' || depth != expandedItems[i + 1]?.depth ? 8 : 4,
-                )
-              "
               v-menu="
                 (): PopoverInfoIn => ({
                   component: ViewType.PICKER,
@@ -340,6 +331,15 @@ defineExpose<ViewExposed>({ self, actions, focus });
                   onApply: (blockType: BlockType) =>
                     createAndFocusBlock({ type: blockType }, anchor == 'start' ? 'before' : 'after', blockPtr),
                 })
+              "
+              role="button"
+              class="absolute h-[6px] w-full flex-shrink-0 text-center text-gray-300 opacity-0 hover:z-10 hover:text-gray-300 hover:opacity-100 data-[menu=true]:text-primary-900 data-[menu=true]:opacity-100"
+              :style="
+                getAnchorPosition(
+                  anchor as 'start' | 'end',
+                  i,
+                  anchor == 'start' || depth != expandedItems[i + 1]?.depth ? 8 : 4,
+                )
               "
               data-keep-inspection-in-base="true"
             >
@@ -365,10 +365,6 @@ defineExpose<ViewExposed>({ self, actions, focus });
               :ref="
                 (ref: any) => (ref ? (expandedBlockRefs[blockPtr.id!] = ref) : delete expandedBlockRefs[blockPtr.id!])
               "
-              class="w-full data-[dragging=true]:opacity-50"
-              :variant="Variant.STEALTH"
-              :node-ptr="blockPtr"
-              :prepared-connection="preparedPkgConnection"
               v-contextmenu="
                 (): PopoverInfo => ({
                   kind: 'menu',
@@ -389,6 +385,10 @@ defineExpose<ViewExposed>({ self, actions, focus });
                   ),
                 })
               "
+              class="w-full data-[dragging=true]:opacity-50"
+              :variant="Variant.STEALTH"
+              :node-ptr="blockPtr"
+              :prepared-connection="preparedPkgConnection"
               :draggable="true"
               @dragstart.stop="(e: DragEvent) => startDragging(e, pkgGraph, blockPtr)"
             />

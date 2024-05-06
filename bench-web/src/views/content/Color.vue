@@ -57,9 +57,8 @@ defineExpose<ViewExposed>({ self, id, focus });
     <!-- TODO :Incomplete: Color.isInput/isDisabled/variants/... -->
     <!-- Dropdown -->
     <button
-      ref="buttonRef"
       v-if="!isInline"
-      class="group flex w-full flex-row items-center rounded border border-gray-200 px-2 py-1 hover:border-gray-300 data-[menu=true]:border-gray-300"
+      ref="buttonRef"
       v-menu="
         (): PopoverInfoIn => ({
           component: ViewType.COLOR,
@@ -69,6 +68,7 @@ defineExpose<ViewExposed>({ self, id, focus });
           onApply: (value) => apply(value),
         })
       "
+      class="group flex w-full flex-row items-center rounded border border-gray-200 px-2 py-1 hover:border-gray-300 data-[menu=true]:border-gray-300"
     >
       <template v-if="modelValue != null">
         <i class="fas fa-circle-small" :style="{ color: getColorHex(modelValue, ColorShade.S600) }" />
@@ -84,11 +84,11 @@ defineExpose<ViewExposed>({ self, id, focus });
     <!-- Inline Multi-Toggle -->
     <div v-else class="grid grid-cols-9 gap-x-0.5 gap-y-0.5 rounded border-gray-200 bg-white px-1 py-1">
       <button
-        :ref="(ref?: any) => (ref != null ? (itemRefs[color] = ref) : delete itemRefs[color])"
         v-for="(color, i) in REAL_COLORS"
+        :ref="(ref?: any) => (ref != null ? (itemRefs[color] = ref) : delete itemRefs[color])"
         :key="i"
-        class="rounded border border-transparent px-1 py-0.5 outline-none hover:border-gray-300 hover:bg-gray-100 focus:ring-0 data-[active=true]:border-gray-300 data-[active=true]:bg-gray-100"
         v-tooltip="{ title: getColorTitle(color), showDelay: 200, hideDelay: 100, small: true }"
+        class="rounded border border-transparent px-1 py-0.5 outline-none hover:border-gray-300 hover:bg-gray-100 focus:ring-0 data-[active=true]:border-gray-300 data-[active=true]:bg-gray-100"
         :data-selected="color == modelValue?.type"
         :data-active="color == activeResultId"
         @click.stop.prevent="fire(color)"

@@ -215,13 +215,6 @@ defineExpose<ViewExposed>({ self, id, actions });
           <!-- Field -->
           <Field
             :ref="(ref: any) => (ref != null ? (sideFieldRefs[field.id] = ref) : delete sideFieldRefs[field.id])"
-            role="listitem"
-            class="max-w-[200px] truncate data-[dragging=true]:opacity-50"
-            :prepared-connection="preparedConnection"
-            :node-ptr="toNodeReference(field)"
-            :draggable="true"
-            @dragstart.stop="(e: DragEvent) => startDragging(e, pkgGraph, field)"
-            :variant="Variant.STEALTH"
             v-contextmenu="
               (): PopoverInfo => ({
                 kind: 'menu',
@@ -242,6 +235,13 @@ defineExpose<ViewExposed>({ self, id, actions });
                 ),
               })
             "
+            role="listitem"
+            class="max-w-[200px] truncate data-[dragging=true]:opacity-50"
+            :prepared-connection="preparedConnection"
+            :node-ptr="toNodeReference(field)"
+            :draggable="true"
+            :variant="Variant.STEALTH"
+            @dragstart.stop="(e: DragEvent) => startDragging(e, pkgGraph, field)"
           />
         </li>
       </ul>
