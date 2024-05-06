@@ -223,7 +223,8 @@ PYTHON_TYPE_BY_PRIMITIVE_TYPE: dict[PrimitiveType, type] = {
     PrimitiveType.INTERVAL: timedelta,
 }
 PRIMITIVE_TYPE_BY_PYTHON_TYPE: dict[type, PrimitiveType] = {
-    v: k for k, v in PYTHON_TYPE_BY_PRIMITIVE_TYPE.items()  # type: ignore
+    v: k
+    for k, v in PYTHON_TYPE_BY_PRIMITIVE_TYPE.items()  # type: ignore
     # (for some reason pyright doesn't like this "recursive reference")
 }
 
