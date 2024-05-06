@@ -162,25 +162,39 @@ export function getTkFromPtrMaybe(ptr: NodeReferenceData | undefined | null) {
   else throw new Error(`invalid ptr: ${ptr}`);
 }
 
+function hexToBase64(hex: string) {
+  const bytes = [];
+  for (let i = 0; i < hex.length; i += 2) {
+    bytes.push(parseInt(hex.substr(i, 2), 16));
+  }
+  const str = String.fromCharCode(...bytes);
+  return btoa(str);
+}
+
+/** Gets the 8-byte template key in base64 from a node reference pointer */
 export function getTkB64FromPtr(ptr: NodeReferenceData) {
   const ck = ptr.ck ?? ptr.id;
-  if (ck == null) throw new Error(`invalid ptr: ${ptr}`);
+  if (!ck) throw new Error(`Invalid pointer: ${describeNode(ptr)}`);
   const hex = ck.replace(/-/g, "");
-  const bytes = Buffer.from(hex, "hex");
-  return bytes.slice(0, TK_LENGTH_BYTES).toString("base64");
+  return hexToBase64(hex.slice(0, TK_LENGTH_BYTES * 2));
 }
 
+/** Gets the 8-byte template key in base64 from a node ck */
 export function getTkB64FromCk(ck: string) {
   const hex = ck.replace(/-/g, "");
-  const bytes = Buffer.from(hex, "hex");
-  return bytes.slice(0, TK_LENGTH_BYTES).toString("base64");
+  return hexToBase64(hex.slice(0, TK_LENGTH_BYTES * 2));
 }
 
+/** Gets the padded ck from its b64-encoded template key part */
 export function padCkFromTkB64(tkB64: string) {
-  const bytes = Buffer.from(tkB64, "base64");
-  const padded = Buffer.alloc(16);
-  bytes.copy(padded);
-  const hex = padded.toString("hex");
+  const str = atob(tkB64);
+  const bytes = new Uint8Array(str.length);
+  for (let i = 0; i < str.length; i++) {
+    bytes[i] = str.charCodeAt(i);
+  }
+  const padded = new Uint8Array(16);
+  bytes.forEach((byte, index) => (padded[index] = byte));
+  const hex = Array.from(padded, (byte) => byte.toString(16).padStart(2, "0")).join("");
   return `${hex.slice(0, 8)}-${hex.slice(8, 12)}-${hex.slice(12, 16)}-${hex.slice(16, 20)}-${hex.slice(20)}`;
 }
 

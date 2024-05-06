@@ -626,7 +626,10 @@ class GraphNodeList(NodeList[NodeT]):
         descendants = self._parent._root_graph.collect_descendants(
             self._parent, self._child_node_type, recursive=False
         )
-        if len(descendants) > 1 and hasattr(descendants[0], "order_key"):
+        if (
+            len(descendants) > 1
+            and "order_key" in NODE_CLASS_BY_TYPE[self._child_node_type].__properties__
+        ):
             descendants.sort(key=lambda n: n.order_key)
         return descendants
 

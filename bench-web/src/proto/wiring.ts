@@ -231,7 +231,7 @@ export function isNode<T extends NodeType = NodeType>(
   value: any | null | undefined,
   type?: T,
 ): value is NodeTypeMapping[T] {
-  if (typeof value != 'object') return false;
+  if (typeof value != "object") return false;
   else if (type != null) return value.metatype == (type as unknown as ObjectType);
   else return value.metatype < 500;
 }
@@ -240,7 +240,7 @@ export function isStruct<T extends StructType = StructType>(
   value: any | null | undefined,
   type?: T,
 ): value is StructTypeMapping[T] {
-  if (typeof value != 'object') return false;
+  if (typeof value != "object") return false;
   else if (type != null) return value.metatype == (type as unknown as ObjectType);
   else return value.metatype >= 500;
 }
@@ -373,7 +373,7 @@ export function toRobustJson(object: AnyStructData): any {
     if (field.kind == "message") {
       if (field.repeat) {
         if (value.length == 0) {
-          continue;
+          robustJson[key] = [];
         } else if (!MESSAGE_TYPE_BY_OBJECT_TYPE[value[0].metatype as ObjectType]) {
           robustJson[key] = value; // not one of our objects
         } else {

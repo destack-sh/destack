@@ -249,14 +249,17 @@ defineExpose<ViewExposed>({ self, id, variants: [Variant.PRIMARY, Variant.STEALT
         v-if="block.type == BlockType.VARIABLE"
         :value-type="block.builtinBase"
         :model-value="
-          unpackValue(
-            {
-              valuePacked: block?.valuePacked == null ? {} : ProtoStruct.toJson(block.valuePacked),
-              secretValuePacked: block?.secretValuePacked == null ? {} : ProtoStruct.toJson(block.secretValuePacked),
-            },
-            block.builtinBase!,
-            pkgGraph,
-          )
+          block!.builtinBase == null
+            ? undefined
+            : unpackValue(
+                {
+                  valuePacked: block?.valuePacked == null ? {} : ProtoStruct.toJson(block.valuePacked),
+                  secretValuePacked:
+                    block?.secretValuePacked == null ? {} : ProtoStruct.toJson(block.secretValuePacked),
+                },
+                block!.builtinBase,
+                pkgGraph,
+              )
         "
         @update:modelValue="
           (newValue) => {

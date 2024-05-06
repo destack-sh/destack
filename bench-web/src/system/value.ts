@@ -148,7 +148,7 @@ export function encodeTypeIdentity(type: TypeIdentity): string {
   } else if (type.kind == TypeKind.OBJECT) {
     value = getTkB64FromPtr(type.baseTypePtr!);
   } else {
-    throw new Error(`unsupported type kind ${type?.kind}`);
+    throw new Error(`unsupported type kind ${type?.kind} in ${describeTypeIdentity(type)}`);
   }
 
   const prefix = type.isList ? LETTER_BY_TYPE_KIND[type.kind]!.toUpperCase() : LETTER_BY_TYPE_KIND[type.kind]!;
@@ -249,7 +249,7 @@ function _unpackValueScalar(valuePacked: JsonValue, type: TypeIdentity): ScalarV
   }
 }
 
-// NOTE :Architecture: :TypeResolution in frontend should porbably happen reactively in a dedicated.. something.
+// NOTE :Architecture: :TypeResolution in frontend should probably happen reactively in a dedicated.. something.
 
 /** Resolves the actual type identity :TypeResolution */
 function _resolveType(type: TypeIdentity, graph: ReadNodeGraph): TypeIdentity {
