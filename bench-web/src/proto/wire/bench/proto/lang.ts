@@ -9116,6 +9116,10 @@ export enum ViewType {
      */
     CREATE = 154,
     /**
+     * @generated from protobuf enum value: VIEW_TYPE_ASSIST = 155;
+     */
+    ASSIST = 155,
+    /**
      * @generated from protobuf enum value: VIEW_TYPE_WINDOW = 500;
      */
     WINDOW = 500,
@@ -9140,21 +9144,13 @@ export enum ViewType {
      */
     DRAWER = 511,
     /**
-     * @generated from protobuf enum value: VIEW_TYPE_GRID = 512;
+     * @generated from protobuf enum value: VIEW_TYPE_SCROLL = 512;
      */
-    GRID = 512,
+    SCROLL = 512,
     /**
-     * @generated from protobuf enum value: VIEW_TYPE_ROW = 513;
+     * @generated from protobuf enum value: VIEW_TYPE_GRID = 513;
      */
-    ROW = 513,
-    /**
-     * @generated from protobuf enum value: VIEW_TYPE_COLUMN = 514;
-     */
-    COLUMN = 514,
-    /**
-     * @generated from protobuf enum value: VIEW_TYPE_SCROLL = 515;
-     */
-    SCROLL = 515,
+    GRID = 513,
     /**
      * @generated from protobuf enum value: VIEW_TYPE_LIST = 520;
      */

@@ -10,17 +10,18 @@ import {
   ViewType,
   type AnyNodeData,
   CHILD_NODE_TYPES,
+  BlockType,
 } from "@/proto/wire";
-import type { TypedNodeReferenceData } from "@/proto/wiring";
+import { isNode, type TypedNodeReferenceData } from "@/proto/wiring";
 import type { ActionContext, ActionMapImplementation } from "@/system/action";
 import { useHierarchicalNodeMoveActions } from "@/system/block";
 import { packagePtr } from "@/system/client";
 import { useExistingConnection, type GraphConnection } from "@/system/connection";
 import { isDescendantOf, walkDescendantsRef, type NodeTreeItem } from "@/system/graph";
 import { IconInline, getNodeIcon } from "@/system/icon";
-import { moveNode } from "@/system/lang";
+import { createBlock, moveNode } from "@/system/lang";
 import { highlightMatches } from "@/system/search";
-import { inspectionBasePtr, canvas, inspectionPtr } from "@/system/space";
+import { inspectionBasePtr, canvas, inspectionPtr, pkg } from "@/system/space";
 import { startDragging, useMultiDropZone } from "@/utils/drag";
 import { ScrollbarWidth } from "@/utils/layout";
 import { menuActionsLike, type MenuContext, type PopoverInfo } from "@/utils/menu";
@@ -60,7 +61,7 @@ const focusPtr = computedValue(() => {
   else return null;
 });
 
-const { graph: inspectedGraph, connection: inspectedConnection } = useExistingConnection(rootPtr, {
+const { graph: pkgGraph, connection: pkgConnection } = useExistingConnection(rootPtr, {
   isOptional: true,
   match: {
     predicate: (c) => {
@@ -107,7 +108,7 @@ function isIncludedChildren(node: AnyNodeData) {
   }
 }
 const { items: expandedItems } = walkDescendantsRef({
-  graph: inspectedGraph,
+  graph: pkgGraph,
   rootPtr,
   nodeTypes: inspectedNodeTypes,
   isExpanded,
@@ -217,16 +218,16 @@ const { activeDropZone } = useMultiDropZone({
   metatypes: inspectedNodeTypes,
   allowDrop: (dragged, anchor, targetId) => {
     if (dragged.kind != "node") return false;
-    const target = inspectedGraph.get({ id: targetId });
-    if (target == null || isDescendantOf(inspectedGraph, target, dragged.node)) return false;
+    const target = pkgGraph.get({ id: targetId });
+    if (target == null || isDescendantOf(pkgGraph, target, dragged.node)) return false;
     const targetParentType = anchor == "center" ? (target.metatype as unknown as NodeType) : target.parentPtr!.type;
     if (!CHILD_NODE_TYPES[targetParentType].includes(dragged.node.type)) return false;
     return true;
   },
   onDrop: (dragged, anchor, targetId) => {
     if (targetId != null && dragged.kind == "node") {
-      const target = inspectedGraph.getOrError({ id: targetId });
-      moveNode(inspectedConnection.tx, inspectedGraph, dragged.node, anchor, target);
+      const target = pkgGraph.getOrError({ id: targetId });
+      moveNode(pkgConnection.tx, pkgGraph, dragged.node, anchor, target);
     }
   },
 });
@@ -255,12 +256,12 @@ const actions: Partial<ActionMapImplementation<"common">> = {
   // common.edit.rename, ...
   "common.edit.delete": {
     isEnabled: hasFocusedNode,
-    action: () => inspectedConnection.tx.softDelete(focusedNode.value!),
+    action: () => pkgConnection.tx.softDelete(focusedNode.value!),
   },
   ...useHierarchicalNodeMoveActions({
-    graph: inspectedGraph,
+    graph: pkgGraph,
     basePtr: rootPtr,
-    txFactory: () => inspectedConnection.tx,
+    txFactory: () => pkgConnection.tx,
     expandedItems,
     getItemFromContext,
   }),
@@ -298,7 +299,7 @@ defineExpose<ViewExposed>({ self, actions, focus });
     </div>
 
     <!-- Nodes -->
-    <ul v-if="expandedItems.length > 0" ref="containerRef" class="my-1 flex flex-col text-gray-900">
+    <ul v-if="expandedItems.length > 0" ref="containerRef" class="group/list my-1 flex flex-col text-gray-900">
       <!-- Node -->
       <li
         v-for="({ node, depth, hasChildren }, i) in expandedItems"
@@ -311,7 +312,16 @@ defineExpose<ViewExposed>({ self, actions, focus });
             return {
               kind: 'menu',
               placement: 'bottom-right',
-              items: menuActionsLike(['common.sense.*', 'common.edit.*'], { context }),
+              items: menuActionsLike(
+                [
+                  'common.sense.*',
+                  'common.edit.morph',
+                  'common.edit.move',
+                  'common.edit.duplicate',
+                  'common.edit.delete',
+                ],
+                { context },
+              ),
               context,
             };
           }
@@ -329,7 +339,7 @@ defineExpose<ViewExposed>({ self, actions, focus });
         role="treeitem"
         :draggable="true"
         @click.stop="fire(node)"
-        @dragstart.stop="(e: DragEvent) => startDragging(e, inspectedGraph, node)"
+        @dragstart.stop="(e: DragEvent) => startDragging(e, pkgGraph, node)"
       >
         <!-- Drop indicator -->
         <div
@@ -341,7 +351,7 @@ defineExpose<ViewExposed>({ self, actions, focus });
         <!-- Expand button (or placeholder) -->
         <button
           v-if="hasChildren"
-          class="group mr-1 w-5 rounded enabled:hover:bg-primary-200 enabled:hover:text-primary-900"
+          class="group mr-1 w-5 rounded enabled:hover:text-primary-900"
           :class="focusedNode?.id == node.id ? '' : 'text-gray-400'"
           :disabled="props.type == ViewType.OUTLINE"
           @click.stop="toggleExpanded(node), doFocus(node)"
@@ -365,17 +375,41 @@ defineExpose<ViewExposed>({ self, actions, focus });
           :class="isFocusedAbsolute(node) ? 'text-primary-900' : ''"
           v-html="nodeTitleMarked[i] ?? (node as any).name ?? node.id"
         />
-        <!-- Status/Notices/...? -->
+        <!-- Status/Notices/Control...? -->
+        <div class="ml-auto flex flex-row gap-x-1 pl-3">
+          <!-- Create inside -->
+          <i
+            v-if="isNode(node, NodeType.BLOCK)"
+            role="button"
+            class="fas fa-plus px-0.5 py-0.5 text-gray-400 opacity-0 hover:text-primary-900 group-hover:opacity-100"
+            @click.stop="
+              () => {
+                const block = createBlock(pkgConnection.tx, pkgGraph, { type: BlockType.PAGE }, 'inside', node);
+                canvas.goToNode(block, { where: 'nextFrameRoot', ifPresent: 'upsertAndFocus' });
+                if (!isExpanded(node)) toggleExpanded(node);
+              }
+            "
+          />
+        </div>
         <!-- ... -->
       </li>
     </ul>
-    <div
-      v-else-if="type == ViewType.EXPLORE || rootPtr != null"
-      class="flex h-full w-full flex-col justify-center bg-white text-center"
-    >
+    <div v-else-if="type == ViewType.EXPLORE" class="flex h-full w-full flex-col justify-center bg-white text-center">
       <!-- Empty state -->
-      <i class="fas fa-empty-set text-gray-500" />
-      <span class="text-gray-600">Nothing Here</span>
+      <button
+        class="mx-auto flex flex-row items-center rounded px-2 py-0.5 text-gray-700 hover:text-primary-900"
+        @click="
+          () => {
+            // NOTE: we assume that pkg == pkgGraph root here (may be incorrect later)
+            if (pkg == null) return;
+            const block = createBlock(pkgConnection.tx, pkgGraph, { type: BlockType.PAGE }, 'inside', pkg);
+            canvas.goToNode(block, { where: 'nextFrameRoot', ifPresent: 'upsertAndFocus' });
+          }
+        "
+      >
+        <i class="fas fa-plus" />
+        <span class="ml-2.5">Page</span>
+      </button>
     </div>
     <div v-else class="flex h-full w-full flex-col justify-center bg-white text-center">
       <!-- Missing state -->

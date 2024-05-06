@@ -1109,16 +1109,15 @@ class ViewType(betterproto.Enum):
     OUTLINE = 151
     INSPECT = 153
     CREATE = 154
+    ASSIST = 155
     WINDOW = 500
     TAB = 502
     SPLIT = 503
     SPLIT_DRAWER = 504
     STACK = 510
     DRAWER = 511
-    GRID = 512
-    ROW = 513
-    COLUMN = 514
-    SCROLL = 515
+    SCROLL = 512
+    GRID = 513
     LIST = 520
     TABLE = 521
     FEED = 522
@@ -4820,7 +4819,7 @@ class RuntimeBase(ServiceBase):
 
 from typing import TYPE_CHECKING  # noqa: E402
 
-VERSION = "2024.05.04.2"
+VERSION = "2024.05.06.0"
 
 if TYPE_CHECKING:
     from bench.language import Subject

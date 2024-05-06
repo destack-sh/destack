@@ -308,6 +308,8 @@ const USER_MENU_ITEMS = computed(() => {
 
     <!-- Right -->
     <div class="flex flex-shrink-0 flex-row">
+      <!-- Notifications -->
+      <!-- Main Clients/Places (browser plugin, mobile, etc.) -->
       <!-- User Menu -->
       <template v-if="user">
         <!-- User (logged in) -->
