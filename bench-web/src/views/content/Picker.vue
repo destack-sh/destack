@@ -9,6 +9,7 @@ import {
   Variant,
   ViewData,
   ViewType,
+  type AnyNodeData,
 } from "@/proto/wire";
 import { type TypedNodeReferenceData } from "@/proto/wiring";
 import { IconInline, makeIcon } from "@/system/icon";
@@ -71,7 +72,7 @@ const facetName = computed(() => {
     return null;
   }
 });
-// NOTE: technically modelValueTitle/Icon aren't fully reactive in themself (requires modelValue to change)
+// NOTE: technically modelValueTitle/Icon aren't fully reactive (requires modelValue to change)
 const modelValueTitle = computed(() =>
   props.modelValue != null ? index.value.fromValue(props.modelValue)?.title : null,
 );
@@ -84,7 +85,17 @@ const index: Ref<SearchIndex<any>> = computed(() => {
   if (isEnumType(props.valueType?.benchType)) {
     return enumIndex([props.valueType.benchType]);
   } else if (isNodeType(props.valueType?.benchType)) {
-    return graphIndex({ graph: pkgGraph, metatypes: [props.valueType.benchType], skipDepth: 2 });
+    let roots: AnyNodeData[] | undefined = undefined;
+    if (props.valueType.baseTypePtr != null) {
+      const base = pkgGraph.get(props.valueType.baseTypePtr);
+      if (base != null) roots = [base];
+    }
+    return graphIndex({
+      graph: pkgGraph,
+      metatypes: [props.valueType.benchType],
+      roots,
+      skipDepth: roots != null ? 0 : 2,
+    });
   } else if (props.valueType?.benchType == BenchType.TYPE_INFO) {
     return typeIndex({ graph: pkgGraph, skipDepth: 2 });
   } else {
@@ -254,25 +265,20 @@ defineExpose<ViewExposed>({ self, id, variants: [Variant.PRIMARY, Variant.COMPAC
         </ul>
         <!-- NOTE: Picker no results/overflow is very similar to Omnibar/Icon/etc. :ResultInfo -->
         <!-- Too many results (truncated) -->
-        <div v-if="results.length < resultsTotal" class="my-1 max-w-full px-3 pb-2 text-gray-500">
-          <i class="fas fas fa-ellipsis w-4" />
-          <span class="ml-2">
+        <div v-if="results.length < resultsTotal" class="my-1 max-w-full px-[11px] pb-2 text-gray-500">
+          <i class="fas fas fa-ellipsis w-5 text-center" />
+          <span class="ml-1.5">
             <span class="font-semibold">{{ resultsTotal - results.length }}</span> more results
             <template v-if="query.length > 0">for </template>
             <span class="truncate font-semibold">{{ query }}</span>
           </span>
         </div>
         <!-- Help -->
-        <div v-if="results.length == 0" class="max-w-full px-1 py-1">
+        <div v-if="results.length == 0" class="max-w-full py-1">
           <!-- Nothing found -->
-          <div v-if="results.length === 0" class="px-2 py-1 text-gray-500">
-            <i class="fas fa-empty-set w-4 text-gray-600" />
-            <span class="ml-1">
-              No results
-              <span v-if="query">
-                for <span class="truncate font-semibold">{{ query }}</span>
-              </span>
-            </span>
+          <div v-if="results.length === 0" class="px-[11px] py-1 text-gray-500">
+            <i class="fas fa-empty-set w-5 text-center text-gray-600" />
+            <span class="ml-1"> No results </span>
           </div>
         </div>
       </Scroll>

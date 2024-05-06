@@ -91,6 +91,9 @@ const VISIBLE_SEPARATOR = ` / `;
 const VISIBLE_UNNAMED = `...`;
 const HIDDEN_UNNAMED = ` \\ `;
 
+/**
+ * Walks nodes from a graph and transforms them into search items.
+ */
 function walkGraph(
   graph: ReadNodeGraph,
   options: {
@@ -307,13 +310,13 @@ export function typeIndex(options: {
     const item: TypeItem = { ...nodeItem, isList: false, isSecret: false, metatype: "type" };
     if (blockType == BlockType.CHOICE) {
       item.benchType = BenchType.FIELD;
-      item.kind == TypeKind.BASED_NODE;
+      item.kind = TypeKind.BASED_NODE;
     } else if (blockType == BlockType.SIGNAL) {
       item.benchType = BenchType.SIGNAL;
-      item.kind == TypeKind.BASED_NODE;
+      item.kind = TypeKind.BASED_NODE;
     } else if (blockType == BlockType.DATABASE) {
       item.benchType = BenchType.RECORD;
-      item.kind == TypeKind.BASED_NODE;
+      item.kind = TypeKind.BASED_NODE;
     } else {
       item.kind = TypeKind.ALIAS;
     }

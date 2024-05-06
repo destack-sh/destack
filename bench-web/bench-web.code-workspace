@@ -9,4 +9,14 @@
     "search.searchOnTypeDebouncePeriod": 201,
     "css.lint.unknownAtRules": "ignore",
   },
+  "launch": {
+    "configurations": [
+      {
+        "type": "chrome",
+        "name": "http://localhost:5173",
+        "request": "launch",
+        "url": "http://localhost:5173"
+      }
+    ]
+  },
 }
