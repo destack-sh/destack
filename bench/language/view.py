@@ -57,6 +57,7 @@ class ViewType(IdEnum):
     OUTLINE = 151
     INSPECT = 153
     CREATE = 154
+    ASSIST = 155
 
     #
     # General

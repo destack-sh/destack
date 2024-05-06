@@ -7,6 +7,7 @@ import {
   FieldZone,
   NodeReferenceData,
   NodeType,
+  Struct as ProtoStruct,
   Variant,
   ViewData,
   ViewType,
@@ -247,10 +248,28 @@ defineExpose<ViewExposed>({ self, id, variants: [Variant.PRIMARY, Variant.STEALT
       <Value
         v-if="block.type == BlockType.VARIABLE"
         :value-type="block.builtinBase"
-        :model-value="unpackValue(block!, block.builtinBase!, pkgGraph)"
+        :model-value="
+          unpackValue(
+            {
+              valuePacked: block?.valuePacked == null ? {} : ProtoStruct.toJson(block.valuePacked),
+              secretValuePacked: block?.secretValuePacked == null ? {} : ProtoStruct.toJson(block.secretValuePacked),
+            },
+            block.builtinBase!,
+            pkgGraph,
+          )
+        "
         @update:modelValue="
-          (newValue) =>
-            pkgConnection.tx.updateDebounced(block!, packValue(newValue, block?.builtinBase!, pkgGraph, block!))
+          (newValue) => {
+            const packed = packValue(newValue, block?.builtinBase!, pkgGraph);
+            if (packed.secretValuePacked != null) {
+              pkgConnection.tx.updateDebounced(block!, {
+                valuePacked: ProtoStruct.fromJson(packed.valuePacked),
+                secretValuePacked: ProtoStruct.fromJson(packed.secretValuePacked),
+              });
+            } else {
+              pkgConnection.tx.updateDebounced(block!, { valuePacked: ProtoStruct.fromJson(packed.valuePacked) });
+            }
+          }
         "
       />
       <Type

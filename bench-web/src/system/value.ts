@@ -1,5 +1,8 @@
 import {
   BenchType,
+  BlockData,
+  FieldData,
+  FieldZone,
   NodeReferenceData,
   NodeType,
   ObjectType,
@@ -16,15 +19,32 @@ import {
 import { describeNode, fromRobustJson, isStruct, makeDefaultStruct, toRobustJson } from "@/proto/wiring";
 import type { ReadNodeGraph } from "@/system/graph";
 import { ENUM_ICONS_BY_TYPE } from "@/system/icon";
-import { TK_LENGTH_B64, getEnumOptions, getTkB64FromPtr, isEnumType, padCkFromTkB64, toCamelName } from "@/system/lang";
+import {
+  CLASSY_BLOCK_TYPES,
+  TK_LENGTH_B64,
+  getEnumOptions,
+  getTkB64FromCk,
+  getTkB64FromPtr,
+  isEnumType,
+  padCkFromTkB64,
+  toCamelName,
+} from "@/system/lang";
 import { decodeB64VLQ, encodeB64VLQ } from "@/utils/functools";
 import { toCamelCase } from "@/utils/string";
 import type { ViewProps } from "@/views/common";
 
 export type TypeIdentity = Pick<
   TypeInfoData,
-  "kind" | "primitiveType" | "benchType" | "baseTypePtr" | "formatHint" | "isList" | "isSecret" | "constraint"
-> & { ck?: string };
+  | "kind"
+  | "primitiveType"
+  | "benchType"
+  | "baseTypePtr"
+  | "baseFieldZone"
+  | "formatHint"
+  | "isList"
+  | "isSecret"
+  | "constraint"
+> & { id?: any; ck?: string };
 
 export function describeTypeIdentity(type: TypeIdentity & Partial<AnyNodeData>): string {
   if (type.kind == null) return "<empty>";
@@ -45,7 +65,7 @@ export type JsonPrimimtive = string | number | boolean | null;
 export type JsonValue = JsonPrimimtive | { [key: string]: JsonValue } | JsonValue[];
 export type PrimitiveValue = JsonPrimimtive;
 export type ScalarValue = PrimitiveValue | ProtoStruct | AnyStructData | AnyNodeData;
-export type SomeValue = ScalarValue | ScalarValue[];
+export type SomeValue = ScalarValue | SomeValue[] | { [key: string]: SomeValue };
 
 export function makeTypeInfo(partial: Partial<Omit<TypeInfoData, "metatype">>): TypeInfoData {
   return makeDefaultStruct({ metatype: StructType.TYPE_INFO, ...partial });
@@ -176,11 +196,18 @@ export function decodeTypeIdentity(key: string): TypeIdentity {
   }
 }
 
+/** Gets the eternal storage key for values of this type identity. :FieldStorageKey */
+export function getStorageKey(type: TypeIdentity): string {
+  if (type.ck == null) throw new Error(`missing ck for type ${describeTypeIdentity(type)}`);
+  return `${getTkB64FromCk(type.ck)}-${encodeTypeIdentity(type)}`;
+}
+
 // TODO :Architecture :Performance: encode/decode protoStruct/Json in connections (at the fetch/commit boundary)
 //  (Currently, we have to eagerly encode/decode for every single edit, which is possibly every frame or keystroke,
 //   It's likely possible to just cheat a little and auto-encode/decode ProtoStruct properties at the boundary
 //   without introducing an entire new layer like in the backend).
 
+/** Packs a single scalar value in its robust JSON-able representation. */
 function _packValueScalar(value: ScalarValue, type: TypeIdentity): JsonValue {
   if (type.kind == TypeKind.PRIMITIVE) {
     return value as JsonPrimimtive;
@@ -201,6 +228,7 @@ function _packValueScalar(value: ScalarValue, type: TypeIdentity): JsonValue {
   }
 }
 
+/** Unpacks a single scalar value from its robust JSON-able representation. */
 function _unpackValueScalar(valuePacked: JsonValue, type: TypeIdentity): ScalarValue {
   if (type.kind == TypeKind.PRIMITIVE) {
     return valuePacked as PrimitiveValue;
@@ -221,21 +249,90 @@ function _unpackValueScalar(valuePacked: JsonValue, type: TypeIdentity): ScalarV
   }
 }
 
+// NOTE :Architecture: :TypeResolution in frontend should porbably happen reactively in a dedicated.. something.
+
+/** Resolves the actual type identity :TypeResolution */
+function _resolveType(type: TypeIdentity, graph: ReadNodeGraph): TypeIdentity {
+  if (type.kind == TypeKind.ALIAS && type.baseTypePtr != null) {
+    if (type.baseTypePtr.type == NodeType.STEP) {
+      return makeTypeInfo({ kind: TypeKind.OBJECT, baseTypePtr: type.baseTypePtr });
+    } else if (type.baseTypePtr.type == NodeType.BLOCK) {
+      const block = graph.get(type.baseTypePtr) as BlockData | null;
+      if (CLASSY_BLOCK_TYPES.includes(block?.type!)) {
+        return makeTypeInfo({ kind: TypeKind.OBJECT, baseTypePtr: type.baseTypePtr });
+      } else if (block?.builtinBase != null) {
+        return block.builtinBase;
+      }
+    }
+  } else {
+    return type;
+  }
+
+  throw new Error(`unexpected base ${describeNode(type.baseTypePtr)} for type ${describeTypeIdentity(type)}`);
+}
+
+/** Resolves the actual fields of the given type. :TypeResolution */
+function _resolveFields(type: TypeIdentity, graph: ReadNodeGraph): FieldData[] {
+  if (type.id == null) return []; // is this an error?
+  const fields = graph.getChildren(type, NodeType.FIELD);
+  if (type.baseFieldZone == null) return fields.filter((f) => f.zone != FieldZone.OPTION);
+  else return fields.filter((f) => f.zone == type.baseFieldZone);
+}
+
+// TODO :Test!: figure out how to test value packing on bench-web
+
+/** Packs a single object value into a packed & secret packed value. */
 function _packObjectScalar(
   value: ScalarValue,
   type: TypeIdentity,
   graph: ReadNodeGraph,
 ): { valuePacked: JsonValue; secretValuePacked: JsonValue | undefined } {
-  throw new Error(`nocheckin: packObjectScalar`);
+  const fields = _resolveFields(type, graph);
+  const valuePacked: { [key: string]: JsonValue } = {};
+  for (const field of fields) {
+    const fieldType = _resolveType(field, graph);
+    const fieldStorageKey = getStorageKey(fieldType);
+    const fieldValue = (value as any)[fieldStorageKey];
+    if (fieldValue == null) {
+      continue;
+    } else if (fieldType.kind == TypeKind.OBJECT) {
+      valuePacked[fieldStorageKey] = packValue(fieldValue, fieldType, graph).valuePacked; // :SecretValues
+    } else if (!fieldType.isList) {
+      valuePacked[fieldStorageKey] = _packValueScalar(fieldValue, fieldType);
+    } else {
+      valuePacked[fieldStorageKey] = fieldValue.map((v: any) => _packValueScalar(v, fieldType));
+    }
+  }
+  return { valuePacked, secretValuePacked: undefined };
 }
 
+/** Unpacks a single packed & secret packed value into an object. */
 function _unpackObjectScalar(
   valuePacked: JsonValue,
   secretValuePacked: JsonValue | undefined,
   type: TypeIdentity,
   graph: ReadNodeGraph,
-): ScalarValue {
-  throw new Error(`nocheckin: unpackObjectScalar`);
+): SomeValue {
+  const fields = _resolveFields(type, graph);
+  const value: { [key: string]: SomeValue } = {};
+  for (const field of fields) {
+    const fieldType = _resolveType(field, graph);
+    const fieldStorageKey = getStorageKey(fieldType);
+    const fieldValuePacked = (valuePacked as any)[fieldStorageKey];
+    if (fieldValuePacked == null) {
+      continue;
+    } else if (fieldType.kind == TypeKind.OBJECT) {
+      const fieldValue = unpackValue({ valuePacked: fieldValuePacked, secretValuePacked }, fieldType, graph);
+      if (fieldValue != null) {
+        value[fieldStorageKey] = fieldValue;
+      }
+    } else if (!fieldType.isList) {
+      value[fieldStorageKey] = _unpackValueScalar(fieldValuePacked, fieldType);
+    } else {
+      value[fieldStorageKey] = fieldValuePacked.map((v: any) => _unpackValueScalar(v, fieldType));
+    }
+  }
+  return value;
 }
 
 /**
@@ -249,7 +346,7 @@ export function packValue(
   graph: ReadNodeGraph,
   previous?: { valuePacked?: JsonValue; secretValuePacked?: JsonValue | undefined },
 ): { valuePacked: JsonValue; secretValuePacked: JsonValue | undefined } {
-  // nocheckin: packValue
+  type = _resolveType(type, graph);
   if (type.kind == TypeKind.ALIAS) {
     throw new Error(`unresolved type ${describeTypeIdentity(type)}`);
   } else if (type.kind == TypeKind.OBJECT) {
@@ -290,6 +387,7 @@ export function unpackValue(
   type: TypeIdentity,
   graph: ReadNodeGraph,
 ): any {
+  type = _resolveType(type, graph);
   if (type.kind == TypeKind.ALIAS) {
     throw new Error(`unresolved type ${describeTypeIdentity(type)}`);
   } else if (type.kind == TypeKind.OBJECT) {
