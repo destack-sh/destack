@@ -153,7 +153,6 @@ function close(popover: PopoverInstance | undefined) {
         class="pointer-events-auto absolute z-70 flex flex-col rounded border border-gray-300 bg-white text-gray-900"
         :class="popover.info.containerClass"
         data-outside-view="true"
-        @keydown.enter.stop.prevent="() => (fire(popover), close(popover))"
         @keydown.esc.stop.prevent="() => close(popover)"
       >
         <component
@@ -161,7 +160,12 @@ function close(popover: PopoverInstance | undefined) {
           :ref="(el: any) => registerInnerRef(popover.id, el)"
           v-bind="{ isInline: true, ...(popover.info.props ?? {}) }"
           :model-value="popoverValues[popover.id]"
-          @update:model-value="popoverValues[popover.id] = $event"
+          @update:model-value="
+            (newValue: any) => {
+              popoverValues[popover.id] = newValue;
+              popover.info.onUpdate?.(newValue);
+            }
+          "
           @apply="() => (fire(popover), close(popover))"
         />
       </div>

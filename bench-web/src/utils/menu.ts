@@ -131,6 +131,7 @@ export type PopoverInfo = (
   reference?: { x: number; y: number } | HTMLElement | SVGElement;
   containerClass?: string;
   dontFocus?: boolean;
+  onUpdate?(value?: any): void;
   onApply?(value?: any): void;
   onClose?(): void;
 } & FloatingOptions;

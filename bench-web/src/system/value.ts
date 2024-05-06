@@ -68,10 +68,10 @@ export type ScalarValue = PrimitiveValue | ProtoStruct | AnyStructData | AnyNode
 export type SomeValue = ScalarValue | SomeValue[] | { [key: string]: SomeValue };
 
 export function makeTypeInfo(partial: Partial<Omit<TypeInfoData, "metatype">>): TypeInfoData {
-  return makeDefaultStruct({ metatype: StructType.TYPE_INFO, ...partial });
+  return makeDefaultStruct({ ...partial, metatype: StructType.TYPE_INFO });
 }
 
-const VIEW_TYPE_BY_OBJECT_TYPE: Partial<Record<BenchType, ViewType>> = {
+const VIEW_TYPE_BY_BENCH_TYPE: Partial<Record<BenchType, ViewType>> = {
   [BenchType.ICON]: ViewType.ICON,
   [BenchType.CODE]: ViewType.CODE,
   [BenchType.TEXT]: ViewType.TEXT,
@@ -93,9 +93,11 @@ export function getViewForValueType(type: TypeIdentity): {
   viewType: ViewType;
   props?: ViewProps;
 } | null {
-  if (type.benchType != null) {
-    if (VIEW_TYPE_BY_OBJECT_TYPE[type.benchType] != null) {
-      return { viewType: VIEW_TYPE_BY_OBJECT_TYPE[type.benchType]! };
+  if (type.kind == TypeKind.OBJECT) {
+    return { viewType: ViewType.OBJECT };
+  } else if (type.benchType != null) {
+    if (VIEW_TYPE_BY_BENCH_TYPE[type.benchType] != null) {
+      return { viewType: VIEW_TYPE_BY_BENCH_TYPE[type.benchType]! };
     } else {
       // prefer inline picker if possible
       if (isEnumType(type.benchType) && getEnumOptions(type.benchType).length <= 5) {
@@ -202,7 +204,7 @@ export function getStorageKey(type: TypeIdentity): string {
   return `${getTkB64FromCk(type.ck)}-${encodeTypeIdentity(type)}`;
 }
 
-// TODO :Architecture :Performance: encode/decode protoStruct/Json in connections (at the fetch/commit boundary)
+// TODO :Architecture :Performance: encode/decode protoStruct/Json in connections (at the fetch/commit boundary) :ProtoStructMapping
 //  (Currently, we have to eagerly encode/decode for every single edit, which is possibly every frame or keystroke,
 //   It's likely possible to just cheat a little and auto-encode/decode ProtoStruct properties at the boundary
 //   without introducing an entire new layer like in the backend).
@@ -252,7 +254,7 @@ function _unpackValueScalar(valuePacked: JsonValue, type: TypeIdentity): ScalarV
 // NOTE :Architecture: :TypeResolution in frontend should probably happen reactively in a dedicated.. something.
 
 /** Resolves the actual type identity :TypeResolution */
-function _resolveType(type: TypeIdentity, graph: ReadNodeGraph): TypeIdentity {
+export function resolveType(type: TypeIdentity, graph: ReadNodeGraph): TypeIdentity {
   if (type.kind == TypeKind.ALIAS && type.baseTypePtr != null) {
     if (type.baseTypePtr.type == NodeType.STEP) {
       return makeTypeInfo({ kind: TypeKind.OBJECT, baseTypePtr: type.baseTypePtr });
@@ -272,9 +274,9 @@ function _resolveType(type: TypeIdentity, graph: ReadNodeGraph): TypeIdentity {
 }
 
 /** Resolves the actual fields of the given type. :TypeResolution */
-function _resolveFields(type: TypeIdentity, graph: ReadNodeGraph): FieldData[] {
-  if (type.id == null) return []; // is this an error?
-  const fields = graph.getChildren(type, NodeType.FIELD);
+export function resolveFields(type: TypeIdentity, graph: ReadNodeGraph): FieldData[] {
+  if (type.baseTypePtr == null) return [];
+  const fields = graph.getChildren(type.baseTypePtr, NodeType.FIELD);
   if (type.baseFieldZone == null) return fields.filter((f) => f.zone != FieldZone.OPTION);
   else return fields.filter((f) => f.zone == type.baseFieldZone);
 }
@@ -287,10 +289,10 @@ function _packObjectScalar(
   type: TypeIdentity,
   graph: ReadNodeGraph,
 ): { valuePacked: JsonValue; secretValuePacked: JsonValue | undefined } {
-  const fields = _resolveFields(type, graph);
+  const fields = resolveFields(type, graph);
   const valuePacked: { [key: string]: JsonValue } = {};
   for (const field of fields) {
-    const fieldType = _resolveType(field, graph);
+    const fieldType = resolveType(field, graph);
     const fieldStorageKey = getStorageKey(fieldType);
     const fieldValue = (value as any)[fieldStorageKey];
     if (fieldValue == null) {
@@ -313,10 +315,10 @@ function _unpackObjectScalar(
   type: TypeIdentity,
   graph: ReadNodeGraph,
 ): SomeValue {
-  const fields = _resolveFields(type, graph);
+  const fields = resolveFields(type, graph);
   const value: { [key: string]: SomeValue } = {};
   for (const field of fields) {
-    const fieldType = _resolveType(field, graph);
+    const fieldType = resolveType(field, graph);
     const fieldStorageKey = getStorageKey(fieldType);
     const fieldValuePacked = (valuePacked as any)[fieldStorageKey];
     if (fieldValuePacked == null) {
@@ -346,7 +348,7 @@ export function packValue(
   graph: ReadNodeGraph,
   previous?: { valuePacked?: JsonValue; secretValuePacked?: JsonValue | undefined },
 ): { valuePacked: JsonValue; secretValuePacked: JsonValue | undefined } {
-  type = _resolveType(type, graph);
+  type = resolveType(type, graph);
   if (type.kind == TypeKind.ALIAS) {
     throw new Error(`unresolved type ${describeTypeIdentity(type)}`);
   } else if (type.kind == TypeKind.OBJECT) {
@@ -387,7 +389,7 @@ export function unpackValue(
   type: TypeIdentity,
   graph: ReadNodeGraph,
 ): any {
-  type = _resolveType(type, graph);
+  type = resolveType(type, graph);
   if (type.kind == TypeKind.ALIAS) {
     throw new Error(`unresolved type ${describeTypeIdentity(type)}`);
   } else if (type.kind == TypeKind.OBJECT) {

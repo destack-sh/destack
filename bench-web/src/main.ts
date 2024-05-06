@@ -16,12 +16,12 @@ async function init() {
   const app = createApp(Space);
 
   // sentry / posthog instrumentation
-  posthog.init("phc_d8mi3OMdtKSVA8kzHbBoKtYU3ZsMQakAiLpuOn3W9ma", {
-    // public capture key
-    api_host: "https://eu.posthog.com",
-    enable_recording_console_log: true,
-  });
   if (!IS_DEBUG) {
+    posthog.init("phc_d8mi3OMdtKSVA8kzHbBoKtYU3ZsMQakAiLpuOn3W9ma", {
+      // public capture key
+      api_host: "https://eu.posthog.com",
+      enable_recording_console_log: true,
+    });
     console.info("Setting up Sentry...", import.meta.env.VITE_APP_SENTRY_DSN != null);
     Sentry.init({
       app,

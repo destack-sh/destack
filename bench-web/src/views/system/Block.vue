@@ -8,6 +8,7 @@ import {
   NodeReferenceData,
   NodeType,
   Struct as ProtoStruct,
+  TypeInfoData,
   Variant,
   ViewData,
   ViewType,
@@ -29,7 +30,7 @@ import Code from "@/views/content/Code.vue";
 import Icon from "@/views/content/Icon.vue";
 import Text from "@/views/content/Text.vue";
 import { computed, nextTick, ref, toRef, type Ref } from "vue";
-import { makeTypeInfo, packValue, unpackValue, type TypeIdentity } from "@/system/value";
+import { makeTypeInfo, packValue, resolveType, unpackValue, type TypeIdentity } from "@/system/value";
 import Value from "@/views/content/Value.vue";
 
 const props = defineProps<
@@ -247,8 +248,13 @@ defineExpose<ViewExposed>({ self, id, variants: [Variant.PRIMARY, Variant.STEALT
       <!-- Variable(s) ... -->
       <Value
         v-if="block.type == BlockType.VARIABLE"
-        :value-type="block.builtinBase"
+        :value-type="
+          block.builtinBase != null
+            ? (resolveType(block.builtinBase, pkgGraph) as TypeInfoData) /* close enough */
+            : undefined
+        "
         :model-value="
+          // unfortunate :ProtoStructMapping for every change
           block!.builtinBase == null
             ? undefined
             : unpackValue(

@@ -132,17 +132,20 @@ function apply(value: any) {
 }
 
 function focus(anchor?: "previous" | "next" | FocusAnchor | NodeReferenceData) {
-  const idx = results.value.findIndex((r) => r.id === activeResultId.value);
-  if (anchor == "previous") {
-    activeResultId.value = results.value[idx > 0 ? idx - 1 : results.value.length - 1].id;
-  } else if (anchor == "next") {
-    activeResultId.value = results.value[idx < results.value.length - 1 ? idx + 1 : 0].id;
+  if (!props.isInline) {
+    return buttonRef.value;
+  } else {
+    const idx = results.value.findIndex((r) => r.id === activeResultId.value);
+    if (anchor == "previous") {
+      activeResultId.value = results.value[idx > 0 ? idx - 1 : results.value.length - 1].id;
+    } else if (anchor == "next") {
+      activeResultId.value = results.value[idx < results.value.length - 1 ? idx + 1 : 0].id;
+    }
+    if (activeResultId.value != null) {
+      resultsRefs.value[activeResultId.value]?.scrollIntoView({ block: "center", behavior: "instant" });
+    }
+    return queryRef.value;
   }
-  if (activeResultId.value != null) {
-    resultsRefs.value[activeResultId.value]?.scrollIntoView({ block: "center", behavior: "instant" });
-  }
-
-  return queryRef.value;
 }
 
 canvas.registerView(self, id);
@@ -166,7 +169,7 @@ defineExpose<ViewExposed>({ self, id, variants: [Variant.PRIMARY, Variant.COMPAC
             size: { metatype: ObjectType.BOX, width: buttonRef?.getBoundingClientRect().width },
             isInline: true,
           },
-          onApply: (value) => apply(value),
+          onApply: (value: any) => apply(value),
         })
       "
       :disabled="props.isDisabled"
@@ -254,11 +257,12 @@ defineExpose<ViewExposed>({ self, id, variants: [Variant.PRIMARY, Variant.COMPAC
               <span class="select-none truncate" v-html="item.titleMarked ?? item.title" />
               <!-- Metadata -->
               <span class="ml-auto truncate pl-2">
+                <!-- Checked -->
+                <i v-if="isSelected(item)" class="fas fa-check flex-shrink-0 pl-2 pr-1 text-gray-700" />
+                <!-- Path -->
                 <span v-if="'path' in item" class="truncate pl-2 text-gray-500">
                   <span v-html="item.pathMarked ?? item.path" />
                 </span>
-                <!-- Checked -->
-                <i v-if="isSelected(item)" class="fas fa-check flex-shrink-0 pl-2 pr-1 text-gray-700" />
               </span>
             </li>
           </template>
