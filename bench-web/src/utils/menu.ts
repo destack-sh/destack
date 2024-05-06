@@ -124,6 +124,7 @@ export type PopoverInfo = (
       kind: "component";
       component: any | ViewType;
       props: ViewComponent["props"];
+      propsRef: () => ViewComponent["props"];
       context?: MenuContext;
     }
 ) & {
@@ -176,7 +177,7 @@ export function pushPopover(create: {
     kind: "component" in create.info ? "component" : "menu",
   } as PopoverInfo;
 
-  // the info's reference is useful when overriding the actual reference in a directive
+  // the info's reference is useful for overriding the actual reference in a directive
   const instance = { id: newPopoverId(), info, trigger, reference: info.reference ?? create.reference, container };
   _activePopovers.value.push(instance);
   triggerRef(_activePopovers);
