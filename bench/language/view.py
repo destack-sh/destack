@@ -71,10 +71,10 @@ class ViewType(IdEnum):
     # containers (layout)
     STACK = 510
     DRAWER = 511
-    GRID = 512
-    ROW = 513
-    COLUMN = 514
-    SCROLL = 515
+    SCROLL = 512
+    GRID = 513
+    # ROW = 514
+    # COLUMN = 515
     # containers (data)
     LIST = 520
     TABLE = 521

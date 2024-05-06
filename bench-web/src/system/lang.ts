@@ -33,6 +33,7 @@ import {
   type FieldData,
   type PropertyInfo,
   TypeKind,
+  PackageData,
 } from "@/proto/wire";
 import {
   describeNode,
@@ -467,20 +468,39 @@ export function createBlock(
   tx: Transaction,
   graph: ReadNodeGraph,
   blockIn: { type: BlockType; isPage?: boolean; isProtocol?: boolean },
-  anchor: "before" | "after",
-  targetPtr: BlockData | TypedNodeReferenceData<NodeType.BLOCK>,
-) {
+  anchor: "before" | "after" | "inside",
+  targetPtr:
+    | BlockData
+    | TypedNodeReferenceData<NodeType.BLOCK>
+    | PackageData
+    | TypedNodeReferenceData<NodeType.PACKAGE>,
+): BlockData {
   const target = isNode(targetPtr) ? targetPtr : graph.getOrError(targetPtr);
-  const siblings = graph.getChildren(target.parentPtr!, NodeType.BLOCK);
+  const packagePtr = isNode(target, NodeType.PACKAGE) ? toNodeReference(target) : target.packagePtr;
+
+  let parentPtr: NodeReferenceData;
+  let orderKey: string;
+  let siblings: BlockData[];
+  if (anchor == "inside") {
+    parentPtr = toNodeReference(target);
+    siblings = graph.getChildren(target, NodeType.BLOCK);
+    orderKey = generateOrderKey(siblings[siblings.length - 1]?.orderKey ?? null, null);
+  } else {
+    if (isNode(target, NodeType.PACKAGE)) throw new Error(`unexpected target node type: ${describeNode(target)}`);
+    parentPtr = target.parentPtr!;
+    siblings = graph.getChildren(target.parentPtr!, NodeType.BLOCK);
+    orderKey = getOrderKey({ position: anchor, reference: target, nodes: siblings });
+  }
+
   const block = tx.create({
     metatype: NodeType.BLOCK,
-    parentPtr: target.parentPtr,
-    packagePtr: target.packagePtr,
+    parentPtr,
+    packagePtr,
     type: blockIn.type,
     isPage: blockIn.isPage || blockIn.type == BlockType.PAGE,
     isProtocol: blockIn.isProtocol || blockIn.type == BlockType.PROTOCOL,
-    orderKey: getOrderKey({ position: anchor, reference: target, nodes: siblings }),
-    name: makeNodeName(graph, { metatype: ObjectType.BLOCK, type: blockIn.type, parentPtr: target.parentPtr }),
+    orderKey,
+    name: makeNodeName(graph, { metatype: ObjectType.BLOCK, type: blockIn.type, parentPtr }),
   });
   return block;
 }
@@ -492,7 +512,7 @@ export function createField(
   anchor: "before" | "above" | "after" | "below" | "inside" | "center",
   targetPtr: FieldData | TypedNodeReferenceData<NodeType.FIELD> | BlockData | TypedNodeReferenceData<NodeType.BLOCK>,
   fieldIn?: Partial<FieldData>,
-) {
+): FieldData {
   const target = isNode(targetPtr) ? targetPtr : graph.getOrError(targetPtr);
 
   // get position within parent

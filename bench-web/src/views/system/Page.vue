@@ -16,7 +16,8 @@ import type { ActionContext, ActionMapImplementation } from "@/system/action";
 import { useHierarchicalNodeMoveActions } from "@/system/block";
 import { useExistingConnection, useGetConnection } from "@/system/connection";
 import { isDescendantOf, walkDescendantsRef } from "@/system/graph";
-import { createBlock, moveNode } from "@/system/lang";
+import { ICON_BY_BLOCK_TYPE, IconInline } from "@/system/icon";
+import { createBlock, moveNode, toCamelName } from "@/system/lang";
 import { canvas, inspectionPtr } from "@/system/space";
 import { makeTypeInfo } from "@/system/value";
 import { startDragging, useMultiDropZone } from "@/utils/drag";
@@ -24,6 +25,8 @@ import { blurDocument } from "@/utils/element";
 import { ScrollbarWidth } from "@/utils/layout";
 import { menuActionsLike, type PopoverInfo, type PopoverInfoIn } from "@/utils/menu";
 import { computedValue } from "@/utils/ref";
+import { toCamelCase } from "@/utils/string";
+import type { TooltipInfo } from "@/utils/tooltip";
 import Inaccessible from "@/views/builtins/Inaccessible.vue";
 import NavigationBar from "@/views/builtins/NavigationBar.vue";
 import { viewEmits, type FocusAnchor, type ViewExposed } from "@/views/common";
@@ -203,8 +206,8 @@ const actions: Partial<ActionMapImplementation<"common">> = {
   }),
 };
 function createAndFocusBlock(
-  blockIn: { type: BlockType; isPage?: boolean; isProtocol?: boolean },
-  anchor: "before" | "after",
+  blockIn: { type: BlockType } & Partial<BlockData>,
+  anchor: "before" | "after" | "inside",
   targetPtr: BlockData | TypedNodeReferenceData<NodeType.BLOCK>,
 ) {
   const block = createBlock(pkgConnection.tx, pkgGraph, blockIn, anchor, targetPtr);
@@ -239,6 +242,7 @@ function focus(anchor: FocusAnchor | NodeReferenceData) {
   blurDocument(); // nothing to focus directly
   return true;
 }
+const isFocusedAbsolute = canvas.isFocusedAbsoluteRef(self);
 
 canvas.registerView(self);
 defineExpose<ViewExposed>({ self, actions, focus });
@@ -407,7 +411,43 @@ defineExpose<ViewExposed>({ self, actions, focus });
         </div>
 
         <!-- Footer -->
-        <!-- TODO: Incomplete: Page footer? -->
+        <!-- Quick create -->
+        <div
+          v-if="page != null"
+          class="group mx-auto mb-8 mt-6 flex flex-row gap-x-1 rounded border border-gray-200 bg-white px-2 py-1"
+        >
+          <template
+            v-for="blockType in [
+              BlockType.TEXT,
+              BlockType.CLASS,
+              BlockType.CHOICE,
+              BlockType.FLOW,
+              BlockType.CODE,
+              BlockType.VARIABLE,
+              BlockType.DATABASE,
+            ]"
+            :key="blockType"
+          >
+            <button
+              v-tooltip="{
+                title: `Create ${toCamelName(BlockType, blockType)} Block`,
+                showDelay: 200,
+                hideDelay: 100,
+                small: true,
+                referenceMargin: 8,
+              }"
+              class="rounded px-2 py-1 text-base hover:bg-gray-100 hover:text-primary-900"
+              :class="isFocusedAbsolute ? 'text-gray-600' : 'text-gray-400 group-hover:text-gray-500'"
+              @click="
+                () => {
+                  createAndFocusBlock({ type: blockType }, 'inside', page!);
+                }
+              "
+            >
+              <IconInline v-bind="ICON_BY_BLOCK_TYPE[blockType]" />
+            </button>
+          </template>
+        </div>
       </div>
     </Scroll>
   </div>

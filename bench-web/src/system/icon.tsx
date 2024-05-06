@@ -76,7 +76,8 @@ export const IconInline: FunctionalComponent<IconInlineProps> = (props) => {
   } else if (props.emoji) {
     return <span style={{ color: colorHex }}>{props.emoji}</span>;
   } else {
-    if (IS_DEBUG || isDeveloperMode.value) return <span class="text-danger-500">?invalid: {JSON.stringify(props)}</span>;
+    if (IS_DEBUG || isDeveloperMode.value)
+      return <span class="text-danger-500">?invalid: {JSON.stringify(props)}</span>;
     else return <span style={{ color: colorHex }}>???</span>;
   }
 };
@@ -283,8 +284,6 @@ export const ICON_BY_VIEW_TYPE: Partial<Record<ViewType, IconData>> = _makeIcons
   [ViewType.STACK]: "fas fa-layer-group",
   [ViewType.DRAWER]: "fas fa-square-minus",
   [ViewType.GRID]: "fas fa-table-cells-large",
-  [ViewType.ROW]: "fas fa-table-rows",
-  [ViewType.COLUMN]: "fas fa-table-columns",
   // containers (data)
   [ViewType.LIST]: "fas fa-list",
   [ViewType.TABLE]: "fas fa-table",
