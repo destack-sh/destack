@@ -153,6 +153,7 @@ defineExpose<ViewExposed>({ self, id, focus });
               placement: 'top',
               reference: headerRef!,
               props: { modelValue: color },
+              // NOTE: not sure whether changing Color in Icon picker should instantly apply to current icon
               onApply: (value) => (color = value),
             })
           "
