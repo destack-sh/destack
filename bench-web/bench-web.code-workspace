@@ -5,6 +5,7 @@
     },
   ],
   "settings": {
+    "editor.rulers": [ 120 ],
     "typescript.tsdk": "node_modules/typescript/lib",
     "search.searchOnTypeDebouncePeriod": 201,
     "css.lint.unknownAtRules": "ignore",
@@ -15,8 +16,8 @@
         "type": "chrome",
         "name": "http://localhost:5173",
         "request": "launch",
-        "url": "http://localhost:5173"
-      }
-    ]
+        "url": "http://localhost:5173",
+      },
+    ],
   },
 }

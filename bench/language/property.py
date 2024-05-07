@@ -384,7 +384,7 @@ class Property(_TypeQueryBuilder if TYPE_CHECKING else object):
             primitive_type = self.primitive_type
         else:
             raise ValueError(f"cannot determine type info for {self!r}")
-        return TypeInfo(
+        typ = TypeInfo(
             kind=kind,
             bench_type=bench_type,
             primitive_type=primitive_type,
@@ -395,6 +395,8 @@ class Property(_TypeQueryBuilder if TYPE_CHECKING else object):
             constraint=constraint,
             _from_property=self,
         )
+        typ._do_resolve_to(typ)  # auto-resolve to self
+        return typ
 
     @property
     def as_type_info(self) -> "TypeInfo":

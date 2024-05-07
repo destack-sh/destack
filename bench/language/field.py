@@ -422,3 +422,23 @@ class Field(BasedNode[FieldData], TypeInfoBase, _TypeQueryBuilder):
     @property
     def storage_key(self) -> str:
         return encode_storage_key(self)
+
+    @staticmethod
+    def option(**kwargs) -> "Field":
+        return Field(zone=FieldZone.OPTION, **kwargs)
+
+    @staticmethod
+    def variable(**kwargs) -> "Field":
+        return Field(zone=FieldZone.VARIABLE, **kwargs)
+
+    @staticmethod
+    def member(**kwargs) -> "Field":
+        return Field(zone=FieldZone.MEMBER, **kwargs)
+
+    @staticmethod
+    def input(**kwargs) -> "Field":
+        return Field(zone=FieldZone.INPUT, **kwargs)
+
+    @staticmethod
+    def output(**kwargs) -> "Field":
+        return Field(zone=FieldZone.OUTPUT, **kwargs)

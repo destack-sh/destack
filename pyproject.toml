@@ -28,4 +28,5 @@ skip = "migrations"
 
 [tool.pytest.ini_options]
 asyncio_mode = "auto"
-addopts = ["--color=yes"]
+log_cli = true
+addopts = ["--color=yes", '-rP']

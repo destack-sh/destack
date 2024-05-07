@@ -50,7 +50,7 @@ from .log import Log, LogKind, LogLevel
 from .node import Link, Node, Struct
 from .notice import Notice, NoticeError, NoticeType
 from .path import Path
-from .projection import NodeVisitor
+from .projection import Projection
 from .property import Property
 from .query import Query
 from .resource import (
@@ -119,7 +119,6 @@ __all__ = [
     "Node",
     "Node",
     "NodeReference",
-    "NodeVisitor",
     "Notice",
     "NoticeError",
     "NoticeType",
@@ -158,6 +157,7 @@ __all__ = [
     "StoreKind",
     "Struct",
     "Subject",
+	"Projection",
     "Tenancy",
     "Text",
     "TextSpan",

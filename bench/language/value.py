@@ -380,23 +380,7 @@ def _check_object_scalar(
     for field in typ._base_fields:
         field_type = field._to_resolved()
         field_value = cast(SomeValue, getattr(value, field.name, None))
-        if field_value is None:
-            if field_type.is_required:
-                invalid(value, "missing required", field)
-            else:
-                continue
-        if field_type.kind == TypeKind.OBJECT:
-            if not field_type.is_list:
-                _check_object_scalar(field_value, field_type, invalid)
-            elif _check_list(field_value, field_type, invalid):
-                for element in field_value:
-                    _check_object_scalar(element, field_type, invalid)
-        else:
-            if not field_type.is_list:
-                _check_value_scalar(field_value, field_type, invalid)
-            elif _check_list(field_value, field_type, invalid):
-                for element in field_value:
-                    _check_value_scalar(element, field_type, invalid)
+        check_value(field_value, field_type, invalid)
 
 
 def check_value(value: Any, typ: "TypeInfoBase", invalid: "ValidationHandler") -> None:
@@ -408,7 +392,7 @@ def check_value(value: Any, typ: "TypeInfoBase", invalid: "ValidationHandler") -
         if not typ.is_list:
             if value is None:
                 if typ.is_required:
-                    invalid(value, "is None", typ)
+                    invalid(value, "is required", typ)
                 else:
                     return
             _check_object_scalar(value, typ, invalid)
@@ -419,7 +403,7 @@ def check_value(value: Any, typ: "TypeInfoBase", invalid: "ValidationHandler") -
         if not typ.is_list:
             if value is None:
                 if typ.is_required:
-                    invalid(value, "is None", typ)
+                    invalid(value, "is required", typ)
                 else:
                     return
             _check_value_scalar(value, typ, invalid)
