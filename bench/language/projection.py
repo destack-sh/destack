@@ -37,3 +37,7 @@ class Projection(Struct):
      - How do we alias shadowed and anonymous nodes?
      - How do we make projections reproducible and inspectable in the editor?
     """
+
+
+def render() -> str:
+    raise NotImplementedError("nocheckin: render")

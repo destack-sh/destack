@@ -143,9 +143,9 @@ class TextLine(TextOptions):
 @struct(StructType.TEXT)
 class Text(Struct):
     """
-    Rich, markdown-inspired Text with mentions, tables & other extensions.
+    Rich, markdown-inspired Text with mentions, lists & other extensions.
     Text is structured into lines, which contain spans.
-    Formatting may be applied at the block (Text), line and span levels.
+    Formatting can be applied at per Text, line and span.
     """
 
     lines: list["TextLine"] = p_regular(32, array=True, struct=StructType.TEXT_LINE)

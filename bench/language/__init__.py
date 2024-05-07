@@ -46,6 +46,7 @@ from .field import Field, TypeConstraint, TypeInfo, TypeInfoBase
 from .file import File, Icon
 from .flow import Step, StepType
 from .graph import ValueList
+from .log import Log, LogKind, LogLevel
 from .node import Link, Node, Struct
 from .notice import Notice, NoticeError, NoticeType
 from .path import Path
@@ -64,13 +65,15 @@ from .resource import (
     Store,
     Tenancy,
 )
-from .session import Context, Log, Run, Session, Signal, Transaction
+from .run import Run
+from .session import Session, Transaction
 from .setup import _complete_bench_setup
+from .signal import Signal
 from .text import Text, TextSpan
 from .trigger import Trigger
 from .user import Client, Handle, Organization, User
 from .validation import ValidationError
-from .value import Object
+from .value import Context, Object
 from .view import Color, ColorShade, ColorType, Space, View, ViewType
 
 # NOTE! *ALL* these imports are auto-imported as prelude in user code.
@@ -111,6 +114,8 @@ __all__ = [
     "Identity",
     "Link",
     "Log",
+    "LogKind",
+    "LogLevel",
     "Node",
     "Node",
     "NodeReference",

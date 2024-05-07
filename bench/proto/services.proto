@@ -9,7 +9,6 @@ package symbolx.bench;
 import "bench/proto/common.proto";
 import "bench/proto/lang.proto";
 import "google/protobuf/timestamp.proto";
-import "google/protobuf/struct.proto";
 
 //
 // Common graph operations
@@ -303,22 +302,6 @@ message PingServerRequest {
 message PingServerResponse {
 }
 
-message RunIntrinsicRequest {
-  oneof node {
-    PathData path = 1;
-    NodeReferenceData reference = 2;
-  }
-  google.protobuf.Struct inputs = 3;
-  int32 timeout_ms = 4;
-  string run_id = 5;
-  string run_ck = 6;
-}
-message RunIntrinsicResponse {
-  google.protobuf.Struct outputs = 1;
-  optional RunErrorData error = 2;
-}
-
-
 // The host providing access and the persistent 'system-side' OS for a Bench.
 service Host {
   //
@@ -360,8 +343,6 @@ service Host {
   rpc RestartServer(RestartServerRequest) returns (PingServerResponse);
   // Ensure the server for a Bench is running.
   rpc PingServer(PingServerRequest) returns (PingServerResponse);
-  // Runs a system-intrinsic Block.
-  rpc RunIntrinsic(RunIntrinsicRequest) returns (RunIntrinsicResponse);
 
 }
 
@@ -370,6 +351,7 @@ service Host {
 //
 
 message RestartRuntimeRequest {
+  bool force = 1;
 }
 message RestartRuntimeResponse {
 }

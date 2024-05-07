@@ -1145,7 +1145,7 @@ contributeActionMap<"developer">({
 contributeActionMap<"space">({
   "space.launch.assist": {
     title: "Open Assistant",
-    text: "Chat with and get help from your Assistant",
+    text: "Chat and collaborate with your Assistant",
     icon: "fas fa-robot",
     action: ACTION_COMING_SOON,
   },

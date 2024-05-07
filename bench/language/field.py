@@ -213,9 +213,8 @@ class TypeInfoBase(HasValues):
        - field zone, narrowing the fields included from the base type (if any)
        - format hint (which may impact the unpacked representation, like for Image)
        - condition which instances must satisfy
+       - constraints (simpler conditions the value must satisfy)
        - combination flags for arrays, optionals, ...
-
-    Type checking is done in ./value.py. Checking certain invariants requires querying the graph.
     """
 
     # type identity (if unset this isn't a valid type (used for Field Options))
