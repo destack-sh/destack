@@ -7,7 +7,7 @@ import structlog
 
 from bench.language.const import InterpStatus, NodeType, _active_session
 from bench.language.node import Node, node
-from bench.language.property import Property, p_node_parent, p_runtime, p_system
+from bench.language.property import Property, p_internal, p_node_parent, p_runtime, p_system
 from bench.language.query import StoreEngine
 from bench.language.transaction import Transaction
 from bench.proto.wire import EditData, HostStub, SessionData, SupervisorStub
@@ -16,7 +16,7 @@ from bench.utils.func import _auto_async_to_sync, bytetuple
 from bench.utils.uuidt import UUIDT
 
 if TYPE_CHECKING:
-    from bench.language import Package, Run, Server
+    from bench.language import Client, Package, Run, Server, User
 
 # pyright: reportIncompatibleVariableOverride=false,reportIncompatibleMethodOverride=false
 
@@ -33,15 +33,21 @@ class Session(Node[SessionData]):
     """
 
     parent: Optional["Package"] = p_node_parent(4, NodeType.PACKAGE, is_system=True)
-    server: Optional["Server"] = p_system(
-        31, require=False, array=False, references=NodeType.SERVER
-    )
     opened_at: Optional[datetime] = p_system(32, default=None)
     closed_at: Optional[datetime] = p_system(33, default=None)
     duration: Optional[float] = p_system(34, default=None)
 
     is_runtime: bool = p_system(40, default=False)
     is_readonly: bool = p_system(41, default=False)
+
+    # context
+    server: Optional["Server"] = p_internal(
+        61, require=False, array=False, references=NodeType.SERVER
+    )
+    client: Optional["Client"] = p_internal(
+        62, require=False, array=False, references=NodeType.CLIENT
+    )
+    user: Optional["User"] = p_internal(63, require=False, array=False, references=NodeType.USER)
 
     # transaction
     _tx: Transaction | None = p_runtime(default=None)

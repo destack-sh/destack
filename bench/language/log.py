@@ -6,6 +6,7 @@ from bench.language.const import EnumType, NodeType, StructType, enum_
 from bench.language.flow import Step
 from bench.language.node import Node, node
 from bench.language.property import (
+    Property,
     p_internal,
     p_node_parent,
     p_system,
@@ -13,7 +14,9 @@ from bench.language.property import (
     p_value_runtime,
 )
 from bench.language.text import Text
+from bench.language.validation import ValidationHandler
 from bench.language.value import HasValues
+from bench.proto.wire import NodeReferenceData
 from bench.utils.func import IdEnum
 from bench.utils.uuidt import UUIDT
 
@@ -45,7 +48,7 @@ class LogLevel(IdEnum):
 class Log(Node, HasValues):
     """
     A Log (entry) is a timestamped event of something happening:
-     a message, a Request / an Access (read, edit, use), ...
+     an unstructured message, an 'event', a Request / an Access (read, edit, use), ...
     """
 
     parent: "Package" = p_node_parent(4, NodeType.PACKAGE)
@@ -59,10 +62,11 @@ class Log(Node, HasValues):
     text: Optional[Text] = p_internal(
         35, default=None, require=False, array=False, struct=StructType.TEXT
     )
-    value_packed: Any | None = p_value_packed(36)
-    value: Any = p_value_runtime(36)
+    value_packed: Any | None = p_value_packed(37)
+    # secret_value_packed?
+    value: Any = p_value_runtime(37)
     request: Optional["Request"] = p_system(
-        37, require=False, array=False, struct=StructType.REQUEST
+        39, require=False, array=False, struct=StructType.REQUEST
     )
 
     # context
@@ -72,6 +76,17 @@ class Log(Node, HasValues):
     run: Optional["Run"] = p_system(41, require=False, array=False, references=NodeType.RUN)
     block: Optional["Block"] = p_system(42, require=False, array=False, references=NodeType.BLOCK)
     step: Optional["Step"] = p_system(43, require=False, array=False, references=NodeType.STEP)
+    if TYPE_CHECKING:
+        session_ptr: Optional[NodeReferenceData] = None
+        run_ptr: Optional[NodeReferenceData] = None
+        block_ptr: Optional[NodeReferenceData] = None
+        step_ptr: Optional[NodeReferenceData] = None
 
     def __content_str__(self):
         return f"[{self.kind.bench_name}:{self.level.bench_name}] '{self.event or self.title or self.text or '<empty>'}' ({self.created_at})"
+
+    def _validate_component(
+        self, properties: tuple[Property, ...], invalid: ValidationHandler
+    ) -> None:
+        if self.step_ptr is not None and self.block_ptr is None:
+            invalid(self, "step without block", (Run.step, Run.block))

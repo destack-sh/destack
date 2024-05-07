@@ -11,7 +11,7 @@ from bench.sql.core import (
     Table,
 )
 
-VERSION = "2024.05.07.0"
+VERSION = "2024.05.07.2"
 
 BENCH_TABLE = Table(
     "bench_bench",
@@ -638,7 +638,7 @@ BLOCK_TABLE = Table(
         Column("builtin_base", PrimitiveType.JSON, is_nullable=True),
         Column("text", PrimitiveType.JSON, is_nullable=True),
         Column("icon", PrimitiveType.JSON, is_nullable=True),
-        Column("visibility", PrimitiveType.INT16, is_nullable=True, default="10"),
+        Column("visibility", PrimitiveType.INT16, is_nullable=True),
         Column("value_packed", PrimitiveType.JSON, is_nullable=True),
         Column("secret_value_packed", PrimitiveType.JSON, is_nullable=True, is_encrypted=True),
         Column("code", PrimitiveType.JSON, is_nullable=True),
@@ -674,6 +674,13 @@ TRIGGER_TABLE = Table(
             on_delete=CascadeAction.CASCADE,
             is_nullable=True,
         ),
+        Column(
+            "parent_step_id",
+            PrimitiveType.UUID,
+            is_foreign_key_to="bench_step",
+            on_delete=CascadeAction.CASCADE,
+            is_nullable=True,
+        ),
         Column("package_id", PrimitiveType.UUID),
         Column("bench_id", PrimitiveType.UUID),
         Column("revision", PrimitiveType.INT64, default="0"),
@@ -697,6 +704,7 @@ TRIGGER_TABLE = Table(
         Column("signal_id", PrimitiveType.UUID, is_nullable=True),
         Column("signal_ck", PrimitiveType.UUID, is_nullable=True),
         Column("signal_bench_id", PrimitiveType.UUID, is_nullable=True),
+        Column("condition", PrimitiveType.JSON, is_nullable=True),
     ),
     indexes=(
         Index("bench_idx_package_deleted_at", IndexType.BTREE, ("deleted_at", "package_id")),
@@ -706,7 +714,7 @@ TRIGGER_TABLE = Table(
         Constraint(
             "bench_check_one_parent",
             ConstraintType.CHECK,
-            condition="(parent_block_id IS NOT NULL)",
+            condition="(parent_block_id IS NOT NULL) OR (parent_step_id IS NOT NULL)",
         ),
     ),
 )
@@ -964,6 +972,7 @@ STEP_TABLE = Table(
         Column("secret_value_packed", PrimitiveType.JSON, is_nullable=True, is_encrypted=True),
         Column("node_id", PrimitiveType.UUID, is_nullable=True),
         Column("node_ck", PrimitiveType.UUID, is_nullable=True),
+        Column("node_type", PrimitiveType.INT16, is_nullable=True),
         Column("node_bench_id", PrimitiveType.UUID, is_nullable=True),
         Column("condition", PrimitiveType.JSON, is_nullable=True),
     ),
@@ -1272,13 +1281,16 @@ SESSION_TABLE = Table(
         Column("updated_by_type", PrimitiveType.INT16, is_nullable=True),
         Column("updated_by_base_ck", PrimitiveType.UUID, is_nullable=True),
         Column("set_properties", PrimitiveType.INT32, is_array=True),
-        Column("server_id", PrimitiveType.UUID, is_nullable=True),
-        Column("server_bench_id", PrimitiveType.UUID, is_nullable=True),
         Column("opened_at", PrimitiveType.DATETIME, is_nullable=True),
         Column("closed_at", PrimitiveType.DATETIME, is_nullable=True),
         Column("duration", PrimitiveType.FLOAT32, is_nullable=True),
         Column("is_runtime", PrimitiveType.BOOLEAN, default="false"),
         Column("is_readonly", PrimitiveType.BOOLEAN, default="false"),
+        Column("server_id", PrimitiveType.UUID, is_nullable=True),
+        Column("server_bench_id", PrimitiveType.UUID, is_nullable=True),
+        Column("client_id", PrimitiveType.UUID, is_nullable=True),
+        Column("client_bench_id", PrimitiveType.UUID, is_nullable=True),
+        Column("user_id", PrimitiveType.UUID, is_nullable=True),
     ),
     indexes=(
         Index("bench_idx_package_deleted_at", IndexType.BTREE, ("deleted_at", "package_id")),
@@ -1298,6 +1310,7 @@ RUN_TABLE = Table(
     (
         Column("id", PrimitiveType.UUID, is_primary_key=True),
         Column("ck", PrimitiveType.UUID),
+        Column("parent_package_id", PrimitiveType.UUID, is_nullable=True),
         Column(
             "parent_session_id",
             PrimitiveType.UUID,
@@ -1329,16 +1342,11 @@ RUN_TABLE = Table(
         Column("updated_by_base_ck", PrimitiveType.UUID, is_nullable=True),
         Column("set_properties", PrimitiveType.INT32, is_array=True),
         Column("kind", PrimitiveType.INT16),
-        Column("session_id", PrimitiveType.UUID),
-        Column("session_ck", PrimitiveType.UUID),
-        Column("session_bench_id", PrimitiveType.UUID),
         Column("root_id", PrimitiveType.UUID, is_nullable=True),
         Column("root_ck", PrimitiveType.UUID, is_nullable=True),
         Column("root_bench_id", PrimitiveType.UUID, is_nullable=True),
         Column("root_base_ck", PrimitiveType.UUID, is_nullable=True),
         Column("root_base_bench_id", PrimitiveType.UUID, is_nullable=True),
-        Column("server_id", PrimitiveType.UUID, is_nullable=True),
-        Column("server_bench_id", PrimitiveType.UUID, is_nullable=True),
         Column("block_id", PrimitiveType.UUID, is_nullable=True),
         Column("block_ck", PrimitiveType.UUID, is_nullable=True),
         Column("block_bench_id", PrimitiveType.UUID, is_nullable=True),
@@ -1347,7 +1355,7 @@ RUN_TABLE = Table(
         Column("step_bench_id", PrimitiveType.UUID, is_nullable=True),
         Column("code", PrimitiveType.JSON, is_nullable=True),
         Column("text", PrimitiveType.JSON, is_nullable=True),
-        Column("status", PrimitiveType.INT16),
+        Column("status", PrimitiveType.INT16, default="1"),
         Column("scheduled_at", PrimitiveType.DATETIME, is_nullable=True),
         Column("started_at", PrimitiveType.DATETIME, is_nullable=True),
         Column("paused_at", PrimitiveType.DATETIME, is_nullable=True),
@@ -1360,6 +1368,14 @@ RUN_TABLE = Table(
         Column("value_packed", PrimitiveType.JSON, is_nullable=True),
         Column("value_secret_packed", PrimitiveType.JSON, is_nullable=True, is_encrypted=True),
         Column("error", PrimitiveType.JSON, is_nullable=True),
+        Column("session_id", PrimitiveType.UUID, is_nullable=True),
+        Column("session_ck", PrimitiveType.UUID, is_nullable=True),
+        Column("session_bench_id", PrimitiveType.UUID, is_nullable=True),
+        Column("client_id", PrimitiveType.UUID, is_nullable=True),
+        Column("client_bench_id", PrimitiveType.UUID, is_nullable=True),
+        Column("server_id", PrimitiveType.UUID, is_nullable=True),
+        Column("server_bench_id", PrimitiveType.UUID, is_nullable=True),
+        Column("user_id", PrimitiveType.UUID, is_nullable=True),
     ),
     indexes=(
         Index("bench_idx_status", IndexType.BTREE, ("status",)),
@@ -1370,7 +1386,7 @@ RUN_TABLE = Table(
         Constraint(
             "bench_check_one_parent",
             ConstraintType.CHECK,
-            condition="(parent_session_id IS NOT NULL) OR (parent_run_id IS NOT NULL)",
+            condition="(parent_package_id IS NOT NULL) OR (parent_session_id IS NOT NULL) OR (parent_run_id IS NOT NULL)",
         ),
     ),
 )
@@ -2028,6 +2044,7 @@ CLIENT_TABLE = Table(
         Column("updated_by_type", PrimitiveType.INT16, is_nullable=True),
         Column("updated_by_base_ck", PrimitiveType.UUID, is_nullable=True),
         Column("set_properties", PrimitiveType.INT32, is_array=True),
+        Column("type", PrimitiveType.INT16),
         Column("name", PrimitiveType.STRING),
         Column("device_name", PrimitiveType.STRING, is_nullable=True),
         Column("device_type", PrimitiveType.STRING, is_nullable=True),

@@ -170,6 +170,7 @@ enum BenchType {
   BENCH_TYPE_STORE_ENGINE_TYPE = 2053;
   BENCH_TYPE_SERVER_PROFILE = 2055;
   BENCH_TYPE_RESOURCE_STATUS = 2056;
+  BENCH_TYPE_CLIENT_TYPE = 2057;
   BENCH_TYPE_BLOCK_TYPE = 2070;
   BENCH_TYPE_SCHEDULE_TYPE = 2071;
   BENCH_TYPE_PRIMITIVE_TYPE = 2080;
@@ -234,6 +235,15 @@ enum BlockType {
   BLOCK_TYPE_SCREEN = 70;
   BLOCK_TYPE_ROLE = 90;
   BLOCK_TYPE_IDENTITY = 91;
+}
+
+enum ClientType {
+  CLIENT_TYPE_UNSPECIFIED = 0;
+  CLIENT_TYPE_BENCH_WEB = 1;
+  CLIENT_TYPE_BENCH_BROWSER_PLUGIN = 2;
+  CLIENT_TYPE_BENCH_DESKTOP = 3;
+  CLIENT_TYPE_BENCH_MOBILE = 4;
+  CLIENT_TYPE_BENCH_SERVER = 10;
 }
 
 // Built-in color shades a la Tailwind.
@@ -345,6 +355,7 @@ enum EnumType {
   ENUM_TYPE_STORE_ENGINE_TYPE = 2053;
   ENUM_TYPE_SERVER_PROFILE = 2055;
   ENUM_TYPE_RESOURCE_STATUS = 2056;
+  ENUM_TYPE_CLIENT_TYPE = 2057;
   ENUM_TYPE_BLOCK_TYPE = 2070;
   ENUM_TYPE_SCHEDULE_TYPE = 2071;
   ENUM_TYPE_PRIMITIVE_TYPE = 2080;
@@ -903,6 +914,7 @@ enum StepType {
   STEP_TYPE_BLANK = 1;
   STEP_TYPE_TRIGGER = 10;
   STEP_TYPE_RUN_BLOCK = 20;
+  STEP_TYPE_RUN_STEP = 21;
   STEP_TYPE_BRANCH = 30;
   STEP_TYPE_FILTER = 31;
   STEP_TYPE_LOOP = 32;
@@ -1811,7 +1823,7 @@ message CacheData {
   ResourceStatus status = 37;
 }
 
-// A client to this Bench.
+// A client to a Bench.
 message ClientData {
   ObjectType metatype = 1;
   string id = 2;
@@ -1825,6 +1837,7 @@ message ClientData {
   optional NodeReferenceData created_by_ptr = 17;
   optional NodeReferenceData updated_by_ptr = 18;
   repeated int32 set_properties = 22;
+  ClientType type = 30;
   string name = 32;
   optional string device_name = 40;
   optional string device_type = 41;
@@ -2051,7 +2064,7 @@ message LinkData {
 }
 
 // A Log (entry) is a timestamped event of something happening:
-// a message, a Request / an Access (read, edit, use), ...
+// an unstructured message, an 'event', a Request / an Access (read, edit, use), ...
 message LogData {
   ObjectType metatype = 1;
   string id = 2;
@@ -2072,8 +2085,8 @@ message LogData {
   optional string event = 33;
   optional string title = 34;
   optional TextData text = 35;
-  optional google.protobuf.Struct value_packed = 36;
-  optional RequestData request = 37;
+  optional google.protobuf.Struct value_packed = 37;
+  optional RequestData request = 39;
   optional NodeReferenceData session_ptr = 40;
   optional NodeReferenceData run_ptr = 41;
   optional NodeReferenceData block_ptr = 42;
@@ -2323,9 +2336,7 @@ message RunData {
   optional NodeReferenceData updated_by_ptr = 18;
   repeated int32 set_properties = 22;
   RunKind kind = 30;
-  NodeReferenceData session_ptr = 31;
   optional NodeReferenceData root_ptr = 32;
-  optional NodeReferenceData server_ptr = 33;
   optional NodeReferenceData block_ptr = 34;
   optional NodeReferenceData step_ptr = 35;
   optional CodeData code = 36;
@@ -2343,6 +2354,10 @@ message RunData {
   optional google.protobuf.Struct value_packed = 54;
   optional google.protobuf.Struct value_secret_packed = 55;
   optional RunErrorData error = 56;
+  optional NodeReferenceData session_ptr = 60;
+  optional NodeReferenceData client_ptr = 61;
+  optional NodeReferenceData server_ptr = 62;
+  optional NodeReferenceData user_ptr = 63;
 }
 
 // A server providing the Runtime for a Bench.
@@ -2391,12 +2406,14 @@ message SessionData {
   optional NodeReferenceData created_by_ptr = 17;
   optional NodeReferenceData updated_by_ptr = 18;
   repeated int32 set_properties = 22;
-  optional NodeReferenceData server_ptr = 31;
   optional google.protobuf.Timestamp opened_at = 32;
   optional google.protobuf.Timestamp closed_at = 33;
   optional float duration = 34;
   bool is_runtime = 40;
   bool is_readonly = 41;
+  optional NodeReferenceData server_ptr = 61;
+  optional NodeReferenceData client_ptr = 62;
+  optional NodeReferenceData user_ptr = 63;
 }
 
 // A signal emitted in this Bench.
@@ -2525,7 +2542,7 @@ message StoreData {
   optional ResourceCredentialData main_credential = 54;
 }
 
-// Trigger(parent: 'Block' = None, type: bench.language.const.TriggerType = <factory>, name: str = <factory>, active: bool = True, schedule: Optional[bench.language.trigger.Schedule] = None, signal: Optional[ForwardRef('Block')] = None, notices: bench.language.graph.NodeList['Notice'] = None, id: uuid.UUID = None, set_properties: list[int] = <factory>, _status: bench.language.const.InterpStatus = None, _updated_properties: bitarray.bitarray | None = None, ck: uuid.UUID = None, revision: int = 0, created_at: datetime.datetime = None, updated_at: datetime.datetime = None, deleted_at: Optional[datetime.datetime] = None, archived_at: Optional[datetime.datetime] = None, created_by: Union[ForwardRef('User'), ForwardRef('Run'), NoneType] = None, updated_by: Union[ForwardRef('User'), ForwardRef('Run'), NoneType] = None, links: bench.language.graph.NodeList['Link'] = None, _graph: Union[ForwardRef('NodeGraph'), ForwardRef('DetachedNodeGraph'), NoneType] = None, _data_graph: Optional[ForwardRef('NodeDataGraph')] = None, _session: Optional[ForwardRef('Session')] = None, _is_new: bool = False, parent_ptr: 'NodeReference' = None, signal_ptr: 'NodeReference' = None, created_by_ptr: 'NodeReference' = None, updated_by_ptr: 'NodeReference' = None)
+// A trigger to a node.
 message TriggerData {
   ObjectType metatype = 1;
   string id = 2;
@@ -2546,6 +2563,7 @@ message TriggerData {
   bool active = 32;
   optional ScheduleData schedule = 33;
   optional NodeReferenceData signal_ptr = 34;
+  optional ExpressionData condition = 35;
 }
 
 // An 'upgrade' to a Package, marking changes made to the containing Package.

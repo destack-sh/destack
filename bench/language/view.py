@@ -196,6 +196,22 @@ class Color(Struct):
     shade: Optional[ColorShade] = p_regular(32, default=None)
     hex: Optional[str] = p_regular(33, default=None)
 
+    @staticmethod
+    def new(color: "ColorIn") -> "Color":
+        return to_color(color)
+
+
+ColorIn = Color | ColorType | str
+
+
+def to_color(color: ColorIn) -> Color:
+    if isinstance(color, Color):
+        return color
+    elif isinstance(color, ColorType):
+        return Color(type=color)
+    else:
+        return Color(hex=color)
+
 
 @enum_(EnumType.FONT_TYPE)
 class FontType(IdEnum):

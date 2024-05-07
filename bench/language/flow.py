@@ -2,7 +2,7 @@ from typing import TYPE_CHECKING, Any, Optional, Union
 
 from bench.language.const import EnumType, NodeType, StructType, enum_
 from bench.language.graph import NodeList
-from bench.language.node import Node, Struct, node, node_component, struct
+from bench.language.node import Node, Struct, node, struct
 from bench.language.notice import Notice
 from bench.language.property import (
     p_internal,
@@ -32,6 +32,7 @@ class StepType(IdEnum):
     TRIGGER = 10
     # function
     RUN_BLOCK = 20
+    RUN_STEP = 21
     # conditional
     BRANCH = 30
     FILTER = 31
@@ -75,7 +76,9 @@ class Step(Node[StepData], HasValues):
     value_packed: Any = p_value_packed(41)
     secret_value_packed: Any = p_secret_value_packed(42)
     value = p_value_runtime(41, 42)
-    node: Optional["Block"] = p_regular(43, require=False, references=NodeType.BLOCK)
+    node: Union["Block", "Step", None] = p_regular(
+        43, require=False, references=(NodeType.BLOCK, NodeType.STEP)
+    )
     condition: Optional["Expression"] = p_regular(
         46, require=False, array=False, default=None, struct=StructType.EXPRESSION
     )
@@ -85,9 +88,5 @@ class Step(Node[StepData], HasValues):
 
     steps: NodeList["Step"] = p_node_child(NodeType.STEP)
     fields: NodeList["Field"] = p_node_child(NodeType.FIELD)
+    triggers: NodeList["Trigger"] = p_node_child(NodeType.TRIGGER)
     notices: NodeList["Notice"] = p_node_child(NodeType.NOTICE)
-
-
-@node_component()
-class Flow(Node):
-    pass

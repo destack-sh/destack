@@ -1,5 +1,5 @@
 from datetime import datetime
-from typing import TYPE_CHECKING, Generic, Optional, TypeVar
+from typing import TYPE_CHECKING, Generic, Optional, TypeVar, Union
 
 from bench.language.const import (
     EnumType,
@@ -22,18 +22,22 @@ from bench.language.property import (
     p_system,
 )
 from bench.language.text import Text
+from bench.language.validation import NAME_CONSTRAINT
 from bench.proto.wire import (
     AnyNodeData,
     CacheData,
+    ClientData,
     DriveData,
     FileContentData,
     ServerData,
     StoreData,
 )
+from bench.utils.casing import IdentifierType
+from bench.utils.dt import utcnow_with_tz
 from bench.utils.func import IdEnum
 
 if TYPE_CHECKING:
-    from bench.language import Bench, Client
+    from bench.language import Bench, Space, User
 
 # pyright: reportIncompatibleVariableOverride=false,reportIncompatibleMethodOverride=false
 
@@ -116,6 +120,58 @@ class Server(Resource[ServerData]):
 
     def __content_str__(self):
         return f"{self.profile.bench_name}, version={self.version}, {self.status.bench_name}, {self.tenancy.bench_name}, {self.region.bench_name}"
+
+
+@enum_(EnumType.CLIENT_TYPE)
+class ClientType(IdEnum):
+    # user
+    BENCH_WEB = 1
+    BENCH_BROWSER_PLUGIN = 2
+    BENCH_DESKTOP = 3
+    BENCH_MOBILE = 4
+
+    # server
+    BENCH_SERVER = 10
+
+
+@node(NodeType.CLIENT, roots=(NodeType.USER, NodeType.BENCH), identifier=IdentifierType.VARIABLE)
+class Client(Node[ClientData]):
+    """A client to a Bench."""
+
+    parent: Union["User", "Server"] = p_node_parent(4, NodeType.USER, NodeType.SERVER)
+    type: ClientType = p_regular(30)
+    name: str = p_regular(32, constraint=NAME_CONSTRAINT)
+
+    device_name: Optional[str] = p_regular(40, default=None)
+    device_type: Optional[str] = p_regular(41, default=None)
+    operating_system: Optional[str] = p_regular(42, default=None)
+    browser_name: Optional[str] = p_regular(43, default=None)
+    browser_version: Optional[str] = p_regular(44, default=None)
+    place_id: Optional[str] = p_regular(45, default=None)
+
+    access_token: Optional[str] = p_kernel(
+        50, default=None, defer=True, unique=True, sensitive=True
+    )
+    last_seen_at: datetime = p_system(51, default_factory=utcnow_with_tz)
+    logged_in_at: Optional[datetime] = p_system(52, default=None)
+
+    # for user clients
+    main_space: Optional["Space"] = p_system(
+        60, array=False, require=False, references=NodeType.SPACE, fk=True
+    )
+
+    def __content_str__(self) -> str:
+        if self.browser_name:
+            return f"{self.device_name} {self.browser_name}"
+        else:
+            return self.device_name or "???"
+
+    @property
+    def user(self) -> "User":
+        if isinstance(self.parent, User):
+            return self.parent
+        else:
+            raise ValueError(f"{self!r} is not a User client")
 
 
 @struct(StructType.RESOURCE_CREDENTIAL, inline=True)

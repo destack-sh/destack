@@ -274,7 +274,7 @@ def coerce_value(
 ) -> SomeValue:
     """
     Coerces the given value to the expected type (recursively). Returns value as is if already of correct type.
-    To maintain clarity, we try to coerce as little as possible outside the typical python cases.
+    To maintain clarity, we try tdio coerce as little as possible outside the typical python cases.
     Raises TypeError if not possible.
     NOTE :Performance: we re-create and copy lists during coercion even if the type was already good
     """

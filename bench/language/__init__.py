@@ -56,6 +56,7 @@ from .property import Property
 from .query import Query
 from .resource import (
     Cache,
+    Client,
     Drive,
     FileContent,
     Region,
@@ -72,7 +73,7 @@ from .setup import _complete_bench_setup
 from .signal import Signal
 from .text import Text, TextSpan
 from .trigger import Trigger
-from .user import Client, Handle, Organization, User
+from .user import Handle, Organization, User
 from .validation import ValidationError
 from .value import Context, Object
 from .view import Color, ColorShade, ColorType, Space, View, ViewType

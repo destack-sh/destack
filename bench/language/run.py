@@ -14,6 +14,7 @@ from bench.language.const import (
 )
 from bench.language.node import BasedNode, Node, Struct, node, struct
 from bench.language.property import (
+    Property,
     p_internal,
     p_node_ancestor,
     p_node_ancestor_root,
@@ -25,13 +26,14 @@ from bench.language.property import (
     p_value_runtime,
 )
 from bench.language.text import Text
+from bench.language.validation import ValidationHandler
 from bench.language.value import HasValues
 from bench.proto.wire import NodeReferenceData, RunData
 from bench.utils.func import IdEnum
 from bench.utils.uuidt import UUIDT
 
 if TYPE_CHECKING:
-    from bench.language import Block, Server, Session, Step
+    from bench.language import Block, Client, Package, Server, Session, Step, User
 
 # pyright: reportIncompatibleVariableOverride=false, reportIncompatibleMethodOverride=false
 
@@ -51,27 +53,30 @@ class Run(BasedNode[RunData], HasValues):
      we implicitly pass it to our built-in Text program.
     """
 
-    # context
-    parent: Union["Session", "Run"] = p_node_parent(4, NodeType.SESSION, NodeType.RUN)
-    kind: RunKind = p_system(30)
-    session: "Session" = p_node_ancestor(
-        31, NodeType.SESSION, require=True, store=True, wire=True, index_in_pg=True
+    # content
+    parent: Union["Package", "Session", "Run"] = p_node_parent(
+        4, NodeType.PACKAGE, NodeType.SESSION, NodeType.RUN
     )
+    kind: RunKind = p_system(30)
     root: Optional["Run"] = p_node_ancestor_root(
         32, NodeType.RUN, require=False, store=True, wire=True, index_in_pg=True
     )
-    server: Optional["Server"] = p_internal(
-        33, require=False, array=False, references=NodeType.SERVER
-    )
+
     block: Optional["Block"] = p_internal(
         34, references=NodeType.BLOCK, require=False, array=False, index_in_pg=True
     )
     step: Optional["Step"] = p_internal(35, require=False, array=False, references=NodeType.STEP)
+    if TYPE_CHECKING:
+        session_ptr: Optional[NodeReferenceData] = None
+        root_ptr: Optional[NodeReferenceData] = None
+        server_ptr: Optional[NodeReferenceData] = None
+        block_ptr: Optional[NodeReferenceData] = None
+        step_ptr: Optional[NodeReferenceData] = None
     code: Optional["Code"] = p_internal(36, require=False, array=False, struct=StructType.CODE)
     text: Optional["Text"] = p_internal(37, require=False, array=False, struct=StructType.TEXT)
 
     # status
-    status: RunStatus = p_internal(40, index_in_pg=True)
+    status: RunStatus = p_internal(40, default=RunStatus.SCHEDULED, index_in_pg=True)
     scheduled_at: Optional[datetime] = p_internal(41, default=None)
     started_at: Optional[datetime] = p_internal(42, default=None)
     paused_at: Optional[datetime] = p_internal(43, default=None)
@@ -91,6 +96,18 @@ class Run(BasedNode[RunData], HasValues):
     error: Optional["RunError"] = p_internal(
         56, default=None, require=False, array=False, struct=StructType.RUN_ERROR
     )
+
+    # context
+    session: Optional["Session"] = p_node_ancestor(
+        60, NodeType.SESSION, require=False, store=True, wire=True, index_in_pg=True
+    )
+    client: Optional["Client"] = p_system(
+        61, require=False, array=False, references=NodeType.CLIENT
+    )
+    server: Optional["Server"] = p_internal(
+        62, require=False, array=False, references=NodeType.SERVER
+    )
+    user: Optional["User"] = p_internal(63, require=False, array=False, references=NodeType.USER)
 
     # NOTE :Architecture :Performance: (some) Runs will likely be stored outside the main user DB later.
     #  And maybe we'll also have 'inline runs' for non-Bench constructs that were run (like deeper profiling).
@@ -112,6 +129,14 @@ class Run(BasedNode[RunData], HasValues):
     def get_base_from_data(data: RunData) -> Optional[NodeReferenceData]:
         return data.block_ptr
 
+    def _validate_component(
+        self, properties: tuple[Property, ...], invalid: ValidationHandler
+    ) -> None:
+        if self.block_ptr is None and self.code is None and self.text is None:
+            invalid(self, "no block, code or text", (Run.block, Run.code, Run.text))
+        if self.step_ptr is not None and self.block_ptr is None:
+            invalid(self, "step without block", (Run.step, Run.block))
+
 
 @struct(StructType.RUN_CODE_FRAME)
 class RunCodeFrame(Struct):
@@ -119,8 +144,6 @@ class RunCodeFrame(Struct):
     lineno: int = p_internal(31)
     name: str = p_internal(32)
     line: str = p_internal(33)
-
-    # locals?
 
 
 @struct(StructType.RUN_ERROR)

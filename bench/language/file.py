@@ -99,3 +99,20 @@ class Icon(Struct):
     fa_name: Optional[str] = p_internal(33, require=False)
     # style
     color: Optional["Color"] = p_internal(40, require=False, array=False, struct=StructType.COLOR)
+
+    @staticmethod
+    def new(icon: "IconIn") -> "Icon":
+        return to_icon(icon)
+
+
+IconIn = Icon | str
+
+
+def to_icon(icon: IconIn) -> Icon:
+    if isinstance(icon, str):
+        if icon.startswith("fa-"):
+            return Icon(kind=IconKind.FONT_AWESOME, fa_name=icon)
+        else:
+            return Icon(kind=IconKind.EMOJI, emoji=icon)
+    else:
+        return icon

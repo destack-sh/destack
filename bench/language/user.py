@@ -26,7 +26,6 @@ from bench.language.validation import EMAIL_CONSTRAINT, NAME_CONSTRAINT, SLUG_CO
 from bench.language.value import HasValues
 from bench.proto.wire import (
     AnyNodeData,
-    ClientData,
     HandleData,
     InviteData,
     MembershipData,
@@ -37,19 +36,9 @@ from bench.proto.wire import (
 )
 from bench.sql.core import Constraint, ConstraintType
 from bench.utils.casing import IdentifierType
-from bench.utils.dt import utcnow_with_tz
 
 if TYPE_CHECKING:
-    from bench.language import (
-        Bench,
-        Block,
-        Icon,
-        Package,
-        Role,
-        Server,
-        Space,
-        Text,
-    )
+    from bench.language import Bench, Block, Client, Icon, Package, Role, Text
 
 # pyright: reportIncompatibleVariableOverride=false
 
@@ -153,46 +142,6 @@ class Organization(Node[OrganizationData]):
     def bench(self) -> "Bench":
         assert self.main_bench is not None, f"{self!r} is not activated"
         return self.main_bench
-
-
-@node(NodeType.CLIENT, roots=(NodeType.USER, NodeType.BENCH), identifier=IdentifierType.VARIABLE)
-class Client(Node[ClientData]):
-    """A client to this Bench."""
-
-    parent: Union[User, "Server"] = p_node_parent(4, NodeType.USER, NodeType.SERVER)
-    # type: ...
-    name: str = p_regular(32, constraint=NAME_CONSTRAINT)
-
-    device_name: Optional[str] = p_regular(40, default=None)
-    device_type: Optional[str] = p_regular(41, default=None)
-    operating_system: Optional[str] = p_regular(42, default=None)
-    browser_name: Optional[str] = p_regular(43, default=None)
-    browser_version: Optional[str] = p_regular(44, default=None)
-    place_id: Optional[str] = p_regular(45, default=None)
-
-    access_token: Optional[str] = p_kernel(
-        50, default=None, defer=True, unique=True, sensitive=True
-    )
-    last_seen_at: datetime = p_system(51, default_factory=utcnow_with_tz)
-    logged_in_at: Optional[datetime] = p_system(52, default=None)
-
-    # for user clients
-    main_space: Optional["Space"] = p_system(
-        60, array=False, require=False, references=NodeType.SPACE, fk=True
-    )
-
-    def __content_str__(self) -> str:
-        if self.browser_name:
-            return f"{self.device_name} {self.browser_name}"
-        else:
-            return self.device_name or "???"
-
-    @property
-    def user(self) -> User:
-        if isinstance(self.parent, User):
-            return self.parent
-        else:
-            raise ValueError(f"{self!r} is not a User client")
 
 
 @node(NodeType.MEMBERSHIP)

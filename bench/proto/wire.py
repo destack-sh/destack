@@ -188,6 +188,7 @@ class BenchType(betterproto.Enum):
     STORE_ENGINE_TYPE = 2053
     SERVER_PROFILE = 2055
     RESOURCE_STATUS = 2056
+    CLIENT_TYPE = 2057
     BLOCK_TYPE = 2070
     SCHEDULE_TYPE = 2071
     PRIMITIVE_TYPE = 2080
@@ -252,6 +253,15 @@ class BlockType(betterproto.Enum):
     SCREEN = 70
     ROLE = 90
     IDENTITY = 91
+
+
+class ClientType(betterproto.Enum):
+    UNSPECIFIED = 0
+    BENCH_WEB = 1
+    BENCH_BROWSER_PLUGIN = 2
+    BENCH_DESKTOP = 3
+    BENCH_MOBILE = 4
+    BENCH_SERVER = 10
 
 
 class ColorShade(betterproto.Enum):
@@ -366,6 +376,7 @@ class EnumType(betterproto.Enum):
     STORE_ENGINE_TYPE = 2053
     SERVER_PROFILE = 2055
     RESOURCE_STATUS = 2056
+    CLIENT_TYPE = 2057
     BLOCK_TYPE = 2070
     SCHEDULE_TYPE = 2071
     PRIMITIVE_TYPE = 2080
@@ -942,6 +953,7 @@ class StepType(betterproto.Enum):
     BLANK = 1
     TRIGGER = 10
     RUN_BLOCK = 20
+    RUN_STEP = 21
     BRANCH = 30
     FILTER = 31
     LOOP = 32
@@ -2015,7 +2027,7 @@ class CacheData(betterproto.Message):
 
 @dataclass(eq=False, repr=False)
 class ClientData(betterproto.Message):
-    """A client to this Bench."""
+    """A client to a Bench."""
 
     metatype: "ObjectType" = betterproto.enum_field(1)
     id: str = betterproto.string_field(2)
@@ -2029,6 +2041,7 @@ class ClientData(betterproto.Message):
     created_by_ptr: Optional["NodeReferenceData"] = betterproto.message_field(17, optional=True)
     updated_by_ptr: Optional["NodeReferenceData"] = betterproto.message_field(18, optional=True)
     set_properties: List[int] = betterproto.int32_field(22)
+    type: "ClientType" = betterproto.enum_field(30)
     name: str = betterproto.string_field(32)
     device_name: Optional[str] = betterproto.string_field(40, optional=True)
     device_type: Optional[str] = betterproto.string_field(41, optional=True)
@@ -2292,7 +2305,7 @@ class LinkData(betterproto.Message):
 class LogData(betterproto.Message):
     """
     A Log (entry) is a timestamped event of something happening:
-     a message, a Request / an Access (read, edit, use), ...
+     an unstructured message, an 'event', a Request / an Access (read, edit, use), ...
     """
 
     metatype: "ObjectType" = betterproto.enum_field(1)
@@ -2315,9 +2328,9 @@ class LogData(betterproto.Message):
     title: Optional[str] = betterproto.string_field(34, optional=True)
     text: Optional["TextData"] = betterproto.message_field(35, optional=True)
     value_packed: Optional["betterproto_lib_google_protobuf.Struct"] = betterproto.message_field(
-        36, optional=True
+        37, optional=True
     )
-    request: Optional["RequestData"] = betterproto.message_field(37, optional=True)
+    request: Optional["RequestData"] = betterproto.message_field(39, optional=True)
     session_ptr: Optional["NodeReferenceData"] = betterproto.message_field(40, optional=True)
     run_ptr: Optional["NodeReferenceData"] = betterproto.message_field(41, optional=True)
     block_ptr: Optional["NodeReferenceData"] = betterproto.message_field(42, optional=True)
@@ -2611,9 +2624,7 @@ class RunData(betterproto.Message):
     updated_by_ptr: Optional["NodeReferenceData"] = betterproto.message_field(18, optional=True)
     set_properties: List[int] = betterproto.int32_field(22)
     kind: "RunKind" = betterproto.enum_field(30)
-    session_ptr: "NodeReferenceData" = betterproto.message_field(31)
     root_ptr: Optional["NodeReferenceData"] = betterproto.message_field(32, optional=True)
-    server_ptr: Optional["NodeReferenceData"] = betterproto.message_field(33, optional=True)
     block_ptr: Optional["NodeReferenceData"] = betterproto.message_field(34, optional=True)
     step_ptr: Optional["NodeReferenceData"] = betterproto.message_field(35, optional=True)
     code: Optional["CodeData"] = betterproto.message_field(36, optional=True)
@@ -2643,6 +2654,10 @@ class RunData(betterproto.Message):
         "betterproto_lib_google_protobuf.Struct"
     ] = betterproto.message_field(55, optional=True)
     error: Optional["RunErrorData"] = betterproto.message_field(56, optional=True)
+    session_ptr: Optional["NodeReferenceData"] = betterproto.message_field(60, optional=True)
+    client_ptr: Optional["NodeReferenceData"] = betterproto.message_field(61, optional=True)
+    server_ptr: Optional["NodeReferenceData"] = betterproto.message_field(62, optional=True)
+    user_ptr: Optional["NodeReferenceData"] = betterproto.message_field(63, optional=True)
 
 
 @dataclass(eq=False, repr=False)
@@ -2699,12 +2714,14 @@ class SessionData(betterproto.Message):
     created_by_ptr: Optional["NodeReferenceData"] = betterproto.message_field(17, optional=True)
     updated_by_ptr: Optional["NodeReferenceData"] = betterproto.message_field(18, optional=True)
     set_properties: List[int] = betterproto.int32_field(22)
-    server_ptr: Optional["NodeReferenceData"] = betterproto.message_field(31, optional=True)
     opened_at: Optional[datetime] = betterproto.message_field(32, optional=True)
     closed_at: Optional[datetime] = betterproto.message_field(33, optional=True)
     duration: Optional[float] = betterproto.float_field(34, optional=True)
     is_runtime: bool = betterproto.bool_field(40)
     is_readonly: bool = betterproto.bool_field(41)
+    server_ptr: Optional["NodeReferenceData"] = betterproto.message_field(61, optional=True)
+    client_ptr: Optional["NodeReferenceData"] = betterproto.message_field(62, optional=True)
+    user_ptr: Optional["NodeReferenceData"] = betterproto.message_field(63, optional=True)
 
 
 @dataclass(eq=False, repr=False)
@@ -2861,9 +2878,7 @@ class StoreData(betterproto.Message):
 
 @dataclass(eq=False, repr=False)
 class TriggerData(betterproto.Message):
-    """
-    Trigger(parent: 'Block' = None, type: bench.language.const.TriggerType = <factory>, name: str = <factory>, active: bool = True, schedule: Optional[bench.language.trigger.Schedule] = None, signal: Optional[ForwardRef('Block')] = None, notices: bench.language.graph.NodeList['Notice'] = None, id: uuid.UUID = None, set_properties: list[int] = <factory>, _status: bench.language.const.InterpStatus = None, _updated_properties: bitarray.bitarray | None = None, ck: uuid.UUID = None, revision: int = 0, created_at: datetime.datetime = None, updated_at: datetime.datetime = None, deleted_at: Optional[datetime.datetime] = None, archived_at: Optional[datetime.datetime] = None, created_by: Union[ForwardRef('User'), ForwardRef('Run'), NoneType] = None, updated_by: Union[ForwardRef('User'), ForwardRef('Run'), NoneType] = None, links: bench.language.graph.NodeList['Link'] = None, _graph: Union[ForwardRef('NodeGraph'), ForwardRef('DetachedNodeGraph'), NoneType] = None, _data_graph: Optional[ForwardRef('NodeDataGraph')] = None, _session: Optional[ForwardRef('Session')] = None, _is_new: bool = False, parent_ptr: 'NodeReference' = None, signal_ptr: 'NodeReference' = None, created_by_ptr: 'NodeReference' = None, updated_by_ptr: 'NodeReference' = None)
-    """
+    """A trigger to a node."""
 
     metatype: "ObjectType" = betterproto.enum_field(1)
     id: str = betterproto.string_field(2)
@@ -2884,6 +2899,7 @@ class TriggerData(betterproto.Message):
     active: bool = betterproto.bool_field(32)
     schedule: Optional["ScheduleData"] = betterproto.message_field(33, optional=True)
     signal_ptr: Optional["NodeReferenceData"] = betterproto.message_field(34, optional=True)
+    condition: Optional["ExpressionData"] = betterproto.message_field(35, optional=True)
 
 
 @dataclass(eq=False, repr=False)
@@ -4767,7 +4783,7 @@ class RuntimeBase(ServiceBase):
 
 from typing import TYPE_CHECKING  # noqa: E402
 
-VERSION = "2024.05.07.0"
+VERSION = "2024.05.07.2"
 
 if TYPE_CHECKING:
     from bench.language import Subject
