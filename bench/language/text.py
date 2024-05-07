@@ -165,6 +165,16 @@ class Text(Struct):
         return markdown_to_text(markdown)
 
 
+TextIn = Text | str
+
+
+def to_text(text: TextIn) -> Text:
+    if isinstance(text, str):
+        return Text.from_markdown(text)
+    else:
+        return text
+
+
 _MD_PREFIX_BY_LINE_TYPE: dict[TextLineType, str] = {
     # in order of precedence
     TextLineType.HEADING_SMALL: "### ",

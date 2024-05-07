@@ -4,9 +4,9 @@ import pytest
 
 from bench.language import Bench, Environment, NodeReference, Property, Server, Signal
 from bench.language.const import BlockType, InterpStatus, NodeType
+from bench.language.resource import Client
 from bench.language.setup import NODE_CLASSES, STRUCT_CLASSES
 from bench.language.test.fabricator import Fabricator
-from bench.language.user import Client
 
 
 def test_struct_regular_properties_are_available():

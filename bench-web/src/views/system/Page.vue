@@ -303,14 +303,20 @@ defineExpose<ViewExposed>({ self, actions, focus });
         >
           <!-- Left gutter -->
           <div
-            class="relative flex-shrink-0"
+            class="relative flex-shrink-0 px-1.5 text-right"
             :style="{
               width: widths.gutter + DEPTH_OFFSET * depth + 'px',
-              marginTop: depth != 0 ? NESTED_BLOCK_GAP_Y + 'px' : '0',
+              marginTop: (depth != 0 ? NESTED_BLOCK_GAP_Y : 0) + 7 + 'px',
             }"
           >
-            <!-- References -->
-            <!-- ... -->
+            <!-- Activity / Run / ... -->
+            <!-- Run -->
+            <i
+              v-if="RUNNABLE_BLOCK_TYPES.includes(block.type)"
+              role="button"
+              class="far fa-play text-gray-400 hover:text-primary-900"
+              data-keep-inspection-in-base="true"
+            />
           </div>
 
           <!-- Block wrapper -->
@@ -400,20 +406,13 @@ defineExpose<ViewExposed>({ self, actions, focus });
 
           <!-- Right gutter -->
           <div
-            class="relative mx-0.5 flex-shrink-0"
+            class="relative px-1.5 flex-shrink-0"
             :style="{
               width: widths.gutter,
-              marginTop: (depth != 0 ? NESTED_BLOCK_GAP_Y : 0) + 6 + 'px',
+              marginTop: (depth != 0 ? NESTED_BLOCK_GAP_Y : 0) + 7 + 'px',
             }"
           >
-            <!-- Activity / Notices / ... -->
-            <!-- Run -->
-            <i
-              v-if="RUNNABLE_BLOCK_TYPES.includes(block.type)"
-              role="button"
-              class="fas fa-play text-gray-400 hover:text-primary-900"
-              data-keep-inspection-in-base="true"
-            />
+            <!-- References / Notices / ... -->
           </div>
         </div>
 

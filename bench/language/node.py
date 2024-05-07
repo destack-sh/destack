@@ -1266,6 +1266,21 @@ class Struct(abc.ABC, Generic[StructDataT]):
                 if self.parent is not None:
                     self.parent._updated_component(properties)
 
+    _call_component = _make_component_dunder_method(_ComponentMethod.call)
+    _iter_component = _make_component_dunder_method(_ComponentMethod.iter)
+    _aiter_component = _make_component_dunder_method(_ComponentMethod.aiter)
+    _len_component = _make_component_dunder_method(_ComponentMethod.len)
+    _getitem_component = _make_component_dunder_method(_ComponentMethod.getitem)
+
+    __call__ = _call_component
+    __iter__ = _iter_component
+    __aiter__ = _aiter_component
+    __len__ = _len_component
+    __getitem__ = _getitem_component
+
+    def __bool__(self):
+        return True  # allow truthy checks for structs
+
     @final
     def _init_self(self):
         for meth in _get_component_methods(
@@ -1710,18 +1725,6 @@ class Node(Struct[NodeDataT], Generic[NodeDataT]):
     def _untrack_component(self) -> None:
         """Stop tracking this object."""
         self._session = None
-
-    _call_component = _make_component_dunder_method(_ComponentMethod.call)
-    _iter_component = _make_component_dunder_method(_ComponentMethod.iter)
-    _aiter_component = _make_component_dunder_method(_ComponentMethod.aiter)
-    _len_component = _make_component_dunder_method(_ComponentMethod.len)
-    _getitem_component = _make_component_dunder_method(_ComponentMethod.getitem)
-
-    __call__ = _call_component
-    __iter__ = _iter_component
-    __aiter__ = _aiter_component
-    __len__ = _len_component
-    __getitem__ = _getitem_component
 
     def __bool__(self):
         return True  # allow truthy checks for nodes

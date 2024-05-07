@@ -123,7 +123,7 @@ class Block(Node[BlockData], HasValues):
     icon: Optional["Icon"] = p_regular(
         38, default=None, require=False, array=False, struct=StructType.ICON
     )
-    visibility: Optional[Visibility] = p_regular(39, require=False, default=Visibility.PUBLIC)
+    visibility: Optional[Visibility] = p_regular(39, require=False)
     value_packed: Any = p_value_packed(40)
     secret_value_packed: Any | None = p_secret_value_packed(41)
     value = p_value_runtime(40, 41)

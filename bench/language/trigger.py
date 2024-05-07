@@ -1,6 +1,6 @@
 from collections import deque
 from datetime import datetime
-from typing import TYPE_CHECKING, Any, Deque, Optional, cast
+from typing import TYPE_CHECKING, Any, Deque, Optional, Union, cast
 
 import pytz
 from croniter import croniter
@@ -14,7 +14,7 @@ from bench.language.validation import NAME_CONSTRAINT, ValidationHandler
 from bench.proto.wire import TriggerData
 
 if TYPE_CHECKING:
-    from bench.language.block import Block
+    from bench.language import Block, Expression, Step
 
 # pyright: reportIncompatibleVariableOverride=false,reportIncompatibleMethodOverride=false
 
@@ -45,7 +45,9 @@ class Schedule(Struct):
 
 @node(NodeType.TRIGGER)
 class Trigger(Node[TriggerData]):
-    parent: "Block" = p_node_parent(4, NodeType.BLOCK)  # type: ignore
+    """A trigger to a node."""
+
+    parent: Union["Block", "Step"] = p_node_parent(4, NodeType.BLOCK, NodeType.STEP)
     type: TriggerType = p_regular(30, require=True)
     name: str = p_regular(31, constraint=NAME_CONSTRAINT)
     active: bool = p_regular(32, default=True)
@@ -55,7 +57,9 @@ class Trigger(Node[TriggerData]):
     signal: Optional["Block"] = p_regular(
         34, default=None, require=False, array=False, references=NodeType.BLOCK
     )
-    # cursor, filter, ...
+    condition: Optional["Expression"] = p_regular(
+        35, default=None, require=False, array=False, struct=StructType.EXPRESSION
+    )
 
     notices: NodeList["Notice"] = p_node_child(NodeType.NOTICE)
 
@@ -70,7 +74,7 @@ class Trigger(Node[TriggerData]):
 
 
 class ScheduleIterator:
-    """Iterator through a Schedule."""
+    """Iterate through a Schedule."""
 
     def __init__(self, schedule: Schedule, initial_now: datetime, keep: int = 10):
         self.schedule = schedule
