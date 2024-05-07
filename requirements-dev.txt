@@ -4,10 +4,8 @@ aiohttp==3.8.5
     # via
     #   kubernetes-asyncio
     #   openai
-    #   opensearch-py
 aiosignal==1.3.1
     # via aiohttp
-aiostream==0.4.5
 anyio==4.3.0
     # via starlette
 asgiref==3.7.2
@@ -36,7 +34,6 @@ certifi==2024.2.2
     # via
     #   kubernetes
     #   kubernetes-asyncio
-    #   opensearch-py
     #   requests
     #   sentry-sdk
 cfgv==3.4.0
@@ -104,9 +101,6 @@ jmespath==1.0.1
     # via
     #   boto3
     #   botocore
-json-stream==2.2.1
-json-stream-rs-tokenizer==0.4.26
-    # via json-stream
 kiwisolver==1.4.5
     # via matplotlib
 kubernetes==27.2.0
@@ -144,7 +138,6 @@ oauthlib==3.2.2
     #   kubernetes
     #   requests-oauthlib
 openai==0.28.1
-opensearch-py==2.3.1
 packaging==23.2
     # via
     #   black
@@ -184,7 +177,6 @@ pycodestyle==2.11.1
     # via
     #   flake8
     #   flake8-import-order
-pydub==0.25.1
 pyflakes==3.1.0
     # via flake8
 pygments==2.17.2
@@ -208,7 +200,6 @@ python-dateutil==2.8.2
     #   kubernetes
     #   kubernetes-asyncio
     #   matplotlib
-    #   opensearch-py
     #   posthog
 python-dotenv==1.0.1
 pytz==2022.1
@@ -222,7 +213,6 @@ requests==2.31.0
     # via
     #   kubernetes
     #   openai
-    #   opensearch-py
     #   posthog
     #   requests-oauthlib
 requests-oauthlib==1.3.1
@@ -247,7 +237,6 @@ six==1.16.0
     # via
     #   kubernetes
     #   kubernetes-asyncio
-    #   opensearch-py
     #   posthog
     #   python-dateutil
 sniffio==1.3.1
@@ -274,7 +263,6 @@ urllib3==1.26.18
     #   botocore
     #   kubernetes
     #   kubernetes-asyncio
-    #   opensearch-py
     #   requests
     #   sentry-sdk
 uvicorn==0.23.2

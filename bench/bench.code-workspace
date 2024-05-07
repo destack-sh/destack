@@ -6,6 +6,7 @@
 	],
 	"settings": {
 		"editor.tabSize": 4,
+		"editor.rulers": [ 100 ],
 		"workbench.colorTheme": "Night Owl (No Italics)",
 		"search.exclude": {
 			"**/*.ts": true,

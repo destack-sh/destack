@@ -1,27 +1,24 @@
 # Run ./scripts/update-requirements.sh to update downstream requirements
 
 aiohttp==3.8.5
-aiostream==0.4.5
 asgiref==3.7.2
 betterproto==2.0.0-beta6
 bitarray==2.9.2
 boto3==1.26.125
 botocore==1.29.125
+black==23.7.0
 cachetools==5.2.0
 croniter==1.4.1
 googleapis-common-protos==1.62.0
-json-stream==2.2.1
 kubernetes-asyncio==24.2.3
 kubernetes==27.2.0
 more-itertools==9.0.0
 numpy<2,>=1.20.0
 openai==0.28.1
-opensearch-py[async]==2.3.1
 Pillow==9.4.0
 posthog==3.0.2
 protobuf==4.24.3
 psycopg[binary,pool]==3.1.12
-pydub==0.25.1
 python-dotenv>=1.0.1
 pytz==2022.1
 redis[hiredis]==4.5.4

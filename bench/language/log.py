@@ -45,7 +45,7 @@ class LogLevel(IdEnum):
 class Log(Node, HasValues):
     """
     A Log (entry) is a timestamped event of something happening:
-     a message, some Access (read, edit, use), etc.
+     a message, a Request / an Access (read, edit, use), ...
     """
 
     parent: "Package" = p_node_parent(4, NodeType.PACKAGE)
