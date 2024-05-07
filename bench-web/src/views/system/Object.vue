@@ -39,6 +39,7 @@ const buttonRef: Ref<HTMLButtonElement | null> = ref(null);
 const componentRefs: Ref<Record<string, ViewComponent | null>> = ref({});
 const width = computed(() => Math.max(MIN_WIDTH, props.size?.width ?? DEFAULT_WIDTH));
 
+const hasValue = computed(() => props.modelValue != null);
 const baseTypePtr = computed(() => props.valueType?.baseTypePtr as TypedNodeReferenceData<NodeType.BLOCK> | undefined);
 const { graph: pkgGraph } = props.preparedConnection ?? useExistingConnection(baseTypePtr);
 const baseType = pkgGraph.getRef(baseTypePtr);
@@ -118,23 +119,35 @@ defineExpose<ViewExposed>({ self, id, focus });
       :disabled="isDisabled"
       class="group flex w-full flex-row items-center rounded border border-gray-200 px-2.5 py-1 hover:border-gray-300 disabled:bg-gray-100 data-[menu=true]:border-gray-300"
     >
+      <!-- Icon/Type name -->
       <IconInline
         v-bind="baseType?.icon ?? ICON_BY_BLOCK_TYPE[BlockType.CLASS]"
         class="mr-1.5 w-5 text-center text-gray-700"
       />
-      <span>{{ baseType?.name ?? "???" }}</span>
+      <span :class="hasValue ? 'text-gray-900' : 'text-gray-400'">{{ baseType?.name ?? "???" }}</span>
+      <!-- TODO :UX: Object inline value preview -->
       <div class="ml-2 flex flex-row gap-x-1.5">
         <div v-for="{ field } of fieldViews.filter((f) => f.isSet)" :key="field.id">
           <span class="text-gray-400">{{ field.name }}</span>
-          <!-- TODO :UX: Object inline value preview -->
         </div>
+      </div>
+      <!-- Controls -->
+      <div class="ml-auto flex-shrink-0 pl-2">
+        <!-- Clear -->
+        <i
+          v-if="hasValue"
+          role="button"
+          class="fas fa-xmark-circle text-gray-400 opacity-0 hover:text-primary-900 group-hover:opacity-100"
+          @click.stop="emit('update:modelValue', null)"
+        />
       </div>
     </div>
 
     <!-- Inline Object -->
     <div v-else>
       <!-- Header? -->
-      <div class="w-full border-b px-2.5 py-1">
+      <div class="flex w-full flex-row border-b px-2.5 py-1">
+        <!-- Icon/Type name -->
         <span>
           <IconInline
             v-bind="baseType?.icon ?? ICON_BY_BLOCK_TYPE[BlockType.CLASS]"
@@ -142,7 +155,18 @@ defineExpose<ViewExposed>({ self, id, focus });
           />
           <span class="font-semibold">{{ baseType?.name }}</span>
         </span>
+        <!-- Controls -->
+        <div class="ml-auto flex-shrink-0 pl-2 pr-2">
+          <!-- Clear -->
+          <i
+            v-if="hasValue"
+            role="button"
+            class="fas fa-xmark-circle text-gray-400 hover:text-primary-900"
+            @click.stop="emit('update:modelValue', null)"
+          />
+        </div>
       </div>
+      <!-- Fields -->
       <ul class="flex w-full flex-col gap-y-2.5 py-3" :style="{ width: width + 'px' }">
         <li
           v-for="{ field, storageKey, value, viewType, component, isFullWidth, viewProps } of fieldViews"

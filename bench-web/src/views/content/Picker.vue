@@ -6,6 +6,7 @@ import {
   NodeType,
   ObjectType,
   Orientation,
+  TypeKind,
   Variant,
   ViewData,
   ViewType,
@@ -65,8 +66,13 @@ const queryRef: Ref<HTMLInputElement | null> = ref(null);
 const activeResultId: Ref<string | null> = ref(null);
 const width = computed(() => Math.max(MIN_WIDTH, props.size?.width ?? DEFAULT_WIDTH));
 
+const baseType = pkgGraph.getRef(
+  computed(() => props.valueType?.baseTypePtr as TypedNodeReferenceData<NodeType.BLOCK> | undefined),
+);
 const facetName = computed(() => {
-  if (props.valueType?.benchType != null) {
+  if (props.valueType?.kind == TypeKind.BASED_NODE && baseType.value != null) {
+    return baseType.value.name;
+  } else if (props.valueType?.benchType != null) {
     return toCamelName(BenchType, props.valueType.benchType);
   } else {
     return null;
@@ -87,6 +93,7 @@ const index: Ref<SearchIndex<any>> = computed(() => {
   } else if (isNodeType(props.valueType?.benchType)) {
     let roots: AnyNodeData[] | undefined = undefined;
     if (props.valueType.baseTypePtr != null) {
+      // based node
       const base = pkgGraph.get(props.valueType.baseTypePtr);
       if (base != null) roots = [base];
     }
@@ -175,12 +182,23 @@ defineExpose<ViewExposed>({ self, id, variants: [Variant.PRIMARY, Variant.COMPAC
       :disabled="props.isDisabled"
       class="group flex w-full flex-row items-center rounded border border-gray-200 px-2.5 py-1 hover:border-gray-300 disabled:bg-gray-100 data-[menu=true]:border-gray-300"
     >
+      <!-- Current value -->
       <template v-if="modelValue != null">
         <IconInline v-if="modelValueIcon" v-bind="modelValueIcon" class="mr-1.5 w-5 text-gray-700" />
         <span class="truncate">{{ modelValueTitle ?? "???" }}</span>
       </template>
       <span v-else class="truncate text-gray-400 group-hover:text-gray-700">{{ facetName ?? "Select" }}</span>
-      <i class="fas fa-caret-down ml-auto pl-1.5 text-gray-400" />
+      <!-- Controls -->
+      <div class="ml-auto flex-shrink-0 pl-1.5">
+        <!-- Clear -->
+        <i
+          v-if="modelValue != null && !valueType?.isRequired"
+          role="button"
+          class="fas fa-xmark-circle mr-2 text-gray-400 opacity-0 hover:text-primary-900 group-hover:opacity-100"
+          @click.stop="emit('update:modelValue', null)"
+        />
+        <i class="fas fa-caret-down ml-auto text-gray-400" />
+      </div>
     </button>
 
     <!-- Inline Multi-Toggle -->
@@ -196,7 +214,7 @@ defineExpose<ViewExposed>({ self, id, variants: [Variant.PRIMARY, Variant.COMPAC
         :data-selected="isSelected(item)"
         :disabled="props.isDisabled"
         class="group flex-1 flex-shrink-0 truncate rounded px-0.5 text-center font-medium hover:text-primary-900 enabled:text-gray-600 disabled:text-gray-400 data-[selected=true]:bg-white data-[selected=true]:text-gray-700"
-        @click.prevent="fire(item)"
+        @click.prevent="!isSelected(item) || valueType?.isRequired ? fire(item) : apply(null)"
       >
         <IconInline
           v-if="variant == Variant.STEALTH && item.icon"
@@ -260,7 +278,10 @@ defineExpose<ViewExposed>({ self, id, variants: [Variant.PRIMARY, Variant.COMPAC
                 <!-- Checked -->
                 <i v-if="isSelected(item)" class="fas fa-check flex-shrink-0 pl-2 pr-1 text-gray-700" />
                 <!-- Path -->
-                <span v-if="'path' in item" class="truncate pl-2 text-gray-500">
+                <span
+                  v-if="valueType?.kind != TypeKind.BASED_NODE && 'path' in item"
+                  class="truncate pl-2 text-gray-500"
+                >
                   <span v-html="item.pathMarked ?? item.path" />
                 </span>
               </span>

@@ -413,8 +413,10 @@ defineExpose<ViewExposed>({ self, actions, focus });
     </div>
     <div v-else class="flex h-full w-full flex-col justify-center bg-white text-center">
       <!-- Missing state -->
-      <i class="fas fa-empty-set text-gray-500" />
-      <span class="text-gray-600">Select Node to Inspect</span>
+      <span>
+        <i class="fas fa-empty-set text-gray-500" />
+        <span class="ml-1.5 text-gray-600">Select Node to Inspect</span>
+      </span>
     </div>
   </Scroll>
 </template>

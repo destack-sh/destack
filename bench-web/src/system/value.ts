@@ -89,7 +89,7 @@ const VIEW_TYPE_BY_PRIMITIVE_TYPE: Partial<Record<PrimitiveType, ViewType>> = {
   [PrimitiveType.JSON]: ViewType.JSON,
 };
 
-export function getViewForValueType(type: TypeIdentity): {
+export function getViewForValueType(type: TypeIdentity & Partial<TypeInfoData>): {
   viewType: ViewType;
   props?: ViewProps;
 } | null {
@@ -354,7 +354,9 @@ export function packValue(
     throw new Error(`unresolved type ${describeTypeIdentity(type)}`);
   } else if (type.kind == TypeKind.OBJECT) {
     // nested object
-    if (!type.isList) {
+    if (value == null) {
+      return { valuePacked: null, secretValuePacked: undefined };
+    } else if (!type.isList) {
       return _packObjectScalar(value, type, graph);
     } else {
       const valuePacked: JsonValue[] = [];
@@ -395,8 +397,10 @@ export function unpackValue(
     throw new Error(`unresolved type ${describeTypeIdentity(type)}`);
   } else if (type.kind == TypeKind.OBJECT) {
     // nested object
-    if (!type.isList) {
-      return _unpackObjectScalar(packed.valuePacked!, packed.secretValuePacked, type, graph);
+    if (packed.valuePacked == null) {
+      return null;
+    } else if (!type.isList) {
+      return _unpackObjectScalar(packed.valuePacked, packed.secretValuePacked, type, graph);
     } else {
       if (!Array.isArray(packed.valuePacked)) {
         throw new Error(`expected array for list type ${describeTypeIdentity(type)}`);
