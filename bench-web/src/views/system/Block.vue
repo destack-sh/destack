@@ -259,9 +259,9 @@ defineExpose<ViewExposed>({ self, id, variants: [Variant.PRIMARY, Variant.STEALT
             ? undefined
             : unpackValue(
                 {
-                  valuePacked: block?.valuePacked == null ? {} : ProtoStruct.toJson(block.valuePacked),
+                  valuePacked: block?.valuePacked == null ? null : ProtoStruct.toJson(block.valuePacked),
                   secretValuePacked:
-                    block?.secretValuePacked == null ? {} : ProtoStruct.toJson(block.secretValuePacked),
+                    block?.secretValuePacked == null ? null : ProtoStruct.toJson(block.secretValuePacked),
                 },
                 block!.builtinBase,
                 pkgGraph,
@@ -275,14 +275,19 @@ defineExpose<ViewExposed>({ self, id, variants: [Variant.PRIMARY, Variant.STEALT
                 valuePacked: ProtoStruct.fromJson(packed.valuePacked),
                 secretValuePacked: ProtoStruct.fromJson(packed.secretValuePacked),
               });
-            } else {
+            } else if (packed.valuePacked != null) {
               pkgConnection.tx.updateDebounced(block!, { valuePacked: ProtoStruct.fromJson(packed.valuePacked) });
+            } else {
+              pkgConnection.tx.updateDebounced(block!, { valuePacked: undefined, secretValuePacked: undefined });
             }
           }
         "
       />
       <Type
-        v-if="TYPE_BLOCK_TYPES.includes(block.type) || (RUNNABLE_BLOCK_TYPES.includes(block.type) && hasFunctionFields)"
+        v-if="
+          [BlockType.CLASS, BlockType.CHOICE, BlockType.SIGNAL].includes(block.type) ||
+          (RUNNABLE_BLOCK_TYPES.includes(block.type) && hasFunctionFields)
+        "
         :node="block"
         :prepared-connection="pkgGetConnection"
         :node-ptr="nodePtr"

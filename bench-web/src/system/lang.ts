@@ -47,6 +47,7 @@ import { ENUM_ICONS_BY_TYPE, getNodeIcon, makeIcon } from "@/system/icon";
 import type { Transaction } from "@/system/transaction";
 import { getViewForValueType, makeTypeInfo, type TypeIdentity } from "@/system/value";
 import { generateOrderKey, generateOrderKeys, isValidOrderKey } from "@/utils/fractional";
+import { log } from "@/utils/log";
 import { Casing, toCasing } from "@/utils/string";
 import { getRandomColorType } from "@/utils/style";
 import type { ViewProps } from "@/views/common";
@@ -314,7 +315,9 @@ export function fixOrderKeys<T extends AnyNodeData & { orderKey: string }>(tx: T
 }
 
 export function toCamelName<T extends object>(cls: T, key: any) {
-  return toCasing(cls[key as keyof T] as string, Casing.CAMEL, true);
+  const name = cls[key as keyof T] as string;
+  if (name == null) throw new Error(`invalid key into ${cls}: ${key}`);
+  return toCasing(name, Casing.CAMEL, true);
 }
 
 /** Extracts the last (potentially multi-digit) characters as an integer */
@@ -735,14 +738,14 @@ function getInspectionInfo(metatype: ObjectType, type: any): Record<string, Insp
           replace: () => ({
             title: "Type",
             viewType: ViewType.PICKER,
-            props: { valueType: makeTypeInfo({ benchType: BenchType.TYPE_INFO }) },
+            props: { valueType: makeTypeInfo({ isRequired: true, benchType: BenchType.TYPE_INFO }) },
             read: (node: FieldData) => node,
-            write: (tx: Transaction, node: FieldData, value: TypeIdentity) => {
+            write: (tx: Transaction, node: FieldData, value: TypeIdentity | null) => {
               tx.updateDebounced(node, {
-                kind: value.kind,
-                primitiveType: value.primitiveType,
-                benchType: value.benchType,
-                baseTypePtr: value.baseTypePtr,
+                kind: value?.kind,
+                primitiveType: value?.primitiveType,
+                benchType: value?.benchType,
+                baseTypePtr: value?.baseTypePtr,
               });
             },
           }),
@@ -768,14 +771,17 @@ function getInspectionInfo(metatype: ObjectType, type: any): Record<string, Insp
           viewType: ViewType.PICKER,
           props: { valueType: makeTypeInfo({ benchType: BenchType.TYPE_INFO }) },
           read: (node: AnyNodeData) => (node as BlockData).builtinBase,
-          write: (tx: Transaction, node: AnyNodeData, value: TypeIdentity) => {
+          write: (tx: Transaction, node: AnyNodeData, value: TypeIdentity | null) => {
             tx.updateDebounced(node as BlockData, {
-              builtinBase: makeTypeInfo({
-                kind: value.kind,
-                primitiveType: value.primitiveType,
-                benchType: value.benchType,
-                baseTypePtr: value.baseTypePtr,
-              }),
+              builtinBase:
+                value == null
+                  ? undefined
+                  : makeTypeInfo({
+                      kind: value.kind,
+                      primitiveType: value.primitiveType,
+                      benchType: value.benchType,
+                      baseTypePtr: value.baseTypePtr,
+                    }),
             });
           },
         }),
@@ -864,6 +870,7 @@ export function getInspectionLayout(
             benchType: (property.enumType ?? property.referenceNodes?.[0] ?? property.referenceStruct) as unknown as
               | BenchType
               | undefined,
+            isRequired: property.isRequired ?? false,
             isList: property.isList ?? false,
             isSecret: property.isEncrypted ?? false,
           });
@@ -872,8 +879,9 @@ export function getInspectionLayout(
           inspectedProperty.viewType = viewType;
           inspectedProperty.props = { ...props, isInput: true };
           inspectedProperty.isFullWidth = FULL_WIDTH_VIEW_TYPES.includes(viewType);
-        } catch {
+        } catch (e) {
           // will show missing component
+          log.warn("lang.missingView", property, e);
         }
         inspectedProperties.push(inspectedProperty);
       }
