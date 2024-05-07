@@ -156,7 +156,7 @@ enum BenchType {
   BENCH_TYPE_STRUCT_TYPE = 2003;
   BENCH_TYPE_OBJECT_TYPE = 2004;
   BENCH_TYPE_BENCH_TYPE = 2005;
-  BENCH_TYPE_NODE_VISIBILITY = 2010;
+  BENCH_TYPE_VISIBILITY = 2010;
   BENCH_TYPE_ACCESS_MODE = 2030;
   BENCH_TYPE_ACCESS_KIND = 2033;
   BENCH_TYPE_READ_TYPE = 2034;
@@ -331,7 +331,7 @@ enum EnumType {
   ENUM_TYPE_STRUCT_TYPE = 2003;
   ENUM_TYPE_OBJECT_TYPE = 2004;
   ENUM_TYPE_BENCH_TYPE = 2005;
-  ENUM_TYPE_NODE_VISIBILITY = 2010;
+  ENUM_TYPE_VISIBILITY = 2010;
   ENUM_TYPE_ACCESS_MODE = 2030;
   ENUM_TYPE_ACCESS_KIND = 2033;
   ENUM_TYPE_READ_TYPE = 2034;
@@ -581,14 +581,6 @@ enum NodeType {
   NODE_TYPE_CLIENT = 223;
 }
 
-enum NodeVisibility {
-  NODE_VISIBILITY_UNSPECIFIED = 0;
-  NODE_VISIBILITY_PAGE = 4;
-  NODE_VISIBILITY_MODULE = 6;
-  NODE_VISIBILITY_BENCH = 8;
-  NODE_VISIBILITY_PUBLIC = 10;
-}
-
 // Type of diagnostic in increasing severity.
 enum NoticeKind {
   NOTICE_KIND_UNSPECIFIED = 0;
@@ -819,6 +811,7 @@ enum RunErrorKind {
 enum RunKind {
   RUN_KIND_UNSPECIFIED = 0;
   RUN_KIND_BLOCK = 1;
+  RUN_KIND_STEP = 2;
   RUN_KIND_LAMBDA = 10;
 }
 
@@ -1106,6 +1099,14 @@ enum ViewType {
   VIEW_TYPE_IMAGE = 673;
   VIEW_TYPE_VIDEO = 674;
   VIEW_TYPE_AUDIO = 675;
+}
+
+enum Visibility {
+  VISIBILITY_UNSPECIFIED = 0;
+  VISIBILITY_PAGE = 4;
+  VISIBILITY_MODULE = 6;
+  VISIBILITY_BENCH = 8;
+  VISIBILITY_PUBLIC = 10;
 }
 
 // An evaluated access on some objects as part of a larger Request (by the same subject).
@@ -1440,12 +1441,10 @@ message PolicyRuleData {
 }
 
 // A projection into the graph.
-// NOTE 'Projecting' is not quite right / complete yet, consider:
-// - How do we filter and LoD this?
-// - When do we inline out-of-line descendants (like Comments or local Records)?
-// (esp. considering some out-of-line nodes would need to be fetched async)
-// - How do we alias shadowed and anonymous nodes?
-// - How do we make projections reproducible and inspectable in the editor?
+// NOTE :Incomplete :Architecture: figure out projection
+// - how do we filter and LoD this?
+// - how do we represent unloaded nodes?
+// - how do we make projections reproducible and inspectable in the editor?
 message ProjectionData {
   ObjectType metatype = 1;
   int32 id = 2;
@@ -1512,7 +1511,7 @@ message RunCodeFrameData {
   string line = 33;
 }
 
-// RunError(kind: bench.language.const.RunErrorKind = <factory>, type: str = <factory>, message: Optional[str] = None, node: Optional[ForwardRef('Node')] = None, traceback: list[bench.language.session.RunCodeFrame] = None, id: int = <factory>, parent: Union[ForwardRef('Struct'), ForwardRef('Node'), ForwardRef('Object'), NoneType] = None, order_key: str | None = None, set_properties: list[int] = <factory>, _status: bench.language.const.InterpStatus = None, _updated_properties: bitarray.bitarray | None = None, node_ptr: 'NodeReference' = None, parent_id: int = None, parent_key: str = None)
+// RunError(kind: bench.language.const.RunErrorKind = <factory>, type: str = <factory>, message: Optional[str] = None, node: Optional[ForwardRef('Node')] = None, traceback: list[bench.language.run.RunCodeFrame] = None, id: int = <factory>, parent: Union[ForwardRef('Struct'), ForwardRef('Node'), ForwardRef('Object'), NoneType] = None, order_key: str | None = None, set_properties: list[int] = <factory>, _status: bench.language.const.InterpStatus = None, _updated_properties: bitarray.bitarray | None = None, node_ptr: 'NodeReference' = None, parent_id: int = None, parent_key: str = None)
 message RunErrorData {
   ObjectType metatype = 1;
   int32 id = 2;
@@ -1582,9 +1581,9 @@ message SubjectData {
   repeated NodeReferenceData roles_ptr = 46;
 }
 
-// Rich, markdown-inspired Text with mentions, tables & other extensions.
+// Rich, markdown-inspired Text with mentions, lists & other extensions.
 // Text is structured into lines, which contain spans.
-// Formatting may be applied at the block (Text), line and span levels.
+// Formatting can be applied at per Text, line and span.
 message TextData {
   ObjectType metatype = 1;
   int32 id = 2;
@@ -1645,7 +1644,7 @@ message TypeConstraintData {
   optional int32 max_length = 52;
 }
 
-// TypeInfo(id: int = <factory>, parent: Union[ForwardRef('Struct'), ForwardRef('Node'), ForwardRef('Object'), NoneType] = None, order_key: str | None = None, set_properties: list[int] = <factory>, _status: bench.language.const.InterpStatus = None, _updated_properties: bitarray.bitarray | None = None, kind: Optional[bench.language.const.TypeKind] = None, primitive_type: Optional[bench.language.const.PrimitiveType] = None, bench_type: Optional[bench.utils.func.BenchType] = None, base_type: Union[ForwardRef('Block'), ForwardRef('Step'), NoneType] = None, base_field_zone: Optional[ForwardRef('FieldZone')] = None, default_packed: Optional[Any] = None, default: None = None, visibility: Optional[bench.language.const.NodeVisibility] = None, format_hint: Optional[bench.language.const.FormatHint] = None, condition: Optional[ForwardRef('Expression')] = None, constraint: Optional[ForwardRef('TypeConstraint')] = None, is_list: bool = False, is_secret: bool = False, is_required: bool = False, _resolved_type: Optional[ForwardRef('TypeInfoBase')] = None, _resolved_identity_key: str | None = None, _from_property: Optional[ForwardRef('Property')] = None, parent_id: int = None, parent_key: str = None, base_type_ptr: 'NodeReference' = None)
+// TypeInfo(id: int = <factory>, parent: Union[ForwardRef('Struct'), ForwardRef('Node'), ForwardRef('Object'), NoneType] = None, order_key: str | None = None, set_properties: list[int] = <factory>, _status: bench.language.const.InterpStatus = None, _updated_properties: bitarray.bitarray | None = None, kind: Optional[bench.language.const.TypeKind] = None, primitive_type: Optional[bench.language.const.PrimitiveType] = None, bench_type: Optional[bench.utils.func.BenchType] = None, base_type: Union[ForwardRef('Block'), ForwardRef('Step'), NoneType] = None, base_field_zone: Optional[ForwardRef('FieldZone')] = None, default_packed: Optional[Any] = None, default: None = None, visibility: Optional[bench.language.const.Visibility] = None, format_hint: Optional[bench.language.const.FormatHint] = None, condition: Optional[ForwardRef('Expression')] = None, constraint: Optional[ForwardRef('TypeConstraint')] = None, is_list: bool = False, is_secret: bool = False, is_required: bool = False, _resolved_type: Optional[ForwardRef('TypeInfoBase')] = None, _resolved_identity_key: str | None = None, _from_property: Optional[ForwardRef('Property')] = None, parent_id: int = None, parent_key: str = None, base_type_ptr: 'NodeReference' = None)
 message TypeInfoData {
   ObjectType metatype = 1;
   int32 id = 2;
@@ -1659,7 +1658,7 @@ message TypeInfoData {
   optional NodeReferenceData base_type_ptr = 43;
   optional FieldZone base_field_zone = 44;
   optional google.protobuf.Struct default_packed = 50;
-  optional NodeVisibility visibility = 52;
+  optional Visibility visibility = 52;
   optional FormatHint format_hint = 53;
   optional ExpressionData condition = 54;
   optional TypeConstraintData constraint = 55;
@@ -1757,7 +1756,7 @@ message BlockData {
   optional TypeInfoData builtin_base = 36;
   optional TextData text = 37;
   optional IconData icon = 38;
-  optional NodeVisibility visibility = 39;
+  optional Visibility visibility = 39;
   optional google.protobuf.Struct value_packed = 40;
   optional google.protobuf.Struct secret_value_packed = 41;
   optional CodeData code = 42;
@@ -1938,7 +1937,7 @@ message FieldData {
   optional NodeReferenceData base_type_ptr = 43;
   optional FieldZone base_field_zone = 44;
   optional google.protobuf.Struct default_packed = 50;
-  optional NodeVisibility visibility = 52;
+  optional Visibility visibility = 52;
   optional FormatHint format_hint = 53;
   optional ExpressionData condition = 54;
   optional TypeConstraintData constraint = 55;
@@ -2052,7 +2051,7 @@ message LinkData {
 }
 
 // A Log (entry) is a timestamped event of something happening:
-// a message, some Access (read, edit, use), etc.
+// a message, a Request / an Access (read, edit, use), ...
 message LogData {
   ObjectType metatype = 1;
   string id = 2;
@@ -2307,7 +2306,7 @@ message RoleData {
 
 // A 'run' of something. Can run Blocks (and Steps within them) or 'lambdas' (just Code/Text).
 // When 'running' something that's not directly runnable (like a Text Block, Text Step or Text Lambda),
-// we figure
+// we implicitly pass it to our built-in Text program.
 message RunData {
   ObjectType metatype = 1;
   string id = 2;

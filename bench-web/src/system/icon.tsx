@@ -9,7 +9,7 @@ import {
   BlockData,
   ViewData,
   EnumType,
-  NodeVisibility,
+  Visibility,
   FormatHint,
   PrimitiveType,
   StructType,
@@ -336,11 +336,11 @@ export const ICON_BY_ALIGNMENT: Partial<Record<Alignment, IconData>> = _makeIcon
   [Alignment.SPACE_BETWEEN]: "fas fa-distribute-spacing-horizontal",
 });
 
-export const ICON_BY_VISIBILITY: Partial<Record<NodeVisibility, IconData>> = _makeIcons({
-  [NodeVisibility.PAGE]: "fas fa-memo-pad",
-  [NodeVisibility.MODULE]: "fas fa-box-open",
-  [NodeVisibility.BENCH]: "fas fa-fort",
-  [NodeVisibility.PUBLIC]: "fas fa-globe",
+export const ICON_BY_VISIBILITY: Partial<Record<Visibility, IconData>> = _makeIcons({
+  [Visibility.PAGE]: "fas fa-memo-pad",
+  [Visibility.MODULE]: "fas fa-box-open",
+  [Visibility.BENCH]: "fas fa-fort",
+  [Visibility.PUBLIC]: "fas fa-globe",
 });
 
 export const ICON_BY_PRIMITIVE_TYPE: Partial<Record<PrimitiveType, IconData>> = _makeIcons({
@@ -402,7 +402,7 @@ export const ENUM_ICONS_BY_TYPE: Partial<Record<EnumType, Record<any, IconData>>
   [EnumType.BLOCK_TYPE]: ICON_BY_BLOCK_TYPE,
   [EnumType.VIEW_TYPE]: ICON_BY_VIEW_TYPE,
   [EnumType.ALIGNMENT]: ICON_BY_ALIGNMENT,
-  [EnumType.NODE_VISIBILITY]: ICON_BY_VISIBILITY,
+  [EnumType.VISIBILITY]: ICON_BY_VISIBILITY,
   [EnumType.PRIMITIVE_TYPE]: ICON_BY_PRIMITIVE_TYPE,
   [EnumType.FORMAT_HINT]: ICON_BY_FORMAT_HINT,
   [EnumType.FIELD_ZONE]: ICON_BY_FIELD_ZONE,

@@ -174,7 +174,7 @@ class BenchType(betterproto.Enum):
     STRUCT_TYPE = 2003
     OBJECT_TYPE = 2004
     BENCH_TYPE = 2005
-    NODE_VISIBILITY = 2010
+    VISIBILITY = 2010
     ACCESS_MODE = 2030
     ACCESS_KIND = 2033
     READ_TYPE = 2034
@@ -352,7 +352,7 @@ class EnumType(betterproto.Enum):
     STRUCT_TYPE = 2003
     OBJECT_TYPE = 2004
     BENCH_TYPE = 2005
-    NODE_VISIBILITY = 2010
+    VISIBILITY = 2010
     ACCESS_MODE = 2030
     ACCESS_KIND = 2033
     READ_TYPE = 2034
@@ -604,14 +604,6 @@ class NodeType(betterproto.Enum):
     CLIENT = 223
 
 
-class NodeVisibility(betterproto.Enum):
-    UNSPECIFIED = 0
-    PAGE = 4
-    MODULE = 6
-    BENCH = 8
-    PUBLIC = 10
-
-
 class NoticeKind(betterproto.Enum):
     """Type of diagnostic in increasing severity."""
 
@@ -855,6 +847,7 @@ class RunErrorKind(betterproto.Enum):
 class RunKind(betterproto.Enum):
     UNSPECIFIED = 0
     BLOCK = 1
+    STEP = 2
     LAMBDA = 10
 
 
@@ -1150,6 +1143,14 @@ class ViewType(betterproto.Enum):
     IMAGE = 673
     VIDEO = 674
     AUDIO = 675
+
+
+class Visibility(betterproto.Enum):
+    UNSPECIFIED = 0
+    PAGE = 4
+    MODULE = 6
+    BENCH = 8
+    PUBLIC = 10
 
 
 @dataclass(eq=False, repr=False)
@@ -1561,12 +1562,10 @@ class PolicyRuleData(betterproto.Message):
 class ProjectionData(betterproto.Message):
     """
     A projection into the graph.
-     NOTE 'Projecting' is not quite right / complete yet, consider:
-     - How do we filter and LoD this?
-     - When do we inline out-of-line descendants (like Comments or local Records)?
-     (esp. considering some out-of-line nodes would need to be fetched async)
-     - How do we alias shadowed and anonymous nodes?
-     - How do we make projections reproducible and inspectable in the editor?
+     NOTE :Incomplete :Architecture: figure out projection
+     - how do we filter and LoD this?
+     - how do we represent unloaded nodes?
+     - how do we make projections reproducible and inspectable in the editor?
     """
 
     metatype: "ObjectType" = betterproto.enum_field(1)
@@ -1655,7 +1654,7 @@ class RunCodeFrameData(betterproto.Message):
 @dataclass(eq=False, repr=False)
 class RunErrorData(betterproto.Message):
     """
-    RunError(kind: bench.language.const.RunErrorKind = <factory>, type: str = <factory>, message: Optional[str] = None, node: Optional[ForwardRef('Node')] = None, traceback: list[bench.language.session.RunCodeFrame] = None, id: int = <factory>, parent: Union[ForwardRef('Struct'), ForwardRef('Node'), ForwardRef('Object'), NoneType] = None, order_key: str | None = None, set_properties: list[int] = <factory>, _status: bench.language.const.InterpStatus = None, _updated_properties: bitarray.bitarray | None = None, node_ptr: 'NodeReference' = None, parent_id: int = None, parent_key: str = None)
+    RunError(kind: bench.language.const.RunErrorKind = <factory>, type: str = <factory>, message: Optional[str] = None, node: Optional[ForwardRef('Node')] = None, traceback: list[bench.language.run.RunCodeFrame] = None, id: int = <factory>, parent: Union[ForwardRef('Struct'), ForwardRef('Node'), ForwardRef('Object'), NoneType] = None, order_key: str | None = None, set_properties: list[int] = <factory>, _status: bench.language.const.InterpStatus = None, _updated_properties: bitarray.bitarray | None = None, node_ptr: 'NodeReference' = None, parent_id: int = None, parent_key: str = None)
     """
 
     metatype: "ObjectType" = betterproto.enum_field(1)
@@ -1739,9 +1738,9 @@ class SubjectData(betterproto.Message):
 @dataclass(eq=False, repr=False)
 class TextData(betterproto.Message):
     """
-    Rich, markdown-inspired Text with mentions, tables & other extensions.
+    Rich, markdown-inspired Text with mentions, lists & other extensions.
      Text is structured into lines, which contain spans.
-     Formatting may be applied at the block (Text), line and span levels.
+     Formatting can be applied at per Text, line and span.
     """
 
     metatype: "ObjectType" = betterproto.enum_field(1)
@@ -1818,7 +1817,7 @@ class TypeConstraintData(betterproto.Message):
 @dataclass(eq=False, repr=False)
 class TypeInfoData(betterproto.Message):
     """
-    TypeInfo(id: int = <factory>, parent: Union[ForwardRef('Struct'), ForwardRef('Node'), ForwardRef('Object'), NoneType] = None, order_key: str | None = None, set_properties: list[int] = <factory>, _status: bench.language.const.InterpStatus = None, _updated_properties: bitarray.bitarray | None = None, kind: Optional[bench.language.const.TypeKind] = None, primitive_type: Optional[bench.language.const.PrimitiveType] = None, bench_type: Optional[bench.utils.func.BenchType] = None, base_type: Union[ForwardRef('Block'), ForwardRef('Step'), NoneType] = None, base_field_zone: Optional[ForwardRef('FieldZone')] = None, default_packed: Optional[Any] = None, default: None = None, visibility: Optional[bench.language.const.NodeVisibility] = None, format_hint: Optional[bench.language.const.FormatHint] = None, condition: Optional[ForwardRef('Expression')] = None, constraint: Optional[ForwardRef('TypeConstraint')] = None, is_list: bool = False, is_secret: bool = False, is_required: bool = False, _resolved_type: Optional[ForwardRef('TypeInfoBase')] = None, _resolved_identity_key: str | None = None, _from_property: Optional[ForwardRef('Property')] = None, parent_id: int = None, parent_key: str = None, base_type_ptr: 'NodeReference' = None)
+    TypeInfo(id: int = <factory>, parent: Union[ForwardRef('Struct'), ForwardRef('Node'), ForwardRef('Object'), NoneType] = None, order_key: str | None = None, set_properties: list[int] = <factory>, _status: bench.language.const.InterpStatus = None, _updated_properties: bitarray.bitarray | None = None, kind: Optional[bench.language.const.TypeKind] = None, primitive_type: Optional[bench.language.const.PrimitiveType] = None, bench_type: Optional[bench.utils.func.BenchType] = None, base_type: Union[ForwardRef('Block'), ForwardRef('Step'), NoneType] = None, base_field_zone: Optional[ForwardRef('FieldZone')] = None, default_packed: Optional[Any] = None, default: None = None, visibility: Optional[bench.language.const.Visibility] = None, format_hint: Optional[bench.language.const.FormatHint] = None, condition: Optional[ForwardRef('Expression')] = None, constraint: Optional[ForwardRef('TypeConstraint')] = None, is_list: bool = False, is_secret: bool = False, is_required: bool = False, _resolved_type: Optional[ForwardRef('TypeInfoBase')] = None, _resolved_identity_key: str | None = None, _from_property: Optional[ForwardRef('Property')] = None, parent_id: int = None, parent_key: str = None, base_type_ptr: 'NodeReference' = None)
     """
 
     metatype: "ObjectType" = betterproto.enum_field(1)
@@ -1835,7 +1834,7 @@ class TypeInfoData(betterproto.Message):
     default_packed: Optional["betterproto_lib_google_protobuf.Struct"] = betterproto.message_field(
         50, optional=True
     )
-    visibility: Optional["NodeVisibility"] = betterproto.enum_field(52, optional=True)
+    visibility: Optional["Visibility"] = betterproto.enum_field(52, optional=True)
     format_hint: Optional["FormatHint"] = betterproto.enum_field(53, optional=True)
     condition: Optional["ExpressionData"] = betterproto.message_field(54, optional=True)
     constraint: Optional["TypeConstraintData"] = betterproto.message_field(55, optional=True)
@@ -1951,7 +1950,7 @@ class BlockData(betterproto.Message):
     builtin_base: Optional["TypeInfoData"] = betterproto.message_field(36, optional=True)
     text: Optional["TextData"] = betterproto.message_field(37, optional=True)
     icon: Optional["IconData"] = betterproto.message_field(38, optional=True)
-    visibility: Optional["NodeVisibility"] = betterproto.enum_field(39, optional=True)
+    visibility: Optional["Visibility"] = betterproto.enum_field(39, optional=True)
     value_packed: Optional["betterproto_lib_google_protobuf.Struct"] = betterproto.message_field(
         40, optional=True
     )
@@ -2160,7 +2159,7 @@ class FieldData(betterproto.Message):
     default_packed: Optional["betterproto_lib_google_protobuf.Struct"] = betterproto.message_field(
         50, optional=True
     )
-    visibility: Optional["NodeVisibility"] = betterproto.enum_field(52, optional=True)
+    visibility: Optional["Visibility"] = betterproto.enum_field(52, optional=True)
     format_hint: Optional["FormatHint"] = betterproto.enum_field(53, optional=True)
     condition: Optional["ExpressionData"] = betterproto.message_field(54, optional=True)
     constraint: Optional["TypeConstraintData"] = betterproto.message_field(55, optional=True)
@@ -2293,7 +2292,7 @@ class LinkData(betterproto.Message):
 class LogData(betterproto.Message):
     """
     A Log (entry) is a timestamped event of something happening:
-     a message, some Access (read, edit, use), etc.
+     a message, a Request / an Access (read, edit, use), ...
     """
 
     metatype: "ObjectType" = betterproto.enum_field(1)
@@ -2594,7 +2593,7 @@ class RunData(betterproto.Message):
     """
     A 'run' of something. Can run Blocks (and Steps within them) or 'lambdas' (just Code/Text).
      When 'running' something that's not directly runnable (like a Text Block, Text Step or Text Lambda),
-     we figure
+     we implicitly pass it to our built-in Text program.
     """
 
     metatype: "ObjectType" = betterproto.enum_field(1)
@@ -3404,24 +3403,8 @@ class PingServerResponse(betterproto.Message):
 
 
 @dataclass(eq=False, repr=False)
-class RunIntrinsicRequest(betterproto.Message):
-    path: "PathData" = betterproto.message_field(1, group="node")
-    reference: "NodeReferenceData" = betterproto.message_field(2, group="node")
-    inputs: "betterproto_lib_google_protobuf.Struct" = betterproto.message_field(3)
-    timeout_ms: int = betterproto.int32_field(4)
-    run_id: str = betterproto.string_field(5)
-    run_ck: str = betterproto.string_field(6)
-
-
-@dataclass(eq=False, repr=False)
-class RunIntrinsicResponse(betterproto.Message):
-    outputs: "betterproto_lib_google_protobuf.Struct" = betterproto.message_field(1)
-    error: Optional["RunErrorData"] = betterproto.message_field(2, optional=True)
-
-
-@dataclass(eq=False, repr=False)
 class RestartRuntimeRequest(betterproto.Message):
-    pass
+    force: bool = betterproto.bool_field(1)
 
 
 @dataclass(eq=False, repr=False)
@@ -4049,23 +4032,6 @@ class HostStub(betterproto.ServiceStub):
             metadata=metadata,
         )
 
-    async def run_intrinsic(
-        self,
-        request: "RunIntrinsicRequest",
-        *,
-        timeout: Optional[float] = None,
-        deadline: Optional["Deadline"] = None,
-        metadata: Optional["MetadataLike"] = None
-    ) -> "RunIntrinsicResponse":
-        return await self._unary_unary(
-            "/symbolx.bench.Host/RunIntrinsic",
-            request,
-            RunIntrinsicResponse,
-            timeout=timeout,
-            deadline=deadline,
-            metadata=metadata,
-        )
-
 
 class RuntimeStub(betterproto.ServiceStub):
     async def restart(
@@ -4577,11 +4543,6 @@ class HostBase(ServiceBase):
     ) -> "PingServerResponse":
         raise grpclib.GRPCError(grpclib.const.Status.UNIMPLEMENTED)
 
-    async def run_intrinsic(
-        self, subject: "Subject", request: "RunIntrinsicRequest"
-    ) -> "RunIntrinsicResponse":
-        raise grpclib.GRPCError(grpclib.const.Status.UNIMPLEMENTED)
-
     async def __rpc_get_nodes(
         self, stream: "grpclib.server.Stream[GetNodesRequest, GetNodesResponse]"
     ) -> None:
@@ -4690,13 +4651,6 @@ class HostBase(ServiceBase):
         response = await self.ping_server(request)
         await stream.send_message(response)
 
-    async def __rpc_run_intrinsic(
-        self, stream: "grpclib.server.Stream[RunIntrinsicRequest, RunIntrinsicResponse]"
-    ) -> None:
-        request = await stream.recv_message()
-        response = await self.run_intrinsic(request)
-        await stream.send_message(response)
-
     def __mapping__(self) -> Dict[str, grpclib.const.Handler]:
         return {
             "/symbolx.bench.Host/GetNodes": grpclib.const.Handler(
@@ -4783,12 +4737,6 @@ class HostBase(ServiceBase):
                 PingServerRequest,
                 PingServerResponse,
             ),
-            "/symbolx.bench.Host/RunIntrinsic": grpclib.const.Handler(
-                self.__rpc_run_intrinsic,
-                grpclib.const.Cardinality.UNARY_UNARY,
-                RunIntrinsicRequest,
-                RunIntrinsicResponse,
-            ),
         }
 
 
@@ -4819,7 +4767,7 @@ class RuntimeBase(ServiceBase):
 
 from typing import TYPE_CHECKING  # noqa: E402
 
-VERSION = "2024.05.06.0"
+VERSION = "2024.05.07.0"
 
 if TYPE_CHECKING:
     from bench.language import Subject

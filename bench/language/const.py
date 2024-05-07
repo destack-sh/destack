@@ -13,7 +13,7 @@ from bench.utils.utils import frozendict
 if typing.TYPE_CHECKING:
     from bench.language import Session, Transaction
 
-VERSION = "2024.05.06.0"
+VERSION = "2024.05.07.0"
 REVISION_PENDING = -1
 TK_LENGTH_BYTES = 8
 TK_LENGTH_B64 = 12  # 1.5 * TK_LENGTH_BYTES (must be integer)
@@ -62,7 +62,7 @@ class EnumType(IdEnum):
     STRUCT_TYPE = 2003
     OBJECT_TYPE = 2004  # NodeType | StructType
     BENCH_TYPE = 2005  # NodeType | StructType | EnumType
-    NODE_VISIBILITY = 2010
+    VISIBILITY = 2010
 
     # access
     ACCESS_MODE = 2030
@@ -406,8 +406,8 @@ class BlockTypes:
     )
 
 
-@enum_(EnumType.NODE_VISIBILITY)
-class NodeVisibility(IdEnum):
+@enum_(EnumType.VISIBILITY)
+class Visibility(IdEnum):
     # ...?
     # BLOCK = 2
     PAGE = 4

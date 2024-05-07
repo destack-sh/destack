@@ -981,7 +981,7 @@ class Struct(abc.ABC, Generic[StructDataT]):
         if other is None or self.metatype != other.metatype:
             return False
         for prop in self.__wired_properties__.values():
-            if prop.id <= 5:
+            if prop.id < 30:
                 continue  # ignore struct identity
             self_value = getattr(self, prop.name)
             other_value = getattr(other, prop.name)

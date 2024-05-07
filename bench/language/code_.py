@@ -1,4 +1,4 @@
-import typing
+from typing import TYPE_CHECKING, Any
 
 import black
 import structlog
@@ -7,7 +7,7 @@ from bench.language.const import StructType
 from bench.language.node import Struct, struct
 from bench.language.property import p_regular
 
-if typing.TYPE_CHECKING:
+if TYPE_CHECKING:
     pass
 
 logger = structlog.get_logger(__name__)
@@ -41,3 +41,21 @@ def format_code(code: str, suppress_error: bool = False) -> str:
             return code
         else:
             raise ValueError(code) from e
+
+
+def default_globals():
+    import bench.language
+    from bench.language.setup import BENCH_CLASS_BY_NAME
+
+    globals = {**vars(bench.language), **BENCH_CLASS_BY_NAME}
+    return globals
+
+
+def run_code_script(code: str, globals: dict[str, Any] | None = None) -> dict[str, Any]:
+    """Runs the code string and extracts its definitions."""
+    if globals is None:
+        globals = default_globals()
+    globals_local = {**globals}
+    exec(code, globals_local)
+    new_globals = {k: v for k, v in globals_local.items() if k not in globals}
+    return new_globals
