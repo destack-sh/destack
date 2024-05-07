@@ -928,12 +928,10 @@ export interface PolicyRuleData {
 }
 /**
  * A projection into the graph.
- * NOTE 'Projecting' is not quite right / complete yet, consider:
- * - How do we filter and LoD this?
- * - When do we inline out-of-line descendants (like Comments or local Records)?
- * (esp. considering some out-of-line nodes would need to be fetched async)
- * - How do we alias shadowed and anonymous nodes?
- * - How do we make projections reproducible and inspectable in the editor?
+ * NOTE :Incomplete :Architecture: figure out projection
+ * - how do we filter and LoD this?
+ * - how do we represent unloaded nodes?
+ * - how do we make projections reproducible and inspectable in the editor?
  *
  * @generated from protobuf message symbolx.bench.ProjectionData
  */
@@ -1144,7 +1142,7 @@ export interface RunCodeFrameData {
     line: string;
 }
 /**
- * RunError(kind: bench.language.const.RunErrorKind = <factory>, type: str = <factory>, message: Optional[str] = None, node: Optional[ForwardRef('Node')] = None, traceback: list[bench.language.session.RunCodeFrame] = None, id: int = <factory>, parent: Union[ForwardRef('Struct'), ForwardRef('Node'), ForwardRef('Object'), NoneType] = None, order_key: str | None = None, set_properties: list[int] = <factory>, _status: bench.language.const.InterpStatus = None, _updated_properties: bitarray.bitarray | None = None, node_ptr: 'NodeReference' = None, parent_id: int = None, parent_key: str = None)
+ * RunError(kind: bench.language.const.RunErrorKind = <factory>, type: str = <factory>, message: Optional[str] = None, node: Optional[ForwardRef('Node')] = None, traceback: list[bench.language.run.RunCodeFrame] = None, id: int = <factory>, parent: Union[ForwardRef('Struct'), ForwardRef('Node'), ForwardRef('Object'), NoneType] = None, order_key: str | None = None, set_properties: list[int] = <factory>, _status: bench.language.const.InterpStatus = None, _updated_properties: bitarray.bitarray | None = None, node_ptr: 'NodeReference' = None, parent_id: int = None, parent_key: str = None)
  *
  * @generated from protobuf message symbolx.bench.RunErrorData
  */
@@ -1376,9 +1374,9 @@ export interface SubjectData {
     rolesPtr: NodeReferenceData[];
 }
 /**
- * Rich, markdown-inspired Text with mentions, tables & other extensions.
+ * Rich, markdown-inspired Text with mentions, lists & other extensions.
  * Text is structured into lines, which contain spans.
- * Formatting may be applied at the block (Text), line and span levels.
+ * Formatting can be applied at per Text, line and span.
  *
  * @generated from protobuf message symbolx.bench.TextData
  */
@@ -1580,7 +1578,7 @@ export interface TypeConstraintData {
     maxLength?: number;
 }
 /**
- * TypeInfo(id: int = <factory>, parent: Union[ForwardRef('Struct'), ForwardRef('Node'), ForwardRef('Object'), NoneType] = None, order_key: str | None = None, set_properties: list[int] = <factory>, _status: bench.language.const.InterpStatus = None, _updated_properties: bitarray.bitarray | None = None, kind: Optional[bench.language.const.TypeKind] = None, primitive_type: Optional[bench.language.const.PrimitiveType] = None, bench_type: Optional[bench.utils.func.BenchType] = None, base_type: Union[ForwardRef('Block'), ForwardRef('Step'), NoneType] = None, base_field_zone: Optional[ForwardRef('FieldZone')] = None, default_packed: Optional[Any] = None, default: None = None, visibility: Optional[bench.language.const.NodeVisibility] = None, format_hint: Optional[bench.language.const.FormatHint] = None, condition: Optional[ForwardRef('Expression')] = None, constraint: Optional[ForwardRef('TypeConstraint')] = None, is_list: bool = False, is_secret: bool = False, is_required: bool = False, _resolved_type: Optional[ForwardRef('TypeInfoBase')] = None, _resolved_identity_key: str | None = None, _from_property: Optional[ForwardRef('Property')] = None, parent_id: int = None, parent_key: str = None, base_type_ptr: 'NodeReference' = None)
+ * TypeInfo(id: int = <factory>, parent: Union[ForwardRef('Struct'), ForwardRef('Node'), ForwardRef('Object'), NoneType] = None, order_key: str | None = None, set_properties: list[int] = <factory>, _status: bench.language.const.InterpStatus = None, _updated_properties: bitarray.bitarray | None = None, kind: Optional[bench.language.const.TypeKind] = None, primitive_type: Optional[bench.language.const.PrimitiveType] = None, bench_type: Optional[bench.utils.func.BenchType] = None, base_type: Union[ForwardRef('Block'), ForwardRef('Step'), NoneType] = None, base_field_zone: Optional[ForwardRef('FieldZone')] = None, default_packed: Optional[Any] = None, default: None = None, visibility: Optional[bench.language.const.Visibility] = None, format_hint: Optional[bench.language.const.FormatHint] = None, condition: Optional[ForwardRef('Expression')] = None, constraint: Optional[ForwardRef('TypeConstraint')] = None, is_list: bool = False, is_secret: bool = False, is_required: bool = False, _resolved_type: Optional[ForwardRef('TypeInfoBase')] = None, _resolved_identity_key: str | None = None, _from_property: Optional[ForwardRef('Property')] = None, parent_id: int = None, parent_key: str = None, base_type_ptr: 'NodeReference' = None)
  *
  * @generated from protobuf message symbolx.bench.TypeInfoData
  */
@@ -1634,9 +1632,9 @@ export interface TypeInfoData {
      */
     defaultPacked?: Struct;
     /**
-     * @generated from protobuf field: optional symbolx.bench.NodeVisibility visibility = 52;
+     * @generated from protobuf field: optional symbolx.bench.Visibility visibility = 52;
      */
-    visibility?: NodeVisibility;
+    visibility?: Visibility;
     /**
      * @generated from protobuf field: optional symbolx.bench.FormatHint format_hint = 53;
      */
@@ -1984,9 +1982,9 @@ export interface BlockData {
      */
     icon?: IconData;
     /**
-     * @generated from protobuf field: optional symbolx.bench.NodeVisibility visibility = 39;
+     * @generated from protobuf field: optional symbolx.bench.Visibility visibility = 39;
      */
-    visibility?: NodeVisibility;
+    visibility?: Visibility;
     /**
      * @generated from protobuf field: optional google.protobuf.Struct value_packed = 40;
      */
@@ -2636,9 +2634,9 @@ export interface FieldData {
      */
     defaultPacked?: Struct;
     /**
-     * @generated from protobuf field: optional symbolx.bench.NodeVisibility visibility = 52;
+     * @generated from protobuf field: optional symbolx.bench.Visibility visibility = 52;
      */
-    visibility?: NodeVisibility;
+    visibility?: Visibility;
     /**
      * @generated from protobuf field: optional symbolx.bench.FormatHint format_hint = 53;
      */
@@ -3025,7 +3023,7 @@ export interface LinkData {
 }
 /**
  * A Log (entry) is a timestamped event of something happening:
- * a message, some Access (read, edit, use), etc.
+ * a message, a Request / an Access (read, edit, use), ...
  *
  * @generated from protobuf message symbolx.bench.LogData
  */
@@ -3919,7 +3917,7 @@ export interface RoleData {
 /**
  * A 'run' of something. Can run Blocks (and Steps within them) or 'lambdas' (just Code/Text).
  * When 'running' something that's not directly runnable (like a Text Block, Text Step or Text Lambda),
- * we figure
+ * we implicitly pass it to our built-in Text program.
  *
  * @generated from protobuf message symbolx.bench.RunData
  */
@@ -5922,9 +5920,9 @@ export enum BenchType {
      */
     BENCH_TYPE = 2005,
     /**
-     * @generated from protobuf enum value: BENCH_TYPE_NODE_VISIBILITY = 2010;
+     * @generated from protobuf enum value: BENCH_TYPE_VISIBILITY = 2010;
      */
-    NODE_VISIBILITY = 2010,
+    VISIBILITY = 2010,
     /**
      * @generated from protobuf enum value: BENCH_TYPE_ACCESS_MODE = 2030;
      */
@@ -6574,9 +6572,9 @@ export enum EnumType {
      */
     BENCH_TYPE = 2005,
     /**
-     * @generated from protobuf enum value: ENUM_TYPE_NODE_VISIBILITY = 2010;
+     * @generated from protobuf enum value: ENUM_TYPE_VISIBILITY = 2010;
      */
-    NODE_VISIBILITY = 2010,
+    VISIBILITY = 2010,
     /**
      * @generated from protobuf enum value: ENUM_TYPE_ACCESS_MODE = 2030;
      */
@@ -7458,31 +7456,6 @@ export enum NodeType {
     CLIENT = 223
 }
 /**
- * @generated from protobuf enum symbolx.bench.NodeVisibility
- */
-export enum NodeVisibility {
-    /**
-     * @generated from protobuf enum value: NODE_VISIBILITY_UNSPECIFIED = 0;
-     */
-    UNSPECIFIED = 0,
-    /**
-     * @generated from protobuf enum value: NODE_VISIBILITY_PAGE = 4;
-     */
-    PAGE = 4,
-    /**
-     * @generated from protobuf enum value: NODE_VISIBILITY_MODULE = 6;
-     */
-    MODULE = 6,
-    /**
-     * @generated from protobuf enum value: NODE_VISIBILITY_BENCH = 8;
-     */
-    BENCH = 8,
-    /**
-     * @generated from protobuf enum value: NODE_VISIBILITY_PUBLIC = 10;
-     */
-    PUBLIC = 10
-}
-/**
  * Type of diagnostic in increasing severity.
  *
  * @generated from protobuf enum symbolx.bench.NoticeKind
@@ -8276,6 +8249,10 @@ export enum RunKind {
      * @generated from protobuf enum value: RUN_KIND_BLOCK = 1;
      */
     BLOCK = 1,
+    /**
+     * @generated from protobuf enum value: RUN_KIND_STEP = 2;
+     */
+    STEP = 2,
     /**
      * @generated from protobuf enum value: RUN_KIND_LAMBDA = 10;
      */
@@ -9279,6 +9256,31 @@ export enum ViewType {
      * @generated from protobuf enum value: VIEW_TYPE_AUDIO = 675;
      */
     AUDIO = 675
+}
+/**
+ * @generated from protobuf enum symbolx.bench.Visibility
+ */
+export enum Visibility {
+    /**
+     * @generated from protobuf enum value: VISIBILITY_UNSPECIFIED = 0;
+     */
+    UNSPECIFIED = 0,
+    /**
+     * @generated from protobuf enum value: VISIBILITY_PAGE = 4;
+     */
+    PAGE = 4,
+    /**
+     * @generated from protobuf enum value: VISIBILITY_MODULE = 6;
+     */
+    MODULE = 6,
+    /**
+     * @generated from protobuf enum value: VISIBILITY_BENCH = 8;
+     */
+    BENCH = 8,
+    /**
+     * @generated from protobuf enum value: VISIBILITY_PUBLIC = 10;
+     */
+    PUBLIC = 10
 }
 // @generated message type with reflection information, may provide speed optimized methods
 class AccessData$Type extends MessageType<AccessData> {
@@ -13229,7 +13231,7 @@ class TypeInfoData$Type extends MessageType<TypeInfoData> {
             { no: 43, name: "base_type_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 44, name: "base_field_zone", kind: "enum", opt: true, T: () => ["symbolx.bench.FieldZone", FieldZone, "FIELD_ZONE_"] },
             { no: 50, name: "default_packed", kind: "message", T: () => Struct },
-            { no: 52, name: "visibility", kind: "enum", opt: true, T: () => ["symbolx.bench.NodeVisibility", NodeVisibility, "NODE_VISIBILITY_"] },
+            { no: 52, name: "visibility", kind: "enum", opt: true, T: () => ["symbolx.bench.Visibility", Visibility, "VISIBILITY_"] },
             { no: 53, name: "format_hint", kind: "enum", opt: true, T: () => ["symbolx.bench.FormatHint", FormatHint, "FORMAT_HINT_"] },
             { no: 54, name: "condition", kind: "message", T: () => ExpressionData },
             { no: 55, name: "constraint", kind: "message", T: () => TypeConstraintData },
@@ -13295,7 +13297,7 @@ class TypeInfoData$Type extends MessageType<TypeInfoData> {
                 case /* optional google.protobuf.Struct default_packed */ 50:
                     message.defaultPacked = Struct.internalBinaryRead(reader, reader.uint32(), options, message.defaultPacked);
                     break;
-                case /* optional symbolx.bench.NodeVisibility visibility */ 52:
+                case /* optional symbolx.bench.Visibility visibility */ 52:
                     message.visibility = reader.int32();
                     break;
                 case /* optional symbolx.bench.FormatHint format_hint */ 53:
@@ -13368,7 +13370,7 @@ class TypeInfoData$Type extends MessageType<TypeInfoData> {
         /* optional google.protobuf.Struct default_packed = 50; */
         if (message.defaultPacked)
             Struct.internalBinaryWrite(message.defaultPacked, writer.tag(50, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbolx.bench.NodeVisibility visibility = 52; */
+        /* optional symbolx.bench.Visibility visibility = 52; */
         if (message.visibility !== undefined)
             writer.tag(52, WireType.Varint).int32(message.visibility);
         /* optional symbolx.bench.FormatHint format_hint = 53; */
@@ -13941,7 +13943,7 @@ class BlockData$Type extends MessageType<BlockData> {
             { no: 36, name: "builtin_base", kind: "message", T: () => TypeInfoData },
             { no: 37, name: "text", kind: "message", T: () => TextData },
             { no: 38, name: "icon", kind: "message", T: () => IconData },
-            { no: 39, name: "visibility", kind: "enum", opt: true, T: () => ["symbolx.bench.NodeVisibility", NodeVisibility, "NODE_VISIBILITY_"] },
+            { no: 39, name: "visibility", kind: "enum", opt: true, T: () => ["symbolx.bench.Visibility", Visibility, "VISIBILITY_"] },
             { no: 40, name: "value_packed", kind: "message", T: () => Struct },
             { no: 41, name: "secret_value_packed", kind: "message", T: () => Struct },
             { no: 42, name: "code", kind: "message", T: () => CodeData },
@@ -14049,7 +14051,7 @@ class BlockData$Type extends MessageType<BlockData> {
                 case /* optional symbolx.bench.IconData icon */ 38:
                     message.icon = IconData.internalBinaryRead(reader, reader.uint32(), options, message.icon);
                     break;
-                case /* optional symbolx.bench.NodeVisibility visibility */ 39:
+                case /* optional symbolx.bench.Visibility visibility */ 39:
                     message.visibility = reader.int32();
                     break;
                 case /* optional google.protobuf.Struct value_packed */ 40:
@@ -14161,7 +14163,7 @@ class BlockData$Type extends MessageType<BlockData> {
         /* optional symbolx.bench.IconData icon = 38; */
         if (message.icon)
             IconData.internalBinaryWrite(message.icon, writer.tag(38, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbolx.bench.NodeVisibility visibility = 39; */
+        /* optional symbolx.bench.Visibility visibility = 39; */
         if (message.visibility !== undefined)
             writer.tag(39, WireType.Varint).int32(message.visibility);
         /* optional google.protobuf.Struct value_packed = 40; */
@@ -15351,7 +15353,7 @@ class FieldData$Type extends MessageType<FieldData> {
             { no: 43, name: "base_type_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 44, name: "base_field_zone", kind: "enum", opt: true, T: () => ["symbolx.bench.FieldZone", FieldZone, "FIELD_ZONE_"] },
             { no: 50, name: "default_packed", kind: "message", T: () => Struct },
-            { no: 52, name: "visibility", kind: "enum", opt: true, T: () => ["symbolx.bench.NodeVisibility", NodeVisibility, "NODE_VISIBILITY_"] },
+            { no: 52, name: "visibility", kind: "enum", opt: true, T: () => ["symbolx.bench.Visibility", Visibility, "VISIBILITY_"] },
             { no: 53, name: "format_hint", kind: "enum", opt: true, T: () => ["symbolx.bench.FormatHint", FormatHint, "FORMAT_HINT_"] },
             { no: 54, name: "condition", kind: "message", T: () => ExpressionData },
             { no: 55, name: "constraint", kind: "message", T: () => TypeConstraintData },
@@ -15464,7 +15466,7 @@ class FieldData$Type extends MessageType<FieldData> {
                 case /* optional google.protobuf.Struct default_packed */ 50:
                     message.defaultPacked = Struct.internalBinaryRead(reader, reader.uint32(), options, message.defaultPacked);
                     break;
-                case /* optional symbolx.bench.NodeVisibility visibility */ 52:
+                case /* optional symbolx.bench.Visibility visibility */ 52:
                     message.visibility = reader.int32();
                     break;
                 case /* optional symbolx.bench.FormatHint format_hint */ 53:
@@ -15579,7 +15581,7 @@ class FieldData$Type extends MessageType<FieldData> {
         /* optional google.protobuf.Struct default_packed = 50; */
         if (message.defaultPacked)
             Struct.internalBinaryWrite(message.defaultPacked, writer.tag(50, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbolx.bench.NodeVisibility visibility = 52; */
+        /* optional symbolx.bench.Visibility visibility = 52; */
         if (message.visibility !== undefined)
             writer.tag(52, WireType.Varint).int32(message.visibility);
         /* optional symbolx.bench.FormatHint format_hint = 53; */
@@ -21808,7 +21810,7 @@ export const ENUM_BY_TYPE: Record<EnumType, Record<number | string, number | str
   [EnumType.STRUCT_TYPE]: StructType,
   [EnumType.OBJECT_TYPE]: ObjectType,
   [EnumType.BENCH_TYPE]: BenchType,
-  [EnumType.NODE_VISIBILITY]: NodeVisibility,
+  [EnumType.VISIBILITY]: Visibility,
   [EnumType.ACCESS_MODE]: AccessMode,
   [EnumType.ACCESS_KIND]: AccessKind,
   [EnumType.READ_TYPE]: ReadType,
@@ -22036,7 +22038,7 @@ export interface EnumTypeMapping extends Record<EnumType, any> {
   [EnumType.STRUCT_TYPE]: StructType,
   [EnumType.OBJECT_TYPE]: ObjectType,
   [EnumType.BENCH_TYPE]: BenchType,
-  [EnumType.NODE_VISIBILITY]: NodeVisibility,
+  [EnumType.VISIBILITY]: Visibility,
   [EnumType.ACCESS_MODE]: AccessMode,
   [EnumType.ACCESS_KIND]: AccessKind,
   [EnumType.READ_TYPE]: ReadType,
@@ -23693,7 +23695,7 @@ export const TypeInfoDataInfo: Record<TypeInfoProperty, PropertyInfo> = {
   [TypeInfoProperty.baseTypePtr]: { id: 43, name: 'base_type_ptr', component: ObjectType.TYPE_INFO, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.BLOCK, NodeType.STEP], referenceStruct: StructType.NODE_REFERENCE },
   [TypeInfoProperty.baseFieldZone]: { id: 44, name: 'base_field_zone', component: ObjectType.TYPE_INFO, enumType: EnumType.FIELD_ZONE, kind: 'enum', primitiveType: PrimitiveType.INT16, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [TypeInfoProperty.defaultPacked]: { id: 50, name: 'default_packed', component: ObjectType.TYPE_INFO, kind: 'primitive', primitiveType: PrimitiveType.JSON, isInternal: true, isRuntime: true, isWired: true, isStored: true, isValuePacked: true },
-  [TypeInfoProperty.visibility]: { id: 52, name: 'visibility', component: ObjectType.TYPE_INFO, enumType: EnumType.NODE_VISIBILITY, kind: 'enum', primitiveType: PrimitiveType.INT16, isRuntime: true, isWired: true, isStored: true },
+  [TypeInfoProperty.visibility]: { id: 52, name: 'visibility', component: ObjectType.TYPE_INFO, enumType: EnumType.VISIBILITY, kind: 'enum', primitiveType: PrimitiveType.INT16, isRuntime: true, isWired: true, isStored: true },
   [TypeInfoProperty.formatHint]: { id: 53, name: 'format_hint', component: ObjectType.TYPE_INFO, enumType: EnumType.FORMAT_HINT, kind: 'enum', primitiveType: PrimitiveType.INT16, isRuntime: true, isWired: true, isStored: true },
   [TypeInfoProperty.condition]: { id: 54, name: 'condition', component: ObjectType.TYPE_INFO, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.EXPRESSION },
   [TypeInfoProperty.constraint]: { id: 55, name: 'constraint', component: ObjectType.TYPE_INFO, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.TYPE_CONSTRAINT },
@@ -24280,7 +24282,7 @@ export const BlockDataInfo: Record<BlockProperty, PropertyInfo> = {
   [BlockProperty.builtinBase]: { id: 36, name: 'builtin_base', component: ObjectType.BLOCK, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.TYPE_INFO },
   [BlockProperty.text]: { id: 37, name: 'text', component: ObjectType.BLOCK, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.TEXT },
   [BlockProperty.icon]: { id: 38, name: 'icon', component: ObjectType.BLOCK, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.ICON },
-  [BlockProperty.visibility]: { id: 39, name: 'visibility', component: ObjectType.BLOCK, enumType: EnumType.NODE_VISIBILITY, kind: 'enum', primitiveType: PrimitiveType.INT16, isRuntime: true, isWired: true, isStored: true },
+  [BlockProperty.visibility]: { id: 39, name: 'visibility', component: ObjectType.BLOCK, enumType: EnumType.VISIBILITY, kind: 'enum', primitiveType: PrimitiveType.INT16, isRuntime: true, isWired: true, isStored: true },
   [BlockProperty.valuePacked]: { id: 40, name: 'value_packed', component: ObjectType.BLOCK, kind: 'primitive', primitiveType: PrimitiveType.JSON, isInternal: true, isRuntime: true, isWired: true, isStored: true, isValuePacked: true },
   [BlockProperty.secretValuePacked]: { id: 41, name: 'secret_value_packed', component: ObjectType.BLOCK, kind: 'primitive', primitiveType: PrimitiveType.JSON, isInternal: true, isRuntime: true, isWired: true, isStored: true, isDeferred: true, isSensitive: true, isEncrypted: true, isValuePacked: true },
   [BlockProperty.code]: { id: 42, name: 'code', component: ObjectType.BLOCK, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.CODE },
@@ -24339,7 +24341,7 @@ export const FieldDataInfo: Record<FieldProperty, PropertyInfo> = {
   [FieldProperty.baseTypePtr]: { id: 43, name: 'base_type_ptr', component: ObjectType.FIELD, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.BLOCK, NodeType.STEP], referenceStruct: StructType.NODE_REFERENCE },
   [FieldProperty.baseFieldZone]: { id: 44, name: 'base_field_zone', component: ObjectType.FIELD, enumType: EnumType.FIELD_ZONE, kind: 'enum', primitiveType: PrimitiveType.INT16, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [FieldProperty.defaultPacked]: { id: 50, name: 'default_packed', component: ObjectType.FIELD, kind: 'primitive', primitiveType: PrimitiveType.JSON, isInternal: true, isRuntime: true, isWired: true, isStored: true, isValuePacked: true },
-  [FieldProperty.visibility]: { id: 52, name: 'visibility', component: ObjectType.FIELD, enumType: EnumType.NODE_VISIBILITY, kind: 'enum', primitiveType: PrimitiveType.INT16, isRuntime: true, isWired: true, isStored: true },
+  [FieldProperty.visibility]: { id: 52, name: 'visibility', component: ObjectType.FIELD, enumType: EnumType.VISIBILITY, kind: 'enum', primitiveType: PrimitiveType.INT16, isRuntime: true, isWired: true, isStored: true },
   [FieldProperty.formatHint]: { id: 53, name: 'format_hint', component: ObjectType.FIELD, enumType: EnumType.FORMAT_HINT, kind: 'enum', primitiveType: PrimitiveType.INT16, isRuntime: true, isWired: true, isStored: true },
   [FieldProperty.condition]: { id: 54, name: 'condition', component: ObjectType.FIELD, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.EXPRESSION },
   [FieldProperty.constraint]: { id: 55, name: 'constraint', component: ObjectType.FIELD, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.TYPE_CONSTRAINT },

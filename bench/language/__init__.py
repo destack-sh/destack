@@ -30,6 +30,7 @@ from .const import (
     StoreEngineType,
     StoreKind,
     TriggerType,
+    Visibility,
 )
 from .database import Record
 from .expression import (
@@ -42,7 +43,7 @@ from .expression import (
     S,
     ValueReference,
 )
-from .field import Field, TypeConstraint, TypeInfo, TypeInfoBase
+from .field import Field, FieldZone, TypeConstraint, TypeInfo, TypeInfoBase
 from .file import File, Icon
 from .flow import Step, StepType
 from .graph import ValueList
@@ -106,6 +107,7 @@ __all__ = [
     "Environment",
     "Expression",
     "Field",
+    "FieldZone",
     "File",
     "FileContent",
     "FormatHint",
@@ -157,7 +159,7 @@ __all__ = [
     "StoreKind",
     "Struct",
     "Subject",
-	"Projection",
+    "Projection",
     "Tenancy",
     "Text",
     "TextSpan",
@@ -176,6 +178,7 @@ __all__ = [
     "VERSION",
     "View",
     "ViewType",
+    "Visibility",
 ]
 
 # after all the imports, we can finalize

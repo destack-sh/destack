@@ -33,7 +33,7 @@ from bench.language.const import (
 )
 from bench.language.graph import GraphNodeList, NodeList, ValueList
 from bench.language.setup import (
-    BENCH_CLASSES_BY_NAME,
+    BENCH_CLASS_BY_NAME,
     ENUM_TYPE_BY_CLASS,
     STRUCT_CLASS_BY_TYPE,
     _on_completing_setup,
@@ -445,7 +445,7 @@ class Property(_TypeQueryBuilder if TYPE_CHECKING else object):
             return
 
         # update/check info from annotation
-        annotation = parse_py_annotation(self.py_type_raw, BENCH_CLASSES_BY_NAME)
+        annotation = parse_py_annotation(self.py_type_raw, BENCH_CLASS_BY_NAME)
         self.py_type_stripped = annotation.type
         if annotation.is_list != self.is_list:
             raise ValueError(f"array mismatch for {self!r} (expected is_list={self.is_list})")

@@ -3,7 +3,7 @@ from dataclasses import dataclass
 from datetime import datetime
 from typing import TYPE_CHECKING, Any, Collection, Optional, Union
 
-from bench.language.const import BlockType, NodeType, NodeVisibility, StructType
+from bench.language.const import BlockType, NodeType, StructType, Visibility
 from bench.language.database import Database
 from bench.language.node import Node, NodeList, node
 from bench.language.property import (
@@ -123,9 +123,7 @@ class Block(Node[BlockData], HasValues):
     icon: Optional["Icon"] = p_regular(
         38, default=None, require=False, array=False, struct=StructType.ICON
     )
-    visibility: Optional[NodeVisibility] = p_regular(
-        39, require=False, default=NodeVisibility.PUBLIC
-    )
+    visibility: Optional[Visibility] = p_regular(39, require=False, default=Visibility.PUBLIC)
     value_packed: Any = p_value_packed(40)
     secret_value_packed: Any | None = p_secret_value_packed(41)
     value = p_value_runtime(40, 41)

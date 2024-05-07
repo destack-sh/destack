@@ -29,7 +29,7 @@ STRUCT_CLASS_BY_TYPE: dict[StructType, type["Struct"]] = {}
 BENCH_CLASS_BY_TYPE: dict[ObjectType, type["Node"] | type["Struct"]] = {}
 FINAL_BENCH_CLASSES_BY_NAME: dict[str, type[Union["Node", "Struct", IdEnum]]] = {}
 FINAL_BENCH_CLASSES: list[type[Union["Node", "Struct", IdEnum]]] = []
-BENCH_CLASSES_BY_NAME: dict[str, type[Union["Node", "Struct", IdEnum]]] = {}
+BENCH_CLASS_BY_NAME: dict[str, type[Union["Node", "Struct", IdEnum]]] = {}
 BENCH_CLASSES: list[type[Union["Node", "Struct", IdEnum]]] = []
 NODE_CLASSES: list[type["Node"]] = []
 STRUCT_CLASSES: list[type["Struct"]] = []
@@ -79,7 +79,7 @@ def _complete_bench_setup():
             FINAL_BENCH_CLASSES.append(bench_t)
     BENCH_CLASSES.extend(chain(get_subclasses(Struct), (Object,)))
     for cls in BENCH_CLASSES:
-        BENCH_CLASSES_BY_NAME[cls.__name__] = cls
+        BENCH_CLASS_BY_NAME[cls.__name__] = cls
     for node_t in NODE_TYPES:
         BENCH_CLASS_BY_TYPE[node_t] = NODE_CLASS_BY_TYPE[node_t]
         NODE_CLASSES.append(NODE_CLASS_BY_TYPE[node_t])
@@ -92,7 +92,7 @@ def _complete_bench_setup():
     if missing_enums:
         raise ValueError(f"missing enums: {missing_enums}")
     for enum_type, enum_cls in ENUM_CLASS_BY_TYPE.items():
-        BENCH_CLASSES_BY_NAME[enum_cls.__name__] = enum_cls
+        BENCH_CLASS_BY_NAME[enum_cls.__name__] = enum_cls
         BENCH_CLASSES.append(enum_cls)
         FINAL_BENCH_CLASSES_BY_NAME[enum_cls.__name__] = enum_cls
         FINAL_BENCH_CLASSES.append(enum_cls)

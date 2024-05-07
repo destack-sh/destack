@@ -10,9 +10,9 @@ from bench.language.const import (
     FieldZone,
     FormatHint,
     NodeType,
-    NodeVisibility,
     StructType,
     TypeKind,
+    Visibility,
     is_enum_type,
     is_node_type,
     is_struct_type,
@@ -232,7 +232,7 @@ class TypeInfoBase(HasValues):
     # + bonus info/constraints
     default_packed: Optional[Any] = p_value_packed(50)
     default = p_value_runtime(packed=50)
-    visibility: Optional[NodeVisibility] = p_regular(52, default=None)
+    visibility: Optional[Visibility] = p_regular(52, default=None)
     format_hint: Optional[FormatHint] = p_regular(53, default=None)
     condition: Optional["Expression"] = p_regular(
         54, require=False, array=False, default=None, struct=StructType.EXPRESSION
