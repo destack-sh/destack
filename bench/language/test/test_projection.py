@@ -5,14 +5,7 @@ import pytest
 from bench.language import Node, Struct
 from bench.language.block import Block
 from bench.language.code_ import format_code, run_code_script
-from bench.language.const import (
-    OBJECT_TYPES,
-    BlockType,
-    NodeType,
-    PrimitiveType,
-    StructType,
-    TypeKind,
-)
+from bench.language.const import OBJECT_TYPES, BlockType, NodeType, StructType
 from bench.language.field import Field
 from bench.language.projection import render_node, render_struct
 from bench.language.setup import BENCH_CLASS_BY_TYPE
@@ -40,21 +33,16 @@ def test_render_nested():
     # inner class
     ClassInner = Block(type=BlockType.CLASS, name="ClassInner")
     ClassInner.fields.extend(
-        Field.member(
-            name="Field1", bench_type=NodeType.FIELD, base_type=Choice1, kind=TypeKind.BASED_NODE
-        ),
-        Field.member(name="Field2", bench_type=NodeType.BLOCK, kind=TypeKind.NODE),
+        Field.member("Field1", Choice1), Field.member("Field2", NodeType.BLOCK)
     )
 
     # outer class
     ClassOuter = Block(type=BlockType.CLASS, name="ClassOuter")
     ClassOuter.fields.extend(
-        Field.member(
-            name="Field1", kind=TypeKind.BASED_NODE, bench_type=NodeType.FIELD, base_type=Choice1
-        ),
-        Field.member(name="Field2", kind=TypeKind.PRIMITIVE, primitive_type=PrimitiveType.BOOLEAN),
-        Field.member(name="Field3", kind=TypeKind.STRUCT, bench_type=StructType.TEXT, is_list=True),
-        Field.member(name="Field4", kind=TypeKind.ALIAS, base_type=ClassInner),
+        Field.member("Field1", Choice1),
+        Field.member("Field2", bool),
+        Field.member("Field3", StructType.TEXT),
+        Field.member("Field4", ClassInner),
     )
 
     # render

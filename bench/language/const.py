@@ -642,6 +642,16 @@ class PrimitiveType(IdEnum):
 
 PrimitiveValue = bool | int | float | str | bytes | UUID | datetime | timedelta
 
+PRIMITIVE_TYPE_BY_PY_TYPE: dict[type, PrimitiveType] = {
+    bool: PrimitiveType.BOOLEAN,
+    int: PrimitiveType.INT32,
+    float: PrimitiveType.FLOAT32,
+    str: PrimitiveType.STRING,
+    bytes: PrimitiveType.BYTES,
+    datetime: PrimitiveType.DATETIME,
+    UUID: PrimitiveType.UUID,
+}
+
 
 @enum_(EnumType.FORMAT_HINT)
 class FormatHint(IdEnum):

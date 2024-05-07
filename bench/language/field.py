@@ -1,15 +1,19 @@
 import typing
-from typing import TYPE_CHECKING, Any, Collection, Optional, Union, cast
+from typing import TYPE_CHECKING, Any, Collection, Optional, Type, Union, cast
 from uuid import UUID
 
 import structlog
 
 from bench.language.const import (
+    PRIMITIVE_TYPE_BY_PY_TYPE,
     TK_LENGTH_B64,
     BenchType,
+    BlockType,
+    EnumType,
     FieldZone,
     FormatHint,
     NodeType,
+    PrimitiveValue,
     StructType,
     TypeKind,
     Visibility,
@@ -41,6 +45,7 @@ from bench.language.property import (
     p_value_packed,
     p_value_runtime,
 )
+from bench.language.setup import BENCH_TYPE_BY_CLASS
 from bench.language.validation import NAME_CONSTRAINT, ValidationHandler
 from bench.language.value import HasValues
 from bench.proto.wire import FieldData, NodeReferenceData
@@ -343,6 +348,50 @@ class TypeInfo(TypeInfoBase):
     pass
 
 
+TypeIn = Union[
+    "TypeInfoBase",
+    "Block",
+    "PrimitiveType",
+    "BenchType",
+    Type[Struct],
+    Type[Node],
+    Type[PrimitiveValue],
+]
+
+
+def to_type_info(typ: TypeIn) -> "TypeInfo":
+    """Converts a type-like object to a TypeInfo."""
+    if isinstance(typ, TypeInfoBase):
+        return cast("TypeInfo", typ)
+    elif isinstance(typ, Node) and typ.metatype == NodeType.BLOCK:
+        if typ.type == BlockType.SIGNAL:
+            return TypeInfo(kind=TypeKind.BASED_NODE, bench_type=NodeType.FIELD, base_type=typ)
+        elif typ.type == BlockType.CHOICE:
+            return TypeInfo(kind=TypeKind.BASED_NODE, bench_type=NodeType.FIELD, base_type=typ)
+        elif typ.type == BlockType.DATABASE:
+            return TypeInfo(kind=TypeKind.BASED_NODE, bench_type=NodeType.RECORD, base_type=typ)
+        elif typ.type == BlockType.CLASS:
+            return TypeInfo(kind=TypeKind.ALIAS, base_type=typ)
+    elif isinstance(typ, PrimitiveType):
+        return TypeInfo(kind=TypeKind.PRIMITIVE, primitive_type=typ)
+    elif isinstance(typ, (NodeType, StructType, EnumType, BenchType)):
+        if is_node_type(typ):
+            return TypeInfo(kind=TypeKind.NODE, bench_type=typ)
+        elif is_struct_type(typ):
+            return TypeInfo(kind=TypeKind.STRUCT, bench_type=typ)
+        elif is_enum_type(typ):
+            return TypeInfo(kind=TypeKind.ENUM, bench_type=typ)
+    elif isinstance(typ, type):
+        primitive_type = PRIMITIVE_TYPE_BY_PY_TYPE.get(typ)
+        if primitive_type:
+            return TypeInfo(kind=TypeKind.PRIMITIVE, primitive_type=primitive_type)
+        bench_type = BENCH_TYPE_BY_CLASS.get(cast(Any, typ))
+        if bench_type:
+            return TypeInfo(kind=TypeKind.NODE, bench_type=bench_type)
+
+    raise ValueError(f"unsupported type {typ!r}")
+
+
 @node(NodeType.FIELD)
 class Field(BasedNode[FieldData], TypeInfoBase, _TypeQueryBuilder):
     """
@@ -424,21 +473,42 @@ class Field(BasedNode[FieldData], TypeInfoBase, _TypeQueryBuilder):
         return encode_storage_key(self)
 
     @staticmethod
-    def option(**kwargs) -> "Field":
-        return Field(zone=FieldZone.OPTION, **kwargs)
+    def new(name: str, typ: TypeIn, **kwargs) -> "Field":
+        typ = to_type_info(typ)
+        return Field(
+            name=name,
+            kind=typ.kind,
+            primitive_type=typ.primitive_type,
+            bench_type=typ.bench_type,
+            base_type=typ.base_type,
+            base_field_zone=typ.base_field_zone,
+            default_packed=typ.default_packed,
+            visibility=typ.visibility,
+            format_hint=typ.format_hint,
+            condition=typ.condition,
+            constraint=typ.constraint,
+            is_list=typ.is_list,
+            is_secret=typ.is_secret,
+            is_required=typ.is_required,
+            **kwargs,
+        )
 
     @staticmethod
-    def variable(**kwargs) -> "Field":
-        return Field(zone=FieldZone.VARIABLE, **kwargs)
+    def option(name: str, **kwargs) -> "Field":
+        return Field(zone=FieldZone.OPTION, name=name, **kwargs)
 
     @staticmethod
-    def member(**kwargs) -> "Field":
-        return Field(zone=FieldZone.MEMBER, **kwargs)
+    def variable(name: str, typ: TypeIn, **kwargs) -> "Field":
+        return Field.new(name, typ, zone=FieldZone.VARIABLE, **kwargs)
 
     @staticmethod
-    def input(**kwargs) -> "Field":
-        return Field(zone=FieldZone.INPUT, **kwargs)
+    def member(name: str, typ: TypeIn, **kwargs) -> "Field":
+        return Field.new(name, typ, zone=FieldZone.MEMBER, **kwargs)
 
     @staticmethod
-    def output(**kwargs) -> "Field":
-        return Field(zone=FieldZone.OUTPUT, **kwargs)
+    def input(name: str, typ: TypeIn, **kwargs) -> "Field":
+        return Field.new(name, typ, zone=FieldZone.INPUT, **kwargs)
+
+    @staticmethod
+    def output(name: str, typ: TypeIn, **kwargs) -> "Field":
+        return Field.new(name, typ, zone=FieldZone.OUTPUT, **kwargs)
