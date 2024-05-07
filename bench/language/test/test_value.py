@@ -33,7 +33,7 @@ def test_roundtrip_simple_value():
     )
     class1.fields.create(name="Field4", base_type=class2, kind=TypeKind.ALIAS)
 
-    # nocheckin: interp/to_resolved shit should not be necessary
+    # TODO :Cleanup :Test: interp/to_resolved shit should not be necessary
     #  (run this test in session? or somehow in 'tracked' mode)
     choice1._interp_rec(None, on_notice_ignore)
     class2._interp_rec(None, on_notice_ignore)

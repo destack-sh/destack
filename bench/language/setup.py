@@ -27,6 +27,7 @@ NODE_CLASS_BY_TYPE: dict[NodeType, type["Node"]] = {}
 NODE_COMPONENT_CLASS_BY_NAME: dict[str, type["Node"]] = {}
 STRUCT_CLASS_BY_TYPE: dict[StructType, type["Struct"]] = {}
 BENCH_CLASS_BY_TYPE: dict[ObjectType, type["Node"] | type["Struct"]] = {}
+BENCH_TYPE_BY_CLASS: dict[type["Node"] | type["Struct"], ObjectType] = {}
 FINAL_BENCH_CLASSES_BY_NAME: dict[str, type[Union["Node", "Struct", IdEnum]]] = {}
 FINAL_BENCH_CLASSES: list[type[Union["Node", "Struct", IdEnum]]] = []
 BENCH_CLASS_BY_NAME: dict[str, type[Union["Node", "Struct", IdEnum]]] = {}
@@ -82,9 +83,11 @@ def _complete_bench_setup():
         BENCH_CLASS_BY_NAME[cls.__name__] = cls
     for node_t in NODE_TYPES:
         BENCH_CLASS_BY_TYPE[node_t] = NODE_CLASS_BY_TYPE[node_t]
+        BENCH_TYPE_BY_CLASS[NODE_CLASS_BY_TYPE[node_t]] = node_t
         NODE_CLASSES.append(NODE_CLASS_BY_TYPE[node_t])
     for struct_t in STRUCT_TYPES:
         BENCH_CLASS_BY_TYPE[struct_t] = STRUCT_CLASS_BY_TYPE[struct_t]
+        BENCH_TYPE_BY_CLASS[STRUCT_CLASS_BY_TYPE[struct_t]] = struct_t
         STRUCT_CLASSES.append(STRUCT_CLASS_BY_TYPE[struct_t])
 
     # check that we have all the enums & add them

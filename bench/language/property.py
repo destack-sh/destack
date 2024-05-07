@@ -2,7 +2,6 @@ import dataclasses
 import enum
 import functools
 from dataclasses import dataclass
-from datetime import datetime
 from sys import intern
 from typing import (
     TYPE_CHECKING,
@@ -18,6 +17,7 @@ from uuid import UUID
 
 from bench.language.const import (
     BASED_NODE_TYPES,
+    PRIMITIVE_TYPE_BY_PY_TYPE,
     SUB_BENCH_NODE_TYPES,
     SUB_PACKAGE_NODE_TYPES,
     UNSET,
@@ -55,16 +55,6 @@ if TYPE_CHECKING:
         TypeInfo,
     )
     from bench.language.expression import _TypeQueryBuilder
-
-PRIMITIVE_TYPE_BY_PY_TYPE: dict[type, PrimitiveType] = {
-    bool: PrimitiveType.BOOLEAN,
-    int: PrimitiveType.INT32,
-    float: PrimitiveType.FLOAT32,
-    str: PrimitiveType.STRING,
-    bytes: PrimitiveType.BYTES,
-    datetime: PrimitiveType.DATETIME,
-    UUID: PrimitiveType.UUID,
-}
 
 PropertyReferenceMetadata = Union[
     Literal["id"],

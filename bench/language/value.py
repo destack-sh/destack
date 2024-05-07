@@ -387,6 +387,7 @@ def check_value(value: Any, typ: "TypeInfoBase", invalid: "ValidationHandler") -
     """
     Checks whether the given value has the expected type (recursively).
     """
+    typ = typ._to_resolved()
     assert typ.kind != TypeKind.ALIAS, f"unresolved type {typ!r}"
     if typ.kind == TypeKind.OBJECT:
         if not typ.is_list:
