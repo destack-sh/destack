@@ -83,12 +83,7 @@ def get_implied_type_kind(typ: "TypeInfoBase") -> TypeKind | None:
         elif is_enum_type(typ.bench_type):
             return TypeKind.ENUM
     elif typ.base_type_ptr:
-        base_type = typ.base_type
-        if base_type is not None:
-            if base_type.metatype == NodeType.STEP or cast("Block", base_type).type.is_classy:
-                return TypeKind.OBJECT
-            else:
-                return TypeKind.ALIAS
+        return TypeKind.ALIAS
     # couldn't figure it out
     return None
 

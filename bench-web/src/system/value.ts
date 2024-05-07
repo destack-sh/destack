@@ -94,7 +94,7 @@ export function getViewForValueType(type: TypeIdentity): {
   props?: ViewProps;
 } | null {
   if (type.kind == TypeKind.OBJECT) {
-    return { viewType: ViewType.OBJECT };
+    return { viewType: ViewType.OBJECT, props: { valueType: type as TypeInfoData } };
   } else if (type.benchType != null) {
     if (VIEW_TYPE_BY_BENCH_TYPE[type.benchType] != null) {
       return { viewType: VIEW_TYPE_BY_BENCH_TYPE[type.benchType]! };
@@ -199,9 +199,10 @@ export function decodeTypeIdentity(key: string): TypeIdentity {
 }
 
 /** Gets the eternal storage key for values of this type identity. :FieldStorageKey */
-export function getStorageKey(type: TypeIdentity): string {
-  if (type.ck == null) throw new Error(`missing ck for type ${describeTypeIdentity(type)}`);
-  return `${getTkB64FromCk(type.ck)}-${encodeTypeIdentity(type)}`;
+export function getStorageKey(field: FieldData, fieldType?: TypeIdentity): string {
+  fieldType = fieldType ?? field;
+  if (field.ck == null) throw new Error(`missing ck for type ${describeTypeIdentity(field)}`);
+  return `${getTkB64FromCk(field.ck)}-${encodeTypeIdentity(fieldType)}`;
 }
 
 // TODO :Architecture :Performance: encode/decode protoStruct/Json in connections (at the fetch/commit boundary) :ProtoStructMapping
@@ -293,7 +294,7 @@ function _packObjectScalar(
   const valuePacked: { [key: string]: JsonValue } = {};
   for (const field of fields) {
     const fieldType = resolveType(field, graph);
-    const fieldStorageKey = getStorageKey(fieldType);
+    const fieldStorageKey = getStorageKey(field, fieldType);
     const fieldValue = (value as any)[fieldStorageKey];
     if (fieldValue == null) {
       continue;
@@ -319,7 +320,7 @@ function _unpackObjectScalar(
   const value: { [key: string]: SomeValue } = {};
   for (const field of fields) {
     const fieldType = resolveType(field, graph);
-    const fieldStorageKey = getStorageKey(fieldType);
+    const fieldStorageKey = getStorageKey(field, fieldType);
     const fieldValuePacked = (valuePacked as any)[fieldStorageKey];
     if (fieldValuePacked == null) {
       continue;

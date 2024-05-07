@@ -14,11 +14,11 @@ import { computed, ref, toRef, type Ref } from "vue";
 import { useExistingConnection, type PreparedGetConnection } from "@/system/connection";
 import type { PopoverInfoIn } from "@/utils/menu";
 import { ICON_BY_BLOCK_TYPE, IconInline } from "@/system/icon";
-import { getStorageKey, getViewForValueType } from "@/system/value";
+import { getStorageKey, getViewForValueType, resolveType, type TypeIdentity } from "@/system/value";
 import { getViewComponent } from "@/views/registry";
 import { FULL_WIDTH_VIEW_TYPES } from "@/system/lang";
 
-const MIN_WIDTH = 200;
+const MIN_WIDTH = 320;
 const DEFAULT_WIDTH = 280;
 
 const props = defineProps<
@@ -46,6 +46,8 @@ const fields = pkgGraph.getChildrenRef(baseType, NodeType.FIELD); // these need 
 
 type FieldView = {
   field: FieldData;
+  fieldType: TypeIdentity;
+  storageKey: string;
   isSet: boolean;
   value: any;
   component: any | undefined;
@@ -56,13 +58,16 @@ type FieldView = {
 const fieldViews: Ref<FieldView[]> = computed(() => {
   const fieldViews: FieldView[] = [];
   for (const field of fields.value) {
-    const storageKey = getStorageKey(field);
+    const fieldType = resolveType(field, pkgGraph);
+    const storageKey = getStorageKey(field, fieldType);
     const fieldValue = props.modelValue?.[storageKey];
     const isSet = fieldValue != null && !(Array.isArray(fieldValue) && fieldValue.length === 0);
-    const view = getViewForValueType(field);
+    const view = getViewForValueType(fieldType);
     const component = view != null ? getViewComponent(view.viewType) : undefined;
     fieldViews.push({
       field,
+      fieldType,
+      storageKey,
       isSet,
       value: fieldValue,
       component,
@@ -117,7 +122,7 @@ defineExpose<ViewExposed>({ self, id, focus });
         v-bind="baseType?.icon ?? ICON_BY_BLOCK_TYPE[BlockType.CLASS]"
         class="mr-1.5 w-5 text-center text-gray-700"
       />
-      <span>{{ baseType?.name }}</span>
+      <span>{{ baseType?.name ?? "???" }}</span>
       <div class="ml-2 flex flex-row gap-x-1.5">
         <div v-for="{ field } of fieldViews.filter((f) => f.isSet)" :key="field.id">
           <span class="text-gray-400">{{ field.name }}</span>
@@ -140,7 +145,7 @@ defineExpose<ViewExposed>({ self, id, focus });
       </div>
       <ul class="flex w-full flex-col gap-y-2.5 py-3" :style="{ width: width + 'px' }">
         <li
-          v-for="{ field, value, component, isFullWidth, viewProps } of fieldViews"
+          v-for="{ field, storageKey, value, viewType, component, isFullWidth, viewProps } of fieldViews"
           :key="field.id"
           class="mx-auto w-full px-4"
           :class="[isFullWidth ? 'flex flex-col' : 'flex flex-row flex-wrap items-center gap-x-[10%]']"
@@ -161,11 +166,14 @@ defineExpose<ViewExposed>({ self, id, focus });
             :model-value="value"
             @update:model-value="
               (value: any) => {
-                const newValue = { ...props.modelValue, [getStorageKey(field)]: value };
+                const newValue = { ...props.modelValue, [storageKey]: value };
                 emit('update:modelValue', newValue);
               }
             "
           />
+          <div v-else class="ml-auto text-warning-600">
+            {{ viewType != null ? ViewType[viewType] : "No View for Value" }}
+          </div>
         </li>
       </ul>
     </div>
