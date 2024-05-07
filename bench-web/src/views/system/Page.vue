@@ -17,7 +17,7 @@ import { useHierarchicalNodeMoveActions } from "@/system/block";
 import { useExistingConnection, useGetConnection } from "@/system/connection";
 import { isDescendantOf, walkDescendantsRef } from "@/system/graph";
 import { ICON_BY_BLOCK_TYPE, IconInline } from "@/system/icon";
-import { createBlock, moveNode, toCamelName } from "@/system/lang";
+import { RUNNABLE_BLOCK_TYPES, createBlock, moveNode, toCamelName } from "@/system/lang";
 import { canvas, inspectionPtr } from "@/system/space";
 import { makeTypeInfo } from "@/system/value";
 import { startDragging, useMultiDropZone } from "@/utils/drag";
@@ -294,7 +294,7 @@ defineExpose<ViewExposed>({ self, actions, focus });
         <!-- In-page Blocks -->
         <!-- Block 'line' -->
         <div
-          v-for="({ nodePtr: blockPtr, depth }, i) in expandedItems"
+          v-for="({ nodePtr: blockPtr, node: block, depth }, i) in expandedItems"
           :key="blockPtr.id"
           class="group/block-line relative flex min-w-fit flex-row"
           :style="{
@@ -400,13 +400,20 @@ defineExpose<ViewExposed>({ self, actions, focus });
 
           <!-- Right gutter -->
           <div
-            class="relative flex-shrink-0"
+            class="relative mx-0.5 flex-shrink-0"
             :style="{
               width: widths.gutter,
-              marginTop: depth != 0 ? NESTED_BLOCK_GAP_Y + 'px' : '0',
+              marginTop: (depth != 0 ? NESTED_BLOCK_GAP_Y : 0) + 6 + 'px',
             }"
           >
             <!-- Activity / Notices / ... -->
+            <!-- Run -->
+            <i
+              v-if="RUNNABLE_BLOCK_TYPES.includes(block.type)"
+              role="button"
+              class="fas fa-play text-gray-400 hover:text-primary-900"
+              data-keep-inspection-in-base="true"
+            />
           </div>
         </div>
 
@@ -414,7 +421,7 @@ defineExpose<ViewExposed>({ self, actions, focus });
         <!-- Quick create -->
         <div
           v-if="page != null"
-          class="group mx-auto mb-8 mt-6 flex flex-row gap-x-1 rounded border border-gray-200 bg-white px-2 py-1"
+          class="group/footer mx-auto mb-8 mt-6 flex flex-row gap-x-1 rounded border border-gray-200 bg-white px-2 py-1"
         >
           <template
             v-for="blockType in [
@@ -437,7 +444,7 @@ defineExpose<ViewExposed>({ self, actions, focus });
                 referenceMargin: 8,
               }"
               class="rounded px-2 py-1 text-base hover:bg-gray-100 hover:text-primary-900"
-              :class="isFocusedAbsolute ? 'text-gray-600' : 'text-gray-400 group-hover:text-gray-500'"
+              :class="isFocusedAbsolute ? 'text-gray-600' : 'text-gray-400 group-hover/footer:text-gray-500'"
               @click="
                 () => {
                   createAndFocusBlock({ type: blockType }, 'inside', page!);

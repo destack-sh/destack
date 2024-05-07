@@ -1,71 +1,22 @@
 import asyncio
-from collections import deque
-from contextvars import ContextVar
 from datetime import datetime
-from typing import TYPE_CHECKING, Any, Collection, Optional, Union, cast
+from typing import TYPE_CHECKING, Collection, Optional
 from uuid import UUID
 
 import structlog
 
-from bench.language.code_ import Code
-from bench.language.const import (
-    TERMINAL_RUN_STATUSES,
-    BenchError,
-    EnumType,
-    InterpStatus,
-    NodeType,
-    RunErrorKind,
-    RunStatus,
-    StructType,
-    _active_session,
-    enum_,
-)
-from bench.language.flow import Step
-from bench.language.node import BasedNode, Node, Struct, node, struct
-from bench.language.property import (
-    Property,
-    p_internal,
-    p_node_ancestor,
-    p_node_ancestor_root,
-    p_node_child,
-    p_node_parent,
-    p_runtime,
-    p_secret_value_packed,
-    p_system,
-    p_value_packed,
-    p_value_runtime,
-)
+from bench.language.const import InterpStatus, NodeType, _active_session
+from bench.language.node import Node, node
+from bench.language.property import Property, p_node_parent, p_runtime, p_system
 from bench.language.query import StoreEngine
-from bench.language.text import Text
 from bench.language.transaction import Transaction
-from bench.language.value import HasValues
-from bench.proto.wire import (
-    AnyNodeData,
-    EditData,
-    HostStub,
-    NodeReferenceData,
-    RunData,
-    SessionData,
-    SignalData,
-    SupervisorStub,
-)
+from bench.proto.wire import EditData, HostStub, SessionData, SupervisorStub
 from bench.utils.dt import utcnow_with_tz
-from bench.utils.env import IS_DEBUG
-from bench.utils.func import IdEnum, _auto_async_to_sync, bytetuple
+from bench.utils.func import _auto_async_to_sync, bytetuple
 from bench.utils.uuidt import UUIDT
 
 if TYPE_CHECKING:
-    from bench.language import (
-        Bench,
-        Block,
-        Branch,
-        Environment,
-        Package,
-        Request,
-        Server,
-        Trigger,
-        User,
-    )
+    from bench.language import Package, Run, Server
 
 # pyright: reportIncompatibleVariableOverride=false,reportIncompatibleMethodOverride=false
 
@@ -73,83 +24,6 @@ logger = structlog.get_logger(__name__)
 
 # we don't want edits to Signals/Logs to be logged in Signals or Logs (for obvious reasons)
 MUTED_EDIT_NODE_TYPES: bytetuple[NodeType] = bytetuple(NodeType.SIGNAL, NodeType.LOG)
-
-
-@node(NodeType.SIGNAL, passthrough="value", local=True, index_in_search=True, id_factory=UUIDT)
-class Signal(BasedNode[SignalData], HasValues):
-    """A signal emitted in this Bench."""
-
-    parent: "Package" = p_node_parent(4, NodeType.PACKAGE)
-    # builtin_type: ...
-    type: Optional["Block"] = p_internal(
-        31, require=False, array=False, references=NodeType.BLOCK, index_in_pg=True
-    )
-    origin: Optional["Block"] = p_internal(
-        33, require=False, array=False, references=NodeType.BLOCK, index_in_pg=True
-    )
-    value_packed: Any | None = p_value_packed(34)
-    secret_value_packed: Any | None = p_secret_value_packed(35)
-    value = p_value_runtime(34, 35, type=31)
-
-    @property
-    def base(self) -> Optional["Block"]:
-        return self.type
-
-    @staticmethod
-    def get_base_from_data(data: AnyNodeData) -> Optional[NodeReferenceData]:
-        return (cast(SignalData, data)).type_ptr
-
-
-@enum_(EnumType.LOG_KIND)
-class LogKind(IdEnum):
-    MESSAGE = 1
-    ACCESS = 2
-
-
-@enum_(EnumType.LOG_LEVEL)
-class LogLevel(IdEnum):
-    TRACE = 1
-    DEBUG = 2
-    INFO = 3
-    WARNING = 4
-    ERROR = 5
-    CRITICAL = 6
-
-
-@node(NodeType.LOG, stored=True, local=True, index_in_search=True, no_ck=True, id_factory=UUIDT)
-class Log(Node, HasValues):
-    """
-    A Log (entry) is a timestamped event of something happening:
-     a message, some Access (read, edit, use), etc.
-    """
-
-    parent: "Package" = p_node_parent(4, NodeType.PACKAGE)
-
-    # content
-    kind: LogKind = p_system(30)
-    level: LogLevel = p_system(31)
-    logger: Optional[str] = p_system(32, default=None)
-    event: Optional[str] = p_system(33, default=None)
-    title: Optional[str] = p_internal(34, default=None)
-    text: Optional[Text] = p_internal(
-        35, default=None, require=False, array=False, struct=StructType.TEXT
-    )
-    value_packed: Any | None = p_value_packed(36)
-    value: Any = p_value_runtime(36)
-    request: Optional["Request"] = p_system(
-        37, require=False, array=False, struct=StructType.REQUEST
-    )
-
-    # context
-    session: Optional["Session"] = p_system(
-        40, require=False, array=False, references=NodeType.SESSION
-    )
-    run: Optional["Run"] = p_system(41, require=False, array=False, references=NodeType.RUN)
-    block: Optional["Block"] = p_system(42, require=False, array=False, references=NodeType.BLOCK)
-    step: Optional["Step"] = p_system(43, require=False, array=False, references=NodeType.STEP)
-
-    def __content_str__(self):
-        return f"[{self.kind.bench_name}:{self.level.bench_name}] '{self.event or self.title or self.text or '<empty>'}' ({self.created_at})"
 
 
 @node(NodeType.SESSION, index_in_search=True, local=True, id_factory=UUIDT)
@@ -243,7 +117,6 @@ class Session(Node[SessionData]):
         if self.is_runtime:
             # log collection
             self._pending_logs = []
-            self._cached_logs = deque(maxlen=LOG_CACHE_SIZE)
             self._runs_by_id = {}
             self._pending_runs_by_id = {}
             self._active_nodes_by_ck = {}
@@ -395,148 +268,3 @@ class Session(Node[SessionData]):
     @property
     def stacktrace(self):
         return self._stacktrace
-
-
-@enum_(EnumType.RUN_KIND)
-class RunKind(IdEnum):
-    BLOCK = 1
-    LAMBDA = 10
-
-
-@node(NodeType.RUN, index_in_search=True, local=True, id_factory=UUIDT)
-class Run(BasedNode[RunData], HasValues):
-    """
-    A 'run' of something. Can run Blocks (and Steps within them) or 'lambdas' (just Code/Text).
-    When 'running' something that's not directly runnable (like a Text Block, Text Step or Text Lambda),
-     we figure
-    """
-
-    # context
-    parent: Union["Session", "Run"] = p_node_parent(4, NodeType.SESSION, NodeType.RUN)
-    kind: RunKind = p_system(30)
-    session: "Session" = p_node_ancestor(
-        31, NodeType.SESSION, require=True, store=True, wire=True, index_in_pg=True
-    )
-    root: Optional["Run"] = p_node_ancestor_root(
-        32, NodeType.RUN, require=False, store=True, wire=True, index_in_pg=True
-    )
-    server: Optional["Server"] = p_internal(
-        33, require=False, array=False, references=NodeType.SERVER
-    )
-    block: Optional["Block"] = p_internal(
-        34, references=NodeType.BLOCK, require=False, array=False, index_in_pg=True
-    )
-    step: Optional["Step"] = p_internal(35, require=False, array=False, references=NodeType.STEP)
-    code: Optional["Code"] = p_internal(36, require=False, array=False, struct=StructType.CODE)
-    text: Optional["Text"] = p_internal(37, require=False, array=False, struct=StructType.TEXT)
-
-    # status
-    status: RunStatus = p_internal(40, index_in_pg=True)
-    scheduled_at: Optional[datetime] = p_internal(41, default=None)
-    started_at: Optional[datetime] = p_internal(42, default=None)
-    paused_at: Optional[datetime] = p_internal(43, default=None)
-    terminated_at: Optional[datetime] = p_internal(44, default=None)
-    duration: Optional[float] = p_internal(45)
-
-    # value
-    inputs_packed: Any = p_value_packed(50)
-    inputs_secret_packed: Any = p_secret_value_packed(51)
-    inputs: Any = p_value_runtime(50, 51)
-    outputs_packed: Any = p_value_packed(52)
-    outputs_secret_packed: Any = p_secret_value_packed(53)
-    outputs: Any = p_value_runtime(52, 53)
-    value_packed: Any = p_value_packed(54)
-    value_secret_packed: Any = p_secret_value_packed(55)
-    value: Any = p_value_runtime(54, 55)
-    error: Optional["RunError"] = p_internal(
-        56, default=None, require=False, array=False, struct=StructType.RUN_ERROR
-    )
-
-    # NOTE :Architecture :Performance: (some) Runs will likely be stored outside the main user DB later.
-    #  And maybe we'll also have 'inline runs' for non-Bench constructs that were run (like deeper profiling).
-    runs: list["Run"] = p_node_child(NodeType.RUN)
-
-    def __content_str__(self):
-        value_keys_str = ", ".join(self.value.keys()) if self.value else ""
-        return f"{self.block} ({self.status}, value={value_keys_str or '<none>'}, {self.id})"
-
-    @property
-    def active(self) -> bool:
-        return self.status not in TERMINAL_RUN_STATUSES
-
-    @property
-    def base(self) -> Optional["Block"]:
-        return self.block
-
-    @staticmethod
-    def get_base_from_data(data: RunData) -> Optional[NodeReferenceData]:
-        return data.block_ptr
-
-
-_active_root_run: ContextVar[Run | None] = ContextVar("active_root_run", default=None)
-_active_run_by_root: dict[UUID, Run] = {}
-
-
-@struct(StructType.RUN_CODE_FRAME)
-class RunCodeFrame(Struct):
-    node: Node = p_internal(30, array=False, require=True, references=NodeType.BLOCK)
-    lineno: int = p_internal(31)
-    name: str = p_internal(32)
-    line: str = p_internal(33)
-
-    # locals?
-
-
-@struct(StructType.RUN_ERROR)
-class RunError(Struct, BenchError):
-    kind: RunErrorKind = p_internal(30)
-    type: str = p_internal(31)
-    message: Optional[str] = p_internal(32, default=None)
-    node: Optional["Node"] = p_internal(33, require=False, array=False, references=NodeType.BLOCK)
-    traceback: list[RunCodeFrame] = p_internal(34, array=True, struct=StructType.RUN_CODE_FRAME)
-
-
-@node(NodeType.PAUSE, local=True)
-class Pause(Node):
-    """A resumable interruption in a Run."""
-
-    parent: "Run" = p_node_parent(4, NodeType.RUN)
-    session: "Session" = p_node_ancestor(
-        30, NodeType.SESSION, require=True, store=True, wire=True, index_in_pg=True
-    )
-    # (placeholder)
-
-
-LOG_CACHE_SIZE = 1000
-MAX_STACK_DEPTH = 8 if IS_DEBUG else 16
-
-
-@struct(StructType.CONTEXT)
-class Context(Struct):
-    """A semi-magical value that accumulates context down the graph (starting with system context)."""
-
-    # system
-    bench: Optional["Bench"] = p_internal(30, require=False, array=False, references=NodeType.BENCH)
-    environment: Optional["Environment"] = p_internal(
-        31, require=False, array=False, references=NodeType.ENVIRONMENT
-    )
-    branch: Optional["Branch"] = p_internal(
-        32, require=False, array=False, references=NodeType.BRANCH
-    )
-    package: Optional["Package"] = p_internal(
-        33, require=False, array=False, references=NodeType.PACKAGE
-    )
-    module: Optional["Block"] = p_internal(
-        34, require=False, array=False, references=NodeType.BLOCK
-    )
-    page: Optional["Block"] = p_internal(35, require=False, array=False, references=NodeType.BLOCK)
-
-    user: Optional["User"] = p_internal(40, require=False, array=False, references=NodeType.USER)
-    trigger: Optional["Trigger"] = p_internal(
-        41, require=False, array=False, references=NodeType.TRIGGER
-    )
-
-    # custom
-    # value_packed: Any = p_value_packed(50)
-    # secret_value_packed: Any = p_secret_value_packed(51)
-    # value: Any = p_value_runtime(50, 51)
