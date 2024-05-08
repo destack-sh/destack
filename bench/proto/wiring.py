@@ -94,11 +94,11 @@ def unpack_enum(enum_cls: IdEnumOrUnion, value: Any) -> Any:
     return enum_cls(value)
 
 
-def _pack_struct_prop(prop: Property, value: Any, ignore_array: bool) -> Any:
+def pack_struct_prop(prop: Property, value: Any, ignore_array: bool) -> Any:
     if value is None:
         return None
     elif prop.is_list and not ignore_array:
-        return [_pack_struct_prop(prop, v, ignore_array=True) for v in value]
+        return [pack_struct_prop(prop, v, ignore_array=True) for v in value]
     elif prop.is_struct:
         return pack_struct(value)
     elif prop.is_enum:
@@ -119,14 +119,14 @@ def _pack_struct_prop(prop: Property, value: Any, ignore_array: bool) -> Any:
         return value
 
 
-def _unpack_struct_prop(prop: Property, value: Any, ignore_array: bool) -> Any:
+def unpack_struct_prop(prop: Property, value: Any, ignore_array: bool = False) -> Any:
     from bench.language.expression import NodeReference
 
     try:
         if value is None:
             return None
         elif prop.is_list and not ignore_array:
-            return [_unpack_struct_prop(prop, v, ignore_array=True) for v in value]
+            return [unpack_struct_prop(prop, v, ignore_array=True) for v in value]
         elif prop.is_struct:
             return unpack_struct(value)
         elif prop.is_enum:
@@ -156,7 +156,7 @@ def pack_struct(struct: Struct, expect: type[StructDataT] | None = None) -> Stru
     try:
         for prop in struct.__wired_properties__.values():
             value = getattr(struct, prop.name)
-            value = _pack_struct_prop(prop, value, ignore_array=False)
+            value = pack_struct_prop(prop, value, ignore_array=False)
             setattr(struct_data, prop.name, value)
         if expect and struct_data.metatype != expect.metatype:
             raise RuntimeError(f"expected {expect.metatype} but got {struct_data.metatype}")
@@ -183,7 +183,7 @@ def unpack_struct(struct_data: AnyStructData, expect: type[StructT] | None = Non
             if prop.is_computed:
                 continue
             value = getattr(struct_data, prop.name)
-            struct_kwargs[prop.name] = _unpack_struct_prop(prop, value, ignore_array=False)
+            struct_kwargs[prop.name] = unpack_struct_prop(prop, value, ignore_array=False)
         struct = struct_cls(**struct_kwargs, _status=InterpStatus.SOURCE)
         return cast(StructT, struct)
     except (AttributeError, TypeError, ValueError, KeyError) as e:
@@ -243,7 +243,7 @@ def unpack_node(
             if not prop.is_runtime or prop.is_computed:
                 continue
             value = getattr(node_data, prop.name)
-            node_kwargs[prop.name] = _unpack_struct_prop(prop, value, ignore_array=False)
+            node_kwargs[prop.name] = unpack_struct_prop(prop, value, ignore_array=False)
         node = node_cls(**node_kwargs, parent=parent, _session=session, _status=InterpStatus.SOURCE)
         return node
     except (AttributeError, TypeError, ValueError, KeyError) as e:

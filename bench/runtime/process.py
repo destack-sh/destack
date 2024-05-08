@@ -11,13 +11,21 @@ logger = structlog.get_logger(__name__)
 
 class Runtime(RuntimeBase, MonitoredServiceBase):
     """
-    Manages the lifecycle of the server node's server processes in a main sidecar process.
-    During local development, this may also launch the server node in the same process.
+    nocheckin: ???
     """
 
-    def __init__(self, server_id: UUID, bench_id: UUID | None):
+    def __init__(
+        self,
+        *,
+        client_id: UUID | None = None,
+        user_id: UUID | None = None,
+        server_id: UUID | None = None,
+        bench_id: UUID | None = None,
+    ):
         super().__init__()
+        self.client_id = client_id
         self.server_id = server_id
+        self.user_id = user_id
         self.bench_id = bench_id
         self.processes: dict[UUID, Popen] = {}
         self._stopped = False

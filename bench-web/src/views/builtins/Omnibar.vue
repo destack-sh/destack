@@ -304,10 +304,11 @@ defineExpose({ isActive, open });
               </template>
             </ul>
             <!-- Too many results (truncated) -->
-            <div v-if="results.length < resultsTotal" class="my-1 px-5 pb-2 text-gray-500">
-              <i class="fas w-5 text-center fas fa-ellipsis" />
-              <span class="ml-2.5">
-                <span class="font-semibold">{{ resultsTotal - results.length }}</span> more results for
+            <div v-if="results.length < resultsTotal" class="my-1 px-[18px] pb-2 text-gray-500">
+              <i class="fas fas fa-ellipsis w-5 text-center" />
+              <span class="ml-2">
+                <span class="font-semibold">{{ resultsTotal - results.length }}</span> more results
+                <template v-if="query.length > 0"> for</template>
                 <span class="font-semibold">{{ query }}</span>
                 (showing {{ results.length }})
               </span>
@@ -318,7 +319,7 @@ defineExpose({ isActive, open });
             <div v-else-if="results.length == 0" class="my-1 px-2 py-1">
               <!-- Nothing found -->
               <div v-if="results.length === 0" class="px-2.5 py-1 text-gray-500">
-                <i class="fas w-5 text-center fa-empty-set text-gray-600" />
+                <i class="fas fa-empty-set w-5 text-center text-gray-600" />
                 <span class="ml-1">
                   No results
                   <span v-if="query">

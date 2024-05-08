@@ -1,4 +1,5 @@
 <script lang="ts" setup>
+import { getHostClient } from "@/proto/services";
 import {
   BenchType,
   BlockData,
@@ -7,6 +8,7 @@ import {
   NodeReferenceData,
   NodeType,
   Orientation,
+  RunData,
   Variant,
   ViewData,
   ViewType,
@@ -18,7 +20,7 @@ import { useExistingConnection, useGetConnection } from "@/system/connection";
 import { isDescendantOf, walkDescendantsRef } from "@/system/graph";
 import { ICON_BY_BLOCK_TYPE, IconInline } from "@/system/icon";
 import { RUNNABLE_BLOCK_TYPES, createBlock, moveNode, toCamelName } from "@/system/lang";
-import { canvas, inspectionPtr } from "@/system/space";
+import { canvas, inspectionPtr, pkg } from "@/system/space";
 import { makeTypeInfo } from "@/system/value";
 import { startDragging, useMultiDropZone } from "@/utils/drag";
 import { blurDocument } from "@/utils/element";
@@ -214,6 +216,24 @@ function createAndFocusBlock(
   nextTick(() => focus(toNodeReference(block)));
 }
 
+// run
+const runningBlockId: Ref<string | null> = ref(null);
+const lastRun: Ref<RunData | null> = ref(null);
+async function run(block: BlockData) {
+  try {
+    runningBlockId.value = block.id;
+    const benchId = block.benchPtr!.id!;
+    const packageId = pkg.value!.id!;
+    const client = await getHostClient({ id: benchId });
+    const { response } = await client.run({ scope: { benchId, packageId }, block });
+    lastRun.value = response.run ?? null;
+  } catch {
+    lastRun.value = null;
+  } finally {
+    runningBlockId.value = null;
+  }
+}
+
 // focus
 function focus(anchor: FocusAnchor | NodeReferenceData) {
   if (typeof anchor != "object") {
@@ -314,8 +334,13 @@ defineExpose<ViewExposed>({ self, actions, focus });
             <i
               v-if="RUNNABLE_BLOCK_TYPES.includes(block.type)"
               role="button"
-              class="far fa-play text-gray-400 hover:text-primary-900"
+              :class="
+                runningBlockId == block.id
+                  ? 'fas fa-spinner-third animate-spin text-primary-900'
+                  : 'far fa-play text-gray-400 hover:text-primary-900'
+              "
               data-keep-inspection-in-base="true"
+              @click="() => run(block)"
             />
           </div>
 
@@ -406,7 +431,7 @@ defineExpose<ViewExposed>({ self, actions, focus });
 
           <!-- Right gutter -->
           <div
-            class="relative px-1.5 flex-shrink-0"
+            class="relative flex-shrink-0 px-1.5"
             :style="{
               width: widths.gutter,
               marginTop: (depth != 0 ? NESTED_BLOCK_GAP_Y : 0) + 7 + 'px',

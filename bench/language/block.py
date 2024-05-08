@@ -103,12 +103,6 @@ class Block(Node[BlockData], HasValues):
     """A building block containing logic, types, UI, data, AI, - any Bench program source."""
 
     parent: Union["Block", "Package"] = p_node_parent(4, NodeType.BLOCK, NodeType.PACKAGE)
-    blocks: NodeList["Block"] = p_node_child(NodeType.BLOCK)
-    badges: NodeList["Badge"] = p_node_child(NodeType.BADGE)
-    fields: NodeList["Field"] = p_node_child(NodeType.FIELD)
-    notices: NodeList["Notice"] = p_node_child(NodeType.NOTICE)
-    steps: NodeList["Step"] = p_node_child(NodeType.STEP)
-    triggers: NodeList["Trigger"] = p_node_child(NodeType.TRIGGER)
 
     # core
     type: BlockType = p_internal(30)
@@ -143,6 +137,13 @@ class Block(Node[BlockData], HasValues):
     # is_method? (bound to instances of parent)
     # is_unique? (by name in parent module)
     # is_frozen? (read-only in instances of template)
+
+    blocks: NodeList["Block"] = p_node_child(NodeType.BLOCK)
+    badges: NodeList["Badge"] = p_node_child(NodeType.BADGE)
+    fields: NodeList["Field"] = p_node_child(NodeType.FIELD)
+    notices: NodeList["Notice"] = p_node_child(NodeType.NOTICE)
+    steps: NodeList["Step"] = p_node_child(NodeType.STEP)
+    triggers: NodeList["Trigger"] = p_node_child(NodeType.TRIGGER)
 
     @staticmethod
     def new(

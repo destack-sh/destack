@@ -4,7 +4,7 @@ import structlog
 import typer
 from grpclib.utils import graceful_exit
 
-from bench.cli.utils import async_to_sync_blocking, _check_is_consistent
+from bench.cli.utils import _check_is_consistent, async_to_sync_blocking
 from bench.proto.services import BenchServer, BenchServiceBase
 from bench.runtime.process import Runtime
 from bench.system.host import HostMultiplexer
@@ -39,8 +39,10 @@ async def runtime(host: str, port: int, watch: bool = False):
     await _check_is_consistent(check_db=True)
     logger.info("serve.runtime", host=host, port=port)
     server = Runtime(
-        server_id=get_from_env("SERVER_ID", default=None),
-        bench_id=get_from_env("BENCH_ID", default=None),
+        client_id=get_from_env("CLIENT_ID", optional=True),
+        user_id=get_from_env("USER_ID", optional=True),
+        server_id=get_from_env("SERVER_ID", optional=True),
+        bench_id=get_from_env("BENCH_ID", optional=True),
     )
     services = [server]
     server = BenchServer(services)

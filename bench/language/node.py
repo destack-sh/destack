@@ -1460,7 +1460,7 @@ class Node(Struct[NodeDataT], Generic[NodeDataT]):
         return type(self).__name__
 
     @property
-    def root(self) -> "Node":
+    def _root(self) -> "Node":
         """Current root of this node. May not be *the* "right" root if detached."""
         parent = self
         while parent.parent is not None:
@@ -1469,7 +1469,7 @@ class Node(Struct[NodeDataT], Generic[NodeDataT]):
 
     @property
     def _root_graph(self) -> Union["NodeGraph", "DetachedNodeGraph"]:
-        root = self.root
+        root = self._root
         graph = root._graph
         assert graph is not None, f"no graph for root {root!r} (from {self!r})"
         return graph
@@ -1734,6 +1734,11 @@ class Node(Struct[NodeDataT], Generic[NodeDataT]):
 
     @final
     def _interp_self(self, scope: Optional["Node"], notice: "NoticeHandler"):
+        # interp contained structs
+        for struct in self._walk_struct():
+            if struct is not self:
+                struct._interp_self(scope, notice)
+        # and the rest
         for meth in _get_component_methods(
             self._components, _ComponentMethod.interp, self._instance_cache_key
         ):
@@ -1763,15 +1768,29 @@ class Node(Struct[NodeDataT], Generic[NodeDataT]):
 
     @final
     def _interp_rec(self, scope: Optional["Node"], notice: "NoticeHandler"):
-        super()._interp_rec(scope, notice)  # interp structs
+        # interp contained structs
+        super()._interp_rec(scope, notice)  
+        # and descendants
         for inner_node in self._walk_descendants():
             inner_node._interp_self(scope, notice)
 
     @final
     def _validate_rec(self, properties: tuple[Property, ...], invalid: "ValidationHandler") -> None:
-        super()._validate_rec(properties, invalid)  # validate structs
+        # validate contained structs
+        super()._validate_rec(properties, invalid)
+        # and descendants
         for inner_node in self._walk_descendants():
             inner_node._validate_self(properties, invalid)
+
+    @final
+    def _track_rec(self, session: "Session"):
+        for inner_node in self._walk_descendants():
+            inner_node._track_self(session)
+
+    @final
+    def _untrack_rec(self):
+        for inner_node in self._walk_descendants():
+            inner_node._untrack_self()
 
     #
     # Querying

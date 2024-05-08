@@ -2,7 +2,7 @@
   "version": "0.2.0",
   "configurations": [
     {
-      "name": "bench [serve.system, debug]",
+      "name": "bench.system",
       "type": "debugpy",
       "request": "launch",
       "program": "${workspaceFolder}/bench.py",
@@ -14,16 +14,31 @@
       "console": "integratedTerminal",
       "cwd": "${workspaceFolder}",
       "justMyCode": false
+    },
+    {
+      "name": "bench.runtime",
+      "type": "debugpy",
+      "request": "launch",
+      "program": "${workspaceFolder}/bench.py",
+      "args": ["serve", "runtime", "--watch", "127.0.0.1", "50051"],
+      "env": {
+        "PYTHONUNBUFFERED": "1",
+        "DEBUG": "1",
+        "BENCH_ID": "56cf3720-e93e-4238-92c5-e14f565bc0d7",
+      },
+      "console": "integratedTerminal",
+      "cwd": "${workspaceFolder}",
+      "justMyCode": false,
     }, 
     {
-      "name": "bench [makemigrations]",
+      "name": "bench.makemigrations",
       "type": "debugpy",
       "request": "launch",
       "program": "${workspaceFolder}/bench.py",
       "args": ["sql", "makemigrations", "--no-downgrade"],
       "env": {
         "PYTHONUNBUFFERED": "1",
-        "DEBUG": "1"
+        "DEBUG": "1",
       },
       "console": "integratedTerminal",
       "cwd": "${workspaceFolder}",

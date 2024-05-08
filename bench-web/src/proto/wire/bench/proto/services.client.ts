@@ -10,6 +10,8 @@ import { Runtime } from "./services";
 import type { RestartRuntimeResponse } from "./services";
 import type { RestartRuntimeRequest } from "./services";
 import { Host } from "./services";
+import type { RunResponse } from "./services";
+import type { RunRequest } from "./services";
 import type { PingServerRequest } from "./services";
 import type { PingServerResponse } from "./services";
 import type { RestartServerRequest } from "./services";
@@ -507,6 +509,12 @@ export interface IHostClient {
      * @generated from protobuf rpc: PingServer(symbolx.bench.PingServerRequest) returns (symbolx.bench.PingServerResponse);
      */
     pingServer(input: PingServerRequest, options?: OperationOptions): UnaryCall<PingServerRequest, PingServerResponse>;
+    /**
+     * Start a run explicitly :Demo
+     *
+     * @generated from protobuf rpc: Run(symbolx.bench.RunRequest) returns (symbolx.bench.RunResponse);
+     */
+    run(input: RunRequest, options?: OperationOptions): UnaryCall<RunRequest, RunResponse>;
 }
 /**
  * The host providing access and the persistent 'system-side' OS for a Bench.
@@ -644,6 +652,15 @@ export class HostClient implements IHostClient, ServiceInfo {
     pingServer(input: PingServerRequest, options?: OperationOptions): UnaryCall<PingServerRequest, PingServerResponse> {
         const method = this.methods[13], opt = this._transport.mergeOptions(options);
         return stackIntercept<PingServerRequest, PingServerResponse>("unary", this._transport, method, opt, input);
+    }
+    /**
+     * Start a run explicitly :Demo
+     *
+     * @generated from protobuf rpc: Run(symbolx.bench.RunRequest) returns (symbolx.bench.RunResponse);
+     */
+    run(input: RunRequest, options?: OperationOptions): UnaryCall<RunRequest, RunResponse> {
+        const method = this.methods[14], opt = this._transport.mergeOptions(options);
+        return stackIntercept<RunRequest, RunResponse>("unary", this._transport, method, opt, input);
     }
 }
 /**

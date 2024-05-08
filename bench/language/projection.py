@@ -45,6 +45,47 @@ class Projection(Struct):
     ...
 
 
+def project_node(node: Node) -> list[Node]:
+    """
+    Gather the references and descendants of the given node, recursively.
+    See Projection for details.
+    """
+    seen_by_ck: dict[UUID, Node] = {}
+    to_visit: list[Node] = [node]
+
+    def _visit_node(node: Node):
+        if node.ck in seen_by_ck:
+            return
+        seen_by_ck[node.ck] = node
+
+        # visit children
+        for prop in node.__node_list_properties__.values():
+            prop_value = cast(NodeList, getattr(node, prop.name))
+            for child in prop_value:
+                _visit_node(child)
+        # visit references in all contained structs
+        for struc in node._walk_struct():
+            for prop in struc.__node_reference_properties__.values():
+                if prop.id is None or prop.id < 30:  # skip system properties (incl. parent)
+                    continue
+                elif prop.is_list:
+                    prop_value = cast(NodeList | None, getattr(struc, prop.name))
+                    if prop_value:
+                        for child in prop_value:
+                            _visit_node(child)
+                else:
+                    ref = cast(Node | None, getattr(struc, prop.name))
+                    if ref:
+                        _visit_node(ref)
+
+    # traverse
+    while to_visit:
+        node = to_visit.pop()
+        _visit_node(node)
+
+    return list(seen_by_ck.values())
+
+
 def render_value_scalar(value: "ScalarValue", typ: "TypeInfoBase") -> str:
     """Renders single scalar value into Bench python."""
     if typ.kind == TypeKind.PRIMITIVE:
@@ -132,6 +173,7 @@ def render_struct(value: Node | Struct) -> str:
                 or prop_value == prop.default
                 or prop.is_list
                 and len(prop_value) == 0
+                or prop.name == "icon"  # nocheckin: render icon somehow (spammy)
             ):
                 continue  # skip empty values
             prop_repr = render_value(prop_value, prop.type_info)
@@ -155,7 +197,7 @@ def render_node(
     to_visit: list[Node] = list(roots)
     to_visit.reverse()  # keep order (we'll pop from the end)
 
-    # TODO :Broken!: defer setting not-yet-defined node alias
+    # TODO :Broken: defer setting not-yet-defined node alias
 
     def _render_node(node: Node) -> list[str]:
         """Renders the node and any in-page children immediately, deferring the rest to to_visit."""
@@ -173,6 +215,7 @@ def render_node(
             prop_children = tuple(prop_value)
             if not prop_children:
                 continue  # skip empty values
+
             prop_lines: list[str] = [f"{node_alias}.{prop.name}.extend("]
             nested_lines: list[str] = []
             for child in prop_children:
@@ -186,10 +229,7 @@ def render_node(
 
         # wrap with alias if needed :NodeAliasing
         if descendants_lines:
-            return [
-                f"{node_alias} = {render_struct(node)}",
-                *descendants_lines,
-            ]
+            return [f"{node_alias} = {render_struct(node)}", *descendants_lines]
         else:
             return [render_struct(node)]
 

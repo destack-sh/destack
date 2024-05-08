@@ -30,7 +30,7 @@ def get_from_env(
             value = default
         else:
             raise ValueError(
-                f'Environment variable "{key}" is required (alt="{alt}", type_cast={type_cast}).'
+                f'environment variable {key} is required (alt={alt or "<not set>"}, type_cast={type_cast}).'
             )
     if type_cast is not None:
         if type_cast is bool:

@@ -20,6 +20,7 @@ from bench.proto.wire import (
     BranchData,
     DependencyData,
     EnvironmentData,
+    NodeReferenceData,
     PackageData,
     UpgradeData,
 )
@@ -174,6 +175,9 @@ class Branch(Node[BranchData]):
     main_package: Optional["Package"] = p_system(
         40, require=False, array=False, references=NodeType.PACKAGE, fk=True, is_bench_implicit=True
     )
+    if TYPE_CHECKING:
+        main_package_id: Optional[UUID] = None
+        main_package_ptr: Optional[NodeReferenceData] = None
 
 
 @node(
