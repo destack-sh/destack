@@ -3441,7 +3441,8 @@ class RunRequest(betterproto.Message):
 @dataclass(eq=False, repr=False)
 class RunResponse(betterproto.Message):
     run: "RunData" = betterproto.message_field(1)
-    logs: List["LogData"] = betterproto.message_field(2)
+    logs: List[str] = betterproto.string_field(2)
+    generated_code: str = betterproto.string_field(3)
 
 
 class GraphIoStub(betterproto.ServiceStub):

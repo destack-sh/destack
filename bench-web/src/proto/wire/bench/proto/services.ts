@@ -16,7 +16,6 @@ import { UnknownFieldHandler } from "@protobuf-ts/runtime";
 import type { PartialMessage } from "@protobuf-ts/runtime";
 import { reflectionMergePartial } from "@protobuf-ts/runtime";
 import { MessageType } from "@protobuf-ts/runtime";
-import { LogData } from "./lang";
 import { RunData } from "./lang";
 import { BlockData } from "./lang";
 import { Timestamp } from "../../google/protobuf/timestamp";
@@ -753,9 +752,13 @@ export interface RunResponse {
      */
     run?: RunData;
     /**
-     * @generated from protobuf field: repeated symbolx.bench.LogData logs = 2;
+     * @generated from protobuf field: repeated string logs = 2;
      */
-    logs: LogData[];
+    logs: string[];
+    /**
+     * @generated from protobuf field: string generated_code = 3;
+     */
+    generatedCode: string;
 }
 // @generated message type with reflection information, may provide speed optimized methods
 class GetNodesRequest$Type extends MessageType<GetNodesRequest> {
@@ -3296,12 +3299,14 @@ class RunResponse$Type extends MessageType<RunResponse> {
     constructor() {
         super("symbolx.bench.RunResponse", [
             { no: 1, name: "run", kind: "message", T: () => RunData },
-            { no: 2, name: "logs", kind: "message", repeat: 1 /*RepeatType.PACKED*/, T: () => LogData }
+            { no: 2, name: "logs", kind: "scalar", repeat: 2 /*RepeatType.UNPACKED*/, T: 9 /*ScalarType.STRING*/ },
+            { no: 3, name: "generated_code", kind: "scalar", T: 9 /*ScalarType.STRING*/ }
         ]);
     }
     create(value?: PartialMessage<RunResponse>): RunResponse {
         const message = globalThis.Object.create((this.messagePrototype!));
         message.logs = [];
+        message.generatedCode = "";
         if (value !== undefined)
             reflectionMergePartial<RunResponse>(this, message, value);
         return message;
@@ -3314,8 +3319,11 @@ class RunResponse$Type extends MessageType<RunResponse> {
                 case /* symbolx.bench.RunData run */ 1:
                     message.run = RunData.internalBinaryRead(reader, reader.uint32(), options, message.run);
                     break;
-                case /* repeated symbolx.bench.LogData logs */ 2:
-                    message.logs.push(LogData.internalBinaryRead(reader, reader.uint32(), options));
+                case /* repeated string logs */ 2:
+                    message.logs.push(reader.string());
+                    break;
+                case /* string generated_code */ 3:
+                    message.generatedCode = reader.string();
                     break;
                 default:
                     let u = options.readUnknownField;
@@ -3332,9 +3340,12 @@ class RunResponse$Type extends MessageType<RunResponse> {
         /* symbolx.bench.RunData run = 1; */
         if (message.run)
             RunData.internalBinaryWrite(message.run, writer.tag(1, WireType.LengthDelimited).fork(), options).join();
-        /* repeated symbolx.bench.LogData logs = 2; */
+        /* repeated string logs = 2; */
         for (let i = 0; i < message.logs.length; i++)
-            LogData.internalBinaryWrite(message.logs[i], writer.tag(2, WireType.LengthDelimited).fork(), options).join();
+            writer.tag(2, WireType.LengthDelimited).string(message.logs[i]);
+        /* string generated_code = 3; */
+        if (message.generatedCode !== "")
+            writer.tag(3, WireType.LengthDelimited).string(message.generatedCode);
         let u = options.writeUnknownFields;
         if (u !== false)
             (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);

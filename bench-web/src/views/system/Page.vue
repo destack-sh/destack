@@ -219,6 +219,7 @@ function createAndFocusBlock(
 // run
 const runningBlockId: Ref<string | null> = ref(null);
 const lastRun: Ref<RunData | null> = ref(null);
+const lastLogs: Ref<string[]> = ref([]);
 async function run(block: BlockData) {
   try {
     runningBlockId.value = block.id;
@@ -227,8 +228,10 @@ async function run(block: BlockData) {
     const client = await getHostClient({ id: benchId });
     const { response } = await client.run({ scope: { benchId, packageId }, block });
     lastRun.value = response.run ?? null;
+    lastLogs.value = response.logs ?? [];
   } catch {
     lastRun.value = null;
+    lastLogs.value = [];
   } finally {
     runningBlockId.value = null;
   }
@@ -427,6 +430,15 @@ defineExpose<ViewExposed>({ self, actions, focus });
               :draggable="true"
               @dragstart.stop="(e: DragEvent) => startDragging(e, pkgGraph, blockPtr)"
             />
+            <!-- nocheckin :Demo -->
+            <div
+              v-if="lastRun?.blockPtr?.id == block.id"
+              class="mx-2 flex flex-col gap-y-0.5 mb-1 rounded border border-gray-200 bg-gray-100 px-2 py-0.5 font-mono"
+            >
+              <pre v-for="log in lastLogs" :key="log" class="">
+                {{ log.trim() }}
+              </pre>
+            </div>
           </div>
 
           <!-- Right gutter -->

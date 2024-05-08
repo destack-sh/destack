@@ -1,11 +1,12 @@
 import asyncio
 import functools
-from typing import Callable
+from typing import Any, Callable
 from uuid import UUID
 
 import betterproto
 import grpclib.server
 import structlog
+from groq import AsyncGroq
 from grpclib import GRPCError
 from grpclib import Status as GRPCStatus
 
@@ -19,8 +20,7 @@ from bench.language.const import (
     RunStatus,
 )
 from bench.language.graph import NodeGraph, edit_graph
-from bench.language.node import Node
-from bench.language.projection import project_node, render_node
+from bench.language.projection import project_node, render, render_node
 from bench.language.query import PostgresEngine, StoreEngine
 from bench.language.run import Run, RunError, RunKind
 from bench.language.session import Session
@@ -42,8 +42,6 @@ from bench.system.graph import GraphIoServiceBase
 from bench.system.resource import provision_pending_resources
 from bench.utils.dt import utcnow_with_tz
 from bench.utils.func import to_uuid
-from groq import AsyncGroq
-
 from bench.utils.utils import get_from_env
 
 logger = structlog.get_logger(__name__)
@@ -284,8 +282,10 @@ class Host(GraphIoServiceBase, HostBase):
         if not isinstance(block, Block):
             raise GRPCError(GRPCStatus.INVALID_ARGUMENT, f"not a block: {block!r}")
 
+        logs: list[str] = []
+
         def get_local_vars(session: Session):
-            context: dict[str, Node] = {"session": session, "self": block}
+            context: dict[str, Any] = {"session": session, "self": block}
             for sibling in block.parent.blocks:
                 if sibling.py_ident and sibling.py_ident not in context:
                     context[sibling.py_ident] = sibling
@@ -294,6 +294,14 @@ class Host(GraphIoServiceBase, HostBase):
                 parent = parent.parent
                 if parent and parent.py_ident and parent.py_ident not in context:
                     context[parent.py_ident] = parent
+
+            # nocheckin: super hacky log
+            def _print(*args, **kwargs):
+                print(*args, **kwargs)
+                logs.append(" ".join((repr(a) for a in args)))
+
+            context["print"] = _print
+            context["render"] = render
             return context
 
         # run (naive for :Demo)
@@ -324,7 +332,7 @@ class Host(GraphIoServiceBase, HostBase):
                     package._untrack_rec()
                     run.terminated_at = utcnow_with_tz()
                     run.duration = (run.terminated_at - started_at).total_seconds()
-                return RunResponse(run=run._to_data())
+                return RunResponse(run=run._to_data(), logs=logs)
 
         elif block.type == BlockType.TEXT:
             session = Session(
@@ -368,11 +376,15 @@ print(ChoiceBlock.fields.Option2)
 
 # returning a class instance
 print(ClassBlock(field1=True, field2=Option1))
-"""
+""",
                             },
                             {
                                 "role": "user",
                                 "content": f"Context\n:{rendered_projection}",
+                            },
+                            {
+                                "role": "user",
+                                "content": "Now generate the simplest code that will return an answer to the given context. Just calling print(...) with a value that's not a Block/Field/.. instance is fine too. You may ignore any irrelevant context.",
                             },
                         ],
                         model="llama3-70b-8192",
@@ -393,6 +405,6 @@ print(ClassBlock(field1=True, field2=Option1))
                     package._untrack_rec()
                     run.terminated_at = utcnow_with_tz()
                     run.duration = (run.terminated_at - started_at).total_seconds()
-                return RunResponse(run=run._to_data())
+                return RunResponse(run=run._to_data(), logs=logs)
         else:
             raise GRPCError(GRPCStatus.INVALID_ARGUMENT, f"cannot run block: {block!r}")

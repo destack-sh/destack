@@ -364,7 +364,7 @@ message RunRequest {
 }
 message RunResponse {
   RunData run = 1;
-  repeated LogData logs = 2;
+  repeated string logs = 2;
   string generated_code = 3;
 }
 
