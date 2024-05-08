@@ -137,7 +137,7 @@ defineExpose<ViewExposed>({ self, id, focus });
         <i
           v-if="hasValue"
           role="button"
-          class="fas fa-xmark-circle text-gray-400 opacity-0 hover:text-primary-900 group-hover:opacity-100"
+          class="fas fa-xmark text-gray-400 opacity-0 hover:text-primary-900 group-hover:opacity-100"
           @click.stop="emit('update:modelValue', null)"
         />
       </div>
@@ -161,7 +161,7 @@ defineExpose<ViewExposed>({ self, id, focus });
           <i
             v-if="hasValue"
             role="button"
-            class="fas fa-xmark-circle text-gray-400 hover:text-primary-900"
+            class="fas fa-xmark text-gray-400 hover:text-primary-900"
             @click.stop="emit('update:modelValue', null)"
           />
         </div>

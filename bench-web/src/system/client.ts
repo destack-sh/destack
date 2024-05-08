@@ -1,4 +1,4 @@
-import { ObjectType, ClientOrigin, LocalNodeGraph, LocalStorage, NodeType, SpaceData } from "@/proto/wire";
+import { ObjectType, ClientOrigin, LocalNodeGraph, LocalStorage, NodeType, SpaceData, ClientType } from "@/proto/wire";
 import { describeNode, nodeReference, toNodeReferenceInPackage, type TypedNodeReferenceData } from "@/proto/wiring";
 import { getBrowserName, getBrowserVersion, getDeviceType, getOperatingSystem } from "@/utils/browser";
 import { log } from "@/utils/log";
@@ -93,6 +93,7 @@ export function useLocal<T extends keyof LocalStorage>(key: T): Ref<LocalStorage
 // Auth
 //
 
+export const CLIENT_TYPE = ClientType.BENCH_WEB; // NOTE: will need to detect/change this later
 export const nonce = v4(); // changes per page load
 export const origin: Readonly<Ref<ClientOrigin>> = pretendReadonly(
   computed(() => ({
@@ -122,6 +123,7 @@ if (_persistentInfo.value?.placeId == null) {
 const isOpera = !!(window as any).opera;
 export const clientMeta = readonly(
   shallowRef({
+    type: CLIENT_TYPE,
     deviceType: getDeviceType(window.navigator.userAgent),
     operatingSystem: getOperatingSystem(window),
     browserName: getBrowserName(window.navigator.userAgent, window.navigator.vendor, isOpera),

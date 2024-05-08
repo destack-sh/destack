@@ -20,6 +20,7 @@ from .const import (
     BenchError,
     BenchType,
     BlockType,
+    ClientType,
     ConditionalOp,
     FormatHint,
     ObjectType,
@@ -78,7 +79,6 @@ from .validation import ValidationError
 from .value import Context, Object
 from .view import Color, ColorShade, ColorType, Space, View, ViewType
 
-# NOTE! *ALL* these imports are auto-imported as prelude in user code.
 __all__ = [
     "A",
     "Access",
@@ -96,6 +96,7 @@ __all__ = [
     "C",
     "Cache",
     "Client",
+    "ClientType",
     "Code",
     "CodeLine",
     "Color",

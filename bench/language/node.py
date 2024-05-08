@@ -158,13 +158,6 @@ class _ComponentMethod(enum.Enum):
     updated = "updated"
     track = "track"
     untrack = "untrack"
-    visit = "visit"
-    # extra
-    call = "call"
-    iter = "iter"
-    aiter = "aiter"
-    len = "len"
-    getitem = "getitem"
 
     @property
     def inner(self) -> str:
@@ -822,19 +815,6 @@ def _node_ref_computed_prop(
     return property(get, set)
 
 
-def _make_component_dunder_method(method: _ComponentMethod):
-    """Creates method that proxies a builtin dunder method to the first _method_component"""
-
-    def inner_method(self: "Node", *args, **kwargs):
-        meths = _get_component_methods(self._components, method, self._instance_cache_key)
-        if len(meths) <= 1:  # includes this one
-            raise RuntimeError(f"{self!r} does not support {method.name}")
-        return meths[1](self, *args, **kwargs)
-
-    inner_method.__name__ = method.inner
-    return inner_method
-
-
 StructDataT = TypeVar("StructDataT", bound="Union[AnyStructData, AnyNodeData]")
 
 
@@ -1265,18 +1245,6 @@ class Struct(abc.ABC, Generic[StructDataT]):
                 assert isinstance(self.parent, Struct), f"unexpected parent: {self.parent!r}"
                 if self.parent is not None:
                     self.parent._updated_component(properties)
-
-    _call_component = _make_component_dunder_method(_ComponentMethod.call)
-    _iter_component = _make_component_dunder_method(_ComponentMethod.iter)
-    _aiter_component = _make_component_dunder_method(_ComponentMethod.aiter)
-    _len_component = _make_component_dunder_method(_ComponentMethod.len)
-    _getitem_component = _make_component_dunder_method(_ComponentMethod.getitem)
-
-    __call__ = _call_component
-    __iter__ = _iter_component
-    __aiter__ = _aiter_component
-    __len__ = _len_component
-    __getitem__ = _getitem_component
 
     def __bool__(self):
         return True  # allow truthy checks for structs

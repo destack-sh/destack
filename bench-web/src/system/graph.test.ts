@@ -210,7 +210,7 @@ describe("layered node graph", () => {
 
   const user1Ref = graph.getRef(user1);
   const user1ClientsRef = graph.getChildrenRef(user1, NodeType.CLIENT);
-  const clientARef = graph.getRef(clientA);
+  const clientARef = graph.getRef({ id: clientA.id });
 
   test("crud", () => {
     // create base
@@ -252,8 +252,8 @@ describe("layered node graph", () => {
     expect(user1ClientsRef.value).toEqual([clientA, clientB]);
 
     // take more refs
-    const clientBRef = graph.getRef(clientB);
-    const clientCRef = graph.getRef(clientC);
+    const clientBRef = graph.getRef({ id: clientB.id });
+    const clientCRef = graph.getRef({ id: clientC.id });
     expect(clientBRef.value).toEqual(clientB);
     expect(clientCRef.value).toBeNull();
 

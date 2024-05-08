@@ -7,7 +7,13 @@ from grpclib import Status as GRPCStatus
 
 from bench.conftest import raises_grpc_error
 from bench.language import Client, ReadOptions, User
-from bench.language.const import PUBLIC_NODE_TYPES, ROOT_NODE_TYPES, AggregationOp, NodeType
+from bench.language.const import (
+    PUBLIC_NODE_TYPES,
+    ROOT_NODE_TYPES,
+    AggregationOp,
+    ClientType,
+    NodeType,
+)
 from bench.language.expression import A
 from bench.language.node import Node
 from bench.language.property import Property
@@ -39,7 +45,13 @@ async def test_user_registration(supervisor: SupervisorStub):
 
     user = User(slug="test", name="Test", email="test@symbolx.com", status=UserStatus.INVITED)
     assert user.slug is not None and user.email is not None
-    client = Client(parent=user, name="test", device_name="pytest", last_seen_at=utcnow_with_tz())
+    client = Client(
+        parent=user,
+        type=ClientType.BENCH_WEB,
+        name="test",
+        device_name="pytest",
+        last_seen_at=utcnow_with_tz(),
+    )
 
     # signup -> success
     signup_req = SignupUserRequest(

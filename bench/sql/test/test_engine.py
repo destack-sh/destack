@@ -24,7 +24,7 @@ from bench.language import (
     StoreEngineType,
     StoreKind,
 )
-from bench.language.const import NodeType
+from bench.language.const import ClientType, NodeType
 from bench.language.field import TypeKind
 from bench.language.test.fabricator import Fabricator
 from bench.sql.core import Column, Table
@@ -201,7 +201,9 @@ async def test_crud_node_pointers(fabricator: "Fabricator"):
             name="Production A", kind=StoreKind.RELATIONAL, engine=StoreEngineType.POSTGRES
         )
         drive_a = bench_a.drives.create(name="Production A")
-        client_a = server_a.clients.create(name="Testificate's iPhone")
+        client_a = server_a.clients.create(
+            type=ClientType.BENCH_MOBILE, name="Testificate's iPhone"
+        )
         environment_a = bench_a.environments.create(
             name="main a", server=server_a, store=store_a, search=store_a, drive=drive_a
         )

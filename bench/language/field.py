@@ -6,9 +6,9 @@ import structlog
 
 from bench.language.const import (
     PRIMITIVE_TYPE_BY_PY_TYPE,
+    PY_TYPE_BY_PRIMITIVE_TYPE,
     TK_LENGTH_B64,
     BenchType,
-    BlockType,
     EnumType,
     FieldZone,
     FormatHint,
@@ -47,7 +47,7 @@ from bench.language.property import (
 )
 from bench.language.setup import BENCH_TYPE_BY_CLASS
 from bench.language.validation import NAME_CONSTRAINT, ValidationHandler
-from bench.language.value import HasValues
+from bench.language.value import HasValues, SomeValue, coerce_object_scalar
 from bench.proto.wire import FieldData, NodeReferenceData
 from bench.sql.core import PrimitiveType
 from bench.utils.casing import IdentifierType
@@ -310,6 +310,27 @@ class TypeInfoBase(HasValues):
             actual_kind = self.kind.name if self.kind else "None"
             invalid(self, f"implied kind {implied_kind.name} does not match {actual_kind}", None)
 
+    def __call__(self, *args, **kwargs) -> "SomeValue":
+        """Converts the given value to this type."""
+        # TODO :Cleanup :Architecture: TypeInfo.__call__ feels a lot like coerce_value
+        #  But it's not quite the same. Here we want to error if we can't coerce, return full nodes, etc.
+        typ = self._to_resolved()
+        if self.kind == TypeKind.PRIMITIVE:
+            py_type = PY_TYPE_BY_PRIMITIVE_TYPE.get(cast(PrimitiveType, self.primitive_type))
+            assert py_type is not None, f"{self!r} does not have a python type"
+            return py_type(*args, **kwargs)
+        elif self.kind == TypeKind.BASED_NODE:
+            if self.bench_type == NodeType.FIELD:
+                assert self.base_type is not None, f"missing base type for {self!r}"
+                field = self.base_type.fields.get(*args, **kwargs)
+                if field is None:
+                    raise ValueError(f"no field {args!r} in {self.base_type!r}")
+                return field
+        elif self.kind == TypeKind.OBJECT:
+            return coerce_object_scalar(kwargs, typ)
+
+        raise ValueError(f"cannot implicitly create {self!r}")
+
     @property
     def identity_key(self) -> str:
         """The identity of this type for packing."""
@@ -359,19 +380,14 @@ TypeIn = Union[
 ]
 
 
-def to_type_info(typ: TypeIn) -> "TypeInfo":
+def to_type(typ: TypeIn) -> "TypeInfo":
     """Converts a type-like object to a TypeInfo."""
     if isinstance(typ, TypeInfoBase):
         return cast("TypeInfo", typ)
     elif isinstance(typ, Node) and typ.metatype == NodeType.BLOCK:
-        if typ.type == BlockType.SIGNAL:
-            return TypeInfo(kind=TypeKind.BASED_NODE, bench_type=NodeType.FIELD, base_type=typ)
-        elif typ.type == BlockType.CHOICE:
-            return TypeInfo(kind=TypeKind.BASED_NODE, bench_type=NodeType.FIELD, base_type=typ)
-        elif typ.type == BlockType.DATABASE:
-            return TypeInfo(kind=TypeKind.BASED_NODE, bench_type=NodeType.RECORD, base_type=typ)
-        elif typ.type == BlockType.CLASS:
-            return TypeInfo(kind=TypeKind.ALIAS, base_type=typ)
+        type_info = cast("Block", typ).to_type()
+        if type_info is not None:
+            return type_info
     elif isinstance(typ, PrimitiveType):
         return TypeInfo(kind=TypeKind.PRIMITIVE, primitive_type=typ)
     elif isinstance(typ, (NodeType, StructType, EnumType, BenchType)):
@@ -474,7 +490,7 @@ class Field(BasedNode[FieldData], TypeInfoBase, _TypeQueryBuilder):
 
     @staticmethod
     def new(name: str, typ: TypeIn, **kwargs) -> "Field":
-        typ = to_type_info(typ)
+        typ = to_type(typ)
         return Field(
             name=name,
             kind=typ.kind,

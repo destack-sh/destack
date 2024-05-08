@@ -7,8 +7,8 @@ from typing import TYPE_CHECKING, Mapping, cast
 import pytest
 from grpclib.testing import ChannelFor
 
-from bench.utils.dt import utcnow_with_tz
 from bench.proto.wire import ClientOrigin, NodeReferenceData, RpcMetadata, SupervisorStub
+from bench.utils.dt import utcnow_with_tz
 
 if TYPE_CHECKING:
     from bench.language.user import Client, User
@@ -33,7 +33,7 @@ async def make_new_user_handle(
 ) -> UserHandle:
     """Signs up a new user and returns a handle for the user and a client."""
 
-    from bench.language.user import Client
+    from bench.language import Client, ClientType
     from bench.proto import wire
     from bench.proto.wire import ClientOrigin, NodeReferenceData, RpcMetadata, SignupUserRequest
 
@@ -41,6 +41,7 @@ async def make_new_user_handle(
         password = secrets.token_hex(8)
     client = Client(
         parent=user,
+        type=ClientType.BENCH_WEB,
         name=f"{user.name}'s {client_name}",
         device_name="pytest",
         last_seen_at=utcnow_with_tz(),
@@ -75,12 +76,13 @@ async def make_existing_user_handle(
 ) -> UserHandle:
     """Logs in an existing user and returns a handle for the user and a client."""
 
-    from bench.language.user import Client
+    from bench.language import Client, ClientType
     from bench.proto import wire
     from bench.proto.wire import ClientOrigin, LoginUserRequest, NodeReferenceData, RpcMetadata
 
     client = Client(
         parent=user,
+        type=ClientType.BENCH_WEB,
         name=f"{user.name}'s {client_name}",
         device_name="pytest",
         last_seen_at=utcnow_with_tz(),

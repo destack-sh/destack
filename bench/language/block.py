@@ -3,7 +3,7 @@ from dataclasses import dataclass
 from datetime import datetime
 from typing import TYPE_CHECKING, Any, Collection, Optional, Union
 
-from bench.language.const import BlockType, NodeType, StructType, Visibility
+from bench.language.const import BlockType, NodeType, StructType, TypeKind, Visibility
 from bench.language.database import Database
 from bench.language.node import Node, NodeList, node
 from bench.language.property import (
@@ -123,7 +123,7 @@ class Block(Node[BlockData], HasValues):
     icon: Optional["Icon"] = p_regular(
         38, default=None, require=False, array=False, struct=StructType.ICON
     )
-    visibility: Optional[Visibility] = p_regular(39, require=False)
+    visibility: Optional[Visibility] = p_regular(39, default=None, require=False)
     value_packed: Any = p_value_packed(40)
     secret_value_packed: Any | None = p_secret_value_packed(41)
     value = p_value_runtime(40, 41)
@@ -240,6 +240,42 @@ class Block(Node[BlockData], HasValues):
             for prop in component.__properties__.values():
                 if not prop.is_computed and prop.is_ephemeral and prop.name not in self.__dict__:
                     setattr(self, prop.name, prop.new())
+
+    def __call__(self, *args, **kwargs) -> Any:
+        if self.type.is_runnable:
+            raise NotImplementedError
+        else:
+            typ = self.to_type()
+            if typ is None:
+                raise ValueError(f"{self!r} does not have an implicit type")
+            return typ(*args, **kwargs)
+
+    def to_type(self) -> "TypeInfo | None":
+        """Get the default implicit type for this Block (if any)."""
+        from bench.language.field import TypeInfo
+
+        if self.type == BlockType.CLASS:
+            # NOTE: we turn Class Blocks into Object Types here so we can instantiate them immediately
+            #  but for storage we would have to make this an Alias that resolve to an Object Type..
+            typ = TypeInfo(kind=TypeKind.OBJECT, base_type=self)
+        elif self.type == BlockType.CHOICE:
+            typ = TypeInfo(kind=TypeKind.BASED_NODE, base_type=self, bench_type=NodeType.FIELD)
+        elif self.type == BlockType.SIGNAL:
+            typ = TypeInfo(kind=TypeKind.BASED_NODE, base_type=self, bench_type=NodeType.SIGNAL)
+        elif self.type == BlockType.DATABASE:
+            typ = TypeInfo(kind=TypeKind.BASED_NODE, base_type=self, bench_type=NodeType.RECORD)
+        elif self.type.is_runnable:
+            typ = TypeInfo(kind=TypeKind.BASED_NODE, base_type=self, bench_type=NodeType.RUN)
+        else:
+            return None
+        typ._do_resolve_to(typ)
+        return typ
+
+    @property
+    def as_type(self) -> "TypeInfo":
+        typ = self.to_type()
+        assert typ, f"{self!r} does not have an implicit type"
+        return typ
 
     def morph(self, to_type: BlockType):
         raise NotImplementedError(f"{self!r} does not support morphing yet")

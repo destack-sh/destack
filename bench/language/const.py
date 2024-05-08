@@ -643,6 +643,19 @@ class PrimitiveType(IdEnum):
 
 PrimitiveValue = bool | int | float | str | bytes | UUID | datetime | timedelta
 
+PY_TYPE_BY_PRIMITIVE_TYPE: dict[PrimitiveType, type] = {
+    PrimitiveType.BOOLEAN: bool,
+    PrimitiveType.INT16: int,
+    PrimitiveType.INT32: int,
+    PrimitiveType.INT64: int,
+    PrimitiveType.FLOAT32: float,
+    PrimitiveType.FLOAT64: float,
+    PrimitiveType.STRING: str,
+    PrimitiveType.BYTES: bytes,
+    PrimitiveType.UUID: UUID,
+    PrimitiveType.DATETIME: datetime,
+    PrimitiveType.INTERVAL: timedelta,
+}
 PRIMITIVE_TYPE_BY_PY_TYPE: dict[type, PrimitiveType] = {
     bool: PrimitiveType.BOOLEAN,
     int: PrimitiveType.INT32,
@@ -856,6 +869,18 @@ else:
     ExpressionOp = IdEnum.combine("ExpressionOp", ConditionalOp, AggregationOp, SortOp)
     ExpressionOp.kind = property(lambda self: EXPRESSION_KIND_BY_OP[self])
     enum_(EnumType.EXPRESSION_OP)(ExpressionOp)
+
+
+@enum_(EnumType.CLIENT_TYPE)
+class ClientType(IdEnum):
+    # user
+    BENCH_WEB = 1
+    BENCH_BROWSER_PLUGIN = 2
+    BENCH_DESKTOP = 3
+    BENCH_MOBILE = 4
+
+    # server
+    BENCH_SERVER = 10
 
 
 @enum_(EnumType.USER_STATUS)
