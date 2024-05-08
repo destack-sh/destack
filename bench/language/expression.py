@@ -166,7 +166,7 @@ class PropertyReference(Struct):
     type: Optional[ObjectType] = p_regular(30, require=False)
     id: int = p_regular(31)
     # to disambiguate contributed properties
-    references_type: Optional[NodeType] = p_regular(32)
+    references_type: Optional[NodeType] = p_regular(32, default=None)
 
     def __content_str__(self):
         if self.type is not None:

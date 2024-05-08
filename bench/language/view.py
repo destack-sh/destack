@@ -437,7 +437,7 @@ class Space(Node[SpaceData]):
 
     name: str = p_regular(31)
     text: Optional["Text"] = p_regular(32, default=None, struct=StructType.TEXT)
-    order_key: str = p_internal(33)
+    order_key: str = p_internal(33, default=INTEGER_ZERO)
     policies: list["Policy"] | None = p_regular(34, struct=StructType.POLICY, array=True)
     views: list["View"] = p_node_child(NodeType.VIEW)
 
