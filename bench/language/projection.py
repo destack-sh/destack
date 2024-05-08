@@ -9,7 +9,7 @@ from bench.language.node import Node, Struct, struct
 from bench.language.setup import ENUM_CLASS_BY_TYPE
 
 if TYPE_CHECKING:
-    from bench.language import Text
+    from bench.language import Code, Text
     from bench.language.field import TypeInfoBase
     from bench.language.value import Object, ScalarValue, SomeValue
 
@@ -156,6 +156,10 @@ def render_struct(value: Node | Struct) -> str:
         # Text: just the markdown
         markdown = cast("Text", value).to_markdown()
         return f"Text.from_markdown({repr(markdown)})"
+    elif value.metatype == StructType.CODE:
+        # Code: just the code
+        code = cast("Code", value).to_string()
+        return f"Code.from_string({repr(code)})"
     else:
         # default: prop-by-prop
         repr_by_name: dict[str, str] = {}
@@ -244,4 +248,16 @@ def render_node(
         all_lines.extend(new_lines)
 
     rendered = "\n".join(all_lines)
+    return rendered
+
+
+def render(value: Node | Struct) -> str:
+    """Renders the given Node/Struct to Bench python and prettifies it."""
+    from bench.language.code_ import format_code
+
+    if isinstance(value, Node):
+        rendered = render_node(value)
+    else:
+        rendered = render_struct(value)
+    rendered = format_code(rendered)
     return rendered
