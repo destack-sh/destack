@@ -3428,6 +3428,22 @@ class RestartRuntimeResponse(betterproto.Message):
     pass
 
 
+@dataclass(eq=False, repr=False)
+class RunRequest(betterproto.Message):
+    """
+    nocheckin: remove? explicit start run request, should just be regular node create :Demo
+    """
+
+    scope: "GraphScope" = betterproto.message_field(1)
+    block: "BlockData" = betterproto.message_field(2)
+
+
+@dataclass(eq=False, repr=False)
+class RunResponse(betterproto.Message):
+    run: "RunData" = betterproto.message_field(1)
+    logs: List["LogData"] = betterproto.message_field(2)
+
+
 class GraphIoStub(betterproto.ServiceStub):
     async def get_nodes(
         self,
@@ -4048,6 +4064,23 @@ class HostStub(betterproto.ServiceStub):
             metadata=metadata,
         )
 
+    async def run(
+        self,
+        request: "RunRequest",
+        *,
+        timeout: Optional[float] = None,
+        deadline: Optional["Deadline"] = None,
+        metadata: Optional["MetadataLike"] = None
+    ) -> "RunResponse":
+        return await self._unary_unary(
+            "/symbolx.bench.Host/Run",
+            request,
+            RunResponse,
+            timeout=timeout,
+            deadline=deadline,
+            metadata=metadata,
+        )
+
 
 class RuntimeStub(betterproto.ServiceStub):
     async def restart(
@@ -4559,6 +4592,9 @@ class HostBase(ServiceBase):
     ) -> "PingServerResponse":
         raise grpclib.GRPCError(grpclib.const.Status.UNIMPLEMENTED)
 
+    async def run(self, subject: "Subject", request: "RunRequest") -> "RunResponse":
+        raise grpclib.GRPCError(grpclib.const.Status.UNIMPLEMENTED)
+
     async def __rpc_get_nodes(
         self, stream: "grpclib.server.Stream[GetNodesRequest, GetNodesResponse]"
     ) -> None:
@@ -4667,6 +4703,11 @@ class HostBase(ServiceBase):
         response = await self.ping_server(request)
         await stream.send_message(response)
 
+    async def __rpc_run(self, stream: "grpclib.server.Stream[RunRequest, RunResponse]") -> None:
+        request = await stream.recv_message()
+        response = await self.run(request)
+        await stream.send_message(response)
+
     def __mapping__(self) -> Dict[str, grpclib.const.Handler]:
         return {
             "/symbolx.bench.Host/GetNodes": grpclib.const.Handler(
@@ -4752,6 +4793,12 @@ class HostBase(ServiceBase):
                 grpclib.const.Cardinality.UNARY_UNARY,
                 PingServerRequest,
                 PingServerResponse,
+            ),
+            "/symbolx.bench.Host/Run": grpclib.const.Handler(
+                self.__rpc_run,
+                grpclib.const.Cardinality.UNARY_UNARY,
+                RunRequest,
+                RunResponse,
             ),
         }
 

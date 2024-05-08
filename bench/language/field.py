@@ -285,19 +285,19 @@ class TypeInfoBase(HasValues):
         # TODO :Incomplete: proper type resolution (consider multi-step aliases, inheritance, ...)
         # resolve the actual type :TypeResolution
         if self.kind == TypeKind.ALIAS:
-            assert self.base_type is not None, f"missing base type for alias {self!r}"
-            if (
-                self.base_type.metatype == NodeType.STEP
-                or cast("Block", self.base_type).type.is_classy
-            ):
-                resolved_type = TypeInfo(kind=TypeKind.OBJECT, base_type=self.base_type)
-            elif (
-                self.base_type.metatype == NodeType.BLOCK
-                and cast("Block", self.base_type).builtin_base
-            ):
-                resolved_type = cast("Block", self.base_type).builtin_base
-            else:
-                resolved_type = None
+            assert self.base_type_ptr is not None, f"missing base type for alias {self!r}"
+            resolved_type = None
+            if self.base_type is not None:  # may not be resolved
+                if (
+                    self.base_type.metatype == NodeType.STEP
+                    or cast("Block", self.base_type).type.is_classy
+                ):
+                    resolved_type = TypeInfo(kind=TypeKind.OBJECT, base_type=self.base_type)
+                elif (
+                    self.base_type.metatype == NodeType.BLOCK
+                    and cast("Block", self.base_type).builtin_base
+                ):
+                    resolved_type = cast("Block", self.base_type).builtin_base
         else:
             resolved_type = self
         self._do_resolve_to(resolved_type)

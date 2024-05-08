@@ -26,6 +26,13 @@ class Code(Struct):
     # language: ...
     lines: list[CodeLine] = p_regular(30, require=True, array=True, struct=StructType.CODE_LINE)
 
+    def to_string(self) -> str:
+        return code_to_string(self)
+
+    @staticmethod
+    def from_string(s: str) -> "Code":
+        return string_to_code(s)
+
 
 def code_to_string(code: Code) -> str:
     return "\n".join(line.content for line in code.lines)
@@ -63,18 +70,16 @@ def get_code_globals():
     return _CODE_GLOBALS
 
 
-def run_code_script(code: str, globals: dict[str, Any] | None = None) -> dict[str, Any]:
+def run_code_script(code: str, extra_globals: dict[str, Any] | None = None) -> dict[str, Any]:
     """Runs the code string and extracts its definitions."""
-    if globals is None:
-        globals = get_code_globals()
-    globals_local = {**globals}
+    globals_initial = {**get_code_globals(), **(extra_globals or {})}
+    globals_local = globals_initial
     exec(code, globals_local)
-    new_globals = {k: v for k, v in globals_local.items() if k not in globals}
+    new_globals = {k: v for k, v in globals_local.items() if k not in globals_initial}
     return new_globals
 
 
-def run_code_eval(code: str, globals: dict[str, Any] | None = None) -> Any:
+def run_code_eval(code: str, extra_globals: dict[str, Any] | None = None) -> Any:
     """Runs the code string and extracts its definitions."""
-    if globals is None:
-        globals = get_code_globals()
-    return eval(code, globals)
+    globals_local = {**get_code_globals(), **(extra_globals or {})}
+    return eval(code, globals_local)

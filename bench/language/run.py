@@ -81,7 +81,7 @@ class Run(BasedNode[RunData], HasValues):
     started_at: Optional[datetime] = p_internal(42, default=None)
     paused_at: Optional[datetime] = p_internal(43, default=None)
     terminated_at: Optional[datetime] = p_internal(44, default=None)
-    duration: Optional[float] = p_internal(45)
+    duration: Optional[float] = p_internal(45, default=None)
 
     # value
     inputs_packed: Any = p_value_packed(50)
@@ -153,6 +153,15 @@ class RunError(Struct, BenchError):
     message: Optional[str] = p_internal(32, default=None)
     node: Optional["Node"] = p_internal(33, require=False, array=False, references=NodeType.BLOCK)
     traceback: list[RunCodeFrame] = p_internal(34, array=True, struct=StructType.RUN_CODE_FRAME)
+
+    @staticmethod
+    def from_exception(e: Exception) -> "RunError":
+        return RunError(
+            kind=RunErrorKind.RUNTIME,
+            type=type(e).__name__,
+            message=str(e),
+            traceback=[],
+        )
 
 
 @node(NodeType.PAUSE, local=True)

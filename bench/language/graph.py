@@ -837,9 +837,15 @@ _INCLUDE_HIDDEN_EDIT_TYPE_REMAP: dict[EditType, EditType] = {
 }
 
 
-def edit_graph(graph: NodeGraph, options: "ReadOptions", edits: Collection[EditData]) -> None:
+def edit_graph(
+    graph: NodeGraph["Node"], edits: Collection[EditData], options: "ReadOptions | None"
+) -> None:
     """Applies the edits to the graph (in place!)."""
+
     from bench.proto import wiring
+
+    if options is None:
+        options = ReadOptions()
 
     for edit in edits:
         node_data = wiring.unwrap_some_node(edit.node)
@@ -862,13 +868,29 @@ def edit_graph(graph: NodeGraph, options: "ReadOptions", edits: Collection[EditD
             graph.add(node)
         elif edit_type == EditType.DELETE:
             node = graph.get(node_id)
+            assert node is not None, f"missing node for delete: {edit}"
             graph.remove(node)
-        else:
-            raise NotImplementedError("TODO :Broken: edit_graph.update (in place)")
+        elif edit_type == EditType.MOVE:
+            if node_data.parent_ptr is not None:
+                new_parent = graph.get(UUID(node_data.parent_ptr.id))
+            else:
+                new_parent = None
+            node = graph.get(node_id)
+            assert node is not None, f"missing node for move: {edit}"
+            node.parent = new_parent
+        elif edit_type == EditType.UPDATE:
+            node = graph.get(node_id)
+            assert node is not None, f"missing node for move: {edit}"
+            for prop_id in edit.properties:
+                prop = node.__properties_by_id__[prop_id]
+                prop = prop.reference_wired_ptr or prop
+                updated_value_data = getattr(node_data, prop.name)
+                updated_value = wiring.unpack_struct_prop(prop, updated_value_data)
+                setattr(node, prop.name, updated_value)
 
 
 def edit_data_graph(
-    graph: NodeDataGraph,
+    graph: NodeDataGraph[AnyNodeData],
     options: "ReadOptions",
     edits: Collection[EditData],
     *,
@@ -897,8 +919,10 @@ def edit_data_graph(
             graph.remove(node_data)
         else:  # some update
             node_cls = NODE_CLASS_BY_TYPE[cast(NodeType, edit.node_type)]
-            if edit_type in (EditType.UPDATE, EditType.MOVE):
+            if edit_type == EditType.UPDATE:
                 properties = edit.properties
+            elif edit_type == EditType.MOVE:
+                properties = (cast("Property", node_cls.parent).id,)
             elif edit_type in (EditType.ARCHIVE, EditType.UNARCHIVE):
                 properties = (cast("Property", node_cls.archived_at).id,)
             elif edit_type in (EditType.SOFT_DELETE, EditType.RESTORE):
@@ -912,6 +936,6 @@ def edit_data_graph(
             for prop_id in properties:
                 prop = node_cls.__properties_by_id__[prop_id]
                 prop = prop.reference_wired_ptr or prop
-                updated = getattr(node_data, prop.name)
-                setattr(existing_node, prop.name, updated)
+                updated_value = getattr(node_data, prop.name)
+                setattr(existing_node, prop.name, updated_value)
             graph.update(existing_node)

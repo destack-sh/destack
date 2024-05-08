@@ -72,8 +72,8 @@ class Transaction:
         assert self.session is not None, f"no session in {self!r}"
         if isinstance(base, Node):
             scope = GraphScope(
-                bench_id=uuid_to_str(base.root.bench_id),
-                package_id=uuid_to_str(base.root.package_id),
+                bench_id=uuid_to_str(base._root.bench_id),
+                package_id=uuid_to_str(base._root.package_id),
             )
         elif isinstance(base, GraphScope):
             scope = base
@@ -196,7 +196,7 @@ class Transaction:
                 if prop.reference_wired_ptr:
                     prop = prop.reference_wired_ptr
                 value = getattr(n, prop.name)
-                value = wiring._pack_struct_prop(prop, value, ignore_array=False)
+                value = wiring.pack_struct_prop(prop, value, ignore_array=False)
                 setattr(node_data, prop.name, value)
 
     def move(self, n: Node, subject: EditSubject | None):

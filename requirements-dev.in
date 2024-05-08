@@ -3,7 +3,6 @@
 -c requirements.in
 
 black==23.7.0
-betterproto[compiler] @ git+https://github.com/danielgtaylor/python-betterproto.git@5666393f9d10e13609d8eeac8d1ab3815dce5fd6
 flake8-import-order==0.18.1
 flake8==6.1.0
 isort==5.12.0
