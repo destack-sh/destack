@@ -1,4 +1,7 @@
+import base64
+from datetime import datetime, timedelta
 from typing import TYPE_CHECKING, Any
+from uuid import UUID
 
 import black
 import structlog
@@ -43,19 +46,35 @@ def format_code(code: str, suppress_error: bool = False) -> str:
             raise ValueError(code) from e
 
 
-def default_globals():
-    import bench.language
-    from bench.language.setup import BENCH_CLASS_BY_NAME
+_CODE_GLOBALS: dict[str, Any] | None = None
 
-    globals = {**vars(bench.language), **BENCH_CLASS_BY_NAME}
-    return globals
+
+def get_code_globals():
+    global _CODE_GLOBALS
+    if _CODE_GLOBALS is None:
+        import bench.language
+        from bench.language.setup import BENCH_CLASS_BY_NAME
+
+        # all bench types
+        _CODE_GLOBALS = {**vars(bench.language), **BENCH_CLASS_BY_NAME}
+        # and some general stuff
+        for t in (datetime, timedelta, UUID, base64):
+            _CODE_GLOBALS[t.__name__] = t
+    return _CODE_GLOBALS
 
 
 def run_code_script(code: str, globals: dict[str, Any] | None = None) -> dict[str, Any]:
     """Runs the code string and extracts its definitions."""
     if globals is None:
-        globals = default_globals()
+        globals = get_code_globals()
     globals_local = {**globals}
     exec(code, globals_local)
     new_globals = {k: v for k, v in globals_local.items() if k not in globals}
     return new_globals
+
+
+def run_code_eval(code: str, globals: dict[str, Any] | None = None) -> Any:
+    """Runs the code string and extracts its definitions."""
+    if globals is None:
+        globals = get_code_globals()
+    return eval(code, globals)

@@ -4,7 +4,7 @@ import pytest
 
 from bench.language import Node, Struct
 from bench.language.block import Block
-from bench.language.code_ import format_code, run_code_script
+from bench.language.code_ import format_code, run_code_eval, run_code_script
 from bench.language.const import OBJECT_TYPES, BlockType, NodeType, StructType
 from bench.language.field import Field
 from bench.language.projection import render_node, render_struct
@@ -20,7 +20,8 @@ def test_render_struct(bench_obj: Node | Struct):
     rendered = render_struct(bench_obj)
     rendered = format_code(rendered)
     print(rendered)
-    # nocheckin: assert
+    run_code_eval(rendered)
+    # assert cast(Struct, ret).equals_content(bench_obj) # nocheckin: assert
 
 
 def test_render_nested():

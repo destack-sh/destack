@@ -1412,7 +1412,7 @@ class Node(Struct[NodeDataT], Generic[NodeDataT]):
 
     def __post_init__(self):
         # init ck/id
-        if self.__is_sub_package__:
+        if self.__is_sub_package__ and "ck" in self.__properties__:
             if self.ck is None:
                 self.ck = self.__class__.__id_factory__()
                 self._is_new = True
