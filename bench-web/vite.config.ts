@@ -18,5 +18,10 @@ export default defineConfig(({ mode }) => ({
   build: {
     chunkSizeWarningLimit: 4096,
     minify: mode !== "unminified",
+    rollupOptions: {
+      output: {
+        manualChunks: () => "everything.js",
+      },
+    },
   },
 }));
