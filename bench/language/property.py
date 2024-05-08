@@ -155,6 +155,8 @@ class Property(_TypeQueryBuilder if TYPE_CHECKING else object):
                 non_default.append("|".join(t.bench_name for t in self.reference_nodes))
             elif self.reference_struct:
                 non_default.append(self.reference_struct.bench_name)
+        elif self.enum_type:
+            non_default.append(self.enum_type.bench_name)
         elif self.primitive_type and self.primitive_type is not UNSET:
             non_default.append(self.primitive_type.bench_name)
         for k in (

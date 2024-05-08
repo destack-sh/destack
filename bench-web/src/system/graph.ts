@@ -1,24 +1,17 @@
 import {
-  ObjectType,
-  BlockType,
   CHILD_NODE_TYPES,
   GraphScope,
   NODE_PROPERTY_ENUM_BY_TYPE,
   NodeReferenceData,
   NodeType,
-  ViewType,
+  ObjectType,
   type AnyNodeData,
   type AnyPropertyType,
   type NodeTypeMapping,
-  StepType,
-  FieldZone,
-  PROPERTY_INFOS_BY_TYPE,
 } from "@/proto/wire";
 import { describeNode, toNodeReference, type AnyNodeReferenceData, type TypedNodeReferenceData } from "@/proto/wiring";
-import { defaultSortNode, toCamelName, updateOrder } from "@/system/lang";
-import type { Transaction } from "@/system/transaction";
+import { defaultSortNode } from "@/system/lang";
 import { manualSubRef, watchValue, type SubRef } from "@/utils/ref";
-import { Casing, toCasing } from "@/utils/string";
 import { tryOnBeforeUnmount } from "@vueuse/core";
 import { isRef, shallowRef, toRef, watch, type MaybeRef, type Ref, type ShallowRef, type WatchSource } from "vue";
 

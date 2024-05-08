@@ -1,3 +1,4 @@
+from typing import cast
 from uuid import UUID, uuid4, uuid5
 
 import betterproto
@@ -7,7 +8,7 @@ from grpclib import Status as GRPCStatus
 
 from bench.language import Bench, Client, NodeReference, User
 from bench.language.access import Subject
-from bench.language.const import USER_NODE_TYPES, NodeType, OrganizationStatus
+from bench.language.const import USER_NODE_TYPES, ClientType, NodeType, OrganizationStatus
 from bench.language.graph import generate_node_name
 from bench.language.resource import Region
 from bench.language.user import Handle, Organization, UserStatus
@@ -81,6 +82,7 @@ class Supervisor(GraphIoServiceBase, SupervisorBase):
         client = Client(
             id=client_id or uuid4(),
             parent=user,
+            type=cast(ClientType, client_data.type),
             name=name,
             device_name=client_data.device_name,
             device_type=client_data.device_type,

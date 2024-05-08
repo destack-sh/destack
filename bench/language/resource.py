@@ -1,7 +1,8 @@
 from datetime import datetime
-from typing import TYPE_CHECKING, Generic, Optional, TypeVar, Union
+from typing import TYPE_CHECKING, Generic, Optional, TypeVar, Union, cast
 
 from bench.language.const import (
+    ClientType,
     EnumType,
     FileStatus,
     NodeType,
@@ -122,18 +123,6 @@ class Server(Resource[ServerData]):
         return f"{self.profile.bench_name}, version={self.version}, {self.status.bench_name}, {self.tenancy.bench_name}, {self.region.bench_name}"
 
 
-@enum_(EnumType.CLIENT_TYPE)
-class ClientType(IdEnum):
-    # user
-    BENCH_WEB = 1
-    BENCH_BROWSER_PLUGIN = 2
-    BENCH_DESKTOP = 3
-    BENCH_MOBILE = 4
-
-    # server
-    BENCH_SERVER = 10
-
-
 @node(NodeType.CLIENT, roots=(NodeType.USER, NodeType.BENCH), identifier=IdentifierType.VARIABLE)
 class Client(Node[ClientData]):
     """A client to a Bench."""
@@ -168,10 +157,9 @@ class Client(Node[ClientData]):
 
     @property
     def user(self) -> "User":
-        if isinstance(self.parent, User):
-            return self.parent
-        else:
-            raise ValueError(f"{self!r} is not a User client")
+        assert self.parent is not None, f"no parent for {self!r}"
+        assert self.parent.metatype == NodeType.USER, f"{self!r} belongs to {self.parent!r}"
+        return cast("User", self.parent)
 
 
 @struct(StructType.RESOURCE_CREDENTIAL, inline=True)

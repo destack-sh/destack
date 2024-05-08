@@ -40,8 +40,9 @@ async def prepared_test_db():
     )
     from bench.system.client import GLOBAL_PG_NAME, GLOBAL_STORE, global_pg_cursor
 
-    # ensure that default global_db_cursor points to test
-    #  (means environment info was set up correctly)
+    # ensure that default global_db_cursor points to test (means environment info was set up correctly)
+    # if this fails, it's likely we mistakenly imported from bench.utils.env before our pytest_configure
+    #  could override it, usually because of an innocent (cascading) import in our conftests.
     assert GLOBAL_PG_NAME == "test"
 
     # reset test database (connect to bench since we can't drop active db)

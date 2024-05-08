@@ -9,6 +9,7 @@ from uuid import UUID
 import structlog
 
 from bench.language.const import (
+    PY_TYPE_BY_PRIMITIVE_TYPE,
     EnumType,
     NodeType,
     PrimitiveType,
@@ -83,14 +84,16 @@ class Object:
     @staticmethod
     def new(
         value: dict[str, SomeValue] | None,
-        type: "TypeInfoBase",
-        is_revealed: bool = True,
+        typ: "TypeInfoBase",
         parent: ValueParent | None = None,
         parent_property: ValueProperty | None = None,
         ancestor_property: Optional["Property"] = None,
+        is_revealed: bool = True,
     ) -> "Object":
+        """Creates a new Object of the given Object type, coercing the given value."""
+        assert typ.kind == TypeKind.OBJECT, f"{typ!r} is not an Object type"
         return Object(
-            _type=type,
+            _type=typ,
             _value=value,
             _is_revealed=is_revealed,
             parent=parent,
@@ -205,10 +208,9 @@ class Object:
     ) -> "Object":
         """Copy this object into the given parent/prop."""
         value_packed, secret_value_packed = _pack_object_scalar(self, self._type)
-        copy = _unpack_object_scalar(value_packed, secret_value_packed, self._type)
-        copy.parent = parent
-        copy.parent_prop = prop
-        copy.ancestor_prop = ancestor_prop
+        copy = _unpack_object_scalar(
+            value_packed, secret_value_packed, self._type, parent, prop, ancestor_prop
+        )
         copy.parent_key = prop.id_as_str if isinstance(prop, Property) else prop.identity_key
         return copy
 
@@ -221,56 +223,68 @@ class Object:
 
 VALUE_SLOTS: set[str] = set(Object.__dataclass_fields__.keys())
 
-PYTHON_TYPE_BY_PRIMITIVE_TYPE: dict[PrimitiveType, type] = {
-    PrimitiveType.BOOLEAN: bool,
-    PrimitiveType.INT16: int,
-    PrimitiveType.INT32: int,
-    PrimitiveType.INT64: int,
-    PrimitiveType.FLOAT32: float,
-    PrimitiveType.FLOAT64: float,
-    PrimitiveType.STRING: str,
-    PrimitiveType.BYTES: bytes,
-    PrimitiveType.UUID: UUID,
-    PrimitiveType.DATETIME: datetime,
-    PrimitiveType.INTERVAL: timedelta,
-}
-PRIMITIVE_TYPE_BY_PYTHON_TYPE: dict[type, PrimitiveType] = {
-    v: k
-    for k, v in PYTHON_TYPE_BY_PRIMITIVE_TYPE.items()  # type: ignore
-    # (for some reason pyright doesn't like this "recursive reference")
-}
-
 
 def _coerce_value_scalar(
     value: ScalarValue,
     typ: "TypeInfoBase",
-    parent: ValueParent,
-    parent_prop: ValueProperty,
-    ancestor_prop: "Property | None",
+    parent: ValueParent | None = None,
+    parent_prop: ValueProperty | None = None,
+    ancestor_prop: "Property | None" = None,
 ) -> ScalarValue:
     """Coerces a scalar value (primitive, node, struct)"""
-    if typ.kind == TypeKind.STRUCT:
+    if typ.kind == TypeKind.STRUCT and parent is not None:
+        assert parent_prop is not None, f"{typ!r} got parent {parent!r} but no parent_prop"
         value = cast("Struct", value)._move_to(parent, parent_prop, ancestor_prop)
     return value
 
 
-def _coerce_object_scalar(
+def coerce_object_scalar(
     value: dict | Object,
     typ: "TypeInfoBase",
-    parent: ValueParent,
-    parent_prop: ValueProperty,
-    ancestor_prop: "Property | None",
+    parent: ValueParent | None = None,
+    parent_prop: ValueProperty | None = None,
+    ancestor_prop: "Property | None" = None,
 ) -> Object:
     """Coerces a single object from a dict representation or existing Object (recursively)."""
-    raise NotImplementedError
+    if type(value) is Object:
+        # NOTE :Robustness: not sure if _coerce_object_scalar is correct if given an existing object
+        if parent is not None:
+            assert parent_prop is not None, f"{typ!r} got parent {parent!r} but no parent_prop"
+            return value._move_to(parent, parent_prop, ancestor_prop)
+        else:
+            return value
+    else:
+        # coerce
+        assert isinstance(value, dict), f"{value!r} is not a dict (expected {typ!r})"
+        value_coerced = {}
+        for field in typ._base_fields:
+            field_type = field._to_resolved()
+            # try getting value by storage key, name and ident
+            field_value = value.get(field.storage_key)
+            if field_value is None:
+                field_value = value.get(field.name)
+            if field_value is None:
+                field_value = value.get(field.py_ident)
+            if field_value is None:
+                continue
+            value_coerced[field.storage_key] = coerce_value(
+                field_value, field_type, parent, parent_prop, ancestor_prop
+            )
+        return Object.new(
+            value=value_coerced,
+            typ=typ,
+            parent=parent,
+            parent_property=parent_prop,
+            ancestor_property=ancestor_prop,
+        )
 
 
 def coerce_value(
     value: Any,
     typ: "TypeInfoBase",
-    parent: ValueParent,
-    parent_prop: ValueProperty,
-    ancestor_prop: "Property | None",
+    parent: ValueParent | None = None,
+    parent_prop: ValueProperty | None = None,
+    ancestor_prop: "Property | None" = None,
 ) -> SomeValue:
     """
     Coerces the given value to the expected type (recursively). Returns value as is if already of correct type.
@@ -280,12 +294,12 @@ def coerce_value(
     """
     if typ.kind == TypeKind.OBJECT:
         if not typ.is_list:
-            return _coerce_object_scalar(cast(dict, value), typ, parent, parent_prop, ancestor_prop)
+            return coerce_object_scalar(cast(dict, value), typ, parent, parent_prop, ancestor_prop)
         else:
             if isinstance(value, list):
                 raise TypeError(f"{value!r} is not a list (expected {typ!r})")
             return [
-                _coerce_object_scalar(cast(dict, element), typ, parent, parent_prop, ancestor_prop)
+                coerce_object_scalar(cast(dict, element), typ, parent, parent_prop, ancestor_prop)
                 for element in value
             ]
     else:
@@ -308,7 +322,7 @@ def _check_value_scalar(
 ) -> None:
     """Checks whether the given scalar value has the expected type."""
     if typ.kind == TypeKind.PRIMITIVE:
-        expected_type = PYTHON_TYPE_BY_PRIMITIVE_TYPE.get(cast(PrimitiveType, typ.primitive_type))
+        expected_type = PY_TYPE_BY_PRIMITIVE_TYPE.get(cast(PrimitiveType, typ.primitive_type))
         if expected_type is None:
             pass  # nothing to check?
         elif type(value) is not expected_type:
@@ -393,7 +407,7 @@ def check_value(value: Any, typ: "TypeInfoBase", invalid: "ValidationHandler") -
         if not typ.is_list:
             if value is None:
                 if typ.is_required:
-                    invalid(value, "is required", typ)
+                    invalid(value, "missing required value", typ)
                 else:
                     return
             _check_object_scalar(value, typ, invalid)
@@ -404,7 +418,7 @@ def check_value(value: Any, typ: "TypeInfoBase", invalid: "ValidationHandler") -
         if not typ.is_list:
             if value is None:
                 if typ.is_required:
-                    invalid(value, "is required", typ)
+                    invalid(value, "missing required value", typ)
                 else:
                     return
             _check_value_scalar(value, typ, invalid)
@@ -508,7 +522,12 @@ def _pack_object_scalar(
 
 
 def _unpack_object_scalar(
-    value_packed: dict[str, JsonValue], secret_value_packed: JsonValue | None, typ: "TypeInfoBase"
+    value_packed: dict[str, JsonValue],
+    secret_value_packed: JsonValue | None,
+    typ: "TypeInfoBase",
+    parent: ValueParent | None = None,
+    parent_prop: ValueProperty | None = None,
+    ancestor_prop: Optional["Property"] = None,
 ) -> Object:
     """
     Unpacks an object value from a packed value & secret packed value.
@@ -533,7 +552,14 @@ def _unpack_object_scalar(
                 _unpack_value_scalar(element, field_type) for element in field_value_packed
             ]
         value[field.storage_key] = field_value
-    return Object.new(value, typ, is_revealed=secret_value_packed is not None)
+    return Object.new(
+        value=value,
+        typ=typ,
+        is_revealed=secret_value_packed is not None,
+        parent=parent,
+        parent_property=parent_prop,
+        ancestor_property=ancestor_prop,
+    )
 
 
 def pack_value(
@@ -583,6 +609,9 @@ def unpack_value(
     value_packed: JsonValue,
     secret_value_packed: JsonValue | None,
     typ: "TypeInfoBase",
+    parent: ValueParent | None = None,
+    parent_prop: ValueProperty | None = None,
+    ancestor_prop: Optional["Property"] = None,
 ) -> SomeValue | None:
     """
     Unpacks a value from its constituent JSON-able parts (packed value & secret packed value).
@@ -596,12 +625,26 @@ def unpack_value(
         if not typ.is_list:
             if not isinstance(value_packed, dict):
                 raise TypeError(f"{value_packed!r} is not a dict (expected {typ!r})")
-            return _unpack_object_scalar(value_packed, secret_value_packed, typ)
+            return _unpack_object_scalar(
+                value_packed=value_packed,
+                secret_value_packed=secret_value_packed,
+                typ=typ,
+                parent=parent,
+                parent_prop=parent_prop,
+                ancestor_prop=ancestor_prop,
+            )
         else:
             if not isinstance(value_packed, list):
                 raise TypeError(f"{value_packed!r} is not a list (expected {typ!r})")
             return [
-                _unpack_object_scalar(cast(dict[str, JsonValue], element), None, typ)
+                _unpack_object_scalar(
+                    value_packed=cast(dict[str, JsonValue], element),
+                    secret_value_packed=secret_value_packed,
+                    typ=typ,
+                    parent=parent,
+                    parent_prop=parent_prop,
+                    ancestor_prop=ancestor_prop,
+                )
                 for element in value_packed
             ]
     else:

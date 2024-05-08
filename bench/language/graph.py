@@ -534,12 +534,7 @@ class NodeList(abc.ABC, Collection[NodeT], Generic[NodeT]):
         if "name" in node_cls.__properties__ and "name" not in kwargs:
             kwargs["name"] = generate_node_name(node_metatype, kwargs.get("type"), self)
         # set new node status to source to prevent activation before it's appended
-        if hasattr(node_cls, "new"):
-            node = getattr(node_cls, "new")(
-                **kwargs, for_parent=self._parent, _status=InterpStatus.SOURCE
-            )
-        else:
-            node = node_cls(**kwargs, _status=InterpStatus.SOURCE)
+        node = node_cls(**kwargs, _status=InterpStatus.SOURCE)
         node = cast(NodeT, node)
         self.append(node)
         return node

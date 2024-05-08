@@ -17,7 +17,10 @@ class ValidationError(BenchError, ValueError):
         message: Optional[str],
         site: ValidationSite | None = None,
     ):
-        super().__init__(f"{value!r}: {message}" + (f" at {site!r}" if site else ""))
+        if value is not None:
+            super().__init__(f"{value!r}: {message}" + (f" at {site!r}" if site else ""))
+        else:
+            super().__init__(f"{message}" + (f" at {site!r}" if site else ""))
         self.value = value
         self.site = site
         self.message = message
