@@ -2,8 +2,6 @@
 import {
   BenchType,
   BlockType,
-  ColorShade,
-  ColorType,
   FieldZone,
   NodeReferenceData,
   NodeType,
@@ -11,27 +9,26 @@ import {
   TypeInfoData,
   Variant,
   ViewData,
-  ViewType,
+  ViewType
 } from "@/proto/wire";
 import { type TypedNodeReferenceData } from "@/proto/wiring";
 import type { ActionMapImplementation } from "@/system/action";
 import type { PreparedGetConnection } from "@/system/connection";
 import { useGetConnection } from "@/system/connection";
 import { IconInline, getNodeIcon } from "@/system/icon";
-import { RUNNABLE_BLOCK_TYPES, TYPE_BLOCK_TYPES, createField, isGeneratedNodeName, toCamelName } from "@/system/lang";
+import { RUNNABLE_BLOCK_TYPES, TYPE_BLOCK_TYPES, createField, isGeneratedNodeName } from "@/system/lang";
 import { canvas, inspectionPtr } from "@/system/space";
+import { makeTypeInfo, packValue, resolveType, unpackValue, type TypeIdentity } from "@/system/value";
 import { onMouseReleasedOnce } from "@/utils/layout";
-import { pushPopover, menuActionsLike, type PopoverInfo, type PopoverInfoIn } from "@/utils/menu";
-import type { TooltipInfo } from "@/utils/tooltip";
-import Type from "@/views/system/Type.vue";
+import { menuActionsLike, pushPopover, type PopoverInfo, type PopoverInfoIn } from "@/utils/menu";
 import Inaccessible from "@/views/builtins/Inaccessible.vue";
 import { makeViewId, viewEmits, type FocusAnchor, type ViewExposed } from "@/views/common";
 import Code from "@/views/content/Code.vue";
 import Icon from "@/views/content/Icon.vue";
 import Text from "@/views/content/Text.vue";
-import { computed, nextTick, ref, toRef, type Ref } from "vue";
-import { makeTypeInfo, packValue, resolveType, unpackValue, type TypeIdentity } from "@/system/value";
 import Value from "@/views/content/Value.vue";
+import Type from "@/views/system/Type.vue";
+import { computed, nextTick, ref, toRef, type Ref } from "vue";
 
 const props = defineProps<
   { self?: TypedNodeReferenceData<NodeType.VIEW>; preparedConnection?: PreparedGetConnection } & Pick<

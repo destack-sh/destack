@@ -1144,9 +1144,9 @@ contributeActionMap<"developer">({
 // space actions
 contributeActionMap<"space">({
   "space.launch.assist": {
-    title: "Open Assistant",
-    text: "Chat and collaborate with your Assistant",
-    icon: "fas fa-robot",
+    title: "Open Chat",
+    text: "Chat and collaborate with your Bench",
+    icon: "fas fa-message",
     action: ACTION_COMING_SOON,
   },
   "space.launch.inspect": {
@@ -1200,7 +1200,7 @@ contributeActionMap<"space">({
   "space.launch.notifications": {
     title: "Open Notifications",
     text: "View your notifications",
-    icon: "fas fa-envelope",
+    icon: "fas fa-bell",
     isEnabled: ref(false),
     action: ACTION_COMING_SOON,
   },

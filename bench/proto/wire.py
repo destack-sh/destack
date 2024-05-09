@@ -85,10 +85,18 @@ class Anchor(betterproto.Enum):
     """An anchor in 2D space."""
 
     UNSPECIFIED = 0
-    TOP_LEFT = 1
+    TOP = 1
+    TOP_LEFT = 2
     TOP_RIGHT = 3
-    BOTTOM_RIGHT = 5
-    BOTTOM_LEFT = 7
+    RIGHT = 11
+    RIGHT_TOP = 12
+    RIGHT_BOTTOM = 13
+    BOTTOM = 21
+    BOTTOM_LEFT = 22
+    BOTTOM_RIGHT = 23
+    LEFT = 31
+    LEFT_TOP = 32
+    LEFT_BOTTOM = 33
 
 
 class BenchType(betterproto.Enum):
@@ -110,6 +118,7 @@ class BenchType(betterproto.Enum):
     QUERY = 34
     VIEW = 35
     STEP = 36
+    MESSAGE = 37
     BADGE = 60
     ROLE = 61
     IDENTITY = 62
@@ -593,6 +602,7 @@ class NodeType(betterproto.Enum):
     QUERY = 34
     VIEW = 35
     STEP = 36
+    MESSAGE = 37
     BADGE = 60
     ROLE = 61
     IDENTITY = 62
@@ -663,6 +673,7 @@ class ObjectType(betterproto.Enum):
     QUERY = 34
     VIEW = 35
     STEP = 36
+    MESSAGE = 37
     BADGE = 60
     ROLE = 61
     IDENTITY = 62
@@ -1114,7 +1125,7 @@ class ViewType(betterproto.Enum):
     OUTLINE = 151
     INSPECT = 153
     CREATE = 154
-    ASSIST = 155
+    CHAT = 155
     WINDOW = 500
     TAB = 502
     SPLIT = 503
@@ -2360,6 +2371,41 @@ class MembershipData(betterproto.Message):
 
 
 @dataclass(eq=False, repr=False)
+class MessageData(betterproto.Message):
+    """
+    A Message by a User or Block (whoever created it).
+     If the parent is also a Message, then this is part of a thread. Threads may be nested.
+    """
+
+    metatype: "ObjectType" = betterproto.enum_field(1)
+    id: str = betterproto.string_field(2)
+    ck: str = betterproto.string_field(3)
+    parent_ptr: Optional["NodeReferenceData"] = betterproto.message_field(4, optional=True)
+    package_ptr: "NodeReferenceData" = betterproto.message_field(6)
+    bench_ptr: "NodeReferenceData" = betterproto.message_field(7)
+    revision: int = betterproto.int64_field(10)
+    created_at: datetime = betterproto.message_field(11)
+    updated_at: datetime = betterproto.message_field(12)
+    deleted_at: Optional[datetime] = betterproto.message_field(13, optional=True)
+    archived_at: Optional[datetime] = betterproto.message_field(14, optional=True)
+    created_by_ptr: Optional["NodeReferenceData"] = betterproto.message_field(17, optional=True)
+    updated_by_ptr: Optional["NodeReferenceData"] = betterproto.message_field(18, optional=True)
+    set_properties: List[int] = betterproto.int32_field(22)
+    origin_ptr: Optional["NodeReferenceData"] = betterproto.message_field(32, optional=True)
+    path: Optional["PathData"] = betterproto.message_field(33, optional=True)
+    reply_to_ptr: Optional["NodeReferenceData"] = betterproto.message_field(34, optional=True)
+    title: Optional[str] = betterproto.string_field(40, optional=True)
+    text: Optional["TextData"] = betterproto.message_field(41, optional=True)
+    value_packed: Optional["betterproto_lib_google_protobuf.Struct"] = betterproto.message_field(
+        42, optional=True
+    )
+    secret_value_packed: Optional[
+        "betterproto_lib_google_protobuf.Struct"
+    ] = betterproto.message_field(43, optional=True)
+    is_pinned: bool = betterproto.bool_field(50)
+
+
+@dataclass(eq=False, repr=False)
 class BaseNodeData(betterproto.Message):
     """
     A node in the Bench graph: a struct with a globally unique identity.
@@ -2387,7 +2433,8 @@ class BaseNodeData(betterproto.Message):
 @dataclass(eq=False, repr=False)
 class NoticeData(betterproto.Message):
     """
-    Notice(parent: Union[ForwardRef('Block'), ForwardRef('Field'), ForwardRef('Step'), ForwardRef('View'), ForwardRef('Trigger')] = None, kind: bench.language.const.NoticeKind = None, type: bench.language.notice.NoticeType = <factory>, origin: Optional[ForwardRef('Node')] = None, path: Optional[ForwardRef('Path')] = None, title: Optional[str] = None, text: Optional[ForwardRef('Text')] = None, properties: Optional[list[bench.language.property.Property]] = <factory>, id: uuid.UUID = None, set_properties: list[int] = <factory>, _status: bench.language.const.InterpStatus = None, _updated_properties: bitarray.bitarray | None = None, ck: uuid.UUID = None, revision: int = 0, created_at: datetime.datetime = None, updated_at: datetime.datetime = None, deleted_at: Optional[datetime.datetime] = None, archived_at: Optional[datetime.datetime] = None, created_by: Union[ForwardRef('User'), ForwardRef('Run'), NoneType] = None, updated_by: Union[ForwardRef('User'), ForwardRef('Run'), NoneType] = None, links: bench.language.graph.NodeList['Link'] = None, _graph: Union[ForwardRef('NodeGraph'), ForwardRef('DetachedNodeGraph'), NoneType] = None, _data_graph: Optional[ForwardRef('NodeDataGraph')] = None, _session: Optional[ForwardRef('Session')] = None, _is_new: bool = False, parent_ptr: 'NodeReference' = None, origin_ptr: 'NodeReference' = None, properties_ptr: list['PropertyReference'] = None, created_by_ptr: 'NodeReference' = None, updated_by_ptr: 'NodeReference' = None)
+    An informational or diagnostic note about something in the Bench source.
+     Notices are generally 'sticky' until their underlying cause is resolved.
     """
 
     metatype: "ObjectType" = betterproto.enum_field(1)
@@ -2408,9 +2455,9 @@ class NoticeData(betterproto.Message):
     type: "NoticeType" = betterproto.enum_field(31)
     origin_ptr: Optional["NodeReferenceData"] = betterproto.message_field(33, optional=True)
     path: Optional["PathData"] = betterproto.message_field(34, optional=True)
-    title: Optional[str] = betterproto.string_field(35, optional=True)
-    text: Optional["TextData"] = betterproto.message_field(36, optional=True)
-    properties_ptr: List["PropertyReferenceData"] = betterproto.message_field(37)
+    properties_ptr: List["PropertyReferenceData"] = betterproto.message_field(35)
+    title: Optional[str] = betterproto.string_field(40, optional=True)
+    text: Optional["TextData"] = betterproto.message_field(41, optional=True)
 
 
 @dataclass(eq=False, repr=False)
@@ -2798,6 +2845,7 @@ class SpaceData(betterproto.Message):
     text: Optional["TextData"] = betterproto.message_field(32, optional=True)
     order_key: str = betterproto.string_field(33)
     policies: List["PolicyData"] = betterproto.message_field(34)
+    bar_position: Optional["Anchor"] = betterproto.enum_field(40, optional=True)
     focus: Optional["SelectionData"] = betterproto.message_field(70, optional=True)
     inspection_ptr: Optional["NodeReferenceData"] = betterproto.message_field(75, optional=True)
     base_ptr: Optional["NodeReferenceData"] = betterproto.message_field(76, optional=True)
@@ -3022,26 +3070,27 @@ class SomeNodeData(betterproto.Message):
     query: "QueryData" = betterproto.message_field(15, group="node")
     view: "ViewData" = betterproto.message_field(16, group="node")
     step: "StepData" = betterproto.message_field(17, group="node")
-    badge: "BadgeData" = betterproto.message_field(18, group="node")
-    role: "RoleData" = betterproto.message_field(19, group="node")
-    identity: "IdentityData" = betterproto.message_field(20, group="node")
-    membership: "MembershipData" = betterproto.message_field(21, group="node")
-    invite: "InviteData" = betterproto.message_field(22, group="node")
-    session: "SessionData" = betterproto.message_field(23, group="node")
-    run: "RunData" = betterproto.message_field(24, group="node")
-    pause: "PauseData" = betterproto.message_field(25, group="node")
-    signal: "SignalData" = betterproto.message_field(26, group="node")
-    log: "LogData" = betterproto.message_field(27, group="node")
-    notification: "NotificationData" = betterproto.message_field(28, group="node")
-    server: "ServerData" = betterproto.message_field(29, group="node")
-    store: "StoreData" = betterproto.message_field(30, group="node")
-    drive: "DriveData" = betterproto.message_field(31, group="node")
-    cache: "CacheData" = betterproto.message_field(32, group="node")
-    file_content: "FileContentData" = betterproto.message_field(33, group="node")
-    handle: "HandleData" = betterproto.message_field(34, group="node")
-    user: "UserData" = betterproto.message_field(35, group="node")
-    organization: "OrganizationData" = betterproto.message_field(36, group="node")
-    client: "ClientData" = betterproto.message_field(37, group="node")
+    message: "MessageData" = betterproto.message_field(18, group="node")
+    badge: "BadgeData" = betterproto.message_field(19, group="node")
+    role: "RoleData" = betterproto.message_field(20, group="node")
+    identity: "IdentityData" = betterproto.message_field(21, group="node")
+    membership: "MembershipData" = betterproto.message_field(22, group="node")
+    invite: "InviteData" = betterproto.message_field(23, group="node")
+    session: "SessionData" = betterproto.message_field(24, group="node")
+    run: "RunData" = betterproto.message_field(25, group="node")
+    pause: "PauseData" = betterproto.message_field(26, group="node")
+    signal: "SignalData" = betterproto.message_field(27, group="node")
+    log: "LogData" = betterproto.message_field(28, group="node")
+    notification: "NotificationData" = betterproto.message_field(29, group="node")
+    server: "ServerData" = betterproto.message_field(30, group="node")
+    store: "StoreData" = betterproto.message_field(31, group="node")
+    drive: "DriveData" = betterproto.message_field(32, group="node")
+    cache: "CacheData" = betterproto.message_field(33, group="node")
+    file_content: "FileContentData" = betterproto.message_field(34, group="node")
+    handle: "HandleData" = betterproto.message_field(35, group="node")
+    user: "UserData" = betterproto.message_field(36, group="node")
+    organization: "OrganizationData" = betterproto.message_field(37, group="node")
+    client: "ClientData" = betterproto.message_field(38, group="node")
 
 
 @dataclass(eq=False, repr=False)
@@ -4783,7 +4832,7 @@ class RuntimeBase(ServiceBase):
 
 from typing import TYPE_CHECKING  # noqa: E402
 
-VERSION = "2024.05.08.0"
+VERSION = "2024.05.09.1"
 
 if TYPE_CHECKING:
     from bench.language import Subject
@@ -4811,6 +4860,7 @@ AnyNodeData = Union[
     QueryData,
     ViewData,
     StepData,
+    MessageData,
     BadgeData,
     RoleData,
     IdentityData,

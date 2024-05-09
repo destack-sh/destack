@@ -156,13 +156,14 @@ export const ICON_BY_NODE_TYPE: Partial<Record<NodeType, IconData>> = _makeIcons
   [NodeType.QUERY]: "fas fa-magnifying-glass",
   [NodeType.VIEW]: "fas fa-browser",
   [NodeType.STEP]: "fas fa-step-forward",
+  [NodeType.MESSAGE]: "fas fa-message",
 
   // auth
   [NodeType.BADGE]: "fas fa-id-badge",
   [NodeType.ROLE]: "fas fa-user-tag",
   [NodeType.IDENTITY]: "fas fa-image-user",
-  [NodeType.MEMBERSHIP]: "fas fa-users",
-  [NodeType.INVITE]: "fas fa-envelope",
+  [NodeType.MEMBERSHIP]: "fas fa-book-user",
+  [NodeType.INVITE]: "fas fa-circle-nodes",
 
   // runtime
   [NodeType.SESSION]: "fas fa-circle-play",

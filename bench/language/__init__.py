@@ -49,6 +49,7 @@ from .file import File, Icon
 from .flow import Step, StepType
 from .graph import ValueList
 from .log import Log, LogKind, LogLevel
+from .message import Message
 from .node import Link, Node, Struct
 from .notice import Notice, NoticeError, NoticeType
 from .path import Path
@@ -126,6 +127,7 @@ __all__ = [
     "Notice",
     "NoticeError",
     "NoticeType",
+    "Message",
     "ObjectType",
     "Organization",
     "Package",

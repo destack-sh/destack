@@ -10,7 +10,7 @@ from bench.proto.wire import NoticeData
 from bench.utils.func import IdEnum
 
 if TYPE_CHECKING:
-    from bench.language import Block, Field, Path, Step, Struct, Trigger, View
+    from bench.language import Block, Field, Path, Step, Struct, View
 
 # pyright: reportIncompatibleVariableOverride=false
 
@@ -55,33 +55,36 @@ class NoticeError(BenchError, ValueError):
         self.cause = cause
 
 
-NoticeParent = Union["Block", "Field", "Step", "View", "Trigger"]
+NoticeParent = Union["Block", "Field", "Step", "View"]
 NOTICE_PARENT_TYPES: tuple[NodeType, ...] = (
     NodeType.BLOCK,
     NodeType.FIELD,
     NodeType.STEP,
     NodeType.VIEW,
-    NodeType.TRIGGER,
 )
 
 
 @node(NodeType.NOTICE)
 class Notice(Node[NoticeData]):
+    """
+    An informational or diagnostic note about something in the Bench source.
+    Notices are generally 'sticky' until their underlying cause is resolved.
+    """
+
     parent: NoticeParent = p_node_parent(4, *NOTICE_PARENT_TYPES)
     kind: NoticeKind = p_regular(30, default=None)
     type: NoticeType = p_regular(31)
     # -> builtin_type / custom_type / ... 'type' as union
     origin: Optional["Node"] = p_regular(33, require=False, references=LINK_TARGET_NODE_TYPES)
     path: Optional["Path"] = p_regular(34, require=False, array=False, struct=StructType.PATH)
-    title: Optional[str] = p_regular(35, require=False, default=None)
-    text: Optional["Text"] = p_regular(36, require=False, default=None, struct=StructType.TEXT)
     properties: Optional[list[Property]] = p_regular(
-        37, require=False, array=True, struct=StructType.PROPERTY_REFERENCE
+        35, require=False, array=True, struct=StructType.PROPERTY_REFERENCE
     )
-    # value_packed, value: ... # custom value
 
-    def _init_component(self):
-        self.kind = self.type.kind
+    # content
+    title: Optional[str] = p_regular(40, require=False, default=None)
+    text: Optional["Text"] = p_regular(41, require=False, default=None, struct=StructType.TEXT)
+    # value_packed, value: ... # custom value
 
     def __content_str__(self):
         return f"{self.kind.bench_name}: {self.type} {self.text}"

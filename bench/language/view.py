@@ -57,7 +57,7 @@ class ViewType(IdEnum):
     OUTLINE = 151
     INSPECT = 153
     CREATE = 154
-    ASSIST = 155
+    CHAT = 155
 
     #
     # General
@@ -299,10 +299,21 @@ class Spacing(IdEnum):
 class Anchor(IdEnum):
     """An anchor in 2D space."""
 
-    TOP_LEFT = 1
+    TOP = 1
+    TOP_LEFT = 2
     TOP_RIGHT = 3
-    BOTTOM_RIGHT = 5
-    BOTTOM_LEFT = 7
+
+    RIGHT = 11
+    RIGHT_TOP = 12
+    RIGHT_BOTTOM = 13
+
+    BOTTOM = 21
+    BOTTOM_LEFT = 22
+    BOTTOM_RIGHT = 23
+
+    LEFT = 31
+    LEFT_TOP = 32
+    LEFT_BOTTOM = 33
 
 
 @struct(StructType.OFFSET, inline=True)
@@ -435,11 +446,14 @@ class Space(Node[SpaceData]):
 
     parent: "Package" = p_node_parent(4, NodeType.PACKAGE)
 
+    # type/kind: ...
     name: str = p_regular(31)
     text: Optional["Text"] = p_regular(32, default=None, struct=StructType.TEXT)
     order_key: str = p_internal(33, default=INTEGER_ZERO)
     policies: list["Policy"] | None = p_regular(34, struct=StructType.POLICY, array=True)
     views: list["View"] = p_node_child(NodeType.VIEW)
+
+    bar_position: Optional[Anchor] = p_regular(40, default=Anchor.TOP)
 
     focus: Optional[Selection] = p_regular(
         70, default=None, require=False, struct=StructType.SELECTION

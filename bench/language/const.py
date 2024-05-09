@@ -13,7 +13,7 @@ from bench.utils.utils import frozendict
 if typing.TYPE_CHECKING:
     from bench.language import Session, Transaction
 
-VERSION = "2024.05.08.0"
+VERSION = "2024.05.09.1"
 REVISION_PENDING = -1
 TK_LENGTH_BYTES = 8
 TK_LENGTH_B64 = 12  # 1.5 * TK_LENGTH_BYTES (must be integer)
@@ -177,8 +177,8 @@ class NodeType(IdEnum):
     QUERY = 34
     VIEW = 35
     STEP = 36
+    MESSAGE = 37
     # TAG?  (not sure what to do with tags yet)
-    # COMMENT = ...
     # REACTION = ...
     # LOCK?
     # BREAKPOINT?

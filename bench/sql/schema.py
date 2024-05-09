@@ -11,7 +11,7 @@ from bench.sql.core import (
     Table,
 )
 
-VERSION = "2024.05.08.0"
+VERSION = "2024.05.09.1"
 
 BENCH_TABLE = Table(
     "bench_bench",
@@ -428,6 +428,7 @@ SPACE_TABLE = Table(
         Column("text", PrimitiveType.JSON, is_nullable=True),
         Column("order_key", PrimitiveType.STRING, default="'a0'::character varying"),
         Column("policies", PrimitiveType.JSON, is_array=True, is_nullable=True),
+        Column("bar_position", PrimitiveType.INT16, is_nullable=True, default="1"),
         Column("focus", PrimitiveType.JSON, is_nullable=True),
         Column("inspection_id", PrimitiveType.UUID, is_nullable=True),
         Column("inspection_ck", PrimitiveType.UUID, is_nullable=True),
@@ -544,13 +545,6 @@ NOTICE_TABLE = Table(
             on_delete=CascadeAction.CASCADE,
             is_nullable=True,
         ),
-        Column(
-            "parent_trigger_id",
-            PrimitiveType.UUID,
-            is_foreign_key_to="bench_trigger",
-            on_delete=CascadeAction.CASCADE,
-            is_nullable=True,
-        ),
         Column("package_id", PrimitiveType.UUID),
         Column("bench_id", PrimitiveType.UUID),
         Column("revision", PrimitiveType.INT64, default="0"),
@@ -576,9 +570,9 @@ NOTICE_TABLE = Table(
         Column("origin_base_ck", PrimitiveType.UUID, is_nullable=True),
         Column("origin_base_bench_id", PrimitiveType.UUID, is_nullable=True),
         Column("path", PrimitiveType.JSON, is_nullable=True),
+        Column("properties_ptr", PrimitiveType.JSON, is_array=True, is_nullable=True),
         Column("title", PrimitiveType.STRING, is_nullable=True),
         Column("text", PrimitiveType.JSON, is_nullable=True),
-        Column("properties_ptr", PrimitiveType.JSON, is_array=True, is_nullable=True),
     ),
     indexes=(
         Index("bench_idx_package_deleted_at", IndexType.BTREE, ("deleted_at", "package_id")),
@@ -588,7 +582,7 @@ NOTICE_TABLE = Table(
         Constraint(
             "bench_check_one_parent",
             ConstraintType.CHECK,
-            condition="(parent_block_id IS NOT NULL) OR (parent_field_id IS NOT NULL) OR (parent_step_id IS NOT NULL) OR (parent_view_id IS NOT NULL) OR (parent_trigger_id IS NOT NULL)",
+            condition="(parent_block_id IS NOT NULL) OR (parent_field_id IS NOT NULL) OR (parent_step_id IS NOT NULL) OR (parent_view_id IS NOT NULL)",
         ),
     ),
 )
@@ -985,6 +979,70 @@ STEP_TABLE = Table(
             "bench_check_one_parent",
             ConstraintType.CHECK,
             condition="(parent_block_id IS NOT NULL) OR (parent_step_id IS NOT NULL)",
+        ),
+    ),
+)
+
+MESSAGE_TABLE = Table(
+    "bench_message",
+    (
+        Column("id", PrimitiveType.UUID, is_primary_key=True),
+        Column("ck", PrimitiveType.UUID),
+        Column(
+            "parent_package_id",
+            PrimitiveType.UUID,
+            is_foreign_key_to="bench_package",
+            on_delete=CascadeAction.CASCADE,
+            is_nullable=True,
+        ),
+        Column(
+            "parent_block_id",
+            PrimitiveType.UUID,
+            is_foreign_key_to="bench_block",
+            on_delete=CascadeAction.CASCADE,
+            is_nullable=True,
+        ),
+        Column("package_id", PrimitiveType.UUID),
+        Column("bench_id", PrimitiveType.UUID),
+        Column("revision", PrimitiveType.INT64, default="0"),
+        Column("created_at", PrimitiveType.DATETIME),
+        Column("updated_at", PrimitiveType.DATETIME),
+        Column("deleted_at", PrimitiveType.DATETIME, is_nullable=True),
+        Column("archived_at", PrimitiveType.DATETIME, is_nullable=True),
+        Column("created_by_id", PrimitiveType.UUID, is_nullable=True),
+        Column("created_by_ck", PrimitiveType.UUID, is_nullable=True),
+        Column("created_by_type", PrimitiveType.INT16, is_nullable=True),
+        Column("created_by_base_ck", PrimitiveType.UUID, is_nullable=True),
+        Column("updated_by_id", PrimitiveType.UUID, is_nullable=True),
+        Column("updated_by_ck", PrimitiveType.UUID, is_nullable=True),
+        Column("updated_by_type", PrimitiveType.INT16, is_nullable=True),
+        Column("updated_by_base_ck", PrimitiveType.UUID, is_nullable=True),
+        Column("set_properties", PrimitiveType.INT32, is_array=True),
+        Column("origin_id", PrimitiveType.UUID, is_nullable=True),
+        Column("origin_ck", PrimitiveType.UUID, is_nullable=True),
+        Column("origin_type", PrimitiveType.INT16, is_nullable=True),
+        Column("origin_bench_id", PrimitiveType.UUID, is_nullable=True),
+        Column("origin_base_ck", PrimitiveType.UUID, is_nullable=True),
+        Column("origin_base_bench_id", PrimitiveType.UUID, is_nullable=True),
+        Column("path", PrimitiveType.JSON, is_nullable=True),
+        Column("reply_to_id", PrimitiveType.UUID, is_nullable=True),
+        Column("reply_to_ck", PrimitiveType.UUID, is_nullable=True),
+        Column("reply_to_bench_id", PrimitiveType.UUID, is_nullable=True),
+        Column("title", PrimitiveType.STRING, is_nullable=True),
+        Column("text", PrimitiveType.JSON, is_nullable=True),
+        Column("value_packed", PrimitiveType.JSON, is_nullable=True),
+        Column("secret_value_packed", PrimitiveType.JSON, is_nullable=True),
+        Column("is_pinned", PrimitiveType.BOOLEAN, default="false"),
+    ),
+    indexes=(
+        Index("bench_idx_package_deleted_at", IndexType.BTREE, ("deleted_at", "package_id")),
+        Index("bench_idx_package_archived_at", IndexType.BTREE, ("archived_at", "package_id")),
+    ),
+    constraints=(
+        Constraint(
+            "bench_check_one_parent",
+            ConstraintType.CHECK,
+            condition="(parent_package_id IS NOT NULL) OR (parent_block_id IS NOT NULL)",
         ),
     ),
 )
