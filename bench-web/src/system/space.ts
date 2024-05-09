@@ -1,5 +1,5 @@
 import { supervisor } from "@/proto/services";
-import { BenchData, BranchData, EditType, NodeType } from "@/proto/wire";
+import { BenchData, BranchData, EditType, NodeType, SpaceType } from "@/proto/wire";
 import {
   nodeReference,
   toNodeReference,
@@ -93,8 +93,8 @@ watch(
   { immediate: true },
 );
 
-/** Assigns a space in the current Package */
-async function assignSpaceInPackage() {
+/** Sets (and creates if needed) a space in the current Package */
+export async function assignSpaceInPackage() {
   if (pkg.value == null) throw new Error(`package not loaded`);
   log.debug("space.assignSpaceInPackage", { pkg: pkg.value, space: spacePtr.value });
 
@@ -112,6 +112,7 @@ async function assignSpaceInPackage() {
     // we can create a new space
     const space = pkgConnection.tx.create({
       metatype: NodeType.SPACE,
+      type: SpaceType.DESKTOP, // should derive this later :HeterogenousClients
       parentPtr: toNodeReference(pkg.value),
       packagePtr: toNodeReference(pkg.value),
     });

@@ -209,18 +209,19 @@ class BenchType(betterproto.Enum):
     FILE_RETENTION_MODE = 2101
     NOTICE_TYPE = 2170
     STEP_TYPE = 2180
-    VIEW_TYPE = 2200
-    VARIANT = 2201
-    COLOR_TYPE = 2202
-    COLOR_SHADE = 2203
-    FONT_TYPE = 2204
-    FONT_WEIGHT = 2205
-    FONT_SIZE = 2206
-    SPACING = 2207
-    ANCHOR = 2208
-    ORIENTATION = 2209
-    ALIGNMENT = 2210
-    ICON_KIND = 2211
+    SPACE_TYPE = 2200
+    VIEW_TYPE = 2201
+    VARIANT = 2202
+    COLOR_TYPE = 2203
+    COLOR_SHADE = 2204
+    FONT_TYPE = 2205
+    FONT_WEIGHT = 2206
+    FONT_SIZE = 2207
+    SPACING = 2208
+    ANCHOR = 2209
+    ORIENTATION = 2210
+    ALIGNMENT = 2211
+    ICON_KIND = 2212
     LOG_KIND = 2250
     LOG_LEVEL = 2251
     RUN_STATUS = 2260
@@ -397,18 +398,19 @@ class EnumType(betterproto.Enum):
     FILE_RETENTION_MODE = 2101
     NOTICE_TYPE = 2170
     STEP_TYPE = 2180
-    VIEW_TYPE = 2200
-    VARIANT = 2201
-    COLOR_TYPE = 2202
-    COLOR_SHADE = 2203
-    FONT_TYPE = 2204
-    FONT_WEIGHT = 2205
-    FONT_SIZE = 2206
-    SPACING = 2207
-    ANCHOR = 2208
-    ORIENTATION = 2209
-    ALIGNMENT = 2210
-    ICON_KIND = 2211
+    SPACE_TYPE = 2200
+    VIEW_TYPE = 2201
+    VARIANT = 2202
+    COLOR_TYPE = 2203
+    COLOR_SHADE = 2204
+    FONT_TYPE = 2205
+    FONT_WEIGHT = 2206
+    FONT_SIZE = 2207
+    SPACING = 2208
+    ANCHOR = 2209
+    ORIENTATION = 2210
+    ALIGNMENT = 2211
+    ICON_KIND = 2212
     LOG_KIND = 2250
     LOG_LEVEL = 2251
     RUN_STATUS = 2260
@@ -919,6 +921,13 @@ class SortOp(betterproto.Enum):
     UNSPECIFIED = 0
     ASCENDING = 200
     DESCENDING = 201
+
+
+class SpaceType(betterproto.Enum):
+    UNSPECIFIED = 0
+    DESKTOP = 10
+    MOBILE = 20
+    EXTENSION = 30
 
 
 class Spacing(betterproto.Enum):
@@ -2841,6 +2850,7 @@ class SpaceData(betterproto.Message):
     created_by_ptr: Optional["NodeReferenceData"] = betterproto.message_field(17, optional=True)
     updated_by_ptr: Optional["NodeReferenceData"] = betterproto.message_field(18, optional=True)
     set_properties: List[int] = betterproto.int32_field(22)
+    type: "SpaceType" = betterproto.enum_field(30)
     name: str = betterproto.string_field(31)
     text: Optional["TextData"] = betterproto.message_field(32, optional=True)
     order_key: str = betterproto.string_field(33)
@@ -4832,7 +4842,7 @@ class RuntimeBase(ServiceBase):
 
 from typing import TYPE_CHECKING  # noqa: E402
 
-VERSION = "2024.05.09.1"
+VERSION = "2024.05.09.2"
 
 if TYPE_CHECKING:
     from bench.language import Subject

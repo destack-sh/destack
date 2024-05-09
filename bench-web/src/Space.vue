@@ -17,6 +17,9 @@ import Split from "@/views/containers/Split.vue";
 import { IS_IN_ALT_MODE } from "@/system/action";
 import { useTitle, useWindowSize } from "@vueuse/core";
 import { computed, onBeforeUnmount, ref, watch } from "vue";
+import Button from "@/views/controls/Button.vue";
+import { makeIcon } from "@/system/icon";
+import { assignSpaceInPackage } from "@/system/space";
 
 const BAR_HEIGHT = 42;
 const BAR_OFFSET = 0;
@@ -108,6 +111,27 @@ watch([canvas.focusedViewPtr, bench], () => {
     >
       <div class="flex h-full flex-col items-center justify-center">
         <i class="fas fa-spinner-third animate-spin text-xl text-gray-400" />
+      </div>
+    </div>
+    <!-- Does not have a space (not signed in or space is weird) -->
+    <div
+      v-else
+      class="flex flex-col justify-center text-center"
+      :style="{
+        width: mainBox.width + 'px',
+        height: mainBox.height + 'px',
+      }"
+    >
+      <div v-if="bench" class="flex w-fit flex-col gap-y-2 self-center">
+        <!-- Space deleted / inaccessible for some reason -->
+        <span>
+          <i class="fas fa-exclamation-triangle mr-1.5 text-gray-500" />
+          <span class="text-gray-600">Space Not Found</span>
+        </span>
+        <Button name="fix" :icon="makeIcon('fas fa-plus')" title="Create Space" @click="assignSpaceInPackage" />
+      </div>
+      <div v-else>
+        <!-- ... something -->
       </div>
     </div>
 
