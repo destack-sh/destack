@@ -782,6 +782,16 @@ export function findExistingConnection<K extends GraphConnectionKind, T extends 
   return matchingConnections[0];
 }
 
+export function findExistingConnectionOrError<K extends GraphConnectionKind, T extends NodeType>(
+  kind: K, 
+  params: ConnectionParamsMapping<T>[K],
+  match?: ConnectionMatchOptions<K, T>,
+): GraphConnectionBase<K, T>  {
+  const connection = findExistingConnection(kind, params, match);
+  if (connection == null) throw new Error(`no connection found for ${kind}:${JSON.stringify(params)}`);
+  return connection;
+}
+
 /** Finds an existing connection and acquires it (RC+=1) */
 function acquireExistingConnection<K extends GraphConnectionKind, T extends NodeType>(
   kind: K,

@@ -1,17 +1,17 @@
 <script lang="ts" setup>
 import { ViewData, NodeType, BoxData, Variant, ObjectType, Orientation, TextData } from "@/proto/wire";
-import { type TypedNodeReferenceData } from "@/proto/wiring";
+import { describeNode, toNodeReference, type TypedNodeReferenceData } from "@/proto/wiring";
 import { makeViewId, viewEmits, type ViewExposed } from "@/views/common";
 import { canvas, pkg } from "@/system/space";
 import { computed, ref, toRef, type Ref } from "vue";
-import { useExistingConnection } from "@/system/connection";
+import { findExistingConnectionOrError, useExistingConnection } from "@/system/connection";
 import Scroll from "@/views/containers/Scroll.vue";
 import { ScrollbarWidth } from "@/utils/layout";
 import { useElementSize } from "@vueuse/core";
 import Text from "@/views/content/Text.vue";
-import { tsToDt, formatDurationFromNow } from "@/utils/time";
-import { ICON_BY_NODE_TYPE, IconInline, getNodeIcon } from "@/system/icon";
-import { isTextEmpty } from "@/system/text";
+import { IconInline, getNodeIcon, makeIcon } from "@/system/icon";
+import { emptyText, isTextEmpty } from "@/system/text";
+import Message from "@/views/system/Message.vue";
 
 const HEADER_HEIGHT = 40;
 const MAX_WIDTH = 800;
@@ -33,17 +33,51 @@ const textRef: Ref<InstanceType<typeof Text> | null> = ref(null);
 
 const threadPtr = toRef(props, "nodePtr") as Ref<TypedNodeReferenceData<NodeType.MESSAGE> | undefined>;
 const { graph: spaceGraph, connection: spaceConnection } = useExistingConnection(self);
-const { graph: pkgGraph, connection: pkgConnection } = useExistingConnection(threadPtr);
+const preparedPkgConnection = useExistingConnection(threadPtr);
+const { graph: pkgGraph, connection: pkgConnection } = preparedPkgConnection;
 const thread = pkgGraph.getRef(threadPtr);
 const messages = pkgGraph.getChildrenRef(thread, NodeType.MESSAGE);
 const ancestors = pkgGraph.getAncestorsRef(threadPtr, { includeSelf: false });
-const context = computed(() => ancestors.value.find((n) => n.metatype != ObjectType.MESSAGE) ?? pkg.value);
+const context = computed(() => ancestors.value.find((n) => n.metatype != ObjectType.MESSAGE));
 
-const text: Ref<TextData | null> = ref(null);
-
+const text: Ref<TextData> = ref(emptyText());
 const canSubmit = computed(() => !isTextEmpty(text.value));
+
+/** Submits a message to the current thread. If it doesn't exist, create a root thread. */
 function submit() {
-  console.log("submit", text.value); // nocheckin
+  if (isTextEmpty(text.value)) return;
+  if (pkg.value == null) throw new Error("no package");
+
+  if (threadPtr.value == null) {
+    // create new thread with message inside (in package)
+    const rootPtr = toNodeReference(pkg.value);
+    const tx = findExistingConnectionOrError("get", { roots: [rootPtr] }).tx;
+    const selfView = spaceGraph.getOrError(self.value!);
+    const thread = tx.create({
+      metatype: NodeType.MESSAGE,
+      parentPtr: rootPtr,
+      packagePtr: rootPtr,
+    });
+    const message = tx.create({
+      metatype: NodeType.MESSAGE,
+      parentPtr: toNodeReference(thread),
+      packagePtr: rootPtr,
+      text: text.value,
+    });
+    spaceConnection.tx.update(selfView, { nodePtr: message.parentPtr });
+  } else {
+    // append to existing thread
+    if (thread.value == null) throw new Error(`thread not found: ${describeNode(threadPtr.value)}`);
+    pkgConnection.tx.create({
+      metatype: NodeType.MESSAGE,
+      parentPtr: threadPtr.value,
+      packagePtr: thread.value.packagePtr!,
+      text: text.value,
+    });
+  }
+
+  // reset
+  text.value = emptyText();
 }
 
 const isFocusedAbsolute = canvas.isFocusedAbsoluteRef(self);
@@ -60,25 +94,29 @@ defineExpose<ViewExposed>({ self, id, variants: [Variant.PRIMARY, Variant.COMPAC
       >
         <!-- Thread (local root message node) -->
         <div>
-          <template v-if="thread">
-            <i class="fas fa-message mr-1.5 w-5 text-center text-gray-700" />
-            <span class="text-gray-900" :class="thread.title != null ? 'font-semibold' : ''">
-              {{ thread.title ?? "Untitled thread" }}
-            </span>
-          </template>
-          <template v-else>
-            <i class="fas fa-message mr-1.5 w-5 text-center text-gray-400" />
-            <span class="py-0.5 text-gray-400">New thread</span>
-          </template>
+          <i
+            class="fas fa-message mr-1.5 w-5 text-center"
+            :class="[thread == null ? 'text-gray-500' : 'text-gray-700']"
+          />
+          <span
+            class=""
+            :class="[thread == null ? 'text-gray-600' : 'text-gray-900', thread?.title != null ? 'font-semibold' : '']"
+          >
+            {{ thread?.title ?? "Untitled Thread" }}
+          </span>
+          <!-- Select thread -->
+          <button class="ml-1.5 text-gray-400">
+            <i class="fas fa-chevron-down" />
+          </button>
         </div>
         <!-- Context (non-message parent node) -->
         <div class="ml-auto">
           <IconInline
             class="mr-1.5 w-5 text-center text-gray-400"
-            v-bind="(context != null ? getNodeIcon(context) : null) ?? ICON_BY_NODE_TYPE[NodeType.BENCH]"
+            v-bind="(context != null ? getNodeIcon(context) : null) ?? makeIcon('fas fa-infinity')"
           />
           <span class="text-gray-400">
-            {{ (context as any)?.name ?? "Package" }}
+            {{ (context as any)?.name ?? "Everything" }}
           </span>
           <!-- Select context node (move thread) -->
           <button class="ml-1.5 text-gray-400">
@@ -98,13 +136,12 @@ defineExpose<ViewExposed>({ self, id, variants: [Variant.PRIMARY, Variant.COMPAC
       :orientation="Orientation.VERTICAL"
       :track-width="ScrollbarWidth.md"
     >
-      messages!
-      <div v-for="message in messages" :key="message.id">
-        {{ message?.id }}
-      </div>
+      <template v-for="message in messages" :key="message.id">
+        <Message class="mx-auto" :style="{ maxWidth: MAX_WIDTH + 'px' }" :node-ptr="toNodeReference(message)" />
+      </template>
     </Scroll>
     <!-- Nothing here yet -->
-    <div v-else-if="threadPtr">nocheckin: no messages</div>
+    <div v-else-if="threadPtr">nocheckin: no messages (select thread?)</div>
 
     <!-- Create message -->
     <div ref="inputRef" class="group mt-auto border-t border-gray-200" @click="textRef?.focus">
@@ -127,13 +164,12 @@ defineExpose<ViewExposed>({ self, id, variants: [Variant.PRIMARY, Variant.COMPAC
         <!-- Content -->
         <Text
           ref="textRef"
+          v-model="text"
           class="my-0.5 w-full self-end hover:cursor-text"
           :variant="Variant.STEALTH"
           is-input
           :placeholder="`Message your Bench`"
-					suppress-enter
-          :model-value="text ?? undefined"
-          @update:model-value="text = $event"
+          suppress-enter
           @click.stop
           @keydown.enter.stop="submit"
         />
