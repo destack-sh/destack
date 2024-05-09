@@ -16,7 +16,7 @@ import { ICON_BY_NODE_TYPE, getNodeIcon } from "@/system/icon";
 import { canvas, pkgGraph } from "@/system/space";
 import { mapPmNodeToText, mapTextToPmNode } from "@/system/text";
 import { useDropZone } from "@/utils/drag";
-import { pushPopover, menuActionsLike, type MenuContext, type PopoverInfo } from "@/utils/menu";
+import { pushPopover, menuActionsLike, type PopoverContext, type PopoverInfo } from "@/utils/menu";
 import { PM_INPUT_RULES, PM_SCHEMA, type TextMarkType, PM_KEYMAP_EXTRA } from "@/utils/prosemirror";
 import { deepValueEquals } from "@/utils/ref";
 import { ViewContentWrapper, makeViewId, viewEmits, type ViewExposed } from "@/views/common";
@@ -277,7 +277,7 @@ defineExpose<ViewExposed>({ self, id, variants: [Variant.PRIMARY, Variant.STEALT
     <div
       ref="textRef"
       v-contextmenu="
-        (context: MenuContext): PopoverInfo => ({
+        (context: PopoverContext): PopoverInfo => ({
           kind: 'menu',
           placement: 'bottom-right',
           items: menuActionsLike(

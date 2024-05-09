@@ -24,7 +24,7 @@ import { highlightMatches } from "@/system/search";
 import { inspectionBasePtr, canvas, inspectionPtr, pkg } from "@/system/space";
 import { startDragging, useMultiDropZone } from "@/utils/drag";
 import { ScrollbarWidth } from "@/utils/layout";
-import { menuActionsLike, type MenuContext, type PopoverInfo } from "@/utils/menu";
+import { menuActionsLike, type PopoverContext, type PopoverInfo } from "@/utils/menu";
 import { computedValue } from "@/utils/ref";
 import { makeSelection, useExpansion } from "@/views/canvas";
 import { viewEmits, type FocusAnchor, type ViewExposed } from "@/views/common";
@@ -306,7 +306,7 @@ defineExpose<ViewExposed>({ self, actions, focus });
         :ref="(ref?: any) => (ref != null ? (expandedNodesRefs[node.id] = ref) : delete expandedNodesRefs[node.id])"
         :key="node.id"
         v-contextmenu="
-          (context: MenuContext): PopoverInfo => {
+          (context: PopoverContext): PopoverInfo => {
             doFocus(node);
             context = { ...context, triggerNode: node };
             return {
@@ -375,13 +375,13 @@ defineExpose<ViewExposed>({ self, actions, focus });
           :class="isFocusedAbsolute(node) ? 'text-primary-900' : ''"
           v-html="nodeTitlesMarked[i] ?? (node as any).name ?? node.id"
         />
-        <!-- Status/Notices/Control...? -->
+        <!-- Meta -->
         <div class="ml-auto flex flex-row gap-x-1 pl-3">
           <!-- Create inside -->
-          <i
+          <button
             v-if="isNode(node, NodeType.BLOCK)"
             role="button"
-            class="fas fa-plus px-0.5 py-0.5 text-gray-400 opacity-0 hover:text-primary-900 group-hover:opacity-100"
+            class="text-gray-400 opacity-0 hover:text-primary-900 group-hover:opacity-100"
             @click.stop="
               () => {
                 const block = createBlock(pkgConnection.tx, pkgGraph, { type: BlockType.PAGE }, 'inside', node);
@@ -389,7 +389,9 @@ defineExpose<ViewExposed>({ self, actions, focus });
                 if (!isExpanded(node)) toggleExpanded(node);
               }
             "
-          />
+          >
+            <i class="fas fa-plus" />
+          </button>
         </div>
         <!-- ... -->
       </li>

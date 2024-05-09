@@ -6,7 +6,7 @@ import { useGetConnection, type PreparedGetConnection } from "@/system/connectio
 import { RUNNABLE_BLOCK_TYPES, createField, moveNode, onNodeMorphed, toCamelName } from "@/system/lang";
 import { canvas } from "@/system/space";
 import { startDragging, useMultiDropZone, type DraggedData, type MultiAnchor } from "@/utils/drag";
-import { menuActionsLike, type PopoverInfo } from "@/utils/menu";
+import { menuActionsLike, type PopoverContext, type PopoverInfo } from "@/utils/menu";
 import { makeViewId, viewEmits, type ViewExposed } from "@/views/common";
 import Field from "@/views/system/Field.vue";
 import { computed, ref, toRef, type Ref } from "vue";
@@ -216,7 +216,7 @@ defineExpose<ViewExposed>({ self, id, actions });
           <Field
             :ref="(ref: any) => (ref != null ? (sideFieldRefs[field.id] = ref) : delete sideFieldRefs[field.id])"
             v-contextmenu="
-              (): PopoverInfo => ({
+              (context: PopoverContext): PopoverInfo => ({
                 kind: 'menu',
                 placement: 'bottom-right',
                 items: menuActionsLike(
@@ -230,7 +230,7 @@ defineExpose<ViewExposed>({ self, id, actions });
                     'type*',
                   ],
                   {
-                    context: { triggerNode: field },
+                    context: { ...context, triggerNode: field },
                   },
                 ),
               })

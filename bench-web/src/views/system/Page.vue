@@ -25,7 +25,7 @@ import { makeTypeInfo } from "@/system/value";
 import { startDragging, useMultiDropZone } from "@/utils/drag";
 import { blurDocument } from "@/utils/element";
 import { ScrollbarWidth } from "@/utils/layout";
-import { menuActionsLike, type PopoverInfo, type PopoverInfoIn } from "@/utils/menu";
+import { menuActionsLike, type PopoverContext, type PopoverInfo, type PopoverInfoIn } from "@/utils/menu";
 import { computedValue } from "@/utils/ref";
 import { toCamelCase } from "@/utils/string";
 import type { TooltipInfo } from "@/utils/tooltip";
@@ -345,7 +345,7 @@ defineExpose<ViewExposed>({ self, actions, focus });
                 })
               "
               role="button"
-              class="absolute h-[6px] w-full flex-shrink-0 text-center text-gray-300 opacity-0 hover:z-10 hover:text-gray-300 hover:opacity-100 data-[menu=true]:text-primary-900 data-[menu=true]:opacity-100"
+              class="absolute h-[6px] w-full flex-shrink-0 text-center text-gray-300 opacity-0 hover:z-10 hover:text-gray-300 hover:opacity-100 data-[popover=true]:text-primary-900 data-[popover=true]:opacity-100"
               :style="
                 getAnchorPosition(
                   anchor as 'start' | 'end',
@@ -378,7 +378,7 @@ defineExpose<ViewExposed>({ self, actions, focus });
                 (ref: any) => (ref ? (expandedBlockRefs[blockPtr.id!] = ref) : delete expandedBlockRefs[blockPtr.id!])
               "
               v-contextmenu="
-                (): PopoverInfo => ({
+                (context: PopoverContext): PopoverInfo => ({
                   kind: 'menu',
                   placement: 'bottom-right',
                   items: menuActionsLike(
@@ -392,7 +392,7 @@ defineExpose<ViewExposed>({ self, actions, focus });
                       'block.*',
                     ],
                     {
-                      context: { triggerNode: blockPtr },
+                      context: { ...context, triggerNode: blockPtr },
                     },
                   ),
                 })

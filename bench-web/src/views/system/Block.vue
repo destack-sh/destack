@@ -142,7 +142,7 @@ defineExpose<ViewExposed>({ self, id, variants: [Variant.PRIMARY, Variant.STEALT
             })
           "
           v-bind="getNodeIcon(block)"
-          class="w-5 rounded border border-transparent py-0.5 hover:cursor-pointer hover:bg-gray-100 data-[menu=true]:border-primary-900 data-[menu=true]:bg-gray-100"
+          class="w-5 rounded border border-transparent py-0.5 hover:cursor-pointer hover:bg-gray-100 data-[popover=true]:border-primary-900 data-[popover=true]:bg-gray-100"
           :class="isThinTextWrapper ? 'text-gray-500' : 'text-gray-700'"
         />
         <input
@@ -189,7 +189,7 @@ defineExpose<ViewExposed>({ self, id, variants: [Variant.PRIMARY, Variant.STEALT
           <!-- Quick add -->
           <button
             v-if="TYPE_BLOCK_TYPES.includes(block.type) || RUNNABLE_BLOCK_TYPES.includes(block.type)"
-            class="rounded border border-transparent px-0.5 hover:bg-gray-100 hover:text-primary-900 data-[menu=true]:border-primary-900 data-[menu=true]:bg-gray-100 data-[menu=true]:text-primary-900"
+            class="rounded border border-transparent px-0.5 hover:bg-gray-100 hover:text-primary-900 data-[popover=true]:border-primary-900 data-[popover=true]:bg-gray-100 data-[popover=true]:text-primary-900"
             @click="
               (e) => {
                 if (block!.type == BlockType.CHOICE) {
@@ -235,7 +235,7 @@ defineExpose<ViewExposed>({ self, id, variants: [Variant.PRIMARY, Variant.STEALT
                 ),
               })
             "
-            class="rounded border border-transparent px-2 hover:bg-gray-100 hover:text-primary-900 data-[menu=true]:border-primary-900 data-[menu=true]:bg-gray-100 data-[menu=true]:text-primary-900"
+            class="rounded border border-transparent px-2 hover:bg-gray-100 hover:text-primary-900 data-[popover=true]:border-primary-900 data-[popover=true]:bg-gray-100 data-[popover=true]:text-primary-900"
           >
             <i class="fas fa-ellipsis-v" />
           </button>

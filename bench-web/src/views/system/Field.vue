@@ -87,7 +87,7 @@ defineExpose<ViewExposed>({ self, id, actions });
         })
       "
       v-bind="getNodeIcon(field)"
-      class="mr-0.5 w-6 rounded border border-transparent p-0.5 hover:cursor-pointer hover:bg-gray-100 data-[menu=true]:border-primary-900 data-[menu=true]:bg-gray-100"
+      class="mr-0.5 w-6 rounded border border-transparent p-0.5 hover:cursor-pointer hover:bg-gray-100 data-[popover=true]:border-primary-900 data-[popover=true]:bg-gray-100"
     />
     <input
       ref="nameRef"

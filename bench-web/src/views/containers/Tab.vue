@@ -8,7 +8,7 @@ import { canvas } from "@/system/space";
 import { startDragging, useMultiDropZone, useSplitDropZone, type SplitAnchor } from "@/utils/drag";
 import { IS_DEBUG, isDeveloperMode } from "@/utils/globals";
 import { ScrollbarWidth } from "@/utils/layout";
-import { menuActionsLike, type MenuContext, type PopoverInfo } from "@/utils/menu";
+import { menuActionsLike, type PopoverContext, type PopoverInfo } from "@/utils/menu";
 import { getViewBinding, getViewComponent } from "@/views/registry";
 import Empty from "@/views/builtins/Empty.vue";
 import { viewEmits, type ViewExposed } from "@/views/common";
@@ -168,7 +168,7 @@ defineExpose<ViewExposed>({ self, actions });
     <Scroll
       ref="headerRef"
       v-contextmenu="
-        (context: MenuContext): PopoverInfo => {
+        (context: PopoverContext): PopoverInfo => {
           return {
             kind: 'menu',
             placement: 'bottom-right',
@@ -190,7 +190,7 @@ defineExpose<ViewExposed>({ self, actions });
         :ref="(ref) => (ref != null ? (tabsRef[tab.id] = ref as HTMLElement) : delete tabsRef[tab.id])"
         :key="tab.id"
         v-contextmenu="
-          (context: MenuContext): PopoverInfo => {
+          (context: PopoverContext): PopoverInfo => {
             context = { ...context, triggerNode: tab };
             return {
               kind: 'menu',
