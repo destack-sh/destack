@@ -440,13 +440,20 @@ class View(Node[ViewData], HasValues):
         return f"<{self.type.bench_name}View {self}>"
 
 
+@enum_(EnumType.SPACE_TYPE)
+class SpaceType(IdEnum):
+    DESKTOP = 10
+    MOBILE = 20
+    EXTENSION = 30
+
+
 @node(NodeType.SPACE, identifier=IdentifierType.VARIABLE)
 class Space(Node[SpaceData]):
     """A space for a user to interact with the Bench."""
 
     parent: "Package" = p_node_parent(4, NodeType.PACKAGE)
 
-    # type/kind: ...
+    type: SpaceType = p_regular(30)
     name: str = p_regular(31)
     text: Optional["Text"] = p_regular(32, default=None, struct=StructType.TEXT)
     order_key: str = p_internal(33, default=INTEGER_ZERO)

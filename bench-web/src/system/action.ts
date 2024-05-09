@@ -11,11 +11,11 @@ import {
   type NodeReferenceData,
   type TextData,
 } from "@/proto/wire";
-import { isNode, toNodeReference, type AnyNodeReferenceData } from "@/proto/wiring";
+import { describeNode, isNode, toNodeReference, type AnyNodeReferenceData } from "@/proto/wiring";
 import { isDeveloperMode, packagePtr } from "@/system/client";
 import { makeIcon } from "@/system/icon";
 import { getRandomEnumOption } from "@/system/lang";
-import { canvas, hasLocalBench, inspectionPtr, pkgConnection, pkgGraph, space } from "@/system/space";
+import { canvas, hasLocalBench, inspectionPtr, pkg, pkgConnection, pkgGraph, space } from "@/system/space";
 import { toaster } from "@/system/toast";
 import { getAllTransactionBuffers } from "@/system/transaction";
 import { generateOrderKey } from "@/utils/fractional";
@@ -976,9 +976,11 @@ contributeActionMap<"view">({
     title: "Clear Canvas",
     text: "Clear the canvas and start blank",
     action: () => {
+      if (pkg.value == null) return;
+      if (space.value == null) throw new Error(`${describeNode(pkg.value)} has no space`);
       const tx = canvas.txFactory();
-      clearCanvas(tx, canvas.graph, space.value!);
-      setupEmptyCanvas(tx, space.value!);
+      clearCanvas(tx, canvas.graph, space.value);
+      setupEmptyCanvas(tx, space.value);
     },
   },
   "view.canvas.resetDefault": {
@@ -987,9 +989,11 @@ contributeActionMap<"view">({
     text: "Reset the canvas to the default layout",
     icon: "fas fa-browser",
     action: () => {
+      if (pkg.value == null) return;
+      if (space.value == null) throw new Error(`${describeNode(pkg.value)} has no space`);
       const tx = canvas.txFactory();
-      clearCanvas(tx, canvas.graph, space.value!);
-      setupDefaultCanvas(tx, space.value!);
+      clearCanvas(tx, canvas.graph, space.value);
+      setupDefaultCanvas(tx, space.value);
     },
   },
 });

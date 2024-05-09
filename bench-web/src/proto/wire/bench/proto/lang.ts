@@ -4585,6 +4585,10 @@ export interface SpaceData {
      */
     setProperties: number[];
     /**
+     * @generated from protobuf field: symbolx.bench.SpaceType type = 30;
+     */
+    type: SpaceType;
+    /**
      * @generated from protobuf field: string name = 31;
      */
     name: string;
@@ -6191,53 +6195,57 @@ export enum BenchType {
      */
     STEP_TYPE = 2180,
     /**
-     * @generated from protobuf enum value: BENCH_TYPE_VIEW_TYPE = 2200;
+     * @generated from protobuf enum value: BENCH_TYPE_SPACE_TYPE = 2200;
      */
-    VIEW_TYPE = 2200,
+    SPACE_TYPE = 2200,
     /**
-     * @generated from protobuf enum value: BENCH_TYPE_VARIANT = 2201;
+     * @generated from protobuf enum value: BENCH_TYPE_VIEW_TYPE = 2201;
      */
-    VARIANT = 2201,
+    VIEW_TYPE = 2201,
     /**
-     * @generated from protobuf enum value: BENCH_TYPE_COLOR_TYPE = 2202;
+     * @generated from protobuf enum value: BENCH_TYPE_VARIANT = 2202;
      */
-    COLOR_TYPE = 2202,
+    VARIANT = 2202,
     /**
-     * @generated from protobuf enum value: BENCH_TYPE_COLOR_SHADE = 2203;
+     * @generated from protobuf enum value: BENCH_TYPE_COLOR_TYPE = 2203;
      */
-    COLOR_SHADE = 2203,
+    COLOR_TYPE = 2203,
     /**
-     * @generated from protobuf enum value: BENCH_TYPE_FONT_TYPE = 2204;
+     * @generated from protobuf enum value: BENCH_TYPE_COLOR_SHADE = 2204;
      */
-    FONT_TYPE = 2204,
+    COLOR_SHADE = 2204,
     /**
-     * @generated from protobuf enum value: BENCH_TYPE_FONT_WEIGHT = 2205;
+     * @generated from protobuf enum value: BENCH_TYPE_FONT_TYPE = 2205;
      */
-    FONT_WEIGHT = 2205,
+    FONT_TYPE = 2205,
     /**
-     * @generated from protobuf enum value: BENCH_TYPE_FONT_SIZE = 2206;
+     * @generated from protobuf enum value: BENCH_TYPE_FONT_WEIGHT = 2206;
      */
-    FONT_SIZE = 2206,
+    FONT_WEIGHT = 2206,
     /**
-     * @generated from protobuf enum value: BENCH_TYPE_SPACING = 2207;
+     * @generated from protobuf enum value: BENCH_TYPE_FONT_SIZE = 2207;
      */
-    SPACING = 2207,
+    FONT_SIZE = 2207,
     /**
-     * @generated from protobuf enum value: BENCH_TYPE_ANCHOR = 2208;
+     * @generated from protobuf enum value: BENCH_TYPE_SPACING = 2208;
      */
-    ANCHOR = 2208,
+    SPACING = 2208,
     /**
-     * @generated from protobuf enum value: BENCH_TYPE_ORIENTATION = 2209;
+     * @generated from protobuf enum value: BENCH_TYPE_ANCHOR = 2209;
      */
-    ORIENTATION = 2209,
+    ANCHOR = 2209,
     /**
-     * @generated from protobuf enum value: BENCH_TYPE_ALIGNMENT = 2210;
+     * @generated from protobuf enum value: BENCH_TYPE_ORIENTATION = 2210;
      */
-    ALIGNMENT = 2210,
+    ORIENTATION = 2210,
     /**
-     * @generated from protobuf enum value: BENCH_TYPE_ICON_KIND = 2211;
+     * @generated from protobuf enum value: BENCH_TYPE_ALIGNMENT = 2211;
      */
-    ICON_KIND = 2211,
+    ALIGNMENT = 2211,
+    /**
+     * @generated from protobuf enum value: BENCH_TYPE_ICON_KIND = 2212;
+     */
+    ICON_KIND = 2212,
     /**
      * @generated from protobuf enum value: BENCH_TYPE_LOG_KIND = 2250;
      */
@@ -6876,53 +6884,57 @@ export enum EnumType {
      */
     STEP_TYPE = 2180,
     /**
-     * @generated from protobuf enum value: ENUM_TYPE_VIEW_TYPE = 2200;
+     * @generated from protobuf enum value: ENUM_TYPE_SPACE_TYPE = 2200;
      */
-    VIEW_TYPE = 2200,
+    SPACE_TYPE = 2200,
     /**
-     * @generated from protobuf enum value: ENUM_TYPE_VARIANT = 2201;
+     * @generated from protobuf enum value: ENUM_TYPE_VIEW_TYPE = 2201;
      */
-    VARIANT = 2201,
+    VIEW_TYPE = 2201,
     /**
-     * @generated from protobuf enum value: ENUM_TYPE_COLOR_TYPE = 2202;
+     * @generated from protobuf enum value: ENUM_TYPE_VARIANT = 2202;
      */
-    COLOR_TYPE = 2202,
+    VARIANT = 2202,
     /**
-     * @generated from protobuf enum value: ENUM_TYPE_COLOR_SHADE = 2203;
+     * @generated from protobuf enum value: ENUM_TYPE_COLOR_TYPE = 2203;
      */
-    COLOR_SHADE = 2203,
+    COLOR_TYPE = 2203,
     /**
-     * @generated from protobuf enum value: ENUM_TYPE_FONT_TYPE = 2204;
+     * @generated from protobuf enum value: ENUM_TYPE_COLOR_SHADE = 2204;
      */
-    FONT_TYPE = 2204,
+    COLOR_SHADE = 2204,
     /**
-     * @generated from protobuf enum value: ENUM_TYPE_FONT_WEIGHT = 2205;
+     * @generated from protobuf enum value: ENUM_TYPE_FONT_TYPE = 2205;
      */
-    FONT_WEIGHT = 2205,
+    FONT_TYPE = 2205,
     /**
-     * @generated from protobuf enum value: ENUM_TYPE_FONT_SIZE = 2206;
+     * @generated from protobuf enum value: ENUM_TYPE_FONT_WEIGHT = 2206;
      */
-    FONT_SIZE = 2206,
+    FONT_WEIGHT = 2206,
     /**
-     * @generated from protobuf enum value: ENUM_TYPE_SPACING = 2207;
+     * @generated from protobuf enum value: ENUM_TYPE_FONT_SIZE = 2207;
      */
-    SPACING = 2207,
+    FONT_SIZE = 2207,
     /**
-     * @generated from protobuf enum value: ENUM_TYPE_ANCHOR = 2208;
+     * @generated from protobuf enum value: ENUM_TYPE_SPACING = 2208;
      */
-    ANCHOR = 2208,
+    SPACING = 2208,
     /**
-     * @generated from protobuf enum value: ENUM_TYPE_ORIENTATION = 2209;
+     * @generated from protobuf enum value: ENUM_TYPE_ANCHOR = 2209;
      */
-    ORIENTATION = 2209,
+    ANCHOR = 2209,
     /**
-     * @generated from protobuf enum value: ENUM_TYPE_ALIGNMENT = 2210;
+     * @generated from protobuf enum value: ENUM_TYPE_ORIENTATION = 2210;
      */
-    ALIGNMENT = 2210,
+    ORIENTATION = 2210,
     /**
-     * @generated from protobuf enum value: ENUM_TYPE_ICON_KIND = 2211;
+     * @generated from protobuf enum value: ENUM_TYPE_ALIGNMENT = 2211;
      */
-    ICON_KIND = 2211,
+    ALIGNMENT = 2211,
+    /**
+     * @generated from protobuf enum value: ENUM_TYPE_ICON_KIND = 2212;
+     */
+    ICON_KIND = 2212,
     /**
      * @generated from protobuf enum value: ENUM_TYPE_LOG_KIND = 2250;
      */
@@ -8619,6 +8631,27 @@ export enum SortOp {
      * @generated from protobuf enum value: SORT_OP_DESCENDING = 201;
      */
     DESCENDING = 201
+}
+/**
+ * @generated from protobuf enum symbolx.bench.SpaceType
+ */
+export enum SpaceType {
+    /**
+     * @generated from protobuf enum value: SPACE_TYPE_UNSPECIFIED = 0;
+     */
+    UNSPECIFIED = 0,
+    /**
+     * @generated from protobuf enum value: SPACE_TYPE_DESKTOP = 10;
+     */
+    DESKTOP = 10,
+    /**
+     * @generated from protobuf enum value: SPACE_TYPE_MOBILE = 20;
+     */
+    MOBILE = 20,
+    /**
+     * @generated from protobuf enum value: SPACE_TYPE_EXTENSION = 30;
+     */
+    EXTENSION = 30
 }
 /**
  * The spacing scale for positions, padding, margin, etc. We don't enforce this.
@@ -19972,6 +20005,7 @@ class SpaceData$Type extends MessageType<SpaceData> {
             { no: 17, name: "created_by_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 18, name: "updated_by_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 22, name: "set_properties", kind: "scalar", repeat: 1 /*RepeatType.PACKED*/, T: 5 /*ScalarType.INT32*/ },
+            { no: 30, name: "type", kind: "enum", T: () => ["symbolx.bench.SpaceType", SpaceType, "SPACE_TYPE_"] },
             { no: 31, name: "name", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 32, name: "text", kind: "message", T: () => TextData },
             { no: 33, name: "order_key", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
@@ -19989,6 +20023,7 @@ class SpaceData$Type extends MessageType<SpaceData> {
         message.ck = "";
         message.revision = 0n;
         message.setProperties = [];
+        message.type = 0;
         message.name = "";
         message.orderKey = "";
         message.policies = [];
@@ -20046,6 +20081,9 @@ class SpaceData$Type extends MessageType<SpaceData> {
                             message.setProperties.push(reader.int32());
                     else
                         message.setProperties.push(reader.int32());
+                    break;
+                case /* symbolx.bench.SpaceType type */ 30:
+                    message.type = reader.int32();
                     break;
                 case /* string name */ 31:
                     message.name = reader.string();
@@ -20129,6 +20167,9 @@ class SpaceData$Type extends MessageType<SpaceData> {
                 writer.int32(message.setProperties[i]);
             writer.join();
         }
+        /* symbolx.bench.SpaceType type = 30; */
+        if (message.type !== 0)
+            writer.tag(30, WireType.Varint).int32(message.type);
         /* string name = 31; */
         if (message.name !== "")
             writer.tag(31, WireType.LengthDelimited).string(message.name);
@@ -22325,6 +22366,7 @@ export const ENUM_BY_TYPE: Record<EnumType, Record<number | string, number | str
   [EnumType.FILE_RETENTION_MODE]: FileRetentionMode,
   [EnumType.NOTICE_TYPE]: NoticeType,
   [EnumType.STEP_TYPE]: StepType,
+  [EnumType.SPACE_TYPE]: SpaceType,
   [EnumType.VIEW_TYPE]: ViewType,
   [EnumType.VARIANT]: Variant,
   [EnumType.COLOR_TYPE]: ColorType,
@@ -22556,6 +22598,7 @@ export interface EnumTypeMapping extends Record<EnumType, any> {
   [EnumType.FILE_RETENTION_MODE]: FileRetentionMode,
   [EnumType.NOTICE_TYPE]: NoticeType,
   [EnumType.STEP_TYPE]: StepType,
+  [EnumType.SPACE_TYPE]: SpaceType,
   [EnumType.VIEW_TYPE]: ViewType,
   [EnumType.VARIANT]: Variant,
   [EnumType.COLOR_TYPE]: ColorType,
@@ -22740,6 +22783,7 @@ export enum SpaceProperty {
   createdByPtr = 17,
   updatedByPtr = 18,
   setProperties = 22,
+  type = 30,
   name = 31,
   text = 32,
   orderKey = 33,
@@ -24719,6 +24763,7 @@ export const SpaceDataInfo: Record<SpaceProperty, PropertyInfo> = {
   [SpaceProperty.createdByPtr]: { id: 17, name: 'created_by_ptr', component: ObjectType.SPACE, kind: 'reference', isAutoset: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.USER, NodeType.RUN], referenceStruct: StructType.NODE_REFERENCE },
   [SpaceProperty.updatedByPtr]: { id: 18, name: 'updated_by_ptr', component: ObjectType.SPACE, kind: 'reference', isAutoset: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.USER, NodeType.RUN], referenceStruct: StructType.NODE_REFERENCE },
   [SpaceProperty.setProperties]: { id: 22, name: 'set_properties', component: ObjectType.SPACE, kind: 'primitive', primitiveType: PrimitiveType.INT32, isList: true, isRequired: true, isRuntime: true, isWired: true, isStored: true },
+  [SpaceProperty.type]: { id: 30, name: 'type', component: ObjectType.SPACE, enumType: EnumType.SPACE_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isRuntime: true, isWired: true, isStored: true },
   [SpaceProperty.name]: { id: 31, name: 'name', component: ObjectType.SPACE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isRequired: true, isRuntime: true, isWired: true, isStored: true },
   [SpaceProperty.text]: { id: 32, name: 'text', component: ObjectType.SPACE, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.TEXT },
   [SpaceProperty.orderKey]: { id: 33, name: 'order_key', component: ObjectType.SPACE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isRequired: true, isInternal: true, isRuntime: true, isWired: true, isStored: true },
