@@ -212,7 +212,7 @@ class Host(GraphIoServiceBase, HostBase):
 
     def _on_graph_edited(self, scopes: tuple[GraphScope, ...], edits: list[EditData]):
         if self._bench is None:
-            return  # not loaded yet
+            return  # not started yet
 
         # apply edits to loaded graphs (bench/package)
         for edit in edits:

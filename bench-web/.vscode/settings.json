@@ -2,6 +2,7 @@
   "typescript.tsdk": "node_modules/typescript/lib",
   "search.searchOnTypeDebouncePeriod": 201,
   "search.exclude": {
+    "**/*.css": true,
     "**/*.py": true,
     "**/package-lock.json": true
   }

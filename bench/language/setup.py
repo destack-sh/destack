@@ -225,4 +225,5 @@ def _complete_bench_setup():
 
     for node_cls in NODE_CLASS_BY_TYPE.values():
         if node_cls.__is_stored__ and not node_cls.__is_stored_custom__:
-            node_cls.__table__ = TABLE_BY_NODE_TYPE[node_cls.metatype]
+            # NOTE: table usually should exist, but maybe we're just creating the node type
+            node_cls.__table__ = TABLE_BY_NODE_TYPE.get(node_cls.metatype)

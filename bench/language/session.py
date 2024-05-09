@@ -1,7 +1,5 @@
-import asyncio
 from datetime import datetime
 from typing import TYPE_CHECKING, Collection, Optional
-from uuid import UUID
 
 import structlog
 
@@ -56,15 +54,6 @@ class Session(Node[SessionData]):
     _supervisor: Optional["SupervisorStub"] = p_runtime(default=None)
     _host: Optional["HostStub"] = p_runtime(default=None)
 
-    # runtime
-    _stacktrace: list["Run"] | None = p_runtime(default=None)
-    _runs_by_id: dict[UUID, "Run"] | None = p_runtime(default=None)
-    _pending_runs_by_id: dict[UUID, "Run"] | None = p_runtime(default=None)
-    _active_nodes_by_ck: dict[UUID, Node] | None = p_runtime(default=None)
-
-    # logs
-    _flush_session_loop: asyncio.Task | None = p_runtime(default=None)
-
     def __content_str__(self):
         if self.closed_at:
             status_str = "closed"
@@ -72,11 +61,7 @@ class Session(Node[SessionData]):
             status_str = "open"
         else:
             status_str = "pending"
-        return (
-            f"{status_str}, "
-            f"{self._tx or '<no tx>'}, "
-            f"{len(self._runs_by_id) if self._runs_by_id is not None else 0} runs"
-        )
+        return f"{status_str}, " f"{self._tx or '<no tx>'}, "
 
     def _init_component(self) -> None:
         self._session = self
@@ -105,6 +90,12 @@ class Session(Node[SessionData]):
         return self.closed_at is not None
 
     @property
+    def supervisor(self) -> "SupervisorStub":
+        """The remote supervisor."""
+        assert self._supervisor is not None, f"supervisor not available in {self!r}"
+        return self._supervisor
+
+    @property
     def host(self) -> "HostStub":
         """The remote host."""
         assert self._host is not None, f"host not available in {self!r}"
@@ -118,15 +109,6 @@ class Session(Node[SessionData]):
         if _active_session.get() is not None:
             raise RuntimeError(f"another session is active: {_active_session.get()!r}")
         _active_session.set(self)
-
-        # prepare runtime
-        if self.is_runtime:
-            # log collection
-            self._pending_logs = []
-            self._runs_by_id = {}
-            self._pending_runs_by_id = {}
-            self._active_nodes_by_ck = {}
-            self._stacktrace = []
 
         # open transaction
         self._tx = Transaction(session=self, is_readonly=self.is_readonly)
@@ -166,9 +148,6 @@ class Session(Node[SessionData]):
         self.duration = (self.closed_at - self.opened_at).total_seconds()
         _active_session.set(None)
 
-        # close runtime
-        if self._flush_session_loop is not None:
-            self._flush_session_loop.cancel()
         logger.trace("session.close", duration=self.duration)
 
     async def __aenter__(self):
@@ -211,7 +190,7 @@ class Session(Node[SessionData]):
         # Everything that comes this way in a Session is either system (subject=None) or in a Run.
         #  (Users add pending edits to Transactions directly with themselves as a subject)
         # All edits in a Run are attributed to the root for clarity.
-        return self._stacktrace[0] if self._stacktrace else None
+        return None  # nocheckin: Session._edit_subject
 
     def create(self, *nodes: Node):
         """Creates a new node. Errors if the node already exists."""
@@ -266,11 +245,3 @@ class Session(Node[SessionData]):
         assert self._tx is not None, f"no active transaction in {self!r}"
         for n in nodes:
             self._tx.delete(n, self._edit_subject)
-
-    #
-    # Stack: runs/logs
-    #
-
-    @property
-    def stacktrace(self):
-        return self._stacktrace

@@ -133,7 +133,7 @@ defineExpose<ViewExposed>({ self, focus });
       <HtmlInput
         v-if="state === 'sign-up'"
         v-model="email"
-        :icon="makeIcon({ faName: 'fas fa-envelope' })"
+        :icon="makeIcon({ faName: 'fas fa-at' })"
         name="Email"
         title="Email"
         :variant="Variant.PRIMARY"

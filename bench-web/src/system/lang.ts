@@ -125,7 +125,13 @@ export const NODE_VIEW_TYPES = new Set<ViewType>([
 ]);
 
 // views that aren't about a specific node but should just keep the current root view node
-export const RIDEALONG_VIEW_TYPES = new Set([ViewType.EXPLORE, ViewType.OUTLINE, ViewType.CREATE, ViewType.INSPECT]);
+export const RIDEALONG_VIEW_TYPES = new Set([
+  ViewType.EXPLORE,
+  ViewType.OUTLINE,
+  ViewType.CREATE,
+  ViewType.INSPECT,
+  ViewType.CHAT,
+]);
 
 /**
  * Gets the 'base' node defining a certain node. See HasBase.
