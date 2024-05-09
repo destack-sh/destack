@@ -216,27 +216,6 @@ function createAndFocusBlock(
   nextTick(() => focus(toNodeReference(block)));
 }
 
-// run
-const runningBlockId: Ref<string | null> = ref(null);
-const lastRun: Ref<RunData | null> = ref(null);
-const lastLogs: Ref<string[]> = ref([]);
-async function run(block: BlockData) {
-  try {
-    runningBlockId.value = block.id;
-    const benchId = block.benchPtr!.id!;
-    const packageId = pkg.value!.id!;
-    const client = await getHostClient({ id: benchId });
-    const { response } = await client.run({ scope: { benchId, packageId }, block });
-    lastRun.value = response.run ?? null;
-    lastLogs.value = response.logs ?? [];
-  } catch {
-    lastRun.value = null;
-    lastLogs.value = [];
-  } finally {
-    runningBlockId.value = null;
-  }
-}
-
 // focus
 function focus(anchor: FocusAnchor | NodeReferenceData) {
   if (typeof anchor != "object") {
@@ -337,13 +316,8 @@ defineExpose<ViewExposed>({ self, actions, focus });
             <i
               v-if="RUNNABLE_BLOCK_TYPES.includes(block.type)"
               role="button"
-              :class="
-                runningBlockId == block.id
-                  ? 'fas fa-spinner-third animate-spin text-primary-900'
-                  : 'far fa-play text-gray-400 hover:text-primary-900'
-              "
+              :class="'far fa-play text-gray-400 hover:text-primary-900'"
               data-keep-inspection-in-base="true"
-              @click="() => run(block)"
             />
           </div>
 
@@ -430,15 +404,6 @@ defineExpose<ViewExposed>({ self, actions, focus });
               :draggable="true"
               @dragstart.stop="(e: DragEvent) => startDragging(e, pkgGraph, blockPtr)"
             />
-            <!-- nocheckin :Demo -->
-            <div
-              v-if="lastRun?.blockPtr?.id == block.id"
-              class="mx-2 flex flex-col gap-y-0.5 mb-1 rounded border border-gray-200 bg-gray-100 px-2 py-0.5 font-mono"
-            >
-              <pre v-for="log in lastLogs" :key="log" class="">
-                {{ log.trim() }}
-              </pre>
-            </div>
           </div>
 
           <!-- Right gutter -->
