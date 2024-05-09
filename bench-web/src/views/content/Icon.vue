@@ -113,7 +113,7 @@ defineExpose<ViewExposed>({ self, id, focus });
           onApply: (value) => apply(value),
         })
       "
-      class="group flex w-full flex-row items-center rounded border border-gray-200 px-2 py-1 hover:border-gray-300 data-[menu=true]:border-gray-300"
+      class="group flex w-full flex-row items-center rounded border border-gray-200 px-2 py-1 hover:border-gray-300 data-[popover=true]:border-gray-300"
     >
       <template v-if="modelValue != null">
         <IconInline v-bind="modelValue" />
