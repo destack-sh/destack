@@ -515,8 +515,8 @@ export class ViewCanvas {
   }
 
   /** Whether the given view is in absolute (top down) focus (reactive) */
-  isFocusedAbsoluteRef(view: Ref<SomeView>): Ref<boolean> {
-    return computed(() => this.isFocusedAbsolute(view.value));
+  isFocusedAbsoluteRef(view: Ref<SomeView | undefined>): Ref<boolean> {
+    return computed(() => view.value != null && this.isFocusedAbsolute(view.value));
   }
 
   /** Registers the current Vue component instance in the canvas with some View identity */

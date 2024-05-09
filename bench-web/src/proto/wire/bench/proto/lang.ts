@@ -9326,6 +9326,10 @@ export enum ViewType {
      */
     OBJECT = 110,
     /**
+     * @generated from protobuf enum value: VIEW_TYPE_MESSAGE = 111;
+     */
+    MESSAGE = 111,
+    /**
      * @generated from protobuf enum value: VIEW_TYPE_EXPLORE = 150;
      */
     EXPLORE = 150,

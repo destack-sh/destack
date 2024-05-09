@@ -1151,7 +1151,9 @@ contributeActionMap<"space">({
     title: "Open Chat",
     text: "Chat and collaborate with your Bench",
     icon: "fas fa-message",
-    action: ACTION_COMING_SOON,
+    action: () => {
+      canvas.addView({ type: ViewType.CHAT, title: "Chat" }, { ifPresent: "upsertAndFocus" });
+    },
   },
   "space.launch.inspect": {
     title: "Open Inspector",

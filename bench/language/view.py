@@ -52,6 +52,7 @@ class ViewType(IdEnum):
     TYPE = 108
     VARIABLE = 109
     OBJECT = 110
+    MESSAGE = 111
     # helpers
     EXPLORE = 150
     OUTLINE = 151

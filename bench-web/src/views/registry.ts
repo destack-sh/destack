@@ -21,12 +21,14 @@ const COMPONENT_BY_VIEW_TYPE_LAZY = {
   [ViewType.FIELD]: () => import("@/views/system/Field.vue"),
   [ViewType.TYPE]: () => import("@/views/system/Type.vue"),
   [ViewType.OBJECT]: () => import("@/views/system/Object.vue"),
+  [ViewType.MESSAGE]: () => import("@/views/system/Message.vue"),
   // helpers
   [ViewType.MOCK]: () => import("@/views/system/Mock.vue"),
   [ViewType.EXPLORE]: () => import("@/views/system/Explore.vue"),
   [ViewType.OUTLINE]: () => import("@/views/system/Explore.vue"), // shared with Explore
   [ViewType.INSPECT]: () => import("@/views/system/Inspect.vue"),
   [ViewType.CREATE]: () => import("@/views/system/Create.vue"),
+  [ViewType.CHAT]: () => import("@/views/system/Chat.vue"),
 
   // containers
   [ViewType.WINDOW]: () => import("@/views/containers/Split.vue"), // shared with Split
