@@ -177,7 +177,6 @@ def render_struct(value: Node | Struct) -> str:
                 or prop_value == prop.default
                 or prop.is_list
                 and len(prop_value) == 0
-                or prop.name == "icon"  # nocheckin: render icon somehow (spammy)
             ):
                 continue  # skip empty values
             prop_repr = render_value(prop_value, prop.type_info)

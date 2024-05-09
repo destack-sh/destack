@@ -20,15 +20,15 @@
       "type": "debugpy",
       "request": "launch",
       "program": "${workspaceFolder}/bench.py",
-      "args": ["serve", "runtime", "--watch", "127.0.0.1", "50051"],
+      "args": ["serve", "runtime", "--watch", "127.0.0.1", "50052"],
       "env": {
         "PYTHONUNBUFFERED": "1",
         "DEBUG": "1",
-        "BENCH_ID": "56cf3720-e93e-4238-92c5-e14f565bc0d7",
       },
       "console": "integratedTerminal",
       "cwd": "${workspaceFolder}",
       "justMyCode": false,
+      "python": "${workspaceFolder}/venv-runtime/bin/python"
     }, 
     {
       "name": "bench.makemigrations",
@@ -44,5 +44,11 @@
       "cwd": "${workspaceFolder}",
       "justMyCode": false
     }, 
+  ],
+  "compounds": [
+    {
+      "name": "bench.all",
+      "configurations": ["bench.system", "bench.runtime"]
+    }
   ]
 }
