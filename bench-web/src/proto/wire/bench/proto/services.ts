@@ -16,8 +16,6 @@ import { UnknownFieldHandler } from "@protobuf-ts/runtime";
 import type { PartialMessage } from "@protobuf-ts/runtime";
 import { reflectionMergePartial } from "@protobuf-ts/runtime";
 import { MessageType } from "@protobuf-ts/runtime";
-import { RunData } from "./lang";
-import { BlockData } from "./lang";
 import { Timestamp } from "../../google/protobuf/timestamp";
 import { FileData } from "./lang";
 import { BenchData } from "./lang";
@@ -727,38 +725,6 @@ export interface RestartRuntimeRequest {
  * @generated from protobuf message symbolx.bench.RestartRuntimeResponse
  */
 export interface RestartRuntimeResponse {
-}
-/**
- * nocheckin: remove? explicit start run request, should just be regular node create :Demo
- *
- * @generated from protobuf message symbolx.bench.RunRequest
- */
-export interface RunRequest {
-    /**
-     * @generated from protobuf field: symbolx.bench.GraphScope scope = 1;
-     */
-    scope?: GraphScope;
-    /**
-     * @generated from protobuf field: symbolx.bench.BlockData block = 2;
-     */
-    block?: BlockData;
-}
-/**
- * @generated from protobuf message symbolx.bench.RunResponse
- */
-export interface RunResponse {
-    /**
-     * @generated from protobuf field: symbolx.bench.RunData run = 1;
-     */
-    run?: RunData;
-    /**
-     * @generated from protobuf field: repeated string logs = 2;
-     */
-    logs: string[];
-    /**
-     * @generated from protobuf field: string generated_code = 3;
-     */
-    generatedCode: string;
 }
 // @generated message type with reflection information, may provide speed optimized methods
 class GetNodesRequest$Type extends MessageType<GetNodesRequest> {
@@ -3241,121 +3207,6 @@ class RestartRuntimeResponse$Type extends MessageType<RestartRuntimeResponse> {
  * @generated MessageType for protobuf message symbolx.bench.RestartRuntimeResponse
  */
 export const RestartRuntimeResponse = new RestartRuntimeResponse$Type();
-// @generated message type with reflection information, may provide speed optimized methods
-class RunRequest$Type extends MessageType<RunRequest> {
-    constructor() {
-        super("symbolx.bench.RunRequest", [
-            { no: 1, name: "scope", kind: "message", T: () => GraphScope },
-            { no: 2, name: "block", kind: "message", T: () => BlockData }
-        ]);
-    }
-    create(value?: PartialMessage<RunRequest>): RunRequest {
-        const message = globalThis.Object.create((this.messagePrototype!));
-        if (value !== undefined)
-            reflectionMergePartial<RunRequest>(this, message, value);
-        return message;
-    }
-    internalBinaryRead(reader: IBinaryReader, length: number, options: BinaryReadOptions, target?: RunRequest): RunRequest {
-        let message = target ?? this.create(), end = reader.pos + length;
-        while (reader.pos < end) {
-            let [fieldNo, wireType] = reader.tag();
-            switch (fieldNo) {
-                case /* symbolx.bench.GraphScope scope */ 1:
-                    message.scope = GraphScope.internalBinaryRead(reader, reader.uint32(), options, message.scope);
-                    break;
-                case /* symbolx.bench.BlockData block */ 2:
-                    message.block = BlockData.internalBinaryRead(reader, reader.uint32(), options, message.block);
-                    break;
-                default:
-                    let u = options.readUnknownField;
-                    if (u === "throw")
-                        throw new globalThis.Error(`Unknown field ${fieldNo} (wire type ${wireType}) for ${this.typeName}`);
-                    let d = reader.skip(wireType);
-                    if (u !== false)
-                        (u === true ? UnknownFieldHandler.onRead : u)(this.typeName, message, fieldNo, wireType, d);
-            }
-        }
-        return message;
-    }
-    internalBinaryWrite(message: RunRequest, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
-        /* symbolx.bench.GraphScope scope = 1; */
-        if (message.scope)
-            GraphScope.internalBinaryWrite(message.scope, writer.tag(1, WireType.LengthDelimited).fork(), options).join();
-        /* symbolx.bench.BlockData block = 2; */
-        if (message.block)
-            BlockData.internalBinaryWrite(message.block, writer.tag(2, WireType.LengthDelimited).fork(), options).join();
-        let u = options.writeUnknownFields;
-        if (u !== false)
-            (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
-        return writer;
-    }
-}
-/**
- * @generated MessageType for protobuf message symbolx.bench.RunRequest
- */
-export const RunRequest = new RunRequest$Type();
-// @generated message type with reflection information, may provide speed optimized methods
-class RunResponse$Type extends MessageType<RunResponse> {
-    constructor() {
-        super("symbolx.bench.RunResponse", [
-            { no: 1, name: "run", kind: "message", T: () => RunData },
-            { no: 2, name: "logs", kind: "scalar", repeat: 2 /*RepeatType.UNPACKED*/, T: 9 /*ScalarType.STRING*/ },
-            { no: 3, name: "generated_code", kind: "scalar", T: 9 /*ScalarType.STRING*/ }
-        ]);
-    }
-    create(value?: PartialMessage<RunResponse>): RunResponse {
-        const message = globalThis.Object.create((this.messagePrototype!));
-        message.logs = [];
-        message.generatedCode = "";
-        if (value !== undefined)
-            reflectionMergePartial<RunResponse>(this, message, value);
-        return message;
-    }
-    internalBinaryRead(reader: IBinaryReader, length: number, options: BinaryReadOptions, target?: RunResponse): RunResponse {
-        let message = target ?? this.create(), end = reader.pos + length;
-        while (reader.pos < end) {
-            let [fieldNo, wireType] = reader.tag();
-            switch (fieldNo) {
-                case /* symbolx.bench.RunData run */ 1:
-                    message.run = RunData.internalBinaryRead(reader, reader.uint32(), options, message.run);
-                    break;
-                case /* repeated string logs */ 2:
-                    message.logs.push(reader.string());
-                    break;
-                case /* string generated_code */ 3:
-                    message.generatedCode = reader.string();
-                    break;
-                default:
-                    let u = options.readUnknownField;
-                    if (u === "throw")
-                        throw new globalThis.Error(`Unknown field ${fieldNo} (wire type ${wireType}) for ${this.typeName}`);
-                    let d = reader.skip(wireType);
-                    if (u !== false)
-                        (u === true ? UnknownFieldHandler.onRead : u)(this.typeName, message, fieldNo, wireType, d);
-            }
-        }
-        return message;
-    }
-    internalBinaryWrite(message: RunResponse, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
-        /* symbolx.bench.RunData run = 1; */
-        if (message.run)
-            RunData.internalBinaryWrite(message.run, writer.tag(1, WireType.LengthDelimited).fork(), options).join();
-        /* repeated string logs = 2; */
-        for (let i = 0; i < message.logs.length; i++)
-            writer.tag(2, WireType.LengthDelimited).string(message.logs[i]);
-        /* string generated_code = 3; */
-        if (message.generatedCode !== "")
-            writer.tag(3, WireType.LengthDelimited).string(message.generatedCode);
-        let u = options.writeUnknownFields;
-        if (u !== false)
-            (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
-        return writer;
-    }
-}
-/**
- * @generated MessageType for protobuf message symbolx.bench.RunResponse
- */
-export const RunResponse = new RunResponse$Type();
 /**
  * @generated ServiceType for protobuf service symbolx.bench.GraphIO
  */
@@ -3405,8 +3256,7 @@ export const Host = new ServiceType("symbolx.bench.Host", [
     { name: "UploadFiles", options: {}, I: UploadFilesRequest, O: UploadFilesResponse },
     { name: "DownloadFiles", options: {}, I: DownloadFilesRequest, O: DownloadFilesResponse },
     { name: "RestartServer", options: {}, I: RestartServerRequest, O: PingServerResponse },
-    { name: "PingServer", options: {}, I: PingServerRequest, O: PingServerResponse },
-    { name: "Run", options: {}, I: RunRequest, O: RunResponse }
+    { name: "PingServer", options: {}, I: PingServerRequest, O: PingServerResponse }
 ]);
 /**
  * @generated ServiceType for protobuf service symbolx.bench.Runtime

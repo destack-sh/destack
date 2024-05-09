@@ -1,29 +1,18 @@
 import asyncio
 import functools
-from typing import Any, Callable
+from typing import Callable
 from uuid import UUID
 
 import betterproto
 import grpclib.server
 import structlog
-from groq import AsyncGroq
 from grpclib import GRPCError
 from grpclib import Status as GRPCStatus
 
-from bench.language import Bench, Block, Organization, Package, Subject, User
-from bench.language.code_ import run_code_script
-from bench.language.const import (
-    IN_BENCH_NODE_TYPES,
-    IN_PACKAGE_NODE_TYPES,
-    BlockType,
-    NodeType,
-    RunStatus,
-)
+from bench.language import Bench, Organization, Package, Subject, User
+from bench.language.const import IN_BENCH_NODE_TYPES, IN_PACKAGE_NODE_TYPES, NodeType
 from bench.language.graph import NodeGraph, edit_graph
-from bench.language.projection import project_node, render, render_node
 from bench.language.query import PostgresEngine, StoreEngine
-from bench.language.run import Run, RunError, RunKind
-from bench.language.session import Session
 from bench.proto import wiring
 from bench.proto.services import BenchServiceBase, RpcCallable
 from bench.proto.wire import (
@@ -32,17 +21,13 @@ from bench.proto.wire import (
     EditData,
     GraphScope,
     HostBase,
-    RunRequest,
-    RunResponse,
     UploadFilesRequest,
     UploadFilesResponse,
 )
 from bench.system.client import GLOBAL_STORE, global_session
 from bench.system.graph import GraphIoServiceBase
 from bench.system.resource import provision_pending_resources
-from bench.utils.dt import utcnow_with_tz
 from bench.utils.func import to_uuid
-from bench.utils.utils import get_from_env
 
 logger = structlog.get_logger(__name__)
 
@@ -266,145 +251,3 @@ class Host(GraphIoServiceBase, HostBase):
     #
     # Runs
     #
-
-    async def run(self, subject: Subject, request: RunRequest) -> RunResponse:
-        # nocheckin remove/move explicit run (refactor into Runtime) :Demo
-        # get context
-        package_id = to_uuid(request.block.package_ptr.id)
-        if package_id is None:
-            raise GRPCError(GRPCStatus.INVALID_ARGUMENT, "missing package id")
-        package = self._packages.get(package_id)
-        if package is None:
-            raise GRPCError(GRPCStatus.NOT_FOUND, f"package {package_id} not found/loaded")
-        block = package._root_graph.get(UUID(request.block.id))
-        if block is None:
-            raise GRPCError(GRPCStatus.NOT_FOUND, f"block {request.block.id} not found")
-        if not isinstance(block, Block):
-            raise GRPCError(GRPCStatus.INVALID_ARGUMENT, f"not a block: {block!r}")
-
-        logs: list[str] = []
-
-        def get_local_vars(session: Session):
-            context: dict[str, Any] = {"session": session, "self": block}
-            for sibling in block.parent.blocks:
-                if sibling.py_ident and sibling.py_ident not in context:
-                    context[sibling.py_ident] = sibling
-            parent = block
-            while parent is not None:
-                parent = parent.parent
-                if parent and parent.py_ident and parent.py_ident not in context:
-                    context[parent.py_ident] = parent
-
-            # nocheckin: super hacky log
-            def _print(*args, **kwargs):
-                print(*args, **kwargs)
-                logs.append(" ".join((repr(a) for a in args)))
-
-            context["print"] = _print
-            context["render"] = render
-            return context
-
-        # run (naive for :Demo)
-        if block.type == BlockType.CODE:
-            session = Session(
-                parent=package, _engines=self.engines, _fallback_engine=self.engines[0]
-            )
-            async with session:
-                started_at = utcnow_with_tz()
-                package._track_rec(session)
-                run = Run(
-                    parent=package,
-                    kind=RunKind.BLOCK,
-                    block=block,
-                    status=RunStatus.RUNNING,
-                    started_at=started_at,
-                )
-                try:
-                    # actually run
-                    code_str = block.code.to_string() if block.code else ""
-                    run_code_script(code_str, get_local_vars(session))
-                    await session.commit()
-                    self.on_graph_edited((request.scope,), session.tx.edits)
-                except Exception as e:
-                    logger.exception("run.code.error", e=e)
-                    run.error = RunError.from_exception(e)
-                finally:
-                    package._untrack_rec()
-                    run.terminated_at = utcnow_with_tz()
-                    run.duration = (run.terminated_at - started_at).total_seconds()
-                return RunResponse(run=run._to_data(), logs=logs)
-
-        elif block.type == BlockType.TEXT:
-            session = Session(
-                parent=package, _engines=self.engines, _fallback_engine=self.engines[0]
-            )
-            async with session:
-                started_at = utcnow_with_tz()
-                package._track_rec(session)
-                run = Run(
-                    parent=package,
-                    kind=RunKind.BLOCK,
-                    block=block,
-                    status=RunStatus.RUNNING,
-                    started_at=started_at,
-                )
-                try:
-                    # get code str
-                    groq_client = AsyncGroq(api_key=get_from_env("GROQ_API_KEY"))
-                    projection = project_node(block)
-                    rendered_projection = render_node(projection)
-                    print(rendered_projection)
-                    completion = await groq_client.chat.completions.create(
-                        messages=[
-                            {
-                                "role": "system",
-                                "content": "\
-                                    You are a succinct and helpful assistant.\
-                                    Your responses are run in Python, so answer only with valid Python code.\
-                                    You may use basic Python features.\
-                                    Don't use any external libraries. To return an answer, print(...) it.\
-                                    If you absolutely cannot answer, just 'pass'.\
-                                    ",
-                            },
-                            {
-                                "role": "user",
-                                "content": """\
-Examples: 
-
-# returning a single option
-print(ChoiceBlock.fields.Option2)
-
-# returning a class instance
-print(ClassBlock(field1=True, field2=Option1))
-""",
-                            },
-                            {
-                                "role": "user",
-                                "content": f"Context\n:{rendered_projection}",
-                            },
-                            {
-                                "role": "user",
-                                "content": "Now generate the simplest code that will return an answer to the given context. Just calling print(...) with a value that's not a Block/Field/.. instance is fine too. You may ignore any irrelevant context.",
-                            },
-                        ],
-                        model="llama3-70b-8192",
-                    )
-                    if not completion.choices:
-                        raise ValueError(f"no completion: {completion}")
-                    code_str = completion.choices[0].message.content
-
-                    # run code
-                    print(code_str)
-                    run_code_script(code_str, get_local_vars(session))
-                    await session.commit()
-                    self.on_graph_edited((request.scope,), session.tx.edits)
-                except Exception as e:
-                    logger.exception("run.text.error", e=e)
-                    run.error = RunError.from_exception(e)
-                finally:
-                    package._untrack_rec()
-                    run.terminated_at = utcnow_with_tz()
-                    run.duration = (run.terminated_at - started_at).total_seconds()
-                return RunResponse(run=run._to_data(), logs=logs)
-        else:
-            raise GRPCError(GRPCStatus.INVALID_ARGUMENT, f"cannot run block: {block!r}")
