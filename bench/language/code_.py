@@ -73,7 +73,7 @@ def get_code_globals():
 def run_code_script(code: str, extra_globals: dict[str, Any] | None = None) -> dict[str, Any]:
     """Runs the code string and extracts its definitions."""
     globals_initial = {**get_code_globals(), **(extra_globals or {})}
-    globals_local = globals_initial
+    globals_local = {**globals_initial}
     exec(code, globals_local)
     new_globals = {k: v for k, v in globals_local.items() if k not in globals_initial}
     return new_globals

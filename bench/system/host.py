@@ -182,7 +182,7 @@ class Host(GraphIoServiceBase, HostBase):
 
     @property
     def engines(self) -> tuple[StoreEngine, ...]:
-        # nocheckin :Broken :Performance: use local in memory engines in Host (where possible)
+        # TODO :Broken :Performance!: use local in memory engines in Host (where possible)
         return (self._bench_pg_engine,)
 
     async def start(self) -> None:
@@ -247,7 +247,3 @@ class Host(GraphIoServiceBase, HostBase):
         self, subject: Subject, request: "DownloadFilesRequest"
     ) -> "DownloadFilesResponse":
         raise GRPCError(GRPCStatus.UNIMPLEMENTED)
-
-    #
-    # Runs
-    #

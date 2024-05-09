@@ -37,7 +37,7 @@ class Runtime(RuntimeBase, MonitoredServiceBase):
         return f"<ServerHost {self}>"
 
     async def start(self):
-        raise NotImplementedError("TODO :Broken: basic runtime")
+        pass  # nocheckin: basic runtime
 
     def close(self):
         pass

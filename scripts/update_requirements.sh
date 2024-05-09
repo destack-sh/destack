@@ -1,8 +1,8 @@
 #!/bin/bash
 
 # update all requirements files from their .in
-uv pip compile requirements.in
-uv pip compile requirements-runtime.in
+uv pip compile requirements.in --output-file requirements.txt
+uv pip compile requirements-runtime.in --output-file requirements-runtime.txt
 uv pip compile requirements.in requirements-dev.in --output-file requirements-dev.txt
 
 # optionally also sync packages with --sync

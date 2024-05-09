@@ -15,7 +15,7 @@ kubernetes-asyncio==24.2.3
 kubernetes==27.2.0
 more-itertools==9.0.0
 numpy<2,>=1.20.0
-Pillow==9.4.0
+orjson==3.10.3
 posthog==3.0.2
 protobuf==4.24.3
 psycopg[binary,pool]==3.1.12
