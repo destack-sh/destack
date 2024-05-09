@@ -127,3 +127,11 @@ export function mapPmNodeToText(node: PmNode, prev: TextData | undefined): TextD
   const text: TextData = { metatype: ObjectType.TEXT, id: prev?.id ?? newStructId(), setProperties: [], lines };
   return text;
 }
+
+export function isTextEmpty(text: TextData | null | undefined): boolean {
+  return (
+    text == null ||
+    text.lines.length == 0 ||
+    text.lines.every((line) => line.type == TextLineType.PLAIN && line.spans.length == 0)
+  );
+}

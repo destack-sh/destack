@@ -1130,6 +1130,7 @@ class ViewType(betterproto.Enum):
     TYPE = 108
     VARIABLE = 109
     OBJECT = 110
+    MESSAGE = 111
     EXPLORE = 150
     OUTLINE = 151
     INSPECT = 153

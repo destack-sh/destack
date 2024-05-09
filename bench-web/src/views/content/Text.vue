@@ -14,7 +14,7 @@ import { toNodeReference, type TypedNodeReferenceData } from "@/proto/wiring";
 import { IS_IN_ALT_MODE, type ActionImplementation, type ActionMapImplementation } from "@/system/action";
 import { ICON_BY_NODE_TYPE, getNodeIcon } from "@/system/icon";
 import { canvas, pkgGraph } from "@/system/space";
-import { mapPmNodeToText, mapTextToPmNode } from "@/system/text";
+import { isTextEmpty, mapPmNodeToText, mapTextToPmNode } from "@/system/text";
 import { useDropZone } from "@/utils/drag";
 import { pushPopover, menuActionsLike, type PopoverContext, type PopoverInfo } from "@/utils/menu";
 import { PM_INPUT_RULES, PM_SCHEMA, type TextMarkType, PM_KEYMAP_EXTRA } from "@/utils/prosemirror";
@@ -36,9 +36,12 @@ import { getColorHex } from "@/utils/style";
 const MENTION_TRIGGER_CHAR = "@";
 
 const props = defineProps<
-  { self?: TypedNodeReferenceData<NodeType.VIEW>; modelValue?: TextData } & Partial<
-    Pick<ViewData, "name" | "title" | "icon" | "variant" | "nodePtr" | "isInput">
-  >
+  {
+    self?: TypedNodeReferenceData<NodeType.VIEW>;
+    modelValue?: TextData;
+    placeholder?: string;
+    suppressEnter?: boolean;
+  } & Partial<Pick<ViewData, "name" | "title" | "icon" | "variant" | "nodePtr" | "isInput">>
 >();
 const emit = defineEmits(viewEmits());
 const self = toRef(props, "self");
@@ -66,7 +69,10 @@ function makeEditorState(text?: TextData): EditorState {
   return EditorState.create({
     doc: text != null ? mapTextToPmNode(text, undefined) : undefined,
     schema: PM_SCHEMA,
-    plugins: [keymap({ ...commands.baseKeymap, ...PM_KEYMAP_EXTRA }), inputRules({ rules: PM_INPUT_RULES })],
+    plugins: [
+      keymap({ ...commands.baseKeymap, ...PM_KEYMAP_EXTRA, ...(props.suppressEnter ? { Enter: () => true } : {}) }),
+      inputRules({ rules: PM_INPUT_RULES }),
+    ],
   });
 }
 
@@ -288,7 +294,7 @@ defineExpose<ViewExposed>({ self, id, variants: [Variant.PRIMARY, Variant.STEALT
           dontFocus: true, // keep focus on the editor
         })
       "
-      class="text rounded hover:cursor-text"
+      class="text relative rounded hover:cursor-text"
       :class="[
         variant != Variant.STEALTH
           ? 'border border-gray-200 px-2 py-0.5 focus-within:border-primary-900 hover:border-gray-300'
@@ -297,7 +303,12 @@ defineExpose<ViewExposed>({ self, id, variants: [Variant.PRIMARY, Variant.STEALT
       ]"
       :draggable="true"
       @dragstart.stop.prevent="false /* prevent accidentally dragging ancestors from text selection here */"
-    />
+    >
+      <!-- Placeholder -->
+      <div v-if="placeholder && isTextEmpty(modelValue)" class="pointer-events-none absolute left-0 top-[1px]">
+        <div class="text-sm text-gray-400">{{ placeholder }}</div>
+      </div>
+    </div>
   </ViewContentWrapper>
 </template>
 <style>
