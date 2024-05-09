@@ -114,7 +114,7 @@ const { items: expandedItems } = walkDescendantsRef({
   isExpanded,
   isIncludedSelf,
   isIncludedChildren,
-  watchSource: () => [props.focus, () => props.expansion],
+  watchSource: () => [props.focus, props.expansion],
 });
 const expandedNodesRefs: Ref<Record<string, HTMLElement>> = ref({});
 
@@ -184,12 +184,12 @@ function onNavigateHorizontal(direction: "left" | "right") {
 }
 
 // highlight and focus best match when typing
-const nodeTitleMarked: Ref<(string | null)[]> = ref([]);
+const nodeTitlesMarked: Ref<(string | null)[]> = ref([]);
 const uf = new uFuzzy({ intraMode: 1 });
 watch(
   [query],
   () => {
-    nodeTitleMarked.value = [];
+    nodeTitlesMarked.value = [];
     if (!query.value) return;
 
     // highlight
@@ -198,7 +198,7 @@ watch(
       query: query.value,
       candidates: expandedItems.value.map((item) => (item.node as any).name ?? ""),
     });
-    nodeTitleMarked.value = markedResults;
+    nodeTitlesMarked.value = markedResults;
 
     // auto-select best match
     if (bestMatches.length > 0) focus(bestMatches[0]);
@@ -373,7 +373,7 @@ defineExpose<ViewExposed>({ self, actions, focus });
         <span
           class="select-none truncate group-hover:text-primary-900"
           :class="isFocusedAbsolute(node) ? 'text-primary-900' : ''"
-          v-html="nodeTitleMarked[i] ?? (node as any).name ?? node.id"
+          v-html="nodeTitlesMarked[i] ?? (node as any).name ?? node.id"
         />
         <!-- Status/Notices/Control...? -->
         <div class="ml-auto flex flex-row gap-x-1 pl-3">
