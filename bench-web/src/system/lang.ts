@@ -101,6 +101,7 @@ export const DEFAULT_LOADED_SOURCE_NODE_TYPES = [
   NodeType.QUERY,
   NodeType.STEP,
   NodeType.VIEW,
+  NodeType.MESSAGE,
 ];
 
 export const TYPE_BLOCK_TYPES = [BlockType.CLASS, BlockType.CHOICE, BlockType.SIGNAL, BlockType.DATABASE];
@@ -212,7 +213,7 @@ export function defaultSortNode<T extends AnyNodeData>(nodes: T[]): void {
     if ((a as any).orderKey != null && (b as any).orderKey != null && (a as any).orderKey != (b as any).orderKey) {
       return (a as any).orderKey > (b as any).orderKey ? 1 : -1;
     } else if (a.createdAt != null && b.createdAt != null && a.createdAt.seconds != b.createdAt.seconds) {
-      return Number(b.createdAt.seconds - a.createdAt.seconds);
+      return Number(a.createdAt.seconds - b.createdAt.seconds);
     } else {
       return a.id > b.id ? 1 : -1;
     }

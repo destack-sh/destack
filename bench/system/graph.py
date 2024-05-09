@@ -308,6 +308,7 @@ class GraphIoServiceBase(BenchServiceBase, GraphIoBase):
             for node_id in edited_scopes.node_scopes_by_id:
                 node = unpacked_graph.get(node_id)
                 if node is None:
+                    # this is an internal error (all edited nodes (incl. new) should be here)
                     raise RuntimeError(f"node {node_id} not found in unpacked {unpacked_graph!r}")
                 node._validate_self(properties=(), invalid=on_invalid_raise)
             # TODO :Robustness! :Test: prevent circular parent/child references
@@ -440,13 +441,12 @@ def get_validated_edited_scopes(edits: list[EditData]) -> _EditScopes:
         node_data = wiring.unwrap_some_node(edit.node)
         if edit.type == EditType.CREATE or edit.type == EditType.UPSERT:
             # node scope is parent since we don't know this node yet
-            if node_data.parent_ptr is not None:
-                if node_data.parent_ptr.id not in node_scopes_by_id:
-                    node_scope = node_data.parent_ptr
-                else:
-                    node_scope = node_scopes_by_id[node_data.parent_ptr.id]
-            else:
+            if node_data.parent_ptr is None:
                 raise ValidationError(node_data, "can't create orphan")
+            elif node_data.parent_ptr.id not in node_scopes_by_id:
+                node_scope = node_data.parent_ptr
+            else:
+                node_scope = node_scopes_by_id[node_data.parent_ptr.id]
             just_created_nodes_id.add(node_data.id)
         else:
             # node scope is the edited node itself

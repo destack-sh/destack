@@ -4843,7 +4843,7 @@ class RuntimeBase(ServiceBase):
 
 from typing import TYPE_CHECKING  # noqa: E402
 
-VERSION = "2024.05.09.2"
+VERSION = "2024.05.09.3"
 
 if TYPE_CHECKING:
     from bench.language import Subject

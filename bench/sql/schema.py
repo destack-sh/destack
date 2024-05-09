@@ -11,7 +11,7 @@ from bench.sql.core import (
     Table,
 )
 
-VERSION = "2024.05.09.2"
+VERSION = "2024.05.09.3"
 
 BENCH_TABLE = Table(
     "bench_bench",
@@ -1003,6 +1003,13 @@ MESSAGE_TABLE = Table(
             on_delete=CascadeAction.CASCADE,
             is_nullable=True,
         ),
+        Column(
+            "parent_message_id",
+            PrimitiveType.UUID,
+            is_foreign_key_to="bench_message",
+            on_delete=CascadeAction.CASCADE,
+            is_nullable=True,
+        ),
         Column("package_id", PrimitiveType.UUID),
         Column("bench_id", PrimitiveType.UUID),
         Column("revision", PrimitiveType.INT64, default="0"),
@@ -1043,7 +1050,7 @@ MESSAGE_TABLE = Table(
         Constraint(
             "bench_check_one_parent",
             ConstraintType.CHECK,
-            condition="(parent_package_id IS NOT NULL) OR (parent_block_id IS NOT NULL)",
+            condition="(parent_package_id IS NOT NULL) OR (parent_block_id IS NOT NULL) OR (parent_message_id IS NOT NULL)",
         ),
     ),
 )

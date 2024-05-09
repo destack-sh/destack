@@ -128,6 +128,10 @@ export function mapPmNodeToText(node: PmNode, prev: TextData | undefined): TextD
   return text;
 }
 
+export function emptyText(): TextData {
+  return { metatype: ObjectType.TEXT, id: newStructId(), setProperties: [], lines: [] };
+}
+
 export function isTextEmpty(text: TextData | null | undefined): boolean {
   return (
     text == null ||

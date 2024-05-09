@@ -11,7 +11,7 @@ if TYPE_CHECKING:
 # pyright: reportIncompatibleVariableOverride=false
 
 MessageParent = Union["Package", "Block", "Message"]
-MESSAGE_PARENT_TYPES: tuple[NodeType, ...] = (NodeType.PACKAGE, NodeType.BLOCK)
+MESSAGE_PARENT_TYPES: tuple[NodeType, ...] = (NodeType.PACKAGE, NodeType.BLOCK, NodeType.MESSAGE)
 
 
 @node(NodeType.MESSAGE)
@@ -37,3 +37,11 @@ class Message(Node, HasValues):
 
     # flags
     is_pinned: bool = p_regular(50, default=False)
+
+    def __content_str__(self) -> str:
+        if self.title:
+            return self.title
+        elif self.text:
+            return self.text.to_markdown()
+        else:
+            return "<empty>"
