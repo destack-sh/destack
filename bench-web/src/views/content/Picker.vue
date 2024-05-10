@@ -40,6 +40,8 @@ const props = defineProps<
     self?: TypedNodeReferenceData<NodeType.VIEW>;
     modelValue?: any;
     size?: Partial<Pick<BoxData, "width" | "height">>;
+    placeholder?: string;
+    customIndex?: SearchIndex<any>;
   } & Partial<
     Pick<
       ViewData,
@@ -88,7 +90,9 @@ const modelValueIcon = computed(() =>
 
 type PickerItem = EnumOptionItem | NodeItem | TypeItem;
 const index: Ref<SearchIndex<any>> = computed(() => {
-  if (isEnumType(props.valueType?.benchType)) {
+  if (props.customIndex != null) {
+    return props.customIndex;
+  } else if (isEnumType(props.valueType?.benchType)) {
     return enumIndex([props.valueType.benchType]);
   } else if (isNodeType(props.valueType?.benchType)) {
     let roots: AnyNodeData[] | undefined = undefined;
@@ -243,7 +247,7 @@ defineExpose<ViewExposed>({ self, id, variants: [Variant.PRIMARY, Variant.COMPAC
           v-model="query"
           type="text"
           class="w-full border-0 bg-transparent p-0 placeholder-gray-500 outline-none ring-0 focus:ring-0"
-          :placeholder="modelValueTitle ?? `Select ${facetName ?? '???'}`"
+          :placeholder="placeholder ?? modelValueTitle ?? `Select ${facetName ?? '???'}`"
           @keydown.enter.stop.prevent="activeResultId != null && fire(results.find((r) => r.id === activeResultId)!)"
           @keydown.up.stop.prevent="focus('previous')"
           @keydown.down.stop.prevent="focus('next')"
