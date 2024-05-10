@@ -9,7 +9,7 @@ import {
   TypeInfoData,
   Variant,
   ViewData,
-  ViewType
+  ViewType,
 } from "@/proto/wire";
 import { type TypedNodeReferenceData } from "@/proto/wiring";
 import type { ActionMapImplementation } from "@/system/action";
@@ -31,10 +31,11 @@ import Type from "@/views/system/Type.vue";
 import { computed, nextTick, ref, toRef, type Ref } from "vue";
 
 const props = defineProps<
-  { self?: TypedNodeReferenceData<NodeType.VIEW>; preparedConnection?: PreparedGetConnection } & Pick<
-    ViewData,
-    "variant" | "nodePtr"
-  >
+  {
+    self?: TypedNodeReferenceData<NodeType.VIEW>;
+    preparedConnection?: PreparedGetConnection;
+    borderless?: boolean;
+  } & Pick<ViewData, "variant" | "nodePtr">
 >();
 const emit = defineEmits(viewEmits());
 const self = toRef(props, "self");
@@ -109,11 +110,12 @@ defineExpose<ViewExposed>({ self, id, variants: [Variant.PRIMARY, Variant.STEALT
   <div
     v-if="block"
     ref="blockRef"
-    class="group/block relative rounded border bg-white px-2 py-1.5"
+    class="group/block relative rounded bg-white px-2 py-1.5"
     :class="[
+      borderless ? '' : 'border',
       nodePtr?.id == inspectionPtr?.id
         ? 'border-primary-900'
-        : [variant != Variant.STEALTH ? 'border-gray-200' : 'border-transparent', 'hover:border-gray-300'],
+        : [variant != Variant.STEALTH ? 'border-gray-200' : 'border-transparent', 'hover:border-gray-200'],
     ]"
   >
     <!-- Header -->
@@ -165,7 +167,7 @@ defineExpose<ViewExposed>({ self, id, variants: [Variant.PRIMARY, Variant.STEALT
             nodePtr?.id == inspectionPtr?.id
               ? 'text-gray-400'
               : [
-                  variant != Variant.STEALTH ? '' : 'opacity-0  group-hover/block:opacity-100',
+                  variant != Variant.STEALTH ? '' : 'opacity-0 group-hover/block:opacity-100',
                   'text-gray-300  group-hover/block:text-gray-400',
                 ],
           ]"
@@ -173,7 +175,7 @@ defineExpose<ViewExposed>({ self, id, variants: [Variant.PRIMARY, Variant.STEALT
           <!-- Add/edit text -->
           <button
             v-if="!hasText && block.type != BlockType.TEXT"
-            class="t rounded px-1 hover:bg-gray-100 hover:text-primary-900"
+            class="t rounded hover:bg-gray-100 hover:text-primary-900"
             @click="
               () => {
                 forceShowText = true;
@@ -181,12 +183,12 @@ defineExpose<ViewExposed>({ self, id, variants: [Variant.PRIMARY, Variant.STEALT
               }
             "
           >
-            <i class="fas fa-text" />
+            <i class="fas fa-text w-5 text-center" />
           </button>
           <!-- Quick add -->
           <button
             v-if="TYPE_BLOCK_TYPES.includes(block.type) || RUNNABLE_BLOCK_TYPES.includes(block.type)"
-            class="rounded border border-transparent px-0.5 hover:bg-gray-100 hover:text-primary-900 data-[popover=true]:border-primary-900 data-[popover=true]:bg-gray-100 data-[popover=true]:text-primary-900"
+            class="rounded border border-transparent hover:bg-gray-100 hover:text-primary-900 data-[popover=true]:border-primary-900 data-[popover=true]:bg-gray-100 data-[popover=true]:text-primary-900"
             @click="
               (e) => {
                 if (block!.type == BlockType.CHOICE) {
@@ -210,7 +212,7 @@ defineExpose<ViewExposed>({ self, id, variants: [Variant.PRIMARY, Variant.STEALT
               }
             "
           >
-            <i class="fas fa-plus" />
+            <i class="fas fa-plus w-5 text-center" />
           </button>
           <!-- Menu -->
           <button
@@ -232,9 +234,9 @@ defineExpose<ViewExposed>({ self, id, variants: [Variant.PRIMARY, Variant.STEALT
                 ),
               })
             "
-            class="rounded border border-transparent px-2 hover:bg-gray-100 hover:text-primary-900 data-[popover=true]:border-primary-900 data-[popover=true]:bg-gray-100 data-[popover=true]:text-primary-900"
+            class="rounded border border-transparent hover:bg-gray-100 hover:text-primary-900 data-[popover=true]:border-primary-900 data-[popover=true]:bg-gray-100 data-[popover=true]:text-primary-900"
           >
-            <i class="fas fa-ellipsis-v" />
+            <i class="fas fa-ellipsis-v w-5 text-center" />
           </button>
         </span>
       </div>

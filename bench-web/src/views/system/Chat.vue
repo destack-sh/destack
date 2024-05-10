@@ -1,8 +1,8 @@
 <script lang="ts" setup>
-import { ViewData, NodeType, BoxData, Variant, ObjectType, Orientation, TextData } from "@/proto/wire";
+import { ViewData, NodeType, BoxData, Variant, ObjectType, Orientation, TextData, MessageData } from "@/proto/wire";
 import { describeNode, toNodeReference, type TypedNodeReferenceData } from "@/proto/wiring";
 import { makeViewId, viewEmits, type ViewExposed } from "@/views/common";
-import { canvas, pkg } from "@/system/space";
+import { canvas, inspectionPtr, pkg } from "@/system/space";
 import { computed, ref, toRef, type Ref } from "vue";
 import { findExistingConnectionOrError, useExistingConnection } from "@/system/connection";
 import Scroll from "@/views/containers/Scroll.vue";
@@ -11,11 +11,15 @@ import { useElementSize } from "@vueuse/core";
 import Text from "@/views/content/Text.vue";
 import { IconInline, getNodeIcon, makeIcon } from "@/system/icon";
 import { emptyText, isTextEmpty } from "@/system/text";
-import Message from "@/views/system/Message.vue";
+import { dtToTs, formatDurationFromNow, tsToDt } from "@/utils/time";
+import { user } from "@/system/user";
+import { DateTime } from "luxon";
 
 const HEADER_HEIGHT = 40;
 const MAX_WIDTH = 800;
 const MIN_INPUT_HEIGHT = 40;
+const MIN_GUTTER_WIDTH = 12;
+const ASIDE_WIDTH = 36;
 
 const props = defineProps<
   { self?: TypedNodeReferenceData<NodeType.VIEW>; size: Required<Pick<BoxData, "width" | "height">> } & Partial<
@@ -39,6 +43,27 @@ const thread = pkgGraph.getRef(threadPtr);
 const messages = pkgGraph.getChildrenRef(thread, NodeType.MESSAGE);
 const ancestors = pkgGraph.getAncestorsRef(threadPtr, { includeSelf: false });
 const context = computed(() => ancestors.value.find((n) => n.metatype != ObjectType.MESSAGE));
+
+type RenderedMessage = {
+  message: MessageData;
+  isContinued: boolean;
+  isContinuationBreak: boolean;
+};
+const renderedMessages = computed(() => {
+  // collapse continued messages if they are from same author within 5 minutes
+  const result: RenderedMessage[] = [];
+  for (let i = 0; i < messages.value.length; i++) {
+    const message = messages.value[i];
+    const lastMessage = result[result.length - 1]?.message;
+    const isContinued =
+      lastMessage != null &&
+      lastMessage.createdByPtr?.id == message.createdByPtr?.id &&
+      message.createdAt!.seconds - lastMessage.createdAt!.seconds < 300;
+    const isContinuationBreak = !isContinued && lastMessage != null;
+    result.push({ message, isContinued, isContinuationBreak });
+  }
+  return result;
+});
 
 const text: Ref<TextData> = ref(emptyText());
 const canSubmit = computed(() => !isTextEmpty(text.value));
@@ -89,17 +114,17 @@ defineExpose<ViewExposed>({ self, id, variants: [Variant.PRIMARY, Variant.COMPAC
     <!-- Header -->
     <div class="group w-full border-b border-gray-200">
       <div
-        class="mx-auto flex w-full max-w-full flex-row items-center pl-4 pr-5"
+        class="mx-auto flex w-full max-w-full flex-row items-center gap-x-3 pl-4 pr-5"
         :style="{ height: HEADER_HEIGHT + 'px', maxWidth: MAX_WIDTH + 'px' }"
       >
         <!-- Thread (local root message node) -->
-        <div>
+        <div class="flex-shrink-0">
           <i
             class="fas fa-message mr-1.5 w-5 text-center"
             :class="[thread == null ? 'text-gray-500' : 'text-gray-700']"
           />
           <span
-            class=""
+            class="truncate"
             :class="[thread == null ? 'text-gray-600' : 'text-gray-900', thread?.title != null ? 'font-semibold' : '']"
           >
             {{ thread?.title ?? "Untitled Thread" }}
@@ -110,7 +135,7 @@ defineExpose<ViewExposed>({ self, id, variants: [Variant.PRIMARY, Variant.COMPAC
           </button>
         </div>
         <!-- Context (non-message parent node) -->
-        <div class="ml-auto">
+        <div class="ml-auto flex-shrink-0">
           <IconInline
             class="mr-1.5 w-5 text-center text-gray-400"
             v-bind="(context != null ? getNodeIcon(context) : null) ?? makeIcon('fas fa-infinity')"
@@ -126,9 +151,8 @@ defineExpose<ViewExposed>({ self, id, variants: [Variant.PRIMARY, Variant.COMPAC
       </div>
     </div>
 
-    <!-- Messages -->
+    <!-- Body -->
     <Scroll
-      v-if="thread"
       :size="{
         width: props.size.width,
         height: props.size.height - HEADER_HEIGHT - inputSize.height.value ?? MIN_INPUT_HEIGHT,
@@ -136,12 +160,83 @@ defineExpose<ViewExposed>({ self, id, variants: [Variant.PRIMARY, Variant.COMPAC
       :orientation="Orientation.VERTICAL"
       :track-width="ScrollbarWidth.md"
     >
-      <template v-for="message in messages" :key="message.id">
-        <Message class="mx-auto" :style="{ maxWidth: MAX_WIDTH + 'px' }" :node-ptr="toNodeReference(message)" />
-      </template>
+      <!-- Messages -->
+      <div v-if="thread" class="my-1">
+        <template v-for="{ message, isContinued, isContinuationBreak } in renderedMessages" :key="message.id">
+          <div
+            class="group/message relative mx-auto flex max-w-full flex-row rounded border bg-white px-2 py-0.5 hover:bg-gray-50"
+            :class="[
+              nodePtr?.id == inspectionPtr?.id ? 'border-primary-900' : 'border-transparent',
+              isContinuationBreak ? 'mt-2' : '',
+            ]"
+            :style="{ width: 'calc(100% - ' + MIN_GUTTER_WIDTH * 2 + 'px)', maxWidth: MAX_WIDTH + 'px' }"
+          >
+            <!-- Aside -->
+            <!-- Author Icon -->
+            <div
+              v-if="!isContinued"
+              class="mr-3.5 mt-0.5 h-fit flex-shrink-0 rounded border border-gray-200 bg-secondary-100 py-1 text-center text-gray-700"
+              :style="{ width: ASIDE_WIDTH + 'px' }"
+            >
+              <!-- TODO :Broken: load correct icon for User/Block -->
+              <IconInline
+                v-bind="
+                  message.createdByPtr?.id == user?.id
+                    ? user!.icon ?? makeIcon('fas fa-user-tie')
+                    : makeIcon('fas fa-robot')
+                "
+              />
+            </div>
+            <!-- Time (if continued) -->
+            <div v-else class="mr-3.5 flex-shrink-0 px-0.5" :style="{ width: ASIDE_WIDTH + 'px' }">
+              <span class="text-xs text-gray-400 opacity-0 group-hover/message:opacity-100">
+                {{ tsToDt(message.createdAt!).toLocaleString(DateTime.TIME_24_SIMPLE) }}
+              </span>
+            </div>
+            <!-- Body -->
+            <div class="w-full">
+              <!-- Header -->
+              <div v-if="!isContinued" class="mb-0.5 max-w-full gap-x-0.5">
+                <!-- Author Name / Time -->
+                <span class="truncate font-medium text-gray-900">
+                  {{ message.createdByPtr?.id == user?.id ? user!.name : "Bench" }}
+                </span>
+                <span class="ml-1.5 text-xs text-gray-400">{{ formatDurationFromNow(message.createdAt!) }}</span>
+              </div>
+              <!-- Content -->
+              <Text :model-value="message.text" :variant="Variant.STEALTH" />
+              <!-- Controls (floating) -->
+              <div
+                class="absolute -top-3 right-1.5 z-10 ml-auto flex flex-row gap-x-2 rounded border border-gray-200 bg-white px-2 py-1 opacity-0 group-hover/message:opacity-100"
+              >
+                <!-- Reply -->
+                <button
+                  v-tooltip="{ title: 'Reply', referenceMargin: 8, small: true, showDelay: 200, hideDelay: 100 }"
+                  class="rounded text-gray-400 hover:bg-gray-100 hover:text-primary-900"
+                >
+                  <i class="fas fa-reply w-5 text-center" />
+                </button>
+                <!-- Thread -->
+                <button
+                  v-tooltip="{ title: 'Thread', referenceMargin: 8, small: true, showDelay: 200, hideDelay: 100 }"
+                  class="rounded text-gray-400 hover:bg-gray-100 hover:text-primary-900"
+                >
+                  <i class="fas fa-reel w-5 text-center" />
+                </button>
+                <!-- Menu -->
+                <button
+                  class="rounded text-gray-400 hover:bg-gray-100 hover:text-primary-900 data-[popover=true]:border-primary-900"
+                >
+                  <i class="fas fa-ellipsis-v w-5 text-center" />
+                </button>
+              </div>
+            </div>
+          </div>
+        </template>
+      </div>
+      <!-- Nothing here yet -->
+      <div v-else-if="threadPtr">nocheckin: no messages (select thread?)</div>
     </Scroll>
-    <!-- Nothing here yet -->
-    <div v-else-if="threadPtr">nocheckin: no messages (select thread?)</div>
 
     <!-- Create message -->
     <div ref="inputRef" class="group mt-auto border-t border-gray-200" @click="textRef?.focus">

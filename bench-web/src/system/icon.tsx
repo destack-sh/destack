@@ -261,16 +261,19 @@ export const ICON_BY_VIEW_TYPE: Partial<Record<ViewType, IconData>> = _makeIcons
   [ViewType.MOCK]: "fas fa-bug",
 
   // system
+  // nodes
   [ViewType.PAGE]: "fas fa-memo-pad",
   [ViewType.BLOCK]: "fas fa-cube",
   [ViewType.FIELD]: "fas fa-font",
   [ViewType.DATABASE]: "fas fa-database",
+  [ViewType.TYPE]: "fas fa-objects-column",
+  [ViewType.VARIABLE]: "fas fa-sliders",
+  // helpers
   [ViewType.EXPLORE]: "fas fa-compass",
   [ViewType.OUTLINE]: "fas fa-list-tree",
   [ViewType.INSPECT]: "fas fa-eye",
   [ViewType.CREATE]: "fas fa-plus",
-  [ViewType.TYPE]: "fas fa-objects-column",
-  [ViewType.VARIABLE]: "fas fa-sliders",
+  [ViewType.CHAT]: "fas fa-message",
 
   //
   // General

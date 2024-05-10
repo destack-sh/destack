@@ -1,5 +1,4 @@
 <script lang="ts" setup>
-import { getHostClient } from "@/proto/services";
 import {
   BenchType,
   BlockData,
@@ -8,7 +7,6 @@ import {
   NodeReferenceData,
   NodeType,
   Orientation,
-  RunData,
   Variant,
   ViewData,
   ViewType,
@@ -20,15 +18,13 @@ import { useExistingConnection, useGetConnection } from "@/system/connection";
 import { isDescendantOf, walkDescendantsRef } from "@/system/graph";
 import { ICON_BY_BLOCK_TYPE, IconInline } from "@/system/icon";
 import { RUNNABLE_BLOCK_TYPES, createBlock, moveNode, toCamelName } from "@/system/lang";
-import { canvas, inspectionPtr, pkg } from "@/system/space";
+import { canvas, inspectionPtr } from "@/system/space";
 import { makeTypeInfo } from "@/system/value";
 import { startDragging, useMultiDropZone } from "@/utils/drag";
 import { blurDocument } from "@/utils/element";
 import { ScrollbarWidth } from "@/utils/layout";
 import { menuActionsLike, type PopoverContext, type PopoverInfo, type PopoverInfoIn } from "@/utils/menu";
 import { computedValue } from "@/utils/ref";
-import { toCamelCase } from "@/utils/string";
-import type { TooltipInfo } from "@/utils/tooltip";
 import Inaccessible from "@/views/builtins/Inaccessible.vue";
 import NavigationBar from "@/views/builtins/NavigationBar.vue";
 import { viewEmits, type FocusAnchor, type ViewExposed } from "@/views/common";
@@ -286,7 +282,7 @@ defineExpose<ViewExposed>({ self, actions, focus });
         >
           <Block
             ref="selfBlockRef"
-            :class="'border-0' /* slightly hacky way to force Block to never show its border */"
+            borderless
             :variant="Variant.STEALTH"
             :style="{ width: widths.block + 'px', marginLeft: widths.gutter + 'px', marginRight: widths.gutter + 'px' }"
             :node-ptr="props.nodePtr"

@@ -21,7 +21,6 @@ const COMPONENT_BY_VIEW_TYPE_LAZY = {
   [ViewType.FIELD]: () => import("@/views/system/Field.vue"),
   [ViewType.TYPE]: () => import("@/views/system/Type.vue"),
   [ViewType.OBJECT]: () => import("@/views/system/Object.vue"),
-  [ViewType.MESSAGE]: () => import("@/views/system/Message.vue"),
   // helpers
   [ViewType.MOCK]: () => import("@/views/system/Mock.vue"),
   [ViewType.EXPLORE]: () => import("@/views/system/Explore.vue"),

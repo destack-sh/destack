@@ -79,6 +79,7 @@ function makeEditorState(text?: TextData): EditorState {
 function makeEditorView(): EditorView {
   return new EditorView(textRef.value, {
     state: makeEditorState(props.modelValue),
+    editable: () => props.isInput,
     nodeViews: {
       mention: (node, view, getPos) => new MentionView(node, view, getPos),
     },

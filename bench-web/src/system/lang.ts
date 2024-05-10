@@ -212,11 +212,14 @@ export function defaultSortNode<T extends AnyNodeData>(nodes: T[]): void {
   nodes.sort((a, b) => {
     if ((a as any).orderKey != null && (b as any).orderKey != null && (a as any).orderKey != (b as any).orderKey) {
       return (a as any).orderKey > (b as any).orderKey ? 1 : -1;
-    } else if (a.createdAt != null && b.createdAt != null && a.createdAt.seconds != b.createdAt.seconds) {
-      return Number(a.createdAt.seconds - b.createdAt.seconds);
-    } else {
-      return a.id > b.id ? 1 : -1;
+    } else if (a.createdAt != null && b.createdAt != null) {
+      if (a.createdAt.seconds != b.createdAt.seconds) {
+        return Number(a.createdAt.seconds - b.createdAt.seconds);
+      } else if (a.createdAt.nanos != b.createdAt.nanos) {
+        return Number(a.createdAt.nanos - b.createdAt.nanos);
+      }
     }
+    return a.id > b.id ? 1 : -1;
   });
 }
 
