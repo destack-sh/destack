@@ -58,7 +58,11 @@ function positionTooltip(tooltip: TooltipInstance, el: HTMLDivElement) {
             class="mr-1.5 w-5 text-gray-700"
             v-bind="toIconMaybe(tooltip.info.icon)"
           />
-          <span v-if="tooltip.info.title" class="truncate font-semibold">
+          <span
+            v-if="tooltip.info.title"
+            class="truncate"
+            :class="tooltip.info.small ? 'font-medium' : 'font-semibold'"
+          >
             {{ typeof tooltip.info.title == "function" ? tooltip.info.title() : tooltip.info.title }}
           </span>
           <span v-if="tooltip.info.shortcuts" class="ml-auto pl-4">

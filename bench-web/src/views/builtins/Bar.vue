@@ -141,7 +141,6 @@ const USER_MENU_ITEMS = computed(() => {
             :class="[isOpen ? 'border-gray-300 bg-gray-100' : 'border-gray-300 bg-white']"
             @click="toggle"
           >
-            <div class="mr-2 h-5 w-6 rounded border border-gray-300 bg-primary-300 px-0.5"></div>
             <template v-if="bench">
               <span class="select-all font-semibold">{{ bench.slug }}</span>
             </template>
