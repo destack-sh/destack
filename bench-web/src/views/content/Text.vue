@@ -285,6 +285,7 @@ defineExpose<ViewExposed>({ self, id, variants: [Variant.PRIMARY, Variant.STEALT
       ref="textRef"
       v-contextmenu="
         (context: PopoverContext): PopoverInfo => ({
+          isEnabled: props.isInput,
           kind: 'menu',
           placement: 'bottom-right',
           items: menuActionsLike(

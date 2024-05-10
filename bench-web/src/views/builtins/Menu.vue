@@ -206,7 +206,7 @@ defineExpose({ focus, clear, query });
     </div>
 
     <!-- Header -->
-    <div v-if="$slots.header" class="mb-1 border-b border-gray-200">
+    <div v-if="$slots.header" class="mb-1 border-b border-gray-200" @click.stop>
       <slot name="header" :focus="focus" />
     </div>
     <!-- Items -->
@@ -266,7 +266,7 @@ defineExpose({ focus, clear, query });
       <span class="text-gray-500">Nothing here</span>
     </div>
     <!-- Footer -->
-    <div v-if="$slots.footer" class="mt-1 border-t border-gray-200">
+    <div v-if="$slots.footer" class="mt-1 border-t border-gray-200" @click.stop>
       <slot name="footer" :focus="focus" />
     </div>
 

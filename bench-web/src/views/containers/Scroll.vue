@@ -5,7 +5,7 @@ import { canvas } from "@/system/space";
 import { ScrollbarWidth, useScrollArea } from "@/utils/layout";
 import { makeViewId, viewEmits, type ViewExposed } from "@/views/common";
 import { useMouseInElement } from "@vueuse/core";
-import { computed, ref, toRef, watch } from "vue";
+import { computed, ref, toRef, watch, watchEffect, type Ref } from "vue";
 
 const props = defineProps<
   {
@@ -15,28 +15,48 @@ const props = defineProps<
     trackIsAlwaysVisible?: boolean;
     size: Required<Pick<BoxData, "width" | "height">>;
     sizeIsDynamic?: boolean;
+    stickToEnd?: boolean;
   } & Pick<ViewData, "orientation" | "variant">
 >();
-const emit = defineEmits(viewEmits());
+const emit = defineEmits({ ...viewEmits(), scroll: null });
 const self = toRef(props, "self");
 
-const areaRef = ref<HTMLElement | null>(null);
-const areaMouse = useMouseInElement(areaRef);
+const containerRef = ref<HTMLElement | null>(null);
+const innerRef = ref<HTMLElement | null>(null);
+const areaMouse = useMouseInElement(containerRef);
 const isMouseInArea = computed(() => !areaMouse.isOutside.value);
-const { thumb, isManualScrolling, isNativeScrolling, isOverflown } = useScrollArea({
-  container: areaRef,
+const { thumb, isThumbScrolling, isNativeScrolling, isOverflown, scroll, innerSize, isAtEnd } = useScrollArea({
+  container: containerRef,
+  inner: innerRef,
   orientation: toRef(props, "orientation"),
   trackWidth: toRef(props, "trackWidth"),
 });
 
+function scrollToEnd() {
+  if (props.orientation == Orientation.HORIZONTAL) {
+    scroll.x.value = innerSize.width.value;
+  } else {
+    scroll.y.value = innerSize.height.value;
+  }
+}
+
+// auto-scroll to end if sticky
+watch(
+  () => [props.stickToEnd, innerSize.width.value, innerSize.height.value],
+  () => {
+    if (props.stickToEnd) scrollToEnd();
+  },
+  { immediate: true },
+);
+
 // show scrolling instantly, fade out once inactive
 const isVisiblyScrolling = ref(false);
-watch([isManualScrolling, isNativeScrolling], () => {
-  if (isManualScrolling.value || isNativeScrolling.value) {
+watch([isThumbScrolling, isNativeScrolling], () => {
+  if (isThumbScrolling.value || isNativeScrolling.value) {
     isVisiblyScrolling.value = true;
   } else {
     setTimeout(() => {
-      if (!isManualScrolling.value && !isNativeScrolling.value) {
+      if (!isThumbScrolling.value && !isNativeScrolling.value) {
         isVisiblyScrolling.value = false;
       }
     }, 1000);
@@ -45,13 +65,19 @@ watch([isManualScrolling, isNativeScrolling], () => {
 
 const id = makeViewId(props);
 canvas.registerView(self, id);
-defineExpose<ViewExposed>({ self, id });
+defineExpose<ViewExposed & { isScrolling: Ref<boolean>; isAtEnd: Ref<boolean>; scrollToEnd: () => void }>({
+  self,
+  id,
+  isScrolling: computed(() => isThumbScrolling.value || isNativeScrolling.value),
+  isAtEnd,
+  scrollToEnd,
+});
 </script>
 <template>
   <div class="relative">
     <!-- Scroll area -->
     <div
-      ref="areaRef"
+      ref="containerRef"
       class="scrollbar-none relative"
       :class="[orientation == Orientation.HORIZONTAL ? 'overflow-x-scroll' : 'overflow-y-scroll', $attrs.class]"
       :style="{
@@ -60,8 +86,12 @@ defineExpose<ViewExposed>({ self, id });
         [sizeIsDynamic ? 'maxHeight' : 'height']:
           (orientation == Orientation.VERTICAL || trackIsOverlay ? size.height : size.height - trackWidth) + 'px',
       }"
+      @scroll="(e) => $emit('scroll', e)"
     >
-      <slot />
+      <!-- Inner wrapper -->
+      <div ref="innerRef" :class="$attrs.class">
+        <slot />
+      </div>
     </div>
     <!-- Scroll track  -->
     <div
@@ -93,7 +123,7 @@ defineExpose<ViewExposed>({ self, id });
           width: thumb.width + 'px',
           height: thumb.height + 'px',
         }"
-        @mousedown="isManualScrolling = true"
+        @mousedown="isThumbScrolling = true"
       />
     </div>
   </div>

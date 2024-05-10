@@ -138,11 +138,11 @@ const USER_MENU_ITEMS = computed(() => {
         <template #trigger="{ toggle, isOpen }">
           <button
             class="flex select-none flex-row items-center rounded border px-2 py-1 text-gray-900 hover:cursor-pointer hover:border-gray-300 hover:bg-gray-100"
-            :class="[isOpen ? 'border-gray-300 bg-gray-100' : 'border-gray-300 bg-white']"
+            :class="[isOpen ? 'border-primary-900 bg-gray-100' : 'border-gray-300 bg-white']"
             @click="toggle"
           >
             <template v-if="bench">
-              <span class="select-all font-semibold">{{ bench.slug }}</span>
+              <span class="select-none font-semibold">{{ bench.slug }}</span>
             </template>
             <template v-else>
               <span class="select-none font-semibold">Bench</span>
@@ -278,7 +278,7 @@ const USER_MENU_ITEMS = computed(() => {
         <!-- Developer mode -->
         <div v-if="isDeveloperMode">
           <span
-            v-tooltip="{ icon: 'fas fa-binary', title: 'Developer Mode Enabled' } as TooltipInfo"
+            v-tooltip="{ icon: 'fas fa-binary', title: 'Developer Mode Enabled' }"
             class="select-none text-hint-700"
           >
             <button class="hover:text-hint-800" @click="fireActionById('developer.developerMode')">
@@ -315,8 +315,8 @@ const USER_MENU_ITEMS = computed(() => {
         <Popover placement="bottom-right" :reference-margin="4" :container-margin="4">
           <template #trigger="{ toggle, isOpen }">
             <button
-              class="rounded border px-2 py-1 text-gray-900 hover:border-gray-300 hover:bg-gray-100 focus:border-primary-900"
-              :class="[isOpen ? 'border-gray-300 bg-gray-100' : 'border-gray-300 bg-white']"
+              class="rounded-2xl border px-2 py-1 text-gray-900 hover:border-gray-300 hover:bg-gray-100 focus:border-primary-900"
+              :class="[isOpen ? 'border-primary-900 bg-gray-100' : 'border-gray-300 bg-white']"
               @click="toggle"
             >
               <IconInline class="text-gray-700" v-bind="user.icon ?? DEFAULT_USER_ICON" />
@@ -327,7 +327,7 @@ const USER_MENU_ITEMS = computed(() => {
               <!-- User Info -->
               <template #header>
                 <div class="flex flex-row px-2.5 pb-2 pt-1.5">
-                  <div class="mr-2 rounded border border-gray-700 bg-primary-300 px-2.5 py-0.5 text-xl">
+                  <div class="mr-2 rounded border border-gray-200 bg-gray-100 px-2.5 py-0.5 text-xl">
                     <IconInline class="text-gray-700" v-bind="user.icon ?? DEFAULT_USER_ICON" />
                   </div>
                   <div class="flex flex-col leading-tight">

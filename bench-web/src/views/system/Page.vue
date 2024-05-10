@@ -270,16 +270,7 @@ defineExpose<ViewExposed>({ self, actions, focus });
     >
       <div ref="contentRef" class="mb-16 flex flex-col">
         <!-- Self Block (=this Page block) -->
-        <div
-          class="mb-2 min-w-fit border-b py-1.5"
-          :class="[
-            props.nodePtr?.id == focusedNodePtr?.id
-              ? props.nodePtr?.id == inspectionPtr?.id
-                ? 'border-primary-900'
-                : 'border-gray-400'
-              : 'border-gray-200 hover:border-gray-300',
-          ]"
-        >
+        <div class="mb-1 min-w-fit py-1.5">
           <Block
             ref="selfBlockRef"
             borderless

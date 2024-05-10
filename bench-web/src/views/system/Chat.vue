@@ -3,7 +3,7 @@ import { ViewData, NodeType, BoxData, Variant, ObjectType, Orientation, TextData
 import { describeNode, toNodeReference, type TypedNodeReferenceData } from "@/proto/wiring";
 import { makeViewId, viewEmits, type ViewExposed } from "@/views/common";
 import { canvas, inspectionPtr, pkg } from "@/system/space";
-import { computed, ref, toRef, type Ref } from "vue";
+import { computed, ref, toRef, watch, type Ref } from "vue";
 import { findExistingConnectionOrError, useExistingConnection } from "@/system/connection";
 import Scroll from "@/views/containers/Scroll.vue";
 import { ScrollbarWidth } from "@/utils/layout";
@@ -34,6 +34,7 @@ const maxInputHeight = computed(() => (props.size.height - HEADER_HEIGHT) / 2);
 const inputRef: Ref<HTMLDivElement | null> = ref(null);
 const inputSize = useElementSize(inputRef);
 const textRef: Ref<InstanceType<typeof Text> | null> = ref(null);
+const scrollRef: Ref<InstanceType<typeof Scroll> | null> = ref(null);
 
 const threadPtr = toRef(props, "nodePtr") as Ref<TypedNodeReferenceData<NodeType.MESSAGE> | undefined>;
 const { graph: spaceGraph, connection: spaceConnection } = useExistingConnection(self);
@@ -65,8 +66,17 @@ const renderedMessages = computed(() => {
   return result;
 });
 
+const stickToEnd = ref(true);
 const text: Ref<TextData> = ref(emptyText());
 const canSubmit = computed(() => !isTextEmpty(text.value));
+
+// auto-sticky/unsticky when scrolled to end
+watch(
+  () => scrollRef.value?.isAtEnd,
+  () => {
+    stickToEnd.value = scrollRef.value?.isAtEnd ?? true;
+  },
+);
 
 /** Submits a message to the current thread. If it doesn't exist, create a root thread. */
 function submit() {
@@ -102,6 +112,8 @@ function submit() {
   }
 
   // reset
+  stickToEnd.value = true;
+  scrollRef.value?.scrollToEnd();
   text.value = emptyText();
 }
 
@@ -153,16 +165,19 @@ defineExpose<ViewExposed>({ self, id, variants: [Variant.PRIMARY, Variant.COMPAC
 
     <!-- Body -->
     <Scroll
+      ref="scrollRef"
       :size="{
         width: props.size.width,
         height: props.size.height - HEADER_HEIGHT - inputSize.height.value ?? MIN_INPUT_HEIGHT,
       }"
       :orientation="Orientation.VERTICAL"
       :track-width="ScrollbarWidth.md"
+      :stick-to-end="stickToEnd"
     >
       <!-- Messages -->
-      <div v-if="thread" class="my-1">
+      <div v-if="thread" class="my-2">
         <template v-for="{ message, isContinued, isContinuationBreak } in renderedMessages" :key="message.id">
+          <!-- Message -->
           <div
             class="group/message relative mx-auto flex max-w-full flex-row rounded border bg-white px-2 py-0.5 hover:bg-gray-50"
             :class="[
@@ -175,7 +190,7 @@ defineExpose<ViewExposed>({ self, id, variants: [Variant.PRIMARY, Variant.COMPAC
             <!-- Author Icon -->
             <div
               v-if="!isContinued"
-              class="mr-3.5 mt-0.5 h-fit flex-shrink-0 rounded border border-gray-200 bg-secondary-100 py-1 text-center text-gray-700"
+              class="mr-3.5 mt-0.5 h-fit flex-shrink-0 rounded border border-gray-200 bg-gray-100 py-1.5 text-center text-gray-700"
               :style="{ width: ASIDE_WIDTH + 'px' }"
             >
               <!-- TODO :Broken: load correct icon for User/Block -->
@@ -207,7 +222,7 @@ defineExpose<ViewExposed>({ self, id, variants: [Variant.PRIMARY, Variant.COMPAC
               <Text :model-value="message.text" :variant="Variant.STEALTH" />
               <!-- Controls (floating) -->
               <div
-                class="absolute -top-3 right-1.5 z-10 ml-auto flex flex-row gap-x-2 rounded border border-gray-200 bg-white px-2 py-1 opacity-0 group-hover/message:opacity-100"
+                class="absolute right-1.5 top-0 z-10 ml-auto flex flex-row gap-x-2 rounded border border-gray-200 bg-white px-2 py-1 opacity-0 group-hover/message:opacity-100"
               >
                 <!-- Reply -->
                 <button
@@ -238,46 +253,63 @@ defineExpose<ViewExposed>({ self, id, variants: [Variant.PRIMARY, Variant.COMPAC
       <div v-else-if="threadPtr">nocheckin: no messages (select thread?)</div>
     </Scroll>
 
-    <!-- Create message -->
-    <div ref="inputRef" class="group mt-auto border-t border-gray-200" @click="textRef?.focus">
+    <!-- Draft area -->
+    <div ref="inputRef" class="group mt-auto" @click="textRef?.focus">
+      <!-- Create message -->
       <div
         ref="inputRef"
-        class="mx-auto flex flex-row items-end"
-        :class="[variant != Variant.COMPACT ? 'gap-x-2.5 px-3 py-3' : 'gap-x-1.5 px-2.5 py-1.5']"
-        :style="{ maxWidth: MAX_WIDTH + 'px', minHeight: MIN_INPUT_HEIGHT + 'px', maxHeight: maxInputHeight + 'px' }"
+        class="relative mx-auto mb-3 mt-2 flex flex-row items-end rounded bg-gray-100"
+        :class="[variant != Variant.COMPACT ? 'gap-x-2.5 px-3 py-2' : 'gap-x-1.5 px-2.5 py-1.5']"
+        :style="{
+          width: 'calc(100% - ' + MIN_GUTTER_WIDTH * 2 + 'px)',
+          maxWidth: MAX_WIDTH + 'px',
+          minHeight: MIN_INPUT_HEIGHT + 'px',
+          maxHeight: maxInputHeight + 'px',
+        }"
       >
+        <!-- Jump to bottom & follow -->
+        <button
+          v-if="!stickToEnd"
+          class="arrow absolute -top-[36px] right-[12px] rounded-2xl border border-gray-200 bg-white px-2.5 py-0.5 text-base text-gray-600 hover:bg-gray-100 hover:text-primary-900"
+          @click="(stickToEnd = true), scrollRef?.scrollToEnd()"
+        >
+          <i class="fas fa-arrow-down" />
+        </button>
+
         <!-- Upload -->
         <button
-          class="h-fit self-end rounded border-gray-200 bg-white px-2 py-0.5 text-base hover:bg-gray-100"
+          class="h-fit self-end px-2 py-0.5 text-lg"
           :class="
             isFocusedAbsolute ? 'text-gray-600 hover:text-primary-900' : 'text-gray-400 group-hover:text-gray-500'
           "
           @click.stop="() => {}"
         >
-          <i class="fas fa-plus" />
+          <i class="fas fa-plus-circle" />
         </button>
         <!-- Content -->
         <Text
           ref="textRef"
           v-model="text"
-          class="my-0.5 w-full self-end hover:cursor-text"
+          class="my-1 w-full self-end hover:cursor-text"
           :variant="Variant.STEALTH"
           is-input
           :placeholder="`Message your Bench`"
           suppress-enter
           @click.stop
-          @keydown.enter.stop="submit"
+          @keydown.enter.exact.stop="submit"
         />
         <!-- Submit -->
         <button
-          class="h-fit self-end rounded border-gray-200 bg-white px-2 py-0.5 text-base hover:bg-gray-100"
+          class="h-fit self-end px-2 py-0.5 text-lg"
           :class="
-            isFocusedAbsolute ? 'text-gray-600 hover:text-primary-900' : 'text-gray-400 group-hover:text-gray-500'
+            isFocusedAbsolute
+              ? 'enabled:text-gray-600 enabled:hover:text-primary-900 disabled:text-gray-400'
+              : 'text-gray-400 group-hover:text-gray-500'
           "
           :disabled="!canSubmit"
-          @click.stop="() => {}"
+          @click.stop="submit"
         >
-          <i class="fas fa-arrow-up" />
+          <i class="fas fa-circle-arrow-up" />
         </button>
       </div>
     </div>

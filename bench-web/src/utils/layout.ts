@@ -18,6 +18,7 @@ export const isDraggingGlobal = computed(() => _isDraggingGlobal.value);
 export const MIN_SPLIT_SIZE = 250;
 export const DEFAULT_ORIENTATION = Orientation.HORIZONTAL;
 export const DEFAULT_RELATIVE_UNITS = 1000;
+export const MIN_THUMB_SIZE = 20;
 
 export type SizedView = {
   view: ViewData;
@@ -185,7 +186,7 @@ export function useSplitView(
         if (draggingIdx.value == null) return;
         const draggedToPx =
           layoutRef.value.orientation == Orientation.HORIZONTAL ? mouseRelativeX.value : mouseRelativeY.value;
-          const [aUpdate, bUpdate] = updateSeparator(draggingIdx.value, draggedToPx);
+        const [aUpdate, bUpdate] = updateSeparator(draggingIdx.value, draggedToPx);
         graphConnection.tx.update(viewsRef.value[draggingIdx.value], { size: aUpdate.size }, { debounce: true });
         graphConnection.tx.update(viewsRef.value[draggingIdx.value + 1], { size: bUpdate.size }, { debounce: true });
       });
@@ -237,20 +238,26 @@ export enum ScrollbarWidth {
  */
 export function useScrollArea(area: {
   container: Ref<HTMLElement | null>;
+  inner: Ref<HTMLElement | null>;
   orientation: MaybeRef<Orientation | undefined>;
   trackWidth: MaybeRef<ScrollbarWidth>;
 }): {
   thumb: Ref<Rect>;
   setThumb: (newThumb: { left: number; top: number }) => void;
   moveThumb: (movement: { x: number; y: number }) => void;
-  isManualScrolling: Ref<boolean>;
+  isThumbScrolling: Ref<boolean>;
   isNativeScrolling: Ref<boolean>;
   isOverflown: Ref<boolean>;
+  isAtEnd: Ref<boolean>;
+  scroll: ReturnType<typeof useScroll>;
+  containerSize: ReturnType<typeof useElementSize>;
+  innerSize: ReturnType<typeof useElementSize>;
 } {
   const orientationRef = toRef(area.orientation) as Ref<Orientation>;
   const trackWidthRef = toRef(area.trackWidth) as Ref<ScrollbarWidth>;
   const scroll = useScroll(area.container);
   const containerSize = useElementSize(area.container);
+  const innerSize = useElementSize(area.inner);
 
   //
   // track scrolling state
@@ -271,8 +278,10 @@ export function useScrollArea(area: {
       const scrollSize = isHorizontal ? area.container.value.scrollWidth : area.container.value.scrollHeight;
       const clientSize = isHorizontal ? containerSize.width.value : containerSize.height.value;
       const scrollPos = isHorizontal ? scroll.x.value : scroll.y.value;
-      const thumbSize = Math.max((clientSize / scrollSize) * clientSize, 20); // Ensure thumb has a minimum size for usability
+      const thumbSize = Math.max((clientSize / scrollSize) * clientSize, MIN_THUMB_SIZE);
       const thumbPos = (scrollPos / scrollSize) * clientSize;
+      // eslint-disable-next-line @typescript-eslint/no-unused-expressions
+      innerSize.width.value + innerSize.height.value; // trigger reactivity
 
       if (isHorizontal) {
         return { left: thumbPos, top: 0, width: thumbSize, height: trackWidthRef.value };
@@ -286,10 +295,10 @@ export function useScrollArea(area: {
   // manual scrolling
   //
 
-  const isManualScrolling = ref(false);
+  const isThumbScrolling = ref(false);
   const { pressed } = useMousePressed();
   useEventListener(["mousemove"], (e) => {
-    if (isManualScrolling.value) {
+    if (isThumbScrolling.value) {
       moveThumb({ x: e.movementX, y: e.movementY });
     }
   });
@@ -316,10 +325,28 @@ export function useScrollArea(area: {
 
   watch(pressed, () => {
     if (!pressed.value) {
-      isManualScrolling.value = false;
+      isThumbScrolling.value = false;
     }
   });
-  watch(isManualScrolling, () => (_isDraggingGlobal.value = isManualScrolling.value));
+  watch(isThumbScrolling, () => (_isDraggingGlobal.value = isThumbScrolling.value));
 
-  return { thumb, setThumb, moveThumb, isManualScrolling, isNativeScrolling: scroll.isScrolling, isOverflown };
+  return {
+    thumb,
+    setThumb,
+    moveThumb,
+    isThumbScrolling,
+    isNativeScrolling: scroll.isScrolling,
+    isOverflown,
+    isAtEnd: computed(() => {
+      if (area.container.value == null) return false;
+      const isHorizontal = (orientationRef.value ?? DEFAULT_ORIENTATION) === Orientation.HORIZONTAL;
+      const scrollSize = isHorizontal ? area.container.value.scrollWidth : area.container.value.scrollHeight;
+      const clientSize = isHorizontal ? containerSize.width.value : containerSize.height.value;
+      const scrollPos = isHorizontal ? scroll.x.value : scroll.y.value;
+      return scrollPos + clientSize >= scrollSize - 1;
+    }),
+    scroll,
+    containerSize,
+    innerSize,
+  };
 }
