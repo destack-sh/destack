@@ -370,11 +370,11 @@ function testFilteredGraph(base: NodeGraph, graph: ReadNodeGraph & { filter: Ref
 
   const package1Ref = graph.getRef(package1);
   const package1SpacesRef = graph.getChildrenRef(package1, NodeType.SPACE);
-  const space11Ref = graph.getRef(space11);
+  const space11Ref = graph.getRef({ id: space11.id });
   const space11ViewsRef = graph.getChildrenRef(space11, NodeType.VIEW);
   const view111Ref = graph.getRef({ id: view111.id });
   const view112Ref = graph.getRef({ id: view112.id });
-  const space12Ref = graph.getRef(space12);
+  const space12Ref = graph.getRef({ id: space12.id });
   const space12ViewsRef = graph.getChildrenRef(space12, NodeType.VIEW);
   const view121Ref = graph.getRef({ id: view121.id });
 

@@ -168,14 +168,12 @@ defineExpose<ViewExposed>({ self, actions });
     <Scroll
       ref="headerRef"
       v-contextmenu="
-        (context: PopoverContext): PopoverInfo => {
-          return {
-            kind: 'menu',
-            placement: 'bottom-right',
-            items: menuActionsLike(['view.navigate*frame*', 'view.layout*'], { context }),
-            context,
-          };
-        }
+        (context: PopoverContext): PopoverInfo => ({
+          kind: 'menu',
+          placement: 'bottom-right',
+          items: menuActionsLike(['view.navigate*frame*', 'view.layout*'], { context }),
+          context,
+        })
       "
       class="scrollbar-none relative flex w-full flex-row"
       :class="[activeHeaderDropZone != null ? 'bg-gray-50' : 'bg-gray-100']"

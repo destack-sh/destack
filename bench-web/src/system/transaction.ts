@@ -284,6 +284,7 @@ export class TransactionBuilder implements Transaction {
 
 /** 'Canonicalizes' edits by imputing tracking info (just like in host). See :EditCanonicalization. */
 export function canonicalizeEdits(now: Timestamp, edits: EditData[]) {
+  // nocheckin: canonicalize only createdByPtr/updatedByPtr (timetamps should be set in Transaction methods)
   for (const edit of edits) {
     const node = unwrapSomeNode(edit.node!);
     if (edit.type == EditType.CREATE || edit.type == EditType.UPSERT) {

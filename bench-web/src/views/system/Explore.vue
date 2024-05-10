@@ -330,7 +330,6 @@ defineExpose<ViewExposed>({ self, actions, focus });
         :class="[
           focusedNode?.id == node.id && isFocusAbsolute ? 'border-orange-900' : 'border-transparent',
           isFocusedAbsolute(node) ? 'bg-gray-100' : '',
-          activeDropZone?.targetId == node.id ? '' : 'hover:bg-primary-100',
           activeDropZone?.targetId == node.id && activeDropZone?.anchor == 'center'
             ? 'border-primary-400 bg-primary-200'
             : '',
