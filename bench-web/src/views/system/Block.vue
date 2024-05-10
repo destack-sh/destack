@@ -20,7 +20,7 @@ import { RUNNABLE_BLOCK_TYPES, TYPE_BLOCK_TYPES, createField, isGeneratedNodeNam
 import { canvas, inspectionPtr } from "@/system/space";
 import { makeTypeInfo, packValue, resolveType, unpackValue, type TypeIdentity } from "@/system/value";
 import { onMouseReleasedOnce } from "@/utils/layout";
-import { menuActionsLike, pushPopover, type PopoverInfo, type PopoverInfoIn } from "@/utils/menu";
+import { menuActionsLike, pushPopover, type PopoverContext, type PopoverInfo, type PopoverInfoIn } from "@/utils/menu";
 import Inaccessible from "@/views/builtins/Inaccessible.vue";
 import { makeViewId, viewEmits, type FocusAnchor, type ViewExposed } from "@/views/common";
 import Code from "@/views/content/Code.vue";
@@ -175,7 +175,7 @@ defineExpose<ViewExposed>({ self, id, variants: [Variant.PRIMARY, Variant.STEALT
           <!-- Add/edit text -->
           <button
             v-if="!hasText && block.type != BlockType.TEXT"
-            class="t rounded hover:bg-gray-100 hover:text-primary-900"
+            class="rounded hover:bg-gray-100 hover:text-primary-900"
             @click="
               () => {
                 forceShowText = true;
@@ -184,6 +184,19 @@ defineExpose<ViewExposed>({ self, id, variants: [Variant.PRIMARY, Variant.STEALT
             "
           >
             <i class="fas fa-text w-5 text-center" />
+          </button>
+          <!-- Start thread -->
+          <button
+            v-menu="
+              (context: PopoverContext): PopoverInfoIn => ({
+                component: ViewType.CHAT,
+                placement: 'bottom-right',
+                props: { variant: Variant.COMPACT, nodePtr },
+              })
+            "
+            class="rounded hover:bg-gray-100 hover:text-primary-900"
+          >
+            <i class="fas fa-message w-5 text-center" />
           </button>
           <!-- Quick add -->
           <button

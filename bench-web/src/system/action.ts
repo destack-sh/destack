@@ -145,6 +145,7 @@ export const ACTION_BUILTIN_IDS = [
   // message
   "message.handle.reply",
   "message.handle.startThread",
+  "message.handle.pin",
   // text
   "text.format.bold",
   "text.format.italic",
@@ -818,8 +819,15 @@ declareActionMap<"message">({
   },
   "message.handle.startThread": {
     icon: "fas fa-reel",
-    title: "Start Thread",
-    text: "Start a thread on this message",
+    title: "Start Thread Here",
+    text: "Start a message thread about this",
+    shortcuts: ["mod+enter"],
+  },
+  "message.handle.pin": {
+    type: "toggle",
+    icon: "fas fa-thumbtack",
+    title: "Pin",
+    text: "Pin this message",
   },
 });
 
@@ -981,7 +989,7 @@ declareActionMap<"view">({
   },
   "view.layout.pinSplit": {
     type: "toggle",
-    icon: "fas fa-lock",
+    icon: "fas fa-thumbtack",
     title: "Pin Split",
     text: "Pin this split to an absolute size",
   },

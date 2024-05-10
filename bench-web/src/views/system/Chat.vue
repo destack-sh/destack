@@ -11,8 +11,9 @@ import {
   ViewType,
   BenchType,
   NodeReferenceData,
+  type AnyNodeData,
 } from "@/proto/wire";
-import { describeNode, toNodeReference, type TypedNodeReferenceData } from "@/proto/wiring";
+import { describeNode, isNode, toNodeReference, type TypedNodeReferenceData } from "@/proto/wiring";
 import { makeViewId, viewEmits, type ViewComponent, type ViewExposed } from "@/views/common";
 import { canvas, inspectionPtr, pkg } from "@/system/space";
 import { computed, ref, toRef, watch, type Ref } from "vue";
@@ -32,6 +33,7 @@ import { makeTypeInfo } from "@/system/value";
 import { graphIndex } from "@/system/search";
 import { computedValue } from "@/utils/ref";
 import type { ActionContext, ActionMapImplementation } from "@/system/action";
+import Inaccessible from "@/views/builtins/Inaccessible.vue";
 
 const HEADER_HEIGHT = 40;
 const MAX_WIDTH = 800;
@@ -55,14 +57,19 @@ const textRef: Ref<InstanceType<typeof Text> | null> = ref(null);
 const scrollRef: Ref<InstanceType<typeof Scroll> | null> = ref(null);
 const focusedNodePtr = computedValue(() => props.focus?.nodesPtr[0]);
 
-const threadPtr = toRef(props, "nodePtr") as Ref<TypedNodeReferenceData<NodeType.MESSAGE> | undefined>;
+// NOTE: threadPtr can point to a message node if we already have a thread or to any node to create a thread on
+const nodePtr = toRef(props, "nodePtr");
 const { graph: spaceGraph, connection: spaceConnection } = useExistingConnection(self);
-const preparedPkgConnection = useExistingConnection(threadPtr);
+const preparedPkgConnection = useExistingConnection(nodePtr);
 const { graph: pkgGraph, connection: pkgConnection } = preparedPkgConnection;
-const thread = pkgGraph.getRef(threadPtr);
-const messages = pkgGraph.getChildrenRef(thread, NodeType.MESSAGE);
-const ancestors = pkgGraph.getAncestorsRef(threadPtr, { includeSelf: false });
-const context = computed(() => ancestors.value.find((n) => n.metatype != ObjectType.MESSAGE));
+const node = pkgGraph.getRef(nodePtr);
+const thread = computed(() => (node.value != null && isNode(node.value, NodeType.MESSAGE) ? node.value : null));
+const messages = pkgGraph.getChildrenRef(node, NodeType.MESSAGE);
+const ancestors = pkgGraph.getAncestorsRef(nodePtr, { includeSelf: false });
+const context = computed(() => {
+  if (node.value != null && !isNode(node.value, NodeType.MESSAGE)) return node.value;
+  else return ancestors.value.find((n) => n.metatype != ObjectType.MESSAGE);
+});
 
 type RenderedMessage = {
   message: MessageData;
@@ -113,36 +120,44 @@ function replyTo(message: MessageData) {
   textRef.value?.focus!("center");
 }
 
+function createNewThread(parent: AnyNodeData | null, title: string = generateRandomName()) {
+  if (pkg.value == null) throw new Error("no package");
+  const rootPtr = toNodeReference(pkg.value);
+  const tx = findExistingConnectionOrError("get", { roots: [rootPtr] }).tx;
+  const thread = tx.create({
+    metatype: NodeType.MESSAGE,
+    parentPtr: rootPtr,
+    packagePtr: rootPtr,
+    title,
+  });
+  const selfView = spaceGraph.getOrError(self.value!);
+  spaceConnection.tx.update(selfView, { nodePtr: toNodeReference(thread) });
+  return thread;
+}
+
 /** Submits a message to the current thread. If it doesn't exist, create a root thread. */
 function submit() {
   if (isTextEmpty(text.value)) return;
-  if (pkg.value == null) throw new Error("no package");
 
-  if (threadPtr.value == null) {
-    // create new thread with message inside (in package)
-    const rootPtr = toNodeReference(pkg.value);
-    const tx = findExistingConnectionOrError("get", { roots: [rootPtr] }).tx;
-    const selfView = spaceGraph.getOrError(self.value!);
-    const thread = tx.create({
-      metatype: NodeType.MESSAGE,
-      parentPtr: rootPtr,
-      packagePtr: rootPtr,
-      title: generateRandomName(),
-    });
+  if (nodePtr.value == null || !isNode(nodePtr.value, NodeType.MESSAGE)) {
+    // create new thread with message inside (in node or default to package)
+    const parent = isNode(nodePtr.value, NodeType.MESSAGE) ? nodePtr.value : null;
+    const thread = createNewThread(parent);
+    const tx = findExistingConnectionOrError("get", { roots: [toNodeReference(thread)] }).tx;
     const message = tx.create({
       metatype: NodeType.MESSAGE,
       parentPtr: toNodeReference(thread),
-      packagePtr: rootPtr,
+      packagePtr: thread.packagePtr,
       text: text.value,
     });
-    spaceConnection.tx.update(selfView, { nodePtr: message.parentPtr });
   } else {
     // append to existing thread
-    if (thread.value == null) throw new Error(`thread not found: ${describeNode(threadPtr.value)}`);
+    if (node.value == null) throw new Error(`thread not found: ${describeNode(nodePtr.value)}`);
+    if (!isNode(node.value, NodeType.MESSAGE)) throw new Error(`not a message: ${describeNode(node.value)}`);
     pkgConnection.tx.create({
       metatype: NodeType.MESSAGE,
-      parentPtr: threadPtr.value,
-      packagePtr: thread.value.packagePtr!,
+      parentPtr: nodePtr.value,
+      packagePtr: node.value.packagePtr!,
       replyToPtr: replyingTo.value != null ? toNodeReference(replyingTo.value) : undefined,
       text: text.value,
     });
@@ -156,7 +171,7 @@ function submit() {
 }
 
 function mapToNode(element: HTMLElement | ViewComponent): NodeReferenceData | null {
-  // TODO :Incomplete: Chat.mapToNode to focus messages (note that this is a ridealong view)
+  // nocheckin: Chat.mapToNode to focus messages (note that this is a ridealong view)
   return null;
 }
 
@@ -177,7 +192,6 @@ const actions: Partial<ActionMapImplementation<"common">> & ActionMapImplementat
       pkgConnection.tx.softDelete(message);
     },
   },
-
   // message
   "message.handle.reply": {
     action: (action, context) => {
@@ -192,8 +206,18 @@ const actions: Partial<ActionMapImplementation<"common">> & ActionMapImplementat
       throw new Error(":Incomplete: start thread");
     },
   },
+  "message.handle.pin": {
+    isChecked: (action, context) => {
+      const { message } = getMessageFromContext(context);
+      return message?.isPinned ?? false;
+    },
+    action: (action, context) => {
+      const { message } = getMessageFromContext(context);
+      if (message == null) return false;
+      pkgConnection.tx.update(message, { isPinned: !message.isPinned });
+    },
+  },
 };
-// nocheckin: actions
 
 const isFocusedAbsolute = canvas.isFocusedAbsoluteRef(self);
 canvas.registerView(self, id);
@@ -202,7 +226,7 @@ defineExpose<ViewExposed>({ self, id, variants: [Variant.PRIMARY, Variant.COMPAC
 <template>
   <div class="flex h-full w-full flex-col bg-white">
     <!-- Header -->
-    <div class="group w-full">
+    <div class="w-full border-b border-gray-200">
       <div
         class="mx-auto flex w-full max-w-full flex-row items-center gap-x-3 pl-4 pr-5"
         :style="{ height: HEADER_HEIGHT + 'px', maxWidth: MAX_WIDTH + 'px' }"
@@ -211,18 +235,18 @@ defineExpose<ViewExposed>({ self, id, variants: [Variant.PRIMARY, Variant.COMPAC
         <div class="flex-shrink-0">
           <i
             class="fas fa-message mr-1.5 w-5 text-center"
-            :class="[thread == null ? 'text-gray-500' : 'text-gray-700']"
+            :class="[node == null ? 'text-gray-500' : 'text-gray-700']"
           />
           <input
-            class="truncate rounded border-0 py-0.5 font-medium outline-none ring-0 hover:bg-gray-100 focus:ring-0"
-            :class="[thread == null ? 'text-gray-600' : 'text-gray-900', thread?.title != null ? 'font-medium' : '']"
+            class="truncate rounded border-0 py-0.5 outline-none ring-0 hover:bg-gray-100 focus:ring-0"
+            :class="[node == null ? 'text-gray-600' : 'text-gray-900', thread?.title != null ? 'font-medium' : '']"
             spellcheck="false"
             :value="thread?.title"
-            :size="(thread?.title?.length ?? 0) + 1"
-            :disabled="thread == null"
-            :placeholder="thread == null ? 'New Thread' : 'Untitled Thread'"
+            :size="(thread?.title?.length ?? 10) + 1"
+            :disabled="node == null"
+            :placeholder="node == null ? 'New Thread' : 'Untitled Thread'"
             @input="
-              (event) => pkgConnection.tx.updateDebounced(thread!, { title: (event.target as HTMLInputElement).value })
+              (event) => pkgConnection.tx.updateDebounced(node!, { title: (event.target as HTMLInputElement).value })
             "
           />
           <!-- Select thread -->
@@ -231,10 +255,9 @@ defineExpose<ViewExposed>({ self, id, variants: [Variant.PRIMARY, Variant.COMPAC
               (): PopoverInfoIn => ({
                 component: ViewType.PICKER,
                 placement: 'bottom-left',
-                offset: 'referenceWidth',
                 props: {
                   placeholder: 'Select Thread',
-                  modelValue: threadPtr,
+                  modelValue: nodePtr,
                   valueType: makeTypeInfo({ benchType: BenchType.MESSAGE }),
                   customIndex: graphIndex({
                     graph: pkgGraph,
@@ -266,13 +289,14 @@ defineExpose<ViewExposed>({ self, id, variants: [Variant.PRIMARY, Variant.COMPAC
           <span class="text-gray-400">
             {{ (context as any)?.name ?? "Everything" }}
           </span>
-          <!-- TODO :UX: select context node (move thread) -->
+          <!-- TODO :UX: move thread to different parent ('context') -->
         </div>
       </div>
     </div>
 
     <!-- Body -->
     <Scroll
+      v-if="node && renderedMessages.length > 0"
       ref="scrollRef"
       :size="{
         width: props.size.width,
@@ -283,7 +307,7 @@ defineExpose<ViewExposed>({ self, id, variants: [Variant.PRIMARY, Variant.COMPAC
       :stick-to-end="stickToEnd"
     >
       <!-- Messages -->
-      <div v-if="thread" class="my-2">
+      <div class="my-2">
         <template v-for="{ message, isContinued, isContinuationBreak } in renderedMessages" :key="message.id">
           <!-- Message -->
           <div
@@ -390,9 +414,14 @@ defineExpose<ViewExposed>({ self, id, variants: [Variant.PRIMARY, Variant.COMPAC
           </div>
         </template>
       </div>
-      <!-- Nothing here yet -->
-      <div v-else-if="threadPtr">nocheckin: no messages (select thread?)</div>
     </Scroll>
+    <!-- Can't find thread -->
+    <Inaccessible
+      v-else-if="nodePtr != null"
+      class="h-full w-full"
+      :node="nodePtr"
+      :is-connected="pkgConnection.isConnected.value"
+    />
 
     <!-- Draft area -->
     <div ref="inputRef" class="group mt-auto" @click="textRef?.focus">

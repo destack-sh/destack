@@ -305,7 +305,7 @@ defineExpose<ViewExposed>({ self, actions, focus });
             <i
               v-if="RUNNABLE_BLOCK_TYPES.includes(block.type)"
               role="button"
-              :class="'far fa-play text-gray-400 hover:text-primary-900'"
+              :class="'fas fa-play text-gray-400 hover:text-primary-900'"
               data-keep-inspection-in-base="true"
             />
             <!-- Handle -->
@@ -413,10 +413,11 @@ defineExpose<ViewExposed>({ self, actions, focus });
             class="relative flex-shrink-0 px-1.5"
             :style="{
               width: widths.gutter,
-              marginTop: (depth != 0 ? NESTED_BLOCK_GAP_Y : 0) + 7 + 'px',
+              marginTop: (depth != 0 ? NESTED_BLOCK_GAP_Y : 0) + 9 + 'px',
             }"
           >
-            <!-- References / Notices / ... -->
+            <!-- References / Notices / Messages ... -->
+            nocheckin???
           </div>
         </div>
 
