@@ -6,6 +6,7 @@ export enum TimeUpdateInterval {
   MILLISECOND = 50, // ms-ish
   SECOND = 1000,
   MINUTE = 60000,
+  HOUR = 3600000,
 }
 
 type NowTracker = {
@@ -26,10 +27,11 @@ const NOW_TRACKERS: Record<TimeUpdateInterval, NowTracker> = {
   [TimeUpdateInterval.MILLISECOND]: makeNowTracker(TimeUpdateInterval.MILLISECOND),
   [TimeUpdateInterval.SECOND]: makeNowTracker(TimeUpdateInterval.SECOND),
   [TimeUpdateInterval.MINUTE]: makeNowTracker(TimeUpdateInterval.MINUTE),
+  [TimeUpdateInterval.HOUR]: makeNowTracker(TimeUpdateInterval.HOUR),
 };
 
 /** Gets a reactive now, updated every updateInterval (ms).*/
-export function useNow(updateInterval: TimeUpdateInterval) {
+export function getNow(updateInterval: TimeUpdateInterval) {
   return NOW_TRACKERS[updateInterval].now;
 }
 
@@ -53,91 +55,89 @@ const TIME_UNIT_NAMES: Record<TimeUnit, string> = {
   w: "week",
   y: "year",
 };
-const TIME_UNITS: TimeUnit[] = ["ms", "s", "m", "h", "d", "w", "y"];
+const TIME_UNITS_SHORT: TimeUnit[] = ["ms", "s", "m", "h", "d", "w", "y"];
+const DEFAULT_PRECISION_BY_UNIT: Record<TimeUnit, number> = {
+  ms: 1,
+  s: 1,
+  m: 0,
+  h: 0,
+  d: 0,
+  w: 0,
+  y: 0,
+};
 
-type DurationFormat =
-  | "exact" // 1h, 2m, 3.1s
-  | "approximate" // this hour, last month, etc.
-  | "absolute"; // 2024-04-02 12:34:56
-
-export type FormatDurationOptions = {
-  format?: DurationFormat | ((duration: number) => DurationFormat);
+type FormatDurationOptions = {
   minUnit?: TimeUnit;
   maxUnit?: TimeUnit;
   precision?: number;
+  short?: boolean;
 };
 
-/** Formats a time duration into a short string. */
-export function formatDuration(duration: number | Duration, options?: FormatDurationOptions): string {
-  const durationMs = duration instanceof Duration ? duration.as("milliseconds") : duration;
+/**
+ * Formats a duration into the nearest (ideally >1, less then <1 of next available unit)
+ * Like 3.7s, 48m, 2d, 1w, 3y.
+ */
+export function formatDuration(duration: Duration, options?: FormatDurationOptions): string {
+  const { minUnit = "ms", maxUnit = "y", precision, short = true } = options ?? {};
+  const durationMs = duration.as("milliseconds");
 
-  // eslint-disable-next-line prefer-const
-  let { format = "exact", minUnit = "s", maxUnit = "y", precision = 1 } = options ?? {};
-  if (typeof format == "function") format = format(durationMs);
+  // find largest unit that fits
+  let currentUnit: TimeUnit = minUnit;
+  for (const unit of TIME_UNITS_SHORT) {
+    if (durationMs >= TIME_UNIT_MILLIS[unit] && TIME_UNITS_SHORT.indexOf(unit) <= TIME_UNITS_SHORT.indexOf(maxUnit)) {
+      currentUnit = unit;
+    }
+  }
 
-  if (format == "exact") {
-    // 1h, 2m, 3.1s
-    let unit = maxUnit;
-    let value = durationMs / TIME_UNIT_MILLIS[unit];
-    while (value < 1 && unit != minUnit) {
-      unit = TIME_UNITS[TIME_UNITS.indexOf(unit) - 1];
-      value = durationMs / TIME_UNIT_MILLIS[unit];
-    }
-    return `${value.toFixed(precision)}${unit}`;
-  } else if (format == "approximate") {
-    // this hour, last month, etc.
-    let unit = maxUnit;
-    let value = durationMs / TIME_UNIT_MILLIS[unit];
-    while (value < 1 && unit != minUnit) {
-      unit = TIME_UNITS[TIME_UNITS.indexOf(unit) - 1];
-      value = durationMs / TIME_UNIT_MILLIS[unit];
-    }
-    // shift to the next higher unit
-    const unitIdx = TIME_UNITS.indexOf(unit);
-    if (unitIdx < TIME_UNITS.length - 1) {
-      unit = TIME_UNITS[unitIdx + 1];
-      value = durationMs / TIME_UNIT_MILLIS[unit];
-    }
-    if (value < 1) return `this ${TIME_UNIT_NAMES[unit]}`;
-    else if (value < 2) return `last ${TIME_UNIT_NAMES[unit]}`;
-    else return `${value.toFixed(0)} ${TIME_UNIT_NAMES[unit]}s ago`;
-  } else if (format == "absolute") {
-    // Oct 2, 2024
-    const dt = DateTime.now().minus(durationMs);
-    return dt.toLocaleString(DateTime.DATE_MED);
+  // convert & format
+  const unitValue = durationMs / TIME_UNIT_MILLIS[currentUnit];
+  const roundedValue = parseFloat(unitValue.toFixed(precision));
+  if (short) {
+    return `${roundedValue}${currentUnit}`;
   } else {
-    throw new Error(`unexpected duration format: ${format}`);
+    const unitName = roundedValue === 1 ? TIME_UNIT_NAMES[currentUnit] : TIME_UNIT_NAMES[currentUnit] + "s";
+    return `${roundedValue} ${unitName}`;
   }
 }
 
-export type FormatDurationRelativeOptions = FormatDurationOptions & {
-  updateInterval?: TimeUpdateInterval;
-};
-
-/** Formats a duration implied by a datetime in the past to now */
-export function formatDurationFromNow(dt: Timestamp | DateTime, options?: FormatDurationRelativeOptions) {
+/** Formats a duration implied by a datetime in the past relative to now */
+export function formatRelativeDate(
+  dt: Timestamp | DateTime,
+  options?: FormatDurationOptions & { updateInterval?: TimeUpdateInterval },
+) {
   if (!(dt instanceof DateTime)) dt = tsToDt(dt);
   const interval = options?.updateInterval ?? TimeUpdateInterval.MINUTE;
-  const now = useNow(interval);
+  const now = getNow(interval);
   const duration = now.value.diff(dt, "milliseconds").as("milliseconds");
 
   if (interval == TimeUpdateInterval.SECOND) options = { ...options, minUnit: "s" };
   else if (interval == TimeUpdateInterval.MINUTE) options = { ...options, minUnit: "m" };
 
-  return formatDuration(duration, options);
+  return formatDuration(Duration.fromMillis(duration), options);
 }
 
-export enum DateFormat {
-  DATE = "Date",
-  DATE_TIME = "DateTime",
-}
+/** Format absolute 'duration' implied by a datetime in the past relative to now  */
+export function formatAbsoluteDate(dt: Timestamp | DateTime) {
+  if (!(dt instanceof DateTime)) dt = tsToDt(dt);
 
-/** Formats an absolute datetime */
-export function formatDt(dt: DateTime, options?: { format: DateFormat }) {
-  const format = options?.format ?? DateFormat.DATE_TIME;
-  if (format == DateFormat.DATE) return dt.toLocaleString(DateTime.DATE_MED);
-  else if (format == DateFormat.DATE_TIME) return dt.toLocaleString(DateTime.DATETIME_MED);
-  else throw new Error(`unexpected date format: ${format}`);
+  const now = getNow(TimeUpdateInterval.MINUTE).value;
+  const diff = now.diff(dt, "days").as("days");
+
+  if (diff < 1) {
+    // if it's today, say "Today at <time>"
+    return `Today at ${dt.toLocaleString(DateTime.TIME_SIMPLE)}`;
+  } else if (diff < 2) {
+    // if it's yesterday, say "Yesterday at <time>"
+    return `Yesterday at ${dt.toLocaleString(DateTime.TIME_SIMPLE)}`;
+  } else if (diff < 7) {
+    // if it's within the last week, say "<weekday> at <time>"
+    return `${dt.toFormat("cccc")} at ${dt.toLocaleString(DateTime.TIME_SIMPLE)}`;
+  } else if (diff < 365) {
+    // if it's within the last year, say "<month> <day> at <time>"
+    return `${dt.toFormat("LLL d")} at ${dt.toLocaleString(DateTime.TIME_SIMPLE)}`;
+  } else {
+    return dt.toLocaleString(DateTime.DATETIME_MED);
+  }
 }
 
 /**

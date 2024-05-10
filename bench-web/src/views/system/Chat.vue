@@ -11,7 +11,7 @@ import { useElementSize } from "@vueuse/core";
 import Text from "@/views/content/Text.vue";
 import { IconInline, getNodeIcon, makeIcon } from "@/system/icon";
 import { emptyText, isTextEmpty } from "@/system/text";
-import { dtToTs, formatDurationFromNow, tsToDt } from "@/utils/time";
+import { dtToTs, formatAbsoluteDate, formatRelativeDate, tsToDt } from "@/utils/time";
 import { user } from "@/system/user";
 import { DateTime } from "luxon";
 
@@ -216,7 +216,7 @@ defineExpose<ViewExposed>({ self, id, variants: [Variant.PRIMARY, Variant.COMPAC
                 <span class="truncate font-medium text-gray-900">
                   {{ message.createdByPtr?.id == user?.id ? user!.name : "Bench" }}
                 </span>
-                <span class="ml-1.5 text-xs text-gray-400">{{ formatDurationFromNow(message.createdAt!) }}</span>
+                <span class="ml-1.5 text-xs text-gray-400">{{ formatAbsoluteDate(message.createdAt!) }}</span>
               </div>
               <!-- Content -->
               <Text :model-value="message.text" :variant="Variant.STEALTH" />
