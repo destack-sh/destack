@@ -74,7 +74,6 @@ const { items: expandedItems } = walkDescendantsRef({
 const expandedBlockRefs: Ref<Record<string, InstanceType<typeof Block>>> = ref({});
 const contentRef = ref<HTMLElement | null>(null);
 const focusedNodePtr = computedValue(() => props.focus?.nodesPtr[0]);
-const focusedNodeId = computed(() => focusedNodePtr.value?.id);
 
 // size block/gutter horizontally (try to fit both until min block width, ignoring depth)
 const widths = computed(() => {
@@ -309,12 +308,13 @@ defineExpose<ViewExposed>({ self, actions, focus });
               :class="'far fa-play text-gray-400 hover:text-primary-900'"
               data-keep-inspection-in-base="true"
             />
+            <!-- Handle -->
             <div
               class="h-full rounded transition-colors duration-75"
               :class="
                 inspectionPtr?.id == blockPtr?.id
                   ? 'bg-primary-900'
-                  : focusedNodeId == blockPtr?.id
+                  : focusedNodePtr?.id == blockPtr?.id
                     ? 'bg-gray-300'
                     : 'bg-transparent group-hover/block-line:bg-gray-200'
               "

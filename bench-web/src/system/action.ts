@@ -142,6 +142,9 @@ export const ACTION_BUILTIN_IDS = [
   "block.edit.isPage",
   "block.edit.isProtocol",
   "block.edit.isTemplate",
+  // message
+  "message.handle.reply",
+  "message.handle.startThread",
   // text
   "text.format.bold",
   "text.format.italic",
@@ -475,12 +478,12 @@ declareActionMap<"common">({
   "common.create.above": {
     icon: "fas fa-angles-up",
     title: "Create Above",
-    text: "Create a new item above the current item",
+    text: "Create a new item above this item",
   },
   "common.create.below": {
     icon: "fas fa-angles-down",
     title: "Create Below",
-    text: "Create a new item below the current item",
+    text: "Create a new item below this item",
   },
   // edit
   "common.history.undo": {
@@ -498,48 +501,48 @@ declareActionMap<"common">({
   "common.edit.rename": {
     icon: "fas fa-pencil",
     title: "Rename",
-    text: "Rename the current item",
+    text: "Rename this item",
     shortcuts: ["f2"],
   },
   "common.edit.move": {
     icon: "fas fa-arrows-turn-right",
     title: "Move",
-    text: "Move the current item",
+    text: "Move this item",
   },
   "common.edit.morph": {
     icon: "fas fa-shuffle",
     title: "Turn Into",
-    text: "Change the type of the current item",
+    text: "Change the type of this item",
     shortcuts: ["mod+m"],
   },
   "common.edit.copy": {
     icon: "fas fa-copy",
     title: "Copy",
-    text: "Copy the current item",
+    text: "Copy this item",
     shortcuts: ["mod+c"],
   },
   "common.edit.cut": {
     icon: "fas fa-scissors",
     title: "Cut",
-    text: "Cut the current item",
+    text: "Cut this item",
     shortcuts: ["mod+x"],
   },
   "common.edit.paste": {
     icon: "fas fa-paste",
     title: "Paste",
-    text: "Paste the current item",
+    text: "Paste this item",
     shortcuts: ["mod+v"],
   },
   "common.edit.duplicate": {
     icon: "fas fa-clone",
     title: "Duplicate",
-    text: "Duplicate the current item",
+    text: "Duplicate this item",
     shortcuts: ["mod+d"],
   },
   "common.edit.delete": {
     icon: "fas fa-delete-left",
     title: "Delete",
-    text: "Delete the current item",
+    text: "Delete this item",
     shortcuts: ["del", "backspace"],
   },
   // navigate
@@ -668,94 +671,94 @@ declareActionMap<"common">({
   "common.search.findInView": {
     icon: "fas fa-magnifying-glass",
     title: "Search in View",
-    text: "Find in the current view",
+    text: "Find in this view",
     shortcuts: ["mod+f"],
   },
   "common.search.replaceInView": {
     icon: "fas fa-right-left",
     title: "Replace in View",
-    text: "Replace in the current view",
+    text: "Replace in this view",
     shortcuts: ["mod+r"],
   },
   "common.search.findInSpace": {
     icon: "fas fa-magnifying-glass",
     title: "Search in Space",
-    text: "Find in the current space",
+    text: "Find in this space",
     shortcuts: ["mod+shift+f"],
   },
   "common.search.replaceInSpace": {
     icon: "fas fa-right-left",
     title: "Replace in Space",
-    text: "Replace in the current space",
+    text: "Replace in this space",
     shortcuts: ["mod+shift+r"],
   },
   // sense
   "common.sense.focus": {
     icon: "fas fa-magnifying-glass",
     title: "Focus",
-    text: "Focus on the current node in a new view",
+    text: "Focus on this node in a new view",
     shortcuts: ["mod+enter"],
   },
   "common.sense.focusInSplit": {
     icon: "fas fa-magnifying-glass-arrow-right",
     title: "Focus in Next Split",
-    text: "Focus on the current node in an adjacent split",
+    text: "Focus on this node in an adjacent split",
     shortcuts: ["mod+shift+enter"],
   },
   "common.sense.goToDefinition": {
     icon: "fas fa-turn-down-right",
     title: "Go to Definition",
-    text: "Go to definition of the current node",
+    text: "Go to definition of this node",
     shortcuts: ["mod+b"],
   },
   "common.sense.findReferences": {
     icon: "fas fa-turn-down-left",
     title: "Find References",
-    text: "Find references of the current node",
+    text: "Find references of this node",
     shortcuts: ["mod+shift+b"],
   },
   "common.sense.findImplementations": {
     icon: "fas fa-turn-down-left",
     title: "Find Implementations",
-    text: "Find implementations of the current node",
+    text: "Find implementations of this node",
   },
   // session
   "common.session.run": {
     icon: "fas fa-play",
     title: "Run",
-    text: "Run the current node",
+    text: "Run this node",
     shortcuts: ["ctrl+r", "f5"],
   },
   "common.session.debug": {
     icon: "fas fa-bug",
     title: "Debug",
-    text: "Debug the current node",
+    text: "Debug this node",
     shortcuts: ["ctrl+d", "f6"],
   },
   "common.session.pause": {
     icon: "fas fa-pause",
     title: "Pause",
-    text: "Pause the current node",
+    text: "Pause this node",
   },
   "common.session.resume": {
     icon: "fas fa-play",
     title: "Resume",
-    text: "Resume the current node",
+    text: "Resume this node",
   },
   "common.session.stop": {
     icon: "fas fa-stop",
     title: "Stop",
-    text: "Stop the current node",
+    text: "Stop this node",
   },
   "common.session.kill": {
     icon: "fas fa-skull",
     title: "Kill",
-    text: "Kill the current node",
+    text: "Kill this node",
   },
   "common.session.logs": {
     icon: "fas fa-clipboard-list",
     title: "View Logs",
-    text: "View the logs of the current run",
+    text: "View the logs of this run",
   },
 });
 
@@ -766,19 +769,19 @@ declareActionMap<"type">({
     type: "toggle",
     icon: "fas fa-list",
     title: "List",
-    text: "Mark the current type as a list",
+    text: "Mark this type as a list",
   },
   "type.edit.isRequired": {
     type: "toggle",
     icon: "fas fa-shield-check",
     title: "Required",
-    text: "Mark the current type as required",
+    text: "Mark this type as required",
   },
   "type.edit.isSecret": {
     type: "toggle",
     icon: "fas fa-lock",
     title: "Secret",
-    text: "Mark the current type as secret",
+    text: "Mark this type as secret",
   },
 });
 
@@ -789,19 +792,34 @@ declareActionMap<"block">({
     type: "toggle",
     icon: "fas fa-memo-pad",
     title: "Page",
-    text: "Mark the current block as a page",
+    text: "Mark this block as a page",
   },
   "block.edit.isProtocol": {
     type: "toggle",
     icon: "fas fa-list-check",
     title: "Protocol",
-    text: "Mark the current block as a protocol",
+    text: "Mark this block as a protocol",
   },
   "block.edit.isTemplate": {
     type: "toggle",
     icon: "fas fa-puzzle-piece",
     title: "Template",
-    text: "Mark the current block as a template",
+    text: "Mark this block as a template",
+  },
+});
+
+// message
+declareActionMap<"message">({
+  // handle
+  "message.handle.reply": {
+    icon: "fas fa-reply",
+    title: "Reply",
+    text: "Reply to this message",
+  },
+  "message.handle.startThread": {
+    icon: "fas fa-reel",
+    title: "Start Thread",
+    text: "Start a thread on this message",
   },
 });
 
@@ -885,7 +903,7 @@ declareActionMap<"view">({
   "view.navigate.closeTab": {
     icon: "fas fa-xmark",
     title: "Close Tab",
-    text: "Close the current tab",
+    text: "Close this tab",
     shortcuts: ["mod+w", "ctrl+w"],
   },
   "view.navigate.closeOtherTabs": {
@@ -914,7 +932,7 @@ declareActionMap<"view">({
   "view.navigate.closeFrame": {
     icon: "fas fa-xmark",
     title: "Close Frame",
-    text: "Close the current frame",
+    text: "Close this frame",
     shortcuts: ["mod+shift+w"],
   },
   "view.navigate.reopenClosedFrame": {
@@ -938,34 +956,34 @@ declareActionMap<"view">({
   "view.navigate.closeSplit": {
     icon: "fas fa-xmark",
     title: "Close Split",
-    text: "Close the current split",
+    text: "Close this split",
   },
   // layout
   "view.layout.splitUp": {
     icon: "fas fa-reflect-vertical",
     title: "Split Up",
-    text: "Split the current view vertically (new split above)",
+    text: "Split this view vertically (new split above)",
   },
   "view.layout.splitDown": {
     icon: "fas fa-reflect-vertical",
     title: "Split Down",
-    text: "Split the current view vertically (new split below)",
+    text: "Split this view vertically (new split below)",
   },
   "view.layout.splitLeft": {
     icon: "fas fa-reflect-horizontal",
     title: "Split Left",
-    text: "Split the current view horizontally (new split left)",
+    text: "Split this view horizontally (new split left)",
   },
   "view.layout.splitRight": {
     icon: "fas fa-reflect-horizontal",
     title: "Split Right",
-    text: "Split the current view horizontally (new split right)",
+    text: "Split this view horizontally (new split right)",
   },
   "view.layout.pinSplit": {
     type: "toggle",
     icon: "fas fa-lock",
     title: "Pin Split",
-    text: "Pin the current split to an absolute size",
+    text: "Pin this split to an absolute size",
   },
 });
 contributeActionMap<"view">({
@@ -1042,7 +1060,7 @@ contributeActionMap<"developer">({
     isEnabled: isDeveloperMode,
     icon: "fas fa-window",
     title: "Add Mock View",
-    text: "Adds a debug view to the current root",
+    text: "Adds a debug view to this root",
     action: () => {
       const name = toCasing(generateRandomName().toUpperCase(), Casing.CAMEL, true);
       canvas.addView({ type: ViewType.MOCK, name, title: name });
@@ -1112,7 +1130,7 @@ contributeActionMap<"developer">({
     isEnabled: computed(() => isDeveloperMode.value && hasLocalBench.value),
     icon: "fas fa-cube",
     title: "Add Random Fields",
-    text: "Add some random fields to the current block",
+    text: "Add some random fields to this block",
     action: () => {
       const tx = pkgConnection.tx;
       const block = pkgGraph.getMaybe(inspectionPtr.value);

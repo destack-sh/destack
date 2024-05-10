@@ -1,7 +1,19 @@
 <script lang="ts" setup>
-import { ViewData, NodeType, BoxData, Variant, ObjectType, Orientation, TextData, MessageData } from "@/proto/wire";
+import {
+  ViewData,
+  NodeType,
+  BoxData,
+  Variant,
+  ObjectType,
+  Orientation,
+  TextData,
+  MessageData,
+  ViewType,
+  BenchType,
+  NodeReferenceData,
+} from "@/proto/wire";
 import { describeNode, toNodeReference, type TypedNodeReferenceData } from "@/proto/wiring";
-import { makeViewId, viewEmits, type ViewExposed } from "@/views/common";
+import { makeViewId, viewEmits, type ViewComponent, type ViewExposed } from "@/views/common";
 import { canvas, inspectionPtr, pkg } from "@/system/space";
 import { computed, ref, toRef, watch, type Ref } from "vue";
 import { findExistingConnectionOrError, useExistingConnection } from "@/system/connection";
@@ -11,9 +23,15 @@ import { useElementSize } from "@vueuse/core";
 import Text from "@/views/content/Text.vue";
 import { IconInline, getNodeIcon, makeIcon } from "@/system/icon";
 import { emptyText, isTextEmpty } from "@/system/text";
-import { dtToTs, formatAbsoluteDate, formatRelativeDate, tsToDt } from "@/utils/time";
+import { formatAbsoluteDate, tsToDt } from "@/utils/time";
 import { user } from "@/system/user";
 import { DateTime } from "luxon";
+import { generateRandomName } from "@/utils/naming";
+import { menuActionsLike, type PopoverContext, type PopoverInfo, type PopoverInfoIn } from "@/utils/menu";
+import { makeTypeInfo } from "@/system/value";
+import { graphIndex } from "@/system/search";
+import { computedValue } from "@/utils/ref";
+import type { ActionContext, ActionMapImplementation } from "@/system/action";
 
 const HEADER_HEIGHT = 40;
 const MAX_WIDTH = 800;
@@ -23,7 +41,7 @@ const ASIDE_WIDTH = 36;
 
 const props = defineProps<
   { self?: TypedNodeReferenceData<NodeType.VIEW>; size: Required<Pick<BoxData, "width" | "height">> } & Partial<
-    Pick<ViewData, "title" | "nodePtr" | "variant">
+    Pick<ViewData, "title" | "nodePtr" | "focus" | "variant">
   >
 >();
 const emit = defineEmits(viewEmits());
@@ -35,6 +53,7 @@ const inputRef: Ref<HTMLDivElement | null> = ref(null);
 const inputSize = useElementSize(inputRef);
 const textRef: Ref<InstanceType<typeof Text> | null> = ref(null);
 const scrollRef: Ref<InstanceType<typeof Scroll> | null> = ref(null);
+const focusedNodePtr = computedValue(() => props.focus?.nodesPtr[0]);
 
 const threadPtr = toRef(props, "nodePtr") as Ref<TypedNodeReferenceData<NodeType.MESSAGE> | undefined>;
 const { graph: spaceGraph, connection: spaceConnection } = useExistingConnection(self);
@@ -49,9 +68,10 @@ type RenderedMessage = {
   message: MessageData;
   isContinued: boolean;
   isContinuationBreak: boolean;
+  replyTo: MessageData | null;
 };
 const renderedMessages = computed(() => {
-  // collapse continued messages if they are from same author within 5 minutes
+  // collapse continued messages if they are from same author within 5 minutes (and not a reply)
   const result: RenderedMessage[] = [];
   for (let i = 0; i < messages.value.length; i++) {
     const message = messages.value[i];
@@ -59,14 +79,19 @@ const renderedMessages = computed(() => {
     const isContinued =
       lastMessage != null &&
       lastMessage.createdByPtr?.id == message.createdByPtr?.id &&
-      message.createdAt!.seconds - lastMessage.createdAt!.seconds < 300;
+      message.createdAt!.seconds - lastMessage.createdAt!.seconds < 300 &&
+      message.replyToPtr == null;
     const isContinuationBreak = !isContinued && lastMessage != null;
-    result.push({ message, isContinued, isContinuationBreak });
+    // NOTE: replyTo message is technically not reactive in its own
+    //  but 1) replies should be to messages in the thread, so that's auto reactive and 2) it's probably fine?
+    const replyTo = message.replyToPtr != null ? (pkgGraph.get(message.replyToPtr) as MessageData | null) : null;
+    result.push({ message, isContinued, isContinuationBreak, replyTo });
   }
   return result;
 });
 
 const stickToEnd = ref(true);
+const replyingTo: Ref<MessageData | null> = ref(null);
 const text: Ref<TextData> = ref(emptyText());
 const canSubmit = computed(() => !isTextEmpty(text.value));
 
@@ -77,6 +102,16 @@ watch(
     stickToEnd.value = scrollRef.value?.isAtEnd ?? true;
   },
 );
+
+function followEnd() {
+  stickToEnd.value = true;
+  scrollRef.value?.scrollToEnd();
+}
+
+function replyTo(message: MessageData) {
+  replyingTo.value = message;
+  textRef.value?.focus!("center");
+}
 
 /** Submits a message to the current thread. If it doesn't exist, create a root thread. */
 function submit() {
@@ -92,6 +127,7 @@ function submit() {
       metatype: NodeType.MESSAGE,
       parentPtr: rootPtr,
       packagePtr: rootPtr,
+      title: generateRandomName(),
     });
     const message = tx.create({
       metatype: NodeType.MESSAGE,
@@ -107,6 +143,7 @@ function submit() {
       metatype: NodeType.MESSAGE,
       parentPtr: threadPtr.value,
       packagePtr: thread.value.packagePtr!,
+      replyToPtr: replyingTo.value != null ? toNodeReference(replyingTo.value) : undefined,
       text: text.value,
     });
   }
@@ -114,17 +151,58 @@ function submit() {
   // reset
   stickToEnd.value = true;
   scrollRef.value?.scrollToEnd();
+  replyingTo.value = null;
   text.value = emptyText();
 }
 
+function mapToNode(element: HTMLElement | ViewComponent): NodeReferenceData | null {
+  // TODO :Incomplete: Chat.mapToNode to focus messages (note that this is a ridealong view)
+  return null;
+}
+
+// actions
+const getMessageFromContext = (ctx: ActionContext | undefined): { message: MessageData | null; idx: number } => {
+  let message = messages.value.find((item) => item.id == ctx?.triggerNode?.id);
+  if (!message) message = messages.value.find((item) => item.id == focusedNodePtr.value?.id);
+  if (!message) return { message: null, idx: -1 };
+  const idx = messages.value.findIndex((item) => item.id == message?.id);
+  return { message, idx };
+};
+const actions: Partial<ActionMapImplementation<"common">> & ActionMapImplementation<"message"> = {
+  // common
+  "common.edit.delete": {
+    action: (action, context) => {
+      const { message } = getMessageFromContext(context);
+      if (message == null) return false;
+      pkgConnection.tx.softDelete(message);
+    },
+  },
+
+  // message
+  "message.handle.reply": {
+    action: (action, context) => {
+      const { message } = getMessageFromContext(context);
+      if (message == null) return false;
+      replyTo(message);
+    },
+  },
+  "message.handle.startThread": {
+    isEnabled: () => false, // not yet supported
+    action: (action, context) => {
+      throw new Error(":Incomplete: start thread");
+    },
+  },
+};
+// nocheckin: actions
+
 const isFocusedAbsolute = canvas.isFocusedAbsoluteRef(self);
 canvas.registerView(self, id);
-defineExpose<ViewExposed>({ self, id, variants: [Variant.PRIMARY, Variant.COMPACT] });
+defineExpose<ViewExposed>({ self, id, variants: [Variant.PRIMARY, Variant.COMPACT], mapToNode, actions });
 </script>
 <template>
   <div class="flex h-full w-full flex-col bg-white">
     <!-- Header -->
-    <div class="group w-full border-b border-gray-200">
+    <div class="group w-full">
       <div
         class="mx-auto flex w-full max-w-full flex-row items-center gap-x-3 pl-4 pr-5"
         :style="{ height: HEADER_HEIGHT + 'px', maxWidth: MAX_WIDTH + 'px' }"
@@ -135,14 +213,47 @@ defineExpose<ViewExposed>({ self, id, variants: [Variant.PRIMARY, Variant.COMPAC
             class="fas fa-message mr-1.5 w-5 text-center"
             :class="[thread == null ? 'text-gray-500' : 'text-gray-700']"
           />
-          <span
-            class="truncate"
-            :class="[thread == null ? 'text-gray-600' : 'text-gray-900', thread?.title != null ? 'font-semibold' : '']"
-          >
-            {{ thread?.title ?? "Untitled Thread" }}
-          </span>
+          <input
+            class="truncate rounded border-0 py-0.5 font-medium outline-none ring-0 hover:bg-gray-100 focus:ring-0"
+            :class="[thread == null ? 'text-gray-600' : 'text-gray-900', thread?.title != null ? 'font-medium' : '']"
+            spellcheck="false"
+            :value="thread?.title"
+            :size="(thread?.title?.length ?? 0) + 1"
+            :disabled="thread == null"
+            :placeholder="thread == null ? 'New Thread' : 'Untitled Thread'"
+            @input="
+              (event) => pkgConnection.tx.updateDebounced(thread!, { title: (event.target as HTMLInputElement).value })
+            "
+          />
           <!-- Select thread -->
-          <button class="ml-1.5 text-gray-400">
+          <button
+            v-menu="
+              (): PopoverInfoIn => ({
+                component: ViewType.PICKER,
+                placement: 'bottom-left',
+                offset: 'referenceWidth',
+                props: {
+                  placeholder: 'Select Thread',
+                  modelValue: threadPtr,
+                  valueType: makeTypeInfo({ benchType: BenchType.MESSAGE }),
+                  customIndex: graphIndex({
+                    graph: pkgGraph,
+                    metatypes: [NodeType.MESSAGE],
+                    roots: [pkg!],
+                    filter: (node) => (node as MessageData).parentPtr!.type != NodeType.MESSAGE,
+                  }),
+                } as any,
+                onApply: (value) => {
+                  if (value != null) {
+                    const selfView = spaceGraph.getOrError(self!);
+                    spaceConnection.tx.update(selfView, { nodePtr: value });
+                    $nextTick(followEnd);
+                  }
+                },
+              })
+            "
+            class="ml-1.5 text-gray-400"
+          >
             <i class="fas fa-chevron-down" />
           </button>
         </div>
@@ -155,10 +266,7 @@ defineExpose<ViewExposed>({ self, id, variants: [Variant.PRIMARY, Variant.COMPAC
           <span class="text-gray-400">
             {{ (context as any)?.name ?? "Everything" }}
           </span>
-          <!-- Select context node (move thread) -->
-          <button class="ml-1.5 text-gray-400">
-            <i class="fas fa-chevron-down" />
-          </button>
+          <!-- TODO :UX: select context node (move thread) -->
         </div>
       </div>
     </div>
@@ -168,7 +276,7 @@ defineExpose<ViewExposed>({ self, id, variants: [Variant.PRIMARY, Variant.COMPAC
       ref="scrollRef"
       :size="{
         width: props.size.width,
-        height: props.size.height - HEADER_HEIGHT - inputSize.height.value ?? MIN_INPUT_HEIGHT,
+        height: props.size.height - HEADER_HEIGHT - inputSize.height.value,
       }"
       :orientation="Orientation.VERTICAL"
       :track-width="ScrollbarWidth.md"
@@ -179,18 +287,38 @@ defineExpose<ViewExposed>({ self, id, variants: [Variant.PRIMARY, Variant.COMPAC
         <template v-for="{ message, isContinued, isContinuationBreak } in renderedMessages" :key="message.id">
           <!-- Message -->
           <div
-            class="group/message relative mx-auto flex max-w-full flex-row rounded border bg-white px-2 py-0.5 hover:bg-gray-50"
-            :class="[
-              nodePtr?.id == inspectionPtr?.id ? 'border-primary-900' : 'border-transparent',
-              isContinuationBreak ? 'mt-2' : '',
-            ]"
+            v-contextmenu="
+              (context: PopoverContext): PopoverInfo => ({
+                kind: 'menu',
+                placement: 'bottom-right',
+                offset: 'referenceWidth',
+                items: menuActionsLike(['message.*', 'common.edit.delete'], {
+                  context: { ...context, triggerNode: message },
+                }),
+              })
+            "
+            class="group/message relative mx-auto flex max-w-full flex-row px-2 py-0.5"
+            :class="[isContinuationBreak ? 'mt-2' : '', replyingTo?.id == message.id ? 'bg-secondary-100' : '']"
             :style="{ width: 'calc(100% - ' + MIN_GUTTER_WIDTH * 2 + 'px)', maxWidth: MAX_WIDTH + 'px' }"
           >
+            <!-- Handle -->
+            <div
+              class="mr-2 w-2 rounded transition-colors duration-75"
+              :class="
+                message.id == inspectionPtr?.id
+                  ? 'bg-primary-900'
+                  : message.id == focusedNodePtr?.id
+                    ? isFocusedAbsolute
+                      ? 'bg-primary-900'
+                      : 'bg-gray-300'
+                    : 'bg-transparent group-hover/message:bg-gray-200'
+              "
+            />
             <!-- Aside -->
             <!-- Author Icon -->
             <div
               v-if="!isContinued"
-              class="mr-3.5 mt-0.5 h-fit flex-shrink-0 rounded border border-gray-200 bg-gray-100 py-1.5 text-center text-gray-700"
+              class="mr-3 mt-0.5 h-fit flex-shrink-0 rounded border border-gray-200 bg-gray-100 py-1.5 text-center text-gray-700"
               :style="{ width: ASIDE_WIDTH + 'px' }"
             >
               <!-- TODO :Broken: load correct icon for User/Block -->
@@ -204,7 +332,9 @@ defineExpose<ViewExposed>({ self, id, variants: [Variant.PRIMARY, Variant.COMPAC
             </div>
             <!-- Time (if continued) -->
             <div v-else class="mr-3.5 flex-shrink-0 px-0.5" :style="{ width: ASIDE_WIDTH + 'px' }">
-              <span class="text-xs text-gray-400 opacity-0 group-hover/message:opacity-100">
+              <span
+                class="text-xs text-gray-400 opacity-0 transition-colors duration-75 group-hover/message:opacity-100"
+              >
                 {{ tsToDt(message.createdAt!).toLocaleString(DateTime.TIME_24_SIMPLE) }}
               </span>
             </div>
@@ -228,18 +358,29 @@ defineExpose<ViewExposed>({ self, id, variants: [Variant.PRIMARY, Variant.COMPAC
                 <button
                   v-tooltip="{ title: 'Reply', referenceMargin: 8, small: true, showDelay: 200, hideDelay: 100 }"
                   class="rounded text-gray-400 hover:bg-gray-100 hover:text-primary-900"
+                  @click.stop="replyTo(message)"
                 >
                   <i class="fas fa-reply w-5 text-center" />
                 </button>
-                <!-- Thread -->
+                <!-- Thread (not supported yet) -->
                 <button
                   v-tooltip="{ title: 'Thread', referenceMargin: 8, small: true, showDelay: 200, hideDelay: 100 }"
-                  class="rounded text-gray-400 hover:bg-gray-100 hover:text-primary-900"
+                  class="rounded text-gray-300"
                 >
                   <i class="fas fa-reel w-5 text-center" />
                 </button>
                 <!-- Menu -->
                 <button
+                  v-menu="
+                    (context: PopoverContext): PopoverInfo => ({
+                      kind: 'menu',
+                      placement: 'bottom-left',
+                      offset: 'referenceWidth',
+                      items: menuActionsLike(['message.*', 'common.edit.delete'], {
+                        context: { ...context, triggerNode: nodePtr },
+                      }),
+                    })
+                  "
                   class="rounded text-gray-400 hover:bg-gray-100 hover:text-primary-900 data-[popover=true]:border-primary-900"
                 >
                   <i class="fas fa-ellipsis-v w-5 text-center" />
@@ -255,28 +396,46 @@ defineExpose<ViewExposed>({ self, id, variants: [Variant.PRIMARY, Variant.COMPAC
 
     <!-- Draft area -->
     <div ref="inputRef" class="group mt-auto" @click="textRef?.focus">
+      <!-- Replying to -->
+      <!-- nocheckin: replying to -->
+      <div
+        v-if="replyingTo"
+        class="mx-auto mt-2 flex flex-row rounded-t bg-secondary-100 px-5 py-1.5"
+        :style="{ width: 'calc(100% - ' + MIN_GUTTER_WIDTH * 2 + 'px)', maxWidth: MAX_WIDTH + 'px' }"
+      >
+        <span class="text-gray-700"
+          >Replying to
+          <span class="font-medium text-gray-900">???</span>
+        </span>
+        <button class="ml-auto text-gray-400 hover:text-primary-900" @click="replyingTo = null">
+          <i class="fas fa-xmark w-5 text-center" />
+        </button>
+      </div>
+
       <!-- Create message -->
       <div
-        ref="inputRef"
-        class="relative mx-auto mb-3 mt-2 flex flex-row items-end rounded bg-gray-100"
-        :class="[variant != Variant.COMPACT ? 'gap-x-2.5 px-3 py-2' : 'gap-x-1.5 px-2.5 py-1.5']"
+        class="relative mx-auto mb-3 flex flex-row items-end bg-gray-100"
+        :class="[
+          variant != Variant.COMPACT ? 'gap-x-2.5 px-3 py-2' : 'gap-x-1.5 px-2.5 py-1.5',
+          replyingTo != null ? 'rounded-b' : 'mt-2 rounded',
+        ]"
         :style="{
           width: 'calc(100% - ' + MIN_GUTTER_WIDTH * 2 + 'px)',
           maxWidth: MAX_WIDTH + 'px',
           minHeight: MIN_INPUT_HEIGHT + 'px',
-          maxHeight: maxInputHeight + 'px',
         }"
       >
         <!-- Jump to bottom & follow -->
         <button
           v-if="!stickToEnd"
-          class="arrow absolute -top-[36px] right-[12px] rounded-2xl border border-gray-200 bg-white px-2.5 py-0.5 text-base text-gray-600 hover:bg-gray-100 hover:text-primary-900"
-          @click="(stickToEnd = true), scrollRef?.scrollToEnd()"
+          class="arrow absolute right-[12px] rounded-2xl border border-gray-200 bg-white px-2.5 py-0.5 text-base text-gray-600 hover:bg-gray-100 hover:text-primary-900"
+          :class="replyingTo ? '-top-[72px]' : '-top-[36px]'"
+          @click="followEnd()"
         >
           <i class="fas fa-arrow-down" />
         </button>
 
-        <!-- Upload -->
+        <!-- Upload/create -->
         <button
           class="h-fit self-end px-2 py-0.5 text-lg"
           :class="
@@ -287,17 +446,26 @@ defineExpose<ViewExposed>({ self, id, variants: [Variant.PRIMARY, Variant.COMPAC
           <i class="fas fa-plus-circle" />
         </button>
         <!-- Content -->
-        <Text
-          ref="textRef"
-          v-model="text"
-          class="my-1 w-full self-end hover:cursor-text"
-          :variant="Variant.STEALTH"
-          is-input
-          :placeholder="`Message your Bench`"
-          suppress-enter
-          @click.stop
-          @keydown.enter.exact.stop="submit"
-        />
+        <Scroll
+          :size="{ width: size.width, height: maxInputHeight }"
+          size-is-dynamic
+          :orientation="Orientation.VERTICAL"
+          track-is-overlay
+          :track-width="ScrollbarWidth.sm"
+          class="w-full"
+        >
+          <Text
+            ref="textRef"
+            v-model="text"
+            class="my-1 w-full self-end hover:cursor-text"
+            :variant="Variant.STEALTH"
+            is-input
+            :placeholder="`Message your Bench`"
+            suppress-enter
+            @click.stop
+            @keydown.enter.exact.stop="submit"
+          />
+        </Scroll>
         <!-- Submit -->
         <button
           class="h-fit self-end px-2 py-0.5 text-lg"
