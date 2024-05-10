@@ -231,7 +231,7 @@ export function isNode<T extends NodeType = NodeType>(
   value: any | null | undefined,
   type?: T,
 ): value is NodeTypeMapping[T] {
-  if (typeof value != "object") return false;
+  if (value == null ||typeof value != "object") return false;
   else if (type != null) return value.metatype == (type as unknown as ObjectType);
   else return value.metatype < 500;
 }
@@ -240,7 +240,7 @@ export function isStruct<T extends StructType = StructType>(
   value: any | null | undefined,
   type?: T,
 ): value is StructTypeMapping[T] {
-  if (typeof value != "object") return false;
+  if (value == null || typeof value != "object") return false;
   else if (type != null) return value.metatype == (type as unknown as ObjectType);
   else return value.metatype >= 500;
 }
