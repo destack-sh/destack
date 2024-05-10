@@ -5,13 +5,11 @@ import { isDeveloperMode } from "@/system/client";
 import { graphConnections, hasPendingConnections } from "@/system/connection";
 import { DEFAULT_USER_ICON, ICON_BY_NODE_TYPE, IconInline, makeIcon } from "@/system/icon";
 import { bench, hasLocalBench } from "@/system/space";
-import { client, clientsSorted, isAuthenticated, user } from "@/system/user";
+import { isAuthenticated, user } from "@/system/user";
 import { COMMIT, IS_DEBUG, VERSION } from "@/utils/globals";
 import { ScrollbarWidth, isDraggingGlobal } from "@/utils/layout";
 import { menuActionsLike, menuItemFromAction, type MenuItem } from "@/utils/menu";
 import { humanizeBytes } from "@/utils/string";
-import { formatDurationFromNow } from "@/utils/time";
-import type { TooltipInfo } from "@/utils/tooltip";
 import Scroll from "@/views/containers/Scroll.vue";
 import Button from "@/views/controls/Button.vue";
 import Dock from "@/views/builtins/Dock.vue";
@@ -336,25 +334,8 @@ const USER_MENU_ITEMS = computed(() => {
                   </div>
                 </div>
               </template>
-              <!-- Client Info -->
-              <template #footer>
-                <ul class="px-2.5 pb-1.5 pt-2">
-                  <li
-                    v-for="c in clientsSorted"
-                    :key="c.id"
-                    class="flex flex-row py-0.5"
-                    :class="c.id == client?.id ? 'text-gray-900' : 'text-gray-500'"
-                  >
-                    <span class="select-all">{{ c.operatingSystem }} - {{ c.browserName }}</span>
-                    <span class="ml-auto">
-                      <span v-if="c.id == client?.id">current</span>
-                      <span v-else-if="c.lastSeenAt">{{
-                        formatDurationFromNow(c.lastSeenAt, { format: "approximate" })
-                      }}</span>
-                    </span>
-                  </li>
-                </ul>
-              </template>
+              <!-- Clients -->
+              <!-- .. -->
             </Menu>
           </template>
         </Popover>
