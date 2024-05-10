@@ -110,12 +110,12 @@ defineExpose<ViewExposed>({ self, id, variants: [Variant.PRIMARY, Variant.STEALT
   <div
     v-if="block"
     ref="blockRef"
-    class="group/block relative rounded bg-white px-2 py-1.5"
+    class="group/block relative rounded bg-white"
     :class="[
       borderless ? '' : 'border',
       nodePtr?.id == inspectionPtr?.id
         ? 'border-primary-900'
-        : [variant != Variant.STEALTH ? 'border-gray-200' : 'border-transparent', 'hover:border-gray-200'],
+        : [variant != Variant.STEALTH ? 'border-gray-200 px-2 py-1.5' : 'border-transparent', 'hover:border-gray-200'],
     ]"
   >
     <!-- Header -->
@@ -162,7 +162,7 @@ defineExpose<ViewExposed>({ self, id, variants: [Variant.PRIMARY, Variant.STEALT
       <div class="ml-auto pl-2 pr-0.5">
         <!-- Quick actions -->
         <span
-          class="flex flex-row gap-x-0.5"
+          class="flex flex-row gap-x-0.5 transition-colors duration-75"
           :class="[
             nodePtr?.id == inspectionPtr?.id
               ? 'text-gray-400'
