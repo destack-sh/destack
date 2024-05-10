@@ -36,9 +36,10 @@ const HEADER_HEIGHT = 28;
 const DEPTH_OFFSET = 40;
 const MIN_BLOCK_WIDTH = 500;
 const MAX_BLOCK_WIDTH = 800;
-const MIN_GUTTER_WIDTH = 40;
+const MIN_GUTTER_WIDTH = 44;
 const ROOT_BLOCK_GAP_Y = 8;
 const NESTED_BLOCK_GAP_Y = 8;
+const HANDLE_WIDTH = 6;
 
 const props = defineProps<
   { self: TypedNodeReferenceData<NodeType.VIEW>; size: Required<Pick<BoxData, "width" | "height">> } & Pick<
@@ -73,6 +74,7 @@ const { items: expandedItems } = walkDescendantsRef({
 const expandedBlockRefs: Ref<Record<string, InstanceType<typeof Block>>> = ref({});
 const contentRef = ref<HTMLElement | null>(null);
 const focusedNodePtr = computedValue(() => props.focus?.nodesPtr[0]);
+const focusedNodeId = computed(() => focusedNodePtr.value?.id);
 
 // size block/gutter horizontally (try to fit both until min block width, ignoring depth)
 const widths = computed(() => {
@@ -275,6 +277,7 @@ defineExpose<ViewExposed>({ self, actions, focus });
             ref="selfBlockRef"
             borderless
             :variant="Variant.STEALTH"
+            class="px-1.5 py-1.5"
             :style="{ width: widths.block + 'px', marginLeft: widths.gutter + 'px', marginRight: widths.gutter + 'px' }"
             :node-ptr="props.nodePtr"
             :prepared-connection="preparedPkgConnection"
@@ -292,10 +295,10 @@ defineExpose<ViewExposed>({ self, actions, focus });
         >
           <!-- Left gutter -->
           <div
-            class="relative flex-shrink-0 px-1.5 text-right"
+            class="relative flex flex-shrink-0 flex-row justify-end gap-x-2 text-right"
             :style="{
               width: widths.gutter + DEPTH_OFFSET * depth + 'px',
-              marginTop: (depth != 0 ? NESTED_BLOCK_GAP_Y : 0) + 7 + 'px',
+              marginTop: (depth != 0 ? NESTED_BLOCK_GAP_Y : 0) + 9 + 'px',
             }"
           >
             <!-- Activity / Run / ... -->
@@ -306,11 +309,22 @@ defineExpose<ViewExposed>({ self, actions, focus });
               :class="'far fa-play text-gray-400 hover:text-primary-900'"
               data-keep-inspection-in-base="true"
             />
+            <div
+              class="h-full rounded transition-colors duration-75"
+              :class="
+                inspectionPtr?.id == blockPtr?.id
+                  ? 'bg-primary-900'
+                  : focusedNodeId == blockPtr?.id
+                    ? 'bg-gray-300'
+                    : 'bg-transparent group-hover/block-line:bg-gray-200'
+              "
+              :style="{ width: HANDLE_WIDTH + 'px' }"
+            />
           </div>
 
           <!-- Block wrapper -->
           <div
-            class="group/block-wrapper relative border-gray-100"
+            class="group/block-wrapper relative rounded border-gray-100"
             :style="{
               width: widths.block - DEPTH_OFFSET * depth + 'px',
             }"
@@ -318,7 +332,7 @@ defineExpose<ViewExposed>({ self, actions, focus });
             <!-- Nested space -->
             <div v-if="depth != 0" class="" :style="{ height: NESTED_BLOCK_GAP_Y + 'px' }" />
 
-            <!-- Create above/below -->
+            <!-- Create above/below (in between blocks) -->
             <div
               v-for="anchor in i < expandedItems.length - 1 ? ['start'] : ['start', 'end']"
               :key="anchor"
@@ -332,7 +346,7 @@ defineExpose<ViewExposed>({ self, actions, focus });
                 })
               "
               role="button"
-              class="absolute h-[6px] w-full flex-shrink-0 text-center text-gray-300 opacity-0 hover:z-10 hover:text-gray-300 hover:opacity-100 data-[popover=true]:text-primary-900 data-[popover=true]:opacity-100"
+              class="absolute h-[6px] w-full flex-shrink-0 text-center text-gray-300 opacity-0 transition-colors duration-75 hover:z-10 hover:text-gray-300 hover:opacity-100 data-[popover=true]:text-primary-900 data-[popover=true]:opacity-100"
               :style="
                 getAnchorPosition(
                   anchor as 'start' | 'end',
@@ -384,7 +398,8 @@ defineExpose<ViewExposed>({ self, actions, focus });
                   ),
                 })
               "
-              class="w-full data-[dragging=true]:opacity-50"
+              class="w-full px-2 py-1.5 data-[dragging=true]:opacity-50"
+              borderless
               :variant="Variant.STEALTH"
               :node-ptr="blockPtr"
               :prepared-connection="preparedPkgConnection"
