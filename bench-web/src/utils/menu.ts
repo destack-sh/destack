@@ -9,10 +9,12 @@ import {
   type ActionContext,
   type ActionFilter,
 } from "@/system/action";
+import { ROOT_VIEW_TYPES } from "@/system/lang";
 import { canvas } from "@/system/space";
+import { getElement } from "@/utils/element";
 import { type FloatingOptions } from "@/utils/floating";
 import { pretendReadonly } from "@/utils/ref";
-import { collectViewComponentsUp } from "@/views/canvas";
+import { collectViewComponentsUp, findViewComponentUp, isViewComponentIn } from "@/views/canvas";
 import type { ViewComponent } from "@/views/common";
 import type { MaybeElement } from "@vueuse/core";
 import { computed, shallowRef, toValue, triggerRef, type Directive, type Ref } from "vue";
@@ -130,6 +132,7 @@ export type PopoverInfo = (
 ) & {
   isEnabled?: boolean;
   reference?: { x: number; y: number } | HTMLElement | SVGElement;
+  container?: HTMLElement | SVGElement | "containingRoot";
   containerClass?: string;
   dontFocus?: boolean;
   onUpdate?(value?: any): void;
@@ -161,28 +164,41 @@ function newPopoverId() {
   return PopoverId++;
 }
 
-export function pushPopover(create: {
+export function pushPopover(push: {
   trigger: HTMLElement | SVGElement;
   reference: { x: number; y: number } | HTMLElement | SVGElement;
   container?: HTMLElement | SVGElement | undefined;
   info: PopoverInfoIn;
 }): PopoverInstance {
-  const { trigger, container } = create;
-  const triggerNode = canvas.findViewData(trigger) ?? undefined;
-  const context: PopoverContext = { triggerElement: trigger, triggerNode };
+  const triggerNode = canvas.findViewData(push.trigger) ?? undefined;
+  const context: PopoverContext = { triggerElement: push.trigger, triggerNode };
   const info = {
     ...OVERLAY_MENU_DEFAULT_FLOATING_OPTIONS,
-    ...create.info,
+    ...push.info,
     context,
-    kind: "component" in create.info ? "component" : "menu",
+    kind: "component" in push.info ? "component" : "menu",
   } as PopoverInfo;
 
-  // the info's reference is useful for overriding the actual reference in a directive
-  const instance = { id: newPopoverId(), info, trigger, reference: info.reference ?? create.reference, container };
+  let container: HTMLElement | SVGElement | undefined;
+  if (info.container == "containingRoot") {
+    const containingRoot = findViewComponentUp(push.trigger, (c) => isViewComponentIn(c, ROOT_VIEW_TYPES));
+    if (containingRoot == null) throw new Error("no containing root found");
+    container = getElement(containingRoot) ?? undefined;
+  } else {
+    container = info.container ?? container;
+  }
+
+  const instance: PopoverInstance = {
+    id: newPopoverId(),
+    info,
+    trigger: push.trigger,
+    reference: info.reference ?? push.reference,
+    container,
+  };
   _activePopovers.value.push(instance);
   triggerRef(_activePopovers);
-  trigger.dataset[POPOVER_DATA_SET_ATTRIBUTE] = "true";
-  trigger.dataset[POPOVER_DATA_ID_ATTRIBUTE] = instance.id.toString();
+  instance.trigger.dataset[POPOVER_DATA_SET_ATTRIBUTE] = "true";
+  instance.trigger.dataset[POPOVER_DATA_ID_ATTRIBUTE] = instance.id.toString();
   return instance;
 }
 

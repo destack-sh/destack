@@ -98,7 +98,7 @@ const actions: Partial<ActionMapImplementation<"common">> & ActionMapImplementat
 };
 
 // focus
-function focus(anchor: FocusAnchor | NodeReferenceData) {
+function focus(anchor?: FocusAnchor | NodeReferenceData) {
   // TODO :Incomplete: focus/navigate nodes and subnodes (Block/Page) :Navigation
   return false;
 }
@@ -191,6 +191,7 @@ defineExpose<ViewExposed>({ self, id, variants: [Variant.PRIMARY, Variant.STEALT
               (context: PopoverContext): PopoverInfoIn => ({
                 component: ViewType.CHAT,
                 placement: 'bottom-right',
+                container: 'containingRoot',
                 props: { variant: Variant.COMPACT, nodePtr },
               })
             "
@@ -240,6 +241,7 @@ defineExpose<ViewExposed>({ self, id, variants: [Variant.PRIMARY, Variant.STEALT
                     'common.edit.morph',
                     'common.edit.move',
                     'common.edit.duplicate',
+                    'common.edit.archive',
                     'common.edit.delete',
                     'block.*',
                   ],

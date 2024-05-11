@@ -39,12 +39,12 @@ const path = computed(() => ancestors.value.slice().reverse());
       </template>
     </div>
     <!-- Search & such -->
-    <div class="ml-auto flex flex-shrink-0 flex-row gap-x-1.5 pl-1">
+    <div class="ml-auto flex flex-shrink-0 flex-row items-center gap-x-1.5 pl-1">
       <button
-        class="rounded px-1 text-gray-400 hover:bg-gray-100 hover:text-primary-900 group-hover:text-gray-400"
+        class="h-fit rounded px-1 text-gray-400 hover:bg-gray-100 hover:text-primary-900"
         @click="fireActionById('common.search.findInView')"
       >
-        <i class="fas fa-magnifying-glass text-xs" />
+        <i class="fas fa-magnifying-glass" />
       </button>
     </div>
   </div>

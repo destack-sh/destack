@@ -37,16 +37,20 @@ import type { ActionContext, ActionMapImplementation } from "@/system/action";
 import Inaccessible from "@/views/builtins/Inaccessible.vue";
 import { makeSelection } from "@/views/canvas";
 import { getElement } from "@/utils/element";
+import { toCamelName } from "@/system/lang";
 
-const HEADER_HEIGHT = 40;
+const HEADER_HEIGHT = 36;
 const MAX_WIDTH = 800;
+const DEFAULT_WIDTH = 320;
+const DEFAULT_HEIGHT = 480;
+const DEFAULT_MAX_INPUT_HEIGHT = 120;
 const MIN_INPUT_HEIGHT = 40;
 const MIN_GUTTER_WIDTH = 12;
 const ASIDE_WIDTH = 36;
 const HANDLE_WIDTH = 6;
 
 const props = defineProps<
-  { self?: TypedNodeReferenceData<NodeType.VIEW>; size: Required<Pick<BoxData, "width" | "height">> } & Partial<
+  { self?: TypedNodeReferenceData<NodeType.VIEW>; size?: Required<Pick<BoxData, "width" | "height">> } & Partial<
     Pick<ViewData, "title" | "nodePtr" | "focus" | "variant">
   >
 >();
@@ -54,9 +58,11 @@ const emit = defineEmits(viewEmits());
 const self = toRef(props, "self");
 const id = makeViewId(props);
 
-const maxInputHeight = computed(() => (props.size.height - HEADER_HEIGHT) / 2);
-const inputRef: Ref<HTMLDivElement | null> = ref(null);
-const inputSize = useElementSize(inputRef);
+const maxInputHeight = computed(() =>
+  props.size != null ? (props.size.height - HEADER_HEIGHT) / 2 : DEFAULT_MAX_INPUT_HEIGHT,
+);
+const draftRef: Ref<HTMLDivElement | null> = ref(null);
+const inputSize = useElementSize(draftRef);
 const textRef: Ref<InstanceType<typeof Text> | null> = ref(null);
 const scrollRef: Ref<InstanceType<typeof Scroll> | null> = ref(null);
 const messageRefs: Ref<Record<string, HTMLElement | null>> = ref({});
@@ -146,8 +152,13 @@ function createNewThread(parent: AnyNodeData | null, title: string = generateRan
     packagePtr: rootPtr,
     title,
   });
-  const selfView = spaceGraph.getOrError(self.value!);
-  spaceConnection.tx.update(selfView, { nodePtr: toNodeReference(thread) });
+  if (self.value != null) {
+    const selfView = spaceGraph.getOrError(self.value);
+    spaceConnection.tx.update(selfView, { nodePtr: toNodeReference(thread) });
+  } else {
+    // nocheckin: handle update:self in PopoverOverlay
+    emit("update:self", { nodePtr: toNodeReference(thread) });
+  }
   return thread;
 }
 
@@ -200,12 +211,16 @@ function mapToNode(element: HTMLElement | SVGElement | ViewComponent): NodeRefer
   return null;
 }
 
-function focus(anchor: NodeReferenceData) {
-  if (anchor.type != NodeType.MESSAGE) throw new Error(`can't focus non-message: ${describeNode(anchor)}`);
-  const selfView = spaceGraph.getOrError(self.value!);
-  spaceConnection.tx.updateDebounced(selfView, { focus: makeSelection([anchor]) });
-  const messageEl = messageRefs.value[anchor.id!];
-  if (messageEl != null) messageEl.scrollIntoView({ behavior: "smooth", block: "center" });
+function focus(anchor?: FocusAnchor | NodeReferenceData) {
+  if (anchor == null || typeof anchor === "string") {
+    textRef.value?.focus?.("center");
+  } else {
+    if (anchor.type != NodeType.MESSAGE) throw new Error(`can't focus non-message: ${describeNode(anchor)}`);
+    const selfView = spaceGraph.getOrError(self.value!);
+    spaceConnection.tx.updateDebounced(selfView, { focus: makeSelection([anchor]) });
+    const messageEl = messageRefs.value[anchor.id!];
+    if (messageEl != null) messageEl.scrollIntoView({ behavior: "smooth", block: "center" });
+  }
 }
 
 // actions
@@ -275,12 +290,12 @@ const actions: Partial<ActionMapImplementation<"common">> & ActionMapImplementat
 
 const isFocusedAbsolute = canvas.isFocusedAbsoluteRef(self);
 canvas.registerView(self, id);
-defineExpose<ViewExposed>({ self, id, variants: [Variant.PRIMARY, Variant.COMPACT], mapToNode, actions });
+defineExpose<ViewExposed>({ self, id, variants: [Variant.PRIMARY, Variant.COMPACT], mapToNode, actions, focus });
 </script>
 <template>
-  <div class="flex h-full w-full flex-col bg-white">
+  <div class="flex h-full w-full flex-col">
     <!-- Header -->
-    <div class="w-full border-b border-gray-200">
+    <div v-if="variant != Variant.COMPACT" class="w-full border-b border-gray-200">
       <div
         class="mx-auto flex w-full max-w-full flex-row items-center gap-x-3 pl-4 pr-5"
         :style="{ height: HEADER_HEIGHT + 'px', maxWidth: MAX_WIDTH + 'px' }"
@@ -336,6 +351,7 @@ defineExpose<ViewExposed>({ self, id, variants: [Variant.PRIMARY, Variant.COMPAC
         </div>
         <!-- Archive / delete -->
         <button
+          v-if="thread != null"
           v-tooltip="{ title: 'Archive', small: true }"
           class="text-gray-400 enabled:hover:text-primary-900"
           :disabled="thread == null"
@@ -368,12 +384,13 @@ defineExpose<ViewExposed>({ self, id, variants: [Variant.PRIMARY, Variant.COMPAC
       v-if="node && renderedMessages.length > 0"
       ref="scrollRef"
       :size="{
-        width: props.size.width,
-        height: props.size.height - HEADER_HEIGHT - inputSize.height.value,
+        width: props.size?.width ?? DEFAULT_WIDTH,
+        height: (props.size?.height ?? DEFAULT_HEIGHT) - HEADER_HEIGHT - inputSize.height.value,
       }"
       :orientation="Orientation.VERTICAL"
       :track-width="ScrollbarWidth.md"
       :stick-to-end="stickToEnd"
+      :size-is-dynamic="props.size == null"
     >
       <!-- Messages -->
       <div class="my-2">
@@ -507,14 +524,14 @@ defineExpose<ViewExposed>({ self, id, variants: [Variant.PRIMARY, Variant.COMPAC
     </Scroll>
     <!-- Can't find thread -->
     <Inaccessible
-      v-else-if="nodePtr != null"
+      v-else-if="nodePtr != null && nodePtr.type == NodeType.MESSAGE"
       class="h-full w-full"
       :node="nodePtr"
       :is-connected="pkgConnection.isConnected.value"
     />
 
     <!-- Draft area -->
-    <div ref="inputRef" class="group mt-auto" @click="textRef?.focus">
+    <div ref="draftRef" class="group mt-auto" @click="textRef?.focus">
       <!-- Replying to -->
       <div
         v-if="replyingTo"
@@ -532,13 +549,13 @@ defineExpose<ViewExposed>({ self, id, variants: [Variant.PRIMARY, Variant.COMPAC
 
       <!-- Create message -->
       <div
-        class="relative mx-auto mb-3 flex flex-row items-end bg-gray-100"
+        class="relative mx-auto flex flex-row items-end"
         :class="[
-          variant != Variant.COMPACT ? 'gap-x-2.5 px-3 py-2' : 'gap-x-1.5 px-2.5 py-1.5',
-          replyingTo != null ? 'rounded-b' : 'mt-2 rounded',
+          variant != Variant.COMPACT ? 'mb-3 gap-x-2.5 bg-gray-100 px-3 py-2' : 'gap-x-1.5 px-2.5 pb-1.5 pt-1',
+          replyingTo != null ? 'rounded-b' : 'rounded',
         ]"
         :style="{
-          width: 'calc(100% - ' + MIN_GUTTER_WIDTH * 2 + 'px)',
+          width: variant != Variant.COMPACT ? 'calc(100% - ' + MIN_GUTTER_WIDTH * 2 + 'px)' : DEFAULT_WIDTH + 'px',
           maxWidth: MAX_WIDTH + 'px',
           minHeight: MIN_INPUT_HEIGHT + 'px',
         }"
@@ -555,17 +572,18 @@ defineExpose<ViewExposed>({ self, id, variants: [Variant.PRIMARY, Variant.COMPAC
 
         <!-- Upload/create -->
         <button
-          class="h-fit self-end px-2 py-0.5 text-lg"
-          :class="
-            isFocusedAbsolute ? 'text-gray-600 hover:text-primary-900' : 'text-gray-400 group-hover:text-gray-500'
-          "
+          class="h-fit self-end px-2 py-0.5"
+          :class="[
+            isFocusedAbsolute ? 'text-gray-600 hover:text-primary-900' : 'text-gray-400 group-hover:text-gray-500',
+            variant != Variant.COMPACT ? 'text-lg' : 'text-base',
+          ]"
           @click.stop="() => {}"
         >
           <i class="fas fa-plus-circle" />
         </button>
         <!-- Content -->
         <Scroll
-          :size="{ width: size.width, height: maxInputHeight }"
+          :size="{ width: size?.width ?? DEFAULT_WIDTH, height: maxInputHeight }"
           size-is-dynamic
           :orientation="Orientation.VERTICAL"
           track-is-overlay
@@ -575,10 +593,15 @@ defineExpose<ViewExposed>({ self, id, variants: [Variant.PRIMARY, Variant.COMPAC
           <Text
             ref="textRef"
             v-model="text"
-            class="my-1 w-full self-end hover:cursor-text"
+            class="w-full self-end hover:cursor-text"
+            :class="variant != Variant.COMPACT ? 'my-1 ' : 'my-0.5'"
             :variant="Variant.STEALTH"
             is-input
-            :placeholder="`Message your Bench`"
+            :placeholder="
+              context != null && context.metatype != ObjectType.PACKAGE
+                ? `Message this ${toCamelName(NodeType, context.metatype)}`
+                : `Message your Bench`
+            "
             suppress-enter
             @click.stop
             @keydown.enter.exact.stop="submit"
@@ -586,12 +609,13 @@ defineExpose<ViewExposed>({ self, id, variants: [Variant.PRIMARY, Variant.COMPAC
         </Scroll>
         <!-- Submit -->
         <button
-          class="h-fit self-end px-2 py-0.5 text-lg"
-          :class="
+          class="h-fit self-end px-2 py-0.5"
+          :class="[
             isFocusedAbsolute
               ? 'enabled:text-gray-600 enabled:hover:text-primary-900 disabled:text-gray-400'
-              : 'text-gray-400 group-hover:text-gray-500'
-          "
+              : 'text-gray-400 group-hover:text-gray-500',
+            variant != Variant.COMPACT ? 'text-lg' : 'text-base',
+          ]"
           :disabled="!canSubmit"
           @click.stop="submit"
         >

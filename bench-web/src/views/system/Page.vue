@@ -32,7 +32,7 @@ import Scroll from "@/views/containers/Scroll.vue";
 import Block from "@/views/system/Block.vue";
 import { computed, nextTick, ref, toRef, watch, type Ref } from "vue";
 
-const HEADER_HEIGHT = 28;
+const HEADER_HEIGHT = 36;
 const DEPTH_OFFSET = 40;
 const MIN_BLOCK_WIDTH = 500;
 const MAX_BLOCK_WIDTH = 800;
@@ -214,7 +214,7 @@ function createAndFocusBlock(
 }
 
 // focus
-function focus(anchor: FocusAnchor | NodeReferenceData) {
+function focus(anchor?: FocusAnchor | NodeReferenceData) {
   if (typeof anchor != "object") {
     if (anchor != "bottom") {
       const block = expandedBlockRefs.value[expandedItems.value[0].nodePtr.id!];
@@ -259,6 +259,7 @@ defineExpose<ViewExposed>({ self, actions, focus });
       :self="nodePtr"
       :focus="props.focus?.nodesPtr[0]"
       :graph="pkgGraph"
+      class="border-b border-gray-200"
       data-keep-inspection-in-base="true"
     />
 
@@ -417,7 +418,7 @@ defineExpose<ViewExposed>({ self, actions, focus });
             }"
           >
             <!-- References / Notices / Messages ... -->
-            nocheckin???
+            <!-- nocheckin: messages -->
           </div>
         </div>
 
@@ -447,7 +448,7 @@ defineExpose<ViewExposed>({ self, actions, focus });
                 small: true,
                 referenceMargin: 8,
               }"
-              class="rounded px-2 py-1 text-base hover:bg-gray-100 hover:text-primary-900"
+              class="rounded px-2 py-1 text-base transition-colors duration-75 hover:bg-gray-100 hover:text-primary-900"
               :class="isFocusedAbsolute ? 'text-gray-600' : 'text-gray-400 group-hover/footer:text-gray-500'"
               @click="
                 () => {
