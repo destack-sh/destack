@@ -1,4 +1,5 @@
 import {
+  Anchor,
   DESCENDANT_NODE_TYPES,
   IconData,
   NodeReferenceData,
@@ -60,6 +61,8 @@ import {
   type ComponentInstance,
   type Ref,
 } from "vue";
+
+export const DEFAULT_BAR_POSITION = Anchor.TOP;
 
 export function getVueComponentType(component: ComponentInstance<any>): string {
   return component.__name ?? (component as any).type.__name;
