@@ -197,7 +197,7 @@ defineExpose<ViewExposed>({ self, id, variants: [Variant.PRIMARY, Variant.STEALT
             "
             class="rounded hover:bg-gray-100 hover:text-primary-900"
           >
-            <i class="fas fa-message w-5 text-center" />
+            <i class="fas fa-reel w-5 text-center" />
           </button>
           <!-- Quick add -->
           <button

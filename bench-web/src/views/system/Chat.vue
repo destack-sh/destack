@@ -156,7 +156,6 @@ function createNewThread(parent: AnyNodeData | null, title: string = generateRan
     const selfView = spaceGraph.getOrError(self.value);
     spaceConnection.tx.update(selfView, { nodePtr: toNodeReference(thread) });
   } else {
-    // nocheckin: handle update:self in PopoverOverlay
     emit("update:self", { nodePtr: toNodeReference(thread) });
   }
   return thread;
@@ -217,9 +216,9 @@ function focus(anchor?: FocusAnchor | NodeReferenceData) {
   } else {
     if (anchor.type != NodeType.MESSAGE) throw new Error(`can't focus non-message: ${describeNode(anchor)}`);
     const selfView = spaceGraph.getOrError(self.value!);
-    spaceConnection.tx.updateDebounced(selfView, { focus: makeSelection([anchor]) });
+    canvas.focusInGraph(spaceConnection.tx, { view: selfView, focus: makeSelection([anchor]) });
     const messageEl = messageRefs.value[anchor.id!];
-    if (messageEl != null) messageEl.scrollIntoView({ behavior: "smooth", block: "center" });
+    if (messageEl != null) messageEl.scrollIntoView({ behavior: "instant", block: "center" });
   }
 }
 
@@ -275,6 +274,12 @@ const actions: Partial<ActionMapImplementation<"common">> & ActionMapImplementat
       throw new Error(":Incomplete: start thread");
     },
   },
+  "message.handle.edit": {
+    isEnabled: () => false, // not yet supported
+    action: (action, context) => {
+      throw new Error(":Incomplete: edit message");
+    },
+  },
   "message.handle.pin": {
     isChecked: (action, context) => {
       const { message } = getMessageFromContext(context);
@@ -295,7 +300,11 @@ defineExpose<ViewExposed>({ self, id, variants: [Variant.PRIMARY, Variant.COMPAC
 <template>
   <div class="flex h-full w-full flex-col">
     <!-- Header -->
-    <div v-if="variant != Variant.COMPACT" class="w-full border-b border-gray-200">
+    <div
+      v-if="variant != Variant.COMPACT"
+      class="w-full border-b border-gray-200"
+      :style="{ height: HEADER_HEIGHT + 'px' }"
+    >
       <div
         class="mx-auto flex w-full max-w-full flex-row items-center gap-x-3 pl-4 pr-5"
         :style="{ height: HEADER_HEIGHT + 'px', maxWidth: MAX_WIDTH + 'px' }"
@@ -349,7 +358,7 @@ defineExpose<ViewExposed>({ self, id, variants: [Variant.PRIMARY, Variant.COMPAC
             <i class="fas fa-chevron-down" />
           </button>
         </div>
-        <!-- Archive / delete -->
+        <!-- Archive / Delete -->
         <button
           v-if="thread != null"
           v-tooltip="{ title: 'Archive', small: true }"
@@ -461,6 +470,7 @@ defineExpose<ViewExposed>({ self, id, variants: [Variant.PRIMARY, Variant.COMPAC
                 <!-- Author Name / Time -->
                 <span class="truncate font-medium">{{ author.name }}</span>
                 <span class="ml-1.5 text-xs text-gray-400">{{ formatAbsoluteDate(message.createdAt!) }}</span>
+                <i v-if="message.isPinned" class="ml-1.5 text-xs fas fa-thumbtack text-gray-400" />
               </div>
               <!-- Reply to -->
               <div
@@ -508,7 +518,7 @@ defineExpose<ViewExposed>({ self, id, variants: [Variant.PRIMARY, Variant.COMPAC
                       placement: 'bottom-left',
                       offset: 'referenceWidth',
                       items: menuActionsLike(['message.*', 'common.edit.delete'], {
-                        context: { ...context, triggerNode: nodePtr },
+                        context: { ...context, triggerNode: message },
                       }),
                     })
                   "

@@ -305,9 +305,7 @@ class Transaction:
                 connection = await self._get_engine_connection(engine)
                 log.trace("transaction.commit.engine", engine=engine, flushed=len(pending_edits))
                 accepted_revisions = await connection.commit(pending_edits)
-                assert len(accepted_revisions or ()) == len(
-                    pending_edits
-                ), f"accepted revision mismatch: {accepted_revisions}"
+                assert len(accepted_revisions or ()) == len(pending_edits), "revisions mismatch"
                 for edit, new_revision in zip(pending_edits, cast(list[int], accepted_revisions)):
                     edit.revision = new_revision
                 if len(pending_edits) > 0:

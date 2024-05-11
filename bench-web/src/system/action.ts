@@ -146,6 +146,7 @@ export const ACTION_BUILTIN_IDS = [
   // message
   "message.handle.reply",
   "message.handle.startThread",
+  "message.handle.edit",
   "message.handle.pin",
   // text
   "text.format.bold",
@@ -828,6 +829,11 @@ declareActionMap<"message">({
     title: "Start Thread Here",
     text: "Start a message thread about this",
     shortcuts: ["mod+enter"],
+  },
+  "message.handle.edit": {
+    icon: "fas fa-pencil",
+    title: "Edit",
+    text: "Edit this message",
   },
   "message.handle.pin": {
     type: "toggle",

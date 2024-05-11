@@ -20,6 +20,7 @@ export const VIEW_EMITS = {
   apply: null,
   cancel: null,
   ["update:modelValue"]: null,
+  ["update:self"]: null,
 };
 
 export function viewEmits(): Partial<typeof VIEW_EMITS> {
