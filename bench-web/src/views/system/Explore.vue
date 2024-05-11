@@ -252,8 +252,12 @@ const actions: Partial<ActionMapImplementation<"common">> = {
     action: () =>
       canvas.goToNode(focusedNode.value!, { where: "nextFrameRoot", skipSelf: props.type == ViewType.OUTLINE }),
   },
-  // <!-- TODO :Incomplete: EXPLORE/Outline actions -->
+  // <!-- TODO :Incomplete: Explorer/Outline actions -->
   // common.edit.rename, ...
+  "common.edit.archive": {
+    isEnabled: hasFocusedNode,
+    action: () => pkgConnection.tx.archive(focusedNode.value!),
+  },
   "common.edit.delete": {
     isEnabled: hasFocusedNode,
     action: () => pkgConnection.tx.softDelete(focusedNode.value!),
@@ -318,6 +322,7 @@ defineExpose<ViewExposed>({ self, actions, focus });
                   'common.edit.morph',
                   'common.edit.move',
                   'common.edit.duplicate',
+                  'common.edit.archive',
                   'common.edit.delete',
                 ],
                 { context },
@@ -326,7 +331,7 @@ defineExpose<ViewExposed>({ self, actions, focus });
             };
           }
         "
-        class="group relative mx-1 mt-[1px] flex flex-row items-center rounded border py-0.5 hover:cursor-pointer hover:text-primary-900 data-[dragging=true]:opacity-50"
+        class="group relative mx-1 mt-[1px] flex flex-row items-center rounded border py-0.5 hover:cursor-pointer hover:bg-gray-100 hover:text-primary-900 data-[dragging=true]:opacity-50"
         :class="[
           focusedNode?.id == node.id && isFocusAbsolute ? 'border-orange-900' : 'border-transparent',
           isFocusedAbsolute(node) ? 'bg-gray-100' : '',
@@ -378,7 +383,7 @@ defineExpose<ViewExposed>({ self, actions, focus });
         <div class="ml-auto flex flex-row gap-x-1 pl-3">
           <!-- Create inside -->
           <button
-            v-if="isNode(node, NodeType.BLOCK)"
+            v-if="type == ViewType.EXPLORE && isNode(node, NodeType.BLOCK)"
             role="button"
             class="text-gray-400 opacity-0 hover:text-primary-900 group-hover:opacity-100"
             @click.stop="

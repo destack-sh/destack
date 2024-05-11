@@ -12,18 +12,19 @@ import {
   BenchType,
   NodeReferenceData,
   type AnyNodeData,
+  IconData,
 } from "@/proto/wire";
 import { describeNode, isNode, toNodeReference, type TypedNodeReferenceData } from "@/proto/wiring";
-import { makeViewId, viewEmits, type ViewComponent, type ViewExposed } from "@/views/common";
-import { canvas, inspectionPtr, pkg } from "@/system/space";
+import { makeViewId, viewEmits, type FocusAnchor, type ViewComponent, type ViewExposed } from "@/views/common";
+import { canvas, inspectionPtr, pkg, pkgGraph as localPkgGraph } from "@/system/space";
 import { computed, ref, toRef, watch, type Ref } from "vue";
 import { findExistingConnectionOrError, useExistingConnection } from "@/system/connection";
 import Scroll from "@/views/containers/Scroll.vue";
 import { ScrollbarWidth } from "@/utils/layout";
 import { useElementSize } from "@vueuse/core";
 import Text from "@/views/content/Text.vue";
-import { IconInline, getNodeIcon, makeIcon } from "@/system/icon";
-import { emptyText, isTextEmpty } from "@/system/text";
+import { DEFAULT_USER_ICON, IconInline, getNodeIcon, makeIcon } from "@/system/icon";
+import { emptyText, isTextEmpty, trimText } from "@/system/text";
 import { formatAbsoluteDate, tsToDt } from "@/utils/time";
 import { user } from "@/system/user";
 import { DateTime } from "luxon";
@@ -34,12 +35,15 @@ import { graphIndex } from "@/system/search";
 import { computedValue } from "@/utils/ref";
 import type { ActionContext, ActionMapImplementation } from "@/system/action";
 import Inaccessible from "@/views/builtins/Inaccessible.vue";
+import { makeSelection } from "@/views/canvas";
+import { getElement } from "@/utils/element";
 
 const HEADER_HEIGHT = 40;
 const MAX_WIDTH = 800;
 const MIN_INPUT_HEIGHT = 40;
 const MIN_GUTTER_WIDTH = 12;
 const ASIDE_WIDTH = 36;
+const HANDLE_WIDTH = 6;
 
 const props = defineProps<
   { self?: TypedNodeReferenceData<NodeType.VIEW>; size: Required<Pick<BoxData, "width" | "height">> } & Partial<
@@ -55,6 +59,7 @@ const inputRef: Ref<HTMLDivElement | null> = ref(null);
 const inputSize = useElementSize(inputRef);
 const textRef: Ref<InstanceType<typeof Text> | null> = ref(null);
 const scrollRef: Ref<InstanceType<typeof Scroll> | null> = ref(null);
+const messageRefs: Ref<Record<string, HTMLElement | null>> = ref({});
 const focusedNodePtr = computedValue(() => props.focus?.nodesPtr[0]);
 
 // NOTE: threadPtr can point to a message node if we already have a thread or to any node to create a thread on
@@ -71,17 +76,27 @@ const context = computed(() => {
   else return ancestors.value.find((n) => n.metatype != ObjectType.MESSAGE);
 });
 
+function getAuthor(message: MessageData): { name: string; icon: IconData } {
+  // NOTE :Broken: load correct name/icon for message author
+  if (message.createdByPtr?.id == user.value?.id)
+    return { name: user.value!.name, icon: user.value!.icon ?? DEFAULT_USER_ICON };
+  else return { name: "Bench", icon: makeIcon("fas fa-robot") };
+}
+
 type RenderedMessage = {
   message: MessageData;
+  author: { name: string; icon: IconData };
   isContinued: boolean;
   isContinuationBreak: boolean;
-  replyTo: MessageData | null;
+  replyToMessage: MessageData | null;
+  replyToAuthor: { name: string; icon: IconData } | null;
 };
 const renderedMessages = computed(() => {
   // collapse continued messages if they are from same author within 5 minutes (and not a reply)
   const result: RenderedMessage[] = [];
   for (let i = 0; i < messages.value.length; i++) {
     const message = messages.value[i];
+    const author = getAuthor(message);
     const lastMessage = result[result.length - 1]?.message;
     const isContinued =
       lastMessage != null &&
@@ -91,8 +106,9 @@ const renderedMessages = computed(() => {
     const isContinuationBreak = !isContinued && lastMessage != null;
     // NOTE: replyTo message is technically not reactive in its own
     //  but 1) replies should be to messages in the thread, so that's auto reactive and 2) it's probably fine?
-    const replyTo = message.replyToPtr != null ? (pkgGraph.get(message.replyToPtr) as MessageData | null) : null;
-    result.push({ message, isContinued, isContinuationBreak, replyTo });
+    const replyToMessage = message.replyToPtr != null ? (pkgGraph.get(message.replyToPtr) as MessageData | null) : null;
+    const replyToAuthor = replyToMessage != null ? getAuthor(replyToMessage) : null;
+    result.push({ message, author, isContinued, isContinuationBreak, replyToMessage, replyToAuthor });
   }
   return result;
 });
@@ -139,7 +155,7 @@ function createNewThread(parent: AnyNodeData | null, title: string = generateRan
 function submit() {
   if (isTextEmpty(text.value)) return;
 
-  if (nodePtr.value == null || !isNode(nodePtr.value, NodeType.MESSAGE)) {
+  if (nodePtr.value == null || !isNode(node.value, NodeType.MESSAGE)) {
     // create new thread with message inside (in node or default to package)
     const parent = isNode(nodePtr.value, NodeType.MESSAGE) ? nodePtr.value : null;
     const thread = createNewThread(parent);
@@ -170,9 +186,26 @@ function submit() {
   text.value = emptyText();
 }
 
-function mapToNode(element: HTMLElement | ViewComponent): NodeReferenceData | null {
-  // nocheckin: Chat.mapToNode to focus messages (note that this is a ridealong view)
+function mapToNode(element: HTMLElement | SVGElement | ViewComponent): NodeReferenceData | null {
+  // find 'data-message-id' attribute
+  let el = getElement(element);
+  while (el != null) {
+    const id = el.getAttribute("data-message-id");
+    if (id != null) {
+      const message = pkgGraph.get({ id, type: NodeType.MESSAGE });
+      if (message != null) return toNodeReference(message);
+    }
+    el = el.parentElement;
+  }
   return null;
+}
+
+function focus(anchor: NodeReferenceData) {
+  if (anchor.type != NodeType.MESSAGE) throw new Error(`can't focus non-message: ${describeNode(anchor)}`);
+  const selfView = spaceGraph.getOrError(self.value!);
+  spaceConnection.tx.updateDebounced(selfView, { focus: makeSelection([anchor]) });
+  const messageEl = messageRefs.value[anchor.id!];
+  if (messageEl != null) messageEl.scrollIntoView({ behavior: "smooth", block: "center" });
 }
 
 // actions
@@ -185,11 +218,32 @@ const getMessageFromContext = (ctx: ActionContext | undefined): { message: Messa
 };
 const actions: Partial<ActionMapImplementation<"common">> & ActionMapImplementation<"message"> = {
   // common
+  "common.edit.archive": {
+    action: (action, context) => {
+      const { message } = getMessageFromContext(context);
+      if (message == null) return false;
+      pkgConnection.tx.archive(message);
+    },
+  },
   "common.edit.delete": {
     action: (action, context) => {
       const { message } = getMessageFromContext(context);
       if (message == null) return false;
       pkgConnection.tx.softDelete(message);
+    },
+  },
+  "common.navigate.up": {
+    action: (action, context) => {
+      const { message, idx } = getMessageFromContext(context);
+      if (message == null) return false;
+      if (idx > 0) focus(toNodeReference(messages.value[idx - 1]));
+    },
+  },
+  "common.navigate.down": {
+    action: (action, context) => {
+      const { message, idx } = getMessageFromContext(context);
+      if (message == null) return false;
+      if (idx < messages.value.length - 1) focus(toNodeReference(messages.value[idx + 1]));
     },
   },
   // message
@@ -256,11 +310,11 @@ defineExpose<ViewExposed>({ self, id, variants: [Variant.PRIMARY, Variant.COMPAC
                 component: ViewType.PICKER,
                 placement: 'bottom-left',
                 props: {
-                  placeholder: 'Select Thread',
-                  modelValue: nodePtr,
                   valueType: makeTypeInfo({ benchType: BenchType.MESSAGE }),
+                  modelValue: nodePtr,
+                  placeholder: 'Select Thread',
                   customIndex: graphIndex({
-                    graph: pkgGraph,
+                    graph: nodePtr == null ? localPkgGraph : pkgGraph,
                     metatypes: [NodeType.MESSAGE],
                     roots: [pkg!],
                     filter: (node) => (node as MessageData).parentPtr!.type != NodeType.MESSAGE,
@@ -280,6 +334,21 @@ defineExpose<ViewExposed>({ self, id, variants: [Variant.PRIMARY, Variant.COMPAC
             <i class="fas fa-chevron-down" />
           </button>
         </div>
+        <!-- Archive / delete -->
+        <button
+          v-tooltip="{ title: 'Archive', small: true }"
+          class="text-gray-400 enabled:hover:text-primary-900"
+          :disabled="thread == null"
+          @click="
+            () => {
+              pkgConnection.tx.archive(thread!);
+              const selfView = spaceGraph.getOrError(self!);
+              spaceConnection.tx.updateDebounced(selfView, { nodePtr: undefined });
+            }
+          "
+        >
+          <i class="fas fa-archive w-5 text-center" />
+        </button>
         <!-- Context (non-message parent node) -->
         <div class="ml-auto flex-shrink-0">
           <IconInline
@@ -308,9 +377,20 @@ defineExpose<ViewExposed>({ self, id, variants: [Variant.PRIMARY, Variant.COMPAC
     >
       <!-- Messages -->
       <div class="my-2">
-        <template v-for="{ message, isContinued, isContinuationBreak } in renderedMessages" :key="message.id">
+        <template
+          v-for="{
+            message,
+            author,
+            isContinued,
+            isContinuationBreak,
+            replyToMessage,
+            replyToAuthor,
+          } in renderedMessages"
+          :key="message.id"
+        >
           <!-- Message -->
           <div
+            :ref="(ref?: any) => (ref != null ? (messageRefs[message.id] = ref) : delete messageRefs[message.id])"
             v-contextmenu="
               (context: PopoverContext): PopoverInfo => ({
                 kind: 'menu',
@@ -321,13 +401,15 @@ defineExpose<ViewExposed>({ self, id, variants: [Variant.PRIMARY, Variant.COMPAC
                 }),
               })
             "
-            class="group/message relative mx-auto flex max-w-full flex-row px-2 py-0.5"
+            :data-message-id="message.id"
+            class="group/message relative mx-auto flex max-w-full flex-row rounded px-2 py-0.5"
             :class="[isContinuationBreak ? 'mt-2' : '', replyingTo?.id == message.id ? 'bg-secondary-100' : '']"
             :style="{ width: 'calc(100% - ' + MIN_GUTTER_WIDTH * 2 + 'px)', maxWidth: MAX_WIDTH + 'px' }"
           >
             <!-- Handle -->
             <div
-              class="mr-2 w-2 rounded transition-colors duration-75"
+              class="mr-2 rounded transition-colors duration-75"
+              :style="{ width: HANDLE_WIDTH + 'px' }"
               :class="
                 message.id == inspectionPtr?.id
                   ? 'bg-primary-900'
@@ -345,14 +427,7 @@ defineExpose<ViewExposed>({ self, id, variants: [Variant.PRIMARY, Variant.COMPAC
               class="mr-3 mt-0.5 h-fit flex-shrink-0 rounded border border-gray-200 bg-gray-100 py-1.5 text-center text-gray-700"
               :style="{ width: ASIDE_WIDTH + 'px' }"
             >
-              <!-- TODO :Broken: load correct icon for User/Block -->
-              <IconInline
-                v-bind="
-                  message.createdByPtr?.id == user?.id
-                    ? user!.icon ?? makeIcon('fas fa-user-tie')
-                    : makeIcon('fas fa-robot')
-                "
-              />
+              <IconInline v-bind="author.icon" />
             </div>
             <!-- Time (if continued) -->
             <div v-else class="mr-3.5 flex-shrink-0 px-0.5" :style="{ width: ASIDE_WIDTH + 'px' }">
@@ -367,10 +442,25 @@ defineExpose<ViewExposed>({ self, id, variants: [Variant.PRIMARY, Variant.COMPAC
               <!-- Header -->
               <div v-if="!isContinued" class="mb-0.5 max-w-full gap-x-0.5">
                 <!-- Author Name / Time -->
-                <span class="truncate font-medium text-gray-900">
-                  {{ message.createdByPtr?.id == user?.id ? user!.name : "Bench" }}
-                </span>
+                <span class="truncate font-medium">{{ author.name }}</span>
                 <span class="ml-1.5 text-xs text-gray-400">{{ formatAbsoluteDate(message.createdAt!) }}</span>
+              </div>
+              <!-- Reply to -->
+              <div
+                v-if="replyToMessage"
+                role="button"
+                class="my-0.5 rounded border-secondary-200 bg-gray-100 px-2 py-1 hover:cursor-pointer"
+                :style="{ borderLeftWidth: HANDLE_WIDTH + 'px' }"
+                @click="focus(toNodeReference(replyToMessage))"
+              >
+                <span class="truncate font-medium text-secondary-900">{{ replyToAuthor!.name }}</span>
+                <span class="ml-1.5 text-xs text-gray-400">{{ formatAbsoluteDate(replyToMessage.createdAt!) }}</span>
+                <Text
+                  v-if="replyToMessage.text"
+                  class="max-h-6 max-w-full select-none truncate hover:cursor-pointer"
+                  :model-value="trimText(replyToMessage.text, 1)"
+                  :variant="Variant.STEALTH"
+                />
               </div>
               <!-- Content -->
               <Text :model-value="message.text" :variant="Variant.STEALTH" />
@@ -426,7 +516,6 @@ defineExpose<ViewExposed>({ self, id, variants: [Variant.PRIMARY, Variant.COMPAC
     <!-- Draft area -->
     <div ref="inputRef" class="group mt-auto" @click="textRef?.focus">
       <!-- Replying to -->
-      <!-- nocheckin: replying to -->
       <div
         v-if="replyingTo"
         class="mx-auto mt-2 flex flex-row rounded-t bg-secondary-100 px-5 py-1.5"
@@ -434,7 +523,7 @@ defineExpose<ViewExposed>({ self, id, variants: [Variant.PRIMARY, Variant.COMPAC
       >
         <span class="text-gray-700"
           >Replying to
-          <span class="font-medium text-gray-900">???</span>
+          <span class="font-medium text-gray-900">{{ getAuthor(replyingTo).name }}</span>
         </span>
         <button class="ml-auto text-gray-400 hover:text-primary-900" @click="replyingTo = null">
           <i class="fas fa-xmark w-5 text-center" />

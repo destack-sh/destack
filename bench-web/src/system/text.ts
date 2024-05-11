@@ -132,6 +132,12 @@ export function emptyText(): TextData {
   return { metatype: ObjectType.TEXT, id: newStructId(), setProperties: [], lines: [] };
 }
 
+export function trimText(text: TextData, numLines: number): TextData {
+  if (text.lines.length <= numLines) return text;
+  const trimmed = { ...text, lines: text.lines.slice(0, numLines) };
+  return trimmed;
+}
+
 export function isTextEmpty(text: TextData | null | undefined): boolean {
   return (
     text == null ||
