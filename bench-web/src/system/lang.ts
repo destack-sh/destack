@@ -34,6 +34,7 @@ import {
   type PropertyInfo,
   TypeKind,
   PackageData,
+  Anchor,
 } from "@/proto/wire";
 import {
   describeNode,
@@ -633,7 +634,6 @@ export const EXPOSED_STRUCT_TYPES = [
   // text
   StructType.TEXT,
 ];
-
 export const EXPOSED_PRIMITIVE_TYPES = [
   PrimitiveType.BOOLEAN,
   PrimitiveType.INT64,
@@ -644,12 +644,20 @@ export const EXPOSED_PRIMITIVE_TYPES = [
   PrimitiveType.UUID,
   PrimitiveType.DATETIME,
 ];
+export const EXPOSED_ANCHORS = [
+  // the rest are exposed too but as additional flags (start/end)
+  Anchor.LEFT,
+  Anchor.TOP,
+  Anchor.RIGHT,
+  Anchor.BOTTOM,
+];
 export const FILTERED_ENUMS: Partial<Record<EnumType, number[]>> = {
   [EnumType.BLOCK_TYPE]: EXPOSED_BLOCK_TYPES,
   [EnumType.STRUCT_TYPE]: EXPOSED_STRUCT_TYPES,
   [EnumType.OBJECT_TYPE]: [...NODE_TYPES, ...EXPOSED_STRUCT_TYPES],
   [EnumType.BENCH_TYPE]: [...NODE_TYPES, ...EXPOSED_STRUCT_TYPES, ...ENUM_TYPES],
   [EnumType.PRIMITIVE_TYPE]: EXPOSED_PRIMITIVE_TYPES,
+  [EnumType.ANCHOR]: EXPOSED_ANCHORS,
 };
 export const ENUM_TITLE_BY_TYPE: Partial<Record<EnumType, Record<any, string>>> = {
   [EnumType.PRIMITIVE_TYPE]: {

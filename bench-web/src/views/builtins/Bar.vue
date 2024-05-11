@@ -1,5 +1,5 @@
 <script lang="ts" setup>
-import { NodeType } from "@/proto/wire";
+import { Alignment, Anchor, NodeType, Orientation } from "@/proto/wire";
 import { DECLARED_ACTIONS_BY_ID, fireActionById, type Action, type ActionBuiltinId } from "@/system/action";
 import { isDeveloperMode } from "@/system/client";
 import { DEFAULT_USER_ICON, ICON_BY_NODE_TYPE, IconInline, makeIcon } from "@/system/icon";
@@ -10,13 +10,28 @@ import { menuActionsLike, menuItemFromAction, type MenuItem } from "@/utils/menu
 import Button from "@/views/controls/Button.vue";
 import Menu from "@/views/builtins/Menu.vue";
 import Popover from "@/views/builtins/Popover.vue";
-import { computed, type Ref } from "vue";
+import { computed, ref, type Ref } from "vue";
 import ConnectionDebug from "./ConnectionDebug.vue";
 import { tooltipFromAction } from "@/utils/tooltip";
+import type { FloatingPlacement } from "@/utils/floating";
+import { useElementSize } from "@vueuse/core";
 
 const props = defineProps<{
-  box: { x: number; y: number; width: number; height: number };
+  anchor: Anchor;
+  orientation: Orientation;
 }>();
+
+const barRef = ref<HTMLElement | null>(null);
+const barSize = useElementSize(barRef);
+const dockRef = ref<HTMLElement | null>(null);
+const dockSize = useElementSize(dockRef);
+const floatingPlacement: Ref<FloatingPlacement> = computed(() => {
+  if (props.anchor == Anchor.LEFT) return "right";
+  else if (props.anchor == Anchor.TOP) return "bottom";
+  else if (props.anchor == Anchor.RIGHT) return "left";
+  else if (props.anchor == Anchor.BOTTOM) return "top";
+  else return "bottom";
+});
 
 const BENCH_MENU_ITEMS = computed(() => {
   const items: MenuItem[] = [
@@ -128,13 +143,18 @@ const dockActions: Ref<Action[]> = computed(
 );
 </script>
 <template>
-  <div class="flex w-full flex-col items-center gap-y-1.5 bg-white text-sm text-gray-900" data-outside-view="true">
+  <div
+    ref="barRef"
+    class="flex w-full gap-1.5 text-sm text-gray-900"
+    :class="orientation == Orientation.HORIZONTAL ? 'flex-row items-center px-0.5' : 'flex-col items-center py-0.5'"
+    data-outside-view="true"
+  >
     <!-- Bench -->
-    <Popover v-if="bench" placement="right" :reference-margin="4" :container-margin="4">
+    <Popover v-if="bench" :placement="floatingPlacement" :reference-margin="4" :container-margin="4">
       <template #trigger="{ toggle, isOpen }">
         <button
           class="flex h-[30px] w-full select-none flex-row items-center rounded px-2.5 py-1 text-gray-800 hover:bg-gray-100 hover:text-primary-900"
-          :class="[isOpen ? ' bg-gray-100' : ' bg-white']"
+          :class="[isOpen ? ' bg-gray-100' : '']"
           @click="toggle"
         >
           <i class="fas fa-fort" />
@@ -148,7 +168,7 @@ const dockActions: Ref<Action[]> = computed(
           <template v-if="bench" #header>
             <div class="flex flex-row px-2.5 pb-2 pt-1.5">
               <div class="mr-2 w-10 rounded border border-gray-300 bg-primary-300 py-0.5 text-center text-lg">
-                <IconInline v-if="bench.icon" class="text-gray-700" v-bind="bench.icon" />
+                <IconInline v-if="bench.icon" class="text-gray-800" v-bind="bench.icon" />
               </div>
               <div class="flex flex-col leading-tight">
                 <span class="select-all font-medium">{{ bench?.name ?? "???" }}</span>
@@ -172,18 +192,31 @@ const dockActions: Ref<Action[]> = computed(
     </Popover>
 
     <!-- Dock -->
-    <button
-      v-for="action in dockActions"
-      :key="action.id"
-      v-tooltip="tooltipFromAction(action, 'right')"
-      class="rounded px-2.5 py-1 text-gray-800 hover:bg-gray-100 hover:text-primary-900"
-      @click="fireActionById(action.id)"
+    <div
+      ref="dockRef"
+      class="flex flex-shrink-0 gap-1.5"
+      :class="[orientation == Orientation.HORIZONTAL ? 'absolute flex-row' : 'flex-col']"
+      :style="{
+        left:
+          orientation == Orientation.HORIZONTAL ? barSize.width.value / 2 - dockSize.width.value / 2 + 'px' : 'auto',
+      }"
     >
-      <IconInline class="text-base" v-bind="action.icon" />
-    </button>
+      <button
+        v-for="action in dockActions"
+        :key="action.id"
+        v-tooltip="tooltipFromAction(action, floatingPlacement)"
+        class="rounded px-2.5 py-1 text-gray-800 hover:bg-gray-100 hover:text-primary-900"
+        @click="fireActionById(action.id)"
+      >
+        <IconInline class="text-base" v-bind="action.icon" />
+      </button>
+    </div>
 
     <!-- End -->
-    <div class="mt-auto flex flex-shrink-0 flex-col gap-y-1.5">
+    <div
+      class="flex flex-shrink-0 gap-1.5"
+      :class="[orientation == Orientation.HORIZONTAL ? 'ml-auto flex-row pr-1' : 'mt-auto flex-col pb-1']"
+    >
       <!-- Connection -->
       <ConnectionDebug />
       <!-- Notifications -->
@@ -191,14 +224,14 @@ const dockActions: Ref<Action[]> = computed(
       <!-- User Menu -->
       <template v-if="user">
         <!-- User (logged in) -->
-        <Popover placement="right" :reference-margin="4" :container-margin="4">
+        <Popover :placement="floatingPlacement" :reference-margin="4" :container-margin="4">
           <template #trigger="{ toggle, isOpen }">
             <button
-              class="px-2 py-1 text-base text-gray-900 hover:bg-gray-100 hover:text-primary-900"
+              class="px-2 py-1 text-base text-gray-800 hover:bg-gray-100 hover:text-primary-900"
               :class="[isOpen ? 'bg-gray-100' : '']"
               @click="toggle"
             >
-              <IconInline class="text-gray-700" v-bind="user.icon ?? makeIcon('fa fa-user-circle')" />
+              <IconInline class="" v-bind="user.icon ?? makeIcon('fa fa-user-circle')" />
             </button>
           </template>
           <template #content="{ close }">
@@ -207,7 +240,7 @@ const dockActions: Ref<Action[]> = computed(
               <template #header>
                 <div class="flex flex-row px-2.5 pb-2 pt-1.5">
                   <div class="mr-2 rounded border border-gray-200 bg-gray-100 px-2.5 py-0.5 text-xl">
-                    <IconInline class="text-gray-700" v-bind="user.icon ?? DEFAULT_USER_ICON" />
+                    <IconInline class="text-gray-800" v-bind="user.icon ?? DEFAULT_USER_ICON" />
                   </div>
                   <div class="flex flex-col leading-tight">
                     <span class="select-all font-medium">{{ user.name }}</span>

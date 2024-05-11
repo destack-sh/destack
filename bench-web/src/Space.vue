@@ -1,8 +1,8 @@
 <script lang="ts" setup>
-import { NodeType, Orientation, ViewType } from "@/proto/wire";
+import { Anchor, NodeType, Orientation, ViewType } from "@/proto/wire";
 import { toNodeReference } from "@/proto/wiring";
 import { spacePtr } from "@/system/client";
-import { bench, canvas, spaceConnection, spaceGraph } from "@/system/space";
+import { bench, canvas, space, spaceConnection, spaceGraph } from "@/system/space";
 import { toaster } from "@/system/toast";
 import { keytrap } from "@/utils/keymap";
 import { isDraggingGlobal } from "@/utils/layout";
@@ -20,20 +20,44 @@ import { computed, onBeforeUnmount, ref, watch } from "vue";
 import { makeIcon } from "@/system/icon";
 import { assignSpaceInPackage } from "@/system/space";
 import Button from "@/views/controls/Button.vue";
+import { DEFAULT_BAR_POSITION } from "@/views/canvas";
 
 const BAR_WIDTH = 44;
+const BAR_HEIGHT = 36;
 const spaceRef = ref<HTMLElement | null>(null);
 const barRef = ref<InstanceType<typeof Bar> | null>(null);
 const { width: spaceWidth, height: spaceHeight } = useWindowSize(); // Space must be root element
 const windows = spaceGraph.getChildrenRef(spacePtr, NodeType.VIEW);
 const window = computed(() => windows.value[0]); // assumes at :OneRootWindow for now
 
-const mainBox = computed(() => ({
-  left: BAR_WIDTH,
-  top: 0,
-  width: spaceWidth.value - BAR_WIDTH,
-  height: spaceHeight.value,
+const barPosition = computed(() => space.value?.barPosition ?? DEFAULT_BAR_POSITION);
+const barOrientation = computed(() =>
+  barPosition.value == Anchor.TOP || barPosition.value == Anchor.BOTTOM ? Orientation.HORIZONTAL : Orientation.VERTICAL,
+);
+const barOffset = computed(() => {
+  if (barPosition.value == Anchor.LEFT) return { left: 0, top: 0 };
+  else if (barPosition.value == Anchor.TOP) return { left: 0, top: 0 };
+  else if (barPosition.value == Anchor.RIGHT) return { left: spaceWidth.value - BAR_WIDTH, top: 0 };
+  else if (barPosition.value == Anchor.BOTTOM) return { left: 0, top: spaceHeight.value - BAR_HEIGHT };
+  else return { left: 0, top: 0 };
+});
+const mainOffset = computed(() => {
+  if (barPosition.value == Anchor.LEFT) return { left: BAR_WIDTH, top: 0 };
+  else if (barPosition.value == Anchor.TOP) return { left: 0, top: BAR_HEIGHT };
+  else if (barPosition.value == Anchor.RIGHT) return { left: 0, top: 0 };
+  else if (barPosition.value == Anchor.BOTTOM) return { left: 0, top: 0 };
+  else return { left: 0, top: 0 };
+});
+const mainOffsetStyle = computed(() => ({
+  left: mainOffset.value.left + "px",
+  top: mainOffset.value.top + "px",
 }));
+const mainBox = computed(() => ({
+  ...mainOffset.value,
+  width: spaceWidth.value - (barPosition.value == Anchor.LEFT || barPosition.value == Anchor.RIGHT ? BAR_WIDTH : 0),
+  height: spaceHeight.value - (barPosition.value == Anchor.TOP || barPosition.value == Anchor.BOTTOM ? BAR_HEIGHT : 0),
+}));
+
 const omnibarRef = ref<InstanceType<typeof Omnibar> | null>(null);
 
 // suppress save everywhere
@@ -69,10 +93,11 @@ watch([canvas.focusedViewPtr, bench], () => {
   <!-- Space -->
   <div
     ref="spaceRef"
-    class="scrollbar-none h-full max-h-screen w-full overflow-hidden overscroll-none border-y border-gray-200 bg-gray-100 text-sm"
+    class="scrollbar-none h-full max-h-screen w-full overflow-hidden overscroll-none bg-gray-100 text-sm"
     :class="[
       isDraggingGlobal || hasActivePopover ? 'pointer-events-none select-none' : '',
       IS_IN_ALT_MODE ? 'altmode' : '',
+      barOrientation == Orientation.VERTICAL ? 'border-y border-gray-200' : '',
     ]"
     :style="{ width: spaceWidth + 'px', height: spaceHeight + 'px' }"
     @contextmenu.stop.prevent="() => {} /* suppress generic context menu */"
@@ -80,17 +105,24 @@ watch([canvas.focusedViewPtr, bench], () => {
     <!-- Bar -->
     <Bar
       ref="barRef"
-      class="absolute left-0 top-0 h-full border-x border-gray-200"
-      :style="{ width: BAR_WIDTH + 'px' }"
+      class="absolute border-gray-200"
+      :class="barOrientation == Orientation.VERTICAL ? 'border-x bg-white' : 'border-y bg-white'"
+      :anchor="barPosition"
+      :orientation="barOrientation"
       :space-graph="spaceGraph"
       :space-connection="spaceConnection"
-      :box="{ x: 0, y: 0, width: BAR_WIDTH, height: spaceHeight }"
+      :style="{
+        left: barOffset.left + 'px',
+        top: barOffset.top + 'px',
+        width: (barOrientation == Orientation.HORIZONTAL ? spaceWidth : BAR_WIDTH) + 'px',
+        height: (barOrientation == Orientation.HORIZONTAL ? BAR_HEIGHT : spaceHeight) + 'px',
+      }"
     />
     <!-- Space root (:OneRootWindow) -->
     <Split
       v-if="window"
-      class="top-0"
-      :style="{ left: BAR_WIDTH + 'px' }"
+      class="absolute"
+      :style="mainOffsetStyle"
       :type="ViewType.WINDOW"
       :self="toNodeReference(window)"
       :size="mainBox"
@@ -107,7 +139,7 @@ watch([canvas.focusedViewPtr, bench], () => {
       :style="{
         width: mainBox.width + 'px',
         height: mainBox.height + 'px',
-        left: BAR_WIDTH + 'px',
+        ...mainOffsetStyle,
       }"
     >
       <div class="flex h-full flex-col items-center justify-center">
@@ -117,11 +149,11 @@ watch([canvas.focusedViewPtr, bench], () => {
     <!-- Does not have a space (not signed in or space is weird) -->
     <div
       v-else
-      class="absolute bg-white flex flex-col justify-center text-center"
+      class="absolute flex flex-col justify-center bg-white text-center"
       :style="{
         width: mainBox.width + 'px',
         height: mainBox.height + 'px',
-        left: BAR_WIDTH + 'px',
+        ...mainOffsetStyle,
       }"
     >
       <div v-if="bench" class="flex w-fit flex-col gap-y-2 self-center">
@@ -133,7 +165,8 @@ watch([canvas.focusedViewPtr, bench], () => {
         <Button name="fix" :icon="makeIcon('fas fa-plus')" title="Create Space" @click="assignSpaceInPackage" />
       </div>
       <div v-else>
-        <h2 class="text-2xl font-bold mb-1.5">Bench</h2>
+        <!-- Not logged in, not on a space (general landing page should go here) -->
+        <h2 class="mb-1.5 text-2xl font-bold">Bench</h2>
         <Button name="LogIn" :icon="makeIcon('fas fa-arrow-right-from-bracket')" title="Log In" />
       </div>
     </div>

@@ -22,6 +22,7 @@ import {
   LogLevel,
   Alignment,
   StepType,
+  Anchor,
 } from "@/proto/wire";
 import type { FunctionalComponent } from "vue";
 // file is generated with:
@@ -339,6 +340,12 @@ export const ICON_BY_ALIGNMENT: Partial<Record<Alignment, IconData>> = _makeIcon
   [Alignment.END]: "fas fa-align-right",
   [Alignment.SPACE_BETWEEN]: "fas fa-distribute-spacing-horizontal",
 });
+export const ICON_BY_ANCHOR: Partial<Record<Anchor, IconData>> = _makeIcons({
+  [Anchor.LEFT]: "fas fa-align-left",
+  [Anchor.TOP]: "fas fa-align-top",
+  [Anchor.RIGHT]: "fas fa-align-right",
+  [Anchor.BOTTOM]: "fas fa-align-bottom",
+});
 
 export const ICON_BY_VISIBILITY: Partial<Record<Visibility, IconData>> = _makeIcons({
   [Visibility.PAGE]: "fas fa-memo-pad",
@@ -406,6 +413,7 @@ export const ENUM_ICONS_BY_TYPE: Partial<Record<EnumType, Record<any, IconData>>
   [EnumType.BLOCK_TYPE]: ICON_BY_BLOCK_TYPE,
   [EnumType.VIEW_TYPE]: ICON_BY_VIEW_TYPE,
   [EnumType.ALIGNMENT]: ICON_BY_ALIGNMENT,
+  [EnumType.ANCHOR]: ICON_BY_ANCHOR,
   [EnumType.VISIBILITY]: ICON_BY_VISIBILITY,
   [EnumType.PRIMITIVE_TYPE]: ICON_BY_PRIMITIVE_TYPE,
   [EnumType.FORMAT_HINT]: ICON_BY_FORMAT_HINT,

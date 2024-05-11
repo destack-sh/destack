@@ -1,4 +1,5 @@
 import {
+  Anchor,
   BlockData,
   BlockType,
   EnumType,
@@ -14,18 +15,24 @@ import {
 import { describeNode, isNode, toNodeReference, type AnyNodeReferenceData } from "@/proto/wiring";
 import { isDeveloperMode, packagePtr } from "@/system/client";
 import { makeIcon } from "@/system/icon";
-import { getRandomEnumOption } from "@/system/lang";
+import { EXPOSED_ANCHORS, getRandomEnumOption } from "@/system/lang";
 import { canvas, hasLocalBench, inspectionPtr, pkg, pkgConnection, pkgGraph, space } from "@/system/space";
 import { toaster } from "@/system/toast";
 import { getAllTransactionBuffers } from "@/system/transaction";
 import { generateOrderKey } from "@/utils/fractional";
-import { getRandomEnum, type FilterPrefix } from "@/utils/functools";
+import { type FilterPrefix } from "@/utils/functools";
 import { DISCORD_URL, IS_DEBUG } from "@/utils/globals";
 import { keytrap, type KeySignature } from "@/utils/keymap";
 import { log } from "@/utils/log";
 import { generateRandomName } from "@/utils/naming";
 import { Casing, toCasing } from "@/utils/string";
-import { clearCanvas, collectViewComponentsUp, setupDefaultCanvas, setupEmptyCanvas } from "@/views/canvas";
+import {
+  DEFAULT_BAR_POSITION,
+  clearCanvas,
+  collectViewComponentsUp,
+  setupDefaultCanvas,
+  setupEmptyCanvas,
+} from "@/views/canvas";
 import type { ViewComponent } from "@/views/common";
 import { useKeyModifier } from "@vueuse/core";
 import {
@@ -179,6 +186,7 @@ export const ACTION_BUILTIN_IDS = [
   "view.layout.pinSplit",
   "view.canvas.resetDefault",
   "view.canvas.resetEmpty",
+  "view.canvas.rotateBarPosition",
   // user
   "user.auth.signup",
   "user.auth.login",
@@ -1032,6 +1040,19 @@ contributeActionMap<"view">({
       const tx = canvas.txFactory();
       clearCanvas(tx, canvas.graph, space.value);
       setupDefaultCanvas(tx, space.value);
+    },
+  },
+  "view.canvas.rotateBarPosition": {
+    isEnabled: hasLocalBench,
+    title: "Rotate the Bar",
+    text: "Rotate the bar position",
+    icon: "fas fa-rotate",
+    action: () => {
+      if (space.value == null) throw new Error("no space");
+      const tx = canvas.txFactory();
+      const barPosition = space.value.barPosition ?? DEFAULT_BAR_POSITION;
+      const nextBarPosition = EXPOSED_ANCHORS[(EXPOSED_ANCHORS.indexOf(barPosition) + 1) % EXPOSED_ANCHORS.length];
+      tx.update(space.value, { barPosition: nextBarPosition });
     },
   },
 });
