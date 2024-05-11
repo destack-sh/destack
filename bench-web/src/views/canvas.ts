@@ -95,7 +95,7 @@ export function isIdentifiedViewComponent(
   return (component as any).exposed?.self?.value != null;
 }
 
-function isViewComponentIn(component: ViewComponent, viewTypes: Set<ViewType>): boolean {
+export function isViewComponentIn(component: ViewComponent, viewTypes: Set<ViewType>): boolean {
   const componentType = getVueComponentType(component);
   const viewType = getViewTypeByComponentName(componentType);
   if (viewType == null) throw new Error(`no view type for component: ${componentType}`);
@@ -275,6 +275,7 @@ export class ViewCanvas {
   /** Updates our internal focus state in response to a browser event */
   private onComponentFocused(element: ViewComponent | HTMLElement | null) {
     const component = element instanceof HTMLElement ? findViewComponentUp(element) : element;
+    if (this.focusedViewComponent.value === component) return;
 
     // update component focus state
     if (component == null) {

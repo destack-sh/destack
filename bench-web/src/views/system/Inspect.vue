@@ -23,7 +23,7 @@ import { computed, toRef } from "vue";
 
 const MIN_WIDTH = 320;
 const MAX_WIDTH = 800;
-const HEADER_HEIGHT = 40;
+const HEADER_HEIGHT = 36;
 
 const props = defineProps<
   { self: TypedNodeReferenceData<NodeType.VIEW>; size: Required<Pick<BoxData, "width" | "height">> } & Pick<

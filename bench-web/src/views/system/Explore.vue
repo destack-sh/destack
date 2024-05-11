@@ -137,7 +137,7 @@ function isFocusedAbsolute(node: { id?: string }): boolean {
 }
 
 const isFocusAbsolute = canvas.isFocusedAbsoluteRef(self);
-function focus(anchor: "next" | "previous" | number | FocusAnchor | NodeReferenceData): void {
+function focus(anchor?: "next" | "previous" | number | FocusAnchor | NodeReferenceData): void {
   let toFocus: NodeTreeItem<any> | null = null;
   if (anchor == "top") {
     toFocus = expandedItems.value[0];
