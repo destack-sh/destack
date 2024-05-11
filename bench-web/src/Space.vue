@@ -17,12 +17,11 @@ import Split from "@/views/containers/Split.vue";
 import { IS_IN_ALT_MODE } from "@/system/action";
 import { useTitle, useWindowSize } from "@vueuse/core";
 import { computed, onBeforeUnmount, ref, watch } from "vue";
-import Button from "@/views/controls/Button.vue";
 import { makeIcon } from "@/system/icon";
 import { assignSpaceInPackage } from "@/system/space";
+import Button from "@/views/controls/Button.vue";
 
-const BAR_HEIGHT = 42;
-const BAR_OFFSET = 0;
+const BAR_WIDTH = 44;
 const spaceRef = ref<HTMLElement | null>(null);
 const barRef = ref<InstanceType<typeof Bar> | null>(null);
 const { width: spaceWidth, height: spaceHeight } = useWindowSize(); // Space must be root element
@@ -30,10 +29,10 @@ const windows = spaceGraph.getChildrenRef(spacePtr, NodeType.VIEW);
 const window = computed(() => windows.value[0]); // assumes at :OneRootWindow for now
 
 const mainBox = computed(() => ({
-  left: 0,
-  top: BAR_HEIGHT,
-  width: spaceWidth.value,
-  height: spaceHeight.value - BAR_HEIGHT - BAR_OFFSET,
+  left: BAR_WIDTH,
+  top: 0,
+  width: spaceWidth.value - BAR_WIDTH,
+  height: spaceHeight.value,
 }));
 const omnibarRef = ref<InstanceType<typeof Omnibar> | null>(null);
 
@@ -70,7 +69,7 @@ watch([canvas.focusedViewPtr, bench], () => {
   <!-- Space -->
   <div
     ref="spaceRef"
-    class="scrollbar-none max-h-screen w-full overflow-hidden overscroll-none bg-gray-100 text-sm"
+    class="scrollbar-none h-full max-h-screen w-full overflow-hidden overscroll-none border-y border-gray-200 bg-gray-100 text-sm"
     :class="[
       isDraggingGlobal || hasActivePopover ? 'pointer-events-none select-none' : '',
       IS_IN_ALT_MODE ? 'altmode' : '',
@@ -79,18 +78,19 @@ watch([canvas.focusedViewPtr, bench], () => {
     @contextmenu.stop.prevent="() => {} /* suppress generic context menu */"
   >
     <!-- Bar -->
-    <!-- nocheckin: move bar to sides -->
     <Bar
       ref="barRef"
-      class="w-full border-b border-gray-200"
-      :style="{ height: BAR_HEIGHT + 'px' }"
+      class="absolute left-0 top-0 h-full border-x border-gray-200"
+      :style="{ width: BAR_WIDTH + 'px' }"
       :space-graph="spaceGraph"
       :space-connection="spaceConnection"
-      :box="{ x: 0, y: 0, width: spaceWidth, height: BAR_HEIGHT }"
+      :box="{ x: 0, y: 0, width: BAR_WIDTH, height: spaceHeight }"
     />
     <!-- Space root (:OneRootWindow) -->
     <Split
       v-if="window"
+      class="top-0"
+      :style="{ left: BAR_WIDTH + 'px' }"
       :type="ViewType.WINDOW"
       :self="toNodeReference(window)"
       :size="mainBox"
@@ -99,15 +99,15 @@ watch([canvas.focusedViewPtr, bench], () => {
       :title="window.name"
       :text="window.text"
       :orientation="Orientation.HORIZONTAL"
-      :style="{ marginTop: BAR_OFFSET + 'px' }"
     />
     <!-- Loading... -->
     <div
       v-else-if="!spaceConnection.isConnected.value"
-      class=""
+      class="absolute bg-white"
       :style="{
         width: mainBox.width + 'px',
         height: mainBox.height + 'px',
+        left: BAR_WIDTH + 'px',
       }"
     >
       <div class="flex h-full flex-col items-center justify-center">
@@ -117,10 +117,11 @@ watch([canvas.focusedViewPtr, bench], () => {
     <!-- Does not have a space (not signed in or space is weird) -->
     <div
       v-else
-      class="flex flex-col justify-center text-center"
+      class="absolute bg-white flex flex-col justify-center text-center"
       :style="{
         width: mainBox.width + 'px',
         height: mainBox.height + 'px',
+        left: BAR_WIDTH + 'px',
       }"
     >
       <div v-if="bench" class="flex w-fit flex-col gap-y-2 self-center">
@@ -132,7 +133,8 @@ watch([canvas.focusedViewPtr, bench], () => {
         <Button name="fix" :icon="makeIcon('fas fa-plus')" title="Create Space" @click="assignSpaceInPackage" />
       </div>
       <div v-else>
-        <!-- ... something -->
+        <h2 class="text-2xl font-bold mb-1.5">Bench</h2>
+        <Button name="LogIn" :icon="makeIcon('fas fa-arrow-right-from-bracket')" title="Log In" />
       </div>
     </div>
 
