@@ -2,7 +2,14 @@
 import { canvas } from "@/system/space";
 import { getElement } from "@/utils/element";
 import { getFloatingPosition, type FloatingPlacement } from "@/utils/floating";
-import { activePopovers, popPopover, topPopover, type PopoverInfo, type PopoverInstance } from "@/utils/menu";
+import {
+  activePopovers,
+  popPopover,
+  topPopover,
+  updatePopover,
+  type PopoverInfo,
+  type PopoverInstance,
+} from "@/utils/menu";
 import Menu from "@/views/builtins/Menu.vue";
 import { focusInElement } from "@/views/canvas";
 import { getViewComponent } from "@/views/registry";
@@ -180,7 +187,7 @@ function close(popover: PopoverInstance | undefined) {
           @update:self="
             (newProps: any) => {
               if (!('props' in popover.info)) throw new Error(`${popover.info.kind} popover has no props`);
-              popover.info.props = { ...popover.info.props, ...newProps };
+              updatePopover(popover, { props: { ...popover.info.props, ...newProps } });
             }
           "
           @apply="() => (fire(popover), close(popover))"

@@ -164,6 +164,14 @@ function newPopoverId() {
   return PopoverId++;
 }
 
+export function updatePopover(instance: PopoverInstance, info: Partial<PopoverInfo>) {
+  const idx = _activePopovers.value.indexOf(instance);
+  if (idx < 0) return;
+  instance.info = { ...instance.info, ...info } as PopoverInfo;
+  _activePopovers.value[idx] = instance;
+  triggerRef(_activePopovers);
+}
+
 export function pushPopover(push: {
   trigger: HTMLElement | SVGElement;
   reference: { x: number; y: number } | HTMLElement | SVGElement;
