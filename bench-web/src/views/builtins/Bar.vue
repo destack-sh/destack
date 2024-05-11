@@ -194,7 +194,7 @@ const dockActions: Ref<Action[]> = computed(
     <!-- Dock -->
     <div
       ref="dockRef"
-      class="flex flex-shrink-0 gap-1.5"
+      class="flex flex-shrink-0 gap-x-1 gap-y-1.5"
       :class="[orientation == Orientation.HORIZONTAL ? 'absolute flex-row' : 'flex-col']"
       :style="{
         left:

@@ -9,11 +9,11 @@ import Popover from "@/views/builtins/Popover.vue";
 </script>
 <template>
   <!-- Connection -->
-  <Popover placement="right" :reference-margin="8" :container-margin="4">
+  <Popover placement="bottom" :reference-margin="8" :container-margin="4">
     <template #trigger="{ toggle }">
       <button
         v-if="isDeveloperMode || hasPendingConnections"
-        class="select-none rounded border-2 px-1 py-0.5 transition-colors"
+        class="select-none rounded border-2 px-1 py-1 transition-colors"
         :class="
           graphConnections.some((c) => c.isPaused.value || c.txBuffer.isPaused.value)
             ? 'border-secondary-600'

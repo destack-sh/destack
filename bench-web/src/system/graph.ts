@@ -1064,6 +1064,29 @@ export function walkDescendantsRef<T extends NodeType>(walk: {
   return { items: items, trigger };
 }
 
+/** Get the direct children of a dynamic set of nodes */
+export function getGroupedChildrenRef<T extends NodeType>(walk: {
+  graph: ReadNodeGraph;
+  parentPtrs: Ref<NodeKey<any>[]> | Ref<NodeTreeItem<any>[]>;
+  childTypes: T[];
+}): { childrenByParentId: Ref<{ [parentId: string]: NodeTypeMapping[T][] }>; trigger: () => void } {
+  type NodeT = NodeTypeMapping[T];
+
+  const subs: Array<() => void> = [];
+  const unsub = () => {
+    subs.forEach((sub) => sub());
+    subs.length = 0;
+  };
+
+  function get(): { [parentId: string]: NodeT[] } {
+    return {}; // nocheckin: getGroupedChildrenRef
+  }
+
+  const { ref: childrenByParentId, trigger } = manualSubRef(get, unsub);
+
+  return { childrenByParentId, trigger };
+}
+
 /** Whether child is a descendant of parent */
 export function isDescendantOf(graph: ReadNodeGraph, child: NodeKey<any>, parent: NodeKey<any>): boolean {
   return graph.getAncestors(child, { includeSelf: true }).some((ancestor) => ancestor.id == parent.id);

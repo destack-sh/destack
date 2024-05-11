@@ -106,7 +106,7 @@ watch([canvas.focusedViewPtr, bench], () => {
     <Bar
       ref="barRef"
       class="absolute border-gray-200"
-      :class="barOrientation == Orientation.VERTICAL ? 'border-x bg-white' : 'border-y bg-white'"
+      :class="barOrientation == Orientation.VERTICAL ? 'border-x bg-white' : 'border-b bg-white'"
       :anchor="barPosition"
       :orientation="barOrientation"
       :space-graph="spaceGraph"

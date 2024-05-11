@@ -45,7 +45,7 @@ const DEFAULT_WIDTH = 320;
 const DEFAULT_HEIGHT = 480;
 const DEFAULT_MAX_INPUT_HEIGHT = 120;
 const MIN_INPUT_HEIGHT = 40;
-const MIN_GUTTER_WIDTH = 12;
+const MIN_GUTTER_WIDTH = 4;
 const ASIDE_WIDTH = 36;
 const HANDLE_WIDTH = 6;
 
@@ -301,7 +301,7 @@ defineExpose<ViewExposed>({ self, id, variants: [Variant.PRIMARY, Variant.COMPAC
   <div class="flex h-full w-full flex-col">
     <!-- Header -->
     <div
-      v-if="variant != Variant.COMPACT"
+      v-if="variant != Variant.COMPACT || thread != null"
       class="w-full border-b border-gray-200"
       :style="{ height: HEADER_HEIGHT + 'px' }"
     >
@@ -390,7 +390,7 @@ defineExpose<ViewExposed>({ self, id, variants: [Variant.PRIMARY, Variant.COMPAC
 
     <!-- Body -->
     <Scroll
-      v-if="node && renderedMessages.length > 0"
+      v-if="thread != null && renderedMessages.length > 0"
       ref="scrollRef"
       :size="{
         width: props.size?.width ?? DEFAULT_WIDTH,
@@ -434,6 +434,7 @@ defineExpose<ViewExposed>({ self, id, variants: [Variant.PRIMARY, Variant.COMPAC
           >
             <!-- Handle -->
             <div
+              v-if="variant != Variant.COMPACT"
               class="mr-2 rounded transition-colors duration-75"
               :style="{ width: HANDLE_WIDTH + 'px' }"
               :class="
@@ -470,7 +471,7 @@ defineExpose<ViewExposed>({ self, id, variants: [Variant.PRIMARY, Variant.COMPAC
                 <!-- Author Name / Time -->
                 <span class="truncate font-medium">{{ author.name }}</span>
                 <span class="ml-1.5 text-xs text-gray-400">{{ formatAbsoluteDate(message.createdAt!) }}</span>
-                <i v-if="message.isPinned" class="ml-1.5 text-xs fas fa-thumbtack text-gray-400" />
+                <i v-if="message.isPinned" class="fas fa-thumbtack ml-1.5 text-xs text-gray-400" />
               </div>
               <!-- Reply to -->
               <div

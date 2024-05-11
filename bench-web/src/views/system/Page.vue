@@ -15,7 +15,7 @@ import { toNodeReference, type TypedNodeReferenceData } from "@/proto/wiring";
 import type { ActionContext, ActionMapImplementation } from "@/system/action";
 import { useHierarchicalNodeMoveActions } from "@/system/block";
 import { useExistingConnection, useGetConnection } from "@/system/connection";
-import { isDescendantOf, walkDescendantsRef } from "@/system/graph";
+import { getGroupedChildrenRef, isDescendantOf, walkDescendantsRef } from "@/system/graph";
 import { ICON_BY_BLOCK_TYPE, IconInline } from "@/system/icon";
 import { RUNNABLE_BLOCK_TYPES, createBlock, moveNode, toCamelName } from "@/system/lang";
 import { canvas, inspectionPtr } from "@/system/space";
@@ -74,6 +74,13 @@ const { items: expandedItems } = walkDescendantsRef({
 const expandedBlockRefs: Ref<Record<string, InstanceType<typeof Block>>> = ref({});
 const contentRef = ref<HTMLElement | null>(null);
 const focusedNodePtr = computedValue(() => props.focus?.nodesPtr[0]);
+
+// messages / notices
+const { childrenByParentId: messagesByBlockId } = getGroupedChildrenRef({
+  graph: pkgGraph,
+  parentPtrs: expandedItems,
+  childTypes: [NodeType.MESSAGE],
+});
 
 // size block/gutter horizontally (try to fit both until min block width, ignoring depth)
 const widths = computed(() => {
