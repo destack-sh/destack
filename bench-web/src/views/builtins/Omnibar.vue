@@ -215,7 +215,7 @@ defineExpose({ isActive, open });
           ref="containerRef"
           class="fixed z-60 h-fit rounded border border-gray-700 bg-white text-sm opacity-100 transition-transform duration-150"
           :style="{
-            top: box.top + 'px',
+            top: box.top + 40 + 'px',
             width: PANEL_WIDTH + 'px',
             maxHeight: PANEL_MAX_HEIGHT + 'px',
             left: box.left + box.width / 2 - PANEL_WIDTH / 2 + 'px',
