@@ -97,6 +97,7 @@ export const ACTION_BUILTIN_IDS = [
   "common.edit.cut",
   "common.edit.paste",
   "common.edit.duplicate",
+  "common.edit.archive",
   "common.edit.delete",
   "common.navigate.up",
   "common.navigate.down",
@@ -540,8 +541,13 @@ declareActionMap<"common">({
     text: "Duplicate this item",
     shortcuts: ["mod+d"],
   },
+  "common.edit.archive": {
+    icon: "fas fa-archive",
+    title: "Archive",
+    text: "Archive this item",
+  },
   "common.edit.delete": {
-    icon: "fas fa-delete-left",
+    icon: "fas fa-trash",
     title: "Delete",
     text: "Delete this item",
     shortcuts: ["del", "backspace"],

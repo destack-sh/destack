@@ -282,10 +282,9 @@ export class ViewCanvas {
       this.focusedViewComponent.value = null;
       this.focusedViewComponentsById.value = {};
       this.focusedViewPtr.value = null;
-    } else if (this.focusedViewComponent.value === component) return;
+    }
 
     // refresh
-    const wasDifferent = this.focusedViewComponent.value !== component;
     const tx = this.txFactory();
 
     // update focus
@@ -319,9 +318,12 @@ export class ViewCanvas {
     ) {
       this.inspect(tx, { node: linkedNodePtr, view: this.focusedViewPtr.value! });
     }
-    if (this.focusedViewPtr.value != null && wasDifferent && !keepInspectionInBase) {
-      const focusInView = makeSelectionMaybe(linkedNodePtr);
-      this.focusInGraph(tx, { view: this.focusedViewPtr.value, focus: focusInView });
+    if (
+      this.focusedViewPtr.value != null &&
+      !keepInspectionInBase &&
+      this.focusedView.value?.focus?.nodesPtr[0]?.id != linkedNodePtr?.id
+    ) {
+      this.focusInGraph(tx, { view: this.focusedViewPtr.value, focus: makeSelectionMaybe(linkedNodePtr) });
     }
   }
 

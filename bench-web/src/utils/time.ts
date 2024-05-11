@@ -122,17 +122,18 @@ export function formatAbsoluteDate(dt: Timestamp | DateTime) {
 
   const now = getNow(TimeUpdateInterval.MINUTE).value;
   const diff = now.diff(dt, "days").as("days");
+  const yesterday = now.minus({ days: 1 });
 
-  if (diff < 1) {
+  if (dt.day == now.day && dt.month == now.month) {
     // if it's today, say "Today at <time>"
     return `Today at ${dt.toLocaleString(DateTime.TIME_SIMPLE)}`;
-  } else if (diff < 2) {
+  } else if (dt.day == yesterday.day && dt.month == yesterday.month) {
     // if it's yesterday, say "Yesterday at <time>"
     return `Yesterday at ${dt.toLocaleString(DateTime.TIME_SIMPLE)}`;
-  } else if (diff < 7) {
+  } else if (diff <= 6) {
     // if it's within the last week, say "<weekday> at <time>"
     return `${dt.toFormat("cccc")} at ${dt.toLocaleString(DateTime.TIME_SIMPLE)}`;
-  } else if (diff < 365) {
+  } else if (diff <= 364) {
     // if it's within the last year, say "<month> <day> at <time>"
     return `${dt.toFormat("LLL d")} at ${dt.toLocaleString(DateTime.TIME_SIMPLE)}`;
   } else {

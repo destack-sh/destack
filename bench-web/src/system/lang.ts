@@ -123,6 +123,7 @@ export const NODE_VIEW_TYPES = new Set<ViewType>([
   ViewType.FLOW,
   ViewType.FIELD,
   ViewType.STEP,
+  ViewType.CHAT,
 ]);
 
 // views that aren't about a specific node but should just keep the current root view node
