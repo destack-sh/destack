@@ -29,7 +29,7 @@ import { isDescendantOf, type NodeKey, type ReadNodeGraph } from "@/system/graph
 import { toIconMaybe } from "@/system/icon";
 import {
   NODE_VIEW_TYPES,
-  RIDEALONG_VIEW_TYPES,
+  HELPER_VIEW_TYPES,
   ROOT_VIEW_TYPES,
   generateNodeName,
   getOrderKey,
@@ -298,30 +298,28 @@ export class ViewCanvas {
     this.focusedViewComponentsById.value = componentsById;
     this.focusedViewPtr.value = getViewComponentPtrMaybe(viewComponents.find(isIdentifiedViewComponent));
 
-    // update root/inspection if not in a 'ridealong' view
+    // update root/inspection
     const rootViewComponentIdx = viewComponents.findIndex((v) => isViewComponentIn(v, ROOT_VIEW_TYPES));
-    const baseViewPtr = getViewComponentPtrMaybe(viewComponents[rootViewComponentIdx - 1]);
-    const baseView = this.graph.getMaybe(baseViewPtr);
-    const nodeView = viewComponents.find((v) => isViewComponentIn(v, NODE_VIEW_TYPES));
-    const linkedNodePtr = nodeView && element ? this.getViewNodePtr(nodeView, element) : null;
+    const baseView = this.graph.getMaybe(getViewComponentPtrMaybe(viewComponents[rootViewComponentIdx - 1]));
+    const containingNodeView = viewComponents.find((v) => isViewComponentIn(v, NODE_VIEW_TYPES));
+    const linkedNodePtr = containingNodeView && element ? this.getViewNodePtr(containingNodeView, element) : null;
     const keepInspectionInBase =
       getElement(element)?.closest?.("[data-keep-inspection-in-base]") != null &&
       inspectionBasePtr.value != null &&
       linkedNodePtr != null &&
       isDescendantOf(this.graph, inspectionBasePtr.value, linkedNodePtr);
-
     if (
+      !keepInspectionInBase &&
       baseView != null &&
+      !HELPER_VIEW_TYPES.has(baseView.type) &&
       linkedNodePtr != null &&
-      !RIDEALONG_VIEW_TYPES.has(baseView.type) &&
-      linkedNodePtr != inspectionPtr.value?.id &&
-      !keepInspectionInBase
+      linkedNodePtr != inspectionPtr.value?.id
     ) {
       this.inspect(tx, { node: linkedNodePtr, view: this.focusedViewPtr.value! });
     }
     if (
-      this.focusedViewPtr.value != null &&
       !keepInspectionInBase &&
+      this.focusedViewPtr.value != null &&
       this.focusedView.value?.focus?.nodesPtr[0]?.id != linkedNodePtr?.id
     ) {
       this.focusInGraph(tx, { view: this.focusedViewPtr.value, focus: makeSelectionMaybe(linkedNodePtr) });
@@ -370,7 +368,7 @@ export class ViewCanvas {
 
       // recover view & inspection from views' 'focus' down from focused view
       let viewData = this.getViewData(node);
-      while ((viewData?.focus?.nodesPtr?.length ?? 0) > 0) {
+      while (!HELPER_VIEW_TYPES.has(viewData?.type!) && (viewData?.focus?.nodesPtr?.length ?? 0) > 0) {
         if (viewData!.focus!.nodesPtr.some((v) => v.type == NodeType.VIEW)) {
           const viewPtr = viewData!.focus!.nodesPtr.find((v) => v.type == NodeType.VIEW);
           viewData = viewPtr != null ? this.getViewData(viewPtr) : null;

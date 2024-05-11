@@ -177,6 +177,12 @@ function close(popover: PopoverInstance | undefined) {
               popover.info.onUpdate?.(newValue);
             }
           "
+          @update:self="
+            (newProps: any) => {
+              if (!('props' in popover.info)) throw new Error(`${popover.info.kind} popover has no props`);
+              popover.info.props = { ...popover.info.props, ...newProps };
+            }
+          "
           @apply="() => (fire(popover), close(popover))"
         />
       </div>

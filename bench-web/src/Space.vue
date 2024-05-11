@@ -79,6 +79,7 @@ watch([canvas.focusedViewPtr, bench], () => {
     @contextmenu.stop.prevent="() => {} /* suppress generic context menu */"
   >
     <!-- Bar -->
+    <!-- nocheckin: move bar to sides -->
     <Bar
       ref="barRef"
       class="w-full border-b border-gray-200"

@@ -26,6 +26,7 @@ import {
   getTkB64FromCk,
   getTkB64FromPtr,
   isEnumType,
+  isNodeType,
   padCkFromTkB64,
   toCamelName,
 } from "@/system/lang";
@@ -98,9 +99,9 @@ export function getViewForValueType(type: TypeIdentity & Partial<TypeInfoData>):
   } else if (type.benchType != null) {
     if (VIEW_TYPE_BY_BENCH_TYPE[type.benchType] != null) {
       return { viewType: VIEW_TYPE_BY_BENCH_TYPE[type.benchType]! };
-    } else {
+    } else if (isEnumType(type.benchType)) {
       // prefer inline picker if possible
-      if (isEnumType(type.benchType) && getEnumOptions(type.benchType).length <= 5) {
+      if (getEnumOptions(type.benchType).length <= 5) {
         const variant = ENUM_ICONS_BY_TYPE[type.benchType] != null ? Variant.STEALTH : Variant.COMPACT;
         return {
           viewType: ViewType.PICKER,
@@ -109,12 +110,14 @@ export function getViewForValueType(type: TypeIdentity & Partial<TypeInfoData>):
       } else {
         return { viewType: ViewType.PICKER, props: { valueType: makeTypeInfo(type) } };
       }
+    } else if (isNodeType(type.benchType)) {
+      return { viewType: ViewType.PICKER, props: { valueType: makeTypeInfo(type) } };
     }
   } else if (VIEW_TYPE_BY_PRIMITIVE_TYPE[type.primitiveType!] != null) {
     return { viewType: VIEW_TYPE_BY_PRIMITIVE_TYPE[type.primitiveType!]! };
-  } else {
-    return null;
   }
+
+  return null;
 }
 
 const LETTER_BY_TYPE_KIND: Partial<Record<TypeKind, string>> = {

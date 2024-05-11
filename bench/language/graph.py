@@ -851,7 +851,7 @@ def edit_graph(
         node_data = wiring.unwrap_some_node(edit.node)
         node_id = to_uuid(node_data.id)
         if node_id is None:
-            raise ValueError(f"invalid node id in edit ${edit!r}: {node_data}")
+            raise ValueError(f"invalid node id in edit {edit!r}: {node_data!r}")
 
         edit_type = cast(EditType, edit.type)  # remap edit according to read options
         if options.include_hidden:
@@ -868,7 +868,7 @@ def edit_graph(
             graph.add(node)
         elif edit_type == EditType.DELETE:
             node = graph.get(node_id)
-            assert node is not None, f"missing node for delete: {edit}"
+            assert node is not None, f"missing node {node_id!r} for delete: {edit!r}"
             graph.remove(node)
         elif edit_type == EditType.MOVE:
             if node_data.parent_ptr is not None:
@@ -876,11 +876,11 @@ def edit_graph(
             else:
                 new_parent = None
             node = graph.get(node_id)
-            assert node is not None, f"missing node for move: {edit}"
+            assert node is not None, f"missing node {node_id!r} for move: {edit!r}"
             node.parent = new_parent
         elif edit_type == EditType.UPDATE:
             node = graph.get(node_id)
-            assert node is not None, f"missing node for move: {edit}"
+            assert node is not None, f"missing node {node_id!r} for update: {edit!r}"
             for prop_id in edit.properties:
                 prop = node.__properties_by_id__[prop_id]
                 prop = prop.reference_wired_ptr or prop

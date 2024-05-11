@@ -127,7 +127,7 @@ export const NODE_VIEW_TYPES = new Set<ViewType>([
 ]);
 
 // views that aren't about a specific node but should just keep the current root view node
-export const RIDEALONG_VIEW_TYPES = new Set([
+export const HELPER_VIEW_TYPES = new Set([
   ViewType.EXPLORE,
   ViewType.OUTLINE,
   ViewType.CREATE,
@@ -829,12 +829,11 @@ export function getInspectionLayout(
   const excluded = ALWAYS_EXCLUDED_PROPERTIES.concat(options?.exclude ?? []);
 
   const allProperties = PROPERTY_ENUM_BY_TYPE[metatype] ?? [];
-  const categories = getInspectionInfo(metatype, type) ?? [
-    { category: "common", properties: [{ from: undefined, to: undefined }] },
-  ];
-
+  const categories: Record<string, InspectionCategory> = getInspectionInfo(metatype, type) ?? {
+    Common: [{ from: undefined, to: undefined }],
+  };
   for (const category of Object.keys(categories)) {
-    const categoryProperties = categories[category as keyof typeof categories] as InspectionCategory;
+    const categoryProperties = categories[category as keyof typeof categories];
     // assemble all properties in category
     for (const range of categoryProperties) {
       let propertiesInRange;
