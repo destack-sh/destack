@@ -44,7 +44,7 @@ const path = computed(() => ancestors.value.slice().reverse());
         class="h-fit rounded px-1 text-gray-400 hover:bg-gray-100 hover:text-primary-900"
         @click="fireActionById('common.search.findInView')"
       >
-        <i class="fas fa-magnifying-glass" />
+        <i class="fas fa-magnifying-glass w-5 text-center" />
       </button>
     </div>
   </div>

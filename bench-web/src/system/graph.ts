@@ -1091,7 +1091,7 @@ export function getGroupedChildrenRef<T extends NodeType>(walk: {
 
   function get(): { [parentId: string]: NodeT[] } {
     unsub();
-
+ 
     const childrenByParentId: { [parentId: string]: NodeT[] } = {};
     for (const parentId of parentIds.value) {
       for (const childType of walk.childTypes) {

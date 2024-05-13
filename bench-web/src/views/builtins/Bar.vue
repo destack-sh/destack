@@ -1,7 +1,7 @@
 <script lang="ts" setup>
-import { Alignment, Anchor, NodeType, Orientation } from "@/proto/wire";
+import { Alignment, Anchor, ClientType, NodeType, Orientation } from "@/proto/wire";
 import { DECLARED_ACTIONS_BY_ID, fireActionById, type Action, type ActionBuiltinId } from "@/system/action";
-import { isDeveloperMode } from "@/system/client";
+import { CLIENT_TYPE, isDeveloperMode } from "@/system/client";
 import { DEFAULT_USER_ICON, ICON_BY_NODE_TYPE, IconInline, makeIcon } from "@/system/icon";
 import { bench, hasLocalBench } from "@/system/space";
 import { isAuthenticated, user } from "@/system/user";
@@ -15,6 +15,7 @@ import ConnectionDebug from "./ConnectionDebug.vue";
 import { tooltipFromAction } from "@/utils/tooltip";
 import type { FloatingPlacement } from "@/utils/floating";
 import { useElementSize } from "@vueuse/core";
+import { toCamelName } from "@/system/lang";
 
 const props = defineProps<{
   anchor: Anchor;
@@ -153,7 +154,7 @@ const dockActions: Ref<Action[]> = computed(
     <Popover v-if="bench" :placement="floatingPlacement" :reference-margin="4" :container-margin="4">
       <template #trigger="{ toggle, isOpen }">
         <button
-          class="flex h-[30px] w-full select-none flex-row items-center rounded px-2.5 py-1 text-gray-800 hover:bg-gray-100 hover:text-primary-900"
+          class="flex h-[30px] w-full select-none flex-row items-center rounded px-2.5 py-1 text-gray-700 hover:bg-gray-100 hover:text-primary-900"
           :class="[isOpen ? ' bg-gray-100' : '']"
           @click="toggle"
         >
@@ -168,7 +169,7 @@ const dockActions: Ref<Action[]> = computed(
           <template v-if="bench" #header>
             <div class="flex flex-row px-2.5 pb-2 pt-1.5">
               <div class="mr-2 w-10 rounded border border-gray-300 bg-primary-300 py-0.5 text-center text-lg">
-                <IconInline v-if="bench.icon" class="text-gray-800" v-bind="bench.icon" />
+                <IconInline v-if="bench.icon" class="text-gray-700" v-bind="bench.icon" />
               </div>
               <div class="flex flex-col leading-tight">
                 <span class="select-all font-medium">{{ bench?.name ?? "???" }}</span>
@@ -179,7 +180,7 @@ const dockActions: Ref<Action[]> = computed(
           <!-- Build Info -->
           <template #footer>
             <div class="flex w-full flex-row px-2.5 pt-2 text-gray-500">
-              <span class="select-all">Bench Web</span>
+              <span class="select-all">{{ toCamelName(ClientType, CLIENT_TYPE) }}</span>
               <span class="ml-auto select-all">{{ VERSION }}</span>
             </div>
             <div class="flex w-full flex-row px-2.5 pb-1.5 text-xs text-gray-500">
@@ -205,7 +206,7 @@ const dockActions: Ref<Action[]> = computed(
         v-for="action in dockActions"
         :key="action.id"
         v-tooltip="tooltipFromAction(action, { placement: 'top', showDelay: 800 })"
-        class="rounded px-2.5 py-1 text-gray-800 hover:bg-gray-100 hover:text-primary-900"
+        class="rounded px-2.5 py-1 text-gray-700 hover:bg-gray-100 hover:text-primary-900"
         @click="fireActionById(action.id)"
       >
         <IconInline class="text-base" v-bind="action.icon" />
@@ -227,7 +228,7 @@ const dockActions: Ref<Action[]> = computed(
         <Popover :placement="floatingPlacement" :reference-margin="4" :container-margin="4">
           <template #trigger="{ toggle, isOpen }">
             <button
-              class="px-2 py-1 text-base text-gray-800 hover:bg-gray-100 hover:text-primary-900"
+              class="px-2 py-1 text-base text-gray-700 hover:bg-gray-100 hover:text-primary-900"
               :class="[isOpen ? 'bg-gray-100' : '']"
               @click="toggle"
             >
@@ -240,7 +241,7 @@ const dockActions: Ref<Action[]> = computed(
               <template #header>
                 <div class="flex flex-row px-2.5 pb-2 pt-1.5">
                   <div class="mr-2 rounded border border-gray-200 bg-gray-100 px-2.5 py-0.5 text-xl">
-                    <IconInline class="text-gray-800" v-bind="user.icon ?? DEFAULT_USER_ICON" />
+                    <IconInline class="text-gray-700" v-bind="user.icon ?? DEFAULT_USER_ICON" />
                   </div>
                   <div class="flex flex-col leading-tight">
                     <span class="select-all font-medium">{{ user.name }}</span>

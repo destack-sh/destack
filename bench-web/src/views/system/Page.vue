@@ -15,7 +15,7 @@ import { toNodeReference, type TypedNodeReferenceData } from "@/proto/wiring";
 import type { ActionContext, ActionMapImplementation } from "@/system/action";
 import { useHierarchicalNodeMoveActions } from "@/system/block";
 import { useExistingConnection, useGetConnection } from "@/system/connection";
-import { getGroupedChildrenRef, isDescendantOf, walkDescendantsRef } from "@/system/graph";
+import { getGroupedChildrenRef, isDescendantOf, walkDescendantsRef, type NodeTreeItem } from "@/system/graph";
 import { ICON_BY_BLOCK_TYPE, IconInline } from "@/system/icon";
 import { EXPOSED_BLOCK_TYPES, RUNNABLE_BLOCK_TYPES, createBlock, moveNode, toCamelName } from "@/system/lang";
 import { canvas, inspectionPtr } from "@/system/space";
@@ -70,6 +70,20 @@ const { items: expandedBlocks } = walkDescendantsRef({
   isExpanded: () => true,
   isIncludedSelf: () => true,
   isIncludedChildren: (node) => !node.isPage,
+});
+const expandedBlocksWithSelf: Ref<NodeTreeItem<NodeType.BLOCK>[]> = computed(() => {
+  if (page.value == null) {
+    return [];
+  } else {
+    const selfItem: NodeTreeItem<NodeType.BLOCK> = {
+      id: page.value.id,
+      node: page.value,
+      nodePtr: toNodeReference(page.value),
+      depth: 0,
+      hasChildren: true,
+    };
+    return [selfItem, ...expandedBlocks.value];
+  }
 });
 const expandedBlockRefs: Ref<Record<string, InstanceType<typeof Block>>> = ref({});
 const contentRef = ref<HTMLElement | null>(null);
@@ -267,7 +281,7 @@ defineExpose<ViewExposed>({ self, actions, focus });
       :self="nodePtr"
       :focus="props.focus?.nodesPtr[0]"
       :graph="pkgGraph"
-      class="border-b border-gray-200"
+      class="border-gray-200"
       data-keep-inspection-in-base="true"
     />
 
@@ -279,24 +293,14 @@ defineExpose<ViewExposed>({ self, actions, focus });
       track-is-overlay
     >
       <div ref="contentRef" class="mb-16 flex flex-col">
-        <!-- Self Block (=this Page block) -->
-        <div class="mb-1 min-w-fit py-1.5">
-          <Block
-            ref="selfBlockRef"
-            borderless
-            :variant="Variant.STEALTH"
-            class="px-1.5 py-1.5"
-            :style="{ width: widths.block + 'px', marginLeft: widths.gutter + 'px', marginRight: widths.gutter + 'px' }"
-            :node-ptr="props.nodePtr"
-            :prepared-connection="preparedPkgConnection"
-          />
-        </div>
-        <!-- In-page Blocks -->
+        <!-- TODO :UX: indicate 'self' block in Page view better -->
+        <!--  (while still retaining all the functionality of a full block 'line') -->
         <!-- Block 'line' -->
         <div
-          v-for="({ nodePtr: blockPtr, node: block, depth }, i) in expandedBlocks"
+          v-for="({ nodePtr: blockPtr, node: block, depth }, i) in expandedBlocksWithSelf"
           :key="blockPtr.id"
           class="group/block-line relative flex min-w-fit flex-row"
+          :class="i == 0 ? 'mb-4' : ''"
           :style="{
             marginTop: depth == 0 ? ROOT_BLOCK_GAP_Y + 'px' : '0',
           }"
@@ -345,7 +349,7 @@ defineExpose<ViewExposed>({ self, actions, focus });
 
             <!-- Create above/below (in between blocks) -->
             <div
-              v-for="anchor in i < expandedBlocks.length - 1 ? ['start'] : ['start', 'end']"
+              v-for="anchor in i < expandedBlocks.length - 1 ? (i == 0 ? [] : ['start']) : ['start', 'end']"
               :key="anchor"
               v-menu="
                 (): PopoverInfoIn => ({
@@ -434,7 +438,7 @@ defineExpose<ViewExposed>({ self, actions, focus });
               v-menu="
                 (context: PopoverContext): PopoverInfoIn => ({
                   component: ViewType.CHAT,
-                  placement: 'bottom-right',
+                  placement: 'bottom',
                   container: 'containingRoot',
                   containerMargin: 12,
                   props: {

@@ -15,7 +15,7 @@ import { makeNode, nodeReference, propertyReference, toNodeReferenceRef, toProto
 import { ACTION_COMING_SOON, contributeActionMap } from "@/system/action";
 import local, { persistentInfo } from "@/system/client";
 import { clearConnections, useGetConnection } from "@/system/connection";
-import { canvas, goToBench } from "@/system/space";
+import { bench, canvas, goToBench } from "@/system/space";
 import { toaster } from "@/system/toast";
 import { log } from "@/utils/log";
 import type { ViewDataIn } from "@/views/canvas";
@@ -223,7 +223,17 @@ contributeActionMap<"user">({
     title: "Go to My Bench",
     text: "Go back to your Bench.",
     action: async () => {
-      await goToBench({ bench: user.value!.mainBenchPtr! });
+      if (bench.value?.id == user.value!.mainBenchPtr?.id) {
+        toaster.info({
+          key: "user.misc.goToHome",
+          icon: "fas fa-home",
+          title: "Already Home",
+          text: "You are already on your Bench.",
+          debounce: true,
+        });
+      } else {
+        await goToBench({ bench: user.value!.mainBenchPtr! });
+      }
     },
   },
   "user.settings.editKeybindings": {

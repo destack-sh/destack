@@ -7,7 +7,7 @@ import { Casing, toCasing } from "@/utils/string";
 import { v4 } from "uuid";
 import { computed, getCurrentInstance, type ComponentInstance, type FunctionalComponent, type Ref } from "vue";
 
-export type ViewProps = { self?: NodeReferenceData; modelValue?: any } & Partial<
+export type ViewProps = { self?: NodeReferenceData; modelValue?: any, placeholder?: string } & Partial<
   Omit<ViewData, "metatype" | "id" | "ck" | "revision" | "setProperties">
 >;
 export type ViewComponent = {
