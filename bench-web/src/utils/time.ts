@@ -181,7 +181,7 @@ export function humanizeBytes(bytes: number, options?: { cutoff?: number; round?
 export function tsToDt(timestamp: Timestamp): DateTime {
   return DateTime.fromSeconds(Number(timestamp.seconds), { zone: "utc" }).plus({
     milliseconds: Math.ceil(timestamp.nanos / 1000000),
-  });
+  }).setZone("local");
 }
 
 /** Convert a Luxon DateTime to a proto Timestamp */

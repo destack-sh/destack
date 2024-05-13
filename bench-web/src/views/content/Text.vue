@@ -114,7 +114,7 @@ function makeEditorView(): EditorView {
             referenceMargin: 2,
             offset: { x: 0, y: -8 }, // align query text with line
             placement: "inside-top-left",
-            props: { valueType: makeTypeInfo({ benchType: BenchType.BLOCK }) },
+            props: { placeholder: "Mention Node", valueType: makeTypeInfo({ benchType: BenchType.BLOCK }) },
             onApply(node) {
               if (view == null) throw new Error("view no longer mounted");
               // replace @ with mention and focus there
@@ -285,7 +285,7 @@ defineExpose<ViewExposed>({ self, id, variants: [Variant.PRIMARY, Variant.STEALT
     <div
       ref="textRef"
       v-contextmenu="
-        (context: PopoverContext):  PopoverInfo => ({
+        (context: PopoverContext): PopoverInfo => ({
           isEnabled: props.isInput,
           kind: 'menu',
           placement: 'bottom-right',
@@ -333,7 +333,7 @@ defineExpose<ViewExposed>({ self, id, variants: [Variant.PRIMARY, Variant.STEALT
   @apply my-[4px];
 }
 .text hr {
-  @apply my-2 border-gray-400 p-0 focus:outline-none focus:ring-0;
+  @apply my-2 border-gray-200 p-0 focus:outline-none focus:ring-0;
 }
 .text h1 {
   @apply mb-2 mt-4 text-2xl font-bold;

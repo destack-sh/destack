@@ -57,7 +57,7 @@ defineExpose<ViewExposed>({ self });
 <template>
   <div v-if="node && inspectionLayout" class="h-full w-full bg-white">
     <!-- Header -->
-    <div class="group w-full border-b border-gray-200" :style="{ height: HEADER_HEIGHT + 'px' }">
+    <div class="group w-full" :style="{ height: HEADER_HEIGHT + 'px' }">
       <div
         class="mx-auto flex h-full max-w-full flex-row items-center pl-4 pr-5"
         :style="{ minWidth: MIN_WIDTH + 'px', maxWidth: MAX_WIDTH + 'px' }"
@@ -113,10 +113,14 @@ defineExpose<ViewExposed>({ self });
           :key="property.id"
         >
           <!-- Category Header -->
-          <div v-if="i != 0 && inspectionLayout.properties[i - 1].category != category" class="mt-2">
+          <div
+            v-if="i != 0 && inspectionLayout.properties[i - 1].category != category"
+            class="mx-auto mt-2"
+            :style="{ minWidth: MIN_WIDTH + 'px', width: 'calc(100% - 28px)', maxWidth: MAX_WIDTH + 'px' }"
+          >
             <div class="mb-3 h-[1px] w-full min-w-fit bg-gray-200" />
             <div
-              class="mx-auto px-5 font-semibold text-gray-900"
+              class="px-1.5 font-semibold text-gray-900"
               :style="{ minWidth: MIN_WIDTH + 'px', maxWidth: MAX_WIDTH + 'px' }"
             >
               {{ category }}

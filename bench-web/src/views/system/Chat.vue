@@ -42,13 +42,13 @@ import { toCamelName } from "@/system/lang";
 const HEADER_HEIGHT_NORMAL = 36;
 const HEADER_HEIGHT_COMPACT = 32;
 const MAX_WIDTH = 800;
-const DEFAULT_WIDTH = 320;
+const DEFAULT_WIDTH = 360;
 const DEFAULT_HEIGHT = 480;
 const DEFAULT_MAX_INPUT_HEIGHT = 120;
 const MIN_INPUT_HEIGHT = 40;
 const MIN_GUTTER_WIDTH = 4;
 const ASIDE_WIDTH_NORMAL = 36;
-const ASIDE_WIDTH_COMPACT = 28;
+const ASIDE_WIDTH_COMPACT = 36;
 const HANDLE_WIDTH = 6;
 
 const props = defineProps<
@@ -61,7 +61,7 @@ const self = toRef(props, "self");
 const id = makeViewId(props);
 
 const headerHeight = computed(() => (props.variant == Variant.COMPACT ? HEADER_HEIGHT_COMPACT : HEADER_HEIGHT_NORMAL));
-const asideWidth = computed(() => (props.variant == Variant.COMPACT ? ASIDE_WIDTH_COMPACT : ASIDE_WIDTH_NORMAL));
+const asideSize = computed(() => (props.variant == Variant.COMPACT ? ASIDE_WIDTH_COMPACT : ASIDE_WIDTH_NORMAL));
 const maxInputHeight = computed(() =>
   props.size != null ? (props.size.height - headerHeight.value) / 2 : DEFAULT_MAX_INPUT_HEIGHT,
 );
@@ -164,12 +164,13 @@ function replyTo(message: MessageData) {
 }
 
 function createNewThread(parent: AnyNodeData, title: string = generateRandomName()) {
-  if (!("packagePtr" in parent)) throw new Error(`parent is not in a package: ${describeNode(parent)}`);
+  const packagePtr = isNode(parent, NodeType.PACKAGE) ? toNodeReference(parent) : (parent as any).packagePtr;
+  if (packagePtr == null) throw new Error(`parent is not in a package: ${describeNode(parent)}`);
   const tx = findExistingConnectionOrError("get", { roots: [toNodeReference(parent)] }).tx;
   const thread = tx.create({
     metatype: NodeType.MESSAGE,
     parentPtr: parent != null ? toNodeReference(parent) : undefined,
-    packagePtr: parent.packagePtr,
+    packagePtr,
     title,
   });
   if (self.value != null) {
@@ -320,13 +321,9 @@ defineExpose<ViewExposed>({ self, id, variants: [Variant.PRIMARY, Variant.COMPAC
 <template>
   <div class="flex h-full w-full flex-col">
     <!-- Header -->
-    <div
-      class="w-full"
-      :class="variant != Variant.COMPACT ? 'border-b border-gray-200' : ''"
-      :style="{ height: headerHeight + 'px' }"
-    >
+    <div class="w-full" :style="{ height: headerHeight + 'px' }">
       <div
-        class="mx-auto flex w-full max-w-full flex-row items-center gap-x-3 pl-4 pr-5"
+        class="mx-auto flex w-full max-w-full flex-row items-center gap-x-3 px-4"
         :style="{ height: headerHeight + 'px', maxWidth: MAX_WIDTH + 'px' }"
       >
         <!-- Thread (local root message node) -->
@@ -385,8 +382,7 @@ defineExpose<ViewExposed>({ self, id, variants: [Variant.PRIMARY, Variant.COMPAC
           <!-- Expand into own View -->
           <button
             v-if="variant == Variant.COMPACT"
-            v-tooltip="{ title: 'Expand', small: true }"
-            class="text-gray-400 hover:text-primary-900"
+            class="text-gray-400 enabled:hover:text-primary-900"
             @click="
               () => {
                 canvas.addView(
@@ -398,6 +394,10 @@ defineExpose<ViewExposed>({ self, id, variants: [Variant.PRIMARY, Variant.COMPAC
             "
           >
             <i class="fas fa-expand w-5 text-center" />
+          </button>
+          <!-- Search -->
+          <button v-if="variant != Variant.COMPACT" class="text-gray-400 enabled:hover:text-primary-900">
+            <i class="fas fa-magnifying-glass w-5 text-center" />
           </button>
         </div>
       </div>
@@ -412,13 +412,14 @@ defineExpose<ViewExposed>({ self, id, variants: [Variant.PRIMARY, Variant.COMPAC
         height: (props.size?.height ?? DEFAULT_HEIGHT) - headerHeight - inputSize.height.value,
       }"
       :orientation="Orientation.VERTICAL"
-      :track-width="ScrollbarWidth.md"
+      :track-width="variant == Variant.COMPACT ? ScrollbarWidth.sm : ScrollbarWidth.md"
       :stick-to-end="stickToEnd"
       :size-is-dynamic="props.size == null"
     >
       <!-- Messages -->
       <div class="" :class="variant != Variant.COMPACT ? 'my-2' : 'my-0.5'">
-        <template
+        <!-- Message -->
+        <div
           v-for="{
             message,
             author,
@@ -428,124 +429,121 @@ defineExpose<ViewExposed>({ self, id, variants: [Variant.PRIMARY, Variant.COMPAC
             replyToAuthor,
           } in renderedMessages"
           :key="message.id"
+          :ref="(ref?: any) => (ref != null ? (messageRefs[message.id] = ref) : delete messageRefs[message.id])"
+          v-contextmenu="
+            (context: PopoverContext): PopoverInfo => ({
+              kind: 'menu',
+              placement: 'bottom-right',
+              offset: 'referenceWidth',
+              items: menuActionsLike(['message.*', 'common.edit.delete'], {
+                context: { ...context, triggerNode: message },
+              }),
+            })
+          "
+          :data-message-id="message.id"
+          class="group/message relative mx-auto flex max-w-full flex-row gap-x-2.5 rounded py-0.5"
+          :class="[
+            isContinuationBreak ? 'mt-2' : '',
+            replyingTo?.id == message.id ? 'bg-secondary-100' : '',
+            variant != Variant.COMPACT ? 'px-3' : 'px-2',
+          ]"
+          :style="{ width: 'calc(100% - ' + MIN_GUTTER_WIDTH * 2 + 'px)', maxWidth: MAX_WIDTH + 'px' }"
         >
-          <!-- Message -->
+          <!-- Handle -->
           <div
-            :ref="(ref?: any) => (ref != null ? (messageRefs[message.id] = ref) : delete messageRefs[message.id])"
-            v-contextmenu="
-              (context: PopoverContext): PopoverInfo => ({
-                kind: 'menu',
-                placement: 'bottom-right',
-                offset: 'referenceWidth',
-                items: menuActionsLike(['message.*', 'common.edit.delete'], {
-                  context: { ...context, triggerNode: message },
-                }),
-              })
+            class="-mr-1 rounded transition-colors duration-75"
+            :style="{ width: HANDLE_WIDTH + 'px' }"
+            :class="
+              message.id == inspectionPtr?.id
+                ? 'bg-primary-900'
+                : message.id == focusedNodePtr?.id
+                  ? isFocusedAbsolute
+                    ? 'bg-primary-900'
+                    : 'bg-gray-300'
+                  : 'bg-transparent group-hover/message:bg-gray-200'
             "
-            :data-message-id="message.id"
-            class="group/message relative mx-auto flex max-w-full flex-row rounded px-2 py-0.5"
-            :class="[isContinuationBreak ? 'mt-2' : '', replyingTo?.id == message.id ? 'bg-secondary-100' : '']"
-            :style="{ width: 'calc(100% - ' + MIN_GUTTER_WIDTH * 2 + 'px)', maxWidth: MAX_WIDTH + 'px' }"
+          />
+          <!-- Aside -->
+          <!-- Author Icon -->
+          <div
+            v-if="!isContinued"
+            class="mt-0.5 flex h-fit flex-shrink-0 flex-col justify-center rounded border border-gray-200 bg-gray-100 text-center text-gray-700"
+            :style="{ width: asideSize + 'px', height: asideSize + 'px' }"
           >
-            <!-- Handle -->
+            <IconInline v-bind="author.icon" />
+          </div>
+          <!-- Time (if continued) -->
+          <div v-else class="flex-shrink-0 px-0.5" :style="{ width: asideSize + 'px' }">
+            <span class="text-xs text-gray-400 opacity-0 transition-colors duration-75 group-hover/message:opacity-100">
+              {{ tsToDt(message.createdAt!).toLocaleString(DateTime.TIME_24_SIMPLE) }}
+            </span>
+          </div>
+          <!-- Body -->
+          <div class="w-full">
+            <!-- Header -->
+            <div v-if="!isContinued" class="mb-0.5 max-w-full gap-x-0.5">
+              <!-- Author Name / Time -->
+              <span class="truncate font-medium">{{ author.name }}</span>
+              <span class="ml-1.5 text-xs text-gray-400">{{ formatAbsoluteDate(message.createdAt!) }}</span>
+              <i v-if="message.isPinned" class="fas fa-thumbtack ml-1.5 text-xs text-gray-400" />
+            </div>
+            <!-- Reply to -->
             <div
-              v-if="variant != Variant.COMPACT"
-              class="mr-2 rounded transition-colors duration-75"
-              :style="{ width: HANDLE_WIDTH + 'px' }"
-              :class="
-                message.id == inspectionPtr?.id
-                  ? 'bg-primary-900'
-                  : message.id == focusedNodePtr?.id
-                    ? isFocusedAbsolute
-                      ? 'bg-primary-900'
-                      : 'bg-gray-300'
-                    : 'bg-transparent group-hover/message:bg-gray-200'
-              "
-            />
-            <!-- Aside -->
-            <!-- Author Icon -->
-            <div
-              v-if="!isContinued"
-              class="mr-3 mt-0.5 flex h-fit flex-shrink-0 flex-col justify-center rounded border border-gray-200 bg-gray-100 text-center text-gray-700"
-              :style="{ width: asideWidth + 'px', height: asideWidth + 'px' }"
+              v-if="replyToMessage"
+              role="button"
+              class="my-0.5 rounded border-secondary-200 bg-gray-100 px-2 py-1 hover:cursor-pointer"
+              :style="{ borderLeftWidth: HANDLE_WIDTH + 'px' }"
+              @click="focus(toNodeReference(replyToMessage))"
             >
-              <IconInline v-bind="author.icon" />
+              <span class="truncate font-medium text-secondary-900">{{ replyToAuthor!.name }}</span>
+              <span class="ml-1.5 text-xs text-gray-400">{{ formatAbsoluteDate(replyToMessage.createdAt!) }}</span>
+              <Text
+                v-if="replyToMessage.text"
+                class="max-h-6 max-w-full select-none truncate hover:cursor-pointer"
+                :model-value="trimText(replyToMessage.text, 1)"
+                :variant="Variant.STEALTH"
+              />
             </div>
-            <!-- Time (if continued) -->
-            <div v-else class="mr-3.5 flex-shrink-0 px-0.5" :style="{ width: asideWidth + 'px' }">
-              <span
-                class="text-xs text-gray-400 opacity-0 transition-colors duration-75 group-hover/message:opacity-100"
+            <!-- Content -->
+            <Text :model-value="message.text" :variant="Variant.STEALTH" />
+            <!-- Controls (floating) -->
+            <div
+              class="absolute right-1.5 top-0 z-10 ml-auto flex flex-row gap-x-2 rounded border border-gray-200 bg-white px-2 py-1 opacity-0 group-hover/message:opacity-100"
+            >
+              <!-- Reply -->
+              <button
+                v-tooltip="{ title: 'Reply', referenceMargin: 8, small: true, showDelay: 200, hideDelay: 100 }"
+                class="rounded text-gray-400 hover:bg-gray-100 hover:text-primary-900"
+                @click.stop="replyTo(message)"
               >
-                {{ tsToDt(message.createdAt!).toLocaleString(DateTime.TIME_24_SIMPLE) }}
-              </span>
-            </div>
-            <!-- Body -->
-            <div class="w-full">
-              <!-- Header -->
-              <div v-if="!isContinued" class="mb-0.5 max-w-full gap-x-0.5">
-                <!-- Author Name / Time -->
-                <span class="truncate font-medium">{{ author.name }}</span>
-                <span class="ml-1.5 text-xs text-gray-400">{{ formatAbsoluteDate(message.createdAt!) }}</span>
-                <i v-if="message.isPinned" class="fas fa-thumbtack ml-1.5 text-xs text-gray-400" />
-              </div>
-              <!-- Reply to -->
-              <div
-                v-if="replyToMessage"
-                role="button"
-                class="my-0.5 rounded border-secondary-200 bg-gray-100 px-2 py-1 hover:cursor-pointer"
-                :style="{ borderLeftWidth: HANDLE_WIDTH + 'px' }"
-                @click="focus(toNodeReference(replyToMessage))"
+                <i class="fas fa-reply w-5 text-center" />
+              </button>
+              <!-- Thread (not supported yet) -->
+              <button
+                v-tooltip="{ title: 'Thread', referenceMargin: 8, small: true, showDelay: 200, hideDelay: 100 }"
+                class="rounded text-gray-300"
               >
-                <span class="truncate font-medium text-secondary-900">{{ replyToAuthor!.name }}</span>
-                <span class="ml-1.5 text-xs text-gray-400">{{ formatAbsoluteDate(replyToMessage.createdAt!) }}</span>
-                <Text
-                  v-if="replyToMessage.text"
-                  class="max-h-6 max-w-full select-none truncate hover:cursor-pointer"
-                  :model-value="trimText(replyToMessage.text, 1)"
-                  :variant="Variant.STEALTH"
-                />
-              </div>
-              <!-- Content -->
-              <Text :model-value="message.text" :variant="Variant.STEALTH" />
-              <!-- Controls (floating) -->
-              <div
-                class="absolute right-1.5 top-0 z-10 ml-auto flex flex-row gap-x-2 rounded border border-gray-200 bg-white px-2 py-1 opacity-0 group-hover/message:opacity-100"
+                <i class="fas fa-reel w-5 text-center" />
+              </button>
+              <!-- Menu -->
+              <button
+                v-menu="
+                  (context: PopoverContext): PopoverInfo => ({
+                    kind: 'menu',
+                    placement: 'bottom-left',
+                    offset: 'referenceWidth',
+                    items: menuActionsLike(['message.*', 'common.edit.delete'], {
+                      context: { ...context, triggerNode: message },
+                    }),
+                  })
+                "
+                class="rounded text-gray-400 hover:bg-gray-100 hover:text-primary-900"
               >
-                <!-- Reply -->
-                <button
-                  v-tooltip="{ title: 'Reply', referenceMargin: 8, small: true, showDelay: 200, hideDelay: 100 }"
-                  class="rounded text-gray-400 hover:bg-gray-100 hover:text-primary-900"
-                  @click.stop="replyTo(message)"
-                >
-                  <i class="fas fa-reply w-5 text-center" />
-                </button>
-                <!-- Thread (not supported yet) -->
-                <button
-                  v-tooltip="{ title: 'Thread', referenceMargin: 8, small: true, showDelay: 200, hideDelay: 100 }"
-                  class="rounded text-gray-300"
-                >
-                  <i class="fas fa-reel w-5 text-center" />
-                </button>
-                <!-- Menu -->
-                <button
-                  v-menu="
-                    (context: PopoverContext): PopoverInfo => ({
-                      kind: 'menu',
-                      placement: 'bottom-left',
-                      offset: 'referenceWidth',
-                      items: menuActionsLike(['message.*', 'common.edit.delete'], {
-                        context: { ...context, triggerNode: message },
-                      }),
-                    })
-                  "
-                  class="rounded text-gray-400 hover:bg-gray-100 hover:text-primary-900"
-                >
-                  <i class="fas fa-ellipsis-v w-5 text-center" />
-                </button>
-              </div>
+                <i class="fas fa-ellipsis-v w-5 text-center" />
+              </button>
             </div>
           </div>
-        </template>
+        </div>
       </div>
     </Scroll>
     <!-- Can't find thread -->
@@ -577,18 +575,21 @@ defineExpose<ViewExposed>({ self, id, variants: [Variant.PRIMARY, Variant.COMPAC
       <div
         class="relative mx-auto flex flex-row items-end"
         :class="[
-          variant != Variant.COMPACT ? 'mb-3 gap-x-2.5 bg-gray-100 px-3 py-2' : 'gap-x-1.5 px-2.5 pb-1.5 pt-1',
+          variant != Variant.COMPACT ? 'mb-3 gap-x-2.5 bg-gray-100 px-3 py-2' : 'gap-x-1.5 px-2 pb-1.5 pt-1',
           replyingTo != null ? 'rounded-b' : 'rounded',
         ]"
         :style="{
-          width: variant != Variant.COMPACT ? 'calc(100% - ' + MIN_GUTTER_WIDTH * 2 + 'px)' : DEFAULT_WIDTH + 'px',
+          width:
+            variant != Variant.COMPACT
+              ? 'calc(100% - ' + (MIN_GUTTER_WIDTH * 2 + 26) + 'px)'
+              : 'calc(100% - ' + (MIN_GUTTER_WIDTH * 2 + 14) + 'px)',
           maxWidth: MAX_WIDTH + 'px',
           minHeight: MIN_INPUT_HEIGHT + 'px',
         }"
       >
         <!-- Jump to bottom & follow -->
         <button
-          v-if="!stickToEnd"
+          v-if="!stickToEnd && variant != Variant.COMPACT"
           class="arrow absolute right-[12px] rounded-2xl border border-gray-200 bg-white px-2.5 py-0.5 text-base text-gray-600 hover:bg-gray-100 hover:text-primary-900"
           :class="replyingTo ? '-top-[72px]' : '-top-[36px]'"
           @click="followEnd()"
@@ -599,10 +600,14 @@ defineExpose<ViewExposed>({ self, id, variants: [Variant.PRIMARY, Variant.COMPAC
         <!-- Upload/create -->
         <button
           class="h-fit self-end px-2 py-0.5"
+          disabled
           :class="[
-            isFocusedAbsolute || variant == Variant.COMPACT ? 'text-gray-600 hover:text-primary-900' : 'text-gray-400',
+            isFocusedAbsolute || variant == Variant.COMPACT
+              ? 'text-gray-600 enabled:hover:text-primary-900'
+              : 'text-gray-400',
             variant != Variant.COMPACT ? 'text-lg' : 'text-base',
           ]"
+          :style="{ width: asideSize + 'px' }"
           @click.stop="() => {}"
         >
           <i class="fas fa-plus-circle" />
@@ -615,6 +620,7 @@ defineExpose<ViewExposed>({ self, id, variants: [Variant.PRIMARY, Variant.COMPAC
           track-is-overlay
           :track-width="ScrollbarWidth.sm"
           class="w-full"
+          :class="variant != Variant.COMPACT ? '' : 'px-1'"
         >
           <Text
             ref="textRef"
@@ -642,6 +648,7 @@ defineExpose<ViewExposed>({ self, id, variants: [Variant.PRIMARY, Variant.COMPAC
               : 'text-gray-400',
             variant != Variant.COMPACT ? 'text-lg' : 'text-base',
           ]"
+          :style="{ width: asideSize + 'px' }"
           :disabled="!canSubmit"
           @click.stop="submit"
         >
