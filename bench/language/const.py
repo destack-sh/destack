@@ -13,7 +13,7 @@ from bench.utils.utils import frozendict
 if typing.TYPE_CHECKING:
     from bench.language import Session, Transaction
 
-VERSION = "2024.05.09.3"
+VERSION = "2024.05.13.1"
 REVISION_PENDING = -1
 TK_LENGTH_BYTES = 8
 TK_LENGTH_B64 = 12  # 1.5 * TK_LENGTH_BYTES (must be integer)
@@ -126,6 +126,7 @@ class EnumType(IdEnum):
     RUN_STATUS = 2260
     RUN_KIND = 2261
     RUN_ERROR_KIND = 2262
+    SESSION_STATUS = 2263
     TRIGGER_TYPE = 2270
     NOTICE_KIND = 2280
     NOTIFICATION_KIND = 2281
@@ -173,14 +174,16 @@ class NodeType(IdEnum):
     NOTICE = 26
     BLOCK = 30
     TRIGGER = 31
-    FIELD = 32
+    FIELD = 32  # (based)
     RECORD = 33  # (local, based)
     QUERY = 34
     VIEW = 35
     STEP = 36
+    # TODO :Architecture: should Message be local?
+    #  (but then how do we query it together with the rest of source?)
     MESSAGE = 37
-    # TAG?  (not sure what to do with tags yet)
-    # REACTION = ...
+    # TAG?
+    # REACTION?
     # LOCK?
     # BREAKPOINT?
 
@@ -194,10 +197,9 @@ class NodeType(IdEnum):
     # runtime
     SESSION = 80  # (local)
     RUN = 81  # (local, based)
-    PAUSE = 82  # (local)
-    SIGNAL = 83  # (local, based)
-    LOG = 84  # (local)
-    NOTIFICATION = 85  # (local, based)
+    SIGNAL = 82  # (local, based)
+    LOG = 83  # (local)
+    NOTIFICATION = 84  # (local, based)
     # METRIC = ...?
 
     # resources (compute/storage/external/etc.)
@@ -222,7 +224,7 @@ ROOT_NODE_TYPES: bytetuple[NodeType] = bytetuple(
     NodeType.BENCH, NodeType.USER, NodeType.ORGANIZATION
 )
 LOCAL_NODE_TYPES: bytetuple[NodeType] = bytetuple(
-    NodeType.RECORD, NodeType.RUN, NodeType.PAUSE, NodeType.SIGNAL, NodeType.NOTIFICATION
+    NodeType.RECORD, NodeType.RUN, NodeType.SIGNAL, NodeType.NOTIFICATION
 )
 GLOBAL_NODE_TYPES: bytetuple[NodeType] = bytetuple(
     *tuple(nt for nt in NODE_TYPES if nt not in LOCAL_NODE_TYPES)
@@ -744,6 +746,13 @@ class NoticeKind(IdEnum):
     ERROR = 4
 
 
+@enum_(EnumType.RUN_KIND)
+class RunKind(IdEnum):
+    BLOCK = 1
+    STEP = 2
+    LAMBDA = 10
+
+
 @enum_(EnumType.RUN_STATUS)
 class RunStatus(IdEnum):
     SCHEDULED = 1
@@ -776,6 +785,13 @@ class RunErrorKind(IdEnum):
     VALIDATION = 3
     RUNTIME = 4
     UNTRUSTED = 5
+
+
+@enum_(EnumType.SESSION_STATUS)
+class SessionStatus(IdEnum):
+    PENDING = 1
+    OPEN = 3
+    CLOSED = 6
 
 
 @enum_(EnumType.EXPRESSION_KIND)

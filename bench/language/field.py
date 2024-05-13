@@ -48,7 +48,7 @@ from bench.language.property import (
 from bench.language.setup import BENCH_TYPE_BY_CLASS
 from bench.language.validation import NAME_CONSTRAINT, ValidationHandler
 from bench.language.value import HasValues, SomeValue, coerce_object_scalar
-from bench.proto.wire import FieldData, NodeReferenceData
+from bench.proto.wire import AnyNodeData, FieldData, NodeReferenceData
 from bench.sql.core import PrimitiveType
 from bench.utils.casing import IdentifierType
 from bench.utils.fractional import INTEGER_ZERO
@@ -58,7 +58,7 @@ if typing.TYPE_CHECKING:
     from bench.language import Block, Expression, Icon, Step, Text
     from bench.language.notice import NoticeHandler
 
-# pyright: reportIncompatibleVariableOverride=false,reportIncompatibleMethodOverride=false
+# pyright: reportIncompatibleVariableOverride=false
 
 logger = structlog.get_logger(__name__)
 
@@ -408,6 +408,7 @@ def to_type(typ: TypeIn) -> "TypeInfo":
     raise ValueError(f"unsupported type {typ!r}")
 
 
+# pyright: reportIncompatibleMethodOverride=false
 @node(NodeType.FIELD)
 class Field(BasedNode[FieldData], TypeInfoBase, _TypeQueryBuilder):
     """
@@ -474,8 +475,8 @@ class Field(BasedNode[FieldData], TypeInfoBase, _TypeQueryBuilder):
         return self.base.ck if self.base is not None else None
 
     @staticmethod
-    def get_base_from_data(data: FieldData) -> Optional[NodeReferenceData]:
-        return data.parent_ptr
+    def get_base_from_data(data: AnyNodeData) -> Optional[NodeReferenceData]:
+        return (cast(FieldData, data)).parent_ptr
 
     @property
     def identifier_type(self):

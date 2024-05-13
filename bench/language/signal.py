@@ -18,7 +18,7 @@ from bench.utils.uuidt import UUIDT
 if TYPE_CHECKING:
     from bench.language import Block, Package
 
-# pyright: reportIncompatibleVariableOverride=false,reportIncompatibleMethodOverride=false
+# pyright: reportIncompatibleVariableOverride=false
 
 logger = structlog.get_logger(__name__)
 

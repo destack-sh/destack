@@ -1,6 +1,6 @@
 from collections import deque
 from datetime import datetime
-from typing import TYPE_CHECKING, Any, Deque, Optional, Union, cast
+from typing import TYPE_CHECKING, Any, Collection, Deque, Optional, Union, cast
 
 import pytz
 from croniter import croniter
@@ -16,7 +16,7 @@ from bench.proto.wire import TriggerData
 if TYPE_CHECKING:
     from bench.language import Block, Expression, Step
 
-# pyright: reportIncompatibleVariableOverride=false,reportIncompatibleMethodOverride=false
+# pyright: reportIncompatibleVariableOverride=false
 
 # :TriggerSchedule
 TRIGGER_INTERVAL_ORIGIN = datetime(2022, 1, 1, 0, 0, 0, 0).replace(tzinfo=pytz.utc)
@@ -36,7 +36,7 @@ class Schedule(Struct):
         return f"{self.type} {self.timezone} {self.interval or self.cron}"
 
     def _validate_component(
-        self, properties: tuple[Property, ...], invalid: "ValidationHandler"
+        self, properties: Collection[Property], invalid: "ValidationHandler"
     ) -> None:
         if self.type == ScheduleType.CRON:
             if not self.cron or not croniter.is_valid(self.cron):

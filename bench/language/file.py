@@ -1,5 +1,5 @@
 import io
-from typing import TYPE_CHECKING, BinaryIO, Optional
+from typing import TYPE_CHECKING, BinaryIO, Collection, Optional
 
 import aiohttp
 import structlog
@@ -20,7 +20,7 @@ FILE_HASH_LENGTH = 128  # 512 bits
 FILE_MAX_SIZE = 1024 * 1024 * 1024  # 1GB
 GLOBAL_PROJECT_BUCKET_NAME = get_from_env("GLOBAL_PROJECT_BUCKET_NAME", optional=True)
 
-# pyright: reportIncompatibleVariableOverride=false,reportIncompatibleMethodOverride=false
+# pyright: reportIncompatibleVariableOverride=false
 
 
 @struct(StructType.FILE, inline=True)
@@ -42,7 +42,7 @@ class File(Struct):
         return f"{self.name} {self.type}, {self.size} bytes"
 
     def _validate_component(
-        self, properties: tuple[Property, ...], invalid: ValidationHandler
+        self, properties: Collection[Property], invalid: ValidationHandler
     ) -> None:
         if self.size and self.size > FILE_MAX_SIZE:
             invalid(self, f"{self} is too big ({self.size} > {FILE_MAX_SIZE} bytes)", (File.size,))

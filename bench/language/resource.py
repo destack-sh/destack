@@ -40,7 +40,7 @@ from bench.utils.func import IdEnum
 if TYPE_CHECKING:
     from bench.language import Bench, Space, User
 
-# pyright: reportIncompatibleVariableOverride=false,reportIncompatibleMethodOverride=false
+# pyright: reportIncompatibleVariableOverride=false
 
 
 @enum_(EnumType.REGION)

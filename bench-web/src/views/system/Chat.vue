@@ -464,6 +464,7 @@ defineExpose<ViewExposed>({ self, id, variants: [Variant.PRIMARY, Variant.COMPAC
                   : 'bg-transparent group-hover/message:bg-gray-200'
             "
           />
+        
           <!-- Aside -->
           <!-- Author Icon -->
           <div
@@ -479,6 +480,7 @@ defineExpose<ViewExposed>({ self, id, variants: [Variant.PRIMARY, Variant.COMPAC
               {{ tsToDt(message.createdAt!).toLocaleString(DateTime.TIME_24_SIMPLE) }}
             </span>
           </div>
+
           <!-- Body -->
           <div class="w-full">
             <!-- Header -->
@@ -533,7 +535,7 @@ defineExpose<ViewExposed>({ self, id, variants: [Variant.PRIMARY, Variant.COMPAC
                     kind: 'menu',
                     placement: 'bottom-left',
                     offset: 'referenceWidth',
-                    items: menuActionsLike(['message.*', 'common.edit.delete'], {
+                    items: menuActionsLike(['message.*', 'common.edit.archive', 'common.edit.delete'], {
                       context: { ...context, triggerNode: message },
                     }),
                   })

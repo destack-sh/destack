@@ -183,7 +183,7 @@ defineExpose<ViewExposed>({ self, id, actions });
         variant != Variant.STEALTH
           ? 'border border-gray-200 focus-within:border-primary-900 hover:border-gray-300'
           : '',
-        isInDropZone ? 'outline outline-2 outline-primary-400' : '',
+        isInDropZone ? 'outline-dotted outline-2 outline-primary-400' : '',
       ]"
       :draggable="true"
       @dragstart.stop.prevent="false /* prevent accidentally dragging ancestors from text selection here */"

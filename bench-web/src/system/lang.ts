@@ -83,7 +83,6 @@ export const BASED_NODE_TYPES = [NodeType.RECORD, NodeType.RUN, NodeType.SIGNAL,
 export const RUNTIME_NODE_TYPES = [
   NodeType.SESSION,
   NodeType.RUN,
-  NodeType.PAUSE,
   NodeType.SIGNAL,
   NodeType.LOG,
   NodeType.NOTIFICATION,

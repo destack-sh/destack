@@ -687,8 +687,8 @@ class GraphNodeList(NodeList[NodeT]):
             self.append(node)
 
     def remove(self, n: NodeT):  # type: ignore
-        if self._parent._session:
-            self._parent.session.delete(n)
+        if self._parent._session is not None:
+            self._parent._session.delete(n)
         self._parent._root_graph.remove(n)
         n.parent = None
 

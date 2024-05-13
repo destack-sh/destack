@@ -51,7 +51,7 @@ if TYPE_CHECKING:
     from bench.language import Block, Expression, Field, Property, ReadOptions, Session, Store
     from bench.sql.client import _PgStoreConnection
 
-# pyright: reportIncompatibleVariableOverride=false,reportIncompatibleMethodOverride=false
+# pyright: reportIncompatibleVariableOverride=false, reportIncompatibleMethodOverride=false
 
 NodeT = TypeVar("NodeT", bound=Node)
 NodeDataT = TypeVar("NodeDataT", bound=AnyNodeData)
@@ -637,9 +637,9 @@ class RemoteConnection(StoreConnection[RemoteEngine, NodeT, NodeDataT]):
         request = wire.SearchNodesRequest(
             node_type=wiring.pack_enum(NodeType, query._node_type),
             filter=wiring.pack_struct_maybe(query._filter, ExpressionData),
-            sort=[wiring.pack_struct(s, ExpressionData) for s in query._sort]
-            if query._sort
-            else [],
+            sort=(
+                [wiring.pack_struct(s, ExpressionData) for s in query._sort] if query._sort else []
+            ),
             first=query._first,
             options=wiring.pack_struct_maybe(query._options, ReadOptionsData),
             count=options.count,

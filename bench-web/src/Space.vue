@@ -14,7 +14,7 @@ import Omnibar from "@/views/builtins/Omnibar.vue";
 import ToastOverlay from "@/views/builtins/ToastOverlay.vue";
 import TooltipOverlay from "@/views/builtins/TooltipOverlay.vue";
 import Split from "@/views/containers/Split.vue";
-import { IS_IN_ALT_MODE } from "@/system/action";
+import { IS_IN_ALT_MODE, fireActionById } from "@/system/action";
 import { useTitle, useWindowSize } from "@vueuse/core";
 import { computed, onBeforeUnmount, ref, watch } from "vue";
 import { makeIcon } from "@/system/icon";
@@ -166,7 +166,12 @@ watch([canvas.focusedViewPtr, bench], () => {
       <div v-else>
         <!-- Not logged in, not on a space (general landing page should go here) -->
         <h2 class="mb-1.5 text-2xl font-bold">Bench</h2>
-        <Button name="LogIn" :icon="makeIcon('fas fa-arrow-right-from-bracket')" title="Log In" />
+        <Button
+          name="LogIn"
+          :icon="makeIcon('fas fa-arrow-right-from-bracket')"
+          title="Log In"
+          @click="fireActionById('user.auth.login')"
+        />
       </div>
     </div>
 
