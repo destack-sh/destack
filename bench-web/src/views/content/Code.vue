@@ -166,7 +166,6 @@ defineExpose<ViewExposed>({ self, id, actions });
 </script>
 <template>
   <ViewContentWrapper :title="title" :variant="variant" :orientation="orientation">
-    <!-- TODO :UX: Code menus (autocomplete, refactor, etc.)  -->
     <!-- NOTE: codeRef must be in a stable fragment to mount the editor view -->
     <div
       ref="codeRef"

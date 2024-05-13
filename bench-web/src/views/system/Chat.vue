@@ -42,6 +42,7 @@ import { toCamelName } from "@/system/lang";
 const HEADER_HEIGHT_NORMAL = 36;
 const HEADER_HEIGHT_COMPACT = 32;
 const MAX_WIDTH = 800;
+const MIN_WIDTH = 360;
 const DEFAULT_WIDTH = 360;
 const DEFAULT_HEIGHT = 480;
 const DEFAULT_MAX_INPUT_HEIGHT = 120;
@@ -324,7 +325,7 @@ defineExpose<ViewExposed>({ self, id, variants: [Variant.PRIMARY, Variant.COMPAC
     <div class="w-full" :style="{ height: headerHeight + 'px' }">
       <div
         class="mx-auto flex w-full max-w-full flex-row items-center gap-x-3 px-4"
-        :style="{ height: headerHeight + 'px', maxWidth: MAX_WIDTH + 'px' }"
+        :style="{ height: headerHeight + 'px', minWidth: MIN_WIDTH + 'px', maxWidth: MAX_WIDTH + 'px' }"
       >
         <!-- Thread (local root message node) -->
         <div class="flex-shrink-0">
@@ -579,19 +580,17 @@ defineExpose<ViewExposed>({ self, id, variants: [Variant.PRIMARY, Variant.COMPAC
           replyingTo != null ? 'rounded-b' : 'rounded',
         ]"
         :style="{
-          width:
-            variant != Variant.COMPACT
-              ? 'calc(100% - ' + (MIN_GUTTER_WIDTH * 2 + 26) + 'px)'
-              : 'calc(100% - ' + (MIN_GUTTER_WIDTH * 2 + 14) + 'px)',
+          // all these magic numbers just make sure that things are nicely aligned
+          width: 'calc(100% - ' + (MIN_GUTTER_WIDTH * 2 + 26) + 'px)',
           maxWidth: MAX_WIDTH + 'px',
           minHeight: MIN_INPUT_HEIGHT + 'px',
         }"
       >
         <!-- Jump to bottom & follow -->
         <button
-          v-if="!stickToEnd && variant != Variant.COMPACT"
-          class="arrow absolute right-[12px] rounded-2xl border border-gray-200 bg-white px-2.5 py-0.5 text-base text-gray-600 hover:bg-gray-100 hover:text-primary-900"
-          :class="replyingTo ? '-top-[72px]' : '-top-[36px]'"
+          v-if="variant != Variant.COMPACT"
+          class="arrow duation-75 absolute right-[12px] rounded-2xl border border-gray-200 bg-white px-2.5 py-0.5 text-base text-gray-600 transition-colors hover:bg-gray-100 hover:text-primary-900"
+          :class="[replyingTo ? '-top-[72px]' : '-top-[36px]', stickToEnd ? 'opacity-0' : 'opacity-100']"
           @click="followEnd()"
         >
           <i class="fas fa-arrow-down" />
@@ -620,7 +619,7 @@ defineExpose<ViewExposed>({ self, id, variants: [Variant.PRIMARY, Variant.COMPAC
           track-is-overlay
           :track-width="ScrollbarWidth.sm"
           class="w-full"
-          :class="variant != Variant.COMPACT ? '' : 'px-1'"
+          :class="variant != Variant.COMPACT ? '' : 'mx-0.5'"
         >
           <Text
             ref="textRef"

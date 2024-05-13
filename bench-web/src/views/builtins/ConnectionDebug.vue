@@ -25,7 +25,7 @@ import Popover from "@/views/builtins/Popover.vue";
           class="fas"
           :class="
             !hasPendingConnections
-              ? 'fa-cloud text-gray-800 hover:text-primary-900'
+              ? 'fa-cloud text-gray-700 hover:text-primary-900'
               : 'fa-cloud-slash text-warning-600 hover:text-primary-700'
           "
         />
