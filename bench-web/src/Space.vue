@@ -97,7 +97,6 @@ watch([canvas.focusedViewPtr, bench], () => {
     :class="[
       isDraggingGlobal || hasActivePopover ? 'pointer-events-none select-none' : '',
       IS_IN_ALT_MODE ? 'altmode' : '',
-      barOrientation == Orientation.VERTICAL ? 'border-y border-gray-200' : '',
     ]"
     :style="{ width: spaceWidth + 'px', height: spaceHeight + 'px' }"
     @contextmenu.stop.prevent="() => {} /* suppress generic context menu */"

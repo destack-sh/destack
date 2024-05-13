@@ -16,7 +16,7 @@ import Popover from "@/views/builtins/Popover.vue";
         class="select-none rounded border-2 px-1 py-1 transition-colors"
         :class="
           graphConnections.some((c) => c.isPaused.value || c.txBuffer.isPaused.value)
-            ? 'border-secondary-600'
+            ? 'border-warning-600'
             : 'border-transparent'
         "
         @click.stop="toggle"
@@ -25,8 +25,8 @@ import Popover from "@/views/builtins/Popover.vue";
           class="fas"
           :class="
             !hasPendingConnections
-              ? 'fa-cloud text-success-600 hover:text-success-700'
-              : 'fa-cloud-slash text-warning-600 hover:text-warning-700'
+              ? 'fa-cloud text-gray-800 hover:text-primary-900'
+              : 'fa-cloud-slash text-warning-600 hover:text-primary-700'
           "
         />
       </button>

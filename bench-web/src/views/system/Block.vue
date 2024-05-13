@@ -141,7 +141,7 @@ defineExpose<ViewExposed>({ self, id, variants: [Variant.PRIMARY, Variant.STEALT
             })
           "
           v-bind="getNodeIcon(block)"
-          class="w-5 rounded border border-transparent py-0.5 hover:cursor-pointer hover:bg-gray-100 data-[popover=true]:border-primary-900 data-[popover=true]:bg-gray-100"
+          class="w-5 rounded py-0.5 hover:cursor-pointer hover:bg-gray-100 data-[popover=true]:bg-gray-100"
           :class="isThinTextWrapper ? 'text-gray-500' : 'text-gray-700'"
         />
         <input
@@ -185,24 +185,10 @@ defineExpose<ViewExposed>({ self, id, variants: [Variant.PRIMARY, Variant.STEALT
           >
             <i class="fas fa-text w-5 text-center" />
           </button>
-          <!-- Start thread -->
-          <button
-            v-menu="
-              (context: PopoverContext): PopoverInfoIn => ({
-                component: ViewType.CHAT,
-                placement: 'bottom-right',
-                container: 'containingRoot',
-                props: { variant: Variant.COMPACT, nodePtr },
-              })
-            "
-            class="rounded hover:bg-gray-100 hover:text-primary-900"
-          >
-            <i class="fas fa-reel w-5 text-center" />
-          </button>
           <!-- Quick add -->
           <button
             v-if="TYPE_BLOCK_TYPES.includes(block.type) || RUNNABLE_BLOCK_TYPES.includes(block.type)"
-            class="rounded border border-transparent hover:bg-gray-100 hover:text-primary-900 data-[popover=true]:border-primary-900 data-[popover=true]:bg-gray-100 data-[popover=true]:text-primary-900"
+            class="rounded hover:bg-gray-100 hover:text-primary-900 data-[popover=true]:bg-gray-100 data-[popover=true]:text-primary-900"
             @click="
               (e) => {
                 if (block!.type == BlockType.CHOICE) {
@@ -243,13 +229,14 @@ defineExpose<ViewExposed>({ self, id, variants: [Variant.PRIMARY, Variant.STEALT
                     'common.edit.duplicate',
                     'common.edit.archive',
                     'common.edit.delete',
+                    'message.handle.startThread',
                     'block.*',
                   ],
                   { context: { triggerNode: nodePtr } },
                 ),
               })
             "
-            class="rounded border border-transparent hover:bg-gray-100 hover:text-primary-900 data-[popover=true]:border-primary-900 data-[popover=true]:bg-gray-100 data-[popover=true]:text-primary-900"
+            class="rounded hover:bg-gray-100 hover:text-primary-900 data-[popover=true]:bg-gray-100 data-[popover=true]:text-primary-900"
           >
             <i class="fas fa-ellipsis-v w-5 text-center" />
           </button>
@@ -258,7 +245,7 @@ defineExpose<ViewExposed>({ self, id, variants: [Variant.PRIMARY, Variant.STEALT
       <!-- ... -->
     </div>
     <!-- Body -->
-    <div class="flex flex-col gap-y-1.5 py-0.5">
+    <div class="flex flex-col gap-y-1.5 py-1">
       <!-- Variable(s) ... -->
       <Value
         v-if="block.type == BlockType.VARIABLE"

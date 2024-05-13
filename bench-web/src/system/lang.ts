@@ -597,7 +597,6 @@ export function createField(
 // NOTE: we soft-limit the subset of available enum options in bench-web
 //  (in code and backend the entire ranges are available)
 export const EXPOSED_BLOCK_TYPES = [
-  BlockType.MODULE,
   BlockType.PAGE,
   BlockType.TEXT,
   BlockType.CLASS,

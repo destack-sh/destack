@@ -39,14 +39,16 @@ import { makeSelection } from "@/views/canvas";
 import { getElement } from "@/utils/element";
 import { toCamelName } from "@/system/lang";
 
-const HEADER_HEIGHT = 36;
+const HEADER_HEIGHT_NORMAL = 36;
+const HEADER_HEIGHT_COMPACT = 32;
 const MAX_WIDTH = 800;
 const DEFAULT_WIDTH = 320;
 const DEFAULT_HEIGHT = 480;
 const DEFAULT_MAX_INPUT_HEIGHT = 120;
 const MIN_INPUT_HEIGHT = 40;
 const MIN_GUTTER_WIDTH = 4;
-const ASIDE_WIDTH = 36;
+const ASIDE_WIDTH_NORMAL = 36;
+const ASIDE_WIDTH_COMPACT = 28;
 const HANDLE_WIDTH = 6;
 
 const props = defineProps<
@@ -58,8 +60,10 @@ const emit = defineEmits(viewEmits());
 const self = toRef(props, "self");
 const id = makeViewId(props);
 
+const headerHeight = computed(() => (props.variant == Variant.COMPACT ? HEADER_HEIGHT_COMPACT : HEADER_HEIGHT_NORMAL));
+const asideWidth = computed(() => (props.variant == Variant.COMPACT ? ASIDE_WIDTH_COMPACT : ASIDE_WIDTH_NORMAL));
 const maxInputHeight = computed(() =>
-  props.size != null ? (props.size.height - HEADER_HEIGHT) / 2 : DEFAULT_MAX_INPUT_HEIGHT,
+  props.size != null ? (props.size.height - headerHeight.value) / 2 : DEFAULT_MAX_INPUT_HEIGHT,
 );
 const draftRef: Ref<HTMLDivElement | null> = ref(null);
 const inputSize = useElementSize(draftRef);
@@ -73,14 +77,32 @@ const nodePtr = toRef(props, "nodePtr");
 const { graph: spaceGraph, connection: spaceConnection } = useExistingConnection(self);
 const preparedPkgConnection = useExistingConnection(nodePtr);
 const { graph: pkgGraph, connection: pkgConnection } = preparedPkgConnection;
+const selfView = spaceGraph.getRef(self);
 const node = pkgGraph.getRef(nodePtr);
 const thread = computed(() => (node.value != null && isNode(node.value, NodeType.MESSAGE) ? node.value : null));
 const messages = pkgGraph.getChildrenRef(node, NodeType.MESSAGE);
 const ancestors = pkgGraph.getAncestorsRef(nodePtr, { includeSelf: false });
 const context = computed(() => {
   if (node.value != null && !isNode(node.value, NodeType.MESSAGE)) return node.value;
-  else return ancestors.value.find((n) => n.metatype != ObjectType.MESSAGE);
+  else return ancestors.value.find((n) => n.metatype != ObjectType.MESSAGE) ?? pkg.value;
 });
+
+// sync view title with context name
+watch(
+  () => (context.value as any)?.name,
+  () => {
+    if (context.value != null && selfView.value != null) {
+      const targetTitle =
+        context.value?.id == pkg.value?.id || !("name" in context.value)
+          ? toCamelName(ViewType, ViewType.CHAT)
+          : context.value.name;
+      if (targetTitle != selfView.value.title) {
+        pkgConnection.tx.updateDebounced(selfView.value, { title: targetTitle });
+      }
+    }
+  },
+  { immediate: true },
+);
 
 function getAuthor(message: MessageData): { name: string; icon: IconData } {
   // NOTE :Broken: load correct name/icon for message author
@@ -107,8 +129,7 @@ const renderedMessages = computed(() => {
     const isContinued =
       lastMessage != null &&
       lastMessage.createdByPtr?.id == message.createdByPtr?.id &&
-      message.createdAt!.seconds - lastMessage.createdAt!.seconds < 300 &&
-      message.replyToPtr == null;
+      message.createdAt!.seconds - lastMessage.createdAt!.seconds < 300;
     const isContinuationBreak = !isContinued && lastMessage != null;
     // NOTE: replyTo message is technically not reactive in its own
     //  but 1) replies should be to messages in the thread, so that's auto reactive and 2) it's probably fine?
@@ -148,7 +169,7 @@ function createNewThread(parent: AnyNodeData | null, title: string = generateRan
   const tx = findExistingConnectionOrError("get", { roots: [rootPtr] }).tx;
   const thread = tx.create({
     metatype: NodeType.MESSAGE,
-    parentPtr: rootPtr,
+    parentPtr: parent != null ? toNodeReference(parent) : undefined,
     packagePtr: rootPtr,
     title,
   });
@@ -167,7 +188,7 @@ function submit() {
 
   if (nodePtr.value == null || !isNode(node.value, NodeType.MESSAGE)) {
     // create new thread with message inside (in node or default to package)
-    const parent = isNode(nodePtr.value, NodeType.MESSAGE) ? nodePtr.value : null;
+    const parent = !isNode(node.value, NodeType.MESSAGE) ? node.value : null;
     const thread = createNewThread(parent);
     const tx = findExistingConnectionOrError("get", { roots: [toNodeReference(thread)] }).tx;
     const message = tx.create({
@@ -211,10 +232,9 @@ function mapToNode(element: HTMLElement | SVGElement | ViewComponent): NodeRefer
 }
 
 function focus(anchor?: FocusAnchor | NodeReferenceData) {
-  if (anchor == null || typeof anchor === "string") {
+  if (anchor == null || typeof anchor === "string" || anchor.type != NodeType.MESSAGE) {
     textRef.value?.focus?.("center");
   } else {
-    if (anchor.type != NodeType.MESSAGE) throw new Error(`can't focus non-message: ${describeNode(anchor)}`);
     const selfView = spaceGraph.getOrError(self.value!);
     canvas.focusInGraph(spaceConnection.tx, { view: selfView, focus: makeSelection([anchor]) });
     const messageEl = messageRefs.value[anchor.id!];
@@ -271,7 +291,7 @@ const actions: Partial<ActionMapImplementation<"common">> & ActionMapImplementat
   "message.handle.startThread": {
     isEnabled: () => false, // not yet supported
     action: (action, context) => {
-      throw new Error(":Incomplete: start thread");
+      throw new Error(":Incomplete: start nested thread");
     },
   },
   "message.handle.edit": {
@@ -301,13 +321,13 @@ defineExpose<ViewExposed>({ self, id, variants: [Variant.PRIMARY, Variant.COMPAC
   <div class="flex h-full w-full flex-col">
     <!-- Header -->
     <div
-      v-if="variant != Variant.COMPACT || thread != null"
-      class="w-full border-b border-gray-200"
-      :style="{ height: HEADER_HEIGHT + 'px' }"
+      class="w-full"
+      :class="variant != Variant.COMPACT ? 'border-b border-gray-200' : ''"
+      :style="{ height: headerHeight + 'px' }"
     >
       <div
         class="mx-auto flex w-full max-w-full flex-row items-center gap-x-3 pl-4 pr-5"
-        :style="{ height: HEADER_HEIGHT + 'px', maxWidth: MAX_WIDTH + 'px' }"
+        :style="{ height: headerHeight + 'px', maxWidth: MAX_WIDTH + 'px' }"
       >
         <!-- Thread (local root message node) -->
         <div class="flex-shrink-0">
@@ -321,8 +341,8 @@ defineExpose<ViewExposed>({ self, id, variants: [Variant.PRIMARY, Variant.COMPAC
             spellcheck="false"
             :value="thread?.title"
             :size="(thread?.title?.length ?? 10) + 1"
-            :disabled="node == null"
-            :placeholder="node == null ? 'New Thread' : 'Untitled Thread'"
+            :disabled="thread == null"
+            :placeholder="thread == null ? 'New Thread' : 'Untitled Thread'"
             @input="
               (event) => pkgConnection.tx.updateDebounced(node!, { title: (event.target as HTMLInputElement).value })
             "
@@ -333,6 +353,7 @@ defineExpose<ViewExposed>({ self, id, variants: [Variant.PRIMARY, Variant.COMPAC
               (): PopoverInfoIn => ({
                 component: ViewType.PICKER,
                 placement: 'bottom-left',
+                container: 'containingRoot',
                 props: {
                   valueType: makeTypeInfo({ benchType: BenchType.MESSAGE }),
                   modelValue: nodePtr,
@@ -340,8 +361,9 @@ defineExpose<ViewExposed>({ self, id, variants: [Variant.PRIMARY, Variant.COMPAC
                   customIndex: graphIndex({
                     graph: nodePtr == null ? localPkgGraph : pkgGraph,
                     metatypes: [NodeType.MESSAGE],
-                    roots: [pkg!],
-                    filter: (node) => (node as MessageData).parentPtr!.type != NodeType.MESSAGE,
+                    roots: [context!],
+                    skipDepth: 1,
+                    maxDepth: 1,
                   }),
                 } as any,
                 onApply: (value) => {
@@ -353,37 +375,30 @@ defineExpose<ViewExposed>({ self, id, variants: [Variant.PRIMARY, Variant.COMPAC
                 },
               })
             "
-            class="ml-1.5 text-gray-400"
+            class="ml-1.5 text-gray-400 hover:text-primary-900"
           >
             <i class="fas fa-chevron-down" />
           </button>
         </div>
-        <!-- Archive / Delete -->
-        <button
-          v-if="thread != null"
-          v-tooltip="{ title: 'Archive', small: true }"
-          class="text-gray-400 enabled:hover:text-primary-900"
-          :disabled="thread == null"
-          @click="
-            () => {
-              pkgConnection.tx.archive(thread!);
-              const selfView = spaceGraph.getOrError(self!);
-              spaceConnection.tx.updateDebounced(selfView, { nodePtr: undefined });
-            }
-          "
-        >
-          <i class="fas fa-archive w-5 text-center" />
-        </button>
-        <!-- Context (non-message parent node) -->
-        <div class="ml-auto flex-shrink-0">
-          <IconInline
-            class="mr-1.5 w-5 text-center text-gray-400"
-            v-bind="(context != null ? getNodeIcon(context) : null) ?? makeIcon('fas fa-infinity')"
-          />
-          <span class="text-gray-400">
-            {{ (context as any)?.name ?? "Everything" }}
-          </span>
-          <!-- TODO :UX: move thread to different parent ('context') -->
+        <!-- Actions / Menu -->
+        <div class="ml-auto flex flex-shrink-0 flex-row gap-x-1">
+          <!-- Expand into own View -->
+          <button
+            v-if="variant == Variant.COMPACT"
+            v-tooltip="{ title: 'Expand', small: true }"
+            class="text-gray-400 hover:text-primary-900"
+            @click="
+              () => {
+                canvas.addView(
+                  { type: ViewType.CHAT, nodePtr },
+                  { ifPresent: 'upsertAndFocus', where: 'nextFrameRoot' },
+                );
+                $emit('close');
+              }
+            "
+          >
+            <i class="fas fa-expand w-5 text-center" />
+          </button>
         </div>
       </div>
     </div>
@@ -394,7 +409,7 @@ defineExpose<ViewExposed>({ self, id, variants: [Variant.PRIMARY, Variant.COMPAC
       ref="scrollRef"
       :size="{
         width: props.size?.width ?? DEFAULT_WIDTH,
-        height: (props.size?.height ?? DEFAULT_HEIGHT) - HEADER_HEIGHT - inputSize.height.value,
+        height: (props.size?.height ?? DEFAULT_HEIGHT) - headerHeight - inputSize.height.value,
       }"
       :orientation="Orientation.VERTICAL"
       :track-width="ScrollbarWidth.md"
@@ -402,7 +417,7 @@ defineExpose<ViewExposed>({ self, id, variants: [Variant.PRIMARY, Variant.COMPAC
       :size-is-dynamic="props.size == null"
     >
       <!-- Messages -->
-      <div class="my-2">
+      <div class="" :class="variant != Variant.COMPACT ? 'my-2' : 'my-0.5'">
         <template
           v-for="{
             message,
@@ -451,13 +466,13 @@ defineExpose<ViewExposed>({ self, id, variants: [Variant.PRIMARY, Variant.COMPAC
             <!-- Author Icon -->
             <div
               v-if="!isContinued"
-              class="mr-3 mt-0.5 h-fit flex-shrink-0 rounded border border-gray-200 bg-gray-100 py-1.5 text-center text-gray-700"
-              :style="{ width: ASIDE_WIDTH + 'px' }"
+              class="mr-3 mt-0.5 flex h-fit flex-shrink-0 flex-col justify-center rounded border border-gray-200 bg-gray-100 text-center text-gray-700"
+              :style="{ width: asideWidth + 'px', height: asideWidth + 'px' }"
             >
               <IconInline v-bind="author.icon" />
             </div>
             <!-- Time (if continued) -->
-            <div v-else class="mr-3.5 flex-shrink-0 px-0.5" :style="{ width: ASIDE_WIDTH + 'px' }">
+            <div v-else class="mr-3.5 flex-shrink-0 px-0.5" :style="{ width: asideWidth + 'px' }">
               <span
                 class="text-xs text-gray-400 opacity-0 transition-colors duration-75 group-hover/message:opacity-100"
               >
@@ -523,7 +538,7 @@ defineExpose<ViewExposed>({ self, id, variants: [Variant.PRIMARY, Variant.COMPAC
                       }),
                     })
                   "
-                  class="rounded text-gray-400 hover:bg-gray-100 hover:text-primary-900 data-[popover=true]:border-primary-900"
+                  class="rounded text-gray-400 hover:bg-gray-100 hover:text-primary-900"
                 >
                   <i class="fas fa-ellipsis-v w-5 text-center" />
                 </button>
@@ -536,7 +551,7 @@ defineExpose<ViewExposed>({ self, id, variants: [Variant.PRIMARY, Variant.COMPAC
     <!-- Can't find thread -->
     <Inaccessible
       v-else-if="nodePtr != null && nodePtr.type == NodeType.MESSAGE"
-      class="h-full w-full"
+      class="my-1 h-full w-full"
       :node="nodePtr"
       :is-connected="pkgConnection.isConnected.value"
     />

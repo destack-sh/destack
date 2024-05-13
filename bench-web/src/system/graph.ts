@@ -11,7 +11,7 @@ import {
 } from "@/proto/wire";
 import { describeNode, toNodeReference, type AnyNodeReferenceData, type TypedNodeReferenceData } from "@/proto/wiring";
 import { defaultSortNode } from "@/system/lang";
-import { manualSubRef, watchValue, type SubRef } from "@/utils/ref";
+import { computedValue, manualSubRef, watchValue, type SubRef } from "@/utils/ref";
 import { tryOnBeforeUnmount } from "@vueuse/core";
 import { isRef, shallowRef, toRef, watch, type MaybeRef, type Ref, type ShallowRef, type WatchSource } from "vue";
 
@@ -992,6 +992,7 @@ export function resolveNode(graph: ReadNodeGraph, node: AnyNodeData | AnyNodeRef
 }
 
 export type NodeTreeItem<T extends NodeType> = {
+  id: string;
   node: NodeTypeMapping[T];
   nodePtr: TypedNodeReferenceData<T>;
   depth: number;
@@ -1028,6 +1029,7 @@ export function walkDescendantsRef<T extends NodeType>(walk: {
       // make item
       const children = nodeTypes.value.flatMap((nodeType) => graph.getChildren(node, nodeType)).filter(isIncludedSelf);
       const item: ItemT = {
+        id: node.id,
         node,
         nodePtr: toNodeReference(node) as TypedNodeReferenceData<T>,
         depth,
@@ -1043,7 +1045,14 @@ export function walkDescendantsRef<T extends NodeType>(walk: {
       if (depth < 0 || isExpanded(node)) {
         children.forEach((child) => {
           if (isIncludedChildren(child)) walkDescendants(child, depth + 1);
-          else items.push({ node: child, nodePtr: toNodeReference(child), depth: depth + 1, hasChildren: false });
+          else
+            items.push({
+              id: child.id,
+              node: child,
+              nodePtr: toNodeReference(child),
+              depth: depth + 1,
+              hasChildren: false,
+            });
         });
       }
     }
@@ -1078,11 +1087,28 @@ export function getGroupedChildrenRef<T extends NodeType>(walk: {
     subs.length = 0;
   };
 
+  const parentIds = computedValue(() => walk.parentPtrs.value.map((p) => p.id));
+
   function get(): { [parentId: string]: NodeT[] } {
-    return {}; // nocheckin: getGroupedChildrenRef
+    unsub();
+
+    const childrenByParentId: { [parentId: string]: NodeT[] } = {};
+    for (const parentId in parentIds.value) {
+      for (const childType of walk.childTypes) {
+        const children = walk.graph.getChildren({ id: parentId }, childType);
+        if (children.length > 0) {
+          if (!childrenByParentId[parentId]) childrenByParentId[parentId] = [];
+          childrenByParentId[parentId].push(...children);
+        }
+        subs.push(walk.graph.subscribeChildren({ id: parentId }, childType, trigger));
+      }
+    }
+
+    return childrenByParentId;
   }
 
   const { ref: childrenByParentId, trigger } = manualSubRef(get, unsub);
+  watch(parentIds, trigger);
 
   return { childrenByParentId, trigger };
 }

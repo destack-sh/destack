@@ -17,7 +17,7 @@ import { useHierarchicalNodeMoveActions } from "@/system/block";
 import { useExistingConnection, useGetConnection } from "@/system/connection";
 import { getGroupedChildrenRef, isDescendantOf, walkDescendantsRef } from "@/system/graph";
 import { ICON_BY_BLOCK_TYPE, IconInline } from "@/system/icon";
-import { RUNNABLE_BLOCK_TYPES, createBlock, moveNode, toCamelName } from "@/system/lang";
+import { EXPOSED_BLOCK_TYPES, RUNNABLE_BLOCK_TYPES, createBlock, moveNode, toCamelName } from "@/system/lang";
 import { canvas, inspectionPtr } from "@/system/space";
 import { makeTypeInfo } from "@/system/value";
 import { startDragging, useMultiDropZone } from "@/utils/drag";
@@ -63,7 +63,7 @@ const preparedPkgConnection = useGetConnection(
 const { graph: pkgGraph, connection: pkgConnection } = preparedPkgConnection;
 const page = pkgGraph.getRef(toRef(props, "nodePtr")) as Ref<BlockData | undefined>;
 const selfBlockRef = ref<InstanceType<typeof Block> | null>(null);
-const { items: expandedItems } = walkDescendantsRef({
+const { items: expandedBlocks } = walkDescendantsRef({
   graph: pkgGraph,
   rootPtr: toRef(props, "nodePtr"),
   nodeTypes: ref([NodeType.BLOCK]),
@@ -76,9 +76,9 @@ const contentRef = ref<HTMLElement | null>(null);
 const focusedNodePtr = computedValue(() => props.focus?.nodesPtr[0]);
 
 // messages / notices
-const { childrenByParentId: messagesByBlockId } = getGroupedChildrenRef({
+const { childrenByParentId: threadsByBlockId } = getGroupedChildrenRef({
   graph: pkgGraph,
-  parentPtrs: expandedItems,
+  parentPtrs: expandedBlocks,
   childTypes: [NodeType.MESSAGE],
 });
 
@@ -93,13 +93,13 @@ const widths = computed(() => {
 /** Gets the position for a div anchored at the start/end of the given block */
 function getAnchorPosition(anchor: "start" | "end", blockIdx: number, anchorWidth: number) {
   if (anchor == "start") {
-    const depth = expandedItems.value[blockIdx]?.depth;
+    const depth = expandedBlocks.value[blockIdx]?.depth;
     return {
       top: (depth == 0 ? -ROOT_BLOCK_GAP_Y : NESTED_BLOCK_GAP_Y) / 2 - anchorWidth / 2 + "px",
     };
   } else {
-    const depth = expandedItems.value[blockIdx]?.depth;
-    const nextDepth = expandedItems.value[blockIdx + 1]?.depth;
+    const depth = expandedBlocks.value[blockIdx]?.depth;
+    const nextDepth = expandedBlocks.value[blockIdx + 1]?.depth;
     return {
       bottom: (depth == 0 && nextDepth == 0 ? -ROOT_BLOCK_GAP_Y : -NESTED_BLOCK_GAP_Y) / 2 - anchorWidth / 2 + "px",
     };
@@ -115,6 +115,7 @@ watch(
       pkgConnection.tx.updateDebounced(selfView.value, { title: page.value?.name });
     }
   },
+  { immediate: true },
 );
 
 //
@@ -144,10 +145,10 @@ const { activeDropZone } = useMultiDropZone({
 
 // actions
 const getBlockFromContext = (ctx: ActionContext | undefined): { block: BlockData | null; idx: number } => {
-  let block = expandedItems.value.find((item) => item.nodePtr.id == ctx?.triggerNode?.id)?.node;
-  if (!block) block = expandedItems.value.find((item) => item.nodePtr.id == focusedNodePtr.value?.id)?.node;
+  let block = expandedBlocks.value.find((item) => item.nodePtr.id == ctx?.triggerNode?.id)?.node;
+  if (!block) block = expandedBlocks.value.find((item) => item.nodePtr.id == focusedNodePtr.value?.id)?.node;
   if (!block) return { block: null, idx: -1 };
-  const idx = expandedItems.value.findIndex((item) => item.nodePtr.id == block!.id);
+  const idx = expandedBlocks.value.findIndex((item) => item.nodePtr.id == block!.id);
   return { block, idx };
 };
 const actions: Partial<ActionMapImplementation<"common">> = {
@@ -178,10 +179,10 @@ const actions: Partial<ActionMapImplementation<"common">> = {
   "common.navigate.up": {
     action: (action, context) => {
       const { block, idx } = getBlockFromContext(context);
-      let toFocus = expandedItems.value[idx - 1]?.nodePtr;
+      let toFocus = expandedBlocks.value[idx - 1]?.nodePtr;
       if (block == null) {
         if (props.nodePtr?.id == focusedNodePtr.value?.id)
-          toFocus = expandedItems.value[expandedItems.value.length - 1]?.nodePtr;
+          toFocus = expandedBlocks.value[expandedBlocks.value.length - 1]?.nodePtr;
         else return false;
       }
       if (toFocus != null) canvas.focus(spaceConnection.tx, { node: toFocus, view: self.value });
@@ -190,9 +191,9 @@ const actions: Partial<ActionMapImplementation<"common">> = {
   "common.navigate.down": {
     action: (action, context) => {
       const { block, idx } = getBlockFromContext(context);
-      let toFocus = expandedItems.value[idx + 1]?.nodePtr;
+      let toFocus = expandedBlocks.value[idx + 1]?.nodePtr;
       if (block == null) {
-        if (props.nodePtr?.id == focusedNodePtr.value?.id) toFocus = expandedItems.value[0]?.nodePtr;
+        if (props.nodePtr?.id == focusedNodePtr.value?.id) toFocus = expandedBlocks.value[0]?.nodePtr;
         else return false;
       }
       if (toFocus != null) canvas.focus(spaceConnection.tx, { node: toFocus, view: self.value });
@@ -203,10 +204,10 @@ const actions: Partial<ActionMapImplementation<"common">> = {
     graph: pkgGraph,
     basePtr: toRef(props, "nodePtr"),
     txFactory: () => pkgConnection.tx,
-    expandedItems,
+    expandedItems: expandedBlocks,
     getItemFromContext: (context) => {
       const { idx } = getBlockFromContext(context);
-      const item = expandedItems.value[idx];
+      const item = expandedBlocks.value[idx];
       return { item, idx };
     },
   }),
@@ -224,17 +225,17 @@ function createAndFocusBlock(
 function focus(anchor?: FocusAnchor | NodeReferenceData) {
   if (typeof anchor != "object") {
     if (anchor != "bottom") {
-      const block = expandedBlockRefs.value[expandedItems.value[0].nodePtr.id!];
+      const block = expandedBlockRefs.value[expandedBlocks.value[0].nodePtr.id!];
       block?.$el.scrollIntoView({ block: "start", behavior: "instant" });
     } else {
-      const block = expandedBlockRefs.value[expandedItems.value[expandedItems.value.length - 1].nodePtr.id!];
+      const block = expandedBlockRefs.value[expandedBlocks.value[expandedBlocks.value.length - 1].nodePtr.id!];
       block?.$el.scrollIntoView({ block: "end", behavior: "instant" });
     }
   } else {
     if (anchor.id == props.nodePtr?.id) {
       // just focus first
-      if (expandedItems.value.length > 0) {
-        expandedBlockRefs.value[expandedItems.value[0].nodePtr.id!]?.$el.scrollIntoView({
+      if (expandedBlocks.value.length > 0) {
+        expandedBlockRefs.value[expandedBlocks.value[0].nodePtr.id!]?.$el.scrollIntoView({
           block: "nearest",
           behavior: "instant",
         });
@@ -293,7 +294,7 @@ defineExpose<ViewExposed>({ self, actions, focus });
         <!-- In-page Blocks -->
         <!-- Block 'line' -->
         <div
-          v-for="({ nodePtr: blockPtr, node: block, depth }, i) in expandedItems"
+          v-for="({ nodePtr: blockPtr, node: block, depth }, i) in expandedBlocks"
           :key="blockPtr.id"
           class="group/block-line relative flex min-w-fit flex-row"
           :style="{
@@ -302,20 +303,22 @@ defineExpose<ViewExposed>({ self, actions, focus });
         >
           <!-- Left gutter -->
           <div
-            class="relative flex flex-shrink-0 flex-row justify-end gap-x-2 text-right"
+            class="relative flex flex-shrink-0 flex-row items-start justify-end gap-x-2 text-right"
             :style="{
               width: widths.gutter + DEPTH_OFFSET * depth + 'px',
-              marginTop: (depth != 0 ? NESTED_BLOCK_GAP_Y : 0) + 9 + 'px',
+              marginTop: (depth != 0 ? NESTED_BLOCK_GAP_Y : 0) + 6 + 'px',
             }"
           >
             <!-- Activity / Run / ... -->
             <!-- Run -->
-            <i
+            <button
               v-if="RUNNABLE_BLOCK_TYPES.includes(block.type)"
-              role="button"
-              :class="'fas fa-play text-gray-400 hover:text-primary-900'"
+              class="text-gray-400 hover:text-primary-900"
+              :class="inspectionPtr?.id == blockPtr?.id ? '' : 'opacity-0 group-hover/block-line:opacity-100'"
               data-keep-inspection-in-base="true"
-            />
+            >
+              <i class="fas fa-play" />
+            </button>
             <!-- Handle -->
             <div
               class="h-full rounded transition-colors duration-75"
@@ -342,7 +345,7 @@ defineExpose<ViewExposed>({ self, actions, focus });
 
             <!-- Create above/below (in between blocks) -->
             <div
-              v-for="anchor in i < expandedItems.length - 1 ? ['start'] : ['start', 'end']"
+              v-for="anchor in i < expandedBlocks.length - 1 ? ['start'] : ['start', 'end']"
               :key="anchor"
               v-menu="
                 (): PopoverInfoIn => ({
@@ -359,7 +362,7 @@ defineExpose<ViewExposed>({ self, actions, focus });
                 getAnchorPosition(
                   anchor as 'start' | 'end',
                   i,
-                  anchor == 'start' || depth != expandedItems[i + 1]?.depth ? 8 : 4,
+                  anchor == 'start' || depth != expandedBlocks[i + 1]?.depth ? 8 : 4,
                 )
               "
               data-keep-inspection-in-base="true"
@@ -396,6 +399,8 @@ defineExpose<ViewExposed>({ self, actions, focus });
                       'common.edit.morph',
                       'common.edit.move',
                       'common.edit.duplicate',
+                      'common.edit.delete',
+                      'message.handle.startThread',
                       'common.create.above',
                       'common.create.below',
                       'block.*',
@@ -418,14 +423,37 @@ defineExpose<ViewExposed>({ self, actions, focus });
 
           <!-- Right gutter -->
           <div
-            class="relative flex-shrink-0 px-1.5"
+            class="relative flex flex-shrink-0 flex-row items-start justify-start px-0.5 transition-colors duration-75"
             :style="{
               width: widths.gutter,
-              marginTop: (depth != 0 ? NESTED_BLOCK_GAP_Y : 0) + 9 + 'px',
+              marginTop: (depth != 0 ? NESTED_BLOCK_GAP_Y : 0) + 6 + 'px',
             }"
           >
             <!-- References / Notices / Messages ... -->
-            <!-- nocheckin: messages -->
+            <button
+              v-menu="
+                (context: PopoverContext): PopoverInfoIn => ({
+                  component: ViewType.CHAT,
+                  placement: 'bottom-right',
+                  container: 'containingRoot',
+                  containerMargin: 12,
+                  props: {
+                    variant: Variant.COMPACT,
+                    nodePtr: toNodeReference(threadsByBlockId[blockPtr.id!]?.at(-1)!) ?? blockPtr,
+                  },
+                })
+              "
+              class="rounded hover:text-primary-900 data-[popover=true]:text-primary-900"
+              :class="[
+                inspectionPtr?.id == blockPtr?.id || threadsByBlockId[blockPtr.id!]?.length
+                  ? ''
+                  : 'opacity-0 group-hover/block-line:opacity-100',
+                threadsByBlockId[blockPtr.id!]?.length ? 'text-gray-700' : 'text-gray-400',
+              ]"
+              data-keep-inspection-in-base="true"
+            >
+              <i class="fas fa-message w-5 text-center" />
+            </button>
           </div>
         </div>
 
@@ -435,18 +463,7 @@ defineExpose<ViewExposed>({ self, actions, focus });
           v-if="page != null"
           class="group/footer mx-auto mb-8 mt-6 flex flex-row gap-x-1 rounded border border-gray-200 bg-white px-2 py-1"
         >
-          <template
-            v-for="blockType in [
-              BlockType.TEXT,
-              BlockType.CLASS,
-              BlockType.CHOICE,
-              BlockType.FLOW,
-              BlockType.CODE,
-              BlockType.VARIABLE,
-              BlockType.DATABASE,
-            ]"
-            :key="blockType"
-          >
+          <template v-for="blockType in EXPOSED_BLOCK_TYPES" :key="blockType">
             <button
               v-tooltip="{
                 title: `Create ${toCamelName(BlockType, blockType)} Block`,
