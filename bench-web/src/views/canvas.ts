@@ -651,9 +651,11 @@ export class ViewCanvas {
         // find root window and root tab below it
         const ancestors = this.graph.getAncestors(this.focusedRoot, { metatypes: [NodeType.VIEW] });
         const rootSplit = ancestors[ancestors.length - 2];
-        const rootSplitSiblings = this.graph.getChildren(ancestors[ancestors.length - 1], NodeType.VIEW);
-        const nextSplit = rootSplitSiblings[rootSplitSiblings.findIndex((n) => n.id == rootSplit.id) + 1];
-        if (nextSplit != null) parent = nextSplit;
+        if (rootSplit != null) {
+          const rootSplitSiblings = this.graph.getChildren(ancestors[ancestors.length - 1], NodeType.VIEW);
+          const nextSplit = rootSplitSiblings[rootSplitSiblings.findIndex((n) => n.id == rootSplit.id) + 1];
+          if (nextSplit != null) parent = nextSplit;
+        }
       } else {
         throw new Error(`unexpected where: ${options?.where}`);
       }
@@ -662,7 +664,7 @@ export class ViewCanvas {
         parent = this.focusedRoot;
       }
       if (parent == null) {
-        // no parent at all, reset space
+        // no parent at all, reset space (got messed up somehow)
         log.info("canvas.repairCanvas", this.spacePtr.value);
         const space = this.graph.getOrError(this.spacePtr.value!);
         parent = setupEmptyCanvas(tx, space).primary;

@@ -176,7 +176,7 @@ defineExpose<ViewExposed>({ self, actions });
         })
       "
       class="scrollbar-none relative flex w-full flex-row"
-      :class="[activeHeaderDropZone != null ? 'bg-gray-50' : 'bg-gray-100']"
+      :class="[activeHeaderDropZone != null ? 'bg-primary-50' : 'bg-gray-100']"
       :orientation="Orientation.HORIZONTAL"
       :track-width="ScrollbarWidth.sm"
       track-is-overlay

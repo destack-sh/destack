@@ -191,6 +191,7 @@ function close(popover: PopoverInstance | undefined) {
             }
           "
           @apply="() => (fire(popover), close(popover))"
+          @close="() => close(popover)"
         />
       </div>
     </template>

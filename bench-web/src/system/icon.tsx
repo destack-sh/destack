@@ -274,7 +274,7 @@ export const ICON_BY_VIEW_TYPE: Partial<Record<ViewType, IconData>> = _makeIcons
   [ViewType.OUTLINE]: "fas fa-list-tree",
   [ViewType.INSPECT]: "fas fa-eye",
   [ViewType.CREATE]: "fas fa-plus",
-  [ViewType.CHAT]: "fas fa-message",
+  [ViewType.CHAT]: "fas fa-messages",
 
   //
   // General

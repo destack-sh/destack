@@ -834,7 +834,7 @@ declareActionMap<"message">({
   },
   "message.handle.startThread": {
     icon: "fas fa-reel",
-    title: "Start Thread Here",
+    title: "Start Thread",
     text: "Start a message thread about this",
     shortcuts: ["mod+enter"],
   },

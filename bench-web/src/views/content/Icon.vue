@@ -83,7 +83,7 @@ function focus(anchor?: "up" | "down" | "left" | "right" | FocusAnchor | NodeRef
     else if (anchor === "left") nextIdx = currentIdx - 1;
     else if (anchor === "right") nextIdx = currentIdx + 1;
     else nextIdx = 0;
-  
+
     nextIdx = Math.max(0, Math.min(results.value.length - 1, nextIdx));
     activeResultId.value = results.value[nextIdx].id;
     if (resultsRefs.value[activeResultId.value] != null) {
@@ -113,7 +113,7 @@ defineExpose<ViewExposed>({ self, id, focus });
           onApply: (value) => apply(value),
         })
       "
-      class="group flex w-full flex-row items-center rounded border border-gray-200 px-2 py-1 hover:border-gray-300 data-[popover=true]:border-gray-300"
+      class="group flex w-full flex-row items-center rounded border border-gray-200 px-2 py-1 hover:border-gray-300 data-[popover=true]:border-gray-300 data-[popover=true]:text-primary-900"
     >
       <template v-if="modelValue != null">
         <IconInline v-bind="modelValue" />
