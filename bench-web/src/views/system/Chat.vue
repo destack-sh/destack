@@ -163,14 +163,13 @@ function replyTo(message: MessageData) {
   textRef.value?.focus!("center");
 }
 
-function createNewThread(parent: AnyNodeData | null, title: string = generateRandomName()) {
-  if (pkg.value == null) throw new Error("no package");
-  const rootPtr = toNodeReference(pkg.value);
-  const tx = findExistingConnectionOrError("get", { roots: [rootPtr] }).tx;
+function createNewThread(parent: AnyNodeData, title: string = generateRandomName()) {
+  if (!("packagePtr" in parent)) throw new Error(`parent is not in a package: ${describeNode(parent)}`);
+  const tx = findExistingConnectionOrError("get", { roots: [toNodeReference(parent)] }).tx;
   const thread = tx.create({
     metatype: NodeType.MESSAGE,
     parentPtr: parent != null ? toNodeReference(parent) : undefined,
-    packagePtr: rootPtr,
+    packagePtr: parent.packagePtr,
     title,
   });
   if (self.value != null) {
@@ -184,11 +183,12 @@ function createNewThread(parent: AnyNodeData | null, title: string = generateRan
 
 /** Submits a message to the current thread. If it doesn't exist, create a root thread. */
 function submit() {
-  if (isTextEmpty(text.value)) return;
+  if (isTextEmpty(text.value)) return; // nothing to submit
 
   if (nodePtr.value == null || !isNode(node.value, NodeType.MESSAGE)) {
-    // create new thread with message inside (in node or default to package)
-    const parent = !isNode(node.value, NodeType.MESSAGE) ? node.value : null;
+    // create new thread with message inside
+    const parent = node.value ?? pkg.value;
+    if (parent == null) throw new Error("no parent to create thread in");
     const thread = createNewThread(parent);
     const tx = findExistingConnectionOrError("get", { roots: [toNodeReference(thread)] }).tx;
     const message = tx.create({
@@ -336,7 +336,7 @@ defineExpose<ViewExposed>({ self, id, variants: [Variant.PRIMARY, Variant.COMPAC
             :class="[node == null ? 'text-gray-500' : 'text-gray-700']"
           />
           <input
-            class="truncate rounded border-0 py-0.5 outline-none ring-0 hover:bg-gray-100 focus:ring-0"
+            class="truncate rounded border-0 bg-transparent py-0.5 outline-none ring-0 hover:bg-gray-100 focus:ring-0"
             :class="[node == null ? 'text-gray-600' : 'text-gray-900', thread?.title != null ? 'font-medium' : '']"
             spellcheck="false"
             :value="thread?.title"
@@ -600,7 +600,7 @@ defineExpose<ViewExposed>({ self, id, variants: [Variant.PRIMARY, Variant.COMPAC
         <button
           class="h-fit self-end px-2 py-0.5"
           :class="[
-            isFocusedAbsolute ? 'text-gray-600 hover:text-primary-900' : 'text-gray-400 group-hover:text-gray-500',
+            isFocusedAbsolute || variant == Variant.COMPACT ? 'text-gray-600 hover:text-primary-900' : 'text-gray-400',
             variant != Variant.COMPACT ? 'text-lg' : 'text-base',
           ]"
           @click.stop="() => {}"
@@ -637,9 +637,9 @@ defineExpose<ViewExposed>({ self, id, variants: [Variant.PRIMARY, Variant.COMPAC
         <button
           class="h-fit self-end px-2 py-0.5"
           :class="[
-            isFocusedAbsolute
+            isFocusedAbsolute || variant == Variant.COMPACT
               ? 'enabled:text-gray-600 enabled:hover:text-primary-900 disabled:text-gray-400'
-              : 'text-gray-400 group-hover:text-gray-500',
+              : 'text-gray-400',
             variant != Variant.COMPACT ? 'text-lg' : 'text-base',
           ]"
           :disabled="!canSubmit"

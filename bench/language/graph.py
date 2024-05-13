@@ -192,7 +192,9 @@ class NodeGraph(NodeGraphBase[NodeT, UUID]):
 
         queue = deque([node])
         if node.parent is not None:
-            self.nodes_by_parent_id_and_type[(node.parent.id, node.metatype)].remove(node)
+            children = self.nodes_by_parent_id_and_type[(node.parent.id, node.metatype)]
+            assert node in children, f"{node!r} not in {children!r} of {node.parent!r}"
+            children.remove(node)
         while queue:
             node = queue.popleft()
             self.nodes_by_id.pop(node.id, None)

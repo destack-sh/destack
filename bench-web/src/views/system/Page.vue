@@ -429,7 +429,7 @@ defineExpose<ViewExposed>({ self, actions, focus });
               marginTop: (depth != 0 ? NESTED_BLOCK_GAP_Y : 0) + 6 + 'px',
             }"
           >
-            <!-- References / Notices / Messages ... -->
+            <!-- Messages -->
             <button
               v-menu="
                 (context: PopoverContext): PopoverInfoIn => ({

@@ -82,13 +82,14 @@ export type TooltipInfo = Omit<FloatingOptions, "placement"> & {
   isEnabled?: boolean | (() => boolean);
 };
 
-export function tooltipFromAction(action: Action, placement: FloatingPlacement = "top"): TooltipInfo {
+export function tooltipFromAction(action: Action, override?: Partial<TooltipInfo>): TooltipInfo {
   return {
     icon: action.icon?.faName,
     title: toValue(action.title),
     text: action.text,
     shortcuts: action.shortcuts,
-    placement,
+    placement: 'top',
+    ...override,
   };
 }
 
