@@ -92,7 +92,7 @@ const focusedNodePtr = computedValue(() => props.focus?.nodesPtr[0]);
 // messages / notices
 const { childrenByParentId: threadsByBlockId } = getGroupedChildrenRef({
   graph: pkgGraph,
-  parentPtrs: expandedBlocks,
+  parentPtrs: expandedBlocksWithSelf,
   childTypes: [NodeType.MESSAGE],
 });
 
