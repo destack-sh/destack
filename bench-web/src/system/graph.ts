@@ -1087,13 +1087,13 @@ export function getGroupedChildrenRef<T extends NodeType>(walk: {
     subs.length = 0;
   };
 
-  const parentIds = computedValue(() => walk.parentPtrs.value.map((p) => p.id));
+  const parentIds = computedValue(() => walk.parentPtrs.value.map((p) => p.id!));
 
   function get(): { [parentId: string]: NodeT[] } {
     unsub();
 
     const childrenByParentId: { [parentId: string]: NodeT[] } = {};
-    for (const parentId in parentIds.value) {
+    for (const parentId of parentIds.value) {
       for (const childType of walk.childTypes) {
         const children = walk.graph.getChildren({ id: parentId }, childType);
         if (children.length > 0) {
