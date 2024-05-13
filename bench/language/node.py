@@ -95,7 +95,7 @@ if TYPE_CHECKING:
     from bench.language.notice import NoticeHandler, NoticeOptions
     from bench.language.query import QueryBuilder
 
-# pyright: reportIncompatibleVariableOverride=false,reportIncompatibleMethodOverride=false
+# pyright: reportIncompatibleVariableOverride=false
 
 logger = structlog.get_logger(__name__)
 
@@ -1286,7 +1286,7 @@ class Struct(abc.ABC, Generic[StructDataT]):
             inner_struct._interp_self(scope, notice)
 
     @final
-    def _validate_rec(self, properties: tuple[Property, ...], invalid: "ValidationHandler") -> None:
+    def _validate_rec(self, properties: Collection[Property], invalid: "ValidationHandler") -> None:
         for inner_struct in self._walk_struct():
             inner_struct._validate_self(properties, invalid)
 
@@ -1595,23 +1595,12 @@ class Node(Struct[NodeDataT], Generic[NodeDataT]):
             path = "".join(path_segments)
             return path
 
-    @property
-    def session(self) -> "Session":
-        """Access the session, error-ing if there is none."""
-        if self._session is None:
-            raise RuntimeError(f"no active session for {self!r}")
-        return self._session
-
-    @session.setter
-    def session(self, session: Optional["Session"]):
-        self._session = session
-
     def to_ref(self) -> "NodeReference":
         from bench.language.expression import NodeReference
 
         return NodeReference.from_node(self)
 
-    def __eq__(self, other: Optional["Node"]):
+    def __eq__(self, other: Any):
         return (
             isinstance(other, Node)
             and self.metatype == other.metatype
@@ -1698,7 +1687,7 @@ class Node(Struct[NodeDataT], Generic[NodeDataT]):
         return True  # allow truthy checks for nodes
 
     @final
-    def _init_self(self):
+    def _init_self(self):  # type: ignore
         # init node lists
         existing_lists: dict[str, Any] | None = None
         for name, prop in self.__node_list_properties__.items():
@@ -1733,7 +1722,7 @@ class Node(Struct[NodeDataT], Generic[NodeDataT]):
             self._validate_self((), invalid=on_invalid_raise)
 
     @final
-    def _interp_self(self, scope: Optional["Node"], notice: "NoticeHandler"):
+    def _interp_self(self, scope: Optional["Node"], notice: "NoticeHandler"):  # type: ignore
         # interp contained structs
         for struct in self._walk_struct():
             if struct is not self:
@@ -1767,15 +1756,15 @@ class Node(Struct[NodeDataT], Generic[NodeDataT]):
             yield from self._root_graph.collect_descendants(self, recursive=True)
 
     @final
-    def _interp_rec(self, scope: Optional["Node"], notice: "NoticeHandler"):
+    def _interp_rec(self, scope: Optional["Node"], notice: "NoticeHandler"):  # type: ignore
         # interp contained structs
-        super()._interp_rec(scope, notice)  
+        super()._interp_rec(scope, notice)
         # and descendants
         for inner_node in self._walk_descendants():
             inner_node._interp_self(scope, notice)
 
     @final
-    def _validate_rec(self, properties: tuple[Property, ...], invalid: "ValidationHandler") -> None:
+    def _validate_rec(self, properties: Collection[Property], invalid: "ValidationHandler") -> None:  # type: ignore
         # validate contained structs
         super()._validate_rec(properties, invalid)
         # and descendants

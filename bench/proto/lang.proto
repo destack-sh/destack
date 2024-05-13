@@ -108,10 +108,9 @@ enum BenchType {
   BENCH_TYPE_INVITE = 64;
   BENCH_TYPE_SESSION = 80;
   BENCH_TYPE_RUN = 81;
-  BENCH_TYPE_PAUSE = 82;
-  BENCH_TYPE_SIGNAL = 83;
-  BENCH_TYPE_LOG = 84;
-  BENCH_TYPE_NOTIFICATION = 85;
+  BENCH_TYPE_SIGNAL = 82;
+  BENCH_TYPE_LOG = 83;
+  BENCH_TYPE_NOTIFICATION = 84;
   BENCH_TYPE_SERVER = 160;
   BENCH_TYPE_STORE = 161;
   BENCH_TYPE_DRIVE = 162;
@@ -209,6 +208,7 @@ enum BenchType {
   BENCH_TYPE_RUN_STATUS = 2260;
   BENCH_TYPE_RUN_KIND = 2261;
   BENCH_TYPE_RUN_ERROR_KIND = 2262;
+  BENCH_TYPE_SESSION_STATUS = 2263;
   BENCH_TYPE_TRIGGER_TYPE = 2270;
   BENCH_TYPE_NOTICE_KIND = 2280;
   BENCH_TYPE_NOTIFICATION_KIND = 2281;
@@ -395,6 +395,7 @@ enum EnumType {
   ENUM_TYPE_RUN_STATUS = 2260;
   ENUM_TYPE_RUN_KIND = 2261;
   ENUM_TYPE_RUN_ERROR_KIND = 2262;
+  ENUM_TYPE_SESSION_STATUS = 2263;
   ENUM_TYPE_TRIGGER_TYPE = 2270;
   ENUM_TYPE_NOTICE_KIND = 2280;
   ENUM_TYPE_NOTIFICATION_KIND = 2281;
@@ -589,10 +590,9 @@ enum NodeType {
   NODE_TYPE_INVITE = 64;
   NODE_TYPE_SESSION = 80;
   NODE_TYPE_RUN = 81;
-  NODE_TYPE_PAUSE = 82;
-  NODE_TYPE_SIGNAL = 83;
-  NODE_TYPE_LOG = 84;
-  NODE_TYPE_NOTIFICATION = 85;
+  NODE_TYPE_SIGNAL = 82;
+  NODE_TYPE_LOG = 83;
+  NODE_TYPE_NOTIFICATION = 84;
   NODE_TYPE_SERVER = 160;
   NODE_TYPE_STORE = 161;
   NODE_TYPE_DRIVE = 162;
@@ -657,10 +657,9 @@ enum ObjectType {
   OBJECT_TYPE_INVITE = 64;
   OBJECT_TYPE_SESSION = 80;
   OBJECT_TYPE_RUN = 81;
-  OBJECT_TYPE_PAUSE = 82;
-  OBJECT_TYPE_SIGNAL = 83;
-  OBJECT_TYPE_LOG = 84;
-  OBJECT_TYPE_NOTIFICATION = 85;
+  OBJECT_TYPE_SIGNAL = 82;
+  OBJECT_TYPE_LOG = 83;
+  OBJECT_TYPE_NOTIFICATION = 84;
   OBJECT_TYPE_SERVER = 160;
   OBJECT_TYPE_STORE = 161;
   OBJECT_TYPE_DRIVE = 162;
@@ -870,6 +869,12 @@ enum ServerProfile {
   SERVER_PROFILE_SMALL = 5;
   SERVER_PROFILE_MEDIUM = 7;
   SERVER_PROFILE_LARGE = 9;
+}
+
+enum SessionStatus {
+  SESSION_STATUS_UNSPECIFIED = 0;
+  SESSION_STATUS_OPEN = 3;
+  SESSION_STATUS_CLOSED = 6;
 }
 
 enum SortMode {
@@ -1086,7 +1091,6 @@ enum ViewType {
   VIEW_TYPE_TYPE = 108;
   VIEW_TYPE_VARIABLE = 109;
   VIEW_TYPE_OBJECT = 110;
-  VIEW_TYPE_MESSAGE = 111;
   VIEW_TYPE_EXPLORE = 150;
   VIEW_TYPE_OUTLINE = 151;
   VIEW_TYPE_INSPECT = 153;
@@ -2282,25 +2286,6 @@ message PackageData {
   repeated NodeReferenceData bases_ptr = 42;
 }
 
-// A resumable interruption in a Run.
-message PauseData {
-  ObjectType metatype = 1;
-  string id = 2;
-  string ck = 3;
-  optional NodeReferenceData parent_ptr = 4;
-  NodeReferenceData package_ptr = 6;
-  NodeReferenceData bench_ptr = 7;
-  int64 revision = 10;
-  google.protobuf.Timestamp created_at = 11;
-  google.protobuf.Timestamp updated_at = 12;
-  optional google.protobuf.Timestamp deleted_at = 13;
-  optional google.protobuf.Timestamp archived_at = 14;
-  optional NodeReferenceData created_by_ptr = 17;
-  optional NodeReferenceData updated_by_ptr = 18;
-  repeated int32 set_properties = 22;
-  NodeReferenceData session_ptr = 30;
-}
-
 // A stored query.
 message QueryData {
   ObjectType metatype = 1;
@@ -2366,9 +2351,10 @@ message RoleData {
   NodeReferenceData type_ptr = 30;
 }
 
-// A 'run' of something. Can run Blocks (and Steps within them) or 'lambdas' (just Code/Text).
+// A 'run' of Blocks (and Steps within them) or 'lambdas' (just Code/Text).
 // When 'running' something that's not directly runnable (like a Text Block, Text Step or Text Lambda),
-// we implicitly pass it to our built-in Text program.
+// we implicitly pass it to the corresponding default Text program.
+// Once terminated, a Run is effectively immutable.
 message RunData {
   ObjectType metatype = 1;
   string id = 2;
@@ -2391,11 +2377,11 @@ message RunData {
   optional CodeData code = 36;
   optional TextData text = 37;
   RunStatus status = 40;
-  optional google.protobuf.Timestamp scheduled_at = 41;
-  optional google.protobuf.Timestamp started_at = 42;
-  optional google.protobuf.Timestamp paused_at = 43;
-  optional google.protobuf.Timestamp terminated_at = 44;
-  optional float duration = 45;
+  optional float duration = 41;
+  optional google.protobuf.Timestamp scheduled_at = 42;
+  optional google.protobuf.Timestamp started_at = 43;
+  optional google.protobuf.Timestamp paused_at = 44;
+  optional google.protobuf.Timestamp terminated_at = 45;
   optional google.protobuf.Struct inputs_packed = 50;
   optional google.protobuf.Struct inputs_secret_packed = 51;
   optional google.protobuf.Struct outputs_packed = 52;
@@ -2439,7 +2425,10 @@ message ServerData {
   optional google.protobuf.Timestamp last_bumped_at = 55;
 }
 
-// A managed Session for interacting with Bench nodes and running them (in a Runtime).
+// A managed Session for interacting with and running a Package in a Client.
+// If a Run spans multiple Clients, each Client will have its own Session.
+// On some Clients a Session may persist across Runs (like in the web client).
+// Once closed, a Session (like a Run) is effectively immutable.
 message SessionData {
   ObjectType metatype = 1;
   string id = 2;
@@ -2455,13 +2444,12 @@ message SessionData {
   optional NodeReferenceData created_by_ptr = 17;
   optional NodeReferenceData updated_by_ptr = 18;
   repeated int32 set_properties = 22;
-  optional google.protobuf.Timestamp opened_at = 32;
-  optional google.protobuf.Timestamp closed_at = 33;
-  optional float duration = 34;
-  bool is_runtime = 40;
-  bool is_readonly = 41;
-  optional NodeReferenceData server_ptr = 61;
-  optional NodeReferenceData client_ptr = 62;
+  SessionStatus status = 40;
+  optional float duration = 41;
+  optional google.protobuf.Timestamp opened_at = 42;
+  optional google.protobuf.Timestamp closed_at = 43;
+  optional NodeReferenceData client_ptr = 61;
+  optional NodeReferenceData server_ptr = 62;
   optional NodeReferenceData user_ptr = 63;
 }
 
@@ -2735,19 +2723,18 @@ message SomeNodeData {
     InviteData invite = 23;
     SessionData session = 24;
     RunData run = 25;
-    PauseData pause = 26;
-    SignalData signal = 27;
-    LogData log = 28;
-    NotificationData notification = 29;
-    ServerData server = 30;
-    StoreData store = 31;
-    DriveData drive = 32;
-    CacheData cache = 33;
-    FileContentData file_content = 34;
-    HandleData handle = 35;
-    UserData user = 36;
-    OrganizationData organization = 37;
-    ClientData client = 38;
+    SignalData signal = 26;
+    LogData log = 27;
+    NotificationData notification = 28;
+    ServerData server = 29;
+    StoreData store = 30;
+    DriveData drive = 31;
+    CacheData cache = 32;
+    FileContentData file_content = 33;
+    HandleData handle = 34;
+    UserData user = 35;
+    OrganizationData organization = 36;
+    ClientData client = 37;
   };
 }
 

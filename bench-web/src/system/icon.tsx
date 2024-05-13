@@ -169,7 +169,6 @@ export const ICON_BY_NODE_TYPE: Partial<Record<NodeType, IconData>> = _makeIcons
   // runtime
   [NodeType.SESSION]: "fas fa-circle-play",
   [NodeType.RUN]: "fas fa-play",
-  [NodeType.PAUSE]: "fas fa-pause",
   [NodeType.SIGNAL]: "fas fa-signal-stream",
   [NodeType.LOG]: "fas fa-file-alt",
   [NodeType.NOTIFICATION]: "fas fa-bell",

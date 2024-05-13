@@ -1,4 +1,4 @@
-from typing import TYPE_CHECKING, Any, Optional
+from typing import TYPE_CHECKING, Any, Collection, Optional
 
 import structlog
 
@@ -23,7 +23,7 @@ from bench.utils.uuidt import UUIDT
 if TYPE_CHECKING:
     from bench.language import Block, Package, Request, Run, Session
 
-# pyright: reportIncompatibleVariableOverride=false,reportIncompatibleMethodOverride=false
+# pyright: reportIncompatibleVariableOverride=false
 
 logger = structlog.get_logger(__name__)
 
@@ -86,7 +86,7 @@ class Log(Node, HasValues):
         return f"[{self.kind.bench_name}:{self.level.bench_name}] '{self.event or self.title or self.text or '<empty>'}' ({self.created_at})"
 
     def _validate_component(
-        self, properties: tuple[Property, ...], invalid: ValidationHandler
+        self, properties: Collection[Property], invalid: ValidationHandler
     ) -> None:
         if self.step_ptr is not None and self.block_ptr is None:
             invalid(self, "step without block", (Run.step, Run.block))

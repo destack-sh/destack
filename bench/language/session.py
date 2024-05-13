@@ -3,51 +3,60 @@ from typing import TYPE_CHECKING, Collection, Optional
 
 import structlog
 
-from bench.language.const import InterpStatus, NodeType, _active_session
+from bench.language.const import InterpStatus, NodeType, SessionStatus, _active_session
 from bench.language.node import Node, node
 from bench.language.property import Property, p_internal, p_node_parent, p_runtime, p_system
 from bench.language.query import StoreEngine
 from bench.language.transaction import Transaction
 from bench.proto.wire import EditData, HostStub, SessionData, SupervisorStub
 from bench.utils.dt import utcnow_with_tz
-from bench.utils.func import _auto_async_to_sync, bytetuple
+from bench.utils.func import _auto_async_to_sync
 from bench.utils.uuidt import UUIDT
 
 if TYPE_CHECKING:
     from bench.language import Client, Package, Run, Server, User
 
-# pyright: reportIncompatibleVariableOverride=false,reportIncompatibleMethodOverride=false
+# pyright: reportIncompatibleVariableOverride=false
 
 logger = structlog.get_logger(__name__)
 
 # we don't want edits to Signals/Logs to be logged in Signals or Logs (for obvious reasons)
-MUTED_EDIT_NODE_TYPES: bytetuple[NodeType] = bytetuple(NodeType.SIGNAL, NodeType.LOG)
+MUTED_EDIT_NODE_TYPES: tuple[NodeType, ...] = (
+    NodeType.SESSION,
+    NodeType.RUN,
+    NodeType.SIGNAL,
+    NodeType.LOG,
+)
 
 
 @node(NodeType.SESSION, index_in_search=True, local=True, id_factory=UUIDT)
 class Session(Node[SessionData]):
     """
-    A managed Session for interacting with Bench nodes and running them (in a Runtime).
+    A managed Session for interacting with and running a Package in a Client.
+    If a Run spans multiple Clients, each Client will have its own Session.
+    On some Clients a Session may persist across Runs (like in the web client).
+    Once closed, a Session (like a Run) is effectively immutable.
     """
 
     parent: Optional["Package"] = p_node_parent(4, NodeType.PACKAGE, is_system=True)
-    opened_at: Optional[datetime] = p_system(32, default=None)
-    closed_at: Optional[datetime] = p_system(33, default=None)
-    duration: Optional[float] = p_system(34, default=None)
 
-    is_runtime: bool = p_system(40, default=False)
-    is_readonly: bool = p_system(41, default=False)
+    # status
+    status: SessionStatus = p_system(40, default=SessionStatus.PENDING, index_in_pg=True)
+    duration: Optional[float] = p_system(41, default=None)
+    opened_at: Optional[datetime] = p_system(42, default=None)
+    closed_at: Optional[datetime] = p_system(43, default=None)
 
     # context
-    server: Optional["Server"] = p_internal(
-        61, require=False, array=False, references=NodeType.SERVER
-    )
     client: Optional["Client"] = p_internal(
-        62, require=False, array=False, references=NodeType.CLIENT
+        61, require=False, array=False, references=NodeType.CLIENT
+    )
+    server: Optional["Server"] = p_internal(
+        62, require=False, array=False, references=NodeType.SERVER
     )
     user: Optional["User"] = p_internal(63, require=False, array=False, references=NodeType.USER)
 
     # transaction
+    _is_readonly: bool = p_runtime(default=False)
     _tx: Transaction | None = p_runtime(default=None)
     _engines: tuple["StoreEngine", ...] = p_runtime(default_factory=tuple)
     _fallback_engine: Optional["StoreEngine"] = p_runtime(default=None)
@@ -111,7 +120,7 @@ class Session(Node[SessionData]):
         _active_session.set(self)
 
         # open transaction
-        self._tx = Transaction(session=self, is_readonly=self.is_readonly)
+        self._tx = Transaction(session=self, is_readonly=self._is_readonly)
 
         self.opened_at = utcnow_with_tz()
         logger.trace("session.open")

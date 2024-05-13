@@ -1,16 +1,15 @@
 from datetime import datetime
-from typing import TYPE_CHECKING, Any, Optional, Union
+from typing import TYPE_CHECKING, Any, Collection, Optional, Union, cast
 
 from bench.language.code_ import Code
 from bench.language.const import (
     TERMINAL_RUN_STATUSES,
     BenchError,
-    EnumType,
     NodeType,
     RunErrorKind,
+    RunKind,
     RunStatus,
     StructType,
-    enum_,
 )
 from bench.language.node import BasedNode, Node, Struct, node, struct
 from bench.language.property import (
@@ -28,35 +27,26 @@ from bench.language.property import (
 from bench.language.text import Text
 from bench.language.validation import ValidationHandler
 from bench.language.value import HasValues
-from bench.proto.wire import NodeReferenceData, RunData
-from bench.utils.func import IdEnum
+from bench.proto.wire import AnyNodeData, NodeReferenceData, RunData
 from bench.utils.uuidt import UUIDT
 
 if TYPE_CHECKING:
     from bench.language import Block, Client, Package, Server, Session, Step, User
 
-# pyright: reportIncompatibleVariableOverride=false, reportIncompatibleMethodOverride=false
-
-
-@enum_(EnumType.RUN_KIND)
-class RunKind(IdEnum):
-    BLOCK = 1
-    STEP = 2
-    LAMBDA = 10
+# pyright: reportIncompatibleVariableOverride=false
 
 
 @node(NodeType.RUN, index_in_search=True, local=True, id_factory=UUIDT)
 class Run(BasedNode[RunData], HasValues):
     """
-    A 'run' of something. Can run Blocks (and Steps within them) or 'lambdas' (just Code/Text).
+    A 'run' of Blocks (and Steps within them) or 'lambdas' (just Code/Text).
     When 'running' something that's not directly runnable (like a Text Block, Text Step or Text Lambda),
-     we implicitly pass it to our built-in Text program.
+     we implicitly pass it to the corresponding default Text program.
+    Once terminated, a Run is effectively immutable.
     """
 
     # content
-    parent: Union["Package", "Session", "Run"] = p_node_parent(
-        4, NodeType.PACKAGE, NodeType.SESSION, NodeType.RUN
-    )
+    parent: Union["Package", "Run"] = p_node_parent(4, NodeType.PACKAGE, NodeType.RUN)
     kind: RunKind = p_system(30)
     root: Optional["Run"] = p_node_ancestor_root(
         32, NodeType.RUN, require=False, store=True, wire=True, index_in_pg=True
@@ -77,11 +67,11 @@ class Run(BasedNode[RunData], HasValues):
 
     # status
     status: RunStatus = p_internal(40, default=RunStatus.SCHEDULED, index_in_pg=True)
-    scheduled_at: Optional[datetime] = p_internal(41, default=None)
-    started_at: Optional[datetime] = p_internal(42, default=None)
-    paused_at: Optional[datetime] = p_internal(43, default=None)
-    terminated_at: Optional[datetime] = p_internal(44, default=None)
-    duration: Optional[float] = p_internal(45, default=None)
+    duration: Optional[float] = p_internal(41, default=None)
+    scheduled_at: Optional[datetime] = p_internal(42, default=None)
+    started_at: Optional[datetime] = p_internal(43, default=None)
+    paused_at: Optional[datetime] = p_internal(44, default=None)
+    terminated_at: Optional[datetime] = p_internal(45, default=None)
 
     # value
     inputs_packed: Any = p_value_packed(50)
@@ -126,11 +116,11 @@ class Run(BasedNode[RunData], HasValues):
         return self.block
 
     @staticmethod
-    def get_base_from_data(data: RunData) -> Optional[NodeReferenceData]:
-        return data.block_ptr
+    def get_base_from_data(data: AnyNodeData) -> Optional[NodeReferenceData]:
+        return cast(RunData, data).block_ptr
 
     def _validate_component(
-        self, properties: tuple[Property, ...], invalid: ValidationHandler
+        self, properties: Collection[Property], invalid: ValidationHandler
     ) -> None:
         if self.block_ptr is None and self.code is None and self.text is None:
             invalid(self, "no block, code or text", (Run.block, Run.code, Run.text))
@@ -162,14 +152,3 @@ class RunError(Struct, BenchError):
             message=str(e),
             traceback=[],
         )
-
-
-@node(NodeType.PAUSE, local=True)
-class Pause(Node):
-    """A resumable interruption in a Run."""
-
-    parent: "Run" = p_node_parent(4, NodeType.RUN)
-    session: "Session" = p_node_ancestor(
-        30, NodeType.SESSION, require=True, store=True, wire=True, index_in_pg=True
-    )
-    # (placeholder)

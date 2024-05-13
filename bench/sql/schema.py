@@ -11,7 +11,7 @@ from bench.sql.core import (
     Table,
 )
 
-VERSION = "2024.05.09.3"
+VERSION = "2024.05.13.1"
 
 BENCH_TABLE = Table(
     "bench_bench",
@@ -1347,18 +1347,18 @@ SESSION_TABLE = Table(
         Column("updated_by_type", PrimitiveType.INT16, is_nullable=True),
         Column("updated_by_base_ck", PrimitiveType.UUID, is_nullable=True),
         Column("set_properties", PrimitiveType.INT32, is_array=True),
+        Column("status", PrimitiveType.INT16, default="1"),
+        Column("duration", PrimitiveType.FLOAT32, is_nullable=True),
         Column("opened_at", PrimitiveType.DATETIME, is_nullable=True),
         Column("closed_at", PrimitiveType.DATETIME, is_nullable=True),
-        Column("duration", PrimitiveType.FLOAT32, is_nullable=True),
-        Column("is_runtime", PrimitiveType.BOOLEAN, default="false"),
-        Column("is_readonly", PrimitiveType.BOOLEAN, default="false"),
-        Column("server_id", PrimitiveType.UUID, is_nullable=True),
-        Column("server_bench_id", PrimitiveType.UUID, is_nullable=True),
         Column("client_id", PrimitiveType.UUID, is_nullable=True),
         Column("client_bench_id", PrimitiveType.UUID, is_nullable=True),
+        Column("server_id", PrimitiveType.UUID, is_nullable=True),
+        Column("server_bench_id", PrimitiveType.UUID, is_nullable=True),
         Column("user_id", PrimitiveType.UUID, is_nullable=True),
     ),
     indexes=(
+        Index("bench_idx_status", IndexType.BTREE, ("status",)),
         Index("bench_idx_package_deleted_at", IndexType.BTREE, ("deleted_at", "package_id")),
         Index("bench_idx_package_archived_at", IndexType.BTREE, ("archived_at", "package_id")),
     ),
@@ -1377,13 +1377,6 @@ RUN_TABLE = Table(
         Column("id", PrimitiveType.UUID, is_primary_key=True),
         Column("ck", PrimitiveType.UUID),
         Column("parent_package_id", PrimitiveType.UUID, is_nullable=True),
-        Column(
-            "parent_session_id",
-            PrimitiveType.UUID,
-            is_foreign_key_to="bench_session",
-            on_delete=CascadeAction.CASCADE,
-            is_nullable=True,
-        ),
         Column(
             "parent_run_id",
             PrimitiveType.UUID,
@@ -1422,11 +1415,11 @@ RUN_TABLE = Table(
         Column("code", PrimitiveType.JSON, is_nullable=True),
         Column("text", PrimitiveType.JSON, is_nullable=True),
         Column("status", PrimitiveType.INT16, default="1"),
+        Column("duration", PrimitiveType.FLOAT32, is_nullable=True),
         Column("scheduled_at", PrimitiveType.DATETIME, is_nullable=True),
         Column("started_at", PrimitiveType.DATETIME, is_nullable=True),
         Column("paused_at", PrimitiveType.DATETIME, is_nullable=True),
         Column("terminated_at", PrimitiveType.DATETIME, is_nullable=True),
-        Column("duration", PrimitiveType.FLOAT32, is_nullable=True),
         Column("inputs_packed", PrimitiveType.JSON, is_nullable=True),
         Column("inputs_secret_packed", PrimitiveType.JSON, is_nullable=True, is_encrypted=True),
         Column("outputs_packed", PrimitiveType.JSON, is_nullable=True),
@@ -1452,50 +1445,7 @@ RUN_TABLE = Table(
         Constraint(
             "bench_check_one_parent",
             ConstraintType.CHECK,
-            condition="(parent_package_id IS NOT NULL) OR (parent_session_id IS NOT NULL) OR (parent_run_id IS NOT NULL)",
-        ),
-    ),
-)
-
-PAUSE_TABLE = Table(
-    "bench_pause",
-    (
-        Column("id", PrimitiveType.UUID, is_primary_key=True),
-        Column("ck", PrimitiveType.UUID),
-        Column(
-            "parent_run_id",
-            PrimitiveType.UUID,
-            is_foreign_key_to="bench_run",
-            on_delete=CascadeAction.CASCADE,
-            is_nullable=True,
-        ),
-        Column("package_id", PrimitiveType.UUID),
-        Column("bench_id", PrimitiveType.UUID),
-        Column("revision", PrimitiveType.INT64, default="0"),
-        Column("created_at", PrimitiveType.DATETIME),
-        Column("updated_at", PrimitiveType.DATETIME),
-        Column("deleted_at", PrimitiveType.DATETIME, is_nullable=True),
-        Column("archived_at", PrimitiveType.DATETIME, is_nullable=True),
-        Column("created_by_id", PrimitiveType.UUID, is_nullable=True),
-        Column("created_by_ck", PrimitiveType.UUID, is_nullable=True),
-        Column("created_by_type", PrimitiveType.INT16, is_nullable=True),
-        Column("created_by_base_ck", PrimitiveType.UUID, is_nullable=True),
-        Column("updated_by_id", PrimitiveType.UUID, is_nullable=True),
-        Column("updated_by_ck", PrimitiveType.UUID, is_nullable=True),
-        Column("updated_by_type", PrimitiveType.INT16, is_nullable=True),
-        Column("updated_by_base_ck", PrimitiveType.UUID, is_nullable=True),
-        Column("set_properties", PrimitiveType.INT32, is_array=True),
-        Column("session_id", PrimitiveType.UUID),
-        Column("session_ck", PrimitiveType.UUID),
-        Column("session_bench_id", PrimitiveType.UUID),
-    ),
-    indexes=(
-        Index("bench_idx_package_deleted_at", IndexType.BTREE, ("deleted_at", "package_id")),
-        Index("bench_idx_package_archived_at", IndexType.BTREE, ("archived_at", "package_id")),
-    ),
-    constraints=(
-        Constraint(
-            "bench_check_one_parent", ConstraintType.CHECK, condition="(parent_run_id IS NOT NULL)"
+            condition="(parent_package_id IS NOT NULL) OR (parent_run_id IS NOT NULL)",
         ),
     ),
 )

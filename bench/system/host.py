@@ -233,7 +233,7 @@ class Host(GraphIoServiceBase, HostBase):
             assert isinstance(graph, NodeGraph), f"unexpected graph type: {graph!r}"
             edit_graph(graph, (edit,), options)
 
-        # TODO :Incomplete: re-interp packages after edit? (update notices, ...)
+        # TODO :Incomplete: re-interp packages for edit (update notices, fire signals, ...)
 
     #
     # Files

@@ -403,10 +403,9 @@ defineExpose<ViewExposed>({ self, actions, focus });
                       'common.edit.morph',
                       'common.edit.move',
                       'common.edit.duplicate',
+                      'common.edit.archive',
                       'common.edit.delete',
                       'message.handle.startThread',
-                      'common.create.above',
-                      'common.create.below',
                       'block.*',
                     ],
                     {
@@ -447,7 +446,7 @@ defineExpose<ViewExposed>({ self, actions, focus });
                   },
                 })
               "
-              class="rounded hover:text-primary-900 data-[popover=true]:text-primary-900"
+              class="rounded transition-colors duration-75 hover:text-primary-900 data-[popover=true]:text-primary-900"
               :class="[
                 inspectionPtr?.id == blockPtr?.id || threadsByBlockId[blockPtr.id!]?.length
                   ? ''

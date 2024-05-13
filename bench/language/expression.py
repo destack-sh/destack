@@ -1,6 +1,6 @@
 import functools
 import re
-from typing import TYPE_CHECKING, Any, Optional, TypeVar, Union, cast
+from typing import TYPE_CHECKING, Any, Collection, Optional, TypeVar, Union, cast
 from uuid import UUID
 
 from bench.language.const import (
@@ -32,7 +32,7 @@ from bench.utils.func import IdEnum
 if TYPE_CHECKING:
     from bench.language import Block, Field, Path, TypeInfo
 
-# pyright: reportIncompatibleVariableOverride=false,reportIncompatibleMethodOverride=false
+# pyright: reportIncompatibleVariableOverride=false
 
 #
 # Expression language. Primarily for package, search and storage (database).
@@ -101,7 +101,7 @@ class NodeReference(Struct):
         return f"{self.type.bench_name}:[{selector_str}]"
 
     def _validate_component(
-        self, properties: tuple[Property, ...], invalid: "ValidationHandler"
+        self, properties: Collection[Property], invalid: "ValidationHandler"
     ) -> None:
         if self.id is None:
             invalid(self, "id is required", (NodeReference.id,))

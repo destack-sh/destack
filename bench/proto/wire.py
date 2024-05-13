@@ -126,10 +126,9 @@ class BenchType(betterproto.Enum):
     INVITE = 64
     SESSION = 80
     RUN = 81
-    PAUSE = 82
-    SIGNAL = 83
-    LOG = 84
-    NOTIFICATION = 85
+    SIGNAL = 82
+    LOG = 83
+    NOTIFICATION = 84
     SERVER = 160
     STORE = 161
     DRIVE = 162
@@ -227,6 +226,7 @@ class BenchType(betterproto.Enum):
     RUN_STATUS = 2260
     RUN_KIND = 2261
     RUN_ERROR_KIND = 2262
+    SESSION_STATUS = 2263
     TRIGGER_TYPE = 2270
     NOTICE_KIND = 2280
     NOTIFICATION_KIND = 2281
@@ -416,6 +416,7 @@ class EnumType(betterproto.Enum):
     RUN_STATUS = 2260
     RUN_KIND = 2261
     RUN_ERROR_KIND = 2262
+    SESSION_STATUS = 2263
     TRIGGER_TYPE = 2270
     NOTICE_KIND = 2280
     NOTIFICATION_KIND = 2281
@@ -612,10 +613,9 @@ class NodeType(betterproto.Enum):
     INVITE = 64
     SESSION = 80
     RUN = 81
-    PAUSE = 82
-    SIGNAL = 83
-    LOG = 84
-    NOTIFICATION = 85
+    SIGNAL = 82
+    LOG = 83
+    NOTIFICATION = 84
     SERVER = 160
     STORE = 161
     DRIVE = 162
@@ -683,10 +683,9 @@ class ObjectType(betterproto.Enum):
     INVITE = 64
     SESSION = 80
     RUN = 81
-    PAUSE = 82
-    SIGNAL = 83
-    LOG = 84
-    NOTIFICATION = 85
+    SIGNAL = 82
+    LOG = 83
+    NOTIFICATION = 84
     SERVER = 160
     STORE = 161
     DRIVE = 162
@@ -906,6 +905,12 @@ class ServerProfile(betterproto.Enum):
     SMALL = 5
     MEDIUM = 7
     LARGE = 9
+
+
+class SessionStatus(betterproto.Enum):
+    UNSPECIFIED = 0
+    OPEN = 3
+    CLOSED = 6
 
 
 class SortMode(betterproto.Enum):
@@ -1130,7 +1135,6 @@ class ViewType(betterproto.Enum):
     TYPE = 108
     VARIABLE = 109
     OBJECT = 110
-    MESSAGE = 111
     EXPLORE = 150
     OUTLINE = 151
     INSPECT = 153
@@ -2559,27 +2563,6 @@ class PackageData(betterproto.Message):
 
 
 @dataclass(eq=False, repr=False)
-class PauseData(betterproto.Message):
-    """A resumable interruption in a Run."""
-
-    metatype: "ObjectType" = betterproto.enum_field(1)
-    id: str = betterproto.string_field(2)
-    ck: str = betterproto.string_field(3)
-    parent_ptr: Optional["NodeReferenceData"] = betterproto.message_field(4, optional=True)
-    package_ptr: "NodeReferenceData" = betterproto.message_field(6)
-    bench_ptr: "NodeReferenceData" = betterproto.message_field(7)
-    revision: int = betterproto.int64_field(10)
-    created_at: datetime = betterproto.message_field(11)
-    updated_at: datetime = betterproto.message_field(12)
-    deleted_at: Optional[datetime] = betterproto.message_field(13, optional=True)
-    archived_at: Optional[datetime] = betterproto.message_field(14, optional=True)
-    created_by_ptr: Optional["NodeReferenceData"] = betterproto.message_field(17, optional=True)
-    updated_by_ptr: Optional["NodeReferenceData"] = betterproto.message_field(18, optional=True)
-    set_properties: List[int] = betterproto.int32_field(22)
-    session_ptr: "NodeReferenceData" = betterproto.message_field(30)
-
-
-@dataclass(eq=False, repr=False)
 class QueryData(betterproto.Message):
     """A stored query."""
 
@@ -2661,9 +2644,10 @@ class RoleData(betterproto.Message):
 @dataclass(eq=False, repr=False)
 class RunData(betterproto.Message):
     """
-    A 'run' of something. Can run Blocks (and Steps within them) or 'lambdas' (just Code/Text).
+    A 'run' of Blocks (and Steps within them) or 'lambdas' (just Code/Text).
      When 'running' something that's not directly runnable (like a Text Block, Text Step or Text Lambda),
-     we implicitly pass it to our built-in Text program.
+     we implicitly pass it to the corresponding default Text program.
+     Once terminated, a Run is effectively immutable.
     """
 
     metatype: "ObjectType" = betterproto.enum_field(1)
@@ -2687,11 +2671,11 @@ class RunData(betterproto.Message):
     code: Optional["CodeData"] = betterproto.message_field(36, optional=True)
     text: Optional["TextData"] = betterproto.message_field(37, optional=True)
     status: "RunStatus" = betterproto.enum_field(40)
-    scheduled_at: Optional[datetime] = betterproto.message_field(41, optional=True)
-    started_at: Optional[datetime] = betterproto.message_field(42, optional=True)
-    paused_at: Optional[datetime] = betterproto.message_field(43, optional=True)
-    terminated_at: Optional[datetime] = betterproto.message_field(44, optional=True)
-    duration: Optional[float] = betterproto.float_field(45, optional=True)
+    duration: Optional[float] = betterproto.float_field(41, optional=True)
+    scheduled_at: Optional[datetime] = betterproto.message_field(42, optional=True)
+    started_at: Optional[datetime] = betterproto.message_field(43, optional=True)
+    paused_at: Optional[datetime] = betterproto.message_field(44, optional=True)
+    terminated_at: Optional[datetime] = betterproto.message_field(45, optional=True)
     inputs_packed: Optional["betterproto_lib_google_protobuf.Struct"] = betterproto.message_field(
         50, optional=True
     )
@@ -2754,7 +2738,10 @@ class ServerData(betterproto.Message):
 @dataclass(eq=False, repr=False)
 class SessionData(betterproto.Message):
     """
-    A managed Session for interacting with Bench nodes and running them (in a Runtime).
+    A managed Session for interacting with and running a Package in a Client.
+     If a Run spans multiple Clients, each Client will have its own Session.
+     On some Clients a Session may persist across Runs (like in the web client).
+     Once closed, a Session (like a Run) is effectively immutable.
     """
 
     metatype: "ObjectType" = betterproto.enum_field(1)
@@ -2771,13 +2758,12 @@ class SessionData(betterproto.Message):
     created_by_ptr: Optional["NodeReferenceData"] = betterproto.message_field(17, optional=True)
     updated_by_ptr: Optional["NodeReferenceData"] = betterproto.message_field(18, optional=True)
     set_properties: List[int] = betterproto.int32_field(22)
-    opened_at: Optional[datetime] = betterproto.message_field(32, optional=True)
-    closed_at: Optional[datetime] = betterproto.message_field(33, optional=True)
-    duration: Optional[float] = betterproto.float_field(34, optional=True)
-    is_runtime: bool = betterproto.bool_field(40)
-    is_readonly: bool = betterproto.bool_field(41)
-    server_ptr: Optional["NodeReferenceData"] = betterproto.message_field(61, optional=True)
-    client_ptr: Optional["NodeReferenceData"] = betterproto.message_field(62, optional=True)
+    status: "SessionStatus" = betterproto.enum_field(40)
+    duration: Optional[float] = betterproto.float_field(41, optional=True)
+    opened_at: Optional[datetime] = betterproto.message_field(42, optional=True)
+    closed_at: Optional[datetime] = betterproto.message_field(43, optional=True)
+    client_ptr: Optional["NodeReferenceData"] = betterproto.message_field(61, optional=True)
+    server_ptr: Optional["NodeReferenceData"] = betterproto.message_field(62, optional=True)
     user_ptr: Optional["NodeReferenceData"] = betterproto.message_field(63, optional=True)
 
 
@@ -3089,19 +3075,18 @@ class SomeNodeData(betterproto.Message):
     invite: "InviteData" = betterproto.message_field(23, group="node")
     session: "SessionData" = betterproto.message_field(24, group="node")
     run: "RunData" = betterproto.message_field(25, group="node")
-    pause: "PauseData" = betterproto.message_field(26, group="node")
-    signal: "SignalData" = betterproto.message_field(27, group="node")
-    log: "LogData" = betterproto.message_field(28, group="node")
-    notification: "NotificationData" = betterproto.message_field(29, group="node")
-    server: "ServerData" = betterproto.message_field(30, group="node")
-    store: "StoreData" = betterproto.message_field(31, group="node")
-    drive: "DriveData" = betterproto.message_field(32, group="node")
-    cache: "CacheData" = betterproto.message_field(33, group="node")
-    file_content: "FileContentData" = betterproto.message_field(34, group="node")
-    handle: "HandleData" = betterproto.message_field(35, group="node")
-    user: "UserData" = betterproto.message_field(36, group="node")
-    organization: "OrganizationData" = betterproto.message_field(37, group="node")
-    client: "ClientData" = betterproto.message_field(38, group="node")
+    signal: "SignalData" = betterproto.message_field(26, group="node")
+    log: "LogData" = betterproto.message_field(27, group="node")
+    notification: "NotificationData" = betterproto.message_field(28, group="node")
+    server: "ServerData" = betterproto.message_field(29, group="node")
+    store: "StoreData" = betterproto.message_field(30, group="node")
+    drive: "DriveData" = betterproto.message_field(31, group="node")
+    cache: "CacheData" = betterproto.message_field(32, group="node")
+    file_content: "FileContentData" = betterproto.message_field(33, group="node")
+    handle: "HandleData" = betterproto.message_field(34, group="node")
+    user: "UserData" = betterproto.message_field(35, group="node")
+    organization: "OrganizationData" = betterproto.message_field(36, group="node")
+    client: "ClientData" = betterproto.message_field(37, group="node")
 
 
 @dataclass(eq=False, repr=False)
@@ -4843,7 +4828,7 @@ class RuntimeBase(ServiceBase):
 
 from typing import TYPE_CHECKING  # noqa: E402
 
-VERSION = "2024.05.09.3"
+VERSION = "2024.05.13.1"
 
 if TYPE_CHECKING:
     from bench.language import Subject
@@ -4879,7 +4864,6 @@ AnyNodeData = Union[
     InviteData,
     SessionData,
     RunData,
-    PauseData,
     SignalData,
     LogData,
     NotificationData,
