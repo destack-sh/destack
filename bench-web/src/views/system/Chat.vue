@@ -38,6 +38,7 @@ import Inaccessible from "@/views/builtins/Inaccessible.vue";
 import { makeSelection } from "@/views/canvas";
 import { getElement } from "@/utils/element";
 import { toCamelName } from "@/system/lang";
+import NodePath from "@/views/builtins/NodePath.vue";
 
 const HEADER_HEIGHT_NORMAL = 36;
 const HEADER_HEIGHT_COMPACT = 32;
@@ -328,7 +329,13 @@ defineExpose<ViewExposed>({ self, id, variants: [Variant.PRIMARY, Variant.COMPAC
         :style="{ height: headerHeight + 'px', minWidth: MIN_WIDTH + 'px', maxWidth: MAX_WIDTH + 'px' }"
       >
         <!-- Thread (local root message node) -->
-        <div class="flex-shrink-0">
+        <div class="flex flex-shrink-0 flex-row items-center">
+          <!-- Context (path) -->
+          <template v-if="context != null && context?.metatype != ObjectType.PACKAGE && variant != Variant.COMPACT">
+            <NodePath class="flex-shrink-0" :self="toNodeReference(context)" :graph="pkgGraph" />
+            <i class="fas fa-chevron-right text-gray-500 ml-1 mr-1.5" />
+          </template>
+          <!-- Icon / Name -->
           <i
             class="fas fa-message mr-1.5 w-5 text-center"
             :class="[node == null ? 'text-gray-500' : 'text-gray-700']"
@@ -377,10 +384,6 @@ defineExpose<ViewExposed>({ self, id, variants: [Variant.PRIMARY, Variant.COMPAC
           >
             <i class="fas fa-chevron-down" />
           </button>
-          <!-- Context -->
-          <span v-if="context != null && context?.metatype != ObjectType.PACKAGE && variant != Variant.COMPACT">
-            {{ context.name /* nocheckin */ }}
-          </span>
         </div>
         <!-- Actions / Menu -->
         <div class="ml-auto flex flex-shrink-0 flex-row gap-x-1">
