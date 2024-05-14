@@ -5,18 +5,14 @@ import abc
 from typing import (
     TYPE_CHECKING,
     Any,
-    ClassVar,
     Generic,
-    NamedTuple,
     Optional,
     Self,
     TypeVar,
     Union,
     cast,
 )
-from uuid import UUID
 
-import psycopg
 from asgiref.sync import async_to_sync
 
 from bench.language.const import (
@@ -25,7 +21,6 @@ from bench.language.const import (
     BenchError,
     ExpressionKind,
     NodeType,
-    StoreEngineType,
     StructType,
     active_tx,
 )
@@ -33,23 +28,12 @@ from bench.language.graph import NodeDataGraph
 from bench.language.node import NODE_CLASS_BY_TYPE, Node, node
 from bench.language.property import p_node_parent, p_regular
 from bench.language.setup import ANCESTOR_NODE_TYPES
-from bench.proto.wire import (
-    AggregationData,
-    AnyNodeData,
-    EditData,
-    ExpressionData,
-    GraphIoStub,
-    GraphScope,
-    NodeReferenceData,
-    QueryData,
-    ReadOptionsData,
-)
+from bench.proto.wire import AnyNodeData, QueryData
 from bench.utils.fractional import INTEGER_ZERO
-from bench.utils.func import _auto_async_to_sync, bytetuple
+from bench.utils.func import _auto_async_to_sync
 
 if TYPE_CHECKING:
-    from bench.language import Block, Expression, Field, Property, ReadOptions, Session, Store
-    from bench.sql.client import _PgStoreConnection
+    from bench.language import Block, Expression, Field, Property, ReadOptions
 
 # pyright: reportIncompatibleVariableOverride=false, reportIncompatibleMethodOverride=false
 
@@ -111,31 +95,6 @@ class NodeNotFoundError(QueryError):
 
 
 class MultipleNodesFoundError(QueryError):
-    pass
-
-
-class StoreEngineError(BenchError, ValueError):
-    def __init__(
-        self,
-        engine: Union["StoreEngine", "StoreConnection", StoreEngineType],
-        query: Optional["QueryBuilder"] = None,
-        expression: Union["Expression", list["Expression"], None] = None,
-        reason: str | None = None,
-    ):
-        if query is not None:
-            action = repr(query)
-        elif expression is not None:
-            action = repr(expression)
-        else:
-            action = "<unknown action>"
-        super().__init__(f"{engine} cannot {action}: {reason or '<unknown error>'}")
-        self.engine = engine
-        self.query = query
-        self.expression = expression
-        self.reason = reason
-
-
-class StoreEngineIncapableError(StoreEngineError):
     pass
 
 
@@ -439,6 +398,7 @@ class QueryBuilder(
 
     @_auto_async_to_sync
     async def fetch(self) -> list[NodeT] | tuple[NodeT, ...]:
+        from bench.language.connection import FetchOptions
         from bench.proto.wiring import unpack_roots
 
         tx = active_tx()
@@ -481,299 +441,3 @@ class QueryBuilder(
         result = await connection.aggregate(query)
         assert result.aggregation.exists is not None
         return result.aggregation.exists
-
-
-class FetchOptions(NamedTuple):
-    count: bool = False  # type: ignore
-    lock_for_update: bool = False
-    skip_locked: bool = False
-
-
-class FetchResult(NamedTuple):
-    nodes: list[AnyNodeData] | tuple[AnyNodeData, ...]
-    roots: list[NodeReferenceData] | tuple[NodeReferenceData, ...]
-    cursors: list[str] | tuple[str, ...]
-    start_cursor: str | None
-    total: int | None = None
-
-
-class AggregateResult(NamedTuple):
-    aggregation: AggregationData
-
-
-class StoreEngine(abc.ABC, Generic[NodeT, NodeDataT]):
-    """A store engine providing connections to operate on that backend with certain queries."""
-
-    type: ClassVar[StoreEngineType]
-
-    def __init__(self, store: "Store", scope: GraphScope | None, node_types: bytetuple[NodeType]):
-        if store.engine != self.type:
-            raise ValueError(f"store {store!r} has engine {store.engine}, not {self.type}")
-        self.store = store
-        self.node_types = node_types
-        self.scope = scope
-        self._bench_id = self.scope.bench_id if self.scope else None
-
-    def __repr__(self):
-        self_str = str(self)
-        if self_str:
-            return f"<{self.__class__.__name__} {self_str} ({self.type.bench_name})>"
-        else:
-            return f"<{self.__class__.__name__} ({self.type.bench_name})>"
-
-    @property
-    def id(self) -> int | str | UUID:
-        return hash(self)
-
-    def supports(self, scope: GraphScope, node_type: NodeType, access_kind: AccessKind) -> bool:
-        bench_id = scope.bench_id if scope else None
-        # scope must match except when creating root types
-        if bench_id != self._bench_id:
-            return False
-        if node_type not in self.node_types:
-            return False
-        return True
-
-    async def connect(self, session: "Session") -> "StoreConnection":
-        """Opens the store engine for a session."""
-        raise NotImplementedError
-
-
-StoreEngineT = TypeVar("StoreEngineT", bound=StoreEngine)
-
-
-class StoreConnection(abc.ABC, Generic[StoreEngineT, NodeT, NodeDataT]):
-    def __init__(self, engine: "StoreEngineT", session: "Session"):
-        self.engine = engine
-        self.session = session
-
-    @property
-    def type(self) -> StoreEngineType:
-        return self.engine.type
-
-    def __str__(self):
-        return f"session={self.session}"
-
-    def __repr__(self):
-        self_str = str(self)
-        if self_str:
-            return f"<{self.__class__.__name__} {self}>"
-        else:
-            return f"<{self.__class__.__name__}>"
-
-    #
-    # Read
-    #
-
-    async def fetch(
-        self, query: "QueryBuilder[NodeT, NodeDataT]", options: FetchOptions
-    ) -> FetchResult:
-        """Read the nodes given the fetch query in the current transaction context (if any)."""
-        raise StoreEngineIncapableError(self, query, reason="fetch unsupported")
-
-    async def aggregate(self, query: "QueryBuilder[NodeT, NodeDataT]") -> AggregateResult:
-        """Read the nodes given the aggregate query in the current transaction context (if any)."""
-        raise StoreEngineIncapableError(self, query, reason="exists unsupported")
-
-    #
-    # Transaction management
-    # The methods closely mirror :GraphIO service methods for universal 2PCs.
-    #
-
-    async def flush(
-        self, edits: list[EditData] | tuple[EditData, ...]
-    ) -> list[int] | tuple[int, ...] | None:
-        """
-        Flushes edits in the current transaction context. If not in a transaction, begins one.
-        If this is a primary store, must return the accepted revisions for every edit (in order).
-        """
-        raise StoreEngineIncapableError(self, reason="flush unsupported")
-
-    async def complete(self) -> None:
-        """Completes the current transaction context. No further operations are allowed."""
-        raise StoreEngineIncapableError(self, reason="complete unsupported")
-
-    async def cancel(self) -> None:
-        """Cancels the current transaction context. No further operations are allowed."""
-        raise StoreEngineIncapableError(self, reason="cancel unsupported")
-
-    async def commit(
-        self, edits: list[EditData] | tuple[EditData, ...]
-    ) -> list[int] | tuple[int, ...] | None:
-        """
-        Commits the flushed pending and given edits in the current transaction context.
-        If this is a primary store, must return the accepted revisions for every edit (in order).
-        """
-        raise StoreEngineIncapableError(self, reason="commit unsupported")
-
-    async def close(self):
-        """Closes this connection to all further operations."""
-        pass
-
-
-class RemoteEngine(StoreEngine[NodeT, NodeDataT]):
-    type = StoreEngineType.PROXY
-
-    def __init__(
-        self,
-        store: "Store",
-        scope: GraphScope,
-        node_types: bytetuple[NodeType],
-        remote: GraphIoStub,
-    ):
-        super().__init__(store, scope, node_types)
-        self.remote = remote
-
-    def __str__(self):
-        return f"remote={self.remote}, store={self.store}"
-
-
-class RemoteConnection(StoreConnection[RemoteEngine, NodeT, NodeDataT]):
-    async def fetch(
-        self, query: "QueryBuilder[NodeT, NodeDataT]", options: FetchOptions
-    ) -> FetchResult:
-        from bench.proto import wire, wiring
-
-        request = wire.SearchNodesRequest(
-            node_type=wiring.pack_enum(NodeType, query._node_type),
-            filter=wiring.pack_struct_maybe(query._filter, ExpressionData),
-            sort=(
-                [wiring.pack_struct(s, ExpressionData) for s in query._sort] if query._sort else []
-            ),
-            first=query._first,
-            options=wiring.pack_struct_maybe(query._options, ReadOptionsData),
-            count=options.count,
-        )
-        response = await self.engine.remote.search_nodes(request)
-        return FetchResult(
-            nodes=[wiring.unwrap_some_node(n) for n in response.nodes],
-            roots=response.roots,
-            cursors=response.cursors,
-            start_cursor=response.start_cursor,
-        )
-
-    async def aggregate(self, query: "QueryBuilder[NodeT, NodeDataT]") -> AggregateResult:
-        from bench.proto import wire, wiring
-
-        assert query._aggregation is not None
-        request = wire.AggregateNodesRequest(
-            node_type=wiring.pack_enum(NodeType, query._node_type),
-            filter=wiring.pack_struct_maybe(query._filter, expect=ExpressionData),
-            aggregation=cast(ExpressionData, query._aggregation._to_data()),
-        )
-        response = await self.engine.remote.aggregate_nodes(request)
-        return AggregateResult(response.aggregation)
-
-    async def commit(self, edits: list[EditData] | tuple[EditData, ...]) -> list[int]:
-        from bench.proto import wire
-
-        edits = list(edits)
-        request = wire.CommitTransactionRequest(id=str(self.session.tx.id), edits=edits)
-        response = await self.engine.remote.commit_transaction(request)
-        return response.revisions
-
-
-class PostgresEngine(StoreEngine[NodeT, NodeDataT], Generic[NodeT, NodeDataT]):
-    type = StoreEngineType.POSTGRES
-
-    def __str__(self):
-        return f"store={self.store!r}"
-
-    async def connect(self, session: "Session") -> "PostgresConnection":
-        from bench.sql.client import get_pg_store_connection
-
-        conn = await get_pg_store_connection(self.store)
-        cur = await conn.open()
-        return PostgresConnection(self, session, conn, cur)
-
-
-class PostgresConnection(
-    StoreConnection[PostgresEngine, NodeT, NodeDataT], Generic[NodeT, NodeDataT]
-):
-    def __init__(
-        self,
-        engine: "PostgresEngine",
-        session: "Session",
-        conn: "_PgStoreConnection",
-        cur: psycopg.AsyncCursor,
-    ):
-        super().__init__(engine, session)
-        self.conn = conn
-        self.cur = cur
-
-    async def close(self):
-        await self.cur.connection.rollback()
-        await self.conn.close()
-
-    async def fetch(
-        self, query: "QueryBuilder[NodeT, NodeDataT]", options: FetchOptions
-    ) -> FetchResult:
-        from bench.language import NodeReference, ReadOptions
-        from bench.sql.engine import (
-            compile_pg_conditional_maybe,
-            pg_count,
-            pg_search_nodes_data_graph,
-        )
-
-        assert query._node_cls.__table__ is not None, f"{query._node_cls} has no table"
-        roots, graph = await pg_search_nodes_data_graph(
-            cur=self.cur,
-            node_type=query._node_type,
-            options=query._options or ReadOptions(),
-            filter=query._filter,
-            sort=query._sort,
-            first=query._first,
-            skip=query._skip,
-        )
-        if options.count:
-            total = await pg_count(
-                cur=self.cur,
-                table=query._node_cls.__table__,
-                where=compile_pg_conditional_maybe(query._node_cls, query._filter),
-            )
-        else:
-            total = None
-        return FetchResult(
-            roots=[NodeReference.from_node_data(r) for r in roots.nodes],
-            nodes=list(graph.nodes),
-            cursors=roots.cursors,
-            start_cursor=roots.start_cursor,
-            total=total,
-        )
-
-    async def aggregate(self, query: "QueryBuilder[NodeT, NodeDataT]") -> AggregateResult:
-        from bench.sql.engine import compile_pg_conditional_maybe, pg_count, pg_exists
-
-        assert query._node_cls.__table__ is not None, f"{query._node_cls} has no table"
-        assert query._aggregation is not None
-        where = compile_pg_conditional_maybe(query._node_cls, query._filter)
-        if query._aggregation.op == AggregationOp.EXISTS:
-            exists = await pg_exists(self.cur, query._node_cls.__table__, where=where)
-            return AggregateResult(AggregationData(exists=exists))
-        elif query._aggregation.op == AggregationOp.COUNT:
-            count = await pg_count(self.cur, query._node_cls.__table__, where=where)
-            return AggregateResult(AggregationData(count=count))
-        else:
-            raise StoreEngineIncapableError(
-                self, query, expression=query._aggregation, reason="unsupported"
-            )
-
-    async def flush(
-        self, edits: list[EditData] | tuple[EditData, ...]
-    ) -> list[int] | tuple[int, ...]:
-        from bench.sql.engine import pg_write_edits
-
-        new_revisions = await pg_write_edits(self.cur, edits)
-        return new_revisions
-
-    async def commit(
-        self, edits: list[EditData] | tuple[EditData, ...]
-    ) -> list[int] | tuple[int, ...]:
-        from bench.sql.engine import pg_write_edits
-
-        new_revisions = await pg_write_edits(self.cur, edits)
-        await self.cur.connection.commit()
-        return new_revisions
-
-    async def cancel(self) -> None:
-        await self.cur.connection.rollback()

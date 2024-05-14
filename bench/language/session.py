@@ -3,10 +3,10 @@ from typing import TYPE_CHECKING, Collection, Optional
 
 import structlog
 
+from bench.language.connection import StoreEngine
 from bench.language.const import InterpStatus, NodeType, SessionStatus, _active_session
 from bench.language.node import Node, node
 from bench.language.property import Property, p_internal, p_node_parent, p_runtime, p_system
-from bench.language.query import StoreEngine
 from bench.language.transaction import Transaction
 from bench.proto.wire import EditData, HostStub, SessionData, SupervisorStub
 from bench.utils.dt import utcnow_with_tz
@@ -59,7 +59,6 @@ class Session(Node[SessionData]):
     _is_readonly: bool = p_runtime(default=False)
     _tx: Transaction | None = p_runtime(default=None)
     _engines: tuple["StoreEngine", ...] = p_runtime(default_factory=tuple)
-    _fallback_engine: Optional["StoreEngine"] = p_runtime(default=None)
     _supervisor: Optional["SupervisorStub"] = p_runtime(default=None)
     _host: Optional["HostStub"] = p_runtime(default=None)
 
@@ -70,7 +69,7 @@ class Session(Node[SessionData]):
             status_str = "open"
         else:
             status_str = "pending"
-        return f"{status_str}, " f"{self._tx or '<no tx>'}, "
+        return f"{status_str}, " f"{self._tx or '<no tx>'}"
 
     def _init_component(self) -> None:
         self._session = self

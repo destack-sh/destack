@@ -152,14 +152,16 @@ def pack_struct(struct: Struct, expect: type[StructDataT] | None = None) -> Stru
     """Pack a struct and any contained structs."""
     data_cls = PROTO_CLASS_BY_TYPE[struct.metatype]
     metatype = pack_enum(ObjectType, struct.metatype)
+    if expect is not None:
+        expected_metatype = OBJECT_TYPE_BY_PROTO_CLASS[expect]
+        if metatype != expected_metatype:
+            raise RuntimeError(f"expected {expect.__name__} but got {metatype}")
     struct_data = data_cls(metatype=metatype)  # type: ignore
     try:
         for prop in struct.__wired_properties__.values():
             value = getattr(struct, prop.name)
             value = pack_struct_prop(prop, value, ignore_array=False)
             setattr(struct_data, prop.name, value)
-        if expect and struct_data.metatype != expect.metatype:
-            raise RuntimeError(f"expected {expect.metatype} but got {struct_data.metatype}")
         return cast(StructDataT, struct_data)
     except (AttributeError, TypeError, ValueError, KeyError) as e:
         raise ValueError(f"could not pack {struct.metatype.name}: {struct!r}") from e

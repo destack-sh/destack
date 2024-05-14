@@ -77,9 +77,7 @@ async def test_session():
     from bench.language.session import Session
     from bench.system.client import GLOBAL_POSTGRES_ENGINE
 
-    session = Session(
-        parent=None, _engines=(GLOBAL_POSTGRES_ENGINE,), _fallback_engine=GLOBAL_POSTGRES_ENGINE
-    )
+    session = Session(parent=None, _engines=(GLOBAL_POSTGRES_ENGINE,))
     await session.open()
     yield session
     await session.close()

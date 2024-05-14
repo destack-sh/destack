@@ -246,6 +246,15 @@ IN_BENCH_NODE_TYPES: bytetuple[NodeType] = bytetuple(
 SUB_BENCH_NODE_TYPES: bytetuple[NodeType] = bytetuple(
     *tuple(nt for nt in IN_BENCH_NODE_TYPES if nt != NodeType.BENCH)
 )
+RESOURCE_NODE_TYPES = bytetuple(*tuple(nt for nt in NODE_TYPES if 160 <= nt.id < 200))
+BENCH_NODE_TYPES = bytetuple(
+    NodeType.BENCH,
+    NodeType.ENVIRONMENT,
+    NodeType.BRANCH,
+    NodeType.PACKAGE,
+    NodeType.HANDLE,
+    *RESOURCE_NODE_TYPES,
+)
 PUBLIC_NODE_TYPES: bytetuple[NodeType] = bytetuple(NodeType.USER, NodeType.ORGANIZATION)
 USER_NODE_TYPES = bytetuple(*tuple(nt for nt in NODE_TYPES if nt.id >= 200))
 

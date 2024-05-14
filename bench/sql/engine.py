@@ -29,6 +29,7 @@ from psycopg.types.json import Jsonb
 
 from bench.language import Block, ConditionalOp, Field, Package, Property, StoreEngineType, TypeInfo
 from bench.language.access import ReadOptions
+from bench.language.connection import ConnectionIncapableError
 from bench.language.const import (
     EMPTY_DICT,
     NODE_TYPES,
@@ -42,7 +43,6 @@ from bench.language.database import Database, Record
 from bench.language.expression import METATYPE_KEY, C, Expression, ExpressionOps
 from bench.language.graph import NodeDataGraph
 from bench.language.node import NODE_CLASS_BY_TYPE, UNSET, Node
-from bench.language.query import StoreEngineIncapableError
 from bench.language.setup import NODE_CLASSES, PARENT_NODE_TYPES
 from bench.proto import wire, wiring
 from bench.proto.wire import AnyNodeData, EditData, IdEnum, NodeReferenceData
@@ -464,7 +464,7 @@ def compile_pg_conditional(
             left=_compile_expression_ref(node, cond),
             op=PG_CONDITIONAL_OP_BY_BENCH[cond.op],
         )
-    raise StoreEngineIncapableError(
+    raise ConnectionIncapableError(
         StoreEngineType.POSTGRES, expression=cond, reason="unsupported conditional"
     )
 
