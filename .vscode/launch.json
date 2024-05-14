@@ -24,25 +24,12 @@
       "env": {
         "PYTHONUNBUFFERED": "1",
         "DEBUG": "1",
+        "SUPERVISOR_URL": "http://localhost:50051",
       },
       "console": "integratedTerminal",
       "cwd": "${workspaceFolder}",
       "justMyCode": false,
       "python": "${workspaceFolder}/venv-runtime/bin/python"
-    }, 
-    {
-      "name": "bench.makemigrations",
-      "type": "debugpy",
-      "request": "launch",
-      "program": "${workspaceFolder}/bench.py",
-      "args": ["sql", "makemigrations", "--no-downgrade"],
-      "env": {
-        "PYTHONUNBUFFERED": "1",
-        "DEBUG": "1",
-      },
-      "console": "integratedTerminal",
-      "cwd": "${workspaceFolder}",
-      "justMyCode": false
     }, 
   ],
   "compounds": [
