@@ -1,32 +1,37 @@
-# Define the common base image
-FROM python:3.11-slim as base
+# define the common base image
+FROM python:3.12-slim as bench-base
 
 LABEL org.opencontainers.image.source=https://github.com/symbolx/bench
 LABEL org.opencontainers.image.description="Bench"
 
 RUN apt-get update
-# Install postgresql-libs
+# install postgresql-libs
 RUN apt-get install -y libpq-dev libzbar-dev
-# Install ML libs
+# install ML libs
 RUN apt-get install -y ffmpeg
-# Install GCC and Fortran
+# install GCC and Fortran
 RUN apt-get install -y gcc gfortran
 RUN apt-get install -y pkg-config cmake libopenblas-dev liblapack-dev
+# install git
+RUN apt-get install -y git
+# install curl
+RUN apt-get install -y curl
+# install uv 
+ADD --chmod=755 https://astral.sh/uv/install.sh /install.sh
+RUN /install.sh && rm /install.sh
 
 ENV PYTHONUNBUFFERED 1
 ENV PYTHONPATH "${PYTHONPATH}:/bench"
 
-
 # --- System (Supervisor/Host) ---
-FROM base as bench-system
+FROM bench-base as bench-system
 
 COPY requirements.txt .
-RUN pip install --no-cache-dir -r requirements.txt
+RUN /root/.cargo/bin/uv pip install --system --no-cache -r requirements.txt
 
-# Copy all server files
+# copy relevant files
 COPY bench/ bench/
-COPY manage.py .
-COPY manageserver.py .
+COPY bench.py .
 COPY pyproject.toml .
 COPY version .
 
@@ -35,26 +40,23 @@ ARG VERSION
 ENV GIT_COMMIT $GIT_COMMIT
 ENV VERSION $VERSION
 
+EXPOSE 5432
 EXPOSE 80
 
 # --- Runtime ---
-FROM base as bench-runtime
+FROM bench-base as bench-runtime
 
-RUN apt-get install -y pandoc
-RUN apt-get install -y tesseract-ocr libtesseract-dev libleptonica-dev tesseract-ocr-deu
-RUN apt-get install -y libmagic1 libmagic-dev
-RUN apt-get install -y poppler-utils
 COPY requirements-runtime.txt .
-RUN pip install --no-cache-dir -r requirements-runtime.txt
+RUN /root/.cargo/bin/uv pip install --system --no-cache -r requirements-runtime.txt
 
-# Copy runtime-specific files (only!)
-COPY bench/utils bench/utils
-COPY bench/runtime bench/runtime
-COPY bench/language bench/language
-COPY bench/sql bench/sql
-COPY bench/search bench/search
-COPY bench/proto bench/proto
-COPY manageruntime.py .
+# copy relevant fiels
+COPY bench/ bench/ 
+# prune unnecessary packages
+RUN rm -rf bench/system
+# prune tests
+RUN find bench/ -type f -name 'test_*.py' -delete
+
+COPY bench.py .
 COPY pyproject.toml .
 COPY version .
 
@@ -63,4 +65,5 @@ ARG VERSION
 ENV GIT_COMMIT $GIT_COMMIT
 ENV VERSION $VERSION
 
+EXPOSE 5432
 EXPOSE 80
