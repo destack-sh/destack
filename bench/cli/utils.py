@@ -6,11 +6,9 @@ from typing import TYPE_CHECKING
 
 import structlog
 
-from bench.language import Bench, Environment, Store
 from bench.language.setup import NODE_CLASSES
-from bench.sql.client import pg_cursor_to_store
-from bench.sql.engine import GLOBAL_TABLES, LOCAL_TABLES, NODE_TABLES, map_node_class_to_pg_table
-from bench.system.client import global_pg_cursor, global_session
+from bench.sql.engine import GLOBAL_TABLES, NODE_TABLES, map_node_class_to_pg_table
+from bench.system.client import global_pg_cursor
 
 if TYPE_CHECKING:
     pass
@@ -59,7 +57,7 @@ class InconsistencyError(RuntimeError):
         super().__init__(f"bench internal state is inconsistent: {msg}")
 
 
-async def _check_is_consistent(*, check_db: bool, check_db_bench: str = "bench") -> None:
+async def check_is_consistent(*, check_db: bool) -> None:
     """Checks whether the language constructs are in sync with the derived stuff."""
     from bench.language import VERSION as LANG_VERSION
     from bench.proto.wire import VERSION as PROTO_VERSION
@@ -99,20 +97,6 @@ async def _check_is_consistent(*, check_db: bool, check_db_bench: str = "bench")
         migration_ops = generate_migration_ops(old_global_tables, GLOBAL_TABLES)
         if migration_ops:
             raise InconsistencyError(f"global SQL schema is out of sync: {migration_ops!r}")
-
-        # check local
-        async with global_session():
-            bench = (
-                await Bench.descendants(Environment, Store).include_all().get(slug=check_db_bench)
-            )
-            if bench.main_environment is None:
-                raise RuntimeError(f"bench {check_db_bench!r} has no main environment")
-        async with pg_cursor_to_store(bench.main_environment.store) as cur:
-            old_local_tables = await introspect_tables_from_pg(cur)
-            await cur.connection.rollback()
-        migration_ops = generate_migration_ops(old_local_tables, LOCAL_TABLES)
-        if migration_ops:
-            raise InconsistencyError(f"local SQL schema is out of sync: {migration_ops!r}")
 
     log.debug(
         "check_consistency", consistent=True, duration=asyncio.get_running_loop().time() - start

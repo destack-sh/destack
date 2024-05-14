@@ -4,7 +4,7 @@ import structlog
 import typer
 from grpclib.utils import graceful_exit
 
-from bench.cli.utils import _check_is_consistent, async_to_sync_blocking
+from bench.cli.utils import async_to_sync_blocking, check_is_consistent
 from bench.proto.services import BenchServer, BenchServiceBase
 from bench.runtime.runtime import Runtime
 from bench.system.host import HostMultiplexer
@@ -20,7 +20,7 @@ logger = structlog.get_logger(__name__)
 @app.command()
 @async_to_sync_blocking
 async def system(host: str, port: int, watch: bool = False, no_supervisor: bool = False):
-    await _check_is_consistent(check_db=True)
+    await check_is_consistent(check_db=True)
     logger.info("serve.system", host=host, port=port)
     services: list[BenchServiceBase] = [HostMultiplexer()]
     if not no_supervisor:
@@ -36,7 +36,7 @@ async def system(host: str, port: int, watch: bool = False, no_supervisor: bool 
 @app.command()
 @async_to_sync_blocking
 async def runtime(host: str, port: int, watch: bool = False):
-    await _check_is_consistent(check_db=True)
+    await check_is_consistent(check_db=True)
     logger.info("serve.runtime", host=host, port=port)
     server = Runtime(
         supervisor_url=get_from_env("SUPERVISOR_URL"),

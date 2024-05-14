@@ -873,6 +873,7 @@ enum ServerProfile {
 
 enum SessionStatus {
   SESSION_STATUS_UNSPECIFIED = 0;
+  SESSION_STATUS_PENDING = 1;
   SESSION_STATUS_OPEN = 3;
   SESSION_STATUS_CLOSED = 6;
 }
@@ -948,18 +949,14 @@ enum StepType {
 
 enum StoreEngineType {
   STORE_ENGINE_TYPE_UNSPECIFIED = 0;
-  STORE_ENGINE_TYPE_INMEMORY = 1;
-  STORE_ENGINE_TYPE_REMOTE = 2;
+  STORE_ENGINE_TYPE_LOCAL = 1;
+  STORE_ENGINE_TYPE_PROXY = 2;
   STORE_ENGINE_TYPE_POSTGRES = 3;
-  STORE_ENGINE_TYPE_OPENSEARCH = 4;
-  STORE_ENGINE_TYPE_CLICKHOUSE = 5;
 }
 
 enum StoreKind {
   STORE_KIND_UNSPECIFIED = 0;
   STORE_KIND_RELATIONAL = 1;
-  STORE_KIND_SEARCH = 2;
-  STORE_KIND_ANALYTICAL = 3;
 }
 
 enum StructType {
@@ -1258,7 +1255,7 @@ message ColorData {
   optional string hex = 33;
 }
 
-// A semi-magical value that accumulates context down the graph (starting with system context).
+// A semi-magical value of context down a Bench tree (starting with system context).
 message ContextData {
   ObjectType metatype = 1;
   int32 id = 2;
@@ -1272,8 +1269,14 @@ message ContextData {
   optional NodeReferenceData package_ptr = 33;
   optional NodeReferenceData module_ptr = 34;
   optional NodeReferenceData page_ptr = 35;
-  optional NodeReferenceData user_ptr = 40;
-  optional NodeReferenceData trigger_ptr = 41;
+  optional NodeReferenceData block_ptr = 36;
+  optional NodeReferenceData step_ptr = 37;
+  optional NodeReferenceData client_ptr = 40;
+  optional NodeReferenceData server_ptr = 41;
+  optional NodeReferenceData user_ptr = 42;
+  optional NodeReferenceData session_ptr = 50;
+  optional NodeReferenceData run_ptr = 51;
+  optional NodeReferenceData trigger_ptr = 52;
 }
 
 // An expression (conditional, aggregation, sort, etc).
@@ -1898,8 +1901,7 @@ message DependencyData {
   repeated NodeReferenceData dependency_scopes_ptr = 41;
 }
 
-// A drive for file-like storage in a Bench.
-// Virtualizes simple bucket-style access to some S3-like storage.
+// Drive for file/block storage.
 message DriveData {
   ObjectType metatype = 1;
   string id = 2;
@@ -2552,8 +2554,7 @@ message StepData {
   optional ExpressionData condition = 46;
 }
 
-// A store for database-like storage in a Bench.
-// Virtualizes a physical database of that kind/engine (may be a sub-database/schema or such).
+// Classic databases, virtualized over a physical database of that spec.
 message StoreData {
   ObjectType metatype = 1;
   string id = 2;
@@ -2575,10 +2576,9 @@ message StoreData {
   StoreKind kind = 40;
   StoreEngineType engine = 41;
   optional string version = 42;
-  optional string host = 50;
-  optional string database = 51;
-  optional string schema = 52;
-  optional ResourceCredentialData main_credential = 54;
+  optional string external_name = 50;
+  optional string external_id = 51;
+  optional string connection_uri = 52;
 }
 
 // A trigger to a node.

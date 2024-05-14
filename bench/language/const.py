@@ -13,7 +13,7 @@ from bench.utils.utils import frozendict
 if typing.TYPE_CHECKING:
     from bench.language import Session, Transaction
 
-VERSION = "2024.05.13.1"
+VERSION = "2024.05.14.0"
 REVISION_PENDING = -1
 TK_LENGTH_BYTES = 8
 TK_LENGTH_B64 = 12  # 1.5 * TK_LENGTH_BYTES (must be integer)
@@ -598,17 +598,15 @@ class AccessMode(IdEnum):
 @enum_(EnumType.STORE_KIND)
 class StoreKind(IdEnum):
     RELATIONAL = 1
-    SEARCH = 2
-    ANALYTICAL = 3
+    # SEARCH, ANALYTICAL, ...
 
 
 @enum_(EnumType.STORE_ENGINE_TYPE)
 class StoreEngineType(IdEnum):
-    INMEMORY = 1
-    REMOTE = 2
+    LOCAL = 1
+    PROXY = 2
     POSTGRES = 3
-    OPENSEARCH = 4
-    CLICKHOUSE = 5
+    # CLICKHOUSE, ...
 
 
 @enum_(EnumType.POLICY_EFFECT)

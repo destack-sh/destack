@@ -11,7 +11,7 @@ from bench.sql.core import (
     Table,
 )
 
-VERSION = "2024.05.13.1"
+VERSION = "2024.05.14.0"
 
 BENCH_TABLE = Table(
     "bench_bench",
@@ -1686,10 +1686,9 @@ STORE_TABLE = Table(
         Column("kind", PrimitiveType.INT16),
         Column("engine", PrimitiveType.INT16),
         Column("version", PrimitiveType.STRING, is_nullable=True),
-        Column("host", PrimitiveType.STRING, is_nullable=True),
-        Column("database", PrimitiveType.STRING, is_nullable=True),
-        Column("schema", PrimitiveType.STRING, is_nullable=True),
-        Column("main_credential", PrimitiveType.JSON, is_nullable=True, is_encrypted=True),
+        Column("external_name", PrimitiveType.STRING, is_nullable=True),
+        Column("external_id", PrimitiveType.STRING, is_nullable=True),
+        Column("connection_uri", PrimitiveType.STRING, is_nullable=True, is_encrypted=True),
     ),
     indexes=(
         Index("bench_idx_deleted_at", IndexType.BTREE, ("deleted_at",)),

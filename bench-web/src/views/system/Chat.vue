@@ -377,6 +377,10 @@ defineExpose<ViewExposed>({ self, id, variants: [Variant.PRIMARY, Variant.COMPAC
           >
             <i class="fas fa-chevron-down" />
           </button>
+          <!-- Context -->
+          <span v-if="context != null && context?.metatype != ObjectType.PACKAGE && variant != Variant.COMPACT">
+            {{ context.name /* nocheckin */ }}
+          </span>
         </div>
         <!-- Actions / Menu -->
         <div class="ml-auto flex flex-shrink-0 flex-row gap-x-1">

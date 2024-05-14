@@ -1,7 +1,7 @@
 import structlog
 import typer
 
-from bench.cli.utils import async_to_sync_blocking, _check_is_consistent
+from bench.cli.utils import async_to_sync_blocking, check_is_consistent
 from bench.language import Bench, Region, User
 from bench.language.const import NodeType, UserStatus
 from bench.system.client import global_session
@@ -15,7 +15,7 @@ logger = structlog.get_logger(__name__)
 @app.command(help="check whether the current Bench state is properly migrated")
 @async_to_sync_blocking
 async def check(check_db: bool = False):
-    await _check_is_consistent(check_db=check_db)
+    await check_is_consistent(check_db=check_db)
 
 
 @app.command(help="create 'bench' and 'system' Benches (owned by 'system' User)")

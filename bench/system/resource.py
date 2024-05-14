@@ -1,7 +1,6 @@
 import random
 import secrets
 import string
-from typing import cast
 
 import boto3
 import structlog
@@ -23,8 +22,7 @@ from bench.language import (
     Tenancy,
     User,
 )
-from bench.language.resource import ResourceCredential
-from bench.sql.engine import create_local_pg_store
+from bench.sql.neon import create_local_pg_store
 from bench.system.auth import generate_encryption_key
 from bench.utils.utils import get_from_env
 
@@ -107,24 +105,18 @@ async def provision_resource(resource: Resource, session: Session) -> None:
     assert resource.status == ResourceStatus.PENDING, f"{resource!r} is already provisioned"
     logger.info("resource.provision", resource=resource)
     if isinstance(resource, Server):
-        cast(Server, resource)
-        ...  # where should Servers & Machines be provisioned?
+        ...  # TODO :Broken: where should Servers & Machines be provisioned?
     elif isinstance(resource, Store):
-        store = cast(Store, resource)
-        store.database = generate_random_slug()
-        store.main_credential = ResourceCredential(
-            username=generate_random_username(),
-            password=generate_random_password(),
-        )
+        if resource.external_name is None:
+            resource.external_name = generate_random_slug()
         if resource.engine == StoreEngineType.POSTGRES:
-            await create_local_pg_store(store)
+            await create_local_pg_store(resource)
         else:
-            raise NotImplementedError(f"unexpected store {store!r} (yet)")
-        store.status = ResourceStatus.HEALTHY
+            raise NotImplementedError(f"unexpected store {resource!r} (yet)")
+        resource.status = ResourceStatus.HEALTHY
     elif isinstance(resource, Drive):
-        drive = cast(Drive, resource)
         # nothing to create for drives
-        drive.status = ResourceStatus.HEALTHY
+        resource.status = ResourceStatus.HEALTHY
     else:
         raise NotImplementedError(f"cannot provision {resource!r} (yet)")
 

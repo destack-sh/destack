@@ -612,7 +612,7 @@ class StoreConnection(abc.ABC, Generic[StoreEngineT, NodeT, NodeDataT]):
 
 
 class RemoteEngine(StoreEngine[NodeT, NodeDataT]):
-    type = StoreEngineType.REMOTE
+    type = StoreEngineType.PROXY
 
     def __init__(
         self,
