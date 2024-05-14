@@ -22,7 +22,7 @@ from bench.language import (
     Tenancy,
     User,
 )
-from bench.sql.neon import create_local_pg_store
+from bench.sql.neon import create_local_pg_store, migrate_local_pg_store
 from bench.system.auth import generate_encryption_key
 from bench.utils.utils import get_from_env
 
@@ -126,6 +126,13 @@ async def provision_pending_resources(bench: Bench, session: Session):
     for resource in bench.resources:
         if resource.status == ResourceStatus.PENDING:
             await provision_resource(resource, session)
+
+
+async def migrate_local_stores(bench: Bench, session: Session) -> None:
+    """Migrates all local stores in a Bench (to our internal schema)."""
+    for store in bench.stores:
+        if store.status == ResourceStatus.HEALTHY:
+            await migrate_local_pg_store(store)
 
 
 _s3_client = None

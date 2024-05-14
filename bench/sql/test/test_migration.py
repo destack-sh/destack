@@ -10,7 +10,7 @@ from bench.sql.migration import (
     generate_migration_ops,
     introspect_tables_from_pg,
     read_migrations_from_fs,
-    migrate_to,
+    migrate,
 )
 from bench.system.client import global_pg_cursor, GLOBAL_STORE
 
@@ -38,7 +38,7 @@ async def _do_test_stored_migrations(blank_test_cur: psycopg.AsyncCursor, *, is_
     # run all stored migrations
     stored_migrations = read_migrations_from_fs()
     logger.info("migrate", migrations=stored_migrations)
-    await migrate_to(blank_test_cur, target=stored_migrations[-1].id, is_global=is_global)
+    await migrate(blank_test_cur, target=stored_migrations[-1].id, is_global=is_global)
 
     # diff again (should be empty now)
     current_tables = await introspect_tables_from_pg(blank_test_cur)

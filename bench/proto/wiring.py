@@ -152,7 +152,7 @@ def pack_struct(struct: Struct, expect: type[StructDataT] | None = None) -> Stru
     """Pack a struct and any contained structs."""
     data_cls = PROTO_CLASS_BY_TYPE[struct.metatype]
     metatype = pack_enum(ObjectType, struct.metatype)
-    struct_data = data_cls(metatype=metatype)
+    struct_data = data_cls(metatype=metatype)  # type: ignore
     try:
         for prop in struct.__wired_properties__.values():
             value = getattr(struct, prop.name)

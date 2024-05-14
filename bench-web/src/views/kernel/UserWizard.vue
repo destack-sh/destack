@@ -139,6 +139,7 @@ defineExpose<ViewExposed>({ self, focus });
         :variant="Variant.PRIMARY"
         is-input
       />
+      <!-- TODO :UX: add passowrd feedback (see https://zxcvbn-ts.github.io/zxcvbn/) -->
       <HtmlInput
         v-model="password"
         :icon="makeIcon({ faName: 'fas fa-key' })"

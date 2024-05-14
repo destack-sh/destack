@@ -11,7 +11,7 @@ from dataclasses import dataclass, replace
 from datetime import datetime
 from pathlib import Path
 from textwrap import indent
-from typing import Any, Awaitable, Callable, Collection, Optional
+from typing import TYPE_CHECKING, Any, Awaitable, Callable, Collection, Optional
 
 import psycopg
 import structlog
@@ -44,6 +44,9 @@ from bench.sql.engine import (
 from bench.utils.env import REPOSITORY_PATH
 from bench.utils.func import partition
 from bench.utils.utils import format_python
+
+if TYPE_CHECKING:
+    from bench.language import Store
 
 MIGRATIONS_PATH = REPOSITORY_PATH / "bench/migrations"
 MIGRATIONS_TEMPLATE_PATH = REPOSITORY_PATH / "bench/migrations/0000_template.py"
@@ -166,6 +169,7 @@ def read_migrations_from_fs() -> list[Migration]:
             path=migration_path,
         )
         migrations.append(migration)
+    migrations = sorted(migrations, key=lambda m: m.id)
     return migrations
 
 
@@ -183,6 +187,19 @@ def delete_migrations_in_fs(from_id: int, to_id: int) -> None:
             migration_file.unlink()
 
 
+MIGRATIONS = read_migrations_from_fs()
+
+
+def has_migration_after(version_a: str, *, is_global: bool) -> bool:
+    """Returns whether there is a migration between the two versions."""
+    for migration in MIGRATIONS:
+        if is_global and not migration.has_global or not is_global and not migration.has_local:
+            continue
+        if version_a < migration.version:
+            return True
+    return False
+
+
 def _load_migration_from_path(migration: Migration) -> MigrationFile:
     assert migration.path is not None, "migration path not set"
     current_path = Path(__file__).parent.parent.parent
@@ -192,11 +209,12 @@ def _load_migration_from_path(migration: Migration) -> MigrationFile:
     return file
 
 
-async def migrate_to(
+async def migrate(
     cur: psycopg.AsyncCursor,
     target: str | int | None,
     *,
     is_global: bool,
+    store: Optional["Store"] = None,
 ) -> list[Migration]:
     """
     Applies missing migrations (up or down) to reach the target migration.
@@ -204,31 +222,32 @@ async def migrate_to(
     """
 
     # get target migrations from our source of truth (local file system)
-    all_migrations = read_migrations_from_fs()
     if target:
-        for m in all_migrations:
-            if m.id == target or str(m.id) == target:
+        for m in MIGRATIONS:
+            if m.id == target or str(m.id) == target or m.version == target:
                 target_migration = m
                 break
         else:
-            raise ValueError(f"migration {repr(target)} not found in: {all_migrations}")
+            target_migration = MIGRATIONS[-1]
     else:
-        if len(all_migrations) == 0:
+        if len(MIGRATIONS) == 0:
             raise ValueError("no migrations found")
-        target_migration = all_migrations[-1]
+        target_migration = MIGRATIONS[-1]
 
-    logger.trace("migration.load", target_migration=target_migration, is_global=is_global)
+    logger.trace(
+        "migration.load", target_migration=target_migration, is_global=is_global, store=store
+    )
     stored_migrations = await read_migrations_from_pg(cur)
     is_upgrade = all(target_migration.id > m.id for m in stored_migrations if m.applied_at)
     log = logger.bind(target_migration=target_migration, is_upgrade=is_upgrade, is_global=is_global)
-    logger.debug("migration.apply_missing")
+    logger.debug("migration.apply_missing", store=store)
     applied_migrations = [m for m in stored_migrations if m.applied_at is not None]
     current_migration = max(applied_migrations, key=lambda m: m.id) if applied_migrations else None
     current_migration_id = current_migration.id if current_migration else -1
 
     # get the migrations to apply
     migrations_to_apply = []
-    for migration in all_migrations:
+    for migration in MIGRATIONS:
         if is_global and not migration.has_global or not is_global and not migration.has_local:
             continue
         if (is_upgrade and current_migration_id < migration.id <= target_migration.id) or (
@@ -238,21 +257,24 @@ async def migrate_to(
 
     # apply the migrations
     if not migrations_to_apply:
-        log.debug("migration.apply_missing.noop")
+        log.debug("migration.apply.skip", store=store)
         return []
     else:
         start = asyncio.get_event_loop().time()
-        await _do_migrate(cur, migrations_to_apply, is_upgrade=is_upgrade, is_global=is_global)
+        await _do_migrate(
+            cur, migrations_to_apply, is_upgrade=is_upgrade, is_global=is_global, store=store
+        )
         log.debug(
-            "migration.apply_missing",
+            "migration.apply.missing",
             migrations=migrations_to_apply,
             duration=asyncio.get_event_loop().time() - start,
+            store=store,
         )
 
     # update the migration table (applied + missing)
     missing_migrations = [
         m
-        for m in all_migrations
+        for m in MIGRATIONS
         if not any(m.id == s.id for s in stored_migrations)
         and not any(m.id == a.id for a in applied_migrations)
     ]
@@ -269,6 +291,7 @@ async def _do_migrate(
     *,
     is_upgrade: bool,
     is_global: bool,
+    store: Optional["Store"] = None,
 ):
     """Applies the given migrations in the given order."""
 
@@ -280,19 +303,13 @@ async def _do_migrate(
         try:
             await func(cur)
         except Exception as e:
-            logger.error(
-                "migration.apply",
-                migration=migration,
-                func=func,
-                func_name=func_name,
-                error=e,
-            )
+            logger.error("migration.apply.error", migration=migration, store=store, error=e)
             raise
         if is_upgrade:
             migration.applied_at = now
         else:
             migration.applied_at = None
-        logger.info("migration.apply", migration=migration, func=func, func_name=func_name)
+        logger.debug("migration.apply", migration=migration, store=store)
 
 
 #
