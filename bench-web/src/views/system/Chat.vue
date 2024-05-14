@@ -464,7 +464,7 @@ defineExpose<ViewExposed>({ self, id, variants: [Variant.PRIMARY, Variant.COMPAC
                   : 'bg-transparent group-hover/message:bg-gray-200'
             "
           />
-        
+
           <!-- Aside -->
           <!-- Author Icon -->
           <div
@@ -604,7 +604,7 @@ defineExpose<ViewExposed>({ self, id, variants: [Variant.PRIMARY, Variant.COMPAC
           disabled
           :class="[
             isFocusedAbsolute || variant == Variant.COMPACT
-              ? 'text-gray-600 enabled:hover:text-primary-900'
+              ? 'enabled:text-gray-600 enabled:hover:text-primary-900 disabled:text-gray-400'
               : 'text-gray-400',
             variant != Variant.COMPACT ? 'text-lg' : 'text-base',
           ]"

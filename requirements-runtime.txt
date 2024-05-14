@@ -7,6 +7,7 @@ anyio==3.7.1
     # via
     #   groq
     #   httpx
+    #   openai
 asgiref==3.7.2
 async-timeout==4.0.3
     # via
@@ -68,10 +69,10 @@ deprecated==1.2.14
     #   atlassian-python-api
     #   pygithub
 distro==1.9.0
-    # via groq
+    # via
+    #   groq
+    #   openai
 dropbox==11.36.2
-et-xmlfile==1.1.0
-    # via openpyxl
 feedparser==6.0.10
 frozenlist==1.4.1
     # via
@@ -95,7 +96,7 @@ google-auth-oauthlib==1.0.0
 google-search-results==2.4.2
 googleapis-common-protos==1.62.0
     # via google-api-core
-googlemaps==4.6.0
+googlemaps==4.10.0
 greenlet==2.0.2
     # via playwright
 groq==0.5.0
@@ -122,6 +123,7 @@ httpx==0.26.0
     # via
     #   groq
     #   notion-client
+    #   openai
 hyperframe==6.0.1
     # via h2
 idna==3.4
@@ -137,14 +139,12 @@ iniconfig==2.0.0
 isort==5.12.0
     # via betterproto
 itsdangerous==2.1.2
-jedi==0.17.2
 jinja2==3.1.2
     # via betterproto
 jmespath==1.0.1
     # via
     #   boto3
     #   botocore
-jq==1.6.0
 jsonschema==4.16.0
 langcodes==3.3.0
 lxml==4.9.1
@@ -161,7 +161,6 @@ marshmallow==3.18.0
 mdurl==0.1.2
     # via markdown-it-py
 more-itertools==9.0.0
-msg-parser==1.2.0
 msgpack==1.0.7
 multidict==6.0.2
     # via
@@ -181,9 +180,7 @@ oauthlib==3.2.2
     # via
     #   atlassian-python-api
     #   requests-oauthlib
-olefile==0.47
-    # via msg-parser
-openpyxl==3.1.2
+openai==1.19.0
 orjson==3.10.3
 packaging==23.2
     # via
@@ -191,8 +188,6 @@ packaging==23.2
     #   marshmallow
     #   pytest
 pandas==1.5.3
-parso==0.7.1
-    # via jedi
 pathspec==0.12.1
     # via black
 pillow==10.2.0
@@ -227,10 +222,11 @@ pycparser==2.21
 pydantic==1.10.14
     # via
     #   groq
+    #   openai
     #   pyairtable
 pyee==9.0.4
     # via playwright
-pygithub==1.59.0
+pygithub==2.3.0
 pygments==2.18.0
     # via rich
 pyjwt==2.8.0
@@ -295,7 +291,7 @@ six==1.16.0
     #   google-auth-httplib2
     #   python-dateutil
     #   stone
-slack-sdk==3.23.0
+slack-sdk==3.27.1
 smmap==5.0.1
     # via gitdb
 sniffio==1.3.0
@@ -303,23 +299,26 @@ sniffio==1.3.0
     #   anyio
     #   groq
     #   httpx
+    #   openai
 soupsieve==2.5
     # via beautifulsoup4
-sqlparse==0.4.4
 stone==3.3.1
     # via dropbox
 structlog==23.1.0
 tqdm==4.64.1
+    # via openai
 typer==0.9.0
 typing-extensions==4.9.0
     # via
     #   betterproto
     #   groq
+    #   openai
     #   psycopg
     #   psycopg-pool
     #   pyairtable
     #   pydantic
     #   pyee
+    #   pygithub
     #   python-docx
     #   typer
     #   typing-inspect
@@ -333,10 +332,10 @@ urllib3==1.26.18
     # via
     #   botocore
     #   pyairtable
+    #   pygithub
     #   requests
     #   sentry-sdk
 uvicorn==0.23.1
-watchdog==3.0.0
 wikipedia-api==0.6.0
 wrapt==1.14.1
     # via deprecated
