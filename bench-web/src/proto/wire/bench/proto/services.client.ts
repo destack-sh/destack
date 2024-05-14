@@ -648,6 +648,7 @@ export class HostClient implements IHostClient, ServiceInfo {
 }
 /**
  * A Runtime for running a Bench in an isolated environment.
+ * The Runtime may run any number of processes to process its Runs in Sessions.
  *
  * @generated from protobuf service symbolx.bench.Runtime
  */
@@ -661,6 +662,7 @@ export interface IRuntimeClient {
 }
 /**
  * A Runtime for running a Bench in an isolated environment.
+ * The Runtime may run any number of processes to process its Runs in Sessions.
  *
  * @generated from protobuf service symbolx.bench.Runtime
  */

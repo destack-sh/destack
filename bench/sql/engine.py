@@ -1,7 +1,6 @@
 # type: ignore
 # TODO :Robustness :Cleanup: type-check sql engine
 
-import asyncio
 import base64
 import enum
 import struct
@@ -28,16 +27,7 @@ from bitarray import bitarray
 from psycopg import sql
 from psycopg.types.json import Jsonb
 
-from bench.language import (
-    Block,
-    ConditionalOp,
-    Field,
-    Package,
-    Property,
-    Store,
-    StoreEngineType,
-    TypeInfo,
-)
+from bench.language import Block, ConditionalOp, Field, Package, Property, StoreEngineType, TypeInfo
 from bench.language.access import ReadOptions
 from bench.language.const import (
     EMPTY_DICT,
@@ -73,7 +63,6 @@ from bench.sql.core import (
     SqlPrimitive,
     Table,
 )
-from bench.system.client import user_pg_cursor
 from bench.utils.casing import Casing, to_casing
 from bench.utils.dt import utcnow_with_tz
 from bench.utils.env import IS_DEBUG, IS_LOCAL, IS_TEST
@@ -1985,64 +1974,6 @@ else:
 
     def sql_to_str(cur: psycopg.Cursor | psycopg.AsyncCursor, s: sql.Composable) -> str:
         return s.as_string(cur)
-
-
-USER_PRIVILEGES = "SELECT, INSERT, UPDATE, DELETE, TRUNCATE, REFERENCES"
-
-
-async def create_local_pg_store(store: Store) -> None:
-    """
-    Creates the local Postgres database and corresponding roles/user for a bench.
-    """
-    log = logger.bind(store=store)
-    start = asyncio.get_event_loop().time()
-    assert store.database, f"{store!r} has no database"
-
-    # create database from the default one (if not exists)
-    async with user_pg_cursor(autocommit=True) as cur:
-        await cur.execute("SELECT 1 FROM pg_database WHERE datname = %s", (store.database,))
-        exists = bool(await cur.fetchone())
-        if not exists:
-            log.info("pg.create_db.create")
-            await cur.execute(sqlstr("CREATE DATABASE {}").format(sql.Identifier(store.database)))
-        else:
-            log.info("pg.create_db.already_exists")
-
-    # connect to local database and setup auth
-    async with user_pg_cursor(database=store.database) as cur:
-        # create 'root' user (if not exists)
-        root = store.main_credential
-        log.info("pg.create_db.create_root", username=root.username)
-        await cur.execute("SELECT 1 FROM pg_roles WHERE rolname = %s", (root.username,))
-        exists = bool(await cur.fetchone())
-        if not exists:
-            log.info("pg.create_db.create_root.create", username=root.username)
-            await cur.execute(
-                sqlstr("CREATE USER {} WITH PASSWORD {}").format(
-                    sql.Identifier(root.username), sql.Literal(root.password)
-                ),
-            )
-        else:
-            log.info("pg.create_db.create_root.already_exists", username=root.username)
-        # grant full regular CRUD access to 'root' user (no trigger or such)
-        log.info("pg.create_db.create_root.grant")
-        # grant new
-        await cur.execute(
-            sqlstr("GRANT {} ON ALL TABLES IN SCHEMA public TO {}").format(
-                sqlstr(USER_PRIVILEGES),
-                sql.Identifier(root.username),
-            )
-        )
-        # alter default privileges (to apply to all new tables)
-        await cur.execute(
-            sqlstr("ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT {} ON TABLES TO {}").format(
-                sqlstr(USER_PRIVILEGES),
-                sql.Identifier(root.username),
-            )
-        )
-        await cur.connection.commit()
-
-    log.info("pg.create_db", duration=asyncio.get_event_loop().time() - start, store=store)
 
 
 TABLE_BY_NODE_TYPE: dict[NodeType, Table] = {

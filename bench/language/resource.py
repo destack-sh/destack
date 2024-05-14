@@ -79,7 +79,10 @@ NodeDataT = TypeVar("NodeDataT", bound=AnyNodeData)
 
 @node_component()
 class Resource(Node[NodeDataT], Generic[NodeDataT]):
-    """A resource owned by a Bench."""
+    """
+    A resource owned by a Bench.
+    Certain resources may be branched into a Package.
+    """
 
     parent: "Bench" = p_node_parent(4, NodeType.BENCH, is_system=True)
     name: str = p_regular(32)
@@ -171,26 +174,17 @@ class ResourceCredential(Struct):
 @node(NodeType.STORE)
 class Store(Resource[StoreData]):
     """
-    A store for database-like storage in a Bench.
-    Virtualizes a physical database of that kind/engine (may be a sub-database/schema or such).
+    Classic databases, virtualized over a physical database of that spec.
     """
 
     kind: StoreKind = p_system(40)
     engine: StoreEngineType = p_system(41)
     version: Optional[str] = p_system(42, default=None)
 
-    host: Optional[str] = p_kernel(50, require=False, default=None, sensitive=True)
-    database: Optional[str] = p_kernel(51, require=False, default=None, sensitive=True)
-    schema: Optional[str] = p_kernel(52, require=False, default=None, sensitive=True)
-    main_credential: Optional[ResourceCredential] = p_kernel(
-        54,
-        require=False,
-        default=None,
-        array=False,
-        sensitive=True,
-        encrypt=True,
-        defer=True,
-        struct=StructType.RESOURCE_CREDENTIAL,
+    external_name: Optional[str] = p_kernel(50, require=False, default=None, sensitive=True)
+    external_id: Optional[str] = p_kernel(51, require=False, default=None, sensitive=True)
+    connection_uri: Optional[str] = p_kernel(
+        52, require=False, default=None, encrypt=True, defer=True, sensitive=True
     )
 
     def __content_str__(self) -> str:
@@ -200,8 +194,7 @@ class Store(Resource[StoreData]):
 @node(NodeType.DRIVE)
 class Drive(Resource[DriveData]):
     """
-    A drive for file-like storage in a Bench.
-    Virtualizes simple bucket-style access to some S3-like storage.
+    Drive for file/block storage.
     """
 
     ...

@@ -363,7 +363,7 @@ export interface ColorData {
     hex?: string;
 }
 /**
- * A semi-magical value that accumulates context down the graph (starting with system context).
+ * A semi-magical value of context down a Bench tree (starting with system context).
  *
  * @generated from protobuf message symbolx.bench.ContextData
  */
@@ -417,11 +417,35 @@ export interface ContextData {
      */
     pagePtr?: NodeReferenceData;
     /**
-     * @generated from protobuf field: optional symbolx.bench.NodeReferenceData user_ptr = 40;
+     * @generated from protobuf field: optional symbolx.bench.NodeReferenceData block_ptr = 36;
+     */
+    blockPtr?: NodeReferenceData;
+    /**
+     * @generated from protobuf field: optional symbolx.bench.NodeReferenceData step_ptr = 37;
+     */
+    stepPtr?: NodeReferenceData;
+    /**
+     * @generated from protobuf field: optional symbolx.bench.NodeReferenceData client_ptr = 40;
+     */
+    clientPtr?: NodeReferenceData;
+    /**
+     * @generated from protobuf field: optional symbolx.bench.NodeReferenceData server_ptr = 41;
+     */
+    serverPtr?: NodeReferenceData;
+    /**
+     * @generated from protobuf field: optional symbolx.bench.NodeReferenceData user_ptr = 42;
      */
     userPtr?: NodeReferenceData;
     /**
-     * @generated from protobuf field: optional symbolx.bench.NodeReferenceData trigger_ptr = 41;
+     * @generated from protobuf field: optional symbolx.bench.NodeReferenceData session_ptr = 50;
+     */
+    sessionPtr?: NodeReferenceData;
+    /**
+     * @generated from protobuf field: optional symbolx.bench.NodeReferenceData run_ptr = 51;
+     */
+    runPtr?: NodeReferenceData;
+    /**
+     * @generated from protobuf field: optional symbolx.bench.NodeReferenceData trigger_ptr = 52;
      */
     triggerPtr?: NodeReferenceData;
 }
@@ -2356,8 +2380,7 @@ export interface DependencyData {
     dependencyScopesPtr: NodeReferenceData[];
 }
 /**
- * A drive for file-like storage in a Bench.
- * Virtualizes simple bucket-style access to some S3-like storage.
+ * Drive for file/block storage.
  *
  * @generated from protobuf message symbolx.bench.DriveData
  */
@@ -4663,8 +4686,7 @@ export interface StepData {
     condition?: ExpressionData;
 }
 /**
- * A store for database-like storage in a Bench.
- * Virtualizes a physical database of that kind/engine (may be a sub-database/schema or such).
+ * Classic databases, virtualized over a physical database of that spec.
  *
  * @generated from protobuf message symbolx.bench.StoreData
  */
@@ -4750,21 +4772,17 @@ export interface StoreData {
      */
     version?: string;
     /**
-     * @generated from protobuf field: optional string host = 50;
+     * @generated from protobuf field: optional string external_name = 50;
      */
-    host?: string;
+    externalName?: string;
     /**
-     * @generated from protobuf field: optional string database = 51;
+     * @generated from protobuf field: optional string external_id = 51;
      */
-    database?: string;
+    externalId?: string;
     /**
-     * @generated from protobuf field: optional string schema = 52;
+     * @generated from protobuf field: optional string connection_uri = 52;
      */
-    schema?: string;
-    /**
-     * @generated from protobuf field: optional symbolx.bench.ResourceCredentialData main_credential = 54;
-     */
-    mainCredential?: ResourceCredentialData;
+    connectionUri?: string;
 }
 /**
  * A trigger to a node.
@@ -8518,6 +8536,10 @@ export enum SessionStatus {
      */
     UNSPECIFIED = 0,
     /**
+     * @generated from protobuf enum value: SESSION_STATUS_PENDING = 1;
+     */
+    PENDING = 1,
+    /**
      * @generated from protobuf enum value: SESSION_STATUS_OPEN = 3;
      */
     OPEN = 3,
@@ -8774,25 +8796,17 @@ export enum StoreEngineType {
      */
     UNSPECIFIED = 0,
     /**
-     * @generated from protobuf enum value: STORE_ENGINE_TYPE_INMEMORY = 1;
+     * @generated from protobuf enum value: STORE_ENGINE_TYPE_LOCAL = 1;
      */
-    INMEMORY = 1,
+    LOCAL = 1,
     /**
-     * @generated from protobuf enum value: STORE_ENGINE_TYPE_REMOTE = 2;
+     * @generated from protobuf enum value: STORE_ENGINE_TYPE_PROXY = 2;
      */
-    REMOTE = 2,
+    PROXY = 2,
     /**
      * @generated from protobuf enum value: STORE_ENGINE_TYPE_POSTGRES = 3;
      */
-    POSTGRES = 3,
-    /**
-     * @generated from protobuf enum value: STORE_ENGINE_TYPE_OPENSEARCH = 4;
-     */
-    OPENSEARCH = 4,
-    /**
-     * @generated from protobuf enum value: STORE_ENGINE_TYPE_CLICKHOUSE = 5;
-     */
-    CLICKHOUSE = 5
+    POSTGRES = 3
 }
 /**
  * @generated from protobuf enum symbolx.bench.StoreKind
@@ -8805,15 +8819,7 @@ export enum StoreKind {
     /**
      * @generated from protobuf enum value: STORE_KIND_RELATIONAL = 1;
      */
-    RELATIONAL = 1,
-    /**
-     * @generated from protobuf enum value: STORE_KIND_SEARCH = 2;
-     */
-    SEARCH = 2,
-    /**
-     * @generated from protobuf enum value: STORE_KIND_ANALYTICAL = 3;
-     */
-    ANALYTICAL = 3
+    RELATIONAL = 1
 }
 /**
  * @generated from protobuf enum symbolx.bench.StructType
@@ -10447,8 +10453,14 @@ class ContextData$Type extends MessageType<ContextData> {
             { no: 33, name: "package_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 34, name: "module_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 35, name: "page_ptr", kind: "message", T: () => NodeReferenceData },
-            { no: 40, name: "user_ptr", kind: "message", T: () => NodeReferenceData },
-            { no: 41, name: "trigger_ptr", kind: "message", T: () => NodeReferenceData }
+            { no: 36, name: "block_ptr", kind: "message", T: () => NodeReferenceData },
+            { no: 37, name: "step_ptr", kind: "message", T: () => NodeReferenceData },
+            { no: 40, name: "client_ptr", kind: "message", T: () => NodeReferenceData },
+            { no: 41, name: "server_ptr", kind: "message", T: () => NodeReferenceData },
+            { no: 42, name: "user_ptr", kind: "message", T: () => NodeReferenceData },
+            { no: 50, name: "session_ptr", kind: "message", T: () => NodeReferenceData },
+            { no: 51, name: "run_ptr", kind: "message", T: () => NodeReferenceData },
+            { no: 52, name: "trigger_ptr", kind: "message", T: () => NodeReferenceData }
         ]);
     }
     create(value?: PartialMessage<ContextData>): ContextData {
@@ -10505,10 +10517,28 @@ class ContextData$Type extends MessageType<ContextData> {
                 case /* optional symbolx.bench.NodeReferenceData page_ptr */ 35:
                     message.pagePtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.pagePtr);
                     break;
-                case /* optional symbolx.bench.NodeReferenceData user_ptr */ 40:
+                case /* optional symbolx.bench.NodeReferenceData block_ptr */ 36:
+                    message.blockPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.blockPtr);
+                    break;
+                case /* optional symbolx.bench.NodeReferenceData step_ptr */ 37:
+                    message.stepPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.stepPtr);
+                    break;
+                case /* optional symbolx.bench.NodeReferenceData client_ptr */ 40:
+                    message.clientPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.clientPtr);
+                    break;
+                case /* optional symbolx.bench.NodeReferenceData server_ptr */ 41:
+                    message.serverPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.serverPtr);
+                    break;
+                case /* optional symbolx.bench.NodeReferenceData user_ptr */ 42:
                     message.userPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.userPtr);
                     break;
-                case /* optional symbolx.bench.NodeReferenceData trigger_ptr */ 41:
+                case /* optional symbolx.bench.NodeReferenceData session_ptr */ 50:
+                    message.sessionPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.sessionPtr);
+                    break;
+                case /* optional symbolx.bench.NodeReferenceData run_ptr */ 51:
+                    message.runPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.runPtr);
+                    break;
+                case /* optional symbolx.bench.NodeReferenceData trigger_ptr */ 52:
                     message.triggerPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.triggerPtr);
                     break;
                 default:
@@ -10563,12 +10593,30 @@ class ContextData$Type extends MessageType<ContextData> {
         /* optional symbolx.bench.NodeReferenceData page_ptr = 35; */
         if (message.pagePtr)
             NodeReferenceData.internalBinaryWrite(message.pagePtr, writer.tag(35, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbolx.bench.NodeReferenceData user_ptr = 40; */
+        /* optional symbolx.bench.NodeReferenceData block_ptr = 36; */
+        if (message.blockPtr)
+            NodeReferenceData.internalBinaryWrite(message.blockPtr, writer.tag(36, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbolx.bench.NodeReferenceData step_ptr = 37; */
+        if (message.stepPtr)
+            NodeReferenceData.internalBinaryWrite(message.stepPtr, writer.tag(37, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbolx.bench.NodeReferenceData client_ptr = 40; */
+        if (message.clientPtr)
+            NodeReferenceData.internalBinaryWrite(message.clientPtr, writer.tag(40, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbolx.bench.NodeReferenceData server_ptr = 41; */
+        if (message.serverPtr)
+            NodeReferenceData.internalBinaryWrite(message.serverPtr, writer.tag(41, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbolx.bench.NodeReferenceData user_ptr = 42; */
         if (message.userPtr)
-            NodeReferenceData.internalBinaryWrite(message.userPtr, writer.tag(40, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbolx.bench.NodeReferenceData trigger_ptr = 41; */
+            NodeReferenceData.internalBinaryWrite(message.userPtr, writer.tag(42, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbolx.bench.NodeReferenceData session_ptr = 50; */
+        if (message.sessionPtr)
+            NodeReferenceData.internalBinaryWrite(message.sessionPtr, writer.tag(50, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbolx.bench.NodeReferenceData run_ptr = 51; */
+        if (message.runPtr)
+            NodeReferenceData.internalBinaryWrite(message.runPtr, writer.tag(51, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbolx.bench.NodeReferenceData trigger_ptr = 52; */
         if (message.triggerPtr)
-            NodeReferenceData.internalBinaryWrite(message.triggerPtr, writer.tag(41, WireType.LengthDelimited).fork(), options).join();
+            NodeReferenceData.internalBinaryWrite(message.triggerPtr, writer.tag(52, WireType.LengthDelimited).fork(), options).join();
         let u = options.writeUnknownFields;
         if (u !== false)
             (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
@@ -20233,10 +20281,9 @@ class StoreData$Type extends MessageType<StoreData> {
             { no: 40, name: "kind", kind: "enum", T: () => ["symbolx.bench.StoreKind", StoreKind, "STORE_KIND_"] },
             { no: 41, name: "engine", kind: "enum", T: () => ["symbolx.bench.StoreEngineType", StoreEngineType, "STORE_ENGINE_TYPE_"] },
             { no: 42, name: "version", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
-            { no: 50, name: "host", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
-            { no: 51, name: "database", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
-            { no: 52, name: "schema", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
-            { no: 54, name: "main_credential", kind: "message", T: () => ResourceCredentialData }
+            { no: 50, name: "external_name", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
+            { no: 51, name: "external_id", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
+            { no: 52, name: "connection_uri", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ }
         ]);
     }
     create(value?: PartialMessage<StoreData>): StoreData {
@@ -20324,17 +20371,14 @@ class StoreData$Type extends MessageType<StoreData> {
                 case /* optional string version */ 42:
                     message.version = reader.string();
                     break;
-                case /* optional string host */ 50:
-                    message.host = reader.string();
+                case /* optional string external_name */ 50:
+                    message.externalName = reader.string();
                     break;
-                case /* optional string database */ 51:
-                    message.database = reader.string();
+                case /* optional string external_id */ 51:
+                    message.externalId = reader.string();
                     break;
-                case /* optional string schema */ 52:
-                    message.schema = reader.string();
-                    break;
-                case /* optional symbolx.bench.ResourceCredentialData main_credential */ 54:
-                    message.mainCredential = ResourceCredentialData.internalBinaryRead(reader, reader.uint32(), options, message.mainCredential);
+                case /* optional string connection_uri */ 52:
+                    message.connectionUri = reader.string();
                     break;
                 default:
                     let u = options.readUnknownField;
@@ -20412,18 +20456,15 @@ class StoreData$Type extends MessageType<StoreData> {
         /* optional string version = 42; */
         if (message.version !== undefined)
             writer.tag(42, WireType.LengthDelimited).string(message.version);
-        /* optional string host = 50; */
-        if (message.host !== undefined)
-            writer.tag(50, WireType.LengthDelimited).string(message.host);
-        /* optional string database = 51; */
-        if (message.database !== undefined)
-            writer.tag(51, WireType.LengthDelimited).string(message.database);
-        /* optional string schema = 52; */
-        if (message.schema !== undefined)
-            writer.tag(52, WireType.LengthDelimited).string(message.schema);
-        /* optional symbolx.bench.ResourceCredentialData main_credential = 54; */
-        if (message.mainCredential)
-            ResourceCredentialData.internalBinaryWrite(message.mainCredential, writer.tag(54, WireType.LengthDelimited).fork(), options).join();
+        /* optional string external_name = 50; */
+        if (message.externalName !== undefined)
+            writer.tag(50, WireType.LengthDelimited).string(message.externalName);
+        /* optional string external_id = 51; */
+        if (message.externalId !== undefined)
+            writer.tag(51, WireType.LengthDelimited).string(message.externalId);
+        /* optional string connection_uri = 52; */
+        if (message.connectionUri !== undefined)
+            writer.tag(52, WireType.LengthDelimited).string(message.connectionUri);
         let u = options.writeUnknownFields;
         if (u !== false)
             (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
@@ -23133,10 +23174,9 @@ export enum StoreProperty {
   kind = 40,
   engine = 41,
   version = 42,
-  host = 50,
-  database = 51,
-  schema = 52,
-  mainCredential = 54,
+  externalName = 50,
+  externalId = 51,
+  connectionUri = 52,
 }
 
 export enum DriveProperty {
@@ -23389,8 +23429,14 @@ export enum ContextProperty {
   packagePtr = 33,
   modulePtr = 34,
   pagePtr = 35,
-  userPtr = 40,
-  triggerPtr = 41,
+  blockPtr = 36,
+  stepPtr = 37,
+  clientPtr = 40,
+  serverPtr = 41,
+  userPtr = 42,
+  sessionPtr = 50,
+  runPtr = 51,
+  triggerPtr = 52,
 }
 
 export enum ScheduleProperty {
@@ -24039,8 +24085,14 @@ export const ContextDataInfo: Record<ContextProperty, PropertyInfo> = {
   [ContextProperty.packagePtr]: { id: 33, name: 'package_ptr', component: ObjectType.CONTEXT, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.PACKAGE], referenceStruct: StructType.NODE_REFERENCE },
   [ContextProperty.modulePtr]: { id: 34, name: 'module_ptr', component: ObjectType.CONTEXT, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.BLOCK], referenceStruct: StructType.NODE_REFERENCE },
   [ContextProperty.pagePtr]: { id: 35, name: 'page_ptr', component: ObjectType.CONTEXT, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.BLOCK], referenceStruct: StructType.NODE_REFERENCE },
-  [ContextProperty.userPtr]: { id: 40, name: 'user_ptr', component: ObjectType.CONTEXT, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.USER], referenceStruct: StructType.NODE_REFERENCE },
-  [ContextProperty.triggerPtr]: { id: 41, name: 'trigger_ptr', component: ObjectType.CONTEXT, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.TRIGGER], referenceStruct: StructType.NODE_REFERENCE },
+  [ContextProperty.blockPtr]: { id: 36, name: 'block_ptr', component: ObjectType.CONTEXT, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.BLOCK], referenceStruct: StructType.NODE_REFERENCE },
+  [ContextProperty.stepPtr]: { id: 37, name: 'step_ptr', component: ObjectType.CONTEXT, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.STEP], referenceStruct: StructType.NODE_REFERENCE },
+  [ContextProperty.clientPtr]: { id: 40, name: 'client_ptr', component: ObjectType.CONTEXT, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.CLIENT], referenceStruct: StructType.NODE_REFERENCE },
+  [ContextProperty.serverPtr]: { id: 41, name: 'server_ptr', component: ObjectType.CONTEXT, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.SERVER], referenceStruct: StructType.NODE_REFERENCE },
+  [ContextProperty.userPtr]: { id: 42, name: 'user_ptr', component: ObjectType.CONTEXT, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.USER], referenceStruct: StructType.NODE_REFERENCE },
+  [ContextProperty.sessionPtr]: { id: 50, name: 'session_ptr', component: ObjectType.CONTEXT, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.SESSION], referenceStruct: StructType.NODE_REFERENCE },
+  [ContextProperty.runPtr]: { id: 51, name: 'run_ptr', component: ObjectType.CONTEXT, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.RUN], referenceStruct: StructType.NODE_REFERENCE },
+  [ContextProperty.triggerPtr]: { id: 52, name: 'trigger_ptr', component: ObjectType.CONTEXT, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.TRIGGER], referenceStruct: StructType.NODE_REFERENCE },
 }
 export const ScheduleDataInfo: Record<ScheduleProperty, PropertyInfo> = {
   [ScheduleProperty.metatype]: { id: 1, name: 'metatype', component: ObjectType.SCHEDULE, enumType: EnumType.OBJECT_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isComputed: true, isWired: true },
@@ -25069,10 +25121,9 @@ export const StoreDataInfo: Record<StoreProperty, PropertyInfo> = {
   [StoreProperty.kind]: { id: 40, name: 'kind', component: ObjectType.STORE, enumType: EnumType.STORE_KIND, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [StoreProperty.engine]: { id: 41, name: 'engine', component: ObjectType.STORE, enumType: EnumType.STORE_ENGINE_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [StoreProperty.version]: { id: 42, name: 'version', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
-  [StoreProperty.host]: { id: 50, name: 'host', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isSystem: true, isKernel: true, isRuntime: true, isWired: true, isStored: true, isSensitive: true },
-  [StoreProperty.database]: { id: 51, name: 'database', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isSystem: true, isKernel: true, isRuntime: true, isWired: true, isStored: true, isSensitive: true },
-  [StoreProperty.schema]: { id: 52, name: 'schema', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isSystem: true, isKernel: true, isRuntime: true, isWired: true, isStored: true, isSensitive: true },
-  [StoreProperty.mainCredential]: { id: 54, name: 'main_credential', component: ObjectType.STORE, kind: 'reference', primitiveType: PrimitiveType.JSON, isInternal: true, isSystem: true, isKernel: true, isRuntime: true, isWired: true, isStored: true, isDeferred: true, isSensitive: true, isEncrypted: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.RESOURCE_CREDENTIAL },
+  [StoreProperty.externalName]: { id: 50, name: 'external_name', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isSystem: true, isKernel: true, isRuntime: true, isWired: true, isStored: true, isSensitive: true },
+  [StoreProperty.externalId]: { id: 51, name: 'external_id', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isSystem: true, isKernel: true, isRuntime: true, isWired: true, isStored: true, isSensitive: true },
+  [StoreProperty.connectionUri]: { id: 52, name: 'connection_uri', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isSystem: true, isKernel: true, isRuntime: true, isWired: true, isStored: true, isDeferred: true, isSensitive: true, isEncrypted: true },
 }
 export const DriveDataInfo: Record<DriveProperty, PropertyInfo> = {
   [DriveProperty.metatype]: { id: 1, name: 'metatype', component: ObjectType.DRIVE, enumType: EnumType.OBJECT_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isComputed: true, isWired: true },

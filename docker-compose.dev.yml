@@ -1,8 +1,8 @@
 version: '3'
 
 services:
-  db:
-    image: postgres:14.5-alpine
+  postgres:
+    image: postgres:16-alpine
     restart: on-failure
     environment:
       POSTGRES_USER: bench
@@ -11,8 +11,8 @@ services:
     ports:
       - '5432:5432'
 
-  objects:
-    image: minio/minio:RELEASE.2023-04-28T18-11-17Z
+  minio:
+    image: minio/minio:latest
     restart: on-failure
     ports:
       - '19000:19000'
@@ -24,7 +24,7 @@ services:
     command: -c 'mkdir -p /data/bench && minio server --address ":19000" --console-address ":19001" /data'
 
   redis:
-    image: redis:7.0-bullseye
+    image: redis:7-alpine
     restart: on-failure
     ports:
       - '6379:6379'

@@ -393,12 +393,12 @@ export interface FieldDescriptorProto {
      * If true, this is a proto3 "optional". When a proto3 field is optional, it
      * tracks presence regardless of field type.
      *
-     * When proto3_optional is true, this field must be belong to a oneof to
-     * signal to old proto3 clients that presence is tracked for this field. This
-     * oneof is known as a "synthetic" oneof, and this field must be its sole
-     * member (each proto3 optional field gets its own synthetic oneof). Synthetic
-     * oneofs exist in the descriptor only, and do not generate any API. Synthetic
-     * oneofs must be ordered after all "real" oneofs.
+     * When proto3_optional is true, this field must belong to a oneof to signal
+     * to old proto3 clients that presence is tracked for this field. This oneof
+     * is known as a "synthetic" oneof, and this field must be its sole member
+     * (each proto3 optional field gets its own synthetic oneof). Synthetic oneofs
+     * exist in the descriptor only, and do not generate any API. Synthetic oneofs
+     * must be ordered after all "real" oneofs.
      *
      * For message fields, proto3_optional doesn't create any semantic change,
      * since non-repeated message fields always track presence. However it still
@@ -814,10 +814,6 @@ export interface FileOptions {
      */
     pyGenericServices?: boolean;
     /**
-     * @generated from protobuf field: optional bool php_generic_services = 42;
-     */
-    phpGenericServices?: boolean;
-    /**
      * Is this file deprecated?
      * Depending on the target platform, this can emit Deprecated annotations
      * for everything in the file, or it will be completely ignored; in the very
@@ -976,10 +972,6 @@ export interface MessageOptions {
      */
     deprecated?: boolean;
     /**
-     * NOTE: Do not set the option in .proto files. Always use the maps syntax
-     * instead. The option should only be implicitly set by the proto compiler
-     * parser.
-     *
      * Whether the message is an automatically generated map entry type for the
      * maps field.
      *
@@ -997,6 +989,10 @@ export interface MessageOptions {
      * use a native map in the target language to hold the keys and values.
      * The reflection APIs in such implementations still need to work as
      * if the field is a repeated message field.
+     *
+     * NOTE: Do not set the option in .proto files. Always use the maps syntax
+     * instead. The option should only be implicitly set by the proto compiler
+     * parser.
      *
      * @generated from protobuf field: optional bool map_entry = 7;
      */
@@ -1091,19 +1087,11 @@ export interface FieldOptions {
      * call from multiple threads concurrently, while non-const methods continue
      * to require exclusive access.
      *
-     * Note that implementations may choose not to check required fields within
-     * a lazy sub-message.  That is, calling IsInitialized() on the outer message
-     * may return true even if the inner message has missing required fields.
-     * This is necessary because otherwise the inner message would have to be
-     * parsed in order to perform the check, defeating the purpose of lazy
-     * parsing.  An implementation which chooses not to check required fields
-     * must be consistent about it.  That is, for any particular sub-message, the
-     * implementation must either *always* check its required fields, or *never*
-     * check its required fields, regardless of whether or not the message has
-     * been parsed.
-     *
-     * As of May 2022, lazy verifies the contents of the byte stream during
-     * parsing.  An invalid byte stream will cause the overall parsing to fail.
+     * Note that lazy message fields are still eagerly verified to check
+     * ill-formed wireformat or missing required fields. Calling IsInitialized()
+     * on the outer message would fail if the inner message has missing required
+     * fields. Failed verification would result in parsing failure (except when
+     * uninitialized messages are acceptable).
      *
      * @generated from protobuf field: optional bool lazy = 5;
      */
@@ -1648,13 +1636,13 @@ export enum FeatureSet_Utf8Validation {
      */
     UTF8_VALIDATION_UNKNOWN = 0,
     /**
-     * @generated from protobuf enum value: NONE = 1;
-     */
-    NONE = 1,
-    /**
      * @generated from protobuf enum value: VERIFY = 2;
      */
-    VERIFY = 2
+    VERIFY = 2,
+    /**
+     * @generated from protobuf enum value: NONE = 3;
+     */
+    NONE = 3
 }
 /**
  * @generated from protobuf enum google.protobuf.FeatureSet.MessageEncoding
@@ -1804,7 +1792,7 @@ export interface SourceCodeInfo_Location {
      * location.
      *
      * Each element is a field number or an index.  They form a path from
-     * the root FileDescriptorProto to the place where the definition occurs.
+     * the root FileDescriptorProto to the place where the definition appears.
      * For example, this path:
      *   [ 4, 3, 2, 7, 1 ]
      * refers to:
@@ -2011,6 +1999,10 @@ export enum Edition {
      */
     EDITION_2023 = 1000,
     /**
+     * @generated from protobuf enum value: EDITION_2024 = 1001;
+     */
+    EDITION_2024 = 1001,
+    /**
      * Placeholder editions for testing feature resolution.  These should not be
      * used or relyed on outside of tests.
      *
@@ -2032,7 +2024,15 @@ export enum Edition {
     /**
      * @generated from protobuf enum value: EDITION_99999_TEST_ONLY = 99999;
      */
-    EDITION_99999_TEST_ONLY = 99999
+    EDITION_99999_TEST_ONLY = 99999,
+    /**
+     * Placeholder for specifying unbounded edition support.  This should only
+     * ever be used by plugins that can expect to never require any changes to
+     * support a new edition.
+     *
+     * @generated from protobuf enum value: EDITION_MAX = 2147483647;
+     */
+    EDITION_MAX = 2147483647
 }
 // @generated message type with reflection information, may provide speed optimized methods
 class FileDescriptorSet$Type extends MessageType<FileDescriptorSet> {
@@ -3114,7 +3114,6 @@ class FileOptions$Type extends MessageType<FileOptions> {
             { no: 16, name: "cc_generic_services", kind: "scalar", opt: true, T: 8 /*ScalarType.BOOL*/ },
             { no: 17, name: "java_generic_services", kind: "scalar", opt: true, T: 8 /*ScalarType.BOOL*/ },
             { no: 18, name: "py_generic_services", kind: "scalar", opt: true, T: 8 /*ScalarType.BOOL*/ },
-            { no: 42, name: "php_generic_services", kind: "scalar", opt: true, T: 8 /*ScalarType.BOOL*/ },
             { no: 23, name: "deprecated", kind: "scalar", opt: true, T: 8 /*ScalarType.BOOL*/ },
             { no: 31, name: "cc_enable_arenas", kind: "scalar", opt: true, T: 8 /*ScalarType.BOOL*/ },
             { no: 36, name: "objc_class_prefix", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
@@ -3169,9 +3168,6 @@ class FileOptions$Type extends MessageType<FileOptions> {
                     break;
                 case /* optional bool py_generic_services */ 18:
                     message.pyGenericServices = reader.bool();
-                    break;
-                case /* optional bool php_generic_services */ 42:
-                    message.phpGenericServices = reader.bool();
                     break;
                 case /* optional bool deprecated */ 23:
                     message.deprecated = reader.bool();
@@ -3248,9 +3244,6 @@ class FileOptions$Type extends MessageType<FileOptions> {
         /* optional bool py_generic_services = 18; */
         if (message.pyGenericServices !== undefined)
             writer.tag(18, WireType.Varint).bool(message.pyGenericServices);
-        /* optional bool php_generic_services = 42; */
-        if (message.phpGenericServices !== undefined)
-            writer.tag(42, WireType.Varint).bool(message.phpGenericServices);
         /* optional bool deprecated = 23; */
         if (message.deprecated !== undefined)
             writer.tag(23, WireType.Varint).bool(message.deprecated);

@@ -909,6 +909,7 @@ class ServerProfile(betterproto.Enum):
 
 class SessionStatus(betterproto.Enum):
     UNSPECIFIED = 0
+    PENDING = 1
     OPEN = 3
     CLOSED = 6
 
@@ -987,18 +988,14 @@ class StepType(betterproto.Enum):
 
 class StoreEngineType(betterproto.Enum):
     UNSPECIFIED = 0
-    INMEMORY = 1
-    REMOTE = 2
+    LOCAL = 1
+    PROXY = 2
     POSTGRES = 3
-    OPENSEARCH = 4
-    CLICKHOUSE = 5
 
 
 class StoreKind(betterproto.Enum):
     UNSPECIFIED = 0
     RELATIONAL = 1
-    SEARCH = 2
-    ANALYTICAL = 3
 
 
 class StructType(betterproto.Enum):
@@ -1335,7 +1332,7 @@ class ColorData(betterproto.Message):
 @dataclass(eq=False, repr=False)
 class ContextData(betterproto.Message):
     """
-    A semi-magical value that accumulates context down the graph (starting with system context).
+    A semi-magical value of context down a Bench tree (starting with system context).
     """
 
     metatype: "ObjectType" = betterproto.enum_field(1)
@@ -1350,8 +1347,14 @@ class ContextData(betterproto.Message):
     package_ptr: Optional["NodeReferenceData"] = betterproto.message_field(33, optional=True)
     module_ptr: Optional["NodeReferenceData"] = betterproto.message_field(34, optional=True)
     page_ptr: Optional["NodeReferenceData"] = betterproto.message_field(35, optional=True)
-    user_ptr: Optional["NodeReferenceData"] = betterproto.message_field(40, optional=True)
-    trigger_ptr: Optional["NodeReferenceData"] = betterproto.message_field(41, optional=True)
+    block_ptr: Optional["NodeReferenceData"] = betterproto.message_field(36, optional=True)
+    step_ptr: Optional["NodeReferenceData"] = betterproto.message_field(37, optional=True)
+    client_ptr: Optional["NodeReferenceData"] = betterproto.message_field(40, optional=True)
+    server_ptr: Optional["NodeReferenceData"] = betterproto.message_field(41, optional=True)
+    user_ptr: Optional["NodeReferenceData"] = betterproto.message_field(42, optional=True)
+    session_ptr: Optional["NodeReferenceData"] = betterproto.message_field(50, optional=True)
+    run_ptr: Optional["NodeReferenceData"] = betterproto.message_field(51, optional=True)
+    trigger_ptr: Optional["NodeReferenceData"] = betterproto.message_field(52, optional=True)
 
 
 @dataclass(eq=False, repr=False)
@@ -2108,10 +2111,7 @@ class DependencyData(betterproto.Message):
 
 @dataclass(eq=False, repr=False)
 class DriveData(betterproto.Message):
-    """
-    A drive for file-like storage in a Bench.
-     Virtualizes simple bucket-style access to some S3-like storage.
-    """
+    """Drive for file/block storage."""
 
     metatype: "ObjectType" = betterproto.enum_field(1)
     id: str = betterproto.string_field(2)
@@ -2889,8 +2889,7 @@ class StepData(betterproto.Message):
 @dataclass(eq=False, repr=False)
 class StoreData(betterproto.Message):
     """
-    A store for database-like storage in a Bench.
-     Virtualizes a physical database of that kind/engine (may be a sub-database/schema or such).
+    Classic databases, virtualized over a physical database of that spec.
     """
 
     metatype: "ObjectType" = betterproto.enum_field(1)
@@ -2913,12 +2912,9 @@ class StoreData(betterproto.Message):
     kind: "StoreKind" = betterproto.enum_field(40)
     engine: "StoreEngineType" = betterproto.enum_field(41)
     version: Optional[str] = betterproto.string_field(42, optional=True)
-    host: Optional[str] = betterproto.string_field(50, optional=True)
-    database: Optional[str] = betterproto.string_field(51, optional=True)
-    schema: Optional[str] = betterproto.string_field(52, optional=True)
-    main_credential: Optional["ResourceCredentialData"] = betterproto.message_field(
-        54, optional=True
-    )
+    external_name: Optional[str] = betterproto.string_field(50, optional=True)
+    external_id: Optional[str] = betterproto.string_field(51, optional=True)
+    connection_uri: Optional[str] = betterproto.string_field(52, optional=True)
 
 
 @dataclass(eq=False, repr=False)
@@ -4828,7 +4824,7 @@ class RuntimeBase(ServiceBase):
 
 from typing import TYPE_CHECKING  # noqa: E402
 
-VERSION = "2024.05.13.1"
+VERSION = "2024.05.14.0"
 
 if TYPE_CHECKING:
     from bench.language import Subject

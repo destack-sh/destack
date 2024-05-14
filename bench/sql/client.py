@@ -61,12 +61,9 @@ _CONNECTION_STR_REGEX = re.compile(
 
 def get_pg_connection_str(store: Store, database: str | None = None) -> str:
     # TODO :Security :Scalability: route store clients/hosts better :StoreRouting
-    from bench.system.client import USER_PG_HOST
-
     assert store.engine == StoreEngineType.POSTGRES, f"store {store!r} is not a postgres store"
-    assert store.main_credential is not None, f"store {store!r} has no main_credential"
-    connection_str = f"postgresql://{store.main_credential.username}:{store.main_credential.password}@{store.host or USER_PG_HOST}/{database or store.database}"
-    return connection_str
+    assert store.connection_uri, f"store {store!r} has no connection_url"
+    return store.connection_uri
 
 
 @asynccontextmanager
@@ -100,7 +97,7 @@ class _PgStoreConnection:
         if self._conn.autocommit != self.autocommit:
             await self._conn.set_autocommit(self.autocommit)
         _current_store.set(self.store)
-        _current_pg_crypto_key.set(self.store.parent.encryption_key)
+        _current_pg_crypto_key.set(self.store.bench.encryption_key)
         return self._conn.cursor()
 
     async def close(self) -> None:

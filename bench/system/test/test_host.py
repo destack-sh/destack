@@ -100,4 +100,4 @@ async def test_user_activate(some_bench: BenchHandle):
     assert bench.owner_id == some_bench.owner.id
     assert bench.main_environment
     assert bench.main_environment.store
-    assert not bench.main_environment.store.main_credential  # can't read kernel
+    assert not bench.main_environment.store.connection_uri  # can't read kernel
