@@ -5,7 +5,7 @@ from bench.cli.utils import async_to_sync_blocking, check_is_consistent
 from bench.language import Bench, Region, User
 from bench.language.const import NodeType, UserStatus
 from bench.system.client import global_session
-from bench.system.resource import create_default_bench, provision_pending_resources
+from bench.system.resource import create_default_bench, migrate_local_stores, provision_pending_resources
 
 app = typer.Typer(short_help="some language-level utilities")
 
@@ -47,6 +47,7 @@ async def provision(bench: str):  # type: ignore
     async with global_session() as session:
         bench: Bench = await Bench.descendants(
             NodeType.SERVER, NodeType.STORE, NodeType.DRIVE, NodeType.CACHE
-        ).get(slug=bench)
+        ).include_all().get(slug=bench)
         await provision_pending_resources(bench, session)
+        await migrate_local_stores(bench, session)
         await session.commit()

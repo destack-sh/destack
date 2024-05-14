@@ -6,6 +6,9 @@ import aiohttp
 import structlog
 
 from bench.language.resource import Region
+from bench.sql.client import pg_cursor_to_store
+from bench.sql.migration import has_migration_after, migrate
+from bench.sql.schema import VERSION
 from bench.utils.utils import get_from_env
 
 if TYPE_CHECKING:
@@ -93,20 +96,31 @@ async def create_local_pg_store(store: "Store") -> None:
     """
     Creates a new 'local' Neon-based Postgres database and corresponding roles/user for a Bench.
     """
-    log = logger.bind(store=store)
-    start = asyncio.get_event_loop().time()
     assert store.external_name, f"{store!r} has no database"
 
     # create neon project
-    logger.info("neon.create_project", store=store)
+    start = asyncio.get_event_loop().time()
     neon_project = await neon_client.create_project(
         name=store.external_name, region=store.region, pg_version=16
     )
     store.external_id = neon_project.project_id
     store.connection_uri = neon_project.connection_uri
+    duration = asyncio.get_event_loop().time() - start
+    logger.info("neon.create_project", store=store, duration=duration)
 
-    log.info("pg.create_db", duration=asyncio.get_event_loop().time() - start, store=store)
+    # migrate to latest version
+    await migrate_local_pg_store(store)
 
 
-async def migrate_pg_store(store: "Store") -> None:
-    raise NotImplementedError("nocheckin: migrate_pg_store")
+async def migrate_local_pg_store(store: "Store") -> None:
+    """Migrates the store to the latest version of our internal schema."""
+    if store.version is not None and not has_migration_after(store.version, is_global=False):
+        logger.debug("neon.migrate.skip", store=store)
+        return  # nothing to do
+    start = asyncio.get_event_loop().time()
+    async with pg_cursor_to_store(store) as cur:
+        await migrate(cur, target=VERSION, is_global=False, store=store)
+        await cur.connection.commit()
+    store.version = VERSION
+    duration = asyncio.get_event_loop().time() - start
+    logger.info("neon.migrate", store=store, duration=duration)

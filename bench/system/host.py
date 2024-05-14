@@ -26,7 +26,7 @@ from bench.proto.wire import (
 )
 from bench.system.client import GLOBAL_STORE, global_session
 from bench.system.graph import GraphIoServiceBase
-from bench.system.resource import provision_pending_resources
+from bench.system.resource import migrate_local_stores, provision_pending_resources
 from bench.utils.func import to_uuid
 
 logger = structlog.get_logger(__name__)
@@ -187,6 +187,7 @@ class Host(GraphIoServiceBase, HostBase):
             self._bench = await BENCH_QUERY.get(id=self.bench_id)
             assert self._bench.main_branch is not None, f"{self._bench!r} has no main branch"
             await provision_pending_resources(self._bench, session)
+            await migrate_local_stores(self._bench, session)  # NOTE :Robustness: unsure when to migrate
 
             # preload main packages
             self._main_package = await PACKAGE_QUERY.get(id=self._bench.main_branch.main_package_id)

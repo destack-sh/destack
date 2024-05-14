@@ -30,7 +30,7 @@ from bench.sql.migration import (
     generate_migration_code,
     generate_migration_ops,
     introspect_tables_from_pg,
-    migrate_to,
+    migrate as _migrate,
     read_migrations_from_fs,
     read_migrations_from_pg,
 )
@@ -81,29 +81,26 @@ async def makemigrations(
 ):
     start = time.time()
 
-    # defensively check existing migrations for inconsistencies
-    known_migrations = read_migrations_from_fs()
-    conflicting_migration = first((m for m in known_migrations if m.version == VERSION), None)
+    # check existing migrations for inconsistencies
+    file_migrations = read_migrations_from_fs()
+    conflicting_migration = first((m for m in file_migrations if m.version == VERSION), None)
     if conflicting_migration:
         if overwrite:
             logger.info("makemigrations.overwrite", migration=conflicting_migration)
-            assert conflicting_migration.path
+            assert conflicting_migration.path, f"{conflicting_migration!r} has no path"
             Path(conflicting_migration.path).unlink()
-            known_migrations.remove(conflicting_migration)
+            file_migrations.remove(conflicting_migration)
         else:
             raise RuntimeError(
                 f"existing migration for version {VERSION}: {conflicting_migration!r}"
             )
     async with global_pg_cursor() as cur:
         stored_migrations = await read_migrations_from_pg(cur)
-    if any(m.applied_at is None for m in stored_migrations):
-        # we introspect DB state, so we can't makemigrations if we have unapplied migrations
-        raise RuntimeError(f"unapplied migrations: {stored_migrations!r}")
-    max_known_id = max(m.id for m in known_migrations) if known_migrations else 0
+    max_file_id = max(m.id for m in file_migrations) if file_migrations else 0
     max_stored_id = max(m.id for m in stored_migrations) if stored_migrations else 0
-    if max_stored_id > max_known_id:
+    if max_stored_id > max_file_id:
         raise RuntimeError(
-            f"stored migrations are ahead of known migrations:\nstored={stored_migrations!r}\nknown={known_migrations!r}"
+            f"stored migrations are ahead of file migrations:\nstored={stored_migrations!r}\nfile={file_migrations!r}"
         )
 
     # diff local
@@ -131,7 +128,7 @@ async def makemigrations(
     if not global_migration_ops and not local_migration_ops:
         logger.info("makemigrations.noop")
         return
-    latest_migration = max(known_migrations, key=lambda m: m.id, default=None)
+    latest_migration = max(file_migrations, key=lambda m: m.id, default=None)
     new_migration = Migration(
         id=latest_migration.id + 1 if latest_migration is not None else 1,
         version=VERSION,
@@ -182,7 +179,7 @@ async def migrate(
 
     for store in stores:
         async with pg_cursor_to_store(store) as cur:
-            await migrate_to(cur=cur, target=target, is_global=bench is None)
+            await _migrate(cur=cur, target=target, is_global=bench is None)
             if not dry_run:
                 await cur.connection.commit()
             else:
