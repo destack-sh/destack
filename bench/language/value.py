@@ -29,11 +29,16 @@ if TYPE_CHECKING:
         Bench,
         Block,
         Branch,
+        Client,
         Environment,
         Field,
         Node,
         NodeReference,
         Package,
+        Run,
+        Server,
+        Session,
+        Step,
         Trigger,
         User,
     )
@@ -674,9 +679,9 @@ class HasValues(Struct):
 
 @struct(StructType.CONTEXT)
 class Context(Struct):
-    """A semi-magical value that accumulates context down the graph (starting with system context)."""
+    """A semi-magical value of context down a Bench tree (starting with system context)."""
 
-    # system
+    # location
     bench: Optional["Bench"] = p_internal(30, require=False, array=False, references=NodeType.BENCH)
     environment: Optional["Environment"] = p_internal(
         31, require=False, array=False, references=NodeType.ENVIRONMENT
@@ -691,10 +696,25 @@ class Context(Struct):
         34, require=False, array=False, references=NodeType.BLOCK
     )
     page: Optional["Block"] = p_internal(35, require=False, array=False, references=NodeType.BLOCK)
+    block: Optional["Block"] = p_internal(36, require=False, array=False, references=NodeType.BLOCK)
+    step: Optional["Step"] = p_internal(37, require=False, array=False, references=NodeType.STEP)
 
-    user: Optional["User"] = p_internal(40, require=False, array=False, references=NodeType.USER)
+    # runtime
+    client: Optional["Client"] = p_internal(
+        40, require=False, array=False, references=NodeType.CLIENT
+    )
+    server: Optional["Server"] = p_internal(
+        41, require=False, array=False, references=NodeType.SERVER
+    )
+    user: Optional["User"] = p_internal(42, require=False, array=False, references=NodeType.USER)
+
+    # session
+    session: Optional["Session"] = p_internal(
+        50, require=False, array=False, references=NodeType.SESSION
+    )
+    run: Optional["Run"] = p_internal(51, require=False, array=False, references=NodeType.RUN)
     trigger: Optional["Trigger"] = p_internal(
-        41, require=False, array=False, references=NodeType.TRIGGER
+        52, require=False, array=False, references=NodeType.TRIGGER
     )
 
     # custom

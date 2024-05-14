@@ -377,7 +377,7 @@ defineExpose<ViewExposed>({ self, actions, focus });
                   <path d="M0,0.5 L49,0.5" fill="none" stroke="currentColor" stroke-width="1" />
                   <path d="M100,0.5 L51,0.5" fill="none" stroke="currentColor" stroke-width="1" />
                 </svg>
-                <button class="-translate-y-[8px] px-1">&plus;</button>
+                <button class="-translate-y-[8px] text-primary-900 px-1">&plus;</button>
               </div>
             </div>
 

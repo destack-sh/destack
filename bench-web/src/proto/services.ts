@@ -302,7 +302,7 @@ export const supervisor = new SupervisorClient(
 export async function getHostClient(bench: { id: string }): Promise<HostClient> {
   if ("id" in bench && _CACHED_BENCH_IDS[bench.id]) return _CACHED_HOST_CLIENTS[bench.id];
 
-  // TODO :Scalability: lookup bench host via supervisor :SingleHostService
+  // TODO :Scalability: lookup bench host (via supervisor?) :SingleHostService
   // const hostInfo = await supervisor.getHost({
   //   bench: "id" in bench ? { id: bench.id, oneofKind: "id" } : { slug: bench.slug, oneofKind: "slug" },
   // }).response;

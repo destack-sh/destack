@@ -6,7 +6,7 @@ from grpclib.utils import graceful_exit
 
 from bench.cli.utils import _check_is_consistent, async_to_sync_blocking
 from bench.proto.services import BenchServer, BenchServiceBase
-from bench.runtime.process import Runtime
+from bench.runtime.runtime import Runtime
 from bench.system.host import HostMultiplexer
 from bench.system.supervisor import Supervisor
 from bench.utils.env import IS_DEBUG
@@ -39,10 +39,12 @@ async def runtime(host: str, port: int, watch: bool = False):
     await _check_is_consistent(check_db=True)
     logger.info("serve.runtime", host=host, port=port)
     server = Runtime(
+        supervisor_url=get_from_env("SUPERVISOR_URL"),
         client_id=get_from_env("CLIENT_ID", optional=True),
         user_id=get_from_env("USER_ID", optional=True),
         server_id=get_from_env("SERVER_ID", optional=True),
         bench_id=get_from_env("BENCH_ID", optional=True),
+        package_id=get_from_env("PACKAGE_ID", optional=True),
     )
     services = [server]
     server = BenchServer(services)

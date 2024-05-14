@@ -10,7 +10,7 @@ from grpclib import GRPCError
 from grpclib import Status as GRPCStatus
 
 from bench.language import Bench, Organization, Package, Subject, User
-from bench.language.const import IN_BENCH_NODE_TYPES, IN_PACKAGE_NODE_TYPES, NodeType
+from bench.language.const import IN_BENCH_NODE_TYPES, NodeType
 from bench.language.graph import NodeGraph, edit_graph
 from bench.language.query import PostgresEngine, StoreEngine
 from bench.proto import wiring
@@ -30,12 +30,6 @@ from bench.system.resource import provision_pending_resources
 from bench.utils.func import to_uuid
 
 logger = structlog.get_logger(__name__)
-
-LOADED_SOURCE_NODE_TYPES: tuple[NodeType, ...] = tuple(
-    nt
-    for nt in IN_PACKAGE_NODE_TYPES
-    if nt.id < NodeType.SESSION.id and nt not in (NodeType.RECORD,)
-)
 
 
 class HostMultiplexer(BenchServiceBase, HostBase):

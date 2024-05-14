@@ -356,6 +356,7 @@ message RestartRuntimeResponse {
 }
 
 // A Runtime for running a Bench in an isolated environment.
+// The Runtime may run any number of processes to process its Runs in Sessions.
 service Runtime {
   // Restart this server immediately.
   rpc Restart(RestartRuntimeRequest) returns (RestartRuntimeResponse);

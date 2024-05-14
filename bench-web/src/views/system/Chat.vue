@@ -414,6 +414,7 @@ defineExpose<ViewExposed>({ self, id, variants: [Variant.PRIMARY, Variant.COMPAC
       }"
       :orientation="Orientation.VERTICAL"
       :track-width="variant == Variant.COMPACT ? ScrollbarWidth.sm : ScrollbarWidth.md"
+      :track-is-overlay="variant == Variant.COMPACT"
       :stick-to-end="stickToEnd"
       :size-is-dynamic="props.size == null"
     >
@@ -446,7 +447,7 @@ defineExpose<ViewExposed>({ self, id, variants: [Variant.PRIMARY, Variant.COMPAC
           :class="[
             isContinuationBreak ? 'mt-2' : '',
             replyingTo?.id == message.id ? 'bg-secondary-100' : '',
-            variant != Variant.COMPACT ? 'px-3' : 'px-2',
+            variant != Variant.COMPACT ? 'px-3' : 'px-1',
           ]"
           :style="{ width: 'calc(100% - ' + MIN_GUTTER_WIDTH * 2 + 'px)', maxWidth: MAX_WIDTH + 'px' }"
         >
@@ -621,7 +622,7 @@ defineExpose<ViewExposed>({ self, id, variants: [Variant.PRIMARY, Variant.COMPAC
           track-is-overlay
           :track-width="ScrollbarWidth.sm"
           class="w-full"
-          :class="variant != Variant.COMPACT ? '' : 'mx-0.5'"
+          :class="variant != Variant.COMPACT ? '' : 'mx-[1px]'"
         >
           <Text
             ref="textRef"
