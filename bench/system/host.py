@@ -10,9 +10,9 @@ from grpclib import GRPCError
 from grpclib import Status as GRPCStatus
 
 from bench.language import Bench, Organization, Package, Subject, User
+from bench.language.connection import PostgresEngine, StoreEngine
 from bench.language.const import IN_BENCH_NODE_TYPES, NodeType
 from bench.language.graph import NodeGraph, edit_graph
-from bench.language.query import PostgresEngine, StoreEngine
 from bench.proto import wiring
 from bench.proto.services import BenchServiceBase, RpcCallable
 from bench.proto.wire import (
@@ -157,9 +157,7 @@ class Host(GraphIoServiceBase, HostBase):
         self.bench_id = bench_id
         self._bench: Bench | None = None
         self._bench_scope: GraphScope = GraphScope(bench_id=str(bench_id))
-        self._bench_pg_engine = PostgresEngine(
-            GLOBAL_STORE, scope=self._bench_scope, node_types=IN_BENCH_NODE_TYPES
-        )
+        self._bench_pg_engine = PostgresEngine(GLOBAL_STORE, node_types=IN_BENCH_NODE_TYPES)
         self._owner: User | Organization | None = None
         self._main_package: Package | None = None
         self._packages: dict[UUID, Package] = {}
@@ -187,7 +185,9 @@ class Host(GraphIoServiceBase, HostBase):
             self._bench = await BENCH_QUERY.get(id=self.bench_id)
             assert self._bench.main_branch is not None, f"{self._bench!r} has no main branch"
             await provision_pending_resources(self._bench, session)
-            await migrate_local_stores(self._bench, session)  # NOTE :Robustness: unsure when to migrate
+            await migrate_local_stores(
+                self._bench, session
+            )  # NOTE :Robustness: unsure when to migrate
 
             # preload main packages
             self._main_package = await PACKAGE_QUERY.get(id=self._bench.main_branch.main_package_id)
@@ -195,7 +195,7 @@ class Host(GraphIoServiceBase, HostBase):
 
             await session.commit()
             logger.info("host.start", host=self, duration=asyncio.get_event_loop().time() - start)
-        # NOTE :Architecture: untracking should probably happen automatically?
+        # nocheckin :Architecture: untracking should probably happen automatically?
         self._bench._untrack_rec()
         for package in self._packages.values():
             package._untrack_rec()

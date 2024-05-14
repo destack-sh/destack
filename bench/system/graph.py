@@ -20,10 +20,11 @@ from bench.language.access import (
     evaluate_edit,
     generate_access_matrix,
 )
+from bench.language.connection import FetchOptions, StoreEngine
 from bench.language.const import AccessKind, ConditionalOp, EditType, NodeType, PolicyEffect
 from bench.language.graph import NodeDataGraph, edit_data_graph
 from bench.language.node import Node
-from bench.language.query import FetchOptions, QueryBuilder, StoreEngine
+from bench.language.query import QueryBuilder
 from bench.language.setup import NODE_CLASS_BY_TYPE
 from bench.language.validation import ValidationError, on_invalid_raise
 from bench.proto import wiring

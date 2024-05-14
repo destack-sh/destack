@@ -7,9 +7,9 @@ from uuid import UUID
 
 import structlog
 
+from bench.language.connection import StoreConnection, StoreEngine
 from bench.language.const import EMPTY_SCOPE, AccessKind, BenchError, EditType, NodeType
 from bench.language.node import Node, Property
-from bench.language.query import StoreConnection, StoreEngine
 from bench.proto import wire
 from bench.proto.wire import AnyNodeData, EditData, GraphScope, NodeReferenceData
 from bench.utils.dt import utcnow_with_tz
@@ -83,7 +83,9 @@ class Transaction:
         for engine in self.session._engines:
             if engine.supports(scope, node_type, access_kind):
                 return await self._get_engine_connection(engine)
-        raise BenchError(f"no engine for [base={base!r}, node={node_type}] in {self.session!r}")
+        raise BenchError(
+            f"no engine for [base={base!r}, node={node_type.bench_name}] in {self.session!r}"
+        )
 
     async def _get_engine_connection(self, engine: StoreEngine) -> StoreConnection:
         connection = self._connections_by_engine_id.get(engine.id)
@@ -100,10 +102,8 @@ class Transaction:
         for engine in self.session._engines:
             if engine.supports(scope, node_type, AccessKind.EDIT):
                 return engine
-        if self.session._fallback_engine:
-            return self.session._fallback_engine
         raise BenchError(
-            f"no engine for edit [scope={scope!r}, node_type={node_type}, edit_type={edit_type}] in {self.session!r}"
+            f"no engine for edit [scope={scope!r}, node_type={node_type.bench_name}, edit_type={edit_type.bench_name}] in {self.session!r}"
         )
 
     #

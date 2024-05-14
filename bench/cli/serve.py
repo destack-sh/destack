@@ -40,11 +40,10 @@ async def runtime(host: str, port: int, watch: bool = False):
     logger.info("serve.runtime", host=host, port=port)
     server = Runtime(
         supervisor_url=get_from_env("SUPERVISOR_URL"),
+        bench_id=get_from_env("BENCH_ID"),
         client_id=get_from_env("CLIENT_ID", optional=True),
         user_id=get_from_env("USER_ID", optional=True),
         server_id=get_from_env("SERVER_ID", optional=True),
-        bench_id=get_from_env("BENCH_ID", optional=True),
-        package_id=get_from_env("PACKAGE_ID", optional=True),
     )
     services = [server]
     server = BenchServer(services)

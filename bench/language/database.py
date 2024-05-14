@@ -3,6 +3,13 @@ from typing import TYPE_CHECKING, Any, Optional, cast
 
 import structlog
 
+from bench.language.connection import (
+    AggregateResult,
+    FetchOptions,
+    FetchResult,
+    PostgresConnection,
+    PostgresEngine,
+)
 from bench.language.const import NodeType, NRel
 from bench.language.node import BasedNode, Node, NodeList, node, node_component
 from bench.language.notice import NoticeHandler
@@ -15,14 +22,7 @@ from bench.language.property import (
     p_value_packed,
     p_value_runtime,
 )
-from bench.language.query import (
-    AggregateResult,
-    FetchOptions,
-    FetchResult,
-    PostgresConnection,
-    PostgresEngine,
-    QueryBuilder,
-)
+from bench.language.query import QueryBuilder
 from bench.language.value import HasValues
 from bench.proto.wire import AnyNodeData, NodeReferenceData, RecordData
 from bench.sql.core import RECORD_EPHEMERAL_TABLE, Table

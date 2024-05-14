@@ -3,8 +3,8 @@ from contextlib import asynccontextmanager
 import structlog
 
 from bench.language import Bench, Session, Store, StoreEngineType, StoreKind
+from bench.language.connection import PostgresEngine
 from bench.language.const import GLOBAL_NODE_TYPES, VERSION
-from bench.language.query import PostgresEngine
 from bench.language.resource import Region
 from bench.sql.client import _PgStoreConnection
 from bench.utils.utils import get_from_env
@@ -34,7 +34,7 @@ GLOBAL_STORE = Store(
     external_name=GLOBAL_PG_NAME,
     connection_uri=f"postgresql://{GLOBAL_PG_USERNAME}:{GLOBAL_PG_PASSWORD}@{GLOBAL_PG_HOST}/{GLOBAL_PG_NAME}",
 )
-GLOBAL_POSTGRES_ENGINE = PostgresEngine(GLOBAL_STORE, scope=None, node_types=GLOBAL_NODE_TYPES)
+GLOBAL_POSTGRES_ENGINE = PostgresEngine(GLOBAL_STORE, node_types=GLOBAL_NODE_TYPES)
 
 
 @asynccontextmanager
@@ -45,7 +45,5 @@ async def global_pg_cursor(autocommit: bool = False):
 
 @asynccontextmanager
 async def global_session():
-    async with Session(
-        parent=None, _engines=(GLOBAL_POSTGRES_ENGINE,), _fallback_engine=GLOBAL_POSTGRES_ENGINE
-    ) as session:
+    async with Session(parent=None, _engines=(GLOBAL_POSTGRES_ENGINE,)) as session:
         yield session
