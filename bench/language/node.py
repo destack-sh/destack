@@ -1198,7 +1198,7 @@ class Struct(abc.ABC, Generic[StructDataT]):
                 value = self.__dict__.get(prop.name)
                 check_value(value, prop.type_info, invalid=invalid)
 
-    def _interp_component(self, scope: Optional["Node"], notice: "NoticeHandler"):
+    def _resolve_references(self, scope: Optional["Node"], notice: "NoticeHandler"):
         from bench.language.notice import NoticeType
 
         # TODO :Robustness? :Architecture: turn regular node refs into computed properties? :NodeRefs
@@ -1249,6 +1249,9 @@ class Struct(abc.ABC, Generic[StructDataT]):
             else:
                 ptr = cast("PropertyReference", ptr)
                 setattr(self, prop.name, ptr.resolve())
+
+    def _interp_component(self, scope: Optional["Node"], notice: "NoticeHandler"):
+        self._resolve_references(scope, notice)
 
     def _flushed_self(self):
         """Called when this struct has been flushed to the store."""
