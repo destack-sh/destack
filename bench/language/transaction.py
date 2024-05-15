@@ -65,15 +65,15 @@ class Transaction:
     def has_pending_edits(self) -> bool:
         return any(self._pending_edits_by_engine_id.values())
 
-    async def connect_store(
+    async def connect(
         self, base: Node | GraphScope | None, node_type: NodeType, access_kind: AccessKind
     ) -> StoreConnection:
         """Gets a connection to the Store for some access."""
         assert self.session is not None, f"no session in {self!r}"
         if isinstance(base, Node):
+            root = base._find_root()
             scope = GraphScope(
-                bench_id=uuid_to_str(base._root.bench_id),
-                package_id=uuid_to_str(base._root.package_id),
+                bench_id=uuid_to_str(root.bench_id), package_id=uuid_to_str(root.package_id)
             )
         elif isinstance(base, GraphScope):
             scope = base

@@ -11,7 +11,7 @@ from betterproto.lib.google.protobuf import Struct as BetterprotoStruct
 from bench.language import Property
 from bench.language.const import NodeType, ObjectType
 from bench.language.graph import NodeDataGraph
-from bench.language.node import NODE_CLASS_BY_TYPE, InterpStatus, Node, NodeGraph, Struct
+from bench.language.node import NODE_CLASS_BY_TYPE, InterpStatus, Node, NodeGraph, ReadInfo, Struct
 from bench.language.notice import NoticeHandler, on_notice_ignore, on_warning_raise
 from bench.language.property import METATYPE_PROPERTY
 from bench.language.session import Session
@@ -259,7 +259,7 @@ def pack_node_graph(
     exclude = exclude or ()
     packed_by_id: dict[UUID, AnyNodeData] = OrderedDict()
 
-    to_pack = root._root_graph.collect_descendants(root, recursive=True)
+    to_pack = root._graph.collect_descendants(root, recursive=True)
     packed_by_id[root.id] = pack_node(root)
     for node in to_pack:
         if node.metatype in exclude:
@@ -274,6 +274,7 @@ def unpack_node_graph(
     parent: Node | None = None,
     session: Session | None = None,
     exclude: set[NodeType] | tuple[NodeType, ...] | None = (),
+    read: ReadInfo | None = None,
 ) -> NodeGraph["Node"]:
     """Unpacks the node data(s) into a node graph."""
 
@@ -318,7 +319,6 @@ def unpack_node_graph(
         if root is None:
             raise ValueError(f"root {source_root!r} root found in unpacked {unpacked_graph!r}")
         root._graph.set(unpacked_graph.nodes)
-        root._data_graph = data_graph
         for node in unpacked_graph.nodes_by_id.values():
             # status is auto-set to interpreted if a session is active, but that's wrong here
             node._status = InterpStatus.SOURCE
@@ -338,10 +338,11 @@ def unpack_roots(
     session: Session | None = None,
     exclude: set[NodeType] | None = None,
     roots: Collection[NodeReferenceData] | None = None,
+    read: ReadInfo | None = None,
 ) -> tuple[Node, ...] | list[Node]:
     """Unpack nodes and their descendants. Returns the actual roots (or passed ones)."""
 
-    node_graph = unpack_node_graph(data_graph, parent, session, exclude=exclude)
+    node_graph = unpack_node_graph(data_graph, parent, session, exclude=exclude, read=read)
 
     if roots:
         # recover roots if specified (may not be actual roots)

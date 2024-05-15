@@ -19,6 +19,7 @@ from typing import (
     Collection,
     Generic,
     Iterable,
+    NamedTuple,
     Optional,
     Self,
     Type,
@@ -50,7 +51,7 @@ from bench.language.const import (
     new_node_id,
     new_struct_id,
 )
-from bench.language.graph import DetachedNodeGraph, NodeDataGraph, NodeGraph, NodeList
+from bench.language.graph import DetachedNodeGraph, NodeGraph, NodeList
 from bench.language.property import (
     _PROPERTY_SPECIFIERS,
     METATYPE_PROPERTY,
@@ -91,6 +92,7 @@ if TYPE_CHECKING:
         Run,
         Session,
         User,
+        ReadOptions,
     )
     from bench.language.notice import NoticeHandler, NoticeOptions
     from bench.language.query import QueryBuilder
@@ -877,7 +879,7 @@ class Struct(abc.ABC, Generic[StructDataT]):
     order_key: str | None = p_internal(5, default=None)
     # for source nodes:
     # computed_properties: dict[int, ValueReference] | None = p_regular(21)
-    # for template instances (= 'template' is set)
+    # for branched/templated instances
     set_properties: list[int] = p_regular(22, array=True)
 
     _status: InterpStatus = p_runtime(default=None)
@@ -1179,7 +1181,7 @@ class Struct(abc.ABC, Generic[StructDataT]):
         #  we could skip having to resolve during interp and leaving stale refs until re-interp.
         #  I'm not sure how Nodes that aren't in our current graph should be treated then.
         if scope is not None:
-            graph = scope._root_graph
+            graph = scope._graph
             for prop in self.__node_reference_properties__.values():
                 if (
                     prop.is_wired
@@ -1312,6 +1314,12 @@ FieldOrProperty = Union[
 NodeTypeOrClass = Union[NodeType, type["Node"]]
 
 
+class ReadInfo(NamedTuple):
+    options: "ReadOptions"
+    epoch: int | None
+    properties: bitarray | None = None
+
+
 @node_component()
 class Node(Struct[NodeDataT], Generic[NodeDataT]):
     """
@@ -1403,9 +1411,8 @@ class Node(Struct[NodeDataT], Generic[NodeDataT]):
 
     links: NodeList["Link"] = p_node_child(NodeType.LINK)
 
-    # the node graph is maintained at the highest root node
-    _graph: Union["NodeGraph", "DetachedNodeGraph", None] = p_runtime(default=None)
-    _data_graph: Optional["NodeDataGraph"] = p_runtime(default=None)
+    _graph: Union["NodeGraph[Node]", "DetachedNodeGraph"] = p_runtime(default=None)
+    _read_info: ReadInfo | None = p_runtime(default=None)
     _session: Optional["Session"] = p_runtime(default=None)
     _status: InterpStatus = p_runtime(default=None)
     _is_new: bool = p_runtime(default=False)
@@ -1426,6 +1433,18 @@ class Node(Struct[NodeDataT], Generic[NodeDataT]):
             now = utcnow_with_tz()
             self.created_at = now
             self.updated_at = now
+        # init graph
+        if self.parent is None:
+            # if we're not in a graph, start a new one
+            if NodeType.BENCH in self.__roots__:
+                self._graph = DetachedNodeGraph()
+            else:
+                self._graph = NodeGraph()
+            self._graph.add(self)
+        else:
+            # we'll be added to the graph by our parent
+            assert self.parent._graph is not None, f"no graph for {self.parent!r}"
+            self._graph = self.parent._graph
         # init session context
         if self._session is None and self._session is not UNSET:
             self._session = _active_session.get()
@@ -1459,20 +1478,12 @@ class Node(Struct[NodeDataT], Generic[NodeDataT]):
         """Identity for dynamic components"""
         return type(self).__name__
 
-    @property
-    def _root(self) -> "Node":
+    def _find_root(self) -> "Node":
         """Current root of this node. May not be *the* "right" root if detached."""
         parent = self
         while parent.parent is not None:
             parent = parent.parent
         return parent
-
-    @property
-    def _root_graph(self) -> Union["NodeGraph", "DetachedNodeGraph"]:
-        root = self._root
-        graph = root._graph
-        assert graph is not None, f"no graph for root {root!r} (from {self!r})"
-        return graph
 
     @final
     def __str__(self):  # type: ignore
@@ -1665,15 +1676,6 @@ class Node(Struct[NodeDataT], Generic[NodeDataT]):
     # The :ComponentMethods
     #
 
-    def _init_component(self) -> None:
-        if self.parent is None:
-            # if we're not in a graph, start a new one
-            if NodeType.BENCH in self.__roots__:
-                self._graph = DetachedNodeGraph()
-            else:
-                self._graph = NodeGraph()
-            self._graph.add(self)
-
     def _track_component(self, session: "Session") -> None:
         """Track this object in the given session."""
         self._session = session
@@ -1753,7 +1755,7 @@ class Node(Struct[NodeDataT], Generic[NodeDataT]):
     def _walk_descendants(self) -> Iterable["Node"]:
         yield self
         if self.metatype in HAS_CHILD_NODE_TYPES:
-            yield from self._root_graph.collect_descendants(self, recursive=True)
+            yield from self._graph.collect_descendants(self, recursive=True)
 
     @final
     def _interp_rec(self, scope: Optional["Node"], notice: "NoticeHandler"):  # type: ignore

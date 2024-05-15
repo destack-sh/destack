@@ -608,7 +608,7 @@ class GraphNodeList(NodeList[NodeT]):
 
     def get(self, key: UUID | str | int) -> NodeT | None:
         if isinstance(key, UUID):
-            return self._parent._root_graph.get(key)
+            return cast(NodeT, self._parent._graph.get(key))
         elif isinstance(key, str):
             return first(
                 (n for n in self.nodes if n.py_ident == key or getattr(n, "name", None) == key),
@@ -620,15 +620,15 @@ class GraphNodeList(NodeList[NodeT]):
     @property
     def nodes(self) -> tuple[NodeT, ...] | list[NodeT]:
         """Access the computed nodes"""
-        descendants = self._parent._root_graph.collect_descendants(
+        descendants = self._parent._graph.collect_descendants(
             self._parent, self._child_node_type, recursive=False
         )
         if (
             len(descendants) > 1
             and "order_key" in NODE_CLASS_BY_TYPE[self._child_node_type].__properties__
         ):
-            descendants.sort(key=lambda n: n.order_key)
-        return descendants
+            descendants.sort(key=lambda n: n.order_key) # type: ignore
+        return cast(list[NodeT], descendants)
 
     def append(  # type: ignore
         self, node: NodeT, after: NodeT | None = None, before: NodeT | None = None
@@ -650,17 +650,16 @@ class GraphNodeList(NodeList[NodeT]):
         if self._parent._session is not None:
             node._validate_self((), invalid=on_invalid_raise)
 
-        # add node to parent graph
-        if node._graph is not None:
-            # subsume if previously detached
+        # add node (and descendants) to this parent's graph
+        if node._graph is not self._parent._graph:
             added = node._graph.collect_descendants(node, recursive=True)
             added = tuple(added + [node])
             node._graph.update(node)  # parent updated
-            self._parent._root_graph.add_graph(node._graph)
-            node._graph = None
+            self._parent._graph.add_graph(node._graph)
+            node._graph = self._parent._graph
         else:
             added = (node,)
-            self._parent._root_graph.add(node)
+            self._parent._graph.add(node)
 
         # assign order key to ordered nodes
         if hasattr(node, "order_key") and getattr(node, "order_key") is None:
@@ -671,7 +670,7 @@ class GraphNodeList(NodeList[NodeT]):
             self._parent._session.create(*added)
             self._parent._session.track_many(*added)
 
-        return added
+        return cast(tuple[NodeT, ...], added)
 
     def extend(self, *nodes: NodeT, after: NodeT | None = None, before: NodeT | None = None) -> None:  # type: ignore
         if not nodes:
@@ -689,7 +688,7 @@ class GraphNodeList(NodeList[NodeT]):
     def remove(self, n: NodeT):  # type: ignore
         if self._parent._session is not None:
             self._parent._session.delete(n)
-        self._parent._root_graph.remove(n)
+        self._parent._graph.remove(n)
         n.parent = None
 
     def clear(self):
@@ -708,8 +707,8 @@ class GraphNodeList(NodeList[NodeT]):
                 return True
             else:
                 if (
-                    self._property.reference_nodes
-                    and obj.metatype != self._property.reference_nodes[0]
+                    self._property.reference_nodes is not None
+                    and obj.metatype not in self._property.reference_nodes
                 ):
                     raise TypeError(f"{self!r} cannot contain {obj!r}")
                 return False

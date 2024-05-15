@@ -509,9 +509,8 @@ def _pack_object_scalar(
         if field_value is None:
             continue
         elif field_type.kind == TypeKind.OBJECT:
-            value_packed[field.storage_key], _ = pack_value(
-                field_value, field_type
-            )  # :SecretValues
+            # :SecretValues
+            value_packed[field.storage_key], _ = pack_value(field_value, field_type)
         elif not field_type.is_list:
             value_packed[field.storage_key] = _pack_value_scalar(
                 cast(ScalarValue, field_value), field_type
@@ -673,7 +672,13 @@ from bench.language.node import Struct, struct, struct_component  # noqa: E402
 @struct_component()
 class HasValues(Struct):
     # nocheckin: HasValues
+    def _init_component(self) -> None:
+        pass
+
     def _interp_component(self, scope: "Node | None", notice: "NoticeHandler"):
+        pass
+
+    def _updated_component(self, properties: Collection[Property]) -> None:
         pass
 
 

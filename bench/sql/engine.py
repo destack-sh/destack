@@ -455,7 +455,8 @@ def compile_pg_conditional(
         elif cond.op == ConditionalOp.MATCHES:
             right = sqlstr("'%' || {} || '%'").format(sql.Literal(cond.value))
         else:
-            assert cond.value is not None, f"cannot compare {cond!r} to None"
+            assert cond.value_packed is not None, f"missing value for {cond!r}"
+            assert cond.value is not None, f"cannot compare {cond!r} with None"
             right = sql.Literal(cond.value)
 
         return SqlComparison(left=left, op=PG_CONDITIONAL_OP_BY_BENCH[cond.op], right=right)

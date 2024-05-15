@@ -219,10 +219,10 @@ class Host(GraphIoServiceBase, HostBase):
                 package = self._packages.get(package_id)
                 if package is None:
                     continue
-                graph = package._root_graph
+                graph = package._graph
                 options = PACKAGE_QUERY._options
             else:
-                graph = self._bench._root_graph
+                graph = self._bench._graph
                 options = BENCH_QUERY._options
 
             assert isinstance(graph, NodeGraph), f"unexpected graph type: {graph!r}"
