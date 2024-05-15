@@ -298,13 +298,13 @@ def unpack_node_graph(
                 node_parent = parent
             else:
                 node_parent = unpacked_graph.get(node_parent_id)
-                # TODO @Architecture: enable loading nodes without ancestors :LoadOrphanNode
+                # TODO :Architecture: enable loading nodes without ancestors :LoadOrphanNode
                 #  (this errors as below, but sometimes we just want a node without ancestors)
                 # if node_parent is None:
                 #     raise ValueError(f"parent {node_parent_id} not found in {unpacked_graph!r}")
             node = unpack_node(node_data, node_parent, session=session)
 
-            # keep parent instance if it was passed (update in place)
+            # keep parent instance if it was passed (update it in place)
             if node.id == parent_id:
                 for prop in (cast(Node, parent)).__properties__.values():
                     if not prop.is_ephemeral and not prop.is_tree_reference:
@@ -313,18 +313,18 @@ def unpack_node_graph(
 
             unpacked_graph.add(node)
 
-    # index & recover node lists
+    # update parent references
+    if parent is not None:
+        parent._resolve_references(parent, notice=on_notice_ignore)
+
+    # resolve references
     for source_root in source_roots:
         root = unpacked_graph.get(UUID(source_root.id))
         if root is None:
             raise ValueError(f"root {source_root!r} root found in unpacked {unpacked_graph!r}")
         root._graph.set(unpacked_graph.nodes)
         for node in unpacked_graph.nodes_by_id.values():
-            # status is auto-set to interpreted if a session is active, but that's wrong here
-            node._status = InterpStatus.SOURCE
-            # TODO :Cleanup :Architecture: it feels weird to manually interp *and* track in unpack?
-            #  (we want to resolve node references and such)
-            node._interp_self(node, notice=on_notice_ignore)
+            node._resolve_references(node, notice=on_notice_ignore)
             if session is not None:
                 node._track_self(session)
         unpacked_roots.append(root)
