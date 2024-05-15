@@ -20,8 +20,8 @@ if TYPE_CHECKING:
 
 logger = structlog.get_logger(__name__)
 
-# we don't want edits to Signals/Logs to be logged in Signals or Logs (for obvious reasons)
-MUTED_EDIT_NODE_TYPES: tuple[NodeType, ...] = (
+# we don't want edits to core runtime types to trigger logs/signals (circular, and very noisy)
+MUTED_NODE_TYPES: tuple[NodeType, ...] = (
     NodeType.SESSION,
     NodeType.RUN,
     NodeType.SIGNAL,

@@ -615,7 +615,7 @@ class StoreKind(IdEnum):
 @enum_(EnumType.STORE_ENGINE_TYPE)
 class StoreEngineType(IdEnum):
     LOCAL = 1
-    PROXY = 2
+    REMOTE = 2
     POSTGRES = 3
     # CLICKHOUSE, ...
 

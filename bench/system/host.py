@@ -174,7 +174,7 @@ class Host(GraphIoServiceBase, HostBase):
 
     @property
     def engines(self) -> tuple[StoreEngine, ...]:
-        # TODO :Broken :Performance!: use local in memory engines in Host (where possible)
+        # TODO :Broken :Performance!: support local engines in Host (in-memory from local data graph)
         return (self._bench_pg_engine,)
 
     async def start(self) -> None:
@@ -194,7 +194,7 @@ class Host(GraphIoServiceBase, HostBase):
             self._packages[self._main_package.id] = self._main_package
 
             logger.info("host.start", host=self, duration=asyncio.get_event_loop().time() - start)
-        # nocheckin :Architecture: untracking should probably happen automatically?
+        # NOTE :Architecture: untracking should probably happen automatically?
         self._bench._untrack_rec()
         for package in self._packages.values():
             package._untrack_rec()
