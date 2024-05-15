@@ -132,7 +132,6 @@ class BenchType(betterproto.Enum):
     SERVER = 160
     STORE = 161
     DRIVE = 162
-    CACHE = 163
     FILE_CONTENT = 180
     HANDLE = 220
     USER = 221
@@ -167,7 +166,6 @@ class BenchType(betterproto.Enum):
     STEP_CONNECTION = 1100
     RUN_CODE_FRAME = 1110
     RUN_ERROR = 1111
-    RESOURCE_CREDENTIAL = 1132
     TEXT = 1160
     TEXT_LINE = 1161
     TEXT_SPAN = 1162
@@ -619,7 +617,6 @@ class NodeType(betterproto.Enum):
     SERVER = 160
     STORE = 161
     DRIVE = 162
-    CACHE = 163
     FILE_CONTENT = 180
     HANDLE = 220
     USER = 221
@@ -689,7 +686,6 @@ class ObjectType(betterproto.Enum):
     SERVER = 160
     STORE = 161
     DRIVE = 162
-    CACHE = 163
     FILE_CONTENT = 180
     HANDLE = 220
     USER = 221
@@ -724,7 +720,6 @@ class ObjectType(betterproto.Enum):
     STEP_CONNECTION = 1100
     RUN_CODE_FRAME = 1110
     RUN_ERROR = 1111
-    RESOURCE_CREDENTIAL = 1132
     TEXT = 1160
     TEXT_LINE = 1161
     TEXT_SPAN = 1162
@@ -989,7 +984,7 @@ class StepType(betterproto.Enum):
 class StoreEngineType(betterproto.Enum):
     UNSPECIFIED = 0
     LOCAL = 1
-    PROXY = 2
+    REMOTE = 2
     POSTGRES = 3
 
 
@@ -1029,7 +1024,6 @@ class StructType(betterproto.Enum):
     STEP_CONNECTION = 1100
     RUN_CODE_FRAME = 1110
     RUN_ERROR = 1111
-    RESOURCE_CREDENTIAL = 1132
     TEXT = 1160
     TEXT_LINE = 1161
     TEXT_SPAN = 1162
@@ -1663,17 +1657,6 @@ class RequestData(betterproto.Message):
 
 
 @dataclass(eq=False, repr=False)
-class ResourceCredentialData(betterproto.Message):
-    """
-    ResourceCredential(username: str = <factory>, password: str = <factory>, parent: Union[ForwardRef('Struct'), ForwardRef('Node'), ForwardRef('Object'), NoneType] = None, _status: bench.language.const.InterpStatus = None, _updated_properties: bitarray.bitarray | None = None, parent_id: int = None, parent_key: str = None)
-    """
-
-    metatype: "ObjectType" = betterproto.enum_field(1)
-    username: Optional[str] = betterproto.string_field(31, optional=True)
-    password: Optional[str] = betterproto.string_field(32, optional=True)
-
-
-@dataclass(eq=False, repr=False)
 class RunCodeFrameData(betterproto.Message):
     """
     RunCodeFrame(node: bench.language.node.Node = None, lineno: int = <factory>, name: str = <factory>, line: str = <factory>, id: int = <factory>, parent: Union[ForwardRef('Struct'), ForwardRef('Node'), ForwardRef('Object'), NoneType] = None, order_key: str | None = None, set_properties: list[int] = <factory>, _status: bench.language.const.InterpStatus = None, _updated_properties: bitarray.bitarray | None = None, node_ptr: 'NodeReference' = None, parent_id: int = None, parent_key: str = None)
@@ -1956,10 +1939,7 @@ class BenchData(betterproto.Message):
     main_environment_ptr: Optional["NodeReferenceData"] = betterproto.message_field(
         40, optional=True
     )
-    main_branch_ptr: Optional["NodeReferenceData"] = betterproto.message_field(42, optional=True)
-    published_branch_ptr: Optional["NodeReferenceData"] = betterproto.message_field(
-        43, optional=True
-    )
+    main_branch_ptr: Optional["NodeReferenceData"] = betterproto.message_field(41, optional=True)
 
 
 @dataclass(eq=False, repr=False)
@@ -2031,29 +2011,6 @@ class BranchData(betterproto.Message):
 
 
 @dataclass(eq=False, repr=False)
-class CacheData(betterproto.Message):
-    """Cache for ephemeral data."""
-
-    metatype: "ObjectType" = betterproto.enum_field(1)
-    id: str = betterproto.string_field(2)
-    parent_ptr: Optional["NodeReferenceData"] = betterproto.message_field(4, optional=True)
-    bench_ptr: "NodeReferenceData" = betterproto.message_field(7)
-    revision: int = betterproto.int64_field(10)
-    created_at: datetime = betterproto.message_field(11)
-    updated_at: datetime = betterproto.message_field(12)
-    deleted_at: Optional[datetime] = betterproto.message_field(13, optional=True)
-    archived_at: Optional[datetime] = betterproto.message_field(14, optional=True)
-    created_by_ptr: Optional["NodeReferenceData"] = betterproto.message_field(17, optional=True)
-    updated_by_ptr: Optional["NodeReferenceData"] = betterproto.message_field(18, optional=True)
-    set_properties: List[int] = betterproto.int32_field(22)
-    name: str = betterproto.string_field(32)
-    text: Optional["TextData"] = betterproto.message_field(34, optional=True)
-    region: "Region" = betterproto.enum_field(35)
-    tenancy: "Tenancy" = betterproto.enum_field(36)
-    status: "ResourceStatus" = betterproto.enum_field(37)
-
-
-@dataclass(eq=False, repr=False)
 class ClientData(betterproto.Message):
     """A client to a Bench."""
 
@@ -2111,7 +2068,7 @@ class DependencyData(betterproto.Message):
 
 @dataclass(eq=False, repr=False)
 class DriveData(betterproto.Message):
-    """Drive for file/block storage."""
+    """Drive for file storage."""
 
     metatype: "ObjectType" = betterproto.enum_field(1)
     id: str = betterproto.string_field(2)
@@ -2154,10 +2111,7 @@ class EnvironmentData(betterproto.Message):
     policies: List["PolicyData"] = betterproto.message_field(36)
     server_ptr: "NodeReferenceData" = betterproto.message_field(40)
     store_ptr: "NodeReferenceData" = betterproto.message_field(41)
-    search_ptr: Optional["NodeReferenceData"] = betterproto.message_field(42, optional=True)
-    analytics_ptr: Optional["NodeReferenceData"] = betterproto.message_field(43, optional=True)
-    drive_ptr: "NodeReferenceData" = betterproto.message_field(44)
-    cache_ptr: Optional["NodeReferenceData"] = betterproto.message_field(45, optional=True)
+    drive_ptr: "NodeReferenceData" = betterproto.message_field(42)
 
 
 @dataclass(eq=False, repr=False)
@@ -2406,7 +2360,7 @@ class MessageData(betterproto.Message):
     created_by_ptr: Optional["NodeReferenceData"] = betterproto.message_field(17, optional=True)
     updated_by_ptr: Optional["NodeReferenceData"] = betterproto.message_field(18, optional=True)
     set_properties: List[int] = betterproto.int32_field(22)
-    origin_ptr: Optional["NodeReferenceData"] = betterproto.message_field(32, optional=True)
+    origin_ptr: "NodeReferenceData" = betterproto.message_field(32)
     path: Optional["PathData"] = betterproto.message_field(33, optional=True)
     reply_to_ptr: Optional["NodeReferenceData"] = betterproto.message_field(34, optional=True)
     title: Optional[str] = betterproto.string_field(40, optional=True)
@@ -2889,9 +2843,7 @@ class StepData(betterproto.Message):
 
 @dataclass(eq=False, repr=False)
 class StoreData(betterproto.Message):
-    """
-    Classic databases, virtualized over a physical database of that spec.
-    """
+    """Postgres database."""
 
     metatype: "ObjectType" = betterproto.enum_field(1)
     id: str = betterproto.string_field(2)
@@ -3078,12 +3030,11 @@ class SomeNodeData(betterproto.Message):
     server: "ServerData" = betterproto.message_field(29, group="node")
     store: "StoreData" = betterproto.message_field(30, group="node")
     drive: "DriveData" = betterproto.message_field(31, group="node")
-    cache: "CacheData" = betterproto.message_field(32, group="node")
-    file_content: "FileContentData" = betterproto.message_field(33, group="node")
-    handle: "HandleData" = betterproto.message_field(34, group="node")
-    user: "UserData" = betterproto.message_field(35, group="node")
-    organization: "OrganizationData" = betterproto.message_field(36, group="node")
-    client: "ClientData" = betterproto.message_field(37, group="node")
+    file_content: "FileContentData" = betterproto.message_field(32, group="node")
+    handle: "HandleData" = betterproto.message_field(33, group="node")
+    user: "UserData" = betterproto.message_field(34, group="node")
+    organization: "OrganizationData" = betterproto.message_field(35, group="node")
+    client: "ClientData" = betterproto.message_field(36, group="node")
 
 
 @dataclass(eq=False, repr=False)
@@ -4868,7 +4819,7 @@ class RuntimeBase(ServiceBase):
 
 from typing import TYPE_CHECKING  # noqa: E402
 
-VERSION = "2024.05.15.2"
+VERSION = "2024.05.15.3"
 
 if TYPE_CHECKING:
     from bench.language import Subject
@@ -4910,7 +4861,6 @@ AnyNodeData = Union[
     ServerData,
     StoreData,
     DriveData,
-    CacheData,
     FileContentData,
     HandleData,
     UserData,
@@ -4947,7 +4897,6 @@ AnyStructData = Union[
     StepConnectionData,
     RunCodeFrameData,
     RunErrorData,
-    ResourceCredentialData,
     TextData,
     TextLineData,
     TextSpanData,

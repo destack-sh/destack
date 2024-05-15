@@ -1100,25 +1100,6 @@ export interface RequestData {
     transactionId?: string;
 }
 /**
- * ResourceCredential(username: str = <factory>, password: str = <factory>, parent: Union[ForwardRef('Struct'), ForwardRef('Node'), ForwardRef('Object'), NoneType] = None, _status: bench.language.const.InterpStatus = None, _updated_properties: bitarray.bitarray | None = None, parent_id: int = None, parent_key: str = None)
- *
- * @generated from protobuf message symbolx.bench.ResourceCredentialData
- */
-export interface ResourceCredentialData {
-    /**
-     * @generated from protobuf field: symbolx.bench.ObjectType metatype = 1;
-     */
-    metatype: ObjectType;
-    /**
-     * @generated from protobuf field: optional string username = 31;
-     */
-    username?: string;
-    /**
-     * @generated from protobuf field: optional string password = 32;
-     */
-    password?: string;
-}
-/**
  * RunCodeFrame(node: bench.language.node.Node = None, lineno: int = <factory>, name: str = <factory>, line: str = <factory>, id: int = <factory>, parent: Union[ForwardRef('Struct'), ForwardRef('Node'), ForwardRef('Object'), NoneType] = None, order_key: str | None = None, set_properties: list[int] = <factory>, _status: bench.language.const.InterpStatus = None, _updated_properties: bitarray.bitarray | None = None, node_ptr: 'NodeReference' = None, parent_id: int = None, parent_key: str = None)
  *
  * @generated from protobuf message symbolx.bench.RunCodeFrameData
@@ -1903,13 +1884,9 @@ export interface BenchData {
      */
     mainEnvironmentPtr?: NodeReferenceData;
     /**
-     * @generated from protobuf field: optional symbolx.bench.NodeReferenceData main_branch_ptr = 42;
+     * @generated from protobuf field: optional symbolx.bench.NodeReferenceData main_branch_ptr = 41;
      */
     mainBranchPtr?: NodeReferenceData;
-    /**
-     * @generated from protobuf field: optional symbolx.bench.NodeReferenceData published_branch_ptr = 43;
-     */
-    publishedBranchPtr?: NodeReferenceData;
 }
 /**
  * A building block containing logic, types, UI, data, AI, - any Bench program source.
@@ -2126,81 +2103,6 @@ export interface BranchData {
     mainPackagePtr?: NodeReferenceData;
 }
 /**
- * Cache for ephemeral data.
- *
- * @generated from protobuf message symbolx.bench.CacheData
- */
-export interface CacheData {
-    /**
-     * @generated from protobuf field: symbolx.bench.ObjectType metatype = 1;
-     */
-    metatype: ObjectType;
-    /**
-     * @generated from protobuf field: string id = 2;
-     */
-    id: string;
-    /**
-     * @generated from protobuf field: optional symbolx.bench.NodeReferenceData parent_ptr = 4;
-     */
-    parentPtr?: NodeReferenceData;
-    /**
-     * @generated from protobuf field: symbolx.bench.NodeReferenceData bench_ptr = 7;
-     */
-    benchPtr?: NodeReferenceData;
-    /**
-     * @generated from protobuf field: int64 revision = 10;
-     */
-    revision: bigint;
-    /**
-     * @generated from protobuf field: google.protobuf.Timestamp created_at = 11;
-     */
-    createdAt?: Timestamp;
-    /**
-     * @generated from protobuf field: google.protobuf.Timestamp updated_at = 12;
-     */
-    updatedAt?: Timestamp;
-    /**
-     * @generated from protobuf field: optional google.protobuf.Timestamp deleted_at = 13;
-     */
-    deletedAt?: Timestamp;
-    /**
-     * @generated from protobuf field: optional google.protobuf.Timestamp archived_at = 14;
-     */
-    archivedAt?: Timestamp;
-    /**
-     * @generated from protobuf field: optional symbolx.bench.NodeReferenceData created_by_ptr = 17;
-     */
-    createdByPtr?: NodeReferenceData;
-    /**
-     * @generated from protobuf field: optional symbolx.bench.NodeReferenceData updated_by_ptr = 18;
-     */
-    updatedByPtr?: NodeReferenceData;
-    /**
-     * @generated from protobuf field: repeated int32 set_properties = 22;
-     */
-    setProperties: number[];
-    /**
-     * @generated from protobuf field: string name = 32;
-     */
-    name: string;
-    /**
-     * @generated from protobuf field: optional symbolx.bench.TextData text = 34;
-     */
-    text?: TextData;
-    /**
-     * @generated from protobuf field: symbolx.bench.Region region = 35;
-     */
-    region: Region;
-    /**
-     * @generated from protobuf field: symbolx.bench.Tenancy tenancy = 36;
-     */
-    tenancy: Tenancy;
-    /**
-     * @generated from protobuf field: symbolx.bench.ResourceStatus status = 37;
-     */
-    status: ResourceStatus;
-}
-/**
  * A client to a Bench.
  *
  * @generated from protobuf message symbolx.bench.ClientData
@@ -2380,7 +2282,7 @@ export interface DependencyData {
     dependencyScopesPtr: NodeReferenceData[];
 }
 /**
- * Drive for file/block storage.
+ * Drive for file storage.
  *
  * @generated from protobuf message symbolx.bench.DriveData
  */
@@ -2533,21 +2435,9 @@ export interface EnvironmentData {
      */
     storePtr?: NodeReferenceData;
     /**
-     * @generated from protobuf field: optional symbolx.bench.NodeReferenceData search_ptr = 42;
-     */
-    searchPtr?: NodeReferenceData;
-    /**
-     * @generated from protobuf field: optional symbolx.bench.NodeReferenceData analytics_ptr = 43;
-     */
-    analyticsPtr?: NodeReferenceData;
-    /**
-     * @generated from protobuf field: symbolx.bench.NodeReferenceData drive_ptr = 44;
+     * @generated from protobuf field: symbolx.bench.NodeReferenceData drive_ptr = 42;
      */
     drivePtr?: NodeReferenceData;
-    /**
-     * @generated from protobuf field: optional symbolx.bench.NodeReferenceData cache_ptr = 45;
-     */
-    cachePtr?: NodeReferenceData;
 }
 /**
  * A used-defined attribute of some value
@@ -3292,7 +3182,7 @@ export interface MessageData {
      */
     setProperties: number[];
     /**
-     * @generated from protobuf field: optional symbolx.bench.NodeReferenceData origin_ptr = 32;
+     * @generated from protobuf field: symbolx.bench.NodeReferenceData origin_ptr = 32;
      */
     originPtr?: NodeReferenceData;
     /**
@@ -4687,7 +4577,7 @@ export interface StepData {
     condition?: ExpressionData;
 }
 /**
- * Classic databases, virtualized over a physical database of that spec.
+ * Postgres database.
  *
  * @generated from protobuf message symbolx.bench.StoreData
  */
@@ -5403,39 +5293,33 @@ export interface SomeNodeData {
          */
         drive: DriveData;
     } | {
-        oneofKind: "cache";
-        /**
-         * @generated from protobuf field: symbolx.bench.CacheData cache = 32;
-         */
-        cache: CacheData;
-    } | {
         oneofKind: "fileContent";
         /**
-         * @generated from protobuf field: symbolx.bench.FileContentData file_content = 33;
+         * @generated from protobuf field: symbolx.bench.FileContentData file_content = 32;
          */
         fileContent: FileContentData;
     } | {
         oneofKind: "handle";
         /**
-         * @generated from protobuf field: symbolx.bench.HandleData handle = 34;
+         * @generated from protobuf field: symbolx.bench.HandleData handle = 33;
          */
         handle: HandleData;
     } | {
         oneofKind: "user";
         /**
-         * @generated from protobuf field: symbolx.bench.UserData user = 35;
+         * @generated from protobuf field: symbolx.bench.UserData user = 34;
          */
         user: UserData;
     } | {
         oneofKind: "organization";
         /**
-         * @generated from protobuf field: symbolx.bench.OrganizationData organization = 36;
+         * @generated from protobuf field: symbolx.bench.OrganizationData organization = 35;
          */
         organization: OrganizationData;
     } | {
         oneofKind: "client";
         /**
-         * @generated from protobuf field: symbolx.bench.ClientData client = 37;
+         * @generated from protobuf field: symbolx.bench.ClientData client = 36;
          */
         client: ClientData;
     } | {
@@ -5833,10 +5717,6 @@ export enum BenchType {
      */
     DRIVE = 162,
     /**
-     * @generated from protobuf enum value: BENCH_TYPE_CACHE = 163;
-     */
-    CACHE = 163,
-    /**
      * @generated from protobuf enum value: BENCH_TYPE_FILE_CONTENT = 180;
      */
     FILE_CONTENT = 180,
@@ -5972,10 +5852,6 @@ export enum BenchType {
      * @generated from protobuf enum value: BENCH_TYPE_RUN_ERROR = 1111;
      */
     RUN_ERROR = 1111,
-    /**
-     * @generated from protobuf enum value: BENCH_TYPE_RESOURCE_CREDENTIAL = 1132;
-     */
-    RESOURCE_CREDENTIAL = 1132,
     /**
      * @generated from protobuf enum value: BENCH_TYPE_TEXT = 1160;
      */
@@ -7597,10 +7473,6 @@ export enum NodeType {
      */
     DRIVE = 162,
     /**
-     * @generated from protobuf enum value: NODE_TYPE_CACHE = 163;
-     */
-    CACHE = 163,
-    /**
      * @generated from protobuf enum value: NODE_TYPE_FILE_CONTENT = 180;
      */
     FILE_CONTENT = 180,
@@ -7831,10 +7703,6 @@ export enum ObjectType {
      */
     DRIVE = 162,
     /**
-     * @generated from protobuf enum value: OBJECT_TYPE_CACHE = 163;
-     */
-    CACHE = 163,
-    /**
      * @generated from protobuf enum value: OBJECT_TYPE_FILE_CONTENT = 180;
      */
     FILE_CONTENT = 180,
@@ -7970,10 +7838,6 @@ export enum ObjectType {
      * @generated from protobuf enum value: OBJECT_TYPE_RUN_ERROR = 1111;
      */
     RUN_ERROR = 1111,
-    /**
-     * @generated from protobuf enum value: OBJECT_TYPE_RESOURCE_CREDENTIAL = 1132;
-     */
-    RESOURCE_CREDENTIAL = 1132,
     /**
      * @generated from protobuf enum value: OBJECT_TYPE_TEXT = 1160;
      */
@@ -8801,9 +8665,9 @@ export enum StoreEngineType {
      */
     LOCAL = 1,
     /**
-     * @generated from protobuf enum value: STORE_ENGINE_TYPE_PROXY = 2;
+     * @generated from protobuf enum value: STORE_ENGINE_TYPE_REMOTE = 2;
      */
-    PROXY = 2,
+    REMOTE = 2,
     /**
      * @generated from protobuf enum value: STORE_ENGINE_TYPE_POSTGRES = 3;
      */
@@ -8946,10 +8810,6 @@ export enum StructType {
      * @generated from protobuf enum value: STRUCT_TYPE_RUN_ERROR = 1111;
      */
     RUN_ERROR = 1111,
-    /**
-     * @generated from protobuf enum value: STRUCT_TYPE_RESOURCE_CREDENTIAL = 1132;
-     */
-    RESOURCE_CREDENTIAL = 1132,
     /**
      * @generated from protobuf enum value: STRUCT_TYPE_TEXT = 1160;
      */
@@ -12183,67 +12043,6 @@ class RequestData$Type extends MessageType<RequestData> {
  */
 export const RequestData = new RequestData$Type();
 // @generated message type with reflection information, may provide speed optimized methods
-class ResourceCredentialData$Type extends MessageType<ResourceCredentialData> {
-    constructor() {
-        super("symbolx.bench.ResourceCredentialData", [
-            { no: 1, name: "metatype", kind: "enum", T: () => ["symbolx.bench.ObjectType", ObjectType, "OBJECT_TYPE_"] },
-            { no: 31, name: "username", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
-            { no: 32, name: "password", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ }
-        ]);
-    }
-    create(value?: PartialMessage<ResourceCredentialData>): ResourceCredentialData {
-        const message = globalThis.Object.create((this.messagePrototype!));
-        message.metatype = 0;
-        if (value !== undefined)
-            reflectionMergePartial<ResourceCredentialData>(this, message, value);
-        return message;
-    }
-    internalBinaryRead(reader: IBinaryReader, length: number, options: BinaryReadOptions, target?: ResourceCredentialData): ResourceCredentialData {
-        let message = target ?? this.create(), end = reader.pos + length;
-        while (reader.pos < end) {
-            let [fieldNo, wireType] = reader.tag();
-            switch (fieldNo) {
-                case /* symbolx.bench.ObjectType metatype */ 1:
-                    message.metatype = reader.int32();
-                    break;
-                case /* optional string username */ 31:
-                    message.username = reader.string();
-                    break;
-                case /* optional string password */ 32:
-                    message.password = reader.string();
-                    break;
-                default:
-                    let u = options.readUnknownField;
-                    if (u === "throw")
-                        throw new globalThis.Error(`Unknown field ${fieldNo} (wire type ${wireType}) for ${this.typeName}`);
-                    let d = reader.skip(wireType);
-                    if (u !== false)
-                        (u === true ? UnknownFieldHandler.onRead : u)(this.typeName, message, fieldNo, wireType, d);
-            }
-        }
-        return message;
-    }
-    internalBinaryWrite(message: ResourceCredentialData, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
-        /* symbolx.bench.ObjectType metatype = 1; */
-        if (message.metatype !== 0)
-            writer.tag(1, WireType.Varint).int32(message.metatype);
-        /* optional string username = 31; */
-        if (message.username !== undefined)
-            writer.tag(31, WireType.LengthDelimited).string(message.username);
-        /* optional string password = 32; */
-        if (message.password !== undefined)
-            writer.tag(32, WireType.LengthDelimited).string(message.password);
-        let u = options.writeUnknownFields;
-        if (u !== false)
-            (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
-        return writer;
-    }
-}
-/**
- * @generated MessageType for protobuf message symbolx.bench.ResourceCredentialData
- */
-export const ResourceCredentialData = new ResourceCredentialData$Type();
-// @generated message type with reflection information, may provide speed optimized methods
 class RunCodeFrameData$Type extends MessageType<RunCodeFrameData> {
     constructor() {
         super("symbolx.bench.RunCodeFrameData", [
@@ -13964,8 +13763,7 @@ class BenchData$Type extends MessageType<BenchData> {
             { no: 38, name: "encryption_key", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
             { no: 39, name: "policies", kind: "message", repeat: 1 /*RepeatType.PACKED*/, T: () => PolicyData },
             { no: 40, name: "main_environment_ptr", kind: "message", T: () => NodeReferenceData },
-            { no: 42, name: "main_branch_ptr", kind: "message", T: () => NodeReferenceData },
-            { no: 43, name: "published_branch_ptr", kind: "message", T: () => NodeReferenceData }
+            { no: 41, name: "main_branch_ptr", kind: "message", T: () => NodeReferenceData }
         ]);
     }
     create(value?: PartialMessage<BenchData>): BenchData {
@@ -14054,11 +13852,8 @@ class BenchData$Type extends MessageType<BenchData> {
                 case /* optional symbolx.bench.NodeReferenceData main_environment_ptr */ 40:
                     message.mainEnvironmentPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.mainEnvironmentPtr);
                     break;
-                case /* optional symbolx.bench.NodeReferenceData main_branch_ptr */ 42:
+                case /* optional symbolx.bench.NodeReferenceData main_branch_ptr */ 41:
                     message.mainBranchPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.mainBranchPtr);
-                    break;
-                case /* optional symbolx.bench.NodeReferenceData published_branch_ptr */ 43:
-                    message.publishedBranchPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.publishedBranchPtr);
                     break;
                 default:
                     let u = options.readUnknownField;
@@ -14139,12 +13934,9 @@ class BenchData$Type extends MessageType<BenchData> {
         /* optional symbolx.bench.NodeReferenceData main_environment_ptr = 40; */
         if (message.mainEnvironmentPtr)
             NodeReferenceData.internalBinaryWrite(message.mainEnvironmentPtr, writer.tag(40, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbolx.bench.NodeReferenceData main_branch_ptr = 42; */
+        /* optional symbolx.bench.NodeReferenceData main_branch_ptr = 41; */
         if (message.mainBranchPtr)
-            NodeReferenceData.internalBinaryWrite(message.mainBranchPtr, writer.tag(42, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbolx.bench.NodeReferenceData published_branch_ptr = 43; */
-        if (message.publishedBranchPtr)
-            NodeReferenceData.internalBinaryWrite(message.publishedBranchPtr, writer.tag(43, WireType.LengthDelimited).fork(), options).join();
+            NodeReferenceData.internalBinaryWrite(message.mainBranchPtr, writer.tag(41, WireType.LengthDelimited).fork(), options).join();
         let u = options.writeUnknownFields;
         if (u !== false)
             (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
@@ -14620,180 +14412,6 @@ class BranchData$Type extends MessageType<BranchData> {
  * @generated MessageType for protobuf message symbolx.bench.BranchData
  */
 export const BranchData = new BranchData$Type();
-// @generated message type with reflection information, may provide speed optimized methods
-class CacheData$Type extends MessageType<CacheData> {
-    constructor() {
-        super("symbolx.bench.CacheData", [
-            { no: 1, name: "metatype", kind: "enum", T: () => ["symbolx.bench.ObjectType", ObjectType, "OBJECT_TYPE_"] },
-            { no: 2, name: "id", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
-            { no: 4, name: "parent_ptr", kind: "message", T: () => NodeReferenceData },
-            { no: 7, name: "bench_ptr", kind: "message", T: () => NodeReferenceData },
-            { no: 10, name: "revision", kind: "scalar", T: 3 /*ScalarType.INT64*/, L: 0 /*LongType.BIGINT*/ },
-            { no: 11, name: "created_at", kind: "message", T: () => Timestamp },
-            { no: 12, name: "updated_at", kind: "message", T: () => Timestamp },
-            { no: 13, name: "deleted_at", kind: "message", T: () => Timestamp },
-            { no: 14, name: "archived_at", kind: "message", T: () => Timestamp },
-            { no: 17, name: "created_by_ptr", kind: "message", T: () => NodeReferenceData },
-            { no: 18, name: "updated_by_ptr", kind: "message", T: () => NodeReferenceData },
-            { no: 22, name: "set_properties", kind: "scalar", repeat: 1 /*RepeatType.PACKED*/, T: 5 /*ScalarType.INT32*/ },
-            { no: 32, name: "name", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
-            { no: 34, name: "text", kind: "message", T: () => TextData },
-            { no: 35, name: "region", kind: "enum", T: () => ["symbolx.bench.Region", Region, "REGION_"] },
-            { no: 36, name: "tenancy", kind: "enum", T: () => ["symbolx.bench.Tenancy", Tenancy, "TENANCY_"] },
-            { no: 37, name: "status", kind: "enum", T: () => ["symbolx.bench.ResourceStatus", ResourceStatus, "RESOURCE_STATUS_"] }
-        ]);
-    }
-    create(value?: PartialMessage<CacheData>): CacheData {
-        const message = globalThis.Object.create((this.messagePrototype!));
-        message.metatype = 0;
-        message.id = "";
-        message.revision = 0n;
-        message.setProperties = [];
-        message.name = "";
-        message.region = 0;
-        message.tenancy = 0;
-        message.status = 0;
-        if (value !== undefined)
-            reflectionMergePartial<CacheData>(this, message, value);
-        return message;
-    }
-    internalBinaryRead(reader: IBinaryReader, length: number, options: BinaryReadOptions, target?: CacheData): CacheData {
-        let message = target ?? this.create(), end = reader.pos + length;
-        while (reader.pos < end) {
-            let [fieldNo, wireType] = reader.tag();
-            switch (fieldNo) {
-                case /* symbolx.bench.ObjectType metatype */ 1:
-                    message.metatype = reader.int32();
-                    break;
-                case /* string id */ 2:
-                    message.id = reader.string();
-                    break;
-                case /* optional symbolx.bench.NodeReferenceData parent_ptr */ 4:
-                    message.parentPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.parentPtr);
-                    break;
-                case /* symbolx.bench.NodeReferenceData bench_ptr */ 7:
-                    message.benchPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.benchPtr);
-                    break;
-                case /* int64 revision */ 10:
-                    message.revision = reader.int64().toBigInt();
-                    break;
-                case /* google.protobuf.Timestamp created_at */ 11:
-                    message.createdAt = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.createdAt);
-                    break;
-                case /* google.protobuf.Timestamp updated_at */ 12:
-                    message.updatedAt = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.updatedAt);
-                    break;
-                case /* optional google.protobuf.Timestamp deleted_at */ 13:
-                    message.deletedAt = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.deletedAt);
-                    break;
-                case /* optional google.protobuf.Timestamp archived_at */ 14:
-                    message.archivedAt = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.archivedAt);
-                    break;
-                case /* optional symbolx.bench.NodeReferenceData created_by_ptr */ 17:
-                    message.createdByPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.createdByPtr);
-                    break;
-                case /* optional symbolx.bench.NodeReferenceData updated_by_ptr */ 18:
-                    message.updatedByPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.updatedByPtr);
-                    break;
-                case /* repeated int32 set_properties */ 22:
-                    if (wireType === WireType.LengthDelimited)
-                        for (let e = reader.int32() + reader.pos; reader.pos < e;)
-                            message.setProperties.push(reader.int32());
-                    else
-                        message.setProperties.push(reader.int32());
-                    break;
-                case /* string name */ 32:
-                    message.name = reader.string();
-                    break;
-                case /* optional symbolx.bench.TextData text */ 34:
-                    message.text = TextData.internalBinaryRead(reader, reader.uint32(), options, message.text);
-                    break;
-                case /* symbolx.bench.Region region */ 35:
-                    message.region = reader.int32();
-                    break;
-                case /* symbolx.bench.Tenancy tenancy */ 36:
-                    message.tenancy = reader.int32();
-                    break;
-                case /* symbolx.bench.ResourceStatus status */ 37:
-                    message.status = reader.int32();
-                    break;
-                default:
-                    let u = options.readUnknownField;
-                    if (u === "throw")
-                        throw new globalThis.Error(`Unknown field ${fieldNo} (wire type ${wireType}) for ${this.typeName}`);
-                    let d = reader.skip(wireType);
-                    if (u !== false)
-                        (u === true ? UnknownFieldHandler.onRead : u)(this.typeName, message, fieldNo, wireType, d);
-            }
-        }
-        return message;
-    }
-    internalBinaryWrite(message: CacheData, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
-        /* symbolx.bench.ObjectType metatype = 1; */
-        if (message.metatype !== 0)
-            writer.tag(1, WireType.Varint).int32(message.metatype);
-        /* string id = 2; */
-        if (message.id !== "")
-            writer.tag(2, WireType.LengthDelimited).string(message.id);
-        /* optional symbolx.bench.NodeReferenceData parent_ptr = 4; */
-        if (message.parentPtr)
-            NodeReferenceData.internalBinaryWrite(message.parentPtr, writer.tag(4, WireType.LengthDelimited).fork(), options).join();
-        /* symbolx.bench.NodeReferenceData bench_ptr = 7; */
-        if (message.benchPtr)
-            NodeReferenceData.internalBinaryWrite(message.benchPtr, writer.tag(7, WireType.LengthDelimited).fork(), options).join();
-        /* int64 revision = 10; */
-        if (message.revision !== 0n)
-            writer.tag(10, WireType.Varint).int64(message.revision);
-        /* google.protobuf.Timestamp created_at = 11; */
-        if (message.createdAt)
-            Timestamp.internalBinaryWrite(message.createdAt, writer.tag(11, WireType.LengthDelimited).fork(), options).join();
-        /* google.protobuf.Timestamp updated_at = 12; */
-        if (message.updatedAt)
-            Timestamp.internalBinaryWrite(message.updatedAt, writer.tag(12, WireType.LengthDelimited).fork(), options).join();
-        /* optional google.protobuf.Timestamp deleted_at = 13; */
-        if (message.deletedAt)
-            Timestamp.internalBinaryWrite(message.deletedAt, writer.tag(13, WireType.LengthDelimited).fork(), options).join();
-        /* optional google.protobuf.Timestamp archived_at = 14; */
-        if (message.archivedAt)
-            Timestamp.internalBinaryWrite(message.archivedAt, writer.tag(14, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbolx.bench.NodeReferenceData created_by_ptr = 17; */
-        if (message.createdByPtr)
-            NodeReferenceData.internalBinaryWrite(message.createdByPtr, writer.tag(17, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbolx.bench.NodeReferenceData updated_by_ptr = 18; */
-        if (message.updatedByPtr)
-            NodeReferenceData.internalBinaryWrite(message.updatedByPtr, writer.tag(18, WireType.LengthDelimited).fork(), options).join();
-        /* repeated int32 set_properties = 22; */
-        if (message.setProperties.length) {
-            writer.tag(22, WireType.LengthDelimited).fork();
-            for (let i = 0; i < message.setProperties.length; i++)
-                writer.int32(message.setProperties[i]);
-            writer.join();
-        }
-        /* string name = 32; */
-        if (message.name !== "")
-            writer.tag(32, WireType.LengthDelimited).string(message.name);
-        /* optional symbolx.bench.TextData text = 34; */
-        if (message.text)
-            TextData.internalBinaryWrite(message.text, writer.tag(34, WireType.LengthDelimited).fork(), options).join();
-        /* symbolx.bench.Region region = 35; */
-        if (message.region !== 0)
-            writer.tag(35, WireType.Varint).int32(message.region);
-        /* symbolx.bench.Tenancy tenancy = 36; */
-        if (message.tenancy !== 0)
-            writer.tag(36, WireType.Varint).int32(message.tenancy);
-        /* symbolx.bench.ResourceStatus status = 37; */
-        if (message.status !== 0)
-            writer.tag(37, WireType.Varint).int32(message.status);
-        let u = options.writeUnknownFields;
-        if (u !== false)
-            (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
-        return writer;
-    }
-}
-/**
- * @generated MessageType for protobuf message symbolx.bench.CacheData
- */
-export const CacheData = new CacheData$Type();
 // @generated message type with reflection information, may provide speed optimized methods
 class ClientData$Type extends MessageType<ClientData> {
     constructor() {
@@ -15384,10 +15002,7 @@ class EnvironmentData$Type extends MessageType<EnvironmentData> {
             { no: 36, name: "policies", kind: "message", repeat: 1 /*RepeatType.PACKED*/, T: () => PolicyData },
             { no: 40, name: "server_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 41, name: "store_ptr", kind: "message", T: () => NodeReferenceData },
-            { no: 42, name: "search_ptr", kind: "message", T: () => NodeReferenceData },
-            { no: 43, name: "analytics_ptr", kind: "message", T: () => NodeReferenceData },
-            { no: 44, name: "drive_ptr", kind: "message", T: () => NodeReferenceData },
-            { no: 45, name: "cache_ptr", kind: "message", T: () => NodeReferenceData }
+            { no: 42, name: "drive_ptr", kind: "message", T: () => NodeReferenceData }
         ]);
     }
     create(value?: PartialMessage<EnvironmentData>): EnvironmentData {
@@ -15465,17 +15080,8 @@ class EnvironmentData$Type extends MessageType<EnvironmentData> {
                 case /* symbolx.bench.NodeReferenceData store_ptr */ 41:
                     message.storePtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.storePtr);
                     break;
-                case /* optional symbolx.bench.NodeReferenceData search_ptr */ 42:
-                    message.searchPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.searchPtr);
-                    break;
-                case /* optional symbolx.bench.NodeReferenceData analytics_ptr */ 43:
-                    message.analyticsPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.analyticsPtr);
-                    break;
-                case /* symbolx.bench.NodeReferenceData drive_ptr */ 44:
+                case /* symbolx.bench.NodeReferenceData drive_ptr */ 42:
                     message.drivePtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.drivePtr);
-                    break;
-                case /* optional symbolx.bench.NodeReferenceData cache_ptr */ 45:
-                    message.cachePtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.cachePtr);
                     break;
                 default:
                     let u = options.readUnknownField;
@@ -15547,18 +15153,9 @@ class EnvironmentData$Type extends MessageType<EnvironmentData> {
         /* symbolx.bench.NodeReferenceData store_ptr = 41; */
         if (message.storePtr)
             NodeReferenceData.internalBinaryWrite(message.storePtr, writer.tag(41, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbolx.bench.NodeReferenceData search_ptr = 42; */
-        if (message.searchPtr)
-            NodeReferenceData.internalBinaryWrite(message.searchPtr, writer.tag(42, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbolx.bench.NodeReferenceData analytics_ptr = 43; */
-        if (message.analyticsPtr)
-            NodeReferenceData.internalBinaryWrite(message.analyticsPtr, writer.tag(43, WireType.LengthDelimited).fork(), options).join();
-        /* symbolx.bench.NodeReferenceData drive_ptr = 44; */
+        /* symbolx.bench.NodeReferenceData drive_ptr = 42; */
         if (message.drivePtr)
-            NodeReferenceData.internalBinaryWrite(message.drivePtr, writer.tag(44, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbolx.bench.NodeReferenceData cache_ptr = 45; */
-        if (message.cachePtr)
-            NodeReferenceData.internalBinaryWrite(message.cachePtr, writer.tag(45, WireType.LengthDelimited).fork(), options).join();
+            NodeReferenceData.internalBinaryWrite(message.drivePtr, writer.tag(42, WireType.LengthDelimited).fork(), options).join();
         let u = options.writeUnknownFields;
         if (u !== false)
             (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
@@ -17168,7 +16765,7 @@ class MessageData$Type extends MessageType<MessageData> {
                     else
                         message.setProperties.push(reader.int32());
                     break;
-                case /* optional symbolx.bench.NodeReferenceData origin_ptr */ 32:
+                case /* symbolx.bench.NodeReferenceData origin_ptr */ 32:
                     message.originPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.originPtr);
                     break;
                 case /* optional symbolx.bench.PathData path */ 33:
@@ -17250,7 +16847,7 @@ class MessageData$Type extends MessageType<MessageData> {
                 writer.int32(message.setProperties[i]);
             writer.join();
         }
-        /* optional symbolx.bench.NodeReferenceData origin_ptr = 32; */
+        /* symbolx.bench.NodeReferenceData origin_ptr = 32; */
         if (message.originPtr)
             NodeReferenceData.internalBinaryWrite(message.originPtr, writer.tag(32, WireType.LengthDelimited).fork(), options).join();
         /* optional symbolx.bench.PathData path = 33; */
@@ -21421,12 +21018,11 @@ class SomeNodeData$Type extends MessageType<SomeNodeData> {
             { no: 29, name: "server", kind: "message", oneof: "node", T: () => ServerData },
             { no: 30, name: "store", kind: "message", oneof: "node", T: () => StoreData },
             { no: 31, name: "drive", kind: "message", oneof: "node", T: () => DriveData },
-            { no: 32, name: "cache", kind: "message", oneof: "node", T: () => CacheData },
-            { no: 33, name: "file_content", kind: "message", oneof: "node", T: () => FileContentData },
-            { no: 34, name: "handle", kind: "message", oneof: "node", T: () => HandleData },
-            { no: 35, name: "user", kind: "message", oneof: "node", T: () => UserData },
-            { no: 36, name: "organization", kind: "message", oneof: "node", T: () => OrganizationData },
-            { no: 37, name: "client", kind: "message", oneof: "node", T: () => ClientData }
+            { no: 32, name: "file_content", kind: "message", oneof: "node", T: () => FileContentData },
+            { no: 33, name: "handle", kind: "message", oneof: "node", T: () => HandleData },
+            { no: 34, name: "user", kind: "message", oneof: "node", T: () => UserData },
+            { no: 35, name: "organization", kind: "message", oneof: "node", T: () => OrganizationData },
+            { no: 36, name: "client", kind: "message", oneof: "node", T: () => ClientData }
         ]);
     }
     create(value?: PartialMessage<SomeNodeData>): SomeNodeData {
@@ -21627,37 +21223,31 @@ class SomeNodeData$Type extends MessageType<SomeNodeData> {
                         drive: DriveData.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).drive)
                     };
                     break;
-                case /* symbolx.bench.CacheData cache */ 32:
-                    message.node = {
-                        oneofKind: "cache",
-                        cache: CacheData.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).cache)
-                    };
-                    break;
-                case /* symbolx.bench.FileContentData file_content */ 33:
+                case /* symbolx.bench.FileContentData file_content */ 32:
                     message.node = {
                         oneofKind: "fileContent",
                         fileContent: FileContentData.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).fileContent)
                     };
                     break;
-                case /* symbolx.bench.HandleData handle */ 34:
+                case /* symbolx.bench.HandleData handle */ 33:
                     message.node = {
                         oneofKind: "handle",
                         handle: HandleData.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).handle)
                     };
                     break;
-                case /* symbolx.bench.UserData user */ 35:
+                case /* symbolx.bench.UserData user */ 34:
                     message.node = {
                         oneofKind: "user",
                         user: UserData.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).user)
                     };
                     break;
-                case /* symbolx.bench.OrganizationData organization */ 36:
+                case /* symbolx.bench.OrganizationData organization */ 35:
                     message.node = {
                         oneofKind: "organization",
                         organization: OrganizationData.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).organization)
                     };
                     break;
-                case /* symbolx.bench.ClientData client */ 37:
+                case /* symbolx.bench.ClientData client */ 36:
                     message.node = {
                         oneofKind: "client",
                         client: ClientData.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).client)
@@ -21768,24 +21358,21 @@ class SomeNodeData$Type extends MessageType<SomeNodeData> {
         /* symbolx.bench.DriveData drive = 31; */
         if (message.node.oneofKind === "drive")
             DriveData.internalBinaryWrite(message.node.drive, writer.tag(31, WireType.LengthDelimited).fork(), options).join();
-        /* symbolx.bench.CacheData cache = 32; */
-        if (message.node.oneofKind === "cache")
-            CacheData.internalBinaryWrite(message.node.cache, writer.tag(32, WireType.LengthDelimited).fork(), options).join();
-        /* symbolx.bench.FileContentData file_content = 33; */
+        /* symbolx.bench.FileContentData file_content = 32; */
         if (message.node.oneofKind === "fileContent")
-            FileContentData.internalBinaryWrite(message.node.fileContent, writer.tag(33, WireType.LengthDelimited).fork(), options).join();
-        /* symbolx.bench.HandleData handle = 34; */
+            FileContentData.internalBinaryWrite(message.node.fileContent, writer.tag(32, WireType.LengthDelimited).fork(), options).join();
+        /* symbolx.bench.HandleData handle = 33; */
         if (message.node.oneofKind === "handle")
-            HandleData.internalBinaryWrite(message.node.handle, writer.tag(34, WireType.LengthDelimited).fork(), options).join();
-        /* symbolx.bench.UserData user = 35; */
+            HandleData.internalBinaryWrite(message.node.handle, writer.tag(33, WireType.LengthDelimited).fork(), options).join();
+        /* symbolx.bench.UserData user = 34; */
         if (message.node.oneofKind === "user")
-            UserData.internalBinaryWrite(message.node.user, writer.tag(35, WireType.LengthDelimited).fork(), options).join();
-        /* symbolx.bench.OrganizationData organization = 36; */
+            UserData.internalBinaryWrite(message.node.user, writer.tag(34, WireType.LengthDelimited).fork(), options).join();
+        /* symbolx.bench.OrganizationData organization = 35; */
         if (message.node.oneofKind === "organization")
-            OrganizationData.internalBinaryWrite(message.node.organization, writer.tag(36, WireType.LengthDelimited).fork(), options).join();
-        /* symbolx.bench.ClientData client = 37; */
+            OrganizationData.internalBinaryWrite(message.node.organization, writer.tag(35, WireType.LengthDelimited).fork(), options).join();
+        /* symbolx.bench.ClientData client = 36; */
         if (message.node.oneofKind === "client")
-            ClientData.internalBinaryWrite(message.node.client, writer.tag(37, WireType.LengthDelimited).fork(), options).join();
+            ClientData.internalBinaryWrite(message.node.client, writer.tag(36, WireType.LengthDelimited).fork(), options).join();
         let u = options.writeUnknownFields;
         if (u !== false)
             (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
@@ -21804,10 +21391,10 @@ export const SomeNodeData = new SomeNodeData$Type();
 //
 
 // Any...
-export type AnyNodeData = BenchData | EnvironmentData | BranchData | PackageData | DependencyData | UpgradeData | SpaceData | LinkData | SkipData | NoticeData | BlockData | TriggerData | FieldData | QueryData | ViewData | StepData | BadgeData | RoleData | IdentityData | MembershipData | InviteData | SessionData | RunData | SignalData | LogData | NotificationData | MessageData | RecordData | ServerData | StoreData | DriveData | CacheData | FileContentData | HandleData | UserData | OrganizationData | ClientData
-export type AnyStructData = PathData | PathSegmentData | PathTokenData | NodeReferenceData | PropertyReferenceData | ValueReferenceData | TypeInfoData | TypeConstraintData | ContextData | ScheduleData | ProjectionData | PolicyData | PolicyRuleData | SubjectData | AccessZoneData | AccessMatrixData | AccessData | AccessTraceData | RequestData | ReadOptionsData | ExpressionData | AggregationData | AggregationBucketData | SelectionData | CodeData | CodeLineData | StepConnectionData | RunCodeFrameData | RunErrorData | ResourceCredentialData | TextData | TextLineData | TextSpanData | ColorData | FontData | BoxData | OffsetData | FileData | IconData
-export type AnyNodeDataType = typeof BenchData | typeof EnvironmentData | typeof BranchData | typeof PackageData | typeof DependencyData | typeof UpgradeData | typeof SpaceData | typeof LinkData | typeof SkipData | typeof NoticeData | typeof BlockData | typeof TriggerData | typeof FieldData | typeof QueryData | typeof ViewData | typeof StepData | typeof BadgeData | typeof RoleData | typeof IdentityData | typeof MembershipData | typeof InviteData | typeof SessionData | typeof RunData | typeof SignalData | typeof LogData | typeof NotificationData | typeof MessageData | typeof RecordData | typeof ServerData | typeof StoreData | typeof DriveData | typeof CacheData | typeof FileContentData | typeof HandleData | typeof UserData | typeof OrganizationData | typeof ClientData
-export type AnyStructDataType = typeof PathData | typeof PathSegmentData | typeof PathTokenData | typeof NodeReferenceData | typeof PropertyReferenceData | typeof ValueReferenceData | typeof TypeInfoData | typeof TypeConstraintData | typeof ContextData | typeof ScheduleData | typeof ProjectionData | typeof PolicyData | typeof PolicyRuleData | typeof SubjectData | typeof AccessZoneData | typeof AccessMatrixData | typeof AccessData | typeof AccessTraceData | typeof RequestData | typeof ReadOptionsData | typeof ExpressionData | typeof AggregationData | typeof AggregationBucketData | typeof SelectionData | typeof CodeData | typeof CodeLineData | typeof StepConnectionData | typeof RunCodeFrameData | typeof RunErrorData | typeof ResourceCredentialData | typeof TextData | typeof TextLineData | typeof TextSpanData | typeof ColorData | typeof FontData | typeof BoxData | typeof OffsetData | typeof FileData | typeof IconData
+export type AnyNodeData = BenchData | EnvironmentData | BranchData | PackageData | DependencyData | UpgradeData | SpaceData | LinkData | SkipData | NoticeData | BlockData | TriggerData | FieldData | QueryData | ViewData | StepData | BadgeData | RoleData | IdentityData | MembershipData | InviteData | SessionData | RunData | SignalData | LogData | NotificationData | MessageData | RecordData | ServerData | StoreData | DriveData | FileContentData | HandleData | UserData | OrganizationData | ClientData
+export type AnyStructData = PathData | PathSegmentData | PathTokenData | NodeReferenceData | PropertyReferenceData | ValueReferenceData | TypeInfoData | TypeConstraintData | ContextData | ScheduleData | ProjectionData | PolicyData | PolicyRuleData | SubjectData | AccessZoneData | AccessMatrixData | AccessData | AccessTraceData | RequestData | ReadOptionsData | ExpressionData | AggregationData | AggregationBucketData | SelectionData | CodeData | CodeLineData | StepConnectionData | RunCodeFrameData | RunErrorData | TextData | TextLineData | TextSpanData | ColorData | FontData | BoxData | OffsetData | FileData | IconData
+export type AnyNodeDataType = typeof BenchData | typeof EnvironmentData | typeof BranchData | typeof PackageData | typeof DependencyData | typeof UpgradeData | typeof SpaceData | typeof LinkData | typeof SkipData | typeof NoticeData | typeof BlockData | typeof TriggerData | typeof FieldData | typeof QueryData | typeof ViewData | typeof StepData | typeof BadgeData | typeof RoleData | typeof IdentityData | typeof MembershipData | typeof InviteData | typeof SessionData | typeof RunData | typeof SignalData | typeof LogData | typeof NotificationData | typeof MessageData | typeof RecordData | typeof ServerData | typeof StoreData | typeof DriveData | typeof FileContentData | typeof HandleData | typeof UserData | typeof OrganizationData | typeof ClientData
+export type AnyStructDataType = typeof PathData | typeof PathSegmentData | typeof PathTokenData | typeof NodeReferenceData | typeof PropertyReferenceData | typeof ValueReferenceData | typeof TypeInfoData | typeof TypeConstraintData | typeof ContextData | typeof ScheduleData | typeof ProjectionData | typeof PolicyData | typeof PolicyRuleData | typeof SubjectData | typeof AccessZoneData | typeof AccessMatrixData | typeof AccessData | typeof AccessTraceData | typeof RequestData | typeof ReadOptionsData | typeof ExpressionData | typeof AggregationData | typeof AggregationBucketData | typeof SelectionData | typeof CodeData | typeof CodeLineData | typeof StepConnectionData | typeof RunCodeFrameData | typeof RunErrorData | typeof TextData | typeof TextLineData | typeof TextSpanData | typeof ColorData | typeof FontData | typeof BoxData | typeof OffsetData | typeof FileData | typeof IconData
 
 // Ancestry maps
 export const PARENT_NODE_TYPES: Record<NodeType, NodeType[]> = {
@@ -21843,7 +21430,6 @@ export const PARENT_NODE_TYPES: Record<NodeType, NodeType[]> = {
   [NodeType.SERVER]: [NodeType.BENCH],
   [NodeType.STORE]: [NodeType.BENCH],
   [NodeType.DRIVE]: [NodeType.BENCH],
-  [NodeType.CACHE]: [NodeType.BENCH],
   [NodeType.FILE_CONTENT]: [NodeType.DRIVE],
   [NodeType.HANDLE]: [NodeType.BENCH, NodeType.USER, NodeType.ORGANIZATION],
   [NodeType.USER]: [],
@@ -21853,7 +21439,7 @@ export const PARENT_NODE_TYPES: Record<NodeType, NodeType[]> = {
 
 export const CHILD_NODE_TYPES: Record<NodeType, NodeType[]> = {
   [NodeType.UNSPECIFIED]: [],
-  [NodeType.BENCH]: [NodeType.SERVER, NodeType.STORE, NodeType.ENVIRONMENT, NodeType.BRANCH, NodeType.DRIVE, NodeType.CACHE, NodeType.PACKAGE, NodeType.HANDLE],
+  [NodeType.BENCH]: [NodeType.SERVER, NodeType.STORE, NodeType.ENVIRONMENT, NodeType.BRANCH, NodeType.DRIVE, NodeType.PACKAGE, NodeType.HANDLE],
   [NodeType.ENVIRONMENT]: [],
   [NodeType.BRANCH]: [],
   [NodeType.PACKAGE]: [NodeType.INVITE, NodeType.SESSION, NodeType.RUN, NodeType.SIGNAL, NodeType.LOG, NodeType.NOTIFICATION, NodeType.DEPENDENCY, NodeType.UPGRADE, NodeType.MESSAGE, NodeType.LINK, NodeType.SKIP, NodeType.SPACE, NodeType.BADGE, NodeType.BLOCK, NodeType.MEMBERSHIP],
@@ -21884,7 +21470,6 @@ export const CHILD_NODE_TYPES: Record<NodeType, NodeType[]> = {
   [NodeType.SERVER]: [NodeType.CLIENT],
   [NodeType.STORE]: [],
   [NodeType.DRIVE]: [NodeType.FILE_CONTENT],
-  [NodeType.CACHE]: [],
   [NodeType.FILE_CONTENT]: [],
   [NodeType.HANDLE]: [],
   [NodeType.USER]: [NodeType.HANDLE, NodeType.IDENTITY, NodeType.CLIENT],
@@ -21925,7 +21510,6 @@ export const ANCESTOR_NODE_TYPES: Record<NodeType, NodeType[]> = {
   [NodeType.SERVER]: [NodeType.BENCH],
   [NodeType.STORE]: [NodeType.BENCH],
   [NodeType.DRIVE]: [NodeType.BENCH],
-  [NodeType.CACHE]: [NodeType.BENCH],
   [NodeType.FILE_CONTENT]: [NodeType.BENCH, NodeType.DRIVE],
   [NodeType.HANDLE]: [NodeType.BENCH, NodeType.USER, NodeType.ORGANIZATION],
   [NodeType.USER]: [],
@@ -21935,7 +21519,7 @@ export const ANCESTOR_NODE_TYPES: Record<NodeType, NodeType[]> = {
 
 export const DESCENDANT_NODE_TYPES: Record<NodeType, NodeType[]> = {
   [NodeType.UNSPECIFIED]: [],
-  [NodeType.BENCH]: [NodeType.ENVIRONMENT, NodeType.BRANCH, NodeType.PACKAGE, NodeType.DEPENDENCY, NodeType.UPGRADE, NodeType.SPACE, NodeType.LINK, NodeType.SKIP, NodeType.NOTICE, NodeType.BLOCK, NodeType.TRIGGER, NodeType.FIELD, NodeType.QUERY, NodeType.VIEW, NodeType.STEP, NodeType.CACHE, NodeType.DRIVE, NodeType.STORE, NodeType.SERVER, NodeType.FILE_CONTENT, NodeType.BADGE, NodeType.ROLE, NodeType.IDENTITY, NodeType.MEMBERSHIP, NodeType.INVITE, NodeType.SESSION, NodeType.RUN, NodeType.SIGNAL, NodeType.LOG, NodeType.NOTIFICATION, NodeType.MESSAGE, NodeType.RECORD, NodeType.HANDLE, NodeType.CLIENT],
+  [NodeType.BENCH]: [NodeType.ENVIRONMENT, NodeType.BRANCH, NodeType.PACKAGE, NodeType.DEPENDENCY, NodeType.UPGRADE, NodeType.SPACE, NodeType.LINK, NodeType.SKIP, NodeType.NOTICE, NodeType.BLOCK, NodeType.TRIGGER, NodeType.FIELD, NodeType.QUERY, NodeType.VIEW, NodeType.STEP, NodeType.DRIVE, NodeType.STORE, NodeType.SERVER, NodeType.FILE_CONTENT, NodeType.BADGE, NodeType.ROLE, NodeType.IDENTITY, NodeType.MEMBERSHIP, NodeType.INVITE, NodeType.SESSION, NodeType.RUN, NodeType.SIGNAL, NodeType.LOG, NodeType.NOTIFICATION, NodeType.MESSAGE, NodeType.RECORD, NodeType.HANDLE, NodeType.CLIENT],
   [NodeType.ENVIRONMENT]: [],
   [NodeType.BRANCH]: [],
   [NodeType.PACKAGE]: [NodeType.DEPENDENCY, NodeType.UPGRADE, NodeType.SPACE, NodeType.LINK, NodeType.SKIP, NodeType.NOTICE, NodeType.BLOCK, NodeType.TRIGGER, NodeType.FIELD, NodeType.QUERY, NodeType.VIEW, NodeType.STEP, NodeType.BADGE, NodeType.ROLE, NodeType.IDENTITY, NodeType.MEMBERSHIP, NodeType.INVITE, NodeType.SESSION, NodeType.RUN, NodeType.SIGNAL, NodeType.LOG, NodeType.NOTIFICATION, NodeType.MESSAGE, NodeType.RECORD],
@@ -21966,7 +21550,6 @@ export const DESCENDANT_NODE_TYPES: Record<NodeType, NodeType[]> = {
   [NodeType.SERVER]: [NodeType.CLIENT],
   [NodeType.STORE]: [],
   [NodeType.DRIVE]: [NodeType.FILE_CONTENT],
-  [NodeType.CACHE]: [],
   [NodeType.FILE_CONTENT]: [],
   [NodeType.HANDLE]: [],
   [NodeType.USER]: [NodeType.HANDLE, NodeType.IDENTITY, NodeType.CLIENT],
@@ -22008,7 +21591,6 @@ export const MESSAGE_TYPE_BY_OBJECT_TYPE: Partial<Record<ObjectType, MessageType
   [ObjectType.SERVER]: ServerData,
   [ObjectType.STORE]: StoreData,
   [ObjectType.DRIVE]: DriveData,
-  [ObjectType.CACHE]: CacheData,
   [ObjectType.FILE_CONTENT]: FileContentData,
   [ObjectType.HANDLE]: HandleData,
   [ObjectType.USER]: UserData,
@@ -22043,7 +21625,6 @@ export const MESSAGE_TYPE_BY_OBJECT_TYPE: Partial<Record<ObjectType, MessageType
   [ObjectType.STEP_CONNECTION]: StepConnectionData,
   [ObjectType.RUN_CODE_FRAME]: RunCodeFrameData,
   [ObjectType.RUN_ERROR]: RunErrorData,
-  [ObjectType.RESOURCE_CREDENTIAL]: ResourceCredentialData,
   [ObjectType.TEXT]: TextData,
   [ObjectType.TEXT_LINE]: TextLineData,
   [ObjectType.TEXT_SPAN]: TextSpanData,
@@ -22087,7 +21668,6 @@ export const OBJECT_TYPE_BY_MESSAGE_TYPE_NAME: Record<string, ObjectType> = {
   ["symbolx.bench.ServerData"]: ObjectType.SERVER,
   ["symbolx.bench.StoreData"]: ObjectType.STORE,
   ["symbolx.bench.DriveData"]: ObjectType.DRIVE,
-  ["symbolx.bench.CacheData"]: ObjectType.CACHE,
   ["symbolx.bench.FileContentData"]: ObjectType.FILE_CONTENT,
   ["symbolx.bench.HandleData"]: ObjectType.HANDLE,
   ["symbolx.bench.UserData"]: ObjectType.USER,
@@ -22122,7 +21702,6 @@ export const OBJECT_TYPE_BY_MESSAGE_TYPE_NAME: Record<string, ObjectType> = {
   ["symbolx.bench.StepConnectionData"]: ObjectType.STEP_CONNECTION,
   ["symbolx.bench.RunCodeFrameData"]: ObjectType.RUN_CODE_FRAME,
   ["symbolx.bench.RunErrorData"]: ObjectType.RUN_ERROR,
-  ["symbolx.bench.ResourceCredentialData"]: ObjectType.RESOURCE_CREDENTIAL,
   ["symbolx.bench.TextData"]: ObjectType.TEXT,
   ["symbolx.bench.TextLineData"]: ObjectType.TEXT_LINE,
   ["symbolx.bench.TextSpanData"]: ObjectType.TEXT_SPAN,
@@ -22234,7 +21813,6 @@ export interface StructTypeMapping extends Record<StructType, AnyStructData> {
   [StructType.STEP_CONNECTION]: StepConnectionData,
   [StructType.RUN_CODE_FRAME]: RunCodeFrameData,
   [StructType.RUN_ERROR]: RunErrorData,
-  [StructType.RESOURCE_CREDENTIAL]: ResourceCredentialData,
   [StructType.TEXT]: TextData,
   [StructType.TEXT_LINE]: TextLineData,
   [StructType.TEXT_SPAN]: TextSpanData,
@@ -22278,7 +21856,6 @@ export interface NodeTypeMapping extends Record<NodeType, AnyNodeData> {
   [NodeType.SERVER]: ServerData,
   [NodeType.STORE]: StoreData,
   [NodeType.DRIVE]: DriveData,
-  [NodeType.CACHE]: CacheData,
   [NodeType.FILE_CONTENT]: FileContentData,
   [NodeType.HANDLE]: HandleData,
   [NodeType.USER]: UserData,
@@ -22318,7 +21895,6 @@ export interface AnyTypeMapping extends Record<ObjectType, AnyStructData | AnyNo
   [ObjectType.SERVER]: ServerData,
   [ObjectType.STORE]: StoreData,
   [ObjectType.DRIVE]: DriveData,
-  [ObjectType.CACHE]: CacheData,
   [ObjectType.FILE_CONTENT]: FileContentData,
   [ObjectType.HANDLE]: HandleData,
   [ObjectType.USER]: UserData,
@@ -22353,7 +21929,6 @@ export interface AnyTypeMapping extends Record<ObjectType, AnyStructData | AnyNo
   [ObjectType.STEP_CONNECTION]: StepConnectionData,
   [ObjectType.RUN_CODE_FRAME]: RunCodeFrameData,
   [ObjectType.RUN_ERROR]: RunErrorData,
-  [ObjectType.RESOURCE_CREDENTIAL]: ResourceCredentialData,
   [ObjectType.TEXT]: TextData,
   [ObjectType.TEXT_LINE]: TextLineData,
   [ObjectType.TEXT_SPAN]: TextSpanData,
@@ -22457,8 +22032,7 @@ export enum BenchProperty {
   encryptionKey = 38,
   policies = 39,
   mainEnvironmentPtr = 40,
-  mainBranchPtr = 42,
-  publishedBranchPtr = 43,
+  mainBranchPtr = 41,
 }
 
 export enum EnvironmentProperty {
@@ -22480,10 +22054,7 @@ export enum EnvironmentProperty {
   policies = 36,
   serverPtr = 40,
   storePtr = 41,
-  searchPtr = 42,
-  analyticsPtr = 43,
-  drivePtr = 44,
-  cachePtr = 45,
+  drivePtr = 42,
 }
 
 export enum BranchProperty {
@@ -23200,26 +22771,6 @@ export enum DriveProperty {
   status = 37,
 }
 
-export enum CacheProperty {
-  metatype = 1,
-  id = 2,
-  parentPtr = 4,
-  benchPtr = 7,
-  revision = 10,
-  createdAt = 11,
-  updatedAt = 12,
-  deletedAt = 13,
-  archivedAt = 14,
-  createdByPtr = 17,
-  updatedByPtr = 18,
-  setProperties = 22,
-  name = 32,
-  text = 34,
-  region = 35,
-  tenancy = 36,
-  status = 37,
-}
-
 export enum FileContentProperty {
   metatype = 1,
   id = 2,
@@ -23687,12 +23238,6 @@ export enum RunErrorProperty {
   traceback = 34,
 }
 
-export enum ResourceCredentialProperty {
-  metatype = 1,
-  username = 31,
-  password = 32,
-}
-
 export enum TextProperty {
   metatype = 1,
   id = 2,
@@ -23786,12 +23331,12 @@ export enum IconProperty {
   color = 40,
 }
 
-export type AnyNodeProperty = typeof BenchProperty | typeof EnvironmentProperty | typeof BranchProperty | typeof PackageProperty | typeof DependencyProperty | typeof UpgradeProperty | typeof SpaceProperty | typeof LinkProperty | typeof SkipProperty | typeof NoticeProperty | typeof BlockProperty | typeof TriggerProperty | typeof FieldProperty | typeof QueryProperty | typeof ViewProperty | typeof StepProperty | typeof BadgeProperty | typeof RoleProperty | typeof IdentityProperty | typeof MembershipProperty | typeof InviteProperty | typeof SessionProperty | typeof RunProperty | typeof SignalProperty | typeof LogProperty | typeof NotificationProperty | typeof MessageProperty | typeof RecordProperty | typeof ServerProperty | typeof StoreProperty | typeof DriveProperty | typeof CacheProperty | typeof FileContentProperty | typeof HandleProperty | typeof UserProperty | typeof OrganizationProperty | typeof ClientProperty
-export type AnyStructProperty = typeof PathProperty | typeof PathSegmentProperty | typeof PathTokenProperty | typeof NodeReferenceProperty | typeof PropertyReferenceProperty | typeof ValueReferenceProperty | typeof TypeInfoProperty | typeof TypeConstraintProperty | typeof ContextProperty | typeof ScheduleProperty | typeof ProjectionProperty | typeof PolicyProperty | typeof PolicyRuleProperty | typeof SubjectProperty | typeof AccessZoneProperty | typeof AccessMatrixProperty | typeof AccessProperty | typeof AccessTraceProperty | typeof RequestProperty | typeof ReadOptionsProperty | typeof ExpressionProperty | typeof AggregationProperty | typeof AggregationBucketProperty | typeof SelectionProperty | typeof CodeProperty | typeof CodeLineProperty | typeof StepConnectionProperty | typeof RunCodeFrameProperty | typeof RunErrorProperty | typeof ResourceCredentialProperty | typeof TextProperty | typeof TextLineProperty | typeof TextSpanProperty | typeof ColorProperty | typeof FontProperty | typeof BoxProperty | typeof OffsetProperty | typeof FileProperty | typeof IconProperty
+export type AnyNodeProperty = typeof BenchProperty | typeof EnvironmentProperty | typeof BranchProperty | typeof PackageProperty | typeof DependencyProperty | typeof UpgradeProperty | typeof SpaceProperty | typeof LinkProperty | typeof SkipProperty | typeof NoticeProperty | typeof BlockProperty | typeof TriggerProperty | typeof FieldProperty | typeof QueryProperty | typeof ViewProperty | typeof StepProperty | typeof BadgeProperty | typeof RoleProperty | typeof IdentityProperty | typeof MembershipProperty | typeof InviteProperty | typeof SessionProperty | typeof RunProperty | typeof SignalProperty | typeof LogProperty | typeof NotificationProperty | typeof MessageProperty | typeof RecordProperty | typeof ServerProperty | typeof StoreProperty | typeof DriveProperty | typeof FileContentProperty | typeof HandleProperty | typeof UserProperty | typeof OrganizationProperty | typeof ClientProperty
+export type AnyStructProperty = typeof PathProperty | typeof PathSegmentProperty | typeof PathTokenProperty | typeof NodeReferenceProperty | typeof PropertyReferenceProperty | typeof ValueReferenceProperty | typeof TypeInfoProperty | typeof TypeConstraintProperty | typeof ContextProperty | typeof ScheduleProperty | typeof ProjectionProperty | typeof PolicyProperty | typeof PolicyRuleProperty | typeof SubjectProperty | typeof AccessZoneProperty | typeof AccessMatrixProperty | typeof AccessProperty | typeof AccessTraceProperty | typeof RequestProperty | typeof ReadOptionsProperty | typeof ExpressionProperty | typeof AggregationProperty | typeof AggregationBucketProperty | typeof SelectionProperty | typeof CodeProperty | typeof CodeLineProperty | typeof StepConnectionProperty | typeof RunCodeFrameProperty | typeof RunErrorProperty | typeof TextProperty | typeof TextLineProperty | typeof TextSpanProperty | typeof ColorProperty | typeof FontProperty | typeof BoxProperty | typeof OffsetProperty | typeof FileProperty | typeof IconProperty
 export type AnyProperty = AnyNodeProperty | AnyStructProperty
-export type AnyNodePropertyType = typeof BenchProperty | typeof EnvironmentProperty | typeof BranchProperty | typeof PackageProperty | typeof DependencyProperty | typeof UpgradeProperty | typeof SpaceProperty | typeof LinkProperty | typeof SkipProperty | typeof NoticeProperty | typeof BlockProperty | typeof TriggerProperty | typeof FieldProperty | typeof QueryProperty | typeof ViewProperty | typeof StepProperty | typeof BadgeProperty | typeof RoleProperty | typeof IdentityProperty | typeof MembershipProperty | typeof InviteProperty | typeof SessionProperty | typeof RunProperty | typeof SignalProperty | typeof LogProperty | typeof NotificationProperty | typeof MessageProperty | typeof RecordProperty | typeof ServerProperty | typeof StoreProperty | typeof DriveProperty | typeof CacheProperty | typeof FileContentProperty | typeof HandleProperty | typeof UserProperty | typeof OrganizationProperty | typeof ClientProperty
-export type AnyStructPropertyType = typeof PathProperty | typeof PathSegmentProperty | typeof PathTokenProperty | typeof NodeReferenceProperty | typeof PropertyReferenceProperty | typeof ValueReferenceProperty | typeof TypeInfoProperty | typeof TypeConstraintProperty | typeof ContextProperty | typeof ScheduleProperty | typeof ProjectionProperty | typeof PolicyProperty | typeof PolicyRuleProperty | typeof SubjectProperty | typeof AccessZoneProperty | typeof AccessMatrixProperty | typeof AccessProperty | typeof AccessTraceProperty | typeof RequestProperty | typeof ReadOptionsProperty | typeof ExpressionProperty | typeof AggregationProperty | typeof AggregationBucketProperty | typeof SelectionProperty | typeof CodeProperty | typeof CodeLineProperty | typeof StepConnectionProperty | typeof RunCodeFrameProperty | typeof RunErrorProperty | typeof ResourceCredentialProperty | typeof TextProperty | typeof TextLineProperty | typeof TextSpanProperty | typeof ColorProperty | typeof FontProperty | typeof BoxProperty | typeof OffsetProperty | typeof FileProperty | typeof IconProperty
-export type AnyPropertyType = typeof BenchProperty | typeof EnvironmentProperty | typeof BranchProperty | typeof PackageProperty | typeof DependencyProperty | typeof UpgradeProperty | typeof SpaceProperty | typeof LinkProperty | typeof SkipProperty | typeof NoticeProperty | typeof BlockProperty | typeof TriggerProperty | typeof FieldProperty | typeof QueryProperty | typeof ViewProperty | typeof StepProperty | typeof BadgeProperty | typeof RoleProperty | typeof IdentityProperty | typeof MembershipProperty | typeof InviteProperty | typeof SessionProperty | typeof RunProperty | typeof SignalProperty | typeof LogProperty | typeof NotificationProperty | typeof MessageProperty | typeof RecordProperty | typeof ServerProperty | typeof StoreProperty | typeof DriveProperty | typeof CacheProperty | typeof FileContentProperty | typeof HandleProperty | typeof UserProperty | typeof OrganizationProperty | typeof ClientProperty | typeof PathProperty | typeof PathSegmentProperty | typeof PathTokenProperty | typeof NodeReferenceProperty | typeof PropertyReferenceProperty | typeof ValueReferenceProperty | typeof TypeInfoProperty | typeof TypeConstraintProperty | typeof ContextProperty | typeof ScheduleProperty | typeof ProjectionProperty | typeof PolicyProperty | typeof PolicyRuleProperty | typeof SubjectProperty | typeof AccessZoneProperty | typeof AccessMatrixProperty | typeof AccessProperty | typeof AccessTraceProperty | typeof RequestProperty | typeof ReadOptionsProperty | typeof ExpressionProperty | typeof AggregationProperty | typeof AggregationBucketProperty | typeof SelectionProperty | typeof CodeProperty | typeof CodeLineProperty | typeof StepConnectionProperty | typeof RunCodeFrameProperty | typeof RunErrorProperty | typeof ResourceCredentialProperty | typeof TextProperty | typeof TextLineProperty | typeof TextSpanProperty | typeof ColorProperty | typeof FontProperty | typeof BoxProperty | typeof OffsetProperty | typeof FileProperty | typeof IconProperty
+export type AnyNodePropertyType = typeof BenchProperty | typeof EnvironmentProperty | typeof BranchProperty | typeof PackageProperty | typeof DependencyProperty | typeof UpgradeProperty | typeof SpaceProperty | typeof LinkProperty | typeof SkipProperty | typeof NoticeProperty | typeof BlockProperty | typeof TriggerProperty | typeof FieldProperty | typeof QueryProperty | typeof ViewProperty | typeof StepProperty | typeof BadgeProperty | typeof RoleProperty | typeof IdentityProperty | typeof MembershipProperty | typeof InviteProperty | typeof SessionProperty | typeof RunProperty | typeof SignalProperty | typeof LogProperty | typeof NotificationProperty | typeof MessageProperty | typeof RecordProperty | typeof ServerProperty | typeof StoreProperty | typeof DriveProperty | typeof FileContentProperty | typeof HandleProperty | typeof UserProperty | typeof OrganizationProperty | typeof ClientProperty
+export type AnyStructPropertyType = typeof PathProperty | typeof PathSegmentProperty | typeof PathTokenProperty | typeof NodeReferenceProperty | typeof PropertyReferenceProperty | typeof ValueReferenceProperty | typeof TypeInfoProperty | typeof TypeConstraintProperty | typeof ContextProperty | typeof ScheduleProperty | typeof ProjectionProperty | typeof PolicyProperty | typeof PolicyRuleProperty | typeof SubjectProperty | typeof AccessZoneProperty | typeof AccessMatrixProperty | typeof AccessProperty | typeof AccessTraceProperty | typeof RequestProperty | typeof ReadOptionsProperty | typeof ExpressionProperty | typeof AggregationProperty | typeof AggregationBucketProperty | typeof SelectionProperty | typeof CodeProperty | typeof CodeLineProperty | typeof StepConnectionProperty | typeof RunCodeFrameProperty | typeof RunErrorProperty | typeof TextProperty | typeof TextLineProperty | typeof TextSpanProperty | typeof ColorProperty | typeof FontProperty | typeof BoxProperty | typeof OffsetProperty | typeof FileProperty | typeof IconProperty
+export type AnyPropertyType = typeof BenchProperty | typeof EnvironmentProperty | typeof BranchProperty | typeof PackageProperty | typeof DependencyProperty | typeof UpgradeProperty | typeof SpaceProperty | typeof LinkProperty | typeof SkipProperty | typeof NoticeProperty | typeof BlockProperty | typeof TriggerProperty | typeof FieldProperty | typeof QueryProperty | typeof ViewProperty | typeof StepProperty | typeof BadgeProperty | typeof RoleProperty | typeof IdentityProperty | typeof MembershipProperty | typeof InviteProperty | typeof SessionProperty | typeof RunProperty | typeof SignalProperty | typeof LogProperty | typeof NotificationProperty | typeof MessageProperty | typeof RecordProperty | typeof ServerProperty | typeof StoreProperty | typeof DriveProperty | typeof FileContentProperty | typeof HandleProperty | typeof UserProperty | typeof OrganizationProperty | typeof ClientProperty | typeof PathProperty | typeof PathSegmentProperty | typeof PathTokenProperty | typeof NodeReferenceProperty | typeof PropertyReferenceProperty | typeof ValueReferenceProperty | typeof TypeInfoProperty | typeof TypeConstraintProperty | typeof ContextProperty | typeof ScheduleProperty | typeof ProjectionProperty | typeof PolicyProperty | typeof PolicyRuleProperty | typeof SubjectProperty | typeof AccessZoneProperty | typeof AccessMatrixProperty | typeof AccessProperty | typeof AccessTraceProperty | typeof RequestProperty | typeof ReadOptionsProperty | typeof ExpressionProperty | typeof AggregationProperty | typeof AggregationBucketProperty | typeof SelectionProperty | typeof CodeProperty | typeof CodeLineProperty | typeof StepConnectionProperty | typeof RunCodeFrameProperty | typeof RunErrorProperty | typeof TextProperty | typeof TextLineProperty | typeof TextSpanProperty | typeof ColorProperty | typeof FontProperty | typeof BoxProperty | typeof OffsetProperty | typeof FileProperty | typeof IconProperty
 export const NODE_PROPERTY_ENUM_BY_TYPE: Partial<Record<ObjectType, AnyNodePropertyType>> = {
   [ObjectType.BENCH]: BenchProperty,
   [ObjectType.ENVIRONMENT]: EnvironmentProperty,
@@ -23824,7 +23369,6 @@ export const NODE_PROPERTY_ENUM_BY_TYPE: Partial<Record<ObjectType, AnyNodePrope
   [ObjectType.SERVER]: ServerProperty,
   [ObjectType.STORE]: StoreProperty,
   [ObjectType.DRIVE]: DriveProperty,
-  [ObjectType.CACHE]: CacheProperty,
   [ObjectType.FILE_CONTENT]: FileContentProperty,
   [ObjectType.HANDLE]: HandleProperty,
   [ObjectType.USER]: UserProperty,
@@ -23862,7 +23406,6 @@ export const STRUCT_PROPERTY_ENUM_BY_TYPE: Partial<Record<ObjectType, AnyStructP
   [ObjectType.STEP_CONNECTION]: StepConnectionProperty,
   [ObjectType.RUN_CODE_FRAME]: RunCodeFrameProperty,
   [ObjectType.RUN_ERROR]: RunErrorProperty,
-  [ObjectType.RESOURCE_CREDENTIAL]: ResourceCredentialProperty,
   [ObjectType.TEXT]: TextProperty,
   [ObjectType.TEXT_LINE]: TextLineProperty,
   [ObjectType.TEXT_SPAN]: TextSpanProperty,
@@ -23906,7 +23449,6 @@ export const PROPERTY_ENUM_BY_TYPE: Partial<Record<ObjectType, AnyPropertyType>>
   [ObjectType.SERVER]: ServerProperty,
   [ObjectType.STORE]: StoreProperty,
   [ObjectType.DRIVE]: DriveProperty,
-  [ObjectType.CACHE]: CacheProperty,
   [ObjectType.FILE_CONTENT]: FileContentProperty,
   [ObjectType.HANDLE]: HandleProperty,
   [ObjectType.USER]: UserProperty,
@@ -23941,7 +23483,6 @@ export const PROPERTY_ENUM_BY_TYPE: Partial<Record<ObjectType, AnyPropertyType>>
   [ObjectType.STEP_CONNECTION]: StepConnectionProperty,
   [ObjectType.RUN_CODE_FRAME]: RunCodeFrameProperty,
   [ObjectType.RUN_ERROR]: RunErrorProperty,
-  [ObjectType.RESOURCE_CREDENTIAL]: ResourceCredentialProperty,
   [ObjectType.TEXT]: TextProperty,
   [ObjectType.TEXT_LINE]: TextLineProperty,
   [ObjectType.TEXT_SPAN]: TextSpanProperty,
@@ -24266,9 +23807,9 @@ export const AggregationBucketDataInfo: Record<AggregationBucketProperty, Proper
 export const SelectionDataInfo: Record<SelectionProperty, PropertyInfo> = {
   [SelectionProperty.metatype]: { id: 1, name: 'metatype', component: ObjectType.SELECTION, enumType: EnumType.OBJECT_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isComputed: true, isWired: true },
   [SelectionProperty.kind]: { id: 30, name: 'kind', component: ObjectType.SELECTION, enumType: EnumType.SELECTION_KIND, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isRuntime: true, isWired: true, isStored: true },
-  [SelectionProperty.nodesPtr]: { id: 31, name: 'nodes_ptr', component: ObjectType.SELECTION, kind: 'reference', isList: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.BENCH, NodeType.ENVIRONMENT, NodeType.BRANCH, NodeType.PACKAGE, NodeType.DEPENDENCY, NodeType.UPGRADE, NodeType.SPACE, NodeType.LINK, NodeType.SKIP, NodeType.NOTICE, NodeType.BLOCK, NodeType.TRIGGER, NodeType.FIELD, NodeType.QUERY, NodeType.VIEW, NodeType.STEP, NodeType.BADGE, NodeType.ROLE, NodeType.IDENTITY, NodeType.MEMBERSHIP, NodeType.INVITE, NodeType.SESSION, NodeType.RUN, NodeType.SIGNAL, NodeType.LOG, NodeType.NOTIFICATION, NodeType.MESSAGE, NodeType.RECORD, NodeType.SERVER, NodeType.STORE, NodeType.DRIVE, NodeType.CACHE, NodeType.FILE_CONTENT, NodeType.CLIENT, NodeType.HANDLE], referenceStruct: StructType.NODE_REFERENCE },
-  [SelectionProperty.fromNodePtr]: { id: 32, name: 'from_node_ptr', component: ObjectType.SELECTION, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.BENCH, NodeType.ENVIRONMENT, NodeType.BRANCH, NodeType.PACKAGE, NodeType.DEPENDENCY, NodeType.UPGRADE, NodeType.SPACE, NodeType.LINK, NodeType.SKIP, NodeType.NOTICE, NodeType.BLOCK, NodeType.TRIGGER, NodeType.FIELD, NodeType.QUERY, NodeType.VIEW, NodeType.STEP, NodeType.BADGE, NodeType.ROLE, NodeType.IDENTITY, NodeType.MEMBERSHIP, NodeType.INVITE, NodeType.SESSION, NodeType.RUN, NodeType.SIGNAL, NodeType.LOG, NodeType.NOTIFICATION, NodeType.MESSAGE, NodeType.RECORD, NodeType.SERVER, NodeType.STORE, NodeType.DRIVE, NodeType.CACHE, NodeType.FILE_CONTENT, NodeType.CLIENT, NodeType.HANDLE], referenceStruct: StructType.NODE_REFERENCE },
-  [SelectionProperty.toNodePtr]: { id: 33, name: 'to_node_ptr', component: ObjectType.SELECTION, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.BENCH, NodeType.ENVIRONMENT, NodeType.BRANCH, NodeType.PACKAGE, NodeType.DEPENDENCY, NodeType.UPGRADE, NodeType.SPACE, NodeType.LINK, NodeType.SKIP, NodeType.NOTICE, NodeType.BLOCK, NodeType.TRIGGER, NodeType.FIELD, NodeType.QUERY, NodeType.VIEW, NodeType.STEP, NodeType.BADGE, NodeType.ROLE, NodeType.IDENTITY, NodeType.MEMBERSHIP, NodeType.INVITE, NodeType.SESSION, NodeType.RUN, NodeType.SIGNAL, NodeType.LOG, NodeType.NOTIFICATION, NodeType.MESSAGE, NodeType.RECORD, NodeType.SERVER, NodeType.STORE, NodeType.DRIVE, NodeType.CACHE, NodeType.FILE_CONTENT, NodeType.CLIENT, NodeType.HANDLE], referenceStruct: StructType.NODE_REFERENCE },
+  [SelectionProperty.nodesPtr]: { id: 31, name: 'nodes_ptr', component: ObjectType.SELECTION, kind: 'reference', isList: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.BENCH, NodeType.ENVIRONMENT, NodeType.BRANCH, NodeType.PACKAGE, NodeType.DEPENDENCY, NodeType.UPGRADE, NodeType.SPACE, NodeType.LINK, NodeType.SKIP, NodeType.NOTICE, NodeType.BLOCK, NodeType.TRIGGER, NodeType.FIELD, NodeType.QUERY, NodeType.VIEW, NodeType.STEP, NodeType.BADGE, NodeType.ROLE, NodeType.IDENTITY, NodeType.MEMBERSHIP, NodeType.INVITE, NodeType.SESSION, NodeType.RUN, NodeType.SIGNAL, NodeType.LOG, NodeType.NOTIFICATION, NodeType.MESSAGE, NodeType.RECORD, NodeType.SERVER, NodeType.STORE, NodeType.DRIVE, NodeType.FILE_CONTENT, NodeType.CLIENT, NodeType.HANDLE], referenceStruct: StructType.NODE_REFERENCE },
+  [SelectionProperty.fromNodePtr]: { id: 32, name: 'from_node_ptr', component: ObjectType.SELECTION, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.BENCH, NodeType.ENVIRONMENT, NodeType.BRANCH, NodeType.PACKAGE, NodeType.DEPENDENCY, NodeType.UPGRADE, NodeType.SPACE, NodeType.LINK, NodeType.SKIP, NodeType.NOTICE, NodeType.BLOCK, NodeType.TRIGGER, NodeType.FIELD, NodeType.QUERY, NodeType.VIEW, NodeType.STEP, NodeType.BADGE, NodeType.ROLE, NodeType.IDENTITY, NodeType.MEMBERSHIP, NodeType.INVITE, NodeType.SESSION, NodeType.RUN, NodeType.SIGNAL, NodeType.LOG, NodeType.NOTIFICATION, NodeType.MESSAGE, NodeType.RECORD, NodeType.SERVER, NodeType.STORE, NodeType.DRIVE, NodeType.FILE_CONTENT, NodeType.CLIENT, NodeType.HANDLE], referenceStruct: StructType.NODE_REFERENCE },
+  [SelectionProperty.toNodePtr]: { id: 33, name: 'to_node_ptr', component: ObjectType.SELECTION, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.BENCH, NodeType.ENVIRONMENT, NodeType.BRANCH, NodeType.PACKAGE, NodeType.DEPENDENCY, NodeType.UPGRADE, NodeType.SPACE, NodeType.LINK, NodeType.SKIP, NodeType.NOTICE, NodeType.BLOCK, NodeType.TRIGGER, NodeType.FIELD, NodeType.QUERY, NodeType.VIEW, NodeType.STEP, NodeType.BADGE, NodeType.ROLE, NodeType.IDENTITY, NodeType.MEMBERSHIP, NodeType.INVITE, NodeType.SESSION, NodeType.RUN, NodeType.SIGNAL, NodeType.LOG, NodeType.NOTIFICATION, NodeType.MESSAGE, NodeType.RECORD, NodeType.SERVER, NodeType.STORE, NodeType.DRIVE, NodeType.FILE_CONTENT, NodeType.CLIENT, NodeType.HANDLE], referenceStruct: StructType.NODE_REFERENCE },
 }
 export const CodeDataInfo: Record<CodeProperty, PropertyInfo> = {
   [CodeProperty.metatype]: { id: 1, name: 'metatype', component: ObjectType.CODE, enumType: EnumType.OBJECT_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isComputed: true, isWired: true },
@@ -24321,11 +23862,6 @@ export const RunErrorDataInfo: Record<RunErrorProperty, PropertyInfo> = {
   [RunErrorProperty.message]: { id: 32, name: 'message', component: ObjectType.RUN_ERROR, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [RunErrorProperty.nodePtr]: { id: 33, name: 'node_ptr', component: ObjectType.RUN_ERROR, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.BLOCK], referenceStruct: StructType.NODE_REFERENCE },
   [RunErrorProperty.traceback]: { id: 34, name: 'traceback', component: ObjectType.RUN_ERROR, kind: 'reference', primitiveType: PrimitiveType.JSON, isList: true, isRequired: true, isInternal: true, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.RUN_CODE_FRAME },
-}
-export const ResourceCredentialDataInfo: Record<ResourceCredentialProperty, PropertyInfo> = {
-  [ResourceCredentialProperty.metatype]: { id: 1, name: 'metatype', component: ObjectType.RESOURCE_CREDENTIAL, enumType: EnumType.OBJECT_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isComputed: true, isWired: true },
-  [ResourceCredentialProperty.username]: { id: 31, name: 'username', component: ObjectType.RESOURCE_CREDENTIAL, kind: 'primitive', primitiveType: PrimitiveType.STRING, isRequired: true, isRuntime: true, isWired: true, isStored: true, isSensitive: true },
-  [ResourceCredentialProperty.password]: { id: 32, name: 'password', component: ObjectType.RESOURCE_CREDENTIAL, kind: 'primitive', primitiveType: PrimitiveType.STRING, isRequired: true, isRuntime: true, isWired: true, isStored: true, isSensitive: true },
 }
 export const TextDataInfo: Record<TextProperty, PropertyInfo> = {
   [TextProperty.metatype]: { id: 1, name: 'metatype', component: ObjectType.TEXT, enumType: EnumType.OBJECT_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isComputed: true, isWired: true },
@@ -24433,8 +23969,7 @@ export const BenchDataInfo: Record<BenchProperty, PropertyInfo> = {
   [BenchProperty.encryptionKey]: { id: 38, name: 'encryption_key', component: ObjectType.BENCH, kind: 'primitive', primitiveType: PrimitiveType.STRING, isRequired: true, isInternal: true, isSystem: true, isKernel: true, isRuntime: true, isWired: true, isStored: true, isDeferred: true, isSensitive: true, isEncrypted: true },
   [BenchProperty.policies]: { id: 39, name: 'policies', component: ObjectType.BENCH, kind: 'reference', primitiveType: PrimitiveType.JSON, isList: true, isRequired: true, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.POLICY },
   [BenchProperty.mainEnvironmentPtr]: { id: 40, name: 'main_environment_ptr', component: ObjectType.BENCH, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.ENVIRONMENT], referenceStruct: StructType.NODE_REFERENCE },
-  [BenchProperty.mainBranchPtr]: { id: 42, name: 'main_branch_ptr', component: ObjectType.BENCH, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.BRANCH], referenceStruct: StructType.NODE_REFERENCE },
-  [BenchProperty.publishedBranchPtr]: { id: 43, name: 'published_branch_ptr', component: ObjectType.BENCH, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.BRANCH], referenceStruct: StructType.NODE_REFERENCE },
+  [BenchProperty.mainBranchPtr]: { id: 41, name: 'main_branch_ptr', component: ObjectType.BENCH, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.BRANCH], referenceStruct: StructType.NODE_REFERENCE },
 }
 export const EnvironmentDataInfo: Record<EnvironmentProperty, PropertyInfo> = {
   [EnvironmentProperty.metatype]: { id: 1, name: 'metatype', component: ObjectType.ENVIRONMENT, enumType: EnumType.OBJECT_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isComputed: true, isWired: true },
@@ -24455,10 +23990,7 @@ export const EnvironmentDataInfo: Record<EnvironmentProperty, PropertyInfo> = {
   [EnvironmentProperty.policies]: { id: 36, name: 'policies', component: ObjectType.ENVIRONMENT, kind: 'reference', primitiveType: PrimitiveType.JSON, isList: true, isRequired: true, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.POLICY },
   [EnvironmentProperty.serverPtr]: { id: 40, name: 'server_ptr', component: ObjectType.ENVIRONMENT, kind: 'reference', isRequired: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.SERVER], referenceStruct: StructType.NODE_REFERENCE },
   [EnvironmentProperty.storePtr]: { id: 41, name: 'store_ptr', component: ObjectType.ENVIRONMENT, kind: 'reference', isRequired: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.STORE], referenceStruct: StructType.NODE_REFERENCE },
-  [EnvironmentProperty.searchPtr]: { id: 42, name: 'search_ptr', component: ObjectType.ENVIRONMENT, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.STORE], referenceStruct: StructType.NODE_REFERENCE },
-  [EnvironmentProperty.analyticsPtr]: { id: 43, name: 'analytics_ptr', component: ObjectType.ENVIRONMENT, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.STORE], referenceStruct: StructType.NODE_REFERENCE },
-  [EnvironmentProperty.drivePtr]: { id: 44, name: 'drive_ptr', component: ObjectType.ENVIRONMENT, kind: 'reference', isRequired: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.DRIVE], referenceStruct: StructType.NODE_REFERENCE },
-  [EnvironmentProperty.cachePtr]: { id: 45, name: 'cache_ptr', component: ObjectType.ENVIRONMENT, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.CACHE], referenceStruct: StructType.NODE_REFERENCE },
+  [EnvironmentProperty.drivePtr]: { id: 42, name: 'drive_ptr', component: ObjectType.ENVIRONMENT, kind: 'reference', isRequired: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.DRIVE], referenceStruct: StructType.NODE_REFERENCE },
 }
 export const BranchDataInfo: Record<BranchProperty, PropertyInfo> = {
   [BranchProperty.metatype]: { id: 1, name: 'metatype', component: ObjectType.BRANCH, enumType: EnumType.OBJECT_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isComputed: true, isWired: true },
@@ -24561,8 +24093,8 @@ export const SpaceDataInfo: Record<SpaceProperty, PropertyInfo> = {
   [SpaceProperty.policies]: { id: 34, name: 'policies', component: ObjectType.SPACE, kind: 'reference', primitiveType: PrimitiveType.JSON, isList: true, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.POLICY },
   [SpaceProperty.barPosition]: { id: 40, name: 'bar_position', component: ObjectType.SPACE, enumType: EnumType.ANCHOR, kind: 'enum', primitiveType: PrimitiveType.INT16, isRuntime: true, isWired: true, isStored: true },
   [SpaceProperty.focus]: { id: 70, name: 'focus', component: ObjectType.SPACE, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.SELECTION },
-  [SpaceProperty.inspectionPtr]: { id: 75, name: 'inspection_ptr', component: ObjectType.SPACE, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.BENCH, NodeType.ENVIRONMENT, NodeType.BRANCH, NodeType.PACKAGE, NodeType.DEPENDENCY, NodeType.UPGRADE, NodeType.SPACE, NodeType.LINK, NodeType.SKIP, NodeType.NOTICE, NodeType.BLOCK, NodeType.TRIGGER, NodeType.FIELD, NodeType.QUERY, NodeType.VIEW, NodeType.STEP, NodeType.BADGE, NodeType.ROLE, NodeType.IDENTITY, NodeType.MEMBERSHIP, NodeType.INVITE, NodeType.SESSION, NodeType.RUN, NodeType.SIGNAL, NodeType.LOG, NodeType.NOTIFICATION, NodeType.MESSAGE, NodeType.RECORD, NodeType.SERVER, NodeType.STORE, NodeType.DRIVE, NodeType.CACHE, NodeType.FILE_CONTENT, NodeType.HANDLE, NodeType.USER, NodeType.ORGANIZATION, NodeType.CLIENT], referenceStruct: StructType.NODE_REFERENCE },
-  [SpaceProperty.basePtr]: { id: 76, name: 'base_ptr', component: ObjectType.SPACE, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.BENCH, NodeType.ENVIRONMENT, NodeType.BRANCH, NodeType.PACKAGE, NodeType.DEPENDENCY, NodeType.UPGRADE, NodeType.SPACE, NodeType.LINK, NodeType.SKIP, NodeType.NOTICE, NodeType.BLOCK, NodeType.TRIGGER, NodeType.FIELD, NodeType.QUERY, NodeType.VIEW, NodeType.STEP, NodeType.BADGE, NodeType.ROLE, NodeType.IDENTITY, NodeType.MEMBERSHIP, NodeType.INVITE, NodeType.SESSION, NodeType.RUN, NodeType.SIGNAL, NodeType.LOG, NodeType.NOTIFICATION, NodeType.MESSAGE, NodeType.RECORD, NodeType.SERVER, NodeType.STORE, NodeType.DRIVE, NodeType.CACHE, NodeType.FILE_CONTENT, NodeType.HANDLE, NodeType.USER, NodeType.ORGANIZATION, NodeType.CLIENT], referenceStruct: StructType.NODE_REFERENCE },
+  [SpaceProperty.inspectionPtr]: { id: 75, name: 'inspection_ptr', component: ObjectType.SPACE, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.BENCH, NodeType.ENVIRONMENT, NodeType.BRANCH, NodeType.PACKAGE, NodeType.DEPENDENCY, NodeType.UPGRADE, NodeType.SPACE, NodeType.LINK, NodeType.SKIP, NodeType.NOTICE, NodeType.BLOCK, NodeType.TRIGGER, NodeType.FIELD, NodeType.QUERY, NodeType.VIEW, NodeType.STEP, NodeType.BADGE, NodeType.ROLE, NodeType.IDENTITY, NodeType.MEMBERSHIP, NodeType.INVITE, NodeType.SESSION, NodeType.RUN, NodeType.SIGNAL, NodeType.LOG, NodeType.NOTIFICATION, NodeType.MESSAGE, NodeType.RECORD, NodeType.SERVER, NodeType.STORE, NodeType.DRIVE, NodeType.FILE_CONTENT, NodeType.HANDLE, NodeType.USER, NodeType.ORGANIZATION, NodeType.CLIENT], referenceStruct: StructType.NODE_REFERENCE },
+  [SpaceProperty.basePtr]: { id: 76, name: 'base_ptr', component: ObjectType.SPACE, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.BENCH, NodeType.ENVIRONMENT, NodeType.BRANCH, NodeType.PACKAGE, NodeType.DEPENDENCY, NodeType.UPGRADE, NodeType.SPACE, NodeType.LINK, NodeType.SKIP, NodeType.NOTICE, NodeType.BLOCK, NodeType.TRIGGER, NodeType.FIELD, NodeType.QUERY, NodeType.VIEW, NodeType.STEP, NodeType.BADGE, NodeType.ROLE, NodeType.IDENTITY, NodeType.MEMBERSHIP, NodeType.INVITE, NodeType.SESSION, NodeType.RUN, NodeType.SIGNAL, NodeType.LOG, NodeType.NOTIFICATION, NodeType.MESSAGE, NodeType.RECORD, NodeType.SERVER, NodeType.STORE, NodeType.DRIVE, NodeType.FILE_CONTENT, NodeType.HANDLE, NodeType.USER, NodeType.ORGANIZATION, NodeType.CLIENT], referenceStruct: StructType.NODE_REFERENCE },
 }
 export const LinkDataInfo: Record<LinkProperty, PropertyInfo> = {
   [LinkProperty.metatype]: { id: 1, name: 'metatype', component: ObjectType.LINK, enumType: EnumType.OBJECT_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isComputed: true, isWired: true },
@@ -25048,7 +24580,7 @@ export const MessageDataInfo: Record<MessageProperty, PropertyInfo> = {
   [MessageProperty.createdByPtr]: { id: 17, name: 'created_by_ptr', component: ObjectType.MESSAGE, kind: 'reference', isAutoset: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.USER, NodeType.RUN], referenceStruct: StructType.NODE_REFERENCE },
   [MessageProperty.updatedByPtr]: { id: 18, name: 'updated_by_ptr', component: ObjectType.MESSAGE, kind: 'reference', isAutoset: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.USER, NodeType.RUN], referenceStruct: StructType.NODE_REFERENCE },
   [MessageProperty.setProperties]: { id: 22, name: 'set_properties', component: ObjectType.MESSAGE, kind: 'primitive', primitiveType: PrimitiveType.INT32, isList: true, isRequired: true, isRuntime: true, isWired: true, isStored: true },
-  [MessageProperty.originPtr]: { id: 32, name: 'origin_ptr', component: ObjectType.MESSAGE, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.DEPENDENCY, NodeType.UPGRADE, NodeType.SPACE, NodeType.SKIP, NodeType.NOTICE, NodeType.BLOCK, NodeType.TRIGGER, NodeType.FIELD, NodeType.QUERY, NodeType.VIEW, NodeType.STEP, NodeType.BADGE, NodeType.ROLE, NodeType.IDENTITY, NodeType.MEMBERSHIP, NodeType.INVITE], referenceStruct: StructType.NODE_REFERENCE },
+  [MessageProperty.originPtr]: { id: 32, name: 'origin_ptr', component: ObjectType.MESSAGE, kind: 'reference', isRequired: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.DEPENDENCY, NodeType.UPGRADE, NodeType.SPACE, NodeType.SKIP, NodeType.NOTICE, NodeType.BLOCK, NodeType.TRIGGER, NodeType.FIELD, NodeType.QUERY, NodeType.VIEW, NodeType.STEP, NodeType.BADGE, NodeType.ROLE, NodeType.IDENTITY, NodeType.MEMBERSHIP, NodeType.INVITE], referenceStruct: StructType.NODE_REFERENCE },
   [MessageProperty.path]: { id: 33, name: 'path', component: ObjectType.MESSAGE, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.PATH },
   [MessageProperty.replyToPtr]: { id: 34, name: 'reply_to_ptr', component: ObjectType.MESSAGE, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.MESSAGE], referenceStruct: StructType.NODE_REFERENCE },
   [MessageProperty.title]: { id: 40, name: 'title', component: ObjectType.MESSAGE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isRuntime: true, isWired: true, isStored: true },
@@ -25144,25 +24676,6 @@ export const DriveDataInfo: Record<DriveProperty, PropertyInfo> = {
   [DriveProperty.region]: { id: 35, name: 'region', component: ObjectType.DRIVE, enumType: EnumType.REGION, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [DriveProperty.tenancy]: { id: 36, name: 'tenancy', component: ObjectType.DRIVE, enumType: EnumType.TENANCY, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [DriveProperty.status]: { id: 37, name: 'status', component: ObjectType.DRIVE, enumType: EnumType.RESOURCE_STATUS, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
-}
-export const CacheDataInfo: Record<CacheProperty, PropertyInfo> = {
-  [CacheProperty.metatype]: { id: 1, name: 'metatype', component: ObjectType.CACHE, enumType: EnumType.OBJECT_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isComputed: true, isWired: true },
-  [CacheProperty.id]: { id: 2, name: 'id', component: ObjectType.CACHE, kind: 'primitive', primitiveType: PrimitiveType.UUID, isRequired: true, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
-  [CacheProperty.parentPtr]: { id: 4, name: 'parent_ptr', component: ObjectType.CACHE, kind: 'reference', isInternal: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_PARENT, referenceNodes: [NodeType.BENCH], referenceStruct: StructType.NODE_REFERENCE },
-  [CacheProperty.benchPtr]: { id: 7, name: 'bench_ptr', component: ObjectType.CACHE, kind: 'reference', isRequired: true, isInternal: true, isComputed: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_ANCESTOR_FIRST, referenceNodes: [NodeType.BENCH], referenceStruct: StructType.NODE_REFERENCE },
-  [CacheProperty.revision]: { id: 10, name: 'revision', component: ObjectType.CACHE, kind: 'primitive', primitiveType: PrimitiveType.INT64, isRequired: true, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
-  [CacheProperty.createdAt]: { id: 11, name: 'created_at', component: ObjectType.CACHE, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isRequired: true, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
-  [CacheProperty.updatedAt]: { id: 12, name: 'updated_at', component: ObjectType.CACHE, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isRequired: true, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
-  [CacheProperty.deletedAt]: { id: 13, name: 'deleted_at', component: ObjectType.CACHE, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
-  [CacheProperty.archivedAt]: { id: 14, name: 'archived_at', component: ObjectType.CACHE, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
-  [CacheProperty.createdByPtr]: { id: 17, name: 'created_by_ptr', component: ObjectType.CACHE, kind: 'reference', isAutoset: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.USER, NodeType.RUN], referenceStruct: StructType.NODE_REFERENCE },
-  [CacheProperty.updatedByPtr]: { id: 18, name: 'updated_by_ptr', component: ObjectType.CACHE, kind: 'reference', isAutoset: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.USER, NodeType.RUN], referenceStruct: StructType.NODE_REFERENCE },
-  [CacheProperty.setProperties]: { id: 22, name: 'set_properties', component: ObjectType.CACHE, kind: 'primitive', primitiveType: PrimitiveType.INT32, isList: true, isRequired: true, isRuntime: true, isWired: true, isStored: true },
-  [CacheProperty.name]: { id: 32, name: 'name', component: ObjectType.CACHE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isRequired: true, isRuntime: true, isWired: true, isStored: true },
-  [CacheProperty.text]: { id: 34, name: 'text', component: ObjectType.CACHE, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.TEXT },
-  [CacheProperty.region]: { id: 35, name: 'region', component: ObjectType.CACHE, enumType: EnumType.REGION, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
-  [CacheProperty.tenancy]: { id: 36, name: 'tenancy', component: ObjectType.CACHE, enumType: EnumType.TENANCY, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
-  [CacheProperty.status]: { id: 37, name: 'status', component: ObjectType.CACHE, enumType: EnumType.RESOURCE_STATUS, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
 }
 export const FileContentDataInfo: Record<FileContentProperty, PropertyInfo> = {
   [FileContentProperty.metatype]: { id: 1, name: 'metatype', component: ObjectType.FILE_CONTENT, enumType: EnumType.OBJECT_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isComputed: true, isWired: true },
@@ -25301,7 +24814,6 @@ export const PROPERTY_INFOS_BY_TYPE: Record<ObjectType, Record<any, PropertyInfo
   [ObjectType.STEP_CONNECTION]: StepConnectionDataInfo,
   [ObjectType.RUN_CODE_FRAME]: RunCodeFrameDataInfo,
   [ObjectType.RUN_ERROR]: RunErrorDataInfo,
-  [ObjectType.RESOURCE_CREDENTIAL]: ResourceCredentialDataInfo,
   [ObjectType.TEXT]: TextDataInfo,
   [ObjectType.TEXT_LINE]: TextLineDataInfo,
   [ObjectType.TEXT_SPAN]: TextSpanDataInfo,
@@ -25342,7 +24854,6 @@ export const PROPERTY_INFOS_BY_TYPE: Record<ObjectType, Record<any, PropertyInfo
   [ObjectType.SERVER]: ServerDataInfo,
   [ObjectType.STORE]: StoreDataInfo,
   [ObjectType.DRIVE]: DriveDataInfo,
-  [ObjectType.CACHE]: CacheDataInfo,
   [ObjectType.FILE_CONTENT]: FileContentDataInfo,
   [ObjectType.HANDLE]: HandleDataInfo,
   [ObjectType.USER]: UserDataInfo,

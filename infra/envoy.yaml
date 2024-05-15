@@ -77,4 +77,4 @@ static_resources:
                       # we string replace this with localhost for deployment :EnvoyLocalhost
                       #  (which isn't as easy in docker compose for local development)
                       address: host.docker.internal
-                      port_value: 50051
+                      port_value: 60061

@@ -58,7 +58,6 @@ from .property import Property
 from .query import Query
 from .record import Record
 from .resource import (
-    Cache,
     Client,
     Drive,
     FileContent,
@@ -97,7 +96,6 @@ __all__ = [
     "BlockType",
     "Branch",
     "C",
-    "Cache",
     "Client",
     "ClientType",
     "Code",

@@ -1,6 +1,7 @@
 import abc
 import asyncio
-from typing import TYPE_CHECKING, Any, NamedTuple, Never
+import re
+from typing import TYPE_CHECKING, Any, NamedTuple
 
 import aiohttp
 import structlog
@@ -9,6 +10,7 @@ from bench.language.resource import Region
 from bench.sql.client import pg_cursor_to_store
 from bench.sql.migration import has_migration_after, migrate
 from bench.sql.schema import VERSION
+from bench.utils.env import IS_DEBUG
 from bench.utils.utils import get_from_env
 
 if TYPE_CHECKING:
@@ -20,11 +22,82 @@ logger = structlog.get_logger(__name__)
 CreateProjectRep = NamedTuple(
     "CreateProjectResponse", [("project_id", str), ("connection_uri", str)]
 )
-
-# TODO :Test! :Robustness: use local neon for testing/development
+CreateBranchRep = NamedTuple(
+    "CreateBranchResponse", [("branch_id", str), ("compute_id", str), ("connection_uri", str)]
+)
 
 
 class NeonApi(abc.ABC):
+    """
+    Common Neon API so we can swap remote & local.
+    """
+
+    async def create_project(
+        self, *, name: str, region: Region, pg_version: int
+    ) -> CreateProjectRep:
+        raise NotImplementedError
+
+    async def create_branch_with_rw_compute(
+        self,
+        *,
+        name: str,
+        parent_id: str,
+        project_id: str,
+    ) -> CreateBranchRep:
+        raise NotImplementedError
+
+
+class NeonApiLocal(NeonApi):
+    """
+    Neon API client wrapper for neon_local.
+    Assumes that Neon has been set up locally (should run in our dev docker compose).
+    """
+
+    async def _execute(self, command: str) -> str:
+        # TODO :Test! :Robustness: put neon in docker compose for testing/development
+        # run the command with 'cargo neon <command>' in '~/neon'
+        process = await asyncio.create_subprocess_shell(
+            f"cargo neon {command}",
+            stdout=asyncio.subprocess.PIPE,
+            stderr=asyncio.subprocess.PIPE,
+            cwd="~/neon",
+        )
+        stdout, stderr = await process.communicate()
+        output = stdout.decode()
+        if stderr:
+            logger.error("neon.error", command=command, stderr=stderr.decode())
+        return output
+
+    async def create_project(
+        self, *, name: str, region: Region, pg_version: int
+    ) -> CreateProjectRep:
+        # create tenant, output should look like
+        #  > ...
+        #  > tenant 9ef87a5bf0d92544f6fafeeb3239695c successfully created on the pageserver
+        #  > ...
+        output = await self._execute("tenant create")
+        tenant_match = re.search(r"tenant ([a-f0-9]+) successfully created", output)
+        assert tenant_match, f"tenant create failed: {output}"
+        tenant_id = tenant_match.group(1)
+
+        # create endpoint
+        output = await self._execute(f"endpoint create main --tenant-id {tenant_id}")
+        # start endpoint, output should look like
+        # > ...
+        # > Starting existing endpoint main...
+        # > Starting postgres node at 'postgresql://cloud_admin@127.0.0.1:55436/postgres'
+        # > ...
+        output = await self._execute(f"endpoint start main --tenant-id {tenant_id}")
+        connection_uri_match = re.search(r"Starting postgres node at '([^']+)'", output)
+        assert connection_uri_match, f"endpoint start failed: {output}"
+        connection_uri = connection_uri_match.group(1)
+
+        return CreateProjectRep(project_id=tenant_id, connection_uri=connection_uri)
+
+
+class NeonApiRemote(NeonApi):
+    """Neon API client for the remote API."""
+
     def __init__(self, *, url: str, api_key: str):
         if url.endswith("/"):
             url = url[:-1]
@@ -71,23 +144,14 @@ class NeonApi(abc.ABC):
             connection_uri=rep["connection_uris"][0]["connection_uri"],
         )
 
-    async def create_branch_with_rw_compute(
-        self,
-        *,
-        name: str,
-        parent_id: str,
-        project_id: str,
-    ) -> Never:
-        """
-        Creates a new branch with a read-write compute endpoint.
-        """
-        raise NotImplementedError
 
-
-neon_client = NeonApi(
-    url=get_from_env("NEON_BASE_URL"),
-    api_key=get_from_env("NEON_API_KEY"),
-)
+if get_from_env("NEON_LOCAL", default=not IS_DEBUG):
+    neon_client = NeonApiLocal()
+else:
+    neon_client = NeonApiRemote(
+        url=get_from_env("NEON_BASE_URL"),
+        api_key=get_from_env("NEON_API_KEY"),
+    )
 
 NEON_REGION_BY_REGION: dict[Region, str] = {
     Region.EUROPE_CENTRAL: "aws-eu-central-1",

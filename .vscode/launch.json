@@ -6,7 +6,7 @@
       "type": "debugpy",
       "request": "launch",
       "program": "${workspaceFolder}/bench.py",
-      "args": ["serve", "system", "--watch", "127.0.0.1", "50051"],
+      "args": ["serve", "system", "--watch", "127.0.0.1", "60061"],
       "env": {
         "PYTHONUNBUFFERED": "1",
         "DEBUG": "1"
@@ -20,11 +20,11 @@
       "type": "debugpy",
       "request": "launch",
       "program": "${workspaceFolder}/bench.py",
-      "args": ["serve", "runtime", "--watch", "127.0.0.1", "50052"],
+      "args": ["serve", "runtime", "--watch", "127.0.0.1", "60062"],
       "env": {
         "PYTHONUNBUFFERED": "1",
         "DEBUG": "1",
-        "SUPERVISOR_URL": "http://localhost:50051",
+        "SUPERVISOR_URL": "http://localhost:60061",
         // this is the 'test' bench
         "BENCH_ID": "56cf3720-e93e-4238-92c5-e14f565bc0d7",
       },

@@ -29,7 +29,6 @@ from bench.utils.casing import IdentifierType
 if TYPE_CHECKING:
     from bench.language import (
         Block,
-        Cache,
         Drive,
         Handle,
         Icon,
@@ -85,21 +84,14 @@ class Bench(Node[BenchData]):
         is_bench_implicit=True,
     )
     main_branch: Optional["Branch"] = p_regular(
-        42,
+        41,
         require=False,
         array=False,
         references=NodeType.BRANCH,
         fk=True,
         is_bench_implicit=True,
     )
-    published_branch: Optional["Branch"] = p_regular(
-        43,
-        require=False,
-        array=False,
-        references=NodeType.BRANCH,
-        fk=True,
-        is_bench_implicit=True,
-    )
+    # published_branch?
     packages: NodeList["Package"] = p_node_child(NodeType.PACKAGE)
     environments: NodeList["Environment"] = p_node_child(NodeType.ENVIRONMENT)
     branches: NodeList["Branch"] = p_node_child(NodeType.BRANCH)
@@ -108,11 +100,10 @@ class Bench(Node[BenchData]):
     servers: NodeList["Server"] = p_node_child(NodeType.SERVER)
     stores: NodeList["Store"] = p_node_child(NodeType.STORE)
     drives: NodeList["Drive"] = p_node_child(NodeType.DRIVE)
-    caches: NodeList["Cache"] = p_node_child(NodeType.CACHE)
 
     @property
     def resources(self) -> Iterable["Resource"]:
-        return chain(self.servers, self.stores, self.drives, self.caches)
+        return chain(self.servers, self.stores, self.drives)
 
 
 @node(NodeType.ENVIRONMENT, identifier=IdentifierType.VARIABLE)
@@ -131,29 +122,8 @@ class Environment(Node[EnvironmentData]):
     store: "Store" = p_system(
         41, require=True, array=False, references=NodeType.STORE, fk=True, is_bench_implicit=True
     )
-    search: Optional["Store"] = p_system(
-        42, require=False, array=False, references=NodeType.STORE, fk=True, is_bench_implicit=True
-    )
-    analytics: Optional["Store"] = p_system(
-        43,
-        require=False,
-        default=None,
-        array=False,
-        references=NodeType.STORE,
-        fk=True,
-        is_bench_implicit=True,
-    )
     drive: "Drive" = p_system(
-        44, require=True, array=False, references=NodeType.DRIVE, fk=True, is_bench_implicit=True
-    )
-    cache: Optional["Cache"] = p_system(
-        45,
-        require=False,
-        default=None,
-        array=False,
-        references=NodeType.CACHE,
-        fk=True,
-        is_bench_implicit=True,
+        42, require=True, array=False, references=NodeType.DRIVE, fk=True, is_bench_implicit=True
     )
 
 

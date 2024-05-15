@@ -50,9 +50,7 @@ async def bootstrap(region: Region = Region.EUROPE_CENTRAL):
 async def provision(bench: str):  # type: ignore
     async with global_session() as session:
         bench: Bench = (
-            await Bench.descendants(NodeType.SERVER, NodeType.STORE, NodeType.DRIVE, NodeType.CACHE)
-            .include_all()
-            .get(slug=bench)
+            await Bench.descendants(NodeType.SERVER, NodeType.STORE).include_all().get(slug=bench)
         )
         await provision_pending_resources(bench, session, commit_per=True)
         await migrate_local_stores(bench, session)

@@ -114,7 +114,6 @@ enum BenchType {
   BENCH_TYPE_SERVER = 160;
   BENCH_TYPE_STORE = 161;
   BENCH_TYPE_DRIVE = 162;
-  BENCH_TYPE_CACHE = 163;
   BENCH_TYPE_FILE_CONTENT = 180;
   BENCH_TYPE_HANDLE = 220;
   BENCH_TYPE_USER = 221;
@@ -149,7 +148,6 @@ enum BenchType {
   BENCH_TYPE_STEP_CONNECTION = 1100;
   BENCH_TYPE_RUN_CODE_FRAME = 1110;
   BENCH_TYPE_RUN_ERROR = 1111;
-  BENCH_TYPE_RESOURCE_CREDENTIAL = 1132;
   BENCH_TYPE_TEXT = 1160;
   BENCH_TYPE_TEXT_LINE = 1161;
   BENCH_TYPE_TEXT_SPAN = 1162;
@@ -596,7 +594,6 @@ enum NodeType {
   NODE_TYPE_SERVER = 160;
   NODE_TYPE_STORE = 161;
   NODE_TYPE_DRIVE = 162;
-  NODE_TYPE_CACHE = 163;
   NODE_TYPE_FILE_CONTENT = 180;
   NODE_TYPE_HANDLE = 220;
   NODE_TYPE_USER = 221;
@@ -663,7 +660,6 @@ enum ObjectType {
   OBJECT_TYPE_SERVER = 160;
   OBJECT_TYPE_STORE = 161;
   OBJECT_TYPE_DRIVE = 162;
-  OBJECT_TYPE_CACHE = 163;
   OBJECT_TYPE_FILE_CONTENT = 180;
   OBJECT_TYPE_HANDLE = 220;
   OBJECT_TYPE_USER = 221;
@@ -698,7 +694,6 @@ enum ObjectType {
   OBJECT_TYPE_STEP_CONNECTION = 1100;
   OBJECT_TYPE_RUN_CODE_FRAME = 1110;
   OBJECT_TYPE_RUN_ERROR = 1111;
-  OBJECT_TYPE_RESOURCE_CREDENTIAL = 1132;
   OBJECT_TYPE_TEXT = 1160;
   OBJECT_TYPE_TEXT_LINE = 1161;
   OBJECT_TYPE_TEXT_SPAN = 1162;
@@ -950,7 +945,7 @@ enum StepType {
 enum StoreEngineType {
   STORE_ENGINE_TYPE_UNSPECIFIED = 0;
   STORE_ENGINE_TYPE_LOCAL = 1;
-  STORE_ENGINE_TYPE_PROXY = 2;
+  STORE_ENGINE_TYPE_REMOTE = 2;
   STORE_ENGINE_TYPE_POSTGRES = 3;
 }
 
@@ -990,7 +985,6 @@ enum StructType {
   STRUCT_TYPE_STEP_CONNECTION = 1100;
   STRUCT_TYPE_RUN_CODE_FRAME = 1110;
   STRUCT_TYPE_RUN_ERROR = 1111;
-  STRUCT_TYPE_RESOURCE_CREDENTIAL = 1132;
   STRUCT_TYPE_TEXT = 1160;
   STRUCT_TYPE_TEXT_LINE = 1161;
   STRUCT_TYPE_TEXT_SPAN = 1162;
@@ -1530,13 +1524,6 @@ message RequestData {
   optional string transaction_id = 40;
 }
 
-// ResourceCredential(username: str = <factory>, password: str = <factory>, parent: Union[ForwardRef('Struct'), ForwardRef('Node'), ForwardRef('Object'), NoneType] = None, _status: bench.language.const.InterpStatus = None, _updated_properties: bitarray.bitarray | None = None, parent_id: int = None, parent_key: str = None)
-message ResourceCredentialData {
-  ObjectType metatype = 1;
-  optional string username = 31;
-  optional string password = 32;
-}
-
 // RunCodeFrame(node: bench.language.node.Node = None, lineno: int = <factory>, name: str = <factory>, line: str = <factory>, id: int = <factory>, parent: Union[ForwardRef('Struct'), ForwardRef('Node'), ForwardRef('Object'), NoneType] = None, order_key: str | None = None, set_properties: list[int] = <factory>, _status: bench.language.const.InterpStatus = None, _updated_properties: bitarray.bitarray | None = None, node_ptr: 'NodeReference' = None, parent_id: int = None, parent_key: str = None)
 message RunCodeFrameData {
   ObjectType metatype = 1;
@@ -1768,8 +1755,7 @@ message BenchData {
   optional string encryption_key = 38;
   repeated PolicyData policies = 39;
   optional NodeReferenceData main_environment_ptr = 40;
-  optional NodeReferenceData main_branch_ptr = 42;
-  optional NodeReferenceData published_branch_ptr = 43;
+  optional NodeReferenceData main_branch_ptr = 41;
 }
 
 // A building block containing logic, types, UI, data, AI, - any Bench program source.
@@ -1830,27 +1816,6 @@ message BranchData {
   optional NodeReferenceData main_package_ptr = 40;
 }
 
-// Cache for ephemeral data.
-message CacheData {
-  ObjectType metatype = 1;
-  string id = 2;
-  optional NodeReferenceData parent_ptr = 4;
-  NodeReferenceData bench_ptr = 7;
-  int64 revision = 10;
-  google.protobuf.Timestamp created_at = 11;
-  google.protobuf.Timestamp updated_at = 12;
-  optional google.protobuf.Timestamp deleted_at = 13;
-  optional google.protobuf.Timestamp archived_at = 14;
-  optional NodeReferenceData created_by_ptr = 17;
-  optional NodeReferenceData updated_by_ptr = 18;
-  repeated int32 set_properties = 22;
-  string name = 32;
-  optional TextData text = 34;
-  Region region = 35;
-  Tenancy tenancy = 36;
-  ResourceStatus status = 37;
-}
-
 // A client to a Bench.
 message ClientData {
   ObjectType metatype = 1;
@@ -1901,7 +1866,7 @@ message DependencyData {
   repeated NodeReferenceData dependency_scopes_ptr = 41;
 }
 
-// Drive for file/block storage.
+// Drive for file storage.
 message DriveData {
   ObjectType metatype = 1;
   string id = 2;
@@ -1942,10 +1907,7 @@ message EnvironmentData {
   repeated PolicyData policies = 36;
   NodeReferenceData server_ptr = 40;
   NodeReferenceData store_ptr = 41;
-  optional NodeReferenceData search_ptr = 42;
-  optional NodeReferenceData analytics_ptr = 43;
-  NodeReferenceData drive_ptr = 44;
-  optional NodeReferenceData cache_ptr = 45;
+  NodeReferenceData drive_ptr = 42;
 }
 
 // A used-defined attribute of some value
@@ -2158,7 +2120,7 @@ message MessageData {
   optional NodeReferenceData created_by_ptr = 17;
   optional NodeReferenceData updated_by_ptr = 18;
   repeated int32 set_properties = 22;
-  optional NodeReferenceData origin_ptr = 32;
+  NodeReferenceData origin_ptr = 32;
   optional PathData path = 33;
   optional NodeReferenceData reply_to_ptr = 34;
   optional string title = 40;
@@ -2555,7 +2517,7 @@ message StepData {
   optional ExpressionData condition = 46;
 }
 
-// Classic databases, virtualized over a physical database of that spec.
+// Postgres database.
 message StoreData {
   ObjectType metatype = 1;
   string id = 2;
@@ -2730,12 +2692,11 @@ message SomeNodeData {
     ServerData server = 29;
     StoreData store = 30;
     DriveData drive = 31;
-    CacheData cache = 32;
-    FileContentData file_content = 33;
-    HandleData handle = 34;
-    UserData user = 35;
-    OrganizationData organization = 36;
-    ClientData client = 37;
+    FileContentData file_content = 32;
+    HandleData handle = 33;
+    UserData user = 34;
+    OrganizationData organization = 35;
+    ClientData client = 36;
   };
 }
 
