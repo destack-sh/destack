@@ -89,10 +89,10 @@ if TYPE_CHECKING:
         Object,
         Package,
         PropertyReference,
+        ReadOptions,
         Run,
         Session,
         User,
-        ReadOptions,
     )
     from bench.language.notice import NoticeHandler, NoticeOptions
     from bench.language.query import QueryBuilder
@@ -1032,7 +1032,7 @@ class Struct(abc.ABC, Generic[StructDataT]):
         is_tracked = self.__dict__.get("_status", UNSET) == InterpStatus.TRACKED
         prop = self.__properties__.get(key)
         if prop is not None:
-            if prop.is_ephemeral or prop.is_autoset:  # untracked
+            if prop.is_ephemeral and not prop.is_value_runtime or prop.is_autoset:  # untracked
                 return object.__setattr__(self, key, value)
             elif prop.reference_kind == ReferenceKind.NODE_CHILDREN:
                 attr = object.__getattribute__(self, key)
@@ -1068,6 +1068,20 @@ class Struct(abc.ABC, Generic[StructDataT]):
             if is_tracked:
                 # notify
                 self._updated_self((prop,))
+                if self.__is_node__:
+                    node = cast("Node", self)
+                    if not node._is_new:
+                        session = node._session
+                        assert session, f"no session for {node!r}"
+                        if self._updated_properties is None:
+                            self._updated_properties = bitarray(self.__max_property_ord__ + 1)
+                        self._updated_properties[prop.ord] = True
+                        session.update(node, properties=(prop,))
+                else:  # is struct
+                    # will need to deal with Value parents eventually...
+                    assert isinstance(self.parent, Struct), f"unexpected parent: {self.parent!r}"
+                    if self.parent is not None:
+                        self.parent._updated_component((prop,))
         elif is_tracked and self.__passthrough__ is not None:
             # try passthrough target (if any)
             target = getattr(self, self.__passthrough__)
@@ -1231,22 +1245,8 @@ class Struct(abc.ABC, Generic[StructDataT]):
         self._updated_properties = None
 
     def _updated_component(self, properties: Collection[Property]) -> None:
-        """Called when properties in this struct have been updated successfully."""
-        if self._status == InterpStatus.TRACKED:
-            if self.__is_node__:
-                if not cast("Node", self)._is_new:
-                    session = cast("Node", self)._session
-                    assert session
-                    if self._updated_properties is None:
-                        self._updated_properties = bitarray(self.__max_property_ord__ + 1)
-                    for prop in properties:
-                        self._updated_properties[prop.ord] = True
-                        session.update(cast("Node", self), properties=properties)
-            else:  # is struct
-                # will need to deal with Value parents eventually...
-                assert isinstance(self.parent, Struct), f"unexpected parent: {self.parent!r}"
-                if self.parent is not None:
-                    self.parent._updated_component(properties)
+        """Called when properties in this struct have been updated successfully, but before notifying the update."""
+        pass
 
     def __bool__(self):
         return True  # allow truthy checks for structs

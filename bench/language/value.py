@@ -11,6 +11,7 @@ import structlog
 from bench.language.const import (
     PY_TYPE_BY_PRIMITIVE_TYPE,
     EnumType,
+    InterpStatus,
     NodeType,
     PrimitiveType,
     PrimitiveValue,
@@ -40,9 +41,9 @@ if TYPE_CHECKING:
         Session,
         Step,
         Trigger,
+        TypeInfoBase,
         User,
     )
-    from bench.language.field import TypeInfoBase
     from bench.language.node import BasedNode
     from bench.language.notice import NoticeHandler
     from bench.language.validation import ValidationHandler
@@ -671,15 +672,61 @@ from bench.language.node import Struct, struct, struct_component  # noqa: E402
 
 @struct_component()
 class HasValues(Struct):
-    # nocheckin: HasValues
     def _init_component(self) -> None:
-        pass
+        if self._status >= InterpStatus.INTERPED:
+            self._pack_values_inplace(self.__value_properties__.values())
 
     def _interp_component(self, scope: "Node | None", notice: "NoticeHandler"):
-        pass
+        # unpack values
+        self._unpack_values_inplace(self.__value_properties__.values())
 
     def _updated_component(self, properties: Collection[Property]) -> None:
-        pass
+        # update packed properties
+        if len(properties) == 0 or any(prop.is_value_runtime for prop in properties):
+            # TODO :Performance: only update packed values prior to serialization?
+            #  (would be nice to summarize them into bigger edits to avoid unnecessary work)
+            self._pack_values_inplace(properties)
+
+    def _resolve_value_prop_type(self, prop: Property) -> "TypeInfoBase":
+        """Gets the effective type info for the given value prop"""
+        if prop.value_type_info_getter is not None:
+            return prop.value_type_info_getter(self)
+        elif prop.value_type_info_ptr is not None:
+            assert (
+                type(prop.value_type_info_ptr) is Property
+            ), f"{prop!r} has no value_type_info_ptr"
+            type_value = getattr(self, prop.value_type_info_ptr.name)
+            assert isinstance(type_value, Node), f"{type_value!r} is not a Node"
+            assert type_value.metatype == NodeType.BLOCK, f"{type_value!r} is not a Block"
+            return cast("Block", type_value).as_type
+        else:
+            raise RuntimeError(f"no type info for {prop!r} in {self!r}")
+
+    def _unpack_values_inplace(self, properties: Collection[Property]) -> None:
+        # we don't handle :SecretValues yet
+        for prop in properties:
+            if not prop.is_value_runtime:
+                continue
+            assert type(prop.value_packed_ptr) is Property, f"{prop!r} has no value_packed_ptr"
+            value_packed = getattr(self, prop.value_packed_ptr.name)
+            if value_packed is not None:
+                value_type = self._resolve_value_prop_type(prop)
+                value = unpack_value(value_packed, None, value_type)
+                setattr(self, prop.name, value)
+
+    def _pack_values_inplace(self, properties: Collection[Property]) -> None:
+        # we don't handle :SecretValues yet
+        for prop in properties:
+            if not prop.is_value_runtime:
+                continue
+            value_type = self._resolve_value_prop_type(prop)
+            value = getattr(self, prop.name)
+            assert type(prop.value_packed_ptr) is Property, f"{prop!r} has no value_packed_ptr"
+            if value is not None:
+                value_packed, _ = pack_value(value, value_type)
+                setattr(self, prop.value_packed_ptr.name, value_packed)
+            else:
+                setattr(self, prop.value_packed_ptr.name, None)
 
 
 @struct(StructType.CONTEXT)

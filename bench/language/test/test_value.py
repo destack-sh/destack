@@ -2,15 +2,18 @@ from typing import cast
 
 import pytest
 
+from bench.conftest import test_session
 from bench.language.block import Block
 from bench.language.const import BlockType, NodeType, PrimitiveType, StructType
-from bench.language.field import Field, FieldZone, TypeKind
+from bench.language.field import Field, FieldZone, TypeKind, to_type
 from bench.language.notice import on_notice_ignore
 from bench.language.text import Text
 from bench.language.value import Object, pack_value, unpack_value
 
 
 def test_coerce_nested_value() -> None:
+    """Coerce a nested Object value."""
+
     # choice block
     Choice1 = Block(type=BlockType.CHOICE, name="Choice1")
     Choice1.fields.extend(
@@ -49,7 +52,27 @@ def test_coerce_nested_value() -> None:
     assert object_outer.field4 == object_inner
 
 
+async def test_roundtrip_scalar_value() -> None:
+    """Pack/unpack a scalar value inside a (Variable) Block (which HasValues)."""
+
+    async with test_session():
+        # first set in constructor
+        type_info = to_type(PrimitiveType.INT32)
+        block = Block(type=BlockType.VARIABLE, name="Variable1", builtin_base=type_info, value=7)
+        assert block.value == 7
+        assert block.value_packed is not None
+        assert unpack_value(block.value_packed, block.secret_value_packed, type_info) == 7
+
+        # set at runtime
+        block.value = 42
+        assert block.value == 42
+        assert block.value_packed is not None
+        assert unpack_value(block.value_packed, block.secret_value_packed, type_info) == 42
+
+
 def test_roundtrip_nested_value():
+    """Pack/unpack a nested Object value."""
+
     # choice block
     choice1 = Block(type=BlockType.CHOICE, name="Choice1")
     choice1.fields.create(name="Option1", zone=FieldZone.OPTION)
@@ -76,7 +99,7 @@ def test_roundtrip_nested_value():
     )
     class1.fields.create(name="Field4", base_type=class2, kind=TypeKind.ALIAS)
 
-    # TODO :Cleanup :Test: interp/to_resolved shit should not be necessary
+    # TODO :Cleanup :Test: interp in in this test shouldn't be necessary
     #  (run this test in session? or somehow in 'tracked' mode)
     choice1._interp_rec(None, on_notice_ignore)
     class2._interp_rec(None, on_notice_ignore)
@@ -84,7 +107,7 @@ def test_roundtrip_nested_value():
 
     # outer value
     value = cast(Object, class1())
-    # TODO :Broken: pack/unpack_value does not turn node refs back into nodes
+    # TODO :Broken: pack/unpack_value does not yet turn node refs back into nodes
     #  (so the assertion below would fail if the next line is uncommented)
     # value.field1 = choice1.fields.Option1
     value.field2 = False

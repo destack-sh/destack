@@ -1,7 +1,7 @@
 import { pretendReadonly } from "@/utils/ref";
 import { ref } from "vue";
 
-export const VERSION = "2024.05.14.1";
+export const VERSION = "2024.05.15.0";
 export const COMMIT = import.meta.env.VITE_VERCEL_GIT_COMMIT_SHA;
 
 export const IS_DEBUG = import.meta.env.DEV;

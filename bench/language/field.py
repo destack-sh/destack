@@ -12,6 +12,7 @@ from bench.language.const import (
     EnumType,
     FieldZone,
     FormatHint,
+    InterpStatus,
     NodeType,
     PrimitiveValue,
     StructType,
@@ -102,17 +103,17 @@ def encode_type_identity(typ: "TypeInfoBase") -> str | None:
 
     value: str
     if typ.kind == TypeKind.PRIMITIVE:
-        assert typ.primitive_type is not None
+        assert typ.primitive_type is not None, f"missing primitive type for {typ!r}"
         value = encode_b64vlq(typ.primitive_type.id)
     elif typ.kind == TypeKind.NODE or typ.kind == TypeKind.STRUCT or typ.kind == TypeKind.ENUM:
-        assert typ.bench_type is not None
+        assert typ.bench_type is not None, f"missing bench type for {typ!r}"
         value = encode_b64vlq(typ.bench_type.id)
     elif typ.kind == TypeKind.BASED_NODE:
-        assert typ.base_type_ptr is not None
-        assert typ.bench_type is not None
+        assert typ.base_type_ptr is not None, f"missing base type for {typ!r}"
+        assert typ.bench_type is not None, f"missing bench type for {typ!r}"
         value = f"{get_tk_b64_from_ptr(typ.base_type_ptr)}{encode_b64vlq(typ.bench_type.id)}"
     elif typ.kind == TypeKind.OBJECT:
-        assert typ.base_type_ptr is not None
+        assert typ.base_type_ptr is not None, f"missing base type for {typ!r}"
         value = get_tk_b64_from_ptr(typ.base_type_ptr)
     else:
         return None
@@ -236,7 +237,7 @@ class TypeInfoBase(HasValues):
 
     # + bonus info/constraints
     default_packed: Optional[Any] = p_value_packed(50)
-    default = p_value_runtime(packed=50)
+    default = p_value_runtime(packed=50, type=lambda self: cast("TypeInfoBase", self))
     visibility: Optional[Visibility] = p_regular(52, default=None)
     format_hint: Optional[FormatHint] = p_regular(53, default=None)
     condition: Optional["Expression"] = p_regular(
@@ -280,6 +281,16 @@ class TypeInfoBase(HasValues):
             info_str += f" from {str(self._from_property)}"
 
         return info_str
+
+    def _init_component(self) -> None:
+        if self._status >= InterpStatus.INTERPED and self.kind in (
+            TypeKind.PRIMITIVE,
+            TypeKind.STRUCT,
+            TypeKind.ENUM,
+            TypeKind.NODE,
+        ):
+            # immediately resolve determined types for convenience
+            self._do_resolve_to(self)  # :TypeResolution
 
     def _interp_component(self, scope: Optional["Node"], notice: "NoticeHandler"):
         # TODO :Incomplete: proper type resolution (consider multi-step aliases, inheritance, ...)
@@ -338,6 +349,8 @@ class TypeInfoBase(HasValues):
         return self._resolved_identity_key
 
     def _do_resolve_to(self, typ: Optional["TypeInfoBase"]) -> None:
+        if self._resolved_type is typ:
+            return
         self._resolved_type = typ
         self._resolved_identity_key = encode_type_identity(typ) if typ else None
         if typ is not None and typ is not self:

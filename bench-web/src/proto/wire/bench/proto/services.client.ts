@@ -7,6 +7,8 @@
 //All the services and any additional stuff not auto-generated in bench.proto.
 //
 import { Runtime } from "./services";
+import type { StartRunResponse } from "./services";
+import type { StartRunRequest } from "./services";
 import type { RestartRuntimeResponse } from "./services";
 import type { RestartRuntimeRequest } from "./services";
 import { Host } from "./services";
@@ -654,11 +656,17 @@ export class HostClient implements IHostClient, ServiceInfo {
  */
 export interface IRuntimeClient {
     /**
-     * Restart this server immediately.
+     * Restart this runtime. If force, skip graceful shutdown.
      *
      * @generated from protobuf rpc: Restart(symbolx.bench.RestartRuntimeRequest) returns (symbolx.bench.RestartRuntimeResponse);
      */
     restart(input: RestartRuntimeRequest, options?: OperationOptions): UnaryCall<RestartRuntimeRequest, RestartRuntimeResponse>;
+    /**
+     * Starts a new Run in this runtime. The Run must already exist in the graph.
+     *
+     * @generated from protobuf rpc: StartRun(symbolx.bench.StartRunRequest) returns (symbolx.bench.StartRunResponse);
+     */
+    startRun(input: StartRunRequest, options?: OperationOptions): UnaryCall<StartRunRequest, StartRunResponse>;
 }
 /**
  * A Runtime for running a Bench in an isolated environment.
@@ -673,13 +681,22 @@ export class RuntimeClient implements IRuntimeClient, ServiceInfo {
     constructor(private readonly _transport: RpcTransport) {
     }
     /**
-     * Restart this server immediately.
+     * Restart this runtime. If force, skip graceful shutdown.
      *
      * @generated from protobuf rpc: Restart(symbolx.bench.RestartRuntimeRequest) returns (symbolx.bench.RestartRuntimeResponse);
      */
     restart(input: RestartRuntimeRequest, options?: OperationOptions): UnaryCall<RestartRuntimeRequest, RestartRuntimeResponse> {
         const method = this.methods[0], opt = this._transport.mergeOptions(options);
         return stackIntercept<RestartRuntimeRequest, RestartRuntimeResponse>("unary", this._transport, method, opt, input);
+    }
+    /**
+     * Starts a new Run in this runtime. The Run must already exist in the graph.
+     *
+     * @generated from protobuf rpc: StartRun(symbolx.bench.StartRunRequest) returns (symbolx.bench.StartRunResponse);
+     */
+    startRun(input: StartRunRequest, options?: OperationOptions): UnaryCall<StartRunRequest, StartRunResponse> {
+        const method = this.methods[1], opt = this._transport.mergeOptions(options);
+        return stackIntercept<StartRunRequest, StartRunResponse>("unary", this._transport, method, opt, input);
     }
 }
 

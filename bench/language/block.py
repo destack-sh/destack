@@ -1,7 +1,7 @@
 import typing
 from dataclasses import dataclass
 from datetime import datetime
-from typing import TYPE_CHECKING, Any, Collection, Optional, Union
+from typing import TYPE_CHECKING, Any, Collection, Optional, Union, cast
 
 from bench.language.const import BlockType, NodeType, StructType, TypeKind, Visibility
 from bench.language.database import Database
@@ -22,7 +22,6 @@ from bench.proto.wire import BlockData
 from bench.utils.casing import IdentifierType
 from bench.utils.dt import utcnow_with_tz
 from bench.utils.fractional import INTEGER_ZERO
-from bench.utils.func import dict_minus
 
 if TYPE_CHECKING:
     from bench.language import (
@@ -120,7 +119,7 @@ class Block(Node[BlockData], HasValues):
     visibility: Optional[Visibility] = p_regular(39, default=None, require=False)
     value_packed: Any = p_value_packed(40)
     secret_value_packed: Any | None = p_secret_value_packed(41)
-    value = p_value_runtime(40, 41)
+    value = p_value_runtime(40, 41, type=lambda self: cast("Block", self).as_type)
     code: Optional["Code"] = p_regular(
         42, default=None, require=False, array=False, struct=StructType.CODE
     )
@@ -141,41 +140,9 @@ class Block(Node[BlockData], HasValues):
     blocks: NodeList["Block"] = p_node_child(NodeType.BLOCK)
     badges: NodeList["Badge"] = p_node_child(NodeType.BADGE)
     fields: NodeList["Field"] = p_node_child(NodeType.FIELD)
-    notices: NodeList["Notice"] = p_node_child(NodeType.NOTICE)
     steps: NodeList["Step"] = p_node_child(NodeType.STEP)
     triggers: NodeList["Trigger"] = p_node_child(NodeType.TRIGGER)
-
-    @staticmethod
-    def new(
-        type: BlockType,
-        name: str,
-        *args,
-        for_parent: Union["Block", "Package", None] = None,
-        **kwargs,
-    ) -> "Block":
-        if type is None:
-            raise ValueError("type must be specified")
-        if not isinstance(type, BlockType):
-            type = BlockType(type.lower())
-        return Block(type=type, name=name, *args, **kwargs)
-
-    # the others are defined after the class
-
-    @staticmethod
-    def to_python(
-        node, props: dict, for_parent: Union["Block", "Package", None] = None
-    ) -> tuple[str, dict, dict]:
-        init_name = f"{node.type.lower()}Block"
-        if node.type == BlockType.BLANK:
-            init_args = {}
-        elif node.type == BlockType.TEXT:
-            init_args = {"text": node.text}
-            if node.name:
-                init_args = {"name": node.name, **init_args}
-            props = dict_minus(props, "text")
-        else:
-            init_args = {"name": node.name}
-        return init_name, init_args, dict_minus(props, "name", "type", "tag", "flags")
+    notices: NodeList["Notice"] = p_node_child(NodeType.NOTICE)
 
     @property
     def _components(self) -> tuple[typing.Type[Node], ...]:
@@ -252,7 +219,10 @@ class Block(Node[BlockData], HasValues):
             return typ(*args, **kwargs)
 
     def to_type(self) -> "TypeInfo | None":
-        """Get the default implicit type for this Block (if any)."""
+        """
+        Get the default implicit type for this Block (if any).
+        TODO :Performance: cache Block.to_type (in interp?)
+        """
         from bench.language.field import TypeInfo
 
         if self.type == BlockType.CLASS:
@@ -263,6 +233,8 @@ class Block(Node[BlockData], HasValues):
             typ = TypeInfo(kind=TypeKind.BASED_NODE, base_type=self, bench_type=NodeType.FIELD)
         elif self.type == BlockType.SIGNAL:
             typ = TypeInfo(kind=TypeKind.BASED_NODE, base_type=self, bench_type=NodeType.SIGNAL)
+        elif self.type == BlockType.VARIABLE:
+            return self.builtin_base  # nothing to resolve
         elif self.type == BlockType.DATABASE:
             typ = TypeInfo(kind=TypeKind.BASED_NODE, base_type=self, bench_type=NodeType.RECORD)
         elif self.type.is_runnable:
