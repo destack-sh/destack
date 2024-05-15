@@ -93,7 +93,7 @@ class Runtime(RuntimeBase, MonitoredServiceBase):
             self._main_package = await PACKAGE_QUERY.get(id=self._bench.main_branch.package_id)
             self._packages[self._main_package.id] = self._main_package
 
-        # nocheckin: watch for edits in runtime
+        # nocheckin: watch for edits in runtime, reconnect & re-watch on error (like in bench-web)
 
     def close(self):
         pass
@@ -105,6 +105,7 @@ class Runtime(RuntimeBase, MonitoredServiceBase):
 @asynccontextmanager
 async def local_session(supervisor: SupervisorStub, bench_id: UUID, host: HostStub):
     bench_scope = GraphScope(bench_id=str(bench_id))
+    # nocheckin: auto-retry engines on error? (or only remote?)
     engines = (
         RemoteEngine(default_scope=bench_scope, node_types=BENCH_NODE_TYPES, remote=host),
         RemoteEngine(default_scope=bench_scope, node_types=LOADED_PACKAGE_NODE_TYPES, remote=host),

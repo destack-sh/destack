@@ -11,7 +11,7 @@ import "bench/proto/lang.proto";
 import "google/protobuf/timestamp.proto";
 
 //
-// Common graph operations
+// Graph
 //
 
 message GetNodesRequest {
@@ -259,7 +259,7 @@ service Supervisor {
 }
 
 //
-// Package host
+// Host
 //
 
 message SnapshotPackageRequest {
@@ -346,7 +346,7 @@ service Host {
 }
 
 //
-// Runtime service
+// Runtime
 //
 
 message RestartRuntimeRequest {
@@ -355,9 +355,18 @@ message RestartRuntimeRequest {
 message RestartRuntimeResponse {
 }
 
+message StartRunRequest {
+  RunData run = 1;
+}
+message StartRunResponse {
+
+}
+
 // A Runtime for running a Bench in an isolated environment.
 // The Runtime may run any number of processes to process its Runs in Sessions.
 service Runtime {
-  // Restart this server immediately.
+  // Restart this runtime. If force, skip graceful shutdown.
   rpc Restart(RestartRuntimeRequest) returns (RestartRuntimeResponse);
+  // Starts a new Run in this runtime. The Run must already exist in the graph.
+  rpc StartRun(StartRunRequest) returns (StartRunResponse);
 }

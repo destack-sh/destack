@@ -26,8 +26,10 @@ from bench.proto.wire import (
     ExpressionData,
     GraphIoStub,
     GraphScope,
+    HostStub,
     NodeReferenceData,
     ReadOptionsData,
+    SupervisorStub,
 )
 from bench.utils.func import bytetuple
 
@@ -201,7 +203,7 @@ class RemoteEngine(StoreEngine[NodeT, NodeDataT]):
         self,
         default_scope: GraphScope,
         node_types: tuple[NodeType, ...] | bytetuple[NodeType],
-        remote: GraphIoStub,
+        remote: GraphIoStub | HostStub | SupervisorStub,
     ):
         super().__init__(node_types)
         self.default_scope = default_scope

@@ -228,14 +228,24 @@ class Expression(HasValues):
     )
     clauses: list["Expression"] | None = p_regular(35, array=True, struct=StructType.EXPRESSION)
     value_packed: Any = p_value_packed(36)
-    value: Any = p_value_runtime(36)
-    sort_mode: Optional[SortMode] = p_regular(37, default=None)
+    value: Any = p_value_runtime(36, type=lambda self: cast(Expression, self)._value_type)
+    sort_mode: Optional[SortMode] = p_regular(38, default=None)
 
     @__property__
     def kind(self) -> ExpressionKind:
         return EXPRESSION_KIND_BY_OP[self.op]
 
+    @__property__
+    def _value_type(self) -> "TypeInfo":
+        if self.field is not None:
+            return self.field.as_type_info
+        elif self.property is not None:
+            return self.property.as_type_info
+        else:
+            raise ValueError(f"no target for {self!r}")
+
     def __bool__(self):
+        # safe-guard to ensure expressions are not used directly in boolean context
         raise TypeError(f"cannot evaluate {self!r} directly (did you mean to compare a property?)")
 
     def __content_str__(self):

@@ -25,7 +25,7 @@ from bench.language.const import (
     active_tx,
 )
 from bench.language.graph import NodeDataGraph
-from bench.language.node import NODE_CLASS_BY_TYPE, Node, node
+from bench.language.node import NODE_CLASS_BY_TYPE, Node, ReadInfo, node
 from bench.language.property import p_node_parent, p_regular
 from bench.language.setup import ANCESTOR_NODE_TYPES
 from bench.proto.wire import AnyNodeData, QueryData
@@ -402,12 +402,15 @@ class QueryBuilder(
         from bench.proto.wiring import unpack_roots
 
         tx = active_tx()
-        connection = await tx.connect_store(
+        connection = await tx.connect(
             base=self._base, node_type=self._node_type, access_kind=AccessKind.READ
         )
         result = await connection.fetch(self, FetchOptions())
         data_graph = NodeDataGraph(result.nodes)
-        roots = unpack_roots(data_graph, parent=self._base, session=tx.session, roots=result.roots)
+        read = ReadInfo(options=self._options, epoch=result.epoch) if self._options else None
+        roots = unpack_roots(
+            data_graph, parent=self._base, session=tx.session, roots=result.roots, read=read
+        )
         return cast(tuple[NodeT, ...], roots)
 
     tolist = fetch  # type: ignore
@@ -420,11 +423,11 @@ class QueryBuilder(
         filter = coerce_conditional(self._node_cls, filter, kwargs, return_none_if_empty=True)
         query = self.where(filter) if filter is not None else self
         query = query.aggregate(A(AggregationOp.COUNT))
-        connection = await active_tx().connect_store(
+        connection = await active_tx().connect(
             base=query._base, node_type=query._node_type, access_kind=AccessKind.READ
         )
         result = await connection.aggregate(query)
-        assert result.aggregation.count is not None
+        assert result.aggregation.count is not None, f"missing count in {result!r}"
         return result.aggregation.count
 
     @_auto_async_to_sync
@@ -435,9 +438,9 @@ class QueryBuilder(
         filter = coerce_conditional(self._node_cls, filter, kwargs, return_none_if_empty=True)
         query = self.where(filter) if filter is not None else self
         query = query.aggregate(A(AggregationOp.EXISTS))
-        connection = await active_tx().connect_store(
+        connection = await active_tx().connect(
             base=query._base, node_type=query._node_type, access_kind=AccessKind.READ
         )
         result = await connection.aggregate(query)
-        assert result.aggregation.exists is not None
+        assert result.aggregation.exists is not None, f"missing exists in {result!r}"
         return result.aggregation.exists

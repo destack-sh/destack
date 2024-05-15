@@ -173,7 +173,7 @@ class GraphIoServiceBase(BenchServiceBase, GraphIoBase):
                     ),
                     options=adapted_options,
                 )
-                connection = await session.tx.connect_store(
+                connection = await session.tx.connect(
                     request.scope, node_type, AccessKind.READ
                 )
                 result = await connection.fetch(query, FetchOptions(count=False))
@@ -216,7 +216,7 @@ class GraphIoServiceBase(BenchServiceBase, GraphIoBase):
             query = QueryBuilder(
                 node_type=node_type, filter=filter, options=adapted_options, sort=sort
             )
-            connection = await session.tx.connect_store(request.scope, node_type, AccessKind.READ)
+            connection = await session.tx.connect(request.scope, node_type, AccessKind.READ)
             result = await connection.fetch(query, FetchOptions(count=request.count or False))
             graph = NodeDataGraph(result.nodes)
         access = generate_access_matrix(subject, graph)
@@ -250,7 +250,7 @@ class GraphIoServiceBase(BenchServiceBase, GraphIoBase):
             query = QueryBuilder(
                 node_type=node_type, filter=filter, options=adapted_options, aggregation=aggregation
             )
-            connection = await session.tx.connect_store(request.scope, node_type, AccessKind.READ)
+            connection = await session.tx.connect(request.scope, node_type, AccessKind.READ)
             result = await connection.aggregate(query)
 
         logger.debug("graph.aggregate", subject=subject, request=request, epoch=self.epoch)
@@ -278,7 +278,7 @@ class GraphIoServiceBase(BenchServiceBase, GraphIoBase):
                     ),
                     options=options,
                 )
-                connection = await session.tx.connect_store(
+                connection = await session.tx.connect(
                     request.scope, node_type, AccessKind.EDIT
                 )
                 result = await connection.fetch(query, FetchOptions(count=False))
