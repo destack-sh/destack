@@ -13,7 +13,7 @@ from bench.utils.utils import frozendict
 if typing.TYPE_CHECKING:
     from bench.language import Session, Transaction
 
-VERSION = "2024.05.15.2"
+VERSION = "2024.05.15.3"
 REVISION_PENDING = -1
 TK_LENGTH_BYTES = 8
 TK_LENGTH_B64 = 12  # 1.5 * TK_LENGTH_BYTES (must be integer)
@@ -203,7 +203,7 @@ class NodeType(IdEnum):
     SERVER = 160
     STORE = 161  # any 'database' (Postgres/OpenSearch/ClickHouse)
     DRIVE = 162  # 'bucket' like S3/MinIO, maybe block storage later
-    CACHE = 163  # KV memory store (Redis/Memcached)
+    # CACHE = ...  # KV memory store (Redis/Memcached)
     # MACHINE = ... # actual machine providing processor/memory/storage for resources
     # DOMAIN, EMAIL, ...
     FILE_CONTENT = 180  # in a Drive
@@ -302,8 +302,6 @@ class StructType(IdEnum):
     RUN_CODE_FRAME = 1110
     RUN_ERROR = 1111
     # CURSOR?
-
-    RESOURCE_CREDENTIAL = 1132
 
     # text
     TEXT = 1160

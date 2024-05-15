@@ -11,7 +11,7 @@ from bench.sql.core import (
     Table,
 )
 
-VERSION = "2024.05.15.2"
+VERSION = "2024.05.15.3"
 
 BENCH_TABLE = Table(
     "bench_bench",
@@ -57,13 +57,6 @@ BENCH_TABLE = Table(
         ),
         Column(
             "main_branch_id",
-            PrimitiveType.UUID,
-            is_foreign_key_to="bench_branch",
-            on_delete=CascadeAction.SET_NULL,
-            is_nullable=True,
-        ),
-        Column(
-            "published_branch_id",
             PrimitiveType.UUID,
             is_foreign_key_to="bench_branch",
             on_delete=CascadeAction.SET_NULL,
@@ -125,31 +118,10 @@ ENVIRONMENT_TABLE = Table(
             on_delete=CascadeAction.SET_NULL,
         ),
         Column(
-            "search_store_id",
-            PrimitiveType.UUID,
-            is_foreign_key_to="bench_store",
-            on_delete=CascadeAction.SET_NULL,
-            is_nullable=True,
-        ),
-        Column(
-            "analytics_store_id",
-            PrimitiveType.UUID,
-            is_foreign_key_to="bench_store",
-            on_delete=CascadeAction.SET_NULL,
-            is_nullable=True,
-        ),
-        Column(
             "drive_id",
             PrimitiveType.UUID,
             is_foreign_key_to="bench_drive",
             on_delete=CascadeAction.SET_NULL,
-        ),
-        Column(
-            "cache_id",
-            PrimitiveType.UUID,
-            is_foreign_key_to="bench_cache",
-            on_delete=CascadeAction.SET_NULL,
-            is_nullable=True,
         ),
     ),
     indexes=(
@@ -1693,51 +1665,6 @@ STORE_TABLE = Table(
 
 DRIVE_TABLE = Table(
     "bench_drive",
-    (
-        Column("id", PrimitiveType.UUID, is_primary_key=True),
-        Column(
-            "parent_bench_id",
-            PrimitiveType.UUID,
-            is_foreign_key_to="bench_bench",
-            on_delete=CascadeAction.CASCADE,
-            is_nullable=True,
-        ),
-        Column("bench_id", PrimitiveType.UUID),
-        Column("revision", PrimitiveType.INT64, default="0"),
-        Column("created_at", PrimitiveType.DATETIME),
-        Column("updated_at", PrimitiveType.DATETIME),
-        Column("deleted_at", PrimitiveType.DATETIME, is_nullable=True),
-        Column("archived_at", PrimitiveType.DATETIME, is_nullable=True),
-        Column("created_by_id", PrimitiveType.UUID, is_nullable=True),
-        Column("created_by_ck", PrimitiveType.UUID, is_nullable=True),
-        Column("created_by_type", PrimitiveType.INT16, is_nullable=True),
-        Column("created_by_base_ck", PrimitiveType.UUID, is_nullable=True),
-        Column("updated_by_id", PrimitiveType.UUID, is_nullable=True),
-        Column("updated_by_ck", PrimitiveType.UUID, is_nullable=True),
-        Column("updated_by_type", PrimitiveType.INT16, is_nullable=True),
-        Column("updated_by_base_ck", PrimitiveType.UUID, is_nullable=True),
-        Column("set_properties", PrimitiveType.INT32, is_array=True),
-        Column("name", PrimitiveType.STRING),
-        Column("text", PrimitiveType.JSON, is_nullable=True),
-        Column("region", PrimitiveType.INT16, default="1"),
-        Column("tenancy", PrimitiveType.INT16, default="3"),
-        Column("status", PrimitiveType.INT16, default="1"),
-    ),
-    indexes=(
-        Index("bench_idx_deleted_at", IndexType.BTREE, ("deleted_at",)),
-        Index("bench_idx_archived_at", IndexType.BTREE, ("archived_at",)),
-    ),
-    constraints=(
-        Constraint(
-            "bench_check_one_parent",
-            ConstraintType.CHECK,
-            condition="(parent_bench_id IS NOT NULL)",
-        ),
-    ),
-)
-
-CACHE_TABLE = Table(
-    "bench_cache",
     (
         Column("id", PrimitiveType.UUID, is_primary_key=True),
         Column(

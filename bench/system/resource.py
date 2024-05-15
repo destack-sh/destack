@@ -22,8 +22,8 @@ from bench.language import (
     Tenancy,
     User,
 )
-from bench.sql.neon import create_local_pg_store, migrate_local_pg_store
 from bench.system.auth import generate_encryption_key
+from bench.system.neon import create_local_pg_store, migrate_local_pg_store
 from bench.utils.utils import get_from_env
 
 logger = structlog.get_logger(__name__)
@@ -89,7 +89,7 @@ async def create_default_bench(
     drive = bench.drives.create(region=bench.region, tenancy=Tenancy.SHARED, name="Drive")
 
     # create main environment/branch/package
-    environment = bench.environments.create(name="Main", store=store, drive=drive, server=server)
+    environment = bench.environments.create(name="Main", server=server, store=store, drive=drive)
     branch = bench.branches.create(name="Main", slug="main")
     package = bench.packages.create(environment=environment)
     await session.flush()

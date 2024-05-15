@@ -11,6 +11,16 @@ services:
     ports:
       - '5432:5432'
 
+  # nocheckin: local neon
+  neon: 
+    image: neondatabase/neon:latest
+    restart: on-failure
+    volumes:
+      - neon-data:/data
+    command: >
+      neon_local init && 
+      neon_local start
+
   minio:
     image: minio/minio:latest
     restart: on-failure
@@ -48,3 +58,4 @@ services:
       - '9901:9901'
 volumes:
   redis-data:
+  neon-data:

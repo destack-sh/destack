@@ -13,7 +13,7 @@ from bench.language.const import (
     enum_,
 )
 from bench.language.graph import NodeList
-from bench.language.node import Node, Struct, node, node_component, struct
+from bench.language.node import Node, node, node_component
 from bench.language.property import (
     p_internal,
     p_kernel,
@@ -26,7 +26,6 @@ from bench.language.text import Text
 from bench.language.validation import NAME_CONSTRAINT
 from bench.proto.wire import (
     AnyNodeData,
-    CacheData,
     ClientData,
     DriveData,
     FileContentData,
@@ -165,17 +164,9 @@ class Client(Node[ClientData]):
         return cast("User", self.parent)
 
 
-@struct(StructType.RESOURCE_CREDENTIAL, inline=True)
-class ResourceCredential(Struct):
-    username: str = p_regular(31, sensitive=True)
-    password: str = p_regular(32, sensitive=True)
-
-
 @node(NodeType.STORE)
 class Store(Resource[StoreData]):
-    """
-    Classic databases, virtualized over a physical database of that spec.
-    """
+    """Postgres database."""
 
     kind: StoreKind = p_system(40)
     engine: StoreEngineType = p_system(41)
@@ -193,9 +184,7 @@ class Store(Resource[StoreData]):
 
 @node(NodeType.DRIVE)
 class Drive(Resource[DriveData]):
-    """
-    Drive for file/block storage.
-    """
+    """Drive for file storage."""
 
     ...
 
@@ -218,10 +207,3 @@ class FileContent(Node[FileContentData]):
     status: FileStatus = p_internal(33)
     retention: FileRetentionMode = p_regular(34)
     expires_at: Optional[datetime] = p_regular(35)
-
-
-@node(NodeType.CACHE)
-class Cache(Resource[CacheData]):
-    """Cache for ephemeral data."""
-
-    ...
