@@ -102,8 +102,8 @@ class Anchor(betterproto.Enum):
 class BenchType(betterproto.Enum):
     UNSPECIFIED = 0
     BENCH = 1
-    ENVIRONMENT = 3
-    BRANCH = 4
+    ENVIRONMENT = 2
+    BRANCH = 3
     PACKAGE = 20
     DEPENDENCY = 21
     UPGRADE = 22
@@ -114,11 +114,9 @@ class BenchType(betterproto.Enum):
     BLOCK = 30
     TRIGGER = 31
     FIELD = 32
-    RECORD = 33
-    QUERY = 34
-    VIEW = 35
-    STEP = 36
-    MESSAGE = 37
+    QUERY = 33
+    VIEW = 34
+    STEP = 35
     BADGE = 60
     ROLE = 61
     IDENTITY = 62
@@ -129,6 +127,8 @@ class BenchType(betterproto.Enum):
     SIGNAL = 82
     LOG = 83
     NOTIFICATION = 84
+    MESSAGE = 85
+    RECORD = 86
     SERVER = 160
     STORE = 161
     DRIVE = 162
@@ -589,8 +589,8 @@ class LogLevel(betterproto.Enum):
 class NodeType(betterproto.Enum):
     UNSPECIFIED = 0
     BENCH = 1
-    ENVIRONMENT = 3
-    BRANCH = 4
+    ENVIRONMENT = 2
+    BRANCH = 3
     PACKAGE = 20
     DEPENDENCY = 21
     UPGRADE = 22
@@ -601,11 +601,9 @@ class NodeType(betterproto.Enum):
     BLOCK = 30
     TRIGGER = 31
     FIELD = 32
-    RECORD = 33
-    QUERY = 34
-    VIEW = 35
-    STEP = 36
-    MESSAGE = 37
+    QUERY = 33
+    VIEW = 34
+    STEP = 35
     BADGE = 60
     ROLE = 61
     IDENTITY = 62
@@ -616,6 +614,8 @@ class NodeType(betterproto.Enum):
     SIGNAL = 82
     LOG = 83
     NOTIFICATION = 84
+    MESSAGE = 85
+    RECORD = 86
     SERVER = 160
     STORE = 161
     DRIVE = 162
@@ -659,8 +659,8 @@ class NotificationKind(betterproto.Enum):
 class ObjectType(betterproto.Enum):
     UNSPECIFIED = 0
     BENCH = 1
-    ENVIRONMENT = 3
-    BRANCH = 4
+    ENVIRONMENT = 2
+    BRANCH = 3
     PACKAGE = 20
     DEPENDENCY = 21
     UPGRADE = 22
@@ -671,11 +671,9 @@ class ObjectType(betterproto.Enum):
     BLOCK = 30
     TRIGGER = 31
     FIELD = 32
-    RECORD = 33
-    QUERY = 34
-    VIEW = 35
-    STEP = 36
-    MESSAGE = 37
+    QUERY = 33
+    VIEW = 34
+    STEP = 35
     BADGE = 60
     ROLE = 61
     IDENTITY = 62
@@ -686,6 +684,8 @@ class ObjectType(betterproto.Enum):
     SIGNAL = 82
     LOG = 83
     NOTIFICATION = 84
+    MESSAGE = 85
+    RECORD = 86
     SERVER = 160
     STORE = 161
     DRIVE = 162
@@ -1994,9 +1994,9 @@ class BlockData(betterproto.Message):
     value_packed: Optional["betterproto_lib_google_protobuf.Struct"] = betterproto.message_field(
         40, optional=True
     )
-    secret_value_packed: Optional[
-        "betterproto_lib_google_protobuf.Struct"
-    ] = betterproto.message_field(41, optional=True)
+    secret_value_packed: Optional["betterproto_lib_google_protobuf.Struct"] = (
+        betterproto.message_field(41, optional=True)
+    )
     code: Optional["CodeData"] = betterproto.message_field(42, optional=True)
     delegated_policies: List["PolicyData"] = betterproto.message_field(43)
     is_builtin: bool = betterproto.bool_field(60)
@@ -2387,8 +2387,9 @@ class MembershipData(betterproto.Message):
 @dataclass(eq=False, repr=False)
 class MessageData(betterproto.Message):
     """
-    A Message by a User or Block (whoever created it).
+    A Message by a User or program (author = created_by).
      If the parent is also a Message, then this is part of a thread. Threads may be nested.
+     Messages are ordered by created_at.
     """
 
     metatype: "ObjectType" = betterproto.enum_field(1)
@@ -2413,9 +2414,9 @@ class MessageData(betterproto.Message):
     value_packed: Optional["betterproto_lib_google_protobuf.Struct"] = betterproto.message_field(
         42, optional=True
     )
-    secret_value_packed: Optional[
-        "betterproto_lib_google_protobuf.Struct"
-    ] = betterproto.message_field(43, optional=True)
+    secret_value_packed: Optional["betterproto_lib_google_protobuf.Struct"] = (
+        betterproto.message_field(43, optional=True)
+    )
     is_pinned: bool = betterproto.bool_field(50)
 
 
@@ -2505,9 +2506,9 @@ class NotificationData(betterproto.Message):
     value_packed: Optional["betterproto_lib_google_protobuf.Struct"] = betterproto.message_field(
         42, optional=True
     )
-    secret_value_packed: Optional[
-        "betterproto_lib_google_protobuf.Struct"
-    ] = betterproto.message_field(43, optional=True)
+    secret_value_packed: Optional["betterproto_lib_google_protobuf.Struct"] = (
+        betterproto.message_field(43, optional=True)
+    )
 
 
 @dataclass(eq=False, repr=False)
@@ -2611,9 +2612,9 @@ class RecordData(betterproto.Message):
     value_packed: Optional["betterproto_lib_google_protobuf.Struct"] = betterproto.message_field(
         30, optional=True
     )
-    secret_value_packed: Optional[
-        "betterproto_lib_google_protobuf.Struct"
-    ] = betterproto.message_field(31, optional=True)
+    secret_value_packed: Optional["betterproto_lib_google_protobuf.Struct"] = (
+        betterproto.message_field(31, optional=True)
+    )
 
 
 @dataclass(eq=False, repr=False)
@@ -2679,21 +2680,21 @@ class RunData(betterproto.Message):
     inputs_packed: Optional["betterproto_lib_google_protobuf.Struct"] = betterproto.message_field(
         50, optional=True
     )
-    inputs_secret_packed: Optional[
-        "betterproto_lib_google_protobuf.Struct"
-    ] = betterproto.message_field(51, optional=True)
+    inputs_secret_packed: Optional["betterproto_lib_google_protobuf.Struct"] = (
+        betterproto.message_field(51, optional=True)
+    )
     outputs_packed: Optional["betterproto_lib_google_protobuf.Struct"] = betterproto.message_field(
         52, optional=True
     )
-    outputs_secret_packed: Optional[
-        "betterproto_lib_google_protobuf.Struct"
-    ] = betterproto.message_field(53, optional=True)
+    outputs_secret_packed: Optional["betterproto_lib_google_protobuf.Struct"] = (
+        betterproto.message_field(53, optional=True)
+    )
     value_packed: Optional["betterproto_lib_google_protobuf.Struct"] = betterproto.message_field(
         54, optional=True
     )
-    value_secret_packed: Optional[
-        "betterproto_lib_google_protobuf.Struct"
-    ] = betterproto.message_field(55, optional=True)
+    value_secret_packed: Optional["betterproto_lib_google_protobuf.Struct"] = (
+        betterproto.message_field(55, optional=True)
+    )
     error: Optional["RunErrorData"] = betterproto.message_field(56, optional=True)
     session_ptr: Optional["NodeReferenceData"] = betterproto.message_field(60, optional=True)
     client_ptr: Optional["NodeReferenceData"] = betterproto.message_field(61, optional=True)
@@ -2790,9 +2791,9 @@ class SignalData(betterproto.Message):
     value_packed: Optional["betterproto_lib_google_protobuf.Struct"] = betterproto.message_field(
         34, optional=True
     )
-    secret_value_packed: Optional[
-        "betterproto_lib_google_protobuf.Struct"
-    ] = betterproto.message_field(35, optional=True)
+    secret_value_packed: Optional["betterproto_lib_google_protobuf.Struct"] = (
+        betterproto.message_field(35, optional=True)
+    )
 
 
 @dataclass(eq=False, repr=False)
@@ -2879,9 +2880,9 @@ class StepData(betterproto.Message):
     value_packed: Optional["betterproto_lib_google_protobuf.Struct"] = betterproto.message_field(
         41, optional=True
     )
-    secret_value_packed: Optional[
-        "betterproto_lib_google_protobuf.Struct"
-    ] = betterproto.message_field(42, optional=True)
+    secret_value_packed: Optional["betterproto_lib_google_protobuf.Struct"] = (
+        betterproto.message_field(42, optional=True)
+    )
     node_ptr: Optional["NodeReferenceData"] = betterproto.message_field(43, optional=True)
     condition: Optional["ExpressionData"] = betterproto.message_field(46, optional=True)
 
@@ -3059,21 +3060,21 @@ class SomeNodeData(betterproto.Message):
     block: "BlockData" = betterproto.message_field(11, group="node")
     trigger: "TriggerData" = betterproto.message_field(12, group="node")
     field: "FieldData" = betterproto.message_field(13, group="node")
-    record: "RecordData" = betterproto.message_field(14, group="node")
-    query: "QueryData" = betterproto.message_field(15, group="node")
-    view: "ViewData" = betterproto.message_field(16, group="node")
-    step: "StepData" = betterproto.message_field(17, group="node")
-    message: "MessageData" = betterproto.message_field(18, group="node")
-    badge: "BadgeData" = betterproto.message_field(19, group="node")
-    role: "RoleData" = betterproto.message_field(20, group="node")
-    identity: "IdentityData" = betterproto.message_field(21, group="node")
-    membership: "MembershipData" = betterproto.message_field(22, group="node")
-    invite: "InviteData" = betterproto.message_field(23, group="node")
-    session: "SessionData" = betterproto.message_field(24, group="node")
-    run: "RunData" = betterproto.message_field(25, group="node")
-    signal: "SignalData" = betterproto.message_field(26, group="node")
-    log: "LogData" = betterproto.message_field(27, group="node")
-    notification: "NotificationData" = betterproto.message_field(28, group="node")
+    query: "QueryData" = betterproto.message_field(14, group="node")
+    view: "ViewData" = betterproto.message_field(15, group="node")
+    step: "StepData" = betterproto.message_field(16, group="node")
+    badge: "BadgeData" = betterproto.message_field(17, group="node")
+    role: "RoleData" = betterproto.message_field(18, group="node")
+    identity: "IdentityData" = betterproto.message_field(19, group="node")
+    membership: "MembershipData" = betterproto.message_field(20, group="node")
+    invite: "InviteData" = betterproto.message_field(21, group="node")
+    session: "SessionData" = betterproto.message_field(22, group="node")
+    run: "RunData" = betterproto.message_field(23, group="node")
+    signal: "SignalData" = betterproto.message_field(24, group="node")
+    log: "LogData" = betterproto.message_field(25, group="node")
+    notification: "NotificationData" = betterproto.message_field(26, group="node")
+    message: "MessageData" = betterproto.message_field(27, group="node")
+    record: "RecordData" = betterproto.message_field(28, group="node")
     server: "ServerData" = betterproto.message_field(29, group="node")
     store: "StoreData" = betterproto.message_field(30, group="node")
     drive: "DriveData" = betterproto.message_field(31, group="node")
@@ -4867,7 +4868,7 @@ class RuntimeBase(ServiceBase):
 
 from typing import TYPE_CHECKING  # noqa: E402
 
-VERSION = "2024.05.15.0"
+VERSION = "2024.05.15.2"
 
 if TYPE_CHECKING:
     from bench.language import Subject
@@ -4891,11 +4892,9 @@ AnyNodeData = Union[
     BlockData,
     TriggerData,
     FieldData,
-    RecordData,
     QueryData,
     ViewData,
     StepData,
-    MessageData,
     BadgeData,
     RoleData,
     IdentityData,
@@ -4906,6 +4905,8 @@ AnyNodeData = Union[
     SignalData,
     LogData,
     NotificationData,
+    MessageData,
+    RecordData,
     ServerData,
     StoreData,
     DriveData,

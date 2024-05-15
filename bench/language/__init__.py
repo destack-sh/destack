@@ -35,7 +35,6 @@ from .const import (
     TriggerType,
     Visibility,
 )
-from .database import Record
 from .expression import (
     A,
     Aggregation,
@@ -48,7 +47,6 @@ from .expression import (
 )
 from .field import Field, FieldZone, TypeConstraint, TypeInfo, TypeInfoBase
 from .file import File, Icon
-from .flow import Step, StepType
 from .graph import ValueList
 from .log import Log, LogKind, LogLevel
 from .message import Message
@@ -58,6 +56,7 @@ from .path import Path
 from .projection import Projection
 from .property import Property
 from .query import Query
+from .record import Record
 from .resource import (
     Cache,
     Client,
@@ -75,6 +74,7 @@ from .run import Run
 from .session import Session, Transaction
 from .setup import _complete_bench_setup
 from .signal import Signal
+from .step import Step, StepType
 from .text import Text, TextSpan
 from .trigger import Trigger
 from .user import Handle, Organization, User

@@ -104,7 +104,7 @@ def _check_nodes_in_same_store(
     if has_global and has_local:
         global_types, local_types = partition(
             lambda t: NODE_CLASS_BY_TYPE[t].__is_local__,
-            chain(roots, options.ancestor_types, options.descendant_types),
+            chain(roots_types, options.ancestor_types, options.descendant_types),
         )
         raise GRPCError(
             GRPCStatus.INVALID_ARGUMENT,
@@ -173,9 +173,7 @@ class GraphIoServiceBase(BenchServiceBase, GraphIoBase):
                     ),
                     options=adapted_options,
                 )
-                connection = await session.tx.connect(
-                    request.scope, node_type, AccessKind.READ
-                )
+                connection = await session.tx.connect(request.scope, node_type, AccessKind.READ)
                 result = await connection.fetch(query, FetchOptions(count=False))
                 graph.extend(result.nodes)
         if any(cast(str, root.id) not in graph for root in request.roots):
@@ -278,9 +276,7 @@ class GraphIoServiceBase(BenchServiceBase, GraphIoBase):
                     ),
                     options=options,
                 )
-                connection = await session.tx.connect(
-                    request.scope, node_type, AccessKind.EDIT
-                )
+                connection = await session.tx.connect(request.scope, node_type, AccessKind.EDIT)
                 result = await connection.fetch(query, FetchOptions(count=False))
 
                 # merge result into data_graph (there may be duplicates)

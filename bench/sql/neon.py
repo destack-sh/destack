@@ -110,9 +110,6 @@ async def create_local_pg_store(store: "Store") -> None:
     duration = asyncio.get_event_loop().time() - start
     logger.info("neon.create_project", store=store, duration=duration)
 
-    # migrate to latest version
-    await migrate_local_pg_store(store)
-
 
 async def migrate_local_pg_store(store: "Store") -> None:
     """Migrates the store to the latest version of our internal schema."""

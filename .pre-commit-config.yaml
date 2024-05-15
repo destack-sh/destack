@@ -7,12 +7,12 @@ repos:
         name: ruff (py)
         exclude: ^bench/migrations
   - repo: https://github.com/psf/black
-    rev: 23.3.0
+    rev: 24.4.2
     hooks:
       - id: black
         name: black (py)
   - repo: https://github.com/pycqa/isort
-    rev: 5.12.0
+    rev: 5.13.2
     hooks:
       - id: isort
         name: isort (py)

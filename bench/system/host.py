@@ -140,7 +140,6 @@ LOADED_PACKAGE_NODE_TYPES: tuple[NodeType, ...] = (
     NodeType.QUERY,
     NodeType.STEP,
     NodeType.VIEW,
-    NodeType.MESSAGE,
 )
 BENCH_QUERY = Bench.descendants(*LOADED_BENCH_NODE_TYPES).include_all()
 PACKAGE_QUERY = Package.descendants(*LOADED_PACKAGE_NODE_TYPES).ancestors(Bench).include_all()
@@ -184,16 +183,16 @@ class Host(GraphIoServiceBase, HostBase):
             # load bench
             self._bench = await BENCH_QUERY.get(id=self.bench_id)
             assert self._bench.main_branch is not None, f"{self._bench!r} has no main branch"
-            await provision_pending_resources(self._bench, session)
-            await migrate_local_stores(
-                self._bench, session
-            )  # NOTE :Robustness: unsure when to migrate
+            await provision_pending_resources(self._bench, session, commit_per=True)
+
+            # NOTE :Robustness: unsure when to migrate
+            await migrate_local_stores(self._bench, session)
+            await session.commit()
 
             # preload main packages
             self._main_package = await PACKAGE_QUERY.get(id=self._bench.main_branch.main_package_id)
             self._packages[self._main_package.id] = self._main_package
 
-            await session.commit()
             logger.info("host.start", host=self, duration=asyncio.get_event_loop().time() - start)
         # nocheckin :Architecture: untracking should probably happen automatically?
         self._bench._untrack_rec()

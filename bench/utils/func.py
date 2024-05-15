@@ -9,6 +9,7 @@ from itertools import filterfalse, tee
 from sys import intern
 from typing import (
     Any,
+    Callable,
     Collection,
     Coroutine,
     Iterable,
@@ -28,10 +29,6 @@ from more_itertools import first
 from bench.utils.utils import sentry_capture
 
 logger = structlog.get_logger(__name__)
-
-T = TypeVar("T")
-K = TypeVar("K")
-V = TypeVar("V")
 
 
 def try_to_uuid(id: UUID | str) -> UUID | str:
@@ -89,12 +86,14 @@ def next_or_none(iterator: Iterable[Any]) -> Any | None:
         return None
 
 
-def partition(pred, iterable) -> tuple[tuple[Any, ...], tuple[Any, ...]]:
+def partition[
+    T
+](pred: Callable[[T], bool], iterable: Iterable[T]) -> tuple[tuple[T, ...], tuple[T, ...]]:
     t1, t2 = tee(iterable)
     return tuple(filterfalse(pred, t1)), tuple(filter(pred, t2))
 
 
-def group_by(iterable: Collection[V], key: typing.Callable[[V], K]) -> dict[K, list[V]]:
+def group_by[K, V](iterable: Collection[V], key: typing.Callable[[V], K]) -> dict[K, list[V]]:
     """Groups an iterable by a key function"""
     result = {}
     for item in iterable:
@@ -102,7 +101,7 @@ def group_by(iterable: Collection[V], key: typing.Callable[[V], K]) -> dict[K, l
     return result
 
 
-def try_tuple(obj: tuple[T, ...] | T | None) -> tuple[T, ...] | None:
+def try_tuple[T](obj: tuple[T, ...] | T | None) -> tuple[T, ...] | None:
     """To tuple if not None and not already a tuple"""
     if obj is None:
         return None
@@ -114,7 +113,7 @@ def try_tuple(obj: tuple[T, ...] | T | None) -> tuple[T, ...] | None:
 nextn = next_or_none
 
 
-def dict_to_ordered(obj: dict[str, V]) -> OrderedDict[str, V]:
+def dict_to_ordered[V](obj: dict[str, V]) -> OrderedDict[str, V]:
     if isinstance(obj, OrderedDict):
         return obj
     elif len(obj) > 1:
@@ -123,11 +122,11 @@ def dict_to_ordered(obj: dict[str, V]) -> OrderedDict[str, V]:
         return OrderedDict(**obj)
 
 
-def dict_minus(obj: dict[K, V], *keys: Iterable[K]) -> dict[K, V]:
+def dict_minus[K, V](obj: dict[K, V], *keys: Iterable[K]) -> dict[K, V]:
     return {k: v for k, v in obj.items() if k not in keys}
 
 
-def dict_intersect(obj: dict[K, V], keys: Iterable[K]) -> dict[K, V]:
+def dict_intersect[K, V](obj: dict[K, V], keys: Iterable[K]) -> dict[K, V]:
     return {k: v for k, v in obj.items() if k in keys}
 
 
@@ -143,7 +142,7 @@ async def wrap_task(coro: Coroutine, task_id: str | None = None) -> None:
         raise
 
 
-def _auto_async_to_sync(func: typing.Callable[..., T]) -> typing.Callable[..., T]:
+def _auto_async_to_sync[T](func: typing.Callable[..., T]) -> typing.Callable[..., T]:
     """Automatically convert async functions to sync if not called in async context."""
 
     def decorate(func):
@@ -285,7 +284,7 @@ def did_you_mean_str(candidates: dict[str, Any], needle: str, repr: bool = False
     return f"Nothing similar in {len(candidates)} candidates."
 
 
-def assert_collections_equal(a: Collection[T], b: Collection[T]):
+def assert_collections_equal[T](a: Collection[T], b: Collection[T]):
     a = set(a)
     b = set(b)
     difference = a.symmetric_difference(b)

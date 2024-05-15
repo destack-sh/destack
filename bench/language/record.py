@@ -25,7 +25,7 @@ from bench.language.property import (
 from bench.language.query import QueryBuilder
 from bench.language.value import HasValues
 from bench.proto.wire import AnyNodeData, NodeReferenceData, RecordData
-from bench.sql.core import RECORD_EPHEMERAL_TABLE, Table
+from bench.sql.core import RECORD_SHARED_TABLE, Table
 from bench.utils.func import describe_type
 
 if TYPE_CHECKING:
@@ -105,16 +105,12 @@ class Database(Node):
     def _interp_component(self, scope: Optional["Node"], notice: "NoticeHandler") -> None:
         from bench.sql.engine import map_database_to_pg_table
 
-        if self.ephemeral:
-            self._table = RECORD_EPHEMERAL_TABLE
-        else:
+        if self.is_materialized:
             self._table = map_database_to_pg_table(cast("Block", self))
+        else:
+            self._table = RECORD_SHARED_TABLE
 
     @property
     def is_materialized(self):
         # should this database be a real database table
         return True
-
-    @property
-    def ephemeral(self) -> bool:
-        return not self.is_materialized

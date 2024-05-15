@@ -84,8 +84,8 @@ enum Anchor {
 enum BenchType {
   BENCH_TYPE_UNSPECIFIED = 0;
   BENCH_TYPE_BENCH = 1;
-  BENCH_TYPE_ENVIRONMENT = 3;
-  BENCH_TYPE_BRANCH = 4;
+  BENCH_TYPE_ENVIRONMENT = 2;
+  BENCH_TYPE_BRANCH = 3;
   BENCH_TYPE_PACKAGE = 20;
   BENCH_TYPE_DEPENDENCY = 21;
   BENCH_TYPE_UPGRADE = 22;
@@ -96,11 +96,9 @@ enum BenchType {
   BENCH_TYPE_BLOCK = 30;
   BENCH_TYPE_TRIGGER = 31;
   BENCH_TYPE_FIELD = 32;
-  BENCH_TYPE_RECORD = 33;
-  BENCH_TYPE_QUERY = 34;
-  BENCH_TYPE_VIEW = 35;
-  BENCH_TYPE_STEP = 36;
-  BENCH_TYPE_MESSAGE = 37;
+  BENCH_TYPE_QUERY = 33;
+  BENCH_TYPE_VIEW = 34;
+  BENCH_TYPE_STEP = 35;
   BENCH_TYPE_BADGE = 60;
   BENCH_TYPE_ROLE = 61;
   BENCH_TYPE_IDENTITY = 62;
@@ -111,6 +109,8 @@ enum BenchType {
   BENCH_TYPE_SIGNAL = 82;
   BENCH_TYPE_LOG = 83;
   BENCH_TYPE_NOTIFICATION = 84;
+  BENCH_TYPE_MESSAGE = 85;
+  BENCH_TYPE_RECORD = 86;
   BENCH_TYPE_SERVER = 160;
   BENCH_TYPE_STORE = 161;
   BENCH_TYPE_DRIVE = 162;
@@ -566,8 +566,8 @@ enum LogLevel {
 enum NodeType {
   NODE_TYPE_UNSPECIFIED = 0;
   NODE_TYPE_BENCH = 1;
-  NODE_TYPE_ENVIRONMENT = 3;
-  NODE_TYPE_BRANCH = 4;
+  NODE_TYPE_ENVIRONMENT = 2;
+  NODE_TYPE_BRANCH = 3;
   NODE_TYPE_PACKAGE = 20;
   NODE_TYPE_DEPENDENCY = 21;
   NODE_TYPE_UPGRADE = 22;
@@ -578,11 +578,9 @@ enum NodeType {
   NODE_TYPE_BLOCK = 30;
   NODE_TYPE_TRIGGER = 31;
   NODE_TYPE_FIELD = 32;
-  NODE_TYPE_RECORD = 33;
-  NODE_TYPE_QUERY = 34;
-  NODE_TYPE_VIEW = 35;
-  NODE_TYPE_STEP = 36;
-  NODE_TYPE_MESSAGE = 37;
+  NODE_TYPE_QUERY = 33;
+  NODE_TYPE_VIEW = 34;
+  NODE_TYPE_STEP = 35;
   NODE_TYPE_BADGE = 60;
   NODE_TYPE_ROLE = 61;
   NODE_TYPE_IDENTITY = 62;
@@ -593,6 +591,8 @@ enum NodeType {
   NODE_TYPE_SIGNAL = 82;
   NODE_TYPE_LOG = 83;
   NODE_TYPE_NOTIFICATION = 84;
+  NODE_TYPE_MESSAGE = 85;
+  NODE_TYPE_RECORD = 86;
   NODE_TYPE_SERVER = 160;
   NODE_TYPE_STORE = 161;
   NODE_TYPE_DRIVE = 162;
@@ -633,8 +633,8 @@ enum NotificationKind {
 enum ObjectType {
   OBJECT_TYPE_UNSPECIFIED = 0;
   OBJECT_TYPE_BENCH = 1;
-  OBJECT_TYPE_ENVIRONMENT = 3;
-  OBJECT_TYPE_BRANCH = 4;
+  OBJECT_TYPE_ENVIRONMENT = 2;
+  OBJECT_TYPE_BRANCH = 3;
   OBJECT_TYPE_PACKAGE = 20;
   OBJECT_TYPE_DEPENDENCY = 21;
   OBJECT_TYPE_UPGRADE = 22;
@@ -645,11 +645,9 @@ enum ObjectType {
   OBJECT_TYPE_BLOCK = 30;
   OBJECT_TYPE_TRIGGER = 31;
   OBJECT_TYPE_FIELD = 32;
-  OBJECT_TYPE_RECORD = 33;
-  OBJECT_TYPE_QUERY = 34;
-  OBJECT_TYPE_VIEW = 35;
-  OBJECT_TYPE_STEP = 36;
-  OBJECT_TYPE_MESSAGE = 37;
+  OBJECT_TYPE_QUERY = 33;
+  OBJECT_TYPE_VIEW = 34;
+  OBJECT_TYPE_STEP = 35;
   OBJECT_TYPE_BADGE = 60;
   OBJECT_TYPE_ROLE = 61;
   OBJECT_TYPE_IDENTITY = 62;
@@ -660,6 +658,8 @@ enum ObjectType {
   OBJECT_TYPE_SIGNAL = 82;
   OBJECT_TYPE_LOG = 83;
   OBJECT_TYPE_NOTIFICATION = 84;
+  OBJECT_TYPE_MESSAGE = 85;
+  OBJECT_TYPE_RECORD = 86;
   OBJECT_TYPE_SERVER = 160;
   OBJECT_TYPE_STORE = 161;
   OBJECT_TYPE_DRIVE = 162;
@@ -2140,8 +2140,9 @@ message MembershipData {
   bool is_owner = 31;
 }
 
-// A Message by a User or Block (whoever created it).
+// A Message by a User or program (author = created_by).
 // If the parent is also a Message, then this is part of a thread. Threads may be nested.
+// Messages are ordered by created_at.
 message MessageData {
   ObjectType metatype = 1;
   string id = 2;
@@ -2711,21 +2712,21 @@ message SomeNodeData {
     BlockData block = 11;
     TriggerData trigger = 12;
     FieldData field = 13;
-    RecordData record = 14;
-    QueryData query = 15;
-    ViewData view = 16;
-    StepData step = 17;
-    MessageData message = 18;
-    BadgeData badge = 19;
-    RoleData role = 20;
-    IdentityData identity = 21;
-    MembershipData membership = 22;
-    InviteData invite = 23;
-    SessionData session = 24;
-    RunData run = 25;
-    SignalData signal = 26;
-    LogData log = 27;
-    NotificationData notification = 28;
+    QueryData query = 14;
+    ViewData view = 15;
+    StepData step = 16;
+    BadgeData badge = 17;
+    RoleData role = 18;
+    IdentityData identity = 19;
+    MembershipData membership = 20;
+    InviteData invite = 21;
+    SessionData session = 22;
+    RunData run = 23;
+    SignalData signal = 24;
+    LogData log = 25;
+    NotificationData notification = 26;
+    MessageData message = 27;
+    RecordData record = 28;
     ServerData server = 29;
     StoreData store = 30;
     DriveData drive = 31;

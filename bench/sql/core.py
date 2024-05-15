@@ -599,8 +599,8 @@ RECORD_BASE_TABLE = Table(
     constraints=(),
 )
 # 'hufflepuff' table for ephemeral 'tables' without real tables
-RECORD_EPHEMERAL_TABLE = Table(
-    "bench_record_ephemeral",
+RECORD_SHARED_TABLE = Table(
+    "bench_record_shared",
     columns=(
         *(c.clone() for c in RECORD_BASE_TABLE.columns),
         Column("block_tk", PrimitiveType.UUID, _source=21),
@@ -631,5 +631,5 @@ RECORD_EPHEMERAL_TABLE = Table(
     constraints=(*(c.clone() for c in RECORD_BASE_TABLE.constraints),),
 )
 
-DEFAULT_LOCAL_TABLES: tuple[Table, ...] = (MIGRATION_TABLE, RECORD_EPHEMERAL_TABLE)
+DEFAULT_LOCAL_TABLES: tuple[Table, ...] = (MIGRATION_TABLE, RECORD_SHARED_TABLE)
 DEFAULT_GLOBAL_TABLES: tuple[Table, ...] = (MIGRATION_TABLE,)

@@ -3,7 +3,6 @@ from typing import TYPE_CHECKING, Any, Collection, Optional
 import structlog
 
 from bench.language.const import EnumType, NodeType, StructType, enum_
-from bench.language.flow import Step
 from bench.language.node import Node, node
 from bench.language.property import (
     Property,
@@ -13,6 +12,7 @@ from bench.language.property import (
     p_value_packed,
     p_value_runtime,
 )
+from bench.language.step import Step
 from bench.language.text import Text
 from bench.language.validation import ValidationHandler
 from bench.language.value import HasValues

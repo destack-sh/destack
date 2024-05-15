@@ -121,11 +121,13 @@ async def provision_resource(resource: Resource, session: Session) -> None:
         raise NotImplementedError(f"cannot provision {resource!r} (yet)")
 
 
-async def provision_pending_resources(bench: Bench, session: Session):
+async def provision_pending_resources(bench: Bench, session: Session, *, commit_per: bool):
     """Provisions all pending resources in a bench."""
     for resource in bench.resources:
         if resource.status == ResourceStatus.PENDING:
             await provision_resource(resource, session)
+            if commit_per:
+                await session.commit()
 
 
 async def migrate_local_stores(bench: Bench, session: Session) -> None:
