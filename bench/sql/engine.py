@@ -1311,6 +1311,7 @@ async def pg_get_node_data_graph(
                         op=ConditionalOp.IN,
                         property=parent_property,
                         value=parents_by_type[parent_property.reference_nodes[0]],
+                        value_packed={},  # avoid packing this
                     )
                     parents_filters.append(filter)
                 parent_filter = C(op=ConditionalOp.OR, clauses=parents_filters)

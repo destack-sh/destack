@@ -350,7 +350,6 @@ class Property(_TypeQueryBuilder if TYPE_CHECKING else object):
         return True
 
     def _to_type_info(self) -> "TypeInfo":
-        assert self.is_introspectable, f"{self!r} is not introspectable"
         from bench.language.field import TypeInfo
 
         if isinstance(self.constraint, TypeConstraintIn):
@@ -383,7 +382,7 @@ class Property(_TypeQueryBuilder if TYPE_CHECKING else object):
             primitive_type=primitive_type,
             is_list=self.is_list,
             # NOTE: we ignore is_required if deferred since we don't have a mechanism for determining
-            #  which properties were loaded in a given graph yet.
+            #  which properties were loaded in a given graph yet. Revisit this with read info.
             is_required=self.is_required and not self.is_deferred,
             constraint=constraint,
             _from_property=self,
@@ -499,7 +498,7 @@ class Property(_TypeQueryBuilder if TYPE_CHECKING else object):
             raise ValueError(f"can't use system id {self.id} for {self!r}")
 
         # derive type info
-        if self.is_introspectable:
+        if self.is_introspectable or self.reference_source is not None:
             self.type_info = self._to_type_info()
 
     def _contribute_ptrs(self, is_inlined: bool) -> tuple["Property", ...]:

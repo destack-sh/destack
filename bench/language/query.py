@@ -414,6 +414,7 @@ class QueryBuilder(
         return cast(tuple[NodeT, ...], roots)
 
     tolist = fetch  # type: ignore
+    to_list = fetch  # type: ignore
 
     @_auto_async_to_sync
     async def count(self, filter: Optional["Expression"] = None, **kwargs) -> int:

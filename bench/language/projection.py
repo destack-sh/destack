@@ -166,6 +166,7 @@ def render_struct(value: Node | Struct) -> str:
         for prop in value.__properties__.values():
             if (
                 prop.type_info is None
+                or not prop.is_introspectable
                 or prop.id < 30  # skip system properties
                 or prop.is_tree_reference  # skip node properties
                 or prop.name in ("order_key",)
