@@ -171,7 +171,7 @@ class Invite(Node[InviteData]):
     roles: list["Role"] = p_regular(33, require=False, array=True, references=NodeType.ROLE)
 
 
-@node(NodeType.NOTIFICATION, passthrough="value", index_in_search=True, local=True)
+@node(NodeType.NOTIFICATION, passthrough="value", local=True)
 class Notification(BasedNode[NotificationData], HasValues):
     """
     A Notification for someone in that Bench.

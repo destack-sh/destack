@@ -44,7 +44,7 @@ class LogLevel(IdEnum):
     CRITICAL = 6
 
 
-@node(NodeType.LOG, stored=True, local=True, index_in_search=True, no_ck=True, id_factory=UUIDT)
+@node(NodeType.LOG, stored=True, local=True, no_ck=True, id_factory=UUIDT)
 class Log(Node, HasValues):
     """
     A Log (entry) is a timestamped event of something happening:

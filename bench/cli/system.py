@@ -5,7 +5,11 @@ from bench.cli.utils import async_to_sync_blocking, check_is_consistent
 from bench.language import Bench, Region, User
 from bench.language.const import NodeType, UserStatus
 from bench.system.client import global_session
-from bench.system.resource import create_default_bench, migrate_local_stores, provision_pending_resources
+from bench.system.resource import (
+    create_default_bench,
+    migrate_local_stores,
+    provision_pending_resources,
+)
 
 app = typer.Typer(short_help="some language-level utilities")
 
@@ -36,8 +40,8 @@ async def bootstrap(region: Region = Region.EUROPE_CENTRAL):
             main_handle=bench_bench_handle, owner=system_user, region=region, session=session
         )
         # immediately provision resources
-        await provision_pending_resources(system_bench, session)
-        await provision_pending_resources(bench_bench, session)
+        await provision_pending_resources(system_bench, session, commit_per=True)
+        await provision_pending_resources(bench_bench, session, commit_per=True)
         await session.commit()
 
 
@@ -45,9 +49,11 @@ async def bootstrap(region: Region = Region.EUROPE_CENTRAL):
 @async_to_sync_blocking
 async def provision(bench: str):  # type: ignore
     async with global_session() as session:
-        bench: Bench = await Bench.descendants(
-            NodeType.SERVER, NodeType.STORE, NodeType.DRIVE, NodeType.CACHE
-        ).include_all().get(slug=bench)
-        await provision_pending_resources(bench, session)
+        bench: Bench = (
+            await Bench.descendants(NodeType.SERVER, NodeType.STORE, NodeType.DRIVE, NodeType.CACHE)
+            .include_all()
+            .get(slug=bench)
+        )
+        await provision_pending_resources(bench, session, commit_per=True)
         await migrate_local_stores(bench, session)
         await session.commit()

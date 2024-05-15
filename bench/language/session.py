@@ -29,7 +29,7 @@ MUTED_EDIT_NODE_TYPES: tuple[NodeType, ...] = (
 )
 
 
-@node(NodeType.SESSION, index_in_search=True, local=True, id_factory=UUIDT)
+@node(NodeType.SESSION, local=True, id_factory=UUIDT)
 class Session(Node[SessionData]):
     """
     A managed Session for interacting with and running a Package in a Client.

@@ -75,7 +75,7 @@ class Step(Node[StepData], HasValues):
     value_type: Optional["TypeInfo"] = p_regular(40, default=None, struct=StructType.TYPE_INFO)
     value_packed: Any = p_value_packed(41)
     secret_value_packed: Any = p_secret_value_packed(42)
-    value = p_value_runtime(41, 42)
+    value: Any = p_value_runtime(41, 42)
     node: Union["Block", "Step", None] = p_regular(
         43, require=False, references=(NodeType.BLOCK, NodeType.STEP)
     )
