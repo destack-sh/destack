@@ -642,7 +642,6 @@ def node(
     dynamic_components: tuple[type["Node"], ...] = (),
     stored: bool = True,
     stored_custom: bool = False,
-    index_in_search: bool = False,
     no_ck: bool = False,
     local: bool = False,
     roots: tuple[NodeType, ...] = (NodeType.BENCH,),
@@ -675,7 +674,6 @@ def node(
         )(cls)
         cls.__is_stored__ = stored
         cls.__is_stored_custom__ = stored_custom
-        cls.__is_indexed_in_search__ = index_in_search
         cls.__is_local__ = local
         cls.__identifier_type__ = identifier
         cls.__id_factory__ = id_factory
@@ -1362,7 +1360,6 @@ class Node(Struct[NodeDataT], Generic[NodeDataT]):
     __is_sub_package__: ClassVar[bool] = UNSET  # part of a Package (excludes Package itself)
     __is_stored__: ClassVar[bool] = False  # stored in primary store (runtime or local)
     __is_stored_custom__: ClassVar[bool] = False  # custom storage logic (for records)
-    __is_indexed_in_search__: ClassVar[bool] = False  # stored in local OS
     __is_local__: ClassVar[bool] = False  # stored in Bench-local DB (instead of global Bench DB)
     __extra_indexes__: ClassVar[tuple[Index, ...]] = ()  # extra indexes for PG
     __extra_constraints__: ClassVar[tuple[Constraint, ...]] = ()  # extra constraints for PG

@@ -23,7 +23,7 @@ if TYPE_CHECKING:
 logger = structlog.get_logger(__name__)
 
 
-@node(NodeType.SIGNAL, passthrough="value", local=True, index_in_search=True, id_factory=UUIDT)
+@node(NodeType.SIGNAL, passthrough="value", local=True, id_factory=UUIDT)
 class Signal(BasedNode[SignalData], HasValues):
     """A signal emitted in this Bench."""
 
@@ -37,7 +37,7 @@ class Signal(BasedNode[SignalData], HasValues):
     )
     value_packed: Any | None = p_value_packed(34)
     secret_value_packed: Any | None = p_secret_value_packed(35)
-    value = p_value_runtime(34, 35, type=31)
+    value: Any = p_value_runtime(34, 35, type=31)
 
     @property
     def base(self) -> Optional["Block"]:

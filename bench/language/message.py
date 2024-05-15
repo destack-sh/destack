@@ -16,7 +16,7 @@ MessageParent = Union["Package", "Block", "Message"]
 MESSAGE_PARENT_TYPES: tuple[NodeType, ...] = (NodeType.PACKAGE, NodeType.BLOCK, NodeType.MESSAGE)
 
 
-@node(NodeType.MESSAGE, id_factory=UUIDT, index_in_search=True, local=True)
+@node(NodeType.MESSAGE, id_factory=UUIDT, local=True)
 class Message(BasedNode[MessageData], HasValues):  # noqa: F821
     """
     A Message by a User or program (author = created_by).

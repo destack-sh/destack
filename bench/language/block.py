@@ -119,7 +119,7 @@ class Block(Node[BlockData], HasValues):
     visibility: Optional[Visibility] = p_regular(39, default=None, require=False)
     value_packed: Any = p_value_packed(40)
     secret_value_packed: Any | None = p_secret_value_packed(41)
-    value = p_value_runtime(40, 41, type=lambda self: cast("Block", self).as_type)
+    value: Any = p_value_runtime(40, 41, type=lambda self: cast("Block", self).as_type)
     code: Optional["Code"] = p_regular(
         42, default=None, require=False, array=False, struct=StructType.CODE
     )

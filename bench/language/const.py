@@ -190,6 +190,7 @@ class NodeType(IdEnum):
     INVITE = 64
 
     # runtime
+    # TODO :Performance: turn Logs/Sessions/Runs/Signals/..? into hypertables (timescaledb)
     SESSION = 80  # (local)
     RUN = 81  # (local, based)
     SIGNAL = 82  # (local, based)

@@ -36,7 +36,7 @@ if TYPE_CHECKING:
 # pyright: reportIncompatibleVariableOverride=false
 
 
-@node(NodeType.RUN, index_in_search=True, local=True, id_factory=UUIDT)
+@node(NodeType.RUN, local=True, id_factory=UUIDT)
 class Run(BasedNode[RunData], HasValues):
     """
     A 'run' of Blocks (and Steps within them) or 'lambdas' (just Code/Text).

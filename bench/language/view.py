@@ -384,7 +384,7 @@ class View(Node[ViewData], HasValues):
         40, default=None, require=False, struct=StructType.TYPE_INFO
     )
     value_packed: Any = p_value_packed(41)
-    value = p_value_runtime(packed=41)
+    value: Any = p_value_runtime(packed=41)
     # TODO :Cleanup :Architecture: View.node should probably just be in View.value
     #  (with relevant Views having that type... once we have the Value system more figured out)
     node: Optional["Node"] = p_regular(

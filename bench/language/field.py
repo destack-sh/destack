@@ -438,7 +438,7 @@ class Field(BasedNode[FieldData], TypeInfoBase, _TypeQueryBuilder):
     )
     icon: Optional["Icon"] = p_regular(34, require=False, array=False, struct=StructType.ICON)
     value_packed: Any | None = p_value_packed(35)
-    value = p_value_runtime(35)
+    value: Any = p_value_runtime(35)
 
     # type identity
     # ...TypeInfo
