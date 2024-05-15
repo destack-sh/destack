@@ -1248,9 +1248,6 @@ class Struct(abc.ABC, Generic[StructDataT]):
                 ptr = cast("PropertyReference", ptr)
                 setattr(self, prop.name, ptr.resolve())
 
-    def _interp_component(self, scope: Optional["Node"], notice: "NoticeHandler"):
-        self._resolve_references(scope, notice)
-
     def _flushed_self(self):
         """Called when this struct has been flushed to the store."""
         if self.__is_node__:
@@ -1273,6 +1270,9 @@ class Struct(abc.ABC, Generic[StructDataT]):
 
     @final
     def _interp_self(self, scope: Optional["Node"], notice: "NoticeHandler"):
+        # resolve references first
+        self._resolve_references(scope, notice)
+
         for meth in _get_component_methods(
             self._components, _ComponentMethod.interp, self._instance_cache_key
         ):
