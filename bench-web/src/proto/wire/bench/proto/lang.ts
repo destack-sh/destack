@@ -500,7 +500,7 @@ export interface ExpressionData {
      */
     valuePacked?: Struct;
     /**
-     * @generated from protobuf field: optional symbolx.bench.SortMode sort_mode = 37;
+     * @generated from protobuf field: optional symbolx.bench.SortMode sort_mode = 38;
      */
     sortMode?: SortMode;
 }
@@ -10642,7 +10642,7 @@ class ExpressionData$Type extends MessageType<ExpressionData> {
             { no: 32, name: "property_ptr", kind: "message", T: () => PropertyReferenceData },
             { no: 35, name: "clauses", kind: "message", repeat: 1 /*RepeatType.PACKED*/, T: () => ExpressionData },
             { no: 36, name: "value_packed", kind: "message", T: () => Struct },
-            { no: 37, name: "sort_mode", kind: "enum", opt: true, T: () => ["symbolx.bench.SortMode", SortMode, "SORT_MODE_"] }
+            { no: 38, name: "sort_mode", kind: "enum", opt: true, T: () => ["symbolx.bench.SortMode", SortMode, "SORT_MODE_"] }
         ]);
     }
     create(value?: PartialMessage<ExpressionData>): ExpressionData {
@@ -10698,7 +10698,7 @@ class ExpressionData$Type extends MessageType<ExpressionData> {
                 case /* optional google.protobuf.Struct value_packed */ 36:
                     message.valuePacked = Struct.internalBinaryRead(reader, reader.uint32(), options, message.valuePacked);
                     break;
-                case /* optional symbolx.bench.SortMode sort_mode */ 37:
+                case /* optional symbolx.bench.SortMode sort_mode */ 38:
                     message.sortMode = reader.int32();
                     break;
                 default:
@@ -10750,9 +10750,9 @@ class ExpressionData$Type extends MessageType<ExpressionData> {
         /* optional google.protobuf.Struct value_packed = 36; */
         if (message.valuePacked)
             Struct.internalBinaryWrite(message.valuePacked, writer.tag(36, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbolx.bench.SortMode sort_mode = 37; */
+        /* optional symbolx.bench.SortMode sort_mode = 38; */
         if (message.sortMode !== undefined)
-            writer.tag(37, WireType.Varint).int32(message.sortMode);
+            writer.tag(38, WireType.Varint).int32(message.sortMode);
         let u = options.writeUnknownFields;
         if (u !== false)
             (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
@@ -23598,7 +23598,7 @@ export enum ExpressionProperty {
   propertyPtr = 32,
   clauses = 35,
   valuePacked = 36,
-  sortMode = 37,
+  sortMode = 38,
 }
 
 export enum AggregationProperty {
@@ -24242,7 +24242,7 @@ export const ExpressionDataInfo: Record<ExpressionProperty, PropertyInfo> = {
   [ExpressionProperty.propertyPtr]: { id: 32, name: 'property_ptr', component: ObjectType.EXPRESSION, kind: 'primitive', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceStruct: StructType.PROPERTY_REFERENCE },
   [ExpressionProperty.clauses]: { id: 35, name: 'clauses', component: ObjectType.EXPRESSION, kind: 'reference', primitiveType: PrimitiveType.JSON, isList: true, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.EXPRESSION },
   [ExpressionProperty.valuePacked]: { id: 36, name: 'value_packed', component: ObjectType.EXPRESSION, kind: 'primitive', primitiveType: PrimitiveType.JSON, isInternal: true, isRuntime: true, isWired: true, isStored: true, isValuePacked: true },
-  [ExpressionProperty.sortMode]: { id: 37, name: 'sort_mode', component: ObjectType.EXPRESSION, enumType: EnumType.SORT_MODE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRuntime: true, isWired: true, isStored: true },
+  [ExpressionProperty.sortMode]: { id: 38, name: 'sort_mode', component: ObjectType.EXPRESSION, enumType: EnumType.SORT_MODE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRuntime: true, isWired: true, isStored: true },
 }
 export const AggregationDataInfo: Record<AggregationProperty, PropertyInfo> = {
   [AggregationProperty.metatype]: { id: 1, name: 'metatype', component: ObjectType.AGGREGATION, enumType: EnumType.OBJECT_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isComputed: true, isWired: true },

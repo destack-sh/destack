@@ -53,6 +53,7 @@ if TYPE_CHECKING:
         Struct,
         TypeConstraint,
         TypeInfo,
+        TypeInfoBase,
     )
     from bench.language.expression import _TypeQueryBuilder
 
@@ -112,7 +113,7 @@ class Property(_TypeQueryBuilder if TYPE_CHECKING else object):
     value_packed_ptr: Union[int, "Property", None] = None  # the packed value
     secret_value_packed_ptr: Union[int, "Property", None] = None  # the secret packed value
     value_type_info_ptr: Union[int, "Property", None] = None  # the type info for the value
-    value_type_info_getter: Callable[["Node"], "TypeInfo"] | None = None  # type info getter
+    value_type_info_getter: Callable[["Struct"], "TypeInfoBase"] | None = None  # type info getter
 
     # references (nodes and struct/value)
     reference_kind: ReferenceKind | None = None
@@ -988,7 +989,7 @@ def p_value_runtime(
     packed: int,
     secret_packed: int | None = None,
     *,
-    type: int | Callable[["Node"], "TypeInfo"] | None = None,
+    type: int | Callable[["Struct"], "TypeInfoBase"] | None = None,
 ) -> Any:
     """Runtime-only property for a Value and secret value."""
     value_type_info_id = None

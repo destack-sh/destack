@@ -63,7 +63,10 @@ def get_pg_connection_str(store: Store, database: str | None = None) -> str:
     # TODO :Security :Scalability: route store clients/hosts better :StoreRouting
     assert store.engine == StoreEngineType.POSTGRES, f"store {store!r} is not a postgres store"
     assert store.connection_uri, f"store {store!r} has no connection_url"
-    return store.connection_uri
+    if database is not None:
+        return store.connection_uri.rsplit("/", 1)[0] + "/" + database
+    else:
+        return store.connection_uri
 
 
 @asynccontextmanager
