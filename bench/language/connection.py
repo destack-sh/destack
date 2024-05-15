@@ -16,6 +16,7 @@ from typing import (
 from uuid import UUID
 
 import psycopg
+import structlog
 
 from bench.language.const import AccessKind, AggregationOp, BenchError, NodeType, StoreEngineType
 from bench.language.node import Node
@@ -32,6 +33,7 @@ from bench.proto.wire import (
     SupervisorStub,
 )
 from bench.utils.func import bytetuple
+from bench.utils.tenacity import RetryOptions, retry
 
 if TYPE_CHECKING:
     from bench.language import Expression, Field, Property, Session, Store
@@ -39,6 +41,8 @@ if TYPE_CHECKING:
     from bench.sql.client import _PgStoreConnection
 
 # pyright: reportIncompatibleVariableOverride=false, reportIncompatibleMethodOverride=false
+
+logger = structlog.get_logger(__name__)
 
 NodeT = TypeVar("NodeT", bound=Node)
 NodeDataT = TypeVar("NodeDataT", bound=AnyNodeData)
@@ -197,17 +201,21 @@ class StoreConnection(abc.ABC, Generic[StoreEngineT, NodeT, NodeDataT]):
 
 
 class RemoteEngine(StoreEngine[NodeT, NodeDataT]):
-    type = StoreEngineType.PROXY
+    """An engine that proxies to a remote graph store."""
+
+    type = StoreEngineType.REMOTE
 
     def __init__(
         self,
         default_scope: GraphScope,
         node_types: tuple[NodeType, ...] | bytetuple[NodeType],
         remote: GraphIoStub | HostStub | SupervisorStub,
+        retry: RetryOptions = RetryOptions(max_attempts=1),
     ):
         super().__init__(node_types)
         self.default_scope = default_scope
         self.remote = remote
+        self.retry = retry
 
     def __str__(self):
         return f"remote={self.remote}"
@@ -217,6 +225,12 @@ class RemoteEngine(StoreEngine[NodeT, NodeDataT]):
 
 
 class RemoteConnection(StoreConnection[RemoteEngine, NodeT, NodeDataT]):
+    @retry(
+        lambda self, *args, **kwargs: self.engine.retry,
+        on_failure=lambda self, query, options, e: logger.error(
+            "remote.fetch.error", connection=self, query=query, options=options, exc_info=e
+        ),
+    )
     async def fetch(
         self, query: "QueryBuilder[NodeT, NodeDataT]", options: FetchOptions
     ) -> FetchResult:
@@ -243,10 +257,16 @@ class RemoteConnection(StoreConnection[RemoteEngine, NodeT, NodeDataT]):
             epoch=response.epoch,
         )
 
+    @retry(
+        lambda self, *args, **kwargs: self.engine.retry,
+        on_failure=lambda self, query, e: logger.error(
+            "remote.aggregate.error", connection=self, query=query, exc_info=e
+        ),
+    )
     async def aggregate(self, query: "QueryBuilder[NodeT, NodeDataT]") -> AggregateResult:
         from bench.proto import wire, wiring
 
-        assert query._aggregation is not None
+        assert query._aggregation is not None, f"{query!r} has no aggregation"
         request = wire.AggregateNodesRequest(
             node_type=wiring.pack_enum(NodeType, query._node_type),
             filter=wiring.pack_struct_maybe(query._filter, expect=ExpressionData),
@@ -256,6 +276,12 @@ class RemoteConnection(StoreConnection[RemoteEngine, NodeT, NodeDataT]):
         response = await self.engine.remote.aggregate_nodes(request)
         return AggregateResult(response.aggregation)
 
+    @retry(
+        lambda self, *args, **kwargs: self.engine.retry,
+        on_failure=lambda self, edits, e: logger.error(
+            "remote.commit.error", connection=self, edits=edits, exc_info=e
+        ),
+    )
     async def commit(self, edits: list[EditData] | tuple[EditData, ...]) -> list[int]:
         from bench.proto import wire
 
