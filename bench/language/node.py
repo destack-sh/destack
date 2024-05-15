@@ -1120,7 +1120,9 @@ class Struct(abc.ABC, Generic[StructDataT]):
             copy = self._copy_to(parent, prop)
             return copy
 
-    def _copy_to(self, parent: Union["Node", "Struct", "Object"], prop: Union[Property, "Field"]):
+    def _copy_to(
+        self, parent: Union["Node", "Struct", "Object"], prop: Union[Property, "Field"]
+    ) -> Self:
         """Create a copy of this struct for the given parent/prop."""
         kwargs = {
             p.name: getattr(self, p.name)
@@ -1129,6 +1131,16 @@ class Struct(abc.ABC, Generic[StructDataT]):
         }
         kwargs["parent"] = parent
         kwargs["parent_key"] = prop.id_as_str if isinstance(prop, Property) else prop.identity_key
+        copy = self.__class__(**kwargs)
+        return copy
+
+    def _copy(self, **update) -> "Self":
+        kwargs = {
+            p.name: getattr(self, p.name)
+            for p in self.__properties__.values()
+            if p.is_runtime and not p.is_ephemeral and not p.is_computed
+        }
+        kwargs.update(update)
         copy = self.__class__(**kwargs)
         return copy
 

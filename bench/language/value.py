@@ -584,11 +584,9 @@ def pack_value(
                 raise TypeError(f"{value!r} is not an Object (expected {typ!r})")
             return _pack_object_scalar(value, typ)
         else:
-            if not isinstance(value, list):
-                raise TypeError(f"{value!r} is not a list (expected {typ!r})")
             value_packed: JsonValue = []
             secret_value_packed: JsonValue = []
-            for element in value:
+            for element in cast(Collection[SomeValue], value):
                 if type(element) is not Object:
                     raise TypeError(f"{element!r} is not an Object (expected {typ!r})")
                 inner_value_packed, inner_secret_value_packed = _pack_object_scalar(element, typ)
@@ -603,9 +601,7 @@ def pack_value(
         elif not typ.is_list:
             value_packed = _pack_value_scalar(cast(ScalarValue, value), typ)
         else:
-            if not isinstance(value, list):
-                raise TypeError(f"{value!r} is not a list (expected {typ!r})")
-            value_packed = [_pack_value_scalar(element, typ) for element in value]
+            value_packed = [_pack_value_scalar(element, typ) for element in cast(list, value)]
         value_packed = {typ.identity_key: value_packed}
         return value_packed, None
 
@@ -674,11 +670,12 @@ from bench.language.node import Struct, struct, struct_component  # noqa: E402
 class HasValues(Struct):
     def _init_component(self) -> None:
         if self._status >= InterpStatus.INTERPED:
-            self._pack_values_inplace(self.__value_properties__.values())
+            self._pack_values_inplace(self.__value_properties__.values(), skip_already_set=True)
 
     def _interp_component(self, scope: "Node | None", notice: "NoticeHandler"):
         # unpack values
         self._unpack_values_inplace(self.__value_properties__.values())
+        # TODO :Incomplete: check type?
 
     def _updated_component(self, properties: Collection[Property]) -> None:
         # update packed properties
@@ -714,15 +711,22 @@ class HasValues(Struct):
                 value = unpack_value(value_packed, None, value_type)
                 setattr(self, prop.name, value)
 
-    def _pack_values_inplace(self, properties: Collection[Property]) -> None:
+    def _pack_values_inplace(
+        self, properties: Collection[Property], skip_already_set: bool = False
+    ) -> None:
         # we don't handle :SecretValues yet
         for prop in properties:
             if not prop.is_value_runtime:
                 continue
-            value_type = self._resolve_value_prop_type(prop)
-            value = getattr(self, prop.name)
             assert type(prop.value_packed_ptr) is Property, f"{prop!r} has no value_packed_ptr"
+            if skip_already_set:
+                # allow us to bail if we want to force set a temporary value in the constructor
+                value_packed = getattr(self, prop.value_packed_ptr.name)
+                if value_packed is not None:
+                    continue
+            value = getattr(self, prop.name)
             if value is not None:
+                value_type = self._resolve_value_prop_type(prop)
                 value_packed, _ = pack_value(value, value_type)
                 setattr(self, prop.value_packed_ptr.name, value_packed)
             else:

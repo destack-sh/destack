@@ -21,6 +21,8 @@ CreateProjectRep = NamedTuple(
     "CreateProjectResponse", [("project_id", str), ("connection_uri", str)]
 )
 
+# TODO :Test! :Robustness: use local neon for testing/development
+
 
 class NeonApi(abc.ABC):
     def __init__(self, *, url: str, api_key: str):

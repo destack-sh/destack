@@ -238,11 +238,15 @@ class Expression(HasValues):
     @__property__
     def _value_type(self) -> "TypeInfo":
         if self.field is not None:
-            return self.field.as_type_info
+            typ = self.field.as_type_info
         elif self.property is not None:
-            return self.property.as_type_info
+            typ = self.property.as_type_info
         else:
             raise ValueError(f"no target for {self!r}")
+        # wrap as list if needed
+        if not typ.is_list and (self.op == ConditionalOp.IN or self.op == ConditionalOp.NOT_IN):
+            typ = typ._copy(is_list=True)
+        return typ
 
     def __bool__(self):
         # safe-guard to ensure expressions are not used directly in boolean context
