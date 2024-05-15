@@ -4,7 +4,6 @@ from datetime import datetime
 from typing import TYPE_CHECKING, Any, Collection, Optional, Union, cast
 
 from bench.language.const import BlockType, NodeType, StructType, TypeKind, Visibility
-from bench.language.database import Database
 from bench.language.node import Node, NodeList, node
 from bench.language.property import (
     p_internal,
@@ -16,6 +15,7 @@ from bench.language.property import (
     p_value_packed,
     p_value_runtime,
 )
+from bench.language.record import Database
 from bench.language.validation import NAME_CONSTRAINT, ValidationHandler
 from bench.language.value import HasValues
 from bench.proto.wire import BlockData

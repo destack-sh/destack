@@ -153,25 +153,25 @@ export const ICON_BY_NODE_TYPE: Partial<Record<NodeType, IconData>> = _makeIcons
   [NodeType.BLOCK]: "fas fa-cube",
   [NodeType.TRIGGER]: "fas fa-bolt",
   [NodeType.FIELD]: "fas fa-font",
-  [NodeType.RECORD]: "fas fa-database",
   [NodeType.QUERY]: "fas fa-magnifying-glass",
   [NodeType.VIEW]: "fas fa-browser",
   [NodeType.STEP]: "fas fa-step-forward",
-  [NodeType.MESSAGE]: "fas fa-message",
-
+  
   // auth
   [NodeType.BADGE]: "fas fa-id-badge",
   [NodeType.ROLE]: "fas fa-user-tag",
   [NodeType.IDENTITY]: "fas fa-image-user",
   [NodeType.MEMBERSHIP]: "fas fa-book-user",
   [NodeType.INVITE]: "fas fa-circle-nodes",
-
+  
   // runtime
   [NodeType.SESSION]: "fas fa-circle-play",
   [NodeType.RUN]: "fas fa-play",
   [NodeType.SIGNAL]: "fas fa-signal-stream",
   [NodeType.LOG]: "fas fa-file-alt",
   [NodeType.NOTIFICATION]: "fas fa-bell",
+  [NodeType.MESSAGE]: "fas fa-message",
+  [NodeType.RECORD]: "fas fa-database",
 
   // resources
   [NodeType.SERVER]: "fas fa-server",

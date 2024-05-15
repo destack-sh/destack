@@ -39,10 +39,10 @@ from bench.language.const import (
     ReferenceKind,
     SortOp,
 )
-from bench.language.database import Database, Record
 from bench.language.expression import METATYPE_KEY, C, Expression, ExpressionOps
 from bench.language.graph import NodeDataGraph
 from bench.language.node import NODE_CLASS_BY_TYPE, UNSET, Node
+from bench.language.record import Database, Record
 from bench.language.setup import NODE_CLASSES, PARENT_NODE_TYPES
 from bench.proto import wire, wiring
 from bench.proto.wire import AnyNodeData, EditData, IdEnum, NodeReferenceData

@@ -79,15 +79,17 @@ export function isEnumType(object: any): object is EnumType {
 }
 
 export const ROOT_NODE_TYPES = [NodeType.USER, NodeType.ORGANIZATION, NodeType.BENCH];
-export const BASED_NODE_TYPES = [NodeType.RECORD, NodeType.RUN, NodeType.SIGNAL, NodeType.NOTIFICATION];
+export const BASED_NODE_TYPES = [NodeType.RECORD, NodeType.MESSAGE, NodeType.RUN, NodeType.SIGNAL, NodeType.NOTIFICATION];
 export const RUNTIME_NODE_TYPES = [
   NodeType.SESSION,
   NodeType.RUN,
   NodeType.SIGNAL,
   NodeType.LOG,
   NodeType.NOTIFICATION,
+  NodeType.MESSAGE,
+  NodeType.RECORD,
 ];
-export const LOCAL_NODE_TYPES = [NodeType.RECORD, ...RUNTIME_NODE_TYPES];
+export const LOCAL_NODE_TYPES = [...RUNTIME_NODE_TYPES];
 export const DEFAULT_LOADED_SOURCE_NODE_TYPES = [
   NodeType.PACKAGE,
   NodeType.DEPENDENCY,
@@ -101,7 +103,6 @@ export const DEFAULT_LOADED_SOURCE_NODE_TYPES = [
   NodeType.QUERY,
   NodeType.STEP,
   NodeType.VIEW,
-  NodeType.MESSAGE,
 ];
 
 export const TYPE_BLOCK_TYPES = [BlockType.CLASS, BlockType.CHOICE, BlockType.SIGNAL, BlockType.DATABASE];

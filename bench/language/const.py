@@ -13,7 +13,7 @@ from bench.utils.utils import frozendict
 if typing.TYPE_CHECKING:
     from bench.language import Session, Transaction
 
-VERSION = "2024.05.15.0"
+VERSION = "2024.05.15.2"
 REVISION_PENDING = -1
 TK_LENGTH_BYTES = 8
 TK_LENGTH_B64 = 12  # 1.5 * TK_LENGTH_BYTES (must be integer)
@@ -160,9 +160,8 @@ ENUM_TYPES_SET: frozenset[EnumType] = frozenset(ENUM_TYPES)
 class NodeType(IdEnum):
     # root
     BENCH = 1
-    # PLACE = 2 # isn't Place == Client?
-    ENVIRONMENT = 3
-    BRANCH = 4
+    ENVIRONMENT = 2
+    BRANCH = 3
 
     # source
     PACKAGE = 20
@@ -175,13 +174,9 @@ class NodeType(IdEnum):
     BLOCK = 30
     TRIGGER = 31
     FIELD = 32  # (based)
-    RECORD = 33  # (local, based)
-    QUERY = 34
-    VIEW = 35
-    STEP = 36
-    # TODO :Architecture: should Message be local?
-    #  (but then how do we query it together with the rest of source?)
-    MESSAGE = 37
+    QUERY = 33
+    VIEW = 34
+    STEP = 35
     # TAG?
     # REACTION?
     # LOCK?
@@ -200,7 +195,8 @@ class NodeType(IdEnum):
     SIGNAL = 82  # (local, based)
     LOG = 83  # (local)
     NOTIFICATION = 84  # (local, based)
-    # METRIC = ...?
+    MESSAGE = 85  # (local, based)
+    RECORD = 86  # (local, based)
 
     # resources (compute/storage/external/etc.)
     SERVER = 160
@@ -224,7 +220,7 @@ ROOT_NODE_TYPES: bytetuple[NodeType] = bytetuple(
     NodeType.BENCH, NodeType.USER, NodeType.ORGANIZATION
 )
 LOCAL_NODE_TYPES: bytetuple[NodeType] = bytetuple(
-    NodeType.RECORD, NodeType.RUN, NodeType.SIGNAL, NodeType.NOTIFICATION
+    NodeType.RECORD, NodeType.MESSAGE, NodeType.RUN, NodeType.SIGNAL, NodeType.NOTIFICATION
 )
 GLOBAL_NODE_TYPES: bytetuple[NodeType] = bytetuple(
     *tuple(nt for nt in NODE_TYPES if nt not in LOCAL_NODE_TYPES)
@@ -232,7 +228,12 @@ GLOBAL_NODE_TYPES: bytetuple[NodeType] = bytetuple(
 # based = instances are directly based on some other node
 # (e.g. Run.block->Block, Record.parent->Block)
 BASED_NODE_TYPES: bytetuple[NodeType] = bytetuple(
-    NodeType.FIELD, NodeType.RECORD, NodeType.RUN, NodeType.SIGNAL, NodeType.NOTIFICATION
+    NodeType.FIELD,
+    NodeType.RECORD,
+    NodeType.MESSAGE,
+    NodeType.RUN,
+    NodeType.SIGNAL,
+    NodeType.NOTIFICATION,
 )
 IN_PACKAGE_NODE_TYPES: bytetuple[NodeType] = bytetuple(
     *tuple(nt for nt in NODE_TYPES if 20 <= nt.id < 100)
