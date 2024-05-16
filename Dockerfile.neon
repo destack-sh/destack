@@ -1,0 +1,22 @@
+FROM neondatabase/neon:latest
+
+# remove the .neon directory (not needed for neon_local)
+RUN rm -rf /data/.neon
+
+# extract /data/postgres_install.tar.gz into the /data/pg_install directory
+RUN mkdir -p /data/pg_install && tar -xzf /data/postgres_install.tar.gz -C /data/pg_install
+
+# ensure proper ownership and permissions
+RUN chown -R neon:neon /data/pg_install
+
+# initialize with neon_local using the binaries in /data/pg_install
+RUN neon_local init
+
+# set the library path for PostgreSQL
+ENV LD_LIBRARY_PATH /data/pg_install/v16/lib
+
+VOLUME ["/data"]
+USER neon
+EXPOSE 6400
+EXPOSE 9898
+ 

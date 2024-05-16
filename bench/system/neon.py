@@ -1,6 +1,7 @@
 import abc
 import asyncio
 import re
+from pathlib import Path
 from typing import TYPE_CHECKING, Any, NamedTuple
 
 import aiohttp
@@ -50,17 +51,19 @@ class NeonApi(abc.ABC):
 class NeonApiLocal(NeonApi):
     """
     Neon API client wrapper for neon_local.
-    Assumes that Neon has been set up locally (should run in our dev docker compose).
+    Assumes that Neon has been set up locally (from our dev docker compose).
     """
 
+    def __init__(self, neon_path: str):
+        self.neon_path: str = Path(neon_path).resolve().absolute().as_posix()
+
     async def _execute(self, command: str) -> str:
-        # TODO :Test! :Robustness: put neon in docker compose for testing/development
-        # run the command with 'cargo neon <command>' in '~/neon'
+        # run the command as 'neon_local <command>'
         process = await asyncio.create_subprocess_shell(
-            f"cargo neon {command}",
+            f"docker exec -it neon neon_local {command}",
             stdout=asyncio.subprocess.PIPE,
             stderr=asyncio.subprocess.PIPE,
-            cwd="~/neon",
+            cwd=self.neon_path,
         )
         stdout, stderr = await process.communicate()
         output = stdout.decode()
@@ -93,6 +96,11 @@ class NeonApiLocal(NeonApi):
         connection_uri = connection_uri_match.group(1)
 
         return CreateProjectRep(project_id=tenant_id, connection_uri=connection_uri)
+
+
+NEON_REGION_BY_REGION: dict[Region, str] = {
+    Region.EUROPE_CENTRAL: "aws-eu-central-1",
+}
 
 
 class NeonApiRemote(NeonApi):
@@ -145,17 +153,13 @@ class NeonApiRemote(NeonApi):
         )
 
 
-if get_from_env("NEON_LOCAL", default=not IS_DEBUG):
-    neon_client = NeonApiLocal()
+if get_from_env("NEON_LOCAL", default=IS_DEBUG, type_cast=bool):
+    neon_client = NeonApiLocal(neon_path=get_from_env("NEON_PATH"))
 else:
     neon_client = NeonApiRemote(
         url=get_from_env("NEON_BASE_URL"),
         api_key=get_from_env("NEON_API_KEY"),
     )
-
-NEON_REGION_BY_REGION: dict[Region, str] = {
-    Region.EUROPE_CENTRAL: "aws-eu-central-1",
-}
 
 
 async def create_local_pg_store(store: "Store") -> None:
