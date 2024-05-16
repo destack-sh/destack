@@ -1,0 +1,14 @@
+# run ./scripts/update-requirements.sh
+
+-r requirements/base.in
+
+kubernetes-asyncio==24.2.3
+kubernetes==27.2.0
+orjson==3.10.3
+posthog==3.0.2
+protobuf==4.24.3
+psycopg[binary,pool]==3.1.12
+redis[hiredis]==4.5.4
+sqlparse==0.4.4
+uvicorn==0.23.2
+starlette==0.34.0
