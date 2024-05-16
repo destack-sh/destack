@@ -22,6 +22,8 @@ if TYPE_CHECKING:
 
 logger = structlog.get_logger(__name__)
 
+# NOTE :Architecture: should Signal be materialized like Records?
+
 
 @node(NodeType.SIGNAL, passthrough="value", local=True, id_factory=UUIDT)
 class Signal(BasedNode[SignalData], HasValues):

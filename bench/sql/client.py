@@ -55,7 +55,7 @@ async def get_pg_connection_pool(connection_str: str) -> AsyncConnectionPool:
 
 
 _CONNECTION_STR_REGEX = re.compile(
-    r"postgresql://(?P<username>[^:]+):(?P<password>[^@]+)@(?P<host>[^/]+)/(?P<database>.+)"
+    r"postgresql://(?P<username>[^:]+)(:(?P<password>[^@]+))?@(?P<host>[^/]+)/(?P<database>.+)"
 )
 
 

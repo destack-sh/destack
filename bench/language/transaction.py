@@ -263,54 +263,50 @@ class Transaction:
     async def open(self):
         pass
 
-    async def flush(self):
-        """
-        Canonicalizes and flushes any pending edits to the primary stores (without committing).
-        If specific engines are given, only flushes to those engines.
-        """
-
+    async def _do_flush(self, *, commit: bool):
         assert self.session is not None, f"no session for {self!r}"
+        start = asyncio.get_running_loop().time()
         log = logger.bind(edits=len(self.edits), transaction=self)
         now = utcnow_with_tz()
+
+        # TODO :Robustness!: use :2PC in Transaction.commit
+        #  (if there are more than 2 engines to commit to)
         for engine in self.session._engines:
+            # prepare edits & connection
             pending_edits = self._pending_edits_by_engine_id.get(engine.id, ())
-            if pending_edits:
-                Transaction.canonicalize_edits(now, pending_edits)
-                connection = await self._get_engine_connection(engine)
-                log.debug("transaction.flush", engine=engine, flushed=len(pending_edits))
+            if not pending_edits:
+                continue
+            Transaction.canonicalize_edits(now, pending_edits)
+            connection = await self._get_engine_connection(engine)
+
+            # flush/commit
+            log.trace(
+                "transaction.flush.engine", engine=engine, edits=len(pending_edits), commit=commit
+            )
+            if commit:
+                accepted_revisions = await connection.commit(pending_edits)
+            else:
                 accepted_revisions = await connection.flush(pending_edits)
-                for edit, new_revision in zip(pending_edits, cast(list[int], accepted_revisions)):
-                    edit.revision = new_revision
-                pending_edits.clear()
+            assert len(accepted_revisions or ()) == len(pending_edits), "revisions mismatch"
+            for edit, new_revision in zip(pending_edits, cast(list[int], accepted_revisions)):
+                edit.revision = new_revision
+            pending_edits.clear()
+        self._pending_edits_by_engine_id.clear()
         self._pending_updates_idx.clear()
 
         # mark nodes as flushed
         for n in self._pending_nodes_by_ck.values():
             n._flushed_self()
         self._pending_nodes_by_ck.clear()
+        log.trace("transaction.flush", duration=asyncio.get_running_loop().time() - start)
+
+    async def flush(self):
+        """Canonicalizes and flushes any pending edits (without committing)."""
+        await self._do_flush(commit=False)
 
     async def commit(self):
-        """Commits the transaction (flushing any pending edits). Syncs to secondary stores."""
-        assert self.session is not None, f"no session for {self!r}"
-        log = logger.bind(edits=len(self.edits), transaction=self)
-        start = asyncio.get_running_loop().time()
-
-        # TODO :Robustness!: use :2PC in Transaction.commit
-        #  (if there are more than 2 engines to commit to)
-        now = utcnow_with_tz()
-        for engine in self.session._engines:
-            pending_edits = self._pending_edits_by_engine_id.get(engine.id, [])
-            if pending_edits or engine.id in self._connections_by_engine_id:
-                Transaction.canonicalize_edits(now, pending_edits)
-                connection = await self._get_engine_connection(engine)
-                log.trace("transaction.commit.engine", engine=engine, flushed=len(pending_edits))
-                accepted_revisions = await connection.commit(pending_edits)
-                assert len(accepted_revisions or ()) == len(pending_edits), "revisions mismatch"
-                for edit, new_revision in zip(pending_edits, cast(list[int], accepted_revisions)):
-                    edit.revision = new_revision
-                if len(pending_edits) > 0:
-                    pending_edits.clear()
-        log.trace("transaction.commit", duration=asyncio.get_running_loop().time() - start)
+        """Commits the transaction (also flushing any pending edits)."""
+        await self._do_flush(commit=True)
 
     async def rollback(self):
         """Rolls back uncommitted edits in primary stores."""

@@ -12,6 +12,7 @@ from bench.sql.client import pg_cursor_to_store
 from bench.sql.migration import has_migration_after, migrate
 from bench.sql.schema import VERSION
 from bench.utils.env import IS_DEBUG
+from bench.utils.tenacity import RetryOptions, retry
 from bench.utils.utils import get_from_env
 
 if TYPE_CHECKING:
@@ -56,7 +57,8 @@ class NeonApi(abc.ABC):
 
 class NeonApiLocal(NeonApi):
     """
-    Neon API client wrapper for neon_local. Assumes that Neon has been set up locally.
+    Neon API client wrapper for neon_local. Assumes that Neon has been set up locally at NEON_PATH.
+    See https://github.com/neondatabase/neon#running-local-installation
     """
 
     def __init__(self, neon_path: str):
@@ -74,6 +76,8 @@ class NeonApiLocal(NeonApi):
         output = stdout.decode()
         if stderr:
             logger.error("neon.error", command=command, stderr=stderr.decode())
+        else:
+            logger.trace("neon.local", command=command, output=output)
         return output
 
     async def create_project(
@@ -89,22 +93,39 @@ class NeonApiLocal(NeonApi):
         tenant_id = tenant_match.group(1)
 
         # create endpoint
-        output = await self._execute(f"endpoint create main --tenant-id {tenant_id}")
+        endpoint_name = f"{tenant_id}-main"
+        output = await self._execute(f"endpoint create {endpoint_name} --tenant-id {tenant_id}")
+
         # start endpoint, output should look like
         # > ...
         # > Starting existing endpoint main...
         # > Starting postgres node at 'postgresql://cloud_admin@127.0.0.1:55436/postgres'
         # > ...
-        output = await self._execute(f"endpoint start main --tenant-id {tenant_id}")
+        output = await self._execute(f"endpoint start {endpoint_name}")
         connection_uri_match = re.search(r"Starting postgres node at '([^']+)'", output)
         assert connection_uri_match, f"endpoint start failed: {output}"
         connection_uri = connection_uri_match.group(1)
 
         return CreateProjectRep(project_id=tenant_id, connection_uri=connection_uri)
 
-    async def _ensure_endpoint(self, *, project_id: str, endpoint_name="main") -> str:
-        # ensure endpoint is up
-        output = await self._execute(f"endpoint start {endpoint_name} --tenant-id {project_id}")
+    async def _ensure_branch_endpoint(self, *, project_id: str, branch_name="main") -> str:
+        # check if endpoint is up, output looks like
+        # > ...
+        # >  ENDPOINT   ADDRESS          TIMELINE                          BRANCH NAME  LSN        STATUS
+        # >  ep-main    127.0.0.1:55436  4c32574ffb5439346b403c717ad6f74b  main         0/14B8340  stopped
+        # >  test-main  127.0.0.1:55440  4c32574ffb5439346b403c717ad6f74b  main         0/14B8340  running
+        # > ...
+        output = await self._execute(f"endpoint list --tenant-id {project_id}")
+        endpoint_name = f"{project_id}-{branch_name}"
+        # attempt to parse out address for endpoint (just the address part)
+        endpoint_match = re.search(rf"\s*{endpoint_name}\s+([\d\.:]+)\s+", output, re.MULTILINE)
+        if endpoint_match is not None:  # found it!
+            address = endpoint_match.group(1)
+            # yeah the could_admin/postgres stuff seems hardcoded in neon_local somewhere
+            return f"postgresql://cloud_admin@{address}/postgres"
+
+        # nope, start endpoint
+        output = await self._execute(f"endpoint start {project_id}-{branch_name}")
         connection_uri_match = re.search(r"Starting postgres node at '([^']+)'", output)
         assert connection_uri_match, f"endpoint start failed: {output}"
         connection_uri = connection_uri_match.group(1)
@@ -117,6 +138,24 @@ class NeonApiLocal(NeonApi):
 NEON_REGION_BY_REGION: dict[Region, str] = {
     Region.EUROPE_CENTRAL: "aws-eu-central-1",
 }
+NEON_MAIN_ENDPOINT_SETTINGS = {
+    "autoscaling_limit_min_cu": 0.25,
+    "autoscaling_limit_max_cu": 4,
+    "suspend_timeout_seconds": 600,
+}
+NEON_BRANCH_ENDPOINT_SETTINGS = {
+    "autoscaling_limit_min_cu": 0.25,
+    "autoscaling_limit_max_cu": 4,
+    "suspend_timeout_seconds": 600,
+}
+
+
+class RecoverableError(RuntimeError):
+    pass
+
+
+class UnrecoverableError(RuntimeError):
+    pass
 
 
 class NeonApiRemote(NeonApi):
@@ -128,6 +167,11 @@ class NeonApiRemote(NeonApi):
         self.url = url
         self.api_key = api_key
 
+    @retry(
+        RetryOptions(
+            max_attempts=5, retry_interval=2, backoff_factor=1.5, retry_on=RecoverableError
+        )
+    )
     async def _request(
         self,
         method: str,
@@ -141,7 +185,23 @@ class NeonApiRemote(NeonApi):
             async with session.request(
                 method, f"{self.url}/{path}", headers=headers, params=params, json=json
             ) as response:
-                response.raise_for_status()
+                if response.status > 400:
+                    try:
+                        text = await response.text()
+                    except Exception:
+                        text = None
+                    error = dict(
+                        path=path, params=params, json=json, status=response.status, text=text
+                    )
+                    if response.status == 404:
+                        raise UnrecoverableError(f"not found: {error}")
+                    elif response.status == 409:
+                        raise UnrecoverableError(f"conflict: {error}")
+                    elif response.status == 422:
+                        raise UnrecoverableError(f"unprocessable: {error}")
+                    else:
+                        raise RecoverableError(f"request failed: {response.status} {error}")
+
                 rep = await response.json()
                 logger.debug("neon.response", status=response.status, json=rep)
                 return rep
@@ -153,7 +213,10 @@ class NeonApiRemote(NeonApi):
             "name": name,
             "region_id": NEON_REGION_BY_REGION[region],
             "pg_version": pg_version,
-            "branch": {"name": branch},
+            "branch": {"name": branch, "role_name": "bench", "database_name": "bench"},
+            "provisioner": "k8s-neonvm",
+            "default_endpoint_settings": NEON_MAIN_ENDPOINT_SETTINGS,
+            "history_retention_seconds": 30 * 24 * 60 * 60,
         }
         rep = await self._request("POST", "projects", json={"project": project})
         assert rep is not None, "no response"
@@ -180,7 +243,7 @@ async def prepare_local_stores(bench: "Bench") -> None:
     assert isinstance(neon_client, NeonApiLocal), f"not in local mode (client={neon_client!r})"
     for store in bench.stores:
         if store.external_id is not None:
-            connection_uri = await neon_client._ensure_endpoint(project_id=store.external_id)
+            connection_uri = await neon_client._ensure_branch_endpoint(project_id=store.external_id)
             if store.connection_uri != connection_uri:
                 store.connection_uri = connection_uri
 
