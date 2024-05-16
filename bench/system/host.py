@@ -184,9 +184,9 @@ class Host(GraphIoServiceBase, HostBase):
             assert self._bench.main_branch is not None, f"{self._bench!r} has no main branch"
             await provision_pending_resources(self._bench, session, commit_per=True)
 
-            # NOTE :Robustness: unsure when to migrate
             if NEON_LOCAL:
                 await prepare_local_stores(self._bench)
+            # NOTE :Robustness: unsure when to migrate local stores :StoreMigration
             await migrate_local_stores(self._bench, session)
             await session.commit()
 

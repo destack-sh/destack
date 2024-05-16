@@ -17,8 +17,6 @@ from bench.language import (
     ServerProfile,
     Session,
     Store,
-    StoreEngineType,
-    StoreKind,
     Tenancy,
     User,
 )
@@ -80,13 +78,7 @@ async def create_default_bench(
         profile=ServerProfile.SMALL,
         name="Server",
     )
-    store = bench.stores.create(
-        region=bench.region,
-        tenancy=Tenancy.DEDICATED,
-        kind=StoreKind.RELATIONAL,
-        engine=StoreEngineType.POSTGRES,
-        name="Store",
-    )
+    store = bench.stores.create(region=bench.region, tenancy=Tenancy.DEDICATED, name="Store")
     drive = bench.drives.create(region=bench.region, tenancy=Tenancy.SHARED, name="Drive")
 
     # create main environment/branch/package

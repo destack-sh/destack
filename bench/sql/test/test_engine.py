@@ -21,8 +21,6 @@ from bench.language import (
     Region,
     Server,
     ServerProfile,
-    StoreEngineType,
-    StoreKind,
 )
 from bench.language.const import ClientType, NodeType
 from bench.language.field import TypeKind
@@ -197,15 +195,13 @@ async def test_crud_node_pointers(fabricator: "Fabricator"):
         session.create(bench_a)
         await session.flush()
         server_a = bench_a.servers.create(name="Production A", profile=ServerProfile.TINY)
-        store_a = bench_a.stores.create(
-            name="Production A", kind=StoreKind.RELATIONAL, engine=StoreEngineType.POSTGRES
-        )
+        store_a = bench_a.stores.create(name="Production A")
         drive_a = bench_a.drives.create(name="Production A")
         client_a = server_a.clients.create(
             type=ClientType.BENCH_MOBILE, name="Testificate's iPhone"
         )
         environment_a = bench_a.environments.create(
-            name="main a", server=server_a, store=store_a, search=store_a, drive=drive_a
+            name="main a", server=server_a, store=store_a, drive=drive_a
         )
         bench_a.branches.create(name="main a")
         package_a = bench_a.packages.create(environment=environment_a)

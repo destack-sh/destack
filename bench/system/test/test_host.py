@@ -89,18 +89,17 @@ async def test_user_activate(some_bench: BenchHandle):
     assert user.status == UserStatus.ACTIVATED
 
     # read back bench (should be allowed & have default resources)
+    read_bench_options = ReadOptions(
+        select_all_properties=True,
+        descendant_types=[
+            NodeType.ENVIRONMENT,
+            NodeType.BRANCH,
+            NodeType.SERVER,
+            NodeType.STORE,
+        ],
+    )
     read_bench_req = GetNodesRequest(
-        roots=[user.main_bench_ptr],
-        scope=some_bench.scope,
-        options=ReadOptions(
-            select_all_properties=True,
-            descendant_types=[
-                NodeType.ENVIRONMENT,
-                NodeType.BRANCH,
-                NodeType.SERVER,
-                NodeType.STORE,
-            ],
-        )._to_data(),
+        roots=[user.main_bench_ptr], scope=some_bench.scope, options=read_bench_options._to_data()
     )
     read_bench_rep = await some_bench.host.get_nodes(read_bench_req, metadata=some_bench.headers)
     node_graph = NodeDataGraph([wiring.unwrap_some_node(n) for n in read_bench_rep.nodes])

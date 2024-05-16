@@ -12,7 +12,7 @@ class RetryOptions:
     retry_interval: float = 1.0  # seconds
     backoff_factor: float = 2.0  # exponential backoff
     max_retry_interval: float = 60.0  # seconds
-    retry_on: Union[Type[Exception], tuple] = Exception
+    retry_on: Union[Type[Exception], tuple[Type[Exception], ...]] = Exception
 
 
 def retry(
