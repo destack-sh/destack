@@ -1,5 +1,7 @@
 # type: ignore
-# TODO :Robustness :Cleanup: type-check sql engine
+# TODO :Robustness :Cleanup: type-check sql engine (and probably refactor it entirely)
+# TODO :Performance: check out asyncpg instead of psycopg (up to 5x faster)
+#  see https://github.com/MagicStack/asyncpg
 
 import base64
 import enum
@@ -34,6 +36,7 @@ from bench.language.const import (
     EMPTY_DICT,
     NODE_TYPES,
     BenchError,
+    BlockType,
     EditType,
     NodeType,
     ReferenceKind,
@@ -48,7 +51,7 @@ from bench.proto import wire, wiring
 from bench.proto.wire import AnyNodeData, EditData, IdEnum, NodeReferenceData
 from bench.proto.wiring import PROTO_CLASS_BY_TYPE
 from bench.sql import schema
-from bench.sql.client import current_pg_crypto_key, pg_cursor_to_store
+from bench.sql.client import get_pg_crypto_key, pg_cursor_to_store
 from bench.sql.core import (
     DEFAULT_GLOBAL_TABLES,
     DEFAULT_LOCAL_TABLES,
@@ -203,12 +206,15 @@ POSTGRES_SORT_OP_BY_BENCH: dict[SortOp, PostgresSortOp] = {
 }
 
 
-def get_database_table_name(database: Block) -> str:
+def get_block_table_name(block: Block) -> str:
     """
     Gets the name for a table with the Records of a dynamically created DatabaseBlock.
-    NOTE: we rely on this table prefix to remain constant
+    NOTE: we rely on a constant :BlockTablePrefix
     """
-    return f"bench_record_{database.tk.replace('-', '')}"
+    if block.type == BlockType.DATABASE:
+        return f"bench_record_{block.tk.replace('-', '')}"
+    else:
+        raise ValueError(f"unexpected block type {block.type!r}")
 
 
 def get_bench_table_name(node_type: NodeType) -> str:
@@ -329,8 +335,8 @@ def get_field_column_name(field: Field) -> str:
     return f"value_{storage_key}"
 
 
-def map_database_to_pg_table(database: Block) -> Table:
-    """Gets the full table with all specific fields of a database and general record stuff."""
+def map_block_to_pg_table(database: Block) -> Table:
+    """Gets the full table with all specific fields of a block and general record stuff."""
     columns: list[Column] = []
     indexes: list[Index] = []
     constraints: list[Constraint] = []
@@ -349,7 +355,7 @@ def map_database_to_pg_table(database: Block) -> Table:
 
     return Table(
         _source=str(database.ck),
-        name=get_database_table_name(database),
+        name=get_block_table_name(database),
         columns=(*(c.clone() for c in RECORD_BASE_TABLE.columns), *columns),
         indexes=(*(i.clone() for i in RECORD_BASE_TABLE.indexes), *indexes),
         constraints=(*(c.clone() for c in RECORD_BASE_TABLE.constraints), *constraints),
@@ -357,7 +363,7 @@ def map_database_to_pg_table(database: Block) -> Table:
 
 
 async def update_dynamic_local_pg_schema(package: Package) -> None:
-    """Updates the dynamic local record Postgres tables for a package's databases."""
+    """Updates the dynamic local Postgres tables for a Bench's databases."""
     from bench.sql.migration import (
         MigrationOpKind,
         apply_migration_ops,
@@ -379,7 +385,7 @@ async def update_dynamic_local_pg_schema(package: Package) -> None:
         async with pg_cursor_to_store(store, autocommit=False) as cur:
             # introspect and update schema
             old_tables = await introspect_tables_from_pg(cur, table_prefix="bench_record_")
-            new_tables = [map_database_to_pg_table(d) for d in databases]
+            new_tables = [map_block_to_pg_table(d) for d in databases]
             migration_ops = generate_migration_ops(old_tables, new_tables)
             # we don't do deletes here
             migration_ops = [
@@ -601,7 +607,7 @@ def _pg_wrap_read_column(column: Column, value: SqlNode) -> SqlNode:
         original = value
         # first decrypt with pgp_sym_decrypt_bytea
         value = sqlstr("pgp_sym_decrypt_bytea({}, %(PG_CRYPTO_KEY)s::text)").format(
-            sql_node_to_sql(value), sql.Literal(current_pg_crypto_key())
+            sql_node_to_sql(value), sql.Literal(get_pg_crypto_key(column))
         )
         # then convert from bytea to the correct type
         if column._unencrypted_type == PrimitiveType.BYTES:
@@ -686,7 +692,7 @@ async def pg_select(
         statement += sqlstr(" OFFSET {}").format(sql.Literal(skip))
     logger.trace("pg.select", table=table, query=sql_to_str(cur, statement))
     if any(c.is_encrypted for c in columns):
-        params = {**(params or EMPTY_DICT), "PG_CRYPTO_KEY": current_pg_crypto_key()}
+        params = {**(params or EMPTY_DICT), "PG_CRYPTO_KEY": get_pg_crypto_key(table)}
     try:
         await cur.execute(statement, params)
     except psycopg.errors.Error as e:
@@ -760,7 +766,7 @@ async def pg_insert(
     logger.trace("pg.insert", table=table, query=sql_to_str(cur, statement))
 
     if any(c.is_encrypted for c in table.columns):
-        templated_values = tuple({**row, "PG_CRYPTO_KEY": current_pg_crypto_key()} for row in rows)
+        templated_values = tuple({**row, "PG_CRYPTO_KEY": get_pg_crypto_key(table)} for row in rows)
     else:
         templated_values = rows
     try:
@@ -821,7 +827,7 @@ async def pg_upsert(
     logger.trace("pg.upsert", table=table, query=sql_to_str(cur, statement))
 
     if any(c.is_encrypted for c in table.columns):
-        templated_values = tuple({**row, "PG_CRYPTO_KEY": current_pg_crypto_key()} for row in rows)
+        templated_values = tuple({**row, "PG_CRYPTO_KEY": get_pg_crypto_key(table)} for row in rows)
     else:
         templated_values = rows
     try:
@@ -860,7 +866,7 @@ async def pg_update_constant(
     logger.trace("pg.update_constant", table=table, query=sql_to_str(cur, statement))
 
     if any(c.is_encrypted for c in table.columns):
-        template_values = {**static_value, "PG_CRYPTO_KEY": current_pg_crypto_key()}
+        template_values = {**static_value, "PG_CRYPTO_KEY": get_pg_crypto_key(table)}
     else:
         template_values = static_value
     try:
@@ -928,7 +934,7 @@ async def pg_update_variable(
     )
 
     is_any_encrypted = any(c.is_encrypted for c in table.columns)
-    pg_crypto_key = current_pg_crypto_key()
+    pg_crypto_key = get_pg_crypto_key(table)
     templated_values: list[RowIn] = []
     for row in dynamic_values:
         pk = row.get(table._primary_key.name)
@@ -1982,6 +1988,9 @@ TABLE_BY_NODE_TYPE: dict[NodeType, Table] = {
     node_type: getattr(schema, f"{to_casing(node_type.name, Casing.ALL_CAPS)}_TABLE")
     for node_type in NODE_TYPES
     if hasattr(schema, f"{to_casing(node_type.name, Casing.ALL_CAPS)}_TABLE")
+}
+NODE_TYPE_BY_TABLE_NAME: dict[str, NodeType] = {
+    table.name: node_type for node_type, table in TABLE_BY_NODE_TYPE.items()
 }
 NODE_TABLES: tuple[Table, ...] = tuple(TABLE_BY_NODE_TYPE.values())
 GLOBAL_TABLES: tuple[Table, ...] = DEFAULT_GLOBAL_TABLES + tuple(

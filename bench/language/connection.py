@@ -36,7 +36,7 @@ from bench.utils.func import bytetuple
 from bench.utils.tenacity import RetryOptions, retry
 
 if TYPE_CHECKING:
-    from bench.language import Expression, Field, Property, Session, Store
+    from bench.language import Bench, Expression, Field, Property, Session, Store
     from bench.language.query import QueryBuilder
     from bench.sql.client import _PgStoreConnection
 
@@ -297,15 +297,14 @@ class PostgresEngine(StoreEngine[NodeT, NodeDataT], Generic[NodeT, NodeDataT]):
     type = StoreEngineType.POSTGRES
 
     def __init__(
-        self,
-        store: "Store",
-        node_types: tuple[NodeType, ...] | bytetuple[NodeType],
+        self, store: "Store", bench: "Bench", node_types: tuple[NodeType, ...] | bytetuple[NodeType]
     ):
         super().__init__(node_types)
         self.store = store
+        self.bench = bench
 
     def __str__(self):
-        return f"store={self.store!r}"
+        return f"store={self.store!r}, bench={self.bench!r}"
 
     async def connect(self, session: "Session") -> "PostgresConnection":
         from bench.sql.client import get_pg_store_connection

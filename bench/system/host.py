@@ -162,7 +162,7 @@ class Host(GraphIoServiceBase, HostBase):
         self.bench_id = bench_id
         self._bench: Bench | None = None
         self._bench_scope: GraphScope = GraphScope(bench_id=str(bench_id))
-        self._bench_pg_engine = PostgresEngine(GLOBAL_STORE, node_types=IN_BENCH_NODE_TYPES)
+        self._bench_pg_engine: PostgresEngine | None = None
         self._owner: User | Organization | None = None
         self._main_package: Package | None = None
         self._packages: dict[UUID, Package] = {}
@@ -181,6 +181,7 @@ class Host(GraphIoServiceBase, HostBase):
     @property
     def engines(self) -> tuple[StoreEngine, ...]:
         # TODO :Broken :Performance!: support local engines in Host (in-memory from local data graph)
+        assert self._bench_pg_engine is not None, f"pg engine not initialized in {self!r}"
         return (self._bench_pg_engine,)
 
     async def start(self) -> None:
@@ -189,6 +190,9 @@ class Host(GraphIoServiceBase, HostBase):
         # load bench
         async with global_session() as session:
             self._bench = await BENCH_QUERY.get(id=self.bench_id)
+            self._bench_pg_engine = PostgresEngine(
+                store=GLOBAL_STORE, bench=self._bench, node_types=IN_BENCH_NODE_TYPES
+            )
             assert self._bench.main_branch is not None, f"{self._bench!r} has no main branch"
             await provision_pending_resources(self._bench, session, commit_per=True)
 
@@ -198,11 +202,13 @@ class Host(GraphIoServiceBase, HostBase):
             # NOTE :Robustness: unsure when to migrate local stores :StoreMigration
             await migrate_local_stores(self._bench, session)
             await session.commit()
+        session.untrack_many(self._bench)
 
-            # preload main packages
+        # preload main packages
+        async with local_session(engines=(self._bench_pg_engine,)):
             self._main_package = await PACKAGE_QUERY.get(id=self._bench.main_branch.main_package_id)
             self._packages[self._main_package.id] = self._main_package
-        session.untrack_many(self._bench, *self._packages.values())
+        session.untrack_many(self._main_package)
 
         logger.info("host.start", host=self, duration=asyncio.get_event_loop().time() - start)
 

@@ -7,8 +7,6 @@ from itertools import chain
 from typing import Any, ClassVar, Self, Union, cast
 from uuid import UUID
 
-# TODO :Performance: check out asyncpg instead of psycopg (up to 5x faster)
-#  see https://github.com/MagicStack/asyncpg
 from more_itertools import first
 
 from bench.language.const import PrimitiveType
