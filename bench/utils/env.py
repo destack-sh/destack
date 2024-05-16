@@ -1,5 +1,5 @@
-from pathlib import Path
 import sys
+from pathlib import Path
 from typing import TYPE_CHECKING
 
 import dotenv
@@ -14,8 +14,10 @@ def setup_dotenv():
         dot_env_files = [".env", ".env.prod"]
     elif ENVIRONMENT == "test":
         dot_env_files = [".env", ".env.test"]
-    else:
+    elif ENVIRONMENT == "dev":
         dot_env_files = [".env"]
+    else:
+        raise ValueError(f"unknown environment: {ENVIRONMENT}")
 
     # find .env files (walk up from current directory)
     dot_env_paths = []
@@ -31,13 +33,13 @@ def setup_dotenv():
         dotenv.load_dotenv(dot_env_path, verbose=True, override=True)
 
 
-ENVIRONMENT = get_from_env("ENVIRONMENT", default="local")
+ENVIRONMENT = get_from_env("ENVIRONMENT", default="dev")
 IS_DEBUG: bool = get_from_env("DEBUG", False, type_cast=str_to_bool)
 IS_TEST: bool = (
     "test" in sys.argv
     or "pytest" in sys.argv[0]
     or get_from_env("TEST", False, type_cast=str_to_bool)
 )
-IS_LOCAL = ENVIRONMENT == "local"
+IS_DEV = ENVIRONMENT == "dev"
 SOME_TYPE_CHECKING = TYPE_CHECKING or "mypy" in sys.argv[0] or IS_TEST
 REPOSITORY_PATH = Path(__file__).parent.parent.parent.resolve()

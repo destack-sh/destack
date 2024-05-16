@@ -4651,14 +4651,6 @@ export interface StoreData {
      */
     status: ResourceStatus;
     /**
-     * @generated from protobuf field: symbolx.bench.StoreKind kind = 40;
-     */
-    kind: StoreKind;
-    /**
-     * @generated from protobuf field: symbolx.bench.StoreEngineType engine = 41;
-     */
-    engine: StoreEngineType;
-    /**
      * @generated from protobuf field: optional string version = 42;
      */
     version?: string;
@@ -8236,7 +8228,15 @@ export enum ResourceStatus {
     /**
      * @generated from protobuf enum value: RESOURCE_STATUS_PAUSED = 30;
      */
-    PAUSED = 30
+    PAUSED = 30,
+    /**
+     * @generated from protobuf enum value: RESOURCE_STATUS_DELETING = 35;
+     */
+    DELETING = 35,
+    /**
+     * @generated from protobuf enum value: RESOURCE_STATUS_DELETED = 40;
+     */
+    DELETED = 40
 }
 /**
  * @generated from protobuf enum symbolx.bench.RunErrorKind
@@ -19876,8 +19876,6 @@ class StoreData$Type extends MessageType<StoreData> {
             { no: 35, name: "region", kind: "enum", T: () => ["symbolx.bench.Region", Region, "REGION_"] },
             { no: 36, name: "tenancy", kind: "enum", T: () => ["symbolx.bench.Tenancy", Tenancy, "TENANCY_"] },
             { no: 37, name: "status", kind: "enum", T: () => ["symbolx.bench.ResourceStatus", ResourceStatus, "RESOURCE_STATUS_"] },
-            { no: 40, name: "kind", kind: "enum", T: () => ["symbolx.bench.StoreKind", StoreKind, "STORE_KIND_"] },
-            { no: 41, name: "engine", kind: "enum", T: () => ["symbolx.bench.StoreEngineType", StoreEngineType, "STORE_ENGINE_TYPE_"] },
             { no: 42, name: "version", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
             { no: 50, name: "external_name", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
             { no: 51, name: "external_id", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
@@ -19894,8 +19892,6 @@ class StoreData$Type extends MessageType<StoreData> {
         message.region = 0;
         message.tenancy = 0;
         message.status = 0;
-        message.kind = 0;
-        message.engine = 0;
         if (value !== undefined)
             reflectionMergePartial<StoreData>(this, message, value);
         return message;
@@ -19959,12 +19955,6 @@ class StoreData$Type extends MessageType<StoreData> {
                     break;
                 case /* symbolx.bench.ResourceStatus status */ 37:
                     message.status = reader.int32();
-                    break;
-                case /* symbolx.bench.StoreKind kind */ 40:
-                    message.kind = reader.int32();
-                    break;
-                case /* symbolx.bench.StoreEngineType engine */ 41:
-                    message.engine = reader.int32();
                     break;
                 case /* optional string version */ 42:
                     message.version = reader.string();
@@ -20045,12 +20035,6 @@ class StoreData$Type extends MessageType<StoreData> {
         /* symbolx.bench.ResourceStatus status = 37; */
         if (message.status !== 0)
             writer.tag(37, WireType.Varint).int32(message.status);
-        /* symbolx.bench.StoreKind kind = 40; */
-        if (message.kind !== 0)
-            writer.tag(40, WireType.Varint).int32(message.kind);
-        /* symbolx.bench.StoreEngineType engine = 41; */
-        if (message.engine !== 0)
-            writer.tag(41, WireType.Varint).int32(message.engine);
         /* optional string version = 42; */
         if (message.version !== undefined)
             writer.tag(42, WireType.LengthDelimited).string(message.version);
@@ -22743,8 +22727,6 @@ export enum StoreProperty {
   region = 35,
   tenancy = 36,
   status = 37,
-  kind = 40,
-  engine = 41,
   version = 42,
   externalName = 50,
   externalId = 51,
@@ -24651,8 +24633,6 @@ export const StoreDataInfo: Record<StoreProperty, PropertyInfo> = {
   [StoreProperty.region]: { id: 35, name: 'region', component: ObjectType.STORE, enumType: EnumType.REGION, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [StoreProperty.tenancy]: { id: 36, name: 'tenancy', component: ObjectType.STORE, enumType: EnumType.TENANCY, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [StoreProperty.status]: { id: 37, name: 'status', component: ObjectType.STORE, enumType: EnumType.RESOURCE_STATUS, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
-  [StoreProperty.kind]: { id: 40, name: 'kind', component: ObjectType.STORE, enumType: EnumType.STORE_KIND, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
-  [StoreProperty.engine]: { id: 41, name: 'engine', component: ObjectType.STORE, enumType: EnumType.STORE_ENGINE_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [StoreProperty.version]: { id: 42, name: 'version', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [StoreProperty.externalName]: { id: 50, name: 'external_name', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isSystem: true, isKernel: true, isRuntime: true, isWired: true, isStored: true, isSensitive: true },
   [StoreProperty.externalId]: { id: 51, name: 'external_id', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isSystem: true, isKernel: true, isRuntime: true, isWired: true, isStored: true, isSensitive: true },

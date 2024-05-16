@@ -6,14 +6,13 @@ RUN rm -rf /data/.neon
 # extract /data/postgres_install.tar.gz into the /data/pg_install directory
 RUN mkdir -p /data/pg_install && tar -xzf /data/postgres_install.tar.gz -C /data/pg_install
 
-# ensure proper ownership and permissions
-RUN chown -R neon:neon /data/pg_install
-
-# initialize with neon_local using the binaries in /data/pg_install
+# initialize with neon_local
 RUN neon_local init
 
-# set the library path for PostgreSQL
-ENV LD_LIBRARY_PATH /data/pg_install/v16/lib
+# add the library path for PostgreSQL
+ENV LD_LIBRARY_PATH=/data/pg_install/v16/lib:$LD_LIBRARY_PATH
+USER root
+RUN echo "/data/pg_install/v16/lib" > /etc/ld.so.conf.d/custom_libs.conf && ldconfig
 
 VOLUME ["/data"]
 USER neon

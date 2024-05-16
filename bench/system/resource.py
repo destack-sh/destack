@@ -23,7 +23,8 @@ from bench.language import (
     User,
 )
 from bench.system.auth import generate_encryption_key
-from bench.system.neon import create_local_pg_store, migrate_local_pg_store
+from bench.system.neon import create_local_store, delete_local_store, migrate_local_store
+from bench.utils.env import ENVIRONMENT
 from bench.utils.utils import get_from_env
 
 logger = structlog.get_logger(__name__)
@@ -105,20 +106,33 @@ async def provision_resource(resource: Resource, session: Session) -> None:
     assert resource.status == ResourceStatus.PENDING, f"{resource!r} is already provisioned"
     logger.info("resource.provision", resource=resource)
     if isinstance(resource, Server):
-        ...  # TODO :Broken: where should Servers & Machines be provisioned?
+        # TODO :Broken: where should Servers & Machines be provisioned?
+        ...
     elif isinstance(resource, Store):
         if resource.external_name is None:
-            resource.external_name = generate_random_slug()
-        if resource.engine == StoreEngineType.POSTGRES:
-            await create_local_pg_store(resource)
-        else:
-            raise NotImplementedError(f"unexpected store {resource!r} (yet)")
-        resource.status = ResourceStatus.HEALTHY
+            assert resource.bench_id, f"{resource!r} has no bench"
+            resource.external_name = f"{ENVIRONMENT}-{resource.bench_id}"
+        await create_local_store(resource)
     elif isinstance(resource, Drive):
-        # nothing to create for drives
-        resource.status = ResourceStatus.HEALTHY
+        # nothing to create for drives?
+        pass
     else:
-        raise NotImplementedError(f"cannot provision {resource!r} (yet)")
+        raise RuntimeError(f"cannot provision {resource!r} (yet)")
+    resource.status = ResourceStatus.HEALTHY
+
+
+async def decommission_resource(resource: Resource, session: Session) -> None:
+    """Decommissions a resource."""
+    logger.info("resource.decommission", resource=resource)
+    if isinstance(resource, Server):
+        ...  # nothing to do?
+    elif isinstance(resource, Store):
+        await delete_local_store(resource)
+    elif isinstance(resource, Drive):
+        pass
+    else:
+        raise RuntimeError(f"cannot decommission {resource!r} (yet)")
+    resource.status = ResourceStatus.DELETED
 
 
 async def provision_pending_resources(bench: Bench, session: Session, *, commit_per: bool):
@@ -130,11 +144,20 @@ async def provision_pending_resources(bench: Bench, session: Session, *, commit_
                 await session.commit()
 
 
+async def decommission_all_resources(bench: Bench, session: Session, *, commit_per: bool) -> None:
+    """Decommissions all resources in a Bench."""
+    for resource in bench.resources:
+        if resource.status == ResourceStatus.HEALTHY:
+            await decommission_resource(resource, session)
+            if commit_per:
+                await session.commit()
+
+
 async def migrate_local_stores(bench: Bench, session: Session) -> None:
     """Migrates all local stores in a Bench (to our internal schema)."""
     for store in bench.stores:
         if store.status == ResourceStatus.HEALTHY:
-            await migrate_local_pg_store(store)
+            await migrate_local_store(store)
 
 
 _s3_client = None

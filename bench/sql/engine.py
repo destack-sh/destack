@@ -65,7 +65,7 @@ from bench.sql.core import (
 )
 from bench.utils.casing import Casing, to_casing
 from bench.utils.dt import utcnow_with_tz
-from bench.utils.env import IS_DEBUG, IS_LOCAL, IS_TEST
+from bench.utils.env import IS_DEBUG, IS_DEV, IS_TEST
 from bench.utils.func import describe_type, to_uuid
 
 logger = structlog.get_logger(__name__)
@@ -1963,7 +1963,7 @@ def decode_pg_cursor(s: str) -> int:
     return struct.unpack("q", base64.b64decode(s))[0]
 
 
-if IS_DEBUG or IS_LOCAL or IS_TEST:
+if IS_DEBUG or IS_DEV or IS_TEST:
     # pretty print sql blocks in dev mode
     def sql_to_str(cur: psycopg.Cursor | psycopg.AsyncCursor, s: sql.Composable) -> str:
         import sqlparse

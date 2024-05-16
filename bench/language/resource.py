@@ -7,8 +7,6 @@ from bench.language.const import (
     FileStatus,
     NodeType,
     PrimitiveType,
-    StoreEngineType,
-    StoreKind,
     StructType,
     enum_,
 )
@@ -71,6 +69,8 @@ class ResourceStatus(IdEnum):
     HEALTHY = 20
     UNHEALTHY = 25
     PAUSED = 30
+    DELETING = 35
+    DELETED = 40
 
 
 NodeDataT = TypeVar("NodeDataT", bound=AnyNodeData)
@@ -168,8 +168,6 @@ class Client(Node[ClientData]):
 class Store(Resource[StoreData]):
     """Postgres database."""
 
-    kind: StoreKind = p_system(40)
-    engine: StoreEngineType = p_system(41)
     version: Optional[str] = p_system(42, default=None)
 
     external_name: Optional[str] = p_kernel(50, require=False, default=None, sensitive=True)
@@ -179,7 +177,7 @@ class Store(Resource[StoreData]):
     )
 
     def __content_str__(self) -> str:
-        return f"{self.kind.bench_name}, {self.engine.bench_name}, {self.status.bench_name}, {self.tenancy.bench_name}, {self.region.bench_name}"
+        return f"{self.external_name or '<no name>'} {self.status.bench_name}, {self.tenancy.bench_name}, {self.region.bench_name}"
 
 
 @node(NodeType.DRIVE)

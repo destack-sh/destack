@@ -26,6 +26,7 @@ from bench.proto.wire import (
 )
 from bench.system.client import GLOBAL_STORE, global_session
 from bench.system.graph import GraphIoServiceBase
+from bench.system.neon import NEON_LOCAL, prepare_local_stores
 from bench.system.resource import migrate_local_stores, provision_pending_resources
 from bench.utils.func import to_uuid
 
@@ -184,6 +185,8 @@ class Host(GraphIoServiceBase, HostBase):
             await provision_pending_resources(self._bench, session, commit_per=True)
 
             # NOTE :Robustness: unsure when to migrate
+            if NEON_LOCAL:
+                await prepare_local_stores(self._bench)
             await migrate_local_stores(self._bench, session)
             await session.commit()
 
@@ -192,10 +195,7 @@ class Host(GraphIoServiceBase, HostBase):
             self._packages[self._main_package.id] = self._main_package
 
             logger.info("host.start", host=self, duration=asyncio.get_event_loop().time() - start)
-        # NOTE :Architecture: untracking should probably happen automatically?
-        self._bench._untrack_rec()
-        for package in self._packages.values():
-            package._untrack_rec()
+        session.untrack_many(self._bench, *self._packages.values())
 
     def close(self) -> None:
         pass

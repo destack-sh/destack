@@ -9,7 +9,7 @@ from bench.proto.services import BenchServer, BenchServiceBase
 from bench.runtime.runtime import Runtime
 from bench.system.host import HostMultiplexer
 from bench.system.supervisor import Supervisor
-from bench.utils.env import IS_DEBUG
+from bench.utils.env import ENVIRONMENT, IS_DEBUG
 from bench.utils.monitoring import restart_on_file_changes
 from bench.utils.utils import get_from_env
 
@@ -21,7 +21,7 @@ logger = structlog.get_logger(__name__)
 @async_to_sync_blocking
 async def system(host: str, port: int, watch: bool = False, no_supervisor: bool = False):
     await check_is_consistent(check_db=True)
-    logger.info("serve.system", host=host, port=port)
+    logger.info("serve.system", host=host, port=port, env=ENVIRONMENT)
     services: list[BenchServiceBase] = [HostMultiplexer()]
     if not no_supervisor:
         services.append(Supervisor())
@@ -37,7 +37,7 @@ async def system(host: str, port: int, watch: bool = False, no_supervisor: bool 
 @async_to_sync_blocking
 async def runtime(host: str, port: int, watch: bool = False):
     await check_is_consistent(check_db=True)
-    logger.info("serve.runtime", host=host, port=port)
+    logger.info("serve.runtime", host=host, port=port, env=ENVIRONMENT)
     server = Runtime(
         supervisor_url=get_from_env("SUPERVISOR_URL"),
         bench_id=get_from_env("BENCH_ID"),

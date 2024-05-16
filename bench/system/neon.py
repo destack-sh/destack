@@ -15,7 +15,7 @@ from bench.utils.env import IS_DEBUG
 from bench.utils.utils import get_from_env
 
 if TYPE_CHECKING:
-    from bench.language import Store
+    from bench.language import Bench, Store
 
 
 logger = structlog.get_logger(__name__)
@@ -27,6 +27,9 @@ CreateBranchRep = NamedTuple(
     "CreateBranchResponse", [("branch_id", str), ("compute_id", str), ("connection_uri", str)]
 )
 
+# NOTE: we assume throughout our Neon use that there will only be one endpoint per branch for now
+#       and that the main branch for a project ('tenant') will always be called 'main'.
+
 
 class NeonApi(abc.ABC):
     """
@@ -36,6 +39,9 @@ class NeonApi(abc.ABC):
     async def create_project(
         self, *, name: str, region: Region, pg_version: int
     ) -> CreateProjectRep:
+        raise NotImplementedError
+
+    async def delete_project(self, *, project_id: str) -> None:
         raise NotImplementedError
 
     async def create_branch_with_rw_compute(
@@ -50,17 +56,16 @@ class NeonApi(abc.ABC):
 
 class NeonApiLocal(NeonApi):
     """
-    Neon API client wrapper for neon_local.
-    Assumes that Neon has been set up locally (from our dev docker compose).
+    Neon API client wrapper for neon_local. Assumes that Neon has been set up locally.
     """
 
     def __init__(self, neon_path: str):
         self.neon_path: str = Path(neon_path).resolve().absolute().as_posix()
 
     async def _execute(self, command: str) -> str:
-        # run the command as 'neon_local <command>'
+        # run the command in 'neon_local'
         process = await asyncio.create_subprocess_shell(
-            f"docker exec -it neon neon_local {command}",
+            f"cargo neon {command}",
             stdout=asyncio.subprocess.PIPE,
             stderr=asyncio.subprocess.PIPE,
             cwd=self.neon_path,
@@ -97,6 +102,17 @@ class NeonApiLocal(NeonApi):
 
         return CreateProjectRep(project_id=tenant_id, connection_uri=connection_uri)
 
+    async def _ensure_endpoint(self, *, project_id: str, endpoint_name="main") -> str:
+        # ensure endpoint is up
+        output = await self._execute(f"endpoint start {endpoint_name} --tenant-id {project_id}")
+        connection_uri_match = re.search(r"Starting postgres node at '([^']+)'", output)
+        assert connection_uri_match, f"endpoint start failed: {output}"
+        connection_uri = connection_uri_match.group(1)
+        return connection_uri
+
+    async def delete_project(self, *, project_id: str) -> None:
+        pass  # no-op?
+
 
 NEON_REGION_BY_REGION: dict[Region, str] = {
     Region.EUROPE_CENTRAL: "aws-eu-central-1",
@@ -119,9 +135,6 @@ class NeonApiRemote(NeonApi):
         params: dict[str, Any] | None = None,
         json: dict[str, Any] | None = None,
     ) -> Any | None:
-        """
-        Make a request to the Neon API, returns the json (if any).
-        """
         async with aiohttp.ClientSession() as session:
             headers = {"Authorization": f"Bearer {self.api_key}"}
             logger.debug("neon.request", method=method, path=path, params=params, json=json)
@@ -136,9 +149,6 @@ class NeonApiRemote(NeonApi):
     async def create_project(
         self, *, name: str, region: Region, pg_version: int, branch: str = "main"
     ) -> CreateProjectRep:
-        """
-        Create a new Neon project.
-        """
         project = {
             "name": name,
             "region_id": NEON_REGION_BY_REGION[region],
@@ -152,8 +162,12 @@ class NeonApiRemote(NeonApi):
             connection_uri=rep["connection_uris"][0]["connection_uri"],
         )
 
+    async def delete_project(self, *, project_id: str) -> None:
+        await self._request("DELETE", f"projects/{project_id}")
 
-if get_from_env("NEON_LOCAL", default=IS_DEBUG, type_cast=bool):
+
+NEON_LOCAL = get_from_env("NEON_LOCAL", default=IS_DEBUG, type_cast=bool)
+if NEON_LOCAL:
     neon_client = NeonApiLocal(neon_path=get_from_env("NEON_PATH"))
 else:
     neon_client = NeonApiRemote(
@@ -162,7 +176,16 @@ else:
     )
 
 
-async def create_local_pg_store(store: "Store") -> None:
+async def prepare_local_stores(bench: "Bench") -> None:
+    assert isinstance(neon_client, NeonApiLocal), f"not in local mode (client={neon_client!r})"
+    for store in bench.stores:
+        if store.external_id is not None:
+            connection_uri = await neon_client._ensure_endpoint(project_id=store.external_id)
+            if store.connection_uri != connection_uri:
+                store.connection_uri = connection_uri
+
+
+async def create_local_store(store: "Store") -> None:
     """
     Creates a new 'local' Neon-based Postgres database and corresponding roles/user for a Bench.
     """
@@ -179,7 +202,7 @@ async def create_local_pg_store(store: "Store") -> None:
     logger.info("neon.create_project", store=store, duration=duration)
 
 
-async def migrate_local_pg_store(store: "Store") -> None:
+async def migrate_local_store(store: "Store") -> None:
     """Migrates the store to the latest version of our internal schema."""
     if store.version is not None and not has_migration_after(store.version, is_global=False):
         logger.debug("neon.migrate.skip", store=store)
@@ -191,3 +214,13 @@ async def migrate_local_pg_store(store: "Store") -> None:
     store.version = VERSION
     duration = asyncio.get_event_loop().time() - start
     logger.info("neon.migrate", store=store, duration=duration)
+
+
+async def delete_local_store(store: "Store") -> None:
+    assert store.external_id, f"{store!r} has no external_id"
+
+    # delete neon project
+    start = asyncio.get_event_loop().time()
+    await neon_client.delete_project(project_id=store.external_id)
+    duration = asyncio.get_event_loop().time() - start
+    logger.info("neon.delete_project", store=store, duration=duration)

@@ -1,5 +1,5 @@
 import asyncio
-from typing import Self
+from typing import Self, Type
 
 import structlog
 
@@ -27,6 +27,7 @@ class ConnectedQuery[NodeT: Node, NodeDataT: AnyNodeData]:
         query: QueryBuilder[NodeT, NodeDataT],
         remote: GraphIoStub | HostStub | SupervisorStub,
         scope: GraphScope,
+        retry_on: tuple[Type[Exception], ...] = (Exception,),
     ):
         self._query = query
         self._remote = remote
@@ -35,6 +36,7 @@ class ConnectedQuery[NodeT: Node, NodeDataT: AnyNodeData]:
         self._has_result: asyncio.Event = asyncio.Event()
         self._is_closed: bool = False
         self._is_paused: bool = False
+        self._retry_on = retry_on
         self._connect_task: asyncio.Task[None] | None = None
 
     @property
@@ -73,7 +75,7 @@ class ConnectedQuery[NodeT: Node, NodeDataT: AnyNodeData]:
                         break
                     # apply edits (should filter these :ConnectionOverlapFilter)
                     edit_graph(graph, rep.edits, options=self._query._options)
-            except Exception as e:
+            except self._retry_on as e:
                 logger.error("query.error", query=self._query, exc_info=e)
                 await asyncio.sleep(1)
 

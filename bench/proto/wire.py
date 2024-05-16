@@ -851,6 +851,8 @@ class ResourceStatus(betterproto.Enum):
     HEALTHY = 20
     UNHEALTHY = 25
     PAUSED = 30
+    DELETING = 35
+    DELETED = 40
 
 
 class RunErrorKind(betterproto.Enum):
@@ -2862,8 +2864,6 @@ class StoreData(betterproto.Message):
     region: "Region" = betterproto.enum_field(35)
     tenancy: "Tenancy" = betterproto.enum_field(36)
     status: "ResourceStatus" = betterproto.enum_field(37)
-    kind: "StoreKind" = betterproto.enum_field(40)
-    engine: "StoreEngineType" = betterproto.enum_field(41)
     version: Optional[str] = betterproto.string_field(42, optional=True)
     external_name: Optional[str] = betterproto.string_field(50, optional=True)
     external_id: Optional[str] = betterproto.string_field(51, optional=True)
@@ -4819,7 +4819,7 @@ class RuntimeBase(ServiceBase):
 
 from typing import TYPE_CHECKING  # noqa: E402
 
-VERSION = "2024.05.15.3"
+VERSION = "2024.05.16.0"
 
 if TYPE_CHECKING:
     from bench.language import Subject
