@@ -10,7 +10,7 @@ T = TypeVar("T")
 class RetryOptions:
     max_attempts: int = 3  # < 0 for infinite
     retry_interval: float = 1.0  # seconds
-    backoff_factor: float = 2.0  # exponential backoff
+    backoff: float = 2.0  # exponential backoff
     max_retry_interval: float = 60.0  # seconds
     retry_on: Union[Type[Exception], tuple[Type[Exception], ...]] = Exception
 
@@ -43,10 +43,10 @@ def retry(
                     if options.max_attempts > 0 and attempt >= options.max_attempts:
                         raise
                     await asyncio.sleep(interval)
-                    interval = min(interval * options.backoff_factor, options.max_retry_interval)
+                    interval = min(interval * options.backoff, options.max_retry_interval)
 
             raise last_error or RuntimeError(
-                f"{attempt} attempts for {func.__name__} (options={options!r})"
+                f"exceeded {attempt} attempts for {func.__name__} (options={options!r})"
             )
 
         return wrapper

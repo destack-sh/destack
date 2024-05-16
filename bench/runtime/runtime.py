@@ -103,6 +103,7 @@ class Runtime(RuntimeBase, MonitoredServiceBase):
         return self._host
 
     async def connect_package(self, package_id: UUID) -> ConnectedPackage:
+        """'Connect's a Package to get it live."""
         assert self._host is not None, f"no host for {self!r}"
         scope = GraphScope(bench_id=str(self._bench_id), package_id=str(package_id))
         package = await ConnectedQuery(
@@ -113,10 +114,15 @@ class Runtime(RuntimeBase, MonitoredServiceBase):
         self._packages[package_id] = package
         return package
 
+    def disconnect_package(self, package_id: UUID):
+        package = self._packages.pop(package_id)
+        package.close()
+
     async def start(self):
         self._host = await get_host_client(self._bench_id, self._supervisor)
+
+        # connect bench & main packages
         async with local_session(self._supervisor, self._bench_id, self._host) as session:
-            # connect bench & main packages
             self._bench = await ConnectedQuery(
                 query=BENCH_QUERY.where(id=self._bench_id),
                 remote=self._host,

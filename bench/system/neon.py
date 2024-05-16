@@ -167,11 +167,7 @@ class NeonApiRemote(NeonApi):
         self.url = url
         self.api_key = api_key
 
-    @retry(
-        RetryOptions(
-            max_attempts=5, retry_interval=2, backoff_factor=1.5, retry_on=RecoverableError
-        )
-    )
+    @retry(RetryOptions(max_attempts=5, retry_interval=2, backoff=1.5, retry_on=RecoverableError))
     async def _request(
         self,
         method: str,
