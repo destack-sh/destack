@@ -11,7 +11,7 @@ from bench.sql.core import (
     Table,
 )
 
-VERSION = "2024.05.15.3"
+VERSION = "2024.05.16.0"
 
 BENCH_TABLE = Table(
     "bench_bench",
@@ -1643,8 +1643,6 @@ STORE_TABLE = Table(
         Column("region", PrimitiveType.INT16, default="1"),
         Column("tenancy", PrimitiveType.INT16, default="3"),
         Column("status", PrimitiveType.INT16, default="1"),
-        Column("kind", PrimitiveType.INT16),
-        Column("engine", PrimitiveType.INT16),
         Column("version", PrimitiveType.STRING, is_nullable=True),
         Column("external_name", PrimitiveType.STRING, is_nullable=True),
         Column("external_id", PrimitiveType.STRING, is_nullable=True),

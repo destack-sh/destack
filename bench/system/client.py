@@ -2,7 +2,7 @@ from contextlib import asynccontextmanager
 
 import structlog
 
-from bench.language import Bench, Session, Store, StoreEngineType, StoreKind
+from bench.language import Bench, Session, Store
 from bench.language.connection import PostgresEngine
 from bench.language.const import GLOBAL_NODE_TYPES, VERSION
 from bench.language.resource import Region
@@ -28,8 +28,6 @@ SYSTEM_BENCH_STUB = Bench(
 GLOBAL_STORE = Store(
     parent=SYSTEM_BENCH_STUB,
     name="Global Store",
-    kind=StoreKind.RELATIONAL,
-    engine=StoreEngineType.POSTGRES,
     version=VERSION,
     external_name=GLOBAL_PG_NAME,
     connection_uri=f"postgresql://{GLOBAL_PG_USERNAME}:{GLOBAL_PG_PASSWORD}@{GLOBAL_PG_HOST}/{GLOBAL_PG_NAME}",

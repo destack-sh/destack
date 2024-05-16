@@ -8,7 +8,7 @@ import structlog
 from psycopg.rows import dict_row
 from psycopg_pool import AsyncConnectionPool
 
-from bench.language import Store, StoreEngineType
+from bench.language import Store
 
 # TODO :Robustness: figure out how to fix the psycopg pool warning
 #  (what we're doing should be fine according to docs and the warning)
@@ -43,8 +43,8 @@ async def get_pg_connection_pool(connection_str: str) -> AsyncConnectionPool:
             min_size=1,
             max_size=4,
             max_idle=60 * 60,
-            timeout=2,
-            reconnect_timeout=3,
+            timeout=5,
+            reconnect_timeout=5,
             connection_class=psycopg.AsyncConnection,
             kwargs={"row_factory": dict_row},
             name=f"{match['username']}@{match['host']}/{match['database']}",
@@ -61,7 +61,6 @@ _CONNECTION_STR_REGEX = re.compile(
 
 def get_pg_connection_str(store: Store, database: str | None = None) -> str:
     # TODO :Security :Scalability: route store clients/hosts better :StoreRouting
-    assert store.engine == StoreEngineType.POSTGRES, f"store {store!r} is not a postgres store"
     assert store.connection_uri, f"store {store!r} has no connection_url"
     if database is not None:
         return store.connection_uri.rsplit("/", 1)[0] + "/" + database

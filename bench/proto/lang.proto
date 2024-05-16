@@ -815,6 +815,8 @@ enum ResourceStatus {
   RESOURCE_STATUS_HEALTHY = 20;
   RESOURCE_STATUS_UNHEALTHY = 25;
   RESOURCE_STATUS_PAUSED = 30;
+  RESOURCE_STATUS_DELETING = 35;
+  RESOURCE_STATUS_DELETED = 40;
 }
 
 enum RunErrorKind {
@@ -2536,8 +2538,6 @@ message StoreData {
   Region region = 35;
   Tenancy tenancy = 36;
   ResourceStatus status = 37;
-  StoreKind kind = 40;
-  StoreEngineType engine = 41;
   optional string version = 42;
   optional string external_name = 50;
   optional string external_id = 51;

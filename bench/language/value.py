@@ -51,7 +51,7 @@ if TYPE_CHECKING:
 logger = structlog.get_logger(__name__)
 
 ScalarValue = Union["Object", PrimitiveValue, "Struct", "Node"]
-SomeValue = Union[ScalarValue, Collection[ScalarValue]]
+SomeValue = Union[ScalarValue, Collection[ScalarValue], None]
 JsonPrimitive = Union[str, int, float, bool, None]
 JsonValue = Union[JsonPrimitive, dict[str, "JsonValue"], list["JsonValue"]]
 
@@ -309,7 +309,9 @@ def coerce_value(
                 for element in value
             ]
     else:
-        if not typ.is_list:
+        if value is None:
+            return None
+        elif not typ.is_list:
             return _coerce_value_scalar(value, typ, parent, parent_prop, ancestor_prop)
         else:
             if not isinstance(value, list):

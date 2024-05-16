@@ -4,8 +4,9 @@ from typing import cast
 import pytest
 from grpclib.testing import ChannelFor
 
+from bench.conftest import test_session
 from bench.language import Bench, ReadOptions, User
-from bench.language.const import NodeType, UserStatus
+from bench.language.const import RESOURCE_NODE_TYPES, NodeType, UserStatus
 from bench.language.graph import NodeDataGraph
 from bench.proto import wire, wiring
 from bench.proto.wire import (
@@ -16,6 +17,7 @@ from bench.proto.wire import (
     SupervisorStub,
 )
 from bench.system.host import HostMultiplexer
+from bench.system.resource import decommission_all_resources
 from bench.system.test.conftest import UserHandle
 
 
@@ -63,6 +65,12 @@ async def some_bench(supervisor: SupervisorStub, some_user: UserHandle):
     finally:
         service.close()
         await service.wait_closed()
+
+        # decommission
+        async with test_session() as session:
+            bench = await Bench.descendants(*RESOURCE_NODE_TYPES).get(id=bench.id)
+            await decommission_all_resources(bench, session, commit_per=True)
+            await session.commit()
 
 
 async def test_user_activate(some_bench: BenchHandle):

@@ -182,12 +182,12 @@ class Session(Node[SessionData]):
 
     def untrack(self, node: Node):
         """Stop tracking the node in this session."""
-        node._untrack_self()
+        node._untrack_rec()
 
     def untrack_many(self, *nodes: Node):
         """Stop tracking the nodes in this session."""
         for n in nodes:
-            n._untrack_self()
+            n._untrack_rec()
 
     #
     # Transaction

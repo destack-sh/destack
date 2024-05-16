@@ -12,10 +12,12 @@ services:
       - '5432:5432'
 
   # TODO :Test: run neon locally
+  #  (currently doesn't quite work because neon_local start quits after starting other processes,
+  #   it's not really designed as a long-running process in itself)
   # neon: 
   #   image: symbolx/neon-local:latest
   #   restart: on-failure
-  #   command: neon_local start
+  #   command: neon_local start && tail -f /dev/null
 
   minio:
     image: minio/minio:latest

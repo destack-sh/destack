@@ -110,7 +110,7 @@ class Runtime(RuntimeBase, MonitoredServiceBase):
 
     async def start(self):
         self._host = await get_host_client(self._bench_id, self._supervisor)
-        async with local_session(self._supervisor, self._bench_id, self._host):
+        async with local_session(self._supervisor, self._bench_id, self._host) as session:
             # connect bench & main packages
             self._bench = await ConnectedQuery(
                 query=BENCH_QUERY.where(id=self._bench_id),
@@ -121,6 +121,7 @@ class Runtime(RuntimeBase, MonitoredServiceBase):
             assert main_branch is not None, f"{self._bench!r} has no main branch"
             assert main_branch.package_id is not None, f"{main_branch!r} has no main package"
             self._main_package = await self.connect_package(main_branch.package_id)
+        session.untrack_many(self._bench.node, self._main_package.node)
 
     def close(self):
         if self._bench is not None:
