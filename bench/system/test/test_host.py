@@ -91,12 +91,7 @@ async def test_user_activate(some_bench: BenchHandle):
     # read back bench (should be allowed & have default resources)
     read_bench_options = ReadOptions(
         select_all_properties=True,
-        descendant_types=[
-            NodeType.ENVIRONMENT,
-            NodeType.BRANCH,
-            NodeType.SERVER,
-            NodeType.STORE,
-        ],
+        descendant_types=[NodeType.ENVIRONMENT, NodeType.BRANCH, NodeType.SERVER, NodeType.STORE],
     )
     read_bench_req = GetNodesRequest(
         roots=[user.main_bench_ptr], scope=some_bench.scope, options=read_bench_options._to_data()

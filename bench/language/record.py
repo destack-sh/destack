@@ -103,10 +103,10 @@ class Database(Node):
     _table: Optional[Table] = p_runtime(default=None)
 
     def _interp_component(self, scope: Optional["Node"], notice: "NoticeHandler") -> None:
-        from bench.sql.engine import map_database_to_pg_table
+        from bench.sql.engine import map_block_to_pg_table
 
         if self.is_materialized:
-            self._table = map_database_to_pg_table(cast("Block", self))
+            self._table = map_block_to_pg_table(cast("Block", self))
         else:
             self._table = RECORD_SHARED_TABLE
 

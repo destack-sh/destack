@@ -106,10 +106,10 @@ async def test_tables():
 
 @pytest.mark.parametrize("table", _TEST_TABLES, ids=lambda t: t.name)
 async def test_crud_rows(test_cur: psycopg.AsyncCursor, table: Table):
-    from bench.sql.client import _current_pg_crypto_key
+    from bench.sql.client import _force_pg_crypto_key
 
     random.seed(42)
-    _current_pg_crypto_key.set(random.randbytes(32).hex())
+    _force_pg_crypto_key.set(random.randbytes(32).hex())
 
     def _generate_row(id: int) -> Mapping[str, any]:
         row = {"id": id}
