@@ -1,5 +1,5 @@
 import asyncio
-from typing import Self, Type
+from typing import Self
 
 import structlog
 
@@ -14,6 +14,7 @@ from bench.proto.wire import (
     SupervisorStub,
     WatchEditsRequest,
 )
+from bench.utils.tenacity import RetryOptions
 
 logger = structlog.get_logger(__name__)
 
@@ -27,7 +28,7 @@ class ConnectedQuery[NodeT: Node, NodeDataT: AnyNodeData]:
         query: QueryBuilder[NodeT, NodeDataT],
         remote: GraphIoStub | HostStub | SupervisorStub,
         scope: GraphScope,
-        retry_on: tuple[Type[Exception], ...] = (Exception,),
+        retry: RetryOptions = RetryOptions(),
     ):
         self._query = query
         self._remote = remote
@@ -36,7 +37,7 @@ class ConnectedQuery[NodeT: Node, NodeDataT: AnyNodeData]:
         self._has_result: asyncio.Event = asyncio.Event()
         self._is_closed: bool = False
         self._is_paused: bool = False
-        self._retry_on = retry_on
+        self._retry = retry
         self._connect_task: asyncio.Task[None] | None = None
 
     @property
@@ -53,7 +54,15 @@ class ConnectedQuery[NodeT: Node, NodeDataT: AnyNodeData]:
 
     async def _do_connect(self) -> None:
         """Runs the core connection loop forever (or until closed)."""
+        attempt = 0
+        interval = self._retry.retry_interval
+        last_error = None
+
         while not self._is_closed:
+            if self._retry.max_attempts > 0 and attempt >= self._retry.max_attempts:
+                raise last_error or RuntimeError(
+                    f"exceeded {attempt} attempts for {self._query!r} (options={self._retry!r})"
+                )
             try:
                 # get initial result
                 self._node = await self._query.get()
@@ -75,12 +84,21 @@ class ConnectedQuery[NodeT: Node, NodeDataT: AnyNodeData]:
                         break
                     # apply edits (should filter these :ConnectionOverlapFilter)
                     edit_graph(graph, rep.edits, options=self._query._options)
-            except self._retry_on as e:
+            except self._retry.retry_on as e:
                 logger.error("query.error", query=self._query, exc_info=e)
-                await asyncio.sleep(1)
+                last_error = e
+                await asyncio.sleep(interval)
+                interval = min(interval * self._retry.backoff, self._retry.max_retry_interval)
+                await asyncio.sleep(interval)
 
     def close(self):
         self._is_closed = True
+        if self._connect_task is not None:
+            self._connect_task.cancel()
 
     async def wait_closed(self):
-        pass
+        if self._connect_task is not None:
+            try:
+                await self._connect_task
+            except asyncio.CancelledError:
+                pass
