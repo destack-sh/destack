@@ -41,7 +41,8 @@ async def runtime(host: str, port: int, watch: bool = False):
     server = Runtime(
         supervisor_url=get_from_env("SUPERVISOR_URL"),
         bench_id=get_from_env("BENCH_ID"),
-        client_id=get_from_env("CLIENT_ID", optional=True),
+        client_id=get_from_env("CLIENT_ID"),
+        client_access_token=get_from_env("CLIENT_ACCESS_TOKEN"),
         user_id=get_from_env("USER_ID", optional=True),
         server_id=get_from_env("SERVER_ID", optional=True),
     )

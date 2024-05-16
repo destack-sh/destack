@@ -57,8 +57,7 @@ REMOTE_CONNECTION_RETRY = RetryOptions(max_attempts=-1)
 
 class Runtime(RuntimeBase, MonitoredServiceBase):
     """
-    A Runtime processes selected Runs for a Bench/Package in Sessions.
-    A Runtime process is started for each active Package in a Bench.
+    A Runtime processes selected Runs for a Bench/Package in Sessions for a Client.
     """
 
     def __init__(
@@ -66,16 +65,12 @@ class Runtime(RuntimeBase, MonitoredServiceBase):
         *,
         supervisor_url: str,
         bench_id: UUID,
-        client_id: UUID | None = None,
-        user_id: UUID | None = None,
-        server_id: UUID | None = None,
+        client_id: UUID,
+        client_access_token: str,
+        user_id: UUID | None,
+        server_id: UUID | None,
     ):
         super().__init__()
-        # context
-        self._client_id = client_id
-        self._server_id = server_id
-        self._user_id = user_id
-        self._bench_id = bench_id
 
         # parse out supervisor host and port
         _supervisor_url = urlparse(supervisor_url)
@@ -84,6 +79,13 @@ class Runtime(RuntimeBase, MonitoredServiceBase):
         if self._supervisor_host is None or self._supervisor_port is None:
             raise ValueError(f"invalid supervisor URL: {supervisor_url}")
         self._supervisor = SupervisorStub(Channel(self._supervisor_host, self._supervisor_port))
+
+        # context
+        self._client_id = client_id
+        self._client_access_token = client_access_token
+        self._server_id = server_id
+        self._user_id = user_id
+        self._bench_id = bench_id
 
         # bench stuff
         self._host: HostStub | None = None
