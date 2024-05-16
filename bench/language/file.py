@@ -8,7 +8,7 @@ from bench.language.const import EnumType, NodeType, StructType, enum_
 from bench.language.node import Struct, struct
 from bench.language.property import Property, p_internal, p_regular, p_runtime
 from bench.language.validation import NAME_CONSTRAINT, ValidationHandler
-from bench.utils.func import IdEnum, _auto_async_to_sync
+from bench.utils.func import IdEnum
 from bench.utils.utils import get_from_env
 
 if TYPE_CHECKING:
@@ -47,7 +47,6 @@ class File(Struct):
         if self.size and self.size > FILE_MAX_SIZE:
             invalid(self, f"{self} is too big ({self.size} > {FILE_MAX_SIZE} bytes)", (File.size,))
 
-    @_auto_async_to_sync
     async def download(self) -> bytes:
         """Read the object from the remote storage."""
         get_url = await self.get_url()
@@ -63,21 +62,17 @@ class File(Struct):
                 self._cached_bytes = content
                 return content
 
-    @_auto_async_to_sync
     async def get_url(self):
         raise NotImplementedError
 
-    @_auto_async_to_sync
     async def text(self) -> str:
         content = self._cached_bytes or await self.download()
         return content.decode()
 
-    @_auto_async_to_sync
     async def lines(self) -> list[str]:
         content = self._cached_bytes or await self.download()
         return content.decode().splitlines()
 
-    @_auto_async_to_sync
     async def io(self) -> BinaryIO:
         """Get a file-like object for the file."""
         return io.BytesIO(await self.download())

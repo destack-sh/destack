@@ -1,6 +1,7 @@
 import asyncio
 import functools
-from typing import Callable
+from contextlib import asynccontextmanager
+from typing import AsyncIterator, Callable
 from uuid import UUID
 
 import betterproto
@@ -13,6 +14,7 @@ from bench.language import Bench, Organization, Package, Subject, User
 from bench.language.connection import PostgresEngine, StoreEngine
 from bench.language.const import IN_BENCH_NODE_TYPES, NodeType
 from bench.language.graph import NodeGraph, edit_graph
+from bench.language.session import Session
 from bench.proto import wiring
 from bench.proto.services import BenchServiceBase, RpcCallable
 from bench.proto.wire import (
@@ -141,7 +143,12 @@ LOADED_PACKAGE_NODE_TYPES: tuple[NodeType, ...] = (
     NodeType.VIEW,
 )
 BENCH_QUERY = Bench.descendants(*LOADED_BENCH_NODE_TYPES).include_all()
-PACKAGE_QUERY = Package.descendants(*LOADED_PACKAGE_NODE_TYPES).ancestors(Bench).include_all()
+PACKAGE_QUERY = (
+    Package.descendants(*LOADED_PACKAGE_NODE_TYPES)
+    .ancestors(Bench)
+    .include_all()
+    .exclude(Bench.encryption_key)
+)
 
 
 class Host(GraphIoServiceBase, HostBase):
@@ -177,13 +184,15 @@ class Host(GraphIoServiceBase, HostBase):
         return (self._bench_pg_engine,)
 
     async def start(self) -> None:
+        start = asyncio.get_event_loop().time()
+
+        # load bench
         async with global_session() as session:
-            start = asyncio.get_event_loop().time()
-            # load bench
             self._bench = await BENCH_QUERY.get(id=self.bench_id)
             assert self._bench.main_branch is not None, f"{self._bench!r} has no main branch"
             await provision_pending_resources(self._bench, session, commit_per=True)
 
+            # prepare/migrate resources
             if NEON_LOCAL:
                 await prepare_local_stores(self._bench)
             # NOTE :Robustness: unsure when to migrate local stores :StoreMigration
@@ -193,9 +202,9 @@ class Host(GraphIoServiceBase, HostBase):
             # preload main packages
             self._main_package = await PACKAGE_QUERY.get(id=self._bench.main_branch.main_package_id)
             self._packages[self._main_package.id] = self._main_package
-
-            logger.info("host.start", host=self, duration=asyncio.get_event_loop().time() - start)
         session.untrack_many(self._bench, *self._packages.values())
+
+        logger.info("host.start", host=self, duration=asyncio.get_event_loop().time() - start)
 
     def close(self) -> None:
         pass
@@ -240,3 +249,11 @@ class Host(GraphIoServiceBase, HostBase):
         self, subject: Subject, request: "DownloadFilesRequest"
     ) -> "DownloadFilesResponse":
         raise GRPCError(GRPCStatus.UNIMPLEMENTED)
+
+
+@asynccontextmanager
+async def local_session(engines: tuple[StoreEngine, ...]) -> AsyncIterator[Session]:
+    """Session for local operations (no remote calls)."""
+    session = Session(_engines=engines)
+    async with session:
+        yield session

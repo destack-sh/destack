@@ -217,8 +217,14 @@ class ReadOptions(Struct):
         return tuple(p for p in self.related_properties if p.type == node_type)
 
     def select(self, node_type: NodeType) -> list[Property] | tuple[Property, ...]:
+        # NOTE :Performance: if len(exclude_properties) gets larger this will be pretty inefficient
         if self.select_all_properties:
-            return SELECT_ALL_PROPERTIES[node_type]
+            properties = SELECT_ALL_PROPERTIES[node_type]
+            if self.exclude_properties:
+                properties = tuple(
+                    p for p in properties if not any(e.id == p.id for e in self.exclude_properties)
+                )
+            return properties
         elif self.select_properties:
             # select specific properties
             return tuple(p for p in self.select_properties if p.type == node_type)

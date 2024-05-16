@@ -10,7 +10,6 @@ from bench.language.property import Property, p_internal, p_node_parent, p_runti
 from bench.language.transaction import Transaction
 from bench.proto.wire import EditData, HostStub, SessionData, SupervisorStub
 from bench.utils.dt import utcnow_with_tz
-from bench.utils.func import _auto_async_to_sync
 from bench.utils.uuidt import UUIDT
 
 if TYPE_CHECKING:
@@ -124,23 +123,19 @@ class Session(Node[SessionData]):
         self.opened_at = utcnow_with_tz()
         logger.trace("session.open")
 
-    @_auto_async_to_sync
     async def flush(self):
         assert self.is_open, f"cannot flush {self!r} when closed"
         await self.tx.flush()
 
-    @_auto_async_to_sync
     async def commit(self) -> Collection[EditData]:
         assert self.is_open, f"cannot commit {self!r} when closed"
         await self.tx.commit()
         return self.tx.edits
 
-    @_auto_async_to_sync
     async def rollback(self):
         assert self.is_open, f"cannot rollback {self!r} when closed"
         await self.tx.rollback()
 
-    @_auto_async_to_sync
     async def close(self):
         """Closes the session, rolling back uncommitted edits. Prevents further runs/edits."""
         assert self.opened_at is not None, f"session not open {self!r}"
@@ -172,13 +167,13 @@ class Session(Node[SessionData]):
     def track(self, node: Node):
         """Start tracking the node in this session."""
         if node._session != self:
-            node._track_self(self)
+            node._track_rec(self)
 
     def track_many(self, *nodes: Node):
         """Start tracking the nodes in this session."""
         for n in nodes:
             if n._session != self or n._status != InterpStatus.TRACKED:
-                n._track_self(self)
+                n._track_rec(self)
 
     def untrack(self, node: Node):
         """Stop tracking the node in this session."""

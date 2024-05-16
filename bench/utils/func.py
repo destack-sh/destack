@@ -142,7 +142,7 @@ async def wrap_task(coro: Coroutine, task_id: str | None = None) -> None:
         raise
 
 
-def _auto_async_to_sync[T](func: typing.Callable[..., T]) -> typing.Callable[..., T]:
+def auto_async_to_sync[T](func: typing.Callable[..., T]) -> typing.Callable[..., T]:
     """Automatically convert async functions to sync if not called in async context."""
 
     def decorate(func):
