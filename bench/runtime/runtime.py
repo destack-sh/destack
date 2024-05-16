@@ -42,7 +42,12 @@ LOADED_PACKAGE_NODE_TYPES: tuple[NodeType, ...] = (
     NodeType.VIEW,
 )
 BENCH_QUERY = Bench.descendants(*LOADED_BENCH_NODE_TYPES).include_all()
-PACKAGE_QUERY = Package.descendants(*LOADED_PACKAGE_NODE_TYPES).ancestors(Bench).include_all()
+PACKAGE_QUERY = (
+    Package.descendants(*LOADED_PACKAGE_NODE_TYPES)
+    .ancestors(Bench)
+    .include_all()
+    .exclude(Bench.encryption_key)
+)
 
 ConnectedBench = ConnectedQuery[Bench, BenchData]
 ConnectedPackage = ConnectedQuery[Package, PackageData]

@@ -30,7 +30,6 @@ from bench.language.property import p_node_parent, p_regular
 from bench.language.setup import ANCESTOR_NODE_TYPES
 from bench.proto.wire import AnyNodeData, QueryData
 from bench.utils.fractional import INTEGER_ZERO
-from bench.utils.func import _auto_async_to_sync
 
 if TYPE_CHECKING:
     from bench.language import Block, Expression, Field, Property, ReadOptions
@@ -380,7 +379,6 @@ class QueryBuilder(
     def __len__(self):
         return self.count()
 
-    @_auto_async_to_sync
     async def get(self, filter: Optional["Expression"] = None, **kwargs) -> NodeT:
         """Returns the unique result matching the query (errors otherwise)."""
         from bench.language.expression import coerce_conditional
@@ -396,7 +394,6 @@ class QueryBuilder(
             else:
                 raise MultipleNodesFoundError(combined_query)
 
-    @_auto_async_to_sync
     async def fetch(self) -> list[NodeT] | tuple[NodeT, ...]:
         from bench.language.connection import FetchOptions
         from bench.proto.wiring import unpack_roots
@@ -416,7 +413,6 @@ class QueryBuilder(
     tolist = fetch  # type: ignore
     to_list = fetch  # type: ignore
 
-    @_auto_async_to_sync
     async def count(self, filter: Optional["Expression"] = None, **kwargs) -> int:
         """Returns the number of results. May refine the query."""
         from bench.language.expression import A, coerce_conditional
@@ -431,7 +427,6 @@ class QueryBuilder(
         assert result.aggregation.count is not None, f"missing count in {result!r}"
         return result.aggregation.count
 
-    @_auto_async_to_sync
     async def exists(self, filter: Optional["Expression"] = None, **kwargs) -> bool:
         """Whether any results exist. May refine the query."""
         from bench.language.expression import A, coerce_conditional
