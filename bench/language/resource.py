@@ -1,5 +1,5 @@
 from datetime import datetime
-from typing import TYPE_CHECKING, Generic, Optional, TypeVar, Union, cast
+from typing import TYPE_CHECKING, Generic, Optional, TypeVar, Union
 
 from bench.language.const import (
     ClientType,
@@ -133,8 +133,8 @@ class Client(Node[ClientData]):
     type: ClientType = p_regular(30)
     name: str = p_regular(32, constraint=NAME_CONSTRAINT)
 
-    device_name: Optional[str] = p_regular(40, default=None)
-    device_type: Optional[str] = p_regular(41, default=None)
+    device_type: Optional[str] = p_regular(40, default=None)
+    device_name: Optional[str] = p_regular(41, default=None)
     operating_system: Optional[str] = p_regular(42, default=None)
     browser_name: Optional[str] = p_regular(43, default=None)
     browser_version: Optional[str] = p_regular(44, default=None)
@@ -152,10 +152,18 @@ class Client(Node[ClientData]):
     )
 
     def __content_str__(self) -> str:
-        if self.browser_name:
-            return f"{self.device_name} {self.browser_name}"
-        else:
-            return self.device_name or "???"
+        value_parts = []
+        for prop in (
+            "device_type",
+            "device_name",
+            "operating_system",
+            "browser_name",
+            "browser_version",
+        ):
+            value = getattr(self, prop)
+            if value is not None:
+                value_parts.append(value)
+        return ", ".join(value_parts)
 
 
 @node(NodeType.STORE)

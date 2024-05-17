@@ -106,8 +106,7 @@ async def provision_resource(resource: Resource, session: Session) -> None:
             resource.external_name = f"{ENVIRONMENT}-{resource.bench_id}"
         await create_local_store(resource)
     elif isinstance(resource, Drive):
-        # nothing to create for drives?
-        pass
+        pass  # nothing to do?
     else:
         raise RuntimeError(f"cannot provision {resource!r} (yet)")
     resource.status = ResourceStatus.HEALTHY
@@ -121,7 +120,7 @@ async def decommission_resource(resource: Resource, session: Session) -> None:
     elif isinstance(resource, Store):
         await delete_local_store(resource)
     elif isinstance(resource, Drive):
-        pass
+        pass  # nothing to do?
     else:
         raise RuntimeError(f"cannot decommission {resource!r} (yet)")
     resource.status = ResourceStatus.DELETED

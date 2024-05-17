@@ -97,8 +97,9 @@ async def test_user_activate(some_bench: BenchHandle):
         roots=[user.main_bench_ptr], scope=some_bench.scope, options=read_bench_options._to_data()
     )
     read_bench_rep = await some_bench.host.get_nodes(read_bench_req, metadata=some_bench.headers)
-    node_graph = NodeDataGraph([wiring.unwrap_some_node(n) for n in read_bench_rep.nodes])
-    bench: Bench = cast(Bench, wiring.unpack_roots(node_graph)[0])
+    data_graph = NodeDataGraph([wiring.unwrap_some_node(n) for n in read_bench_rep.nodes])
+    roots, _ = wiring.unpack_node_roots(data_graph)
+    bench: Bench = cast(Bench, roots[0])
     assert bench.owner_id == some_bench.owner.id
     assert bench.main_environment
     assert bench.main_environment.store

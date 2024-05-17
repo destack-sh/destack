@@ -303,20 +303,20 @@ def _wrap_value(value: Any) -> BetterprotoValue:
     """Wrap a JSON-able Python value in a betterproto Value."""
     if value is None:
         return BetterprotoValue(null_value=NullValue.NULL_VALUE)
-    elif isinstance(value, bool):
+    elif type(value) is bool:  # noqa: E721
         return BetterprotoValue(bool_value=value)
-    elif isinstance(value, int):
+    elif type(value) is int:  # noqa: E721
         return BetterprotoValue(number_value=float(value))
-    elif isinstance(value, float):
+    elif type(value) is float:  # noqa: E721
         return BetterprotoValue(number_value=value)
-    elif isinstance(value, str):
+    elif type(value) is str:  # noqa: E721
         return BetterprotoValue(string_value=value)
-    elif isinstance(value, dict):
+    elif type(value) is dict:  # noqa: E721
         return BetterprotoValue(struct_value=_PatchedStruct.from_dict(value))
-    elif isinstance(value, list):
+    elif type(value) is list:  # noqa: E721
         return BetterprotoValue(list_value=ListValue([_wrap_value(v) for v in value]))
     else:
-        raise ValueError(f"cannot wrap value: {value!r}")
+        raise ValueError(f"cannot wrap non-JSON value: {value!r} ({type(value)!r})")
 
 
 def _unwrap_value(value: BetterprotoValue) -> Any:
