@@ -17,9 +17,10 @@ import {
   type StructTypeMapping,
   PackageData,
 } from "@/proto/wire";
-import { BASED_NODE_TYPES, getBaseFromNode, toCamelName } from "@/system/lang";
+import { BASED_NODE_TYPES, TIMED_NODE_TYPES, getBaseFromNode, toCamelName } from "@/system/lang";
 import { reverseRecord } from "@/utils/functools";
 import { Casing, toCasing } from "@/utils/string";
+import { uuidt } from "@/utils/uuidt";
 import { MessageType, ScalarType, type FieldInfo } from "@protobuf-ts/runtime";
 import { v4, v5 } from "uuid";
 import { computed, toRef, type MaybeRef, type Ref } from "vue";
@@ -188,11 +189,24 @@ export function makeNode<T extends NodeType>(
   // assign id/ck/scope
   if (!options?.omit?.includes("id")) {
     if ("packagePtr" in properties) {
-      if (!("packagePtr" in data) || data.packagePtr == null)
+      if (!("packagePtr" in data) || data.packagePtr == null) {
         throw new Error(`missing packagePtr to make sub-package node ${NodeType[data.metatype]}`);
-      if ((node as any).ck == null) (node as any).ck = newNodeCk();
-      node.id = newNodeIdFromCk((data.packagePtr as NodeReferenceData).id!, (node as any).ck);
+      }
+      if ("ck" in properties) {
+        // regular node in package
+        if ((node as any).ck == null) {
+          (node as any).ck = newNodeCk();
+        }
+        node.id = newNodeIdFromCk((data.packagePtr as NodeReferenceData).id!, (node as any).ck);
+      } else {
+        // 'timed' node with UUIDT
+        if (!TIMED_NODE_TYPES.includes(data.metatype)) {
+          throw new Error(`unexpected in-package node type ${NodeType[data.metatype]} without ck`);
+        }
+        node.id = uuidt();
+      }
     } else {
+      // out-of-package node
       node.id = newNodeId();
     }
   }
@@ -231,7 +245,7 @@ export function isNode<T extends NodeType = NodeType>(
   value: any | null | undefined,
   type?: T,
 ): value is NodeTypeMapping[T] {
-  if (value == null ||typeof value != "object") return false;
+  if (value == null || typeof value != "object") return false;
   else if (type != null) return value.metatype == (type as unknown as ObjectType);
   else return value.metatype < 500;
 }

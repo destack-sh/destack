@@ -1,5 +1,7 @@
 from typing import TYPE_CHECKING, Any, Optional, Union, cast
 
+import structlog
+
 from bench.language.const import NodeType, StructType
 from bench.language.node import LINK_TARGET_NODE_TYPES, BasedNode, Node, node
 from bench.language.property import p_node_parent, p_regular, p_value_packed, p_value_runtime
@@ -12,16 +14,23 @@ if TYPE_CHECKING:
 
 # pyright: reportIncompatibleVariableOverride=false
 
+logger = structlog.get_logger(__name__)
+
 MessageParent = Union["Package", "Block", "Message"]
 MESSAGE_PARENT_TYPES: tuple[NodeType, ...] = (NodeType.PACKAGE, NodeType.BLOCK, NodeType.MESSAGE)
 
 
-@node(NodeType.MESSAGE, id_factory=UUIDT, local=True)
+@node(
+    NodeType.MESSAGE,
+    local=True,
+    no_ck=True,  # no persistent identity
+    id_factory=UUIDT,
+    index_together=(("package_id", "created_at"),),
+)
 class Message(BasedNode[MessageData], HasValues):  # noqa: F821
     """
     A Message by a User or program (author = created_by).
     If the parent is also a Message, then this is part of a thread. Threads may be nested.
-    Messages are ordered by created_at.
     """
 
     parent: MessageParent = p_node_parent(4, *MESSAGE_PARENT_TYPES)

@@ -67,15 +67,15 @@ NOTICE_PARENT_TYPES: tuple[NodeType, ...] = (
 @node(NodeType.NOTICE)
 class Notice(Node[NoticeData]):
     """
-    An informational or diagnostic note about something in the Bench source.
-    Notices are generally 'sticky' until their underlying cause is resolved.
+    An informational or diagnostic Notice about something in the Bench source.
+    Notices are generally 'sticky' until resolved.
     """
 
     parent: NoticeParent = p_node_parent(4, *NOTICE_PARENT_TYPES)
     kind: NoticeKind = p_regular(30, default=None)
     type: NoticeType = p_regular(31)
     # -> builtin_type / custom_type / ... 'type' as union
-    origin: Optional["Node"] = p_regular(33, require=False, references=LINK_TARGET_NODE_TYPES)
+    subject: Node = p_regular(33, require=False, references=LINK_TARGET_NODE_TYPES)
     path: Optional["Path"] = p_regular(34, require=False, array=False, struct=StructType.PATH)
     properties: Optional[list[Property]] = p_regular(
         35, require=False, array=True, struct=StructType.PROPERTY_REFERENCE
@@ -95,7 +95,7 @@ class Notice(Node[NoticeData]):
 
 
 class NoticeOptions(TypedDict, total=False):
-    origin: Optional["Node"]  # if distinct form subject/parent
+    subject: Optional["Node"]  # if distinct form subject/parent
     title: Optional[str]
     text: Optional[str | Text]
     path: Optional["Path"]

@@ -23,23 +23,31 @@ if TYPE_CHECKING:
 logger = structlog.get_logger(__name__)
 
 # NOTE :Architecture: should Signal be materialized like Records?
+#  (although generally, we want to query Signals together more than Records...)
 
 
-@node(NodeType.SIGNAL, passthrough="value", local=True, id_factory=UUIDT)
+@node(
+    NodeType.SIGNAL,
+    passthrough="value",
+    local=True,
+    no_ck=True,  # no persistent identity
+    id_factory=UUIDT,
+    index_together=(("package_id", "created_at"),),
+)
 class Signal(BasedNode[SignalData], HasValues):
-    """A signal emitted in this Bench."""
+    """
+    A Signal emitted in this Bench.
+    Signals can be emitted by users or Bench source, and are usually handled in Triggers.
+    """
 
     parent: "Package" = p_node_parent(4, NodeType.PACKAGE)
     # builtin_type: ...
-    type: Optional["Block"] = p_internal(
-        31, require=False, array=False, references=NodeType.BLOCK, index_in_pg=True
-    )
-    origin: Optional["Block"] = p_internal(
-        33, require=False, array=False, references=NodeType.BLOCK, index_in_pg=True
-    )
-    value_packed: Any | None = p_value_packed(34)
-    secret_value_packed: Any | None = p_secret_value_packed(35)
-    value: Any = p_value_runtime(34, 35, type=31)
+    type: Optional["Block"] = p_internal(31, require=False, array=False, references=NodeType.BLOCK)
+
+    # content
+    value_packed: Any | None = p_value_packed(42)
+    secret_value_packed: Any | None = p_secret_value_packed(43)
+    value: Any = p_value_runtime(42, 43, type=31)
 
     @property
     def base(self) -> Optional["Block"]:

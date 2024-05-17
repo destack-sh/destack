@@ -1707,7 +1707,7 @@ class ScheduleData(betterproto.Message):
     set_properties: List[int] = betterproto.int32_field(22)
     type: "ScheduleType" = betterproto.enum_field(30)
     timezone: Optional[str] = betterproto.string_field(31, optional=True)
-    interval: Optional[int] = betterproto.int32_field(32, optional=True)
+    interval_seconds: Optional[int] = betterproto.int32_field(32, optional=True)
     cron: Optional[str] = betterproto.string_field(33, optional=True)
 
 
@@ -2306,16 +2306,16 @@ class LogData(betterproto.Message):
     level: "LogLevel" = betterproto.enum_field(31)
     logger: Optional[str] = betterproto.string_field(32, optional=True)
     event: Optional[str] = betterproto.string_field(33, optional=True)
-    title: Optional[str] = betterproto.string_field(34, optional=True)
-    text: Optional["TextData"] = betterproto.message_field(35, optional=True)
+    title: Optional[str] = betterproto.string_field(40, optional=True)
+    text: Optional["TextData"] = betterproto.message_field(41, optional=True)
     value_packed: Optional["betterproto_lib_google_protobuf.Struct"] = betterproto.message_field(
-        37, optional=True
+        42, optional=True
     )
-    request: Optional["RequestData"] = betterproto.message_field(39, optional=True)
-    session_ptr: Optional["NodeReferenceData"] = betterproto.message_field(40, optional=True)
-    run_ptr: Optional["NodeReferenceData"] = betterproto.message_field(41, optional=True)
-    block_ptr: Optional["NodeReferenceData"] = betterproto.message_field(42, optional=True)
-    step_ptr: Optional["NodeReferenceData"] = betterproto.message_field(43, optional=True)
+    request: Optional["RequestData"] = betterproto.message_field(44, optional=True)
+    session_ptr: Optional["NodeReferenceData"] = betterproto.message_field(50, optional=True)
+    run_ptr: Optional["NodeReferenceData"] = betterproto.message_field(51, optional=True)
+    block_ptr: Optional["NodeReferenceData"] = betterproto.message_field(52, optional=True)
+    step_ptr: Optional["NodeReferenceData"] = betterproto.message_field(53, optional=True)
 
 
 @dataclass(eq=False, repr=False)
@@ -2345,12 +2345,10 @@ class MessageData(betterproto.Message):
     """
     A Message by a User or program (author = created_by).
      If the parent is also a Message, then this is part of a thread. Threads may be nested.
-     Messages are ordered by created_at.
     """
 
     metatype: "ObjectType" = betterproto.enum_field(1)
     id: str = betterproto.string_field(2)
-    ck: str = betterproto.string_field(3)
     parent_ptr: Optional["NodeReferenceData"] = betterproto.message_field(4, optional=True)
     package_ptr: "NodeReferenceData" = betterproto.message_field(6)
     bench_ptr: "NodeReferenceData" = betterproto.message_field(7)
@@ -2404,8 +2402,8 @@ class BaseNodeData(betterproto.Message):
 @dataclass(eq=False, repr=False)
 class NoticeData(betterproto.Message):
     """
-    An informational or diagnostic note about something in the Bench source.
-     Notices are generally 'sticky' until their underlying cause is resolved.
+    An informational or diagnostic Notice about something in the Bench source.
+     Notices are generally 'sticky' until resolved.
     """
 
     metatype: "ObjectType" = betterproto.enum_field(1)
@@ -2424,7 +2422,7 @@ class NoticeData(betterproto.Message):
     set_properties: List[int] = betterproto.int32_field(22)
     kind: "NoticeKind" = betterproto.enum_field(30)
     type: "NoticeType" = betterproto.enum_field(31)
-    origin_ptr: Optional["NodeReferenceData"] = betterproto.message_field(33, optional=True)
+    subject_ptr: Optional["NodeReferenceData"] = betterproto.message_field(33, optional=True)
     path: Optional["PathData"] = betterproto.message_field(34, optional=True)
     properties_ptr: List["PropertyReferenceData"] = betterproto.message_field(35)
     title: Optional[str] = betterproto.string_field(40, optional=True)
@@ -2433,14 +2431,10 @@ class NoticeData(betterproto.Message):
 
 @dataclass(eq=False, repr=False)
 class NotificationData(betterproto.Message):
-    """
-    A Notification for someone in that Bench.
-     As with most Bench stuff, the main Bench's main package is the 'truth'.
-    """
+    """A Notification for a Bench (author = created_by)."""
 
     metatype: "ObjectType" = betterproto.enum_field(1)
     id: str = betterproto.string_field(2)
-    ck: str = betterproto.string_field(3)
     parent_ptr: Optional["NodeReferenceData"] = betterproto.message_field(4, optional=True)
     package_ptr: "NodeReferenceData" = betterproto.message_field(6)
     bench_ptr: "NodeReferenceData" = betterproto.message_field(7)
@@ -2456,7 +2450,6 @@ class NotificationData(betterproto.Message):
     type_ptr: Optional["NodeReferenceData"] = betterproto.message_field(32, optional=True)
     expires_at: Optional[datetime] = betterproto.message_field(33, optional=True)
     read_at: Optional[datetime] = betterproto.message_field(34, optional=True)
-    origin_ptr: Optional["NodeReferenceData"] = betterproto.message_field(35, optional=True)
     title: Optional[str] = betterproto.string_field(40, optional=True)
     text: Optional["TextData"] = betterproto.message_field(41, optional=True)
     value_packed: Optional["betterproto_lib_google_protobuf.Struct"] = betterproto.message_field(
@@ -2609,7 +2602,6 @@ class RunData(betterproto.Message):
 
     metatype: "ObjectType" = betterproto.enum_field(1)
     id: str = betterproto.string_field(2)
-    ck: str = betterproto.string_field(3)
     parent_ptr: Optional["NodeReferenceData"] = betterproto.message_field(4, optional=True)
     package_ptr: "NodeReferenceData" = betterproto.message_field(6)
     bench_ptr: "NodeReferenceData" = betterproto.message_field(7)
@@ -2703,7 +2695,6 @@ class SessionData(betterproto.Message):
 
     metatype: "ObjectType" = betterproto.enum_field(1)
     id: str = betterproto.string_field(2)
-    ck: str = betterproto.string_field(3)
     parent_ptr: Optional["NodeReferenceData"] = betterproto.message_field(4, optional=True)
     package_ptr: "NodeReferenceData" = betterproto.message_field(6)
     bench_ptr: "NodeReferenceData" = betterproto.message_field(7)
@@ -2726,11 +2717,13 @@ class SessionData(betterproto.Message):
 
 @dataclass(eq=False, repr=False)
 class SignalData(betterproto.Message):
-    """A signal emitted in this Bench."""
+    """
+    A Signal emitted in this Bench.
+     Signals can be emitted by users or Bench source, and are usually handled in Triggers.
+    """
 
     metatype: "ObjectType" = betterproto.enum_field(1)
     id: str = betterproto.string_field(2)
-    ck: str = betterproto.string_field(3)
     parent_ptr: Optional["NodeReferenceData"] = betterproto.message_field(4, optional=True)
     package_ptr: "NodeReferenceData" = betterproto.message_field(6)
     bench_ptr: "NodeReferenceData" = betterproto.message_field(7)
@@ -2743,12 +2736,11 @@ class SignalData(betterproto.Message):
     updated_by_ptr: Optional["NodeReferenceData"] = betterproto.message_field(18, optional=True)
     set_properties: List[int] = betterproto.int32_field(22)
     type_ptr: Optional["NodeReferenceData"] = betterproto.message_field(31, optional=True)
-    origin_ptr: Optional["NodeReferenceData"] = betterproto.message_field(33, optional=True)
     value_packed: Optional["betterproto_lib_google_protobuf.Struct"] = betterproto.message_field(
-        34, optional=True
+        42, optional=True
     )
     secret_value_packed: Optional["betterproto_lib_google_protobuf.Struct"] = (
-        betterproto.message_field(35, optional=True)
+        betterproto.message_field(43, optional=True)
     )
 
 
@@ -2872,7 +2864,7 @@ class StoreData(betterproto.Message):
 
 @dataclass(eq=False, repr=False)
 class TriggerData(betterproto.Message):
-    """A trigger to a node."""
+    """A trigger to run the node it is attached to (like a Block or Step)."""
 
     metatype: "ObjectType" = betterproto.enum_field(1)
     id: str = betterproto.string_field(2)
@@ -2890,10 +2882,10 @@ class TriggerData(betterproto.Message):
     set_properties: List[int] = betterproto.int32_field(22)
     type: "TriggerType" = betterproto.enum_field(30)
     name: str = betterproto.string_field(31)
-    active: bool = betterproto.bool_field(32)
-    schedule: Optional["ScheduleData"] = betterproto.message_field(33, optional=True)
-    signal_ptr: Optional["NodeReferenceData"] = betterproto.message_field(34, optional=True)
-    condition: Optional["ExpressionData"] = betterproto.message_field(35, optional=True)
+    schedule: Optional["ScheduleData"] = betterproto.message_field(40, optional=True)
+    signal_ptr: Optional["NodeReferenceData"] = betterproto.message_field(41, optional=True)
+    condition: Optional["ExpressionData"] = betterproto.message_field(42, optional=True)
+    is_active: bool = betterproto.bool_field(50)
 
 
 @dataclass(eq=False, repr=False)
@@ -4819,7 +4811,7 @@ class RuntimeBase(ServiceBase):
 
 from typing import TYPE_CHECKING  # noqa: E402
 
-VERSION = "2024.05.16.0"
+VERSION = "2024.05.17.0"
 
 if TYPE_CHECKING:
     from bench.language import Subject

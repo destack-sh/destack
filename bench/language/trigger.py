@@ -29,11 +29,11 @@ class Schedule(Struct):
 
     type: ScheduleType = p_regular(30, require=True)
     timezone: Optional[str] = p_regular(31, default=pytz.utc.zone)
-    interval: Optional[int] = p_regular(32, default=None)
+    interval_seconds: Optional[int] = p_regular(32, default=None)
     cron: Optional[str] = p_regular(33, default=None)
 
     def __content_str__(self) -> str:
-        return f"{self.type} {self.timezone} {self.interval or self.cron}"
+        return f"{self.type} {self.timezone} {self.interval_seconds or self.cron}"
 
     def _validate_component(
         self, properties: Collection[Property], invalid: "ValidationHandler"
@@ -45,21 +45,25 @@ class Schedule(Struct):
 
 @node(NodeType.TRIGGER)
 class Trigger(Node[TriggerData]):
-    """A trigger to a node."""
+    """A trigger to run the node it is attached to (like a Block or Step)."""
 
     parent: Union["Block", "Step"] = p_node_parent(4, NodeType.BLOCK, NodeType.STEP)
     type: TriggerType = p_regular(30, require=True)
     name: str = p_regular(31, constraint=NAME_CONSTRAINT)
-    active: bool = p_regular(32, default=True)
+
+    # content
     schedule: Optional[Schedule] = p_regular(
-        33, default=None, require=False, array=False, struct=StructType.SCHEDULE
+        40, default=None, require=False, array=False, struct=StructType.SCHEDULE
     )
     signal: Optional["Block"] = p_regular(
-        34, default=None, require=False, array=False, references=NodeType.BLOCK
+        41, default=None, require=False, array=False, references=NodeType.BLOCK
     )
     condition: Optional["Expression"] = p_regular(
-        35, default=None, require=False, array=False, struct=StructType.EXPRESSION
+        42, default=None, require=False, array=False, struct=StructType.EXPRESSION
     )
+
+    # flags
+    is_active: bool = p_regular(50, default=True)
 
     notices: NodeList["Notice"] = p_node_child(NodeType.NOTICE)
 
@@ -100,13 +104,15 @@ class ScheduleIterator:
 
         # :TriggerSchedule
         if self.type == ScheduleType.INTERVAL:
-            assert self.schedule.interval is not None, f"interval is None in {self.schedule}"
+            assert (
+                self.schedule.interval_seconds is not None
+            ), f"interval is None in {self.schedule}"
             self._next = TRIGGER_INTERVAL_ORIGIN_TIMESTAMP
             previous = self._next
             initial_timestamp = self.initial_now.timestamp()
             while self._next < initial_timestamp:
                 previous = self._next
-                self._next += self.schedule.interval
+                self._next += self.schedule.interval_seconds
             self.last_occurrence_initial = datetime.fromtimestamp(previous, tz=pytz.utc)
         elif self.type == ScheduleType.CRON:
             assert self.schedule.cron is not None, f"cron is None in {self.schedule}"
@@ -129,12 +135,14 @@ class ScheduleIterator:
 
         if self.type == ScheduleType.INTERVAL:
             assert self._next is not None, "not init"
-            assert self.schedule.interval is not None, f"interval is None in {self.schedule}"
+            assert (
+                self.schedule.interval_seconds is not None
+            ), f"interval is None in {self.schedule}"
             next_occurrences = [
-                datetime.fromtimestamp(self._next + self.schedule.interval * i, tz=pytz.utc)
+                datetime.fromtimestamp(self._next + self.schedule.interval_seconds * i, tz=pytz.utc)
                 for i in range(n)
             ]
-            self._next += self.schedule.interval * n
+            self._next += self.schedule.interval_seconds * n
             # timezone doesn't matter here since we use a common origin time
             # will matter once we support in-interval offsets (e.g. every 3 days at 10:00)
         elif self.type == ScheduleType.CRON:

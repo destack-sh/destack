@@ -78,8 +78,16 @@ export function isEnumType(object: any): object is EnumType {
   return typeof object == "number" && ENUM_TYPES_SET.has(object);
 }
 
+// :NodeTypes
 export const ROOT_NODE_TYPES = [NodeType.USER, NodeType.ORGANIZATION, NodeType.BENCH];
-export const BASED_NODE_TYPES = [NodeType.RECORD, NodeType.MESSAGE, NodeType.RUN, NodeType.SIGNAL, NodeType.NOTIFICATION];
+export const BASED_NODE_TYPES = [
+  // :HasBase
+  NodeType.RECORD,
+  NodeType.MESSAGE,
+  NodeType.RUN,
+  NodeType.SIGNAL,
+  NodeType.NOTIFICATION,
+];
 export const RUNTIME_NODE_TYPES = [
   NodeType.SESSION,
   NodeType.RUN,
@@ -88,6 +96,14 @@ export const RUNTIME_NODE_TYPES = [
   NodeType.NOTIFICATION,
   NodeType.MESSAGE,
   NodeType.RECORD,
+];
+export const TIMED_NODE_TYPES = [
+  NodeType.SESSION,
+  NodeType.RUN,
+  NodeType.SIGNAL,
+  NodeType.LOG,
+  NodeType.NOTIFICATION,
+  NodeType.MESSAGE,
 ];
 export const LOCAL_NODE_TYPES = [...RUNTIME_NODE_TYPES];
 export const DEFAULT_LOADED_SOURCE_NODE_TYPES = [
@@ -137,15 +153,17 @@ export const HELPER_VIEW_TYPES = new Set([
 ]);
 
 /**
- * Gets the 'base' node defining a certain node. See HasBase.
+ * Gets the 'base' node defining a certain node. See :HasBase.
  */
 export function getBaseFromNode(node: AnyNodeData): NodeReferenceData | null {
   if (node.metatype == ObjectType.RECORD) {
     return (node as RecordData).parentPtr ?? null;
+  } else if (node.metatype == ObjectType.FIELD) {
+    return (node as FieldData).parentPtr ?? null;
   } else if (node.metatype == ObjectType.RUN) {
     return (node as RunData).blockPtr ?? null;
   } else if (node.metatype == ObjectType.SIGNAL || node.metatype == ObjectType.NOTIFICATION) {
-    return (node as SignalData | NotificationData).originPtr ?? null;
+    return (node as SignalData | NotificationData).typePtr ?? null;
   } else {
     return null;
   }

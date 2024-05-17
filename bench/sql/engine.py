@@ -223,7 +223,7 @@ def get_bench_table_name(node_type: NodeType) -> str:
 
 
 def map_node_class_to_pg_table(node: type[Node]) -> Table:
-    # TODO :Robustness: add Bench check constraints in Postgres
+    # NOTE :Robustness: add Bench check constraints in Postgres?
     table_name = get_bench_table_name(node.metatype)
     columns: list[Column] = []
     constraints: list[Constraint] = [*(node.__extra_constraints__ or ())]
@@ -258,10 +258,13 @@ def map_node_class_to_pg_table(node: type[Node]) -> Table:
             else:
                 raise TypeError(f"unexpected default in {prop!r}: {prop.default!r}")
         # FKs
+        is_local = node.__is_local__ or any(
+            NODE_CLASS_BY_TYPE[n].__is_local__ for n in prop.reference_nodes or ()
+        )
         if (
             (prop.reference_kind == ReferenceKind.NODE_PARENT or prop.reference_force_fk)
             and not prop.is_list  # foreign keys must be scalar
-            and node.__is_local__ == NODE_CLASS_BY_TYPE[prop.reference_nodes[0]].__is_local__
+            and (not is_local or node.metatype == prop.reference_nodes[0])
         ):
             assert len(prop.reference_nodes) == 1, f"stored prop {prop!r} has multiple references"
             column.is_foreign_key_to = get_bench_table_name(prop.reference_nodes[0])
@@ -298,27 +301,6 @@ def map_node_class_to_pg_table(node: type[Node]) -> Table:
             _source=node.metatype.id,
         )
         constraints.append(constraint)
-
-    # index [package] + deleted_at/archived_at if applicable
-    for prop_name in ("deleted_at", "archived_at"):
-        prop = node.__properties__.get(prop_name)
-        if prop is None:
-            continue
-        if node.__is_in_package__ and "package_id" in node.__properties__:
-            index = Index(
-                f"bench_idx_package_{prop_name}",
-                type=IndexType.BTREE,
-                columns=("package_id", prop_name),
-                _source=prop.id,
-            )
-        else:
-            index = Index(
-                f"bench_idx_{prop_name}",
-                type=IndexType.BTREE,
-                columns=(prop_name,),
-                _source=prop.id,
-            )
-        indexes.append(index)
 
     table = Table(
         _source=node.metatype.id,

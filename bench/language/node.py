@@ -648,6 +648,7 @@ def node(
     reserved: set[str | int] | None = None,
     indexes: tuple[Index, ...] = (),
     constraints: tuple[Constraint, ...] = (),
+    index_together: tuple[tuple[str, ...], ...] = (),
     unique_together: tuple[tuple[str, ...], ...] = (),
     identifier: IdentifierType = IdentifierType.VARIABLE,
     id_factory: Callable[[], UUID] = new_node_id,
@@ -658,6 +659,9 @@ def node(
     sub_package = node_type in SUB_PACKAGE_NODE_TYPES
     in_bench = node_type in IN_BENCH_NODE_TYPES
     sub_bench = node_type in SUB_BENCH_NODE_TYPES
+
+    if not no_ck and id_factory is not new_node_id:
+        raise ValueError(f"cannot specify custom id_factory while keeping ck for {node_type}")
 
     def decorate(cls: Type[_NodeT]) -> Type[_NodeT]:
         cls = node_component(
@@ -692,6 +696,10 @@ def node(
             )
             extra_indexes.append(index)
             extra_constraints.append(constraint)
+        for columns in index_together:
+            index_name = f"bench_idx_{'_'.join(columns)}"
+            index = Index(index_name, type=IndexType.BTREE, is_unique=False, columns=columns)
+            extra_indexes.append(index)
         cls.__extra_indexes__ = tuple(extra_indexes)
         cls.__extra_constraints__ = tuple(extra_constraints)
 

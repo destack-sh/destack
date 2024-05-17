@@ -1,4 +1,3 @@
-import asyncio
 import enum
 import functools
 import types
@@ -21,7 +20,6 @@ from typing import (
 from uuid import UUID
 
 import structlog
-from asgiref.sync import async_to_sync
 from bitarray import bitarray
 from cachetools import cached
 from more_itertools import first
@@ -140,32 +138,6 @@ async def wrap_task(coro: Coroutine, task_id: str | None = None) -> None:
     except BaseException as e:
         logger.exception("task.errored", task_id=task_id, exc_info=e, sentry=sentry_capture(e))
         raise
-
-
-def auto_async_to_sync[T](func: typing.Callable[..., T]) -> typing.Callable[..., T]:
-    """Automatically convert async functions to sync if not called in async context."""
-
-    def decorate(func):
-        # check that the func is async
-        if not asyncio.iscoroutinefunction(func):
-            raise TypeError(f"{func} is not a coroutine function")
-
-        @functools.wraps(func)
-        def wrapped(*args, **kwargs):
-            # are we in an async context?
-            try:
-                asyncio.get_running_loop()
-                is_in_loop = True
-            except RuntimeError:
-                is_in_loop = False
-            if is_in_loop:
-                return func(*args, **kwargs)
-            else:
-                return async_to_sync(func)(*args, **kwargs)
-
-        return wrapped
-
-    return decorate(func)
 
 
 def describe_type(obj: Any) -> str:
