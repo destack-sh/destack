@@ -132,7 +132,10 @@ class NeonApiLocal(NeonApi):
         return connection_uri
 
     async def delete_project(self, *, project_id: str) -> None:
-        pass  # no-op?
+        # api is ignored but must be passed
+        _ = await self._execute(
+            f"cargo run --bin=storcon_cli -- --api=http://localhost:1234 tenant-delete --tenant-id={project_id}"
+        )
 
 
 NEON_REGION_BY_REGION: dict[Region, str] = {

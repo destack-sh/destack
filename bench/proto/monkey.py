@@ -384,7 +384,7 @@ class _PatchedRpcMetadata(RpcMetadata):
                 str_parts.append(f"{field.name}={value!r}")
         return f"{self.__class__.__name__}({', '.join(str_parts)})"
 
-    def to_headers(self) -> dict:
+    def to_headers(self) -> dict[str, str]:
         # flat encoding with prefix, messages as base64 :RpcMetadataEncoding
         packed = {
             "2": self.client_id,

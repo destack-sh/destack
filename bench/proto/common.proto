@@ -37,8 +37,8 @@ message RpcMetadata {
 // Scope for an operation in the Bench graph.
 message GraphScope {
   optional string bench_id = 1;
-  optional string package_id = 4;
-  optional string transaction_id = 5;
+  optional string package_id = 3;
+  optional string transaction_id = 4;
 }
 
 // Edit describes an edit to a Node.
@@ -53,7 +53,7 @@ message EditData {
   repeated uint32 properties = 36;
 
   optional NodeReferenceData subject = 40;
-  // The last epoch from the server owning the scope that the client has seen.
+  // The last seen relevant from the corresponding graph.
   optional uint64 seen_epoch = 41;
   // System-accepted revision for the edit.
   optional int64 revision = 42;

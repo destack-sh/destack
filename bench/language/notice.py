@@ -74,7 +74,6 @@ class Notice(Node[NoticeData]):
     parent: NoticeParent = p_node_parent(4, *NOTICE_PARENT_TYPES)
     kind: NoticeKind = p_regular(30, default=None)
     type: NoticeType = p_regular(31)
-    # -> builtin_type / custom_type / ... 'type' as union
     subject: Node = p_regular(33, require=False, references=LINK_TARGET_NODE_TYPES)
     path: Optional["Path"] = p_regular(34, require=False, array=False, struct=StructType.PATH)
     properties: Optional[list[Property]] = p_regular(

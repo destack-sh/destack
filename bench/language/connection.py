@@ -30,6 +30,7 @@ from bench.proto.wire import (
     HostStub,
     NodeReferenceData,
     ReadOptionsData,
+    RpcMetadata,
     SupervisorStub,
 )
 from bench.utils.func import bytetuple
@@ -38,6 +39,7 @@ from bench.utils.tenacity import RetryOptions, retry
 if TYPE_CHECKING:
     from bench.language import Bench, Expression, Field, Property, Session, Store
     from bench.language.query import QueryBuilder
+    from bench.proto.monkey import _PatchedRpcMetadata
     from bench.sql.client import _PgStoreConnection
 
 # pyright: reportIncompatibleVariableOverride=false, reportIncompatibleMethodOverride=false
@@ -210,11 +212,14 @@ class RemoteEngine(StoreEngine[NodeT, NodeDataT]):
         default_scope: GraphScope,
         node_types: tuple[NodeType, ...] | bytetuple[NodeType],
         remote: GraphIoStub | HostStub | SupervisorStub,
+        metadata: RpcMetadata,
         retry: RetryOptions = RetryOptions(max_attempts=1),
     ):
         super().__init__(node_types)
         self.default_scope = default_scope
         self.remote = remote
+        self.metadata = metadata
+        self.headers = cast("_PatchedRpcMetadata", metadata).to_headers()
         self.retry = retry
 
     def __str__(self):
@@ -247,7 +252,7 @@ class RemoteConnection(StoreConnection[RemoteEngine, NodeT, NodeDataT]):
             count=options.count,
             scope=self.engine.default_scope,
         )
-        response = await self.engine.remote.search_nodes(request)
+        response = await self.engine.remote.search_nodes(request, metadata=self.engine.headers)
         return FetchResult(
             nodes=[wiring.unwrap_some_node(n) for n in response.nodes],
             roots=response.roots,
@@ -273,7 +278,7 @@ class RemoteConnection(StoreConnection[RemoteEngine, NodeT, NodeDataT]):
             aggregation=cast(ExpressionData, query._aggregation._to_data()),
             scope=self.engine.default_scope,
         )
-        response = await self.engine.remote.aggregate_nodes(request)
+        response = await self.engine.remote.aggregate_nodes(request, metadata=self.engine.headers)
         return AggregateResult(response.aggregation)
 
     @retry(
@@ -289,11 +294,15 @@ class RemoteConnection(StoreConnection[RemoteEngine, NodeT, NodeDataT]):
         request = wire.CommitTransactionRequest(
             id=str(self.session.tx.id), edits=edits, scope=self.engine.default_scope
         )
-        response = await self.engine.remote.commit_transaction(request)
+        response = await self.engine.remote.commit_transaction(
+            request, metadata=self.engine.headers
+        )
         return response.revisions
 
 
 class PostgresEngine(StoreEngine[NodeT, NodeDataT], Generic[NodeT, NodeDataT]):
+    """An engine that uses postgres connections."""
+
     type = StoreEngineType.POSTGRES
 
     def __init__(

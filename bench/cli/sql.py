@@ -30,10 +30,9 @@ from bench.sql.migration import (
     generate_migration_code,
     generate_migration_ops,
     introspect_tables_from_pg,
-    migrate as _migrate,
-    read_migrations_from_fs,
-    read_migrations_from_pg,
 )
+from bench.sql.migration import migrate as _migrate
+from bench.sql.migration import read_migrations_from_fs, read_migrations_from_pg
 from bench.system.client import GLOBAL_STORE, global_pg_cursor, global_session
 from bench.utils.utils import format_python
 
@@ -108,7 +107,7 @@ async def makemigrations(
         async with global_session():
             try:
                 bench_node = (
-                    await Bench.descendants(Environment, Store).include_all().get(slug=bench)
+                    await Bench.descendants(Environment, Store).select_all().get(slug=bench)
                 )
                 assert bench_node.main_environment, f"{bench!r} has no main environment"
                 async with pg_cursor_to_store(bench_node.main_environment.store) as cur:
@@ -168,11 +167,11 @@ async def migrate(
         async with global_session():
             if bench != "*":
                 bench_node = (
-                    await Bench.descendants(Environment, Store).include_all().get(slug=bench)
+                    await Bench.descendants(Environment, Store).select_all().get(slug=bench)
                 )
                 stores = tuple(e.store for e in bench_node.environments)
             else:
-                benches = await Bench.descendants(Environment, Store).include_all().tolist()
+                benches = await Bench.descendants(Environment, Store).select_all().tolist()
                 stores = tuple(e.store for b in benches for e in b.environments)
     else:
         stores = (GLOBAL_STORE,)
@@ -253,7 +252,7 @@ async def shell(bench: str = None):  # type: ignore
     """Open a psql shell to either the global or a Bench-local database."""
     if bench is not None:
         async with global_session():
-            bench_node = await Bench.descendants(Environment, Store).include_all().get(slug=bench)
+            bench_node = await Bench.descendants(Environment, Store).select_all().get(slug=bench)
             assert bench_node.main_environment, f"{bench!r} has no main environment"
             connection_str = get_pg_connection_str(bench_node.main_environment.store)
     else:

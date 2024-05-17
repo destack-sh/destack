@@ -14,6 +14,7 @@ from bench.language.node import Node
 from bench.language.query import NodeNotFoundError
 from bench.proto.wire import RpcMetadata
 from bench.system.client import global_session
+from bench.utils.base58 import base58_encode
 from bench.utils.func import to_uuid
 
 logger = structlog.get_logger(__name__)
@@ -71,7 +72,8 @@ async def check_password(password: str, salt: bytes, password_hash: bytes) -> bo
 
 def generate_access_token() -> str:
     """Generate a random access token."""
-    return urandom(ACCESS_TOKEN_LENGTH).hex()
+    bytes = urandom(ACCESS_TOKEN_LENGTH)
+    return base58_encode(bytes)
 
 
 def generate_encryption_key(length: int = 32) -> str:

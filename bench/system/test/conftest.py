@@ -12,6 +12,7 @@ from bench.utils.dt import utcnow_with_tz
 
 if TYPE_CHECKING:
     from bench.language.user import Client, User
+    from bench.proto.monkey import _PatchedRpcMetadata
 
 
 @dataclass(slots=True)
@@ -106,7 +107,7 @@ async def make_existing_user_handle(
         origin=origin,
         subject=subject,
         metadata=metadata,
-        headers=metadata.to_headers(),  # type: ignore
+        headers=cast("_PatchedRpcMetadata", metadata).to_headers(),
     )
     return handle
 

@@ -41,13 +41,12 @@ class Signal(BasedNode[SignalData], HasValues):
     """
 
     parent: "Package" = p_node_parent(4, NodeType.PACKAGE)
-    # builtin_type: ...
-    type: Optional["Block"] = p_internal(31, require=False, array=False, references=NodeType.BLOCK)
+    type: Optional["Block"] = p_internal(32, require=False, array=False, references=NodeType.BLOCK)
 
     # content
     value_packed: Any | None = p_value_packed(42)
     secret_value_packed: Any | None = p_secret_value_packed(43)
-    value: Any = p_value_runtime(42, 43, type=31)
+    value: Any = p_value_runtime(42, 43, type=32)
 
     @property
     def base(self) -> Optional["Block"]:
