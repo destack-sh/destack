@@ -23,9 +23,7 @@
 		"python.analysis.inlayHints.pytestParameters": true,
 		"python.analysis.autoFormatStrings": true,
 		"python.analysis.autoImportCompletions": true,
-		"python.testing.pytestArgs": [
-			"-n", "1", "-v", "--color=yes"
-		],
+		"python.testing.pytestArgs": [ "-v", "--color=yes" ],
 		"python.testing.unittestEnabled": false,
 		"python.testing.pytestEnabled": true,
 	}

@@ -36,6 +36,7 @@ from bench.proto.wire import (
 )
 from bench.sql.core import Constraint, ConstraintType
 from bench.utils.casing import IdentifierType
+from bench.utils.uuidt import UUIDT
 
 if TYPE_CHECKING:
     from bench.language import Bench, Block, Client, Icon, Package, Role, Text
@@ -171,11 +172,17 @@ class Invite(Node[InviteData]):
     roles: list["Role"] = p_regular(33, require=False, array=True, references=NodeType.ROLE)
 
 
-@node(NodeType.NOTIFICATION, passthrough="value", local=True)
+@node(
+    NodeType.NOTIFICATION,
+    passthrough="value",
+    local=True,
+    no_ck=True,  # no persistent identity
+    id_factory=UUIDT,
+    index_together=(("package_id", "created_at"),),
+)
 class Notification(BasedNode[NotificationData], HasValues):
     """
-    A Notification for someone in that Bench.
-    As with most Bench stuff, the main Bench's main package is the 'truth'.
+    A Notification for a Bench (author = created_by).
     """
 
     parent: "Package" = p_node_parent(4, NodeType.PACKAGE)
@@ -184,9 +191,6 @@ class Notification(BasedNode[NotificationData], HasValues):
     type: Optional["Block"] = p_system(32, require=False, array=False, references=NodeType.BLOCK)
     expires_at: Optional[datetime] = p_internal(33, default=None)
     read_at: Optional[datetime] = p_internal(34, default=None)
-    origin: Optional["Block"] = p_internal(
-        35, require=False, array=False, references=NodeType.BLOCK
-    )
 
     # content
     title: Optional[str] = p_regular(40)

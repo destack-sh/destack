@@ -649,7 +649,7 @@ export class HostClient implements IHostClient, ServiceInfo {
     }
 }
 /**
- * A Runtime for running a Bench in an isolated environment.
+ * A Runtime for running a Bench in an isolated environment on/for a Client.
  * The Runtime may run any number of processes to process its Runs in Sessions.
  *
  * @generated from protobuf service symbolx.bench.Runtime
@@ -669,7 +669,7 @@ export interface IRuntimeClient {
     startRun(input: StartRunRequest, options?: OperationOptions): UnaryCall<StartRunRequest, StartRunResponse>;
 }
 /**
- * A Runtime for running a Bench in an isolated environment.
+ * A Runtime for running a Bench in an isolated environment on/for a Client.
  * The Runtime may run any number of processes to process its Runs in Sessions.
  *
  * @generated from protobuf service symbolx.bench.Runtime

@@ -1,7 +1,6 @@
 import io
 from typing import TYPE_CHECKING, BinaryIO, Collection, Optional
 
-import aiohttp
 import structlog
 
 from bench.language.const import EnumType, NodeType, StructType, enum_
@@ -49,18 +48,7 @@ class File(Struct):
 
     async def download(self) -> bytes:
         """Read the object from the remote storage."""
-        get_url = await self.get_url()
-        # download file from url
-        async with aiohttp.ClientSession() as session:
-            async with session.get(get_url) as response:
-                logger.debug("file.read", file=self, status=response.status, url=get_url)
-                if response.status != 200:
-                    raise ValueError(
-                        f"unable to download {self}: {response.status} {response.reason}"
-                    )
-                content = await response.read()
-                self._cached_bytes = content
-                return content
+        raise NotImplementedError
 
     async def get_url(self):
         raise NotImplementedError

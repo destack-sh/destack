@@ -4,7 +4,7 @@ import re
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, NamedTuple
 
-import aiohttp
+import httpx
 import structlog
 
 from bench.language.resource import Region
@@ -175,32 +175,32 @@ class NeonApiRemote(NeonApi):
         params: dict[str, Any] | None = None,
         json: dict[str, Any] | None = None,
     ) -> Any | None:
-        async with aiohttp.ClientSession() as session:
+        async with httpx.AsyncClient() as client:
             headers = {"Authorization": f"Bearer {self.api_key}"}
             logger.debug("neon.request", method=method, path=path, params=params, json=json)
-            async with session.request(
+            response = await client.request(
                 method, f"{self.url}/{path}", headers=headers, params=params, json=json
-            ) as response:
-                if response.status > 400:
-                    try:
-                        text = await response.text()
-                    except Exception:
-                        text = None
-                    error = dict(
-                        path=path, params=params, json=json, status=response.status, text=text
-                    )
-                    if response.status == 404:
-                        raise UnrecoverableError(f"not found: {error}")
-                    elif response.status == 409:
-                        raise UnrecoverableError(f"conflict: {error}")
-                    elif response.status == 422:
-                        raise UnrecoverableError(f"unprocessable: {error}")
-                    else:
-                        raise RecoverableError(f"request failed: {response.status} {error}")
+            )
+            if response.status_code > 400:
+                error = dict(
+                    path=path,
+                    params=params,
+                    json=json,
+                    status=response.status_code,
+                    text=response.text,
+                )
+                if response.status_code == 404:
+                    raise UnrecoverableError(f"not found: {error}")
+                elif response.status_code == 409:
+                    raise UnrecoverableError(f"conflict: {error}")
+                elif response.status_code == 422:
+                    raise UnrecoverableError(f"unprocessable: {error}")
+                else:
+                    raise RecoverableError(f"request failed: {response.status_code} {error}")
 
-                rep = await response.json()
-                logger.debug("neon.response", status=response.status, json=rep)
-                return rep
+            rep = response.json()
+            logger.debug("neon.response", status=response.status_code, json=rep)
+            return rep
 
     async def create_project(
         self, *, name: str, region: Region, pg_version: int, branch: str = "main"
@@ -212,7 +212,7 @@ class NeonApiRemote(NeonApi):
             "branch": {"name": branch, "role_name": "bench", "database_name": "bench"},
             "provisioner": "k8s-neonvm",
             "default_endpoint_settings": NEON_MAIN_ENDPOINT_SETTINGS,
-            "history_retention_seconds": 30 * 24 * 60 * 60,
+            "history_retention_seconds": 7 * 24 * 60 * 60,
         }
         rep = await self._request("POST", "projects", json={"project": project})
         assert rep is not None, "no response"

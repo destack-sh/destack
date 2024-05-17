@@ -13,7 +13,7 @@ from bench.utils.utils import frozendict
 if typing.TYPE_CHECKING:
     from bench.language import Session, Transaction
 
-VERSION = "2024.05.16.0"
+VERSION = "2024.05.17.0"
 REVISION_PENDING = -1
 TK_LENGTH_BYTES = 8
 TK_LENGTH_B64 = 12  # 1.5 * TK_LENGTH_BYTES (must be integer)
@@ -190,7 +190,6 @@ class NodeType(IdEnum):
     INVITE = 64
 
     # runtime
-    # TODO :Performance: turn Logs/Sessions/Runs/Signals/..? into hypertables (timescaledb)
     SESSION = 80  # (local)
     RUN = 81  # (local, based)
     SIGNAL = 82  # (local, based)
@@ -215,39 +214,37 @@ class NodeType(IdEnum):
     CLIENT = 223
 
 
-NODE_TYPES: bytetuple[NodeType] = bytetuple(*NodeType)
+# :NodeTypes
+NODE_TYPES = bytetuple(*NodeType)
 NODE_TYPES_SET: frozenset[NodeType] = frozenset(NODE_TYPES)
-ROOT_NODE_TYPES: bytetuple[NodeType] = bytetuple(
-    NodeType.BENCH, NodeType.USER, NodeType.ORGANIZATION
-)
-LOCAL_NODE_TYPES: bytetuple[NodeType] = bytetuple(
+ROOT_NODE_TYPES = bytetuple(NodeType.BENCH, NodeType.USER, NodeType.ORGANIZATION)
+LOCAL_NODE_TYPES = bytetuple(
     NodeType.RECORD, NodeType.MESSAGE, NodeType.RUN, NodeType.SIGNAL, NodeType.NOTIFICATION
 )
-GLOBAL_NODE_TYPES: bytetuple[NodeType] = bytetuple(
-    *tuple(nt for nt in NODE_TYPES if nt not in LOCAL_NODE_TYPES)
-)
-# based = instances are directly based on some other node
-# (e.g. Run.block->Block, Record.parent->Block)
-BASED_NODE_TYPES: bytetuple[NodeType] = bytetuple(
+GLOBAL_NODE_TYPES = bytetuple(*tuple(nt for nt in NODE_TYPES if nt not in LOCAL_NODE_TYPES))
+BASED_NODE_TYPES = bytetuple(  # :HasBase
     NodeType.FIELD,
-    NodeType.RECORD,
-    NodeType.MESSAGE,
     NodeType.RUN,
     NodeType.SIGNAL,
     NodeType.NOTIFICATION,
+    NodeType.MESSAGE,
+    NodeType.RECORD,
 )
-IN_PACKAGE_NODE_TYPES: bytetuple[NodeType] = bytetuple(
-    *tuple(nt for nt in NODE_TYPES if 20 <= nt.id < 100)
+RUNTIME_NODE_TYPES = bytetuple(*tuple(nt for nt in NODE_TYPES if 80 <= nt.id < 100))
+TIMED_NODE_TYPES = bytetuple(
+    NodeType.SESSION,
+    NodeType.RUN,
+    NodeType.SIGNAL,
+    NodeType.LOG,
+    NodeType.NOTIFICATION,
+    NodeType.MESSAGE,
 )
-SUB_PACKAGE_NODE_TYPES: bytetuple[NodeType] = bytetuple(
-    *tuple(nt for nt in NODE_TYPES if 20 < nt.id < 100)
-)
-IN_BENCH_NODE_TYPES: bytetuple[NodeType] = bytetuple(
+IN_PACKAGE_NODE_TYPES = bytetuple(*tuple(nt for nt in NODE_TYPES if 20 <= nt.id < 100))
+SUB_PACKAGE_NODE_TYPES = bytetuple(*tuple(nt for nt in NODE_TYPES if 20 < nt.id < 100))
+IN_BENCH_NODE_TYPES = bytetuple(
     *tuple(nt for nt in NODE_TYPES if nt.id < 200) + (NodeType.CLIENT, NodeType.HANDLE)
 )
-SUB_BENCH_NODE_TYPES: bytetuple[NodeType] = bytetuple(
-    *tuple(nt for nt in IN_BENCH_NODE_TYPES if nt != NodeType.BENCH)
-)
+SUB_BENCH_NODE_TYPES = bytetuple(*tuple(nt for nt in IN_BENCH_NODE_TYPES if nt != NodeType.BENCH))
 RESOURCE_NODE_TYPES = bytetuple(*tuple(nt for nt in NODE_TYPES if 160 <= nt.id < 200))
 BENCH_NODE_TYPES = bytetuple(
     NodeType.BENCH,
@@ -257,7 +254,7 @@ BENCH_NODE_TYPES = bytetuple(
     NodeType.HANDLE,
     *RESOURCE_NODE_TYPES,
 )
-PUBLIC_NODE_TYPES: bytetuple[NodeType] = bytetuple(NodeType.USER, NodeType.ORGANIZATION)
+PUBLIC_NODE_TYPES = bytetuple(NodeType.USER, NodeType.ORGANIZATION)
 USER_NODE_TYPES = bytetuple(*tuple(nt for nt in NODE_TYPES if nt.id >= 200))
 
 

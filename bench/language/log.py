@@ -44,7 +44,13 @@ class LogLevel(IdEnum):
     CRITICAL = 6
 
 
-@node(NodeType.LOG, stored=True, local=True, no_ck=True, id_factory=UUIDT)
+@node(
+    NodeType.LOG,
+    local=True,
+    no_ck=True,  # no persistent identity
+    id_factory=UUIDT,
+    index_together=(("package_id", "created_at"),),
+)
 class Log(Node, HasValues):
     """
     A Log (entry) is a timestamped event of something happening:
@@ -53,29 +59,33 @@ class Log(Node, HasValues):
 
     parent: "Package" = p_node_parent(4, NodeType.PACKAGE)
 
-    # content
+    # meta
     kind: LogKind = p_system(30)
     level: LogLevel = p_system(31)
     logger: Optional[str] = p_system(32, default=None)
     event: Optional[str] = p_system(33, default=None)
-    title: Optional[str] = p_internal(34, default=None)
+
+    # content
+    title: Optional[str] = p_internal(40, default=None)
     text: Optional[Text] = p_internal(
-        35, default=None, require=False, array=False, struct=StructType.TEXT
+        41, default=None, require=False, array=False, struct=StructType.TEXT
     )
-    value_packed: Any | None = p_value_packed(37)
+    value_packed: Any | None = p_value_packed(42)
     # secret_value_packed?
-    value: Any = p_value_runtime(37)
+    value: Any = p_value_runtime(42)
     request: Optional["Request"] = p_system(
-        39, require=False, array=False, struct=StructType.REQUEST
+        44, require=False, array=False, struct=StructType.REQUEST
     )
 
     # context
     session: Optional["Session"] = p_system(
-        40, require=False, array=False, references=NodeType.SESSION
+        50, require=False, array=False, references=NodeType.SESSION, is_bench_implicit=True
     )
-    run: Optional["Run"] = p_system(41, require=False, array=False, references=NodeType.RUN)
-    block: Optional["Block"] = p_system(42, require=False, array=False, references=NodeType.BLOCK)
-    step: Optional["Step"] = p_system(43, require=False, array=False, references=NodeType.STEP)
+    run: Optional["Run"] = p_system(
+        51, require=False, array=False, references=NodeType.RUN, is_bench_implicit=True
+    )
+    block: Optional["Block"] = p_system(52, require=False, array=False, references=NodeType.BLOCK)
+    step: Optional["Step"] = p_system(53, require=False, array=False, references=NodeType.STEP)
     if TYPE_CHECKING:
         session_ptr: Optional[NodeReferenceData] = None
         run_ptr: Optional[NodeReferenceData] = None

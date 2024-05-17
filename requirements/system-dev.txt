@@ -11,7 +11,6 @@ anyio==4.3.0
     #   httpx
     #   openai
     #   starlette
-asgiref==3.8.1
 attrs==23.2.0
     # via aiohttp
 backoff==2.2.1
@@ -25,6 +24,8 @@ botocore==1.34.104
     # via
     #   boto3
     #   s3transfer
+brotli==1.1.0
+    # via httpx
 build==1.2.1
     # via pip-tools
 cachetools==5.2.0
@@ -68,7 +69,9 @@ h11==0.14.0
     #   httpcore
     #   uvicorn
 h2==4.1.0
-    # via grpclib
+    # via
+    #   grpclib
+    #   httpx
 hiredis==2.3.2
     # via redis
 hpack==4.0.0
@@ -167,7 +170,7 @@ pyproject-hooks==1.1.0
 pyright==1.1.362
 pytest==8.2.0
     # via pytest-asyncio
-pytest-asyncio==0.23.3
+pytest-asyncio==0.23.6
 python-dateutil==2.9.0.post0
     # via
     #   betterproto

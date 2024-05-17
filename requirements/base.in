@@ -1,7 +1,5 @@
 # run ./scripts/update-requirements.sh
 
-aiohttp==3.9.5
-asgiref==3.8.1
 betterproto[compiler] @ git+https://github.com/danielgtaylor/python-betterproto.git@5666393f9d10e13609d8eeac8d1ab3815dce5fd6
 bitarray==2.9.2
 boto3==1.34.104
@@ -10,6 +8,7 @@ black==23.7.0
 cachetools==5.2.0
 croniter==1.4.1
 googleapis-common-protos==1.63.0
+httpx[http2,brotli]==0.27.0
 more-itertools==9.0.0
 multidict>=6.0.4
 openai==1.19.0

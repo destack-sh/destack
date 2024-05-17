@@ -384,9 +384,8 @@ class Index(TableObject):
     _table: Union["Table", None] = None  # type: ignore
 
     def __post_init__(self):
-        self.columns = tuple(sorted(self.columns))  # ensure consistent sorting
         if self.condition is not None:
-            # must be wrapped in parentheses
+            # wrap condition in parentheses
             assert self.condition.startswith("(") and self.condition.endswith(
                 ")"
             ), f"invalid condition: {self!r}"

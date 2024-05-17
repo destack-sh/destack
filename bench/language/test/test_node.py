@@ -78,7 +78,6 @@ async def test_node_pointers_consistency(fabricator: "Fabricator"):
         NodeReference(
             type=NodeType.SIGNAL,
             id=signal_a.id,
-            ck=signal_a.ck,
             bench_id=bench_a.id,
             base_ck=block_a_1.ck,
             base_bench_id=bench_a.id,
@@ -99,7 +98,6 @@ async def test_node_pointers_consistency(fabricator: "Fabricator"):
         NodeReference(
             type=NodeType.SIGNAL,
             id=signal_b.id,
-            ck=signal_b.ck,
             bench_id=bench_b.id,
             base_ck=block_a_1.ck,
             base_bench_id=bench_a.id,

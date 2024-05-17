@@ -1565,7 +1565,7 @@ message ScheduleData {
   repeated int32 set_properties = 22;
   ScheduleType type = 30;
   optional string timezone = 31;
-  optional int32 interval = 32;
+  optional int32 interval_seconds = 32;
   optional string cron = 33;
 }
 
@@ -2074,14 +2074,14 @@ message LogData {
   LogLevel level = 31;
   optional string logger = 32;
   optional string event = 33;
-  optional string title = 34;
-  optional TextData text = 35;
-  optional google.protobuf.Struct value_packed = 37;
-  optional RequestData request = 39;
-  optional NodeReferenceData session_ptr = 40;
-  optional NodeReferenceData run_ptr = 41;
-  optional NodeReferenceData block_ptr = 42;
-  optional NodeReferenceData step_ptr = 43;
+  optional string title = 40;
+  optional TextData text = 41;
+  optional google.protobuf.Struct value_packed = 42;
+  optional RequestData request = 44;
+  optional NodeReferenceData session_ptr = 50;
+  optional NodeReferenceData run_ptr = 51;
+  optional NodeReferenceData block_ptr = 52;
+  optional NodeReferenceData step_ptr = 53;
 }
 
 // A membership to this Bench (and its owner if it's the main Bench).
@@ -2106,11 +2106,9 @@ message MembershipData {
 
 // A Message by a User or program (author = created_by).
 // If the parent is also a Message, then this is part of a thread. Threads may be nested.
-// Messages are ordered by created_at.
 message MessageData {
   ObjectType metatype = 1;
   string id = 2;
-  string ck = 3;
   optional NodeReferenceData parent_ptr = 4;
   NodeReferenceData package_ptr = 6;
   NodeReferenceData bench_ptr = 7;
@@ -2153,8 +2151,8 @@ message BaseNodeData {
   repeated int32 set_properties = 22;
 }
 
-// An informational or diagnostic note about something in the Bench source.
-// Notices are generally 'sticky' until their underlying cause is resolved.
+// An informational or diagnostic Notice about something in the Bench source.
+// Notices are generally 'sticky' until resolved.
 message NoticeData {
   ObjectType metatype = 1;
   string id = 2;
@@ -2172,19 +2170,17 @@ message NoticeData {
   repeated int32 set_properties = 22;
   NoticeKind kind = 30;
   NoticeType type = 31;
-  optional NodeReferenceData origin_ptr = 33;
+  optional NodeReferenceData subject_ptr = 33;
   optional PathData path = 34;
   repeated PropertyReferenceData properties_ptr = 35;
   optional string title = 40;
   optional TextData text = 41;
 }
 
-// A Notification for someone in that Bench.
-// As with most Bench stuff, the main Bench's main package is the 'truth'.
+// A Notification for a Bench (author = created_by).
 message NotificationData {
   ObjectType metatype = 1;
   string id = 2;
-  string ck = 3;
   optional NodeReferenceData parent_ptr = 4;
   NodeReferenceData package_ptr = 6;
   NodeReferenceData bench_ptr = 7;
@@ -2200,7 +2196,6 @@ message NotificationData {
   optional NodeReferenceData type_ptr = 32;
   optional google.protobuf.Timestamp expires_at = 33;
   optional google.protobuf.Timestamp read_at = 34;
-  optional NodeReferenceData origin_ptr = 35;
   optional string title = 40;
   optional TextData text = 41;
   optional google.protobuf.Struct value_packed = 42;
@@ -2325,7 +2320,6 @@ message RoleData {
 message RunData {
   ObjectType metatype = 1;
   string id = 2;
-  string ck = 3;
   optional NodeReferenceData parent_ptr = 4;
   NodeReferenceData package_ptr = 6;
   NodeReferenceData bench_ptr = 7;
@@ -2399,7 +2393,6 @@ message ServerData {
 message SessionData {
   ObjectType metatype = 1;
   string id = 2;
-  string ck = 3;
   optional NodeReferenceData parent_ptr = 4;
   NodeReferenceData package_ptr = 6;
   NodeReferenceData bench_ptr = 7;
@@ -2420,11 +2413,11 @@ message SessionData {
   optional NodeReferenceData user_ptr = 63;
 }
 
-// A signal emitted in this Bench.
+// A Signal emitted in this Bench.
+// Signals can be emitted by users or Bench source, and are usually handled in Triggers.
 message SignalData {
   ObjectType metatype = 1;
   string id = 2;
-  string ck = 3;
   optional NodeReferenceData parent_ptr = 4;
   NodeReferenceData package_ptr = 6;
   NodeReferenceData bench_ptr = 7;
@@ -2437,9 +2430,8 @@ message SignalData {
   optional NodeReferenceData updated_by_ptr = 18;
   repeated int32 set_properties = 22;
   optional NodeReferenceData type_ptr = 31;
-  optional NodeReferenceData origin_ptr = 33;
-  optional google.protobuf.Struct value_packed = 34;
-  optional google.protobuf.Struct secret_value_packed = 35;
+  optional google.protobuf.Struct value_packed = 42;
+  optional google.protobuf.Struct secret_value_packed = 43;
 }
 
 // A reference to another node in some graph that wasn't available for some reason (usually permissions).
@@ -2544,7 +2536,7 @@ message StoreData {
   optional string connection_uri = 52;
 }
 
-// A trigger to a node.
+// A trigger to run the node it is attached to (like a Block or Step).
 message TriggerData {
   ObjectType metatype = 1;
   string id = 2;
@@ -2562,10 +2554,10 @@ message TriggerData {
   repeated int32 set_properties = 22;
   TriggerType type = 30;
   string name = 31;
-  bool active = 32;
-  optional ScheduleData schedule = 33;
-  optional NodeReferenceData signal_ptr = 34;
-  optional ExpressionData condition = 35;
+  optional ScheduleData schedule = 40;
+  optional NodeReferenceData signal_ptr = 41;
+  optional ExpressionData condition = 42;
+  bool is_active = 50;
 }
 
 // An 'upgrade' to a Package, marking changes made to the containing Package.

@@ -284,7 +284,7 @@ export class TransactionBuilder implements Transaction {
 
 /** 'Canonicalizes' edits by imputing tracking info (just like in host). See :EditCanonicalization. */
 export function canonicalizeEdits(now: Timestamp, edits: EditData[]) {
-  // TODO :Broken: canonicalize createdByPtr/updatedByPtr, only check timestamps
+  // nocheckin :Broken: canonicalize only createdByPtr/updatedByPtr, cascade down timestamps for deleted_at/archived_at
   //  (currently all nodes in a single transaction will receive the same timestamps,
   //   which is annoying when relying on timestamps for order like in Messages)
   for (const edit of edits) {

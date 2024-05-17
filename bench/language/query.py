@@ -13,8 +13,6 @@ from typing import (
     cast,
 )
 
-from asgiref.sync import async_to_sync
-
 from bench.language.const import (
     AccessKind,
     AggregationOp,
@@ -67,7 +65,7 @@ class Query(Node[QueryData]):
     def node_cls(self) -> type[Node]:
         return NODE_CLASS_BY_TYPE[self.node_type]
 
-    def into(self) -> "QueryBuilder":
+    def build(self) -> "QueryBuilder":
         return QueryBuilder(
             node_type=self.node_type,
             base=self.base,
@@ -115,6 +113,8 @@ class MakeQueryBase(abc.ABC, Generic[NodeT, NodeDataT]):
     def first(self, count: int) -> "QueryBuilder[NodeT, NodeDataT]":
         """Returns the first N results."""
         raise NotImplementedError
+
+    limit = first
 
     def skip(self, count: int) -> "QueryBuilder[NodeT, NodeDataT]":
         """Skips the first N results."""
@@ -288,6 +288,8 @@ class QueryBuilder(
         copy._first = count
         return copy
 
+    limit = first
+
     def skip(self, count: int) -> "QueryBuilder[NodeT, NodeDataT]":
         """Skips the first N results."""
         copy = self.copy()
@@ -372,9 +374,6 @@ class QueryBuilder(
 
     async def __aiter__(self):
         return iter(await self.fetch())
-
-    def __iter__(self):
-        return iter(async_to_sync(self.fetch)())
 
     def __len__(self):
         return self.count()

@@ -36,7 +36,13 @@ if TYPE_CHECKING:
 # pyright: reportIncompatibleVariableOverride=false
 
 
-@node(NodeType.RUN, local=True, id_factory=UUIDT)
+@node(
+    NodeType.RUN,
+    local=True,
+    no_ck=True,  # no persistent identity
+    id_factory=UUIDT,
+    index_together=(("package_id", "created_at"),),
+)
 class Run(BasedNode[RunData], HasValues):
     """
     A 'run' of Blocks (and Steps within them) or 'lambdas' (just Code/Text).
@@ -49,12 +55,10 @@ class Run(BasedNode[RunData], HasValues):
     parent: Union["Package", "Run"] = p_node_parent(4, NodeType.PACKAGE, NodeType.RUN)
     kind: RunKind = p_system(30)
     root: Optional["Run"] = p_node_ancestor_root(
-        32, NodeType.RUN, require=False, store=True, wire=True, index_in_pg=True
+        32, NodeType.RUN, require=False, store=True, wire=True, is_bench_implicit=True
     )
 
-    block: Optional["Block"] = p_internal(
-        34, references=NodeType.BLOCK, require=False, array=False, index_in_pg=True
-    )
+    block: Optional["Block"] = p_internal(34, references=NodeType.BLOCK, require=False, array=False)
     step: Optional["Step"] = p_internal(35, require=False, array=False, references=NodeType.STEP)
     if TYPE_CHECKING:
         session_ptr: Optional[NodeReferenceData] = None
@@ -66,7 +70,7 @@ class Run(BasedNode[RunData], HasValues):
     text: Optional["Text"] = p_internal(37, require=False, array=False, struct=StructType.TEXT)
 
     # status
-    status: RunStatus = p_internal(40, default=RunStatus.SCHEDULED, index_in_pg=True)
+    status: RunStatus = p_internal(40, default=RunStatus.SCHEDULED)
     duration: Optional[float] = p_internal(41, default=None)
     scheduled_at: Optional[datetime] = p_internal(42, default=None)
     started_at: Optional[datetime] = p_internal(43, default=None)
@@ -89,13 +93,13 @@ class Run(BasedNode[RunData], HasValues):
 
     # context
     session: Optional["Session"] = p_node_ancestor(
-        60, NodeType.SESSION, require=False, store=True, wire=True, index_in_pg=True
+        60, NodeType.SESSION, require=False, store=True, wire=True, is_bench_implicit=True
     )
     client: Optional["Client"] = p_system(
-        61, require=False, array=False, references=NodeType.CLIENT
+        61, require=False, array=False, references=NodeType.CLIENT, is_bench_implicit=True
     )
     server: Optional["Server"] = p_internal(
-        62, require=False, array=False, references=NodeType.SERVER
+        62, require=False, array=False, references=NodeType.SERVER, is_bench_implicit=True
     )
     user: Optional["User"] = p_internal(63, require=False, array=False, references=NodeType.USER)
 
