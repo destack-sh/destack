@@ -15,6 +15,7 @@ from bench.language.query import NodeNotFoundError
 from bench.proto.wire import RpcMetadata
 from bench.system.client import global_session
 from bench.utils.base58 import base58_encode
+from bench.utils.env import IS_DEBUG
 from bench.utils.func import to_uuid
 
 logger = structlog.get_logger(__name__)
@@ -84,18 +85,21 @@ def generate_encryption_key(length: int = 32) -> str:
 async def _get_client_from_metadata(metadata: RpcMetadata) -> Client | None:
     """Gets the authenticated client (if any)."""
 
-    if metadata.client_id:
-        client_id = to_uuid(metadata.client_id)
+    if not metadata.client_id:
+        return None
+
+    client_id = to_uuid(metadata.client_id)
+    try:
         client: Client = (
             await Client.include(User.email, Client.access_token)
             .ancestors(User, Server)
             .get(id=client_id)
         )
-        if metadata.client_access_token != client.access_token:
-            raise GRPCError(GRPCStatus.UNAUTHENTICATED, "invalid access token")
-        return client
-    else:
-        return None
+    except NodeNotFoundError as e:
+        raise GRPCError(GRPCStatus.UNAUTHENTICATED, str(e) if IS_DEBUG else "client not found")
+    if metadata.client_access_token != client.access_token:
+        raise GRPCError(GRPCStatus.UNAUTHENTICATED, "invalid access token")
+    return client
 
 
 async def _get_badges_from_metadata(metadata: RpcMetadata) -> list[Badge]:
@@ -119,30 +123,37 @@ async def _get_badges_from_metadata(metadata: RpcMetadata) -> list[Badge]:
 
 async def get_subject_from_metadata(metadata: RpcMetadata) -> Subject:
     async with global_session():
-        try:
-            client = await _get_client_from_metadata(metadata)
-        except NodeNotFoundError as e:
-            raise GRPCError(GRPCStatus.UNAUTHENTICATED, "invalid client") from e
-        try:
-            badges = await _get_badges_from_metadata(metadata)
-        except NodeNotFoundError as e:
-            raise GRPCError(GRPCStatus.UNAUTHENTICATED, "invalid badge") from e
+        client = await _get_client_from_metadata(metadata)
+        badges = await _get_badges_from_metadata(metadata)
         if client is None:
             return Subject(is_authenticated=False, badges=badges)
         elif client.parent_type == NodeType.USER:
             # TODO :Broken :Performance: fetch all subject memberships/owned/roles
             #  (probably only on-demand to reduce latency)
-            owned: list[Node] = [client.user]
-            if client.user.main_bench_ptr:  # (we cheat a little and get only the main Bench)
-                main_bench = await Bench.get(id=client.user.main_bench_ptr.id)
+            user = cast("User", client.parent)
+            owned: list[Node] = [user]
+            if user.main_bench_ptr:  # (we cheat a little and get only the main Bench)
+                main_bench = await Bench.get(id=user.main_bench_ptr.id)
                 owned.append(main_bench)
             return Subject(
                 is_authenticated=True,
-                is_staff=client.user.is_staff,
+                is_staff=user.is_staff,
                 client=client,
-                user=client.user,
+                user=user,
                 badges=badges,
                 owned=cast(list[Owner], owned),
+            )
+        elif client.parent_type == NodeType.SERVER:
+            # servers are basically bench owners
+            server = cast("Server", client.parent)
+            bench = await Bench.get(id=client.bench_id)
+            return Subject(
+                is_authenticated=True,
+                is_staff=False,
+                client=client,
+                server=server,
+                badges=badges,
+                owned=[bench],
             )
         else:
             raise ValueError(f"unexpected client: {client!r}")

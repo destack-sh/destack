@@ -5,7 +5,7 @@ import structlog
 
 from bench.utils.utils import get_from_env
 
-LOG_LEVEL = get_from_env("LOG_LEVEL", "DEBUG")
+LOG_LEVEL = get_from_env("LOG_LEVEL", default="DEBUG")
 
 # monkey patch structlog to add color support for custom 'trace' level
 patched_styles = structlog.dev.ConsoleRenderer.get_default_level_styles()
@@ -38,7 +38,7 @@ HANDLERS = {
     },
 }
 
-if not get_from_env("JSON_LOGS", default=False, type_cast=bool):
+if not get_from_env("JSON_LOGS", default=False, typ=bool):
     logged_handlers = ["plain_console"]
 else:
     logged_handlers = ["json_console"]

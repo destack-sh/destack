@@ -1753,11 +1753,12 @@ class SubjectData(betterproto.Message):
     is_system: Optional[bool] = betterproto.bool_field(32, optional=True)
     client_ptr: Optional["NodeReferenceData"] = betterproto.message_field(40, optional=True)
     user_ptr: Optional["NodeReferenceData"] = betterproto.message_field(41, optional=True)
-    identity_ptr: Optional["NodeReferenceData"] = betterproto.message_field(42, optional=True)
-    badges_ptr: List["NodeReferenceData"] = betterproto.message_field(43)
-    owned_ptr: List["NodeReferenceData"] = betterproto.message_field(44)
-    memberships_ptr: List["NodeReferenceData"] = betterproto.message_field(45)
-    roles_ptr: List["NodeReferenceData"] = betterproto.message_field(46)
+    server_ptr: Optional["NodeReferenceData"] = betterproto.message_field(42, optional=True)
+    identity_ptr: Optional["NodeReferenceData"] = betterproto.message_field(50, optional=True)
+    badges_ptr: List["NodeReferenceData"] = betterproto.message_field(51)
+    owned_ptr: List["NodeReferenceData"] = betterproto.message_field(52)
+    memberships_ptr: List["NodeReferenceData"] = betterproto.message_field(53)
+    roles_ptr: List["NodeReferenceData"] = betterproto.message_field(54)
 
 
 @dataclass(eq=False, repr=False)
@@ -2735,7 +2736,7 @@ class SignalData(betterproto.Message):
     created_by_ptr: Optional["NodeReferenceData"] = betterproto.message_field(17, optional=True)
     updated_by_ptr: Optional["NodeReferenceData"] = betterproto.message_field(18, optional=True)
     set_properties: List[int] = betterproto.int32_field(22)
-    type_ptr: Optional["NodeReferenceData"] = betterproto.message_field(31, optional=True)
+    type_ptr: Optional["NodeReferenceData"] = betterproto.message_field(32, optional=True)
     value_packed: Optional["betterproto_lib_google_protobuf.Struct"] = betterproto.message_field(
         42, optional=True
     )
@@ -3066,8 +3067,8 @@ class GraphScope(betterproto.Message):
     """Scope for an operation in the Bench graph."""
 
     bench_id: Optional[str] = betterproto.string_field(1, optional=True)
-    package_id: Optional[str] = betterproto.string_field(4, optional=True)
-    transaction_id: Optional[str] = betterproto.string_field(5, optional=True)
+    package_id: Optional[str] = betterproto.string_field(3, optional=True)
+    transaction_id: Optional[str] = betterproto.string_field(4, optional=True)
 
 
 @dataclass(eq=False, repr=False)
@@ -3086,9 +3087,7 @@ class EditData(betterproto.Message):
     properties: List[int] = betterproto.uint32_field(36)
     subject: Optional["NodeReferenceData"] = betterproto.message_field(40, optional=True)
     seen_epoch: Optional[int] = betterproto.uint64_field(41, optional=True)
-    """
-    The last epoch from the server owning the scope that the client has seen.
-    """
+    """The last seen relevant from the corresponding graph."""
 
     revision: Optional[int] = betterproto.int64_field(42, optional=True)
     """System-accepted revision for the edit."""
@@ -4811,7 +4810,7 @@ class RuntimeBase(ServiceBase):
 
 from typing import TYPE_CHECKING  # noqa: E402
 
-VERSION = "2024.05.17.0"
+VERSION = "2024.05.17.1"
 
 if TYPE_CHECKING:
     from bench.language import Subject

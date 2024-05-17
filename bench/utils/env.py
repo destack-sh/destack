@@ -4,7 +4,7 @@ from typing import TYPE_CHECKING
 
 import dotenv
 
-from bench.utils.utils import get_from_env, str_to_bool
+from bench.utils.utils import get_from_env
 
 
 def setup_dotenv():
@@ -34,11 +34,9 @@ def setup_dotenv():
 
 
 ENVIRONMENT = get_from_env("ENVIRONMENT", default="dev")
-IS_DEBUG: bool = get_from_env("DEBUG", False, type_cast=str_to_bool)
+IS_DEBUG: bool = get_from_env("DEBUG", default=False, typ=bool)
 IS_TEST: bool = (
-    "test" in sys.argv
-    or "pytest" in sys.argv[0]
-    or get_from_env("TEST", False, type_cast=str_to_bool)
+    "test" in sys.argv or "pytest" in sys.argv[0] or get_from_env("TEST", default=False, typ=bool)
 )
 IS_DEV = ENVIRONMENT == "dev"
 SOME_TYPE_CHECKING = TYPE_CHECKING or "mypy" in sys.argv[0] or IS_TEST

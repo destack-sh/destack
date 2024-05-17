@@ -1358,23 +1358,27 @@ export interface SubjectData {
      */
     userPtr?: NodeReferenceData;
     /**
-     * @generated from protobuf field: optional symbolx.bench.NodeReferenceData identity_ptr = 42;
+     * @generated from protobuf field: optional symbolx.bench.NodeReferenceData server_ptr = 42;
+     */
+    serverPtr?: NodeReferenceData;
+    /**
+     * @generated from protobuf field: optional symbolx.bench.NodeReferenceData identity_ptr = 50;
      */
     identityPtr?: NodeReferenceData;
     /**
-     * @generated from protobuf field: repeated symbolx.bench.NodeReferenceData badges_ptr = 43;
+     * @generated from protobuf field: repeated symbolx.bench.NodeReferenceData badges_ptr = 51;
      */
     badgesPtr: NodeReferenceData[];
     /**
-     * @generated from protobuf field: repeated symbolx.bench.NodeReferenceData owned_ptr = 44;
+     * @generated from protobuf field: repeated symbolx.bench.NodeReferenceData owned_ptr = 52;
      */
     ownedPtr: NodeReferenceData[];
     /**
-     * @generated from protobuf field: repeated symbolx.bench.NodeReferenceData memberships_ptr = 45;
+     * @generated from protobuf field: repeated symbolx.bench.NodeReferenceData memberships_ptr = 53;
      */
     membershipsPtr: NodeReferenceData[];
     /**
-     * @generated from protobuf field: repeated symbolx.bench.NodeReferenceData roles_ptr = 46;
+     * @generated from protobuf field: repeated symbolx.bench.NodeReferenceData roles_ptr = 54;
      */
     rolesPtr: NodeReferenceData[];
 }
@@ -4257,7 +4261,7 @@ export interface SignalData {
      */
     setProperties: number[];
     /**
-     * @generated from protobuf field: optional symbolx.bench.NodeReferenceData type_ptr = 31;
+     * @generated from protobuf field: optional symbolx.bench.NodeReferenceData type_ptr = 32;
      */
     typePtr?: NodeReferenceData;
     /**
@@ -12578,11 +12582,12 @@ class SubjectData$Type extends MessageType<SubjectData> {
             { no: 32, name: "is_system", kind: "scalar", opt: true, T: 8 /*ScalarType.BOOL*/ },
             { no: 40, name: "client_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 41, name: "user_ptr", kind: "message", T: () => NodeReferenceData },
-            { no: 42, name: "identity_ptr", kind: "message", T: () => NodeReferenceData },
-            { no: 43, name: "badges_ptr", kind: "message", repeat: 1 /*RepeatType.PACKED*/, T: () => NodeReferenceData },
-            { no: 44, name: "owned_ptr", kind: "message", repeat: 1 /*RepeatType.PACKED*/, T: () => NodeReferenceData },
-            { no: 45, name: "memberships_ptr", kind: "message", repeat: 1 /*RepeatType.PACKED*/, T: () => NodeReferenceData },
-            { no: 46, name: "roles_ptr", kind: "message", repeat: 1 /*RepeatType.PACKED*/, T: () => NodeReferenceData }
+            { no: 42, name: "server_ptr", kind: "message", T: () => NodeReferenceData },
+            { no: 50, name: "identity_ptr", kind: "message", T: () => NodeReferenceData },
+            { no: 51, name: "badges_ptr", kind: "message", repeat: 1 /*RepeatType.PACKED*/, T: () => NodeReferenceData },
+            { no: 52, name: "owned_ptr", kind: "message", repeat: 1 /*RepeatType.PACKED*/, T: () => NodeReferenceData },
+            { no: 53, name: "memberships_ptr", kind: "message", repeat: 1 /*RepeatType.PACKED*/, T: () => NodeReferenceData },
+            { no: 54, name: "roles_ptr", kind: "message", repeat: 1 /*RepeatType.PACKED*/, T: () => NodeReferenceData }
         ]);
     }
     create(value?: PartialMessage<SubjectData>): SubjectData {
@@ -12640,19 +12645,22 @@ class SubjectData$Type extends MessageType<SubjectData> {
                 case /* optional symbolx.bench.NodeReferenceData user_ptr */ 41:
                     message.userPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.userPtr);
                     break;
-                case /* optional symbolx.bench.NodeReferenceData identity_ptr */ 42:
+                case /* optional symbolx.bench.NodeReferenceData server_ptr */ 42:
+                    message.serverPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.serverPtr);
+                    break;
+                case /* optional symbolx.bench.NodeReferenceData identity_ptr */ 50:
                     message.identityPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.identityPtr);
                     break;
-                case /* repeated symbolx.bench.NodeReferenceData badges_ptr */ 43:
+                case /* repeated symbolx.bench.NodeReferenceData badges_ptr */ 51:
                     message.badgesPtr.push(NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options));
                     break;
-                case /* repeated symbolx.bench.NodeReferenceData owned_ptr */ 44:
+                case /* repeated symbolx.bench.NodeReferenceData owned_ptr */ 52:
                     message.ownedPtr.push(NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options));
                     break;
-                case /* repeated symbolx.bench.NodeReferenceData memberships_ptr */ 45:
+                case /* repeated symbolx.bench.NodeReferenceData memberships_ptr */ 53:
                     message.membershipsPtr.push(NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options));
                     break;
-                case /* repeated symbolx.bench.NodeReferenceData roles_ptr */ 46:
+                case /* repeated symbolx.bench.NodeReferenceData roles_ptr */ 54:
                     message.rolesPtr.push(NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options));
                     break;
                 default:
@@ -12704,21 +12712,24 @@ class SubjectData$Type extends MessageType<SubjectData> {
         /* optional symbolx.bench.NodeReferenceData user_ptr = 41; */
         if (message.userPtr)
             NodeReferenceData.internalBinaryWrite(message.userPtr, writer.tag(41, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbolx.bench.NodeReferenceData identity_ptr = 42; */
+        /* optional symbolx.bench.NodeReferenceData server_ptr = 42; */
+        if (message.serverPtr)
+            NodeReferenceData.internalBinaryWrite(message.serverPtr, writer.tag(42, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbolx.bench.NodeReferenceData identity_ptr = 50; */
         if (message.identityPtr)
-            NodeReferenceData.internalBinaryWrite(message.identityPtr, writer.tag(42, WireType.LengthDelimited).fork(), options).join();
-        /* repeated symbolx.bench.NodeReferenceData badges_ptr = 43; */
+            NodeReferenceData.internalBinaryWrite(message.identityPtr, writer.tag(50, WireType.LengthDelimited).fork(), options).join();
+        /* repeated symbolx.bench.NodeReferenceData badges_ptr = 51; */
         for (let i = 0; i < message.badgesPtr.length; i++)
-            NodeReferenceData.internalBinaryWrite(message.badgesPtr[i], writer.tag(43, WireType.LengthDelimited).fork(), options).join();
-        /* repeated symbolx.bench.NodeReferenceData owned_ptr = 44; */
+            NodeReferenceData.internalBinaryWrite(message.badgesPtr[i], writer.tag(51, WireType.LengthDelimited).fork(), options).join();
+        /* repeated symbolx.bench.NodeReferenceData owned_ptr = 52; */
         for (let i = 0; i < message.ownedPtr.length; i++)
-            NodeReferenceData.internalBinaryWrite(message.ownedPtr[i], writer.tag(44, WireType.LengthDelimited).fork(), options).join();
-        /* repeated symbolx.bench.NodeReferenceData memberships_ptr = 45; */
+            NodeReferenceData.internalBinaryWrite(message.ownedPtr[i], writer.tag(52, WireType.LengthDelimited).fork(), options).join();
+        /* repeated symbolx.bench.NodeReferenceData memberships_ptr = 53; */
         for (let i = 0; i < message.membershipsPtr.length; i++)
-            NodeReferenceData.internalBinaryWrite(message.membershipsPtr[i], writer.tag(45, WireType.LengthDelimited).fork(), options).join();
-        /* repeated symbolx.bench.NodeReferenceData roles_ptr = 46; */
+            NodeReferenceData.internalBinaryWrite(message.membershipsPtr[i], writer.tag(53, WireType.LengthDelimited).fork(), options).join();
+        /* repeated symbolx.bench.NodeReferenceData roles_ptr = 54; */
         for (let i = 0; i < message.rolesPtr.length; i++)
-            NodeReferenceData.internalBinaryWrite(message.rolesPtr[i], writer.tag(46, WireType.LengthDelimited).fork(), options).join();
+            NodeReferenceData.internalBinaryWrite(message.rolesPtr[i], writer.tag(54, WireType.LengthDelimited).fork(), options).join();
         let u = options.writeUnknownFields;
         if (u !== false)
             (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
@@ -19015,7 +19026,7 @@ class SignalData$Type extends MessageType<SignalData> {
             { no: 17, name: "created_by_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 18, name: "updated_by_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 22, name: "set_properties", kind: "scalar", repeat: 1 /*RepeatType.PACKED*/, T: 5 /*ScalarType.INT32*/ },
-            { no: 31, name: "type_ptr", kind: "message", T: () => NodeReferenceData },
+            { no: 32, name: "type_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 42, name: "value_packed", kind: "message", T: () => Struct },
             { no: 43, name: "secret_value_packed", kind: "message", T: () => Struct }
         ]);
@@ -19078,7 +19089,7 @@ class SignalData$Type extends MessageType<SignalData> {
                     else
                         message.setProperties.push(reader.int32());
                     break;
-                case /* optional symbolx.bench.NodeReferenceData type_ptr */ 31:
+                case /* optional symbolx.bench.NodeReferenceData type_ptr */ 32:
                     message.typePtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.typePtr);
                     break;
                 case /* optional google.protobuf.Struct value_packed */ 42:
@@ -19142,9 +19153,9 @@ class SignalData$Type extends MessageType<SignalData> {
                 writer.int32(message.setProperties[i]);
             writer.join();
         }
-        /* optional symbolx.bench.NodeReferenceData type_ptr = 31; */
+        /* optional symbolx.bench.NodeReferenceData type_ptr = 32; */
         if (message.typePtr)
-            NodeReferenceData.internalBinaryWrite(message.typePtr, writer.tag(31, WireType.LengthDelimited).fork(), options).join();
+            NodeReferenceData.internalBinaryWrite(message.typePtr, writer.tag(32, WireType.LengthDelimited).fork(), options).join();
         /* optional google.protobuf.Struct value_packed = 42; */
         if (message.valuePacked)
             Struct.internalBinaryWrite(message.valuePacked, writer.tag(42, WireType.LengthDelimited).fork(), options).join();
@@ -22492,7 +22503,7 @@ export enum SignalProperty {
   createdByPtr = 17,
   updatedByPtr = 18,
   setProperties = 22,
-  typePtr = 31,
+  typePtr = 32,
   valuePacked = 42,
   secretValuePacked = 43,
 }
@@ -22954,11 +22965,12 @@ export enum SubjectProperty {
   isSystem = 32,
   clientPtr = 40,
   userPtr = 41,
-  identityPtr = 42,
-  badgesPtr = 43,
-  ownedPtr = 44,
-  membershipsPtr = 45,
-  rolesPtr = 46,
+  serverPtr = 42,
+  identityPtr = 50,
+  badgesPtr = 51,
+  ownedPtr = 52,
+  membershipsPtr = 53,
+  rolesPtr = 54,
 }
 
 export enum AccessZoneProperty {
@@ -23595,11 +23607,12 @@ export const SubjectDataInfo: Record<SubjectProperty, PropertyInfo> = {
   [SubjectProperty.isSystem]: { id: 32, name: 'is_system', component: ObjectType.SUBJECT, kind: 'primitive', primitiveType: PrimitiveType.BOOLEAN, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [SubjectProperty.clientPtr]: { id: 40, name: 'client_ptr', component: ObjectType.SUBJECT, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.CLIENT], referenceStruct: StructType.NODE_REFERENCE },
   [SubjectProperty.userPtr]: { id: 41, name: 'user_ptr', component: ObjectType.SUBJECT, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.USER], referenceStruct: StructType.NODE_REFERENCE },
-  [SubjectProperty.identityPtr]: { id: 42, name: 'identity_ptr', component: ObjectType.SUBJECT, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.IDENTITY], referenceStruct: StructType.NODE_REFERENCE },
-  [SubjectProperty.badgesPtr]: { id: 43, name: 'badges_ptr', component: ObjectType.SUBJECT, kind: 'reference', isList: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.BADGE], referenceStruct: StructType.NODE_REFERENCE },
-  [SubjectProperty.ownedPtr]: { id: 44, name: 'owned_ptr', component: ObjectType.SUBJECT, kind: 'reference', isList: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.USER, NodeType.ORGANIZATION, NodeType.BENCH], referenceStruct: StructType.NODE_REFERENCE },
-  [SubjectProperty.membershipsPtr]: { id: 45, name: 'memberships_ptr', component: ObjectType.SUBJECT, kind: 'reference', isList: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.MEMBERSHIP], referenceStruct: StructType.NODE_REFERENCE },
-  [SubjectProperty.rolesPtr]: { id: 46, name: 'roles_ptr', component: ObjectType.SUBJECT, kind: 'reference', isList: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.ROLE], referenceStruct: StructType.NODE_REFERENCE },
+  [SubjectProperty.serverPtr]: { id: 42, name: 'server_ptr', component: ObjectType.SUBJECT, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.SERVER], referenceStruct: StructType.NODE_REFERENCE },
+  [SubjectProperty.identityPtr]: { id: 50, name: 'identity_ptr', component: ObjectType.SUBJECT, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.IDENTITY], referenceStruct: StructType.NODE_REFERENCE },
+  [SubjectProperty.badgesPtr]: { id: 51, name: 'badges_ptr', component: ObjectType.SUBJECT, kind: 'reference', isList: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.BADGE], referenceStruct: StructType.NODE_REFERENCE },
+  [SubjectProperty.ownedPtr]: { id: 52, name: 'owned_ptr', component: ObjectType.SUBJECT, kind: 'reference', isList: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.USER, NodeType.ORGANIZATION, NodeType.BENCH], referenceStruct: StructType.NODE_REFERENCE },
+  [SubjectProperty.membershipsPtr]: { id: 53, name: 'memberships_ptr', component: ObjectType.SUBJECT, kind: 'reference', isList: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.MEMBERSHIP], referenceStruct: StructType.NODE_REFERENCE },
+  [SubjectProperty.rolesPtr]: { id: 54, name: 'roles_ptr', component: ObjectType.SUBJECT, kind: 'reference', isList: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.ROLE], referenceStruct: StructType.NODE_REFERENCE },
 }
 export const AccessZoneDataInfo: Record<AccessZoneProperty, PropertyInfo> = {
   [AccessZoneProperty.metatype]: { id: 1, name: 'metatype', component: ObjectType.ACCESS_ZONE, enumType: EnumType.OBJECT_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isComputed: true, isWired: true },
@@ -24397,7 +24410,7 @@ export const SignalDataInfo: Record<SignalProperty, PropertyInfo> = {
   [SignalProperty.createdByPtr]: { id: 17, name: 'created_by_ptr', component: ObjectType.SIGNAL, kind: 'reference', isAutoset: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.USER, NodeType.RUN], referenceStruct: StructType.NODE_REFERENCE },
   [SignalProperty.updatedByPtr]: { id: 18, name: 'updated_by_ptr', component: ObjectType.SIGNAL, kind: 'reference', isAutoset: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.USER, NodeType.RUN], referenceStruct: StructType.NODE_REFERENCE },
   [SignalProperty.setProperties]: { id: 22, name: 'set_properties', component: ObjectType.SIGNAL, kind: 'primitive', primitiveType: PrimitiveType.INT32, isList: true, isRequired: true, isRuntime: true, isWired: true, isStored: true },
-  [SignalProperty.typePtr]: { id: 31, name: 'type_ptr', component: ObjectType.SIGNAL, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.BLOCK], referenceStruct: StructType.NODE_REFERENCE },
+  [SignalProperty.typePtr]: { id: 32, name: 'type_ptr', component: ObjectType.SIGNAL, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.BLOCK], referenceStruct: StructType.NODE_REFERENCE },
   [SignalProperty.valuePacked]: { id: 42, name: 'value_packed', component: ObjectType.SIGNAL, kind: 'primitive', primitiveType: PrimitiveType.JSON, isInternal: true, isRuntime: true, isWired: true, isStored: true, isValuePacked: true },
   [SignalProperty.secretValuePacked]: { id: 43, name: 'secret_value_packed', component: ObjectType.SIGNAL, kind: 'primitive', primitiveType: PrimitiveType.JSON, isInternal: true, isRuntime: true, isWired: true, isStored: true, isDeferred: true, isSensitive: true, isEncrypted: true, isValuePacked: true },
 }

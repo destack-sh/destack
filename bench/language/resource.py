@@ -157,12 +157,6 @@ class Client(Node[ClientData]):
         else:
             return self.device_name or "???"
 
-    @property
-    def user(self) -> "User":
-        assert self.parent is not None, f"no parent for {self!r}"
-        assert self.parent.metatype == NodeType.USER, f"{self!r} belongs to {self.parent!r}"
-        return cast("User", self.parent)
-
 
 @node(NodeType.STORE)
 class Store(Resource[StoreData]):

@@ -62,7 +62,7 @@ from bench.proto.wire import AnyNodeData, EditData, NodeReferenceData
 from bench.utils.func import IdEnum, bytetuple
 
 if TYPE_CHECKING:
-    from bench.language import Bench, Block, Client, Organization, Package
+    from bench.language import Bench, Block, Client, Organization, Package, Server
 
 # default (read) access options
 FILTER_DEFAULT: Expression = C(ConditionalOp.AND, clauses=[])
@@ -527,30 +527,38 @@ class Subject(Struct):
     (We unset various combinations of attributes to evaluate the access of acting subjects independently.)
     """
 
+    # flags
     is_authenticated: Optional[bool] = p_system(30, default=None)
     is_staff: Optional[bool] = p_system(31, default=None)
     is_system: Optional[bool] = p_system(32, default=None)
     # (Client isn't a separate subject but useful to know)
+
+    # who
     client: Optional["Client"] = p_system(
         40, default=None, require=False, array=False, references=NodeType.CLIENT
     )
     user: Optional["User"] = p_system(
         41, default=None, require=False, array=False, references=NodeType.USER
     )
-    identity: Optional["Identity"] = p_system(
-        42, default=None, require=False, array=False, references=NodeType.IDENTITY
+    server: Optional["Server"] = p_system(
+        42, default=None, require=False, array=False, references=NodeType.SERVER
     )
-    badges: list["Badge"] = p_system(43, require=False, array=True, references=NodeType.BADGE)
+
+    # accessories
+    identity: Optional["Identity"] = p_system(
+        50, default=None, require=False, array=False, references=NodeType.IDENTITY
+    )
+    badges: list["Badge"] = p_system(51, require=False, array=True, references=NodeType.BADGE)
     owned: list[Owner] = p_system(
-        44,
+        52,
         array=True,
         require=False,
         references=(NodeType.USER, NodeType.ORGANIZATION, NodeType.BENCH),
     )
     memberships: list[Union["Bench", "Organization"]] = p_system(
-        45, require=False, array=True, references=NodeType.MEMBERSHIP
+        53, require=False, array=True, references=NodeType.MEMBERSHIP
     )
-    roles: list["Role"] = p_system(46, require=False, array=True, references=NodeType.ROLE)
+    roles: list["Role"] = p_system(54, require=False, array=True, references=NodeType.ROLE)
 
     def split_into_acting_subjects(self, graph: NodeDataGraph) -> tuple["Subject", ...]:
         """
