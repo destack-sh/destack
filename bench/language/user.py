@@ -187,7 +187,6 @@ class Notification(BasedNode[NotificationData], HasValues):
 
     parent: "Package" = p_node_parent(4, NodeType.PACKAGE)
     kind: NotificationKind = p_regular(30)
-    # -> builtin_type / custom_type / ... 'type' as union?
     type: Optional["Block"] = p_system(32, require=False, array=False, references=NodeType.BLOCK)
     expires_at: Optional[datetime] = p_internal(33, default=None)
     read_at: Optional[datetime] = p_internal(34, default=None)

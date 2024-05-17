@@ -43,8 +43,6 @@ async def runtime(host: str, port: int, watch: bool = False):
         bench_id=get_from_env("BENCH_ID"),
         client_id=get_from_env("CLIENT_ID"),
         client_access_token=get_from_env("CLIENT_ACCESS_TOKEN"),
-        user_id=get_from_env("USER_ID", optional=True),
-        server_id=get_from_env("SERVER_ID", optional=True),
     )
     services = [server]
     server = BenchServer(services)

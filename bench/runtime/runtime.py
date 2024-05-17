@@ -1,3 +1,4 @@
+import asyncio
 from contextlib import asynccontextmanager
 from urllib.parse import urlparse
 from uuid import UUID
@@ -6,15 +7,20 @@ import structlog
 from grpclib.client import Channel
 
 from bench.language import Bench, NodeType, Package, Session
+from bench.language.access import Subject
 from bench.language.connection import RemoteEngine
-from bench.language.const import BENCH_NODE_TYPES
+from bench.language.const import BENCH_NODE_TYPES, IN_PACKAGE_NODE_TYPES, PUBLIC_NODE_TYPES
+from bench.language.resource import Client
 from bench.proto.services import MonitoredServiceBase
 from bench.proto.wire import (
     BenchData,
     GraphScope,
     HostStub,
     PackageData,
+    RpcMetadata,
     RuntimeBase,
+    StartRunRequest,
+    StartRunResponse,
     SupervisorStub,
 )
 from bench.runtime.connection import ConnectedQuery
@@ -41,11 +47,11 @@ LOADED_PACKAGE_NODE_TYPES: tuple[NodeType, ...] = (
     NodeType.STEP,
     NodeType.VIEW,
 )
-BENCH_QUERY = Bench.descendants(*LOADED_BENCH_NODE_TYPES).include_all()
+BENCH_QUERY = Bench.descendants(*LOADED_BENCH_NODE_TYPES).select_all()
 PACKAGE_QUERY = (
     Package.descendants(*LOADED_PACKAGE_NODE_TYPES)
     .ancestors(Bench)
-    .include_all()
+    .select_all()
     .exclude(Bench.encryption_key)
 )
 
@@ -57,7 +63,7 @@ REMOTE_CONNECTION_RETRY = RetryOptions(max_attempts=-1)
 
 class Runtime(RuntimeBase, MonitoredServiceBase):
     """
-    A Runtime processes selected Runs for a Bench/Package in Sessions for a Client.
+    A Runtime processes selected Runs in a Bench/Package in Sessions on a Client.
     """
 
     def __init__(
@@ -67,8 +73,6 @@ class Runtime(RuntimeBase, MonitoredServiceBase):
         bench_id: UUID,
         client_id: UUID,
         client_access_token: str,
-        user_id: UUID | None,
-        server_id: UUID | None,
     ):
         super().__init__()
 
@@ -79,12 +83,12 @@ class Runtime(RuntimeBase, MonitoredServiceBase):
         if self._supervisor_host is None or self._supervisor_port is None:
             raise ValueError(f"invalid supervisor URL: {supervisor_url}")
         self._supervisor = SupervisorStub(Channel(self._supervisor_host, self._supervisor_port))
+        self._engines: tuple[RemoteEngine, ...] = ()
 
         # context
         self._client_id = client_id
         self._client_access_token = client_access_token
-        self._server_id = server_id
-        self._user_id = user_id
+        self._client: Client | None = None
         self._bench_id = bench_id
 
         # bench stuff
@@ -94,7 +98,9 @@ class Runtime(RuntimeBase, MonitoredServiceBase):
         self._packages: dict[UUID, ConnectedPackage] = {}
 
     def __str__(self):
-        return f"{self._bench_id}"
+        bench_str = repr(self._bench._node) if self._bench and self._bench._node else self._bench_id
+        client_str = repr(self._client) if self._client else self._client_id
+        return f"{bench_str} for {client_str}"
 
     def __repr__(self):
         return f"<{self.__class__.__name__} {self}>"
@@ -121,10 +127,48 @@ class Runtime(RuntimeBase, MonitoredServiceBase):
         package.close()
 
     async def start(self):
+        # set up host
         self._host = await get_host_client(self._bench_id, self._supervisor)
+        bench_scope = GraphScope(bench_id=str(self._bench_id))
+        rpc_metadata = RpcMetadata(
+            client_id=str(self._client_id),
+            client_access_token=self._client_access_token,
+        )
+        self._engines = (
+            # global engine
+            RemoteEngine(
+                default_scope=GraphScope(),
+                node_types=PUBLIC_NODE_TYPES,
+                remote=self._supervisor,
+                retry=REMOTE_CONNECTION_RETRY,
+                metadata=rpc_metadata,
+            ),
+            # bench engine
+            RemoteEngine(
+                default_scope=bench_scope,
+                node_types=BENCH_NODE_TYPES,
+                remote=self._host,
+                retry=REMOTE_CONNECTION_RETRY,
+                metadata=rpc_metadata,
+            ),
+            # in-package engine
+            RemoteEngine(
+                default_scope=bench_scope,
+                node_types=IN_PACKAGE_NODE_TYPES,
+                remote=self._host,
+                retry=REMOTE_CONNECTION_RETRY,
+                metadata=rpc_metadata,
+            ),
+        )
 
-        # connect bench & main packages
-        async with local_session(self._supervisor, self._bench_id, self._host) as session:
+        # connect
+        start = asyncio.get_event_loop().time()
+        async with local_session(self._engines, self._supervisor, self._host) as session:
+            # get details on this client (and check that it's valid)
+            self._client = await Client.get(id=self._client_id)
+            session.untrack(self._client)
+
+            # connect bench & main packages
             self._bench = await ConnectedQuery(
                 query=BENCH_QUERY.where(id=self._bench_id),
                 remote=self._host,
@@ -134,7 +178,13 @@ class Runtime(RuntimeBase, MonitoredServiceBase):
             assert main_branch is not None, f"{self._bench!r} has no main branch"
             assert main_branch.package_id is not None, f"{main_branch!r} has no main package"
             self._main_package = await self.connect_package(main_branch.package_id)
-        session.untrack_many(self._bench.node, self._main_package.node)
+            session.untrack_many(self._bench.node, self._main_package.node)
+        logger.info(
+            "runtime.connected",
+            bench=self._bench.node,
+            client=self._client,
+            duration=asyncio.get_event_loop().time() - start,
+        )
 
     def close(self):
         if self._bench is not None:
@@ -151,24 +201,14 @@ class Runtime(RuntimeBase, MonitoredServiceBase):
         self._main_package = None
         self._packages.clear()
 
+    async def start_run(self, subject: Subject, request: StartRunRequest) -> StartRunResponse:
+        raise NotImplementedError("nocheckin: start_run")
+
 
 @asynccontextmanager
-async def local_session(supervisor: SupervisorStub, bench_id: UUID, host: HostStub):
-    bench_scope = GraphScope(bench_id=str(bench_id))
-    engines = (
-        RemoteEngine(
-            default_scope=bench_scope,
-            node_types=BENCH_NODE_TYPES,
-            remote=host,
-            retry=REMOTE_CONNECTION_RETRY,
-        ),
-        RemoteEngine(
-            default_scope=bench_scope,
-            node_types=LOADED_PACKAGE_NODE_TYPES,
-            remote=host,
-            retry=REMOTE_CONNECTION_RETRY,
-        ),
-    )
+async def local_session(
+    engines: tuple[RemoteEngine, ...], supervisor: SupervisorStub, host: HostStub
+):
     async with Session(_supervisor=supervisor, _host=host, _engines=engines) as session:
         yield session
 

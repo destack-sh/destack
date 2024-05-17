@@ -142,11 +142,11 @@ LOADED_PACKAGE_NODE_TYPES: tuple[NodeType, ...] = (
     NodeType.STEP,
     NodeType.VIEW,
 )
-BENCH_QUERY = Bench.descendants(*LOADED_BENCH_NODE_TYPES).include_all()
+BENCH_QUERY = Bench.descendants(*LOADED_BENCH_NODE_TYPES).select_all()
 PACKAGE_QUERY = (
     Package.descendants(*LOADED_PACKAGE_NODE_TYPES)
     .ancestors(Bench)
-    .include_all()
+    .select_all()
     .exclude(Bench.encryption_key)
 )
 
@@ -240,7 +240,8 @@ class Host(GraphIoServiceBase, HostBase):
             assert isinstance(graph, NodeGraph), f"unexpected graph type: {graph!r}"
             edit_graph(graph, (edit,), options)
 
-        # TODO :Incomplete: handle packages on edit (update notices, fire signals, ...)
+        # TODO :Incomplete!: handle packages on edit (update notices, fire signals/logs?, ...)
+        #  Should this also happen in the client sessions? Or just in host and then pushed out?
 
     #
     # Files

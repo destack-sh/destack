@@ -12,6 +12,7 @@ from typing import (
     TypeVar,
     Union,
     cast,
+    overload,
 )
 from uuid import UUID
 
@@ -573,14 +574,20 @@ class NodeList(abc.ABC, Collection[NodeT], Generic[NodeT]):
         else:
             return obj in self
 
-    def __getitem__(
-        self, item: str | UUID | int | slice
-    ) -> None | NodeT | tuple[NodeT, ...] | list[NodeT]:
+    @overload
+    def __getitem__(self, item: str) -> Optional[NodeT]: ...
+    @overload
+    def __getitem__(self, item: UUID) -> Optional[NodeT]: ...
+    @overload
+    def __getitem__(self, item: int) -> NodeT: ...
+    @overload
+    def __getitem__(self, item: slice) -> list[NodeT]: ...
+    def __getitem__(self, item: Union[str, UUID, int, slice]):
         """Gets a node by index or name."""
-        if type(item) is str or type(item) is UUID:  # noqa: E721
+        if isinstance(item, (str, UUID)):
             return self.get(item)
         else:
-            return self.nodes[cast(int | slice, item)]
+            return self.nodes[item]
 
     def __getattr__(self, item: str) -> NodeT:
         """Gets a node by name."""
@@ -627,7 +634,7 @@ class GraphNodeList(NodeList[NodeT]):
             len(descendants) > 1
             and "order_key" in NODE_CLASS_BY_TYPE[self._child_node_type].__properties__
         ):
-            descendants.sort(key=lambda n: n.order_key) # type: ignore
+            descendants.sort(key=lambda n: n.order_key)  # type: ignore
         return cast(list[NodeT], descendants)
 
     def append(  # type: ignore

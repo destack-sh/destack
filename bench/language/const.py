@@ -252,6 +252,7 @@ BENCH_NODE_TYPES = bytetuple(
     NodeType.BRANCH,
     NodeType.PACKAGE,
     NodeType.HANDLE,
+    NodeType.CLIENT,
     *RESOURCE_NODE_TYPES,
 )
 PUBLIC_NODE_TYPES = bytetuple(NodeType.USER, NodeType.ORGANIZATION)

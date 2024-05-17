@@ -128,7 +128,7 @@ class MakeQueryBase(abc.ABC, Generic[NodeT, NodeDataT]):
         """Includes given default-excluded properties in the results."""
         raise NotImplementedError
 
-    def include_all(self) -> "QueryBuilder[NodeT, NodeDataT]":
+    def select_all(self) -> "QueryBuilder[NodeT, NodeDataT]":
         """Includes all (non-relational) properties in the results."""
         raise NotImplementedError
 
@@ -322,7 +322,7 @@ class QueryBuilder(
         copy._options.include_properties.extend(self._to_properties(properties))
         return copy
 
-    def include_all(self) -> "QueryBuilder[NodeT, NodeDataT]":
+    def select_all(self) -> "QueryBuilder[NodeT, NodeDataT]":
         copy = self.copy()
         copy._options = self._copy_options()
         copy._options.select_all_properties = True

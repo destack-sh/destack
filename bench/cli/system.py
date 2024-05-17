@@ -1,9 +1,11 @@
 import structlog
 import typer
+from more_itertools import first
 
 from bench.cli.utils import async_to_sync_blocking, check_is_consistent
 from bench.language import Bench, Region, User
-from bench.language.const import NodeType, UserStatus
+from bench.language.const import ClientType, NodeType, UserStatus
+from bench.system.auth import generate_access_token
 from bench.system.client import global_session
 from bench.system.resource import (
     create_default_bench,
@@ -47,11 +49,41 @@ async def bootstrap(region: Region = Region.EUROPE_CENTRAL):
 
 @app.command(help="provision all (pending) resources for a Bench")
 @async_to_sync_blocking
-async def provision(bench: str):  # type: ignore
+async def provision(bench_slug: str):
     async with global_session() as session:
-        bench: Bench = (
-            await Bench.descendants(NodeType.SERVER, NodeType.STORE).include_all().get(slug=bench)
+        bench = (
+            await Bench.descendants(NodeType.SERVER, NodeType.STORE)
+            .select_all()
+            .get(slug=bench_slug)
         )
         await provision_pending_resources(bench, session, commit_per=True)
         await migrate_local_stores(bench, session)
+        await session.commit()
+
+
+@app.command(help="gets or creates a server Client for a Bench")
+@async_to_sync_blocking
+async def make_client(bench_slug: str, name: str = "Local Server"):
+    async with global_session() as session:
+        bench = (
+            await Bench.descendants(NodeType.SERVER, NodeType.CLIENT)
+            .select_all()
+            .get(slug=bench_slug)
+        )
+        assert len(bench.servers) == 1, f"{bench!r} has unexpected servers: {bench.servers!r}"
+        server = bench.servers[0]
+        client = first((c for c in server.clients if c.type == ClientType.BENCH_SERVER), None)
+        if client is None:
+            client = server.clients.create(
+                type=ClientType.BENCH_SERVER,
+                name=name,
+                access_token=generate_access_token(),
+            )
+
+        print(f"=== Client {name} to Bench {bench_slug} ===")
+        print(f"Bench ID: {bench.id}")
+        print(f"Server ID: {server.id}")
+        print(f"Client ID: {client.id}")
+        print(f"Client Access Token: {client.access_token}")
+
         await session.commit()

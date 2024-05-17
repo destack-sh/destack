@@ -27,6 +27,8 @@
         "SUPERVISOR_URL": "http://localhost:60061",
         // this is the 'test' bench
         "BENCH_ID": "56cf3720-e93e-4238-92c5-e14f565bc0d7",
+        "CLIENT_ID": "23e1c85b-0475-4b34-b9f7-dff6fa8c0f38",
+        "CLIENT_ACCESS_TOKEN": "G16fnGUAdFoJog29iZvRSAHqSAVP8VC1KUdCUgpZbBMG",
       },
       "console": "integratedTerminal",
       "cwd": "${workspaceFolder}",

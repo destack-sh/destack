@@ -419,9 +419,11 @@ class Property(_TypeQueryBuilder if TYPE_CHECKING else object):
                 HasValues in self.component.__static_components__
             ), f"{self.component} is not HasValues"
             if isinstance(self.value_type_info_ptr, int):
-                self.value_type_info_ptr = self.component.__properties_by_id__[
-                    self.value_type_info_ptr
-                ]
+                resolved_ptr = self.component.__properties_by_id__.get(self.value_type_info_ptr)
+                assert (
+                    resolved_ptr is not None
+                ), f"invalid type ptr {self.value_type_info_ptr} info for {self!r}"
+                self.value_type_info_ptr = resolved_ptr
             assert self.value_packed_ptr is not None, f"{self!r} is missing value_packed_ptr"
             if isinstance(self.value_packed_ptr, int):
                 self.value_packed_ptr = self.component.__properties_by_id__[self.value_packed_ptr]

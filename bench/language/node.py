@@ -1834,8 +1834,8 @@ class Node(Struct[NodeDataT], Generic[NodeDataT]):
         return cls.query().include(*properties)
 
     @classmethod
-    def include_all(cls) -> "QueryBuilder[Self, NodeDataT]":
-        return cls.query().include_all()
+    def select_all(cls) -> "QueryBuilder[Self, NodeDataT]":
+        return cls.query().select_all()
 
     @classmethod
     def exclude(cls, *properties: FieldOrProperty) -> "QueryBuilder[Self, NodeDataT]":
