@@ -100,7 +100,7 @@ class Runtime(RuntimeBase, MonitoredServiceBase):
     def __str__(self):
         bench_str = repr(self._bench._node) if self._bench and self._bench._node else self._bench_id
         client_str = repr(self._client) if self._client else self._client_id
-        return f"{bench_str} for {client_str}"
+        return f"{client_str} on {bench_str}"
 
     def __repr__(self):
         return f"<{self.__class__.__name__} {self}>"
@@ -176,8 +176,8 @@ class Runtime(RuntimeBase, MonitoredServiceBase):
             ).connect()
             main_branch = self._bench.node.main_branch
             assert main_branch is not None, f"{self._bench!r} has no main branch"
-            assert main_branch.package_id is not None, f"{main_branch!r} has no main package"
-            self._main_package = await self.connect_package(main_branch.package_id)
+            assert main_branch.main_package_id is not None, f"{main_branch!r} has no main package"
+            self._main_package = await self.connect_package(main_branch.main_package_id)
             session.untrack_many(self._bench.node, self._main_package.node)
         logger.info(
             "runtime.connected",

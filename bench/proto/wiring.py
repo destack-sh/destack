@@ -303,6 +303,7 @@ def unpack_node_graph(
                 # if node_parent is None:
                 #     raise ValueError(f"parent {node_parent_id} not found in {unpacked_graph!r}")
             node = unpack_node(node_data, node_parent, session=session)
+            node._read_info = read
 
             # keep parent instance if it was passed (update it in place)
             if node.id == parent_id:
@@ -332,14 +333,14 @@ def unpack_node_graph(
     return unpacked_graph
 
 
-def unpack_roots(
+def unpack_node_roots(
     data_graph: NodeDataGraph,
     parent: Node | None = None,
     session: Session | None = None,
     exclude: set[NodeType] | None = None,
     roots: Collection[NodeReferenceData] | None = None,
     read: ReadInfo | None = None,
-) -> tuple[Node, ...] | list[Node]:
+) -> tuple[tuple[Node, ...], NodeGraph]:
     """Unpack nodes and their descendants. Returns the actual roots (or passed ones)."""
 
     node_graph = unpack_node_graph(data_graph, parent, session, exclude=exclude, read=read)
@@ -351,9 +352,9 @@ def unpack_roots(
             unpacked_root = node_graph.get(UUID(root.id))
             if unpacked_root is not None:
                 recovered_roots.append(unpacked_root)
-        return recovered_roots
+        return tuple(recovered_roots), node_graph
     else:
-        return node_graph.find_roots()
+        return node_graph.find_roots(), node_graph
 
 
 def wrap_some_node(node: AnyNodeData) -> wire.SomeNodeData:

@@ -1,11 +1,13 @@
 import asyncio
-from typing import Self
+from typing import Self, cast
 
 import structlog
 
-from bench.language.graph import NodeGraph, edit_graph
+from bench.language.const import NodeType
+from bench.language.graph import edit_graph
 from bench.language.node import Node
 from bench.language.query import QueryBuilder
+from bench.proto import wire
 from bench.proto.wire import (
     AnyNodeData,
     GraphIoStub,
@@ -46,7 +48,7 @@ class ConnectedQuery[NodeT: Node, NodeDataT: AnyNodeData]:
         return self._node
 
     async def connect(self) -> Self:
-        """Start the connection. Returns as soon as the connection is established (valid result)."""
+        """Start the connection. Returns as soon as the connection is established (has a result)."""
         assert self._connect_task is None, "already connected"
         self._connect_task = asyncio.create_task(self._do_connect())
         await self._has_result.wait()
@@ -69,20 +71,25 @@ class ConnectedQuery[NodeT: Node, NodeDataT: AnyNodeData]:
                 graph = self._node._graph
                 assert (
                     self._node._read_info is not None and self._node._read_info.epoch is not None
-                ), f"expected full read info from {self._query!r}"
-                assert isinstance(
-                    graph, NodeGraph
-                ), f"expected full node graph for {self._node!r} but got {graph!r}"
+                ), f"need read info for {self._node!r} from {self._query!r}: {self._node._read_info!r}"
                 self._has_result.set()
+                logger.debug("query.connected", query=self._query, node=self._node)
 
                 # subscribe forever (until error)
+                node_types: list[NodeType] = [self._query._node_type]
+                if self._query._options:
+                    node_types.extend(self._query._options.ancestor_types)
+                    node_types.extend(self._query._options.descendant_types)
                 watch_req = WatchEditsRequest(
-                    scope=self._scope, since_epoch=self._node._read_info.epoch
+                    scope=self._scope,
+                    node_types=cast(list[wire.NodeType], node_types),
+                    since_epoch=self._node._read_info.epoch,
                 )
                 async for rep in self._remote.watch_edits(watch_req):
-                    if self._is_closed:
-                        break
-                    # apply edits (should filter these :ConnectionOverlapFilter)
+                    # apply edits (should filter these :ConnectionFilter)
+                    logger.trace(
+                        "query.update", query=self._query, node=self._node, epoch=rep.epoch
+                    )
                     edit_graph(graph, rep.edits, options=self._query._options)
             except self._retry.retry_on as e:
                 logger.error("query.error", query=self._query, exc_info=e)

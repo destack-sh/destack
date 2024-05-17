@@ -217,7 +217,7 @@ defineExpose<ViewExposed>({ self, id, variants: [Variant.PRIMARY, Variant.COMPAC
         v-tooltip="{ icon: item.icon, title: item.title, small: true }"
         :data-selected="isSelected(item)"
         :disabled="props.isDisabled"
-        class="group flex-1 flex-shrink-0 truncate rounded px-0.5 text-center font-medium hover:text-primary-900 enabled:text-gray-600 disabled:text-gray-400 data-[selected=true]:bg-white data-[selected=true]:text-gray-700"
+        class="group flex-1 flex-shrink-0 truncate rounded px-0.5 text-center font-medium shadow-gray-200 hover:text-primary-900 enabled:text-gray-600 disabled:text-gray-400 data-[selected=true]:bg-white data-[selected=true]:text-gray-700 data-[selected=true]:shadow-sm"
         @click.prevent="!isSelected(item) || valueType?.isRequired ? fire(item) : apply(null)"
       >
         <IconInline

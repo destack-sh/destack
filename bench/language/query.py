@@ -81,9 +81,13 @@ class Query(Node[QueryData]):
 
 
 class QueryError(BenchError, ValueError):
-    def __init__(self, query: "QueryBuilder", cause: Exception | None = None):
-        super().__init__(repr(query))
+    def __init__(self, query: "QueryBuilder", result: Any | None = None, cause: Exception | None = None):
+        if result is None:
+            super().__init__(repr(query))
+        else:
+            super().__init__(f"{repr(query)} -> {result}")
         self.query = query
+        self.result = result
         self.cause = cause
 
 
@@ -389,13 +393,13 @@ class QueryBuilder(
             return results[0]
         else:
             if len(results) == 0:
-                raise NodeNotFoundError(combined_query)
+                raise NodeNotFoundError(query=combined_query)
             else:
-                raise MultipleNodesFoundError(combined_query)
+                raise MultipleNodesFoundError(query=combined_query, result=results)
 
     async def fetch(self) -> list[NodeT] | tuple[NodeT, ...]:
         from bench.language.connection import FetchOptions
-        from bench.proto.wiring import unpack_roots
+        from bench.proto.wiring import unpack_node_roots
 
         tx = active_tx()
         connection = await tx.connect(
@@ -404,7 +408,7 @@ class QueryBuilder(
         result = await connection.fetch(self, FetchOptions())
         data_graph = NodeDataGraph(result.nodes)
         read = ReadInfo(options=self._options, epoch=result.epoch) if self._options else None
-        roots = unpack_roots(
+        roots, _ = unpack_node_roots(
             data_graph, parent=self._base, session=tx.session, roots=result.roots, read=read
         )
         return cast(tuple[NodeT, ...], roots)

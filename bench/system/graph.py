@@ -210,12 +210,14 @@ class GraphIoServiceBase(BenchServiceBase, GraphIoBase):
         _check_nodes_in_same_store((node_type,), options)
 
         adapted_options = adapt_read_options(subject, node_type, options)
+        roots: list[NodeReferenceData] = []
         async with self.session() as session:
             query = QueryBuilder(
                 node_type=node_type, filter=filter, options=adapted_options, sort=sort
             )
             connection = await session.tx.connect(request.scope, node_type, AccessKind.READ)
             result = await connection.fetch(query, FetchOptions(count=request.count or False))
+            roots.extend(result.roots)
             graph = NodeDataGraph(result.nodes)
         access = generate_access_matrix(subject, graph)
         evaluated_request, adapted_nodes = evaluate_and_adapt_read(
@@ -225,7 +227,7 @@ class GraphIoServiceBase(BenchServiceBase, GraphIoBase):
 
         logger.info("graph.search", subject=subject, request=request, epoch=self.epoch)
         return SearchNodesResponse(
-            roots=[NodeReference.from_node_data(r) for r in result.nodes],
+            roots=roots,
             nodes=[wiring.wrap_some_node(n) for n in adapted_nodes],
             cursors=list(result.cursors),
             start_cursor=result.start_cursor,
@@ -372,6 +374,8 @@ class GraphIoServiceBase(BenchServiceBase, GraphIoBase):
     async def watch_edits(
         self, subject: Subject, request: "WatchEditsRequest"
     ) -> AsyncIterator["WatchEditsResponse"]:
+        if not request.node_types:
+            raise GRPCError(GRPCStatus.INVALID_ARGUMENT, "no node types provided")
         node_types = bytetuple(*tuple(wiring.unpack_enum(NodeType, t) for t in request.node_types))
         filters: dict[NodeType, Expression] = {
             wiring.unpack_enum(NodeType, k): cast(Expression, wiring.unpack_struct_interp(v))

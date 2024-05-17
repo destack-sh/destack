@@ -12,12 +12,15 @@ def str_to_bool(value: str) -> bool:
     return value is not None and str(value).lower() in truthy_strs_lower
 
 
+_UNSET = object()
+
+
 def get_from_env_maybe[
     T
 ](
     key: str,
     *,
-    default: Optional[Any] = None,
+    default: Optional[Any] = _UNSET,
     alt: Optional[str] = None,
     optional: bool = True,
     typ: Type[T] = str,
@@ -28,16 +31,22 @@ def get_from_env_maybe[
     if value is None or value == "":
         if optional:
             return None
-        elif default is not None:
+        elif default is not _UNSET:
             value = default
         else:
             raise ValueError(
                 f'environment variable {key} is required (alt={alt or "<not set>"}, type_cast={typ}).'
             )
-    if typ is bool:
-        value = str_to_bool(value)
-    else:
-        value = cast(T, typ(value))  # type: ignore
+    try:
+        if typ is bool:
+            value = str_to_bool(value)  # type: ignore
+        else:
+            value = cast(T, typ(value))  # type: ignore
+    except Exception as e:
+        raise ValueError(
+            f'environment variable {key} with value "{value}" (alt={alt or "<not set>"}) '
+            f"could not be cast to {typ}"
+        ) from e
     return cast(T, value)
 
 

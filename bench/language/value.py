@@ -127,7 +127,7 @@ class Object:
             field_value = self._value.get(field.storage_key)
             if field_value:
                 key = field.py_ident or field.name
-                if type(field_value) is list:
+                if type(field_value) is list:  # noqa: E721
                     set_fields.append(f"{key}({len(field_value)})")
                 elif type(field_value) is Object:
                     set_fields.append(f"{key}=<{field_value._type_name} (...)>")
@@ -435,6 +435,9 @@ def check_value(value: Any, typ: "TypeInfoBase", invalid: "ValidationHandler") -
                 _check_value_scalar(element, typ, invalid)
 
 
+# TODO :Incomplete: support freeform values (incl. alongside typed values)
+
+
 def _pack_value_scalar(value: ScalarValue, typ: "TypeInfoBase") -> JsonValue:
     """
     Packs the given scalar runtime value into a JSON-able representation.
@@ -442,6 +445,8 @@ def _pack_value_scalar(value: ScalarValue, typ: "TypeInfoBase") -> JsonValue:
     if typ.kind == TypeKind.PRIMITIVE:
         if typ.primitive_type == PrimitiveType.BYTES:
             return base64.b64encode(cast(bytes, value)).decode()
+        elif typ.primitive_type == PrimitiveType.UUID:
+            return str(cast(UUID, value))
         elif typ.primitive_type == PrimitiveType.DATETIME:
             return cast(datetime, value).isoformat()
         elif typ.primitive_type == PrimitiveType.INTERVAL:
@@ -467,6 +472,8 @@ def _unpack_value_scalar(value_packed: JsonValue, typ: "TypeInfoBase") -> Scalar
     if typ.kind == TypeKind.PRIMITIVE:
         if typ.primitive_type == PrimitiveType.BYTES:
             return base64.b64decode(cast(str, value_packed))
+        elif typ.primitive_type == PrimitiveType.UUID:
+            return UUID(cast(str, value_packed))
         elif typ.primitive_type == PrimitiveType.DATETIME:
             return datetime.fromisoformat(cast(str, value_packed))
         elif typ.primitive_type == PrimitiveType.INTERVAL:

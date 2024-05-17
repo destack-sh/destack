@@ -445,28 +445,34 @@ def coerce_conditional(
 
     clauses = []
     for arg, value in (kwargs or {}).items():
+        # parse out django str if present
         if "__" in arg:
-            field_key, op = arg.split("__", 1)
+            key, op = arg.split("__", 1)
             op = CONDITIONAL_OP_BY_DJANGO_STR[op]
         else:
-            field_key, op = arg, ConditionalOp.EQUALS
+            key, op = arg, ConditionalOp.EQUALS
+
+        # map key into field/property
         target = None
-        if field_key in node.__properties__:
-            target = node.__properties__[field_key]
+        if key in node.__properties__:
+            target = node.__properties__[key]
         elif isinstance(node, Node) and "fields" in node.__node_list_properties__:
-            target = node.fields.get(field_key)
+            target = node.fields.get(key)
         if target is None:
-            raise TypeError(f"{node!r} has no field {field_key}")
+            raise TypeError(f"{node!r} has no field {key}")
         elif isinstance(target, Property):
             field, property = None, target
         else:
             field, property = target, None
-        _check_type_supports(target.as_type_info, op)
+
+        # coerce None to NOT_EXISTS/EXISTS
         if value is None:
             if op == ConditionalOp.EQUALS:
                 op = ConditionalOp.NOT_EXISTS
             elif op == ConditionalOp.NOT_EQUALS:
                 op = ConditionalOp.EXISTS
+
+        _check_type_supports(target.as_type_info, op)
         clauses.append(Expression(op=op, field=field, property=property, value=value))
     if not clauses:
         if return_none_if_empty:
@@ -486,6 +492,7 @@ def coerce_sort(
     Strings are looked up as field names/identifiers.
     Like in Django, prefix with "-" for descending.
     """
+    # coerce into list[Expression | str]
     if sort is None:
         if args is None:
             return None
@@ -499,15 +506,20 @@ def coerce_sort(
     if args:
         sort = cast(list[Expression | str], (*sort, *args))
     sort = cast(list[Expression | str], sort)
+
+    # map into sorts
     coerced = []
     for item in sort:
         if isinstance(item, str):
+            # -field or field
             if item.startswith("-"):
                 op = SortOp.DESCENDING
                 field_key = item[1:]
             else:
                 op = SortOp.ASCENDING
                 field_key = item
+
+            # map key into field/property
             target = None
             if field_key in node.__properties__:
                 target = node.__properties__[field_key]
@@ -569,13 +581,13 @@ def _check_type_supports(type: "TypeInfo", op: ExpressionOp):
             return
     else:
         if op in _ExprOps.COND_EXISTENCE:
-            return True
+            return
         elif type.primitive_type is not None and op in SUPPORTED_PRIMITIVE_OPS.get(
             type.primitive_type, _EMPTY_SET
         ):
-            return True
+            return
         elif type.bench_type is not None and op in SUPPORTED_NODE_OPS:
-            return True
+            return
     raise UnsupportedExpressionError(type, op)
 
 

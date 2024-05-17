@@ -146,7 +146,8 @@ async def get_subject_from_metadata(metadata: RpcMetadata) -> Subject:
         elif client.parent_type == NodeType.SERVER:
             # servers are basically bench owners
             server = cast("Server", client.parent)
-            bench = await Bench.get(id=client.bench_id)
+            assert server.parent_id, f"{server!r} of {client!r} has no parent"
+            bench = await Bench.get(id=server.parent_id)
             return Subject(
                 is_authenticated=True,
                 is_staff=False,

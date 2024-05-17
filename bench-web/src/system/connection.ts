@@ -173,7 +173,7 @@ function applyRemoteEdits(filter: EditFilter, edits: EditData[], graph: ReadNode
 
 /** Filters the edits to only the ones relevant to the given connection */
 function filterRemoteEdits(filter: EditFilter, edits: EditData[]): EditData[] {
-  // TODO :Broken: connection 'overlap' detection is broken :ConnectionOverlapFilter
+  // TODO :Broken: connection 'overlap' detection is broken :ConnectionFilter
   //  maybe we should just filter for edits whose dependencies are in the graph?
   //  (e.g. create -> parent present, update -> node present, etc.)
   return edits.filter((e) => filter.includedNodeTypes.includes(e.nodeType));
@@ -463,7 +463,7 @@ export abstract class GraphConnectionBase<K extends GraphConnectionKind, T exten
   /** Whether this connection is a superset of the given connection */
   supports(params: ConnectionParamsMapping<T>[K]): boolean {
     if (this.kind == "get") {
-      // TODO :Broken: connection 'overlap' detection is broken :ConnectionOverlapFilter
+      // TODO :Broken: connection 'overlap' detection is broken :ConnectionFilter
       const thisGet = this.params as GetConnectionParams<T>;
       const otherGet = params as GetConnectionParams<T>;
       // scope included?
