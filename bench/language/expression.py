@@ -61,8 +61,8 @@ _CONDITIONAL_OP_SIGN: dict[ConditionalOp, str] = {
     ConditionalOp.IN: "∈",
     ConditionalOp.NOT_IN: "!∈",
     # existence
-    ConditionalOp.EXISTS: "?",
-    ConditionalOp.NOT_EXISTS: "!?",
+    ConditionalOp.EXISTS: "!",
+    ConditionalOp.NOT_EXISTS: "!!",
     # vector
     ConditionalOp.NEAR: "~=",
 }

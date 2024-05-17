@@ -1603,11 +1603,12 @@ message SubjectData {
   optional bool is_system = 32;
   optional NodeReferenceData client_ptr = 40;
   optional NodeReferenceData user_ptr = 41;
-  optional NodeReferenceData identity_ptr = 42;
-  repeated NodeReferenceData badges_ptr = 43;
-  repeated NodeReferenceData owned_ptr = 44;
-  repeated NodeReferenceData memberships_ptr = 45;
-  repeated NodeReferenceData roles_ptr = 46;
+  optional NodeReferenceData server_ptr = 42;
+  optional NodeReferenceData identity_ptr = 50;
+  repeated NodeReferenceData badges_ptr = 51;
+  repeated NodeReferenceData owned_ptr = 52;
+  repeated NodeReferenceData memberships_ptr = 53;
+  repeated NodeReferenceData roles_ptr = 54;
 }
 
 // Rich, markdown-inspired Text with mentions, lists & other extensions.
@@ -2429,7 +2430,7 @@ message SignalData {
   optional NodeReferenceData created_by_ptr = 17;
   optional NodeReferenceData updated_by_ptr = 18;
   repeated int32 set_properties = 22;
-  optional NodeReferenceData type_ptr = 31;
+  optional NodeReferenceData type_ptr = 32;
   optional google.protobuf.Struct value_packed = 42;
   optional google.protobuf.Struct secret_value_packed = 43;
 }

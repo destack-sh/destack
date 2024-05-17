@@ -228,7 +228,7 @@ class NeonApiRemote(NeonApi):
         await self._request("DELETE", f"projects/{project_id}")
 
 
-NEON_LOCAL = get_from_env("NEON_LOCAL", default=IS_DEBUG, type_cast=bool)
+NEON_LOCAL = get_from_env("NEON_LOCAL", default=IS_DEBUG, typ=bool)
 if NEON_LOCAL:
     neon_client = NeonApiLocal(neon_path=get_from_env("NEON_PATH"))
 else:

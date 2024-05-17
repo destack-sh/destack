@@ -8,7 +8,6 @@ from bench.language.node import Struct, struct
 from bench.language.property import Property, p_internal, p_regular, p_runtime
 from bench.language.validation import NAME_CONSTRAINT, ValidationHandler
 from bench.utils.func import IdEnum
-from bench.utils.utils import get_from_env
 
 if TYPE_CHECKING:
     from bench.language import Color, FileContent
@@ -17,7 +16,6 @@ logger = structlog.get_logger(__name__)
 
 FILE_HASH_LENGTH = 128  # 512 bits
 FILE_MAX_SIZE = 1024 * 1024 * 1024  # 1GB
-GLOBAL_PROJECT_BUCKET_NAME = get_from_env("GLOBAL_PROJECT_BUCKET_NAME", optional=True)
 
 # pyright: reportIncompatibleVariableOverride=false
 

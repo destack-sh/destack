@@ -86,11 +86,11 @@ export interface GraphScope {
      */
     benchId?: string;
     /**
-     * @generated from protobuf field: optional string package_id = 4;
+     * @generated from protobuf field: optional string package_id = 3;
      */
     packageId?: string;
     /**
-     * @generated from protobuf field: optional string transaction_id = 5;
+     * @generated from protobuf field: optional string transaction_id = 4;
      */
     transactionId?: string;
 }
@@ -134,7 +134,7 @@ export interface EditData {
      */
     subject?: NodeReferenceData;
     /**
-     * The last epoch from the server owning the scope that the client has seen.
+     * The last seen relevant from the corresponding graph.
      *
      * @generated from protobuf field: optional uint64 seen_epoch = 41;
      */
@@ -353,8 +353,8 @@ class GraphScope$Type extends MessageType<GraphScope> {
     constructor() {
         super("symbolx.bench.GraphScope", [
             { no: 1, name: "bench_id", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
-            { no: 4, name: "package_id", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
-            { no: 5, name: "transaction_id", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ }
+            { no: 3, name: "package_id", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
+            { no: 4, name: "transaction_id", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ }
         ]);
     }
     create(value?: PartialMessage<GraphScope>): GraphScope {
@@ -371,10 +371,10 @@ class GraphScope$Type extends MessageType<GraphScope> {
                 case /* optional string bench_id */ 1:
                     message.benchId = reader.string();
                     break;
-                case /* optional string package_id */ 4:
+                case /* optional string package_id */ 3:
                     message.packageId = reader.string();
                     break;
-                case /* optional string transaction_id */ 5:
+                case /* optional string transaction_id */ 4:
                     message.transactionId = reader.string();
                     break;
                 default:
@@ -392,12 +392,12 @@ class GraphScope$Type extends MessageType<GraphScope> {
         /* optional string bench_id = 1; */
         if (message.benchId !== undefined)
             writer.tag(1, WireType.LengthDelimited).string(message.benchId);
-        /* optional string package_id = 4; */
+        /* optional string package_id = 3; */
         if (message.packageId !== undefined)
-            writer.tag(4, WireType.LengthDelimited).string(message.packageId);
-        /* optional string transaction_id = 5; */
+            writer.tag(3, WireType.LengthDelimited).string(message.packageId);
+        /* optional string transaction_id = 4; */
         if (message.transactionId !== undefined)
-            writer.tag(5, WireType.LengthDelimited).string(message.transactionId);
+            writer.tag(4, WireType.LengthDelimited).string(message.transactionId);
         let u = options.writeUnknownFields;
         if (u !== false)
             (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);

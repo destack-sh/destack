@@ -179,7 +179,7 @@ class Property(_TypeQueryBuilder if TYPE_CHECKING else object):
             "ord",
         ):
             v = getattr(self, k)
-            if v is UNSET or (not v and type(v) is not int or v != 0):
+            if v is UNSET or (not v and type(v) is not int or v != 0):  # noqa: E721
                 continue
             elif k == "id":
                 non_default.append(str(v))

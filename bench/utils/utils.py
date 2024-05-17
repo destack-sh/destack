@@ -2,7 +2,7 @@ import inspect
 import os
 import textwrap
 import typing
-from typing import Any, Callable, Optional
+from typing import Any, Optional, Type, cast
 
 import sentry_sdk
 
@@ -12,14 +12,16 @@ def str_to_bool(value: str) -> bool:
     return value is not None and str(value).lower() in truthy_strs_lower
 
 
-def get_from_env(
+def get_from_env_maybe[
+    T
+](
     key: str,
-    default: Optional[Any] = None,
     *,
+    default: Optional[Any] = None,
     alt: Optional[str] = None,
-    optional: bool = False,
-    type_cast: Optional[Callable] = None,
-) -> Any:
+    optional: bool = True,
+    typ: Type[T] = str,
+) -> (T | None):
     value = os.getenv(key)
     if alt and not value:
         value = os.getenv(alt)
@@ -30,14 +32,20 @@ def get_from_env(
             value = default
         else:
             raise ValueError(
-                f'environment variable {key} is required (alt={alt or "<not set>"}, type_cast={type_cast}).'
+                f'environment variable {key} is required (alt={alt or "<not set>"}, type_cast={typ}).'
             )
-    if type_cast is not None:
-        if type_cast is bool:
-            value = str_to_bool(value)
-        else:
-            value = type_cast(value)
-    return value
+    if typ is bool:
+        value = str_to_bool(value)
+    else:
+        value = cast(T, typ(value))  # type: ignore
+    return cast(T, value)
+
+
+def get_from_env[
+    T
+](key: str, *, default: Optional[Any] = None, alt: Optional[str] = None, typ: Type[T] = str,) -> T:
+    value = get_from_env_maybe(key, default=default, alt=alt, optional=False, typ=typ)
+    return cast(T, value)
 
 
 def get_list(text: str) -> list[str]:

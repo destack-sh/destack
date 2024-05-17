@@ -1,4 +1,5 @@
 import asyncio
+from uuid import UUID
 
 import structlog
 import typer
@@ -40,8 +41,8 @@ async def runtime(host: str, port: int, watch: bool = False):
     logger.info("serve.runtime", host=host, port=port, env=ENVIRONMENT)
     server = Runtime(
         supervisor_url=get_from_env("SUPERVISOR_URL"),
-        bench_id=get_from_env("BENCH_ID"),
-        client_id=get_from_env("CLIENT_ID"),
+        bench_id=get_from_env("BENCH_ID", typ=UUID),
+        client_id=get_from_env("CLIENT_ID", typ=UUID),
         client_access_token=get_from_env("CLIENT_ACCESS_TOKEN"),
     )
     services = [server]
