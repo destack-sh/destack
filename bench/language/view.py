@@ -58,6 +58,7 @@ class ViewType(IdEnum):
     INSPECT = 153
     CREATE = 154
     CHAT = 155
+    LOG = 156
 
     #
     # General

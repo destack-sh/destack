@@ -64,7 +64,7 @@ class NeonApiLocal(NeonApi):
     def __init__(self, neon_path: str):
         self.neon_path: str = Path(neon_path).resolve().absolute().as_posix()
 
-    async def _execute(self, command: str) -> str:
+    async def _execute(self, command: str, stderr_ok: bool = True) -> str:
         process = await asyncio.create_subprocess_shell(
             command,
             stdout=asyncio.subprocess.PIPE,
@@ -73,10 +73,15 @@ class NeonApiLocal(NeonApi):
         )
         stdout, stderr = await process.communicate()
         output = stdout.decode()
-        if stderr:
-            logger.error("neon.error", command=command, stderr=stderr.decode())
+        if stderr and not stderr_ok:
+            logger.error("neon.error", command=command, stdout=output, stderr=stderr.decode())
         else:
-            logger.trace("neon.local", command=command, output=output)
+            logger.trace(
+                "neon.local",
+                command=command,
+                stdout=output,
+                stderr=stderr.decode(),
+            )
         return output
 
     async def create_project(
@@ -135,7 +140,7 @@ class NeonApiLocal(NeonApi):
     async def delete_project(self, *, project_id: str) -> None:
         # api is ignored but must be passed
         _ = await self._execute(
-            f"cargo run --bin=storcon_cli -- --api=http://localhost:1234 tenant-delete --tenant-id={project_id}"
+            f"cargo run --bin=storcon_cli -- --api=http://localhost:1234 tenant-delete --tenant-id={project_id}",
         )
 
 

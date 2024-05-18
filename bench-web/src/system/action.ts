@@ -1270,8 +1270,8 @@ contributeActionMap<"space">({
     action: ACTION_COMING_SOON,
   },
   "space.launch.logs": {
-    title: "Open Logs",
-    text: "View all Logs in the Space",
+    title: "Open Log",
+    text: "Read the Logs",
     icon: "fas fa-clipboard-list",
     action: ACTION_COMING_SOON,
   },
