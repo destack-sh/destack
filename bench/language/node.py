@@ -1345,7 +1345,7 @@ class ReadInfo(NamedTuple):
 class Node(Struct[NodeDataT], Generic[NodeDataT]):
     """
     A node in the Bench graph: a struct with a globally unique identity.
-    Every node has a 'constant' key (ck) identifying its constant (id)entity across versions.
+    Most nodes have a 'constant' key (ck) providing constant (id)entity across versions.
     The first part of the constant key is the template key (tk), which is constant in all instances of a template.
     For sub package nodes the 'id' is derived from the 'ck' per Package, else it's just the id.
     """

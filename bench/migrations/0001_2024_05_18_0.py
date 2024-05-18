@@ -1,8 +1,8 @@
-# This migration was automatically generated on 2024.05.17. Edit as needed.
+# This migration was automatically generated on 2024.05.18. Edit as needed.
 import psycopg
 
 ID = 1
-VERSION = "2024.05.17.0"
+VERSION = "2024.05.18.0"
 HAS_GLOBAL = True
 HAS_LOCAL = True
 
@@ -367,6 +367,7 @@ async def upgrade_global(cur: psycopg.AsyncCursor):
         "is_page" boolean NOT NULL DEFAULT false,
         "is_protocol" boolean NOT NULL DEFAULT false,
         "is_template" boolean NOT NULL DEFAULT false,
+        "is_materialized" boolean NOT NULL DEFAULT false,
         "paused_at" timestamp
     )
     """
@@ -758,15 +759,11 @@ async def upgrade_global(cur: psycopg.AsyncCursor):
         "name" varchar NOT NULL,
         "text" jsonb,
         "region" smallint NOT NULL DEFAULT 1,
-        "tenancy" smallint NOT NULL DEFAULT 3,
         "status" smallint NOT NULL DEFAULT 1,
         "profile" smallint NOT NULL,
         "version" varchar,
-        "is_paused" boolean NOT NULL DEFAULT true,
-        "current_profile" smallint,
-        "current_version" varchar,
-        "last_active_at" timestamp,
-        "last_bumped_at" timestamp
+        "active_at" timestamp,
+        "bumped_at" timestamp
     )
     """
     )
@@ -794,7 +791,6 @@ async def upgrade_global(cur: psycopg.AsyncCursor):
         "name" varchar NOT NULL,
         "text" jsonb,
         "region" smallint NOT NULL DEFAULT 1,
-        "tenancy" smallint NOT NULL DEFAULT 3,
         "status" smallint NOT NULL DEFAULT 1,
         "version" varchar,
         "external_name" varchar,
@@ -827,16 +823,15 @@ async def upgrade_global(cur: psycopg.AsyncCursor):
         "name" varchar NOT NULL,
         "text" jsonb,
         "region" smallint NOT NULL DEFAULT 1,
-        "tenancy" smallint NOT NULL DEFAULT 3,
         "status" smallint NOT NULL DEFAULT 1
     )
     """
     )
 
-    # bench_filecontent
+    # bench_blob
     await cur.execute(
         """
-    CREATE TABLE "bench_filecontent" (
+    CREATE TABLE "bench_blob" (
         "id" uuid NOT NULL PRIMARY KEY,
         "bench_id" uuid NOT NULL,
         "revision" bigint NOT NULL DEFAULT 0,
@@ -853,10 +848,13 @@ async def upgrade_global(cur: psycopg.AsyncCursor):
         "updated_by_type" smallint,
         "updated_by_base_ck" uuid,
         "set_properties" integer[] NOT NULL,
+        "name" varchar NOT NULL,
+        "text" jsonb,
+        "region" smallint NOT NULL DEFAULT 1,
+        "status" smallint NOT NULL DEFAULT 1,
         "sha512" varchar NOT NULL,
         "size" bigint NOT NULL,
-        "type" varchar NOT NULL,
-        "status" smallint NOT NULL,
+        "mime_type" varchar NOT NULL,
         "retention" smallint NOT NULL,
         "expires_at" timestamp
     )
@@ -973,14 +971,14 @@ async def upgrade_global(cur: psycopg.AsyncCursor):
         "set_properties" integer[] NOT NULL,
         "type" smallint NOT NULL,
         "name" varchar NOT NULL,
-        "device_name" varchar,
         "device_type" varchar,
+        "device_name" varchar,
         "operating_system" varchar,
         "browser_name" varchar,
         "browser_version" varchar,
         "place_id" varchar,
         "access_token" varchar,
-        "last_seen_at" timestamp NOT NULL,
+        "seen_at" timestamp NOT NULL,
         "logged_in_at" timestamp,
         "main_space_id" uuid,
         "main_space_ck" uuid,
@@ -1266,18 +1264,18 @@ async def upgrade_global(cur: psycopg.AsyncCursor):
         'ALTER TABLE "bench_drive" ADD CONSTRAINT "bench_drive_bench_check_one_parent" CHECK ((parent_bench_id IS NOT NULL))'
     )
 
-    # bench_filecontent
+    # bench_blob
     await cur.execute(
-        'ALTER TABLE "bench_filecontent" ADD COLUMN "parent_drive_id" uuid REFERENCES bench_drive ON DELETE CASCADE'
+        'ALTER TABLE "bench_blob" ADD COLUMN "parent_drive_id" uuid REFERENCES bench_drive ON DELETE CASCADE'
     )
     await cur.execute(
-        'CREATE UNIQUE INDEX "bench_filecontent_bench_idx_parent_drive_id_sha512" ON bench_filecontent USING BTREE (parent_drive_id, sha512)'
+        'CREATE UNIQUE INDEX "bench_blob_bench_idx_parent_drive_id_sha512" ON bench_blob USING BTREE (parent_drive_id, sha512)'
     )
     await cur.execute(
-        'ALTER TABLE "bench_filecontent" ADD CONSTRAINT "bench_filecontent_bench_idx_parent_drive_id_sha512" UNIQUE USING INDEX bench_filecontent_bench_idx_parent_drive_id_sha512'
+        'ALTER TABLE "bench_blob" ADD CONSTRAINT "bench_blob_bench_idx_parent_drive_id_sha512" UNIQUE USING INDEX bench_blob_bench_idx_parent_drive_id_sha512'
     )
     await cur.execute(
-        'ALTER TABLE "bench_filecontent" ADD CONSTRAINT "bench_filecontent_bench_check_one_parent" CHECK ((parent_drive_id IS NOT NULL))'
+        'ALTER TABLE "bench_blob" ADD CONSTRAINT "bench_blob_bench_check_one_parent" CHECK ((parent_drive_id IS NOT NULL))'
     )
 
     # bench_handle

@@ -10,7 +10,7 @@ from bench.language import Bench, NodeType, Package, Session
 from bench.language.access import Subject
 from bench.language.connection import RemoteEngine
 from bench.language.const import BENCH_NODE_TYPES, IN_PACKAGE_NODE_TYPES, PUBLIC_NODE_TYPES
-from bench.language.resource import Client
+from bench.language.bench import Client
 from bench.proto.services import MonitoredServiceBase
 from bench.proto.wire import (
     BenchData,

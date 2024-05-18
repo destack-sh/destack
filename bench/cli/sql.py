@@ -1,4 +1,3 @@
-import re
 import signal
 import subprocess
 import time
@@ -34,6 +33,7 @@ from bench.sql.migration import (
 from bench.sql.migration import migrate as _migrate
 from bench.sql.migration import read_migrations_from_fs, read_migrations_from_pg
 from bench.system.client import GLOBAL_STORE, global_pg_cursor, global_session
+from bench.utils.func import sanitize_connection_uri
 from bench.utils.utils import format_python
 
 logger = structlog.get_logger(__name__)
@@ -254,12 +254,17 @@ async def shell(bench: str = None):  # type: ignore
         async with global_session():
             bench_node = await Bench.descendants(Environment, Store).select_all().get(slug=bench)
             assert bench_node.main_environment, f"{bench!r} has no main environment"
-            connection_str = get_pg_connection_str(bench_node.main_environment.store)
+            store = bench_node.main_environment.store
     else:
-        connection_str = get_pg_connection_str(GLOBAL_STORE)
+        bench_node = None
+        store = GLOBAL_STORE
+    connection_str = get_pg_connection_str(store)
 
     logger.info(
-        "shell.psql", bench=bench, connection_str=re.sub(r":[^@]+@", ":*****@", connection_str)
+        "shell.psql",
+        bench_node=bench_node,
+        store=store,
+        connection_str=sanitize_connection_uri(connection_str),
     )
     sigint_handler = signal.getsignal(signal.SIGINT)
     try:

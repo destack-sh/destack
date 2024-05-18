@@ -50,7 +50,7 @@ async def test_user_registration(supervisor: SupervisorStub):
         type=ClientType.BENCH_WEB,
         name="test",
         device_name="pytest",
-        last_seen_at=utcnow_with_tz(),
+        seen_at=utcnow_with_tz(),
     )
 
     # signup -> success

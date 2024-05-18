@@ -13,7 +13,7 @@ from bench.utils.utils import frozendict
 if typing.TYPE_CHECKING:
     from bench.language import Session, Transaction
 
-VERSION = "2024.05.17.1"
+VERSION = "2024.05.18.1"
 REVISION_PENDING = -1
 TK_LENGTH_BYTES = 8
 TK_LENGTH_B64 = 12  # 1.5 * TK_LENGTH_BYTES (must be integer)
@@ -80,7 +80,8 @@ class EnumType(IdEnum):
     STORE_ENGINE_TYPE = 2053
     SERVER_PROFILE = 2055
     RESOURCE_STATUS = 2056
-    CLIENT_TYPE = 2057
+    FILE_RETENTION_MODE = 2057
+    CLIENT_TYPE = 2060
 
     # block
     BLOCK_TYPE = 2070
@@ -95,9 +96,6 @@ class EnumType(IdEnum):
     # text
     TEXT_LINE_TYPE = 2090
 
-    # file
-    FILE_STATUS = 2100
-    FILE_RETENTION_MODE = 2101
 
     # notice
     NOTICE_TYPE = 2170
@@ -205,7 +203,7 @@ class NodeType(IdEnum):
     # CACHE = ...  # KV memory store (Redis/Memcached)
     # MACHINE = ... # actual machine providing processor/memory/storage for resources
     # DOMAIN, EMAIL, ...
-    FILE_CONTENT = 180  # in a Drive
+    BLOB = 180  # in a Drive
 
     # user
     HANDLE = 220
@@ -719,12 +717,6 @@ class FieldZone(IdEnum):
     OUTPUT = 4
     OPTION = 5
 
-
-@enum_(EnumType.FILE_STATUS)
-class FileStatus(IdEnum):
-    PENDING = 1
-    UPLOADING = 2
-    AVAILABLE = 3
 
 
 @enum_(EnumType.TRIGGER_TYPE)

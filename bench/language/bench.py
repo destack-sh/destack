@@ -1,11 +1,13 @@
+import abc
 from datetime import datetime
+from enum import Enum
 from itertools import chain
-from typing import TYPE_CHECKING, Iterable, Optional, Union
+from typing import TYPE_CHECKING, Generic, Iterable, Optional, TypeVar, Union
 from uuid import UUID
 
-from bench.language.const import NodeType, StructType
+from bench.language.const import ClientType, EnumType, NodeType, StructType, enum_
 from bench.language.graph import NodeList
-from bench.language.node import Node, node
+from bench.language.node import Node, node, node_component
 from bench.language.property import (
     p_internal,
     p_kernel,
@@ -16,15 +18,22 @@ from bench.language.property import (
 )
 from bench.language.validation import NAME_CONSTRAINT, SLUG_CONSTRAINT
 from bench.proto.wire import (
+    AnyNodeData,
     BenchData,
     BranchData,
+    ClientData,
     DependencyData,
+    DriveData,
     EnvironmentData,
     NodeReferenceData,
     PackageData,
+    ServerData,
+    StoreData,
     UpgradeData,
 )
 from bench.utils.casing import IdentifierType
+from bench.utils.dt import utcnow_with_tz
+from bench.utils.func import IdEnum
 
 if TYPE_CHECKING:
     from bench.language import (
@@ -221,3 +230,153 @@ class Upgrade(Node[UpgradeData]):
     name: str = p_regular(32, constraint=NAME_CONSTRAINT)
     title: Optional[str] = p_regular(34)
     text: Optional["Text"] = p_regular(35, require=False, array=False, struct=StructType.TEXT)
+
+
+@enum_(EnumType.REGION)
+class Region(IdEnum):
+    """Where a Resource is located (physically)."""
+
+    GLOBAL = 1
+    # europe
+    EUROPE_CENTRAL = 100
+    # americas
+    ...
+
+
+@enum_(EnumType.TENANCY)
+class Tenancy(IdEnum):
+    """How a Resource is shared (if at all)."""
+
+    SHARED = 3
+    DEDICATED = 7
+
+
+@enum_(EnumType.RESOURCE_STATUS)
+class ResourceStatus(IdEnum):
+    """Generalized status of a Resource in its lifecycle."""
+
+    PENDING = 1
+    CREATING = 5
+    UPGRADING = 10
+    HEALTHY = 20
+    UNHEALTHY = 25
+    PAUSED = 30
+    DELETING = 35
+    DELETED = 40
+
+
+NodeDataT = TypeVar("NodeDataT", bound=AnyNodeData)
+
+
+@node_component()
+class Resource(Node[NodeDataT], abc.ABC, Generic[NodeDataT]):
+    """
+    A resource owned by a Bench.
+    Certain resources may be branched into a Package.
+    """
+
+    parent: "Bench" = p_node_parent(4, NodeType.BENCH, is_system=True)
+    name: str = p_regular(32)
+    text: Optional["Text"] = p_regular(34, default=None, struct=StructType.TEXT)
+    region: Region = p_system(35, default=Region.GLOBAL)
+    status: ResourceStatus = p_system(36, default=ResourceStatus.PENDING)
+
+    def __content_str__(self):
+        value_strs: list[str] = []
+        for prop in chain(
+            Resource.__declared_properties__.values(), self.__declared_properties__.values()
+        ):
+            if prop.name == "name" or prop.name == "parent":
+                continue
+            value = getattr(self, prop.name)
+            if value:
+                if isinstance(value, Enum):
+                    value = value.name
+                value_strs.append(f"{prop.name}={value}")
+        return ", ".join(value_strs)
+
+
+@enum_(EnumType.SERVER_PROFILE)
+class ServerProfile(IdEnum):
+    TINY = 3
+    SMALL = 5
+    MEDIUM = 7
+    LARGE = 9
+
+
+@node(NodeType.SERVER)
+class Server(Resource[ServerData]):
+    """
+    A server providing the Runtime for a Bench.
+    Similar to other resources, a Server virtualizes a compute allocation that is
+    materialized on demand on a set of physical machines.
+    """
+
+    profile: ServerProfile = p_regular(40)
+    version: Optional[str] = p_system(42, default=None)
+
+    active_at: Optional[datetime] = p_internal(50, default=None)
+    bumped_at: Optional[datetime] = p_internal(51, default=None)
+
+    clients: NodeList["Client"] = p_node_child(NodeType.CLIENT)
+
+
+@node(NodeType.STORE)
+class Store(Resource[StoreData]):
+    """Postgres database."""
+
+    version: Optional[str] = p_system(40, default=None)
+
+    external_name: Optional[str] = p_kernel(50, require=False, default=None, sensitive=True)
+    external_id: Optional[str] = p_kernel(51, require=False, default=None, sensitive=True)
+    connection_uri: Optional[str] = p_kernel(
+        52, require=False, default=None, encrypt=True, defer=True, sensitive=True
+    )
+
+
+@node(NodeType.DRIVE)
+class Drive(Resource[DriveData]):
+    """Drive for file storage."""
+
+    ...
+
+
+@node(NodeType.CLIENT, roots=(NodeType.USER, NodeType.BENCH), identifier=IdentifierType.VARIABLE)
+class Client(Node[ClientData]):
+    """A client to a Bench."""
+
+    parent: Union["User", "Server"] = p_node_parent(4, NodeType.USER, NodeType.SERVER)
+    type: ClientType = p_regular(30)
+    name: str = p_regular(32, constraint=NAME_CONSTRAINT)
+
+    device_type: Optional[str] = p_regular(40, default=None)
+    device_name: Optional[str] = p_regular(41, default=None)
+    operating_system: Optional[str] = p_regular(42, default=None)
+    browser_name: Optional[str] = p_regular(43, default=None)
+    browser_version: Optional[str] = p_regular(44, default=None)
+    place_id: Optional[str] = p_regular(45, default=None)
+
+    access_token: Optional[str] = p_kernel(
+        50, default=None, defer=True, unique=True, sensitive=True
+    )
+    seen_at: datetime = p_system(51, default_factory=utcnow_with_tz)
+    logged_in_at: Optional[datetime] = p_system(52, default=None)
+
+    # for user clients
+    main_space: Optional["Space"] = p_system(
+        60, array=False, require=False, references=NodeType.SPACE, fk=True
+    )
+
+    def __content_str__(self) -> str:
+        value_parts = []
+        for prop in (
+            "device_type",
+            "device_name",
+            "operating_system",
+            "browser_name",
+            "browser_version",
+        ):
+            value = getattr(self, prop)
+            if value is not None:
+                value_parts.append(value)
+        return ", ".join(value_parts)

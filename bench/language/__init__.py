@@ -46,7 +46,7 @@ from .expression import (
     ValueReference,
 )
 from .field import Field, FieldZone, TypeConstraint, TypeInfo, TypeInfoBase
-from .file import File, Icon
+from .file import File, Blob, Icon
 from .graph import ValueList
 from .log import Log, LogKind, LogLevel
 from .message import Message
@@ -57,10 +57,9 @@ from .projection import Projection
 from .property import Property
 from .query import Query
 from .record import Record
-from .resource import (
+from .bench import (
     Client,
     Drive,
-    FileContent,
     Region,
     Resource,
     ResourceStatus,
@@ -112,7 +111,7 @@ __all__ = [
     "Field",
     "FieldZone",
     "File",
-    "FileContent",
+    "Blob",
     "FormatHint",
     "Handle",
     "Icon",

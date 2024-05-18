@@ -7,7 +7,7 @@ from typing import TYPE_CHECKING, Any, NamedTuple
 import httpx
 import structlog
 
-from bench.language.resource import Region
+from bench.language.bench import Region
 from bench.sql.client import pg_cursor_to_store
 from bench.sql.migration import has_migration_after, migrate
 from bench.sql.schema import VERSION
