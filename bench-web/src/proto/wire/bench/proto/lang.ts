@@ -2023,6 +2023,10 @@ export interface BlockData {
      */
     isTemplate: boolean;
     /**
+     * @generated from protobuf field: bool is_materialized = 64;
+     */
+    isMaterialized: boolean;
+    /**
      * @generated from protobuf field: optional google.protobuf.Timestamp paused_at = 66;
      */
     pausedAt?: Timestamp;
@@ -2169,13 +2173,13 @@ export interface ClientData {
      */
     name: string;
     /**
-     * @generated from protobuf field: optional string device_name = 40;
-     */
-    deviceName?: string;
-    /**
-     * @generated from protobuf field: optional string device_type = 41;
+     * @generated from protobuf field: optional string device_type = 40;
      */
     deviceType?: string;
+    /**
+     * @generated from protobuf field: optional string device_name = 41;
+     */
+    deviceName?: string;
     /**
      * @generated from protobuf field: optional string operating_system = 42;
      */
@@ -13964,6 +13968,7 @@ class BlockData$Type extends MessageType<BlockData> {
             { no: 61, name: "is_page", kind: "scalar", T: 8 /*ScalarType.BOOL*/ },
             { no: 62, name: "is_protocol", kind: "scalar", T: 8 /*ScalarType.BOOL*/ },
             { no: 63, name: "is_template", kind: "scalar", T: 8 /*ScalarType.BOOL*/ },
+            { no: 64, name: "is_materialized", kind: "scalar", T: 8 /*ScalarType.BOOL*/ },
             { no: 66, name: "paused_at", kind: "message", T: () => Timestamp }
         ]);
     }
@@ -13984,6 +13989,7 @@ class BlockData$Type extends MessageType<BlockData> {
         message.isPage = false;
         message.isProtocol = false;
         message.isTemplate = false;
+        message.isMaterialized = false;
         if (value !== undefined)
             reflectionMergePartial<BlockData>(this, message, value);
         return message;
@@ -14089,6 +14095,9 @@ class BlockData$Type extends MessageType<BlockData> {
                     break;
                 case /* bool is_template */ 63:
                     message.isTemplate = reader.bool();
+                    break;
+                case /* bool is_materialized */ 64:
+                    message.isMaterialized = reader.bool();
                     break;
                 case /* optional google.protobuf.Timestamp paused_at */ 66:
                     message.pausedAt = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.pausedAt);
@@ -14202,6 +14211,9 @@ class BlockData$Type extends MessageType<BlockData> {
         /* bool is_template = 63; */
         if (message.isTemplate !== false)
             writer.tag(63, WireType.Varint).bool(message.isTemplate);
+        /* bool is_materialized = 64; */
+        if (message.isMaterialized !== false)
+            writer.tag(64, WireType.Varint).bool(message.isMaterialized);
         /* optional google.protobuf.Timestamp paused_at = 66; */
         if (message.pausedAt)
             Timestamp.internalBinaryWrite(message.pausedAt, writer.tag(66, WireType.LengthDelimited).fork(), options).join();
@@ -14412,8 +14424,8 @@ class ClientData$Type extends MessageType<ClientData> {
             { no: 22, name: "set_properties", kind: "scalar", repeat: 1 /*RepeatType.PACKED*/, T: 5 /*ScalarType.INT32*/ },
             { no: 30, name: "type", kind: "enum", T: () => ["symbolx.bench.ClientType", ClientType, "CLIENT_TYPE_"] },
             { no: 32, name: "name", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
-            { no: 40, name: "device_name", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
-            { no: 41, name: "device_type", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
+            { no: 40, name: "device_type", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
+            { no: 41, name: "device_name", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
             { no: 42, name: "operating_system", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
             { no: 43, name: "browser_name", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
             { no: 44, name: "browser_version", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
@@ -14487,11 +14499,11 @@ class ClientData$Type extends MessageType<ClientData> {
                 case /* string name */ 32:
                     message.name = reader.string();
                     break;
-                case /* optional string device_name */ 40:
-                    message.deviceName = reader.string();
-                    break;
-                case /* optional string device_type */ 41:
+                case /* optional string device_type */ 40:
                     message.deviceType = reader.string();
+                    break;
+                case /* optional string device_name */ 41:
+                    message.deviceName = reader.string();
                     break;
                 case /* optional string operating_system */ 42:
                     message.operatingSystem = reader.string();
@@ -14575,12 +14587,12 @@ class ClientData$Type extends MessageType<ClientData> {
         /* string name = 32; */
         if (message.name !== "")
             writer.tag(32, WireType.LengthDelimited).string(message.name);
-        /* optional string device_name = 40; */
-        if (message.deviceName !== undefined)
-            writer.tag(40, WireType.LengthDelimited).string(message.deviceName);
-        /* optional string device_type = 41; */
+        /* optional string device_type = 40; */
         if (message.deviceType !== undefined)
-            writer.tag(41, WireType.LengthDelimited).string(message.deviceType);
+            writer.tag(40, WireType.LengthDelimited).string(message.deviceType);
+        /* optional string device_name = 41; */
+        if (message.deviceName !== undefined)
+            writer.tag(41, WireType.LengthDelimited).string(message.deviceName);
         /* optional string operating_system = 42; */
         if (message.operatingSystem !== undefined)
             writer.tag(42, WireType.LengthDelimited).string(message.operatingSystem);
@@ -22172,6 +22184,7 @@ export enum BlockProperty {
   isPage = 61,
   isProtocol = 62,
   isTemplate = 63,
+  isMaterialized = 64,
   pausedAt = 66,
 }
 
@@ -22773,8 +22786,8 @@ export enum ClientProperty {
   setProperties = 22,
   type = 30,
   name = 32,
-  deviceName = 40,
-  deviceType = 41,
+  deviceType = 40,
+  deviceName = 41,
   operatingSystem = 42,
   browserName = 43,
   browserVersion = 44,
@@ -24092,6 +24105,7 @@ export const BlockDataInfo: Record<BlockProperty, PropertyInfo> = {
   [BlockProperty.isPage]: { id: 61, name: 'is_page', component: ObjectType.BLOCK, kind: 'primitive', primitiveType: PrimitiveType.BOOLEAN, isRequired: true, isRuntime: true, isWired: true, isStored: true },
   [BlockProperty.isProtocol]: { id: 62, name: 'is_protocol', component: ObjectType.BLOCK, kind: 'primitive', primitiveType: PrimitiveType.BOOLEAN, isRequired: true, isRuntime: true, isWired: true, isStored: true },
   [BlockProperty.isTemplate]: { id: 63, name: 'is_template', component: ObjectType.BLOCK, kind: 'primitive', primitiveType: PrimitiveType.BOOLEAN, isRequired: true, isRuntime: true, isWired: true, isStored: true },
+  [BlockProperty.isMaterialized]: { id: 64, name: 'is_materialized', component: ObjectType.BLOCK, kind: 'primitive', primitiveType: PrimitiveType.BOOLEAN, isRequired: true, isRuntime: true, isWired: true, isStored: true },
   [BlockProperty.pausedAt]: { id: 66, name: 'paused_at', component: ObjectType.BLOCK, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isRuntime: true, isWired: true, isStored: true },
 }
 export const TriggerDataInfo: Record<TriggerProperty, PropertyInfo> = {
@@ -24668,8 +24682,8 @@ export const ClientDataInfo: Record<ClientProperty, PropertyInfo> = {
   [ClientProperty.setProperties]: { id: 22, name: 'set_properties', component: ObjectType.CLIENT, kind: 'primitive', primitiveType: PrimitiveType.INT32, isList: true, isRequired: true, isRuntime: true, isWired: true, isStored: true },
   [ClientProperty.type]: { id: 30, name: 'type', component: ObjectType.CLIENT, enumType: EnumType.CLIENT_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isRuntime: true, isWired: true, isStored: true },
   [ClientProperty.name]: { id: 32, name: 'name', component: ObjectType.CLIENT, kind: 'primitive', primitiveType: PrimitiveType.STRING, isRequired: true, isRuntime: true, isWired: true, isStored: true },
-  [ClientProperty.deviceName]: { id: 40, name: 'device_name', component: ObjectType.CLIENT, kind: 'primitive', primitiveType: PrimitiveType.STRING, isRuntime: true, isWired: true, isStored: true },
-  [ClientProperty.deviceType]: { id: 41, name: 'device_type', component: ObjectType.CLIENT, kind: 'primitive', primitiveType: PrimitiveType.STRING, isRuntime: true, isWired: true, isStored: true },
+  [ClientProperty.deviceType]: { id: 40, name: 'device_type', component: ObjectType.CLIENT, kind: 'primitive', primitiveType: PrimitiveType.STRING, isRuntime: true, isWired: true, isStored: true },
+  [ClientProperty.deviceName]: { id: 41, name: 'device_name', component: ObjectType.CLIENT, kind: 'primitive', primitiveType: PrimitiveType.STRING, isRuntime: true, isWired: true, isStored: true },
   [ClientProperty.operatingSystem]: { id: 42, name: 'operating_system', component: ObjectType.CLIENT, kind: 'primitive', primitiveType: PrimitiveType.STRING, isRuntime: true, isWired: true, isStored: true },
   [ClientProperty.browserName]: { id: 43, name: 'browser_name', component: ObjectType.CLIENT, kind: 'primitive', primitiveType: PrimitiveType.STRING, isRuntime: true, isWired: true, isStored: true },
   [ClientProperty.browserVersion]: { id: 44, name: 'browser_version', component: ObjectType.CLIENT, kind: 'primitive', primitiveType: PrimitiveType.STRING, isRuntime: true, isWired: true, isStored: true },

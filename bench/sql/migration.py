@@ -1,6 +1,3 @@
-# type: ignore
-# TODO :Robustness :Cleanup: type-check sql engine
-
 import asyncio
 import enum
 import importlib
@@ -11,7 +8,7 @@ from dataclasses import dataclass, replace
 from datetime import datetime
 from pathlib import Path
 from textwrap import indent
-from typing import TYPE_CHECKING, Any, Awaitable, Callable, Collection, Optional
+from typing import TYPE_CHECKING, Any, Awaitable, Callable, Collection, Mapping, Optional
 
 import psycopg
 import structlog
@@ -42,7 +39,7 @@ from bench.sql.engine import (
     sqlstr,
 )
 from bench.utils.env import REPOSITORY_PATH
-from bench.utils.func import partition
+from bench.utils.func import partition, re_search_or_error
 from bench.utils.utils import format_python
 
 if TYPE_CHECKING:
@@ -99,7 +96,7 @@ def pack_migration_row(migration: Migration) -> dict[str, Any]:
     }
 
 
-def unpack_migration_row(row: dict[str, Any]) -> Migration:
+def unpack_migration_row(row: Mapping[str, Any]) -> Migration:
     return Migration(
         id=row["id"],
         version=row["version"],
@@ -137,9 +134,10 @@ async def delete_migrations_in_pg(cur: psycopg.AsyncCursor, from_id: int, to_id:
     migrations_rows = await pg_delete(
         cur,
         MIGRATION_TABLE,
-        where=sql.SQL(f"id >= {from_id} AND id <= {to_id}"),
+        where=sqlstr(f"id >= {from_id} AND id <= {to_id}"),
         returning=MIGRATION_TABLE.columns,
     )
+    assert migrations_rows is not None
     migrations = [unpack_migration_row(row) for row in migrations_rows]
     if migrations:
         logger.warning("migration.delete", migrations=migrations)
@@ -334,17 +332,25 @@ class MigrationOp:
     def __str__(self) -> str:
         op_str = f"{self.kind.value} {self.object_kind.name}"
         if self.kind == MigrationOpKind.CREATE:
+            assert self.new_object is not None, f"new_object not set for {self!r}"
             return f"{op_str} {self.new_object.qualified_name}"
         elif self.kind == MigrationOpKind.RENAME:
+            assert self.old_object is not None, f"old_object not set for {self!r}"
+            assert self.new_object is not None, f"new_object not set for {self!r}"
             return f"{op_str} {self.old_object.qualified_name} -> {self.new_object.qualified_name}"
         elif self.kind == MigrationOpKind.UPDATE:
+            assert self.diff_keys is not None, f"diff_keys not set for {self!r}"
+            assert self.new_object is not None, f"new_object not set for {self!r}"
             diff_str = ", ".join(
                 f"{k}:{getattr(self.old_object, k)}->{getattr(self.new_object, k)}"
                 for k in self.diff_keys
             )
             return f"{op_str} {self.new_object.qualified_name} ({diff_str})"
         elif self.kind == MigrationOpKind.DELETE:
+            assert self.old_object is not None, f"old_object not set for {self!r}"
             return f"{op_str} {self.old_object.qualified_name}"
+        else:
+            raise RuntimeError(f"unexpected migration op type: {self.kind}")
 
     def __repr__(self) -> str:
         return f"<MigrationOp {self}>"
@@ -353,12 +359,19 @@ class MigrationOp:
     def object_kind(self) -> ObjectKind:
         if self.new_object is not None:
             return self.new_object.kind
-        else:
+        elif self.old_object is not None:
             return self.old_object.kind
+        else:
+            raise RuntimeError(f"no object set for {self!r}")
 
     @property
     def table(self) -> "Table":
-        return self.new_object.table if self.new_object else self.old_object.table
+        if self.new_object is not None:
+            return self.new_object.table
+        elif self.old_object is not None:
+            return self.old_object.table
+        else:
+            raise RuntimeError(f"no object set for {self!r}")
 
     def invert(self) -> "MigrationOp":
         """Returns the inverse of this operation for undoing migrations."""
@@ -446,7 +459,8 @@ def generate_migration_ops(
             assert isinstance(op.new_object, Table)
             # only columns are created implicitly in migration ops
             first_columns, deferred_columns = partition(
-                lambda col: col.is_foreign_key_to, (c.clone() for c in op.new_object.columns)
+                lambda col: bool(col.is_foreign_key_to),
+                (c.clone() for c in op.new_object.columns),
             )
             first_table = replace(op.new_object, columns=first_columns, constraints=(), indexes=())
             first_cru_ops.append(MigrationOp(MigrationOpKind.CREATE, first_table, None))
@@ -524,7 +538,7 @@ def _render_migration_body(ops: list[MigrationOp] | None) -> str:
         # batch successive ALTER TABLE statements, otherwise leave them as-is
         lines.append(f"\n# {table.name}")
         current_alter_statements: list[str] = []
-        for i, stmt in enumerate(statements):
+        for stmt in statements:
             if stmt.startswith(f"'ALTER TABLE {table.name}"):
                 current_alter_statements.append(
                     stmt[1:-1].replace(f"ALTER TABLE {table.name} ", "")
@@ -560,7 +574,7 @@ def _render_migration_body(ops: list[MigrationOp] | None) -> str:
         stmt = _wrap_statement(stmt)
 
         if current_table is None or op.table.table_name != current_table.table_name:
-            if current_statements:
+            if current_table is not None and current_statements:
                 _emit(current_table, current_statements)
             current_table = op.table
             current_statements = []
@@ -610,7 +624,7 @@ async def apply_migration_ops(cur: psycopg.AsyncCursor, ops: list[MigrationOp]) 
 
     # turn it into an async callable
     method = f"async def _apply_inline(cur):\n{indent(method_body, '    ')}"
-    method_locals: dict[str, any] = {}
+    method_locals: dict[str, Any] = {}
     exec(method, method_locals)
     _apply_inline = method_locals["_apply_inline"]
     await _apply_inline(cur)
@@ -634,7 +648,7 @@ def add_migration_to_fs(migration: Migration, code: str, *, overwrite: bool = Fa
     return migration_path
 
 
-def _render_migration_op(op: MigrationOp) -> Optional[str | tuple[str, str]]:
+def _render_migration_op(op: MigrationOp) -> str | None:
     """
     Renders the given operation into a SQL string.
     Generally 'flat' - ops do not include nested objects - except for CREATE TABLE.
@@ -654,6 +668,7 @@ def _render_migration_op(op: MigrationOp) -> Optional[str | tuple[str, str]]:
             return f'ALTER TABLE "{op.new_object.table.name}" ADD CONSTRAINT {op.new_object.sql()}'
 
     elif op.kind == MigrationOpKind.RENAME:
+        assert op.new_object is not None, f"expected a new object: {op!r}"
         if isinstance(op.old_object, Table):
             return f'ALTER TABLE "{op.old_object.name}" RENAME TO "{op.new_object.name}"'
         elif isinstance(op.old_object, Column):
@@ -670,23 +685,24 @@ def _render_migration_op(op: MigrationOp) -> Optional[str | tuple[str, str]]:
         elif isinstance(op.old_object, Column):
             assert isinstance(op.new_object, Column), f"expected a column: {op.new_object!r}"
             updates: list[str] = []
-            if "is_unique" in op.diff_keys:
+            diff_keys = op.diff_keys or ()
+            if "is_unique" in diff_keys:
                 pass  # noop, already handled by generated index
-            if "is_encrypted" in op.diff_keys:
+            if "is_encrypted" in diff_keys:
                 pass  # noop, handled in read/write logic
-            if any(k in op.diff_keys for k in ("type", "is_array", "length")):
+            if any(k in diff_keys for k in ("type", "is_array", "length")):
                 # change type
                 updates.append(
                     f"ALTER COLUMN {op.old_object.name}"
                     f" SET DATA TYPE {op.new_object.type_sql()}"
                 )
-            if "is_nullable" in op.diff_keys:
+            if "is_nullable" in diff_keys:
                 # change nullability
                 updates.append(
                     f"ALTER COLUMN {op.old_object.name}"
                     f" {op.new_object.is_nullable and 'DROP' or 'SET'} NOT NULL"
                 )
-            if "default" in op.diff_keys:
+            if "default" in diff_keys:
                 # change default
                 if op.new_object.default is None:
                     updates.append(f"ALTER COLUMN {op.old_object.name}" f" DROP DEFAULT")
@@ -694,7 +710,7 @@ def _render_migration_op(op: MigrationOp) -> Optional[str | tuple[str, str]]:
                     updates.append(
                         f"ALTER COLUMN {op.old_object.name} SET DEFAULT {op.new_object.default}"
                     )
-            if "is_foreign_key_to" in op.diff_keys or "on_delete" in op.diff_keys:
+            if "is_foreign_key_to" in diff_keys or "on_delete" in diff_keys:
                 # drop and recreate foreign key constraint
                 if op.old_object.is_foreign_key_to:
                     # selects inside DDL aren't technically allowed, so we factor them out in post-processing
@@ -704,6 +720,7 @@ def _render_migration_op(op: MigrationOp) -> Optional[str | tuple[str, str]]:
                         f" (SELECT constraint_name FROM information_schema.table_constraints WHERE table_schema = 'public' AND table_name = '{op.old_object.table.name}' AND constraint_type = 'FOREIGN KEY' AND constraint_name LIKE '{object_name}%')"
                     )
                 if op.new_object.is_foreign_key_to:
+                    assert op.new_object.on_delete is not None, f"no on_delete: {op.new_object!r}"
                     constraint_name = f"{op.new_object.qualified_name.replace('.', '_')}_fk_{op.new_object.is_foreign_key_to}_id"
                     updates.append(
                         f'ADD CONSTRAINT "{constraint_name}"'
@@ -711,7 +728,7 @@ def _render_migration_op(op: MigrationOp) -> Optional[str | tuple[str, str]]:
                         f" REFERENCES {op.new_object.is_foreign_key_to}(id)"
                         f" ON DELETE {op.new_object.on_delete.value}"
                     )
-            if "is_primary_key" in op.diff_keys:
+            if "is_primary_key" in diff_keys:
                 if op.old_object.is_primary_key:  # drop it
                     object_name = op.old_object.qualified_name.replace(".", "_")
                     updates.append(
@@ -737,6 +754,7 @@ def _render_migration_op(op: MigrationOp) -> Optional[str | tuple[str, str]]:
             return "\n".join([drop, create])
         elif isinstance(op.old_object, Constraint):
             # drop and recreate
+            assert op.new_object is not None, f"expected a new object: {op!r}"
             return (
                 f'ALTER TABLE "{op.old_object.table.name}"'
                 f' DROP CONSTRAINT IF EXISTS "{op.old_object.name}",'  # may have cascaded
@@ -915,10 +933,10 @@ GROUP BY
     tc.table_name, tc.constraint_name, tc.constraint_type, chk.check_clause;
         """
         constraints_query = sql.SQL(constraints_query).format(sql.Literal(tables_names))
-        constraints_rows = await pg_select_raw(cur, constraints_query)
+        constraints_rows: list[dict[str, str]] = await pg_select_raw(cur, constraints_query)
         constraints_by_table: dict[str, list[Constraint]] = defaultdict(list)
         for row in constraints_rows:
-            columns = row["column_names"].split(", ") if row["column_names"] else []
+            columns = tuple(row["column_names"].split(", ")) if row["column_names"] else ()
             if not columns:
                 columns = None
             constraint_name = row["constraint_name"][len(row["table_name"]) + 1 :]
@@ -949,17 +967,17 @@ WHERE
     idx.schemaname = 'public' AND idx.tablename = ANY({});
             """
         indexes_query = sql.SQL(indexes_query).format(sql.Literal(tables_names))
-        indexes_rows = await pg_select_raw(cur, indexes_query)
+        indexes_rows: list[dict[str, str]] = await pg_select_raw(cur, indexes_query)
         for row in indexes_rows:
             definition = row["index_definition"]
             columns_str = definition.split("(")[1].split(")")[0]
             columns = [col.strip() for col in columns_str.split(",")]
-            if not columns:
-                columns = None
             # definition like 'CREATE INDEX index_name ON table_name USING index_type (columns) [WHERE condition]'
-            index_type = re.search(r"USING (\w+)", definition).group(1)
+            index_type = re_search_or_error(r"USING (\w+)", definition).group(1)
             condition = (
-                re.search(r"WHERE (.+)", definition).group(1) if "WHERE" in definition else None
+                re_search_or_error(r"WHERE (.+)", definition).group(1)
+                if "WHERE" in definition
+                else None
             )
             if condition:
                 condition = _strip_condition(condition)

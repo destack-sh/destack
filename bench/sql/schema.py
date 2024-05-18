@@ -582,6 +582,7 @@ BLOCK_TABLE = Table(
         Column("is_page", PrimitiveType.BOOLEAN, default="false"),
         Column("is_protocol", PrimitiveType.BOOLEAN, default="false"),
         Column("is_template", PrimitiveType.BOOLEAN, default="false"),
+        Column("is_materialized", PrimitiveType.BOOLEAN, default="false"),
         Column("paused_at", PrimitiveType.DATETIME, is_nullable=True),
     ),
     constraints=(
@@ -1850,8 +1851,8 @@ CLIENT_TABLE = Table(
         Column("set_properties", PrimitiveType.INT32, is_array=True),
         Column("type", PrimitiveType.INT16),
         Column("name", PrimitiveType.STRING),
-        Column("device_name", PrimitiveType.STRING, is_nullable=True),
         Column("device_type", PrimitiveType.STRING, is_nullable=True),
+        Column("device_name", PrimitiveType.STRING, is_nullable=True),
         Column("operating_system", PrimitiveType.STRING, is_nullable=True),
         Column("browser_name", PrimitiveType.STRING, is_nullable=True),
         Column("browser_version", PrimitiveType.STRING, is_nullable=True),

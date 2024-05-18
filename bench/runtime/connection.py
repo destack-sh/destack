@@ -8,11 +8,13 @@ from bench.language.graph import edit_graph
 from bench.language.node import Node
 from bench.language.query import QueryBuilder
 from bench.proto import wire
+from bench.proto.monkey import _PatchedRpcMetadata
 from bench.proto.wire import (
     AnyNodeData,
     GraphIoStub,
     GraphScope,
     HostStub,
+    RpcMetadata,
     SupervisorStub,
     WatchEditsRequest,
 )
@@ -30,6 +32,7 @@ class ConnectedQuery[NodeT: Node, NodeDataT: AnyNodeData]:
         query: QueryBuilder[NodeT, NodeDataT],
         remote: GraphIoStub | HostStub | SupervisorStub,
         scope: GraphScope,
+        rpc_metadata: RpcMetadata,
         retry: RetryOptions = RetryOptions(),
     ):
         self._query = query
@@ -39,6 +42,7 @@ class ConnectedQuery[NodeT: Node, NodeDataT: AnyNodeData]:
         self._has_result: asyncio.Event = asyncio.Event()
         self._is_closed: bool = False
         self._is_paused: bool = False
+        self._rpc_metadata = rpc_metadata
         self._retry = retry
         self._connect_task: asyncio.Task[None] | None = None
 
@@ -85,7 +89,8 @@ class ConnectedQuery[NodeT: Node, NodeDataT: AnyNodeData]:
                     node_types=cast(list[wire.NodeType], node_types),
                     since_epoch=self._node._read_info.epoch,
                 )
-                async for rep in self._remote.watch_edits(watch_req):
+                rpc_headers = cast(_PatchedRpcMetadata, self._rpc_metadata).to_headers()
+                async for rep in self._remote.watch_edits(watch_req, metadata=rpc_headers):
                     # apply edits (should filter these :ConnectionFilter)
                     logger.trace(
                         "query.update", query=self._query, node=self._node, epoch=rep.epoch
