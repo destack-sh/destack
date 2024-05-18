@@ -846,7 +846,9 @@ _INCLUDE_HIDDEN_EDIT_TYPE_REMAP: dict[EditType, EditType] = {
 
 
 def edit_graph(
-    graph: NodeGraph["Node"] | DetachedNodeGraph["Node"], edits: Collection[EditData], options: "ReadOptions | None"
+    graph: NodeGraph["Node"] | DetachedNodeGraph["Node"],
+    edits: Collection[EditData],
+    options: "ReadOptions | None",
 ) -> None:
     """Applies the edits to the graph (in place!)."""
 

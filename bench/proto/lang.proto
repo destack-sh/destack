@@ -1794,6 +1794,7 @@ message BlockData {
   bool is_page = 61;
   bool is_protocol = 62;
   bool is_template = 63;
+  bool is_materialized = 64;
   optional google.protobuf.Timestamp paused_at = 66;
 }
 
@@ -1835,8 +1836,8 @@ message ClientData {
   repeated int32 set_properties = 22;
   ClientType type = 30;
   string name = 32;
-  optional string device_name = 40;
-  optional string device_type = 41;
+  optional string device_type = 40;
+  optional string device_name = 41;
   optional string operating_system = 42;
   optional string browser_name = 43;
   optional string browser_version = 44;

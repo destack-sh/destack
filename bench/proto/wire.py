@@ -1986,6 +1986,7 @@ class BlockData(betterproto.Message):
     is_page: bool = betterproto.bool_field(61)
     is_protocol: bool = betterproto.bool_field(62)
     is_template: bool = betterproto.bool_field(63)
+    is_materialized: bool = betterproto.bool_field(64)
     paused_at: Optional[datetime] = betterproto.message_field(66, optional=True)
 
 
@@ -2031,8 +2032,8 @@ class ClientData(betterproto.Message):
     set_properties: List[int] = betterproto.int32_field(22)
     type: "ClientType" = betterproto.enum_field(30)
     name: str = betterproto.string_field(32)
-    device_name: Optional[str] = betterproto.string_field(40, optional=True)
-    device_type: Optional[str] = betterproto.string_field(41, optional=True)
+    device_type: Optional[str] = betterproto.string_field(40, optional=True)
+    device_name: Optional[str] = betterproto.string_field(41, optional=True)
     operating_system: Optional[str] = betterproto.string_field(42, optional=True)
     browser_name: Optional[str] = betterproto.string_field(43, optional=True)
     browser_version: Optional[str] = betterproto.string_field(44, optional=True)

@@ -88,6 +88,10 @@ class Runtime(RuntimeBase, MonitoredServiceBase):
         # context
         self._client_id = client_id
         self._client_access_token = client_access_token
+        self._rpc_metadata = RpcMetadata(
+            client_id=str(self._client_id),
+            client_access_token=self._client_access_token,
+        )
         self._client: Client | None = None
         self._bench_id = bench_id
 
@@ -118,6 +122,7 @@ class Runtime(RuntimeBase, MonitoredServiceBase):
             query=PACKAGE_QUERY.where(id=package_id),
             remote=self._host,
             scope=scope,
+            rpc_metadata=self._rpc_metadata,
         ).connect()
         self._packages[package_id] = package
         return package
@@ -130,10 +135,6 @@ class Runtime(RuntimeBase, MonitoredServiceBase):
         # set up host
         self._host = await get_host_client(self._bench_id, self._supervisor)
         bench_scope = GraphScope(bench_id=str(self._bench_id))
-        rpc_metadata = RpcMetadata(
-            client_id=str(self._client_id),
-            client_access_token=self._client_access_token,
-        )
         self._engines = (
             # global engine
             RemoteEngine(
@@ -141,7 +142,7 @@ class Runtime(RuntimeBase, MonitoredServiceBase):
                 node_types=PUBLIC_NODE_TYPES,
                 remote=self._supervisor,
                 retry=REMOTE_CONNECTION_RETRY,
-                metadata=rpc_metadata,
+                rpc_metadata=self._rpc_metadata,
             ),
             # bench engine
             RemoteEngine(
@@ -149,7 +150,7 @@ class Runtime(RuntimeBase, MonitoredServiceBase):
                 node_types=BENCH_NODE_TYPES,
                 remote=self._host,
                 retry=REMOTE_CONNECTION_RETRY,
-                metadata=rpc_metadata,
+                rpc_metadata=self._rpc_metadata,
             ),
             # in-package engine
             RemoteEngine(
@@ -157,7 +158,7 @@ class Runtime(RuntimeBase, MonitoredServiceBase):
                 node_types=IN_PACKAGE_NODE_TYPES,
                 remote=self._host,
                 retry=REMOTE_CONNECTION_RETRY,
-                metadata=rpc_metadata,
+                rpc_metadata=self._rpc_metadata,
             ),
         )
 
@@ -173,6 +174,7 @@ class Runtime(RuntimeBase, MonitoredServiceBase):
                 query=BENCH_QUERY.where(id=self._bench_id),
                 remote=self._host,
                 scope=GraphScope(bench_id=str(self._bench_id)),
+                rpc_metadata=self._rpc_metadata,
             ).connect()
             main_branch = self._bench.node.main_branch
             assert main_branch is not None, f"{self._bench!r} has no main branch"

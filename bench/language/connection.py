@@ -212,14 +212,14 @@ class RemoteEngine(StoreEngine[NodeT, NodeDataT]):
         default_scope: GraphScope,
         node_types: tuple[NodeType, ...] | bytetuple[NodeType],
         remote: GraphIoStub | HostStub | SupervisorStub,
-        metadata: RpcMetadata,
+        rpc_metadata: RpcMetadata,
         retry: RetryOptions = RetryOptions(max_attempts=1),
     ):
         super().__init__(node_types)
         self.default_scope = default_scope
         self.remote = remote
-        self.metadata = metadata
-        self.headers = cast("_PatchedRpcMetadata", metadata).to_headers()
+        self.rpc_metadata = rpc_metadata
+        self.rpc_headers = cast("_PatchedRpcMetadata", rpc_metadata).to_headers()
         self.retry = retry
 
     def __str__(self):
@@ -252,7 +252,7 @@ class RemoteConnection(StoreConnection[RemoteEngine, NodeT, NodeDataT]):
             count=options.count,
             scope=self.engine.default_scope,
         )
-        response = await self.engine.remote.search_nodes(request, metadata=self.engine.headers)
+        response = await self.engine.remote.search_nodes(request, metadata=self.engine.rpc_headers)
         return FetchResult(
             nodes=[wiring.unwrap_some_node(n) for n in response.nodes],
             roots=response.roots,
@@ -278,7 +278,9 @@ class RemoteConnection(StoreConnection[RemoteEngine, NodeT, NodeDataT]):
             aggregation=cast(ExpressionData, query._aggregation._to_data()),
             scope=self.engine.default_scope,
         )
-        response = await self.engine.remote.aggregate_nodes(request, metadata=self.engine.headers)
+        response = await self.engine.remote.aggregate_nodes(
+            request, metadata=self.engine.rpc_headers
+        )
         return AggregateResult(response.aggregation)
 
     @retry(
@@ -295,7 +297,7 @@ class RemoteConnection(StoreConnection[RemoteEngine, NodeT, NodeDataT]):
             id=str(self.session.tx.id), edits=edits, scope=self.engine.default_scope
         )
         response = await self.engine.remote.commit_transaction(
-            request, metadata=self.engine.headers
+            request, metadata=self.engine.rpc_headers
         )
         return response.revisions
 
@@ -345,14 +347,10 @@ class PostgresConnection(
         self, query: "QueryBuilder[NodeT, NodeDataT]", options: FetchOptions
     ) -> FetchResult:
         from bench.language import NodeReference, ReadOptions
-        from bench.sql.engine import (
-            compile_pg_conditional_maybe,
-            pg_count,
-            pg_search_nodes_data_graph,
-        )
+        from bench.sql.engine import _pg_compile_conditional_maybe, pg_count, pg_search_node_graph
 
         assert query._node_cls.__table__ is not None, f"{query._node_cls} has no table"
-        roots, graph = await pg_search_nodes_data_graph(
+        roots, graph = await pg_search_node_graph(
             cur=self.cur,
             node_type=query._node_type,
             options=query._options or ReadOptions(),
@@ -365,7 +363,7 @@ class PostgresConnection(
             total = await pg_count(
                 cur=self.cur,
                 table=query._node_cls.__table__,
-                where=compile_pg_conditional_maybe(query._node_cls, query._filter),
+                where=_pg_compile_conditional_maybe(query._node_cls, query._filter),
             )
         else:
             total = None
@@ -378,11 +376,11 @@ class PostgresConnection(
         )
 
     async def aggregate(self, query: "QueryBuilder[NodeT, NodeDataT]") -> AggregateResult:
-        from bench.sql.engine import compile_pg_conditional_maybe, pg_count, pg_exists
+        from bench.sql.engine import _pg_compile_conditional_maybe, pg_count, pg_exists
 
         assert query._node_cls.__table__ is not None, f"{query._node_cls} has no table"
         assert query._aggregation is not None
-        where = compile_pg_conditional_maybe(query._node_cls, query._filter)
+        where = _pg_compile_conditional_maybe(query._node_cls, query._filter)
         if query._aggregation.op == AggregationOp.EXISTS:
             exists = await pg_exists(self.cur, query._node_cls.__table__, where=where)
             return AggregateResult(AggregationData(exists=exists))

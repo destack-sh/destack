@@ -65,9 +65,8 @@ class NeonApiLocal(NeonApi):
         self.neon_path: str = Path(neon_path).resolve().absolute().as_posix()
 
     async def _execute(self, command: str) -> str:
-        # run the command in 'neon_local'
         process = await asyncio.create_subprocess_shell(
-            f"cargo neon {command}",
+            command,
             stdout=asyncio.subprocess.PIPE,
             stderr=asyncio.subprocess.PIPE,
             cwd=self.neon_path,
@@ -87,21 +86,23 @@ class NeonApiLocal(NeonApi):
         #  > ...
         #  > tenant 9ef87a5bf0d92544f6fafeeb3239695c successfully created on the pageserver
         #  > ...
-        output = await self._execute("tenant create")
+        output = await self._execute("cargo neon tenant create")
         tenant_match = re.search(r"tenant ([a-f0-9]+) successfully created", output)
         assert tenant_match, f"tenant create failed: {output}"
         tenant_id = tenant_match.group(1)
 
         # create endpoint
         endpoint_name = f"{tenant_id}-main"
-        output = await self._execute(f"endpoint create {endpoint_name} --tenant-id {tenant_id}")
+        output = await self._execute(
+            f"cargo neon endpoint create {endpoint_name} --tenant-id {tenant_id}"
+        )
 
         # start endpoint, output should look like
         # > ...
         # > Starting existing endpoint main...
         # > Starting postgres node at 'postgresql://cloud_admin@127.0.0.1:55436/postgres'
         # > ...
-        output = await self._execute(f"endpoint start {endpoint_name}")
+        output = await self._execute(f"cargo neon endpoint start {endpoint_name}")
         connection_uri_match = re.search(r"Starting postgres node at '([^']+)'", output)
         assert connection_uri_match, f"endpoint start failed: {output}"
         connection_uri = connection_uri_match.group(1)
@@ -115,7 +116,7 @@ class NeonApiLocal(NeonApi):
         # >  ep-main    127.0.0.1:55436  4c32574ffb5439346b403c717ad6f74b  main         0/14B8340  stopped
         # >  test-main  127.0.0.1:55440  4c32574ffb5439346b403c717ad6f74b  main         0/14B8340  running
         # > ...
-        output = await self._execute(f"endpoint list --tenant-id {project_id}")
+        output = await self._execute(f"cargo neon endpoint list --tenant-id {project_id}")
         endpoint_name = f"{project_id}-{branch_name}"
         # attempt to parse out address for endpoint (just the address part)
         endpoint_match = re.search(rf"\s*{endpoint_name}\s+([\d\.:]+)\s+", output, re.MULTILINE)
@@ -125,7 +126,7 @@ class NeonApiLocal(NeonApi):
             return f"postgresql://cloud_admin@{address}/postgres"
 
         # nope, start endpoint
-        output = await self._execute(f"endpoint start {project_id}-{branch_name}")
+        output = await self._execute(f"cargo neon endpoint start {project_id}-{branch_name}")
         connection_uri_match = re.search(r"Starting postgres node at '([^']+)'", output)
         assert connection_uri_match, f"endpoint start failed: {output}"
         connection_uri = connection_uri_match.group(1)

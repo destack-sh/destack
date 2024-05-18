@@ -4,7 +4,7 @@ import hashlib
 from dataclasses import dataclass
 from datetime import datetime
 from itertools import chain
-from typing import Any, ClassVar, Self, Union, cast
+from typing import TYPE_CHECKING, Any, ClassVar, Self, Union, cast
 from uuid import UUID
 
 from more_itertools import first
@@ -136,6 +136,12 @@ class TableObject(Object):
         assert self._table is not None, f"{self} is not attached to a table"
         return self._table
 
+    if TYPE_CHECKING:
+
+        @property
+        def name(self) -> str:
+            raise NotImplementedError
+
     @property
     def table_name(self) -> str:
         return self.table.name
@@ -195,7 +201,7 @@ class Column(TableObject):
     )
     kind: ClassVar[ObjectKind] = ObjectKind.COLUMN
 
-    name: str
+    name: str  # type: ignore
     type: PrimitiveType
     is_array: bool = False
     is_primary_key: bool = False
@@ -423,7 +429,7 @@ class Table(TableObject):
     FLAT_DATA_FIELDS: ClassVar[tuple[str, ...]] = ("name",)
     kind: ClassVar[ObjectKind] = ObjectKind.TABLE
 
-    name: str
+    name: str  # type: ignore
     columns: tuple[Column, ...]
     indexes: tuple[Index, ...] = ()
     constraints: tuple[Constraint, ...] = ()

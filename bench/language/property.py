@@ -122,7 +122,7 @@ class Property(_TypeQueryBuilder if TYPE_CHECKING else object):
     reference_stored_ids: tuple["Property", ...] | None = None  # stored representation
     reference_stored_props: tuple["Property", ...] | None = None
     reference_stored_ids_by_type: dict[NodeType, "Property"] | None = None
-    reference_stored_extras: dict[PropertyReferenceMetadata, "Property"] | None = None
+    reference_stored_meta: dict[PropertyReferenceMetadata, "Property"] | None = None
     reference_source: Optional["Property"] = None
     reference_on_delete: CascadeAction | None = UNSET
     reference_struct: StructType | None = None  # for struct child types
@@ -575,13 +575,13 @@ class Property(_TypeQueryBuilder if TYPE_CHECKING else object):
             self.reference_wired_ptr = parent_id
             return parent_id, parent_key
 
-        # NOTE :Cleanup: mapping stored and wired references (i.e. node pointers) is slightly involved.
+        # NOTE :Cleanup: mapping stored and wired references (i.e. node pointers) is gnarly.
         #  In wire pointers (=NodeReference[Data]) we conveniently have a struct with all the info:
         #   type+id+[ck]+[bench_id]+[base_ck+base_bench_id]
-        #  But we don't want to store pointers as structs for efficiency, so we map them.
-        #  (We have many top-level pointers, so unravelling the columns saves space and time.)
-        #  For instance, we want FKs on some id columns (like parent pointers), so those need to be
+        #  But we don't want to store pointers as structs for efficiency, so we map them to columns.
+        #  We want FKs on some id columns (like parent pointers), so those need to be
         #  distinct id columns, while others can be bunched together into a 'id' + 'ck' + 'type'.
+        #  This makes for the rather complex logic here and in unpacking/packing refs into rows.
         #  :StoredPointers
 
         # wired/stored pointer settings for each node reference kind
@@ -791,7 +791,7 @@ class Property(_TypeQueryBuilder if TYPE_CHECKING else object):
             self.reference_stored_ids = tuple(stored_ids)
             self.reference_stored_ids_by_type = frozendict(stored_ids_by_type)
             self.reference_stored_props = tuple(stored_ids + list(extra_stored_props.values()))
-            self.reference_stored_extras = frozendict(extra_stored_props)
+            self.reference_stored_meta = frozendict(extra_stored_props)
 
         return tuple(self.contributed_props)
 

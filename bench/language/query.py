@@ -81,7 +81,9 @@ class Query(Node[QueryData]):
 
 
 class QueryError(BenchError, ValueError):
-    def __init__(self, query: "QueryBuilder", result: Any | None = None, cause: Exception | None = None):
+    def __init__(
+        self, query: "QueryBuilder", result: Any | None = None, cause: Exception | None = None
+    ):
         if result is None:
             super().__init__(repr(query))
         else:

@@ -1,5 +1,6 @@
 import enum
 import functools
+import re
 import types
 import typing
 from asyncio import CancelledError
@@ -320,6 +321,13 @@ def decode_b64vlq(value: str) -> int:
         result += BASE_64.index(c) << shift
         shift += 6
     return result
+
+
+def re_search_or_error(pattern: str, string: str) -> re.Match[str]:
+    match = re.search(pattern, string)
+    if match is None:
+        raise ValueError(f"no match for {pattern!r} in {string!r}")
+    return match
 
 
 _MIN_ID_BY_ENUM: dict[type, int] = {}
