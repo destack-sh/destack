@@ -4,8 +4,8 @@ from typing import TYPE_CHECKING, Collection, Optional
 import structlog
 
 from bench.language.connection import StoreEngine
-from bench.language.const import InterpStatus, NodeType, SessionStatus, _active_session
-from bench.language.node import Node, node
+from bench.language.const import InterpStatus, NodeType, SessionStatus, StructType, _active_session
+from bench.language.node import Node, Struct, node, struct
 from bench.language.property import Property, p_internal, p_node_parent, p_runtime, p_system
 from bench.language.transaction import Transaction
 from bench.proto.wire import EditData, HostStub, SessionData, SupervisorStub
@@ -13,7 +13,19 @@ from bench.utils.dt import utcnow_with_tz
 from bench.utils.uuidt import UUIDT
 
 if TYPE_CHECKING:
-    from bench.language import Client, Package, Run, Server, User
+    from bench.language import (
+        Bench,
+        Block,
+        Branch,
+        Client,
+        Environment,
+        Package,
+        Run,
+        Server,
+        Step,
+        Trigger,
+        User,
+    )
 
 # pyright: reportIncompatibleVariableOverride=false
 
@@ -254,3 +266,49 @@ class Session(Node[SessionData]):
         assert self._tx is not None, f"no active transaction in {self!r}"
         for n in nodes:
             self._tx.delete(n, self._edit_subject)
+
+
+@struct(StructType.CONTEXT)
+class Context(Struct):
+    """A semi-magical value of context down a Bench tree (starting with system context)."""
+
+    # location
+    bench: Optional["Bench"] = p_internal(30, require=False, array=False, references=NodeType.BENCH)
+    environment: Optional["Environment"] = p_internal(
+        31, require=False, array=False, references=NodeType.ENVIRONMENT
+    )
+    branch: Optional["Branch"] = p_internal(
+        32, require=False, array=False, references=NodeType.BRANCH
+    )
+    package: Optional["Package"] = p_internal(
+        33, require=False, array=False, references=NodeType.PACKAGE
+    )
+    module: Optional["Block"] = p_internal(
+        34, require=False, array=False, references=NodeType.BLOCK
+    )
+    page: Optional["Block"] = p_internal(35, require=False, array=False, references=NodeType.BLOCK)
+    block: Optional["Block"] = p_internal(36, require=False, array=False, references=NodeType.BLOCK)
+    step: Optional["Step"] = p_internal(37, require=False, array=False, references=NodeType.STEP)
+
+    # runtime
+    client: Optional["Client"] = p_internal(
+        40, require=False, array=False, references=NodeType.CLIENT
+    )
+    server: Optional["Server"] = p_internal(
+        41, require=False, array=False, references=NodeType.SERVER
+    )
+    user: Optional["User"] = p_internal(42, require=False, array=False, references=NodeType.USER)
+
+    # session
+    session: Optional["Session"] = p_internal(
+        50, require=False, array=False, references=NodeType.SESSION
+    )
+    run: Optional["Run"] = p_internal(51, require=False, array=False, references=NodeType.RUN)
+    trigger: Optional["Trigger"] = p_internal(
+        52, require=False, array=False, references=NodeType.TRIGGER
+    )
+
+    # custom
+    # value_packed: Any = p_value_packed(50)
+    # secret_value_packed: Any = p_secret_value_packed(51)
+    # value: Any = p_value_runtime(50, 51)

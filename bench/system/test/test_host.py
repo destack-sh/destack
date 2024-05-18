@@ -6,8 +6,10 @@ from grpclib.testing import ChannelFor
 
 from bench.conftest import test_session
 from bench.language import Bench, ReadOptions, User
-from bench.language.const import RESOURCE_NODE_TYPES, NodeType, UserStatus
+from bench.language.code_ import Code
+from bench.language.const import RESOURCE_NODE_TYPES, NodeType, RunKind, RunStatus, UserStatus
 from bench.language.graph import NodeDataGraph
+from bench.language.run import Run
 from bench.proto import wire, wiring
 from bench.proto.wire import (
     CreateBenchRequest,
@@ -21,9 +23,10 @@ from bench.system.resource import decommission_all_resources
 from bench.system.test.conftest import UserHandle
 
 
-@dataclass
+@dataclass(slots=True)
 class BenchHandle:
     bench: Bench
+    # main_package: Package
     owner: User
     owner_handle: UserHandle
     supervisor: SupervisorStub
@@ -37,9 +40,18 @@ class BenchHandle:
     def headers(self):
         return self.owner_handle.headers
 
+    # def make_session(self) -> Session: nocheckin?
+    #     return Session(
+    #         parent=self.main_package,
+    #         _supervisor=self.supervisor,
+    #         _host=self.host,
+    #     )
 
+
+# nocheckin: share activated bench across module (hangs...)
 @pytest.fixture(scope="function")
 async def some_bench(supervisor: SupervisorStub, some_user: UserHandle):
+    # make bench in supervisor
     create_bench_req = CreateBenchRequest(
         owner=some_user.user.to_ref()._to_data(),
         slug=cast(str, some_user.user.slug),
@@ -49,6 +61,7 @@ async def some_bench(supervisor: SupervisorStub, some_user: UserHandle):
     create_bench_rep = await supervisor.create_bench(create_bench_req, metadata=some_user.headers)
     bench: Bench = cast(Bench, wiring.unpack_node(create_bench_rep.bench))
 
+    # activate bench in host
     service = HostMultiplexer()
     await service.start()
     try:
@@ -73,8 +86,8 @@ async def some_bench(supervisor: SupervisorStub, some_user: UserHandle):
             await session.commit()
 
 
-async def test_user_activate(some_bench: BenchHandle):
-    """Activate a User by creating their main Bench and provisioning it."""
+async def test_user_activation(some_bench: BenchHandle):
+    """Ensure that the BenchHandle fixtures successfully activates a User."""
 
     # get user to check they're activated with a main Bench
     read_user_req = GetNodesRequest(
@@ -104,3 +117,11 @@ async def test_user_activate(some_bench: BenchHandle):
     assert bench.main_environment
     assert bench.main_environment.store
     assert not bench.main_environment.store.connection_uri  # can't read kernel
+
+
+async def test_create_run(some_bench: BenchHandle):
+    run = Run(
+        kind=RunKind.LAMBDA,
+        status=RunStatus.SCHEDULED,
+        code=Code.from_string("print('hello')"),
+    )

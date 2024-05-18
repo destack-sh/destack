@@ -7,6 +7,8 @@ import {
   NodeReferenceData,
   NodeType,
   Orientation,
+  RunKind,
+  RunStatus,
   Variant,
   ViewData,
   ViewType,
@@ -323,10 +325,14 @@ defineExpose<ViewExposed>({ self, actions, focus });
               @click="
                 () => {
                   // nocheckin: session.* action handling (in Block/Step/Page/...)
+                  // nocheckin: flush timed node edits immediately
                   pkgConnection.tx.create({
                     metatype: NodeType.RUN,
-                    parentPtr: blockPtr,
+                    parentPtr: block.packagePtr,
                     packagePtr: block.packagePtr,
+                    kind: RunKind.BLOCK,
+                    status: RunStatus.SCHEDULED,
+                    blockPtr: blockPtr,
                   });
                 }
               "

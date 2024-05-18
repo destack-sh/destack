@@ -17,7 +17,6 @@ from bench.language import (
     ServerProfile,
     Session,
     Store,
-    Tenancy,
     User,
 )
 from bench.system.access import generate_encryption_key
@@ -74,12 +73,11 @@ async def create_default_bench(
     # create resources (in pending state, resources are managed by hosts)
     server = bench.servers.create(
         region=bench.region,
-        tenancy=Tenancy.SHARED,
         profile=ServerProfile.SMALL,
         name="Server",
     )
-    store = bench.stores.create(region=bench.region, tenancy=Tenancy.DEDICATED, name="Store")
-    drive = bench.drives.create(region=bench.region, tenancy=Tenancy.SHARED, name="Drive")
+    store = bench.stores.create(region=bench.region, name="Store")
+    drive = bench.drives.create(region=bench.region, name="Drive")
 
     # create main environment/branch/package
     environment = bench.environments.create(name="Main", server=server, store=store, drive=drive)

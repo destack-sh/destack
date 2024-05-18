@@ -19,31 +19,14 @@ from bench.language.const import (
     TypeKind,
     new_struct_id,
 )
-from bench.language.property import Property, p_internal
+from bench.language.property import Property
 from bench.language.setup import ENUM_CLASS_BY_TYPE
 from bench.language.validation import on_invalid_raise
 from bench.proto.monkey import _PatchedMessage
 from bench.proto.wire import AnyStructData
 
 if TYPE_CHECKING:
-    from bench.language import (
-        Bench,
-        Block,
-        Branch,
-        Client,
-        Environment,
-        Field,
-        Node,
-        NodeReference,
-        Package,
-        Run,
-        Server,
-        Session,
-        Step,
-        Trigger,
-        TypeInfoBase,
-        User,
-    )
+    from bench.language import Block, Field, Node, NodeReference, TypeInfoBase
     from bench.language.node import BasedNode
     from bench.language.notice import NoticeHandler
     from bench.language.validation import ValidationHandler
@@ -672,7 +655,7 @@ def unpack_value(
 
 
 # import later to avoid circular imports (Object is used in node.py)
-from bench.language.node import Struct, struct, struct_component  # noqa: E402
+from bench.language.node import Struct, struct_component  # noqa: E402
 
 
 @struct_component()
@@ -740,49 +723,3 @@ class HasValues(Struct):
                 setattr(self, prop.value_packed_ptr.name, value_packed)
             else:
                 setattr(self, prop.value_packed_ptr.name, None)
-
-
-@struct(StructType.CONTEXT)
-class Context(Struct):
-    """A semi-magical value of context down a Bench tree (starting with system context)."""
-
-    # location
-    bench: Optional["Bench"] = p_internal(30, require=False, array=False, references=NodeType.BENCH)
-    environment: Optional["Environment"] = p_internal(
-        31, require=False, array=False, references=NodeType.ENVIRONMENT
-    )
-    branch: Optional["Branch"] = p_internal(
-        32, require=False, array=False, references=NodeType.BRANCH
-    )
-    package: Optional["Package"] = p_internal(
-        33, require=False, array=False, references=NodeType.PACKAGE
-    )
-    module: Optional["Block"] = p_internal(
-        34, require=False, array=False, references=NodeType.BLOCK
-    )
-    page: Optional["Block"] = p_internal(35, require=False, array=False, references=NodeType.BLOCK)
-    block: Optional["Block"] = p_internal(36, require=False, array=False, references=NodeType.BLOCK)
-    step: Optional["Step"] = p_internal(37, require=False, array=False, references=NodeType.STEP)
-
-    # runtime
-    client: Optional["Client"] = p_internal(
-        40, require=False, array=False, references=NodeType.CLIENT
-    )
-    server: Optional["Server"] = p_internal(
-        41, require=False, array=False, references=NodeType.SERVER
-    )
-    user: Optional["User"] = p_internal(42, require=False, array=False, references=NodeType.USER)
-
-    # session
-    session: Optional["Session"] = p_internal(
-        50, require=False, array=False, references=NodeType.SESSION
-    )
-    run: Optional["Run"] = p_internal(51, require=False, array=False, references=NodeType.RUN)
-    trigger: Optional["Trigger"] = p_internal(
-        52, require=False, array=False, references=NodeType.TRIGGER
-    )
-
-    # custom
-    # value_packed: Any = p_value_packed(50)
-    # secret_value_packed: Any = p_secret_value_packed(51)
-    # value: Any = p_value_runtime(50, 51)
