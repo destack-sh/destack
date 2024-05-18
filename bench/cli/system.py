@@ -5,7 +5,7 @@ from more_itertools import first
 from bench.cli.utils import async_to_sync_blocking, check_is_consistent
 from bench.language import Bench, Region, User
 from bench.language.const import ClientType, NodeType, UserStatus
-from bench.system.auth import generate_access_token
+from bench.system.access import generate_access_token
 from bench.system.client import global_session
 from bench.system.resource import (
     create_default_bench,

@@ -20,7 +20,7 @@ from bench.language import (
     Tenancy,
     User,
 )
-from bench.system.auth import generate_encryption_key
+from bench.system.access import generate_encryption_key
 from bench.system.neon import create_local_store, delete_local_store, migrate_local_store
 from bench.utils.env import ENVIRONMENT
 from bench.utils.utils import get_from_env

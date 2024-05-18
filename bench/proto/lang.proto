@@ -114,7 +114,7 @@ enum BenchType {
   BENCH_TYPE_SERVER = 160;
   BENCH_TYPE_STORE = 161;
   BENCH_TYPE_DRIVE = 162;
-  BENCH_TYPE_FILE_CONTENT = 180;
+  BENCH_TYPE_BLOB = 180;
   BENCH_TYPE_HANDLE = 220;
   BENCH_TYPE_USER = 221;
   BENCH_TYPE_ORGANIZATION = 222;
@@ -176,7 +176,8 @@ enum BenchType {
   BENCH_TYPE_STORE_ENGINE_TYPE = 2053;
   BENCH_TYPE_SERVER_PROFILE = 2055;
   BENCH_TYPE_RESOURCE_STATUS = 2056;
-  BENCH_TYPE_CLIENT_TYPE = 2057;
+  BENCH_TYPE_FILE_RETENTION_MODE = 2057;
+  BENCH_TYPE_CLIENT_TYPE = 2060;
   BENCH_TYPE_BLOCK_TYPE = 2070;
   BENCH_TYPE_SCHEDULE_TYPE = 2071;
   BENCH_TYPE_PRIMITIVE_TYPE = 2080;
@@ -184,8 +185,6 @@ enum BenchType {
   BENCH_TYPE_FIELD_ZONE = 2082;
   BENCH_TYPE_TYPE_KIND = 2083;
   BENCH_TYPE_TEXT_LINE_TYPE = 2090;
-  BENCH_TYPE_FILE_STATUS = 2100;
-  BENCH_TYPE_FILE_RETENTION_MODE = 2101;
   BENCH_TYPE_NOTICE_TYPE = 2170;
   BENCH_TYPE_STEP_TYPE = 2180;
   BENCH_TYPE_SPACE_TYPE = 2200;
@@ -363,7 +362,8 @@ enum EnumType {
   ENUM_TYPE_STORE_ENGINE_TYPE = 2053;
   ENUM_TYPE_SERVER_PROFILE = 2055;
   ENUM_TYPE_RESOURCE_STATUS = 2056;
-  ENUM_TYPE_CLIENT_TYPE = 2057;
+  ENUM_TYPE_FILE_RETENTION_MODE = 2057;
+  ENUM_TYPE_CLIENT_TYPE = 2060;
   ENUM_TYPE_BLOCK_TYPE = 2070;
   ENUM_TYPE_SCHEDULE_TYPE = 2071;
   ENUM_TYPE_PRIMITIVE_TYPE = 2080;
@@ -371,8 +371,6 @@ enum EnumType {
   ENUM_TYPE_FIELD_ZONE = 2082;
   ENUM_TYPE_TYPE_KIND = 2083;
   ENUM_TYPE_TEXT_LINE_TYPE = 2090;
-  ENUM_TYPE_FILE_STATUS = 2100;
-  ENUM_TYPE_FILE_RETENTION_MODE = 2101;
   ENUM_TYPE_NOTICE_TYPE = 2170;
   ENUM_TYPE_STEP_TYPE = 2180;
   ENUM_TYPE_SPACE_TYPE = 2200;
@@ -466,13 +464,6 @@ enum FileRetentionMode {
   FILE_RETENTION_MODE_AUTOMATIC = 1;
   FILE_RETENTION_MODE_MANUAL = 2;
   FILE_RETENTION_MODE_TIMED = 3;
-}
-
-enum FileStatus {
-  FILE_STATUS_UNSPECIFIED = 0;
-  FILE_STATUS_PENDING = 1;
-  FILE_STATUS_UPLOADING = 2;
-  FILE_STATUS_AVAILABLE = 3;
 }
 
 enum FontSize {
@@ -594,7 +585,7 @@ enum NodeType {
   NODE_TYPE_SERVER = 160;
   NODE_TYPE_STORE = 161;
   NODE_TYPE_DRIVE = 162;
-  NODE_TYPE_FILE_CONTENT = 180;
+  NODE_TYPE_BLOB = 180;
   NODE_TYPE_HANDLE = 220;
   NODE_TYPE_USER = 221;
   NODE_TYPE_ORGANIZATION = 222;
@@ -660,7 +651,7 @@ enum ObjectType {
   OBJECT_TYPE_SERVER = 160;
   OBJECT_TYPE_STORE = 161;
   OBJECT_TYPE_DRIVE = 162;
-  OBJECT_TYPE_FILE_CONTENT = 180;
+  OBJECT_TYPE_BLOB = 180;
   OBJECT_TYPE_HANDLE = 220;
   OBJECT_TYPE_USER = 221;
   OBJECT_TYPE_ORGANIZATION = 222;
@@ -1298,7 +1289,7 @@ message FileData {
   string name = 33;
   optional int32 size = 34;
   optional string sha512 = 35;
-  optional NodeReferenceData content_ptr = 36;
+  optional NodeReferenceData blob_ptr = 36;
   optional string external_url = 37;
 }
 
@@ -1761,6 +1752,31 @@ message BenchData {
   optional NodeReferenceData main_branch_ptr = 41;
 }
 
+// The actual file content stored as a Blob in a Drive. De-duped to 1 per sha512.
+message BlobData {
+  ObjectType metatype = 1;
+  string id = 2;
+  optional NodeReferenceData parent_ptr = 4;
+  NodeReferenceData bench_ptr = 7;
+  int64 revision = 10;
+  google.protobuf.Timestamp created_at = 11;
+  google.protobuf.Timestamp updated_at = 12;
+  optional google.protobuf.Timestamp deleted_at = 13;
+  optional google.protobuf.Timestamp archived_at = 14;
+  optional NodeReferenceData created_by_ptr = 17;
+  optional NodeReferenceData updated_by_ptr = 18;
+  repeated int32 set_properties = 22;
+  string name = 32;
+  optional TextData text = 34;
+  Region region = 35;
+  ResourceStatus status = 36;
+  string sha512 = 40;
+  int64 size = 41;
+  string mime_type = 42;
+  FileRetentionMode retention = 43;
+  optional google.protobuf.Timestamp expires_at = 44;
+}
+
 // A building block containing logic, types, UI, data, AI, - any Bench program source.
 message BlockData {
   ObjectType metatype = 1;
@@ -1843,7 +1859,7 @@ message ClientData {
   optional string browser_version = 44;
   optional string place_id = 45;
   optional string access_token = 50;
-  google.protobuf.Timestamp last_seen_at = 51;
+  google.protobuf.Timestamp seen_at = 51;
   optional google.protobuf.Timestamp logged_in_at = 52;
   optional NodeReferenceData main_space_ptr = 60;
 }
@@ -1887,8 +1903,7 @@ message DriveData {
   string name = 32;
   optional TextData text = 34;
   Region region = 35;
-  Tenancy tenancy = 36;
-  ResourceStatus status = 37;
+  ResourceStatus status = 36;
 }
 
 // An environment of resources for a Bench's packages.
@@ -1950,28 +1965,6 @@ message FieldData {
   bool is_list = 60;
   bool is_secret = 61;
   bool is_required = 62;
-}
-
-// (A pointer to) the actual file stored in a Drive. De-duped to 1 per sha512.
-message FileContentData {
-  ObjectType metatype = 1;
-  string id = 2;
-  optional NodeReferenceData parent_ptr = 4;
-  NodeReferenceData bench_ptr = 7;
-  int64 revision = 10;
-  google.protobuf.Timestamp created_at = 11;
-  google.protobuf.Timestamp updated_at = 12;
-  optional google.protobuf.Timestamp deleted_at = 13;
-  optional google.protobuf.Timestamp archived_at = 14;
-  optional NodeReferenceData created_by_ptr = 17;
-  optional NodeReferenceData updated_by_ptr = 18;
-  repeated int32 set_properties = 22;
-  string sha512 = 30;
-  int64 size = 31;
-  string type = 32;
-  FileStatus status = 33;
-  FileRetentionMode retention = 34;
-  optional google.protobuf.Timestamp expires_at = 35;
 }
 
 // A Bench @handle. Can only be created/edited by the system.
@@ -2133,7 +2126,7 @@ message MessageData {
 }
 
 // A node in the Bench graph: a struct with a globally unique identity.
-// Every node has a 'constant' key (ck) identifying its constant (id)entity across versions.
+// Most nodes have a 'constant' key (ck) providing constant (id)entity across versions.
 // The first part of the constant key is the template key (tk), which is constant in all instances of a template.
 // For sub package nodes the 'id' is derived from the 'ck' per Package, else it's just the id.
 message BaseNodeData {
@@ -2377,15 +2370,11 @@ message ServerData {
   string name = 32;
   optional TextData text = 34;
   Region region = 35;
-  Tenancy tenancy = 36;
-  ResourceStatus status = 37;
+  ResourceStatus status = 36;
   ServerProfile profile = 40;
   optional string version = 42;
-  bool is_paused = 43;
-  optional ServerProfile current_profile = 51;
-  optional string current_version = 53;
-  optional google.protobuf.Timestamp last_active_at = 54;
-  optional google.protobuf.Timestamp last_bumped_at = 55;
+  optional google.protobuf.Timestamp active_at = 50;
+  optional google.protobuf.Timestamp bumped_at = 51;
 }
 
 // A managed Session for interacting with and running a Package in a Client.
@@ -2530,9 +2519,8 @@ message StoreData {
   string name = 32;
   optional TextData text = 34;
   Region region = 35;
-  Tenancy tenancy = 36;
-  ResourceStatus status = 37;
-  optional string version = 42;
+  ResourceStatus status = 36;
+  optional string version = 40;
   optional string external_name = 50;
   optional string external_id = 51;
   optional string connection_uri = 52;
@@ -2686,7 +2674,7 @@ message SomeNodeData {
     ServerData server = 29;
     StoreData store = 30;
     DriveData drive = 31;
-    FileContentData file_content = 32;
+    BlobData blob = 32;
     HandleData handle = 33;
     UserData user = 34;
     OrganizationData organization = 35;

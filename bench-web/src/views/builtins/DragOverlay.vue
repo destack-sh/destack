@@ -22,6 +22,7 @@ import { Casing, toCasing } from "@/utils/string";
         </span>
       </div>
       <div v-else>
+        <!-- NOTE :Incomplete: drag selections -->
         <span class="text-gray-700">{{ toCasing(activeDragged.kind, Casing.CAMEL) }}</span>
       </div>
     </div>

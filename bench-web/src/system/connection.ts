@@ -581,7 +581,7 @@ export class RemoteSearchConnection<T extends NodeType> extends GraphConnectionB
     );
     graph.extend(...nodes.map(unwrapSomeNode));
 
-    // TODO :Incomplete? :Feature: watch search, not just edits to initial results
+    // nocheckin :Incomplete? :Feature: watch search, not just edits to initial results
     const roots = shallowRef(rootsInitial as TypedNodeReferenceData<T>[]);
     const access = accessFromMatrix(accessMatrix!);
     const page = shallowRef({
@@ -783,12 +783,15 @@ export function findExistingConnection<K extends GraphConnectionKind, T extends 
 }
 
 export function findExistingConnectionOrError<K extends GraphConnectionKind, T extends NodeType>(
-  kind: K, 
+  kind: K,
   params: ConnectionParamsMapping<T>[K],
   match?: ConnectionMatchOptions<K, T>,
-): GraphConnectionBase<K, T>  {
+): GraphConnectionBase<K, T> {
   const connection = findExistingConnection(kind, params, match);
-  if (connection == null) throw new Error(`no connection found for ${kind}:${JSON.stringify(params)}`);
+  if (connection == null)
+    throw new Error(
+      `no connection found for ${kind}:${JSON.stringify(params)} (available: ${_graphConnections.value.map((c) => c.name).join(", ")})`,
+    );
   return connection;
 }
 
@@ -935,7 +938,7 @@ export function useExistingConnection<T extends NodeType = any>(
       );
       if (newConnection == null && !options?.isOptional)
         throw new Error(
-          `missing connection for ${describeNode(nodeRef.value)} (available: ${_graphConnections.value.map((c) => c.name) ?? "<none>"})`,
+          `missing connection for ${describeNode(nodeRef.value)} (available: ${_graphConnections.value.map((c) => c.name).join(", ") ?? "<none>"})`,
         );
     }
     if (newConnection !== oldConnection) connection.value = newConnection as GraphConnectionBase<"get", T> | null;

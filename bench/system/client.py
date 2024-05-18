@@ -5,7 +5,7 @@ import structlog
 from bench.language import Bench, Session, Store
 from bench.language.connection import PostgresEngine
 from bench.language.const import GLOBAL_NODE_TYPES, VERSION
-from bench.language.resource import Region
+from bench.language.bench import Region
 from bench.sql.client import GLOBAL_PG_CRYPTO_KEY, _PgStoreConnection
 from bench.utils.utils import get_from_env, get_from_env_maybe
 

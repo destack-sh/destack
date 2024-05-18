@@ -50,9 +50,9 @@ export const clientsSorted = computed(() => {
   return clients.value.slice().sort((a, b) => {
     if (a.id == local.clientInfo.value?.id) return -1;
     if (b.id == local.clientInfo.value?.id) return 1;
-    if (a.lastSeenAt == null) return -1;
-    if (b.lastSeenAt == null) return 1;
-    return Number(b.lastSeenAt.seconds - a.lastSeenAt.seconds);
+    if (a.seenAt == null) return -1;
+    if (b.seenAt == null) return 1;
+    return Number(b.seenAt.seconds - a.seenAt.seconds);
   });
 });
 export const isActivated = computed(() => user.value?.status == UserStatus.ACTIVATED);

@@ -132,7 +132,7 @@ class BenchType(betterproto.Enum):
     SERVER = 160
     STORE = 161
     DRIVE = 162
-    FILE_CONTENT = 180
+    BLOB = 180
     HANDLE = 220
     USER = 221
     ORGANIZATION = 222
@@ -194,7 +194,8 @@ class BenchType(betterproto.Enum):
     STORE_ENGINE_TYPE = 2053
     SERVER_PROFILE = 2055
     RESOURCE_STATUS = 2056
-    CLIENT_TYPE = 2057
+    FILE_RETENTION_MODE = 2057
+    CLIENT_TYPE = 2060
     BLOCK_TYPE = 2070
     SCHEDULE_TYPE = 2071
     PRIMITIVE_TYPE = 2080
@@ -202,8 +203,6 @@ class BenchType(betterproto.Enum):
     FIELD_ZONE = 2082
     TYPE_KIND = 2083
     TEXT_LINE_TYPE = 2090
-    FILE_STATUS = 2100
-    FILE_RETENTION_MODE = 2101
     NOTICE_TYPE = 2170
     STEP_TYPE = 2180
     SPACE_TYPE = 2200
@@ -384,7 +383,8 @@ class EnumType(betterproto.Enum):
     STORE_ENGINE_TYPE = 2053
     SERVER_PROFILE = 2055
     RESOURCE_STATUS = 2056
-    CLIENT_TYPE = 2057
+    FILE_RETENTION_MODE = 2057
+    CLIENT_TYPE = 2060
     BLOCK_TYPE = 2070
     SCHEDULE_TYPE = 2071
     PRIMITIVE_TYPE = 2080
@@ -392,8 +392,6 @@ class EnumType(betterproto.Enum):
     FIELD_ZONE = 2082
     TYPE_KIND = 2083
     TEXT_LINE_TYPE = 2090
-    FILE_STATUS = 2100
-    FILE_RETENTION_MODE = 2101
     NOTICE_TYPE = 2170
     STEP_TYPE = 2180
     SPACE_TYPE = 2200
@@ -488,13 +486,6 @@ class FileRetentionMode(betterproto.Enum):
     AUTOMATIC = 1
     MANUAL = 2
     TIMED = 3
-
-
-class FileStatus(betterproto.Enum):
-    UNSPECIFIED = 0
-    PENDING = 1
-    UPLOADING = 2
-    AVAILABLE = 3
 
 
 class FontSize(betterproto.Enum):
@@ -617,7 +608,7 @@ class NodeType(betterproto.Enum):
     SERVER = 160
     STORE = 161
     DRIVE = 162
-    FILE_CONTENT = 180
+    BLOB = 180
     HANDLE = 220
     USER = 221
     ORGANIZATION = 222
@@ -686,7 +677,7 @@ class ObjectType(betterproto.Enum):
     SERVER = 160
     STORE = 161
     DRIVE = 162
-    FILE_CONTENT = 180
+    BLOB = 180
     HANDLE = 220
     USER = 221
     ORGANIZATION = 222
@@ -1382,7 +1373,7 @@ class FileData(betterproto.Message):
     name: str = betterproto.string_field(33)
     size: Optional[int] = betterproto.int32_field(34, optional=True)
     sha512: Optional[str] = betterproto.string_field(35, optional=True)
-    content_ptr: Optional["NodeReferenceData"] = betterproto.message_field(36, optional=True)
+    blob_ptr: Optional["NodeReferenceData"] = betterproto.message_field(36, optional=True)
     external_url: Optional[str] = betterproto.string_field(37, optional=True)
 
 
@@ -1946,6 +1937,35 @@ class BenchData(betterproto.Message):
 
 
 @dataclass(eq=False, repr=False)
+class BlobData(betterproto.Message):
+    """
+    The actual file content stored as a Blob in a Drive. De-duped to 1 per sha512.
+    """
+
+    metatype: "ObjectType" = betterproto.enum_field(1)
+    id: str = betterproto.string_field(2)
+    parent_ptr: Optional["NodeReferenceData"] = betterproto.message_field(4, optional=True)
+    bench_ptr: "NodeReferenceData" = betterproto.message_field(7)
+    revision: int = betterproto.int64_field(10)
+    created_at: datetime = betterproto.message_field(11)
+    updated_at: datetime = betterproto.message_field(12)
+    deleted_at: Optional[datetime] = betterproto.message_field(13, optional=True)
+    archived_at: Optional[datetime] = betterproto.message_field(14, optional=True)
+    created_by_ptr: Optional["NodeReferenceData"] = betterproto.message_field(17, optional=True)
+    updated_by_ptr: Optional["NodeReferenceData"] = betterproto.message_field(18, optional=True)
+    set_properties: List[int] = betterproto.int32_field(22)
+    name: str = betterproto.string_field(32)
+    text: Optional["TextData"] = betterproto.message_field(34, optional=True)
+    region: "Region" = betterproto.enum_field(35)
+    status: "ResourceStatus" = betterproto.enum_field(36)
+    sha512: str = betterproto.string_field(40)
+    size: int = betterproto.int64_field(41)
+    mime_type: str = betterproto.string_field(42)
+    retention: "FileRetentionMode" = betterproto.enum_field(43)
+    expires_at: Optional[datetime] = betterproto.message_field(44, optional=True)
+
+
+@dataclass(eq=False, repr=False)
 class BlockData(betterproto.Message):
     """
     A building block containing logic, types, UI, data, AI, - any Bench program source.
@@ -1977,9 +1997,9 @@ class BlockData(betterproto.Message):
     value_packed: Optional["betterproto_lib_google_protobuf.Struct"] = betterproto.message_field(
         40, optional=True
     )
-    secret_value_packed: Optional["betterproto_lib_google_protobuf.Struct"] = (
-        betterproto.message_field(41, optional=True)
-    )
+    secret_value_packed: Optional[
+        "betterproto_lib_google_protobuf.Struct"
+    ] = betterproto.message_field(41, optional=True)
     code: Optional["CodeData"] = betterproto.message_field(42, optional=True)
     delegated_policies: List["PolicyData"] = betterproto.message_field(43)
     is_builtin: bool = betterproto.bool_field(60)
@@ -2039,7 +2059,7 @@ class ClientData(betterproto.Message):
     browser_version: Optional[str] = betterproto.string_field(44, optional=True)
     place_id: Optional[str] = betterproto.string_field(45, optional=True)
     access_token: Optional[str] = betterproto.string_field(50, optional=True)
-    last_seen_at: datetime = betterproto.message_field(51)
+    seen_at: datetime = betterproto.message_field(51)
     logged_in_at: Optional[datetime] = betterproto.message_field(52, optional=True)
     main_space_ptr: Optional["NodeReferenceData"] = betterproto.message_field(60, optional=True)
 
@@ -2089,8 +2109,7 @@ class DriveData(betterproto.Message):
     name: str = betterproto.string_field(32)
     text: Optional["TextData"] = betterproto.message_field(34, optional=True)
     region: "Region" = betterproto.enum_field(35)
-    tenancy: "Tenancy" = betterproto.enum_field(36)
-    status: "ResourceStatus" = betterproto.enum_field(37)
+    status: "ResourceStatus" = betterproto.enum_field(36)
 
 
 @dataclass(eq=False, repr=False)
@@ -2162,32 +2181,6 @@ class FieldData(betterproto.Message):
     is_list: bool = betterproto.bool_field(60)
     is_secret: bool = betterproto.bool_field(61)
     is_required: bool = betterproto.bool_field(62)
-
-
-@dataclass(eq=False, repr=False)
-class FileContentData(betterproto.Message):
-    """
-    (A pointer to) the actual file stored in a Drive. De-duped to 1 per sha512.
-    """
-
-    metatype: "ObjectType" = betterproto.enum_field(1)
-    id: str = betterproto.string_field(2)
-    parent_ptr: Optional["NodeReferenceData"] = betterproto.message_field(4, optional=True)
-    bench_ptr: "NodeReferenceData" = betterproto.message_field(7)
-    revision: int = betterproto.int64_field(10)
-    created_at: datetime = betterproto.message_field(11)
-    updated_at: datetime = betterproto.message_field(12)
-    deleted_at: Optional[datetime] = betterproto.message_field(13, optional=True)
-    archived_at: Optional[datetime] = betterproto.message_field(14, optional=True)
-    created_by_ptr: Optional["NodeReferenceData"] = betterproto.message_field(17, optional=True)
-    updated_by_ptr: Optional["NodeReferenceData"] = betterproto.message_field(18, optional=True)
-    set_properties: List[int] = betterproto.int32_field(22)
-    sha512: str = betterproto.string_field(30)
-    size: int = betterproto.int64_field(31)
-    type: str = betterproto.string_field(32)
-    status: "FileStatus" = betterproto.enum_field(33)
-    retention: "FileRetentionMode" = betterproto.enum_field(34)
-    expires_at: Optional[datetime] = betterproto.message_field(35, optional=True)
 
 
 @dataclass(eq=False, repr=False)
@@ -2370,9 +2363,9 @@ class MessageData(betterproto.Message):
     value_packed: Optional["betterproto_lib_google_protobuf.Struct"] = betterproto.message_field(
         42, optional=True
     )
-    secret_value_packed: Optional["betterproto_lib_google_protobuf.Struct"] = (
-        betterproto.message_field(43, optional=True)
-    )
+    secret_value_packed: Optional[
+        "betterproto_lib_google_protobuf.Struct"
+    ] = betterproto.message_field(43, optional=True)
     is_pinned: bool = betterproto.bool_field(50)
 
 
@@ -2380,7 +2373,7 @@ class MessageData(betterproto.Message):
 class BaseNodeData(betterproto.Message):
     """
     A node in the Bench graph: a struct with a globally unique identity.
-     Every node has a 'constant' key (ck) identifying its constant (id)entity across versions.
+     Most nodes have a 'constant' key (ck) providing constant (id)entity across versions.
      The first part of the constant key is the template key (tk), which is constant in all instances of a template.
      For sub package nodes the 'id' is derived from the 'ck' per Package, else it's just the id.
     """
@@ -2457,9 +2450,9 @@ class NotificationData(betterproto.Message):
     value_packed: Optional["betterproto_lib_google_protobuf.Struct"] = betterproto.message_field(
         42, optional=True
     )
-    secret_value_packed: Optional["betterproto_lib_google_protobuf.Struct"] = (
-        betterproto.message_field(43, optional=True)
-    )
+    secret_value_packed: Optional[
+        "betterproto_lib_google_protobuf.Struct"
+    ] = betterproto.message_field(43, optional=True)
 
 
 @dataclass(eq=False, repr=False)
@@ -2563,9 +2556,9 @@ class RecordData(betterproto.Message):
     value_packed: Optional["betterproto_lib_google_protobuf.Struct"] = betterproto.message_field(
         30, optional=True
     )
-    secret_value_packed: Optional["betterproto_lib_google_protobuf.Struct"] = (
-        betterproto.message_field(31, optional=True)
-    )
+    secret_value_packed: Optional[
+        "betterproto_lib_google_protobuf.Struct"
+    ] = betterproto.message_field(31, optional=True)
 
 
 @dataclass(eq=False, repr=False)
@@ -2630,21 +2623,21 @@ class RunData(betterproto.Message):
     inputs_packed: Optional["betterproto_lib_google_protobuf.Struct"] = betterproto.message_field(
         50, optional=True
     )
-    inputs_secret_packed: Optional["betterproto_lib_google_protobuf.Struct"] = (
-        betterproto.message_field(51, optional=True)
-    )
+    inputs_secret_packed: Optional[
+        "betterproto_lib_google_protobuf.Struct"
+    ] = betterproto.message_field(51, optional=True)
     outputs_packed: Optional["betterproto_lib_google_protobuf.Struct"] = betterproto.message_field(
         52, optional=True
     )
-    outputs_secret_packed: Optional["betterproto_lib_google_protobuf.Struct"] = (
-        betterproto.message_field(53, optional=True)
-    )
+    outputs_secret_packed: Optional[
+        "betterproto_lib_google_protobuf.Struct"
+    ] = betterproto.message_field(53, optional=True)
     value_packed: Optional["betterproto_lib_google_protobuf.Struct"] = betterproto.message_field(
         54, optional=True
     )
-    value_secret_packed: Optional["betterproto_lib_google_protobuf.Struct"] = (
-        betterproto.message_field(55, optional=True)
-    )
+    value_secret_packed: Optional[
+        "betterproto_lib_google_protobuf.Struct"
+    ] = betterproto.message_field(55, optional=True)
     error: Optional["RunErrorData"] = betterproto.message_field(56, optional=True)
     session_ptr: Optional["NodeReferenceData"] = betterproto.message_field(60, optional=True)
     client_ptr: Optional["NodeReferenceData"] = betterproto.message_field(61, optional=True)
@@ -2675,15 +2668,11 @@ class ServerData(betterproto.Message):
     name: str = betterproto.string_field(32)
     text: Optional["TextData"] = betterproto.message_field(34, optional=True)
     region: "Region" = betterproto.enum_field(35)
-    tenancy: "Tenancy" = betterproto.enum_field(36)
-    status: "ResourceStatus" = betterproto.enum_field(37)
+    status: "ResourceStatus" = betterproto.enum_field(36)
     profile: "ServerProfile" = betterproto.enum_field(40)
     version: Optional[str] = betterproto.string_field(42, optional=True)
-    is_paused: bool = betterproto.bool_field(43)
-    current_profile: Optional["ServerProfile"] = betterproto.enum_field(51, optional=True)
-    current_version: Optional[str] = betterproto.string_field(53, optional=True)
-    last_active_at: Optional[datetime] = betterproto.message_field(54, optional=True)
-    last_bumped_at: Optional[datetime] = betterproto.message_field(55, optional=True)
+    active_at: Optional[datetime] = betterproto.message_field(50, optional=True)
+    bumped_at: Optional[datetime] = betterproto.message_field(51, optional=True)
 
 
 @dataclass(eq=False, repr=False)
@@ -2741,9 +2730,9 @@ class SignalData(betterproto.Message):
     value_packed: Optional["betterproto_lib_google_protobuf.Struct"] = betterproto.message_field(
         42, optional=True
     )
-    secret_value_packed: Optional["betterproto_lib_google_protobuf.Struct"] = (
-        betterproto.message_field(43, optional=True)
-    )
+    secret_value_packed: Optional[
+        "betterproto_lib_google_protobuf.Struct"
+    ] = betterproto.message_field(43, optional=True)
 
 
 @dataclass(eq=False, repr=False)
@@ -2830,9 +2819,9 @@ class StepData(betterproto.Message):
     value_packed: Optional["betterproto_lib_google_protobuf.Struct"] = betterproto.message_field(
         41, optional=True
     )
-    secret_value_packed: Optional["betterproto_lib_google_protobuf.Struct"] = (
-        betterproto.message_field(42, optional=True)
-    )
+    secret_value_packed: Optional[
+        "betterproto_lib_google_protobuf.Struct"
+    ] = betterproto.message_field(42, optional=True)
     node_ptr: Optional["NodeReferenceData"] = betterproto.message_field(43, optional=True)
     condition: Optional["ExpressionData"] = betterproto.message_field(46, optional=True)
 
@@ -2856,9 +2845,8 @@ class StoreData(betterproto.Message):
     name: str = betterproto.string_field(32)
     text: Optional["TextData"] = betterproto.message_field(34, optional=True)
     region: "Region" = betterproto.enum_field(35)
-    tenancy: "Tenancy" = betterproto.enum_field(36)
-    status: "ResourceStatus" = betterproto.enum_field(37)
-    version: Optional[str] = betterproto.string_field(42, optional=True)
+    status: "ResourceStatus" = betterproto.enum_field(36)
+    version: Optional[str] = betterproto.string_field(40, optional=True)
     external_name: Optional[str] = betterproto.string_field(50, optional=True)
     external_id: Optional[str] = betterproto.string_field(51, optional=True)
     connection_uri: Optional[str] = betterproto.string_field(52, optional=True)
@@ -3024,7 +3012,7 @@ class SomeNodeData(betterproto.Message):
     server: "ServerData" = betterproto.message_field(29, group="node")
     store: "StoreData" = betterproto.message_field(30, group="node")
     drive: "DriveData" = betterproto.message_field(31, group="node")
-    file_content: "FileContentData" = betterproto.message_field(32, group="node")
+    blob: "BlobData" = betterproto.message_field(32, group="node")
     handle: "HandleData" = betterproto.message_field(33, group="node")
     user: "UserData" = betterproto.message_field(34, group="node")
     organization: "OrganizationData" = betterproto.message_field(35, group="node")
@@ -4811,7 +4799,7 @@ class RuntimeBase(ServiceBase):
 
 from typing import TYPE_CHECKING  # noqa: E402
 
-VERSION = "2024.05.17.1"
+VERSION = "2024.05.18.1"
 
 if TYPE_CHECKING:
     from bench.language import Subject
@@ -4853,7 +4841,7 @@ AnyNodeData = Union[
     ServerData,
     StoreData,
     DriveData,
-    FileContentData,
+    BlobData,
     HandleData,
     UserData,
     OrganizationData,

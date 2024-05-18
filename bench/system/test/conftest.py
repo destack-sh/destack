@@ -45,7 +45,7 @@ async def make_new_user_handle(
         type=ClientType.BENCH_WEB,
         name=f"{user.name}'s {client_name}",
         device_name="pytest",
-        last_seen_at=utcnow_with_tz(),
+        seen_at=utcnow_with_tz(),
     )
     signup_req = SignupUserRequest(
         id=str(user.id),
@@ -86,7 +86,7 @@ async def make_existing_user_handle(
         type=ClientType.BENCH_WEB,
         name=f"{user.name}'s {client_name}",
         device_name="pytest",
-        last_seen_at=utcnow_with_tz(),
+        seen_at=utcnow_with_tz(),
     )
     login_req = LoginUserRequest(
         id=str(user.id),

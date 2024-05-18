@@ -111,7 +111,7 @@ AnyStructData = Union[{', '.join([cls.__name__ + 'Data' for cls in STRUCT_CLASSE
         patch_prefix_code + "\n\n" + wire_py + "\n\n" + patch_postfix_code
     )
     shutil.rmtree(TEMP_PY_DIR, ignore_errors=True)
-    _shell(f"ruff {TEMP_PY_FILE} --fix", check=True, stdout=DEVNULL)
+    _shell(f"ruff check {TEMP_PY_FILE} --fix", check=True, stdout=DEVNULL)
     _shell(f"black {TEMP_PY_FILE}", check=True, stdout=DEVNULL)
     _shell(f"isort {TEMP_PY_FILE}", check=True, stdout=DEVNULL)
     on_apply.append(lambda: shutil.move(TEMP_PY_FILE, WIRE_PY_FILE))

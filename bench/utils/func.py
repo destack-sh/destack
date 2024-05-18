@@ -330,6 +330,10 @@ def re_search_or_error(pattern: str, string: str) -> re.Match[str]:
     return match
 
 
+def sanitize_connection_uri(uri: str) -> str:
+    return re.sub(r":[^@]+@", ":*****@", uri)
+
+
 _MIN_ID_BY_ENUM: dict[type, int] = {}
 _MAX_ID_BY_ENUM: dict[type, int] = {}
 

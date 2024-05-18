@@ -1,16 +1,19 @@
+from datetime import datetime
 import io
 from typing import TYPE_CHECKING, BinaryIO, Collection, Optional
 
 import structlog
 
-from bench.language.const import EnumType, NodeType, StructType, enum_
-from bench.language.node import Struct, struct
-from bench.language.property import Property, p_internal, p_regular, p_runtime
+from bench.language.const import EnumType, NodeType, PrimitiveType, StructType, enum_
+from bench.language.node import Struct, struct, node
+from bench.language.property import Property, p_internal, p_node_parent, p_regular, p_runtime
 from bench.language.validation import NAME_CONSTRAINT, ValidationHandler
+from bench.language.bench import Drive, Resource
+from bench.proto.wire import BlobData
 from bench.utils.func import IdEnum
 
 if TYPE_CHECKING:
-    from bench.language import Color, FileContent
+    from bench.language import Color
 
 logger = structlog.get_logger(__name__)
 
@@ -18,6 +21,25 @@ FILE_HASH_LENGTH = 128  # 512 bits
 FILE_MAX_SIZE = 1024 * 1024 * 1024  # 1GB
 
 # pyright: reportIncompatibleVariableOverride=false
+
+
+@enum_(EnumType.FILE_RETENTION_MODE)
+class FileRetentionMode(IdEnum):
+    AUTOMATIC = 1  # garbage collected if no references
+    MANUAL = 2  # never garbage collected
+    TIMED = 3  # delete after a certain time
+
+
+@node(NodeType.BLOB, unique_together=(("parent_drive_id", "sha512"),))
+class Blob(Resource[BlobData]):
+    """The actual file content stored as a Blob in a Drive. De-duped to 1 per sha512."""
+
+    parent: Drive = p_node_parent(4, NodeType.DRIVE, is_system=True)
+    sha512: str = p_internal(40)
+    size: int = p_internal(41, primitive_type=PrimitiveType.INT64)
+    mime_type: str = p_internal(42)
+    retention: FileRetentionMode = p_regular(43)
+    expires_at: Optional[datetime] = p_regular(44)
 
 
 @struct(StructType.FILE, inline=True)
@@ -28,9 +50,7 @@ class File(Struct):
     name: str = p_regular(33, constraint=NAME_CONSTRAINT)
     size: Optional[int] = p_internal(34)
     sha512: Optional[str] = p_internal(35)
-    content: Optional["FileContent"] = p_internal(
-        36, require=False, array=False, references=NodeType.FILE_CONTENT
-    )
+    blob: Optional["Blob"] = p_internal(36, require=False, array=False, references=NodeType.BLOB)
     external_url: Optional[str] = p_internal(37)
 
     _cached_bytes: Optional[bytes] = p_runtime(default=None)

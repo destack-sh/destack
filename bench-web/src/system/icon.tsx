@@ -177,7 +177,7 @@ export const ICON_BY_NODE_TYPE: Partial<Record<NodeType, IconData>> = _makeIcons
   [NodeType.SERVER]: "fas fa-server",
   [NodeType.STORE]: "fas fa-database",
   [NodeType.DRIVE]: "fas fa-hdd",
-  [NodeType.FILE_CONTENT]: "fas fa-file",
+  [NodeType.BLOB]: "fas fa-file",
 
   // user
   [NodeType.HANDLE]: "fas fa-at",
@@ -272,7 +272,7 @@ export const ICON_BY_VIEW_TYPE: Partial<Record<ViewType, IconData>> = _makeIcons
   [ViewType.OUTLINE]: "fas fa-list-tree",
   [ViewType.INSPECT]: "fas fa-eye",
   [ViewType.CREATE]: "fas fa-plus",
-  [ViewType.CHAT]: "fas fa-messages",
+  [ViewType.CHAT]: "fas fa-message",
 
   //
   // General

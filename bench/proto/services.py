@@ -26,7 +26,7 @@ from bench.language.query import NodeNotFoundError
 from bench.proto.wire import RpcMetadata
 from bench.proto.wiring import BENCH_CLASS_BY_PROTO_CLASS
 from bench.sql.engine import SqlAlreadyExistsError, SqlNotExistsError
-from bench.system.auth import get_subject_from_metadata
+from bench.system.access import get_subject_from_metadata
 from bench.utils.casing import Casing, to_casing
 from bench.utils.env import IS_DEBUG, IS_TEST
 from bench.utils.monitoring import Monitored
