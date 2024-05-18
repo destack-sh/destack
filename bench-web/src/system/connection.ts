@@ -449,9 +449,10 @@ export abstract class GraphConnectionBase<K extends GraphConnectionKind, T exten
     }
   }
 
-  // TODO :Robustness: split doFetch into doFetch and doFetchLive?
+  // NOTE :Robustness: split doFetch into doFetch and doFetchLive?
   //  so we can retry doFetchLive if that connection breaks without refetching everything?
   //  but how would we know where to resume the watch (the epoch is local to the server, so it has to be the same server)?
+
   /** Actually fetch in the relevant connection type. */
   protected abstract doFetch(
     scope: GraphScope,
@@ -582,6 +583,7 @@ export class RemoteSearchConnection<T extends NodeType> extends GraphConnectionB
     graph.extend(...nodes.map(unwrapSomeNode));
 
     // nocheckin :Incomplete? :Feature: watch search, not just edits to initial results
+    //  (also this should react to current overlay graph somehow)
     const roots = shallowRef(rootsInitial as TypedNodeReferenceData<T>[]);
     const access = accessFromMatrix(accessMatrix!);
     const page = shallowRef({

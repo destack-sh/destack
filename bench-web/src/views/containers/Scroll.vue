@@ -89,7 +89,7 @@ defineExpose<ViewExposed & { isScrolling: Ref<boolean>; isAtEnd: Ref<boolean>; s
       @scroll="(e) => $emit('scroll', e)"
     >
       <!-- Inner wrapper -->
-      <div ref="innerRef" :class="$attrs.class">
+      <div ref="innerRef" class="w-full h-full" :class="$attrs.class">
         <slot />
       </div>
     </div>

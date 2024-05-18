@@ -22,7 +22,7 @@ from bench.language.access import (
 )
 from bench.language.connection import FetchOptions, StoreEngine
 from bench.language.const import AccessKind, ConditionalOp, EditType, NodeType, PolicyEffect
-from bench.language.graph import NodeDataGraph, edit_data_graph
+from bench.language.graph import NodeDataGraph, NodeGraph, edit_data_graph
 from bench.language.node import Node
 from bench.language.query import QueryBuilder
 from bench.language.setup import NODE_CLASS_BY_TYPE
@@ -267,7 +267,7 @@ class GraphIoServiceBase(BenchServiceBase, GraphIoBase):
             data_graph = NodeDataGraph()
             for node_type, node_references in edited_scopes.node_scopes_by_type.items():
                 node_type = wiring.unpack_enum(NodeType, node_type)
-                # TODO :Performance: select only properties required to evaluate edit (id/policies/...?)
+                # NOTE :Performance: select only properties required to evaluate edit (id/policies/...?)
                 options = adapt_read_options(subject, node_type, ReadOptions.default())
                 query = QueryBuilder(
                     node_type=node_type,
@@ -310,10 +310,14 @@ class GraphIoServiceBase(BenchServiceBase, GraphIoBase):
                     # this is an internal error (all edited nodes (incl. new) should be here)
                     raise RuntimeError(f"node {node_id} not found in unpacked {unpacked_graph!r}")
                 node._validate_self(properties=(), invalid=on_invalid_raise)
-            # TODO :Robustness! :Test: prevent circular parent/child references
+            # TODO :Robustness!: prevent circular parent/child references
+
+            # extend edits
+            # (we don't validate this because they're internal)
+            edits = self._adapt_graph_edits(unpacked_graph, request.edits)
 
             # apply edits
-            session.tx._add_pending_edits(request.edits)
+            session.tx._add_pending_edits(edits)
             await session.commit()
             logger.info(
                 "graph.commit",
@@ -323,7 +327,7 @@ class GraphIoServiceBase(BenchServiceBase, GraphIoBase):
                 epoch=self.epoch,
                 duration=asyncio.get_event_loop().time() - start,
             )
-            self.on_graph_edited(edited_scopes.graph_scopes, request.edits)
+            self.on_graph_edited(edited_scopes.graph_scopes, edits)
 
         accepted_revisions = [cast(int, e.revision) for e in request.edits]
         return CommitTransactionResponse(revisions=accepted_revisions, epoch=self.epoch)
@@ -343,6 +347,10 @@ class GraphIoServiceBase(BenchServiceBase, GraphIoBase):
     ) -> "CancelTransactionResponse":
         raise GRPCError(GRPCStatus.UNIMPLEMENTED)  # :2PC
 
+    def _adapt_graph_edits(self, graph: NodeGraph, edits: list[EditData]) -> list[EditData]:
+        # do nothing by default
+        return edits
+
     @final
     def on_graph_edited(self, scopes: tuple[GraphScope, ...], edits: list[EditData]):
         self.epoch += 1
@@ -357,7 +365,7 @@ class GraphIoServiceBase(BenchServiceBase, GraphIoBase):
         self._on_graph_edited(scopes=scopes, edits=edits)
 
     def _on_graph_edited(self, scopes: tuple[GraphScope, ...], edits: list[EditData]):
-        pass
+        pass  # do nothing by default
 
     @final
     def _filter_and_adapt_edits(

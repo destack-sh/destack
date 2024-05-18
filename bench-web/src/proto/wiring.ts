@@ -212,7 +212,7 @@ export function makeNode<T extends NodeType>(
   }
   if ("benchPtr" in properties && !Object.prototype.hasOwnProperty.call(node, "benchPtr")) {
     const benchId = node.parentPtr?.benchId ?? (node as any).packagePtr?.benchId;
-    if (benchId == null) throw new Error(`missing benchId to make potential sub-bench node ${NodeType[data.metatype]}`);
+    if (benchId == null) throw new Error(`missing benchId to make in-bench node ${NodeType[data.metatype]}`);
     (node as any).benchPtr = nodeReference(NodeType.BENCH, benchId);
   }
 

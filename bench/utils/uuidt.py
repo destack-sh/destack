@@ -12,7 +12,6 @@ class UUIDT(uuid.UUID):
     which in turn is based on Segment's KSUID (https://github.com/segmentio/ksuid)
     and on Twitter's snowflake ID (https://blog.twitter.com/engineering/en_us/a/2010/announcing-snowflake.html).
 
-
     QUOTE:
     ""
     This doesn't adhere to any official UUID version spec, but it is superior as a primary key:

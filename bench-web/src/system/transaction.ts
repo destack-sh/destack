@@ -381,7 +381,7 @@ export interface TransactionBuffer {
   readonly tx: Transaction;
   /** Unconfirmed edits in active or pending transactions (for overlays). */
   readonly pendingEdits: EditData[];
-  /** Retryable commits in case of error.  */
+  /** Retryable commits in case of error (for debugging).  */
   readonly failedCommits?: Readonly<Ref<Record<string, CommitFailure>>>;
 
   /** Commits the current transaction. */
@@ -392,19 +392,19 @@ export interface TransactionBuffer {
   accept(edits: EditData[]): void;
   /** Subscribes to *pending* edits from this buffer */
   onPending(sub: PendingCallback): () => void;
-  /** Subscribes to *confirmed* edits from this buffer */
+  /** Subscribes to *committed* edits from this buffer */
   onCommitted(sub: CommittedCallback): () => void;
   /** Force retries the given commit (for debugging) */
   retry?(id: string): Promise<void>;
 
   /** Whether there are any pending uncommitted edits  */
   get isDirty(): boolean;
-  /** Whether there are any pending commits */
+  /** Whether there are any active commits */
   get isCommitting(): boolean;
 
   /** Whether transactions are currently processed (for debugging). */
   readonly isPaused: Readonly<Ref<boolean>>;
-  /** Toggle automatic flushing for debugging. */
+  /** Toggle automatic flushing (for debugging). */
   togglePaused(): void;
 }
 
@@ -523,7 +523,7 @@ export class RemoteTransactionBuffer implements TransactionBuffer {
       // swap
       const edits = this.currentTx.edits;
       this.pendingTx = this.currentTx;
-      this.currentTx = this.makeCurrentTx();
+      this.currentTx = this._makeCurrentTx();
 
       // commit
       const {
@@ -539,7 +539,7 @@ export class RemoteTransactionBuffer implements TransactionBuffer {
               if (pendingTx == null) throw new Error("no current transaction");
               const newEdits = pendingTx.edits;
               request = { ...request, id: pendingTx.id, edits: [...request.edits, ...newEdits] };
-              this.currentTx = this.makeCurrentTx();
+              this.currentTx = this._makeCurrentTx();
               return request;
             },
           },
@@ -577,7 +577,7 @@ export class RemoteTransactionBuffer implements TransactionBuffer {
   }
 
   async reset() {
-    this.currentTx = this.makeCurrentTx();
+    this.currentTx = this._makeCurrentTx();
     this.pendingEditsById = {};
     this.pendingTx = null;
     this.pendingSubs.forEach((sub) => sub({ type: "reset", edits: [] }));
@@ -593,7 +593,7 @@ export class RemoteTransactionBuffer implements TransactionBuffer {
     }
   }
 
-  private makeCurrentTx() {
+  private _makeCurrentTx() {
     const tx = new TransactionBuilder(this.scope, newTransactionId(), userPtr.value);
     tx.onEdit((edit) => {
       if (this.currentTx !== tx) throw new Error(`transaction ${tx.describeSelf()} is closed`);
@@ -661,32 +661,35 @@ export function newBufferId() {
   return bufferId++;
 }
 const globalTxBuffer: TransactionBuffer = new RemoteTransactionBuffer(newBufferId(), {}, supervisor);
-const benchTxBuffers: Ref<Record<string, RemoteTransactionBuffer>> = shallowRef({});
-const benchTxBuffersLocks: Record<string, AsyncEvent> = {};
+const txBuffersByBenchId: Ref<Record<string, RemoteTransactionBuffer>> = shallowRef({});
+const txBufferLockByBenchId: Record<string, AsyncEvent> = {};
 
 export function getAllTransactionBuffers(): TransactionBuffer[] {
-  return [globalTxBuffer, ...Object.values(benchTxBuffers.value)];
+  return [globalTxBuffer, ...Object.values(txBuffersByBenchId.value)];
 }
 
-/** Gets the transaction buffer for the given scope (non-exclusively). */
+/** 
+ * Gets the transaction buffer for the given scope (non-exclusively). 
+ * Currently we maintain one shared buffer per Bench and one for other global nodes.
+ * */
 export async function getTransactionBuffer(scope: GraphScope): Promise<TransactionBuffer> {
   if (scope.benchId) {
-    if (!benchTxBuffers.value[scope.benchId]) {
+    if (!txBuffersByBenchId.value[scope.benchId]) {
       // synchronize so that only one buffer is created per bench even when called concurrently
-      if (!benchTxBuffersLocks[scope.benchId]) {
-        benchTxBuffersLocks[scope.benchId] = new AsyncEvent();
+      if (!txBufferLockByBenchId[scope.benchId]) {
+        txBufferLockByBenchId[scope.benchId] = new AsyncEvent();
       } else {
-        await benchTxBuffersLocks[scope.benchId].wait();
+        await txBufferLockByBenchId[scope.benchId].wait();
       }
-      if (!benchTxBuffers.value[scope.benchId]) {
+      if (!txBuffersByBenchId.value[scope.benchId]) {
         const client = await getHostClient({ id: scope.benchId });
-        benchTxBuffers.value[scope.benchId] = new RemoteTransactionBuffer(newBufferId(), scope, client);
-        triggerRef(benchTxBuffers);
-        benchTxBuffersLocks[scope.benchId].set();
-        delete benchTxBuffersLocks[scope.benchId];
+        txBuffersByBenchId.value[scope.benchId] = new RemoteTransactionBuffer(newBufferId(), scope, client);
+        triggerRef(txBuffersByBenchId);
+        txBufferLockByBenchId[scope.benchId].set();
+        delete txBufferLockByBenchId[scope.benchId];
       }
     }
-    return benchTxBuffers.value[scope.benchId];
+    return txBuffersByBenchId.value[scope.benchId];
   } else {
     return globalTxBuffer;
   }
@@ -694,7 +697,7 @@ export async function getTransactionBuffer(scope: GraphScope): Promise<Transacti
 
 /** Commits any pending transactions in the current buffers. */
 export async function flushTransactionBuffers(options: { force: boolean } = { force: true }) {
-  const buffers = [globalTxBuffer, ...Object.values(benchTxBuffers.value)];
+  const buffers = [globalTxBuffer, ...Object.values(txBuffersByBenchId.value)];
   const commitPromises = [];
   for (const tx of buffers) {
     if (tx.isDirty && !tx.isCommitting && (options.force || !tx.isPaused.value)) {
