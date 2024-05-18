@@ -81,5 +81,26 @@ export default {
       },
     },
   },
-  plugins: [],
+  variants: {
+    extend: {
+      backgroundColor: ["not-focus", "not-focus-within"],
+      borderColor: ["not-focus", "not-focus-within"],
+      textColor: ["not-focus", "not-focus-within"],
+    },
+  },
+  plugins: [
+    // not-focus variants
+    function ({ addVariant, e }) {
+      addVariant("not-focus", ({ modifySelectors, separator }) => {
+        modifySelectors(({ className }) => {
+          return `.${e(`not-focus${separator}${className}`)}:not(:focus)`;
+        });
+      });
+      addVariant("not-focus-within", ({ modifySelectors, separator }) => {
+        modifySelectors(({ className }) => {
+          return `.${e(`not-focus-within${separator}${className}`)}:not(:focus-within)`;
+        });
+      });
+    },
+  ],
 };

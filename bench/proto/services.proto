@@ -288,24 +288,11 @@ message DownloadFilesResponse {
   google.protobuf.Timestamp expires_at = 2;
 }
 
-message RestartServerRequest {
-  GraphScope scope = 1;
-  string server_id = 2;
-}
-message RestartServerResponse {
-}
 
-message PingServerRequest {
-  GraphScope scope = 1;
-  string server_id = 2;
-}
-message PingServerResponse {
-}
-
-// The host providing access and the persistent 'system-side' OS for a Bench.
+// The Host provides the operating system of a Bench.
 service Host {
   //
-  // General IO for nodes in this Bench only :GraphIO
+  // General IO for nodes in this Bench (only) :GraphIO
   //
 
   rpc GetNodes(GetNodesRequest) returns (GetNodesResponse);
@@ -334,15 +321,14 @@ service Host {
   rpc UploadFiles(UploadFilesRequest) returns (UploadFilesResponse);
   // Get a signed URL to download a file.
   rpc DownloadFiles(DownloadFilesRequest) returns (DownloadFilesResponse);
+}
 
-  //
-  // Runs
-  //
+// 
+// Server
+// 
 
-  // Force restart the server for a Bench.
-  rpc RestartServer(RestartServerRequest) returns (PingServerResponse);
-  // Ensure the server for a Bench is running.
-  rpc PingServer(PingServerRequest) returns (PingServerResponse);
+service Server {
+  
 }
 
 //
@@ -359,7 +345,12 @@ message StartRunRequest {
   RunData run = 1;
 }
 message StartRunResponse {
+}
 
+message UpdateRunRequest {
+  RunData run = 1;
+}
+message UpdateRunResponse {
 }
 
 // A Runtime for running a Bench in an isolated environment on/for a Client.
@@ -369,4 +360,6 @@ service Runtime {
   rpc Restart(RestartRuntimeRequest) returns (RestartRuntimeResponse);
   // Starts a new Run in this runtime. The Run must already exist in the graph.
   rpc StartRun(StartRunRequest) returns (StartRunResponse);
+  // Updates a Run in this runtime, generally to update its state (and pause/resume/etc.)
+  rpc UpdateRun(UpdateRunRequest) returns (UpdateRunResponse);
 }

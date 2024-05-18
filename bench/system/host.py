@@ -218,6 +218,11 @@ class Host(GraphIoServiceBase, HostBase):
     async def wait_closed(self) -> None:
         pass
 
+    def _adapt_graph_edits(self, graph: NodeGraph, edits: list[EditData]) -> list[EditData]:
+        # TODO :Incomplete!: handle packages on edit (update notices, fire signals/logs?, ...)
+        #  Should this also happen in the client sessions? Or just in host and then pushed out?
+        return edits
+
     def _on_graph_edited(self, scopes: tuple[GraphScope, ...], edits: list[EditData]):
         if self._bench is None:
             return  # not started yet
@@ -239,9 +244,6 @@ class Host(GraphIoServiceBase, HostBase):
 
             assert isinstance(graph, NodeGraph), f"unexpected graph type: {graph!r}"
             edit_graph(graph, (edit,), options)
-
-        # TODO :Incomplete!: handle packages on edit (update notices, fire signals/logs?, ...)
-        #  Should this also happen in the client sessions? Or just in host and then pushed out?
 
     #
     # Files

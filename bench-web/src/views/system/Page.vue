@@ -320,6 +320,16 @@ defineExpose<ViewExposed>({ self, actions, focus });
               class="text-gray-400 hover:text-primary-900"
               :class="inspectionPtr?.id == blockPtr?.id ? '' : 'opacity-0 group-hover/block-line:opacity-100'"
               data-keep-inspection-in-base="true"
+              @click="
+                () => {
+                  // nocheckin: session.* action handling (in Block/Step/Page/...)
+                  pkgConnection.tx.create({
+                    metatype: NodeType.RUN,
+                    parentPtr: blockPtr,
+                    packagePtr: block.packagePtr,
+                  });
+                }
+              "
             >
               <i class="fas fa-play" />
             </button>
@@ -377,7 +387,7 @@ defineExpose<ViewExposed>({ self, actions, focus });
                   <path d="M0,0.5 L49,0.5" fill="none" stroke="currentColor" stroke-width="1" />
                   <path d="M100,0.5 L51,0.5" fill="none" stroke="currentColor" stroke-width="1" />
                 </svg>
-                <button class="-translate-y-[8px] text-primary-900 px-1">&plus;</button>
+                <button class="-translate-y-[8px] px-1 text-primary-900">&plus;</button>
               </div>
             </div>
 
