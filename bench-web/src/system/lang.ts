@@ -645,7 +645,6 @@ export const EXPOSED_STRUCT_TYPES = [
   // access
   StructType.POLICY,
   StructType.POLICY_RULE,
-  StructType.REQUEST,
   // flow
   StructType.STEP_CONNECTION,
   // text

@@ -1,27 +1,25 @@
-from typing import TYPE_CHECKING, Any, Collection, Optional
+from typing import TYPE_CHECKING, Any, Optional
 
 import structlog
 
-from bench.language.const import EnumType, NodeType, StructType, enum_
+from bench.language.const import NODE_TYPES, AccessType, EnumType, NodeType, PrimitiveType, StructType, enum_
 from bench.language.node import Node, node
 from bench.language.property import (
-    Property,
     p_internal,
     p_node_parent,
+    p_secret_value_packed,
     p_system,
     p_value_packed,
     p_value_runtime,
 )
 from bench.language.step import Step
 from bench.language.text import Text
-from bench.language.validation import ValidationHandler
 from bench.language.value import HasValues
-from bench.proto.wire import NodeReferenceData
 from bench.utils.func import IdEnum
 from bench.utils.uuidt import UUIDT
 
 if TYPE_CHECKING:
-    from bench.language import Block, Package, Request, Run, Session
+    from bench.language import Block, Package, Run, Session, User, Client, Server
 
 # pyright: reportIncompatibleVariableOverride=false
 
@@ -30,8 +28,13 @@ logger = structlog.get_logger(__name__)
 
 @enum_(EnumType.LOG_KIND)
 class LogKind(IdEnum):
-    MESSAGE = 1
-    ACCESS = 2
+    # access
+    READ = 1
+    EDIT = 2
+    USE = 3
+
+    # custom
+    CUSTOM = 10
 
 
 @enum_(EnumType.LOG_LEVEL)
@@ -53,50 +56,49 @@ class LogLevel(IdEnum):
 )
 class Log(Node, HasValues):
     """
-    A Log (entry) is a timestamped event of something happening:
-     an unstructured message, an 'event', a Request / an Access (read, edit, use), ...
+    A Log of something happening on a Bench.
     """
 
     parent: "Package" = p_node_parent(4, NodeType.PACKAGE)
 
     # meta
     kind: LogKind = p_system(30)
-    level: LogLevel = p_system(31)
+    level: LogLevel = p_system(31, default=LogLevel.INFO)
     logger: Optional[str] = p_system(32, default=None)
     event: Optional[str] = p_system(33, default=None)
 
-    # content
-    title: Optional[str] = p_internal(40, default=None)
+    # content (access/edit)
+    type: AccessType | None = p_internal(40, default=None)
+    properties: list[int] = p_internal(41, array=True)
+    new_node_packed: Any | None = p_internal(42, primitive_type=PrimitiveType.JSON)
+    old_node_packed: Any | None = p_internal(43, primitive_type=PrimitiveType.JSON)
+
+    # content (custom)
+    title: Optional[str] = p_internal(45, default=None)
     text: Optional[Text] = p_internal(
-        41, default=None, require=False, array=False, struct=StructType.TEXT
+        46, default=None, require=False, array=False, struct=StructType.TEXT
     )
-    value_packed: Any | None = p_value_packed(42)
-    # secret_value_packed?
-    value: Any = p_value_runtime(42)
-    request: Optional["Request"] = p_system(
-        44, require=False, array=False, struct=StructType.REQUEST
-    )
+    value_packed: Any | None = p_value_packed(47)
+    secret_value_packed: Any | None = p_secret_value_packed(48)
+    value: Any = p_value_runtime(47, 48)
 
     # context
+    node: Optional["Node"] = p_system(50, require=False, array=False, references=NODE_TYPES.tuple)
+    block: Optional["Block"] = p_system(51, require=False, array=False, references=NodeType.BLOCK)
+    step: Optional["Step"] = p_system(52, require=False, array=False, references=NodeType.STEP)
     session: Optional["Session"] = p_system(
-        50, require=False, array=False, references=NodeType.SESSION, is_bench_implicit=True
+        55, require=False, array=False, references=NodeType.SESSION, is_bench_implicit=True
     )
     run: Optional["Run"] = p_system(
-        51, require=False, array=False, references=NodeType.RUN, is_bench_implicit=True
+        56, require=False, array=False, references=NodeType.RUN, is_bench_implicit=True
     )
-    block: Optional["Block"] = p_system(52, require=False, array=False, references=NodeType.BLOCK)
-    step: Optional["Step"] = p_system(53, require=False, array=False, references=NodeType.STEP)
-    if TYPE_CHECKING:
-        session_ptr: Optional[NodeReferenceData] = None
-        run_ptr: Optional[NodeReferenceData] = None
-        block_ptr: Optional[NodeReferenceData] = None
-        step_ptr: Optional[NodeReferenceData] = None
+    client: Optional["Client"] = p_system(
+        57, require=False, array=False, references=NodeType.CLIENT, is_bench_implicit=True
+    )
+    server: Optional["Server"] = p_system(
+        58, require=False, array=False, references=NodeType.CLIENT, is_bench_implicit=True
+    )
+    user: Optional["User"] = p_system(59, require=False, array=False, references=NodeType.USER)
 
     def __content_str__(self):
         return f"[{self.kind.bench_name}:{self.level.bench_name}] '{self.event or self.title or self.text or '<empty>'}' ({self.created_at})"
-
-    def _validate_component(
-        self, properties: Collection[Property], invalid: ValidationHandler
-    ) -> None:
-        if self.step_ptr is not None and self.block_ptr is None:
-            invalid(self, "step without block", (Run.step, Run.block))

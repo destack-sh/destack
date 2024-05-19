@@ -4,12 +4,22 @@ from typing import cast
 import pytest
 from grpclib.testing import ChannelFor
 
-from bench.conftest import test_session
+from bench.conftest import detached_session
 from bench.language import Bench, ReadOptions, User
+from bench.language.bench import Branch, Package
 from bench.language.code_ import Code
-from bench.language.const import RESOURCE_NODE_TYPES, NodeType, RunKind, RunStatus, UserStatus
+from bench.language.connection import RemoteEngine
+from bench.language.const import (
+    BENCH_NODE_TYPES,
+    RESOURCE_NODE_TYPES,
+    NodeType,
+    RunKind,
+    RunStatus,
+    UserStatus,
+)
 from bench.language.graph import NodeDataGraph
 from bench.language.run import Run
+from bench.language.session import Session
 from bench.proto import wire, wiring
 from bench.proto.wire import (
     CreateBenchRequest,
@@ -26,7 +36,8 @@ from bench.system.test.conftest import UserHandle
 @dataclass(slots=True)
 class BenchHandle:
     bench: Bench
-    # main_package: Package
+    branch: Branch
+    package: Package
     owner: User
     owner_handle: UserHandle
     supervisor: SupervisorStub
@@ -40,15 +51,15 @@ class BenchHandle:
     def headers(self):
         return self.owner_handle.headers
 
-    # def make_session(self) -> Session: nocheckin?
-    #     return Session(
-    #         parent=self.main_package,
-    #         _supervisor=self.supervisor,
-    #         _host=self.host,
-    #     )
+    def make_session(self) -> Session:
+        return Session(
+            parent=self.package,
+            _supervisor=self.supervisor,
+            _host=self.host,
+        )
 
 
-# nocheckin: share activated bench across module (hangs...)
+# nocheckin: share activated bench fixture across module (hangs...)
 @pytest.fixture(scope="function")
 async def some_bench(supervisor: SupervisorStub, some_user: UserHandle):
     # make bench in supervisor
@@ -59,16 +70,35 @@ async def some_bench(supervisor: SupervisorStub, some_user: UserHandle):
         region=wire.Region.EUROPE_CENTRAL,
     )
     create_bench_rep = await supervisor.create_bench(create_bench_req, metadata=some_user.headers)
-    bench: Bench = cast(Bench, wiring.unpack_node(create_bench_rep.bench))
+    bench_scope = GraphScope(bench_id=create_bench_rep.bench.id)
 
     # activate bench in host
-    service = HostMultiplexer()
-    await service.start()
+    host = HostMultiplexer()
+    await host.start()
     try:
-        async with ChannelFor([service]) as channel:
+        async with ChannelFor([host]) as channel:
             host_stub = HostStub(channel)
+            remote_engine = RemoteEngine(
+                default_scope=bench_scope,
+                node_types=BENCH_NODE_TYPES,
+                remote=host_stub,
+                rpc_metadata=some_user.metadata,
+            )
+
+            # get main package
+            async with Session(_engines=(remote_engine,)) as session:
+                bench = await Bench.descendants(
+                    NodeType.BRANCH, NodeType.PACKAGE, *RESOURCE_NODE_TYPES
+                ).get(id=bench_scope.bench_id)
+                assert bench.main_branch is not None, f"{bench!r} has no main branch"
+                main_package = await Package.ancestors(Bench).get(
+                    id=bench.main_branch.main_package_id
+                )
+
             handle = BenchHandle(
                 bench=bench,
+                branch=bench.main_branch,
+                package=main_package,
                 owner=some_user.user,
                 owner_handle=some_user,
                 supervisor=supervisor,
@@ -76,12 +106,12 @@ async def some_bench(supervisor: SupervisorStub, some_user: UserHandle):
             )
             yield handle
     finally:
-        service.close()
-        await service.wait_closed()
+        host.close()
+        await host.wait_closed()
 
         # decommission
-        async with test_session() as session:
-            bench = await Bench.descendants(*RESOURCE_NODE_TYPES).get(id=bench.id)
+        async with detached_session() as session:
+            bench = await Bench.descendants(*RESOURCE_NODE_TYPES).get(id=bench_scope.bench_id)
             await decommission_all_resources(bench, session, commit_per=True)
             await session.commit()
 
@@ -125,3 +155,4 @@ async def test_create_run(some_bench: BenchHandle):
         status=RunStatus.SCHEDULED,
         code=Code.from_string("print('hello')"),
     )
+    # nocheckin ...

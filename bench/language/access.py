@@ -651,7 +651,7 @@ class AccessMatrix(Struct):
 @struct(StructType.ACCESS, inline=True)
 class Access(Struct):
     """
-    An evaluated access on some objects as part of a larger Request (by the same subject).
+    An evaluated access on some objects as part of a larger request (by the same subject).
     As in PolicyRule, if the decision is Deny, the object_properties are the denied ones.
     (And if object_properties is unset, it applies to all properties.)
     """
@@ -676,29 +676,6 @@ class Access(Struct):
         return f"{self.decision.bench_name} {self.verb.bench_name} {object_str}"
 
 
-@struct(StructType.ACCESS_TRACE)
-class AccessTrace(Struct):
-    """The trace of evaluating Access."""
-
-    matched_rules: list[PolicyRule] = p_system(30, array=True, struct=StructType.POLICY_RULE)
-
-
-@struct(StructType.REQUEST)
-class Request(Struct):
-    """A request comprising multiple Accesses."""
-
-    subject: Subject = p_system(30, require=True, struct=StructType.SUBJECT)
-    decision: PolicyEffect = p_system(31, require=True)
-    accesses: list[Access] = p_system(32, array=True, require=True, struct=StructType.ACCESS)
-
-    # scope/context
-    # bench, package, space, user, ...
-    transaction_id: Optional[UUID] = p_system(40, require=False, default=None)
-
-    def __content_str__(self) -> str:
-        return f"{self.decision.bench_name} [{self.subject}]: ({', '.join(str(r) for r in self.accesses)})"
-
-
 def _enums_to_mask(values: list[IdEnum], cls: type[IdEnum]) -> bitarray:
     """Set the given values in a mask. No values == all values == wildcard!"""
     mask = bitarray(cls.get_max_ord() + 1)
@@ -713,11 +690,11 @@ def _enums_to_mask(values: list[IdEnum], cls: type[IdEnum]) -> bitarray:
 class AccessError(BenchError, ValueError):
     def __init__(
         self,
-        evaluation: Access | Request,
+        access: Access | Collection[Access],
         cause: Exception | None = None,
     ):
-        super().__init__(repr(evaluation), cause)
-        self.evaluation = evaluation
+        super().__init__(repr(access), cause)
+        self.evaluation = access
         self.cause = cause
 
 
@@ -1124,7 +1101,7 @@ def evaluate_and_adapt_read(
     adapt_nodes_in_place: bool,
     required_nodes: Collection[NodeReferenceData] | None = None,
     trace: bool = False,
-) -> tuple[Request, Collection[AnyNodeData]]:
+) -> tuple[PolicyEffect, Collection[Access], Collection[AnyNodeData]]:
     """
     Evaluate *and* adapt access to all nodes in the given graph, pruning nodes & properties as needed.
      -> unlike for other accesses, we don't outright reject GET reads, you just get less (or zero) data.
@@ -1172,7 +1149,7 @@ def evaluate_and_adapt_read(
             node_cls = NODE_CLASS_BY_TYPE[object_node_type]
             # prune node properties to only allowed ones
             if not adapt_nodes_in_place:
-                # TODO :Performance: avoid copying properties that we'll prune anyway
+                # NOTE :Performance: avoid copying properties that we'll prune anyway
                 n = wiring.copy_data(n)
             pruned_properties = object_properties & (object_properties ^ allowed_properties)
             for pruned_prop_ord in pruned_properties.search(True):
@@ -1207,8 +1184,7 @@ def evaluate_and_adapt_read(
         decision = PolicyEffect.DENY
     else:
         decision = PolicyEffect.ALLOW
-    access = Request(subject=matrix.subject, accesses=accesses, decision=decision)
-    return access, visible_nodes
+    return decision, accesses, visible_nodes
 
 
 def evaluate_edit(
@@ -1217,7 +1193,7 @@ def evaluate_edit(
     edits: Collection[EditData],
     *,
     trace: bool = False,
-) -> Request:
+) -> tuple[PolicyEffect, list[Access]]:
     """
     Evaluates whether the given policies (base and in graph) allow the given edits.
     Assumes that all policies are valid, and that all relevant scopes are in the graph.
@@ -1257,12 +1233,9 @@ def evaluate_edit(
         else:
             if edit.type in (EditType.CREATE, EditType.UPSERT):
                 # there's a system rule against creating roots, but would need special logic to enforce it
-                #  (because root would be node itself, which isn't in the matrix as we expect)
-                return Request(
-                    decision=PolicyEffect.DENY, subject=matrix.subject, accesses=accesses
-                )
-            else:
-                scope = root = graph.get(node.id)
+                #  (because root would be a node itself, which isn't in the matrix as we expect)
+                return PolicyEffect.DENY, accesses
+            scope = root = graph.get(node.id)
         try:
             object_properties = node_cls._mask_properties_ids(edit.properties)
             if not object_properties.any():  # if nothing specified, default to all
@@ -1288,10 +1261,10 @@ def evaluate_edit(
             accesses.append(access)
         if access.decision == PolicyEffect.DENY:
             # implicit or explicit deny for access -> deny entire request
-            return Request(decision=PolicyEffect.DENY, subject=matrix.subject, accesses=accesses)
+            return PolicyEffect.DENY, accesses
 
     # at this point no implicit or explicit denies have happened -> explicit allow
-    return Request(decision=PolicyEffect.ALLOW, subject=matrix.subject, accesses=accesses)
+    return PolicyEffect.ALLOW, accesses
 
 
 def evaluate_use(
@@ -1300,7 +1273,7 @@ def evaluate_use(
     node: "Block",
     *,
     trace: bool = False,
-) -> Request:
+) -> tuple[PolicyEffect, list[Access]]:
     """
     Evaluates whether the given policies (base and in graph) allow the given run access.
     Assumes that all policies are valid.
@@ -1316,4 +1289,4 @@ def evaluate_use(
         mode=AccessMode.ATOMIC,
         trace=trace,
     )
-    return Request(decision=access.decision, subject=matrix.subject, accesses=[access])
+    return access.decision, [access]

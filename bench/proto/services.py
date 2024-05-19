@@ -20,8 +20,8 @@ from grpclib import Status as GRPCStatus
 from grpclib._typing import IServable
 
 from bench.language import ValidationError
-from bench.language.access import AccessError, Request, Subject
-from bench.language.const import BenchError, PolicyEffect
+from bench.language.access import AccessError, Subject
+from bench.language.const import BenchError
 from bench.language.query import NodeNotFoundError
 from bench.proto.wire import RpcMetadata
 from bench.proto.wiring import BENCH_CLASS_BY_PROTO_CLASS
@@ -61,14 +61,6 @@ def get_grpc_status_from_bench_error(e: BenchError) -> GRPCStatus:
 
 class BenchServiceBase:
     """gRPC service with some extra stuff for custom loops, auth, logging, metadata, ..."""
-
-    async def log_and_check_access(self, request: Request):
-        """Logs accesses for the audit log (soon). Raises if access was denied."""
-        if request.decision == PolicyEffect.ALLOW:
-            logger.debug("access.allow", request=request)
-        else:
-            logger.debug("access.deny", request=request)
-            raise AccessError(request)
 
     async def start(self) -> None:
         """Start the service. Should be ready for service when returning."""

@@ -30,5 +30,5 @@ export function uuidt(options?: { nonce?: string }): string {
   const timePart = unixTimeMs.toString(16).padStart(12, "0");
   const seriesPart = getSeries(unixTimeMs).toString(16).padStart(4, "0");
   const randomPart = options?.nonce ?? randomBytes(8);
-  return `${timePart.slice(0, 8)}-${timePart.slice(8, 12)}-${seriesPart.slice(0, 4)}-${randomPart.slice(0, 4)}-${randomPart.slice(4, 16)}`;
+  return `${timePart.slice(0, 8)}-${timePart.slice(8, 12)}-${seriesPart.slice(0, 4)}-${randomPart.slice(0, 4)}-${randomPart.slice(4, 12)}`;
 }
