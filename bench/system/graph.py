@@ -14,7 +14,6 @@ from grpclib import Status as GRPCStatus
 from bench.language import C, Expression, NodeReference, ReadOptions, Session, Subject
 from bench.language.access import (
     AccessError,
-    Request,
     adapt_read_options,
     evaluate_and_adapt_read,
     evaluate_edit,
@@ -139,11 +138,6 @@ class GraphIoServiceBase(BenchServiceBase, GraphIoBase):
         async with Session(parent=None, _engines=self.engines) as session:
             yield session
 
-    async def check_and_log_request(self, request: Request):
-        logger.debug(f"request.{request.decision.name.lower()}", request=request)
-        if request.decision == PolicyEffect.DENY:
-            raise AccessError(request)
-
     async def get_nodes(self, subject: Subject, request: "GetNodesRequest") -> "GetNodesResponse":
         roots: tuple[NodeReference, ...] = tuple(
             wiring.unpack_struct_interp(r, expect=NodeReference) for r in request.roots
@@ -180,16 +174,17 @@ class GraphIoServiceBase(BenchServiceBase, GraphIoBase):
             missing_roots = tuple(root for root in roots if str(root.id) not in graph)
             raise GRPCError(GRPCStatus.NOT_FOUND, f"roots not found: {missing_roots}")
 
-        access = generate_access_matrix(subject, graph)
-        evaluated_request, adapted_nodes = evaluate_and_adapt_read(
-            access, graph, required_nodes=request.roots, adapt_nodes_in_place=True
+        matrix = generate_access_matrix(subject, graph)
+        decision, accesses, adapted_nodes = evaluate_and_adapt_read(
+            matrix, graph, required_nodes=request.roots, adapt_nodes_in_place=True
         )
-        await self.check_and_log_request(evaluated_request)
+        if decision != PolicyEffect.ALLOW:
+            raise AccessError(accesses)
 
-        logger.info("graph.get", subject=subject, request=request, epoch=self.epoch)
+        logger.info("graph.get", subject=subject, graph=graph, epoch=self.epoch)
         return GetNodesResponse(
             nodes=[wiring.wrap_some_node(n) for n in adapted_nodes],
-            access=cast(AccessMatrixData, access._to_data()),
+            access=cast(AccessMatrixData, matrix._to_data()),
             epoch=self.epoch,
         )
 
@@ -219,20 +214,21 @@ class GraphIoServiceBase(BenchServiceBase, GraphIoBase):
             result = await connection.fetch(query, FetchOptions(count=request.count or False))
             roots.extend(result.roots)
             graph = NodeDataGraph(result.nodes)
-        access = generate_access_matrix(subject, graph)
-        evaluated_request, adapted_nodes = evaluate_and_adapt_read(
-            access, graph, adapt_nodes_in_place=True, required_nodes=request.bases
+        matrix = generate_access_matrix(subject, graph)
+        decision, accesses, adapted_nodes = evaluate_and_adapt_read(
+            matrix, graph, adapt_nodes_in_place=True, required_nodes=request.bases
         )
-        await self.check_and_log_request(evaluated_request)
+        if decision != PolicyEffect.ALLOW:
+            raise AccessError(accesses)
 
-        logger.info("graph.search", subject=subject, request=request, epoch=self.epoch)
+        logger.info("graph.search", subject=subject, graph=graph, epoch=self.epoch)
         return SearchNodesResponse(
             roots=roots,
             nodes=[wiring.wrap_some_node(n) for n in adapted_nodes],
             cursors=list(result.cursors),
             start_cursor=result.start_cursor,
             total=result.total,
-            access=cast(AccessMatrixData, access._to_data()),
+            access=cast(AccessMatrixData, matrix._to_data()),
             epoch=self.epoch,
         )
 
@@ -253,7 +249,9 @@ class GraphIoServiceBase(BenchServiceBase, GraphIoBase):
             connection = await session.tx.connect(request.scope, node_type, AccessKind.READ)
             result = await connection.aggregate(query)
 
-        logger.debug("graph.aggregate", subject=subject, request=request, epoch=self.epoch)
+        # TODO :Security!: check aggregation access
+
+        logger.debug("graph.aggregate", subject=subject, epoch=self.epoch)
         return AggregateNodesResponse(aggregation=result.aggregation, epoch=self.epoch)
 
     async def commit_transaction(
@@ -293,11 +291,12 @@ class GraphIoServiceBase(BenchServiceBase, GraphIoBase):
 
             # check access
             matrix = generate_access_matrix(subject, data_graph)
-            evaluated_request = evaluate_edit(matrix, data_graph, request.edits)
-            await self.check_and_log_request(evaluated_request)
+            decision, accesses = evaluate_edit(matrix, data_graph, request.edits)
+            if decision != PolicyEffect.ALLOW:
+                raise AccessError(accesses)
 
-            # validate edits
-            edit_data_graph(  # apply in copy & validate
+            # validate edits (in copy)
+            edit_data_graph(
                 graph=data_graph,
                 options=ReadOptions.all(),
                 edits=request.edits,
@@ -307,10 +306,10 @@ class GraphIoServiceBase(BenchServiceBase, GraphIoBase):
             for node_id in edited_scopes.node_scopes_by_id:
                 node = unpacked_graph.get(node_id)
                 if node is None:
-                    # this is an internal error (all edited nodes (incl. new) should be here)
+                    # this is an internal error (all edited nodes should be here)
                     raise RuntimeError(f"node {node_id} not found in unpacked {unpacked_graph!r}")
                 node._validate_self(properties=(), invalid=on_invalid_raise)
-            # TODO :Robustness!: prevent circular parent/child references
+            # TODO :Robustness: prevent circular parent/child references
 
             # extend edits
             # (we don't validate this because they're internal)

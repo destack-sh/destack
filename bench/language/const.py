@@ -13,7 +13,7 @@ from bench.utils.utils import frozendict
 if typing.TYPE_CHECKING:
     from bench.language import Session, Transaction
 
-VERSION = "2024.05.18.1"
+VERSION = "2024.05.19.0"
 REVISION_PENDING = -1
 TK_LENGTH_BYTES = 8
 TK_LENGTH_B64 = 12  # 1.5 * TK_LENGTH_BYTES (must be integer)
@@ -279,8 +279,6 @@ class StructType(IdEnum):
     ACCESS_ZONE = 1034
     ACCESS_MATRIX = 1035
     ACCESS = 1037
-    ACCESS_TRACE = 1038
-    REQUEST = 1036
     ...
     READ_OPTIONS = 1050
 
@@ -500,9 +498,8 @@ class ReadType(IdEnum):
     """A type of Read access on nodes."""
 
     GET = 1  # any direct read access
-    AGGREGATE_SCALAR = 2  # count, sum, min, etc.
-    AGGREGATE_BUCKET = 3  # histogram, etc.
-    LIST = 4  # list, search, filter, etc.
+    AGGREGATE = 3  # count, sum, min, etc.
+    LIST = 5  # list, search, filter, etc.
 
     @property
     def kind(self) -> "AccessKind":
@@ -513,17 +510,15 @@ class ReadType(IdEnum):
 class EditType(IdEnum):
     """A type of Edit access on nodes."""
 
-    BUMP_CHANGED = 10
-    BUMP_ACTIVE = 11
-    CREATE = 12
-    UPSERT = 13
-    UPDATE = 14
-    MOVE = 15
-    ARCHIVE = 16
-    UNARCHIVE = 17
-    SOFT_DELETE = 18
-    RESTORE = 19
-    DELETE = 20
+    CREATE = 20
+    UPSERT = 21
+    UPDATE = 22
+    MOVE = 23
+    ARCHIVE = 24
+    UNARCHIVE = 25
+    SOFT_DELETE = 26
+    RESTORE = 27
+    DELETE = 28
 
     @property
     def kind(self) -> "AccessKind":
@@ -534,12 +529,13 @@ class EditType(IdEnum):
 class UseType(IdEnum):
     """A type of Run access on nodes."""
 
-    START = 30
-    PAUSE = 31
-    RESUME = 32
-    STOP = 33
-    SEND = 34
-    RECEIVE = 35
+    START = 40
+    PAUSE = 41
+    RESUME = 42
+    STOP = 43
+    KILL = 44
+    SEND = 45
+    RECEIVE = 46
 
     @property
     def kind(self) -> "AccessKind":
@@ -549,8 +545,8 @@ class UseType(IdEnum):
 @enum_(EnumType.ACCESS_KIND)
 class AccessKind(IdEnum):
     READ = 1
-    EDIT = 10
-    USE = 30
+    EDIT = 20
+    USE = 40
 
     @property
     def from_ord(self) -> int:

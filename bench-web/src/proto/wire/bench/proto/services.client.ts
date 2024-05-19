@@ -7,14 +7,14 @@
 //All the services and any additional stuff not auto-generated in bench.proto.
 //
 import { Runtime } from "./services";
+import type { UpdateRunResponse } from "./services";
+import type { UpdateRunRequest } from "./services";
 import type { StartRunResponse } from "./services";
 import type { StartRunRequest } from "./services";
 import type { RestartRuntimeResponse } from "./services";
 import type { RestartRuntimeRequest } from "./services";
+import { Server } from "./services";
 import { Host } from "./services";
-import type { PingServerRequest } from "./services";
-import type { PingServerResponse } from "./services";
-import type { RestartServerRequest } from "./services";
 import type { DownloadFilesResponse } from "./services";
 import type { DownloadFilesRequest } from "./services";
 import type { UploadFilesResponse } from "./services";
@@ -420,10 +420,10 @@ export class SupervisorClient implements ISupervisorClient, ServiceInfo {
     }
 }
 /**
- * The host providing access and the persistent 'system-side' OS for a Bench.
+ * The Host provides the operating system of a Bench.
  *
  *
- * General IO for nodes in this Bench only :GraphIO
+ * General IO for nodes in this Bench (only) :GraphIO
  *
  *
  * @generated from protobuf service symbolx.bench.Host
@@ -493,28 +493,12 @@ export interface IHostClient {
      * @generated from protobuf rpc: DownloadFiles(symbolx.bench.DownloadFilesRequest) returns (symbolx.bench.DownloadFilesResponse);
      */
     downloadFiles(input: DownloadFilesRequest, options?: OperationOptions): UnaryCall<DownloadFilesRequest, DownloadFilesResponse>;
-    // 
-    // Runs
-    // 
-
-    /**
-     * Force restart the server for a Bench.
-     *
-     * @generated from protobuf rpc: RestartServer(symbolx.bench.RestartServerRequest) returns (symbolx.bench.PingServerResponse);
-     */
-    restartServer(input: RestartServerRequest, options?: OperationOptions): UnaryCall<RestartServerRequest, PingServerResponse>;
-    /**
-     * Ensure the server for a Bench is running.
-     *
-     * @generated from protobuf rpc: PingServer(symbolx.bench.PingServerRequest) returns (symbolx.bench.PingServerResponse);
-     */
-    pingServer(input: PingServerRequest, options?: OperationOptions): UnaryCall<PingServerRequest, PingServerResponse>;
 }
 /**
- * The host providing access and the persistent 'system-side' OS for a Bench.
+ * The Host provides the operating system of a Bench.
  *
  *
- * General IO for nodes in this Bench only :GraphIO
+ * General IO for nodes in this Bench (only) :GraphIO
  *
  *
  * @generated from protobuf service symbolx.bench.Host
@@ -625,27 +609,28 @@ export class HostClient implements IHostClient, ServiceInfo {
         const method = this.methods[11], opt = this._transport.mergeOptions(options);
         return stackIntercept<DownloadFilesRequest, DownloadFilesResponse>("unary", this._transport, method, opt, input);
     }
-    // 
-    // Runs
-    // 
+}
+// 
+// Server
+// 
 
-    /**
-     * Force restart the server for a Bench.
-     *
-     * @generated from protobuf rpc: RestartServer(symbolx.bench.RestartServerRequest) returns (symbolx.bench.PingServerResponse);
-     */
-    restartServer(input: RestartServerRequest, options?: OperationOptions): UnaryCall<RestartServerRequest, PingServerResponse> {
-        const method = this.methods[12], opt = this._transport.mergeOptions(options);
-        return stackIntercept<RestartServerRequest, PingServerResponse>("unary", this._transport, method, opt, input);
-    }
-    /**
-     * Ensure the server for a Bench is running.
-     *
-     * @generated from protobuf rpc: PingServer(symbolx.bench.PingServerRequest) returns (symbolx.bench.PingServerResponse);
-     */
-    pingServer(input: PingServerRequest, options?: OperationOptions): UnaryCall<PingServerRequest, PingServerResponse> {
-        const method = this.methods[13], opt = this._transport.mergeOptions(options);
-        return stackIntercept<PingServerRequest, PingServerResponse>("unary", this._transport, method, opt, input);
+/**
+ * @generated from protobuf service symbolx.bench.Server
+ */
+export interface IServerClient {
+}
+// 
+// Server
+// 
+
+/**
+ * @generated from protobuf service symbolx.bench.Server
+ */
+export class ServerClient implements IServerClient, ServiceInfo {
+    typeName = Server.typeName;
+    methods = Server.methods;
+    options = Server.options;
+    constructor(private readonly _transport: RpcTransport) {
     }
 }
 /**
@@ -667,6 +652,12 @@ export interface IRuntimeClient {
      * @generated from protobuf rpc: StartRun(symbolx.bench.StartRunRequest) returns (symbolx.bench.StartRunResponse);
      */
     startRun(input: StartRunRequest, options?: OperationOptions): UnaryCall<StartRunRequest, StartRunResponse>;
+    /**
+     * Updates a Run in this runtime, generally to update its state (and pause/resume/etc.)
+     *
+     * @generated from protobuf rpc: UpdateRun(symbolx.bench.UpdateRunRequest) returns (symbolx.bench.UpdateRunResponse);
+     */
+    updateRun(input: UpdateRunRequest, options?: OperationOptions): UnaryCall<UpdateRunRequest, UpdateRunResponse>;
 }
 /**
  * A Runtime for running a Bench in an isolated environment on/for a Client.
@@ -697,6 +688,15 @@ export class RuntimeClient implements IRuntimeClient, ServiceInfo {
     startRun(input: StartRunRequest, options?: OperationOptions): UnaryCall<StartRunRequest, StartRunResponse> {
         const method = this.methods[1], opt = this._transport.mergeOptions(options);
         return stackIntercept<StartRunRequest, StartRunResponse>("unary", this._transport, method, opt, input);
+    }
+    /**
+     * Updates a Run in this runtime, generally to update its state (and pause/resume/etc.)
+     *
+     * @generated from protobuf rpc: UpdateRun(symbolx.bench.UpdateRunRequest) returns (symbolx.bench.UpdateRunResponse);
+     */
+    updateRun(input: UpdateRunRequest, options?: OperationOptions): UnaryCall<UpdateRunRequest, UpdateRunResponse> {
+        const method = this.methods[2], opt = this._transport.mergeOptions(options);
+        return stackIntercept<UpdateRunRequest, UpdateRunResponse>("unary", this._transport, method, opt, input);
     }
 }
 

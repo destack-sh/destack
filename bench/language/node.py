@@ -225,7 +225,6 @@ def _process_struct_base_cls(
     is_sub_package: bool = False,
     is_sub_bench: bool = False,
     is_variable_root: bool = False,
-    is_local: bool = False,
     no_ck: bool = False,
     # for structs only
     is_inlined: bool = False,
@@ -377,6 +376,10 @@ def _process_struct_base_cls(
                 _remove_magic_prop("package")
         if is_node and (no_ck or not is_sub_package):
             _remove_magic_prop("ck")
+            _remove_magic_prop("computed_properties")
+            # don't need to store set_properties if it's not a full source node
+            # (but still want it at runtime/wired, e.g. for optimistic overrides)
+            properties_by_name["set_properties"].is_stored = False
             setattr(cls, "ck", _node_ck_from_id_prop(properties_by_name["id"]))
         if is_struct and is_inlined:
             _remove_magic_prop("id")
@@ -599,7 +602,6 @@ def node_component(
             is_sub_bench=is_sub_bench,
             is_sub_package=is_sub_package,
             is_final=is_final,
-            is_local=is_local,
             no_ck=no_ck,
         )
         cls.__passthrough__ = passthrough
@@ -766,7 +768,7 @@ def _node_computed_ancestor_prop(prop: Property) -> property:
     return property(get, set)
 
 
-def _required_prop(prop: Property):
+def _required_prop(prop: Property) -> dataclasses.Field:
     """Hacky way to make a field required when subclassing a dataclass with defaults."""
 
     _field = None

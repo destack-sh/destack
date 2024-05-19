@@ -96,7 +96,6 @@ export interface GraphScope {
 }
 /**
  * Edit describes an edit to a Node.
- * (Manually defined here since inline Node properties inside structs aren't supported.)
  *
  * @generated from protobuf message symbolx.bench.EditData
  */
@@ -122,6 +121,8 @@ export interface EditData {
      */
     nodeType: NodeType;
     /**
+     * TODO :Cleanup :Architecture: change EditData.node to new_node_packed/old_node_packed
+     *
      * @generated from protobuf field: symbolx.bench.SomeNodeData node = 35;
      */
     node?: SomeNodeData;

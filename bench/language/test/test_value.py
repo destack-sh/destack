@@ -2,7 +2,7 @@ from typing import cast
 
 import pytest
 
-from bench.conftest import test_session
+from bench.conftest import detached_session
 from bench.language.block import Block
 from bench.language.const import BlockType, NodeType, PrimitiveType, StructType
 from bench.language.field import Field, FieldZone, TypeKind, to_type
@@ -55,7 +55,7 @@ def test_coerce_nested_value() -> None:
 async def test_roundtrip_scalar_value() -> None:
     """Pack/unpack a scalar value inside a (Variable) Block (which HasValues)."""
 
-    async with test_session():
+    async with detached_session():
         # first set in constructor
         type_info = to_type(PrimitiveType.INT32)
         block = Block(type=BlockType.VARIABLE, name="Variable1", builtin_base=type_info, value=7)

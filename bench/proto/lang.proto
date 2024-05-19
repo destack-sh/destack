@@ -8,8 +8,8 @@ import "google/protobuf/struct.proto";
 enum AccessKind {
   ACCESS_KIND_UNSPECIFIED = 0;
   ACCESS_KIND_READ = 1;
-  ACCESS_KIND_EDIT = 10;
-  ACCESS_KIND_USE = 30;
+  ACCESS_KIND_EDIT = 20;
+  ACCESS_KIND_USE = 40;
 }
 
 enum AccessMode {
@@ -21,26 +21,24 @@ enum AccessMode {
 enum AccessType {
   ACCESS_TYPE_UNSPECIFIED = 0;
   ACCESS_TYPE_GET = 1;
-  ACCESS_TYPE_AGGREGATE_SCALAR = 2;
-  ACCESS_TYPE_AGGREGATE_BUCKET = 3;
-  ACCESS_TYPE_LIST = 4;
-  ACCESS_TYPE_BUMP_CHANGED = 10;
-  ACCESS_TYPE_BUMP_ACTIVE = 11;
-  ACCESS_TYPE_CREATE = 12;
-  ACCESS_TYPE_UPSERT = 13;
-  ACCESS_TYPE_UPDATE = 14;
-  ACCESS_TYPE_MOVE = 15;
-  ACCESS_TYPE_ARCHIVE = 16;
-  ACCESS_TYPE_UNARCHIVE = 17;
-  ACCESS_TYPE_SOFT_DELETE = 18;
-  ACCESS_TYPE_RESTORE = 19;
-  ACCESS_TYPE_DELETE = 20;
-  ACCESS_TYPE_START = 30;
-  ACCESS_TYPE_PAUSE = 31;
-  ACCESS_TYPE_RESUME = 32;
-  ACCESS_TYPE_STOP = 33;
-  ACCESS_TYPE_SEND = 34;
-  ACCESS_TYPE_RECEIVE = 35;
+  ACCESS_TYPE_AGGREGATE = 3;
+  ACCESS_TYPE_LIST = 5;
+  ACCESS_TYPE_CREATE = 20;
+  ACCESS_TYPE_UPSERT = 21;
+  ACCESS_TYPE_UPDATE = 22;
+  ACCESS_TYPE_MOVE = 23;
+  ACCESS_TYPE_ARCHIVE = 24;
+  ACCESS_TYPE_UNARCHIVE = 25;
+  ACCESS_TYPE_SOFT_DELETE = 26;
+  ACCESS_TYPE_RESTORE = 27;
+  ACCESS_TYPE_DELETE = 28;
+  ACCESS_TYPE_START = 40;
+  ACCESS_TYPE_PAUSE = 41;
+  ACCESS_TYPE_RESUME = 42;
+  ACCESS_TYPE_STOP = 43;
+  ACCESS_TYPE_KILL = 44;
+  ACCESS_TYPE_SEND = 45;
+  ACCESS_TYPE_RECEIVE = 46;
 }
 
 enum AggregationOp {
@@ -136,8 +134,6 @@ enum BenchType {
   BENCH_TYPE_ACCESS_ZONE = 1034;
   BENCH_TYPE_ACCESS_MATRIX = 1035;
   BENCH_TYPE_ACCESS = 1037;
-  BENCH_TYPE_ACCESS_TRACE = 1038;
-  BENCH_TYPE_REQUEST = 1036;
   BENCH_TYPE_READ_OPTIONS = 1050;
   BENCH_TYPE_EXPRESSION = 1060;
   BENCH_TYPE_AGGREGATION = 1061;
@@ -328,17 +324,15 @@ enum ConditionalOp {
 // A type of Edit access on nodes.
 enum EditType {
   EDIT_TYPE_UNSPECIFIED = 0;
-  EDIT_TYPE_BUMP_CHANGED = 10;
-  EDIT_TYPE_BUMP_ACTIVE = 11;
-  EDIT_TYPE_CREATE = 12;
-  EDIT_TYPE_UPSERT = 13;
-  EDIT_TYPE_UPDATE = 14;
-  EDIT_TYPE_MOVE = 15;
-  EDIT_TYPE_ARCHIVE = 16;
-  EDIT_TYPE_UNARCHIVE = 17;
-  EDIT_TYPE_SOFT_DELETE = 18;
-  EDIT_TYPE_RESTORE = 19;
-  EDIT_TYPE_DELETE = 20;
+  EDIT_TYPE_CREATE = 20;
+  EDIT_TYPE_UPSERT = 21;
+  EDIT_TYPE_UPDATE = 22;
+  EDIT_TYPE_MOVE = 23;
+  EDIT_TYPE_ARCHIVE = 24;
+  EDIT_TYPE_UNARCHIVE = 25;
+  EDIT_TYPE_SOFT_DELETE = 26;
+  EDIT_TYPE_RESTORE = 27;
+  EDIT_TYPE_DELETE = 28;
 }
 
 enum EnumType {
@@ -538,8 +532,10 @@ enum InterpStatus {
 
 enum LogKind {
   LOG_KIND_UNSPECIFIED = 0;
-  LOG_KIND_MESSAGE = 1;
-  LOG_KIND_ACCESS = 2;
+  LOG_KIND_READ = 1;
+  LOG_KIND_EDIT = 2;
+  LOG_KIND_USE = 3;
+  LOG_KIND_CUSTOM = 10;
 }
 
 enum LogLevel {
@@ -673,8 +669,6 @@ enum ObjectType {
   OBJECT_TYPE_ACCESS_ZONE = 1034;
   OBJECT_TYPE_ACCESS_MATRIX = 1035;
   OBJECT_TYPE_ACCESS = 1037;
-  OBJECT_TYPE_ACCESS_TRACE = 1038;
-  OBJECT_TYPE_REQUEST = 1036;
   OBJECT_TYPE_READ_OPTIONS = 1050;
   OBJECT_TYPE_EXPRESSION = 1060;
   OBJECT_TYPE_AGGREGATION = 1061;
@@ -772,9 +766,8 @@ enum PrimitiveType {
 enum ReadType {
   READ_TYPE_UNSPECIFIED = 0;
   READ_TYPE_GET = 1;
-  READ_TYPE_AGGREGATE_SCALAR = 2;
-  READ_TYPE_AGGREGATE_BUCKET = 3;
-  READ_TYPE_LIST = 4;
+  READ_TYPE_AGGREGATE = 3;
+  READ_TYPE_LIST = 5;
 }
 
 // A reference to a Node or Struct - usually both have an identity (except for inlined Structs).
@@ -966,8 +959,6 @@ enum StructType {
   STRUCT_TYPE_ACCESS_ZONE = 1034;
   STRUCT_TYPE_ACCESS_MATRIX = 1035;
   STRUCT_TYPE_ACCESS = 1037;
-  STRUCT_TYPE_ACCESS_TRACE = 1038;
-  STRUCT_TYPE_REQUEST = 1036;
   STRUCT_TYPE_READ_OPTIONS = 1050;
   STRUCT_TYPE_EXPRESSION = 1060;
   STRUCT_TYPE_AGGREGATION = 1061;
@@ -1033,12 +1024,13 @@ enum TypeKind {
 // A type of Run access on nodes.
 enum UseType {
   USE_TYPE_UNSPECIFIED = 0;
-  USE_TYPE_START = 30;
-  USE_TYPE_PAUSE = 31;
-  USE_TYPE_RESUME = 32;
-  USE_TYPE_STOP = 33;
-  USE_TYPE_SEND = 34;
-  USE_TYPE_RECEIVE = 35;
+  USE_TYPE_START = 40;
+  USE_TYPE_PAUSE = 41;
+  USE_TYPE_RESUME = 42;
+  USE_TYPE_STOP = 43;
+  USE_TYPE_KILL = 44;
+  USE_TYPE_SEND = 45;
+  USE_TYPE_RECEIVE = 46;
 }
 
 enum UserStatus {
@@ -1080,6 +1072,7 @@ enum ViewType {
   VIEW_TYPE_INSPECT = 153;
   VIEW_TYPE_CREATE = 154;
   VIEW_TYPE_CHAT = 155;
+  VIEW_TYPE_LOG = 156;
   VIEW_TYPE_WINDOW = 500;
   VIEW_TYPE_TAB = 502;
   VIEW_TYPE_SPLIT = 503;
@@ -1130,7 +1123,7 @@ enum Visibility {
   VISIBILITY_PUBLIC = 10;
 }
 
-// An evaluated access on some objects as part of a larger Request (by the same subject).
+// An evaluated access on some objects as part of a larger request (by the same subject).
 // As in PolicyRule, if the decision is Deny, the object_properties are the denied ones.
 // (And if object_properties is unset, it applies to all properties.)
 message AccessData {
@@ -1154,17 +1147,6 @@ message AccessMatrixData {
   repeated SubjectData identities = 32;
   repeated AccessZoneData scoped_zones = 33;
   repeated AccessZoneData base_zones = 34;
-}
-
-// The trace of evaluating Access.
-message AccessTraceData {
-  ObjectType metatype = 1;
-  int32 id = 2;
-  optional int32 parent_id = 3;
-  optional string parent_key = 4;
-  optional string order_key = 5;
-  repeated int32 set_properties = 22;
-  repeated PolicyRuleData matched_rules = 30;
 }
 
 // The pre-filtered access rules for a given identity.
@@ -1501,20 +1483,6 @@ message ReadOptionsData {
   repeated PropertyReferenceData select_properties_ptr = 42;
   bool select_all_properties = 43;
   bool include_hidden = 50;
-}
-
-// A request comprising multiple Accesses.
-message RequestData {
-  ObjectType metatype = 1;
-  int32 id = 2;
-  optional int32 parent_id = 3;
-  optional string parent_key = 4;
-  optional string order_key = 5;
-  repeated int32 set_properties = 22;
-  SubjectData subject = 30;
-  PolicyEffect decision = 31;
-  repeated AccessData accesses = 32;
-  optional string transaction_id = 40;
 }
 
 // RunCodeFrame(node: bench.language.node.Node = None, lineno: int = <factory>, name: str = <factory>, line: str = <factory>, id: int = <factory>, parent: Union[ForwardRef('Struct'), ForwardRef('Node'), ForwardRef('Object'), NoneType] = None, order_key: str | None = None, set_properties: list[int] = <factory>, _status: bench.language.const.InterpStatus = None, _updated_properties: bitarray.bitarray | None = None, node_ptr: 'NodeReference' = None, parent_id: int = None, parent_key: str = None)
@@ -2049,8 +2017,7 @@ message LinkData {
   optional string order_key = 32;
 }
 
-// A Log (entry) is a timestamped event of something happening:
-// an unstructured message, an 'event', a Request / an Access (read, edit, use), ...
+// A Log of something happening on a Bench.
 message LogData {
   ObjectType metatype = 1;
   string id = 2;
@@ -2069,14 +2036,22 @@ message LogData {
   LogLevel level = 31;
   optional string logger = 32;
   optional string event = 33;
-  optional string title = 40;
-  optional TextData text = 41;
-  optional google.protobuf.Struct value_packed = 42;
-  optional RequestData request = 44;
-  optional NodeReferenceData session_ptr = 50;
-  optional NodeReferenceData run_ptr = 51;
-  optional NodeReferenceData block_ptr = 52;
-  optional NodeReferenceData step_ptr = 53;
+  optional AccessType type = 40;
+  repeated int32 properties = 41;
+  optional google.protobuf.Struct new_node_packed = 42;
+  optional google.protobuf.Struct old_node_packed = 43;
+  optional string title = 45;
+  optional TextData text = 46;
+  optional google.protobuf.Struct value_packed = 47;
+  optional google.protobuf.Struct secret_value_packed = 48;
+  optional NodeReferenceData node_ptr = 50;
+  optional NodeReferenceData block_ptr = 51;
+  optional NodeReferenceData step_ptr = 52;
+  optional NodeReferenceData session_ptr = 55;
+  optional NodeReferenceData run_ptr = 56;
+  optional NodeReferenceData client_ptr = 57;
+  optional NodeReferenceData server_ptr = 58;
+  optional NodeReferenceData user_ptr = 59;
 }
 
 // A membership to this Bench (and its owner if it's the main Bench).

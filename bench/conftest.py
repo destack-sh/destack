@@ -73,7 +73,7 @@ async def test_cur():
 
 
 @asynccontextmanager
-async def test_session():
+async def detached_session():
     from bench.language.session import Session
     from bench.system.client import GLOBAL_POSTGRES_ENGINE
 

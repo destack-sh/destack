@@ -24,8 +24,8 @@ if TYPE_CHECKING:
 class AccessKind(betterproto.Enum):
     UNSPECIFIED = 0
     READ = 1
-    EDIT = 10
-    USE = 30
+    EDIT = 20
+    USE = 40
 
 
 class AccessMode(betterproto.Enum):
@@ -37,26 +37,24 @@ class AccessMode(betterproto.Enum):
 class AccessType(betterproto.Enum):
     UNSPECIFIED = 0
     GET = 1
-    AGGREGATE_SCALAR = 2
-    AGGREGATE_BUCKET = 3
-    LIST = 4
-    BUMP_CHANGED = 10
-    BUMP_ACTIVE = 11
-    CREATE = 12
-    UPSERT = 13
-    UPDATE = 14
-    MOVE = 15
-    ARCHIVE = 16
-    UNARCHIVE = 17
-    SOFT_DELETE = 18
-    RESTORE = 19
-    DELETE = 20
-    START = 30
-    PAUSE = 31
-    RESUME = 32
-    STOP = 33
-    SEND = 34
-    RECEIVE = 35
+    AGGREGATE = 3
+    LIST = 5
+    CREATE = 20
+    UPSERT = 21
+    UPDATE = 22
+    MOVE = 23
+    ARCHIVE = 24
+    UNARCHIVE = 25
+    SOFT_DELETE = 26
+    RESTORE = 27
+    DELETE = 28
+    START = 40
+    PAUSE = 41
+    RESUME = 42
+    STOP = 43
+    KILL = 44
+    SEND = 45
+    RECEIVE = 46
 
 
 class AggregationOp(betterproto.Enum):
@@ -154,8 +152,6 @@ class BenchType(betterproto.Enum):
     ACCESS_ZONE = 1034
     ACCESS_MATRIX = 1035
     ACCESS = 1037
-    ACCESS_TRACE = 1038
-    REQUEST = 1036
     READ_OPTIONS = 1050
     EXPRESSION = 1060
     AGGREGATION = 1061
@@ -349,17 +345,15 @@ class EditType(betterproto.Enum):
     """A type of Edit access on nodes."""
 
     UNSPECIFIED = 0
-    BUMP_CHANGED = 10
-    BUMP_ACTIVE = 11
-    CREATE = 12
-    UPSERT = 13
-    UPDATE = 14
-    MOVE = 15
-    ARCHIVE = 16
-    UNARCHIVE = 17
-    SOFT_DELETE = 18
-    RESTORE = 19
-    DELETE = 20
+    CREATE = 20
+    UPSERT = 21
+    UPDATE = 22
+    MOVE = 23
+    ARCHIVE = 24
+    UNARCHIVE = 25
+    SOFT_DELETE = 26
+    RESTORE = 27
+    DELETE = 28
 
 
 class EnumType(betterproto.Enum):
@@ -561,8 +555,10 @@ class InterpStatus(betterproto.Enum):
 
 class LogKind(betterproto.Enum):
     UNSPECIFIED = 0
-    MESSAGE = 1
-    ACCESS = 2
+    READ = 1
+    EDIT = 2
+    USE = 3
+    CUSTOM = 10
 
 
 class LogLevel(betterproto.Enum):
@@ -699,8 +695,6 @@ class ObjectType(betterproto.Enum):
     ACCESS_ZONE = 1034
     ACCESS_MATRIX = 1035
     ACCESS = 1037
-    ACCESS_TRACE = 1038
-    REQUEST = 1036
     READ_OPTIONS = 1050
     EXPRESSION = 1060
     AGGREGATION = 1061
@@ -803,9 +797,8 @@ class ReadType(betterproto.Enum):
 
     UNSPECIFIED = 0
     GET = 1
-    AGGREGATE_SCALAR = 2
-    AGGREGATE_BUCKET = 3
-    LIST = 4
+    AGGREGATE = 3
+    LIST = 5
 
 
 class ReferenceKind(betterproto.Enum):
@@ -1005,8 +998,6 @@ class StructType(betterproto.Enum):
     ACCESS_ZONE = 1034
     ACCESS_MATRIX = 1035
     ACCESS = 1037
-    ACCESS_TRACE = 1038
-    REQUEST = 1036
     READ_OPTIONS = 1050
     EXPRESSION = 1060
     AGGREGATION = 1061
@@ -1076,12 +1067,13 @@ class UseType(betterproto.Enum):
     """A type of Run access on nodes."""
 
     UNSPECIFIED = 0
-    START = 30
-    PAUSE = 31
-    RESUME = 32
-    STOP = 33
-    SEND = 34
-    RECEIVE = 35
+    START = 40
+    PAUSE = 41
+    RESUME = 42
+    STOP = 43
+    KILL = 44
+    SEND = 45
+    RECEIVE = 46
 
 
 class UserStatus(betterproto.Enum):
@@ -1124,6 +1116,7 @@ class ViewType(betterproto.Enum):
     INSPECT = 153
     CREATE = 154
     CHAT = 155
+    LOG = 156
     WINDOW = 500
     TAB = 502
     SPLIT = 503
@@ -1177,7 +1170,7 @@ class Visibility(betterproto.Enum):
 @dataclass(eq=False, repr=False)
 class AccessData(betterproto.Message):
     """
-    An evaluated access on some objects as part of a larger Request (by the same subject).
+    An evaluated access on some objects as part of a larger request (by the same subject).
      As in PolicyRule, if the decision is Deny, the object_properties are the denied ones.
      (And if object_properties is unset, it applies to all properties.)
     """
@@ -1206,19 +1199,6 @@ class AccessMatrixData(betterproto.Message):
     identities: List["SubjectData"] = betterproto.message_field(32)
     scoped_zones: List["AccessZoneData"] = betterproto.message_field(33)
     base_zones: List["AccessZoneData"] = betterproto.message_field(34)
-
-
-@dataclass(eq=False, repr=False)
-class AccessTraceData(betterproto.Message):
-    """The trace of evaluating Access."""
-
-    metatype: "ObjectType" = betterproto.enum_field(1)
-    id: int = betterproto.int32_field(2)
-    parent_id: Optional[int] = betterproto.int32_field(3, optional=True)
-    parent_key: Optional[str] = betterproto.string_field(4, optional=True)
-    order_key: Optional[str] = betterproto.string_field(5, optional=True)
-    set_properties: List[int] = betterproto.int32_field(22)
-    matched_rules: List["PolicyRuleData"] = betterproto.message_field(30)
 
 
 @dataclass(eq=False, repr=False)
@@ -1631,22 +1611,6 @@ class ReadOptionsData(betterproto.Message):
     select_properties_ptr: List["PropertyReferenceData"] = betterproto.message_field(42)
     select_all_properties: bool = betterproto.bool_field(43)
     include_hidden: bool = betterproto.bool_field(50)
-
-
-@dataclass(eq=False, repr=False)
-class RequestData(betterproto.Message):
-    """A request comprising multiple Accesses."""
-
-    metatype: "ObjectType" = betterproto.enum_field(1)
-    id: int = betterproto.int32_field(2)
-    parent_id: Optional[int] = betterproto.int32_field(3, optional=True)
-    parent_key: Optional[str] = betterproto.string_field(4, optional=True)
-    order_key: Optional[str] = betterproto.string_field(5, optional=True)
-    set_properties: List[int] = betterproto.int32_field(22)
-    subject: "SubjectData" = betterproto.message_field(30)
-    decision: "PolicyEffect" = betterproto.enum_field(31)
-    accesses: List["AccessData"] = betterproto.message_field(32)
-    transaction_id: Optional[str] = betterproto.string_field(40, optional=True)
 
 
 @dataclass(eq=False, repr=False)
@@ -2279,10 +2243,7 @@ class LinkData(betterproto.Message):
 
 @dataclass(eq=False, repr=False)
 class LogData(betterproto.Message):
-    """
-    A Log (entry) is a timestamped event of something happening:
-     an unstructured message, an 'event', a Request / an Access (read, edit, use), ...
-    """
+    """A Log of something happening on a Bench."""
 
     metatype: "ObjectType" = betterproto.enum_field(1)
     id: str = betterproto.string_field(2)
@@ -2301,16 +2262,30 @@ class LogData(betterproto.Message):
     level: "LogLevel" = betterproto.enum_field(31)
     logger: Optional[str] = betterproto.string_field(32, optional=True)
     event: Optional[str] = betterproto.string_field(33, optional=True)
-    title: Optional[str] = betterproto.string_field(40, optional=True)
-    text: Optional["TextData"] = betterproto.message_field(41, optional=True)
-    value_packed: Optional["betterproto_lib_google_protobuf.Struct"] = betterproto.message_field(
+    type: Optional["AccessType"] = betterproto.enum_field(40, optional=True)
+    properties: List[int] = betterproto.int32_field(41)
+    new_node_packed: Optional["betterproto_lib_google_protobuf.Struct"] = betterproto.message_field(
         42, optional=True
     )
-    request: Optional["RequestData"] = betterproto.message_field(44, optional=True)
-    session_ptr: Optional["NodeReferenceData"] = betterproto.message_field(50, optional=True)
-    run_ptr: Optional["NodeReferenceData"] = betterproto.message_field(51, optional=True)
-    block_ptr: Optional["NodeReferenceData"] = betterproto.message_field(52, optional=True)
-    step_ptr: Optional["NodeReferenceData"] = betterproto.message_field(53, optional=True)
+    old_node_packed: Optional["betterproto_lib_google_protobuf.Struct"] = betterproto.message_field(
+        43, optional=True
+    )
+    title: Optional[str] = betterproto.string_field(45, optional=True)
+    text: Optional["TextData"] = betterproto.message_field(46, optional=True)
+    value_packed: Optional["betterproto_lib_google_protobuf.Struct"] = betterproto.message_field(
+        47, optional=True
+    )
+    secret_value_packed: Optional[
+        "betterproto_lib_google_protobuf.Struct"
+    ] = betterproto.message_field(48, optional=True)
+    node_ptr: Optional["NodeReferenceData"] = betterproto.message_field(50, optional=True)
+    block_ptr: Optional["NodeReferenceData"] = betterproto.message_field(51, optional=True)
+    step_ptr: Optional["NodeReferenceData"] = betterproto.message_field(52, optional=True)
+    session_ptr: Optional["NodeReferenceData"] = betterproto.message_field(55, optional=True)
+    run_ptr: Optional["NodeReferenceData"] = betterproto.message_field(56, optional=True)
+    client_ptr: Optional["NodeReferenceData"] = betterproto.message_field(57, optional=True)
+    server_ptr: Optional["NodeReferenceData"] = betterproto.message_field(58, optional=True)
+    user_ptr: Optional["NodeReferenceData"] = betterproto.message_field(59, optional=True)
 
 
 @dataclass(eq=False, repr=False)
@@ -3062,10 +3037,7 @@ class GraphScope(betterproto.Message):
 
 @dataclass(eq=False, repr=False)
 class EditData(betterproto.Message):
-    """
-    Edit describes an edit to a Node.
-     (Manually defined here since inline Node properties inside structs aren't supported.)
-    """
+    """Edit describes an edit to a Node."""
 
     id: str = betterproto.string_field(2)
     type: "EditType" = betterproto.enum_field(30)
@@ -3073,6 +3045,10 @@ class EditData(betterproto.Message):
     scope: "GraphScope" = betterproto.message_field(32)
     node_type: "NodeType" = betterproto.enum_field(33)
     node: "SomeNodeData" = betterproto.message_field(35)
+    """
+    TODO :Cleanup :Architecture: change EditData.node to new_node_packed/old_node_packed
+    """
+
     properties: List[int] = betterproto.uint32_field(36)
     subject: Optional["NodeReferenceData"] = betterproto.message_field(40, optional=True)
     seen_epoch: Optional[int] = betterproto.uint64_field(41, optional=True)
@@ -3370,28 +3346,6 @@ class DownloadFilesResponse(betterproto.Message):
 
 
 @dataclass(eq=False, repr=False)
-class RestartServerRequest(betterproto.Message):
-    scope: "GraphScope" = betterproto.message_field(1)
-    server_id: str = betterproto.string_field(2)
-
-
-@dataclass(eq=False, repr=False)
-class RestartServerResponse(betterproto.Message):
-    pass
-
-
-@dataclass(eq=False, repr=False)
-class PingServerRequest(betterproto.Message):
-    scope: "GraphScope" = betterproto.message_field(1)
-    server_id: str = betterproto.string_field(2)
-
-
-@dataclass(eq=False, repr=False)
-class PingServerResponse(betterproto.Message):
-    pass
-
-
-@dataclass(eq=False, repr=False)
 class RestartRuntimeRequest(betterproto.Message):
     force: bool = betterproto.bool_field(1)
 
@@ -3408,6 +3362,16 @@ class StartRunRequest(betterproto.Message):
 
 @dataclass(eq=False, repr=False)
 class StartRunResponse(betterproto.Message):
+    pass
+
+
+@dataclass(eq=False, repr=False)
+class UpdateRunRequest(betterproto.Message):
+    run: "RunData" = betterproto.message_field(1)
+
+
+@dataclass(eq=False, repr=False)
+class UpdateRunResponse(betterproto.Message):
     pass
 
 
@@ -3997,39 +3961,9 @@ class HostStub(betterproto.ServiceStub):
             metadata=metadata,
         )
 
-    async def restart_server(
-        self,
-        request: "RestartServerRequest",
-        *,
-        timeout: Optional[float] = None,
-        deadline: Optional["Deadline"] = None,
-        metadata: Optional["MetadataLike"] = None
-    ) -> "PingServerResponse":
-        return await self._unary_unary(
-            "/symbolx.bench.Host/RestartServer",
-            request,
-            PingServerResponse,
-            timeout=timeout,
-            deadline=deadline,
-            metadata=metadata,
-        )
 
-    async def ping_server(
-        self,
-        request: "PingServerRequest",
-        *,
-        timeout: Optional[float] = None,
-        deadline: Optional["Deadline"] = None,
-        metadata: Optional["MetadataLike"] = None
-    ) -> "PingServerResponse":
-        return await self._unary_unary(
-            "/symbolx.bench.Host/PingServer",
-            request,
-            PingServerResponse,
-            timeout=timeout,
-            deadline=deadline,
-            metadata=metadata,
-        )
+class ServerStub(betterproto.ServiceStub):
+    pass
 
 
 class RuntimeStub(betterproto.ServiceStub):
@@ -4062,6 +3996,23 @@ class RuntimeStub(betterproto.ServiceStub):
             "/symbolx.bench.Runtime/StartRun",
             request,
             StartRunResponse,
+            timeout=timeout,
+            deadline=deadline,
+            metadata=metadata,
+        )
+
+    async def update_run(
+        self,
+        request: "UpdateRunRequest",
+        *,
+        timeout: Optional[float] = None,
+        deadline: Optional["Deadline"] = None,
+        metadata: Optional["MetadataLike"] = None
+    ) -> "UpdateRunResponse":
+        return await self._unary_unary(
+            "/symbolx.bench.Runtime/UpdateRun",
+            request,
+            UpdateRunResponse,
             timeout=timeout,
             deadline=deadline,
             metadata=metadata,
@@ -4549,16 +4500,6 @@ class HostBase(ServiceBase):
     ) -> "DownloadFilesResponse":
         raise grpclib.GRPCError(grpclib.const.Status.UNIMPLEMENTED)
 
-    async def restart_server(
-        self, subject: "Subject", request: "RestartServerRequest"
-    ) -> "PingServerResponse":
-        raise grpclib.GRPCError(grpclib.const.Status.UNIMPLEMENTED)
-
-    async def ping_server(
-        self, subject: "Subject", request: "PingServerRequest"
-    ) -> "PingServerResponse":
-        raise grpclib.GRPCError(grpclib.const.Status.UNIMPLEMENTED)
-
     async def __rpc_get_nodes(
         self, stream: "grpclib.server.Stream[GetNodesRequest, GetNodesResponse]"
     ) -> None:
@@ -4653,20 +4594,6 @@ class HostBase(ServiceBase):
         response = await self.download_files(request)
         await stream.send_message(response)
 
-    async def __rpc_restart_server(
-        self, stream: "grpclib.server.Stream[RestartServerRequest, PingServerResponse]"
-    ) -> None:
-        request = await stream.recv_message()
-        response = await self.restart_server(request)
-        await stream.send_message(response)
-
-    async def __rpc_ping_server(
-        self, stream: "grpclib.server.Stream[PingServerRequest, PingServerResponse]"
-    ) -> None:
-        request = await stream.recv_message()
-        response = await self.ping_server(request)
-        await stream.send_message(response)
-
     def __mapping__(self) -> Dict[str, grpclib.const.Handler]:
         return {
             "/symbolx.bench.Host/GetNodes": grpclib.const.Handler(
@@ -4741,19 +4668,12 @@ class HostBase(ServiceBase):
                 DownloadFilesRequest,
                 DownloadFilesResponse,
             ),
-            "/symbolx.bench.Host/RestartServer": grpclib.const.Handler(
-                self.__rpc_restart_server,
-                grpclib.const.Cardinality.UNARY_UNARY,
-                RestartServerRequest,
-                PingServerResponse,
-            ),
-            "/symbolx.bench.Host/PingServer": grpclib.const.Handler(
-                self.__rpc_ping_server,
-                grpclib.const.Cardinality.UNARY_UNARY,
-                PingServerRequest,
-                PingServerResponse,
-            ),
         }
+
+
+class ServerBase(ServiceBase):
+    def __mapping__(self) -> Dict[str, grpclib.const.Handler]:
+        return {}
 
 
 class RuntimeBase(ServiceBase):
@@ -4763,6 +4683,11 @@ class RuntimeBase(ServiceBase):
         raise grpclib.GRPCError(grpclib.const.Status.UNIMPLEMENTED)
 
     async def start_run(self, subject: "Subject", request: "StartRunRequest") -> "StartRunResponse":
+        raise grpclib.GRPCError(grpclib.const.Status.UNIMPLEMENTED)
+
+    async def update_run(
+        self, subject: "Subject", request: "UpdateRunRequest"
+    ) -> "UpdateRunResponse":
         raise grpclib.GRPCError(grpclib.const.Status.UNIMPLEMENTED)
 
     async def __rpc_restart(
@@ -4780,6 +4705,13 @@ class RuntimeBase(ServiceBase):
         response = await self.start_run(request)
         await stream.send_message(response)
 
+    async def __rpc_update_run(
+        self, stream: "grpclib.server.Stream[UpdateRunRequest, UpdateRunResponse]"
+    ) -> None:
+        request = await stream.recv_message()
+        response = await self.update_run(request)
+        await stream.send_message(response)
+
     def __mapping__(self) -> Dict[str, grpclib.const.Handler]:
         return {
             "/symbolx.bench.Runtime/Restart": grpclib.const.Handler(
@@ -4794,12 +4726,18 @@ class RuntimeBase(ServiceBase):
                 StartRunRequest,
                 StartRunResponse,
             ),
+            "/symbolx.bench.Runtime/UpdateRun": grpclib.const.Handler(
+                self.__rpc_update_run,
+                grpclib.const.Cardinality.UNARY_UNARY,
+                UpdateRunRequest,
+                UpdateRunResponse,
+            ),
         }
 
 
 from typing import TYPE_CHECKING  # noqa: E402
 
-VERSION = "2024.05.18.1"
+VERSION = "2024.05.19.0"
 
 if TYPE_CHECKING:
     from bench.language import Subject
@@ -4865,8 +4803,6 @@ AnyStructData = Union[
     AccessZoneData,
     AccessMatrixData,
     AccessData,
-    AccessTraceData,
-    RequestData,
     ReadOptionsData,
     ExpressionData,
     AggregationData,

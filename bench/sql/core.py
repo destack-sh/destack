@@ -620,16 +620,7 @@ RECORD_SHARED_TABLE = Table(
     ),
     indexes=(
         *(i.clone() for i in RECORD_BASE_TABLE.indexes),
-        Index(
-            "bench_idx_block_ck_deleted_at",
-            IndexType.BTREE,
-            columns=("block_ck", "deleted_at"),
-        ),
-        Index(
-            "bench_idx_block_key_archived_at",
-            IndexType.BTREE,
-            columns=("block_ck", "archived_at"),
-        ),
+        # ...?
     ),
     constraints=(*(c.clone() for c in RECORD_BASE_TABLE.constraints),),
 )

@@ -9,7 +9,7 @@ import psycopg
 import pytest
 from psycopg import sql
 
-from bench.conftest import test_session
+from bench.conftest import detached_session
 from bench.language import (
     Bench,
     BenchType,
@@ -188,7 +188,7 @@ async def test_crud_rows(test_cur: psycopg.AsyncCursor, table: Table):
 async def test_crud_node_pointers(fabricator: "Fabricator"):
     """Ensures that node pointers (parent, regular, ancestor) roundtrip correctly"""
     # write
-    async with test_session() as session:
+    async with detached_session() as session:
         bench_a: Bench = Bench(
             slug="test_a", name="test_b", region=Region.GLOBAL, encryption_key="yo"
         )
@@ -210,7 +210,7 @@ async def test_crud_node_pointers(fabricator: "Fabricator"):
         await session.commit()
 
     # read back
-    async with test_session() as session:
+    async with detached_session() as session:
         server_a = await Server.include_ancestors().get(id=server_a.id)
         assert server_a.parent_ptr.equals_content(bench_a.to_ref())
         assert server_a.bench_id == bench_a.id
