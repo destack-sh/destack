@@ -1,6 +1,5 @@
 import asyncio
 from collections import deque
-from contextlib import asynccontextmanager
 from dataclasses import dataclass, field
 from itertools import chain
 from typing import AsyncIterator, Mapping, NamedTuple, cast, final
@@ -123,8 +122,7 @@ class GraphIoServiceBase(BenchServiceBase, GraphIoBase):
         self.node_types: bytetuple[NodeType] = node_types
         self.watchers: list[EditWatcher] = []
 
-    @property
-    def engines(self) -> tuple[StoreEngine, ...]:
+    def _get_engines(self, scope: GraphScope) -> tuple[StoreEngine, ...]:
         """Gets the store engines available to this subgraph. Implemented in the actual service."""
         raise NotImplementedError
 
@@ -134,12 +132,8 @@ class GraphIoServiceBase(BenchServiceBase, GraphIoBase):
         if to_uuid(scope.bench_id) != self.bench_id:
             raise GRPCError(GRPCStatus.INVALID_ARGUMENT, "service scope mismatch")
 
-    @asynccontextmanager
-    async def session(self):
-        async with Session(
-            parent=None, _default_scope=self.scope, _engines=self.engines
-        ) as session:
-            yield session
+    def session(self, scope: GraphScope):
+        return Session(parent=None, _default_scope=self.scope, _engines=self._get_engines(scope))
 
     async def get_nodes(self, subject: Subject, request: "GetNodesRequest") -> "GetNodesResponse":
         roots: tuple[NodeReference, ...] = tuple(
@@ -157,7 +151,7 @@ class GraphIoServiceBase(BenchServiceBase, GraphIoBase):
 
         roots_by_type: dict[NodeType, list[NodeReference]] = group_by(roots, lambda r: r.type)
         graph = NodeDataGraph()
-        async with self.session() as session:
+        async with self.session(request.scope) as session:
             for root_node_type, root_node_references in roots_by_type.items():
                 adapted_options = adapt_read_options(subject, root_node_type, options)
                 node_type = wiring.unpack_enum(NodeType, root_node_type)
@@ -209,7 +203,7 @@ class GraphIoServiceBase(BenchServiceBase, GraphIoBase):
 
         adapted_options = adapt_read_options(subject, node_type, options)
         roots: list[NodeReferenceData] = []
-        async with self.session() as session:
+        async with self.session(request.scope) as session:
             query = QueryBuilder(
                 node_type=node_type, filter=filter, options=adapted_options, sort=sort
             )
@@ -245,7 +239,7 @@ class GraphIoServiceBase(BenchServiceBase, GraphIoBase):
         aggregation: Expression = wiring.unpack_struct_interp(request.aggregation)
 
         adapted_options = adapt_read_options(subject, node_type, ReadOptions())
-        async with self.session() as session:
+        async with self.session(request.scope) as session:
             query = QueryBuilder(
                 node_type=node_type, filter=filter, options=adapted_options, aggregation=aggregation
             )
@@ -263,7 +257,7 @@ class GraphIoServiceBase(BenchServiceBase, GraphIoBase):
         # figure out the node (scopes) we need to evaluate the edit
         edited_scopes = get_validated_edited_scopes(request.edits)
         start = asyncio.get_event_loop().time()
-        async with self.session() as session:
+        async with self.session(request.scope) as session:
             # read the required nodes into a single graph for evaluation
             data_graph = NodeDataGraph()
             for node_type, node_references in edited_scopes.node_scopes_by_type.items():

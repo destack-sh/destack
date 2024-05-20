@@ -241,6 +241,9 @@ SUB_PACKAGE_NODE_TYPES = bytetuple(*tuple(nt for nt in NODE_TYPES if 20 < nt.id 
 IN_BENCH_NODE_TYPES = bytetuple(
     *tuple(nt for nt in NODE_TYPES if nt.id < 200) + (NodeType.CLIENT, NodeType.HANDLE)
 )
+IN_BENCH_GLOBAL_NODE_TYPES = bytetuple(
+    *tuple(nt for nt in IN_BENCH_NODE_TYPES if nt not in LOCAL_NODE_TYPES)
+)
 SUB_BENCH_NODE_TYPES = bytetuple(*tuple(nt for nt in IN_BENCH_NODE_TYPES if nt != NodeType.BENCH))
 RESOURCE_NODE_TYPES = bytetuple(*tuple(nt for nt in NODE_TYPES if 160 <= nt.id < 200))
 BENCH_NODE_TYPES = bytetuple(
