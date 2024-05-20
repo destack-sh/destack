@@ -29,7 +29,7 @@ from bench.sql.engine import SqlAlreadyExistsError, SqlNotExistsError
 from bench.system.access import get_subject_from_metadata
 from bench.utils.casing import Casing, to_casing
 from bench.utils.env import IS_DEBUG, IS_TEST
-from bench.utils.monitoring import Monitored
+from bench.utils.task import TaskManager
 from bench.utils.utils import sentry_capture
 
 ServiceStubT = TypeVar("ServiceStubT", bound=ServiceStub)
@@ -62,17 +62,20 @@ def get_grpc_status_from_bench_error(e: BenchError) -> GRPCStatus:
 class BenchServiceBase:
     """gRPC service with some extra stuff for custom loops, auth, logging, metadata, ..."""
 
+    def __init__(self):
+        self._tasks = TaskManager()
+
     async def start(self) -> None:
         """Start the service. Should be ready for service when returning."""
         pass
 
     def close(self) -> None:
         """Close the service.."""
-        pass
+        self._tasks.close()
 
     async def wait_closed(self) -> None:
         """Wait for the service to be fully closed."""
-        pass
+        await self._tasks.wait_closed()
 
     def __mapping__(self) -> Mapping[str, grpclib.const.Handler]:
         # combine mappings from non-overlapping superclasses
@@ -197,10 +200,6 @@ class BenchServiceBase:
                 raise GRPCError(GRPCStatus.INTERNAL, details) from e
 
         return grpclib.const.Handler(_managed_rpc, cardinality, request_type, reply_type)
-
-
-class MonitoredServiceBase(BenchServiceBase, Monitored):
-    pass
 
 
 class BenchServer(grpclib.server.Server):

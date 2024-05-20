@@ -31,7 +31,7 @@ const path = computed(() => ancestors.value.slice().reverse());
         <IconInline v-bind="getNodeIcon(node)" class="mr-1.5" />
         <span class="">{{ node.name }}</span>
       </span>
-      <i v-if="i < path.length - 1" class="fas fa-chevron-right text-gray-500" />
+      <i v-if="i < path.length - 1" class="fas fa-chevron-right text-gray-400" />
     </template>
   </div>
 </template>

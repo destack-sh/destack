@@ -81,6 +81,7 @@ class _PatchedMessage(BetterprotoMessage):
             "slug",
             "node_type",
             "epoch",
+            "status",
             "bench_id",
             "package_id",
             "transaction_id",

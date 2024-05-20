@@ -57,7 +57,7 @@ class NeonApi(abc.ABC):
 
 class NeonApiLocal(NeonApi):
     """
-    Neon API client wrapper for neon_local. Assumes that Neon has been set up locally at NEON_PATH.
+    Neon API client wrapper for IS_NEON_LOCAL. Assumes that Neon has been set up locally at NEON_PATH.
     See https://github.com/neondatabase/neon#running-local-installation
     """
 
@@ -127,7 +127,7 @@ class NeonApiLocal(NeonApi):
         endpoint_match = re.search(rf"\s*{endpoint_name}\s+([\d\.:]+)\s+", output, re.MULTILINE)
         if endpoint_match is not None:  # found it!
             address = endpoint_match.group(1)
-            # yeah the could_admin/postgres stuff seems hardcoded in neon_local somewhere
+            # yeah the could_admin/postgres stuff seems hardcoded in IS_NEON_LOCAL somewhere
             return f"postgresql://cloud_admin@{address}/postgres"
 
         # nope, start endpoint
@@ -234,8 +234,8 @@ class NeonApiRemote(NeonApi):
         await self._request("DELETE", f"projects/{project_id}")
 
 
-NEON_LOCAL = get_from_env("NEON_LOCAL", default=IS_DEBUG, typ=bool)
-if NEON_LOCAL:
+IS_NEON_LOCAL = get_from_env("IS_NEON_LOCAL", default=IS_DEBUG, typ=bool)
+if IS_NEON_LOCAL:
     neon_client = NeonApiLocal(neon_path=get_from_env("NEON_PATH"))
 else:
     neon_client = NeonApiRemote(
