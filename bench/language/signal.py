@@ -11,6 +11,7 @@ from bench.language.property import (
     p_value_packed,
     p_value_runtime,
 )
+from bench.language.session import HasSessionContext
 from bench.language.value import HasValues
 from bench.proto.wire import AnyNodeData, NodeReferenceData, SignalData
 from bench.utils.uuidt import UUIDT
@@ -34,7 +35,7 @@ logger = structlog.get_logger(__name__)
     id_factory=UUIDT,
     index_together=(("package_id", "created_at"),),
 )
-class Signal(BasedNode[SignalData], HasValues):
+class Signal(BasedNode[SignalData], HasSessionContext, HasValues):
     """
     A Signal emitted in this Bench.
     Signals can be emitted by users or Bench source, and are usually handled in Triggers.
@@ -47,6 +48,9 @@ class Signal(BasedNode[SignalData], HasValues):
     value_packed: Any | None = p_value_packed(42)
     secret_value_packed: Any | None = p_secret_value_packed(43)
     value: Any = p_value_runtime(42, 43, type=32)
+
+    # context
+    # ...InSessionNode[60-69]
 
     @property
     def base(self) -> Optional["Block"]:

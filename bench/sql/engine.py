@@ -72,8 +72,25 @@ from bench.utils.func import describe_type, to_uuid
 logger = structlog.get_logger(__name__)
 
 
+def get_sanitized_connection_uri(conn: psycopg.AsyncConnection) -> str:
+    """Gets the connection URI like postgresql://user:****@host:port/dbname."""
+    pgconn = conn.pgconn
+    host = pgconn.host.decode()
+    port = pgconn.port.decode()
+    user = pgconn.user.decode()
+    db = pgconn.db.decode()
+    return f"postgresql://{user}:****@{host}:{port}/{db}"
+
+
 class SqlError(BenchError):
-    pass
+    def __init__(self, message: str, conn: psycopg.AsyncCursor | psycopg.AsyncConnection):
+        if conn is not None:
+            if isinstance(conn, psycopg.AsyncCursor):
+                conn = conn.connection
+            conn_str = get_sanitized_connection_uri(conn)
+            super().__init__(f"{conn_str}: {message}")
+        else:
+            super().__init__(message)
 
 
 class SqlUndefinedObjectError(SqlError):
@@ -521,7 +538,9 @@ RowIn = Mapping[str, SqlPrimitive | SqlExpression | SqlNode]
 RowOut = Mapping[str, SqlPrimitive]
 
 
-def _pg_wrap_error(resource: Any, e: psycopg.errors.Error) -> Exception:
+def _pg_wrap_error(
+    resource: Any, conn: psycopg.AsyncCursor | psycopg.AsyncConnection, e: psycopg.errors.Error
+) -> Exception:
     if isinstance(e, (psycopg.errors.UndefinedTable, psycopg.errors.UndefinedColumn)):
         wrapped_t = SqlUndefinedObjectError
     elif isinstance(e, (psycopg.errors.UniqueViolation,)):
@@ -535,7 +554,7 @@ def _pg_wrap_error(resource: Any, e: psycopg.errors.Error) -> Exception:
         message = f"{e}\nin {resource!r}"
     else:
         message = f"{e} in {resource!r}"
-    return wrapped_t(message)
+    return wrapped_t(message, conn)
 
 
 async def pg_select_raw(cur: psycopg.AsyncCursor, query: sql.Composed) -> list[dict[str, Any]]:
@@ -669,7 +688,7 @@ async def pg_select(
     try:
         await cur.execute(statement, params)
     except psycopg.errors.Error as e:
-        raise _pg_wrap_error(table, e) from e
+        raise _pg_wrap_error(table, cur, e) from e
     return await cur.fetchall()
 
 
@@ -690,10 +709,10 @@ async def pg_count(
         await cur.execute(statement)
         result = await cur.fetchone()
         if not result:
-            raise SqlError(f"no result for {table!r}")
+            raise SqlError(f"no result for {table!r}", cur)
         return result["count"]
     except psycopg.errors.Error as e:
-        raise _pg_wrap_error(table, e) from e
+        raise _pg_wrap_error(table, cur, e) from e
 
 
 async def pg_exists(
@@ -717,10 +736,10 @@ async def pg_exists(
         await cur.execute(statement)
         result = await cur.fetchone()
         if not result:
-            raise SqlError(f"no result for {table!r}")
+            raise SqlError(f"no result for {table!r}", cur)
         return result["exists"]
     except psycopg.errors.Error as e:
-        raise _pg_wrap_error(table, e) from e
+        raise _pg_wrap_error(table, cur, e) from e
 
 
 async def pg_insert(
@@ -751,7 +770,7 @@ async def pg_insert(
     try:
         await cur.executemany(statement, templated_values, returning=bool(returning))
     except psycopg.errors.Error as e:
-        raise _pg_wrap_error(table, e) from e
+        raise _pg_wrap_error(table, cur, e) from e
     if returning:
         return await _pg_fetchall_from_many(cur, len(rows))
 
@@ -813,7 +832,7 @@ async def pg_upsert(
     try:
         await cur.executemany(statement, templated_values, returning=bool(returning))
     except psycopg.errors.Error as e:
-        raise _pg_wrap_error(table, e) from e
+        raise _pg_wrap_error(table, cur, e) from e
     if returning:
         return await _pg_fetchall_from_many(cur, len(rows))
 
@@ -855,7 +874,7 @@ async def pg_update_constant(
     try:
         await cur.execute(statement, template_values)
     except psycopg.errors.Error as e:
-        raise _pg_wrap_error(table, e) from e
+        raise _pg_wrap_error(table, cur, e) from e
     if returning:
         return await cur.fetchall()
 
@@ -935,7 +954,7 @@ async def pg_update_variable(
     try:
         await cur.executemany(statement, templated_values, returning=bool(returning))
     except psycopg.errors.Error as e:
-        raise _pg_wrap_error(table, e) from e
+        raise _pg_wrap_error(table, cur, e) from e
     if returning:
         return await _pg_fetchall_from_many(cur, len(dynamic_values))
 
@@ -962,7 +981,7 @@ async def pg_delete(
     try:
         await cur.execute(statement)
     except psycopg.errors.Error as e:
-        raise _pg_wrap_error(table, e) from e
+        raise _pg_wrap_error(table, cur, e) from e
     if returning:
         return await cur.fetchall()
 
@@ -1597,7 +1616,7 @@ async def _pg_write_edit_batch(
             missing_rows = set(node.id for node in nodes) - {
                 cast(str, r["id"]) for r in rows or () if r
             }
-            raise SqlNotExistsError(f"missing {node_type.bench_name}: {missing_rows}")
+            raise SqlNotExistsError(f"missing {node_type.bench_name}: {missing_rows}", cur)
         if return_nodes:
             return tuple(pg_unpack_node_data_row(node_cls, row) for row in rows)
         else:
@@ -1618,7 +1637,7 @@ async def _pg_write_edit_batch(
         )
         if rows is None or len(rows) != len(batch) or any(r is None for r in rows):
             missing_rows = set(nodes_ids) - {cast(str, row["id"]) for row in rows or () if row}
-            raise SqlNotExistsError(f"missing {node_type.bench_name}: {missing_rows}")
+            raise SqlNotExistsError(f"missing {node_type.bench_name}: {missing_rows}", cur)
         if return_nodes:
             return tuple(pg_unpack_node_data_row(node_cls, row) for row in rows)
         else:
@@ -1641,10 +1660,8 @@ def decode_pg_cursor(s: str) -> int:
 
 
 def sql_to_str(cur: psycopg.Cursor | psycopg.AsyncCursor, s: sql.Composable) -> str:
-    import sqlparse
-
     s_str = s.as_string(cur)
-    return "\n" + sqlparse.format(s_str, reindent=True, keyword_case="upper") + "\n"
+    return s_str
 
 
 # general table index

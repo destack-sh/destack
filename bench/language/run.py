@@ -15,7 +15,6 @@ from bench.language.node import BasedNode, Node, Struct, node, struct
 from bench.language.property import (
     Property,
     p_internal,
-    p_node_ancestor,
     p_node_ancestor_root,
     p_node_child,
     p_node_parent,
@@ -24,6 +23,7 @@ from bench.language.property import (
     p_value_packed,
     p_value_runtime,
 )
+from bench.language.session import HasSessionContext
 from bench.language.text import Text
 from bench.language.validation import ValidationHandler
 from bench.language.value import HasValues
@@ -31,7 +31,7 @@ from bench.proto.wire import AnyNodeData, NodeReferenceData, RunData
 from bench.utils.uuidt import UUIDT
 
 if TYPE_CHECKING:
-    from bench.language import Block, Client, Package, Server, Session, Step, User
+    from bench.language import Block, Package, Step
 
 # pyright: reportIncompatibleVariableOverride=false
 
@@ -43,7 +43,7 @@ if TYPE_CHECKING:
     id_factory=UUIDT,
     index_together=(("package_id", "created_at"),),
 )
-class Run(BasedNode[RunData], HasValues):
+class Run(BasedNode[RunData], HasSessionContext, HasValues):
     """
     A 'run' of Blocks (and Steps within them) or 'lambdas' (just Code/Text).
     When 'running' something that's not directly runnable (like a Text Block, Text Step or Text Lambda),
@@ -58,8 +58,6 @@ class Run(BasedNode[RunData], HasValues):
         32, NodeType.RUN, require=False, store=True, wire=True, is_bench_implicit=True
     )
 
-    block: Optional["Block"] = p_internal(34, references=NodeType.BLOCK, require=False, array=False)
-    step: Optional["Step"] = p_internal(35, require=False, array=False, references=NodeType.STEP)
     if TYPE_CHECKING:
         session_ptr: Optional[NodeReferenceData] = None
         root_ptr: Optional[NodeReferenceData] = None
@@ -92,16 +90,7 @@ class Run(BasedNode[RunData], HasValues):
     )
 
     # context
-    session: Optional["Session"] = p_node_ancestor(
-        60, NodeType.SESSION, require=False, store=True, wire=True, is_bench_implicit=True
-    )
-    client: Optional["Client"] = p_system(
-        61, require=False, array=False, references=NodeType.CLIENT, is_bench_implicit=True
-    )
-    server: Optional["Server"] = p_internal(
-        62, require=False, array=False, references=NodeType.SERVER, is_bench_implicit=True
-    )
-    user: Optional["User"] = p_internal(63, require=False, array=False, references=NodeType.USER)
+    # ...InSessionNode[60-69]
 
     # NOTE :Architecture :Performance: (some) Runs will likely be stored outside the main user DB later.
     #  And maybe we'll also have 'inline runs' for non-Bench constructs that were run (like deeper profiling).

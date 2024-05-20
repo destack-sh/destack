@@ -6,7 +6,7 @@ import structlog
 
 from bench.language.connection import StoreEngine
 from bench.language.const import InterpStatus, NodeType, SessionStatus, StructType, _active_session
-from bench.language.node import Node, Struct, node, struct
+from bench.language.node import Node, Struct, node, struct, struct_component
 from bench.language.property import Property, p_internal, p_node_parent, p_runtime, p_system
 from bench.language.transaction import Transaction
 from bench.proto.wire import GraphScope, HostStub, SessionData, SupervisorStub
@@ -263,6 +263,27 @@ class Session(Node[SessionData]):
         assert self._tx is not None, f"no active transaction in {self!r}"
         for n in nodes:
             self._tx.delete(n, self._edit_subject)
+
+
+@struct_component()
+class HasSessionContext(Struct):
+    """Context for the creation of a node in some Session."""
+
+    block: Optional["Block"] = p_system(60, require=False, array=False, references=NodeType.BLOCK)
+    step: Optional["Step"] = p_system(61, require=False, array=False, references=NodeType.STEP)
+    session: Optional["Session"] = p_system(
+        62, require=False, array=False, references=NodeType.SESSION, is_bench_implicit=True
+    )
+    run: Optional["Run"] = p_system(
+        63, require=False, array=False, references=NodeType.RUN, is_bench_implicit=True
+    )
+    client: Optional["Client"] = p_system(
+        64, require=False, array=False, references=NodeType.CLIENT, is_bench_implicit=True
+    )
+    server: Optional["Server"] = p_system(
+        65, require=False, array=False, references=NodeType.CLIENT, is_bench_implicit=True
+    )
+    user: Optional["User"] = p_system(66, require=False, array=False, references=NodeType.USER)
 
 
 @struct(StructType.CONTEXT)

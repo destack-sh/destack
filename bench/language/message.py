@@ -5,6 +5,7 @@ import structlog
 from bench.language.const import NodeType, StructType
 from bench.language.node import LINK_TARGET_NODE_TYPES, BasedNode, Node, node
 from bench.language.property import p_node_parent, p_regular, p_value_packed, p_value_runtime
+from bench.language.session import HasSessionContext
 from bench.language.value import HasValues
 from bench.proto.wire import AnyNodeData, MessageData, NodeReferenceData
 from bench.utils.uuidt import UUIDT
@@ -27,7 +28,7 @@ MESSAGE_PARENT_TYPES: tuple[NodeType, ...] = (NodeType.PACKAGE, NodeType.BLOCK, 
     id_factory=UUIDT,
     index_together=(("package_id", "created_at"),),
 )
-class Message(BasedNode[MessageData], HasValues):  # noqa: F821
+class Message(BasedNode[MessageData], HasSessionContext, HasValues):  # noqa: F821
     """
     A Message by a User or program (author = created_by).
     If the parent is also a Message, then this is part of a thread. Threads may be nested.
@@ -52,6 +53,9 @@ class Message(BasedNode[MessageData], HasValues):  # noqa: F821
 
     # flags
     is_pinned: bool = p_regular(50, default=False)
+
+    # context
+    # ...InSessionNode[60-69]
 
     def __content_str__(self) -> str:
         if self.title:

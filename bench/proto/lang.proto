@@ -2036,22 +2036,22 @@ message LogData {
   LogLevel level = 31;
   optional string logger = 32;
   optional string event = 33;
-  optional AccessType type = 40;
-  repeated int32 properties = 41;
-  optional google.protobuf.Struct new_node_packed = 42;
-  optional google.protobuf.Struct old_node_packed = 43;
+  optional NodeReferenceData node_ptr = 40;
+  optional AccessType type = 41;
+  repeated int32 properties = 42;
+  optional google.protobuf.Struct new_node_packed = 43;
+  optional google.protobuf.Struct old_node_packed = 44;
   optional string title = 45;
   optional TextData text = 46;
   optional google.protobuf.Struct value_packed = 47;
   optional google.protobuf.Struct secret_value_packed = 48;
-  optional NodeReferenceData node_ptr = 50;
-  optional NodeReferenceData block_ptr = 51;
-  optional NodeReferenceData step_ptr = 52;
-  optional NodeReferenceData session_ptr = 55;
-  optional NodeReferenceData run_ptr = 56;
-  optional NodeReferenceData client_ptr = 57;
-  optional NodeReferenceData server_ptr = 58;
-  optional NodeReferenceData user_ptr = 59;
+  optional NodeReferenceData block_ptr = 60;
+  optional NodeReferenceData step_ptr = 61;
+  optional NodeReferenceData session_ptr = 62;
+  optional NodeReferenceData run_ptr = 63;
+  optional NodeReferenceData client_ptr = 64;
+  optional NodeReferenceData server_ptr = 65;
+  optional NodeReferenceData user_ptr = 66;
 }
 
 // A membership to this Bench (and its owner if it's the main Bench).
@@ -2098,6 +2098,13 @@ message MessageData {
   optional google.protobuf.Struct value_packed = 42;
   optional google.protobuf.Struct secret_value_packed = 43;
   bool is_pinned = 50;
+  optional NodeReferenceData block_ptr = 60;
+  optional NodeReferenceData step_ptr = 61;
+  optional NodeReferenceData session_ptr = 62;
+  optional NodeReferenceData run_ptr = 63;
+  optional NodeReferenceData client_ptr = 64;
+  optional NodeReferenceData server_ptr = 65;
+  optional NodeReferenceData user_ptr = 66;
 }
 
 // A node in the Bench graph: a struct with a globally unique identity.
@@ -2303,8 +2310,6 @@ message RunData {
   repeated int32 set_properties = 22;
   RunKind kind = 30;
   optional NodeReferenceData root_ptr = 32;
-  optional NodeReferenceData block_ptr = 34;
-  optional NodeReferenceData step_ptr = 35;
   optional CodeData code = 36;
   optional TextData text = 37;
   RunStatus status = 40;
@@ -2320,10 +2325,13 @@ message RunData {
   optional google.protobuf.Struct value_packed = 54;
   optional google.protobuf.Struct value_secret_packed = 55;
   optional RunErrorData error = 56;
-  optional NodeReferenceData session_ptr = 60;
-  optional NodeReferenceData client_ptr = 61;
-  optional NodeReferenceData server_ptr = 62;
-  optional NodeReferenceData user_ptr = 63;
+  optional NodeReferenceData block_ptr = 60;
+  optional NodeReferenceData step_ptr = 61;
+  optional NodeReferenceData session_ptr = 62;
+  optional NodeReferenceData run_ptr = 63;
+  optional NodeReferenceData client_ptr = 64;
+  optional NodeReferenceData server_ptr = 65;
+  optional NodeReferenceData user_ptr = 66;
 }
 
 // A server providing the Runtime for a Bench.
@@ -2398,6 +2406,13 @@ message SignalData {
   optional NodeReferenceData type_ptr = 32;
   optional google.protobuf.Struct value_packed = 42;
   optional google.protobuf.Struct secret_value_packed = 43;
+  optional NodeReferenceData block_ptr = 60;
+  optional NodeReferenceData step_ptr = 61;
+  optional NodeReferenceData session_ptr = 62;
+  optional NodeReferenceData run_ptr = 63;
+  optional NodeReferenceData client_ptr = 64;
+  optional NodeReferenceData server_ptr = 65;
+  optional NodeReferenceData user_ptr = 66;
 }
 
 // A reference to another node in some graph that wasn't available for some reason (usually permissions).
