@@ -57,13 +57,9 @@ class Run(BasedNode[RunData], HasSessionContext, HasValues):
     root: Optional["Run"] = p_node_ancestor_root(
         32, NodeType.RUN, require=False, store=True, wire=True, is_bench_implicit=True
     )
-
     if TYPE_CHECKING:
-        session_ptr: Optional[NodeReferenceData] = None
         root_ptr: Optional[NodeReferenceData] = None
-        server_ptr: Optional[NodeReferenceData] = None
-        block_ptr: Optional[NodeReferenceData] = None
-        step_ptr: Optional[NodeReferenceData] = None
+
     code: Optional["Code"] = p_internal(36, require=False, array=False, struct=StructType.CODE)
     text: Optional["Text"] = p_internal(37, require=False, array=False, struct=StructType.TEXT)
 

@@ -2,6 +2,7 @@ import asyncio
 import functools
 from contextlib import asynccontextmanager
 from typing import AsyncIterator, Callable, cast, override
+from urllib.parse import urlparse
 from uuid import UUID
 
 import betterproto
@@ -9,8 +10,10 @@ import grpclib.server
 import structlog
 from grpclib import GRPCError
 from grpclib import Status as GRPCStatus
+from grpclib.client import Channel
 
-from bench.language import Bench, Organization, Package, Subject, User
+from bench.language import Bench, Package, Subject
+from bench.language.bench import Machine, ResourceStatus, ServerProfile
 from bench.language.connection import PostgresEngine, StoreEngine
 from bench.language.const import (
     IN_BENCH_GLOBAL_NODE_TYPES,
@@ -30,16 +33,27 @@ from bench.proto.wire import (
     GraphScope,
     HostBase,
     RunData,
+    RuntimeStub,
+    StartRunRequest,
     UploadFilesRequest,
     UploadFilesResponse,
 )
 from bench.system.client import GLOBAL_STORE, global_session
 from bench.system.graph import GraphIoServiceBase
-from bench.system.neon import NEON_LOCAL, prepare_local_stores
+from bench.system.neon import IS_NEON_LOCAL, prepare_local_stores
 from bench.system.resource import migrate_local_stores, provision_pending_resources
 from bench.utils.func import to_uuid
+from bench.utils.utils import get_from_env_maybe
 
 logger = structlog.get_logger(__name__)
+
+LOCAL_MACHINE_URL = get_from_env_maybe("LOCAL_MACHINE_URL")
+LOCAL_MACHINE = Machine(
+    name="localhost",
+    status=ResourceStatus.HEALTHY,
+    connection_uri=LOCAL_MACHINE_URL,
+    profile=ServerProfile.LARGE,
+)
 
 
 class HostMultiplexer(BenchServiceBase, HostBase):
@@ -167,6 +181,7 @@ class Host(GraphIoServiceBase, HostBase):
 
     def __init__(self, bench_id: UUID):
         GraphIoServiceBase.__init__(self, bench_id=bench_id, node_types=IN_BENCH_NODE_TYPES)
+
         self.bench_id = bench_id
         self._bench: Bench | None = None
         self._scope: GraphScope = GraphScope(bench_id=str(bench_id))
@@ -174,9 +189,10 @@ class Host(GraphIoServiceBase, HostBase):
         # NOTE: currently we only have one local engine because we only have one branch :Branching
         #  but later we'll need different engines for every 'full' branch (separate Neon branch)
         self._local_pg_engine: PostgresEngine | None = None
-        self._owner: User | Organization | None = None
         self._main_package: Package | None = None
         self._packages: dict[UUID, Package] = {}
+
+        self._runs_to_queue: asyncio.Queue[RunData] = asyncio.Queue()
 
     def __str__(self):
         return f"{self._bench or self.bench_id}"
@@ -219,7 +235,7 @@ class Host(GraphIoServiceBase, HostBase):
             await provision_pending_resources(self._bench, session, commit_per=True)
 
             # prepare/migrate resources
-            if NEON_LOCAL:
+            if IS_NEON_LOCAL:
                 await prepare_local_stores(self._bench)
             # NOTE :Robustness: unsure when to migrate local stores :StoreMigration
             await migrate_local_stores(self._bench, session)
@@ -234,13 +250,16 @@ class Host(GraphIoServiceBase, HostBase):
 
         # TODO :Robustness: cancel/re-queue Runs stuck on dead Machines
 
+        # start tasks
+        self._tasks.start_queue(self._runs_to_queue, self._process_run_queue)
+
         logger.info("host.start", host=self, duration=asyncio.get_event_loop().time() - start)
 
     def close(self) -> None:
-        pass
+        super().close()
 
     async def wait_closed(self) -> None:
-        pass
+        await super().wait_closed()
 
     @override
     def _adapt_graph_edits(
@@ -276,7 +295,6 @@ class Host(GraphIoServiceBase, HostBase):
             edit_graph(graph, (edit,), options)
 
         # queue any new runs
-        runs_to_queue = []
         for edit in edits:
             node = wiring.unwrap_some_node(edit.node)
             if edit.node_type == NodeType.RUN:
@@ -286,9 +304,34 @@ class Host(GraphIoServiceBase, HostBase):
                     and node.parent_ptr.type == NodeType.PACKAGE
                     and run.status == RunStatus.SCHEDULED
                 ):
-                    runs_to_queue.append(run)
-        if runs_to_queue:
-            ...
+                    self._enqueue_run(run)
+
+    def _enqueue_run(self, run: RunData) -> None:
+        """Adds a run to the distribution queue"""
+        logger.trace("host.enqueue_run", host=self, run=run)
+        self._runs_to_queue.put_nowait(run)
+
+    async def _process_run_queue(self, run_data: RunData) -> None:
+        """Distributes runs to be queued in Runtimes. If no Machine is available, we start one."""
+        # find machine for run
+        package = self._packages.get(UUID(run_data.package_ptr.id))
+        assert package is not None, f"missing package for run {run_data!r}"
+        machine = await self._get_machine(package)
+        if machine is None and LOCAL_MACHINE_URL:
+            machine = LOCAL_MACHINE
+        if machine is None:
+            raise RuntimeError(f"no machine available in {self!r} for run {run_data!r}")
+
+        # queue run on machine
+        machine_url = urlparse(machine.connection_uri)
+        runtime = RuntimeStub(Channel(host=machine_url.netloc, port=machine_url.port))
+        await runtime.start_run(StartRunRequest(run=run_data))
+
+    async def _get_machine(self, package: Package) -> Machine | None:
+        for machine in package.environment.server.machines:
+            if machine.status == ResourceStatus.HEALTHY:
+                return machine
+        return None
 
     #
     # Files

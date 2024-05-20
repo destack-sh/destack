@@ -11,20 +11,21 @@ from bench.language.access import Subject
 from bench.language.bench import Client, Machine
 from bench.language.connection import RemoteEngine
 from bench.language.const import BENCH_NODE_TYPES, IN_PACKAGE_NODE_TYPES, PUBLIC_NODE_TYPES
-from bench.proto import wiring
-from bench.proto.services import MonitoredServiceBase
+from bench.proto.services import BenchServiceBase
 from bench.proto.wire import (
     BenchData,
     GraphScope,
     HostStub,
     PackageData,
     RpcMetadata,
+    RunData,
     RuntimeBase,
     StartRunRequest,
     StartRunResponse,
     SupervisorStub,
 )
 from bench.runtime.connection import ConnectedQuery
+from bench.utils.task import TaskManager
 from bench.utils.tenacity import RetryOptions
 
 logger = structlog.get_logger(__name__)
@@ -61,9 +62,10 @@ ConnectedBench = ConnectedQuery[Bench, BenchData]
 ConnectedPackage = ConnectedQuery[Package, PackageData]
 
 REMOTE_CONNECTION_RETRY = RetryOptions(max_attempts=-1)
+RUNTIME_PARALLELISM = 1
 
 
-class Runtime(RuntimeBase, MonitoredServiceBase):
+class Runtime(RuntimeBase, BenchServiceBase):
     """
     A Runtime processes selected Runs in a Bench/Package in Sessions on a Client.
     """
@@ -105,6 +107,10 @@ class Runtime(RuntimeBase, MonitoredServiceBase):
         self._bench: ConnectedBench | None = None
         self._main_package: ConnectedPackage | None = None
         self._packages: dict[UUID, ConnectedPackage] = {}
+
+        # processes
+        self._run_queue: asyncio.Queue[RunData] = asyncio.Queue()
+        self._processes: list[RuntimeProcess] = []
 
     def __str__(self):
         bench_str = repr(self._bench._node) if self._bench and self._bench._node else self._bench_id
@@ -217,20 +223,29 @@ class Runtime(RuntimeBase, MonitoredServiceBase):
             self._main_package = await self.connect_package(main_branch.main_package_id)
 
             session.untrack_many(self._bench.node, self._client, self._main_package.node)
+
+        # start processes
+        for i in range(RUNTIME_PARALLELISM):
+            process = RuntimeProcess(i, self, self._run_queue)
+            self._processes.append(process)
+            await process.start()
+
         logger.info(
-            "runtime.connected",
+            "runtime.start",
             bench=self._bench.node,
             client=self._client,
             duration=asyncio.get_event_loop().time() - start,
         )
 
     def close(self):
+        super().close()
         if self._bench is not None:
             self._bench.close()
         for package in self._packages.values():
             package.close()
 
     async def wait_closed(self):
+        await super().wait_closed()
         if self._bench is not None:
             await self._bench.wait_closed()
         for package in self._packages.values():
@@ -240,9 +255,34 @@ class Runtime(RuntimeBase, MonitoredServiceBase):
         self._packages.clear()
 
     async def start_run(self, subject: Subject, request: StartRunRequest) -> StartRunResponse:
-        run = wiring.unpack_node(request.run, parent=self.main_package)
-        assert run.parent_id == self.main_package.id, f"{run!r} not in {self.main_package!r}"
-        raise NotImplementedError("nocheckin: start_run")
+        assert (
+            request.run.parent_ptr and request.run.parent_ptr.id == self.main_package.id
+        ), f"{request.run!r} not in {self.main_package!r}"
+        self._run_queue.put_nowait(request.run)
+        logger.trace("runtime.start_run", run=request.run, subject=subject)
+        return StartRunResponse()
+
+
+class RuntimeProcess:
+    """A 'process' for actually executing Runs in a Runtime."""
+
+    def __init__(self, id: int, runtime: Runtime, queue: asyncio.Queue[RunData]):
+        self.id = id
+        self._runtime = runtime
+        self._queue = queue
+        self._tasks = TaskManager()
+
+    async def start(self):
+        self._tasks.start_queue(self._queue, self._process_run, f"run{self.id}")
+
+    async def _process_run(self, run_data: RunData):
+        raise NotImplementedError("nocheckin: _process_run")
+
+    def close(self):
+        self._tasks.close()
+
+    async def wait_closed(self):
+        await self._tasks.wait_closed()
 
 
 @asynccontextmanager

@@ -9,7 +9,7 @@ from bench.language.const import InterpStatus, NodeType, SessionStatus, StructTy
 from bench.language.node import Node, Struct, node, struct, struct_component
 from bench.language.property import Property, p_internal, p_node_parent, p_runtime, p_system
 from bench.language.transaction import Transaction
-from bench.proto.wire import GraphScope, HostStub, SessionData, SupervisorStub
+from bench.proto.wire import GraphScope, HostStub, NodeReferenceData, SessionData, SupervisorStub
 from bench.utils.dt import utcnow
 from bench.utils.func import uuid_to_str
 from bench.utils.uuidt import UUIDT
@@ -291,6 +291,16 @@ class HasSessionContext(Struct):
         66, require=False, array=False, references=NodeType.CLIENT, is_bench_implicit=True
     )
     user: Optional["User"] = p_system(67, require=False, array=False, references=NodeType.USER)
+
+    if TYPE_CHECKING:
+        block_ptr: Optional[NodeReferenceData] = None
+        step_ptr: Optional[NodeReferenceData] = None
+        session_ptr: Optional[NodeReferenceData] = None
+        run_ptr: Optional[NodeReferenceData] = None
+        client_ptr: Optional[NodeReferenceData] = None
+        machine_ptr: Optional[NodeReferenceData] = None
+        server_ptr: Optional[NodeReferenceData] = None
+        user_ptr: Optional[NodeReferenceData] = None
 
 
 @struct(StructType.CONTEXT)
