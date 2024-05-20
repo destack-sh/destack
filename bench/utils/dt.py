@@ -3,5 +3,5 @@ from datetime import datetime
 import pytz
 
 
-def utcnow_with_tz():
-    return datetime.utcnow().replace(tzinfo=pytz.UTC)
+def utcnow():
+    return datetime.now(pytz.utc)

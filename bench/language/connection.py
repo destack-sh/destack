@@ -18,7 +18,7 @@ from uuid import UUID
 import psycopg
 import structlog
 
-from bench.language.const import AccessKind, AggregationOp, BenchError, NodeType, StoreEngineType
+from bench.language.const import AggregationOp, BenchError, NodeType, StoreEngineType
 from bench.language.node import Node
 from bench.proto.wire import (
     AggregationData,
@@ -105,8 +105,10 @@ class StoreEngine(abc.ABC, Generic[NodeT, NodeDataT]):
 
     def __init__(
         self,
+        scope: GraphScope,
         node_types: tuple[NodeType, ...] | bytetuple[NodeType],
     ):
+        self.scope = scope
         self.node_types = node_types
 
     def __repr__(self):
@@ -120,7 +122,11 @@ class StoreEngine(abc.ABC, Generic[NodeT, NodeDataT]):
     def id(self) -> int | str | UUID:
         return hash(self)
 
-    def supports(self, scope: GraphScope, node_type: NodeType, access_kind: AccessKind) -> bool:
+    def supports(self, scope: GraphScope, node_type: NodeType) -> bool:
+        if self.scope.bench_id and self.scope.bench_id != scope.bench_id:
+            return False
+        if self.scope.package_id and self.scope.package_id != scope.package_id:
+            return False
         if node_type not in self.node_types:
             return False
         return True
@@ -209,21 +215,20 @@ class RemoteEngine(StoreEngine[NodeT, NodeDataT]):
 
     def __init__(
         self,
-        default_scope: GraphScope,
+        scope: GraphScope,
         node_types: tuple[NodeType, ...] | bytetuple[NodeType],
         remote: GraphIoStub | HostStub | SupervisorStub,
         rpc_metadata: RpcMetadata,
         retry: RetryOptions = RetryOptions(max_attempts=1),
     ):
-        super().__init__(node_types)
-        self.default_scope = default_scope
+        super().__init__(scope, node_types)
         self.remote = remote
         self.rpc_metadata = rpc_metadata
         self.rpc_headers = cast("_PatchedRpcMetadata", rpc_metadata).to_headers()
         self.retry = retry
 
     def __str__(self):
-        return f"remote={self.remote}"
+        return f"scope={self.scope!r}, node_types={self.node_types}, remote={self.remote.__class__.__name__}"
 
     async def connect(self, session: "Session") -> "RemoteConnection":
         return RemoteConnection(self, session)
@@ -250,7 +255,7 @@ class RemoteConnection(StoreConnection[RemoteEngine, NodeT, NodeDataT]):
             first=query._first,
             options=wiring.pack_struct_maybe(query._options, ReadOptionsData),
             count=options.count,
-            scope=self.engine.default_scope,
+            scope=self.engine.scope,
         )
         response = await self.engine.remote.search_nodes(request, metadata=self.engine.rpc_headers)
         return FetchResult(
@@ -276,7 +281,7 @@ class RemoteConnection(StoreConnection[RemoteEngine, NodeT, NodeDataT]):
             node_type=wiring.pack_enum(NodeType, query._node_type),
             filter=wiring.pack_struct_maybe(query._filter, expect=ExpressionData),
             aggregation=cast(ExpressionData, query._aggregation._to_data()),
-            scope=self.engine.default_scope,
+            scope=self.engine.scope,
         )
         response = await self.engine.remote.aggregate_nodes(
             request, metadata=self.engine.rpc_headers
@@ -294,7 +299,7 @@ class RemoteConnection(StoreConnection[RemoteEngine, NodeT, NodeDataT]):
 
         edits = list(edits)
         request = wire.CommitTransactionRequest(
-            id=str(self.session.tx.id), edits=edits, scope=self.engine.default_scope
+            id=str(self.session.tx.id), edits=edits, scope=self.engine.scope
         )
         response = await self.engine.remote.commit_transaction(
             request, metadata=self.engine.rpc_headers
@@ -308,14 +313,18 @@ class PostgresEngine(StoreEngine[NodeT, NodeDataT], Generic[NodeT, NodeDataT]):
     type = StoreEngineType.POSTGRES
 
     def __init__(
-        self, store: "Store", bench: "Bench", node_types: tuple[NodeType, ...] | bytetuple[NodeType]
+        self,
+        store: "Store",
+        bench: "Bench",
+        scope: GraphScope,
+        node_types: tuple[NodeType, ...] | bytetuple[NodeType],
     ):
-        super().__init__(node_types)
+        super().__init__(scope, node_types)
         self.store = store
         self.bench = bench
 
     def __str__(self):
-        return f"store={self.store!r}, bench={self.bench!r}"
+        return f"scope={self.scope!r}, node_types={self.node_types}, store={self.store!r}"
 
     async def connect(self, session: "Session") -> "PostgresConnection":
         from bench.sql.client import get_pg_store_connection

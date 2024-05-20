@@ -8,9 +8,9 @@ from grpclib import Status as GRPCStatus
 
 from bench.language import Bench, Client, NodeReference, User
 from bench.language.access import Subject
+from bench.language.bench import Region
 from bench.language.const import USER_NODE_TYPES, ClientType, NodeType, OrganizationStatus
 from bench.language.graph import generate_node_name
-from bench.language.bench import Region
 from bench.language.user import Handle, Organization, UserStatus
 from bench.proto import wiring
 from bench.proto.wire import (
@@ -34,7 +34,7 @@ from bench.system.access import check_password, generate_access_token, generate_
 from bench.system.client import GLOBAL_POSTGRES_ENGINE, global_session
 from bench.system.graph import GraphIoServiceBase
 from bench.system.resource import create_default_bench
-from bench.utils.dt import utcnow_with_tz
+from bench.utils.dt import utcnow
 from bench.utils.func import to_uuid
 
 logger = structlog.get_logger(__name__)
@@ -89,7 +89,7 @@ class Supervisor(GraphIoServiceBase, SupervisorBase):
             operating_system=client_data.operating_system,
             browser_name=client_data.browser_name,
             browser_version=client_data.browser_version,
-            seen_at=utcnow_with_tz(),
+            seen_at=utcnow(),
             _is_new=True,  # force create
         )
         return client
@@ -107,7 +107,7 @@ class Supervisor(GraphIoServiceBase, SupervisorBase):
                 name=request.name or request.slug,
                 email=request.email,
                 status=UserStatus.REGISTERED,
-                last_logged_in_at=utcnow_with_tz(),
+                last_logged_in_at=utcnow(),
                 _is_new=True,  # force create
             )
             user.password_salt = generate_salt()
@@ -174,7 +174,7 @@ class Supervisor(GraphIoServiceBase, SupervisorBase):
             if not await check_password(request.password, user.password_salt, user.password_hash):
                 raise GRPCError(GRPCStatus.UNAUTHENTICATED, "incorrect password")
 
-            user.last_logged_in_at = utcnow_with_tz()
+            user.last_logged_in_at = utcnow()
             client = await self._make_client(user, request.client)
             client.access_token = generate_access_token()
             session.upsert(client)
@@ -210,7 +210,7 @@ class Supervisor(GraphIoServiceBase, SupervisorBase):
             for client in clients:
                 client.logged_in_at = None
                 client.access_token = None
-                client.seen_at = utcnow_with_tz()
+                client.seen_at = utcnow()
             await session.commit()
             self.on_graph_edited((GLOBAL_SCOPE,), session.tx.edits)
 

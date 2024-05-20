@@ -3,9 +3,10 @@ from contextlib import asynccontextmanager
 import structlog
 
 from bench.language import Bench, Session, Store
+from bench.language.bench import Region
 from bench.language.connection import PostgresEngine
 from bench.language.const import GLOBAL_NODE_TYPES, VERSION
-from bench.language.bench import Region
+from bench.proto.wire import GraphScope
 from bench.sql.client import GLOBAL_PG_CRYPTO_KEY, _PgStoreConnection
 from bench.utils.utils import get_from_env, get_from_env_maybe
 
@@ -32,7 +33,7 @@ GLOBAL_STORE = Store(
     connection_uri=f"postgresql://{GLOBAL_PG_USERNAME}:{GLOBAL_PG_PASSWORD}@{GLOBAL_PG_HOST}/{GLOBAL_PG_NAME}",
 )
 GLOBAL_POSTGRES_ENGINE = PostgresEngine(
-    store=GLOBAL_STORE, bench=SYSTEM_BENCH_STUB, node_types=GLOBAL_NODE_TYPES
+    store=GLOBAL_STORE, bench=SYSTEM_BENCH_STUB, scope=GraphScope(), node_types=GLOBAL_NODE_TYPES
 )
 
 
@@ -44,5 +45,7 @@ async def global_pg_cursor(autocommit: bool = False):
 
 @asynccontextmanager
 async def global_session():
-    async with Session(parent=None, _engines=(GLOBAL_POSTGRES_ENGINE,)) as session:
+    async with Session(
+        parent=None, _default_scope=GraphScope(), _engines=(GLOBAL_POSTGRES_ENGINE,)
+    ) as session:
         yield session

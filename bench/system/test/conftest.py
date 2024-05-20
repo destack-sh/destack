@@ -7,12 +7,65 @@ from typing import TYPE_CHECKING, Mapping, cast
 import pytest
 from grpclib.testing import ChannelFor
 
-from bench.proto.wire import ClientOrigin, NodeReferenceData, RpcMetadata, SupervisorStub
-from bench.utils.dt import utcnow_with_tz
+from bench.proto.wire import (
+    ClientOrigin,
+    HostBase,
+    HostStub,
+    NodeReferenceData,
+    RpcMetadata,
+    SupervisorBase,
+    SupervisorStub,
+)
+from bench.utils.dt import utcnow
 
 if TYPE_CHECKING:
     from bench.language.user import Client, User
     from bench.proto.monkey import _PatchedRpcMetadata
+
+
+@pytest.fixture(scope="session")
+async def supervisor_service():
+    from bench.system.supervisor import Supervisor
+
+    service = Supervisor()
+    await service.start()
+    try:
+        yield service
+    finally:
+        service.close()
+        await service.wait_closed()
+
+
+@pytest.fixture(scope="session")
+async def host_service():
+    from bench.system.host import HostMultiplexer
+
+    service = HostMultiplexer()
+    await service.start()
+    try:
+        yield service
+    finally:
+        service.close()
+        await service.wait_closed()
+
+
+# NOTE: we cannot keep gRPC service stubs across function boundaries because pytest-async
+#   creates a new loop for each test function, and gRPC services are tied to the loop.
+#   :PytestAsyncWeirdness
+
+
+@pytest.fixture(scope="function")  # :PytestAsyncWeirdness
+async def supervisor(supervisor_service: SupervisorBase):
+    async with ChannelFor([supervisor_service]) as channel:
+        stub = SupervisorStub(channel)
+        yield stub
+
+
+@pytest.fixture(scope="function")  # :PytestAsyncWeirdness
+async def host(host_service: HostBase):
+    async with ChannelFor([host_service]) as channel:
+        stub = HostStub(channel)
+        yield stub
 
 
 @dataclass(slots=True)
@@ -45,7 +98,7 @@ async def make_new_user_handle(
         type=ClientType.BENCH_WEB,
         name=f"{user.name}'s {client_name}",
         device_name="pytest",
-        seen_at=utcnow_with_tz(),
+        seen_at=utcnow(),
     )
     signup_req = SignupUserRequest(
         id=str(user.id),
@@ -86,7 +139,7 @@ async def make_existing_user_handle(
         type=ClientType.BENCH_WEB,
         name=f"{user.name}'s {client_name}",
         device_name="pytest",
-        seen_at=utcnow_with_tz(),
+        seen_at=utcnow(),
     )
     login_req = LoginUserRequest(
         id=str(user.id),
@@ -117,7 +170,7 @@ async def make_random_user_handle(supervisor: "SupervisorStub") -> UserHandle:
     from bench.language.const import UserStatus
 
     random_slug = "".join(random.choices(string.ascii_letters, k=10)).lower()
-    random_email = f"{random_slug}@whatever.com"
+    random_email = f"{random_slug}@symbolx.com"
     user = User(slug=random_slug, name=random_slug, email=random_email, status=UserStatus.INVITED)
     return await make_new_user_handle(
         supervisor, user, password=secrets.token_hex(8), client_name=secrets.token_hex(8)
@@ -127,18 +180,3 @@ async def make_random_user_handle(supervisor: "SupervisorStub") -> UserHandle:
 @pytest.fixture(scope="function")
 async def some_user(supervisor: "SupervisorStub") -> UserHandle:
     return await make_random_user_handle(supervisor)
-
-
-@pytest.fixture(scope="function")
-async def supervisor():
-    from bench.system.supervisor import Supervisor
-
-    service = Supervisor()
-    await service.start()
-    try:
-        async with ChannelFor([service]) as channel:
-            stub = SupervisorStub(channel)
-            yield stub
-    finally:
-        service.close()
-        await service.wait_closed()

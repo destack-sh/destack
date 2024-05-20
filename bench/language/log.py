@@ -2,7 +2,15 @@ from typing import TYPE_CHECKING, Any, Optional
 
 import structlog
 
-from bench.language.const import NODE_TYPES, AccessType, EnumType, NodeType, PrimitiveType, StructType, enum_
+from bench.language.const import (
+    NODE_TYPES,
+    AccessType,
+    EnumType,
+    NodeType,
+    PrimitiveType,
+    StructType,
+    enum_,
+)
 from bench.language.node import Node, node
 from bench.language.property import (
     p_internal,
@@ -19,11 +27,19 @@ from bench.utils.func import IdEnum
 from bench.utils.uuidt import UUIDT
 
 if TYPE_CHECKING:
-    from bench.language import Block, Package, Run, Session, User, Client, Server
+    from bench.language import Block, Client, Package, Run, Server, Session, User
 
 # pyright: reportIncompatibleVariableOverride=false
 
 logger = structlog.get_logger(__name__)
+
+# we don't want edits to core runtime types to trigger logs/signals (circular, and very noisy)
+MUTED_NODE_TYPES: tuple[NodeType, ...] = (
+    NodeType.SESSION,
+    NodeType.RUN,
+    NodeType.SIGNAL,
+    NodeType.LOG,
+)
 
 
 @enum_(EnumType.LOG_KIND)
@@ -67,7 +83,7 @@ class Log(Node, HasValues):
     logger: Optional[str] = p_system(32, default=None)
     event: Optional[str] = p_system(33, default=None)
 
-    # content (access/edit)
+    # content (access/transaction)
     type: AccessType | None = p_internal(40, default=None)
     properties: list[int] = p_internal(41, array=True)
     new_node_packed: Any | None = p_internal(42, primitive_type=PrimitiveType.JSON)
@@ -87,18 +103,18 @@ class Log(Node, HasValues):
     block: Optional["Block"] = p_system(51, require=False, array=False, references=NodeType.BLOCK)
     step: Optional["Step"] = p_system(52, require=False, array=False, references=NodeType.STEP)
     session: Optional["Session"] = p_system(
-        55, require=False, array=False, references=NodeType.SESSION, is_bench_implicit=True
+        53, require=False, array=False, references=NodeType.SESSION, is_bench_implicit=True
     )
     run: Optional["Run"] = p_system(
-        56, require=False, array=False, references=NodeType.RUN, is_bench_implicit=True
+        54, require=False, array=False, references=NodeType.RUN, is_bench_implicit=True
     )
     client: Optional["Client"] = p_system(
-        57, require=False, array=False, references=NodeType.CLIENT, is_bench_implicit=True
+        55, require=False, array=False, references=NodeType.CLIENT, is_bench_implicit=True
     )
     server: Optional["Server"] = p_system(
-        58, require=False, array=False, references=NodeType.CLIENT, is_bench_implicit=True
+        56, require=False, array=False, references=NodeType.CLIENT, is_bench_implicit=True
     )
-    user: Optional["User"] = p_system(59, require=False, array=False, references=NodeType.USER)
+    user: Optional["User"] = p_system(57, require=False, array=False, references=NodeType.USER)
 
     def __content_str__(self):
         return f"[{self.kind.bench_name}:{self.level.bench_name}] '{self.event or self.title or self.text or '<empty>'}' ({self.created_at})"

@@ -8,9 +8,9 @@ from grpclib.client import Channel
 
 from bench.language import Bench, NodeType, Package, Session
 from bench.language.access import Subject
+from bench.language.bench import Client
 from bench.language.connection import RemoteEngine
 from bench.language.const import BENCH_NODE_TYPES, IN_PACKAGE_NODE_TYPES, PUBLIC_NODE_TYPES
-from bench.language.bench import Client
 from bench.proto.services import MonitoredServiceBase
 from bench.proto.wire import (
     BenchData,
@@ -138,7 +138,7 @@ class Runtime(RuntimeBase, MonitoredServiceBase):
         self._engines = (
             # global engine
             RemoteEngine(
-                default_scope=GraphScope(),
+                scope=GraphScope(),
                 node_types=PUBLIC_NODE_TYPES,
                 remote=self._supervisor,
                 retry=REMOTE_CONNECTION_RETRY,
@@ -146,7 +146,7 @@ class Runtime(RuntimeBase, MonitoredServiceBase):
             ),
             # bench engine
             RemoteEngine(
-                default_scope=bench_scope,
+                scope=bench_scope,
                 node_types=BENCH_NODE_TYPES,
                 remote=self._host,
                 retry=REMOTE_CONNECTION_RETRY,
@@ -154,7 +154,7 @@ class Runtime(RuntimeBase, MonitoredServiceBase):
             ),
             # in-package engine
             RemoteEngine(
-                default_scope=bench_scope,
+                scope=bench_scope,
                 node_types=IN_PACKAGE_NODE_TYPES,
                 remote=self._host,
                 retry=REMOTE_CONNECTION_RETRY,

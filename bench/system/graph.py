@@ -52,7 +52,7 @@ from bench.proto.wire import (
     WatchEditsRequest,
     WatchEditsResponse,
 )
-from bench.utils.func import bytetuple, group_by, partition, to_uuid
+from bench.utils.func import bytetuple, group_by, partition, to_uuid, uuid_to_str
 
 logger = structlog.get_logger(__name__)
 
@@ -119,6 +119,7 @@ class GraphIoServiceBase(BenchServiceBase, GraphIoBase):
         self.epoch: int = 0
         self.recent_epochs: deque[Epoch] = deque(maxlen=EPOCH_BUFFER_SIZE)
         self.bench_id: UUID | None = bench_id
+        self.scope = GraphScope(bench_id=uuid_to_str(bench_id))
         self.node_types: bytetuple[NodeType] = node_types
         self.watchers: list[EditWatcher] = []
 
@@ -135,7 +136,9 @@ class GraphIoServiceBase(BenchServiceBase, GraphIoBase):
 
     @asynccontextmanager
     async def session(self):
-        async with Session(parent=None, _engines=self.engines) as session:
+        async with Session(
+            parent=None, _default_scope=self.scope, _engines=self.engines
+        ) as session:
             yield session
 
     async def get_nodes(self, subject: Subject, request: "GetNodesRequest") -> "GetNodesResponse":
@@ -313,7 +316,7 @@ class GraphIoServiceBase(BenchServiceBase, GraphIoBase):
 
             # extend edits
             # (we don't validate this because they're internal)
-            edits = self._adapt_graph_edits(unpacked_graph, request.edits)
+            edits = self._adapt_graph_edits(session, unpacked_graph, request.edits)
 
             # apply edits
             session.tx._add_pending_edits(edits)
@@ -346,7 +349,9 @@ class GraphIoServiceBase(BenchServiceBase, GraphIoBase):
     ) -> "CancelTransactionResponse":
         raise GRPCError(GRPCStatus.UNIMPLEMENTED)  # :2PC
 
-    def _adapt_graph_edits(self, graph: NodeGraph, edits: list[EditData]) -> list[EditData]:
+    def _adapt_graph_edits(
+        self, session: Session, graph: NodeGraph, edits: list[EditData]
+    ) -> list[EditData]:
         # do nothing by default
         return edits
 

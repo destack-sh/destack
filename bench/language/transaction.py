@@ -8,11 +8,11 @@ from uuid import UUID
 import structlog
 
 from bench.language.connection import StoreConnection, StoreEngine
-from bench.language.const import EMPTY_SCOPE, AccessKind, BenchError, EditType, NodeType
+from bench.language.const import AccessKind, BenchError, EditType, NodeType
 from bench.language.node import Node, Property
 from bench.proto import wire
 from bench.proto.wire import AnyNodeData, EditData, GraphScope, NodeReferenceData
-from bench.utils.dt import utcnow_with_tz
+from bench.utils.dt import utcnow
 from bench.utils.func import uuid_to_str
 from bench.utils.uuidt import UUIDT
 
@@ -71,21 +71,14 @@ class Transaction:
         """Gets a connection to the Store for some access."""
         assert self.session is not None, f"no session in {self!r}"
         if isinstance(base, Node):
-            root = base._find_root()
-            scope = GraphScope(
-                bench_id=uuid_to_str(root.bench_id), package_id=uuid_to_str(root.package_id)
-            )
+            scope = self._get_scope_for_node(base)
         elif isinstance(base, GraphScope):
             scope = base
         else:
             assert base is None, f"unexpected base: {base!r}"
-            scope = EMPTY_SCOPE
-        for engine in self.session._engines:
-            if engine.supports(scope, node_type, access_kind):
-                return await self._get_engine_connection(engine)
-        raise BenchError(
-            f"no engine for [base={base!r}, node={node_type.bench_name}] in {self.session!r}"
-        )
+            scope = self.session._default_scope
+        engine = self._get_engine_for(scope, node_type)
+        return await self._get_engine_connection(engine)
 
     async def _get_engine_connection(self, engine: StoreEngine) -> StoreConnection:
         connection = self._connections_by_engine_id.get(engine.id)
@@ -95,15 +88,27 @@ class Transaction:
             self._connections_by_engine_id[engine.id] = connection
         return connection
 
-    def _get_engine_for_edit(
-        self, scope: GraphScope, node_type: NodeType, edit_type: EditType
-    ) -> StoreEngine:
+    def _get_scope_for_node(self, n: Node) -> GraphScope:
+        assert self.session is not None, f"no session in {self!r}"
+        scope = GraphScope(
+            bench_id=uuid_to_str(n.bench_id) if "bench" in n.__properties__ else None,
+            package_id=uuid_to_str(n.package_id) if "package" in n.__properties__ else None,
+        )
+        scope = GraphScope()
+        if "bench" in n.__properties__:
+            scope.bench_id = uuid_to_str(n.bench_id) or self.session._default_scope.bench_id
+        if "package" in n.__properties__:
+            scope.package_id = uuid_to_str(n.package_id) or self.session._default_scope.package_id
+        return scope
+
+    def _get_engine_for(self, scope: GraphScope, node_type: NodeType) -> StoreEngine:
         assert self.session is not None, f"no session in {self!r}"
         for engine in self.session._engines:
-            if engine.supports(scope, node_type, AccessKind.EDIT):
+            if engine.supports(scope, node_type):
                 return engine
         raise BenchError(
-            f"no engine for edit [scope={scope!r}, node_type={node_type.bench_name}, edit_type={edit_type.bench_name}] in {self.session!r}"
+            f"no engine for [scope={scope!r}, node_type={node_type.bench_name}] in {self.session!r}"
+            f" (engines: {self.session._engines!r})"
         )
 
     #
@@ -112,24 +117,18 @@ class Transaction:
 
     def _make_edit(self, type: EditType, n: Node, subject: EditSubject | None) -> EditData:
         """Creates an edit and adds it to the pending edits."""
+        assert self.session is not None, f"no session for {self!r}"
         if self.is_readonly:
             raise RuntimeError(f"cannot {type.bench_name} {n!r} in read-only {self.session}")
 
         from bench.proto import wiring
 
-        # TODO :Performance: pack only edited node properties
         node_data = cast(AnyNodeData, n._to_data())
         if n._updated_properties:
             properties = n._unmask_properties_ids(n._updated_properties)
         else:
             properties = None
-        if n.__is_in_bench__:
-            scope = GraphScope(
-                bench_id=uuid_to_str(n.bench_id) if "bench" in n.__properties__ else None,
-                package_id=uuid_to_str(n.package_id) if "package" in n.__properties__ else None,
-            )
-        else:
-            scope = EMPTY_SCOPE
+        scope = self._get_scope_for_node(n)
         subject_data = (
             cast(NodeReferenceData, wiring.pack_struct(subject.to_ref()))
             if subject is not None
@@ -154,7 +153,7 @@ class Transaction:
             self._schema_changed = True
 
         node_type = wiring.unpack_enum(NodeType, edit.node_type)
-        engine = self._get_engine_for_edit(edit.scope, node_type, cast(EditType, edit.type))
+        engine = self._get_engine_for(edit.scope, node_type)
         self.edits.append(edit)
         self._pending_edits_by_engine_id[engine.id].append(edit)
         if node is not None:
@@ -267,7 +266,7 @@ class Transaction:
         assert self.session is not None, f"no session for {self!r}"
         start = asyncio.get_running_loop().time()
         log = logger.bind(edits=len(self.edits), transaction=self)
-        now = utcnow_with_tz()
+        now = utcnow()
 
         # TODO :Robustness!: use :2PC in Transaction.commit
         #  (if there are more than 2 engines to commit to)

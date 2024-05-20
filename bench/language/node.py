@@ -75,7 +75,7 @@ from bench.language.validation import ValidationError, ValidationHandler, on_inv
 from bench.proto.wire import AnyNodeData, AnyStructData, NodeReferenceData, SomeNodeData
 from bench.sql.core import Constraint, ConstraintType, Index, IndexType, PrimitiveType, Table
 from bench.utils.casing import PYTHON_CASING, IdentifierType, to_casing
-from bench.utils.dt import utcnow_with_tz
+from bench.utils.dt import utcnow
 from bench.utils.func import bytetuple, did_you_mean_str
 from bench.utils.utils import frozendict
 
@@ -1452,7 +1452,7 @@ class Node(Struct[NodeDataT], Generic[NodeDataT]):
             self._is_new = True
         # init timestamps
         if self.created_at is None:
-            now = utcnow_with_tz()
+            now = utcnow()
             self.created_at = now
             self.updated_at = now
         # init graph
@@ -1676,7 +1676,7 @@ class Node(Struct[NodeDataT], Generic[NodeDataT]):
         assert self.is_soft_deleted, f"{self!r} is not deleted"
         raise NotImplementedError
 
-    def hard_delete_forever(self):
+    def hard_delete(self):
         """Hard delete this node. Forever. Irreversibly."""
         raise NotImplementedError
 

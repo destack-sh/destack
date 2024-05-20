@@ -1,3 +1,4 @@
+import contextvars
 from datetime import datetime
 from typing import TYPE_CHECKING, Collection, Optional
 
@@ -8,8 +9,9 @@ from bench.language.const import InterpStatus, NodeType, SessionStatus, StructTy
 from bench.language.node import Node, Struct, node, struct
 from bench.language.property import Property, p_internal, p_node_parent, p_runtime, p_system
 from bench.language.transaction import Transaction
-from bench.proto.wire import EditData, HostStub, SessionData, SupervisorStub
-from bench.utils.dt import utcnow_with_tz
+from bench.proto.wire import GraphScope, HostStub, SessionData, SupervisorStub
+from bench.utils.dt import utcnow
+from bench.utils.func import uuid_to_str
 from bench.utils.uuidt import UUIDT
 
 if TYPE_CHECKING:
@@ -30,14 +32,6 @@ if TYPE_CHECKING:
 # pyright: reportIncompatibleVariableOverride=false
 
 logger = structlog.get_logger(__name__)
-
-# we don't want edits to core runtime types to trigger logs/signals (circular, and very noisy)
-MUTED_NODE_TYPES: tuple[NodeType, ...] = (
-    NodeType.SESSION,
-    NodeType.RUN,
-    NodeType.SIGNAL,
-    NodeType.LOG,
-)
 
 
 @node(
@@ -76,6 +70,8 @@ class Session(Node[SessionData]):
     _is_readonly: bool = p_runtime(default=False)
     _tx: Transaction | None = p_runtime(default=None)
     _engines: tuple["StoreEngine", ...] = p_runtime(default_factory=tuple)
+    _active_session_token: contextvars.Token | None = p_runtime(default=None)
+    _default_scope: GraphScope = p_runtime(default_factory=GraphScope)
     _supervisor: Optional["SupervisorStub"] = p_runtime(default=None)
     _host: Optional["HostStub"] = p_runtime(default=None)
 
@@ -90,6 +86,10 @@ class Session(Node[SessionData]):
 
     def _init_component(self) -> None:
         self._session = self
+        if self.parent is not None:
+            self._default_scope = GraphScope(
+                bench_id=uuid_to_str(self.parent.bench_id), package_id=uuid_to_str(self.parent.id)
+            )
 
     @property
     def tx(self) -> Transaction:
@@ -131,24 +131,21 @@ class Session(Node[SessionData]):
 
         if self.opened_at is not None:
             raise RuntimeError(f"session already open: {self!r}")
-        if _active_session.get() is not None:
-            raise RuntimeError(f"another session is active: {_active_session.get()!r}")
-        _active_session.set(self)
+        self._active_session_token = _active_session.set(self)
 
         # open transaction
         self._tx = Transaction(session=self, is_readonly=self._is_readonly)
 
-        self.opened_at = utcnow_with_tz()
+        self.opened_at = utcnow()
         logger.trace("session.open")
 
     async def flush(self):
         assert self.is_open, f"cannot flush {self!r} when closed"
         await self.tx.flush()
 
-    async def commit(self) -> Collection[EditData]:
+    async def commit(self):
         assert self.is_open, f"cannot commit {self!r} when closed"
         await self.tx.commit()
-        return self.tx.edits
 
     async def rollback(self):
         assert self.is_open, f"cannot rollback {self!r} when closed"
@@ -156,7 +153,7 @@ class Session(Node[SessionData]):
 
     async def close(self):
         """Closes the session, rolling back uncommitted edits. Prevents further runs/edits."""
-        assert self.opened_at is not None, f"session not open {self!r}"
+        assert self.opened_at and self._active_session_token, f"session not open {self!r}"
         if self.closed_at is not None:
             raise RuntimeError(f"session already closed {self}")
 
@@ -165,9 +162,9 @@ class Session(Node[SessionData]):
         self._tx = None
 
         # close session
-        self.closed_at = utcnow_with_tz()
+        self.closed_at = utcnow()
         self.duration = (self.closed_at - self.opened_at).total_seconds()
-        _active_session.set(None)
+        _active_session.reset(self._active_session_token)
 
         logger.trace("session.close", duration=self.duration)
 
@@ -261,7 +258,7 @@ class Session(Node[SessionData]):
         for n in nodes:
             self._tx.unarchive(n, self._edit_subject)
 
-    def hard_delete_forever(self, *nodes: Node):
+    def hard_delete(self, *nodes: Node):
         """Irreversibly deletes a node."""
         assert self._tx is not None, f"no active transaction in {self!r}"
         for n in nodes:
