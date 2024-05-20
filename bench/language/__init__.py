@@ -67,6 +67,7 @@ from .log import Log, LogKind, LogLevel
 from .message import Message
 from .node import Link, Node, Struct
 from .notice import Notice, NoticeError, NoticeType
+from .notification import Notification
 from .path import Path
 from .projection import Projection
 from .property import Property
@@ -132,6 +133,7 @@ __all__ = [
     "Notice",
     "NoticeError",
     "NoticeType",
+	"Notification",
     "Message",
     "ObjectType",
     "Organization",

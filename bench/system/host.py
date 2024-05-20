@@ -162,7 +162,8 @@ class Host(GraphIoServiceBase, HostBase):
         self.bench_id = bench_id
         self._bench: Bench | None = None
         self._bench_scope: GraphScope = GraphScope(bench_id=str(bench_id))
-        self._bench_pg_engine: PostgresEngine | None = None
+        self._bench_global_pg_engine: PostgresEngine | None = None
+        self._bench_local_pg_engine: PostgresEngine | None = None
         self._owner: User | Organization | None = None
         self._main_package: Package | None = None
         self._packages: dict[UUID, Package] = {}

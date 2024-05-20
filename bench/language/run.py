@@ -31,7 +31,7 @@ from bench.proto.wire import AnyNodeData, NodeReferenceData, RunData
 from bench.utils.uuidt import UUIDT
 
 if TYPE_CHECKING:
-    from bench.language import Block, Package, Step
+    from bench.language import Block, Package
 
 # pyright: reportIncompatibleVariableOverride=false
 
