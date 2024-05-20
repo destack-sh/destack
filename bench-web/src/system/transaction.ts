@@ -284,9 +284,11 @@ export class TransactionBuilder implements Transaction {
 
 /** 'Canonicalizes' edits by imputing tracking info (just like in host). See :EditCanonicalization. */
 export function canonicalizeEdits(now: Timestamp, edits: EditData[]) {
-  // nocheckin :Broken: canonicalize only createdByPtr/updatedByPtr, cascade down timestamps for deleted_at/archived_at
+  // TODO :Broken: canonicalize only createdByPtr/updatedByPtr
   //  (currently all nodes in a single transaction will receive the same timestamps,
   //   which is annoying when relying on timestamps for order like in Messages)
+  // TODO :Broken!: cascade down timestamps for deleted_at/archived_at?
+  //  ....but how do timestamps work with branching? (like when I restore a node in a branch)
   for (const edit of edits) {
     const node = unwrapSomeNode(edit.node!);
     if (edit.type == EditType.CREATE || edit.type == EditType.UPSERT) {
@@ -361,8 +363,6 @@ export function editGraph(graph: ReadNodeGraph & WriteNodeGraph, edits: EditData
     }
   }
 }
-
-// TODO :Incomplete: track edit by origin (root) view? (for separate undo/redo)
 
 type CommitFailure = {
   id: string;
@@ -668,8 +668,8 @@ export function getAllTransactionBuffers(): TransactionBuffer[] {
   return [globalTxBuffer, ...Object.values(txBuffersByBenchId.value)];
 }
 
-/** 
- * Gets the transaction buffer for the given scope (non-exclusively). 
+/**
+ * Gets the transaction buffer for the given scope (non-exclusively).
  * Currently we maintain one shared buffer per Bench and one for other global nodes.
  * */
 export async function getTransactionBuffer(scope: GraphScope): Promise<TransactionBuffer> {

@@ -191,7 +191,10 @@ class Host(GraphIoServiceBase, HostBase):
         async with global_session() as session:
             self._bench = await BENCH_QUERY.get(id=self.bench_id)
             self._bench_pg_engine = PostgresEngine(
-                store=GLOBAL_STORE, bench=self._bench, node_types=IN_BENCH_NODE_TYPES
+                store=GLOBAL_STORE,
+                bench=self._bench,
+                scope=self._bench_scope,
+                node_types=IN_BENCH_NODE_TYPES,
             )
             assert self._bench.main_branch is not None, f"{self._bench!r} has no main branch"
             await provision_pending_resources(self._bench, session, commit_per=True)
@@ -205,7 +208,7 @@ class Host(GraphIoServiceBase, HostBase):
         session.untrack_many(self._bench)
 
         # preload main packages
-        async with local_session(engines=(self._bench_pg_engine,)):
+        async with local_session(self._bench_scope, (self._bench_pg_engine,)):
             self._main_package = await PACKAGE_QUERY.get(id=self._bench.main_branch.main_package_id)
             self._packages[self._main_package.id] = self._main_package
         session.untrack_many(self._main_package)
@@ -218,9 +221,13 @@ class Host(GraphIoServiceBase, HostBase):
     async def wait_closed(self) -> None:
         pass
 
-    def _adapt_graph_edits(self, graph: NodeGraph, edits: list[EditData]) -> list[EditData]:
-        # TODO :Incomplete!: handle packages on edit (update notices, fire signals/logs?, ...)
+    def _adapt_graph_edits(
+        self, session: Session, graph: NodeGraph, edits: list[EditData]
+    ) -> list[EditData]:
+        # TODO :Incomplete!: handle packages on edit (update notices, send signals, ...)
         #  Should this also happen in the client sessions? Or just in host and then pushed out?
+        # nocheckin: create Logs for edits
+        #  (but how to compact? add Logs as regular edit or compact+add in one step?)
         return edits
 
     def _on_graph_edited(self, scopes: tuple[GraphScope, ...], edits: list[EditData]):
@@ -261,8 +268,10 @@ class Host(GraphIoServiceBase, HostBase):
 
 
 @asynccontextmanager
-async def local_session(engines: tuple[StoreEngine, ...]) -> AsyncIterator[Session]:
+async def local_session(
+    scope: GraphScope, engines: tuple[StoreEngine, ...]
+) -> AsyncIterator[Session]:
     """Session for local operations (no remote calls)."""
-    session = Session(_engines=engines)
+    session = Session(_default_scope=scope, _engines=engines)
     async with session:
         yield session

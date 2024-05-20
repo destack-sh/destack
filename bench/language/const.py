@@ -11,7 +11,7 @@ from bench.utils.func import IdEnum, bytetuple, cyrb53a
 from bench.utils.utils import frozendict
 
 if typing.TYPE_CHECKING:
-    from bench.language import Session, Transaction
+    from bench.language import Run, Session, Transaction
 
 VERSION = "2024.05.19.0"
 REVISION_PENDING = -1
@@ -95,7 +95,6 @@ class EnumType(IdEnum):
 
     # text
     TEXT_LINE_TYPE = 2090
-
 
     # notice
     NOTICE_TYPE = 2170
@@ -714,7 +713,6 @@ class FieldZone(IdEnum):
     OPTION = 5
 
 
-
 @enum_(EnumType.TRIGGER_TYPE)
 class TriggerType(IdEnum):
     """Triggers for blocks (for both actual runs and pre-defined triggers)."""
@@ -933,6 +931,9 @@ class BenchError(Exception):
 
 _active_session: contextvars.ContextVar[Optional["Session"]] = contextvars.ContextVar(
     "active_session", default=None
+)
+_active_run: contextvars.ContextVar[Optional["Run"]] = contextvars.ContextVar(
+    "active_run", default=None
 )
 
 

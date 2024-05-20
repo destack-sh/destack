@@ -81,6 +81,9 @@ class _PatchedMessage(BetterprotoMessage):
             "slug",
             "node_type",
             "epoch",
+            "bench_id",
+            "package_id",
+            "transaction_id",
         ):
             value = getattr(self, field_name, None)
             if value is not None:

@@ -32,7 +32,7 @@ from bench.proto.wire import (
     UpgradeData,
 )
 from bench.utils.casing import IdentifierType
-from bench.utils.dt import utcnow_with_tz
+from bench.utils.dt import utcnow
 from bench.utils.func import IdEnum
 
 if TYPE_CHECKING:
@@ -359,7 +359,7 @@ class Client(Node[ClientData]):
     access_token: Optional[str] = p_kernel(
         50, default=None, defer=True, unique=True, sensitive=True
     )
-    seen_at: datetime = p_system(51, default_factory=utcnow_with_tz)
+    seen_at: datetime = p_system(51, default_factory=utcnow)
     logged_in_at: Optional[datetime] = p_system(52, default=None)
 
     # for user clients

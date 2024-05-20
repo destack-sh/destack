@@ -38,6 +38,7 @@ from bench.sql.engine import (
     pg_upsert,
     sqlstr,
 )
+from bench.utils.dt import utcnow
 from bench.utils.env import REPOSITORY_PATH
 from bench.utils.func import partition, re_search_or_error
 from bench.utils.utils import format_python
@@ -292,9 +293,9 @@ async def _do_migrate(
     store: Optional["Store"] = None,
 ):
     """Applies the given migrations in the given order."""
-
-    now = datetime.utcnow()
+    now = utcnow()
     for migration in migrations:
+        start = asyncio.get_event_loop().time()
         func_name = f"{is_upgrade and 'upgrade' or 'downgrade'}_{is_global and 'global' or 'local'}"
         migration_file = _load_migration_from_path(migration)
         func = getattr(migration_file.module, func_name)
@@ -307,7 +308,12 @@ async def _do_migrate(
             migration.applied_at = now
         else:
             migration.applied_at = None
-        logger.debug("migration.apply", migration=migration, store=store)
+        logger.debug(
+            "migration.apply",
+            migration=migration,
+            store=store,
+            duration=asyncio.get_event_loop().time() - start,
+        )
 
 
 #

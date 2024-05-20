@@ -1,6 +1,18 @@
 {
   "version": "0.2.0",
   "configurations": [
+    // NOTE: custom test config is useful for stepping into library code during tests
+    //   but unfortunately interferes with the pytest runner output (it's just blank)
+    // {
+    //   "name": "python.debug.tests",
+    //   "type": "debugpy",
+    //   "request": "launch",
+    //   "program": "${file}",
+    //   "purpose": ["debug-test"],
+    //   "console": "integratedTerminal",
+    //   "justMyCode": false
+    // },
+    // general configs
     {
       "name": "bench.system",
       "type": "debugpy",
@@ -25,7 +37,7 @@
         "PYTHONUNBUFFERED": "1",
         "DEBUG": "1",
         "SUPERVISOR_URL": "http://localhost:60061",
-        // this is the 'test' bench
+        // this is the 'test' bench (should probably set this in a local.env?)
         "BENCH_ID": "56cf3720-e93e-4238-92c5-e14f565bc0d7",
         "CLIENT_ID": "b3e7422c-2bec-4332-ab91-71a31e0d54be",
         "CLIENT_ACCESS_TOKEN": "G16fnGUAdFoJog29iZvRSAHqSAVP8VC1KUdCUgpZbBMG",

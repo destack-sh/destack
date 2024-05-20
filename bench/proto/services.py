@@ -169,7 +169,7 @@ class BenchServiceBase:
                 else:
                     raise NotImplementedError(f"unsupported cardinality {cardinality}")
                 duration = asyncio.get_running_loop().time() - start
-                log.info(f"{rpc_name}", duration=duration)
+                log.debug(rpc_name, duration=duration)
 
             except GRPCError as e:
                 # pass through GRPC errors

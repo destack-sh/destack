@@ -1,5 +1,7 @@
-from dataclasses import dataclass
+from contextlib import asynccontextmanager
+from dataclasses import dataclass, replace
 from typing import cast
+from uuid import UUID
 
 import pytest
 from grpclib.testing import ChannelFor
@@ -11,6 +13,8 @@ from bench.language.code_ import Code
 from bench.language.connection import RemoteEngine
 from bench.language.const import (
     BENCH_NODE_TYPES,
+    IN_BENCH_NODE_TYPES,
+    PUBLIC_NODE_TYPES,
     RESOURCE_NODE_TYPES,
     NodeType,
     RunKind,
@@ -26,11 +30,11 @@ from bench.proto.wire import (
     GetNodesRequest,
     GraphScope,
     HostStub,
+    SupervisorBase,
     SupervisorStub,
 )
-from bench.system.host import HostMultiplexer
 from bench.system.resource import decommission_all_resources
-from bench.system.test.conftest import UserHandle
+from bench.system.test.conftest import UserHandle, make_random_user_handle
 
 
 @dataclass(slots=True)
@@ -40,8 +44,9 @@ class BenchHandle:
     package: Package
     owner: User
     owner_handle: UserHandle
-    supervisor: SupervisorStub
-    host: HostStub
+    # the actual stubs (per function scope) :PytestAsyncWeirdness
+    _supervisor: SupervisorStub | None
+    _host: HostStub | None
 
     @property
     def scope(self):
@@ -51,17 +56,47 @@ class BenchHandle:
     def headers(self):
         return self.owner_handle.headers
 
+    @property
+    def supervisor(self) -> SupervisorStub:
+        assert self._supervisor is not None, f"no supervisor for {self!r}"
+        return self._supervisor
+
+    @property
+    def host(self) -> HostStub:
+        assert self._host is not None, f"no host for {self!r}"
+        return self._host
+
     def make_session(self) -> Session:
+        assert self._supervisor is not None, f"no supervisor for {self!r}"
+        assert self._host is not None, f"no host for {self!r}"
+        engines = (
+            # global engine
+            RemoteEngine(
+                scope=GraphScope(),
+                node_types=PUBLIC_NODE_TYPES,
+                remote=self._supervisor,
+                rpc_metadata=self.owner_handle.metadata,
+            ),
+            # bench engine
+            RemoteEngine(
+                scope=self.scope,
+                node_types=IN_BENCH_NODE_TYPES,
+                remote=self._host,
+                rpc_metadata=self.owner_handle.metadata,
+            ),
+        )
         return Session(
             parent=self.package,
-            _supervisor=self.supervisor,
-            _host=self.host,
+            _engines=engines,
+            _supervisor=self._supervisor,
+            _host=self._host,
         )
 
 
-# nocheckin: share activated bench fixture across module (hangs...)
-@pytest.fixture(scope="function")
-async def some_bench(supervisor: SupervisorStub, some_user: UserHandle):
+@asynccontextmanager
+async def make_some_bench(supervisor: SupervisorStub, host: HostStub):
+    some_user = await make_random_user_handle(supervisor)
+
     # make bench in supervisor
     create_bench_req = CreateBenchRequest(
         owner=some_user.user.to_ref()._to_data(),
@@ -71,49 +106,53 @@ async def some_bench(supervisor: SupervisorStub, some_user: UserHandle):
     )
     create_bench_rep = await supervisor.create_bench(create_bench_req, metadata=some_user.headers)
     bench_scope = GraphScope(bench_id=create_bench_rep.bench.id)
+    bench_id = UUID(create_bench_rep.bench.id)
 
     # activate bench in host
-    host = HostMultiplexer()
-    await host.start()
-    try:
-        async with ChannelFor([host]) as channel:
-            host_stub = HostStub(channel)
-            remote_engine = RemoteEngine(
-                default_scope=bench_scope,
-                node_types=BENCH_NODE_TYPES,
-                remote=host_stub,
-                rpc_metadata=some_user.metadata,
-            )
+    remote_engine = RemoteEngine(
+        scope=bench_scope,
+        node_types=BENCH_NODE_TYPES,
+        remote=host,
+        rpc_metadata=some_user.metadata,
+    )
+    async with Session(_default_scope=bench_scope, _engines=(remote_engine,)) as session:
+        bench = await Bench.descendants(
+            NodeType.BRANCH, NodeType.PACKAGE, *RESOURCE_NODE_TYPES
+        ).get(id=bench_id)
+        assert bench.main_branch is not None, f"{bench!r} has no main branch"
+        main_package = await Package.ancestors(Bench).get(id=bench.main_branch.main_package_id)
 
-            # get main package
-            async with Session(_engines=(remote_engine,)) as session:
-                bench = await Bench.descendants(
-                    NodeType.BRANCH, NodeType.PACKAGE, *RESOURCE_NODE_TYPES
-                ).get(id=bench_scope.bench_id)
-                assert bench.main_branch is not None, f"{bench!r} has no main branch"
-                main_package = await Package.ancestors(Bench).get(
-                    id=bench.main_branch.main_package_id
-                )
+    handle = BenchHandle(
+        bench=bench,
+        branch=bench.main_branch,
+        package=main_package,
+        owner=some_user.user,
+        owner_handle=some_user,
+        _supervisor=None,
+        _host=None,
+    )
+    yield handle
 
-            handle = BenchHandle(
-                bench=bench,
-                branch=bench.main_branch,
-                package=main_package,
-                owner=some_user.user,
-                owner_handle=some_user,
-                supervisor=supervisor,
-                host=host_stub,
-            )
+    # decommission
+    async with detached_session() as session:
+        bench = await Bench.descendants(*RESOURCE_NODE_TYPES).get(id=bench_id)
+        await decommission_all_resources(bench, session, commit_per=True)
+        await session.commit()
+
+
+@pytest.fixture(scope="module")
+async def some_bench_setup(supervisor_service: SupervisorBase, host_service):
+    async with ChannelFor([supervisor_service, host_service]) as channel:
+        supervisor = SupervisorStub(channel)
+        host = HostStub(channel)
+        async with make_some_bench(supervisor, host) as handle:
             yield handle
-    finally:
-        host.close()
-        await host.wait_closed()
 
-        # decommission
-        async with detached_session() as session:
-            bench = await Bench.descendants(*RESOURCE_NODE_TYPES).get(id=bench_scope.bench_id)
-            await decommission_all_resources(bench, session, commit_per=True)
-            await session.commit()
+
+@pytest.fixture(scope="function")
+async def some_bench(supervisor, host, some_bench_setup: BenchHandle):
+    handle = replace(some_bench_setup, _supervisor=supervisor, _host=host)
+    yield handle
 
 
 async def test_user_activation(some_bench: BenchHandle):
@@ -143,6 +182,7 @@ async def test_user_activation(some_bench: BenchHandle):
     data_graph = NodeDataGraph([wiring.unwrap_some_node(n) for n in read_bench_rep.nodes])
     roots, _ = wiring.unpack_node_roots(data_graph)
     bench: Bench = cast(Bench, roots[0])
+    assert UUID(user.main_bench_ptr.id) == bench.id
     assert bench.owner_id == some_bench.owner.id
     assert bench.main_environment
     assert bench.main_environment.store
@@ -150,9 +190,12 @@ async def test_user_activation(some_bench: BenchHandle):
 
 
 async def test_create_run(some_bench: BenchHandle):
-    run = Run(
-        kind=RunKind.LAMBDA,
-        status=RunStatus.SCHEDULED,
-        code=Code.from_string("print('hello')"),
-    )
-    # nocheckin ...
+    async with some_bench.make_session() as session:
+        run = Run(
+            parent=some_bench.package,
+            kind=RunKind.LAMBDA,
+            status=RunStatus.SCHEDULED,
+            code=Code.from_string("print('hello')"),
+        )
+        session.create(run)
+        await session.commit()

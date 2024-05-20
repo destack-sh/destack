@@ -20,7 +20,7 @@ from bench.language.validation import NAME_CONSTRAINT, ValidationHandler
 from bench.language.value import HasValues
 from bench.proto.wire import BlockData
 from bench.utils.casing import IdentifierType
-from bench.utils.dt import utcnow_with_tz
+from bench.utils.dt import utcnow
 from bench.utils.fractional import INTEGER_ZERO
 
 if TYPE_CHECKING:
@@ -195,7 +195,7 @@ class Block(Node[BlockData], HasValues):
                 raise ValueError(f"{self!r} is not paused but its ancestor {pausing_ancestor!r} is")
             self.paused_at = None
         else:
-            self.paused_at = utcnow_with_tz()
+            self.paused_at = utcnow()
 
     def __content_str__(self):
         return ""  # implemented by dynamic components

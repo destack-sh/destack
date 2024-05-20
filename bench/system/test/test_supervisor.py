@@ -34,7 +34,7 @@ from bench.proto.wire import (
     SupervisorStub,
 )
 from bench.system.test.conftest import UserHandle, make_new_user_handle
-from bench.utils.dt import utcnow_with_tz
+from bench.utils.dt import utcnow
 
 if TYPE_CHECKING:
     from bench.language.test.fabricator import Fabricator
@@ -50,7 +50,7 @@ async def test_user_registration(supervisor: SupervisorStub):
         type=ClientType.BENCH_WEB,
         name="test",
         device_name="pytest",
-        seen_at=utcnow_with_tz(),
+        seen_at=utcnow(),
     )
 
     # signup -> success
