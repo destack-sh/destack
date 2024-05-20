@@ -8,9 +8,10 @@ from grpclib.client import Channel
 
 from bench.language import Bench, NodeType, Package, Session
 from bench.language.access import Subject
-from bench.language.bench import Client
+from bench.language.bench import Client, Machine
 from bench.language.connection import RemoteEngine
 from bench.language.const import BENCH_NODE_TYPES, IN_PACKAGE_NODE_TYPES, PUBLIC_NODE_TYPES
+from bench.proto import wiring
 from bench.proto.services import MonitoredServiceBase
 from bench.proto.wire import (
     BenchData,
@@ -32,6 +33,7 @@ LOADED_BENCH_NODE_TYPES: tuple[NodeType, ...] = (
     NodeType.BENCH,
     NodeType.ENVIRONMENT,
     NodeType.BRANCH,
+    NodeType.MACHINE,
     NodeType.PACKAGE,
 )
 LOADED_PACKAGE_NODE_TYPES: tuple[NodeType, ...] = (
@@ -73,6 +75,7 @@ class Runtime(RuntimeBase, MonitoredServiceBase):
         bench_id: UUID,
         client_id: UUID,
         client_access_token: str,
+        machine_id: UUID | None,
     ):
         super().__init__()
 
@@ -94,6 +97,8 @@ class Runtime(RuntimeBase, MonitoredServiceBase):
         )
         self._client: Client | None = None
         self._bench_id = bench_id
+        self._machine_id = machine_id
+        self._machine: Machine | None = None
 
         # bench stuff
         self._host: HostStub | None = None
@@ -113,6 +118,26 @@ class Runtime(RuntimeBase, MonitoredServiceBase):
     def host(self) -> HostStub:
         assert self._host is not None, f"no host for {self!r}"
         return self._host
+
+    @property
+    def bench(self) -> Bench:
+        assert self._bench is not None, f"no bench for {self!r}"
+        return self._bench.node
+
+    @property
+    def client(self) -> Client:
+        assert self._client is not None, f"no client for {self!r}"
+        return self._client
+
+    @property
+    def machine(self) -> Machine:
+        assert self._machine is not None, f"no machine for {self!r}"
+        return self._machine
+
+    @property
+    def main_package(self) -> Package:
+        assert self._main_package is not None, f"no main package for {self!r}"
+        return self._main_package.node
 
     async def connect_package(self, package_id: UUID) -> ConnectedPackage:
         """'Connect's a Package to get it live."""
@@ -165,22 +190,33 @@ class Runtime(RuntimeBase, MonitoredServiceBase):
         # connect
         start = asyncio.get_event_loop().time()
         async with local_session(self._engines, self._supervisor, self._host) as session:
-            # get details on this client (and check that it's valid)
-            self._client = await Client.get(id=self._client_id)
-            session.untrack(self._client)
-
-            # connect bench & main packages
+            # connect bench
             self._bench = await ConnectedQuery(
                 query=BENCH_QUERY.where(id=self._bench_id),
                 remote=self._host,
                 scope=GraphScope(bench_id=str(self._bench_id)),
                 rpc_metadata=self._rpc_metadata,
             ).connect()
+            main_environment = self._bench.node.main_environment
+            assert main_environment is not None, f"{self._bench!r} has no main environment"
             main_branch = self._bench.node.main_branch
             assert main_branch is not None, f"{self._bench!r} has no main branch"
             assert main_branch.main_package_id is not None, f"{main_branch!r} has no main package"
+
+            # get client in Bench (and check that it's valid & belongs there)
+            self._client = main_environment.server.clients.get(self._client_id)
+            assert self._client is not None, f"{main_environment!r} has no client {self._client_id}"
+            # and machine (if specified)
+            if self._machine_id is not None:
+                self._machine = main_environment.server.machines.get(self._machine_id)
+                assert (
+                    self._machine is not None
+                ), f"{main_environment.server!r} has no machine {self._machine_id}"
+
+            # connect main package
             self._main_package = await self.connect_package(main_branch.main_package_id)
-            session.untrack_many(self._bench.node, self._main_package.node)
+
+            session.untrack_many(self._bench.node, self._client, self._main_package.node)
         logger.info(
             "runtime.connected",
             bench=self._bench.node,
@@ -204,6 +240,8 @@ class Runtime(RuntimeBase, MonitoredServiceBase):
         self._packages.clear()
 
     async def start_run(self, subject: Subject, request: StartRunRequest) -> StartRunResponse:
+        run = wiring.unpack_node(request.run, parent=self.main_package)
+        assert run.parent_id == self.main_package.id, f"{run!r} not in {self.main_package!r}"
         raise NotImplementedError("nocheckin: start_run")
 
 

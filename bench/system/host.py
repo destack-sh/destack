@@ -1,7 +1,7 @@
 import asyncio
 import functools
 from contextlib import asynccontextmanager
-from typing import AsyncIterator, Callable, override
+from typing import AsyncIterator, Callable, cast, override
 from uuid import UUID
 
 import betterproto
@@ -17,6 +17,7 @@ from bench.language.const import (
     IN_BENCH_NODE_TYPES,
     LOCAL_NODE_TYPES,
     NodeType,
+    RunStatus,
 )
 from bench.language.graph import NodeGraph, edit_graph
 from bench.language.session import Session
@@ -28,6 +29,7 @@ from bench.proto.wire import (
     EditData,
     GraphScope,
     HostBase,
+    RunData,
     UploadFilesRequest,
     UploadFilesResponse,
 )
@@ -129,6 +131,7 @@ class HostMultiplexer(BenchServiceBase, HostBase):
 LOADED_BENCH_NODE_TYPES: tuple[NodeType, ...] = (
     NodeType.HANDLE,
     NodeType.SERVER,
+    NodeType.MACHINE,
     NodeType.STORE,
     NodeType.ENVIRONMENT,
     NodeType.BRANCH,
@@ -229,6 +232,8 @@ class Host(GraphIoServiceBase, HostBase):
             self._packages[self._main_package.id] = self._main_package
         session.untrack_many(self._main_package)
 
+        # TODO :Robustness: cancel/re-queue Runs stuck on dead Machines
+
         logger.info("host.start", host=self, duration=asyncio.get_event_loop().time() - start)
 
     def close(self) -> None:
@@ -269,6 +274,21 @@ class Host(GraphIoServiceBase, HostBase):
 
             assert isinstance(graph, NodeGraph), f"unexpected graph type: {graph!r}"
             edit_graph(graph, (edit,), options)
+
+        # queue any new runs
+        runs_to_queue = []
+        for edit in edits:
+            node = wiring.unwrap_some_node(edit.node)
+            if edit.node_type == NodeType.RUN:
+                run = cast(RunData, node)
+                if (
+                    node.parent_ptr is not None
+                    and node.parent_ptr.type == NodeType.PACKAGE
+                    and run.status == RunStatus.SCHEDULED
+                ):
+                    runs_to_queue.append(run)
+        if runs_to_queue:
+            ...
 
     #
     # Files

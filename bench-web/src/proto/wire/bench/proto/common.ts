@@ -121,7 +121,7 @@ export interface EditData {
      */
     nodeType: NodeType;
     /**
-     * TODO :Cleanup :Architecture: change EditData.node to new_node_packed/old_node_packed
+     * NOTE :Cleanup :Architecture: change EditData.node to new_node_packed/old_node_packed?
      *
      * @generated from protobuf field: symbolx.bench.SomeNodeData node = 35;
      */

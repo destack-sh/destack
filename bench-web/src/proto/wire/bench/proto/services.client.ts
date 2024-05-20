@@ -7,13 +7,10 @@
 //All the services and any additional stuff not auto-generated in bench.proto.
 //
 import { Runtime } from "./services";
-import type { UpdateRunResponse } from "./services";
-import type { UpdateRunRequest } from "./services";
 import type { StartRunResponse } from "./services";
 import type { StartRunRequest } from "./services";
 import type { RestartRuntimeResponse } from "./services";
 import type { RestartRuntimeRequest } from "./services";
-import { Server } from "./services";
 import { Host } from "./services";
 import type { DownloadFilesResponse } from "./services";
 import type { DownloadFilesRequest } from "./services";
@@ -610,29 +607,6 @@ export class HostClient implements IHostClient, ServiceInfo {
         return stackIntercept<DownloadFilesRequest, DownloadFilesResponse>("unary", this._transport, method, opt, input);
     }
 }
-// 
-// Server
-// 
-
-/**
- * @generated from protobuf service symbolx.bench.Server
- */
-export interface IServerClient {
-}
-// 
-// Server
-// 
-
-/**
- * @generated from protobuf service symbolx.bench.Server
- */
-export class ServerClient implements IServerClient, ServiceInfo {
-    typeName = Server.typeName;
-    methods = Server.methods;
-    options = Server.options;
-    constructor(private readonly _transport: RpcTransport) {
-    }
-}
 /**
  * A Runtime for running a Bench in an isolated environment on/for a Client.
  * The Runtime may run any number of processes to process its Runs in Sessions.
@@ -648,16 +622,11 @@ export interface IRuntimeClient {
     restart(input: RestartRuntimeRequest, options?: OperationOptions): UnaryCall<RestartRuntimeRequest, RestartRuntimeResponse>;
     /**
      * Starts a new Run in this runtime. The Run must already exist in the graph.
+     * NOTE: we'll probably want some load-balancing queue for distributing Runs
      *
      * @generated from protobuf rpc: StartRun(symbolx.bench.StartRunRequest) returns (symbolx.bench.StartRunResponse);
      */
     startRun(input: StartRunRequest, options?: OperationOptions): UnaryCall<StartRunRequest, StartRunResponse>;
-    /**
-     * Updates a Run in this runtime, generally to update its state (and pause/resume/etc.)
-     *
-     * @generated from protobuf rpc: UpdateRun(symbolx.bench.UpdateRunRequest) returns (symbolx.bench.UpdateRunResponse);
-     */
-    updateRun(input: UpdateRunRequest, options?: OperationOptions): UnaryCall<UpdateRunRequest, UpdateRunResponse>;
 }
 /**
  * A Runtime for running a Bench in an isolated environment on/for a Client.
@@ -682,21 +651,13 @@ export class RuntimeClient implements IRuntimeClient, ServiceInfo {
     }
     /**
      * Starts a new Run in this runtime. The Run must already exist in the graph.
+     * NOTE: we'll probably want some load-balancing queue for distributing Runs
      *
      * @generated from protobuf rpc: StartRun(symbolx.bench.StartRunRequest) returns (symbolx.bench.StartRunResponse);
      */
     startRun(input: StartRunRequest, options?: OperationOptions): UnaryCall<StartRunRequest, StartRunResponse> {
         const method = this.methods[1], opt = this._transport.mergeOptions(options);
         return stackIntercept<StartRunRequest, StartRunResponse>("unary", this._transport, method, opt, input);
-    }
-    /**
-     * Updates a Run in this runtime, generally to update its state (and pause/resume/etc.)
-     *
-     * @generated from protobuf rpc: UpdateRun(symbolx.bench.UpdateRunRequest) returns (symbolx.bench.UpdateRunResponse);
-     */
-    updateRun(input: UpdateRunRequest, options?: OperationOptions): UnaryCall<UpdateRunRequest, UpdateRunResponse> {
-        const method = this.methods[2], opt = this._transport.mergeOptions(options);
-        return stackIntercept<UpdateRunRequest, UpdateRunResponse>("unary", this._transport, method, opt, input);
     }
 }
 

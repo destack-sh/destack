@@ -111,8 +111,9 @@ enum BenchType {
   BENCH_TYPE_RECORD = 86;
   BENCH_TYPE_SERVER = 160;
   BENCH_TYPE_STORE = 161;
-  BENCH_TYPE_DRIVE = 162;
-  BENCH_TYPE_BLOB = 180;
+  BENCH_TYPE_MACHINE = 162;
+  BENCH_TYPE_DRIVE = 163;
+  BENCH_TYPE_BLOB = 164;
   BENCH_TYPE_HANDLE = 220;
   BENCH_TYPE_USER = 221;
   BENCH_TYPE_ORGANIZATION = 222;
@@ -580,8 +581,9 @@ enum NodeType {
   NODE_TYPE_RECORD = 86;
   NODE_TYPE_SERVER = 160;
   NODE_TYPE_STORE = 161;
-  NODE_TYPE_DRIVE = 162;
-  NODE_TYPE_BLOB = 180;
+  NODE_TYPE_MACHINE = 162;
+  NODE_TYPE_DRIVE = 163;
+  NODE_TYPE_BLOB = 164;
   NODE_TYPE_HANDLE = 220;
   NODE_TYPE_USER = 221;
   NODE_TYPE_ORGANIZATION = 222;
@@ -646,8 +648,9 @@ enum ObjectType {
   OBJECT_TYPE_RECORD = 86;
   OBJECT_TYPE_SERVER = 160;
   OBJECT_TYPE_STORE = 161;
-  OBJECT_TYPE_DRIVE = 162;
-  OBJECT_TYPE_BLOB = 180;
+  OBJECT_TYPE_MACHINE = 162;
+  OBJECT_TYPE_DRIVE = 163;
+  OBJECT_TYPE_BLOB = 164;
   OBJECT_TYPE_HANDLE = 220;
   OBJECT_TYPE_USER = 221;
   OBJECT_TYPE_ORGANIZATION = 222;
@@ -1829,7 +1832,7 @@ message ClientData {
   optional string access_token = 50;
   google.protobuf.Timestamp seen_at = 51;
   optional google.protobuf.Timestamp logged_in_at = 52;
-  optional NodeReferenceData main_space_ptr = 60;
+  optional NodeReferenceData space_ptr = 60;
 }
 
 // A dependency on another Bench (pointing to a specific Package).
@@ -2050,8 +2053,38 @@ message LogData {
   optional NodeReferenceData session_ptr = 62;
   optional NodeReferenceData run_ptr = 63;
   optional NodeReferenceData client_ptr = 64;
-  optional NodeReferenceData server_ptr = 65;
-  optional NodeReferenceData user_ptr = 66;
+  optional NodeReferenceData machine_ptr = 65;
+  optional NodeReferenceData server_ptr = 66;
+  optional NodeReferenceData user_ptr = 67;
+}
+
+// A Machine provides the isolated compute for a Server.
+message MachineData {
+  ObjectType metatype = 1;
+  string id = 2;
+  optional NodeReferenceData parent_ptr = 4;
+  NodeReferenceData bench_ptr = 7;
+  int64 revision = 10;
+  google.protobuf.Timestamp created_at = 11;
+  google.protobuf.Timestamp updated_at = 12;
+  optional google.protobuf.Timestamp deleted_at = 13;
+  optional google.protobuf.Timestamp archived_at = 14;
+  optional NodeReferenceData created_by_ptr = 17;
+  optional NodeReferenceData updated_by_ptr = 18;
+  repeated int32 set_properties = 22;
+  string name = 32;
+  optional TextData text = 34;
+  Region region = 35;
+  ResourceStatus status = 36;
+  ServerProfile profile = 40;
+  optional string version = 41;
+  optional string external_name = 42;
+  optional string external_id = 43;
+  optional string connection_uri = 44;
+  optional google.protobuf.Timestamp started_at = 50;
+  optional google.protobuf.Timestamp terminated_at = 51;
+  optional google.protobuf.Timestamp active_at = 52;
+  optional google.protobuf.Timestamp bumped_at = 53;
 }
 
 // A membership to this Bench (and its owner if it's the main Bench).
@@ -2103,8 +2136,9 @@ message MessageData {
   optional NodeReferenceData session_ptr = 62;
   optional NodeReferenceData run_ptr = 63;
   optional NodeReferenceData client_ptr = 64;
-  optional NodeReferenceData server_ptr = 65;
-  optional NodeReferenceData user_ptr = 66;
+  optional NodeReferenceData machine_ptr = 65;
+  optional NodeReferenceData server_ptr = 66;
+  optional NodeReferenceData user_ptr = 67;
 }
 
 // A node in the Bench graph: a struct with a globally unique identity.
@@ -2182,8 +2216,9 @@ message NotificationData {
   optional NodeReferenceData session_ptr = 62;
   optional NodeReferenceData run_ptr = 63;
   optional NodeReferenceData client_ptr = 64;
-  optional NodeReferenceData server_ptr = 65;
-  optional NodeReferenceData user_ptr = 66;
+  optional NodeReferenceData machine_ptr = 65;
+  optional NodeReferenceData server_ptr = 66;
+  optional NodeReferenceData user_ptr = 67;
 }
 
 // A Bench organization with Users as members.
@@ -2337,13 +2372,13 @@ message RunData {
   optional NodeReferenceData session_ptr = 62;
   optional NodeReferenceData run_ptr = 63;
   optional NodeReferenceData client_ptr = 64;
-  optional NodeReferenceData server_ptr = 65;
-  optional NodeReferenceData user_ptr = 66;
+  optional NodeReferenceData machine_ptr = 65;
+  optional NodeReferenceData server_ptr = 66;
+  optional NodeReferenceData user_ptr = 67;
 }
 
-// A server providing the Runtime for a Bench.
-// Similar to other resources, a Server virtualizes a compute allocation that is
-// materialized on demand on a set of physical machines.
+// A server provides some compute for a Bench's Runtime.
+// Actual compute is materialized (on-demand) as Machines.
 message ServerData {
   ObjectType metatype = 1;
   string id = 2;
@@ -2362,7 +2397,6 @@ message ServerData {
   Region region = 35;
   ResourceStatus status = 36;
   ServerProfile profile = 40;
-  optional string version = 42;
   optional google.protobuf.Timestamp active_at = 50;
   optional google.protobuf.Timestamp bumped_at = 51;
 }
@@ -2391,7 +2425,8 @@ message SessionData {
   optional google.protobuf.Timestamp closed_at = 43;
   optional NodeReferenceData client_ptr = 61;
   optional NodeReferenceData server_ptr = 62;
-  optional NodeReferenceData user_ptr = 63;
+  optional NodeReferenceData machine_ptr = 63;
+  optional NodeReferenceData user_ptr = 64;
 }
 
 // A Signal emitted in this Bench.
@@ -2418,8 +2453,9 @@ message SignalData {
   optional NodeReferenceData session_ptr = 62;
   optional NodeReferenceData run_ptr = 63;
   optional NodeReferenceData client_ptr = 64;
-  optional NodeReferenceData server_ptr = 65;
-  optional NodeReferenceData user_ptr = 66;
+  optional NodeReferenceData machine_ptr = 65;
+  optional NodeReferenceData server_ptr = 66;
+  optional NodeReferenceData user_ptr = 67;
 }
 
 // A reference to another node in some graph that wasn't available for some reason (usually permissions).
@@ -2670,12 +2706,13 @@ message SomeNodeData {
     RecordData record = 28;
     ServerData server = 29;
     StoreData store = 30;
-    DriveData drive = 31;
-    BlobData blob = 32;
-    HandleData handle = 33;
-    UserData user = 34;
-    OrganizationData organization = 35;
-    ClientData client = 36;
+    MachineData machine = 31;
+    DriveData drive = 32;
+    BlobData blob = 33;
+    HandleData handle = 34;
+    UserData user = 35;
+    OrganizationData organization = 36;
+    ClientData client = 37;
   };
 }
 
