@@ -8,7 +8,7 @@ from uuid import UUID
 import structlog
 
 from bench.language.connection import StoreConnection, StoreEngine
-from bench.language.const import AccessKind, BenchError, EditType, NodeType
+from bench.language.const import BenchError, EditType, NodeType
 from bench.language.node import Node, Property
 from bench.proto import wire
 from bench.proto.wire import AnyNodeData, EditData, GraphScope, NodeReferenceData
@@ -65,9 +65,7 @@ class Transaction:
     def has_pending_edits(self) -> bool:
         return any(self._pending_edits_by_engine_id.values())
 
-    async def connect(
-        self, base: Node | GraphScope | None, node_type: NodeType, access_kind: AccessKind
-    ) -> StoreConnection:
+    async def connect(self, base: Node | GraphScope | None, node_type: NodeType) -> StoreConnection:
         """Gets a connection to the Store for some access."""
         assert self.session is not None, f"no session in {self!r}"
         if isinstance(base, Node):

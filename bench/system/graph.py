@@ -20,7 +20,7 @@ from bench.language.access import (
     generate_access_matrix,
 )
 from bench.language.connection import FetchOptions, StoreEngine
-from bench.language.const import AccessKind, ConditionalOp, EditType, NodeType, PolicyEffect
+from bench.language.const import ConditionalOp, EditType, NodeType, PolicyEffect
 from bench.language.graph import NodeDataGraph, NodeGraph, edit_data_graph
 from bench.language.node import Node
 from bench.language.query import QueryBuilder
@@ -170,7 +170,7 @@ class GraphIoServiceBase(BenchServiceBase, GraphIoBase):
                     ),
                     options=adapted_options,
                 )
-                connection = await session.tx.connect(request.scope, node_type, AccessKind.READ)
+                connection = await session.tx.connect(request.scope, node_type)
                 result = await connection.fetch(query, FetchOptions(count=False))
                 graph.extend(result.nodes)
         if any(cast(str, root.id) not in graph for root in request.roots):
@@ -213,7 +213,7 @@ class GraphIoServiceBase(BenchServiceBase, GraphIoBase):
             query = QueryBuilder(
                 node_type=node_type, filter=filter, options=adapted_options, sort=sort
             )
-            connection = await session.tx.connect(request.scope, node_type, AccessKind.READ)
+            connection = await session.tx.connect(request.scope, node_type)
             result = await connection.fetch(query, FetchOptions(count=request.count or False))
             roots.extend(result.roots)
             graph = NodeDataGraph(result.nodes)
@@ -249,7 +249,7 @@ class GraphIoServiceBase(BenchServiceBase, GraphIoBase):
             query = QueryBuilder(
                 node_type=node_type, filter=filter, options=adapted_options, aggregation=aggregation
             )
-            connection = await session.tx.connect(request.scope, node_type, AccessKind.READ)
+            connection = await session.tx.connect(request.scope, node_type)
             result = await connection.aggregate(query)
 
         # TODO :Security!: check aggregation access
@@ -279,7 +279,7 @@ class GraphIoServiceBase(BenchServiceBase, GraphIoBase):
                     ),
                     options=options,
                 )
-                connection = await session.tx.connect(request.scope, node_type, AccessKind.EDIT)
+                connection = await session.tx.connect(request.scope, node_type)
                 result = await connection.fetch(query, FetchOptions(count=False))
 
                 # merge result into data_graph (there may be duplicates)

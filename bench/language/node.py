@@ -230,6 +230,8 @@ def _process_struct_base_cls(
     is_inlined: bool = False,
 ) -> tuple[type[_StructT], dict[str, "Property"]]:
     """Process a struct base class and return the processed class and its properties."""
+    assert isinstance(cls, type), f"expected type, got {cls} ({type(cls)})"
+
     is_node_base = cls.__name__ in "Node"
     is_struct_base = cls.__name__ == "Struct"
     is_node = not is_struct_base and (is_node_base or issubclass(cls, Node))

@@ -30,8 +30,8 @@ def pytest_collection_modifyitems(items):
 
 @pytest.fixture(autouse=True, scope="session")
 async def prepared_test_db():
-    from bench.language.setup import NODE_CLASSES
     from bench.sql.client import get_pg_connection_str, pg_cursor
+    from bench.sql.engine import GLOBAL_TABLES
     from bench.sql.migration import (
         EXTENSIONS,
         apply_migration_ops,
@@ -52,13 +52,12 @@ async def prepared_test_db():
         await cur.execute("DROP DATABASE IF EXISTS test")
         await cur.execute("CREATE DATABASE test")
 
-    # migrate to current schema
+    # migrate to current global schema
     async with global_pg_cursor() as cur:
         for extension in EXTENSIONS:
             await cur.execute(f"CREATE EXTENSION IF NOT EXISTS {extension}")
         blank_tables = await introspect_tables_from_pg(cur)
-        new_tables = [node.__table__ for node in NODE_CLASSES if node.__table__]
-        blank_ops = generate_migration_ops(blank_tables, new_tables)
+        blank_ops = generate_migration_ops(blank_tables, GLOBAL_TABLES)
         await apply_migration_ops(cur, blank_ops)
         await cur.connection.commit()
 

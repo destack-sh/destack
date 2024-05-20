@@ -20,14 +20,14 @@ from bench.language.property import (
     p_value_packed,
     p_value_runtime,
 )
-from bench.language.step import Step
+from bench.language.session import HasSessionContext
 from bench.language.text import Text
 from bench.language.value import HasValues
 from bench.utils.func import IdEnum
 from bench.utils.uuidt import UUIDT
 
 if TYPE_CHECKING:
-    from bench.language import Block, Client, Package, Run, Server, Session, User
+    from bench.language import Package
 
 # pyright: reportIncompatibleVariableOverride=false
 
@@ -70,7 +70,7 @@ class LogLevel(IdEnum):
     id_factory=UUIDT,
     index_together=(("package_id", "created_at"),),
 )
-class Log(Node, HasValues):
+class Log(Node, HasSessionContext, HasValues):
     """
     A Log of something happening on a Bench.
     """
@@ -83,11 +83,12 @@ class Log(Node, HasValues):
     logger: Optional[str] = p_system(32, default=None)
     event: Optional[str] = p_system(33, default=None)
 
-    # content (access/transaction)
-    type: AccessType | None = p_internal(40, default=None)
-    properties: list[int] = p_internal(41, array=True)
-    new_node_packed: Any | None = p_internal(42, primitive_type=PrimitiveType.JSON)
-    old_node_packed: Any | None = p_internal(43, primitive_type=PrimitiveType.JSON)
+    # content (access)
+    node: Optional["Node"] = p_system(40, require=False, array=False, references=NODE_TYPES.tuple)
+    type: AccessType | None = p_internal(41, default=None)
+    properties: list[int] = p_internal(42, array=True)
+    new_node_packed: Any | None = p_internal(43, primitive_type=PrimitiveType.JSON)
+    old_node_packed: Any | None = p_internal(44, primitive_type=PrimitiveType.JSON)
 
     # content (custom)
     title: Optional[str] = p_internal(45, default=None)
@@ -99,22 +100,7 @@ class Log(Node, HasValues):
     value: Any = p_value_runtime(47, 48)
 
     # context
-    node: Optional["Node"] = p_system(50, require=False, array=False, references=NODE_TYPES.tuple)
-    block: Optional["Block"] = p_system(51, require=False, array=False, references=NodeType.BLOCK)
-    step: Optional["Step"] = p_system(52, require=False, array=False, references=NodeType.STEP)
-    session: Optional["Session"] = p_system(
-        53, require=False, array=False, references=NodeType.SESSION, is_bench_implicit=True
-    )
-    run: Optional["Run"] = p_system(
-        54, require=False, array=False, references=NodeType.RUN, is_bench_implicit=True
-    )
-    client: Optional["Client"] = p_system(
-        55, require=False, array=False, references=NodeType.CLIENT, is_bench_implicit=True
-    )
-    server: Optional["Server"] = p_system(
-        56, require=False, array=False, references=NodeType.CLIENT, is_bench_implicit=True
-    )
-    user: Optional["User"] = p_system(57, require=False, array=False, references=NodeType.USER)
+    # ...InSessionNode[60-69]
 
     def __content_str__(self):
         return f"[{self.kind.bench_name}:{self.level.bench_name}] '{self.event or self.title or self.text or '<empty>'}' ({self.created_at})"

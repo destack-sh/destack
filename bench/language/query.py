@@ -14,7 +14,6 @@ from typing import (
 )
 
 from bench.language.const import (
-    AccessKind,
     AggregationOp,
     BenchError,
     ExpressionKind,
@@ -404,9 +403,7 @@ class QueryBuilder(
         from bench.proto.wiring import unpack_node_roots
 
         tx = active_tx()
-        connection = await tx.connect(
-            base=self._base, node_type=self._node_type, access_kind=AccessKind.READ
-        )
+        connection = await tx.connect(self._base, self._node_type)
         result = await connection.fetch(self, FetchOptions())
         data_graph = NodeDataGraph(result.nodes)
         read = ReadInfo(options=self._options, epoch=result.epoch) if self._options else None
@@ -425,9 +422,7 @@ class QueryBuilder(
         filter = coerce_conditional(self._node_cls, filter, kwargs, return_none_if_empty=True)
         query = self.where(filter) if filter is not None else self
         query = query.aggregate(A(AggregationOp.COUNT))
-        connection = await active_tx().connect(
-            base=query._base, node_type=query._node_type, access_kind=AccessKind.READ
-        )
+        connection = await active_tx().connect(query._base, query._node_type)
         result = await connection.aggregate(query)
         assert result.aggregation.count is not None, f"missing count in {result!r}"
         return result.aggregation.count
@@ -439,9 +434,7 @@ class QueryBuilder(
         filter = coerce_conditional(self._node_cls, filter, kwargs, return_none_if_empty=True)
         query = self.where(filter) if filter is not None else self
         query = query.aggregate(A(AggregationOp.EXISTS))
-        connection = await active_tx().connect(
-            base=query._base, node_type=query._node_type, access_kind=AccessKind.READ
-        )
+        connection = await active_tx().connect(query._base, query._node_type)
         result = await connection.aggregate(query)
         assert result.aggregation.exists is not None, f"missing exists in {result!r}"
         return result.aggregation.exists
