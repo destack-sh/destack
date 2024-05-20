@@ -2177,6 +2177,13 @@ message NotificationData {
   optional TextData text = 41;
   optional google.protobuf.Struct value_packed = 42;
   optional google.protobuf.Struct secret_value_packed = 43;
+  optional NodeReferenceData block_ptr = 60;
+  optional NodeReferenceData step_ptr = 61;
+  optional NodeReferenceData session_ptr = 62;
+  optional NodeReferenceData run_ptr = 63;
+  optional NodeReferenceData client_ptr = 64;
+  optional NodeReferenceData server_ptr = 65;
+  optional NodeReferenceData user_ptr = 66;
 }
 
 // A Bench organization with Users as members.
