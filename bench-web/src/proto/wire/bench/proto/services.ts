@@ -593,17 +593,13 @@ export interface GetHostRequest {
  */
 export interface GetHostResponse {
     /**
-     * @generated from protobuf field: string host = 1;
+     * @generated from protobuf field: string connection_uri = 1;
      */
-    host: string;
+    connectionUri: string;
     /**
      * @generated from protobuf field: symbolx.bench.NodeReferenceData bench = 2;
      */
     bench?: NodeReferenceData;
-    /**
-     * @generated from protobuf field: string bench_slug = 3;
-     */
-    benchSlug: string;
 }
 // 
 // Host
@@ -704,20 +700,6 @@ export interface StartRunRequest {
  * @generated from protobuf message symbolx.bench.StartRunResponse
  */
 export interface StartRunResponse {
-}
-/**
- * @generated from protobuf message symbolx.bench.UpdateRunRequest
- */
-export interface UpdateRunRequest {
-    /**
-     * @generated from protobuf field: symbolx.bench.RunData run = 1;
-     */
-    run?: RunData;
-}
-/**
- * @generated from protobuf message symbolx.bench.UpdateRunResponse
- */
-export interface UpdateRunResponse {
 }
 // @generated message type with reflection information, may provide speed optimized methods
 class GetNodesRequest$Type extends MessageType<GetNodesRequest> {
@@ -2610,15 +2592,13 @@ export const GetHostRequest = new GetHostRequest$Type();
 class GetHostResponse$Type extends MessageType<GetHostResponse> {
     constructor() {
         super("symbolx.bench.GetHostResponse", [
-            { no: 1, name: "host", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
-            { no: 2, name: "bench", kind: "message", T: () => NodeReferenceData },
-            { no: 3, name: "bench_slug", kind: "scalar", T: 9 /*ScalarType.STRING*/ }
+            { no: 1, name: "connection_uri", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
+            { no: 2, name: "bench", kind: "message", T: () => NodeReferenceData }
         ]);
     }
     create(value?: PartialMessage<GetHostResponse>): GetHostResponse {
         const message = globalThis.Object.create((this.messagePrototype!));
-        message.host = "";
-        message.benchSlug = "";
+        message.connectionUri = "";
         if (value !== undefined)
             reflectionMergePartial<GetHostResponse>(this, message, value);
         return message;
@@ -2628,14 +2608,11 @@ class GetHostResponse$Type extends MessageType<GetHostResponse> {
         while (reader.pos < end) {
             let [fieldNo, wireType] = reader.tag();
             switch (fieldNo) {
-                case /* string host */ 1:
-                    message.host = reader.string();
+                case /* string connection_uri */ 1:
+                    message.connectionUri = reader.string();
                     break;
                 case /* symbolx.bench.NodeReferenceData bench */ 2:
                     message.bench = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.bench);
-                    break;
-                case /* string bench_slug */ 3:
-                    message.benchSlug = reader.string();
                     break;
                 default:
                     let u = options.readUnknownField;
@@ -2649,15 +2626,12 @@ class GetHostResponse$Type extends MessageType<GetHostResponse> {
         return message;
     }
     internalBinaryWrite(message: GetHostResponse, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
-        /* string host = 1; */
-        if (message.host !== "")
-            writer.tag(1, WireType.LengthDelimited).string(message.host);
+        /* string connection_uri = 1; */
+        if (message.connectionUri !== "")
+            writer.tag(1, WireType.LengthDelimited).string(message.connectionUri);
         /* symbolx.bench.NodeReferenceData bench = 2; */
         if (message.bench)
             NodeReferenceData.internalBinaryWrite(message.bench, writer.tag(2, WireType.LengthDelimited).fork(), options).join();
-        /* string bench_slug = 3; */
-        if (message.benchSlug !== "")
-            writer.tag(3, WireType.LengthDelimited).string(message.benchSlug);
         let u = options.writeUnknownFields;
         if (u !== false)
             (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
@@ -3113,77 +3087,6 @@ class StartRunResponse$Type extends MessageType<StartRunResponse> {
  * @generated MessageType for protobuf message symbolx.bench.StartRunResponse
  */
 export const StartRunResponse = new StartRunResponse$Type();
-// @generated message type with reflection information, may provide speed optimized methods
-class UpdateRunRequest$Type extends MessageType<UpdateRunRequest> {
-    constructor() {
-        super("symbolx.bench.UpdateRunRequest", [
-            { no: 1, name: "run", kind: "message", T: () => RunData }
-        ]);
-    }
-    create(value?: PartialMessage<UpdateRunRequest>): UpdateRunRequest {
-        const message = globalThis.Object.create((this.messagePrototype!));
-        if (value !== undefined)
-            reflectionMergePartial<UpdateRunRequest>(this, message, value);
-        return message;
-    }
-    internalBinaryRead(reader: IBinaryReader, length: number, options: BinaryReadOptions, target?: UpdateRunRequest): UpdateRunRequest {
-        let message = target ?? this.create(), end = reader.pos + length;
-        while (reader.pos < end) {
-            let [fieldNo, wireType] = reader.tag();
-            switch (fieldNo) {
-                case /* symbolx.bench.RunData run */ 1:
-                    message.run = RunData.internalBinaryRead(reader, reader.uint32(), options, message.run);
-                    break;
-                default:
-                    let u = options.readUnknownField;
-                    if (u === "throw")
-                        throw new globalThis.Error(`Unknown field ${fieldNo} (wire type ${wireType}) for ${this.typeName}`);
-                    let d = reader.skip(wireType);
-                    if (u !== false)
-                        (u === true ? UnknownFieldHandler.onRead : u)(this.typeName, message, fieldNo, wireType, d);
-            }
-        }
-        return message;
-    }
-    internalBinaryWrite(message: UpdateRunRequest, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
-        /* symbolx.bench.RunData run = 1; */
-        if (message.run)
-            RunData.internalBinaryWrite(message.run, writer.tag(1, WireType.LengthDelimited).fork(), options).join();
-        let u = options.writeUnknownFields;
-        if (u !== false)
-            (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
-        return writer;
-    }
-}
-/**
- * @generated MessageType for protobuf message symbolx.bench.UpdateRunRequest
- */
-export const UpdateRunRequest = new UpdateRunRequest$Type();
-// @generated message type with reflection information, may provide speed optimized methods
-class UpdateRunResponse$Type extends MessageType<UpdateRunResponse> {
-    constructor() {
-        super("symbolx.bench.UpdateRunResponse", []);
-    }
-    create(value?: PartialMessage<UpdateRunResponse>): UpdateRunResponse {
-        const message = globalThis.Object.create((this.messagePrototype!));
-        if (value !== undefined)
-            reflectionMergePartial<UpdateRunResponse>(this, message, value);
-        return message;
-    }
-    internalBinaryRead(reader: IBinaryReader, length: number, options: BinaryReadOptions, target?: UpdateRunResponse): UpdateRunResponse {
-        return target ?? this.create();
-    }
-    internalBinaryWrite(message: UpdateRunResponse, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
-        let u = options.writeUnknownFields;
-        if (u !== false)
-            (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
-        return writer;
-    }
-}
-/**
- * @generated MessageType for protobuf message symbolx.bench.UpdateRunResponse
- */
-export const UpdateRunResponse = new UpdateRunResponse$Type();
 /**
  * @generated ServiceType for protobuf service symbolx.bench.GraphIO
  */
@@ -3234,14 +3137,9 @@ export const Host = new ServiceType("symbolx.bench.Host", [
     { name: "DownloadFiles", options: {}, I: DownloadFilesRequest, O: DownloadFilesResponse }
 ]);
 /**
- * @generated ServiceType for protobuf service symbolx.bench.Server
- */
-export const Server = new ServiceType("symbolx.bench.Server", []);
-/**
  * @generated ServiceType for protobuf service symbolx.bench.Runtime
  */
 export const Runtime = new ServiceType("symbolx.bench.Runtime", [
     { name: "Restart", options: {}, I: RestartRuntimeRequest, O: RestartRuntimeResponse },
-    { name: "StartRun", options: {}, I: StartRunRequest, O: StartRunResponse },
-    { name: "UpdateRun", options: {}, I: UpdateRunRequest, O: UpdateRunResponse }
+    { name: "StartRun", options: {}, I: StartRunRequest, O: StartRunResponse }
 ]);

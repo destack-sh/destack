@@ -48,7 +48,7 @@ message EditData {
   optional ClientOrigin origin = 31;
   GraphScope scope = 32;
   NodeType node_type = 33;
-  // TODO :Cleanup :Architecture: change EditData.node to new_node_packed/old_node_packed 
+  // NOTE :Cleanup :Architecture: change EditData.node to new_node_packed/old_node_packed? 
   SomeNodeData node = 35;
   repeated uint32 properties = 36;
 

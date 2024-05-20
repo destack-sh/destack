@@ -11,7 +11,7 @@ from bench.sql.core import (
     Table,
 )
 
-VERSION = "2024.05.20.2"
+VERSION = "2024.05.20.3"
 
 BENCH_TABLE = Table(
     "bench_bench",
@@ -1177,6 +1177,8 @@ SESSION_TABLE = Table(
         Column("client_bench_id", PrimitiveType.UUID, is_nullable=True),
         Column("server_id", PrimitiveType.UUID, is_nullable=True),
         Column("server_bench_id", PrimitiveType.UUID, is_nullable=True),
+        Column("machine_id", PrimitiveType.UUID, is_nullable=True),
+        Column("machine_bench_id", PrimitiveType.UUID, is_nullable=True),
         Column("user_id", PrimitiveType.UUID, is_nullable=True),
     ),
     indexes=(
@@ -1250,6 +1252,7 @@ RUN_TABLE = Table(
         Column("run_ck", PrimitiveType.UUID, is_nullable=True),
         Column("run_base_ck", PrimitiveType.UUID, is_nullable=True),
         Column("client_id", PrimitiveType.UUID, is_nullable=True),
+        Column("machine_id", PrimitiveType.UUID, is_nullable=True),
         Column("server_id", PrimitiveType.UUID, is_nullable=True),
         Column("user_id", PrimitiveType.UUID, is_nullable=True),
     ),
@@ -1302,6 +1305,7 @@ SIGNAL_TABLE = Table(
         Column("run_ck", PrimitiveType.UUID, is_nullable=True),
         Column("run_base_ck", PrimitiveType.UUID, is_nullable=True),
         Column("client_id", PrimitiveType.UUID, is_nullable=True),
+        Column("machine_id", PrimitiveType.UUID, is_nullable=True),
         Column("server_id", PrimitiveType.UUID, is_nullable=True),
         Column("user_id", PrimitiveType.UUID, is_nullable=True),
     ),
@@ -1367,6 +1371,7 @@ LOG_TABLE = Table(
         Column("run_ck", PrimitiveType.UUID, is_nullable=True),
         Column("run_base_ck", PrimitiveType.UUID, is_nullable=True),
         Column("client_id", PrimitiveType.UUID, is_nullable=True),
+        Column("machine_id", PrimitiveType.UUID, is_nullable=True),
         Column("server_id", PrimitiveType.UUID, is_nullable=True),
         Column("user_id", PrimitiveType.UUID, is_nullable=True),
     ),
@@ -1424,6 +1429,7 @@ NOTIFICATION_TABLE = Table(
         Column("run_ck", PrimitiveType.UUID, is_nullable=True),
         Column("run_base_ck", PrimitiveType.UUID, is_nullable=True),
         Column("client_id", PrimitiveType.UUID, is_nullable=True),
+        Column("machine_id", PrimitiveType.UUID, is_nullable=True),
         Column("server_id", PrimitiveType.UUID, is_nullable=True),
         Column("user_id", PrimitiveType.UUID, is_nullable=True),
     ),
@@ -1494,6 +1500,7 @@ MESSAGE_TABLE = Table(
         Column("run_ck", PrimitiveType.UUID, is_nullable=True),
         Column("run_base_ck", PrimitiveType.UUID, is_nullable=True),
         Column("client_id", PrimitiveType.UUID, is_nullable=True),
+        Column("machine_id", PrimitiveType.UUID, is_nullable=True),
         Column("server_id", PrimitiveType.UUID, is_nullable=True),
         Column("user_id", PrimitiveType.UUID, is_nullable=True),
     ),
@@ -1539,7 +1546,6 @@ SERVER_TABLE = Table(
         Column("region", PrimitiveType.INT16, default="1"),
         Column("status", PrimitiveType.INT16, default="1"),
         Column("profile", PrimitiveType.INT16),
-        Column("version", PrimitiveType.STRING, is_nullable=True),
         Column("active_at", PrimitiveType.DATETIME, is_nullable=True),
         Column("bumped_at", PrimitiveType.DATETIME, is_nullable=True),
     ),
@@ -1591,6 +1597,54 @@ STORE_TABLE = Table(
             "bench_check_one_parent",
             ConstraintType.CHECK,
             condition="(parent_bench_id IS NOT NULL)",
+        ),
+    ),
+)
+
+MACHINE_TABLE = Table(
+    "bench_machine",
+    (
+        Column("id", PrimitiveType.UUID, is_primary_key=True),
+        Column(
+            "parent_server_id",
+            PrimitiveType.UUID,
+            is_foreign_key_to="bench_server",
+            on_delete=CascadeAction.CASCADE,
+            is_nullable=True,
+        ),
+        Column("bench_id", PrimitiveType.UUID),
+        Column("revision", PrimitiveType.INT64, default="0"),
+        Column("created_at", PrimitiveType.DATETIME),
+        Column("updated_at", PrimitiveType.DATETIME),
+        Column("deleted_at", PrimitiveType.DATETIME, is_nullable=True),
+        Column("archived_at", PrimitiveType.DATETIME, is_nullable=True),
+        Column("created_by_id", PrimitiveType.UUID, is_nullable=True),
+        Column("created_by_ck", PrimitiveType.UUID, is_nullable=True),
+        Column("created_by_type", PrimitiveType.INT16, is_nullable=True),
+        Column("created_by_base_ck", PrimitiveType.UUID, is_nullable=True),
+        Column("updated_by_id", PrimitiveType.UUID, is_nullable=True),
+        Column("updated_by_ck", PrimitiveType.UUID, is_nullable=True),
+        Column("updated_by_type", PrimitiveType.INT16, is_nullable=True),
+        Column("updated_by_base_ck", PrimitiveType.UUID, is_nullable=True),
+        Column("name", PrimitiveType.STRING),
+        Column("text", PrimitiveType.JSON, is_nullable=True),
+        Column("region", PrimitiveType.INT16, default="1"),
+        Column("status", PrimitiveType.INT16, default="1"),
+        Column("profile", PrimitiveType.INT16),
+        Column("version", PrimitiveType.STRING, is_nullable=True),
+        Column("external_name", PrimitiveType.STRING, is_nullable=True),
+        Column("external_id", PrimitiveType.STRING, is_nullable=True),
+        Column("connection_uri", PrimitiveType.STRING, is_nullable=True, is_encrypted=True),
+        Column("started_at", PrimitiveType.DATETIME, is_nullable=True),
+        Column("terminated_at", PrimitiveType.DATETIME, is_nullable=True),
+        Column("active_at", PrimitiveType.DATETIME, is_nullable=True),
+        Column("bumped_at", PrimitiveType.DATETIME, is_nullable=True),
+    ),
+    constraints=(
+        Constraint(
+            "bench_check_one_parent",
+            ConstraintType.CHECK,
+            condition="(parent_server_id IS NOT NULL)",
         ),
     ),
 )
@@ -1897,9 +1951,9 @@ CLIENT_TABLE = Table(
         Column("access_token", PrimitiveType.STRING, is_unique=True, is_nullable=True),
         Column("seen_at", PrimitiveType.DATETIME),
         Column("logged_in_at", PrimitiveType.DATETIME, is_nullable=True),
-        Column("main_space_id", PrimitiveType.UUID, is_nullable=True),
-        Column("main_space_ck", PrimitiveType.UUID, is_nullable=True),
-        Column("main_space_bench_id", PrimitiveType.UUID, is_nullable=True),
+        Column("space_id", PrimitiveType.UUID, is_nullable=True),
+        Column("space_ck", PrimitiveType.UUID, is_nullable=True),
+        Column("space_bench_id", PrimitiveType.UUID, is_nullable=True),
     ),
     indexes=(Index("bench_idx_access_token", IndexType.BTREE, ("access_token",), is_unique=True),),
     constraints=(

@@ -21,6 +21,7 @@ if TYPE_CHECKING:
         Branch,
         Client,
         Environment,
+        Machine,
         Package,
         Run,
         Server,
@@ -64,7 +65,10 @@ class Session(Node[SessionData]):
     server: Optional["Server"] = p_internal(
         62, require=False, array=False, references=NodeType.SERVER
     )
-    user: Optional["User"] = p_internal(63, require=False, array=False, references=NodeType.USER)
+    machine: Optional["Machine"] = p_internal(
+        63, require=False, array=False, references=NodeType.MACHINE
+    )
+    user: Optional["User"] = p_internal(64, require=False, array=False, references=NodeType.USER)
 
     # transaction
     _is_readonly: bool = p_runtime(default=False)
@@ -280,10 +284,13 @@ class HasSessionContext(Struct):
     client: Optional["Client"] = p_system(
         64, require=False, array=False, references=NodeType.CLIENT, is_bench_implicit=True
     )
-    server: Optional["Server"] = p_system(
-        65, require=False, array=False, references=NodeType.CLIENT, is_bench_implicit=True
+    machine: Optional["Machine"] = p_system(
+        65, require=False, array=False, references=NodeType.MACHINE, is_bench_implicit=True
     )
-    user: Optional["User"] = p_system(66, require=False, array=False, references=NodeType.USER)
+    server: Optional["Server"] = p_system(
+        66, require=False, array=False, references=NodeType.CLIENT, is_bench_implicit=True
+    )
+    user: Optional["User"] = p_system(67, require=False, array=False, references=NodeType.USER)
 
 
 @struct(StructType.CONTEXT)

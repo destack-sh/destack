@@ -215,9 +215,8 @@ message GetHostRequest {
   }
 }
 message GetHostResponse {
-  string host = 1;
+  string connection_uri = 1;
   NodeReferenceData bench = 2;
-  string bench_slug = 3;
 }
 
 // Global control plane: create & manage the global stuff like Benches, Users, etc..
@@ -323,14 +322,6 @@ service Host {
   rpc DownloadFiles(DownloadFilesRequest) returns (DownloadFilesResponse);
 }
 
-// 
-// Server
-// 
-
-service Server {
-  
-}
-
 //
 // Runtime
 //
@@ -347,19 +338,12 @@ message StartRunRequest {
 message StartRunResponse {
 }
 
-message UpdateRunRequest {
-  RunData run = 1;
-}
-message UpdateRunResponse {
-}
-
 // A Runtime for running a Bench in an isolated environment on/for a Client.
 // The Runtime may run any number of processes to process its Runs in Sessions.
 service Runtime {
   // Restart this runtime. If force, skip graceful shutdown.
   rpc Restart(RestartRuntimeRequest) returns (RestartRuntimeResponse);
   // Starts a new Run in this runtime. The Run must already exist in the graph.
+  // NOTE: we'll probably want some load-balancing queue for distributing Runs
   rpc StartRun(StartRunRequest) returns (StartRunResponse);
-  // Updates a Run in this runtime, generally to update its state (and pause/resume/etc.)
-  rpc UpdateRun(UpdateRunRequest) returns (UpdateRunResponse);
 }

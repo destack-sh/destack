@@ -129,8 +129,9 @@ class BenchType(betterproto.Enum):
     RECORD = 86
     SERVER = 160
     STORE = 161
-    DRIVE = 162
-    BLOB = 180
+    MACHINE = 162
+    DRIVE = 163
+    BLOB = 164
     HANDLE = 220
     USER = 221
     ORGANIZATION = 222
@@ -603,8 +604,9 @@ class NodeType(betterproto.Enum):
     RECORD = 86
     SERVER = 160
     STORE = 161
-    DRIVE = 162
-    BLOB = 180
+    MACHINE = 162
+    DRIVE = 163
+    BLOB = 164
     HANDLE = 220
     USER = 221
     ORGANIZATION = 222
@@ -672,8 +674,9 @@ class ObjectType(betterproto.Enum):
     RECORD = 86
     SERVER = 160
     STORE = 161
-    DRIVE = 162
-    BLOB = 180
+    MACHINE = 162
+    DRIVE = 163
+    BLOB = 164
     HANDLE = 220
     USER = 221
     ORGANIZATION = 222
@@ -2025,7 +2028,7 @@ class ClientData(betterproto.Message):
     access_token: Optional[str] = betterproto.string_field(50, optional=True)
     seen_at: datetime = betterproto.message_field(51)
     logged_in_at: Optional[datetime] = betterproto.message_field(52, optional=True)
-    main_space_ptr: Optional["NodeReferenceData"] = betterproto.message_field(60, optional=True)
+    space_ptr: Optional["NodeReferenceData"] = betterproto.message_field(60, optional=True)
 
 
 @dataclass(eq=False, repr=False)
@@ -2284,8 +2287,40 @@ class LogData(betterproto.Message):
     session_ptr: Optional["NodeReferenceData"] = betterproto.message_field(62, optional=True)
     run_ptr: Optional["NodeReferenceData"] = betterproto.message_field(63, optional=True)
     client_ptr: Optional["NodeReferenceData"] = betterproto.message_field(64, optional=True)
-    server_ptr: Optional["NodeReferenceData"] = betterproto.message_field(65, optional=True)
-    user_ptr: Optional["NodeReferenceData"] = betterproto.message_field(66, optional=True)
+    machine_ptr: Optional["NodeReferenceData"] = betterproto.message_field(65, optional=True)
+    server_ptr: Optional["NodeReferenceData"] = betterproto.message_field(66, optional=True)
+    user_ptr: Optional["NodeReferenceData"] = betterproto.message_field(67, optional=True)
+
+
+@dataclass(eq=False, repr=False)
+class MachineData(betterproto.Message):
+    """A Machine provides the isolated compute for a Server."""
+
+    metatype: "ObjectType" = betterproto.enum_field(1)
+    id: str = betterproto.string_field(2)
+    parent_ptr: Optional["NodeReferenceData"] = betterproto.message_field(4, optional=True)
+    bench_ptr: "NodeReferenceData" = betterproto.message_field(7)
+    revision: int = betterproto.int64_field(10)
+    created_at: datetime = betterproto.message_field(11)
+    updated_at: datetime = betterproto.message_field(12)
+    deleted_at: Optional[datetime] = betterproto.message_field(13, optional=True)
+    archived_at: Optional[datetime] = betterproto.message_field(14, optional=True)
+    created_by_ptr: Optional["NodeReferenceData"] = betterproto.message_field(17, optional=True)
+    updated_by_ptr: Optional["NodeReferenceData"] = betterproto.message_field(18, optional=True)
+    set_properties: List[int] = betterproto.int32_field(22)
+    name: str = betterproto.string_field(32)
+    text: Optional["TextData"] = betterproto.message_field(34, optional=True)
+    region: "Region" = betterproto.enum_field(35)
+    status: "ResourceStatus" = betterproto.enum_field(36)
+    profile: "ServerProfile" = betterproto.enum_field(40)
+    version: Optional[str] = betterproto.string_field(41, optional=True)
+    external_name: Optional[str] = betterproto.string_field(42, optional=True)
+    external_id: Optional[str] = betterproto.string_field(43, optional=True)
+    connection_uri: Optional[str] = betterproto.string_field(44, optional=True)
+    started_at: Optional[datetime] = betterproto.message_field(50, optional=True)
+    terminated_at: Optional[datetime] = betterproto.message_field(51, optional=True)
+    active_at: Optional[datetime] = betterproto.message_field(52, optional=True)
+    bumped_at: Optional[datetime] = betterproto.message_field(53, optional=True)
 
 
 @dataclass(eq=False, repr=False)
@@ -2347,8 +2382,9 @@ class MessageData(betterproto.Message):
     session_ptr: Optional["NodeReferenceData"] = betterproto.message_field(62, optional=True)
     run_ptr: Optional["NodeReferenceData"] = betterproto.message_field(63, optional=True)
     client_ptr: Optional["NodeReferenceData"] = betterproto.message_field(64, optional=True)
-    server_ptr: Optional["NodeReferenceData"] = betterproto.message_field(65, optional=True)
-    user_ptr: Optional["NodeReferenceData"] = betterproto.message_field(66, optional=True)
+    machine_ptr: Optional["NodeReferenceData"] = betterproto.message_field(65, optional=True)
+    server_ptr: Optional["NodeReferenceData"] = betterproto.message_field(66, optional=True)
+    user_ptr: Optional["NodeReferenceData"] = betterproto.message_field(67, optional=True)
 
 
 @dataclass(eq=False, repr=False)
@@ -2440,8 +2476,9 @@ class NotificationData(betterproto.Message):
     session_ptr: Optional["NodeReferenceData"] = betterproto.message_field(62, optional=True)
     run_ptr: Optional["NodeReferenceData"] = betterproto.message_field(63, optional=True)
     client_ptr: Optional["NodeReferenceData"] = betterproto.message_field(64, optional=True)
-    server_ptr: Optional["NodeReferenceData"] = betterproto.message_field(65, optional=True)
-    user_ptr: Optional["NodeReferenceData"] = betterproto.message_field(66, optional=True)
+    machine_ptr: Optional["NodeReferenceData"] = betterproto.message_field(65, optional=True)
+    server_ptr: Optional["NodeReferenceData"] = betterproto.message_field(66, optional=True)
+    user_ptr: Optional["NodeReferenceData"] = betterproto.message_field(67, optional=True)
 
 
 @dataclass(eq=False, repr=False)
@@ -2631,16 +2668,16 @@ class RunData(betterproto.Message):
     session_ptr: Optional["NodeReferenceData"] = betterproto.message_field(62, optional=True)
     run_ptr: Optional["NodeReferenceData"] = betterproto.message_field(63, optional=True)
     client_ptr: Optional["NodeReferenceData"] = betterproto.message_field(64, optional=True)
-    server_ptr: Optional["NodeReferenceData"] = betterproto.message_field(65, optional=True)
-    user_ptr: Optional["NodeReferenceData"] = betterproto.message_field(66, optional=True)
+    machine_ptr: Optional["NodeReferenceData"] = betterproto.message_field(65, optional=True)
+    server_ptr: Optional["NodeReferenceData"] = betterproto.message_field(66, optional=True)
+    user_ptr: Optional["NodeReferenceData"] = betterproto.message_field(67, optional=True)
 
 
 @dataclass(eq=False, repr=False)
 class ServerData(betterproto.Message):
     """
-    A server providing the Runtime for a Bench.
-     Similar to other resources, a Server virtualizes a compute allocation that is
-     materialized on demand on a set of physical machines.
+    A server provides some compute for a Bench's Runtime.
+     Actual compute is materialized (on-demand) as Machines.
     """
 
     metatype: "ObjectType" = betterproto.enum_field(1)
@@ -2660,7 +2697,6 @@ class ServerData(betterproto.Message):
     region: "Region" = betterproto.enum_field(35)
     status: "ResourceStatus" = betterproto.enum_field(36)
     profile: "ServerProfile" = betterproto.enum_field(40)
-    version: Optional[str] = betterproto.string_field(42, optional=True)
     active_at: Optional[datetime] = betterproto.message_field(50, optional=True)
     bumped_at: Optional[datetime] = betterproto.message_field(51, optional=True)
 
@@ -2693,7 +2729,8 @@ class SessionData(betterproto.Message):
     closed_at: Optional[datetime] = betterproto.message_field(43, optional=True)
     client_ptr: Optional["NodeReferenceData"] = betterproto.message_field(61, optional=True)
     server_ptr: Optional["NodeReferenceData"] = betterproto.message_field(62, optional=True)
-    user_ptr: Optional["NodeReferenceData"] = betterproto.message_field(63, optional=True)
+    machine_ptr: Optional["NodeReferenceData"] = betterproto.message_field(63, optional=True)
+    user_ptr: Optional["NodeReferenceData"] = betterproto.message_field(64, optional=True)
 
 
 @dataclass(eq=False, repr=False)
@@ -2728,8 +2765,9 @@ class SignalData(betterproto.Message):
     session_ptr: Optional["NodeReferenceData"] = betterproto.message_field(62, optional=True)
     run_ptr: Optional["NodeReferenceData"] = betterproto.message_field(63, optional=True)
     client_ptr: Optional["NodeReferenceData"] = betterproto.message_field(64, optional=True)
-    server_ptr: Optional["NodeReferenceData"] = betterproto.message_field(65, optional=True)
-    user_ptr: Optional["NodeReferenceData"] = betterproto.message_field(66, optional=True)
+    machine_ptr: Optional["NodeReferenceData"] = betterproto.message_field(65, optional=True)
+    server_ptr: Optional["NodeReferenceData"] = betterproto.message_field(66, optional=True)
+    user_ptr: Optional["NodeReferenceData"] = betterproto.message_field(67, optional=True)
 
 
 @dataclass(eq=False, repr=False)
@@ -3008,12 +3046,13 @@ class SomeNodeData(betterproto.Message):
     record: "RecordData" = betterproto.message_field(28, group="node")
     server: "ServerData" = betterproto.message_field(29, group="node")
     store: "StoreData" = betterproto.message_field(30, group="node")
-    drive: "DriveData" = betterproto.message_field(31, group="node")
-    blob: "BlobData" = betterproto.message_field(32, group="node")
-    handle: "HandleData" = betterproto.message_field(33, group="node")
-    user: "UserData" = betterproto.message_field(34, group="node")
-    organization: "OrganizationData" = betterproto.message_field(35, group="node")
-    client: "ClientData" = betterproto.message_field(36, group="node")
+    machine: "MachineData" = betterproto.message_field(31, group="node")
+    drive: "DriveData" = betterproto.message_field(32, group="node")
+    blob: "BlobData" = betterproto.message_field(33, group="node")
+    handle: "HandleData" = betterproto.message_field(34, group="node")
+    user: "UserData" = betterproto.message_field(35, group="node")
+    organization: "OrganizationData" = betterproto.message_field(36, group="node")
+    client: "ClientData" = betterproto.message_field(37, group="node")
 
 
 @dataclass(eq=False, repr=False)
@@ -3068,7 +3107,7 @@ class EditData(betterproto.Message):
     node_type: "NodeType" = betterproto.enum_field(33)
     node: "SomeNodeData" = betterproto.message_field(35)
     """
-    TODO :Cleanup :Architecture: change EditData.node to new_node_packed/old_node_packed
+    NOTE :Cleanup :Architecture: change EditData.node to new_node_packed/old_node_packed?
     """
 
     properties: List[int] = betterproto.uint32_field(36)
@@ -3320,9 +3359,8 @@ class GetHostRequest(betterproto.Message):
 
 @dataclass(eq=False, repr=False)
 class GetHostResponse(betterproto.Message):
-    host: str = betterproto.string_field(1)
+    connection_uri: str = betterproto.string_field(1)
     bench: "NodeReferenceData" = betterproto.message_field(2)
-    bench_slug: str = betterproto.string_field(3)
 
 
 @dataclass(eq=False, repr=False)
@@ -3384,16 +3422,6 @@ class StartRunRequest(betterproto.Message):
 
 @dataclass(eq=False, repr=False)
 class StartRunResponse(betterproto.Message):
-    pass
-
-
-@dataclass(eq=False, repr=False)
-class UpdateRunRequest(betterproto.Message):
-    run: "RunData" = betterproto.message_field(1)
-
-
-@dataclass(eq=False, repr=False)
-class UpdateRunResponse(betterproto.Message):
     pass
 
 
@@ -3984,10 +4012,6 @@ class HostStub(betterproto.ServiceStub):
         )
 
 
-class ServerStub(betterproto.ServiceStub):
-    pass
-
-
 class RuntimeStub(betterproto.ServiceStub):
     async def restart(
         self,
@@ -4018,23 +4042,6 @@ class RuntimeStub(betterproto.ServiceStub):
             "/symbolx.bench.Runtime/StartRun",
             request,
             StartRunResponse,
-            timeout=timeout,
-            deadline=deadline,
-            metadata=metadata,
-        )
-
-    async def update_run(
-        self,
-        request: "UpdateRunRequest",
-        *,
-        timeout: Optional[float] = None,
-        deadline: Optional["Deadline"] = None,
-        metadata: Optional["MetadataLike"] = None
-    ) -> "UpdateRunResponse":
-        return await self._unary_unary(
-            "/symbolx.bench.Runtime/UpdateRun",
-            request,
-            UpdateRunResponse,
             timeout=timeout,
             deadline=deadline,
             metadata=metadata,
@@ -4693,11 +4700,6 @@ class HostBase(ServiceBase):
         }
 
 
-class ServerBase(ServiceBase):
-    def __mapping__(self) -> Dict[str, grpclib.const.Handler]:
-        return {}
-
-
 class RuntimeBase(ServiceBase):
     async def restart(
         self, subject: "Subject", request: "RestartRuntimeRequest"
@@ -4705,11 +4707,6 @@ class RuntimeBase(ServiceBase):
         raise grpclib.GRPCError(grpclib.const.Status.UNIMPLEMENTED)
 
     async def start_run(self, subject: "Subject", request: "StartRunRequest") -> "StartRunResponse":
-        raise grpclib.GRPCError(grpclib.const.Status.UNIMPLEMENTED)
-
-    async def update_run(
-        self, subject: "Subject", request: "UpdateRunRequest"
-    ) -> "UpdateRunResponse":
         raise grpclib.GRPCError(grpclib.const.Status.UNIMPLEMENTED)
 
     async def __rpc_restart(
@@ -4727,13 +4724,6 @@ class RuntimeBase(ServiceBase):
         response = await self.start_run(request)
         await stream.send_message(response)
 
-    async def __rpc_update_run(
-        self, stream: "grpclib.server.Stream[UpdateRunRequest, UpdateRunResponse]"
-    ) -> None:
-        request = await stream.recv_message()
-        response = await self.update_run(request)
-        await stream.send_message(response)
-
     def __mapping__(self) -> Dict[str, grpclib.const.Handler]:
         return {
             "/symbolx.bench.Runtime/Restart": grpclib.const.Handler(
@@ -4748,18 +4738,12 @@ class RuntimeBase(ServiceBase):
                 StartRunRequest,
                 StartRunResponse,
             ),
-            "/symbolx.bench.Runtime/UpdateRun": grpclib.const.Handler(
-                self.__rpc_update_run,
-                grpclib.const.Cardinality.UNARY_UNARY,
-                UpdateRunRequest,
-                UpdateRunResponse,
-            ),
         }
 
 
 from typing import TYPE_CHECKING  # noqa: E402
 
-VERSION = "2024.05.20.2"
+VERSION = "2024.05.20.3"
 
 if TYPE_CHECKING:
     from bench.language import Subject
@@ -4800,6 +4784,7 @@ AnyNodeData = Union[
     RecordData,
     ServerData,
     StoreData,
+    MachineData,
     DriveData,
     BlobData,
     HandleData,

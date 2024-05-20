@@ -25,6 +25,7 @@ from bench.proto.wire import (
     DependencyData,
     DriveData,
     EnvironmentData,
+    MachineData,
     NodeReferenceData,
     PackageData,
     ServerData,
@@ -307,18 +308,39 @@ class ServerProfile(IdEnum):
 @node(NodeType.SERVER)
 class Server(Resource[ServerData]):
     """
-    A server providing the Runtime for a Bench.
-    Similar to other resources, a Server virtualizes a compute allocation that is
-    materialized on demand on a set of physical machines.
+    A server provides some compute for a Bench's Runtime.
+    Actual compute is materialized (on-demand) as Machines.
     """
 
     profile: ServerProfile = p_regular(40)
-    version: Optional[str] = p_system(42, default=None)
 
     active_at: Optional[datetime] = p_internal(50, default=None)
     bumped_at: Optional[datetime] = p_internal(51, default=None)
 
     clients: NodeList["Client"] = p_node_child(NodeType.CLIENT)
+    machines: NodeList["Machine"] = p_node_child(NodeType.MACHINE)
+
+
+@node(NodeType.MACHINE)
+class Machine(Resource[MachineData]):
+    """
+    A Machine provides the isolated compute for a Server.
+    """
+
+    parent: Server = p_node_parent(4, NodeType.SERVER)
+
+    profile: ServerProfile = p_regular(40)
+    version: Optional[str] = p_system(41, default=None)
+    external_name: Optional[str] = p_kernel(42, require=False, default=None, sensitive=True)
+    external_id: Optional[str] = p_kernel(43, require=False, default=None, sensitive=True)
+    connection_uri: Optional[str] = p_kernel(
+        44, require=False, default=None, encrypt=True, defer=True, sensitive=True
+    )
+
+    started_at: Optional[datetime] = p_internal(50, default=None)
+    terminated_at: Optional[datetime] = p_internal(51, default=None)
+    active_at: Optional[datetime] = p_internal(52, default=None)
+    bumped_at: Optional[datetime] = p_internal(53, default=None)
 
 
 @node(NodeType.STORE)
@@ -363,7 +385,7 @@ class Client(Node[ClientData]):
     logged_in_at: Optional[datetime] = p_system(52, default=None)
 
     # for user clients
-    main_space: Optional["Space"] = p_system(
+    space: Optional["Space"] = p_system(
         60, array=False, require=False, references=NodeType.SPACE, fk=True
     )
 

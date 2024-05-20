@@ -12,7 +12,7 @@ from bench.system.host import HostMultiplexer
 from bench.system.supervisor import Supervisor
 from bench.utils.env import ENVIRONMENT, IS_DEBUG
 from bench.utils.monitoring import restart_on_file_changes
-from bench.utils.utils import get_from_env
+from bench.utils.utils import get_from_env, get_from_env_maybe
 
 app = typer.Typer(short_help="run the services")
 logger = structlog.get_logger(__name__)
@@ -44,6 +44,7 @@ async def runtime(host: str, port: int, watch: bool = False):
         bench_id=get_from_env("BENCH_ID", typ=UUID),
         client_id=get_from_env("CLIENT_ID", typ=UUID),
         client_access_token=get_from_env("CLIENT_ACCESS_TOKEN"),
+        machine_id=get_from_env_maybe("MACHINE_ID", typ=UUID),
     )
     services = [server]
     server = BenchServer(services)
