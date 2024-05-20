@@ -51,6 +51,8 @@ from bench.sql.client import get_pg_crypto_key
 from bench.sql.core import (
     DEFAULT_GLOBAL_TABLES,
     DEFAULT_LOCAL_TABLES,
+    GLOBAL_EXTENSIONS,
+    LOCAL_EXTENSIONS,
     RECORD_BASE_TABLE,
     CascadeAction,
     Column,
@@ -59,6 +61,7 @@ from bench.sql.core import (
     Index,
     IndexType,
     PrimitiveType,
+    Schema,
     SqlPrimitive,
     Table,
 )
@@ -557,10 +560,13 @@ def _pg_wrap_error(
     return wrapped_t(message, conn)
 
 
-async def pg_select_raw(cur: psycopg.AsyncCursor, query: sql.Composed) -> list[dict[str, Any]]:
+async def pg_select_raw(
+    cur: psycopg.AsyncCursor, query: str | sql.Composed
+) -> list[dict[str, Any]]:
     """Executes an arbitrary select without any wrapping."""
-    logger.trace("pg.select_raw", query=sql_to_str(cur, query))
-    await cur.execute(query)
+    query_str = sql_to_str(cur, query) if not isinstance(query, str) else query
+    logger.trace("pg.select_raw", query=query_str)
+    await cur.execute(cast(sql.Composed, query))
     return await cur.fetchall()
 
 
@@ -636,7 +642,7 @@ def _pg_adapt_row(table: Table, row: Mapping[str, Any]) -> Mapping[str, Any]:
 
 
 def _pg_adapt_rows(
-    table: Table, rows: tuple[Mapping[str, Any], ...]
+    table: Table, rows: Iterable[Mapping[str, Any]]
 ) -> tuple[Mapping[str, Any], ...]:
     return tuple(_pg_adapt_row(table, row) for row in rows)
 
@@ -1664,7 +1670,11 @@ def sql_to_str(cur: psycopg.Cursor | psycopg.AsyncCursor, s: sql.Composable) -> 
     return s_str
 
 
-# general table index
+#
+# General table registry
+# (this needs to run after setup)
+#
+
 TABLE_BY_NODE_TYPE: dict[NodeType, Table] = {
     # read previously generated tables in schema.py
     node_type: getattr(schema, f"{to_casing(node_type.name, Casing.ALL_CAPS)}_TABLE")
@@ -1692,3 +1702,5 @@ LOCAL_TABLES: tuple[Table, ...] = DEFAULT_LOCAL_TABLES + tuple(
     and node.metatype in TABLE_BY_NODE_TYPE
 )
 ALL_TABLES: tuple[Table, ...] = GLOBAL_TABLES + LOCAL_TABLES
+GLOBAL_SCHEMA = Schema(GLOBAL_EXTENSIONS, GLOBAL_TABLES)
+LOCAL_SCHEMA = Schema(LOCAL_EXTENSIONS, LOCAL_TABLES)

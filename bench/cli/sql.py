@@ -15,9 +15,10 @@ from bench.language.const import VERSION, NodeType
 from bench.language.node import NODE_CLASS_BY_TYPE
 from bench.language.query import NodeNotFoundError
 from bench.sql.client import get_pg_connection_str, pg_cursor_to_store
+from bench.sql.core import Schema
 from bench.sql.engine import (
-    GLOBAL_TABLES,
-    LOCAL_TABLES,
+    GLOBAL_SCHEMA,
+    LOCAL_SCHEMA,
     SqlUndefinedObjectError,
     map_node_class_to_pg_table,
 )
@@ -28,7 +29,7 @@ from bench.sql.migration import (
     delete_migrations_in_pg,
     generate_migration_code,
     generate_migration_ops,
-    introspect_tables_from_pg,
+    introspect_schema_from_pg,
 )
 from bench.sql.migration import migrate as _migrate
 from bench.sql.migration import read_migrations_from_fs, read_migrations_from_pg
@@ -111,17 +112,17 @@ async def makemigrations(
                 )
                 assert bench_node.main_environment, f"{bench!r} has no main environment"
                 async with pg_cursor_to_store(bench_node.main_environment.store) as cur:
-                    old_local_tables = await introspect_tables_from_pg(cur)
+                    old_local_schema = await introspect_schema_from_pg(cur)
             except (NodeNotFoundError, SqlUndefinedObjectError):
-                old_local_tables = ()  # initial migration
-        local_migration_ops = generate_migration_ops(old_local_tables, LOCAL_TABLES)
+                old_local_schema = Schema.blank()  # initial migration
+        local_migration_ops = generate_migration_ops(old_local_schema, LOCAL_SCHEMA)
     else:
         local_migration_ops = []
 
     # diff global
     async with global_pg_cursor() as cur:
-        old_global_tables = await introspect_tables_from_pg(cur)
-    global_migration_ops = generate_migration_ops(old_global_tables, GLOBAL_TABLES)
+        old_global_schema = await introspect_schema_from_pg(cur)
+    global_migration_ops = generate_migration_ops(old_global_schema, GLOBAL_SCHEMA)
 
     # generate migration
     if not global_migration_ops and not local_migration_ops:
@@ -221,19 +222,19 @@ async def introspect(bench: str = None):  # type: ignore
             )
             assert bench_node.main_environment, f"{bench!r} has no main environment"
         async with pg_cursor_to_store(bench_node.main_environment.store) as cur:
-            tables = await introspect_tables_from_pg(
+            schema = await introspect_schema_from_pg(
                 cur, include_columns=True, include_indexes=True, include_constraints=True
             )
     else:
         async with global_pg_cursor() as cur:
-            tables = await introspect_tables_from_pg(
+            schema = await introspect_schema_from_pg(
                 cur, include_columns=True, include_indexes=True, include_constraints=True
             )
             await cur.connection.rollback()
 
     # generate schema
     chunks: list[str] = []
-    for table in tables:
+    for table in schema.tables:
         const_name = f"{table.name}_TABLE".upper()
         if const_name.startswith("BENCH_"):
             const_name = const_name[6:]

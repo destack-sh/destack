@@ -33,17 +33,43 @@ def stable_hash(*args) -> int:
     return int(hasher.hexdigest(), 16)
 
 
+@dataclass(slots=True)
+class Schema:
+    extensions: tuple["Extension", ...]
+    tables: tuple["Table", ...]
+
+    @staticmethod
+    def blank():
+        return Schema(extensions=(), tables=())
+
+    def walk(self):
+        yield from self.extensions
+        for table in self.tables:
+            yield from table.walk()
+
+
 class ObjectKind(enum.StrEnum):
+    EXTENSION = "EXTENSION"
     TABLE = "TABLE"
     COLUMN = "COLUMN"
     CONSTRAINT = "CONSTRAINT"
     INDEX = "INDEX"
 
 
-@dataclass
+@dataclass(slots=True)
 class Object:
     FLAT_DATA_FIELDS: ClassVar[tuple[str, ...]]
     kind: ClassVar[ObjectKind]
+
+    if TYPE_CHECKING:
+
+        @property
+        def name(self) -> str:
+            raise NotImplementedError
+
+    @property
+    def qualified_name(self) -> str:
+        raise NotImplementedError
 
     def sql(self) -> str:
         """Turns this object into a SQL block."""
@@ -129,18 +155,43 @@ class Object:
         )
 
 
-@dataclass
+@dataclass(slots=True)
+class Extension(Object):
+    """
+    A SQL extension.
+    """
+
+    FLAT_DATA_FIELDS: ClassVar[tuple[str, ...]] = ("name",)
+    kind: ClassVar[ObjectKind] = ObjectKind.EXTENSION
+
+    name: str  # type: ignore
+
+    def __str__(self):
+        return self.name
+
+    def __repr__(self):
+        return f"<Extension {self}>"
+
+    def __hash__(self):
+        return stable_hash(self.kind, self.name)
+
+    def __eq__(self, other):
+        return isinstance(other, Extension) and self.name == other.name
+
+    @property
+    def qualified_name(self) -> str:
+        return self.name
+
+    def sql(self) -> str:
+        return f"CREATE EXTENSION IF NOT EXISTS {self.name}"
+
+
+@dataclass(slots=True)
 class TableObject(Object):
     @property
     def table(self) -> "Table":
         assert self._table is not None, f"{self} is not attached to a table"
         return self._table
-
-    if TYPE_CHECKING:
-
-        @property
-        def name(self) -> str:
-            raise NotImplementedError
 
     @property
     def table_name(self) -> str:
@@ -180,7 +231,7 @@ class CascadeAction(enum.StrEnum):
     SET_DEFAULT = "SET DEFAULT"
 
 
-@dataclass
+@dataclass(slots=True)
 class Column(TableObject):
     """
     A SQL column definition.
@@ -304,7 +355,7 @@ class ConstraintType(enum.StrEnum):
     CHECK = "CHECK"
 
 
-@dataclass
+@dataclass(slots=True)
 class Constraint(TableObject):
     """
     A SQL constraint.
@@ -363,9 +414,10 @@ class IndexType(enum.StrEnum):
     HASH = "HASH"
     GIN = "GIN"
     GIST = "GIST"
+    BLOOM = "BLOOM"
 
 
-@dataclass
+@dataclass(slots=True)
 class Index(TableObject):
     """
     A SQL index.
@@ -420,7 +472,7 @@ class Index(TableObject):
         return " ".join(parts)
 
 
-@dataclass
+@dataclass(slots=True)
 class Table(TableObject):
     """
     A SQL table.
@@ -573,6 +625,20 @@ PRIMITIVE_TYPE_BY_POSTGRES_TYPE = {v: k for k, v in POSTGRES_TYPE_BY_PRIMITIVE_T
 # Default tables
 #
 
+BASE_EXTENSIONS = (
+    Extension("plpgsql"),
+    Extension("uuid-ossp"),
+    Extension("pgcrypto"),
+    Extension("bloom"),
+)
+LOCAL_EXTENSIONS = (
+    *BASE_EXTENSIONS,
+    Extension("vector"),
+    Extension("pg_trgm"),
+    Extension("timescaledb"),
+)
+GLOBAL_EXTENSIONS = (*BASE_EXTENSIONS,)
+
 
 MIGRATION_TABLE = Table(  # see bench/sql/migration.py
     "bench_migration",
@@ -601,7 +667,7 @@ RECORD_BASE_TABLE = Table(
     indexes=(),
     constraints=(),
 )
-# 'hufflepuff' table for ephemeral 'tables' without real tables
+# 'hufflepuff' table for ephemeral record 'tables' real materialized tables
 RECORD_SHARED_TABLE = Table(
     "bench_record_shared",
     columns=(

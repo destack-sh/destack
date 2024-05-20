@@ -31,12 +31,12 @@ def pytest_collection_modifyitems(items):
 @pytest.fixture(autouse=True, scope="session")
 async def prepared_test_db():
     from bench.sql.client import get_pg_connection_str, pg_cursor
-    from bench.sql.engine import GLOBAL_TABLES
+    from bench.sql.engine import GLOBAL_SCHEMA
     from bench.sql.migration import (
         EXTENSIONS,
         apply_migration_ops,
         generate_migration_ops,
-        introspect_tables_from_pg,
+        introspect_schema_from_pg,
     )
     from bench.system.client import GLOBAL_PG_NAME, GLOBAL_STORE, global_pg_cursor
 
@@ -56,8 +56,8 @@ async def prepared_test_db():
     async with global_pg_cursor() as cur:
         for extension in EXTENSIONS:
             await cur.execute(f"CREATE EXTENSION IF NOT EXISTS {extension}")
-        blank_tables = await introspect_tables_from_pg(cur)
-        blank_ops = generate_migration_ops(blank_tables, GLOBAL_TABLES)
+        blank_schema = await introspect_schema_from_pg(cur)
+        blank_ops = generate_migration_ops(blank_schema, GLOBAL_SCHEMA)
         await apply_migration_ops(cur, blank_ops)
         await cur.connection.commit()
 

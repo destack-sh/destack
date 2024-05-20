@@ -7,7 +7,8 @@ from typing import TYPE_CHECKING
 import structlog
 
 from bench.language.setup import NODE_CLASSES
-from bench.sql.engine import GLOBAL_TABLES, NODE_TABLES, map_node_class_to_pg_table
+from bench.sql.core import Schema
+from bench.sql.engine import GLOBAL_SCHEMA, NODE_TABLES, map_node_class_to_pg_table
 from bench.system.client import global_pg_cursor
 
 if TYPE_CHECKING:
@@ -61,40 +62,38 @@ async def check_is_consistent(*, check_db: bool) -> None:
     """Checks whether the language constructs are in sync with the derived stuff."""
     from bench.language import VERSION as LANG_VERSION
     from bench.proto.wire import VERSION as PROTO_VERSION
-    from bench.sql.migration import generate_migration_ops, introspect_tables_from_pg
+    from bench.sql.migration import generate_migration_ops, introspect_schema_from_pg
     from bench.sql.schema import VERSION as SQL_VERSION
 
     log = logger.bind(version=LANG_VERSION)
     start = asyncio.get_running_loop().time()
 
     # check just versions
-    log.trace("check_consistency.versions", proto=PROTO_VERSION, sql=SQL_VERSION)
     if PROTO_VERSION != LANG_VERSION:
         raise InconsistencyError(f"proto version {PROTO_VERSION} != lang version {LANG_VERSION}")
     if SQL_VERSION != LANG_VERSION:
         raise InconsistencyError(f"sql version {SQL_VERSION} != lang version {LANG_VERSION}")
 
     # diff generated SQL schema vs current schema
-    log.trace("check_consistency.schema")
-    new_tables = tuple(
+    declared_tables = tuple(
         map_node_class_to_pg_table(cls)
         for cls in NODE_CLASSES
         if cls.__is_stored__ and not cls.__is_stored_custom__
     )
-    migration_ops = generate_migration_ops(NODE_TABLES, new_tables)
+    declared_schema = Schema(extensions=(), tables=declared_tables)
+    actual_schema = Schema(extensions=(), tables=NODE_TABLES)
+    migration_ops = generate_migration_ops(actual_schema, declared_schema)
     if migration_ops:
         logger.error("check_consistency.schema.diff", diff=migration_ops)
         raise InconsistencyError(f"SQL schema is out of sync: {migration_ops!r}")
 
     # and diff DB state
     if check_db:
-        log.trace("check_consistency.db")
-
         # check global
         async with global_pg_cursor() as cur:
-            old_global_tables = await introspect_tables_from_pg(cur)
+            old_global_schema = await introspect_schema_from_pg(cur)
             await cur.connection.rollback()
-        migration_ops = generate_migration_ops(old_global_tables, GLOBAL_TABLES)
+        migration_ops = generate_migration_ops(old_global_schema, GLOBAL_SCHEMA)
         if migration_ops:
             raise InconsistencyError(f"global SQL schema is out of sync: {migration_ops!r}")
 

@@ -8,7 +8,16 @@ from dataclasses import dataclass, replace
 from datetime import datetime
 from pathlib import Path
 from textwrap import indent
-from typing import TYPE_CHECKING, Any, Awaitable, Callable, Collection, Mapping, Optional
+from typing import (
+    TYPE_CHECKING,
+    Any,
+    Awaitable,
+    Callable,
+    Collection,
+    Mapping,
+    Optional,
+    cast,
+)
 
 import psycopg
 import structlog
@@ -23,10 +32,13 @@ from bench.sql.core import (
     Column,
     Constraint,
     ConstraintType,
+    Extension,
     Index,
     IndexType,
+    Object,
     ObjectKind,
     PostgresColumnType,
+    Schema,
     Table,
     TableObject,
 )
@@ -220,6 +232,8 @@ async def migrate(
     Also updates the migrations table.
     """
 
+    start = asyncio.get_event_loop().time()
+
     # get target migrations from our source of truth (local file system)
     if target:
         for m in MIGRATIONS:
@@ -239,7 +253,6 @@ async def migrate(
     stored_migrations = await read_migrations_from_pg(cur)
     is_upgrade = all(target_migration.id > m.id for m in stored_migrations if m.applied_at)
     log = logger.bind(target_migration=target_migration, is_upgrade=is_upgrade, is_global=is_global)
-    logger.debug("migration.apply_missing", store=store)
     applied_migrations = [m for m in stored_migrations if m.applied_at is not None]
     current_migration = max(applied_migrations, key=lambda m: m.id) if applied_migrations else None
     current_migration_id = current_migration.id if current_migration else -1
@@ -256,10 +269,11 @@ async def migrate(
 
     # apply the migrations
     if not migrations_to_apply:
-        log.debug("migration.apply.skip", store=store)
+        log.debug(
+            "migration.apply.skip", store=store, duration=asyncio.get_event_loop().time() - start
+        )
         return []
     else:
-        start = asyncio.get_event_loop().time()
         await _do_migrate(
             cur, migrations_to_apply, is_upgrade=is_upgrade, is_global=is_global, store=store
         )
@@ -331,8 +345,8 @@ class MigrationOpKind(enum.Enum):
 @dataclass
 class MigrationOp:
     kind: MigrationOpKind
-    new_object: Optional[TableObject]
-    old_object: Optional[TableObject]
+    new_object: Optional[Object]
+    old_object: Optional[Object]
     diff_keys: Optional[tuple[str, ...]] = None
 
     def __str__(self) -> str:
@@ -373,9 +387,9 @@ class MigrationOp:
     @property
     def table(self) -> "Table":
         if self.new_object is not None:
-            return self.new_object.table
+            return cast("TableObject", self.new_object).table
         elif self.old_object is not None:
-            return self.old_object.table
+            return cast("TableObject", self.old_object).table
         else:
             raise RuntimeError(f"no object set for {self!r}")
 
@@ -394,29 +408,35 @@ class MigrationOp:
         raise RuntimeError(f"unexpected migration op type: {self.kind}")
 
 
-def generate_migration_ops(
-    old_tables: Collection[Table], new_tables: Collection[Table]
-) -> list[MigrationOp]:
+def generate_migration_ops(old_schema: Schema, new_schema: Schema) -> list[MigrationOp]:
     """Generates the migration operations to go from the old tables to the new tables."""
+
+    # extensions
+    extension_ops: list[MigrationOp] = []
+    old_extensions = {ext.name for ext in old_schema.extensions}
+    new_extensions = {ext.name for ext in new_schema.extensions}
+    for ext_name in new_extensions - old_extensions:
+        extension_ops.append(MigrationOp(MigrationOpKind.CREATE, Extension(ext_name), None))
+    # NOTE: we don't remove extensions for now
 
     def _to_id(obj: TableObject) -> str:
         return obj.qualified_name
 
     # order of walk is table -> column -> index -> constraint
-    old_objects: list[TableObject] = [obj for table in old_tables for obj in table.walk()]
-    old_objects_by_id: dict[str, TableObject] = {_to_id(obj): obj for obj in old_objects}
-    new_objects: list[TableObject] = [obj for table in new_tables for obj in table.walk()]
-    new_objects_by_id: dict[str, TableObject] = {_to_id(obj): obj for obj in new_objects}
-    deleted_objects: tuple[TableObject, ...] = tuple(
-        obj for obj in old_objects if _to_id(obj) not in new_objects_by_id
+    old_table_objects = [obj for table in old_schema.tables for obj in table.walk()]
+    old_table_objects_by_id = {_to_id(obj): obj for obj in old_table_objects}
+    new_table_objects = [obj for table in new_schema.tables for obj in table.walk()]
+    new_table_objects_by_id = {_to_id(obj): obj for obj in new_table_objects}
+    deleted_table_objects = tuple(
+        obj for obj in old_table_objects if _to_id(obj) not in new_table_objects_by_id
     )
 
     # diff objects
     deleted_ids: set[str] = set()
-    delete_ops: list[MigrationOp] = []
-    for old_object in old_objects:
+    deleted_table_ops: list[MigrationOp] = []
+    for old_object in old_table_objects:
         old_id = _to_id(old_object)
-        new_object = new_objects_by_id.get(old_id)
+        new_object = new_table_objects_by_id.get(old_id)
         if new_object is None:
             if _to_id(old_object.table) in deleted_ids:
                 continue  # skip, table deleted
@@ -424,22 +444,22 @@ def generate_migration_ops(
                 # skip if owning constraint is also deleted
                 if any(
                     obj.kind == ObjectKind.CONSTRAINT and obj.name == old_object.qualified_name
-                    for obj in deleted_objects
+                    for obj in deleted_table_objects
                 ):
                     continue
-            delete_ops.append(MigrationOp(MigrationOpKind.DELETE, None, old_object))
+            deleted_table_ops.append(MigrationOp(MigrationOpKind.DELETE, None, old_object))
             deleted_ids.add(old_id)
     # regular order: table -> column -> index -> constraint
     cru_ops: list[MigrationOp] = []
-    for new_object in new_objects:
+    for new_object in new_table_objects:
         new_id = _to_id(new_object)
-        old_object = old_objects_by_id.get(new_id)
+        old_object = old_table_objects_by_id.get(new_id)
         if old_object is None:
             # create columns only if parent table isn't new
             if (
                 new_object.kind == ObjectKind.COLUMN
-                and _to_id(new_object.table) in new_objects_by_id
-                and _to_id(new_object.table) not in old_objects_by_id
+                and _to_id(new_object.table) in new_table_objects_by_id
+                and _to_id(new_object.table) not in old_table_objects_by_id
             ):
                 continue
             cru_ops.append(MigrationOp(MigrationOpKind.CREATE, new_object, None))
@@ -454,11 +474,11 @@ def generate_migration_ops(
     # fix cyclic dependencies between creates & FKs -> split into two passes:
     #  1. create tables without FK columns
     #  2. patch in all the FK columns, create indexes, and constraints
-    first_cru_ops: list[MigrationOp] = []
-    patch_cru_ops: list[MigrationOp] = []
+    first_table_cru_ops: list[MigrationOp] = []
+    patch_table_cru_ops: list[MigrationOp] = []
     for op in cru_ops:
         if op.kind != MigrationOpKind.CREATE:
-            patch_cru_ops.append(op)
+            patch_table_cru_ops.append(op)
             continue
 
         if op.object_kind == ObjectKind.TABLE:
@@ -469,20 +489,20 @@ def generate_migration_ops(
                 (c.clone() for c in op.new_object.columns),
             )
             first_table = replace(op.new_object, columns=first_columns, constraints=(), indexes=())
-            first_cru_ops.append(MigrationOp(MigrationOpKind.CREATE, first_table, None))
+            first_table_cru_ops.append(MigrationOp(MigrationOpKind.CREATE, first_table, None))
             for col in deferred_columns:
                 col._table = first_table
-                patch_cru_ops.append(MigrationOp(MigrationOpKind.CREATE, col, None))
+                patch_table_cru_ops.append(MigrationOp(MigrationOpKind.CREATE, col, None))
         elif op.object_kind == ObjectKind.COLUMN:
             assert isinstance(op.new_object, Column)
             if op.new_object.is_foreign_key_to:
-                patch_cru_ops.append(op)
+                patch_table_cru_ops.append(op)
             else:
-                first_cru_ops.append(op)
+                first_table_cru_ops.append(op)
         else:
-            patch_cru_ops.append(op)
+            patch_table_cru_ops.append(op)
 
-    ops = [*delete_ops, *first_cru_ops, *patch_cru_ops]
+    ops = [*extension_ops, *deleted_table_ops, *first_table_cru_ops, *patch_table_cru_ops]
     return ops
 
 
@@ -534,7 +554,7 @@ def _render_migration_body(ops: list[MigrationOp] | None) -> str:
 
     lines: list[str] = []
     current_table: Optional[Table] = None
-    current_statements: list[str] = []
+    current_table_stmts: list[str] = []
 
     def _emit_alter(table: Table, statements: list[str]) -> None:
         alter_content = ",\n    ".join(statements)
@@ -579,15 +599,19 @@ def _render_migration_body(ops: list[MigrationOp] | None) -> str:
             continue
         stmt = _wrap_statement(stmt)
 
-        if current_table is None or op.table.table_name != current_table.table_name:
-            if current_table is not None and current_statements:
-                _emit(current_table, current_statements)
-            current_table = op.table
-            current_statements = []
-        current_statements.append(stmt)
+        # extensions are not table objects
+        if op.object_kind == ObjectKind.EXTENSION:
+            lines.append(stmt)
+        else:
+            if current_table is None or op.table.table_name != current_table.table_name:
+                if current_table is not None and current_table_stmts:
+                    _emit(current_table, current_table_stmts)
+                current_table = op.table
+                current_table_stmts = []
+            current_table_stmts.append(stmt)
 
-    if current_table and current_statements:
-        _emit(current_table, current_statements)
+    if current_table and current_table_stmts:
+        _emit(current_table, current_table_stmts)
 
     # post process lines
     wrapped_lines: list[str] = []
@@ -636,10 +660,10 @@ async def apply_migration_ops(cur: psycopg.AsyncCursor, ops: list[MigrationOp]) 
     await _apply_inline(cur)
 
 
-async def force_create_tables(cur: psycopg.AsyncCursor, tables: Collection[Table]) -> None:
+async def force_create_schema(cur: psycopg.AsyncCursor, schema: Schema) -> None:
     """Creates and applies the migrations to create the given objects in the database."""
     # ignore existing tables
-    ops = generate_migration_ops([], tables)
+    ops = generate_migration_ops(Schema.blank(), schema)
     await apply_migration_ops(cur, ops)
 
 
@@ -660,7 +684,9 @@ def _render_migration_op(op: MigrationOp) -> str | None:
     Generally 'flat' - ops do not include nested objects - except for CREATE TABLE.
     """
     if op.kind == MigrationOpKind.CREATE:
-        if isinstance(op.new_object, Table):
+        if isinstance(op.new_object, Extension):
+            return f'CREATE EXTENSION IF NOT EXISTS "{op.new_object.name}"'
+        elif isinstance(op.new_object, Table):
             table_contents = ",\n".join(f"    {col.sql()}" for col in op.new_object.columns)
             return f'CREATE TABLE "{op.new_object.name}" (\n{table_contents}\n)'
         elif isinstance(op.new_object, Column):
@@ -768,7 +794,9 @@ def _render_migration_op(op: MigrationOp) -> str | None:
             )
 
     elif op.kind == MigrationOpKind.DELETE:
-        if isinstance(op.old_object, Table):
+        if isinstance(op.old_object, Extension):
+            return f'DROP EXTENSION IF EXISTS "{op.old_object.name}"'
+        elif isinstance(op.old_object, Table):
             return f'DROP TABLE "{op.old_object.name}"'
         elif isinstance(op.old_object, Column):
             return f'ALTER TABLE "{op.old_object.table.name}" DROP COLUMN "{op.old_object.name}"'
@@ -787,15 +815,25 @@ def _render_migration_op(op: MigrationOp) -> str | None:
 #
 
 
-async def introspect_tables_from_pg(
+async def introspect_schema_from_pg(
     cur: psycopg.AsyncCursor,
     *,
     include_columns: bool = True,
     include_constraints: bool = True,
     include_indexes: bool = True,
     table_prefix: str = "bench_",
-) -> list[Table]:
+) -> Schema:
     start = asyncio.get_running_loop().time()
+
+    # extensions
+    extensions_query = """
+    SELECT
+        extname
+    FROM
+        pg_extension
+    """
+    extensions_rows = await pg_select_raw(cur, extensions_query)
+    extensions = tuple(Extension(name=row["extname"]) for row in extensions_rows)
 
     def _strip_condition(condition: str) -> str:
         # remove outermost (...) if present until only one (...) remains
@@ -1028,4 +1066,4 @@ WHERE
     duration = asyncio.get_running_loop().time() - start
     logger.debug("introspect", cur=cur, duration=duration, tables=[t.name for t in tables])
 
-    return tables
+    return Schema(extensions=extensions, tables=tuple(tables))

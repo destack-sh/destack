@@ -1,9 +1,8 @@
-# type: ignore
 # TODO :Robustness :Cleanup: type-check sql engine
 
 import random
 import string
-from typing import Callable, Mapping
+from typing import Any, Callable, Mapping, cast
 
 import psycopg
 import pytest
@@ -12,7 +11,6 @@ from psycopg import sql
 from bench.conftest import detached_session
 from bench.language import (
     Bench,
-    BenchType,
     Block,
     BlockType,
     Client,
@@ -22,10 +20,10 @@ from bench.language import (
     Server,
     ServerProfile,
 )
-from bench.language.const import ClientType, NodeType
+from bench.language.const import ClientType, EnumType, NodeType
 from bench.language.field import TypeKind
 from bench.language.test.fabricator import Fabricator
-from bench.sql.core import Column, Table
+from bench.sql.core import GLOBAL_EXTENSIONS, Column, Schema, Table
 from bench.sql.engine import (
     RowIn,
     _pg_adapt_row,
@@ -37,7 +35,7 @@ from bench.sql.engine import (
     pg_update_variable,
     pg_upsert,
 )
-from bench.sql.migration import force_create_tables
+from bench.sql.migration import force_create_schema
 
 _TEST_TYPES = (
     PrimitiveType.BOOLEAN,
@@ -83,9 +81,10 @@ _ENCRYPTED_TABLE = Table(
         ),
     ),
 )
-_TEST_TABLES = [_MINI_REGULAR_TABLE, _REGULAR_TABLE, _MINI_ENCRYPTED_TABLE, _ENCRYPTED_TABLE]
+_TEST_TABLES = (_MINI_REGULAR_TABLE, _REGULAR_TABLE, _MINI_ENCRYPTED_TABLE, _ENCRYPTED_TABLE)
+_TEST_SCHEMA = Schema(extensions=GLOBAL_EXTENSIONS, tables=_TEST_TABLES)
 
-COLUMN_VALUE_GENERATORS: Mapping[PrimitiveType, Callable[[], any]] = {
+COLUMN_VALUE_GENERATORS: Mapping[PrimitiveType, Callable[[], Any]] = {
     PrimitiveType.BOOLEAN: lambda: random.choice((True, False)),
     PrimitiveType.INT32: lambda: random.randint(0, 2**31 - 1),
     PrimitiveType.FLOAT32: lambda: random.random().__round__(3),  # for comparison stability
@@ -101,7 +100,7 @@ async def test_tables():
     from bench.system.client import GLOBAL_STORE
 
     async with pg_cursor(get_pg_connection_str(GLOBAL_STORE, "test")) as cur:
-        await force_create_tables(cur, _TEST_TABLES)
+        await force_create_schema(cur, _TEST_SCHEMA)
 
 
 @pytest.mark.parametrize("table", _TEST_TABLES, ids=lambda t: t.name)
@@ -111,8 +110,8 @@ async def test_crud_rows(test_cur: psycopg.AsyncCursor, table: Table):
     random.seed(42)
     _force_pg_crypto_key.set(random.randbytes(32).hex())
 
-    def _generate_row(id: int) -> Mapping[str, any]:
-        row = {"id": id}
+    def _generate_row(id: int) -> Mapping[str, Any]:
+        row: dict[str, Any] = {"id": id}
         for column in table.columns:
             if column.is_primary_key:
                 continue
@@ -157,7 +156,8 @@ async def test_crud_rows(test_cur: psycopg.AsyncCursor, table: Table):
         dynamic_values=_pg_adapt_rows(table, update_rows),
         returning=table.columns,
     )
-    db_rows.sort(key=lambda r: r["id"])
+    assert db_rows is not None
+    db_rows.sort(key=lambda r: cast(int, r["id"]))
     assert db_rows == target_rows[1:4]
     db_rows = await pg_select(test_cur, table, order_by=sql.SQL("id"))
     assert db_rows == target_rows
@@ -172,7 +172,8 @@ async def test_crud_rows(test_cur: psycopg.AsyncCursor, table: Table):
     db_rows = await pg_update_constant(
         test_cur, table, static_value=_pg_adapt_row(table, static_value), returning=table.columns
     )
-    db_rows.sort(key=lambda r: r["id"])
+    assert db_rows is not None
+    db_rows.sort(key=lambda r: cast(int, r["id"]))
     assert db_rows == target_rows
     db_rows = await pg_select(test_cur, table, order_by=sql.SQL("id"))
     assert db_rows == target_rows
@@ -181,7 +182,8 @@ async def test_crud_rows(test_cur: psycopg.AsyncCursor, table: Table):
     await pg_delete(test_cur, table, where=sql.SQL("id > 3"))
     target_rows = target_rows[:4]
     db_rows = await pg_select(test_cur, table, order_by=sql.SQL("id"))
-    db_rows.sort(key=lambda r: r["id"])
+    assert db_rows is not None
+    db_rows.sort(key=lambda r: cast(int, r["id"]))
     assert db_rows == target_rows
 
 
@@ -206,12 +208,13 @@ async def test_crud_node_pointers(fabricator: "Fabricator"):
         bench_a.branches.create(name="main a")
         package_a = bench_a.packages.create(environment=environment_a)
         block_a_1 = package_a.blocks.create(type=BlockType.CODE)
-        block_a_1.fields.create(name="foo", kind=TypeKind.ENUM, bench_type=BenchType.PRIMITIVE_TYPE)
+        block_a_1.fields.create(name="foo", kind=TypeKind.ENUM, bench_type=EnumType.PRIMITIVE_TYPE)
         await session.commit()
 
     # read back
     async with detached_session() as session:
         server_a = await Server.include_ancestors().get(id=server_a.id)
+        assert server_a.parent_ptr
         assert server_a.parent_ptr.equals_content(bench_a.to_ref())
         assert server_a.bench_id == bench_a.id
         assert server_a.to_ref().equals_content(
