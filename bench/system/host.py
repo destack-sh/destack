@@ -1,7 +1,7 @@
 import asyncio
 import functools
 from contextlib import asynccontextmanager
-from typing import AsyncIterator, Callable
+from typing import AsyncIterator, Callable, override
 from uuid import UUID
 
 import betterproto
@@ -12,7 +12,12 @@ from grpclib import Status as GRPCStatus
 
 from bench.language import Bench, Organization, Package, Subject, User
 from bench.language.connection import PostgresEngine, StoreEngine
-from bench.language.const import IN_BENCH_NODE_TYPES, NodeType
+from bench.language.const import (
+    IN_BENCH_GLOBAL_NODE_TYPES,
+    IN_BENCH_NODE_TYPES,
+    LOCAL_NODE_TYPES,
+    NodeType,
+)
 from bench.language.graph import NodeGraph, edit_graph
 from bench.language.session import Session
 from bench.proto import wiring
@@ -161,9 +166,11 @@ class Host(GraphIoServiceBase, HostBase):
         GraphIoServiceBase.__init__(self, bench_id=bench_id, node_types=IN_BENCH_NODE_TYPES)
         self.bench_id = bench_id
         self._bench: Bench | None = None
-        self._bench_scope: GraphScope = GraphScope(bench_id=str(bench_id))
-        self._bench_global_pg_engine: PostgresEngine | None = None
-        self._bench_local_pg_engine: PostgresEngine | None = None
+        self._scope: GraphScope = GraphScope(bench_id=str(bench_id))
+        self._global_pg_engine: PostgresEngine | None = None
+        # NOTE: currently we only have one local engine because we only have one branch :Branching
+        #  but later we'll need different engines for every 'full' branch (separate Neon branch)
+        self._local_pg_engine: PostgresEngine | None = None
         self._owner: User | Organization | None = None
         self._main_package: Package | None = None
         self._packages: dict[UUID, Package] = {}
@@ -179,11 +186,12 @@ class Host(GraphIoServiceBase, HostBase):
         assert self._bench is not None, f"bench not loaded in {self}"
         return self._bench
 
-    @property
-    def engines(self) -> tuple[StoreEngine, ...]:
-        # TODO :Broken :Performance!: support local engines in Host (in-memory from local data graph)
-        assert self._bench_pg_engine is not None, f"pg engine not initialized in {self!r}"
-        return (self._bench_pg_engine,)
+    @override
+    def _get_engines(self, scope: GraphScope) -> tuple[StoreEngine, ...]:
+        # TODO :Performance!: support in-memory engines in Host (from local data graph)
+        assert self._global_pg_engine is not None, f"global pg engine not initialized in {self!r}"
+        assert self._local_pg_engine is not None, f"local pg engine not initialized in {self!r}"
+        return (self._global_pg_engine, self._local_pg_engine)
 
     async def start(self) -> None:
         start = asyncio.get_event_loop().time()
@@ -191,13 +199,20 @@ class Host(GraphIoServiceBase, HostBase):
         # load bench
         async with global_session() as session:
             self._bench = await BENCH_QUERY.get(id=self.bench_id)
-            self._bench_pg_engine = PostgresEngine(
+            self._global_pg_engine = PostgresEngine(
                 store=GLOBAL_STORE,
                 bench=self._bench,
-                scope=self._bench_scope,
-                node_types=IN_BENCH_NODE_TYPES,
+                scope=self._scope,
+                node_types=IN_BENCH_GLOBAL_NODE_TYPES,
             )
-            assert self._bench.main_branch is not None, f"{self._bench!r} has no main branch"
+            assert self._bench.main_environment, f"{self._bench!r} has no main environment"
+            assert self._bench.main_branch, f"{self._bench!r} has no main branch"
+            self._local_pg_engine = PostgresEngine(
+                store=self._bench.main_environment.store,
+                bench=self._bench,
+                scope=self._scope,
+                node_types=LOCAL_NODE_TYPES,
+            )
             await provision_pending_resources(self._bench, session, commit_per=True)
 
             # prepare/migrate resources
@@ -209,7 +224,7 @@ class Host(GraphIoServiceBase, HostBase):
         session.untrack_many(self._bench)
 
         # preload main packages
-        async with local_session(self._bench_scope, (self._bench_pg_engine,)):
+        async with local_session(self._scope, (self._global_pg_engine,)):
             self._main_package = await PACKAGE_QUERY.get(id=self._bench.main_branch.main_package_id)
             self._packages[self._main_package.id] = self._main_package
         session.untrack_many(self._main_package)
@@ -222,6 +237,7 @@ class Host(GraphIoServiceBase, HostBase):
     async def wait_closed(self) -> None:
         pass
 
+    @override
     def _adapt_graph_edits(
         self, session: Session, graph: NodeGraph, edits: list[EditData]
     ) -> list[EditData]:
@@ -231,6 +247,7 @@ class Host(GraphIoServiceBase, HostBase):
         #  (but how to compact? add Logs as regular edit or compact+add in one step?)
         return edits
 
+    @override
     def _on_graph_edited(self, scopes: tuple[GraphScope, ...], edits: list[EditData]):
         if self._bench is None:
             return  # not started yet

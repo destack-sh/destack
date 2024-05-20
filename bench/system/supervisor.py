@@ -1,4 +1,4 @@
-from typing import cast
+from typing import cast, override
 from uuid import UUID, uuid4, uuid5
 
 import betterproto
@@ -60,8 +60,8 @@ class Supervisor(GraphIoServiceBase, SupervisorBase):
     async def wait_closed(self) -> None:
         pass
 
-    @property
-    def engines(self):
+    @override
+    def _get_engines(self, scope: GraphScope):
         return (GLOBAL_POSTGRES_ENGINE,)
 
     #
