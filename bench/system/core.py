@@ -2,17 +2,18 @@ import abc
 import asyncio
 from contextlib import asynccontextmanager
 from dataclasses import dataclass
-from typing import ClassVar, override
+from itertools import chain
+from typing import ClassVar, Iterable, override
 from uuid import UUID
 
 import bitarray
 import structlog
 
 from bench.language import Bench, Node, NodeType, Store
-from bench.language.bench import Region
+from bench.language.bench import Package, Region
 from bench.language.connection import PostgresEngine, StoreEngine
 from bench.language.const import GLOBAL_NODE_TYPES, VERSION, EditType
-from bench.language.graph import NodeGraph
+from bench.language.graph import NodeGraphLike
 from bench.language.session import CommitHook, Session
 from bench.proto import wiring
 from bench.proto.wire import EditData, GraphScope
@@ -86,11 +87,19 @@ class CommittedChange[T: Node]:
     def __repr__(self):
         return f"<GraphDiff {self!s}>"
 
+    @property
+    def edited(self) -> Iterable[T]:
+        return chain(self.added, self.updated, self.removed)
+
+    def has(self, node_types: bittuple[NodeType]) -> bool:
+        """Check if the diff contains any of the given node types."""
+        return (self.edited_types.bits & node_types.bits).any()
+
     def trim_to(self, node_types: bittuple[NodeType]) -> "CommittedChange[T]":
         """Trims the diff to only include the given node types."""
         return CommittedChange(
-            edits=self.edits,
-            cascaded_edits=self.cascaded_edits,
+            edits=[e for e in self.edits if NodeType(e.node_type) in node_types],
+            cascaded_edits=[e for e in self.cascaded_edits if NodeType(e.node_type) in node_types],
             edited_types=self.edited_types & node_types,
             added=[node for node in self.added if node.metatype in node_types],
             updated=[node for node in self.updated if node.metatype in node_types],
@@ -99,7 +108,7 @@ class CommittedChange[T: Node]:
 
 
 def unpack_committed_change(
-    graph: NodeGraph[Node], edits: list[EditData], cascaded_edits: list[EditData]
+    graph: NodeGraphLike, edits: list[EditData], cascaded_edits: list[EditData]
 ) -> CommittedChange:
     """
     Get the summarized, unpacked nodes that change in the given edits.
@@ -174,7 +183,12 @@ def unpack_committed_change(
 class HostSpec(abc.ABC):
     """Base interface for the Host so we can pass it around more easily (and stub it)."""
 
+    def get_package(self, package_id: UUID) -> Package | None:
+        """Get a *loaded* Package."""
+        raise NotImplementedError
+
     def session(self, scope: GraphScope | None = None) -> Session:
+        """Create a new Session in the Host with the given (or default) scope."""
         raise NotImplementedError
 
 
@@ -184,11 +198,13 @@ DEAD_HOST = HostSpec()
 class HostPlugin[T: Node](abc.ABC):
     """A plugin on the Host system of a Bench."""
 
-    node_types: ClassVar[bittuple[NodeType]]
+    """The type of nodes to subscribe to for edits."""
+    watch_types: ClassVar[bittuple[NodeType]]
 
     def __init__(self, host: HostSpec, bench: "Bench"):
         self._host = host
         self._bench = bench
+        self._tasks = TaskManager(self, logger)
 
     def __str__(self) -> str:
         return ""
@@ -204,17 +220,17 @@ class HostPlugin[T: Node](abc.ABC):
     # Lifecycle
     #
 
-    async def start(self, tasks: TaskManager) -> None:
+    async def start(self) -> None:
         """Start any work for this plugin, returning when the plugin is ready."""
         pass
 
     def close(self) -> None:
         """Close any stuff you need to close (if any)."""
-        pass
+        self._tasks.close()
 
     async def wait_closed(self) -> None:
         """After closing, wait for any stuff you need to wait for (if any)."""
-        pass
+        await self._tasks.wait_closed()
 
     #
     # Events
@@ -232,9 +248,9 @@ class AsyncHostPlugin[T: Node](HostPlugin, abc.ABC):
         super().__init__(host, bench)
         self._commit_queue: asyncio.Queue[CommittedChange[T]] = asyncio.Queue()
 
-    async def start(self, tasks: TaskManager) -> None:
-        await super().start(tasks)
-        tasks.start_queue(self._commit_queue, self.on_graph_commit_async)
+    async def start(self) -> None:
+        await super().start()
+        self._tasks.start_queue(self._commit_queue, self.on_graph_commit_async)
 
     @override
     def on_graph_commit(self, commit: CommittedChange) -> None:

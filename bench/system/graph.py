@@ -20,7 +20,7 @@ from bench.language.access import (
 )
 from bench.language.connection import FetchOptions, StoreEngine
 from bench.language.const import ConditionalOp, EditType, NodeType, PolicyEffect
-from bench.language.graph import NodeDataGraph, NodeGraph, edit_data_graph
+from bench.language.graph import NodeDataGraph, NodeGraph, NodeGraphLike, edit_data_graph
 from bench.language.node import Node
 from bench.language.query import QueryBuilder
 from bench.language.setup import NODE_CLASS_BY_TYPE
@@ -260,10 +260,16 @@ class GraphIoServiceBase(BenchServiceBase, GraphIoBase):
     async def commit_transaction(
         self, subject: Subject, request: "CommitTransactionRequest"
     ) -> "CommitTransactionResponse":
+        assert subject.client, f"{subject!r} has no client"
         # figure out the node (scopes) we need to evaluate the edit
         edited_scopes = get_validated_edited_scopes(request.edits)
         start = asyncio.get_event_loop().time()
         async with self.session(request.scope) as session:
+            # ensure edit origins matches subject
+            for edit in request.edits:
+                if not edit.origin or edit.origin.id != subject.client.id:
+                    raise GRPCError(GRPCStatus.PERMISSION_DENIED, "edit origin mismatch")
+
             # read the required nodes into a single graph for evaluation
             data_graph = NodeDataGraph()
             for node_type, node_references in edited_scopes.node_scopes_by_type.items():
@@ -316,7 +322,12 @@ class GraphIoServiceBase(BenchServiceBase, GraphIoBase):
 
             # apply edits
             session.tx._add_pending_edits(adapted_edits)
-            await session.commit(graph=unpacked_graph)
+            await session.commit(suppress_hook=True)  # fired manually
+            self.on_graph_commit(
+                graph=unpacked_graph,
+                edits=adapted_edits,
+                cascaded_edits=session.tx.cascaded_edits,
+            )
             logger.info(
                 "graph.commit",
                 subject=subject,
@@ -354,7 +365,7 @@ class GraphIoServiceBase(BenchServiceBase, GraphIoBase):
 
     @final
     def on_graph_commit(
-        self, graph: NodeGraph | None, edits: list[EditData], cascaded_edits: list[EditData]
+        self, graph: NodeGraphLike, edits: list[EditData], cascaded_edits: list[EditData]
     ):
         self.epoch += 1
         self.recent_epochs.append(Epoch(self.epoch, edits, cascaded_edits))
@@ -369,7 +380,7 @@ class GraphIoServiceBase(BenchServiceBase, GraphIoBase):
         self._on_graph_commit(graph=graph, edits=edits, cascaded_edits=cascaded_edits)
 
     def _on_graph_commit(
-        self, graph: NodeGraph | None, edits: list[EditData], cascaded_edits: list[EditData]
+        self, graph: NodeGraphLike, edits: list[EditData], cascaded_edits: list[EditData]
     ):
         pass  # do nothing by default
 

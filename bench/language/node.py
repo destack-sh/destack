@@ -1672,7 +1672,7 @@ class Node(Struct[NodeDataT], Generic[NodeDataT]):
     ):
         raise NotImplementedError
 
-    def delete(self):
+    def soft_delete(self):
         """Soft delete this node."""
         assert not self.is_soft_deleted, f"{self!r} is already deleted"
         raise NotImplementedError

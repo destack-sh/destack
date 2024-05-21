@@ -18,7 +18,7 @@ from bench.language.const import (
     LOCAL_NODE_TYPES,
     NodeType,
 )
-from bench.language.graph import NodeGraph, edit_graph
+from bench.language.graph import NodeGraph, NodeGraphLike, edit_graph
 from bench.proto import wiring
 from bench.proto.services import BenchServiceBase, RpcCallable
 from bench.proto.wire import (
@@ -214,6 +214,10 @@ class Host(GraphIoServiceBase, HostBase, HostSpec):
         return self._bench
 
     @override
+    def get_package(self, package_id: UUID) -> Package | None:
+        return self._packages.get(package_id)
+
+    @override
     def _get_engines(self, scope: GraphScope) -> tuple[StoreEngine, ...]:
         # TODO :Performance!: support in-memory engines in Host (from local data graph)
         assert self._global_pg_engine is not None, f"global pg engine not initialized in {self!r}"
@@ -244,9 +248,12 @@ class Host(GraphIoServiceBase, HostBase, HostSpec):
             # prepare plugins
             self._provisioners = tuple(get_provisioners_for(self, self._bench))
             self._plugins = (RunPlugin(self, self._bench),) + self._provisioners
-            await asyncio.gather(*(plugin.start(self._tasks) for plugin in self._plugins))
+            await asyncio.gather(*(plugin.start() for plugin in self._plugins))
 
-            # provision
+            # auto-provision
+            # NOTE: we provision manually here (instead of in Provisioner plugins)
+            #  because we may edit the resources manually or 'offline'.
+            # Also, we manually migrate here on Host start because not sure where else to do it.
             await provision_resources(self._bench.resources, self._provisioners, session)
             await migrate_resources(self._bench.resources, self._provisioners, session)
 
@@ -285,15 +292,16 @@ class Host(GraphIoServiceBase, HostBase, HostSpec):
 
     @override
     def _on_graph_commit(
-        self, graph: NodeGraph | None, edits: list[EditData], cascaded_edits: list[EditData]
+        self, graph: NodeGraphLike, edits: list[EditData], cascaded_edits: list[EditData]
     ):
-        assert graph is not None, f"edit graph must be provided in host (self={self!r})"
         assert self._bench is not None, f"bench not loaded in {self!r} for {edits!r}"
 
         # apply edits to loaded graphs (bench/package)
         for edit in edits:
             if NodeType(edit.node_type) not in LOADED_NODE_TYPES:
-                continue
+                continue  # not loaded
+            if edit.origin is None:
+                continue  # origin is us (=Host)
             node_data = wiring.unwrap_some_node(edit.node)
             if hasattr(node_data, "package_ptr"):
                 package_id = to_uuid(getattr(node_data, "package_ptr").id)
@@ -311,8 +319,8 @@ class Host(GraphIoServiceBase, HostBase, HostSpec):
         commit = unpack_committed_change(graph, edits, cascaded_edits)
         logger.debug("host.on_commit", host=self, commit=commit)
         for plugin in self._plugins:
-            if commit.edited_types & plugin.node_types:
-                trimmed_commit = commit.trim_to(plugin.node_types)
+            if commit.edited_types & plugin.watch_types:
+                trimmed_commit = commit.trim_to(plugin.watch_types)
                 plugin.on_graph_commit(trimmed_commit)
                 logger.debug(
                     "host.on_commit.plugin", host=self, plugin=plugin, commit=trimmed_commit
