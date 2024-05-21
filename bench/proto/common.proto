@@ -11,8 +11,9 @@ extend google.protobuf.FieldOptions {
 }
 
 message ClientOrigin {
-  string id = 2;
-  string nonce = 3;
+  ClientType type = 2;
+  string id = 3;
+  string nonce = 4;
 }
 
 // Core metadata for all RPC requests.

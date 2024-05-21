@@ -63,7 +63,7 @@ class BenchServiceBase:
     """gRPC service with some extra stuff for custom loops, auth, logging, metadata, ..."""
 
     def __init__(self):
-        self._tasks = TaskManager()
+        self._tasks = TaskManager(self, logger)
 
     async def start(self) -> None:
         """Start the service. Should be ready for service when returning."""

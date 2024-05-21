@@ -270,7 +270,7 @@ class RuntimeProcess:
         self.id = id
         self._runtime = runtime
         self._queue = queue
-        self._tasks = TaskManager()
+        self._tasks = TaskManager(runtime, logger)
 
     async def start(self):
         self._tasks.start_queue(self._queue, self._process_run, f"run{self.id}")

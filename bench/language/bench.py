@@ -257,13 +257,10 @@ class ResourceStatus(IdEnum):
     """Generalized status of a Resource in its lifecycle."""
 
     PENDING = 1
-    CREATING = 5
-    UPGRADING = 10
-    HEALTHY = 20
-    UNHEALTHY = 25
-    PAUSED = 30
-    DELETING = 35
-    DELETED = 40
+    HEALTHY = 10
+    UNHEALTHY = 20
+    SLEEPING = 30
+    DESTROYED = 40
 
 
 NodeDataT = TypeVar("NodeDataT", bound=AnyNodeData)

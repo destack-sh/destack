@@ -7,7 +7,7 @@ from bench.language import Bench, Region, User
 from bench.language.const import ClientType, NodeType, UserStatus
 from bench.system.access import generate_access_token
 from bench.system.client import global_session
-from bench.system.resource import migrate_local_stores, provision_resources
+from bench.system.provision import make_provisioners, migrate_resources, provision_resources
 from bench.system.supervisor import create_default_bench
 
 app = typer.Typer(short_help="some language-level utilities")
@@ -39,8 +39,9 @@ async def bootstrap(region: Region = Region.EUROPE_CENTRAL):
             main_handle=bench_bench_handle, owner=system_user, region=region, session=session
         )
         # immediately provision
-        await provision_resources(system_bench, session, commit_per=True)
-        await provision_resources(bench_bench, session, commit_per=True)
+        provisioners = await make_provisioners(system_bench)
+        await provision_resources(system_bench.resources, provisioners, session)
+        await provision_resources(bench_bench.resources, provisioners, session)
         await session.commit()
 
 
@@ -53,8 +54,9 @@ async def provision(bench_slug: str):
             .select_all()
             .get(slug=bench_slug)
         )
-        await provision_resources(bench, session, commit_per=True)
-        await migrate_local_stores(bench, session)
+        provisioners = await make_provisioners(bench)
+        await provision_resources(bench.resources, provisioners, session)
+        await migrate_resources(bench.resources, provisioners, session)
         await session.commit()
 
 

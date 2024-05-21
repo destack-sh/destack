@@ -1,20 +1,18 @@
 import asyncio
 from asyncio import CancelledError
-from typing import Awaitable, Callable
-
-import structlog
+from typing import Any, Awaitable, Callable, Coroutine
 
 from bench.utils.utils import sentry_capture
-
-logger = structlog.get_logger(__name__)
 
 
 class TaskManager:
     """Simple async task manager incl. error handling and logging"""
 
-    def __init__(self):
+    def __init__(self, owner: Any, logger: Any):
         self._tasks = {}
         self._errors = []
+        self._owner = owner
+        self._logger = logger
 
     @property
     def healthy(self):
@@ -24,11 +22,16 @@ class TaskManager:
         task_id = task_id or coro.__name__
         try:
             return await coro
-        except CancelledError as e:
-            logger.exception("task.cancelled", task_id=task_id, exc_info=e)
-            raise
+        except CancelledError:
+            self._logger.debug("task.cancelled", owner=self._owner, task_id=task_id)
         except Exception as e:
-            logger.exception("task.error", task_id=task_id, exc_info=e, sentry=sentry_capture(e))
+            self._logger.exception(
+                "task.error",
+                owner=self._owner,
+                task_id=task_id,
+                exc_info=e,
+                sentry=sentry_capture(e),
+            )
             self._errors.append(e)
             raise
 
@@ -40,7 +43,7 @@ class TaskManager:
     ](
         self,
         queue: asyncio.Queue[T],
-        process_item: Callable[[T], Awaitable[T]],
+        process_item: Callable[[T], Awaitable[T] | Coroutine[T, None, None]],
         name: str | None = None,
     ) -> None:
         async def _queue_wrapper():

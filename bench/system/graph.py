@@ -20,7 +20,7 @@ from bench.language.access import (
 )
 from bench.language.connection import FetchOptions, StoreEngine
 from bench.language.const import ConditionalOp, EditType, NodeType, PolicyEffect
-from bench.language.graph import NodeDataGraph, NodeGraph, edit_data_graph
+from bench.language.graph import GraphDiff, NodeDataGraph, NodeGraph, edit_data_graph
 from bench.language.node import Node
 from bench.language.query import QueryBuilder
 from bench.language.setup import NODE_CLASS_BY_TYPE
@@ -297,6 +297,7 @@ class GraphIoServiceBase(BenchServiceBase, GraphIoBase):
                 graph=data_graph,
                 options=ReadOptions.all(),
                 edits=request.edits,
+                keep_all=True,
                 update_nodes_in_place=False,
             )
             unpacked_graph = wiring.unpack_node_graph(data_graph, parent=None, session=session)
@@ -315,15 +316,17 @@ class GraphIoServiceBase(BenchServiceBase, GraphIoBase):
             # apply edits
             session.tx._add_pending_edits(edits)
             await session.commit()
+            diff = GraphDiff.make(unpacked_graph, edits)
             logger.info(
                 "graph.commit",
                 subject=subject,
                 request=request,
                 edits=session.tx.edits,
+                diff=diff,
                 epoch=self.epoch,
                 duration=asyncio.get_event_loop().time() - start,
             )
-            self.on_graph_edited(edited_scopes.graph_scopes, edits)
+            self.on_graph_edited(edited_scopes.graph_scopes, diff)
 
         accepted_revisions = [cast(int, e.revision) for e in request.edits]
         return CommitTransactionResponse(revisions=accepted_revisions, epoch=self.epoch)
@@ -350,19 +353,19 @@ class GraphIoServiceBase(BenchServiceBase, GraphIoBase):
         return edits
 
     @final
-    def on_graph_edited(self, scopes: tuple[GraphScope, ...], edits: list[EditData]):
+    def on_graph_edited(self, scopes: tuple[GraphScope, ...], diff: GraphDiff):
         self.epoch += 1
-        self.recent_epochs.append(Epoch(self.epoch, edits))
+        self.recent_epochs.append(Epoch(self.epoch, diff.edits))
 
         # notify watchers
         for watcher in self.watchers:
-            adapted_edits = self._filter_and_adapt_edits(watcher, edits)
+            adapted_edits = self._filter_and_adapt_edits(watcher, diff.edits)
             if adapted_edits:
                 watcher.sink.put_nowait(Epoch(self.epoch, adapted_edits))
 
-        self._on_graph_edited(scopes=scopes, edits=edits)
+        self._on_graph_edited(scopes=scopes, diff=diff)
 
-    def _on_graph_edited(self, scopes: tuple[GraphScope, ...], edits: list[EditData]):
+    def _on_graph_edited(self, scopes: tuple[GraphScope, ...], diff: GraphDiff):
         pass  # do nothing by default
 
     @final

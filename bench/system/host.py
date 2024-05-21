@@ -1,8 +1,7 @@
 import asyncio
 import functools
 from contextlib import asynccontextmanager
-from typing import AsyncIterator, Callable, cast, override
-from urllib.parse import urlparse
+from typing import AsyncIterator, Callable, override
 from uuid import UUID
 
 import betterproto
@@ -10,9 +9,8 @@ import grpclib.server
 import structlog
 from grpclib import GRPCError
 from grpclib import Status as GRPCStatus
-from grpclib.client import Channel
 
-from bench.language import Bench, Package, Subject
+from bench.language import Bench, Package, Run, Subject
 from bench.language.bench import Machine, ResourceStatus, ServerProfile
 from bench.language.connection import PostgresEngine, StoreEngine
 from bench.language.const import (
@@ -33,15 +31,12 @@ from bench.proto.wire import (
     GraphScope,
     HostBase,
     RunData,
-    RuntimeStub,
-    StartRunRequest,
     UploadFilesRequest,
     UploadFilesResponse,
 )
 from bench.system.client import GLOBAL_STORE, global_session
-from bench.system.graph import GraphIoServiceBase
-from bench.system.neon import IS_NEON_LOCAL, prepare_local_stores
-from bench.system.resource import migrate_local_stores, provision_resources
+from bench.system.graph import GraphDiff, GraphIoServiceBase
+from bench.system.provision import Provisioner, make_provisioners
 from bench.utils.func import to_uuid
 from bench.utils.utils import get_from_env_maybe
 
@@ -192,6 +187,7 @@ class Host(GraphIoServiceBase, HostBase):
         self._main_package: Package | None = None
         self._packages: dict[UUID, Package] = {}
 
+        self._provisioners: list[Provisioner] = []
         self._runs_to_queue: asyncio.Queue[RunData] = asyncio.Queue()
 
     def __str__(self):
@@ -215,8 +211,8 @@ class Host(GraphIoServiceBase, HostBase):
     async def start(self) -> None:
         start = asyncio.get_event_loop().time()
 
-        # load bench
         async with global_session() as session:
+            # load bench
             self._bench = await BENCH_QUERY.get(id=self.bench_id)
             self._global_pg_engine = PostgresEngine(
                 store=GLOBAL_STORE,
@@ -232,13 +228,10 @@ class Host(GraphIoServiceBase, HostBase):
                 scope=self._scope,
                 node_types=LOCAL_NODE_TYPES,
             )
-            await provision_resources(self._bench, session, commit_per=True)
 
-            # prepare/migrate resources
-            if IS_NEON_LOCAL:
-                await prepare_local_stores(self._bench)
-            # NOTE :Robustness: unsure when to migrate local stores :StoreMigration
-            await migrate_local_stores(self._bench, session)
+            # prepare provisioners
+            self._provisioners = await make_provisioners(self._bench)
+
             await session.commit()
         session.untrack_many(self._bench)
 
@@ -251,7 +244,7 @@ class Host(GraphIoServiceBase, HostBase):
         # TODO :Robustness: cancel/re-queue Runs stuck on dead Machines
 
         # start tasks
-        self._tasks.start_queue(self._runs_to_queue, self._process_run_queue)
+        self._tasks.start_queue(self._runs_to_queue, self._process_run, "process_run")
 
         logger.info("host.start", host=self, duration=asyncio.get_event_loop().time() - start)
 
@@ -272,60 +265,47 @@ class Host(GraphIoServiceBase, HostBase):
         return edits
 
     @override
-    def _on_graph_edited(self, scopes: tuple[GraphScope, ...], edits: list[EditData]):
+    def _on_graph_edited(self, scopes: tuple[GraphScope, ...], diff: GraphDiff):
         if self._bench is None:
             return  # not started yet
 
         # apply edits to loaded graphs (bench/package)
-        for edit in edits:
+        for edit in diff.edits:
             node_data = wiring.unwrap_some_node(edit.node)
             if hasattr(node_data, "package_ptr"):
                 package_id = to_uuid(getattr(node_data, "package_ptr").id)
                 assert package_id is not None, f"missing package id in {edit!r}"
                 package = self._packages.get(package_id)
                 if package is None:
-                    continue
+                    continue  # not loaded
                 graph = package._graph
                 options = PACKAGE_QUERY._options
             else:
                 graph = self._bench._graph
                 options = BENCH_QUERY._options
-
-            assert isinstance(graph, NodeGraph), f"unexpected graph type: {graph!r}"
             edit_graph(graph, (edit,), options)
 
-        # queue any new runs
-        for edit in edits:
-            node = wiring.unwrap_some_node(edit.node)
-            if edit.node_type == NodeType.RUN:
-                run = cast(RunData, node)
-                if (
-                    node.parent_ptr is not None
-                    and node.parent_ptr.type == NodeType.PACKAGE
-                    and run.status == RunStatus.SCHEDULED
-                ):
-                    self._enqueue_run(run)
+        for node in diff.added:
+            # queue any new runs
+            if (
+                isinstance(node, Run)
+                and node.parent_type == NodeType.PACKAGE
+                and node.status == RunStatus.SCHEDULED
+            ):
+                self._enqueue_run(node._to_data())
 
     def _enqueue_run(self, run: RunData) -> None:
         """Adds a run to the distribution queue"""
         logger.trace("host.enqueue_run", host=self, run=run)
         self._runs_to_queue.put_nowait(run)
 
-    async def _process_run_queue(self, run_data: RunData) -> None:
+    async def _process_run(self, run_data: RunData) -> None:
         """Distributes runs to be queued in Runtimes. If no Machine is available, we start one."""
         # find machine for run
         package = self._packages.get(UUID(run_data.package_ptr.id))
         assert package is not None, f"missing package for run {run_data!r}"
         machine = await self._get_or_wait_machine(package)
-        if machine is None and LOCAL_MACHINE_URL:
-            machine = LOCAL_MACHINE
-        if machine is None:
-            raise RuntimeError(f"no machine available in {self!r} for run {run_data!r}")
-
-        # queue run on machine
-        machine_url = urlparse(machine.connection_uri)
-        runtime = RuntimeStub(Channel(host=machine_url.netloc, port=machine_url.port))
-        await runtime.start_run(StartRunRequest(run=run_data))
+        raise NotImplementedError("nocheckin")
 
     async def _get_or_wait_machine(self, package: Package) -> Machine | None:
         for machine in package.environment.server.machines:

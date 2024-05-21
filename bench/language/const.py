@@ -199,7 +199,7 @@ class NodeType(IdEnum):
     SERVER = 160
     STORE = 161  # any 'database' (Postgres/OpenSearch/ClickHouse)
     MACHINE = 162  # actual machine providing compute and such
-    DRIVE = 163  # 'bucket' like S3/MinIO, maybe block storage later
+    DRIVE = 163  # object store like S3/MinIO, maybe block storage later
     BLOB = 164  # in a Drive
     # CACHE = ...  # KV memory store (Redis/Memcached)
     # DOMAIN, EMAIL, ...
