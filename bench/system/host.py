@@ -41,7 +41,7 @@ from bench.proto.wire import (
 from bench.system.client import GLOBAL_STORE, global_session
 from bench.system.graph import GraphIoServiceBase
 from bench.system.neon import IS_NEON_LOCAL, prepare_local_stores
-from bench.system.resource import migrate_local_stores, provision_pending_resources
+from bench.system.resource import migrate_local_stores, provision_resources
 from bench.utils.func import to_uuid
 from bench.utils.utils import get_from_env_maybe
 
@@ -232,7 +232,7 @@ class Host(GraphIoServiceBase, HostBase):
                 scope=self._scope,
                 node_types=LOCAL_NODE_TYPES,
             )
-            await provision_pending_resources(self._bench, session, commit_per=True)
+            await provision_resources(self._bench, session, commit_per=True)
 
             # prepare/migrate resources
             if IS_NEON_LOCAL:
@@ -316,7 +316,7 @@ class Host(GraphIoServiceBase, HostBase):
         # find machine for run
         package = self._packages.get(UUID(run_data.package_ptr.id))
         assert package is not None, f"missing package for run {run_data!r}"
-        machine = await self._get_machine(package)
+        machine = await self._get_or_wait_machine(package)
         if machine is None and LOCAL_MACHINE_URL:
             machine = LOCAL_MACHINE
         if machine is None:
@@ -327,7 +327,7 @@ class Host(GraphIoServiceBase, HostBase):
         runtime = RuntimeStub(Channel(host=machine_url.netloc, port=machine_url.port))
         await runtime.start_run(StartRunRequest(run=run_data))
 
-    async def _get_machine(self, package: Package) -> Machine | None:
+    async def _get_or_wait_machine(self, package: Package) -> Machine | None:
         for machine in package.environment.server.machines:
             if machine.status == ResourceStatus.HEALTHY:
                 return machine

@@ -52,7 +52,13 @@ def get_from_env_maybe[
 
 def get_from_env[
     T
-](key: str, *, default: Optional[Any] = None, alt: Optional[str] = None, typ: Type[T] = str,) -> T:
+](
+    key: str,
+    *,
+    default: Optional[Any] = _UNSET,
+    alt: Optional[str] = None,
+    typ: Type[T] = str,
+) -> T:
     value = get_from_env_maybe(key, default=default, alt=alt, optional=False, typ=typ)
     return cast(T, value)
 
