@@ -1,5 +1,6 @@
 import abc
 from collections import defaultdict, deque
+from dataclasses import dataclass
 from itertools import chain
 from typing import (
     TYPE_CHECKING,
@@ -831,17 +832,24 @@ class ValueList(list, Generic[ValueParentT]):
 
 
 # poor mans filters, see FilterNodeGraph in bench-web
-_EXCLUDE_HIDDEN_EDIT_TYPE_REMAP: dict[EditType, EditType] = {
-    EditType.ARCHIVE: EditType.DELETE,
-    EditType.UNARCHIVE: EditType.CREATE,
-    EditType.SOFT_DELETE: EditType.DELETE,
-    EditType.RESTORE: EditType.CREATE,
+_INCLUDE_ALL_EDIT_TYPE_REMAP: dict[EditType, EditType] = {
+    EditType.ARCHIVE: EditType.UPDATE,
+    EditType.UNARCHIVE: EditType.UPDATE,
+    EditType.SOFT_DELETE: EditType.UPDATE,
+    EditType.RESTORE: EditType.UPDATE,
+    EditType.DELETE: EditType.UPDATE,
 }
 _INCLUDE_HIDDEN_EDIT_TYPE_REMAP: dict[EditType, EditType] = {
     EditType.ARCHIVE: EditType.UPDATE,
     EditType.UNARCHIVE: EditType.UPDATE,
     EditType.SOFT_DELETE: EditType.UPDATE,
     EditType.RESTORE: EditType.UPDATE,
+}
+_EXCLUDE_HIDDEN_EDIT_TYPE_REMAP: dict[EditType, EditType] = {
+    EditType.ARCHIVE: EditType.DELETE,
+    EditType.UNARCHIVE: EditType.CREATE,
+    EditType.SOFT_DELETE: EditType.DELETE,
+    EditType.RESTORE: EditType.CREATE,
 }
 
 
@@ -904,6 +912,7 @@ def edit_data_graph(
     options: "ReadOptions",
     edits: Collection[EditData],
     *,
+    keep_all: bool = False,
     update_nodes_in_place: bool = False,
 ) -> None:
     """Applies the edits to the data graph."""
@@ -914,7 +923,9 @@ def edit_data_graph(
         node_data = wiring.unwrap_some_node(edit.node)
 
         edit_type = cast(EditType, edit.type)  # remap edit according to read options
-        if options.include_hidden:
+        if keep_all:
+            edit_type = _INCLUDE_ALL_EDIT_TYPE_REMAP.get(edit_type, edit_type)
+        elif options.include_hidden:
             edit_type = _INCLUDE_HIDDEN_EDIT_TYPE_REMAP.get(edit_type, edit_type)
         else:
             edit_type = _EXCLUDE_HIDDEN_EDIT_TYPE_REMAP.get(edit_type, edit_type)
@@ -949,3 +960,29 @@ def edit_data_graph(
                 updated_value = getattr(node_data, prop.name)
                 setattr(existing_node, prop.name, updated_value)
             graph.update(existing_node)
+
+
+@dataclass(slots=True)
+class GraphDiff[T: Node]:
+    """A simplified diff of edited Nodes. Here archive/soft-delete => remove."""
+
+    edits: list[EditData]
+    added: list[T]
+    updated: list[T]
+    removed: list[T]
+
+    def __str__(self):
+        return f"added={self.added!r}, updated={self.updated!r}, removed={self.removed!r}"
+
+    def __repr__(self):
+        return f"<GraphDiff {self!s}>"
+
+    @staticmethod
+    def make(
+        graphs: NodeGraph | DetachedNodeGraph | Collection[NodeGraph | DetachedNodeGraph],
+        edits: list[EditData],
+    ) -> "GraphDiff":
+        if not isinstance(graphs, Collection):
+            graphs = (graphs,)
+
+        raise NotImplementedError  # nocheckin

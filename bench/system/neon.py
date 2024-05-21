@@ -8,15 +8,12 @@ import httpx
 import structlog
 
 from bench.language.bench import Region
-from bench.sql.client import pg_cursor_to_store
-from bench.sql.migration import has_migration_after, migrate
-from bench.sql.schema import VERSION
 from bench.utils.env import IS_DEBUG
 from bench.utils.tenacity import RetryOptions, retry
 from bench.utils.utils import get_from_env
 
 if TYPE_CHECKING:
-    from bench.language import Bench, Store
+    pass
 
 
 logger = structlog.get_logger(__name__)
@@ -236,59 +233,8 @@ class NeonApiRemote(NeonApi):
 
 IS_NEON_LOCAL = get_from_env("IS_NEON_LOCAL", default=IS_DEBUG, typ=bool)
 if IS_NEON_LOCAL:
-    neon_client = NeonApiLocal(neon_path=get_from_env("NEON_PATH"))
+    neon_api = NeonApiLocal(neon_path=get_from_env("NEON_PATH"))
 else:
-    neon_client = NeonApiRemote(
-        url=get_from_env("NEON_BASE_URL"),
-        api_key=get_from_env("NEON_API_KEY"),
+    neon_api = NeonApiRemote(
+        url=get_from_env("NEON_BASE_URL"), api_key=get_from_env("NEON_API_KEY")
     )
-
-
-async def prepare_local_stores(bench: "Bench") -> None:
-    assert isinstance(neon_client, NeonApiLocal), f"not in local mode (client={neon_client!r})"
-    for store in bench.stores:
-        if store.external_id is not None:
-            connection_uri = await neon_client._ensure_branch_endpoint(project_id=store.external_id)
-            if store.connection_uri != connection_uri:
-                store.connection_uri = connection_uri
-
-
-async def create_local_store(store: "Store") -> None:
-    """
-    Creates a new 'local' Neon-based Postgres database and corresponding roles/user for a Bench.
-    """
-    assert store.external_name, f"{store!r} has no database"
-
-    # create neon project
-    start = asyncio.get_event_loop().time()
-    neon_project = await neon_client.create_project(
-        name=store.external_name, region=store.region, pg_version=16
-    )
-    store.external_id = neon_project.project_id
-    store.connection_uri = neon_project.connection_uri
-    duration = asyncio.get_event_loop().time() - start
-    logger.info("neon.create_project", store=store, duration=duration)
-
-
-async def migrate_local_store(store: "Store") -> None:
-    """Migrates the store to the latest version of our internal schema."""
-    if store.version is not None and not has_migration_after(store.version, is_global=False):
-        logger.debug("neon.migrate.skip", store=store)
-        return  # nothing to do
-    start = asyncio.get_event_loop().time()
-    async with pg_cursor_to_store(store) as cur:
-        await migrate(cur, target=VERSION, is_global=False, store=store)
-        await cur.connection.commit()
-    store.version = VERSION
-    duration = asyncio.get_event_loop().time() - start
-    logger.info("neon.migrate", store=store, duration=duration)
-
-
-async def delete_local_store(store: "Store") -> None:
-    assert store.external_id, f"{store!r} has no external_id"
-
-    # delete neon project
-    start = asyncio.get_event_loop().time()
-    await neon_client.delete_project(project_id=store.external_id)
-    duration = asyncio.get_event_loop().time() - start
-    logger.info("neon.delete_project", store=store, duration=duration)

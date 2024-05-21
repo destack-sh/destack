@@ -287,7 +287,8 @@ export function canonicalizeEdits(now: Timestamp, edits: EditData[]) {
   // TODO :Broken: canonicalize only createdByPtr/updatedByPtr
   //  (currently all nodes in a single transaction will receive the same timestamps,
   //   which is annoying when relying on timestamps for order like in Messages)
-  // TODO :Broken!: cascade down timestamps for deleted_at/archived_at?
+  // nocheckin :Broken!: cascade down timestamps for deleted_at/archived_at in frontend/backend
+  //  need to ensure that GraphDiff includes all nodes (incl. descendants, incl. when hard deleting)
   //  ....but how do timestamps work with branching? (like when I restore a node in a branch)
   for (const edit of edits) {
     const node = unwrapSomeNode(edit.node!);
