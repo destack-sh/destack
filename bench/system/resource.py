@@ -1,25 +1,7 @@
-import random
-import secrets
-import string
-
 import boto3
 import structlog
 
-from bench.language import (
-    Bench,
-    Drive,
-    Handle,
-    Organization,
-    Region,
-    Resource,
-    ResourceStatus,
-    Server,
-    ServerProfile,
-    Session,
-    Store,
-    User,
-)
-from bench.system.access import generate_encryption_key
+from bench.language import Bench, Drive, Resource, ResourceStatus, Server, Session, Store
 from bench.system.neon import create_local_store, delete_local_store, migrate_local_store
 from bench.utils.env import ENVIRONMENT
 from bench.utils.utils import get_from_env
@@ -27,76 +9,12 @@ from bench.utils.utils import get_from_env
 logger = structlog.get_logger(__name__)
 
 
-def generate_random_slug(length: int = 32) -> str:
-    """Random alphanumeric slug."""
-    letters = tuple(secrets.choice(string.ascii_lowercase) for _ in range(length))
-    return "".join(letters)
-
-
-def generate_random_username(length: int = 32, lowercase: bool = False) -> str:
-    """Random alphanumeric username (starts with a text character)."""
-    if lowercase:
-        pool = string.ascii_lowercase + string.digits
-    else:
-        pool = string.ascii_letters + string.digits
-    name = random.choice(string.ascii_lowercase)
-    name += "".join(random.choice(pool) for _ in range(length - 1))
-    return name
-
-
-def generate_random_password(length: int = 48) -> str:
-    """URL-safe password."""
-    password = secrets.token_urlsafe(length - 4)[: length - 4]
-    # ensure at least 1 lowercase, 1 uppercase, 1 digit, 1 'special' character
-    password += random.choice(string.ascii_lowercase)
-    password += random.choice(string.ascii_uppercase)
-    password += random.choice(string.digits)
-    password += random.choice("!$^&*()_+-=")
-    return password
-
-
-async def create_default_bench(
-    main_handle: Handle, owner: User | Organization, region: Region, session: Session
-) -> Bench:
-    # create bench
-    bench = Bench(
-        main_handle=main_handle,
-        slug=main_handle.slug,
-        name=main_handle.slug,
-        owner=owner,
-        encryption_key=generate_encryption_key(),
-        region=region,
-    )
-    session.create(bench)
-    await session.flush()
-
-    # create resources (in pending state, resources are managed by hosts)
-    server = bench.servers.create(
-        region=bench.region,
-        profile=ServerProfile.SMALL,
-        name="Server",
-    )
-    store = bench.stores.create(region=bench.region, name="Store")
-    drive = bench.drives.create(region=bench.region, name="Drive")
-
-    # create main environment/branch/package
-    environment = bench.environments.create(name="Main", server=server, store=store, drive=drive)
-    branch = bench.branches.create(name="Main", slug="main")
-    package = bench.packages.create(environment=environment)
-    await session.flush()
-    branch.main_package = package
-    bench.main_environment = environment
-    bench.main_branch = branch
-
-    return bench
-
-
 async def provision_resource(resource: Resource, session: Session) -> None:
     """Provisions a newly created resource."""
     assert resource.status == ResourceStatus.PENDING, f"{resource!r} is already provisioned"
     logger.info("resource.provision", resource=resource)
     if isinstance(resource, Server):
-        # TODO :Broken: where should Servers & Machines be provisioned?
+        # nocheckin: where should Servers & Machines be provisioned?
         ...
     elif isinstance(resource, Store):
         if resource.external_name is None:
@@ -124,7 +42,7 @@ async def decommission_resource(resource: Resource, session: Session) -> None:
     resource.status = ResourceStatus.DELETED
 
 
-async def provision_pending_resources(bench: Bench, session: Session, *, commit_per: bool):
+async def provision_resources(bench: Bench, session: Session, *, commit_per: bool):
     """Provisions all pending resources in a bench."""
     for resource in bench.resources:
         if resource.status == ResourceStatus.PENDING:

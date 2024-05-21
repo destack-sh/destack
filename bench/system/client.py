@@ -8,18 +8,14 @@ from bench.language.connection import PostgresEngine
 from bench.language.const import GLOBAL_NODE_TYPES, VERSION
 from bench.proto.wire import GraphScope
 from bench.sql.client import GLOBAL_PG_CRYPTO_KEY, _PgStoreConnection
-from bench.utils.utils import get_from_env, get_from_env_maybe
+from bench.utils.utils import get_from_env
 
 logger = structlog.get_logger(__name__)
 
-GLOBAL_PG_HOST = get_from_env("GLOBAL_PG_HOST", default=None)
-GLOBAL_PG_NAME = get_from_env("GLOBAL_PG_NAME", default=None)
-GLOBAL_PG_USERNAME = get_from_env("GLOBAL_PG_USERNAME", default=None)
-GLOBAL_PG_PASSWORD = get_from_env("GLOBAL_PG_PASSWORD", default=None)
-
-USER_PG_HOST = get_from_env_maybe("USER_PG_HOST")
-USER_PG_USERNAME = get_from_env_maybe("USER_PG_USERNAME")
-USER_PG_PASSWORD = get_from_env_maybe("USER_PG_PASSWORD")
+GLOBAL_PG_HOST = get_from_env("GLOBAL_PG_HOST")
+GLOBAL_PG_NAME = get_from_env("GLOBAL_PG_NAME")
+GLOBAL_PG_USERNAME = get_from_env("GLOBAL_PG_USERNAME")
+GLOBAL_PG_PASSWORD = get_from_env("GLOBAL_PG_PASSWORD")
 
 SYSTEM_BENCH_STUB = Bench(
     name="System (Stub)", slug="system", region=Region.GLOBAL, encryption_key=GLOBAL_PG_CRYPTO_KEY

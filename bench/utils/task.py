@@ -1,6 +1,6 @@
 import asyncio
 from asyncio import CancelledError
-from typing import Awaitable, Callable, Coroutine
+from typing import Awaitable, Callable
 
 import structlog
 

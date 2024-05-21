@@ -8,9 +8,10 @@ from grpclib import Status as GRPCStatus
 
 from bench.language import Bench, Client, NodeReference, User
 from bench.language.access import Subject
-from bench.language.bench import Region
+from bench.language.bench import Region, ServerProfile
 from bench.language.const import USER_NODE_TYPES, ClientType, NodeType, OrganizationStatus
 from bench.language.graph import generate_node_name
+from bench.language.session import Session
 from bench.language.user import Handle, Organization, UserStatus
 from bench.proto import wiring
 from bench.proto.wire import (
@@ -30,10 +31,15 @@ from bench.proto.wire import (
     SignupUserResponse,
     SupervisorBase,
 )
-from bench.system.access import check_password, generate_access_token, generate_salt, hash_password
+from bench.system.access import (
+    check_password,
+    generate_access_token,
+    generate_encryption_key,
+    generate_salt,
+    hash_password,
+)
 from bench.system.client import GLOBAL_POSTGRES_ENGINE, global_session
 from bench.system.graph import GraphIoServiceBase
-from bench.system.resource import create_default_bench
 from bench.utils.dt import utcnow
 from bench.utils.func import to_uuid
 
@@ -289,3 +295,39 @@ class Supervisor(GraphIoServiceBase, SupervisorBase):
             else:
                 raise GRPCError(GRPCStatus.INVALID_ARGUMENT, "no bench specified")
         raise GRPCError(GRPCStatus.UNIMPLEMENTED, "not implemented :SingleHostService")
+
+
+async def create_default_bench(
+    main_handle: Handle, owner: User | Organization, region: Region, session: Session
+) -> Bench:
+    # create bench
+    bench = Bench(
+        main_handle=main_handle,
+        slug=main_handle.slug,
+        name=main_handle.slug,
+        owner=owner,
+        encryption_key=generate_encryption_key(),
+        region=region,
+    )
+    session.create(bench)
+    await session.flush()
+
+    # create resources (in pending state, resources are managed by hosts)
+    server = bench.servers.create(
+        region=bench.region,
+        profile=ServerProfile.SMALL,
+        name="Server",
+    )
+    store = bench.stores.create(region=bench.region, name="Store")
+    drive = bench.drives.create(region=bench.region, name="Drive")
+
+    # create main environment/branch/package
+    environment = bench.environments.create(name="Main", server=server, store=store, drive=drive)
+    branch = bench.branches.create(name="Main", slug="main")
+    package = bench.packages.create(environment=environment)
+    await session.flush()
+    branch.main_package = package
+    bench.main_environment = environment
+    bench.main_branch = branch
+
+    return bench

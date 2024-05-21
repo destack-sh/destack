@@ -7,11 +7,8 @@ from bench.language import Bench, Region, User
 from bench.language.const import ClientType, NodeType, UserStatus
 from bench.system.access import generate_access_token
 from bench.system.client import global_session
-from bench.system.resource import (
-    create_default_bench,
-    migrate_local_stores,
-    provision_pending_resources,
-)
+from bench.system.resource import migrate_local_stores, provision_resources
+from bench.system.supervisor import create_default_bench
 
 app = typer.Typer(short_help="some language-level utilities")
 
@@ -41,13 +38,13 @@ async def bootstrap(region: Region = Region.EUROPE_CENTRAL):
         bench_bench = await create_default_bench(
             main_handle=bench_bench_handle, owner=system_user, region=region, session=session
         )
-        # immediately provision resources
-        await provision_pending_resources(system_bench, session, commit_per=True)
-        await provision_pending_resources(bench_bench, session, commit_per=True)
+        # immediately provision
+        await provision_resources(system_bench, session, commit_per=True)
+        await provision_resources(bench_bench, session, commit_per=True)
         await session.commit()
 
 
-@app.command(help="provision all (pending) resources for a Bench")
+@app.command(help="provision all esources for a Bench")
 @async_to_sync_blocking
 async def provision(bench_slug: str):
     async with global_session() as session:
@@ -56,7 +53,7 @@ async def provision(bench_slug: str):
             .select_all()
             .get(slug=bench_slug)
         )
-        await provision_pending_resources(bench, session, commit_per=True)
+        await provision_resources(bench, session, commit_per=True)
         await migrate_local_stores(bench, session)
         await session.commit()
 

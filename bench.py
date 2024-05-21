@@ -1,7 +1,13 @@
+import os
+import sys
 from pathlib import Path
 
 import typer
 from rich.console import Console
+
+# if not serving, default to ENVIRONMENT=dev
+if (len(sys.argv) < 2 or sys.argv[1] != "serve") and os.getenv("ENVIRONMENT") is None:
+    os.environ["ENVIRONMENT"] = "dev"
 
 from bench.utils.env import setup_dotenv
 from bench.utils.logging import configure_logging

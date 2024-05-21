@@ -20,6 +20,7 @@
       "program": "${workspaceFolder}/bench.py",
       "args": ["serve", "system", "--watch", "127.0.0.1", "60061"],
       "env": {
+        "ENVIRONMENT": "dev",
         "PYTHONUNBUFFERED": "1",
         "DEBUG": "1"
       },
@@ -34,6 +35,7 @@
       "program": "${workspaceFolder}/bench.py",
       "args": ["serve", "runtime", "--watch", "127.0.0.1", "60062"],
       "env": {
+        "ENVIRONMENT": "dev",
         "PYTHONUNBUFFERED": "1",
         "DEBUG": "1",
         "SUPERVISOR_URL": "http://localhost:60061",
