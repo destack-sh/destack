@@ -6,6 +6,7 @@ from bench.language import Bench, Session, Store
 from bench.language.bench import Region
 from bench.language.connection import PostgresEngine
 from bench.language.const import GLOBAL_NODE_TYPES, VERSION
+from bench.language.session import CommitHook
 from bench.proto.wire import GraphScope
 from bench.sql.client import GLOBAL_PG_CRYPTO_KEY, _PgStoreConnection
 from bench.utils.utils import get_from_env
@@ -40,8 +41,11 @@ async def global_pg_cursor(autocommit: bool = False):
 
 
 @asynccontextmanager
-async def global_session():
+async def global_session(on_commit_hook: CommitHook | None = None):
     async with Session(
-        parent=None, _default_scope=GraphScope(), _engines=(GLOBAL_POSTGRES_ENGINE,)
+        parent=None,
+        _default_scope=GraphScope(),
+        _engines=(GLOBAL_POSTGRES_ENGINE,),
+        _on_commit_hook=on_commit_hook,
     ) as session:
         yield session

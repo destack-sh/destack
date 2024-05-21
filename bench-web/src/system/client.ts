@@ -97,6 +97,7 @@ export const CLIENT_TYPE = ClientType.BENCH_WEB; // NOTE: will need to detect/ch
 export const nonce = v4(); // changes per page load
 export const origin: Readonly<Ref<ClientOrigin>> = pretendReadonly(
   computed(() => ({
+    type: CLIENT_TYPE,
     id: _clientInfo.value?.id ?? nonce,
     nonce,
   })),

@@ -1,6 +1,7 @@
 # run ./scripts/update-requirements.sh
 
 black==23.7.0
+docker==7.0.0
 isort==5.12.0
 pip-tools==7.3.0
 pre-commit==3.3.3

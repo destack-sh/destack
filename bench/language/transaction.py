@@ -47,9 +47,7 @@ class Transaction:
     )
     _pending_updates_idx: dict[Node, tuple[Any, int]] = dcfield(default_factory=dict)
     _pending_nodes_by_ck: dict[UUID, Node] = dcfield(default_factory=dict)
-
-    # for syncing databases (should probably generalize into' untracked edits')
-    _schema_changed: bool = dcfield(default=False)
+    cascaded_edits: list[EditData] = dcfield(default_factory=list)
 
     def __str__(self):
         return f"[id={self.id}] ({len(self.edits)} edits, {len(self._pending_nodes_by_ck)} pending nodes)"
@@ -147,9 +145,6 @@ class Transaction:
     def _add_pending_edit(self, edit: EditData, node: Optional[Node]) -> StoreEngine:
         from bench.proto import wiring
 
-        if edit.node_type == NodeType.FIELD:
-            self._schema_changed = True
-
         node_type = wiring.unpack_enum(NodeType, edit.node_type)
         engine = self._get_engine_for(edit.scope, node_type)
         self.edits.append(edit)
@@ -230,7 +225,7 @@ class Transaction:
         'Canonicalizes' the edits in place by imputing the tracking info (e.g. 'updated_at', 'updated_by').
         We do this in the untrusted runtimes as well as in the system, but only the system counts,
          because the tracking properties are not directly updatable (being system properties).
-        NOTE :Architecture :Cleanup: edit canonicalization is necessary? but confusing :EditCanonicalization
+        nocheckin :Architecture :Cleanup: edit canonicalization is necessary? but confusing :EditCanonicalization
         """
         from bench.proto import wiring
 
@@ -281,13 +276,14 @@ class Transaction:
                 "transaction.flush.engine", engine=engine, edits=len(pending_edits), commit=commit
             )
             if commit:
-                accepted_revisions = await connection.commit(pending_edits)
+                flush = await connection.commit(pending_edits)
             else:
-                accepted_revisions = await connection.flush(pending_edits)
-            assert len(accepted_revisions or ()) == len(pending_edits), "revisions mismatch"
-            for edit, new_revision in zip(pending_edits, cast(list[int], accepted_revisions)):
+                flush = await connection.flush(pending_edits)
+            assert len(flush.revisions or ()) == len(pending_edits), "revisions mismatch"
+            for edit, new_revision in zip(pending_edits, cast(list[int], flush.revisions)):
                 edit.revision = new_revision
             pending_edits.clear()
+            self.cascaded_edits.extend(flush.cascaded_edits)
         self._pending_edits_by_engine_id.clear()
         self._pending_updates_idx.clear()
 

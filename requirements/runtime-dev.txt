@@ -62,6 +62,7 @@ distlib==0.3.8
     # via virtualenv
 distro==1.9.0
     # via openai
+docker==7.0.0
 dropbox==11.36.2
 feedparser==6.0.10
 filelock==3.14.0
@@ -172,6 +173,7 @@ packaging==24.0
     # via
     #   black
     #   build
+    #   docker
     #   marshmallow
     #   pytest
 pandas==2.2.2
@@ -261,6 +263,7 @@ regex==2024.5.15
 requests==2.31.0
     # via
     #   atlassian-python-api
+    #   docker
     #   dropbox
     #   google-api-core
     #   google-search-results
@@ -340,6 +343,7 @@ uritemplate==4.1.1
 urllib3==2.2.1
     # via
     #   botocore
+    #   docker
     #   pyairtable
     #   pygithub
     #   requests

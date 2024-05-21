@@ -1432,20 +1432,22 @@ async def pg_search_node_graph(
 async def pg_write_edits(
     cur: psycopg.AsyncCursor,
     edits: list[EditData] | tuple[EditData, ...],
-) -> list["int"] | tuple[int, ...]:
+) -> tuple[list["int"], list[EditData]]:
     """
     Writes 'regular' edits to nodes (that aren't stored specially like records).
     Returns the new revisions of the edited nodes.
     Assumes that the edits are evaluated and canonicalized.
     """
     if not edits:
-        return ()
+        return [], []
 
     # batch operations by edit kind and node type
     cur_node_cls = NODE_CLASS_BY_TYPE[wiring.unpack_enum(NodeType, edits[0].node_type)]
     cur_updated_properties: bitarray = bitarray(cur_node_cls.__max_property_ord__ + 1)
     cur_batch: list[EditData] = []
     all_new_revisions: list[int] = []
+    cascaded_edits: list[EditData] = []  # nocheckin
+
     for i in range(len(edits)):
         edit = edits[i]
         next_edit = edits[i + 1] if i + 1 < len(edits) else None
@@ -1490,7 +1492,7 @@ async def pg_write_edits(
                 cur_updated_properties = bitarray(cur_node_cls.__max_property_ord__ + 1)
                 cur_batch.clear()
 
-    return all_new_revisions
+    return all_new_revisions, cascaded_edits
 
 
 async def _pg_write_edit_batch(
@@ -1499,7 +1501,7 @@ async def _pg_write_edit_batch(
     edit_type: EditType,
     node_type: NodeType,
     batch: list[EditData],
-    updated_properties: list[Property] | tuple[Property, ...] | None,  # across all edits
+    updated_properties: list[Property] | tuple[Property, ...] | None,  # across batch
     return_nodes: bool,
     selected_properties: tuple[Property, ...],
 ) -> tuple["AnyNodeData", ...] | list["AnyNodeData"] | None:

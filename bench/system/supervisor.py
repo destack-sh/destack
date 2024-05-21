@@ -10,7 +10,7 @@ from bench.language import Bench, Client, NodeReference, User
 from bench.language.access import Subject
 from bench.language.bench import Region, ServerProfile
 from bench.language.const import USER_NODE_TYPES, ClientType, NodeType, OrganizationStatus
-from bench.language.graph import GraphDiff, generate_node_name
+from bench.language.graph import generate_node_name
 from bench.language.session import Session
 from bench.language.user import Handle, Organization, UserStatus
 from bench.proto import wiring
@@ -106,7 +106,7 @@ class Supervisor(GraphIoServiceBase, SupervisorBase):
         if subject.is_authenticated:
             raise GRPCError(GRPCStatus.ALREADY_EXISTS, "already logged in")
 
-        async with global_session() as session:
+        async with global_session(self.on_graph_commit) as session:
             user = User(
                 id=to_uuid(request.id) or uuid4(),
                 slug=request.slug,
@@ -126,7 +126,6 @@ class Supervisor(GraphIoServiceBase, SupervisorBase):
             await session.flush()
             user.main_handle = user.handles.create(slug=user.slug)
             await session.commit()
-            self.on_graph_edited((GLOBAL_SCOPE,), GraphDiff.make(user._graph, session.tx.edits))
 
         logger.info("supervisor.signup_user", user=user, client=client)
         return SignupUserResponse(
@@ -141,7 +140,7 @@ class Supervisor(GraphIoServiceBase, SupervisorBase):
         if not subject.user:
             raise GRPCError(GRPCStatus.UNAUTHENTICATED, "not logged in")
 
-        async with global_session() as session:
+        async with global_session(self.on_graph_commit) as session:
             user = subject.user
             if user.password_salt is None or user.password_hash is None:
                 raise GRPCError(GRPCStatus.FAILED_PRECONDITION, "password not set")
@@ -155,7 +154,6 @@ class Supervisor(GraphIoServiceBase, SupervisorBase):
             user.password_salt = generate_salt()
             user.password_hash = hash_password(request.new_password, user.password_salt)
             await session.commit()
-            self.on_graph_edited((GLOBAL_SCOPE,), GraphDiff.make(user._graph, session.tx.edits))
 
         logger.info("supervisor.change_user_password", user=user)
         return ChangeUserPasswordResponse(user=user._to_data())
@@ -166,7 +164,7 @@ class Supervisor(GraphIoServiceBase, SupervisorBase):
         if subject.is_authenticated:
             raise GRPCError(GRPCStatus.ALREADY_EXISTS, "already logged in")
 
-        async with global_session() as session:
+        async with global_session(self.on_graph_commit) as session:
             key_name, key_value = betterproto.which_one_of(request, "user")
             if key_value is None:
                 raise GRPCError(GRPCStatus.INVALID_ARGUMENT, "no user provided")
@@ -185,7 +183,6 @@ class Supervisor(GraphIoServiceBase, SupervisorBase):
             client.access_token = generate_access_token()
             session.upsert(client)
             await session.commit()
-            self.on_graph_edited((GLOBAL_SCOPE,), GraphDiff.make(user._graph, session.tx.edits))
 
         logger.info("supervisor.login_user", user=user, client=client)
         return LoginUserResponse(
@@ -202,7 +199,7 @@ class Supervisor(GraphIoServiceBase, SupervisorBase):
         if subject.user is None:
             raise GRPCError(GRPCStatus.FAILED_PRECONDITION, "not a user")
 
-        async with global_session() as session:
+        async with global_session(self.on_graph_commit) as session:
             # log out the current or the specified clients
             if request.clients:
                 client_ids = {to_uuid(c.id) for c in request.clients}
@@ -220,9 +217,6 @@ class Supervisor(GraphIoServiceBase, SupervisorBase):
                 client.access_token = None
                 client.seen_at = utcnow()
             await session.commit()
-            self.on_graph_edited(
-                (GLOBAL_SCOPE,), GraphDiff.make(subject.user._graph, session.tx.edits)
-            )
 
         logger.info("supervisor.logout_user", user=subject.user, clients=clients)
         return LogoutUserResponse()
@@ -246,7 +240,7 @@ class Supervisor(GraphIoServiceBase, SupervisorBase):
             raise GRPCError(GRPCStatus.INVALID_ARGUMENT, "cannot create bench in global region")
 
         owner_ptr: NodeReference = wiring.unpack_struct(request.owner)
-        async with global_session() as session:
+        async with global_session(self.on_graph_commit) as session:
             # check (and reload owner to get Handles)
             if owner_ptr.type == NodeType.USER:
                 if owner_ptr.id != user.id:
@@ -284,16 +278,13 @@ class Supervisor(GraphIoServiceBase, SupervisorBase):
                 raise RuntimeError(f"unexpected owner/owner status: {owner!r}")
 
             await session.commit()
-            self.on_graph_edited(
-                (GLOBAL_SCOPE,), GraphDiff.make((owner._graph, bench._graph), session.tx.edits)
-            )
 
         logger.info("supervisor.create_bench", bench=bench)
         return CreateBenchResponse(bench=bench._to_data())
 
     async def get_host(self, subject: "Subject", request: "GetHostRequest") -> "GetHostResponse":
         key, value = betterproto.which_one_of(request, "bench")
-        async with global_session():
+        async with global_session(self.on_graph_commit):
             if key == "id":
                 await Bench.get(id=to_uuid(value))
             elif key == "slug":

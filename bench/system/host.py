@@ -1,7 +1,8 @@
 import asyncio
 import functools
 from contextlib import asynccontextmanager
-from typing import AsyncIterator, Callable, override
+from itertools import chain
+from typing import AsyncIterator, Callable, Iterable, override
 from uuid import UUID
 
 import betterproto
@@ -18,7 +19,6 @@ from bench.language.const import (
     IN_BENCH_NODE_TYPES,
     LOCAL_NODE_TYPES,
     NodeType,
-    RunStatus,
 )
 from bench.language.graph import NodeGraph, edit_graph
 from bench.language.session import Session
@@ -30,14 +30,20 @@ from bench.proto.wire import (
     EditData,
     GraphScope,
     HostBase,
-    RunData,
     UploadFilesRequest,
     UploadFilesResponse,
 )
 from bench.system.client import GLOBAL_STORE, global_session
-from bench.system.graph import GraphDiff, GraphIoServiceBase
-from bench.system.provision import Provisioner, make_provisioners
-from bench.utils.func import to_uuid
+from bench.system.core import GraphDiff, HostPlugin
+from bench.system.graph import GraphIoServiceBase
+from bench.system.provision import (
+    Provisioner,
+    get_provisioners_for,
+    migrate_resources,
+    provision_resources,
+)
+from bench.system.scheduling import RunPlugin
+from bench.utils.func import bittuple, to_uuid
 from bench.utils.utils import get_from_env_maybe
 
 logger = structlog.get_logger(__name__)
@@ -137,16 +143,17 @@ class HostMultiplexer(BenchServiceBase, HostBase):
             raise NotImplementedError(f"unexpected cardinality in {method_name}: {cardinality}")
 
 
-LOADED_BENCH_NODE_TYPES: tuple[NodeType, ...] = (
+LOADED_BENCH_NODE_TYPES: bittuple[NodeType] = bittuple(
     NodeType.HANDLE,
     NodeType.SERVER,
+    NodeType.CLIENT,
     NodeType.MACHINE,
     NodeType.STORE,
     NodeType.ENVIRONMENT,
     NodeType.BRANCH,
     NodeType.PACKAGE,
 )
-LOADED_PACKAGE_NODE_TYPES: tuple[NodeType, ...] = (
+LOADED_PACKAGE_NODE_TYPES: bittuple[NodeType] = bittuple(
     NodeType.DEPENDENCY,
     NodeType.UPGRADE,
     NodeType.SPACE,
@@ -159,6 +166,7 @@ LOADED_PACKAGE_NODE_TYPES: tuple[NodeType, ...] = (
     NodeType.STEP,
     NodeType.VIEW,
 )
+LOADED_NODE_TYPES = LOADED_BENCH_NODE_TYPES | LOADED_PACKAGE_NODE_TYPES
 BENCH_QUERY = Bench.descendants(*LOADED_BENCH_NODE_TYPES).select_all()
 PACKAGE_QUERY = (
     Package.descendants(*LOADED_PACKAGE_NODE_TYPES)
@@ -187,8 +195,9 @@ class Host(GraphIoServiceBase, HostBase):
         self._main_package: Package | None = None
         self._packages: dict[UUID, Package] = {}
 
-        self._provisioners: list[Provisioner] = []
-        self._runs_to_queue: asyncio.Queue[RunData] = asyncio.Queue()
+        self._provisioners: tuple[Provisioner, ...] = ()
+        self._plugins: tuple[HostPlugin, ...] = ()
+        self._runs_to_queue: asyncio.Queue[Run] = asyncio.Queue()
 
     def __str__(self):
         return f"{self._bench or self.bench_id}"
@@ -211,7 +220,7 @@ class Host(GraphIoServiceBase, HostBase):
     async def start(self) -> None:
         start = asyncio.get_event_loop().time()
 
-        async with global_session() as session:
+        async with global_session(self.on_graph_commit) as session:
             # load bench
             self._bench = await BENCH_QUERY.get(id=self.bench_id)
             self._global_pg_engine = PostgresEngine(
@@ -229,8 +238,14 @@ class Host(GraphIoServiceBase, HostBase):
                 node_types=LOCAL_NODE_TYPES,
             )
 
-            # prepare provisioners
-            self._provisioners = await make_provisioners(self._bench)
+            # prepare plugins
+            self._provisioners = tuple(get_provisioners_for(self._bench))
+            self._plugins = (RunPlugin(self, self._bench),) + self._provisioners
+            await asyncio.gather(*(plugin.start(self._tasks) for plugin in self._plugins))
+
+            # provision
+            await provision_resources(self._bench.resources, self._provisioners, session)
+            await migrate_resources(self._bench.resources, self._provisioners, session)
 
             await session.commit()
         session.untrack_many(self._bench)
@@ -241,77 +256,63 @@ class Host(GraphIoServiceBase, HostBase):
             self._packages[self._main_package.id] = self._main_package
         session.untrack_many(self._main_package)
 
-        # TODO :Robustness: cancel/re-queue Runs stuck on dead Machines
-
         # start tasks
-        self._tasks.start_queue(self._runs_to_queue, self._process_run, "process_run")
+        ...
 
-        logger.info("host.start", host=self, duration=asyncio.get_event_loop().time() - start)
+        logger.info(
+            "host.start",
+            host=self,
+            plugins=self._plugins,
+            duration=asyncio.get_event_loop().time() - start,
+        )
 
     def close(self) -> None:
         super().close()
+        for plugin in self._plugins:
+            plugin.close()
 
     async def wait_closed(self) -> None:
         await super().wait_closed()
+        await asyncio.gather(*(plugin.wait_closed() for plugin in self._plugins))
 
     @override
-    def _adapt_graph_edits(
-        self, session: Session, graph: NodeGraph, edits: list[EditData]
-    ) -> list[EditData]:
+    def _amend_graph_commit(self, graph: NodeGraph, edits: list[EditData]) -> list[EditData]:
         # TODO :Incomplete!: handle packages on edit (update notices, send signals, ...)
         #  Should this also happen in the client sessions? Or just in host and then pushed out?
-        # nocheckin: create Logs for edits
-        #  (but how to compact? add Logs as regular edit or compact+add in one step?)
+        # nocheckin: create Logs for edits (but how/where/when to compact?)
         return edits
 
     @override
-    def _on_graph_edited(self, scopes: tuple[GraphScope, ...], diff: GraphDiff):
-        if self._bench is None:
-            return  # not started yet
+    def _on_graph_commit(
+        self, graph: NodeGraph | None, edits: list[EditData], cascaded_edits: list[EditData]
+    ):
+        assert graph is not None, f"edit graph must be provided in host (self={self!r})"
+        assert self._bench is not None, f"bench not loaded in {self!r} for {edits!r}"
 
         # apply edits to loaded graphs (bench/package)
-        for edit in diff.edits:
+        for edit in edits:
+            if NodeType(edit.node_type) not in LOADED_NODE_TYPES:
+                continue
             node_data = wiring.unwrap_some_node(edit.node)
             if hasattr(node_data, "package_ptr"):
                 package_id = to_uuid(getattr(node_data, "package_ptr").id)
                 assert package_id is not None, f"missing package id in {edit!r}"
                 package = self._packages.get(package_id)
-                if package is None:
-                    continue  # not loaded
-                graph = package._graph
+                assert package is not None, f"package not loaded for edit {edit!r}"
+                edited_graph = package._graph
                 options = PACKAGE_QUERY._options
             else:
-                graph = self._bench._graph
+                edited_graph = self._bench._graph
                 options = BENCH_QUERY._options
-            edit_graph(graph, (edit,), options)
+            edit_graph(edited_graph, (edit,), options)
 
-        for node in diff.added:
-            # queue any new runs
-            if (
-                isinstance(node, Run)
-                and node.parent_type == NodeType.PACKAGE
-                and node.status == RunStatus.SCHEDULED
-            ):
-                self._enqueue_run(node._to_data())
+        # make diff (incl. cascading edits)
+        diff: GraphDiff = ...
 
-    def _enqueue_run(self, run: RunData) -> None:
-        """Adds a run to the distribution queue"""
-        logger.trace("host.enqueue_run", host=self, run=run)
-        self._runs_to_queue.put_nowait(run)
-
-    async def _process_run(self, run_data: RunData) -> None:
-        """Distributes runs to be queued in Runtimes. If no Machine is available, we start one."""
-        # find machine for run
-        package = self._packages.get(UUID(run_data.package_ptr.id))
-        assert package is not None, f"missing package for run {run_data!r}"
-        machine = await self._get_or_wait_machine(package)
-        raise NotImplementedError("nocheckin")
-
-    async def _get_or_wait_machine(self, package: Package) -> Machine | None:
-        for machine in package.environment.server.machines:
-            if machine.status == ResourceStatus.HEALTHY:
-                return machine
-        return None
+        # feed diff to all plugins
+        for plugin in self._plugins:
+            if diff.edited_types & plugin.node_types:
+                plugin.on_graph_commit(diff.trim_to(plugin.node_types))
 
     #
     # Files

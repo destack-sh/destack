@@ -237,7 +237,11 @@ export interface CommitTransactionResponse {
      */
     revisions: bigint[];
     /**
-     * @generated from protobuf field: uint64 epoch = 2;
+     * @generated from protobuf field: repeated symbolx.bench.EditData cascaded_edits = 2;
+     */
+    cascadedEdits: EditData[];
+    /**
+     * @generated from protobuf field: uint64 epoch = 3;
      */
     epoch: bigint;
 }
@@ -267,7 +271,11 @@ export interface FlushTransactionResponse {
      */
     revisions: bigint[];
     /**
-     * @generated from protobuf field: uint64 epoch = 2;
+     * @generated from protobuf field: repeated symbolx.bench.EditData cascaded_edits = 2;
+     */
+    cascadedEdits: EditData[];
+    /**
+     * @generated from protobuf field: uint64 epoch = 3;
      */
     epoch: bigint;
 }
@@ -1261,12 +1269,14 @@ class CommitTransactionResponse$Type extends MessageType<CommitTransactionRespon
     constructor() {
         super("symbolx.bench.CommitTransactionResponse", [
             { no: 1, name: "revisions", kind: "scalar", repeat: 1 /*RepeatType.PACKED*/, T: 3 /*ScalarType.INT64*/, L: 0 /*LongType.BIGINT*/ },
-            { no: 2, name: "epoch", kind: "scalar", T: 4 /*ScalarType.UINT64*/, L: 0 /*LongType.BIGINT*/ }
+            { no: 2, name: "cascaded_edits", kind: "message", repeat: 1 /*RepeatType.PACKED*/, T: () => EditData },
+            { no: 3, name: "epoch", kind: "scalar", T: 4 /*ScalarType.UINT64*/, L: 0 /*LongType.BIGINT*/ }
         ]);
     }
     create(value?: PartialMessage<CommitTransactionResponse>): CommitTransactionResponse {
         const message = globalThis.Object.create((this.messagePrototype!));
         message.revisions = [];
+        message.cascadedEdits = [];
         message.epoch = 0n;
         if (value !== undefined)
             reflectionMergePartial<CommitTransactionResponse>(this, message, value);
@@ -1284,7 +1294,10 @@ class CommitTransactionResponse$Type extends MessageType<CommitTransactionRespon
                     else
                         message.revisions.push(reader.int64().toBigInt());
                     break;
-                case /* uint64 epoch */ 2:
+                case /* repeated symbolx.bench.EditData cascaded_edits */ 2:
+                    message.cascadedEdits.push(EditData.internalBinaryRead(reader, reader.uint32(), options));
+                    break;
+                case /* uint64 epoch */ 3:
                     message.epoch = reader.uint64().toBigInt();
                     break;
                 default:
@@ -1306,9 +1319,12 @@ class CommitTransactionResponse$Type extends MessageType<CommitTransactionRespon
                 writer.int64(message.revisions[i]);
             writer.join();
         }
-        /* uint64 epoch = 2; */
+        /* repeated symbolx.bench.EditData cascaded_edits = 2; */
+        for (let i = 0; i < message.cascadedEdits.length; i++)
+            EditData.internalBinaryWrite(message.cascadedEdits[i], writer.tag(2, WireType.LengthDelimited).fork(), options).join();
+        /* uint64 epoch = 3; */
         if (message.epoch !== 0n)
-            writer.tag(2, WireType.Varint).uint64(message.epoch);
+            writer.tag(3, WireType.Varint).uint64(message.epoch);
         let u = options.writeUnknownFields;
         if (u !== false)
             (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
@@ -1386,12 +1402,14 @@ class FlushTransactionResponse$Type extends MessageType<FlushTransactionResponse
     constructor() {
         super("symbolx.bench.FlushTransactionResponse", [
             { no: 1, name: "revisions", kind: "scalar", repeat: 1 /*RepeatType.PACKED*/, T: 3 /*ScalarType.INT64*/, L: 0 /*LongType.BIGINT*/ },
-            { no: 2, name: "epoch", kind: "scalar", T: 4 /*ScalarType.UINT64*/, L: 0 /*LongType.BIGINT*/ }
+            { no: 2, name: "cascaded_edits", kind: "message", repeat: 1 /*RepeatType.PACKED*/, T: () => EditData },
+            { no: 3, name: "epoch", kind: "scalar", T: 4 /*ScalarType.UINT64*/, L: 0 /*LongType.BIGINT*/ }
         ]);
     }
     create(value?: PartialMessage<FlushTransactionResponse>): FlushTransactionResponse {
         const message = globalThis.Object.create((this.messagePrototype!));
         message.revisions = [];
+        message.cascadedEdits = [];
         message.epoch = 0n;
         if (value !== undefined)
             reflectionMergePartial<FlushTransactionResponse>(this, message, value);
@@ -1409,7 +1427,10 @@ class FlushTransactionResponse$Type extends MessageType<FlushTransactionResponse
                     else
                         message.revisions.push(reader.int64().toBigInt());
                     break;
-                case /* uint64 epoch */ 2:
+                case /* repeated symbolx.bench.EditData cascaded_edits */ 2:
+                    message.cascadedEdits.push(EditData.internalBinaryRead(reader, reader.uint32(), options));
+                    break;
+                case /* uint64 epoch */ 3:
                     message.epoch = reader.uint64().toBigInt();
                     break;
                 default:
@@ -1431,9 +1452,12 @@ class FlushTransactionResponse$Type extends MessageType<FlushTransactionResponse
                 writer.int64(message.revisions[i]);
             writer.join();
         }
-        /* uint64 epoch = 2; */
+        /* repeated symbolx.bench.EditData cascaded_edits = 2; */
+        for (let i = 0; i < message.cascadedEdits.length; i++)
+            EditData.internalBinaryWrite(message.cascadedEdits[i], writer.tag(2, WireType.LengthDelimited).fork(), options).join();
+        /* uint64 epoch = 3; */
         if (message.epoch !== 0n)
-            writer.tag(2, WireType.Varint).uint64(message.epoch);
+            writer.tag(3, WireType.Varint).uint64(message.epoch);
         let u = options.writeUnknownFields;
         if (u !== false)
             (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);

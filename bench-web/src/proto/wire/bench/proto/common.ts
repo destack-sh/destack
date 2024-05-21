@@ -15,16 +15,21 @@ import { NodeReferenceData } from "./lang";
 import { SomeNodeData } from "./lang";
 import { NodeType } from "./lang";
 import { EditType } from "./lang";
+import { ClientType } from "./lang";
 /**
  * @generated from protobuf message symbolx.bench.ClientOrigin
  */
 export interface ClientOrigin {
     /**
-     * @generated from protobuf field: string id = 2;
+     * @generated from protobuf field: symbolx.bench.ClientType type = 2;
+     */
+    type: ClientType;
+    /**
+     * @generated from protobuf field: string id = 3;
      */
     id: string;
     /**
-     * @generated from protobuf field: string nonce = 3;
+     * @generated from protobuf field: string nonce = 4;
      */
     nonce: string;
 }
@@ -170,12 +175,14 @@ export interface TransactionData {
 class ClientOrigin$Type extends MessageType<ClientOrigin> {
     constructor() {
         super("symbolx.bench.ClientOrigin", [
-            { no: 2, name: "id", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
-            { no: 3, name: "nonce", kind: "scalar", T: 9 /*ScalarType.STRING*/ }
+            { no: 2, name: "type", kind: "enum", T: () => ["symbolx.bench.ClientType", ClientType, "CLIENT_TYPE_"] },
+            { no: 3, name: "id", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
+            { no: 4, name: "nonce", kind: "scalar", T: 9 /*ScalarType.STRING*/ }
         ]);
     }
     create(value?: PartialMessage<ClientOrigin>): ClientOrigin {
         const message = globalThis.Object.create((this.messagePrototype!));
+        message.type = 0;
         message.id = "";
         message.nonce = "";
         if (value !== undefined)
@@ -187,10 +194,13 @@ class ClientOrigin$Type extends MessageType<ClientOrigin> {
         while (reader.pos < end) {
             let [fieldNo, wireType] = reader.tag();
             switch (fieldNo) {
-                case /* string id */ 2:
+                case /* symbolx.bench.ClientType type */ 2:
+                    message.type = reader.int32();
+                    break;
+                case /* string id */ 3:
                     message.id = reader.string();
                     break;
-                case /* string nonce */ 3:
+                case /* string nonce */ 4:
                     message.nonce = reader.string();
                     break;
                 default:
@@ -205,12 +215,15 @@ class ClientOrigin$Type extends MessageType<ClientOrigin> {
         return message;
     }
     internalBinaryWrite(message: ClientOrigin, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
-        /* string id = 2; */
+        /* symbolx.bench.ClientType type = 2; */
+        if (message.type !== 0)
+            writer.tag(2, WireType.Varint).int32(message.type);
+        /* string id = 3; */
         if (message.id !== "")
-            writer.tag(2, WireType.LengthDelimited).string(message.id);
-        /* string nonce = 3; */
+            writer.tag(3, WireType.LengthDelimited).string(message.id);
+        /* string nonce = 4; */
         if (message.nonce !== "")
-            writer.tag(3, WireType.LengthDelimited).string(message.nonce);
+            writer.tag(4, WireType.LengthDelimited).string(message.nonce);
         let u = options.writeUnknownFields;
         if (u !== false)
             (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);

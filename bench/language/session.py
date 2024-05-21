@@ -1,15 +1,23 @@
 import contextvars
 from datetime import datetime
-from typing import TYPE_CHECKING, Collection, Optional
+from typing import TYPE_CHECKING, Callable, Collection, Optional
 
 import structlog
 
 from bench.language.connection import StoreEngine
 from bench.language.const import InterpStatus, NodeType, SessionStatus, StructType, _active_session
+from bench.language.graph import NodeGraph
 from bench.language.node import Node, Struct, node, struct, struct_component
 from bench.language.property import Property, p_internal, p_node_parent, p_runtime, p_system
 from bench.language.transaction import Transaction
-from bench.proto.wire import GraphScope, HostStub, NodeReferenceData, SessionData, SupervisorStub
+from bench.proto.wire import (
+    EditData,
+    GraphScope,
+    HostStub,
+    NodeReferenceData,
+    SessionData,
+    SupervisorStub,
+)
 from bench.utils.dt import utcnow
 from bench.utils.func import uuid_to_str
 from bench.utils.uuidt import UUIDT
@@ -33,6 +41,7 @@ if TYPE_CHECKING:
 # pyright: reportIncompatibleVariableOverride=false
 
 logger = structlog.get_logger(__name__)
+CommitHook = Callable[[NodeGraph | None, list[EditData], list[EditData]], None]
 
 
 @node(
@@ -75,6 +84,7 @@ class Session(Node[SessionData]):
     _tx: Transaction | None = p_runtime(default=None)
     _engines: tuple["StoreEngine", ...] = p_runtime(default_factory=tuple)
     _active_session_token: contextvars.Token | None = p_runtime(default=None)
+    _on_commit_hook: Optional[CommitHook] = p_runtime(default=None)
     _default_scope: GraphScope = p_runtime(default_factory=GraphScope)
     _supervisor: Optional["SupervisorStub"] = p_runtime(default=None)
     _host: Optional["HostStub"] = p_runtime(default=None)
@@ -150,6 +160,8 @@ class Session(Node[SessionData]):
     async def commit(self):
         assert self.is_open, f"cannot commit {self!r} when closed"
         await self.tx.commit()
+        if self._on_commit_hook and self.tx.edits:
+            self._on_commit_hook(None, self.tx.edits, self.tx.cascaded_edits)
 
     async def rollback(self):
         assert self.is_open, f"cannot rollback {self!r} when closed"
