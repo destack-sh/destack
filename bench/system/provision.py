@@ -1,5 +1,5 @@
 import abc
-from typing import ClassVar, Collection, Iterable, override
+from typing import TYPE_CHECKING, ClassVar, Collection, Iterable, override
 
 import structlog
 
@@ -9,15 +9,18 @@ from bench.language.const import VERSION, NodeType
 from bench.language.session import Session
 from bench.sql.client import pg_cursor_to_store
 from bench.sql.migration import has_migration_after, migrate
-from bench.system.core import HostPlugin
+from bench.system.core import AsyncHostPlugin, CommittedChange, HostSpec
 from bench.system.neon import NeonApi
 from bench.utils.env import ENVIRONMENT
 from bench.utils.func import bittuple
 
+if TYPE_CHECKING:
+    pass
+
 logger = structlog.get_logger(__name__)
 
 
-class Provisioner[T: Resource](HostPlugin[T], abc.ABC):
+class Provisioner[T: Resource](AsyncHostPlugin[T], abc.ABC):
     """
     A provisioner for resources of the declared types.
     Synchronize the declared state of Bench resources with their actual (external) state (both ways).
@@ -25,8 +28,18 @@ class Provisioner[T: Resource](HostPlugin[T], abc.ABC):
 
     node_types: ClassVar[bittuple[NodeType]]
 
-    def __init__(self, bench: Bench):
-        super().__init__(bench)
+    @override
+    async def on_graph_commit_async(self, commit: CommittedChange[T]) -> None:
+        async with self._host.session() as session:
+            for resource in commit.added:
+                await self.provision(resource)
+                await session.commit()
+            for resource in commit.updated:
+                await self.update(resource)
+                await session.commit()
+            for resource in commit.removed:
+                await self.decommission(resource)
+                await session.commit()
 
     async def provision(self, resource: T):
         """Provision the resource."""
@@ -50,8 +63,8 @@ class NeonStoreProvisioner(Provisioner[Store]):
 
     node_types = bittuple(NodeType.STORE)
 
-    def __init__(self, bench: Bench, neon_api: "NeonApi"):
-        super().__init__(bench)
+    def __init__(self, host: "HostSpec", bench: Bench, neon_api: "NeonApi"):
+        super().__init__(host, bench)
         self._neon_api = neon_api
 
     @override
@@ -104,18 +117,18 @@ class KubernetesServerProvisioner(Provisioner[Server]):
     node_types = bittuple(NodeType.SERVER, NodeType.MACHINE)
 
 
-def get_provisioners_for(bench: Bench) -> list[Provisioner]:
+def get_provisioners_for(host: HostSpec, bench: Bench) -> list[Provisioner]:
     from bench.system.neon import neon_api
 
     if ENVIRONMENT == "dev" or ENVIRONMENT == "test":
         return [
-            NeonStoreProvisioner(bench, neon_api),
-            LocalhostServerProvisioner(bench),
+            NeonStoreProvisioner(host, bench, neon_api),
+            LocalhostServerProvisioner(host, bench),
         ]
     elif ENVIRONMENT == "prod":
         return [
-            NeonStoreProvisioner(bench, neon_api),
-            KubernetesServerProvisioner(bench),
+            NeonStoreProvisioner(host, bench, neon_api),
+            KubernetesServerProvisioner(host, bench),
         ]
     else:
         raise RuntimeError(f"unexpected environment: {ENVIRONMENT!r}")

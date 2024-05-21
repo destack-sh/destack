@@ -157,11 +157,11 @@ class Session(Node[SessionData]):
         assert self.is_open, f"cannot flush {self!r} when closed"
         await self.tx.flush()
 
-    async def commit(self):
+    async def commit(self, graph: NodeGraph | None = None):
         assert self.is_open, f"cannot commit {self!r} when closed"
         await self.tx.commit()
         if self._on_commit_hook and self.tx.edits:
-            self._on_commit_hook(None, self.tx.edits, self.tx.cascaded_edits)
+            self._on_commit_hook(graph, self.tx.edits, self.tx.cascaded_edits)
 
     async def rollback(self):
         assert self.is_open, f"cannot rollback {self!r} when closed"

@@ -33,6 +33,7 @@ from bench.proto.wire import (
     SupervisorBase,
     SupervisorStub,
 )
+from bench.system.core import DEAD_HOST
 from bench.system.provision import decommission_all_resources, get_provisioners_for
 from bench.system.test.conftest import UserHandle, make_random_user_handle
 
@@ -135,7 +136,7 @@ async def make_some_bench(supervisor: SupervisorStub, host: HostStub):
 
     # decommission
     async with detached_session() as session:
-        provisioners = get_provisioners_for(bench)
+        provisioners = get_provisioners_for(DEAD_HOST, bench)
         bench = await Bench.descendants(*RESOURCE_NODE_TYPES).get(id=bench_id)
         await decommission_all_resources(bench.resources, provisioners, session)
         await session.commit()

@@ -3,7 +3,7 @@ import typer
 
 from bench.cli.utils import async_to_sync_blocking
 from bench.language import Bench, Package
-from bench.system.client import global_session
+from bench.system.core import global_session
 
 app = typer.Typer(short_help="some language-level utilities")
 

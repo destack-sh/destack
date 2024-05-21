@@ -33,7 +33,7 @@ from bench.sql.migration import (
 )
 from bench.sql.migration import migrate as _migrate
 from bench.sql.migration import read_migrations_from_fs, read_migrations_from_pg
-from bench.system.client import GLOBAL_STORE, global_pg_cursor, global_session
+from bench.system.core import GLOBAL_STORE, global_pg_cursor, global_session
 from bench.utils.func import sanitize_connection_uri
 from bench.utils.utils import format_python
 

@@ -15,7 +15,7 @@ from bench.sql.migration import (
     migrate,
     read_migrations_from_fs,
 )
-from bench.system.client import GLOBAL_STORE, global_pg_cursor
+from bench.system.core import GLOBAL_STORE, global_pg_cursor
 from bench.system.neon import NeonApiRemote
 from bench.utils.env import ENVIRONMENT
 from bench.utils.utils import get_from_env

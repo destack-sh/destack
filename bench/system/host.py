@@ -1,8 +1,6 @@
 import asyncio
 import functools
-from contextlib import asynccontextmanager
-from itertools import chain
-from typing import AsyncIterator, Callable, Iterable, override
+from typing import Callable, override
 from uuid import UUID
 
 import betterproto
@@ -21,7 +19,6 @@ from bench.language.const import (
     NodeType,
 )
 from bench.language.graph import NodeGraph, edit_graph
-from bench.language.session import Session
 from bench.proto import wiring
 from bench.proto.services import BenchServiceBase, RpcCallable
 from bench.proto.wire import (
@@ -33,8 +30,14 @@ from bench.proto.wire import (
     UploadFilesRequest,
     UploadFilesResponse,
 )
-from bench.system.client import GLOBAL_STORE, global_session
-from bench.system.core import GraphDiff, HostPlugin
+from bench.system.core import (
+    GLOBAL_STORE,
+    HostPlugin,
+    HostSpec,
+    global_session,
+    local_session,
+    unpack_committed_change,
+)
 from bench.system.graph import GraphIoServiceBase
 from bench.system.provision import (
     Provisioner,
@@ -176,7 +179,7 @@ PACKAGE_QUERY = (
 )
 
 
-class Host(GraphIoServiceBase, HostBase):
+class Host(GraphIoServiceBase, HostBase, HostSpec):
     """
     Host for a Bench, providing the OS-level functions (lifecycle, resources & runtime management).
     Clients interact with a Bench exclusively through its Host.
@@ -239,7 +242,7 @@ class Host(GraphIoServiceBase, HostBase):
             )
 
             # prepare plugins
-            self._provisioners = tuple(get_provisioners_for(self._bench))
+            self._provisioners = tuple(get_provisioners_for(self, self._bench))
             self._plugins = (RunPlugin(self, self._bench),) + self._provisioners
             await asyncio.gather(*(plugin.start(self._tasks) for plugin in self._plugins))
 
@@ -277,8 +280,6 @@ class Host(GraphIoServiceBase, HostBase):
 
     @override
     def _amend_graph_commit(self, graph: NodeGraph, edits: list[EditData]) -> list[EditData]:
-        # TODO :Incomplete!: handle packages on edit (update notices, send signals, ...)
-        #  Should this also happen in the client sessions? Or just in host and then pushed out?
         # nocheckin: create Logs for edits (but how/where/when to compact?)
         return edits
 
@@ -306,13 +307,16 @@ class Host(GraphIoServiceBase, HostBase):
                 options = BENCH_QUERY._options
             edit_graph(edited_graph, (edit,), options)
 
-        # make diff (incl. cascading edits)
-        diff: GraphDiff = ...
-
-        # feed diff to all plugins
+        # feed commit to plugins
+        commit = unpack_committed_change(graph, edits, cascaded_edits)
+        logger.debug("host.on_commit", host=self, commit=commit)
         for plugin in self._plugins:
-            if diff.edited_types & plugin.node_types:
-                plugin.on_graph_commit(diff.trim_to(plugin.node_types))
+            if commit.edited_types & plugin.node_types:
+                trimmed_commit = commit.trim_to(plugin.node_types)
+                plugin.on_graph_commit(trimmed_commit)
+                logger.debug(
+                    "host.on_commit.plugin", host=self, plugin=plugin, commit=trimmed_commit
+                )
 
     #
     # Files
@@ -327,13 +331,3 @@ class Host(GraphIoServiceBase, HostBase):
         self, subject: Subject, request: "DownloadFilesRequest"
     ) -> "DownloadFilesResponse":
         raise GRPCError(GRPCStatus.UNIMPLEMENTED)
-
-
-@asynccontextmanager
-async def local_session(
-    scope: GraphScope, engines: tuple[StoreEngine, ...]
-) -> AsyncIterator[Session]:
-    """Session for local operations (no remote calls)."""
-    session = Session(_default_scope=scope, _engines=engines)
-    async with session:
-        yield session

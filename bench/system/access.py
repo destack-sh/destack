@@ -13,7 +13,7 @@ from bench.language.const import NodeType
 from bench.language.node import Node
 from bench.language.query import NodeNotFoundError
 from bench.proto.wire import RpcMetadata
-from bench.system.client import global_session
+from bench.system.core import global_session
 from bench.utils.base58 import base58_encode
 from bench.utils.env import IS_DEBUG
 from bench.utils.func import to_uuid
