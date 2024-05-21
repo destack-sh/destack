@@ -14,7 +14,7 @@ from bench.language.connection import PostgresEngine, StoreEngine
 from bench.language.const import GLOBAL_NODE_TYPES, VERSION, EditType
 from bench.language.graph import NodeGraph
 from bench.language.session import CommitHook, Session
-from bench.proto import wire, wiring
+from bench.proto import wiring
 from bench.proto.wire import EditData, GraphScope
 from bench.sql.client import GLOBAL_PG_CRYPTO_KEY, _PgStoreConnection
 from bench.utils.func import bittuple

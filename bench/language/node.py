@@ -1566,7 +1566,9 @@ class Node(Struct[NodeDataT], Generic[NodeDataT]):
             slug = getattr(self, "slug")
             if slug:  # prefer slug as ident
                 return slug
-        return getattr(self, "name", None)
+        if "name" in self.__properties__:
+            return getattr(self, "name")
+        return None
 
     @property
     def bench_path_key(self) -> Optional[str]:
@@ -1585,13 +1587,15 @@ class Node(Struct[NodeDataT], Generic[NodeDataT]):
         if self.metatype == NodeType.PACKAGE and self.parent is not None:
             return self.parent.py_ident
         if "slug" in self.__properties__:
-            slug = getattr(self, "slug", None)
+            slug = getattr(self, "slug")
             if slug:  # prefer slug as ident
                 return slug
-        name = getattr(self, "name", None)
-        if name is None:
-            return None
-        return to_casing(name, PYTHON_CASING[self.identifier_type])
+        if "name" in self.__properties__:
+            name = getattr(self, "name")
+            if name is None:
+                return None
+            return to_casing(name, PYTHON_CASING[self.identifier_type])
+        return None
 
     @property
     def absolute_path(self) -> str:
