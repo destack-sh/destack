@@ -454,7 +454,7 @@ class bittuple(typing.Generic[EnumT]):
         combined = self.bits & other.bits
         ordered_members = _get_enum_members_by_ord(self.enum_cls)
         items = tuple(ordered_members[o] for o in combined.search(True))
-        return bittuple(items)  # type: ignore
+        return bittuple(items, enum_cls=self.enum_cls)  # type: ignore
 
     def __or__(self, other: "bittuple[EnumT]") -> "bittuple[EnumT]":
         assert type(other) is bittuple, f"invalid type: {type(other)}"
@@ -464,7 +464,7 @@ class bittuple(typing.Generic[EnumT]):
         combined = self.bits | other.bits
         ordered_members = _get_enum_members_by_ord(self.enum_cls)
         items = tuple(ordered_members[o] for o in combined.search(True))
-        return bittuple(items)  # type: ignore
+        return bittuple(items, enum_cls=self.enum_cls)  # type: ignore
 
     def __iter__(self):
         return iter(self.tuple)
@@ -480,3 +480,9 @@ class bittuple(typing.Generic[EnumT]):
 
     def __str__(self):
         return f"{self.__class__.__name__}({self.tuple})"
+
+    @staticmethod
+    def from_ord(enum_cls: type[EnumT], ords: bitarray) -> "bittuple[EnumT]":
+        ordered_members = _get_enum_members_by_ord(enum_cls)
+        items = tuple(ordered_members[o] for o in ords.search(True))
+        return bittuple(items, enum_cls=enum_cls)  # type: ignore

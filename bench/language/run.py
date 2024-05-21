@@ -93,8 +93,8 @@ class Run(BasedNode[RunData], HasSessionContext, HasValues):
     runs: list["Run"] = p_node_child(NodeType.RUN)
 
     def __content_str__(self):
-        value_keys_str = ", ".join(self.value.keys()) if self.value else ""
-        return f"{self.block} ({self.status}, value={value_keys_str or '<none>'}, {self.id})"
+        content_str = repr(self.step or self.block or self.text or self.code)
+        return f"{content_str} ({self.status}, {self.id})"
 
     @property
     def active(self) -> bool:

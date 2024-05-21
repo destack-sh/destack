@@ -9,7 +9,7 @@ import structlog
 from bench.language.setup import NODE_CLASSES
 from bench.sql.core import Schema
 from bench.sql.engine import GLOBAL_SCHEMA, NODE_TABLES, map_node_class_to_pg_table
-from bench.system.client import global_pg_cursor
+from bench.system.core import global_pg_cursor
 
 if TYPE_CHECKING:
     pass

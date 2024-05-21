@@ -21,7 +21,9 @@ class TaskManager:
     async def _wrap_task(self, coro, task_id: str | None = None):
         task_id = task_id or coro.__name__
         try:
-            return await coro
+            ret = await coro
+            self._logger.debug("task.done", owner=self._owner, task_id=task_id)
+            return ret
         except CancelledError:
             self._logger.debug("task.cancelled", owner=self._owner, task_id=task_id)
         except Exception as e:
@@ -35,7 +37,7 @@ class TaskManager:
             self._errors.append(e)
             raise
 
-    def start(self, coro, name: str | None = None) -> None:
+    def start(self, coro: Awaitable[Any], name: str | None = None) -> None:
         asyncio.create_task(self._wrap_task(coro, name))
 
     def start_queue[

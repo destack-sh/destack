@@ -133,8 +133,13 @@ class GraphIoServiceBase(BenchServiceBase, GraphIoBase):
         if to_uuid(scope.bench_id) != self.bench_id:
             raise GRPCError(GRPCStatus.INVALID_ARGUMENT, "service scope mismatch")
 
-    def session(self, scope: GraphScope):
-        return Session(parent=None, _default_scope=self.scope, _engines=self._get_engines(scope))
+    def session(self, scope: GraphScope | None = None):
+        return Session(
+            parent=None,
+            _default_scope=self.scope,
+            _engines=self._get_engines(scope or self.scope),
+            _on_commit_hook=self.on_graph_commit,
+        )
 
     async def get_nodes(self, subject: Subject, request: "GetNodesRequest") -> "GetNodesResponse":
         roots: tuple[NodeReference, ...] = tuple(
@@ -311,21 +316,22 @@ class GraphIoServiceBase(BenchServiceBase, GraphIoBase):
 
             # apply edits
             session.tx._add_pending_edits(adapted_edits)
-            await session.commit()
-            self.on_graph_commit(
-                graph=unpacked_graph, edits=adapted_edits, cascaded_edits=session.tx.cascaded_edits
+            await session.commit(graph=unpacked_graph)
+            logger.info(
+                "graph.commit",
+                subject=subject,
+                request=request,
+                edits=session.tx.edits,
+                epoch=self.epoch,
+                duration=asyncio.get_event_loop().time() - start,
             )
 
-        logger.info(
-            "graph.commit",
-            subject=subject,
-            request=request,
-            edits=session.tx.edits,
-            epoch=self.epoch,
-            duration=asyncio.get_event_loop().time() - start,
-        )
-        accepted_revisions = [cast(int, e.revision) for e in request.edits]
-        return CommitTransactionResponse(revisions=accepted_revisions, epoch=self.epoch)
+            accepted_revisions = [cast(int, e.revision) for e in request.edits]
+            return CommitTransactionResponse(
+                revisions=accepted_revisions,
+                cascaded_edits=session.tx.cascaded_edits,
+                epoch=self.epoch,
+            )
 
     async def flush_transaction(
         self, subject: "Subject", request: "FlushTransactionRequest"

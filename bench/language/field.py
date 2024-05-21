@@ -452,6 +452,8 @@ class Field(BasedNode[FieldData], TypeInfoBase, _TypeQueryBuilder):
     _introspected_from: Optional[Property] = p_runtime(default=None)
 
     def __content_str__(self) -> str:
+        if self.zone == FieldZone.OPTION:
+            return ""  # nothing to show
         if self.base_type is not None:
             info_str = self.base_type.absolute_path
         elif self.bench_type is not None:

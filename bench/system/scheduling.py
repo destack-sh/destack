@@ -6,22 +6,23 @@ import structlog
 from bench.language.bench import Bench
 from bench.language.const import NodeType, RunStatus
 from bench.language.run import Run
-from bench.system.core import GraphDiff, HostPlugin
+from bench.system.core import CommittedChange, HostPlugin, HostSpec
 from bench.utils.func import bittuple
 from bench.utils.task import TaskManager
 
 if TYPE_CHECKING:
-    from bench.system.host import Host
+    pass
 
 logger = structlog.get_logger(__name__)
 
 
 class RunPlugin(HostPlugin[Run]):
+    """Distribute new (and forgotten) unassigned Runs to Runtimes (on Machines)."""
+
     node_types = bittuple(NodeType.RUN)
 
-    def __init__(self, host: "Host", bench: Bench):
-        super().__init__(bench)
-        self._host = host
+    def __init__(self, host: HostSpec, bench: Bench):
+        super().__init__(host, bench)
         self._runs_to_queue: asyncio.Queue[Run] = asyncio.Queue()
 
     def __str__(self):
@@ -33,9 +34,9 @@ class RunPlugin(HostPlugin[Run]):
         tasks.start_queue(self._runs_to_queue, self._process_run)
 
     @override
-    async def on_graph_commit(self, diff: GraphDiff[Run]) -> None:
+    def on_graph_commit(self, commit: CommittedChange[Run]) -> None:
         # queue any new runs
-        for run in diff.added:
+        for run in commit.added:
             if run.parent_type == NodeType.PACKAGE and run.status == RunStatus.SCHEDULED:
                 self._enqueue_run(run)
 

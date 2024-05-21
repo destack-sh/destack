@@ -38,7 +38,7 @@ from bench.system.access import (
     generate_salt,
     hash_password,
 )
-from bench.system.client import GLOBAL_POSTGRES_ENGINE, global_session
+from bench.system.core import GLOBAL_POSTGRES_ENGINE, global_session
 from bench.system.graph import GraphIoServiceBase
 from bench.utils.dt import utcnow
 from bench.utils.func import to_uuid
