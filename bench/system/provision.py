@@ -1,5 +1,5 @@
 import abc
-from typing import TYPE_CHECKING, ClassVar, Collection, Iterable, override
+from typing import ClassVar, Collection, Iterable, override
 
 import structlog
 
@@ -7,42 +7,26 @@ from bench.language import Bench, Resource, Server, Store
 from bench.language.bench import ResourceStatus
 from bench.language.const import VERSION, NodeType
 from bench.language.session import Session
-from bench.proto.wire import ClientOrigin
 from bench.sql.client import pg_cursor_to_store
 from bench.sql.migration import has_migration_after, migrate
+from bench.system.core import HostPlugin
+from bench.system.neon import NeonApi
 from bench.utils.env import ENVIRONMENT
-from bench.utils.task import TaskManager
-
-if TYPE_CHECKING:
-    from bench.system.graph import GraphDiff
-    from bench.system.neon import NeonApi
+from bench.utils.func import bittuple
 
 logger = structlog.get_logger(__name__)
 
 
-class Provisioner[T: Resource](abc.ABC):
+class Provisioner[T: Resource](HostPlugin[T], abc.ABC):
     """
     A provisioner for resources of the declared types.
     Synchronize the declared state of Bench resources with their actual (external) state (both ways).
     """
 
-    node_types: ClassVar[tuple[NodeType, ...]]
+    node_types: ClassVar[bittuple[NodeType]]
 
     def __init__(self, bench: Bench):
-        self._bench = bench
-
-    async def start(self, tasks: TaskManager):
-        pass
-
-    def close(self):
-        pass
-
-    async def wait_closed(self):
-        pass
-
-    def on_edited(self, origin: ClientOrigin | None, diff: "GraphDiff[T]"):
-        """The Bench has been edited."""
-        pass
+        super().__init__(bench)
 
     async def provision(self, resource: T):
         """Provision the resource."""
@@ -50,11 +34,11 @@ class Provisioner[T: Resource](abc.ABC):
 
     async def update(self, resource: T):
         """Update the resource properties."""
-        raise NotImplementedError
+        pass
 
     async def migrate(self, resource: T):
         """Migrate the resource to the current version."""
-        raise NotImplementedError
+        pass
 
     async def decommission(self, resource: T):
         """Decommission the resource."""
@@ -64,7 +48,7 @@ class Provisioner[T: Resource](abc.ABC):
 class NeonStoreProvisioner(Provisioner[Store]):
     """Provision Stores with the Neon API."""
 
-    node_types = (NodeType.STORE,)
+    node_types = bittuple(NodeType.STORE)
 
     def __init__(self, bench: Bench, neon_api: "NeonApi"):
         super().__init__(bench)
@@ -101,24 +85,46 @@ class NeonStoreProvisioner(Provisioner[Store]):
         resource.status = ResourceStatus.DESTROYED
 
 
-class ServerProvisioner(Provisioner[Server]):
-    """Provision Servers by deploying Machines."""
+# nocheckin: implement provisioners
+class LocalhostServerProvisioner(Provisioner[Server]):
+    """Provision Servers by short-circuiting Machines to localhost."""
 
-    node_types = (NodeType.SERVER, NodeType.MACHINE)
+    node_types = bittuple(NodeType.SERVER, NodeType.MACHINE)
 
 
-async def make_provisioners(bench: Bench) -> list[Provisioner]:
+class DockerServerProvisioner(Provisioner[Server]):
+    """Provision Servers by deploying Machines as containers in a Docker installation."""
+
+    node_types = bittuple(NodeType.SERVER, NodeType.MACHINE)
+
+
+class KubernetesServerProvisioner(Provisioner[Server]):
+    """Provision Servers by deploying Machines as Pods on Kubernetes."""
+
+    node_types = bittuple(NodeType.SERVER, NodeType.MACHINE)
+
+
+def get_provisioners_for(bench: Bench) -> list[Provisioner]:
     from bench.system.neon import neon_api
 
-    return [
-        NeonStoreProvisioner(bench, neon_api),
-        ServerProvisioner(bench),
-    ]
+    if ENVIRONMENT == "dev" or ENVIRONMENT == "test":
+        return [
+            NeonStoreProvisioner(bench, neon_api),
+            LocalhostServerProvisioner(bench),
+        ]
+    elif ENVIRONMENT == "prod":
+        return [
+            NeonStoreProvisioner(bench, neon_api),
+            KubernetesServerProvisioner(bench),
+        ]
+    else:
+        raise RuntimeError(f"unexpected environment: {ENVIRONMENT!r}")
 
 
 def get_provisioner(
     resource: Resource, provisioners: Collection[Provisioner]
 ) -> Provisioner | None:
+    """Gets the first suitable provisioner (if any)"""
     for provisioner in provisioners:
         if resource.metatype in provisioner.node_types:
             return provisioner

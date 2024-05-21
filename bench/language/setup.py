@@ -14,7 +14,7 @@ from bench.language.const import (
     ObjectType,
     StructType,
 )
-from bench.utils.func import IdEnum, assert_collections_equal, bytetuple, get_subclasses
+from bench.utils.func import IdEnum, assert_collections_equal, bittuple, get_subclasses
 from bench.utils.utils import frozendict
 
 if TYPE_CHECKING:
@@ -36,12 +36,12 @@ NODE_CLASSES: list[type["Node"]] = []
 STRUCT_CLASSES: list[type["Struct"]] = []
 
 # direct parent/child
-PARENT_NODE_TYPES: dict[NodeType, bytetuple[NodeType]] = {}
-CHILD_NODE_TYPES: dict[NodeType, bytetuple[NodeType]] = {}
+PARENT_NODE_TYPES: dict[NodeType, bittuple[NodeType]] = {}
+CHILD_NODE_TYPES: dict[NodeType, bittuple[NodeType]] = {}
 HAS_CHILD_NODE_TYPES: set[NodeType] = set()
 # transient parent/child
-ANCESTOR_NODE_TYPES: dict[NodeType, bytetuple[NodeType]] = {}
-DESCENDANT_NODE_TYPES: dict[NodeType, bytetuple[NodeType]] = {}
+ANCESTOR_NODE_TYPES: dict[NodeType, bittuple[NodeType]] = {}
+DESCENDANT_NODE_TYPES: dict[NodeType, bittuple[NodeType]] = {}
 
 _COMPLETED_SETUP = False
 
@@ -175,12 +175,10 @@ def _complete_bench_setup():
     global ANCESTOR_NODE_TYPES, DESCENDANT_NODE_TYPES, PARENT_NODE_TYPES, CHILD_NODE_TYPES
     global HAS_CHILD_NODE_TYPES
     for node_type in NODE_TYPES:
-        ANCESTOR_NODE_TYPES[node_type] = bytetuple(*ancestor_types[node_type], enum_cls=NodeType)
-        DESCENDANT_NODE_TYPES[node_type] = bytetuple(
-            *descendant_types[node_type], enum_cls=NodeType
-        )
-        PARENT_NODE_TYPES[node_type] = bytetuple(*parent_types[node_type], enum_cls=NodeType)
-        CHILD_NODE_TYPES[node_type] = bytetuple(*child_types[node_type], enum_cls=NodeType)
+        ANCESTOR_NODE_TYPES[node_type] = bittuple(*ancestor_types[node_type], enum_cls=NodeType)
+        DESCENDANT_NODE_TYPES[node_type] = bittuple(*descendant_types[node_type], enum_cls=NodeType)
+        PARENT_NODE_TYPES[node_type] = bittuple(*parent_types[node_type], enum_cls=NodeType)
+        CHILD_NODE_TYPES[node_type] = bittuple(*child_types[node_type], enum_cls=NodeType)
         if child_types[node_type]:
             HAS_CHILD_NODE_TYPES.add(node_type)
 

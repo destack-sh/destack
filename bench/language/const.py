@@ -7,13 +7,13 @@ from typing import Any, Mapping, Optional, cast
 from uuid import UUID, uuid4
 
 from bench.proto.wire import GraphScope
-from bench.utils.func import IdEnum, bytetuple, cyrb53a
+from bench.utils.func import IdEnum, bittuple, cyrb53a
 from bench.utils.utils import frozendict
 
 if typing.TYPE_CHECKING:
     from bench.language import Run, Session, Transaction
 
-VERSION = "2024.05.20.3"
+VERSION = "2024.05.21.0"
 REVISION_PENDING = -1
 TK_LENGTH_BYTES = 8
 TK_LENGTH_B64 = 12  # 1.5 * TK_LENGTH_BYTES (must be integer)
@@ -145,7 +145,7 @@ class EnumType(IdEnum):
 
 
 enum_(EnumType.ENUM_TYPE)(EnumType)
-ENUM_TYPES: bytetuple[EnumType] = bytetuple(*EnumType)
+ENUM_TYPES: bittuple[EnumType] = bittuple(*EnumType)
 ENUM_TYPES_SET: frozenset[EnumType] = frozenset(ENUM_TYPES)
 
 #
@@ -212,14 +212,14 @@ class NodeType(IdEnum):
 
 
 # :NodeTypes
-NODE_TYPES = bytetuple(*NodeType)
+NODE_TYPES = bittuple(*NodeType)
 NODE_TYPES_SET: frozenset[NodeType] = frozenset(NODE_TYPES)
-ROOT_NODE_TYPES = bytetuple(NodeType.BENCH, NodeType.USER, NodeType.ORGANIZATION)
-LOCAL_NODE_TYPES = bytetuple(
+ROOT_NODE_TYPES = bittuple(NodeType.BENCH, NodeType.USER, NodeType.ORGANIZATION)
+LOCAL_NODE_TYPES = bittuple(
     NodeType.RECORD, NodeType.MESSAGE, NodeType.RUN, NodeType.SIGNAL, NodeType.NOTIFICATION
 )
-GLOBAL_NODE_TYPES = bytetuple(*tuple(nt for nt in NODE_TYPES if nt not in LOCAL_NODE_TYPES))
-BASED_NODE_TYPES = bytetuple(  # :HasBase
+GLOBAL_NODE_TYPES = bittuple(*tuple(nt for nt in NODE_TYPES if nt not in LOCAL_NODE_TYPES))
+BASED_NODE_TYPES = bittuple(  # :HasBase
     NodeType.FIELD,
     NodeType.RUN,
     NodeType.SIGNAL,
@@ -227,8 +227,8 @@ BASED_NODE_TYPES = bytetuple(  # :HasBase
     NodeType.MESSAGE,
     NodeType.RECORD,
 )
-RUNTIME_NODE_TYPES = bytetuple(*tuple(nt for nt in NODE_TYPES if 80 <= nt.id < 100))
-TIMED_NODE_TYPES = bytetuple(
+RUNTIME_NODE_TYPES = bittuple(*tuple(nt for nt in NODE_TYPES if 80 <= nt.id < 100))
+TIMED_NODE_TYPES = bittuple(
     NodeType.SESSION,
     NodeType.RUN,
     NodeType.SIGNAL,
@@ -236,17 +236,17 @@ TIMED_NODE_TYPES = bytetuple(
     NodeType.NOTIFICATION,
     NodeType.MESSAGE,
 )
-IN_PACKAGE_NODE_TYPES = bytetuple(*tuple(nt for nt in NODE_TYPES if 20 <= nt.id < 100))
-SUB_PACKAGE_NODE_TYPES = bytetuple(*tuple(nt for nt in NODE_TYPES if 20 < nt.id < 100))
-IN_BENCH_NODE_TYPES = bytetuple(
+IN_PACKAGE_NODE_TYPES = bittuple(*tuple(nt for nt in NODE_TYPES if 20 <= nt.id < 100))
+SUB_PACKAGE_NODE_TYPES = bittuple(*tuple(nt for nt in NODE_TYPES if 20 < nt.id < 100))
+IN_BENCH_NODE_TYPES = bittuple(
     *tuple(nt for nt in NODE_TYPES if nt.id < 200) + (NodeType.CLIENT, NodeType.HANDLE)
 )
-IN_BENCH_GLOBAL_NODE_TYPES = bytetuple(
+IN_BENCH_GLOBAL_NODE_TYPES = bittuple(
     *tuple(nt for nt in IN_BENCH_NODE_TYPES if nt not in LOCAL_NODE_TYPES)
 )
-SUB_BENCH_NODE_TYPES = bytetuple(*tuple(nt for nt in IN_BENCH_NODE_TYPES if nt != NodeType.BENCH))
-RESOURCE_NODE_TYPES = bytetuple(*tuple(nt for nt in NODE_TYPES if 160 <= nt.id < 200))
-BENCH_NODE_TYPES = bytetuple(
+SUB_BENCH_NODE_TYPES = bittuple(*tuple(nt for nt in IN_BENCH_NODE_TYPES if nt != NodeType.BENCH))
+RESOURCE_NODE_TYPES = bittuple(*tuple(nt for nt in NODE_TYPES if 160 <= nt.id < 200))
+BENCH_NODE_TYPES = bittuple(
     NodeType.BENCH,
     NodeType.ENVIRONMENT,
     NodeType.BRANCH,
@@ -255,8 +255,8 @@ BENCH_NODE_TYPES = bytetuple(
     NodeType.CLIENT,
     *RESOURCE_NODE_TYPES,
 )
-PUBLIC_NODE_TYPES = bytetuple(NodeType.USER, NodeType.ORGANIZATION)
-USER_NODE_TYPES = bytetuple(*tuple(nt for nt in NODE_TYPES if nt.id >= 200))
+PUBLIC_NODE_TYPES = bittuple(NodeType.USER, NodeType.ORGANIZATION)
+USER_NODE_TYPES = bittuple(*tuple(nt for nt in NODE_TYPES if nt.id >= 200))
 
 
 @enum_(EnumType.STRUCT_TYPE)
@@ -322,7 +322,7 @@ class StructType(IdEnum):
     ...
 
 
-STRUCT_TYPES: bytetuple[StructType] = bytetuple(*StructType)
+STRUCT_TYPES: bittuple[StructType] = bittuple(*StructType)
 STRUCT_TYPES_SET: frozenset[StructType] = frozenset(STRUCT_TYPES)
 
 if typing.TYPE_CHECKING:
@@ -334,9 +334,9 @@ else:
     BenchType = IdEnum.combine("BenchType", NodeType, StructType, EnumType)
     enum_(EnumType.BENCH_TYPE)(BenchType)
 
-OBJECT_TYPES: bytetuple[ObjectType] = bytetuple(*ObjectType)
+OBJECT_TYPES: bittuple[ObjectType] = bittuple(*ObjectType)
 OBJECT_TYPES_SET: frozenset[ObjectType] = frozenset(OBJECT_TYPES)
-BENCH_TYPES: bytetuple[BenchType] = bytetuple(*BenchType)
+BENCH_TYPES: bittuple[BenchType] = bittuple(*BenchType)
 
 
 def is_node_type(obj: IdEnum | int) -> bool:
@@ -408,9 +408,9 @@ BLOCK_TYPES: tuple[BlockType, ...] = tuple(BlockType)
 
 
 class BlockTypes:
-    TYPES = bytetuple(*tuple(t for t in BLOCK_TYPES if 10 <= t.id < 20))
-    RUNNABLE = bytetuple(*tuple(t for t in BLOCK_TYPES if 30 <= t.id < 40))
-    CLASSES = bytetuple(
+    TYPES = bittuple(*tuple(t for t in BLOCK_TYPES if 10 <= t.id < 20))
+    RUNNABLE = bittuple(*tuple(t for t in BLOCK_TYPES if 30 <= t.id < 40))
+    CLASSES = bittuple(
         BlockType.CLASS, BlockType.SIGNAL, *RUNNABLE, BlockType.VARIABLE, BlockType.DATABASE
     )
 
@@ -566,16 +566,16 @@ else:
     AccessType.kind = property(lambda self: ACCESS_KIND_BY_ACCESS[self])
     enum_(EnumType.ACCESS_TYPE)(AccessType)
 
-READ_TYPES: bytetuple[ReadType] = bytetuple(*ReadType)
-EDIT_TYPES: bytetuple[EditType] = bytetuple(*EditType)
-USE_TYPES: bytetuple[UseType] = bytetuple(*UseType)
-ACCESS_TYPES: bytetuple[AccessType] = bytetuple(*AccessType)
+READ_TYPES: bittuple[ReadType] = bittuple(*ReadType)
+EDIT_TYPES: bittuple[EditType] = bittuple(*EditType)
+USE_TYPES: bittuple[UseType] = bittuple(*UseType)
+ACCESS_TYPES: bittuple[AccessType] = bittuple(*AccessType)
 ACCESS_CLASSES: tuple[type[AccessType], ...] = (ReadType, EditType, UseType, AccessType)
-ACCESS_KINDS = bytetuple(*AccessKind)
-ACCESS_TYPES_BY_KIND: dict[AccessKind, bytetuple[AccessType]] = {
-    AccessKind.READ: bytetuple(*READ_TYPES),
-    AccessKind.EDIT: bytetuple(*EDIT_TYPES),
-    AccessKind.USE: bytetuple(*USE_TYPES),
+ACCESS_KINDS = bittuple(*AccessKind)
+ACCESS_TYPES_BY_KIND: dict[AccessKind, bittuple[AccessType]] = {
+    AccessKind.READ: bittuple(*READ_TYPES),
+    AccessKind.EDIT: bittuple(*EDIT_TYPES),
+    AccessKind.USE: bittuple(*USE_TYPES),
 }
 ACCESS_CLASS_BY_KIND: dict[AccessKind, type[AccessType]] = {
     AccessKind.READ: ReadType,
@@ -761,13 +761,13 @@ class RunStatus(IdEnum):
     COMPLETED = 9
 
 
-TERMINAL_RUN_STATUSES: bytetuple[RunStatus] = bytetuple(
+TERMINAL_RUN_STATUSES: bittuple[RunStatus] = bittuple(
     RunStatus.CANCELLED,
     RunStatus.ABORTED,
     RunStatus.FAILED,
     RunStatus.COMPLETED,
 )
-ACTIVE_RUN_STATUSES = bytetuple(
+ACTIVE_RUN_STATUSES = bittuple(
     RunStatus.QUEUED, RunStatus.RUNNING, RunStatus.PAUSED, RunStatus.ABORTING
 )
 
@@ -865,10 +865,10 @@ class SortMode(IdEnum):
     MEDIAN = 5
 
 
-EXPRESSION_OPS_BY_KIND: Mapping[ExpressionKind, bytetuple["ExpressionOp"]] = {  # type: ignore
-    ExpressionKind.CONDITIONAL: bytetuple(*ConditionalOp),
-    ExpressionKind.AGGREGATION: bytetuple(*AggregationOp),
-    ExpressionKind.SORT: bytetuple(*SortOp),
+EXPRESSION_OPS_BY_KIND: Mapping[ExpressionKind, bittuple["ExpressionOp"]] = {  # type: ignore
+    ExpressionKind.CONDITIONAL: bittuple(*ConditionalOp),
+    ExpressionKind.AGGREGATION: bittuple(*AggregationOp),
+    ExpressionKind.SORT: bittuple(*SortOp),
 }
 EXPRESSION_KIND_BY_OP: Mapping["ExpressionOp", ExpressionKind] = {
     op: kind for kind, ops in EXPRESSION_OPS_BY_KIND.items() for op in ops  # type: ignore

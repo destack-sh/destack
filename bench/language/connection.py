@@ -12,6 +12,7 @@ from typing import (
     TypeVar,
     Union,
     cast,
+    override,
 )
 from uuid import UUID
 
@@ -33,7 +34,7 @@ from bench.proto.wire import (
     RpcMetadata,
     SupervisorStub,
 )
-from bench.utils.func import bytetuple
+from bench.utils.func import bittuple
 from bench.utils.tenacity import RetryOptions, retry
 
 if TYPE_CHECKING:
@@ -42,7 +43,7 @@ if TYPE_CHECKING:
     from bench.proto.monkey import _PatchedRpcMetadata
     from bench.sql.client import _PgStoreConnection
 
-# pyright: reportIncompatibleVariableOverride=false, reportIncompatibleMethodOverride=false
+# pyright: reportIncompatibleVariableOverride=false
 
 logger = structlog.get_logger(__name__)
 
@@ -94,6 +95,11 @@ class FetchResult(NamedTuple):
     epoch: int | None = None
 
 
+class FlushResult(NamedTuple):
+    revisions: list[int]
+    cascaded_edits: list[EditData]
+
+
 class AggregateResult(NamedTuple):
     aggregation: AggregationData
 
@@ -106,7 +112,7 @@ class StoreEngine(abc.ABC, Generic[NodeT, NodeDataT]):
     def __init__(
         self,
         scope: GraphScope,
-        node_types: tuple[NodeType, ...] | bytetuple[NodeType],
+        node_types: tuple[NodeType, ...] | bittuple[NodeType],
     ):
         self.scope = scope
         self.node_types = node_types
@@ -177,9 +183,7 @@ class StoreConnection(abc.ABC, Generic[StoreEngineT, NodeT, NodeDataT]):
     # The methods closely mirror :GraphIO service methods for universal 2PCs.
     #
 
-    async def flush(
-        self, edits: list[EditData] | tuple[EditData, ...]
-    ) -> list[int] | tuple[int, ...] | None:
+    async def flush(self, edits: list[EditData] | tuple[EditData, ...]) -> FlushResult:
         """
         Flushes edits in the current transaction context. If not in a transaction, begins one.
         If this is a primary store, must return the accepted revisions for every edit (in order).
@@ -194,9 +198,7 @@ class StoreConnection(abc.ABC, Generic[StoreEngineT, NodeT, NodeDataT]):
         """Cancels the current transaction context. No further operations are allowed."""
         raise ConnectionIncapableError(self, reason="cancel unsupported")
 
-    async def commit(
-        self, edits: list[EditData] | tuple[EditData, ...]
-    ) -> list[int] | tuple[int, ...] | None:
+    async def commit(self, edits: list[EditData] | tuple[EditData, ...]) -> FlushResult:
         """
         Commits the flushed pending and given edits in the current transaction context.
         If this is a primary store, must return the accepted revisions for every edit (in order).
@@ -216,7 +218,7 @@ class RemoteEngine(StoreEngine[NodeT, NodeDataT]):
     def __init__(
         self,
         scope: GraphScope,
-        node_types: tuple[NodeType, ...] | bytetuple[NodeType],
+        node_types: tuple[NodeType, ...] | bittuple[NodeType],
         remote: GraphIoStub | HostStub | SupervisorStub,
         rpc_metadata: RpcMetadata,
         retry: RetryOptions = RetryOptions(max_attempts=1),
@@ -230,11 +232,13 @@ class RemoteEngine(StoreEngine[NodeT, NodeDataT]):
     def __str__(self):
         return f"scope={self.scope!r}, node_types={self.node_types}, remote={self.remote.__class__.__name__}"
 
+    @override
     async def connect(self, session: "Session") -> "RemoteConnection":
         return RemoteConnection(self, session)
 
 
 class RemoteConnection(StoreConnection[RemoteEngine, NodeT, NodeDataT]):
+    @override
     @retry(
         lambda self, *args, **kwargs: self.engine.retry,
         on_failure=lambda self, query, options, e: logger.error(
@@ -267,6 +271,7 @@ class RemoteConnection(StoreConnection[RemoteEngine, NodeT, NodeDataT]):
             epoch=response.epoch,
         )
 
+    @override
     @retry(
         lambda self, *args, **kwargs: self.engine.retry,
         on_failure=lambda self, query, e: logger.error(
@@ -288,13 +293,14 @@ class RemoteConnection(StoreConnection[RemoteEngine, NodeT, NodeDataT]):
         )
         return AggregateResult(response.aggregation)
 
+    @override
     @retry(
         lambda self, *args, **kwargs: self.engine.retry,
         on_failure=lambda self, edits, e: logger.error(
             "remote.commit.error", connection=self, edits=edits, exc_info=e
         ),
     )
-    async def commit(self, edits: list[EditData] | tuple[EditData, ...]) -> list[int]:
+    async def commit(self, edits: list[EditData] | tuple[EditData, ...]) -> FlushResult:
         from bench.proto import wire
 
         edits = list(edits)
@@ -304,7 +310,7 @@ class RemoteConnection(StoreConnection[RemoteEngine, NodeT, NodeDataT]):
         response = await self.engine.remote.commit_transaction(
             request, metadata=self.engine.rpc_headers
         )
-        return response.revisions
+        return FlushResult(revisions=response.revisions, cascaded_edits=response.cascaded_edits)
 
 
 class PostgresEngine(StoreEngine[NodeT, NodeDataT], Generic[NodeT, NodeDataT]):
@@ -317,7 +323,7 @@ class PostgresEngine(StoreEngine[NodeT, NodeDataT], Generic[NodeT, NodeDataT]):
         store: "Store",
         bench: "Bench",
         scope: GraphScope,
-        node_types: tuple[NodeType, ...] | bytetuple[NodeType],
+        node_types: tuple[NodeType, ...] | bittuple[NodeType],
     ):
         super().__init__(scope, node_types)
         self.store = store
@@ -326,6 +332,7 @@ class PostgresEngine(StoreEngine[NodeT, NodeDataT], Generic[NodeT, NodeDataT]):
     def __str__(self):
         return f"scope={self.scope!r}, node_types={self.node_types}, store={self.store!r}"
 
+    @override
     async def connect(self, session: "Session") -> "PostgresConnection":
         from bench.sql.client import get_pg_store_connection
 
@@ -352,6 +359,7 @@ class PostgresConnection(
         await self.cur.connection.rollback()
         await self.conn.close()
 
+    @override
     async def fetch(
         self, query: "QueryBuilder[NodeT, NodeDataT]", options: FetchOptions
     ) -> FetchResult:
@@ -384,6 +392,7 @@ class PostgresConnection(
             total=total,
         )
 
+    @override
     async def aggregate(self, query: "QueryBuilder[NodeT, NodeDataT]") -> AggregateResult:
         from bench.sql.engine import _pg_compile_conditional_maybe, pg_count, pg_exists
 
@@ -401,22 +410,21 @@ class PostgresConnection(
                 self, query, expression=query._aggregation, reason="unsupported"
             )
 
-    async def flush(
-        self, edits: list[EditData] | tuple[EditData, ...]
-    ) -> list[int] | tuple[int, ...]:
+    @override
+    async def flush(self, edits: list[EditData] | tuple[EditData, ...]) -> FlushResult:
         from bench.sql.engine import pg_write_edits
 
-        new_revisions = await pg_write_edits(self.cur, edits)
-        return new_revisions
+        new_revisions, cascaded_edits = await pg_write_edits(self.cur, edits)
+        return FlushResult(revisions=new_revisions, cascaded_edits=cascaded_edits)
 
-    async def commit(
-        self, edits: list[EditData] | tuple[EditData, ...]
-    ) -> list[int] | tuple[int, ...]:
+    @override
+    async def commit(self, edits: list[EditData] | tuple[EditData, ...]) -> FlushResult:
         from bench.sql.engine import pg_write_edits
 
-        new_revisions = await pg_write_edits(self.cur, edits)
+        new_revisions, cascaded_edits = await pg_write_edits(self.cur, edits)
         await self.cur.connection.commit()
-        return new_revisions
+        return FlushResult(revisions=new_revisions, cascaded_edits=cascaded_edits)
 
+    @override
     async def cancel(self) -> None:
         await self.cur.connection.rollback()

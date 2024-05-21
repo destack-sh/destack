@@ -76,7 +76,7 @@ from bench.proto.wire import AnyNodeData, AnyStructData, NodeReferenceData, Some
 from bench.sql.core import Constraint, ConstraintType, Index, IndexType, PrimitiveType, Table
 from bench.utils.casing import PYTHON_CASING, IdentifierType, to_casing
 from bench.utils.dt import utcnow
-from bench.utils.func import bytetuple, did_you_mean_str
+from bench.utils.func import bittuple, did_you_mean_str
 from bench.utils.utils import frozendict
 
 if TYPE_CHECKING:
@@ -707,7 +707,7 @@ def node(
         cls.__extra_indexes__ = tuple(extra_indexes)
         cls.__extra_constraints__ = tuple(extra_constraints)
 
-        cls.__roots__ = bytetuple(*roots, enum_cls=NodeType)
+        cls.__roots__ = bittuple(*roots, enum_cls=NodeType)
         cls.__is_in_package__ = in_package
         cls.__is_sub_package__ = sub_package
         cls.__is_in_bench__ = in_bench
@@ -1363,7 +1363,7 @@ class Node(Struct[NodeDataT], Generic[NodeDataT]):
     __ancestor_properties__: ClassVar[dict[str, Property]] = {}
     __node_list_properties__: ClassVar[dict[str, Property]] = {}
 
-    __roots__: ClassVar[bytetuple[NodeType]] = UNSET
+    __roots__: ClassVar[bittuple[NodeType]] = UNSET
     __is_struct_only__: ClassVar[bool] = False
     __is_node__: ClassVar[bool] = True
     __is_in_bench__: ClassVar[bool] = UNSET  # part of a Bench

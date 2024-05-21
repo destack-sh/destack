@@ -833,13 +833,10 @@ class ResourceStatus(betterproto.Enum):
 
     UNSPECIFIED = 0
     PENDING = 1
-    CREATING = 5
-    UPGRADING = 10
-    HEALTHY = 20
-    UNHEALTHY = 25
-    PAUSED = 30
-    DELETING = 35
-    DELETED = 40
+    HEALTHY = 10
+    UNHEALTHY = 20
+    SLEEPING = 30
+    DESTROYED = 40
 
 
 class RunErrorKind(betterproto.Enum):
@@ -3057,8 +3054,9 @@ class SomeNodeData(betterproto.Message):
 
 @dataclass(eq=False, repr=False)
 class ClientOrigin(betterproto.Message):
-    id: str = betterproto.string_field(2)
-    nonce: str = betterproto.string_field(3)
+    type: "ClientType" = betterproto.enum_field(2)
+    id: str = betterproto.string_field(3)
+    nonce: str = betterproto.string_field(4)
 
 
 @dataclass(eq=False, repr=False)
@@ -3201,7 +3199,8 @@ class CommitTransactionRequest(betterproto.Message):
 @dataclass(eq=False, repr=False)
 class CommitTransactionResponse(betterproto.Message):
     revisions: List[int] = betterproto.int64_field(1)
-    epoch: int = betterproto.uint64_field(2)
+    cascaded_edits: List["EditData"] = betterproto.message_field(2)
+    epoch: int = betterproto.uint64_field(3)
 
 
 @dataclass(eq=False, repr=False)
@@ -3214,7 +3213,8 @@ class FlushTransactionRequest(betterproto.Message):
 @dataclass(eq=False, repr=False)
 class FlushTransactionResponse(betterproto.Message):
     revisions: List[int] = betterproto.int64_field(1)
-    epoch: int = betterproto.uint64_field(2)
+    cascaded_edits: List["EditData"] = betterproto.message_field(2)
+    epoch: int = betterproto.uint64_field(3)
 
 
 @dataclass(eq=False, repr=False)
@@ -4743,7 +4743,7 @@ class RuntimeBase(ServiceBase):
 
 from typing import TYPE_CHECKING  # noqa: E402
 
-VERSION = "2024.05.20.3"
+VERSION = "2024.05.21.0"
 
 if TYPE_CHECKING:
     from bench.language import Subject

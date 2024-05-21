@@ -20,7 +20,7 @@ from bench.language.access import (
 )
 from bench.language.connection import FetchOptions, StoreEngine
 from bench.language.const import ConditionalOp, EditType, NodeType, PolicyEffect
-from bench.language.graph import GraphDiff, NodeDataGraph, NodeGraph, edit_data_graph
+from bench.language.graph import NodeDataGraph, NodeGraph, edit_data_graph
 from bench.language.node import Node
 from bench.language.query import QueryBuilder
 from bench.language.setup import NODE_CLASS_BY_TYPE
@@ -51,7 +51,7 @@ from bench.proto.wire import (
     WatchEditsRequest,
     WatchEditsResponse,
 )
-from bench.utils.func import bytetuple, group_by, partition, to_uuid, uuid_to_str
+from bench.utils.func import bittuple, group_by, partition, to_uuid, uuid_to_str
 
 logger = structlog.get_logger(__name__)
 
@@ -61,6 +61,7 @@ EPOCH_BUFFER_SIZE = 1000  # every epoch is a set of edits
 class Epoch(NamedTuple):
     epoch: int
     edits: list[EditData]
+    cascaded_edits: list[EditData]
 
 
 @dataclass(slots=True)
@@ -68,7 +69,7 @@ class EditWatcher:
     """An active subscriber to the watch_edits server stream."""
 
     subject: Subject
-    node_types: bytetuple[NodeType]
+    node_types: bittuple[NodeType]
     filters: Mapping[NodeType, Expression]
     sink: asyncio.Queue[Epoch] = field(default_factory=asyncio.Queue)
 
@@ -113,13 +114,13 @@ def _check_nodes_in_same_store(
 class GraphIoServiceBase(BenchServiceBase, GraphIoBase):
     """Common base for global & Bench-local graph I/O operations."""
 
-    def __init__(self, *, bench_id: UUID | None, node_types: bytetuple[NodeType]):
+    def __init__(self, *, bench_id: UUID | None, node_types: bittuple[NodeType]):
         super().__init__()
         self.epoch: int = 0
         self.recent_epochs: deque[Epoch] = deque(maxlen=EPOCH_BUFFER_SIZE)
         self.bench_id: UUID | None = bench_id
         self.scope = GraphScope(bench_id=uuid_to_str(bench_id))
-        self.node_types: bytetuple[NodeType] = node_types
+        self.node_types: bittuple[NodeType] = node_types
         self.watchers: list[EditWatcher] = []
 
     def _get_engines(self, scope: GraphScope) -> tuple[StoreEngine, ...]:
@@ -264,23 +265,18 @@ class GraphIoServiceBase(BenchServiceBase, GraphIoBase):
                 node_type = wiring.unpack_enum(NodeType, node_type)
                 # NOTE :Performance: select only properties required to evaluate edit (id/policies/...?)
                 options = adapt_read_options(subject, node_type, ReadOptions.default())
+                node_ids = tuple(r.id for r in node_references)
                 query = QueryBuilder(
                     node_type=node_type,
-                    filter=C(
-                        ConditionalOp.IN,
-                        property=Node.id,
-                        value=tuple(r.id for r in node_references),
-                    ),
+                    filter=C(ConditionalOp.IN, property=Node.id, value=node_ids),
                     options=options,
                 )
                 connection = await session.tx.connect(request.scope, node_type)
                 result = await connection.fetch(query, FetchOptions(count=False))
-
                 # merge result into data_graph (there may be duplicates)
                 for node in result.nodes:
                     if node.id not in data_graph:
                         data_graph.add(node)
-
                 # all requested nodes must be present
                 if any(str(r.id) not in data_graph for r in node_references):
                     missing = tuple(r for r in node_references if str(r.id) not in data_graph)
@@ -304,30 +300,30 @@ class GraphIoServiceBase(BenchServiceBase, GraphIoBase):
             for node_id in edited_scopes.node_scopes_by_id:
                 node = unpacked_graph.get(node_id)
                 if node is None:
-                    # this is an internal error (all edited nodes should be here)
+                    # this is an internal error (all edited nodes should be loaded)
                     raise RuntimeError(f"node {node_id} not found in unpacked {unpacked_graph!r}")
                 node._validate_self(properties=(), invalid=on_invalid_raise)
             # TODO :Robustness: prevent circular parent/child references
 
             # extend edits
             # (we don't validate this because they're internal)
-            edits = self._adapt_graph_edits(session, unpacked_graph, request.edits)
+            adapted_edits = self._amend_graph_commit(unpacked_graph, request.edits)
 
             # apply edits
-            session.tx._add_pending_edits(edits)
+            session.tx._add_pending_edits(adapted_edits)
             await session.commit()
-            diff = GraphDiff.make(unpacked_graph, edits)
-            logger.info(
-                "graph.commit",
-                subject=subject,
-                request=request,
-                edits=session.tx.edits,
-                diff=diff,
-                epoch=self.epoch,
-                duration=asyncio.get_event_loop().time() - start,
+            self.on_graph_commit(
+                graph=unpacked_graph, edits=adapted_edits, cascaded_edits=session.tx.cascaded_edits
             )
-            self.on_graph_edited(edited_scopes.graph_scopes, diff)
 
+        logger.info(
+            "graph.commit",
+            subject=subject,
+            request=request,
+            edits=session.tx.edits,
+            epoch=self.epoch,
+            duration=asyncio.get_event_loop().time() - start,
+        )
         accepted_revisions = [cast(int, e.revision) for e in request.edits]
         return CommitTransactionResponse(revisions=accepted_revisions, epoch=self.epoch)
 
@@ -346,26 +342,29 @@ class GraphIoServiceBase(BenchServiceBase, GraphIoBase):
     ) -> "CancelTransactionResponse":
         raise GRPCError(GRPCStatus.UNIMPLEMENTED)  # :2PC
 
-    def _adapt_graph_edits(
-        self, session: Session, graph: NodeGraph, edits: list[EditData]
-    ) -> list[EditData]:
+    def _amend_graph_commit(self, graph: NodeGraph, edits: list[EditData]) -> list[EditData]:
         # do nothing by default
         return edits
 
     @final
-    def on_graph_edited(self, scopes: tuple[GraphScope, ...], diff: GraphDiff):
+    def on_graph_commit(
+        self, graph: NodeGraph | None, edits: list[EditData], cascaded_edits: list[EditData]
+    ):
         self.epoch += 1
-        self.recent_epochs.append(Epoch(self.epoch, diff.edits))
+        self.recent_epochs.append(Epoch(self.epoch, edits, cascaded_edits))
 
         # notify watchers
         for watcher in self.watchers:
-            adapted_edits = self._filter_and_adapt_edits(watcher, diff.edits)
+            adapted_edits = self._filter_and_adapt_edits(watcher, edits)
+            adapted_cascaded_edits = self._filter_and_adapt_edits(watcher, cascaded_edits)
             if adapted_edits:
-                watcher.sink.put_nowait(Epoch(self.epoch, adapted_edits))
+                watcher.sink.put_nowait(Epoch(self.epoch, adapted_edits, adapted_cascaded_edits))
 
-        self._on_graph_edited(scopes=scopes, diff=diff)
+        self._on_graph_commit(graph=graph, edits=edits, cascaded_edits=cascaded_edits)
 
-    def _on_graph_edited(self, scopes: tuple[GraphScope, ...], diff: GraphDiff):
+    def _on_graph_commit(
+        self, graph: NodeGraph | None, edits: list[EditData], cascaded_edits: list[EditData]
+    ):
         pass  # do nothing by default
 
     @final
@@ -385,7 +384,7 @@ class GraphIoServiceBase(BenchServiceBase, GraphIoBase):
     ) -> AsyncIterator["WatchEditsResponse"]:
         if not request.node_types:
             raise GRPCError(GRPCStatus.INVALID_ARGUMENT, "no node types provided")
-        node_types = bytetuple(*tuple(wiring.unpack_enum(NodeType, t) for t in request.node_types))
+        node_types = bittuple(*tuple(wiring.unpack_enum(NodeType, t) for t in request.node_types))
         filters: dict[NodeType, Expression] = {
             wiring.unpack_enum(NodeType, k): cast(Expression, wiring.unpack_struct_interp(v))
             for k, v in request.filters.items()
@@ -402,14 +401,15 @@ class GraphIoServiceBase(BenchServiceBase, GraphIoBase):
                 if num_epochs_to_replay > EPOCH_BUFFER_SIZE:
                     raise GRPCError(GRPCStatus.INVALID_ARGUMENT, "too much to replay")
                 epochs_to_replay = []
-                for epoch, edits in reversed(self.recent_epochs):
+                for epoch, edits, cascaded_edits in reversed(self.recent_epochs):
                     if epoch <= request.since_epoch:
                         break
                     edits = self._filter_and_adapt_edits(watcher, edits)
-                    epochs_to_replay.append((epoch, edits))
+                    cascaded_edits = self._filter_and_adapt_edits(watcher, cascaded_edits)
+                    epochs_to_replay.append((epoch, edits, cascaded_edits))
                 if epochs_to_replay:
                     logger.info("graph.watch.replay", watcher=watcher, epochs=epochs_to_replay)
-                    for epoch, edits in epochs_to_replay:
+                    for epoch, edits, cascaded_edits in epochs_to_replay:
                         yield WatchEditsResponse(edits=edits, epoch=epoch)
 
             # listen for new epochs

@@ -402,9 +402,17 @@ IdEnumOrUnion = Union[IdEnum, Union[IdEnum, Any]]
 #  So we make these methods accept 'Any' for compliance. Not great but it's a small footprint.
 EnumT = TypeVar("EnumT", bound=IdEnum)
 
+_ENUM_MEMBERS_BY_ORD: dict[type[IdEnum], list[IdEnum]] = {}
+
+
+def _get_enum_members_by_ord(enum_cls: type[IdEnum]) -> list[IdEnum]:
+    if enum_cls not in _ENUM_MEMBERS_BY_ORD:
+        _ENUM_MEMBERS_BY_ORD[enum_cls] = list(enum_cls.__members__.values())
+    return _ENUM_MEMBERS_BY_ORD[enum_cls]
+
 
 # noinspection PyPep8Naming
-class bytetuple(typing.Generic[EnumT]):
+class bittuple(typing.Generic[EnumT]):
     """
     Tuple with a bitarray for fast membership check.
     We accept only IdEnum instances because we use its ordinals for a compact bitarray.
@@ -412,7 +420,10 @@ class bytetuple(typing.Generic[EnumT]):
 
     def __init__(self, *items: EnumT, enum_cls: type[EnumT] | Union[EnumT, Any] | None = None):
         if len(items) == 1 and isinstance(items[0], Collection):
-            items = tuple(items[0])
+            if type(items[0]) is tuple:
+                items = items[0]
+            else:
+                items = tuple(items[0])
         self.tuple = items
         if enum_cls is None:
             assert len(items) > 0, "enum_cls or args is required"
@@ -435,23 +446,25 @@ class bytetuple(typing.Generic[EnumT]):
 
     __container__ = has
 
-    def __and__(self, other: "bytetuple"):
-        assert isinstance(other, bytetuple), f"invalid type: {type(other)}"
+    def __and__(self, other: "bittuple[EnumT]") -> "bittuple[EnumT]":
+        assert type(other) is bittuple, f"invalid type: {type(other)}"
         assert (
             self.enum_cls == other.enum_cls
         ), f"invalid enum_cls: {self.enum_cls} != {other.enum_cls}"
         combined = self.bits & other.bits
-        items = tuple(self.enum_cls(v) for v in range(len(combined)) if combined[v])
-        return bytetuple(*items)
+        ordered_members = _get_enum_members_by_ord(self.enum_cls)
+        items = tuple(ordered_members[o] for o in combined.search(True))
+        return bittuple(items)  # type: ignore
 
-    def __or__(self, other: "bytetuple"):
-        assert isinstance(other, bytetuple), f"invalid type: {type(other)}"
+    def __or__(self, other: "bittuple[EnumT]") -> "bittuple[EnumT]":
+        assert type(other) is bittuple, f"invalid type: {type(other)}"
         assert (
             self.enum_cls == other.enum_cls
         ), f"invalid enum_cls: {self.enum_cls} != {other.enum_cls}"
         combined = self.bits | other.bits
-        items = tuple(self.enum_cls(v) for v in range(len(combined)) if combined[v])
-        return bytetuple(*items)
+        ordered_members = _get_enum_members_by_ord(self.enum_cls)
+        items = tuple(ordered_members[o] for o in combined.search(True))
+        return bittuple(items)  # type: ignore
 
     def __iter__(self):
         return iter(self.tuple)

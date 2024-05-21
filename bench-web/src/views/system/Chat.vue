@@ -333,16 +333,16 @@ defineExpose<ViewExposed>({ self, id, variants: [Variant.PRIMARY, Variant.COMPAC
           <!-- Context (path) -->
           <template v-if="context != null && context?.metatype != ObjectType.PACKAGE && variant != Variant.COMPACT">
             <NodePath class="flex-shrink-0" :self="toNodeReference(context)" :graph="pkgGraph" />
-            <i class="fas fa-chevron-right text-gray-500 ml-1 mr-1.5" />
+            <i class="fas fa-chevron-right text-gray-400 ml-1 mr-1.5" />
           </template>
           <!-- Icon / Name -->
           <i
             class="fas fa-message mr-1.5 w-5 text-center"
-            :class="[node == null ? 'text-gray-500' : 'text-gray-700']"
+            :class="[thread == null ? 'text-gray-400' : 'text-gray-700']"
           />
           <input
             class="truncate rounded border-0 bg-transparent py-0.5 outline-none ring-0 hover:bg-gray-100 focus:ring-0"
-            :class="[node == null ? 'text-gray-600' : 'text-gray-900', thread?.title != null ? 'font-medium' : '']"
+            :class="[thread == null ? 'text-gray-400' : 'text-gray-900', thread?.title != null ? 'font-medium' : '']"
             spellcheck="false"
             :value="thread?.title"
             :size="(thread?.title?.length ?? 10) + 1"

@@ -1,6 +1,5 @@
 import abc
 from collections import defaultdict, deque
-from dataclasses import dataclass
 from itertools import chain
 from typing import (
     TYPE_CHECKING,
@@ -960,29 +959,3 @@ def edit_data_graph(
                 updated_value = getattr(node_data, prop.name)
                 setattr(existing_node, prop.name, updated_value)
             graph.update(existing_node)
-
-
-@dataclass(slots=True)
-class GraphDiff[T: Node]:
-    """A simplified diff of edited Nodes. Here archive/soft-delete => remove."""
-
-    edits: list[EditData]
-    added: list[T]
-    updated: list[T]
-    removed: list[T]
-
-    def __str__(self):
-        return f"added={self.added!r}, updated={self.updated!r}, removed={self.removed!r}"
-
-    def __repr__(self):
-        return f"<GraphDiff {self!s}>"
-
-    @staticmethod
-    def make(
-        graphs: NodeGraph | DetachedNodeGraph | Collection[NodeGraph | DetachedNodeGraph],
-        edits: list[EditData],
-    ) -> "GraphDiff":
-        if not isinstance(graphs, Collection):
-            graphs = (graphs,)
-
-        raise NotImplementedError  # nocheckin

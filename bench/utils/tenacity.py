@@ -1,7 +1,7 @@
 import asyncio
 from dataclasses import dataclass
 from functools import wraps
-from typing import Awaitable, Callable, Type, TypeVar, Union
+from typing import Awaitable, Callable, Coroutine, Type, TypeVar, Union
 
 T = TypeVar("T")
 
@@ -21,7 +21,7 @@ def retry(
 ):
     """Retry the decorated coroutine function on certain exceptions."""
 
-    def decorator(func: Callable[..., Awaitable[T]]) -> Callable[..., Awaitable[T]]:
+    def decorator(func: Callable[..., Awaitable[T]]) -> Callable[..., Coroutine[None, None, T]]:
         @wraps(func)
         async def wrapper(*args, **kwargs) -> T:
             if callable(options):

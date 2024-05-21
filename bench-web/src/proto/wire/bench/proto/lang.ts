@@ -8301,33 +8301,21 @@ export enum ResourceStatus {
      */
     PENDING = 1,
     /**
-     * @generated from protobuf enum value: RESOURCE_STATUS_CREATING = 5;
+     * @generated from protobuf enum value: RESOURCE_STATUS_HEALTHY = 10;
      */
-    CREATING = 5,
+    HEALTHY = 10,
     /**
-     * @generated from protobuf enum value: RESOURCE_STATUS_UPGRADING = 10;
+     * @generated from protobuf enum value: RESOURCE_STATUS_UNHEALTHY = 20;
      */
-    UPGRADING = 10,
+    UNHEALTHY = 20,
     /**
-     * @generated from protobuf enum value: RESOURCE_STATUS_HEALTHY = 20;
+     * @generated from protobuf enum value: RESOURCE_STATUS_SLEEPING = 30;
      */
-    HEALTHY = 20,
+    SLEEPING = 30,
     /**
-     * @generated from protobuf enum value: RESOURCE_STATUS_UNHEALTHY = 25;
+     * @generated from protobuf enum value: RESOURCE_STATUS_DESTROYED = 40;
      */
-    UNHEALTHY = 25,
-    /**
-     * @generated from protobuf enum value: RESOURCE_STATUS_PAUSED = 30;
-     */
-    PAUSED = 30,
-    /**
-     * @generated from protobuf enum value: RESOURCE_STATUS_DELETING = 35;
-     */
-    DELETING = 35,
-    /**
-     * @generated from protobuf enum value: RESOURCE_STATUS_DELETED = 40;
-     */
-    DELETED = 40
+    DESTROYED = 40
 }
 /**
  * @generated from protobuf enum symbolx.bench.RunErrorKind

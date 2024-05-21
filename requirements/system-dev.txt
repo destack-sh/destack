@@ -53,6 +53,7 @@ distlib==0.3.8
     # via virtualenv
 distro==1.9.0
     # via openai
+docker==7.0.0
 filelock==3.14.0
     # via virtualenv
 frozenlist==1.4.1
@@ -132,6 +133,7 @@ packaging==24.0
     # via
     #   black
     #   build
+    #   docker
     #   pytest
 pathspec==0.12.1
     # via black
@@ -189,6 +191,7 @@ pyyaml==6.0.1
 redis==4.5.4
 requests==2.31.0
     # via
+    #   docker
     #   kubernetes
     #   posthog
     #   requests-oauthlib
@@ -242,6 +245,7 @@ typing-extensions==4.11.0
 urllib3==2.2.1
     # via
     #   botocore
+    #   docker
     #   kubernetes
     #   kubernetes-asyncio
     #   requests

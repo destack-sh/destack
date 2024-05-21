@@ -59,7 +59,7 @@ from bench.language.text import Text
 from bench.language.user import Membership, User
 from bench.language.validation import NAME_CONSTRAINT, ValidationError
 from bench.proto.wire import AnyNodeData, EditData, NodeReferenceData
-from bench.utils.func import IdEnum, bytetuple
+from bench.utils.func import IdEnum, bittuple
 
 if TYPE_CHECKING:
     from bench.language import Bench, Block, Client, Organization, Package, Server
@@ -85,7 +85,7 @@ def _populate_default_access():
 
 # the node types that can have 'policies' applied to them
 #  (not delegated node types, which delegate via subject)
-LEGISLATIVE_NODE_TYPES: bytetuple[NodeType] = bytetuple(
+LEGISLATIVE_NODE_TYPES: bittuple[NodeType] = bittuple(
     NodeType.BENCH,
     NodeType.ENVIRONMENT,
     NodeType.BRANCH,
@@ -97,7 +97,7 @@ LEGISLATIVE_NODE_TYPES: bytetuple[NodeType] = bytetuple(
 
 @_on_completing_setup
 def _check_legislative_types():
-    actual_legislative_node_types: bytetuple[NodeType] = bytetuple(
+    actual_legislative_node_types: bittuple[NodeType] = bittuple(
         *tuple(nt for nt in NODE_TYPES if "policies" in NODE_CLASS_BY_TYPE[nt].__properties__)
     )
     assert actual_legislative_node_types.bits == LEGISLATIVE_NODE_TYPES.bits
