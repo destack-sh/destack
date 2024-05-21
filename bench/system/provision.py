@@ -3,8 +3,7 @@ from typing import TYPE_CHECKING, ClassVar, Collection, Iterable, override
 
 import structlog
 
-from bench.language import Bench, Resource, Server, Store
-from bench.language.bench import ResourceStatus
+from bench.language import Bench, Machine, Resource, ResourceStatus, Server, Store
 from bench.language.const import VERSION, NodeType
 from bench.language.session import Session
 from bench.sql.client import pg_cursor_to_store
@@ -13,6 +12,7 @@ from bench.system.core import AsyncHostPlugin, CommittedChange, HostSpec
 from bench.system.neon import NeonApi
 from bench.utils.env import ENVIRONMENT
 from bench.utils.func import bittuple
+from bench.utils.utils import get_from_env
 
 if TYPE_CHECKING:
     pass
@@ -26,20 +26,26 @@ class Provisioner[T: Resource](AsyncHostPlugin[T], abc.ABC):
     Synchronize the declared state of Bench resources with their actual (external) state (both ways).
     """
 
-    node_types: ClassVar[bittuple[NodeType]]
+    """
+    The types of nodes this Provisioner can handle
+    (separate from node types to watch in plugin.)
+    """
+    provision_types: ClassVar[bittuple[NodeType]]
 
     @override
     async def on_graph_commit_async(self, commit: CommittedChange[T]) -> None:
-        async with self._host.session() as session:
-            for resource in commit.added:
-                await self.provision(resource)
-                await session.commit()
-            for resource in commit.updated:
-                await self.update(resource)
-                await session.commit()
-            for resource in commit.removed:
-                await self.decommission(resource)
-                await session.commit()
+        if commit.has(self.provision_types):
+            provision_commit = commit.trim_to(self.provision_types)
+            async with self._host.session() as session:
+                for resource in provision_commit.added:
+                    await self.provision(resource)
+                    await session.commit()
+                for resource in provision_commit.updated:
+                    await self.update(resource)
+                    await session.commit()
+                for resource in provision_commit.removed:
+                    await self.decommission(resource)
+                    await session.commit()
 
     async def provision(self, resource: T):
         """Provision the resource."""
@@ -61,7 +67,7 @@ class Provisioner[T: Resource](AsyncHostPlugin[T], abc.ABC):
 class NeonStoreProvisioner(Provisioner[Store]):
     """Provision Stores with the Neon API."""
 
-    node_types = bittuple(NodeType.STORE)
+    watch_types = provision_types = bittuple(NodeType.STORE)
 
     def __init__(self, host: "HostSpec", bench: Bench, neon_api: "NeonApi"):
         super().__init__(host, bench)
@@ -98,23 +104,61 @@ class NeonStoreProvisioner(Provisioner[Store]):
         resource.status = ResourceStatus.DESTROYED
 
 
-# nocheckin: implement provisioners
-class LocalhostServerProvisioner(Provisioner[Server]):
-    """Provision Servers by short-circuiting Machines to localhost."""
+class ElasticServerProvisioner(Provisioner[Server]):
+    """Provision Servers by creating/deleting/scaling Machines 'on-demand'."""
 
-    node_types = bittuple(NodeType.SERVER, NodeType.MACHINE)
+    watch_types = bittuple(NodeType.SERVER, NodeType.MACHINE)
+    provision_types = bittuple(NodeType.SERVER)
+
+    # TODO :Broken: scale machines properly for server
+
+    @override
+    async def provision(self, resource: Server):
+        machine = Machine(name="Machine1", profile=resource.profile)
+        resource.machines.append(machine)
+
+    @override
+    async def update(self, resource: Server):
+        pass  # see above
+
+    @override
+    async def decommission(self, resource: Server):
+        pass  # nothing special, child machines are automatically removed too
 
 
-class DockerServerProvisioner(Provisioner[Server]):
-    """Provision Servers by deploying Machines as containers in a Docker installation."""
+class LocalhostMachineProvisioner(Provisioner[Machine]):
+    """Provision Machines by short-circuiting to localhost."""
 
-    node_types = bittuple(NodeType.SERVER, NodeType.MACHINE)
+    watch_types = provision_types = bittuple(NodeType.MACHINE)
+
+    def __init__(self, host: HostSpec, bench: Bench, local_machine_url: str):
+        super().__init__(host, bench)
+        self._local_machine_url = local_machine_url
+
+    @override
+    async def provision(self, resource: Machine):
+        resource.connection_uri = self._local_machine_url
+        resource.status = ResourceStatus.HEALTHY
+
+    @override
+    async def decommission(self, resource: Machine):
+        resource.status = ResourceStatus.DESTROYED
 
 
-class KubernetesServerProvisioner(Provisioner[Server]):
-    """Provision Servers by deploying Machines as Pods on Kubernetes."""
+class DockerMachineProvisioner(Provisioner[Machine]):
+    """Provision Machines as containers in a Docker installation."""
 
-    node_types = bittuple(NodeType.SERVER, NodeType.MACHINE)
+    watch_types = provision_types = bittuple(NodeType.MACHINE)
+
+    # TODO :Incomplete: DockerMachineProvisioner
+
+
+class KubernetesMachineProvisioner(Provisioner[Machine]):
+    """Provision Machines as Pods on Kubernetes."""
+
+    watch_types = provision_types = bittuple(NodeType.MACHINE)
+
+    # TODO :Incomplete: KubernetesMachineProvisioner
 
 
 def get_provisioners_for(host: HostSpec, bench: Bench) -> list[Provisioner]:
@@ -123,12 +167,14 @@ def get_provisioners_for(host: HostSpec, bench: Bench) -> list[Provisioner]:
     if ENVIRONMENT == "dev" or ENVIRONMENT == "test":
         return [
             NeonStoreProvisioner(host, bench, neon_api),
-            LocalhostServerProvisioner(host, bench),
+            ElasticServerProvisioner(host, bench),
+            LocalhostMachineProvisioner(host, bench, get_from_env("LOCAL_MACHINE_URL")),
         ]
     elif ENVIRONMENT == "prod":
         return [
             NeonStoreProvisioner(host, bench, neon_api),
-            KubernetesServerProvisioner(host, bench),
+            ElasticServerProvisioner(host, bench),
+            KubernetesMachineProvisioner(host, bench),
         ]
     else:
         raise RuntimeError(f"unexpected environment: {ENVIRONMENT!r}")
@@ -139,7 +185,7 @@ def get_provisioner(
 ) -> Provisioner | None:
     """Gets the first suitable provisioner (if any)"""
     for provisioner in provisioners:
-        if resource.metatype in provisioner.node_types:
+        if resource.metatype in provisioner.provision_types:
             return provisioner
     return None
 
@@ -148,6 +194,7 @@ async def provision_resource(resource: Resource, provisioners: Collection[Provis
     provisioner = get_provisioner(resource, provisioners)
     if provisioner is None:
         raise ValueError(f"no provisioner for {resource!r} in {provisioners!r}")
+    await provisioner.provision(resource)
 
 
 async def provision_resources(

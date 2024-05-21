@@ -8,7 +8,6 @@ from bench.language.const import NodeType, RunStatus
 from bench.language.run import Run
 from bench.system.core import CommittedChange, HostPlugin, HostSpec
 from bench.utils.func import bittuple
-from bench.utils.task import TaskManager
 
 if TYPE_CHECKING:
     pass
@@ -19,7 +18,7 @@ logger = structlog.get_logger(__name__)
 class RunPlugin(HostPlugin[Run]):
     """Distribute new (and forgotten) unassigned Runs to Runtimes (on Machines)."""
 
-    node_types = bittuple(NodeType.RUN)
+    watch_types = bittuple(NodeType.RUN)
 
     def __init__(self, host: HostSpec, bench: Bench):
         super().__init__(host, bench)
@@ -29,9 +28,9 @@ class RunPlugin(HostPlugin[Run]):
         return f"queue={self._runs_to_queue.qsize()}"
 
     @override
-    async def start(self, tasks: TaskManager) -> None:
+    async def start(self) -> None:
         # TODO :Robustness: cancel/re-queue Runs stuck on dead Machines
-        tasks.start_queue(self._runs_to_queue, self._process_run)
+        self._tasks.start_queue(self._runs_to_queue, self._process_run)
 
     @override
     def on_graph_commit(self, commit: CommittedChange[Run]) -> None:
@@ -49,6 +48,6 @@ class RunPlugin(HostPlugin[Run]):
         """Distributes runs to be queued in Runtimes. If no Machine is available, we start one."""
         # find machine for run
         assert run.package_id is not None, f"missing package id for run {run!r}"
-        package = self._host._packages.get(run.package_id)
+        package = self._host.get_package(run.package_id)
         assert package is not None, f"missing package for run {run!r}"
         raise NotImplementedError("nocheckin")

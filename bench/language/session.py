@@ -1,12 +1,13 @@
 import contextvars
 from datetime import datetime
 from typing import TYPE_CHECKING, Callable, Collection, Optional
+from uuid import UUID
 
 import structlog
 
 from bench.language.connection import StoreEngine
 from bench.language.const import InterpStatus, NodeType, SessionStatus, StructType, _active_session
-from bench.language.graph import NodeGraph
+from bench.language.graph import NodeGraphLike
 from bench.language.node import Node, Struct, node, struct, struct_component
 from bench.language.property import Property, p_internal, p_node_parent, p_runtime, p_system
 from bench.language.transaction import Transaction
@@ -41,7 +42,7 @@ if TYPE_CHECKING:
 # pyright: reportIncompatibleVariableOverride=false
 
 logger = structlog.get_logger(__name__)
-CommitHook = Callable[[NodeGraph | None, list[EditData], list[EditData]], None]
+CommitHook = Callable[[NodeGraphLike, list[EditData], list[EditData]], None]
 
 
 @node(
@@ -82,6 +83,7 @@ class Session(Node[SessionData]):
     # transaction
     _is_readonly: bool = p_runtime(default=False)
     _tx: Transaction | None = p_runtime(default=None)
+    _edited_nodes_by_id: dict[UUID, Node] = p_runtime(default_factory=dict)
     _engines: tuple["StoreEngine", ...] = p_runtime(default_factory=tuple)
     _active_session_token: contextvars.Token | None = p_runtime(default=None)
     _on_commit_hook: Optional[CommitHook] = p_runtime(default=None)
@@ -140,7 +142,7 @@ class Session(Node[SessionData]):
         assert self._host is not None, f"host not available in {self!r}"
         return self._host
 
-    async def open(self, session_flush_interval: float = 0.1):
+    async def open(self):
         """Opens the session for regular business."""
 
         if self.opened_at is not None:
@@ -157,11 +159,11 @@ class Session(Node[SessionData]):
         assert self.is_open, f"cannot flush {self!r} when closed"
         await self.tx.flush()
 
-    async def commit(self, graph: NodeGraph | None = None):
+    async def commit(self, suppress_hook: bool = False):
         assert self.is_open, f"cannot commit {self!r} when closed"
         await self.tx.commit()
-        if self._on_commit_hook and self.tx.edits:
-            self._on_commit_hook(graph, self.tx.edits, self.tx.cascaded_edits)
+        if not suppress_hook and self._on_commit_hook and self.tx.edits:
+            self._on_commit_hook(self._edited_nodes_by_id, self.tx.edits, self.tx.cascaded_edits)
 
     async def rollback(self):
         assert self.is_open, f"cannot rollback {self!r} when closed"
@@ -230,54 +232,72 @@ class Session(Node[SessionData]):
         """Creates a new node. Errors if the node already exists."""
         assert self._tx is not None, f"no active transaction in {self!r}"
         for n in nodes:
+            self._edited_nodes_by_id[n.id] = n
             self._tx.create(n, self._edit_subject)
 
     def upsert(self, *nodes: Node):
         """Creates or updates a node. Any non-id properties will be overwritten."""
         assert self._tx is not None, f"no active transaction in {self!r}"
         for n in nodes:
+            self._edited_nodes_by_id[n.id] = n
             self._tx.upsert(n, self._edit_subject)
 
     def update(self, *nodes: Node, properties: Collection[Property]):
         """Updates an existing node. Cannot move. The given properties are overwritten."""
         assert self._tx is not None, f"no active transaction in {self!r}"
         for n in nodes:
+            self._edited_nodes_by_id[n.id] = n
             self._tx.update(n, self._edit_subject, properties)
 
     def move(self, *nodes: Node):
         """Moves and updates an existing node."""
         assert self._tx is not None, f"no active transaction in {self!r}"
         for n in nodes:
+            self._edited_nodes_by_id[n.id] = n
             self._tx.move(n, self._edit_subject)
 
-    def delete(self, *nodes: Node):
+    def soft_delete(self, *nodes: Node):
         """Deletes a node with the option to recover it for a limited time."""
         assert self._tx is not None, f"no active transaction in {self!r}"
         for n in nodes:
+            self._edited_nodes_by_id[n.id] = n
+            # descendants will be removed from graph, so track them manually
+            for descendant in n._graph.iter_descendants(n, recursive=True):
+                self._edited_nodes_by_id[descendant.id] = descendant
             self._tx.soft_delete(n, self._edit_subject)
 
     def restore(self, *nodes: Node):
         """Restore a soft deleted node."""
         assert self._tx is not None, f"no active  transaction in {self!r}"
         for n in nodes:
+            self._edited_nodes_by_id[n.id] = n
             self._tx.restore(n, self._edit_subject)
 
     def archive(self, *nodes: Node):
         """Marks a node as archived, so it will be hidden by default."""
         assert self._tx is not None, f"no active transaction in {self!r}"
         for n in nodes:
+            self._edited_nodes_by_id[n.id] = n
+            # descendants will be removed from graph, so track them manually
+            for descendant in n._graph.iter_descendants(n, recursive=True):
+                self._edited_nodes_by_id[descendant.id] = descendant
             self._tx.archive(n, self._edit_subject)
 
     def unarchive(self, *nodes: Node):
         """Re-track a node from the archive in its original place."""
         assert self._tx is not None, f"no active transaction in {self!r}"
         for n in nodes:
+            self._edited_nodes_by_id[n.id] = n
             self._tx.unarchive(n, self._edit_subject)
 
     def hard_delete(self, *nodes: Node):
         """Irreversibly deletes a node."""
         assert self._tx is not None, f"no active transaction in {self!r}"
         for n in nodes:
+            self._edited_nodes_by_id[n.id] = n
+            # descendants will be removed from graph, so track them manually
+            for descendant in n._graph.iter_descendants(n, recursive=True):
+                self._edited_nodes_by_id[descendant.id] = descendant
             self._tx.delete(n, self._edit_subject)
 
 

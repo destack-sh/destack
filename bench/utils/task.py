@@ -8,11 +8,12 @@ from bench.utils.utils import sentry_capture
 class TaskManager:
     """Simple async task manager incl. error handling and logging"""
 
-    def __init__(self, owner: Any, logger: Any):
+    def __init__(self, owner: Any, logger: Any, task_id_prefix: str | None = None):
         self._tasks = {}
         self._errors = []
         self._owner = owner
         self._logger = logger
+        self._task_id_prefix = task_id_prefix
 
     @property
     def healthy(self):
@@ -20,6 +21,8 @@ class TaskManager:
 
     async def _wrap_task(self, coro, task_id: str | None = None):
         task_id = task_id or coro.__name__
+        if self._task_id_prefix:
+            task_id = f"{self._task_id_prefix}_{task_id}"
         try:
             ret = await coro
             self._logger.debug("task.done", owner=self._owner, task_id=task_id)
