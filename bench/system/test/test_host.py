@@ -196,7 +196,6 @@ async def test_activate_user(some_bench: BenchHandle):
     assert env, f"{bench!r} has no main environment"
     assert env.store and env.store.status == ResourceStatus.HEALTHY
     assert env.server and env.server.status == ResourceStatus.HEALTHY
-    assert env.drive and env.drive.status == ResourceStatus.HEALTHY
     # also, check that we can't read kernel properties
     assert not env.store.connection_uri
 

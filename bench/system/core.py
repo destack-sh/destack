@@ -94,12 +94,23 @@ class Commit[T: Node]:
     def edited(self) -> Iterable[T]:
         return chain(self.added, self.updated, self.removed)
 
-    def has(self, node_types: bittuple[NodeType]) -> bool:
+    def has(self, node_types: NodeType | tuple[NodeType, ...] | bittuple[NodeType]) -> bool:
         """Check if the diff contains any of the given node types."""
-        return (self.edited_types.bits & node_types.bits).any()
+        if isinstance(node_types, NodeType):
+            return node_types in self.edited_types
+        elif isinstance(node_types, tuple):
+            return any(t in self.edited_types for t in node_types)
+        else:
+            return (self.edited_types.bits & node_types.bits).any()
 
-    def trim_to(self, node_types: bittuple[NodeType]) -> "Commit[T]":
+    def trim_to(
+        self, node_types: NodeType | tuple[NodeType, ...] | bittuple[NodeType]
+    ) -> "Commit[T]":
         """Trims the diff to only include the given node types."""
+        if isinstance(node_types, NodeType):
+            node_types = bittuple(node_types)
+        elif isinstance(node_types, tuple):
+            node_types = bittuple(*node_types)
         return Commit(
             edits=[e for e in self.edits if NodeType(e.node_type) in node_types],
             cascaded_edits=[e for e in self.cascaded_edits if NodeType(e.node_type) in node_types],
@@ -235,8 +246,8 @@ class HostPlugin[T: Node](abc.ABC):
         """After closing, wait for any stuff you need to wait for (if any)."""
         await self._tasks.wait_closed()
 
-    async def wait_events_processed(self) -> None:
-        """Wait for the queue to be empty (if any)."""
+    async def wait_step(self, timeout: float) -> None:
+        """Wait for any events in this logical 'step' to finish processing (if any)."""
         pass
 
     #
@@ -265,8 +276,15 @@ class AsyncHostPlugin[T: Node](HostPlugin, abc.ABC):
         self._tasks.check_no_errors()
         self._commit_queue.put_nowait(commit)
 
-    async def wait_events_processed(self) -> None:
-        await self._commit_queue.join()
+    async def wait_step(self, timeout: float) -> None:
+        if self._commit_queue.empty():
+            return  # NOTE :Robustness: not sure why we need this early exit, otherwise we stall
+        try:
+            await asyncio.wait_for(self._commit_queue.join(), timeout=timeout)
+        except asyncio.TimeoutError:
+            raise RuntimeError(
+                f"{self!r} timed out after {timeout}s waiting for {self._commit_queue.qsize()} commits"
+            )
         self._tasks.check_no_errors()
 
     async def on_commit_async(self, commit: Commit) -> None:
