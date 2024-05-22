@@ -31,7 +31,7 @@ class RunPlugin(HostPlugin[Run]):
     @override
     async def start(self, session: Session) -> None:
         # TODO :Robustness: cancel/re-queue Runs stuck on dead Machines
-        self._tasks.start_queue(self._runs_to_queue, self._process_run)
+        self._tasks.start_queue(self._runs_to_queue, self._process_run, skip_errors=True)
 
     @override
     def on_commit(self, commit: Commit[Run]) -> None:

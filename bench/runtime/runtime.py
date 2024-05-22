@@ -270,10 +270,16 @@ class RuntimeProcess:
         self.id = id
         self._runtime = runtime
         self._queue = queue
-        self._tasks = TaskManager(runtime, logger)
+        self._tasks = TaskManager(owner=self, logger=logger)
+
+    def __str__(self):
+        return f"{self.id} in {self._runtime!r}"
+
+    def __repr__(self):
+        return f"<{self.__class__.__name__} {self}>"
 
     async def start(self):
-        self._tasks.start_queue(self._queue, self._process_run, f"run{self.id}")
+        self._tasks.start_queue(self._queue, self._process_run, f"run{self.id}", skip_errors=True)
 
     async def _process_run(self, run_data: RunData):
         raise NotImplementedError("nocheckin: _process_run")

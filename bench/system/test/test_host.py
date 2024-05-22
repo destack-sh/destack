@@ -67,7 +67,7 @@ class BenchHandle:
         assert self._host is not None, f"no host for {self!r}"
         return self._host
 
-    def make_session(self) -> Session:
+    def session(self) -> Session:
         assert self._supervisor is not None, f"no supervisor for {self!r}"
         assert self._host is not None, f"no host for {self!r}"
         engines = (
@@ -91,6 +91,7 @@ class BenchHandle:
             _engines=engines,
             _supervisor=self._supervisor,
             _host=self._host,
+            _origin=self.owner_handle.origin,
         )
 
 
@@ -201,7 +202,7 @@ async def test_activate_user(some_bench: BenchHandle):
 
 
 async def test_create_run(some_bench: BenchHandle):
-    async with some_bench.make_session() as session:
+    async with some_bench.session() as session:
         run = Run(
             parent=some_bench.package,
             kind=RunKind.LAMBDA,
