@@ -213,6 +213,10 @@ class Host(GraphIoServiceBase, HostBase, HostSpec):
         return self._packages.get(package_id)
 
     @override
+    def on_error(self, source: HostPlugin, error: Exception) -> None:
+        pass  # error is already reported, we just keep running
+
+    @override
     def _get_engines(self, scope: GraphScope) -> tuple[StoreEngine, ...]:
         # TODO :Performance!: support in-memory engines in Host (from local data graph)
         assert self._global_pg_engine is not None, f"global pg engine not initialized in {self!r}"

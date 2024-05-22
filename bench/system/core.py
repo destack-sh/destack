@@ -3,7 +3,7 @@ import asyncio
 from contextlib import asynccontextmanager
 from dataclasses import dataclass
 from itertools import chain
-from typing import ClassVar, Iterable, override
+from typing import ClassVar, Iterable, final, override
 from uuid import UUID
 
 import bitarray
@@ -197,20 +197,43 @@ def unpack_committed_change(
 class HostSpec(abc.ABC):
     """Base interface for the Host so we can pass it around more easily (and stub it)."""
 
+    @abc.abstractmethod
+    def on_error(self, source: "HostPlugin", error: Exception) -> None:
+        """Handle a fatal error."""
+        ...
+
+    @abc.abstractmethod
     def get_package(self, package_id: UUID) -> Package | None:
         """Get a *loaded* Package."""
-        raise NotImplementedError
+        ...
 
+    @abc.abstractmethod
     def session(self, scope: GraphScope | None = None) -> Session:
         """Create a new Session in the Host with the given (or default) scope."""
-        raise NotImplementedError
+        ...
 
 
-DEAD_HOST = HostSpec()
+class _DeadHost(HostSpec):
+    """A stub for a dead Host."""
+
+    @override
+    def on_error(self, source: "HostPlugin", error: Exception) -> None:
+        raise NotImplementedError("dead host")
+
+    @override
+    def get_package(self, package_id: UUID) -> None:
+        raise NotImplementedError("dead host")
+
+    @override
+    def session(self, scope: GraphScope | None = None) -> Session:
+        raise NotImplementedError("dead host")
+
+
+DEAD_HOST: HostSpec = _DeadHost()
 
 
 class HostPlugin[T: Node](abc.ABC):
-    """A plugin on the Host system of a Bench."""
+    """A plugin into the Host operating system of a Bench."""
 
     """The type of nodes to subscribe to for edits."""
     watch_types: ClassVar[bittuple[NodeType]]
@@ -218,7 +241,9 @@ class HostPlugin[T: Node](abc.ABC):
     def __init__(self, host: HostSpec, bench: "Bench"):
         self._host = host
         self._bench = bench
-        self._tasks = TaskManager(self, logger)
+        self._tasks = TaskManager(
+            owner=self, logger=logger, on_error=lambda e: host.on_error(source=self, error=e)
+        )
 
     def __str__(self) -> str:
         return ""
@@ -260,7 +285,7 @@ class HostPlugin[T: Node](abc.ABC):
 
 
 class AsyncHostPlugin[T: Node](HostPlugin, abc.ABC):
-    """A plugin with async event handlers."""
+    """A Host plugin with async event handlers."""
 
     def __init__(self, host: HostSpec, bench: "Bench"):
         super().__init__(host, bench)
@@ -269,13 +294,13 @@ class AsyncHostPlugin[T: Node](HostPlugin, abc.ABC):
     @override
     async def start(self, session: Session) -> None:
         await super().start(session)
-        self._tasks.start_queue(self._commit_queue, self.on_commit_async)
+        self._tasks.start_queue(self._commit_queue, self.on_commit_async, skip_errors=True)
 
     @override
     def on_commit(self, commit: Commit) -> None:
-        self._tasks.check_no_errors()
         self._commit_queue.put_nowait(commit)
 
+    @final
     async def wait_step(self, timeout: float) -> None:
         if self._commit_queue.empty():
             return  # NOTE :Robustness: not sure why we need this early exit, otherwise we stall

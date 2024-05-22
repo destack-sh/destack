@@ -13,6 +13,7 @@ from bench.language.node import Node, Struct, node, struct, struct_component
 from bench.language.property import Property, p_internal, p_node_parent, p_runtime, p_system
 from bench.language.transaction import Transaction
 from bench.proto.wire import (
+    ClientOrigin,
     EditData,
     GraphScope,
     HostStub,
@@ -83,6 +84,7 @@ class Session(Node[SessionData]):
 
     # transaction
     _is_readonly: bool = p_runtime(default=False)
+    _origin: ClientOrigin | None = p_runtime(default=None)
     _tx: Transaction | None = p_runtime(default=None)
     _tx_lock: asyncio.Lock = p_runtime(default_factory=asyncio.Lock)
     _edited_nodes_by_id: dict[UUID, Node] = p_runtime(default_factory=dict)
@@ -152,7 +154,7 @@ class Session(Node[SessionData]):
         self._active_session_token = _active_session.set(self)
 
         # open transaction
-        self._tx = Transaction(session=self, is_readonly=self._is_readonly)
+        self._tx = Transaction(session=self, origin=self._origin, is_readonly=self._is_readonly)
 
         self.opened_at = utcnow()
         logger.trace("session.open", session=self)

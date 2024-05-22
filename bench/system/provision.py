@@ -86,9 +86,8 @@ class Provisioner[PT: Resource, WT: Resource](AsyncHostPlugin[WT], abc.ABC):
             logger.error("resource.provision.error", resource=resource, error=e, exc_info=True)
             raise
 
-    async def _provision(self, resource: PT):
-        """Provision the resource."""
-        raise NotImplementedError
+    @abc.abstractmethod
+    async def _provision(self, resource: PT): ...
 
     @final
     async def update(self, resource: PT):
@@ -106,7 +105,6 @@ class Provisioner[PT: Resource, WT: Resource](AsyncHostPlugin[WT], abc.ABC):
             raise
 
     async def _update(self, resource: PT):
-        """Update the resource properties."""
         pass
 
     @final
@@ -124,9 +122,8 @@ class Provisioner[PT: Resource, WT: Resource](AsyncHostPlugin[WT], abc.ABC):
             logger.error("resource.decommission.error", resource=resource, error=e, exc_info=True)
             raise
 
-    async def _decommission(self, resource: PT):
-        """Decommission the resource."""
-        raise NotImplementedError
+    @abc.abstractmethod
+    async def _decommission(self, resource: PT): ...
 
 
 class NeonStoreProvisioner(Provisioner[Store, Store]):
@@ -293,7 +290,6 @@ def get_provisioners_for(host: HostSpec, bench: Bench) -> list[Provisioner]:
         return [
             NeonStoreProvisioner(host, bench, neon_api),
             ElasticServerProvisioner(host, bench),
-            KubernetesMachineProvisioner(host, bench),
             S3DriveProvisioner(host, bench),
         ]
     else:

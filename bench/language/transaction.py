@@ -11,7 +11,7 @@ from bench.language.connection import StoreConnection, StoreEngine
 from bench.language.const import BenchError, EditType, NodeType
 from bench.language.node import Node, Property
 from bench.proto import wire
-from bench.proto.wire import AnyNodeData, EditData, GraphScope, NodeReferenceData
+from bench.proto.wire import AnyNodeData, ClientOrigin, EditData, GraphScope, NodeReferenceData
 from bench.utils.dt import utcnow
 from bench.utils.func import uuid_to_str
 from bench.utils.uuidt import UUIDT
@@ -38,6 +38,7 @@ class Transaction:
 
     id: UUID = dcfield(default_factory=UUIDT)
     session: Optional["Session"] = dcfield(default=None)
+    origin: ClientOrigin | None = dcfield(default=None)
     is_readonly: bool = dcfield(default=False)
     _connections_by_engine_id: dict[Any, StoreConnection] = dcfield(default_factory=dict)
 
@@ -141,6 +142,7 @@ class Transaction:
             properties=list(properties) if properties is not None else [],
             scope=scope,
             subject=subject_data,
+            origin=self.origin,
             revision=None,  # not known yet
         )
         return edit
