@@ -246,7 +246,7 @@ class Host(GraphIoServiceBase, HostBase, HostSpec):
             await asyncio.gather(*(plugin.start(session) for plugin in self._plugins))
             await session.commit()
             # wait for plugins to finish processing any commits (and error early)
-            await asyncio.gather(*(plugin.wait_events_processed() for plugin in self._plugins))
+            await asyncio.gather(*(plugin.wait_step(timeout=10) for plugin in self._plugins))
         session.untrack_many(self._bench)
 
         # preload main packages

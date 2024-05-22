@@ -22,7 +22,7 @@ if TYPE_CHECKING:
 logger = structlog.get_logger(__name__)
 
 
-class Provisioner[T: Resource](AsyncHostPlugin[T], abc.ABC):
+class Provisioner[PT: Resource, WT: Resource](AsyncHostPlugin[WT], abc.ABC):
     """
     A provisioner for resources of the declared types.
     Synchronize the declared state of Bench resources with their actual (external) state (both ways).
@@ -36,7 +36,7 @@ class Provisioner[T: Resource](AsyncHostPlugin[T], abc.ABC):
         await super().start(session)
 
         resources = tuple(
-            cast(T, r) for r in self._bench.resources if r.metatype in self.provision_types
+            cast(PT, r) for r in self._bench.resources if r.metatype in self.provision_types
         )
         for resource in resources:
             # provision newly declared resources
@@ -53,10 +53,10 @@ class Provisioner[T: Resource](AsyncHostPlugin[T], abc.ABC):
                 await session.commit()
 
     @override
-    async def on_commit_async(self, commit: Commit[T]) -> None:
+    async def on_commit_async(self, commit: Commit[WT]) -> None:
         # handle edit by updating resource
         if commit.has(self.provision_types):
-            subcommit = commit.trim_to(self.provision_types)
+            subcommit = cast(Commit[PT], commit.trim_to(self.provision_types))
             async with self._host.session() as session:
                 for resource in subcommit.added:
                     if resource.status == ResourceStatus.DECLARED:
@@ -72,7 +72,7 @@ class Provisioner[T: Resource](AsyncHostPlugin[T], abc.ABC):
                         await session.commit()
 
     @final
-    async def provision(self, resource: T):
+    async def provision(self, resource: PT):
         """Provision the resource."""
         try:
             start = asyncio.get_event_loop().time()
@@ -86,12 +86,12 @@ class Provisioner[T: Resource](AsyncHostPlugin[T], abc.ABC):
             logger.error("resource.provision.error", resource=resource, error=e, exc_info=True)
             raise
 
-    async def _provision(self, resource: T):
+    async def _provision(self, resource: PT):
         """Provision the resource."""
         raise NotImplementedError
 
     @final
-    async def update(self, resource: T):
+    async def update(self, resource: PT):
         """Update the resource properties."""
         try:
             start = asyncio.get_event_loop().time()
@@ -105,12 +105,12 @@ class Provisioner[T: Resource](AsyncHostPlugin[T], abc.ABC):
             logger.error("resource.update.error", resource=resource, error=e, exc_info=True)
             raise
 
-    async def _update(self, resource: T):
+    async def _update(self, resource: PT):
         """Update the resource properties."""
         pass
 
     @final
-    async def decommission(self, resource: T):
+    async def decommission(self, resource: PT):
         """Decommission the resource."""
         try:
             start = asyncio.get_event_loop().time()
@@ -124,12 +124,12 @@ class Provisioner[T: Resource](AsyncHostPlugin[T], abc.ABC):
             logger.error("resource.decommission.error", resource=resource, error=e, exc_info=True)
             raise
 
-    async def _decommission(self, resource: T):
+    async def _decommission(self, resource: PT):
         """Decommission the resource."""
         raise NotImplementedError
 
 
-class NeonStoreProvisioner(Provisioner[Store]):
+class NeonStoreProvisioner(Provisioner[Store, Store]):
     """Provision Stores with the Neon API."""
 
     watch_types = bittuple(NodeType.STORE)
@@ -184,13 +184,29 @@ class NeonStoreProvisioner(Provisioner[Store]):
         resource.status = ResourceStatus.DECOMMISSIONED
 
 
-class ElasticServerProvisioner(Provisioner[Server]):
+class ElasticServerProvisioner(Provisioner[Server, Server | Machine]):
     """Provision Servers by creating/deleting/scaling Machines 'on-demand'."""
 
     watch_types = bittuple(NodeType.SERVER, NodeType.MACHINE)
     provision_types = bittuple(NodeType.SERVER)
 
-    # TODO :Broken: scale machines properly in ElasticServerProvisioner
+    # TODO :Broken: scale & react to machines properly in ElasticServerProvisioner
+
+    @override
+    async def on_commit_async(self, commit: Commit[Server | Machine]) -> None:
+        await super().on_commit_async(commit)
+        if commit.has(NodeType.MACHINE):
+            # mark server as healthy/unhealthy based on its machines
+            subcommit = cast(Commit[Machine], commit.trim_to(NodeType.MACHINE))
+            servers = {machine.parent.id: machine.parent for machine in subcommit.edited}
+            for server in servers.values():
+                all_healthy = all(
+                    machine.status == ResourceStatus.HEALTHY for machine in server.machines
+                )
+                if all_healthy and server.status != ResourceStatus.HEALTHY:
+                    server.status = ResourceStatus.HEALTHY
+                elif not all_healthy and server.status == ResourceStatus.HEALTHY:
+                    server.status = ResourceStatus.UNHEALTHY
 
     @override
     async def _provision(self, resource: Server):
@@ -200,9 +216,7 @@ class ElasticServerProvisioner(Provisioner[Server]):
 
     @override
     async def _update(self, resource: Server):
-        # see above
-        if resource.current_profile != resource.profile:
-            resource.current_profile = resource.profile
+        pass  # see above
 
     @override
     async def _decommission(self, resource: Server):
@@ -210,7 +224,7 @@ class ElasticServerProvisioner(Provisioner[Server]):
         resource.status = ResourceStatus.DECOMMISSIONED
 
 
-class LocalhostMachineProvisioner(Provisioner[Machine]):
+class LocalhostMachineProvisioner(Provisioner[Machine, Machine]):
     """Provision Machines by short-circuiting to localhost."""
 
     watch_types = bittuple(NodeType.MACHINE)
@@ -230,7 +244,7 @@ class LocalhostMachineProvisioner(Provisioner[Machine]):
         resource.status = ResourceStatus.DECOMMISSIONED
 
 
-class DockerMachineProvisioner(Provisioner[Machine]):
+class DockerMachineProvisioner(Provisioner[Machine, Machine]):
     """Provision Machines as containers in a Docker installation."""
 
     watch_types = bittuple(NodeType.MACHINE)
@@ -239,7 +253,7 @@ class DockerMachineProvisioner(Provisioner[Machine]):
     # TODO :Incomplete: DockerMachineProvisioner
 
 
-class KubernetesMachineProvisioner(Provisioner[Machine]):
+class KubernetesMachineProvisioner(Provisioner[Machine, Machine]):
     """Provision Machines as Pods on Kubernetes."""
 
     watch_types = bittuple(NodeType.MACHINE)
@@ -248,7 +262,7 @@ class KubernetesMachineProvisioner(Provisioner[Machine]):
     # TODO :Incomplete: KubernetesMachineProvisioner
 
 
-class S3DriveProvisioner(Provisioner[Drive]):
+class S3DriveProvisioner(Provisioner[Drive, Drive]):
     """Provision Drives with an S3-compatible API."""
 
     watch_types = bittuple(NodeType.DRIVE)
