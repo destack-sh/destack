@@ -1,9 +1,10 @@
 import abc
-from typing import TYPE_CHECKING, ClassVar, cast, override
+import asyncio
+from typing import TYPE_CHECKING, ClassVar, cast, final, override
 
 import structlog
 
-from bench.language import Bench, Machine, Resource, ResourceStatus, Server, Store
+from bench.language import Bench, Drive, Machine, Resource, ResourceStatus, Server, Store
 from bench.language.bench import MachineProfile
 from bench.language.const import VERSION, NodeType
 from bench.language.session import Session
@@ -52,7 +53,7 @@ class Provisioner[T: Resource](AsyncHostPlugin[T], abc.ABC):
                 await session.commit()
 
     @override
-    async def on_graph_commit_async(self, commit: Commit[T]) -> None:
+    async def on_commit_async(self, commit: Commit[T]) -> None:
         # handle edit by updating resource
         if commit.has(self.provision_types):
             subcommit = commit.trim_to(self.provision_types)
@@ -62,22 +63,68 @@ class Provisioner[T: Resource](AsyncHostPlugin[T], abc.ABC):
                         await self.provision(resource)
                         await session.commit()
                 for resource in subcommit.updated:
-                    await self.update(resource)
-                    await session.commit()
+                    if resource.status.is_extant:
+                        await self.update(resource)
+                        await session.commit()
                 for resource in subcommit.removed:
                     if resource.status.is_extant:
                         await self.decommission(resource)
                         await session.commit()
 
+    @final
     async def provision(self, resource: T):
+        """Provision the resource."""
+        try:
+            start = asyncio.get_event_loop().time()
+            await self._provision(resource)
+            logger.info(
+                "resource.provision",
+                resource=resource,
+                duration=asyncio.get_event_loop().time() - start,
+            )
+        except Exception as e:
+            logger.error("resource.provision.error", resource=resource, error=e, exc_info=True)
+            raise
+
+    async def _provision(self, resource: T):
         """Provision the resource."""
         raise NotImplementedError
 
+    @final
     async def update(self, resource: T):
+        """Update the resource properties."""
+        try:
+            start = asyncio.get_event_loop().time()
+            await self._update(resource)
+            logger.debug(
+                "resource.update",
+                resource=resource,
+                duration=asyncio.get_event_loop().time() - start,
+            )
+        except Exception as e:
+            logger.error("resource.update.error", resource=resource, error=e, exc_info=True)
+            raise
+
+    async def _update(self, resource: T):
         """Update the resource properties."""
         pass
 
+    @final
     async def decommission(self, resource: T):
+        """Decommission the resource."""
+        try:
+            start = asyncio.get_event_loop().time()
+            await self._decommission(resource)
+            logger.info(
+                "resource.decommission",
+                resource=resource,
+                duration=asyncio.get_event_loop().time() - start,
+            )
+        except Exception as e:
+            logger.error("resource.decommission.error", resource=resource, error=e, exc_info=True)
+            raise
+
+    async def _decommission(self, resource: T):
         """Decommission the resource."""
         raise NotImplementedError
 
@@ -93,13 +140,24 @@ class NeonStoreProvisioner(Provisioner[Store]):
         self._neon_api = neon_api
 
     async def _migrate(self, resource: Store):
-        async with pg_cursor_to_store(resource) as cur:
-            await sql_migrate(cur, target=resource.version, is_global=False, store=resource)
-            await cur.connection.commit()
-        resource.current_version = resource.version
+        assert resource.version, f"{resource!r} has no version"
+        try:
+            start = asyncio.get_event_loop().time()
+            async with pg_cursor_to_store(resource) as cur:
+                await sql_migrate(cur, target=resource.version, is_global=False, store=resource)
+                await cur.connection.commit()
+            resource.current_version = resource.version
+            logger.info(
+                "resource.migrate",
+                resource=resource,
+                duration=asyncio.get_event_loop().time() - start,
+            )
+        except Exception as e:
+            logger.error("resource.migrate.error", resource=resource, error=e, exc_info=True)
+            raise
 
     @override
-    async def provision(self, resource: Store):
+    async def _provision(self, resource: Store):
         if resource.external_name is None:
             assert resource.bench_id, f"{resource!r} has no bench"
             resource.external_name = f"{ENVIRONMENT}-{resource.bench_id}"
@@ -108,17 +166,19 @@ class NeonStoreProvisioner(Provisioner[Store]):
         )
         resource.external_id = neon_project.project_id
         resource.connection_uri = neon_project.connection_uri
-        resource.status = ResourceStatus.HEALTHY
+        if not resource.version:
+            resource.version = VERSION
         await self._migrate(resource)
+        resource.status = ResourceStatus.HEALTHY
 
     @override
-    async def update(self, resource: Store):
+    async def _update(self, resource: Store):
         assert resource.current_version, f"{resource!r} has no current version"
         if resource.version != resource.current_version:
             await self._migrate(resource)
 
     @override
-    async def decommission(self, resource: Store):
+    async def _decommission(self, resource: Store):
         assert resource.external_id, f"{resource!r} has no external ID"
         await self._neon_api.delete_project(project_id=resource.external_id)
         resource.status = ResourceStatus.DECOMMISSIONED
@@ -130,22 +190,22 @@ class ElasticServerProvisioner(Provisioner[Server]):
     watch_types = bittuple(NodeType.SERVER, NodeType.MACHINE)
     provision_types = bittuple(NodeType.SERVER)
 
-    # TODO :Broken: scale machines properly for server :ServerScaling
+    # TODO :Broken: scale machines properly in ElasticServerProvisioner
 
     @override
-    async def provision(self, resource: Server):
-        machine = Machine(name="Machine1", profile=MachineProfile.TINY)
+    async def _provision(self, resource: Server):
+        machine = Machine(name="Machine1", region=resource.region, profile=MachineProfile.TINY)
         resource.machines.append(machine)
         resource.status = ResourceStatus.PROVISIONING
 
     @override
-    async def update(self, resource: Server):
+    async def _update(self, resource: Server):
         # see above
         if resource.current_profile != resource.profile:
             resource.current_profile = resource.profile
 
     @override
-    async def decommission(self, resource: Server):
+    async def _decommission(self, resource: Server):
         # nothing special, child machines are automatically removed too
         resource.status = ResourceStatus.DECOMMISSIONED
 
@@ -161,12 +221,12 @@ class LocalhostMachineProvisioner(Provisioner[Machine]):
         self._local_machine_url = local_machine_url
 
     @override
-    async def provision(self, resource: Machine):
+    async def _provision(self, resource: Machine):
         resource.connection_uri = self._local_machine_url
         resource.status = ResourceStatus.HEALTHY
 
     @override
-    async def decommission(self, resource: Machine):
+    async def _decommission(self, resource: Machine):
         resource.status = ResourceStatus.DECOMMISSIONED
 
 
@@ -188,6 +248,23 @@ class KubernetesMachineProvisioner(Provisioner[Machine]):
     # TODO :Incomplete: KubernetesMachineProvisioner
 
 
+class S3DriveProvisioner(Provisioner[Drive]):
+    """Provision Drives with an S3-compatible API."""
+
+    watch_types = bittuple(NodeType.DRIVE)
+    provision_types = bittuple(NodeType.DRIVE)
+
+    # TODO :Incomplete: S3DriveProvisioner
+
+    @override
+    async def _provision(self, resource: Drive):
+        resource.status = ResourceStatus.HEALTHY
+
+    @override
+    async def _decommission(self, resource: Drive):
+        resource.status = ResourceStatus.DECOMMISSIONED
+
+
 def get_provisioners_for(host: HostSpec, bench: Bench) -> list[Provisioner]:
     from bench.system.neon import neon_api
 
@@ -196,12 +273,14 @@ def get_provisioners_for(host: HostSpec, bench: Bench) -> list[Provisioner]:
             NeonStoreProvisioner(host, bench, neon_api),
             ElasticServerProvisioner(host, bench),
             LocalhostMachineProvisioner(host, bench, get_from_env("LOCAL_MACHINE_URL")),
+            S3DriveProvisioner(host, bench),
         ]
     elif ENVIRONMENT == "prod":
         return [
             NeonStoreProvisioner(host, bench, neon_api),
             ElasticServerProvisioner(host, bench),
             KubernetesMachineProvisioner(host, bench),
+            S3DriveProvisioner(host, bench),
         ]
     else:
         raise RuntimeError(f"unexpected environment: {ENVIRONMENT!r}")

@@ -56,7 +56,7 @@ LOGGING = {
 
 def _format_duration(_, __, event_dict):
     if "duration" in event_dict:
-        event_dict["duration"] = f"{event_dict['duration'] * 1000:.2f}ms"
+        event_dict["duration"] = f"{event_dict['duration'] * 1000:.3f}ms"
     return event_dict
 
 

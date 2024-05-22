@@ -183,7 +183,7 @@ class NeonApiRemote(NeonApi):
     ) -> Any | None:
         async with httpx.AsyncClient() as client:
             headers = {"Authorization": f"Bearer {self.api_key}"}
-            logger.debug("neon.request", method=method, path=path, params=params, json=json)
+            logger.trace("neon.request", method=method, path=path, params=params, json=json)
             response = await client.request(
                 method, f"{self.url}/{path}", headers=headers, params=params, json=json
             )
@@ -205,7 +205,7 @@ class NeonApiRemote(NeonApi):
                     raise RecoverableError(f"request failed: {response.status_code} {error}")
 
             rep = response.json()
-            logger.debug("neon.response", status=response.status_code, json=rep)
+            logger.trace("neon.response", status=response.status_code, json=rep)
             return rep
 
     async def create_project(

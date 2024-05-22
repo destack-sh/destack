@@ -235,11 +235,15 @@ class HostPlugin[T: Node](abc.ABC):
         """After closing, wait for any stuff you need to wait for (if any)."""
         await self._tasks.wait_closed()
 
+    async def wait_events_processed(self) -> None:
+        """Wait for the queue to be empty (if any)."""
+        pass
+
     #
     # Events
     #
 
-    def on_graph_commit(self, commit: Commit[T]) -> None:
+    def on_commit(self, commit: Commit[T]) -> None:
         """Synchronous event handler for a committed Host transaction"""
         pass
 
@@ -254,13 +258,18 @@ class AsyncHostPlugin[T: Node](HostPlugin, abc.ABC):
     @override
     async def start(self, session: Session) -> None:
         await super().start(session)
-        self._tasks.start_queue(self._commit_queue, self.on_graph_commit_async)
+        self._tasks.start_queue(self._commit_queue, self.on_commit_async)
 
     @override
-    def on_graph_commit(self, commit: Commit) -> None:
+    def on_commit(self, commit: Commit) -> None:
+        self._tasks.check_no_errors()
         self._commit_queue.put_nowait(commit)
 
-    async def on_graph_commit_async(self, commit: Commit) -> None:
+    async def wait_events_processed(self) -> None:
+        await self._commit_queue.join()
+        self._tasks.check_no_errors()
+
+    async def on_commit_async(self, commit: Commit) -> None:
         """
         Asynchronous event handler for a committed Host transaction.
         NOTE :Robustness: the nodes in each commit may change before this is called

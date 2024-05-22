@@ -5,7 +5,7 @@ from itertools import chain
 from typing import TYPE_CHECKING, Generic, Iterable, Optional, TypeVar, Union
 from uuid import UUID
 
-from bench.language.const import ClientType, EnumType, NodeType, StructType, enum_
+from bench.language.const import ClientType, EnumType, NodeType, ReferenceKind, StructType, enum_
 from bench.language.graph import NodeList
 from bench.language.node import Node, node, node_component
 from bench.language.property import (
@@ -240,11 +240,19 @@ class Upgrade(Node[UpgradeData]):
 
 @enum_(EnumType.REGION)
 class Region(IdEnum):
-    """Where a Resource is located (physically)."""
+    """
+    Where a Resource is located (physically).
+    There are
+      - 'continental' regions (Europe, North America, etc.).
+      - 'area-level' regions (Europe Central, US East, etc.).
+      - 'city-level' regions (Frankfurt, Ohio, etc.).
+    """
 
     GLOBAL = 1
+
     # europe
-    EUROPE_CENTRAL = 100
+    EUROPE = 100
+    EUROPE_CENTRAL = 101
     # americas
     ...
 
@@ -300,7 +308,12 @@ class Resource(Node[NodeDataT], abc.ABC, Generic[NodeDataT]):
         for prop in chain(
             Resource.__declared_properties__.values(), self.__declared_properties__.values()
         ):
-            if prop.name == "name" or prop.name == "parent":
+            if (
+                prop.name == "name"
+                or prop.name == "parent"
+                or prop.reference_kind == ReferenceKind.NODE_CHILDREN
+                or prop.is_sensitive
+            ):
                 continue
             value = getattr(self, prop.name)
             if value:

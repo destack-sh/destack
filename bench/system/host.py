@@ -222,7 +222,7 @@ class Host(GraphIoServiceBase, HostBase, HostSpec):
     async def start(self) -> None:
         start = asyncio.get_event_loop().time()
 
-        async with global_session(self.on_graph_commit) as session:
+        async with global_session(self.on_commit) as session:
             # load bench
             self._bench = await BENCH_QUERY.get(id=self.bench_id)
             self._global_pg_engine = PostgresEngine(
@@ -244,8 +244,9 @@ class Host(GraphIoServiceBase, HostBase, HostSpec):
             self._provisioners = tuple(get_provisioners_for(self, self._bench))
             self._plugins = (RunPlugin(self, self._bench),) + self._provisioners
             await asyncio.gather(*(plugin.start(session) for plugin in self._plugins))
-
             await session.commit()
+            # wait for plugins to finish processing any commits (and error early)
+            await asyncio.gather(*(plugin.wait_events_processed() for plugin in self._plugins))
         session.untrack_many(self._bench)
 
         # preload main packages
@@ -274,12 +275,12 @@ class Host(GraphIoServiceBase, HostBase, HostSpec):
         await asyncio.gather(*(plugin.wait_closed() for plugin in self._plugins))
 
     @override
-    def _amend_graph_commit(self, graph: NodeGraph, edits: list[EditData]) -> list[EditData]:
+    def _amend_commit(self, graph: NodeGraph, edits: list[EditData]) -> list[EditData]:
         # nocheckin: create Logs for edits (but how/where/when to compact?)
         return edits
 
     @override
-    def _on_graph_commit(
+    def _on_commit(
         self, graph: NodeGraphLike, edits: list[EditData], cascaded_edits: list[EditData]
     ):
         assert self._bench is not None, f"bench not loaded in {self!r} for {edits!r}"
@@ -309,7 +310,7 @@ class Host(GraphIoServiceBase, HostBase, HostSpec):
         for plugin in self._plugins:
             if commit.edited_types & plugin.watch_types:
                 trimmed_commit = commit.trim_to(plugin.watch_types)
-                plugin.on_graph_commit(trimmed_commit)
+                plugin.on_commit(trimmed_commit)
                 logger.debug(
                     "host.on_commit.plugin", host=self, plugin=plugin, commit=trimmed_commit
                 )

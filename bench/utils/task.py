@@ -40,6 +40,13 @@ class TaskManager:
             self._errors.append(e)
             raise
 
+    def check_no_errors(self):
+        if self._errors:
+            if len(self._errors) == 1:
+                raise self._errors[0]
+            else:
+                raise RuntimeError(f"multiple errors occurred: {self._errors}")
+
     def start(self, coro: Awaitable[Any], name: str | None = None) -> None:
         asyncio.create_task(self._wrap_task(coro, name))
 
@@ -54,7 +61,12 @@ class TaskManager:
         async def _queue_wrapper():
             while True:
                 item = await queue.get()
-                await process_item(item)
+                try:
+                    await process_item(item)
+                except Exception:
+                    # ensure queue complete
+                    queue.task_done()
+                    raise  # re-raise
 
         _queue_wrapper.__name__ = f"{process_item.__name__}_queue"
 
