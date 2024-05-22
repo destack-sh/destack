@@ -138,6 +138,7 @@ class BenchServiceBase:
 
     @final
     def _wrap_rpc(self, method: str, handler: grpclib.const.Handler) -> grpclib.const.Handler:
+        method = method[1:]  # skip initial slash
         _, cardinality, request_type, reply_type = handler
         service_slug = to_casing(self.__class__.__name__, Casing.SNAKE)
         method_slug = to_casing(method.split("/")[-1], Casing.SNAKE)

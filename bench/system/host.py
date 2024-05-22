@@ -18,7 +18,7 @@ from bench.language.const import (
     LOCAL_NODE_TYPES,
     NodeType,
 )
-from bench.language.graph import NodeGraph, NodeGraphLike, edit_graph
+from bench.language.graph import NodeGraphLike, edit_graph
 from bench.proto import wiring
 from bench.proto.services import BenchServiceBase, RpcCallable
 from bench.proto.wire import (
@@ -31,11 +31,11 @@ from bench.proto.wire import (
     UploadFilesResponse,
 )
 from bench.system.core import (
+    GLOBAL_POSTGRES_ENGINE,
     GLOBAL_STORE,
     HostPlugin,
     HostSpec,
     global_session,
-    local_session,
     unpack_committed_change,
 )
 from bench.system.graph import GraphIoServiceBase
@@ -229,7 +229,7 @@ class Host(GraphIoServiceBase, HostBase, HostSpec):
     async def start(self) -> None:
         start = asyncio.get_event_loop().time()
 
-        async with global_session(self.on_commit) as session:
+        async with self.session(engines=(GLOBAL_POSTGRES_ENGINE,)) as session:
             # load bench
             self._bench = await BENCH_QUERY.get(id=self.bench_id)
             self._global_pg_engine = PostgresEngine(
@@ -257,7 +257,7 @@ class Host(GraphIoServiceBase, HostBase, HostSpec):
         session.untrack_many(self._bench)
 
         # preload main packages
-        async with local_session(self._scope, (self._global_pg_engine,)):
+        async with self.session() as session:
             self._main_package = await PACKAGE_QUERY.get(id=self._bench.main_branch.main_package_id)
             self._packages[self._main_package.id] = self._main_package
         session.untrack_many(self._main_package)
@@ -282,14 +282,24 @@ class Host(GraphIoServiceBase, HostBase, HostSpec):
         await asyncio.gather(*(plugin.wait_closed() for plugin in self._plugins))
 
     @override
-    def _amend_commit(self, graph: NodeGraph, edits: list[EditData]) -> list[EditData]:
-        # nocheckin: create Logs for edits (but how/where/when to compact?)
-        return edits
+    def extend_commit(
+        self, graph: NodeGraphLike, edits: list[EditData], cascaded_edits: list[EditData]
+    ) -> list[EditData]:
+        # TODO :Incomplete: run plugins to extend commit
+
+        # create signals
+        ...
+
+        # add logs
+        # nocheckin: logs
+        return []
 
     @override
     def _on_commit(
         self, graph: NodeGraphLike, edits: list[EditData], cascaded_edits: list[EditData]
     ):
+        # nocheckin :Broken? :Robustness: nodes in Commit aren't the actual loaded nodes in Host
+        #  (the graph is the unpacked_graph containing copies of nodes required for access control)
         assert self._bench is not None, f"bench not loaded in {self!r} for {edits!r}"
 
         # apply edits to loaded graphs (bench/package)
