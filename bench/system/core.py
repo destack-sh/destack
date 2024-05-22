@@ -242,7 +242,10 @@ class HostPlugin[T: Node](abc.ABC):
         self._host = host
         self._bench = bench
         self._tasks = TaskManager(
-            owner=self, logger=logger, on_error=lambda e: host.on_error(source=self, error=e)
+            owner=self,
+            logger=logger,
+            on_error=lambda e: host.on_error(source=self, error=e),
+            task_id_prefix=f"{self._bench.slug}_{self.__class__.__name__}",
         )
 
     def __str__(self) -> str:

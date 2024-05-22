@@ -1,5 +1,4 @@
 import asyncio
-from asyncio import CancelledError
 from typing import Any, Awaitable, Callable, Coroutine
 
 from bench.utils.utils import sentry_capture
@@ -34,47 +33,22 @@ class TaskManager:
             else:
                 raise RuntimeError(f"multiple errors occurred: {self._errors}")
 
-    async def _run_task(self, coro, task_id: str | None, on_complete: Callable[[], None]):
-        task_id = task_id or coro.__name__
+    def _make_task_id(self, task_id: str | None, default: str) -> str:
+        task_id = task_id or default
         if self._task_id_prefix:
+            if task_id.startswith("_"):
+                task_id = task_id[1:]
             task_id = f"{self._task_id_prefix}_{task_id}"
-        try:
-            ret = await coro
-            self._logger.debug("task.done", owner=self._owner, task_id=task_id)
-            return ret
-        except CancelledError:
-            self._logger.debug("task.cancelled", owner=self._owner, task_id=task_id)
-        except Exception as e:
-            self._logger.exception(
-                "task.error",
-                owner=self._owner,
-                task_id=task_id,
-                exc_info=e,
-                sentry=sentry_capture(e),
-            )
-            if self._on_error is not None:
-                self._on_error(e)
-            self._errors.append(e)
-            raise
-        finally:
-            on_complete()
-
-    def start(self, coro: Awaitable[Any], name: str | None = None) -> None:
-        task = asyncio.create_task(
-            self._run_task(coro, name, lambda: self._active_tasks.remove(task))
-        )
-        self._active_tasks.append(task)
+        return task_id
 
     async def _run_queue_task(
         self,
         queue: asyncio.Queue,
         process: Callable[[Any], Awaitable[Any] | Coroutine[Any, None, None]],
-        task_id: str | None = None,
+        task_id: str,
         skip_errors: bool = False,
     ) -> None:
-        task_id = task_id or process.__name__
-        if self._task_id_prefix:
-            task_id = f"{self._task_id_prefix}_{task_id}"
+
         while True:
             item = await queue.get()
             try:
@@ -101,11 +75,17 @@ class TaskManager:
         self,
         queue: asyncio.Queue[T],
         process: Callable[[T], Awaitable[T] | Coroutine[T, None, None]],
-        name: str | None = None,
+        task_id: str | None = None,
         *,
         skip_errors: bool,
     ) -> None:
-        task = asyncio.create_task(self._run_queue_task(queue, process, name, skip_errors))
+        task_id = self._make_task_id(task_id, process.__name__)
+        task = asyncio.create_task(
+            coro=self._run_queue_task(
+                queue=queue, process=process, task_id=task_id, skip_errors=skip_errors
+            ),
+            name=task_id,
+        )
         self._active_tasks.append(task)
 
     def close(self):
