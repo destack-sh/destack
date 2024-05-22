@@ -268,6 +268,7 @@ async def test_graph_update_node_with_invalid_property(
         node_type=wiring.pack_enum(NodeType, NodeType.USER),
         node=wiring.wrap_some_node(wiring.pack_node(user)),
         properties=[cast(Property, User.name).id],
+        origin=some_user.origin,
     )
     with raises_grpc_error(grpclib.Status.INVALID_ARGUMENT):
         _ = await supervisor.commit_transaction(
