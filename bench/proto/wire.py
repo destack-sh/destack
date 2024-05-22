@@ -830,11 +830,18 @@ class ReferenceKind(betterproto.Enum):
 
 
 class Region(betterproto.Enum):
-    """Where a Resource is located (physically)."""
+    """
+    Where a Resource is located (physically).
+     There are
+     - 'continental' regions (Europe, North America, etc.).
+     - 'area-level' regions (Europe Central, US East, etc.).
+     - 'city-level' regions (Frankfurt, Ohio, etc.).
+    """
 
     UNSPECIFIED = 0
     GLOBAL = 1
-    EUROPE_CENTRAL = 100
+    EUROPE = 100
+    EUROPE_CENTRAL = 101
 
 
 class ResourceStatus(betterproto.Enum):

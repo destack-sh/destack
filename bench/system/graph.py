@@ -138,7 +138,7 @@ class GraphIoServiceBase(BenchServiceBase, GraphIoBase):
             parent=None,
             _default_scope=self.scope,
             _engines=self._get_engines(scope or self.scope),
-            _on_commit_hook=self.on_graph_commit,
+            _on_commit_hook=self.on_commit,
         )
 
     async def get_nodes(self, subject: Subject, request: "GetNodesRequest") -> "GetNodesResponse":
@@ -318,12 +318,12 @@ class GraphIoServiceBase(BenchServiceBase, GraphIoBase):
 
             # extend edits
             # (we don't validate this because they're internal)
-            adapted_edits = self._amend_graph_commit(unpacked_graph, request.edits)
+            adapted_edits = self._amend_commit(unpacked_graph, request.edits)
 
             # apply edits
             session.tx._add_pending_edits(adapted_edits)
             await session.commit(suppress_hook=True)  # fired manually
-            self.on_graph_commit(
+            self.on_commit(
                 graph=unpacked_graph,
                 edits=adapted_edits,
                 cascaded_edits=session.tx.cascaded_edits,
@@ -359,12 +359,12 @@ class GraphIoServiceBase(BenchServiceBase, GraphIoBase):
     ) -> "CancelTransactionResponse":
         raise GRPCError(GRPCStatus.UNIMPLEMENTED)  # :2PC
 
-    def _amend_graph_commit(self, graph: NodeGraph, edits: list[EditData]) -> list[EditData]:
+    def _amend_commit(self, graph: NodeGraph, edits: list[EditData]) -> list[EditData]:
         # do nothing by default
         return edits
 
     @final
-    def on_graph_commit(
+    def on_commit(
         self, graph: NodeGraphLike, edits: list[EditData], cascaded_edits: list[EditData]
     ):
         self.epoch += 1
@@ -377,9 +377,9 @@ class GraphIoServiceBase(BenchServiceBase, GraphIoBase):
             if adapted_edits:
                 watcher.sink.put_nowait(Epoch(self.epoch, adapted_edits, adapted_cascaded_edits))
 
-        self._on_graph_commit(graph=graph, edits=edits, cascaded_edits=cascaded_edits)
+        self._on_commit(graph=graph, edits=edits, cascaded_edits=cascaded_edits)
 
-    def _on_graph_commit(
+    def _on_commit(
         self, graph: NodeGraphLike, edits: list[EditData], cascaded_edits: list[EditData]
     ):
         pass  # do nothing by default

@@ -688,7 +688,7 @@ async def pg_select(
         statement += sqlstr(" LIMIT {}").format(sql.Literal(first))
     if skip:
         statement += sqlstr(" OFFSET {}").format(sql.Literal(skip))
-    logger.trace("pg.select", table=table, query=sql_to_str(cur, statement))
+    logger.trace("pg.select", table=table, cur=cur, query=sql_to_str(cur, statement))
     if any(c.is_encrypted for c in columns):
         params = {**(params or EMPTY_DICT), "PG_CRYPTO_KEY": get_pg_crypto_key(table)}
     try:
@@ -710,7 +710,7 @@ async def pg_count(
     )
     if where:
         statement += sqlstr(" WHERE {}").format(sql_node_to_sql(where))
-    logger.trace("pg.count", table=table, query=sql_to_str(cur, statement))
+    logger.trace("pg.count", table=table, cur=cur, query=sql_to_str(cur, statement))
     try:
         await cur.execute(statement)
         result = await cur.fetchone()
@@ -737,7 +737,7 @@ async def pg_exists(
     if where:
         statement += sqlstr(" WHERE {}").format(sql_node_to_sql(where))
     statement += sqlstr(")")
-    logger.trace("pg.exists_rows", table=table, query=sql_to_str(cur, statement))
+    logger.trace("pg.exists_rows", table=table, cur=cur, query=sql_to_str(cur, statement))
     try:
         await cur.execute(statement)
         result = await cur.fetchone()
@@ -767,7 +767,7 @@ async def pg_insert(
         statement += sqlstr(" RETURNING {}").format(
             sqljoin(", ", (_pg_wrap_read_column(c, sqlident(c.name)) for c in returning))
         )
-    logger.trace("pg.insert", table=table, query=sql_to_str(cur, statement))
+    logger.trace("pg.insert", table=table, cur=cur, query=sql_to_str(cur, statement))
 
     if any(c.is_encrypted for c in table.columns):
         templated_values = tuple({**row, "PG_CRYPTO_KEY": get_pg_crypto_key(table)} for row in rows)
@@ -829,7 +829,7 @@ async def pg_upsert(
         statement += sqlstr(" RETURNING {}").format(
             sqljoin(", ", (_pg_wrap_read_column(c, sqlident(c.name)) for c in returning))
         )
-    logger.trace("pg.upsert", table=table, query=sql_to_str(cur, statement))
+    logger.trace("pg.upsert", table=table, cur=cur, query=sql_to_str(cur, statement))
 
     if any(c.is_encrypted for c in table.columns):
         templated_values = tuple({**row, "PG_CRYPTO_KEY": get_pg_crypto_key(table)} for row in rows)
@@ -871,7 +871,7 @@ async def pg_update_constant(
         statement += sqlstr(" RETURNING {}").format(
             sqljoin(", ", (_pg_wrap_read_column(c, sqlident(c.name)) for c in returning))
         )
-    logger.trace("pg.update_constant", table=table, query=sql_to_str(cur, statement))
+    logger.trace("pg.update_constant", table=table, cur=cur, query=sql_to_str(cur, statement))
 
     if any(c.is_encrypted for c in table.columns):
         template_values = {**static_value, "PG_CRYPTO_KEY": get_pg_crypto_key(table)}
@@ -937,6 +937,7 @@ async def pg_update_variable(
     logger.trace(
         "pg.update_variable",
         table=table,
+        cur=cur,
         query=sql_to_str(cur, statement),
         rows=len(dynamic_values),
     )
@@ -983,7 +984,7 @@ async def pg_delete(
         statement += sqlstr(" RETURNING {}").format(
             sqljoin(", ", (_pg_wrap_read_column(c, sqlident(c.name)) for c in returning))
         )
-    logger.trace("pg.delete", table=table, query=sql_to_str(cur, statement))
+    logger.trace("pg.delete", table=table, cur=cur, query=sql_to_str(cur, statement))
     try:
         await cur.execute(statement)
     except psycopg.errors.Error as e:

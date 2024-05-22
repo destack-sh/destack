@@ -8,7 +8,7 @@ from grpclib.testing import ChannelFor
 
 from bench.conftest import detached_session
 from bench.language import Bench, ReadOptions, User
-from bench.language.bench import Branch, Package
+from bench.language.bench import Branch, Package, ResourceStatus
 from bench.language.code_ import Code
 from bench.language.connection import RemoteEngine
 from bench.language.const import (
@@ -163,7 +163,7 @@ async def some_bench(supervisor, host, some_bench_setup: BenchHandle):
     yield handle
 
 
-async def test_user_activation(some_bench: BenchHandle):
+async def test_activate_user(some_bench: BenchHandle):
     """Ensure that the BenchHandle fixtures successfully activates a User."""
 
     # get user to check they're activated with a main Bench
@@ -178,7 +178,7 @@ async def test_user_activation(some_bench: BenchHandle):
     assert user.main_bench_ptr is not None, f"{user!r} has no main Bench"
     assert user.status == UserStatus.ACTIVATED
 
-    # read back bench (should be allowed & have default resources)
+    # read back bench (should be allowed & have default resources setup in healthy state)
     read_bench_options = ReadOptions(
         select_all_properties=True,
         descendant_types=[NodeType.ENVIRONMENT, NodeType.BRANCH, NodeType.SERVER, NodeType.STORE],
@@ -192,9 +192,13 @@ async def test_user_activation(some_bench: BenchHandle):
     bench: Bench = cast(Bench, roots[0])
     assert UUID(user.main_bench_ptr.id) == bench.id
     assert bench.owner_id == some_bench.owner.id
-    assert bench.main_environment
-    assert bench.main_environment.store
-    assert not bench.main_environment.store.connection_uri  # can't read kernel
+    env = bench.main_environment
+    assert env, f"{bench!r} has no main environment"
+    assert env.store and env.store.status == ResourceStatus.HEALTHY
+    assert env.server and env.server.status == ResourceStatus.HEALTHY
+    assert env.drive and env.drive.status == ResourceStatus.HEALTHY
+    # also, check that we can't read kernel properties
+    assert not env.store.connection_uri
 
 
 async def test_create_run(some_bench: BenchHandle):

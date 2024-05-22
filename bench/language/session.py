@@ -1,3 +1,4 @@
+import asyncio
 import contextvars
 from datetime import datetime
 from typing import TYPE_CHECKING, Callable, Collection, Optional
@@ -83,6 +84,7 @@ class Session(Node[SessionData]):
     # transaction
     _is_readonly: bool = p_runtime(default=False)
     _tx: Transaction | None = p_runtime(default=None)
+    _tx_lock: asyncio.Lock = p_runtime(default_factory=asyncio.Lock)
     _edited_nodes_by_id: dict[UUID, Node] = p_runtime(default_factory=dict)
     _engines: tuple["StoreEngine", ...] = p_runtime(default_factory=tuple)
     _active_session_token: contextvars.Token | None = p_runtime(default=None)
@@ -153,21 +155,26 @@ class Session(Node[SessionData]):
         self._tx = Transaction(session=self, is_readonly=self._is_readonly)
 
         self.opened_at = utcnow()
-        logger.trace("session.open")
+        logger.trace("session.open", session=self)
 
     async def flush(self):
-        assert self.is_open, f"cannot flush {self!r} when closed"
-        await self.tx.flush()
+        async with self._tx_lock:
+            assert self.is_open, f"cannot flush {self!r} when closed"
+            await self.tx.flush()
 
     async def commit(self, suppress_hook: bool = False):
         assert self.is_open, f"cannot commit {self!r} when closed"
-        await self.tx.commit()
-        if not suppress_hook and self._on_commit_hook and self.tx.edits:
-            self._on_commit_hook(self._edited_nodes_by_id, self.tx.edits, self.tx.cascaded_edits)
+        async with self._tx_lock:
+            await self.tx.commit()
+            if not suppress_hook and self._on_commit_hook and self.tx.edits:
+                self._on_commit_hook(
+                    self._edited_nodes_by_id, self.tx.edits, self.tx.cascaded_edits
+                )
 
     async def rollback(self):
         assert self.is_open, f"cannot rollback {self!r} when closed"
-        await self.tx.rollback()
+        async with self._tx_lock:
+            await self.tx.rollback()
 
     async def close(self):
         """Closes the session, rolling back uncommitted edits. Prevents further runs/edits."""
@@ -175,16 +182,18 @@ class Session(Node[SessionData]):
         if self.closed_at is not None:
             raise RuntimeError(f"session already closed {self}")
 
-        # close transaction
-        await self.tx.close()
-        self._tx = None
+        async with self._tx_lock:
+            # close transaction
+            await self.tx.close()
+            edits = self.tx.edits
+            self._tx = None
 
         # close session
         self.closed_at = utcnow()
         self.duration = (self.closed_at - self.opened_at).total_seconds()
         _active_session.reset(self._active_session_token)
 
-        logger.trace("session.close", duration=self.duration)
+        logger.trace("session.close", session=self, duration=self.duration, edits=len(edits))
 
     async def __aenter__(self):
         await self.open()

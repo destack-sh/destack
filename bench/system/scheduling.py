@@ -34,7 +34,7 @@ class RunPlugin(HostPlugin[Run]):
         self._tasks.start_queue(self._runs_to_queue, self._process_run)
 
     @override
-    def on_graph_commit(self, commit: Commit[Run]) -> None:
+    def on_commit(self, commit: Commit[Run]) -> None:
         # queue any new runs
         for run in commit.added:
             if run.parent_type == NodeType.PACKAGE and run.status == RunStatus.SCHEDULED:
