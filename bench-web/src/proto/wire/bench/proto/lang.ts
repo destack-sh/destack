@@ -2221,6 +2221,10 @@ export interface ClientData {
      * @generated from protobuf field: optional symbolx.bench.NodeReferenceData space_ptr = 60;
      */
     spacePtr?: NodeReferenceData;
+    /**
+     * @generated from protobuf field: optional symbolx.bench.NodeReferenceData machine_ptr = 61;
+     */
+    machinePtr?: NodeReferenceData;
 }
 /**
  * A dependency on another Bench (pointing to a specific Package).
@@ -3016,7 +3020,7 @@ export interface LogData {
     userPtr?: NodeReferenceData;
 }
 /**
- * A Machine provides the isolated compute for a Server.
+ * A Machine provides some isolated compute for a Server.
  *
  * @generated from protobuf message symbolx.bench.MachineData
  */
@@ -3086,41 +3090,45 @@ export interface MachineData {
      */
     status: ResourceStatus;
     /**
-     * @generated from protobuf field: symbolx.bench.ServerProfile profile = 40;
+     * @generated from protobuf field: symbolx.bench.MachineProfile profile = 40;
      */
-    profile: ServerProfile;
+    profile: MachineProfile;
     /**
-     * @generated from protobuf field: optional string version = 41;
+     * @generated from protobuf field: optional symbolx.bench.MachineProfile current_profile = 41;
+     */
+    currentProfile?: MachineProfile;
+    /**
+     * @generated from protobuf field: optional string version = 42;
      */
     version?: string;
     /**
-     * @generated from protobuf field: optional string external_name = 42;
+     * @generated from protobuf field: optional string current_version = 43;
+     */
+    currentVersion?: string;
+    /**
+     * @generated from protobuf field: optional string external_name = 50;
      */
     externalName?: string;
     /**
-     * @generated from protobuf field: optional string external_id = 43;
+     * @generated from protobuf field: optional string external_id = 51;
      */
     externalId?: string;
     /**
-     * @generated from protobuf field: optional string connection_uri = 44;
+     * @generated from protobuf field: optional string connection_uri = 52;
      */
     connectionUri?: string;
     /**
-     * @generated from protobuf field: optional google.protobuf.Timestamp started_at = 50;
+     * @generated from protobuf field: optional google.protobuf.Timestamp started_at = 60;
      */
     startedAt?: Timestamp;
     /**
-     * @generated from protobuf field: optional google.protobuf.Timestamp terminated_at = 51;
+     * @generated from protobuf field: optional google.protobuf.Timestamp terminated_at = 61;
      */
     terminatedAt?: Timestamp;
     /**
-     * @generated from protobuf field: optional google.protobuf.Timestamp active_at = 52;
+     * @generated from protobuf field: optional google.protobuf.Timestamp active_at = 62;
      */
     activeAt?: Timestamp;
-    /**
-     * @generated from protobuf field: optional google.protobuf.Timestamp bumped_at = 53;
-     */
-    bumpedAt?: Timestamp;
 }
 /**
  * A membership to this Bench (and its owner if it's the main Bench).
@@ -4152,7 +4160,7 @@ export interface RunData {
 }
 /**
  * A server provides some compute for a Bench's Runtime.
- * Actual compute is materialized (on-demand) as Machines.
+ * Physical compute is materialized (on-demand) as Machines.
  *
  * @generated from protobuf message symbolx.bench.ServerData
  */
@@ -4226,11 +4234,23 @@ export interface ServerData {
      */
     profile: ServerProfile;
     /**
-     * @generated from protobuf field: optional google.protobuf.Timestamp active_at = 50;
+     * @generated from protobuf field: optional symbolx.bench.ServerProfile current_profile = 41;
+     */
+    currentProfile?: ServerProfile;
+    /**
+     * @generated from protobuf field: optional string version = 42;
+     */
+    version?: string;
+    /**
+     * @generated from protobuf field: optional string current_version = 43;
+     */
+    currentVersion?: string;
+    /**
+     * @generated from protobuf field: optional google.protobuf.Timestamp active_at = 60;
      */
     activeAt?: Timestamp;
     /**
-     * @generated from protobuf field: optional google.protobuf.Timestamp bumped_at = 51;
+     * @generated from protobuf field: optional google.protobuf.Timestamp bumped_at = 61;
      */
     bumpedAt?: Timestamp;
 }
@@ -4784,6 +4804,10 @@ export interface StoreData {
      * @generated from protobuf field: optional string version = 40;
      */
     version?: string;
+    /**
+     * @generated from protobuf field: optional string current_version = 41;
+     */
+    currentVersion?: string;
     /**
      * @generated from protobuf field: optional string external_name = 50;
      */
@@ -6077,13 +6101,17 @@ export enum BenchType {
      */
     SERVER_PROFILE = 2055,
     /**
-     * @generated from protobuf enum value: BENCH_TYPE_RESOURCE_STATUS = 2056;
+     * @generated from protobuf enum value: BENCH_TYPE_MACHINE_PROFILE = 2056;
      */
-    RESOURCE_STATUS = 2056,
+    MACHINE_PROFILE = 2056,
     /**
-     * @generated from protobuf enum value: BENCH_TYPE_FILE_RETENTION_MODE = 2057;
+     * @generated from protobuf enum value: BENCH_TYPE_RESOURCE_STATUS = 2057;
      */
-    FILE_RETENTION_MODE = 2057,
+    RESOURCE_STATUS = 2057,
+    /**
+     * @generated from protobuf enum value: BENCH_TYPE_FILE_RETENTION_MODE = 2058;
+     */
+    FILE_RETENTION_MODE = 2058,
     /**
      * @generated from protobuf enum value: BENCH_TYPE_CLIENT_TYPE = 2060;
      */
@@ -6758,13 +6786,17 @@ export enum EnumType {
      */
     SERVER_PROFILE = 2055,
     /**
-     * @generated from protobuf enum value: ENUM_TYPE_RESOURCE_STATUS = 2056;
+     * @generated from protobuf enum value: ENUM_TYPE_MACHINE_PROFILE = 2056;
      */
-    RESOURCE_STATUS = 2056,
+    MACHINE_PROFILE = 2056,
     /**
-     * @generated from protobuf enum value: ENUM_TYPE_FILE_RETENTION_MODE = 2057;
+     * @generated from protobuf enum value: ENUM_TYPE_RESOURCE_STATUS = 2057;
      */
-    FILE_RETENTION_MODE = 2057,
+    RESOURCE_STATUS = 2057,
+    /**
+     * @generated from protobuf enum value: ENUM_TYPE_FILE_RETENTION_MODE = 2058;
+     */
+    FILE_RETENTION_MODE = 2058,
     /**
      * @generated from protobuf enum value: ENUM_TYPE_CLIENT_TYPE = 2060;
      */
@@ -7426,6 +7458,27 @@ export enum LogLevel {
      * @generated from protobuf enum value: LOG_LEVEL_CRITICAL = 6;
      */
     CRITICAL = 6
+}
+/**
+ * @generated from protobuf enum symbolx.bench.MachineProfile
+ */
+export enum MachineProfile {
+    /**
+     * @generated from protobuf enum value: MACHINE_PROFILE_UNSPECIFIED = 0;
+     */
+    UNSPECIFIED = 0,
+    /**
+     * @generated from protobuf enum value: MACHINE_PROFILE_TINY = 3;
+     */
+    TINY = 3,
+    /**
+     * @generated from protobuf enum value: MACHINE_PROFILE_SMALL = 5;
+     */
+    SMALL = 5,
+    /**
+     * @generated from protobuf enum value: MACHINE_PROFILE_MEDIUM = 7;
+     */
+    MEDIUM = 7
 }
 /**
  * @generated from protobuf enum symbolx.bench.NodeType
@@ -8297,25 +8350,29 @@ export enum ResourceStatus {
      */
     UNSPECIFIED = 0,
     /**
-     * @generated from protobuf enum value: RESOURCE_STATUS_PENDING = 1;
+     * @generated from protobuf enum value: RESOURCE_STATUS_DECLARED = 1;
      */
-    PENDING = 1,
+    DECLARED = 1,
+    /**
+     * @generated from protobuf enum value: RESOURCE_STATUS_PROVISIONING = 5;
+     */
+    PROVISIONING = 5,
     /**
      * @generated from protobuf enum value: RESOURCE_STATUS_HEALTHY = 10;
      */
     HEALTHY = 10,
     /**
-     * @generated from protobuf enum value: RESOURCE_STATUS_UNHEALTHY = 20;
+     * @generated from protobuf enum value: RESOURCE_STATUS_UNHEALTHY = 15;
      */
-    UNHEALTHY = 20,
+    UNHEALTHY = 15,
     /**
-     * @generated from protobuf enum value: RESOURCE_STATUS_SLEEPING = 30;
+     * @generated from protobuf enum value: RESOURCE_STATUS_SLEEPING = 20;
      */
-    SLEEPING = 30,
+    SLEEPING = 20,
     /**
-     * @generated from protobuf enum value: RESOURCE_STATUS_DESTROYED = 40;
+     * @generated from protobuf enum value: RESOURCE_STATUS_DECOMMISSIONED = 30;
      */
-    DESTROYED = 40
+    DECOMMISSIONED = 30
 }
 /**
  * @generated from protobuf enum symbolx.bench.RunErrorKind
@@ -8465,11 +8522,7 @@ export enum ServerProfile {
     /**
      * @generated from protobuf enum value: SERVER_PROFILE_MEDIUM = 7;
      */
-    MEDIUM = 7,
-    /**
-     * @generated from protobuf enum value: SERVER_PROFILE_LARGE = 9;
-     */
-    LARGE = 9
+    MEDIUM = 7
 }
 /**
  * @generated from protobuf enum symbolx.bench.SessionStatus
@@ -14516,7 +14569,8 @@ class ClientData$Type extends MessageType<ClientData> {
             { no: 50, name: "access_token", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
             { no: 51, name: "seen_at", kind: "message", T: () => Timestamp },
             { no: 52, name: "logged_in_at", kind: "message", T: () => Timestamp },
-            { no: 60, name: "space_ptr", kind: "message", T: () => NodeReferenceData }
+            { no: 60, name: "space_ptr", kind: "message", T: () => NodeReferenceData },
+            { no: 61, name: "machine_ptr", kind: "message", T: () => NodeReferenceData }
         ]);
     }
     create(value?: PartialMessage<ClientData>): ClientData {
@@ -14612,6 +14666,9 @@ class ClientData$Type extends MessageType<ClientData> {
                 case /* optional symbolx.bench.NodeReferenceData space_ptr */ 60:
                     message.spacePtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.spacePtr);
                     break;
+                case /* optional symbolx.bench.NodeReferenceData machine_ptr */ 61:
+                    message.machinePtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.machinePtr);
+                    break;
                 default:
                     let u = options.readUnknownField;
                     if (u === "throw")
@@ -14700,6 +14757,9 @@ class ClientData$Type extends MessageType<ClientData> {
         /* optional symbolx.bench.NodeReferenceData space_ptr = 60; */
         if (message.spacePtr)
             NodeReferenceData.internalBinaryWrite(message.spacePtr, writer.tag(60, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbolx.bench.NodeReferenceData machine_ptr = 61; */
+        if (message.machinePtr)
+            NodeReferenceData.internalBinaryWrite(message.machinePtr, writer.tag(61, WireType.LengthDelimited).fork(), options).join();
         let u = options.writeUnknownFields;
         if (u !== false)
             (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
@@ -16488,15 +16548,16 @@ class MachineData$Type extends MessageType<MachineData> {
             { no: 34, name: "text", kind: "message", T: () => TextData },
             { no: 35, name: "region", kind: "enum", T: () => ["symbolx.bench.Region", Region, "REGION_"] },
             { no: 36, name: "status", kind: "enum", T: () => ["symbolx.bench.ResourceStatus", ResourceStatus, "RESOURCE_STATUS_"] },
-            { no: 40, name: "profile", kind: "enum", T: () => ["symbolx.bench.ServerProfile", ServerProfile, "SERVER_PROFILE_"] },
-            { no: 41, name: "version", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
-            { no: 42, name: "external_name", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
-            { no: 43, name: "external_id", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
-            { no: 44, name: "connection_uri", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
-            { no: 50, name: "started_at", kind: "message", T: () => Timestamp },
-            { no: 51, name: "terminated_at", kind: "message", T: () => Timestamp },
-            { no: 52, name: "active_at", kind: "message", T: () => Timestamp },
-            { no: 53, name: "bumped_at", kind: "message", T: () => Timestamp }
+            { no: 40, name: "profile", kind: "enum", T: () => ["symbolx.bench.MachineProfile", MachineProfile, "MACHINE_PROFILE_"] },
+            { no: 41, name: "current_profile", kind: "enum", opt: true, T: () => ["symbolx.bench.MachineProfile", MachineProfile, "MACHINE_PROFILE_"] },
+            { no: 42, name: "version", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
+            { no: 43, name: "current_version", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
+            { no: 50, name: "external_name", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
+            { no: 51, name: "external_id", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
+            { no: 52, name: "connection_uri", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
+            { no: 60, name: "started_at", kind: "message", T: () => Timestamp },
+            { no: 61, name: "terminated_at", kind: "message", T: () => Timestamp },
+            { no: 62, name: "active_at", kind: "message", T: () => Timestamp }
         ]);
     }
     create(value?: PartialMessage<MachineData>): MachineData {
@@ -16570,32 +16631,35 @@ class MachineData$Type extends MessageType<MachineData> {
                 case /* symbolx.bench.ResourceStatus status */ 36:
                     message.status = reader.int32();
                     break;
-                case /* symbolx.bench.ServerProfile profile */ 40:
+                case /* symbolx.bench.MachineProfile profile */ 40:
                     message.profile = reader.int32();
                     break;
-                case /* optional string version */ 41:
+                case /* optional symbolx.bench.MachineProfile current_profile */ 41:
+                    message.currentProfile = reader.int32();
+                    break;
+                case /* optional string version */ 42:
                     message.version = reader.string();
                     break;
-                case /* optional string external_name */ 42:
+                case /* optional string current_version */ 43:
+                    message.currentVersion = reader.string();
+                    break;
+                case /* optional string external_name */ 50:
                     message.externalName = reader.string();
                     break;
-                case /* optional string external_id */ 43:
+                case /* optional string external_id */ 51:
                     message.externalId = reader.string();
                     break;
-                case /* optional string connection_uri */ 44:
+                case /* optional string connection_uri */ 52:
                     message.connectionUri = reader.string();
                     break;
-                case /* optional google.protobuf.Timestamp started_at */ 50:
+                case /* optional google.protobuf.Timestamp started_at */ 60:
                     message.startedAt = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.startedAt);
                     break;
-                case /* optional google.protobuf.Timestamp terminated_at */ 51:
+                case /* optional google.protobuf.Timestamp terminated_at */ 61:
                     message.terminatedAt = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.terminatedAt);
                     break;
-                case /* optional google.protobuf.Timestamp active_at */ 52:
+                case /* optional google.protobuf.Timestamp active_at */ 62:
                     message.activeAt = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.activeAt);
-                    break;
-                case /* optional google.protobuf.Timestamp bumped_at */ 53:
-                    message.bumpedAt = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.bumpedAt);
                     break;
                 default:
                     let u = options.readUnknownField;
@@ -16661,33 +16725,36 @@ class MachineData$Type extends MessageType<MachineData> {
         /* symbolx.bench.ResourceStatus status = 36; */
         if (message.status !== 0)
             writer.tag(36, WireType.Varint).int32(message.status);
-        /* symbolx.bench.ServerProfile profile = 40; */
+        /* symbolx.bench.MachineProfile profile = 40; */
         if (message.profile !== 0)
             writer.tag(40, WireType.Varint).int32(message.profile);
-        /* optional string version = 41; */
+        /* optional symbolx.bench.MachineProfile current_profile = 41; */
+        if (message.currentProfile !== undefined)
+            writer.tag(41, WireType.Varint).int32(message.currentProfile);
+        /* optional string version = 42; */
         if (message.version !== undefined)
-            writer.tag(41, WireType.LengthDelimited).string(message.version);
-        /* optional string external_name = 42; */
+            writer.tag(42, WireType.LengthDelimited).string(message.version);
+        /* optional string current_version = 43; */
+        if (message.currentVersion !== undefined)
+            writer.tag(43, WireType.LengthDelimited).string(message.currentVersion);
+        /* optional string external_name = 50; */
         if (message.externalName !== undefined)
-            writer.tag(42, WireType.LengthDelimited).string(message.externalName);
-        /* optional string external_id = 43; */
+            writer.tag(50, WireType.LengthDelimited).string(message.externalName);
+        /* optional string external_id = 51; */
         if (message.externalId !== undefined)
-            writer.tag(43, WireType.LengthDelimited).string(message.externalId);
-        /* optional string connection_uri = 44; */
+            writer.tag(51, WireType.LengthDelimited).string(message.externalId);
+        /* optional string connection_uri = 52; */
         if (message.connectionUri !== undefined)
-            writer.tag(44, WireType.LengthDelimited).string(message.connectionUri);
-        /* optional google.protobuf.Timestamp started_at = 50; */
+            writer.tag(52, WireType.LengthDelimited).string(message.connectionUri);
+        /* optional google.protobuf.Timestamp started_at = 60; */
         if (message.startedAt)
-            Timestamp.internalBinaryWrite(message.startedAt, writer.tag(50, WireType.LengthDelimited).fork(), options).join();
-        /* optional google.protobuf.Timestamp terminated_at = 51; */
+            Timestamp.internalBinaryWrite(message.startedAt, writer.tag(60, WireType.LengthDelimited).fork(), options).join();
+        /* optional google.protobuf.Timestamp terminated_at = 61; */
         if (message.terminatedAt)
-            Timestamp.internalBinaryWrite(message.terminatedAt, writer.tag(51, WireType.LengthDelimited).fork(), options).join();
-        /* optional google.protobuf.Timestamp active_at = 52; */
+            Timestamp.internalBinaryWrite(message.terminatedAt, writer.tag(61, WireType.LengthDelimited).fork(), options).join();
+        /* optional google.protobuf.Timestamp active_at = 62; */
         if (message.activeAt)
-            Timestamp.internalBinaryWrite(message.activeAt, writer.tag(52, WireType.LengthDelimited).fork(), options).join();
-        /* optional google.protobuf.Timestamp bumped_at = 53; */
-        if (message.bumpedAt)
-            Timestamp.internalBinaryWrite(message.bumpedAt, writer.tag(53, WireType.LengthDelimited).fork(), options).join();
+            Timestamp.internalBinaryWrite(message.activeAt, writer.tag(62, WireType.LengthDelimited).fork(), options).join();
         let u = options.writeUnknownFields;
         if (u !== false)
             (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
@@ -18946,8 +19013,11 @@ class ServerData$Type extends MessageType<ServerData> {
             { no: 35, name: "region", kind: "enum", T: () => ["symbolx.bench.Region", Region, "REGION_"] },
             { no: 36, name: "status", kind: "enum", T: () => ["symbolx.bench.ResourceStatus", ResourceStatus, "RESOURCE_STATUS_"] },
             { no: 40, name: "profile", kind: "enum", T: () => ["symbolx.bench.ServerProfile", ServerProfile, "SERVER_PROFILE_"] },
-            { no: 50, name: "active_at", kind: "message", T: () => Timestamp },
-            { no: 51, name: "bumped_at", kind: "message", T: () => Timestamp }
+            { no: 41, name: "current_profile", kind: "enum", opt: true, T: () => ["symbolx.bench.ServerProfile", ServerProfile, "SERVER_PROFILE_"] },
+            { no: 42, name: "version", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
+            { no: 43, name: "current_version", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
+            { no: 60, name: "active_at", kind: "message", T: () => Timestamp },
+            { no: 61, name: "bumped_at", kind: "message", T: () => Timestamp }
         ]);
     }
     create(value?: PartialMessage<ServerData>): ServerData {
@@ -19024,10 +19094,19 @@ class ServerData$Type extends MessageType<ServerData> {
                 case /* symbolx.bench.ServerProfile profile */ 40:
                     message.profile = reader.int32();
                     break;
-                case /* optional google.protobuf.Timestamp active_at */ 50:
+                case /* optional symbolx.bench.ServerProfile current_profile */ 41:
+                    message.currentProfile = reader.int32();
+                    break;
+                case /* optional string version */ 42:
+                    message.version = reader.string();
+                    break;
+                case /* optional string current_version */ 43:
+                    message.currentVersion = reader.string();
+                    break;
+                case /* optional google.protobuf.Timestamp active_at */ 60:
                     message.activeAt = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.activeAt);
                     break;
-                case /* optional google.protobuf.Timestamp bumped_at */ 51:
+                case /* optional google.protobuf.Timestamp bumped_at */ 61:
                     message.bumpedAt = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.bumpedAt);
                     break;
                 default:
@@ -19097,12 +19176,21 @@ class ServerData$Type extends MessageType<ServerData> {
         /* symbolx.bench.ServerProfile profile = 40; */
         if (message.profile !== 0)
             writer.tag(40, WireType.Varint).int32(message.profile);
-        /* optional google.protobuf.Timestamp active_at = 50; */
+        /* optional symbolx.bench.ServerProfile current_profile = 41; */
+        if (message.currentProfile !== undefined)
+            writer.tag(41, WireType.Varint).int32(message.currentProfile);
+        /* optional string version = 42; */
+        if (message.version !== undefined)
+            writer.tag(42, WireType.LengthDelimited).string(message.version);
+        /* optional string current_version = 43; */
+        if (message.currentVersion !== undefined)
+            writer.tag(43, WireType.LengthDelimited).string(message.currentVersion);
+        /* optional google.protobuf.Timestamp active_at = 60; */
         if (message.activeAt)
-            Timestamp.internalBinaryWrite(message.activeAt, writer.tag(50, WireType.LengthDelimited).fork(), options).join();
-        /* optional google.protobuf.Timestamp bumped_at = 51; */
+            Timestamp.internalBinaryWrite(message.activeAt, writer.tag(60, WireType.LengthDelimited).fork(), options).join();
+        /* optional google.protobuf.Timestamp bumped_at = 61; */
         if (message.bumpedAt)
-            Timestamp.internalBinaryWrite(message.bumpedAt, writer.tag(51, WireType.LengthDelimited).fork(), options).join();
+            Timestamp.internalBinaryWrite(message.bumpedAt, writer.tag(61, WireType.LengthDelimited).fork(), options).join();
         let u = options.writeUnknownFields;
         if (u !== false)
             (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
@@ -20163,6 +20251,7 @@ class StoreData$Type extends MessageType<StoreData> {
             { no: 35, name: "region", kind: "enum", T: () => ["symbolx.bench.Region", Region, "REGION_"] },
             { no: 36, name: "status", kind: "enum", T: () => ["symbolx.bench.ResourceStatus", ResourceStatus, "RESOURCE_STATUS_"] },
             { no: 40, name: "version", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
+            { no: 41, name: "current_version", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
             { no: 50, name: "external_name", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
             { no: 51, name: "external_id", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
             { no: 52, name: "connection_uri", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ }
@@ -20241,6 +20330,9 @@ class StoreData$Type extends MessageType<StoreData> {
                 case /* optional string version */ 40:
                     message.version = reader.string();
                     break;
+                case /* optional string current_version */ 41:
+                    message.currentVersion = reader.string();
+                    break;
                 case /* optional string external_name */ 50:
                     message.externalName = reader.string();
                     break;
@@ -20317,6 +20409,9 @@ class StoreData$Type extends MessageType<StoreData> {
         /* optional string version = 40; */
         if (message.version !== undefined)
             writer.tag(40, WireType.LengthDelimited).string(message.version);
+        /* optional string current_version = 41; */
+        if (message.currentVersion !== undefined)
+            writer.tag(41, WireType.LengthDelimited).string(message.currentVersion);
         /* optional string external_name = 50; */
         if (message.externalName !== undefined)
             writer.tag(50, WireType.LengthDelimited).string(message.externalName);
@@ -22008,6 +22103,7 @@ export const ENUM_BY_TYPE: Record<EnumType, Record<number | string, number | str
   [EnumType.STORE_KIND]: StoreKind,
   [EnumType.STORE_ENGINE_TYPE]: StoreEngineType,
   [EnumType.SERVER_PROFILE]: ServerProfile,
+  [EnumType.MACHINE_PROFILE]: MachineProfile,
   [EnumType.RESOURCE_STATUS]: ResourceStatus,
   [EnumType.FILE_RETENTION_MODE]: FileRetentionMode,
   [EnumType.CLIENT_TYPE]: ClientType,
@@ -22232,6 +22328,7 @@ export interface EnumTypeMapping extends Record<EnumType, any> {
   [EnumType.STORE_KIND]: StoreKind,
   [EnumType.STORE_ENGINE_TYPE]: StoreEngineType,
   [EnumType.SERVER_PROFILE]: ServerProfile,
+  [EnumType.MACHINE_PROFILE]: MachineProfile,
   [EnumType.RESOURCE_STATUS]: ResourceStatus,
   [EnumType.FILE_RETENTION_MODE]: FileRetentionMode,
   [EnumType.CLIENT_TYPE]: ClientType,
@@ -23017,8 +23114,11 @@ export enum ServerProperty {
   region = 35,
   status = 36,
   profile = 40,
-  activeAt = 50,
-  bumpedAt = 51,
+  currentProfile = 41,
+  version = 42,
+  currentVersion = 43,
+  activeAt = 60,
+  bumpedAt = 61,
 }
 
 export enum StoreProperty {
@@ -23039,6 +23139,7 @@ export enum StoreProperty {
   region = 35,
   status = 36,
   version = 40,
+  currentVersion = 41,
   externalName = 50,
   externalId = 51,
   connectionUri = 52,
@@ -23062,14 +23163,15 @@ export enum MachineProperty {
   region = 35,
   status = 36,
   profile = 40,
-  version = 41,
-  externalName = 42,
-  externalId = 43,
-  connectionUri = 44,
-  startedAt = 50,
-  terminatedAt = 51,
-  activeAt = 52,
-  bumpedAt = 53,
+  currentProfile = 41,
+  version = 42,
+  currentVersion = 43,
+  externalName = 50,
+  externalId = 51,
+  connectionUri = 52,
+  startedAt = 60,
+  terminatedAt = 61,
+  activeAt = 62,
 }
 
 export enum DriveProperty {
@@ -23203,6 +23305,7 @@ export enum ClientProperty {
   seenAt = 51,
   loggedInAt = 52,
   spacePtr = 60,
+  machinePtr = 61,
 }
 
 export enum PathProperty {
@@ -24934,8 +25037,11 @@ export const ServerDataInfo: Record<ServerProperty, PropertyInfo> = {
   [ServerProperty.region]: { id: 35, name: 'region', component: ObjectType.SERVER, enumType: EnumType.REGION, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [ServerProperty.status]: { id: 36, name: 'status', component: ObjectType.SERVER, enumType: EnumType.RESOURCE_STATUS, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [ServerProperty.profile]: { id: 40, name: 'profile', component: ObjectType.SERVER, enumType: EnumType.SERVER_PROFILE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isRuntime: true, isWired: true, isStored: true },
-  [ServerProperty.activeAt]: { id: 50, name: 'active_at', component: ObjectType.SERVER, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isRuntime: true, isWired: true, isStored: true },
-  [ServerProperty.bumpedAt]: { id: 51, name: 'bumped_at', component: ObjectType.SERVER, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isRuntime: true, isWired: true, isStored: true },
+  [ServerProperty.currentProfile]: { id: 41, name: 'current_profile', component: ObjectType.SERVER, enumType: EnumType.SERVER_PROFILE, kind: 'enum', primitiveType: PrimitiveType.INT16, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
+  [ServerProperty.version]: { id: 42, name: 'version', component: ObjectType.SERVER, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
+  [ServerProperty.currentVersion]: { id: 43, name: 'current_version', component: ObjectType.SERVER, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
+  [ServerProperty.activeAt]: { id: 60, name: 'active_at', component: ObjectType.SERVER, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isRuntime: true, isWired: true, isStored: true },
+  [ServerProperty.bumpedAt]: { id: 61, name: 'bumped_at', component: ObjectType.SERVER, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isRuntime: true, isWired: true, isStored: true },
 }
 export const StoreDataInfo: Record<StoreProperty, PropertyInfo> = {
   [StoreProperty.metatype]: { id: 1, name: 'metatype', component: ObjectType.STORE, enumType: EnumType.OBJECT_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isComputed: true, isWired: true },
@@ -24955,6 +25061,7 @@ export const StoreDataInfo: Record<StoreProperty, PropertyInfo> = {
   [StoreProperty.region]: { id: 35, name: 'region', component: ObjectType.STORE, enumType: EnumType.REGION, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [StoreProperty.status]: { id: 36, name: 'status', component: ObjectType.STORE, enumType: EnumType.RESOURCE_STATUS, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [StoreProperty.version]: { id: 40, name: 'version', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
+  [StoreProperty.currentVersion]: { id: 41, name: 'current_version', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [StoreProperty.externalName]: { id: 50, name: 'external_name', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isSystem: true, isKernel: true, isRuntime: true, isWired: true, isStored: true, isSensitive: true },
   [StoreProperty.externalId]: { id: 51, name: 'external_id', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isSystem: true, isKernel: true, isRuntime: true, isWired: true, isStored: true, isSensitive: true },
   [StoreProperty.connectionUri]: { id: 52, name: 'connection_uri', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isSystem: true, isKernel: true, isRuntime: true, isWired: true, isStored: true, isDeferred: true, isSensitive: true, isEncrypted: true },
@@ -24976,15 +25083,16 @@ export const MachineDataInfo: Record<MachineProperty, PropertyInfo> = {
   [MachineProperty.text]: { id: 34, name: 'text', component: ObjectType.MACHINE, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.TEXT },
   [MachineProperty.region]: { id: 35, name: 'region', component: ObjectType.MACHINE, enumType: EnumType.REGION, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [MachineProperty.status]: { id: 36, name: 'status', component: ObjectType.MACHINE, enumType: EnumType.RESOURCE_STATUS, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
-  [MachineProperty.profile]: { id: 40, name: 'profile', component: ObjectType.MACHINE, enumType: EnumType.SERVER_PROFILE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isRuntime: true, isWired: true, isStored: true },
-  [MachineProperty.version]: { id: 41, name: 'version', component: ObjectType.MACHINE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
-  [MachineProperty.externalName]: { id: 42, name: 'external_name', component: ObjectType.MACHINE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isSystem: true, isKernel: true, isRuntime: true, isWired: true, isStored: true, isSensitive: true },
-  [MachineProperty.externalId]: { id: 43, name: 'external_id', component: ObjectType.MACHINE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isSystem: true, isKernel: true, isRuntime: true, isWired: true, isStored: true, isSensitive: true },
-  [MachineProperty.connectionUri]: { id: 44, name: 'connection_uri', component: ObjectType.MACHINE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isSystem: true, isKernel: true, isRuntime: true, isWired: true, isStored: true, isDeferred: true, isSensitive: true, isEncrypted: true },
-  [MachineProperty.startedAt]: { id: 50, name: 'started_at', component: ObjectType.MACHINE, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isRuntime: true, isWired: true, isStored: true },
-  [MachineProperty.terminatedAt]: { id: 51, name: 'terminated_at', component: ObjectType.MACHINE, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isRuntime: true, isWired: true, isStored: true },
-  [MachineProperty.activeAt]: { id: 52, name: 'active_at', component: ObjectType.MACHINE, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isRuntime: true, isWired: true, isStored: true },
-  [MachineProperty.bumpedAt]: { id: 53, name: 'bumped_at', component: ObjectType.MACHINE, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isRuntime: true, isWired: true, isStored: true },
+  [MachineProperty.profile]: { id: 40, name: 'profile', component: ObjectType.MACHINE, enumType: EnumType.MACHINE_PROFILE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
+  [MachineProperty.currentProfile]: { id: 41, name: 'current_profile', component: ObjectType.MACHINE, enumType: EnumType.MACHINE_PROFILE, kind: 'enum', primitiveType: PrimitiveType.INT16, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
+  [MachineProperty.version]: { id: 42, name: 'version', component: ObjectType.MACHINE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
+  [MachineProperty.currentVersion]: { id: 43, name: 'current_version', component: ObjectType.MACHINE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
+  [MachineProperty.externalName]: { id: 50, name: 'external_name', component: ObjectType.MACHINE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isSystem: true, isKernel: true, isRuntime: true, isWired: true, isStored: true, isSensitive: true },
+  [MachineProperty.externalId]: { id: 51, name: 'external_id', component: ObjectType.MACHINE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isSystem: true, isKernel: true, isRuntime: true, isWired: true, isStored: true, isSensitive: true },
+  [MachineProperty.connectionUri]: { id: 52, name: 'connection_uri', component: ObjectType.MACHINE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isSystem: true, isKernel: true, isRuntime: true, isWired: true, isStored: true, isDeferred: true, isSensitive: true, isEncrypted: true },
+  [MachineProperty.startedAt]: { id: 60, name: 'started_at', component: ObjectType.MACHINE, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isRuntime: true, isWired: true, isStored: true },
+  [MachineProperty.terminatedAt]: { id: 61, name: 'terminated_at', component: ObjectType.MACHINE, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isRuntime: true, isWired: true, isStored: true },
+  [MachineProperty.activeAt]: { id: 62, name: 'active_at', component: ObjectType.MACHINE, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isRuntime: true, isWired: true, isStored: true },
 }
 export const DriveDataInfo: Record<DriveProperty, PropertyInfo> = {
   [DriveProperty.metatype]: { id: 1, name: 'metatype', component: ObjectType.DRIVE, enumType: EnumType.OBJECT_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isComputed: true, isWired: true },
@@ -25112,6 +25220,7 @@ export const ClientDataInfo: Record<ClientProperty, PropertyInfo> = {
   [ClientProperty.seenAt]: { id: 51, name: 'seen_at', component: ObjectType.CLIENT, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [ClientProperty.loggedInAt]: { id: 52, name: 'logged_in_at', component: ObjectType.CLIENT, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [ClientProperty.spacePtr]: { id: 60, name: 'space_ptr', component: ObjectType.CLIENT, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.SPACE], referenceStruct: StructType.NODE_REFERENCE },
+  [ClientProperty.machinePtr]: { id: 61, name: 'machine_ptr', component: ObjectType.CLIENT, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.MACHINE], referenceStruct: StructType.NODE_REFERENCE },
 }
 export const PROPERTY_INFOS_BY_TYPE: Record<ObjectType, Record<any, PropertyInfo>> = {
   [ObjectType.UNSPECIFIED]: {},

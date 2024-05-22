@@ -13,7 +13,7 @@ from bench.utils.utils import frozendict
 if typing.TYPE_CHECKING:
     from bench.language import Run, Session, Transaction
 
-VERSION = "2024.05.21.0"
+VERSION = "2024.05.22.1"
 REVISION_PENDING = -1
 TK_LENGTH_BYTES = 8
 TK_LENGTH_B64 = 12  # 1.5 * TK_LENGTH_BYTES (must be integer)
@@ -79,8 +79,9 @@ class EnumType(IdEnum):
     STORE_KIND = 2052
     STORE_ENGINE_TYPE = 2053
     SERVER_PROFILE = 2055
-    RESOURCE_STATUS = 2056
-    FILE_RETENTION_MODE = 2057
+    MACHINE_PROFILE = 2056
+    RESOURCE_STATUS = 2057
+    FILE_RETENTION_MODE = 2058
     CLIENT_TYPE = 2060
 
     # block

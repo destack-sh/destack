@@ -10,7 +10,7 @@ from grpclib import GRPCError
 from grpclib import Status as GRPCStatus
 
 from bench.language import Bench, Package, Run, Subject
-from bench.language.bench import Machine, ResourceStatus, ServerProfile
+from bench.language.bench import Machine, MachineProfile, ResourceStatus
 from bench.language.connection import PostgresEngine, StoreEngine
 from bench.language.const import (
     IN_BENCH_GLOBAL_NODE_TYPES,
@@ -39,12 +39,7 @@ from bench.system.core import (
     unpack_committed_change,
 )
 from bench.system.graph import GraphIoServiceBase
-from bench.system.provision import (
-    Provisioner,
-    get_provisioners_for,
-    migrate_resources,
-    provision_resources,
-)
+from bench.system.provision import Provisioner, get_provisioners_for
 from bench.system.scheduling import RunPlugin
 from bench.utils.func import bittuple, to_uuid
 from bench.utils.utils import get_from_env_maybe
@@ -56,7 +51,7 @@ LOCAL_MACHINE = Machine(
     name="localhost",
     status=ResourceStatus.HEALTHY,
     connection_uri=LOCAL_MACHINE_URL,
-    profile=ServerProfile.LARGE,
+    profile=MachineProfile.MEDIUM,
 )
 
 
@@ -245,17 +240,10 @@ class Host(GraphIoServiceBase, HostBase, HostSpec):
                 node_types=LOCAL_NODE_TYPES,
             )
 
-            # prepare plugins
+            # start plugins
             self._provisioners = tuple(get_provisioners_for(self, self._bench))
             self._plugins = (RunPlugin(self, self._bench),) + self._provisioners
-            await asyncio.gather(*(plugin.start() for plugin in self._plugins))
-
-            # auto-provision
-            # NOTE: we provision manually here (instead of in Provisioner plugins)
-            #  because we may edit the resources manually or 'offline'.
-            # Also, we manually migrate here on Host start because not sure where else to do it.
-            await provision_resources(self._bench.resources, self._provisioners, session)
-            await migrate_resources(self._bench.resources, self._provisioners, session)
+            await asyncio.gather(*(plugin.start(session) for plugin in self._plugins))
 
             await session.commit()
         session.untrack_many(self._bench)

@@ -6,7 +6,8 @@ import structlog
 from bench.language.bench import Bench
 from bench.language.const import NodeType, RunStatus
 from bench.language.run import Run
-from bench.system.core import CommittedChange, HostPlugin, HostSpec
+from bench.language.session import Session
+from bench.system.core import Commit, HostPlugin, HostSpec
 from bench.utils.func import bittuple
 
 if TYPE_CHECKING:
@@ -28,12 +29,12 @@ class RunPlugin(HostPlugin[Run]):
         return f"queue={self._runs_to_queue.qsize()}"
 
     @override
-    async def start(self) -> None:
+    async def start(self, session: Session) -> None:
         # TODO :Robustness: cancel/re-queue Runs stuck on dead Machines
         self._tasks.start_queue(self._runs_to_queue, self._process_run)
 
     @override
-    def on_graph_commit(self, commit: CommittedChange[Run]) -> None:
+    def on_graph_commit(self, commit: Commit[Run]) -> None:
         # queue any new runs
         for run in commit.added:
             if run.parent_type == NodeType.PACKAGE and run.status == RunStatus.SCHEDULED:

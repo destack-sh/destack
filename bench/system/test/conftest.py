@@ -109,7 +109,9 @@ async def make_new_user_handle(
         client=client._to_data(),
     )
     signup_rep = await supervisor.signup_user(signup_req)
-    origin = ClientOrigin(id=str(client.id), nonce=str(random.randint(0, 2**32)))
+    origin = ClientOrigin(
+        type=wire.ClientType(client.type), id=str(client.id), nonce=str(random.randint(0, 2**32))
+    )
     subject = NodeReferenceData(
         metatype=wire.ObjectType.NODE_REFERENCE, type=wire.NodeType.USER, id=str(user.id)
     )

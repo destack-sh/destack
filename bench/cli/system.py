@@ -6,8 +6,7 @@ from bench.cli.utils import async_to_sync_blocking, check_is_consistent
 from bench.language import Bench, Region, User
 from bench.language.const import ClientType, NodeType, UserStatus
 from bench.system.access import generate_access_token
-from bench.system.core import DEAD_HOST, global_session
-from bench.system.provision import get_provisioners_for, migrate_resources, provision_resources
+from bench.system.core import global_session
 from bench.system.supervisor import create_default_bench
 
 app = typer.Typer(short_help="some language-level utilities")
@@ -38,25 +37,12 @@ async def bootstrap(region: Region = Region.EUROPE_CENTRAL):
         bench_bench = await create_default_bench(
             main_handle=bench_bench_handle, owner=system_user, region=region, session=session
         )
-        # immediately provision
-        provisioners = get_provisioners_for(DEAD_HOST, system_bench)
-        await provision_resources(system_bench.resources, provisioners, session)
-        await provision_resources(bench_bench.resources, provisioners, session)
-        await session.commit()
-
-
-@app.command(help="provision all esources for a Bench")
-@async_to_sync_blocking
-async def provision(bench_slug: str):
-    async with global_session() as session:
-        bench = (
-            await Bench.descendants(NodeType.SERVER, NodeType.STORE)
-            .select_all()
-            .get(slug=bench_slug)
+        logger.info(
+            "system.bootstrap",
+            system_user=system_user,
+            system_bench=system_bench,
+            bench_bench=bench_bench,
         )
-        provisioners = get_provisioners_for(DEAD_HOST, bench)
-        await provision_resources(bench.resources, provisioners, session)
-        await migrate_resources(bench.resources, provisioners, session)
         await session.commit()
 
 

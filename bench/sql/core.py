@@ -503,14 +503,7 @@ class Table(TableObject):
         self._primary_key = first((c for c in self.columns if c.is_primary_key), None)
 
     def __str__(self):
-        columns_str = ", ".join(
-            f"{c.name} {c.underlying_type.bench_name}{c.__flags_str__()}" for c in self.columns
-        )
-        constraints_str = ", ".join(f"{c.name} {c.type}" for c in self.constraints)
-        indexes_str = ", ".join(f"{c.name} {c.type}" for c in self.indexes)
-        return (
-            f"{self.name} ({columns_str}, constraints=[{constraints_str}], indexes=[{indexes_str}])"
-        )
+        return f"{self.name} (columns={len(self.columns)}, constraints={len(self.constraints)}, indexes={len(self.indexes)})"
 
     def __repr__(self):
         return f"<Table {self}>"

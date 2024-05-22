@@ -34,7 +34,7 @@ from bench.proto.wire import (
 )
 from bench.utils.casing import IdentifierType
 from bench.utils.dt import utcnow
-from bench.utils.func import IdEnum
+from bench.utils.func import IdEnum, bittuple
 
 if TYPE_CHECKING:
     from bench.language import (
@@ -113,7 +113,12 @@ class Bench(Node[BenchData]):
 
     @property
     def resources(self) -> Iterable["Resource"]:
-        return chain(self.servers, self.stores, self.drives)
+        return chain(
+            self.servers,
+            chain.from_iterable(server.machines for server in self.servers),
+            self.stores,
+            self.drives,
+        )
 
 
 @node(NodeType.ENVIRONMENT, identifier=IdentifierType.VARIABLE)
@@ -256,12 +261,22 @@ class Tenancy(IdEnum):
 class ResourceStatus(IdEnum):
     """Generalized status of a Resource in its lifecycle."""
 
-    PENDING = 1
+    # preparing
+    DECLARED = 1
+    PROVISIONING = 5
+    # extant
     HEALTHY = 10
-    UNHEALTHY = 20
-    SLEEPING = 30
-    DESTROYED = 40
+    UNHEALTHY = 15
+    SLEEPING = 20
+    # terminal
+    DECOMMISSIONED = 30
 
+    @property
+    def is_extant(self) -> bool:
+        return 10 <= self.value <= 20
+
+
+EXTANT_RESOURCE_STATUSES = bittuple(*(s for s in ResourceStatus if 10 <= s.value <= 20))
 
 NodeDataT = TypeVar("NodeDataT", bound=AnyNodeData)
 
@@ -269,15 +284,16 @@ NodeDataT = TypeVar("NodeDataT", bound=AnyNodeData)
 @node_component()
 class Resource(Node[NodeDataT], abc.ABC, Generic[NodeDataT]):
     """
-    A resource owned by a Bench.
-    Certain resources may be branched into a Package.
+    An external resource in a Bench.
+    Resources generally work on the 'desired state' principle (except for some system-only properties).
+    If different, the real 'current' state is stored in current_* properties.
     """
 
     parent: "Bench" = p_node_parent(4, NodeType.BENCH, is_system=True)
     name: str = p_regular(32)
     text: Optional["Text"] = p_regular(34, default=None, struct=StructType.TEXT)
     region: Region = p_system(35, default=Region.GLOBAL)
-    status: ResourceStatus = p_system(36, default=ResourceStatus.PENDING)
+    status: ResourceStatus = p_system(36, default=ResourceStatus.DECLARED)
 
     def __content_str__(self):
         value_strs: list[str] = []
@@ -294,25 +310,37 @@ class Resource(Node[NodeDataT], abc.ABC, Generic[NodeDataT]):
         return ", ".join(value_strs)
 
 
+# NOTE: ServerProfile/MachineProfile will be overhauled
+
+
 @enum_(EnumType.SERVER_PROFILE)
 class ServerProfile(IdEnum):
     TINY = 3
     SMALL = 5
     MEDIUM = 7
-    LARGE = 9
+
+
+@enum_(EnumType.MACHINE_PROFILE)
+class MachineProfile(IdEnum):
+    TINY = 3
+    SMALL = 5
+    MEDIUM = 7
 
 
 @node(NodeType.SERVER)
 class Server(Resource[ServerData]):
     """
     A server provides some compute for a Bench's Runtime.
-    Actual compute is materialized (on-demand) as Machines.
+    Physical compute is materialized (on-demand) as Machines.
     """
 
     profile: ServerProfile = p_regular(40)
+    current_profile: Optional[ServerProfile] = p_system(41, default=None)
+    version: Optional[str] = p_system(42, default=None)
+    current_version: Optional[str] = p_system(43, default=None)
 
-    active_at: Optional[datetime] = p_internal(50, default=None)
-    bumped_at: Optional[datetime] = p_internal(51, default=None)
+    active_at: Optional[datetime] = p_internal(60, default=None)
+    bumped_at: Optional[datetime] = p_internal(61, default=None)
 
     clients: NodeList["Client"] = p_node_child(NodeType.CLIENT)
     machines: NodeList["Machine"] = p_node_child(NodeType.MACHINE)
@@ -321,23 +349,25 @@ class Server(Resource[ServerData]):
 @node(NodeType.MACHINE)
 class Machine(Resource[MachineData]):
     """
-    A Machine provides the isolated compute for a Server.
+    A Machine provides some isolated compute for a Server.
     """
 
     parent: Server = p_node_parent(4, NodeType.SERVER)
 
-    profile: ServerProfile = p_regular(40)
-    version: Optional[str] = p_system(41, default=None)
-    external_name: Optional[str] = p_kernel(42, require=False, default=None, sensitive=True)
-    external_id: Optional[str] = p_kernel(43, require=False, default=None, sensitive=True)
+    profile: MachineProfile = p_system(40)
+    current_profile: Optional[MachineProfile] = p_system(41, default=None)
+    version: Optional[str] = p_system(42, default=None)
+    current_version: Optional[str] = p_system(43, default=None)
+
+    external_name: Optional[str] = p_kernel(50, require=False, default=None, sensitive=True)
+    external_id: Optional[str] = p_kernel(51, require=False, default=None, sensitive=True)
     connection_uri: Optional[str] = p_kernel(
-        44, require=False, default=None, encrypt=True, defer=True, sensitive=True
+        52, require=False, default=None, encrypt=True, defer=True, sensitive=True
     )
 
-    started_at: Optional[datetime] = p_internal(50, default=None)
-    terminated_at: Optional[datetime] = p_internal(51, default=None)
-    active_at: Optional[datetime] = p_internal(52, default=None)
-    bumped_at: Optional[datetime] = p_internal(53, default=None)
+    started_at: Optional[datetime] = p_internal(60, default=None)
+    terminated_at: Optional[datetime] = p_internal(61, default=None)
+    active_at: Optional[datetime] = p_internal(62, default=None)
 
 
 @node(NodeType.STORE)
@@ -345,6 +375,7 @@ class Store(Resource[StoreData]):
     """Postgres database."""
 
     version: Optional[str] = p_system(40, default=None)
+    current_version: Optional[str] = p_system(41, default=None)
 
     external_name: Optional[str] = p_kernel(50, require=False, default=None, sensitive=True)
     external_id: Optional[str] = p_kernel(51, require=False, default=None, sensitive=True)
@@ -381,9 +412,11 @@ class Client(Node[ClientData]):
     seen_at: datetime = p_system(51, default_factory=utcnow)
     logged_in_at: Optional[datetime] = p_system(52, default=None)
 
-    # for user clients
     space: Optional["Space"] = p_system(
         60, array=False, require=False, references=NodeType.SPACE, fk=True
+    )
+    machine: Optional[Machine] = p_system(
+        61, array=False, require=False, references=NodeType.MACHINE, fk=True
     )
 
     def __content_str__(self) -> str:
