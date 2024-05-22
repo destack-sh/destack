@@ -14,6 +14,9 @@ class RetryOptions:
     max_retry_interval: float = 60.0  # seconds
     retry_on: Union[Type[Exception], tuple[Type[Exception], ...]] = Exception
 
+    def get_interval(self, attempt: int) -> float:
+        return min(self.retry_interval * (self.backoff**attempt), self.max_retry_interval)
+
 
 def retry(
     options: Union[RetryOptions, Callable[..., RetryOptions]],

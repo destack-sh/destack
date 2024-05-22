@@ -170,6 +170,7 @@ class Session(Node[SessionData]):
             edits, cascaded_edits = await self.tx.commit()
             if not suppress_hook and self._on_commit_hook and edits:
                 self._on_commit_hook(self._edited_nodes_by_id, edits, cascaded_edits)
+            return edits, cascaded_edits
 
     async def rollback(self):
         assert self.is_open, f"cannot rollback {self!r} when closed"

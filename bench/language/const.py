@@ -13,7 +13,7 @@ from bench.utils.utils import frozendict
 if typing.TYPE_CHECKING:
     from bench.language import Run, Session, Transaction
 
-VERSION = "2024.05.22.1"
+VERSION = "2024.05.22.2"
 REVISION_PENDING = -1
 TK_LENGTH_BYTES = 8
 TK_LENGTH_B64 = 12  # 1.5 * TK_LENGTH_BYTES (must be integer)
@@ -124,7 +124,8 @@ class EnumType(IdEnum):
     RUN_STATUS = 2260
     RUN_KIND = 2261
     RUN_ERROR_KIND = 2262
-    SESSION_STATUS = 2263
+    RUN_ERROR_TYPE = 2263
+    SESSION_STATUS = 2264
     TRIGGER_TYPE = 2270
     NOTICE_KIND = 2280
     NOTIFICATION_KIND = 2281
@@ -296,8 +297,7 @@ class StructType(IdEnum):
     CODE_LINE = 1091
     # flow
     STEP_CONNECTION = 1100
-    RUN_CODE_FRAME = 1110
-    RUN_ERROR = 1111
+    RUN_ERROR = 1110
     # CURSOR?
 
     # text
@@ -761,6 +761,14 @@ class RunStatus(IdEnum):
     FAILED = 8
     COMPLETED = 9
 
+    @property
+    def is_active(self) -> bool:
+        return self in ACTIVE_RUN_STATUSES
+
+    @property
+    def is_terminal(self) -> bool:
+        return self in TERMINAL_RUN_STATUSES
+
 
 TERMINAL_RUN_STATUSES: bittuple[RunStatus] = bittuple(
     RunStatus.CANCELLED,
@@ -768,18 +776,7 @@ TERMINAL_RUN_STATUSES: bittuple[RunStatus] = bittuple(
     RunStatus.FAILED,
     RunStatus.COMPLETED,
 )
-ACTIVE_RUN_STATUSES = bittuple(
-    RunStatus.QUEUED, RunStatus.RUNNING, RunStatus.PAUSED, RunStatus.ABORTING
-)
-
-
-@enum_(EnumType.RUN_ERROR_KIND)
-class RunErrorKind(IdEnum):
-    INTERNAL = 1
-    PARSE = 2
-    VALIDATION = 3
-    RUNTIME = 4
-    UNTRUSTED = 5
+ACTIVE_RUN_STATUSES = bittuple(RunStatus.RUNNING, RunStatus.PAUSED, RunStatus.ABORTING)
 
 
 @enum_(EnumType.SESSION_STATUS)

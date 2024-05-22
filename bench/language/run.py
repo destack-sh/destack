@@ -5,11 +5,12 @@ from bench.language.code_ import Code
 from bench.language.const import (
     TERMINAL_RUN_STATUSES,
     BenchError,
+    EnumType,
     NodeType,
-    RunErrorKind,
     RunKind,
     RunStatus,
     StructType,
+    enum_,
 )
 from bench.language.node import BasedNode, Node, Struct, node, struct
 from bench.language.property import (
@@ -28,6 +29,7 @@ from bench.language.text import Text
 from bench.language.validation import ValidationHandler
 from bench.language.value import HasValues
 from bench.proto.wire import AnyNodeData, NodeReferenceData, RunData
+from bench.utils.func import IdEnum
 from bench.utils.uuidt import UUIDT
 
 if TYPE_CHECKING:
@@ -93,8 +95,18 @@ class Run(BasedNode[RunData], HasSessionContext, HasValues):
     runs: list["Run"] = p_node_child(NodeType.RUN)
 
     def __content_str__(self):
-        content_str = repr(self.step or self.block or self.text or self.code)
-        return f"{content_str} ({self.status}, {self.id})"
+        if self.kind == RunKind.BLOCK:
+            content_str = self.block.absolute_path if self.block else str(self.block_ptr)
+        elif self.kind == RunKind.STEP:
+            content_str = self.step.absolute_path if self.step else str(self.step_ptr)
+        else:
+            content_str = repr(self.code or self.text)
+        return f"{content_str}, {self.status.bench_name})"
+
+    def fail(self, error: "RunError"):
+        assert self.status.is_active, f"cannot fail {self.status} run {self!r}"
+        self.status = RunStatus.FAILED
+        self.error = error
 
     @property
     def active(self) -> bool:
@@ -117,27 +129,23 @@ class Run(BasedNode[RunData], HasSessionContext, HasValues):
             invalid(self, "step without block", (Run.step, Run.block))
 
 
-@struct(StructType.RUN_CODE_FRAME)
-class RunCodeFrame(Struct):
-    node: Node = p_internal(30, array=False, require=True, references=NodeType.BLOCK)
-    lineno: int = p_internal(31)
-    name: str = p_internal(32)
-    line: str = p_internal(33)
+@enum_(EnumType.RUN_ERROR_KIND)
+class RunErrorKind(IdEnum):
+    INTERNAL = 1
+    RUNTIME = 5
+
+
+@enum_(EnumType.RUN_ERROR_TYPE)
+class RunErrorType(IdEnum):
+    NO_RUNTIME_AVAILABLE = 1
 
 
 @struct(StructType.RUN_ERROR)
 class RunError(Struct, BenchError):
-    kind: RunErrorKind = p_internal(30)
-    type: str = p_internal(31)
-    message: Optional[str] = p_internal(32, default=None)
-    node: Optional["Node"] = p_internal(33, require=False, array=False, references=NodeType.BLOCK)
-    traceback: list[RunCodeFrame] = p_internal(34, array=True, struct=StructType.RUN_CODE_FRAME)
+    """An error that occurred in the context of a Run."""
 
-    @staticmethod
-    def from_exception(e: Exception) -> "RunError":
-        return RunError(
-            kind=RunErrorKind.RUNTIME,
-            type=type(e).__name__,
-            message=str(e),
-            traceback=[],
-        )
+    kind: RunErrorKind = p_internal(30)
+    type: RunErrorType = p_internal(31)
+    title: Optional[str] = p_internal(32, default=None)
+    text: Optional["Text"] = p_internal(33, default=None, struct=StructType.TEXT)
+    node: Optional["Node"] = p_internal(34, require=False, array=False, references=NodeType.BLOCK)
