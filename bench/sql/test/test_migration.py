@@ -10,10 +10,10 @@ from bench.sql.client import get_pg_connection_str, pg_cursor
 from bench.sql.core import ObjectKind
 from bench.sql.engine import GLOBAL_SCHEMA, LOCAL_SCHEMA
 from bench.sql.migration import (
-    generate_migration_ops,
-    introspect_schema_from_pg,
-    migrate,
+    generate_sql_migration_ops,
+    introspect_sql_schema,
     read_migrations_from_fs,
+    sql_migrate,
 )
 from bench.system.core import GLOBAL_STORE, global_pg_cursor
 from bench.system.neon import NeonApiRemote
@@ -67,12 +67,12 @@ async def _do_test_stored_migrations(blank_test_cur: psycopg.AsyncCursor, *, is_
     # run all stored migrations
     stored_migrations = read_migrations_from_fs()
     logger.info("migrate", migrations=stored_migrations)
-    await migrate(blank_test_cur, target=stored_migrations[-1].id, is_global=is_global)
+    await sql_migrate(blank_test_cur, target=stored_migrations[-1].id, is_global=is_global)
 
     # diff again (should be empty now)
-    current_schema = await introspect_schema_from_pg(blank_test_cur)
+    current_schema = await introspect_sql_schema(blank_test_cur)
     new_schema = GLOBAL_SCHEMA if is_global else LOCAL_SCHEMA
-    current_ops = generate_migration_ops(current_schema, new_schema)
+    current_ops = generate_sql_migration_ops(current_schema, new_schema)
     current_ops = [op for op in current_ops if op.object_kind != ObjectKind.EXTENSION]
     assert not current_ops, f"out of sync migrations, got {len(current_ops)} ops"
 

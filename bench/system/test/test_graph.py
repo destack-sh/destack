@@ -106,6 +106,7 @@ class EditProducer:
                 node_type=wiring.pack_enum(NodeType, node.metatype),
                 node=wiring.wrap_some_node(node_data),
                 properties=[prop.id],
+                origin=self.client.origin,
             )
             return edit
 

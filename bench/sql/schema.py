@@ -11,7 +11,7 @@ from bench.sql.core import (
     Table,
 )
 
-VERSION = "2024.05.21.0"
+VERSION = "2024.05.22.1"
 
 BENCH_TABLE = Table(
     "bench_bench",
@@ -1546,6 +1546,9 @@ SERVER_TABLE = Table(
         Column("region", PrimitiveType.INT16, default="1"),
         Column("status", PrimitiveType.INT16, default="1"),
         Column("profile", PrimitiveType.INT16),
+        Column("current_profile", PrimitiveType.INT16, is_nullable=True),
+        Column("version", PrimitiveType.STRING, is_nullable=True),
+        Column("current_version", PrimitiveType.STRING, is_nullable=True),
         Column("active_at", PrimitiveType.DATETIME, is_nullable=True),
         Column("bumped_at", PrimitiveType.DATETIME, is_nullable=True),
     ),
@@ -1588,6 +1591,7 @@ STORE_TABLE = Table(
         Column("region", PrimitiveType.INT16, default="1"),
         Column("status", PrimitiveType.INT16, default="1"),
         Column("version", PrimitiveType.STRING, is_nullable=True),
+        Column("current_version", PrimitiveType.STRING, is_nullable=True),
         Column("external_name", PrimitiveType.STRING, is_nullable=True),
         Column("external_id", PrimitiveType.STRING, is_nullable=True),
         Column("connection_uri", PrimitiveType.STRING, is_nullable=True, is_encrypted=True),
@@ -1631,14 +1635,15 @@ MACHINE_TABLE = Table(
         Column("region", PrimitiveType.INT16, default="1"),
         Column("status", PrimitiveType.INT16, default="1"),
         Column("profile", PrimitiveType.INT16),
+        Column("current_profile", PrimitiveType.INT16, is_nullable=True),
         Column("version", PrimitiveType.STRING, is_nullable=True),
+        Column("current_version", PrimitiveType.STRING, is_nullable=True),
         Column("external_name", PrimitiveType.STRING, is_nullable=True),
         Column("external_id", PrimitiveType.STRING, is_nullable=True),
         Column("connection_uri", PrimitiveType.STRING, is_nullable=True, is_encrypted=True),
         Column("started_at", PrimitiveType.DATETIME, is_nullable=True),
         Column("terminated_at", PrimitiveType.DATETIME, is_nullable=True),
         Column("active_at", PrimitiveType.DATETIME, is_nullable=True),
-        Column("bumped_at", PrimitiveType.DATETIME, is_nullable=True),
     ),
     constraints=(
         Constraint(
@@ -1954,6 +1959,14 @@ CLIENT_TABLE = Table(
         Column("space_id", PrimitiveType.UUID, is_nullable=True),
         Column("space_ck", PrimitiveType.UUID, is_nullable=True),
         Column("space_bench_id", PrimitiveType.UUID, is_nullable=True),
+        Column(
+            "machine_id",
+            PrimitiveType.UUID,
+            is_foreign_key_to="bench_machine",
+            on_delete=CascadeAction.SET_NULL,
+            is_nullable=True,
+        ),
+        Column("machine_bench_id", PrimitiveType.UUID, is_nullable=True),
     ),
     indexes=(Index("bench_idx_access_token", IndexType.BTREE, ("access_token",), is_unique=True),),
     constraints=(

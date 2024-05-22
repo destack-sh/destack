@@ -220,7 +220,7 @@ def _load_migration_from_path(migration: Migration) -> MigrationFile:
     return file
 
 
-async def migrate(
+async def sql_migrate(
     cur: psycopg.AsyncCursor,
     target: str | int | None,
     *,
@@ -274,7 +274,7 @@ async def migrate(
         )
         return []
     else:
-        await _do_migrate(
+        await _do_sql_migrate(
             cur, migrations_to_apply, is_upgrade=is_upgrade, is_global=is_global, store=store
         )
         log.debug(
@@ -298,7 +298,7 @@ async def migrate(
     return migrations_to_apply
 
 
-async def _do_migrate(
+async def _do_sql_migrate(
     cur: psycopg.AsyncCursor,
     migrations: Collection[Migration],
     *,
@@ -408,7 +408,7 @@ class MigrationOp:
         raise RuntimeError(f"unexpected migration op type: {self.kind}")
 
 
-def generate_migration_ops(old_schema: Schema, new_schema: Schema) -> list[MigrationOp]:
+def generate_sql_migration_ops(old_schema: Schema, new_schema: Schema) -> list[MigrationOp]:
     """Generates the migration operations to go from the old tables to the new tables."""
 
     # extensions
@@ -506,7 +506,7 @@ def generate_migration_ops(old_schema: Schema, new_schema: Schema) -> list[Migra
     return ops
 
 
-def generate_migration_code(
+def generate_sql_migration_code(
     migration: Migration,
     *,
     global_ops: list[MigrationOp],
@@ -646,7 +646,7 @@ def _render_migration_body(ops: list[MigrationOp] | None) -> str:
     return method_body
 
 
-async def apply_migration_ops(cur: psycopg.AsyncCursor, ops: list[MigrationOp]) -> None:
+async def apply_sql_migration_ops(cur: psycopg.AsyncCursor, ops: list[MigrationOp]) -> None:
     """Directly apply the given migration ops."""
     logger.info("apply_migration_ops", ops=ops)
     method_body = _render_migration_body(ops)
@@ -663,8 +663,8 @@ async def apply_migration_ops(cur: psycopg.AsyncCursor, ops: list[MigrationOp]) 
 async def force_create_schema(cur: psycopg.AsyncCursor, schema: Schema) -> None:
     """Creates and applies the migrations to create the given objects in the database."""
     # ignore existing tables
-    ops = generate_migration_ops(Schema.blank(), schema)
-    await apply_migration_ops(cur, ops)
+    ops = generate_sql_migration_ops(Schema.blank(), schema)
+    await apply_sql_migration_ops(cur, ops)
 
 
 def add_migration_to_fs(migration: Migration, code: str, *, overwrite: bool = False):
@@ -815,7 +815,7 @@ def _render_migration_op(op: MigrationOp) -> str | None:
 #
 
 
-async def introspect_schema_from_pg(
+async def introspect_sql_schema(
     cur: psycopg.AsyncCursor,
     *,
     include_columns: bool = True,

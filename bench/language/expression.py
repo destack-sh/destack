@@ -456,7 +456,7 @@ def coerce_conditional(
         target = None
         if key in node.__properties__:
             target = node.__properties__[key]
-        elif isinstance(node, Node) and "fields" in node.__node_list_properties__:
+        elif isinstance(node, Node) and "fields" in node.__node_child_properties__:
             target = node.fields.get(key)
         if target is None:
             raise TypeError(f"{node!r} has no field {key}")
@@ -523,7 +523,7 @@ def coerce_sort(
             target = None
             if field_key in node.__properties__:
                 target = node.__properties__[field_key]
-            elif isinstance(node, Node) and "fields" in node.__node_list_properties__:
+            elif isinstance(node, Node) and "fields" in node.__node_child_properties__:
                 target = getattr(node, "fields").get(field_key)
             if target is None:
                 raise TypeError(f"{node!r} has no field {item!r}")

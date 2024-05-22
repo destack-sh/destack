@@ -59,7 +59,7 @@ def project_node(node: Node) -> list[Node]:
         seen_by_ck[node.ck] = node
 
         # visit children
-        for prop in node.__node_list_properties__.values():
+        for prop in node.__node_child_properties__.values():
             prop_value = cast(NodeList, getattr(node, prop.name))
             for child in prop_value:
                 _visit_node(child)
@@ -210,7 +210,7 @@ def render_node(
         assert node_alias is not None, f"{node!r} has no identifier"
 
         # walk children
-        for prop in node.__node_list_properties__.values():
+        for prop in node.__node_child_properties__.values():
             if node_types != () and (
                 not prop.reference_nodes or prop.reference_nodes[0] not in node_types
             ):

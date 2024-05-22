@@ -34,9 +34,9 @@ async def prepared_test_db():
     from bench.sql.engine import GLOBAL_SCHEMA
     from bench.sql.migration import (
         EXTENSIONS,
-        apply_migration_ops,
-        generate_migration_ops,
-        introspect_schema_from_pg,
+        apply_sql_migration_ops,
+        generate_sql_migration_ops,
+        introspect_sql_schema,
     )
     from bench.system.core import GLOBAL_PG_NAME, GLOBAL_STORE, global_pg_cursor
 
@@ -56,9 +56,9 @@ async def prepared_test_db():
     async with global_pg_cursor() as cur:
         for extension in EXTENSIONS:
             await cur.execute(f"CREATE EXTENSION IF NOT EXISTS {extension}")
-        blank_schema = await introspect_schema_from_pg(cur)
-        blank_ops = generate_migration_ops(blank_schema, GLOBAL_SCHEMA)
-        await apply_migration_ops(cur, blank_ops)
+        blank_schema = await introspect_sql_schema(cur)
+        blank_ops = generate_sql_migration_ops(blank_schema, GLOBAL_SCHEMA)
+        await apply_sql_migration_ops(cur, blank_ops)
         await cur.connection.commit()
 
 

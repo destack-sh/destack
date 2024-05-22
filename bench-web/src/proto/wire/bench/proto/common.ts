@@ -101,6 +101,7 @@ export interface GraphScope {
 }
 /**
  * Edit describes an edit to a Node.
+ * NOTE: obviously, we can only trust edits originating from the system
  *
  * @generated from protobuf message symbolx.bench.EditData
  */
@@ -126,8 +127,6 @@ export interface EditData {
      */
     nodeType: NodeType;
     /**
-     * NOTE :Cleanup :Architecture: change EditData.node to new_node_packed/old_node_packed?
-     *
      * @generated from protobuf field: symbolx.bench.SomeNodeData node = 35;
      */
     node?: SomeNodeData;

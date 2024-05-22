@@ -172,8 +172,9 @@ enum BenchType {
   BENCH_TYPE_STORE_KIND = 2052;
   BENCH_TYPE_STORE_ENGINE_TYPE = 2053;
   BENCH_TYPE_SERVER_PROFILE = 2055;
-  BENCH_TYPE_RESOURCE_STATUS = 2056;
-  BENCH_TYPE_FILE_RETENTION_MODE = 2057;
+  BENCH_TYPE_MACHINE_PROFILE = 2056;
+  BENCH_TYPE_RESOURCE_STATUS = 2057;
+  BENCH_TYPE_FILE_RETENTION_MODE = 2058;
   BENCH_TYPE_CLIENT_TYPE = 2060;
   BENCH_TYPE_BLOCK_TYPE = 2070;
   BENCH_TYPE_SCHEDULE_TYPE = 2071;
@@ -356,8 +357,9 @@ enum EnumType {
   ENUM_TYPE_STORE_KIND = 2052;
   ENUM_TYPE_STORE_ENGINE_TYPE = 2053;
   ENUM_TYPE_SERVER_PROFILE = 2055;
-  ENUM_TYPE_RESOURCE_STATUS = 2056;
-  ENUM_TYPE_FILE_RETENTION_MODE = 2057;
+  ENUM_TYPE_MACHINE_PROFILE = 2056;
+  ENUM_TYPE_RESOURCE_STATUS = 2057;
+  ENUM_TYPE_FILE_RETENTION_MODE = 2058;
   ENUM_TYPE_CLIENT_TYPE = 2060;
   ENUM_TYPE_BLOCK_TYPE = 2070;
   ENUM_TYPE_SCHEDULE_TYPE = 2071;
@@ -547,6 +549,13 @@ enum LogLevel {
   LOG_LEVEL_WARNING = 4;
   LOG_LEVEL_ERROR = 5;
   LOG_LEVEL_CRITICAL = 6;
+}
+
+enum MachineProfile {
+  MACHINE_PROFILE_UNSPECIFIED = 0;
+  MACHINE_PROFILE_TINY = 3;
+  MACHINE_PROFILE_SMALL = 5;
+  MACHINE_PROFILE_MEDIUM = 7;
 }
 
 enum NodeType {
@@ -796,11 +805,12 @@ enum Region {
 // Generalized status of a Resource in its lifecycle.
 enum ResourceStatus {
   RESOURCE_STATUS_UNSPECIFIED = 0;
-  RESOURCE_STATUS_PENDING = 1;
+  RESOURCE_STATUS_DECLARED = 1;
+  RESOURCE_STATUS_PROVISIONING = 5;
   RESOURCE_STATUS_HEALTHY = 10;
-  RESOURCE_STATUS_UNHEALTHY = 20;
-  RESOURCE_STATUS_SLEEPING = 30;
-  RESOURCE_STATUS_DESTROYED = 40;
+  RESOURCE_STATUS_UNHEALTHY = 15;
+  RESOURCE_STATUS_SLEEPING = 20;
+  RESOURCE_STATUS_DECOMMISSIONED = 30;
 }
 
 enum RunErrorKind {
@@ -849,7 +859,6 @@ enum ServerProfile {
   SERVER_PROFILE_TINY = 3;
   SERVER_PROFILE_SMALL = 5;
   SERVER_PROFILE_MEDIUM = 7;
-  SERVER_PROFILE_LARGE = 9;
 }
 
 enum SessionStatus {
@@ -1830,6 +1839,7 @@ message ClientData {
   google.protobuf.Timestamp seen_at = 51;
   optional google.protobuf.Timestamp logged_in_at = 52;
   optional NodeReferenceData space_ptr = 60;
+  optional NodeReferenceData machine_ptr = 61;
 }
 
 // A dependency on another Bench (pointing to a specific Package).
@@ -2055,7 +2065,7 @@ message LogData {
   optional NodeReferenceData user_ptr = 67;
 }
 
-// A Machine provides the isolated compute for a Server.
+// A Machine provides some isolated compute for a Server.
 message MachineData {
   ObjectType metatype = 1;
   string id = 2;
@@ -2073,15 +2083,16 @@ message MachineData {
   optional TextData text = 34;
   Region region = 35;
   ResourceStatus status = 36;
-  ServerProfile profile = 40;
-  optional string version = 41;
-  optional string external_name = 42;
-  optional string external_id = 43;
-  optional string connection_uri = 44;
-  optional google.protobuf.Timestamp started_at = 50;
-  optional google.protobuf.Timestamp terminated_at = 51;
-  optional google.protobuf.Timestamp active_at = 52;
-  optional google.protobuf.Timestamp bumped_at = 53;
+  MachineProfile profile = 40;
+  optional MachineProfile current_profile = 41;
+  optional string version = 42;
+  optional string current_version = 43;
+  optional string external_name = 50;
+  optional string external_id = 51;
+  optional string connection_uri = 52;
+  optional google.protobuf.Timestamp started_at = 60;
+  optional google.protobuf.Timestamp terminated_at = 61;
+  optional google.protobuf.Timestamp active_at = 62;
 }
 
 // A membership to this Bench (and its owner if it's the main Bench).
@@ -2375,7 +2386,7 @@ message RunData {
 }
 
 // A server provides some compute for a Bench's Runtime.
-// Actual compute is materialized (on-demand) as Machines.
+// Physical compute is materialized (on-demand) as Machines.
 message ServerData {
   ObjectType metatype = 1;
   string id = 2;
@@ -2394,8 +2405,11 @@ message ServerData {
   Region region = 35;
   ResourceStatus status = 36;
   ServerProfile profile = 40;
-  optional google.protobuf.Timestamp active_at = 50;
-  optional google.protobuf.Timestamp bumped_at = 51;
+  optional ServerProfile current_profile = 41;
+  optional string version = 42;
+  optional string current_version = 43;
+  optional google.protobuf.Timestamp active_at = 60;
+  optional google.protobuf.Timestamp bumped_at = 61;
 }
 
 // A managed Session for interacting with and running a Package in a Client.
@@ -2551,6 +2565,7 @@ message StoreData {
   Region region = 35;
   ResourceStatus status = 36;
   optional string version = 40;
+  optional string current_version = 41;
   optional string external_name = 50;
   optional string external_id = 51;
   optional string connection_uri = 52;

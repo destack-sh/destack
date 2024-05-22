@@ -619,7 +619,7 @@ def node_component(
                 list_properties[prop.name] = prop
                 for ref_t in prop.reference_nodes or ():
                     list_properties_by_child[ref_t].append(prop)
-        cls.__node_list_properties__ = frozendict(list_properties)
+        cls.__node_child_properties__ = frozendict(list_properties)
         cls.__ancestor_properties__ = frozendict(
             {p.name: p for p in props if p.reference_kind == ReferenceKind.NODE_ANCESTOR_FIRST}
         )
@@ -1361,7 +1361,7 @@ class Node(Struct[NodeDataT], Generic[NodeDataT]):
     __id_factory__: ClassVar[Callable[[], UUID]] = new_node_id
 
     __ancestor_properties__: ClassVar[dict[str, Property]] = {}
-    __node_list_properties__: ClassVar[dict[str, Property]] = {}
+    __node_child_properties__: ClassVar[dict[str, Property]] = {}
 
     __roots__: ClassVar[bittuple[NodeType]] = UNSET
     __is_struct_only__: ClassVar[bool] = False
@@ -1720,7 +1720,7 @@ class Node(Struct[NodeDataT], Generic[NodeDataT]):
     def _init_self(self):  # type: ignore
         # init node lists
         existing_lists: dict[str, Any] | None = None
-        for name, prop in self.__node_list_properties__.items():
+        for name, prop in self.__node_child_properties__.items():
             existing = getattr(self, name, None)
             assert prop.reference_list_type is not None
             node_list = prop.reference_list_type(self, prop)

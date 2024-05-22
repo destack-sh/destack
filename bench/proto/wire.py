@@ -190,8 +190,9 @@ class BenchType(betterproto.Enum):
     STORE_KIND = 2052
     STORE_ENGINE_TYPE = 2053
     SERVER_PROFILE = 2055
-    RESOURCE_STATUS = 2056
-    FILE_RETENTION_MODE = 2057
+    MACHINE_PROFILE = 2056
+    RESOURCE_STATUS = 2057
+    FILE_RETENTION_MODE = 2058
     CLIENT_TYPE = 2060
     BLOCK_TYPE = 2070
     SCHEDULE_TYPE = 2071
@@ -377,8 +378,9 @@ class EnumType(betterproto.Enum):
     STORE_KIND = 2052
     STORE_ENGINE_TYPE = 2053
     SERVER_PROFILE = 2055
-    RESOURCE_STATUS = 2056
-    FILE_RETENTION_MODE = 2057
+    MACHINE_PROFILE = 2056
+    RESOURCE_STATUS = 2057
+    FILE_RETENTION_MODE = 2058
     CLIENT_TYPE = 2060
     BLOCK_TYPE = 2070
     SCHEDULE_TYPE = 2071
@@ -570,6 +572,13 @@ class LogLevel(betterproto.Enum):
     WARNING = 4
     ERROR = 5
     CRITICAL = 6
+
+
+class MachineProfile(betterproto.Enum):
+    UNSPECIFIED = 0
+    TINY = 3
+    SMALL = 5
+    MEDIUM = 7
 
 
 class NodeType(betterproto.Enum):
@@ -832,11 +841,12 @@ class ResourceStatus(betterproto.Enum):
     """Generalized status of a Resource in its lifecycle."""
 
     UNSPECIFIED = 0
-    PENDING = 1
+    DECLARED = 1
+    PROVISIONING = 5
     HEALTHY = 10
-    UNHEALTHY = 20
-    SLEEPING = 30
-    DESTROYED = 40
+    UNHEALTHY = 15
+    SLEEPING = 20
+    DECOMMISSIONED = 30
 
 
 class RunErrorKind(betterproto.Enum):
@@ -885,7 +895,6 @@ class ServerProfile(betterproto.Enum):
     TINY = 3
     SMALL = 5
     MEDIUM = 7
-    LARGE = 9
 
 
 class SessionStatus(betterproto.Enum):
@@ -2026,6 +2035,7 @@ class ClientData(betterproto.Message):
     seen_at: datetime = betterproto.message_field(51)
     logged_in_at: Optional[datetime] = betterproto.message_field(52, optional=True)
     space_ptr: Optional["NodeReferenceData"] = betterproto.message_field(60, optional=True)
+    machine_ptr: Optional["NodeReferenceData"] = betterproto.message_field(61, optional=True)
 
 
 @dataclass(eq=False, repr=False)
@@ -2291,7 +2301,7 @@ class LogData(betterproto.Message):
 
 @dataclass(eq=False, repr=False)
 class MachineData(betterproto.Message):
-    """A Machine provides the isolated compute for a Server."""
+    """A Machine provides some isolated compute for a Server."""
 
     metatype: "ObjectType" = betterproto.enum_field(1)
     id: str = betterproto.string_field(2)
@@ -2309,15 +2319,16 @@ class MachineData(betterproto.Message):
     text: Optional["TextData"] = betterproto.message_field(34, optional=True)
     region: "Region" = betterproto.enum_field(35)
     status: "ResourceStatus" = betterproto.enum_field(36)
-    profile: "ServerProfile" = betterproto.enum_field(40)
-    version: Optional[str] = betterproto.string_field(41, optional=True)
-    external_name: Optional[str] = betterproto.string_field(42, optional=True)
-    external_id: Optional[str] = betterproto.string_field(43, optional=True)
-    connection_uri: Optional[str] = betterproto.string_field(44, optional=True)
-    started_at: Optional[datetime] = betterproto.message_field(50, optional=True)
-    terminated_at: Optional[datetime] = betterproto.message_field(51, optional=True)
-    active_at: Optional[datetime] = betterproto.message_field(52, optional=True)
-    bumped_at: Optional[datetime] = betterproto.message_field(53, optional=True)
+    profile: "MachineProfile" = betterproto.enum_field(40)
+    current_profile: Optional["MachineProfile"] = betterproto.enum_field(41, optional=True)
+    version: Optional[str] = betterproto.string_field(42, optional=True)
+    current_version: Optional[str] = betterproto.string_field(43, optional=True)
+    external_name: Optional[str] = betterproto.string_field(50, optional=True)
+    external_id: Optional[str] = betterproto.string_field(51, optional=True)
+    connection_uri: Optional[str] = betterproto.string_field(52, optional=True)
+    started_at: Optional[datetime] = betterproto.message_field(60, optional=True)
+    terminated_at: Optional[datetime] = betterproto.message_field(61, optional=True)
+    active_at: Optional[datetime] = betterproto.message_field(62, optional=True)
 
 
 @dataclass(eq=False, repr=False)
@@ -2674,7 +2685,7 @@ class RunData(betterproto.Message):
 class ServerData(betterproto.Message):
     """
     A server provides some compute for a Bench's Runtime.
-     Actual compute is materialized (on-demand) as Machines.
+     Physical compute is materialized (on-demand) as Machines.
     """
 
     metatype: "ObjectType" = betterproto.enum_field(1)
@@ -2694,8 +2705,11 @@ class ServerData(betterproto.Message):
     region: "Region" = betterproto.enum_field(35)
     status: "ResourceStatus" = betterproto.enum_field(36)
     profile: "ServerProfile" = betterproto.enum_field(40)
-    active_at: Optional[datetime] = betterproto.message_field(50, optional=True)
-    bumped_at: Optional[datetime] = betterproto.message_field(51, optional=True)
+    current_profile: Optional["ServerProfile"] = betterproto.enum_field(41, optional=True)
+    version: Optional[str] = betterproto.string_field(42, optional=True)
+    current_version: Optional[str] = betterproto.string_field(43, optional=True)
+    active_at: Optional[datetime] = betterproto.message_field(60, optional=True)
+    bumped_at: Optional[datetime] = betterproto.message_field(61, optional=True)
 
 
 @dataclass(eq=False, repr=False)
@@ -2879,6 +2893,7 @@ class StoreData(betterproto.Message):
     region: "Region" = betterproto.enum_field(35)
     status: "ResourceStatus" = betterproto.enum_field(36)
     version: Optional[str] = betterproto.string_field(40, optional=True)
+    current_version: Optional[str] = betterproto.string_field(41, optional=True)
     external_name: Optional[str] = betterproto.string_field(50, optional=True)
     external_id: Optional[str] = betterproto.string_field(51, optional=True)
     connection_uri: Optional[str] = betterproto.string_field(52, optional=True)
@@ -3096,7 +3111,10 @@ class GraphScope(betterproto.Message):
 
 @dataclass(eq=False, repr=False)
 class EditData(betterproto.Message):
-    """Edit describes an edit to a Node."""
+    """
+    Edit describes an edit to a Node.
+     NOTE: obviously, we can only trust edits originating from the system
+    """
 
     id: str = betterproto.string_field(2)
     type: "EditType" = betterproto.enum_field(30)
@@ -3104,10 +3122,6 @@ class EditData(betterproto.Message):
     scope: "GraphScope" = betterproto.message_field(32)
     node_type: "NodeType" = betterproto.enum_field(33)
     node: "SomeNodeData" = betterproto.message_field(35)
-    """
-    NOTE :Cleanup :Architecture: change EditData.node to new_node_packed/old_node_packed?
-    """
-
     properties: List[int] = betterproto.uint32_field(36)
     subject: Optional["NodeReferenceData"] = betterproto.message_field(40, optional=True)
     seen_epoch: Optional[int] = betterproto.uint64_field(41, optional=True)
@@ -4743,7 +4757,7 @@ class RuntimeBase(ServiceBase):
 
 from typing import TYPE_CHECKING  # noqa: E402
 
-VERSION = "2024.05.21.0"
+VERSION = "2024.05.22.1"
 
 if TYPE_CHECKING:
     from bench.language import Subject

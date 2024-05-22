@@ -71,8 +71,11 @@ async def local_session(scope: GraphScope, engines: tuple[StoreEngine, ...]):
 
 
 @dataclass(slots=True)
-class CommittedChange[T: Node]:
-    """A simplified diff of edited Nodes from a commit. Here archive/soft-delete => remove."""
+class Commit[T: Node]:
+    """
+    A simplified diff of edited Nodes from a committed transaction.
+    Here archive/soft-delete => remove.
+    """
 
     edits: list[EditData]
     cascaded_edits: list[EditData]
@@ -85,7 +88,7 @@ class CommittedChange[T: Node]:
         return f"added={self.added!r}, updated={self.updated!r}, removed={self.removed!r}"
 
     def __repr__(self):
-        return f"<GraphDiff {self!s}>"
+        return f"<{self.__class__.__name__} {self!s}>"
 
     @property
     def edited(self) -> Iterable[T]:
@@ -95,9 +98,9 @@ class CommittedChange[T: Node]:
         """Check if the diff contains any of the given node types."""
         return (self.edited_types.bits & node_types.bits).any()
 
-    def trim_to(self, node_types: bittuple[NodeType]) -> "CommittedChange[T]":
+    def trim_to(self, node_types: bittuple[NodeType]) -> "Commit[T]":
         """Trims the diff to only include the given node types."""
-        return CommittedChange(
+        return Commit(
             edits=[e for e in self.edits if NodeType(e.node_type) in node_types],
             cascaded_edits=[e for e in self.cascaded_edits if NodeType(e.node_type) in node_types],
             edited_types=self.edited_types & node_types,
@@ -109,7 +112,7 @@ class CommittedChange[T: Node]:
 
 def unpack_committed_change(
     graph: NodeGraphLike, edits: list[EditData], cascaded_edits: list[EditData]
-) -> CommittedChange:
+) -> Commit:
     """
     Get the summarized, unpacked nodes that change in the given edits.
     Successive edits cancel each other out (create X -> delete X, no X in the change).
@@ -169,7 +172,7 @@ def unpack_committed_change(
         # map
         _add_edit(edit, node)
 
-    commit = CommittedChange(
+    commit = Commit(
         edits=edits,
         cascaded_edits=cascaded_edits,
         edited_types=bittuple.from_ord(NodeType, edited_types),
@@ -220,7 +223,7 @@ class HostPlugin[T: Node](abc.ABC):
     # Lifecycle
     #
 
-    async def start(self) -> None:
+    async def start(self, session: Session) -> None:
         """Start any work for this plugin, returning when the plugin is ready."""
         pass
 
@@ -236,7 +239,7 @@ class HostPlugin[T: Node](abc.ABC):
     # Events
     #
 
-    def on_graph_commit(self, commit: CommittedChange[T]) -> None:
+    def on_graph_commit(self, commit: Commit[T]) -> None:
         """Synchronous event handler for a committed Host transaction"""
         pass
 
@@ -246,17 +249,18 @@ class AsyncHostPlugin[T: Node](HostPlugin, abc.ABC):
 
     def __init__(self, host: HostSpec, bench: "Bench"):
         super().__init__(host, bench)
-        self._commit_queue: asyncio.Queue[CommittedChange[T]] = asyncio.Queue()
+        self._commit_queue: asyncio.Queue[Commit[T]] = asyncio.Queue()
 
-    async def start(self) -> None:
-        await super().start()
+    @override
+    async def start(self, session: Session) -> None:
+        await super().start(session)
         self._tasks.start_queue(self._commit_queue, self.on_graph_commit_async)
 
     @override
-    def on_graph_commit(self, commit: CommittedChange) -> None:
+    def on_graph_commit(self, commit: Commit) -> None:
         self._commit_queue.put_nowait(commit)
 
-    async def on_graph_commit_async(self, commit: CommittedChange) -> None:
+    async def on_graph_commit_async(self, commit: Commit) -> None:
         """
         Asynchronous event handler for a committed Host transaction.
         NOTE :Robustness: the nodes in each commit may change before this is called
