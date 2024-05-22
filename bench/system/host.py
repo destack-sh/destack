@@ -86,8 +86,12 @@ class HostMultiplexer(BenchServiceBase, HostBase):
         await asyncio.gather(*[host.wait_closed() for host in self._hosts.values()])
 
     async def _start_host(self, bench_id: UUID) -> "Host":
+        """Starts a Host for the given Bench."""
+        existing_host = self._hosts.get(bench_id)
+        assert existing_host is None, f"already have Host for {bench_id}: {existing_host!r}"
         host = Host(bench_id)
         await host.start()
+        self._hosts[bench_id] = host
         return host
 
     def _wrap_rpc_func(
@@ -113,7 +117,6 @@ class HostMultiplexer(BenchServiceBase, HostBase):
                     host = self._hosts.get(bench_id)
                     if host is None:
                         host = await self._start_host(bench_id)
-                        self._hosts[bench_id] = host
             return host
 
         if cardinality == grpclib.const.Cardinality.UNARY_UNARY:
