@@ -14,7 +14,7 @@ from bench.language.bench import Package, Region
 from bench.language.connection import PostgresEngine, StoreEngine
 from bench.language.const import GLOBAL_NODE_TYPES, VERSION, EditType
 from bench.language.graph import NodeGraphLike
-from bench.language.session import CommitHook, Session
+from bench.language.session import ExtendCommitHook, OnCommitHook, Session
 from bench.proto import wiring
 from bench.proto.wire import EditData, GraphScope
 from bench.sql.client import GLOBAL_PG_CRYPTO_KEY, _PgStoreConnection
@@ -52,11 +52,16 @@ async def global_pg_cursor(autocommit: bool = False):
 
 
 @asynccontextmanager
-async def global_session(on_commit_hook: CommitHook | None = None):
+async def global_session(
+    *,
+    extend_commit_hook: ExtendCommitHook | None = None,
+    on_commit_hook: OnCommitHook | None = None,
+):
     async with Session(
         parent=None,
         _default_scope=GraphScope(),
         _engines=(GLOBAL_POSTGRES_ENGINE,),
+        _extend_commit_hook=extend_commit_hook,
         _on_commit_hook=on_commit_hook,
     ) as session:
         yield session
@@ -208,7 +213,9 @@ class HostSpec(abc.ABC):
         ...
 
     @abc.abstractmethod
-    def session(self, scope: GraphScope | None = None) -> Session:
+    def session(
+        self, *, scope: GraphScope | None = None, engines: tuple[StoreEngine, ...] | None = None
+    ) -> Session:
         """Create a new Session in the Host with the given (or default) scope."""
         ...
 
@@ -225,7 +232,9 @@ class _DeadHost(HostSpec):
         raise NotImplementedError("dead host")
 
     @override
-    def session(self, scope: GraphScope | None = None) -> Session:
+    def session(
+        self, *, scope: GraphScope | None = None, engines: tuple[StoreEngine, ...] | None = None
+    ) -> Session:
         raise NotImplementedError("dead host")
 
 
@@ -282,8 +291,18 @@ class HostPlugin[T: Node](abc.ABC):
     # Events
     #
 
+    def extend_commit(self, session: Session, commit: Commit[T]) -> None:
+        """
+        Add edits that logically belong to the same transaction.
+        Synchronous event handler fired before a Host transaction is committed.
+        """
+        pass
+
     def on_commit(self, commit: Commit[T]) -> None:
-        """Synchronous event handler for a committed Host transaction"""
+        """
+        React to the committed changes, perhaps by making new edits.
+        Synchronous event handler fired after a committed Host transaction.
+        """
         pass
 
 

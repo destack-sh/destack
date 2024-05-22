@@ -44,7 +44,8 @@ if TYPE_CHECKING:
 # pyright: reportIncompatibleVariableOverride=false
 
 logger = structlog.get_logger(__name__)
-CommitHook = Callable[[NodeGraphLike, list[EditData], list[EditData]], None]
+ExtendCommitHook = Callable[[NodeGraphLike, list[EditData], list[EditData]], list[EditData]]
+OnCommitHook = Callable[[NodeGraphLike, list[EditData], list[EditData]], None]
 
 
 @node(
@@ -90,7 +91,8 @@ class Session(Node[SessionData]):
     _edited_nodes_by_id: dict[UUID, Node] = p_runtime(default_factory=dict)
     _engines: tuple["StoreEngine", ...] = p_runtime(default_factory=tuple)
     _active_session_token: contextvars.Token | None = p_runtime(default=None)
-    _on_commit_hook: Optional[CommitHook] = p_runtime(default=None)
+    _extend_commit_hook: Optional[ExtendCommitHook] = p_runtime(default=None)
+    _on_commit_hook: Optional[OnCommitHook] = p_runtime(default=None)
     _default_scope: GraphScope = p_runtime(default_factory=GraphScope)
     _supervisor: Optional["SupervisorStub"] = p_runtime(default=None)
     _host: Optional["HostStub"] = p_runtime(default=None)
@@ -159,18 +161,39 @@ class Session(Node[SessionData]):
         self.opened_at = utcnow()
         logger.trace("session.open", session=self)
 
-    async def flush(self):
+    async def flush(self) -> tuple[list[EditData], list[EditData]]:
+        """Flushes the current pending edits. Returns *all* uncommitted edits / cascaded edits."""
+        assert self.is_open, f"cannot flush {self!r} when closed"
+        assert self._tx is not None, f"no active transaction in {self!r}"
+
         async with self._tx_lock:
             assert self.is_open, f"cannot flush {self!r} when closed"
-            await self.tx.flush()
+            await self._tx.flush()
+            return self._tx.edits, self._tx.cascaded_edits
 
-    async def commit(self, suppress_hook: bool = False):
+    async def commit(self, suppress_hooks: bool = False) -> tuple[list[EditData], list[EditData]]:
+        """Commits all edits. Returns *all* committed edits / cascaded edits, and resets."""
         assert self.is_open, f"cannot commit {self!r} when closed"
+        assert self._tx is not None, f"no active transaction in {self!r}"
+
         async with self._tx_lock:
-            edits, cascaded_edits = await self.tx.commit()
-            if not suppress_hook and self._on_commit_hook and edits:
-                self._on_commit_hook(self._edited_nodes_by_id, edits, cascaded_edits)
-            return edits, cascaded_edits
+            if suppress_hooks:
+                # simple regular commit
+                edits, cascaded_edits = await self._tx.commit()
+                return edits, cascaded_edits
+            else:
+                # wrapped commit (used in Host)
+                if self._extend_commit_hook is not None:
+                    # flush edits to get cascaded edits
+                    edits, cascaded_edits = await self._tx.flush()
+                    new_edits = self._extend_commit_hook(
+                        self._edited_nodes_by_id, edits, cascaded_edits
+                    )
+                    self._tx._add_pending_edits(new_edits)
+                edits, cascaded_edits = await self._tx.commit()
+                if self._on_commit_hook is not None:
+                    self._on_commit_hook(self._edited_nodes_by_id, edits, cascaded_edits)
+                return edits, cascaded_edits
 
     async def rollback(self):
         assert self.is_open, f"cannot rollback {self!r} when closed"
@@ -178,7 +201,7 @@ class Session(Node[SessionData]):
             await self.tx.rollback()
 
     async def close(self):
-        """Closes the session, rolling back uncommitted edits. Prevents further runs/edits."""
+        """Closes the session, rolling back uncommitted edits. Prevents further use."""
         assert self.opened_at and self._active_session_token, f"session not open {self!r}"
         if self.closed_at is not None:
             raise RuntimeError(f"session already closed {self}")

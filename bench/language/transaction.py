@@ -270,20 +270,19 @@ class Transaction:
         #  (if there are more than 2 engines to commit to)
         for engine in self.session._engines:
             # prepare edits & connection
-            pending_edits = self._pending_edits_by_engine_id.get(engine.id, ())
-            if not pending_edits:
-                continue
+            pending_edits = self._pending_edits_by_engine_id.get(engine.id, [])
+            if not pending_edits and not commit:
+                continue  # nothing to do
             Transaction.canonicalize_edits(now, pending_edits)
             connection = await self._get_engine_connection(engine)
 
             # flush/commit
-            log.trace(
-                "transaction.flush.engine", engine=engine, edits=len(pending_edits), commit=commit
-            )
             if commit:
                 flush = await connection.commit(pending_edits)
+                log.trace("transaction.commit.engine", engine=engine, edits=len(pending_edits))
             else:
                 flush = await connection.flush(pending_edits)
+                log.trace("transaction.flush.engine", engine=engine, edits=len(pending_edits))
             assert len(flush.revisions or ()) == len(pending_edits), "revisions mismatch"
             for edit, new_revision in zip(pending_edits, cast(list[int], flush.revisions)):
                 edit.revision = new_revision
@@ -298,11 +297,12 @@ class Transaction:
         self._pending_nodes_by_ck.clear()
         log.trace("transaction.flush", duration=asyncio.get_running_loop().time() - start)
 
-    async def flush(self):
+    async def flush(self) -> tuple[list[EditData], list[EditData]]:
         """Canonicalizes and flushes any pending edits (without committing)."""
         await self._do_flush(commit=False)
+        return self.edits, self.cascaded_edits
 
-    async def commit(self):
+    async def commit(self) -> tuple[list[EditData], list[EditData]]:
         """Commits the transaction (also flushing any pending edits)."""
         await self._do_flush(commit=True)
         edits, cascaded_edits = self.edits, self.cascaded_edits
