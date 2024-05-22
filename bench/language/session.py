@@ -165,11 +165,9 @@ class Session(Node[SessionData]):
     async def commit(self, suppress_hook: bool = False):
         assert self.is_open, f"cannot commit {self!r} when closed"
         async with self._tx_lock:
-            await self.tx.commit()
-            if not suppress_hook and self._on_commit_hook and self.tx.edits:
-                self._on_commit_hook(
-                    self._edited_nodes_by_id, self.tx.edits, self.tx.cascaded_edits
-                )
+            edits, cascaded_edits = await self.tx.commit()
+            if not suppress_hook and self._on_commit_hook and edits:
+                self._on_commit_hook(self._edited_nodes_by_id, edits, cascaded_edits)
 
     async def rollback(self):
         assert self.is_open, f"cannot rollback {self!r} when closed"
@@ -185,7 +183,6 @@ class Session(Node[SessionData]):
         async with self._tx_lock:
             # close transaction
             await self.tx.close()
-            edits = self.tx.edits
             self._tx = None
 
         # close session
@@ -193,7 +190,7 @@ class Session(Node[SessionData]):
         self.duration = (self.closed_at - self.opened_at).total_seconds()
         _active_session.reset(self._active_session_token)
 
-        logger.trace("session.close", session=self, duration=self.duration, edits=len(edits))
+        logger.trace("session.close", session=self, duration=self.duration)
 
     async def __aenter__(self):
         await self.open()
