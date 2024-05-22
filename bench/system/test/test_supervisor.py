@@ -162,6 +162,7 @@ async def test_cross_user_access(supervisor: SupervisorStub):
                 node=wiring.wrap_some_node(target_data),
                 subject=actor_handle.subject,
                 properties=[User.name.id],  # type: ignore
+                origin=actor_handle.origin,
             )
             commit_req = CommitTransactionRequest(id=str(uuid4()), edits=[edit])
             if is_target_self:  # can update our own data
@@ -181,6 +182,7 @@ async def test_cross_user_access(supervisor: SupervisorStub):
                 node=wiring.wrap_some_node(target_data),
                 subject=actor_handle.subject,
                 properties=[Client.device_name.id],  # type: ignore
+                origin=actor_handle.origin,
             )
             commit_req = CommitTransactionRequest(id=str(uuid4()), edits=[edit])
             if is_target_self:  # can update our own data

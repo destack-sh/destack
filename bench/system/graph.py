@@ -267,7 +267,7 @@ class GraphIoServiceBase(BenchServiceBase, GraphIoBase):
         async with self.session(request.scope) as session:
             # ensure edit origins matches subject
             for edit in request.edits:
-                if not edit.origin or edit.origin.id != subject.client.id:
+                if not edit.origin or UUID(edit.origin.id) != subject.client.id:
                     raise GRPCError(GRPCStatus.PERMISSION_DENIED, "edit origin mismatch")
 
             # read the required nodes into a single graph for evaluation
