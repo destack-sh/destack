@@ -161,8 +161,7 @@ class BenchType(betterproto.Enum):
     CODE = 1090
     CODE_LINE = 1091
     STEP_CONNECTION = 1100
-    RUN_CODE_FRAME = 1110
-    RUN_ERROR = 1111
+    RUN_ERROR = 1110
     TEXT = 1160
     TEXT_LINE = 1161
     TEXT_SPAN = 1162
@@ -221,7 +220,8 @@ class BenchType(betterproto.Enum):
     RUN_STATUS = 2260
     RUN_KIND = 2261
     RUN_ERROR_KIND = 2262
-    SESSION_STATUS = 2263
+    RUN_ERROR_TYPE = 2263
+    SESSION_STATUS = 2264
     TRIGGER_TYPE = 2270
     NOTICE_KIND = 2280
     NOTIFICATION_KIND = 2281
@@ -409,7 +409,8 @@ class EnumType(betterproto.Enum):
     RUN_STATUS = 2260
     RUN_KIND = 2261
     RUN_ERROR_KIND = 2262
-    SESSION_STATUS = 2263
+    RUN_ERROR_TYPE = 2263
+    SESSION_STATUS = 2264
     TRIGGER_TYPE = 2270
     NOTICE_KIND = 2280
     NOTIFICATION_KIND = 2281
@@ -715,8 +716,7 @@ class ObjectType(betterproto.Enum):
     CODE = 1090
     CODE_LINE = 1091
     STEP_CONNECTION = 1100
-    RUN_CODE_FRAME = 1110
-    RUN_ERROR = 1111
+    RUN_ERROR = 1110
     TEXT = 1160
     TEXT_LINE = 1161
     TEXT_SPAN = 1162
@@ -859,10 +859,12 @@ class ResourceStatus(betterproto.Enum):
 class RunErrorKind(betterproto.Enum):
     UNSPECIFIED = 0
     INTERNAL = 1
-    PARSE = 2
-    VALIDATION = 3
-    RUNTIME = 4
-    UNTRUSTED = 5
+    RUNTIME = 5
+
+
+class RunErrorType(betterproto.Enum):
+    UNSPECIFIED = 0
+    NO_RUNTIME_AVAILABLE = 1
 
 
 class RunKind(betterproto.Enum):
@@ -1022,8 +1024,7 @@ class StructType(betterproto.Enum):
     CODE = 1090
     CODE_LINE = 1091
     STEP_CONNECTION = 1100
-    RUN_CODE_FRAME = 1110
-    RUN_ERROR = 1111
+    RUN_ERROR = 1110
     TEXT = 1160
     TEXT_LINE = 1161
     TEXT_SPAN = 1162
@@ -1630,28 +1631,8 @@ class ReadOptionsData(betterproto.Message):
 
 
 @dataclass(eq=False, repr=False)
-class RunCodeFrameData(betterproto.Message):
-    """
-    RunCodeFrame(node: bench.language.node.Node = None, lineno: int = <factory>, name: str = <factory>, line: str = <factory>, id: int = <factory>, parent: Union[ForwardRef('Struct'), ForwardRef('Node'), ForwardRef('Object'), NoneType] = None, order_key: str | None = None, set_properties: list[int] = <factory>, _status: bench.language.const.InterpStatus = None, _updated_properties: bitarray.bitarray | None = None, node_ptr: 'NodeReference' = None, parent_id: int = None, parent_key: str = None)
-    """
-
-    metatype: "ObjectType" = betterproto.enum_field(1)
-    id: int = betterproto.int32_field(2)
-    parent_id: Optional[int] = betterproto.int32_field(3, optional=True)
-    parent_key: Optional[str] = betterproto.string_field(4, optional=True)
-    order_key: Optional[str] = betterproto.string_field(5, optional=True)
-    set_properties: List[int] = betterproto.int32_field(22)
-    node_ptr: "NodeReferenceData" = betterproto.message_field(30)
-    lineno: int = betterproto.int32_field(31)
-    name: str = betterproto.string_field(32)
-    line: str = betterproto.string_field(33)
-
-
-@dataclass(eq=False, repr=False)
 class RunErrorData(betterproto.Message):
-    """
-    RunError(kind: bench.language.const.RunErrorKind = <factory>, type: str = <factory>, message: Optional[str] = None, node: Optional[ForwardRef('Node')] = None, traceback: list[bench.language.run.RunCodeFrame] = None, id: int = <factory>, parent: Union[ForwardRef('Struct'), ForwardRef('Node'), ForwardRef('Object'), NoneType] = None, order_key: str | None = None, set_properties: list[int] = <factory>, _status: bench.language.const.InterpStatus = None, _updated_properties: bitarray.bitarray | None = None, node_ptr: 'NodeReference' = None, parent_id: int = None, parent_key: str = None)
-    """
+    """An error that occurred in the context of a Run."""
 
     metatype: "ObjectType" = betterproto.enum_field(1)
     id: int = betterproto.int32_field(2)
@@ -1660,10 +1641,10 @@ class RunErrorData(betterproto.Message):
     order_key: Optional[str] = betterproto.string_field(5, optional=True)
     set_properties: List[int] = betterproto.int32_field(22)
     kind: "RunErrorKind" = betterproto.enum_field(30)
-    type: str = betterproto.string_field(31)
-    message: Optional[str] = betterproto.string_field(32, optional=True)
-    node_ptr: Optional["NodeReferenceData"] = betterproto.message_field(33, optional=True)
-    traceback: List["RunCodeFrameData"] = betterproto.message_field(34)
+    type: "RunErrorType" = betterproto.enum_field(31)
+    title: Optional[str] = betterproto.string_field(32, optional=True)
+    text: Optional["TextData"] = betterproto.message_field(33, optional=True)
+    node_ptr: Optional["NodeReferenceData"] = betterproto.message_field(34, optional=True)
 
 
 @dataclass(eq=False, repr=False)
@@ -4764,7 +4745,7 @@ class RuntimeBase(ServiceBase):
 
 from typing import TYPE_CHECKING  # noqa: E402
 
-VERSION = "2024.05.22.1"
+VERSION = "2024.05.22.2"
 
 if TYPE_CHECKING:
     from bench.language import Subject
@@ -4839,7 +4820,6 @@ AnyStructData = Union[
     CodeData,
     CodeLineData,
     StepConnectionData,
-    RunCodeFrameData,
     RunErrorData,
     TextData,
     TextLineData,

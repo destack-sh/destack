@@ -143,8 +143,7 @@ enum BenchType {
   BENCH_TYPE_CODE = 1090;
   BENCH_TYPE_CODE_LINE = 1091;
   BENCH_TYPE_STEP_CONNECTION = 1100;
-  BENCH_TYPE_RUN_CODE_FRAME = 1110;
-  BENCH_TYPE_RUN_ERROR = 1111;
+  BENCH_TYPE_RUN_ERROR = 1110;
   BENCH_TYPE_TEXT = 1160;
   BENCH_TYPE_TEXT_LINE = 1161;
   BENCH_TYPE_TEXT_SPAN = 1162;
@@ -203,7 +202,8 @@ enum BenchType {
   BENCH_TYPE_RUN_STATUS = 2260;
   BENCH_TYPE_RUN_KIND = 2261;
   BENCH_TYPE_RUN_ERROR_KIND = 2262;
-  BENCH_TYPE_SESSION_STATUS = 2263;
+  BENCH_TYPE_RUN_ERROR_TYPE = 2263;
+  BENCH_TYPE_SESSION_STATUS = 2264;
   BENCH_TYPE_TRIGGER_TYPE = 2270;
   BENCH_TYPE_NOTICE_KIND = 2280;
   BENCH_TYPE_NOTIFICATION_KIND = 2281;
@@ -388,7 +388,8 @@ enum EnumType {
   ENUM_TYPE_RUN_STATUS = 2260;
   ENUM_TYPE_RUN_KIND = 2261;
   ENUM_TYPE_RUN_ERROR_KIND = 2262;
-  ENUM_TYPE_SESSION_STATUS = 2263;
+  ENUM_TYPE_RUN_ERROR_TYPE = 2263;
+  ENUM_TYPE_SESSION_STATUS = 2264;
   ENUM_TYPE_TRIGGER_TYPE = 2270;
   ENUM_TYPE_NOTICE_KIND = 2280;
   ENUM_TYPE_NOTIFICATION_KIND = 2281;
@@ -689,8 +690,7 @@ enum ObjectType {
   OBJECT_TYPE_CODE = 1090;
   OBJECT_TYPE_CODE_LINE = 1091;
   OBJECT_TYPE_STEP_CONNECTION = 1100;
-  OBJECT_TYPE_RUN_CODE_FRAME = 1110;
-  OBJECT_TYPE_RUN_ERROR = 1111;
+  OBJECT_TYPE_RUN_ERROR = 1110;
   OBJECT_TYPE_TEXT = 1160;
   OBJECT_TYPE_TEXT_LINE = 1161;
   OBJECT_TYPE_TEXT_SPAN = 1162;
@@ -821,10 +821,12 @@ enum ResourceStatus {
 enum RunErrorKind {
   RUN_ERROR_KIND_UNSPECIFIED = 0;
   RUN_ERROR_KIND_INTERNAL = 1;
-  RUN_ERROR_KIND_PARSE = 2;
-  RUN_ERROR_KIND_VALIDATION = 3;
-  RUN_ERROR_KIND_RUNTIME = 4;
-  RUN_ERROR_KIND_UNTRUSTED = 5;
+  RUN_ERROR_KIND_RUNTIME = 5;
+}
+
+enum RunErrorType {
+  RUN_ERROR_TYPE_UNSPECIFIED = 0;
+  RUN_ERROR_TYPE_NO_RUNTIME_AVAILABLE = 1;
 }
 
 enum RunKind {
@@ -981,8 +983,7 @@ enum StructType {
   STRUCT_TYPE_CODE = 1090;
   STRUCT_TYPE_CODE_LINE = 1091;
   STRUCT_TYPE_STEP_CONNECTION = 1100;
-  STRUCT_TYPE_RUN_CODE_FRAME = 1110;
-  STRUCT_TYPE_RUN_ERROR = 1111;
+  STRUCT_TYPE_RUN_ERROR = 1110;
   STRUCT_TYPE_TEXT = 1160;
   STRUCT_TYPE_TEXT_LINE = 1161;
   STRUCT_TYPE_TEXT_SPAN = 1162;
@@ -1499,21 +1500,7 @@ message ReadOptionsData {
   bool include_hidden = 50;
 }
 
-// RunCodeFrame(node: bench.language.node.Node = None, lineno: int = <factory>, name: str = <factory>, line: str = <factory>, id: int = <factory>, parent: Union[ForwardRef('Struct'), ForwardRef('Node'), ForwardRef('Object'), NoneType] = None, order_key: str | None = None, set_properties: list[int] = <factory>, _status: bench.language.const.InterpStatus = None, _updated_properties: bitarray.bitarray | None = None, node_ptr: 'NodeReference' = None, parent_id: int = None, parent_key: str = None)
-message RunCodeFrameData {
-  ObjectType metatype = 1;
-  int32 id = 2;
-  optional int32 parent_id = 3;
-  optional string parent_key = 4;
-  optional string order_key = 5;
-  repeated int32 set_properties = 22;
-  NodeReferenceData node_ptr = 30;
-  int32 lineno = 31;
-  string name = 32;
-  string line = 33;
-}
-
-// RunError(kind: bench.language.const.RunErrorKind = <factory>, type: str = <factory>, message: Optional[str] = None, node: Optional[ForwardRef('Node')] = None, traceback: list[bench.language.run.RunCodeFrame] = None, id: int = <factory>, parent: Union[ForwardRef('Struct'), ForwardRef('Node'), ForwardRef('Object'), NoneType] = None, order_key: str | None = None, set_properties: list[int] = <factory>, _status: bench.language.const.InterpStatus = None, _updated_properties: bitarray.bitarray | None = None, node_ptr: 'NodeReference' = None, parent_id: int = None, parent_key: str = None)
+// An error that occurred in the context of a Run.
 message RunErrorData {
   ObjectType metatype = 1;
   int32 id = 2;
@@ -1522,10 +1509,10 @@ message RunErrorData {
   optional string order_key = 5;
   repeated int32 set_properties = 22;
   RunErrorKind kind = 30;
-  string type = 31;
-  optional string message = 32;
-  optional NodeReferenceData node_ptr = 33;
-  repeated RunCodeFrameData traceback = 34;
+  RunErrorType type = 31;
+  optional string title = 32;
+  optional TextData text = 33;
+  optional NodeReferenceData node_ptr = 34;
 }
 
 // The time-based schedule of something.

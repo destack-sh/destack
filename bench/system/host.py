@@ -40,7 +40,7 @@ from bench.system.core import (
 )
 from bench.system.graph import GraphIoServiceBase
 from bench.system.provision import Provisioner, get_provisioners_for
-from bench.system.scheduling import RunPlugin
+from bench.system.scheduling import QueueRunPlugin
 from bench.utils.func import bittuple, to_uuid
 from bench.utils.utils import get_from_env_maybe
 
@@ -249,7 +249,7 @@ class Host(GraphIoServiceBase, HostBase, HostSpec):
 
             # start plugins
             self._provisioners = tuple(get_provisioners_for(self, self._bench))
-            self._plugins = (RunPlugin(self, self._bench),) + self._provisioners
+            self._plugins = (QueueRunPlugin(self, self._bench),) + self._provisioners
             await asyncio.gather(*(plugin.start(session) for plugin in self._plugins))
             await session.commit()
             # wait for plugins to finish processing any commits (and error early)

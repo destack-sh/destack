@@ -1018,54 +1018,7 @@ export interface ReadOptionsData {
     includeHidden: boolean;
 }
 /**
- * RunCodeFrame(node: bench.language.node.Node = None, lineno: int = <factory>, name: str = <factory>, line: str = <factory>, id: int = <factory>, parent: Union[ForwardRef('Struct'), ForwardRef('Node'), ForwardRef('Object'), NoneType] = None, order_key: str | None = None, set_properties: list[int] = <factory>, _status: bench.language.const.InterpStatus = None, _updated_properties: bitarray.bitarray | None = None, node_ptr: 'NodeReference' = None, parent_id: int = None, parent_key: str = None)
- *
- * @generated from protobuf message symbolx.bench.RunCodeFrameData
- */
-export interface RunCodeFrameData {
-    /**
-     * @generated from protobuf field: symbolx.bench.ObjectType metatype = 1;
-     */
-    metatype: ObjectType;
-    /**
-     * @generated from protobuf field: int32 id = 2;
-     */
-    id: number;
-    /**
-     * @generated from protobuf field: optional int32 parent_id = 3;
-     */
-    parentId?: number;
-    /**
-     * @generated from protobuf field: optional string parent_key = 4;
-     */
-    parentKey?: string;
-    /**
-     * @generated from protobuf field: optional string order_key = 5;
-     */
-    orderKey?: string;
-    /**
-     * @generated from protobuf field: repeated int32 set_properties = 22;
-     */
-    setProperties: number[];
-    /**
-     * @generated from protobuf field: symbolx.bench.NodeReferenceData node_ptr = 30;
-     */
-    nodePtr?: NodeReferenceData;
-    /**
-     * @generated from protobuf field: int32 lineno = 31;
-     */
-    lineno: number;
-    /**
-     * @generated from protobuf field: string name = 32;
-     */
-    name: string;
-    /**
-     * @generated from protobuf field: string line = 33;
-     */
-    line: string;
-}
-/**
- * RunError(kind: bench.language.const.RunErrorKind = <factory>, type: str = <factory>, message: Optional[str] = None, node: Optional[ForwardRef('Node')] = None, traceback: list[bench.language.run.RunCodeFrame] = None, id: int = <factory>, parent: Union[ForwardRef('Struct'), ForwardRef('Node'), ForwardRef('Object'), NoneType] = None, order_key: str | None = None, set_properties: list[int] = <factory>, _status: bench.language.const.InterpStatus = None, _updated_properties: bitarray.bitarray | None = None, node_ptr: 'NodeReference' = None, parent_id: int = None, parent_key: str = None)
+ * An error that occurred in the context of a Run.
  *
  * @generated from protobuf message symbolx.bench.RunErrorData
  */
@@ -1099,21 +1052,21 @@ export interface RunErrorData {
      */
     kind: RunErrorKind;
     /**
-     * @generated from protobuf field: string type = 31;
+     * @generated from protobuf field: symbolx.bench.RunErrorType type = 31;
      */
-    type: string;
+    type: RunErrorType;
     /**
-     * @generated from protobuf field: optional string message = 32;
+     * @generated from protobuf field: optional string title = 32;
      */
-    message?: string;
+    title?: string;
     /**
-     * @generated from protobuf field: optional symbolx.bench.NodeReferenceData node_ptr = 33;
+     * @generated from protobuf field: optional symbolx.bench.TextData text = 33;
+     */
+    text?: TextData;
+    /**
+     * @generated from protobuf field: optional symbolx.bench.NodeReferenceData node_ptr = 34;
      */
     nodePtr?: NodeReferenceData;
-    /**
-     * @generated from protobuf field: repeated symbolx.bench.RunCodeFrameData traceback = 34;
-     */
-    traceback: RunCodeFrameData[];
 }
 /**
  * The time-based schedule of something.
@@ -5985,13 +5938,9 @@ export enum BenchType {
      */
     STEP_CONNECTION = 1100,
     /**
-     * @generated from protobuf enum value: BENCH_TYPE_RUN_CODE_FRAME = 1110;
+     * @generated from protobuf enum value: BENCH_TYPE_RUN_ERROR = 1110;
      */
-    RUN_CODE_FRAME = 1110,
-    /**
-     * @generated from protobuf enum value: BENCH_TYPE_RUN_ERROR = 1111;
-     */
-    RUN_ERROR = 1111,
+    RUN_ERROR = 1110,
     /**
      * @generated from protobuf enum value: BENCH_TYPE_TEXT = 1160;
      */
@@ -6225,9 +6174,13 @@ export enum BenchType {
      */
     RUN_ERROR_KIND = 2262,
     /**
-     * @generated from protobuf enum value: BENCH_TYPE_SESSION_STATUS = 2263;
+     * @generated from protobuf enum value: BENCH_TYPE_RUN_ERROR_TYPE = 2263;
      */
-    SESSION_STATUS = 2263,
+    RUN_ERROR_TYPE = 2263,
+    /**
+     * @generated from protobuf enum value: BENCH_TYPE_SESSION_STATUS = 2264;
+     */
+    SESSION_STATUS = 2264,
     /**
      * @generated from protobuf enum value: BENCH_TYPE_TRIGGER_TYPE = 2270;
      */
@@ -6910,9 +6863,13 @@ export enum EnumType {
      */
     RUN_ERROR_KIND = 2262,
     /**
-     * @generated from protobuf enum value: ENUM_TYPE_SESSION_STATUS = 2263;
+     * @generated from protobuf enum value: ENUM_TYPE_RUN_ERROR_TYPE = 2263;
      */
-    SESSION_STATUS = 2263,
+    RUN_ERROR_TYPE = 2263,
+    /**
+     * @generated from protobuf enum value: ENUM_TYPE_SESSION_STATUS = 2264;
+     */
+    SESSION_STATUS = 2264,
     /**
      * @generated from protobuf enum value: ENUM_TYPE_TRIGGER_TYPE = 2270;
      */
@@ -7971,13 +7928,9 @@ export enum ObjectType {
      */
     STEP_CONNECTION = 1100,
     /**
-     * @generated from protobuf enum value: OBJECT_TYPE_RUN_CODE_FRAME = 1110;
+     * @generated from protobuf enum value: OBJECT_TYPE_RUN_ERROR = 1110;
      */
-    RUN_CODE_FRAME = 1110,
-    /**
-     * @generated from protobuf enum value: OBJECT_TYPE_RUN_ERROR = 1111;
-     */
-    RUN_ERROR = 1111,
+    RUN_ERROR = 1110,
     /**
      * @generated from protobuf enum value: OBJECT_TYPE_TEXT = 1160;
      */
@@ -8395,21 +8348,22 @@ export enum RunErrorKind {
      */
     INTERNAL = 1,
     /**
-     * @generated from protobuf enum value: RUN_ERROR_KIND_PARSE = 2;
+     * @generated from protobuf enum value: RUN_ERROR_KIND_RUNTIME = 5;
      */
-    PARSE = 2,
+    RUNTIME = 5
+}
+/**
+ * @generated from protobuf enum symbolx.bench.RunErrorType
+ */
+export enum RunErrorType {
     /**
-     * @generated from protobuf enum value: RUN_ERROR_KIND_VALIDATION = 3;
+     * @generated from protobuf enum value: RUN_ERROR_TYPE_UNSPECIFIED = 0;
      */
-    VALIDATION = 3,
+    UNSPECIFIED = 0,
     /**
-     * @generated from protobuf enum value: RUN_ERROR_KIND_RUNTIME = 4;
+     * @generated from protobuf enum value: RUN_ERROR_TYPE_NO_RUNTIME_AVAILABLE = 1;
      */
-    RUNTIME = 4,
-    /**
-     * @generated from protobuf enum value: RUN_ERROR_KIND_UNTRUSTED = 5;
-     */
-    UNTRUSTED = 5
+    NO_RUNTIME_AVAILABLE = 1
 }
 /**
  * @generated from protobuf enum symbolx.bench.RunKind
@@ -8935,13 +8889,9 @@ export enum StructType {
      */
     STEP_CONNECTION = 1100,
     /**
-     * @generated from protobuf enum value: STRUCT_TYPE_RUN_CODE_FRAME = 1110;
+     * @generated from protobuf enum value: STRUCT_TYPE_RUN_ERROR = 1110;
      */
-    RUN_CODE_FRAME = 1110,
-    /**
-     * @generated from protobuf enum value: STRUCT_TYPE_RUN_ERROR = 1111;
-     */
-    RUN_ERROR = 1111,
+    RUN_ERROR = 1110,
     /**
      * @generated from protobuf enum value: STRUCT_TYPE_TEXT = 1160;
      */
@@ -11961,129 +11911,6 @@ class ReadOptionsData$Type extends MessageType<ReadOptionsData> {
  */
 export const ReadOptionsData = new ReadOptionsData$Type();
 // @generated message type with reflection information, may provide speed optimized methods
-class RunCodeFrameData$Type extends MessageType<RunCodeFrameData> {
-    constructor() {
-        super("symbolx.bench.RunCodeFrameData", [
-            { no: 1, name: "metatype", kind: "enum", T: () => ["symbolx.bench.ObjectType", ObjectType, "OBJECT_TYPE_"] },
-            { no: 2, name: "id", kind: "scalar", T: 5 /*ScalarType.INT32*/ },
-            { no: 3, name: "parent_id", kind: "scalar", opt: true, T: 5 /*ScalarType.INT32*/ },
-            { no: 4, name: "parent_key", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
-            { no: 5, name: "order_key", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
-            { no: 22, name: "set_properties", kind: "scalar", repeat: 1 /*RepeatType.PACKED*/, T: 5 /*ScalarType.INT32*/ },
-            { no: 30, name: "node_ptr", kind: "message", T: () => NodeReferenceData },
-            { no: 31, name: "lineno", kind: "scalar", T: 5 /*ScalarType.INT32*/ },
-            { no: 32, name: "name", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
-            { no: 33, name: "line", kind: "scalar", T: 9 /*ScalarType.STRING*/ }
-        ]);
-    }
-    create(value?: PartialMessage<RunCodeFrameData>): RunCodeFrameData {
-        const message = globalThis.Object.create((this.messagePrototype!));
-        message.metatype = 0;
-        message.id = 0;
-        message.setProperties = [];
-        message.lineno = 0;
-        message.name = "";
-        message.line = "";
-        if (value !== undefined)
-            reflectionMergePartial<RunCodeFrameData>(this, message, value);
-        return message;
-    }
-    internalBinaryRead(reader: IBinaryReader, length: number, options: BinaryReadOptions, target?: RunCodeFrameData): RunCodeFrameData {
-        let message = target ?? this.create(), end = reader.pos + length;
-        while (reader.pos < end) {
-            let [fieldNo, wireType] = reader.tag();
-            switch (fieldNo) {
-                case /* symbolx.bench.ObjectType metatype */ 1:
-                    message.metatype = reader.int32();
-                    break;
-                case /* int32 id */ 2:
-                    message.id = reader.int32();
-                    break;
-                case /* optional int32 parent_id */ 3:
-                    message.parentId = reader.int32();
-                    break;
-                case /* optional string parent_key */ 4:
-                    message.parentKey = reader.string();
-                    break;
-                case /* optional string order_key */ 5:
-                    message.orderKey = reader.string();
-                    break;
-                case /* repeated int32 set_properties */ 22:
-                    if (wireType === WireType.LengthDelimited)
-                        for (let e = reader.int32() + reader.pos; reader.pos < e;)
-                            message.setProperties.push(reader.int32());
-                    else
-                        message.setProperties.push(reader.int32());
-                    break;
-                case /* symbolx.bench.NodeReferenceData node_ptr */ 30:
-                    message.nodePtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.nodePtr);
-                    break;
-                case /* int32 lineno */ 31:
-                    message.lineno = reader.int32();
-                    break;
-                case /* string name */ 32:
-                    message.name = reader.string();
-                    break;
-                case /* string line */ 33:
-                    message.line = reader.string();
-                    break;
-                default:
-                    let u = options.readUnknownField;
-                    if (u === "throw")
-                        throw new globalThis.Error(`Unknown field ${fieldNo} (wire type ${wireType}) for ${this.typeName}`);
-                    let d = reader.skip(wireType);
-                    if (u !== false)
-                        (u === true ? UnknownFieldHandler.onRead : u)(this.typeName, message, fieldNo, wireType, d);
-            }
-        }
-        return message;
-    }
-    internalBinaryWrite(message: RunCodeFrameData, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
-        /* symbolx.bench.ObjectType metatype = 1; */
-        if (message.metatype !== 0)
-            writer.tag(1, WireType.Varint).int32(message.metatype);
-        /* int32 id = 2; */
-        if (message.id !== 0)
-            writer.tag(2, WireType.Varint).int32(message.id);
-        /* optional int32 parent_id = 3; */
-        if (message.parentId !== undefined)
-            writer.tag(3, WireType.Varint).int32(message.parentId);
-        /* optional string parent_key = 4; */
-        if (message.parentKey !== undefined)
-            writer.tag(4, WireType.LengthDelimited).string(message.parentKey);
-        /* optional string order_key = 5; */
-        if (message.orderKey !== undefined)
-            writer.tag(5, WireType.LengthDelimited).string(message.orderKey);
-        /* repeated int32 set_properties = 22; */
-        if (message.setProperties.length) {
-            writer.tag(22, WireType.LengthDelimited).fork();
-            for (let i = 0; i < message.setProperties.length; i++)
-                writer.int32(message.setProperties[i]);
-            writer.join();
-        }
-        /* symbolx.bench.NodeReferenceData node_ptr = 30; */
-        if (message.nodePtr)
-            NodeReferenceData.internalBinaryWrite(message.nodePtr, writer.tag(30, WireType.LengthDelimited).fork(), options).join();
-        /* int32 lineno = 31; */
-        if (message.lineno !== 0)
-            writer.tag(31, WireType.Varint).int32(message.lineno);
-        /* string name = 32; */
-        if (message.name !== "")
-            writer.tag(32, WireType.LengthDelimited).string(message.name);
-        /* string line = 33; */
-        if (message.line !== "")
-            writer.tag(33, WireType.LengthDelimited).string(message.line);
-        let u = options.writeUnknownFields;
-        if (u !== false)
-            (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
-        return writer;
-    }
-}
-/**
- * @generated MessageType for protobuf message symbolx.bench.RunCodeFrameData
- */
-export const RunCodeFrameData = new RunCodeFrameData$Type();
-// @generated message type with reflection information, may provide speed optimized methods
 class RunErrorData$Type extends MessageType<RunErrorData> {
     constructor() {
         super("symbolx.bench.RunErrorData", [
@@ -12094,10 +11921,10 @@ class RunErrorData$Type extends MessageType<RunErrorData> {
             { no: 5, name: "order_key", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
             { no: 22, name: "set_properties", kind: "scalar", repeat: 1 /*RepeatType.PACKED*/, T: 5 /*ScalarType.INT32*/ },
             { no: 30, name: "kind", kind: "enum", T: () => ["symbolx.bench.RunErrorKind", RunErrorKind, "RUN_ERROR_KIND_"] },
-            { no: 31, name: "type", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
-            { no: 32, name: "message", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
-            { no: 33, name: "node_ptr", kind: "message", T: () => NodeReferenceData },
-            { no: 34, name: "traceback", kind: "message", repeat: 1 /*RepeatType.PACKED*/, T: () => RunCodeFrameData }
+            { no: 31, name: "type", kind: "enum", T: () => ["symbolx.bench.RunErrorType", RunErrorType, "RUN_ERROR_TYPE_"] },
+            { no: 32, name: "title", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
+            { no: 33, name: "text", kind: "message", T: () => TextData },
+            { no: 34, name: "node_ptr", kind: "message", T: () => NodeReferenceData }
         ]);
     }
     create(value?: PartialMessage<RunErrorData>): RunErrorData {
@@ -12106,8 +11933,7 @@ class RunErrorData$Type extends MessageType<RunErrorData> {
         message.id = 0;
         message.setProperties = [];
         message.kind = 0;
-        message.type = "";
-        message.traceback = [];
+        message.type = 0;
         if (value !== undefined)
             reflectionMergePartial<RunErrorData>(this, message, value);
         return message;
@@ -12142,17 +11968,17 @@ class RunErrorData$Type extends MessageType<RunErrorData> {
                 case /* symbolx.bench.RunErrorKind kind */ 30:
                     message.kind = reader.int32();
                     break;
-                case /* string type */ 31:
-                    message.type = reader.string();
+                case /* symbolx.bench.RunErrorType type */ 31:
+                    message.type = reader.int32();
                     break;
-                case /* optional string message */ 32:
-                    message.message = reader.string();
+                case /* optional string title */ 32:
+                    message.title = reader.string();
                     break;
-                case /* optional symbolx.bench.NodeReferenceData node_ptr */ 33:
+                case /* optional symbolx.bench.TextData text */ 33:
+                    message.text = TextData.internalBinaryRead(reader, reader.uint32(), options, message.text);
+                    break;
+                case /* optional symbolx.bench.NodeReferenceData node_ptr */ 34:
                     message.nodePtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.nodePtr);
-                    break;
-                case /* repeated symbolx.bench.RunCodeFrameData traceback */ 34:
-                    message.traceback.push(RunCodeFrameData.internalBinaryRead(reader, reader.uint32(), options));
                     break;
                 default:
                     let u = options.readUnknownField;
@@ -12191,18 +12017,18 @@ class RunErrorData$Type extends MessageType<RunErrorData> {
         /* symbolx.bench.RunErrorKind kind = 30; */
         if (message.kind !== 0)
             writer.tag(30, WireType.Varint).int32(message.kind);
-        /* string type = 31; */
-        if (message.type !== "")
-            writer.tag(31, WireType.LengthDelimited).string(message.type);
-        /* optional string message = 32; */
-        if (message.message !== undefined)
-            writer.tag(32, WireType.LengthDelimited).string(message.message);
-        /* optional symbolx.bench.NodeReferenceData node_ptr = 33; */
+        /* symbolx.bench.RunErrorType type = 31; */
+        if (message.type !== 0)
+            writer.tag(31, WireType.Varint).int32(message.type);
+        /* optional string title = 32; */
+        if (message.title !== undefined)
+            writer.tag(32, WireType.LengthDelimited).string(message.title);
+        /* optional symbolx.bench.TextData text = 33; */
+        if (message.text)
+            TextData.internalBinaryWrite(message.text, writer.tag(33, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbolx.bench.NodeReferenceData node_ptr = 34; */
         if (message.nodePtr)
-            NodeReferenceData.internalBinaryWrite(message.nodePtr, writer.tag(33, WireType.LengthDelimited).fork(), options).join();
-        /* repeated symbolx.bench.RunCodeFrameData traceback = 34; */
-        for (let i = 0; i < message.traceback.length; i++)
-            RunCodeFrameData.internalBinaryWrite(message.traceback[i], writer.tag(34, WireType.LengthDelimited).fork(), options).join();
+            NodeReferenceData.internalBinaryWrite(message.nodePtr, writer.tag(34, WireType.LengthDelimited).fork(), options).join();
         let u = options.writeUnknownFields;
         if (u !== false)
             (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
@@ -21768,9 +21594,9 @@ export const SomeNodeData = new SomeNodeData$Type();
 
 // Any...
 export type AnyNodeData = BenchData | EnvironmentData | BranchData | PackageData | DependencyData | UpgradeData | SpaceData | LinkData | SkipData | NoticeData | BlockData | TriggerData | FieldData | QueryData | ViewData | StepData | BadgeData | RoleData | IdentityData | MembershipData | InviteData | SessionData | RunData | SignalData | LogData | NotificationData | MessageData | RecordData | ServerData | StoreData | MachineData | DriveData | BlobData | HandleData | UserData | OrganizationData | ClientData
-export type AnyStructData = PathData | PathSegmentData | PathTokenData | NodeReferenceData | PropertyReferenceData | ValueReferenceData | TypeInfoData | TypeConstraintData | ContextData | ScheduleData | ProjectionData | PolicyData | PolicyRuleData | SubjectData | AccessZoneData | AccessMatrixData | AccessData | ReadOptionsData | ExpressionData | AggregationData | AggregationBucketData | SelectionData | CodeData | CodeLineData | StepConnectionData | RunCodeFrameData | RunErrorData | TextData | TextLineData | TextSpanData | ColorData | FontData | BoxData | OffsetData | FileData | IconData
+export type AnyStructData = PathData | PathSegmentData | PathTokenData | NodeReferenceData | PropertyReferenceData | ValueReferenceData | TypeInfoData | TypeConstraintData | ContextData | ScheduleData | ProjectionData | PolicyData | PolicyRuleData | SubjectData | AccessZoneData | AccessMatrixData | AccessData | ReadOptionsData | ExpressionData | AggregationData | AggregationBucketData | SelectionData | CodeData | CodeLineData | StepConnectionData | RunErrorData | TextData | TextLineData | TextSpanData | ColorData | FontData | BoxData | OffsetData | FileData | IconData
 export type AnyNodeDataType = typeof BenchData | typeof EnvironmentData | typeof BranchData | typeof PackageData | typeof DependencyData | typeof UpgradeData | typeof SpaceData | typeof LinkData | typeof SkipData | typeof NoticeData | typeof BlockData | typeof TriggerData | typeof FieldData | typeof QueryData | typeof ViewData | typeof StepData | typeof BadgeData | typeof RoleData | typeof IdentityData | typeof MembershipData | typeof InviteData | typeof SessionData | typeof RunData | typeof SignalData | typeof LogData | typeof NotificationData | typeof MessageData | typeof RecordData | typeof ServerData | typeof StoreData | typeof MachineData | typeof DriveData | typeof BlobData | typeof HandleData | typeof UserData | typeof OrganizationData | typeof ClientData
-export type AnyStructDataType = typeof PathData | typeof PathSegmentData | typeof PathTokenData | typeof NodeReferenceData | typeof PropertyReferenceData | typeof ValueReferenceData | typeof TypeInfoData | typeof TypeConstraintData | typeof ContextData | typeof ScheduleData | typeof ProjectionData | typeof PolicyData | typeof PolicyRuleData | typeof SubjectData | typeof AccessZoneData | typeof AccessMatrixData | typeof AccessData | typeof ReadOptionsData | typeof ExpressionData | typeof AggregationData | typeof AggregationBucketData | typeof SelectionData | typeof CodeData | typeof CodeLineData | typeof StepConnectionData | typeof RunCodeFrameData | typeof RunErrorData | typeof TextData | typeof TextLineData | typeof TextSpanData | typeof ColorData | typeof FontData | typeof BoxData | typeof OffsetData | typeof FileData | typeof IconData
+export type AnyStructDataType = typeof PathData | typeof PathSegmentData | typeof PathTokenData | typeof NodeReferenceData | typeof PropertyReferenceData | typeof ValueReferenceData | typeof TypeInfoData | typeof TypeConstraintData | typeof ContextData | typeof ScheduleData | typeof ProjectionData | typeof PolicyData | typeof PolicyRuleData | typeof SubjectData | typeof AccessZoneData | typeof AccessMatrixData | typeof AccessData | typeof ReadOptionsData | typeof ExpressionData | typeof AggregationData | typeof AggregationBucketData | typeof SelectionData | typeof CodeData | typeof CodeLineData | typeof StepConnectionData | typeof RunErrorData | typeof TextData | typeof TextLineData | typeof TextSpanData | typeof ColorData | typeof FontData | typeof BoxData | typeof OffsetData | typeof FileData | typeof IconData
 
 // Ancestry maps
 export const PARENT_NODE_TYPES: Record<NodeType, NodeType[]> = {
@@ -22002,7 +21828,6 @@ export const MESSAGE_TYPE_BY_OBJECT_TYPE: Partial<Record<ObjectType, MessageType
   [ObjectType.CODE]: CodeData,
   [ObjectType.CODE_LINE]: CodeLineData,
   [ObjectType.STEP_CONNECTION]: StepConnectionData,
-  [ObjectType.RUN_CODE_FRAME]: RunCodeFrameData,
   [ObjectType.RUN_ERROR]: RunErrorData,
   [ObjectType.TEXT]: TextData,
   [ObjectType.TEXT_LINE]: TextLineData,
@@ -22078,7 +21903,6 @@ export const OBJECT_TYPE_BY_MESSAGE_TYPE_NAME: Record<string, ObjectType> = {
   ["symbolx.bench.CodeData"]: ObjectType.CODE,
   ["symbolx.bench.CodeLineData"]: ObjectType.CODE_LINE,
   ["symbolx.bench.StepConnectionData"]: ObjectType.STEP_CONNECTION,
-  ["symbolx.bench.RunCodeFrameData"]: ObjectType.RUN_CODE_FRAME,
   ["symbolx.bench.RunErrorData"]: ObjectType.RUN_ERROR,
   ["symbolx.bench.TextData"]: ObjectType.TEXT,
   ["symbolx.bench.TextLineData"]: ObjectType.TEXT_LINE,
@@ -22142,6 +21966,7 @@ export const ENUM_BY_TYPE: Record<EnumType, Record<number | string, number | str
   [EnumType.RUN_STATUS]: RunStatus,
   [EnumType.RUN_KIND]: RunKind,
   [EnumType.RUN_ERROR_KIND]: RunErrorKind,
+  [EnumType.RUN_ERROR_TYPE]: RunErrorType,
   [EnumType.SESSION_STATUS]: SessionStatus,
   [EnumType.TRIGGER_TYPE]: TriggerType,
   [EnumType.NOTICE_KIND]: NoticeKind,
@@ -22187,7 +22012,6 @@ export interface StructTypeMapping extends Record<StructType, AnyStructData> {
   [StructType.CODE]: CodeData,
   [StructType.CODE_LINE]: CodeLineData,
   [StructType.STEP_CONNECTION]: StepConnectionData,
-  [StructType.RUN_CODE_FRAME]: RunCodeFrameData,
   [StructType.RUN_ERROR]: RunErrorData,
   [StructType.TEXT]: TextData,
   [StructType.TEXT_LINE]: TextLineData,
@@ -22303,7 +22127,6 @@ export interface AnyTypeMapping extends Record<ObjectType, AnyStructData | AnyNo
   [ObjectType.CODE]: CodeData,
   [ObjectType.CODE_LINE]: CodeLineData,
   [ObjectType.STEP_CONNECTION]: StepConnectionData,
-  [ObjectType.RUN_CODE_FRAME]: RunCodeFrameData,
   [ObjectType.RUN_ERROR]: RunErrorData,
   [ObjectType.TEXT]: TextData,
   [ObjectType.TEXT_LINE]: TextLineData,
@@ -22367,6 +22190,7 @@ export interface EnumTypeMapping extends Record<EnumType, any> {
   [EnumType.RUN_STATUS]: RunStatus,
   [EnumType.RUN_KIND]: RunKind,
   [EnumType.RUN_ERROR_KIND]: RunErrorKind,
+  [EnumType.RUN_ERROR_TYPE]: RunErrorType,
   [EnumType.SESSION_STATUS]: SessionStatus,
   [EnumType.TRIGGER_TYPE]: TriggerType,
   [EnumType.NOTICE_KIND]: NoticeKind,
@@ -23623,19 +23447,6 @@ export enum StepConnectionProperty {
   sourcePtr = 30,
 }
 
-export enum RunCodeFrameProperty {
-  metatype = 1,
-  id = 2,
-  parentId = 3,
-  parentKey = 4,
-  orderKey = 5,
-  setProperties = 22,
-  nodePtr = 30,
-  lineno = 31,
-  name = 32,
-  line = 33,
-}
-
 export enum RunErrorProperty {
   metatype = 1,
   id = 2,
@@ -23645,9 +23456,9 @@ export enum RunErrorProperty {
   setProperties = 22,
   kind = 30,
   type = 31,
-  message = 32,
-  nodePtr = 33,
-  traceback = 34,
+  title = 32,
+  text = 33,
+  nodePtr = 34,
 }
 
 export enum TextProperty {
@@ -23744,11 +23555,11 @@ export enum IconProperty {
 }
 
 export type AnyNodeProperty = typeof BenchProperty | typeof EnvironmentProperty | typeof BranchProperty | typeof PackageProperty | typeof DependencyProperty | typeof UpgradeProperty | typeof SpaceProperty | typeof LinkProperty | typeof SkipProperty | typeof NoticeProperty | typeof BlockProperty | typeof TriggerProperty | typeof FieldProperty | typeof QueryProperty | typeof ViewProperty | typeof StepProperty | typeof BadgeProperty | typeof RoleProperty | typeof IdentityProperty | typeof MembershipProperty | typeof InviteProperty | typeof SessionProperty | typeof RunProperty | typeof SignalProperty | typeof LogProperty | typeof NotificationProperty | typeof MessageProperty | typeof RecordProperty | typeof ServerProperty | typeof StoreProperty | typeof MachineProperty | typeof DriveProperty | typeof BlobProperty | typeof HandleProperty | typeof UserProperty | typeof OrganizationProperty | typeof ClientProperty
-export type AnyStructProperty = typeof PathProperty | typeof PathSegmentProperty | typeof PathTokenProperty | typeof NodeReferenceProperty | typeof PropertyReferenceProperty | typeof ValueReferenceProperty | typeof TypeInfoProperty | typeof TypeConstraintProperty | typeof ContextProperty | typeof ScheduleProperty | typeof ProjectionProperty | typeof PolicyProperty | typeof PolicyRuleProperty | typeof SubjectProperty | typeof AccessZoneProperty | typeof AccessMatrixProperty | typeof AccessProperty | typeof ReadOptionsProperty | typeof ExpressionProperty | typeof AggregationProperty | typeof AggregationBucketProperty | typeof SelectionProperty | typeof CodeProperty | typeof CodeLineProperty | typeof StepConnectionProperty | typeof RunCodeFrameProperty | typeof RunErrorProperty | typeof TextProperty | typeof TextLineProperty | typeof TextSpanProperty | typeof ColorProperty | typeof FontProperty | typeof BoxProperty | typeof OffsetProperty | typeof FileProperty | typeof IconProperty
+export type AnyStructProperty = typeof PathProperty | typeof PathSegmentProperty | typeof PathTokenProperty | typeof NodeReferenceProperty | typeof PropertyReferenceProperty | typeof ValueReferenceProperty | typeof TypeInfoProperty | typeof TypeConstraintProperty | typeof ContextProperty | typeof ScheduleProperty | typeof ProjectionProperty | typeof PolicyProperty | typeof PolicyRuleProperty | typeof SubjectProperty | typeof AccessZoneProperty | typeof AccessMatrixProperty | typeof AccessProperty | typeof ReadOptionsProperty | typeof ExpressionProperty | typeof AggregationProperty | typeof AggregationBucketProperty | typeof SelectionProperty | typeof CodeProperty | typeof CodeLineProperty | typeof StepConnectionProperty | typeof RunErrorProperty | typeof TextProperty | typeof TextLineProperty | typeof TextSpanProperty | typeof ColorProperty | typeof FontProperty | typeof BoxProperty | typeof OffsetProperty | typeof FileProperty | typeof IconProperty
 export type AnyProperty = AnyNodeProperty | AnyStructProperty
 export type AnyNodePropertyType = typeof BenchProperty | typeof EnvironmentProperty | typeof BranchProperty | typeof PackageProperty | typeof DependencyProperty | typeof UpgradeProperty | typeof SpaceProperty | typeof LinkProperty | typeof SkipProperty | typeof NoticeProperty | typeof BlockProperty | typeof TriggerProperty | typeof FieldProperty | typeof QueryProperty | typeof ViewProperty | typeof StepProperty | typeof BadgeProperty | typeof RoleProperty | typeof IdentityProperty | typeof MembershipProperty | typeof InviteProperty | typeof SessionProperty | typeof RunProperty | typeof SignalProperty | typeof LogProperty | typeof NotificationProperty | typeof MessageProperty | typeof RecordProperty | typeof ServerProperty | typeof StoreProperty | typeof MachineProperty | typeof DriveProperty | typeof BlobProperty | typeof HandleProperty | typeof UserProperty | typeof OrganizationProperty | typeof ClientProperty
-export type AnyStructPropertyType = typeof PathProperty | typeof PathSegmentProperty | typeof PathTokenProperty | typeof NodeReferenceProperty | typeof PropertyReferenceProperty | typeof ValueReferenceProperty | typeof TypeInfoProperty | typeof TypeConstraintProperty | typeof ContextProperty | typeof ScheduleProperty | typeof ProjectionProperty | typeof PolicyProperty | typeof PolicyRuleProperty | typeof SubjectProperty | typeof AccessZoneProperty | typeof AccessMatrixProperty | typeof AccessProperty | typeof ReadOptionsProperty | typeof ExpressionProperty | typeof AggregationProperty | typeof AggregationBucketProperty | typeof SelectionProperty | typeof CodeProperty | typeof CodeLineProperty | typeof StepConnectionProperty | typeof RunCodeFrameProperty | typeof RunErrorProperty | typeof TextProperty | typeof TextLineProperty | typeof TextSpanProperty | typeof ColorProperty | typeof FontProperty | typeof BoxProperty | typeof OffsetProperty | typeof FileProperty | typeof IconProperty
-export type AnyPropertyType = typeof BenchProperty | typeof EnvironmentProperty | typeof BranchProperty | typeof PackageProperty | typeof DependencyProperty | typeof UpgradeProperty | typeof SpaceProperty | typeof LinkProperty | typeof SkipProperty | typeof NoticeProperty | typeof BlockProperty | typeof TriggerProperty | typeof FieldProperty | typeof QueryProperty | typeof ViewProperty | typeof StepProperty | typeof BadgeProperty | typeof RoleProperty | typeof IdentityProperty | typeof MembershipProperty | typeof InviteProperty | typeof SessionProperty | typeof RunProperty | typeof SignalProperty | typeof LogProperty | typeof NotificationProperty | typeof MessageProperty | typeof RecordProperty | typeof ServerProperty | typeof StoreProperty | typeof MachineProperty | typeof DriveProperty | typeof BlobProperty | typeof HandleProperty | typeof UserProperty | typeof OrganizationProperty | typeof ClientProperty | typeof PathProperty | typeof PathSegmentProperty | typeof PathTokenProperty | typeof NodeReferenceProperty | typeof PropertyReferenceProperty | typeof ValueReferenceProperty | typeof TypeInfoProperty | typeof TypeConstraintProperty | typeof ContextProperty | typeof ScheduleProperty | typeof ProjectionProperty | typeof PolicyProperty | typeof PolicyRuleProperty | typeof SubjectProperty | typeof AccessZoneProperty | typeof AccessMatrixProperty | typeof AccessProperty | typeof ReadOptionsProperty | typeof ExpressionProperty | typeof AggregationProperty | typeof AggregationBucketProperty | typeof SelectionProperty | typeof CodeProperty | typeof CodeLineProperty | typeof StepConnectionProperty | typeof RunCodeFrameProperty | typeof RunErrorProperty | typeof TextProperty | typeof TextLineProperty | typeof TextSpanProperty | typeof ColorProperty | typeof FontProperty | typeof BoxProperty | typeof OffsetProperty | typeof FileProperty | typeof IconProperty
+export type AnyStructPropertyType = typeof PathProperty | typeof PathSegmentProperty | typeof PathTokenProperty | typeof NodeReferenceProperty | typeof PropertyReferenceProperty | typeof ValueReferenceProperty | typeof TypeInfoProperty | typeof TypeConstraintProperty | typeof ContextProperty | typeof ScheduleProperty | typeof ProjectionProperty | typeof PolicyProperty | typeof PolicyRuleProperty | typeof SubjectProperty | typeof AccessZoneProperty | typeof AccessMatrixProperty | typeof AccessProperty | typeof ReadOptionsProperty | typeof ExpressionProperty | typeof AggregationProperty | typeof AggregationBucketProperty | typeof SelectionProperty | typeof CodeProperty | typeof CodeLineProperty | typeof StepConnectionProperty | typeof RunErrorProperty | typeof TextProperty | typeof TextLineProperty | typeof TextSpanProperty | typeof ColorProperty | typeof FontProperty | typeof BoxProperty | typeof OffsetProperty | typeof FileProperty | typeof IconProperty
+export type AnyPropertyType = typeof BenchProperty | typeof EnvironmentProperty | typeof BranchProperty | typeof PackageProperty | typeof DependencyProperty | typeof UpgradeProperty | typeof SpaceProperty | typeof LinkProperty | typeof SkipProperty | typeof NoticeProperty | typeof BlockProperty | typeof TriggerProperty | typeof FieldProperty | typeof QueryProperty | typeof ViewProperty | typeof StepProperty | typeof BadgeProperty | typeof RoleProperty | typeof IdentityProperty | typeof MembershipProperty | typeof InviteProperty | typeof SessionProperty | typeof RunProperty | typeof SignalProperty | typeof LogProperty | typeof NotificationProperty | typeof MessageProperty | typeof RecordProperty | typeof ServerProperty | typeof StoreProperty | typeof MachineProperty | typeof DriveProperty | typeof BlobProperty | typeof HandleProperty | typeof UserProperty | typeof OrganizationProperty | typeof ClientProperty | typeof PathProperty | typeof PathSegmentProperty | typeof PathTokenProperty | typeof NodeReferenceProperty | typeof PropertyReferenceProperty | typeof ValueReferenceProperty | typeof TypeInfoProperty | typeof TypeConstraintProperty | typeof ContextProperty | typeof ScheduleProperty | typeof ProjectionProperty | typeof PolicyProperty | typeof PolicyRuleProperty | typeof SubjectProperty | typeof AccessZoneProperty | typeof AccessMatrixProperty | typeof AccessProperty | typeof ReadOptionsProperty | typeof ExpressionProperty | typeof AggregationProperty | typeof AggregationBucketProperty | typeof SelectionProperty | typeof CodeProperty | typeof CodeLineProperty | typeof StepConnectionProperty | typeof RunErrorProperty | typeof TextProperty | typeof TextLineProperty | typeof TextSpanProperty | typeof ColorProperty | typeof FontProperty | typeof BoxProperty | typeof OffsetProperty | typeof FileProperty | typeof IconProperty
 export const NODE_PROPERTY_ENUM_BY_TYPE: Partial<Record<ObjectType, AnyNodePropertyType>> = {
   [ObjectType.BENCH]: BenchProperty,
   [ObjectType.ENVIRONMENT]: EnvironmentProperty,
@@ -23815,7 +23626,6 @@ export const STRUCT_PROPERTY_ENUM_BY_TYPE: Partial<Record<ObjectType, AnyStructP
   [ObjectType.CODE]: CodeProperty,
   [ObjectType.CODE_LINE]: CodeLineProperty,
   [ObjectType.STEP_CONNECTION]: StepConnectionProperty,
-  [ObjectType.RUN_CODE_FRAME]: RunCodeFrameProperty,
   [ObjectType.RUN_ERROR]: RunErrorProperty,
   [ObjectType.TEXT]: TextProperty,
   [ObjectType.TEXT_LINE]: TextLineProperty,
@@ -23891,7 +23701,6 @@ export const PROPERTY_ENUM_BY_TYPE: Partial<Record<ObjectType, AnyPropertyType>>
   [ObjectType.CODE]: CodeProperty,
   [ObjectType.CODE_LINE]: CodeLineProperty,
   [ObjectType.STEP_CONNECTION]: StepConnectionProperty,
-  [ObjectType.RUN_CODE_FRAME]: RunCodeFrameProperty,
   [ObjectType.RUN_ERROR]: RunErrorProperty,
   [ObjectType.TEXT]: TextProperty,
   [ObjectType.TEXT_LINE]: TextLineProperty,
@@ -24228,18 +24037,6 @@ export const StepConnectionDataInfo: Record<StepConnectionProperty, PropertyInfo
   [StepConnectionProperty.setProperties]: { id: 22, name: 'set_properties', component: ObjectType.STEP_CONNECTION, kind: 'primitive', primitiveType: PrimitiveType.INT32, isList: true, isRequired: true, isRuntime: true, isWired: true, isStored: true },
   [StepConnectionProperty.sourcePtr]: { id: 30, name: 'source_ptr', component: ObjectType.STEP_CONNECTION, kind: 'reference', isRequired: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.STEP], referenceStruct: StructType.NODE_REFERENCE },
 }
-export const RunCodeFrameDataInfo: Record<RunCodeFrameProperty, PropertyInfo> = {
-  [RunCodeFrameProperty.metatype]: { id: 1, name: 'metatype', component: ObjectType.RUN_CODE_FRAME, enumType: EnumType.OBJECT_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isComputed: true, isWired: true },
-  [RunCodeFrameProperty.id]: { id: 2, name: 'id', component: ObjectType.RUN_CODE_FRAME, kind: 'primitive', primitiveType: PrimitiveType.INT32, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
-  [RunCodeFrameProperty.parentId]: { id: 3, name: 'parent_id', component: ObjectType.RUN_CODE_FRAME, kind: 'reference', primitiveType: PrimitiveType.INT32, isInternal: true, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_PARENT },
-  [RunCodeFrameProperty.parentKey]: { id: 4, name: 'parent_key', component: ObjectType.RUN_CODE_FRAME, kind: 'reference', primitiveType: PrimitiveType.STRING, isInternal: true, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_PARENT },
-  [RunCodeFrameProperty.orderKey]: { id: 5, name: 'order_key', component: ObjectType.RUN_CODE_FRAME, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isRuntime: true, isWired: true, isStored: true },
-  [RunCodeFrameProperty.setProperties]: { id: 22, name: 'set_properties', component: ObjectType.RUN_CODE_FRAME, kind: 'primitive', primitiveType: PrimitiveType.INT32, isList: true, isRequired: true, isRuntime: true, isWired: true, isStored: true },
-  [RunCodeFrameProperty.nodePtr]: { id: 30, name: 'node_ptr', component: ObjectType.RUN_CODE_FRAME, kind: 'reference', isRequired: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.BLOCK], referenceStruct: StructType.NODE_REFERENCE },
-  [RunCodeFrameProperty.lineno]: { id: 31, name: 'lineno', component: ObjectType.RUN_CODE_FRAME, kind: 'primitive', primitiveType: PrimitiveType.INT32, isRequired: true, isInternal: true, isRuntime: true, isWired: true, isStored: true },
-  [RunCodeFrameProperty.name]: { id: 32, name: 'name', component: ObjectType.RUN_CODE_FRAME, kind: 'primitive', primitiveType: PrimitiveType.STRING, isRequired: true, isInternal: true, isRuntime: true, isWired: true, isStored: true },
-  [RunCodeFrameProperty.line]: { id: 33, name: 'line', component: ObjectType.RUN_CODE_FRAME, kind: 'primitive', primitiveType: PrimitiveType.STRING, isRequired: true, isInternal: true, isRuntime: true, isWired: true, isStored: true },
-}
 export const RunErrorDataInfo: Record<RunErrorProperty, PropertyInfo> = {
   [RunErrorProperty.metatype]: { id: 1, name: 'metatype', component: ObjectType.RUN_ERROR, enumType: EnumType.OBJECT_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isComputed: true, isWired: true },
   [RunErrorProperty.id]: { id: 2, name: 'id', component: ObjectType.RUN_ERROR, kind: 'primitive', primitiveType: PrimitiveType.INT32, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
@@ -24248,10 +24045,10 @@ export const RunErrorDataInfo: Record<RunErrorProperty, PropertyInfo> = {
   [RunErrorProperty.orderKey]: { id: 5, name: 'order_key', component: ObjectType.RUN_ERROR, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [RunErrorProperty.setProperties]: { id: 22, name: 'set_properties', component: ObjectType.RUN_ERROR, kind: 'primitive', primitiveType: PrimitiveType.INT32, isList: true, isRequired: true, isRuntime: true, isWired: true, isStored: true },
   [RunErrorProperty.kind]: { id: 30, name: 'kind', component: ObjectType.RUN_ERROR, enumType: EnumType.RUN_ERROR_KIND, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isRuntime: true, isWired: true, isStored: true },
-  [RunErrorProperty.type]: { id: 31, name: 'type', component: ObjectType.RUN_ERROR, kind: 'primitive', primitiveType: PrimitiveType.STRING, isRequired: true, isInternal: true, isRuntime: true, isWired: true, isStored: true },
-  [RunErrorProperty.message]: { id: 32, name: 'message', component: ObjectType.RUN_ERROR, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isRuntime: true, isWired: true, isStored: true },
-  [RunErrorProperty.nodePtr]: { id: 33, name: 'node_ptr', component: ObjectType.RUN_ERROR, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.BLOCK], referenceStruct: StructType.NODE_REFERENCE },
-  [RunErrorProperty.traceback]: { id: 34, name: 'traceback', component: ObjectType.RUN_ERROR, kind: 'reference', primitiveType: PrimitiveType.JSON, isList: true, isRequired: true, isInternal: true, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.RUN_CODE_FRAME },
+  [RunErrorProperty.type]: { id: 31, name: 'type', component: ObjectType.RUN_ERROR, enumType: EnumType.RUN_ERROR_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isRuntime: true, isWired: true, isStored: true },
+  [RunErrorProperty.title]: { id: 32, name: 'title', component: ObjectType.RUN_ERROR, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isRuntime: true, isWired: true, isStored: true },
+  [RunErrorProperty.text]: { id: 33, name: 'text', component: ObjectType.RUN_ERROR, kind: 'reference', primitiveType: PrimitiveType.JSON, isInternal: true, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.TEXT },
+  [RunErrorProperty.nodePtr]: { id: 34, name: 'node_ptr', component: ObjectType.RUN_ERROR, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.BLOCK], referenceStruct: StructType.NODE_REFERENCE },
 }
 export const TextDataInfo: Record<TextProperty, PropertyInfo> = {
   [TextProperty.metatype]: { id: 1, name: 'metatype', component: ObjectType.TEXT, enumType: EnumType.OBJECT_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isComputed: true, isWired: true },
@@ -25257,7 +25054,6 @@ export const PROPERTY_INFOS_BY_TYPE: Record<ObjectType, Record<any, PropertyInfo
   [ObjectType.CODE]: CodeDataInfo,
   [ObjectType.CODE_LINE]: CodeLineDataInfo,
   [ObjectType.STEP_CONNECTION]: StepConnectionDataInfo,
-  [ObjectType.RUN_CODE_FRAME]: RunCodeFrameDataInfo,
   [ObjectType.RUN_ERROR]: RunErrorDataInfo,
   [ObjectType.TEXT]: TextDataInfo,
   [ObjectType.TEXT_LINE]: TextLineDataInfo,

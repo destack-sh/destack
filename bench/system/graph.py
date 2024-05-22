@@ -142,6 +142,7 @@ class GraphIoServiceBase(BenchServiceBase, GraphIoBase):
         )
 
     async def get_nodes(self, subject: Subject, request: "GetNodesRequest") -> "GetNodesResponse":
+        # parse request
         roots: tuple[NodeReference, ...] = tuple(
             wiring.unpack_struct_interp(r, expect=NodeReference) for r in request.roots
         )
@@ -155,6 +156,7 @@ class GraphIoServiceBase(BenchServiceBase, GraphIoBase):
         )
         _check_nodes_in_same_store(roots, options)
 
+        # fetch
         roots_by_type: dict[NodeType, list[NodeReference]] = group_by(roots, lambda r: r.type)
         graph = NodeDataGraph()
         async with self.session(request.scope) as session:
@@ -177,6 +179,7 @@ class GraphIoServiceBase(BenchServiceBase, GraphIoBase):
             missing_roots = tuple(root for root in roots if str(root.id) not in graph)
             raise GRPCError(GRPCStatus.NOT_FOUND, f"roots not found: {missing_roots}")
 
+        # check access
         matrix = generate_access_matrix(subject, graph)
         decision, accesses, adapted_nodes = evaluate_and_adapt_read(
             matrix, graph, required_nodes=request.roots, adapt_nodes_in_place=True
@@ -194,6 +197,7 @@ class GraphIoServiceBase(BenchServiceBase, GraphIoBase):
     async def search_nodes(
         self, subject: Subject, request: "SearchNodesRequest"
     ) -> "SearchNodesResponse":
+        # parse request
         node_type: NodeType = wiring.unpack_enum(NodeType, request.node_type)
         filter: Expression | None = wiring.unpack_struct_interp_maybe(
             request.filter, expect=Expression
@@ -207,6 +211,7 @@ class GraphIoServiceBase(BenchServiceBase, GraphIoBase):
         )
         _check_nodes_in_same_store((node_type,), options)
 
+        # fetch
         adapted_options = adapt_read_options(subject, node_type, options)
         roots: list[NodeReferenceData] = []
         async with self.session(request.scope) as session:
@@ -217,6 +222,8 @@ class GraphIoServiceBase(BenchServiceBase, GraphIoBase):
             result = await connection.fetch(query, FetchOptions(count=request.count or False))
             roots.extend(result.roots)
             graph = NodeDataGraph(result.nodes)
+
+        # check access
         matrix = generate_access_matrix(subject, graph)
         decision, accesses, adapted_nodes = evaluate_and_adapt_read(
             matrix, graph, adapt_nodes_in_place=True, required_nodes=request.bases
@@ -238,12 +245,14 @@ class GraphIoServiceBase(BenchServiceBase, GraphIoBase):
     async def aggregate_nodes(
         self, subject: Subject, request: "AggregateNodesRequest"
     ) -> "AggregateNodesResponse":
+        # parse request
         if request.bases:
             raise GRPCError(GRPCStatus.INVALID_ARGUMENT, "global IO has no bases")
         node_type: NodeType = wiring.unpack_enum(NodeType, request.node_type)
         filter: Expression | None = wiring.unpack_struct_interp_maybe(request.filter)
         aggregation: Expression = wiring.unpack_struct_interp(request.aggregation)
 
+        # fetch
         adapted_options = adapt_read_options(subject, node_type, ReadOptions())
         async with self.session(request.scope) as session:
             query = QueryBuilder(
@@ -260,16 +269,16 @@ class GraphIoServiceBase(BenchServiceBase, GraphIoBase):
     async def commit_transaction(
         self, subject: Subject, request: "CommitTransactionRequest"
     ) -> "CommitTransactionResponse":
+        # parse request
         assert subject.client, f"{subject!r} has no client"
-        # figure out the node (scopes) we need to evaluate the edit
         edited_scopes = get_validated_edited_scopes(request.edits)
+        for edit in request.edits:
+            if not edit.origin or UUID(edit.origin.id) != subject.client.id:
+                raise GRPCError(GRPCStatus.PERMISSION_DENIED, "edit origin mismatch")
+
+        # process transaction
         start = asyncio.get_event_loop().time()
         async with self.session(request.scope) as session:
-            # ensure edit origins matches subject
-            for edit in request.edits:
-                if not edit.origin or UUID(edit.origin.id) != subject.client.id:
-                    raise GRPCError(GRPCStatus.PERMISSION_DENIED, "edit origin mismatch")
-
             # read the required nodes into a single graph for evaluation
             data_graph = NodeDataGraph()
             for node_type, node_references in edited_scopes.node_scopes_by_type.items():
@@ -322,12 +331,8 @@ class GraphIoServiceBase(BenchServiceBase, GraphIoBase):
 
             # apply edits
             session.tx._add_pending_edits(adapted_edits)
-            await session.commit(suppress_hook=True)  # fired manually
-            self.on_commit(
-                graph=unpacked_graph,
-                edits=adapted_edits,
-                cascaded_edits=session.tx.cascaded_edits,
-            )
+            _, cascaded_edits = await session.commit(suppress_hook=True)  # fire manually
+            self.on_commit(graph=unpacked_graph, edits=adapted_edits, cascaded_edits=cascaded_edits)
             logger.info(
                 "graph.commit",
                 subject=subject,
@@ -360,8 +365,7 @@ class GraphIoServiceBase(BenchServiceBase, GraphIoBase):
         raise GRPCError(GRPCStatus.UNIMPLEMENTED)  # :2PC
 
     def _amend_commit(self, graph: NodeGraph, edits: list[EditData]) -> list[EditData]:
-        # do nothing by default
-        return edits
+        return edits  # do nothing by default
 
     @final
     def on_commit(
