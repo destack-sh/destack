@@ -41,13 +41,16 @@ class Transaction:
     is_readonly: bool = dcfield(default=False)
     _connections_by_engine_id: dict[Any, StoreConnection] = dcfield(default_factory=dict)
 
+    """All edits from this transaction (since the previous commit)."""
     edits: list[EditData] = dcfield(default_factory=list)
+    cascaded_edits: list[EditData] = dcfield(default_factory=list)
+
+    """Pending (unflushed) edits."""
     _pending_edits_by_engine_id: dict[Any, list[EditData]] = dcfield(
         default_factory=lambda: defaultdict(list)
     )
     _pending_updates_idx: dict[Node, tuple[Any, int]] = dcfield(default_factory=dict)
     _pending_nodes_by_ck: dict[UUID, Node] = dcfield(default_factory=dict)
-    cascaded_edits: list[EditData] = dcfield(default_factory=list)
 
     def __str__(self):
         return f"[id={self.id}] ({len(self.edits)} edits, {len(self._pending_nodes_by_ck)} pending nodes)"
@@ -300,6 +303,9 @@ class Transaction:
     async def commit(self):
         """Commits the transaction (also flushing any pending edits)."""
         await self._do_flush(commit=True)
+        edits, cascaded_edits = self.edits, self.cascaded_edits
+        self.edits, self.cascaded_edits = [], []
+        return edits, cascaded_edits
 
     async def rollback(self):
         """Rolls back uncommitted edits in primary stores."""
