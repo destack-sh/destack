@@ -104,7 +104,7 @@ class Run(BasedNode[RunData], HasSessionContext, HasValues):
         return f"{content_str}, {self.status.bench_name})"
 
     def fail(self, error: "RunError"):
-        assert self.status.is_active, f"cannot fail {self.status} run {self!r}"
+        assert not self.status.is_terminal, f"cannot fail {self.status} run {self!r}"
         self.status = RunStatus.FAILED
         self.error = error
 

@@ -50,7 +50,7 @@ from bench.sql.engine import (
     pg_upsert,
     sqlstr,
 )
-from bench.utils.dt import utcnow
+from bench.utils.dt import monotime, utcnow
 from bench.utils.env import REPOSITORY_PATH
 from bench.utils.func import partition, re_search_or_error
 from bench.utils.utils import format_python
@@ -232,7 +232,7 @@ async def sql_migrate(
     Also updates the migrations table.
     """
 
-    start = asyncio.get_event_loop().time()
+    start = monotime()
 
     # get target migrations from our source of truth (local file system)
     if target:
@@ -269,9 +269,7 @@ async def sql_migrate(
 
     # apply the migrations
     if not migrations_to_apply:
-        log.debug(
-            "migration.apply.skip", store=store, duration=asyncio.get_event_loop().time() - start
-        )
+        log.debug("migration.apply.skip", store=store, duration=monotime() - start)
         return []
     else:
         await _do_sql_migrate(
@@ -280,7 +278,7 @@ async def sql_migrate(
         log.debug(
             "migration.apply.missing",
             migrations=migrations_to_apply,
-            duration=asyncio.get_event_loop().time() - start,
+            duration=monotime() - start,
             store=store,
         )
 
@@ -309,7 +307,7 @@ async def _do_sql_migrate(
     """Applies the given migrations in the given order."""
     now = utcnow()
     for migration in migrations:
-        start = asyncio.get_event_loop().time()
+        start = monotime()
         func_name = f"{is_upgrade and 'upgrade' or 'downgrade'}_{is_global and 'global' or 'local'}"
         migration_file = _load_migration_from_path(migration)
         func = getattr(migration_file.module, func_name)
@@ -326,7 +324,7 @@ async def _do_sql_migrate(
             "migration.apply",
             migration=migration,
             store=store,
-            duration=asyncio.get_event_loop().time() - start,
+            duration=monotime() - start,
         )
 
 

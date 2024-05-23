@@ -1,5 +1,4 @@
 import abc
-import asyncio
 from typing import TYPE_CHECKING, ClassVar, cast, final, override
 
 import structlog
@@ -12,6 +11,7 @@ from bench.sql.client import pg_cursor_to_store
 from bench.sql.migration import sql_migrate
 from bench.system.core import Commit, DeferredHostPlugin, HostSpec
 from bench.system.neon import NeonApi
+from bench.utils.dt import monotime
 from bench.utils.env import ENVIRONMENT
 from bench.utils.func import bittuple
 from bench.utils.utils import get_from_env
@@ -74,13 +74,9 @@ class Provisioner[PT: Resource, WT: Resource](DeferredHostPlugin[WT], abc.ABC):
     async def provision(self, resource: PT):
         """Provision the resource."""
         try:
-            start = asyncio.get_event_loop().time()
+            start = monotime()
             await self._provision(resource)
-            logger.info(
-                "resource.provision",
-                resource=resource,
-                duration=asyncio.get_event_loop().time() - start,
-            )
+            logger.info("resource.provision", resource=resource, duration=monotime() - start)
         except Exception as e:
             logger.error("resource.provision.error", resource=resource, error=e, exc_info=True)
             raise
@@ -92,13 +88,9 @@ class Provisioner[PT: Resource, WT: Resource](DeferredHostPlugin[WT], abc.ABC):
     async def update(self, resource: PT):
         """Update the resource properties."""
         try:
-            start = asyncio.get_event_loop().time()
+            start = monotime()
             await self._update(resource)
-            logger.debug(
-                "resource.update",
-                resource=resource,
-                duration=asyncio.get_event_loop().time() - start,
-            )
+            logger.trace("resource.update", resource=resource, duration=monotime() - start)
         except Exception as e:
             logger.error("resource.update.error", resource=resource, error=e, exc_info=True)
             raise
@@ -110,13 +102,9 @@ class Provisioner[PT: Resource, WT: Resource](DeferredHostPlugin[WT], abc.ABC):
     async def decommission(self, resource: PT):
         """Decommission the resource."""
         try:
-            start = asyncio.get_event_loop().time()
+            start = monotime()
             await self._decommission(resource)
-            logger.info(
-                "resource.decommission",
-                resource=resource,
-                duration=asyncio.get_event_loop().time() - start,
-            )
+            logger.info("resource.decommission", resource=resource, duration=monotime() - start)
         except Exception as e:
             logger.error("resource.decommission.error", resource=resource, error=e, exc_info=True)
             raise
@@ -138,16 +126,12 @@ class NeonStoreProvisioner(Provisioner[Store, Store]):
     async def _migrate(self, resource: Store):
         assert resource.version, f"{resource!r} has no version"
         try:
-            start = asyncio.get_event_loop().time()
+            start = monotime()
             async with pg_cursor_to_store(resource) as cur:
                 await sql_migrate(cur, target=resource.version, is_global=False, store=resource)
                 await cur.connection.commit()
             resource.current_version = resource.version
-            logger.info(
-                "resource.migrate",
-                resource=resource,
-                duration=asyncio.get_event_loop().time() - start,
-            )
+            logger.info("resource.migrate", resource=resource, duration=monotime() - start)
         except Exception as e:
             logger.error("resource.migrate.error", resource=resource, error=e, exc_info=True)
             raise

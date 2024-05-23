@@ -325,7 +325,6 @@ defineExpose<ViewExposed>({ self, actions, focus });
               @click="
                 () => {
                   // nocheckin: session.* action handling (in Block/Step/Page/...)
-                  // nocheckin: flush timed node edits immediately
                   pkgConnection.tx.create({
                     metatype: NodeType.RUN,
                     parentPtr: block.packagePtr,

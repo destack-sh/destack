@@ -34,7 +34,7 @@ from bench.proto.wire import (
     SupervisorStub,
 )
 from bench.system.core import DEAD_HOST
-from bench.system.provision import get_provisioners_for
+from bench.system.provisioner import get_provisioners_for
 from bench.system.test.conftest import UserHandle, make_random_user_handle
 
 
