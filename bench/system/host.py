@@ -36,11 +36,11 @@ from bench.system.core import (
     HostPlugin,
     HostSpec,
     global_session,
-    unpack_committed_change,
+    unpack_commit,
 )
 from bench.system.graph import GraphIoServiceBase
 from bench.system.provision import Provisioner, get_provisioners_for
-from bench.system.scheduling import QueueRunPlugin
+from bench.system.scheduler import QueueRunPlugin
 from bench.utils.func import bittuple, to_uuid
 from bench.utils.utils import get_from_env_maybe
 
@@ -220,11 +220,17 @@ class Host(GraphIoServiceBase, HostBase, HostSpec):
         pass  # error is already reported, we just keep running
 
     @override
-    def _get_engines(self, scope: GraphScope) -> tuple[StoreEngine, ...]:
+    def get_engines(self, scope: GraphScope) -> tuple[StoreEngine, ...]:
         # TODO :Performance!: support in-memory engines in Host (from local data graph)
         assert self._global_pg_engine is not None, f"global pg engine not initialized in {self!r}"
         assert self._local_pg_engine is not None, f"local pg engine not initialized in {self!r}"
         return (self._global_pg_engine, self._local_pg_engine)
+
+    @property
+    def graphs(self) -> tuple[NodeGraphLike, ...]:
+        assert self._bench is not None, f"bench not loaded in {self!r}"
+        graphs = tuple(node._graph for node in (self._bench, *self._packages.values()))
+        return graphs
 
     async def start(self) -> None:
         start = asyncio.get_event_loop().time()
@@ -282,7 +288,7 @@ class Host(GraphIoServiceBase, HostBase, HostSpec):
         await asyncio.gather(*(plugin.wait_closed() for plugin in self._plugins))
 
     @override
-    def extend_commit(
+    async def extend_commit(
         self, graph: NodeGraphLike, edits: list[EditData], cascaded_edits: list[EditData]
     ) -> list[EditData]:
         # TODO :Incomplete: run plugins to extend commit
@@ -291,15 +297,13 @@ class Host(GraphIoServiceBase, HostBase, HostSpec):
         ...
 
         # add logs
-        # nocheckin: logs
+        # TODO :Incomplete: logs
         return []
 
     @override
-    def _on_commit(
+    async def _on_commit(
         self, graph: NodeGraphLike, edits: list[EditData], cascaded_edits: list[EditData]
     ):
-        # nocheckin :Broken? :Robustness: nodes in Commit aren't the actual loaded nodes in Host
-        #  (the graph is the unpacked_graph containing copies of nodes required for access control)
         assert self._bench is not None, f"bench not loaded in {self!r} for {edits!r}"
 
         # apply edits to loaded graphs (bench/package)
@@ -321,16 +325,18 @@ class Host(GraphIoServiceBase, HostBase, HostSpec):
                 options = BENCH_QUERY._options
             edit_graph(edited_graph, (edit,), options)
 
-        # feed commit to plugins
-        commit = unpack_committed_change(graph, edits, cascaded_edits)
-        logger.debug("host.on_commit", host=self, commit=commit)
-        for plugin in self._plugins:
-            if commit.edited_types & plugin.watch_types:
-                trimmed_commit = commit.trim_to(plugin.watch_types)
-                plugin.on_commit(trimmed_commit)
-                logger.debug(
-                    "host.on_commit.plugin", host=self, plugin=plugin, commit=trimmed_commit
-                )
+        # run plugins on commit (in new session)
+        async with self.session() as session:
+            commit = unpack_commit(self.graphs + (graph,), edits, cascaded_edits)
+            logger.debug("host.on_commit", host=self, commit=commit)
+            for plugin in self._plugins:
+                if commit.edited_types & plugin.watch_types:
+                    trimmed_commit = commit.trim_to(plugin.watch_types)
+                    await plugin.on_commit(session, trimmed_commit)
+                    logger.debug(
+                        "host.on_commit.plugin", host=self, plugin=plugin, commit=trimmed_commit
+                    )
+            await session.commit()
 
     #
     # Files

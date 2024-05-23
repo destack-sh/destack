@@ -46,7 +46,7 @@ class QueueRunPlugin(HostPlugin[Run]):
         self._tasks.start_queue(self._runs_to_queue, self._queue_run, skip_errors=True)
 
     @override
-    def on_commit(self, commit: Commit[Run]) -> None:
+    async def on_commit(self, session: Session, commit: Commit[Run]) -> None:
         # queue any new runs
         for run in commit.added:
             if run.parent_type == NodeType.PACKAGE and run.status == RunStatus.SCHEDULED:

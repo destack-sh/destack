@@ -37,9 +37,6 @@ SomeNodeT = TypeVar("SomeNodeT")
 IdT = TypeVar("IdT", bound=Union[UUID, str])
 
 
-NodeGraphLike = Union["NodeGraph[Node]", dict[UUID, "Node"]]
-
-
 class NodeGraphBase(abc.ABC, Generic[SomeNodeT, IdT]):
     def __str__(self):
         return f"{len(self.nodes)} nodes"
@@ -482,6 +479,9 @@ class DetachedNodeGraph(NodeGraphBase[NodeT, UUID]):
                 if len(children) > 0:
                     queue.extend(children)
             return descendants
+
+
+NodeGraphLike = Union[NodeGraph["Node"], DetachedNodeGraph["Node"], dict[UUID, "Node"]]
 
 
 def extract_name_id(name: str) -> Optional[int]:

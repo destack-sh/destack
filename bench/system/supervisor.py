@@ -67,7 +67,7 @@ class Supervisor(GraphIoServiceBase, SupervisorBase):
         pass
 
     @override
-    def _get_engines(self, scope: GraphScope):
+    def get_engines(self, scope: GraphScope):
         return (GLOBAL_POSTGRES_ENGINE,)
 
     #
