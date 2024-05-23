@@ -87,6 +87,7 @@ class Session(Node[SessionData]):
 
     # transaction
     _is_readonly: bool = p_runtime(default=False)
+    _is_suspended: bool = p_runtime(default=False)
     _origin: ClientOrigin | None = p_runtime(default=None)
     _tx: Transaction | None = p_runtime(default=None)
     _tx_lock: asyncio.Lock = p_runtime(default_factory=asyncio.Lock)
@@ -152,14 +153,10 @@ class Session(Node[SessionData]):
 
     async def open(self):
         """Opens the session for regular business."""
-
         if self.opened_at is not None:
             raise RuntimeError(f"session already open: {self!r}")
         self._active_session_token = _active_session.set(self)
-
-        # open transaction
         self._tx = Transaction(session=self, origin=self._origin, is_readonly=self._is_readonly)
-
         self.opened_at = utcnow()
         logger.trace("session.open", session=self)
 
@@ -223,6 +220,14 @@ class Session(Node[SessionData]):
 
         logger.trace("session.close", session=self, duration=self.duration)
 
+    def suspend(self):
+        """Suspends the session, *ignoring* further edits."""
+        self._is_suspended = True
+
+    def resume(self):
+        """Resumes the session, accepting further edits."""
+        self._is_suspended = False
+
     async def __aenter__(self):
         await self.open()
         return self
@@ -239,20 +244,24 @@ class Session(Node[SessionData]):
         if node._session != self:
             node._track_rec(self)
 
-    def track_many(self, *nodes: Node):
+    def track_many(self, *nodes: Node | None):
         """Start tracking the nodes in this session."""
         for n in nodes:
-            if n._session != self or n._status != InterpStatus.TRACKED:
+            if n is not None and (n._session is not self or n._status != InterpStatus.TRACKED):
                 n._track_rec(self)
 
     def untrack(self, node: Node):
         """Stop tracking the node in this session."""
-        node._untrack_rec()
+        for node in node._walk_descendants():
+            node._untrack_self()
+            if node.id in self._edited_nodes_by_id:
+                del self._edited_nodes_by_id[node.id]
 
-    def untrack_many(self, *nodes: Node):
+    def untrack_many(self, *nodes: Node | None):
         """Stop tracking the nodes in this session."""
         for n in nodes:
-            n._untrack_rec()
+            if n is not None:
+                self.untrack(n)
 
     #
     # Transaction
@@ -268,74 +277,83 @@ class Session(Node[SessionData]):
     def create(self, *nodes: Node):
         """Creates a new node. Errors if the node already exists."""
         assert self._tx is not None, f"no active transaction in {self!r}"
-        for n in nodes:
-            self._edited_nodes_by_id[n.id] = n
-            self._tx.create(n, self._edit_subject)
+        if not self._is_suspended:
+            for n in nodes:
+                self._edited_nodes_by_id[n.id] = n
+                self._tx.create(n, self._edit_subject)
 
     def upsert(self, *nodes: Node):
         """Creates or updates a node. Any non-id properties will be overwritten."""
         assert self._tx is not None, f"no active transaction in {self!r}"
-        for n in nodes:
-            self._edited_nodes_by_id[n.id] = n
-            self._tx.upsert(n, self._edit_subject)
+        if not self._is_suspended:
+            for n in nodes:
+                self._edited_nodes_by_id[n.id] = n
+                self._tx.upsert(n, self._edit_subject)
 
     def update(self, *nodes: Node, properties: Collection[Property]):
         """Updates an existing node. Cannot move. The given properties are overwritten."""
         assert self._tx is not None, f"no active transaction in {self!r}"
-        for n in nodes:
-            self._edited_nodes_by_id[n.id] = n
-            self._tx.update(n, self._edit_subject, properties)
+        if not self._is_suspended:
+            for n in nodes:
+                self._edited_nodes_by_id[n.id] = n
+                self._tx.update(n, self._edit_subject, properties)
 
     def move(self, *nodes: Node):
         """Moves and updates an existing node."""
         assert self._tx is not None, f"no active transaction in {self!r}"
-        for n in nodes:
-            self._edited_nodes_by_id[n.id] = n
-            self._tx.move(n, self._edit_subject)
+        if not self._is_suspended:
+            for n in nodes:
+                self._edited_nodes_by_id[n.id] = n
+                self._tx.move(n, self._edit_subject)
 
     def soft_delete(self, *nodes: Node):
         """Deletes a node with the option to recover it for a limited time."""
         assert self._tx is not None, f"no active transaction in {self!r}"
-        for n in nodes:
-            self._edited_nodes_by_id[n.id] = n
-            # descendants will be removed from graph, so track them manually
-            for descendant in n._graph.iter_descendants(n, recursive=True):
-                self._edited_nodes_by_id[descendant.id] = descendant
-            self._tx.soft_delete(n, self._edit_subject)
+        if not self._is_suspended:
+            for n in nodes:
+                self._edited_nodes_by_id[n.id] = n
+                # descendants will be removed from graph, so track them manually
+                for descendant in n._graph.iter_descendants(n, recursive=True):
+                    self._edited_nodes_by_id[descendant.id] = descendant
+                self._tx.soft_delete(n, self._edit_subject)
 
     def restore(self, *nodes: Node):
         """Restore a soft deleted node."""
         assert self._tx is not None, f"no active  transaction in {self!r}"
-        for n in nodes:
-            self._edited_nodes_by_id[n.id] = n
-            self._tx.restore(n, self._edit_subject)
+        if not self._is_suspended:
+            for n in nodes:
+                self._edited_nodes_by_id[n.id] = n
+                self._tx.restore(n, self._edit_subject)
 
     def archive(self, *nodes: Node):
         """Marks a node as archived, so it will be hidden by default."""
         assert self._tx is not None, f"no active transaction in {self!r}"
-        for n in nodes:
-            self._edited_nodes_by_id[n.id] = n
-            # descendants will be removed from graph, so track them manually
-            for descendant in n._graph.iter_descendants(n, recursive=True):
-                self._edited_nodes_by_id[descendant.id] = descendant
-            self._tx.archive(n, self._edit_subject)
+        if not self._is_suspended:
+            for n in nodes:
+                self._edited_nodes_by_id[n.id] = n
+                # descendants will be removed from graph, so track them manually
+                for descendant in n._graph.iter_descendants(n, recursive=True):
+                    self._edited_nodes_by_id[descendant.id] = descendant
+                self._tx.archive(n, self._edit_subject)
 
     def unarchive(self, *nodes: Node):
         """Re-track a node from the archive in its original place."""
         assert self._tx is not None, f"no active transaction in {self!r}"
-        for n in nodes:
-            self._edited_nodes_by_id[n.id] = n
-            self._tx.unarchive(n, self._edit_subject)
+        if not self._is_suspended:
+            for n in nodes:
+                self._edited_nodes_by_id[n.id] = n
+                self._tx.unarchive(n, self._edit_subject)
 
     def hard_delete(self, *nodes: Node):
         """Irreversibly deletes a node."""
         assert self._tx is not None, f"no active transaction in {self!r}"
-        for n in nodes:
-            self._edited_nodes_by_id[n.id] = n
-            # descendants will be removed from graph, so track them manually
-            for descendant in n._graph.iter_descendants(n, recursive=True):
-                self._edited_nodes_by_id[descendant.id] = descendant
-            self._tx.delete(n, self._edit_subject)
+        if not self._is_suspended:
+            for n in nodes:
+                self._edited_nodes_by_id[n.id] = n
+                # descendants will be removed from graph, so track them manually
+                for descendant in n._graph.iter_descendants(n, recursive=True):
+                    self._edited_nodes_by_id[descendant.id] = descendant
+                self._tx.delete(n, self._edit_subject)
 
 
 @struct_component()

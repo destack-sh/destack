@@ -2,7 +2,7 @@ import inspect
 import os
 import textwrap
 import typing
-from typing import Any, Optional, Type, cast
+from typing import Optional, Type, cast
 
 import sentry_sdk
 
@@ -12,15 +12,12 @@ def str_to_bool(value: str) -> bool:
     return value is not None and str(value).lower() in truthy_strs_lower
 
 
-_UNSET = object()
-
-
 def get_from_env_maybe[
     T
 ](
     key: str,
     *,
-    default: Optional[Any] = _UNSET,
+    default: Optional[T] = None,
     alt: Optional[str] = None,
     optional: bool = True,
     typ: Type[T] = str,
@@ -31,7 +28,7 @@ def get_from_env_maybe[
     if value is None or value == "":
         if optional:
             return None
-        elif default is not _UNSET:
+        elif default is not None:
             value = default
         else:
             raise ValueError(
@@ -52,13 +49,7 @@ def get_from_env_maybe[
 
 def get_from_env[
     T
-](
-    key: str,
-    *,
-    default: Optional[Any] = _UNSET,
-    alt: Optional[str] = None,
-    typ: Type[T] = str,
-) -> T:
+](key: str, *, default: Optional[T] = None, alt: Optional[str] = None, typ: Type[T] = str,) -> T:
     value = get_from_env_maybe(key, default=default, alt=alt, optional=False, typ=typ)
     return cast(T, value)
 

@@ -125,7 +125,7 @@ class GraphIoServiceBase(BenchServiceBase, GraphIoBase):
         self.watchers: list[EditWatcher] = []
         self._tx_lock = asyncio.Lock()
 
-    def get_engines(self, scope: GraphScope) -> tuple[StoreEngine, ...]:
+    def get_engines(self) -> tuple[StoreEngine, ...]:
         """Gets the store engines available to this subgraph. Implemented in the actual service."""
         raise NotImplementedError
 
@@ -135,13 +135,13 @@ class GraphIoServiceBase(BenchServiceBase, GraphIoBase):
         if to_uuid(scope.bench_id) != self.bench_id:
             raise GRPCError(GRPCStatus.INVALID_ARGUMENT, "service scope mismatch")
 
-    def session(
+    def new_session(
         self, *, scope: GraphScope | None = None, engines: tuple[StoreEngine, ...] | None = None
     ):
         return Session(
             parent=None,
             _default_scope=self.scope,
-            _engines=engines or self.get_engines(scope or self.scope),
+            _engines=engines if engines is not None else self.get_engines(),
             _extend_commit_hook=self.extend_commit,
             _on_commit_hook=self.on_commit,
         )
@@ -164,7 +164,7 @@ class GraphIoServiceBase(BenchServiceBase, GraphIoBase):
         # fetch
         roots_by_type: dict[NodeType, list[NodeReference]] = group_by(roots, lambda r: r.type)
         graph = NodeDataGraph()
-        async with self.session(scope=request.scope) as session:
+        async with self.new_session(scope=request.scope) as session:
             for root_node_type, root_node_references in roots_by_type.items():
                 adapted_options = adapt_read_options(subject, root_node_type, options)
                 node_type = wiring.unpack_enum(NodeType, root_node_type)
@@ -219,7 +219,7 @@ class GraphIoServiceBase(BenchServiceBase, GraphIoBase):
         # fetch
         adapted_options = adapt_read_options(subject, node_type, options)
         roots: list[NodeReferenceData] = []
-        async with self.session(scope=request.scope) as session:
+        async with self.new_session(scope=request.scope) as session:
             query = QueryBuilder(
                 node_type=node_type, filter=filter, options=adapted_options, sort=sort
             )
@@ -259,7 +259,7 @@ class GraphIoServiceBase(BenchServiceBase, GraphIoBase):
 
         # fetch
         adapted_options = adapt_read_options(subject, node_type, ReadOptions())
-        async with self.session(scope=request.scope) as session:
+        async with self.new_session(scope=request.scope) as session:
             query = QueryBuilder(
                 node_type=node_type, filter=filter, options=adapted_options, aggregation=aggregation
             )
@@ -276,15 +276,14 @@ class GraphIoServiceBase(BenchServiceBase, GraphIoBase):
     ) -> "CommitTransactionResponse":
         # parse request
         assert subject.client, f"{subject!r} has no client"
-        edits = request.edits
-        edit_scopes = parse_edit_scopes(edits)
-        for edit in edits:
+        edit_scopes = parse_edit_scopes(request.edits)
+        for edit in request.edits:
             if not edit.origin or UUID(edit.origin.id) != subject.client.id:
                 raise GRPCError(GRPCStatus.PERMISSION_DENIED, "edit origin mismatch")
 
         # process transaction
         start = monotime()
-        async with self._tx_lock, self.session(scope=request.scope) as session:
+        async with self._tx_lock, self.new_session(scope=request.scope) as session:
             # read the required nodes into a single graph for evaluation
             data_graph = NodeDataGraph()
             for node_type, node_references in edit_scopes.scopes_by_type.items():
@@ -306,7 +305,7 @@ class GraphIoServiceBase(BenchServiceBase, GraphIoBase):
 
             # check access
             matrix = generate_access_matrix(subject, data_graph)
-            decision, accesses = evaluate_edit(matrix, data_graph, edits)
+            decision, accesses = evaluate_edit(matrix, data_graph, request.edits)
             if decision != PolicyEffect.ALLOW:
                 raise AccessError(accesses)
 
@@ -315,7 +314,7 @@ class GraphIoServiceBase(BenchServiceBase, GraphIoBase):
             edit_data_graph(
                 graph=data_graph,
                 options=ReadOptions.all(),
-                edits=edits,
+                edits=request.edits,
                 keep_all=True,
                 update_nodes_in_place=False,
             )
@@ -328,26 +327,25 @@ class GraphIoServiceBase(BenchServiceBase, GraphIoBase):
                 node._validate_self(properties=(), invalid=on_invalid_raise)
 
             # flush edits to get cascaded edits
-            session.tx._add_pending_edits(edits)
+            session.tx._add_pending_edits(request.edits)
             _, cascaded_edits = await session.flush()
 
             # extend transaction
-            new_edits = await self.extend_commit(unpacked_graph, edits, cascaded_edits)
+            new_edits = await self.extend_commit(unpacked_graph, request.edits, cascaded_edits)
             session.tx._add_pending_edits(new_edits)
 
             # commit
-            extended_edits, cascaded_edits = await session.commit(suppress_hooks=True)
+            edits, cascaded_edits = await session.commit(suppress_hooks=True)
 
             # fire event
-            await self.on_commit(
-                graph=unpacked_graph, edits=extended_edits, cascaded_edits=cascaded_edits
-            )
+            await self.on_commit(graph=unpacked_graph, edits=edits, cascaded_edits=cascaded_edits)
 
         logger.info(
             "graph.commit",
             subject=subject,
             request=request,
-            edits=extended_edits,
+            request_edits=request.edits,
+            extended_edits=new_edits,
             cascaded_edits=len(cascaded_edits),
             epoch=self.epoch,
             duration=monotime() - start,

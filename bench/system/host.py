@@ -19,6 +19,7 @@ from bench.language.const import (
     NodeType,
 )
 from bench.language.graph import NodeGraphLike, edit_graph
+from bench.language.session import Session
 from bench.proto import wiring
 from bench.proto.services import BenchServiceBase, RpcCallable
 from bench.proto.wire import (
@@ -180,8 +181,8 @@ PACKAGE_QUERY = (
 
 class Host(GraphIoServiceBase, HostBase, HostSpec):
     """
-    Host for a Bench, providing the OS-level functions (lifecycle, resources & runtime management).
-    Clients interact with a Bench exclusively through its Host.
+    Host for a Bench, providing the OS-level functionality (lifecycle, resources, scheduling, etc.).
+    There is only one Host per Bench. Clients interact with the Bench exclusively via its Host.
     """
 
     def __init__(self, bench_id: UUID):
@@ -194,8 +195,10 @@ class Host(GraphIoServiceBase, HostBase, HostSpec):
         # NOTE: currently we only have one local engine because we only have one branch :Branching
         #  but later we'll need different engines for every 'full' branch (separate Neon branch)
         self._local_pg_engine: PostgresEngine | None = None
+        self._engines: tuple[StoreEngine, ...] = ()
         self._main_package: Package | None = None
         self._packages: dict[UUID, Package] = {}
+        self._session: Session | None = None
 
         self._provisioners: tuple[Provisioner, ...] = ()
         self._plugins: tuple[HostPlugin, ...] = ()  # incl. provisioners
@@ -220,12 +223,14 @@ class Host(GraphIoServiceBase, HostBase, HostSpec):
     def on_error(self, source: HostPlugin, error: Exception) -> None:
         pass  # error is already reported, we just keep running
 
+    @property
+    def session(self) -> Session:
+        assert self._session is not None, f"session not ready in {self!r}"
+        return self._session
+
     @override
-    def get_engines(self, scope: GraphScope) -> tuple[StoreEngine, ...]:
-        # TODO :Performance!: support in-memory engines in Host (from local data graph)
-        assert self._global_pg_engine is not None, f"global pg engine not initialized in {self!r}"
-        assert self._local_pg_engine is not None, f"local pg engine not initialized in {self!r}"
-        return (self._global_pg_engine, self._local_pg_engine)
+    def get_engines(self) -> tuple[StoreEngine, ...]:
+        return self._engines
 
     @property
     def graphs(self) -> tuple[NodeGraphLike, ...]:
@@ -236,8 +241,9 @@ class Host(GraphIoServiceBase, HostBase, HostSpec):
     async def start(self) -> None:
         start = monotime()
 
-        async with self.session(engines=(GLOBAL_POSTGRES_ENGINE,)) as session:
-            # load bench
+        # load bench / main pcakages
+        #  (in different session because we don't have the actual engines yet)
+        async with self.new_session(engines=(GLOBAL_POSTGRES_ENGINE,)):
             self._bench = await BENCH_QUERY.get(id=self.bench_id)
             self._global_pg_engine = PostgresEngine(
                 store=GLOBAL_STORE,
@@ -253,24 +259,32 @@ class Host(GraphIoServiceBase, HostBase, HostSpec):
                 scope=self._scope,
                 node_types=LOCAL_NODE_TYPES,
             )
+        self._bench._untrack_rec()
 
-            # start plugins
-            self._provisioners = tuple(get_provisioners_for(self, self._bench))
-            self._plugins = (QueueRunPlugin(self, self._bench),) + self._provisioners
-            await asyncio.gather(*(plugin.start(session) for plugin in self._plugins))
-            await session.commit()
-            # wait for plugins to finish processing any commits (and error early)
-            await asyncio.gather(*(plugin.wait_step(timeout=10) for plugin in self._plugins))
-        session.untrack_many(self._bench)
+        # we open one Session for the entire lifecycle of the Host
+        # TODO :Performance!: support in-memory engines in Host (from loaded graphs)
+        self._engines = (self._global_pg_engine, self._local_pg_engine)
+        self._session = Session(
+            parent=None,
+            _default_scope=self.scope,
+            _engines=self._engines,
+            _extend_commit_hook=self.extend_commit,
+            _on_commit_hook=self.on_commit,
+        )
+        self._bench._track_rec(self._session)
+        await self._session.open()
+
+        # start plugins
+        self._provisioners = tuple(get_provisioners_for(self, self._bench))
+        self._plugins = (QueueRunPlugin(self, self._bench),) + self._provisioners
+        await asyncio.gather(*(plugin.start(self._session) for plugin in self._plugins))
+        await self._session.commit()
+        # wait for plugins to finish processing any commits (and error early)
+        await asyncio.gather(*(plugin.wait_step(timeout=10) for plugin in self._plugins))
 
         # preload main packages
-        async with self.session() as session:
-            self._main_package = await PACKAGE_QUERY.get(id=self._bench.main_branch.main_package_id)
-            self._packages[self._main_package.id] = self._main_package
-        session.untrack_many(self._main_package)
-
-        # start tasks
-        ...
+        self._main_package = await PACKAGE_QUERY.get(id=self._bench.main_branch.main_package_id)
+        self._packages[self._main_package.id] = self._main_package
 
         logger.info("host.start", host=self, plugins=self._plugins, duration=monotime() - start)
 
@@ -282,6 +296,8 @@ class Host(GraphIoServiceBase, HostBase, HostSpec):
     async def wait_closed(self) -> None:
         await super().wait_closed()
         await asyncio.gather(*(plugin.wait_closed() for plugin in self._plugins))
+        if self._session is not None:
+            await self._session.close()
 
     @override
     async def extend_commit(
@@ -300,9 +316,11 @@ class Host(GraphIoServiceBase, HostBase, HostSpec):
     async def _on_commit(
         self, graph: NodeGraphLike, edits: list[EditData], cascaded_edits: list[EditData]
     ):
+        assert self._session is not None, f"session not ready in {self!r}"
         assert self._bench is not None, f"bench not loaded in {self!r} for {edits!r}"
 
         # apply edits to loaded graphs (bench/package)
+        self._session.suspend()  # don't trigger the edits we're just applying
         for edit in edits:
             if NodeType(edit.node_type) not in LOADED_NODE_TYPES:
                 continue  # not loaded
@@ -320,19 +338,19 @@ class Host(GraphIoServiceBase, HostBase, HostSpec):
                 edited_graph = self._bench._graph
                 options = BENCH_QUERY._options
             edit_graph(edited_graph, (edit,), options)
+        self._session.resume()
 
-        # run plugins on commit (in new session)
-        async with self.session() as session:
-            commit = unpack_commit(self.graphs + (graph,), edits, cascaded_edits)
-            logger.debug("host.on_commit", host=self, commit=commit)
-            for plugin in self._plugins:
-                if commit.edited_types & plugin.watch_types:
-                    trimmed_commit = commit.trim_to(plugin.watch_types)
-                    await plugin.on_commit(session, trimmed_commit)
-                    logger.debug(
-                        "host.on_commit.plugin", host=self, plugin=plugin, commit=trimmed_commit
-                    )
-            await session.commit()
+        # run plugins on commit (in main session)
+        commit = unpack_commit(self.graphs + (graph,), edits, cascaded_edits)
+        logger.debug("host.on_commit", host=self, commit=commit)
+        for plugin in self._plugins:
+            if commit.edited_types & plugin.watch_types:
+                trimmed_commit = commit.trim_to(plugin.watch_types)
+                await plugin.on_commit(self._session, trimmed_commit)
+                logger.debug(
+                    "host.on_commit.plugin", host=self, plugin=plugin, commit=trimmed_commit
+                )
+        await self._session.commit()
 
     #
     # Files
