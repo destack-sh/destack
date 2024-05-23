@@ -3,15 +3,15 @@
   "configurations": [
     // NOTE: custom test config is useful for stepping into library code during tests
     //   but unfortunately interferes with the pytest runner output (it's just blank)
-    // {
-    //   "name": "python.debug.tests",
-    //   "type": "debugpy",
-    //   "request": "launch",
-    //   "program": "${file}",
-    //   "purpose": ["debug-test"],
-    //   "console": "integratedTerminal",
-    //   "justMyCode": false
-    // },
+    {
+      "name": "python.debug.tests",
+      "type": "debugpy",
+      "request": "launch",
+      "program": "${file}",
+      "purpose": ["debug-test"],
+      "console": "integratedTerminal",
+      "justMyCode": false
+    },
     // general configs
     {
       "name": "bench.system",

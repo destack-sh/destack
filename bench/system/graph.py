@@ -52,7 +52,7 @@ from bench.proto.wire import (
     WatchEditsResponse,
 )
 from bench.utils.dt import monotime
-from bench.utils.func import bittuple, group_by, partition, to_uuid, uuid_to_str
+from bench.utils.func import CriticalLock, bittuple, group_by, partition, to_uuid, uuid_to_str
 
 logger = structlog.get_logger(__name__)
 
@@ -123,7 +123,9 @@ class GraphIoServiceBase(BenchServiceBase, GraphIoBase):
         self.scope = GraphScope(bench_id=uuid_to_str(bench_id))
         self.node_types: bittuple[NodeType] = node_types
         self.watchers: list[EditWatcher] = []
-        self._tx_lock = asyncio.Lock()
+        self._tx_lock: asyncio.Lock = CriticalLock(
+            name=f"{self.__class__.__name__}_{bench_id or ''}"
+        )
 
     def get_engines(self) -> tuple[StoreEngine, ...]:
         """Gets the store engines available to this subgraph. Implemented in the actual service."""
@@ -136,10 +138,15 @@ class GraphIoServiceBase(BenchServiceBase, GraphIoBase):
             raise GRPCError(GRPCStatus.INVALID_ARGUMENT, "service scope mismatch")
 
     def new_session(
-        self, *, scope: GraphScope | None = None, engines: tuple[StoreEngine, ...] | None = None
+        self,
+        *,
+        scope: GraphScope | None = None,
+        engines: tuple[StoreEngine, ...] | None = None,
+        is_readonly: bool = True,
     ):
         return Session(
             parent=None,
+            _is_readonly=is_readonly,
             _default_scope=self.scope,
             _engines=engines if engines is not None else self.get_engines(),
             _extend_commit_hook=self.extend_commit,
@@ -283,61 +290,67 @@ class GraphIoServiceBase(BenchServiceBase, GraphIoBase):
 
         # process transaction
         start = monotime()
-        async with self._tx_lock, self.new_session(scope=request.scope) as session:
-            # read the required nodes into a single graph for evaluation
-            data_graph = NodeDataGraph()
-            for node_type, node_references in edit_scopes.scopes_by_type.items():
-                node_type = wiring.unpack_enum(NodeType, node_type)
-                # NOTE :Performance: select only properties required to evaluate edit (id/policies/...?)
-                options = adapt_read_options(subject, node_type, ReadOptions.default())
-                node_ids = tuple(r.id for r in node_references)
-                query = QueryBuilder(
-                    node_type=node_type,
-                    filter=C(ConditionalOp.IN, property=Node.id, value=node_ids),
-                    options=options,
+        async with self._tx_lock:
+            async with self.new_session(scope=request.scope, is_readonly=False) as session:
+                # read the required nodes into a single graph for evaluation
+                data_graph = NodeDataGraph()
+                for node_type, node_references in edit_scopes.scopes_by_type.items():
+                    node_type = wiring.unpack_enum(NodeType, node_type)
+                    # NOTE :Performance: select only properties required to evaluate edit (id/policies/...?)
+                    options = adapt_read_options(subject, node_type, ReadOptions.default())
+                    node_ids = tuple(r.id for r in node_references)
+                    query = QueryBuilder(
+                        node_type=node_type,
+                        filter=C(ConditionalOp.IN, property=Node.id, value=node_ids),
+                        options=options,
+                    )
+                    connection = await session.tx.connect(request.scope, node_type)
+                    result = await connection.fetch(query, FetchOptions(count=False))
+                    # merge result into data_graph (there may be duplicates)
+                    for node in result.nodes:
+                        if node.id not in data_graph:
+                            data_graph.add(node)
+
+                # check access
+                matrix = generate_access_matrix(subject, data_graph)
+                decision, accesses = evaluate_edit(matrix, data_graph, request.edits)
+                if decision != PolicyEffect.ALLOW:
+                    raise AccessError(accesses)
+
+                # validate edits (in copy)
+                # TODO :Robustness: prevent circular parent/child references
+                edit_data_graph(
+                    graph=data_graph,
+                    options=ReadOptions.all(),
+                    edits=request.edits,
+                    keep_all=True,
+                    update_nodes_in_place=False,
                 )
-                connection = await session.tx.connect(request.scope, node_type)
-                result = await connection.fetch(query, FetchOptions(count=False))
-                # merge result into data_graph (there may be duplicates)
-                for node in result.nodes:
-                    if node.id not in data_graph:
-                        data_graph.add(node)
+                unpacked_graph = wiring.unpack_node_graph(data_graph, parent=None, session=session)
+                for node_id in edit_scopes.edited_node_ids:
+                    node = unpacked_graph.get(UUID(node_id))
+                    if node is None:
+                        raise GRPCError(GRPCStatus.NOT_FOUND, f"{node_id} not found")
+                    node._validate_self(properties=(), invalid=on_invalid_raise)
 
-            # check access
-            matrix = generate_access_matrix(subject, data_graph)
-            decision, accesses = evaluate_edit(matrix, data_graph, request.edits)
-            if decision != PolicyEffect.ALLOW:
-                raise AccessError(accesses)
+                # flush edits to get cascaded edits
+                session.tx._add_pending_edits(request.edits)
+                _, cascaded_edits = await session.flush()
 
-            # validate edits (in copy)
-            # TODO :Robustness: prevent circular parent/child references
-            edit_data_graph(
-                graph=data_graph,
-                options=ReadOptions.all(),
-                edits=request.edits,
-                keep_all=True,
-                update_nodes_in_place=False,
-            )
-            unpacked_graph = wiring.unpack_node_graph(data_graph, parent=None, session=session)
-            for node_id in edit_scopes.edited_node_ids:
-                node = unpacked_graph.get(UUID(node_id))
-                if node is None:
-                    # this is an internal error (all edited nodes should be loaded)
-                    raise GRPCError(GRPCStatus.NOT_FOUND, f"{node_id} not in {unpacked_graph!r}")
-                node._validate_self(properties=(), invalid=on_invalid_raise)
+                # extend transaction
+                new_edits = await self.extend_commit(
+                    session=session,
+                    graph=unpacked_graph,
+                    edits=request.edits,
+                    cascaded_edits=cascaded_edits,
+                )
+                session.tx._add_pending_edits(new_edits)
 
-            # flush edits to get cascaded edits
-            session.tx._add_pending_edits(request.edits)
-            _, cascaded_edits = await session.flush()
-
-            # extend transaction
-            new_edits = await self.extend_commit(unpacked_graph, request.edits, cascaded_edits)
-            session.tx._add_pending_edits(new_edits)
-
-            # commit
-            edits, cascaded_edits = await session.commit(suppress_hooks=True)
+                # commit (suppress hooks because we're firing them manually here)
+                edits, cascaded_edits = await session.commit(suppress_hooks=True)
 
             # fire event
+            session.untrack_many(*unpacked_graph.nodes)
             await self.on_commit(graph=unpacked_graph, edits=edits, cascaded_edits=cascaded_edits)
 
         logger.info(
@@ -412,7 +425,11 @@ class GraphIoServiceBase(BenchServiceBase, GraphIoBase):
             self.watchers.remove(watcher)
 
     async def extend_commit(
-        self, graph: NodeGraphLike, edits: list[EditData], cascaded_edits: list[EditData]
+        self,
+        session: Session,
+        graph: NodeGraphLike,
+        edits: list[EditData],
+        cascaded_edits: list[EditData],
     ) -> list[EditData]:
         return []  # do nothing by default
 

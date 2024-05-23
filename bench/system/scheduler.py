@@ -43,7 +43,7 @@ class QueueRunPlugin(HostPlugin[Run]):
         return f"queue={self._runs_to_queue.qsize()}"
 
     @override
-    async def start(self, session: Session) -> None:
+    async def start(self) -> None:
         # TODO :Robustness: cancel/re-queue Runs stuck on dead Machines
         self._tasks.start_queue(self._runs_to_queue, self._queue_run, skip_errors=True)
 

@@ -1,5 +1,6 @@
 import asyncio
 import functools
+from contextlib import asynccontextmanager
 from typing import Callable, override
 from uuid import UUID
 
@@ -223,10 +224,20 @@ class Host(GraphIoServiceBase, HostBase, HostSpec):
     def on_error(self, source: HostPlugin, error: Exception) -> None:
         pass  # error is already reported, we just keep running
 
-    @property
-    def session(self) -> Session:
-        assert self._session is not None, f"session not ready in {self!r}"
-        return self._session
+    @override
+    @asynccontextmanager
+    async def session(self, *, autocommit: bool = False):
+        # outside .start, we linearize access to the Hosts object by suspending the session
+        # unless you acquire it explicitly via Host.session :ExclusiveHostSession
+        async with self._tx_lock:
+            assert self._session is not None, f"session not ready in {self!r}"
+            self._session.unsuspend()
+            yield self._session
+            if autocommit:
+                await self._session.commit()
+            elif self._session.tx.edits:
+                raise RuntimeError(f"uncommitted edits in {self!r}: {self._session.tx.edits}")
+            self._session.suspend()
 
     @override
     def get_engines(self) -> tuple[StoreEngine, ...]:
@@ -266,6 +277,7 @@ class Host(GraphIoServiceBase, HostBase, HostSpec):
         self._engines = (self._global_pg_engine, self._local_pg_engine)
         self._session = Session(
             parent=None,
+            _is_readonly=False,
             _default_scope=self.scope,
             _engines=self._engines,
             _extend_commit_hook=self.extend_commit,
@@ -277,14 +289,16 @@ class Host(GraphIoServiceBase, HostBase, HostSpec):
         # start plugins
         self._provisioners = tuple(get_provisioners_for(self, self._bench))
         self._plugins = (QueueRunPlugin(self, self._bench),) + self._provisioners
-        await asyncio.gather(*(plugin.start(self._session) for plugin in self._plugins))
-        await self._session.commit()
+        await asyncio.gather(*(plugin.start() for plugin in self._plugins))
         # wait for plugins to finish processing any commits (and error early)
         await asyncio.gather(*(plugin.wait_step(timeout=10) for plugin in self._plugins))
 
         # preload main packages
         self._main_package = await PACKAGE_QUERY.get(id=self._bench.main_branch.main_package_id)
         self._packages[self._main_package.id] = self._main_package
+
+        # suspend session by default, must be acquired explicitly in self.session
+        self._session.suspend()  # :ExclusiveHostSession
 
         logger.info("host.start", host=self, plugins=self._plugins, duration=monotime() - start)
 
@@ -301,7 +315,11 @@ class Host(GraphIoServiceBase, HostBase, HostSpec):
 
     @override
     async def extend_commit(
-        self, graph: NodeGraphLike, edits: list[EditData], cascaded_edits: list[EditData]
+        self,
+        session: Session,
+        graph: NodeGraphLike,
+        edits: list[EditData],
+        cascaded_edits: list[EditData],
     ) -> list[EditData]:
         # TODO :Incomplete: run plugins to extend commit
 
@@ -320,7 +338,7 @@ class Host(GraphIoServiceBase, HostBase, HostSpec):
         assert self._bench is not None, f"bench not loaded in {self!r} for {edits!r}"
 
         # apply edits to loaded graphs (bench/package)
-        self._session.suspend()  # don't trigger the edits we're just applying
+        self._session.suppress()  # don't trigger the edits we're just applying
         for edit in edits:
             if NodeType(edit.node_type) not in LOADED_NODE_TYPES:
                 continue  # not loaded
@@ -338,9 +356,11 @@ class Host(GraphIoServiceBase, HostBase, HostSpec):
                 edited_graph = self._bench._graph
                 options = BENCH_QUERY._options
             edit_graph(edited_graph, (edit,), options)
-        self._session.resume()
+        self._session.unsuppress()
 
         # run plugins on commit (in main session)
+        self._session.unsuspend()  # this must be a in a locked section :ExclusiveHostSession
+        self._session.track_many(*graph.nodes)
         commit = unpack_commit(self.graphs + (graph,), edits, cascaded_edits)
         logger.debug("host.on_commit", host=self, commit=commit)
         for plugin in self._plugins:
@@ -350,7 +370,8 @@ class Host(GraphIoServiceBase, HostBase, HostSpec):
                 logger.debug(
                     "host.on_commit.plugin", host=self, plugin=plugin, commit=trimmed_commit
                 )
-        await self._session.commit()
+        await self._session.commit(skip_lock=True)  # already in a locked section
+        self._session.suspend()
 
     #
     # Files

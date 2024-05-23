@@ -3,7 +3,7 @@ import asyncio
 from contextlib import asynccontextmanager
 from dataclasses import dataclass
 from itertools import chain
-from typing import ClassVar, Collection, Iterable, final, override
+from typing import ClassVar, Collection, Generator, Iterable, final, override
 from uuid import UUID
 
 import bitarray
@@ -221,10 +221,10 @@ class HostSpec(abc.ABC):
         """Get a *loaded* Package."""
         ...
 
-    @property
     @abc.abstractmethod
-    def session(self) -> Session:
-        """Gets the Session for interacting with the Host."""
+    @asynccontextmanager
+    async def session(self, *, autocommit: bool = False) -> Generator[Session, None, None]:
+        """Gets the Session for short-lived, *exclusive access."""
         ...
 
 
@@ -239,10 +239,11 @@ class _DeadHost(HostSpec):
     def get_package(self, package_id: UUID) -> None:
         raise NotImplementedError("dead host")
 
-    @property
     @override
-    def session(self) -> Session:
+    @asynccontextmanager
+    async def session(self, *, autocommit: bool = False) -> Generator[Session, None, None]:
         raise NotImplementedError("dead host")
+        yield  # noqa
 
 
 DEAD_HOST: HostSpec = _DeadHost()
@@ -278,7 +279,7 @@ class HostPlugin[T: Node](abc.ABC):
     # Lifecycle
     #
 
-    async def start(self, session: Session) -> None:
+    async def start(self) -> None:
         """Start any work for this plugin, returning when the plugin is ready."""
         pass
 
@@ -308,7 +309,7 @@ class HostPlugin[T: Node](abc.ABC):
 
     async def on_commit(self, session: Session, commit: Commit[T]) -> None:
         """
-        React to the commit in a new transaction (inside the request).
+        React to the commit in a new transaction (but still in the request lifecycle).
         The nodes are the fully loaded nodes from the Host.
         Edit nodes directly, flush or commit as necessary.
         """
@@ -323,8 +324,8 @@ class DeferredHostPlugin[T: Node](HostPlugin, abc.ABC):
         self._commit_queue: asyncio.Queue[Commit[T]] = asyncio.Queue()
 
     @override
-    async def start(self, session: Session) -> None:
-        await super().start(session)
+    async def start(self) -> None:
+        await super().start()
         self._tasks.start_queue(self._commit_queue, self.on_commit_deferred, skip_errors=True)
 
     @override
@@ -348,14 +349,9 @@ class DeferredHostPlugin[T: Node](HostPlugin, abc.ABC):
             )
         self._tasks.check_no_errors()
 
-    @final
     async def on_commit_deferred(self, commit: Commit) -> None:
         """
         React to the committed changes (outside the request, later).
         NOTE :Robustness: the nodes in each commit may change before this is called
         """
-        await self._on_commit_deferred(self._host.session, commit)
-        await self._host.session.commit()
-
-    async def _on_commit_deferred(self, session: Session, commit: Commit) -> None:
         pass

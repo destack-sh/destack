@@ -45,6 +45,7 @@ class Transaction:
     """All edits from this transaction (since the previous commit)."""
     edits: list[EditData] = dcfield(default_factory=list)
     cascaded_edits: list[EditData] = dcfield(default_factory=list)
+    _used_engine_ids: set[Any] = dcfield(default_factory=set)
 
     """Pending (unflushed) edits."""
     _pending_edits_by_engine_id: dict[Any, list[EditData]] = dcfield(
@@ -271,7 +272,7 @@ class Transaction:
         for engine in self.session._engines:
             # prepare edits & connection
             pending_edits = self._pending_edits_by_engine_id.get(engine.id, [])
-            if not pending_edits and not commit:
+            if not (pending_edits or commit and engine.id in self._used_engine_ids):
                 continue  # nothing to do
             Transaction.canonicalize_edits(now, pending_edits)
             connection = await self._get_engine_connection(engine)
@@ -288,6 +289,7 @@ class Transaction:
                 edit.revision = new_revision
             pending_edits.clear()
             self.cascaded_edits.extend(flush.cascaded_edits)
+            self._used_engine_ids.add(engine.id)
         self._pending_edits_by_engine_id.clear()
         self._pending_updates_idx.clear()
 
@@ -307,6 +309,7 @@ class Transaction:
         await self._do_flush(commit=True)
         edits, cascaded_edits = self.edits, self.cascaded_edits
         self.edits, self.cascaded_edits = [], []
+        self._used_engine_ids.clear()
         return edits, cascaded_edits
 
     async def rollback(self):
