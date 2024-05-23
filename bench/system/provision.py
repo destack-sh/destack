@@ -10,7 +10,7 @@ from bench.language.const import VERSION, NodeType
 from bench.language.session import Session
 from bench.sql.client import pg_cursor_to_store
 from bench.sql.migration import sql_migrate
-from bench.system.core import AsyncHostPlugin, Commit, HostSpec
+from bench.system.core import Commit, DeferredHostPlugin, HostSpec
 from bench.system.neon import NeonApi
 from bench.utils.env import ENVIRONMENT
 from bench.utils.func import bittuple
@@ -22,7 +22,7 @@ if TYPE_CHECKING:
 logger = structlog.get_logger(__name__)
 
 
-class Provisioner[PT: Resource, WT: Resource](AsyncHostPlugin[WT], abc.ABC):
+class Provisioner[PT: Resource, WT: Resource](DeferredHostPlugin[WT], abc.ABC):
     """
     A provisioner for resources of the declared types.
     Synchronize the declared state of Bench resources with their actual (external) state (both ways).
@@ -53,23 +53,22 @@ class Provisioner[PT: Resource, WT: Resource](AsyncHostPlugin[WT], abc.ABC):
                 await session.commit()
 
     @override
-    async def on_commit_async(self, commit: Commit[WT]) -> None:
+    async def _on_commit_deferred(self, session: Session, commit: Commit[WT]) -> None:
         # handle edit by updating resource
         if commit.has(self.provision_types):
             subcommit = cast(Commit[PT], commit.trim_to(self.provision_types))
-            async with self._host.session() as session:
-                for resource in subcommit.added:
-                    if resource.status == ResourceStatus.DECLARED:
-                        await self.provision(resource)
-                        await session.commit()
-                for resource in subcommit.updated:
-                    if resource.status.is_extant:
-                        await self.update(resource)
-                        await session.commit()
-                for resource in subcommit.removed:
-                    if resource.status.is_extant:
-                        await self.decommission(resource)
-                        await session.commit()
+            for resource in subcommit.added:
+                if resource.status == ResourceStatus.DECLARED:
+                    await self.provision(resource)
+                    await session.commit()
+            for resource in subcommit.updated:
+                if resource.status.is_extant:
+                    await self.update(resource)
+                    await session.commit()
+            for resource in subcommit.removed:
+                if resource.status.is_extant:
+                    await self.decommission(resource)
+                    await session.commit()
 
     @final
     async def provision(self, resource: PT):
@@ -190,8 +189,7 @@ class ElasticServerProvisioner(Provisioner[Server, Server | Machine]):
     # TODO :Broken: scale & react to machines properly in ElasticServerProvisioner
 
     @override
-    async def on_commit_async(self, commit: Commit[Server | Machine]) -> None:
-        await super().on_commit_async(commit)
+    async def _on_commit(self, session: Session, commit: Commit[Server | Machine]) -> None:
         if commit.has(NodeType.MACHINE):
             # mark server as healthy/unhealthy based on its machines
             subcommit = cast(Commit[Machine], commit.trim_to(NodeType.MACHINE))

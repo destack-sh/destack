@@ -1,7 +1,7 @@
 import asyncio
 import contextvars
 from datetime import datetime
-from typing import TYPE_CHECKING, Callable, Collection, Optional
+from typing import TYPE_CHECKING, Awaitable, Callable, Collection, Optional
 from uuid import UUID
 
 import structlog
@@ -44,8 +44,10 @@ if TYPE_CHECKING:
 # pyright: reportIncompatibleVariableOverride=false
 
 logger = structlog.get_logger(__name__)
-ExtendCommitHook = Callable[[NodeGraphLike, list[EditData], list[EditData]], list[EditData]]
-OnCommitHook = Callable[[NodeGraphLike, list[EditData], list[EditData]], None]
+ExtendCommitHook = Callable[
+    [NodeGraphLike, list[EditData], list[EditData]], Awaitable[list[EditData]]
+]
+OnCommitHook = Callable[[NodeGraphLike, list[EditData], list[EditData]], Awaitable[None]]
 
 
 @node(
@@ -176,23 +178,26 @@ class Session(Node[SessionData]):
         assert self.is_open, f"cannot commit {self!r} when closed"
         assert self._tx is not None, f"no active transaction in {self!r}"
 
-        async with self._tx_lock:
-            if suppress_hooks:
+        if not self._tx.edits:
+            return [], []  # nothing to do
+        elif suppress_hooks:
+            async with self._tx_lock:
                 # simple regular commit
                 edits, cascaded_edits = await self._tx.commit()
                 return edits, cascaded_edits
-            else:
+        else:
+            async with self._tx_lock:
                 # wrapped commit (used in Host)
                 if self._extend_commit_hook is not None:
                     # flush edits to get cascaded edits
                     edits, cascaded_edits = await self._tx.flush()
-                    new_edits = self._extend_commit_hook(
+                    new_edits = await self._extend_commit_hook(
                         self._edited_nodes_by_id, edits, cascaded_edits
                     )
                     self._tx._add_pending_edits(new_edits)
                 edits, cascaded_edits = await self._tx.commit()
                 if self._on_commit_hook is not None:
-                    self._on_commit_hook(self._edited_nodes_by_id, edits, cascaded_edits)
+                    await self._on_commit_hook(self._edited_nodes_by_id, edits, cascaded_edits)
                 return edits, cascaded_edits
 
     async def rollback(self):

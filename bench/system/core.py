@@ -3,7 +3,7 @@ import asyncio
 from contextlib import asynccontextmanager
 from dataclasses import dataclass
 from itertools import chain
-from typing import ClassVar, Iterable, final, override
+from typing import ClassVar, Collection, Iterable, final, override
 from uuid import UUID
 
 import bitarray
@@ -126,13 +126,14 @@ class Commit[T: Node]:
         )
 
 
-def unpack_committed_change(
-    graph: NodeGraphLike, edits: list[EditData], cascaded_edits: list[EditData]
+def unpack_commit(
+    graphs: Collection[NodeGraphLike], edits: list[EditData], cascaded_edits: list[EditData]
 ) -> Commit:
     """
     Get the summarized, unpacked nodes that change in the given edits.
     Successive edits cancel each other out (create X -> delete X, no X in the change).
     Archived/soft-deleted nodes are treated as removed.
+    The first graph containing the node is used.
     """
 
     edited_types = bitarray.bitarray(NodeType.get_max_ord())
@@ -154,16 +155,21 @@ def unpack_committed_change(
                 del added[node.id]
             removed[node.id] = node
         else:
-            raise RuntimeError(f"unexpected edit type {edit.type} in {edit!r} for {graph!r}")
+            raise RuntimeError(f"unexpected edit type {edit.type} in {edit!r}")
 
     # the nodes edited in 'edits' are expected to be in 'graph'
     for edit in edits:
         node_type = NodeType(edit.node_type)
         edited_types[node_type.ord] = True
         # unpack
-        node = wiring.unwrap_some_node(edit.node)
-        node = graph.get(UUID(node.id))
-        assert node is not None, f"missing node {node!r} in {graph!r} for {edit!r}"
+        node_data = wiring.unwrap_some_node(edit.node)
+        node_id = UUID(node_data.id)
+        node = None
+        for graph in graphs:
+            if node_id in graph:
+                node = graph.get(node_id)
+                break
+        assert node is not None, f"missing node {node!r} in {graphs!r} for {edit!r}"
         # map
         _add_edit(edit, node)
 
@@ -176,13 +182,16 @@ def unpack_committed_change(
         node = wiring.unwrap_some_node(edit.node)
         assert node.parent_ptr, f"missing parent ptr for {node!r} in {edit!r}"
         parent_id = UUID(node.parent_ptr.id)
-        if parent_id in graph:
-            parent = graph.get(parent_id)
-        elif parent_id in unpacked_nodes:
-            parent = unpacked_nodes[parent_id]
+        for graph in graphs:
+            if parent_id in graph:
+                parent = graph.get(parent_id)
+                break
         else:
-            # cascaded edits should bei in pre-order, so the parent must exist
-            raise RuntimeError(f"missing parent {parent_id} for {node!r} in {edit!r}")
+            if parent_id in unpacked_nodes:
+                parent = unpacked_nodes[parent_id]
+            else:
+                # cascaded edits should bei in pre-order, so the parent must exist
+                raise RuntimeError(f"missing parent {parent_id} for {node!r} in {edit!r}")
         node = wiring.unpack_node(node, parent)
         unpacked_nodes[node.id] = node
         # map
@@ -291,22 +300,24 @@ class HostPlugin[T: Node](abc.ABC):
     # Events
     #
 
-    def extend_commit(self, session: Session, commit: Commit[T]) -> None:
+    async def extend_commit(self, session: Session, commit: Commit[T]) -> None:
         """
         Add edits that logically belong to the same transaction.
-        Synchronous event handler fired before a Host transaction is committed.
+        The nodes are the partial nodes from the edit graph, not the full Host nodes.
+        Edit nodes directly, flush only when necessary.
         """
         pass
 
-    def on_commit(self, commit: Commit[T]) -> None:
+    async def on_commit(self, session: Session, commit: Commit[T]) -> None:
         """
-        React to the committed changes, perhaps by making new edits.
-        Synchronous event handler fired after a committed Host transaction.
+        React to the commit in a new transaction (inside the request).
+        The nodes are the fully loaded nodes from the Host.
+        Edit nodes directly, flush or commit as necessary.
         """
         pass
 
 
-class AsyncHostPlugin[T: Node](HostPlugin, abc.ABC):
+class DeferredHostPlugin[T: Node](HostPlugin, abc.ABC):
     """A Host plugin with async event handlers."""
 
     def __init__(self, host: HostSpec, bench: "Bench"):
@@ -316,11 +327,16 @@ class AsyncHostPlugin[T: Node](HostPlugin, abc.ABC):
     @override
     async def start(self, session: Session) -> None:
         await super().start(session)
-        self._tasks.start_queue(self._commit_queue, self.on_commit_async, skip_errors=True)
+        self._tasks.start_queue(self._commit_queue, self.on_commit_deferred, skip_errors=True)
 
     @override
-    def on_commit(self, commit: Commit) -> None:
+    @final
+    async def on_commit(self, session: Session, commit: Commit) -> None:
         self._commit_queue.put_nowait(commit)
+        await self._on_commit(session, commit)
+
+    async def _on_commit(self, session: Session, commit: Commit[T]) -> None:
+        pass
 
     @final
     async def wait_step(self, timeout: float) -> None:
@@ -334,9 +350,15 @@ class AsyncHostPlugin[T: Node](HostPlugin, abc.ABC):
             )
         self._tasks.check_no_errors()
 
-    async def on_commit_async(self, commit: Commit) -> None:
+    @final
+    async def on_commit_deferred(self, commit: Commit) -> None:
         """
-        Asynchronous event handler for a committed Host transaction.
+        React to the committed changes (outside the request, later).
         NOTE :Robustness: the nodes in each commit may change before this is called
         """
+        async with self._host.session() as session:
+            await self._on_commit_deferred(session, commit)
+            await session.commit()
+
+    async def _on_commit_deferred(self, session: Session, commit: Commit) -> None:
         pass

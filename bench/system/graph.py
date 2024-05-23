@@ -122,8 +122,9 @@ class GraphIoServiceBase(BenchServiceBase, GraphIoBase):
         self.scope = GraphScope(bench_id=uuid_to_str(bench_id))
         self.node_types: bittuple[NodeType] = node_types
         self.watchers: list[EditWatcher] = []
+        self._tx_lock = asyncio.Lock()
 
-    def _get_engines(self, scope: GraphScope) -> tuple[StoreEngine, ...]:
+    def get_engines(self, scope: GraphScope) -> tuple[StoreEngine, ...]:
         """Gets the store engines available to this subgraph. Implemented in the actual service."""
         raise NotImplementedError
 
@@ -139,7 +140,7 @@ class GraphIoServiceBase(BenchServiceBase, GraphIoBase):
         return Session(
             parent=None,
             _default_scope=self.scope,
-            _engines=engines or self._get_engines(scope or self.scope),
+            _engines=engines or self.get_engines(scope or self.scope),
             _extend_commit_hook=self.extend_commit,
             _on_commit_hook=self.on_commit,
         )
@@ -282,7 +283,7 @@ class GraphIoServiceBase(BenchServiceBase, GraphIoBase):
 
         # process transaction
         start = asyncio.get_event_loop().time()
-        async with self.session(scope=request.scope) as session:
+        async with self._tx_lock, self.session(scope=request.scope) as session:
             # read the required nodes into a single graph for evaluation
             data_graph = NodeDataGraph()
             for node_type, node_references in edit_scopes.scopes_by_type.items():
@@ -330,30 +331,30 @@ class GraphIoServiceBase(BenchServiceBase, GraphIoBase):
             _, cascaded_edits = await session.flush()
 
             # extend transaction
-            new_edits = self.extend_commit(unpacked_graph, edits, cascaded_edits)
+            new_edits = await self.extend_commit(unpacked_graph, edits, cascaded_edits)
             session.tx._add_pending_edits(new_edits)
 
             # commit
             extended_edits, cascaded_edits = await session.commit(suppress_hooks=True)
-            self.on_commit(
+
+            # fire event
+            await self.on_commit(
                 graph=unpacked_graph, edits=extended_edits, cascaded_edits=cascaded_edits
             )
-            logger.info(
-                "graph.commit",
-                subject=subject,
-                request=request,
-                edits=extended_edits,
-                cascaded_edits=len(cascaded_edits),
-                epoch=self.epoch,
-                duration=asyncio.get_event_loop().time() - start,
-            )
 
-            accepted_revisions = [cast(int, e.revision) for e in request.edits]
-            return CommitTransactionResponse(
-                revisions=accepted_revisions,
-                cascaded_edits=session.tx.cascaded_edits,
-                epoch=self.epoch,
-            )
+        logger.info(
+            "graph.commit",
+            subject=subject,
+            request=request,
+            edits=extended_edits,
+            cascaded_edits=len(cascaded_edits),
+            epoch=self.epoch,
+            duration=asyncio.get_event_loop().time() - start,
+        )
+        accepted_revisions = [cast(int, e.revision) for e in request.edits]
+        return CommitTransactionResponse(
+            revisions=accepted_revisions, cascaded_edits=cascaded_edits, epoch=self.epoch
+        )
 
     async def flush_transaction(
         self, subject: "Subject", request: "FlushTransactionRequest"
@@ -411,13 +412,13 @@ class GraphIoServiceBase(BenchServiceBase, GraphIoBase):
         finally:
             self.watchers.remove(watcher)
 
-    def extend_commit(
+    async def extend_commit(
         self, graph: NodeGraphLike, edits: list[EditData], cascaded_edits: list[EditData]
     ) -> list[EditData]:
         return []  # do nothing by default
 
     @final
-    def on_commit(
+    async def on_commit(
         self, graph: NodeGraphLike, edits: list[EditData], cascaded_edits: list[EditData]
     ):
         self.epoch += 1
@@ -430,9 +431,9 @@ class GraphIoServiceBase(BenchServiceBase, GraphIoBase):
             if adapted_edits:
                 watcher.sink.put_nowait(Epoch(self.epoch, adapted_edits, adapted_cascaded_edits))
 
-        self._on_commit(graph=graph, edits=edits, cascaded_edits=cascaded_edits)
+        await self._on_commit(graph=graph, edits=edits, cascaded_edits=cascaded_edits)
 
-    def _on_commit(
+    async def _on_commit(
         self, graph: NodeGraphLike, edits: list[EditData], cascaded_edits: list[EditData]
     ):
         pass  # do nothing by default
