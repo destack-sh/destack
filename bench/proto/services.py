@@ -10,14 +10,17 @@ from typing import (
     cast,
     final,
 )
+from urllib.parse import urlparse
 
 import betterproto
+import cachetools
 import grpclib.server
 import structlog
 from betterproto import ServiceStub
 from grpclib import GRPCError
 from grpclib import Status as GRPCStatus
 from grpclib._typing import IServable
+from grpclib.client import Channel
 
 from bench.language import ValidationError
 from bench.language.access import AccessError, Subject
@@ -238,3 +241,12 @@ class BenchServer(grpclib.server.Server):
         await super().wait_closed()
         await asyncio.gather(*(h.wait_closed() for h in self._services))
         logger.info("server.closed", server=self)
+
+
+@cachetools.cached(cachetools.TTLCache(maxsize=128, ttl=300))
+def get_channel_cached(connection_uri: str):
+    connection_info = urlparse(connection_uri)
+    if not isinstance(connection_info.netloc, str):
+        raise ValueError(f"invalid connection uri: {connection_uri}")
+    channel = Channel(connection_info.netloc, connection_info.port)
+    return channel

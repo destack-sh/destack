@@ -39,8 +39,9 @@ from bench.system.core import (
     unpack_commit,
 )
 from bench.system.graph import GraphIoServiceBase
-from bench.system.provision import Provisioner, get_provisioners_for
+from bench.system.provisioner import Provisioner, get_provisioners_for
 from bench.system.scheduler import QueueRunPlugin
+from bench.utils.dt import monotime
 from bench.utils.func import bittuple, to_uuid
 from bench.utils.utils import get_from_env_maybe
 
@@ -197,7 +198,7 @@ class Host(GraphIoServiceBase, HostBase, HostSpec):
         self._packages: dict[UUID, Package] = {}
 
         self._provisioners: tuple[Provisioner, ...] = ()
-        self._plugins: tuple[HostPlugin, ...] = ()
+        self._plugins: tuple[HostPlugin, ...] = ()  # incl. provisioners
         self._runs_to_queue: asyncio.Queue[Run] = asyncio.Queue()
 
     def __str__(self):
@@ -233,7 +234,7 @@ class Host(GraphIoServiceBase, HostBase, HostSpec):
         return graphs
 
     async def start(self) -> None:
-        start = asyncio.get_event_loop().time()
+        start = monotime()
 
         async with self.session(engines=(GLOBAL_POSTGRES_ENGINE,)) as session:
             # load bench
@@ -271,12 +272,7 @@ class Host(GraphIoServiceBase, HostBase, HostSpec):
         # start tasks
         ...
 
-        logger.info(
-            "host.start",
-            host=self,
-            plugins=self._plugins,
-            duration=asyncio.get_event_loop().time() - start,
-        )
+        logger.info("host.start", host=self, plugins=self._plugins, duration=monotime() - start)
 
     def close(self) -> None:
         super().close()

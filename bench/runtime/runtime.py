@@ -25,6 +25,7 @@ from bench.proto.wire import (
     SupervisorStub,
 )
 from bench.runtime.connection import ConnectedQuery
+from bench.utils.dt import monotime
 from bench.utils.task import TaskManager
 from bench.utils.tenacity import RetryOptions
 
@@ -194,7 +195,7 @@ class Runtime(RuntimeBase, BenchServiceBase):
         )
 
         # connect
-        start = asyncio.get_event_loop().time()
+        start = monotime()
         async with local_session(self._engines, self._supervisor, self._host) as session:
             # connect bench
             self._bench = await ConnectedQuery(
@@ -234,7 +235,7 @@ class Runtime(RuntimeBase, BenchServiceBase):
             "runtime.start",
             bench=self._bench.node,
             client=self._client,
-            duration=asyncio.get_event_loop().time() - start,
+            duration=monotime() - start,
         )
 
     def close(self):

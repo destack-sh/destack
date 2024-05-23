@@ -3,13 +3,15 @@ from dataclasses import dataclass
 from typing import TYPE_CHECKING, override
 
 import structlog
-from more_itertools import first
 
 from bench.language.bench import Bench, ResourceStatus
 from bench.language.const import NodeType, RunStatus
 from bench.language.run import Run, RunError, RunErrorKind, RunErrorType
 from bench.language.session import Session
+from bench.proto.services import get_channel_cached
+from bench.proto.wire import RuntimeStub, StartRunRequest
 from bench.system.core import Commit, HostPlugin, HostSpec
+from bench.utils.dt import monotime
 from bench.utils.func import bittuple
 from bench.utils.tenacity import RetryOptions
 
@@ -50,36 +52,41 @@ class QueueRunPlugin(HostPlugin[Run]):
         # queue any new runs
         for run in commit.added:
             if run.parent_type == NodeType.PACKAGE and run.status == RunStatus.SCHEDULED:
-                logger.trace("host.enqueue_run", host=self, run=run)
+                logger.trace("scheduler.add", host=self, run=run)
                 attempt = QueueAttempt(run=run, no=0)
                 self._runs_to_queue.put_nowait(attempt)
 
     async def _queue_run(self, attempt: QueueAttempt) -> None:
         """Distributes Runs to be queued in Runtimes."""
         attempt.no += 1
+        start = monotime()
         run = attempt.run
         assert run.package_id is not None, f"missing package id for run {run!r}"
+        assert self._bench.main_environment, f"missing main environment for bench {self._bench!r}"
 
-        # find machine to run on
-        package = self._host.get_package(run.package_id)
-        assert package is not None, f"missing package for run {run!r}"
-        machine = first(
-            (m for m in package.environment.server.machines if m.status == ResourceStatus.HEALTHY),
-            None,
-        )
-        if machine is None:
-            if self._retry.max_attempts > 0 and attempt.no >= self._retry.max_attempts:
-                # nocheckin: fail run
-                error = RunError(kind=RunErrorKind.INTERNAL, type=RunErrorType.NO_RUNTIME_AVAILABLE)
-                run.fail(error)
-            else:
-                # retry run later
-                interval = self._retry.get_interval(attempt.no)
-                asyncio.get_event_loop().call_later(
-                    interval, self._runs_to_queue.put_nowait, attempt
-                )
-                logger.debug("host.retry_queue", host=self, run=run, interval=interval)
+        # find machine to queue run on
+        for machine in self._bench.main_environment.server.machines:
+            if machine.status != ResourceStatus.HEALTHY:
+                continue
+            assert machine.connection_uri, f"missing connection uri for machine {machine!r}"
+            channel = get_channel_cached(machine.connection_uri)
+            runtime = RuntimeStub(channel)
+            request = StartRunRequest(run=run._to_data())
+            try:
+                _ = await runtime.start_run(request)
+                logger.debug("scheduler.queue", host=self, run=run, duration=monotime() - start)
+                return  # success
+            except Exception as error:
+                logger.error("scheduler.queue.error", host=self, run=run, error=error)
+                continue
+
+        # failed to queue run
+        if self._retry.max_attempts > 0 and attempt.no >= self._retry.max_attempts:
+            error = RunError(kind=RunErrorKind.INTERNAL, type=RunErrorType.NO_RUNTIME_AVAILABLE)
+            run.fail(error)
+            logger.error("scheduler.queue.failed", host=self, run=run, error=error)
         else:
-            # queue run
-            # nocheckin: send run to machine (cache channel?)
-            pass
+            # retry run later
+            interval = self._retry.get_interval(attempt.no)
+            asyncio.get_event_loop().call_later(interval, self._runs_to_queue.put_nowait, attempt)
+            logger.debug("scheduler.queue.retry", host=self, run=run, interval=interval)

@@ -51,6 +51,7 @@ from bench.proto.wire import (
     WatchEditsRequest,
     WatchEditsResponse,
 )
+from bench.utils.dt import monotime
 from bench.utils.func import bittuple, group_by, partition, to_uuid, uuid_to_str
 
 logger = structlog.get_logger(__name__)
@@ -282,7 +283,7 @@ class GraphIoServiceBase(BenchServiceBase, GraphIoBase):
                 raise GRPCError(GRPCStatus.PERMISSION_DENIED, "edit origin mismatch")
 
         # process transaction
-        start = asyncio.get_event_loop().time()
+        start = monotime()
         async with self._tx_lock, self.session(scope=request.scope) as session:
             # read the required nodes into a single graph for evaluation
             data_graph = NodeDataGraph()
@@ -349,7 +350,7 @@ class GraphIoServiceBase(BenchServiceBase, GraphIoBase):
             edits=extended_edits,
             cascaded_edits=len(cascaded_edits),
             epoch=self.epoch,
-            duration=asyncio.get_event_loop().time() - start,
+            duration=monotime() - start,
         )
         accepted_revisions = [cast(int, e.revision) for e in request.edits]
         return CommitTransactionResponse(
