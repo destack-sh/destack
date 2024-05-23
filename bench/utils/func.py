@@ -1,6 +1,8 @@
+import asyncio
 import enum
 import functools
 import re
+import traceback
 import types
 import typing
 from asyncio import CancelledError
@@ -25,7 +27,9 @@ from bitarray import bitarray
 from cachetools import cached
 from more_itertools import first
 
-from bench.utils.utils import sentry_capture
+from bench.utils.dt import monotime
+from bench.utils.env import IS_DEBUG, IS_TEST
+from bench.utils.utils import get_from_env, sentry_capture
 
 logger = structlog.get_logger(__name__)
 
@@ -338,6 +342,68 @@ _MIN_ID_BY_ENUM: dict[type, int] = {}
 _MAX_ID_BY_ENUM: dict[type, int] = {}
 
 IdEnumT = TypeVar("IdEnumT", bound="IdEnum")
+
+DEBUG_LOCKS = get_from_env("DEBUG_LOCKS", typ=bool, default=False)
+
+
+class CriticalLock(asyncio.Lock):
+    """
+    A smarter asyncio.Lock that remembers who acquired it & supports timeouts for critical sections.
+    """
+
+    def __init__(self, name: str, track_acquirer: bool = IS_DEBUG or IS_TEST, timeout: float = 5):
+        super().__init__()
+        self._name = f"{name}_{id(self):x}"
+        self._track_acquirer = track_acquirer
+        self._timeout = timeout
+        self._acquired_by = None
+        self._acquired_at: float | None = None
+
+    async def acquire(self):
+        if DEBUG_LOCKS:
+            logger.trace("lock.acquire.wait", name=self._name)
+
+        if self._timeout is not None:
+            try:
+                await asyncio.wait_for(super().acquire(), timeout=self._timeout)
+            except asyncio.TimeoutError as e:
+                if self._acquired_by:
+                    # prune _pytest, pluggy, asyncio from traceback
+                    filtered_tb = [
+                        frame
+                        for frame in self._acquired_by
+                        if not any(m in frame.filename for m in ["pytest", "pluggy", "asyncio"])
+                    ]
+                    pretty_tb = "\n" + "\n".join(traceback.format_list(filtered_tb))
+                    logger.error(
+                        "lock.timeout",
+                        name=self._name,
+                        acquirer=pretty_tb,
+                        acquired_at=self._acquired_at,
+                    )
+                raise TimeoutError(f"lock {self._name} timed out after {self._timeout}s") from e
+        else:
+            await super().acquire()
+
+        if self._track_acquirer:
+            self._acquired_by = traceback.extract_stack()[:-1]
+        self._acquired_at = monotime()
+        if DEBUG_LOCKS:
+            logger.trace("lock.acquire.success", name=self._name, acquired_at=self._acquired_at)
+        return True
+
+    def release(self):
+        super().release()
+        if DEBUG_LOCKS:
+            logger.trace("lock.release", name=self._name, acquired_at=self._acquired_at)
+        if self._timeout is not None:
+            assert self._acquired_at is not None
+            duration = monotime() - self._acquired_at
+            if duration > self._timeout / 2:
+                logger.warning("lock.slow", duration=duration)
+        if self._track_acquirer:
+            self._acquired_by = None
+            self._acquired_at = None
 
 
 class IdEnum(enum.IntEnum):

@@ -296,7 +296,7 @@ class Column(TableObject):
 
     def __str__(self):
         args_str = ", ".join(
-            (f"{name}={self.__dict__[name]}" if not isinstance(self.__dict__[name], bool) else name)
+            (f"{name}={getattr(self, name)}" if not isinstance(getattr(self, name), bool) else name)
             for name in (
                 "is_array",
                 "is_unique",
@@ -307,7 +307,7 @@ class Column(TableObject):
                 "is_foreign_key_to",
                 "on_delete",
             )
-            if self.__dict__[name]
+            if getattr(self, name, None) is not None
         )
         table_name = self._table.name if self._table else None
         if args_str:

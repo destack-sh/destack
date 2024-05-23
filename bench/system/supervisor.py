@@ -106,7 +106,7 @@ class Supervisor(GraphIoServiceBase, SupervisorBase):
         if subject.is_authenticated:
             raise GRPCError(GRPCStatus.ALREADY_EXISTS, "already logged in")
 
-        async with self.new_session() as session:
+        async with self.new_session(is_readonly=False) as session:
             user = User(
                 id=to_uuid(request.id) or uuid4(),
                 slug=request.slug,
@@ -140,7 +140,7 @@ class Supervisor(GraphIoServiceBase, SupervisorBase):
         if not subject.user:
             raise GRPCError(GRPCStatus.UNAUTHENTICATED, "not logged in")
 
-        async with self.new_session() as session:
+        async with self.new_session(is_readonly=False) as session:
             user = subject.user
             if user.password_salt is None or user.password_hash is None:
                 raise GRPCError(GRPCStatus.FAILED_PRECONDITION, "password not set")
@@ -164,7 +164,7 @@ class Supervisor(GraphIoServiceBase, SupervisorBase):
         if subject.is_authenticated:
             raise GRPCError(GRPCStatus.ALREADY_EXISTS, "already logged in")
 
-        async with self.new_session() as session:
+        async with self.new_session(is_readonly=False) as session:
             key_name, key_value = betterproto.which_one_of(request, "user")
             if key_value is None:
                 raise GRPCError(GRPCStatus.INVALID_ARGUMENT, "no user provided")
@@ -199,7 +199,7 @@ class Supervisor(GraphIoServiceBase, SupervisorBase):
         if subject.user is None:
             raise GRPCError(GRPCStatus.FAILED_PRECONDITION, "not a user")
 
-        async with self.new_session() as session:
+        async with self.new_session(is_readonly=False) as session:
             # log out the current or the specified clients
             if request.clients:
                 client_ids = {to_uuid(c.id) for c in request.clients}
@@ -240,7 +240,7 @@ class Supervisor(GraphIoServiceBase, SupervisorBase):
             raise GRPCError(GRPCStatus.INVALID_ARGUMENT, "cannot create bench in global region")
 
         owner_ptr: NodeReference = wiring.unpack_struct(request.owner)
-        async with self.new_session() as session:
+        async with self.new_session(is_readonly=False) as session:
             # check (and reload owner to get Handles)
             if owner_ptr.type == NodeType.USER:
                 if owner_ptr.id != user.id:

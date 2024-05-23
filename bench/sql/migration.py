@@ -248,7 +248,7 @@ async def sql_migrate(
         target_migration = MIGRATIONS[-1]
 
     logger.trace(
-        "migration.load", target_migration=target_migration, is_global=is_global, store=store
+        "migrations.load", target_migration=target_migration, is_global=is_global, store=store
     )
     stored_migrations = await read_migrations_from_pg(cur)
     is_upgrade = all(target_migration.id > m.id for m in stored_migrations if m.applied_at)
@@ -269,14 +269,15 @@ async def sql_migrate(
 
     # apply the migrations
     if not migrations_to_apply:
-        log.debug("migration.apply.skip", store=store, duration=monotime() - start)
+        log.debug("migrations.apply.skip", store=store, duration=monotime() - start)
         return []
     else:
         await _do_sql_migrate(
             cur, migrations_to_apply, is_upgrade=is_upgrade, is_global=is_global, store=store
         )
         log.debug(
-            "migration.apply.missing",
+            "migrations.apply",
+            cur=cur,
             migrations=migrations_to_apply,
             duration=monotime() - start,
             store=store,
@@ -314,7 +315,9 @@ async def _do_sql_migrate(
         try:
             await func(cur)
         except Exception as e:
-            logger.error("migration.apply.error", migration=migration, store=store, error=e)
+            logger.error(
+                "migration.apply.error", cur=cur, migration=migration, store=store, error=e
+            )
             raise
         if is_upgrade:
             migration.applied_at = now
@@ -322,6 +325,7 @@ async def _do_sql_migrate(
             migration.applied_at = None
         logger.debug(
             "migration.apply",
+            cur=cur,
             migration=migration,
             store=store,
             duration=monotime() - start,

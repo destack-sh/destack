@@ -88,7 +88,7 @@ _CONNECTION_STR_REGEX = re.compile(
 
 def get_pg_connection_str(store: Store, database: str | None = None) -> str:
     # TODO :Security :Scalability: route store clients/hosts better :StoreRouting
-    assert store.connection_uri, f"store {store!r} has no connection_url"
+    assert store.connection_uri, f"store {store!r} has no connection_uri"
     if database is not None:
         return store.connection_uri.rsplit("/", 1)[0] + "/" + database
     else:

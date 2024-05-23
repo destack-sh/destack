@@ -8,7 +8,7 @@ import structlog
 
 from bench.language.connection import StoreEngine
 from bench.language.const import InterpStatus, NodeType, SessionStatus, StructType, _active_session
-from bench.language.graph import NodeGraphLike
+from bench.language.graph import NodeDict, NodeGraphLike
 from bench.language.node import Node, Struct, node, struct, struct_component
 from bench.language.property import Property, p_internal, p_node_parent, p_runtime, p_system
 from bench.language.transaction import Transaction
@@ -22,7 +22,7 @@ from bench.proto.wire import (
     SupervisorStub,
 )
 from bench.utils.dt import utcnow
-from bench.utils.func import uuid_to_str
+from bench.utils.func import CriticalLock, uuid_to_str
 from bench.utils.uuidt import UUIDT
 
 if TYPE_CHECKING:
@@ -45,7 +45,7 @@ if TYPE_CHECKING:
 
 logger = structlog.get_logger(__name__)
 ExtendCommitHook = Callable[
-    [NodeGraphLike, list[EditData], list[EditData]], Awaitable[list[EditData]]
+    ["Session", NodeGraphLike, list[EditData], list[EditData]], Awaitable[list[EditData]]
 ]
 OnCommitHook = Callable[[NodeGraphLike, list[EditData], list[EditData]], Awaitable[None]]
 
@@ -88,9 +88,10 @@ class Session(Node[SessionData]):
     # transaction
     _is_readonly: bool = p_runtime(default=False)
     _is_suspended: bool = p_runtime(default=False)
+    _is_suppressed: bool = p_runtime(default=False)
     _origin: ClientOrigin | None = p_runtime(default=None)
     _tx: Transaction | None = p_runtime(default=None)
-    _tx_lock: asyncio.Lock = p_runtime(default_factory=asyncio.Lock)
+    _tx_lock: asyncio.Lock = p_runtime(default_factory=lambda: CriticalLock(name="session"))
     _edited_nodes_by_id: dict[UUID, Node] = p_runtime(default_factory=dict)
     _engines: tuple["StoreEngine", ...] = p_runtime(default_factory=tuple)
     _active_session_token: contextvars.Token | None = p_runtime(default=None)
@@ -170,32 +171,40 @@ class Session(Node[SessionData]):
             await self._tx.flush()
             return self._tx.edits, self._tx.cascaded_edits
 
-    async def commit(self, suppress_hooks: bool = False) -> tuple[list[EditData], list[EditData]]:
+    async def commit(
+        self, skip_lock: bool = False, suppress_hooks: bool = False
+    ) -> tuple[list[EditData], list[EditData]]:
         """Commits all edits. Returns *all* committed edits / cascaded edits, and resets."""
         assert self.is_open, f"cannot commit {self!r} when closed"
         assert self._tx is not None, f"no active transaction in {self!r}"
 
         if not self._tx.edits:
             return [], []  # nothing to do
-        elif suppress_hooks:
-            async with self._tx_lock:
-                # simple regular commit
+
+        try:
+            if not skip_lock:
+                await self._tx_lock.acquire()
+            if suppress_hooks:
+                # simple commit
                 edits, cascaded_edits = await self._tx.commit()
                 return edits, cascaded_edits
-        else:
-            async with self._tx_lock:
+            else:
                 # wrapped commit (used in Host)
+                edit_graph = NodeDict(self._edited_nodes_by_id)
                 if self._extend_commit_hook is not None:
                     # flush edits to get cascaded edits
                     edits, cascaded_edits = await self._tx.flush()
                     new_edits = await self._extend_commit_hook(
-                        self._edited_nodes_by_id, edits, cascaded_edits
+                        self, edit_graph, edits, cascaded_edits
                     )
                     self._tx._add_pending_edits(new_edits)
                 edits, cascaded_edits = await self._tx.commit()
                 if self._on_commit_hook is not None:
-                    await self._on_commit_hook(self._edited_nodes_by_id, edits, cascaded_edits)
+                    await self._on_commit_hook(edit_graph, edits, cascaded_edits)
                 return edits, cascaded_edits
+        finally:
+            if not skip_lock:
+                self._tx_lock.release()
 
     async def rollback(self):
         assert self.is_open, f"cannot rollback {self!r} when closed"
@@ -220,13 +229,21 @@ class Session(Node[SessionData]):
 
         logger.trace("session.close", session=self, duration=self.duration)
 
-    def suspend(self):
-        """Suspends the session, *ignoring* further edits."""
-        self._is_suspended = True
+    def suppress(self):
+        """Suppress any the session, *ignoring* further edits."""
+        self._is_suppressed = True
 
-    def resume(self):
-        """Resumes the session, accepting further edits."""
-        self._is_suspended = False
+    def unsuppress(self):
+        """Stop suppressing the session, accepting further edits."""
+        self._is_suppressed = False
+
+    def suspend(self):
+        """Suspend the session, *erroring* on further edits."""
+        self._is_readonly = True
+
+    def unsuspend(self):
+        """Stop suspending the session, allowing further edits."""
+        self._is_readonly = False
 
     async def __aenter__(self):
         await self.open()
@@ -276,40 +293,50 @@ class Session(Node[SessionData]):
 
     def create(self, *nodes: Node):
         """Creates a new node. Errors if the node already exists."""
-        assert self._tx is not None, f"no active transaction in {self!r}"
-        if not self._is_suspended:
+        if not self._is_suppressed:
+            assert self._tx is not None, f"no active transaction in {self!r}"
+            assert not self._is_readonly, f"cannot edit in readonly session {self!r}"
+            assert not self._is_suspended, f"cannot edit in suspended session {self!r}"
             for n in nodes:
                 self._edited_nodes_by_id[n.id] = n
                 self._tx.create(n, self._edit_subject)
 
     def upsert(self, *nodes: Node):
         """Creates or updates a node. Any non-id properties will be overwritten."""
-        assert self._tx is not None, f"no active transaction in {self!r}"
-        if not self._is_suspended:
+        if not self._is_suppressed:
+            assert self._tx is not None, f"no active transaction in {self!r}"
+            assert not self._is_readonly, f"cannot edit in readonly session {self!r}"
+            assert not self._is_suspended, f"cannot edit in suspended session {self!r}"
             for n in nodes:
                 self._edited_nodes_by_id[n.id] = n
                 self._tx.upsert(n, self._edit_subject)
 
     def update(self, *nodes: Node, properties: Collection[Property]):
         """Updates an existing node. Cannot move. The given properties are overwritten."""
-        assert self._tx is not None, f"no active transaction in {self!r}"
-        if not self._is_suspended:
+        if not self._is_suppressed:
+            assert self._tx is not None, f"no active transaction in {self!r}"
+            assert not self._is_readonly, f"cannot edit in readonly session {self!r}"
+            assert not self._is_suspended, f"cannot edit in suspended session {self!r}"
             for n in nodes:
                 self._edited_nodes_by_id[n.id] = n
                 self._tx.update(n, self._edit_subject, properties)
 
     def move(self, *nodes: Node):
         """Moves and updates an existing node."""
-        assert self._tx is not None, f"no active transaction in {self!r}"
-        if not self._is_suspended:
+        if not self._is_suppressed:
+            assert self._tx is not None, f"no active transaction in {self!r}"
+            assert not self._is_readonly, f"cannot edit in readonly session {self!r}"
+            assert not self._is_suspended, f"cannot edit in suspended session {self!r}"
             for n in nodes:
                 self._edited_nodes_by_id[n.id] = n
                 self._tx.move(n, self._edit_subject)
 
     def soft_delete(self, *nodes: Node):
         """Deletes a node with the option to recover it for a limited time."""
-        assert self._tx is not None, f"no active transaction in {self!r}"
-        if not self._is_suspended:
+        if not self._is_suppressed:
+            assert self._tx is not None, f"no active transaction in {self!r}"
+            assert not self._is_readonly, f"cannot edit in readonly session {self!r}"
+            assert not self._is_suspended, f"cannot edit in suspended session {self!r}"
             for n in nodes:
                 self._edited_nodes_by_id[n.id] = n
                 # descendants will be removed from graph, so track them manually
@@ -319,16 +346,20 @@ class Session(Node[SessionData]):
 
     def restore(self, *nodes: Node):
         """Restore a soft deleted node."""
-        assert self._tx is not None, f"no active  transaction in {self!r}"
-        if not self._is_suspended:
+        if not self._is_suppressed:
+            assert self._tx is not None, f"no active  transaction in {self!r}"
+            assert not self._is_readonly, f"cannot edit in readonly session {self!r}"
+            assert not self._is_suspended, f"cannot edit in suspended session {self!r}"
             for n in nodes:
                 self._edited_nodes_by_id[n.id] = n
                 self._tx.restore(n, self._edit_subject)
 
     def archive(self, *nodes: Node):
         """Marks a node as archived, so it will be hidden by default."""
-        assert self._tx is not None, f"no active transaction in {self!r}"
-        if not self._is_suspended:
+        if not self._is_suppressed:
+            assert self._tx is not None, f"no active transaction in {self!r}"
+            assert not self._is_readonly, f"cannot edit in readonly session {self!r}"
+            assert not self._is_suspended, f"cannot edit in suspended session {self!r}"
             for n in nodes:
                 self._edited_nodes_by_id[n.id] = n
                 # descendants will be removed from graph, so track them manually
@@ -338,16 +369,20 @@ class Session(Node[SessionData]):
 
     def unarchive(self, *nodes: Node):
         """Re-track a node from the archive in its original place."""
-        assert self._tx is not None, f"no active transaction in {self!r}"
-        if not self._is_suspended:
+        if not self._is_suppressed:
+            assert self._tx is not None, f"no active transaction in {self!r}"
+            assert not self._is_readonly, f"cannot edit in readonly session {self!r}"
+            assert not self._is_suspended, f"cannot edit in suspended session {self!r}"
             for n in nodes:
                 self._edited_nodes_by_id[n.id] = n
                 self._tx.unarchive(n, self._edit_subject)
 
     def hard_delete(self, *nodes: Node):
         """Irreversibly deletes a node."""
-        assert self._tx is not None, f"no active transaction in {self!r}"
-        if not self._is_suspended:
+        if not self._is_suppressed:
+            assert self._tx is not None, f"no active transaction in {self!r}"
+            assert not self._is_readonly, f"cannot edit in readonly session {self!r}"
+            assert not self._is_suspended, f"cannot edit in suspended session {self!r}"
             for n in nodes:
                 self._edited_nodes_by_id[n.id] = n
                 # descendants will be removed from graph, so track them manually

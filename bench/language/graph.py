@@ -481,7 +481,27 @@ class DetachedNodeGraph(NodeGraphBase[NodeT, UUID]):
             return descendants
 
 
-NodeGraphLike = Union[NodeGraph["Node"], DetachedNodeGraph["Node"], dict[UUID, "Node"]]
+class NodeDict:
+    """A simple graph-like wrapper for a dict of nodes that has some of the same methods."""
+
+    def __init__(self, nodes_by_id: dict[UUID, "Node"]):
+        self._nodes_by_id = nodes_by_id
+
+    @property
+    def nodes(self):
+        return self._nodes_by_id.values()
+
+    def __getitem__(self, item: UUID) -> "Node":
+        return self._nodes_by_id[item]
+
+    def __contains__(self, item: UUID) -> bool:
+        return item in self._nodes_by_id
+
+    def get(self, item: UUID) -> "Node":
+        return self._nodes_by_id[item]
+
+
+NodeGraphLike = Union[NodeGraph["Node"], DetachedNodeGraph["Node"], NodeDict]
 
 
 def extract_name_id(name: str) -> Optional[int]:

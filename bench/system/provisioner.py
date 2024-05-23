@@ -32,85 +32,84 @@ class Provisioner[PT: Resource, WT: Resource](DeferredHostPlugin[WT], abc.ABC):
     provision_types: ClassVar[bittuple[NodeType]]
 
     @override
-    async def start(self, session: Session) -> None:
-        await super().start(session)
-
+    async def start(self) -> None:
+        # check resources
         resources = tuple(
             cast(PT, r) for r in self._bench.resources if r.metatype in self.provision_types
         )
         for resource in resources:
             # provision newly declared resources
             if resource.status == ResourceStatus.DECLARED:
-                await self.provision(session, resource)
-                await session.commit()
+                await self.provision(resource)
             # 'update' other resources
             else:
                 # auto migrate resources to current version
                 # NOTE :Robustness: unsure when to migrate resources
                 if "version" in resource.__properties__ and getattr(resource, "version") != VERSION:
                     setattr(resource, "version", VERSION)
-                await self.update(session, resource)
-                await session.commit()
+                await self.update(resource)
+
+        # then start watching
+        #  (Starting watch after above is important because there is no lock between this and on_commit_deferred,
+        #   and we assume exclusivity in the provisioning methods. Host plugins starts the queue in .. start).
+        await super().start()
 
     @override
-    async def _on_commit_deferred(self, session: Session, commit: Commit[WT]) -> None:
+    async def on_commit_deferred(self, commit: Commit[WT]) -> None:
         # handle edit by updating resource
         if commit.has(self.provision_types):
             subcommit = cast(Commit[PT], commit.trim_to(self.provision_types))
             for resource in subcommit.added:
                 if resource.status == ResourceStatus.DECLARED:
-                    await self.provision(session, resource)
-                    await session.commit()
+                    await self.provision(resource)
             for resource in subcommit.updated:
                 if resource.status.is_extant:
-                    await self.update(session, resource)
-                    await session.commit()
+                    await self.update(resource)
             for resource in subcommit.removed:
                 if resource.status.is_extant:
-                    await self.decommission(session, resource)
-                    await session.commit()
+                    await self.decommission(resource)
 
     @final
-    async def provision(self, session: Session, resource: PT):
+    async def provision(self, resource: PT):
         """Provision the resource."""
         try:
             start = monotime()
-            await self._provision(session, resource)
+            await self._provision(resource)
             logger.info("resource.provision", resource=resource, duration=monotime() - start)
         except Exception as e:
             logger.error("resource.provision.error", resource=resource, error=e, exc_info=True)
             raise
 
     @abc.abstractmethod
-    async def _provision(self, session: Session, resource: PT): ...
+    async def _provision(self, resource: PT): ...
 
     @final
-    async def update(self, session: Session, resource: PT):
+    async def update(self, resource: PT):
         """Update the resource properties."""
         try:
             start = monotime()
-            await self._update(session, resource)
+            await self._update(resource)
             logger.trace("resource.update", resource=resource, duration=monotime() - start)
         except Exception as e:
             logger.error("resource.update.error", resource=resource, error=e, exc_info=True)
             raise
 
-    async def _update(self, session: Session, resource: PT):
+    async def _update(self, resource: PT):
         pass
 
     @final
-    async def decommission(self, session: Session, resource: PT):
+    async def decommission(self, resource: PT):
         """Decommission the resource."""
         try:
             start = monotime()
-            await self._decommission(session, resource)
+            await self._decommission(resource)
             logger.info("resource.decommission", resource=resource, duration=monotime() - start)
         except Exception as e:
             logger.error("resource.decommission.error", resource=resource, error=e, exc_info=True)
             raise
 
     @abc.abstractmethod
-    async def _decommission(self, session: Session, resource: PT): ...
+    async def _decommission(self, resource: PT): ...
 
 
 class NeonStoreProvisioner(Provisioner[Store, Store]):
@@ -125,43 +124,46 @@ class NeonStoreProvisioner(Provisioner[Store, Store]):
 
     async def _migrate(self, resource: Store):
         assert resource.version, f"{resource!r} has no version"
-        try:
-            start = monotime()
-            async with pg_cursor_to_store(resource) as cur:
-                await sql_migrate(cur, target=resource.version, is_global=False, store=resource)
-                await cur.connection.commit()
+        async with pg_cursor_to_store(resource) as cur:
+            await sql_migrate(cur, target=resource.version, is_global=False, store=resource)
+            await cur.connection.commit()
+        async with self._host.session(autocommit=True):
             resource.current_version = resource.version
-            logger.info("resource.migrate", resource=resource, duration=monotime() - start)
-        except Exception as e:
-            logger.error("resource.migrate.error", resource=resource, error=e, exc_info=True)
-            raise
 
     @override
-    async def _provision(self, session: Session, resource: Store):
+    async def _provision(self, resource: Store):
+        # need a name
         if resource.external_name is None:
-            assert resource.bench_id, f"{resource!r} has no bench"
-            resource.external_name = f"{ENVIRONMENT}-{resource.bench_id}"
+            async with self._host.session(autocommit=True):
+                assert resource.bench_id, f"{resource!r} has no bench"
+                resource.external_name = f"{ENVIRONMENT}-{resource.bench_id}"
+
+        # create project
         neon_project = await self._neon_api.create_project(
             name=resource.external_name, region=resource.region, pg_version=16
         )
-        resource.external_id = neon_project.project_id
-        resource.connection_uri = neon_project.connection_uri
-        if not resource.version:
-            resource.version = VERSION
+        async with self._host.session(autocommit=True):
+            resource.external_id = neon_project.project_id
+            resource.connection_uri = neon_project.connection_uri
+            if not resource.version:
+                resource.version = VERSION
+            resource.status = ResourceStatus.HEALTHY
+
+        # migrate immediately
         await self._migrate(resource)
-        resource.status = ResourceStatus.HEALTHY
 
     @override
-    async def _update(self, session: Session, resource: Store):
-        assert resource.current_version, f"{resource!r} has no current version"
+    async def _update(self, resource: Store):
+        # migrate
         if resource.version != resource.current_version:
             await self._migrate(resource)
 
     @override
-    async def _decommission(self, session: Session, resource: Store):
+    async def _decommission(self, resource: Store):
         assert resource.external_id, f"{resource!r} has no external ID"
         await self._neon_api.delete_project(project_id=resource.external_id)
-        resource.status = ResourceStatus.DECOMMISSIONED
+        async with self._host.session(autocommit=True):
+            resource.status = ResourceStatus.DECOMMISSIONED
 
 
 class ElasticServerProvisioner(Provisioner[Server, Server | Machine]):
@@ -174,33 +176,37 @@ class ElasticServerProvisioner(Provisioner[Server, Server | Machine]):
 
     @override
     async def _on_commit(self, session: Session, commit: Commit[Server | Machine]) -> None:
-        if commit.has(NodeType.MACHINE):
-            # mark server as healthy/unhealthy based on its machines
-            subcommit = cast(Commit[Machine], commit.trim_to(NodeType.MACHINE))
-            servers = {machine.parent.id: machine.parent for machine in subcommit.edited}
-            for server in servers.values():
-                all_healthy = all(
-                    machine.status == ResourceStatus.HEALTHY for machine in server.machines
-                )
-                if all_healthy and server.status != ResourceStatus.HEALTHY:
-                    server.status = ResourceStatus.HEALTHY
-                elif not all_healthy and server.status == ResourceStatus.HEALTHY:
-                    server.status = ResourceStatus.UNHEALTHY
+        if not commit.has(NodeType.MACHINE):
+            return
+
+        # mark server as healthy/unhealthy based on its machines
+        subcommit = cast(Commit[Machine], commit.trim_to(NodeType.MACHINE))
+        servers = {machine.parent.id: machine.parent for machine in subcommit.edited}
+        for server in servers.values():
+            all_healthy = all(
+                machine.status == ResourceStatus.HEALTHY for machine in server.machines
+            )
+            if all_healthy and server.status != ResourceStatus.HEALTHY:
+                server.status = ResourceStatus.HEALTHY
+            elif not all_healthy and server.status == ResourceStatus.HEALTHY:
+                server.status = ResourceStatus.UNHEALTHY
 
     @override
-    async def _provision(self, session: Session, resource: Server):
-        machine = Machine(name="Machine1", region=resource.region, profile=MachineProfile.TINY)
-        resource.machines.append(machine)
-        resource.status = ResourceStatus.PROVISIONING
+    async def _provision(self, resource: Server):
+        async with self._host.session(autocommit=True):
+            machine = Machine(name="Machine1", region=resource.region, profile=MachineProfile.TINY)
+            resource.machines.append(machine)
+            resource.status = ResourceStatus.PROVISIONING
 
     @override
-    async def _update(self, session: Session, resource: Server):
+    async def _update(self, resource: Server):
         pass  # see above
 
     @override
-    async def _decommission(self, session: Session, resource: Server):
+    async def _decommission(self, resource: Server):
         # nothing special, child machines are automatically removed too
-        resource.status = ResourceStatus.DECOMMISSIONED
+        async with self._host.session(autocommit=True):
+            resource.status = ResourceStatus.DECOMMISSIONED
 
 
 class LocalhostMachineProvisioner(Provisioner[Machine, Machine]):
@@ -214,13 +220,15 @@ class LocalhostMachineProvisioner(Provisioner[Machine, Machine]):
         self._local_machine_url = local_machine_url
 
     @override
-    async def _provision(self, session: Session, resource: Machine):
-        resource.connection_uri = self._local_machine_url
-        resource.status = ResourceStatus.HEALTHY
+    async def _provision(self, resource: Machine):
+        async with self._host.session(autocommit=True):
+            resource.connection_uri = self._local_machine_url
+            resource.status = ResourceStatus.HEALTHY
 
     @override
-    async def _decommission(self, session: Session, resource: Machine):
-        resource.status = ResourceStatus.DECOMMISSIONED
+    async def _decommission(self, resource: Machine):
+        async with self._host.session(autocommit=True):
+            resource.status = ResourceStatus.DECOMMISSIONED
 
 
 class DockerMachineProvisioner(Provisioner[Machine, Machine]):
@@ -250,12 +258,14 @@ class S3DriveProvisioner(Provisioner[Drive, Drive]):
     # TODO :Incomplete: S3DriveProvisioner
 
     @override
-    async def _provision(self, session: Session, resource: Drive):
-        resource.status = ResourceStatus.HEALTHY
+    async def _provision(self, resource: Drive):
+        async with self._host.session(autocommit=True):
+            resource.status = ResourceStatus.HEALTHY
 
     @override
-    async def _decommission(self, session: Session, resource: Drive):
-        resource.status = ResourceStatus.DECOMMISSIONED
+    async def _decommission(self, resource: Drive):
+        async with self._host.session(autocommit=True):
+            resource.status = ResourceStatus.DECOMMISSIONED
 
 
 def get_provisioners_for(host: HostSpec, bench: Bench) -> list[Provisioner]:
