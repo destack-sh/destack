@@ -142,7 +142,7 @@ async def make_some_bench(supervisor: SupervisorStub, host: HostStub):
         for resource in bench.resources:
             for provisioner in provisioners:
                 if resource.metatype in provisioner.provision_types:
-                    await provisioner.decommission(resource)
+                    await provisioner.decommission(session, resource)
                     break
             else:
                 raise RuntimeError(f"no provisioner for {resource!r} in {provisioners!r}")

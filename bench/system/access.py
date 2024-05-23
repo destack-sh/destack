@@ -122,9 +122,10 @@ async def _get_badges_from_metadata(metadata: RpcMetadata) -> list[Badge]:
 
 
 async def get_subject_from_metadata(metadata: RpcMetadata) -> Subject:
-    async with global_session():
+    async with global_session() as session:
         client = await _get_client_from_metadata(metadata)
         badges = await _get_badges_from_metadata(metadata)
+        session.untrack_many(client, *badges)
         if client is None:
             return Subject(is_authenticated=False, badges=badges)
         elif client.parent_type == NodeType.USER:

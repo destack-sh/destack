@@ -18,6 +18,8 @@ from bench.utils.utils import get_from_env
 AsyncConnectionPool._warn_open_async = lambda *args, **kwargs: None  # type: ignore
 
 GLOBAL_PG_CRYPTO_KEY = get_from_env("GLOBAL_PG_CRYPTO_KEY", default=None)
+PG_CONNECT_TIMEOUT = get_from_env("PG_CONNECT_TIMEOUT", typ=int, default=10)
+PG_RECONNECT_TIMEOUT = get_from_env("PG_RECONNECT_TIMEOUT", typ=int, default=20)
 
 logger = structlog.get_logger(__name__)
 _connection_pools: dict[str, AsyncConnectionPool] = {}
@@ -68,8 +70,8 @@ async def get_pg_connection_pool(connection_str: str) -> AsyncConnectionPool:
             min_size=1,
             max_size=4,
             max_idle=60 * 60,
-            timeout=5,
-            reconnect_timeout=5,
+            timeout=PG_CONNECT_TIMEOUT,
+            reconnect_timeout=PG_RECONNECT_TIMEOUT,
             connection_class=psycopg.AsyncConnection,
             kwargs={"row_factory": dict_row},
             name=f"{match['username']}@{match['host']}/{match['database']}",

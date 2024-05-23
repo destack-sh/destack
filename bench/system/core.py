@@ -221,11 +221,10 @@ class HostSpec(abc.ABC):
         """Get a *loaded* Package."""
         ...
 
+    @property
     @abc.abstractmethod
-    def session(
-        self, *, scope: GraphScope | None = None, engines: tuple[StoreEngine, ...] | None = None
-    ) -> Session:
-        """Create a new Session in the Host with the given (or default) scope."""
+    def session(self) -> Session:
+        """Gets the Session for interacting with the Host."""
         ...
 
 
@@ -240,10 +239,9 @@ class _DeadHost(HostSpec):
     def get_package(self, package_id: UUID) -> None:
         raise NotImplementedError("dead host")
 
+    @property
     @override
-    def session(
-        self, *, scope: GraphScope | None = None, engines: tuple[StoreEngine, ...] | None = None
-    ) -> Session:
+    def session(self) -> Session:
         raise NotImplementedError("dead host")
 
 
@@ -356,9 +354,8 @@ class DeferredHostPlugin[T: Node](HostPlugin, abc.ABC):
         React to the committed changes (outside the request, later).
         NOTE :Robustness: the nodes in each commit may change before this is called
         """
-        async with self._host.session() as session:
-            await self._on_commit_deferred(session, commit)
-            await session.commit()
+        await self._on_commit_deferred(self._host.session, commit)
+        await self._host.session.commit()
 
     async def _on_commit_deferred(self, session: Session, commit: Commit) -> None:
         pass

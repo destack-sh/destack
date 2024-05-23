@@ -337,7 +337,7 @@ def _check_value_scalar(
                 if typ.constraint.regex is not None and not re.match(typ.constraint.regex, value):
                     raise TypeError(f"{value!r} does not match {typ.constraint.regex!r}", typ)
     elif typ.kind == TypeKind.NODE or typ.kind == TypeKind.BASED_NODE:
-        if not getattr(cast("Node", value), "__is_node__", False):
+        if not getattr(type(cast("Node", value)), "__is_node__", False):
             invalid(value, "not a Node", typ)
         elif cast("Node", value).metatype != typ.bench_type and (
             typ._from_property is None

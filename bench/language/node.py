@@ -158,8 +158,6 @@ class _ComponentMethod(enum.Enum):
     interp = "interp"
     validate = "validate"
     updated = "updated"
-    track = "track"
-    untrack = "untrack"
 
     @property
     def inner(self) -> str:
@@ -1056,10 +1054,9 @@ class Struct(abc.ABC, Generic[StructDataT]):
             # validate/set
             if is_tracked:
                 # coerce & check type
-                typ = prop.type_info
-                if typ is not None:  # don't run while still setting up
-                    value = coerce_value(value, typ, self, prop, prop)
-                    check_value(value, typ, invalid=on_invalid_raise)
+                if prop.type_info is not None and prop.reference_source is None:
+                    value = coerce_value(value, prop.type_info, self, prop, prop)
+                    check_value(value, prop.type_info, invalid=on_invalid_raise)
                 prev = self.__dict__.get(key)
                 object.__setattr__(self, key, value)
                 try:
@@ -1204,7 +1201,7 @@ class Struct(abc.ABC, Generic[StructDataT]):
         if properties == ():
             properties = self.__tracked_properties__.values()
         for prop in properties:
-            if prop.type_info is not None:
+            if prop.type_info is not None and prop.reference_source is None:
                 value = self.__dict__.get(prop.name)
                 check_value(value, prop.type_info, invalid=invalid)
 
@@ -1704,15 +1701,6 @@ class Node(Struct[NodeDataT], Generic[NodeDataT]):
     # The :ComponentMethods
     #
 
-    def _track_component(self, session: "Session") -> None:
-        """Track this object in the given session."""
-        self._session = session
-        self._status = InterpStatus.TRACKED
-
-    def _untrack_component(self) -> None:
-        """Stop tracking this object."""
-        self._session = None
-
     def __bool__(self):
         return True  # allow truthy checks for nodes
 
@@ -1730,7 +1718,7 @@ class Node(Struct[NodeDataT], Generic[NodeDataT]):
                     existing_lists = {}
                 existing_lists[name] = existing
 
-        # run actual init methods
+        # run component inits
         for meth in _get_component_methods(
             self._components, _ComponentMethod.init, self._instance_cache_key
         ):
@@ -1757,7 +1745,7 @@ class Node(Struct[NodeDataT], Generic[NodeDataT]):
         for struct in self._walk_struct():
             if struct is not self:
                 struct._interp_self(scope, notice)
-        # and the rest
+        # and the component interps
         for meth in _get_component_methods(
             self._components, _ComponentMethod.interp, self._instance_cache_key
         ):
@@ -1766,17 +1754,16 @@ class Node(Struct[NodeDataT], Generic[NodeDataT]):
 
     @final
     def _track_self(self, session: "Session"):
-        for meth in _get_component_methods(
-            self._components, _ComponentMethod.track, self._instance_cache_key
-        ):
-            meth(self, session)
+        """Track this object in the given session."""
+        if self._session is not None and self._session is not session:
+            raise RuntimeError(f"{self!r} is already in {self._session!r}, not {session!r}")
+        self._session = session
+        self._status = InterpStatus.TRACKED
 
     @final
-    def _untrack_self(self):
-        for meth in _get_component_methods(
-            self._components, _ComponentMethod.untrack, self._instance_cache_key
-        ):
-            meth(self)
+    def _untrack_self(self) -> None:
+        """Stop tracking this object."""
+        self._session = None
         self._status = InterpStatus.INTERPED
 
     @final
