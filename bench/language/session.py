@@ -102,13 +102,20 @@ class Session(Node[SessionData]):
     _host: Optional["HostStub"] = p_runtime(default=None)
 
     def __content_str__(self):
+        status_strs = []
         if self.closed_at:
-            status_str = "closed"
+            status_strs.append("closed")
         elif self.opened_at:
-            status_str = "open"
+            status_strs.append("open")
         else:
-            status_str = "pending"
-        return f"{status_str}, tx={self._tx or '<no tx>'}"
+            status_strs.append("declared")
+        if self._is_readonly:
+            status_strs.append("readonly")
+        if self._is_suspended:
+            status_strs.append("suspended")
+        if self._is_suppressed:
+            status_strs.append("suppressed")
+        return f"{', '.join(status_strs)}, tx={self._tx or '<no tx>'}"
 
     def _init_component(self) -> None:
         self._session = self
@@ -311,8 +318,7 @@ class Session(Node[SessionData]):
         """Creates a new node. Errors if the node already exists."""
         if not self._is_suppressed:
             assert self._tx is not None, f"no active transaction in {self!r}"
-            assert not self._is_readonly, f"cannot edit in readonly session {self!r}"
-            assert not self._is_suspended, f"cannot edit in suspended session {self!r}"
+            assert not self._is_readonly and not self._is_suspended, f"cannot edit in {self!r}"
             for n in nodes:
                 self._edited_nodes_by_id[n.id] = n
                 self._tx.create(n, self._edit_subject)
@@ -321,8 +327,7 @@ class Session(Node[SessionData]):
         """Creates or updates a node. Any non-id properties will be overwritten."""
         if not self._is_suppressed:
             assert self._tx is not None, f"no active transaction in {self!r}"
-            assert not self._is_readonly, f"cannot edit in readonly session {self!r}"
-            assert not self._is_suspended, f"cannot edit in suspended session {self!r}"
+            assert not self._is_readonly and not self._is_suspended, f"cannot edit in {self!r}"
             for n in nodes:
                 self._edited_nodes_by_id[n.id] = n
                 self._tx.upsert(n, self._edit_subject)
@@ -331,8 +336,7 @@ class Session(Node[SessionData]):
         """Updates an existing node. Cannot move. The given properties are overwritten."""
         if not self._is_suppressed:
             assert self._tx is not None, f"no active transaction in {self!r}"
-            assert not self._is_readonly, f"cannot edit in readonly session {self!r}"
-            assert not self._is_suspended, f"cannot edit in suspended session {self!r}"
+            assert not self._is_readonly and not self._is_suspended, f"cannot edit in {self!r}"
             for n in nodes:
                 self._edited_nodes_by_id[n.id] = n
                 self._tx.update(n, self._edit_subject, properties)
@@ -341,8 +345,7 @@ class Session(Node[SessionData]):
         """Moves and updates an existing node."""
         if not self._is_suppressed:
             assert self._tx is not None, f"no active transaction in {self!r}"
-            assert not self._is_readonly, f"cannot edit in readonly session {self!r}"
-            assert not self._is_suspended, f"cannot edit in suspended session {self!r}"
+            assert not self._is_readonly and not self._is_suspended, f"cannot edit in {self!r}"
             for n in nodes:
                 self._edited_nodes_by_id[n.id] = n
                 self._tx.move(n, self._edit_subject)
@@ -351,8 +354,7 @@ class Session(Node[SessionData]):
         """Deletes a node with the option to recover it for a limited time."""
         if not self._is_suppressed:
             assert self._tx is not None, f"no active transaction in {self!r}"
-            assert not self._is_readonly, f"cannot edit in readonly session {self!r}"
-            assert not self._is_suspended, f"cannot edit in suspended session {self!r}"
+            assert not self._is_readonly and not self._is_suspended, f"cannot edit in {self!r}"
             for n in nodes:
                 self._edited_nodes_by_id[n.id] = n
                 # descendants will be removed from graph, so track them manually
@@ -364,8 +366,7 @@ class Session(Node[SessionData]):
         """Restore a soft deleted node."""
         if not self._is_suppressed:
             assert self._tx is not None, f"no active  transaction in {self!r}"
-            assert not self._is_readonly, f"cannot edit in readonly session {self!r}"
-            assert not self._is_suspended, f"cannot edit in suspended session {self!r}"
+            assert not self._is_readonly and not self._is_suspended, f"cannot edit in {self!r}"
             for n in nodes:
                 self._edited_nodes_by_id[n.id] = n
                 self._tx.restore(n, self._edit_subject)
@@ -374,8 +375,7 @@ class Session(Node[SessionData]):
         """Marks a node as archived, so it will be hidden by default."""
         if not self._is_suppressed:
             assert self._tx is not None, f"no active transaction in {self!r}"
-            assert not self._is_readonly, f"cannot edit in readonly session {self!r}"
-            assert not self._is_suspended, f"cannot edit in suspended session {self!r}"
+            assert not self._is_readonly and not self._is_suspended, f"cannot edit in {self!r}"
             for n in nodes:
                 self._edited_nodes_by_id[n.id] = n
                 # descendants will be removed from graph, so track them manually
@@ -387,8 +387,7 @@ class Session(Node[SessionData]):
         """Re-track a node from the archive in its original place."""
         if not self._is_suppressed:
             assert self._tx is not None, f"no active transaction in {self!r}"
-            assert not self._is_readonly, f"cannot edit in readonly session {self!r}"
-            assert not self._is_suspended, f"cannot edit in suspended session {self!r}"
+            assert not self._is_readonly and not self._is_suspended, f"cannot edit in {self!r}"
             for n in nodes:
                 self._edited_nodes_by_id[n.id] = n
                 self._tx.unarchive(n, self._edit_subject)
@@ -397,8 +396,7 @@ class Session(Node[SessionData]):
         """Irreversibly deletes a node."""
         if not self._is_suppressed:
             assert self._tx is not None, f"no active transaction in {self!r}"
-            assert not self._is_readonly, f"cannot edit in readonly session {self!r}"
-            assert not self._is_suspended, f"cannot edit in suspended session {self!r}"
+            assert not self._is_readonly and not self._is_suspended, f"cannot edit in {self!r}"
             for n in nodes:
                 self._edited_nodes_by_id[n.id] = n
                 # descendants will be removed from graph, so track them manually

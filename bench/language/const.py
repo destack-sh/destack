@@ -920,7 +920,7 @@ class NotificationKind(IdEnum):
 
 
 #
-# Other common non-const stuff
+# Other global stuff
 #
 
 
@@ -945,6 +945,11 @@ def active_session() -> "Session":
     return session
 
 
+def get_active_session() -> Optional["Session"]:
+    """Gets the currently active Session (if any)."""
+    return _active_session.get()
+
+
 def active_bench() -> "Bench":
     """Gets the Bench of the currently active Session"""
     session = _active_session.get()
@@ -953,9 +958,25 @@ def active_bench() -> "Bench":
     return session.bench
 
 
+def get_active_bench() -> Optional["Bench"]:
+    """Gets the Bench of the currently active Session (if any)."""
+    session = _active_session.get()
+    if session is None:
+        return None
+    return session.bench
+
+
 def active_tx() -> "Transaction":
     """Gets the currently active Transaction (error if none)."""
     session = _active_session.get()
     assert session is not None, "no active session"
     assert session._tx is not None, f"no active transaction in {session!r}"
+    return session._tx
+
+
+def get_active_tx() -> Optional["Transaction"]:
+    """Gets the currently active Transaction (if any)."""
+    session = _active_session.get()
+    if session is None:
+        return None
     return session._tx

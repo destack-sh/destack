@@ -199,8 +199,9 @@ class Host(GraphIoServiceBase, HostBase, HostSpec):
         self._engines: tuple[StoreEngine, ...] = ()
         self._main_package: Package | None = None
         self._packages: dict[UUID, Package] = {}
-        self._session: Session | None = None
 
+        # processing
+        self._session: Session | None = None
         self._provisioners: tuple[Provisioner, ...] = ()
         self._plugins: tuple[HostPlugin, ...] = ()  # incl. provisioners
         self._runs_to_queue: asyncio.Queue[Run] = asyncio.Queue()
@@ -243,8 +244,7 @@ class Host(GraphIoServiceBase, HostBase, HostSpec):
     @override
     @asynccontextmanager
     async def session(self, *, readonly: bool = False, autocommit: bool = False):
-        # outside .start, we linearize access to the Hosts object by suspending the session
-        # unless you acquire it explicitly via Host.session :ExclusiveHostSession
+        """Gets exclusive query and edit access to the main session. :ExclusiveHostSession"""
         async with self._tx_lock:
             assert self._session is not None, f"session not ready in {self!r}"
             was_readonly = self._session._is_readonly

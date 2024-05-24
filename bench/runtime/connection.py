@@ -1,19 +1,24 @@
+import abc
 import asyncio
-from typing import Self, cast
+from typing import cast, override
 
 import structlog
 
-from bench.language.const import NodeType
+from bench.language.bench import Bench, Package
+from bench.language.const import NodeType, get_active_session
 from bench.language.graph import edit_graph
 from bench.language.node import Node
 from bench.language.query import QueryBuilder
+from bench.language.session import Session
 from bench.proto import wire
 from bench.proto.monkey import _PatchedRpcMetadata
 from bench.proto.wire import (
     AnyNodeData,
+    BenchData,
     GraphIoStub,
     GraphScope,
     HostStub,
+    PackageData,
     RpcMetadata,
     SupervisorStub,
     WatchEditsRequest,
@@ -23,22 +28,84 @@ from bench.utils.tenacity import RetryOptions
 logger = structlog.get_logger(__name__)
 
 
-class ConnectedQuery[NodeT: Node, NodeDataT: AnyNodeData]:
-    """A live connected query result that auto-reconnects correctly on error."""
+class QueryConnector(abc.ABC):
+    """A factory for connected queries."""
+
+    @abc.abstractmethod
+    async def connect[
+        NodeT: Node, NodeDataT: AnyNodeData
+    ](
+        self, query: QueryBuilder[NodeT, NodeDataT], tx_lock: asyncio.Lock, session: Session
+    ) -> "ConnectedQuery[NodeT, NodeDataT]":
+        """Create a connected query."""
+        ...
+
+
+class ConnectedQuery[NodeT: Node, NodeDataT: AnyNodeData](abc.ABC):
+    """A live query result."""
 
     def __init__(
         self,
         *,
         query: QueryBuilder[NodeT, NodeDataT],
+        tx_lock: asyncio.Lock,
+        session: Session,
+    ):
+        self._query = query
+        self._tx_lock = tx_lock
+        self._session = session
+        self._node: NodeT | None = None
+
+    @property
+    @abc.abstractmethod
+    def has_result(self) -> bool:
+        """Whether the query has a current result."""
+        ...
+
+    @property
+    @abc.abstractmethod
+    def node(self) -> NodeT:
+        """The current result of the query (if any)."""
+        ...
+
+    def migrate(self, session: Session):
+        """Migrate the query to a new session."""
+        if self._node is not None:
+            self._node._untrack_rec()
+            self._node._track_rec(session)
+        self._session = session
+
+    @abc.abstractmethod
+    async def start(self) -> None:
+        """Start the connection. Returns as soon as the connection is established (has a result)."""
+        ...
+
+    def close(self):
+        """Stop the live connection. The result (if any) will remain."""
+        ...
+
+    async def wait_closed(self):
+        """Wait for the connection to be fully closed."""
+        ...
+
+
+class RemoteQuery[NodeT: Node, NodeDataT: AnyNodeData](ConnectedQuery[NodeT, NodeDataT]):
+    """Connect to a remote graph for a live query."""
+
+    def __init__(
+        self,
+        *,
+        query: QueryBuilder[NodeT, NodeDataT],
+        tx_lock: asyncio.Lock,
+        session: Session,
         remote: GraphIoStub | HostStub | SupervisorStub,
         scope: GraphScope,
         rpc_metadata: RpcMetadata,
         retry: RetryOptions = RetryOptions(),
     ):
-        self._query = query
+        super().__init__(query=query, tx_lock=tx_lock, session=session)
         self._remote = remote
         self._scope = scope
-        self._node: NodeT | None = None
         self._has_result: asyncio.Event = asyncio.Event()
         self._is_closed: bool = False
         self._is_paused: bool = False
@@ -47,16 +114,19 @@ class ConnectedQuery[NodeT: Node, NodeDataT: AnyNodeData]:
         self._connect_task: asyncio.Task[None] | None = None
 
     @property
+    def has_result(self) -> bool:
+        return self._node is not None
+
+    @property
     def node(self) -> NodeT:
         assert self._node is not None, "query has no current result"
         return self._node
 
-    async def connect(self) -> Self:
-        """Start the connection. Returns as soon as the connection is established (has a result)."""
+    async def start(self) -> None:
         assert self._connect_task is None, "already connected"
+        assert get_active_session() is self._session, f"must be in context of {self._session!r}"
         self._connect_task = asyncio.create_task(self._do_connect())
         await self._has_result.wait()
-        return self
 
     async def _do_connect(self) -> None:
         """Runs the core connection loop forever (or until closed)."""
@@ -77,7 +147,7 @@ class ConnectedQuery[NodeT: Node, NodeDataT: AnyNodeData]:
                     self._node._read_info is not None and self._node._read_info.epoch is not None
                 ), f"need read info for {self._node!r} from {self._query!r}: {self._node._read_info!r}"
                 self._has_result.set()
-                logger.debug("query.connected", query=self._query, node=self._node)
+                logger.debug("query.connect", query=self._query, node=self._node)
 
                 # subscribe forever (until error)
                 node_types: list[NodeType] = [self._query._node_type]
@@ -95,7 +165,10 @@ class ConnectedQuery[NodeT: Node, NodeDataT: AnyNodeData]:
                     logger.trace(
                         "query.update", query=self._query, node=self._node, epoch=rep.epoch
                     )
-                    edit_graph(graph, rep.edits, options=self._query._options)
+                    async with self._tx_lock:
+                        self._session.suppress()  # ignore edits
+                        edit_graph(graph, rep.edits, options=self._query._options)
+                        self._session.unsuppress()
             except self._retry.retry_on as e:
                 logger.error("query.error", query=self._query, exc_info=e)
                 last_error = e
@@ -114,3 +187,39 @@ class ConnectedQuery[NodeT: Node, NodeDataT: AnyNodeData]:
                 await self._connect_task
             except asyncio.CancelledError:
                 pass
+
+
+class RemoteConnector(QueryConnector):
+    def __init__(
+        self,
+        remote: GraphIoStub | HostStub | SupervisorStub,
+        scope: GraphScope,
+        rpc_metadata: RpcMetadata,
+    ):
+        self._remote = remote
+        self._scope = scope
+        self._rpc_metadata = rpc_metadata
+
+    @override
+    async def connect[
+        NodeT: Node, NodeDataT: AnyNodeData
+    ](
+        self,
+        query: QueryBuilder[NodeT, NodeDataT],
+        tx_lock: asyncio.Lock,
+        session: Session,
+    ) -> ConnectedQuery[NodeT, NodeDataT]:
+        connected_query = RemoteQuery(
+            query=query,
+            tx_lock=tx_lock,
+            session=session,
+            remote=self._remote,
+            scope=self._scope,
+            rpc_metadata=self._rpc_metadata,
+        )
+        await connected_query.start()
+        return connected_query
+
+
+ConnectedBench = ConnectedQuery[Bench, BenchData]
+ConnectedPackage = ConnectedQuery[Package, PackageData]
