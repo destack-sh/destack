@@ -7,8 +7,8 @@
 //All the services and any additional stuff not auto-generated in bench.proto.
 //
 import { Runtime } from "./services";
-import type { StartRunResponse } from "./services";
-import type { StartRunRequest } from "./services";
+import type { QueueRunResponse } from "./services";
+import type { QueueRunRequest } from "./services";
 import type { RestartRuntimeResponse } from "./services";
 import type { RestartRuntimeRequest } from "./services";
 import { Host } from "./services";
@@ -622,11 +622,10 @@ export interface IRuntimeClient {
     restart(input: RestartRuntimeRequest, options?: OperationOptions): UnaryCall<RestartRuntimeRequest, RestartRuntimeResponse>;
     /**
      * Starts a new Run in this runtime. The Run must already exist in the graph.
-     * NOTE: we'll probably want some load-balancing queue for distributing Runs
      *
-     * @generated from protobuf rpc: StartRun(symbolx.bench.StartRunRequest) returns (symbolx.bench.StartRunResponse);
+     * @generated from protobuf rpc: QueueRun(symbolx.bench.QueueRunRequest) returns (symbolx.bench.QueueRunResponse);
      */
-    startRun(input: StartRunRequest, options?: OperationOptions): UnaryCall<StartRunRequest, StartRunResponse>;
+    queueRun(input: QueueRunRequest, options?: OperationOptions): UnaryCall<QueueRunRequest, QueueRunResponse>;
 }
 /**
  * A Runtime for running a Bench in an isolated environment on/for a Client.
@@ -651,13 +650,12 @@ export class RuntimeClient implements IRuntimeClient, ServiceInfo {
     }
     /**
      * Starts a new Run in this runtime. The Run must already exist in the graph.
-     * NOTE: we'll probably want some load-balancing queue for distributing Runs
      *
-     * @generated from protobuf rpc: StartRun(symbolx.bench.StartRunRequest) returns (symbolx.bench.StartRunResponse);
+     * @generated from protobuf rpc: QueueRun(symbolx.bench.QueueRunRequest) returns (symbolx.bench.QueueRunResponse);
      */
-    startRun(input: StartRunRequest, options?: OperationOptions): UnaryCall<StartRunRequest, StartRunResponse> {
+    queueRun(input: QueueRunRequest, options?: OperationOptions): UnaryCall<QueueRunRequest, QueueRunResponse> {
         const method = this.methods[1], opt = this._transport.mergeOptions(options);
-        return stackIntercept<StartRunRequest, StartRunResponse>("unary", this._transport, method, opt, input);
+        return stackIntercept<QueueRunRequest, QueueRunResponse>("unary", this._transport, method, opt, input);
     }
 }
 

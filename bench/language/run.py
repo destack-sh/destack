@@ -149,3 +149,6 @@ class RunError(Struct, BenchError):
     title: Optional[str] = p_internal(32, default=None)
     text: Optional["Text"] = p_internal(33, default=None, struct=StructType.TEXT)
     node: Optional["Node"] = p_internal(34, require=False, array=False, references=NodeType.BLOCK)
+
+    def __content_str__(self) -> str:
+        return f"{self.kind.bench_name} {self.type.bench_name} {self.title or '<no title>'}"

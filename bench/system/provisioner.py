@@ -46,7 +46,8 @@ class Provisioner[PT: Resource, WT: Resource](DeferredHostPlugin[WT], abc.ABC):
                 # auto migrate resources to current version
                 # NOTE :Robustness: unsure when to migrate resources
                 if "version" in resource.__properties__ and getattr(resource, "version") != VERSION:
-                    setattr(resource, "version", VERSION)
+                    async with self._host.session(autocommit=True):
+                        setattr(resource, "version", VERSION)
                 await self.update(resource)
 
         # then start watching
