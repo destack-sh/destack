@@ -9,7 +9,7 @@ from psycopg.rows import dict_row
 from psycopg_pool import AsyncConnectionPool
 
 from bench.language import Bench, Store
-from bench.language.const import IN_PACKAGE_NODE_TYPES, NodeType
+from bench.language.const import SUB_PACKAGE_NODE_TYPES, NodeType, active_bench
 from bench.sql.core import Table, TableObject
 from bench.utils.utils import get_from_env
 
@@ -23,9 +23,6 @@ PG_RECONNECT_TIMEOUT = get_from_env("PG_RECONNECT_TIMEOUT", typ=int, default=20)
 
 logger = structlog.get_logger(__name__)
 _connection_pools: dict[str, AsyncConnectionPool] = {}
-_current_bench: contextvars.ContextVar[Bench | None] = contextvars.ContextVar(
-    "current_store", default=None
-)
 _force_pg_crypto_key: contextvars.ContextVar[str | None] = contextvars.ContextVar(
     "force_pg_crypto_key", default=None
 )
@@ -50,10 +47,8 @@ def get_pg_crypto_key(object: TableObject | Table) -> str:
         else:
             raise RuntimeError(f"unexpected table {table!r} (cannot determine node type)")
 
-    if node_type in IN_PACKAGE_NODE_TYPES:
-        bench = _current_bench.get()
-        assert bench, f"no active bench set for {object!r}"
-        return bench.encryption_key
+    if node_type in SUB_PACKAGE_NODE_TYPES:
+        return active_bench().encryption_key
     else:
         assert GLOBAL_PG_CRYPTO_KEY, f"no global pg_crypto_key set for {object!r}"
         return GLOBAL_PG_CRYPTO_KEY
@@ -128,11 +123,9 @@ class _PgStoreConnection:
             raise
         if self._conn.autocommit != self.autocommit:
             await self._conn.set_autocommit(self.autocommit)
-        _current_bench.set(self.bench)
         return self._conn.cursor()
 
     async def close(self) -> None:
-        _current_bench.set(None)
         if self._pool is not None and self._conn is not None:
             await self._pool.putconn(self._conn)
 

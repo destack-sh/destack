@@ -6,7 +6,7 @@ from uuid import UUID
 import pytest
 from grpclib.testing import ChannelFor
 
-from bench.conftest import detached_session
+from bench.conftest import global_session
 from bench.language import Bench, ReadOptions, User
 from bench.language.bench import Branch, Package, ResourceStatus
 from bench.language.code_ import Code
@@ -136,7 +136,7 @@ async def make_some_bench(supervisor: SupervisorStub, host: HostStub):
     yield handle
 
     # decommission
-    async with detached_session() as session:
+    async with global_session() as session:
         provisioners = get_provisioners_for(DEAD_HOST, bench)
         bench = await Bench.descendants(*RESOURCE_NODE_TYPES).get(id=bench_id)
         for resource in bench.resources:

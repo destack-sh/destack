@@ -11,7 +11,7 @@ from bench.utils.func import IdEnum, bittuple, cyrb53a
 from bench.utils.utils import frozendict
 
 if typing.TYPE_CHECKING:
-    from bench.language import Run, Session, Transaction
+    from bench.language import Bench, Run, Session, Transaction
 
 VERSION = "2024.05.22.2"
 REVISION_PENDING = -1
@@ -943,6 +943,14 @@ def active_session() -> "Session":
     session = _active_session.get()
     assert session is not None, "no active session"
     return session
+
+
+def active_bench() -> "Bench":
+    """Gets the Bench of the currently active Session"""
+    session = _active_session.get()
+    assert session is not None, "no active session"
+    assert session.parent is not None, f"no active bench in {session!r}"
+    return session.bench
 
 
 def active_tx() -> "Transaction":
