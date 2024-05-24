@@ -223,30 +223,11 @@ class HostSpec(abc.ABC):
 
     @abc.abstractmethod
     @asynccontextmanager
-    async def session(self, *, autocommit: bool = False) -> Generator[Session, None, None]:
+    async def session(
+        self, *, readonly: bool = False, autocommit: bool = False
+    ) -> Generator[Session, None, None]:
         """Gets the Session for short-lived, *exclusive access."""
         ...
-
-
-class _DeadHost(HostSpec):
-    """A stub for a dead Host."""
-
-    @override
-    def on_error(self, source: "HostPlugin", error: Exception) -> None:
-        raise NotImplementedError("dead host")
-
-    @override
-    def get_package(self, package_id: UUID) -> None:
-        raise NotImplementedError("dead host")
-
-    @override
-    @asynccontextmanager
-    async def session(self, *, autocommit: bool = False) -> Generator[Session, None, None]:
-        raise NotImplementedError("dead host")
-        yield  # noqa
-
-
-DEAD_HOST: HostSpec = _DeadHost()
 
 
 class HostPlugin[T: Node](abc.ABC):

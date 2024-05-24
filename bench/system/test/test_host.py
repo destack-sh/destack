@@ -1,9 +1,10 @@
 from contextlib import asynccontextmanager
 from dataclasses import dataclass, replace
-from typing import cast
+from typing import Any, cast
 from uuid import UUID
 
 import pytest
+import structlog
 from grpclib.testing import ChannelFor
 
 from bench.conftest import global_session
@@ -33,9 +34,27 @@ from bench.proto.wire import (
     SupervisorBase,
     SupervisorStub,
 )
-from bench.system.core import DEAD_HOST
+from bench.system.core import HostSpec
 from bench.system.provisioner import get_provisioners_for
 from bench.system.test.conftest import UserHandle, make_random_user_handle
+from bench.utils.dt import monotime
+
+logger = structlog.get_logger(__name__)
+
+
+class MockHost(HostSpec):
+    def __init__(self, session: Session):
+        self._session = session
+
+    def on_error(self, source: Any, error: Exception) -> None:
+        pass
+
+    def get_package(self, package_id: UUID) -> Package | None:
+        raise NotImplementedError("MockHost.get_package")
+
+    @asynccontextmanager
+    async def session(self, *, readonly: bool = False, autocommit: bool = False):
+        yield self._session
 
 
 @dataclass(slots=True)
@@ -137,7 +156,8 @@ async def make_some_bench(supervisor: SupervisorStub, host: HostStub):
 
     # decommission
     async with global_session() as session:
-        provisioners = get_provisioners_for(DEAD_HOST, bench)
+        start = monotime()
+        provisioners = get_provisioners_for(MockHost(session), bench)
         bench = await Bench.descendants(*RESOURCE_NODE_TYPES).get(id=bench_id)
         for resource in bench.resources:
             for provisioner in provisioners:
@@ -146,6 +166,12 @@ async def make_some_bench(supervisor: SupervisorStub, host: HostStub):
                     break
             else:
                 raise RuntimeError(f"no provisioner for {resource!r} in {provisioners!r}")
+        logger.debug(
+            "test_host.decommissioned",
+            bench=bench,
+            resources=list(bench.resources),
+            duration=monotime() - start,
+        )
         await session.commit()
 
 
