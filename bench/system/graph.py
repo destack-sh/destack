@@ -137,13 +137,13 @@ class GraphIoServiceBase(BenchServiceBase, GraphIoBase):
         if to_uuid(scope.bench_id) != self.bench_id:
             raise GRPCError(GRPCStatus.INVALID_ARGUMENT, "service scope mismatch")
 
-    def new_session(
+    def request_session(
         self,
         *,
-        scope: GraphScope | None = None,
         engines: tuple[StoreEngine, ...] | None = None,
         readonly: bool = True,
     ):
+        """Gets a new session for processing a request."""
         return Session(
             parent=None,
             _is_readonly=readonly,
@@ -171,7 +171,7 @@ class GraphIoServiceBase(BenchServiceBase, GraphIoBase):
         # fetch
         roots_by_type: dict[NodeType, list[NodeReference]] = group_by(roots, lambda r: r.type)
         graph = NodeDataGraph()
-        async with self.new_session(scope=request.scope) as session:
+        async with self.request_session() as session:
             for root_node_type, root_node_references in roots_by_type.items():
                 adapted_options = adapt_read_options(subject, root_node_type, options)
                 node_type = wiring.unpack_enum(NodeType, root_node_type)
@@ -226,7 +226,7 @@ class GraphIoServiceBase(BenchServiceBase, GraphIoBase):
         # fetch
         adapted_options = adapt_read_options(subject, node_type, options)
         roots: list[NodeReferenceData] = []
-        async with self.new_session(scope=request.scope) as session:
+        async with self.request_session() as session:
             query = QueryBuilder(
                 node_type=node_type, filter=filter, options=adapted_options, sort=sort
             )
@@ -266,7 +266,7 @@ class GraphIoServiceBase(BenchServiceBase, GraphIoBase):
 
         # fetch
         adapted_options = adapt_read_options(subject, node_type, ReadOptions())
-        async with self.new_session(scope=request.scope) as session:
+        async with self.request_session() as session:
             query = QueryBuilder(
                 node_type=node_type, filter=filter, options=adapted_options, aggregation=aggregation
             )
@@ -291,7 +291,7 @@ class GraphIoServiceBase(BenchServiceBase, GraphIoBase):
         # process transaction
         start = monotime()
         async with self._tx_lock:
-            async with self.new_session(scope=request.scope, readonly=False) as session:
+            async with self.request_session(readonly=False) as session:
                 # read the required nodes into a single graph for evaluation
                 data_graph = NodeDataGraph()
                 for node_type, node_references in edit_scopes.scopes_by_type.items():

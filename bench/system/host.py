@@ -224,6 +224,22 @@ class Host(GraphIoServiceBase, HostBase, HostSpec):
     def on_error(self, source: HostPlugin, error: Exception) -> None:
         pass  # error is already reported, we just keep running
 
+    def request_session(
+        self,
+        *,
+        engines: tuple[StoreEngine, ...] | None = None,
+        readonly: bool = True,
+    ):
+        """Gets a new session for processing a request."""
+        return Session(
+            parent=self._main_package,
+            _is_readonly=readonly,
+            _default_scope=self.scope,
+            _engines=engines if engines is not None else self.get_engines(),
+            _extend_commit_hook=self.extend_commit,
+            _on_commit_hook=self.on_commit,
+        )
+
     @override
     @asynccontextmanager
     async def session(self, *, readonly: bool = False, autocommit: bool = False):
@@ -257,7 +273,7 @@ class Host(GraphIoServiceBase, HostBase, HostSpec):
 
         # load bench
         #  (in different session because we don't have the actual engines yet)
-        async with self.new_session(engines=(GLOBAL_POSTGRES_ENGINE,)):
+        async with self.request_session(engines=(GLOBAL_POSTGRES_ENGINE,)):
             self._bench = await BENCH_QUERY.get(id=self.bench_id)
             self._bench._untrack_rec()
 
@@ -281,7 +297,7 @@ class Host(GraphIoServiceBase, HostBase, HostSpec):
         # TODO :Performance!: support in-memory engines in Host (from loaded graphs)
         self._engines = (self._global_pg_engine, self._local_pg_engine)
         self._session = Session(
-            parent=None,
+            parent=self._bench.main_branch.main_package,
             _is_readonly=False,
             _default_scope=self.scope,
             _engines=self._engines,

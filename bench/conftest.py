@@ -1,9 +1,13 @@
 import os
-from contextlib import asynccontextmanager, contextmanager
+from contextlib import contextmanager
+from typing import TYPE_CHECKING
 
 import grpclib
 import pytest
 from pytest_asyncio import is_async_test
+
+if TYPE_CHECKING:
+    from bench.language import Bench
 
 
 def pytest_configure(config):
@@ -71,15 +75,19 @@ async def test_cur():
         yield cur
 
 
-@asynccontextmanager
-async def detached_session():
+def global_session():
     from bench.language.session import Session
     from bench.system.core import GLOBAL_POSTGRES_ENGINE
 
-    session = Session(parent=None, _engines=(GLOBAL_POSTGRES_ENGINE,))
-    await session.open()
-    yield session
-    await session.close()
+    return Session(parent=None, _engines=(GLOBAL_POSTGRES_ENGINE,))
+
+
+def bench_session(bench: "Bench"):
+    from bench.language.session import Session
+    from bench.system.core import GLOBAL_POSTGRES_ENGINE
+
+    assert bench.main_branch is not None, f"{bench!r} has no main branch"
+    return Session(parent=bench.main_branch.main_package, _engines=(GLOBAL_POSTGRES_ENGINE,))
 
 
 @pytest.fixture(scope="function")
