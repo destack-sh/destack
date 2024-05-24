@@ -134,11 +134,11 @@ class NeonStoreProvisioner(Provisioner[Store, Store]):
     async def _provision(self, resource: Store):
         # need a name
         if resource.external_name is None:
+            assert resource.bench_id, f"{resource!r} has no bench"
             async with self._host.session(autocommit=True):
-                assert resource.bench_id, f"{resource!r} has no bench"
                 resource.external_name = f"{ENVIRONMENT}-{resource.bench_id}"
 
-        # create project
+        # create Postgres database ('project')
         neon_project = await self._neon_api.create_project(
             name=resource.external_name, region=resource.region, pg_version=16
         )
@@ -149,7 +149,7 @@ class NeonStoreProvisioner(Provisioner[Store, Store]):
                 resource.version = VERSION
             resource.status = ResourceStatus.HEALTHY
 
-        # migrate immediately
+        # migrate it immediately
         await self._migrate(resource)
 
     @override
