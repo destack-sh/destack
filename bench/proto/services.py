@@ -243,10 +243,13 @@ class BenchServer(grpclib.server.Server):
         logger.info("server.closed", server=self)
 
 
-@cachetools.cached(cachetools.TTLCache(maxsize=128, ttl=300))
+@cachetools.cached(
+    cachetools.TTLCache(maxsize=128, ttl=300), key=lambda connection_uri: connection_uri
+)
 def get_channel_cached(connection_uri: str):
     connection_info = urlparse(connection_uri)
-    if not isinstance(connection_info.netloc, str):
-        raise ValueError(f"invalid connection uri: {connection_uri}")
-    channel = Channel(connection_info.netloc, connection_info.port)
+    assert isinstance(connection_info.netloc, str), f"invalid connection uri: {connection_uri}"
+    assert connection_info.port is not None, f"invalid connection uri: {connection_uri}"
+    netloc = connection_info.netloc.split(":", 1)[0]
+    channel = Channel(netloc, connection_info.port)
     return channel

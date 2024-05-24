@@ -44,7 +44,7 @@ class QueueRunPlugin(HostPlugin[Run]):
 
     @override
     async def start(self) -> None:
-        # TODO :Robustness: cancel/re-queue Runs stuck on dead Machines
+        # TODO :Robustness: cancel/re-queue forlorn Runs (like those 'stuck' on dead Machines)
         self._tasks.start_queue(self._runs_to_queue, self._queue_run, skip_errors=True)
 
     @override
@@ -62,11 +62,13 @@ class QueueRunPlugin(HostPlugin[Run]):
         start = monotime()
         run = attempt.run
         assert run.package_id is not None, f"missing package id for run {run!r}"
-        assert self._bench.main_environment, f"missing main environment for bench {self._bench!r}"
+        environment = self._bench.main_environment
+        assert environment, f"missing main environment for bench {self._bench!r}"
+        log = logger.bind(host=self, run=run, server=environment.server, attempt=attempt.no)
 
         # find machine to queue run on
         error = None
-        for machine in self._bench.main_environment.server.machines:
+        for machine in environment.server.machines:
             if machine.status != ResourceStatus.HEALTHY:
                 continue
             assert machine.connection_uri, f"missing connection uri for machine {machine!r}"
@@ -75,10 +77,11 @@ class QueueRunPlugin(HostPlugin[Run]):
             request = QueueRunRequest(run=run._to_data())
             try:
                 _ = await runtime.queue_run(request)
-                logger.debug("scheduler.queue", host=self, run=run, duration=monotime() - start)
+                log.debug("scheduler.queue", machine=machine, duration=monotime() - start)
                 return  # success
-            except Exception as error:
-                logger.error("scheduler.queue.error", host=self, run=run, error=error)
+            except Exception as e:
+                log.error("scheduler.queue.error", machine=machine, error=e)
+                error = e
                 continue
 
         # failed to queue run
@@ -87,11 +90,14 @@ class QueueRunPlugin(HostPlugin[Run]):
             error = RunError(kind=RunErrorKind.INTERNAL, type=RunErrorType.NO_RUNTIME_AVAILABLE)
             async with self._host.session(autocommit=True):
                 run.fail(error)
-            logger.error("scheduler.queue.failed", host=self, run=run, error=error)
+            log.error("scheduler.queue.failed", machines=environment.server.machines, error=error)
         else:
             # retry run later
             interval = self._retry.get_interval(attempt.no)
             asyncio.get_event_loop().call_later(interval, self._runs_to_queue.put_nowait, attempt)
-            logger.debug(
-                "scheduler.queue.retry", host=self, run=run, interval=interval, error=error
+            log.debug(
+                "scheduler.queue.retry",
+                machines=environment.server.machines,
+                interval=interval,
+                error=error,
             )
