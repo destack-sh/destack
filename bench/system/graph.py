@@ -142,11 +142,11 @@ class GraphIoServiceBase(BenchServiceBase, GraphIoBase):
         *,
         scope: GraphScope | None = None,
         engines: tuple[StoreEngine, ...] | None = None,
-        is_readonly: bool = True,
+        readonly: bool = True,
     ):
         return Session(
             parent=None,
-            _is_readonly=is_readonly,
+            _is_readonly=readonly,
             _default_scope=self.scope,
             _engines=engines if engines is not None else self.get_engines(),
             _extend_commit_hook=self.extend_commit,
@@ -291,7 +291,7 @@ class GraphIoServiceBase(BenchServiceBase, GraphIoBase):
         # process transaction
         start = monotime()
         async with self._tx_lock:
-            async with self.new_session(scope=request.scope, is_readonly=False) as session:
+            async with self.new_session(scope=request.scope, readonly=False) as session:
                 # read the required nodes into a single graph for evaluation
                 data_graph = NodeDataGraph()
                 for node_type, node_references in edit_scopes.scopes_by_type.items():

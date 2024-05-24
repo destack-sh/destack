@@ -226,18 +226,21 @@ class Host(GraphIoServiceBase, HostBase, HostSpec):
 
     @override
     @asynccontextmanager
-    async def session(self, *, autocommit: bool = False):
+    async def session(self, *, readonly: bool = False, autocommit: bool = False):
         # outside .start, we linearize access to the Hosts object by suspending the session
         # unless you acquire it explicitly via Host.session :ExclusiveHostSession
         async with self._tx_lock:
             assert self._session is not None, f"session not ready in {self!r}"
+            was_readonly = self._session._is_readonly
+            self._session._is_readonly = readonly
             self._session.unsuspend()
             yield self._session
             if autocommit:
                 await self._session.commit()
             elif self._session.tx.edits:
-                raise RuntimeError(f"uncommitted edits in {self!r}: {self._session.tx.edits}")
-            self._session.suspend()
+                raise RuntimeError(f"uncommitted edits in {self!r}: {self._session.tx.edits!r}")
+            self._session.suspend()  # suspend by default
+            self._session._is_readonly = was_readonly
 
     @override
     def get_engines(self) -> tuple[StoreEngine, ...]:
@@ -252,25 +255,27 @@ class Host(GraphIoServiceBase, HostBase, HostSpec):
     async def start(self) -> None:
         start = monotime()
 
-        # load bench / main pcakages
+        # load bench
         #  (in different session because we don't have the actual engines yet)
         async with self.new_session(engines=(GLOBAL_POSTGRES_ENGINE,)):
             self._bench = await BENCH_QUERY.get(id=self.bench_id)
-            self._global_pg_engine = PostgresEngine(
-                store=GLOBAL_STORE,
-                bench=self._bench,
-                scope=self._scope,
-                node_types=IN_BENCH_GLOBAL_NODE_TYPES,
-            )
-            assert self._bench.main_environment, f"{self._bench!r} has no main environment"
-            assert self._bench.main_branch, f"{self._bench!r} has no main branch"
-            self._local_pg_engine = PostgresEngine(
-                store=self._bench.main_environment.store,
-                bench=self._bench,
-                scope=self._scope,
-                node_types=LOCAL_NODE_TYPES,
-            )
-        self._bench._untrack_rec()
+            self._bench._untrack_rec()
+
+        # setup main engines
+        self._global_pg_engine = PostgresEngine(
+            store=GLOBAL_STORE,
+            bench=self._bench,
+            scope=self._scope,
+            node_types=IN_BENCH_GLOBAL_NODE_TYPES,
+        )
+        assert self._bench.main_environment, f"{self._bench!r} has no main environment"
+        assert self._bench.main_branch, f"{self._bench!r} has no main branch"
+        self._local_pg_engine = PostgresEngine(
+            store=self._bench.main_environment.store,
+            bench=self._bench,
+            scope=self._scope,
+            node_types=LOCAL_NODE_TYPES,
+        )
 
         # we open one Session for the entire lifecycle of the Host
         # TODO :Performance!: support in-memory engines in Host (from loaded graphs)
@@ -284,7 +289,12 @@ class Host(GraphIoServiceBase, HostBase, HostSpec):
             _on_commit_hook=self.on_commit,
         )
         self._bench._track_rec(self._session)
-        await self._session.open()
+        await self._session.open(in_context=False)
+
+        # preload main packages
+        async with self.session(readonly=True):
+            self._main_package = await PACKAGE_QUERY.get(id=self._bench.main_branch.main_package_id)
+            self._packages[self._main_package.id] = self._main_package
 
         # start plugins
         self._provisioners = tuple(get_provisioners_for(self, self._bench))
@@ -292,14 +302,6 @@ class Host(GraphIoServiceBase, HostBase, HostSpec):
         await asyncio.gather(*(plugin.start() for plugin in self._plugins))
         # wait for plugins to finish processing any commits (and error early)
         await asyncio.gather(*(plugin.wait_step(timeout=10) for plugin in self._plugins))
-
-        # preload main packages
-        self._main_package = await PACKAGE_QUERY.get(id=self._bench.main_branch.main_package_id)
-        self._packages[self._main_package.id] = self._main_package
-
-        # suspend session by default, must be acquired explicitly in self.session
-        self._session.suspend()  # :ExclusiveHostSession
-
         logger.info("host.start", host=self, plugins=self._plugins, duration=monotime() - start)
 
     def close(self) -> None:
@@ -359,7 +361,9 @@ class Host(GraphIoServiceBase, HostBase, HostSpec):
         self._session.unsuppress()
 
         # run plugins on commit (in main session)
-        self._session.unsuspend()  # this must be a in a locked section :ExclusiveHostSession
+        was_suspended = self._session.is_suspended
+        if was_suspended:  # we may be nested in a Session.commit already
+            self._session.unsuspend()
         self._session.track_many(*graph.nodes)
         commit = unpack_commit(self.graphs + (graph,), edits, cascaded_edits)
         logger.debug("host.on_commit", host=self, commit=commit)
@@ -371,7 +375,8 @@ class Host(GraphIoServiceBase, HostBase, HostSpec):
                     "host.on_commit.plugin", host=self, plugin=plugin, commit=trimmed_commit
                 )
         await self._session.commit(skip_lock=True)  # already in a locked section
-        self._session.suspend()
+        if was_suspended:
+            self._session.suspend()
 
     #
     # Files

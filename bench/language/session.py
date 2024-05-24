@@ -141,6 +141,14 @@ class Session(Node[SessionData]):
         return self.closed_at is not None
 
     @property
+    def is_active(self):
+        return self._active_session_token is not None
+
+    @property
+    def is_suspended(self):
+        return self._is_suspended
+
+    @property
     def supervisor(self) -> "SupervisorStub":
         """The remote supervisor."""
         assert self._supervisor is not None, f"supervisor not available in {self!r}"
@@ -152,14 +160,55 @@ class Session(Node[SessionData]):
         assert self._host is not None, f"host not available in {self!r}"
         return self._host
 
-    async def open(self):
-        """Opens the session for regular business."""
-        if self.opened_at is not None:
-            raise RuntimeError(f"session already open: {self!r}")
-        self._active_session_token = _active_session.set(self)
+    async def open(self, *, in_context: bool = True):
+        """Opens the session for regular business. Activates context (by default)."""
+        assert not self.closed_at, f"session already closed {self!r}"
+        assert not self.opened_at, f"session already open {self!r}"
+        if in_context:
+            self._active_session_token = _active_session.set(self)
         self._tx = Transaction(session=self, origin=self._origin, is_readonly=self._is_readonly)
         self.opened_at = utcnow()
         logger.trace("session.open", session=self)
+
+    async def close(self):
+        """Closes the session, rolling back uncommitted edits. Prevents further use."""
+        assert self.opened_at, f"session not open {self!r}"
+        assert not self.closed_at, f"session already closed {self!r}"
+
+        # close transaction
+        async with self._tx_lock:
+            await self.tx.close()
+            self._tx = None
+
+        # close session
+        self.closed_at = utcnow()
+        self.duration = (self.closed_at - self.opened_at).total_seconds()
+        if self._active_session_token is not None:
+            _active_session.reset(self._active_session_token)
+            self._active_session_token = None
+
+        logger.trace("session.close", session=self, duration=self.duration)
+
+    def suppress(self):
+        """Suppress any the session, *ignoring* further edits."""
+        self._is_suppressed = True
+
+    def unsuppress(self):
+        """Stop suppressing the session, accepting further edits."""
+        self._is_suppressed = False
+
+    def suspend(self):
+        """Suspend the session, *erroring* on further edits. Deactivates context (if active)."""
+        self._is_suspended = True
+        assert self._active_session_token is not None, f"session not active {self!r}"
+        _active_session.reset(self._active_session_token)
+        self._active_session_token = None
+
+    def unsuspend(self):
+        """Stop suspending the session, allowing further edits. Activates context."""
+        assert self._active_session_token is None, f"session already active {self!r}"
+        self._is_suspended = False
+        self._active_session_token = _active_session.set(self)
 
     async def flush(self) -> tuple[list[EditData], list[EditData]]:
         """Flushes the current pending edits. Returns *all* uncommitted edits / cascaded edits."""
@@ -172,7 +221,7 @@ class Session(Node[SessionData]):
             return self._tx.edits, self._tx.cascaded_edits
 
     async def commit(
-        self, skip_lock: bool = False, suppress_hooks: bool = False
+        self, *, skip_lock: bool = False, suppress_hooks: bool = False
     ) -> tuple[list[EditData], list[EditData]]:
         """Commits all edits. Returns *all* committed edits / cascaded edits, and resets."""
         assert self.is_open, f"cannot commit {self!r} when closed"
@@ -181,6 +230,7 @@ class Session(Node[SessionData]):
         if not self._tx.edits:
             return [], []  # nothing to do
 
+        # TODO :Robustness :Broken: rollback edits to in-memory Nodes on session commit error
         try:
             if not skip_lock:
                 await self._tx_lock.acquire()
@@ -210,40 +260,6 @@ class Session(Node[SessionData]):
         assert self.is_open, f"cannot rollback {self!r} when closed"
         async with self._tx_lock:
             await self.tx.rollback()
-
-    async def close(self):
-        """Closes the session, rolling back uncommitted edits. Prevents further use."""
-        assert self.opened_at and self._active_session_token, f"session not open {self!r}"
-        if self.closed_at is not None:
-            raise RuntimeError(f"session already closed {self}")
-
-        async with self._tx_lock:
-            # close transaction
-            await self.tx.close()
-            self._tx = None
-
-        # close session
-        self.closed_at = utcnow()
-        self.duration = (self.closed_at - self.opened_at).total_seconds()
-        _active_session.reset(self._active_session_token)
-
-        logger.trace("session.close", session=self, duration=self.duration)
-
-    def suppress(self):
-        """Suppress any the session, *ignoring* further edits."""
-        self._is_suppressed = True
-
-    def unsuppress(self):
-        """Stop suppressing the session, accepting further edits."""
-        self._is_suppressed = False
-
-    def suspend(self):
-        """Suspend the session, *erroring* on further edits."""
-        self._is_readonly = True
-
-    def unsuspend(self):
-        """Stop suspending the session, allowing further edits."""
-        self._is_readonly = False
 
     async def __aenter__(self):
         await self.open()
