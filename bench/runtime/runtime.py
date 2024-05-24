@@ -1,5 +1,6 @@
 import asyncio
 from contextlib import asynccontextmanager
+from typing import cast, override
 from urllib.parse import urlparse
 from uuid import UUID
 
@@ -11,22 +12,23 @@ from bench.language.access import Subject
 from bench.language.bench import Client, Machine
 from bench.language.connection import RemoteEngine
 from bench.language.const import BENCH_NODE_TYPES, IN_PACKAGE_NODE_TYPES, PUBLIC_NODE_TYPES
+from bench.language.run import Run
+from bench.proto import wiring
 from bench.proto.services import BenchServiceBase
 from bench.proto.wire import (
     BenchData,
     GraphScope,
     HostStub,
     PackageData,
+    QueueRunRequest,
+    QueueRunResponse,
     RpcMetadata,
-    RunData,
     RuntimeBase,
-    StartRunRequest,
-    StartRunResponse,
     SupervisorStub,
 )
 from bench.runtime.connection import ConnectedQuery
+from bench.runtime.process import RuntimeProcess
 from bench.utils.dt import monotime
-from bench.utils.task import TaskManager
 from bench.utils.tenacity import RetryOptions
 
 logger = structlog.get_logger(__name__)
@@ -108,9 +110,10 @@ class Runtime(RuntimeBase, BenchServiceBase):
         self._bench: ConnectedBench | None = None
         self._main_package: ConnectedPackage | None = None
         self._packages: dict[UUID, ConnectedPackage] = {}
+        self._packages_lock = asyncio.Lock()
 
         # processes
-        self._run_queue: asyncio.Queue[RunData] = asyncio.Queue()
+        self._run_queue: asyncio.Queue[Run] = asyncio.Queue()
         self._processes: list[RuntimeProcess] = []
 
     def __str__(self):
@@ -146,17 +149,20 @@ class Runtime(RuntimeBase, BenchServiceBase):
         assert self._main_package is not None, f"no main package for {self!r}"
         return self._main_package.node
 
-    async def connect_package(self, package_id: UUID) -> ConnectedPackage:
-        """'Connect's a Package to get it live."""
+    async def get_package(self, package_id: UUID) -> ConnectedPackage:
+        """Connect's a Package."""
         assert self._host is not None, f"no host for {self!r}"
-        scope = GraphScope(bench_id=str(self._bench_id), package_id=str(package_id))
-        package = await ConnectedQuery(
-            query=PACKAGE_QUERY.where(id=package_id),
-            remote=self._host,
-            scope=scope,
-            rpc_metadata=self._rpc_metadata,
-        ).connect()
-        self._packages[package_id] = package
+        package = self._packages.get(package_id)
+        if package is None:
+            async with self._packages_lock:
+                scope = GraphScope(bench_id=str(self._bench_id), package_id=str(package_id))
+                package = await ConnectedQuery(
+                    query=PACKAGE_QUERY.where(id=package_id),
+                    remote=self._host,
+                    scope=scope,
+                    rpc_metadata=self._rpc_metadata,
+                ).connect()
+                self._packages[package_id] = package
         return package
 
     def disconnect_package(self, package_id: UUID):
@@ -221,13 +227,15 @@ class Runtime(RuntimeBase, BenchServiceBase):
                 ), f"{main_environment.server!r} has no machine {self._machine_id}"
 
             # connect main package
-            self._main_package = await self.connect_package(main_branch.main_package_id)
+            self._main_package = await self.get_package(main_branch.main_package_id)
 
             session.untrack_many(self._bench.node, self._client, self._main_package.node)
 
         # start processes
         for i in range(RUNTIME_PARALLELISM):
-            process = RuntimeProcess(i, self, self._run_queue)
+            process = RuntimeProcess(
+                i, self, self._bench.node, self._main_package.node, self._run_queue
+            )
             self._processes.append(process)
             await process.start()
 
@@ -255,41 +263,15 @@ class Runtime(RuntimeBase, BenchServiceBase):
         self._main_package = None
         self._packages.clear()
 
-    async def start_run(self, subject: Subject, request: StartRunRequest) -> StartRunResponse:
+    @override
+    async def queue_run(self, subject: Subject, request: QueueRunRequest) -> QueueRunResponse:
         assert (
             request.run.parent_ptr and request.run.parent_ptr.id == self.main_package.id
         ), f"{request.run!r} not in {self.main_package!r}"
-        self._run_queue.put_nowait(request.run)
-        logger.trace("runtime.start_run", run=request.run, subject=subject)
-        return StartRunResponse()
-
-
-class RuntimeProcess:
-    """A 'process' for actually executing Runs in a Runtime."""
-
-    def __init__(self, id: int, runtime: Runtime, queue: asyncio.Queue[RunData]):
-        self.id = id
-        self._runtime = runtime
-        self._queue = queue
-        self._tasks = TaskManager(owner=self, logger=logger)
-
-    def __str__(self):
-        return f"{self.id} in {self._runtime!r}"
-
-    def __repr__(self):
-        return f"<{self.__class__.__name__} {self}>"
-
-    async def start(self):
-        self._tasks.start_queue(self._queue, self._process_run, f"run{self.id}", skip_errors=True)
-
-    async def _process_run(self, run_data: RunData):
-        raise NotImplementedError("nocheckin: _process_run")
-
-    def close(self):
-        self._tasks.close()
-
-    async def wait_closed(self):
-        await self._tasks.wait_closed()
+        run = cast(Run, wiring.unpack_node(request.run, parent=self.main_package))
+        self._run_queue.put_nowait(run)
+        logger.trace("runtime.queue_run", run=run, subject=subject)
+        return QueueRunResponse()
 
 
 @asynccontextmanager
@@ -301,5 +283,5 @@ async def local_session(
 
 
 async def get_host_client(bench_id: UUID, supervisor: SupervisorStub) -> HostStub:
-    # TODO :Scalability: lookup bench host (via supervisor?) :SingleHostService
+    # NOTE :Scalability: lookup bench host (via supervisor?) :SingleHostService
     return HostStub(supervisor.channel)

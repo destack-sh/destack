@@ -108,7 +108,7 @@ class Session(Node[SessionData]):
             status_str = "open"
         else:
             status_str = "pending"
-        return f"{status_str}, " f"{self._tx or '<no tx>'}"
+        return f"{status_str}, tx={self._tx or '<no tx>'}"
 
     def _init_component(self) -> None:
         self._session = self

@@ -3418,12 +3418,12 @@ class RestartRuntimeResponse(betterproto.Message):
 
 
 @dataclass(eq=False, repr=False)
-class StartRunRequest(betterproto.Message):
+class QueueRunRequest(betterproto.Message):
     run: "RunData" = betterproto.message_field(1)
 
 
 @dataclass(eq=False, repr=False)
-class StartRunResponse(betterproto.Message):
+class QueueRunResponse(betterproto.Message):
     pass
 
 
@@ -4032,18 +4032,18 @@ class RuntimeStub(betterproto.ServiceStub):
             metadata=metadata,
         )
 
-    async def start_run(
+    async def queue_run(
         self,
-        request: "StartRunRequest",
+        request: "QueueRunRequest",
         *,
         timeout: Optional[float] = None,
         deadline: Optional["Deadline"] = None,
         metadata: Optional["MetadataLike"] = None
-    ) -> "StartRunResponse":
+    ) -> "QueueRunResponse":
         return await self._unary_unary(
-            "/symbolx.bench.Runtime/StartRun",
+            "/symbolx.bench.Runtime/QueueRun",
             request,
-            StartRunResponse,
+            QueueRunResponse,
             timeout=timeout,
             deadline=deadline,
             metadata=metadata,
@@ -4708,7 +4708,7 @@ class RuntimeBase(ServiceBase):
     ) -> "RestartRuntimeResponse":
         raise grpclib.GRPCError(grpclib.const.Status.UNIMPLEMENTED)
 
-    async def start_run(self, subject: "Subject", request: "StartRunRequest") -> "StartRunResponse":
+    async def queue_run(self, subject: "Subject", request: "QueueRunRequest") -> "QueueRunResponse":
         raise grpclib.GRPCError(grpclib.const.Status.UNIMPLEMENTED)
 
     async def __rpc_restart(
@@ -4719,11 +4719,11 @@ class RuntimeBase(ServiceBase):
         response = await self.restart(request)
         await stream.send_message(response)
 
-    async def __rpc_start_run(
-        self, stream: "grpclib.server.Stream[StartRunRequest, StartRunResponse]"
+    async def __rpc_queue_run(
+        self, stream: "grpclib.server.Stream[QueueRunRequest, QueueRunResponse]"
     ) -> None:
         request = await stream.recv_message()
-        response = await self.start_run(request)
+        response = await self.queue_run(request)
         await stream.send_message(response)
 
     def __mapping__(self) -> Dict[str, grpclib.const.Handler]:
@@ -4734,18 +4734,18 @@ class RuntimeBase(ServiceBase):
                 RestartRuntimeRequest,
                 RestartRuntimeResponse,
             ),
-            "/symbolx.bench.Runtime/StartRun": grpclib.const.Handler(
-                self.__rpc_start_run,
+            "/symbolx.bench.Runtime/QueueRun": grpclib.const.Handler(
+                self.__rpc_queue_run,
                 grpclib.const.Cardinality.UNARY_UNARY,
-                StartRunRequest,
-                StartRunResponse,
+                QueueRunRequest,
+                QueueRunResponse,
             ),
         }
 
 
 from typing import TYPE_CHECKING  # noqa: E402
 
-VERSION = "2024.05.22.2"
+VERSION = "2024.05.24.0"
 
 if TYPE_CHECKING:
     from bench.language import Subject

@@ -696,18 +696,18 @@ export interface RestartRuntimeRequest {
 export interface RestartRuntimeResponse {
 }
 /**
- * @generated from protobuf message symbolx.bench.StartRunRequest
+ * @generated from protobuf message symbolx.bench.QueueRunRequest
  */
-export interface StartRunRequest {
+export interface QueueRunRequest {
     /**
      * @generated from protobuf field: symbolx.bench.RunData run = 1;
      */
     run?: RunData;
 }
 /**
- * @generated from protobuf message symbolx.bench.StartRunResponse
+ * @generated from protobuf message symbolx.bench.QueueRunResponse
  */
-export interface StartRunResponse {
+export interface QueueRunResponse {
 }
 // @generated message type with reflection information, may provide speed optimized methods
 class GetNodesRequest$Type extends MessageType<GetNodesRequest> {
@@ -3041,19 +3041,19 @@ class RestartRuntimeResponse$Type extends MessageType<RestartRuntimeResponse> {
  */
 export const RestartRuntimeResponse = new RestartRuntimeResponse$Type();
 // @generated message type with reflection information, may provide speed optimized methods
-class StartRunRequest$Type extends MessageType<StartRunRequest> {
+class QueueRunRequest$Type extends MessageType<QueueRunRequest> {
     constructor() {
-        super("symbolx.bench.StartRunRequest", [
+        super("symbolx.bench.QueueRunRequest", [
             { no: 1, name: "run", kind: "message", T: () => RunData }
         ]);
     }
-    create(value?: PartialMessage<StartRunRequest>): StartRunRequest {
+    create(value?: PartialMessage<QueueRunRequest>): QueueRunRequest {
         const message = globalThis.Object.create((this.messagePrototype!));
         if (value !== undefined)
-            reflectionMergePartial<StartRunRequest>(this, message, value);
+            reflectionMergePartial<QueueRunRequest>(this, message, value);
         return message;
     }
-    internalBinaryRead(reader: IBinaryReader, length: number, options: BinaryReadOptions, target?: StartRunRequest): StartRunRequest {
+    internalBinaryRead(reader: IBinaryReader, length: number, options: BinaryReadOptions, target?: QueueRunRequest): QueueRunRequest {
         let message = target ?? this.create(), end = reader.pos + length;
         while (reader.pos < end) {
             let [fieldNo, wireType] = reader.tag();
@@ -3072,7 +3072,7 @@ class StartRunRequest$Type extends MessageType<StartRunRequest> {
         }
         return message;
     }
-    internalBinaryWrite(message: StartRunRequest, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
+    internalBinaryWrite(message: QueueRunRequest, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
         /* symbolx.bench.RunData run = 1; */
         if (message.run)
             RunData.internalBinaryWrite(message.run, writer.tag(1, WireType.LengthDelimited).fork(), options).join();
@@ -3083,24 +3083,24 @@ class StartRunRequest$Type extends MessageType<StartRunRequest> {
     }
 }
 /**
- * @generated MessageType for protobuf message symbolx.bench.StartRunRequest
+ * @generated MessageType for protobuf message symbolx.bench.QueueRunRequest
  */
-export const StartRunRequest = new StartRunRequest$Type();
+export const QueueRunRequest = new QueueRunRequest$Type();
 // @generated message type with reflection information, may provide speed optimized methods
-class StartRunResponse$Type extends MessageType<StartRunResponse> {
+class QueueRunResponse$Type extends MessageType<QueueRunResponse> {
     constructor() {
-        super("symbolx.bench.StartRunResponse", []);
+        super("symbolx.bench.QueueRunResponse", []);
     }
-    create(value?: PartialMessage<StartRunResponse>): StartRunResponse {
+    create(value?: PartialMessage<QueueRunResponse>): QueueRunResponse {
         const message = globalThis.Object.create((this.messagePrototype!));
         if (value !== undefined)
-            reflectionMergePartial<StartRunResponse>(this, message, value);
+            reflectionMergePartial<QueueRunResponse>(this, message, value);
         return message;
     }
-    internalBinaryRead(reader: IBinaryReader, length: number, options: BinaryReadOptions, target?: StartRunResponse): StartRunResponse {
+    internalBinaryRead(reader: IBinaryReader, length: number, options: BinaryReadOptions, target?: QueueRunResponse): QueueRunResponse {
         return target ?? this.create();
     }
-    internalBinaryWrite(message: StartRunResponse, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
+    internalBinaryWrite(message: QueueRunResponse, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
         let u = options.writeUnknownFields;
         if (u !== false)
             (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
@@ -3108,9 +3108,9 @@ class StartRunResponse$Type extends MessageType<StartRunResponse> {
     }
 }
 /**
- * @generated MessageType for protobuf message symbolx.bench.StartRunResponse
+ * @generated MessageType for protobuf message symbolx.bench.QueueRunResponse
  */
-export const StartRunResponse = new StartRunResponse$Type();
+export const QueueRunResponse = new QueueRunResponse$Type();
 /**
  * @generated ServiceType for protobuf service symbolx.bench.GraphIO
  */
@@ -3165,5 +3165,5 @@ export const Host = new ServiceType("symbolx.bench.Host", [
  */
 export const Runtime = new ServiceType("symbolx.bench.Runtime", [
     { name: "Restart", options: {}, I: RestartRuntimeRequest, O: RestartRuntimeResponse },
-    { name: "StartRun", options: {}, I: StartRunRequest, O: StartRunResponse }
+    { name: "QueueRun", options: {}, I: QueueRunRequest, O: QueueRunResponse }
 ]);

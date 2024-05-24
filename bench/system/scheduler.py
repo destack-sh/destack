@@ -9,7 +9,7 @@ from bench.language.const import NodeType, RunStatus
 from bench.language.run import Run, RunError, RunErrorKind, RunErrorType
 from bench.language.session import Session
 from bench.proto.services import get_channel_cached
-from bench.proto.wire import RuntimeStub, StartRunRequest
+from bench.proto.wire import QueueRunRequest, RuntimeStub
 from bench.system.core import Commit, HostPlugin, HostSpec
 from bench.utils.dt import monotime
 from bench.utils.func import bittuple
@@ -30,7 +30,7 @@ class QueueAttempt:
 
 
 class QueueRunPlugin(HostPlugin[Run]):
-    """Distribute new (and forgotten) unassigned Runs to Runtimes (on Machines)."""
+    """Distribute new (and forlorn) unassigned Runs to Runtimes (on Machines)."""
 
     watch_types = bittuple(NodeType.RUN)
 
@@ -65,15 +65,16 @@ class QueueRunPlugin(HostPlugin[Run]):
         assert self._bench.main_environment, f"missing main environment for bench {self._bench!r}"
 
         # find machine to queue run on
+        error = None
         for machine in self._bench.main_environment.server.machines:
             if machine.status != ResourceStatus.HEALTHY:
                 continue
             assert machine.connection_uri, f"missing connection uri for machine {machine!r}"
             channel = get_channel_cached(machine.connection_uri)
             runtime = RuntimeStub(channel)
-            request = StartRunRequest(run=run._to_data())
+            request = QueueRunRequest(run=run._to_data())
             try:
-                _ = await runtime.start_run(request)
+                _ = await runtime.queue_run(request)
                 logger.debug("scheduler.queue", host=self, run=run, duration=monotime() - start)
                 return  # success
             except Exception as error:
@@ -81,12 +82,15 @@ class QueueRunPlugin(HostPlugin[Run]):
                 continue
 
         # failed to queue run
-        if self._retry.max_attempts > 0 and attempt.no >= self._retry.max_attempts:
+        if self._retry.max_attempts > 0 and attempt.no > self._retry.max_attempts:
             error = RunError(kind=RunErrorKind.INTERNAL, type=RunErrorType.NO_RUNTIME_AVAILABLE)
-            run.fail(error)
+            async with self._host.session(autocommit=True):
+                run.fail(error)
             logger.error("scheduler.queue.failed", host=self, run=run, error=error)
         else:
             # retry run later
             interval = self._retry.get_interval(attempt.no)
             asyncio.get_event_loop().call_later(interval, self._runs_to_queue.put_nowait, attempt)
-            logger.debug("scheduler.queue.retry", host=self, run=run, interval=interval)
+            logger.debug(
+                "scheduler.queue.retry", host=self, run=run, interval=interval, error=error
+            )

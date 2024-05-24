@@ -334,10 +334,10 @@ message RestartRuntimeRequest {
 message RestartRuntimeResponse {
 }
 
-message StartRunRequest {
+message QueueRunRequest {
   RunData run = 1;
 }
-message StartRunResponse {
+message QueueRunResponse {
 }
 
 // A Runtime for running a Bench in an isolated environment on/for a Client.
@@ -346,6 +346,10 @@ service Runtime {
   // Restart this runtime. If force, skip graceful shutdown.
   rpc Restart(RestartRuntimeRequest) returns (RestartRuntimeResponse);
   // Starts a new Run in this runtime. The Run must already exist in the graph.
-  // NOTE: we'll probably want some load-balancing queue for distributing Runs
-  rpc StartRun(StartRunRequest) returns (StartRunResponse);
+  rpc QueueRun(QueueRunRequest) returns (QueueRunResponse);
+}
+
+// A separate process for running Runs within a Runtime.
+service RuntimeProcess {
+
 }
