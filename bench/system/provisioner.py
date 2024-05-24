@@ -6,7 +6,6 @@ import structlog
 from bench.language import Bench, Drive, Machine, Resource, ResourceStatus, Server, Store
 from bench.language.bench import MachineProfile
 from bench.language.const import VERSION, NodeType
-from bench.language.session import Session
 from bench.sql.client import pg_cursor_to_store
 from bench.sql.migration import sql_migrate
 from bench.system.core import Commit, DeferredHostPlugin, HostSpec
@@ -55,7 +54,7 @@ class Provisioner[PT: Resource, WT: Resource](DeferredHostPlugin[WT], abc.ABC):
         #   and we assume exclusivity in the provisioning methods. Host plugins starts the queue in .. start).
         await super().start()
 
-    @override
+    @final
     async def on_commit_deferred(self, commit: Commit[WT]) -> None:
         # handle edit by updating resource
         if commit.has(self.provision_types):
@@ -69,6 +68,10 @@ class Provisioner[PT: Resource, WT: Resource](DeferredHostPlugin[WT], abc.ABC):
             for resource in subcommit.removed:
                 if resource.status.is_extant:
                     await self.decommission(resource)
+        await self._on_commit_deferred(commit)
+
+    async def _on_commit_deferred(self, commit: Commit[WT]) -> None:
+        pass
 
     @final
     async def provision(self, resource: PT):
@@ -76,9 +79,20 @@ class Provisioner[PT: Resource, WT: Resource](DeferredHostPlugin[WT], abc.ABC):
         try:
             start = monotime()
             await self._provision(resource)
-            logger.info("resource.provision", resource=resource, duration=monotime() - start)
+            logger.info(
+                "resource.provision",
+                provisioner=self,
+                resource=resource,
+                duration=monotime() - start,
+            )
         except Exception as e:
-            logger.error("resource.provision.error", resource=resource, error=e, exc_info=True)
+            logger.error(
+                "resource.provision.error",
+                provisioner=self,
+                resource=resource,
+                error=e,
+                exc_info=True,
+            )
             raise
 
     @abc.abstractmethod
@@ -90,9 +104,13 @@ class Provisioner[PT: Resource, WT: Resource](DeferredHostPlugin[WT], abc.ABC):
         try:
             start = monotime()
             await self._update(resource)
-            logger.trace("resource.update", resource=resource, duration=monotime() - start)
+            logger.trace(
+                "resource.update", provisioner=self, resource=resource, duration=monotime() - start
+            )
         except Exception as e:
-            logger.error("resource.update.error", resource=resource, error=e, exc_info=True)
+            logger.error(
+                "resource.update.error", provisioner=self, resource=resource, error=e, exc_info=True
+            )
             raise
 
     async def _update(self, resource: PT):
@@ -104,9 +122,20 @@ class Provisioner[PT: Resource, WT: Resource](DeferredHostPlugin[WT], abc.ABC):
         try:
             start = monotime()
             await self._decommission(resource)
-            logger.info("resource.decommission", resource=resource, duration=monotime() - start)
+            logger.info(
+                "resource.decommission",
+                provisioner=self,
+                resource=resource,
+                duration=monotime() - start,
+            )
         except Exception as e:
-            logger.error("resource.decommission.error", resource=resource, error=e, exc_info=True)
+            logger.error(
+                "resource.decommission.error",
+                provisioner=self,
+                resource=resource,
+                error=e,
+                exc_info=True,
+            )
             raise
 
     @abc.abstractmethod
@@ -173,35 +202,52 @@ class ElasticServerProvisioner(Provisioner[Server, Server | Machine]):
     watch_types = bittuple(NodeType.SERVER, NodeType.MACHINE)
     provision_types = bittuple(NodeType.SERVER)
 
-    # TODO :Broken: scale & react to machines properly in ElasticServerProvisioner
+    async def _tick(self, server: Server):
+        # TODO :Incomplete: scale ElasticServerProvisioner properly (up/down/sleep/...)
+        machines = server.machines.tolist()
+
+        # rescale server if needed (poorly)
+        if not machines:
+            async with self._host.session(autocommit=True):
+                machine = Machine(name="Machine1", profile=MachineProfile.TINY)
+                server.machines.append(machine)
+                server.status = ResourceStatus.PROVISIONING
+
+        # update server status to reflect machines (if needed)
+        if machines and all(m.status == ResourceStatus.HEALTHY for m in machines):
+            actual_status = ResourceStatus.HEALTHY
+        elif machines and any(m.status == ResourceStatus.UNHEALTHY for m in machines):
+            actual_status = ResourceStatus.UNHEALTHY
+        else:
+            actual_status = ResourceStatus.HEALTHY
+        if server.status != actual_status:
+            async with self._host.session(autocommit=True):
+                server.status = actual_status
 
     @override
-    async def _on_commit(self, session: Session, commit: Commit[Server | Machine]) -> None:
-        if not commit.has(NodeType.MACHINE):
-            return
+    async def _on_commit_deferred(self, commit: Commit[Server | Machine]) -> None:
+        # get any edited servers (directly or indirectly via machines)
+        servers: set[Server] = set()
+        for node in commit.edited:
+            if isinstance(node, Server):
+                servers.add(node)
+            elif isinstance(node, Machine):
+                servers.add(node.parent)
+            else:
+                raise TypeError(f"unexpected node type {type(node)}")
 
-        # mark server as healthy/unhealthy based on its machines
-        subcommit = cast(Commit[Machine], commit.trim_to(NodeType.MACHINE))
-        servers = {machine.parent.id: machine.parent for machine in subcommit.edited}
-        for server in servers.values():
-            all_healthy = all(
-                machine.status == ResourceStatus.HEALTHY for machine in server.machines
-            )
-            if all_healthy and server.status != ResourceStatus.HEALTHY:
-                server.status = ResourceStatus.HEALTHY
-            elif not all_healthy and server.status == ResourceStatus.HEALTHY:
-                server.status = ResourceStatus.UNHEALTHY
+        # and check/update them
+        for server in servers:
+            if server.status != ResourceStatus.DECOMMISSIONED:
+                await self._tick(server)
 
     @override
     async def _provision(self, resource: Server):
-        async with self._host.session(autocommit=True):
-            machine = Machine(name="Machine1", region=resource.region, profile=MachineProfile.TINY)
-            resource.machines.append(machine)
-            resource.status = ResourceStatus.PROVISIONING
+        await self._tick(resource)
 
     @override
     async def _update(self, resource: Server):
-        pass  # see above
+        await self._tick(resource)
 
     @override
     async def _decommission(self, resource: Server):

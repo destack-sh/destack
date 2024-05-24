@@ -619,6 +619,9 @@ class NodeList(abc.ABC, Collection[NodeT], Generic[NodeT]):
             raise AttributeError(f"{self!r} has no node {item!r}")
         return node
 
+    def tolist(self) -> list[NodeT]:
+        return list(self)
+
 
 class GraphNodeList(NodeList[NodeT]):
     # TODO :Cleanup :Architecture: use ReadQuery/WriteQuery in NodeList?

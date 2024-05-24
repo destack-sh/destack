@@ -1644,7 +1644,11 @@ class Node(Struct[NodeDataT], Generic[NodeDataT]):
         )
 
     def __hash__(self):
-        return hash(self.id)
+        if "ck" in self.__properties__:
+            # 'id' may not yet be assigned
+            return hash((self.metatype, self.id, getattr(self, "ck")))
+        else:
+            return hash((self.metatype, self.id))
 
     @property
     def is_extant(self):

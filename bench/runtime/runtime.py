@@ -8,7 +8,6 @@ import structlog
 from grpclib.client import Channel
 
 from bench.language import Bench, Package
-from bench.language.access import Subject
 from bench.language.bench import Client, Machine
 from bench.language.connection import RemoteEngine
 from bench.language.const import BENCH_NODE_TYPES, IN_PACKAGE_NODE_TYPES, PUBLIC_NODE_TYPES
@@ -264,10 +263,10 @@ class Runtime(RuntimeBase, BenchServiceBase):
         self._packages.clear()
 
     @override
-    async def queue_run(self, subject: Subject, request: QueueRunRequest) -> QueueRunResponse:
+    async def queue_run(self, request: QueueRunRequest) -> QueueRunResponse:
         # just add to main queue
         self._run_queue.put_nowait(request.run)
-        logger.trace("runtime.queue_run", run=request.run, subject=subject)
+        logger.trace("runtime.queue_run", run=request.run)
         return QueueRunResponse()
 
 
