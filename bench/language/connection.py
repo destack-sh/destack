@@ -230,7 +230,7 @@ class RemoteEngine(StoreEngine[NodeT, NodeDataT]):
         self.retry = retry
 
     def __str__(self):
-        return f"scope={self.scope!r}, node_types={self.node_types}, remote={self.remote.__class__.__name__}"
+        return f"scope={self.scope!r}, node_types=[{', '.join(t.bench_name for t in self.node_types)}], remote={self.remote.__class__.__name__}"
 
     @override
     async def connect(self, session: "Session") -> "RemoteConnection":
@@ -330,7 +330,7 @@ class PostgresEngine(StoreEngine[NodeT, NodeDataT], Generic[NodeT, NodeDataT]):
         self.bench = bench
 
     def __str__(self):
-        return f"scope={self.scope!r}, node_types={self.node_types}, store={self.store!r}"
+        return f"scope={self.scope!r}, node_types=[{', '.join(t.bench_name for t in self.node_types)}], store={self.store!r}"
 
     @override
     async def connect(self, session: "Session") -> "PostgresConnection":

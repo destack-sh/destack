@@ -82,7 +82,8 @@ class QueueRunPlugin(HostPlugin[Run]):
                 continue
 
         # failed to queue run
-        if self._retry.max_attempts > 0 and attempt.no > self._retry.max_attempts:
+        if self._retry.max_attempts > 0 and attempt.no >= self._retry.max_attempts:
+            # give up and mark run as failed
             error = RunError(kind=RunErrorKind.INTERNAL, type=RunErrorType.NO_RUNTIME_AVAILABLE)
             async with self._host.session(autocommit=True):
                 run.fail(error)

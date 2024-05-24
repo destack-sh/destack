@@ -1,71 +1,47 @@
 import asyncio
 from contextlib import asynccontextmanager
-from typing import cast, override
+from typing import override
 from urllib.parse import urlparse
 from uuid import UUID
 
 import structlog
 from grpclib.client import Channel
 
-from bench.language import Bench, NodeType, Package, Session
+from bench.language import Bench, Package
 from bench.language.access import Subject
 from bench.language.bench import Client, Machine
 from bench.language.connection import RemoteEngine
 from bench.language.const import BENCH_NODE_TYPES, IN_PACKAGE_NODE_TYPES, PUBLIC_NODE_TYPES
-from bench.language.run import Run
-from bench.proto import wiring
+from bench.language.session import Session
 from bench.proto.services import BenchServiceBase
 from bench.proto.wire import (
-    BenchData,
     GraphScope,
     HostStub,
-    PackageData,
     QueueRunRequest,
     QueueRunResponse,
     RpcMetadata,
+    RunData,
     RuntimeBase,
     SupervisorStub,
 )
-from bench.runtime.connection import ConnectedQuery
-from bench.runtime.process import RuntimeProcess
+from bench.runtime.connection import (
+    ConnectedBench,
+    ConnectedPackage,
+    QueryConnector,
+    RemoteConnector,
+)
+from bench.runtime.core import (
+    BENCH_QUERY,
+    PACKAGE_QUERY,
+    REMOTE_CONNECTION_RETRY,
+    RUNTIME_PARALLELISM,
+)
+from bench.runtime.thread import RuntimeThread
 from bench.utils.dt import monotime
-from bench.utils.tenacity import RetryOptions
+from bench.utils.func import CriticalLock
+from bench.utils.uuidt import UUIDT
 
 logger = structlog.get_logger(__name__)
-
-LOADED_BENCH_NODE_TYPES: tuple[NodeType, ...] = (
-    NodeType.BENCH,
-    NodeType.ENVIRONMENT,
-    NodeType.BRANCH,
-    NodeType.MACHINE,
-    NodeType.PACKAGE,
-)
-LOADED_PACKAGE_NODE_TYPES: tuple[NodeType, ...] = (
-    NodeType.DEPENDENCY,
-    NodeType.UPGRADE,
-    NodeType.SPACE,
-    NodeType.LINK,
-    NodeType.NOTICE,
-    NodeType.BLOCK,
-    NodeType.TRIGGER,
-    NodeType.FIELD,
-    NodeType.QUERY,
-    NodeType.STEP,
-    NodeType.VIEW,
-)
-BENCH_QUERY = Bench.descendants(*LOADED_BENCH_NODE_TYPES).select_all()
-PACKAGE_QUERY = (
-    Package.descendants(*LOADED_PACKAGE_NODE_TYPES)
-    .ancestors(Bench)
-    .select_all()
-    .exclude(Bench.encryption_key)
-)
-
-ConnectedBench = ConnectedQuery[Bench, BenchData]
-ConnectedPackage = ConnectedQuery[Package, PackageData]
-
-REMOTE_CONNECTION_RETRY = RetryOptions(max_attempts=-1)
-RUNTIME_PARALLELISM = 1
 
 
 class Runtime(RuntimeBase, BenchServiceBase):
@@ -91,7 +67,6 @@ class Runtime(RuntimeBase, BenchServiceBase):
         if self._supervisor_host is None or self._supervisor_port is None:
             raise ValueError(f"invalid supervisor URL: {supervisor_url}")
         self._supervisor = SupervisorStub(Channel(self._supervisor_host, self._supervisor_port))
-        self._engines: tuple[RemoteEngine, ...] = ()
 
         # context
         self._client_id = client_id
@@ -101,23 +76,31 @@ class Runtime(RuntimeBase, BenchServiceBase):
             client_access_token=self._client_access_token,
         )
         self._client: Client | None = None
-        self._bench_id = bench_id
         self._machine_id = machine_id
         self._machine: Machine | None = None
+        self._connector: QueryConnector | None = None
+        self._engines: tuple[RemoteEngine, ...] = ()
 
         # bench stuff
         self._host: HostStub | None = None
+        self._bench_id = bench_id
         self._bench: ConnectedBench | None = None
         self._main_package: ConnectedPackage | None = None
         self._packages: dict[UUID, ConnectedPackage] = {}
         self._packages_lock = asyncio.Lock()
 
-        # processes
-        self._run_queue: asyncio.Queue[Run] = asyncio.Queue()
-        self._processes: list[RuntimeProcess] = []
+        # processing
+        self._session: Session | None = None
+        self._tx_lock: asyncio.Lock = CriticalLock(
+            name=f"{self.__class__.__name__}_{bench_id or ''}"
+        )
+        self._run_queue: asyncio.Queue[RunData] = asyncio.Queue()
+        self._threads: list[RuntimeThread] = []
 
     def __str__(self):
-        bench_str = repr(self._bench._node) if self._bench and self._bench._node else self._bench_id
+        bench_str = (
+            repr(self._bench.node) if self._bench and self._bench.has_result else self._bench_id
+        )
         client_str = repr(self._client) if self._client else self._client_id
         return f"{client_str} on {bench_str}"
 
@@ -140,37 +123,45 @@ class Runtime(RuntimeBase, BenchServiceBase):
         return self._client
 
     @property
-    def machine(self) -> Machine:
-        assert self._machine is not None, f"no machine for {self!r}"
-        return self._machine
-
-    @property
     def main_package(self) -> Package:
         assert self._main_package is not None, f"no main package for {self!r}"
         return self._main_package.node
 
     async def get_package(self, package_id: UUID) -> ConnectedPackage:
-        """Connect's a Package."""
-        assert self._host is not None, f"no host for {self!r}"
+        """Connects a Package."""
+        assert self._session is not None, f"no session for {self!r}"
+        assert self._connector is not None, f"no connector for {self!r}"
         package = self._packages.get(package_id)
         if package is None:
             async with self._packages_lock:
-                scope = GraphScope(bench_id=str(self._bench_id), package_id=str(package_id))
-                package = await ConnectedQuery(
+                package = await self._connector.connect(
                     query=PACKAGE_QUERY.where(id=package_id),
-                    remote=self._host,
-                    scope=scope,
-                    rpc_metadata=self._rpc_metadata,
-                ).connect()
+                    tx_lock=self._tx_lock,
+                    session=self._session,
+                )
                 self._packages[package_id] = package
         return package
 
-    def disconnect_package(self, package_id: UUID):
-        package = self._packages.pop(package_id)
-        package.close()
+    @asynccontextmanager
+    async def session(self, *, readonly: bool = False, autocommit: bool = False):
+        """Gets exclusive query and edit access to the main session."""
+        async with self._tx_lock:
+            assert self._session is not None, f"session not ready in {self!r}"
+            was_readonly = self._session._is_readonly
+            self._session._is_readonly = readonly
+            self._session.unsuspend()
+            yield self._session
+            if autocommit:
+                await self._session.commit()
+            elif self._session.tx.edits:
+                raise RuntimeError(f"uncommitted edits in {self!r}: {self._session.tx.edits!r}")
+            self._session.suspend()  # suspend by default
+            self._session._is_readonly = was_readonly
 
     async def start(self):
-        # set up host
+        start = monotime()
+
+        # setup host
         self._host = await get_host_client(self._bench_id, self._supervisor)
         bench_scope = GraphScope(bench_id=str(self._bench_id))
         self._engines = (
@@ -185,31 +176,28 @@ class Runtime(RuntimeBase, BenchServiceBase):
             # bench engine
             RemoteEngine(
                 scope=bench_scope,
-                node_types=BENCH_NODE_TYPES,
-                remote=self._host,
-                retry=REMOTE_CONNECTION_RETRY,
-                rpc_metadata=self._rpc_metadata,
-            ),
-            # in-package engine
-            RemoteEngine(
-                scope=bench_scope,
-                node_types=IN_PACKAGE_NODE_TYPES,
+                node_types=BENCH_NODE_TYPES | IN_PACKAGE_NODE_TYPES,
                 remote=self._host,
                 retry=REMOTE_CONNECTION_RETRY,
                 rpc_metadata=self._rpc_metadata,
             ),
         )
+        self._connector = RemoteConnector(self._host, bench_scope, self._rpc_metadata)
+        self._session = Session(
+            _is_readonly=False,
+            _default_scope=bench_scope,
+            _engines=self._engines,
+            _supervisor=self._supervisor,
+            _host=self._host,
+        )
+        await self._session.open(in_context=False)
 
         # connect
-        start = monotime()
-        async with local_session(self._engines, self._supervisor, self._host) as session:
+        async with self.session(readonly=True):
             # connect bench
-            self._bench = await ConnectedQuery(
-                query=BENCH_QUERY.where(id=self._bench_id),
-                remote=self._host,
-                scope=GraphScope(bench_id=str(self._bench_id)),
-                rpc_metadata=self._rpc_metadata,
-            ).connect()
+            self._bench = await self._connector.connect(
+                BENCH_QUERY.where(id=self._bench_id), self._tx_lock, self._session
+            )
             main_environment = self._bench.node.main_environment
             assert main_environment is not None, f"{self._bench!r} has no main environment"
             main_branch = self._bench.node.main_branch
@@ -227,20 +215,32 @@ class Runtime(RuntimeBase, BenchServiceBase):
                 ), f"{main_environment.server!r} has no machine {self._machine_id}"
 
             # connect main package
-            self._main_package = await self.get_package(main_branch.main_package_id)
-
-            session.untrack_many(self._bench.node, self._client, self._main_package.node)
-
-        # start processes
-        for i in range(RUNTIME_PARALLELISM):
-            process = RuntimeProcess(
-                i, self, self._bench.node, self._main_package.node, self._run_queue
+            self._main_package = await self._connector.connect(
+                PACKAGE_QUERY.where(id=main_branch.main_package_id), self._tx_lock, self._session
             )
-            self._processes.append(process)
-            await process.start()
+            self._packages[main_branch.main_package_id] = self._main_package
+            self._session.parent = self._main_package.node
+
+        # start threads
+        for _ in range(RUNTIME_PARALLELISM):
+            thread = RuntimeThread(
+                id=UUIDT(),
+                bench_id=self._bench_id,
+                supervisor=self._supervisor,
+                host=self._host,
+                # TODO :Performance: share query connections between runtime/threads
+                connector=self._connector,
+                engines=self._engines,
+                client=self._client,
+                machine=self._machine,
+                queue=self._run_queue,
+            )
+            self._threads.append(thread)
+            await thread.start()
 
         logger.info(
             "runtime.start",
+            runtime=self,
             bench=self._bench.node,
             client=self._client,
             duration=monotime() - start,
@@ -265,21 +265,10 @@ class Runtime(RuntimeBase, BenchServiceBase):
 
     @override
     async def queue_run(self, subject: Subject, request: QueueRunRequest) -> QueueRunResponse:
-        assert (
-            request.run.parent_ptr and request.run.parent_ptr.id == self.main_package.id
-        ), f"{request.run!r} not in {self.main_package!r}"
-        run = cast(Run, wiring.unpack_node(request.run, parent=self.main_package))
-        self._run_queue.put_nowait(run)
-        logger.trace("runtime.queue_run", run=run, subject=subject)
+        # just add to main queue
+        self._run_queue.put_nowait(request.run)
+        logger.trace("runtime.queue_run", run=request.run, subject=subject)
         return QueueRunResponse()
-
-
-@asynccontextmanager
-async def local_session(
-    engines: tuple[RemoteEngine, ...], supervisor: SupervisorStub, host: HostStub
-):
-    async with Session(_supervisor=supervisor, _host=host, _engines=engines) as session:
-        yield session
 
 
 async def get_host_client(bench_id: UUID, supervisor: SupervisorStub) -> HostStub:
