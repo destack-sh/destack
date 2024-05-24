@@ -211,9 +211,11 @@ class NeonApiRemote(NeonApi):
     async def create_project(
         self, *, name: str, region: Region, pg_version: int, branch: str = "main"
     ) -> CreateProjectRep:
+        region_id = NEON_REGION_BY_REGION.get(region)
+        assert region_id, f"unsupported region: {region}"
         project = {
             "name": name,
-            "region_id": NEON_REGION_BY_REGION[region],
+            "region_id": region_id,
             "pg_version": pg_version,
             "branch": {"name": branch, "role_name": "bench", "database_name": "bench"},
             "provisioner": "k8s-neonvm",
