@@ -7,7 +7,14 @@ from uuid import UUID
 import structlog
 
 from bench.language.connection import StoreEngine
-from bench.language.const import InterpStatus, NodeType, SessionStatus, StructType, _active_session
+from bench.language.const import (
+    InterpStatus,
+    NodeType,
+    SessionStatus,
+    StructType,
+    _active_session,
+    get_active_root_run,
+)
 from bench.language.graph import NodeDict, NodeGraphLike
 from bench.language.node import Node, Struct, node, struct, struct_component
 from bench.language.property import Property, p_internal, p_node_parent, p_runtime, p_system
@@ -312,7 +319,7 @@ class Session(Node[SessionData]):
         # Everything that comes this way in a Session is either system (subject=None) or in a Run.
         #  (Users add pending edits to Transactions directly with themselves as a subject)
         # All edits in a Run are attributed to the root for clarity.
-        return None  # nocheckin: Session._edit_subject
+        return get_active_root_run()
 
     def create(self, *nodes: Node):
         """Creates a new node. Errors if the node already exists."""

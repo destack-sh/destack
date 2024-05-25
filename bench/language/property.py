@@ -20,6 +20,7 @@ from bench.language.const import (
     PRIMITIVE_TYPE_BY_PY_TYPE,
     SUB_BENCH_NODE_TYPES,
     SUB_PACKAGE_NODE_TYPES,
+    TIMED_NODE_TYPES,
     UNSET,
     EnumType,
     NodeRelationFlag,
@@ -705,7 +706,10 @@ class Property(_TypeQueryBuilder if TYPE_CHECKING else object):
                 )
                 stored_ids.append(id_ref_prop)
                 # also remember 'ck' if any of the shared types has one
-                if any(t in SUB_PACKAGE_NODE_TYPES for t in shared_ptr_types):
+                if any(
+                    t in SUB_PACKAGE_NODE_TYPES and t not in TIMED_NODE_TYPES
+                    for t in shared_ptr_types
+                ):
                     ck_ref_prop = Property(
                         id=self.id,
                         name=self.name + "_ck",
@@ -930,12 +934,12 @@ def p_node_parent(id: int, *node_type: NodeType, is_system: bool = False) -> Any
 def p_node_ancestor(
     id: int,
     node_type: NodeType,
+    kind: ReferenceKind,
     store: bool = False,
     wire: bool = False,
     require: bool = UNSET,
     index_in_pg: bool = False,
     is_bench_implicit: bool = False,
-    kind: ReferenceKind = ReferenceKind.NODE_ANCESTOR_FIRST,
 ) -> Any:
     """Computed nearest or farthest ancestor of the given type."""
     return Property(
@@ -954,6 +958,7 @@ def p_node_ancestor(
     )
 
 
+p_node_ancestor_first = functools.partial(p_node_ancestor, kind=ReferenceKind.NODE_ANCESTOR_FIRST)
 p_node_ancestor_root = functools.partial(p_node_ancestor, kind=ReferenceKind.NODE_ANCESTOR_ROOT)
 
 

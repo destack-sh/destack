@@ -318,7 +318,7 @@ export function toNodeReference<T extends NodeType>(node: NodeTypeMapping[T] | n
     reference.benchId = node.parentPtr?.benchId;
   }
   // base
-  if (node.metatype in BASED_NODE_TYPES) {
+  if (BASED_NODE_TYPES.includes(node.metatype as unknown as NodeType)) {
     const base = getBaseFromNode(node);
     if (base != null) {
       reference.baseCk = base.ck;

@@ -58,7 +58,7 @@ from bench.language.property import (
     METATYPE_PROPERTY,
     Property,
     p_internal,
-    p_node_ancestor,
+    p_node_ancestor_first,
     p_node_child,
     p_node_parent,
     p_regular,
@@ -1380,10 +1380,10 @@ class Node(Struct[NodeDataT], Generic[NodeDataT]):
         parent_id: Optional[UUID] = None
         parent_ptr: Optional[NodeReference] = None
     # template: Optional["Node"] = node_template(5)
-    package: "Package" = p_node_ancestor(
+    package: "Package" = p_node_ancestor_first(
         6, NodeType.PACKAGE, require=True, store=True, wire=True, is_bench_implicit=True
     )
-    bench: "Bench" = p_node_ancestor(7, NodeType.BENCH, require=True, store=True, wire=True)
+    bench: "Bench" = p_node_ancestor_first(7, NodeType.BENCH, require=True, store=True, wire=True)
     if TYPE_CHECKING:
         package_id: Optional[UUID] = None
         bench_id: Optional[UUID] = None

@@ -82,6 +82,7 @@ export function isEnumType(object: any): object is EnumType {
 export const ROOT_NODE_TYPES = [NodeType.USER, NodeType.ORGANIZATION, NodeType.BENCH];
 export const BASED_NODE_TYPES = [
   // :HasBase
+  NodeType.FIELD,
   NodeType.RECORD,
   NodeType.MESSAGE,
   NodeType.RUN,

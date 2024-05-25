@@ -86,7 +86,9 @@ class Log(Node, HasSessionContext, HasValues):
     epoch: Optional[int] = p_internal(32, default=None, primitive_type=PrimitiveType.INT64)
 
     # content (access)
-    node: Optional["Node"] = p_system(40, require=False, array=False, references=NODE_TYPES.tuple)
+    node: Optional["Node"] = p_system(
+        40, require=False, array=False, references=NODE_TYPES.tuple, is_bench_implicit=True
+    )
     type: AccessType | None = p_internal(41, default=None)
     properties: list[int] = p_internal(42, array=True)
     new_node_packed: Any | None = p_internal(43, primitive_type=PrimitiveType.JSON)

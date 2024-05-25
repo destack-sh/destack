@@ -13,7 +13,7 @@ import {
   ViewData,
   ViewType,
 } from "@/proto/wire/";
-import { toNodeReference, type TypedNodeReferenceData } from "@/proto/wiring";
+import { makeNode, toNodeReference, type TypedNodeReferenceData } from "@/proto/wiring";
 import type { ActionContext, ActionMapImplementation } from "@/system/action";
 import { useHierarchicalNodeMoveActions } from "@/system/block";
 import { useExistingConnection, useGetConnection } from "@/system/connection";
@@ -325,7 +325,7 @@ defineExpose<ViewExposed>({ self, actions, focus });
               @click="
                 () => {
                   // nocheckin: session.* action handling (in Block/Step/Page/...)
-                  pkgConnection.tx.create({
+                  const run = makeNode({
                     metatype: NodeType.RUN,
                     parentPtr: block.packagePtr,
                     packagePtr: block.packagePtr,
@@ -333,6 +333,8 @@ defineExpose<ViewExposed>({ self, actions, focus });
                     status: RunStatus.SCHEDULED,
                     blockPtr: blockPtr,
                   });
+                  run.rootPtr = toNodeReference(run);
+                  pkgConnection.tx.create(run);
                 }
               "
             >
