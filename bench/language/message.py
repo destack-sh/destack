@@ -26,7 +26,10 @@ MESSAGE_PARENT_TYPES: tuple[NodeType, ...] = (NodeType.PACKAGE, NodeType.BLOCK, 
     local=True,
     no_ck=True,  # no persistent identity
     id_factory=UUIDT,
-    index_together=(("package_id", "created_at"),),
+    indexes=(
+        ("created_at",),
+        ("package_id", "created_at"),
+    ),
 )
 class Message(BasedNode[MessageData], HasSessionContext, HasValues):
     """

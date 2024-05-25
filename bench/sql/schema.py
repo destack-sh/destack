@@ -11,7 +11,7 @@ from bench.sql.core import (
     Table,
 )
 
-VERSION = "2024.05.25.3"
+VERSION = "2024.05.25.4"
 
 BENCH_TABLE = Table(
     "bench_bench",
@@ -1140,6 +1140,7 @@ SESSION_TABLE = Table(
         Column("user_id", PrimitiveType.UUID, is_nullable=True),
     ),
     indexes=(
+        Index("bench_idx_created_at", IndexType.BTREE, ("created_at",)),
         Index("bench_idx_package_id_created_at", IndexType.BTREE, ("package_id", "created_at")),
         Index("bench_idx_status", IndexType.BTREE, ("status",)),
     ),
@@ -1210,6 +1211,7 @@ RUN_TABLE = Table(
         Column("user_id", PrimitiveType.UUID, is_nullable=True),
     ),
     indexes=(
+        Index("bench_idx_created_at", IndexType.BTREE, ("created_at",)),
         Index("bench_idx_package_id_created_at", IndexType.BTREE, ("package_id", "created_at")),
     ),
     constraints=(
@@ -1259,6 +1261,7 @@ SIGNAL_TABLE = Table(
         Column("user_id", PrimitiveType.UUID, is_nullable=True),
     ),
     indexes=(
+        Index("bench_idx_created_at", IndexType.BTREE, ("created_at",)),
         Index("bench_idx_package_id_created_at", IndexType.BTREE, ("package_id", "created_at")),
     ),
     constraints=(
@@ -1319,6 +1322,7 @@ LOG_TABLE = Table(
     ),
     indexes=(
         Index("bench_idx_epoch", IndexType.BTREE, ("epoch",)),
+        Index("bench_idx_created_at", IndexType.BTREE, ("created_at",)),
         Index("bench_idx_package_id_created_at", IndexType.BTREE, ("package_id", "created_at")),
     ),
     constraints=(
@@ -1373,6 +1377,7 @@ NOTIFICATION_TABLE = Table(
         Column("user_id", PrimitiveType.UUID, is_nullable=True),
     ),
     indexes=(
+        Index("bench_idx_created_at", IndexType.BTREE, ("created_at",)),
         Index("bench_idx_package_id_created_at", IndexType.BTREE, ("package_id", "created_at")),
     ),
     constraints=(
@@ -1439,6 +1444,7 @@ MESSAGE_TABLE = Table(
         Column("user_id", PrimitiveType.UUID, is_nullable=True),
     ),
     indexes=(
+        Index("bench_idx_created_at", IndexType.BTREE, ("created_at",)),
         Index("bench_idx_package_id_created_at", IndexType.BTREE, ("package_id", "created_at")),
     ),
     constraints=(

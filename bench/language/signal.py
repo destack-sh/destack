@@ -33,7 +33,10 @@ logger = structlog.get_logger(__name__)
     local=True,
     no_ck=True,  # no persistent identity
     id_factory=UUIDT,
-    index_together=(("package_id", "created_at"),),
+    indexes=(
+        ("created_at",),
+        ("package_id", "created_at"),
+    ),
 )
 class Signal(BasedNode[SignalData], HasSessionContext, HasValues):
     """

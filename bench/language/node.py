@@ -645,10 +645,9 @@ def node(
     local: bool = False,
     roots: tuple[NodeType, ...] = (NodeType.BENCH,),
     reserved: set[str | int] | None = None,
-    indexes: tuple[Index, ...] = (),
     constraints: tuple[Constraint, ...] = (),
-    index_together: tuple[tuple[str, ...], ...] = (),
-    unique_together: tuple[tuple[str, ...], ...] = (),
+    indexes: tuple[Index | tuple[str, ...], ...] = (),
+    unique: tuple[tuple[str, ...], ...] = (),
     identifier: IdentifierType = IdentifierType.VARIABLE,
     id_factory: Callable[[], UUID] = new_node_id,
 ):
@@ -681,9 +680,9 @@ def node(
         cls.__identifier_type__ = identifier
         cls.__id_factory__ = id_factory
 
-        extra_indexes: list[Index] = [*indexes]
+        extra_indexes: list[Index] = []
         extra_constraints: list[Constraint] = [*constraints]
-        for columns in unique_together:
+        for columns in unique:
             columns = tuple(sorted(columns))  # for consistency
             index_name = f"bench_idx_{'_'.join(columns)}"
             index = Index(index_name, type=IndexType.BTREE, is_unique=True, columns=columns)
@@ -695,10 +694,15 @@ def node(
             )
             extra_indexes.append(index)
             extra_constraints.append(constraint)
-        for columns in index_together:
-            index_name = f"bench_idx_{'_'.join(columns)}"
-            index = Index(index_name, type=IndexType.BTREE, is_unique=False, columns=columns)
-            extra_indexes.append(index)
+        for index in indexes:
+            if isinstance(index, Index):
+                extra_indexes.append(index)
+            else:
+                index_name = f"bench_idx_{'_'.join(index)}"
+                extra_index = Index(
+                    index_name, type=IndexType.BTREE, is_unique=False, columns=index
+                )
+                extra_indexes.append(extra_index)
         cls.__extra_indexes__ = tuple(extra_indexes)
         cls.__extra_constraints__ = tuple(extra_constraints)
 
