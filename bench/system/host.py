@@ -23,18 +23,13 @@ from bench.language.graph import NodeGraphLike, edit_graph
 from bench.language.session import Session
 from bench.proto import wiring
 from bench.proto.services import BenchServiceBase, RpcCallable
-from bench.proto.wire import (
-    DownloadFilesRequest,
-    DownloadFilesResponse,
-    EditData,
-    GraphScope,
-    HostBase,
-    UploadFilesRequest,
-    UploadFilesResponse,
-)
+from bench.proto.wire import EditData, GraphScope, HostBase, ServiceKind
 from bench.system.core import (
+    BENCH_QUERY,
     GLOBAL_POSTGRES_ENGINE,
     GLOBAL_STORE,
+    LOADED_HOST_NODE_TYPES,
+    PACKAGE_QUERY,
     HostPlugin,
     HostSpec,
     global_session,
@@ -44,7 +39,7 @@ from bench.system.graph import GraphIoServiceBase
 from bench.system.provisioner import Provisioner, get_provisioners_for
 from bench.system.scheduler import QueueRunPlugin
 from bench.utils.dt import monotime
-from bench.utils.func import bittuple, to_uuid
+from bench.utils.func import to_uuid
 from bench.utils.utils import get_from_env_maybe
 
 logger = structlog.get_logger(__name__)
@@ -64,6 +59,8 @@ class HostMultiplexer(BenchServiceBase, HostBase):
     Also provides some process-level shared functionality.
     Hosts are loaded for all active Benches; new ones 'ping' the multiplexer service to add themselves.
     """
+
+    kind = ServiceKind.PUBLIC  # :ServiceKind
 
     def __init__(self):
         super().__init__()
@@ -147,44 +144,13 @@ class HostMultiplexer(BenchServiceBase, HostBase):
             raise NotImplementedError(f"unexpected cardinality in {method_name}: {cardinality}")
 
 
-LOADED_BENCH_NODE_TYPES: bittuple[NodeType] = bittuple(
-    NodeType.HANDLE,
-    NodeType.SERVER,
-    NodeType.CLIENT,
-    NodeType.MACHINE,
-    NodeType.STORE,
-    NodeType.ENVIRONMENT,
-    NodeType.BRANCH,
-    NodeType.PACKAGE,
-)
-LOADED_PACKAGE_NODE_TYPES: bittuple[NodeType] = bittuple(
-    NodeType.DEPENDENCY,
-    NodeType.UPGRADE,
-    NodeType.SPACE,
-    NodeType.LINK,
-    NodeType.NOTICE,
-    NodeType.BLOCK,
-    NodeType.TRIGGER,
-    NodeType.FIELD,
-    NodeType.QUERY,
-    NodeType.STEP,
-    NodeType.VIEW,
-)
-LOADED_NODE_TYPES = LOADED_BENCH_NODE_TYPES | LOADED_PACKAGE_NODE_TYPES
-BENCH_QUERY = Bench.descendants(*LOADED_BENCH_NODE_TYPES).select_all()
-PACKAGE_QUERY = (
-    Package.descendants(*LOADED_PACKAGE_NODE_TYPES)
-    .ancestors(Bench)
-    .select_all()
-    .exclude(Bench.encryption_key)
-)
-
-
 class Host(GraphIoServiceBase, HostBase, HostSpec):
     """
     Host for a Bench, providing the OS-level functionality (lifecycle, resources, scheduling, etc.).
     There is only one Host per Bench. Clients interact with the Bench exclusively via its Host.
     """
+
+    kind = ServiceKind.PUBLIC  # :ServiceKind
 
     def __init__(self, bench_id: UUID):
         GraphIoServiceBase.__init__(self, bench_id=bench_id, node_types=IN_BENCH_NODE_TYPES)
@@ -285,6 +251,7 @@ class Host(GraphIoServiceBase, HostBase, HostSpec):
             node_types=IN_BENCH_GLOBAL_NODE_TYPES,
         )
         assert self._bench.main_environment, f"{self._bench!r} has no main environment"
+        assert self._bench.main_environment.store, f"{self._bench!r} has no main store"
         assert self._bench.main_branch, f"{self._bench!r} has no main branch"
         self._local_pg_engine = PostgresEngine(
             store=self._bench.main_environment.store,
@@ -358,7 +325,7 @@ class Host(GraphIoServiceBase, HostBase, HostSpec):
         # apply edits to loaded graphs (bench/package)
         self._session.suppress()  # don't trigger the edits we're just applying
         for edit in edits:
-            if NodeType(edit.node_type) not in LOADED_NODE_TYPES:
+            if NodeType(edit.node_type) not in LOADED_HOST_NODE_TYPES:
                 continue  # not loaded
             if edit.origin is None:
                 continue  # origin is us (=Host)
@@ -393,17 +360,3 @@ class Host(GraphIoServiceBase, HostBase, HostSpec):
         await self._session.commit(skip_lock=True)  # already in a locked section
         if was_suspended:
             self._session.suspend()
-
-    #
-    # Files
-    #
-
-    async def upload_files(
-        self, subject: Subject, request: "UploadFilesRequest"
-    ) -> "UploadFilesResponse":
-        raise GRPCError(GRPCStatus.UNIMPLEMENTED)
-
-    async def download_files(
-        self, subject: Subject, request: "DownloadFilesRequest"
-    ) -> "DownloadFilesResponse":
-        raise GRPCError(GRPCStatus.UNIMPLEMENTED)

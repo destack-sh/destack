@@ -8,7 +8,6 @@ package symbolx.bench;
 
 import "bench/proto/common.proto";
 import "bench/proto/lang.proto";
-import "google/protobuf/timestamp.proto";
 
 //
 // Graph
@@ -224,6 +223,8 @@ message GetHostResponse {
 
 // Global control plane: create & manage the global stuff like Benches, Users, etc..
 service Supervisor {
+  option (kind) = PUBLIC; // :ServiceKind
+
   //
   // Global IO for non-source nodes outside Benches :GraphIO
   //
@@ -264,35 +265,10 @@ service Supervisor {
 // Host
 //
 
-message SnapshotPackageRequest {
-}
-message SnapshotPackageResponse {
-}
-
-message MergePackageRequest {
-}
-message MergePackageResponse {
-}
-
-message UploadFilesRequest {
-  repeated FileData files = 1;
-}
-message UploadFilesResponse {
-  repeated string post_urls = 1;
-  google.protobuf.Timestamp expires_at = 2;
-}
-
-message DownloadFilesRequest {
-  repeated FileData files = 1;
-}
-message DownloadFilesResponse {
-  repeated string get_urls = 1;
-  google.protobuf.Timestamp expires_at = 2;
-}
-
-
 // The Host provides the operating system of a Bench.
 service Host {
+  option (kind) = PUBLIC; // :ServiceKind
+  
   //
   // General IO for nodes in this Bench (only) :GraphIO
   //
@@ -306,23 +282,7 @@ service Host {
   rpc CancelTransaction(CancelTransactionRequest) returns (CancelTransactionResponse);
   rpc WatchEdits(WatchEditsRequest) returns (stream WatchEditsResponse);
 
-  //
-  // Packages
-  //
-
-  // Snapshot a Package. A new inactive Package copy is inserted in the history of the given Package.
-  rpc SnapshotPackage(SnapshotPackageRequest) returns (SnapshotPackageResponse);
-  // Merges the edits made in a Package into another package. The source Package is deactivated.
-  rpc MergePackage(MergePackageRequest) returns (MergePackageResponse);
-
-  //
-  // Files
-  //
-
-  // Get a signed URL to upload a file.
-  rpc UploadFiles(UploadFilesRequest) returns (UploadFilesResponse);
-  // Get a signed URL to download a file.
-  rpc DownloadFiles(DownloadFilesRequest) returns (DownloadFilesResponse);
+  // ...
 }
 
 //
@@ -344,6 +304,8 @@ message QueueRunResponse {
 // A Runtime for running a Bench in an isolated environment on/for a Client.
 // The Runtime may run any number of processes and threads to process its Runs in Sessions.
 service Runtime {
+  option (kind) = INTERNAL; // :ServiceKind
+
   // Restart this runtime. If force, skip graceful shutdown.
   rpc Restart(RestartRuntimeRequest) returns (RestartRuntimeResponse);
   // Starts a new Run in this runtime. The Run must already exist in the graph.

@@ -13,6 +13,8 @@ LOADED_BENCH_NODE_TYPES: tuple[NodeType, ...] = (
     NodeType.ENVIRONMENT,
     NodeType.BRANCH,
     NodeType.SERVER,
+    NodeType.STORE,
+    NodeType.DRIVE,
     NodeType.CLIENT,
     NodeType.MACHINE,
     NodeType.PACKAGE,

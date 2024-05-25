@@ -45,6 +45,39 @@ GLOBAL_POSTGRES_ENGINE = PostgresEngine(
 )
 
 
+LOADED_BENCH_NODE_TYPES: bittuple[NodeType] = bittuple(
+    NodeType.HANDLE,
+    NodeType.SERVER,
+    NodeType.CLIENT,
+    NodeType.MACHINE,
+    NodeType.STORE,
+    NodeType.ENVIRONMENT,
+    NodeType.BRANCH,
+    NodeType.PACKAGE,
+)
+LOADED_PACKAGE_NODE_TYPES: bittuple[NodeType] = bittuple(
+    NodeType.DEPENDENCY,
+    NodeType.UPGRADE,
+    NodeType.SPACE,
+    NodeType.LINK,
+    NodeType.NOTICE,
+    NodeType.BLOCK,
+    NodeType.TRIGGER,
+    NodeType.FIELD,
+    NodeType.QUERY,
+    NodeType.STEP,
+    NodeType.VIEW,
+)
+LOADED_HOST_NODE_TYPES = LOADED_BENCH_NODE_TYPES | LOADED_PACKAGE_NODE_TYPES
+BENCH_QUERY = Bench.descendants(*LOADED_BENCH_NODE_TYPES).select_all()
+PACKAGE_QUERY = (
+    Package.descendants(*LOADED_PACKAGE_NODE_TYPES)
+    .ancestors(Bench)
+    .select_all()
+    .exclude(Bench.encryption_key)
+)
+
+
 @asynccontextmanager
 async def global_pg_cursor(autocommit: bool = False):
     async with _PgStoreConnection(GLOBAL_STORE, SYSTEM_BENCH_STUB, autocommit=autocommit) as cur:

@@ -5,6 +5,16 @@ package symbolx.bench;
 import "bench/proto/lang.proto";
 import "google/protobuf/descriptor.proto";
 
+enum ServiceKind {
+  UNSPECIFIED = 0;
+  INTERNAL = 1;
+  PUBLIC = 2;
+}
+
+extend google.protobuf.ServiceOptions {
+  ServiceKind kind = 50000;
+}
+
 extend google.protobuf.FieldOptions {
   // Field should never be printed in logs.
   optional bool sensitive = 50000;
@@ -54,10 +64,11 @@ message EditData {
   repeated uint32 properties = 36;
 
   optional NodeReferenceData subject = 40;
-  // The last seen relevant from the corresponding graph.
   optional uint64 seen_epoch = 41;
   // System-accepted revision for the edit.
   optional int64 revision = 42;
+  // System-accepted epoch for the edit.
+  optional int64 epoch = 43;
 }
 
 // Transaction of edits to a Node.

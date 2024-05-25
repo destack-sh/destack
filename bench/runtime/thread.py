@@ -142,7 +142,7 @@ class RuntimeThread:
 
     async def _process_run(self, run_data: RunData):
         assert (
-            run_data.parent_ptr and run_data.parent_ptr.id == self.main_package.id
+            run_data.parent_ptr and UUID(run_data.parent_ptr.id) == self.main_package.id
         ), f"{run_data!r} not in {self.main_package!r}"
         run = wiring.unpack_node(run_data, parent=self.main_package, session=self._session)
 

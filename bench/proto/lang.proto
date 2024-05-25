@@ -2036,8 +2036,7 @@ message LogData {
   repeated int32 set_properties = 22;
   LogKind kind = 30;
   LogLevel level = 31;
-  optional string logger = 32;
-  optional string event = 33;
+  optional int64 epoch = 32;
   optional NodeReferenceData node_ptr = 40;
   optional AccessType type = 41;
   repeated int32 properties = 42;

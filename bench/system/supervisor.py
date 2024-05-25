@@ -27,6 +27,7 @@ from bench.proto.wire import (
     LoginUserResponse,
     LogoutUserRequest,
     LogoutUserResponse,
+    ServiceKind,
     SignupUserRequest,
     SignupUserResponse,
     SupervisorBase,
@@ -48,6 +49,8 @@ GLOBAL_SCOPE = GraphScope()
 
 
 class Supervisor(GraphIoServiceBase, SupervisorBase):
+    kind = ServiceKind.PUBLIC  # :ServiceKind
+
     def __init__(self):
         GraphIoServiceBase.__init__(self, bench_id=None, node_types=USER_NODE_TYPES)
 
@@ -100,6 +103,7 @@ class Supervisor(GraphIoServiceBase, SupervisorBase):
         )
         return client
 
+    @override
     async def signup_user(
         self, subject: Subject, request: "SignupUserRequest"
     ) -> "SignupUserResponse":
@@ -134,6 +138,7 @@ class Supervisor(GraphIoServiceBase, SupervisorBase):
             access_token=client.access_token,
         )
 
+    @override
     async def change_user_password(
         self, subject: Subject, request: "ChangeUserPasswordRequest"
     ) -> "ChangeUserPasswordResponse":
@@ -158,6 +163,7 @@ class Supervisor(GraphIoServiceBase, SupervisorBase):
         logger.info("supervisor.change_user_password", user=user)
         return ChangeUserPasswordResponse(user=user._to_data())
 
+    @override
     async def login_user(
         self, subject: Subject, request: "LoginUserRequest"
     ) -> "LoginUserResponse":
@@ -191,6 +197,7 @@ class Supervisor(GraphIoServiceBase, SupervisorBase):
             access_token=client.access_token,
         )
 
+    @override
     async def logout_user(
         self, subject: Subject, request: "LogoutUserRequest"
     ) -> "LogoutUserResponse":
@@ -225,6 +232,7 @@ class Supervisor(GraphIoServiceBase, SupervisorBase):
     # Bench management
     #
 
+    @override
     async def create_bench(
         self, subject: Subject, request: "CreateBenchRequest"
     ) -> "CreateBenchResponse":
@@ -282,6 +290,7 @@ class Supervisor(GraphIoServiceBase, SupervisorBase):
         logger.info("supervisor.create_bench", bench=bench)
         return CreateBenchResponse(bench=bench._to_data())
 
+    @override
     async def get_host(self, subject: "Subject", request: "GetHostRequest") -> "GetHostResponse":
         key, value = betterproto.which_one_of(request, "bench")
         async with self.request_session():

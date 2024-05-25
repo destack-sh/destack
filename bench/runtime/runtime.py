@@ -1,6 +1,6 @@
 import asyncio
 from contextlib import asynccontextmanager
-from typing import Any, override
+from typing import override
 from urllib.parse import urlparse
 from uuid import UUID
 
@@ -21,6 +21,7 @@ from bench.proto.wire import (
     RpcMetadata,
     RunData,
     RuntimeBase,
+    ServiceKind,
     SupervisorStub,
 )
 from bench.runtime.connection import (
@@ -47,6 +48,8 @@ class Runtime(RuntimeBase, BenchServiceBase):
     """
     A Runtime processes selected Runs in a Bench/Package in Sessions on a Client.
     """
+
+    kind = ServiceKind.INTERNAL  # :ServiceKind
 
     def __init__(
         self,
@@ -263,7 +266,7 @@ class Runtime(RuntimeBase, BenchServiceBase):
         self._packages.clear()
 
     @override
-    async def queue_run(self, subject: Any, request: QueueRunRequest) -> QueueRunResponse:
+    async def queue_run(self, request: QueueRunRequest) -> QueueRunResponse:
         # just add to main queue
         self._run_queue.put_nowait(request.run)
         logger.trace("runtime.queue_run", run=request.run)

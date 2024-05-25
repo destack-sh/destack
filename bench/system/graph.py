@@ -2,7 +2,7 @@ import asyncio
 from collections import deque
 from dataclasses import dataclass, field
 from itertools import chain
-from typing import AsyncIterator, Mapping, NamedTuple, cast, final
+from typing import AsyncIterator, Mapping, NamedTuple, cast, final, override
 from uuid import UUID
 
 import betterproto
@@ -131,7 +131,7 @@ class GraphIoServiceBase(BenchServiceBase, GraphIoBase):
         """Gets the store engines available to this subgraph. Implemented in the actual service."""
         raise NotImplementedError
 
-    def _validate_request_self(self, subject: Subject, request: betterproto.Message) -> None:
+    def _validate_request(self, request: betterproto.Message) -> None:
         """Validate a request message for this service."""
         scope: GraphScope = getattr(request, "scope", GraphScope())
         if to_uuid(scope.bench_id) != self.bench_id:
@@ -153,6 +153,7 @@ class GraphIoServiceBase(BenchServiceBase, GraphIoBase):
             _on_commit_hook=self.on_commit,
         )
 
+    @override
     async def get_nodes(self, subject: Subject, request: "GetNodesRequest") -> "GetNodesResponse":
         # parse request
         roots: tuple[NodeReference, ...] = tuple(
@@ -206,6 +207,7 @@ class GraphIoServiceBase(BenchServiceBase, GraphIoBase):
             epoch=self.epoch,
         )
 
+    @override
     async def search_nodes(
         self, subject: Subject, request: "SearchNodesRequest"
     ) -> "SearchNodesResponse":
@@ -254,6 +256,7 @@ class GraphIoServiceBase(BenchServiceBase, GraphIoBase):
             epoch=self.epoch,
         )
 
+    @override
     async def aggregate_nodes(
         self, subject: Subject, request: "AggregateNodesRequest"
     ) -> "AggregateNodesResponse":
@@ -278,6 +281,7 @@ class GraphIoServiceBase(BenchServiceBase, GraphIoBase):
         logger.debug("graph.aggregate", subject=subject, epoch=self.epoch)
         return AggregateNodesResponse(aggregation=result.aggregation, epoch=self.epoch)
 
+    @override
     async def commit_transaction(
         self, subject: Subject, request: "CommitTransactionRequest"
     ) -> "CommitTransactionResponse":
@@ -368,21 +372,25 @@ class GraphIoServiceBase(BenchServiceBase, GraphIoBase):
             revisions=accepted_revisions, cascaded_edits=cascaded_edits, epoch=self.epoch
         )
 
+    @override
     async def flush_transaction(
         self, subject: "Subject", request: "FlushTransactionRequest"
     ) -> "FlushTransactionResponse":
         raise GRPCError(GRPCStatus.UNIMPLEMENTED)  # :2PC
 
+    @override
     async def complete_transaction(
         self, subject: Subject, request: "CompleteTransactionRequest"
     ) -> "CompleteTransactionResponse":
         raise GRPCError(GRPCStatus.UNIMPLEMENTED)  # :2PC
 
+    @override
     async def cancel_transaction(
         self, subject: Subject, request: "CancelTransactionRequest"
     ) -> "CancelTransactionResponse":
         raise GRPCError(GRPCStatus.UNIMPLEMENTED)  # :2PC
 
+    @override
     async def watch_edits(
         self, subject: Subject, request: "WatchEditsRequest"
     ) -> AsyncIterator["WatchEditsResponse"]:

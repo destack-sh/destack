@@ -139,8 +139,6 @@ export interface EditData {
      */
     subject?: NodeReferenceData;
     /**
-     * The last seen relevant from the corresponding graph.
-     *
      * @generated from protobuf field: optional uint64 seen_epoch = 41;
      */
     seenEpoch?: bigint;
@@ -150,6 +148,12 @@ export interface EditData {
      * @generated from protobuf field: optional int64 revision = 42;
      */
     revision?: bigint;
+    /**
+     * System-accepted epoch for the edit.
+     *
+     * @generated from protobuf field: optional int64 epoch = 43;
+     */
+    epoch?: bigint;
 }
 /**
  * Transaction of edits to a Node.
@@ -169,6 +173,23 @@ export interface TransactionData {
      * @generated from protobuf field: repeated symbolx.bench.EditData edits = 31;
      */
     edits: EditData[];
+}
+/**
+ * @generated from protobuf enum symbolx.bench.ServiceKind
+ */
+export enum ServiceKind {
+    /**
+     * @generated from protobuf enum value: UNSPECIFIED = 0;
+     */
+    UNSPECIFIED = 0,
+    /**
+     * @generated from protobuf enum value: INTERNAL = 1;
+     */
+    INTERNAL = 1,
+    /**
+     * @generated from protobuf enum value: PUBLIC = 2;
+     */
+    PUBLIC = 2
 }
 // @generated message type with reflection information, may provide speed optimized methods
 class ClientOrigin$Type extends MessageType<ClientOrigin> {
@@ -434,7 +455,8 @@ class EditData$Type extends MessageType<EditData> {
             { no: 36, name: "properties", kind: "scalar", repeat: 1 /*RepeatType.PACKED*/, T: 13 /*ScalarType.UINT32*/ },
             { no: 40, name: "subject", kind: "message", T: () => NodeReferenceData },
             { no: 41, name: "seen_epoch", kind: "scalar", opt: true, T: 4 /*ScalarType.UINT64*/, L: 0 /*LongType.BIGINT*/ },
-            { no: 42, name: "revision", kind: "scalar", opt: true, T: 3 /*ScalarType.INT64*/, L: 0 /*LongType.BIGINT*/ }
+            { no: 42, name: "revision", kind: "scalar", opt: true, T: 3 /*ScalarType.INT64*/, L: 0 /*LongType.BIGINT*/ },
+            { no: 43, name: "epoch", kind: "scalar", opt: true, T: 3 /*ScalarType.INT64*/, L: 0 /*LongType.BIGINT*/ }
         ]);
     }
     create(value?: PartialMessage<EditData>): EditData {
@@ -486,6 +508,9 @@ class EditData$Type extends MessageType<EditData> {
                 case /* optional int64 revision */ 42:
                     message.revision = reader.int64().toBigInt();
                     break;
+                case /* optional int64 epoch */ 43:
+                    message.epoch = reader.int64().toBigInt();
+                    break;
                 default:
                     let u = options.readUnknownField;
                     if (u === "throw")
@@ -532,6 +557,9 @@ class EditData$Type extends MessageType<EditData> {
         /* optional int64 revision = 42; */
         if (message.revision !== undefined)
             writer.tag(42, WireType.Varint).int64(message.revision);
+        /* optional int64 epoch = 43; */
+        if (message.epoch !== undefined)
+            writer.tag(43, WireType.Varint).int64(message.epoch);
         let u = options.writeUnknownFields;
         if (u !== false)
             (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);

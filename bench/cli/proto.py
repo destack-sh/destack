@@ -9,8 +9,8 @@ import structlog
 import typer
 
 from bench.cli.utils import _shell
-from bench.language import VERSION, Node
-from bench.language.const import ENUM_TYPES, NODE_TYPES, STRUCT_TYPES, UNSET
+from bench.language import Node
+from bench.language.const import ENUM_TYPES, NODE_TYPES, STRUCT_TYPES, UNSET, VERSION
 from bench.language.property import Property
 from bench.language.setup import (
     ANCESTOR_NODE_TYPES,
@@ -58,6 +58,9 @@ def _generate_proto_schema() -> str:
     return proto.to_proto_source()
 
 
+_PUBLIC_SERVICES = ("GraphIo", "Supervisor", "Host")  # :ServiceKind
+
+
 def _regen_proto_artifacts(schema_str: str) -> None:
     """Regenerate external artifacts from the proto schema."""
 
@@ -78,33 +81,46 @@ def _regen_proto_artifacts(schema_str: str) -> None:
     )
     _shell(f"mv {TEMP_PY_DIR}/symbolx/bench/__init__.py {TEMP_PY_FILE}")
 
-    # add/patch our extra stuff
+    # patch our extra stuff
     wire_py = Path(TEMP_PY_FILE).read_text()
-    wire_py = re.sub(
-        # rename all request parameters to 'request', add subject parameter
-        # * is used only in stub signatures by betterproto (we only want bases here)
-        r"self, [a-z_]+_request:(?! \"[a-zA-Z]\", \*)",
-        'self, subject: "Subject", request:',
-        wire_py,
-    )
+    # rename all '*_request' parameters to just 'request'
     wire_py = re.sub(r"\w[a-z_]+request,", "request,", wire_py)
     wire_py = re.sub(r"\w[a-z_]+request:", "request:", wire_py)
-    patch_prefix_code = """
+    # add subject parameter to public service base methods
+    for service_name in _PUBLIC_SERVICES:
+        base_name = f"{service_name}Base"
+        # find section of code that defines this class
+        #  (start with class <base_name> and end with next class or end of file)
+        base_start = wire_py.index(f"class {base_name}(ServiceBase):")
+        try:
+            base_end = wire_py.index("class", base_start + 1)
+        except ValueError:
+            base_end = len(wire_py)
+        base_py = wire_py[base_start:base_end]
+        patched_base_py = re.sub(
+            r"self, request:(?! \"[a-zA-Z]\", \*)",
+            'self, subject: "Subject", request:',
+            base_py,
+        )
+        wire_py = wire_py[:base_start] + patched_base_py + wire_py[base_end:]
+
+    patch_prefix_code = f"""
 # type: ignore
 # ruff: noqa
-"""
-    patch_postfix_code = f"""
-from typing import TYPE_CHECKING # noqa: E402
+
+from typing import TYPE_CHECKING, Union
 
 VERSION = '{VERSION}'
 
 if TYPE_CHECKING:
     from bench.language import Subject
-    
-# extra utility types
+"""
+    patch_postfix_code = f"""
+
+# ensure monkey patching is applied when this is imported
 import bench.proto.monkey # noqa
 
-from typing import Union # noqa
+# extra utility types
 AnyNodeData = Union[{', '.join([cls.__name__ + 'Data' for cls in NODE_CLASSES])}]
 AnyStructData = Union[{', '.join([cls.__name__ + 'Data' for cls in STRUCT_CLASSES])}]
     """

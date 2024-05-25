@@ -2896,13 +2896,9 @@ export interface LogData {
      */
     level: LogLevel;
     /**
-     * @generated from protobuf field: optional string logger = 32;
+     * @generated from protobuf field: optional int64 epoch = 32;
      */
-    logger?: string;
-    /**
-     * @generated from protobuf field: optional string event = 33;
-     */
-    event?: string;
+    epoch?: bigint;
     /**
      * @generated from protobuf field: optional symbolx.bench.NodeReferenceData node_ptr = 40;
      */
@@ -16081,8 +16077,7 @@ class LogData$Type extends MessageType<LogData> {
             { no: 22, name: "set_properties", kind: "scalar", repeat: 1 /*RepeatType.PACKED*/, T: 5 /*ScalarType.INT32*/ },
             { no: 30, name: "kind", kind: "enum", T: () => ["symbolx.bench.LogKind", LogKind, "LOG_KIND_"] },
             { no: 31, name: "level", kind: "enum", T: () => ["symbolx.bench.LogLevel", LogLevel, "LOG_LEVEL_"] },
-            { no: 32, name: "logger", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
-            { no: 33, name: "event", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
+            { no: 32, name: "epoch", kind: "scalar", opt: true, T: 3 /*ScalarType.INT64*/, L: 0 /*LongType.BIGINT*/ },
             { no: 40, name: "node_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 41, name: "type", kind: "enum", opt: true, T: () => ["symbolx.bench.AccessType", AccessType, "ACCESS_TYPE_"] },
             { no: 42, name: "properties", kind: "scalar", repeat: 1 /*RepeatType.PACKED*/, T: 5 /*ScalarType.INT32*/ },
@@ -16169,11 +16164,8 @@ class LogData$Type extends MessageType<LogData> {
                 case /* symbolx.bench.LogLevel level */ 31:
                     message.level = reader.int32();
                     break;
-                case /* optional string logger */ 32:
-                    message.logger = reader.string();
-                    break;
-                case /* optional string event */ 33:
-                    message.event = reader.string();
+                case /* optional int64 epoch */ 32:
+                    message.epoch = reader.int64().toBigInt();
                     break;
                 case /* optional symbolx.bench.NodeReferenceData node_ptr */ 40:
                     message.nodePtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.nodePtr);
@@ -16291,12 +16283,9 @@ class LogData$Type extends MessageType<LogData> {
         /* symbolx.bench.LogLevel level = 31; */
         if (message.level !== 0)
             writer.tag(31, WireType.Varint).int32(message.level);
-        /* optional string logger = 32; */
-        if (message.logger !== undefined)
-            writer.tag(32, WireType.LengthDelimited).string(message.logger);
-        /* optional string event = 33; */
-        if (message.event !== undefined)
-            writer.tag(33, WireType.LengthDelimited).string(message.event);
+        /* optional int64 epoch = 32; */
+        if (message.epoch !== undefined)
+            writer.tag(32, WireType.Varint).int64(message.epoch);
         /* optional symbolx.bench.NodeReferenceData node_ptr = 40; */
         if (message.nodePtr)
             NodeReferenceData.internalBinaryWrite(message.nodePtr, writer.tag(40, WireType.LengthDelimited).fork(), options).join();
@@ -22824,8 +22813,7 @@ export enum LogProperty {
   setProperties = 22,
   kind = 30,
   level = 31,
-  logger = 32,
-  event = 33,
+  epoch = 32,
   nodePtr = 40,
   type = 41,
   properties = 42,
@@ -24724,8 +24712,7 @@ export const LogDataInfo: Record<LogProperty, PropertyInfo> = {
   [LogProperty.setProperties]: { id: 22, name: 'set_properties', component: ObjectType.LOG, kind: 'primitive', primitiveType: PrimitiveType.INT32, isList: true, isRequired: true, isRuntime: true, isWired: true },
   [LogProperty.kind]: { id: 30, name: 'kind', component: ObjectType.LOG, enumType: EnumType.LOG_KIND, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [LogProperty.level]: { id: 31, name: 'level', component: ObjectType.LOG, enumType: EnumType.LOG_LEVEL, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
-  [LogProperty.logger]: { id: 32, name: 'logger', component: ObjectType.LOG, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
-  [LogProperty.event]: { id: 33, name: 'event', component: ObjectType.LOG, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
+  [LogProperty.epoch]: { id: 32, name: 'epoch', component: ObjectType.LOG, kind: 'primitive', primitiveType: PrimitiveType.INT64, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [LogProperty.nodePtr]: { id: 40, name: 'node_ptr', component: ObjectType.LOG, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.BENCH, NodeType.ENVIRONMENT, NodeType.BRANCH, NodeType.PACKAGE, NodeType.DEPENDENCY, NodeType.UPGRADE, NodeType.SPACE, NodeType.LINK, NodeType.SKIP, NodeType.NOTICE, NodeType.BLOCK, NodeType.TRIGGER, NodeType.FIELD, NodeType.QUERY, NodeType.VIEW, NodeType.STEP, NodeType.BADGE, NodeType.ROLE, NodeType.IDENTITY, NodeType.MEMBERSHIP, NodeType.INVITE, NodeType.SESSION, NodeType.RUN, NodeType.SIGNAL, NodeType.LOG, NodeType.NOTIFICATION, NodeType.MESSAGE, NodeType.RECORD, NodeType.SERVER, NodeType.STORE, NodeType.MACHINE, NodeType.DRIVE, NodeType.BLOB, NodeType.HANDLE, NodeType.USER, NodeType.ORGANIZATION, NodeType.CLIENT], referenceStruct: StructType.NODE_REFERENCE },
   [LogProperty.type]: { id: 41, name: 'type', component: ObjectType.LOG, enumType: EnumType.ACCESS_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [LogProperty.properties]: { id: 42, name: 'properties', component: ObjectType.LOG, kind: 'primitive', primitiveType: PrimitiveType.INT32, isList: true, isRequired: true, isInternal: true, isRuntime: true, isWired: true, isStored: true },
