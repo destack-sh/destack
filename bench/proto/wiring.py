@@ -360,7 +360,7 @@ def unpack_node_roots(
 def wrap_some_node(node: AnyNodeData) -> wire.SomeNodeData:
     """Wraps a concrete node type into a generic node message."""
     wrapper = wire.SomeNodeData()
-    field_name = to_casing(node.metatype.name, Casing.SNAKE)
+    field_name = to_casing(cast(str, node.metatype.name), Casing.SNAKE)
     setattr(wrapper, field_name, node)
     return wrapper
 

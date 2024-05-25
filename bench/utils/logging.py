@@ -10,7 +10,7 @@ LOG_LEVEL = get_from_env("LOG_LEVEL", default="DEBUG")
 # monkey patch structlog to add color support for custom 'trace' level
 patched_styles = structlog.dev.ConsoleRenderer.get_default_level_styles()
 patched_styles["trace"] = patched_styles["debug"]
-structlog.dev.ConsoleRenderer.get_default_level_styles = lambda *args: patched_styles
+structlog.dev.ConsoleRenderer.get_default_level_styles = lambda *args: patched_styles  # type: ignore
 
 FORMATTERS = {
     "json_formatter": {
