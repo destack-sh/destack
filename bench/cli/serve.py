@@ -28,7 +28,7 @@ async def system(host: str, port: int, watch: bool = False, no_supervisor: bool 
         services.append(Supervisor())
     server = BenchServer(handlers=services)
     if IS_DEBUG and watch:
-        _ = asyncio.create_task(restart_on_file_changes())
+        _ = asyncio.create_task(restart_on_file_changes())  # noqa: RUF006
     with graceful_exit([server]):
         await server.start(host=host, port=port)
         await server.wait_closed()
@@ -50,7 +50,7 @@ async def runtime(host: str, port: int, watch: bool = False):
     server = BenchServer(services)
 
     if IS_DEBUG and watch:
-        _ = asyncio.create_task(restart_on_file_changes())
+        _ = asyncio.create_task(restart_on_file_changes())  # noqa: RUF006
     with graceful_exit([server]):
         await server.start(host=host, port=port)
         await server.wait_closed()

@@ -74,11 +74,11 @@ class Property(_TypeQueryBuilder if TYPE_CHECKING else object):
     # basics
     # NOTE: yes cast(int, None) is a bit evil but we almost always immediately assign it here and
     #  don't want to deal with asserting id is not None everywhere.
-    id: int = cast(
-        int, None
-    )  # stable id for wiring properties, must be unique per final struct/node
+    # stable id for wiring properties, must be unique per final struct/node
+    id: int = cast(int, None)  # noqa: RUF009
     id_as_str: str = UNSET  # str(id)
-    ord: int = cast(int, None)  # unstable ordinal for bit-packing
+    # unstable ordinal for bit-packing
+    ord: int = cast(int, None)  # noqa: RUF009
     name: str = UNSET  # name from LHS of assignment
     component: type["Struct"] | type["Node"] = UNSET  # source component class
     py_type_raw: Any = None  # type annotation on LHS of assignment
@@ -179,7 +179,7 @@ class Property(_TypeQueryBuilder if TYPE_CHECKING else object):
             "ord",
         ):
             v = getattr(self, k)
-            if v is UNSET or (not v and type(v) is not int or v != 0):  # noqa: E721
+            if v is UNSET or ((not v and type(v) is not int) or v != 0):
                 continue
             elif k == "id":
                 non_default.append(str(v))
@@ -190,7 +190,7 @@ class Property(_TypeQueryBuilder if TYPE_CHECKING else object):
                     non_default.append(f"{k}={v}")
         attrs_str = ", ".join(non_default)
         attrs_str = f" ({attrs_str})" if attrs_str else ""
-        return f"<{self.__class__.__name__} {str(self)}{attrs_str}>"
+        return f"<{self.__class__.__name__} {self!s}{attrs_str}>"
 
     def clone(self):
         return dataclasses.replace(
@@ -322,7 +322,9 @@ class Property(_TypeQueryBuilder if TYPE_CHECKING else object):
                 from bench.language.value import Object
 
                 ref = cast(Union["Node", "Struct", "Object"], ref)
-                if type(ref) is Object or ref.__is_struct_only__ and not ref.__is_struct_inlined__:
+                if type(ref) is Object or (
+                    ref.__is_struct_only__ and not ref.__is_struct_inlined__
+                ):
                     assert isinstance(ref.id, int), f"expected id for {self!r}: {ref!r}.id={ref.id}"
                     return ref.id
                 else:
@@ -645,7 +647,7 @@ class Property(_TypeQueryBuilder if TYPE_CHECKING else object):
         # unravel the reference types into appropriate id/ck/other metadata columns
         stored_ids = []  # the contributed 'ptr'-like properties (id or ck)
         # ... and any other metadata (type, base, etc.)
-        extra_stored_props: dict[PropertyReferenceMetadata, "Property"] = {}
+        extra_stored_props: dict[PropertyReferenceMetadata, Property] = {}
         if is_stored and self.component.__is_node__:  # only nodes are stored
             need_fks = self.reference_force_fk or is_parent
 

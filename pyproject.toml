@@ -1,10 +1,53 @@
-[tool.black]
-line-length = 100
-
 [tool.ruff]
 line-length = 100
-# ignore line too long
-lint.ignore = ["E501"]
+
+[tool.ruff.lint]
+preview = true
+select = [
+	# pycodestyle
+	"E",
+	# Pyflakes
+	"F",
+	# pyupgrade
+	"UP",
+	# refurb
+	"FURB",
+	# flake8-bugbear
+	"B",
+	# flake8-simplify
+	"SIM",
+	# flake8-comprehensions
+	"C4",
+	# flake8-async
+	"ASYNC",
+	# flake8-datetimez,
+	"DTZ",
+	# flake8-pytest-style
+	"PT",
+	# flake8-print
+	"T20",
+	# isort
+	"I",
+	# pep8-naming
+	"N",
+	# ruff
+	"RUF",
+]
+ignore = [
+	# line too long
+	"E501",
+	# getattr/setattr with constant 
+	"B009",
+	"B010",
+	# multiple asserts in one line
+	"PT018",
+	# too broad error
+	"PT011",
+	# single if instead of nested ifs
+	"SIM102",
+	# non lowercase variable in function
+	"N806",
+]
 
 [tool.pyright]
 include = ["bench"]
@@ -15,16 +58,6 @@ strictDictionaryInference = true
 strictListInference = true
 strictTupleInference = true
 strictSetInference = true
-
-[tool.isort]
-profile = "black"
-line_length = 100
-multi_line_output = 3
-include_trailing_comma = true
-force_grid_wrap = 8
-ensure_newline_before_comments = true
-known_first_party = "bench"
-skip = "migrations"
 
 [tool.pytest.ini_options]
 asyncio_mode = "auto"

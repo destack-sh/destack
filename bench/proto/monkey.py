@@ -307,17 +307,17 @@ def _wrap_value(value: Any) -> BetterprotoValue:
     """Wrap a JSON-able Python value in a betterproto Value."""
     if value is None:
         return BetterprotoValue(null_value=NullValue.NULL_VALUE)
-    elif type(value) is bool:  # noqa: E721
+    elif type(value) is bool:
         return BetterprotoValue(bool_value=value)
-    elif type(value) is int:  # noqa: E721
+    elif type(value) is int:
         return BetterprotoValue(number_value=float(value))
-    elif type(value) is float:  # noqa: E721
+    elif type(value) is float:
         return BetterprotoValue(number_value=value)
-    elif type(value) is str:  # noqa: E721
+    elif type(value) is str:
         return BetterprotoValue(string_value=value)
-    elif type(value) is dict:  # noqa: E721
+    elif type(value) is dict:
         return BetterprotoValue(struct_value=_PatchedStruct.from_dict(value))
-    elif type(value) is list:  # noqa: E721
+    elif type(value) is list:
         return BetterprotoValue(list_value=ListValue([_wrap_value(v) for v in value]))
     else:
         raise ValueError(f"cannot wrap non-JSON value: {value!r} ({type(value)!r})")
@@ -326,9 +326,7 @@ def _wrap_value(value: Any) -> BetterprotoValue:
 def _unwrap_value(value: BetterprotoValue) -> Any:
     """Unwrap a betterproto Value into a JSON-able Python value."""
     _, v = betterproto.which_one_of(value, "kind")
-    if v is None:
-        return None
-    elif isinstance(v, NullValue):
+    if v is None or isinstance(v, NullValue):
         return None
     elif isinstance(v, BetterprotoStruct):
         return v.to_dict()
@@ -341,8 +339,8 @@ def _unwrap_value(value: BetterprotoValue) -> Any:
 @dataclass(eq=False, repr=False)
 class _PatchedStruct(BetterprotoStruct):
     @hybridmethod
-    def from_dict(cls: type[Self], mapping: Mapping[str, Any]) -> Self:  # type: ignore
-        self = cls()
+    def from_dict(self: type[Self], mapping: Mapping[str, Any]) -> Self:  # type: ignore
+        self = self()  # type: ignore
         return self.from_dict(mapping)
 
     @from_dict.instancemethod

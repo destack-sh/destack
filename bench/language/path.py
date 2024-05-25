@@ -10,7 +10,7 @@ if TYPE_CHECKING:
     from bench.language import Node
 
 
-class InvalidBenchPath(ValueError):
+class InvalidBenchPathError(ValueError):
     pass
 
 

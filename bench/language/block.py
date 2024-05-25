@@ -177,10 +177,8 @@ class Block(Node[BlockData], HasValues):
 
     @property
     def is_paused(self) -> bool:
-        return (
-            self.paused_at is not None
-            or self.parent_type == NodeType.BLOCK
-            and self.parent.is_paused
+        return self.paused_at is not None or (
+            self.parent_type == NodeType.BLOCK and self.parent.is_paused
         )
 
     @is_paused.setter

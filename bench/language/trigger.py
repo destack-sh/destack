@@ -19,7 +19,7 @@ if TYPE_CHECKING:
 # pyright: reportIncompatibleVariableOverride=false
 
 # :TriggerSchedule
-TRIGGER_INTERVAL_ORIGIN = datetime(2022, 1, 1, 0, 0, 0, 0).replace(tzinfo=pytz.utc)
+TRIGGER_INTERVAL_ORIGIN = datetime(2024, 1, 1, 0, 0, 0, 0, tzinfo=pytz.utc)
 TRIGGER_INTERVAL_ORIGIN_TIMESTAMP = TRIGGER_INTERVAL_ORIGIN.timestamp()
 
 

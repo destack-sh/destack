@@ -133,9 +133,7 @@ class StoreEngine(abc.ABC, Generic[NodeT, NodeDataT]):
             return False
         if self.scope.package_id and self.scope.package_id != scope.package_id:
             return False
-        if node_type not in self.node_types:
-            return False
-        return True
+        return not node_type not in self.node_types
 
     async def connect(self, session: "Session") -> "StoreConnection":
         """Opens the store engine for a session."""
@@ -221,7 +219,7 @@ class RemoteEngine(StoreEngine[NodeT, NodeDataT]):
         node_types: tuple[NodeType, ...] | bittuple[NodeType],
         remote: GraphIoStub | HostStub | SupervisorStub,
         rpc_metadata: RpcMetadata,
-        retry: RetryOptions = RetryOptions(max_attempts=1),
+        retry: RetryOptions,
     ):
         super().__init__(scope, node_types)
         self.remote = remote
@@ -336,7 +334,7 @@ class PostgresEngine(StoreEngine[NodeT, NodeDataT], Generic[NodeT, NodeDataT]):
     async def connect(self, session: "Session") -> "PostgresConnection":
         from bench.sql.client import get_pg_store_connection
 
-        conn = await get_pg_store_connection(self.store)
+        conn = get_pg_store_connection(self.store)
         cur = await conn.open()
         return PostgresConnection(self, session, conn, cur)
 

@@ -3,8 +3,8 @@ from itertools import chain
 import pytest
 
 from bench.language import Bench, Environment, NodeReference, Property, Server, Signal
-from bench.language.const import BlockType, InterpStatus, NodeType
 from bench.language.bench import Client
+from bench.language.const import BlockType, InterpStatus, NodeType
 from bench.language.setup import NODE_CLASSES, STRUCT_CLASSES
 from bench.language.test.fabricator import Fabricator
 
@@ -28,7 +28,7 @@ def test_get_set_non_existing_property(fabricator: "Fabricator"):
         _ = client.wadabadaboo  # type: ignore
 
 
-async def test_node_pointers_consistency(fabricator: "Fabricator"):
+def test_node_pointers_consistency(fabricator: "Fabricator"):
     """Pointers should include the relevant bench/base/base_bench references."""
     bench_a = fabricator.fabricate(Bench, slug="test_a", name="test_b")
     assert bench_a.to_ref().equals_content(

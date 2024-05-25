@@ -18,6 +18,10 @@ class RetryOptions:
         return min(self.retry_interval * (self.backoff**attempt), self.max_retry_interval)
 
 
+DEFAULT_RETRY_OPTIONS = RetryOptions()
+NO_RETRY_OPTIONS = RetryOptions(max_attempts=1)
+
+
 def retry(
     options: Union[RetryOptions, Callable[..., RetryOptions]],
     on_failure: Callable[..., Awaitable[T]] | None = None,
@@ -27,11 +31,7 @@ def retry(
     def decorator(func: Callable[..., Awaitable[T]]) -> Callable[..., Coroutine[None, None, T]]:
         @wraps(func)
         async def wrapper(*args, **kwargs) -> T:
-            if callable(options):
-                _options = options(*args, **kwargs)
-            else:
-                _options = options
-
+            _options = options(*args, **kwargs) if callable(options) else options
             attempt = 0
             interval = _options.retry_interval
             last_error = None

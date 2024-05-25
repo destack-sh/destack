@@ -128,7 +128,7 @@ class BenchServiceBase:
                 except AttributeError:
                     pass  # this union is not set
                 else:
-                    inner_path = path + (field_name,)
+                    inner_path = (*path, field_name)
                     if isinstance(value, betterproto.Message):
                         self._validate_message(value, inner_path)
                     elif field_is_repeated:

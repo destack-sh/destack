@@ -101,7 +101,7 @@ async def pg_cursor(connection_str: str, autocommit: bool = False):
 
 
 class _PgStoreConnection:
-    __slots__ = ("store", "bench", "database", "autocommit", "_reset_token", "_conn", "_pool")
+    __slots__ = ("_conn", "_pool", "_reset_token", "autocommit", "bench", "database", "store")
 
     def __init__(
         self, store: Store, bench: Bench, database: str | None = None, autocommit: bool = False
@@ -142,7 +142,7 @@ async def pg_cursor_to_store(store: Store, bench: Bench | None = None, autocommi
         yield cur
 
 
-async def get_pg_store_connection(
+def get_pg_store_connection(
     store: Store, bench: Bench | None = None, autocommit: bool = False
 ) -> _PgStoreConnection:
     return _PgStoreConnection(store, bench or store.bench, autocommit=autocommit)

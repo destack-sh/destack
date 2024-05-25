@@ -1,3 +1,5 @@
+# ruff: noqa: RUF012
+
 import functools
 import re
 from typing import TYPE_CHECKING, Any, Collection, Optional, TypeVar, Union, cast
@@ -497,9 +499,9 @@ def coerce_sort(
         if args is None:
             return None
         sort = list(args)
-    elif isinstance(sort, str):
-        sort = [sort]
-    elif isinstance(sort, Expression) and sort.kind == ExpressionKind.SORT:
+    elif isinstance(sort, str) or (
+        isinstance(sort, Expression) and sort.kind == ExpressionKind.SORT
+    ):
         sort = [sort]
     if not isinstance(sort, (list, tuple)):
         raise TypeError(f"expected sort to be a list or tuple, got {sort}")
@@ -541,7 +543,7 @@ def coerce_sort(
 
 
 # single-letter convenience constructors
-def E(
+def E(  # noqa: N802
     op: ExpressionOp, *, _expect_kind: type[ExpressionKind] | None = None, **kwargs
 ) -> Expression:
     if _expect_kind is not None and op.kind != _expect_kind:
@@ -580,13 +582,14 @@ def _check_type_supports(type: "TypeInfo", op: ExpressionOp):
         ):
             return
     else:
-        if op in _ExprOps.COND_EXISTENCE:
-            return
-        elif type.primitive_type is not None and op in SUPPORTED_PRIMITIVE_OPS.get(
-            type.primitive_type, _EMPTY_SET
+        if (
+            op in _ExprOps.COND_EXISTENCE
+            or (
+                type.primitive_type is not None
+                and op in SUPPORTED_PRIMITIVE_OPS.get(type.primitive_type, _EMPTY_SET)
+            )
+            or (type.bench_type is not None and op in SUPPORTED_NODE_OPS)
         ):
-            return
-        elif type.bench_type is not None and op in SUPPORTED_NODE_OPS:
             return
     raise UnsupportedExpressionError(type, op)
 

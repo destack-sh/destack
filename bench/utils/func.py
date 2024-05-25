@@ -89,9 +89,9 @@ def next_or_none(iterator: Iterable[Any]) -> Any | None:
         return None
 
 
-def partition[
-    T
-](pred: Callable[[T], bool], iterable: Iterable[T]) -> tuple[tuple[T, ...], tuple[T, ...]]:
+def partition[T](
+    pred: Callable[[T], bool], iterable: Iterable[T]
+) -> tuple[tuple[T, ...], tuple[T, ...]]:
     t1, t2 = tee(iterable)
     return tuple(filterfalse(pred, t1)), tuple(filter(pred, t2))
 
@@ -159,10 +159,11 @@ def describe_type(obj: Any) -> str:
         return type(obj).__name__
 
 
-TypeAnnotation = typing.NamedTuple(
-    "TypeAnnotation",
-    [("type", type), ("is_union", bool), ("is_optional", bool), ("is_list", bool)],
-)
+class TypeAnnotation(typing.NamedTuple):
+    type: type
+    is_union: bool
+    is_optional: bool
+    is_list: bool
 
 
 def _resolve_py_type(py_type: type | str | typing.ForwardRef, type_map: dict[str, type]) -> type:
@@ -235,7 +236,7 @@ def get_similar_strings(candidates: dict[str, Any], needle: str) -> dict[str, An
     Used for 'did you mean' suggestions.
     """
     needle = needle.lower()
-    distances = [(s, levenshtein_distance(needle, s.lower())) for s in candidates.keys()]
+    distances = [(s, levenshtein_distance(needle, s.lower())) for s in candidates]
     similar_strings = [
         string
         for string, distance in distances
@@ -253,7 +254,7 @@ def did_you_mean_str(candidates: dict[str, Any], needle: str, repr: bool = False
         if repr:
             similar_strs = [f"{k} {v}" for k, v in similar_candidates.items()]
         else:
-            similar_strs = [f"‘{k}'" for k in similar_candidates.keys()]
+            similar_strs = [f"`{k}`" for k in similar_candidates]
         # use , or for last item
         if len(similar_strs) > 1:
             similar_strs[-1] = f"or {similar_strs[-1]}"
@@ -478,7 +479,7 @@ def _get_enum_members_by_ord(enum_cls: type[IdEnum]) -> list[IdEnum]:
 
 
 # noinspection PyPep8Naming
-class bittuple(typing.Generic[EnumT]):
+class bittuple(typing.Generic[EnumT]):  # noqa: N801
     """
     Tuple with a bitarray for fast membership check.
     We accept only IdEnum instances because we use its ordinals for a compact bitarray.
@@ -486,10 +487,7 @@ class bittuple(typing.Generic[EnumT]):
 
     def __init__(self, *items: EnumT, enum_cls: type[EnumT] | Union[EnumT, Any] | None = None):
         if len(items) == 1 and isinstance(items[0], Collection):
-            if type(items[0]) is tuple:
-                items = items[0]
-            else:
-                items = tuple(items[0])
+            items = items[0] if type(items[0]) is tuple else tuple(items[0])
         self.tuple = items
         if enum_cls is None:
             assert len(items) > 0, "enum_cls or args is required"

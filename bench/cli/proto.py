@@ -91,6 +91,7 @@ def _regen_proto_artifacts(schema_str: str) -> None:
     wire_py = re.sub(r"\w[a-z_]+request:", "request:", wire_py)
     patch_prefix_code = """
 # type: ignore
+# ruff: noqa
 """
     patch_postfix_code = f"""
 from typing import TYPE_CHECKING # noqa: E402
@@ -112,8 +113,7 @@ AnyStructData = Union[{', '.join([cls.__name__ + 'Data' for cls in STRUCT_CLASSE
     )
     shutil.rmtree(TEMP_PY_DIR, ignore_errors=True)
     _shell(f"ruff check {TEMP_PY_FILE} --fix", check=True, stdout=DEVNULL)
-    _shell(f"black {TEMP_PY_FILE}", check=True, stdout=DEVNULL)
-    _shell(f"isort {TEMP_PY_FILE}", check=True, stdout=DEVNULL)
+    _shell(f"ruff format {TEMP_PY_FILE}", check=True, stdout=DEVNULL)
     on_apply.append(lambda: shutil.move(TEMP_PY_FILE, WIRE_PY_FILE))
 
     #

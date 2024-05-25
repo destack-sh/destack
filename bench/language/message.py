@@ -28,7 +28,7 @@ MESSAGE_PARENT_TYPES: tuple[NodeType, ...] = (NodeType.PACKAGE, NodeType.BLOCK, 
     id_factory=UUIDT,
     index_together=(("package_id", "created_at"),),
 )
-class Message(BasedNode[MessageData], HasSessionContext, HasValues):  # noqa: F821
+class Message(BasedNode[MessageData], HasSessionContext, HasValues):
     """
     A Message by a User or program (author = created_by).
     If the parent is also a Message, then this is part of a thread. Threads may be nested.

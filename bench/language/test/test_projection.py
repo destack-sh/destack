@@ -19,7 +19,6 @@ BENCH_OBJECTS = tuple(fabricator.fabricate(BENCH_CLASS_BY_TYPE[t], ()) for t in 
 def test_render_struct(bench_obj: Node | Struct):
     rendered = render_struct(bench_obj)
     rendered = format_code(rendered)
-    print(rendered)
     run_code_eval(rendered)
     # assert cast(Struct, ret).equals_content(bench_obj) # TODO :Robustness :Incomplete: assert
 
@@ -49,7 +48,6 @@ def test_render_nested():
     # render
     rendered = render_node([Choice1, ClassInner, ClassOuter])
     rendered = format_code(rendered)
-    print(rendered)
     ret = run_code_script(rendered)
     for key, value in (
         ("Choice1", Choice1),

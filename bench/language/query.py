@@ -86,7 +86,7 @@ class QueryError(BenchError, ValueError):
         if result is None:
             super().__init__(repr(query))
         else:
-            super().__init__(f"{repr(query)} -> {result}")
+            super().__init__(f"{query!r} -> {result}")
         self.query = query
         self.result = result
         self.cause = cause
@@ -220,17 +220,11 @@ class QueryBuilder(
                 v = f"({v})" if v is not None else None
             if v is not None:
                 args_strs.append(f"{k}={v}")
-        if args_strs:
-            args_str = ", ".join(args_strs)
-        else:
-            args_str = "[*]"
+        args_str = ", ".join(args_strs) if args_strs else "[*]"
         return args_str
 
     def __repr__(self):
-        if self._aggregation is not None:
-            query_type = self._aggregation.op.bench_name
-        else:
-            query_type = "Fetch"
+        query_type = self._aggregation.op.bench_name if self._aggregation is not None else "Fetch"
         return f"<{self._node_type.bench_name}Query.{query_type} {self}>"
 
     def query(self) -> Self:

@@ -171,7 +171,7 @@ def _add_logging_level(
             items_found += 1
             items_conflict += check_conflict(
                 registered_num != level_num,
-                "Level {!r} already registered " "in logging module".format(level_name),
+                f"Level {level_name!r} already registered " "in logging module",
             )
 
         current_level = getattr(logging, level_name, _UNSET)
@@ -179,7 +179,7 @@ def _add_logging_level(
             items_found += 1
             items_conflict += check_conflict(
                 current_level != level_num,
-                "Level {!r} already defined " "in logging module".format(level_name),
+                f"Level {level_name!r} already defined " "in logging module",
             )
 
         logging_func = getattr(logging, method_name, _UNSET)

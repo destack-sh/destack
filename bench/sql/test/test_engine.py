@@ -95,7 +95,7 @@ COLUMN_VALUE_GENERATORS: Mapping[PrimitiveType, Callable[[], Any]] = {
 
 
 @pytest.fixture(autouse=True, scope="module")
-async def test_tables():
+async def _test_tables():
     from bench.sql.client import get_pg_connection_str, pg_cursor
     from bench.system.core import GLOBAL_STORE
 

@@ -10,7 +10,7 @@ from bench.language.text import (
 
 
 @pytest.mark.parametrize(
-    "markdown,lines",
+    ("markdown", "lines"),
     [
         ("", []),
         ("---", [TextLine.new(TextLineType.DIVIDER)]),

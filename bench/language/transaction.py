@@ -21,8 +21,8 @@ if TYPE_CHECKING:
 
 logger = structlog.get_logger(__name__)
 
-dcfield = dataclasses.field
-EditSubject = Union["User", "Run"]  # noqa
+dataclasses.field = dataclasses.field
+EditSubject = Union["User", "Run"]
 
 
 def new_edit_id() -> str:
@@ -36,23 +36,23 @@ class Transaction:
     Edits in a transaction are atomic (in our primary Postgres/Relational stores).
     """
 
-    id: UUID = dcfield(default_factory=UUIDT)
-    session: Optional["Session"] = dcfield(default=None)
-    origin: ClientOrigin | None = dcfield(default=None)
-    is_readonly: bool = dcfield(default=False)
-    _connections_by_engine_id: dict[Any, StoreConnection] = dcfield(default_factory=dict)
+    id: UUID = dataclasses.field(default_factory=UUIDT)
+    session: Optional["Session"] = dataclasses.field(default=None)
+    origin: ClientOrigin | None = dataclasses.field(default=None)
+    is_readonly: bool = dataclasses.field(default=False)
+    _connections_by_engine_id: dict[Any, StoreConnection] = dataclasses.field(default_factory=dict)
 
     """All edits from this transaction (since the previous commit)."""
-    edits: list[EditData] = dcfield(default_factory=list)
-    cascaded_edits: list[EditData] = dcfield(default_factory=list)
-    _used_engine_ids: set[Any] = dcfield(default_factory=set)
+    edits: list[EditData] = dataclasses.field(default_factory=list)
+    cascaded_edits: list[EditData] = dataclasses.field(default_factory=list)
+    _used_engine_ids: set[Any] = dataclasses.field(default_factory=set)
 
     """Pending (unflushed) edits."""
-    _pending_edits_by_engine_id: dict[Any, list[EditData]] = dcfield(
+    _pending_edits_by_engine_id: dict[Any, list[EditData]] = dataclasses.field(
         default_factory=lambda: defaultdict(list)
     )
-    _pending_updates_idx: dict[Node, tuple[Any, int]] = dcfield(default_factory=dict)
-    _pending_nodes_by_ck: dict[UUID, Node] = dcfield(default_factory=dict)
+    _pending_updates_idx: dict[Node, tuple[Any, int]] = dataclasses.field(default_factory=dict)
+    _pending_nodes_by_ck: dict[UUID, Node] = dataclasses.field(default_factory=dict)
 
     def __str__(self):
         return f"[id={self.id}] ({len(self.edits)} edits, {len(self._pending_nodes_by_ck)} pending nodes)"
@@ -272,7 +272,7 @@ class Transaction:
         for engine in self.session._engines:
             # prepare edits & connection
             pending_edits = self._pending_edits_by_engine_id.get(engine.id, [])
-            if not (pending_edits or commit and engine.id in self._used_engine_ids):
+            if not (pending_edits or (commit and engine.id in self._used_engine_ids)):
                 continue  # nothing to do
             Transaction.canonicalize_edits(now, pending_edits)
             connection = await self._get_engine_connection(engine)

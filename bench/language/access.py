@@ -286,10 +286,7 @@ class Policy(Struct):
     scopes: list["Block"] = p_regular(33, require=False, array=True, references=NodeType.BLOCK)
 
     def __content_str__(self) -> str:
-        if self.scopes:
-            scopes_str = ", ".join(repr(s) for s in self.scopes)
-        else:
-            scopes_str = "<scope>"
+        scopes_str = ", ".join(repr(s) for s in self.scopes) if self.scopes else "<scope>"
         return f"{self.name or '<unnamed>'} (at {scopes_str}, {len(self.rules)} rules)"
 
     def append(self, *rules: "PolicyRule") -> "Self":
@@ -353,20 +350,14 @@ class PolicyRule(Struct):
             value = getattr(self, subject_key)
             if value is not None:
                 subject_str_parts.append(f"{subject_key[8:]}={value}")
-        if subject_str_parts:
-            subject_str = f"[{'&'.join(subject_str_parts)}]"
-        else:
-            subject_str = "*"
+        subject_str = f"[{'&'.join(subject_str_parts)}]" if subject_str_parts else "*"
 
         verb_str_parts = []
         if self.verbs:
             verb_str_parts.extend(verb.bench_name for verb in self.verbs)
         if self.verb_kinds:
             verb_str_parts.extend(verb_kind.bench_name for verb_kind in self.verb_kinds)
-        if verb_str_parts:
-            verb_str = f"{'|'.join(verb_str_parts)}"
-        else:
-            verb_str = "*"
+        verb_str = f"{'|'.join(verb_str_parts)}" if verb_str_parts else "*"
 
         if self.object_node_types:
             object_type_str_parts = tuple(t.bench_name for t in self.object_node_types)
@@ -1012,10 +1003,7 @@ def evaluate_access(
             start_scope_id=start_scoped_zone.id if start_scoped_zone is not None else None,
             identity_id=identity.id,
         )
-        if cache is not None:
-            allowed_properties = cache.get(cache_key)
-        else:
-            allowed_properties = None
+        allowed_properties = cache.get(cache_key) if cache is not None else None
 
         if allowed_properties is None:  # not cached
             # first check the base zones, then walk the zones starting from the lowest
@@ -1062,10 +1050,7 @@ def evaluate_access(
 
     # sum into decision
     if mode == AccessMode.ADAPTIVE:  # adaptive  = if any property was allowed -> access is allowed
-        if composite_allowed_properties.any():
-            decision = PolicyEffect.ALLOW
-        else:
-            decision = PolicyEffect.DENY
+        decision = PolicyEffect.ALLOW if composite_allowed_properties.any() else PolicyEffect.DENY
     elif mode == AccessMode.ATOMIC:  # atomic = if any property was rejected -> access is denied
         if composite_allowed_properties == wanted_properties:
             decision = PolicyEffect.ALLOW
@@ -1178,7 +1163,7 @@ def evaluate_and_adapt_read(
                 reference_ptr=NodeReference.from_node_data(n),
             )
             skips[cast(str, n.parent_ptr.id)] = skip
-            visible_nodes.append(skip)
+    visible_nodes.extend(skips.values())
 
     if required_nodes and any(n.id in skips for n in required_nodes):
         decision = PolicyEffect.DENY
@@ -1223,10 +1208,7 @@ def evaluate_edit(
                     scope_id = new_node_scopes_by_child_id[scope_id]
                 new_node_scopes_by_child_id[node.id] = scope_id
             else:
-                if node.id in new_node_scopes_by_child_id:
-                    scope_id = new_node_scopes_by_child_id[node.id]
-                else:
-                    scope_id = node.id
+                scope_id = new_node_scopes_by_child_id.get(node.id, node.id)
             scope = graph.get(scope_id)
             assert scope is not None, f"scope {scope_id} for {edit!r} not in {graph!r}"
             root = graph.get_root(scope)

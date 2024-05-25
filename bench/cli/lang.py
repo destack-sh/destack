@@ -1,3 +1,5 @@
+from typing import Optional
+
 import structlog
 import typer
 
@@ -12,7 +14,7 @@ logger = structlog.get_logger(__name__)
 
 @app.command(help="IPython shell with a global or Bench-local session")
 @async_to_sync_blocking
-async def shell(bench: str = None, package: str = None):  # type: ignore
+async def shell(bench: Optional[str] = None, package: Optional[str] = None):  # type: ignore
     """Open a Session shell."""
     if bench is not None:
         async with global_session():

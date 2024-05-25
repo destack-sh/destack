@@ -117,7 +117,8 @@ message WatchEditsRequest {
 }
 message WatchEditsResponse {
   repeated EditData edits = 1;
-  uint64 epoch = 2;
+  repeated EditData cascaded_edits = 2;
+  uint64 epoch = 3;
 }
 
 // Common service definition for global and bench-local :GraphIO

@@ -55,7 +55,7 @@ def copy_data(data: StructDataT) -> StructDataT:
             if prop.is_computed and prop.id != METATYPE_PROPERTY.id:
                 continue
             value: Any = getattr(data, prop.name)
-            if value is None or value == "" and not prop.is_required:
+            if value is None or (value == "" and not prop.is_required):
                 data_kwargs[prop.name] = None
             elif prop.is_list:
                 if prop.is_struct:

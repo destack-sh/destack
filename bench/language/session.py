@@ -292,10 +292,10 @@ class Session(Node[SessionData]):
 
     def untrack(self, node: Node):
         """Stop tracking the node in this session."""
-        for node in node._walk_descendants():
-            node._untrack_self()
-            if node.id in self._edited_nodes_by_id:
-                del self._edited_nodes_by_id[node.id]
+        for n in node._walk_descendants():
+            n._untrack_self()
+            if n.id in self._edited_nodes_by_id:
+                del self._edited_nodes_by_id[n.id]
 
     def untrack_many(self, *nodes: Node | None):
         """Stop tracking the nodes in this session."""

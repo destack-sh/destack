@@ -86,10 +86,7 @@ def to_casing(name: str, casing: Casing, allow_whitespace: bool = False) -> str:
         # split on existing uppercase characters and spaces
         name = " ".join(re.split(r"(?<=[a-z])(?=[A-Z0-9])", name))
         name = _strip_alpha_num(name).title()
-        if allow_whitespace:
-            name = name.replace("_", " ").strip()
-        else:
-            name = name.replace(" ", "")
+        name = name.replace("_", " ").strip() if allow_whitespace else name.replace(" ", "")
         if casing == Casing.LOWER_CAMEL:
             name = name[0].lower() + name[1:]
         return name

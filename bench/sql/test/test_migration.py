@@ -23,7 +23,7 @@ from bench.utils.utils import get_from_env
 logger = structlog.get_logger(__name__)
 
 
-@pytest.fixture(scope="function")
+@pytest.fixture()
 async def blank_global_test_db(request: pytest.FixtureRequest):
     db_name = f"migrate_test_{request.function.__name__}"
     async with global_pg_cursor(autocommit=True) as cur:
@@ -32,7 +32,7 @@ async def blank_global_test_db(request: pytest.FixtureRequest):
         yield db_name
 
 
-@pytest.fixture(scope="function")
+@pytest.fixture()
 async def blank_global_test_cur(blank_global_test_db: str):
     connection_str = get_pg_connection_str(GLOBAL_STORE, blank_global_test_db)
     async with pg_cursor(connection_str) as cur:
@@ -40,7 +40,7 @@ async def blank_global_test_cur(blank_global_test_db: str):
     await cur.connection.close()
 
 
-@pytest.fixture(scope="function")
+@pytest.fixture()
 async def blank_local_test_db(request: pytest.FixtureRequest):
     # use actual Neon API (remote) because we don't have all the extensions locally
     neon_client = NeonApiRemote(
@@ -56,7 +56,7 @@ async def blank_local_test_db(request: pytest.FixtureRequest):
     await neon_client.delete_project(project_id=create_rep.project_id)
 
 
-@pytest.fixture(scope="function")
+@pytest.fixture()
 async def blank_local_test_cur(blank_local_test_db: str):
     async with pg_cursor(blank_local_test_db) as cur:
         yield cur

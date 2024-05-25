@@ -2,7 +2,7 @@ import secrets
 import uuid
 from collections import defaultdict
 from time import time
-from typing import Any, Dict, Optional
+from typing import Any, ClassVar, Dict, Optional
 
 
 class UUIDT(uuid.UUID):
@@ -28,7 +28,7 @@ class UUIDT(uuid.UUID):
     ""
     """
 
-    current_series_per_ms: Dict[int, int] = defaultdict(int)
+    current_series_per_ms: ClassVar[Dict[int, int]] = defaultdict(int)
 
     def __init__(self, unix_time_ms: Optional[int] = None, uuid_str: Optional[str] = None) -> None:
         if uuid_str and self.is_valid_uuid(uuid_str):

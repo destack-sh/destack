@@ -1,4 +1,3 @@
-import abc
 import asyncio
 import os
 import sys
@@ -10,7 +9,7 @@ import structlog
 logger = structlog.get_logger(__name__)
 
 
-class Monitored(abc.ABC):
+class Monitored:
     @property
     def ready(self) -> bool:
         return True
@@ -22,8 +21,8 @@ class Monitored(abc.ABC):
 
 async def restart_on_file_changes(on_restart: Callable | None = None):
     """Restarts the process when a source file changes."""
-    from watchdog.events import FileSystemEventHandler  # noqa
-    from watchdog.observers import Observer  # noqa
+    from watchdog.events import FileSystemEventHandler
+    from watchdog.observers import Observer
 
     class Handler(FileSystemEventHandler):
         def on_any_event(self, event):
@@ -31,10 +30,9 @@ async def restart_on_file_changes(on_restart: Callable | None = None):
                 return
             if event.src_path.endswith(".py"):
                 logger.debug("watcher.reload", path=event.src_path)
-                print("-" * 95 + " RESTART " + "-" * 95)  # simple separator
                 if on_restart:
                     on_restart()
-                os.execv(sys.executable, [sys.executable] + sys.argv)
+                os.execv(sys.executable, [sys.executable, *sys.argv])
 
     cwd = str(Path(".").absolute())
     observer = Observer()

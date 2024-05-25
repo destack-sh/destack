@@ -65,10 +65,4 @@ async def make_client(bench_slug: str, name: str = "Local Server"):
                 access_token=generate_access_token(),
             )
 
-        print(f"=== Client {name} to Bench {bench_slug} ===")
-        print(f"Bench ID: {bench.id}")
-        print(f"Server ID: {server.id}")
-        print(f"Client ID: {client.id}")
-        print(f"Client Access Token: {client.access_token}")
-
         await session.commit()

@@ -1,5 +1,6 @@
 import abc
 import base64
+import contextlib
 import dataclasses
 import enum
 import functools
@@ -212,6 +213,7 @@ def _get_component_methods(
 
 
 _StructT = TypeVar("_StructT", bound="Struct")
+_CORE_TYPES = ("Struct", "Node")
 
 
 def _process_struct_base_cls(
@@ -236,11 +238,10 @@ def _process_struct_base_cls(
     is_struct = not is_node
     metatype = METATYPE_PROPERTY.clone()
     metatype.component = cls
-    properties_by_name: dict[str, "Property"] = {"metatype": metatype}
+    properties_by_name: dict[str, Property] = {"metatype": metatype}
 
     # check that no forbidden methods are defined in non-base classes
-    CORE_TYPES = ("Struct", "Node")
-    if cls.__name__ not in CORE_TYPES:
+    if cls.__name__ not in _CORE_TYPES:
         for name in _FORBIDDEN_COMPONENT_METHODS:
             meth = getattr(cls, name, None)
             good_meths = (getattr(cls, name, None) for cls in (Struct, Node, Node))
@@ -248,12 +249,12 @@ def _process_struct_base_cls(
                 raise ValueError(f"forbidden method {name} defined in {cls}")
 
     # collect static components from class hierarchy
-    static_components: list[type["Node"] | type["Struct"]] = [cls]
+    static_components: list[type[Node] | type[Struct]] = [cls]
     for base in cls.__bases__:
-        if base.__name__ in ("ABC",):
+        if base.__name__ == "ABC":
             continue
         if hasattr(base, "__properties__"):
-            base: type["Struct"]
+            base: type[Struct]
             static_components.append(base)
             for grandparent in base.__static_components__:
                 if grandparent not in static_components:
@@ -261,7 +262,7 @@ def _process_struct_base_cls(
 
     # check components
     for component in chain(static_components[1:], dynamic_components):
-        if component.__name__ in CORE_TYPES:
+        if component.__name__ in _CORE_TYPES:
             continue  # ignore base classes
         if is_node and component.__is_struct_inlined__:
             raise ValueError(f"node {cls} has inlined struct {component}")
@@ -276,9 +277,7 @@ def _process_struct_base_cls(
             or type(prop).__name__.startswith("_")
             or inspect.ismethod(prop)
             or inspect.isfunction(prop)
-            or isinstance(prop, property)
-            or isinstance(prop, classmethod)
-            or isinstance(prop, staticmethod)
+            or isinstance(prop, (property, classmethod, staticmethod))
             or type(prop) == functools.cached_property
         ):
             continue  # ignore reserved names and non-fields
@@ -300,7 +299,7 @@ def _process_struct_base_cls(
             #  (we remove it here because it conflicts with downstream props)
             if not is_struct and (prop.id == Struct.__properties__["order_key"].id):
                 continue
-            existing = properties_by_name.get(name, None)
+            existing = properties_by_name.get(name)
             # override parent prop & id with more specific values
             if (
                 existing is None
@@ -354,10 +353,8 @@ def _process_struct_base_cls(
             if prop is not None and prop.id < 30:
                 del properties_by_name[name]
                 if delete_attr:
-                    try:
+                    with contextlib.suppress(AttributeError):
                         delattr(cls, name)
-                    except AttributeError:
-                        pass
                 cls.__annotations__.pop(name, None)
                 for contributed_prop in prop.contributed_props:
                     _remove_magic_prop(contributed_prop.name)
@@ -541,7 +538,7 @@ def struct_component(
     """
 
     def decorate(cls_in: Type[_StructT]) -> Type[_StructT]:
-        cls, properties = _process_struct_base_cls(
+        cls, _properties = _process_struct_base_cls(
             cls=cast(Any, cls_in), reserved=reserved, is_final=is_final, is_inlined=is_inlined
         )
 
@@ -976,7 +973,7 @@ class Struct(abc.ABC, Generic[StructDataT]):
             self_value = getattr(self, prop.name)
             other_value = getattr(other, prop.name)
             if self_value != other_value and (
-                prop.py_type_stripped != float
+                prop.py_type_stripped is not float
                 or not math.isclose(self_value, other_value, rel_tol=1e-5)
             ):
                 return False
@@ -1040,7 +1037,7 @@ class Struct(abc.ABC, Generic[StructDataT]):
         is_tracked = self.__dict__.get("_status", UNSET) == InterpStatus.TRACKED
         prop = self.__properties__.get(key)
         if prop is not None:
-            if prop.is_ephemeral and not prop.is_value_runtime or prop.is_autoset:  # untracked
+            if (prop.is_ephemeral and not prop.is_value_runtime) or prop.is_autoset:  # untracked
                 return object.__setattr__(self, key, value)
             elif prop.reference_kind == ReferenceKind.NODE_CHILDREN:
                 attr = object.__getattribute__(self, key)
@@ -1532,7 +1529,7 @@ class Node(Struct[NodeDataT], Generic[NodeDataT]):
     @final
     def __repr__(self):  # type: ignore
         # override the default __repr__ for nodes
-        return f"<{self.__class__.__name__} {str(self)}>"
+        return f"<{self.__class__.__name__} {self!s}>"
 
     @property
     def is_attached(self) -> bool:
@@ -1640,7 +1637,7 @@ class Node(Struct[NodeDataT], Generic[NodeDataT]):
         return (
             isinstance(other, Node)
             and self.metatype == other.metatype
-            and (self.id is not None and self.id == other.id or self is other)
+            and ((self.id is not None and self.id == other.id) or self is other)
         )
 
     def __hash__(self):
@@ -1656,12 +1653,12 @@ class Node(Struct[NodeDataT], Generic[NodeDataT]):
 
     @property
     def is_archived(self) -> bool:
-        return self.archived_at is not None or self.parent is not None and self.parent.is_archived
+        return self.archived_at is not None or (self.parent is not None and self.parent.is_archived)
 
     @property
     def is_soft_deleted(self) -> bool:
-        return (
-            self.deleted_at is not None or self.parent is not None and self.parent.is_soft_deleted
+        return self.deleted_at is not None or (
+            self.parent is not None and self.parent.is_soft_deleted
         )
 
     def move_to(

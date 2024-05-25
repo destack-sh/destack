@@ -5,8 +5,6 @@ import uuid
 from datetime import datetime
 from typing import Any, Callable, Type, TypeVar, cast
 
-import pytz
-
 from bench.language import NodeReference, Property
 from bench.language.const import (
     EMPTY_DICT,
@@ -19,6 +17,7 @@ from bench.language.const import (
 from bench.language.node import Node, Struct
 from bench.language.setup import BENCH_CLASS_BY_TYPE, NODE_CLASS_BY_TYPE
 from bench.proto.wire import NodeReferenceData
+from bench.utils.dt import utcnow
 from bench.utils.fractional import INTEGER_ZERO
 
 NodeT = TypeVar("NodeT", bound=Node)
@@ -37,7 +36,7 @@ class Fabricator:
             float: lambda: self.random.random(),
             bytes: lambda: self.random.randbytes(24),
             uuid.UUID: lambda: uuid.uuid4(),
-            datetime: lambda: datetime.utcnow().replace(tzinfo=pytz.utc),
+            datetime: lambda: utcnow(),
         }
 
     def fabricate_prop_scalar(self, prop: Property, path: tuple[ObjectType, ...] = ()) -> Any:
@@ -68,17 +67,14 @@ class Fabricator:
         self, object_cls: Type[ObjectT], path: tuple[ObjectType, ...] = (), **override
     ) -> ObjectT:
         object_type = object_cls.metatype
-        path = path + (object_type,)
+        path = (*path, object_type)
         override = override or EMPTY_DICT
 
         # special cases for semantic correctness
         if object_type == StructType.NODE_REFERENCE:
             type = random.choice(NODE_TYPES)
             id = uuid.uuid4()
-            if "ck" in NODE_CLASS_BY_TYPE[type].__properties__:
-                ck = uuid.uuid4()
-            else:
-                ck = None
+            ck = uuid.uuid4() if "ck" in NODE_CLASS_BY_TYPE[type].__properties__ else None
             return cast(ObjectT, NodeReference(type=type, id=id, ck=ck))
         elif object_type == StructType.PROPERTY_REFERENCE:
             type = random.choice(NODE_TYPES)
@@ -90,9 +86,7 @@ class Fabricator:
             kwargs = {**override}
             bench_cls = BENCH_CLASS_BY_TYPE[object_type]
             for prop in bench_cls.__wired_properties__.values():
-                if prop.name in override:
-                    continue
-                elif prop.is_ephemeral or prop.is_computed:
+                if prop.name in override or (prop.is_ephemeral or prop.is_computed):
                     continue
                 elif prop.reference_kind == ReferenceKind.STRUCT_PARENT or (
                     prop.reference_kind

@@ -119,10 +119,7 @@ def encode_type_identity(typ: "TypeInfoBase") -> str | None:
         return None
 
     prefix: str
-    if typ.is_list:
-        prefix = LETTER_BY_TYPE_KIND[typ.kind].upper()
-    else:
-        prefix = LETTER_BY_TYPE_KIND[typ.kind]
+    prefix = LETTER_BY_TYPE_KIND[typ.kind].upper() if typ.is_list else LETTER_BY_TYPE_KIND[typ.kind]
     if typ.is_secret:
         prefix = "!" + prefix
     return f"{prefix}{value}"
@@ -278,7 +275,7 @@ class TypeInfoBase(HasValues):
             info_str += f" ({', '.join(flags)})"
 
         if self._from_property:
-            info_str += f" from {str(self._from_property)}"
+            info_str += f" from {self._from_property!s}"
 
         return info_str
 
