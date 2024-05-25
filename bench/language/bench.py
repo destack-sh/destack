@@ -145,7 +145,7 @@ class Environment(Node[EnvironmentData]):
 @node(
     NodeType.BRANCH,
     identifier=IdentifierType.VARIABLE,
-    unique_together=(("parent_bench_id", "slug"),),
+    unique=(("parent_bench_id", "slug"),),
 )
 class Branch(Node[BranchData]):
     """A branch is a Git-like pointer to the head of a lineage of packages."""
@@ -168,7 +168,7 @@ class Branch(Node[BranchData]):
 @node(
     NodeType.PACKAGE,
     identifier=IdentifierType.VARIABLE,
-    unique_together=(("parent_bench_id", "slug"),),
+    unique=(("parent_bench_id", "slug"),),
 )
 class Package(Node[PackageData]):
     """A package is a semi-isolated version of a Bench."""

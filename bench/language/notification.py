@@ -37,7 +37,10 @@ if TYPE_CHECKING:
     local=True,
     no_ck=True,  # no persistent identity
     id_factory=UUIDT,
-    index_together=(("package_id", "created_at"),),
+    indexes=(
+        ("created_at",),
+        ("package_id", "created_at"),
+    ),
 )
 class Notification(BasedNode[NotificationData], HasSessionContext, HasValues):
     """

@@ -284,7 +284,7 @@ class Runtime(RuntimeBase, BenchServiceBase):
             run.machine = self._machine
 
         # just add to main queue
-        self._run_queue.put_nowait(request.run)
+        self._run_queue.put_nowait(run._to_data())
         logger.trace("runtime.queue_run", run=run)
         return QueueRunResponse()
 

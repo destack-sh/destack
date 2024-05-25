@@ -68,8 +68,9 @@ class LogLevel(IdEnum):
     local=True,
     no_ck=True,  # no persistent identity
     id_factory=UUIDT,
-    index_together=(
+    indexes=(
         ("epoch",),
+        ("created_at",),
         ("package_id", "created_at"),
     ),
 )
