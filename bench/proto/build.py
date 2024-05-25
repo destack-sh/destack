@@ -1,6 +1,5 @@
 import re
 import shutil
-import time
 from itertools import chain
 from pathlib import Path
 from subprocess import DEVNULL
@@ -41,7 +40,7 @@ logger = structlog.get_logger(__name__)
 app = typer.Typer(short_help="proto management")
 
 
-def _generate_proto_schema() -> str:
+def _build_proto_schema() -> str:
     """Generate the .proto schema (as a string) describing the current Bench types."""
     node_classes = list(NODE_CLASSES)
     node_classes.sort(key=lambda cls: cls.metatype.id)
@@ -61,7 +60,7 @@ def _generate_proto_schema() -> str:
 _PUBLIC_SERVICES = ("GraphIo", "Supervisor", "Host")  # :ServiceKind
 
 
-def _regen_proto_artifacts(schema_str: str) -> None:
+def _build_proto(schema_str: str) -> None:
     """Regenerate external artifacts from the proto schema."""
 
     on_apply = []
@@ -73,7 +72,6 @@ def _regen_proto_artifacts(schema_str: str) -> None:
     # Python (betterproto)
     #
 
-    logger.info("proto.regen.py")
     Path(TEMP_PY_FILE).unlink(missing_ok=True)
     Path(TEMP_PY_DIR).mkdir(parents=True, exist_ok=True)
     _shell(
@@ -136,7 +134,6 @@ AnyStructData = Union[{', '.join([cls.__name__ + 'Data' for cls in STRUCT_CLASSE
     # TypeScript (protobuf-ts)
     #
 
-    logger.info("proto.regen.ts")
     shutil.rmtree(TEMP_TS_DIR, ignore_errors=True)
     Path(TEMP_TS_DIR).mkdir(parents=True, exist_ok=True)
     _shell(
@@ -463,14 +460,5 @@ export * from './google/protobuf/timestamp';
     )
 
     # and apply
-    logger.info("proto.regen.apply")
     for apply in on_apply:
         apply()
-
-
-@app.command()
-def regen():
-    start = time.time()
-    schema_str = _generate_proto_schema()
-    _regen_proto_artifacts(schema_str)
-    logger.info("proto.generate", duration=time.time() - start)

@@ -6,7 +6,7 @@ import pytest
 import structlog
 
 from bench.language.bench import Region
-from bench.sql.client import get_pg_connection_str, pg_cursor
+from bench.sql.client import get_pg_connection_uri, pg_cursor
 from bench.sql.core import ObjectKind
 from bench.sql.engine import GLOBAL_SCHEMA, LOCAL_SCHEMA
 from bench.sql.migration import (
@@ -34,8 +34,8 @@ async def blank_global_test_db(request: pytest.FixtureRequest):
 
 @pytest.fixture()
 async def blank_global_test_cur(blank_global_test_db: str):
-    connection_str = get_pg_connection_str(GLOBAL_STORE, blank_global_test_db)
-    async with pg_cursor(connection_str) as cur:
+    connection_uri = get_pg_connection_uri(GLOBAL_STORE, blank_global_test_db)
+    async with pg_cursor(connection_uri) as cur:
         yield cur
     await cur.connection.close()
 

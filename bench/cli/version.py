@@ -10,6 +10,15 @@ app = typer.Typer(short_help="version management")
 logger = structlog.get_logger(__name__)
 
 
+@app.callback(invoke_without_command=True)
+@app.command()
+def show():
+    """
+    Show the current version.
+    """
+    print(VERSION)  # noqa: T201
+
+
 @app.command()
 def bump(revision: int = typer.Option(None)):
     """

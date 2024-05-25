@@ -54,14 +54,14 @@ def get_pg_crypto_key(object: TableObject | Table) -> str:
         return GLOBAL_PG_CRYPTO_KEY
 
 
-async def get_pg_connection_pool(connection_str: str) -> AsyncConnectionPool:
-    if connection_str not in _connection_pools:
-        assert isinstance(connection_str, str), f"connection_str {connection_str!r} is not a str"
+async def get_pg_connection_pool(connection_uri: str) -> AsyncConnectionPool:
+    if connection_uri not in _connection_pools:
+        assert isinstance(connection_uri, str), f"connection_uri {connection_uri!r} is not a str"
         # parse out key parts for pool name
-        match = _CONNECTION_STR_REGEX.match(connection_str)
-        assert match, f"connection_str {connection_str!r} does not match expected format"
+        match = _CONNECTION_STR_REGEX.match(connection_uri)
+        assert match, f"connection_uri {connection_uri!r} does not match expected format"
         pool = AsyncConnectionPool(
-            connection_str,
+            connection_uri,
             min_size=1,
             max_size=4,
             max_idle=60 * 60,
@@ -72,8 +72,8 @@ async def get_pg_connection_pool(connection_str: str) -> AsyncConnectionPool:
             name=f"{match['username']}@{match['host']}/{match['database']}",
         )
         await pool.open()
-        _connection_pools[connection_str] = pool
-    return _connection_pools[connection_str]
+        _connection_pools[connection_uri] = pool
+    return _connection_pools[connection_uri]
 
 
 _CONNECTION_STR_REGEX = re.compile(
@@ -81,7 +81,7 @@ _CONNECTION_STR_REGEX = re.compile(
 )
 
 
-def get_pg_connection_str(store: Store, database: str | None = None) -> str:
+def get_pg_connection_uri(store: Store, database: str | None = None) -> str:
     # TODO :Security :Scalability: route store clients/hosts better :StoreRouting
     assert store.connection_uri, f"store {store!r} has no connection_uri"
     if database is not None:
@@ -91,8 +91,8 @@ def get_pg_connection_str(store: Store, database: str | None = None) -> str:
 
 
 @asynccontextmanager
-async def pg_cursor(connection_str: str, autocommit: bool = False):
-    pool = await get_pg_connection_pool(connection_str)
+async def pg_cursor(connection_uri: str, autocommit: bool = False):
+    pool = await get_pg_connection_pool(connection_uri)
     async with pool.connection() as conn:
         if conn.autocommit != autocommit:
             await conn.set_autocommit(autocommit)
@@ -114,8 +114,8 @@ class _PgStoreConnection:
         self._conn: psycopg.AsyncConnection | None = None
 
     async def open(self) -> psycopg.AsyncCursor:
-        connection_str = get_pg_connection_str(self.store, database=self.database)
-        self._pool = await get_pg_connection_pool(connection_str)
+        connection_uri = get_pg_connection_uri(self.store, database=self.database)
+        self._pool = await get_pg_connection_pool(connection_uri)
         try:
             self._conn = await self._pool.getconn()
         except psycopg_pool.PoolTimeout as e:
