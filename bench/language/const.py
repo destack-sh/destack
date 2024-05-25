@@ -13,7 +13,7 @@ from bench.utils.utils import frozendict
 if typing.TYPE_CHECKING:
     from bench.language import Bench, Run, Session, Transaction
 
-VERSION = "2024.05.25.1"
+VERSION = "2024.05.25.3"
 REVISION_PENDING = -1
 TK_LENGTH_BYTES = 8
 TK_LENGTH_B64 = 12  # 1.5 * TK_LENGTH_BYTES (must be integer)
@@ -982,3 +982,29 @@ def get_active_tx() -> Optional["Transaction"]:
     if session is None:
         return None
     return session._tx
+
+
+def active_run() -> "Run":
+    """Gets the Run of the currently active Session"""
+    run = _active_run.get()
+    assert run is not None, "no active run"
+    return run
+
+
+def get_active_run() -> Optional["Run"]:
+    """Gets the Run of the currently active Session (if any)."""
+    return _active_run.get()
+
+
+def active_root_run() -> "Run":
+    """Gets the root Run of the currently active Session"""
+    run = active_run()
+    return run.root
+
+
+def get_active_root_run() -> Optional["Run"]:
+    """Gets the root Run of the currently active Session (if any)."""
+    run = get_active_run()
+    if run is None:
+        return None
+    return run.root

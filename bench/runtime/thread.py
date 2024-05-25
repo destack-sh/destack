@@ -6,8 +6,8 @@ from uuid import UUID
 import structlog
 
 from bench.language import Bench, Package
-from bench.language.bench import Client, Machine
 from bench.language.connection import StoreEngine
+from bench.language.run import Run
 from bench.language.session import Session
 from bench.proto import wiring
 from bench.proto.wire import GraphScope, HostStub, RunData, SupervisorStub
@@ -37,15 +37,11 @@ class RuntimeThread:
         host: HostStub,
         connector: QueryConnector,
         engines: tuple[StoreEngine, ...],
-        client: Client,
-        machine: Machine | None,
         queue: asyncio.Queue[RunData],
     ):
         self.id = id
 
         # context
-        self._client = client
-        self._machine = machine
         self._connector = connector
         self._engines = engines
 
@@ -65,7 +61,7 @@ class RuntimeThread:
         self._tasks = TaskManager(owner=self, logger=logger)
 
     def __str__(self):
-        return f"{self.id} in {self._client!r} on {self._bench!r}"
+        return f"{self.id} on {self._bench!r}"
 
     def __repr__(self):
         return f"<{self.__class__.__name__} {self}>"
@@ -74,11 +70,6 @@ class RuntimeThread:
     def bench(self) -> Bench:
         assert self._bench is not None, f"no bench for {self!r}"
         return self._bench.node
-
-    @property
-    def client(self) -> Client:
-        assert self._client is not None, f"no client for {self!r}"
-        return self._client
 
     @property
     def main_package(self) -> Package:
@@ -132,19 +123,13 @@ class RuntimeThread:
         self._tasks.start_queue(
             self._queue, self._process_run, f"{self.bench.slug}_run{self.id}", skip_errors=True
         )
-        logger.info(
-            "thread.start",
-            process=self,
-            bench=self._bench,
-            client=self._client,
-            duration=monotime() - start,
-        )
+        logger.info("thread.start", process=self, bench=self._bench, duration=monotime() - start)
 
     async def _process_run(self, run_data: RunData):
         assert (
             run_data.parent_ptr and UUID(run_data.parent_ptr.id) == self.main_package.id
         ), f"{run_data!r} not in {self.main_package!r}"
-        run = wiring.unpack_node(run_data, parent=self.main_package, session=self._session)
+        run = wiring.unpack_node(run_data, self.main_package, self._session, Run)
 
         raise NotImplementedError(f"nocheckin: _process_run {run!r}")
 

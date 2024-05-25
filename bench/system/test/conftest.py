@@ -38,9 +38,9 @@ async def supervisor_service():
 
 @pytest.fixture(scope="session")
 async def host_service():
-    from bench.system.host import HostMultiplexer
+    from bench.system.host import HostRouter
 
-    service = HostMultiplexer()
+    service = HostRouter()
     await service.start()
     try:
         yield service

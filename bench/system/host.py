@@ -53,7 +53,7 @@ LOCAL_MACHINE = Machine(
 )
 
 
-class HostMultiplexer(BenchServiceBase, HostBase):
+class HostRouter(BenchServiceBase, HostBase):
     """
     Multiplexes requests per Bench to a Host using gRPC metadata ('bench-id').
     Also provides some process-level shared functionality.
@@ -321,6 +321,7 @@ class Host(GraphIoServiceBase, HostBase, HostSpec):
     ):
         assert self._session is not None, f"session not ready in {self!r}"
         assert self._bench is not None, f"bench not loaded in {self!r} for {edits!r}"
+        start = monotime()
 
         # apply edits to loaded graphs (bench/package)
         self._session.suppress()  # don't trigger the edits we're just applying
@@ -349,7 +350,6 @@ class Host(GraphIoServiceBase, HostBase, HostSpec):
             self._session.unsuspend()
         self._session.track_many(*graph.nodes)
         commit = unpack_commit((*self.graphs, graph), edits, cascaded_edits)
-        logger.debug("host.on_commit", host=self, commit=commit)
         for plugin in self._plugins:
             if commit.edited_types & plugin.watch_types:
                 trimmed_commit = commit.trim_to(plugin.watch_types)
@@ -360,3 +360,4 @@ class Host(GraphIoServiceBase, HostBase, HostSpec):
         await self._session.commit(skip_lock=True)  # already in a locked section
         if was_suspended:
             self._session.suspend()
+        logger.debug("host.on_commit", host=self, commit=commit, duration=monotime() - start)

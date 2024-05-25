@@ -235,10 +235,15 @@ def pack_node_maybe(node: Node | None) -> AnyNodeData | None:
     return pack_node(node)
 
 
-def unpack_node(
-    node_data: AnyNodeData, parent: Node | None = None, session: Session | None = None
-) -> Node:
+def unpack_node[NodeT: Node](
+    node_data: AnyNodeData,
+    parent: Node | None = None,
+    session: Session | None = None,
+    expect: type[NodeT] | None = None,
+) -> NodeT:
     node_cls = NODE_CLASS_BY_TYPE[NodeType(node_data.metatype)]
+    if expect is not None and node_cls is not expect:
+        raise RuntimeError(f"expected {expect} but got {node_cls} for {node_data!r}")
     node_kwargs = {}
     try:
         for prop in node_cls.__wired_properties__.values():
@@ -247,7 +252,7 @@ def unpack_node(
             value = getattr(node_data, prop.name)
             node_kwargs[prop.name] = unpack_struct_prop(prop, value, ignore_array=False)
         node = node_cls(**node_kwargs, parent=parent, _session=session, _status=InterpStatus.SOURCE)
-        return node
+        return node  # type: ignore
     except (AttributeError, TypeError, ValueError, KeyError) as e:
         raise ValueError(f"could not unpack {node_data.metatype.name}: {node_data!r}") from e
 

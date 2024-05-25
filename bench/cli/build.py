@@ -3,6 +3,7 @@ from pathlib import Path
 import structlog
 import typer
 
+from bench.cli.utils import _shell
 from bench.proto.build import _build_proto, _build_proto_schema
 from bench.sql.build import _build_sql_schema
 from bench.utils.dt import monotime
@@ -18,6 +19,8 @@ def build():
     start = monotime()
     source = _build_sql_schema()
     Path("bench/sql/schema.py").write_text(source)
+    _shell("ruff check --fix bench/sql/schema.py")
+    _shell("ruff format bench/sql/schema.py")
     logger.info("sql.build", duration=monotime() - start)
 
     # proto

@@ -8,7 +8,7 @@ from grpclib.utils import graceful_exit
 from bench.cli.utils import async_to_sync_blocking, check_is_consistent
 from bench.proto.services import BenchServer, BenchServiceBase
 from bench.runtime.runtime import Runtime
-from bench.system.host import HostMultiplexer
+from bench.system.host import HostRouter
 from bench.system.supervisor import Supervisor
 from bench.utils.env import ENVIRONMENT, IS_DEBUG
 from bench.utils.monitoring import restart_on_file_changes
@@ -23,7 +23,7 @@ logger = structlog.get_logger(__name__)
 async def system(host: str, port: int, watch: bool = False, no_supervisor: bool = False):
     await check_is_consistent(check_db=True)
     logger.info("serve.system", host=host, port=port, env=ENVIRONMENT)
-    services: list[BenchServiceBase] = [HostMultiplexer()]
+    services: list[BenchServiceBase] = [HostRouter()]
     if not no_supervisor:
         services.append(Supervisor())
     server = BenchServer(handlers=services)

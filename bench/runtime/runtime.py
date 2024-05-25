@@ -8,10 +8,17 @@ import structlog
 from grpclib.client import Channel
 
 from bench.language import Bench, Package
-from bench.language.bench import Client, Machine
+from bench.language.bench import Client, Machine, Server
 from bench.language.connection import RemoteEngine
-from bench.language.const import BENCH_NODE_TYPES, IN_PACKAGE_NODE_TYPES, PUBLIC_NODE_TYPES
+from bench.language.const import (
+    BENCH_NODE_TYPES,
+    IN_PACKAGE_NODE_TYPES,
+    PUBLIC_NODE_TYPES,
+    RunStatus,
+)
+from bench.language.run import Run
 from bench.language.session import Session
+from bench.proto import wiring
 from bench.proto.services import BenchServiceBase
 from bench.proto.wire import (
     GraphScope,
@@ -233,8 +240,6 @@ class Runtime(RuntimeBase, BenchServiceBase):
                 # TODO :Performance: share query connections between runtime/threads
                 connector=self._connector,
                 engines=self._engines,
-                client=self._client,
-                machine=self._machine,
                 queue=self._run_queue,
             )
             self._threads.append(thread)
@@ -267,9 +272,20 @@ class Runtime(RuntimeBase, BenchServiceBase):
 
     @override
     async def queue_run(self, request: QueueRunRequest) -> QueueRunResponse:
+        assert self._client is not None, f"{self!r} not ready"
+
+        # mark run as queued in this runtime
+        run = wiring.unpack_node(request.run, self.main_package, self._session, Run)
+        async with self.session(autocommit=True):
+            run.status = RunStatus.QUEUED
+            if isinstance(self._client.parent, Server):
+                run.server = self._client.parent
+            run.client = self._client
+            run.machine = self._machine
+
         # just add to main queue
         self._run_queue.put_nowait(request.run)
-        logger.trace("runtime.queue_run", run=request.run)
+        logger.trace("runtime.queue_run", run=run)
         return QueueRunResponse()
 
 

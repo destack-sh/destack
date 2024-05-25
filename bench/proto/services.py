@@ -113,12 +113,13 @@ class BenchServiceBase:
             metatype = getattr(message, "metatype", None)
             if metatype is None:  # type: ignore
                 raise ValidationError(
-                    message, f"missing metatype for {message.__class__.__name__} at {path}"
+                    message,
+                    f"missing metatype for {message.__class__.__name__} at {'.'.join(path)}",
                 )
             if metatype != struct_cls.metatype:  # type: ignore
                 raise ValidationError(
                     message,
-                    f"invalid metatype {metatype} for {message.__class__.__name__} at {path}",
+                    f"invalid metatype {metatype} for {message.__class__.__name__} at {'.'.join(path)}",
                 )
 
         # walk message recursively
