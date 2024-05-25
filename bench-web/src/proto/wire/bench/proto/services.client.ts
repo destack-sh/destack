@@ -12,14 +12,6 @@ import type { QueueRunRequest } from "./services";
 import type { RestartRuntimeResponse } from "./services";
 import type { RestartRuntimeRequest } from "./services";
 import { Host } from "./services";
-import type { DownloadFilesResponse } from "./services";
-import type { DownloadFilesRequest } from "./services";
-import type { UploadFilesResponse } from "./services";
-import type { UploadFilesRequest } from "./services";
-import type { MergePackageResponse } from "./services";
-import type { MergePackageRequest } from "./services";
-import type { SnapshotPackageResponse } from "./services";
-import type { SnapshotPackageRequest } from "./services";
 import { Supervisor } from "./services";
 import type { GetHostResponse } from "./services";
 import type { GetHostRequest } from "./services";
@@ -198,13 +190,13 @@ export class GraphIOClient implements IGraphIOClient, ServiceInfo {
 /**
  * Global control plane: create & manage the global stuff like Benches, Users, etc..
  *
- *
- * Global IO for non-source nodes outside Benches :GraphIO
- *
- *
  * @generated from protobuf service symbolx.bench.Supervisor
  */
 export interface ISupervisorClient {
+    // 
+    // Global IO for non-source nodes outside Benches :GraphIO
+    // 
+
     /**
      * @generated from protobuf rpc: GetNodes(symbolx.bench.GetNodesRequest) returns (symbolx.bench.GetNodesResponse);
      */
@@ -285,10 +277,6 @@ export interface ISupervisorClient {
 /**
  * Global control plane: create & manage the global stuff like Benches, Users, etc..
  *
- *
- * Global IO for non-source nodes outside Benches :GraphIO
- *
- *
  * @generated from protobuf service symbolx.bench.Supervisor
  */
 export class SupervisorClient implements ISupervisorClient, ServiceInfo {
@@ -297,6 +285,10 @@ export class SupervisorClient implements ISupervisorClient, ServiceInfo {
     options = Supervisor.options;
     constructor(private readonly _transport: RpcTransport) {
     }
+    // 
+    // Global IO for non-source nodes outside Benches :GraphIO
+    // 
+
     /**
      * @generated from protobuf rpc: GetNodes(symbolx.bench.GetNodesRequest) returns (symbolx.bench.GetNodesResponse);
      */
@@ -416,16 +408,20 @@ export class SupervisorClient implements ISupervisorClient, ServiceInfo {
         return stackIntercept<GetHostRequest, GetHostResponse>("unary", this._transport, method, opt, input);
     }
 }
+// 
+// Host
+// 
+
 /**
  * The Host provides the operating system of a Bench.
- *
- *
- * General IO for nodes in this Bench (only) :GraphIO
- *
  *
  * @generated from protobuf service symbolx.bench.Host
  */
 export interface IHostClient {
+    // 
+    // General IO for nodes in this Bench (only) :GraphIO
+    // 
+
     /**
      * @generated from protobuf rpc: GetNodes(symbolx.bench.GetNodesRequest) returns (symbolx.bench.GetNodesResponse);
      */
@@ -458,45 +454,13 @@ export interface IHostClient {
      * @generated from protobuf rpc: WatchEdits(symbolx.bench.WatchEditsRequest) returns (stream symbolx.bench.WatchEditsResponse);
      */
     watchEdits(input: WatchEditsRequest, options?: OperationOptions): ServerStreamingCall<WatchEditsRequest, WatchEditsResponse>;
-    // 
-    // Packages
-    // 
-
-    /**
-     * Snapshot a Package. A new inactive Package copy is inserted in the history of the given Package.
-     *
-     * @generated from protobuf rpc: SnapshotPackage(symbolx.bench.SnapshotPackageRequest) returns (symbolx.bench.SnapshotPackageResponse);
-     */
-    snapshotPackage(input: SnapshotPackageRequest, options?: OperationOptions): UnaryCall<SnapshotPackageRequest, SnapshotPackageResponse>;
-    /**
-     * Merges the edits made in a Package into another package. The source Package is deactivated.
-     *
-     * @generated from protobuf rpc: MergePackage(symbolx.bench.MergePackageRequest) returns (symbolx.bench.MergePackageResponse);
-     */
-    mergePackage(input: MergePackageRequest, options?: OperationOptions): UnaryCall<MergePackageRequest, MergePackageResponse>;
-    // 
-    // Files
-    // 
-
-    /**
-     * Get a signed URL to upload a file.
-     *
-     * @generated from protobuf rpc: UploadFiles(symbolx.bench.UploadFilesRequest) returns (symbolx.bench.UploadFilesResponse);
-     */
-    uploadFiles(input: UploadFilesRequest, options?: OperationOptions): UnaryCall<UploadFilesRequest, UploadFilesResponse>;
-    /**
-     * Get a signed URL to download a file.
-     *
-     * @generated from protobuf rpc: DownloadFiles(symbolx.bench.DownloadFilesRequest) returns (symbolx.bench.DownloadFilesResponse);
-     */
-    downloadFiles(input: DownloadFilesRequest, options?: OperationOptions): UnaryCall<DownloadFilesRequest, DownloadFilesResponse>;
 }
+// 
+// Host
+// 
+
 /**
  * The Host provides the operating system of a Bench.
- *
- *
- * General IO for nodes in this Bench (only) :GraphIO
- *
  *
  * @generated from protobuf service symbolx.bench.Host
  */
@@ -506,6 +470,10 @@ export class HostClient implements IHostClient, ServiceInfo {
     options = Host.options;
     constructor(private readonly _transport: RpcTransport) {
     }
+    // 
+    // General IO for nodes in this Bench (only) :GraphIO
+    // 
+
     /**
      * @generated from protobuf rpc: GetNodes(symbolx.bench.GetNodesRequest) returns (symbolx.bench.GetNodesResponse);
      */
@@ -561,50 +529,6 @@ export class HostClient implements IHostClient, ServiceInfo {
     watchEdits(input: WatchEditsRequest, options?: OperationOptions): ServerStreamingCall<WatchEditsRequest, WatchEditsResponse> {
         const method = this.methods[7], opt = this._transport.mergeOptions(options);
         return stackIntercept<WatchEditsRequest, WatchEditsResponse>("serverStreaming", this._transport, method, opt, input);
-    }
-    // 
-    // Packages
-    // 
-
-    /**
-     * Snapshot a Package. A new inactive Package copy is inserted in the history of the given Package.
-     *
-     * @generated from protobuf rpc: SnapshotPackage(symbolx.bench.SnapshotPackageRequest) returns (symbolx.bench.SnapshotPackageResponse);
-     */
-    snapshotPackage(input: SnapshotPackageRequest, options?: OperationOptions): UnaryCall<SnapshotPackageRequest, SnapshotPackageResponse> {
-        const method = this.methods[8], opt = this._transport.mergeOptions(options);
-        return stackIntercept<SnapshotPackageRequest, SnapshotPackageResponse>("unary", this._transport, method, opt, input);
-    }
-    /**
-     * Merges the edits made in a Package into another package. The source Package is deactivated.
-     *
-     * @generated from protobuf rpc: MergePackage(symbolx.bench.MergePackageRequest) returns (symbolx.bench.MergePackageResponse);
-     */
-    mergePackage(input: MergePackageRequest, options?: OperationOptions): UnaryCall<MergePackageRequest, MergePackageResponse> {
-        const method = this.methods[9], opt = this._transport.mergeOptions(options);
-        return stackIntercept<MergePackageRequest, MergePackageResponse>("unary", this._transport, method, opt, input);
-    }
-    // 
-    // Files
-    // 
-
-    /**
-     * Get a signed URL to upload a file.
-     *
-     * @generated from protobuf rpc: UploadFiles(symbolx.bench.UploadFilesRequest) returns (symbolx.bench.UploadFilesResponse);
-     */
-    uploadFiles(input: UploadFilesRequest, options?: OperationOptions): UnaryCall<UploadFilesRequest, UploadFilesResponse> {
-        const method = this.methods[10], opt = this._transport.mergeOptions(options);
-        return stackIntercept<UploadFilesRequest, UploadFilesResponse>("unary", this._transport, method, opt, input);
-    }
-    /**
-     * Get a signed URL to download a file.
-     *
-     * @generated from protobuf rpc: DownloadFiles(symbolx.bench.DownloadFilesRequest) returns (symbolx.bench.DownloadFilesResponse);
-     */
-    downloadFiles(input: DownloadFilesRequest, options?: OperationOptions): UnaryCall<DownloadFilesRequest, DownloadFilesResponse> {
-        const method = this.methods[11], opt = this._transport.mergeOptions(options);
-        return stackIntercept<DownloadFilesRequest, DownloadFilesResponse>("unary", this._transport, method, opt, input);
     }
 }
 /**

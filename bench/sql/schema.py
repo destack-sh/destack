@@ -11,7 +11,7 @@ from bench.sql.core import (
     Table,
 )
 
-VERSION = "2024.05.24.0"
+VERSION = "2024.05.25.0"
 
 BENCH_TABLE = Table(
     "bench_bench",
@@ -1343,8 +1343,7 @@ LOG_TABLE = Table(
         Column("updated_by_base_ck", PrimitiveType.UUID, is_nullable=True),
         Column("kind", PrimitiveType.INT16),
         Column("level", PrimitiveType.INT16, default="3"),
-        Column("logger", PrimitiveType.STRING, is_nullable=True),
-        Column("event", PrimitiveType.STRING, is_nullable=True),
+        Column("epoch", PrimitiveType.INT64, is_nullable=True),
         Column("node_id", PrimitiveType.UUID, is_nullable=True),
         Column("node_ck", PrimitiveType.UUID, is_nullable=True),
         Column("node_type", PrimitiveType.INT16, is_nullable=True),
@@ -1376,6 +1375,7 @@ LOG_TABLE = Table(
         Column("user_id", PrimitiveType.UUID, is_nullable=True),
     ),
     indexes=(
+        Index("bench_idx_epoch", IndexType.BTREE, ("epoch",)),
         Index("bench_idx_package_id_created_at", IndexType.BTREE, ("package_id", "created_at")),
     ),
     constraints=(

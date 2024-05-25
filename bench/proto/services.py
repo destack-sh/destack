@@ -4,6 +4,7 @@ from typing import (
     Any,
     AsyncIterable,
     Callable,
+    ClassVar,
     Collection,
     Mapping,
     TypeVar,
@@ -26,7 +27,7 @@ from bench.language import ValidationError
 from bench.language.access import AccessError, Subject
 from bench.language.const import BenchError
 from bench.language.query import NodeNotFoundError
-from bench.proto.wire import RpcMetadata
+from bench.proto.wire import RpcMetadata, ServiceKind
 from bench.proto.wiring import BENCH_CLASS_BY_PROTO_CLASS
 from bench.sql.engine import SqlAlreadyExistsError, SqlNotExistsError
 from bench.system.access import get_subject_from_metadata
@@ -65,6 +66,8 @@ def get_grpc_status_from_bench_error(e: BenchError) -> GRPCStatus:
 class BenchServiceBase:
     """gRPC service with some extra stuff for custom loops, auth, logging, metadata, ..."""
 
+    kind: ClassVar[ServiceKind]
+
     def __init__(self):
         self._tasks = TaskManager(owner=self, logger=logger)
 
@@ -97,13 +100,13 @@ class BenchServiceBase:
         return func
 
     @final
-    def _validate_request(self, subject: Subject, request: betterproto.Message) -> None:
+    def validate_request(self, request: betterproto.Message) -> None:
         """Validate a request message."""
-        self._validate_message(request)
-        self._validate_request_self(subject, request)
+        self.validate_message(request)
+        self._validate_request(request)
 
     @final
-    def _validate_message(self, message: betterproto.Message, path: tuple[str, ...] = ()) -> None:
+    def validate_message(self, message: betterproto.Message, path: tuple[str, ...] = ()) -> None:
         # ensure every Bench struct has its metatype set
         struct_cls = BENCH_CLASS_BY_PROTO_CLASS.get(cast(Any, message.__class__))
         if struct_cls is not None:
@@ -130,12 +133,12 @@ class BenchServiceBase:
                 else:
                     inner_path = (*path, field_name)
                     if isinstance(value, betterproto.Message):
-                        self._validate_message(value, inner_path)
+                        self.validate_message(value, inner_path)
                     elif field_is_repeated:
                         for sub_message in value:
-                            self._validate_message(sub_message, inner_path)
+                            self.validate_message(sub_message, inner_path)
 
-    def _validate_request_self(self, subject: Subject, request: betterproto.Message) -> None:
+    def _validate_request(self, request: betterproto.Message) -> None:
         """Validate a request message for this service."""
         pass
 
@@ -158,21 +161,31 @@ class BenchServiceBase:
             try:
                 # prepare
                 metadata: RpcMetadata = RpcMetadata().from_headers(stream.metadata or {})  # type: ignore
-                subject = await get_subject_from_metadata(metadata)
-                log = log.bind(subject=subject)
+                if self.kind == ServiceKind.PUBLIC:
+                    subject = await get_subject_from_metadata(metadata)
+                    log = log.bind(subject=subject)
+                else:
+                    subject = None
 
                 # call
                 if cardinality == grpclib.const.Cardinality.UNARY_UNARY:
                     request = cast(betterproto.Message, await stream.recv_message())
-                    self._validate_request(subject, request)
-                    response = await func(subject, request)
+                    self.validate_request(request)
+                    if self.kind == ServiceKind.PUBLIC:
+                        response = await func(subject, request)
+                    else:
+                        response = await func(request)
                     await stream.send_message(response)
                 elif cardinality == grpclib.const.Cardinality.UNARY_STREAM:
                     request = cast(betterproto.Message, await stream.recv_message())
-                    self._validate_request(subject, request)
-                    async for response in func(subject, request):
-                        log.trace(f"{rpc_name}.stream", response=response)
-                        await stream.send_message(response)
+                    self.validate_request(request)
+                    if self.kind == ServiceKind.PUBLIC:
+                        response_stream = func(subject, request)
+                    else:
+                        response_stream = func(request)
+                    async for partial_response in response_stream:
+                        log.trace(f"{rpc_name}.stream", response=partial_response)
+                        await stream.send_message(partial_response)
                 else:
                     raise NotImplementedError(f"unsupported cardinality {cardinality}")
                 duration = asyncio.get_running_loop().time() - start

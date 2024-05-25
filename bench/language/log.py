@@ -68,7 +68,10 @@ class LogLevel(IdEnum):
     local=True,
     no_ck=True,  # no persistent identity
     id_factory=UUIDT,
-    index_together=(("package_id", "created_at"),),
+    index_together=(
+        ("epoch",),
+        ("package_id", "created_at"),
+    ),
 )
 class Log(Node, HasSessionContext, HasValues):
     """
@@ -80,8 +83,7 @@ class Log(Node, HasSessionContext, HasValues):
     # meta
     kind: LogKind = p_system(30)
     level: LogLevel = p_system(31, default=LogLevel.INFO)
-    logger: Optional[str] = p_system(32, default=None)
-    event: Optional[str] = p_system(33, default=None)
+    epoch: Optional[int] = p_internal(32, default=None, primitive_type=PrimitiveType.INT64)
 
     # content (access)
     node: Optional["Node"] = p_system(40, require=False, array=False, references=NODE_TYPES.tuple)
@@ -103,4 +105,4 @@ class Log(Node, HasSessionContext, HasValues):
     # ...InSessionNode[60-69]
 
     def __content_str__(self):
-        return f"[{self.kind.bench_name}:{self.level.bench_name}] '{self.event or self.title or self.text or '<empty>'}' ({self.created_at})"
+        return f"[{self.kind.bench_name}:{self.level.bench_name}] '{self.title or self.text or '<empty>'}' ({self.created_at})"
