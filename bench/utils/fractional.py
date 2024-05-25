@@ -41,7 +41,7 @@ def midpoint(a: str, b: Optional[str], digits: str = BASE_95_DIGITS) -> str:
     """
     if b is not None and a >= b:
         raise ValueError(f"{a} >= {b}")
-    if len(a) > 0 and a[-1] == "0" or (b is not None and b[-1] == "0"):
+    if (len(a) > 0 and a[-1] == "0") or (b is not None and b[-1] == "0"):
         raise ValueError("trailing zero")
     if b:
         # remove the longest common prefix.  pad `a` with 0s as we
@@ -155,9 +155,7 @@ def is_valid_order_key(key: str) -> bool:
     except ValueError:
         return False
     f = key[len(i) :]
-    if len(f) > 0 and f[-1] == "0":
-        return False
-    return True
+    return not (len(f) > 0 and f[-1] == "0")
 
 
 def _validate_order_key(key: str) -> None:
@@ -211,21 +209,21 @@ def get_order_keys(
     if b is None:
         c = get_order_key(a, b, digits)
         result = [c]
-        for i in range(n - 1):
+        for _i in range(n - 1):
             c = get_order_key(c, b, digits)
             result.append(c)
         return result
     if a is None:
         c = get_order_key(a, b, digits)
         result = [c]
-        for i in range(n - 1):
+        for _i in range(n - 1):
             c = get_order_key(a, c, digits)
             result.append(c)
         result.reverse()
         return result
     mid = n // 2
     c = get_order_key(a, b, digits)
-    return get_order_keys(a, c, mid, digits) + [c] + get_order_keys(c, b, n - mid - 1, digits)
+    return [*get_order_keys(a, c, mid, digits), c, *get_order_keys(c, b, n - mid - 1, digits)]
 
 
 INTEGER_MINUS_ONE = get_order_key(None, INTEGER_ZERO)
@@ -252,5 +250,5 @@ def get_key_bounds(
         last_ok = nextn(e.order_key for e in reversed(elements) if e.order_key < before.order_key)
         return last_ok, before.order_key
     else:
-        last_ok = nextn((e.order_key for e in reversed(elements)))
+        last_ok = nextn(e.order_key for e in reversed(elements))
         return last_ok, None

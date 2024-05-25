@@ -227,7 +227,7 @@ async def test_public_node_read(
     assert isinstance(aggregate_rep.aggregation.count, int)
 
 
-@pytest.mark.parametrize("node_type", (*ROOT_NODE_TYPES,), ids=lambda t: t.name)
+@pytest.mark.parametrize("node_type", [*ROOT_NODE_TYPES], ids=lambda t: t.name)
 async def test_root_node_create_denied(
     node_type: NodeType,
     some_user: UserHandle,

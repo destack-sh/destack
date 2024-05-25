@@ -1,6 +1,6 @@
 import asyncio
 from contextlib import asynccontextmanager
-from typing import override
+from typing import Any, override
 from urllib.parse import urlparse
 from uuid import UUID
 
@@ -263,13 +263,13 @@ class Runtime(RuntimeBase, BenchServiceBase):
         self._packages.clear()
 
     @override
-    async def queue_run(self, request: QueueRunRequest) -> QueueRunResponse:
+    async def queue_run(self, subject: Any, request: QueueRunRequest) -> QueueRunResponse:
         # just add to main queue
         self._run_queue.put_nowait(request.run)
         logger.trace("runtime.queue_run", run=request.run)
         return QueueRunResponse()
 
 
-async def get_host_client(bench_id: UUID, supervisor: SupervisorStub) -> HostStub:
+async def get_host_client(bench_id: UUID, supervisor: SupervisorStub) -> HostStub:  # noqa: RUF029
     # NOTE :Scalability: lookup bench host (via supervisor?) :SingleHostService
     return HostStub(supervisor.channel)

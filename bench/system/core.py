@@ -260,7 +260,7 @@ class HostPlugin[T: Node](abc.ABC):
     # Lifecycle
     #
 
-    async def start(self) -> None:
+    async def start(self) -> None:  # noqa: B027
         """Start any work for this plugin, returning when the plugin is ready."""
         pass
 
@@ -272,7 +272,7 @@ class HostPlugin[T: Node](abc.ABC):
         """After closing, wait for any stuff you need to wait for (if any)."""
         await self._tasks.wait_closed()
 
-    async def wait_step(self, timeout: float) -> None:
+    async def wait_step(self, timeout: float) -> None:  # noqa: B027
         """Wait for any events in this logical 'step' to finish processing (if any)."""
         pass
 
@@ -280,7 +280,7 @@ class HostPlugin[T: Node](abc.ABC):
     # Events
     #
 
-    async def extend_commit(self, session: Session, commit: Commit[T]) -> None:
+    async def extend_commit(self, session: Session, commit: Commit[T]) -> None:  # noqa: B027
         """
         Add edits that logically belong to the same transaction.
         The nodes are the partial nodes from the edit graph, not the full Host nodes.
@@ -288,7 +288,7 @@ class HostPlugin[T: Node](abc.ABC):
         """
         pass
 
-    async def on_commit(self, session: Session, commit: Commit[T]) -> None:
+    async def on_commit(self, session: Session, commit: Commit[T]) -> None:  # noqa: B027
         """
         React to the commit in a new transaction (but still in the request lifecycle).
         The nodes are the fully loaded nodes from the Host.
@@ -324,10 +324,10 @@ class DeferredHostPlugin[T: Node](HostPlugin, abc.ABC):
             return  # NOTE :Robustness: not sure why we need this early exit, otherwise we stall
         try:
             await asyncio.wait_for(self._commit_queue.join(), timeout=timeout)
-        except asyncio.TimeoutError:
+        except asyncio.TimeoutError as e:
             raise RuntimeError(
                 f"{self!r} timed out after {timeout}s waiting for {self._commit_queue.qsize()} commits"
-            )
+            ) from e
         self._tasks.check_no_errors()
 
     async def on_commit_deferred(self, commit: Commit) -> None:

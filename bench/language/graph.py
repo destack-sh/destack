@@ -592,7 +592,7 @@ class NodeList(abc.ABC, Collection[NodeT], Generic[NodeT]):
 
     def __contains__(self, obj: object | NodeT | str | UUID) -> bool:
         """Checks if a node is in the list."""
-        if type(obj) is str or type(obj) is UUID:  # noqa: E721
+        if type(obj) is str or type(obj) is UUID:
             return self.get(obj) is not None
         else:
             return obj in self
@@ -686,7 +686,7 @@ class GraphNodeList(NodeList[NodeT]):
         # add node (and descendants) to this parent's graph
         if node._graph is not self._parent._graph:
             added = node._graph.collect_descendants(node, recursive=True)
-            added = tuple(added + [node])
+            added = (*added, node)
             node._graph.update(node)  # parent updated
             self._parent._graph.add_graph(node._graph)
             node._graph = self._parent._graph
@@ -705,7 +705,9 @@ class GraphNodeList(NodeList[NodeT]):
 
         return cast(tuple[NodeT, ...], added)
 
-    def extend(self, *nodes: NodeT, after: NodeT | None = None, before: NodeT | None = None) -> None:  # type: ignore
+    def extend(
+        self, *nodes: NodeT, after: NodeT | None = None, before: NodeT | None = None
+    ) -> None:  # type: ignore
         if not nodes:
             return
 
@@ -902,7 +904,7 @@ def edit_graph(
         else:
             edit_type = _EXCLUDE_HIDDEN_EDIT_TYPE_REMAP.get(edit_type, edit_type)
 
-        if edit_type == EditType.CREATE or edit_type == EditType.UPSERT and node_id not in graph:
+        if edit_type == EditType.CREATE or (edit_type == EditType.UPSERT and node_id not in graph):
             if node_data.parent_ptr is not None:
                 parent = graph.get(UUID(node_data.parent_ptr.id))
             else:
@@ -955,10 +957,8 @@ def edit_data_graph(
         else:
             edit_type = _EXCLUDE_HIDDEN_EDIT_TYPE_REMAP.get(edit_type, edit_type)
 
-        if (
-            edit_type == EditType.CREATE
-            or edit_type == EditType.UPSERT
-            and node_data.id not in graph
+        if edit_type == EditType.CREATE or (
+            edit_type == EditType.UPSERT and node_data.id not in graph
         ):
             graph.add(node_data)
         elif edit_type == EditType.DELETE:

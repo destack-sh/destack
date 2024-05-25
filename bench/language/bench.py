@@ -204,7 +204,7 @@ class Package(Node[PackageData]):
 
     @is_paused.setter
     def is_paused(self, value: bool) -> None:
-        self.paused_at = datetime.utcnow() if value else None
+        self.paused_at = utcnow() if value else None
 
     def __content_str__(self):
         return f"blocks={len(self.blocks)}, spaces={len(self.spaces)}"

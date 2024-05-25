@@ -100,7 +100,7 @@ class SqlUndefinedObjectError(SqlError):
     pass
 
 
-class SqlViolation(SqlError):
+class SqlViolationError(SqlError):
     pass
 
 
@@ -549,14 +549,11 @@ def _pg_wrap_error(
     elif isinstance(e, (psycopg.errors.UniqueViolation,)):
         wrapped_t = SqlAlreadyExistsError
     elif "Violation" in e.__class__.__name__:
-        wrapped_t = SqlViolation
+        wrapped_t = SqlViolationError
     else:
         wrapped_t = SqlError
     e_str = str(e)
-    if "\n" in e_str:
-        message = f"{e}\nin {resource!r}"
-    else:
-        message = f"{e} in {resource!r}"
+    message = f"{e}\nin {resource!r}" if "\n" in e_str else f"{e} in {resource!r}"
     return wrapped_t(message, conn)
 
 
@@ -633,10 +630,7 @@ def _pg_adapt_row(table: Table, row: Mapping[str, Any]) -> Mapping[str, Any]:
         if value is None:
             pass
         elif column.underlying_type == PrimitiveType.JSON:
-            if column.is_array:
-                value = [Jsonb(v) for v in value]
-            else:
-                value = Jsonb(value)
+            value = [Jsonb(v) for v in value] if column.is_array else Jsonb(value)
         wrapped[column.name] = value
     return wrapped
 
@@ -861,7 +855,7 @@ async def pg_update_constant(
                     sqlident(k),
                     _pg_wrap_write_column(table._columns_by_name[k], sqlstr(f"%({k})s")),
                 )
-                for k in static_value.keys()
+                for k in static_value
             ),
         ),
     )
@@ -1106,10 +1100,7 @@ def _pg_unpack_node_reference_from_row(prop: Property, row: RowOut, node: AnyNod
     """
 
     # get bench id
-    if node.metatype == NodeType.BENCH:
-        bench_id = row.get("id")
-    else:
-        bench_id = row.get("bench_id")
+    bench_id = row.get("id") if node.metatype == NodeType.BENCH else row.get("bench_id")
     if bench_id is not None:
         bench_id = str(bench_id)
 
@@ -1193,7 +1184,7 @@ def pg_unpack_node_data_row(node_cls: type[Node], row: Mapping[str, Any]) -> Any
     """Unpacks a node's data from a row from the respective table."""
     try:
         proto_cls = PROTO_CLASS_BY_TYPE[node_cls.metatype]
-        data = cast(AnyNodeData, proto_cls(metatype=wiring.pack_enum(NodeType, node_cls.metatype)))
+        data = cast(AnyNodeData, proto_cls(metatype=wiring.pack_enum(NodeType, node_cls.metatype)))  # type: ignore
         for name, prop in node_cls.__wired_properties__.items():
             if prop.reference_source is None:
                 # regular non-ref property
@@ -1210,14 +1201,10 @@ def pg_unpack_node_data_row(node_cls: type[Node], row: Mapping[str, Any]) -> Any
         raise ValueError(f"could not unpack row {node_cls.metatype.name}: {row_str}") from e
 
 
-PgSelectNodesDataResult = NamedTuple(
-    "PgSelectNodesDataResult",
-    [
-        ("nodes", tuple[AnyNodeData, ...]),
-        ("cursors", tuple[str, ...]),
-        ("start_cursor", str | None),
-    ],
-)
+class PgSelectNodesDataResult(NamedTuple):
+    nodes: tuple[AnyNodeData, ...]
+    cursors: tuple[str, ...]
+    start_cursor: str | None
 
 
 async def pg_select_nodes(
@@ -1347,8 +1334,9 @@ async def pg_get_node_graph(
 
                 # build initial filter
                 parents_filters: list[Expression] = []
-                parent_property = NODE_CLASS_BY_TYPE[child_type].__parent_property__
-                for parent_property in parent_property.reference_stored_ids or ():
+                for parent_property in (
+                    NODE_CLASS_BY_TYPE[child_type].__parent_property__.reference_stored_ids or ()
+                ):
                     assert (
                         parent_property.reference_nodes
                     ), f"no reference nodes for {parent_property!r}"
@@ -1515,10 +1503,7 @@ async def _pg_write_edit_batch(
     table = node_cls.__table__
     assert table is not None, f"no table for {node_cls!r}"
     assert table._primary_key is not None, f"no primary key for {node_cls!r}: {table!r}"
-    if return_nodes:
-        selected_columns = tuple(prop.column for prop in selected_properties)
-    else:
-        selected_columns = None
+    selected_columns = tuple(prop.column for prop in selected_properties) if return_nodes else None
 
     if edit_type == EditType.CREATE:
         nodes = tuple(wiring.unwrap_some_node(edit.node) for edit in batch)
@@ -1590,7 +1575,7 @@ async def _pg_write_edit_batch(
             dynamic_columns.extend(
                 p.column for p in cast(Property, node_cls.parent).reference_stored_props or ()
             )
-            for edit, node in zip(batch, nodes):
+            for node in nodes:
                 row = {"id": node.id, "updated_at": node.updated_at}
                 dynamic_values.append(row)
                 _pg_pack_node_reference_into_row(
@@ -1599,13 +1584,13 @@ async def _pg_write_edit_batch(
 
         elif edit_type in (EditType.ARCHIVE, EditType.UNARCHIVE):
             dynamic_columns.append(table._columns_by_name["archived_at"])
-            for edit, node in zip(batch, nodes):
+            for node in nodes:
                 row = {"id": node.id, "archived_at": node.archived_at}
                 dynamic_values.append(row)
 
         elif edit_type in (EditType.SOFT_DELETE, EditType.RESTORE):
             dynamic_columns.append(table._columns_by_name["deleted_at"])
-            for edit, node in zip(batch, nodes):
+            for node in nodes:
                 row = {"id": node.id, "deleted_at": node.deleted_at}
                 dynamic_values.append(row)
 
@@ -1622,7 +1607,7 @@ async def _pg_write_edit_batch(
             returning=selected_columns if return_nodes else (table._primary_key,),
         )
         if rows is None or len(rows) != len(batch) or any(r is None for r in rows):
-            missing_rows = set(node.id for node in nodes) - {
+            missing_rows = {node.id for node in nodes} - {
                 cast(str, r["id"]) for r in rows or () if r
             }
             raise SqlNotExistsError(f"missing {node_type.bench_name}: {missing_rows}", cur)
@@ -1632,7 +1617,7 @@ async def _pg_write_edit_batch(
             return None
 
     elif edit_type == EditType.DELETE:
-        nodes_ids = list(wiring.unwrap_some_node(edit.node).id for edit in batch)
+        nodes_ids = [wiring.unwrap_some_node(edit.node).id for edit in batch]
         where = SqlComparison(
             left=sqlident("id"),
             op=PostgresConditionalOp.EQ,

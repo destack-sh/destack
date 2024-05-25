@@ -1,5 +1,6 @@
 import abc
 import asyncio
+import contextlib
 from typing import cast, override
 
 import structlog
@@ -23,7 +24,7 @@ from bench.proto.wire import (
     SupervisorStub,
     WatchEditsRequest,
 )
-from bench.utils.tenacity import RetryOptions
+from bench.utils.tenacity import DEFAULT_RETRY_OPTIONS, RetryOptions
 
 logger = structlog.get_logger(__name__)
 
@@ -32,9 +33,7 @@ class QueryConnector(abc.ABC):
     """A factory for connected queries."""
 
     @abc.abstractmethod
-    async def connect[
-        NodeT: Node, NodeDataT: AnyNodeData
-    ](
+    async def connect[NodeT: Node, NodeDataT: AnyNodeData](
         self, query: QueryBuilder[NodeT, NodeDataT], tx_lock: asyncio.Lock, session: Session
     ) -> "ConnectedQuery[NodeT, NodeDataT]":
         """Create a connected query."""
@@ -80,10 +79,12 @@ class ConnectedQuery[NodeT: Node, NodeDataT: AnyNodeData](abc.ABC):
         """Start the connection. Returns as soon as the connection is established (has a result)."""
         ...
 
+    @abc.abstractmethod
     def close(self):
         """Stop the live connection. The result (if any) will remain."""
         ...
 
+    @abc.abstractmethod
     async def wait_closed(self):
         """Wait for the connection to be fully closed."""
         ...
@@ -101,7 +102,7 @@ class RemoteQuery[NodeT: Node, NodeDataT: AnyNodeData](ConnectedQuery[NodeT, Nod
         remote: GraphIoStub | HostStub | SupervisorStub,
         scope: GraphScope,
         rpc_metadata: RpcMetadata,
-        retry: RetryOptions = RetryOptions(),
+        retry: RetryOptions = DEFAULT_RETRY_OPTIONS,
     ):
         super().__init__(query=query, tx_lock=tx_lock, session=session)
         self._remote = remote
@@ -183,10 +184,8 @@ class RemoteQuery[NodeT: Node, NodeDataT: AnyNodeData](ConnectedQuery[NodeT, Nod
 
     async def wait_closed(self):
         if self._connect_task is not None:
-            try:
+            with contextlib.suppress(asyncio.CancelledError):
                 await self._connect_task
-            except asyncio.CancelledError:
-                pass
 
 
 class RemoteConnector(QueryConnector):
@@ -201,9 +200,7 @@ class RemoteConnector(QueryConnector):
         self._rpc_metadata = rpc_metadata
 
     @override
-    async def connect[
-        NodeT: Node, NodeDataT: AnyNodeData
-    ](
+    async def connect[NodeT: Node, NodeDataT: AnyNodeData](
         self,
         query: QueryBuilder[NodeT, NodeDataT],
         tx_lock: asyncio.Lock,

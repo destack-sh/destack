@@ -111,7 +111,7 @@ def map_bench_enum_to_proto(
     # add unset if not already present
     if not any(v.id == 0 for v in enum_values):
         enum_values = [EnumValue(id=0, name=enum_prefix + "UNSPECIFIED"), *enum_values]
-    has_duplicates = len(enum_values) != len(set(v.id for v in enum_values))
+    has_duplicates = len(enum_values) != len({v.id for v in enum_values})
     proto_t = Enum(name=alias or bench_t.__name__, values=enum_values, allow_alias=has_duplicates)
     if bench_t.__doc__:
         proto_t.comment = bench_t.__doc__.strip()
@@ -152,12 +152,12 @@ def generate_proto_schema(
         _ = map_object_type_to_proto(thing, proto_types_cache, alias=aliases.get(thing))
 
     collected_enums: list[type[enum.Enum]] = [
-        t for t in proto_types_cache.keys() if issubclass(t, enum.Enum)
+        t for t in proto_types_cache if issubclass(t, enum.Enum)
     ]
-    collected_structs: list[type["Struct"]] = [
+    collected_structs: list[type[Struct]] = [
         t for t in bench_classes if issubclass(t, Struct) and not issubclass(t, Node)
     ]
-    collected_nodes: list[type["Node"]] = [t for t in bench_classes if issubclass(t, Node)]
+    collected_nodes: list[type[Node]] = [t for t in bench_classes if issubclass(t, Node)]
     collected_enums.sort(key=lambda t: t.__name__)
     collected_structs.sort(key=lambda t: t.__name__)
     collected_nodes.sort(key=lambda t: t.__name__)

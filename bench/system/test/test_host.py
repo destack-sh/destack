@@ -38,6 +38,7 @@ from bench.system.core import HostSpec
 from bench.system.provisioner import get_provisioners_for
 from bench.system.test.conftest import UserHandle, make_random_user_handle
 from bench.utils.dt import monotime
+from bench.utils.tenacity import NO_RETRY_OPTIONS
 
 logger = structlog.get_logger(__name__)
 
@@ -96,6 +97,7 @@ class BenchHandle:
                 node_types=PUBLIC_NODE_TYPES,
                 remote=self._supervisor,
                 rpc_metadata=self.owner_handle.metadata,
+                retry=NO_RETRY_OPTIONS,
             ),
             # bench engine
             RemoteEngine(
@@ -103,6 +105,7 @@ class BenchHandle:
                 node_types=IN_BENCH_NODE_TYPES,
                 remote=self._host,
                 rpc_metadata=self.owner_handle.metadata,
+                retry=NO_RETRY_OPTIONS,
             ),
         )
         return Session(
@@ -135,6 +138,7 @@ async def make_some_bench(supervisor: SupervisorStub, host: HostStub):
         node_types=BENCH_NODE_TYPES,
         remote=host,
         rpc_metadata=some_user.metadata,
+        retry=NO_RETRY_OPTIONS,
     )
     async with Session(_default_scope=bench_scope, _engines=(remote_engine,)) as session:
         bench = await Bench.descendants(
@@ -184,10 +188,10 @@ async def some_bench_setup(supervisor_service: SupervisorBase, host_service):
             yield handle
 
 
-@pytest.fixture(scope="function")
-async def some_bench(supervisor, host, some_bench_setup: BenchHandle):
+@pytest.fixture()
+def some_bench(supervisor, host, some_bench_setup: BenchHandle):
     handle = replace(some_bench_setup, _supervisor=supervisor, _host=host)
-    yield handle
+    return handle
 
 
 async def test_activate_user(some_bench: BenchHandle):

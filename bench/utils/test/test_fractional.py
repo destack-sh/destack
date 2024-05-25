@@ -29,9 +29,7 @@ zzzzzzzzzzzzzzzzzzzzzzzzzzz | zzzzzzzzzzzzzzzzzzzzzzzzzzzV
 a00 | !error
 a00 a1 !error
 0 1 !error
-a1 a0 !error""".split(
-        "\n"
-    ),
+a1 a0 !error""".split("\n"),
 )
 def test_order_keys(test_case: str) -> None:
     def _map_test_arg(x: str) -> str | None:

@@ -17,9 +17,9 @@ def bump(revision: int = typer.Option(None)):
     Format is YYYY.MM.DD.R
     """
     current_version = VERSION
-    current_version_date = datetime.strptime(current_version[:10], "%Y.%m.%d").date()
+    current_version_date = datetime.strptime(current_version[:10], "%Y.%m.%d").date()  # noqa: DTZ007
     current_version_revision = int(current_version[11:])
-    today = datetime.today().date()
+    today = datetime.today().date()  # noqa: DTZ002
     if revision is None:
         revision = current_version_revision + 1 if current_version_date == today else 0
 

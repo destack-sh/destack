@@ -110,7 +110,7 @@ class Object:
             field_value = self._value.get(field.storage_key)
             if field_value:
                 key = field.py_ident or field.name
-                if type(field_value) is list:  # noqa: E721
+                if type(field_value) is list:
                     set_fields.append(f"{key}({len(field_value)})")
                 elif type(field_value) is Object:
                     set_fields.append(f"{key}=<{field_value._type_name} (...)>")
@@ -319,7 +319,7 @@ def _check_value_scalar(
         elif type(value) is not expected_type:
             invalid(value, "not of type", typ)
         elif typ.constraint is not None:
-            if type(value) is int or type(value) is float:  # noqa: E721
+            if type(value) is int or type(value) is float:
                 if typ.constraint.min_value is not None and value < typ.constraint.min_value:
                     invalid(value, "too small", typ)
                 if typ.constraint.max_value is not None and value > typ.constraint.max_value:
@@ -329,7 +329,7 @@ def _check_value_scalar(
                     and value % typ.constraint.step_value > EPSILON
                 ):
                     invalid(value, f"not a multiple of {typ.constraint.step_value}", typ)
-            if type(value) is str:  # noqa: E721
+            if type(value) is str:
                 if typ.constraint.min_length is not None and len(value) < typ.constraint.min_length:
                     invalid(value, "too short", typ)
                 if typ.constraint.max_length is not None and len(value) > typ.constraint.max_length:

@@ -18,12 +18,17 @@ if TYPE_CHECKING:
 
 logger = structlog.get_logger(__name__)
 
-CreateProjectRep = NamedTuple(
-    "CreateProjectResponse", [("project_id", str), ("connection_uri", str)]
-)
-CreateBranchRep = NamedTuple(
-    "CreateBranchResponse", [("branch_id", str), ("compute_id", str), ("connection_uri", str)]
-)
+
+class CreateProjectRep(NamedTuple):
+    project_id: str
+    connection_uri: str
+
+
+class CreateBranchRep(NamedTuple):
+    branch_id: str
+    compute_id: str
+    connection_uri: str
+
 
 # NOTE: we assume throughout our Neon use that there will only be one endpoint per branch for now
 #       and that the main branch for a project ('tenant') will always be called 'main'.
@@ -34,22 +39,22 @@ class NeonApi(abc.ABC):
     Common Neon API so we can swap remote & local.
     """
 
+    @abc.abstractmethod
     async def create_project(
         self, *, name: str, region: Region, pg_version: int
-    ) -> CreateProjectRep:
-        raise NotImplementedError
+    ) -> CreateProjectRep: ...
 
-    async def delete_project(self, *, project_id: str) -> None:
-        raise NotImplementedError
+    @abc.abstractmethod
+    async def delete_project(self, *, project_id: str) -> None: ...
 
+    @abc.abstractmethod
     async def create_branch_with_rw_compute(
         self,
         *,
         name: str,
         parent_id: str,
         project_id: str,
-    ) -> CreateBranchRep:
-        raise NotImplementedError
+    ) -> CreateBranchRep: ...
 
 
 class NeonApiLocal(NeonApi):
@@ -140,6 +145,15 @@ class NeonApiLocal(NeonApi):
             f"cargo run --bin=storcon_cli -- --api=http://localhost:1234 tenant-delete --tenant-id={project_id}",
         )
 
+    async def create_branch_with_rw_compute(
+        self,
+        *,
+        name: str,
+        parent_id: str,
+        project_id: str,
+    ) -> CreateBranchRep:
+        raise NotImplementedError
+
 
 NEON_REGION_BY_REGION: dict[Region, str] = {
     Region.EUROPE_CENTRAL: "aws-eu-central-1",
@@ -188,13 +202,13 @@ class NeonApiRemote(NeonApi):
                 method, f"{self.url}/{path}", headers=headers, params=params, json=json
             )
             if response.status_code > 400:
-                error = dict(
-                    path=path,
-                    params=params,
-                    json=json,
-                    status=response.status_code,
-                    text=response.text,
-                )
+                error = {
+                    "path": path,
+                    "params": params,
+                    "json": json,
+                    "status": response.status_code,
+                    "text": response.text,
+                }
                 if response.status_code == 404:
                     raise UnrecoverableError(f"not found: {error}")
                 elif response.status_code == 409:
@@ -231,6 +245,15 @@ class NeonApiRemote(NeonApi):
 
     async def delete_project(self, *, project_id: str) -> None:
         await self._request("DELETE", f"projects/{project_id}")
+
+    async def create_branch_with_rw_compute(
+        self,
+        *,
+        name: str,
+        parent_id: str,
+        project_id: str,
+    ) -> CreateBranchRep:
+        raise NotImplementedError
 
 
 IS_NEON_LOCAL = get_from_env("IS_NEON_LOCAL", default=IS_DEBUG, typ=bool)

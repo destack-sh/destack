@@ -33,7 +33,7 @@ def pytest_collection_modifyitems(items):
 
 
 @pytest.fixture(autouse=True, scope="session")
-async def prepared_test_db():
+async def _prepared_test_db():
     from bench.sql.client import get_pg_connection_str, pg_cursor
     from bench.sql.engine import GLOBAL_SCHEMA
     from bench.sql.migration import (
@@ -66,7 +66,7 @@ async def prepared_test_db():
         await cur.connection.commit()
 
 
-@pytest.fixture(scope="function")
+@pytest.fixture()
 async def test_cur():
     from bench.sql.client import get_pg_connection_str, pg_cursor
     from bench.system.core import GLOBAL_STORE
@@ -90,11 +90,11 @@ def bench_session(bench: "Bench"):
     return Session(parent=bench.main_branch.main_package, _engines=(GLOBAL_POSTGRES_ENGINE,))
 
 
-@pytest.fixture(scope="function")
-async def fabricator():
+@pytest.fixture()
+def fabricator():
     from bench.language.test.fabricator import Fabricator
 
-    yield Fabricator(seed=42)
+    return Fabricator(seed=42)
 
 
 @contextmanager

@@ -3,6 +3,8 @@ from datetime import datetime
 
 import pytz
 
+LOCAL_TZ = pytz.timezone("Europe/Zurich")
+
 
 def utcnow():
     """A real and proper UTC datetime."""

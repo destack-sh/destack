@@ -50,7 +50,7 @@ from bench.sql.engine import (
     pg_upsert,
     sqlstr,
 )
-from bench.utils.dt import monotime, utcnow
+from bench.utils.dt import LOCAL_TZ, monotime, utcnow
 from bench.utils.env import REPOSITORY_PATH
 from bench.utils.func import partition, re_search_or_error
 from bench.utils.utils import format_python
@@ -204,7 +204,7 @@ MIGRATIONS = read_migrations_from_fs()
 def has_migration_after(version_a: str, *, is_global: bool) -> bool:
     """Returns whether there is a migration between the two versions."""
     for migration in MIGRATIONS:
-        if is_global and not migration.has_global or not is_global and not migration.has_local:
+        if (is_global and not migration.has_global) or (not is_global and not migration.has_local):
             continue
         if version_a < migration.version:
             return True
@@ -260,7 +260,7 @@ async def sql_migrate(
     # get the migrations to apply
     migrations_to_apply = []
     for migration in MIGRATIONS:
-        if is_global and not migration.has_global or not is_global and not migration.has_local:
+        if (is_global and not migration.has_global) or (not is_global and not migration.has_local):
             continue
         if (is_upgrade and current_migration_id < migration.id <= target_migration.id) or (
             not is_upgrade and current_migration_id >= migration.id > target_migration.id
@@ -309,7 +309,9 @@ async def _do_sql_migrate(
     now = utcnow()
     for migration in migrations:
         start = monotime()
-        func_name = f"{is_upgrade and 'upgrade' or 'downgrade'}_{is_global and 'global' or 'local'}"
+        func_name = (
+            f"{(is_upgrade and 'upgrade') or 'downgrade'}_{(is_global and 'global') or 'local'}"
+        )
         migration_file = _load_migration_from_path(migration)
         func = getattr(migration_file.module, func_name)
         try:
@@ -519,7 +521,7 @@ def generate_sql_migration_code(
     migration_code = Path(MIGRATIONS_TEMPLATE_PATH).read_text()
 
     # impute header/metadata
-    today = datetime.today().date().strftime("%Y.%m.%d")
+    today = datetime.now(LOCAL_TZ).date().strftime("%Y.%m.%d")
     metadata_substitutions: dict[str, str] = {
         "# <Header>": f"# This migration was automatically generated on {today}. Edit as needed.",
         '"<ID>"': str(migration.id),
@@ -734,7 +736,7 @@ def _render_migration_op(op: MigrationOp) -> str | None:
                 # change nullability
                 updates.append(
                     f"ALTER COLUMN {op.old_object.name}"
-                    f" {op.new_object.is_nullable and 'DROP' or 'SET'} NOT NULL"
+                    f" {(op.new_object.is_nullable and 'DROP') or 'SET'} NOT NULL"
                 )
             if "default" in diff_keys:
                 # change default

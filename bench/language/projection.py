@@ -22,7 +22,7 @@ class NodeVisitor:
         return f"{len(self._reference_by_ck)} nodes"
 
     def __repr__(self):
-        return f"<NodeVisitor {str(self)}>"
+        return f"<NodeVisitor {self!s}>"
 
     @property
     def references(self) -> Collection["Node"]:
@@ -91,10 +91,10 @@ def render_value_scalar(value: "ScalarValue", typ: "TypeInfoBase") -> str:
     if typ.kind == TypeKind.PRIMITIVE:
         if typ.primitive_type == PrimitiveType.BYTES:
             value_b64 = base64.b64encode(cast(bytes, value)).decode("utf-8")
-            return f"base64.b64decode({repr(value_b64)})"
+            return f"base64.b64decode({value_b64!r})"
         elif typ.primitive_type == PrimitiveType.DATETIME:
             value_iso = cast(datetime, value).isoformat()
-            return f"datetime.fromisoformat({repr(value_iso)})"
+            return f"datetime.fromisoformat({value_iso!r})"
         else:
             return repr(value)
     elif typ.kind == TypeKind.NODE or typ.kind == TypeKind.BASED_NODE:
@@ -155,11 +155,11 @@ def render_struct(value: Node | Struct) -> str:
     if value.metatype == StructType.TEXT:
         # Text: just the markdown
         markdown = cast("Text", value).to_markdown()
-        return f"Text.from_markdown({repr(markdown)})"
+        return f"Text.from_markdown({markdown!r})"
     elif value.metatype == StructType.CODE:
         # Code: just the code
         code = cast("Code", value).to_string()
-        return f"Code.from_string({repr(code)})"
+        return f"Code.from_string({code!r})"
     else:
         # default: prop-by-prop
         repr_by_name: dict[str, str] = {}
@@ -169,15 +169,14 @@ def render_struct(value: Node | Struct) -> str:
                 or not prop.is_introspectable
                 or prop.id < 30  # skip system properties
                 or prop.is_tree_reference  # skip node properties
-                or prop.name in ("order_key",)
+                or prop.name == "order_key"
             ):
                 continue  # ignore
             prop_value = getattr(value, prop.name)
             if (
                 prop_value is None
                 or prop_value == prop.default
-                or prop.is_list
-                and len(prop_value) == 0
+                or (prop.is_list and len(prop_value) == 0)
             ):
                 continue  # skip empty values
             prop_repr = render_value(prop_value, prop.type_info)
@@ -255,9 +254,6 @@ def render(value: Node | Struct) -> str:
     """Renders the given Node/Struct to Bench python and prettifies it."""
     from bench.language.code_ import format_code
 
-    if isinstance(value, Node):
-        rendered = render_node(value)
-    else:
-        rendered = render_struct(value)
+    rendered = render_node(value) if isinstance(value, Node) else render_struct(value)
     rendered = format_code(rendered)
     return rendered

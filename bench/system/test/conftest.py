@@ -54,14 +54,14 @@ async def host_service():
 #   :PytestAsyncWeirdness
 
 
-@pytest.fixture(scope="function")  # :PytestAsyncWeirdness
+@pytest.fixture()  # :PytestAsyncWeirdness
 async def supervisor(supervisor_service: SupervisorBase):
     async with ChannelFor([supervisor_service]) as channel:
         stub = SupervisorStub(channel)
         yield stub
 
 
-@pytest.fixture(scope="function")  # :PytestAsyncWeirdness
+@pytest.fixture()  # :PytestAsyncWeirdness
 async def host(host_service: HostBase):
     async with ChannelFor([host_service]) as channel:
         stub = HostStub(channel)
@@ -179,6 +179,6 @@ async def make_random_user_handle(supervisor: "SupervisorStub") -> UserHandle:
     )
 
 
-@pytest.fixture(scope="function")
+@pytest.fixture()
 async def some_user(supervisor: "SupervisorStub") -> UserHandle:
     return await make_random_user_handle(supervisor)

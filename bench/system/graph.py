@@ -414,7 +414,9 @@ class GraphIoServiceBase(BenchServiceBase, GraphIoBase):
                 if epochs_to_replay:
                     logger.info("graph.watch.replay", watcher=watcher, epochs=epochs_to_replay)
                     for epoch, edits, cascaded_edits in epochs_to_replay:
-                        yield WatchEditsResponse(edits=edits, epoch=epoch)
+                        yield WatchEditsResponse(
+                            edits=edits, cascaded_edits=cascaded_edits, epoch=epoch
+                        )
 
             # listen for new epochs
             logger.info("graph.watch", watcher=watcher)
@@ -491,8 +493,8 @@ def parse_edit_scopes(edits: list[EditData]) -> _EditScopes:
     from bench.proto import wiring
 
     edited_node_ids: set[str] = set()
-    node_scopes_by_id: dict[str, "NodeReferenceData"] = {}
-    graph_scopes: dict[int, "GraphScope"] = {}
+    node_scopes_by_id: dict[str, NodeReferenceData] = {}
+    graph_scopes: dict[int, GraphScope] = {}
     just_created_nodes_id: set[str] = set()
     for edit in edits:
         node_type = NodeType(edit.node_type)

@@ -67,7 +67,7 @@ class HostMultiplexer(BenchServiceBase, HostBase):
 
     def __init__(self):
         super().__init__()
-        self._hosts: dict[UUID, "Host"] = {}
+        self._hosts: dict[UUID, Host] = {}
         self._hosts_lock = asyncio.Lock()
 
     def __str__(self):
@@ -100,7 +100,7 @@ class HostMultiplexer(BenchServiceBase, HostBase):
     def _wrap_rpc_func(
         self, func: RpcCallable, method_name: str, handler: grpclib.const.Handler
     ) -> Callable:
-        _, cardinality, request_type, reply_type = handler
+        _, cardinality, _request_type, _reply_type = handler
 
         async def _get_host(request: betterproto.Message) -> Host:
             """Gets or starts a running Host for the given Bench"""
@@ -314,7 +314,7 @@ class Host(GraphIoServiceBase, HostBase, HostSpec):
 
         # start plugins
         self._provisioners = tuple(get_provisioners_for(self, self._bench))
-        self._plugins = (QueueRunPlugin(self, self._bench),) + self._provisioners
+        self._plugins = (QueueRunPlugin(self, self._bench), *self._provisioners)
         await asyncio.gather(*(plugin.start() for plugin in self._plugins))
         # wait for plugins to finish processing any commits (and error early)
         await asyncio.gather(*(plugin.wait_step(timeout=10) for plugin in self._plugins))
@@ -381,7 +381,7 @@ class Host(GraphIoServiceBase, HostBase, HostSpec):
         if was_suspended:  # we may be nested in a Session.commit already
             self._session.unsuspend()
         self._session.track_many(*graph.nodes)
-        commit = unpack_commit(self.graphs + (graph,), edits, cascaded_edits)
+        commit = unpack_commit((*self.graphs, graph), edits, cascaded_edits)
         logger.debug("host.on_commit", host=self, commit=commit)
         for plugin in self._plugins:
             if commit.edited_types & plugin.watch_types:

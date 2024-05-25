@@ -96,7 +96,9 @@ async def _get_client_from_metadata(metadata: RpcMetadata) -> Client | None:
             .get(id=client_id)
         )
     except NodeNotFoundError as e:
-        raise GRPCError(GRPCStatus.UNAUTHENTICATED, str(e) if IS_DEBUG else "client not found")
+        raise GRPCError(
+            GRPCStatus.UNAUTHENTICATED, str(e) if IS_DEBUG else "client not found"
+        ) from e
     if metadata.client_access_token != client.access_token:
         raise GRPCError(GRPCStatus.UNAUTHENTICATED, "invalid access token")
     return client

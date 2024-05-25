@@ -48,7 +48,6 @@ class TaskManager:
         task_id: str,
         skip_errors: bool = False,
     ) -> None:
-
         while True:
             item = await queue.get()
             try:
@@ -69,9 +68,7 @@ class TaskManager:
             finally:
                 queue.task_done()
 
-    def start_queue[
-        T
-    ](
+    def start_queue[T](
         self,
         queue: asyncio.Queue[T],
         process: Callable[[T], Awaitable[T] | Coroutine[T, None, None]],

@@ -212,7 +212,7 @@ async def clearmigrations(from_id: int, to_id: int):
 
 @app.command()
 @async_to_sync_blocking
-async def introspect(bench: str = None):  # type: ignore
+async def introspect(bench: Optional[str] = None):  # type: ignore
     """Introspect the current schema of the Postgres instance."""
     start = time.perf_counter()
 
@@ -250,7 +250,7 @@ async def introspect(bench: str = None):  # type: ignore
 
 @app.command()
 @async_to_sync_blocking
-async def shell(bench: str = None):  # type: ignore
+async def shell(bench: Optional[str] = None):  # type: ignore
     """Open a psql shell to either the global or a Bench-local database."""
     if bench is not None:
         async with global_session():
@@ -272,6 +272,6 @@ async def shell(bench: str = None):  # type: ignore
     try:
         # allow SIGINT to pass to psql to abort queries
         signal.signal(signal.SIGINT, signal.SIG_IGN)
-        subprocess.run(["psql", connection_str], check=True)
+        subprocess.run(["psql", connection_str], check=True)  # noqa: ASYNC101
     finally:
         signal.signal(signal.SIGINT, sigint_handler)

@@ -241,7 +241,7 @@ TIMED_NODE_TYPES = bittuple(
 IN_PACKAGE_NODE_TYPES = bittuple(*tuple(nt for nt in NODE_TYPES if 20 <= nt.id < 100))
 SUB_PACKAGE_NODE_TYPES = bittuple(*tuple(nt for nt in NODE_TYPES if 20 < nt.id < 100))
 IN_BENCH_NODE_TYPES = bittuple(
-    *tuple(nt for nt in NODE_TYPES if nt.id < 200) + (NodeType.CLIENT, NodeType.HANDLE)
+    *(*tuple(nt for nt in NODE_TYPES if nt.id < 200), NodeType.CLIENT, NodeType.HANDLE)
 )
 IN_BENCH_GLOBAL_NODE_TYPES = bittuple(
     *tuple(nt for nt in IN_BENCH_NODE_TYPES if nt not in LOCAL_NODE_TYPES)
@@ -869,7 +869,9 @@ EXPRESSION_OPS_BY_KIND: Mapping[ExpressionKind, bittuple["ExpressionOp"]] = {  #
     ExpressionKind.SORT: bittuple(*SortOp),
 }
 EXPRESSION_KIND_BY_OP: Mapping["ExpressionOp", ExpressionKind] = {
-    op: kind for kind, ops in EXPRESSION_OPS_BY_KIND.items() for op in ops  # type: ignore
+    op: kind
+    for kind, ops in EXPRESSION_OPS_BY_KIND.items()
+    for op in ops  # type: ignore
 }
 
 if typing.TYPE_CHECKING:

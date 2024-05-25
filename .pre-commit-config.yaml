@@ -1,21 +1,15 @@
 repos:
   # Python
   - repo: https://github.com/astral-sh/ruff-pre-commit
-    rev: v0.4.4
+    rev: v0.4.5
     hooks:
+      # lint
       - id: ruff
         name: ruff (py)
         exclude: ^bench/migrations
-  - repo: https://github.com/psf/black
-    rev: 24.4.2
-    hooks:
-      - id: black
-        name: black (py)
-  - repo: https://github.com/pycqa/isort
-    rev: 5.13.2
-    hooks:
-      - id: isort
-        name: isort (py)
+        args: [ --fix ]
+      # format
+      - id: ruff-format
   - repo: local
     hooks: # (on all files)
       - id: pyright
@@ -47,4 +41,4 @@ repos:
     rev: v1.10.0
     hooks:
       - id: check-no-nocheckin
-        types_or: [ javascript, jsx, ts, tsx, vue, python, bash ]
+        types_or: [ javascript, jsx, ts, tsx, vue, python, bash, rust ]

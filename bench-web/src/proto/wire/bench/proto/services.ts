@@ -365,7 +365,11 @@ export interface WatchEditsResponse {
      */
     edits: EditData[];
     /**
-     * @generated from protobuf field: uint64 epoch = 2;
+     * @generated from protobuf field: repeated symbolx.bench.EditData cascaded_edits = 2;
+     */
+    cascadedEdits: EditData[];
+    /**
+     * @generated from protobuf field: uint64 epoch = 3;
      */
     epoch: bigint;
 }
@@ -1807,12 +1811,14 @@ class WatchEditsResponse$Type extends MessageType<WatchEditsResponse> {
     constructor() {
         super("symbolx.bench.WatchEditsResponse", [
             { no: 1, name: "edits", kind: "message", repeat: 1 /*RepeatType.PACKED*/, T: () => EditData },
-            { no: 2, name: "epoch", kind: "scalar", T: 4 /*ScalarType.UINT64*/, L: 0 /*LongType.BIGINT*/ }
+            { no: 2, name: "cascaded_edits", kind: "message", repeat: 1 /*RepeatType.PACKED*/, T: () => EditData },
+            { no: 3, name: "epoch", kind: "scalar", T: 4 /*ScalarType.UINT64*/, L: 0 /*LongType.BIGINT*/ }
         ]);
     }
     create(value?: PartialMessage<WatchEditsResponse>): WatchEditsResponse {
         const message = globalThis.Object.create((this.messagePrototype!));
         message.edits = [];
+        message.cascadedEdits = [];
         message.epoch = 0n;
         if (value !== undefined)
             reflectionMergePartial<WatchEditsResponse>(this, message, value);
@@ -1826,7 +1832,10 @@ class WatchEditsResponse$Type extends MessageType<WatchEditsResponse> {
                 case /* repeated symbolx.bench.EditData edits */ 1:
                     message.edits.push(EditData.internalBinaryRead(reader, reader.uint32(), options));
                     break;
-                case /* uint64 epoch */ 2:
+                case /* repeated symbolx.bench.EditData cascaded_edits */ 2:
+                    message.cascadedEdits.push(EditData.internalBinaryRead(reader, reader.uint32(), options));
+                    break;
+                case /* uint64 epoch */ 3:
                     message.epoch = reader.uint64().toBigInt();
                     break;
                 default:
@@ -1844,9 +1853,12 @@ class WatchEditsResponse$Type extends MessageType<WatchEditsResponse> {
         /* repeated symbolx.bench.EditData edits = 1; */
         for (let i = 0; i < message.edits.length; i++)
             EditData.internalBinaryWrite(message.edits[i], writer.tag(1, WireType.LengthDelimited).fork(), options).join();
-        /* uint64 epoch = 2; */
+        /* repeated symbolx.bench.EditData cascaded_edits = 2; */
+        for (let i = 0; i < message.cascadedEdits.length; i++)
+            EditData.internalBinaryWrite(message.cascadedEdits[i], writer.tag(2, WireType.LengthDelimited).fork(), options).join();
+        /* uint64 epoch = 3; */
         if (message.epoch !== 0n)
-            writer.tag(2, WireType.Varint).uint64(message.epoch);
+            writer.tag(3, WireType.Varint).uint64(message.epoch);
         let u = options.writeUnknownFields;
         if (u !== false)
             (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);

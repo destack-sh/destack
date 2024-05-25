@@ -197,7 +197,7 @@ def _mention_to_url(node: Node) -> str:
 
     node_ref = node.to_ref()
     url_parts = []
-    for key in NodeReference.__declared_properties__.keys():
+    for key in NodeReference.__declared_properties__:
         value = getattr(node_ref, key)
         if value is not None:
             if type(value) is NodeType:

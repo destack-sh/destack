@@ -1,14 +1,14 @@
-from datetime import datetime
 import io
+from datetime import datetime
 from typing import TYPE_CHECKING, BinaryIO, Collection, Optional
 
 import structlog
 
+from bench.language.bench import Drive, Resource
 from bench.language.const import EnumType, NodeType, PrimitiveType, StructType, enum_
-from bench.language.node import Struct, struct, node
+from bench.language.node import Struct, node, struct
 from bench.language.property import Property, p_internal, p_node_parent, p_regular, p_runtime
 from bench.language.validation import NAME_CONSTRAINT, ValidationHandler
-from bench.language.bench import Drive, Resource
 from bench.proto.wire import BlobData
 from bench.utils.func import IdEnum
 
