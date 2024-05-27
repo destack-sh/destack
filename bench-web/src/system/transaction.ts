@@ -775,6 +775,7 @@ export function setupTransactionManagement() {
   if (_setupTransactionManagement) return;
   _setupTransactionManagement = true;
   // commit periodically
+  // nocheckin: auto-commit one tick after every non-debounced user edit (wait on debounced)
   // TODO :UX :Performance: tune transaction commit schedule (maybe commit more quickly after non-debounced edits?)
   let flushInterval: any | null = null;
   watch(

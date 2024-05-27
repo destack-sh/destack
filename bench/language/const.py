@@ -13,7 +13,7 @@ from bench.utils.utils import frozendict
 if typing.TYPE_CHECKING:
     from bench.language import Bench, Run, Session, Transaction
 
-VERSION = "2024.05.27.2"
+VERSION = "2024.05.27.3"
 REVISION_PENDING = -1
 TK_LENGTH_BYTES = 8
 TK_LENGTH_B64 = 12  # 1.5 * TK_LENGTH_BYTES (must be integer)
@@ -194,12 +194,12 @@ class NodeType(IdEnum):
     INVITE = 64
 
     # runtime
-    SESSION = 80  # (local)
-    RUN = 81  # (local, based)
-    SIGNAL = 82  # (local, based)
-    LOG = 83  # (local)
-    NOTIFICATION = 84  # (local, based)
-    MESSAGE = 85  # (local, based)
+    SESSION = 80  # (local, timed)
+    RUN = 81  # (local, based, timed)
+    SIGNAL = 82  # (local, based, timed)
+    LOG = 83  # (local, timed)
+    NOTIFICATION = 84  # (local, based, timed)
+    MESSAGE = 85  # (local, based, timed)
     RECORD = 86  # (local, based)
 
     # resources (compute/storage/external/etc.)

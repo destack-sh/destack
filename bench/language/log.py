@@ -23,7 +23,7 @@ from bench.language.property import (
 from bench.language.session import HasSessionContext
 from bench.language.text import Text
 from bench.language.value import HasValues
-from bench.utils.func import IdEnum
+from bench.utils.func import IdEnum, bittuple
 from bench.utils.uuidt import UUIDT
 
 if TYPE_CHECKING:
@@ -32,6 +32,10 @@ if TYPE_CHECKING:
 # pyright: reportIncompatibleVariableOverride=false
 
 logger = structlog.get_logger(__name__)
+
+SELF_LOGGED_NODE_TYPES: bittuple[NodeType] = bittuple(
+    NodeType.SESSION, NodeType.RUN, NodeType.SIGNAL, NodeType.LOG
+)
 
 
 @enum_(EnumType.LOG_KIND)

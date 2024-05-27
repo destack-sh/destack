@@ -45,7 +45,9 @@ if TYPE_CHECKING:
     id_factory=UUIDT,
     indexes=(
         ("created_at",),
+        ("created_epoch",),
         ("package_id", "created_at"),
+        ("package_id", "created_epoch"),
     ),
 )
 class Run(BasedNode[RunData], HasSessionContext, HasValues):

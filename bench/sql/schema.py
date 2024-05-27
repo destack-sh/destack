@@ -11,7 +11,7 @@ from bench.sql.core import (
     Table,
 )
 
-VERSION = "2024.05.27.2"
+VERSION = "2024.05.27.3"
 
 BENCH_TABLE = Table(
     "bench_bench",
@@ -1182,7 +1182,11 @@ SESSION_TABLE = Table(
     ),
     indexes=(
         Index("bench_idx_created_at", IndexType.BTREE, ("created_at",)),
+        Index("bench_idx_created_epoch", IndexType.BTREE, ("created_epoch",)),
         Index("bench_idx_package_id_created_at", IndexType.BTREE, ("package_id", "created_at")),
+        Index(
+            "bench_idx_package_id_created_epoch", IndexType.BTREE, ("package_id", "created_epoch")
+        ),
         Index("bench_idx_status", IndexType.BTREE, ("status",)),
     ),
     constraints=(
@@ -1260,7 +1264,11 @@ RUN_TABLE = Table(
     ),
     indexes=(
         Index("bench_idx_created_at", IndexType.BTREE, ("created_at",)),
+        Index("bench_idx_created_epoch", IndexType.BTREE, ("created_epoch",)),
         Index("bench_idx_package_id_created_at", IndexType.BTREE, ("package_id", "created_at")),
+        Index(
+            "bench_idx_package_id_created_epoch", IndexType.BTREE, ("package_id", "created_epoch")
+        ),
     ),
     constraints=(
         Constraint(
@@ -1444,7 +1452,11 @@ NOTIFICATION_TABLE = Table(
     ),
     indexes=(
         Index("bench_idx_created_at", IndexType.BTREE, ("created_at",)),
+        Index("bench_idx_created_epoch", IndexType.BTREE, ("created_epoch",)),
         Index("bench_idx_package_id_created_at", IndexType.BTREE, ("package_id", "created_at")),
+        Index(
+            "bench_idx_package_id_created_epoch", IndexType.BTREE, ("package_id", "created_epoch")
+        ),
     ),
     constraints=(
         Constraint(
