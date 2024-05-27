@@ -35,7 +35,9 @@ logger = structlog.get_logger(__name__)
     id_factory=UUIDT,
     indexes=(
         ("created_at",),
+        ("created_epoch",),
         ("package_id", "created_at"),
+        ("package_id", "created_epoch"),
     ),
 )
 class Signal(BasedNode[SignalData], HasSessionContext, HasValues):

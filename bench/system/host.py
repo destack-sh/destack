@@ -306,13 +306,13 @@ class Host(GraphIoServiceBase, HostBase, HostSpec):
         edits: list[EditData],
         cascaded_edits: list[EditData],
     ) -> list[EditData]:
-        # TODO :Incomplete: run plugins to extend commit
+        # NOTE :Incomplete: run plugins to extend commit (not needed yet)
 
         # create signals
         ...
 
         # add logs
-        # TODO :Incomplete: logs
+        # nocheckin: logs
         return []
 
     @override

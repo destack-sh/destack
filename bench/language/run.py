@@ -72,9 +72,12 @@ class Run(BasedNode[RunData], HasSessionContext, HasValues):
     status: RunStatus = p_internal(40, default=RunStatus.SCHEDULED)
     duration: Optional[float] = p_internal(41, default=None)
     scheduled_at: Optional[datetime] = p_internal(42, default=None)
-    started_at: Optional[datetime] = p_internal(43, default=None)
-    paused_at: Optional[datetime] = p_internal(44, default=None)
-    terminated_at: Optional[datetime] = p_internal(45, default=None)
+    scheduled_epoch: Optional[int] = p_internal(43, default=None)
+    started_at: Optional[datetime] = p_internal(44, default=None)
+    started_epoch: Optional[int] = p_internal(45, default=None)
+    paused_at: Optional[datetime] = p_internal(46, default=None)
+    terminated_at: Optional[datetime] = p_internal(47, default=None)
+    terminated_epoch: Optional[int] = p_internal(48, default=None)
 
     # value
     inputs_packed: Any = p_value_packed(50)
@@ -89,9 +92,6 @@ class Run(BasedNode[RunData], HasSessionContext, HasValues):
     error: Optional["RunError"] = p_internal(
         56, default=None, require=False, array=False, struct=StructType.RUN_ERROR
     )
-
-    # context
-    # ...InSessionNode[60-69]
 
     # NOTE :Architecture :Performance: (some) Runs will likely be stored outside the main user DB later.
     #  And maybe we'll also have 'inline runs' for non-Bench constructs that were run (like deeper profiling).

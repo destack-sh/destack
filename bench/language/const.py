@@ -13,7 +13,7 @@ from bench.utils.utils import frozendict
 if typing.TYPE_CHECKING:
     from bench.language import Bench, Run, Session, Transaction
 
-VERSION = "2024.05.25.4"
+VERSION = "2024.05.27.1"
 REVISION_PENDING = -1
 TK_LENGTH_BYTES = 8
 TK_LENGTH_B64 = 12  # 1.5 * TK_LENGTH_BYTES (must be integer)
@@ -86,7 +86,6 @@ class EnumType(IdEnum):
 
     # block
     BLOCK_TYPE = 2070
-    SCHEDULE_TYPE = 2071
 
     # type
     PRIMITIVE_TYPE = 2080
@@ -96,6 +95,12 @@ class EnumType(IdEnum):
 
     # text
     TEXT_LINE_TYPE = 2090
+
+    # time
+    SCHEDULE_TYPE = 2100
+    TIME_INTERVAL = 2101
+    DAY = 2102
+    MONTH = 2103
 
     # notice
     NOTICE_TYPE = 2170
@@ -668,6 +673,7 @@ PRIMITIVE_TYPE_BY_PY_TYPE: dict[type, PrimitiveType] = {
     str: PrimitiveType.STRING,
     bytes: PrimitiveType.BYTES,
     datetime: PrimitiveType.DATETIME,
+    timedelta: PrimitiveType.INTERVAL,
     UUID: PrimitiveType.UUID,
 }
 
@@ -729,6 +735,44 @@ class TriggerType(IdEnum):
 class ScheduleType(IdEnum):
     INTERVAL = 1
     CRON = 2
+
+
+@enum_(EnumType.TIME_INTERVAL)
+class TimeInterval(IdEnum):
+    SECOND = 2
+    MINUTE = 3
+    HOUR = 4
+    DAY = 5
+    WEEK = 6
+    MONTH = 7
+    YEAR = 8
+
+
+@enum_(EnumType.DAY)
+class Day(IdEnum):
+    MONDAY = 1
+    TUESDAY = 2
+    WEDNESDAY = 3
+    THURSDAY = 4
+    FRIDAY = 5
+    SATURDAY = 6
+    SUNDAY = 7
+
+
+@enum_(EnumType.MONTH)
+class Month(IdEnum):
+    JANUARY = 1
+    FEBRUARY = 2
+    MARCH = 3
+    APRIL = 4
+    MAY = 5
+    JUNE = 6
+    JULY = 7
+    AUGUST = 8
+    SEPTEMBER = 9
+    OCTOBER = 10
+    NOVEMBER = 11
+    DECEMBER = 12
 
 
 @enum_(EnumType.NOTICE_KIND)

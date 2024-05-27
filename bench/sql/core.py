@@ -653,14 +653,16 @@ RECORD_BASE_TABLE = Table(
         Column("ck", PrimitiveType.UUID, _source=3),
         Column("revision", PrimitiveType.INT64, default="0", _source=10),
         Column("created_at", PrimitiveType.DATETIME, default="now()", _source=11),
-        Column("updated_at", PrimitiveType.DATETIME, default="now()", _source=12),
-        Column("deleted_at", PrimitiveType.DATETIME, is_nullable=True, _source=13),
-        Column("archived_at", PrimitiveType.DATETIME, is_nullable=True, _source=14),
+        Column("created_epoch", PrimitiveType.INT64, default="-1", _source=12),
+        Column("updated_at", PrimitiveType.DATETIME, default="now()", _source=13),
+        Column("updated_epoch", PrimitiveType.INT64, default="-1", _source=14),
+        Column("deleted_at", PrimitiveType.DATETIME, is_nullable=True, _source=15),
+        Column("archived_at", PrimitiveType.DATETIME, is_nullable=True, _source=16),
     ),
     indexes=(),
     constraints=(),
 )
-# 'hufflepuff' table for ephemeral record 'tables' real materialized tables
+# shared record table for database blocks without real materialized tables
 RECORD_SHARED_TABLE = Table(
     "bench_record_shared",
     columns=(

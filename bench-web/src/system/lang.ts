@@ -795,7 +795,7 @@ function getInspectionInfo(metatype: ObjectType, type: any): Record<string, Insp
   } else if (metatype == ObjectType.BLOCK) {
     const properties: Record<string, InspectionCategory> = {
       Common: [BlockProperty.type],
-      Flags: [{ from: 60, to: 70, excluding: [BlockProperty.pausedAt] }],
+      Flags: [{ from: 60, to: 70 }],
     };
     if (type == BlockType.ALIAS || type == BlockType.VARIABLE) {
       // base type
