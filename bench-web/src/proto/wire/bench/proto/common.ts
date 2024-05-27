@@ -11,7 +11,6 @@ import { UnknownFieldHandler } from "@protobuf-ts/runtime";
 import type { PartialMessage } from "@protobuf-ts/runtime";
 import { reflectionMergePartial } from "@protobuf-ts/runtime";
 import { MessageType } from "@protobuf-ts/runtime";
-import { NodeReferenceData } from "./lang";
 import { SomeNodeData } from "./lang";
 import { NodeType } from "./lang";
 import { EditType } from "./lang";
@@ -135,23 +134,21 @@ export interface EditData {
      */
     properties: number[];
     /**
-     * @generated from protobuf field: optional symbolx.bench.NodeReferenceData subject = 40;
-     */
-    subject?: NodeReferenceData;
-    /**
-     * @generated from protobuf field: optional uint64 seen_epoch = 41;
+     * The last epoch seen by the client.
+     *
+     * @generated from protobuf field: optional uint64 seen_epoch = 40;
      */
     seenEpoch?: bigint;
     /**
      * System-accepted revision for the edit.
      *
-     * @generated from protobuf field: optional int64 revision = 42;
+     * @generated from protobuf field: optional int64 revision = 50;
      */
     revision?: bigint;
     /**
      * System-accepted epoch for the edit.
      *
-     * @generated from protobuf field: optional int64 epoch = 43;
+     * @generated from protobuf field: optional int64 epoch = 51;
      */
     epoch?: bigint;
 }
@@ -453,10 +450,9 @@ class EditData$Type extends MessageType<EditData> {
             { no: 33, name: "node_type", kind: "enum", T: () => ["symbolx.bench.NodeType", NodeType, "NODE_TYPE_"] },
             { no: 35, name: "node", kind: "message", T: () => SomeNodeData },
             { no: 36, name: "properties", kind: "scalar", repeat: 1 /*RepeatType.PACKED*/, T: 13 /*ScalarType.UINT32*/ },
-            { no: 40, name: "subject", kind: "message", T: () => NodeReferenceData },
-            { no: 41, name: "seen_epoch", kind: "scalar", opt: true, T: 4 /*ScalarType.UINT64*/, L: 0 /*LongType.BIGINT*/ },
-            { no: 42, name: "revision", kind: "scalar", opt: true, T: 3 /*ScalarType.INT64*/, L: 0 /*LongType.BIGINT*/ },
-            { no: 43, name: "epoch", kind: "scalar", opt: true, T: 3 /*ScalarType.INT64*/, L: 0 /*LongType.BIGINT*/ }
+            { no: 40, name: "seen_epoch", kind: "scalar", opt: true, T: 4 /*ScalarType.UINT64*/, L: 0 /*LongType.BIGINT*/ },
+            { no: 50, name: "revision", kind: "scalar", opt: true, T: 3 /*ScalarType.INT64*/, L: 0 /*LongType.BIGINT*/ },
+            { no: 51, name: "epoch", kind: "scalar", opt: true, T: 3 /*ScalarType.INT64*/, L: 0 /*LongType.BIGINT*/ }
         ]);
     }
     create(value?: PartialMessage<EditData>): EditData {
@@ -499,16 +495,13 @@ class EditData$Type extends MessageType<EditData> {
                     else
                         message.properties.push(reader.uint32());
                     break;
-                case /* optional symbolx.bench.NodeReferenceData subject */ 40:
-                    message.subject = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.subject);
-                    break;
-                case /* optional uint64 seen_epoch */ 41:
+                case /* optional uint64 seen_epoch */ 40:
                     message.seenEpoch = reader.uint64().toBigInt();
                     break;
-                case /* optional int64 revision */ 42:
+                case /* optional int64 revision */ 50:
                     message.revision = reader.int64().toBigInt();
                     break;
-                case /* optional int64 epoch */ 43:
+                case /* optional int64 epoch */ 51:
                     message.epoch = reader.int64().toBigInt();
                     break;
                 default:
@@ -548,18 +541,15 @@ class EditData$Type extends MessageType<EditData> {
                 writer.uint32(message.properties[i]);
             writer.join();
         }
-        /* optional symbolx.bench.NodeReferenceData subject = 40; */
-        if (message.subject)
-            NodeReferenceData.internalBinaryWrite(message.subject, writer.tag(40, WireType.LengthDelimited).fork(), options).join();
-        /* optional uint64 seen_epoch = 41; */
+        /* optional uint64 seen_epoch = 40; */
         if (message.seenEpoch !== undefined)
-            writer.tag(41, WireType.Varint).uint64(message.seenEpoch);
-        /* optional int64 revision = 42; */
+            writer.tag(40, WireType.Varint).uint64(message.seenEpoch);
+        /* optional int64 revision = 50; */
         if (message.revision !== undefined)
-            writer.tag(42, WireType.Varint).int64(message.revision);
-        /* optional int64 epoch = 43; */
+            writer.tag(50, WireType.Varint).int64(message.revision);
+        /* optional int64 epoch = 51; */
         if (message.epoch !== undefined)
-            writer.tag(43, WireType.Varint).int64(message.epoch);
+            writer.tag(51, WireType.Varint).int64(message.epoch);
         let u = options.writeUnknownFields;
         if (u !== false)
             (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);

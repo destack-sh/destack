@@ -61,7 +61,7 @@ class Notification(BasedNode[NotificationData], HasSessionContext, HasValues):
     value: Any = p_value_runtime(42, 43)
 
     # context
-    # ...InSessionNode[60-69]
+    # ...HasSessionContext[60-69]
 
     @property
     def base(self) -> Optional["Block"]:

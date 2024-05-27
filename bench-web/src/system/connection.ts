@@ -30,7 +30,6 @@ import {
 import { toaster } from "@/system/toast";
 import {
   ImmediateTransactionBuffer,
-  canonicalizeEdits,
   editGraph,
   getTransactionBuffer,
   newBufferId,
@@ -164,10 +163,9 @@ function makeEditFilter(params: GetConnectionParams<any> | SearchConnectionParam
   return { includedNodeTypes };
 }
 
-/** Filter, canonicalize and apply the given edits */
+/** Filter and apply the given edits */
 function applyRemoteEdits(filter: EditFilter, edits: EditData[], graph: ReadNodeGraph & WriteNodeGraph): void {
   const filteredEdits = filterRemoteEdits(filter, edits);
-  canonicalizeEdits(Timestamp.now(), filteredEdits);
   editGraph(graph, filteredEdits);
 }
 

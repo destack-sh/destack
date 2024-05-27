@@ -42,8 +42,7 @@ logger = structlog.get_logger(__name__)
 )
 class Signal(BasedNode[SignalData], HasSessionContext, HasValues):
     """
-    A Signal emitted in this Bench.
-    Signals can be emitted by users or Bench source, and are usually handled in Triggers.
+    A Signal emitted in this Bench, usually received in Triggers.
     """
 
     parent: "Package" = p_node_parent(4, NodeType.PACKAGE)
@@ -55,7 +54,7 @@ class Signal(BasedNode[SignalData], HasSessionContext, HasValues):
     value: Any = p_value_runtime(42, 43, type=32)
 
     # context
-    # ...InSessionNode[60-69]
+    # ...HasSessionContext[60-69]
 
     @property
     def base(self) -> Optional["Block"]:

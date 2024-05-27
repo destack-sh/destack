@@ -2094,7 +2094,7 @@ message LinkData {
   optional string order_key = 32;
 }
 
-// A Log of something happening on a Bench.
+// A Log of something happening in a Bench.
 message LogData {
   ObjectType metatype = 1;
   string id = 2;
@@ -2540,8 +2540,7 @@ message SessionData {
   optional NodeReferenceData user_ptr = 64;
 }
 
-// A Signal emitted in this Bench.
-// Signals can be emitted by users or Bench source, and are usually handled in Triggers.
+// A Signal emitted in this Bench, usually received in Triggers.
 message SignalData {
   ObjectType metatype = 1;
   string id = 2;

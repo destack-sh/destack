@@ -1,7 +1,8 @@
 import asyncio
 import functools
 from contextlib import asynccontextmanager
-from typing import Callable, override
+from itertools import chain
+from typing import Callable, cast, override
 from uuid import UUID
 
 import betterproto
@@ -19,11 +20,15 @@ from bench.language.const import (
     LOCAL_NODE_TYPES,
     NodeType,
 )
+from bench.language.expression import NodeReference
 from bench.language.graph import NodeGraphLike, edit_graph
+from bench.language.log import Log
+from bench.language.property import Property
+from bench.language.query import NodeNotFoundError
 from bench.language.session import Session
-from bench.proto import wiring
+from bench.proto import wire, wiring
 from bench.proto.services import BenchServiceBase, RpcCallable
-from bench.proto.wire import EditData, GraphScope, HostBase, ServiceKind
+from bench.proto.wire import EditData, GraphScope, HostBase, LogData, ServiceKind
 from bench.system.core import (
     BENCH_QUERY,
     GLOBAL_POSTGRES_ENGINE,
@@ -38,9 +43,10 @@ from bench.system.core import (
 from bench.system.graph import GraphIoServiceBase
 from bench.system.provisioner import Provisioner, get_provisioners_for
 from bench.system.scheduler import QueueRunPlugin
-from bench.utils.dt import monotime
+from bench.utils.dt import monotime, utcnow
 from bench.utils.func import to_uuid
 from bench.utils.utils import get_from_env_maybe
+from bench.utils.uuidt import UUIDT
 
 logger = structlog.get_logger(__name__)
 
@@ -203,6 +209,7 @@ class Host(GraphIoServiceBase, HostBase, HostSpec):
             _is_readonly=readonly,
             _default_scope=self.scope,
             _engines=engines if engines is not None else self.get_engines(),
+            _epoch=self.epoch,
             _extend_commit_hook=self.extend_commit,
             _on_commit_hook=self.on_commit,
         )
@@ -215,6 +222,7 @@ class Host(GraphIoServiceBase, HostBase, HostSpec):
             assert self._session is not None, f"session not ready in {self!r}"
             was_readonly = self._session._is_readonly
             self._session._is_readonly = readonly
+            self._session._epoch = self.epoch
             self._session.unsuspend()
             yield self._session
             if autocommit:
@@ -279,13 +287,30 @@ class Host(GraphIoServiceBase, HostBase, HostSpec):
             self._main_package = await PACKAGE_QUERY.get(id=self._bench.main_branch.main_package_id)
             self._packages[self._main_package.id] = self._main_package
 
+            # get current epoch from log
+            try:
+                self.epoch = (
+                    await Log.order_by(cast(Property, Log.created_epoch).desc())
+                    .limit(1)
+                    .scalar("created_epoch")
+                )
+            except NodeNotFoundError as e:
+                self.epoch = 0
+                logger.debug("host.reset", host=self, epoch=self.epoch, exc_info=e)
+
         # start plugins
         self._provisioners = tuple(get_provisioners_for(self, self._bench))
         self._plugins = (QueueRunPlugin(self, self._bench), *self._provisioners)
         await asyncio.gather(*(plugin.start() for plugin in self._plugins))
         # wait for plugins to finish processing any commits (and error early)
         await asyncio.gather(*(plugin.wait_step(timeout=10) for plugin in self._plugins))
-        logger.info("host.start", host=self, plugins=self._plugins, duration=monotime() - start)
+        logger.info(
+            "host.start",
+            host=self,
+            epoch=self.epoch,
+            plugins=self._plugins,
+            duration=monotime() - start,
+        )
 
     def close(self) -> None:
         super().close()
@@ -304,16 +329,53 @@ class Host(GraphIoServiceBase, HostBase, HostSpec):
         session: Session,
         graph: NodeGraphLike,
         edits: list[EditData],
+        epoch: int,
         cascaded_edits: list[EditData],
-    ) -> list[EditData]:
+    ) -> tuple[list[EditData], int]:
+        extended_edits: list[EditData] = []
         # NOTE :Incomplete: run plugins to extend commit (not needed yet)
 
         # create signals
         ...
 
         # add logs
-        # nocheckin: logs
-        return []
+        now = utcnow()
+        package_ptr = session.package.to_ref()._to_data()
+        bench_ptr = session.bench.to_ref()._to_data()
+        for edit in chain(edits, extended_edits):
+            if edit.node_type == wire.ObjectType.LOG:
+                continue  # don't log logs
+            node = wiring.unwrap_some_node(edit.node)
+            assert edit.epoch is not None, f"epoch not set in {edit!r}"
+            log_data = LogData(
+                metatype=wire.ObjectType.LOG,
+                id=str(UUIDT()),
+                parent_ptr=package_ptr,
+                package_ptr=package_ptr,
+                bench_ptr=bench_ptr,
+                created_at=now,
+                created_epoch=edit.epoch,
+                updated_at=now,
+                updated_epoch=edit.epoch,
+                kind=wire.LogKind.EDIT,
+                level=wire.LogLevel.INFO,
+                type=cast(wire.AccessType, edit.type),
+                node_ptr=NodeReference.from_node_data(node),
+                properties=edit.properties,
+            )
+            create_log_edit = EditData(
+                id=log_data.id,
+                type=wire.EditType.CREATE,
+                scope=edit.scope,
+                node_type=cast(wire.NodeType, log_data.metatype),
+                origin=None,
+                epoch=edit.epoch,
+                node=wiring.wrap_some_node(log_data),
+                # TODO :Incomplete: log session context
+            )
+            extended_edits.append(create_log_edit)
+
+        return extended_edits, epoch
 
     @override
     async def _on_commit(
@@ -357,7 +419,7 @@ class Host(GraphIoServiceBase, HostBase, HostSpec):
                 logger.debug(
                     "host.on_commit.plugin", host=self, plugin=plugin, commit=trimmed_commit
                 )
-        await self._session.commit(skip_lock=True)  # already in a locked section
+        await self._session.commit(_skip_lock=True)  # already in a locked section
         if was_suspended:
             self._session.suspend()
         logger.debug("host.on_commit", host=self, commit=commit, duration=monotime() - start)

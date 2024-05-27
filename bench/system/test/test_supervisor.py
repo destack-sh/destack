@@ -154,13 +154,14 @@ async def test_cross_user_access(supervisor: SupervisorStub):
             # update the User's full name
             # (this works via the supervisor until the Users are activated yet)
             target_data = target._to_data()
+            target_data.updated_at = utcnow()
+            target_data.updated_by = actor_handle.subject
             target_data.name = f"{actor.name}'s Puppet"
             edit = EditData(
                 id=new_edit_id(),
                 type=wire.EditType.UPDATE,
                 node_type=wire.NodeType.USER,
                 node=wiring.wrap_some_node(target_data),
-                subject=actor_handle.subject,
                 properties=[User.name.id],  # type: ignore
                 origin=actor_handle.origin,
             )
@@ -174,13 +175,14 @@ async def test_cross_user_access(supervisor: SupervisorStub):
                     )
             # update the User's client's device name
             target_data = target_handle.client._to_data()
+            target_data.updated_at = utcnow()
+            target_data.updated_by = actor_handle.subject
             target_data.device_name = f"{actor.name}'s Puppet Device"
             edit = EditData(
                 id=new_edit_id(),
                 type=wire.EditType.UPDATE,
                 node_type=wire.NodeType.CLIENT,
                 node=wiring.wrap_some_node(target_data),
-                subject=actor_handle.subject,
                 properties=[Client.device_name.id],  # type: ignore
                 origin=actor_handle.origin,
             )
@@ -247,7 +249,6 @@ async def test_root_node_create_denied(
             type=edit_type,
             node_type=node_data.metatype,
             node=wiring.wrap_some_node(node_data),
-            subject=some_user.subject,
         )
         commit_req = CommitTransactionRequest(id=str(uuid4()), edits=[edit])
         with raises_grpc_error(GRPCStatus.PERMISSION_DENIED, GRPCStatus.INVALID_ARGUMENT):

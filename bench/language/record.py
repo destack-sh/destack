@@ -1,4 +1,3 @@
-import abc
 from typing import TYPE_CHECKING, Any, Optional, cast
 
 import structlog
@@ -10,11 +9,10 @@ from bench.language.connection import (
     PostgresConnection,
     PostgresEngine,
 )
-from bench.language.const import NodeType, NRel
+from bench.language.const import NodeType
 from bench.language.node import BasedNode, Node, NodeList, node, node_component
 from bench.language.notice import NoticeHandler
 from bench.language.property import (
-    Property,
     p_node_child,
     p_node_parent,
     p_runtime,
@@ -88,18 +86,10 @@ class RecordConnection(PostgresConnection[Record, RecordData]):
         raise NotImplementedError
 
 
-class RecordList(NodeList[Record], QueryBuilder[Record, RecordData], abc.ABC):  # type: ignore
-    """A NodeList for remote records."""
-
-    def __init__(self, parent: "Block", property: Property):
-        NodeList[Record].__init__(self, parent, property)
-        QueryBuilder.__init__(self, node_type=NodeType.RECORD, base=parent)
-
-
 @node_component()
 class Database(Node):
     queries: NodeList["Query"] = p_node_child(NodeType.QUERY)
-    records: RecordList = p_node_child(NodeType.RECORD, NRel.STORED_CUSTOM, list=RecordList)
+    # records: RecordList = p_node_child(NodeType.RECORD, NRel.STORED_CUSTOM, list=RecordList)
     _table: Optional[Table] = p_runtime(default=None)
 
     def _interp_component(self, scope: Optional["Node"], notice: "NoticeHandler") -> None:

@@ -71,7 +71,7 @@ _CONDITIONAL_OP_SIGN: dict[ConditionalOp, str] = {
 
 
 @struct(StructType.NODE_REFERENCE, inline=True)
-class NodeReference(Struct):
+class NodeReference(Struct[NodeReferenceData]):
     """
     A reference to a Node.
     If the reference is to a node in a Bench, we include the Bench ID and 'ck' (where available).

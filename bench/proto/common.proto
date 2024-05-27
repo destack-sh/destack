@@ -63,12 +63,13 @@ message EditData {
   SomeNodeData node = 35;
   repeated uint32 properties = 36;
 
-  optional NodeReferenceData subject = 40;
-  optional uint64 seen_epoch = 41;
+  // The last epoch seen by the client.
+  optional uint64 seen_epoch = 40;
+
   // System-accepted revision for the edit.
-  optional int64 revision = 42;
+  optional int64 revision = 50;
   // System-accepted epoch for the edit.
-  optional int64 epoch = 43;
+  optional int64 epoch = 51;
 }
 
 // Transaction of edits to a Node.

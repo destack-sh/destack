@@ -13,7 +13,7 @@ from bench.utils.utils import frozendict
 if typing.TYPE_CHECKING:
     from bench.language import Bench, Run, Session, Transaction
 
-VERSION = "2024.05.27.1"
+VERSION = "2024.05.27.2"
 REVISION_PENDING = -1
 TK_LENGTH_BYTES = 8
 TK_LENGTH_B64 = 12  # 1.5 * TK_LENGTH_BYTES (must be integer)
@@ -222,9 +222,7 @@ class NodeType(IdEnum):
 NODE_TYPES = bittuple(*NodeType)
 NODE_TYPES_SET: frozenset[NodeType] = frozenset(NODE_TYPES)
 ROOT_NODE_TYPES = bittuple(NodeType.BENCH, NodeType.USER, NodeType.ORGANIZATION)
-LOCAL_NODE_TYPES = bittuple(
-    NodeType.RECORD, NodeType.MESSAGE, NodeType.RUN, NodeType.SIGNAL, NodeType.NOTIFICATION
-)
+LOCAL_NODE_TYPES = bittuple(*tuple(nt for nt in NODE_TYPES if 80 <= nt.id < 100))
 GLOBAL_NODE_TYPES = bittuple(*tuple(nt for nt in NODE_TYPES if nt not in LOCAL_NODE_TYPES))
 BASED_NODE_TYPES = bittuple(  # :HasBase
     NodeType.FIELD,
