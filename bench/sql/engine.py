@@ -167,6 +167,7 @@ PG_CAST_PRIMITIVE_TYPE: dict[PrimitiveType, str] = {
     PrimitiveType.VECTOR: "float[]",
     PrimitiveType.BYTES: "bytea",
     PrimitiveType.DATETIME: "timestamptz",
+    PrimitiveType.INTERVAL: "interval",
     PrimitiveType.JSON: "jsonb",
     PrimitiveType.UUID: "uuid",
 }
@@ -286,7 +287,9 @@ def map_node_class_to_pg_table(node: type[Node]) -> Table:
             _source=prop.id,
         )
         # default
-        if prop.default is not UNSET and prop.default is not None:
+        if prop.default_sql is not UNSET:
+            column.default = prop.default_sql
+        elif prop.default is not UNSET and prop.default is not None:
             if isinstance(prop.default, IdEnum):
                 column.default = f"'{prop.default.name}'::character varying"
             elif isinstance(prop.default, bool):
@@ -1035,7 +1038,7 @@ def _unpack_struct_data_prop(prop: Property, value: Any, ignore_array: bool) -> 
         if value.tzinfo is None:
             return value.replace(tzinfo=pytz.utc)
         else:
-            return value
+            return value.astimezone(pytz.utc)
     elif prop.primitive_type == PrimitiveType.UUID:
         return str(value)
     elif prop.primitive_type == PrimitiveType.JSON:

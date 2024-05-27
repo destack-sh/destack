@@ -37,6 +37,7 @@ class ProtoSchema(ProtoThing):
         # just add default imports for all the well-known types we use
         imports = [
             "google/protobuf/timestamp.proto",
+            "google/protobuf/duration.proto",
             "google/protobuf/struct.proto",
         ]
         return ProtoSchema(name=name, imports=imports, types=types)

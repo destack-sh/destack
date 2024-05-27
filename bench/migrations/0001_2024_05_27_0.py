@@ -1,8 +1,8 @@
-# This migration was automatically generated on 2024.05.18. Edit as needed.
+# This migration was automatically generated on 2024.05.27. Edit as needed.
 import psycopg
 
 ID = 1
-VERSION = "2024.05.18.0"
+VERSION = "2024.05.27.0"
 HAS_GLOBAL = True
 HAS_LOCAL = True
 
@@ -13,6 +13,10 @@ HAS_LOCAL = True
 
 
 async def upgrade_global(cur: psycopg.AsyncCursor):
+    await cur.execute('CREATE EXTENSION IF NOT EXISTS "pgcrypto"')
+    await cur.execute('CREATE EXTENSION IF NOT EXISTS "uuid-ossp"')
+    await cur.execute('CREATE EXTENSION IF NOT EXISTS "bloom"')
+
     # bench_migration
     await cur.execute(
         """
@@ -31,20 +35,17 @@ async def upgrade_global(cur: psycopg.AsyncCursor):
         """
     CREATE TABLE "bench_bench" (
         "id" uuid NOT NULL PRIMARY KEY,
-        "revision" bigint NOT NULL DEFAULT 0,
+        "revision" bigint NOT NULL,
         "created_at" timestamp NOT NULL,
         "updated_at" timestamp NOT NULL,
         "deleted_at" timestamp,
         "archived_at" timestamp,
         "created_by_id" uuid,
-        "created_by_ck" uuid,
         "created_by_type" smallint,
         "created_by_base_ck" uuid,
         "updated_by_id" uuid,
-        "updated_by_ck" uuid,
         "updated_by_type" smallint,
         "updated_by_base_ck" uuid,
-        "set_properties" integer[] NOT NULL,
         "main_handle_bench_id" uuid,
         "slug" varchar NOT NULL,
         "name" varchar NOT NULL,
@@ -65,20 +66,19 @@ async def upgrade_global(cur: psycopg.AsyncCursor):
     CREATE TABLE "bench_environment" (
         "id" uuid NOT NULL PRIMARY KEY,
         "bench_id" uuid NOT NULL,
-        "revision" bigint NOT NULL DEFAULT 0,
+        "revision" bigint NOT NULL,
         "created_at" timestamp NOT NULL,
+        "created_epoch" bigint NOT NULL,
         "updated_at" timestamp NOT NULL,
+        "updated_epoch" bigint NOT NULL,
         "deleted_at" timestamp,
         "archived_at" timestamp,
         "created_by_id" uuid,
-        "created_by_ck" uuid,
         "created_by_type" smallint,
         "created_by_base_ck" uuid,
         "updated_by_id" uuid,
-        "updated_by_ck" uuid,
         "updated_by_type" smallint,
         "updated_by_base_ck" uuid,
-        "set_properties" integer[] NOT NULL,
         "name" varchar NOT NULL,
         "text" jsonb,
         "icon" jsonb,
@@ -93,20 +93,19 @@ async def upgrade_global(cur: psycopg.AsyncCursor):
     CREATE TABLE "bench_branch" (
         "id" uuid NOT NULL PRIMARY KEY,
         "bench_id" uuid NOT NULL,
-        "revision" bigint NOT NULL DEFAULT 0,
+        "revision" bigint NOT NULL,
         "created_at" timestamp NOT NULL,
+        "created_epoch" bigint NOT NULL,
         "updated_at" timestamp NOT NULL,
+        "updated_epoch" bigint NOT NULL,
         "deleted_at" timestamp,
         "archived_at" timestamp,
         "created_by_id" uuid,
-        "created_by_ck" uuid,
         "created_by_type" smallint,
         "created_by_base_ck" uuid,
         "updated_by_id" uuid,
-        "updated_by_ck" uuid,
         "updated_by_type" smallint,
         "updated_by_base_ck" uuid,
-        "set_properties" integer[] NOT NULL,
         "name" varchar NOT NULL,
         "slug" varchar,
         "text" jsonb,
@@ -122,20 +121,19 @@ async def upgrade_global(cur: psycopg.AsyncCursor):
     CREATE TABLE "bench_package" (
         "id" uuid NOT NULL PRIMARY KEY,
         "bench_id" uuid NOT NULL,
-        "revision" bigint NOT NULL DEFAULT 0,
+        "revision" bigint NOT NULL,
         "created_at" timestamp NOT NULL,
+        "created_epoch" bigint NOT NULL,
         "updated_at" timestamp NOT NULL,
+        "updated_epoch" bigint NOT NULL,
         "deleted_at" timestamp,
         "archived_at" timestamp,
         "created_by_id" uuid,
-        "created_by_ck" uuid,
         "created_by_type" smallint,
         "created_by_base_ck" uuid,
         "updated_by_id" uuid,
-        "updated_by_ck" uuid,
         "updated_by_type" smallint,
         "updated_by_base_ck" uuid,
-        "set_properties" integer[] NOT NULL,
         "slug" varchar,
         "text" jsonb,
         "icon" jsonb,
@@ -155,17 +153,17 @@ async def upgrade_global(cur: psycopg.AsyncCursor):
         "ck" uuid NOT NULL,
         "package_id" uuid NOT NULL,
         "bench_id" uuid NOT NULL,
-        "revision" bigint NOT NULL DEFAULT 0,
+        "revision" bigint NOT NULL,
         "created_at" timestamp NOT NULL,
+        "created_epoch" bigint NOT NULL,
         "updated_at" timestamp NOT NULL,
+        "updated_epoch" bigint NOT NULL,
         "deleted_at" timestamp,
         "archived_at" timestamp,
         "created_by_id" uuid,
-        "created_by_ck" uuid,
         "created_by_type" smallint,
         "created_by_base_ck" uuid,
         "updated_by_id" uuid,
-        "updated_by_ck" uuid,
         "updated_by_type" smallint,
         "updated_by_base_ck" uuid,
         "set_properties" integer[] NOT NULL,
@@ -189,17 +187,17 @@ async def upgrade_global(cur: psycopg.AsyncCursor):
         "ck" uuid NOT NULL,
         "package_id" uuid NOT NULL,
         "bench_id" uuid NOT NULL,
-        "revision" bigint NOT NULL DEFAULT 0,
+        "revision" bigint NOT NULL,
         "created_at" timestamp NOT NULL,
+        "created_epoch" bigint NOT NULL,
         "updated_at" timestamp NOT NULL,
+        "updated_epoch" bigint NOT NULL,
         "deleted_at" timestamp,
         "archived_at" timestamp,
         "created_by_id" uuid,
-        "created_by_ck" uuid,
         "created_by_type" smallint,
         "created_by_base_ck" uuid,
         "updated_by_id" uuid,
-        "updated_by_ck" uuid,
         "updated_by_type" smallint,
         "updated_by_base_ck" uuid,
         "set_properties" integer[] NOT NULL,
@@ -218,17 +216,17 @@ async def upgrade_global(cur: psycopg.AsyncCursor):
         "ck" uuid NOT NULL,
         "package_id" uuid NOT NULL,
         "bench_id" uuid NOT NULL,
-        "revision" bigint NOT NULL DEFAULT 0,
+        "revision" bigint NOT NULL,
         "created_at" timestamp NOT NULL,
+        "created_epoch" bigint NOT NULL,
         "updated_at" timestamp NOT NULL,
+        "updated_epoch" bigint NOT NULL,
         "deleted_at" timestamp,
         "archived_at" timestamp,
         "created_by_id" uuid,
-        "created_by_ck" uuid,
         "created_by_type" smallint,
         "created_by_base_ck" uuid,
         "updated_by_id" uuid,
-        "updated_by_ck" uuid,
         "updated_by_type" smallint,
         "updated_by_base_ck" uuid,
         "set_properties" integer[] NOT NULL,
@@ -263,17 +261,17 @@ async def upgrade_global(cur: psycopg.AsyncCursor):
         "ck" uuid NOT NULL,
         "package_id" uuid NOT NULL,
         "bench_id" uuid NOT NULL,
-        "revision" bigint NOT NULL DEFAULT 0,
+        "revision" bigint NOT NULL,
         "created_at" timestamp NOT NULL,
+        "created_epoch" bigint NOT NULL,
         "updated_at" timestamp NOT NULL,
+        "updated_epoch" bigint NOT NULL,
         "deleted_at" timestamp,
         "archived_at" timestamp,
         "created_by_id" uuid,
-        "created_by_ck" uuid,
         "created_by_type" smallint,
         "created_by_base_ck" uuid,
         "updated_by_id" uuid,
-        "updated_by_ck" uuid,
         "updated_by_type" smallint,
         "updated_by_base_ck" uuid,
         "set_properties" integer[] NOT NULL,
@@ -296,17 +294,17 @@ async def upgrade_global(cur: psycopg.AsyncCursor):
         "ck" uuid NOT NULL,
         "package_id" uuid NOT NULL,
         "bench_id" uuid NOT NULL,
-        "revision" bigint NOT NULL DEFAULT 0,
+        "revision" bigint NOT NULL,
         "created_at" timestamp NOT NULL,
+        "created_epoch" bigint NOT NULL,
         "updated_at" timestamp NOT NULL,
+        "updated_epoch" bigint NOT NULL,
         "deleted_at" timestamp,
         "archived_at" timestamp,
         "created_by_id" uuid,
-        "created_by_ck" uuid,
         "created_by_type" smallint,
         "created_by_base_ck" uuid,
         "updated_by_id" uuid,
-        "updated_by_ck" uuid,
         "updated_by_type" smallint,
         "updated_by_base_ck" uuid,
         "set_properties" integer[] NOT NULL,
@@ -334,17 +332,17 @@ async def upgrade_global(cur: psycopg.AsyncCursor):
         "ck" uuid NOT NULL,
         "package_id" uuid NOT NULL,
         "bench_id" uuid NOT NULL,
-        "revision" bigint NOT NULL DEFAULT 0,
+        "revision" bigint NOT NULL,
         "created_at" timestamp NOT NULL,
+        "created_epoch" bigint NOT NULL,
         "updated_at" timestamp NOT NULL,
+        "updated_epoch" bigint NOT NULL,
         "deleted_at" timestamp,
         "archived_at" timestamp,
         "created_by_id" uuid,
-        "created_by_ck" uuid,
         "created_by_type" smallint,
         "created_by_base_ck" uuid,
         "updated_by_id" uuid,
-        "updated_by_ck" uuid,
         "updated_by_type" smallint,
         "updated_by_base_ck" uuid,
         "set_properties" integer[] NOT NULL,
@@ -368,7 +366,7 @@ async def upgrade_global(cur: psycopg.AsyncCursor):
         "is_protocol" boolean NOT NULL DEFAULT false,
         "is_template" boolean NOT NULL DEFAULT false,
         "is_materialized" boolean NOT NULL DEFAULT false,
-        "paused_at" timestamp
+        "is_paused" boolean NOT NULL DEFAULT false
     )
     """
     )
@@ -381,28 +379,29 @@ async def upgrade_global(cur: psycopg.AsyncCursor):
         "ck" uuid NOT NULL,
         "package_id" uuid NOT NULL,
         "bench_id" uuid NOT NULL,
-        "revision" bigint NOT NULL DEFAULT 0,
+        "revision" bigint NOT NULL,
         "created_at" timestamp NOT NULL,
+        "created_epoch" bigint NOT NULL,
         "updated_at" timestamp NOT NULL,
+        "updated_epoch" bigint NOT NULL,
         "deleted_at" timestamp,
         "archived_at" timestamp,
         "created_by_id" uuid,
-        "created_by_ck" uuid,
         "created_by_type" smallint,
         "created_by_base_ck" uuid,
         "updated_by_id" uuid,
-        "updated_by_ck" uuid,
         "updated_by_type" smallint,
         "updated_by_base_ck" uuid,
         "set_properties" integer[] NOT NULL,
         "type" smallint NOT NULL,
         "name" varchar NOT NULL,
+        "processed_epoch" integer,
         "schedule" jsonb,
         "signal_id" uuid,
         "signal_ck" uuid,
         "signal_bench_id" uuid,
         "condition" jsonb,
-        "is_active" boolean NOT NULL DEFAULT true
+        "is_paused" boolean NOT NULL DEFAULT false
     )
     """
     )
@@ -415,17 +414,17 @@ async def upgrade_global(cur: psycopg.AsyncCursor):
         "ck" uuid NOT NULL,
         "package_id" uuid NOT NULL,
         "bench_id" uuid NOT NULL,
-        "revision" bigint NOT NULL DEFAULT 0,
+        "revision" bigint NOT NULL,
         "created_at" timestamp NOT NULL,
+        "created_epoch" bigint NOT NULL,
         "updated_at" timestamp NOT NULL,
+        "updated_epoch" bigint NOT NULL,
         "deleted_at" timestamp,
         "archived_at" timestamp,
         "created_by_id" uuid,
-        "created_by_ck" uuid,
         "created_by_type" smallint,
         "created_by_base_ck" uuid,
         "updated_by_id" uuid,
-        "updated_by_ck" uuid,
         "updated_by_type" smallint,
         "updated_by_base_ck" uuid,
         "set_properties" integer[] NOT NULL,
@@ -463,17 +462,17 @@ async def upgrade_global(cur: psycopg.AsyncCursor):
         "ck" uuid NOT NULL,
         "package_id" uuid NOT NULL,
         "bench_id" uuid NOT NULL,
-        "revision" bigint NOT NULL DEFAULT 0,
+        "revision" bigint NOT NULL,
         "created_at" timestamp NOT NULL,
+        "created_epoch" bigint NOT NULL,
         "updated_at" timestamp NOT NULL,
+        "updated_epoch" bigint NOT NULL,
         "deleted_at" timestamp,
         "archived_at" timestamp,
         "created_by_id" uuid,
-        "created_by_ck" uuid,
         "created_by_type" smallint,
         "created_by_base_ck" uuid,
         "updated_by_id" uuid,
-        "updated_by_ck" uuid,
         "updated_by_type" smallint,
         "updated_by_base_ck" uuid,
         "set_properties" integer[] NOT NULL,
@@ -497,17 +496,17 @@ async def upgrade_global(cur: psycopg.AsyncCursor):
         "ck" uuid NOT NULL,
         "package_id" uuid NOT NULL,
         "bench_id" uuid NOT NULL,
-        "revision" bigint NOT NULL DEFAULT 0,
+        "revision" bigint NOT NULL,
         "created_at" timestamp NOT NULL,
+        "created_epoch" bigint NOT NULL,
         "updated_at" timestamp NOT NULL,
+        "updated_epoch" bigint NOT NULL,
         "deleted_at" timestamp,
         "archived_at" timestamp,
         "created_by_id" uuid,
-        "created_by_ck" uuid,
         "created_by_type" smallint,
         "created_by_base_ck" uuid,
         "updated_by_id" uuid,
-        "updated_by_ck" uuid,
         "updated_by_type" smallint,
         "updated_by_base_ck" uuid,
         "set_properties" integer[] NOT NULL,
@@ -553,17 +552,17 @@ async def upgrade_global(cur: psycopg.AsyncCursor):
         "ck" uuid NOT NULL,
         "package_id" uuid NOT NULL,
         "bench_id" uuid NOT NULL,
-        "revision" bigint NOT NULL DEFAULT 0,
+        "revision" bigint NOT NULL,
         "created_at" timestamp NOT NULL,
+        "created_epoch" bigint NOT NULL,
         "updated_at" timestamp NOT NULL,
+        "updated_epoch" bigint NOT NULL,
         "deleted_at" timestamp,
         "archived_at" timestamp,
         "created_by_id" uuid,
-        "created_by_ck" uuid,
         "created_by_type" smallint,
         "created_by_base_ck" uuid,
         "updated_by_id" uuid,
-        "updated_by_ck" uuid,
         "updated_by_type" smallint,
         "updated_by_base_ck" uuid,
         "set_properties" integer[] NOT NULL,
@@ -593,17 +592,17 @@ async def upgrade_global(cur: psycopg.AsyncCursor):
         "ck" uuid NOT NULL,
         "package_id" uuid NOT NULL,
         "bench_id" uuid NOT NULL,
-        "revision" bigint NOT NULL DEFAULT 0,
+        "revision" bigint NOT NULL,
         "created_at" timestamp NOT NULL,
+        "created_epoch" bigint NOT NULL,
         "updated_at" timestamp NOT NULL,
+        "updated_epoch" bigint NOT NULL,
         "deleted_at" timestamp,
         "archived_at" timestamp,
         "created_by_id" uuid,
-        "created_by_ck" uuid,
         "created_by_type" smallint,
         "created_by_base_ck" uuid,
         "updated_by_id" uuid,
-        "updated_by_ck" uuid,
         "updated_by_type" smallint,
         "updated_by_base_ck" uuid,
         "set_properties" integer[] NOT NULL,
@@ -626,17 +625,17 @@ async def upgrade_global(cur: psycopg.AsyncCursor):
         "ck" uuid NOT NULL,
         "package_id" uuid NOT NULL,
         "bench_id" uuid NOT NULL,
-        "revision" bigint NOT NULL DEFAULT 0,
+        "revision" bigint NOT NULL,
         "created_at" timestamp NOT NULL,
+        "created_epoch" bigint NOT NULL,
         "updated_at" timestamp NOT NULL,
+        "updated_epoch" bigint NOT NULL,
         "deleted_at" timestamp,
         "archived_at" timestamp,
         "created_by_id" uuid,
-        "created_by_ck" uuid,
         "created_by_type" smallint,
         "created_by_base_ck" uuid,
         "updated_by_id" uuid,
-        "updated_by_ck" uuid,
         "updated_by_type" smallint,
         "updated_by_base_ck" uuid,
         "set_properties" integer[] NOT NULL,
@@ -655,17 +654,17 @@ async def upgrade_global(cur: psycopg.AsyncCursor):
         "ck" uuid NOT NULL,
         "package_id" uuid NOT NULL,
         "bench_id" uuid NOT NULL,
-        "revision" bigint NOT NULL DEFAULT 0,
+        "revision" bigint NOT NULL,
         "created_at" timestamp NOT NULL,
+        "created_epoch" bigint NOT NULL,
         "updated_at" timestamp NOT NULL,
+        "updated_epoch" bigint NOT NULL,
         "deleted_at" timestamp,
         "archived_at" timestamp,
         "created_by_id" uuid,
-        "created_by_ck" uuid,
         "created_by_type" smallint,
         "created_by_base_ck" uuid,
         "updated_by_id" uuid,
-        "updated_by_ck" uuid,
         "updated_by_type" smallint,
         "updated_by_base_ck" uuid,
         "set_properties" integer[] NOT NULL,
@@ -684,17 +683,17 @@ async def upgrade_global(cur: psycopg.AsyncCursor):
         "ck" uuid NOT NULL,
         "package_id" uuid NOT NULL,
         "bench_id" uuid NOT NULL,
-        "revision" bigint NOT NULL DEFAULT 0,
+        "revision" bigint NOT NULL,
         "created_at" timestamp NOT NULL,
+        "created_epoch" bigint NOT NULL,
         "updated_at" timestamp NOT NULL,
+        "updated_epoch" bigint NOT NULL,
         "deleted_at" timestamp,
         "archived_at" timestamp,
         "created_by_id" uuid,
-        "created_by_ck" uuid,
         "created_by_type" smallint,
         "created_by_base_ck" uuid,
         "updated_by_id" uuid,
-        "updated_by_ck" uuid,
         "updated_by_type" smallint,
         "updated_by_base_ck" uuid,
         "set_properties" integer[] NOT NULL,
@@ -712,17 +711,17 @@ async def upgrade_global(cur: psycopg.AsyncCursor):
         "ck" uuid NOT NULL,
         "package_id" uuid NOT NULL,
         "bench_id" uuid NOT NULL,
-        "revision" bigint NOT NULL DEFAULT 0,
+        "revision" bigint NOT NULL,
         "created_at" timestamp NOT NULL,
+        "created_epoch" bigint NOT NULL,
         "updated_at" timestamp NOT NULL,
+        "updated_epoch" bigint NOT NULL,
         "deleted_at" timestamp,
         "archived_at" timestamp,
         "created_by_id" uuid,
-        "created_by_ck" uuid,
         "created_by_type" smallint,
         "created_by_base_ck" uuid,
         "updated_by_id" uuid,
-        "updated_by_ck" uuid,
         "updated_by_type" smallint,
         "updated_by_base_ck" uuid,
         "set_properties" integer[] NOT NULL,
@@ -742,26 +741,27 @@ async def upgrade_global(cur: psycopg.AsyncCursor):
     CREATE TABLE "bench_server" (
         "id" uuid NOT NULL PRIMARY KEY,
         "bench_id" uuid NOT NULL,
-        "revision" bigint NOT NULL DEFAULT 0,
+        "revision" bigint NOT NULL,
         "created_at" timestamp NOT NULL,
+        "created_epoch" bigint NOT NULL,
         "updated_at" timestamp NOT NULL,
+        "updated_epoch" bigint NOT NULL,
         "deleted_at" timestamp,
         "archived_at" timestamp,
         "created_by_id" uuid,
-        "created_by_ck" uuid,
         "created_by_type" smallint,
         "created_by_base_ck" uuid,
         "updated_by_id" uuid,
-        "updated_by_ck" uuid,
         "updated_by_type" smallint,
         "updated_by_base_ck" uuid,
-        "set_properties" integer[] NOT NULL,
         "name" varchar NOT NULL,
         "text" jsonb,
         "region" smallint NOT NULL DEFAULT 1,
         "status" smallint NOT NULL DEFAULT 1,
         "profile" smallint NOT NULL,
+        "current_profile" smallint,
         "version" varchar,
+        "current_version" varchar,
         "active_at" timestamp,
         "bumped_at" timestamp
     )
@@ -774,28 +774,65 @@ async def upgrade_global(cur: psycopg.AsyncCursor):
     CREATE TABLE "bench_store" (
         "id" uuid NOT NULL PRIMARY KEY,
         "bench_id" uuid NOT NULL,
-        "revision" bigint NOT NULL DEFAULT 0,
+        "revision" bigint NOT NULL,
         "created_at" timestamp NOT NULL,
+        "created_epoch" bigint NOT NULL,
         "updated_at" timestamp NOT NULL,
+        "updated_epoch" bigint NOT NULL,
         "deleted_at" timestamp,
         "archived_at" timestamp,
         "created_by_id" uuid,
-        "created_by_ck" uuid,
         "created_by_type" smallint,
         "created_by_base_ck" uuid,
         "updated_by_id" uuid,
-        "updated_by_ck" uuid,
         "updated_by_type" smallint,
         "updated_by_base_ck" uuid,
-        "set_properties" integer[] NOT NULL,
         "name" varchar NOT NULL,
         "text" jsonb,
         "region" smallint NOT NULL DEFAULT 1,
         "status" smallint NOT NULL DEFAULT 1,
         "version" varchar,
+        "current_version" varchar,
         "external_name" varchar,
         "external_id" varchar,
         "connection_uri" bytea
+    )
+    """
+    )
+
+    # bench_machine
+    await cur.execute(
+        """
+    CREATE TABLE "bench_machine" (
+        "id" uuid NOT NULL PRIMARY KEY,
+        "bench_id" uuid NOT NULL,
+        "revision" bigint NOT NULL,
+        "created_at" timestamp NOT NULL,
+        "created_epoch" bigint NOT NULL,
+        "updated_at" timestamp NOT NULL,
+        "updated_epoch" bigint NOT NULL,
+        "deleted_at" timestamp,
+        "archived_at" timestamp,
+        "created_by_id" uuid,
+        "created_by_type" smallint,
+        "created_by_base_ck" uuid,
+        "updated_by_id" uuid,
+        "updated_by_type" smallint,
+        "updated_by_base_ck" uuid,
+        "name" varchar NOT NULL,
+        "text" jsonb,
+        "region" smallint NOT NULL DEFAULT 1,
+        "status" smallint NOT NULL DEFAULT 1,
+        "profile" smallint NOT NULL,
+        "current_profile" smallint,
+        "version" varchar,
+        "current_version" varchar,
+        "external_name" varchar,
+        "external_id" varchar,
+        "connection_uri" bytea,
+        "started_at" timestamp,
+        "terminated_at" timestamp,
+        "active_at" timestamp
     )
     """
     )
@@ -806,20 +843,19 @@ async def upgrade_global(cur: psycopg.AsyncCursor):
     CREATE TABLE "bench_drive" (
         "id" uuid NOT NULL PRIMARY KEY,
         "bench_id" uuid NOT NULL,
-        "revision" bigint NOT NULL DEFAULT 0,
+        "revision" bigint NOT NULL,
         "created_at" timestamp NOT NULL,
+        "created_epoch" bigint NOT NULL,
         "updated_at" timestamp NOT NULL,
+        "updated_epoch" bigint NOT NULL,
         "deleted_at" timestamp,
         "archived_at" timestamp,
         "created_by_id" uuid,
-        "created_by_ck" uuid,
         "created_by_type" smallint,
         "created_by_base_ck" uuid,
         "updated_by_id" uuid,
-        "updated_by_ck" uuid,
         "updated_by_type" smallint,
         "updated_by_base_ck" uuid,
-        "set_properties" integer[] NOT NULL,
         "name" varchar NOT NULL,
         "text" jsonb,
         "region" smallint NOT NULL DEFAULT 1,
@@ -834,20 +870,19 @@ async def upgrade_global(cur: psycopg.AsyncCursor):
     CREATE TABLE "bench_blob" (
         "id" uuid NOT NULL PRIMARY KEY,
         "bench_id" uuid NOT NULL,
-        "revision" bigint NOT NULL DEFAULT 0,
+        "revision" bigint NOT NULL,
         "created_at" timestamp NOT NULL,
+        "created_epoch" bigint NOT NULL,
         "updated_at" timestamp NOT NULL,
+        "updated_epoch" bigint NOT NULL,
         "deleted_at" timestamp,
         "archived_at" timestamp,
         "created_by_id" uuid,
-        "created_by_ck" uuid,
         "created_by_type" smallint,
         "created_by_base_ck" uuid,
         "updated_by_id" uuid,
-        "updated_by_ck" uuid,
         "updated_by_type" smallint,
         "updated_by_base_ck" uuid,
-        "set_properties" integer[] NOT NULL,
         "name" varchar NOT NULL,
         "text" jsonb,
         "region" smallint NOT NULL DEFAULT 1,
@@ -867,20 +902,19 @@ async def upgrade_global(cur: psycopg.AsyncCursor):
     CREATE TABLE "bench_handle" (
         "id" uuid NOT NULL PRIMARY KEY,
         "bench_id" uuid,
-        "revision" bigint NOT NULL DEFAULT 0,
+        "revision" bigint NOT NULL,
         "created_at" timestamp NOT NULL,
+        "created_epoch" bigint NOT NULL,
         "updated_at" timestamp NOT NULL,
+        "updated_epoch" bigint NOT NULL,
         "deleted_at" timestamp,
         "archived_at" timestamp,
         "created_by_id" uuid,
-        "created_by_ck" uuid,
         "created_by_type" smallint,
         "created_by_base_ck" uuid,
         "updated_by_id" uuid,
-        "updated_by_ck" uuid,
         "updated_by_type" smallint,
         "updated_by_base_ck" uuid,
-        "set_properties" integer[] NOT NULL,
         "slug" varchar NOT NULL
     )
     """
@@ -891,20 +925,17 @@ async def upgrade_global(cur: psycopg.AsyncCursor):
         """
     CREATE TABLE "bench_user" (
         "id" uuid NOT NULL PRIMARY KEY,
-        "revision" bigint NOT NULL DEFAULT 0,
+        "revision" bigint NOT NULL,
         "created_at" timestamp NOT NULL,
         "updated_at" timestamp NOT NULL,
         "deleted_at" timestamp,
         "archived_at" timestamp,
         "created_by_id" uuid,
-        "created_by_ck" uuid,
         "created_by_type" smallint,
         "created_by_base_ck" uuid,
         "updated_by_id" uuid,
-        "updated_by_ck" uuid,
         "updated_by_type" smallint,
         "updated_by_base_ck" uuid,
-        "set_properties" integer[] NOT NULL,
         "main_handle_bench_id" uuid,
         "slug" varchar,
         "name" varchar NOT NULL,
@@ -925,20 +956,17 @@ async def upgrade_global(cur: psycopg.AsyncCursor):
         """
     CREATE TABLE "bench_organization" (
         "id" uuid NOT NULL PRIMARY KEY,
-        "revision" bigint NOT NULL DEFAULT 0,
+        "revision" bigint NOT NULL,
         "created_at" timestamp NOT NULL,
         "updated_at" timestamp NOT NULL,
         "deleted_at" timestamp,
         "archived_at" timestamp,
         "created_by_id" uuid,
-        "created_by_ck" uuid,
         "created_by_type" smallint,
         "created_by_base_ck" uuid,
         "updated_by_id" uuid,
-        "updated_by_ck" uuid,
         "updated_by_type" smallint,
         "updated_by_base_ck" uuid,
-        "set_properties" integer[] NOT NULL,
         "main_handle_bench_id" uuid,
         "slug" varchar,
         "name" varchar NOT NULL,
@@ -955,20 +983,19 @@ async def upgrade_global(cur: psycopg.AsyncCursor):
     CREATE TABLE "bench_client" (
         "id" uuid NOT NULL PRIMARY KEY,
         "bench_id" uuid,
-        "revision" bigint NOT NULL DEFAULT 0,
+        "revision" bigint NOT NULL,
         "created_at" timestamp NOT NULL,
+        "created_epoch" bigint NOT NULL,
         "updated_at" timestamp NOT NULL,
+        "updated_epoch" bigint NOT NULL,
         "deleted_at" timestamp,
         "archived_at" timestamp,
         "created_by_id" uuid,
-        "created_by_ck" uuid,
         "created_by_type" smallint,
         "created_by_base_ck" uuid,
         "updated_by_id" uuid,
-        "updated_by_ck" uuid,
         "updated_by_type" smallint,
         "updated_by_base_ck" uuid,
-        "set_properties" integer[] NOT NULL,
         "type" smallint NOT NULL,
         "name" varchar NOT NULL,
         "device_type" varchar,
@@ -980,9 +1007,10 @@ async def upgrade_global(cur: psycopg.AsyncCursor):
         "access_token" varchar,
         "seen_at" timestamp NOT NULL,
         "logged_in_at" timestamp,
-        "main_space_id" uuid,
-        "main_space_ck" uuid,
-        "main_space_bench_id" uuid
+        "space_id" uuid,
+        "space_ck" uuid,
+        "space_bench_id" uuid,
+        "machine_bench_id" uuid
     )
     """
     )
@@ -1256,6 +1284,14 @@ async def upgrade_global(cur: psycopg.AsyncCursor):
         'ALTER TABLE "bench_store" ADD CONSTRAINT "bench_store_bench_check_one_parent" CHECK ((parent_bench_id IS NOT NULL))'
     )
 
+    # bench_machine
+    await cur.execute(
+        'ALTER TABLE "bench_machine" ADD COLUMN "parent_server_id" uuid REFERENCES bench_server ON DELETE CASCADE'
+    )
+    await cur.execute(
+        'ALTER TABLE "bench_machine" ADD CONSTRAINT "bench_machine_bench_check_one_parent" CHECK ((parent_server_id IS NOT NULL))'
+    )
+
     # bench_drive
     await cur.execute(
         'ALTER TABLE "bench_drive" ADD COLUMN "parent_bench_id" uuid REFERENCES bench_bench ON DELETE CASCADE'
@@ -1343,6 +1379,9 @@ async def upgrade_global(cur: psycopg.AsyncCursor):
         'ALTER TABLE "bench_client" ADD COLUMN "parent_server_id" uuid REFERENCES bench_server ON DELETE CASCADE'
     )
     await cur.execute(
+        'ALTER TABLE "bench_client" ADD COLUMN "machine_id" uuid REFERENCES bench_machine ON DELETE SET NULL'
+    )
+    await cur.execute(
         'CREATE UNIQUE INDEX "bench_client_bench_idx_access_token" ON bench_client USING BTREE (access_token)'
     )
     await cur.execute(
@@ -1363,6 +1402,14 @@ async def downgrade_global(cur: psycopg.AsyncCursor):
 
 
 async def upgrade_local(cur: psycopg.AsyncCursor):
+    await cur.execute('CREATE EXTENSION IF NOT EXISTS "pgcrypto"')
+    await cur.execute('CREATE EXTENSION IF NOT EXISTS "uuid-ossp"')
+    await cur.execute('CREATE EXTENSION IF NOT EXISTS "timescaledb"')
+    await cur.execute('CREATE EXTENSION IF NOT EXISTS "plpgsql"')
+    await cur.execute('CREATE EXTENSION IF NOT EXISTS "pg_trgm"')
+    await cur.execute('CREATE EXTENSION IF NOT EXISTS "vector"')
+    await cur.execute('CREATE EXTENSION IF NOT EXISTS "bloom"')
+
     # bench_migration
     await cur.execute(
         """
@@ -1384,7 +1431,9 @@ async def upgrade_local(cur: psycopg.AsyncCursor):
         "ck" uuid NOT NULL,
         "revision" bigint NOT NULL DEFAULT 0,
         "created_at" timestamp NOT NULL DEFAULT now(),
+        "created_epoch" bigint NOT NULL DEFAULT -1,
         "updated_at" timestamp NOT NULL DEFAULT now(),
+        "updated_epoch" bigint NOT NULL DEFAULT -1,
         "deleted_at" timestamp,
         "archived_at" timestamp,
         "block_tk" uuid NOT NULL,
@@ -1404,20 +1453,19 @@ async def upgrade_local(cur: psycopg.AsyncCursor):
         "parent_package_id" uuid,
         "package_id" uuid NOT NULL,
         "bench_id" uuid NOT NULL,
-        "revision" bigint NOT NULL DEFAULT 0,
+        "revision" bigint NOT NULL,
         "created_at" timestamp NOT NULL,
+        "created_epoch" bigint NOT NULL,
         "updated_at" timestamp NOT NULL,
+        "updated_epoch" bigint NOT NULL,
         "deleted_at" timestamp,
         "archived_at" timestamp,
         "created_by_id" uuid,
-        "created_by_ck" uuid,
         "created_by_type" smallint,
         "created_by_base_ck" uuid,
         "updated_by_id" uuid,
-        "updated_by_ck" uuid,
         "updated_by_type" smallint,
         "updated_by_base_ck" uuid,
-        "set_properties" integer[] NOT NULL,
         "status" smallint NOT NULL DEFAULT 1,
         "duration" real,
         "opened_at" timestamp,
@@ -1426,6 +1474,8 @@ async def upgrade_local(cur: psycopg.AsyncCursor):
         "client_bench_id" uuid,
         "server_id" uuid,
         "server_bench_id" uuid,
+        "machine_id" uuid,
+        "machine_bench_id" uuid,
         "user_id" uuid
     )
     """
@@ -1439,38 +1489,33 @@ async def upgrade_local(cur: psycopg.AsyncCursor):
         "parent_package_id" uuid,
         "package_id" uuid NOT NULL,
         "bench_id" uuid NOT NULL,
-        "revision" bigint NOT NULL DEFAULT 0,
+        "revision" bigint NOT NULL,
         "created_at" timestamp NOT NULL,
+        "created_epoch" bigint NOT NULL,
         "updated_at" timestamp NOT NULL,
+        "updated_epoch" bigint NOT NULL,
         "deleted_at" timestamp,
         "archived_at" timestamp,
         "created_by_id" uuid,
-        "created_by_ck" uuid,
         "created_by_type" smallint,
         "created_by_base_ck" uuid,
         "updated_by_id" uuid,
-        "updated_by_ck" uuid,
         "updated_by_type" smallint,
         "updated_by_base_ck" uuid,
-        "set_properties" integer[] NOT NULL,
         "kind" smallint NOT NULL,
-        "root_id" uuid,
-        "root_ck" uuid,
-        "root_base_ck" uuid,
-        "block_id" uuid,
-        "block_ck" uuid,
-        "block_bench_id" uuid,
-        "step_id" uuid,
-        "step_ck" uuid,
-        "step_bench_id" uuid,
+        "root_id" uuid NOT NULL,
+        "root_base_ck" uuid NOT NULL,
         "code" jsonb,
         "text" jsonb,
         "status" smallint NOT NULL DEFAULT 1,
         "duration" real,
         "scheduled_at" timestamp,
+        "scheduled_epoch" integer,
         "started_at" timestamp,
+        "started_epoch" integer,
         "paused_at" timestamp,
         "terminated_at" timestamp,
+        "terminated_epoch" integer,
         "inputs_packed" jsonb,
         "inputs_secret_packed" bytea,
         "outputs_packed" jsonb,
@@ -1478,9 +1523,19 @@ async def upgrade_local(cur: psycopg.AsyncCursor):
         "value_packed" jsonb,
         "value_secret_packed" bytea,
         "error" jsonb,
+        "block_id" uuid,
+        "block_ck" uuid,
+        "block_bench_id" uuid,
+        "step_id" uuid,
+        "step_ck" uuid,
+        "step_bench_id" uuid,
         "session_id" uuid,
-        "session_ck" uuid,
+        "run_id" uuid,
+        "run_base_ck" uuid,
+        "run_root_id" uuid,
+        "run_root_base_ck" uuid,
         "client_id" uuid,
+        "machine_id" uuid,
         "server_id" uuid,
         "user_id" uuid
     )
@@ -1495,25 +1550,39 @@ async def upgrade_local(cur: psycopg.AsyncCursor):
         "parent_package_id" uuid,
         "package_id" uuid NOT NULL,
         "bench_id" uuid NOT NULL,
-        "revision" bigint NOT NULL DEFAULT 0,
+        "revision" bigint NOT NULL,
         "created_at" timestamp NOT NULL,
+        "created_epoch" bigint NOT NULL,
         "updated_at" timestamp NOT NULL,
+        "updated_epoch" bigint NOT NULL,
         "deleted_at" timestamp,
         "archived_at" timestamp,
         "created_by_id" uuid,
-        "created_by_ck" uuid,
         "created_by_type" smallint,
         "created_by_base_ck" uuid,
         "updated_by_id" uuid,
-        "updated_by_ck" uuid,
         "updated_by_type" smallint,
         "updated_by_base_ck" uuid,
-        "set_properties" integer[] NOT NULL,
         "type_id" uuid,
         "type_ck" uuid,
         "type_bench_id" uuid,
         "value_packed" jsonb,
-        "secret_value_packed" bytea
+        "secret_value_packed" bytea,
+        "block_id" uuid,
+        "block_ck" uuid,
+        "block_bench_id" uuid,
+        "step_id" uuid,
+        "step_ck" uuid,
+        "step_bench_id" uuid,
+        "session_id" uuid,
+        "run_id" uuid,
+        "run_base_ck" uuid,
+        "run_root_id" uuid,
+        "run_root_base_ck" uuid,
+        "client_id" uuid,
+        "machine_id" uuid,
+        "server_id" uuid,
+        "user_id" uuid
     )
     """
     )
@@ -1526,39 +1595,48 @@ async def upgrade_local(cur: psycopg.AsyncCursor):
         "parent_package_id" uuid,
         "package_id" uuid NOT NULL,
         "bench_id" uuid NOT NULL,
-        "revision" bigint NOT NULL DEFAULT 0,
+        "revision" bigint NOT NULL,
         "created_at" timestamp NOT NULL,
+        "created_epoch" bigint NOT NULL,
         "updated_at" timestamp NOT NULL,
+        "updated_epoch" bigint NOT NULL,
         "deleted_at" timestamp,
         "archived_at" timestamp,
         "created_by_id" uuid,
-        "created_by_ck" uuid,
         "created_by_type" smallint,
         "created_by_base_ck" uuid,
         "updated_by_id" uuid,
-        "updated_by_ck" uuid,
         "updated_by_type" smallint,
         "updated_by_base_ck" uuid,
-        "set_properties" integer[] NOT NULL,
         "kind" smallint NOT NULL,
-        "level" smallint NOT NULL,
-        "logger" varchar,
-        "event" varchar,
+        "level" smallint NOT NULL DEFAULT 3,
+        "node_id" uuid,
+        "node_ck" uuid,
+        "node_type" smallint,
+        "node_base_ck" uuid,
+        "type" smallint,
+        "properties" integer[] NOT NULL,
+        "new_node_packed" jsonb,
+        "old_node_packed" jsonb,
         "title" varchar,
         "text" jsonb,
         "value_packed" jsonb,
-        "request" jsonb,
-        "session_id" uuid,
-        "session_ck" uuid,
-        "run_id" uuid,
-        "run_ck" uuid,
-        "run_base_ck" uuid,
+        "secret_value_packed" bytea,
         "block_id" uuid,
         "block_ck" uuid,
         "block_bench_id" uuid,
         "step_id" uuid,
         "step_ck" uuid,
-        "step_bench_id" uuid
+        "step_bench_id" uuid,
+        "session_id" uuid,
+        "run_id" uuid,
+        "run_base_ck" uuid,
+        "run_root_id" uuid,
+        "run_root_base_ck" uuid,
+        "client_id" uuid,
+        "machine_id" uuid,
+        "server_id" uuid,
+        "user_id" uuid
     )
     """
     )
@@ -1571,20 +1649,19 @@ async def upgrade_local(cur: psycopg.AsyncCursor):
         "parent_package_id" uuid,
         "package_id" uuid NOT NULL,
         "bench_id" uuid NOT NULL,
-        "revision" bigint NOT NULL DEFAULT 0,
+        "revision" bigint NOT NULL,
         "created_at" timestamp NOT NULL,
+        "created_epoch" bigint NOT NULL,
         "updated_at" timestamp NOT NULL,
+        "updated_epoch" bigint NOT NULL,
         "deleted_at" timestamp,
         "archived_at" timestamp,
         "created_by_id" uuid,
-        "created_by_ck" uuid,
         "created_by_type" smallint,
         "created_by_base_ck" uuid,
         "updated_by_id" uuid,
-        "updated_by_ck" uuid,
         "updated_by_type" smallint,
         "updated_by_base_ck" uuid,
-        "set_properties" integer[] NOT NULL,
         "kind" smallint NOT NULL,
         "type_id" uuid,
         "type_ck" uuid,
@@ -1594,7 +1671,22 @@ async def upgrade_local(cur: psycopg.AsyncCursor):
         "title" varchar,
         "text" jsonb,
         "value_packed" jsonb,
-        "secret_value_packed" bytea
+        "secret_value_packed" bytea,
+        "block_id" uuid,
+        "block_ck" uuid,
+        "block_bench_id" uuid,
+        "step_id" uuid,
+        "step_ck" uuid,
+        "step_bench_id" uuid,
+        "session_id" uuid,
+        "run_id" uuid,
+        "run_base_ck" uuid,
+        "run_root_id" uuid,
+        "run_root_base_ck" uuid,
+        "client_id" uuid,
+        "machine_id" uuid,
+        "server_id" uuid,
+        "user_id" uuid
     )
     """
     )
@@ -1608,20 +1700,19 @@ async def upgrade_local(cur: psycopg.AsyncCursor):
         "parent_block_id" uuid,
         "package_id" uuid NOT NULL,
         "bench_id" uuid NOT NULL,
-        "revision" bigint NOT NULL DEFAULT 0,
+        "revision" bigint NOT NULL,
         "created_at" timestamp NOT NULL,
+        "created_epoch" bigint NOT NULL,
         "updated_at" timestamp NOT NULL,
+        "updated_epoch" bigint NOT NULL,
         "deleted_at" timestamp,
         "archived_at" timestamp,
         "created_by_id" uuid,
-        "created_by_ck" uuid,
         "created_by_type" smallint,
         "created_by_base_ck" uuid,
         "updated_by_id" uuid,
-        "updated_by_ck" uuid,
         "updated_by_type" smallint,
         "updated_by_base_ck" uuid,
-        "set_properties" integer[] NOT NULL,
         "origin_id" uuid NOT NULL,
         "origin_ck" uuid NOT NULL,
         "origin_type" smallint NOT NULL,
@@ -1630,26 +1721,35 @@ async def upgrade_local(cur: psycopg.AsyncCursor):
         "origin_base_bench_id" uuid NOT NULL,
         "path" jsonb,
         "reply_to_id" uuid,
-        "reply_to_ck" uuid,
         "reply_to_base_ck" uuid,
         "title" varchar,
         "text" jsonb,
         "value_packed" jsonb,
         "secret_value_packed" jsonb,
-        "is_pinned" boolean NOT NULL DEFAULT false
+        "is_pinned" boolean NOT NULL DEFAULT false,
+        "block_id" uuid,
+        "block_ck" uuid,
+        "block_bench_id" uuid,
+        "step_id" uuid,
+        "step_ck" uuid,
+        "step_bench_id" uuid,
+        "session_id" uuid,
+        "run_id" uuid,
+        "run_base_ck" uuid,
+        "run_root_id" uuid,
+        "run_root_base_ck" uuid,
+        "client_id" uuid,
+        "machine_id" uuid,
+        "server_id" uuid,
+        "user_id" uuid
     )
     """
     )
 
-    # bench_record_shared
-    await cur.execute(
-        'CREATE INDEX "bench_record_shared_bench_idx_block_ck_deleted_at" ON bench_record_shared USING BTREE (block_ck, deleted_at)'
-    )
-    await cur.execute(
-        'CREATE INDEX "bench_record_shared_bench_idx_block_key_archived_at" ON bench_record_shared USING BTREE (block_ck, archived_at)'
-    )
-
     # bench_session
+    await cur.execute(
+        'CREATE INDEX "bench_session_bench_idx_created_at" ON bench_session USING BTREE (created_at)'
+    )
     await cur.execute(
         'CREATE INDEX "bench_session_bench_idx_package_id_created_at" ON bench_session USING BTREE (package_id, created_at)'
     )
@@ -1665,6 +1765,9 @@ async def upgrade_local(cur: psycopg.AsyncCursor):
         'ALTER TABLE "bench_run" ADD COLUMN "parent_run_id" uuid REFERENCES bench_run ON DELETE CASCADE'
     )
     await cur.execute(
+        'CREATE INDEX "bench_run_bench_idx_created_at" ON bench_run USING BTREE (created_at)'
+    )
+    await cur.execute(
         'CREATE INDEX "bench_run_bench_idx_package_id_created_at" ON bench_run USING BTREE (package_id, created_at)'
     )
     await cur.execute(
@@ -1673,7 +1776,16 @@ async def upgrade_local(cur: psycopg.AsyncCursor):
 
     # bench_signal
     await cur.execute(
+        'CREATE INDEX "bench_signal_bench_idx_created_at" ON bench_signal USING BTREE (created_at)'
+    )
+    await cur.execute(
+        'CREATE INDEX "bench_signal_bench_idx_created_epoch" ON bench_signal USING BTREE (created_epoch)'
+    )
+    await cur.execute(
         'CREATE INDEX "bench_signal_bench_idx_package_id_created_at" ON bench_signal USING BTREE (package_id, created_at)'
+    )
+    await cur.execute(
+        'CREATE INDEX "bench_signal_bench_idx_package_id_created_epoch" ON bench_signal USING BTREE (package_id, created_epoch)'
     )
     await cur.execute(
         'ALTER TABLE "bench_signal" ADD CONSTRAINT "bench_signal_bench_check_one_parent" CHECK ((parent_package_id IS NOT NULL))'
@@ -1681,13 +1793,25 @@ async def upgrade_local(cur: psycopg.AsyncCursor):
 
     # bench_log
     await cur.execute(
+        'CREATE INDEX "bench_log_bench_idx_created_at" ON bench_log USING BTREE (created_at)'
+    )
+    await cur.execute(
+        'CREATE INDEX "bench_log_bench_idx_created_epoch" ON bench_log USING BTREE (created_epoch)'
+    )
+    await cur.execute(
         'CREATE INDEX "bench_log_bench_idx_package_id_created_at" ON bench_log USING BTREE (package_id, created_at)'
+    )
+    await cur.execute(
+        'CREATE INDEX "bench_log_bench_idx_package_id_created_epoch" ON bench_log USING BTREE (package_id, created_epoch)'
     )
     await cur.execute(
         'ALTER TABLE "bench_log" ADD CONSTRAINT "bench_log_bench_check_one_parent" CHECK ((parent_package_id IS NOT NULL))'
     )
 
     # bench_notification
+    await cur.execute(
+        'CREATE INDEX "bench_notification_bench_idx_created_at" ON bench_notification USING BTREE (created_at)'
+    )
     await cur.execute(
         'CREATE INDEX "bench_notification_bench_idx_package_id_created_at" ON bench_notification USING BTREE (package_id, created_at)'
     )
@@ -1698,6 +1822,9 @@ async def upgrade_local(cur: psycopg.AsyncCursor):
     # bench_message
     await cur.execute(
         'ALTER TABLE "bench_message" ADD COLUMN "parent_message_id" uuid REFERENCES bench_message ON DELETE CASCADE'
+    )
+    await cur.execute(
+        'CREATE INDEX "bench_message_bench_idx_created_at" ON bench_message USING BTREE (created_at)'
     )
     await cur.execute(
         'CREATE INDEX "bench_message_bench_idx_package_id_created_at" ON bench_message USING BTREE (package_id, created_at)'

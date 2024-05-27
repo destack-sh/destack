@@ -69,9 +69,10 @@ class LogLevel(IdEnum):
     no_ck=True,  # no persistent identity
     id_factory=UUIDT,
     indexes=(
-        ("epoch",),
         ("created_at",),
+        ("created_epoch",),
         ("package_id", "created_at"),
+        ("package_id", "created_epoch"),
     ),
 )
 class Log(Node, HasSessionContext, HasValues):
@@ -84,7 +85,6 @@ class Log(Node, HasSessionContext, HasValues):
     # meta
     kind: LogKind = p_system(30)
     level: LogLevel = p_system(31, default=LogLevel.INFO)
-    epoch: Optional[int] = p_internal(32, default=None, primitive_type=PrimitiveType.INT64)
 
     # content (access)
     node: Optional["Node"] = p_system(
@@ -96,13 +96,13 @@ class Log(Node, HasSessionContext, HasValues):
     old_node_packed: Any | None = p_internal(44, primitive_type=PrimitiveType.JSON)
 
     # content (custom)
-    title: Optional[str] = p_internal(45, default=None)
+    title: Optional[str] = p_internal(50, default=None)
     text: Optional[Text] = p_internal(
-        46, default=None, require=False, array=False, struct=StructType.TEXT
+        51, default=None, require=False, array=False, struct=StructType.TEXT
     )
-    value_packed: Any | None = p_value_packed(47)
-    secret_value_packed: Any | None = p_secret_value_packed(48)
-    value: Any = p_value_runtime(47, 48)
+    value_packed: Any | None = p_value_packed(52)
+    secret_value_packed: Any | None = p_secret_value_packed(53)
+    value: Any = p_value_runtime(52, 53)
 
     # context
     # ...InSessionNode[60-69]

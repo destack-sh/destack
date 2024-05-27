@@ -13,7 +13,7 @@ from bench.language.const import (
     SessionStatus,
     StructType,
     _active_session,
-    get_active_root_run,
+    get_active_run,
 )
 from bench.language.graph import NodeDict, NodeGraphLike
 from bench.language.node import Node, Struct, node, struct, struct_component
@@ -43,6 +43,7 @@ if TYPE_CHECKING:
         Package,
         Run,
         Server,
+        Signal,
         Step,
         Trigger,
         User,
@@ -322,7 +323,7 @@ class Session(Node[SessionData]):
         # Everything that comes this way in a Session is either system (subject=None) or in a Run.
         #  (Users add pending edits to Transactions directly with themselves as a subject)
         # All edits in a Run are attributed to the root for clarity.
-        return get_active_root_run()
+        return get_active_run()
 
     def create(self, *nodes: Node):
         """Creates a new node. Errors if the node already exists."""
@@ -419,6 +420,7 @@ class Session(Node[SessionData]):
 class HasSessionContext(Struct):
     """Context for the creation of a node in some Session."""
 
+    # :SessionContext
     block: Optional["Block"] = p_system(60, require=False, array=False, references=NodeType.BLOCK)
     step: Optional["Step"] = p_system(61, require=False, array=False, references=NodeType.STEP)
     session: Optional["Session"] = p_system(
@@ -427,22 +429,26 @@ class HasSessionContext(Struct):
     run: Optional["Run"] = p_system(
         63, require=False, array=False, references=NodeType.RUN, is_bench_implicit=True
     )
+    run_root: Optional["Run"] = p_system(
+        64, require=False, array=False, references=NodeType.RUN, is_bench_implicit=True
+    )
     client: Optional["Client"] = p_system(
-        64, require=False, array=False, references=NodeType.CLIENT, is_bench_implicit=True
+        65, require=False, array=False, references=NodeType.CLIENT, is_bench_implicit=True
     )
     machine: Optional["Machine"] = p_system(
-        65, require=False, array=False, references=NodeType.MACHINE, is_bench_implicit=True
+        66, require=False, array=False, references=NodeType.MACHINE, is_bench_implicit=True
     )
     server: Optional["Server"] = p_system(
-        66, require=False, array=False, references=NodeType.CLIENT, is_bench_implicit=True
+        67, require=False, array=False, references=NodeType.CLIENT, is_bench_implicit=True
     )
-    user: Optional["User"] = p_system(67, require=False, array=False, references=NodeType.USER)
+    user: Optional["User"] = p_system(68, require=False, array=False, references=NodeType.USER)
 
     if TYPE_CHECKING:
         block_ptr: Optional[NodeReferenceData] = None
         step_ptr: Optional[NodeReferenceData] = None
         session_ptr: Optional[NodeReferenceData] = None
         run_ptr: Optional[NodeReferenceData] = None
+        run_root_ptr: Optional[NodeReferenceData] = None
         client_ptr: Optional[NodeReferenceData] = None
         machine_ptr: Optional[NodeReferenceData] = None
         server_ptr: Optional[NodeReferenceData] = None
@@ -485,8 +491,12 @@ class Context(Struct):
         50, require=False, array=False, references=NodeType.SESSION
     )
     run: Optional["Run"] = p_internal(51, require=False, array=False, references=NodeType.RUN)
+    run_root: Optional["Run"] = p_internal(52, require=False, array=False, references=NodeType.RUN)
     trigger: Optional["Trigger"] = p_internal(
-        52, require=False, array=False, references=NodeType.TRIGGER
+        53, require=False, array=False, references=NodeType.TRIGGER
+    )
+    signal: Optional["Signal"] = p_internal(
+        54, require=False, array=False, references=NodeType.SIGNAL
     )
 
     # custom

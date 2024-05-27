@@ -88,6 +88,7 @@ class Property(_TypeQueryBuilder if TYPE_CHECKING else object):
     enum_type: EnumType | None = None
     default: Any = UNSET
     default_factory: Callable[[], Any] | None = None
+    default_sql: Any = UNSET
     constraint: "TypeConstraint | TypeConstraintIn | None" = None
 
     # flags
@@ -830,6 +831,7 @@ def p_property(
     description: str | None = None,
     default: Any = UNSET,
     default_factory: Callable[[], Any] | None = None,
+    default_sql: Any = UNSET,
     require: bool = UNSET,
     references: tuple[NodeType, ...] | NodeType | None = None,
     fk: bool = False,
@@ -873,6 +875,7 @@ def p_property(
     return Property(
         id=id,
         default=default,
+        default_sql=default_sql,
         default_factory=default_factory,
         primitive_type=primitive_type,
         constraint=constraint,

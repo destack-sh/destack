@@ -1,6 +1,5 @@
 import typing
 from dataclasses import dataclass
-from datetime import datetime
 from typing import TYPE_CHECKING, Any, Collection, Optional, Union, cast
 
 from bench.language.const import BlockType, NodeType, StructType, TypeKind, Visibility
@@ -20,7 +19,6 @@ from bench.language.validation import NAME_CONSTRAINT, ValidationHandler
 from bench.language.value import HasValues
 from bench.proto.wire import BlockData
 from bench.utils.casing import IdentifierType
-from bench.utils.dt import utcnow
 from bench.utils.fractional import INTEGER_ZERO
 
 if TYPE_CHECKING:
@@ -131,11 +129,9 @@ class Block(Node[BlockData], HasValues):
     is_protocol: bool = p_regular(62, default=False)  # defines a protocol
     is_template: bool = p_regular(63, default=False)  # mark as template
     is_materialized: bool = p_regular(64, default=False)  # database should be materialized
-    # paused_at acts like a flag (see setter/getter below)
-    paused_at: datetime | None = p_internal(66, default=None)  # triggers in here are paused
-
+    is_paused: bool = p_regular(65, default=False)  # all blocks <= this are paused
     # is_method? (bound to instances of parent)
-    # is_unique? (by name in parent module)
+    # is_unique? (by name in parent module, like in Godot)
     # is_frozen? (read-only in instances of template)
 
     blocks: NodeList["Block"] = p_node_child(NodeType.BLOCK)
@@ -174,26 +170,6 @@ class Block(Node[BlockData], HasValues):
     @property
     def is_runnable(self) -> bool:
         return self.type.is_runnable
-
-    @property
-    def is_paused(self) -> bool:
-        return self.paused_at is not None or (
-            self.parent_type == NodeType.BLOCK and self.parent.is_paused
-        )
-
-    @is_paused.setter
-    def is_paused(self, is_paused: bool):
-        if is_paused:
-            if self.paused_at is None:
-                pausing_ancestor = self.parent
-                while pausing_ancestor is not None and not getattr(
-                    pausing_ancestor, "paused_at", None
-                ):
-                    pausing_ancestor = pausing_ancestor.parent
-                raise ValueError(f"{self!r} is not paused but its ancestor {pausing_ancestor!r} is")
-            self.paused_at = None
-        else:
-            self.paused_at = utcnow()
 
     def __content_str__(self):
         return ""  # implemented by dynamic components

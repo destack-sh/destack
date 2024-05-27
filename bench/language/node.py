@@ -365,6 +365,8 @@ def _process_struct_base_cls(
                 _remove_magic_prop("bench", delete_attr=False)
             else:
                 _remove_magic_prop("bench")
+            _remove_magic_prop("created_epoch")
+            _remove_magic_prop("updated_epoch")
         if is_node and not is_sub_package:
             if cls.__name__ == "Package":
                 cls.package = _node_computed_ancestor_prop(properties_by_name["package"])  # type: ignore
@@ -887,9 +889,9 @@ class Struct(abc.ABC, Generic[StructDataT]):
         parent_key: str | None = None
     order_key: str | None = p_internal(5, default=None)
     # for source nodes:
-    # computed_properties: dict[int, ValueReference] | None = p_regular(21)
+    # computed_properties: dict[int, ValueReference] | None = p_regular(28)
     # for branched/templated instances
-    set_properties: list[int] = p_regular(22, array=True)
+    set_properties: list[int] = p_regular(29, array=True)
 
     _status: InterpStatus = p_runtime(default=None)
     _updated_properties: bitarray | None = p_runtime(default=None)
@@ -1349,7 +1351,7 @@ class Node(Struct[NodeDataT], Generic[NodeDataT]):
     A node in the Bench graph: a struct with a globally unique identity.
     Most nodes have a 'constant' key (ck) providing constant (id)entity across versions.
     The first part of the constant key is the template key (tk), which is constant in all instances of a template.
-    For sub package nodes the 'id' is derived from the 'ck' per Package, else it's just the id.
+    For sub package nodes the 'id' is derived from the 'ck' per Package, otherwise it's just the id.
     """
 
     metatype: ClassVar[NodeType]  # type: ignore
@@ -1394,16 +1396,26 @@ class Node(Struct[NodeDataT], Generic[NodeDataT]):
 
     # 10-29: reserved for node tracking
     revision: int = p_system(
-        10, default=0, require=True, autoset=True, primitive_type=PrimitiveType.INT64
+        10,
+        default=0,
+        default_sql=None,
+        require=True,
+        autoset=True,
+        primitive_type=PrimitiveType.INT64,
     )
     created_at: datetime = p_system(11, default=None, require=True, autoset=True)
-    updated_at: datetime = p_system(12, default=None, require=True, autoset=True)
-    deleted_at: Optional[datetime] = p_system(13, default=None, autoset=True)
-    archived_at: Optional[datetime] = p_system(14, default=None, autoset=True)
-    # not yet fully implemented:
-    # changed_at (15), active_at (16), ....
+    created_epoch: int = p_system(
+        12, default=-1, default_sql=None, autoset=True, primitive_type=PrimitiveType.INT64
+    )
+    updated_at: datetime = p_system(13, default=None, require=True, autoset=True)
+    updated_epoch: int = p_system(
+        14, default=-1, default_sql=None, autoset=True, primitive_type=PrimitiveType.INT64
+    )
+    deleted_at: Optional[datetime] = p_system(15, default=None, autoset=True)
+    archived_at: Optional[datetime] = p_system(16, default=None, autoset=True)
+    # changed_at (for nested), active_at (for runs), ...?
     created_by: Union["User", "Run", None] = p_system(
-        17,
+        21,
         default=None,
         require=False,
         array=False,
@@ -1412,7 +1424,7 @@ class Node(Struct[NodeDataT], Generic[NodeDataT]):
         is_bench_implicit=True,
     )
     updated_by: Union["User", "Run", None] = p_system(
-        18,
+        22,
         default=None,
         require=False,
         array=False,
@@ -1425,8 +1437,7 @@ class Node(Struct[NodeDataT], Generic[NodeDataT]):
         created_by_type: NodeType | None = None
         updated_by_id: Optional[UUID] = None
         updated_by_type: NodeType | None = None
-    # changed_by (19)?, active_by (20)?, ...
-    # from Struct: computed_properties (21), set_properties (22)
+    # from Struct: computed_properties (28), set_properties (29)
 
     # 30+ for 'user' node/struct properties
     # <... defined in concrete type ...>

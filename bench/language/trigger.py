@@ -1,11 +1,12 @@
 from collections import deque
-from datetime import datetime
+from datetime import datetime, timedelta
 from typing import TYPE_CHECKING, Any, Collection, Deque, Optional, Union, cast
 
 import pytz
 from croniter import croniter
 
-from bench.language.const import NodeType, ScheduleType, StructType, TriggerType
+from bench.language.const import NodeType, ScheduleType, StructType, TimeInterval, TriggerType
+from bench.language.field import TypeConstraint
 from bench.language.graph import NodeList
 from bench.language.node import Node, Struct, node, struct
 from bench.language.notice import Notice
@@ -19,8 +20,6 @@ if TYPE_CHECKING:
 # pyright: reportIncompatibleVariableOverride=false
 
 # :TriggerSchedule
-TRIGGER_INTERVAL_ORIGIN = datetime(2024, 1, 1, 0, 0, 0, 0, tzinfo=pytz.utc)
-TRIGGER_INTERVAL_ORIGIN_TIMESTAMP = TRIGGER_INTERVAL_ORIGIN.timestamp()
 
 
 @struct(StructType.SCHEDULE)
@@ -29,18 +28,30 @@ class Schedule(Struct):
 
     type: ScheduleType = p_regular(30, require=True)
     timezone: Optional[str] = p_regular(31, default=pytz.utc.zone)
-    interval_seconds: Optional[int] = p_regular(32, default=None)
-    cron: Optional[str] = p_regular(33, default=None)
+
+    # interval
+    every: int = p_regular(40, default=1, constraint=TypeConstraint(min_value=0, max_value=60))
+    interval: TimeInterval = p_regular(41, default=TimeInterval.DAY)
+    offset: Optional[timedelta] = p_regular(42, default=None)
+
+    # cron
+    cron: Optional[str] = p_regular(50, default=None)
 
     def __content_str__(self) -> str:
-        return f"{self.type} {self.timezone} {self.interval_seconds or self.cron}"
+        if self.type == ScheduleType.INTERVAL:
+            offset_str = f" at {self.offset}" if self.offset else ""
+            return f"every {self.every} {self.interval.bench_name}{offset_str}"
+        elif self.type == ScheduleType.CRON:
+            return self.cron or "???"
+        else:
+            return "???"
 
     def _validate_component(
         self, properties: Collection[Property], invalid: "ValidationHandler"
     ) -> None:
         if self.type == ScheduleType.CRON:
             if not self.cron or not croniter.is_valid(self.cron):
-                invalid(self, f"cron: invalid expression ('{self.cron}')", (Schedule.cron,))
+                invalid(self, f"invalid cron ('{self.cron}')", (Schedule.cron,))
 
 
 @node(NodeType.TRIGGER)
@@ -50,6 +61,7 @@ class Trigger(Node[TriggerData]):
     parent: Union["Block", "Step"] = p_node_parent(4, NodeType.BLOCK, NodeType.STEP)
     type: TriggerType = p_regular(30, require=True)
     name: str = p_regular(31, constraint=NAME_CONSTRAINT)
+    processed_epoch: Optional[int] = p_regular(32, default=None)
 
     # content
     schedule: Optional[Schedule] = p_regular(
@@ -63,7 +75,7 @@ class Trigger(Node[TriggerData]):
     )
 
     # flags
-    is_active: bool = p_regular(50, default=True)
+    is_paused: bool = p_regular(50, default=False)
 
     notices: NodeList["Notice"] = p_node_child(NodeType.NOTICE)
 
@@ -103,18 +115,7 @@ class ScheduleIterator:
         self.next_occurrences_buffer.clear()
 
         # :TriggerSchedule
-        if self.type == ScheduleType.INTERVAL:
-            assert (
-                self.schedule.interval_seconds is not None
-            ), f"interval is None in {self.schedule}"
-            self._next = TRIGGER_INTERVAL_ORIGIN_TIMESTAMP
-            previous = self._next
-            initial_timestamp = self.initial_now.timestamp()
-            while self._next < initial_timestamp:
-                previous = self._next
-                self._next += self.schedule.interval_seconds
-            self.last_occurrence_initial = datetime.fromtimestamp(previous, tz=pytz.utc)
-        elif self.type == ScheduleType.CRON:
+        if self.type == ScheduleType.CRON:
             assert self.schedule.cron is not None, f"cron is None in {self.schedule}"
             if not croniter.is_valid(self.schedule.cron):
                 raise ValueError(
@@ -133,19 +134,7 @@ class ScheduleIterator:
         """Advance the iterator by n steps and return the next n occurrences."""
         # :TriggerSchedule
 
-        if self.type == ScheduleType.INTERVAL:
-            assert self._next is not None, "not init"
-            assert (
-                self.schedule.interval_seconds is not None
-            ), f"interval is None in {self.schedule}"
-            next_occurrences = [
-                datetime.fromtimestamp(self._next + self.schedule.interval_seconds * i, tz=pytz.utc)
-                for i in range(n)
-            ]
-            self._next += self.schedule.interval_seconds * n
-            # timezone doesn't matter here since we use a common origin time
-            # will matter once we support in-interval offsets (e.g. every 3 days at 10:00)
-        elif self.type == ScheduleType.CRON:
+        if self.type == ScheduleType.CRON:
             assert self._croniter is not None
             next_occurrences = [self._croniter.get_next(datetime) for _ in range(n)]
         else:

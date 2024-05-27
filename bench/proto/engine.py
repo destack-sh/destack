@@ -25,6 +25,7 @@ PROTO_FIELD_TYPE_BY_PRIMITIVE_TYPE: dict[PrimitiveType, FieldType] = {
     PrimitiveType.STRING: FieldType.STRING,
     PrimitiveType.BYTES: FieldType.BYTES,
     PrimitiveType.DATETIME: FieldType.TIMESTAMP,
+    PrimitiveType.INTERVAL: FieldType.DURATION,
     PrimitiveType.UUID: FieldType.STRING,  # see https://stackoverflow.com/q/36344826/3375858
     PrimitiveType.JSON: FieldType.STRUCT,
 }
