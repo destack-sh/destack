@@ -444,7 +444,6 @@ class GraphIoServiceBase(BenchServiceBase, GraphIoBase):
         epoch: int,
         cascaded_edits: list[EditData],
     ):
-        self.epoch += 1
         self.recent_transactions.append(_Commit(self.epoch, edits, cascaded_edits))
 
         # notify watchers

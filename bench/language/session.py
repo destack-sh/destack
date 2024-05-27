@@ -67,7 +67,9 @@ OnCommitHook = Callable[[NodeGraphLike, list[EditData], int, list[EditData]], Aw
     id_factory=UUIDT,
     indexes=(
         ("created_at",),
+        ("created_epoch",),
         ("package_id", "created_at"),
+        ("package_id", "created_epoch"),
     ),
 )
 class Session(Node[SessionData]):

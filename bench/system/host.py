@@ -22,7 +22,7 @@ from bench.language.const import (
 )
 from bench.language.expression import NodeReference
 from bench.language.graph import NodeGraphLike, edit_graph
-from bench.language.log import Log
+from bench.language.log import SELF_LOGGED_NODE_TYPES, Log
 from bench.language.property import Property
 from bench.language.query import NodeNotFoundError
 from bench.language.session import Session
@@ -343,8 +343,8 @@ class Host(GraphIoServiceBase, HostBase, HostSpec):
         package_ptr = session.package.to_ref()._to_data()
         bench_ptr = session.bench.to_ref()._to_data()
         for edit in chain(edits, extended_edits):
-            if edit.node_type == wire.ObjectType.LOG:
-                continue  # don't log logs
+            if NodeType(edit.node_type) in SELF_LOGGED_NODE_TYPES:
+                continue
             node = wiring.unwrap_some_node(edit.node)
             assert edit.epoch is not None, f"epoch not set in {edit!r}"
             log_data = LogData(
