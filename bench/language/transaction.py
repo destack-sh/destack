@@ -207,15 +207,20 @@ class Transaction:
             self._add_pending_edit(edit, node=None)
 
     def create(self, n: Node, subject: EditSubject | None):
-        edit = self._make_edit(EditType.CREATE, n, _get_create_metadata(subject))
+        now = utcnow()
+        edit = self._make_edit(
+            type=EditType.CREATE,
+            n=n,
+            extra_data={**_get_create_metadata(subject, now), **_get_update_metadata(subject, now)},
+        )
         self._add_pending_edit(edit, n)
 
     def upsert(self, n: Node, subject: EditSubject | None):
         now = utcnow()
         edit = self._make_edit(
-            EditType.UPSERT,
-            n,
-            {**_get_create_metadata(subject, now), **_get_update_metadata(subject)},
+            type=EditType.UPSERT,
+            n=n,
+            extra_data={**_get_create_metadata(subject, now), **_get_update_metadata(subject, now)},
         )
         self._add_pending_edit(edit, n)
 
@@ -260,35 +265,43 @@ class Transaction:
     def soft_delete(self, n: Node, subject: EditSubject | None):
         now = utcnow()
         edit = self._make_edit(
-            EditType.SOFT_DELETE,
-            n,
-            {**_get_update_metadata(subject, now), "deleted_at": now},
+            type=EditType.SOFT_DELETE,
+            n=n,
+            extra_data={**_get_update_metadata(subject, now), "deleted_at": now},
         )
         self._add_pending_edit(edit, n)
 
     def restore(self, n: Node, subject: EditSubject | None):
         edit = self._make_edit(
-            EditType.RESTORE, n, {**_get_update_metadata(subject), "deleted_at": None}
+            type=EditType.RESTORE,
+            n=n,
+            extra_data={**_get_update_metadata(subject), "deleted_at": None},
         )
         self._add_pending_edit(edit, n)
 
     def archive(self, n: Node, subject: EditSubject | None):
         now = utcnow()
         edit = self._make_edit(
-            EditType.ARCHIVE, n, {**_get_update_metadata(subject, now), "archived_at": now}
+            type=EditType.ARCHIVE,
+            n=n,
+            extra_data={**_get_update_metadata(subject, now), "archived_at": now},
         )
         self._add_pending_edit(edit, n)
 
     def unarchive(self, n: Node, subject: EditSubject | None):
         edit = self._make_edit(
-            EditType.UNARCHIVE, n, {**_get_update_metadata(subject), "archived_at": None}
+            type=EditType.UNARCHIVE,
+            n=n,
+            extra_data={**_get_update_metadata(subject), "archived_at": None},
         )
         self._add_pending_edit(edit, n)
 
     def delete(self, n: Node, subject: EditSubject | None):
         now = utcnow()
         edit = self._make_edit(
-            EditType.DELETE, n, {**_get_update_metadata(subject, now), "deleted_at": now}
+            type=EditType.DELETE,
+            n=n,
+            extra_data={**_get_update_metadata(subject, now), "deleted_at": now},
         )
         self._add_pending_edit(edit, n)
 

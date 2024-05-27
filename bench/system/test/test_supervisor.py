@@ -152,10 +152,9 @@ async def test_cross_user_access(supervisor: SupervisorStub):
                 assert not read_target.email
 
             # update the User's full name
-            # (this works via the supervisor until the Users are activated yet)
             target_data = target._to_data()
             target_data.updated_at = utcnow()
-            target_data.updated_by = actor_handle.subject
+            target_data.updated_by_ptr = actor_handle.subject
             target_data.name = f"{actor.name}'s Puppet"
             edit = EditData(
                 id=new_edit_id(),
@@ -176,7 +175,7 @@ async def test_cross_user_access(supervisor: SupervisorStub):
             # update the User's client's device name
             target_data = target_handle.client._to_data()
             target_data.updated_at = utcnow()
-            target_data.updated_by = actor_handle.subject
+            target_data.updated_by_ptr = target_handle.subject
             target_data.device_name = f"{actor.name}'s Puppet Device"
             edit = EditData(
                 id=new_edit_id(),

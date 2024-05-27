@@ -209,9 +209,9 @@ class Host(GraphIoServiceBase, HostBase, HostSpec):
             _is_readonly=readonly,
             _default_scope=self.scope,
             _engines=engines if engines is not None else self.get_engines(),
-            _epoch=self.epoch,
             _extend_commit_hook=self.extend_commit,
             _on_commit_hook=self.on_commit,
+            _epoch=self.epoch,
         )
 
     @override
@@ -287,7 +287,7 @@ class Host(GraphIoServiceBase, HostBase, HostSpec):
             self._main_package = await PACKAGE_QUERY.get(id=self._bench.main_branch.main_package_id)
             self._packages[self._main_package.id] = self._main_package
 
-            # get current epoch from log
+            # get current epoch from log (if we already have one)
             try:
                 self.epoch = (
                     await Log.order_by(cast(Property, Log.created_epoch).desc())

@@ -13,6 +13,7 @@ from bench.language.const import EditType, NodeType, PrimitiveType, StructType, 
 from bench.language.transaction import new_edit_id
 from bench.proto import wire, wiring
 from bench.proto.wire import (
+    AnyNodeData,
     CommitTransactionRequest,
     EditData,
     GraphIoStub,
@@ -22,6 +23,7 @@ from bench.proto.wire import (
     WatchEditsResponse,
 )
 from bench.system.test.conftest import UserHandle, make_existing_user_handle, make_new_user_handle
+from bench.utils.dt import utcnow
 
 # TODO :Robustness! :Test!: test GraphIO much more thoroughly (see for instance FoundationDB)
 
@@ -97,7 +99,9 @@ class EditProducer:
                 new_value = Text.plain(f"{prop.name} {self.client.client.name}:{round}")._to_data()
             else:
                 raise ValueError(f"unsupported primitive type: {prop.primitive_type}")
-            node_data = wiring.pack_node(node)
+            node_data = cast(AnyNodeData, wiring.pack_node(node))
+            node_data.updated_at = utcnow()
+            node_data.updated_by_ptr = self.client.user.to_ref()._to_data()
             setattr(node_data, prop.name, new_value)
             edit = EditData(
                 id=new_edit_id(),
@@ -261,11 +265,14 @@ async def test_graph_update_node_with_invalid_property(
 
     user = some_user.user
     user.name = "thisiswaytoolong" * 64
+    node_data = wiring.pack_node(user)
+    node_data.updated_at = utcnow()
+    node_data.updated_by_ptr = some_user.user.to_ref()._to_data()
     edit = EditData(
         id=new_edit_id(),
         type=wiring.pack_enum(EditType, EditType.UPDATE),
         node_type=wiring.pack_enum(NodeType, NodeType.USER),
-        node=wiring.wrap_some_node(wiring.pack_node(user)),
+        node=wiring.wrap_some_node(node_data),
         properties=[cast(Property, User.name).id],
         origin=some_user.origin,
     )

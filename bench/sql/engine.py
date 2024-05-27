@@ -1546,7 +1546,9 @@ async def _pg_edit_batch(
 
         # collect dynamic columns
         implicit_properties = tuple(
-            node_cls.__properties__[n] for n in IMPLICIT_EDIT_PROPERTIES_NAMES[edit_type]
+            node_cls.__properties__[n]
+            for n in IMPLICIT_EDIT_PROPERTIES_NAMES[edit_type]
+            if n in node_cls.__properties__
         )
         dynamic_columns: list[Column] = [table._primary_key]
         for prop in chain(implicit_properties, updated_properties):
@@ -1560,8 +1562,10 @@ async def _pg_edit_batch(
         for edit, node in zip(batch, nodes):
             row = {"id": node.id}
             for prop_id in chain(IMPLICIT_EDIT_PROPERTIES_IDS[edit_type], edit.properties):
-                prop = node_cls.__properties_by_id__[prop_id]
-                if prop.is_node_reference:
+                prop = node_cls.__properties_by_id__.get(prop_id)
+                if prop is None:
+                    continue
+                elif prop.is_node_reference:
                     value = getattr(node, cast(Property, prop.reference_wired_ptr).name)
                     _pg_pack_node_reference_into_row(prop, row, value)
                 else:

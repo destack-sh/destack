@@ -1404,11 +1404,12 @@ class ContextData(betterproto.Message):
     client_ptr: Optional["NodeReferenceData"] = betterproto.message_field(40, optional=True)
     server_ptr: Optional["NodeReferenceData"] = betterproto.message_field(41, optional=True)
     user_ptr: Optional["NodeReferenceData"] = betterproto.message_field(42, optional=True)
-    session_ptr: Optional["NodeReferenceData"] = betterproto.message_field(50, optional=True)
-    run_ptr: Optional["NodeReferenceData"] = betterproto.message_field(51, optional=True)
-    run_root_ptr: Optional["NodeReferenceData"] = betterproto.message_field(52, optional=True)
-    trigger_ptr: Optional["NodeReferenceData"] = betterproto.message_field(53, optional=True)
-    signal_ptr: Optional["NodeReferenceData"] = betterproto.message_field(54, optional=True)
+    epoch: Optional[int] = betterproto.int64_field(50, optional=True)
+    session_ptr: Optional["NodeReferenceData"] = betterproto.message_field(51, optional=True)
+    run_ptr: Optional["NodeReferenceData"] = betterproto.message_field(52, optional=True)
+    run_root_ptr: Optional["NodeReferenceData"] = betterproto.message_field(53, optional=True)
+    trigger_ptr: Optional["NodeReferenceData"] = betterproto.message_field(54, optional=True)
+    signal_ptr: Optional["NodeReferenceData"] = betterproto.message_field(55, optional=True)
 
 
 @dataclass(eq=False, repr=False)

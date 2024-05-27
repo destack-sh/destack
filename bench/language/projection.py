@@ -1,5 +1,5 @@
 import base64
-from datetime import datetime
+from datetime import datetime, timedelta
 from typing import TYPE_CHECKING, Collection, cast
 from uuid import UUID
 
@@ -95,6 +95,8 @@ def render_value_scalar(value: "ScalarValue", typ: "TypeInfoBase") -> str:
         elif typ.primitive_type == PrimitiveType.DATETIME:
             value_iso = cast(datetime, value).isoformat()
             return f"datetime.fromisoformat({value_iso!r})"
+        elif typ.primitive_type == PrimitiveType.INTERVAL:
+            return f"timedelta(seconds={cast(timedelta, value).total_seconds()})"
         else:
             return repr(value)
     elif typ.kind == TypeKind.NODE or typ.kind == TypeKind.BASED_NODE:
