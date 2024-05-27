@@ -243,3 +243,6 @@ async def test_create_run(some_bench: BenchHandle):
         )
         session.create(run)
         await session.commit()
+
+
+# nocheckin: test logs

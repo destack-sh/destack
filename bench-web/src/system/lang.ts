@@ -478,7 +478,7 @@ export function moveNode(
         getNodes: () => graph.getChildren(targetParent, target!.metatype as unknown as NodeType) as any,
       });
     }
-    tx.move({ ...node, parentPtr: target.parentPtr });
+    tx.moveDebounced({ ...node, parentPtr: target.parentPtr }, ["parentPtr"]);
   } else if (anchor == "center") {
     // move to end of target's children of that type
     if (target == null) throw new Error(`target required to move node ${anchor} ${describeNode(node)}`);
@@ -491,7 +491,7 @@ export function moveNode(
         getNodes: () => graph.getChildren(target!, node.metatype as unknown as NodeType) as any,
       });
     }
-    tx.move({ ...node, parentPtr: toNodeReference(target) });
+    tx.moveDebounced({ ...node, parentPtr: toNodeReference(target) }, ["parentPtr"]);
   } else {
     throw new Error(`unexpected anchor: ${anchor}`);
   }

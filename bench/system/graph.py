@@ -1,6 +1,7 @@
 import asyncio
 from collections import deque
 from dataclasses import dataclass, field
+from datetime import datetime
 from itertools import chain
 from typing import AsyncIterator, Mapping, NamedTuple, cast, final, override
 from uuid import UUID
@@ -58,15 +59,19 @@ from bench.proto.wire import (
     WatchEditsRequest,
     WatchEditsResponse,
 )
-from bench.utils.dt import monotime
+from bench.utils.dt import monotime, utcnow
 from bench.utils.func import CriticalLock, bittuple, group_by, partition, to_uuid, uuid_to_str
+from bench.utils.utils import get_from_env
 
 logger = structlog.get_logger(__name__)
 
-EPOCH_BUFFER_SIZE = 1000  # every epoch is a set of edits
+TRANSACTION_BUFFER_SIZE = get_from_env("TRANSACTION_BUFFER_SIZE", typ=int, default=1000)
+MAX_TIME_DRIFT_SECONDS = get_from_env("MAX_TIME_DRIFT_SECONDS", typ=int, default=60)
 
 
-class Epoch(NamedTuple):
+class _Commit(NamedTuple):
+    """A commit of multiple edits (with their own epochs)"""
+
     epoch: int
     edits: list[EditData]
     cascaded_edits: list[EditData]
@@ -79,44 +84,10 @@ class EditWatcher:
     subject: Subject
     node_types: bittuple[NodeType]
     filters: Mapping[NodeType, Expression]
-    sink: asyncio.Queue[Epoch] = field(default_factory=asyncio.Queue)
+    sink: asyncio.Queue[_Commit] = field(default_factory=asyncio.Queue)
 
     def __str__(self):
         return f"{self.subject}: {'|'.join(n.bench_name for n in self.node_types.tuple)} [{self.filters}]"
-
-
-def _check_nodes_in_same_store(
-    roots: tuple[NodeType, ...] | tuple[NodeReference, ...] | tuple[NodeReferenceData],
-    options: ReadOptions,
-):
-    """
-    Check that all node types belong in the same store.
-    TODO :Robustness: assign & check nodes/node types to 'stores' more explicitly
-    """
-
-    if roots and isinstance(roots[0], (NodeReference, NodeReferenceData)):
-        roots_types = tuple((cast(NodeReference, r)).type for r in roots)
-    else:
-        roots_types = cast(list[NodeType], roots)
-
-    has_global = False
-    has_local = False
-
-    for node_type in chain(roots_types, options.ancestor_types, options.descendant_types):
-        if NODE_CLASS_BY_TYPE[node_type].__is_local__:
-            has_local = True
-        else:
-            has_global = True
-
-    if has_global and has_local:
-        global_types, local_types = partition(
-            lambda t: NODE_CLASS_BY_TYPE[t].__is_local__,
-            chain(roots_types, options.ancestor_types, options.descendant_types),
-        )
-        raise GRPCError(
-            GRPCStatus.INVALID_ARGUMENT,
-            f"can't mix global and local node types: {global_types} vs {local_types}",
-        )
 
 
 class GraphIoServiceBase(BenchServiceBase, GraphIoBase):
@@ -125,12 +96,12 @@ class GraphIoServiceBase(BenchServiceBase, GraphIoBase):
     def __init__(self, *, bench_id: UUID | None, node_types: bittuple[NodeType]):
         super().__init__()
         self.epoch: int = 0
-        self.recent_epochs: deque[Epoch] = deque(maxlen=EPOCH_BUFFER_SIZE)
+        self.recent_transactions: deque[_Commit] = deque(maxlen=TRANSACTION_BUFFER_SIZE)
         self.bench_id: UUID | None = bench_id
         self.scope = GraphScope(bench_id=uuid_to_str(bench_id))
         self.node_types: bittuple[NodeType] = node_types
         self.watchers: list[EditWatcher] = []
-        self._tx_lock: asyncio.Lock = CriticalLock(
+        self.tx_lock: asyncio.Lock = CriticalLock(
             name=f"{self.__class__.__name__}_{bench_id or ''}"
         )
 
@@ -298,48 +269,11 @@ class GraphIoServiceBase(BenchServiceBase, GraphIoBase):
         # check/prepare edits
         assert subject.client, f"{subject!r} has no client"
         edit_scopes = parse_edit_scopes(request.edits)
-        user_id = str(subject.user.id) if subject.user else None
+        now = utcnow()
         epoch = self.epoch
         for edit in request.edits:
+            _validate_edit(edit, subject, now)
             node_data = wiring.unwrap_some_node(edit.node)
-            if subject.client.parent_type == NodeType.USER:
-                # subject must match user
-                if edit.type in (EditType.CREATE, EditType.UPSERT) and (
-                    not node_data.created_by_ptr or node_data.created_by_ptr.id != user_id
-                ):
-                    raise GRPCError(
-                        GRPCStatus.PERMISSION_DENIED,
-                        f"created_by mismatch in {edit!r}: {node_data.created_by_ptr} != {user_id}",
-                    )
-                if not node_data.updated_by_ptr or node_data.updated_by_ptr.id != user_id:
-                    raise GRPCError(
-                        GRPCStatus.PERMISSION_DENIED,
-                        f"updated_by mismatch in {edit!r}: {node_data.updated_by_ptr} != {user_id}",
-                    )
-            else:
-                # subject must be run (any run for now)
-                if edit.type in (EditType.CREATE, EditType.UPSERT) and (
-                    not node_data.created_by_ptr or node_data.created_by_ptr.type != NodeType.RUN
-                ):
-                    raise GRPCError(
-                        GRPCStatus.PERMISSION_DENIED,
-                        f"created_by mismatch in {edit!r}: {node_data.created_by_ptr} not a Run",
-                    )
-                if not node_data.updated_by_ptr or node_data.updated_by_ptr.type != NodeType.RUN:
-                    raise GRPCError(
-                        GRPCStatus.PERMISSION_DENIED,
-                        f"updated_by mismatch in {edit!r}: {node_data.updated_by_ptr} not a Run",
-                    )
-            if not edit.origin or UUID(edit.origin.id) != subject.client.id:
-                raise GRPCError(
-                    GRPCStatus.PERMISSION_DENIED,
-                    f"origin mismatch in {edit!r}: {edit.origin!r} != {subject.client!r}",
-                )
-            if edit.type != EditType.MOVE and cast(Property, Node.parent_ptr).id in edit.properties:
-                raise GRPCError(
-                    GRPCStatus.INVALID_ARGUMENT, f"cannot set parent_ptr in non-move {edit!r}"
-                )
-            # assign epoch
             epoch += 1
             edit.epoch = epoch
             if edit.type in (EditType.CREATE, EditType.UPSERT):
@@ -348,7 +282,7 @@ class GraphIoServiceBase(BenchServiceBase, GraphIoBase):
 
         # process edits
         start = monotime()
-        async with self._tx_lock:
+        async with self.tx_lock:
             async with self.request_session(readonly=False) as session:
                 # read the required nodes into a single graph for evaluation
                 data_graph = NodeDataGraph()
@@ -468,10 +402,10 @@ class GraphIoServiceBase(BenchServiceBase, GraphIoBase):
                 raise GRPCError(GRPCStatus.INVALID_ARGUMENT, "can't watch from the future")
             if request.since_epoch is not None:
                 num_epochs_to_replay = self.epoch - request.since_epoch
-                if num_epochs_to_replay > EPOCH_BUFFER_SIZE:
+                if num_epochs_to_replay > TRANSACTION_BUFFER_SIZE:
                     raise GRPCError(GRPCStatus.INVALID_ARGUMENT, "too much to replay")
                 epochs_to_replay = []
-                for epoch, edits, cascaded_edits in reversed(self.recent_epochs):
+                for epoch, edits, cascaded_edits in reversed(self.recent_transactions):
                     if epoch <= request.since_epoch:
                         break
                     edits = self._filter_and_adapt_edits(watcher, edits)
@@ -511,14 +445,14 @@ class GraphIoServiceBase(BenchServiceBase, GraphIoBase):
         cascaded_edits: list[EditData],
     ):
         self.epoch += 1
-        self.recent_epochs.append(Epoch(self.epoch, edits, cascaded_edits))
+        self.recent_transactions.append(_Commit(self.epoch, edits, cascaded_edits))
 
         # notify watchers
         for watcher in self.watchers:
             adapted_edits = self._filter_and_adapt_edits(watcher, edits)
             adapted_cascaded_edits = self._filter_and_adapt_edits(watcher, cascaded_edits)
             if adapted_edits:
-                watcher.sink.put_nowait(Epoch(self.epoch, adapted_edits, adapted_cascaded_edits))
+                watcher.sink.put_nowait(_Commit(self.epoch, adapted_edits, adapted_cascaded_edits))
 
         await self._on_commit(graph=graph, edits=edits, cascaded_edits=cascaded_edits)
 
@@ -618,3 +552,122 @@ def parse_edit_scopes(edits: list[EditData]) -> _EditScopes:
         scopes_by_type=node_scopes_by_type,
         graph_scopes=tuple(graph_scopes.values()),
     )
+
+
+def _check_nodes_in_same_store(
+    roots: tuple[NodeType, ...] | tuple[NodeReference, ...] | tuple[NodeReferenceData],
+    options: ReadOptions,
+):
+    """
+    Check that all node types belong in the same store.
+    TODO :Robustness: assign & check nodes/node types to 'stores' more explicitly
+    """
+
+    if roots and isinstance(roots[0], (NodeReference, NodeReferenceData)):
+        roots_types = tuple((cast(NodeReference, r)).type for r in roots)
+    else:
+        roots_types = cast(list[NodeType], roots)
+
+    has_global = False
+    has_local = False
+
+    for node_type in chain(roots_types, options.ancestor_types, options.descendant_types):
+        if NODE_CLASS_BY_TYPE[node_type].__is_local__:
+            has_local = True
+        else:
+            has_global = True
+
+    if has_global and has_local:
+        global_types, local_types = partition(
+            lambda t: NODE_CLASS_BY_TYPE[t].__is_local__,
+            chain(roots_types, options.ancestor_types, options.descendant_types),
+        )
+        raise GRPCError(
+            GRPCStatus.INVALID_ARGUMENT,
+            f"can't mix global and local node types: {global_types} vs {local_types}",
+        )
+
+
+def _is_allowable_drift(dt: datetime, now: datetime) -> bool:
+    """Check if the given datetime is within the allowed time drift."""
+    return abs((now - dt).total_seconds()) <= MAX_TIME_DRIFT_SECONDS
+
+
+def _validate_edit(edit: EditData, subject: Subject, now: datetime) -> None:
+    """Checks the given edit for basic validity."""
+    assert subject.client, f"{subject!r} has no client"
+    node_data = wiring.unwrap_some_node(edit.node)
+
+    # subject/origin match
+    user_id = str(subject.user.id) if subject.user else None
+    if subject.client.parent_type == NodeType.USER:
+        # subject must match user
+        if edit.type in (EditType.CREATE, EditType.UPSERT) and (
+            not node_data.created_by_ptr or node_data.created_by_ptr.id != user_id
+        ):
+            raise GRPCError(
+                GRPCStatus.PERMISSION_DENIED,
+                f"created_by mismatch in {edit!r}: {node_data.created_by_ptr} != {user_id}",
+            )
+        if not node_data.updated_by_ptr or node_data.updated_by_ptr.id != user_id:
+            raise GRPCError(
+                GRPCStatus.PERMISSION_DENIED,
+                f"updated_by mismatch in {edit!r}: {node_data.updated_by_ptr} != {user_id}",
+            )
+    else:
+        # subject must be run (any run for now)
+        if edit.type in (EditType.CREATE, EditType.UPSERT) and (
+            not node_data.created_by_ptr or node_data.created_by_ptr.type != NodeType.RUN
+        ):
+            raise GRPCError(
+                GRPCStatus.PERMISSION_DENIED,
+                f"created_by mismatch in {edit!r}: {node_data.created_by_ptr} not a Run",
+            )
+        if not node_data.updated_by_ptr or node_data.updated_by_ptr.type != NodeType.RUN:
+            raise GRPCError(
+                GRPCStatus.PERMISSION_DENIED,
+                f"updated_by mismatch in {edit!r}: {node_data.updated_by_ptr} not a Run",
+            )
+    if not edit.origin or UUID(edit.origin.id) != subject.client.id:
+        raise GRPCError(
+            GRPCStatus.PERMISSION_DENIED,
+            f"origin mismatch in {edit!r}: {edit.origin!r} != {subject.client!r}",
+        )
+
+    # specific edit type constraints
+    if edit.type != EditType.MOVE and cast(Property, Node.parent_ptr).id in edit.properties:
+        raise GRPCError(GRPCStatus.INVALID_ARGUMENT, f"cannot set parent_ptr in non-move {edit!r}")
+    if edit.type in (EditType.CREATE, EditType.UPSERT):
+        if not node_data.created_at:
+            raise GRPCError(GRPCStatus.INVALID_ARGUMENT, f"missing created_at in {edit!r}")
+    if not node_data.updated_at:
+        raise GRPCError(GRPCStatus.INVALID_ARGUMENT, f"missing updated_at in {edit!r}")
+    if not _is_allowable_drift(node_data.updated_at, now):
+        raise GRPCError(GRPCStatus.INVALID_ARGUMENT, f"updated_at in {edit!r} has drifted too much")
+    if edit.type == EditType.ARCHIVE:
+        if not node_data.archived_at:
+            raise GRPCError(GRPCStatus.INVALID_ARGUMENT, f"missing archived_at in {edit!r}")
+        if not _is_allowable_drift(node_data.archived_at, now):
+            raise GRPCError(
+                GRPCStatus.INVALID_ARGUMENT, f"archived_at in {edit!r} has drifted too much"
+            )
+    if edit.type == EditType.UNARCHIVE:
+        if node_data.archived_at:
+            raise GRPCError(GRPCStatus.INVALID_ARGUMENT, f"set archived_at in {edit!r}")
+    if edit.type == EditType.SOFT_DELETE:
+        if not node_data.deleted_at:
+            raise GRPCError(GRPCStatus.INVALID_ARGUMENT, f"missing deleted_at in {edit!r}")
+        if not _is_allowable_drift(node_data.deleted_at, now):
+            raise GRPCError(
+                GRPCStatus.INVALID_ARGUMENT, f"deleted_at in {edit!r} has drifted too much"
+            )
+    if edit.type == EditType.RESTORE:
+        if node_data.deleted_at:
+            raise GRPCError(GRPCStatus.INVALID_ARGUMENT, f"set deleted_at in {edit!r}")
+    if edit.type == EditType.DELETE:
+        if not node_data.deleted_at:
+            raise GRPCError(GRPCStatus.INVALID_ARGUMENT, f"missing deleted_at in {edit!r}")
+        if not _is_allowable_drift(node_data.deleted_at, now):
+            raise GRPCError(
+                GRPCStatus.INVALID_ARGUMENT, f"deleted_at in {edit!r} has drifted too much"
+            )

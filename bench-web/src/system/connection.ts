@@ -185,7 +185,7 @@ function derivePendingOverlayGraph(
   subs: (() => void)[],
 ): NodeGraph {
   const overlay = new NodeGraph({ scope: base.scope, isOverlayOf: base });
-  const sub = txBuffer.onPending((e) => {
+  const sub = txBuffer.subscribePending((e) => {
     if (e.type == "reset") overlay.clear();
     const filteredEdits = filterRemoteEdits(filter, e.edits);
     if (filteredEdits.length > 0) editGraph(overlay, filteredEdits, { isOverlay: true });
@@ -533,7 +533,7 @@ export class RemoteGetConnection<T extends NodeType> extends GraphConnectionBase
       editStream.responses.onError(onError);
     } else {
       // otherwise directly apply confirmed edits
-      subs.push(this.txBuffer.onCommitted((edits) => applyRemoteEdits(filter, edits, graph)));
+      subs.push(this.txBuffer.subscribeCommitted((edits) => applyRemoteEdits(filter, edits, graph)));
     }
 
     const overlay = derivePendingOverlayGraph(filter, graph, this.txBuffer, subs);
@@ -612,7 +612,7 @@ export class RemoteSearchConnection<T extends NodeType> extends GraphConnectionB
       editStream.responses.onError(onError);
     } else {
       // otherwise directly apply confirmed edits
-      subs.push(this.txBuffer.onCommitted((edits) => applyRemoteEdits(filter, edits, graph)));
+      subs.push(this.txBuffer.subscribeCommitted((edits) => applyRemoteEdits(filter, edits, graph)));
     }
 
     const overlay = derivePendingOverlayGraph(filter, graph, this.txBuffer, subs);

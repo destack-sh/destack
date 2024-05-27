@@ -218,7 +218,7 @@ class Host(GraphIoServiceBase, HostBase, HostSpec):
     @asynccontextmanager
     async def session(self, *, readonly: bool = False, autocommit: bool = False):
         """Gets exclusive query and edit access to the main session. :ExclusiveHostSession"""
-        async with self._tx_lock:
+        async with self.tx_lock:
             assert self._session is not None, f"session not ready in {self!r}"
             was_readonly = self._session._is_readonly
             self._session._is_readonly = readonly
