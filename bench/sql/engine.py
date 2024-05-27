@@ -42,6 +42,7 @@ from bench.language.expression import C, Expression, ExpressionOps
 from bench.language.graph import NodeDataGraph
 from bench.language.node import NODE_CLASS_BY_TYPE, UNSET, Node
 from bench.language.setup import NODE_CLASSES, PARENT_NODE_TYPES
+from bench.language.transaction import IMPLICIT_EDIT_PROPERTIES_IDS, IMPLICIT_EDIT_PROPERTIES_NAMES
 from bench.proto import wire, wiring
 from bench.proto.monkey import _PatchedMessage
 from bench.proto.wire import AnyNodeData, EditData, IdEnum, NodeReferenceData
@@ -784,29 +785,29 @@ async def pg_upsert(
     rows: Collection[RowIn],
     *,
     conflict_columns: list[Column] | tuple[Column, ...] | None = None,
-    update_columns: list[Column] | tuple[Column, ...] | None = None,
-    update_values: RowIn | None = None,
+    static_columns: list[Column] | tuple[Column, ...] | None = None,
+    static_values: RowIn | None = None,
     returning: Collection[Column] | None = None,
 ) -> tuple[RowOut, ...] | list[RowOut] | None:
     """Upserts into the given table. Expect rows to be adapted and wrapped."""
     if conflict_columns is None:
         assert table._primary_key, f"no primary key for {table!r}"
         conflict_columns = (table._primary_key,)
-    if update_columns is None:
-        update_columns = tuple(c for c in table.columns if c not in conflict_columns)
-    if update_values:
-        static_update_columns = tuple(c for c in update_columns if c.name not in update_values)
+    if static_columns is None:
+        static_columns = tuple(c for c in table.columns if c not in conflict_columns)
+    if static_values:
+        static_update_columns = tuple(c for c in static_columns if c.name not in static_values)
     else:
-        static_update_columns = update_columns
+        static_update_columns = static_columns
 
     static_update = tuple(
         sqlstr("{} = EXCLUDED.{}").format(sqlident(c.name), sqlident(c.name))
         for c in static_update_columns
     )
-    if update_values:
+    if static_values:
         dynamic_update = tuple(
             sqlstr("{} = {}").format(sqlident(k), sql_node_to_sql(v))
-            for k, v in update_values.items()
+            for k, v in static_values.items()
         )
     else:
         dynamic_update = ()
@@ -1421,14 +1422,13 @@ async def pg_search_node_graph(
 # TODO :Performance: use psycopg3/postgres pipelining to batch edits?
 
 
-async def pg_write_edits(
+async def pg_edit(
     cur: psycopg.AsyncCursor,
     edits: list[EditData] | tuple[EditData, ...],
 ) -> tuple[list["int"], list[EditData]]:
     """
     Writes 'regular' edits to nodes (that aren't stored specially like records).
     Returns the new revisions of the edited nodes.
-    Assumes that the edits are evaluated and canonicalized.
     """
     if not edits:
         return [], []
@@ -1438,7 +1438,7 @@ async def pg_write_edits(
     cur_updated_properties: bitarray = bitarray(cur_node_cls.__max_property_ord__ + 1)
     cur_batch: list[EditData] = []
     all_new_revisions: list[int] = []
-    cascaded_edits: list[EditData] = []  # nocheckin
+    cascaded_edits: list[EditData] = []  # nocheckin cascade edits down
 
     for i in range(len(edits)):
         edit = edits[i]
@@ -1460,7 +1460,7 @@ async def pg_write_edits(
             edit_type: EditType = wiring.unpack_enum(EditType, edit.type)
             node_type: NodeType = wiring.unpack_enum(NodeType, edit.node_type)
             updated_properties = cur_node_cls._unmask_properties(cur_updated_properties)
-            changed_nodes = await _pg_write_edit_batch(
+            changed_nodes = await _pg_edit_batch(
                 cur=cur,
                 edit_type=edit_type,
                 node_type=node_type,
@@ -1487,19 +1487,18 @@ async def pg_write_edits(
     return all_new_revisions, cascaded_edits
 
 
-async def _pg_write_edit_batch(
+async def _pg_edit_batch(
     *,
     cur: psycopg.AsyncCursor,
     edit_type: EditType,
     node_type: NodeType,
     batch: list[EditData],
-    updated_properties: list[Property] | tuple[Property, ...] | None,  # across batch
+    updated_properties: tuple[Property, ...],  # across batch
     return_nodes: bool,
     selected_properties: tuple[Property, ...],
 ) -> tuple["AnyNodeData", ...] | list["AnyNodeData"] | None:
     """
     Writes a batch of regular (not custom stored) node edits of the same edit type.
-    Like pg_write_edits, the edits are expected to be evaluated and canonicalized.
     """
 
     node_cls = NODE_CLASS_BY_TYPE[node_type]
@@ -1525,8 +1524,8 @@ async def _pg_write_edit_batch(
             table=table,
             rows=rows,
             conflict_columns=(table._primary_key,),
-            update_columns=tuple(c for c in table.columns if c != table._primary_key),
-            update_values={"revision": sqlstr(f"{table.name}.revision + 1")},
+            static_columns=tuple(c for c in table.columns if c != table._primary_key),
+            static_values={"revision": sqlstr(f"{table.name}.revision + 1")},
             returning=selected_columns if return_nodes else None,
         )
         if return_nodes:
@@ -1543,63 +1542,35 @@ async def _pg_write_edit_batch(
         EditType.SOFT_DELETE,
         EditType.RESTORE,
     ):
-        dynamic_values: list[RowIn] = []
-        dynamic_columns: list[Column] = [table._primary_key]
         nodes = tuple(wiring.unwrap_some_node(edit.node) for edit in batch)
 
-        if edit_type == EditType.UPDATE:
-            updated_by_prop = cast(Property, node_cls.updated_by)
-            assert updated_properties is not None, f"no properties for {edit_type} {node_type}"
-            dynamic_columns.append(table._columns_by_name["updated_at"])
-            dynamic_columns.extend(p.column for p in updated_by_prop.reference_stored_props or ())
+        # collect dynamic columns
+        implicit_properties = tuple(
+            node_cls.__properties__[n] for n in IMPLICIT_EDIT_PROPERTIES_NAMES[edit_type]
+        )
+        dynamic_columns: list[Column] = [table._primary_key]
+        for prop in chain(implicit_properties, updated_properties):
+            if prop.is_node_reference:
+                dynamic_columns.extend(p.column for p in prop.reference_stored_props or ())
+            else:
+                dynamic_columns.append(prop.column)
 
-            for prop in updated_properties:
+        # collect dynamic values
+        dynamic_values: list[RowIn] = []
+        for edit, node in zip(batch, nodes):
+            row = {"id": node.id}
+            for prop_id in chain(IMPLICIT_EDIT_PROPERTIES_IDS[edit_type], edit.properties):
+                prop = node_cls.__properties_by_id__[prop_id]
                 if prop.is_node_reference:
-                    dynamic_columns.extend(p.column for p in prop.reference_stored_props or ())
+                    value = getattr(node, cast(Property, prop.reference_wired_ptr).name)
+                    _pg_pack_node_reference_into_row(prop, row, value)
                 else:
-                    dynamic_columns.append(prop.column)
-            for edit, node in zip(batch, nodes):
-                row = {"id": node.id, "updated_at": node.updated_at}
-                _pg_pack_node_reference_into_row(updated_by_prop, row, node.updated_by_ptr)
-                # user supplied updated properties
-                for prop_id in edit.properties:
-                    prop = node_cls.__properties_by_id__[prop_id]
-                    if prop.is_node_reference:
-                        value = getattr(node, cast(Property, prop.reference_wired_ptr).name)
-                        _pg_pack_node_reference_into_row(prop, row, value)
-                    else:
-                        value = getattr(node, prop.name)
-                        value = _pack_struct_data_prop(prop, value, ignore_array=False)
-                        row[prop.name] = value
-                dynamic_values.append(row)
+                    value = getattr(node, prop.name)
+                    value = _pack_struct_data_prop(prop, value, ignore_array=False)
+                    row[prop.name] = value
+            dynamic_values.append(row)
 
-        elif edit_type == EditType.MOVE:
-            dynamic_columns.append(table._columns_by_name["updated_at"])
-            dynamic_columns.extend(
-                p.column for p in cast(Property, node_cls.parent).reference_stored_props or ()
-            )
-            for node in nodes:
-                row = {"id": node.id, "updated_at": node.updated_at}
-                dynamic_values.append(row)
-                _pg_pack_node_reference_into_row(
-                    cast(Property, node_cls.parent), row, node.parent_ptr
-                )
-
-        elif edit_type in (EditType.ARCHIVE, EditType.UNARCHIVE):
-            dynamic_columns.append(table._columns_by_name["archived_at"])
-            for node in nodes:
-                row = {"id": node.id, "archived_at": node.archived_at}
-                dynamic_values.append(row)
-
-        elif edit_type in (EditType.SOFT_DELETE, EditType.RESTORE):
-            dynamic_columns.append(table._columns_by_name["deleted_at"])
-            for node in nodes:
-                row = {"id": node.id, "deleted_at": node.deleted_at}
-                dynamic_values.append(row)
-
-        else:
-            raise ValueError(f"unexpected edit kind {edit_type} {node_type} for {batch!r}")
-
+        # actually update
         static_values = {"revision": sqlstr("revision + 1")}
         rows = await pg_update_variable(
             cur=cur,

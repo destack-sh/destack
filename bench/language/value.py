@@ -439,7 +439,7 @@ def _pack_value_scalar(value: ScalarValue, typ: "TypeInfoBase") -> JsonValue:
     elif typ.kind == TypeKind.NODE or typ.kind == TypeKind.BASED_NODE:
         if cast("Struct", value).metatype != StructType.NODE_REFERENCE:
             value = cast("Node", value).to_ref()
-        return cast("NodeReference", value)._to_data().to_robust_dict()
+        return cast(_PatchedMessage, cast("NodeReference", value)._to_data()).to_robust_dict()
     elif typ.kind == TypeKind.ENUM:
         return cast(int, value)
     elif typ.kind == TypeKind.STRUCT:

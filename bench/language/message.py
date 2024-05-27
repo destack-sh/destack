@@ -58,7 +58,7 @@ class Message(BasedNode[MessageData], HasSessionContext, HasValues):
     is_pinned: bool = p_regular(50, default=False)
 
     # context
-    # ...InSessionNode[60-69]
+    # ...HasSessionContext[60-69]
 
     def __content_str__(self) -> str:
         if self.title:

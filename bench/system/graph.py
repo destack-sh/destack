@@ -22,6 +22,7 @@ from bench.language.connection import FetchOptions, StoreEngine
 from bench.language.const import BASED_NODE_TYPES, ConditionalOp, EditType, NodeType, PolicyEffect
 from bench.language.graph import NodeDataGraph, NodeGraphLike, edit_data_graph
 from bench.language.node import BasedNode, Node
+from bench.language.property import Property
 from bench.language.query import QueryBuilder
 from bench.language.setup import NODE_CLASS_BY_TYPE
 from bench.language.validation import ValidationError, on_invalid_raise
@@ -285,12 +286,29 @@ class GraphIoServiceBase(BenchServiceBase, GraphIoBase):
     async def commit_transaction(
         self, subject: Subject, request: "CommitTransactionRequest"
     ) -> "CommitTransactionResponse":
-        # parse request
+        # check/prepare edits
         assert subject.client, f"{subject!r} has no client"
         edit_scopes = parse_edit_scopes(request.edits)
+        epoch = self.epoch
         for edit in request.edits:
+            node_data = wiring.unwrap_some_node(edit.node)
+            # check subject consistency
+            if edit.type in (EditType.CREATE, EditType.UPSERT) and (
+                not node_data.created_by_ptr or node_data.created_by_ptr.id != subject.client.id
+            ):
+                raise GRPCError(GRPCStatus.PERMISSION_DENIED, "created_by mismatch")
+            if not node_data.updated_by_ptr or node_data.updated_by_ptr.id != subject.client.id:
+                raise GRPCError(GRPCStatus.PERMISSION_DENIED, f"updated_by mismatch in {edit!r}")
             if not edit.origin or UUID(edit.origin.id) != subject.client.id:
-                raise GRPCError(GRPCStatus.PERMISSION_DENIED, "edit origin mismatch")
+                raise GRPCError(GRPCStatus.PERMISSION_DENIED, f"origin mismatch in {edit!r}")
+            if edit.type != EditType.MOVE and cast(Property, Node.parent_ptr).id in edit.properties:
+                raise GRPCError(GRPCStatus.INVALID_ARGUMENT, f"cannot edit parent_ptr in {edit!r}")
+            # assign epoch
+            epoch += 1
+            edit.epoch = epoch
+            if edit.type in (EditType.CREATE, EditType.UPSERT):
+                node_data.created_epoch = epoch
+            node_data.updated_epoch = epoch
 
         # process transaction
         start = monotime()
@@ -311,9 +329,9 @@ class GraphIoServiceBase(BenchServiceBase, GraphIoBase):
                     connection = await session.tx.connect(request.scope, node_type)
                     result = await connection.fetch(query, FetchOptions(count=False))
                     # merge result into data_graph (there may be duplicates)
-                    for node in result.nodes:
-                        if node.id not in data_graph:
-                            data_graph.add(node)
+                    for node_data in result.nodes:
+                        if node_data.id not in data_graph:
+                            data_graph.add(node_data)
 
                 # check access
                 matrix = generate_access_matrix(subject, data_graph)
@@ -332,30 +350,34 @@ class GraphIoServiceBase(BenchServiceBase, GraphIoBase):
                 )
                 unpacked_graph = wiring.unpack_node_graph(data_graph, parent=None, session=session)
                 for node_id in edit_scopes.edited_node_ids:
-                    node = unpacked_graph.get(UUID(node_id))
-                    if node is None:
+                    node_data = unpacked_graph.get(UUID(node_id))
+                    if node_data is None:
                         raise GRPCError(GRPCStatus.NOT_FOUND, f"{node_id} not found")
-                    node._validate_self(properties=(), invalid=on_invalid_raise)
+                    node_data._validate_self(properties=(), invalid=on_invalid_raise)
 
                 # flush edits to get cascaded edits
                 session.tx._add_pending_edits(request.edits)
                 _, cascaded_edits = await session.flush()
 
-                # extend transaction
-                new_edits = await self.extend_commit(
+                # extend commit
+                new_edits, epoch = await self.extend_commit(
                     session=session,
                     graph=unpacked_graph,
                     edits=request.edits,
+                    epoch=epoch,
                     cascaded_edits=cascaded_edits,
                 )
                 session.tx._add_pending_edits(new_edits)
 
-                # commit (suppress hooks because we're firing them manually here)
-                edits, cascaded_edits = await session.commit(suppress_hooks=True)
-
-            # fire event
+                # commit (suppress hooks because we're firing them manually above/below)
+                edits, cascaded_edits = await session.commit(_suppress_hooks=True)
             session.untrack_many(*unpacked_graph.nodes)
-            await self.on_commit(graph=unpacked_graph, edits=edits, cascaded_edits=cascaded_edits)
+
+            # handle on commit
+            self.epoch = epoch
+            await self.on_commit(
+                graph=unpacked_graph, edits=edits, epoch=epoch, cascaded_edits=cascaded_edits
+            )
 
         logger.info(
             "graph.commit",
@@ -439,13 +461,18 @@ class GraphIoServiceBase(BenchServiceBase, GraphIoBase):
         session: Session,
         graph: NodeGraphLike,
         edits: list[EditData],
+        epoch: int,
         cascaded_edits: list[EditData],
-    ) -> list[EditData]:
-        return []  # do nothing by default
+    ) -> tuple[list[EditData], int]:
+        return [], epoch  # do nothing by default
 
     @final
     async def on_commit(
-        self, graph: NodeGraphLike, edits: list[EditData], cascaded_edits: list[EditData]
+        self,
+        graph: NodeGraphLike,
+        edits: list[EditData],
+        epoch: int,
+        cascaded_edits: list[EditData],
     ):
         self.epoch += 1
         self.recent_epochs.append(Epoch(self.epoch, edits, cascaded_edits))

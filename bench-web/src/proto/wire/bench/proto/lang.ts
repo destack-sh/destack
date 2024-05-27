@@ -2951,7 +2951,7 @@ export interface LinkData {
     orderKey?: string;
 }
 /**
- * A Log of something happening on a Bench.
+ * A Log of something happening in a Bench.
  *
  * @generated from protobuf message symbolx.bench.LogData
  */
@@ -4555,8 +4555,7 @@ export interface SessionData {
     userPtr?: NodeReferenceData;
 }
 /**
- * A Signal emitted in this Bench.
- * Signals can be emitted by users or Bench source, and are usually handled in Triggers.
+ * A Signal emitted in this Bench, usually received in Triggers.
  *
  * @generated from protobuf message symbolx.bench.SignalData
  */

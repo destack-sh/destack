@@ -11,7 +11,7 @@ from bench.language.connection import StoreConnection, StoreEngine
 from bench.language.const import BenchError, EditType, NodeType
 from bench.language.node import Node, Property
 from bench.proto import wire
-from bench.proto.wire import AnyNodeData, ClientOrigin, EditData, GraphScope, NodeReferenceData
+from bench.proto.wire import AnyNodeData, ClientOrigin, EditData, GraphScope
 from bench.utils.dt import utcnow
 from bench.utils.func import uuid_to_str
 from bench.utils.uuidt import UUIDT
@@ -27,6 +27,40 @@ EditSubject = Union["User", "Run"]
 
 def new_edit_id() -> str:
     return str(UUIDT())
+
+
+IMPLICIT_EDIT_PROPERTIES_NAMES: dict[EditType, tuple[str, ...]] = {
+    EditType.CREATE: ("created_at", "created_epoch", "created_by_ptr"),
+    EditType.UPSERT: (
+        "created_at",
+        "created_epoch",
+        "created_by_ptr",
+        "updated_at",
+        "updated_epoch",
+        "updated_by_ptr",
+    ),
+    EditType.UPDATE: ("updated_at", "updated_epoch", "updated_by_ptr"),
+    EditType.MOVE: ("updated_at", "updated_epoch", "updated_by_ptr", "parent_ptr"),
+    EditType.SOFT_DELETE: ("updated_at", "updated_epoch", "updated_by_ptr", "deleted_at"),
+    EditType.RESTORE: ("updated_at", "updated_epoch", "updated_by_ptr", "deleted_at"),
+    EditType.ARCHIVE: ("updated_at", "updated_epoch", "updated_by_ptr", "archived_at"),
+    EditType.UNARCHIVE: ("updated_at", "updated_epoch", "updated_by_ptr", "archived_at"),
+    EditType.DELETE: ("updated_at", "updated_epoch", "updated_by_ptr", "deleted_at"),
+}
+IMPLICIT_EDIT_PROPERTIES_IDS: dict[EditType, tuple[int, ...]] = {
+    edit_type: tuple(Node.__properties__[name].id for name in names)
+    for edit_type, names in IMPLICIT_EDIT_PROPERTIES_NAMES.items()
+}
+
+
+def _get_create_metadata(subject: EditSubject | None, now: datetime | None = None):
+    subject_ptr = subject.to_ref()._to_data() if subject is not None else None
+    return {"created_at": now or utcnow(), "created_by_ptr": subject_ptr}
+
+
+def _get_update_metadata(subject: EditSubject | None, now: datetime | None = None):
+    subject_ptr = subject.to_ref()._to_data() if subject is not None else None
+    return {"updated_at": now or utcnow(), "updated_by_ptr": subject_ptr}
 
 
 @dataclasses.dataclass(slots=True)
@@ -82,6 +116,7 @@ class Transaction:
         return await self._get_engine_connection(engine)
 
     async def _get_engine_connection(self, engine: StoreEngine) -> StoreConnection:
+        """Gets or creates a Store connection"""
         connection = self._connections_by_engine_id.get(engine.id)
         if connection is None:
             assert self.session is not None, f"no session in {self!r}"
@@ -90,6 +125,7 @@ class Transaction:
         return connection
 
     def _get_scope_for_node(self, n: Node) -> GraphScope:
+        """Gets the explicit or implicit scope for a node."""
         assert self.session is not None, f"no session in {self!r}"
         scope = GraphScope(
             bench_id=uuid_to_str(n.bench_id) if "bench" in n.__properties__ else None,
@@ -103,6 +139,7 @@ class Transaction:
         return scope
 
     def _get_engine_for(self, scope: GraphScope, node_type: NodeType) -> StoreEngine:
+        """Gets the appropriate engine"""
         assert self.session is not None, f"no session in {self!r}"
         for engine in self.session._engines:
             if engine.supports(scope, node_type):
@@ -116,7 +153,12 @@ class Transaction:
     # Edits
     #
 
-    def _make_edit(self, type: EditType, n: Node, subject: EditSubject | None) -> EditData:
+    def _make_edit(
+        self,
+        type: EditType,
+        n: Node,
+        extra_data: dict[str, Any],
+    ) -> EditData:
         """Creates an edit and adds it to the pending edits."""
         assert self.session is not None, f"no session for {self!r}"
         if self.is_readonly:
@@ -124,27 +166,27 @@ class Transaction:
 
         from bench.proto import wiring
 
+        # pack node (with extra data)
         node_data = cast(AnyNodeData, n._to_data())
         if n._updated_properties:
-            properties = n._unmask_properties_ids(n._updated_properties)
+            properties = list(n._unmask_properties_ids(n._updated_properties))
         else:
-            properties = None
+            properties = []
+        for key, value in extra_data.items():
+            prop = n.__properties__.get(key)
+            assert prop is not None, f"missing property {key!r} for {n!r}"
+            setattr(node_data, key, value)
+
+        # make edit
         scope = self._get_scope_for_node(n)
-        subject_data = (
-            cast(NodeReferenceData, wiring.pack_struct(subject.to_ref()))
-            if subject is not None
-            else None
-        )
         edit = EditData(
             id=new_edit_id(),
             type=wiring.pack_enum(EditType, type),
             node_type=cast(wire.NodeType, node_data.metatype),
             node=wiring.wrap_some_node(node_data),
-            properties=list(properties) if properties is not None else [],
+            properties=list(properties),
             scope=scope,
-            subject=subject_data,
             origin=self.origin,
-            revision=None,  # not known yet
         )
         return edit
 
@@ -165,20 +207,32 @@ class Transaction:
             self._add_pending_edit(edit, node=None)
 
     def create(self, n: Node, subject: EditSubject | None):
-        edit = self._make_edit(EditType.CREATE, n, subject)
+        edit = self._make_edit(EditType.CREATE, n, _get_create_metadata(subject))
         self._add_pending_edit(edit, n)
 
     def upsert(self, n: Node, subject: EditSubject | None):
-        edit = self._make_edit(EditType.UPSERT, n, subject)
+        now = utcnow()
+        edit = self._make_edit(
+            EditType.UPSERT,
+            n,
+            {**_get_create_metadata(subject, now), **_get_update_metadata(subject)},
+        )
         self._add_pending_edit(edit, n)
 
-    def update(self, n: Node, subject: EditSubject | None, properties: Collection[Property]):
+    def _update(
+        self,
+        edit_type: EditType,
+        n: Node,
+        subject: EditSubject | None,
+        properties: Collection[Property],
+    ):
+        """Update or move a node."""
         from bench.proto import wiring
 
         existing_edit_idx = self._pending_updates_idx.get(n)
         if existing_edit_idx is None:
-            # new update
-            edit = self._make_edit(EditType.UPDATE, n, subject)
+            # new update/move
+            edit = self._make_edit(edit_type, n, _get_update_metadata(subject))
             engine = self._add_pending_edit(edit, n)
             edit_idx = len(self._pending_edits_by_engine_id[engine.id]) - 1
             self._pending_updates_idx[n] = engine.id, edit_idx
@@ -197,66 +251,50 @@ class Transaction:
                 value = wiring.pack_struct_prop(prop, value, ignore_array=False)
                 setattr(node_data, prop.name, value)
 
+    def update(self, n: Node, subject: EditSubject | None, properties: Collection[Property]):
+        self._update(EditType.UPDATE, n, subject, properties)
+
     def move(self, n: Node, subject: EditSubject | None):
-        edit = self._make_edit(EditType.MOVE, n, subject)
-        self._add_pending_edit(edit, n)
+        self._update(EditType.MOVE, n, subject, [])
 
     def soft_delete(self, n: Node, subject: EditSubject | None):
-        edit = self._make_edit(EditType.SOFT_DELETE, n, subject)
+        now = utcnow()
+        edit = self._make_edit(
+            EditType.SOFT_DELETE,
+            n,
+            {**_get_update_metadata(subject, now), "deleted_at": now},
+        )
         self._add_pending_edit(edit, n)
 
     def restore(self, n: Node, subject: EditSubject | None):
-        edit = self._make_edit(EditType.RESTORE, n, subject)
+        edit = self._make_edit(
+            EditType.RESTORE, n, {**_get_update_metadata(subject), "deleted_at": None}
+        )
         self._add_pending_edit(edit, n)
 
     def archive(self, n: Node, subject: EditSubject | None):
-        edit = self._make_edit(EditType.ARCHIVE, n, subject)
+        now = utcnow()
+        edit = self._make_edit(
+            EditType.ARCHIVE, n, {**_get_update_metadata(subject, now), "archived_at": now}
+        )
         self._add_pending_edit(edit, n)
 
     def unarchive(self, n: Node, subject: EditSubject | None):
-        edit = self._make_edit(EditType.UNARCHIVE, n, subject)
+        edit = self._make_edit(
+            EditType.UNARCHIVE, n, {**_get_update_metadata(subject), "archived_at": None}
+        )
         self._add_pending_edit(edit, n)
 
     def delete(self, n: Node, subject: EditSubject | None):
-        edit = self._make_edit(EditType.DELETE, n, subject)
+        now = utcnow()
+        edit = self._make_edit(
+            EditType.DELETE, n, {**_get_update_metadata(subject, now), "deleted_at": now}
+        )
         self._add_pending_edit(edit, n)
 
     #
     # Transaction management
     #
-
-    @staticmethod
-    def canonicalize_edits(now: datetime, edits: Collection[EditData]):
-        """
-        'Canonicalizes' the edits in place by imputing the tracking info (e.g. 'updated_at', 'updated_by').
-        We do this in the untrusted runtimes as well as in the system, but only the system counts,
-         because the tracking properties are not directly updatable (being system properties).
-        nocheckin :Architecture :Cleanup: edit canonicalization is necessary? but confusing :EditCanonicalization
-        """
-        from bench.proto import wiring
-
-        for edit in edits:
-            node = wiring.unwrap_some_node(edit.node)
-            if edit.type in (EditType.CREATE, EditType.UPSERT):
-                node.created_at = now
-                node.created_by_ptr = edit.subject
-                node.updated_at = now
-                node.updated_by_ptr = edit.subject
-            elif edit.type in (EditType.MOVE, EditType.UPDATE):
-                node.updated_at = now
-                node.updated_by_ptr = edit.subject
-            elif edit.type == EditType.ARCHIVE:
-                node.archived_at = now
-            elif edit.type == EditType.UNARCHIVE:
-                node.archived_at = None
-            elif edit.type == EditType.SOFT_DELETE:
-                node.deleted_at = now
-            elif edit.type == EditType.RESTORE:
-                node.deleted_at = None
-            elif edit.type == EditType.DELETE:
-                node.deleted_at = now  # technically unnecessary but convenient
-            else:
-                raise ValueError(f"unexpected edit type: {edit.type.name}")
 
     async def open(self):
         pass
@@ -265,16 +303,13 @@ class Transaction:
         assert self.session is not None, f"no session for {self!r}"
         start = asyncio.get_running_loop().time()
         log = logger.bind(edits=len(self.edits), transaction=self)
-        now = utcnow()
 
-        # TODO :Robustness!: use :2PC in Transaction.commit
-        #  (if there are more than 2 engines to commit to)
+        # TODO :Robustness!: use :2PC in Transaction.commit (if there are more than 2 engines)
         for engine in self.session._engines:
             # prepare edits & connection
             pending_edits = self._pending_edits_by_engine_id.get(engine.id, [])
             if not (pending_edits or (commit and engine.id in self._used_engine_ids)):
                 continue  # nothing to do
-            Transaction.canonicalize_edits(now, pending_edits)
             connection = await self._get_engine_connection(engine)
 
             # flush/commit

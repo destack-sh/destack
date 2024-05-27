@@ -487,6 +487,12 @@ class NodeDict:
     def __init__(self, nodes_by_id: dict[UUID, "Node"]):
         self._nodes_by_id = nodes_by_id
 
+    def __str__(self):
+        return f"{len(self._nodes_by_id)} nodes"
+
+    def __repr__(self):
+        return f"<{self.__class__.__name__} {self}>"
+
     @property
     def nodes(self):
         return self._nodes_by_id.values()

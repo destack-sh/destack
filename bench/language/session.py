@@ -10,6 +10,7 @@ from bench.language.connection import StoreEngine
 from bench.language.const import (
     InterpStatus,
     NodeType,
+    PrimitiveType,
     SessionStatus,
     StructType,
     _active_session,
@@ -53,9 +54,10 @@ if TYPE_CHECKING:
 
 logger = structlog.get_logger(__name__)
 ExtendCommitHook = Callable[
-    ["Session", NodeGraphLike, list[EditData], list[EditData]], Awaitable[list[EditData]]
+    ["Session", NodeGraphLike, list[EditData], int, list[EditData]],
+    Awaitable[tuple[list[EditData], int]],
 ]
-OnCommitHook = Callable[[NodeGraphLike, list[EditData], list[EditData]], Awaitable[None]]
+OnCommitHook = Callable[[NodeGraphLike, list[EditData], int, list[EditData]], Awaitable[None]]
 
 
 @node(
@@ -96,21 +98,28 @@ class Session(Node[SessionData]):
     )
     user: Optional["User"] = p_internal(64, require=False, array=False, references=NodeType.USER)
 
-    # transaction
+    # flags
     _is_readonly: bool = p_runtime(default=False)
     _is_suspended: bool = p_runtime(default=False)
     _is_suppressed: bool = p_runtime(default=False)
+
+    # transaction
     _origin: ClientOrigin | None = p_runtime(default=None)
+    _engines: tuple["StoreEngine", ...] = p_runtime(default_factory=tuple)
     _tx: Transaction | None = p_runtime(default=None)
     _tx_lock: asyncio.Lock = p_runtime(default_factory=lambda: CriticalLock(name="session"))
     _edited_nodes_by_id: dict[UUID, Node] = p_runtime(default_factory=dict)
-    _engines: tuple["StoreEngine", ...] = p_runtime(default_factory=tuple)
-    _active_session_token: contextvars.Token | None = p_runtime(default=None)
-    _extend_commit_hook: Optional[ExtendCommitHook] = p_runtime(default=None)
-    _on_commit_hook: Optional[OnCommitHook] = p_runtime(default=None)
+
+    # runtime
     _default_scope: GraphScope = p_runtime(default_factory=GraphScope)
+    _active_session_token: contextvars.Token | None = p_runtime(default=None)
     _supervisor: Optional["SupervisorStub"] = p_runtime(default=None)
     _host: Optional["HostStub"] = p_runtime(default=None)
+
+    # system
+    _extend_commit_hook: Optional[ExtendCommitHook] = p_runtime(default=None)
+    _on_commit_hook: Optional[OnCommitHook] = p_runtime(default=None)
+    _epoch: int | None = p_runtime(default=None)
 
     def __content_str__(self):
         status_strs = []
@@ -239,7 +248,7 @@ class Session(Node[SessionData]):
             return self._tx.edits, self._tx.cascaded_edits
 
     async def commit(
-        self, *, skip_lock: bool = False, suppress_hooks: bool = False
+        self, *, _skip_lock: bool = False, _suppress_hooks: bool = False
     ) -> tuple[list[EditData], list[EditData]]:
         """Commits all edits. Returns *all* committed edits / cascaded edits, and resets."""
         assert self.is_open, f"cannot commit {self!r} when closed"
@@ -250,28 +259,36 @@ class Session(Node[SessionData]):
 
         # TODO :Robustness :Broken: rollback edits to in-memory Nodes on session commit error
         try:
-            if not skip_lock:
+            if not _skip_lock:
                 await self._tx_lock.acquire()
-            if suppress_hooks:
+            if _suppress_hooks:
                 # simple commit
                 edits, cascaded_edits = await self._tx.commit()
                 return edits, cascaded_edits
             else:
-                # wrapped commit (used in Host)
+                # direct commit (used in Host for system commits)
+                # this essentially imitates GraphServices.commit_transaction
                 edit_graph = NodeDict(self._edited_nodes_by_id)
+                epoch = self._epoch
                 if self._extend_commit_hook is not None:
+                    assert epoch is not None, f"epoch not set in {self!r}"
+                    # assign epoch
+                    for edit in self._tx.edits:
+                        epoch += 1
+                        edit.epoch = epoch
                     # flush edits to get cascaded edits
                     edits, cascaded_edits = await self._tx.flush()
-                    new_edits = await self._extend_commit_hook(
-                        self, edit_graph, edits, cascaded_edits
+                    new_edits, epoch = await self._extend_commit_hook(
+                        self, edit_graph, edits, epoch, cascaded_edits
                     )
                     self._tx._add_pending_edits(new_edits)
                 edits, cascaded_edits = await self._tx.commit()
                 if self._on_commit_hook is not None:
-                    await self._on_commit_hook(edit_graph, edits, cascaded_edits)
+                    assert epoch is not None, f"epoch not set in {self!r}"
+                    await self._on_commit_hook(edit_graph, edits, epoch, cascaded_edits)
                 return edits, cascaded_edits
         finally:
-            if not skip_lock:
+            if not _skip_lock:
                 self._tx_lock.release()
 
     async def rollback(self):
@@ -487,19 +504,22 @@ class Context(Struct):
     user: Optional["User"] = p_internal(42, require=False, array=False, references=NodeType.USER)
 
     # session
-    session: Optional["Session"] = p_internal(
-        50, require=False, array=False, references=NodeType.SESSION
+    epoch: Optional[datetime] = p_internal(
+        50, require=False, array=False, primitive_type=PrimitiveType.INT64
     )
-    run: Optional["Run"] = p_internal(51, require=False, array=False, references=NodeType.RUN)
-    run_root: Optional["Run"] = p_internal(52, require=False, array=False, references=NodeType.RUN)
+    session: Optional["Session"] = p_internal(
+        51, require=False, array=False, references=NodeType.SESSION
+    )
+    run: Optional["Run"] = p_internal(52, require=False, array=False, references=NodeType.RUN)
+    run_root: Optional["Run"] = p_internal(53, require=False, array=False, references=NodeType.RUN)
     trigger: Optional["Trigger"] = p_internal(
-        53, require=False, array=False, references=NodeType.TRIGGER
+        54, require=False, array=False, references=NodeType.TRIGGER
     )
     signal: Optional["Signal"] = p_internal(
-        54, require=False, array=False, references=NodeType.SIGNAL
+        55, require=False, array=False, references=NodeType.SIGNAL
     )
 
     # custom
-    # value_packed: Any = p_value_packed(50)
-    # secret_value_packed: Any = p_secret_value_packed(51)
-    # value: Any = p_value_runtime(50, 51)
+    # value_packed: Any = p_value_packed(60)
+    # secret_value_packed: Any = p_secret_value_packed(61)
+    # value: Any = p_value_runtime(60, 61)

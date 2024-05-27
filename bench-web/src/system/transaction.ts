@@ -282,38 +282,6 @@ export class TransactionBuilder implements Transaction {
   }
 }
 
-/** 'Canonicalizes' edits by imputing tracking info (just like in host). See :EditCanonicalization. */
-export function canonicalizeEdits(now: Timestamp, edits: EditData[]) {
-  // TODO :Broken: canonicalize only createdByPtr/updatedByPtr :EditCanonicalization
-  //  (currently all nodes in a single transaction will receive the same timestamps,
-  //   which is annoying when relying on timestamps for order like in Messages)
-  // nocheckin :Broken!: cascade down timestamps for deleted_at/archived_at in frontend/backend
-  //  need to ensure that GraphDiff includes all nodes (incl. descendants, incl. when hard deleting)
-  //  ....but how do timestamps work with branching? (like when I restore a node in a branch)
-  for (const edit of edits) {
-    const node = unwrapSomeNode(edit.node!);
-    if (edit.type == EditType.CREATE || edit.type == EditType.UPSERT) {
-      node.createdAt = now;
-      node.createdByPtr = edit.subject;
-      node.updatedAt = now;
-      node.updatedByPtr = edit.subject;
-    } else if (edit.type == EditType.MOVE || edit.type == EditType.UPDATE) {
-      node.updatedAt = now;
-      node.updatedByPtr = edit.subject;
-    } else if (edit.type == EditType.ARCHIVE) {
-      node.archivedAt = now;
-    } else if (edit.type == EditType.UNARCHIVE) {
-      node.archivedAt = undefined;
-    } else if (edit.type == EditType.SOFT_DELETE) {
-      node.deletedAt = now;
-    } else if (edit.type == EditType.RESTORE) {
-      node.deletedAt = undefined;
-    } else if (edit.type == EditType.DELETE) {
-      node.deletedAt = now; // just pretend it's deleted
-    }
-  }
-}
-
 /**
  * Applies the edits to the graph (in place!).
  * If a 'base' graph is provided, the given graph is edited as an overlay.
@@ -442,7 +410,6 @@ export class ImmediateTransactionBuffer implements TransactionBuffer {
     newTx.onEdit((edit) => {
       if (this.currentTx !== newTx) throw new Error("transaction is closed");
       // apply edit directly
-      canonicalizeEdits(Timestamp.now(), [edit]);
       editGraph(this.graph, [edit]);
       // notify
       this.acceptedSubs.forEach((sub) => sub([edit]));
@@ -599,7 +566,6 @@ export class RemoteTransactionBuffer implements TransactionBuffer {
     tx.onEdit((edit) => {
       if (this.currentTx !== tx) throw new Error(`transaction ${tx.describeSelf()} is closed`);
       this.pendingEditsById[edit.id] = edit;
-      canonicalizeEdits(Timestamp.now(), [edit]);
       // directly update overlays since this edit is 'last' now (by definition)
       this.pendingSubs.forEach((sub) => sub({ type: "add", edits: [edit] }));
     });

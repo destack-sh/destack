@@ -410,16 +410,16 @@ class PostgresConnection(
 
     @override
     async def flush(self, edits: list[EditData] | tuple[EditData, ...]) -> FlushResult:
-        from bench.sql.engine import pg_write_edits
+        from bench.sql.engine import pg_edit
 
-        new_revisions, cascaded_edits = await pg_write_edits(self.cur, edits)
+        new_revisions, cascaded_edits = await pg_edit(self.cur, edits)
         return FlushResult(revisions=new_revisions, cascaded_edits=cascaded_edits)
 
     @override
     async def commit(self, edits: list[EditData] | tuple[EditData, ...]) -> FlushResult:
-        from bench.sql.engine import pg_write_edits
+        from bench.sql.engine import pg_edit
 
-        new_revisions, cascaded_edits = await pg_write_edits(self.cur, edits)
+        new_revisions, cascaded_edits = await pg_edit(self.cur, edits)
         await self.cur.connection.commit()
         return FlushResult(revisions=new_revisions, cascaded_edits=cascaded_edits)
 

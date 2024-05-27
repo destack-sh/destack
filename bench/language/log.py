@@ -33,14 +33,6 @@ if TYPE_CHECKING:
 
 logger = structlog.get_logger(__name__)
 
-# we don't want edits to core runtime types to trigger logs/signals (circular, and very noisy)
-MUTED_NODE_TYPES: tuple[NodeType, ...] = (
-    NodeType.SESSION,
-    NodeType.RUN,
-    NodeType.SIGNAL,
-    NodeType.LOG,
-)
-
 
 @enum_(EnumType.LOG_KIND)
 class LogKind(IdEnum):
@@ -77,7 +69,7 @@ class LogLevel(IdEnum):
 )
 class Log(Node, HasSessionContext, HasValues):
     """
-    A Log of something happening on a Bench.
+    A Log of something happening in a Bench.
     """
 
     parent: "Package" = p_node_parent(4, NodeType.PACKAGE)
@@ -105,7 +97,7 @@ class Log(Node, HasSessionContext, HasValues):
     value: Any = p_value_runtime(52, 53)
 
     # context
-    # ...InSessionNode[60-69]
+    # ...HasSessionContext[60-69]
 
     def __content_str__(self):
         return f"[{self.kind.bench_name}:{self.level.bench_name}] '{self.title or self.text or '<empty>'}' ({self.created_at})"

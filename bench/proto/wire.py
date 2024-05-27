@@ -3,7 +3,7 @@
 
 from typing import TYPE_CHECKING, Union
 
-VERSION = "2024.05.27.1"
+VERSION = "2024.05.27.2"
 
 if TYPE_CHECKING:
     from bench.language import Subject
@@ -2339,7 +2339,7 @@ class LinkData(betterproto.Message):
 
 @dataclass(eq=False, repr=False)
 class LogData(betterproto.Message):
-    """A Log of something happening on a Bench."""
+    """A Log of something happening in a Bench."""
 
     metatype: "ObjectType" = betterproto.enum_field(1)
     id: str = betterproto.string_field(2)
@@ -2865,10 +2865,7 @@ class SessionData(betterproto.Message):
 
 @dataclass(eq=False, repr=False)
 class SignalData(betterproto.Message):
-    """
-    A Signal emitted in this Bench.
-     Signals can be emitted by users or Bench source, and are usually handled in Triggers.
-    """
+    """A Signal emitted in this Bench, usually received in Triggers."""
 
     metatype: "ObjectType" = betterproto.enum_field(1)
     id: str = betterproto.string_field(2)
@@ -3260,12 +3257,13 @@ class EditData(betterproto.Message):
     node_type: "NodeType" = betterproto.enum_field(33)
     node: "SomeNodeData" = betterproto.message_field(35)
     properties: List[int] = betterproto.uint32_field(36)
-    subject: Optional["NodeReferenceData"] = betterproto.message_field(40, optional=True)
-    seen_epoch: Optional[int] = betterproto.uint64_field(41, optional=True)
-    revision: Optional[int] = betterproto.int64_field(42, optional=True)
+    seen_epoch: Optional[int] = betterproto.uint64_field(40, optional=True)
+    """The last epoch seen by the client."""
+
+    revision: Optional[int] = betterproto.int64_field(50, optional=True)
     """System-accepted revision for the edit."""
 
-    epoch: Optional[int] = betterproto.int64_field(43, optional=True)
+    epoch: Optional[int] = betterproto.int64_field(51, optional=True)
     """System-accepted epoch for the edit."""
 
 

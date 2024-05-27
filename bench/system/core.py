@@ -202,7 +202,9 @@ def unpack_commit(
             if node_id in graph:
                 node = graph.get(node_id)
                 break
-        assert node is not None, f"missing node {node!r} in {graphs!r} for {edit!r}"
+        assert (
+            node is not None
+        ), f"missing node {NodeType(edit.node_type).bench_name}:{node_id!r} in {graphs!r} for {edit!r}"
         # map
         _add_edit(edit, node)
 
