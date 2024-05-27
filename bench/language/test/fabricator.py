@@ -2,7 +2,7 @@ import enum
 import random
 import string
 import uuid
-from datetime import datetime
+from datetime import datetime, timedelta
 from typing import Any, Callable, Type, TypeVar, cast
 
 from bench.language import NodeReference, Property
@@ -29,7 +29,7 @@ class Fabricator:
     def __init__(self, seed: int = 42):
         random_random = random.Random(seed)
         self.random = random_random
-        self.DEFAULT_GENERATORS: dict[type, Callable] = {
+        self.generators: dict[type, Callable] = {
             bool: lambda: self.random.choice([True, False]),
             str: lambda: "".join(self.random.choices(string.ascii_letters, k=10)),
             int: lambda: self.random.randint(0, 1000),
@@ -37,6 +37,7 @@ class Fabricator:
             bytes: lambda: self.random.randbytes(24),
             uuid.UUID: lambda: uuid.uuid4(),
             datetime: lambda: utcnow(),
+            timedelta: lambda: timedelta(seconds=self.random.randint(0, 1000)),
         }
 
     def fabricate_prop_scalar(self, prop: Property, path: tuple[ObjectType, ...] = ()) -> Any:
@@ -50,14 +51,14 @@ class Fabricator:
             return self.fabricate(BENCH_CLASS_BY_TYPE[StructType.NODE_REFERENCE], path)
         elif prop.primitive_type == PrimitiveType.JSON:
             return {
-                self.DEFAULT_GENERATORS[str](): self.DEFAULT_GENERATORS[str](),
-                self.DEFAULT_GENERATORS[str](): self.DEFAULT_GENERATORS[int](),
-                self.DEFAULT_GENERATORS[str](): None,
+                self.generators[str](): self.generators[str](),
+                self.generators[str](): self.generators[int](),
+                self.generators[str](): None,
             }
         elif prop.name == "order_key":
             return INTEGER_ZERO
-        elif prop.py_type_stripped in self.DEFAULT_GENERATORS:
-            return self.DEFAULT_GENERATORS[prop.py_type_stripped]()
+        elif prop.py_type_stripped in self.generators:
+            return self.generators[prop.py_type_stripped]()
         elif prop.primitive_type == PrimitiveType.JSON:
             return {}  # not correct, not sure what to do
         else:

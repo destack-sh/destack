@@ -202,9 +202,11 @@ def unpack_commit(
             if node_id in graph:
                 node = graph.get(node_id)
                 break
-        assert (
-            node is not None
-        ), f"missing node {NodeType(edit.node_type).bench_name}:{node_id!r} in {graphs!r} for {edit!r}"
+        if node is None:
+            # except for access logs which are just created for each edit
+            if edit.node_type == NodeType.LOG and node_data.created_by_ptr is None:
+                continue
+            raise RuntimeError(f"missing node {node_id!r} in {graphs!r} for {edit!r}")
         # map
         _add_edit(edit, node)
 

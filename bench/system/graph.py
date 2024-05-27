@@ -19,7 +19,13 @@ from bench.language.access import (
     generate_access_matrix,
 )
 from bench.language.connection import FetchOptions, StoreEngine
-from bench.language.const import BASED_NODE_TYPES, ConditionalOp, EditType, NodeType, PolicyEffect
+from bench.language.const import (
+    BASED_NODE_TYPES,
+    ConditionalOp,
+    EditType,
+    NodeType,
+    PolicyEffect,
+)
 from bench.language.graph import NodeDataGraph, NodeGraphLike, edit_data_graph
 from bench.language.node import BasedNode, Node
 from bench.language.property import Property
@@ -136,7 +142,9 @@ class GraphIoServiceBase(BenchServiceBase, GraphIoBase):
         """Validate a request message for this service."""
         scope: GraphScope = getattr(request, "scope", GraphScope())
         if to_uuid(scope.bench_id) != self.bench_id:
-            raise GRPCError(GRPCStatus.INVALID_ARGUMENT, "service scope mismatch")
+            raise GRPCError(
+                GRPCStatus.INVALID_ARGUMENT, f"scope mismatch: {scope.bench_id} != {self.bench_id}"
+            )
 
     def request_session(
         self,
@@ -152,6 +160,7 @@ class GraphIoServiceBase(BenchServiceBase, GraphIoBase):
             _engines=engines if engines is not None else self.get_engines(),
             _extend_commit_hook=self.extend_commit,
             _on_commit_hook=self.on_commit,
+            _epoch=self.epoch,
         )
 
     @override
@@ -289,20 +298,47 @@ class GraphIoServiceBase(BenchServiceBase, GraphIoBase):
         # check/prepare edits
         assert subject.client, f"{subject!r} has no client"
         edit_scopes = parse_edit_scopes(request.edits)
+        user_id = str(subject.user.id) if subject.user else None
         epoch = self.epoch
         for edit in request.edits:
             node_data = wiring.unwrap_some_node(edit.node)
-            # check subject consistency
-            if edit.type in (EditType.CREATE, EditType.UPSERT) and (
-                not node_data.created_by_ptr or node_data.created_by_ptr.id != subject.client.id
-            ):
-                raise GRPCError(GRPCStatus.PERMISSION_DENIED, "created_by mismatch")
-            if not node_data.updated_by_ptr or node_data.updated_by_ptr.id != subject.client.id:
-                raise GRPCError(GRPCStatus.PERMISSION_DENIED, f"updated_by mismatch in {edit!r}")
+            if subject.client.parent_type == NodeType.USER:
+                # subject must match user
+                if edit.type in (EditType.CREATE, EditType.UPSERT) and (
+                    not node_data.created_by_ptr or node_data.created_by_ptr.id != user_id
+                ):
+                    raise GRPCError(
+                        GRPCStatus.PERMISSION_DENIED,
+                        f"created_by mismatch in {edit!r}: {node_data.created_by_ptr} != {user_id}",
+                    )
+                if not node_data.updated_by_ptr or node_data.updated_by_ptr.id != user_id:
+                    raise GRPCError(
+                        GRPCStatus.PERMISSION_DENIED,
+                        f"updated_by mismatch in {edit!r}: {node_data.updated_by_ptr} != {user_id}",
+                    )
+            else:
+                # subject must be run (any run for now)
+                if edit.type in (EditType.CREATE, EditType.UPSERT) and (
+                    not node_data.created_by_ptr or node_data.created_by_ptr.type != NodeType.RUN
+                ):
+                    raise GRPCError(
+                        GRPCStatus.PERMISSION_DENIED,
+                        f"created_by mismatch in {edit!r}: {node_data.created_by_ptr} not a Run",
+                    )
+                if not node_data.updated_by_ptr or node_data.updated_by_ptr.type != NodeType.RUN:
+                    raise GRPCError(
+                        GRPCStatus.PERMISSION_DENIED,
+                        f"updated_by mismatch in {edit!r}: {node_data.updated_by_ptr} not a Run",
+                    )
             if not edit.origin or UUID(edit.origin.id) != subject.client.id:
-                raise GRPCError(GRPCStatus.PERMISSION_DENIED, f"origin mismatch in {edit!r}")
+                raise GRPCError(
+                    GRPCStatus.PERMISSION_DENIED,
+                    f"origin mismatch in {edit!r}: {edit.origin!r} != {subject.client!r}",
+                )
             if edit.type != EditType.MOVE and cast(Property, Node.parent_ptr).id in edit.properties:
-                raise GRPCError(GRPCStatus.INVALID_ARGUMENT, f"cannot edit parent_ptr in {edit!r}")
+                raise GRPCError(
+                    GRPCStatus.INVALID_ARGUMENT, f"cannot set parent_ptr in non-move {edit!r}"
+                )
             # assign epoch
             epoch += 1
             edit.epoch = epoch
@@ -310,7 +346,7 @@ class GraphIoServiceBase(BenchServiceBase, GraphIoBase):
                 node_data.created_epoch = epoch
             node_data.updated_epoch = epoch
 
-        # process transaction
+        # process edits
         start = monotime()
         async with self._tx_lock:
             async with self.request_session(readonly=False) as session:

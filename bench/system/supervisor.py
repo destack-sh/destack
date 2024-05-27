@@ -41,6 +41,8 @@ from bench.system.access import (
 )
 from bench.system.core import GLOBAL_POSTGRES_ENGINE
 from bench.system.graph import GraphIoServiceBase
+from bench.system.provisioner import provision
+from bench.system.test.test_host import MockHost
 from bench.utils.dt import utcnow
 from bench.utils.func import to_uuid
 
@@ -335,5 +337,8 @@ async def create_default_bench(
     branch.main_package = package
     bench.main_environment = environment
     bench.main_branch = branch
+
+    # immediately provision main store (must be ready for Host)
+    await provision(MockHost(session), bench, (store,))
 
     return bench

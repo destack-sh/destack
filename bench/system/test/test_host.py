@@ -114,6 +114,7 @@ class BenchHandle:
             _supervisor=self._supervisor,
             _host=self._host,
             _origin=self.owner_handle.origin,
+            _subject=self.owner_handle.user,
         )
 
 
@@ -232,6 +233,7 @@ async def test_activate_user(some_bench: BenchHandle):
 
 
 async def test_create_run(some_bench: BenchHandle):
+    # TODO :Test :Incomplete: test runs
     async with some_bench.session() as session:
         run = Run(
             parent=some_bench.package,

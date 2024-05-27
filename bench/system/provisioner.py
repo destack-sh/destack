@@ -1,5 +1,5 @@
 import abc
-from typing import TYPE_CHECKING, ClassVar, cast, final, override
+from typing import TYPE_CHECKING, ClassVar, Collection, cast, final, override
 
 import structlog
 
@@ -316,6 +316,7 @@ class S3DriveProvisioner(Provisioner[Drive, Drive]):
 
 
 def get_provisioners_for(host: HostSpec, bench: Bench) -> list[Provisioner]:
+    """Gets all available provisioners for that Bench in *this* environment"""
     from bench.system.neon import neon_api
 
     if ENVIRONMENT == "dev" or ENVIRONMENT == "test":
@@ -333,3 +334,15 @@ def get_provisioners_for(host: HostSpec, bench: Bench) -> list[Provisioner]:
         ]
     else:
         raise RuntimeError(f"unexpected environment: {ENVIRONMENT!r}")
+
+
+async def provision(host: HostSpec, bench: Bench, resources: Collection[Resource]) -> None:
+    """Provisions the given resources in *this* environment"""
+    provisioners = get_provisioners_for(host, bench)
+    for resource in resources:
+        for provisioner in provisioners:
+            if resource.metatype in provisioner.provision_types:
+                await provisioner.provision(resource)
+                break
+        else:
+            raise RuntimeError(f"no provisioner for {resource!r} in {provisioners!r}")

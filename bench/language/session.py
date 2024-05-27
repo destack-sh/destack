@@ -19,7 +19,7 @@ from bench.language.const import (
 from bench.language.graph import NodeDict, NodeGraphLike
 from bench.language.node import Node, Struct, node, struct, struct_component
 from bench.language.property import Property, p_internal, p_node_parent, p_runtime, p_system
-from bench.language.transaction import Transaction
+from bench.language.transaction import EditSubject, Transaction
 from bench.proto.wire import (
     ClientOrigin,
     EditData,
@@ -105,6 +105,7 @@ class Session(Node[SessionData]):
 
     # transaction
     _origin: ClientOrigin | None = p_runtime(default=None)
+    _subject: EditSubject | None = p_runtime(default=None)
     _engines: tuple["StoreEngine", ...] = p_runtime(default_factory=tuple)
     _tx: Transaction | None = p_runtime(default=None)
     _tx_lock: asyncio.Lock = p_runtime(default_factory=lambda: CriticalLock(name="session"))
@@ -335,12 +336,11 @@ class Session(Node[SessionData]):
     # Transaction
     #
 
-    @property
-    def _edit_subject(self) -> Optional["Run"]:
-        # Everything that comes this way in a Session is either system (subject=None) or in a Run.
-        #  (Users add pending edits to Transactions directly with themselves as a subject)
-        # All edits in a Run are attributed to the root for clarity.
-        return get_active_run()
+    def _get_edit_subject(self) -> Optional[EditSubject]:
+        if self._subject is not None:
+            return self._subject
+        else:
+            return get_active_run()
 
     def create(self, *nodes: Node):
         """Creates a new node. Errors if the node already exists."""
@@ -349,7 +349,7 @@ class Session(Node[SessionData]):
             assert not self._is_readonly and not self._is_suspended, f"cannot edit in {self!r}"
             for n in nodes:
                 self._edited_nodes_by_id[n.id] = n
-                self._tx.create(n, self._edit_subject)
+                self._tx.create(n, self._get_edit_subject())
 
     def upsert(self, *nodes: Node):
         """Creates or updates a node. Any non-id properties will be overwritten."""
@@ -358,7 +358,7 @@ class Session(Node[SessionData]):
             assert not self._is_readonly and not self._is_suspended, f"cannot edit in {self!r}"
             for n in nodes:
                 self._edited_nodes_by_id[n.id] = n
-                self._tx.upsert(n, self._edit_subject)
+                self._tx.upsert(n, self._get_edit_subject())
 
     def update(self, *nodes: Node, properties: Collection[Property]):
         """Updates an existing node. Cannot move. The given properties are overwritten."""
@@ -367,7 +367,7 @@ class Session(Node[SessionData]):
             assert not self._is_readonly and not self._is_suspended, f"cannot edit in {self!r}"
             for n in nodes:
                 self._edited_nodes_by_id[n.id] = n
-                self._tx.update(n, self._edit_subject, properties)
+                self._tx.update(n, self._get_edit_subject(), properties)
 
     def move(self, *nodes: Node):
         """Moves and updates an existing node."""
@@ -376,7 +376,7 @@ class Session(Node[SessionData]):
             assert not self._is_readonly and not self._is_suspended, f"cannot edit in {self!r}"
             for n in nodes:
                 self._edited_nodes_by_id[n.id] = n
-                self._tx.move(n, self._edit_subject)
+                self._tx.move(n, self._get_edit_subject())
 
     def soft_delete(self, *nodes: Node):
         """Deletes a node with the option to recover it for a limited time."""
@@ -388,7 +388,7 @@ class Session(Node[SessionData]):
                 # descendants will be removed from graph, so track them manually
                 for descendant in n._graph.iter_descendants(n, recursive=True):
                     self._edited_nodes_by_id[descendant.id] = descendant
-                self._tx.soft_delete(n, self._edit_subject)
+                self._tx.soft_delete(n, self._get_edit_subject())
 
     def restore(self, *nodes: Node):
         """Restore a soft deleted node."""
@@ -397,7 +397,7 @@ class Session(Node[SessionData]):
             assert not self._is_readonly and not self._is_suspended, f"cannot edit in {self!r}"
             for n in nodes:
                 self._edited_nodes_by_id[n.id] = n
-                self._tx.restore(n, self._edit_subject)
+                self._tx.restore(n, self._get_edit_subject())
 
     def archive(self, *nodes: Node):
         """Marks a node as archived, so it will be hidden by default."""
@@ -409,7 +409,7 @@ class Session(Node[SessionData]):
                 # descendants will be removed from graph, so track them manually
                 for descendant in n._graph.iter_descendants(n, recursive=True):
                     self._edited_nodes_by_id[descendant.id] = descendant
-                self._tx.archive(n, self._edit_subject)
+                self._tx.archive(n, self._get_edit_subject())
 
     def unarchive(self, *nodes: Node):
         """Re-track a node from the archive in its original place."""
@@ -418,7 +418,7 @@ class Session(Node[SessionData]):
             assert not self._is_readonly and not self._is_suspended, f"cannot edit in {self!r}"
             for n in nodes:
                 self._edited_nodes_by_id[n.id] = n
-                self._tx.unarchive(n, self._edit_subject)
+                self._tx.unarchive(n, self._get_edit_subject())
 
     def hard_delete(self, *nodes: Node):
         """Irreversibly deletes a node."""
@@ -430,7 +430,7 @@ class Session(Node[SessionData]):
                 # descendants will be removed from graph, so track them manually
                 for descendant in n._graph.iter_descendants(n, recursive=True):
                     self._edited_nodes_by_id[descendant.id] = descendant
-                self._tx.delete(n, self._edit_subject)
+                self._tx.delete(n, self._get_edit_subject())
 
 
 @struct_component()
@@ -504,7 +504,7 @@ class Context(Struct):
     user: Optional["User"] = p_internal(42, require=False, array=False, references=NodeType.USER)
 
     # session
-    epoch: Optional[datetime] = p_internal(
+    epoch: Optional[int] = p_internal(
         50, require=False, array=False, primitive_type=PrimitiveType.INT64
     )
     session: Optional["Session"] = p_internal(

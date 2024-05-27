@@ -1303,11 +1303,12 @@ message ContextData {
   optional NodeReferenceData client_ptr = 40;
   optional NodeReferenceData server_ptr = 41;
   optional NodeReferenceData user_ptr = 42;
-  optional NodeReferenceData session_ptr = 50;
-  optional NodeReferenceData run_ptr = 51;
-  optional NodeReferenceData run_root_ptr = 52;
-  optional NodeReferenceData trigger_ptr = 53;
-  optional NodeReferenceData signal_ptr = 54;
+  optional int64 epoch = 50;
+  optional NodeReferenceData session_ptr = 51;
+  optional NodeReferenceData run_ptr = 52;
+  optional NodeReferenceData run_root_ptr = 53;
+  optional NodeReferenceData trigger_ptr = 54;
+  optional NodeReferenceData signal_ptr = 55;
 }
 
 // An expression (conditional, aggregation, sort, etc).
