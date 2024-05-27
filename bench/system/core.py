@@ -3,7 +3,7 @@ import asyncio
 from contextlib import asynccontextmanager
 from dataclasses import dataclass
 from itertools import chain
-from typing import ClassVar, Collection, Generator, Iterable, final, override
+from typing import ClassVar, Collection, Generator, Iterable, cast, final, override
 from uuid import UUID
 
 import bitarray
@@ -111,8 +111,8 @@ async def local_session(scope: GraphScope, engines: tuple[StoreEngine, ...]):
 @dataclass(slots=True)
 class Commit[T: Node]:
     """
-    A simplified diff of edited Nodes from a committed transaction.
-    Here archive/soft-delete => remove.
+    A simplified diff of edited Nodes from a committed transaction for the Host system.
+    In this view, archive/soft-delete => remove (and unarchive/restore => add).
     """
 
     edits: list[EditData]
@@ -121,6 +121,7 @@ class Commit[T: Node]:
     added: list[T]
     updated: list[T]
     removed: list[T]
+    epoch: int
 
     def __str__(self):
         return f"added={self.added!r}, updated={self.updated!r}, removed={self.removed!r}"
@@ -156,6 +157,7 @@ class Commit[T: Node]:
             added=[node for node in self.added if node.metatype in node_types],
             updated=[node for node in self.updated if node.metatype in node_types],
             removed=[node for node in self.removed if node.metatype in node_types],
+            epoch=self.epoch,
         )
 
 
@@ -241,6 +243,7 @@ def unpack_commit(
         added=list(added.values()),
         updated=list(updated.values()),
         removed=list(removed.values()),
+        epoch=cast(int, edits[-1].epoch),
     )
     return commit
 

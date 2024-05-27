@@ -2,7 +2,7 @@ import asyncio
 import dataclasses
 from collections import defaultdict
 from datetime import datetime
-from typing import TYPE_CHECKING, Any, Collection, Optional, Union, cast
+from typing import TYPE_CHECKING, Any, Collection, Literal, Optional, Union, cast
 from uuid import UUID
 
 import structlog
@@ -55,12 +55,12 @@ IMPLICIT_EDIT_PROPERTIES_IDS: dict[EditType, tuple[int, ...]] = {
 
 def _get_create_metadata(subject: EditSubject | None, now: datetime | None = None):
     subject_ptr = subject.to_ref()._to_data() if subject is not None else None
-    return {"created_at": now or utcnow(), "created_by_ptr": subject_ptr}
+    return {"created_at": now or utcnow(), "created_epoch": -1, "created_by_ptr": subject_ptr}
 
 
 def _get_update_metadata(subject: EditSubject | None, now: datetime | None = None):
     subject_ptr = subject.to_ref()._to_data() if subject is not None else None
-    return {"updated_at": now or utcnow(), "updated_by_ptr": subject_ptr}
+    return {"updated_at": now or utcnow(), "updated_epoch": -1, "updated_by_ptr": subject_ptr}
 
 
 @dataclasses.dataclass(slots=True)
@@ -157,7 +157,7 @@ class Transaction:
         self,
         type: EditType,
         n: Node,
-        extra_data: dict[str, Any],
+        metadata: dict[str, Any],
     ) -> EditData:
         """Creates an edit and adds it to the pending edits."""
         assert self.session is not None, f"no session for {self!r}"
@@ -172,10 +172,10 @@ class Transaction:
             properties = list(n._unmask_properties_ids(n._updated_properties))
         else:
             properties = []
-        for key, value in extra_data.items():
+        for key, value in metadata.items():
             prop = n.__properties__.get(key)
-            assert prop is not None, f"missing property {key!r} for {n!r}"
-            setattr(node_data, key, value)
+            if prop is not None:
+                setattr(node_data, key, value)
 
         # make edit
         scope = self._get_scope_for_node(n)
@@ -211,7 +211,7 @@ class Transaction:
         edit = self._make_edit(
             type=EditType.CREATE,
             n=n,
-            extra_data={**_get_create_metadata(subject, now), **_get_update_metadata(subject, now)},
+            metadata={**_get_create_metadata(subject, now), **_get_update_metadata(subject, now)},
         )
         self._add_pending_edit(edit, n)
 
@@ -220,13 +220,13 @@ class Transaction:
         edit = self._make_edit(
             type=EditType.UPSERT,
             n=n,
-            extra_data={**_get_create_metadata(subject, now), **_get_update_metadata(subject, now)},
+            metadata={**_get_create_metadata(subject, now), **_get_update_metadata(subject, now)},
         )
         self._add_pending_edit(edit, n)
 
     def _update(
         self,
-        edit_type: EditType,
+        edit_type: Literal[EditType.UPDATE, EditType.MOVE],
         n: Node,
         subject: EditSubject | None,
         properties: Collection[Property],
@@ -255,6 +255,9 @@ class Transaction:
                 value = getattr(n, prop.name)
                 value = wiring.pack_struct_prop(prop, value, ignore_array=False)
                 setattr(node_data, prop.name, value)
+            # coalesce any successive move/update into a move
+            if edit_type == EditType.MOVE and edit.type != EditType.MOVE:
+                edit.type = wiring.pack_enum(EditType, EditType.MOVE)
 
     def update(self, n: Node, subject: EditSubject | None, properties: Collection[Property]):
         self._update(EditType.UPDATE, n, subject, properties)
@@ -267,7 +270,7 @@ class Transaction:
         edit = self._make_edit(
             type=EditType.SOFT_DELETE,
             n=n,
-            extra_data={**_get_update_metadata(subject, now), "deleted_at": now},
+            metadata={**_get_update_metadata(subject, now), "deleted_at": now},
         )
         self._add_pending_edit(edit, n)
 
@@ -275,7 +278,7 @@ class Transaction:
         edit = self._make_edit(
             type=EditType.RESTORE,
             n=n,
-            extra_data={**_get_update_metadata(subject), "deleted_at": None},
+            metadata={**_get_update_metadata(subject), "deleted_at": None},
         )
         self._add_pending_edit(edit, n)
 
@@ -284,7 +287,7 @@ class Transaction:
         edit = self._make_edit(
             type=EditType.ARCHIVE,
             n=n,
-            extra_data={**_get_update_metadata(subject, now), "archived_at": now},
+            metadata={**_get_update_metadata(subject, now), "archived_at": now},
         )
         self._add_pending_edit(edit, n)
 
@@ -292,7 +295,7 @@ class Transaction:
         edit = self._make_edit(
             type=EditType.UNARCHIVE,
             n=n,
-            extra_data={**_get_update_metadata(subject), "archived_at": None},
+            metadata={**_get_update_metadata(subject), "archived_at": None},
         )
         self._add_pending_edit(edit, n)
 
@@ -301,7 +304,7 @@ class Transaction:
         edit = self._make_edit(
             type=EditType.DELETE,
             n=n,
-            extra_data={**_get_update_metadata(subject, now), "deleted_at": now},
+            metadata={**_get_update_metadata(subject, now), "deleted_at": now},
         )
         self._add_pending_edit(edit, n)
 

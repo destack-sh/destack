@@ -5,11 +5,12 @@ repos:
     hooks:
       # lint
       - id: ruff
-        name: ruff (py)
+        name: ruff check (py)
         exclude: ^bench/migrations
         args: [ --fix ]
       # format
       - id: ruff-format
+        name: ruff format (py)
   - repo: local
     hooks: # (on all files)
       - id: pyright
