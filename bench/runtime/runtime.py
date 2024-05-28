@@ -17,7 +17,7 @@ from bench.language.const import (
     RunStatus,
 )
 from bench.language.run import Run
-from bench.language.session import Session
+from bench.language.session import Session, unsuspend_session
 from bench.proto import wiring
 from bench.proto.services import BenchServiceBase
 from bench.proto.wire import (
@@ -132,6 +132,11 @@ class Runtime(RuntimeBase, BenchServiceBase):
         return self._client
 
     @property
+    def server(self) -> Server:
+        assert isinstance(self.client.parent, Server), f"no server for {self!r}"
+        return self.client.parent
+
+    @property
     def main_package(self) -> Package:
         assert self._main_package is not None, f"no main package for {self!r}"
         return self._main_package.node
@@ -154,18 +159,11 @@ class Runtime(RuntimeBase, BenchServiceBase):
     @asynccontextmanager
     async def session(self, *, readonly: bool = False, autocommit: bool = False):
         """Gets exclusive query and edit access to the main session."""
-        async with self._tx_lock:
-            assert self._session is not None, f"session not ready in {self!r}"
-            was_readonly = self._session._is_readonly
-            self._session._is_readonly = readonly
-            self._session.unsuspend()
+        assert self._session is not None, f"no session for {self!r}"
+        async with self._tx_lock, unsuspend_session(
+            self._session, readonly=readonly, autocommit=autocommit
+        ):
             yield self._session
-            if autocommit:
-                await self._session.commit()
-            elif self._session.tx.edits:
-                raise RuntimeError(f"uncommitted edits in {self!r}: {self._session.tx.edits!r}")
-            self._session.suspend()  # suspend by default
-            self._session._is_readonly = was_readonly
 
     async def start(self):
         start = monotime()
@@ -222,6 +220,8 @@ class Runtime(RuntimeBase, BenchServiceBase):
                 assert (
                     self._machine is not None
                 ), f"{main_environment.server!r} has no machine {self._machine_id}"
+            self._session._subject = self._client.parent
+            self._session._origin = self._client.to_origin()
 
             # connect main package
             self._main_package = await self._connector.connect(

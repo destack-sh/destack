@@ -28,7 +28,7 @@ from bench.language.const import (
     PolicyEffect,
 )
 from bench.language.graph import NodeDataGraph, NodeGraphLike, edit_data_graph
-from bench.language.node import BasedNode, Node
+from bench.language.node import EDIT_SUBJECT_TYPES, BasedNode, Node
 from bench.language.query import QueryBuilder
 from bench.language.setup import NODE_CLASS_BY_TYPE
 from bench.language.transaction import ALL_IMPLICIT_PROPERTIES_IDS
@@ -615,18 +615,18 @@ def _validate_edit(edit: EditData, subject: Subject, now: datetime) -> None:
                 f"updated_by mismatch in {edit!r}: {node_data.updated_by_ptr} != {user_id}",
             )
     else:
-        # subject must be run (any run for now)
+        # subject must be a Run/Server
         if edit.type in (EditType.CREATE, EditType.UPSERT) and (
-            not node_data.created_by_ptr or node_data.created_by_ptr.type != NodeType.RUN
+            not node_data.created_by_ptr or node_data.created_by_ptr.type not in EDIT_SUBJECT_TYPES
         ):
             raise GRPCError(
                 GRPCStatus.PERMISSION_DENIED,
-                f"created_by mismatch in {edit!r}: {node_data.created_by_ptr} not a Run",
+                f"bad created_by in {edit!r}: {node_data.created_by_ptr!r}",
             )
-        if not node_data.updated_by_ptr or node_data.updated_by_ptr.type != NodeType.RUN:
+        if not node_data.updated_by_ptr or node_data.updated_by_ptr.type not in EDIT_SUBJECT_TYPES:
             raise GRPCError(
                 GRPCStatus.PERMISSION_DENIED,
-                f"updated_by mismatch in {edit!r}: {node_data.updated_by_ptr} not a Run",
+                f"bad updated_by in {edit!r}: {node_data.updated_by_ptr!r}",
             )
     if not edit.origin or UUID(edit.origin.id) != subject.client.id:
         raise GRPCError(

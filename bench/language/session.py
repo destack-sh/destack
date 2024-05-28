@@ -1,5 +1,6 @@
 import asyncio
 import contextvars
+from contextlib import asynccontextmanager
 from datetime import datetime
 from typing import TYPE_CHECKING, Awaitable, Callable, Collection, Optional
 from uuid import UUID
@@ -8,6 +9,7 @@ import structlog
 
 from bench.language.connection import StoreEngine
 from bench.language.const import (
+    EditType,
     NodeType,
     PrimitiveType,
     SessionStatus,
@@ -16,9 +18,9 @@ from bench.language.const import (
     get_active_run,
 )
 from bench.language.graph import NodeDict, NodeGraphLike
-from bench.language.node import Node, Struct, node, struct, struct_component
+from bench.language.node import EditSubject, Node, Struct, node, struct, struct_component
 from bench.language.property import Property, p_internal, p_node_parent, p_runtime, p_system
-from bench.language.transaction import EditSubject, Transaction
+from bench.language.transaction import Transaction
 from bench.proto.wire import (
     ClientOrigin,
     EditData,
@@ -195,7 +197,7 @@ class Session(Node[SessionData]):
         assert not self.opened_at, f"session already open {self!r}"
         if in_context:
             self._active_session_token = _active_session.set(self)
-        self._tx = Transaction(session=self, origin=self._origin, is_readonly=self._is_readonly)
+        self._tx = Transaction(session=self, is_readonly=self._is_readonly)
         self.opened_at = utcnow()
         logger.trace("session.open", session=self)
 
@@ -253,6 +255,8 @@ class Session(Node[SessionData]):
         self, *, _skip_lock: bool = False, _suppress_hooks: bool = False
     ) -> tuple[list[EditData], list[EditData]]:
         """Commits all edits. Returns *all* committed edits / cascaded edits, and resets."""
+        from bench.proto import wiring
+
         assert self.is_open, f"cannot commit {self!r} when closed"
         assert self._tx is not None, f"no active transaction in {self!r}"
 
@@ -276,8 +280,12 @@ class Session(Node[SessionData]):
                     assert epoch is not None, f"epoch not set in {self!r}"
                     # assign epoch
                     for edit in self._tx.edits:
+                        node_data = wiring.unwrap_some_node(edit.node)
                         epoch += 1
                         edit.epoch = epoch
+                        if edit.type in (EditType.CREATE, EditType.UPSERT):
+                            node_data.created_epoch = epoch
+                        node_data.updated_epoch = epoch
                     # flush edits to get cascaded edits
                     edits, cascaded_edits = await self._tx.flush()
                     new_edits, epoch = await self._extend_commit_hook(
@@ -350,7 +358,7 @@ class Session(Node[SessionData]):
             assert not self._is_readonly and not self._is_suspended, f"cannot edit in {self!r}"
             for n in nodes:
                 self._edited_nodes_by_id[n.id] = n
-                self._tx.create(n, self._get_edit_subject())
+                self._tx.create(n, self._get_edit_subject(), self._origin)
 
     def upsert(self, *nodes: Node):
         """Creates or updates a node. Any non-id properties will be overwritten."""
@@ -359,7 +367,7 @@ class Session(Node[SessionData]):
             assert not self._is_readonly and not self._is_suspended, f"cannot edit in {self!r}"
             for n in nodes:
                 self._edited_nodes_by_id[n.id] = n
-                self._tx.upsert(n, self._get_edit_subject())
+                self._tx.upsert(n, self._get_edit_subject(), self._origin)
 
     def update(self, *nodes: Node, properties: Collection[Property]):
         """Updates an existing node. Cannot move. The given properties are overwritten."""
@@ -368,7 +376,7 @@ class Session(Node[SessionData]):
             assert not self._is_readonly and not self._is_suspended, f"cannot edit in {self!r}"
             for n in nodes:
                 self._edited_nodes_by_id[n.id] = n
-                self._tx.update(n, self._get_edit_subject(), properties)
+                self._tx.update(n, self._get_edit_subject(), self._origin, properties)
 
     def move(self, *nodes: Node):
         """Moves and updates an existing node."""
@@ -377,7 +385,7 @@ class Session(Node[SessionData]):
             assert not self._is_readonly and not self._is_suspended, f"cannot edit in {self!r}"
             for n in nodes:
                 self._edited_nodes_by_id[n.id] = n
-                self._tx.move(n, self._get_edit_subject())
+                self._tx.move(n, self._get_edit_subject(), self._origin)
 
     def soft_delete(self, *nodes: Node):
         """Deletes a node with the option to recover it for a limited time."""
@@ -389,7 +397,7 @@ class Session(Node[SessionData]):
                 # descendants will be removed from graph, so track them manually
                 for descendant in n._graph.iter_descendants(n, recursive=True):
                     self._edited_nodes_by_id[descendant.id] = descendant
-                self._tx.soft_delete(n, self._get_edit_subject())
+                self._tx.soft_delete(n, self._get_edit_subject(), self._origin)
 
     def restore(self, *nodes: Node):
         """Restore a soft deleted node."""
@@ -398,7 +406,7 @@ class Session(Node[SessionData]):
             assert not self._is_readonly and not self._is_suspended, f"cannot edit in {self!r}"
             for n in nodes:
                 self._edited_nodes_by_id[n.id] = n
-                self._tx.restore(n, self._get_edit_subject())
+                self._tx.restore(n, self._get_edit_subject(), self._origin)
 
     def archive(self, *nodes: Node):
         """Marks a node as archived, so it will be hidden by default."""
@@ -410,7 +418,7 @@ class Session(Node[SessionData]):
                 # descendants will be removed from graph, so track them manually
                 for descendant in n._graph.iter_descendants(n, recursive=True):
                     self._edited_nodes_by_id[descendant.id] = descendant
-                self._tx.archive(n, self._get_edit_subject())
+                self._tx.archive(n, self._get_edit_subject(), self._origin)
 
     def unarchive(self, *nodes: Node):
         """Re-track a node from the archive in its original place."""
@@ -419,7 +427,7 @@ class Session(Node[SessionData]):
             assert not self._is_readonly and not self._is_suspended, f"cannot edit in {self!r}"
             for n in nodes:
                 self._edited_nodes_by_id[n.id] = n
-                self._tx.unarchive(n, self._get_edit_subject())
+                self._tx.unarchive(n, self._get_edit_subject(), self._origin)
 
     def hard_delete(self, *nodes: Node):
         """Irreversibly deletes a node."""
@@ -431,7 +439,7 @@ class Session(Node[SessionData]):
                 # descendants will be removed from graph, so track them manually
                 for descendant in n._graph.iter_descendants(n, recursive=True):
                     self._edited_nodes_by_id[descendant.id] = descendant
-                self._tx.delete(n, self._get_edit_subject())
+                self._tx.delete(n, self._get_edit_subject(), self._origin)
 
 
 @struct_component()
@@ -457,7 +465,7 @@ class HasSessionContext(Struct):
         66, require=False, array=False, references=NodeType.MACHINE, is_bench_implicit=True
     )
     server: Optional["Server"] = p_system(
-        67, require=False, array=False, references=NodeType.CLIENT, is_bench_implicit=True
+        67, require=False, array=False, references=NodeType.SERVER, is_bench_implicit=True
     )
     user: Optional["User"] = p_system(68, require=False, array=False, references=NodeType.USER)
 
@@ -524,3 +532,20 @@ class Context(Struct):
     # value_packed: Any = p_value_packed(60)
     # secret_value_packed: Any = p_secret_value_packed(61)
     # value: Any = p_value_runtime(60, 61)
+
+
+@asynccontextmanager
+async def unsuspend_session(session: Session, readonly: bool, autocommit: bool):
+    """Gets exclusive query and edit access to the main session."""
+    was_readonly = session._is_readonly
+    session._is_readonly = readonly
+    session.unsuspend()
+    try:
+        yield session
+        if autocommit:
+            await session.commit()
+        elif session.tx.edits:
+            raise RuntimeError(f"uncommitted edits in {session!r}: {session.tx.edits!r}")
+    finally:
+        session.suspend()  # suspend by default
+        session._is_readonly = was_readonly

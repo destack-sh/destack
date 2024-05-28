@@ -92,6 +92,7 @@ if TYPE_CHECKING:
         PropertyReference,
         ReadOptions,
         Run,
+        Server,
         Session,
         User,
     )
@@ -1325,6 +1326,8 @@ FieldOrProperty = Union[
     Field if TYPE_CHECKING else "Field", Property if TYPE_CHECKING else "Property", Any
 ]
 NodeTypeOrClass = Union[NodeType, type["Node"]]
+EditSubject = Union["User", "Server", "Run"]
+EDIT_SUBJECT_TYPES = (NodeType.USER, NodeType.SERVER, NodeType.RUN)
 
 
 class ReadInfo(NamedTuple):
@@ -1401,22 +1404,22 @@ class Node(Struct[NodeDataT], Generic[NodeDataT]):
     deleted_at: Optional[datetime] = p_system(15, default=None, autoset=True)
     archived_at: Optional[datetime] = p_system(16, default=None, autoset=True)
     # changed_at (for nested), active_at (for runs), ...?
-    created_by: Union["User", "Run", None] = p_system(
+    created_by: EditSubject | None = p_system(
         21,
         default=None,
         require=False,
         array=False,
         autoset=True,
-        references=(NodeType.USER, NodeType.RUN),
+        references=EDIT_SUBJECT_TYPES,
         is_bench_implicit=True,
     )
-    updated_by: Union["User", "Run", None] = p_system(
+    updated_by: EditSubject | None = p_system(
         22,
         default=None,
         require=False,
         array=False,
         autoset=True,
-        references=(NodeType.USER, NodeType.RUN),
+        references=EDIT_SUBJECT_TYPES,
         is_bench_implicit=True,
     )
     if TYPE_CHECKING:

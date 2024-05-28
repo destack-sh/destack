@@ -2,14 +2,14 @@ import asyncio
 import dataclasses
 from collections import defaultdict
 from datetime import datetime
-from typing import TYPE_CHECKING, Any, Collection, Literal, Optional, Union, cast
+from typing import TYPE_CHECKING, Any, Collection, Literal, Optional, cast
 from uuid import UUID
 
 import structlog
 
 from bench.language.connection import StoreConnection, StoreEngine
 from bench.language.const import BenchError, EditType, NodeType
-from bench.language.node import Node, Property
+from bench.language.node import EditSubject, Node, Property
 from bench.proto import wire
 from bench.proto.wire import AnyNodeData, ClientOrigin, EditData, GraphScope
 from bench.utils.dt import utcnow
@@ -17,12 +17,9 @@ from bench.utils.func import uuid_to_str
 from bench.utils.uuidt import UUIDT
 
 if TYPE_CHECKING:
-    from bench.language import Run, Session, User
+    from bench.language import Session
 
 logger = structlog.get_logger(__name__)
-
-dataclasses.field = dataclasses.field
-EditSubject = Union["User", "Run"]
 
 
 def new_edit_id() -> str:
@@ -77,7 +74,6 @@ class Transaction:
 
     id: UUID = dataclasses.field(default_factory=UUIDT)
     session: Optional["Session"] = dataclasses.field(default=None)
-    origin: ClientOrigin | None = dataclasses.field(default=None)
     is_readonly: bool = dataclasses.field(default=False)
     _connections_by_engine_id: dict[Any, StoreConnection] = dataclasses.field(default_factory=dict)
 
@@ -161,29 +157,30 @@ class Transaction:
     def _make_edit(
         self,
         type: EditType,
-        n: Node,
+        node_: Node,
         metadata: dict[str, Any],
+        origin: ClientOrigin | None,
     ) -> EditData:
         """Creates an edit and adds it to the pending edits."""
         assert self.session is not None, f"no session for {self!r}"
         if self.is_readonly:
-            raise RuntimeError(f"cannot {type.bench_name} {n!r} in read-only {self.session}")
+            raise RuntimeError(f"cannot {type.bench_name} {node_!r} in read-only {self.session}")
 
         from bench.proto import wiring
 
         # pack node (with extra data)
-        node_data = cast(AnyNodeData, n._to_data())
-        if n._updated_properties:
-            properties = list(n._unmask_properties_ids(n._updated_properties))
+        node_data = cast(AnyNodeData, node_._to_data())
+        if node_._updated_properties:
+            properties = list(node_._unmask_properties_ids(node_._updated_properties))
         else:
             properties = []
         for key, value in metadata.items():
-            prop = n.__properties__.get(key)
+            prop = node_.__properties__.get(key)
             if prop is not None:
                 setattr(node_data, key, value)
 
         # make edit
-        scope = self._get_scope_for_node(n)
+        scope = self._get_scope_for_node(node_)
         edit = EditData(
             id=new_edit_id(),
             type=wiring.pack_enum(EditType, type),
@@ -191,7 +188,7 @@ class Transaction:
             node=wiring.wrap_some_node(node_data),
             properties=list(properties),
             scope=scope,
-            origin=self.origin,
+            origin=origin,
         )
         return edit
 
@@ -211,21 +208,23 @@ class Transaction:
         for edit in edits:
             self._add_pending_edit(edit, node=None)
 
-    def create(self, n: Node, subject: EditSubject | None):
+    def create(self, n: Node, subject: EditSubject | None, origin: ClientOrigin | None):
         now = utcnow()
         edit = self._make_edit(
             type=EditType.CREATE,
-            n=n,
+            node_=n,
             metadata={**_get_create_metadata(subject, now), **_get_update_metadata(subject, now)},
+            origin=origin,
         )
         self._add_pending_edit(edit, n)
 
-    def upsert(self, n: Node, subject: EditSubject | None):
+    def upsert(self, n: Node, subject: EditSubject | None, origin: ClientOrigin | None):
         now = utcnow()
         edit = self._make_edit(
             type=EditType.UPSERT,
-            n=n,
+            node_=n,
             metadata={**_get_create_metadata(subject, now), **_get_update_metadata(subject, now)},
+            origin=origin,
         )
         self._add_pending_edit(edit, n)
 
@@ -234,6 +233,7 @@ class Transaction:
         edit_type: Literal[EditType.UPDATE, EditType.MOVE],
         n: Node,
         subject: EditSubject | None,
+        origin: ClientOrigin | None,
         properties: Collection[Property],
     ):
         """Update or move a node."""
@@ -242,7 +242,7 @@ class Transaction:
         existing_edit_idx = self._pending_updates_idx.get(n)
         if existing_edit_idx is None:
             # new update/move
-            edit = self._make_edit(edit_type, n, _get_update_metadata(subject))
+            edit = self._make_edit(edit_type, n, _get_update_metadata(subject), origin)
             engine = self._add_pending_edit(edit, n)
             edit_idx = len(self._pending_edits_by_engine_id[engine.id]) - 1
             self._pending_updates_idx[n] = engine.id, edit_idx
@@ -264,54 +264,65 @@ class Transaction:
             if edit_type == EditType.MOVE and edit.type != EditType.MOVE:
                 edit.type = wiring.pack_enum(EditType, EditType.MOVE)
 
-    def update(self, n: Node, subject: EditSubject | None, properties: Collection[Property]):
-        self._update(EditType.UPDATE, n, subject, properties)
+    def update(
+        self,
+        node_: Node,
+        subject: EditSubject | None,
+        origin: ClientOrigin | None,
+        properties: Collection[Property],
+    ):
+        self._update(EditType.UPDATE, node_, subject, origin, properties)
 
-    def move(self, n: Node, subject: EditSubject | None):
-        self._update(EditType.MOVE, n, subject, [])
+    def move(self, node_: Node, subject: EditSubject | None, origin: ClientOrigin | None):
+        self._update(EditType.MOVE, node_, subject, origin, [])
 
-    def soft_delete(self, n: Node, subject: EditSubject | None):
+    def soft_delete(self, node_: Node, subject: EditSubject | None, origin: ClientOrigin | None):
         now = utcnow()
         edit = self._make_edit(
             type=EditType.SOFT_DELETE,
-            n=n,
+            node_=node_,
             metadata={**_get_update_metadata(subject, now), "deleted_at": now},
+            origin=origin,
         )
-        self._add_pending_edit(edit, n)
+        self._add_pending_edit(edit, node_)
 
-    def restore(self, n: Node, subject: EditSubject | None):
+    def restore(self, node_: Node, subject: EditSubject | None, origin: ClientOrigin | None):
         edit = self._make_edit(
             type=EditType.RESTORE,
-            n=n,
+            node_=node_,
             metadata={**_get_update_metadata(subject), "deleted_at": None},
+            origin=origin,
         )
-        self._add_pending_edit(edit, n)
+        self._add_pending_edit(edit, node_)
 
-    def archive(self, n: Node, subject: EditSubject | None):
+    def archive(self, node_: Node, subject: EditSubject | None, origin: ClientOrigin | None):
         now = utcnow()
         edit = self._make_edit(
             type=EditType.ARCHIVE,
-            n=n,
+            node_=node_,
             metadata={**_get_update_metadata(subject, now), "archived_at": now},
+            origin=origin,
         )
-        self._add_pending_edit(edit, n)
+        self._add_pending_edit(edit, node_)
 
-    def unarchive(self, n: Node, subject: EditSubject | None):
+    def unarchive(self, node_: Node, subject: EditSubject | None, origin: ClientOrigin | None):
         edit = self._make_edit(
             type=EditType.UNARCHIVE,
-            n=n,
+            node_=node_,
             metadata={**_get_update_metadata(subject), "archived_at": None},
+            origin=origin,
         )
-        self._add_pending_edit(edit, n)
+        self._add_pending_edit(edit, node_)
 
-    def delete(self, n: Node, subject: EditSubject | None):
+    def delete(self, node_: Node, subject: EditSubject | None, origin: ClientOrigin | None):
         now = utcnow()
         edit = self._make_edit(
             type=EditType.DELETE,
-            n=n,
+            node_=node_,
             metadata={**_get_update_metadata(subject, now), "deleted_at": now},
+            origin=origin,
         )
-        self._add_pending_edit(edit, n)
+        self._add_pending_edit(edit, node_)
 
     #
     # Transaction management

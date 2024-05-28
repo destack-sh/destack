@@ -2,7 +2,7 @@ import abc
 from datetime import datetime
 from enum import Enum
 from itertools import chain
-from typing import TYPE_CHECKING, Generic, Iterable, Optional, TypeVar, Union
+from typing import TYPE_CHECKING, Generic, Iterable, Optional, TypeVar, Union, cast
 from uuid import UUID
 
 from bench.language.const import ClientType, EnumType, NodeType, ReferenceKind, StructType, enum_
@@ -22,6 +22,7 @@ from bench.proto.wire import (
     BenchData,
     BranchData,
     ClientData,
+    ClientOrigin,
     DependencyData,
     DriveData,
     EnvironmentData,
@@ -445,3 +446,8 @@ class Client(Node[ClientData]):
             if value is not None:
                 value_parts.append(value)
         return ", ".join(value_parts)
+
+    def to_origin(self) -> ClientOrigin:
+        from bench.proto.wire import ClientType
+
+        return ClientOrigin(type=cast(ClientType, self.type), id=str(self.id))
