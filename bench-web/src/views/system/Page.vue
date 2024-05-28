@@ -128,7 +128,7 @@ watch(
   () => page.value?.name,
   () => {
     if (page.value != null && selfView.value != null && page.value?.name != selfView.value?.title) {
-      pkgConnection.tx.updateDebounced(selfView.value, { title: page.value?.name });
+      pkgConnection.tx.update(selfView.value, { title: page.value?.name }, { debounce: "long" });
     }
   },
   { immediate: true },

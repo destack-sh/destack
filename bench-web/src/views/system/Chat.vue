@@ -99,7 +99,7 @@ watch(
           ? toCamelName(ViewType, ViewType.CHAT)
           : context.value.name;
       if (targetTitle != selfView.value.title) {
-        pkgConnection.tx.updateDebounced(selfView.value, { title: targetTitle });
+        pkgConnection.tx.update(selfView.value, { title: targetTitle }, { debounce: "long" });
       }
     }
   },
@@ -333,7 +333,7 @@ defineExpose<ViewExposed>({ self, id, variants: [Variant.PRIMARY, Variant.COMPAC
           <!-- Context (path) -->
           <template v-if="context != null && context?.metatype != ObjectType.PACKAGE && variant != Variant.COMPACT">
             <NodePath class="flex-shrink-0" :self="toNodeReference(context)" :graph="pkgGraph" />
-            <i class="fas fa-chevron-right text-gray-400 ml-1 mr-1.5" />
+            <i class="fas fa-chevron-right ml-1 mr-1.5 text-gray-400" />
           </template>
           <!-- Icon / Name -->
           <i
@@ -349,7 +349,12 @@ defineExpose<ViewExposed>({ self, id, variants: [Variant.PRIMARY, Variant.COMPAC
             :disabled="thread == null"
             :placeholder="thread == null ? 'New Thread' : 'Untitled Thread'"
             @input="
-              (event) => pkgConnection.tx.updateDebounced(node!, { title: (event.target as HTMLInputElement).value })
+              (event) =>
+                pkgConnection.tx.update(
+                  node!,
+                  { title: (event.target as HTMLInputElement).value },
+                  { debounce: 'long' },
+                )
             "
           />
           <!-- Select thread -->

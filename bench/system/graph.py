@@ -29,9 +29,9 @@ from bench.language.const import (
 )
 from bench.language.graph import NodeDataGraph, NodeGraphLike, edit_data_graph
 from bench.language.node import BasedNode, Node
-from bench.language.property import Property
 from bench.language.query import QueryBuilder
 from bench.language.setup import NODE_CLASS_BY_TYPE
+from bench.language.transaction import ALL_IMPLICIT_PROPERTIES_IDS
 from bench.language.validation import ValidationError, on_invalid_raise
 from bench.proto import wiring
 from bench.proto.services import BenchServiceBase
@@ -596,6 +596,7 @@ def _validate_edit(edit: EditData, subject: Subject, now: datetime) -> None:
     """Checks the given edit for basic validity."""
     assert subject.client, f"{subject!r} has no client"
     node_data = wiring.unwrap_some_node(edit.node)
+    node_cls = NODE_CLASS_BY_TYPE[cast(NodeType, edit.node_type)]
 
     # subject/origin match
     user_id = str(subject.user.id) if subject.user else None
@@ -634,8 +635,16 @@ def _validate_edit(edit: EditData, subject: Subject, now: datetime) -> None:
         )
 
     # specific edit type constraints
-    if edit.type != EditType.MOVE and cast(Property, Node.parent_ptr).id in edit.properties:
-        raise GRPCError(GRPCStatus.INVALID_ARGUMENT, f"cannot set parent_ptr in non-move {edit!r}")
+    if any(p in edit.properties for p in ALL_IMPLICIT_PROPERTIES_IDS):
+        bad_properties = [
+            node_cls.__properties_by_id__[p]
+            for p in ALL_IMPLICIT_PROPERTIES_IDS
+            if p in edit.properties
+        ]
+        raise GRPCError(
+            GRPCStatus.PERMISSION_DENIED,
+            f"implicit properties set explicitly in {edit!r}: {bad_properties!r}",
+        )
     if edit.type in (EditType.CREATE, EditType.UPSERT):
         if not node_data.created_at:
             raise GRPCError(GRPCStatus.INVALID_ARGUMENT, f"missing created_at in {edit!r}")

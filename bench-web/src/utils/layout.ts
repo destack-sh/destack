@@ -187,8 +187,8 @@ export function useSplitView(
         const draggedToPx =
           layoutRef.value.orientation == Orientation.HORIZONTAL ? mouseRelativeX.value : mouseRelativeY.value;
         const [aUpdate, bUpdate] = updateSeparator(draggingIdx.value, draggedToPx);
-        graphConnection.tx.update(viewsRef.value[draggingIdx.value], { size: aUpdate.size }, { debounce: true });
-        graphConnection.tx.update(viewsRef.value[draggingIdx.value + 1], { size: bUpdate.size }, { debounce: true });
+        graphConnection.tx.update(viewsRef.value[draggingIdx.value], { size: aUpdate.size }, { debounce: "long" });
+        graphConnection.tx.update(viewsRef.value[draggingIdx.value + 1], { size: bUpdate.size }, { debounce: "long" });
       });
 
       // and stop dragging once mouse is released

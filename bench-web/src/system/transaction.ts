@@ -22,23 +22,47 @@ import {
   nodeReference,
   unwrapSomeNode,
   wrapSomeNode,
-  type AnyNodeReferenceData,
   type TypedNodeReferenceData,
 } from "@/proto/wiring";
 import { nonce, origin, userPtr } from "@/system/client";
 import { type ReadNodeGraph, type WriteNodeGraph } from "@/system/graph";
 import { makeIcon } from "@/system/icon";
 import { toaster } from "@/system/toast";
-import { AsyncEvent, onEveryTick } from "@/utils/functools";
-import { IS_DEBUG, TRANSACTION_DEBOUNCED_FLUSH_INTERVAL } from "@/utils/globals";
+import { AsyncEvent } from "@/utils/functools";
+import { IS_DEBUG } from "@/utils/globals";
 import { log } from "@/utils/log";
 import { toValueRef } from "@/utils/ref";
 import { uuidt } from "@/utils/uuidt";
 import type { RpcError } from "grpc-web";
 import { nextTick, ref, shallowRef, toRef, triggerRef, watch, type MaybeRef, type Ref } from "vue";
 
-const CONSTANT_PROPERTIES = ["metatype", "id", "ck"];
+const IMPLICIT_EDIT_PROPERTIES_NAMES: Record<EditType, string[]> = {
+  [EditType.UNSPECIFIED]: [],
+  [EditType.CREATE]: ["createdAt", "createdEpoch", "createdByPtr"],
+  [EditType.UPSERT]: ["createdAt", "createdEpoch", "createdByPtr", "updatedAt", "updatedEpoch", "updatedByPtr"],
+  [EditType.UPDATE]: ["updatedAt", "updatedEpoch", "updatedByPtr"],
+  [EditType.MOVE]: ["updatedAt", "updatedEpoch", "updatedByPtr", "parentPtr"],
+  [EditType.SOFT_DELETE]: ["updatedAt", "updatedEpoch", "updatedByPtr", "deletedAt"],
+  [EditType.RESTORE]: ["updatedAt", "updatedEpoch", "updatedByPtr", "deletedAt"],
+  [EditType.ARCHIVE]: ["updatedAt", "updatedEpoch", "updatedByPtr", "archivedAt"],
+  [EditType.UNARCHIVE]: ["updatedAt", "updatedEpoch", "updatedByPtr", "archivedAt"],
+  [EditType.DELETE]: ["updatedAt", "updatedEpoch", "updatedByPtr", "deletedAt"],
+};
+const IMPLICIT_PROPERTIES_IDS: Partial<Record<EditType, number[]>> = Object.fromEntries(
+  Object.entries(IMPLICIT_EDIT_PROPERTIES_NAMES).map(([k, v]) => [
+    k,
+    v.map((name) => PROPERTY_ENUM_BY_TYPE[ObjectType.BLOCK]![name as any]),
+  ]),
+);
+const ALL_IMPLICIT_EDIT_PROPERTIES_NAMES = new Set(Object.values(IMPLICIT_EDIT_PROPERTIES_NAMES).flat());
 
+export type DebounceLevel = "tick" | "short" | "long";
+const DEBOUNCE_LEVELS: Record<"short" | "long", number> = {
+  short: 500,
+  long: 2000,
+};
+
+const CONSTANT_PROPERTIES = ["metatype", "id", "ck"];
 const NONCE_POSTFIX = nonce.replace("-", "").slice(0, 16);
 
 function newEditId(): string {
@@ -70,23 +94,14 @@ export type Transaction = {
   update<T extends AnyNodeData>(
     node: T,
     update: Partial<T> | (keyof Omit<T, "metatype" | "id" | "ck">)[],
-    options?: { debounce?: boolean },
-  ): void;
-  updateDebounced<T extends AnyNodeData>(
-    node: T,
-    update: Partial<T> | (keyof Omit<T, "metatype" | "id" | "ck">)[],
+    options?: { debounce?: DebounceLevel },
   ): void;
   /** Move node between parents (and update it) */
   move<T extends AnyNodeData>(
     node: T,
     update: (Partial<T> & { parentPtr: NodeReferenceData }) | (keyof Omit<T, "metatype" | "id" | "ck">)[],
-    options?: { debounce?: boolean },
+    options?: { debounce?: DebounceLevel },
   ): void;
-  moveDebounced<T extends AnyNodeData>(
-    node: T,
-    update: (Partial<T> & { parentPtr: NodeReferenceData }) | (keyof Omit<T, "metatype" | "id" | "ck">)[],
-  ): void;
-
   /** Archive node (incl. descendants) */
   archive(node: AnyNodeData): void;
   /** Restore node from archive (incl. descendants) */
@@ -137,7 +152,7 @@ export class TransactionBuilder implements Transaction {
   public readonly subjectRef: Ref<NodeReferenceData | null>;
   public readonly edits: EditData[] = [];
   private readonly debouncedUpdates: Record<string, EditData> = {};
-  private subs: Array<(edit: EditData, debounced: boolean) => void> = [];
+  private subs: Array<(edit: EditData, debounce: DebounceLevel | null) => void> = [];
   private benchPtr: TypedNodeReferenceData<NodeType.BENCH> | null;
 
   constructor(scope: GraphScope, id: string, subject: MaybeRef<NodeReferenceData | null>) {
@@ -156,7 +171,7 @@ export class TransactionBuilder implements Transaction {
     return `Transaction(${this.id}, ${this.edits.length} edits)`;
   }
 
-  onEdit(sub: (edit: EditData, debounced: boolean) => void): () => void {
+  onEdit(sub: (edit: EditData, debounce: DebounceLevel | null) => void): () => void {
     this.subs.push(sub);
     return () => {
       const idx = this.subs.indexOf(sub);
@@ -192,24 +207,24 @@ export class TransactionBuilder implements Transaction {
     type: EditType,
     node: AnyNodeData,
     properties: number[],
-    debounced: boolean,
+    debounce: DebounceLevel | null,
     metadata: Partial<NodeMetadata>,
   ) {
     const edit = this._makeEdit(type, node, properties, metadata);
     this.edits.push(edit);
-    this._notifyEdit(edit, debounced);
+    this._notifyEdit(edit, debounce);
     return edit;
   }
 
-  _notifyEdit(edit: EditData, debounced: boolean) {
+  _notifyEdit(edit: EditData, debounce: DebounceLevel | null) {
     for (const sub of this.subs) {
-      sub(edit, debounced);
+      sub(edit, debounce);
     }
   }
 
   addEdit(edit: EditData): void {
     this.edits.push(edit);
-    this._notifyEdit(edit, false);
+    this._notifyEdit(edit, null);
   }
 
   create<T extends NodeType>(
@@ -237,7 +252,7 @@ export class TransactionBuilder implements Transaction {
     const node: NodeTypeMapping[T] =
       nodeIn.id == null ? makeNode(nodeIn as any) : (nodeIn as unknown as NodeTypeMapping[T]);
 
-    this._addEdit(EditType.CREATE, node, [], false, {
+    this._addEdit(EditType.CREATE, node, [], null, {
       ..._getCreateMetadata(this.subject),
       ..._getUpdateMetadata(this.subject),
     });
@@ -245,7 +260,7 @@ export class TransactionBuilder implements Transaction {
   }
 
   upsert(node: AnyNodeData) {
-    this._addEdit(EditType.UPSERT, { ...node }, [], false, {
+    this._addEdit(EditType.UPSERT, { ...node }, [], null, {
       ..._getCreateMetadata(this.subject),
       ..._getUpdateMetadata(this.subject),
     });
@@ -255,7 +270,7 @@ export class TransactionBuilder implements Transaction {
     editType: EditType.UPDATE | EditType.MOVE,
     node: T,
     update: Partial<T> | (keyof Omit<T, "metatype" | "id" | "ck">)[],
-    options?: { debounce?: boolean },
+    options?: { debounce?: DebounceLevel },
   ) {
     const allProperties: AnyPropertyType = NODE_PROPERTY_ENUM_BY_TYPE[node.metatype as unknown as NodeType]!;
 
@@ -271,13 +286,23 @@ export class TransactionBuilder implements Transaction {
       throw new Error(`unexpected update type: ${update}`);
     }
 
-    // map properties
+    // map properties (exclude implicit properties)
     const properties = [];
     for (const propName of propertiesNames) {
-      if (CONSTANT_PROPERTIES.includes(propName))
+      if (CONSTANT_PROPERTIES.includes(propName)) {
         throw new Error(`cannot update constant property for ${describeNode(node)}: ${propName}`);
+      }
+      if (ALL_IMPLICIT_EDIT_PROPERTIES_NAMES.has(propName)) {
+        if (!IMPLICIT_EDIT_PROPERTIES_NAMES[editType].includes(propName)) {
+          throw new Error(`cannot update implicit property for ${describeNode(node)} in ${editType}: ${propName}`);
+        } else {
+          continue; // ignore implicit properties for this edit type
+        }
+      }
       const propId = (allProperties as any)[propName];
-      if (propId == null) throw new Error(`missing property id for ${describeNode(node)}: ${propName as string}`);
+      if (propId == null) {
+        throw new Error(`missing property id for ${describeNode(node)}: ${propName as string}`);
+      }
       properties.push(propId);
     }
 
@@ -292,11 +317,11 @@ export class TransactionBuilder implements Transaction {
         (prevNode as any)[propName] = (update as any)[propName];
       }
       // coalesce successive move/update into move edit
-      if (editType == EditType.MOVE && debouncedEdit.type != EditType.MOVE) {
+      if (editType == EditType.MOVE) {
         debouncedEdit.type = EditType.MOVE;
       }
       debouncedEdit.node = wrapSomeNode(prevNode);
-      this._notifyEdit(debouncedEdit, true);
+      this._notifyEdit(debouncedEdit, options?.debounce);
     } else {
       // create new edit
       const patchedNode = { ...node, ...update } as T;
@@ -304,10 +329,9 @@ export class TransactionBuilder implements Transaction {
         editType,
         patchedNode,
         properties,
-        options?.debounce ?? false,
+        options?.debounce ?? null,
         _getUpdateMetadata(this.subject),
       );
-
       if (options?.debounce) {
         this.debouncedUpdates[node.id] = edit;
       }
@@ -317,60 +341,49 @@ export class TransactionBuilder implements Transaction {
   update<T extends AnyNodeData>(
     node: T,
     update: Partial<T> | (keyof Omit<T, "metatype" | "id" | "ck">)[],
-    options?: { debounce?: boolean },
+    options?: { debounce?: DebounceLevel },
   ) {
     this._doUpdate(EditType.UPDATE, node, update, options);
-  }
-
-  updateDebounced<T extends AnyNodeData>(node: T, update: Partial<T> | (keyof Omit<T, "metatype" | "id" | "ck">)[]) {
-    this._doUpdate(EditType.UPDATE, node, update, { debounce: true });
   }
 
   move<T extends AnyNodeData>(
     node: T,
     update: (Partial<T> & { parentPtr: NodeReferenceData }) | (keyof Omit<T, "metatype" | "id" | "ck">)[],
-    options?: { debounce?: boolean },
+    options?: { debounce?: DebounceLevel },
   ) {
     this._doUpdate(EditType.MOVE, node, update, options);
   }
 
-  moveDebounced<T extends AnyNodeData>(
-    node: T,
-    update: (Partial<T> & { parentPtr: NodeReferenceData }) | (keyof Omit<T, "metatype" | "id" | "ck">)[],
-  ) {
-    this._doUpdate(EditType.MOVE, node, update, { debounce: true });
-  }
-
   archive(node: AnyNodeData) {
-    this._addEdit(EditType.ARCHIVE, { ...node }, [], false, {
+    this._addEdit(EditType.ARCHIVE, { ...node }, [], null, {
       ..._getUpdateMetadata(this.subject),
       archivedAt: Timestamp.now(),
     });
   }
 
   unarchive(node: AnyNodeData) {
-    this._addEdit(EditType.UNARCHIVE, { ...node }, [], false, {
+    this._addEdit(EditType.UNARCHIVE, { ...node }, [], null, {
       ..._getUpdateMetadata(this.subject),
       archivedAt: undefined,
     });
   }
 
   softDelete(node: AnyNodeData) {
-    this._addEdit(EditType.SOFT_DELETE, { ...node }, [], false, {
+    this._addEdit(EditType.SOFT_DELETE, { ...node }, [], null, {
       ..._getUpdateMetadata(this.subject),
       deletedAt: Timestamp.now(),
     });
   }
 
   restore(node: AnyNodeData) {
-    this._addEdit(EditType.RESTORE, { ...node }, [], false, {
+    this._addEdit(EditType.RESTORE, { ...node }, [], null, {
       ..._getUpdateMetadata(this.subject),
       deletedAt: undefined,
     });
   }
 
   delete(node: AnyNodeData) {
-    this._addEdit(EditType.DELETE, { ...node }, [], false, {
+    this._addEdit(EditType.DELETE, { ...node }, [], null, {
       ..._getUpdateMetadata(this.subject),
       deletedAt: Timestamp.now(),
     });
@@ -390,20 +403,8 @@ export function editGraph(graph: ReadNodeGraph & WriteNodeGraph, edits: EditData
     } else if (edit.type == EditType.DELETE && !options?.isOverlay) {
       graph.remove(nodeData);
     } else {
-      let properties: number[];
       const nodeProperties = NODE_PROPERTY_ENUM_BY_TYPE[nodeData.metatype]!;
-      if (edit.type == EditType.UPDATE || edit.type == EditType.UPSERT) {
-        properties = edit.properties;
-      } else if (edit.type == EditType.MOVE) {
-        properties = [nodeProperties.parentPtr];
-      } else if (edit.type == EditType.ARCHIVE || edit.type == EditType.UNARCHIVE) {
-        properties = [nodeProperties.archivedAt];
-      } else if (edit.type == EditType.SOFT_DELETE || edit.type == EditType.DELETE || edit.type == EditType.RESTORE) {
-        properties = [nodeProperties.deletedAt];
-      } else {
-        throw new Error(`unexpected edit type: ${EditType[edit.type]}`);
-      }
-
+      const properties = [...edit.properties, ...(IMPLICIT_PROPERTIES_IDS[edit.type] ?? [])];
       let existingNode = graph.get({ id: nodeData.id }) as Readonly<Partial<AnyNodeData>> | undefined;
       if (!existingNode) {
         if (options?.isOverlay) existingNode = nodeData;
@@ -434,7 +435,7 @@ type CommitFailure = {
   error: RpcError;
 };
 type PendingCallback = (
-  event: { type: "add"; edits: EditData[]; debounced: boolean } | { type: "reset"; edits: EditData[] },
+  event: { type: "add"; edits: EditData[]; debounce: DebounceLevel | null } | { type: "reset"; edits: EditData[] },
 ) => void;
 type CommittedCallback = (edits: EditData[]) => void;
 
@@ -661,10 +662,10 @@ export class RemoteTransactionBuffer implements TransactionBuffer {
 
   private _makeCurrentTx() {
     const tx = new TransactionBuilder(this.scope, newTransactionId(), userPtr);
-    tx.onEdit((edit, debounced) => {
+    tx.onEdit((edit, debounce) => {
       if (this.currentTx !== tx) throw new Error(`transaction ${tx.describeSelf()} is closed`);
       this.pendingEditsById[edit.id] = edit;
-      this.pendingSubs.forEach((sub) => sub({ type: "add", edits: [edit], debounced }));
+      this.pendingSubs.forEach((sub) => sub({ type: "add", edits: [edit], debounce }));
     });
     return tx;
   }
@@ -769,10 +770,10 @@ function watchTransactionBuffer(buffer: TransactionBuffer) {
   buffer.subscribePending((event) => {
     if (event.type != "add") return; // only react to added edits
     if (scheduledCommit) return; // already wanted
-    if (event.debounced) {
+    if (event.debounce != null && event.debounce != "tick") {
       // schedule commit after debounce
       if (scheduledDebouncedCommit != null) clearTimeout(scheduledDebouncedCommit);
-      scheduledDebouncedCommit = setTimeout(scheduleCommit, TRANSACTION_DEBOUNCED_FLUSH_INTERVAL);
+      scheduledDebouncedCommit = setTimeout(scheduleCommit, DEBOUNCE_LEVELS[event.debounce]);
     } else {
       // commit on next tick
       scheduleCommit();
@@ -784,17 +785,17 @@ function watchTransactionBuffer(buffer: TransactionBuffer) {
     if (scheduledCommit) return;
     scheduledCommit = true;
     nextTick(() => {
+      scheduledCommit = false;
+      if (scheduledDebouncedCommit != null) clearTimeout(scheduledDebouncedCommit);
       if (!buffer.isCommitting && !buffer.isPaused.value) {
-        scheduledCommit = false;
-        if (scheduledDebouncedCommit != null) clearTimeout(scheduledDebouncedCommit);
-        buffer.commit();
+        if (buffer.isDirty) buffer.commit();
       } else {
-        nextTick(scheduleCommit);
+        setTimeout(() => nextTick(scheduleCommit), 50);
       }
     });
   }
 
-  // schedule commit if unpaused
+  // schedule commit whenever unpaused
   watch(buffer.isPaused, (paused) => {
     if (!paused) scheduleCommit();
   });

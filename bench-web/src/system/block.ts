@@ -44,7 +44,7 @@ export function useHierarchicalNodeMoveActions<T extends NodeType>(options: {
       reference: graph.getChildren(rightParent.node, NodeType.BLOCK).slice(-1)[0],
       getNodes: () => graph.getChildren(rightParent.node, NodeType.BLOCK),
     });
-    tx.moveDebounced({ ...item.node, parentPtr: rightParent.nodePtr }, ["parentPtr"]);
+    tx.move({ ...item.node, parentPtr: rightParent.nodePtr }, ["parentPtr"], { debounce: "tick" });
   }
 
   /** Moves the item one level to the left */

@@ -84,7 +84,8 @@ defineExpose<ViewExposed>({ self });
           :value="'name' in node ? node.name : toCamelName(ObjectType, node.metatype)"
           :disabled="!('name' in node)"
           @input="
-            (event) => pkgConnection.tx.updateDebounced(node!, { name: (event.target as HTMLInputElement).value })
+            (event) =>
+              pkgConnection.tx.update(node!, { name: (event.target as HTMLInputElement).value }, { debounce: 'long' })
           "
         />
         <!-- Meta & Controls  -->
@@ -147,7 +148,7 @@ defineExpose<ViewExposed>({ self });
               @update:model-value="
                 (value: any) => {
                   if (write != null) write(pkgConnection.tx, node!, value);
-                  else pkgConnection.tx.updateDebounced(node!, { [protoName!]: value });
+                  else pkgConnection.tx.update(node!, { [protoName!]: value }, { debounce: 'short' });
                   inspectionLayout?.onWrite?.(pkgConnection.tx, pkgGraph, node!, property);
                 }
               "

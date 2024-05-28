@@ -85,15 +85,15 @@ const actions: Partial<ActionMapImplementation<"common">> & ActionMapImplementat
   // block
   "block.edit.isPage": {
     isChecked: () => block.value?.isPage ?? false,
-    action: () => pkgConnection.tx.updateDebounced(block.value!, { isPage: !block.value!.isPage }),
+    action: () => pkgConnection.tx.update(block.value!, { isPage: !block.value!.isPage }, { debounce: "tick" }),
   },
   "block.edit.isProtocol": {
     isChecked: () => block.value?.isProtocol ?? false,
-    action: () => pkgConnection.tx.updateDebounced(block.value!, { isProtocol: !block.value!.isProtocol }),
+    action: () => pkgConnection.tx.update(block.value!, { isProtocol: !block.value!.isProtocol }, { debounce: "tick" }),
   },
   "block.edit.isTemplate": {
     isChecked: () => block.value?.isTemplate ?? false,
-    action: () => pkgConnection.tx.updateDebounced(block.value!, { isTemplate: !block.value!.isTemplate }),
+    action: () => pkgConnection.tx.update(block.value!, { isTemplate: !block.value!.isTemplate }, { debounce: "tick" }),
   },
 };
 
@@ -153,7 +153,7 @@ defineExpose<ViewExposed>({ self, id, variants: [Variant.PRIMARY, Variant.STEALT
           :size="Math.max(block.name.length, 5)"
           @input="
             (event) => {
-              pkgConnection.tx.updateDebounced(block!, { name: (event.target as HTMLInputElement).value });
+              pkgConnection.tx.update(block!, { name: (event.target as HTMLInputElement).value }, { debounce: 'long' });
             }
           "
         />
@@ -272,14 +272,26 @@ defineExpose<ViewExposed>({ self, id, variants: [Variant.PRIMARY, Variant.STEALT
           (newValue) => {
             const packed = packValue(newValue, block?.builtinBase!, pkgGraph);
             if (packed.secretValuePacked != null) {
-              pkgConnection.tx.updateDebounced(block!, {
-                valuePacked: ProtoStruct.fromJson(packed.valuePacked),
-                secretValuePacked: ProtoStruct.fromJson(packed.secretValuePacked),
-              });
+              pkgConnection.tx.update(
+                block!,
+                {
+                  valuePacked: ProtoStruct.fromJson(packed.valuePacked),
+                  secretValuePacked: ProtoStruct.fromJson(packed.secretValuePacked),
+                },
+                { debounce: 'short' },
+              );
             } else if (packed.valuePacked != null) {
-              pkgConnection.tx.updateDebounced(block!, { valuePacked: ProtoStruct.fromJson(packed.valuePacked) });
+              pkgConnection.tx.update(
+                block!,
+                { valuePacked: ProtoStruct.fromJson(packed.valuePacked) },
+                { debounce: 'short' },
+              );
             } else {
-              pkgConnection.tx.updateDebounced(block!, { valuePacked: undefined, secretValuePacked: undefined });
+              pkgConnection.tx.update(
+                block!,
+                { valuePacked: undefined, secretValuePacked: undefined },
+                { debounce: 'short' },
+              );
             }
           }
         "
@@ -300,13 +312,13 @@ defineExpose<ViewExposed>({ self, id, variants: [Variant.PRIMARY, Variant.STEALT
         is-input
         :variant="Variant.STEALTH"
         :model-value="block.text"
-        @update:model-value="(newText) => pkgConnection.tx.updateDebounced(block!, { text: newText })"
+        @update:model-value="(newText) => pkgConnection.tx.update(block!, { text: newText }, { debounce: 'long' })"
       />
       <Code
         v-if="block.type == BlockType.CODE"
         is-input
         :model-value="block.code"
-        @update:model-value="(newCode) => pkgConnection.tx.updateDebounced(block!, { code: newCode })"
+        @update:model-value="(newCode) => pkgConnection.tx.update(block!, { code: newCode }, { debounce: 'long' })"
       />
     </div>
   </div>

@@ -159,7 +159,7 @@ function focus(anchor?: "next" | "previous" | number | FocusAnchor | NodeReferen
 function doFocus(node: AnyNodeData | NodeReferenceData) {
   if (focusedNode.value?.id != node.id) {
     const selfNode = spaceGraph.getOrError(self.value) as ViewData;
-    spaceConnection.tx.updateDebounced(selfNode, { focus: makeSelection([node]) });
+    spaceConnection.tx.update(selfNode, { focus: makeSelection([node]) }, { debounce: "tick" });
   }
   queryRef.value?.focus();
   expandedNodesRefs.value[node.id!]?.scrollIntoView({ block: "center", behavior: "instant" });
