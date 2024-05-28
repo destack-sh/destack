@@ -485,14 +485,6 @@ class NodeRelationFlag(enum.IntFlag):
 NRel = NodeRelationFlag
 
 
-class InterpStatus(IdEnum):
-    # TODO :Cleanup :Architecture: clarify/simplify node lifecycle
-    #  when interp? what does it do? can Node. _session while status != tracked?
-    SOURCE = 1  # just loaded
-    INTERPED = 2  # everything resolved & ready
-    TRACKED = 3  # live in a session
-
-
 #
 # Access
 # Access types are loosely ranked by access/destructiveness across and within types.

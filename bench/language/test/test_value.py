@@ -39,7 +39,7 @@ def test_coerce_nested_value() -> None:
     ClassOuter.fields.extend(
         Field.member("Field1", Choice1),
         Field.member("Field2", bool),
-        Field.member("Field3", StructType.TEXT),
+        Field.member("Field3", Text),
         Field.member("Field4", ClassInner),
     )
     ClassOuter._interp_rec(None, on_notice_ignore)
@@ -60,13 +60,11 @@ async def test_roundtrip_scalar_value() -> None:
         type_info = to_type(PrimitiveType.INT32)
         block = Block(type=BlockType.VARIABLE, name="Variable1", builtin_base=type_info, value=7)
         assert block.value == 7
-        assert block.value_packed is not None
         assert unpack_value(block.value_packed, block.secret_value_packed, type_info) == 7
 
         # set at runtime
         block.value = 42
         assert block.value == 42
-        assert block.value_packed is not None
         assert unpack_value(block.value_packed, block.secret_value_packed, type_info) == 42
 
 

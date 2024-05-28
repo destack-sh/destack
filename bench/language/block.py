@@ -1,5 +1,3 @@
-import typing
-from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any, Collection, Optional, Union, cast
 
 from bench.language.const import BlockType, NodeType, StructType, TypeKind, Visibility
@@ -14,7 +12,6 @@ from bench.language.property import (
     p_value_packed,
     p_value_runtime,
 )
-from bench.language.record import Database
 from bench.language.validation import NAME_CONSTRAINT, ValidationHandler
 from bench.language.value import HasValues
 from bench.proto.wire import BlockData
@@ -39,55 +36,28 @@ if TYPE_CHECKING:
 
 # pyright: reportIncompatibleVariableOverride=false
 
-_BLOCK_DESCRIPTORS: dict[BlockType, "_BlockTypeDescriptor"] = {}
-
-
-@dataclass(slots=True)
-class _BlockTypeDescriptor:
-    type: BlockType
-    dynamic_components: tuple[typing.Type[Node], ...]
-    identifier: IdentifierType
-
-    def __post_init__(self):
-        if self.type in _BLOCK_DESCRIPTORS:
-            raise ValueError(f"block descriptor for {self.type} already exists")
-        _BLOCK_DESCRIPTORS[self.type] = self
-
-
-IdentT = IdentifierType
-
-_describe_block = _BlockTypeDescriptor
-_describe_block(BlockType.ALIAS, (), IdentT.VARIABLE)
-_describe_block(BlockType.PAGE, (), IdentT.VARIABLE)
-_describe_block(BlockType.MODULE, (), IdentT.VARIABLE)
-_describe_block(BlockType.BLANK, (), IdentT.VARIABLE)
-_describe_block(BlockType.CLASS, (), IdentT.TYPE)
-_describe_block(BlockType.SIGNAL, (), IdentT.TYPE)
-_describe_block(BlockType.CHOICE, (), IdentT.TYPE)
-_describe_block(BlockType.PROTOCOL, (), IdentT.TYPE)
-_describe_block(BlockType.TEXT, (), IdentT.FUNCTION)
-_describe_block(BlockType.CODE, (), IdentT.FUNCTION)
-_describe_block(BlockType.SCRIPT, (), IdentT.FUNCTION)
-_describe_block(BlockType.FLOW, (), IdentT.FUNCTION)
-_describe_block(BlockType.VARIABLE, (), IdentT.VARIABLE)
-_describe_block(BlockType.DATABASE, (Database,), IdentT.TYPE)
-_describe_block(BlockType.QUERY, (), IdentT.VARIABLE)
-_describe_block(BlockType.SCREEN, (), IdentT.TYPE)
-_describe_block(BlockType.ROLE, (), IdentT.TYPE)
-_describe_block(BlockType.IDENTITY, (), IdentT.TYPE)
-
-assert len(_BLOCK_DESCRIPTORS) == len(BlockType), "missing block descriptors"
-del _describe_block
-
-_IDENTIFIER_BY_TYPE: dict[BlockType, IdentifierType] = {
-    t.type: t.identifier for t in _BLOCK_DESCRIPTORS.values()
+IDENTIFIER_TYPE_BY_BLOCK_TYPE: dict[BlockType, IdentifierType] = {
+    BlockType.ALIAS: IdentifierType.VARIABLE,
+    BlockType.PAGE: IdentifierType.VARIABLE,
+    BlockType.MODULE: IdentifierType.VARIABLE,
+    BlockType.BLANK: IdentifierType.VARIABLE,
+    BlockType.CLASS: IdentifierType.TYPE,
+    BlockType.SIGNAL: IdentifierType.TYPE,
+    BlockType.CHOICE: IdentifierType.TYPE,
+    BlockType.PROTOCOL: IdentifierType.TYPE,
+    BlockType.TEXT: IdentifierType.FUNCTION,
+    BlockType.CODE: IdentifierType.FUNCTION,
+    BlockType.SCRIPT: IdentifierType.FUNCTION,
+    BlockType.FLOW: IdentifierType.FUNCTION,
+    BlockType.VARIABLE: IdentifierType.VARIABLE,
+    BlockType.DATABASE: IdentifierType.TYPE,
+    BlockType.QUERY: IdentifierType.VARIABLE,
+    BlockType.SCREEN: IdentifierType.TYPE,
+    BlockType.ROLE: IdentifierType.TYPE,
+    BlockType.IDENTITY: IdentifierType.TYPE,
 }
-_DYNAMIC_COMPONENTS_BY_TYPE: dict[BlockType, tuple[typing.Type[Node], ...]] = {
-    t.type: t.dynamic_components for t in _BLOCK_DESCRIPTORS.values()
-}
-_ALL_DYNAMIC_COMPONENTS: tuple[typing.Type[Node], ...] = tuple(
-    c for t in _BLOCK_DESCRIPTORS.values() for c in t.dynamic_components
-)
+assert len(IDENTIFIER_TYPE_BY_BLOCK_TYPE) == len(BlockType)
+
 
 # TODO :UX: auto-generate node names in code just like in the UI (if unset -> block7, etc.)
 #  (Maybe postpone name validation if detached so we can leave it unset?,
@@ -95,7 +65,7 @@ _ALL_DYNAMIC_COMPONENTS: tuple[typing.Type[Node], ...] = tuple(
 #  see :AutoNaming
 
 
-@node(NodeType.BLOCK, passthrough="value", dynamic_components=_ALL_DYNAMIC_COMPONENTS)
+@node(NodeType.BLOCK, passthrough="value")
 class Block(Node[BlockData], HasValues):
     """A building block containing logic, types, UI, data, AI, - any Bench program source."""
 
@@ -141,18 +111,6 @@ class Block(Node[BlockData], HasValues):
     triggers: NodeList["Trigger"] = p_node_child(NodeType.TRIGGER)
     notices: NodeList["Notice"] = p_node_child(NodeType.NOTICE)
 
-    @property
-    def _components(self) -> tuple[typing.Type[Node], ...]:
-        return _ALL_COMPONENTS_BY_TYPE[self.type]
-
-    @property
-    def _dynamic_components(self) -> tuple[typing.Type[Node], ...]:
-        return _DYNAMIC_COMPONENTS_BY_TYPE[self.type]
-
-    @property
-    def _instance_cache_key(self) -> str:
-        return self.type.name
-
     def _validate_component(
         self, properties: Collection["Property"], invalid: "ValidationHandler"
     ) -> None:
@@ -176,13 +134,6 @@ class Block(Node[BlockData], HasValues):
 
     def __repr__(self):  # type: ignore we want to override the default repr
         return f"<{self.type.bench_name}Block {self}>"
-
-    def _init_component(self) -> None:
-        # add runtime properties from dynamic components
-        for component in self._dynamic_components:
-            for prop in component.__properties__.values():
-                if not prop.is_computed and prop.is_ephemeral and prop.name not in self.__dict__:
-                    setattr(self, prop.name, prop.new())
 
     def __call__(self, *args, **kwargs) -> Any:
         if self.type.is_runnable:
@@ -230,9 +181,4 @@ class Block(Node[BlockData], HasValues):
 
     @property
     def identifier_type(self) -> IdentifierType:
-        return _IDENTIFIER_BY_TYPE[self.type]
-
-
-_ALL_COMPONENTS_BY_TYPE: dict[BlockType, tuple[typing.Type[Node], ...]] = {
-    t: _DYNAMIC_COMPONENTS_BY_TYPE[t] + Block.__static_components__ for t in BlockType
-}
+        return IDENTIFIER_TYPE_BY_BLOCK_TYPE[self.type]

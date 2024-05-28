@@ -9,9 +9,9 @@ import structlog
 from betterproto.lib.google.protobuf import Struct as BetterprotoStruct
 
 from bench.language import Property
-from bench.language.const import NodeType, ObjectType
+from bench.language.const import UNSET, NodeType, ObjectType
 from bench.language.graph import NodeDataGraph
-from bench.language.node import NODE_CLASS_BY_TYPE, InterpStatus, Node, NodeGraph, ReadInfo, Struct
+from bench.language.node import NODE_CLASS_BY_TYPE, Node, NodeGraph, ReadInfo, Struct
 from bench.language.notice import NoticeHandler, on_notice_ignore, on_warning_raise
 from bench.language.property import METATYPE_PROPERTY
 from bench.language.session import Session
@@ -186,7 +186,7 @@ def unpack_struct(struct_data: AnyStructData, expect: type[StructT] | None = Non
                 continue
             value = getattr(struct_data, prop.name)
             struct_kwargs[prop.name] = unpack_struct_prop(prop, value, ignore_array=False)
-        struct = struct_cls(**struct_kwargs, _status=InterpStatus.SOURCE)
+        struct = struct_cls(**struct_kwargs)
         return cast(StructT, struct)
     except (AttributeError, TypeError, ValueError, KeyError) as e:
         raise ValueError(f"could not unpack {struct_data.metatype.name}: {struct_data!r}") from e
@@ -251,7 +251,10 @@ def unpack_node[NodeT: Node](
                 continue
             value = getattr(node_data, prop.name)
             node_kwargs[prop.name] = unpack_struct_prop(prop, value, ignore_array=False)
-        node = node_cls(**node_kwargs, parent=parent, _session=session, _status=InterpStatus.SOURCE)
+        node = node_cls(**node_kwargs, parent=parent, _session=UNSET)
+        if session is not None:
+            node._resolve_references(node, notice=on_notice_ignore)
+            node._track_self(session)
         return node  # type: ignore
     except (AttributeError, TypeError, ValueError, KeyError) as e:
         raise ValueError(f"could not unpack {node_data.metatype.name}: {node_data!r}") from e
@@ -303,11 +306,11 @@ def unpack_node_graph(
                 node_parent = parent
             else:
                 node_parent = unpacked_graph.get(node_parent_id)
-                # TODO :Architecture: enable loading nodes without ancestors :LoadOrphanNode
-                #  (this errors as below, but sometimes we just want a node without ancestors)
+                # NOTE :Architecture: enable loading nodes without ancestors :LoadOrphanNode?
+                #  (this errors here, but sometimes we just want a node without ancestors)
                 # if node_parent is None:
                 #     raise ValueError(f"parent {node_parent_id} not found in {unpacked_graph!r}")
-            node = unpack_node(node_data, node_parent, session=session)
+            node = unpack_node(node_data, node_parent)
             node._read_info = read
 
             # keep parent instance if it was passed (update it in place)

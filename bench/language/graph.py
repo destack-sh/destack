@@ -18,7 +18,7 @@ from uuid import UUID
 
 from more_itertools import first
 
-from bench.language.const import EMPTY_LIST, EditType, InterpStatus, NodeType, ReferenceKind
+from bench.language.const import EMPTY_LIST, EditType, NodeType, ReferenceKind
 from bench.language.setup import CHILD_NODE_TYPES, NODE_CLASS_BY_TYPE, STRUCT_CLASS_BY_TYPE
 from bench.language.validation import on_invalid_raise
 from bench.proto import wire
@@ -566,7 +566,7 @@ class NodeList(abc.ABC, Collection[NodeT], Generic[NodeT]):
         if "name" in node_cls.__properties__ and "name" not in kwargs:
             kwargs["name"] = generate_node_name(node_metatype, kwargs.get("type"), self)
         # set new node status to source to prevent activation before it's appended
-        node = node_cls(**kwargs, _status=InterpStatus.SOURCE)
+        node = node_cls(**kwargs)
         node = cast(NodeT, node)
         self.append(node)
         return node

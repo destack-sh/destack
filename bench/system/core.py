@@ -162,7 +162,10 @@ class Commit[T: Node]:
 
 
 def unpack_commit(
-    graphs: Collection[NodeGraphLike], edits: list[EditData], cascaded_edits: list[EditData]
+    session: Session,
+    graphs: Collection[NodeGraphLike],
+    edits: list[EditData],
+    cascaded_edits: list[EditData],
 ) -> Commit:
     """
     Get the summarized, unpacked nodes that change in the given edits.
@@ -231,7 +234,7 @@ def unpack_commit(
             else:
                 # cascaded edits should bei in pre-order, so the parent must exist
                 raise RuntimeError(f"missing parent {parent_id} for {node!r} in {edit!r}")
-        node = wiring.unpack_node(node, parent)
+        node = wiring.unpack_node(node, parent, session)
         unpacked_nodes[node.id] = node
         # map
         _add_edit(edit, node)

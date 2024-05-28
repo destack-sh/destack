@@ -8,7 +8,6 @@ import structlog
 
 from bench.language.connection import StoreEngine
 from bench.language.const import (
-    InterpStatus,
     NodeType,
     PrimitiveType,
     SessionStatus,
@@ -318,7 +317,7 @@ class Session(Node[SessionData]):
     def track_many(self, *nodes: Node | None):
         """Start tracking the nodes in this session."""
         for n in nodes:
-            if n is not None and (n._session is not self or n._status != InterpStatus.TRACKED):
+            if n is not None and n._session is not self:
                 n._track_rec(self)
 
     def untrack(self, node: Node):

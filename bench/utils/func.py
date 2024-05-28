@@ -245,7 +245,7 @@ def get_similar_strings(candidates: dict[str, Any], needle: str) -> dict[str, An
     return {string: candidates[string] for string in similar_strings}
 
 
-def did_you_mean_str(candidates: dict[str, Any], needle: str, repr: bool = False) -> str:
+def did_you_mean_str(candidates: dict[str, Any], needle: str, repr: bool = False) -> str | None:
     """
     Returns a string with a 'did you mean' suggestion.
     """
@@ -259,7 +259,8 @@ def did_you_mean_str(candidates: dict[str, Any], needle: str, repr: bool = False
         if len(similar_strs) > 1:
             similar_strs[-1] = f"or {similar_strs[-1]}"
         return f"Did you mean: {', '.join(similar_strs)}?"
-    return f"Nothing similar in {len(candidates)} candidates."
+    else:
+        return None
 
 
 def assert_collections_equal[T](a: Collection[T], b: Collection[T]):
