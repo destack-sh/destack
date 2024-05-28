@@ -232,7 +232,6 @@ async def test_activate_user(some_bench: BenchHandle):
     assert not env.store.connection_uri
 
 
-# nocheckin: make base / HasBased optional
 #  (lambda Runs don't need a base, and neither do built-in Notifications, Signals, etc.)
 async def test_create_run(some_bench: BenchHandle):
     # TODO :Test :Incomplete: test runs
@@ -247,6 +246,6 @@ async def test_create_run(some_bench: BenchHandle):
         await session.commit()
 
 
-# nocheckin: test logs
+# TODO :Test :Incomplete: test logs
 async def test_get_logs_for_edits(some_bench: BenchHandle) -> None:
     pass

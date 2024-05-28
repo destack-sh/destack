@@ -782,11 +782,12 @@ class Property(_TypeQueryBuilder if TYPE_CHECKING else object):
                     is_stored=True,
                     is_internal=is_internal,
                     is_list=False,
-                    is_required=is_required,
+                    is_required=False,
                     primitive_type=PrimitiveType.UUID,
                 )
                 if is_sub_bench and not is_parent and not self.reference_is_bench_implicit:
                     stored_base_bench_id = extra_stored_props["bench_id"].clone()
+                    stored_base_bench_id.is_required = False
                     stored_base_bench_id.name = self.name + "_base_bench_id"
                     extra_stored_props["base_bench_id"] = stored_base_bench_id
 

@@ -11,7 +11,7 @@ from bench.sql.core import (
     Table,
 )
 
-VERSION = "2024.05.27.3"
+VERSION = "2024.05.28.0"
 
 BENCH_TABLE = Table(
     "bench_bench",
@@ -1227,7 +1227,7 @@ RUN_TABLE = Table(
         Column("updated_by_base_ck", PrimitiveType.UUID, is_nullable=True),
         Column("kind", PrimitiveType.INT16),
         Column("root_id", PrimitiveType.UUID),
-        Column("root_base_ck", PrimitiveType.UUID),
+        Column("root_base_ck", PrimitiveType.UUID, is_nullable=True),
         Column("code", PrimitiveType.JSON, is_nullable=True),
         Column("text", PrimitiveType.JSON, is_nullable=True),
         Column("status", PrimitiveType.INT16, default="1"),
@@ -1499,8 +1499,8 @@ MESSAGE_TABLE = Table(
         Column("origin_ck", PrimitiveType.UUID),
         Column("origin_type", PrimitiveType.INT16),
         Column("origin_bench_id", PrimitiveType.UUID),
-        Column("origin_base_ck", PrimitiveType.UUID),
-        Column("origin_base_bench_id", PrimitiveType.UUID),
+        Column("origin_base_ck", PrimitiveType.UUID, is_nullable=True),
+        Column("origin_base_bench_id", PrimitiveType.UUID, is_nullable=True),
         Column("path", PrimitiveType.JSON, is_nullable=True),
         Column("reply_to_id", PrimitiveType.UUID, is_nullable=True),
         Column("reply_to_base_ck", PrimitiveType.UUID, is_nullable=True),
