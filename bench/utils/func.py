@@ -345,6 +345,7 @@ _MAX_ID_BY_ENUM: dict[type, int] = {}
 IdEnumT = TypeVar("IdEnumT", bound="IdEnum")
 
 DEBUG_LOCKS = get_from_env("DEBUG_LOCKS", typ=bool, default=False)
+CRITICAL_LOCK_TIMEOUT = get_from_env("CRITICAL_LOCK_TIMEOUT", typ=int, default=10)
 
 
 class CriticalLock(asyncio.Lock):
@@ -352,7 +353,12 @@ class CriticalLock(asyncio.Lock):
     A smarter asyncio.Lock that remembers who acquired it & supports timeouts for critical sections.
     """
 
-    def __init__(self, name: str, track_acquirer: bool = IS_DEBUG or IS_TEST, timeout: float = 5):
+    def __init__(
+        self,
+        name: str,
+        track_acquirer: bool = IS_DEBUG or IS_TEST,
+        timeout: float = CRITICAL_LOCK_TIMEOUT,
+    ):
         super().__init__()
         self._name = f"{name}_{id(self):x}"
         self._track_acquirer = track_acquirer
