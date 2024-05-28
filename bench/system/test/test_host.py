@@ -232,7 +232,6 @@ async def test_activate_user(some_bench: BenchHandle):
     assert not env.store.connection_uri
 
 
-#  (lambda Runs don't need a base, and neither do built-in Notifications, Signals, etc.)
 async def test_create_run(some_bench: BenchHandle):
     # TODO :Test :Incomplete: test runs
     async with some_bench.session() as session:

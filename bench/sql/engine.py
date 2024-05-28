@@ -22,7 +22,7 @@ import psycopg
 import pytz
 import structlog
 from bitarray import bitarray
-from psycopg import sql
+from psycopg import OperationalError, sql
 from psycopg.types.json import Jsonb
 
 from bench.language import Block, ConditionalOp, Field, Property, StoreEngineType
@@ -69,6 +69,7 @@ from bench.sql.core import (
 from bench.utils.casing import Casing, to_casing
 from bench.utils.env import IS_DEBUG
 from bench.utils.func import describe_type, to_uuid
+from bench.utils.tenacity import RetryOptions, retry
 
 # NOTE :Performance: check out asyncpg instead of psycopg (up to 5x faster?)
 #  see https://github.com/MagicStack/asyncpg
@@ -561,13 +562,39 @@ def _pg_wrap_error(
     return wrapped_t(message, conn)
 
 
+# NOTE: we retry only on operational errors to handle transient issues (e.g. network)
+
+PG_RETRY_OPTIONS = RetryOptions(
+    max_attempts=3, retry_interval=0.5, max_retry_interval=5, retry_on=(OperationalError,)
+)
+
+
+@retry(PG_RETRY_OPTIONS)
+async def _pg_execute(
+    cur: psycopg.AsyncCursor,
+    statement: sql.Composed,
+    params: Mapping | None = None,
+):
+    await cur.execute(statement, params)
+
+
+@retry(PG_RETRY_OPTIONS)
+async def _pg_executemany(
+    cur: psycopg.AsyncCursor,
+    statement: sql.Composed,
+    params: Iterable[Mapping],
+    returning: bool = False,
+):
+    await cur.executemany(statement, params, returning=returning)
+
+
 async def pg_select_raw(
     cur: psycopg.AsyncCursor, query: str | sql.Composed
 ) -> list[dict[str, Any]]:
     """Executes an arbitrary select without any wrapping."""
     query_str = sql_to_str(cur, query) if not isinstance(query, str) else query
     logger.trace("pg.select_raw", query=query_str)
-    await cur.execute(cast(sql.Composed, query))
+    await _pg_execute(cur, cast(sql.Composed, query))
     return await cur.fetchall()
 
 
@@ -690,7 +717,7 @@ async def pg_select(
     if any(c.is_encrypted for c in columns):
         params = {**(params or EMPTY_DICT), "PG_CRYPTO_KEY": get_pg_crypto_key(table)}
     try:
-        await cur.execute(statement, params)
+        await _pg_execute(cur, statement, params)
     except psycopg.errors.Error as e:
         raise _pg_wrap_error(table, cur, e) from e
     return await cur.fetchall()
@@ -710,7 +737,7 @@ async def pg_count(
         statement += sqlstr(" WHERE {}").format(sql_node_to_sql(where))
     logger.trace("pg.count", table=table, cur=cur, query=sql_to_str(cur, statement))
     try:
-        await cur.execute(statement)
+        await _pg_execute(cur, statement)
         result = await cur.fetchone()
         if not result:
             raise SqlError(f"no result for {table!r}", cur)
@@ -737,7 +764,7 @@ async def pg_exists(
     statement += sqlstr(")")
     logger.trace("pg.exists_rows", table=table, cur=cur, query=sql_to_str(cur, statement))
     try:
-        await cur.execute(statement)
+        await _pg_execute(cur, statement)
         result = await cur.fetchone()
         if not result:
             raise SqlError(f"no result for {table!r}", cur)
@@ -772,7 +799,7 @@ async def pg_insert(
     else:
         templated_values = rows
     try:
-        await cur.executemany(statement, templated_values, returning=bool(returning))
+        await _pg_executemany(cur, statement, templated_values, returning=bool(returning))
     except psycopg.errors.Error as e:
         raise _pg_wrap_error(table, cur, e) from e
     if returning:
@@ -834,7 +861,7 @@ async def pg_upsert(
     else:
         templated_values = rows
     try:
-        await cur.executemany(statement, templated_values, returning=bool(returning))
+        await _pg_executemany(cur, statement, templated_values, returning=bool(returning))
     except psycopg.errors.Error as e:
         raise _pg_wrap_error(table, cur, e) from e
     if returning:
@@ -876,7 +903,7 @@ async def pg_update_constant(
     else:
         template_values = static_value
     try:
-        await cur.execute(statement, template_values)
+        await _pg_execute(cur, statement, template_values)
     except psycopg.errors.Error as e:
         raise _pg_wrap_error(table, cur, e) from e
     if returning:
@@ -957,7 +984,7 @@ async def pg_update_variable(
                 templated_value[column.name] = None
         templated_values.append(templated_value)
     try:
-        await cur.executemany(statement, templated_values, returning=bool(returning))
+        await _pg_executemany(cur, statement, templated_values, returning=bool(returning))
     except psycopg.errors.Error as e:
         raise _pg_wrap_error(table, cur, e) from e
     if returning:
@@ -984,7 +1011,7 @@ async def pg_delete(
         )
     logger.trace("pg.delete", table=table, cur=cur, query=sql_to_str(cur, statement))
     try:
-        await cur.execute(statement)
+        await _pg_execute(cur, statement)
     except psycopg.errors.Error as e:
         raise _pg_wrap_error(table, cur, e) from e
     if returning:
@@ -993,7 +1020,7 @@ async def pg_delete(
 
 async def pg_truncate(cur: psycopg.AsyncCursor, table: Table) -> None:
     """Truncates the given table."""
-    await cur.execute(sqlstr("TRUNCATE TABLE {}").format(sqlident(table.name)))
+    await _pg_execute(cur, sqlstr("TRUNCATE TABLE {}").format(sqlident(table.name)))
 
 
 #

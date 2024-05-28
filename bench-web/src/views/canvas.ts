@@ -342,7 +342,7 @@ export class ViewCanvas {
     const baseNodePtr = viewAncestors[rootViewIdx - 1]?.nodePtr;
     if (inspectionPtr.value?.id != nodePtr.id || inspectionBasePtr.value?.id != baseNodePtr?.id) {
       const space = this.graph.getOrError(this.spacePtr.value!);
-      tx.update(space, { inspectionPtr: nodePtr, basePtr: baseNodePtr }, { debounce: "tick" });
+      tx.update(space, { inspectionPtr: nodePtr, basePtr: baseNodePtr }, { debounce: "short" });
     }
 
     // open inspector
