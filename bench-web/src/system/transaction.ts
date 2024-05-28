@@ -29,13 +29,13 @@ import { nonce, origin, userPtr } from "@/system/client";
 import { type ReadNodeGraph, type WriteNodeGraph } from "@/system/graph";
 import { makeIcon } from "@/system/icon";
 import { toaster } from "@/system/toast";
-import { AsyncEvent } from "@/utils/functools";
-import { IS_DEBUG, TRANSACTION_FLUSH_INTERVAL } from "@/utils/globals";
+import { AsyncEvent, onEveryTick } from "@/utils/functools";
+import { IS_DEBUG, TRANSACTION_DEBOUNCED_FLUSH_INTERVAL } from "@/utils/globals";
 import { log } from "@/utils/log";
 import { toValueRef } from "@/utils/ref";
 import { uuidt } from "@/utils/uuidt";
 import type { RpcError } from "grpc-web";
-import { ref, shallowRef, toRef, triggerRef, watch, type MaybeRef, type Ref } from "vue";
+import { nextTick, ref, shallowRef, toRef, triggerRef, watch, type MaybeRef, type Ref } from "vue";
 
 const CONSTANT_PROPERTIES = ["metatype", "id", "ck"];
 
@@ -433,7 +433,9 @@ type CommitFailure = {
   edits: EditData[];
   error: RpcError;
 };
-type PendingCallback = (event: { type: "add"; edits: EditData[] } | { type: "reset"; edits: EditData[] }) => void;
+type PendingCallback = (
+  event: { type: "add"; edits: EditData[]; debounced: boolean } | { type: "reset"; edits: EditData[] },
+) => void;
 type CommittedCallback = (edits: EditData[]) => void;
 
 /**
@@ -659,10 +661,10 @@ export class RemoteTransactionBuffer implements TransactionBuffer {
 
   private _makeCurrentTx() {
     const tx = new TransactionBuilder(this.scope, newTransactionId(), userPtr);
-    tx.onEdit((edit) => {
+    tx.onEdit((edit, debounced) => {
       if (this.currentTx !== tx) throw new Error(`transaction ${tx.describeSelf()} is closed`);
       this.pendingEditsById[edit.id] = edit;
-      this.pendingSubs.forEach((sub) => sub({ type: "add", edits: [edit] }));
+      this.pendingSubs.forEach((sub) => sub({ type: "add", edits: [edit], debounced }));
     });
     return tx;
   }
@@ -744,10 +746,12 @@ export async function getTransactionBuffer(scope: GraphScope): Promise<Transacti
       }
       if (!txBuffersByBenchId.value[scope.benchId]) {
         const client = await getHostClient({ id: scope.benchId });
-        txBuffersByBenchId.value[scope.benchId] = new RemoteTransactionBuffer(newBufferId(), scope, client);
+        const buffer = new RemoteTransactionBuffer(newBufferId(), scope, client);
+        txBuffersByBenchId.value[scope.benchId] = buffer;
         triggerRef(txBuffersByBenchId);
         txBufferLockByBenchId[scope.benchId].set();
         delete txBufferLockByBenchId[scope.benchId];
+        watchTransactionBuffer(buffer);
       }
     }
     return txBuffersByBenchId.value[scope.benchId];
@@ -756,12 +760,52 @@ export async function getTransactionBuffer(scope: GraphScope): Promise<Transacti
   }
 }
 
+/** Commits the transaction buffer on any non-debounced edit, and a commit with delay after any debounced edit  */
+function watchTransactionBuffer(buffer: TransactionBuffer) {
+  let scheduledCommit = false;
+  let scheduledDebouncedCommit: any | null = null;
+
+  // watch pending edit
+  buffer.subscribePending((event) => {
+    if (event.type != "add") return; // only react to added edits
+    if (scheduledCommit) return; // already wanted
+    if (event.debounced) {
+      // schedule commit after debounce
+      if (scheduledDebouncedCommit != null) clearTimeout(scheduledDebouncedCommit);
+      scheduledDebouncedCommit = setTimeout(scheduleCommit, TRANSACTION_DEBOUNCED_FLUSH_INTERVAL);
+    } else {
+      // commit on next tick
+      scheduleCommit();
+    }
+  });
+
+  /** Schedules a commit on next tick if not already scheduled */
+  function scheduleCommit() {
+    if (scheduledCommit) return;
+    scheduledCommit = true;
+    nextTick(() => {
+      if (!buffer.isCommitting && !buffer.isPaused.value) {
+        scheduledCommit = false;
+        if (scheduledDebouncedCommit != null) clearTimeout(scheduledDebouncedCommit);
+        buffer.commit();
+      } else {
+        nextTick(scheduleCommit);
+      }
+    });
+  }
+
+  // schedule commit if unpaused
+  watch(buffer.isPaused, (paused) => {
+    if (!paused) scheduleCommit();
+  });
+}
+
 /** Commits any pending transactions in the current buffers. */
-export async function flushTransactionBuffers(options: { force: boolean } = { force: true }) {
+async function flushTransactionBuffers() {
   const buffers = [globalTxBuffer, ...Object.values(txBuffersByBenchId.value)];
   const commitPromises = [];
   for (const tx of buffers) {
-    if (tx.isDirty && !tx.isCommitting && (options.force || !tx.isPaused.value)) {
+    if (tx.isDirty && !tx.isCommitting && !tx.isPaused.value) {
       const ret = tx.commit();
       if (ret instanceof Promise) commitPromises.push(ret);
     }
@@ -774,20 +818,11 @@ let _setupTransactionManagement = false;
 export function setupTransactionManagement() {
   if (_setupTransactionManagement) return;
   _setupTransactionManagement = true;
-  // commit periodically
-  // nocheckin: auto-commit one tick after every non-debounced user edit (wait on debounced)
-  // TODO :UX :Performance: tune transaction commit schedule (maybe commit more quickly after non-debounced edits?)
-  let flushInterval: any | null = null;
-  watch(
-    TRANSACTION_FLUSH_INTERVAL,
-    () => {
-      if (flushInterval) clearInterval(flushInterval);
-      flushInterval = setInterval(() => flushTransactionBuffers({ force: false }), TRANSACTION_FLUSH_INTERVAL.value);
-    },
-    { immediate: true },
-  );
+  // watch buffers
+  watchTransactionBuffer(globalTxBuffer);
+  // (the rest is watched on demand)
   // commit on user change
-  watch(toValueRef(userPtr), () => flushTransactionBuffers({ force: false }));
+  watch(toValueRef(userPtr), () => flushTransactionBuffers());
   // commit before exit
-  window.addEventListener("beforeunload", (e) => flushTransactionBuffers({ force: false }));
+  window.addEventListener("beforeunload", (e) => flushTransactionBuffers());
 }

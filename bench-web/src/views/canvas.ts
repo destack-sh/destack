@@ -796,7 +796,7 @@ export class ViewCanvas {
       });
     }
     if (child.parentPtr?.id != self.id) {
-      tx.move({ ...child, parentPtr: toNodeReference(self) }, ["parentPtr"]);
+      tx.moveDebounced({ ...child, parentPtr: toNodeReference(self) }, ["parentPtr"]);
       this.cleanupRootViews(tx, graph, graph.get(child.parentPtr!) as ViewData);
     }
   }
@@ -846,8 +846,11 @@ export class ViewCanvas {
         orientation,
       });
       tx.create(split);
-      tx.move({ ...parent, parentPtr: toNodeReference(split) }, ["parentPtr"]);
-      tx.update(parent, { size: undefined, orderKey: isOrderFlipped ? "a0" : "a1" });
+      tx.move(parent, {
+        parentPtr: toNodeReference(split),
+        size: undefined,
+        orderKey: isOrderFlipped ? "a0" : "a1",
+      });
 
       // and a new tab wrapper
       const childWrapper = makeNode({
@@ -859,8 +862,11 @@ export class ViewCanvas {
         orderKey: isOrderFlipped ? "a1" : "a0",
       });
       tx.create(childWrapper);
-      tx.move({ ...child, parentPtr: toNodeReference(childWrapper) }, ["parentPtr"]);
-      tx.update(child, { size: undefined, orderKey: "a0" });
+      tx.move(child, {
+        parentPtr: toNodeReference(childWrapper),
+        size: undefined,
+        orderKey: "a0",
+      });
     } else {
       // 'split' size between self and child with a new tab wrapper
       const halfSize = splitBox(parent.size!);
@@ -878,8 +884,11 @@ export class ViewCanvas {
         }),
       });
       tx.create(newSplitParent);
-      tx.move({ ...child, parentPtr: toNodeReference(newSplitParent) }, ["parentPtr"]);
-      tx.update(child, { size: halfSize, orderKey: "a0" });
+      tx.move(child, {
+        parentPtr: toNodeReference(newSplitParent),
+        size: undefined,
+        orderKey: "a0",
+      });
       tx.update(parent, { size: halfSize });
     }
     this.cleanupRootViews(tx, graph, graph.get(child.parentPtr!) as ViewData);

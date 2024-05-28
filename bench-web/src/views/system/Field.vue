@@ -95,7 +95,7 @@ defineExpose<ViewExposed>({ self, id, actions });
       spellcheck="false"
       :value="field.name"
       :size="Math.max(field.name?.length ?? 0, 5)"
-      @input="pkgConnection.tx.update(field!, { name: ($event.target as HTMLInputElement).value })"
+      @input="pkgConnection.tx.updateDebounced(field!, { name: ($event.target as HTMLInputElement).value })"
     />
   </div>
   <Inaccessible v-else class="bg-white" :node="nodePtr" :is-connected="pkgConnection.isConnected.value" />
