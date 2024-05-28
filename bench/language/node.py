@@ -10,7 +10,6 @@ import uuid
 from collections import defaultdict
 from dataclasses import dataclass
 from datetime import datetime
-from itertools import chain
 from sys import intern
 from typing import (
     TYPE_CHECKING,
@@ -44,11 +43,11 @@ from bench.language.const import (
     SUB_PACKAGE_NODE_TYPES,
     TK_LENGTH_BYTES,
     UNSET,
-    InterpStatus,
     NodeType,
     ReferenceKind,
     StructType,
     _active_session,
+    get_active_session,
     new_node_id,
     new_struct_id,
 )
@@ -77,6 +76,7 @@ from bench.proto.wire import AnyNodeData, AnyStructData, NodeReferenceData, Some
 from bench.sql.core import Constraint, ConstraintType, Index, IndexType, PrimitiveType, Table
 from bench.utils.casing import PYTHON_CASING, IdentifierType, to_casing
 from bench.utils.dt import utcnow
+from bench.utils.env import IS_DEBUG
 from bench.utils.func import bittuple, did_you_mean_str
 from bench.utils.utils import frozendict
 
@@ -161,7 +161,7 @@ class _ComponentMethod(enum.Enum):
     updated = "updated"
 
     @property
-    def inner(self) -> str:
+    def component(self) -> str:
         return f"_{self.value}_component"
 
     @property
@@ -180,7 +180,7 @@ _FORBIDDEN_COMPONENT_METHODS = (
     + ("__post_init__", "__del__")
 )
 _COMPONENT_METHODS: dict[tuple[_ComponentMethod, type["Node"]], Any] = {}
-_COMPONENT_CALL_ORDER: tuple[str, ...] = ("Node",)  # ... the rest
+_COMPONENT_CALL_ORDER: tuple[str, ...] = ("Struct", "Node", "TypeInfoBase")  # ... the rest
 
 
 def _sort_components_in_call_order(
@@ -198,17 +198,17 @@ def _sort_components_in_call_order(
     return sorted_components
 
 
-@cached(cache={}, key=lambda components, method, concrete_key: f"{concrete_key}.{method.name}")
+@cached(cache={}, key=lambda cls, components, method: (cls, method))
 def _get_component_methods(
+    cls: type,
     components: Collection[type["Node"] | type["Struct"]],
     method: _ComponentMethod,
-    concrete_key: str,
 ) -> tuple[Callable, ...]:
     """Get the actually implemented methods in the given components in call order."""
     methods = []
     for component in _sort_components_in_call_order(components):
         if _COMPONENT_METHODS.get((method, component), None) is not None:
-            methods.append(getattr(component, method.inner))
+            methods.append(getattr(component, method.component))
     return tuple(methods)
 
 
@@ -218,7 +218,6 @@ _CORE_TYPES = ("Struct", "Node")
 
 def _process_struct_base_cls(
     cls: type[_StructT],
-    dynamic_components: tuple[type["Node"], ...] = (),
     reserved: set[str | int] | None = None,
     # for nodes only
     is_final: bool = False,
@@ -240,14 +239,6 @@ def _process_struct_base_cls(
     metatype.component = cls
     properties_by_name: dict[str, Property] = {"metatype": metatype}
 
-    # check that no forbidden methods are defined in non-base classes
-    if cls.__name__ not in _CORE_TYPES:
-        for name in _FORBIDDEN_COMPONENT_METHODS:
-            meth = getattr(cls, name, None)
-            good_meths = (getattr(cls, name, None) for cls in (Struct, Node, Node))
-            if meth is not None and meth not in good_meths:
-                raise ValueError(f"forbidden method {name} defined in {cls}")
-
     # collect static components from class hierarchy
     static_components: list[type[Node] | type[Struct]] = [cls]
     for base in cls.__bases__:
@@ -256,18 +247,31 @@ def _process_struct_base_cls(
         if hasattr(base, "__properties__"):
             base: type[Struct]
             static_components.append(base)
-            for grandparent in base.__static_components__:
+            for grandparent in base.__components__:
                 if grandparent not in static_components:
                     static_components.append(grandparent)
 
-    # check components
-    for component in chain(static_components[1:], dynamic_components):
-        if component.__name__ in _CORE_TYPES:
-            continue  # ignore base classes
-        if is_node and component.__is_struct_inlined__:
-            raise ValueError(f"node {cls} has inlined struct {component}")
-        if is_inlined and hasattr(component, "metatype") and not component.__is_struct_inlined__:
-            raise ValueError(f"struct {cls} has non-inlined struct {component}")
+    if IS_DEBUG:
+        # check that no forbidden methods are defined in non-base classes
+        if cls.__name__ not in _CORE_TYPES:
+            for name in _FORBIDDEN_COMPONENT_METHODS:
+                meth = getattr(cls, name, None)
+                good_meths = (getattr(cls, name, None) for cls in (Struct, Node, Node))
+                if meth is not None and meth not in good_meths:
+                    raise ValueError(f"forbidden method {name} defined in {cls}")
+
+        # check components
+        for component in static_components[1:]:
+            if component.__name__ in _CORE_TYPES:
+                continue  # ignore base classes
+            if is_node and component.__is_struct_inlined__:
+                raise ValueError(f"node {cls} has inlined struct {component}")
+            if (
+                is_inlined
+                and hasattr(component, "metatype")
+                and not component.__is_struct_inlined__
+            ):
+                raise ValueError(f"struct {cls} has non-inlined struct {component}")
 
     # collect properties from this
     declared_properties: dict[str, Property] = {}
@@ -293,26 +297,23 @@ def _process_struct_base_cls(
 
     # collect properties from all components (static and dynamic, least to most specific)
     reserved_properties: set[str | int] = set(reserved or ())
-    for component in chain(reversed(static_components), reversed(dynamic_components)):
+    for component in reversed(static_components):
         for name, prop in component.__own_properties__.items():
             # system struct identity is only for non-inlined structs :MagicProps
             #  (we remove it here because it conflicts with downstream props)
             if not is_struct and (prop.id == Struct.__properties__["order_key"].id):
                 continue
             existing = properties_by_name.get(name)
-            # override parent prop & id with more specific values
+            # override parent/id with more specific properties
             if (
                 existing is None
                 or name == "id"
                 or name.startswith("parent")
                 or existing.id is UNSET
             ):
-                if prop.is_ephemeral or component not in dynamic_components:
-                    prop = prop.clone()
-                    prop.component = cls
-                    properties_by_name[name] = prop
-                else:
-                    pass  # ignore
+                prop = prop.clone()
+                prop.component = cls
+                properties_by_name[name] = prop
             elif not prop._equals_type(existing):
                 raise ValueError(f"property conflict '{name}': {prop!r}, {existing!r}")
             if not is_node and prop.is_tree_reference:
@@ -439,15 +440,14 @@ def _process_struct_base_cls(
 
     # collect component methods implemented in this component
     for meth_type in _ComponentMethod:
-        meth = getattr(cls, meth_type.inner, None)
+        meth = getattr(cls, meth_type.component, None)
         if meth is not None and not any(
-            meth is getattr(base, meth_type.inner, None) for base in cls.__bases__
+            meth is getattr(base, meth_type.component, None) for base in cls.__bases__
         ):
             _COMPONENT_METHODS[(meth_type, cls)] = meth  # type: ignore
 
     # register components and index properties
-    cls.__static_components__ = tuple(static_components)  # type: ignore
-    cls.__dynamic_components__ = tuple(dynamic_components or ())
+    cls.__components__ = tuple(static_components)  # type: ignore
     cls.__is_struct_inlined__ = is_inlined
     cls.__properties__ = frozendict(properties_by_name)
     properties_by_id: dict[int, Property] = {}
@@ -508,10 +508,11 @@ def _process_struct_base_cls(
     cls.__parent_property__ = parent_property
 
     # TODO :Performance!: use slots for Struct/Node and wire types (StructData/NodeData/...)
-    #  Using slots everywhere is made trickier than it seems because
+    #  Using slots everywhere is trickier than it seems because
     #   1) some weird runtime errors
     #   2) we use dynamic props in Blocks (for now?)
-    #   3) lack of betterproto support (unclear how challenging it would be to add)
+    #   3) lack of betterproto support for our *Data types
+    #       (unclear how challenging it would be to add)
 
     # transform class
     cls = dataclass(cls, slots=False, repr=False, eq=False)  # type: ignore
@@ -579,7 +580,6 @@ _NodeT = TypeVar("_NodeT", bound="Node")
 def node_component(
     node_type: NodeType | None = None,
     passthrough: str | None = None,
-    dynamic_components: tuple[type["Node"], ...] = (),
     reserved: set[str | int] | None = None,
     is_variable_root: bool = False,
     is_sub_package: bool = False,
@@ -595,7 +595,6 @@ def node_component(
     def decorate(cls: Type[_NodeT]) -> Type[_NodeT]:
         cls, properties = _process_struct_base_cls(
             cls=cls,
-            dynamic_components=dynamic_components,
             reserved=reserved,
             is_variable_root=is_variable_root,
             is_sub_bench=is_sub_bench,
@@ -640,7 +639,6 @@ def node_component(
 def node(
     node_type: NodeType,
     passthrough: str | None = None,
-    dynamic_components: tuple[type["Node"], ...] = (),
     stored: bool = True,
     stored_custom: bool = False,
     no_ck: bool = False,
@@ -667,7 +665,6 @@ def node(
         cls = node_component(
             node_type=node_type,
             passthrough=passthrough,
-            dynamic_components=dynamic_components,
             reserved=reserved,
             is_variable_root=len(roots) > 1,
             is_sub_bench=sub_bench,
@@ -839,8 +836,7 @@ class Struct(abc.ABC, Generic[StructDataT]):
     """
 
     metatype: ClassVar[StructType]  # type discriminator is field 0 if needed?
-    __static_components__: ClassVar[tuple[type["Node"] | type["Struct"], ...]] = ()
-    __dynamic_components__: ClassVar[tuple[type["Node"] | type["Struct"], ...]] = ()
+    __components__: ClassVar[tuple[type["Node"] | type["Struct"], ...]] = ()
     __passthrough__: ClassVar[str | None] = None
 
     __parent_property__: ClassVar[Property] = UNSET
@@ -893,12 +889,13 @@ class Struct(abc.ABC, Generic[StructDataT]):
     # for branched/templated instances
     set_properties: list[int] = p_regular(29, array=True)
 
-    _status: InterpStatus = p_runtime(default=None)
+    _is_interped: bool = p_runtime(default=False)
+    _session: "Session | None" = p_runtime(default=None)
     _updated_properties: bitarray | None = p_runtime(default=None)
 
     def __post_init__(self):
-        if self._status is None:
-            self._status = InterpStatus.INTERPED if _active_session.get() else InterpStatus.SOURCE
+        if get_active_session() is not None:
+            self._is_interped = True
         self._init_self()
 
     def __content_str__(self) -> str:
@@ -960,15 +957,6 @@ class Struct(abc.ABC, Generic[StructDataT]):
                     return prop
             return None
 
-    @property
-    def _components(self) -> tuple[type["Node"] | type["Struct"], ...]:
-        return self.__static_components__
-
-    @property
-    def _instance_cache_key(self) -> str:
-        """Identifier for dynamic components"""
-        return type(self).__name__
-
     def equals_content(self, other: Any) -> bool:
         """Checks if all wired properties of the two structs are equal (recursively)."""
         if other is None or self.metatype != other.metatype:
@@ -999,17 +987,13 @@ class Struct(abc.ABC, Generic[StructDataT]):
             return attr
         else:
             # try components methods
-            for component in self._components:
+            for component in self.__components__:
                 attr = getattr(component, item, UNSET)
                 if attr is not UNSET:
                     break
             else:
                 # check passthrough if tracked in session
-                if (
-                    attr is UNSET
-                    and self._status == InterpStatus.TRACKED
-                    and self.__passthrough__ is not None
-                ):
+                if attr is UNSET and self._session is not None and self.__passthrough__ is not None:
                     target = getattr(self, self.__passthrough__)
                     attr = getattr(target, item, UNSET)
             # attribute could be property, method, or just plain value
@@ -1022,25 +1006,26 @@ class Struct(abc.ABC, Generic[StructDataT]):
                     return attr
 
         # report attribute error
-        if self._status == InterpStatus.TRACKED:
-            candidates = {
-                # own properties
-                **{
-                    p.name: p
-                    for p in self.__properties__.values()
-                    if p.reference_kind or not p.is_ephemeral
-                },
-                # public methods
-                **{m: None for m in dir(self) if not m.startswith("_")},
-            }
-            did_you_mean = did_you_mean_str(candidates, item)
+        candidates = {
+            # own properties
+            **{
+                p.name: p
+                for p in self.__properties__.values()
+                if p.reference_kind or not p.is_ephemeral
+            },
+            # public methods
+            **{m: None for m in dir(self) if not m.startswith("_")},
+        }
+        did_you_mean = did_you_mean_str(candidates, item)
+        if did_you_mean:
             raise AttributeError(f"{self!r} has no attribute '{item}'. {did_you_mean}")
         else:
-            raise AttributeError(f"{self.__class__} has no attribute '{item}'")
+            raise AttributeError(f"{self!r} has no attribute '{item}'")
 
     def __setattr(self, key, value):
         """Sets *any* attribute on this node (incl. slots)."""
-        is_tracked = self.__dict__.get("_status", UNSET) == InterpStatus.TRACKED
+        session = self.__dict__.get("_session", None)
+        is_tracked = session is not None and session is not UNSET
         prop = self.__properties__.get(key)
         if prop is not None:
             if (prop.is_ephemeral and not prop.is_value_runtime) or prop.is_autoset:  # untracked
@@ -1071,7 +1056,7 @@ class Struct(abc.ABC, Generic[StructDataT]):
                 object.__setattr__(self, key, value)
 
             # update reference pointers :NodeRefs
-            if self._status is not None and prop.reference_wired_ptr is not None:
+            if prop.reference_wired_ptr is not None:
                 wired_ptr = prop.to_wired_ptr(cast(Any, value))
                 object.__setattr__(self, prop.reference_wired_ptr.name, wired_ptr)
 
@@ -1091,7 +1076,7 @@ class Struct(abc.ABC, Generic[StructDataT]):
                     # will need to deal with Value parents eventually...
                     assert isinstance(self.parent, Struct), f"unexpected parent: {self.parent!r}"
                     if self.parent is not None:
-                        self.parent._updated_component((prop,))
+                        self.parent._updated_self((prop,))
         elif is_tracked and self.__passthrough__ is not None:
             # try passthrough target (if any)
             target = getattr(self, self.__passthrough__)
@@ -1100,11 +1085,14 @@ class Struct(abc.ABC, Generic[StructDataT]):
             # report set error with additional info
             candidates = {p.name: p for p in self.__properties__.values() if not p.is_computed}
             did_you_mean = did_you_mean_str(candidates, key)
-            raise AttributeError(f"Cannot set '{key}' on {self!r}. {did_you_mean}")
+            if did_you_mean:
+                raise AttributeError(f"Cannot set '{key}' on {self!r}. {did_you_mean}")
+            else:
+                raise AttributeError(f"Cannot set '{key}' on {self!r}")
 
     if not TYPE_CHECKING:
         # NOTE: __setattr__/__getattr__ confuses type checking, so only define it at runtime
-        #  (we don't need it since for Structs/Nodes dynamic access is only for Values at runtime anyway)
+        #  (we don't need it since dynamic access is meant for Values at runtime)
         __getattr__ = __getattr
         __setattr__ = __setattr
 
@@ -1276,7 +1264,7 @@ class Struct(abc.ABC, Generic[StructDataT]):
     @final
     def _init_self(self):
         for meth in _get_component_methods(
-            self._components, _ComponentMethod.init, self._instance_cache_key
+            self.__class__, self.__components__, _ComponentMethod.init
         ):
             meth(self)
 
@@ -1284,26 +1272,26 @@ class Struct(abc.ABC, Generic[StructDataT]):
     def _interp_self(self, scope: Optional["Node"], notice: "NoticeHandler"):
         # resolve references first
         self._resolve_references(scope, notice)
-
+        # and then component interps
         for meth in _get_component_methods(
-            self._components, _ComponentMethod.interp, self._instance_cache_key
+            self.__class__, self.__components__, _ComponentMethod.interp
         ):
             meth(self, scope, notice)
-        self._status = InterpStatus.INTERPED
+        self._is_interped = True
 
     @final
     def _validate_self(
         self, properties: Collection[Property], invalid: "ValidationHandler"
     ) -> None:
         for meth in _get_component_methods(
-            self._components, _ComponentMethod.validate, self._instance_cache_key
+            self.__class__, self.__components__, _ComponentMethod.validate
         ):
             meth(self, properties, invalid)
 
     @final
     def _updated_self(self, properties: Collection[Property]) -> None:
         for meth in _get_component_methods(
-            self._components, _ComponentMethod.updated, self._instance_cache_key
+            self.__class__, self.__components__, _ComponentMethod.updated
         ):
             meth(self, properties)
 
@@ -1355,8 +1343,7 @@ class Node(Struct[NodeDataT], Generic[NodeDataT]):
     """
 
     metatype: ClassVar[NodeType]  # type: ignore
-    __static_components__: ClassVar[tuple[type["Node"], ...]] = ()  # type: ignore
-    __dynamic_components__: ClassVar[tuple[type["Node"], ...]] = ()  # type: ignore
+    __components__: ClassVar[tuple[type["Node"], ...]] = ()  # type: ignore
     __identifier_type__: ClassVar[IdentifierType] = IdentifierType.VARIABLE
     __id_factory__: ClassVar[Callable[[], UUID]] = new_node_id
 
@@ -1446,8 +1433,6 @@ class Node(Struct[NodeDataT], Generic[NodeDataT]):
 
     _graph: Union["NodeGraph[Node]", "DetachedNodeGraph"] = p_runtime(default=None)
     _read_info: ReadInfo | None = p_runtime(default=None)
-    _session: Optional["Session"] = p_runtime(default=None)
-    _status: InterpStatus = p_runtime(default=None)
     _is_new: bool = p_runtime(default=False)
 
     def __post_init__(self):
@@ -1481,14 +1466,11 @@ class Node(Struct[NodeDataT], Generic[NodeDataT]):
         # init session context
         if self._session is None and self._session is not UNSET:
             self._session = _active_session.get()
-        # init status
-        if self._status is None:
-            self._status = (
-                InterpStatus.INTERPED if self._session is not None else InterpStatus.SOURCE
-            )
+            if self._session is not None:
+                self._is_interped = True
         self._init_self()
         # track if in session
-        if self._status == InterpStatus.INTERPED and self._session is not None:
+        if self._session is not None and self._session is not UNSET:
             self._interp_self(self, notice=self._on_notice)
             self._track_self(self._session)
 
@@ -1497,19 +1479,6 @@ class Node(Struct[NodeDataT], Generic[NodeDataT]):
         assert self.id is None, f"cannot assign id to {self!r} twice"
         assert self.ck is not None, f"cannot assign id to {self!r} without ck"
         self.id = derive_source_node_id(package_id, self.ck)
-
-    @property
-    def _components(self) -> tuple[type["Node"], ...]:
-        return self.__static_components__
-
-    @property
-    def _dynamic_components(self) -> tuple[type["Node"], ...]:
-        return ()
-
-    @property
-    def _instance_cache_key(self) -> str:
-        """Identity for dynamic components"""
-        return type(self).__name__
 
     def _find_root(self) -> "Node":
         """Current root of this node. May not be *the* "right" root if detached."""
@@ -1649,18 +1618,16 @@ class Node(Struct[NodeDataT], Generic[NodeDataT]):
         return NodeReference.from_node(self)
 
     def __eq__(self, other: Any):
-        return (
-            isinstance(other, Node)
-            and self.metatype == other.metatype
-            and ((self.id is not None and self.id == other.id) or self is other)
+        return type(self) == type(other) and (
+            (self.id is not None and self.id == other.id) or self is other
         )
 
     def __hash__(self):
         if "ck" in self.__properties__:
             # 'id' may not yet be assigned
-            return hash((self.metatype, self.id, getattr(self, "ck")))
+            return hash((type(self), self.id, getattr(self, "ck")))
         else:
-            return hash((self.metatype, self.id))
+            return hash((type(self), self.id))
 
     @property
     def is_extant(self):
@@ -1736,7 +1703,7 @@ class Node(Struct[NodeDataT], Generic[NodeDataT]):
 
         # run component inits
         for meth in _get_component_methods(
-            self._components, _ComponentMethod.init, self._instance_cache_key
+            self.__class__, self.__components__, _ComponentMethod.init
         ):
             meth(self)
 
@@ -1746,13 +1713,8 @@ class Node(Struct[NodeDataT], Generic[NodeDataT]):
                 if existing and not isinstance(existing, NodeList):
                     getattr(self, name).extend(*existing)
 
-        # validate if in session after all inits are done
-        if (
-            self._status >= InterpStatus.INTERPED
-            and self._is_new
-            and self._session is not None
-            and self._session is not UNSET
-        ):
+        # validate if in session
+        if self._is_new and self._session is not None and self._session is not UNSET:
             self._validate_self((), invalid=on_invalid_raise)
 
     @final
@@ -1763,24 +1725,26 @@ class Node(Struct[NodeDataT], Generic[NodeDataT]):
                 struct._interp_self(scope, notice)
         # and the component interps
         for meth in _get_component_methods(
-            self._components, _ComponentMethod.interp, self._instance_cache_key
+            self.__class__, self.__components__, _ComponentMethod.interp
         ):
             meth(self, scope, notice)
-        self._status = InterpStatus.INTERPED
+        self._is_interped = True
 
     @final
     def _track_self(self, session: "Session"):
         """Track this object in the given session."""
-        if self._session is not None and self._session is not session:
+        if (
+            self._session is not None
+            and self._session is not UNSET
+            and self._session is not session
+        ):
             raise RuntimeError(f"{self!r} is already in {self._session!r}, not {session!r}")
         self._session = session
-        self._status = InterpStatus.TRACKED
 
     @final
     def _untrack_self(self) -> None:
         """Stop tracking this object."""
         self._session = None
-        self._status = InterpStatus.INTERPED
 
     @final
     def _walk_descendants(self) -> Iterable["Node"]:

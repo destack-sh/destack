@@ -11,7 +11,6 @@ import structlog
 from bench.language.const import (
     PY_TYPE_BY_PRIMITIVE_TYPE,
     EnumType,
-    InterpStatus,
     NodeType,
     PrimitiveType,
     PrimitiveValue,
@@ -661,7 +660,7 @@ from bench.language.node import Struct, struct_component  # noqa: E402
 @struct_component()
 class HasValues(Struct):
     def _init_component(self) -> None:
-        if self._status >= InterpStatus.INTERPED:
+        if self._is_interped:
             self._pack_values_inplace(self.__value_properties__.values(), skip_already_set=True)
 
     def _interp_component(self, scope: "Node | None", notice: "NoticeHandler"):

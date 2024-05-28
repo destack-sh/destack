@@ -411,7 +411,12 @@ class Host(GraphIoServiceBase, HostBase, HostSpec):
         if was_suspended:  # we may be nested in a Session.commit already
             self._session.unsuspend()
         self._session.track_many(*graph.nodes)
-        commit = unpack_commit((*self.graphs, graph), edits, cascaded_edits)
+        commit = unpack_commit(
+            session=self._session,
+            graphs=(*self.graphs, graph),
+            edits=edits,
+            cascaded_edits=cascaded_edits,
+        )
         for plugin in self._plugins:
             if commit.edited_types & plugin.watch_types:
                 trimmed_commit = commit.trim_to(plugin.watch_types)

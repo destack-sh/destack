@@ -419,9 +419,7 @@ class Property(_TypeQueryBuilder if TYPE_CHECKING else object):
         if self.is_value_runtime:
             from bench.language.value import HasValues
 
-            assert (
-                HasValues in self.component.__static_components__
-            ), f"{self.component} is not HasValues"
+            assert HasValues in self.component.__components__, f"{self.component} is not HasValues"
             if isinstance(self.value_type_info_ptr, int):
                 resolved_ptr = self.component.__properties_by_id__.get(self.value_type_info_ptr)
                 assert (

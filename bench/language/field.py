@@ -12,7 +12,6 @@ from bench.language.const import (
     EnumType,
     FieldZone,
     FormatHint,
-    InterpStatus,
     NodeType,
     PrimitiveValue,
     StructType,
@@ -280,7 +279,7 @@ class TypeInfoBase(HasValues):
         return info_str
 
     def _init_component(self) -> None:
-        if self._status >= InterpStatus.INTERPED and self.kind in (
+        if self._is_interped and self.kind in (
             TypeKind.PRIMITIVE,
             TypeKind.STRUCT,
             TypeKind.ENUM,

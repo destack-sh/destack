@@ -49,8 +49,6 @@ TYPESCRIPT_CASING: dict[IdentifierType, Casing] = {
     IdentifierType.PROPERTY: Casing.CAMEL,
 }
 
-IdentT = IdentifierType
-
 
 def _strip_alpha_num(name: str) -> str:
     # remove leading underscores
