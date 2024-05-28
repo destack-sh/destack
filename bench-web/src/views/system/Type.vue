@@ -89,7 +89,7 @@ function onDrop(dragged: DraggedData, anchor: MultiAnchor, targetId: string | nu
     } else {
       moveNode(pkgConnection.tx, pkgGraph, dragged.node, "center", block.value!);
       if (node.zone != sideZone) {
-        pkgConnection.tx.updateDebounced(node, { zone: sideZone ?? undefined });
+        pkgConnection.tx.update(node, { zone: sideZone ?? undefined }, { debounce: "tick" });
         onNodeMorphed(pkgConnection.tx, pkgGraph, node);
       }
     }

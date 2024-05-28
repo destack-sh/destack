@@ -342,7 +342,7 @@ export class ViewCanvas {
     const baseNodePtr = viewAncestors[rootViewIdx - 1]?.nodePtr;
     if (inspectionPtr.value?.id != nodePtr.id || inspectionBasePtr.value?.id != baseNodePtr?.id) {
       const space = this.graph.getOrError(this.spacePtr.value!);
-      tx.updateDebounced(space, { inspectionPtr: nodePtr, basePtr: baseNodePtr });
+      tx.update(space, { inspectionPtr: nodePtr, basePtr: baseNodePtr }, { debounce: "tick" });
     }
 
     // open inspector
@@ -417,7 +417,7 @@ export class ViewCanvas {
     // focus the given selection within the view
     if (focus.focus != null) {
       const view = this.getViewData(focus.view)!;
-      if (!deepValueEquals(view.focus, focus.focus)) tx.updateDebounced(view, { focus: focus.focus });
+      if (!deepValueEquals(view.focus, focus.focus)) tx.update(view, { focus: focus.focus }, { debounce: "short" });
     }
 
     // focus every 'child' in its 'parent' up to space root
@@ -426,7 +426,7 @@ export class ViewCanvas {
     let parent: ViewData | SpaceData | null = this.getViewData(focus.parent ?? child.parentPtr!);
     while (parent?.metatype == ObjectType.VIEW || parent?.metatype == ObjectType.SPACE) {
       const childFocus = makeSelection([child]);
-      if (!deepValueEquals(parent.focus, childFocus)) tx.updateDebounced(parent, { focus: childFocus });
+      if (!deepValueEquals(parent.focus, childFocus)) tx.update(parent, { focus: childFocus }, { debounce: "short" });
       child = parent as ViewData;
       parent = this.graph.getMaybe(child.parentPtr) as ViewData | SpaceData | null;
     }
@@ -434,7 +434,9 @@ export class ViewCanvas {
     // reset focus 'down' from view
     if (focus.clearDown) {
       const descendants = this.graph.getDescendants(child, { metatypes: [NodeType.VIEW] });
-      descendants.filter((v) => v.focus != null).forEach((v) => tx.updateDebounced(v, { focus: undefined }));
+      descendants
+        .filter((v) => v.focus != null)
+        .forEach((v) => tx.update(v, { focus: undefined }, { debounce: "short" }));
     }
   }
 
@@ -796,7 +798,7 @@ export class ViewCanvas {
       });
     }
     if (child.parentPtr?.id != self.id) {
-      tx.moveDebounced({ ...child, parentPtr: toNodeReference(self) }, ["parentPtr"]);
+      tx.move({ ...child, parentPtr: toNodeReference(self) }, ["parentPtr"], { debounce: "tick" });
       this.cleanupRootViews(tx, graph, graph.get(child.parentPtr!) as ViewData);
     }
   }
@@ -934,7 +936,7 @@ export function clearCanvas(tx: Transaction, graph: ReadNodeGraph, space: SpaceD
   for (const root of roots) {
     tx.softDelete(root);
   }
-  tx.updateDebounced(space, { focus: undefined, inspectionPtr: undefined });
+  tx.update(space, { focus: undefined, inspectionPtr: undefined }, { debounce: "short" });
 }
 
 /** Sets up a minimal empty space with one root tab */
@@ -1124,13 +1126,21 @@ export function useExpansion(options: {
   function toggleExpanded(node: AnyNodeData | AnyNodeReferenceData) {
     const selfNode = options.graph.getOrError(options.self.value) as ViewData;
     if (isExpanded(node)) {
-      options.connection.tx.updateDebounced(selfNode, {
-        expansion: collapseSelection(selfNode.expansion!, [node]),
-      });
+      options.connection.tx.update(
+        selfNode,
+        {
+          expansion: collapseSelection(selfNode.expansion!, [node]),
+        },
+        { debounce: "tick" },
+      );
     } else if (!isExpanded(node)) {
-      options.connection.tx.updateDebounced(selfNode, {
-        expansion: expandSelection(selfNode.expansion, [node]),
-      });
+      options.connection.tx.update(
+        selfNode,
+        {
+          expansion: expandSelection(selfNode.expansion, [node]),
+        },
+        { debounce: "tick" },
+      );
     }
   }
 

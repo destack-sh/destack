@@ -29,6 +29,8 @@ def new_edit_id() -> str:
     return str(UUIDT())
 
 
+# NOTE: some identity and most tracking properties aren't explicitly included
+#  in Edit.properties because they are implicit in the edit type :ImplicitProperties
 IMPLICIT_EDIT_PROPERTIES_NAMES: dict[EditType, tuple[str, ...]] = {
     EditType.CREATE: ("created_at", "created_epoch", "created_by_ptr"),
     EditType.UPSERT: (
@@ -50,6 +52,9 @@ IMPLICIT_EDIT_PROPERTIES_NAMES: dict[EditType, tuple[str, ...]] = {
 IMPLICIT_EDIT_PROPERTIES_IDS: dict[EditType, tuple[int, ...]] = {
     edit_type: tuple(Node.__properties__[name].id for name in names)
     for edit_type, names in IMPLICIT_EDIT_PROPERTIES_NAMES.items()
+}
+ALL_IMPLICIT_PROPERTIES_IDS: set[int] = {
+    prop_id for prop_ids in IMPLICIT_EDIT_PROPERTIES_IDS.values() for prop_id in prop_ids
 }
 
 

@@ -45,7 +45,7 @@ import {
 } from "@/proto/wiring";
 import { isDescendantOf, resolveNode, type ReadNodeGraph } from "@/system/graph";
 import { ENUM_ICONS_BY_TYPE, getNodeIcon, makeIcon } from "@/system/icon";
-import type { Transaction } from "@/system/transaction";
+import type { DebounceLevel, Transaction } from "@/system/transaction";
 import { getViewForValueType, makeTypeInfo, type TypeIdentity } from "@/system/value";
 import { generateOrderKey, generateOrderKeys, isValidOrderKey } from "@/utils/fractional";
 import { log } from "@/utils/log";
@@ -289,7 +289,7 @@ export function updateOrder<T extends AnyNodeData & { orderKey: string }>(order:
     });
   }
   // @ts-ignore: orderKey must exist
-  order.tx.update({ ...order.node, orderKey }, ["orderKey"]);
+  order.tx.update({ ...order.node, orderKey }, ["orderKey"], { debounce: "tick" });
 }
 
 /**
@@ -328,7 +328,7 @@ export function fixOrderKeys<T extends AnyNodeData & { orderKey: string }>(tx: T
     if (!isValidOrderKey(node.orderKey)) {
       // just patch in place
       const orderKey = generateOrderKey(prevOrderKey, nodes[i + 1]?.orderKey ?? null);
-      tx.update({ ...node, orderKey }, ["orderKey"]);
+      tx.update({ ...node, orderKey }, ["orderKey"], { debounce: "tick" });
     } else if (node.orderKey == prevOrderKey) {
       // find all duplicates with same key from here and fix them in one go
       const numDuplicates = nodes.slice(i).filter((n) => n.orderKey == node.orderKey).length;
@@ -336,7 +336,7 @@ export function fixOrderKeys<T extends AnyNodeData & { orderKey: string }>(tx: T
       const orderKeys = generateOrderKeys(prevOrderKey, nodes[i + numDuplicates]?.orderKey ?? null, numDuplicates);
       for (let j = 0; j < numDuplicates; j++) {
         // @ts-ignore: orderKey must exist
-        tx.update({ ...duplicates[j], orderKey: orderKeys[j] }, ["orderKey"]);
+        tx.update({ ...duplicates[j], orderKey: orderKeys[j] }, ["orderKey"], { debounce: "tick" });
       }
       i += numDuplicates;
     } else {
@@ -433,13 +433,14 @@ export function onNodeMorphed(tx: Transaction, graph: ReadNodeGraph, node: AnyNo
       .getChildren(node.parentPtr!, node.metatype as unknown as NodeType)
       .filter((n) => n.id != node.id);
     const name = generateNodeName(node.metatype as unknown as NodeType, siblings, getNodeDiscriminator(node));
-    if (name != node.name) tx.updateDebounced({ ...node, name }, ["name"]);
+    if (name != node.name) tx.update({ ...node, name }, ["name"], { debounce: "tick" });
   }
 
   // auto update block flags
   if (isNode(node, NodeType.BLOCK)) {
-    if (node.type == BlockType.PAGE && !node.isPage) tx.updateDebounced(node, { isPage: true });
-    if (node.type == BlockType.PROTOCOL && !node.isProtocol) tx.updateDebounced(node, { isProtocol: true });
+    if (node.type == BlockType.PAGE && !node.isPage) tx.update(node, { isPage: true }, { debounce: "tick" });
+    if (node.type == BlockType.PROTOCOL && !node.isProtocol)
+      tx.update(node, { isProtocol: true }, { debounce: "tick" });
   }
 }
 
@@ -478,7 +479,7 @@ export function moveNode(
         getNodes: () => graph.getChildren(targetParent, target!.metatype as unknown as NodeType) as any,
       });
     }
-    tx.moveDebounced({ ...node, parentPtr: target.parentPtr }, ["parentPtr"]);
+    tx.move({ ...node, parentPtr: target.parentPtr }, ["parentPtr"], { debounce: "tick" });
   } else if (anchor == "center") {
     // move to end of target's children of that type
     if (target == null) throw new Error(`target required to move node ${anchor} ${describeNode(node)}`);
@@ -491,7 +492,7 @@ export function moveNode(
         getNodes: () => graph.getChildren(target!, node.metatype as unknown as NodeType) as any,
       });
     }
-    tx.moveDebounced({ ...node, parentPtr: toNodeReference(target) }, ["parentPtr"]);
+    tx.move({ ...node, parentPtr: toNodeReference(target) }, ["parentPtr"], { debounce: "tick" });
   } else {
     throw new Error(`unexpected anchor: ${anchor}`);
   }
@@ -777,12 +778,16 @@ function getInspectionInfo(metatype: ObjectType, type: any): Record<string, Insp
             props: { valueType: makeTypeInfo({ isRequired: true, benchType: BenchType.TYPE_INFO }) },
             read: (node: FieldData) => node,
             write: (tx: Transaction, node: FieldData, value: TypeIdentity | null) => {
-              tx.updateDebounced(node, {
-                kind: value?.kind,
-                primitiveType: value?.primitiveType,
-                benchType: value?.benchType,
-                baseTypePtr: value?.baseTypePtr,
-              });
+              tx.update(
+                node,
+                {
+                  kind: value?.kind,
+                  primitiveType: value?.primitiveType,
+                  benchType: value?.benchType,
+                  baseTypePtr: value?.baseTypePtr,
+                },
+                { debounce: "tick" },
+              );
             },
           }),
         },
@@ -808,17 +813,21 @@ function getInspectionInfo(metatype: ObjectType, type: any): Record<string, Insp
           props: { valueType: makeTypeInfo({ benchType: BenchType.TYPE_INFO }) },
           read: (node: AnyNodeData) => (node as BlockData).builtinBase,
           write: (tx: Transaction, node: AnyNodeData, value: TypeIdentity | null) => {
-            tx.updateDebounced(node as BlockData, {
-              builtinBase:
-                value == null
-                  ? undefined
-                  : makeTypeInfo({
-                      kind: value.kind,
-                      primitiveType: value.primitiveType,
-                      benchType: value.benchType,
-                      baseTypePtr: value.baseTypePtr,
-                    }),
-            });
+            tx.update(
+              node as BlockData,
+              {
+                builtinBase:
+                  value == null
+                    ? undefined
+                    : makeTypeInfo({
+                        kind: value.kind,
+                        primitiveType: value.primitiveType,
+                        benchType: value.benchType,
+                        baseTypePtr: value.baseTypePtr,
+                      }),
+              },
+              { debounce: "tick" },
+            );
           },
         }),
       });

@@ -10,5 +10,3 @@ export const DISCORD_URL = "https://discord.gg/HUUzkfBn2p";
 
 // actually synced from local, but we want a global we can safely import
 export const isDeveloperMode = pretendReadonly(ref(IS_DEBUG));
-
-export const TRANSACTION_DEBOUNCED_FLUSH_INTERVAL = 2000;
