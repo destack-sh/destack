@@ -3,6 +3,9 @@ from dataclasses import dataclass
 from functools import wraps
 from typing import Awaitable, Callable, Coroutine, Type, TypeVar, Union
 
+from grpclib import GRPCError
+from grpclib import Status as GRPCStatus
+
 T = TypeVar("T")
 
 
@@ -13,6 +16,7 @@ class RetryOptions:
     backoff: float = 2.0  # exponential backoff
     max_retry_interval: float = 60.0  # seconds
     retry_on: Union[Type[Exception], tuple[Type[Exception], ...]] = Exception
+    retry_if: Callable[[Exception], bool] | None = None
 
     def get_interval(self, attempt: int) -> float:
         return min(self.retry_interval * (self.backoff**attempt), self.max_retry_interval)
@@ -44,7 +48,9 @@ def retry(
                     last_error = e
                     if on_failure is not None:
                         on_failure(*args, **kwargs, e=e)
-                    if _options.max_attempts > 0 and attempt >= _options.max_attempts:
+                    if (_options.max_attempts > 0 and attempt >= _options.max_attempts) or (
+                        _options.retry_if and not _options.retry_if(e)
+                    ):
                         raise
                     await asyncio.sleep(interval)
                     interval = min(interval * _options.backoff, _options.max_retry_interval)
@@ -56,3 +62,10 @@ def retry(
         return wrapper
 
     return decorator
+
+
+def is_retryable_grpc_error(e: Exception) -> bool:
+    return (
+        isinstance(e, GRPCError)
+        and e.status in (GRPCStatus.UNKNOWN, GRPCStatus.UNAVAILABLE, GRPCStatus.DEADLINE_EXCEEDED)
+    ) or isinstance(e, OSError)

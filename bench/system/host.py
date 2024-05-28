@@ -25,7 +25,7 @@ from bench.language.graph import NodeGraphLike, edit_graph
 from bench.language.log import SELF_LOGGED_NODE_TYPES, Log
 from bench.language.property import Property
 from bench.language.query import NodeNotFoundError
-from bench.language.session import Session
+from bench.language.session import Session, unsuspend_session
 from bench.proto import wire, wiring
 from bench.proto.services import BenchServiceBase, RpcCallable
 from bench.proto.wire import EditData, GraphScope, HostBase, LogData, ServiceKind
@@ -218,19 +218,12 @@ class Host(GraphIoServiceBase, HostBase, HostSpec):
     @asynccontextmanager
     async def session(self, *, readonly: bool = False, autocommit: bool = False):
         """Gets exclusive query and edit access to the main session. :ExclusiveHostSession"""
-        async with self.tx_lock:
-            assert self._session is not None, f"session not ready in {self!r}"
-            was_readonly = self._session._is_readonly
-            self._session._is_readonly = readonly
-            self._session._epoch = self.epoch
-            self._session.unsuspend()
+        assert self._session is not None, f"no session for {self!r}"
+        self._session._epoch = self.epoch
+        async with self.tx_lock, unsuspend_session(
+            self._session, readonly=readonly, autocommit=autocommit
+        ):
             yield self._session
-            if autocommit:
-                await self._session.commit()
-            elif self._session.tx.edits:
-                raise RuntimeError(f"uncommitted edits in {self!r}: {self._session.tx.edits!r}")
-            self._session.suspend()  # suspend by default
-            self._session._is_readonly = was_readonly
 
     @override
     def get_engines(self) -> tuple[StoreEngine, ...]:

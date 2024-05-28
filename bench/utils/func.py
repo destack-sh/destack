@@ -406,9 +406,6 @@ class CriticalLock(asyncio.Lock):
             logger.trace("lock.release", name=self._name, acquired_at=self._acquired_at)
         if self._timeout is not None:
             assert self._acquired_at is not None
-            duration = monotime() - self._acquired_at
-            if duration > self._timeout / 2:
-                logger.warning("lock.slow", duration=duration)
         if self._track_acquirer:
             self._acquired_by = None
             self._acquired_at = None

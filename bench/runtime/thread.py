@@ -8,7 +8,7 @@ import structlog
 from bench.language import Bench, Package
 from bench.language.connection import StoreEngine
 from bench.language.run import Run
-from bench.language.session import Session
+from bench.language.session import Session, unsuspend_session
 from bench.proto import wiring
 from bench.proto.wire import GraphScope, HostStub, RunData, SupervisorStub
 from bench.runtime.connection import ConnectedBench, ConnectedPackage, QueryConnector
@@ -79,18 +79,11 @@ class RuntimeThread:
     @asynccontextmanager
     async def session(self, *, readonly: bool = False, autocommit: bool = False):
         """Gets exclusive query and edit access to the main session."""
-        async with self._tx_lock:
-            assert self._session is not None, f"session not ready in {self!r}"
-            was_readonly = self._session._is_readonly
-            self._session._is_readonly = readonly
-            self._session.unsuspend()
+        assert self._session is not None, f"no session for {self!r}"
+        async with self._tx_lock, unsuspend_session(
+            self._session, readonly=readonly, autocommit=autocommit
+        ):
             yield self._session
-            if autocommit:
-                await self._session.commit()
-            elif self._session.tx.edits:
-                raise RuntimeError(f"uncommitted edits in {self!r}: {self._session.tx.edits!r}")
-            self._session.suspend()  # suspend by default
-            self._session._is_readonly = was_readonly
 
     async def start(self):
         start = monotime()
