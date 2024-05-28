@@ -62,6 +62,20 @@ export function decodeB64VLQ(value: string): number {
   return result;
 }
 
+export function onEveryTick(fn: () => void) {
+  let running = true;
+  function tick() {
+    if (running) {
+      fn();
+      nextTick(tick);
+    }
+  }
+  tick();
+  return () => {
+    running = false;
+  }
+}
+
 /**
  * A simple wrapper around Promises to behave like Python's asyncio.Event
  * Can be reset, set, and waited on.
