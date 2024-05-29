@@ -6,6 +6,7 @@ from typing import (
     TYPE_CHECKING,
     Any,
     ClassVar,
+    Collection,
     Generic,
     NamedTuple,
     Optional,
@@ -22,9 +23,11 @@ import structlog
 from bench.language.const import (
     AggregationOp,
     BenchError,
+    ConditionalOp,
     NodeType,
     StoreConnectionType,
 )
+from bench.language.graph import NodeDataGraph
 from bench.language.node import Node
 from bench.proto.wire import (
     AggregationData,
@@ -39,7 +42,7 @@ from bench.proto.wire import (
     RpcMetadata,
     SupervisorStub,
 )
-from bench.utils.func import bittuple
+from bench.utils.func import bittuple, group_by
 from bench.utils.tenacity import RETRY_GRPC, RetryOptions, retry
 
 if TYPE_CHECKING:
@@ -92,9 +95,9 @@ class FetchOptions(NamedTuple):
 
 
 class FetchResult(NamedTuple):
-    nodes: list[AnyNodeData] | tuple[AnyNodeData, ...]
-    roots: list[NodeReferenceData] | tuple[NodeReferenceData, ...]
-    cursors: list[str] | tuple[str, ...]
+    nodes: Collection[AnyNodeData]
+    roots: Collection[NodeReferenceData]
+    cursors: Collection[str]
     start_cursor: str | None
     total: int | None = None
     epoch: int | None = None
@@ -109,6 +112,12 @@ class AggregateResult(NamedTuple):
     aggregation: AggregationData
 
 
+def scope_includes(scope: GraphScope, other: GraphScope) -> bool:
+    return (scope.bench_id is None or scope.bench_id == other.bench_id) and (
+        scope.package_id is None or scope.package_id == other.package_id
+    )
+
+
 class StoreEngine(abc.ABC, Generic[NodeT, NodeDataT]):
     """A store engine provides Connections to query some Store-like thing."""
 
@@ -117,7 +126,7 @@ class StoreEngine(abc.ABC, Generic[NodeT, NodeDataT]):
     def __init__(
         self,
         scope: GraphScope,
-        node_types: tuple[NodeType, ...] | bittuple[NodeType],
+        node_types: bittuple[NodeType],
     ):
         self.scope = scope
         self.node_types = node_types
@@ -132,13 +141,6 @@ class StoreEngine(abc.ABC, Generic[NodeT, NodeDataT]):
     @property
     def id(self) -> int | str | UUID:
         return hash(self)
-
-    def supports(self, scope: GraphScope, node_type: NodeType) -> bool:
-        if self.scope.bench_id and self.scope.bench_id != scope.bench_id:
-            return False
-        if self.scope.package_id and self.scope.package_id != scope.package_id:
-            return False
-        return not node_type not in self.node_types
 
     async def connect(self, session: "Session") -> "StoreConnection":
         """Opens the store engine for a session."""
@@ -213,7 +215,7 @@ class RemoteEngine(StoreEngine[NodeT, NodeDataT]):
     def __init__(
         self,
         scope: GraphScope,
-        node_types: tuple[NodeType, ...] | bittuple[NodeType],
+        node_types: bittuple[NodeType],
         remote: GraphIoStub | HostStub | SupervisorStub,
         rpc_metadata: RpcMetadata,
         retry: RetryOptions = RETRY_GRPC,
@@ -324,7 +326,7 @@ class PostgresEngine(StoreEngine[NodeT, NodeDataT], Generic[NodeT, NodeDataT]):
         store: "Store",
         bench: "Bench",
         scope: GraphScope,
-        node_types: tuple[NodeType, ...] | bittuple[NodeType],
+        node_types: bittuple[NodeType],
     ):
         super().__init__(scope, node_types)
         self.store = store
@@ -439,7 +441,70 @@ class SplitConnection(StoreConnection[NodeT, NodeDataT], Generic[NodeT, NodeData
     async def fetch(
         self, query: "QueryBuilder[NodeT, NodeDataT]", options: FetchOptions
     ) -> FetchResult:
-        # nocheckin: SplitConnection.fetch
+        from bench.language import C, QueryBuilder, ReadOptions
+
+        scope = (
+            self.session.tx._get_scope_for_node(query._base)
+            if query._base
+            else self.session._default_scope
+        )
+
+        # first trim query to nucleus around core node type
+        initial_engine = self.session.tx._get_engine_for(scope, query._node_type)
+        initial_query = query.trim_to(initial_engine.node_types)
+        initial_connection = await self.session.tx._get_engine_connection(initial_engine)
+        initial_result = await initial_connection.fetch(initial_query, options)
+        if query._options is None:
+            return initial_result  # nothing more to do
+
+        # then fetch the rest of the graph up/down from the initial nucleus
+        # NOTE :Robustness: we handle splits by assuming the node type split is a 'clean' horizontal
+        #  line in the ancestry tree (like the local/global split).
+        remaining_ancestors = [
+            t for t in query._options.ancestor_types if t not in initial_engine.node_types
+        ]
+        remaining_descendants = [
+            t for t in query._options.descendant_types if t not in initial_engine.node_types
+        ]
+        if not remaining_ancestors and not remaining_descendants:
+            return initial_result  # nothing more to do
+        combined_graph = NodeDataGraph(initial_result.nodes)
+        actual_roots = combined_graph.find_roots()
+        if not actual_roots:
+            return initial_result  # nothing more to do
+
+        if remaining_ancestors:
+            actual_roots_parents = tuple(n.parent_ptr for n in actual_roots if n.parent_ptr)
+            actual_roots_parents_by_type = group_by(actual_roots_parents, lambda n: n.type)
+            ancestor_engine = self.session.tx._get_engine_for(scope, remaining_ancestors)
+            ancestor_connection = await self.session.tx._get_engine_connection(ancestor_engine)
+
+            for parent_type, parents in actual_roots_parents_by_type.items():
+                if parent_type not in remaining_ancestors:
+                    continue
+                parents_ids = tuple(p.id for p in parents)
+                ancestor_query = QueryBuilder(
+                    node_type=parent_type,
+                    filter=C(ConditionalOp.IN, property=Node.id, value=parents_ids),
+                    options=ReadOptions(ancestor_types=remaining_ancestors),
+                )
+                ancestor_result = await ancestor_connection.fetch(ancestor_query, options)
+                combined_graph.extend(ancestor_result.nodes)
+
+        # combine (keeping the 'roots' from the initial result)
+        combined_result = FetchResult(
+            roots=initial_result.roots,
+            nodes=combined_graph.nodes,
+            cursors=initial_result.cursors,
+            start_cursor=initial_result.start_cursor,
+            total=initial_result.total,
+            epoch=initial_result.epoch,
+        )
+        return combined_result
+
+    @override
+    async def aggregate(self, query: "QueryBuilder[NodeT, NodeDataT]") -> AggregateResult:
+        # just forward to one engine, we don't support aggregating across engines
         scope = (
             self.session.tx._get_scope_for_node(query._base)
             if query._base
@@ -447,8 +512,4 @@ class SplitConnection(StoreConnection[NodeT, NodeDataT], Generic[NodeT, NodeData
         )
         engine = self.session.tx._get_engine_for(scope, query._node_type)
         connection = await self.session.tx._get_engine_connection(engine)
-        return await connection.fetch(query, options)
-
-    @override
-    async def aggregate(self, query: "QueryBuilder[NodeT, NodeDataT]") -> AggregateResult:
-        raise NotImplementedError("nocheckin: SplitConnection.aggregate")
+        return await connection.aggregate(query)

@@ -7,7 +7,7 @@ from uuid import UUID
 
 import structlog
 
-from bench.language.connection import SplitConnection, StoreConnection, StoreEngine
+from bench.language.connection import SplitConnection, StoreConnection, StoreEngine, scope_includes
 from bench.language.const import BenchError, EditType, NodeType
 from bench.language.node import EditSubject, Node, Property
 from bench.proto import wire
@@ -124,13 +124,18 @@ class Transaction:
             scope.package_id = uuid_to_str(n.package_id) or self.session._default_scope.package_id
         return scope
 
-    def _get_engine_for(self, scope: GraphScope, node_type: NodeType) -> StoreEngine:
+    def _get_engine_for(
+        self, scope: GraphScope, node_types: NodeType | Collection[NodeType]
+    ) -> StoreEngine:
         """Gets the appropriate engine"""
+        node_types = (node_types,) if isinstance(node_types, NodeType) else node_types
         for engine in self.session._engines:
-            if engine.supports(scope, node_type):
+            if scope_includes(engine.scope, scope) and all(
+                t in engine.node_types for t in node_types
+            ):
                 return engine
         raise BenchError(
-            f"no engine for [scope={scope!r}, node_type={node_type.bench_name}] in {self.session!r}"
+            f"no engine for [scope={scope!r}, node_types={[t.bench_name for t in node_types]}] in {self.session!r}"
             f" (engines: {self.session._engines!r})"
         )
 

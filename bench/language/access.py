@@ -26,7 +26,6 @@ from bench.language.const import (
     AccessMode,
     AccessType,
     BenchError,
-    ConditionalOp,
     EditType,
     NodeType,
     ObjectType,
@@ -35,7 +34,7 @@ from bench.language.const import (
     StructType,
     UseType,
 )
-from bench.language.expression import C, Expression, NodeReference
+from bench.language.expression import NodeReference
 from bench.language.graph import NodeDataGraph, NodeGraph, NodeList
 from bench.language.node import NODE_CLASS_BY_TYPE, Node, Struct, node, struct
 from bench.language.notice import NoticeHandler
@@ -52,7 +51,6 @@ from bench.language.setup import (
     _COMPLETED_SETUP,
     ANCESTOR_NODE_TYPES,
     CHILD_NODE_TYPES,
-    NODE_CLASSES,
     _on_completing_setup,
 )
 from bench.language.text import Text
@@ -62,26 +60,7 @@ from bench.proto.wire import AnyNodeData, EditData, NodeReferenceData
 from bench.utils.func import IdEnum, bittuple
 
 if TYPE_CHECKING:
-    from bench.language import Bench, Block, Client, Organization, Package, Server
-
-# default (read) access options
-FILTER_DEFAULT: Expression = C(ConditionalOp.AND, clauses=[])
-SELECT_DEFAULT_PROPERTIES: dict[NodeType, tuple[Property, ...]] = {}
-SELECT_ALL_PROPERTIES: dict[NodeType, tuple[Property, ...]] = {}
-
-
-@_on_completing_setup
-def _populate_default_access():
-    FILTER_DEFAULT.clauses = [
-        C(ConditionalOp.NOT_EXISTS, property=Node.deleted_at),
-        C(ConditionalOp.NOT_EXISTS, property=Node.archived_at),
-    ]
-    for node_t in NODE_CLASSES:
-        SELECT_DEFAULT_PROPERTIES[node_t.metatype] = tuple(
-            prop for prop in node_t.__stored_properties__.values() if not prop.is_deferred
-        )
-        SELECT_ALL_PROPERTIES[node_t.metatype] = tuple(node_t.__stored_properties__.values())
-
+    from bench.language import Bench, Block, Client, Organization, Package, ReadOptions, Server
 
 # the node types that can have 'policies' applied to them
 #  (not delegated node types, which delegate via subject)
@@ -159,105 +138,6 @@ class Identity(Node):
     type: "Block" = p_regular(30, array=False, require=True, references=NodeType.BLOCK)
 
     roles: NodeList["Role"] = p_node_child(NodeType.ROLE)
-
-
-@struct(StructType.READ_OPTIONS, inline=True)
-class ReadOptions(Struct):
-    """
-    Fine-grained options to a read request.
-    This is an addition to primary options (like the filter for a search or aggregation).
-    """
-
-    # relations
-    ancestor_types: list[NodeType] = p_regular(31, array=True, require=False)
-    descendant_types: list[NodeType] = p_regular(32, array=True, require=False)
-    related_properties: list[Property] = p_regular(
-        33, require=False, array=True, struct=StructType.PROPERTY_REFERENCE
-    )
-
-    # properties (include/exclude relative to default OR select specific properties)
-    include_properties: list[Property] = p_regular(
-        40, require=False, array=True, struct=StructType.PROPERTY_REFERENCE
-    )
-    exclude_properties: list[Property] = p_regular(
-        41, require=False, array=True, struct=StructType.PROPERTY_REFERENCE
-    )
-    select_properties: list[Property] = p_regular(
-        42, require=False, array=True, struct=StructType.PROPERTY_REFERENCE
-    )
-    select_all_properties: bool = p_regular(43, default=False)
-
-    # filters (simplified for now)
-    include_hidden: bool = p_regular(50, default=False)
-
-    def __content_str__(self) -> str:
-        content_parts = []
-        for key, prop in self.__declared_properties__.items():
-            value = getattr(self, key)
-            if value:
-                content_parts.append(f"{prop.name}={value}")
-        if content_parts:
-            return ", ".join(content_parts)
-        else:
-            return "<default>"
-
-    def copy(self) -> "ReadOptions":
-        return ReadOptions(
-            ancestor_types=list(self.ancestor_types),
-            descendant_types=list(self.descendant_types),
-            related_properties=list(self.related_properties),
-            include_properties=list(self.include_properties),
-            exclude_properties=list(self.exclude_properties),
-            select_properties=list(self.select_properties),
-            select_all_properties=self.select_all_properties,
-            include_hidden=self.include_hidden,
-        )
-
-    def related(self, node_type: NodeType) -> list[Property] | tuple[Property, ...]:
-        return tuple(p for p in self.related_properties if p.type == node_type)
-
-    def select(self, node_type: NodeType) -> list[Property] | tuple[Property, ...]:
-        # NOTE :Performance: if len(exclude_properties) gets larger this will be pretty inefficient
-        if self.select_all_properties:
-            properties = SELECT_ALL_PROPERTIES[node_type]
-            if self.exclude_properties:
-                properties = tuple(
-                    p for p in properties if not any(e.id == p.id for e in self.exclude_properties)
-                )
-            return properties
-        elif self.select_properties:
-            # select specific properties
-            return tuple(p for p in self.select_properties if p.type == node_type)
-        else:
-            # select default properties +/- include/exclude
-            properties = SELECT_DEFAULT_PROPERTIES[node_type]
-            if self.include_properties:
-                properties = properties + tuple(
-                    p for p in self.include_properties if p.type == node_type
-                )
-            if self.exclude_properties:
-                properties = tuple(
-                    p for p in properties if not any(e.id == p.id for e in self.exclude_properties)
-                )
-            return properties
-
-    def filter(
-        self, node_type: NodeType, custom_filter: Optional["Expression"] = None
-    ) -> "Expression":
-        filter = C(ConditionalOp.TRUE) if self.include_hidden else FILTER_DEFAULT
-        if custom_filter is not None:
-            filter &= custom_filter
-        return filter
-
-    @staticmethod
-    def default():
-        """Read default: exclude soft delete & archived, select all non-deferred properties."""
-        return ReadOptions()
-
-    @staticmethod
-    def all():
-        """Read all: include everything, select all properties."""
-        return ReadOptions(include_hidden=True, select_all_properties=True)
 
 
 @struct(StructType.POLICY)
@@ -803,8 +683,8 @@ def _interp_system_policies():
 
 
 def adapt_read_options(
-    subject: Subject, root_node_type: NodeType, options: ReadOptions
-) -> ReadOptions:
+    subject: Subject, root_node_type: NodeType, options: "ReadOptions"
+) -> "ReadOptions":
     """
     Adapt read options based on the access to pre-filter as feasible while enabling the complete post-read check.
     Does NOT fully evaluate access yet, but avoids loading data that will be denied anyway.
@@ -833,7 +713,6 @@ def generate_access_matrix(
     subject: Subject,
     graph: NodeDataGraph,
     base_policies: tuple[Policy, ...] = SYSTEM_POLICIES,
-    root_owner: Owner | None = None,
     unpacked_graph: NodeGraph[Node] | None = None,
 ) -> AccessMatrix:
     """Generates an access matrix to quickly evaluate access for a specific subject."""
@@ -922,12 +801,7 @@ def generate_access_matrix(
         # figure out owner
         root_type = wiring.unpack_enum(NodeType, root.metatype)
         root_cls = NODE_CLASS_BY_TYPE[root_type]
-        if root_cls.__roots__:  # not an actual root
-            if root_owner is None:
-                raise ValueError(f"no owner for root {root!r}")
-            owner = root_owner
-        else:
-            owner = root
+        assert not root_cls.__roots__, f"unexpected non-root root: {root!r}"
 
         # base zones are checked before all others (typically for system policies)
         #  but are specific to each root (=owner)
@@ -936,7 +810,7 @@ def generate_access_matrix(
                 rule
                 for policy in base_policies
                 for rule in policy.rules
-                if rule.matches_subject(identity, owner)
+                if rule.matches_subject(identity, root)
             ]
             base_zone = AccessZone(
                 scope_id=root.id,
@@ -950,7 +824,7 @@ def generate_access_matrix(
             matrix._base_zone_by_root[(identity.id, root.id)] = base_zone
 
         # add nested zones if there are any legislative nodes down here
-        _assign_access_zones(root, owner, root_zones_by_identity)
+        _assign_access_zones(root, root, root_zones_by_identity)
 
     return matrix
 

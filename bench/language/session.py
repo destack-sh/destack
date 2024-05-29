@@ -446,28 +446,30 @@ class Session(Node[SessionData]):
 class HasSessionContext(Struct):
     """Context for the creation of a node in some Session."""
 
+    # NOTE :Security: session context properties are p_internal, not p_system so we can update
+    #   them in all clients. This however also means users can mess with them if they really want to.
     # :SessionContext
-    block: Optional["Block"] = p_system(60, require=False, array=False, references=NodeType.BLOCK)
-    step: Optional["Step"] = p_system(61, require=False, array=False, references=NodeType.STEP)
-    session: Optional["Session"] = p_system(
+    block: Optional["Block"] = p_internal(60, require=False, array=False, references=NodeType.BLOCK)
+    step: Optional["Step"] = p_internal(61, require=False, array=False, references=NodeType.STEP)
+    session: Optional["Session"] = p_internal(
         62, require=False, array=False, references=NodeType.SESSION, is_bench_implicit=True
     )
-    run: Optional["Run"] = p_system(
+    run: Optional["Run"] = p_internal(
         63, require=False, array=False, references=NodeType.RUN, is_bench_implicit=True
     )
-    run_root: Optional["Run"] = p_system(
+    run_root: Optional["Run"] = p_internal(
         64, require=False, array=False, references=NodeType.RUN, is_bench_implicit=True
     )
-    client: Optional["Client"] = p_system(
+    client: Optional["Client"] = p_internal(
         65, require=False, array=False, references=NodeType.CLIENT, is_bench_implicit=True
     )
-    machine: Optional["Machine"] = p_system(
+    machine: Optional["Machine"] = p_internal(
         66, require=False, array=False, references=NodeType.MACHINE, is_bench_implicit=True
     )
-    server: Optional["Server"] = p_system(
+    server: Optional["Server"] = p_internal(
         67, require=False, array=False, references=NodeType.SERVER, is_bench_implicit=True
     )
-    user: Optional["User"] = p_system(68, require=False, array=False, references=NodeType.USER)
+    user: Optional["User"] = p_internal(68, require=False, array=False, references=NodeType.USER)
 
     if TYPE_CHECKING:
         block_ptr: Optional[NodeReferenceData] = None

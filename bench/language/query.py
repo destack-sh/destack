@@ -5,6 +5,7 @@ import abc
 from typing import (
     TYPE_CHECKING,
     Any,
+    Collection,
     Generic,
     Optional,
     Self,
@@ -17,20 +18,42 @@ from typing import (
 from bench.language.const import (
     AggregationOp,
     BenchError,
+    ConditionalOp,
     ExpressionKind,
     NodeType,
     StructType,
     active_tx,
 )
+from bench.language.expression import C, Expression
 from bench.language.graph import NodeDataGraph
-from bench.language.node import NODE_CLASS_BY_TYPE, Node, ReadInfo, node
-from bench.language.property import p_node_parent, p_regular
-from bench.language.setup import ANCESTOR_NODE_TYPES
+from bench.language.node import NODE_CLASS_BY_TYPE, Node, ReadInfo, Struct, node, struct
+from bench.language.property import Property, p_node_parent, p_regular
+from bench.language.setup import ANCESTOR_NODE_TYPES, NODE_CLASSES, _on_completing_setup
 from bench.proto.wire import AnyNodeData, QueryData
 from bench.utils.fractional import INTEGER_ZERO
 
 if TYPE_CHECKING:
-    from bench.language import Block, Expression, Field, Property, ReadOptions
+    from bench.language import Block, Field, ReadOptions
+
+
+# default read options
+FILTER_DEFAULT: Expression = C(ConditionalOp.AND, clauses=[])
+SELECT_DEFAULT_PROPERTIES: dict[NodeType, tuple[Property, ...]] = {}
+SELECT_ALL_PROPERTIES: dict[NodeType, tuple[Property, ...]] = {}
+
+
+@_on_completing_setup
+def _populate_default_access():
+    FILTER_DEFAULT.clauses = [
+        C(ConditionalOp.NOT_EXISTS, property=Node.deleted_at),
+        C(ConditionalOp.NOT_EXISTS, property=Node.archived_at),
+    ]
+    for node_t in NODE_CLASSES:
+        SELECT_DEFAULT_PROPERTIES[node_t.metatype] = tuple(
+            prop for prop in node_t.__stored_properties__.values() if not prop.is_deferred
+        )
+        SELECT_ALL_PROPERTIES[node_t.metatype] = tuple(node_t.__stored_properties__.values())
+
 
 # pyright: reportIncompatibleVariableOverride=false, reportIncompatibleMethodOverride=false
 
@@ -42,42 +65,109 @@ FieldOrProperty = Union[
 NodeTypeOrClass = Union[NodeType, type[Node]]
 
 
-@node(NodeType.QUERY)
-class Query(Node[QueryData]):
-    """A stored query."""
+@struct(StructType.READ_OPTIONS, inline=True)
+class ReadOptions(Struct):
+    """
+    Fine-grained options to a read request.
+    This is an addition to primary options (like the filter for a search or aggregation).
+    """
 
-    parent: "Block" = p_node_parent(4, NodeType.BLOCK)
-    name: str | None = p_regular(30, default=None)
-    order_key: str = p_regular(31, default=INTEGER_ZERO)
-    node_type: NodeType = p_regular(32)
-    base: Optional["Block"] = p_regular(
-        33, array=False, require=False, default=None, references=NodeType.BLOCK
-    )
-    filter: Optional["Expression"] = p_regular(34, default=None, struct=StructType.EXPRESSION)
-    sort: Optional[list["Expression"]] = p_regular(
-        35, default=None, array=True, struct=StructType.EXPRESSION
+    # relations
+    ancestor_types: list[NodeType] = p_regular(31, array=True, require=False)
+    descendant_types: list[NodeType] = p_regular(32, array=True, require=False)
+    related_properties: list[Property] = p_regular(
+        33, require=False, array=True, struct=StructType.PROPERTY_REFERENCE
     )
 
-    def __content_str__(self):
-        return f"{self.node_type}[{self.filter}, {self.sort or '<default sort>'}]"
+    # properties (include/exclude relative to default OR select specific properties)
+    include_properties: list[Property] = p_regular(
+        40, require=False, array=True, struct=StructType.PROPERTY_REFERENCE
+    )
+    exclude_properties: list[Property] = p_regular(
+        41, require=False, array=True, struct=StructType.PROPERTY_REFERENCE
+    )
+    select_properties: list[Property] = p_regular(
+        42, require=False, array=True, struct=StructType.PROPERTY_REFERENCE
+    )
+    select_all_properties: bool = p_regular(43, default=False)
 
-    @property
-    def node_cls(self) -> type[Node]:
-        return NODE_CLASS_BY_TYPE[self.node_type]
+    # filters (simplified for now)
+    include_hidden: bool = p_regular(50, default=False)
 
-    def build(self) -> "QueryBuilder":
-        return QueryBuilder(
-            node_type=self.node_type,
-            base=self.base,
-            filter=self.filter,
-            sort=self.sort,
-            first=None,
-            skip=None,
-            aggregation=None,
-            options=None,
+    def __content_str__(self) -> str:
+        content_parts = []
+        for key, prop in self.__declared_properties__.items():
+            value = getattr(self, key)
+            if value:
+                content_parts.append(f"{prop.name}={value}")
+        if content_parts:
+            return ", ".join(content_parts)
+        else:
+            return "<default>"
+
+    def copy(self) -> "ReadOptions":
+        return ReadOptions(
+            ancestor_types=list(self.ancestor_types),
+            descendant_types=list(self.descendant_types),
+            related_properties=list(self.related_properties),
+            include_properties=list(self.include_properties),
+            exclude_properties=list(self.exclude_properties),
+            select_properties=list(self.select_properties),
+            select_all_properties=self.select_all_properties,
+            include_hidden=self.include_hidden,
         )
 
-    # ... ReadQueryBase methods
+    def trim_to(self, node_types: Collection[NodeType]) -> "ReadOptions":
+        copy = self.copy()
+        copy.ancestor_types = [t for t in self.ancestor_types if t in node_types]
+        copy.descendant_types = [t for t in self.descendant_types if t in node_types]
+        return copy
+
+    def related(self, node_type: NodeType) -> list[Property] | tuple[Property, ...]:
+        return tuple(p for p in self.related_properties if p.type == node_type)
+
+    def select(self, node_type: NodeType) -> list[Property] | tuple[Property, ...]:
+        # NOTE :Performance: if len(exclude_properties) gets larger this will be pretty inefficient
+        if self.select_all_properties:
+            properties = SELECT_ALL_PROPERTIES[node_type]
+            if self.exclude_properties:
+                properties = tuple(
+                    p for p in properties if not any(e.id == p.id for e in self.exclude_properties)
+                )
+            return properties
+        elif self.select_properties:
+            # select specific properties
+            return tuple(p for p in self.select_properties if p.type == node_type)
+        else:
+            # select default properties +/- include/exclude
+            properties = SELECT_DEFAULT_PROPERTIES[node_type]
+            if self.include_properties:
+                properties = properties + tuple(
+                    p for p in self.include_properties if p.type == node_type
+                )
+            if self.exclude_properties:
+                properties = tuple(
+                    p for p in properties if not any(e.id == p.id for e in self.exclude_properties)
+                )
+            return properties
+
+    def filter(
+        self, node_type: NodeType, custom_filter: Optional["Expression"] = None
+    ) -> "Expression":
+        filter = C(ConditionalOp.TRUE) if self.include_hidden else FILTER_DEFAULT
+        if custom_filter is not None:
+            filter &= custom_filter
+        return filter
+
+    @staticmethod
+    def default():
+        """Read default: exclude soft delete & archived, select all non-deferred properties."""
+        return ReadOptions()
+
+    @staticmethod
+    def all():
+        """Read all: include everything, select all properties."""
+        return ReadOptions(include_hidden=True, select_all_properties=True)
 
 
 class QueryError(BenchError, ValueError):
@@ -295,16 +385,21 @@ class QueryBuilder(
             skip=self._skip,
             aggregation=self._aggregation,
             options=self._options,
-            # cache is not copied on purpose as it shouldn't propagate
         )
 
     def _copy_options(self) -> "ReadOptions":
-        from bench.language.access import ReadOptions
-
         if self._options is None:
             return ReadOptions()
         else:
             return self._options.copy()
+
+    def trim_to(self, node_types: Collection[NodeType]) -> "QueryBuilder[NodeT, NodeDataT]":
+        assert self._node_type in node_types
+        copy = self.copy()
+        if not self._options:
+            return copy
+        copy._options = self._options.trim_to(node_types)
+        return copy
 
     @override
     def where(
@@ -510,3 +605,41 @@ class QueryBuilder(
             return [
                 tuple(getattr(node, p) for p in properties_names) for node in await self.fetch()
             ]
+
+
+@node(NodeType.QUERY)
+class Query(Node[QueryData]):
+    """A stored query."""
+
+    parent: "Block" = p_node_parent(4, NodeType.BLOCK)
+    name: str | None = p_regular(30, default=None)
+    order_key: str = p_regular(31, default=INTEGER_ZERO)
+    node_type: NodeType = p_regular(32)
+    base: Optional["Block"] = p_regular(
+        33, array=False, require=False, default=None, references=NodeType.BLOCK
+    )
+    filter: Optional["Expression"] = p_regular(34, default=None, struct=StructType.EXPRESSION)
+    sort: Optional[list["Expression"]] = p_regular(
+        35, default=None, array=True, struct=StructType.EXPRESSION
+    )
+
+    def __content_str__(self):
+        return f"{self.node_type}[{self.filter}, {self.sort or '<default sort>'}]"
+
+    @property
+    def node_cls(self) -> type[Node]:
+        return NODE_CLASS_BY_TYPE[self.node_type]
+
+    def build(self) -> "QueryBuilder":
+        return QueryBuilder(
+            node_type=self.node_type,
+            base=self.base,
+            filter=self.filter,
+            sort=self.sort,
+            first=None,
+            skip=None,
+            aggregation=None,
+            options=None,
+        )
+
+    # ... ReadQueryBase methods

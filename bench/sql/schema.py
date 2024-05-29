@@ -11,7 +11,7 @@ from bench.sql.core import (
     Table,
 )
 
-VERSION = "2024.05.28.1"
+VERSION = "2024.05.29.0"
 
 BENCH_TABLE = Table(
     "bench_bench",
@@ -1527,7 +1527,11 @@ MESSAGE_TABLE = Table(
     ),
     indexes=(
         Index("bench_idx_created_at", IndexType.BTREE, ("created_at",)),
+        Index("bench_idx_created_epoch", IndexType.BTREE, ("created_epoch",)),
         Index("bench_idx_package_id_created_at", IndexType.BTREE, ("package_id", "created_at")),
+        Index(
+            "bench_idx_package_id_created_epoch", IndexType.BTREE, ("package_id", "created_epoch")
+        ),
     ),
     constraints=(
         Constraint(

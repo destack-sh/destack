@@ -26,7 +26,6 @@ from psycopg import OperationalError, sql
 from psycopg.types.json import Jsonb
 
 from bench.language import Block, ConditionalOp, Field, Property, StoreConnectionType
-from bench.language.access import ReadOptions
 from bench.language.connection import ConnectionIncapableError
 from bench.language.const import (
     EMPTY_DICT,
@@ -41,6 +40,7 @@ from bench.language.const import (
 from bench.language.expression import C, Expression, ExpressionOps
 from bench.language.graph import NodeDataGraph
 from bench.language.node import NODE_CLASS_BY_TYPE, UNSET, Node
+from bench.language.query import ReadOptions
 from bench.language.setup import NODE_CLASSES, PARENT_NODE_TYPES
 from bench.language.transaction import IMPLICIT_EDIT_PROPERTIES_IDS, IMPLICIT_EDIT_PROPERTIES_NAMES
 from bench.proto import wire, wiring

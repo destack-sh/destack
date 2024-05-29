@@ -3,7 +3,7 @@
 
 from typing import TYPE_CHECKING, Union
 
-VERSION = "2024.05.28.1"
+VERSION = "2024.05.29.0"
 
 if TYPE_CHECKING:
     from bench.language import Subject
@@ -204,8 +204,6 @@ class BenchType(betterproto.Enum):
     POLICY_EFFECT = 2038
     REGION = 2050
     TENANCY = 2051
-    STORE_KIND = 2052
-    STORE_ENGINE_TYPE = 2053
     SERVER_PROFILE = 2055
     MACHINE_PROFILE = 2056
     RESOURCE_STATUS = 2057
@@ -407,8 +405,6 @@ class EnumType(betterproto.Enum):
     POLICY_EFFECT = 2038
     REGION = 2050
     TENANCY = 2051
-    STORE_KIND = 2052
-    STORE_ENGINE_TYPE = 2053
     SERVER_PROFILE = 2055
     MACHINE_PROFILE = 2056
     RESOURCE_STATUS = 2057
@@ -1029,16 +1025,11 @@ class StepType(betterproto.Enum):
     GROUP = 40
 
 
-class StoreEngineType(betterproto.Enum):
+class StoreConnectionType(betterproto.Enum):
     UNSPECIFIED = 0
     LOCAL = 1
     REMOTE = 2
     POSTGRES = 3
-
-
-class StoreKind(betterproto.Enum):
-    UNSPECIFIED = 0
-    RELATIONAL = 1
 
 
 class StructType(betterproto.Enum):

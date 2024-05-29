@@ -196,13 +196,13 @@ class BenchServiceBase:
                 # pass through GRPC errors
                 duration = asyncio.get_running_loop().time() - start
                 sentry_capture(e)
-                log.exception(rpc_name, duration=duration, error=e)
+                log.exception(f"{rpc_name}.error", duration=duration, error=e)
                 raise
 
             except BenchError as e:
                 # wrap error
                 duration = asyncio.get_running_loop().time() - start
-                log.exception(rpc_name, duration=duration, error=e)
+                log.exception(f"{rpc_name}.error", duration=duration, error=e)
                 status = get_grpc_status_from_bench_error(e)
                 raise GRPCError(status, str(e)) from e
 
