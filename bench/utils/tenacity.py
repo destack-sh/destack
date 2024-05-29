@@ -6,6 +6,8 @@ from typing import Any, Awaitable, Callable, Coroutine, Type, TypeVar, Union
 from grpclib import GRPCError
 from grpclib import Status as GRPCStatus
 
+from bench.utils.dt import monotime
+
 T = TypeVar("T")
 
 
@@ -30,7 +32,7 @@ class RetryOptions:
         return min(self.retry_interval * (self.backoff**attempt), self.max_retry_interval)
 
     def new(self):
-        return RetryState(options=self)
+        return RetryState(options=self, start=monotime())
 
 
 class RetryError(Exception):
@@ -49,6 +51,7 @@ class RetryState:
     """State of a retryable operation."""
 
     options: RetryOptions
+    start: float
     errors: list[Exception] | None = None
     attempt: int = 0
 
@@ -82,6 +85,10 @@ class RetryState:
             for e in self.errors
         )
         return attempts_left and not bad_error
+
+    @property
+    def duration(self) -> float:
+        return monotime() - self.start
 
     @property
     def interval(self) -> float:

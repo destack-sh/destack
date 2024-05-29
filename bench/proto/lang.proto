@@ -1541,7 +1541,7 @@ message RunErrorData {
   optional string order_key = 5;
   repeated int32 set_properties = 29;
   RunErrorKind kind = 30;
-  RunErrorType type = 31;
+  optional RunErrorType type = 31;
   optional string title = 32;
   optional TextData text = 33;
   optional NodeReferenceData node_ptr = 34;

@@ -6,15 +6,17 @@ from uuid import UUID
 import structlog
 
 from bench.language import Bench, Package
+from bench.language.bench import Client
+from bench.language.code_ import run_code_exec
 from bench.language.connection import StoreEngine
-from bench.language.const import BlockType, RunKind
-from bench.language.run import Run
+from bench.language.const import BlockType, RunKind, RunStatus
+from bench.language.run import Run, RunError
 from bench.language.session import Session, unsuspend_session
 from bench.proto import wiring
 from bench.proto.wire import GraphScope, HostStub, RunData, SupervisorStub
 from bench.runtime.connection import ConnectedBench, ConnectedPackage, QueryConnector
 from bench.runtime.core import BENCH_QUERY, PACKAGE_QUERY
-from bench.utils.dt import monotime
+from bench.utils.dt import monotime, utcnow
 from bench.utils.func import CriticalLock
 from bench.utils.task import TaskManager
 
@@ -32,19 +34,16 @@ class RuntimeThread:
     def __init__(
         self,
         *,
-        id: UUID,
+        id: int,
         bench_id: UUID,
         supervisor: SupervisorStub,
         host: HostStub,
+        client: Client,
         connector: QueryConnector,
         engines: tuple[StoreEngine, ...],
         queue: asyncio.Queue[RunData],
     ):
         self.id = id
-
-        # context
-        self._connector = connector
-        self._engines = engines
 
         # bench stuff
         self._supervisor = supervisor
@@ -52,6 +51,11 @@ class RuntimeThread:
         self._bench_id = bench_id
         self._bench: ConnectedBench | None = None
         self._main_package: ConnectedPackage | None = None
+
+        # context
+        self._client = client
+        self._connector = connector
+        self._engines = engines
 
         # processing
         self._session: Session | None = None
@@ -62,7 +66,8 @@ class RuntimeThread:
         self._tasks = TaskManager(owner=self, logger=logger)
 
     def __str__(self):
-        return f"{self.id} on {self._bench!r}"
+        bench = self._bench._node if self._bench else None
+        return f"{self.id} on {repr(bench) or self._bench_id}"
 
     def __repr__(self):
         return f"<{self.__class__.__name__} {self}>"
@@ -76,6 +81,10 @@ class RuntimeThread:
     def main_package(self) -> Package:
         assert self._main_package is not None, f"no main package for {self!r}"
         return self._main_package.node
+
+    @property
+    def epoch(self) -> int:
+        return -1  # nocheckin ???
 
     @asynccontextmanager
     async def session(self, *, readonly: bool = False, autocommit: bool = False):
@@ -96,6 +105,8 @@ class RuntimeThread:
             _engines=self._engines,
             _supervisor=self._supervisor,
             _host=self._host,
+            _subject=self._client.parent,
+            _origin=self._client.to_origin(),
         )
         await self._session.open(in_context=False)
 
@@ -112,6 +123,7 @@ class RuntimeThread:
             self._main_package = await self._connector.connect(
                 PACKAGE_QUERY.where(id=main_branch.main_package_id), self._tx_lock, self._session
             )
+            self._session.parent = self._main_package.node
 
         # finally, start processing runs
         self._tasks.start_queue(
@@ -125,13 +137,32 @@ class RuntimeThread:
         ), f"{run_data!r} not in {self.main_package!r}"
         run = wiring.unpack_node(run_data, self.main_package, self._session, Run)
 
-        async with self.session(readonly=False, autocommit=True) as session:
-            if run.kind == RunKind.BLOCK:
-                assert run.block is not None, f"no block for {run!r}"
-                if run.block.type == BlockType.CODE:
-                    pass
-            else:
-                ...
+        start = monotime()
+        async with self.session(readonly=False, autocommit=True):
+            run.status = RunStatus.RUNNING
+            run.started_at = utcnow()
+            run.started_epoch = self.epoch
+            logger.info("run.start", thread=self, run=run)
+            try:
+                if run.kind == RunKind.BLOCK:
+                    block = run.block
+                    assert block is not None, f"no block for {run!r}"
+                    if block.type == BlockType.CODE:
+                        assert block.code is not None, f"no code for {run!r}"
+                        run_code_exec(block.code.to_string(), {"self": block})
+                    else:
+                        raise NotImplementedError(f"unsupported block type {block.type}")
+                else:
+                    raise NotImplementedError(f"unsupported run kind {run.kind}")
+                run.status = RunStatus.COMPLETED
+                logger.info("run.complete", thread=self, run=run, duration=monotime() - start)
+            except Exception as e:
+                run.fail(RunError.from_exception(e))
+                logger.error("run.fail", thread=self, run=run, error=e, duration=monotime() - start)
+            finally:
+                run.terminated_at = utcnow()
+                run.terminated_epoch = self.epoch
+                run.duration = (run.terminated_at - run.started_at).total_seconds()
 
     def close(self):
         self._tasks.close()

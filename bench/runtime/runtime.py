@@ -46,12 +46,11 @@ from bench.runtime.thread import RuntimeThread
 from bench.utils.dt import monotime
 from bench.utils.func import CriticalLock
 from bench.utils.tenacity import RETRY_GRPC_FOREVER
-from bench.utils.uuidt import UUIDT
 
 logger = structlog.get_logger(__name__)
 
 
-class Runtime(RuntimeBase, BenchServiceBase):
+class Runtime(BenchServiceBase, RuntimeBase):
     """
     A Runtime processes selected Runs in a Bench/Package in Sessions on a Client.
     """
@@ -231,12 +230,13 @@ class Runtime(RuntimeBase, BenchServiceBase):
             self._session.parent = self._main_package.node
 
         # start threads
-        for _ in range(RUNTIME_PARALLELISM):
+        for i in range(RUNTIME_PARALLELISM):
             thread = RuntimeThread(
-                id=UUIDT(),
+                id=i,
                 bench_id=self._bench_id,
                 supervisor=self._supervisor,
                 host=self._host,
+                client=self._client,
                 # TODO :Performance: share query connections between runtime/threads
                 connector=self._connector,
                 engines=self._engines,

@@ -94,7 +94,10 @@ class Run(BasedNode[RunData], HasSessionContext, HasValues):
             content_str = self.step.absolute_path if self.step else str(self.step_ptr)
         else:
             content_str = repr(self.code or self.text)
-        return f"{content_str}, {self.status.bench_name})"
+        if self.duration is not None:
+            return f"{content_str}, {self.status.bench_name}), duration={self.duration:.3f}s"
+        else:
+            return f"{content_str}, {self.status.bench_name}"
 
     def fail(self, error: "RunError"):
         assert not self.status.is_terminal, f"cannot fail {self.status} run {self!r}"
@@ -138,10 +141,18 @@ class RunError(Struct, BenchError):
     """An error that occurred in the context of a Run."""
 
     kind: RunErrorKind = p_internal(30)
-    type: RunErrorType = p_internal(31)
+    type: Optional[RunErrorType] = p_internal(31, default=None)
     title: Optional[str] = p_internal(32, default=None)
     text: Optional["Text"] = p_internal(33, default=None, struct=StructType.TEXT)
     node: Optional["Node"] = p_internal(34, require=False, array=False, references=NodeType.BLOCK)
 
     def __content_str__(self) -> str:
-        return f"{self.kind.bench_name} {self.type.bench_name} {self.title or '<no title>'}"
+        parts = [self.kind.bench_name]
+        if self.type is not None:
+            parts.append(self.type.bench_name)
+        parts.append(self.title or "<no title>")
+        return ", ".join(parts)
+
+    @staticmethod
+    def from_exception(e: Exception) -> "RunError":
+        return RunError(kind=RunErrorKind.INTERNAL, title=str(e))

@@ -1065,9 +1065,9 @@ export interface RunErrorData {
      */
     kind: RunErrorKind;
     /**
-     * @generated from protobuf field: symbolx.bench.RunErrorType type = 31;
+     * @generated from protobuf field: optional symbolx.bench.RunErrorType type = 31;
      */
-    type: RunErrorType;
+    type?: RunErrorType;
     /**
      * @generated from protobuf field: optional string title = 32;
      */
@@ -12395,7 +12395,7 @@ class RunErrorData$Type extends MessageType<RunErrorData> {
             { no: 5, name: "order_key", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
             { no: 29, name: "set_properties", kind: "scalar", repeat: 1 /*RepeatType.PACKED*/, T: 5 /*ScalarType.INT32*/ },
             { no: 30, name: "kind", kind: "enum", T: () => ["symbolx.bench.RunErrorKind", RunErrorKind, "RUN_ERROR_KIND_"] },
-            { no: 31, name: "type", kind: "enum", T: () => ["symbolx.bench.RunErrorType", RunErrorType, "RUN_ERROR_TYPE_"] },
+            { no: 31, name: "type", kind: "enum", opt: true, T: () => ["symbolx.bench.RunErrorType", RunErrorType, "RUN_ERROR_TYPE_"] },
             { no: 32, name: "title", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
             { no: 33, name: "text", kind: "message", T: () => TextData },
             { no: 34, name: "node_ptr", kind: "message", T: () => NodeReferenceData }
@@ -12407,7 +12407,6 @@ class RunErrorData$Type extends MessageType<RunErrorData> {
         message.id = 0;
         message.setProperties = [];
         message.kind = 0;
-        message.type = 0;
         if (value !== undefined)
             reflectionMergePartial<RunErrorData>(this, message, value);
         return message;
@@ -12442,7 +12441,7 @@ class RunErrorData$Type extends MessageType<RunErrorData> {
                 case /* symbolx.bench.RunErrorKind kind */ 30:
                     message.kind = reader.int32();
                     break;
-                case /* symbolx.bench.RunErrorType type */ 31:
+                case /* optional symbolx.bench.RunErrorType type */ 31:
                     message.type = reader.int32();
                     break;
                 case /* optional string title */ 32:
@@ -12491,8 +12490,8 @@ class RunErrorData$Type extends MessageType<RunErrorData> {
         /* symbolx.bench.RunErrorKind kind = 30; */
         if (message.kind !== 0)
             writer.tag(30, WireType.Varint).int32(message.kind);
-        /* symbolx.bench.RunErrorType type = 31; */
-        if (message.type !== 0)
+        /* optional symbolx.bench.RunErrorType type = 31; */
+        if (message.type !== undefined)
             writer.tag(31, WireType.Varint).int32(message.type);
         /* optional string title = 32; */
         if (message.title !== undefined)
@@ -25276,7 +25275,7 @@ export const RunErrorDataInfo: Record<RunErrorProperty, PropertyInfo> = {
   [RunErrorProperty.orderKey]: { id: 5, name: 'order_key', component: ObjectType.RUN_ERROR, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [RunErrorProperty.setProperties]: { id: 29, name: 'set_properties', component: ObjectType.RUN_ERROR, kind: 'primitive', primitiveType: PrimitiveType.INT32, isList: true, isRequired: true, isRuntime: true, isWired: true, isStored: true },
   [RunErrorProperty.kind]: { id: 30, name: 'kind', component: ObjectType.RUN_ERROR, enumType: EnumType.RUN_ERROR_KIND, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isRuntime: true, isWired: true, isStored: true },
-  [RunErrorProperty.type]: { id: 31, name: 'type', component: ObjectType.RUN_ERROR, enumType: EnumType.RUN_ERROR_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isRuntime: true, isWired: true, isStored: true },
+  [RunErrorProperty.type]: { id: 31, name: 'type', component: ObjectType.RUN_ERROR, enumType: EnumType.RUN_ERROR_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [RunErrorProperty.title]: { id: 32, name: 'title', component: ObjectType.RUN_ERROR, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [RunErrorProperty.text]: { id: 33, name: 'text', component: ObjectType.RUN_ERROR, kind: 'reference', primitiveType: PrimitiveType.JSON, isInternal: true, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.TEXT },
   [RunErrorProperty.nodePtr]: { id: 34, name: 'node_ptr', component: ObjectType.RUN_ERROR, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.BLOCK], referenceStruct: StructType.NODE_REFERENCE },
