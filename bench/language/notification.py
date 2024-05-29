@@ -6,7 +6,7 @@ from bench.language.const import (
     NotificationKind,
     StructType,
 )
-from bench.language.node import BasedNode, node
+from bench.language.node import BasedNode, timed_node
 from bench.language.property import (
     p_internal,
     p_node_parent,
@@ -23,7 +23,6 @@ from bench.proto.wire import (
     NodeReferenceData,
     NotificationData,
 )
-from bench.utils.uuidt import UUIDT
 
 if TYPE_CHECKING:
     from bench.language import Block, Package, Text
@@ -31,19 +30,7 @@ if TYPE_CHECKING:
 # pyright: reportIncompatibleVariableOverride=false
 
 
-@node(
-    NodeType.NOTIFICATION,
-    passthrough="value",
-    local=True,
-    no_ck=True,  # no persistent identity
-    id_factory=UUIDT,
-    indexes=(
-        ("created_at",),
-        ("created_epoch",),
-        ("package_id", "created_at"),
-        ("package_id", "created_epoch"),
-    ),
-)
+@timed_node(NodeType.NOTIFICATION, passthrough="value")
 class Notification(BasedNode[NotificationData], HasSessionContext, HasValues):
     """
     A Notification for a Bench (author = created_by).

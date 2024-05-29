@@ -79,6 +79,7 @@ from bench.utils.dt import utcnow
 from bench.utils.env import IS_DEBUG
 from bench.utils.func import bittuple, did_you_mean_str
 from bench.utils.utils import frozendict
+from bench.utils.uuidt import UUIDT
 
 if TYPE_CHECKING:
     from bench.language import (
@@ -715,6 +716,29 @@ def node(
         return cls
 
     return decorate
+
+
+@dataclass_transform(kw_only_default=True, field_specifiers=_PROPERTY_SPECIFIERS)
+def timed_node(
+    node_type: NodeType,
+    passthrough: str | None = None,
+    indexes: tuple[Index | tuple[str, ...], ...] = (),
+):
+    """Register a class as a concrete node for the given node type."""
+    return node(
+        node_type=node_type,
+        passthrough=passthrough,
+        local=True,
+        no_ck=True,
+        id_factory=UUIDT,
+        indexes=(
+            *indexes,
+            ("created_at",),
+            ("created_epoch",),
+            ("package_id", "created_at"),
+            ("package_id", "created_epoch"),
+        ),
+    )
 
 
 NodeT = TypeVar("NodeT", bound="Node")

@@ -18,7 +18,14 @@ from bench.language.const import (
     get_active_run,
 )
 from bench.language.graph import NodeDict, NodeGraphLike
-from bench.language.node import EditSubject, Node, Struct, node, struct, struct_component
+from bench.language.node import (
+    EditSubject,
+    Node,
+    Struct,
+    struct,
+    struct_component,
+    timed_node,
+)
 from bench.language.property import Property, p_internal, p_node_parent, p_runtime, p_system
 from bench.language.transaction import Transaction
 from bench.proto.wire import (
@@ -61,18 +68,7 @@ ExtendCommitHook = Callable[
 OnCommitHook = Callable[[NodeGraphLike, list[EditData], int, list[EditData]], Awaitable[None]]
 
 
-@node(
-    NodeType.SESSION,
-    local=True,
-    no_ck=True,  # no persistent identity
-    id_factory=UUIDT,
-    indexes=(
-        ("created_at",),
-        ("created_epoch",),
-        ("package_id", "created_at"),
-        ("package_id", "created_epoch"),
-    ),
-)
+@timed_node(NodeType.SESSION)
 class Session(Node[SessionData]):
     """
     A managed Session for interacting with and running a Package in a Client.
