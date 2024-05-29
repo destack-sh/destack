@@ -202,7 +202,7 @@ async def test_crud_node_pointers(fabricator: "Fabricator"):
             name="main a", server=server, store=store, drive=drive
         )
         branch = bench.branches.create(name="main a")
-        package = bench.packages.create(environment=environment)
+        package = branch.packages.create(environment=environment)
         await session.flush()
         branch.main_package = package
         bench.main_environment = environment

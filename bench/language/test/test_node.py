@@ -62,7 +62,8 @@ def test_node_pointers_consistency(fabricator: "Fabricator"):
     assert client_a.parent_ptr.bench_id == bench_a.id
 
     # sub package nested pointers
-    package_a = bench_a.packages.create(environment=environment_a)
+    branch_a = bench_a.branches.create(name="main a")
+    package_a = branch_a.packages.create(environment=environment_a)
     assert package_a.bench_id == bench_a.id
     block_a_1 = package_a.blocks.create(type=BlockType.CODE)
     assert block_a_1.bench_id == bench_a.id
@@ -88,7 +89,8 @@ def test_node_pointers_consistency(fabricator: "Fabricator"):
     # refs pointing to different bench
     bench_b = fabricator.fabricate(Bench, slug="test_b", name="test_b")
     environment_b = Environment(parent=bench_b, name="Production B")
-    package_b = bench_b.packages.create(environment=environment_b)
+    branch_b = bench_b.branches.create(name="main b")
+    package_b = branch_b.packages.create(environment=environment_b)
     block_b = package_b.blocks.create(type=BlockType.CODE, bases=[block_a_1])
     assert block_b.bench_id == bench_b.id
     assert block_b.bases

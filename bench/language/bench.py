@@ -92,7 +92,7 @@ class Bench(Node[BenchData]):
         array=False,
         references=NodeType.ENVIRONMENT,
         fk=True,
-        is_bench_implicit=True,
+        same_bench=True,
     )
     main_branch: Optional["Branch"] = p_regular(
         41,
@@ -100,10 +100,8 @@ class Bench(Node[BenchData]):
         array=False,
         references=NodeType.BRANCH,
         fk=True,
-        is_bench_implicit=True,
+        same_bench=True,
     )
-    # published_branch?
-    packages: NodeList["Package"] = p_node_child(NodeType.PACKAGE)
     environments: NodeList["Environment"] = p_node_child(NodeType.ENVIRONMENT)
     branches: NodeList["Branch"] = p_node_child(NodeType.BRANCH)
 
@@ -133,23 +131,23 @@ class Environment(Node[EnvironmentData]):
     policies: list["Policy"] = p_regular(36, struct=StructType.POLICY, array=True)
 
     server: "Server" = p_system(
-        40, require=True, array=False, references=NodeType.SERVER, fk=True, is_bench_implicit=True
+        40, require=True, array=False, references=NodeType.SERVER, fk=True, same_bench=True
     )
     store: "Store" = p_system(
-        41, require=True, array=False, references=NodeType.STORE, fk=True, is_bench_implicit=True
+        41, require=True, array=False, references=NodeType.STORE, fk=True, same_bench=True
     )
     drive: "Drive" = p_system(
-        42, require=True, array=False, references=NodeType.DRIVE, fk=True, is_bench_implicit=True
+        42, require=True, array=False, references=NodeType.DRIVE, fk=True, same_bench=True
     )
 
 
 @node(
     NodeType.BRANCH,
     identifier=IdentifierType.VARIABLE,
-    unique=(("parent_bench_id", "slug"),),
+    unique=(("bench_id", "slug"),),
 )
 class Branch(Node[BranchData]):
-    """A branch is a Git-like pointer to the head of a lineage of packages."""
+    """A branch is a lineage of Bench history."""
 
     parent: Bench = p_node_parent(4, NodeType.BENCH)
     name: str = p_regular(32, constraint=NAME_CONSTRAINT)
@@ -159,27 +157,35 @@ class Branch(Node[BranchData]):
     policies: list["Policy"] = p_regular(36, struct=StructType.POLICY, array=True)
 
     main_package: Optional["Package"] = p_system(
-        40, require=False, array=False, references=NodeType.PACKAGE, fk=True, is_bench_implicit=True
+        40, require=False, array=False, references=NodeType.PACKAGE, fk=True, same_bench=True
     )
     if TYPE_CHECKING:
         main_package_id: Optional[UUID] = None
         main_package_ptr: Optional[NodeReferenceData] = None
+    base: Optional["Branch"] = p_system(
+        41, require=False, array=False, references=NodeType.BRANCH, fk=True, same_bench=True
+    )
+
+    # flags
+    is_overlay: bool = p_system(60, default=False)
+    is_light: bool = p_system(61, default=False)
+
+    packages: NodeList["Package"] = p_node_child(NodeType.PACKAGE)
 
 
 @node(
     NodeType.PACKAGE,
     identifier=IdentifierType.VARIABLE,
-    unique=(("parent_bench_id", "slug"),),
+    unique=(("bench_id", "slug"),),
 )
 class Package(Node[PackageData]):
-    """A package is a semi-isolated version of a Bench."""
+    """A package is a version of a Bench."""
 
-    parent: Bench = p_node_parent(4, NodeType.BENCH)
+    parent: Branch = p_node_parent(4, NodeType.BRANCH)
     slug: Optional[str] = p_regular(33, require=False, default=None, constraint=SLUG_CONSTRAINT)
     text: Optional["Text"] = p_regular(34, require=False, array=False, struct=StructType.TEXT)
     icon: Optional["Icon"] = p_regular(35, require=False, array=False, struct=StructType.ICON)
     policies: list["Policy"] = p_regular(36, struct=StructType.POLICY, array=True)
-    paused_at: datetime | None = p_internal(37, default=None)  # all activity is paused
 
     environment: Environment = p_system(
         40,
@@ -187,9 +193,16 @@ class Package(Node[PackageData]):
         array=False,
         references=NodeType.ENVIRONMENT,
         fk=True,
-        is_bench_implicit=True,
+        same_bench=True,
     )
-    bases: list["Package"] = p_system(42, require=False, array=True, references=NodeType.PACKAGE)
+    base: Optional["Package"] = p_system(
+        41, require=False, array=False, references=NodeType.PACKAGE, fk=True, same_bench=True
+    )
+
+    # flags
+    is_snapshot: bool = p_system(60, default=False)
+    is_overlay: bool = p_system(61, default=False)
+    is_paused: bool = p_system(65, default=False)
 
     blocks: NodeList["Block"] = p_node_child(NodeType.BLOCK)
     spaces: NodeList["Space"] = p_node_child(NodeType.SPACE)
@@ -197,18 +210,19 @@ class Package(Node[PackageData]):
 
     @property
     def name(self):
-        return self.parent.name if self.parent is not None else None
-
-    @property
-    def is_paused(self) -> bool:
-        return self.paused_at is not None
-
-    @is_paused.setter
-    def is_paused(self, value: bool) -> None:
-        self.paused_at = utcnow() if value else None
+        bench = self.bench
+        return bench.name if bench is not None else None
 
     def __content_str__(self):
-        return f"blocks={len(self.blocks)}, spaces={len(self.spaces)}"
+        parts = [
+            f"blocks={len(self.blocks)}",
+            f"spaces={len(self.spaces)}",
+            f"dependencies={len(self.dependencies)}",
+        ]
+        for flag in ("is_paused",):
+            if getattr(self, flag):
+                parts.append(flag)
+        return ", ".join(parts)
 
 
 @node(NodeType.DEPENDENCY, identifier=IdentifierType.VARIABLE)

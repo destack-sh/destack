@@ -3,7 +3,7 @@
 
 from typing import TYPE_CHECKING, Union
 
-VERSION = "2024.05.29.0"
+VERSION = "2024.05.29.2"
 
 if TYPE_CHECKING:
     from bench.language import Subject
@@ -2036,7 +2036,7 @@ class BlockData(betterproto.Message):
 
 @dataclass(eq=False, repr=False)
 class BranchData(betterproto.Message):
-    """A branch is a Git-like pointer to the head of a lineage of packages."""
+    """A branch is a lineage of Bench history."""
 
     metatype: "ObjectType" = betterproto.enum_field(1)
     id: str = betterproto.string_field(2)
@@ -2058,6 +2058,9 @@ class BranchData(betterproto.Message):
     icon: Optional["IconData"] = betterproto.message_field(35, optional=True)
     policies: List["PolicyData"] = betterproto.message_field(36)
     main_package_ptr: Optional["NodeReferenceData"] = betterproto.message_field(40, optional=True)
+    base_ptr: Optional["NodeReferenceData"] = betterproto.message_field(41, optional=True)
+    is_overlay: bool = betterproto.bool_field(60)
+    is_light: bool = betterproto.bool_field(61)
 
 
 @dataclass(eq=False, repr=False)
@@ -2604,7 +2607,7 @@ class OrganizationData(betterproto.Message):
 
 @dataclass(eq=False, repr=False)
 class PackageData(betterproto.Message):
-    """A package is a semi-isolated version of a Bench."""
+    """A package is a version of a Bench."""
 
     metatype: "ObjectType" = betterproto.enum_field(1)
     id: str = betterproto.string_field(2)
@@ -2624,9 +2627,11 @@ class PackageData(betterproto.Message):
     text: Optional["TextData"] = betterproto.message_field(34, optional=True)
     icon: Optional["IconData"] = betterproto.message_field(35, optional=True)
     policies: List["PolicyData"] = betterproto.message_field(36)
-    paused_at: Optional[datetime] = betterproto.message_field(37, optional=True)
     environment_ptr: "NodeReferenceData" = betterproto.message_field(40)
-    bases_ptr: List["NodeReferenceData"] = betterproto.message_field(42)
+    base_ptr: Optional["NodeReferenceData"] = betterproto.message_field(41, optional=True)
+    is_snapshot: bool = betterproto.bool_field(60)
+    is_overlay: bool = betterproto.bool_field(61)
+    is_paused: bool = betterproto.bool_field(65)
 
 
 @dataclass(eq=False, repr=False)

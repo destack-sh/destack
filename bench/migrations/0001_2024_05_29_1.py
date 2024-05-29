@@ -1,8 +1,8 @@
-# This migration was automatically generated on 2024.05.27. Edit as needed.
+# This migration was automatically generated on 2024.05.29. Edit as needed.
 import psycopg
 
 ID = 1
-VERSION = "2024.05.27.0"
+VERSION = "2024.05.29.1"
 HAS_GLOBAL = True
 HAS_LOCAL = True
 
@@ -13,9 +13,9 @@ HAS_LOCAL = True
 
 
 async def upgrade_global(cur: psycopg.AsyncCursor):
+    await cur.execute('CREATE EXTENSION IF NOT EXISTS "bloom"')
     await cur.execute('CREATE EXTENSION IF NOT EXISTS "pgcrypto"')
     await cur.execute('CREATE EXTENSION IF NOT EXISTS "uuid-ossp"')
-    await cur.execute('CREATE EXTENSION IF NOT EXISTS "bloom"')
 
     # bench_migration
     await cur.execute(
@@ -110,7 +110,9 @@ async def upgrade_global(cur: psycopg.AsyncCursor):
         "slug" varchar,
         "text" jsonb,
         "icon" jsonb,
-        "policies" jsonb[] NOT NULL
+        "policies" jsonb[] NOT NULL,
+        "is_overlay" boolean NOT NULL DEFAULT false,
+        "is_light" boolean NOT NULL DEFAULT false
     )
     """
     )
@@ -138,9 +140,9 @@ async def upgrade_global(cur: psycopg.AsyncCursor):
         "text" jsonb,
         "icon" jsonb,
         "policies" jsonb[] NOT NULL,
-        "paused_at" timestamp,
-        "bases_id" uuid[],
-        "bases_bench_id" uuid[]
+        "is_snapshot" boolean NOT NULL DEFAULT false,
+        "is_overlay" boolean NOT NULL DEFAULT false,
+        "is_paused" boolean NOT NULL DEFAULT false
     )
     """
     )
@@ -1057,10 +1059,13 @@ async def upgrade_global(cur: psycopg.AsyncCursor):
         'ALTER TABLE "bench_branch" ADD COLUMN "main_package_id" uuid REFERENCES bench_package ON DELETE SET NULL'
     )
     await cur.execute(
-        'CREATE UNIQUE INDEX "bench_branch_bench_idx_parent_bench_id_slug" ON bench_branch USING BTREE (parent_bench_id, slug)'
+        'ALTER TABLE "bench_branch" ADD COLUMN "base_branch_id" uuid REFERENCES bench_branch ON DELETE SET NULL'
     )
     await cur.execute(
-        'ALTER TABLE "bench_branch" ADD CONSTRAINT "bench_branch_bench_idx_parent_bench_id_slug" UNIQUE USING INDEX bench_branch_bench_idx_parent_bench_id_slug'
+        'CREATE UNIQUE INDEX "bench_branch_bench_idx_bench_id_slug" ON bench_branch USING BTREE (bench_id, slug)'
+    )
+    await cur.execute(
+        'ALTER TABLE "bench_branch" ADD CONSTRAINT "bench_branch_bench_idx_bench_id_slug" UNIQUE USING INDEX bench_branch_bench_idx_bench_id_slug'
     )
     await cur.execute(
         'ALTER TABLE "bench_branch" ADD CONSTRAINT "bench_branch_bench_check_one_parent" CHECK ((parent_bench_id IS NOT NULL))'
@@ -1068,19 +1073,22 @@ async def upgrade_global(cur: psycopg.AsyncCursor):
 
     # bench_package
     await cur.execute(
-        'ALTER TABLE "bench_package" ADD COLUMN "parent_bench_id" uuid REFERENCES bench_bench ON DELETE CASCADE'
+        'ALTER TABLE "bench_package" ADD COLUMN "parent_branch_id" uuid REFERENCES bench_branch ON DELETE CASCADE'
     )
     await cur.execute(
         'ALTER TABLE "bench_package" ADD COLUMN "environment_id" uuid NOT NULL REFERENCES bench_environment ON DELETE SET NULL'
     )
     await cur.execute(
-        'CREATE UNIQUE INDEX "bench_package_bench_idx_parent_bench_id_slug" ON bench_package USING BTREE (parent_bench_id, slug)'
+        'ALTER TABLE "bench_package" ADD COLUMN "base_package_id" uuid REFERENCES bench_package ON DELETE SET NULL'
     )
     await cur.execute(
-        'ALTER TABLE "bench_package" ADD CONSTRAINT "bench_package_bench_idx_parent_bench_id_slug" UNIQUE USING INDEX bench_package_bench_idx_parent_bench_id_slug'
+        'CREATE UNIQUE INDEX "bench_package_bench_idx_bench_id_slug" ON bench_package USING BTREE (bench_id, slug)'
     )
     await cur.execute(
-        'ALTER TABLE "bench_package" ADD CONSTRAINT "bench_package_bench_check_one_parent" CHECK ((parent_bench_id IS NOT NULL))'
+        'ALTER TABLE "bench_package" ADD CONSTRAINT "bench_package_bench_idx_bench_id_slug" UNIQUE USING INDEX bench_package_bench_idx_bench_id_slug'
+    )
+    await cur.execute(
+        'ALTER TABLE "bench_package" ADD CONSTRAINT "bench_package_bench_check_one_parent" CHECK ((parent_branch_id IS NOT NULL))'
     )
 
     # bench_dependency
@@ -1402,13 +1410,13 @@ async def downgrade_global(cur: psycopg.AsyncCursor):
 
 
 async def upgrade_local(cur: psycopg.AsyncCursor):
-    await cur.execute('CREATE EXTENSION IF NOT EXISTS "pgcrypto"')
     await cur.execute('CREATE EXTENSION IF NOT EXISTS "uuid-ossp"')
-    await cur.execute('CREATE EXTENSION IF NOT EXISTS "timescaledb"')
-    await cur.execute('CREATE EXTENSION IF NOT EXISTS "plpgsql"')
-    await cur.execute('CREATE EXTENSION IF NOT EXISTS "pg_trgm"')
-    await cur.execute('CREATE EXTENSION IF NOT EXISTS "vector"')
     await cur.execute('CREATE EXTENSION IF NOT EXISTS "bloom"')
+    await cur.execute('CREATE EXTENSION IF NOT EXISTS "vector"')
+    await cur.execute('CREATE EXTENSION IF NOT EXISTS "timescaledb"')
+    await cur.execute('CREATE EXTENSION IF NOT EXISTS "pg_trgm"')
+    await cur.execute('CREATE EXTENSION IF NOT EXISTS "pgcrypto"')
+    await cur.execute('CREATE EXTENSION IF NOT EXISTS "plpgsql"')
 
     # bench_migration
     await cur.execute(
@@ -1504,7 +1512,7 @@ async def upgrade_local(cur: psycopg.AsyncCursor):
         "updated_by_base_ck" uuid,
         "kind" smallint NOT NULL,
         "root_id" uuid NOT NULL,
-        "root_base_ck" uuid NOT NULL,
+        "root_base_ck" uuid,
         "code" jsonb,
         "text" jsonb,
         "status" smallint NOT NULL DEFAULT 1,
@@ -1717,8 +1725,8 @@ async def upgrade_local(cur: psycopg.AsyncCursor):
         "origin_ck" uuid NOT NULL,
         "origin_type" smallint NOT NULL,
         "origin_bench_id" uuid NOT NULL,
-        "origin_base_ck" uuid NOT NULL,
-        "origin_base_bench_id" uuid NOT NULL,
+        "origin_base_ck" uuid,
+        "origin_base_bench_id" uuid,
         "path" jsonb,
         "reply_to_id" uuid,
         "reply_to_base_ck" uuid,
@@ -1751,7 +1759,13 @@ async def upgrade_local(cur: psycopg.AsyncCursor):
         'CREATE INDEX "bench_session_bench_idx_created_at" ON bench_session USING BTREE (created_at)'
     )
     await cur.execute(
+        'CREATE INDEX "bench_session_bench_idx_created_epoch" ON bench_session USING BTREE (created_epoch)'
+    )
+    await cur.execute(
         'CREATE INDEX "bench_session_bench_idx_package_id_created_at" ON bench_session USING BTREE (package_id, created_at)'
+    )
+    await cur.execute(
+        'CREATE INDEX "bench_session_bench_idx_package_id_created_epoch" ON bench_session USING BTREE (package_id, created_epoch)'
     )
     await cur.execute(
         'CREATE INDEX "bench_session_bench_idx_status" ON bench_session USING BTREE (status)'
@@ -1768,7 +1782,13 @@ async def upgrade_local(cur: psycopg.AsyncCursor):
         'CREATE INDEX "bench_run_bench_idx_created_at" ON bench_run USING BTREE (created_at)'
     )
     await cur.execute(
+        'CREATE INDEX "bench_run_bench_idx_created_epoch" ON bench_run USING BTREE (created_epoch)'
+    )
+    await cur.execute(
         'CREATE INDEX "bench_run_bench_idx_package_id_created_at" ON bench_run USING BTREE (package_id, created_at)'
+    )
+    await cur.execute(
+        'CREATE INDEX "bench_run_bench_idx_package_id_created_epoch" ON bench_run USING BTREE (package_id, created_epoch)'
     )
     await cur.execute(
         'ALTER TABLE "bench_run" ADD CONSTRAINT "bench_run_bench_check_one_parent" CHECK ((parent_package_id IS NOT NULL) OR (parent_run_id IS NOT NULL))'
@@ -1813,7 +1833,13 @@ async def upgrade_local(cur: psycopg.AsyncCursor):
         'CREATE INDEX "bench_notification_bench_idx_created_at" ON bench_notification USING BTREE (created_at)'
     )
     await cur.execute(
+        'CREATE INDEX "bench_notification_bench_idx_created_epoch" ON bench_notification USING BTREE (created_epoch)'
+    )
+    await cur.execute(
         'CREATE INDEX "bench_notification_bench_idx_package_id_created_at" ON bench_notification USING BTREE (package_id, created_at)'
+    )
+    await cur.execute(
+        'CREATE INDEX "bench_notification_bench_idx_package_id_created_epoch" ON bench_notification USING BTREE (package_id, created_epoch)'
     )
     await cur.execute(
         'ALTER TABLE "bench_notification" ADD CONSTRAINT "bench_notification_bench_check_one_parent" CHECK ((parent_package_id IS NOT NULL))'
@@ -1827,7 +1853,13 @@ async def upgrade_local(cur: psycopg.AsyncCursor):
         'CREATE INDEX "bench_message_bench_idx_created_at" ON bench_message USING BTREE (created_at)'
     )
     await cur.execute(
+        'CREATE INDEX "bench_message_bench_idx_created_epoch" ON bench_message USING BTREE (created_epoch)'
+    )
+    await cur.execute(
         'CREATE INDEX "bench_message_bench_idx_package_id_created_at" ON bench_message USING BTREE (package_id, created_at)'
+    )
+    await cur.execute(
+        'CREATE INDEX "bench_message_bench_idx_package_id_created_epoch" ON bench_message USING BTREE (package_id, created_epoch)'
     )
     await cur.execute(
         'ALTER TABLE "bench_message" ADD CONSTRAINT "bench_message_bench_check_one_parent" CHECK ((parent_package_id IS NOT NULL) OR (parent_block_id IS NOT NULL) OR (parent_message_id IS NOT NULL))'

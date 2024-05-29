@@ -448,22 +448,22 @@ class HasSessionContext(Struct):
     block: Optional["Block"] = p_internal(60, require=False, array=False, references=NodeType.BLOCK)
     step: Optional["Step"] = p_internal(61, require=False, array=False, references=NodeType.STEP)
     session: Optional["Session"] = p_internal(
-        62, require=False, array=False, references=NodeType.SESSION, is_bench_implicit=True
+        62, require=False, array=False, references=NodeType.SESSION, same_bench=True
     )
     run: Optional["Run"] = p_internal(
-        63, require=False, array=False, references=NodeType.RUN, is_bench_implicit=True
+        63, require=False, array=False, references=NodeType.RUN, same_bench=True
     )
     run_root: Optional["Run"] = p_internal(
-        64, require=False, array=False, references=NodeType.RUN, is_bench_implicit=True
+        64, require=False, array=False, references=NodeType.RUN, same_bench=True
     )
     client: Optional["Client"] = p_internal(
-        65, require=False, array=False, references=NodeType.CLIENT, is_bench_implicit=True
+        65, require=False, array=False, references=NodeType.CLIENT, same_bench=True
     )
     machine: Optional["Machine"] = p_internal(
-        66, require=False, array=False, references=NodeType.MACHINE, is_bench_implicit=True
+        66, require=False, array=False, references=NodeType.MACHINE, same_bench=True
     )
     server: Optional["Server"] = p_internal(
-        67, require=False, array=False, references=NodeType.SERVER, is_bench_implicit=True
+        67, require=False, array=False, references=NodeType.SERVER, same_bench=True
     )
     user: Optional["User"] = p_internal(68, require=False, array=False, references=NodeType.USER)
 

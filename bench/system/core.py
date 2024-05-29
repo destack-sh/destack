@@ -10,7 +10,7 @@ import bitarray
 import structlog
 
 from bench.language import Bench, Node, NodeType, Store
-from bench.language.bench import Package, Region
+from bench.language.bench import Branch, Package, Region
 from bench.language.connection import PostgresEngine, StoreEngine
 from bench.language.const import GLOBAL_NODE_TYPES, VERSION, EditType
 from bench.language.graph import NodeGraphLike
@@ -75,7 +75,7 @@ LOADED_HOST_NODE_TYPES = LOADED_BENCH_NODE_TYPES | LOADED_PACKAGE_NODE_TYPES
 BENCH_QUERY = Bench.descendants(*LOADED_BENCH_NODE_TYPES).select_all()
 PACKAGE_QUERY = (
     Package.descendants(*LOADED_PACKAGE_NODE_TYPES)
-    .ancestors(Bench)
+    .ancestors(Bench, Branch)
     .select_all()
     .exclude(Bench.encryption_key)
 )

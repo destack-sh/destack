@@ -71,7 +71,7 @@ class Block(Node[BlockData], HasValues):
 
     parent: Union["Block", "Package"] = p_node_parent(4, NodeType.BLOCK, NodeType.PACKAGE)
 
-    # core
+    # content
     type: BlockType = p_internal(30)
     name: str = p_regular(32, constraint=NAME_CONSTRAINT)
     order_key: str = p_internal(33, default=INTEGER_ZERO)

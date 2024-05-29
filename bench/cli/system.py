@@ -4,10 +4,11 @@ from more_itertools import first
 
 from bench.cli.utils import async_to_sync_blocking, check_is_consistent
 from bench.language import Bench, Region, User
-from bench.language.const import ClientType, NodeType, UserStatus
+from bench.language.const import RESOURCE_NODE_TYPES, ClientType, NodeType, UserStatus
 from bench.system.access import generate_access_token
 from bench.system.core import global_session
 from bench.system.supervisor import create_default_bench
+from bench.system.test.test_host import MockHost
 
 app = typer.Typer(short_help="some language-level utilities")
 
@@ -43,6 +44,18 @@ async def bootstrap(region: Region = Region.EUROPE_CENTRAL):
             system_bench=system_bench,
             bench_bench=bench_bench,
         )
+        await session.commit()
+
+
+@app.command(help="provision resources for a Bench")
+@async_to_sync_blocking
+async def provision(bench_slug: str):
+    from bench.system.provisioner import provision
+
+    async with global_session() as session:
+        bench = await Bench.select_all().descendants(*RESOURCE_NODE_TYPES).get(slug=bench_slug)
+        host = MockHost(session)
+        await provision(host, bench, list(bench.resources))
         await session.commit()
 
 
