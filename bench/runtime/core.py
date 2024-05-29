@@ -2,7 +2,6 @@ from typing import TYPE_CHECKING
 
 from bench.language import Bench, Package
 from bench.language.const import NodeType
-from bench.utils.tenacity import RetryOptions, is_retryable_grpc_error
 
 if TYPE_CHECKING:
     pass
@@ -39,7 +38,5 @@ PACKAGE_QUERY = (
     .select_all()
     .exclude(Bench.encryption_key)
 )
-
-REMOTE_CONNECTION_RETRY = RetryOptions(max_attempts=-1, retry_if=is_retryable_grpc_error)
 
 RUNTIME_PARALLELISM = 1

@@ -94,11 +94,6 @@ class RetryState:
             return RetryError(self, operation=operation)
 
 
-RETRY_STANDARD = RetryOptions()
-RETRY_NEVER = RetryOptions(max_attempts=1)
-RETRY_FOREVER = RetryOptions(max_attempts=-1)
-
-
 def retry(
     options: Union[RetryOptions, Callable[..., RetryOptions]],
     on_error: Callable[..., Awaitable[T]] | None = None,
@@ -131,5 +126,20 @@ def retry(
 def is_retryable_grpc_error(e: Exception) -> bool:
     return (
         isinstance(e, GRPCError)
-        and e.status in (GRPCStatus.UNKNOWN, GRPCStatus.UNAVAILABLE, GRPCStatus.DEADLINE_EXCEEDED)
+        and e.status
+        in (
+            GRPCStatus.UNKNOWN,
+            GRPCStatus.UNAVAILABLE,
+            GRPCStatus.CANCELLED,
+            GRPCStatus.ABORTED,
+            GRPCStatus.DEADLINE_EXCEEDED,
+            GRPCStatus.RESOURCE_EXHAUSTED,
+        )
     ) or isinstance(e, OSError)
+
+
+RETRY_STANDARD = RetryOptions()
+RETRY_NEVER = RetryOptions(max_attempts=1)
+RETRY_FOREVER = RetryOptions(max_attempts=-1)
+RETRY_GRPC = RetryOptions(retry_if=is_retryable_grpc_error)
+RETRY_GRPC_FOREVER = RetryOptions(retry_if=is_retryable_grpc_error, max_attempts=-1)

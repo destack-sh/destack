@@ -13,7 +13,7 @@ from bench.proto.wire import QueueRunRequest, RuntimeStub
 from bench.system.core import Commit, HostPlugin, HostSpec
 from bench.utils.dt import monotime
 from bench.utils.func import bittuple
-from bench.utils.tenacity import RETRY_STANDARD, RetryOptions, RetryState
+from bench.utils.tenacity import RETRY_GRPC, RetryOptions, RetryState
 
 if TYPE_CHECKING:
     pass
@@ -34,7 +34,7 @@ class QueueRunPlugin(HostPlugin[Run]):
 
     watch_types = bittuple(NodeType.RUN)
 
-    def __init__(self, host: HostSpec, bench: Bench, retry: RetryOptions = RETRY_STANDARD):
+    def __init__(self, host: HostSpec, bench: Bench, retry: RetryOptions = RETRY_GRPC):
         super().__init__(host, bench)
         self._retry = retry
         self._runs_to_queue: asyncio.Queue[QueueOperation] = asyncio.Queue()
