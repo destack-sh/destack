@@ -1,6 +1,5 @@
 import sys
 from pathlib import Path
-from typing import TYPE_CHECKING
 
 import dotenv
 
@@ -41,5 +40,4 @@ IS_TEST: bool = (
     "test" in sys.argv or "pytest" in sys.argv[0] or get_from_env("TEST", default=False, typ=bool)
 )
 IS_DEV = ENVIRONMENT == "dev"
-SOME_TYPE_CHECKING = TYPE_CHECKING or "mypy" in sys.argv[0] or IS_TEST
 REPOSITORY_PATH = Path(__file__).parent.parent.parent.resolve()

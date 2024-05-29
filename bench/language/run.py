@@ -95,7 +95,7 @@ class Run(BasedNode[RunData], HasSessionContext, HasValues):
         else:
             content_str = repr(self.code or self.text)
         if self.duration is not None:
-            return f"{content_str}, {self.status.bench_name}), duration={self.duration:.3f}s"
+            return f"{content_str}, {self.status.bench_name}, duration={self.duration:.3f}s"
         else:
             return f"{content_str}, {self.status.bench_name}"
 

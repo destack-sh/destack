@@ -1,4 +1,3 @@
-import asyncio
 import dataclasses
 from collections import defaultdict
 from datetime import datetime
@@ -12,7 +11,7 @@ from bench.language.const import BenchError, EditType, NodeType
 from bench.language.node import EditSubject, Node, Property
 from bench.proto import wire
 from bench.proto.wire import AnyNodeData, ClientOrigin, EditData, GraphScope
-from bench.utils.dt import utcnow
+from bench.utils.dt import monotime, utcnow
 from bench.utils.func import uuid_to_str
 from bench.utils.uuidt import UUIDT
 
@@ -322,7 +321,7 @@ class Transaction:
 
     async def _do_flush(self, *, commit: bool):
         assert self.session is not None, f"no session for {self!r}"
-        start = asyncio.get_running_loop().time()
+        start = monotime()
         log = logger.bind(edits=len(self.edits), transaction=self)
 
         # TODO :Robustness!: use :2PC in Transaction.commit (if there are more than 2 engines)
@@ -334,12 +333,23 @@ class Transaction:
             connection = await self._get_engine_connection(engine)
 
             # flush/commit
+            engine_start = monotime()
             if commit:
                 flush = await connection.commit(pending_edits)
-                log.trace("transaction.commit.engine", engine=engine, edits=len(pending_edits))
+                log.trace(
+                    "transaction.commit.engine",
+                    engine=engine,
+                    edits=len(pending_edits),
+                    duration=monotime() - engine_start,
+                )
             else:
                 flush = await connection.flush(pending_edits)
-                log.trace("transaction.flush.engine", engine=engine, edits=len(pending_edits))
+                log.trace(
+                    "transaction.flush.engine",
+                    engine=engine,
+                    edits=len(pending_edits),
+                    duration=monotime() - engine_start,
+                )
             assert len(flush.revisions or ()) == len(pending_edits), "revisions mismatch"
             for edit, new_revision in zip(pending_edits, cast(list[int], flush.revisions)):
                 edit.revision = new_revision
@@ -353,7 +363,7 @@ class Transaction:
         for n in self._pending_nodes_by_ck.values():
             n._flushed_self()
         self._pending_nodes_by_ck.clear()
-        log.trace("transaction.flush", duration=asyncio.get_running_loop().time() - start)
+        log.trace("transaction.flush", duration=monotime() - start)
 
     async def flush(self) -> tuple[list[EditData], list[EditData]]:
         """Canonicalizes and flushes any pending edits (without committing)."""
