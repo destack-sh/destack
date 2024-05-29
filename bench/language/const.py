@@ -76,8 +76,6 @@ class EnumType(IdEnum):
     # bench
     REGION = 2050
     TENANCY = 2051
-    STORE_KIND = 2052
-    STORE_ENGINE_TYPE = 2053
     SERVER_PROFILE = 2055
     MACHINE_PROFILE = 2056
     RESOURCE_STATUS = 2057
@@ -594,14 +592,7 @@ class AccessMode(IdEnum):
 #
 
 
-@enum_(EnumType.STORE_KIND)
-class StoreKind(IdEnum):
-    RELATIONAL = 1
-    # SEARCH, ANALYTICAL, ...
-
-
-@enum_(EnumType.STORE_ENGINE_TYPE)
-class StoreEngineType(IdEnum):
+class StoreConnectionType(IdEnum):
     LOCAL = 1
     REMOTE = 2
     POSTGRES = 3

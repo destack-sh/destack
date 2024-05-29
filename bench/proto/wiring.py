@@ -81,14 +81,14 @@ def unpack_json_struct(value: BetterprotoStruct) -> dict:
     return value.to_dict()
 
 
-def pack_enum(enum_cls: IdEnumOrUnion, value: Any) -> Any:
+def pack_enum[EnumT: IdEnumOrUnion](enum_cls: type[EnumT], value: EnumT) -> Any:
     assert isinstance(enum_cls, type), f"{enum_cls} is not a type"
     assert issubclass(enum_cls, IdEnum), f"{enum_cls} is not an IdEnum"
     assert isinstance(value, int), f"{value} is not an int"
     return value
 
 
-def unpack_enum(enum_cls: IdEnumOrUnion, value: Any) -> Any:
+def unpack_enum[EnumT: IdEnumOrUnion](enum_cls: type[EnumT], value: Any) -> EnumT:
     assert isinstance(enum_cls, type), f"{enum_cls} is not a type"
     assert issubclass(enum_cls, IdEnum), f"{enum_cls} is not an IdEnum"
     return enum_cls(value)
@@ -107,7 +107,7 @@ def pack_struct_prop(prop: Property, value: Any, ignore_array: bool) -> Any:
         # struct references are just integers
         return NodeReferenceData(
             metatype=wire.ObjectType.NODE_REFERENCE,
-            type=pack_enum(ObjectType, value.type),
+            type=pack_enum(NodeType, value.type),
             id=str(value.id),
             ck=str(value.ck) if value.ck is not None else None,
         )
@@ -151,7 +151,7 @@ def unpack_struct_prop(prop: Property, value: Any, ignore_array: bool = False) -
 def pack_struct(struct: Struct, expect: type[StructDataT] | None = None) -> StructDataT:
     """Pack a struct and any contained structs."""
     data_cls = PROTO_CLASS_BY_TYPE[struct.metatype]
-    metatype = pack_enum(ObjectType, struct.metatype)
+    metatype = pack_enum(ObjectType, struct.metatype)  # type: ignore
     if expect is not None:
         expected_metatype = OBJECT_TYPE_BY_PROTO_CLASS[expect]
         if metatype != expected_metatype:

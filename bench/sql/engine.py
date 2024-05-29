@@ -25,7 +25,7 @@ from bitarray import bitarray
 from psycopg import OperationalError, sql
 from psycopg.types.json import Jsonb
 
-from bench.language import Block, ConditionalOp, Field, Property, StoreEngineType
+from bench.language import Block, ConditionalOp, Field, Property, StoreConnectionType
 from bench.language.access import ReadOptions
 from bench.language.connection import ConnectionIncapableError
 from bench.language.const import (
@@ -465,7 +465,7 @@ def _pg_compile_conditional(
             op=PG_CONDITIONAL_OP_BY_BENCH[cond.op],
         )
     raise ConnectionIncapableError(
-        StoreEngineType.POSTGRES, expression=cond, reason="unsupported conditional"
+        StoreConnectionType.POSTGRES, expression=cond, reason="unsupported conditional"
     )
 
 
@@ -557,16 +557,13 @@ def _pg_wrap_error(
         wrapped_t = SqlViolationError
     else:
         wrapped_t = SqlError
-    e_str = str(e)
-    message = f"{e}\nin {resource!r}" if "\n" in e_str else f"{e} in {resource!r}"
+    message = f"{e}\nin {resource!r}" if "\n" in str(e) else f"{e} in {resource!r}"
     return wrapped_t(message, conn)
 
 
 # NOTE: we retry only on operational PG errors to handle transient issues (e.g. network)
 
-RETRY_PG = RetryOptions(
-    max_attempts=3, retry_interval=0.5, max_retry_interval=5, retry_on=(OperationalError,)
-)
+RETRY_PG = RetryOptions(max_attempts=3, max_retry_interval=10, retry_on=(OperationalError,))
 
 
 @retry(RETRY_PG)
@@ -1347,8 +1344,7 @@ async def pg_get_node_graph(
     # select descendants (recursively)
     # TODO :Performance!: recurse read nodes up?/down in SQL & leverage cascades for some reads
     #  (take advantage of the ancestry graph to optimize this...
-    #   also we could just query every node in the package with package_id=X
-    #   once we cascade deleted_at/archived_at if the roots are packages)
+    #   also we could just query every node in the package with package_id=X if the roots are packages)
     if options.descendant_types:
         current_parents = root_nodes
         while current_parents:

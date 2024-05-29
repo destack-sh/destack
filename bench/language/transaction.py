@@ -7,7 +7,7 @@ from uuid import UUID
 
 import structlog
 
-from bench.language.connection import StoreConnection, StoreEngine
+from bench.language.connection import SplitConnection, StoreConnection, StoreEngine
 from bench.language.const import BenchError, EditType, NodeType
 from bench.language.node import EditSubject, Node, Property
 from bench.proto import wire
@@ -72,9 +72,10 @@ class Transaction:
     Edits in a transaction are atomic (in our primary Postgres/Relational stores).
     """
 
-    id: UUID = dataclasses.field(default_factory=UUIDT)
-    session: Optional["Session"] = dataclasses.field(default=None)
+    id: UUID
+    session: "Session"
     is_readonly: bool = dataclasses.field(default=False)
+    _read_connection: StoreConnection = dataclasses.field(init=False)
     _connections_by_engine_id: dict[Any, StoreConnection] = dataclasses.field(default_factory=dict)
 
     """All edits from this transaction (since the previous commit)."""
@@ -88,6 +89,9 @@ class Transaction:
     )
     _pending_updates_idx: dict[Node, tuple[Any, int]] = dataclasses.field(default_factory=dict)
     _pending_nodes_by_ck: dict[UUID, Node] = dataclasses.field(default_factory=dict)
+
+    def __post_init__(self):
+        self._read_connection = SplitConnection(self.session)
 
     def __str__(self):
         return f"[id={self.id}] ({len(self.edits)} edits, {len(self._pending_nodes_by_ck)} pending nodes)"
@@ -103,35 +107,16 @@ class Transaction:
     def has_pending_edits(self) -> bool:
         return any(self._pending_edits_by_engine_id.values())
 
-    async def connect(self, base: Node | GraphScope | None, node_type: NodeType) -> StoreConnection:
-        """Gets a connection to the Store for some access."""
-        assert self.session is not None, f"no session in {self!r}"
-        if isinstance(base, Node):
-            scope = self._get_scope_for_node(base)
-        elif isinstance(base, GraphScope):
-            scope = base
-        else:
-            assert base is None, f"unexpected base: {base!r}"
-            scope = self.session._default_scope
-        engine = self._get_engine_for(scope, node_type)
-        return await self._get_engine_connection(engine)
-
     async def _get_engine_connection(self, engine: StoreEngine) -> StoreConnection:
-        """Gets or creates a Store connection"""
+        """Gets or creates a store connection"""
         connection = self._connections_by_engine_id.get(engine.id)
         if connection is None:
-            assert self.session is not None, f"no session in {self!r}"
             connection = await engine.connect(self.session)
             self._connections_by_engine_id[engine.id] = connection
         return connection
 
     def _get_scope_for_node(self, n: Node) -> GraphScope:
         """Gets the explicit or implicit scope for a node."""
-        assert self.session is not None, f"no session in {self!r}"
-        scope = GraphScope(
-            bench_id=uuid_to_str(n.bench_id) if "bench" in n.__properties__ else None,
-            package_id=uuid_to_str(n.package_id) if "package" in n.__properties__ else None,
-        )
         scope = GraphScope()
         if "bench" in n.__properties__:
             scope.bench_id = uuid_to_str(n.bench_id) or self.session._default_scope.bench_id
@@ -141,7 +126,6 @@ class Transaction:
 
     def _get_engine_for(self, scope: GraphScope, node_type: NodeType) -> StoreEngine:
         """Gets the appropriate engine"""
-        assert self.session is not None, f"no session in {self!r}"
         for engine in self.session._engines:
             if engine.supports(scope, node_type):
                 return engine
