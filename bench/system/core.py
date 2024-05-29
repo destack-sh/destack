@@ -3,7 +3,7 @@ import asyncio
 from contextlib import asynccontextmanager
 from dataclasses import dataclass
 from itertools import chain
-from typing import ClassVar, Collection, Generator, Iterable, cast, final, override
+from typing import Any, ClassVar, Collection, Generator, Iterable, cast, final, override
 from uuid import UUID
 
 import bitarray
@@ -59,6 +59,7 @@ LOADED_BENCH_NODE_TYPES: bittuple[NodeType] = bittuple(
     NodeType.PACKAGE,
 )
 LOADED_PACKAGE_NODE_TYPES: bittuple[NodeType] = bittuple(
+    NodeType.PACKAGE,
     NodeType.DEPENDENCY,
     NodeType.UPGRADE,
     NodeType.SPACE,
@@ -263,17 +264,24 @@ class HostSpec(abc.ABC):
         ...
 
     @abc.abstractmethod
-    def get_package(self, package_id: UUID) -> Package | None:
-        """Get a *loaded* Package."""
-        ...
-
-    @abc.abstractmethod
     @asynccontextmanager
     async def session(
         self, *, readonly: bool = False, autocommit: bool = False
     ) -> Generator[Session, None, None]:
         """Gets the Session for short-lived, *exclusive access."""
         ...
+
+
+class MockHost(HostSpec):
+    def __init__(self, session: Session):
+        self._session = session
+
+    def on_error(self, source: Any, error: Exception) -> None:
+        pass
+
+    @asynccontextmanager
+    async def session(self, *, readonly: bool = False, autocommit: bool = False):
+        yield self._session
 
 
 class HostPlugin[T: Node](abc.ABC):

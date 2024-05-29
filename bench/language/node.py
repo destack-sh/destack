@@ -19,7 +19,6 @@ from typing import (
     Collection,
     Generic,
     Iterable,
-    NamedTuple,
     Optional,
     Self,
     Type,
@@ -51,7 +50,7 @@ from bench.language.const import (
     new_node_id,
     new_struct_id,
 )
-from bench.language.graph import DetachedNodeGraph, NodeGraph, NodeList
+from bench.language.graph import DetachedNodeGraph, NodeDataGraph, NodeGraph, NodeList
 from bench.language.property import (
     _PROPERTY_SPECIFIERS,
     METATYPE_PROPERTY,
@@ -1354,10 +1353,12 @@ EditSubject = Union["User", "Server", "Run"]
 EDIT_SUBJECT_TYPES = (NodeType.USER, NodeType.SERVER, NodeType.RUN)
 
 
-class ReadInfo(NamedTuple):
-    options: "ReadOptions"
+@dataclass(slots=True)
+class ReadInfo:
+    options: "ReadOptions | None"
     epoch: int | None
     properties: bitarray | None = None
+    graph: NodeDataGraph | None = None
 
 
 @node_component()
@@ -1459,7 +1460,7 @@ class Node(Struct[NodeDataT], Generic[NodeDataT]):
     links: NodeList["Link"] = p_node_child(NodeType.LINK)
 
     _graph: Union["NodeGraph[Node]", "DetachedNodeGraph"] = p_runtime(default=None)
-    _read_info: ReadInfo | None = p_runtime(default=None)
+    _read: ReadInfo | None = p_runtime(default=None)
     _is_new: bool = p_runtime(default=False)
 
     def __post_init__(self):
@@ -1552,6 +1553,12 @@ class Node(Struct[NodeDataT], Generic[NodeDataT]):
             return self.parent is not None
         else:
             return True
+
+    @property
+    def _data_graph(self) -> "NodeDataGraph":
+        assert self._read is not None, f"no read info for {self!r}"
+        assert self._read.graph is not None, f"no read data graph for {self!r}"
+        return self._read.graph
 
     @property
     def tk(self) -> str:

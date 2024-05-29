@@ -140,21 +140,6 @@ class Runtime(BenchServiceBase, RuntimeBase):
         assert self._main_package is not None, f"no main package for {self!r}"
         return self._main_package.node
 
-    async def get_package(self, package_id: UUID) -> ConnectedPackage:
-        """Connects a Package."""
-        assert self._session is not None, f"no session for {self!r}"
-        assert self._connector is not None, f"no connector for {self!r}"
-        package = self._packages.get(package_id)
-        if package is None:
-            async with self._packages_lock:
-                package = await self._connector.connect(
-                    query=PACKAGE_QUERY.where(id=package_id),
-                    tx_lock=self._tx_lock,
-                    session=self._session,
-                )
-                self._packages[package_id] = package
-        return package
-
     @asynccontextmanager
     async def session(self, *, readonly: bool = False, autocommit: bool = False):
         """Gets exclusive query and edit access to the main session."""

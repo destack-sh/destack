@@ -2,11 +2,13 @@
 # Queries
 #
 import abc
+from itertools import chain
 from typing import (
     TYPE_CHECKING,
     Any,
     Collection,
     Generic,
+    Iterable,
     Optional,
     Self,
     TypeVar,
@@ -370,6 +372,15 @@ class QueryBuilder(
         query_type = self._aggregation.op.bench_name if self._aggregation is not None else "Fetch"
         return f"<{self._node_type.bench_name}Query.{query_type} {self}>"
 
+    @property
+    def all_types(self) -> Iterable[NodeType]:
+        if self._options is None:
+            return (self._node_type,)
+        else:
+            return chain(
+                (self._node_type,), self._options.ancestor_types, self._options.descendant_types
+            )
+
     #
     # Builder
     #
@@ -552,7 +563,7 @@ class QueryBuilder(
         tx = active_tx()
         result = await tx._read_connection.fetch(self, FetchOptions())
         data_graph = NodeDataGraph(result.nodes)
-        read = ReadInfo(options=self._options, epoch=result.epoch) if self._options else None
+        read = ReadInfo(options=self._options, epoch=result.epoch, graph=data_graph)
         roots, _ = unpack_node_roots(
             data_graph, parent=self._base, session=tx.session, roots=result.roots, read=read
         )

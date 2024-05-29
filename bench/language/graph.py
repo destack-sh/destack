@@ -100,8 +100,11 @@ class NodeGraphBase(abc.ABC, Generic[SomeNodeT, IdT]):
 
     # utilities
 
-    def __getitem__(self, item: IdT):
-        return self.get(item)
+    def __getitem__(self, key: IdT):
+        item = self.get(key)
+        if item is None:
+            raise KeyError(key)
+        return item
 
     def __contains__(self, item: IdT):
         return self.get(item) is not None
@@ -203,13 +206,12 @@ class NodeGraph(NodeGraphBase[NodeT, UUID]):
 
             for child_type in CHILD_NODE_TYPES[node.metatype]:
                 children = self.nodes_by_parent_id_and_type.pop((node.id, child_type), ())
-                if len(children) > 0:
-                    if CHILD_NODE_TYPES[child_type]:
-                        queue.extend(children)
-                    else:
-                        for child in children:
-                            self.nodes_by_id.pop(child.id, None)
-                            self.nodes_by_ck.pop(child.ck, None)
+                if CHILD_NODE_TYPES[child_type]:
+                    queue.extend(children)
+                else:
+                    for child in children:
+                        self.nodes_by_id.pop(child.id, None)
+                        self.nodes_by_ck.pop(child.ck, None)
 
     def find_roots(self) -> tuple[NodeT, ...]:
         return tuple(
@@ -942,8 +944,8 @@ def edit_graph(
 
 def edit_data_graph(
     graph: NodeDataGraph[AnyNodeData],
-    options: "ReadOptions",
     edits: Collection[EditData],
+    options: "ReadOptions | None",
     *,
     keep_all: bool = False,
     update_nodes_in_place: bool = False,
@@ -951,6 +953,9 @@ def edit_data_graph(
     """Applies the edits to the data graph."""
 
     from bench.proto import wiring
+
+    if options is None:
+        options = ReadOptions()
 
     for edit in edits:
         node_data = wiring.unwrap_some_node(edit.node)

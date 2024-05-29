@@ -309,8 +309,8 @@ class GraphIoServiceBase(BenchServiceBase, GraphIoBase):
                 # TODO :Robustness: prevent circular parent/child references
                 edit_data_graph(
                     graph=data_graph,
-                    options=ReadOptions.all(),
                     edits=request.edits,
+                    options=ReadOptions.all(),
                     keep_all=True,
                     update_nodes_in_place=False,
                 )

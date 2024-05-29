@@ -6,7 +6,13 @@ from uuid import UUID
 
 import structlog
 
-from bench.language.connection import SplitConnection, StoreConnection, StoreEngine, scope_includes
+from bench.language.connection import (
+    InMemoryEngine,
+    SplitConnection,
+    StoreConnection,
+    StoreEngine,
+    scope_includes,
+)
 from bench.language.const import BenchError, EditType, NodeType
 from bench.language.node import EditSubject, Node, Property
 from bench.proto import wire
@@ -123,20 +129,39 @@ class Transaction:
             scope.package_id = uuid_to_str(n.package_id) or self.session._default_scope.package_id
         return scope
 
-    def _get_engine_for(
-        self, scope: GraphScope, node_types: NodeType | Collection[NodeType]
+    def _get_write_engine(
+        self,
+        scope: GraphScope,
+        node_types: NodeType | Collection[NodeType],
+        *,
+        is_readonly: bool,
+        best_match: Collection[NodeType] | None = None,
     ) -> StoreEngine:
         """Gets the appropriate engine"""
         node_types = (node_types,) if isinstance(node_types, NodeType) else node_types
-        for engine in self.session._engines:
-            if scope_includes(engine.scope, scope) and all(
-                t in engine.node_types for t in node_types
-            ):
-                return engine
-        raise BenchError(
-            f"no engine for [scope={scope!r}, node_types={[t.bench_name for t in node_types]}] in {self.session!r}"
-            f" (engines: {self.session._engines!r})"
-        )
+        candidate_engines = [
+            engine
+            for engine in self.session._engines
+            if (
+                (is_readonly or not engine.is_readonly)
+                and scope_includes(engine.scope, scope)
+                and all(t in engine.node_types for t in node_types)
+            )
+        ]
+        if not candidate_engines:
+            raise BenchError(
+                f"no engine for [scope={scope!r}, node_types={[t.bench_name for t in node_types]}] in {self.session!r}"
+                f" (engines: {self.session._engines!r})"
+            )
+        if best_match is None or len(candidate_engines) < 2:
+            return candidate_engines[0]
+        else:
+            # try to find best match (most type overlap, best first)
+            candidate_engines.sort(key=lambda e: -len([t for t in best_match if t in e.node_types]))
+            if any(isinstance(e, InMemoryEngine) for e in candidate_engines):
+                # prefer in-memory engines
+                return next(e for e in candidate_engines if isinstance(e, InMemoryEngine))
+            return candidate_engines[0]
 
     #
     # Edits
@@ -184,7 +209,7 @@ class Transaction:
         from bench.proto import wiring
 
         node_type = wiring.unpack_enum(NodeType, edit.node_type)
-        engine = self._get_engine_for(edit.scope, node_type)
+        engine = self._get_write_engine(edit.scope, node_type, is_readonly=False)
         self.edits.append(edit)
         self._pending_edits_by_engine_id[engine.id].append(edit)
         if node is not None:
