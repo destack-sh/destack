@@ -272,8 +272,8 @@ class Session(Node[SessionData]):
                 edits, cascaded_edits = await self._tx.commit()
                 return edits, cascaded_edits
             else:
-                # direct commit (used in Host for system commits)
-                # this essentially imitates GraphServices.commit_transaction
+                # wrapped commit, like GraphIo.commit_transaction but without validation
+                # (this is used in Host Sessions to )
                 edit_graph = NodeDict(self._edited_nodes_by_id)
                 epoch = self._epoch
                 if self._extend_commit_hook is not None:

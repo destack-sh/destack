@@ -38,7 +38,7 @@ from bench.system.core import HostSpec
 from bench.system.provisioner import get_provisioners_for
 from bench.system.test.conftest import UserHandle, make_random_user_handle
 from bench.utils.dt import monotime
-from bench.utils.tenacity import NO_RETRY_OPTIONS
+from bench.utils.tenacity import RETRY_NEVER
 
 logger = structlog.get_logger(__name__)
 
@@ -97,7 +97,7 @@ class BenchHandle:
                 node_types=PUBLIC_NODE_TYPES,
                 remote=self._supervisor,
                 rpc_metadata=self.owner_handle.metadata,
-                retry=NO_RETRY_OPTIONS,
+                retry=RETRY_NEVER,
             ),
             # bench engine
             RemoteEngine(
@@ -105,7 +105,7 @@ class BenchHandle:
                 node_types=IN_BENCH_NODE_TYPES,
                 remote=self._host,
                 rpc_metadata=self.owner_handle.metadata,
-                retry=NO_RETRY_OPTIONS,
+                retry=RETRY_NEVER,
             ),
         )
         return Session(
@@ -139,7 +139,7 @@ async def make_some_bench(supervisor: SupervisorStub, host: HostStub):
         node_types=BENCH_NODE_TYPES,
         remote=host,
         rpc_metadata=some_user.metadata,
-        retry=NO_RETRY_OPTIONS,
+        retry=RETRY_NEVER,
     )
     async with Session(_default_scope=bench_scope, _engines=(remote_engine,)) as session:
         bench = await Bench.descendants(

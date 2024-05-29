@@ -209,7 +209,7 @@ class NodeType(IdEnum):
     DRIVE = 163  # object store like S3/MinIO, maybe block storage later
     BLOB = 164  # in a Drive
     # CACHE = ...  # KV memory store (Redis/Memcached)
-    # DOMAIN, EMAIL, ...
+    # DOMAIN, EMAIL, PHONE, ...
 
     # user
     HANDLE = 220

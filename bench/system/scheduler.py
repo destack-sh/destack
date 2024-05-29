@@ -13,7 +13,7 @@ from bench.proto.wire import QueueRunRequest, RuntimeStub
 from bench.system.core import Commit, HostPlugin, HostSpec
 from bench.utils.dt import monotime
 from bench.utils.func import bittuple
-from bench.utils.tenacity import DEFAULT_RETRY_OPTIONS, RetryOptions
+from bench.utils.tenacity import RETRY_STANDARD, RetryOptions, RetryState
 
 if TYPE_CHECKING:
     pass
@@ -22,11 +22,11 @@ logger = structlog.get_logger(__name__)
 
 
 @dataclass(slots=True)
-class QueueAttempt:
+class QueueOperation:
     """Wrapper for Run to track queue attempts."""
 
     run: Run
-    no: int
+    retry: RetryState
 
 
 class QueueRunPlugin(HostPlugin[Run]):
@@ -34,10 +34,10 @@ class QueueRunPlugin(HostPlugin[Run]):
 
     watch_types = bittuple(NodeType.RUN)
 
-    def __init__(self, host: HostSpec, bench: Bench, retry: RetryOptions = DEFAULT_RETRY_OPTIONS):
+    def __init__(self, host: HostSpec, bench: Bench, retry: RetryOptions = RETRY_STANDARD):
         super().__init__(host, bench)
         self._retry = retry
-        self._runs_to_queue: asyncio.Queue[QueueAttempt] = asyncio.Queue()
+        self._runs_to_queue: asyncio.Queue[QueueOperation] = asyncio.Queue()
 
     def __str__(self):
         return f"queue={self._runs_to_queue.qsize()}"
@@ -53,21 +53,20 @@ class QueueRunPlugin(HostPlugin[Run]):
         for run in commit.added:
             if run.parent_type == NodeType.PACKAGE and run.status == RunStatus.SCHEDULED:
                 logger.trace("scheduler.add", host=self, run=run)
-                attempt = QueueAttempt(run=run, no=0)
+                attempt = QueueOperation(run=run, retry=self._retry.new())
                 self._runs_to_queue.put_nowait(attempt)
 
-    async def _queue_run(self, attempt: QueueAttempt) -> None:
+    async def _queue_run(self, op: QueueOperation) -> None:
         """Distributes Runs to be queued in Runtimes."""
-        attempt.no += 1
+        op.retry.on_attempt()
         start = monotime()
-        run = attempt.run
+        run = op.run
         assert run.package_id is not None, f"missing package id for run {run!r}"
         environment = self._bench.main_environment
         assert environment, f"missing main environment for bench {self._bench!r}"
-        log = logger.bind(host=self, run=run, server=environment.server, attempt=attempt.no)
+        log = logger.bind(host=self, run=run, server=environment.server, retry=op.retry)
 
         # find machine to queue run on
-        error = None
         for machine in environment.server.machines:
             if machine.status != ResourceStatus.HEALTHY:
                 continue
@@ -81,11 +80,11 @@ class QueueRunPlugin(HostPlugin[Run]):
                 return  # success
             except Exception as e:
                 log.error("scheduler.queue.error", machine=machine, error=e)
-                error = e
+                op.retry.on_error(e)
                 continue
 
         # failed to queue run
-        if self._retry.max_attempts > 0 and attempt.no >= self._retry.max_attempts:
+        if not op.retry.should_retry:
             # give up and mark run as failed
             error = RunError(kind=RunErrorKind.INTERNAL, type=RunErrorType.NO_RUNTIME_AVAILABLE)
             async with self._host.session(autocommit=True):
@@ -93,11 +92,12 @@ class QueueRunPlugin(HostPlugin[Run]):
             log.error("scheduler.queue.failed", machines=environment.server.machines, error=error)
         else:
             # retry run later
-            interval = self._retry.get_interval(attempt.no)
-            asyncio.get_event_loop().call_later(interval, self._runs_to_queue.put_nowait, attempt)
+            asyncio.get_event_loop().call_later(
+                op.retry.interval, self._runs_to_queue.put_nowait, op
+            )
             log.debug(
                 "scheduler.queue.retry",
                 machines=environment.server.machines,
-                interval=interval,
-                error=error,
+                interval=op.retry.interval,
+                retry=op.retry,
             )

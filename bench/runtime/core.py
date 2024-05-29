@@ -40,8 +40,6 @@ PACKAGE_QUERY = (
     .exclude(Bench.encryption_key)
 )
 
-REMOTE_CONNECTION_RETRY = RetryOptions(
-    max_attempts=-1,
-    retry_if=is_retryable_grpc_error,
-)
+REMOTE_CONNECTION_RETRY = RetryOptions(max_attempts=-1, retry_if=is_retryable_grpc_error)
+
 RUNTIME_PARALLELISM = 1

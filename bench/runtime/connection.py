@@ -24,7 +24,7 @@ from bench.proto.wire import (
     SupervisorStub,
     WatchEditsRequest,
 )
-from bench.utils.tenacity import DEFAULT_RETRY_OPTIONS, RetryOptions
+from bench.utils.tenacity import RETRY_STANDARD, RetryOptions
 
 logger = structlog.get_logger(__name__)
 
@@ -102,7 +102,7 @@ class RemoteQuery[NodeT: Node, NodeDataT: AnyNodeData](ConnectedQuery[NodeT, Nod
         remote: GraphIoStub | HostStub | SupervisorStub,
         scope: GraphScope,
         rpc_metadata: RpcMetadata,
-        retry: RetryOptions = DEFAULT_RETRY_OPTIONS,
+        retry: RetryOptions = RETRY_STANDARD,
     ):
         super().__init__(query=query, tx_lock=tx_lock, session=session)
         self._remote = remote
@@ -131,15 +131,12 @@ class RemoteQuery[NodeT: Node, NodeDataT: AnyNodeData](ConnectedQuery[NodeT, Nod
 
     async def _do_connect(self) -> None:
         """Runs the core connection loop forever (or until closed)."""
-        attempt = 0
-        interval = self._retry.retry_interval
-        last_error = None
+        retry = self._retry.new()
 
         while not self._is_closed:
-            if self._retry.max_attempts > 0 and attempt >= self._retry.max_attempts:
-                raise last_error or RuntimeError(
-                    f"exceeded {attempt} attempts for {self._query!r} (options={self._retry!r})"
-                )
+            if not retry.should_retry:
+                raise retry.to_error(operation=self._query)
+            retry.on_attempt()
             try:
                 # get initial result
                 self._node = await self._query.get()
@@ -172,10 +169,8 @@ class RemoteQuery[NodeT: Node, NodeDataT: AnyNodeData](ConnectedQuery[NodeT, Nod
                         self._session.unsuppress()
             except self._retry.retry_on as e:
                 logger.error("query.error", query=self._query, exc_info=e)
-                last_error = e
-                await asyncio.sleep(interval)
-                interval = min(interval * self._retry.backoff, self._retry.max_retry_interval)
-                await asyncio.sleep(interval)
+                retry.on_error(e)
+                await asyncio.sleep(retry.interval)
 
     def close(self):
         self._is_closed = True
