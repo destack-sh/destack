@@ -244,7 +244,12 @@ async def test_create_run(some_bench: BenchHandle):
         session.create(run)
         await session.commit()
 
+        run = await Run.get(id=run.id)
+        run = await Run.include_ancestors().get(id=run.id)
+        ...
 
-# TODO :Test :Incomplete: test logs
+
+@pytest.mark.skip()
 async def test_get_logs_for_edits(some_bench: BenchHandle) -> None:
+    # TODO :Test :Incomplete: test logs
     pass

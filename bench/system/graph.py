@@ -153,13 +153,11 @@ class GraphIoServiceBase(BenchServiceBase, GraphIoBase):
         graph = NodeDataGraph()
         async with self.request_session() as session:
             for root_node_type, root_node_references in roots_by_type.items():
-                adapted_options = adapt_read_options(subject, root_node_type, options)
-                node_type = wiring.unpack_enum(NodeType, root_node_type)
                 root_ids = tuple(r.id for r in root_node_references)
                 query = QueryBuilder(
-                    node_type=node_type,
+                    node_type=wiring.unpack_enum(NodeType, root_node_type),
                     filter=C(ConditionalOp.IN, property=Node.id, value=root_ids),
-                    options=adapted_options,
+                    options=adapt_read_options(subject, root_node_type, options),
                 )
                 result = await session.tx._read_connection.fetch(query, FetchOptions(count=False))
                 graph.extend(result.nodes)

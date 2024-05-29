@@ -6,7 +6,6 @@ from .access import (
     Identity,
     Policy,
     PolicyRule,
-    ReadOptions,
     Role,
     Subject,
 )
@@ -71,7 +70,7 @@ from .notification import Notification
 from .path import Path
 from .projection import Projection
 from .property import Property
-from .query import Query
+from .query import Query, QueryBuilder, ReadOptions
 from .record import Record
 from .run import Run
 from .session import Context, Session
@@ -150,6 +149,7 @@ __all__ = [
     "Property",
     "PropertyReference",
     "Query",
+    "QueryBuilder",
     "ReadOptions",
     "Record",
     "Region",

@@ -483,7 +483,7 @@ def _get_enum_members_by_ord(enum_cls: type[IdEnum]) -> list[IdEnum]:
 
 
 # noinspection PyPep8Naming
-class bittuple(typing.Generic[EnumT]):  # noqa: N801
+class bittuple(typing.Generic[EnumT], Collection[EnumT]):  # noqa: N801
     """
     Tuple with a bitarray for fast membership check.
     We accept only IdEnum instances because we use its ordinals for a compact bitarray.
@@ -512,7 +512,9 @@ class bittuple(typing.Generic[EnumT]):  # noqa: N801
         assert isinstance(item, self.enum_cls), f"want {self.enum_cls}, got {item!r} ({type(item)})"
         return bool(self.bits[item.ord])
 
-    __container__ = has
+    def __contains__(self, item: Any) -> bool:
+        assert isinstance(item, self.enum_cls), f"want {self.enum_cls}, got {item!r} ({type(item)})"
+        return bool(self.bits[item.ord])
 
     def __and__(self, other: "bittuple[EnumT]") -> "bittuple[EnumT]":
         assert type(other) is bittuple, f"invalid type: {type(other)}"
