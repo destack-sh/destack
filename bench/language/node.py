@@ -1613,18 +1613,18 @@ class Node(Struct[NodeDataT], Generic[NodeDataT]):
         else:
             path_segments: list[str] = []
             current = self
-            while True:
+            while current is not None:
                 path_key = current.bench_path_key
                 assert path_key is not None, f"no path key for {current!r}"
                 path_segments.append(path_key)
                 next_parent = current.parent
-                # skip bench & branch (same path as pkg)
-                has_next = next_parent is not None and (
-                    not self.__is_in_package__
-                    or next_parent.metatype not in (NodeType.BENCH, NodeType.BRANCH)
-                )
-                if not has_next:
+                if next_parent is None:
                     break
+                elif next_parent.metatype == NodeType.PACKAGE:
+                    next_parent = next_parent.bench
+                elif next_parent.metatype == NodeType.BRANCH:
+                    next_parent = next_parent.parent
+                # skip bench & branch (same path as pkg)
                 elif current.metatype == NodeType.FIELD:
                     path_segments.append(".")
                 elif (
@@ -1634,7 +1634,7 @@ class Node(Struct[NodeDataT], Generic[NodeDataT]):
                     path_segments.append(":")
                 else:
                     path_segments.append("/")
-                current = cast(Node, next_parent)
+                current = next_parent
 
             path_segments.reverse()
             path = "".join(path_segments)
