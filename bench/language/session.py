@@ -197,7 +197,7 @@ class Session(Node[SessionData]):
         assert not self.opened_at, f"session already open {self!r}"
         if in_context:
             self._active_session_token = _active_session.set(self)
-        self._tx = Transaction(session=self, is_readonly=self._is_readonly)
+        self._tx = Transaction(id=UUIDT(), session=self, is_readonly=self._is_readonly)
         self.opened_at = utcnow()
         logger.trace("session.open", session=self)
 

@@ -280,9 +280,6 @@ class QueryBuilder(
         query_type = self._aggregation.op.bench_name if self._aggregation is not None else "Fetch"
         return f"<{self._node_type.bench_name}Query.{query_type} {self}>"
 
-    def query(self) -> Self:
-        return self
-
     #
     # Builder
     #
@@ -458,8 +455,7 @@ class QueryBuilder(
         from bench.proto.wiring import unpack_node_roots
 
         tx = active_tx()
-        connection = await tx.connect(self._base, self._node_type)
-        result = await connection.fetch(self, FetchOptions())
+        result = await tx._read_connection.fetch(self, FetchOptions())
         data_graph = NodeDataGraph(result.nodes)
         read = ReadInfo(options=self._options, epoch=result.epoch) if self._options else None
         roots, _ = unpack_node_roots(
@@ -474,11 +470,11 @@ class QueryBuilder(
     async def count(self, filter: Optional["Expression"] = None, **kwargs) -> int:
         from bench.language.expression import A, coerce_conditional
 
+        tx = active_tx()
         filter = coerce_conditional(self._node_cls, filter, kwargs, return_none_if_empty=True)
         query = self.where(filter) if filter is not None else self
         query = query.aggregate(A(AggregationOp.COUNT))
-        connection = await active_tx().connect(query._base, query._node_type)
-        result = await connection.aggregate(query)
+        result = await tx._read_connection.aggregate(query)
         assert result.aggregation.count is not None, f"missing count in {result!r}"
         return result.aggregation.count
 
@@ -486,11 +482,11 @@ class QueryBuilder(
     async def exists(self, filter: Optional["Expression"] = None, **kwargs) -> bool:
         from bench.language.expression import A, coerce_conditional
 
+        tx = active_tx()
         filter = coerce_conditional(self._node_cls, filter, kwargs, return_none_if_empty=True)
         query = self.where(filter) if filter is not None else self
         query = query.aggregate(A(AggregationOp.EXISTS))
-        connection = await active_tx().connect(query._base, query._node_type)
-        result = await connection.aggregate(query)
+        result = await tx._read_connection.aggregate(query)
         assert result.aggregation.exists is not None, f"missing exists in {result!r}"
         return result.aggregation.exists
 

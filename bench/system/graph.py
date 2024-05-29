@@ -2,7 +2,6 @@ import asyncio
 from collections import deque
 from dataclasses import dataclass, field
 from datetime import datetime
-from itertools import chain
 from typing import AsyncIterator, Mapping, NamedTuple, cast, final, override
 from uuid import UUID
 
@@ -60,7 +59,7 @@ from bench.proto.wire import (
     WatchEditsResponse,
 )
 from bench.utils.dt import monotime, utcnow
-from bench.utils.func import CriticalLock, bittuple, group_by, partition, to_uuid, uuid_to_str
+from bench.utils.func import CriticalLock, bittuple, group_by, to_uuid, uuid_to_str
 from bench.utils.utils import get_from_env
 
 logger = structlog.get_logger(__name__)
@@ -148,7 +147,6 @@ class GraphIoServiceBase(BenchServiceBase, GraphIoBase):
             wiring.unpack_struct_interp_maybe(request.options, expect=ReadOptions)
             or ReadOptions.default()
         )
-        _check_nodes_in_same_store(roots, options)
 
         # fetch
         roots_by_type: dict[NodeType, list[NodeReference]] = group_by(roots, lambda r: r.type)
@@ -157,17 +155,13 @@ class GraphIoServiceBase(BenchServiceBase, GraphIoBase):
             for root_node_type, root_node_references in roots_by_type.items():
                 adapted_options = adapt_read_options(subject, root_node_type, options)
                 node_type = wiring.unpack_enum(NodeType, root_node_type)
+                root_ids = tuple(r.id for r in root_node_references)
                 query = QueryBuilder(
                     node_type=node_type,
-                    filter=C(
-                        ConditionalOp.IN,
-                        property=Node.id,
-                        value=tuple(r.id for r in root_node_references),
-                    ),
+                    filter=C(ConditionalOp.IN, property=Node.id, value=root_ids),
                     options=adapted_options,
                 )
-                connection = await session.tx.connect(request.scope, node_type)
-                result = await connection.fetch(query, FetchOptions(count=False))
+                result = await session.tx._read_connection.fetch(query, FetchOptions(count=False))
                 graph.extend(result.nodes)
         if any(cast(str, root.id) not in graph for root in request.roots):
             missing_roots = tuple(root for root in roots if str(root.id) not in graph)
@@ -204,7 +198,6 @@ class GraphIoServiceBase(BenchServiceBase, GraphIoBase):
             wiring.unpack_struct_interp_maybe(request.options, expect=ReadOptions)
             or ReadOptions.default()
         )
-        _check_nodes_in_same_store((node_type,), options)
 
         # fetch
         adapted_options = adapt_read_options(subject, node_type, options)
@@ -213,8 +206,9 @@ class GraphIoServiceBase(BenchServiceBase, GraphIoBase):
             query = QueryBuilder(
                 node_type=node_type, filter=filter, options=adapted_options, sort=sort
             )
-            connection = await session.tx.connect(request.scope, node_type)
-            result = await connection.fetch(query, FetchOptions(count=request.count or False))
+            result = await session.tx._read_connection.fetch(
+                query, FetchOptions(count=request.count or False)
+            )
             roots.extend(result.roots)
             graph = NodeDataGraph(result.nodes)
 
@@ -254,8 +248,7 @@ class GraphIoServiceBase(BenchServiceBase, GraphIoBase):
             query = QueryBuilder(
                 node_type=node_type, filter=filter, options=adapted_options, aggregation=aggregation
             )
-            connection = await session.tx.connect(request.scope, node_type)
-            result = await connection.aggregate(query)
+            result = await session.tx._read_connection.aggregate(query)
 
         # TODO :Security!: check aggregation access
 
@@ -284,7 +277,7 @@ class GraphIoServiceBase(BenchServiceBase, GraphIoBase):
         start = monotime()
         async with self.tx_lock:
             async with self.request_session(readonly=False) as session:
-                # read the required nodes into a single graph for evaluation
+                # read the affected nodes into a single graph
                 data_graph = NodeDataGraph()
                 for node_type, node_references in edit_scopes.scopes_by_type.items():
                     node_type = wiring.unpack_enum(NodeType, node_type)
@@ -296,8 +289,9 @@ class GraphIoServiceBase(BenchServiceBase, GraphIoBase):
                         filter=C(ConditionalOp.IN, property=Node.id, value=node_ids),
                         options=options,
                     )
-                    connection = await session.tx.connect(request.scope, node_type)
-                    result = await connection.fetch(query, FetchOptions(count=False))
+                    result = await session.tx._read_connection.fetch(
+                        query, FetchOptions(count=False)
+                    )
                     # merge result into data_graph (there may be duplicates)
                     for node_data in result.nodes:
                         if node_data.id not in data_graph:
@@ -551,40 +545,6 @@ def parse_edit_scopes(edits: list[EditData]) -> _EditScopes:
         scopes_by_type=node_scopes_by_type,
         graph_scopes=tuple(graph_scopes.values()),
     )
-
-
-def _check_nodes_in_same_store(
-    roots: tuple[NodeType, ...] | tuple[NodeReference, ...] | tuple[NodeReferenceData],
-    options: ReadOptions,
-):
-    """
-    Check that all node types belong in the same store.
-    TODO :Robustness: assign & check nodes/node types to 'stores' more explicitly
-    """
-
-    if roots and isinstance(roots[0], (NodeReference, NodeReferenceData)):
-        roots_types = tuple((cast(NodeReference, r)).type for r in roots)
-    else:
-        roots_types = cast(list[NodeType], roots)
-
-    has_global = False
-    has_local = False
-
-    for node_type in chain(roots_types, options.ancestor_types, options.descendant_types):
-        if NODE_CLASS_BY_TYPE[node_type].__is_local__:
-            has_local = True
-        else:
-            has_global = True
-
-    if has_global and has_local:
-        global_types, local_types = partition(
-            lambda t: NODE_CLASS_BY_TYPE[t].__is_local__,
-            chain(roots_types, options.ancestor_types, options.descendant_types),
-        )
-        raise GRPCError(
-            GRPCStatus.INVALID_ARGUMENT,
-            f"can't mix global and local node types: {global_types} vs {local_types}",
-        )
 
 
 def _is_allowable_drift(dt: datetime, now: datetime) -> bool:

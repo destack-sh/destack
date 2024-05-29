@@ -171,6 +171,7 @@ class Runtime(RuntimeBase, BenchServiceBase):
         # setup host
         self._host = await get_host_client(self._bench_id, self._supervisor)
         bench_scope = GraphScope(bench_id=str(self._bench_id))
+        self._connector = RemoteConnector(self._host, bench_scope, self._rpc_metadata)
         self._engines = (
             # global engine
             RemoteEngine(
@@ -189,7 +190,6 @@ class Runtime(RuntimeBase, BenchServiceBase):
                 rpc_metadata=self._rpc_metadata,
             ),
         )
-        self._connector = RemoteConnector(self._host, bench_scope, self._rpc_metadata)
         self._session = Session(
             _is_readonly=False,
             _default_scope=bench_scope,

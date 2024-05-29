@@ -75,7 +75,7 @@ class RetryState:
 
     @property
     def should_retry(self) -> bool:
-        attempts_left = self.options.max_attempts < 0 or self.attempt < self.options.max_attempts
+        attempts_left = self.options.max_attempts <= 0 or self.attempt < self.options.max_attempts
         bad_error = self.errors and any(
             not isinstance(e, self.options.retry_on)
             or (self.options.retry_if and not self.options.retry_if(e))

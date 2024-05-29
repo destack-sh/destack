@@ -86,10 +86,10 @@ class Log(Node, HasSessionContext, HasValues):
     node: Optional["Node"] = p_system(
         40, require=False, array=False, references=NODE_TYPES.tuple, is_bench_implicit=True
     )
-    type: AccessType | None = p_internal(41, default=None)
-    properties: list[int] = p_internal(42, array=True)
-    new_node_packed: Any | None = p_internal(43, primitive_type=PrimitiveType.JSON)
-    old_node_packed: Any | None = p_internal(44, primitive_type=PrimitiveType.JSON)
+    type: AccessType | None = p_system(41, default=None)
+    properties: list[int] = p_system(42, array=True)
+    new_node_packed: Any | None = p_system(43, primitive_type=PrimitiveType.JSON)
+    old_node_packed: Any | None = p_system(44, primitive_type=PrimitiveType.JSON)
 
     # content (custom)
     title: Optional[str] = p_internal(50, default=None)

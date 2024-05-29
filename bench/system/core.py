@@ -41,7 +41,10 @@ GLOBAL_STORE = Store(
     connection_uri=f"postgresql://{GLOBAL_PG_USERNAME}:{GLOBAL_PG_PASSWORD}@{GLOBAL_PG_HOST}/{GLOBAL_PG_NAME}",
 )
 GLOBAL_POSTGRES_ENGINE = PostgresEngine(
-    store=GLOBAL_STORE, bench=SYSTEM_BENCH_STUB, scope=GraphScope(), node_types=GLOBAL_NODE_TYPES
+    store=GLOBAL_STORE,
+    bench=SYSTEM_BENCH_STUB,
+    scope=GraphScope(),
+    node_types=GLOBAL_NODE_TYPES,
 )
 
 

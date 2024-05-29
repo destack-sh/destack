@@ -19,7 +19,12 @@ from uuid import UUID
 import psycopg
 import structlog
 
-from bench.language.const import AggregationOp, BenchError, NodeType, StoreEngineType
+from bench.language.const import (
+    AggregationOp,
+    BenchError,
+    NodeType,
+    StoreConnectionType,
+)
 from bench.language.node import Node
 from bench.proto.wire import (
     AggregationData,
@@ -58,7 +63,7 @@ NodeTypeOrClass = Union[NodeType, type[Node]]
 class StoreEngineError(BenchError, ValueError):
     def __init__(
         self,
-        engine: Union["StoreEngine", "StoreConnection", StoreEngineType],
+        engine: Union["StoreEngine", "StoreConnection", StoreConnectionType],
         query: Optional["QueryBuilder"] = None,
         expression: Union["Expression", list["Expression"], None] = None,
         reason: str | None = None,
@@ -107,7 +112,7 @@ class AggregateResult(NamedTuple):
 class StoreEngine(abc.ABC, Generic[NodeT, NodeDataT]):
     """A store engine provides Connections to query some Store-like thing."""
 
-    type: ClassVar[StoreEngineType]
+    type: ClassVar[StoreConnectionType]
 
     def __init__(
         self,
@@ -140,17 +145,9 @@ class StoreEngine(abc.ABC, Generic[NodeT, NodeDataT]):
         raise NotImplementedError
 
 
-StoreEngineT = TypeVar("StoreEngineT", bound=StoreEngine)
-
-
-class StoreConnection(abc.ABC, Generic[StoreEngineT, NodeT, NodeDataT]):
-    def __init__(self, engine: "StoreEngineT", session: "Session"):
-        self.engine = engine
+class StoreConnection(abc.ABC, Generic[NodeT, NodeDataT]):
+    def __init__(self, session: "Session"):
         self.session = session
-
-    @property
-    def type(self) -> StoreEngineType:
-        return self.engine.type
 
     def __str__(self):
         return f"session={self.session}"
@@ -211,7 +208,7 @@ class StoreConnection(abc.ABC, Generic[StoreEngineT, NodeT, NodeDataT]):
 class RemoteEngine(StoreEngine[NodeT, NodeDataT]):
     """An engine that proxies to a remote graph store."""
 
-    type = StoreEngineType.REMOTE
+    type = StoreConnectionType.REMOTE
 
     def __init__(
         self,
@@ -235,7 +232,13 @@ class RemoteEngine(StoreEngine[NodeT, NodeDataT]):
         return RemoteConnection(self, session)
 
 
-class RemoteConnection(StoreConnection[RemoteEngine, NodeT, NodeDataT]):
+class RemoteConnection(StoreConnection[NodeT, NodeDataT]):
+    """A connection to a remote graph."""
+
+    def __init__(self, engine: "RemoteEngine", session: "Session"):
+        super().__init__(session)
+        self.engine = engine
+
     @override
     @retry(
         lambda self, *args, **kwargs: self.engine.retry,
@@ -314,7 +317,7 @@ class RemoteConnection(StoreConnection[RemoteEngine, NodeT, NodeDataT]):
 class PostgresEngine(StoreEngine[NodeT, NodeDataT], Generic[NodeT, NodeDataT]):
     """An engine that uses postgres connections."""
 
-    type = StoreEngineType.POSTGRES
+    type = StoreConnectionType.POSTGRES
 
     def __init__(
         self,
@@ -339,9 +342,9 @@ class PostgresEngine(StoreEngine[NodeT, NodeDataT], Generic[NodeT, NodeDataT]):
         return PostgresConnection(self, session, conn, cur)
 
 
-class PostgresConnection(
-    StoreConnection[PostgresEngine, NodeT, NodeDataT], Generic[NodeT, NodeDataT]
-):
+class PostgresConnection(StoreConnection[NodeT, NodeDataT], Generic[NodeT, NodeDataT]):
+    """A specific connection to a Postgres store."""
+
     def __init__(
         self,
         engine: "PostgresEngine",
@@ -349,13 +352,10 @@ class PostgresConnection(
         conn: "_PgStoreConnection",
         cur: psycopg.AsyncCursor,
     ):
-        super().__init__(engine, session)
+        super().__init__(session)
+        self.engine = engine
         self.conn = conn
         self.cur = cur
-
-    async def close(self):
-        await self.cur.connection.rollback()
-        await self.conn.close()
 
     @override
     async def fetch(
@@ -426,3 +426,29 @@ class PostgresConnection(
     @override
     async def cancel(self) -> None:
         await self.cur.connection.rollback()
+
+    async def close(self):
+        await self.cur.connection.rollback()
+        await self.conn.close()
+
+
+class SplitConnection(StoreConnection[NodeT, NodeDataT], Generic[NodeT, NodeDataT]):
+    """Multiple read connections to the same store."""
+
+    @override
+    async def fetch(
+        self, query: "QueryBuilder[NodeT, NodeDataT]", options: FetchOptions
+    ) -> FetchResult:
+        # nocheckin: SplitConnection.fetch
+        scope = (
+            self.session.tx._get_scope_for_node(query._base)
+            if query._base
+            else self.session._default_scope
+        )
+        engine = self.session.tx._get_engine_for(scope, query._node_type)
+        connection = await self.session.tx._get_engine_connection(engine)
+        return await connection.fetch(query, options)
+
+    @override
+    async def aggregate(self, query: "QueryBuilder[NodeT, NodeDataT]") -> AggregateResult:
+        raise NotImplementedError("nocheckin: SplitConnection.aggregate")

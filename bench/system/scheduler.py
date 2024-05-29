@@ -77,7 +77,7 @@ class QueueRunPlugin(HostPlugin[Run]):
             try:
                 _ = await runtime.queue_run(request)
                 log.debug("scheduler.queue", machine=machine, duration=monotime() - start)
-                return  # success
+                return  # success!
             except Exception as e:
                 log.error("scheduler.queue.error", machine=machine, error=e)
                 op.retry.on_error(e)
