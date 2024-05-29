@@ -3,7 +3,7 @@
 
 from typing import TYPE_CHECKING, Union
 
-VERSION = "2024.05.29.2"
+VERSION = "2024.05.29.3"
 
 if TYPE_CHECKING:
     from bench.language import Subject
@@ -1696,7 +1696,7 @@ class RunErrorData(betterproto.Message):
     order_key: Optional[str] = betterproto.string_field(5, optional=True)
     set_properties: List[int] = betterproto.int32_field(29)
     kind: "RunErrorKind" = betterproto.enum_field(30)
-    type: "RunErrorType" = betterproto.enum_field(31)
+    type: Optional["RunErrorType"] = betterproto.enum_field(31, optional=True)
     title: Optional[str] = betterproto.string_field(32, optional=True)
     text: Optional["TextData"] = betterproto.message_field(33, optional=True)
     node_ptr: Optional["NodeReferenceData"] = betterproto.message_field(34, optional=True)

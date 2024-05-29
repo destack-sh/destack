@@ -80,6 +80,12 @@ def run_code_script(code: str, extra_globals: dict[str, Any] | None = None) -> d
 
 
 def run_code_eval(code: str, extra_globals: dict[str, Any] | None = None) -> Any:
-    """Runs the code string and extracts its definitions."""
+    """Runs the code string and extracts its result."""
     globals_local = {**get_code_globals(), **(extra_globals or {})}
     return eval(code, globals_local)
+
+
+def run_code_exec(code: str, extra_globals: dict[str, Any] | None = None) -> None:
+    """Runs the code string."""
+    globals_local = {**get_code_globals(), **(extra_globals or {})}
+    exec(code, globals_local)

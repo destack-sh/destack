@@ -55,6 +55,15 @@ class ConnectedQuery[NodeT: Node, NodeDataT: AnyNodeData](abc.ABC):
         self._session = session
         self._node: NodeT | None = None
 
+    def __str__(self):
+        if self.has_result:
+            return f"{self._query} -> {self._node}"
+        else:
+            return f"{self._query} -> <no result>"
+
+    def __repr__(self):
+        return f"<{self.__class__.__name__} {self}>"
+
     @property
     @abc.abstractmethod
     def has_result(self) -> bool:
@@ -145,7 +154,13 @@ class RemoteQuery[NodeT: Node, NodeDataT: AnyNodeData](ConnectedQuery[NodeT, Nod
                     self._node._read_info is not None and self._node._read_info.epoch is not None
                 ), f"need read info for {self._node!r} from {self._query!r}: {self._node._read_info!r}"
                 self._has_result.set()
-                logger.debug("query.connect", query=self._query, node=self._node)
+                logger.debug(
+                    "query.connect",
+                    query=self._query,
+                    node=self._node,
+                    duration=retry.duration,
+                    retry=retry,
+                )
 
                 # subscribe forever (until error)
                 node_types: list[NodeType] = [self._query._node_type]
