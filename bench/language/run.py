@@ -12,7 +12,7 @@ from bench.language.const import (
     StructType,
     enum_,
 )
-from bench.language.node import BasedNode, Node, Struct, node, struct
+from bench.language.node import BasedNode, Node, Struct, struct, timed_node
 from bench.language.property import (
     Property,
     p_internal,
@@ -30,7 +30,6 @@ from bench.language.validation import ValidationHandler
 from bench.language.value import HasValues
 from bench.proto.wire import AnyNodeData, NodeReferenceData, RunData
 from bench.utils.func import IdEnum
-from bench.utils.uuidt import UUIDT
 
 if TYPE_CHECKING:
     from bench.language import Block, Package
@@ -38,18 +37,7 @@ if TYPE_CHECKING:
 # pyright: reportIncompatibleVariableOverride=false
 
 
-@node(
-    NodeType.RUN,
-    local=True,
-    no_ck=True,  # no persistent identity
-    id_factory=UUIDT,
-    indexes=(
-        ("created_at",),
-        ("created_epoch",),
-        ("package_id", "created_at"),
-        ("package_id", "created_epoch"),
-    ),
-)
+@timed_node(NodeType.RUN)
 class Run(BasedNode[RunData], HasSessionContext, HasValues):
     """
     A 'run' of Blocks (and Steps within them) or 'lambdas' (just Code/Text).

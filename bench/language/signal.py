@@ -3,7 +3,7 @@ from typing import TYPE_CHECKING, Any, Optional, cast
 import structlog
 
 from bench.language.const import NodeType
-from bench.language.node import BasedNode, node
+from bench.language.node import BasedNode, timed_node
 from bench.language.property import (
     p_internal,
     p_node_parent,
@@ -14,7 +14,6 @@ from bench.language.property import (
 from bench.language.session import HasSessionContext
 from bench.language.value import HasValues
 from bench.proto.wire import AnyNodeData, NodeReferenceData, SignalData
-from bench.utils.uuidt import UUIDT
 
 if TYPE_CHECKING:
     from bench.language import Block, Package
@@ -27,19 +26,7 @@ logger = structlog.get_logger(__name__)
 #  (although generally, we want to query Signals together more than Records...)
 
 
-@node(
-    NodeType.SIGNAL,
-    passthrough="value",
-    local=True,
-    no_ck=True,  # no persistent identity
-    id_factory=UUIDT,
-    indexes=(
-        ("created_at",),
-        ("created_epoch",),
-        ("package_id", "created_at"),
-        ("package_id", "created_epoch"),
-    ),
-)
+@timed_node(NodeType.SIGNAL, passthrough="value")
 class Signal(BasedNode[SignalData], HasSessionContext, HasValues):
     """
     A Signal emitted in this Bench, usually received in Triggers.

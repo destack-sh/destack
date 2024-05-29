@@ -11,7 +11,7 @@ from bench.language.const import (
     StructType,
     enum_,
 )
-from bench.language.node import Node, node
+from bench.language.node import Node, timed_node
 from bench.language.property import (
     p_internal,
     p_node_parent,
@@ -24,7 +24,6 @@ from bench.language.session import HasSessionContext
 from bench.language.text import Text
 from bench.language.value import HasValues
 from bench.utils.func import IdEnum, bittuple
-from bench.utils.uuidt import UUIDT
 
 if TYPE_CHECKING:
     from bench.language import Package
@@ -59,18 +58,7 @@ class LogLevel(IdEnum):
     CRITICAL = 6
 
 
-@node(
-    NodeType.LOG,
-    local=True,
-    no_ck=True,  # no persistent identity
-    id_factory=UUIDT,
-    indexes=(
-        ("created_at",),
-        ("created_epoch",),
-        ("package_id", "created_at"),
-        ("package_id", "created_epoch"),
-    ),
-)
+@timed_node(NodeType.LOG)
 class Log(Node, HasSessionContext, HasValues):
     """
     A Log of something happening in a Bench.
