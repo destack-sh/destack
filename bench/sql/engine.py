@@ -1341,7 +1341,7 @@ async def pg_get_node_graph(
                     visited_graph.add(node)
             current_parents = next_parents
 
-    # select descendants (recursively)
+    # select descendants
     # TODO :Performance!: recurse read nodes up?/down in SQL & leverage cascades for some reads
     #  (take advantage of the ancestry graph to optimize this...
     #   also we could just query every node in the package with package_id=X if the roots are packages)
@@ -1364,9 +1364,7 @@ async def pg_get_node_graph(
                 for parent_property in (
                     NODE_CLASS_BY_TYPE[child_type].__parent_property__.reference_stored_ids or ()
                 ):
-                    assert (
-                        parent_property.reference_nodes
-                    ), f"no reference nodes for {parent_property!r}"
+                    assert parent_property.reference_nodes, f"no reference for {parent_property!r}"
                     filter = C(
                         op=ConditionalOp.IN,
                         property=parent_property,

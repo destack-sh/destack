@@ -3,12 +3,13 @@ from typing import TYPE_CHECKING
 from bench.language import Bench, Package
 from bench.language.bench import Branch
 from bench.language.const import NodeType
+from bench.utils.func import bittuple
 
 if TYPE_CHECKING:
     pass
 
 
-LOADED_BENCH_NODE_TYPES: tuple[NodeType, ...] = (
+LOADED_BENCH_NODE_TYPES: bittuple[NodeType] = bittuple(
     NodeType.BENCH,
     NodeType.ENVIRONMENT,
     NodeType.BRANCH,
@@ -19,7 +20,8 @@ LOADED_BENCH_NODE_TYPES: tuple[NodeType, ...] = (
     NodeType.MACHINE,
     NodeType.PACKAGE,
 )
-LOADED_PACKAGE_NODE_TYPES: tuple[NodeType, ...] = (
+LOADED_PACKAGE_NODE_TYPES: bittuple[NodeType] = bittuple(
+    NodeType.PACKAGE,
     NodeType.DEPENDENCY,
     NodeType.UPGRADE,
     NodeType.SPACE,

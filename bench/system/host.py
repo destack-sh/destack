@@ -13,7 +13,7 @@ from grpclib import Status as GRPCStatus
 
 from bench.language import Bench, Package, Run, Subject
 from bench.language.bench import Machine, MachineProfile, ResourceStatus
-from bench.language.connection import PostgresEngine, StoreEngine
+from bench.language.connection import InMemoryEngine, PostgresEngine, StoreEngine
 from bench.language.const import (
     IN_BENCH_GLOBAL_NODE_TYPES,
     IN_BENCH_NODE_TYPES,
@@ -21,7 +21,7 @@ from bench.language.const import (
     NodeType,
 )
 from bench.language.expression import NodeReference
-from bench.language.graph import NodeGraphLike, edit_graph
+from bench.language.graph import NodeGraphLike, edit_data_graph, edit_graph
 from bench.language.log import SELF_LOGGED_NODE_TYPES, Log
 from bench.language.property import Property
 from bench.language.query import NodeNotFoundError
@@ -33,7 +33,9 @@ from bench.system.core import (
     BENCH_QUERY,
     GLOBAL_POSTGRES_ENGINE,
     GLOBAL_STORE,
+    LOADED_BENCH_NODE_TYPES,
     LOADED_HOST_NODE_TYPES,
+    LOADED_PACKAGE_NODE_TYPES,
     PACKAGE_QUERY,
     HostPlugin,
     HostSpec,
@@ -163,14 +165,13 @@ class Host(GraphIoServiceBase, HostBase, HostSpec):
 
         self.bench_id = bench_id
         self._bench: Bench | None = None
+        self._main_package: Package | None = None
         self._scope: GraphScope = GraphScope(bench_id=str(bench_id))
         self._global_pg_engine: PostgresEngine | None = None
         # NOTE: currently we only have one local engine because we only have one branch :Branching
         #  but later we'll need different engines for every 'full' branch (separate Neon branch)
         self._local_pg_engine: PostgresEngine | None = None
         self._engines: tuple[StoreEngine, ...] = ()
-        self._main_package: Package | None = None
-        self._packages: dict[UUID, Package] = {}
 
         # processing
         self._session: Session | None = None
@@ -189,9 +190,10 @@ class Host(GraphIoServiceBase, HostBase, HostSpec):
         assert self._bench is not None, f"bench not loaded in {self}"
         return self._bench
 
-    @override
-    def get_package(self, package_id: UUID) -> Package | None:
-        return self._packages.get(package_id)
+    @property
+    def main_package(self) -> Package:
+        assert self._main_package is not None, f"main package not loaded in {self}"
+        return self._main_package
 
     @override
     def on_error(self, source: HostPlugin, error: Exception) -> None:
@@ -232,17 +234,25 @@ class Host(GraphIoServiceBase, HostBase, HostSpec):
     @property
     def graphs(self) -> tuple[NodeGraphLike, ...]:
         assert self._bench is not None, f"bench not loaded in {self!r}"
-        graphs = tuple(node._graph for node in (self._bench, *self._packages.values()))
-        return graphs
+        assert self._main_package is not None, f"main package not loaded in {self!r}"
+        return self._bench._graph, self._main_package._graph
 
     async def start(self) -> None:
         start = monotime()
 
         # load bench
         #  (in different session because we don't have the actual engines yet)
-        async with self.request_session(engines=(GLOBAL_POSTGRES_ENGINE,)):
+        async with self.request_session(engines=(GLOBAL_POSTGRES_ENGINE,)) as session:
             self._bench = await BENCH_QUERY.get(id=self.bench_id)
+            assert self._bench.main_environment, f"{self._bench!r} has no main environment"
+            assert self._bench.main_environment.store, f"{self._bench!r} has no main store"
+            assert self._bench.main_branch, f"{self._bench!r} has no main branch"
             self._bench._untrack_rec()
+            session.parent = self._bench.main_branch.main_package  # add bench hack for pg context
+
+            # preload main packages
+            self._main_package = await PACKAGE_QUERY.get(id=self._bench.main_branch.main_package_id)
+            self._main_package._untrack_rec()
 
         # setup main engines
         self._global_pg_engine = PostgresEngine(
@@ -251,19 +261,26 @@ class Host(GraphIoServiceBase, HostBase, HostSpec):
             scope=self._scope,
             node_types=IN_BENCH_GLOBAL_NODE_TYPES,
         )
-        assert self._bench.main_environment, f"{self._bench!r} has no main environment"
-        assert self._bench.main_environment.store, f"{self._bench!r} has no main store"
-        assert self._bench.main_branch, f"{self._bench!r} has no main branch"
         self._local_pg_engine = PostgresEngine(
             store=self._bench.main_environment.store,
             bench=self._bench,
             scope=self._scope,
             node_types=LOCAL_NODE_TYPES,
         )
-
+        self._engines = (
+            # in order of priority (prefer in-memory)
+            InMemoryEngine(
+                scope=self._scope, node_types=LOADED_BENCH_NODE_TYPES, graph=self._bench._data_graph
+            ),
+            InMemoryEngine(
+                scope=self._scope,
+                node_types=LOADED_PACKAGE_NODE_TYPES,
+                graph=self._main_package._data_graph,
+            ),
+            self._global_pg_engine,
+            self._local_pg_engine,
+        )
         # we open one Session for the entire lifecycle of the Host
-        # TODO :Performance!: support in-memory engines in Host (from loaded graphs)
-        self._engines = (self._global_pg_engine, self._local_pg_engine)
         self._session = Session(
             parent=self._bench.main_branch.main_package,
             _is_readonly=False,
@@ -273,14 +290,11 @@ class Host(GraphIoServiceBase, HostBase, HostSpec):
             _on_commit_hook=self.on_commit,
         )
         self._bench._track_rec(self._session)
+        self._main_package._track_rec(self._session)
         await self._session.open(in_context=False)
 
-        # preload main packages
+        # resume log
         async with self.session(readonly=True):
-            self._main_package = await PACKAGE_QUERY.get(id=self._bench.main_branch.main_package_id)
-            self._packages[self._main_package.id] = self._main_package
-
-            # get current epoch from log (if we already have one)
             try:
                 self.epoch = (
                     await Log.order_by(cast(Property, Log.created_epoch).desc())
@@ -295,7 +309,7 @@ class Host(GraphIoServiceBase, HostBase, HostSpec):
         self._provisioners = tuple(get_provisioners_for(self, self._bench))
         self._plugins = (QueueRunPlugin(self, self._bench), *self._provisioners)
         await asyncio.gather(*(plugin.start() for plugin in self._plugins))
-        # wait for plugins to finish processing any commits (and error early)
+        # wait for plugins to finish processing any commits (and to error early)
         await asyncio.gather(*(plugin.wait_step(timeout=10) for plugin in self._plugins))
         logger.info(
             "host.start",
@@ -375,7 +389,8 @@ class Host(GraphIoServiceBase, HostBase, HostSpec):
         self, graph: NodeGraphLike, edits: list[EditData], cascaded_edits: list[EditData]
     ):
         assert self._session is not None, f"session not ready in {self!r}"
-        assert self._bench is not None, f"bench not loaded in {self!r} for {edits!r}"
+        assert self._bench is not None, f"bench not loaded in {self!r}"
+        assert self._main_package is not None, f"package not loaded in {self!r}"
         start = monotime()
 
         # apply edits to loaded graphs (bench/package)
@@ -386,17 +401,18 @@ class Host(GraphIoServiceBase, HostBase, HostSpec):
             if edit.origin is None:
                 continue  # origin is us (=Host)
             node_data = wiring.unwrap_some_node(edit.node)
-            if hasattr(node_data, "package_ptr"):
+            if hasattr(node_data, "package_ptr"):  # :Branching
                 package_id = to_uuid(getattr(node_data, "package_ptr").id)
-                assert package_id is not None, f"missing package id in {edit!r}"
-                package = self._packages.get(package_id)
-                assert package is not None, f"package not loaded for edit {edit!r}"
-                edited_graph = package._graph
+                assert package_id == self._main_package.id, f"bad package id: {package_id!r}"
+                edited_graph = self._main_package._graph
+                edited_data_graph = self._main_package._data_graph
                 options = PACKAGE_QUERY._options
             else:
                 edited_graph = self._bench._graph
+                edited_data_graph = self._bench._data_graph
                 options = BENCH_QUERY._options
             edit_graph(edited_graph, (edit,), options)
+            edit_data_graph(edited_data_graph, (edit,), options)
         self._session.unsuppress()
 
         # run plugins on commit (in main session)

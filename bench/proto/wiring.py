@@ -311,7 +311,7 @@ def unpack_node_graph(
                 # if node_parent is None:
                 #     raise ValueError(f"parent {node_parent_id} not found in {unpacked_graph!r}")
             node = unpack_node(node_data, node_parent)
-            node._read_info = read
+            node._read = read
 
             # keep parent instance if it was passed (update it in place)
             if node.id == parent_id:

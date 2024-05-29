@@ -5,7 +5,6 @@ import abc
 from typing import (
     TYPE_CHECKING,
     Any,
-    ClassVar,
     Collection,
     Generic,
     NamedTuple,
@@ -29,6 +28,7 @@ from bench.language.const import (
 )
 from bench.language.graph import NodeDataGraph
 from bench.language.node import Node
+from bench.language.setup import PARENT_NODE_TYPES
 from bench.proto.wire import (
     AggregationData,
     AnyNodeData,
@@ -121,8 +121,6 @@ def scope_includes(scope: GraphScope, other: GraphScope) -> bool:
 class StoreEngine(abc.ABC, Generic[NodeT, NodeDataT]):
     """A store engine provides Connections to query some Store-like thing."""
 
-    type: ClassVar[StoreConnectionType]
-
     def __init__(
         self,
         scope: GraphScope,
@@ -134,9 +132,13 @@ class StoreEngine(abc.ABC, Generic[NodeT, NodeDataT]):
     def __repr__(self):
         self_str = str(self)
         if self_str:
-            return f"<{self.__class__.__name__} {self_str} ({self.type.bench_name})>"
+            return f"<{self.__class__.__name__} {self_str}>"
         else:
-            return f"<{self.__class__.__name__} ({self.type.bench_name})>"
+            return f"<{self.__class__.__name__}>"
+
+    @property
+    def is_readonly(self) -> bool:
+        return False
 
     @property
     def id(self) -> int | str | UUID:
@@ -173,7 +175,7 @@ class StoreConnection(abc.ABC, Generic[NodeT, NodeDataT]):
 
     async def aggregate(self, query: "QueryBuilder[NodeT, NodeDataT]") -> AggregateResult:
         """Read the nodes given the aggregate query in the current transaction context (if any)."""
-        raise ConnectionIncapableError(self, query, reason="exists unsupported")
+        raise ConnectionIncapableError(self, query, reason="aggregate unsupported")
 
     #
     # Transaction management
@@ -210,8 +212,6 @@ class StoreConnection(abc.ABC, Generic[NodeT, NodeDataT]):
 class RemoteEngine(StoreEngine[NodeT, NodeDataT]):
     """An engine that proxies to a remote graph store."""
 
-    type = StoreConnectionType.REMOTE
-
     def __init__(
         self,
         scope: GraphScope,
@@ -240,6 +240,9 @@ class RemoteConnection(StoreConnection[NodeT, NodeDataT]):
     def __init__(self, engine: "RemoteEngine", session: "Session"):
         super().__init__(session)
         self.engine = engine
+
+    def __str__(self):
+        return f"engine={self.engine!r}, session={self.session}"
 
     @override
     @retry(
@@ -319,8 +322,6 @@ class RemoteConnection(StoreConnection[NodeT, NodeDataT]):
 class PostgresEngine(StoreEngine[NodeT, NodeDataT], Generic[NodeT, NodeDataT]):
     """An engine that uses postgres connections."""
 
-    type = StoreConnectionType.POSTGRES
-
     def __init__(
         self,
         store: "Store",
@@ -358,6 +359,9 @@ class PostgresConnection(StoreConnection[NodeT, NodeDataT], Generic[NodeT, NodeD
         self.engine = engine
         self.conn = conn
         self.cur = cur
+
+    def __str__(self):
+        return f"engine={self.engine!r}, session={self.session}"
 
     @override
     async def fetch(
@@ -434,8 +438,106 @@ class PostgresConnection(StoreConnection[NodeT, NodeDataT], Generic[NodeT, NodeD
         await self.conn.close()
 
 
+class InMemoryEngine(StoreEngine[NodeT, NodeDataT], Generic[NodeT, NodeDataT]):
+    """A read-only engine that reads from an in-memory graph."""
+
+    def __init__(
+        self, scope: GraphScope, node_types: bittuple[NodeType], graph: NodeDataGraph[AnyNodeData]
+    ):
+        super().__init__(scope, node_types)
+        self.graph = graph
+
+    def __str__(self):
+        return f"scope={self.scope!r}, node_types=[{', '.join(t.bench_name for t in self.node_types)}], graph={self.graph!r}"
+
+    @property
+    def is_readonly(self) -> bool:
+        return True
+
+    async def connect(self, session: "Session"):
+        return InMemoryConnection(self, session)
+
+
+class InMemoryConnection(StoreConnection[NodeT, NodeDataT], Generic[NodeT, NodeDataT]):
+    """A read-only connection to an in-memory graph."""
+
+    def __init__(self, engine: "InMemoryEngine", session: "Session"):
+        super().__init__(session)
+        self.engine = engine
+
+    def __str__(self):
+        return f"engine={self.engine!r}, session={self.session}"
+
+    @override
+    async def fetch(
+        self, query: "QueryBuilder[NodeT, NodeDataT]", options: FetchOptions
+    ) -> FetchResult:
+        from bench.language.expression import NodeReference
+
+        loaded_graph = self.engine.graph
+        visited_graph = NodeDataGraph()
+
+        # get roots
+        # NOTE :Incomplete: InMemoryConnection only supports trivial get by id for now
+        assert query._filter is not None, f"{query!r} has no filter"
+        assert query._filter.property is not None, f"{query!r} has no filter property"
+        assert query._filter.property.name == "id", f"{query!r} doesn't filter on id"
+        roots_ids: tuple[str, ...]
+        if query._filter.op == ConditionalOp.EQUALS:
+            roots_ids = (str(query._filter.value),) if query._filter.value else ()
+        elif query._filter.op == ConditionalOp.IN:
+            roots_ids = tuple(str(v) for v in query._filter.value)
+        else:
+            raise RuntimeError(f"unsupported filter op {query._filter!r} for {query!r}")
+        roots = tuple(loaded_graph[i] for i in roots_ids if i in loaded_graph)
+        visited_graph.extend(roots)
+
+        # select ancestors
+        ancestor_types = query._options.ancestor_types if query._options else ()
+        if ancestor_types:
+            current_parents = roots
+            while current_parents:
+                next_parents = []
+                for node in current_parents:
+                    if (
+                        node.parent_ptr is not None
+                        and node.parent_ptr.id is not None
+                        and node.parent_ptr.type in ancestor_types
+                        and node.parent_ptr.id not in visited_graph
+                    ):
+                        parent = loaded_graph[node.parent_ptr.id]
+                        visited_graph.add(parent)
+                        next_parents.append(parent)
+                current_parents = next_parents
+
+        # select descendants
+        descendant_types = query._options.descendant_types if query._options else ()
+        if descendant_types:
+            current_parents = roots
+            while current_parents:
+                next_parents: list[AnyNodeData] = []
+                for node in current_parents:
+                    for child_type in descendant_types:
+                        if node.metatype not in PARENT_NODE_TYPES[child_type]:
+                            continue
+                        children = loaded_graph.collect_descendants(node, child_type)
+                        for child in children:
+                            visited_graph.add(child)
+                            next_parents.append(child)
+                current_parents = next_parents
+
+        return FetchResult(
+            roots=[NodeReference.from_node_data(r) for r in roots],
+            nodes=list(visited_graph.nodes),
+            # not supported yet (see above):
+            cursors=[],
+            start_cursor=None,
+            total=None,
+        )
+
+
 class SplitConnection(StoreConnection[NodeT, NodeDataT], Generic[NodeT, NodeDataT]):
-    """Multiple read connections to the same store."""
+    """A read-only connection that can split queries across store boundaries."""
 
     @override
     async def fetch(
@@ -449,8 +551,10 @@ class SplitConnection(StoreConnection[NodeT, NodeDataT], Generic[NodeT, NodeData
             else self.session._default_scope
         )
 
-        # first trim query to nucleus around core node type
-        initial_engine = self.session.tx._get_engine_for(scope, query._node_type)
+        # first trim query to nucleus around core node type (use best match)
+        initial_engine = self.session.tx._get_write_engine(
+            scope, query._node_type, best_match=list(query.all_types), is_readonly=True
+        )
         initial_query = query.trim_to(initial_engine.node_types)
         initial_connection = await self.session.tx._get_engine_connection(initial_engine)
         initial_result = await initial_connection.fetch(initial_query, options)
@@ -476,7 +580,9 @@ class SplitConnection(StoreConnection[NodeT, NodeDataT], Generic[NodeT, NodeData
         if remaining_ancestors:
             actual_roots_parents = tuple(n.parent_ptr for n in actual_roots if n.parent_ptr)
             actual_roots_parents_by_type = group_by(actual_roots_parents, lambda n: n.type)
-            ancestor_engine = self.session.tx._get_engine_for(scope, remaining_ancestors)
+            ancestor_engine = self.session.tx._get_write_engine(
+                scope, remaining_ancestors, is_readonly=True
+            )
             ancestor_connection = await self.session.tx._get_engine_connection(ancestor_engine)
 
             for parent_type, parents in actual_roots_parents_by_type.items():
@@ -490,6 +596,9 @@ class SplitConnection(StoreConnection[NodeT, NodeDataT], Generic[NodeT, NodeData
                 )
                 ancestor_result = await ancestor_connection.fetch(ancestor_query, options)
                 combined_graph.extend(ancestor_result.nodes)
+
+        if remaining_descendants:
+            raise RuntimeError(f"descendants split: {remaining_descendants!r} for {query!r}")
 
         # combine (keeping the 'roots' from the initial result)
         combined_result = FetchResult(
@@ -510,6 +619,6 @@ class SplitConnection(StoreConnection[NodeT, NodeDataT], Generic[NodeT, NodeData
             if query._base
             else self.session._default_scope
         )
-        engine = self.session.tx._get_engine_for(scope, query._node_type)
+        engine = self.session.tx._get_write_engine(scope, query._node_type, is_readonly=True)
         connection = await self.session.tx._get_engine_connection(engine)
         return await connection.aggregate(query)

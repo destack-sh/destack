@@ -1,6 +1,6 @@
 from contextlib import asynccontextmanager
 from dataclasses import dataclass, replace
-from typing import Any, cast
+from typing import cast
 from uuid import UUID
 
 import pytest
@@ -34,28 +34,13 @@ from bench.proto.wire import (
     SupervisorBase,
     SupervisorStub,
 )
-from bench.system.core import HostSpec
+from bench.system.core import MockHost
 from bench.system.provisioner import get_provisioners_for
 from bench.system.test.conftest import UserHandle, make_random_user_handle
 from bench.utils.dt import monotime
 from bench.utils.tenacity import RETRY_NEVER
 
 logger = structlog.get_logger(__name__)
-
-
-class MockHost(HostSpec):
-    def __init__(self, session: Session):
-        self._session = session
-
-    def on_error(self, source: Any, error: Exception) -> None:
-        pass
-
-    def get_package(self, package_id: UUID) -> Package | None:
-        raise NotImplementedError("MockHost.get_package")
-
-    @asynccontextmanager
-    async def session(self, *, readonly: bool = False, autocommit: bool = False):
-        yield self._session
 
 
 @dataclass(slots=True)
