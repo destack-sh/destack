@@ -10,9 +10,11 @@ if (len(sys.argv) < 2 or sys.argv[1] != "serve") and os.getenv("ENVIRONMENT") is
     os.environ["ENVIRONMENT"] = "dev"
 
 from bench.utils.env import setup_dotenv
-from bench.utils.logging import configure_logging
 
 setup_dotenv()
+
+from bench.utils.logging import configure_logging  # noqa: E402
+
 configure_logging()
 
 # add all CLI 'apps' in our CLI folder

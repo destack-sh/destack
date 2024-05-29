@@ -412,10 +412,15 @@ class Host(GraphIoServiceBase, HostBase, HostSpec):
         )
         for plugin in self._plugins:
             if commit.edited_types & plugin.watch_types:
+                start_plugin = monotime()
                 trimmed_commit = commit.trim_to(plugin.watch_types)
                 await plugin.on_commit(self._session, trimmed_commit)
                 logger.debug(
-                    "host.on_commit.plugin", host=self, plugin=plugin, commit=trimmed_commit
+                    "host.on_commit.plugin",
+                    host=self,
+                    plugin=plugin,
+                    commit=trimmed_commit,
+                    duration=monotime() - start_plugin,
                 )
         await self._session.commit(_skip_lock=True)  # already in a locked section
         if was_suspended:

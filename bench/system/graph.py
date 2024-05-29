@@ -276,6 +276,7 @@ class GraphIoServiceBase(BenchServiceBase, GraphIoBase):
         async with self.tx_lock:
             async with self.request_session(readonly=False) as session:
                 # read the affected nodes into a single graph
+                start_read = monotime()
                 data_graph = NodeDataGraph()
                 for node_type, node_references in edit_scopes.scopes_by_type.items():
                     node_type = wiring.unpack_enum(NodeType, node_type)
@@ -294,6 +295,9 @@ class GraphIoServiceBase(BenchServiceBase, GraphIoBase):
                     for node_data in result.nodes:
                         if node_data.id not in data_graph:
                             data_graph.add(node_data)
+                logger.trace(
+                    "graph.commit.read", graph=data_graph, duration=monotime() - start_read
+                )
 
                 # check access
                 matrix = generate_access_matrix(subject, data_graph)
