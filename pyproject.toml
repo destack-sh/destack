@@ -41,7 +41,7 @@ ignore = [
 	"B010",
 	# multiple asserts in one line
 	"PT018",
-	# too broad error
+	# exception too broad
 	"PT011",
 	# single if instead of nested ifs
 	"SIM102",

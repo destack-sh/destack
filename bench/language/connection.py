@@ -239,7 +239,7 @@ class RemoteConnection(StoreConnection[RemoteEngine, NodeT, NodeDataT]):
     @override
     @retry(
         lambda self, *args, **kwargs: self.engine.retry,
-        on_failure=lambda self, query, options, e: logger.error(
+        on_error=lambda self, query, options, e: logger.error(
             "remote.fetch.error", connection=self, query=query, options=options, exc_info=e
         ),
     )
@@ -272,7 +272,7 @@ class RemoteConnection(StoreConnection[RemoteEngine, NodeT, NodeDataT]):
     @override
     @retry(
         lambda self, *args, **kwargs: self.engine.retry,
-        on_failure=lambda self, query, e: logger.error(
+        on_error=lambda self, query, e: logger.error(
             "remote.aggregate.error", connection=self, query=query, exc_info=e
         ),
     )
@@ -294,7 +294,7 @@ class RemoteConnection(StoreConnection[RemoteEngine, NodeT, NodeDataT]):
     @override
     @retry(
         lambda self, *args, **kwargs: self.engine.retry,
-        on_failure=lambda self, edits, e: logger.error(
+        on_error=lambda self, edits, e: logger.error(
             "remote.commit.error", connection=self, edits=edits, exc_info=e
         ),
     )

@@ -1,7 +1,7 @@
 import asyncio
 from dataclasses import dataclass
 from functools import wraps
-from typing import Awaitable, Callable, Coroutine, Type, TypeVar, Union
+from typing import Any, Awaitable, Callable, Coroutine, Type, TypeVar, Union
 
 from grpclib import GRPCError
 from grpclib import Status as GRPCStatus
@@ -11,6 +11,8 @@ T = TypeVar("T")
 
 @dataclass(slots=True)
 class RetryOptions:
+    """Options for retrying an operation."""
+
     max_attempts: int = 3  # < 0 for infinite
     retry_interval: float = 1.0  # seconds
     backoff: float = 2.0  # exponential backoff
@@ -18,46 +20,108 @@ class RetryOptions:
     retry_on: Union[Type[Exception], tuple[Type[Exception], ...]] = Exception
     retry_if: Callable[[Exception], bool] | None = None
 
+    def __str__(self) -> str:
+        return f"max_attempt={self.max_attempts}, retry_interval={self.retry_interval}, backoff={self.backoff}, max_retry_interval={self.max_retry_interval}"
+
+    def __repr__(self) -> str:
+        return f"<RetryOptions {self}>"
+
     def get_interval(self, attempt: int) -> float:
         return min(self.retry_interval * (self.backoff**attempt), self.max_retry_interval)
 
+    def new(self):
+        return RetryState(options=self)
 
-DEFAULT_RETRY_OPTIONS = RetryOptions()
-NO_RETRY_OPTIONS = RetryOptions(max_attempts=1)
+
+class RetryError(Exception):
+    """Error raised when retrying an operation fails."""
+
+    def __init__(self, state: "RetryState", operation: Any = None):
+        if operation is not None:
+            super().__init__(f"retry exhausted for {operation!r}: {state!r}")
+        else:
+            super().__init__(f"retry exhausted: {state!r}")
+        self.state = state
+
+
+@dataclass(slots=True)
+class RetryState:
+    """State of a retryable operation."""
+
+    options: RetryOptions
+    errors: list[Exception] | None = None
+    attempt: int = 0
+
+    def __str__(self) -> str:
+        parts = [f"attempt={self.attempt}"]
+        if self.errors:
+            parts.append(f"errors={self.errors}")
+        return ", ".join(parts)
+
+    def __repr__(self) -> str:
+        return f"<RetryState {self}>"
+
+    def on_attempt(self):
+        self.attempt += 1
+
+    def on_error(self, error: Exception):
+        if self.errors is None:
+            self.errors = []
+        self.errors.append(error)
+
+    @property
+    def last_error(self) -> Exception | None:
+        return self.errors[-1] if self.errors else None
+
+    @property
+    def should_retry(self) -> bool:
+        attempts_left = self.options.max_attempts < 0 or self.attempt < self.options.max_attempts
+        bad_error = self.errors and any(
+            not isinstance(e, self.options.retry_on)
+            or (self.options.retry_if and not self.options.retry_if(e))
+            for e in self.errors
+        )
+        return attempts_left and not bad_error
+
+    @property
+    def interval(self) -> float:
+        return self.options.get_interval(self.attempt)
+
+    def to_error(self, operation: Any = None) -> RetryError | Exception:
+        if self.errors:
+            return self.errors[-1]
+        else:
+            return RetryError(self, operation=operation)
+
+
+RETRY_STANDARD = RetryOptions()
+RETRY_NEVER = RetryOptions(max_attempts=1)
+RETRY_FOREVER = RetryOptions(max_attempts=-1)
 
 
 def retry(
     options: Union[RetryOptions, Callable[..., RetryOptions]],
-    on_failure: Callable[..., Awaitable[T]] | None = None,
+    on_error: Callable[..., Awaitable[T]] | None = None,
 ):
     """Retry the decorated coroutine function on certain exceptions."""
 
     def decorator(func: Callable[..., Awaitable[T]]) -> Callable[..., Coroutine[None, None, T]]:
         @wraps(func)
         async def wrapper(*args, **kwargs) -> T:
-            _options = options(*args, **kwargs) if callable(options) else options
-            attempt = 0
-            interval = _options.retry_interval
-            last_error = None
-
-            while _options.max_attempts < 0 or attempt < _options.max_attempts:
-                attempt += 1
+            opt = options(*args, **kwargs) if callable(options) else options
+            retry = opt.new()
+            while retry.should_retry:
+                retry.on_attempt()
                 try:
                     return await func(*args, **kwargs)
-                except _options.retry_on as e:
-                    last_error = e
-                    if on_failure is not None:
-                        on_failure(*args, **kwargs, e=e)
-                    if (_options.max_attempts > 0 and attempt >= _options.max_attempts) or (
-                        _options.retry_if and not _options.retry_if(e)
-                    ):
+                except opt.retry_on as e:
+                    retry.on_error(e)
+                    if on_error is not None:
+                        on_error(*args, **kwargs, e=e)
+                    if not retry.should_retry:
                         raise
-                    await asyncio.sleep(interval)
-                    interval = min(interval * _options.backoff, _options.max_retry_interval)
-
-            raise last_error or RuntimeError(
-                f"exceeded {attempt} attempts for {func.__name__} (options={options!r})"
-            )
+                    await asyncio.sleep(retry.interval)
+            raise retry.to_error()
 
         return wrapper
 

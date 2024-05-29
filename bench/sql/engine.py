@@ -562,14 +562,14 @@ def _pg_wrap_error(
     return wrapped_t(message, conn)
 
 
-# NOTE: we retry only on operational errors to handle transient issues (e.g. network)
+# NOTE: we retry only on operational PG errors to handle transient issues (e.g. network)
 
-PG_RETRY_OPTIONS = RetryOptions(
+RETRY_PG = RetryOptions(
     max_attempts=3, retry_interval=0.5, max_retry_interval=5, retry_on=(OperationalError,)
 )
 
 
-@retry(PG_RETRY_OPTIONS)
+@retry(RETRY_PG)
 async def _pg_execute(
     cur: psycopg.AsyncCursor,
     statement: sql.Composed,
@@ -578,7 +578,7 @@ async def _pg_execute(
     await cur.execute(statement, params)
 
 
-@retry(PG_RETRY_OPTIONS)
+@retry(RETRY_PG)
 async def _pg_executemany(
     cur: psycopg.AsyncCursor,
     statement: sql.Composed,
