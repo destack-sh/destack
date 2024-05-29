@@ -2039,7 +2039,7 @@ export interface BlockData {
     isPaused: boolean;
 }
 /**
- * A branch is a Git-like pointer to the head of a lineage of packages.
+ * A branch is a lineage of Bench history.
  *
  * @generated from protobuf message symbolx.bench.BranchData
  */
@@ -2124,6 +2124,18 @@ export interface BranchData {
      * @generated from protobuf field: optional symbolx.bench.NodeReferenceData main_package_ptr = 40;
      */
     mainPackagePtr?: NodeReferenceData;
+    /**
+     * @generated from protobuf field: optional symbolx.bench.NodeReferenceData base_ptr = 41;
+     */
+    basePtr?: NodeReferenceData;
+    /**
+     * @generated from protobuf field: bool is_overlay = 60;
+     */
+    isOverlay: boolean;
+    /**
+     * @generated from protobuf field: bool is_light = 61;
+     */
+    isLight: boolean;
 }
 /**
  * A client to a Bench.
@@ -3825,7 +3837,7 @@ export interface OrganizationData {
     status: OrganizationStatus;
 }
 /**
- * A package is a semi-isolated version of a Bench.
+ * A package is a version of a Bench.
  *
  * @generated from protobuf message symbolx.bench.PackageData
  */
@@ -3903,17 +3915,25 @@ export interface PackageData {
      */
     policies: PolicyData[];
     /**
-     * @generated from protobuf field: optional google.protobuf.Timestamp paused_at = 37;
-     */
-    pausedAt?: Timestamp;
-    /**
      * @generated from protobuf field: symbolx.bench.NodeReferenceData environment_ptr = 40;
      */
     environmentPtr?: NodeReferenceData;
     /**
-     * @generated from protobuf field: repeated symbolx.bench.NodeReferenceData bases_ptr = 42;
+     * @generated from protobuf field: optional symbolx.bench.NodeReferenceData base_ptr = 41;
      */
-    basesPtr: NodeReferenceData[];
+    basePtr?: NodeReferenceData;
+    /**
+     * @generated from protobuf field: bool is_snapshot = 60;
+     */
+    isSnapshot: boolean;
+    /**
+     * @generated from protobuf field: bool is_overlay = 61;
+     */
+    isOverlay: boolean;
+    /**
+     * @generated from protobuf field: bool is_paused = 65;
+     */
+    isPaused: boolean;
 }
 /**
  * A stored query.
@@ -14739,7 +14759,10 @@ class BranchData$Type extends MessageType<BranchData> {
             { no: 34, name: "text", kind: "message", T: () => TextData },
             { no: 35, name: "icon", kind: "message", T: () => IconData },
             { no: 36, name: "policies", kind: "message", repeat: 1 /*RepeatType.PACKED*/, T: () => PolicyData },
-            { no: 40, name: "main_package_ptr", kind: "message", T: () => NodeReferenceData }
+            { no: 40, name: "main_package_ptr", kind: "message", T: () => NodeReferenceData },
+            { no: 41, name: "base_ptr", kind: "message", T: () => NodeReferenceData },
+            { no: 60, name: "is_overlay", kind: "scalar", T: 8 /*ScalarType.BOOL*/ },
+            { no: 61, name: "is_light", kind: "scalar", T: 8 /*ScalarType.BOOL*/ }
         ]);
     }
     create(value?: PartialMessage<BranchData>): BranchData {
@@ -14752,6 +14775,8 @@ class BranchData$Type extends MessageType<BranchData> {
         message.setProperties = [];
         message.name = "";
         message.policies = [];
+        message.isOverlay = false;
+        message.isLight = false;
         if (value !== undefined)
             reflectionMergePartial<BranchData>(this, message, value);
         return message;
@@ -14824,6 +14849,15 @@ class BranchData$Type extends MessageType<BranchData> {
                     break;
                 case /* optional symbolx.bench.NodeReferenceData main_package_ptr */ 40:
                     message.mainPackagePtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.mainPackagePtr);
+                    break;
+                case /* optional symbolx.bench.NodeReferenceData base_ptr */ 41:
+                    message.basePtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.basePtr);
+                    break;
+                case /* bool is_overlay */ 60:
+                    message.isOverlay = reader.bool();
+                    break;
+                case /* bool is_light */ 61:
+                    message.isLight = reader.bool();
                     break;
                 default:
                     let u = options.readUnknownField;
@@ -14901,6 +14935,15 @@ class BranchData$Type extends MessageType<BranchData> {
         /* optional symbolx.bench.NodeReferenceData main_package_ptr = 40; */
         if (message.mainPackagePtr)
             NodeReferenceData.internalBinaryWrite(message.mainPackagePtr, writer.tag(40, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbolx.bench.NodeReferenceData base_ptr = 41; */
+        if (message.basePtr)
+            NodeReferenceData.internalBinaryWrite(message.basePtr, writer.tag(41, WireType.LengthDelimited).fork(), options).join();
+        /* bool is_overlay = 60; */
+        if (message.isOverlay !== false)
+            writer.tag(60, WireType.Varint).bool(message.isOverlay);
+        /* bool is_light = 61; */
+        if (message.isLight !== false)
+            writer.tag(61, WireType.Varint).bool(message.isLight);
         let u = options.writeUnknownFields;
         if (u !== false)
             (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
@@ -18625,9 +18668,11 @@ class PackageData$Type extends MessageType<PackageData> {
             { no: 34, name: "text", kind: "message", T: () => TextData },
             { no: 35, name: "icon", kind: "message", T: () => IconData },
             { no: 36, name: "policies", kind: "message", repeat: 1 /*RepeatType.PACKED*/, T: () => PolicyData },
-            { no: 37, name: "paused_at", kind: "message", T: () => Timestamp },
             { no: 40, name: "environment_ptr", kind: "message", T: () => NodeReferenceData },
-            { no: 42, name: "bases_ptr", kind: "message", repeat: 1 /*RepeatType.PACKED*/, T: () => NodeReferenceData }
+            { no: 41, name: "base_ptr", kind: "message", T: () => NodeReferenceData },
+            { no: 60, name: "is_snapshot", kind: "scalar", T: 8 /*ScalarType.BOOL*/ },
+            { no: 61, name: "is_overlay", kind: "scalar", T: 8 /*ScalarType.BOOL*/ },
+            { no: 65, name: "is_paused", kind: "scalar", T: 8 /*ScalarType.BOOL*/ }
         ]);
     }
     create(value?: PartialMessage<PackageData>): PackageData {
@@ -18639,7 +18684,9 @@ class PackageData$Type extends MessageType<PackageData> {
         message.updatedEpoch = 0n;
         message.setProperties = [];
         message.policies = [];
-        message.basesPtr = [];
+        message.isSnapshot = false;
+        message.isOverlay = false;
+        message.isPaused = false;
         if (value !== undefined)
             reflectionMergePartial<PackageData>(this, message, value);
         return message;
@@ -18707,14 +18754,20 @@ class PackageData$Type extends MessageType<PackageData> {
                 case /* repeated symbolx.bench.PolicyData policies */ 36:
                     message.policies.push(PolicyData.internalBinaryRead(reader, reader.uint32(), options));
                     break;
-                case /* optional google.protobuf.Timestamp paused_at */ 37:
-                    message.pausedAt = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.pausedAt);
-                    break;
                 case /* symbolx.bench.NodeReferenceData environment_ptr */ 40:
                     message.environmentPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.environmentPtr);
                     break;
-                case /* repeated symbolx.bench.NodeReferenceData bases_ptr */ 42:
-                    message.basesPtr.push(NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options));
+                case /* optional symbolx.bench.NodeReferenceData base_ptr */ 41:
+                    message.basePtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.basePtr);
+                    break;
+                case /* bool is_snapshot */ 60:
+                    message.isSnapshot = reader.bool();
+                    break;
+                case /* bool is_overlay */ 61:
+                    message.isOverlay = reader.bool();
+                    break;
+                case /* bool is_paused */ 65:
+                    message.isPaused = reader.bool();
                     break;
                 default:
                     let u = options.readUnknownField;
@@ -18786,15 +18839,21 @@ class PackageData$Type extends MessageType<PackageData> {
         /* repeated symbolx.bench.PolicyData policies = 36; */
         for (let i = 0; i < message.policies.length; i++)
             PolicyData.internalBinaryWrite(message.policies[i], writer.tag(36, WireType.LengthDelimited).fork(), options).join();
-        /* optional google.protobuf.Timestamp paused_at = 37; */
-        if (message.pausedAt)
-            Timestamp.internalBinaryWrite(message.pausedAt, writer.tag(37, WireType.LengthDelimited).fork(), options).join();
         /* symbolx.bench.NodeReferenceData environment_ptr = 40; */
         if (message.environmentPtr)
             NodeReferenceData.internalBinaryWrite(message.environmentPtr, writer.tag(40, WireType.LengthDelimited).fork(), options).join();
-        /* repeated symbolx.bench.NodeReferenceData bases_ptr = 42; */
-        for (let i = 0; i < message.basesPtr.length; i++)
-            NodeReferenceData.internalBinaryWrite(message.basesPtr[i], writer.tag(42, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbolx.bench.NodeReferenceData base_ptr = 41; */
+        if (message.basePtr)
+            NodeReferenceData.internalBinaryWrite(message.basePtr, writer.tag(41, WireType.LengthDelimited).fork(), options).join();
+        /* bool is_snapshot = 60; */
+        if (message.isSnapshot !== false)
+            writer.tag(60, WireType.Varint).bool(message.isSnapshot);
+        /* bool is_overlay = 61; */
+        if (message.isOverlay !== false)
+            writer.tag(61, WireType.Varint).bool(message.isOverlay);
+        /* bool is_paused = 65; */
+        if (message.isPaused !== false)
+            writer.tag(65, WireType.Varint).bool(message.isPaused);
         let u = options.writeUnknownFields;
         if (u !== false)
             (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
@@ -22684,7 +22743,7 @@ export const PARENT_NODE_TYPES: Record<NodeType, NodeType[]> = {
   [NodeType.BENCH]: [],
   [NodeType.ENVIRONMENT]: [NodeType.BENCH],
   [NodeType.BRANCH]: [NodeType.BENCH],
-  [NodeType.PACKAGE]: [NodeType.BENCH],
+  [NodeType.PACKAGE]: [NodeType.BRANCH],
   [NodeType.DEPENDENCY]: [NodeType.PACKAGE, NodeType.BLOCK],
   [NodeType.UPGRADE]: [NodeType.PACKAGE],
   [NodeType.SPACE]: [NodeType.PACKAGE],
@@ -22722,9 +22781,9 @@ export const PARENT_NODE_TYPES: Record<NodeType, NodeType[]> = {
 
 export const CHILD_NODE_TYPES: Record<NodeType, NodeType[]> = {
   [NodeType.UNSPECIFIED]: [],
-  [NodeType.BENCH]: [NodeType.SERVER, NodeType.STORE, NodeType.ENVIRONMENT, NodeType.BRANCH, NodeType.DRIVE, NodeType.PACKAGE, NodeType.HANDLE],
+  [NodeType.BENCH]: [NodeType.SERVER, NodeType.STORE, NodeType.ENVIRONMENT, NodeType.BRANCH, NodeType.DRIVE, NodeType.HANDLE],
   [NodeType.ENVIRONMENT]: [],
-  [NodeType.BRANCH]: [],
+  [NodeType.BRANCH]: [NodeType.PACKAGE],
   [NodeType.PACKAGE]: [NodeType.INVITE, NodeType.SESSION, NodeType.RUN, NodeType.SIGNAL, NodeType.LOG, NodeType.NOTIFICATION, NodeType.DEPENDENCY, NodeType.UPGRADE, NodeType.MESSAGE, NodeType.LINK, NodeType.SKIP, NodeType.SPACE, NodeType.BADGE, NodeType.BLOCK, NodeType.MEMBERSHIP],
   [NodeType.DEPENDENCY]: [],
   [NodeType.UPGRADE]: [],
@@ -22766,31 +22825,31 @@ export const ANCESTOR_NODE_TYPES: Record<NodeType, NodeType[]> = {
   [NodeType.BENCH]: [],
   [NodeType.ENVIRONMENT]: [NodeType.BENCH],
   [NodeType.BRANCH]: [NodeType.BENCH],
-  [NodeType.PACKAGE]: [NodeType.BENCH],
-  [NodeType.DEPENDENCY]: [NodeType.BENCH, NodeType.PACKAGE, NodeType.BLOCK],
-  [NodeType.UPGRADE]: [NodeType.BENCH, NodeType.PACKAGE],
-  [NodeType.SPACE]: [NodeType.BENCH, NodeType.PACKAGE],
-  [NodeType.LINK]: [NodeType.BENCH, NodeType.PACKAGE, NodeType.BLOCK],
-  [NodeType.SKIP]: [NodeType.BENCH, NodeType.PACKAGE, NodeType.BLOCK],
-  [NodeType.NOTICE]: [NodeType.FIELD, NodeType.BENCH, NodeType.VIEW, NodeType.STEP, NodeType.PACKAGE, NodeType.SPACE, NodeType.BLOCK],
-  [NodeType.BLOCK]: [NodeType.BENCH, NodeType.PACKAGE, NodeType.BLOCK],
-  [NodeType.TRIGGER]: [NodeType.BENCH, NodeType.STEP, NodeType.PACKAGE, NodeType.BLOCK],
-  [NodeType.FIELD]: [NodeType.BENCH, NodeType.STEP, NodeType.PACKAGE, NodeType.BLOCK],
-  [NodeType.QUERY]: [NodeType.BENCH, NodeType.PACKAGE, NodeType.BLOCK],
-  [NodeType.VIEW]: [NodeType.BENCH, NodeType.VIEW, NodeType.PACKAGE, NodeType.SPACE, NodeType.BLOCK],
-  [NodeType.STEP]: [NodeType.BENCH, NodeType.STEP, NodeType.PACKAGE, NodeType.BLOCK],
-  [NodeType.BADGE]: [NodeType.BENCH, NodeType.PACKAGE, NodeType.BLOCK],
-  [NodeType.ROLE]: [NodeType.BENCH, NodeType.PACKAGE, NodeType.BLOCK, NodeType.MEMBERSHIP],
-  [NodeType.IDENTITY]: [NodeType.BENCH, NodeType.PACKAGE, NodeType.USER, NodeType.BLOCK, NodeType.MEMBERSHIP],
-  [NodeType.MEMBERSHIP]: [NodeType.BENCH, NodeType.PACKAGE],
-  [NodeType.INVITE]: [NodeType.BENCH, NodeType.PACKAGE],
-  [NodeType.SESSION]: [NodeType.BENCH, NodeType.PACKAGE],
-  [NodeType.RUN]: [NodeType.RUN, NodeType.BENCH, NodeType.PACKAGE],
-  [NodeType.SIGNAL]: [NodeType.BENCH, NodeType.PACKAGE],
-  [NodeType.LOG]: [NodeType.BENCH, NodeType.PACKAGE],
-  [NodeType.NOTIFICATION]: [NodeType.BENCH, NodeType.PACKAGE],
-  [NodeType.MESSAGE]: [NodeType.BENCH, NodeType.PACKAGE, NodeType.MESSAGE, NodeType.BLOCK],
-  [NodeType.RECORD]: [NodeType.BENCH, NodeType.PACKAGE, NodeType.BLOCK],
+  [NodeType.PACKAGE]: [NodeType.BENCH, NodeType.BRANCH],
+  [NodeType.DEPENDENCY]: [NodeType.BENCH, NodeType.BRANCH, NodeType.PACKAGE, NodeType.BLOCK],
+  [NodeType.UPGRADE]: [NodeType.BENCH, NodeType.BRANCH, NodeType.PACKAGE],
+  [NodeType.SPACE]: [NodeType.BENCH, NodeType.BRANCH, NodeType.PACKAGE],
+  [NodeType.LINK]: [NodeType.BENCH, NodeType.BRANCH, NodeType.PACKAGE, NodeType.BLOCK],
+  [NodeType.SKIP]: [NodeType.BENCH, NodeType.BRANCH, NodeType.PACKAGE, NodeType.BLOCK],
+  [NodeType.NOTICE]: [NodeType.FIELD, NodeType.BENCH, NodeType.VIEW, NodeType.BRANCH, NodeType.STEP, NodeType.PACKAGE, NodeType.SPACE, NodeType.BLOCK],
+  [NodeType.BLOCK]: [NodeType.BENCH, NodeType.BRANCH, NodeType.PACKAGE, NodeType.BLOCK],
+  [NodeType.TRIGGER]: [NodeType.BENCH, NodeType.BRANCH, NodeType.PACKAGE, NodeType.STEP, NodeType.BLOCK],
+  [NodeType.FIELD]: [NodeType.BENCH, NodeType.BRANCH, NodeType.PACKAGE, NodeType.STEP, NodeType.BLOCK],
+  [NodeType.QUERY]: [NodeType.BENCH, NodeType.BRANCH, NodeType.PACKAGE, NodeType.BLOCK],
+  [NodeType.VIEW]: [NodeType.BENCH, NodeType.VIEW, NodeType.BRANCH, NodeType.PACKAGE, NodeType.SPACE, NodeType.BLOCK],
+  [NodeType.STEP]: [NodeType.BENCH, NodeType.BRANCH, NodeType.PACKAGE, NodeType.STEP, NodeType.BLOCK],
+  [NodeType.BADGE]: [NodeType.BENCH, NodeType.BRANCH, NodeType.PACKAGE, NodeType.BLOCK],
+  [NodeType.ROLE]: [NodeType.BENCH, NodeType.BRANCH, NodeType.PACKAGE, NodeType.BLOCK, NodeType.MEMBERSHIP],
+  [NodeType.IDENTITY]: [NodeType.BENCH, NodeType.BRANCH, NodeType.PACKAGE, NodeType.USER, NodeType.BLOCK, NodeType.MEMBERSHIP],
+  [NodeType.MEMBERSHIP]: [NodeType.BENCH, NodeType.BRANCH, NodeType.PACKAGE],
+  [NodeType.INVITE]: [NodeType.BENCH, NodeType.BRANCH, NodeType.PACKAGE],
+  [NodeType.SESSION]: [NodeType.BENCH, NodeType.BRANCH, NodeType.PACKAGE],
+  [NodeType.RUN]: [NodeType.RUN, NodeType.BENCH, NodeType.BRANCH, NodeType.PACKAGE],
+  [NodeType.SIGNAL]: [NodeType.BENCH, NodeType.BRANCH, NodeType.PACKAGE],
+  [NodeType.LOG]: [NodeType.BENCH, NodeType.BRANCH, NodeType.PACKAGE],
+  [NodeType.NOTIFICATION]: [NodeType.BENCH, NodeType.BRANCH, NodeType.PACKAGE],
+  [NodeType.MESSAGE]: [NodeType.BENCH, NodeType.BRANCH, NodeType.PACKAGE, NodeType.MESSAGE, NodeType.BLOCK],
+  [NodeType.RECORD]: [NodeType.BENCH, NodeType.BRANCH, NodeType.PACKAGE, NodeType.BLOCK],
   [NodeType.SERVER]: [NodeType.BENCH],
   [NodeType.STORE]: [NodeType.BENCH],
   [NodeType.MACHINE]: [NodeType.SERVER, NodeType.BENCH],
@@ -22804,9 +22863,9 @@ export const ANCESTOR_NODE_TYPES: Record<NodeType, NodeType[]> = {
 
 export const DESCENDANT_NODE_TYPES: Record<NodeType, NodeType[]> = {
   [NodeType.UNSPECIFIED]: [],
-  [NodeType.BENCH]: [NodeType.ENVIRONMENT, NodeType.BRANCH, NodeType.PACKAGE, NodeType.DEPENDENCY, NodeType.UPGRADE, NodeType.SPACE, NodeType.LINK, NodeType.SKIP, NodeType.NOTICE, NodeType.BLOCK, NodeType.TRIGGER, NodeType.FIELD, NodeType.QUERY, NodeType.VIEW, NodeType.STEP, NodeType.DRIVE, NodeType.BLOB, NodeType.STORE, NodeType.SERVER, NodeType.MACHINE, NodeType.BADGE, NodeType.ROLE, NodeType.IDENTITY, NodeType.MEMBERSHIP, NodeType.INVITE, NodeType.SESSION, NodeType.RUN, NodeType.SIGNAL, NodeType.LOG, NodeType.NOTIFICATION, NodeType.MESSAGE, NodeType.RECORD, NodeType.HANDLE, NodeType.CLIENT],
+  [NodeType.BENCH]: [NodeType.ENVIRONMENT, NodeType.BRANCH, NodeType.PACKAGE, NodeType.DEPENDENCY, NodeType.UPGRADE, NodeType.SPACE, NodeType.LINK, NodeType.SKIP, NodeType.NOTICE, NodeType.BLOCK, NodeType.TRIGGER, NodeType.FIELD, NodeType.QUERY, NodeType.VIEW, NodeType.DRIVE, NodeType.BLOB, NodeType.STEP, NodeType.STORE, NodeType.SERVER, NodeType.MACHINE, NodeType.BADGE, NodeType.ROLE, NodeType.IDENTITY, NodeType.MEMBERSHIP, NodeType.INVITE, NodeType.SESSION, NodeType.RUN, NodeType.SIGNAL, NodeType.LOG, NodeType.NOTIFICATION, NodeType.MESSAGE, NodeType.RECORD, NodeType.HANDLE, NodeType.CLIENT],
   [NodeType.ENVIRONMENT]: [],
-  [NodeType.BRANCH]: [],
+  [NodeType.BRANCH]: [NodeType.PACKAGE, NodeType.DEPENDENCY, NodeType.UPGRADE, NodeType.SPACE, NodeType.LINK, NodeType.SKIP, NodeType.NOTICE, NodeType.BLOCK, NodeType.TRIGGER, NodeType.FIELD, NodeType.QUERY, NodeType.VIEW, NodeType.STEP, NodeType.BADGE, NodeType.ROLE, NodeType.IDENTITY, NodeType.MEMBERSHIP, NodeType.INVITE, NodeType.SESSION, NodeType.RUN, NodeType.SIGNAL, NodeType.LOG, NodeType.NOTIFICATION, NodeType.MESSAGE, NodeType.RECORD],
   [NodeType.PACKAGE]: [NodeType.DEPENDENCY, NodeType.UPGRADE, NodeType.SPACE, NodeType.LINK, NodeType.SKIP, NodeType.NOTICE, NodeType.BLOCK, NodeType.TRIGGER, NodeType.FIELD, NodeType.QUERY, NodeType.VIEW, NodeType.STEP, NodeType.BADGE, NodeType.ROLE, NodeType.IDENTITY, NodeType.MEMBERSHIP, NodeType.INVITE, NodeType.SESSION, NodeType.RUN, NodeType.SIGNAL, NodeType.LOG, NodeType.NOTIFICATION, NodeType.MESSAGE, NodeType.RECORD],
   [NodeType.DEPENDENCY]: [],
   [NodeType.UPGRADE]: [],
@@ -23362,6 +23421,9 @@ export enum BranchProperty {
   icon = 35,
   policies = 36,
   mainPackagePtr = 40,
+  basePtr = 41,
+  isOverlay = 60,
+  isLight = 61,
 }
 
 export enum PackageProperty {
@@ -23383,9 +23445,11 @@ export enum PackageProperty {
   text = 34,
   icon = 35,
   policies = 36,
-  pausedAt = 37,
   environmentPtr = 40,
-  basesPtr = 42,
+  basePtr = 41,
+  isSnapshot = 60,
+  isOverlay = 61,
+  isPaused = 65,
 }
 
 export enum DependencyProperty {
@@ -25369,11 +25433,14 @@ export const BranchDataInfo: Record<BranchProperty, PropertyInfo> = {
   [BranchProperty.icon]: { id: 35, name: 'icon', component: ObjectType.BRANCH, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.ICON },
   [BranchProperty.policies]: { id: 36, name: 'policies', component: ObjectType.BRANCH, kind: 'reference', primitiveType: PrimitiveType.JSON, isList: true, isRequired: true, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.POLICY },
   [BranchProperty.mainPackagePtr]: { id: 40, name: 'main_package_ptr', component: ObjectType.BRANCH, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.PACKAGE], referenceStruct: StructType.NODE_REFERENCE },
+  [BranchProperty.basePtr]: { id: 41, name: 'base_ptr', component: ObjectType.BRANCH, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.BRANCH], referenceStruct: StructType.NODE_REFERENCE },
+  [BranchProperty.isOverlay]: { id: 60, name: 'is_overlay', component: ObjectType.BRANCH, kind: 'primitive', primitiveType: PrimitiveType.BOOLEAN, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
+  [BranchProperty.isLight]: { id: 61, name: 'is_light', component: ObjectType.BRANCH, kind: 'primitive', primitiveType: PrimitiveType.BOOLEAN, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
 }
 export const PackageDataInfo: Record<PackageProperty, PropertyInfo> = {
   [PackageProperty.metatype]: { id: 1, name: 'metatype', component: ObjectType.PACKAGE, enumType: EnumType.OBJECT_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isComputed: true, isWired: true },
   [PackageProperty.id]: { id: 2, name: 'id', component: ObjectType.PACKAGE, kind: 'primitive', primitiveType: PrimitiveType.UUID, isRequired: true, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
-  [PackageProperty.parentPtr]: { id: 4, name: 'parent_ptr', component: ObjectType.PACKAGE, kind: 'reference', isInternal: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_PARENT, referenceNodes: [NodeType.BENCH], referenceStruct: StructType.NODE_REFERENCE },
+  [PackageProperty.parentPtr]: { id: 4, name: 'parent_ptr', component: ObjectType.PACKAGE, kind: 'reference', isInternal: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_PARENT, referenceNodes: [NodeType.BRANCH], referenceStruct: StructType.NODE_REFERENCE },
   [PackageProperty.benchPtr]: { id: 7, name: 'bench_ptr', component: ObjectType.PACKAGE, kind: 'reference', isRequired: true, isInternal: true, isComputed: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_ANCESTOR_FIRST, referenceNodes: [NodeType.BENCH], referenceStruct: StructType.NODE_REFERENCE },
   [PackageProperty.revision]: { id: 10, name: 'revision', component: ObjectType.PACKAGE, kind: 'primitive', primitiveType: PrimitiveType.INT64, isRequired: true, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
   [PackageProperty.createdAt]: { id: 11, name: 'created_at', component: ObjectType.PACKAGE, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isRequired: true, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
@@ -25389,9 +25456,11 @@ export const PackageDataInfo: Record<PackageProperty, PropertyInfo> = {
   [PackageProperty.text]: { id: 34, name: 'text', component: ObjectType.PACKAGE, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.TEXT },
   [PackageProperty.icon]: { id: 35, name: 'icon', component: ObjectType.PACKAGE, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.ICON },
   [PackageProperty.policies]: { id: 36, name: 'policies', component: ObjectType.PACKAGE, kind: 'reference', primitiveType: PrimitiveType.JSON, isList: true, isRequired: true, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.POLICY },
-  [PackageProperty.pausedAt]: { id: 37, name: 'paused_at', component: ObjectType.PACKAGE, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [PackageProperty.environmentPtr]: { id: 40, name: 'environment_ptr', component: ObjectType.PACKAGE, kind: 'reference', isRequired: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.ENVIRONMENT], referenceStruct: StructType.NODE_REFERENCE },
-  [PackageProperty.basesPtr]: { id: 42, name: 'bases_ptr', component: ObjectType.PACKAGE, kind: 'reference', isList: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.PACKAGE], referenceStruct: StructType.NODE_REFERENCE },
+  [PackageProperty.basePtr]: { id: 41, name: 'base_ptr', component: ObjectType.PACKAGE, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.PACKAGE], referenceStruct: StructType.NODE_REFERENCE },
+  [PackageProperty.isSnapshot]: { id: 60, name: 'is_snapshot', component: ObjectType.PACKAGE, kind: 'primitive', primitiveType: PrimitiveType.BOOLEAN, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
+  [PackageProperty.isOverlay]: { id: 61, name: 'is_overlay', component: ObjectType.PACKAGE, kind: 'primitive', primitiveType: PrimitiveType.BOOLEAN, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
+  [PackageProperty.isPaused]: { id: 65, name: 'is_paused', component: ObjectType.PACKAGE, kind: 'primitive', primitiveType: PrimitiveType.BOOLEAN, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
 }
 export const DependencyDataInfo: Record<DependencyProperty, PropertyInfo> = {
   [DependencyProperty.metatype]: { id: 1, name: 'metatype', component: ObjectType.DEPENDENCY, enumType: EnumType.OBJECT_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isComputed: true, isWired: true },

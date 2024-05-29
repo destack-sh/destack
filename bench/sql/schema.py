@@ -11,7 +11,7 @@ from bench.sql.core import (
     Table,
 )
 
-VERSION = "2024.05.29.0"
+VERSION = "2024.05.29.2"
 
 BENCH_TABLE = Table(
     "bench_bench",
@@ -162,21 +162,25 @@ BRANCH_TABLE = Table(
             on_delete=CascadeAction.SET_NULL,
             is_nullable=True,
         ),
+        Column(
+            "base_branch_id",
+            PrimitiveType.UUID,
+            is_foreign_key_to="bench_branch",
+            on_delete=CascadeAction.SET_NULL,
+            is_nullable=True,
+        ),
+        Column("is_overlay", PrimitiveType.BOOLEAN, default="false"),
+        Column("is_light", PrimitiveType.BOOLEAN, default="false"),
     ),
     indexes=(
-        Index(
-            "bench_idx_parent_bench_id_slug",
-            IndexType.BTREE,
-            ("parent_bench_id", "slug"),
-            is_unique=True,
-        ),
+        Index("bench_idx_bench_id_slug", IndexType.BTREE, ("bench_id", "slug"), is_unique=True),
     ),
     constraints=(
         Constraint(
-            "bench_idx_parent_bench_id_slug",
+            "bench_idx_bench_id_slug",
             ConstraintType.UNIQUE,
-            columns=("parent_bench_id", "slug"),
-            index="bench_idx_parent_bench_id_slug",
+            columns=("bench_id", "slug"),
+            index="bench_idx_bench_id_slug",
         ),
         Constraint(
             "bench_check_one_parent",
@@ -191,9 +195,9 @@ PACKAGE_TABLE = Table(
     (
         Column("id", PrimitiveType.UUID, is_primary_key=True),
         Column(
-            "parent_bench_id",
+            "parent_branch_id",
             PrimitiveType.UUID,
-            is_foreign_key_to="bench_bench",
+            is_foreign_key_to="bench_branch",
             on_delete=CascadeAction.CASCADE,
             is_nullable=True,
         ),
@@ -215,35 +219,37 @@ PACKAGE_TABLE = Table(
         Column("text", PrimitiveType.JSON, is_nullable=True),
         Column("icon", PrimitiveType.JSON, is_nullable=True),
         Column("policies", PrimitiveType.JSON, is_array=True),
-        Column("paused_at", PrimitiveType.DATETIME, is_nullable=True),
         Column(
             "environment_id",
             PrimitiveType.UUID,
             is_foreign_key_to="bench_environment",
             on_delete=CascadeAction.SET_NULL,
         ),
-        Column("bases_id", PrimitiveType.UUID, is_array=True, is_nullable=True),
-        Column("bases_bench_id", PrimitiveType.UUID, is_array=True, is_nullable=True),
+        Column(
+            "base_package_id",
+            PrimitiveType.UUID,
+            is_foreign_key_to="bench_package",
+            on_delete=CascadeAction.SET_NULL,
+            is_nullable=True,
+        ),
+        Column("is_snapshot", PrimitiveType.BOOLEAN, default="false"),
+        Column("is_overlay", PrimitiveType.BOOLEAN, default="false"),
+        Column("is_paused", PrimitiveType.BOOLEAN, default="false"),
     ),
     indexes=(
-        Index(
-            "bench_idx_parent_bench_id_slug",
-            IndexType.BTREE,
-            ("parent_bench_id", "slug"),
-            is_unique=True,
-        ),
+        Index("bench_idx_bench_id_slug", IndexType.BTREE, ("bench_id", "slug"), is_unique=True),
     ),
     constraints=(
         Constraint(
-            "bench_idx_parent_bench_id_slug",
+            "bench_idx_bench_id_slug",
             ConstraintType.UNIQUE,
-            columns=("parent_bench_id", "slug"),
-            index="bench_idx_parent_bench_id_slug",
+            columns=("bench_id", "slug"),
+            index="bench_idx_bench_id_slug",
         ),
         Constraint(
             "bench_check_one_parent",
             ConstraintType.CHECK,
-            condition="(parent_bench_id IS NOT NULL)",
+            condition="(parent_branch_id IS NOT NULL)",
         ),
     ),
 )

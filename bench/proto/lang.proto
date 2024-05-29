@@ -1823,7 +1823,7 @@ message BlockData {
   bool is_paused = 65;
 }
 
-// A branch is a Git-like pointer to the head of a lineage of packages.
+// A branch is a lineage of Bench history.
 message BranchData {
   ObjectType metatype = 1;
   string id = 2;
@@ -1845,6 +1845,9 @@ message BranchData {
   optional IconData icon = 35;
   repeated PolicyData policies = 36;
   optional NodeReferenceData main_package_ptr = 40;
+  optional NodeReferenceData base_ptr = 41;
+  bool is_overlay = 60;
+  bool is_light = 61;
 }
 
 // A client to a Bench.
@@ -2319,7 +2322,7 @@ message OrganizationData {
   OrganizationStatus status = 37;
 }
 
-// A package is a semi-isolated version of a Bench.
+// A package is a version of a Bench.
 message PackageData {
   ObjectType metatype = 1;
   string id = 2;
@@ -2339,9 +2342,11 @@ message PackageData {
   optional TextData text = 34;
   optional IconData icon = 35;
   repeated PolicyData policies = 36;
-  optional google.protobuf.Timestamp paused_at = 37;
   NodeReferenceData environment_ptr = 40;
-  repeated NodeReferenceData bases_ptr = 42;
+  optional NodeReferenceData base_ptr = 41;
+  bool is_snapshot = 60;
+  bool is_overlay = 61;
+  bool is_paused = 65;
 }
 
 // A stored query.

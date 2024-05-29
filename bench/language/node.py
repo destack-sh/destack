@@ -1435,7 +1435,7 @@ class Node(Struct[NodeDataT], Generic[NodeDataT]):
         array=False,
         autoset=True,
         references=EDIT_SUBJECT_TYPES,
-        is_bench_implicit=True,
+        same_bench=True,
     )
     updated_by: EditSubject | None = p_system(
         22,
@@ -1444,7 +1444,7 @@ class Node(Struct[NodeDataT], Generic[NodeDataT]):
         array=False,
         autoset=True,
         references=EDIT_SUBJECT_TYPES,
-        is_bench_implicit=True,
+        same_bench=True,
     )
     if TYPE_CHECKING:
         created_by_id: Optional[UUID] = None
@@ -1614,13 +1614,14 @@ class Node(Struct[NodeDataT], Generic[NodeDataT]):
             path_segments: list[str] = []
             current = self
             while True:
-                # skip bench (same path as pkg)
                 path_key = current.bench_path_key
                 assert path_key is not None, f"no path key for {current!r}"
                 path_segments.append(path_key)
                 next_parent = current.parent
+                # skip bench & branch (same path as pkg)
                 has_next = next_parent is not None and (
-                    not self.__is_in_package__ or next_parent.metatype != NodeType.BENCH
+                    not self.__is_in_package__
+                    or next_parent.metatype not in (NodeType.BENCH, NodeType.BRANCH)
                 )
                 if not has_next:
                     break

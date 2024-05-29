@@ -7,6 +7,7 @@ import structlog
 
 from bench.language import Bench, Package
 from bench.language.connection import StoreEngine
+from bench.language.const import BlockType, RunKind
 from bench.language.run import Run
 from bench.language.session import Session, unsuspend_session
 from bench.proto import wiring
@@ -124,7 +125,13 @@ class RuntimeThread:
         ), f"{run_data!r} not in {self.main_package!r}"
         run = wiring.unpack_node(run_data, self.main_package, self._session, Run)
 
-        raise NotImplementedError(f"nocheckin: _process_run {run!r}")
+        async with self.session(readonly=False, autocommit=True) as session:
+            if run.kind == RunKind.BLOCK:
+                assert run.block is not None, f"no block for {run!r}"
+                if run.block.type == BlockType.CODE:
+                    pass
+            else:
+                ...
 
     def close(self):
         self._tasks.close()

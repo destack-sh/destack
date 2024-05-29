@@ -1,6 +1,7 @@
 from typing import TYPE_CHECKING
 
 from bench.language import Bench, Package
+from bench.language.bench import Branch
 from bench.language.const import NodeType
 
 if TYPE_CHECKING:
@@ -34,7 +35,7 @@ LOADED_PACKAGE_NODE_TYPES: tuple[NodeType, ...] = (
 BENCH_QUERY = Bench.descendants(*LOADED_BENCH_NODE_TYPES).select_all()
 PACKAGE_QUERY = (
     Package.descendants(*LOADED_PACKAGE_NODE_TYPES)
-    .ancestors(Bench)
+    .ancestors(Bench, Branch)
     .select_all()
     .exclude(Bench.encryption_key)
 )

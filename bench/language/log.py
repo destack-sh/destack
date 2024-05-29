@@ -72,7 +72,7 @@ class Log(Node, HasSessionContext, HasValues):
 
     # content (access)
     node: Optional["Node"] = p_system(
-        40, require=False, array=False, references=NODE_TYPES.tuple, is_bench_implicit=True
+        40, require=False, array=False, references=NODE_TYPES.tuple, same_bench=True
     )
     type: AccessType | None = p_system(41, default=None)
     properties: list[int] = p_system(42, array=True)

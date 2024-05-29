@@ -31,7 +31,7 @@ class Message(BasedNode[MessageData], HasSessionContext, HasValues):
     origin: Node = p_regular(32, require=True, references=LINK_TARGET_NODE_TYPES)
     path: Optional["Path"] = p_regular(33, require=False, array=False, struct=StructType.PATH)
     reply_to: Optional["Message"] = p_regular(
-        34, require=False, default=None, references=NodeType.MESSAGE, is_bench_implicit=True
+        34, require=False, default=None, references=NodeType.MESSAGE, same_bench=True
     )
     if TYPE_CHECKING:
         origin_ptr: Optional[NodeReferenceData] = None

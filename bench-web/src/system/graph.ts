@@ -359,7 +359,7 @@ abstract class BaseNodeGraphMixin implements Omit<ReadNodeGraph, "scope" | "isOv
 
 /**
  * Core in-memory node graph without regard for hidden nodes or multi-graphs (deleted, archived, etc.).
- * If 'isPartial', we don't try to maintain local consistency (as this is likely an overlay in a layered graph).
+ * If it's an overlay, we don't try to maintain local consistency (as this is likely an overlay in a layered graph).
  */
 export class NodeGraph extends BaseNodeGraphMixin implements ReadNodeGraph, WriteNodeGraph {
   public readonly scope: GraphScope = {};
