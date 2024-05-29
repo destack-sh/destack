@@ -35,7 +35,7 @@ from bench.proto.wire import (
     SupervisorStub,
 )
 from bench.utils.func import bittuple
-from bench.utils.tenacity import RetryOptions, retry
+from bench.utils.tenacity import RETRY_GRPC, RetryOptions, retry
 
 if TYPE_CHECKING:
     from bench.language import Bench, Expression, Field, Property, Session, Store
@@ -219,7 +219,7 @@ class RemoteEngine(StoreEngine[NodeT, NodeDataT]):
         node_types: tuple[NodeType, ...] | bittuple[NodeType],
         remote: GraphIoStub | HostStub | SupervisorStub,
         rpc_metadata: RpcMetadata,
-        retry: RetryOptions,
+        retry: RetryOptions = RETRY_GRPC,
     ):
         super().__init__(scope, node_types)
         self.remote = remote

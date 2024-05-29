@@ -24,7 +24,7 @@ from bench.proto.wire import (
     SupervisorStub,
     WatchEditsRequest,
 )
-from bench.utils.tenacity import RETRY_STANDARD, RetryOptions
+from bench.utils.tenacity import RETRY_GRPC, RetryOptions
 
 logger = structlog.get_logger(__name__)
 
@@ -102,7 +102,7 @@ class RemoteQuery[NodeT: Node, NodeDataT: AnyNodeData](ConnectedQuery[NodeT, Nod
         remote: GraphIoStub | HostStub | SupervisorStub,
         scope: GraphScope,
         rpc_metadata: RpcMetadata,
-        retry: RetryOptions = RETRY_STANDARD,
+        retry: RetryOptions = RETRY_GRPC,
     ):
         super().__init__(query=query, tx_lock=tx_lock, session=session)
         self._remote = remote

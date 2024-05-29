@@ -40,12 +40,12 @@ from bench.runtime.connection import (
 from bench.runtime.core import (
     BENCH_QUERY,
     PACKAGE_QUERY,
-    REMOTE_CONNECTION_RETRY,
     RUNTIME_PARALLELISM,
 )
 from bench.runtime.thread import RuntimeThread
 from bench.utils.dt import monotime
 from bench.utils.func import CriticalLock
+from bench.utils.tenacity import RETRY_GRPC_FOREVER
 from bench.utils.uuidt import UUIDT
 
 logger = structlog.get_logger(__name__)
@@ -177,7 +177,7 @@ class Runtime(RuntimeBase, BenchServiceBase):
                 scope=GraphScope(),
                 node_types=PUBLIC_NODE_TYPES,
                 remote=self._supervisor,
-                retry=REMOTE_CONNECTION_RETRY,
+                retry=RETRY_GRPC_FOREVER,
                 rpc_metadata=self._rpc_metadata,
             ),
             # bench engine
@@ -185,7 +185,7 @@ class Runtime(RuntimeBase, BenchServiceBase):
                 scope=bench_scope,
                 node_types=BENCH_NODE_TYPES | IN_PACKAGE_NODE_TYPES,
                 remote=self._host,
-                retry=REMOTE_CONNECTION_RETRY,
+                retry=RETRY_GRPC_FOREVER,
                 rpc_metadata=self._rpc_metadata,
             ),
         )
