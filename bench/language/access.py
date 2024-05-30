@@ -843,7 +843,6 @@ class _EvalCacheKey(NamedTuple):
     identity_id: int
 
 
-@tracer.start_as_current_span("access.evaluate_access")
 def evaluate_access(
     *,
     mode: AccessMode,

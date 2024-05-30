@@ -51,6 +51,7 @@ GLOBAL_POSTGRES_ENGINE = PostgresEngine(
 
 
 LOADED_BENCH_NODE_TYPES: bittuple[NodeType] = bittuple(
+    NodeType.BENCH,
     NodeType.HANDLE,
     NodeType.SERVER,
     NodeType.CLIENT,
