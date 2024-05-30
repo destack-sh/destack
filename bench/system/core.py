@@ -57,6 +57,7 @@ LOADED_BENCH_NODE_TYPES: bittuple[NodeType] = bittuple(
     NodeType.CLIENT,
     NodeType.MACHINE,
     NodeType.STORE,
+    NodeType.DRIVE,
     NodeType.ENVIRONMENT,
     NodeType.BRANCH,
     NodeType.PACKAGE,

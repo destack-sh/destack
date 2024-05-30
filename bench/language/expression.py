@@ -432,7 +432,6 @@ def coerce_conditional(
     node: Union[type[Node], "Block"],
     expr: Optional[Expression] = None,
     kwargs: Optional[dict[str, Any]] = None,
-    return_none_if_empty: bool = False,
 ) -> Expression | None:
     """
     Coerce a conditional expression from either the given expression or kwargs.
@@ -477,11 +476,9 @@ def coerce_conditional(
         _check_type_supports(target.as_type_info, op)
         clauses.append(Expression(op=op, field=field, property=property, value=value))
     if not clauses:
-        if return_none_if_empty:
-            return None
-        else:
-            return C(ConditionalOp.TRUE)
-    return Expression.and_if_set(*clauses)
+        return None
+    else:
+        return Expression.and_if_set(*clauses)
 
 
 def coerce_sort(
