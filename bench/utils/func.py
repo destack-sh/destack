@@ -27,7 +27,7 @@ from bitarray import bitarray
 from cachetools import cached
 from more_itertools import first
 
-from bench.utils.dt import monotime
+from bench.utils.dt import monons
 from bench.utils.env import IS_DEBUG, IS_TEST
 from bench.utils.utils import get_from_env, sentry_capture
 
@@ -395,7 +395,7 @@ class CriticalLock(asyncio.Lock):
 
         if self._track_acquirer:
             self._acquired_by = traceback.extract_stack()[:-1]
-        self._acquired_at = monotime()
+        self._acquired_at = monons()
         if DEBUG_LOCKS:
             logger.trace("lock.acquire.success", name=self._name, acquired_at=self._acquired_at)
         return True

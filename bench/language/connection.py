@@ -18,6 +18,7 @@ from uuid import UUID
 
 import psycopg
 import structlog
+from opentelemetry import trace
 
 from bench.language.const import (
     AggregationOp,
@@ -54,6 +55,7 @@ if TYPE_CHECKING:
 # pyright: reportIncompatibleVariableOverride=false
 
 logger = structlog.get_logger(__name__)
+tracer = trace.get_tracer(__name__)
 
 NodeT = TypeVar("NodeT", bound=Node)
 NodeDataT = TypeVar("NodeDataT", bound=AnyNodeData)
@@ -251,11 +253,13 @@ class RemoteConnection(StoreConnection[NodeT, NodeDataT]):
             "remote.fetch.error", connection=self, query=query, options=options, exc_info=e
         ),
     )
+    @tracer.start_as_current_span("remote.fetch")
     async def fetch(
         self, query: "QueryBuilder[NodeT, NodeDataT]", options: FetchOptions
     ) -> FetchResult:
         from bench.proto import wire, wiring
 
+        trace.get_current_span().set_attribute("connection", repr(self))
         request = wire.SearchNodesRequest(
             node_type=wiring.pack_enum(NodeType, query._node_type),
             filter=wiring.pack_struct_maybe(query._filter, ExpressionData),
@@ -284,9 +288,11 @@ class RemoteConnection(StoreConnection[NodeT, NodeDataT]):
             "remote.aggregate.error", connection=self, query=query, exc_info=e
         ),
     )
+    @tracer.start_as_current_span("remote.aggregate")
     async def aggregate(self, query: "QueryBuilder[NodeT, NodeDataT]") -> AggregateResult:
         from bench.proto import wire, wiring
 
+        trace.get_current_span().set_attribute("connection", repr(self))
         assert query._aggregation is not None, f"{query!r} has no aggregation"
         request = wire.AggregateNodesRequest(
             node_type=wiring.pack_enum(NodeType, query._node_type),
@@ -306,9 +312,11 @@ class RemoteConnection(StoreConnection[NodeT, NodeDataT]):
             "remote.commit.error", connection=self, edits=edits, exc_info=e
         ),
     )
+    @tracer.start_as_current_span("remote.commit")
     async def commit(self, edits: list[EditData] | tuple[EditData, ...]) -> FlushResult:
         from bench.proto import wire
 
+        trace.get_current_span().set_attribute("connection", repr(self))
         edits = list(edits)
         request = wire.CommitTransactionRequest(
             id=str(self.session.tx.id), edits=edits, scope=self.engine.scope
@@ -364,6 +372,7 @@ class PostgresConnection(StoreConnection[NodeT, NodeDataT], Generic[NodeT, NodeD
         return f"engine={self.engine!r}, session={self.session}"
 
     @override
+    @tracer.start_as_current_span("pg.fetch")
     async def fetch(
         self, query: "QueryBuilder[NodeT, NodeDataT]", options: FetchOptions
     ) -> FetchResult:
@@ -397,6 +406,7 @@ class PostgresConnection(StoreConnection[NodeT, NodeDataT], Generic[NodeT, NodeD
         )
 
     @override
+    @tracer.start_as_current_span("pg.aggregate")
     async def aggregate(self, query: "QueryBuilder[NodeT, NodeDataT]") -> AggregateResult:
         from bench.sql.engine import _pg_compile_conditional_maybe, pg_count, pg_exists
 
@@ -415,6 +425,7 @@ class PostgresConnection(StoreConnection[NodeT, NodeDataT], Generic[NodeT, NodeD
             )
 
     @override
+    @tracer.start_as_current_span("pg.flush")
     async def flush(self, edits: list[EditData] | tuple[EditData, ...]) -> FlushResult:
         from bench.sql.engine import pg_edit
 
@@ -422,6 +433,7 @@ class PostgresConnection(StoreConnection[NodeT, NodeDataT], Generic[NodeT, NodeD
         return FlushResult(revisions=new_revisions, cascaded_edits=cascaded_edits)
 
     @override
+    @tracer.start_as_current_span("pg.commit")
     async def commit(self, edits: list[EditData] | tuple[EditData, ...]) -> FlushResult:
         from bench.sql.engine import pg_edit
 
@@ -430,9 +442,11 @@ class PostgresConnection(StoreConnection[NodeT, NodeDataT], Generic[NodeT, NodeD
         return FlushResult(revisions=new_revisions, cascaded_edits=cascaded_edits)
 
     @override
+    @tracer.start_as_current_span("pg.cancel")
     async def cancel(self) -> None:
         await self.cur.connection.rollback()
 
+    @tracer.start_as_current_span("pg.close")
     async def close(self):
         await self.cur.connection.rollback()
         await self.conn.close()
@@ -469,6 +483,7 @@ class InMemoryConnection(StoreConnection[NodeT, NodeDataT], Generic[NodeT, NodeD
         return f"engine={self.engine!r}, session={self.session}"
 
     @override
+    @tracer.start_as_current_span("memory.fetch")
     async def fetch(
         self, query: "QueryBuilder[NodeT, NodeDataT]", options: FetchOptions
     ) -> FetchResult:
@@ -540,6 +555,7 @@ class SplitConnection(StoreConnection[NodeT, NodeDataT], Generic[NodeT, NodeData
     """A read-only connection that can split queries across store boundaries."""
 
     @override
+    @tracer.start_as_current_span("split.fetch")
     async def fetch(
         self, query: "QueryBuilder[NodeT, NodeDataT]", options: FetchOptions
     ) -> FetchResult:
@@ -612,6 +628,7 @@ class SplitConnection(StoreConnection[NodeT, NodeDataT], Generic[NodeT, NodeData
         return combined_result
 
     @override
+    @tracer.start_as_current_span("split.aggregate")
     async def aggregate(self, query: "QueryBuilder[NodeT, NodeDataT]") -> AggregateResult:
         # just forward to one engine, we don't support aggregating across engines
         scope = (

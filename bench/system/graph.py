@@ -9,6 +9,7 @@ import betterproto
 import structlog
 from grpclib import GRPCError
 from grpclib import Status as GRPCStatus
+from opentelemetry import trace
 
 from bench.language import C, Expression, NodeReference, ReadOptions, Session, Subject
 from bench.language.access import (
@@ -58,11 +59,12 @@ from bench.proto.wire import (
     WatchEditsRequest,
     WatchEditsResponse,
 )
-from bench.utils.dt import monotime, utcnow
+from bench.utils.dt import utcnow
 from bench.utils.func import CriticalLock, bittuple, group_by, to_uuid, uuid_to_str
 from bench.utils.utils import get_from_env
 
 logger = structlog.get_logger(__name__)
+tracer = trace.get_tracer(__name__)
 
 TRANSACTION_BUFFER_SIZE = get_from_env("TRANSACTION_BUFFER_SIZE", typ=int, default=1000)
 MAX_TIME_DRIFT_SECONDS = get_from_env("MAX_TIME_DRIFT_SECONDS", typ=int, default=60)
@@ -272,38 +274,36 @@ class GraphIoServiceBase(BenchServiceBase, GraphIoBase):
             node_data.updated_epoch = epoch
 
         # process edits
-        start = monotime()
         async with self.tx_lock:
             async with self.request_session(readonly=False) as session:
                 # read the affected nodes into a single graph
-                start_read = monotime()
                 data_graph = NodeDataGraph()
-                for node_type, node_references in edit_scopes.scopes_by_type.items():
-                    node_type = wiring.unpack_enum(NodeType, node_type)
-                    # NOTE :Performance: select only properties required to evaluate edit (id/policies/...?)
-                    options = adapt_read_options(subject, node_type, ReadOptions.default())
-                    node_ids = tuple(r.id for r in node_references)
-                    query = QueryBuilder(
-                        node_type=node_type,
-                        filter=C(ConditionalOp.IN, property=Node.id, value=node_ids),
-                        options=options,
-                    )
-                    result = await session.tx._read_connection.fetch(
-                        query, FetchOptions(count=False)
-                    )
-                    # merge result into data_graph (there may be duplicates)
-                    for node_data in result.nodes:
-                        if node_data.id not in data_graph:
-                            data_graph.add(node_data)
-                logger.trace(
-                    "graph.commit.read", graph=data_graph, duration=monotime() - start_read
-                )
+                with tracer.start_as_current_span("graph.commit.read") as span:
+                    for node_type, node_references in edit_scopes.scopes_by_type.items():
+                        node_type = wiring.unpack_enum(NodeType, node_type)
+                        # NOTE :Performance: select only properties required to evaluate edit (id/policies/...?)
+                        options = adapt_read_options(subject, node_type, ReadOptions.default())
+                        node_ids = tuple(r.id for r in node_references)
+                        query = QueryBuilder(
+                            node_type=node_type,
+                            filter=C(ConditionalOp.IN, property=Node.id, value=node_ids),
+                            options=options,
+                        )
+                        result = await session.tx._read_connection.fetch(
+                            query, FetchOptions(count=False)
+                        )
+                        # merge result into data_graph (there may be duplicates)
+                        for node_data in result.nodes:
+                            if node_data.id not in data_graph:
+                                data_graph.add(node_data)
+                    logger.trace("graph.commit.read", graph=data_graph, span=span)
 
                 # check access
-                matrix = generate_access_matrix(subject, data_graph)
-                decision, accesses = evaluate_edit(matrix, data_graph, request.edits)
-                if decision != PolicyEffect.ALLOW:
-                    raise AccessError(accesses)
+                with tracer.start_as_current_span("graph.commit.access") as span:
+                    matrix = generate_access_matrix(subject, data_graph)
+                    decision, accesses = evaluate_edit(matrix, data_graph, request.edits)
+                    if decision != PolicyEffect.ALLOW:
+                        raise AccessError(accesses)
 
                 # validate edits (in copy)
                 # TODO :Robustness: prevent circular parent/child references
@@ -353,7 +353,6 @@ class GraphIoServiceBase(BenchServiceBase, GraphIoBase):
             extended_edits=new_edits,
             cascaded_edits=len(cascaded_edits),
             epoch=self.epoch,
-            duration=monotime() - start,
         )
         accepted_revisions = [cast(int, e.revision) for e in request.edits]
         return CommitTransactionResponse(

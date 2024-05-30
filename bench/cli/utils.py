@@ -5,6 +5,7 @@ import subprocess
 from typing import TYPE_CHECKING
 
 import structlog
+from opentelemetry import trace
 
 from bench.language.setup import NODE_CLASSES
 from bench.sql.core import Schema
@@ -15,6 +16,7 @@ if TYPE_CHECKING:
     pass
 
 logger = structlog.get_logger(__name__)
+tracer = trace.get_tracer(__name__)
 
 
 def async_to_sync_blocking(func=None):
@@ -58,6 +60,7 @@ class InconsistencyError(RuntimeError):
         super().__init__(f"bench internal state is inconsistent: {msg}")
 
 
+@tracer.start_as_current_span("check_is_consistent")
 async def check_is_consistent(*, check_db: bool) -> None:
     """Checks whether the language constructs are in sync with the derived stuff."""
     from bench.language import VERSION as LANG_VERSION
@@ -66,7 +69,6 @@ async def check_is_consistent(*, check_db: bool) -> None:
     from bench.sql.schema import VERSION as SQL_VERSION
 
     log = logger.bind(version=LANG_VERSION)
-    start = asyncio.get_running_loop().time()
 
     # check just versions
     if PROTO_VERSION != LANG_VERSION:
@@ -97,6 +99,4 @@ async def check_is_consistent(*, check_db: bool) -> None:
         if migration_ops:
             raise InconsistencyError(f"global SQL schema is out of sync: {migration_ops!r}")
 
-    log.debug(
-        "check_consistency", consistent=True, duration=asyncio.get_running_loop().time() - start
-    )
+    log.debug("check_consistency", consistent=True, span=trace.get_current_span())

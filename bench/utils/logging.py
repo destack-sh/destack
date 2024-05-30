@@ -1,8 +1,11 @@
 import logging
 import logging.config
+from typing import cast
 
 import structlog
+from opentelemetry.trace import Span
 
+from bench.utils.dt import monons
 from bench.utils.utils import get_from_env
 
 LOG_LEVEL = get_from_env("LOG_LEVEL", default="DEBUG")
@@ -54,13 +57,22 @@ LOGGING = {
 }
 
 
-def _format_duration(_, __, event_dict):
+def format_otel_span(_, __, event_dict):
+    if "span" in event_dict:
+        # open telemetry span
+        span = cast(Span, event_dict["span"])
+        event_dict["trace_id"] = span.get_span_context().trace_id
+        event_dict["span_id"] = span.get_span_context().span_id
+        if "duration" not in event_dict and hasattr(span, "start_time"):
+            end_time = getattr(span, "end_time") or monons()
+            event_dict["duration"] = end_time - getattr(span, "start_time")
+        del event_dict["span"]
     if "duration" in event_dict:
-        event_dict["duration"] = f"{event_dict['duration'] * 1000:.3f}ms"
+        event_dict["duration"] = f"{event_dict['duration'] / 1_000_000:.3f}ms"
     return event_dict
 
 
-def configure_logging(apply_logging: bool = True, apply_structlog: bool = True):
+def setup_logging(apply_logging: bool = True, apply_structlog: bool = True):
     # add trace logging level
     TRACE = 5
     _add_logging_level("TRACE", logging.DEBUG - TRACE, "trace")
@@ -84,7 +96,7 @@ def configure_logging(apply_logging: bool = True, apply_structlog: bool = True):
             processors=[
                 structlog.stdlib.filter_by_level,
                 structlog.processors.TimeStamper(fmt="iso"),
-                _format_duration,
+                format_otel_span,
                 structlog.stdlib.add_logger_name,
                 structlog.stdlib.add_log_level,
                 structlog.stdlib.PositionalArgumentsFormatter(),

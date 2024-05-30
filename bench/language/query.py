@@ -17,6 +17,9 @@ from typing import (
     override,
 )
 
+import structlog
+from opentelemetry import trace
+
 from bench.language.const import (
     AggregationOp,
     BenchError,
@@ -37,6 +40,9 @@ from bench.utils.fractional import INTEGER_ZERO
 if TYPE_CHECKING:
     from bench.language import Block, Field, ReadOptions
 
+
+logger = structlog.get_logger(__name__)
+tracer = trace.get_tracer(__name__)
 
 # default read options
 FILTER_DEFAULT: Expression = C(ConditionalOp.AND, clauses=[])
@@ -542,20 +548,23 @@ class QueryBuilder(
         return self.count()
 
     @override
+    @tracer.start_as_current_span("query.get")
     async def get(self, filter: Optional["Expression"] = None, **kwargs) -> NodeT:
         from bench.language.expression import coerce_conditional
 
         filter = coerce_conditional(self._node_cls, filter, kwargs)
-        combined_query = self.where(filter)
-        results = await combined_query.fetch()
+        query = self.where(filter)
+        trace.get_current_span().set_attribute("query", repr(query))
+        results = await query.fetch()
         if len(results) == 1:
             return results[0]
         else:
             if len(results) == 0:
-                raise NodeNotFoundError(query=combined_query)
+                raise NodeNotFoundError(query=query)
             else:
-                raise MultipleNodesFoundError(query=combined_query, result=results)
+                raise MultipleNodesFoundError(query=query, result=results)
 
+    @tracer.start_as_current_span("query.fetch")
     async def fetch(self) -> list[NodeT] | tuple[NodeT, ...]:
         from bench.language.connection import FetchOptions
         from bench.proto.wiring import unpack_node_roots
@@ -573,6 +582,7 @@ class QueryBuilder(
     to_list = fetch  # type: ignore
 
     @override
+    @tracer.start_as_current_span("query.count")
     async def count(self, filter: Optional["Expression"] = None, **kwargs) -> int:
         from bench.language.expression import A, coerce_conditional
 
@@ -580,11 +590,13 @@ class QueryBuilder(
         filter = coerce_conditional(self._node_cls, filter, kwargs, return_none_if_empty=True)
         query = self.where(filter) if filter is not None else self
         query = query.aggregate(A(AggregationOp.COUNT))
+        trace.get_current_span().set_attribute("query", repr(query))
         result = await tx._read_connection.aggregate(query)
         assert result.aggregation.count is not None, f"missing count in {result!r}"
         return result.aggregation.count
 
     @override
+    @tracer.start_as_current_span("query.exists")
     async def exists(self, filter: Optional["Expression"] = None, **kwargs) -> bool:
         from bench.language.expression import A, coerce_conditional
 
@@ -592,11 +604,13 @@ class QueryBuilder(
         filter = coerce_conditional(self._node_cls, filter, kwargs, return_none_if_empty=True)
         query = self.where(filter) if filter is not None else self
         query = query.aggregate(A(AggregationOp.EXISTS))
+        trace.get_current_span().set_attribute("query", repr(query))
         result = await tx._read_connection.aggregate(query)
         assert result.aggregation.exists is not None, f"missing exists in {result!r}"
         return result.aggregation.exists
 
     @override
+    @tracer.start_as_current_span("query.scalar")
     async def scalar(self, *properties: "str | Property") -> Any:
         assert properties, "expected at least one property"
         properties_names = tuple(p.name if not isinstance(p, str) else p for p in properties)
@@ -607,6 +621,7 @@ class QueryBuilder(
             return tuple(getattr(node, p) for p in properties_names)
 
     @override
+    @tracer.start_as_current_span("query.scalar_list")
     async def scalar_list(self, *properties: "str | Property") -> list[Any]:
         assert properties, "expected at least one property"
         properties_names = tuple(p.name if not isinstance(p, str) else p for p in properties)

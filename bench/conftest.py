@@ -16,9 +16,9 @@ def pytest_configure(config):
 
     setup_dotenv()
 
-    from bench.utils.logging import configure_logging
+    from bench.utils.logging import setup_logging
 
-    configure_logging()
+    setup_logging()
 
     from bench.language.setup import _complete_bench_setup
 

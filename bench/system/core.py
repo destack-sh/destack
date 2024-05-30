@@ -8,6 +8,7 @@ from uuid import UUID
 
 import bitarray
 import structlog
+from opentelemetry import trace
 
 from bench.language import Bench, Node, NodeType, Store
 from bench.language.bench import Branch, Package, Region
@@ -23,6 +24,7 @@ from bench.utils.task import TaskManager
 from bench.utils.utils import get_from_env
 
 logger = structlog.get_logger(__name__)
+tracer = trace.get_tracer(__name__)
 
 GLOBAL_PG_HOST = get_from_env("GLOBAL_PG_HOST")
 GLOBAL_PG_NAME = get_from_env("GLOBAL_PG_NAME")
@@ -309,6 +311,10 @@ class HostPlugin[T: Node](abc.ABC):
             return f"<{self.__class__.__name__} {content_str} in '{self._bench.slug}'>"
         else:
             return f"<{self.__class__.__name__} in '{self._bench.slug}'>"
+
+    @property
+    def name(self) -> str:
+        return self.__class__.__name__
 
     #
     # Lifecycle

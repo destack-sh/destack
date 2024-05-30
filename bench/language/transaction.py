@@ -5,6 +5,7 @@ from typing import TYPE_CHECKING, Any, Collection, Literal, Optional, cast
 from uuid import UUID
 
 import structlog
+from opentelemetry import trace
 
 from bench.language.connection import (
     InMemoryEngine,
@@ -17,7 +18,7 @@ from bench.language.const import BenchError, EditType, NodeType
 from bench.language.node import EditSubject, Node, Property
 from bench.proto import wire
 from bench.proto.wire import AnyNodeData, ClientOrigin, EditData, GraphScope
-from bench.utils.dt import monotime, utcnow
+from bench.utils.dt import utcnow
 from bench.utils.func import uuid_to_str
 from bench.utils.uuidt import UUIDT
 
@@ -25,6 +26,7 @@ if TYPE_CHECKING:
     from bench.language import Session
 
 logger = structlog.get_logger(__name__)
+tracer = trace.get_tracer(__name__)
 
 
 def new_edit_id() -> str:
@@ -346,7 +348,6 @@ class Transaction:
 
     async def _do_flush(self, *, commit: bool):
         assert self.session is not None, f"no session for {self!r}"
-        start = monotime()
         log = logger.bind(edits=len(self.edits), transaction=self)
 
         # TODO :Robustness!: use :2PC in Transaction.commit (if there are more than 2 engines)
@@ -358,23 +359,15 @@ class Transaction:
             connection = await self._get_engine_connection(engine)
 
             # flush/commit
-            engine_start = monotime()
-            if commit:
-                flush = await connection.commit(pending_edits)
-                log.trace(
-                    "transaction.commit.engine",
-                    engine=engine,
-                    edits=len(pending_edits),
-                    duration=monotime() - engine_start,
-                )
-            else:
-                flush = await connection.flush(pending_edits)
-                log.trace(
-                    "transaction.flush.engine",
-                    engine=engine,
-                    edits=len(pending_edits),
-                    duration=monotime() - engine_start,
-                )
+            message = "transaction.commit.engine" if commit else "transaction.flush.engine"
+            with tracer.start_as_current_span(
+                message, attributes={"engine": engine.__class__.__name__}
+            ) as span:
+                if commit:
+                    flush = await connection.commit(pending_edits)
+                else:
+                    flush = await connection.flush(pending_edits)
+                log.trace(message, engine=engine, edits=len(pending_edits), span=span)
             assert len(flush.revisions or ()) == len(pending_edits), "revisions mismatch"
             for edit, new_revision in zip(pending_edits, cast(list[int], flush.revisions)):
                 edit.revision = new_revision
@@ -388,13 +381,17 @@ class Transaction:
         for n in self._pending_nodes_by_ck.values():
             n._flushed_self()
         self._pending_nodes_by_ck.clear()
-        log.trace("transaction.flush", duration=monotime() - start)
+        log.trace(
+            "transaction.commit" if commit else "transaction.flush", span=trace.get_current_span()
+        )
 
+    @tracer.start_as_current_span("transaction.flush")
     async def flush(self) -> tuple[list[EditData], list[EditData]]:
         """Canonicalizes and flushes any pending edits (without committing)."""
         await self._do_flush(commit=False)
         return self.edits, self.cascaded_edits
 
+    @tracer.start_as_current_span("transaction.commit")
     async def commit(self) -> tuple[list[EditData], list[EditData]]:
         """Commits the transaction (also flushing any pending edits)."""
         await self._do_flush(commit=True)
@@ -403,6 +400,7 @@ class Transaction:
         self._used_engine_ids.clear()
         return edits, cascaded_edits
 
+    @tracer.start_as_current_span("transaction.rollback")
     async def rollback(self):
         """Rolls back uncommitted edits in primary stores."""
         raise NotImplementedError("not yet supported")  # :2PC

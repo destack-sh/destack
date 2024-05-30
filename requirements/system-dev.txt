@@ -49,6 +49,10 @@ click==8.1.7
     #   typer
     #   uvicorn
 croniter==1.4.1
+deprecated==1.2.14
+    # via
+    #   opentelemetry-api
+    #   opentelemetry-exporter-otlp-proto-grpc
 distlib==0.3.8
     # via virtualenv
 distro==1.9.0
@@ -63,6 +67,9 @@ frozenlist==1.4.1
 google-auth==2.29.0
     # via kubernetes
 googleapis-common-protos==1.63.0
+    # via opentelemetry-exporter-otlp-proto-grpc
+grpcio==1.64.0
+    # via opentelemetry-exporter-otlp-proto-grpc
 grpclib==0.4.7
     # via betterproto
 h11==0.14.0
@@ -91,6 +98,8 @@ idna==3.7
     #   httpx
     #   requests
     #   yarl
+importlib-metadata==7.0.0
+    # via opentelemetry-api
 iniconfig==2.0.0
     # via pytest
 isort==5.12.0
@@ -128,6 +137,21 @@ oauthlib==3.2.2
     #   kubernetes
     #   requests-oauthlib
 openai==1.19.0
+opentelemetry-api==1.24.0
+    # via
+    #   opentelemetry-exporter-otlp-proto-grpc
+    #   opentelemetry-sdk
+opentelemetry-exporter-otlp-proto-common==1.24.0
+    # via opentelemetry-exporter-otlp-proto-grpc
+opentelemetry-exporter-otlp-proto-grpc==1.24.0
+opentelemetry-proto==1.24.0
+    # via
+    #   opentelemetry-exporter-otlp-proto-common
+    #   opentelemetry-exporter-otlp-proto-grpc
+opentelemetry-sdk==1.24.0
+    # via opentelemetry-exporter-otlp-proto-grpc
+opentelemetry-semantic-conventions==0.45b0
+    # via opentelemetry-sdk
 orjson==3.10.3
 packaging==24.0
     # via
@@ -149,7 +173,9 @@ pluggy==1.5.0
 posthog==3.0.2
 pre-commit==3.3.3
 protobuf==4.24.3
-    # via googleapis-common-protos
+    # via
+    #   googleapis-common-protos
+    #   opentelemetry-proto
 psycopg==3.1.12
 psycopg-binary==3.1.12
     # via psycopg
@@ -232,6 +258,7 @@ typing-extensions==4.11.0
     # via
     #   betterproto
     #   openai
+    #   opentelemetry-sdk
     #   psycopg
     #   psycopg-pool
     #   pydantic
@@ -253,5 +280,9 @@ websocket-client==1.8.0
     # via kubernetes
 wheel==0.43.0
     # via pip-tools
+wrapt==1.16.0
+    # via deprecated
 yarl==1.9.4
     # via aiohttp
+zipp==3.19.0
+    # via importlib-metadata

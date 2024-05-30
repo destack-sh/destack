@@ -37,7 +37,7 @@ from bench.proto.wire import (
 from bench.system.core import MockHost
 from bench.system.provisioner import get_provisioners_for
 from bench.system.test.conftest import UserHandle, make_random_user_handle
-from bench.utils.dt import monotime
+from bench.utils.dt import monons
 from bench.utils.tenacity import RETRY_NEVER
 
 logger = structlog.get_logger(__name__)
@@ -146,7 +146,7 @@ async def make_some_bench(supervisor: SupervisorStub, host: HostStub):
 
     # decommission
     async with global_session() as session:
-        start = monotime()
+        start = monons()
         provisioners = get_provisioners_for(MockHost(session), bench)
         bench = await Bench.descendants(*RESOURCE_NODE_TYPES).get(id=bench_id)
         for resource in bench.resources:
@@ -160,7 +160,7 @@ async def make_some_bench(supervisor: SupervisorStub, host: HostStub):
             "test_host.decommissioned",
             bench=bench,
             resources=list(bench.resources),
-            duration=monotime() - start,
+            duration=monons() - start,
         )
         await session.commit()
 

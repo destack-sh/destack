@@ -2,6 +2,7 @@ import abc
 from typing import TYPE_CHECKING, ClassVar, Collection, cast, final, override
 
 import structlog
+from opentelemetry import trace
 
 from bench.language import Bench, Drive, Machine, Resource, ResourceStatus, Server, Store
 from bench.language.bench import MachineProfile
@@ -10,7 +11,6 @@ from bench.sql.client import pg_cursor_to_store
 from bench.sql.migration import sql_migrate
 from bench.system.core import Commit, DeferredHostPlugin, HostSpec
 from bench.system.neon import NeonApi
-from bench.utils.dt import monotime
 from bench.utils.env import ENVIRONMENT
 from bench.utils.func import bittuple
 from bench.utils.utils import get_from_env
@@ -19,6 +19,7 @@ if TYPE_CHECKING:
     pass
 
 logger = structlog.get_logger(__name__)
+tracer = trace.get_tracer(__name__)
 
 
 class Provisioner[PT: Resource, WT: Resource](DeferredHostPlugin[WT], abc.ABC):
@@ -55,7 +56,9 @@ class Provisioner[PT: Resource, WT: Resource](DeferredHostPlugin[WT], abc.ABC):
         await super().start()
 
     @final
+    @tracer.start_as_current_span("provisioner.on_commit_deferred")
     async def on_commit_deferred(self, commit: Commit[WT]) -> None:
+        trace.get_current_span().set_attribute("plugin", self.name)
         # handle edit by updating resource
         if commit.has(self.provision_types):
             subcommit = cast(Commit[PT], commit.trim_to(self.provision_types))
@@ -77,14 +80,11 @@ class Provisioner[PT: Resource, WT: Resource](DeferredHostPlugin[WT], abc.ABC):
     async def provision(self, resource: PT):
         """Provision the resource."""
         try:
-            start = monotime()
-            await self._provision(resource)
-            logger.info(
-                "resource.provision",
-                provisioner=self,
-                resource=resource,
-                duration=monotime() - start,
-            )
+            with tracer.start_as_current_span(
+                "resource.provision", attributes={"resource": str(resource)}
+            ) as span:
+                await self._provision(resource)
+                logger.trace("resource.provision", provisioner=self, resource=resource, span=span)
         except Exception as e:
             logger.error(
                 "resource.provision.error",
@@ -102,11 +102,11 @@ class Provisioner[PT: Resource, WT: Resource](DeferredHostPlugin[WT], abc.ABC):
     async def update(self, resource: PT):
         """Update the resource properties."""
         try:
-            start = monotime()
-            await self._update(resource)
-            logger.trace(
-                "resource.update", provisioner=self, resource=resource, duration=monotime() - start
-            )
+            with tracer.start_as_current_span(
+                "resource.update", attributes={"resource": str(resource)}
+            ) as span:
+                await self._update(resource)
+                logger.trace("resource.update", provisioner=self, resource=resource, span=span)
         except Exception as e:
             logger.error(
                 "resource.update.error", provisioner=self, resource=resource, error=e, exc_info=True
@@ -120,14 +120,13 @@ class Provisioner[PT: Resource, WT: Resource](DeferredHostPlugin[WT], abc.ABC):
     async def decommission(self, resource: PT):
         """Decommission the resource."""
         try:
-            start = monotime()
-            await self._decommission(resource)
-            logger.info(
-                "resource.decommission",
-                provisioner=self,
-                resource=resource,
-                duration=monotime() - start,
-            )
+            with tracer.start_as_current_span(
+                "resource.decommission", attributes={"resource": str(resource)}
+            ) as span:
+                await self._decommission(resource)
+                logger.trace(
+                    "resource.decommission", provisioner=self, resource=resource, span=span
+                )
         except Exception as e:
             logger.error(
                 "resource.decommission.error",

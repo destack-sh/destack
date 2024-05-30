@@ -5,12 +5,14 @@ from contextlib import asynccontextmanager
 import psycopg
 import psycopg_pool
 import structlog
+from opentelemetry import trace
 from psycopg.rows import dict_row
 from psycopg_pool import AsyncConnectionPool
 
 from bench.language import Bench, Store
 from bench.language.const import SUB_PACKAGE_NODE_TYPES, NodeType, active_bench
 from bench.sql.core import Table, TableObject
+from bench.utils.func import sanitize_connection_uri
 from bench.utils.utils import get_from_env
 
 # TODO :Robustness: figure out how to fix the psycopg pool warning
@@ -22,6 +24,7 @@ PG_CONNECT_TIMEOUT = get_from_env("PG_CONNECT_TIMEOUT", typ=int, default=10)
 PG_RECONNECT_TIMEOUT = get_from_env("PG_RECONNECT_TIMEOUT", typ=int, default=20)
 
 logger = structlog.get_logger(__name__)
+tracer = trace.get_tracer(__name__)
 _connection_pools: dict[str, AsyncConnectionPool] = {}
 _force_pg_crypto_key: contextvars.ContextVar[str | None] = contextvars.ContextVar(
     "force_pg_crypto_key", default=None
@@ -115,6 +118,9 @@ class _PgStoreConnection:
 
     async def open(self) -> psycopg.AsyncCursor:
         connection_uri = get_pg_connection_uri(self.store, database=self.database)
+        trace.get_current_span().set_attribute(
+            "pg_connection_uri", sanitize_connection_uri(connection_uri)
+        )
         self._pool = await get_pg_connection_pool(connection_uri)
         try:
             self._conn = await self._pool.getconn()

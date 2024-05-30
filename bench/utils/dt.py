@@ -1,5 +1,5 @@
-import asyncio
 from datetime import datetime
+from time import time_ns
 
 import pytz
 
@@ -11,6 +11,6 @@ def utcnow():
     return datetime.now(pytz.utc)
 
 
-def monotime() -> float:
-    """A monotonic time in seconds."""
-    return asyncio.get_event_loop().time()
+monons = time_ns
+
+__all__ = ["LOCAL_TZ", "monons", "utcnow"]

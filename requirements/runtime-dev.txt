@@ -57,6 +57,8 @@ dateparser==1.1.8
 deprecated==1.2.14
     # via
     #   atlassian-python-api
+    #   opentelemetry-api
+    #   opentelemetry-exporter-otlp-proto-grpc
     #   pygithub
 distlib==0.3.8
     # via virtualenv
@@ -84,11 +86,14 @@ google-auth-httplib2==0.2.0
 google-auth-oauthlib==1.2.0
 google-search-results==2.4.2
 googleapis-common-protos==1.63.0
-    # via google-api-core
+    # via
+    #   google-api-core
+    #   opentelemetry-exporter-otlp-proto-grpc
 googlemaps==4.10.0
 greenlet==3.0.3
     # via playwright
 grpcio==1.63.0
+    # via opentelemetry-exporter-otlp-proto-grpc
 grpclib==0.4.7
     # via betterproto
 h11==0.14.0
@@ -118,6 +123,8 @@ idna==3.7
     #   anyio
     #   httpx
     #   requests
+importlib-metadata==7.0.0
+    # via opentelemetry-api
 inflection==0.5.1
     # via pyairtable
 iniconfig==2.0.0
@@ -169,6 +176,21 @@ oauthlib==3.2.2
     #   atlassian-python-api
     #   requests-oauthlib
 openai==1.19.0
+opentelemetry-api==1.24.0
+    # via
+    #   opentelemetry-exporter-otlp-proto-grpc
+    #   opentelemetry-sdk
+opentelemetry-exporter-otlp-proto-common==1.24.0
+    # via opentelemetry-exporter-otlp-proto-grpc
+opentelemetry-exporter-otlp-proto-grpc==1.24.0
+opentelemetry-proto==1.24.0
+    # via
+    #   opentelemetry-exporter-otlp-proto-common
+    #   opentelemetry-exporter-otlp-proto-grpc
+opentelemetry-sdk==1.24.0
+    # via opentelemetry-exporter-otlp-proto-grpc
+opentelemetry-semantic-conventions==0.45b0
+    # via opentelemetry-sdk
 packaging==24.0
     # via
     #   black
@@ -200,6 +222,7 @@ protobuf==4.24.3
     # via
     #   google-api-core
     #   googleapis-common-protos
+    #   opentelemetry-proto
     #   proto-plus
 psutil==5.9.2
 psycopg==3.1.12
@@ -318,6 +341,7 @@ typing-extensions==4.11.0
     # via
     #   betterproto
     #   openai
+    #   opentelemetry-sdk
     #   psycopg
     #   psycopg-pool
     #   pyairtable
@@ -352,3 +376,5 @@ wrapt==1.16.0
     # via deprecated
 xlsxwriter==3.2.0
     # via python-pptx
+zipp==3.19.0
+    # via importlib-metadata

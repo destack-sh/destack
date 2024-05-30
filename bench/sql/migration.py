@@ -1,4 +1,3 @@
-import asyncio
 import enum
 import importlib
 import os
@@ -22,6 +21,7 @@ from typing import (
 import psycopg
 import structlog
 from more_itertools import first
+from opentelemetry import trace
 from psycopg import sql
 
 from bench.sql.core import (
@@ -50,7 +50,7 @@ from bench.sql.engine import (
     pg_upsert,
     sqlstr,
 )
-from bench.utils.dt import LOCAL_TZ, monotime, utcnow
+from bench.utils.dt import LOCAL_TZ, utcnow
 from bench.utils.env import REPOSITORY_PATH
 from bench.utils.func import partition, re_search_or_error
 from bench.utils.utils import format_python
@@ -64,6 +64,7 @@ MIGRATIONS_TEMPLATE_PATH = REPOSITORY_PATH / "bench/migrations/0000_template.py"
 EXTENSIONS = ("pgcrypto",)
 
 logger = structlog.get_logger(__name__)
+tracer = trace.get_tracer(__name__)
 
 
 #
@@ -220,6 +221,7 @@ def _load_migration_from_path(migration: Migration) -> MigrationFile:
     return file
 
 
+@tracer.start_as_current_span("sql.migrate")
 async def sql_migrate(
     cur: psycopg.AsyncCursor,
     target: str | int | None,
@@ -231,8 +233,6 @@ async def sql_migrate(
     Applies missing migrations (up or down) to reach the target migration.
     Also updates the migrations table.
     """
-
-    start = monotime()
 
     # get target migrations from our source of truth (local file system)
     if target:
@@ -269,19 +269,13 @@ async def sql_migrate(
 
     # apply the migrations
     if not migrations_to_apply:
-        log.debug("migrations.apply.skip", store=store, duration=monotime() - start)
+        log.debug("migrations.apply.skip", store=store)
         return []
     else:
         await _do_sql_migrate(
             cur, migrations_to_apply, is_upgrade=is_upgrade, is_global=is_global, store=store
         )
-        log.debug(
-            "migrations.apply",
-            cur=cur,
-            migrations=migrations_to_apply,
-            duration=monotime() - start,
-            store=store,
-        )
+        log.debug("migrations.apply", cur=cur, migrations=migrations_to_apply, store=store)
 
     # update the migration table (applied + missing)
     missing_migrations = [
@@ -297,6 +291,7 @@ async def sql_migrate(
     return migrations_to_apply
 
 
+@tracer.start_as_current_span("sql.do_migrate")
 async def _do_sql_migrate(
     cur: psycopg.AsyncCursor,
     migrations: Collection[Migration],
@@ -308,7 +303,6 @@ async def _do_sql_migrate(
     """Applies the given migrations in the given order."""
     now = utcnow()
     for migration in migrations:
-        start = monotime()
         func_name = (
             f"{(is_upgrade and 'upgrade') or 'downgrade'}_{(is_global and 'global') or 'local'}"
         )
@@ -325,13 +319,7 @@ async def _do_sql_migrate(
             migration.applied_at = now
         else:
             migration.applied_at = None
-        logger.debug(
-            "migration.apply",
-            cur=cur,
-            migration=migration,
-            store=store,
-            duration=monotime() - start,
-        )
+        logger.debug("migration.apply", cur=cur, migration=migration, store=store)
 
 
 #
@@ -412,6 +400,7 @@ class MigrationOp:
         raise RuntimeError(f"unexpected migration op type: {self.kind}")
 
 
+@tracer.start_as_current_span("sql.generate_migration_ops")
 def generate_sql_migration_ops(old_schema: Schema, new_schema: Schema) -> list[MigrationOp]:
     """Generates the migration operations to go from the old tables to the new tables."""
 
@@ -510,6 +499,7 @@ def generate_sql_migration_ops(old_schema: Schema, new_schema: Schema) -> list[M
     return ops
 
 
+@tracer.start_as_current_span("sql.generate_migration_code")
 def generate_sql_migration_code(
     migration: Migration,
     *,
@@ -819,6 +809,7 @@ def _render_migration_op(op: MigrationOp) -> str | None:
 #
 
 
+@tracer.start_as_current_span("sql.introspect_sql_schema")
 async def introspect_sql_schema(
     cur: psycopg.AsyncCursor,
     *,
@@ -827,8 +818,6 @@ async def introspect_sql_schema(
     include_indexes: bool = True,
     table_prefix: str = "bench_",
 ) -> Schema:
-    start = asyncio.get_running_loop().time()
-
     # extensions
     extensions_query = """
     SELECT
@@ -1067,7 +1056,8 @@ WHERE
         )
         tables.append(table)
 
-    duration = asyncio.get_running_loop().time() - start
-    logger.debug("introspect", cur=cur, duration=duration, tables=[t.name for t in tables])
+    logger.debug(
+        "sql.introspect", cur=cur, tables=[t.name for t in tables], span=trace.get_current_span()
+    )
 
     return Schema(extensions=extensions, tables=tuple(tables))

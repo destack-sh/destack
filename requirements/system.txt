@@ -44,6 +44,10 @@ click==8.1.7
     #   typer
     #   uvicorn
 croniter==1.4.1
+deprecated==1.2.14
+    # via
+    #   opentelemetry-api
+    #   opentelemetry-exporter-otlp-proto-grpc
 distro==1.9.0
     # via openai
 frozenlist==1.4.1
@@ -53,6 +57,9 @@ frozenlist==1.4.1
 google-auth==2.29.0
     # via kubernetes
 googleapis-common-protos==1.63.0
+    # via opentelemetry-exporter-otlp-proto-grpc
+grpcio==1.64.0
+    # via opentelemetry-exporter-otlp-proto-grpc
 grpclib==0.4.7
     # via betterproto
 h11==0.14.0
@@ -79,6 +86,8 @@ idna==3.7
     #   httpx
     #   requests
     #   yarl
+importlib-metadata==7.0.0
+    # via opentelemetry-api
 isort==5.13.2
     # via betterproto
 jinja2==3.1.4
@@ -110,6 +119,21 @@ oauthlib==3.2.2
     #   kubernetes
     #   requests-oauthlib
 openai==1.19.0
+opentelemetry-api==1.24.0
+    # via
+    #   opentelemetry-exporter-otlp-proto-grpc
+    #   opentelemetry-sdk
+opentelemetry-exporter-otlp-proto-common==1.24.0
+    # via opentelemetry-exporter-otlp-proto-grpc
+opentelemetry-exporter-otlp-proto-grpc==1.24.0
+opentelemetry-proto==1.24.0
+    # via
+    #   opentelemetry-exporter-otlp-proto-common
+    #   opentelemetry-exporter-otlp-proto-grpc
+opentelemetry-sdk==1.24.0
+    # via opentelemetry-exporter-otlp-proto-grpc
+opentelemetry-semantic-conventions==0.45b0
+    # via opentelemetry-sdk
 orjson==3.10.3
 packaging==24.0
     # via black
@@ -119,7 +143,9 @@ platformdirs==4.2.2
     # via black
 posthog==3.0.2
 protobuf==4.24.3
-    # via googleapis-common-protos
+    # via
+    #   googleapis-common-protos
+    #   opentelemetry-proto
 psycopg==3.1.12
 psycopg-binary==3.1.12
     # via psycopg
@@ -190,6 +216,7 @@ typing-extensions==4.11.0
     # via
     #   betterproto
     #   openai
+    #   opentelemetry-sdk
     #   psycopg
     #   psycopg-pool
     #   pydantic
@@ -205,5 +232,9 @@ urllib3==2.2.1
 uvicorn==0.23.2
 websocket-client==1.8.0
     # via kubernetes
+wrapt==1.16.0
+    # via deprecated
 yarl==1.9.4
     # via aiohttp
+zipp==3.19.0
+    # via importlib-metadata
