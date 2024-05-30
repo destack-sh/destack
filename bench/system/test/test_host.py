@@ -16,7 +16,7 @@ from bench.language.const import (
     BENCH_NODE_TYPES,
     IN_BENCH_NODE_TYPES,
     PUBLIC_NODE_TYPES,
-    RESOURCE_NODE_TYPES,
+    ROOT_RESOURCE_NODE_TYPES,
     NodeType,
     RunKind,
     RunStatus,
@@ -128,7 +128,7 @@ async def make_some_bench(supervisor: SupervisorStub, host: HostStub):
     )
     async with Session(_default_scope=bench_scope, _engines=(remote_engine,)) as session:
         bench = await Bench.descendants(
-            NodeType.BRANCH, NodeType.PACKAGE, *RESOURCE_NODE_TYPES
+            NodeType.BRANCH, NodeType.PACKAGE, *ROOT_RESOURCE_NODE_TYPES
         ).get(id=bench_id)
         assert bench.main_branch is not None, f"{bench!r} has no main branch"
         main_package = await Package.ancestors(Bench).get(id=bench.main_branch.main_package_id)
@@ -148,7 +148,7 @@ async def make_some_bench(supervisor: SupervisorStub, host: HostStub):
     async with global_session() as session:
         start = monons()
         provisioners = get_provisioners_for(MockHost(session), bench)
-        bench = await Bench.descendants(*RESOURCE_NODE_TYPES).get(id=bench_id)
+        bench = await Bench.descendants(*ROOT_RESOURCE_NODE_TYPES).get(id=bench_id)
         for resource in bench.resources:
             for provisioner in provisioners:
                 if resource.metatype in provisioner.provision_types:

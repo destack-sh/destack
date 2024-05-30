@@ -178,6 +178,9 @@ class ReadOptions(Struct):
         return ReadOptions(include_hidden=True, select_all_properties=True)
 
 
+DEFAULT_READ_OPTIONS = ReadOptions.default()
+
+
 class QueryError(BenchError, ValueError):
     def __init__(
         self, query: "QueryBuilder", result: Any | None = None, cause: Exception | None = None
@@ -308,6 +311,11 @@ class ReadQueryBase(abc.ABC, Generic[NodeT, NodeDataT]):
     @abc.abstractmethod
     async def scalar(self, *properties: str) -> Any:
         """Returns a single value from the single result."""
+        raise NotImplementedError
+
+    @abc.abstractmethod
+    async def scalar_maybe(self, *properties: str) -> Any | None:
+        """Returns a single value from the single result, or None if no result."""
         raise NotImplementedError
 
     @abc.abstractmethod
@@ -619,6 +627,23 @@ class QueryBuilder(
             return getattr(node, properties_names[0])
         else:
             return tuple(getattr(node, p) for p in properties_names)
+
+    @override
+    @tracer.start_as_current_span("query.scalar_maybe")
+    async def scalar_maybe(self, *properties: "str | Property") -> Any | None:
+        assert properties, "expected at least one property"
+        properties_names = tuple(p.name if not isinstance(p, str) else p for p in properties)
+        results = await self.fetch()
+        if len(results) == 1:
+            node = results[0]
+            if len(properties) == 1:
+                return getattr(node, properties_names[0])
+            else:
+                return tuple(getattr(node, p) for p in properties_names)
+        elif len(results) == 0:
+            return None
+        else:
+            raise MultipleNodesFoundError(query=self, result=results)
 
     @override
     @tracer.start_as_current_span("query.scalar_list")

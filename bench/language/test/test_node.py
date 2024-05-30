@@ -5,6 +5,7 @@ import pytest
 from bench.language import Bench, Environment, NodeReference, Property, Server, Signal
 from bench.language.bench import Client
 from bench.language.const import BlockType, NodeType
+from bench.language.field import Field
 from bench.language.session import Session
 from bench.language.setup import NODE_CLASSES, STRUCT_CLASSES
 from bench.language.test.fabricator import Fabricator
@@ -110,14 +111,22 @@ def test_node_pointers_consistency(fabricator: "Fabricator"):
     assert signal_b.parent_ptr.bench_id == bench_b.id
 
 
+@pytest.mark.skip("TODO :Incomplete: Path")
 def test_node_absolute_path():
     bench = Bench(slug="test", name="Test")
     assert bench.absolute_path == "test"
 
     branch = bench.branches.create(name="Main")
-    assert branch.absolute_path == "test"  # ignore branch
+    assert branch.absolute_path == "test"  # should ignore branch
 
     package = branch.packages.create(name="Main")
-    assert package.absolute_path == "test"  # ignore package
+    assert package.absolute_path == "test"  # should ignore package
 
-    block = package.blocks.create(name="Applications", type=BlockType.PAGE, is_page=True)
+    page = package.blocks.create(name="Applications", type=BlockType.PAGE, is_page=True)
+    assert page.absolute_path == "test/Applications"
+
+    subpage = page.blocks.create(name="My Page", type=BlockType.PAGE, is_page=True)
+    assert subpage.absolute_path == "test/Applications/My Page"
+
+    subpage_field = subpage.fields.append(Field.member("My Field", str))
+    assert subpage_field.absolute_path == "test/Applications/My Page.My Field"

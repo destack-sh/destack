@@ -249,6 +249,9 @@ IN_BENCH_GLOBAL_NODE_TYPES = bittuple(
 )
 SUB_BENCH_NODE_TYPES = bittuple(*tuple(nt for nt in IN_BENCH_NODE_TYPES if nt != NodeType.BENCH))
 RESOURCE_NODE_TYPES = bittuple(*tuple(nt for nt in NODE_TYPES if 160 <= nt.id < 200))
+ROOT_RESOURCE_NODE_TYPES = bittuple(
+    NodeType.SERVER, NodeType.STORE, NodeType.MACHINE, NodeType.DRIVE
+)
 BENCH_NODE_TYPES = bittuple(
     NodeType.BENCH,
     NodeType.ENVIRONMENT,

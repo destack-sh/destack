@@ -303,6 +303,7 @@ class NodeDataGraph(NodeGraphBase[NodeDataT, str]):
     def __init__(self, nodes: Collection[NodeDataT] | None = None):
         self.nodes_by_id: dict[str, NodeDataT] = {}
         self.nodes_by_ck: dict[str, NodeDataT] = {}  # *most* nodes have a 'ck'
+        # nocheckin :Performance: use nodes_by_parent_id with nested by_type dict for graphs
         self.nodes_by_parent_id_and_type: dict[
             # NOTE: typing the key broad like this is to avoid casting all the time
             tuple[Any, wire.NodeType | wire.ObjectType | NodeType],
@@ -635,18 +636,22 @@ class NodeList(abc.ABC, Collection[NodeT], Generic[NodeT]):
         self.append(node)
         return node
 
-    def append(self, node: NodeT) -> None:
+    @abc.abstractmethod
+    def append(self, node: NodeT) -> NodeT:
         """Attaches a child node to a parent through a list."""
         raise NotImplementedError
 
+    @abc.abstractmethod
     def extend(self, *nodes: NodeT):
         """Attaches a list of child nodes to a parent. See append."""
         raise NotImplementedError
 
+    @abc.abstractmethod
     def remove(self, node: NodeT):
         """Removes a child node from a parent. See append for reverse."""
         raise NotImplementedError
 
+    @abc.abstractmethod
     def clear(self):
         """Removes all child nodes from a parent. See append for reverse."""
         raise NotImplementedError
@@ -656,6 +661,7 @@ class NodeList(abc.ABC, Collection[NodeT], Generic[NodeT]):
         self.clear()
         self.extend(*nodes)
 
+    @abc.abstractmethod
     def get(self, key: UUID | str | int) -> NodeT | None:
         """Gets a node by some key (id/ck, actual name or identifier)."""
         raise NotImplementedError
@@ -877,7 +883,7 @@ class ValueList(list, Generic[ValueParentT]):
             isinstance(parent_prop, Property) and parent_prop.is_property_reference
         )
 
-    def append(self, item: ValueT, after: ValueT | None = None, before: ValueT | None = None):
+    def append(self, item: ValueT, after: ValueT | None = None, before: ValueT | None = None):  # type: ignore
         if not self.is_property_reference:
             item = item._move_to(self.parent, self.parent_prop)  # type: ignore
         super().append(item)
@@ -886,6 +892,7 @@ class ValueList(list, Generic[ValueParentT]):
                 *get_key_bounds(self, after, before)
             )
         self.parent._updated_self((self.ancestor_prop,))
+        return item
 
     def extend(self, items: Collection[ValueT]):  # type: ignore
         super().extend(items)
@@ -958,10 +965,12 @@ def edit_graph(
 ) -> None:
     """Applies the edits to the graph (in place!)."""
 
+    from bench.language.query import DEFAULT_READ_OPTIONS
+    from bench.language.transaction import IMPLICIT_EDIT_PROPERTIES_IDS
     from bench.proto import wiring
 
     if options is None:
-        options = ReadOptions()
+        options = DEFAULT_READ_OPTIONS
 
     for edit in edits:
         node_data = wiring.unwrap_some_node(edit.node)
@@ -969,7 +978,8 @@ def edit_graph(
         if node_id is None:
             raise ValueError(f"invalid node id in edit {edit!r}: {node_data!r}")
 
-        edit_type = cast(EditType, edit.type)  # remap edit according to read options
+        # remap edit according to read options
+        edit_type = cast(EditType, edit.type)
         if options.include_hidden:
             edit_type = _INCLUDE_HIDDEN_EDIT_TYPE_REMAP.get(edit_type, edit_type)
         else:
@@ -986,23 +996,22 @@ def edit_graph(
             node = graph.get(node_id)
             assert node is not None, f"missing node {node_id!r} for delete: {edit!r}"
             graph.remove(node)
-        elif edit_type == EditType.MOVE:
-            if node_data.parent_ptr is not None:
-                new_parent = graph.get(UUID(node_data.parent_ptr.id))
-            else:
-                new_parent = None
-            node = graph.get(node_id)
-            assert node is not None, f"missing node {node_id!r} for move: {edit!r}"
-            node.parent = new_parent
-        elif edit_type == EditType.UPDATE:
+        else:  # some update
             node = graph.get(node_id)
             assert node is not None, f"missing node {node_id!r} for update: {edit!r}"
-            for prop_id in edit.properties:
+            properties = (*edit.properties, *IMPLICIT_EDIT_PROPERTIES_IDS[edit_type])
+            for prop_id in properties:
                 prop = node.__properties_by_id__[prop_id]
                 prop = prop.reference_wired_ptr or prop
                 updated_value_data = getattr(node_data, prop.name)
                 updated_value = wiring.unpack_struct_prop(prop, updated_value_data)
                 setattr(node, prop.name, updated_value)
+            if edit_type == EditType.MOVE:
+                if node_data.parent_ptr is not None:
+                    new_parent = graph.get(UUID(node_data.parent_ptr.id))
+                else:
+                    new_parent = None
+                node.parent = new_parent
 
 
 @tracer.start_as_current_span("graph.edit_data_graph")
@@ -1016,15 +1025,18 @@ def edit_data_graph(
 ) -> None:
     """Applies the edits to the data graph."""
 
+    from bench.language.query import DEFAULT_READ_OPTIONS
+    from bench.language.transaction import IMPLICIT_EDIT_PROPERTIES_IDS
     from bench.proto import wiring
 
     if options is None:
-        options = ReadOptions()
+        options = DEFAULT_READ_OPTIONS
 
     for edit in edits:
         node_data = wiring.unwrap_some_node(edit.node)
 
-        edit_type = cast(EditType, edit.type)  # remap edit according to read options
+        # remap edit according to read options
+        edit_type = cast(EditType, edit.type)
         if keep_all:
             edit_type = _INCLUDE_ALL_EDIT_TYPE_REMAP.get(edit_type, edit_type)
         elif options.include_hidden:
@@ -1040,16 +1052,7 @@ def edit_data_graph(
             graph.remove(node_data)
         else:  # some update
             node_cls = NODE_CLASS_BY_TYPE[cast(NodeType, edit.node_type)]
-            if edit_type == EditType.UPDATE:
-                properties = edit.properties
-            elif edit_type == EditType.MOVE:
-                properties = (cast("Property", node_cls.parent).id,)
-            elif edit_type in (EditType.ARCHIVE, EditType.UNARCHIVE):
-                properties = (cast("Property", node_cls.archived_at).id,)
-            elif edit_type in (EditType.SOFT_DELETE, EditType.RESTORE):
-                properties = (cast("Property", node_cls.deleted_at).id,)
-            else:
-                raise ValueError(f"unexpected edit type: {edit_type.name}")
+            properties = (*edit.properties, *IMPLICIT_EDIT_PROPERTIES_IDS[edit_type])
             existing_node = graph.get(node_data.id)
             assert existing_node is not None, f"missing node for update: {edit}"
             if not update_nodes_in_place:

@@ -25,7 +25,6 @@ from bench.language.expression import NodeReference
 from bench.language.graph import NodeGraphLike, edit_data_graph, edit_graph
 from bench.language.log import SELF_LOGGED_NODE_TYPES, Log
 from bench.language.property import Property
-from bench.language.query import NodeNotFoundError
 from bench.language.session import Session, unsuspend_session
 from bench.proto import wire, wiring
 from bench.proto.services import BenchServiceBase, RpcCallable
@@ -299,15 +298,15 @@ class Host(GraphIoServiceBase, HostBase, HostSpec):
 
         # resume log
         async with self.session(readonly=True):
-            try:
-                self.epoch = (
-                    await Log.order_by(cast(Property, Log.created_epoch).desc())
-                    .limit(1)
-                    .scalar("created_epoch")
-                )
-            except NodeNotFoundError as e:
-                self.epoch = 0
-                logger.debug("host.reset", host=self, epoch=self.epoch, exc_info=e)
+            last_epoch = (
+                await Log.order_by(cast(Property, Log.created_epoch).desc())
+                .limit(1)
+                .scalar_maybe("created_epoch")
+            )
+            if last_epoch is not None:
+                self.epoch = last_epoch
+            else:
+                logger.debug("host.start.no_logs", host=self, bench=self._bench)
 
         # start plugins
         with tracer.start_as_current_span("host.start.plugins"):
