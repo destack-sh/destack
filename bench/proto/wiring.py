@@ -7,6 +7,7 @@ from uuid import UUID
 import betterproto
 import structlog
 from betterproto.lib.google.protobuf import Struct as BetterprotoStruct
+from opentelemetry import trace
 
 from bench.language import Property
 from bench.language.const import UNSET, NodeType, ObjectType
@@ -24,6 +25,7 @@ from bench.utils.casing import Casing, to_casing
 from bench.utils.func import IdEnum, IdEnumOrUnion, to_uuid
 
 logger = structlog.get_logger(__name__)
+tracer = trace.get_tracer(__name__)
 
 PROTO_CLASS_BY_TYPE: dict[ObjectType, type[Union[AnyNodeData, AnyStructData]]] = {
     _type: getattr(wire, _type.bench_name + "Data")
@@ -260,6 +262,7 @@ def unpack_node[NodeT: Node](
         raise ValueError(f"could not unpack {node_data.metatype.name}: {node_data!r}") from e
 
 
+@tracer.start_as_current_span("wiring.pack_node_graph")
 def pack_node_graph(
     root: Node, exclude: set[NodeType] | tuple[NodeType, ...] = ()
 ) -> tuple[AnyNodeData, list[AnyNodeData]]:
@@ -277,6 +280,7 @@ def pack_node_graph(
     return packed_by_id[root.id], list(packed_by_id.values())
 
 
+@tracer.start_as_current_span("wiring.unpack_node_graph")
 def unpack_node_graph(
     data_graph: NodeDataGraph,
     parent: Node | None = None,
@@ -285,6 +289,7 @@ def unpack_node_graph(
     read: ReadInfo | None = None,
 ) -> NodeGraph["Node"]:
     """Unpacks the node data(s) into a node graph."""
+    trace.get_current_span().set_attribute("nodes", len(data_graph))
 
     exclude = exclude or ()
     parent_id = parent.id if parent is not None else None

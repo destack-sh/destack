@@ -46,5 +46,13 @@ services:
     ports:
       - '8080:8080'
       - '9901:9901'
+
+  jaeger:
+    image: jaegertracing/all-in-one:latest
+    ports:
+      - 16686:16686 # Jaeger UI
+      - 4317:4317 # OTLP gRPC receiver
+      - 4318:4318 # OTLP http receiver
+      - 9411:9411 # Zipkin receiver
 volumes:
   redis-data:

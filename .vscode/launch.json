@@ -22,11 +22,12 @@
       "env": {
         "ENVIRONMENT": "dev",
         "PYTHONUNBUFFERED": "1",
+        "SERVICE_NAME": "system",
         "DEBUG": "1"
       },
       "console": "integratedTerminal",
       "cwd": "${workspaceFolder}",
-      "justMyCode": false
+      "justMyCode": true
     },
     {
       "name": "bench.runtime",
@@ -37,6 +38,7 @@
       "env": {
         "ENVIRONMENT": "dev",
         "PYTHONUNBUFFERED": "1",
+        "SERVICE_NAME": "runtime",
         "DEBUG": "1",
         "SUPERVISOR_URL": "http://localhost:60061",
         // this is the 'test' bench (should probably set this in a local.env?)
@@ -46,7 +48,7 @@
       },
       "console": "integratedTerminal",
       "cwd": "${workspaceFolder}",
-      "justMyCode": false,
+      "justMyCode": true,
       "python": "${workspaceFolder}/venv-runtime/bin/python"
     }, 
   ],

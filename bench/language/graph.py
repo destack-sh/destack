@@ -16,7 +16,9 @@ from typing import (
 )
 from uuid import UUID
 
+import structlog
 from more_itertools import first
+from opentelemetry import trace
 
 from bench.language.const import EMPTY_LIST, EditType, NodeType, ReferenceKind
 from bench.language.setup import CHILD_NODE_TYPES, NODE_CLASS_BY_TYPE, STRUCT_CLASS_BY_TYPE
@@ -30,6 +32,10 @@ from bench.utils.func import IdEnum, to_uuid
 if TYPE_CHECKING:
     # noinspection PyUnresolvedReferences
     from bench.language import Field, Node, Object, Property, ReadOptions, Struct
+
+logger = structlog.get_logger(__name__)
+tracer = trace.get_tracer(__name__)
+
 
 NodeT = TypeVar("NodeT", bound="Node")
 NodeDataT = TypeVar("NodeDataT", bound=AnyNodeData)
@@ -109,6 +115,12 @@ class NodeGraphBase(abc.ABC, Generic[SomeNodeT, IdT]):
     def __contains__(self, item: IdT):
         return self.get(item) is not None
 
+    def __len__(self):
+        raise NotImplementedError
+
+    def __bool__(self):
+        return True  # not empty
+
     def extend(self, nodes: Collection[SomeNodeT]):
         """Adds all nodes to the graph"""
         for node in nodes:
@@ -145,6 +157,9 @@ class NodeGraph(NodeGraphBase[NodeT, UUID]):
     @property
     def nodes(self) -> Collection[NodeT]:
         return self.nodes_by_ck.values()
+
+    def __len__(self):
+        return len(self.nodes_by_ck)
 
     def copy(self):
         return NodeGraph(self)
@@ -280,6 +295,9 @@ class NodeDataGraph(NodeGraphBase[NodeDataT, str]):
     def nodes(self) -> Collection[NodeDataT]:
         return self.nodes_by_id.values()
 
+    def __len__(self):
+        return len(self.nodes_by_ck)
+
     def get(self, node_id_or_ck: str) -> Optional[NodeDataT]:
         """Gets a node by id"""
         assert isinstance(node_id_or_ck, str), f"expected str, got {node_id_or_ck!r}"
@@ -394,6 +412,9 @@ class DetachedNodeGraph(NodeGraphBase[NodeT, UUID]):
     @property
     def nodes(self) -> Collection[NodeT]:
         return self.nodes_by_ck.values()
+
+    def __len__(self):
+        return len(self.nodes_by_ck)
 
     def get(self, node_id_or_ck: UUID) -> Optional[NodeT]:
         """Gets a node by id"""
@@ -888,6 +909,7 @@ _EXCLUDE_HIDDEN_EDIT_TYPE_REMAP: dict[EditType, EditType] = {
 }
 
 
+@tracer.start_as_current_span("graph.edit_graph")
 def edit_graph(
     graph: NodeGraph["Node"] | DetachedNodeGraph["Node"],
     edits: Collection[EditData],
@@ -942,6 +964,7 @@ def edit_graph(
                 setattr(node, prop.name, updated_value)
 
 
+@tracer.start_as_current_span("graph.edit_data_graph")
 def edit_data_graph(
     graph: NodeDataGraph[AnyNodeData],
     edits: Collection[EditData],

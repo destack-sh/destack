@@ -3,6 +3,7 @@ from dataclasses import dataclass
 from typing import TYPE_CHECKING, override
 
 import structlog
+from opentelemetry import trace
 
 from bench.language.bench import Bench, ResourceStatus
 from bench.language.const import NodeType, RunStatus
@@ -11,7 +12,6 @@ from bench.language.session import Session
 from bench.proto.services import get_channel_cached
 from bench.proto.wire import QueueRunRequest, RuntimeStub
 from bench.system.core import Commit, HostPlugin, HostSpec
-from bench.utils.dt import monotime
 from bench.utils.func import bittuple
 from bench.utils.tenacity import RETRY_GRPC, RetryOptions, RetryState
 
@@ -19,6 +19,7 @@ if TYPE_CHECKING:
     pass
 
 logger = structlog.get_logger(__name__)
+tracer = trace.get_tracer(__name__)
 
 
 @dataclass(slots=True)
@@ -56,10 +57,10 @@ class QueueRunPlugin(HostPlugin[Run]):
                 attempt = QueueOperation(run=run, retry=self._retry.new())
                 self._runs_to_queue.put_nowait(attempt)
 
+    @tracer.start_as_current_span("scheduler.queue_run")
     async def _queue_run(self, op: QueueOperation) -> None:
         """Distributes Runs to be queued in Runtimes."""
         op.retry.on_attempt()
-        start = monotime()
         run = op.run
         assert run.package_id is not None, f"missing package id for run {run!r}"
         environment = self._bench.main_environment
@@ -76,7 +77,7 @@ class QueueRunPlugin(HostPlugin[Run]):
             request = QueueRunRequest(run=run._to_data())
             try:
                 _ = await runtime.queue_run(request)
-                log.debug("scheduler.queue", machine=machine, duration=monotime() - start)
+                log.debug("scheduler.queue", machine=machine)
                 return  # success!
             except Exception as e:
                 log.error("scheduler.queue.error", machine=machine, error=e)

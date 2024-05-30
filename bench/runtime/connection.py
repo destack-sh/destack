@@ -4,6 +4,7 @@ import contextlib
 from typing import cast, override
 
 import structlog
+from opentelemetry import trace
 
 from bench.language.bench import Bench, Package
 from bench.language.const import NodeType, get_active_session
@@ -27,6 +28,7 @@ from bench.proto.wire import (
 from bench.utils.tenacity import RETRY_GRPC, RetryOptions
 
 logger = structlog.get_logger(__name__)
+tracer = trace.get_tracer(__name__)
 
 
 class QueryConnector(abc.ABC):
@@ -132,7 +134,9 @@ class RemoteQuery[NodeT: Node, NodeDataT: AnyNodeData](ConnectedQuery[NodeT, Nod
         assert self._node is not None, "query has no current result"
         return self._node
 
+    @tracer.start_as_current_span("query.start")
     async def start(self) -> None:
+        trace.get_current_span().set_attribute("query", repr(self._query))
         assert self._connect_task is None, "already connected"
         assert get_active_session() is self._session, f"must be in context of {self._session!r}"
         self._connect_task = asyncio.create_task(self._do_connect())

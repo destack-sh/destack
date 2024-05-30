@@ -4,6 +4,7 @@ from typing import TYPE_CHECKING
 from uuid import UUID
 
 import structlog
+from opentelemetry import trace
 
 from bench.language import Bench, Package
 from bench.language.bench import Client
@@ -16,7 +17,7 @@ from bench.proto import wiring
 from bench.proto.wire import GraphScope, HostStub, RunData, SupervisorStub
 from bench.runtime.connection import ConnectedBench, ConnectedPackage, QueryConnector
 from bench.runtime.core import BENCH_QUERY, PACKAGE_QUERY
-from bench.utils.dt import monotime, utcnow
+from bench.utils.dt import utcnow
 from bench.utils.func import CriticalLock
 from bench.utils.task import TaskManager
 
@@ -24,6 +25,7 @@ if TYPE_CHECKING:
     pass
 
 logger = structlog.get_logger(__name__)
+tracer = trace.get_tracer(__name__)
 
 
 class RuntimeThread:
@@ -95,9 +97,8 @@ class RuntimeThread:
         ):
             yield self._session
 
+    @tracer.start_as_current_span("thread.start")
     async def start(self):
-        start = monotime()
-
         # setup thread
         self._session = Session(
             _is_readonly=False,
@@ -129,7 +130,7 @@ class RuntimeThread:
         self._tasks.start_queue(
             self._queue, self._process_run, f"{self.bench.slug}_run{self.id}", skip_errors=True
         )
-        logger.info("thread.start", process=self, bench=self._bench, duration=monotime() - start)
+        logger.info("thread.start", process=self, bench=self._bench, span=trace.get_current_span())
 
     async def _process_run(self, run_data: RunData):
         assert (
@@ -137,7 +138,6 @@ class RuntimeThread:
         ), f"{run_data!r} not in {self.main_package!r}"
         run = wiring.unpack_node(run_data, self.main_package, self._session, Run)
 
-        start = monotime()
         async with self.session(readonly=False, autocommit=True):
             run.status = RunStatus.RUNNING
             run.started_at = utcnow()
@@ -155,10 +155,10 @@ class RuntimeThread:
                 else:
                     raise NotImplementedError(f"unsupported run kind {run.kind}")
                 run.status = RunStatus.COMPLETED
-                logger.info("run.complete", thread=self, run=run, duration=monotime() - start)
+                logger.info("run.complete", thread=self, run=run)
             except Exception as e:
                 run.fail(RunError.from_exception(e))
-                logger.error("run.fail", thread=self, run=run, error=e, duration=monotime() - start)
+                logger.error("run.fail", thread=self, run=run, error=e)
             finally:
                 run.terminated_at = utcnow()
                 run.terminated_epoch = self.epoch

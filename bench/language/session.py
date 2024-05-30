@@ -135,7 +135,10 @@ class Session(Node[SessionData]):
             status_strs.append("suspended")
         if self._is_suppressed:
             status_strs.append("suppressed")
-        return f"{', '.join(status_strs)}, tx={self._tx or '<no tx>'}"
+        if self.duration is not None:
+            return f"{', '.join(status_strs)}, tx={self._tx or '<no tx>'}, duration={self.duration:.3f}s"
+        else:
+            return f"{', '.join(status_strs)}, tx={self._tx or '<no tx>'}"
 
     def _init_component(self) -> None:
         self._session = self
@@ -214,7 +217,7 @@ class Session(Node[SessionData]):
             _active_session.reset(self._active_session_token)
             self._active_session_token = None
 
-        logger.trace("session.close", session=self, duration=self.duration)
+        logger.trace("session.close", session=self)
 
     def suppress(self):
         """Suppress any the session, *ignoring* further edits."""

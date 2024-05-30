@@ -10,6 +10,7 @@ import grpclib.server
 import structlog
 from grpclib import GRPCError
 from grpclib import Status as GRPCStatus
+from opentelemetry import trace
 
 from bench.language import Bench, Package, Run, Subject
 from bench.language.bench import Machine, MachineProfile, ResourceStatus
@@ -45,12 +46,13 @@ from bench.system.core import (
 from bench.system.graph import GraphIoServiceBase
 from bench.system.provisioner import Provisioner, get_provisioners_for
 from bench.system.scheduler import QueueRunPlugin
-from bench.utils.dt import monotime, utcnow
+from bench.utils.dt import utcnow
 from bench.utils.func import to_uuid
 from bench.utils.utils import get_from_env_maybe
 from bench.utils.uuidt import UUIDT
 
 logger = structlog.get_logger(__name__)
+tracer = trace.get_tracer(__name__)
 
 LOCAL_MACHINE_URL = get_from_env_maybe("LOCAL_MACHINE_URL")
 LOCAL_MACHINE = Machine(
@@ -237,8 +239,9 @@ class Host(GraphIoServiceBase, HostBase, HostSpec):
         assert self._main_package is not None, f"main package not loaded in {self!r}"
         return self._bench._graph, self._main_package._graph
 
+    @tracer.start_as_current_span("host.start")
     async def start(self) -> None:
-        start = monotime()
+        trace.get_current_span().set_attribute("bench_id", str(self.bench_id))
 
         # load bench
         #  (in different session because we don't have the actual engines yet)
@@ -253,6 +256,7 @@ class Host(GraphIoServiceBase, HostBase, HostSpec):
             # preload main packages
             self._main_package = await PACKAGE_QUERY.get(id=self._bench.main_branch.main_package_id)
             self._main_package._untrack_rec()
+        trace.get_current_span().set_attribute("bench", self._bench.slug)
 
         # setup main engines
         self._global_pg_engine = PostgresEngine(
@@ -306,17 +310,18 @@ class Host(GraphIoServiceBase, HostBase, HostSpec):
                 logger.debug("host.reset", host=self, epoch=self.epoch, exc_info=e)
 
         # start plugins
-        self._provisioners = tuple(get_provisioners_for(self, self._bench))
-        self._plugins = (QueueRunPlugin(self, self._bench), *self._provisioners)
-        await asyncio.gather(*(plugin.start() for plugin in self._plugins))
-        # wait for plugins to finish processing any commits (and to error early)
-        await asyncio.gather(*(plugin.wait_step(timeout=10) for plugin in self._plugins))
+        with tracer.start_as_current_span("host.start.plugins"):
+            self._provisioners = tuple(get_provisioners_for(self, self._bench))
+            self._plugins = (QueueRunPlugin(self, self._bench), *self._provisioners)
+            await asyncio.gather(*(plugin.start() for plugin in self._plugins))
+            # wait for plugins to finish processing any commits (and to error early)
+            await asyncio.gather(*(plugin.wait_step(timeout=10) for plugin in self._plugins))
         logger.info(
             "host.start",
             host=self,
             epoch=self.epoch,
             plugins=self._plugins,
-            duration=monotime() - start,
+            span=trace.get_current_span(),
         )
 
     def close(self) -> None:
@@ -331,6 +336,7 @@ class Host(GraphIoServiceBase, HostBase, HostSpec):
             await self._session.close()
 
     @override
+    @tracer.start_as_current_span("host.extend_commit")
     async def extend_commit(
         self,
         session: Session,
@@ -385,13 +391,13 @@ class Host(GraphIoServiceBase, HostBase, HostSpec):
         return extended_edits, epoch
 
     @override
+    @tracer.start_as_current_span("host.on_commit")
     async def _on_commit(
         self, graph: NodeGraphLike, edits: list[EditData], cascaded_edits: list[EditData]
     ):
         assert self._session is not None, f"session not ready in {self!r}"
         assert self._bench is not None, f"bench not loaded in {self!r}"
         assert self._main_package is not None, f"package not loaded in {self!r}"
-        start = monotime()
 
         # apply edits to loaded graphs (bench/package)
         self._session.suppress()  # don't trigger the edits we're just applying
@@ -428,17 +434,19 @@ class Host(GraphIoServiceBase, HostBase, HostSpec):
         )
         for plugin in self._plugins:
             if commit.edited_types & plugin.watch_types:
-                start_plugin = monotime()
-                trimmed_commit = commit.trim_to(plugin.watch_types)
-                await plugin.on_commit(self._session, trimmed_commit)
-                logger.debug(
-                    "host.on_commit.plugin",
-                    host=self,
-                    plugin=plugin,
-                    commit=trimmed_commit,
-                    duration=monotime() - start_plugin,
-                )
+                with tracer.start_as_current_span(
+                    "host.on_commit.plugin", attributes={"plugin": plugin.name}
+                ) as span:
+                    trimmed_commit = commit.trim_to(plugin.watch_types)
+                    await plugin.on_commit(self._session, trimmed_commit)
+                    logger.debug(
+                        "host.on_commit.plugin",
+                        host=self,
+                        plugin=plugin,
+                        commit=trimmed_commit,
+                        span=span,
+                    )
         await self._session.commit(_skip_lock=True)  # already in a locked section
         if was_suspended:
             self._session.suspend()
-        logger.debug("host.on_commit", host=self, commit=commit, duration=monotime() - start)
+        logger.debug("host.on_commit", host=self, commit=commit, span=trace.get_current_span())

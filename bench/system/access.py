@@ -6,6 +6,7 @@ from typing import cast
 import structlog
 from grpclib import GRPCError
 from grpclib import Status as GRPCStatus
+from opentelemetry import trace
 
 from bench.language import Badge, Bench, Client, Server, User
 from bench.language.access import Owner, Subject
@@ -19,6 +20,7 @@ from bench.utils.env import IS_DEBUG
 from bench.utils.func import to_uuid
 
 logger = structlog.get_logger(__name__)
+tracer = trace.get_tracer(__name__)
 
 PASSWORD_MIN_LENGTH = 8  # characters
 PASSWORD_MAX_LENGTH = 128  # characters
@@ -82,6 +84,7 @@ def generate_encryption_key(length: int = 32) -> str:
     return secrets.token_hex(length)
 
 
+@tracer.start_as_current_span("access.get_client_from_metadata")
 async def _get_client_from_metadata(metadata: RpcMetadata) -> Client | None:
     """Gets the authenticated client (if any)."""
 
@@ -104,6 +107,7 @@ async def _get_client_from_metadata(metadata: RpcMetadata) -> Client | None:
     return client
 
 
+@tracer.start_as_current_span("access.get_badges_from_metadata")
 async def _get_badges_from_metadata(metadata: RpcMetadata) -> list[Badge]:
     """Gets the authenticated badge (if any)."""
 
@@ -123,6 +127,7 @@ async def _get_badges_from_metadata(metadata: RpcMetadata) -> list[Badge]:
         return []
 
 
+@tracer.start_as_current_span("access.get_subject_from_metadata")
 async def get_subject_from_metadata(metadata: RpcMetadata) -> Subject:
     async with global_session() as session:
         client = await _get_client_from_metadata(metadata)

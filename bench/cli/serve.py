@@ -11,8 +11,8 @@ from bench.runtime.runtime import Runtime
 from bench.system.host import HostRouter
 from bench.system.supervisor import Supervisor
 from bench.utils.env import ENVIRONMENT, IS_DEBUG
-from bench.utils.monitoring import restart_on_file_changes
 from bench.utils.utils import get_from_env, get_from_env_maybe
+from bench.utils.watch import restart_on_file_changes
 
 app = typer.Typer(short_help="run the services")
 logger = structlog.get_logger(__name__)

@@ -12,7 +12,9 @@ from typing import (
 )
 from uuid import UUID
 
+import structlog
 from bitarray import bitarray
+from opentelemetry import trace
 
 from bench.language.const import (
     ACCESS_CLASSES,
@@ -61,6 +63,9 @@ from bench.utils.func import IdEnum, bittuple
 
 if TYPE_CHECKING:
     from bench.language import Bench, Block, Client, Organization, Package, ReadOptions, Server
+
+logger = structlog.get_logger(__name__)
+tracer = trace.get_tracer(__name__)
 
 # the node types that can have 'policies' applied to them
 #  (not delegated node types, which delegate via subject)
@@ -709,6 +714,7 @@ def adapt_read_options(
     return options
 
 
+@tracer.start_as_current_span("access.generate_access_matrix")
 def generate_access_matrix(
     subject: Subject,
     graph: NodeDataGraph,
@@ -837,6 +843,7 @@ class _EvalCacheKey(NamedTuple):
     identity_id: int
 
 
+@tracer.start_as_current_span("access.evaluate_access")
 def evaluate_access(
     *,
     mode: AccessMode,
@@ -953,6 +960,7 @@ def evaluate_access(
     return composite_allowed_properties, access, was_cached
 
 
+@tracer.start_as_current_span("access.evaluate_and_adapt_read")
 def evaluate_and_adapt_read(
     matrix: AccessMatrix,
     graph: NodeDataGraph,
@@ -1046,6 +1054,7 @@ def evaluate_and_adapt_read(
     return decision, accesses, visible_nodes
 
 
+@tracer.start_as_current_span("access.evaluate_edit")
 def evaluate_edit(
     matrix: AccessMatrix,
     graph: NodeDataGraph[AnyNodeData],
@@ -1123,6 +1132,7 @@ def evaluate_edit(
     return PolicyEffect.ALLOW, accesses
 
 
+@tracer.start_as_current_span("access.evaluate_use")
 def evaluate_use(
     matrix: AccessMatrix,
     use_type: UseType,

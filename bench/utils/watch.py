@@ -9,16 +9,6 @@ import structlog
 logger = structlog.get_logger(__name__)
 
 
-class Monitored:
-    @property
-    def ready(self) -> bool:
-        return True
-
-    @property
-    def healthy(self) -> bool:
-        return self.ready
-
-
 async def restart_on_file_changes(on_restart: Callable | None = None):
     """Restarts the process when a source file changes."""
     from watchdog.events import FileSystemEventHandler

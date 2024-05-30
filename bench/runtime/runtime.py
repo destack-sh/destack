@@ -6,6 +6,7 @@ from uuid import UUID
 
 import structlog
 from grpclib.client import Channel
+from opentelemetry import trace
 
 from bench.language import Bench, Package
 from bench.language.bench import Client, Machine, Server
@@ -43,11 +44,11 @@ from bench.runtime.core import (
     RUNTIME_PARALLELISM,
 )
 from bench.runtime.thread import RuntimeThread
-from bench.utils.dt import monotime
 from bench.utils.func import CriticalLock
 from bench.utils.tenacity import RETRY_GRPC_FOREVER
 
 logger = structlog.get_logger(__name__)
+tracer = trace.get_tracer(__name__)
 
 
 class Runtime(BenchServiceBase, RuntimeBase):
@@ -149,9 +150,8 @@ class Runtime(BenchServiceBase, RuntimeBase):
         ):
             yield self._session
 
+    @tracer.start_as_current_span("runtime.start")
     async def start(self):
-        start = monotime()
-
         # setup host
         self._host = await get_host_client(self._bench_id, self._supervisor)
         bench_scope = GraphScope(bench_id=str(self._bench_id))
@@ -235,7 +235,7 @@ class Runtime(BenchServiceBase, RuntimeBase):
             runtime=self,
             bench=self._bench.node,
             client=self._client,
-            duration=monotime() - start,
+            span=trace.get_current_span(),
         )
 
     def close(self):
