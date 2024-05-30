@@ -553,7 +553,7 @@ class QueryBuilder(
         from bench.language.expression import coerce_conditional
 
         filter = coerce_conditional(self._node_cls, filter, kwargs)
-        query = self.where(filter)
+        query = self.where(filter) if filter is not None else self
         trace.get_current_span().set_attribute("query", repr(query))
         results = await query.fetch()
         if len(results) == 1:
@@ -587,7 +587,7 @@ class QueryBuilder(
         from bench.language.expression import A, coerce_conditional
 
         tx = active_tx()
-        filter = coerce_conditional(self._node_cls, filter, kwargs, return_none_if_empty=True)
+        filter = coerce_conditional(self._node_cls, filter, kwargs)
         query = self.where(filter) if filter is not None else self
         query = query.aggregate(A(AggregationOp.COUNT))
         trace.get_current_span().set_attribute("query", repr(query))
@@ -601,7 +601,7 @@ class QueryBuilder(
         from bench.language.expression import A, coerce_conditional
 
         tx = active_tx()
-        filter = coerce_conditional(self._node_cls, filter, kwargs, return_none_if_empty=True)
+        filter = coerce_conditional(self._node_cls, filter, kwargs)
         query = self.where(filter) if filter is not None else self
         query = query.aggregate(A(AggregationOp.EXISTS))
         trace.get_current_span().set_attribute("query", repr(query))
