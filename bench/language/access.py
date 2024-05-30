@@ -62,7 +62,7 @@ from bench.proto.wire import AnyNodeData, EditData, NodeReferenceData
 from bench.utils.func import IdEnum, bittuple
 
 if TYPE_CHECKING:
-    from bench.language import Bench, Block, Client, Organization, Package, ReadOptions, Server
+    from bench.language import Bench, Block, Client, Organization, Package, ReadOptions
 
 logger = structlog.get_logger(__name__)
 tracer = trace.get_tracer(__name__)
@@ -415,9 +415,6 @@ class Subject(Struct):
     )
     user: Optional["User"] = p_system(
         41, default=None, require=False, array=False, references=NodeType.USER
-    )
-    server: Optional["Server"] = p_system(
-        42, default=None, require=False, array=False, references=NodeType.SERVER
     )
 
     # accessories

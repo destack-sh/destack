@@ -389,9 +389,10 @@ class _PatchedRpcMetadata(RpcMetadata):
     def to_headers(self) -> dict[str, str]:
         # flat encoding with prefix, messages as base64 :RpcMetadataEncoding
         packed = {
-            "2": self.client_id,
-            "3": self.client_nonce,
-            "4": self.client_access_token,
+            "2": str(int(self.client_type)) if self.client_type is not None else None,
+            "3": self.client_id,
+            "4": self.client_nonce,
+            "5": self.client_access_token,
         }
         packed_badges = [
             {
@@ -402,16 +403,17 @@ class _PatchedRpcMetadata(RpcMetadata):
             for badge in self.badges
         ]
         if packed_badges:
-            packed["5"] = b64encode(json.dumps(packed_badges).encode("utf-8")).decode("utf-8")
+            packed["6"] = b64encode(json.dumps(packed_badges).encode("utf-8")).decode("utf-8")
         return {"x-bench-" + k: v for k, v in packed.items() if v is not None}
 
     def from_headers(self, headers: Mapping) -> RpcMetadata:
         # flat encoding with prefixy, messages as base64 :RpcMetadataEncoding
-        self.client_id = headers.get("x-bench-2")
-        self.client_nonce = headers.get("x-bench-3")
-        self.client_access_token = headers.get("x-bench-4")
-        if headers.get("5"):
-            unpacked_badges = json.loads(b64decode(headers.get("x-bench-5")).decode("utf-8"))  # type: ignore
+        self.client_type = headers.get("x-bench-2")
+        self.client_id = headers.get("x-bench-3")
+        self.client_nonce = headers.get("x-bench-4")
+        self.client_access_token = headers.get("x-bench-5")
+        if headers.get("6"):
+            unpacked_badges = json.loads(b64decode(headers.get("x-bench-6")).decode("utf-8"))  # type: ignore
             self.badges = [
                 RpcMetadataBadgeInfo(
                     id=badge.get("2"),

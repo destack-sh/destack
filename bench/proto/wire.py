@@ -3,7 +3,7 @@
 
 from typing import TYPE_CHECKING, Union
 
-VERSION = "2024.05.30.0"
+VERSION = "2024.05.30.1"
 
 if TYPE_CHECKING:
     from bench.language import Subject
@@ -1500,7 +1500,7 @@ class PathData(betterproto.Message):
      flotothemoon/Mirror/Notion/Databases/Landscape
      ^ bench      ^ blocks
      flotothemoon/Applications/Birdy/MainScreen:Dashboard/Big Graphs/Graph1.name
-     ^ bench      ^ blocks                      ^ sub-block                ^ field
+     ^ bench      ^ blocks                      ^ sub-block nod            ^ field
      flotothemoon/Sandbox/Sales/Pipeline/Scraping/WebsiteSamples/Replit.document.title
      ^ bench      ^ blocks                                              ^ field  ^ field
 
@@ -3209,12 +3209,13 @@ class RpcMetadata(betterproto.Message):
      NOTE: update :RpcMetadataEncoding when changing RpcMetadata
     """
 
-    client_id: Optional[str] = betterproto.string_field(2, optional=True)
+    client_type: Optional["ClientType"] = betterproto.enum_field(2, optional=True)
     """Client"""
 
-    client_nonce: Optional[str] = betterproto.string_field(3, optional=True)
-    client_access_token: Optional[str] = betterproto.string_field(4, optional=True)
-    badges: List["RpcMetadataBadgeInfo"] = betterproto.message_field(5)
+    client_id: Optional[str] = betterproto.string_field(3, optional=True)
+    client_nonce: Optional[str] = betterproto.string_field(4, optional=True)
+    client_access_token: Optional[str] = betterproto.string_field(5, optional=True)
+    badges: List["RpcMetadataBadgeInfo"] = betterproto.message_field(6)
 
 
 @dataclass(eq=False, repr=False)

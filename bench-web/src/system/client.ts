@@ -115,6 +115,9 @@ export const clientInfo = pretendReadonly(_clientInfo);
 export const userPtr = computed(() =>
   _userInfo.value?.id != null ? nodeReference(NodeType.USER, _userInfo.value.id) : null,
 );
+export const userOrNullPtr = computed(() =>
+  userPtr.value != null ? userPtr.value : nodeReference(NodeType.USER, "00000000-0000-0000-0000-000000000000"),
+);
 
 // ensure persistent info is set
 if (_persistentInfo.value?.placeId == null) {
