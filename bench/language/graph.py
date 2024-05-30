@@ -246,7 +246,14 @@ class NodeDataGraph(NodeGraphBase[NodeDataT, str]):
         assert (
             node.metatype in self.nodes_by_parent_id_and_type[parent_id]
         ), f"{node!r} not in {self!r}"
-        self.nodes_by_parent_id_and_type[parent_id][node.metatype].remove(node)
+        # node may be different instance, find by id
+        for n in self.nodes_by_parent_id_and_type[parent_id][node.metatype]:
+            if n.id == node.id:
+                graph_node = n
+                break
+        else:
+            raise ValueError(f"node {node!r} not in {self!r}")
+        self.nodes_by_parent_id_and_type[parent_id][node.metatype].remove(graph_node)
         if len(self.nodes_by_parent_id_and_type[parent_id][node.metatype]) == 0:
             self.nodes_by_parent_id_and_type[parent_id].pop(node.metatype)
         if len(self.nodes_by_parent_id_and_type[parent_id]) == 0:
@@ -384,7 +391,6 @@ class NodeGraph(NodeGraphBase[NodeT, UUID]):
         self.nodes_by_ck.pop(node.ck)
         if node.parent is not None:
             self._remove_from_parent(node)
-
         # descend
         if node.id in self.nodes_by_parent_id_and_type:
             for child_type in CHILD_NODE_TYPES[node.metatype]:
@@ -996,6 +1002,7 @@ def edit_graph(
     options: "ReadOptions | None",
 ) -> None:
     """Applies the edits to the graph (in place!)."""
+    trace.get_current_span().set_attribute("edits", len(edits))
 
     from bench.language.query import DEFAULT_READ_OPTIONS
     from bench.language.transaction import IMPLICIT_EDIT_PROPERTIES_IDS
@@ -1056,6 +1063,7 @@ def edit_data_graph(
     update_nodes_in_place: bool = False,
 ) -> None:
     """Applies the edits to the data graph."""
+    trace.get_current_span().set_attribute("edits", len(edits))
 
     from bench.language.query import DEFAULT_READ_OPTIONS
     from bench.language.transaction import IMPLICIT_EDIT_PROPERTIES_IDS

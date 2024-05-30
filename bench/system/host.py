@@ -399,6 +399,8 @@ class Host(GraphIoServiceBase, HostBase, HostSpec):
         assert self._main_package is not None, f"package not loaded in {self!r}"
 
         # apply edits to loaded graphs (bench/package)
+        bench_edits: list[EditData] = []
+        package_edits: list[EditData] = []
         self._session.suppress()  # don't trigger the edits we're just applying
         for edit in edits:
             if NodeType(edit.node_type) not in LOADED_HOST_NODE_TYPES:
@@ -409,15 +411,16 @@ class Host(GraphIoServiceBase, HostBase, HostSpec):
             if hasattr(node_data, "package_ptr"):  # :Branching
                 package_id = to_uuid(getattr(node_data, "package_ptr").id)
                 assert package_id == self._main_package.id, f"bad package id: {package_id!r}"
-                edited_graph = self._main_package._graph
-                edited_data_graph = self._main_package._data_graph
-                options = PACKAGE_QUERY._options
+                package_edits.append(edit)
             else:
-                edited_graph = self._bench._graph
-                edited_data_graph = self._bench._data_graph
-                options = BENCH_QUERY._options
-            edit_graph(edited_graph, (edit,), options)
-            edit_data_graph(edited_data_graph, (edit,), options)
+                bench_edits.append(edit)
+            # edit_data_graph(edited_data_graph, (edit,), options)
+        if bench_edits:
+            edit_graph(self._bench._graph, bench_edits, BENCH_QUERY._options)
+            edit_data_graph(self._bench._data_graph, bench_edits, BENCH_QUERY._options)
+        if package_edits:
+            edit_graph(self._main_package._graph, package_edits, PACKAGE_QUERY._options)
+            edit_data_graph(self._main_package._data_graph, package_edits, PACKAGE_QUERY._options)
         self._session.unsuppress()
 
         # run plugins on commit (in main session)
