@@ -2,12 +2,14 @@ import asyncio
 import enum
 import functools
 import re
+import secrets
 import traceback
 import types
 import typing
 from asyncio import CancelledError
 from collections import OrderedDict
 from itertools import filterfalse, tee
+from os import urandom
 from sys import intern
 from typing import (
     Any,
@@ -27,6 +29,7 @@ from bitarray import bitarray
 from cachetools import cached
 from more_itertools import first
 
+from bench.utils.base58 import base58_encode
 from bench.utils.dt import monons
 from bench.utils.env import IS_DEBUG, IS_TEST
 from bench.utils.utils import get_from_env, sentry_capture
@@ -347,6 +350,22 @@ IdEnumT = TypeVar("IdEnumT", bound="IdEnum")
 
 DEBUG_LOCKS = get_from_env("DEBUG_LOCKS", typ=bool, default=False)
 CRITICAL_LOCK_TIMEOUT = get_from_env("CRITICAL_LOCK_TIMEOUT", typ=int, default=10)
+
+
+def generate_access_token(length: int) -> str:
+    """Generate a random access token."""
+    bytes = urandom(length)
+    return base58_encode(bytes)
+
+
+def generate_encryption_key(length: int) -> str:
+    """Encryption key for pgcrypto symmetric encryption."""
+    return secrets.token_hex(length)
+
+
+def generate_salt(length: int) -> bytes:
+    """Generate a random salt."""
+    return urandom(length)
 
 
 class CriticalLock(asyncio.Lock):

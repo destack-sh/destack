@@ -3,7 +3,7 @@
 
 from typing import TYPE_CHECKING, Union
 
-VERSION = "2024.05.29.3"
+VERSION = "2024.05.30.0"
 
 if TYPE_CHECKING:
     from bench.language import Subject
@@ -873,15 +873,17 @@ class Region(betterproto.Enum):
     """
     Where a Resource is located (physically).
      There are
-     - 'continental' regions (Europe, North America, etc.).
-     - 'area-level' regions (Europe Central, US East, etc.).
-     - 'city-level' regions (Frankfurt, Ohio, etc.).
+     - 'continental' regions ([>1, <100]: Europe, North America, etc.).
+     - 'area' regions ([%20=0]: Europe Central, US East, etc.).
+     - 'city' regions (Frankfurt, Ohio, etc.).
     """
 
     UNSPECIFIED = 0
     GLOBAL = 1
-    EUROPE = 100
-    EUROPE_CENTRAL = 101
+    EUROPE = 2
+    EUROPE_CENTRAL = 100
+    EUROPE_ZURICH = 101
+    EUROPE_FRANKFURT = 102
 
 
 class ResourceStatus(betterproto.Enum):

@@ -5,7 +5,17 @@ from itertools import chain
 from typing import TYPE_CHECKING, Generic, Iterable, Optional, TypeVar, Union, cast
 from uuid import UUID
 
-from bench.language.const import ClientType, EnumType, NodeType, ReferenceKind, StructType, enum_
+from bench.language.const import (
+    REGION,
+    ClientType,
+    EnumType,
+    NodeType,
+    ReferenceKind,
+    Region,
+    StructType,
+    enum_,
+    get_region,
+)
 from bench.language.graph import NodeList
 from bench.language.node import Node, node, node_component
 from bench.language.property import (
@@ -35,7 +45,7 @@ from bench.proto.wire import (
 )
 from bench.utils.casing import IdentifierType
 from bench.utils.dt import utcnow
-from bench.utils.func import IdEnum, bittuple
+from bench.utils.func import IdEnum, bittuple, generate_encryption_key
 
 if TYPE_CHECKING:
     from bench.language import (
@@ -81,8 +91,15 @@ class Bench(Node[BenchData]):
     if TYPE_CHECKING:
         owner_id: Optional[UUID] = None
         owner_type: Optional[NodeType] = None
-    region: "Region" = p_regular(37, require=True, array=False)
-    encryption_key: str = p_kernel(38, require=True, encrypt=True, defer=True, sensitive=True)
+    region: "Region" = p_regular(37, require=True, default=REGION, default_sql=None)
+    encryption_key: str = p_kernel(
+        38,
+        require=True,
+        encrypt=True,
+        defer=True,
+        sensitive=True,
+        default_factory=lambda: generate_encryption_key(32),
+    )
     policies: list["Policy"] = p_regular(39, struct=StructType.POLICY, array=True)
 
     # source
@@ -253,25 +270,6 @@ class Upgrade(Node[UpgradeData]):
     text: Optional["Text"] = p_regular(35, require=False, array=False, struct=StructType.TEXT)
 
 
-@enum_(EnumType.REGION)
-class Region(IdEnum):
-    """
-    Where a Resource is located (physically).
-    There are
-      - 'continental' regions (Europe, North America, etc.).
-      - 'area-level' regions (Europe Central, US East, etc.).
-      - 'city-level' regions (Frankfurt, Ohio, etc.).
-    """
-
-    GLOBAL = 1
-
-    # europe
-    EUROPE = 100
-    EUROPE_CENTRAL = 101
-    # americas
-    ...
-
-
 @enum_(EnumType.TENANCY)
 class Tenancy(IdEnum):
     """How a Resource is shared (if at all)."""
@@ -315,7 +313,7 @@ class Resource(Node[NodeDataT], abc.ABC, Generic[NodeDataT]):
     parent: "Bench" = p_node_parent(4, NodeType.BENCH, is_system=True)
     name: str = p_regular(32)
     text: Optional["Text"] = p_regular(34, default=None, struct=StructType.TEXT)
-    region: Region = p_system(35, default=Region.GLOBAL)
+    region: Region = p_system(35, default_factory=get_region, default_sql=None)
     status: ResourceStatus = p_system(36, default=ResourceStatus.DECLARED)
 
     def __content_str__(self):

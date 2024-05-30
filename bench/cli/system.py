@@ -5,10 +5,11 @@ from more_itertools import first
 from bench.cli.utils import async_to_sync_blocking, check_is_consistent
 from bench.language import Bench, Region, User
 from bench.language.const import RESOURCE_NODE_TYPES, ClientType, NodeType, UserStatus
-from bench.system.access import generate_access_token
+from bench.system.access import ACCESS_TOKEN_LENGTH
 from bench.system.core import global_session
 from bench.system.supervisor import create_default_bench
 from bench.system.test.test_host import MockHost
+from bench.utils.func import generate_access_token
 
 app = typer.Typer(short_help="some language-level utilities")
 
@@ -75,7 +76,7 @@ async def make_client(bench_slug: str, name: str = "Local Server"):
             client = server.clients.create(
                 type=ClientType.BENCH_SERVER,
                 name=name,
-                access_token=generate_access_token(),
+                access_token=generate_access_token(ACCESS_TOKEN_LENGTH),
             )
 
         await session.commit()

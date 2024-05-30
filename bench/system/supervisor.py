@@ -32,19 +32,13 @@ from bench.proto.wire import (
     SignupUserResponse,
     SupervisorBase,
 )
-from bench.system.access import (
-    check_password,
-    generate_access_token,
-    generate_encryption_key,
-    generate_salt,
-    hash_password,
-)
+from bench.system.access import ACCESS_TOKEN_LENGTH, SALT_LENGTH, check_password, hash_password
 from bench.system.core import GLOBAL_POSTGRES_ENGINE
 from bench.system.graph import GraphIoServiceBase
 from bench.system.provisioner import provision
 from bench.system.test.test_host import MockHost
 from bench.utils.dt import utcnow
-from bench.utils.func import to_uuid
+from bench.utils.func import generate_access_token, generate_salt, to_uuid
 
 logger = structlog.get_logger(__name__)
 GLOBAL_SCOPE = GraphScope()
@@ -122,12 +116,12 @@ class Supervisor(GraphIoServiceBase, SupervisorBase):
                 last_logged_in_at=utcnow(),
                 _is_new=True,  # force create
             )
-            user.password_salt = generate_salt()
+            user.password_salt = generate_salt(SALT_LENGTH)
             user.password_hash = hash_password(request.password, user.password_salt)
             session.create(user)
             await session.flush()
             client = await self._make_client(user, request.client)
-            client.access_token = generate_access_token()
+            client.access_token = generate_access_token(ACCESS_TOKEN_LENGTH)
             session.create(client)
             await session.flush()
             user.main_handle = user.handles.create(slug=user.slug)
@@ -158,7 +152,7 @@ class Supervisor(GraphIoServiceBase, SupervisorBase):
 
             # set new password
             session.track(user)  # user is from another session
-            user.password_salt = generate_salt()
+            user.password_salt = generate_salt(SALT_LENGTH)
             user.password_hash = hash_password(request.new_password, user.password_salt)
             await session.commit()
 
@@ -188,7 +182,7 @@ class Supervisor(GraphIoServiceBase, SupervisorBase):
 
             user.last_logged_in_at = utcnow()
             client = await self._make_client(user, request.client)
-            client.access_token = generate_access_token()
+            client.access_token = generate_access_token(ACCESS_TOKEN_LENGTH)
             session.upsert(client)
             await session.commit()
 
@@ -314,7 +308,6 @@ async def create_default_bench(
         slug=main_handle.slug,
         name=main_handle.slug,
         owner=owner,
-        encryption_key=generate_encryption_key(),
         region=region,
     )
     session.create(bench)

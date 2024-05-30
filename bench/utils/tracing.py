@@ -16,7 +16,7 @@ from opentelemetry.sdk.resources import (
 from opentelemetry.sdk.trace import TracerProvider
 from opentelemetry.sdk.trace.export import BatchSpanProcessor
 
-from bench.utils.env import ENVIRONMENT
+from bench.utils.env import ENVIRONMENT, IS_DEV
 from bench.utils.utils import get_from_env
 
 VERSION = Path("version").read_text().strip()
@@ -36,7 +36,7 @@ def setup_tracing():
 
     resource = Resource(
         attributes={
-            SERVICE_NAME: get_from_env("SERVICE_NAME"),
+            SERVICE_NAME: get_from_env("SERVICE_NAME", default="cli" if IS_DEV else None),
             SERVICE_VERSION: VERSION,
             DEPLOYMENT_ENVIRONMENT: ENVIRONMENT,
         }
