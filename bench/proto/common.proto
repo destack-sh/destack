@@ -32,9 +32,10 @@ message ClientOrigin {
 // NOTE: update :RpcMetadataEncoding when changing RpcMetadata
 message RpcMetadata {
   // Client
-  optional string client_id = 2;
-  optional string client_nonce = 3;
-  optional string client_access_token = 4;
+  optional ClientType client_type = 2;
+  optional string client_id = 3;
+  optional string client_nonce = 4;
+  optional string client_access_token = 5;
 
   // Badges
   message BadgeInfo {
@@ -42,7 +43,7 @@ message RpcMetadata {
     optional string key = 3;
     optional string password = 4;
   }
-  repeated BadgeInfo badges = 5;
+  repeated BadgeInfo badges = 6;
 }
 
 // Scope for an operation in the Bench graph.

@@ -24,7 +24,7 @@ import {
   wrapSomeNode,
   type TypedNodeReferenceData,
 } from "@/proto/wiring";
-import { nonce, origin, userPtr } from "@/system/client";
+import { nonce, origin, userOrNullPtr, userPtr } from "@/system/client";
 import { type ReadNodeGraph, type WriteNodeGraph } from "@/system/graph";
 import { makeIcon } from "@/system/icon";
 import { toaster } from "@/system/toast";
@@ -503,8 +503,9 @@ export class ImmediateTransactionBuffer implements TransactionBuffer {
   }
 
   reset() {
-    if (userPtr.value == null) throw new Error("missing userPtr");
-    const newTx = new TransactionBuilder(this.scope, uuidt({ nonce: NONCE_POSTFIX }), userPtr);
+    // NOTE: we default to null user pointer in immediate transaction buffer since it's only used locally
+    //  and we need some 'subject' to create edits (even when not connected to a 'real' remote graph)
+    const newTx = new TransactionBuilder(this.scope, uuidt({ nonce: NONCE_POSTFIX }), userOrNullPtr); 
     // immediately apply and reset the transaction
     newTx.onEdit((edit) => {
       if (this.currentTx !== newTx) throw new Error("transaction is closed");

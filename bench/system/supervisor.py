@@ -5,8 +5,10 @@ import betterproto
 import structlog
 from grpclib import GRPCError
 from grpclib import Status as GRPCStatus
+from opentelemetry import trace
 
-from bench.language import Bench, Client, NodeReference, User
+from bench.conftest import global_session
+from bench.language import Bench, Client, NodeReference, Server, User
 from bench.language.access import Subject
 from bench.language.bench import Region, ServerProfile
 from bench.language.const import USER_NODE_TYPES, ClientType, NodeType, OrganizationStatus
@@ -22,17 +24,23 @@ from bench.proto.wire import (
     CreateBenchResponse,
     GetHostRequest,
     GetHostResponse,
-    GraphScope,
     LoginUserRequest,
     LoginUserResponse,
     LogoutUserRequest,
     LogoutUserResponse,
+    RpcMetadata,
     ServiceKind,
     SignupUserRequest,
     SignupUserResponse,
     SupervisorBase,
 )
-from bench.system.access import ACCESS_TOKEN_LENGTH, SALT_LENGTH, check_password, hash_password
+from bench.system.access import (
+    ACCESS_TOKEN_LENGTH,
+    SALT_LENGTH,
+    check_password,
+    get_client_cached,
+    hash_password,
+)
 from bench.system.core import GLOBAL_POSTGRES_ENGINE
 from bench.system.graph import GraphIoServiceBase
 from bench.system.provisioner import provision
@@ -41,7 +49,7 @@ from bench.utils.dt import utcnow
 from bench.utils.func import generate_access_token, generate_salt, to_uuid
 
 logger = structlog.get_logger(__name__)
-GLOBAL_SCOPE = GraphScope()
+tracer = trace.get_tracer(__name__)
 
 
 class Supervisor(GraphIoServiceBase, SupervisorBase):
@@ -68,6 +76,30 @@ class Supervisor(GraphIoServiceBase, SupervisorBase):
     @override
     def get_engines(self):
         return (GLOBAL_POSTGRES_ENGINE,)
+
+    @tracer.start_as_current_span("supervisor.get_subject")
+    async def _get_subject(self, request: betterproto.Message, metadata: RpcMetadata) -> Subject:
+        # NOTE :Architecture: for simplicity we don't get the full Subject auth in Supervisor
+        #  (like we do in Host, since we have the entire Bench cached and ready there,
+        #   and we don't expect to need Bench-level auth in the supervisor for now).
+        if not metadata.client_id or not metadata.client_access_token:
+            return Subject(is_authenticated=False)
+
+        async with global_session() as session:
+            client_id = UUID(metadata.client_id)
+            client = await get_client_cached(session, client_id, metadata.client_access_token)
+            if isinstance(client.parent, User):
+                return Subject(
+                    is_authenticated=True,
+                    is_staff=client.parent.is_staff,
+                    client=client,
+                    user=client.parent,
+                    owned=[client.parent],
+                )
+            elif isinstance(client.parent, Server):
+                return Subject(is_authenticated=True, client=client, owned=[client.bench])
+            else:
+                raise RuntimeError(f"unexpected client: {client!r}")
 
     #
     # User management

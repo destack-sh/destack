@@ -44,19 +44,23 @@ export interface RpcMetadata {
     /**
      * Client
      *
-     * @generated from protobuf field: optional string client_id = 2;
+     * @generated from protobuf field: optional symbolx.bench.ClientType client_type = 2;
+     */
+    clientType?: ClientType;
+    /**
+     * @generated from protobuf field: optional string client_id = 3;
      */
     clientId?: string;
     /**
-     * @generated from protobuf field: optional string client_nonce = 3;
+     * @generated from protobuf field: optional string client_nonce = 4;
      */
     clientNonce?: string;
     /**
-     * @generated from protobuf field: optional string client_access_token = 4;
+     * @generated from protobuf field: optional string client_access_token = 5;
      */
     clientAccessToken?: string;
     /**
-     * @generated from protobuf field: repeated symbolx.bench.RpcMetadata.BadgeInfo badges = 5;
+     * @generated from protobuf field: repeated symbolx.bench.RpcMetadata.BadgeInfo badges = 6;
      */
     badges: RpcMetadata_BadgeInfo[];
 }
@@ -255,10 +259,11 @@ export const ClientOrigin = new ClientOrigin$Type();
 class RpcMetadata$Type extends MessageType<RpcMetadata> {
     constructor() {
         super("symbolx.bench.RpcMetadata", [
-            { no: 2, name: "client_id", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
-            { no: 3, name: "client_nonce", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
-            { no: 4, name: "client_access_token", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
-            { no: 5, name: "badges", kind: "message", repeat: 1 /*RepeatType.PACKED*/, T: () => RpcMetadata_BadgeInfo }
+            { no: 2, name: "client_type", kind: "enum", opt: true, T: () => ["symbolx.bench.ClientType", ClientType, "CLIENT_TYPE_"] },
+            { no: 3, name: "client_id", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
+            { no: 4, name: "client_nonce", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
+            { no: 5, name: "client_access_token", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
+            { no: 6, name: "badges", kind: "message", repeat: 1 /*RepeatType.PACKED*/, T: () => RpcMetadata_BadgeInfo }
         ]);
     }
     create(value?: PartialMessage<RpcMetadata>): RpcMetadata {
@@ -273,16 +278,19 @@ class RpcMetadata$Type extends MessageType<RpcMetadata> {
         while (reader.pos < end) {
             let [fieldNo, wireType] = reader.tag();
             switch (fieldNo) {
-                case /* optional string client_id */ 2:
+                case /* optional symbolx.bench.ClientType client_type */ 2:
+                    message.clientType = reader.int32();
+                    break;
+                case /* optional string client_id */ 3:
                     message.clientId = reader.string();
                     break;
-                case /* optional string client_nonce */ 3:
+                case /* optional string client_nonce */ 4:
                     message.clientNonce = reader.string();
                     break;
-                case /* optional string client_access_token */ 4:
+                case /* optional string client_access_token */ 5:
                     message.clientAccessToken = reader.string();
                     break;
-                case /* repeated symbolx.bench.RpcMetadata.BadgeInfo badges */ 5:
+                case /* repeated symbolx.bench.RpcMetadata.BadgeInfo badges */ 6:
                     message.badges.push(RpcMetadata_BadgeInfo.internalBinaryRead(reader, reader.uint32(), options));
                     break;
                 default:
@@ -297,18 +305,21 @@ class RpcMetadata$Type extends MessageType<RpcMetadata> {
         return message;
     }
     internalBinaryWrite(message: RpcMetadata, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
-        /* optional string client_id = 2; */
+        /* optional symbolx.bench.ClientType client_type = 2; */
+        if (message.clientType !== undefined)
+            writer.tag(2, WireType.Varint).int32(message.clientType);
+        /* optional string client_id = 3; */
         if (message.clientId !== undefined)
-            writer.tag(2, WireType.LengthDelimited).string(message.clientId);
-        /* optional string client_nonce = 3; */
+            writer.tag(3, WireType.LengthDelimited).string(message.clientId);
+        /* optional string client_nonce = 4; */
         if (message.clientNonce !== undefined)
-            writer.tag(3, WireType.LengthDelimited).string(message.clientNonce);
-        /* optional string client_access_token = 4; */
+            writer.tag(4, WireType.LengthDelimited).string(message.clientNonce);
+        /* optional string client_access_token = 5; */
         if (message.clientAccessToken !== undefined)
-            writer.tag(4, WireType.LengthDelimited).string(message.clientAccessToken);
-        /* repeated symbolx.bench.RpcMetadata.BadgeInfo badges = 5; */
+            writer.tag(5, WireType.LengthDelimited).string(message.clientAccessToken);
+        /* repeated symbolx.bench.RpcMetadata.BadgeInfo badges = 6; */
         for (let i = 0; i < message.badges.length; i++)
-            RpcMetadata_BadgeInfo.internalBinaryWrite(message.badges[i], writer.tag(5, WireType.LengthDelimited).fork(), options).join();
+            RpcMetadata_BadgeInfo.internalBinaryWrite(message.badges[i], writer.tag(6, WireType.LengthDelimited).fork(), options).join();
         let u = options.writeUnknownFields;
         if (u !== false)
             (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);

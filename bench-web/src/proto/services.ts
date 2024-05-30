@@ -1,5 +1,5 @@
 import { GraphScope, HostClient, RpcMetadata, SupervisorClient, type IGraphIOClient } from "@/proto/wire";
-import { clientInfo, clientMeta } from "@/system/client";
+import { CLIENT_TYPE, clientInfo, clientMeta } from "@/system/client";
 import { toaster } from "@/system/toast";
 import { SUPERVISOR_URL } from "@/utils/globals";
 import { log } from "@/utils/log";
@@ -78,8 +78,8 @@ export const HUMANIZED_OPERATION_STATUS: { [key: string]: string } = {
   DEADLINE_EXCEEDED: "Request timed out",
 };
 export const HUMANIZED_OPERATION_MESSAGE: { [key: string]: string } = {
-  UNAUTHENTICATED: "Please log in and try again.",
-  UNAVAILABLE: "Server could not be reached.",
+  UNAUTHENTICATED: "Please log in and try again",
+  UNAVAILABLE: "Server could not be reached",
 };
 
 export function humanizeError(error: OperationError): { title: string; text: string } {
@@ -264,6 +264,7 @@ class BenchGrpcWebTransport extends GrpcWebFetchTransport {
 
 const currentMetadata: Ref<RpcMetadata> = computed(() => {
   return {
+    clientType: CLIENT_TYPE,
     clientId: clientInfo.value?.id ?? undefined,
     clientNonce: clientMeta.value?.nonce ?? undefined,
     clientAccessToken: clientInfo.value?.accessToken ?? undefined,
@@ -274,9 +275,10 @@ const currentMetadataEncoded: Ref<{ [key: string]: any }> = computed(() => {
   // flat encoding, messages as base64 :RpcMetadataEncoding
   const metadata = currentMetadata.value;
   const packed: { [key: string]: any } = {};
-  if (metadata.clientId) packed["x-bench-2"] = metadata.clientId;
-  if (metadata.clientNonce) packed["x-bench-3"] = metadata.clientNonce;
-  if (metadata.clientAccessToken) packed["x-bench-4"] = metadata.clientAccessToken;
+  if (metadata.clientType) packed["x-bench-2"] = CLIENT_TYPE.toString();
+  if (metadata.clientId) packed["x-bench-3"] = metadata.clientId;
+  if (metadata.clientNonce) packed["x-bench-4"] = metadata.clientNonce;
+  if (metadata.clientAccessToken) packed["x-bench-5"] = metadata.clientAccessToken;
   if (metadata.badges.length > 0) {
     const packedBadges = metadata.badges.map((b) => {
       const p: { [key: string]: any } = {};
@@ -284,7 +286,7 @@ const currentMetadataEncoded: Ref<{ [key: string]: any }> = computed(() => {
       if (b.key) p["3"] = b.key;
       if (b.password) p["4"] = b.password;
     });
-    packed["x-bench-5"] = btoa(JSON.stringify(packedBadges));
+    packed["x-bench-6"] = btoa(JSON.stringify(packedBadges));
   }
   return packed;
 });

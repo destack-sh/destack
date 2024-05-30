@@ -168,12 +168,13 @@ class GraphIoServiceBase(BenchServiceBase, GraphIoBase):
             raise GRPCError(GRPCStatus.NOT_FOUND, f"roots not found: {missing_roots}")
 
         # check access
-        matrix = generate_access_matrix(subject, graph)
-        decision, accesses, adapted_nodes = evaluate_and_adapt_read(
-            matrix, graph, required_nodes=request.roots, adapt_nodes_in_place=True
-        )
-        if decision != PolicyEffect.ALLOW:
-            raise AccessError(accesses)
+        with tracer.start_as_current_span("graph.get.check_access"):
+            matrix = generate_access_matrix(subject, graph)
+            decision, accesses, adapted_nodes = evaluate_and_adapt_read(
+                matrix, graph, required_nodes=request.roots, adapt_nodes_in_place=True
+            )
+            if decision != PolicyEffect.ALLOW:
+                raise AccessError(accesses)
 
         logger.info("graph.get", subject=subject, graph=graph, epoch=self.epoch)
         return GetNodesResponse(
@@ -213,12 +214,13 @@ class GraphIoServiceBase(BenchServiceBase, GraphIoBase):
             graph = NodeDataGraph(result.nodes)
 
         # check access
-        matrix = generate_access_matrix(subject, graph)
-        decision, accesses, adapted_nodes = evaluate_and_adapt_read(
-            matrix, graph, adapt_nodes_in_place=True, required_nodes=request.bases
-        )
-        if decision != PolicyEffect.ALLOW:
-            raise AccessError(accesses)
+        with tracer.start_as_current_span("graph.search.check_access"):
+            matrix = generate_access_matrix(subject, graph)
+            decision, accesses, adapted_nodes = evaluate_and_adapt_read(
+                matrix, graph, adapt_nodes_in_place=True, required_nodes=request.bases
+            )
+            if decision != PolicyEffect.ALLOW:
+                raise AccessError(accesses)
 
         logger.info("graph.search", subject=subject, graph=graph, epoch=self.epoch)
         return SearchNodesResponse(

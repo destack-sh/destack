@@ -1,20 +1,18 @@
 import asyncio
-from typing import cast
+from uuid import UUID
 
 import structlog
+from cachetools import TTLCache
 from grpclib import GRPCError
 from grpclib import Status as GRPCStatus
 from opentelemetry import trace
 
-from bench.language import Badge, Bench, Client, Server, User
-from bench.language.access import Owner, Subject
-from bench.language.const import NodeType
-from bench.language.node import Node
+from bench.language import Client, Server, User
+from bench.language.bench import Bench
 from bench.language.query import NodeNotFoundError
-from bench.proto.wire import RpcMetadata
-from bench.system.core import global_session
+from bench.language.session import Session
 from bench.utils.env import IS_DEBUG
-from bench.utils.func import to_uuid
+from bench.utils.utils import get_from_env
 
 logger = structlog.get_logger(__name__)
 tracer = trace.get_tracer(__name__)
@@ -65,85 +63,41 @@ async def check_password(password: str, salt: bytes, password_hash: bytes) -> bo
     return result
 
 
+CLIENT_CACHE_ENABLED = get_from_env("CLIENT_CACHE_ENABLED", typ=bool, default=True)
+client_cache = TTLCache[UUID, Client](maxsize=10_000, ttl=60)
+
+# TODO :Security: invalidate client_cache on significant events (e.g. logout and such)
+
+
 @tracer.start_as_current_span("access.get_client_from_metadata")
-async def _get_client_from_metadata(metadata: RpcMetadata) -> Client | None:
+async def get_client(session: Session, client_id: UUID) -> Client:
     """Gets the authenticated client (if any)."""
 
-    if not metadata.client_id:
-        return None
-
-    client_id = to_uuid(metadata.client_id)
     try:
         client: Client = (
             await Client.include(User.email, Client.access_token)
-            .ancestors(User, Server)
+            .ancestors(User, Server, Bench)
             .get(id=client_id)
         )
+        client._untrack_rec()
+        return client
     except NodeNotFoundError as e:
         raise GRPCError(
             GRPCStatus.UNAUTHENTICATED, str(e) if IS_DEBUG else "client not found"
         ) from e
-    if metadata.client_access_token != client.access_token:
+
+
+async def get_client_cached(session: Session, client_id: UUID, client_access_token: str) -> Client:
+    """Gets the authenticated client (if any) from the cache."""
+    # get client
+    if not CLIENT_CACHE_ENABLED:
+        client = await get_client(session, client_id)
+    else:
+        client = client_cache.get(client_id)
+        if client is None:
+            client = await get_client(session, client_id)
+            client_cache[client_id] = client
+    # check access token
+    if client_access_token != client.access_token:
         raise GRPCError(GRPCStatus.UNAUTHENTICATED, "invalid access token")
     return client
-
-
-@tracer.start_as_current_span("access.get_badges_from_metadata")
-async def _get_badges_from_metadata(metadata: RpcMetadata) -> list[Badge]:
-    """Gets the authenticated badge (if any)."""
-
-    if metadata.badges:
-        badges: list[Badge] = (
-            await Badge.include(Badge.key, Badge.password)
-            .where(id__in=tuple(to_uuid(b.id) for b in metadata.badges))
-            .tolist()
-        )
-        for actual_badge, expected_badge in zip(badges, metadata.badges):
-            if actual_badge.key and actual_badge.key != expected_badge.key:
-                raise GRPCError(GRPCStatus.UNAUTHENTICATED, "invalid badge key")
-            if actual_badge.password and actual_badge.password != expected_badge.password:
-                raise GRPCError(GRPCStatus.UNAUTHENTICATED, "invalid badge password")
-        return badges
-    else:
-        return []
-
-
-@tracer.start_as_current_span("access.get_subject_from_metadata")
-async def get_subject_from_metadata(metadata: RpcMetadata) -> Subject:
-    async with global_session() as session:
-        client = await _get_client_from_metadata(metadata)
-        badges = await _get_badges_from_metadata(metadata)
-        session.untrack_many(client, *badges)
-        if client is None:
-            return Subject(is_authenticated=False, badges=badges)
-        elif client.parent_type == NodeType.USER:
-            # TODO :Broken :Performance: fetch all subject memberships/owned/roles
-            #  (probably only on-demand to reduce latency)
-            user = cast("User", client.parent)
-            owned: list[Node] = [user]
-            if user.main_bench_ptr:  # (we cheat a little and get only the main Bench)
-                main_bench = await Bench.get(id=user.main_bench_ptr.id)
-                owned.append(main_bench)
-            return Subject(
-                is_authenticated=True,
-                is_staff=user.is_staff,
-                client=client,
-                user=user,
-                badges=badges,
-                owned=cast(list[Owner], owned),
-            )
-        elif client.parent_type == NodeType.SERVER:
-            # servers are basically bench owners
-            server = cast("Server", client.parent)
-            assert server.parent_id, f"{server!r} of {client!r} has no parent"
-            bench = await Bench.get(id=server.parent_id)
-            return Subject(
-                is_authenticated=True,
-                is_staff=False,
-                client=client,
-                server=server,
-                badges=badges,
-                owned=[bench],
-            )
-        else:
-            raise ValueError(f"unexpected client: {client!r}")

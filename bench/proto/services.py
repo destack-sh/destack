@@ -31,7 +31,6 @@ from bench.language.query import NodeNotFoundError
 from bench.proto.wire import RpcMetadata, ServiceKind
 from bench.proto.wiring import BENCH_CLASS_BY_PROTO_CLASS
 from bench.sql.engine import SqlAlreadyExistsError, SqlNotExistsError
-from bench.system.access import get_subject_from_metadata
 from bench.utils.casing import Casing, to_casing
 from bench.utils.env import IS_DEBUG, IS_TEST
 from bench.utils.task import TaskManager
@@ -145,6 +144,9 @@ class BenchServiceBase:
         """Validate a request message for this service."""
         pass
 
+    async def _get_subject(self, request: betterproto.Message, metadata: RpcMetadata) -> Subject:
+        raise NotImplementedError(f"{self.__class__.__name__} must implement _get_subject")
+
     @final
     def _wrap_rpc(self, method: str, handler: grpclib.const.Handler) -> grpclib.const.Handler:
         method = method[1:]  # skip initial slash
@@ -163,26 +165,25 @@ class BenchServiceBase:
             log = logger.bind(service=self, method=method)
             span = trace.get_current_span()
             try:
+                request = cast(betterproto.Message, await stream.recv_message())
+                self.validate_request(request)
+
                 # prepare
                 metadata: RpcMetadata = RpcMetadata().from_headers(stream.metadata or {})  # type: ignore
                 if self.kind == ServiceKind.PUBLIC:
-                    subject = await get_subject_from_metadata(metadata)
+                    subject = await self._get_subject(request, metadata)
                     log = log.bind(subject=subject)
                 else:
                     subject = None
 
                 # call
                 if cardinality == grpclib.const.Cardinality.UNARY_UNARY:
-                    request = cast(betterproto.Message, await stream.recv_message())
-                    self.validate_request(request)
                     if self.kind == ServiceKind.PUBLIC:
                         response = await func(subject, request)
                     else:
                         response = await func(request)
                     await stream.send_message(response)
                 elif cardinality == grpclib.const.Cardinality.UNARY_STREAM:
-                    request = cast(betterproto.Message, await stream.recv_message())
-                    self.validate_request(request)
                     if self.kind == ServiceKind.PUBLIC:
                         response_stream = func(subject, request)
                     else:

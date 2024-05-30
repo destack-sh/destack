@@ -31,8 +31,13 @@ LOADED_PACKAGE_NODE_TYPES: bittuple[NodeType] = bittuple(
     NodeType.TRIGGER,
     NodeType.FIELD,
     NodeType.QUERY,
-    NodeType.STEP,
     NodeType.VIEW,
+    NodeType.STEP,
+    NodeType.BADGE,
+    NodeType.ROLE,
+    NodeType.IDENTITY,
+    NodeType.MEMBERSHIP,
+    NodeType.INVITE,
 )
 BENCH_QUERY = Bench.descendants(*LOADED_BENCH_NODE_TYPES).select_all()
 PACKAGE_QUERY = (

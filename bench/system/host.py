@@ -12,8 +12,9 @@ from grpclib import GRPCError
 from grpclib import Status as GRPCStatus
 from opentelemetry import trace
 
-from bench.language import Bench, Package, Run, Subject
-from bench.language.bench import Machine, MachineProfile, ResourceStatus
+from bench.language import Bench, Package, Run, Server, Subject
+from bench.language.access import Badge, Owner
+from bench.language.bench import Client, Machine, MachineProfile, ResourceStatus
 from bench.language.connection import InMemoryEngine, PostgresEngine, StoreEngine
 from bench.language.const import (
     IN_BENCH_GLOBAL_NODE_TYPES,
@@ -26,9 +27,11 @@ from bench.language.graph import NodeGraphLike, edit_data_graph, edit_graph
 from bench.language.log import SELF_LOGGED_NODE_TYPES, Log
 from bench.language.property import Property
 from bench.language.session import Session, unsuspend_session
+from bench.language.user import User
 from bench.proto import wire, wiring
 from bench.proto.services import BenchServiceBase, RpcCallable
 from bench.proto.wire import EditData, GraphScope, HostBase, LogData, ServiceKind
+from bench.system.access import get_client_cached
 from bench.system.core import (
     BENCH_QUERY,
     GLOBAL_POSTGRES_ENGINE,
@@ -103,30 +106,36 @@ class HostRouter(BenchServiceBase, HostBase):
         self._hosts[bench_id] = host
         return host
 
+    async def _get_host(self, request: betterproto.Message) -> "Host":
+        """Gets or starts a running Host for the given Bench"""
+
+        # get request's bench id
+        scope: GraphScope | None = getattr(request, "scope")
+        if scope is None:
+            raise GRPCError(GRPCStatus.INVALID_ARGUMENT, "missing scope")
+        bench_id = to_uuid(scope.bench_id)
+        if bench_id is None:
+            raise GRPCError(GRPCStatus.INVALID_ARGUMENT, "missing bench scope id")
+
+        # get host
+        host = self._hosts.get(bench_id)
+        if host is None:
+            async with self._hosts_lock:
+                host = self._hosts.get(bench_id)
+                if host is None:
+                    host = await self._start_host(bench_id)
+        return host
+
+    async def _get_subject(
+        self, request: betterproto.Message, metadata: wire.RpcMetadata
+    ) -> Subject:
+        host = await self._get_host(request)
+        return await host._get_subject(request, metadata)
+
     def _wrap_rpc_func(
         self, func: RpcCallable, method_name: str, handler: grpclib.const.Handler
     ) -> Callable:
         _, cardinality, _request_type, _reply_type = handler
-
-        async def _get_host(request: betterproto.Message) -> Host:
-            """Gets or starts a running Host for the given Bench"""
-
-            # get request's bench id
-            scope: GraphScope | None = getattr(request, "scope")
-            if scope is None:
-                raise GRPCError(GRPCStatus.INVALID_ARGUMENT, "missing scope")
-            bench_id = to_uuid(scope.bench_id)
-            if bench_id is None:
-                raise GRPCError(GRPCStatus.INVALID_ARGUMENT, "missing bench scope id")
-
-            # get host
-            host = self._hosts.get(bench_id)
-            if host is None:
-                async with self._hosts_lock:
-                    host = self._hosts.get(bench_id)
-                    if host is None:
-                        host = await self._start_host(bench_id)
-            return host
 
         if cardinality == grpclib.const.Cardinality.UNARY_UNARY:
 
@@ -134,7 +143,7 @@ class HostRouter(BenchServiceBase, HostBase):
             async def _multiplexed_unary_rpc(
                 subject: Subject, request: betterproto.Message
             ) -> None:
-                host = await _get_host(request)
+                host = await self._get_host(request)
                 return await getattr(host, method_name)(subject, request)
 
             return _multiplexed_unary_rpc
@@ -143,7 +152,7 @@ class HostRouter(BenchServiceBase, HostBase):
 
             @functools.wraps(func)
             async def _multiplexed_unary_stream_rpc(subject: Subject, request: betterproto.Message):
-                host = await _get_host(request)
+                host = await self._get_host(request)
                 async for response in getattr(host, method_name)(subject, request):
                     yield response
 
@@ -228,15 +237,75 @@ class Host(GraphIoServiceBase, HostBase, HostSpec):
         ):
             yield self._session
 
-    @override
-    def get_engines(self) -> tuple[StoreEngine, ...]:
-        return self._engines
-
     @property
     def graphs(self) -> tuple[NodeGraphLike, ...]:
         assert self._bench is not None, f"bench not loaded in {self!r}"
         assert self._main_package is not None, f"main package not loaded in {self!r}"
         return self._bench._graph, self._main_package._graph
+
+    @override
+    def get_engines(self) -> tuple[StoreEngine, ...]:
+        return self._engines
+
+    @tracer.start_as_current_span("host.get_subject")
+    async def _get_subject(
+        self, request: betterproto.Message, metadata: wire.RpcMetadata
+    ) -> Subject:
+        assert self._bench is not None, f"bench not loaded in {self!r}"
+        assert self._session is not None, f"session not ready in {self!r}"
+
+        # get client
+        is_staff = False
+        user: User | None = None
+        owned: list[Owner] = []
+        if metadata.client_id and metadata.client_access_token:
+            client_id = UUID(metadata.client_id)
+            if metadata.client_type != wire.ClientType.BENCH_SERVER:
+                # user client
+                async with global_session() as session:
+                    client = await get_client_cached(
+                        session, client_id, metadata.client_access_token
+                    )
+                assert isinstance(client.parent, User), f"unexpected client: {client!r}"
+                if client.parent.main_bench_id == self._bench.id:
+                    owned = [client.parent, self._bench]
+                else:
+                    owned = [client.parent]
+                is_staff = client.parent.is_staff
+                user = client.parent
+            else:
+                # server client
+                client = self._bench._graph.get(client_id)
+                if not isinstance(client, Client):
+                    raise GRPCError(GRPCStatus.UNAUTHENTICATED, "invalid client id")
+                assert isinstance(client.parent, Server)
+                owned = [self._bench]  # servers own the bench for now
+        else:
+            client = None
+
+        # get badges
+        badges: list[Badge] = []
+        for presented_badge in metadata.badges:
+            badge = self._bench._graph.get(UUID(presented_badge.id))
+            if not isinstance(badge, Badge):
+                raise GRPCError(GRPCStatus.UNAUTHENTICATED, "invalid badge id")
+            if badge.key and badge.key != presented_badge.key:
+                raise GRPCError(GRPCStatus.UNAUTHENTICATED, "invalid badge key")
+            if badge.password and badge.password != presented_badge.password:
+                raise GRPCError(GRPCStatus.UNAUTHENTICATED, "invalid badge password")
+            badges.append(badge)
+
+        # NOTE :Incomplete: get roles/memberships/identities/... for subject in Host
+
+        subject = Subject(
+            is_authenticated=client is not None,
+            is_staff=is_staff,
+            client=client,
+            user=user,
+            badges=badges,
+            owned=owned,
+        )
+        return subject
 
     @tracer.start_as_current_span("host.start")
     async def start(self) -> None:
