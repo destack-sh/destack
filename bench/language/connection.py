@@ -29,7 +29,7 @@ from bench.language.const import (
 )
 from bench.language.graph import NodeDataGraph
 from bench.language.node import Node
-from bench.language.setup import PARENT_NODE_TYPES
+from bench.language.setup import CHILD_NODE_TYPES
 from bench.proto.wire import (
     AggregationData,
     AnyNodeData,
@@ -488,6 +488,7 @@ class InMemoryConnection(StoreConnection[NodeT, NodeDataT], Generic[NodeT, NodeD
         self, query: "QueryBuilder[NodeT, NodeDataT]", options: FetchOptions
     ) -> FetchResult:
         from bench.language.expression import NodeReference
+        from bench.proto import wire
 
         loaded_graph = self.engine.graph
         visited_graph = NodeDataGraph()
@@ -509,37 +510,45 @@ class InMemoryConnection(StoreConnection[NodeT, NodeDataT], Generic[NodeT, NodeD
 
         # select ancestors
         ancestor_types = query._options.ancestor_types if query._options else ()
-        if ancestor_types:
-            current_parents = roots
-            while current_parents:
-                next_parents = []
-                for node in current_parents:
-                    if (
-                        node.parent_ptr is not None
-                        and node.parent_ptr.id is not None
-                        and node.parent_ptr.type in ancestor_types
-                        and node.parent_ptr.id not in visited_graph
-                    ):
-                        parent = loaded_graph[node.parent_ptr.id]
-                        visited_graph.add(parent)
-                        next_parents.append(parent)
-                current_parents = next_parents
+        if len(ancestor_types) > 0:
+            with tracer.start_as_current_span("memory.get_ancestors"):
+                current_parents = roots
+                while current_parents:
+                    next_parents = []
+                    for node in current_parents:
+                        if (
+                            node.parent_ptr is not None
+                            and node.parent_ptr.id is not None
+                            and node.parent_ptr.id not in visited_graph
+                            and node.parent_ptr.type in ancestor_types
+                        ):
+                            parent = loaded_graph[node.parent_ptr.id]
+                            visited_graph.add(parent)
+                            next_parents.append(parent)
+                    current_parents = next_parents
 
         # select descendants
         descendant_types = query._options.descendant_types if query._options else ()
-        if descendant_types:
-            current_parents = roots
-            while current_parents:
-                next_parents: list[AnyNodeData] = []
-                for node in current_parents:
-                    for child_type in descendant_types:
-                        if node.metatype not in PARENT_NODE_TYPES[child_type]:
-                            continue
-                        children = loaded_graph.collect_descendants(node, child_type)
-                        for child in children:
-                            visited_graph.add(child)
-                            next_parents.append(child)
-                current_parents = next_parents
+        if len(descendant_types) > 0:
+            with tracer.start_as_current_span("memory.get_descendants"):
+                child_types_by_parent: dict[wire.NodeType, tuple[NodeType, ...]] = {
+                    cast(wire.NodeType, node_type): tuple(
+                        t for t in CHILD_NODE_TYPES[node_type] if t in descendant_types
+                    )
+                    for node_type in query.all_types
+                }
+                current_parents = roots
+                while current_parents:
+                    next_parents: list[AnyNodeData] = []
+                    for node in current_parents:
+                        child_types = child_types_by_parent[cast(wire.NodeType, node.metatype)]
+                        for child_type in child_types:
+                            children = loaded_graph.collect_descendants(node, child_type)
+                            visited_graph.extend(children)
+                            for child in children:
+                                if loaded_graph.has_descendants(child):
+                                    next_parents.append(child)
+                    current_parents = next_parents
 
         return FetchResult(
             roots=[NodeReference.from_node_data(r) for r in roots],
@@ -568,7 +577,7 @@ class SplitConnection(StoreConnection[NodeT, NodeDataT], Generic[NodeT, NodeData
         )
 
         # first trim query to nucleus around core node type (use best match)
-        initial_engine = self.session.tx._get_write_engine(
+        initial_engine = self.session.tx._get_engine(
             scope, query._node_type, best_match=list(query.all_types), is_readonly=True
         )
         initial_query = query.trim_to(initial_engine.node_types)
@@ -596,7 +605,7 @@ class SplitConnection(StoreConnection[NodeT, NodeDataT], Generic[NodeT, NodeData
         if remaining_ancestors:
             actual_roots_parents = tuple(n.parent_ptr for n in actual_roots if n.parent_ptr)
             actual_roots_parents_by_type = group_by(actual_roots_parents, lambda n: n.type)
-            ancestor_engine = self.session.tx._get_write_engine(
+            ancestor_engine = self.session.tx._get_engine(
                 scope, remaining_ancestors, is_readonly=True
             )
             ancestor_connection = await self.session.tx._get_engine_connection(ancestor_engine)
@@ -636,6 +645,6 @@ class SplitConnection(StoreConnection[NodeT, NodeDataT], Generic[NodeT, NodeData
             if query._base
             else self.session._default_scope
         )
-        engine = self.session.tx._get_write_engine(scope, query._node_type, is_readonly=True)
+        engine = self.session.tx._get_engine(scope, query._node_type, is_readonly=True)
         connection = await self.session.tx._get_engine_connection(engine)
         return await connection.aggregate(query)

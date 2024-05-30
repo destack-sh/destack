@@ -299,7 +299,7 @@ class GraphIoServiceBase(BenchServiceBase, GraphIoBase):
                     logger.trace("graph.commit.read", graph=data_graph, span=span)
 
                 # check access
-                with tracer.start_as_current_span("graph.commit.access") as span:
+                with tracer.start_as_current_span("graph.commit.check_access") as span:
                     matrix = generate_access_matrix(subject, data_graph)
                     decision, accesses = evaluate_edit(matrix, data_graph, request.edits)
                     if decision != PolicyEffect.ALLOW:

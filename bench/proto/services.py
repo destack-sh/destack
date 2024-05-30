@@ -187,6 +187,7 @@ class BenchServiceBase:
                         response_stream = func(subject, request)
                     else:
                         response_stream = func(request)
+                    span.end()  # end early (streaming)
                     async for partial_response in response_stream:
                         log.trace(f"{rpc_name}.stream", response=partial_response)
                         await stream.send_message(partial_response)

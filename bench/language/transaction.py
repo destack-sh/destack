@@ -131,7 +131,7 @@ class Transaction:
             scope.package_id = uuid_to_str(n.package_id) or self.session._default_scope.package_id
         return scope
 
-    def _get_write_engine(
+    def _get_engine(
         self,
         scope: GraphScope,
         node_types: NodeType | Collection[NodeType],
@@ -211,7 +211,7 @@ class Transaction:
         from bench.proto import wiring
 
         node_type = wiring.unpack_enum(NodeType, edit.node_type)
-        engine = self._get_write_engine(edit.scope, node_type, is_readonly=False)
+        engine = self._get_engine(edit.scope, node_type, is_readonly=False)
         self.edits.append(edit)
         self._pending_edits_by_engine_id[engine.id].append(edit)
         if node is not None:

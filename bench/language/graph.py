@@ -51,32 +51,39 @@ class NodeGraphBase(abc.ABC, Generic[SomeNodeT, IdT]):
         return f"<{self.__class__.__name__} {self}>"
 
     @property
+    @abc.abstractmethod
     def nodes(self) -> Collection[SomeNodeT]:
         raise NotImplementedError
 
     def copy(self) -> "NodeGraphBase[SomeNodeT, IdT]":
         raise NotImplementedError
 
+    @abc.abstractmethod
     def get(self, node_id_or_ck: IdT) -> Optional[SomeNodeT]:
         """Gets a node by id or ck"""
         raise NotImplementedError
 
+    @abc.abstractmethod
     def clear(self):
         """Clear the graph"""
         raise NotImplementedError
 
+    @abc.abstractmethod
     def add(self, node: "SomeNodeT"):
         """Add a node to the graph (error if node already exists, *no* descendants)"""
         raise NotImplementedError
 
+    @abc.abstractmethod
     def update(self, node: "SomeNodeT"):
         """Updates an existing node in this graph (must exist)"""
         raise NotImplementedError
 
+    @abc.abstractmethod
     def remove(self, node: "SomeNodeT"):
         """Remove a node from the graph (incl. all descendants)"""
         raise NotImplementedError
 
+    @abc.abstractmethod
     def find_roots(self) -> tuple[SomeNodeT, ...]:
         raise NotImplementedError
 
@@ -86,6 +93,12 @@ class NodeGraphBase(abc.ABC, Generic[SomeNodeT, IdT]):
             raise ValueError(f"expected 0 or 1 root nodes, got {roots}")
         return roots[0] if roots else None
 
+    @abc.abstractmethod
+    def has_descendants(self, node: SomeNodeT, child_node_type: NodeType | None = None) -> bool:
+        """Checks if a node has descendants of a certain type"""
+        raise NotImplementedError
+
+    @abc.abstractmethod
     def collect_descendants(
         self, node: SomeNodeT, child_node_type: NodeType | None = None, recursive: bool = False
     ) -> tuple["SomeNodeT", ...] | list["SomeNodeT"]:
@@ -115,6 +128,7 @@ class NodeGraphBase(abc.ABC, Generic[SomeNodeT, IdT]):
     def __contains__(self, item: IdT):
         return self.get(item) is not None
 
+    @abc.abstractmethod
     def __len__(self):
         raise NotImplementedError
 
@@ -234,6 +248,15 @@ class NodeGraph(NodeGraphBase[NodeT, UUID]):
             for node in self.nodes_by_id.values()
             if node.parent_ptr is None or node.parent_ptr.id not in self.nodes_by_id
         )
+
+    def has_descendants(self, node: NodeT, child_node_type: NodeType | None = None) -> bool:
+        if child_node_type is not None:
+            return len(self.nodes_by_parent_id_and_type.get((node.id, child_node_type), ())) > 0
+        else:
+            return any(
+                len(self.nodes_by_parent_id_and_type.get((node.id, child_type), ())) > 0
+                for child_type in CHILD_NODE_TYPES[node.metatype]
+            )
 
     def collect_descendants(
         self,
@@ -361,6 +384,15 @@ class NodeDataGraph(NodeGraphBase[NodeDataT, str]):
             if node.parent_ptr is None or node.parent_ptr.id not in self.nodes_by_id
         )
 
+    def has_descendants(self, node: NodeDataT, child_node_type: NodeType | None = None) -> bool:
+        if child_node_type is not None:
+            return len(self.nodes_by_parent_id_and_type.get((node.id, child_node_type), ())) > 0
+        else:
+            return any(
+                len(self.nodes_by_parent_id_and_type.get((node.id, child_type), ())) > 0
+                for child_type in CHILD_NODE_TYPES[cast(NodeType, node.metatype)]
+            )
+
     def collect_descendants(
         self, node: NodeDataT, child_node_type: NodeType | None = None, recursive: bool = False
     ) -> list["NodeDataT"]:
@@ -465,6 +497,15 @@ class DetachedNodeGraph(NodeGraphBase[NodeT, UUID]):
             for node in self.nodes_by_ck.values()
             if node.parent is None or node.parent.ck not in self.nodes_by_ck
         )
+
+    def has_descendants(self, node: NodeT, child_node_type: NodeType | None = None) -> bool:
+        if child_node_type is not None:
+            return any(
+                child.metatype == child_node_type
+                for child in self.nodes_by_parent_ck.get(node.ck, EMPTY_LIST)
+            )
+        else:
+            return len(self.nodes_by_parent_ck.get(node.ck, EMPTY_LIST)) > 0
 
     def collect_descendants(
         self,
