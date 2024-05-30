@@ -1,4 +1,4 @@
-import { supervisor } from "@/proto/services";
+import { getHostClient, supervisor } from "@/proto/services";
 import { BenchData, BranchData, EditType, NodeType, SpaceType } from "@/proto/wire";
 import {
   nodeReference,
@@ -137,10 +137,12 @@ export async function goToBench(go: {
   log.info("space.goToBench", go);
 
   // connect to bench/package
+  const host = await getHostClient({ id: go.bench.id! });
   const {
     response: { nodes },
-  } = await supervisor.getNodes({
+  } = await host.getNodes({
     roots: [go.bench],
+    scope: { benchId: go.bench.id! },
     options: makeReadOptions({ descendantTypes: [NodeType.BRANCH] }),
   });
   const graph = new NodeGraph();
