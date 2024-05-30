@@ -498,6 +498,9 @@ export class NodeGraph extends BaseNodeGraphMixin implements ReadNodeGraph, Writ
           `node ${describeNode(node)} not found in parent ${describeNode(node.parentPtr)} in ${this.describeSelf()}`,
         );
       this.nodesByParentIdAndType[parentId][node.metatype].splice(nodeIdx, 1);
+      if (this.nodesByParentIdAndType[parentId][node.metatype].length == 0)
+        delete this.nodesByParentIdAndType[parentId][node.metatype];
+      if (Object.keys(this.nodesByParentIdAndType[parentId]).length == 0) delete this.nodesByParentIdAndType[parentId];
     } else {
       const rootIdx = this.rootsIds.findIndex((n) => n == node.id);
       if (rootIdx == -1) throw new Error(`node ${describeNode(node)} not found in roots of ${this.describeSelf()}`);
@@ -1091,7 +1094,7 @@ export function getGroupedChildrenRef<T extends NodeType>(walk: {
 
   function get(): { [parentId: string]: NodeT[] } {
     unsub();
- 
+
     const childrenByParentId: { [parentId: string]: NodeT[] } = {};
     for (const parentId of parentIds.value) {
       for (const childType of walk.childTypes) {
