@@ -20,7 +20,7 @@ TK_LENGTH_B64 = 12  # 1.5 * TK_LENGTH_BYTES (must be integer)
 UNSET = cast(Any, object())
 EMPTY_LIST: list = []
 EMPTY_SET: frozenset = frozenset()
-EMPTY_DICT: typing.Mapping = frozendict()
+EMPTY_DICT: dict[Any, Any] = frozendict()
 EMPTY_SCOPE = GraphScope()
 
 

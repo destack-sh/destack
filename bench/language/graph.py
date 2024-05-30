@@ -20,7 +20,7 @@ import structlog
 from more_itertools import first
 from opentelemetry import trace
 
-from bench.language.const import EMPTY_LIST, EditType, NodeType, ReferenceKind
+from bench.language.const import EMPTY_DICT, EMPTY_LIST, EditType, NodeType, ReferenceKind
 from bench.language.setup import CHILD_NODE_TYPES, NODE_CLASS_BY_TYPE, STRUCT_CLASS_BY_TYPE
 from bench.language.validation import on_invalid_raise
 from bench.proto import wire
@@ -152,15 +152,171 @@ class NodeGraphBase(abc.ABC, Generic[SomeNodeT, IdT]):
             self.add(node)
 
 
+class NodeDataGraph(NodeGraphBase[NodeDataT, str]):
+    """A NodeGraph for NodeData objects (strings for ids, parent_ptr)."""
+
+    def __init__(self, nodes: Collection[NodeDataT] | None = None):
+        self.nodes_by_id: dict[str, NodeDataT] = {}
+        self.nodes_by_ck: dict[str, NodeDataT] = {}  # *most* nodes have a 'ck'
+        self.nodes_by_parent_id_and_type: dict[str, dict[wire.ObjectType, list[NodeDataT]]] = {}
+        if isinstance(nodes, Collection):
+            for node in nodes:
+                self.add(node)
+        elif nodes is not None:
+            raise ValueError(f"expected nodes, got {nodes!r}")
+
+    @property
+    def nodes(self) -> Collection[NodeDataT]:
+        return self.nodes_by_id.values()
+
+    def __len__(self):
+        return len(self.nodes_by_ck)
+
+    def get(self, node_id_or_ck: str) -> Optional[NodeDataT]:
+        """Gets a node by id"""
+        assert isinstance(node_id_or_ck, str), f"expected str, got {node_id_or_ck!r}"
+        node = self.nodes_by_id.get(node_id_or_ck)
+        if node is not None:
+            return node
+        return self.nodes_by_ck.get(node_id_or_ck)
+
+    def clear(self):
+        """Clear the graph"""
+        self.nodes_by_id.clear()
+        self.nodes_by_ck.clear()
+        self.nodes_by_parent_id_and_type.clear()
+
+    def add(self, node: NodeDataT):
+        assert isinstance(node.id, str), f"cannot add {node!r} to {self!r} with id {node.id!r}"
+        if node.id in self.nodes_by_id:
+            existing = self.nodes_by_id[node.id]
+            raise ValueError(
+                f"node {node!r} (id={node.id}) already exists in {self!r}: {existing!r} (id={existing.id})"
+            )
+        self.nodes_by_id[node.id] = node
+        if hasattr(node, "ck"):
+            self.nodes_by_ck[getattr(node, "ck")] = node
+        if node.parent_ptr is not None:
+            self._add_to_parent(node)
+
+    def update(self, node: NodeDataT):
+        assert isinstance(node.id, str), f"cannot add {node!r} to {self!r} with id {node.id!r}"
+        old = self.nodes_by_id.get(node.id)
+        if old is None:
+            raise ValueError(f"node {node!r} does not exist in {self!r}")
+        self.nodes_by_id[node.id] = node
+        if hasattr(node, "ck"):
+            self.nodes_by_ck[getattr(node, "ck")] = node
+
+        # update parent if changed
+        old_parent_id = old.parent_ptr.id if old.parent_ptr is not None else None
+        new_parent_id = node.parent_ptr.id if node.parent_ptr is not None else None
+        if old_parent_id != new_parent_id:
+            if old.parent_ptr is not None:
+                self._remove_from_parent(old)
+            if node.parent_ptr is not None:
+                self._add_to_parent(node)
+
+    def remove(self, node: NodeDataT):
+        assert isinstance(node.id, str), f"cannot add {node!r} to {self!r} with id {node.id!r}"
+        if node.parent_ptr is not None:
+            self._remove_from_parent(node)
+        self.nodes_by_id.pop(node.id, None)
+        if hasattr(node, "ck"):
+            self.nodes_by_ck.pop(getattr(node, "ck"), None)
+        # descend
+        if node.id in self.nodes_by_parent_id_and_type:
+            for child_type in self.nodes_by_parent_id_and_type[node.id]:
+                for child in self.nodes_by_parent_id_and_type[node.id][child_type]:
+                    self.remove(child)
+
+    def _add_to_parent(self, node: NodeDataT):
+        assert node.parent_ptr is not None, f"{node!r} has no parent"
+        parent_id = cast(str, node.parent_ptr.id)
+        if parent_id not in self.nodes_by_parent_id_and_type:
+            self.nodes_by_parent_id_and_type[parent_id] = {}
+        if node.metatype not in self.nodes_by_parent_id_and_type[parent_id]:
+            self.nodes_by_parent_id_and_type[parent_id][node.metatype] = []
+        self.nodes_by_parent_id_and_type[parent_id][node.metatype].append(node)
+
+    def _remove_from_parent(self, node: NodeDataT):
+        assert node.parent_ptr is not None, f"{node!r} has no parent"
+        parent_id = cast(str, node.parent_ptr.id)
+        assert parent_id in self.nodes_by_parent_id_and_type, f"{node!r} has no parent in {self!r}"
+        assert (
+            node.metatype in self.nodes_by_parent_id_and_type[parent_id]
+        ), f"{node!r} not in {self!r}"
+        self.nodes_by_parent_id_and_type[parent_id][node.metatype].remove(node)
+        if len(self.nodes_by_parent_id_and_type[parent_id][node.metatype]) == 0:
+            self.nodes_by_parent_id_and_type[parent_id].pop(node.metatype)
+        if len(self.nodes_by_parent_id_and_type[parent_id]) == 0:
+            self.nodes_by_parent_id_and_type.pop(parent_id)
+
+    def find_roots(self) -> tuple[NodeDataT, ...]:
+        return tuple(
+            node
+            for node in self.nodes_by_id.values()
+            if node.parent_ptr is None or node.parent_ptr.id not in self.nodes_by_id
+        )
+
+    def has_descendants(self, node: NodeDataT, child_node_type: NodeType | None = None) -> bool:
+        if node.id not in self.nodes_by_parent_id_and_type:
+            return False
+        if child_node_type is not None:
+            return child_node_type in self.nodes_by_parent_id_and_type[node.id]
+        else:
+            return True
+
+    def collect_descendants(
+        self, node: NodeDataT, child_node_type: NodeType | None = None, recursive: bool = False
+    ) -> list["NodeDataT"]:
+        assert isinstance(node.id, str), f"expected NodeData, got {node!r}"
+        if node.id not in self.nodes_by_parent_id_and_type:
+            return EMPTY_LIST
+        if not recursive:
+            if child_node_type is not None:
+                return self.nodes_by_parent_id_and_type[node.id].get(
+                    cast(wire.ObjectType, child_node_type), []
+                )
+            else:
+                all_children: list[NodeDataT] = []
+                for children in self.nodes_by_parent_id_and_type[node.id].values():
+                    all_children.extend(children)
+                return all_children
+        else:
+            descendants: list[NodeDataT] = []
+            if child_node_type:
+                queue = deque(
+                    self.nodes_by_parent_id_and_type[node.id].get(
+                        cast(wire.ObjectType, child_node_type), []
+                    )
+                )
+            else:
+                queue = deque()
+                for children in self.nodes_by_parent_id_and_type[node.id].values():
+                    queue.extend(children)
+            while queue:
+                cur = queue.popleft()
+                descendants.append(cur)
+                for children in self.nodes_by_parent_id_and_type.get(cur.id, {}).values():
+                    queue.extend(children)
+            return descendants
+
+    def get_root(self, node: NodeDataT) -> NodeDataT:
+        """Gets the root node for a given node"""
+        root = node
+        while root.parent_ptr is not None:
+            root = self.nodes_by_id[cast(str, root.parent_ptr.id)]
+        return root
+
+
 class NodeGraph(NodeGraphBase[NodeT, UUID]):
     """A graph of Nodes with ids."""
 
     def __init__(self, nodes: Collection[NodeT] | "NodeGraph" | None = None):
         self.nodes_by_id: dict[UUID, NodeT] = {}
         self.nodes_by_ck: dict[UUID, NodeT] = {}  # most nodes have a ck as well
-        self.nodes_by_parent_id_and_type: dict[tuple[UUID, NodeType], list[NodeT]] = defaultdict(
-            list
-        )
+        self.nodes_by_parent_id_and_type: dict[UUID, dict[NodeType, list[NodeT]]] = {}
 
         if isinstance(nodes, list):
             for node in nodes or []:
@@ -201,9 +357,8 @@ class NodeGraph(NodeGraphBase[NodeT, UUID]):
             )
         self.nodes_by_id[node.id] = node
         self.nodes_by_ck[node.ck] = node
-
-        if node.parent_id is not None:
-            self.nodes_by_parent_id_and_type[(node.parent_id, node.metatype)].append(node)
+        if node.parent is not None:
+            self._add_to_parent(node)
 
     def update(self, node: NodeT):
         assert isinstance(node.id, UUID), f"cannot add {node!r} to {self!r} with id {node.id!r}"
@@ -213,34 +368,50 @@ class NodeGraph(NodeGraphBase[NodeT, UUID]):
         self.nodes_by_id[node.id] = node
         self.nodes_by_ck[node.ck] = node
 
-        # we can just update the parent->child reference and that will 'move' all descendants
+        # update parent if changed
         if old.parent_id != node.parent_id:
             if old.parent_id is not None:
-                self.nodes_by_parent_id_and_type[(old.parent_id, old.metatype)].remove(old)
+                self._remove_from_parent(old)
             if node.parent_id is not None:
-                self.nodes_by_parent_id_and_type[(node.parent_id, node.metatype)].append(node)
+                self._add_to_parent(node)
 
     def remove(self, node: NodeT):
         assert isinstance(node.id, UUID), f"cannot add {node!r} to {self!r} with id {node.id!r}"
-
-        queue = deque([node])
+        old = self.nodes_by_id.get(node.id)
+        if old is None:
+            raise ValueError(f"node {node!r} does not exist in {self!r}")
+        self.nodes_by_id.pop(node.id)
+        self.nodes_by_ck.pop(node.ck)
         if node.parent is not None:
-            children = self.nodes_by_parent_id_and_type[(node.parent.id, node.metatype)]
-            assert node in children, f"{node!r} not in {children!r} of {node.parent!r}"
-            children.remove(node)
-        while queue:
-            node = queue.popleft()
-            self.nodes_by_id.pop(node.id, None)
-            self.nodes_by_ck.pop(node.ck, None)
+            self._remove_from_parent(node)
 
+        # descend
+        if node.id in self.nodes_by_parent_id_and_type:
             for child_type in CHILD_NODE_TYPES[node.metatype]:
-                children = self.nodes_by_parent_id_and_type.pop((node.id, child_type), ())
-                if CHILD_NODE_TYPES[child_type]:
-                    queue.extend(children)
-                else:
-                    for child in children:
-                        self.nodes_by_id.pop(child.id, None)
-                        self.nodes_by_ck.pop(child.ck, None)
+                for child in self.nodes_by_parent_id_and_type[node.id].get(child_type, ()):
+                    self.remove(child)
+
+    def _add_to_parent(self, node: NodeT):
+        assert node.parent is not None, f"{node!r} has no parent"
+        parent_id = node.parent.id
+        if parent_id not in self.nodes_by_parent_id_and_type:
+            self.nodes_by_parent_id_and_type[parent_id] = {}
+        if node.metatype not in self.nodes_by_parent_id_and_type[parent_id]:
+            self.nodes_by_parent_id_and_type[parent_id][node.metatype] = []
+        self.nodes_by_parent_id_and_type[parent_id][node.metatype].append(node)
+
+    def _remove_from_parent(self, node: NodeT):
+        assert node.parent is not None, f"{node!r} has no parent"
+        parent_id = node.parent.id
+        assert parent_id in self.nodes_by_parent_id_and_type, f"{node!r} has no parent in {self!r}"
+        assert (
+            node.metatype in self.nodes_by_parent_id_and_type[parent_id]
+        ), f"{node!r} not in {self!r}"
+        self.nodes_by_parent_id_and_type[parent_id][node.metatype].remove(node)
+        if len(self.nodes_by_parent_id_and_type[parent_id][node.metatype]) == 0:
+            self.nodes_by_parent_id_and_type[parent_id].pop(node.metatype)
+        if len(self.nodes_by_parent_id_and_type[parent_id]) == 0:
+            self.nodes_by_parent_id_and_type.pop(parent_id)
 
     def find_roots(self) -> tuple[NodeT, ...]:
         return tuple(
@@ -250,13 +421,12 @@ class NodeGraph(NodeGraphBase[NodeT, UUID]):
         )
 
     def has_descendants(self, node: NodeT, child_node_type: NodeType | None = None) -> bool:
+        if node.id not in self.nodes_by_parent_id_and_type:
+            return False
         if child_node_type is not None:
-            return len(self.nodes_by_parent_id_and_type.get((node.id, child_node_type), ())) > 0
+            return child_node_type in self.nodes_by_parent_id_and_type[node.id]
         else:
-            return any(
-                len(self.nodes_by_parent_id_and_type.get((node.id, child_type), ())) > 0
-                for child_type in CHILD_NODE_TYPES[node.metatype]
-            )
+            return True
 
     def collect_descendants(
         self,
@@ -265,170 +435,32 @@ class NodeGraph(NodeGraphBase[NodeT, UUID]):
         recursive: bool = False,
     ) -> list["NodeT"]:
         assert isinstance(node.id, UUID), f"expected Node, got {node!r}"
-        if not CHILD_NODE_TYPES[node.metatype]:
+        if node.id not in self.nodes_by_parent_id_and_type:
             return EMPTY_LIST
         if not recursive:
-            if child_node_type is not None:  # best case
-                return self.nodes_by_parent_id_and_type.get((node.id, child_node_type), [])
+            if child_node_type is not None:
+                return self.nodes_by_parent_id_and_type[node.id].get(child_node_type, EMPTY_LIST)
             else:
-                descendants: list[NodeT] = []
-                for child_type in CHILD_NODE_TYPES[node.metatype]:
-                    children = self.nodes_by_parent_id_and_type.get((node.id, child_type), ())
-                    if len(children) > 0:
-                        descendants.extend(children)
-                return descendants
+                all_children: list[NodeT] = []
+                for children in self.nodes_by_parent_id_and_type[node.id].values():
+                    all_children.extend(children)
+                return all_children
         else:
             descendants: list[NodeT] = []
             if child_node_type:
-                queue = deque()
-                for child in self.nodes_by_parent_id_and_type.get((node.id, child_node_type), ()):
-                    queue.append(child)
+                queue = deque(
+                    self.nodes_by_parent_id_and_type[node.id].get(child_node_type, EMPTY_LIST)
+                )
             else:
                 queue = deque()
-                for child_type in CHILD_NODE_TYPES[node.metatype]:
-                    children = self.nodes_by_parent_id_and_type.get((node.id, child_type), ())
+                for children in self.nodes_by_parent_id_and_type[node.id].values():
                     queue.extend(children)
             while queue:
                 cur = queue.popleft()
                 descendants.append(cur)
-                for child_type in CHILD_NODE_TYPES[cur.metatype]:
-                    children = self.nodes_by_parent_id_and_type.get((cur.id, child_type), ())
+                for children in self.nodes_by_parent_id_and_type.get(cur.id, EMPTY_DICT).values():
                     queue.extend(children)
             return descendants
-
-
-class NodeDataGraph(NodeGraphBase[NodeDataT, str]):
-    """A NodeGraph for NodeData objects (strings for ids, parent_ptr)."""
-
-    def __init__(self, nodes: Collection[NodeDataT] | None = None):
-        self.nodes_by_id: dict[str, NodeDataT] = {}
-        self.nodes_by_ck: dict[str, NodeDataT] = {}  # *most* nodes have a 'ck'
-        # nocheckin :Performance: use nodes_by_parent_id with nested by_type dict for graphs
-        self.nodes_by_parent_id_and_type: dict[
-            # NOTE: typing the key broad like this is to avoid casting all the time
-            tuple[Any, wire.NodeType | wire.ObjectType | NodeType],
-            list[NodeDataT],
-        ] = defaultdict(list)
-        if isinstance(nodes, Collection):
-            for node in nodes:
-                self.add(node)
-        elif nodes is not None:
-            raise ValueError(f"expected nodes, got {nodes!r}")
-
-    @property
-    def nodes(self) -> Collection[NodeDataT]:
-        return self.nodes_by_id.values()
-
-    def __len__(self):
-        return len(self.nodes_by_ck)
-
-    def get(self, node_id_or_ck: str) -> Optional[NodeDataT]:
-        """Gets a node by id"""
-        assert isinstance(node_id_or_ck, str), f"expected str, got {node_id_or_ck!r}"
-        node = self.nodes_by_id.get(node_id_or_ck)
-        if node is not None:
-            return node
-        return self.nodes_by_ck.get(node_id_or_ck)
-
-    def clear(self):
-        """Clear the graph"""
-        self.nodes_by_id.clear()
-        self.nodes_by_ck.clear()
-        self.nodes_by_parent_id_and_type.clear()
-
-    def add(self, node: NodeDataT):
-        assert isinstance(node.id, str), f"cannot add {node!r} to {self!r} with id {node.id!r}"
-        if node.id in self.nodes_by_id:
-            existing = self.nodes_by_id[node.id]
-            raise ValueError(
-                f"node {node!r} (id={node.id}) already exists in {self!r}: {existing!r} (id={existing.id})"
-            )
-        self.nodes_by_id[node.id] = node
-        if hasattr(node, "ck"):
-            self.nodes_by_ck[getattr(node, "ck")] = node
-        if node.parent_ptr is not None:
-            parent_id = cast(str, node.parent_ptr.id)
-            self.nodes_by_parent_id_and_type[(parent_id, node.metatype)].append(node)
-
-    def update(self, node: NodeDataT):
-        assert isinstance(node.id, str), f"cannot add {node!r} to {self!r} with id {node.id!r}"
-        old = self.nodes_by_id.get(node.id)
-        if old is None:
-            raise ValueError(f"node {node!r} does not exist in {self!r}")
-        self.nodes_by_id[node.id] = node
-        if hasattr(node, "ck"):
-            self.nodes_by_ck[getattr(node, "ck")] = node
-        if old.parent_ptr is not None:
-            self.nodes_by_parent_id_and_type[(old.parent_ptr.id, old.metatype)].remove(old)
-        if node.parent_ptr is not None:
-            self.nodes_by_parent_id_and_type[(node.parent_ptr.id, node.metatype)].append(node)
-
-    def remove(self, node: NodeDataT):
-        assert isinstance(node.id, str), f"cannot add {node!r} to {self!r} with id {node.id!r}"
-        if node.parent_ptr is not None:
-            self.nodes_by_parent_id_and_type[(node.parent_ptr.id, node.metatype)].remove(node)
-        queue = deque([node])
-        while queue:
-            node = queue.popleft()
-            self.nodes_by_id.pop(node.id, None)
-            if hasattr(node, "ck"):
-                self.nodes_by_ck.pop(getattr(node, "ck"), None)
-            for child in self.nodes_by_parent_id_and_type.get((node.id, node.metatype), ()):
-                self.nodes_by_id.pop(child.id, None)
-                if child is not None:
-                    queue.append(child)
-
-    def find_roots(self) -> tuple[NodeDataT, ...]:
-        return tuple(
-            node
-            for node in self.nodes_by_id.values()
-            if node.parent_ptr is None or node.parent_ptr.id not in self.nodes_by_id
-        )
-
-    def has_descendants(self, node: NodeDataT, child_node_type: NodeType | None = None) -> bool:
-        if child_node_type is not None:
-            return len(self.nodes_by_parent_id_and_type.get((node.id, child_node_type), ())) > 0
-        else:
-            return any(
-                len(self.nodes_by_parent_id_and_type.get((node.id, child_type), ())) > 0
-                for child_type in CHILD_NODE_TYPES[cast(NodeType, node.metatype)]
-            )
-
-    def collect_descendants(
-        self, node: NodeDataT, child_node_type: NodeType | None = None, recursive: bool = False
-    ) -> list["NodeDataT"]:
-        assert isinstance(node.id, str), f"expected NodeData, got {Node!r}"
-        if not recursive:
-            if child_node_type is not None:
-                return self.nodes_by_parent_id_and_type.get((node.id, child_node_type), [])
-            else:
-                descendants: list[NodeDataT] = []
-                for child_type in CHILD_NODE_TYPES[cast(NodeType, node.metatype)]:
-                    descendants.extend(
-                        self.nodes_by_parent_id_and_type.get((node.id, child_type), ())
-                    )
-                return descendants
-        else:
-            descendants: list[NodeDataT] = []
-            if child_node_type:
-                queue = deque(self.nodes_by_parent_id_and_type.get((node.id, child_node_type), ()))
-            else:
-                queue = deque()
-                for child_type in CHILD_NODE_TYPES[cast(NodeType, node.metatype)]:
-                    queue.extend(self.nodes_by_parent_id_and_type.get((node.id, child_type), ()))
-            while queue:
-                cur = queue.popleft()
-                descendants.append(cur)
-                for child_type in CHILD_NODE_TYPES[cast(NodeType, cur.metatype)]:
-                    queue.extend(self.nodes_by_parent_id_and_type.get((cur.id, child_type), ()))
-            return descendants
-
-    def get_root(self, node: NodeDataT) -> NodeDataT:
-        """Gets the root node for a given node"""
-        root = node
-        while root.parent_ptr is not None:
-            root = self.nodes_by_id[cast(str, root.parent_ptr.id)]
-        return root
 
 
 class DetachedNodeGraph(NodeGraphBase[NodeT, UUID]):
@@ -730,7 +762,7 @@ class GraphNodeList(NodeList[NodeT]):
     def nodes(self) -> tuple[NodeT, ...] | list[NodeT]:
         """Access the computed nodes"""
         descendants = self._parent._graph.collect_descendants(
-            self._parent, self._child_node_type, recursive=False
+            node=self._parent, child_node_type=self._child_node_type, recursive=False
         )
         if (
             len(descendants) > 1
