@@ -14,7 +14,6 @@ from bench.language.const import UNSET, NodeType, ObjectType
 from bench.language.graph import NodeDataGraph
 from bench.language.node import NODE_CLASS_BY_TYPE, Node, NodeGraph, ReadInfo, Struct
 from bench.language.notice import NoticeHandler, on_notice_ignore, on_warning_raise
-from bench.language.property import METATYPE_PROPERTY
 from bench.language.session import Session
 from bench.language.setup import BENCH_CLASS_BY_TYPE
 from bench.language.validation import on_invalid_raise
@@ -54,7 +53,7 @@ def copy_data(data: StructDataT) -> StructDataT:
     data_kwargs = {}
     try:
         for prop in bench_cls.__wired_properties__.values():
-            if prop.is_computed and prop.id != METATYPE_PROPERTY.id:
+            if not hasattr(data, prop.name):
                 continue
             value: Any = getattr(data, prop.name)
             if value is None or (value == "" and not prop.is_required):

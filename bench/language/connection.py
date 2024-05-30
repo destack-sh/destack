@@ -27,7 +27,6 @@ from bench.language.const import (
     NodeType,
     StoreConnectionType,
 )
-from bench.language.graph import NodeDataGraph
 from bench.language.node import Node
 from bench.language.setup import CHILD_NODE_TYPES
 from bench.proto.wire import (
@@ -48,6 +47,7 @@ from bench.utils.tenacity import RETRY_GRPC, RetryOptions, retry
 
 if TYPE_CHECKING:
     from bench.language import Bench, Expression, Field, Property, Session, Store
+    from bench.language.graph import NodeDataGraph
     from bench.language.query import QueryBuilder
     from bench.proto.monkey import _PatchedRpcMetadata
     from bench.sql.client import _PgStoreConnection
@@ -456,7 +456,7 @@ class InMemoryEngine(StoreEngine[NodeT, NodeDataT], Generic[NodeT, NodeDataT]):
     """A read-only engine that reads from an in-memory graph."""
 
     def __init__(
-        self, scope: GraphScope, node_types: bittuple[NodeType], graph: NodeDataGraph[AnyNodeData]
+        self, scope: GraphScope, node_types: bittuple[NodeType], graph: "NodeDataGraph[AnyNodeData]"
     ):
         super().__init__(scope, node_types)
         self.graph = graph
@@ -488,6 +488,7 @@ class InMemoryConnection(StoreConnection[NodeT, NodeDataT], Generic[NodeT, NodeD
         self, query: "QueryBuilder[NodeT, NodeDataT]", options: FetchOptions
     ) -> FetchResult:
         from bench.language.expression import NodeReference
+        from bench.language.graph import NodeDataGraph
         from bench.proto import wire
 
         loaded_graph = self.engine.graph
@@ -505,8 +506,14 @@ class InMemoryConnection(StoreConnection[NodeT, NodeDataT], Generic[NodeT, NodeD
             roots_ids = tuple(str(v) for v in query._filter.value)
         else:
             raise RuntimeError(f"unsupported filter op {query._filter!r} for {query!r}")
-        roots = tuple(loaded_graph[i] for i in roots_ids if i in loaded_graph)
-        visited_graph.extend(roots)
+        roots: list[AnyNodeData] = []
+        for root_id in roots_ids:
+            if root_id in visited_graph:
+                continue  # dedupe
+            root = loaded_graph.get(root_id)
+            if root is not None:
+                roots.append(root)
+                visited_graph.add(root)
 
         # select ancestors
         ancestor_types = query._options.ancestor_types if query._options else ()
@@ -569,6 +576,7 @@ class SplitConnection(StoreConnection[NodeT, NodeDataT], Generic[NodeT, NodeData
         self, query: "QueryBuilder[NodeT, NodeDataT]", options: FetchOptions
     ) -> FetchResult:
         from bench.language import C, QueryBuilder, ReadOptions
+        from bench.language.graph import NodeDataGraph
 
         scope = (
             self.session.tx._get_scope_for_node(query._base)

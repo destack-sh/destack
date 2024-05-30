@@ -106,7 +106,7 @@ class Path(Struct):
     flotothemoon/Mirror/Notion/Databases/Landscape
     ^ bench      ^ blocks
     flotothemoon/Applications/Birdy/MainScreen:Dashboard/Big Graphs/Graph1.name
-    ^ bench      ^ blocks                      ^ sub-block                ^ field
+    ^ bench      ^ blocks                      ^ sub-block nod            ^ field
     flotothemoon/Sandbox/Sales/Pipeline/Scraping/WebsiteSamples/Replit.document.title
     ^ bench      ^ blocks                                              ^ field  ^ field
 
