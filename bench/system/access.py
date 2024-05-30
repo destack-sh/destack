@@ -1,6 +1,4 @@
 import asyncio
-import secrets
-from os import urandom
 from typing import cast
 
 import structlog
@@ -15,7 +13,6 @@ from bench.language.node import Node
 from bench.language.query import NodeNotFoundError
 from bench.proto.wire import RpcMetadata
 from bench.system.core import global_session
-from bench.utils.base58 import base58_encode
 from bench.utils.env import IS_DEBUG
 from bench.utils.func import to_uuid
 
@@ -31,11 +28,6 @@ SCRYPT_P = 1  # threads to use
 SCRYPT_MAXMEM = 2**26  # max memory to use in bytes
 SCRYPT_DKLEN = 32  # hash length in bytes
 ACCESS_TOKEN_LENGTH = 32  # bytes
-
-
-def generate_salt() -> bytes:
-    """Generate a random salt."""
-    return urandom(SALT_LENGTH)
 
 
 def hash_password(password: str, salt: bytes) -> bytes:
@@ -71,17 +63,6 @@ async def check_password(password: str, salt: bytes, password_hash: bytes) -> bo
     if duration < MIN_CHECK_PASSWORD_DURATION:
         await asyncio.sleep(MIN_CHECK_PASSWORD_DURATION - duration)
     return result
-
-
-def generate_access_token() -> str:
-    """Generate a random access token."""
-    bytes = urandom(ACCESS_TOKEN_LENGTH)
-    return base58_encode(bytes)
-
-
-def generate_encryption_key(length: int = 32) -> str:
-    """Encryption key for pgcrypto symmetric encryption."""
-    return secrets.token_hex(length)
 
 
 @tracer.start_as_current_span("access.get_client_from_metadata")

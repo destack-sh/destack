@@ -820,14 +820,16 @@ enum ReferenceKind {
 
 // Where a Resource is located (physically).
 // There are
-// - 'continental' regions (Europe, North America, etc.).
-// - 'area-level' regions (Europe Central, US East, etc.).
-// - 'city-level' regions (Frankfurt, Ohio, etc.).
+// - 'continental' regions ([>1, <100]: Europe, North America, etc.).
+// - 'area' regions ([%20=0]: Europe Central, US East, etc.).
+// - 'city' regions (Frankfurt, Ohio, etc.).
 enum Region {
   REGION_UNSPECIFIED = 0;
   REGION_GLOBAL = 1;
-  REGION_EUROPE = 100;
-  REGION_EUROPE_CENTRAL = 101;
+  REGION_EUROPE = 2;
+  REGION_EUROPE_CENTRAL = 100;
+  REGION_EUROPE_ZURICH = 101;
+  REGION_EUROPE_FRANKFURT = 102;
 }
 
 // Generalized status of a Resource in its lifecycle.

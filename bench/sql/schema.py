@@ -11,7 +11,7 @@ from bench.sql.core import (
     Table,
 )
 
-VERSION = "2024.05.29.3"
+VERSION = "2024.05.30.0"
 
 BENCH_TABLE = Table(
     "bench_bench",
@@ -1575,7 +1575,7 @@ SERVER_TABLE = Table(
         Column("updated_by_base_ck", PrimitiveType.UUID, is_nullable=True),
         Column("name", PrimitiveType.STRING),
         Column("text", PrimitiveType.JSON, is_nullable=True),
-        Column("region", PrimitiveType.INT16, default="1"),
+        Column("region", PrimitiveType.INT16),
         Column("status", PrimitiveType.INT16, default="1"),
         Column("profile", PrimitiveType.INT16),
         Column("current_profile", PrimitiveType.INT16, is_nullable=True),
@@ -1620,7 +1620,7 @@ STORE_TABLE = Table(
         Column("updated_by_base_ck", PrimitiveType.UUID, is_nullable=True),
         Column("name", PrimitiveType.STRING),
         Column("text", PrimitiveType.JSON, is_nullable=True),
-        Column("region", PrimitiveType.INT16, default="1"),
+        Column("region", PrimitiveType.INT16),
         Column("status", PrimitiveType.INT16, default="1"),
         Column("version", PrimitiveType.STRING, is_nullable=True),
         Column("current_version", PrimitiveType.STRING, is_nullable=True),
@@ -1664,7 +1664,7 @@ MACHINE_TABLE = Table(
         Column("updated_by_base_ck", PrimitiveType.UUID, is_nullable=True),
         Column("name", PrimitiveType.STRING),
         Column("text", PrimitiveType.JSON, is_nullable=True),
-        Column("region", PrimitiveType.INT16, default="1"),
+        Column("region", PrimitiveType.INT16),
         Column("status", PrimitiveType.INT16, default="1"),
         Column("profile", PrimitiveType.INT16),
         Column("current_profile", PrimitiveType.INT16, is_nullable=True),
@@ -1713,7 +1713,7 @@ DRIVE_TABLE = Table(
         Column("updated_by_base_ck", PrimitiveType.UUID, is_nullable=True),
         Column("name", PrimitiveType.STRING),
         Column("text", PrimitiveType.JSON, is_nullable=True),
-        Column("region", PrimitiveType.INT16, default="1"),
+        Column("region", PrimitiveType.INT16),
         Column("status", PrimitiveType.INT16, default="1"),
     ),
     constraints=(
@@ -1752,7 +1752,7 @@ BLOB_TABLE = Table(
         Column("updated_by_base_ck", PrimitiveType.UUID, is_nullable=True),
         Column("name", PrimitiveType.STRING),
         Column("text", PrimitiveType.JSON, is_nullable=True),
-        Column("region", PrimitiveType.INT16, default="1"),
+        Column("region", PrimitiveType.INT16),
         Column("status", PrimitiveType.INT16, default="1"),
         Column("sha512", PrimitiveType.STRING),
         Column("size", PrimitiveType.INT64),

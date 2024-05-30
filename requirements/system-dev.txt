@@ -195,7 +195,7 @@ pygments==2.18.0
     # via rich
 pyproject-hooks==1.1.0
     # via build
-pyright==1.1.364
+pyright==1.1.365
 pytest==8.2.0
     # via pytest-asyncio
 pytest-asyncio==0.23.6

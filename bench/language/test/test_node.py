@@ -108,3 +108,16 @@ def test_node_pointers_consistency(fabricator: "Fabricator"):
     )
     assert signal_b.parent_ptr
     assert signal_b.parent_ptr.bench_id == bench_b.id
+
+
+def test_node_absolute_path():
+    bench = Bench(slug="test", name="Test")
+    assert bench.absolute_path == "test"
+
+    branch = bench.branches.create(name="Main")
+    assert branch.absolute_path == "test"  # ignore branch
+
+    package = branch.packages.create(name="Main")
+    assert package.absolute_path == "test"  # ignore package
+
+    block = package.blocks.create(name="Applications", type=BlockType.PAGE, is_page=True)

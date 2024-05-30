@@ -8,12 +8,12 @@ from uuid import UUID, uuid4
 
 from bench.proto.wire import GraphScope
 from bench.utils.func import IdEnum, bittuple, cyrb53a
-from bench.utils.utils import frozendict
+from bench.utils.utils import frozendict, get_from_env
 
 if typing.TYPE_CHECKING:
     from bench.language import Bench, Run, Session, Transaction
 
-VERSION = "2024.05.29.3"
+VERSION = "2024.05.30.0"
 REVISION_PENDING = -1
 TK_LENGTH_BYTES = 8
 TK_LENGTH_B64 = 12  # 1.5 * TK_LENGTH_BYTES (must be integer)
@@ -355,6 +355,27 @@ def is_object_type(obj: IdEnum | int) -> bool:
 
 def is_enum_type(obj: IdEnum | int) -> bool:
     return obj in ENUM_TYPES_SET
+
+
+@enum_(EnumType.REGION)
+class Region(IdEnum):
+    """
+    Where a Resource is located (physically).
+    There are
+      - 'continental' regions ([>1, <100]: Europe, North America, etc.).
+      - 'area' regions ([%20=0]: Europe Central, US East, etc.).
+      - 'city' regions (Frankfurt, Ohio, etc.).
+    """
+
+    GLOBAL = 1
+    EUROPE = 2
+
+    # europe
+    EUROPE_CENTRAL = 100
+    EUROPE_ZURICH = 101
+    EUROPE_FRANKFURT = 102
+    # americas
+    ...
 
 
 @enum_(EnumType.BLOCK_TYPE)
@@ -893,10 +914,8 @@ EXPRESSION_OPS_BY_KIND: Mapping[ExpressionKind, bittuple["ExpressionOp"]] = {  #
     ExpressionKind.AGGREGATION: bittuple(*AggregationOp),
     ExpressionKind.SORT: bittuple(*SortOp),
 }
-EXPRESSION_KIND_BY_OP: Mapping["ExpressionOp", ExpressionKind] = {
-    op: kind
-    for kind, ops in EXPRESSION_OPS_BY_KIND.items()
-    for op in ops  # type: ignore
+EXPRESSION_KIND_BY_OP: Mapping["ExpressionOp", ExpressionKind] = {  # type: ignore
+    op: kind for kind, ops in EXPRESSION_OPS_BY_KIND.items() for op in ops
 }
 
 if typing.TYPE_CHECKING:
@@ -949,6 +968,8 @@ class NotificationKind(IdEnum):
 #
 # Other global stuff
 #
+
+REGION = get_from_env("REGION", typ=Region)
 
 
 class BenchError(Exception):
@@ -1033,3 +1054,11 @@ def get_active_root_run() -> Optional["Run"]:
     if run is None:
         return None
     return run.root
+
+
+def get_region() -> Region:
+    bench = get_active_bench()
+    if bench is not None:
+        return bench.region
+    else:
+        return REGION

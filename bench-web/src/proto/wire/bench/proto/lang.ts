@@ -8705,9 +8705,9 @@ export enum ReferenceKind {
 /**
  * Where a Resource is located (physically).
  * There are
- * - 'continental' regions (Europe, North America, etc.).
- * - 'area-level' regions (Europe Central, US East, etc.).
- * - 'city-level' regions (Frankfurt, Ohio, etc.).
+ * - 'continental' regions ([>1, <100]: Europe, North America, etc.).
+ * - 'area' regions ([%20=0]: Europe Central, US East, etc.).
+ * - 'city' regions (Frankfurt, Ohio, etc.).
  *
  * @generated from protobuf enum symbolx.bench.Region
  */
@@ -8721,13 +8721,21 @@ export enum Region {
      */
     GLOBAL = 1,
     /**
-     * @generated from protobuf enum value: REGION_EUROPE = 100;
+     * @generated from protobuf enum value: REGION_EUROPE = 2;
      */
-    EUROPE = 100,
+    EUROPE = 2,
     /**
-     * @generated from protobuf enum value: REGION_EUROPE_CENTRAL = 101;
+     * @generated from protobuf enum value: REGION_EUROPE_CENTRAL = 100;
      */
-    EUROPE_CENTRAL = 101
+    EUROPE_CENTRAL = 100,
+    /**
+     * @generated from protobuf enum value: REGION_EUROPE_ZURICH = 101;
+     */
+    EUROPE_ZURICH = 101,
+    /**
+     * @generated from protobuf enum value: REGION_EUROPE_FRANKFURT = 102;
+     */
+    EUROPE_FRANKFURT = 102
 }
 /**
  * Generalized status of a Resource in its lifecycle.
