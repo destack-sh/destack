@@ -582,13 +582,13 @@ SYSTEM_POLICIES: tuple[Policy, ...] = (
         .object(properties_is_kernel=True),
         PolicyRule(
             name="CannotUpdateSystemProperties",
-            text=Text.plain("System properties must be edited through designated methods."),
+            text=Text.plain("System properties may only be edited through designated methods."),
         )
         .deny(EditType.UPDATE)
         .object(properties_is_system=True),
         PolicyRule(
             name="CannotCreateOrDeleteSystemNodesDirectly",
-            text=Text.plain("System nodes existence must be managed through special methods."),
+            text=Text.plain("System nodes must be managed through designated methods."),
         )
         .deny(
             EditType.CREATE,
@@ -602,10 +602,7 @@ SYSTEM_POLICIES: tuple[Policy, ...] = (
         .object(node_types=(*ROOT_NODE_TYPES.tuple, NodeType.CLIENT)),
         PolicyRule(
             name="CannotEditHandles",
-            text=Text.plain(
-                "Handles (like usernames) must be edited through special methods."
-                # (explicitly deny this since handles are owned by the root via OwnerAccess)
-            ),
+            text=Text.plain("Handles (like usernames) must be edited through special methods."),
         )
         .deny(AccessKind.EDIT)
         .object(node_types=(NodeType.HANDLE,)),
@@ -622,15 +619,15 @@ SYSTEM_POLICIES: tuple[Policy, ...] = (
     Policy(name="OwnerAccess").append(
         PolicyRule(
             name="OwnerCanDoAnything",
-            text=Text.plain("Anyone identified as the owner of a node can always do everything."),
+            text=Text.plain("Owners of a node can do anything (unless otherwise prohibited)."),
         )
         .subject(is_owner=True)
         .allow(),
     ),
     Policy(name="StaffAccess").append(
         PolicyRule(
-            name="StaffCanReadAnythingDuringBeta",
-            text=Text.plain("During the beta, staff users can access anything."),
+            name="StaffCanReadAnythingDuringEA",
+            text=Text.plain("During early access, staff users can access anything."),
         )
         .subject(is_staff=True)
         .allow(AccessKind.READ),
@@ -663,9 +660,7 @@ SYSTEM_POLICIES: tuple[Policy, ...] = (
     Policy(name="AnonymousAccess").append(
         PolicyRule(
             name="AnonCanReadHandle",
-            text=Text.plain(
-                "Everyone (incl. anonymous users) can read Handles (to create an account)."
-            ),
+            text=Text.plain("Everyone can read Handles (so they can create an account)."),
         )
         .subject(is_authenticated=False)
         .allow(AccessKind.READ)
@@ -722,6 +717,7 @@ def generate_access_matrix(
 
     from bench.proto import wiring
 
+    # nocheckin: why is this so slow
     roots = graph.find_roots()
     identities = subject.split_into_acting_subjects(graph)
     matrix = AccessMatrix(subject=subject, identities=list(identities))

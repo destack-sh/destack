@@ -20,11 +20,12 @@ from bench.language.const import (
     IN_BENCH_GLOBAL_NODE_TYPES,
     IN_BENCH_NODE_TYPES,
     LOCAL_NODE_TYPES,
+    SELF_LOGGED_NODE_TYPES,
     NodeType,
 )
 from bench.language.expression import NodeReference
 from bench.language.graph import NodeGraphLike, edit_data_graph, edit_graph
-from bench.language.log import SELF_LOGGED_NODE_TYPES, Log
+from bench.language.log import Log
 from bench.language.property import Property
 from bench.language.session import Session, unsuspend_session
 from bench.language.user import User
@@ -259,6 +260,8 @@ class Host(GraphIoServiceBase, HostBase, HostSpec):
         user: User | None = None
         owned: list[Owner] = []
         if metadata.client_id and metadata.client_access_token:
+            if metadata.client_type is None:
+                raise GRPCError(GRPCStatus.UNAUTHENTICATED, "missing client type")
             client_id = UUID(metadata.client_id)
             if metadata.client_type != wire.ClientType.BENCH_SERVER:
                 # user client

@@ -35,3 +35,12 @@ def test_roundtrip_robust_json(bench_obj: Node | Struct):
     unpacked_wire_obj = type(packed_wire_obj)().from_robust_json(packed_json)
     unpacked_obj = wiring.unpack_struct(unpacked_wire_obj)
     assert unpacked_obj.equals_content(bench_obj), f"{unpacked_obj!r} != {bench_obj!r}"
+
+
+@pytest.mark.parametrize("bench_obj", BENCH_OBJECTS, ids=lambda o: o.__class__.__name__)
+def test_copy(bench_obj: Node | Struct):
+    packed_wire_obj = wiring.pack_struct(bench_obj)
+    copied_obj = wiring.copy_data(packed_wire_obj)
+    assert copied_obj == packed_wire_obj, f"{copied_obj!r} != {packed_wire_obj!r}"
+    unpacked_obj = wiring.unpack_struct(copied_obj)
+    assert unpacked_obj.equals_content(bench_obj), f"{unpacked_obj!r} != {bench_obj!r}"

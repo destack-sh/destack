@@ -115,7 +115,11 @@ async def make_new_user_handle(
     subject = NodeReferenceData(
         metatype=wire.ObjectType.NODE_REFERENCE, type=wire.NodeType.USER, id=str(user.id)
     )
-    metadata = RpcMetadata(client_id=str(client.id), client_access_token=signup_rep.access_token)
+    metadata = RpcMetadata(
+        client_type=wire.ClientType(client.type),
+        client_id=str(client.id),
+        client_access_token=signup_rep.access_token,
+    )
     handle = UserHandle(
         user=user,
         client=client,

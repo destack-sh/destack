@@ -34,6 +34,8 @@ def setup_tracing():
     if _setup_tracing:
         return
 
+    # nocheckin: don't trace in debug mode or tests?
+
     resource = Resource(
         attributes={
             SERVICE_NAME: get_from_env("SERVICE_NAME", default="cli" if IS_DEV else None),

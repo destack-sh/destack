@@ -1098,7 +1098,9 @@ def edit_data_graph(
             if not update_nodes_in_place:
                 existing_node = wiring.copy_data(existing_node)
             for prop_id in properties:
-                prop = node_cls.__properties_by_id__[prop_id]
+                prop = node_cls.__properties_by_id__.get(prop_id)
+                if prop is None:
+                    continue  # does not exist in this node
                 prop = prop.reference_wired_ptr or prop
                 updated_value = getattr(node_data, prop.name)
                 setattr(existing_node, prop.name, updated_value)

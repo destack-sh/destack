@@ -98,6 +98,8 @@ class _PatchedMessage(BetterprotoMessage):
         else:
             return f"<{self.__class__.__name__}>"
 
+    # TODO :Cleanup :Architecture: pull out to_robust_dict/from_robust_dict
+
     def to_robust_dict(self):
         """Patched betterproto.Message.to_dict that handles RobustJson for Structs."""
 
@@ -270,39 +272,6 @@ betterproto.Message.to_robust_json = _PatchedMessage.to_robust_json  # type: ign
 betterproto.Message.from_robust_json = _PatchedMessage.from_robust_json  # type: ignore
 
 
-# monkey-patch betterproto 'Struct' to fix from_dict/to_dict for nested messages
-#  pulls ahead changes from https://github.com/danielgtaylor/python-betterproto/pull/551
-#  see https://github.com/danielgtaylor/python-betterproto/issues/332
-
-# @dataclass(eq=False, repr=False)
-# class Value(betterproto.Message):
-#     """
-#     `Value` represents a dynamically typed value which can be either null, a
-#     number, a string, a boolean, a recursive struct value, or a list of values.
-#     A producer of value is expected to set one of these variants. Absence of
-#     any variant indicates an error. The JSON representation for `Value` is JSON
-#     value.
-#     """
-#
-#     null_value: "NullValue" = betterproto.enum_field(1, group="kind")
-#     """Represents a null value."""
-#
-#     number_value: float = betterproto.double_field(2, group="kind")
-#     """Represents a double value."""
-#
-#     string_value: str = betterproto.string_field(3, group="kind")
-#     """Represents a string value."""
-#
-#     bool_value: bool = betterproto.bool_field(4, group="kind")
-#     """Represents a boolean value."""
-#
-#     struct_value: "Struct" = betterproto.message_field(5, group="kind")
-#     """Represents a structured value."""
-#
-#     list_value: "ListValue" = betterproto.message_field(6, group="kind")
-#     """Represents a repeated `Value`."""
-
-
 def _wrap_value(value: Any) -> BetterprotoValue:
     """Wrap a JSON-able Python value in a betterproto Value."""
     if value is None:
@@ -334,6 +303,11 @@ def _unwrap_value(value: BetterprotoValue) -> Any:
         return [_unwrap_value(e) for e in v.values]
     else:
         return v
+
+
+# monkey-patch betterproto 'Struct' to fix from_dict/to_dict for nested messages
+#  pulls ahead changes from https://github.com/danielgtaylor/python-betterproto/pull/551
+#  see https://github.com/danielgtaylor/python-betterproto/issues/332
 
 
 @dataclass(eq=False, repr=False)
@@ -386,6 +360,8 @@ class _PatchedRpcMetadata(RpcMetadata):
                 str_parts.append(f"{field.name}={value!r}")
         return f"{self.__class__.__name__}({', '.join(str_parts)})"
 
+    # TODO :Architecture: also pull out RpcMetadata.to_headers/from_headers
+
     def to_headers(self) -> dict[str, str]:
         # flat encoding with prefix, messages as base64 :RpcMetadataEncoding
         packed = {
@@ -407,8 +383,11 @@ class _PatchedRpcMetadata(RpcMetadata):
         return {"x-bench-" + k: v for k, v in packed.items() if v is not None}
 
     def from_headers(self, headers: Mapping) -> RpcMetadata:
+        from bench.proto.wire import ClientType
+
         # flat encoding with prefixy, messages as base64 :RpcMetadataEncoding
-        self.client_type = headers.get("x-bench-2")
+        if headers.get("x-bench-2"):
+            self.client_type = ClientType(int(headers["x-bench-2"]))
         self.client_id = headers.get("x-bench-3")
         self.client_nonce = headers.get("x-bench-4")
         self.client_access_token = headers.get("x-bench-5")
