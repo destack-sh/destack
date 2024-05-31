@@ -179,7 +179,7 @@ CONSOLE_FORMATTER = structlog.dev.ConsoleRenderer(
                 key_style=styles.kv_key,
                 value_style=styles.kv_value,
                 reset_style=styles.reset,
-                value_repr=str,
+                value_repr=repr,
             ),
         ),
     ]

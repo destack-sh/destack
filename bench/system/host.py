@@ -13,7 +13,7 @@ from grpclib import Status as GRPCStatus
 from opentelemetry import trace
 
 from bench.language import Bench, Package, Run, Server, Subject
-from bench.language.access import Badge, Owner
+from bench.language.access import Badge, Ownable
 from bench.language.bench import Client, Machine, MachineProfile, ResourceStatus
 from bench.language.connection import InMemoryEngine, PostgresEngine, StoreEngine
 from bench.language.const import (
@@ -258,7 +258,7 @@ class Host(GraphIoServiceBase, HostBase, HostSpec):
         # get client
         is_staff = False
         user: User | None = None
-        owned: list[Owner] = []
+        owned: list[Ownable] = []
         if metadata.client_id and metadata.client_access_token:
             if metadata.client_type is None:
                 raise GRPCError(GRPCStatus.UNAUTHENTICATED, "missing client type")
@@ -387,7 +387,9 @@ class Host(GraphIoServiceBase, HostBase, HostSpec):
             await asyncio.gather(*(plugin.start() for plugin in self._plugins))
             # wait for plugins to finish processing any commits (and to error early)
             await asyncio.gather(*(plugin.wait_step(timeout=10) for plugin in self._plugins))
-        logger.info("host.start", host=self, epoch=self.epoch, plugins=self._plugins, span='current')
+        logger.info(
+            "host.start", host=self, epoch=self.epoch, plugins=self._plugins, span="current"
+        )
 
     def close(self) -> None:
         super().close()
@@ -513,4 +515,4 @@ class Host(GraphIoServiceBase, HostBase, HostSpec):
         await self._session.commit(_skip_lock=True)  # already in a locked section
         if was_suspended:
             self._session.suspend()
-        logger.debug("host.on_commit", host=self, commit=commit, span='current')
+        logger.debug("host.on_commit", host=self, commit=commit, span="current")

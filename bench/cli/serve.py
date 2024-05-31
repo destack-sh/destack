@@ -1,4 +1,5 @@
 import asyncio
+from time import time_ns
 from uuid import UUID
 
 import structlog
@@ -22,6 +23,7 @@ logger = structlog.get_logger(__name__)
 @async_to_sync_blocking
 async def system(host: str, port: int, watch: bool = False, no_supervisor: bool = False):
     await check_is_consistent(check_db=True)
+    start = time_ns()
     logger.info("serve.system", host=host, port=port, env=ENVIRONMENT)
     services: list[BenchServiceBase] = [HostRouter()]
     if not no_supervisor:
@@ -32,12 +34,14 @@ async def system(host: str, port: int, watch: bool = False, no_supervisor: bool 
     with graceful_exit([server]):
         await server.start(host=host, port=port)
     await server.wait_closed()
+    logger.info("serve.system.done", uptime=(time_ns() - start) / 1e9)
 
 
 @app.command()
 @async_to_sync_blocking
 async def runtime(host: str, port: int, watch: bool = False):
     await check_is_consistent(check_db=True)
+    start = time_ns()
     logger.info("serve.runtime", host=host, port=port, env=ENVIRONMENT)
     server = Runtime(
         supervisor_url=get_from_env("SUPERVISOR_URL"),
@@ -54,3 +58,4 @@ async def runtime(host: str, port: int, watch: bool = False):
     with graceful_exit([server]):
         await server.start(host=host, port=port)
     await server.wait_closed()
+    logger.info("serve.runtime.done", uptime=(time_ns() - start) / 1e9)

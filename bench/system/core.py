@@ -128,12 +128,12 @@ class Commit[T: Node]:
     In this view, archive/soft-delete => remove (and unarchive/restore => add).
     """
 
-    edits: list[EditData]
-    cascaded_edits: list[EditData]
+    edits: Collection[EditData]
+    cascaded_edits: Collection[EditData]
     edited_types: bittuple[NodeType]
-    added: list[T]
-    updated: list[T]
-    removed: list[T]
+    added: tuple[T, ...]
+    updated: tuple[T, ...]
+    removed: tuple[T, ...]
     epoch: int
 
     def __str__(self):
@@ -167,9 +167,9 @@ class Commit[T: Node]:
             edits=[e for e in self.edits if NodeType(e.node_type) in node_types],
             cascaded_edits=[e for e in self.cascaded_edits if NodeType(e.node_type) in node_types],
             edited_types=self.edited_types & node_types,
-            added=[node for node in self.added if node.metatype in node_types],
-            updated=[node for node in self.updated if node.metatype in node_types],
-            removed=[node for node in self.removed if node.metatype in node_types],
+            added=tuple(node for node in self.added if node.metatype in node_types),
+            updated=tuple(node for node in self.updated if node.metatype in node_types),
+            removed=tuple(node for node in self.removed if node.metatype in node_types),
             epoch=self.epoch,
         )
 
@@ -256,9 +256,9 @@ def unpack_commit(
         edits=edits,
         cascaded_edits=cascaded_edits,
         edited_types=bittuple.from_ord(NodeType, edited_types),
-        added=list(added.values()),
-        updated=list(updated.values()),
-        removed=list(removed.values()),
+        added=tuple(added.values()),
+        updated=tuple(updated.values()),
+        removed=tuple(removed.values()),
         epoch=cast(int, edits[-1].epoch),
     )
     return commit
