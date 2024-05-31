@@ -246,19 +246,16 @@ class BenchServer(grpclib.server.Server):
             logger.info("server.start", server=self, span="current")
         await super().start(host=host, port=port, **kwargs)
 
-    @tracer.start_as_current_span("server.close")
     def close(self) -> None:
-        logger.info("server.close", server=self)
         for task in self._services:
             task.close()
         super().close()
-        logger.debug("server.close", server=self, span="current")
+        logger.debug("server.close", server=self)
 
-    @tracer.start_as_current_span("server.wait_closed")
     async def wait_closed(self) -> None:
         await super().wait_closed()
         await asyncio.gather(*(h.wait_closed() for h in self._services))
-        logger.debug("server.wait_closed", server=self, span="current")
+        logger.debug("server.wait_closed", server=self)
 
 
 @cachetools.cached(
