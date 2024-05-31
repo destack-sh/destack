@@ -43,8 +43,9 @@
         "SUPERVISOR_URL": "http://localhost:60061",
         // this is the 'test' bench (should probably set this in a local.env?)
         "BENCH_ID": "56cf3720-e93e-4238-92c5-e14f565bc0d7",
-        "CLIENT_ID": "b3e7422c-2bec-4332-ab91-71a31e0d54be",
-        "CLIENT_ACCESS_TOKEN": "G16fnGUAdFoJog29iZvRSAHqSAVP8VC1KUdCUgpZbBMG",
+        "CLIENT_TYPE": "10",
+        "CLIENT_ID": "b81d8261-d738-4ed9-adda-84cfa844a601",
+        "CLIENT_ACCESS_TOKEN": "ABqEoQRK9ACknUShfNUdcYBjHKvUkc7d7Jt2p88pJiPY"
       },
       "console": "integratedTerminal",
       "cwd": "${workspaceFolder}",

@@ -152,19 +152,21 @@ class RemoteQuery[NodeT: Node, NodeDataT: AnyNodeData](ConnectedQuery[NodeT, Nod
             retry.on_attempt()
             try:
                 # get initial result
-                self._node = await self._query.get()
-                graph = self._node._graph
-                assert (
-                    self._node._read is not None and self._node._read.epoch is not None
-                ), f"need read info for {self._node!r} from {self._query!r}: {self._node._read!r}"
-                self._has_result.set()
-                logger.debug(
-                    "query.connect",
-                    query=self._query,
-                    node=self._node,
-                    duration=retry.duration,
-                    retry=retry,
-                )
+                with tracer.start_as_current_span("query.connect"):
+                    self._node = await self._query.get()
+                    graph = self._node._graph
+                    assert (
+                        self._node._read is not None and self._node._read.epoch is not None
+                    ), f"need read info for {self._node!r} from {self._query!r}: {self._node._read!r}"
+                    self._has_result.set()
+                    logger.debug(
+                        "query.connect",
+                        query=self._query,
+                        node=self._node,
+                        duration=retry.duration,
+                        retry=retry,
+                        span='current',
+                    )
 
                 # subscribe forever (until error)
                 node_types: list[NodeType] = [self._query._node_type]

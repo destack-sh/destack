@@ -1,6 +1,6 @@
 import asyncio
 from contextlib import asynccontextmanager
-from typing import override
+from typing import cast, override
 from urllib.parse import urlparse
 from uuid import UUID
 
@@ -15,11 +15,12 @@ from bench.language.const import (
     BENCH_NODE_TYPES,
     IN_PACKAGE_NODE_TYPES,
     PUBLIC_NODE_TYPES,
+    ClientType,
     RunStatus,
 )
 from bench.language.run import Run
 from bench.language.session import Session, unsuspend_session
-from bench.proto import wiring
+from bench.proto import wire, wiring
 from bench.proto.services import BenchServiceBase
 from bench.proto.wire import (
     GraphScope,
@@ -63,6 +64,7 @@ class Runtime(BenchServiceBase, RuntimeBase):
         *,
         supervisor_url: str,
         bench_id: UUID,
+        client_type: ClientType,
         client_id: UUID,
         client_access_token: str,
         machine_id: UUID | None,
@@ -78,9 +80,11 @@ class Runtime(BenchServiceBase, RuntimeBase):
         self._supervisor = SupervisorStub(Channel(self._supervisor_host, self._supervisor_port))
 
         # context
+        self._client_type = client_type
         self._client_id = client_id
         self._client_access_token = client_access_token
         self._rpc_metadata = RpcMetadata(
+            client_type=cast(wire.ClientType, client_type),
             client_id=str(self._client_id),
             client_access_token=self._client_access_token,
         )
@@ -230,7 +234,13 @@ class Runtime(BenchServiceBase, RuntimeBase):
             self._threads.append(thread)
             await thread.start()
 
-        logger.info("runtime.start", runtime=self, bench=self._bench.node, client=self._client)
+        logger.info(
+            "runtime.start",
+            runtime=self,
+            bench=self._bench.node,
+            client=self._client,
+            span="current",
+        )
 
     def close(self):
         super().close()
@@ -264,7 +274,7 @@ class Runtime(BenchServiceBase, RuntimeBase):
 
         # just add to main queue
         self._run_queue.put_nowait(run._to_data())
-        logger.trace("runtime.queue_run", run=run)
+        logger.trace("runtime.queue_run", run=run, span="current")
         return QueueRunResponse()
 
 

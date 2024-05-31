@@ -130,13 +130,15 @@ class RuntimeThread:
         self._tasks.start_queue(
             self._queue, self._process_run, f"{self.bench.slug}_run{self.id}", skip_errors=True
         )
-        logger.info("thread.start", process=self, bench=self._bench)
+        logger.info("thread.start", process=self, bench=self._bench, span="current")
 
     async def _process_run(self, run_data: RunData):
         assert (
             run_data.parent_ptr and UUID(run_data.parent_ptr.id) == self.main_package.id
         ), f"{run_data!r} not in {self.main_package!r}"
         run = wiring.unpack_node(run_data, self.main_package, self._session, Run)
+
+        # nocheckin: run properly
 
         async with self.session(readonly=False, autocommit=True):
             run.status = RunStatus.RUNNING

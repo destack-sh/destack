@@ -1,6 +1,9 @@
+import json
+
 import structlog
 import typer
 from more_itertools import first
+from rich import print_json
 
 from bench.cli.utils import async_to_sync_blocking, check_is_consistent
 from bench.language import Bench, Region, User
@@ -65,9 +68,9 @@ async def provision(bench_slug: str):
         await session.commit()
 
 
-@app.command(help="gets or creates a server Client for a Bench")
+@app.command(name="make-server-client", help="gets or creates a server Client for a Bench")
 @async_to_sync_blocking
-async def make_client(bench_slug: str, name: str = "Local Server"):
+async def make_server_client(bench_slug: str, name: str = "Localhost"):
     async with global_session() as session:
         bench = (
             await Bench.descendants(NodeType.SERVER, NodeType.CLIENT)
@@ -83,5 +86,12 @@ async def make_client(bench_slug: str, name: str = "Local Server"):
                 name=name,
                 access_token=generate_access_token(ACCESS_TOKEN_LENGTH),
             )
+
+        client_env = {
+            "CLIENT_TYPE": str(int(client.type)),
+            "CLIENT_ID": str(client.id),
+            "CLIENT_ACCESS_TOKEN": client.access_token,
+        }
+        print_json(json.dumps(client_env, indent=4))
 
         await session.commit()

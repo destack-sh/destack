@@ -37,7 +37,11 @@ def get_from_env_maybe[T](
         if typ is bool:
             value = str_to_bool(cast(str, value))
         elif issubclass(typ, Enum):
-            value = typ[cast(str, value)]
+            try:
+                value = int(value)  # type: ignore
+                value = typ(value)
+            except ValueError:
+                value = typ[cast(str, value)]
         else:
             value = cast(T, typ(value))  # type: ignore
     except Exception as e:

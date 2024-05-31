@@ -7,6 +7,7 @@ import typer
 from grpclib.utils import graceful_exit
 
 from bench.cli.utils import async_to_sync_blocking, check_is_consistent
+from bench.language.const import ClientType
 from bench.proto.services import BenchServer, BenchServiceBase
 from bench.runtime.runtime import Runtime
 from bench.system.host import HostRouter
@@ -46,6 +47,7 @@ async def runtime(host: str, port: int, watch: bool = False):
     server = Runtime(
         supervisor_url=get_from_env("SUPERVISOR_URL"),
         bench_id=get_from_env("BENCH_ID", typ=UUID),
+        client_type=get_from_env("CLIENT_TYPE", typ=ClientType),
         client_id=get_from_env("CLIENT_ID", typ=UUID),
         client_access_token=get_from_env("CLIENT_ACCESS_TOKEN"),
         machine_id=get_from_env_maybe("MACHINE_ID", typ=UUID),
