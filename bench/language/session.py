@@ -9,7 +9,6 @@ import structlog
 
 from bench.language.connection import StoreEngine
 from bench.language.const import (
-    EditType,
     NodeType,
     PrimitiveType,
     SessionStatus,
@@ -17,7 +16,6 @@ from bench.language.const import (
     _active_session,
     get_active_run,
 )
-from bench.language.graph import NodeDict, NodeGraphLike
 from bench.language.node import (
     EditSubject,
     Node,
@@ -61,11 +59,7 @@ if TYPE_CHECKING:
 # pyright: reportIncompatibleVariableOverride=false
 
 logger = structlog.get_logger(__name__)
-ExtendCommitHook = Callable[
-    ["Session", NodeGraphLike, list[EditData], int, list[EditData]],
-    Awaitable[tuple[list[EditData], int]],
-]
-OnCommitHook = Callable[[NodeGraphLike, list[EditData], int, list[EditData]], Awaitable[None]]
+CustomCommit = Callable[["Session"], Awaitable[tuple[list[EditData], list[EditData]]]]
 
 
 @timed_node(NodeType.SESSION)
@@ -117,9 +111,7 @@ class Session(Node[SessionData]):
     _host: Optional["HostStub"] = p_runtime(default=None)
 
     # system
-    _extend_commit_hook: Optional[ExtendCommitHook] = p_runtime(default=None)
-    _on_commit_hook: Optional[OnCommitHook] = p_runtime(default=None)
-    _epoch: int | None = p_runtime(default=None)
+    _commit: CustomCommit | None = p_runtime(default=None)
 
     def __content_str__(self):
         status_strs = []
@@ -254,8 +246,6 @@ class Session(Node[SessionData]):
         self, *, _skip_lock: bool = False, _suppress_hooks: bool = False
     ) -> tuple[list[EditData], list[EditData]]:
         """Commits all edits. Returns *all* committed edits / cascaded edits, and resets."""
-        from bench.proto import wiring
-
         assert self.is_open, f"cannot commit {self!r} when closed"
         assert self._tx is not None, f"no active transaction in {self!r}"
 
@@ -266,36 +256,12 @@ class Session(Node[SessionData]):
         try:
             if not _skip_lock:
                 await self._tx_lock.acquire()
-            if _suppress_hooks:
+            if not self._commit:
                 # simple commit
-                edits, cascaded_edits = await self._tx.commit()
-                return edits, cascaded_edits
+                return await self._tx.commit()
             else:
-                # wrapped commit, like GraphIo.commit_transaction but without validation
-                # (this is used in Host Sessions to )
-                edit_graph = NodeDict(self._edited_nodes_by_id)
-                epoch = self._epoch
-                if self._extend_commit_hook is not None:
-                    assert epoch is not None, f"epoch not set in {self!r}"
-                    # assign epoch
-                    for edit in self._tx.edits:
-                        node_data = wiring.unwrap_some_node(edit.node)
-                        epoch += 1
-                        edit.epoch = epoch
-                        if edit.type in (EditType.CREATE, EditType.UPSERT):
-                            node_data.created_epoch = epoch
-                        node_data.updated_epoch = epoch
-                    # flush edits to get cascaded edits
-                    edits, cascaded_edits = await self._tx.flush()
-                    new_edits, epoch = await self._extend_commit_hook(
-                        self, edit_graph, edits, epoch, cascaded_edits
-                    )
-                    self._tx._add_pending_edits(new_edits)
-                edits, cascaded_edits = await self._tx.commit()
-                if self._on_commit_hook is not None:
-                    assert epoch is not None, f"epoch not set in {self!r}"
-                    await self._on_commit_hook(edit_graph, edits, epoch, cascaded_edits)
-                return edits, cascaded_edits
+                # custom commit (in system)
+                return await self._commit(self)
         finally:
             if not _skip_lock:
                 self._tx_lock.release()

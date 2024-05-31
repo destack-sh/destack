@@ -245,6 +245,8 @@ def trim_otel_span(_, __, event_dict):
             end_time = getattr(span, "end_time", None) or monons()
             duration = end_time - getattr(span, "start_time")
             event_dict["duration"] = duration
+    if "span" in event_dict:
+        del event_dict["span"]
     return event_dict
 
 
@@ -253,6 +255,8 @@ def inline_otel_span(_, __, event_dict):
     span = trace.get_current_span()
     event_dict["trace_id"] = span.get_span_context().trace_id
     event_dict["span_id"] = span.get_span_context().span_id
+    if "span" in event_dict:
+        del event_dict["span"]
     return event_dict
 
 
