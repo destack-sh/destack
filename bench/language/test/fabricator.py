@@ -15,7 +15,7 @@ from bench.language.const import (
     StructType,
 )
 from bench.language.node import Node, Struct
-from bench.language.setup import BENCH_CLASS_BY_TYPE, NODE_CLASS_BY_TYPE
+from bench.language.setup import NODE_CLASS_BY_TYPE, OBJECT_CLASS_BY_TYPE
 from bench.proto.wire import NodeReferenceData
 from bench.utils.dt import utcnow
 from bench.utils.fractional import INTEGER_ZERO
@@ -46,9 +46,9 @@ class Fabricator:
             return random.choice(tuple(enum_cls)) if len(enum_cls) > 0 else None
         elif prop.is_struct:
             assert prop.reference_struct
-            return self.fabricate(BENCH_CLASS_BY_TYPE[prop.reference_struct], path)
+            return self.fabricate(OBJECT_CLASS_BY_TYPE[prop.reference_struct], path)
         elif prop.py_type_stripped == NodeReferenceData:
-            return self.fabricate(BENCH_CLASS_BY_TYPE[StructType.NODE_REFERENCE], path)
+            return self.fabricate(OBJECT_CLASS_BY_TYPE[StructType.NODE_REFERENCE], path)
         elif prop.primitive_type == PrimitiveType.JSON:
             return {
                 self.generators[str](): self.generators[str](),
@@ -85,7 +85,7 @@ class Fabricator:
             return cast(ObjectT, prop.to_ref())
         else:  # default unconstrained random jumble of properties
             kwargs = {**override}
-            bench_cls = BENCH_CLASS_BY_TYPE[object_type]
+            bench_cls = OBJECT_CLASS_BY_TYPE[object_type]
             for prop in bench_cls.__wired_properties__.values():
                 if prop.name in override or (prop.is_ephemeral or prop.is_computed):
                     continue

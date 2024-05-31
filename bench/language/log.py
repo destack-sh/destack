@@ -72,8 +72,8 @@ class Log(Node, HasSessionContext, HasValues):
     )
     type: AccessType | None = p_system(41, default=None)
     properties: list[int] = p_system(42, array=True)
-    new_node_packed: Any | None = p_system(43, primitive_type=PrimitiveType.JSON)
-    old_node_packed: Any | None = p_system(44, primitive_type=PrimitiveType.JSON)
+    old_node_packed: Any | None = p_system(43, primitive_type=PrimitiveType.JSON)
+    new_node_packed: Any | None = p_system(44, primitive_type=PrimitiveType.JSON)
 
     # content (custom)
     title: Optional[str] = p_internal(50, default=None)

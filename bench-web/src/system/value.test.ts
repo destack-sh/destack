@@ -1,6 +1,13 @@
 import { BenchType, EnumType, NodeType, ObjectType, PrimitiveType, StructType, TypeKind } from "@/proto/wire";
-import { getTkFromPtrMaybe } from "@/system/lang";
-import { decodeTypeIdentity, encodeTypeIdentity, type TypeIdentity } from "@/system/value";
+import { fabricate } from "@/system/graph.test";
+import { OBJECT_TYPES, getTkFromPtrMaybe } from "@/system/lang";
+import {
+  _packStructValueScalar,
+  _unpackStructValueScalar,
+  decodeTypeIdentity,
+  encodeTypeIdentity,
+  type TypeIdentity,
+} from "@/system/value";
 import { describe, expect, test } from "vitest";
 
 // TYPE_IDENTITIES: tuple[tuple[TypeInfo, str], ...] = (
@@ -31,7 +38,13 @@ import { describe, expect, test } from "vitest";
 
 // the test data & targets are from the backend bench implementation
 const TEST_TYPE_IDENTITIES: (Partial<TypeIdentity> & { identityKey: string })[] = [
-  { kind: TypeKind.PRIMITIVE, primitiveType: PrimitiveType.DATETIME, isSecret: false, isList: false, identityKey: "pe" },
+  {
+    kind: TypeKind.PRIMITIVE,
+    primitiveType: PrimitiveType.DATETIME,
+    isSecret: false,
+    isList: false,
+    identityKey: "pe",
+  },
   { kind: TypeKind.NODE, benchType: BenchType.USER, isSecret: false, isList: true, identityKey: "NdD" },
   { kind: TypeKind.STRUCT, benchType: BenchType.TEXT, isSecret: false, isList: false, identityKey: "sIS" },
   { kind: TypeKind.ENUM, benchType: BenchType.OBJECT_TYPE, isSecret: true, isList: false, identityKey: "!eUf" },
@@ -71,5 +84,16 @@ describe("type encoding", () => {
     expect(getTkFromPtrMaybe(decoded.baseTypePtr)).toEqual(getTkFromPtrMaybe(target.baseTypePtr));
     expect(decoded.isList).toBe(target.isList);
     expect(decoded.isSecret).toBe(target.isSecret);
+  });
+});
+
+describe("packing structs", () => {
+  const OBJECT_TYPES_NAMES = OBJECT_TYPES.map((t) => ObjectType[t]);
+  test.each(OBJECT_TYPES_NAMES)("roundtrip robust json %s", (typeName) => {
+    const objectType = ObjectType[typeName as any] as unknown as ObjectType;
+    const object = fabricate(objectType);
+    const packedJson = _packStructValueScalar(object);
+    const unpackedObject = _unpackStructValueScalar(packedJson);
+    expect(unpackedObject).toEqual(object);
   });
 });

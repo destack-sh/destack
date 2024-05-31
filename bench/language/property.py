@@ -435,7 +435,9 @@ class Property(_TypeQueryBuilder if TYPE_CHECKING else object):
                 ]
 
         # resolve py type
-        if self.is_ephemeral or self.reference_kind == ReferenceKind.NODE_CHILDREN:
+        if (
+            self.is_ephemeral and not (self.is_struct or self.is_enum)
+        ) or self.reference_kind == ReferenceKind.NODE_CHILDREN:
             # can't resolve these because they may point to non-Bench types
             self.py_type_stripped = self.py_type_raw
             return
@@ -502,7 +504,7 @@ class Property(_TypeQueryBuilder if TYPE_CHECKING else object):
             raise ValueError(f"can't use system id {self.id} for {self!r}")
 
         # derive type info
-        if self.is_introspectable or self.reference_source is not None:
+        if self.is_introspectable or self.reference_source is not None or self.id == 1:
             self.type_info = self._to_type_info()
 
     def _contribute_ptrs(self, is_inlined: bool) -> tuple["Property", ...]:

@@ -165,7 +165,7 @@ class RemoteQuery[NodeT: Node, NodeDataT: AnyNodeData](ConnectedQuery[NodeT, Nod
                         node=self._node,
                         duration=retry.duration,
                         retry=retry,
-                        span='current',
+                        span="current",
                     )
 
                 # subscribe forever (until error)

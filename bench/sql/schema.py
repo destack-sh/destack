@@ -11,7 +11,7 @@ from bench.sql.core import (
     Table,
 )
 
-VERSION = "2024.05.31.0"
+VERSION = "2024.05.31.1"
 
 BENCH_TABLE = Table(
     "bench_bench",
@@ -1371,8 +1371,8 @@ LOG_TABLE = Table(
         Column("node_base_ck", PrimitiveType.UUID, is_nullable=True),
         Column("type", PrimitiveType.INT16, is_nullable=True),
         Column("properties", PrimitiveType.INT32, is_array=True),
-        Column("new_node_packed", PrimitiveType.JSON, is_nullable=True),
         Column("old_node_packed", PrimitiveType.JSON, is_nullable=True),
+        Column("new_node_packed", PrimitiveType.JSON, is_nullable=True),
         Column("title", PrimitiveType.STRING, is_nullable=True),
         Column("text", PrimitiveType.JSON, is_nullable=True),
         Column("value_packed", PrimitiveType.JSON, is_nullable=True),

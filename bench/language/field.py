@@ -45,7 +45,7 @@ from bench.language.property import (
     p_value_packed,
     p_value_runtime,
 )
-from bench.language.setup import BENCH_TYPE_BY_CLASS
+from bench.language.setup import OBJECT_TYPE_BY_CLASS
 from bench.language.validation import NAME_CONSTRAINT, ValidationHandler
 from bench.language.value import HasValues, SomeValue, coerce_object_scalar
 from bench.proto.wire import AnyNodeData, FieldData, NodeReferenceData
@@ -410,7 +410,7 @@ def to_type(typ: TypeIn) -> "TypeInfo":
         primitive_type = PRIMITIVE_TYPE_BY_PY_TYPE.get(typ)
         if primitive_type:
             return TypeInfo(kind=TypeKind.PRIMITIVE, primitive_type=primitive_type)
-        bench_type = BENCH_TYPE_BY_CLASS.get(cast(Any, typ))
+        bench_type = OBJECT_TYPE_BY_CLASS.get(cast(Any, typ))
         if bench_type:
             return TypeInfo(kind=TypeKind.NODE, bench_type=bench_type)
 

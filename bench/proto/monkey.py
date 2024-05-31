@@ -7,8 +7,8 @@ import dataclasses
 import json
 from base64 import b64decode, b64encode
 from dataclasses import dataclass
-from datetime import datetime, timedelta
-from typing import Any, Iterable, Mapping, Self, Union, cast
+from datetime import datetime
+from typing import Any, Iterable, Mapping, Self, Union
 
 import betterproto
 from betterproto import Message as BetterprotoMessage
@@ -16,7 +16,6 @@ from betterproto.lib.google.protobuf import ListValue, NullValue
 from betterproto.lib.google.protobuf import Struct as BetterprotoStruct
 from betterproto.lib.google.protobuf import Value as BetterprotoValue
 from betterproto.utils import hybridmethod
-from dateutil.parser import isoparse
 
 from bench.utils.utils import frozendict
 
@@ -98,178 +97,9 @@ class _PatchedMessage(BetterprotoMessage):
         else:
             return f"<{self.__class__.__name__}>"
 
-    # TODO :Cleanup :Architecture: pull out to_robust_dict/from_robust_dict
-
-    def to_robust_dict(self):
-        """Patched betterproto.Message.to_dict that handles RobustJson for Structs."""
-
-        output: dict[str, Any] = {}
-        self._type_hints()
-        defaults = self._betterproto.default_gen
-        for field_name, field_meta in self._betterproto.meta_by_field_name.items():
-            field_is_repeated = defaults[field_name] is list
-            try:
-                value = getattr(self, field_name)
-            except AttributeError:
-                value = self._get_field_default(field_name)
-            key = str(field_meta.number)
-            if field_meta.proto_type == betterproto.TYPE_MESSAGE:
-                if isinstance(value, datetime):
-                    if value != betterproto.DATETIME_ZERO or self._include_default_value_for_oneof(
-                        field_name=field_name, meta=field_meta
-                    ):
-                        output[key] = betterproto._Timestamp.timestamp_to_json(value)
-                elif isinstance(value, timedelta):
-                    if value != timedelta(0) or self._include_default_value_for_oneof(
-                        field_name=field_name, meta=field_meta
-                    ):
-                        output[key] = betterproto._Duration.delta_to_json(value)
-                elif isinstance(value, BetterprotoStruct):
-                    if len(value) > 0:
-                        output[key] = value.to_dict()
-                elif field_meta.wraps:
-                    if value is not None:
-                        output[key] = value
-                elif field_is_repeated:
-                    # Convert each item.
-                    cls = self._betterproto.cls_by_field[field_name]
-                    if cls == datetime:
-                        value = [betterproto._Timestamp.timestamp_to_json(i) for i in value]
-                    elif cls == timedelta:
-                        value = [betterproto._Duration.delta_to_json(i) for i in value]
-                    elif cls == BetterprotoStruct:
-                        value = [i.to_dict() for i in value]
-                    else:
-                        value = [i.to_robust_dict() for i in value]
-                    if value:
-                        output[key] = value
-                elif value is None:
-                    pass
-                elif value._serialized_on_wire or self._include_default_value_for_oneof(
-                    field_name=field_name, meta=field_meta
-                ):
-                    output[key] = value.to_robust_dict()
-            elif field_meta.proto_type == betterproto.TYPE_MAP:
-                raise NotImplementedError("proto maps are not yet supported")
-            elif value != self._get_field_default(
-                field_name
-            ) or self._include_default_value_for_oneof(field_name=field_name, meta=field_meta):
-                if field_meta.proto_type in betterproto.INT_64_TYPES:
-                    if field_is_repeated:
-                        output[key] = [str(n) for n in value]
-                    elif value is not None:
-                        output[key] = str(value)
-                elif field_meta.proto_type == betterproto.TYPE_BYTES:
-                    if field_is_repeated:
-                        output[key] = [b64encode(b).decode("utf8") for b in value]
-                    elif value is not None:
-                        output[key] = b64encode(value).decode("utf8")
-                elif field_meta.proto_type == betterproto.TYPE_ENUM:
-                    if field_is_repeated:
-                        if isinstance(value, Iterable):
-                            output[key] = [*value]
-                        else:
-                            # transparently upgrade single value to repeated
-                            output[key] = [value]
-                    elif value is not None:
-                        output[key] = value
-                elif field_meta.proto_type in (betterproto.TYPE_FLOAT, betterproto.TYPE_DOUBLE):
-                    if field_is_repeated:
-                        output[key] = [betterproto._dump_float(n) for n in value]
-                    else:
-                        output[key] = betterproto._dump_float(value)
-                else:
-                    output[key] = value
-        return output
-
-    def from_robust_dict(self, mapping: dict):
-        from bench.proto.wiring import BENCH_CLASS_BY_PROTO_CLASS
-
-        cls = self.__class__
-        struct_cls = BENCH_CLASS_BY_PROTO_CLASS[cast(Any, self.__class__)]
-        for key, value in mapping.items():
-            prop = struct_cls.__properties_by_id__.get(int(key))
-            if prop is None or value is None:
-                continue
-            if prop.reference_wired_ptr:
-                prop = prop.reference_wired_ptr
-            try:
-                meta = cls._betterproto.meta_by_field_name[prop.name]
-            except KeyError:
-                continue
-
-            if meta.proto_type == betterproto.TYPE_MESSAGE:
-                sub_cls = cls._betterproto.cls_by_field[prop.name]
-                if sub_cls == datetime:
-                    value = (
-                        [isoparse(item) for item in value]
-                        if isinstance(value, list)
-                        else isoparse(value)
-                    )
-                elif sub_cls == timedelta:
-                    value = (
-                        [timedelta(seconds=float(item[:-1])) for item in value]
-                        if isinstance(value, list)
-                        else timedelta(seconds=float(value[:-1]))
-                    )
-                elif sub_cls == BetterprotoStruct:
-                    if not value:
-                        value = None
-                    else:
-                        value = (
-                            [sub_cls().from_dict(item) for item in value]
-                            if isinstance(value, list)
-                            else sub_cls().from_dict(value)
-                        )
-                elif not meta.wraps:
-                    value = (
-                        [sub_cls().from_robust_dict(item) for item in value]
-                        if isinstance(value, list)
-                        else sub_cls().from_robust_dict(value)
-                    )
-            elif meta.map_types and meta.map_types[1] == betterproto.TYPE_MESSAGE:
-                raise NotImplementedError("proto maps are not yet supported")
-            else:
-                if meta.proto_type in betterproto.INT_64_TYPES:
-                    value = [int(n) for n in value] if isinstance(value, list) else int(value)
-                elif meta.proto_type == betterproto.TYPE_BYTES:
-                    value = (
-                        [b64decode(n) for n in value]
-                        if isinstance(value, list)
-                        else b64decode(value)
-                    )
-                elif meta.proto_type == betterproto.TYPE_ENUM:
-                    enum_cls = cls._betterproto.cls_by_field[prop.name]
-                    if isinstance(value, list):
-                        value = [enum_cls(e) for e in value]
-                    elif isinstance(value, int):
-                        value = enum_cls(value)
-                elif meta.proto_type in (betterproto.TYPE_FLOAT, betterproto.TYPE_DOUBLE):
-                    value = (
-                        [betterproto._parse_float(n) for n in value]
-                        if isinstance(value, list)
-                        else betterproto._parse_float(value)
-                    )
-
-            setattr(self, prop.name, value)
-        self._serialized_on_wire = True
-        return self
-
-    def to_robust_json(self, indent: int = 2):
-        """Patched betterproto.Message.to_json that handles RobustJson for Structs."""
-        return json.dumps(self.to_robust_dict(), indent=indent)
-
-    def from_robust_json(self, json_string: str):
-        """Patched betterproto.Message.from_json that handles RobustJson for Structs."""
-        return self.from_robust_dict(json.loads(json_string))
-
 
 betterproto.Message.__str__ = _PatchedMessage.__str__  # type: ignore
 betterproto.Message.__repr__ = _PatchedMessage.__repr__  # type: ignore
-betterproto.Message.to_robust_dict = _PatchedMessage.to_robust_dict  # type: ignore
-betterproto.Message.from_robust_dict = _PatchedMessage.from_robust_dict  # type: ignore
-betterproto.Message.to_robust_json = _PatchedMessage.to_robust_json  # type: ignore
-betterproto.Message.from_robust_json = _PatchedMessage.from_robust_json  # type: ignore
 
 
 def _wrap_value(value: Any) -> BetterprotoValue:
@@ -360,7 +190,7 @@ class _PatchedRpcMetadata(RpcMetadata):
                 str_parts.append(f"{field.name}={value!r}")
         return f"{self.__class__.__name__}({', '.join(str_parts)})"
 
-    # TODO :Architecture: also pull out RpcMetadata.to_headers/from_headers
+    # TODO :Architecture: pull out RpcMetadata.to_headers/from_headers
 
     def to_headers(self) -> dict[str, str]:
         # flat encoding with prefix, messages as base64 :RpcMetadataEncoding

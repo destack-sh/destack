@@ -8,11 +8,11 @@ from bench.language.code_ import format_code, run_code_eval, run_code_script
 from bench.language.const import OBJECT_TYPES, BlockType, NodeType, StructType
 from bench.language.field import Field
 from bench.language.projection import render_node, render_struct
-from bench.language.setup import BENCH_CLASS_BY_TYPE
+from bench.language.setup import OBJECT_CLASS_BY_TYPE
 from bench.language.test.fabricator import Fabricator
 
 fabricator = Fabricator(42)
-BENCH_OBJECTS = tuple(fabricator.fabricate(BENCH_CLASS_BY_TYPE[t], ()) for t in OBJECT_TYPES)
+BENCH_OBJECTS = tuple(fabricator.fabricate(OBJECT_CLASS_BY_TYPE[t], ()) for t in OBJECT_TYPES)
 
 
 @pytest.mark.parametrize("bench_obj", BENCH_OBJECTS, ids=lambda o: o.__class__.__name__)

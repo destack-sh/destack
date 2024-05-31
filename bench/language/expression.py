@@ -23,7 +23,7 @@ from bench.language.const import (
 )
 from bench.language.node import BasedNode, Node, Property, Struct, struct
 from bench.language.property import p_regular, p_value_packed, p_value_runtime
-from bench.language.setup import BENCH_CLASS_BY_TYPE
+from bench.language.setup import OBJECT_CLASS_BY_TYPE
 from bench.language.validation import ValidationHandler
 from bench.language.value import HasValues
 from bench.proto.wire import AnyNodeData, NodeReferenceData
@@ -138,7 +138,7 @@ class NodeReference(Struct[NodeReferenceData]):
     def from_node_data(node_data: AnyNodeData) -> "NodeReferenceData":
         from bench.proto import wire
 
-        node_cls = BENCH_CLASS_BY_TYPE[cast(ObjectType, node_data.metatype)]
+        node_cls = OBJECT_CLASS_BY_TYPE[cast(ObjectType, node_data.metatype)]
         reference = NodeReferenceData(
             metatype=wire.ObjectType.NODE_REFERENCE,
             type=cast(wire.NodeType, node_data.metatype),
@@ -178,7 +178,7 @@ class PropertyReference(Struct):
 
     def resolve(self) -> Property:
         if self.type is not None:
-            bench_cls = BENCH_CLASS_BY_TYPE[self.type]
+            bench_cls = OBJECT_CLASS_BY_TYPE[self.type]
             return bench_cls._resolve_property(self)
         else:
             return Node._resolve_property(self)
