@@ -1060,7 +1060,6 @@ def edit_data_graph(
     options: "ReadOptions | None",
     *,
     keep_all: bool = False,
-    update_nodes_in_place: bool = False,
 ) -> None:
     """Applies the edits to the data graph."""
     trace.get_current_span().set_attribute("edits", len(edits))
@@ -1095,8 +1094,7 @@ def edit_data_graph(
             properties = (*edit.properties, *IMPLICIT_EDIT_PROPERTIES_IDS[edit_type])
             existing_node = graph.get(node_data.id)
             assert existing_node is not None, f"missing node for update: {edit}"
-            if not update_nodes_in_place:
-                existing_node = wiring.copy_struct(existing_node)
+            existing_node = wiring.copy_struct(existing_node)
             for prop_id in properties:
                 prop = node_cls.__properties_by_id__.get(prop_id)
                 if prop is None:

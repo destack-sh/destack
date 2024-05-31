@@ -124,15 +124,12 @@ class GraphIoServiceBase(BenchServiceBase, GraphIoBase):
         engines: tuple[StoreEngine, ...] | None = None,
         readonly: bool = True,
     ):
-        """Gets a new session for processing a request."""
+        """Gets a new session for processing a single request."""
         return Session(
             parent=None,
             _is_readonly=readonly,
             _default_scope=self.scope,
             _engines=engines if engines is not None else self.get_engines(),
-            _extend_commit_hook=self.extend_commit,
-            _on_commit_hook=self.on_commit,
-            _epoch=self.epoch,
         )
 
     @override
@@ -176,7 +173,7 @@ class GraphIoServiceBase(BenchServiceBase, GraphIoBase):
             if decision != PolicyEffect.ALLOW:
                 raise AccessError(accesses)
 
-        logger.info("graph.get", subject=subject, graph=graph, epoch=self.epoch, span='current')
+        logger.info("graph.get", subject=subject, graph=graph, epoch=self.epoch, span="current")
         return GetNodesResponse(
             nodes=[wiring.wrap_some_node(n) for n in adapted_nodes],
             access=cast(AccessMatrixData, matrix._to_data()),
@@ -222,7 +219,7 @@ class GraphIoServiceBase(BenchServiceBase, GraphIoBase):
             if decision != PolicyEffect.ALLOW:
                 raise AccessError(accesses)
 
-        logger.info("graph.search", subject=subject, graph=graph, epoch=self.epoch, span='current')
+        logger.info("graph.search", subject=subject, graph=graph, epoch=self.epoch, span="current")
         return SearchNodesResponse(
             roots=roots,
             nodes=[wiring.wrap_some_node(n) for n in adapted_nodes],
@@ -254,31 +251,33 @@ class GraphIoServiceBase(BenchServiceBase, GraphIoBase):
 
         # TODO :Security!: check aggregation access
 
-        logger.debug("graph.aggregate", subject=subject, epoch=self.epoch, span='current')
+        logger.debug("graph.aggregate", subject=subject, epoch=self.epoch, span="current")
         return AggregateNodesResponse(aggregation=result.aggregation, epoch=self.epoch)
 
     @override
     async def commit_transaction(
         self, subject: Subject, request: "CommitTransactionRequest"
     ) -> "CommitTransactionResponse":
-        # check/prepare edits
-        assert subject.client, f"{subject!r} has no client"
-        edit_scopes = parse_edit_scopes(request.edits)
-        now = utcnow()
-        epoch = self.epoch
-        for edit in request.edits:
-            _validate_edit(edit, subject, now)
-            node_data = wiring.unwrap_some_node(edit.node)
-            epoch += 1
-            edit.epoch = epoch
-            if edit.type in (EditType.CREATE, EditType.UPSERT):
-                node_data.created_epoch = epoch
-            node_data.updated_epoch = epoch
+        # pre-validate/prepare edits
+        with tracer.start_as_current_span("graph.commit.prevalidate"):
+            assert subject.client, f"{subject!r} has no client"
+            edit_scopes = parse_edit_scopes(request.edits)
+            now = utcnow()
+            # assign epochs
+            epoch = self.epoch
+            for edit in request.edits:
+                _validate_edit(edit, subject, now)  # and pre-validate!
+                node_data = wiring.unwrap_some_node(edit.node)
+                epoch += 1
+                edit.epoch = epoch
+                if edit.type in (EditType.CREATE, EditType.UPSERT):
+                    node_data.created_epoch = epoch
+                node_data.updated_epoch = epoch
 
         # process edits
         async with self.tx_lock:
             async with self.request_session(readonly=False) as session:
-                # read the affected nodes into a single graph
+                # read the affected nodes into a single graph for evaluation
                 data_graph = NodeDataGraph()
                 with tracer.start_as_current_span("graph.commit.read"):
                     for node_type, node_references in edit_scopes.scopes_by_type.items():
@@ -310,11 +309,7 @@ class GraphIoServiceBase(BenchServiceBase, GraphIoBase):
                 # validate edits (in copy)
                 # TODO :Robustness: prevent circular parent/child references
                 edit_data_graph(
-                    graph=data_graph,
-                    edits=request.edits,
-                    options=ReadOptions.all(),
-                    keep_all=True,
-                    update_nodes_in_place=False,
+                    graph=data_graph, edits=request.edits, options=ReadOptions.all(), keep_all=True
                 )
                 unpacked_graph = wiring.unpack_node_graph(data_graph, parent=None, session=session)
                 for node_id in edit_scopes.edited_node_ids:
@@ -355,7 +350,7 @@ class GraphIoServiceBase(BenchServiceBase, GraphIoBase):
             extended_edits=new_edits,
             cascaded_edits=len(cascaded_edits),
             epoch=self.epoch,
-            span='current'
+            span="current",
         )
         accepted_revisions = [cast(int, e.revision) for e in request.edits]
         return CommitTransactionResponse(
@@ -417,7 +412,7 @@ class GraphIoServiceBase(BenchServiceBase, GraphIoBase):
                         )
 
             # listen for new epochs
-            logger.info("graph.watch", watcher=watcher, span='current')
+            logger.info("graph.watch", watcher=watcher, span="current")
             while True:
                 epoch = await watcher.sink.get()
                 yield WatchEditsResponse(edits=epoch.edits, epoch=epoch.epoch)
@@ -432,6 +427,7 @@ class GraphIoServiceBase(BenchServiceBase, GraphIoBase):
         epoch: int,
         cascaded_edits: list[EditData],
     ) -> tuple[list[EditData], int]:
+        """Extend a commit in a request session"""
         return [], epoch  # do nothing by default
 
     @final
@@ -442,6 +438,7 @@ class GraphIoServiceBase(BenchServiceBase, GraphIoBase):
         epoch: int,
         cascaded_edits: list[EditData],
     ):
+        """Handle a commit in the request session."""
         self.recent_transactions.append(_Commit(self.epoch, edits, cascaded_edits))
 
         # notify watchers
@@ -456,6 +453,7 @@ class GraphIoServiceBase(BenchServiceBase, GraphIoBase):
     async def _on_commit(
         self, graph: NodeGraphLike, edits: list[EditData], cascaded_edits: list[EditData]
     ):
+        """Handle a commit in the request session."""
         pass  # do nothing by default
 
     @final

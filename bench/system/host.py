@@ -21,10 +21,11 @@ from bench.language.const import (
     IN_BENCH_NODE_TYPES,
     LOCAL_NODE_TYPES,
     SELF_LOGGED_NODE_TYPES,
+    EditType,
     NodeType,
 )
 from bench.language.expression import NodeReference
-from bench.language.graph import NodeGraphLike, edit_data_graph, edit_graph
+from bench.language.graph import NodeDict, NodeGraphLike, edit_data_graph, edit_graph
 from bench.language.log import Log
 from bench.language.property import Property
 from bench.language.session import Session, unsuspend_session
@@ -222,9 +223,7 @@ class Host(GraphIoServiceBase, HostBase, HostSpec):
             _is_readonly=readonly,
             _default_scope=self.scope,
             _engines=engines if engines is not None else self.get_engines(),
-            _extend_commit_hook=self.extend_commit,
-            _on_commit_hook=self.on_commit,
-            _epoch=self.epoch,
+            _commit=self._commit_system_session,
         )
 
     @override
@@ -232,7 +231,6 @@ class Host(GraphIoServiceBase, HostBase, HostSpec):
     async def session(self, *, readonly: bool = False, autocommit: bool = False):
         """Gets exclusive query and edit access to the main session. :ExclusiveHostSession"""
         assert self._session is not None, f"no session for {self!r}"
-        self._session._epoch = self.epoch
         async with self.tx_lock, unsuspend_session(
             self._session, readonly=readonly, autocommit=autocommit
         ):
@@ -361,8 +359,7 @@ class Host(GraphIoServiceBase, HostBase, HostSpec):
             _is_readonly=False,
             _default_scope=self.scope,
             _engines=self._engines,
-            _extend_commit_hook=self.extend_commit,
-            _on_commit_hook=self.on_commit,
+            _commit=self._commit_system_session,
         )
         self._bench._track_rec(self._session)
         self._main_package._track_rec(self._session)
@@ -467,14 +464,12 @@ class Host(GraphIoServiceBase, HostBase, HostSpec):
         assert self._main_package is not None, f"package not loaded in {self!r}"
 
         # apply edits to loaded graphs (bench/package)
+        self._session.suppress()  # don't trigger the edits we're just applying
         bench_edits: list[EditData] = []
         package_edits: list[EditData] = []
-        self._session.suppress()  # don't trigger the edits we're just applying
         for edit in edits:
             if NodeType(edit.node_type) not in LOADED_HOST_NODE_TYPES:
                 continue  # not loaded
-            if edit.origin is None:
-                continue  # origin is us (=Host)
             node_data = wiring.unwrap_some_node(edit.node)
             if hasattr(node_data, "package_ptr"):  # :Branching
                 package_id = to_uuid(getattr(node_data, "package_ptr").id)
@@ -483,11 +478,15 @@ class Host(GraphIoServiceBase, HostBase, HostSpec):
             else:
                 bench_edits.append(edit)
             # edit_data_graph(edited_data_graph, (edit,), options)
+        # filter the in memory edits to only those with an origin
+        # (we/Host/system don't have an 'origin' and edit our nodes directly in the session)
         if bench_edits:
-            edit_graph(self._bench._graph, bench_edits, BENCH_QUERY._options)
+            inmemory_bench_edits = tuple(e for e in bench_edits if e.origin is not None)
+            edit_graph(self._bench._graph, inmemory_bench_edits, BENCH_QUERY._options)
             edit_data_graph(self._bench._data_graph, bench_edits, BENCH_QUERY._options)
         if package_edits:
-            edit_graph(self._main_package._graph, package_edits, PACKAGE_QUERY._options)
+            inmemory_package_edits = tuple(e for e in package_edits if e.origin is not None)
+            edit_graph(self._main_package._graph, inmemory_package_edits, PACKAGE_QUERY._options)
             edit_data_graph(self._main_package._data_graph, package_edits, PACKAGE_QUERY._options)
         self._session.unsuppress()
 
@@ -516,3 +515,41 @@ class Host(GraphIoServiceBase, HostBase, HostSpec):
         if was_suspended:
             self._session.suspend()
         logger.debug("host.on_commit", host=self, commit=commit, span="current")
+
+    async def _commit_system_session(
+        self, session: Session
+    ) -> tuple[list[EditData], list[EditData]]:
+        """
+        Commits our main session for us (the system) from outside a request context.
+        This should emulate what GraphService.commit_transaction does (skipping validation).
+        """
+        assert session is self._session, f"session other than own in {self!r}"
+        assert session._tx is not None, f"no active transaction in {session!r}"
+        edit_graph = NodeDict(session._edited_nodes_by_id)
+
+        # assign epochs
+        epoch = self.epoch
+        for edit in session._tx.edits:
+            node_data = wiring.unwrap_some_node(edit.node)
+            epoch += 1
+            edit.epoch = epoch
+            if edit.type in (EditType.CREATE, EditType.UPSERT):
+                node_data.created_epoch = epoch
+            node_data.updated_epoch = epoch
+
+        # flush edits to get cascaded edits
+        edits, cascaded_edits = await session._tx.flush()
+
+        # extend commit
+        new_edits, epoch = await self.extend_commit(
+            session, edit_graph, edits, epoch, cascaded_edits
+        )
+        session._tx._add_pending_edits(new_edits)
+
+        # commit
+        edits, cascaded_edits = await session._tx.commit()
+
+        # handle on commit
+        self.epoch = epoch
+        await self.on_commit(edit_graph, edits, epoch, cascaded_edits)
+        return edits, cascaded_edits
