@@ -109,10 +109,15 @@ class Provisioner[PT: Resource, WT: Resource](DeferredHostPlugin[WT], abc.ABC):
                 "resource.update", attributes={"resource": str(resource)}
             ):
                 await self._update(resource)
-                logger.trace("resource.update", provisioner=self, resource=resource, span='current')
+                logger.trace("resource.update", provisioner=self, resource=resource, span="current")
         except Exception as e:
             logger.error(
-                "resource.update.error", provisioner=self, resource=resource, error=e, exc_info=True, span='current'
+                "resource.update.error",
+                provisioner=self,
+                resource=resource,
+                error=e,
+                exc_info=True,
+                span="current",
             )
             raise
 
@@ -127,14 +132,17 @@ class Provisioner[PT: Resource, WT: Resource](DeferredHostPlugin[WT], abc.ABC):
                 "resource.decommission", attributes={"resource": str(resource)}
             ):
                 await self._decommission(resource)
-                logger.trace("resource.decommission", provisioner=self, resource=resource, span='current')
+                logger.trace(
+                    "resource.decommission", provisioner=self, resource=resource, span="current"
+                )
         except Exception as e:
             logger.error(
                 "resource.decommission.error",
                 provisioner=self,
                 resource=resource,
                 error=e,
-                exc_info=True, span='current'
+                exc_info=True,
+                span="current",
             )
             raise
 
@@ -219,7 +227,7 @@ class ElasticServerProvisioner(Provisioner[Server, Server | Machine]):
         elif machines and any(m.status == ResourceStatus.UNHEALTHY for m in machines):
             actual_status = ResourceStatus.UNHEALTHY
         else:
-            actual_status = ResourceStatus.HEALTHY
+            actual_status = ResourceStatus.HEALTHY  # not sure?
         if server.status != actual_status:
             async with self._host.session(autocommit=True):
                 server.status = actual_status
