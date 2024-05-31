@@ -31,7 +31,7 @@ async def system(host: str, port: int, watch: bool = False, no_supervisor: bool 
         _ = asyncio.create_task(restart_on_file_changes())  # noqa: RUF006
     with graceful_exit([server]):
         await server.start(host=host, port=port)
-        await server.wait_closed()
+    await server.wait_closed()
 
 
 @app.command()
@@ -53,4 +53,4 @@ async def runtime(host: str, port: int, watch: bool = False):
         _ = asyncio.create_task(restart_on_file_changes())  # noqa: RUF006
     with graceful_exit([server]):
         await server.start(host=host, port=port)
-        await server.wait_closed()
+    await server.wait_closed()
