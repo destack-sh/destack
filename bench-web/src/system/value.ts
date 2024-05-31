@@ -3,6 +3,7 @@ import {
   BlockData,
   FieldData,
   FieldZone,
+  MESSAGE_TYPE_BY_OBJECT_TYPE,
   NodeReferenceData,
   NodeType,
   ObjectType,
@@ -16,7 +17,7 @@ import {
   type AnyStructData,
   type TypeInfoData,
 } from "@/proto/wire";
-import { describeNode, fromRobustJson, isStruct, makeDefaultStruct, toRobustJson } from "@/proto/wiring";
+import { describeNode, isStruct, makeDefaultStruct } from "@/proto/wiring";
 import type { ReadNodeGraph } from "@/system/graph";
 import { ENUM_ICONS_BY_TYPE } from "@/system/icon";
 import {
@@ -208,53 +209,6 @@ export function getStorageKey(field: FieldData, fieldType?: TypeIdentity): strin
   return `${getTkB64FromCk(field.ck)}-${encodeTypeIdentity(fieldType)}`;
 }
 
-// TODO :Architecture :Performance: encode/decode protoStruct/Json in connections (at the fetch/commit boundary) :ProtoStructMapping
-//  (Currently, we have to eagerly encode/decode for every single edit, which is possibly every frame or keystroke,
-//   It's likely possible to just cheat a little and auto-encode/decode ProtoStruct properties at the boundary
-//   without introducing an entire new layer like in the backend).
-
-/** Packs a single scalar value in its robust JSON-able representation. */
-function _packValueScalar(value: ScalarValue, type: TypeIdentity): JsonValue {
-  if (type.kind == TypeKind.PRIMITIVE) {
-    return value as JsonPrimimtive;
-  } else if (type.kind == TypeKind.NODE || type.kind == TypeKind.BASED_NODE) {
-    if ((value as NodeReferenceData).metatype != ObjectType.NODE_REFERENCE) {
-      throw new Error(`unexpected value ${JSON.stringify(value)} for type ${describeTypeIdentity(type)}`);
-    }
-    return toRobustJson(value as NodeReferenceData);
-  } else if (type.kind == TypeKind.ENUM) {
-    return value as JsonPrimimtive;
-  } else if (type.kind == TypeKind.STRUCT) {
-    if (!isStruct(value)) {
-      throw new Error(`unexpected value ${JSON.stringify(value)} for type ${describeTypeIdentity(type)}`);
-    }
-    return toRobustJson(value);
-  } else {
-    throw new Error(`cannot pack value of type ${describeTypeIdentity(type)}`);
-  }
-}
-
-/** Unpacks a single scalar value from its robust JSON-able representation. */
-function _unpackValueScalar(valuePacked: JsonValue, type: TypeIdentity): ScalarValue {
-  if (type.kind == TypeKind.PRIMITIVE) {
-    return valuePacked as PrimitiveValue;
-  } else if (type.kind == TypeKind.NODE || type.kind == TypeKind.BASED_NODE) {
-    if (typeof valuePacked !== "object") {
-      throw new Error(`unexpected value ${JSON.stringify(valuePacked)} for type ${describeTypeIdentity(type)}`);
-    }
-    return fromRobustJson(valuePacked as unknown as NodeReferenceData);
-  } else if (type.kind == TypeKind.ENUM) {
-    return valuePacked as PrimitiveValue;
-  } else if (type.kind == TypeKind.STRUCT) {
-    if (typeof valuePacked !== "object") {
-      throw new Error(`unexpected value ${JSON.stringify(valuePacked)} for type ${describeTypeIdentity(type)}`);
-    }
-    return fromRobustJson(valuePacked as unknown as AnyStructData);
-  } else {
-    throw new Error(`cannot unpack value of type ${describeTypeIdentity(type)}`);
-  }
-}
-
 // NOTE :Architecture: :TypeResolution in frontend should probably happen reactively in a dedicated.. something.
 
 /** Resolves the actual type identity :TypeResolution */
@@ -283,6 +237,124 @@ export function resolveFields(type: TypeIdentity, graph: ReadNodeGraph): FieldDa
   const fields = graph.getChildren(type.baseTypePtr, NodeType.FIELD);
   if (type.baseFieldZone == null) return fields.filter((f) => f.zone != FieldZone.OPTION);
   else return fields.filter((f) => f.zone == type.baseFieldZone);
+}
+
+// TODO :Architecture :Performance: encode/decode protoStruct/Json in connections (at the fetch/commit boundary) :ProtoStructMapping
+//  (Currently, we have to eagerly encode/decode for every single edit, which is possibly every frame or keystroke,
+//   It's likely possible to just cheat a little and auto-encode/decode ProtoStruct properties at the boundary
+//   without introducing an entire new layer like in the backend).
+
+/** Packs a single scalar value in its robust JSON-able representation. */
+function _packValueScalar(value: ScalarValue, type: TypeIdentity): JsonValue {
+  if (type.kind == TypeKind.PRIMITIVE) {
+    return value as JsonPrimimtive;
+  } else if (type.kind == TypeKind.NODE || type.kind == TypeKind.BASED_NODE) {
+    if ((value as NodeReferenceData).metatype != ObjectType.NODE_REFERENCE) {
+      throw new Error(`unexpected value ${JSON.stringify(value)} for type ${describeTypeIdentity(type)}`);
+    }
+    return _packStructValueScalar(value as NodeReferenceData);
+  } else if (type.kind == TypeKind.ENUM) {
+    return value as JsonPrimimtive;
+  } else if (type.kind == TypeKind.STRUCT) {
+    if (!isStruct(value)) {
+      throw new Error(`unexpected value ${JSON.stringify(value)} for type ${describeTypeIdentity(type)}`);
+    }
+    return _packStructValueScalar(value);
+  } else {
+    throw new Error(`cannot pack value of type ${describeTypeIdentity(type)}`);
+  }
+}
+
+/** Unpacks a single scalar value from its robust JSON-able representation. */
+function _unpackValueScalar(valuePacked: JsonValue, type: TypeIdentity): ScalarValue {
+  if (type.kind == TypeKind.PRIMITIVE) {
+    return valuePacked as PrimitiveValue;
+  } else if (type.kind == TypeKind.NODE || type.kind == TypeKind.BASED_NODE) {
+    if (typeof valuePacked !== "object") {
+      throw new Error(`unexpected value ${JSON.stringify(valuePacked)} for type ${describeTypeIdentity(type)}`);
+    }
+    return _unpackStructValueScalar(valuePacked as unknown as NodeReferenceData);
+  } else if (type.kind == TypeKind.ENUM) {
+    return valuePacked as PrimitiveValue;
+  } else if (type.kind == TypeKind.STRUCT) {
+    if (typeof valuePacked !== "object") {
+      throw new Error(`unexpected value ${JSON.stringify(valuePacked)} for type ${describeTypeIdentity(type)}`);
+    }
+    return _unpackStructValueScalar(valuePacked as unknown as AnyStructData);
+  } else {
+    throw new Error(`cannot unpack value of type ${describeTypeIdentity(type)}`);
+  }
+}
+
+/** Packs a single struct/node proto value using proto ids for keys and enums. */
+export function _packStructValueScalar(object: AnyStructData | AnyNodeData): any {
+  const messageType = MESSAGE_TYPE_BY_OBJECT_TYPE[object.metatype];
+  if (messageType == null) throw new Error(`unexpected object type ${object.metatype}`);
+
+  const robustJson: Record<string, any> = {};
+  for (const field of messageType.fields) {
+    const key = field.no.toString();
+    const value = (object as any)[field.jsonName];
+    if (value === null || value === undefined) continue;
+
+    if (field.kind == "message") {
+      if (field.repeat) {
+        if (value.length == 0) {
+          robustJson[key] = [];
+        } else if (!MESSAGE_TYPE_BY_OBJECT_TYPE[value[0].metatype as ObjectType]) {
+          robustJson[key] = value; // not one of our objects
+        } else {
+          robustJson[key] = value.map(_packStructValueScalar);
+        }
+      } else {
+        if (typeof value != "object" || !MESSAGE_TYPE_BY_OBJECT_TYPE[value.metatype as ObjectType]) {
+          robustJson[key] = value; // not one of our objects
+        } else {
+          robustJson[key] = _packStructValueScalar(value);
+        }
+      }
+    } else {
+      robustJson[key] = value;
+    }
+  }
+
+  return robustJson;
+}
+
+/** Decodes 'robust' proto value. See encode. */
+export function _unpackStructValueScalar(value: any): AnyStructData | AnyNodeData {
+  const objectType = value["1"] as ObjectType;
+  const messageType = MESSAGE_TYPE_BY_OBJECT_TYPE[objectType];
+  if (messageType == null) throw new Error(`unexpected object type ${objectType}`);
+
+  const object: Record<string, any> = { metatype: objectType };
+  for (const field of messageType.fields) {
+    const key = field.no.toString();
+    if (key in value) {
+      const fieldValue = value[key];
+      if (field.kind == "message") {
+        if (field.repeat) {
+          if (fieldValue.length == 0) {
+            object[field.jsonName] = [];
+          } else if (!MESSAGE_TYPE_BY_OBJECT_TYPE[fieldValue[0]["1"] as ObjectType]) {
+            object[field.jsonName] = fieldValue; // not one of our objects
+          } else {
+            object[field.jsonName] = fieldValue.map(_unpackStructValueScalar);
+          }
+        } else {
+          if (typeof fieldValue != "object" || !MESSAGE_TYPE_BY_OBJECT_TYPE[fieldValue["1"] as ObjectType]) {
+            object[field.jsonName] = fieldValue; // not one of our objects
+          } else {
+            object[field.jsonName] = _unpackStructValueScalar(fieldValue);
+          }
+        }
+      } else {
+        object[field.jsonName] = fieldValue;
+      }
+    }
+  }
+
+  return object as AnyStructData | AnyNodeData;
 }
 
 // TODO :Test!: figure out how to test value packing on bench-web

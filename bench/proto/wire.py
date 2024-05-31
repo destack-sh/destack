@@ -3,7 +3,7 @@
 
 from typing import TYPE_CHECKING, Union
 
-VERSION = "2024.05.31.0"
+VERSION = "2024.05.31.1"
 
 if TYPE_CHECKING:
     from bench.language import Subject
@@ -2348,10 +2348,10 @@ class LogData(betterproto.Message):
     node_ptr: Optional["NodeReferenceData"] = betterproto.message_field(40, optional=True)
     type: Optional["AccessType"] = betterproto.enum_field(41, optional=True)
     properties: List[int] = betterproto.int32_field(42)
-    new_node_packed: Optional["betterproto_lib_google_protobuf.Struct"] = betterproto.message_field(
+    old_node_packed: Optional["betterproto_lib_google_protobuf.Struct"] = betterproto.message_field(
         43, optional=True
     )
-    old_node_packed: Optional["betterproto_lib_google_protobuf.Struct"] = betterproto.message_field(
+    new_node_packed: Optional["betterproto_lib_google_protobuf.Struct"] = betterproto.message_field(
         44, optional=True
     )
     title: Optional[str] = betterproto.string_field(50, optional=True)

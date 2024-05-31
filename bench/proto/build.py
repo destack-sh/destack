@@ -13,13 +13,13 @@ from bench.language.const import ENUM_TYPES, NODE_TYPES, STRUCT_TYPES, UNSET, VE
 from bench.language.property import Property
 from bench.language.setup import (
     ANCESTOR_NODE_TYPES,
-    BENCH_CLASS_BY_TYPE,
     CHILD_NODE_TYPES,
     DESCENDANT_NODE_TYPES,
     ENUM_CLASS_BY_TYPE,
     FINAL_BENCH_CLASSES,
     NODE_CLASS_BY_TYPE,
     NODE_CLASSES,
+    OBJECT_CLASS_BY_TYPE,
     PARENT_NODE_TYPES,
     STRUCT_CLASS_BY_TYPE,
     STRUCT_CLASSES,
@@ -295,7 +295,7 @@ export type PropertyInfo = {
     """
     type_info_definitions_parts = []
     for object_type in chain(STRUCT_TYPES, NODE_TYPES):
-        bench_cls = BENCH_CLASS_BY_TYPE[object_type]
+        bench_cls = OBJECT_CLASS_BY_TYPE[object_type]
         prop_infos_strs: list[str] = []
         properties = list(bench_cls.__properties__.values())
         for prop in sorted(properties, key=lambda p: p.id or 0):
@@ -375,7 +375,7 @@ export type PropertyInfo = {
         "  [ObjectType.UNSPECIFIED]: {},\n"
     ]
     for object_type in chain(STRUCT_TYPES, NODE_TYPES):
-        bench_cls = BENCH_CLASS_BY_TYPE[object_type]
+        bench_cls = OBJECT_CLASS_BY_TYPE[object_type]
         type_info_map_parts.append(
             f"  [ObjectType.{object_type.name}]: {bench_cls.__name__}DataInfo,\n"
         )

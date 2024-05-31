@@ -4,11 +4,24 @@ import pytest
 
 from bench.conftest import global_session
 from bench.language.block import Block
-from bench.language.const import BlockType, NodeType, PrimitiveType, StructType
+from bench.language.const import OBJECT_TYPES, BlockType, NodeType, PrimitiveType, StructType
 from bench.language.field import Field, FieldZone, TypeKind, to_type
+from bench.language.node import Node, Struct
 from bench.language.notice import on_notice_ignore
+from bench.language.setup import OBJECT_CLASS_BY_TYPE
+from bench.language.test.fabricator import Fabricator
 from bench.language.text import Text
-from bench.language.value import Object, pack_value, unpack_value
+from bench.language.value import (
+    Object,
+    _pack_struct_value_scalar_data,
+    _unpack_struct_value_scalar_data,
+    pack_value,
+    unpack_value,
+)
+from bench.proto import wiring
+
+fabricator = Fabricator(42)
+BENCH_OBJECTS = tuple(fabricator.fabricate(OBJECT_CLASS_BY_TYPE[t], ()) for t in OBJECT_TYPES)
 
 
 def test_coerce_nested_value() -> None:
@@ -115,6 +128,15 @@ def test_roundtrip_nested_value():
     value_packed, secret_value_packed = pack_value(value, class1.as_type)
     unpacked_value = unpack_value(value_packed, secret_value_packed, class1.as_type)
     assert unpacked_value == value
+
+
+@pytest.mark.parametrize("bench_obj", BENCH_OBJECTS, ids=lambda o: o.__class__.__name__)
+def test_roundtrip_robust_json(bench_obj: Node | Struct):
+    packed_wire_obj = wiring.pack_struct(bench_obj)
+    packed_json = _pack_struct_value_scalar_data(packed_wire_obj)
+    unpacked_wire_obj = _unpack_struct_value_scalar_data(packed_json)
+    unpacked_obj = wiring.unpack_object(unpacked_wire_obj)  # type: ignore
+    assert unpacked_obj.equals_content(bench_obj), f"{unpacked_obj!r} != {bench_obj!r}"
 
 
 # TODO :Test: auto generate :Test types & values

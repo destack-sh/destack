@@ -9,13 +9,13 @@ import structlog
 from betterproto.lib.google.protobuf import Struct as BetterprotoStruct
 from opentelemetry import trace
 
-from bench.language.const import UNSET, NodeType, ObjectType
+from bench.language.const import NODE_TYPES_SET, UNSET, NodeType, ObjectType
 from bench.language.graph import NodeDataGraph
 from bench.language.node import NODE_CLASS_BY_TYPE, Node, NodeGraph, ReadInfo, Struct
 from bench.language.notice import NoticeHandler, on_notice_ignore, on_warning_raise
 from bench.language.property import Property
 from bench.language.session import Session
-from bench.language.setup import BENCH_CLASS_BY_TYPE
+from bench.language.setup import OBJECT_CLASS_BY_TYPE
 from bench.language.validation import on_invalid_raise
 from bench.proto import wire
 from bench.proto.wire import AnyNodeData, AnyStructData, NodeReferenceData
@@ -37,13 +37,14 @@ OBJECT_TYPE_BY_PROTO_CLASS: dict[type[Union[AnyNodeData, AnyStructData]], Object
 BENCH_CLASS_BY_PROTO_CLASS: dict[
     type[Union[AnyNodeData, AnyStructData]], type[Union[Node, Struct]]
 ] = {
-    cls: BENCH_CLASS_BY_TYPE[object_type] for cls, object_type in OBJECT_TYPE_BY_PROTO_CLASS.items()
+    cls: OBJECT_CLASS_BY_TYPE[object_type]
+    for cls, object_type in OBJECT_TYPE_BY_PROTO_CLASS.items()
 }
 
 
 def copy_struct[T: AnyStructData | AnyNodeData](data: T) -> T:
     """Deepcopy a struct data object."""
-    bench_cls = BENCH_CLASS_BY_TYPE[cast(ObjectType, data.metatype)]
+    bench_cls = OBJECT_CLASS_BY_TYPE[cast(ObjectType, data.metatype)]
     data_copy = type(data)(metatype=data.metatype)  # type: ignore
     try:
         for prop in bench_cls.__wired_properties__.values():
@@ -177,7 +178,7 @@ def pack_struct_maybe[T: AnyStructData](struct: Struct | None, expect: type[T]) 
 
 def unpack_struct[T: Struct](struct_data: AnyStructData, expect: type[T] | None = None) -> T:
     """Unpack a struct and any contained structs."""
-    struct_cls = BENCH_CLASS_BY_TYPE[ObjectType(struct_data.metatype)]  # type: ignore
+    struct_cls = OBJECT_CLASS_BY_TYPE[ObjectType(struct_data.metatype)]  # type: ignore
     if expect and struct_cls != expect:
         raise RuntimeError(f"expected {expect} but got {struct_cls}")
     struct_kwargs = {}
@@ -259,6 +260,26 @@ def unpack_node[T: Node](
         return node  # type: ignore
     except (AttributeError, TypeError, ValueError, KeyError) as e:
         raise ValueError(f"could not unpack {node_data.metatype.name}: {node_data!r}") from e
+
+
+def pack_object[T: Struct[AnyStructData] | Node[AnyNodeData]](
+    obj: T, expect: type[T] | None = None
+) -> AnyStructData | AnyNodeData:
+    if isinstance(obj, Node):
+        return pack_node(obj, expect)  # type: ignore
+    elif isinstance(obj, Struct):
+        return pack_struct(obj, expect)  # type: ignore
+    else:
+        raise ValueError(f"cannot pack {obj!r}")
+
+
+def unpack_object[T: Struct[AnyStructData] | Node[AnyNodeData]](
+    obj_data: AnyStructData | AnyNodeData, expect: type[T] | None = None
+) -> T:
+    if obj_data.metatype in NODE_TYPES_SET:
+        return unpack_node(obj_data, expect=expect)  # type: ignore
+    else:
+        return unpack_struct(obj_data, expect=expect)  # type: ignore
 
 
 @tracer.start_as_current_span("wiring.pack_node_graph")
