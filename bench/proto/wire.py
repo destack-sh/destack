@@ -3,7 +3,7 @@
 
 from typing import TYPE_CHECKING, Union
 
-VERSION = "2024.05.30.1"
+VERSION = "2024.05.31.0"
 
 if TYPE_CHECKING:
     from bench.language import Subject
@@ -1242,16 +1242,14 @@ class ServiceKind(betterproto.Enum):
 class AccessData(betterproto.Message):
     """
     An evaluated access on some objects as part of a larger request (by the same subject).
-     As in PolicyRule, if the decision is Deny, the object_properties are the denied ones.
-     (And if object_properties is unset, it applies to all properties.)
     """
 
     metatype: "ObjectType" = betterproto.enum_field(1)
     mode: "AccessMode" = betterproto.enum_field(30)
     decision: "PolicyEffect" = betterproto.enum_field(31)
     verb: "AccessType" = betterproto.enum_field(32)
-    object_type: "ObjectType" = betterproto.enum_field(33)
-    object_properties_ptr: List["PropertyReferenceData"] = betterproto.message_field(34)
+    node_type: "NodeType" = betterproto.enum_field(33)
+    allowed_properties_ptr: List["PropertyReferenceData"] = betterproto.message_field(34)
 
 
 @dataclass(eq=False, repr=False)
@@ -1764,7 +1762,6 @@ class SubjectData(betterproto.Message):
     is_system: Optional[bool] = betterproto.bool_field(32, optional=True)
     client_ptr: Optional["NodeReferenceData"] = betterproto.message_field(40, optional=True)
     user_ptr: Optional["NodeReferenceData"] = betterproto.message_field(41, optional=True)
-    server_ptr: Optional["NodeReferenceData"] = betterproto.message_field(42, optional=True)
     identity_ptr: Optional["NodeReferenceData"] = betterproto.message_field(50, optional=True)
     badges_ptr: List["NodeReferenceData"] = betterproto.message_field(51)
     owned_ptr: List["NodeReferenceData"] = betterproto.message_field(52)

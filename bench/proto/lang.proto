@@ -1170,15 +1170,13 @@ enum Visibility {
 }
 
 // An evaluated access on some objects as part of a larger request (by the same subject).
-// As in PolicyRule, if the decision is Deny, the object_properties are the denied ones.
-// (And if object_properties is unset, it applies to all properties.)
 message AccessData {
   ObjectType metatype = 1;
   AccessMode mode = 30;
   PolicyEffect decision = 31;
   AccessType verb = 32;
-  ObjectType object_type = 33;
-  repeated PropertyReferenceData object_properties_ptr = 34;
+  NodeType node_type = 33;
+  repeated PropertyReferenceData allowed_properties_ptr = 34;
 }
 
 // The materialized access matrix generated for a specific subject to quickly evaluate access for objects.
@@ -1599,7 +1597,6 @@ message SubjectData {
   optional bool is_system = 32;
   optional NodeReferenceData client_ptr = 40;
   optional NodeReferenceData user_ptr = 41;
-  optional NodeReferenceData server_ptr = 42;
   optional NodeReferenceData identity_ptr = 50;
   repeated NodeReferenceData badges_ptr = 51;
   repeated NodeReferenceData owned_ptr = 52;
