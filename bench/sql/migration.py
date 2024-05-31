@@ -312,14 +312,14 @@ async def _do_sql_migrate(
             await func(cur)
         except Exception as e:
             logger.error(
-                "migration.apply.error", cur=cur, migration=migration, store=store, error=e
+                "migration.apply.error", cur=cur, migration=migration, store=store, error=e, span='current'
             )
             raise
         if is_upgrade:
             migration.applied_at = now
         else:
             migration.applied_at = None
-        logger.debug("migration.apply", cur=cur, migration=migration, store=store)
+        logger.debug("migration.apply", cur=cur, migration=migration, store=store, span='current')
 
 
 #
@@ -1056,8 +1056,6 @@ WHERE
         )
         tables.append(table)
 
-    logger.debug(
-        "sql.introspect", cur=cur, tables=[t.name for t in tables], span=trace.get_current_span()
-    )
+    logger.debug("sql.introspect", cur=cur, tables=[t.name for t in tables])
 
     return Schema(extensions=extensions, tables=tuple(tables))

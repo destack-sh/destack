@@ -1,4 +1,5 @@
 import asyncio
+import contextlib
 from typing import Any, Awaitable, Callable, Coroutine
 
 from bench.utils.utils import sentry_capture
@@ -49,7 +50,12 @@ class TaskManager:
         skip_errors: bool = False,
     ) -> None:
         while True:
-            item = await queue.get()
+            try:
+                item = await queue.get()
+            except (asyncio.CancelledError, RuntimeError):
+                # queue throws RuntimeError if event loop is closed (happens when pytest shuts down)
+                self._logger.debug("task.cancelled", owner=self._owner, task_id=task_id)
+                break
             try:
                 await process(item)
             except Exception as e:
@@ -87,8 +93,10 @@ class TaskManager:
 
     def close(self):
         for task in self._active_tasks:
-            task.cancel()
+            with contextlib.suppress(asyncio.CancelledError, RuntimeError):  # see above
+                task.cancel()
 
     async def wait_closed(self) -> None:
-        await asyncio.gather(*self._active_tasks, return_exceptions=True)
+        with contextlib.suppress(asyncio.CancelledError, RuntimeError):
+            await asyncio.gather(*self._active_tasks, return_exceptions=True)
         self._active_tasks.clear()

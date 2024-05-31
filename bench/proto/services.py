@@ -194,24 +194,24 @@ class BenchServiceBase:
                         await stream.send_message(partial_response)
                 else:
                     raise NotImplementedError(f"unsupported cardinality {cardinality}")
-                log.debug(rpc_name, span=span)
+                log.debug(rpc_name, span="current")
 
             except GRPCError as e:
                 # pass through GRPC errors
                 sentry_capture(e)
-                log.exception(f"{rpc_name}.error", span=span, error=e)
+                log.exception(f"{rpc_name}.error", error=e, span="current")
                 raise
 
             except BenchError as e:
                 # wrap error
-                log.exception(f"{rpc_name}.error", span=span, error=e)
+                log.exception(f"{rpc_name}.error", error=e, span="current")
                 status = get_grpc_status_from_bench_error(e)
                 raise GRPCError(status, str(e)) from e
 
             except Exception as e:
                 # internal error
                 sentry_capture(e)
-                log.exception(f"{rpc_name}.internal_error", span=span, error=e)
+                log.exception(f"{rpc_name}.internal_error", error=e, span="current")
                 if IS_DEBUG or IS_TEST:
                     details = f"{e.__class__.__name__}: {e}"
                 else:
@@ -238,24 +238,27 @@ class BenchServer(grpclib.server.Server):
     def __repr__(self):
         return f"<BenchServer {self}>"
 
+    @tracer.start_as_current_span("server.start")
     async def start(self, host: str | None = None, port: int | None = None, **kwargs) -> None:
         self._host = host
         self._port = port
-        logger.info("server.start", server=self)
         await asyncio.gather(*(h.start() for h in self._services))
         await super().start(host=host, port=port, **kwargs)
-        logger.info("server.ready", server=self)
+        logger.info("server.start", server=self, span="current")
 
+    @tracer.start_as_current_span("server.close")
     def close(self) -> None:
         logger.info("server.close", server=self)
         for task in self._services:
             task.close()
         super().close()
+        logger.debug("server.close", server=self, span="current")
 
+    @tracer.start_as_current_span("server.wait_closed")
     async def wait_closed(self) -> None:
         await super().wait_closed()
         await asyncio.gather(*(h.wait_closed() for h in self._services))
-        logger.info("server.closed", server=self)
+        logger.debug("server.wait_closed", server=self, span="current")
 
 
 @cachetools.cached(

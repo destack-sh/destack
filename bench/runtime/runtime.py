@@ -230,13 +230,7 @@ class Runtime(BenchServiceBase, RuntimeBase):
             self._threads.append(thread)
             await thread.start()
 
-        logger.info(
-            "runtime.start",
-            runtime=self,
-            bench=self._bench.node,
-            client=self._client,
-            span=trace.get_current_span(),
-        )
+        logger.info("runtime.start", runtime=self, bench=self._bench.node, client=self._client)
 
     def close(self):
         super().close()

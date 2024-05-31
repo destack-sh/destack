@@ -82,9 +82,11 @@ class Provisioner[PT: Resource, WT: Resource](DeferredHostPlugin[WT], abc.ABC):
         try:
             with tracer.start_as_current_span(
                 "resource.provision", attributes={"resource": str(resource)}
-            ) as span:
+            ):
                 await self._provision(resource)
-                logger.trace("resource.provision", provisioner=self, resource=resource, span=span)
+                logger.trace(
+                    "resource.provision", provisioner=self, resource=resource, span="current"
+                )
         except Exception as e:
             logger.error(
                 "resource.provision.error",
@@ -92,6 +94,7 @@ class Provisioner[PT: Resource, WT: Resource](DeferredHostPlugin[WT], abc.ABC):
                 resource=resource,
                 error=e,
                 exc_info=True,
+                span="current",
             )
             raise
 
@@ -104,12 +107,12 @@ class Provisioner[PT: Resource, WT: Resource](DeferredHostPlugin[WT], abc.ABC):
         try:
             with tracer.start_as_current_span(
                 "resource.update", attributes={"resource": str(resource)}
-            ) as span:
+            ):
                 await self._update(resource)
-                logger.trace("resource.update", provisioner=self, resource=resource, span=span)
+                logger.trace("resource.update", provisioner=self, resource=resource, span='current')
         except Exception as e:
             logger.error(
-                "resource.update.error", provisioner=self, resource=resource, error=e, exc_info=True
+                "resource.update.error", provisioner=self, resource=resource, error=e, exc_info=True, span='current'
             )
             raise
 
@@ -122,18 +125,16 @@ class Provisioner[PT: Resource, WT: Resource](DeferredHostPlugin[WT], abc.ABC):
         try:
             with tracer.start_as_current_span(
                 "resource.decommission", attributes={"resource": str(resource)}
-            ) as span:
+            ):
                 await self._decommission(resource)
-                logger.trace(
-                    "resource.decommission", provisioner=self, resource=resource, span=span
-                )
+                logger.trace("resource.decommission", provisioner=self, resource=resource, span='current')
         except Exception as e:
             logger.error(
                 "resource.decommission.error",
                 provisioner=self,
                 resource=resource,
                 error=e,
-                exc_info=True,
+                exc_info=True, span='current'
             )
             raise
 

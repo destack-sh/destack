@@ -130,7 +130,7 @@ class RuntimeThread:
         self._tasks.start_queue(
             self._queue, self._process_run, f"{self.bench.slug}_run{self.id}", skip_errors=True
         )
-        logger.info("thread.start", process=self, bench=self._bench, span=trace.get_current_span())
+        logger.info("thread.start", process=self, bench=self._bench)
 
     async def _process_run(self, run_data: RunData):
         assert (

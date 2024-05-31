@@ -1,19 +1,171 @@
+import enum
 import logging
 import logging.config
-from typing import cast
+from dataclasses import dataclass
+from io import StringIO
+from typing import Callable
 
 import structlog
-from opentelemetry.trace import Span
+from opentelemetry import trace
 
 from bench.utils.dt import monons
 from bench.utils.utils import get_from_env
 
+
+class LogMode(enum.StrEnum):
+    PLAIN = "plain"
+    JSON = "json"
+
+
+_PYTHON_LOG_LEVEL_BY_LEVEL = {  # :LogLevel
+    "TRACE": 5,
+    "DEBUG": logging.DEBUG,
+    "INFO": logging.INFO,
+    "WARNING": logging.WARNING,
+    "ERROR": logging.ERROR,
+    "CRITICAL": logging.CRITICAL,
+}
+
+
 LOG_LEVEL = get_from_env("LOG_LEVEL", default="DEBUG")
+PYTHON_LOG_LEVEL = _PYTHON_LOG_LEVEL_BY_LEVEL[LOG_LEVEL]
+LOG_MODE = get_from_env("LOG_MODE", typ=LogMode)
+
+
+def _padright(s: str, width: int) -> str:
+    return s + " " * (width - len(s))
+
+
+def _padleft(s: str, width: int) -> str:
+    return " " * (width - len(s)) + s
+
+
+@dataclass(slots=True)
+class KeyValueColumnFormatter:
+    """Extended KeyValueColumnFormatter"""
+
+    key_style: str | None
+    value_style: str
+    reset_style: str
+    value_repr: Callable[[object], str]
+    width: int = 0
+    pad: str = ">"
+    prefix: str = ""
+    postfix: str = ""
+
+    def __call__(self, key: str, value: object) -> str:
+        sio = StringIO()
+
+        if self.prefix:
+            sio.write(self.prefix)
+            sio.write(self.reset_style)
+
+        if self.key_style is not None:
+            sio.write(self.key_style)
+            sio.write(key)
+            sio.write(self.reset_style)
+            sio.write("=")
+
+        sio.write(self.value_style)
+        if self.pad == ">":
+            sio.write(_padright(self.value_repr(value), self.width))
+        else:
+            sio.write(_padleft(self.value_repr(value), self.width))
+
+        sio.write(self.reset_style)
+
+        if self.postfix:
+            sio.write(self.postfix)
+            sio.write(self.reset_style)
+
+        return sio.getvalue()
+
 
 # monkey patch structlog to add color support for custom 'trace' level
 patched_styles = structlog.dev.ConsoleRenderer.get_default_level_styles()
 patched_styles["trace"] = patched_styles["debug"]
+
+# console style
 structlog.dev.ConsoleRenderer.get_default_level_styles = lambda *args: patched_styles  # type: ignore
+styles = structlog.dev._ColorfulStyles
+CONSOLE_FORMATTER = structlog.dev.ConsoleRenderer(
+    columns=[
+        # timestamp (dim)
+        structlog.dev.Column(
+            "timestamp",
+            structlog.dev.KeyValueColumnFormatter(
+                key_style=None,
+                value_style=styles.timestamp,
+                reset_style=styles.reset,
+                value_repr=str,
+            ),
+        ),
+        # level (color)
+        structlog.dev.Column(
+            "level",
+            structlog.dev.LogLevelColumnFormatter(
+                {
+                    "critical": styles.level_critical,
+                    "exception": styles.level_exception,
+                    "error": styles.level_error,
+                    "warn": styles.level_warn,
+                    "warning": styles.level_warn,
+                    "info": styles.level_info,
+                    "debug": styles.level_debug,
+                    "trace": styles.level_debug,
+                    "notset": styles.level_notset,
+                },
+                reset_style=styles.reset,
+                width=6,
+            ),
+        ),
+        # event (very bright)
+        structlog.dev.Column(
+            "event",
+            structlog.dev.KeyValueColumnFormatter(
+                key_style=None,
+                value_style=styles.bright,
+                reset_style=styles.reset,
+                value_repr=str,
+                width=32,
+            ),
+        ),
+        # duration
+        structlog.dev.Column(
+            "duration",
+            KeyValueColumnFormatter(
+                key_style=None,
+                value_style=styles.bright + styles.kv_value,
+                reset_style=styles.reset,
+                value_repr=str,
+                width=10,
+                pad="<",
+            ),
+        ),
+        # logger (bright)
+        structlog.dev.Column(
+            "logger",
+            structlog.dev.KeyValueColumnFormatter(
+                key_style=None,
+                value_style=styles.bright + styles.logger_name,
+                reset_style=styles.reset,
+                value_repr=str,
+                prefix="[",
+                postfix="]",
+            ),
+        ),
+        # default formatter for the rest
+        structlog.dev.Column(
+            "",
+            structlog.dev.KeyValueColumnFormatter(
+                key_style=styles.kv_key,
+                value_style=styles.kv_value,
+                reset_style=styles.reset,
+                value_repr=str,
+            ),
+        ),
+    ]
+)
 
 FORMATTERS = {
     "json_formatter": {
@@ -22,7 +174,7 @@ FORMATTERS = {
     },
     "plain_console": {
         "()": structlog.stdlib.ProcessorFormatter,
-        "processor": structlog.dev.ConsoleRenderer(pad_event=0),
+        "processor": CONSOLE_FORMATTER,
     },
 }
 
@@ -35,16 +187,17 @@ HANDLERS = {
         "class": "logging.StreamHandler",
         "formatter": "json_formatter",
     },
-    "flat_line_file": {"class": "logging.NullHandler"},
     "null": {
         "class": "logging.NullHandler",
     },
 }
 
-if not get_from_env("JSON_LOGS", default=False, typ=bool):
+if LOG_MODE == LogMode.JSON:
+    logged_handlers = ["json_console"]
+elif LOG_MODE == LogMode.PLAIN:
     logged_handlers = ["plain_console"]
 else:
-    logged_handlers = ["json_console"]
+    raise ValueError(f"unexpected log mode: {LOG_MODE}")
 
 LOGGING = {
     "version": 1,
@@ -57,48 +210,71 @@ LOGGING = {
 }
 
 
-def format_otel_span(_, __, event_dict):
-    if "span" in event_dict:
-        # open telemetry span
-        span = cast(Span, event_dict["span"])
-        event_dict["trace_id"] = span.get_span_context().trace_id
-        event_dict["span_id"] = span.get_span_context().span_id
-        if "duration" not in event_dict and hasattr(span, "start_time"):
-            end_time = getattr(span, "end_time") or monons()
-            event_dict["duration"] = end_time - getattr(span, "start_time")
-        del event_dict["span"]
-    if "duration" in event_dict:
-        event_dict["duration"] = f"{event_dict['duration'] / 1_000_000:.3f}ms"
+def trim_logger(_, __, event_dict):
+    """Removes the logger name from the event dict."""
+    if "logger" in event_dict:
+        if event_dict["logger"].startswith("bench."):
+            event_dict["logger"] = event_dict["logger"][6:]
     return event_dict
+
+
+def trim_otel_span(_, __, event_dict):
+    """Removes the span, adds a duration if it's the current main span"""
+    event_dict["duration"] = ""  # default to blank duration (for padding)
+    if event_dict.get("span") == "current":
+        span = trace.get_current_span()
+        if hasattr(span, "start_time"):
+            end_time = getattr(span, "end_time", None) or monons()
+            duration = end_time - getattr(span, "start_time")
+            event_dict["duration"] = f"{(duration / 1_000_000):.3f}ms"
+    return event_dict
+
+
+def inline_otel_span(_, __, event_dict):
+    """Always adds the current span"""
+    span = trace.get_current_span()
+    event_dict["trace_id"] = span.get_span_context().trace_id
+    event_dict["span_id"] = span.get_span_context().span_id
+    return event_dict
+
+
+TRACE = 5
+
+
+def _trace(self, msg, *args, **kw):
+    return self.log(TRACE, msg, *args, **kw)
 
 
 def setup_logging(apply_logging: bool = True, apply_structlog: bool = True):
     # add trace logging level
-    TRACE = 5
     _add_logging_level("TRACE", logging.DEBUG - TRACE, "trace")
     structlog.stdlib.TRACE = TRACE  # type: ignore
-    structlog.stdlib._NAME_TO_LEVEL["trace"] = TRACE  # type: ignore
-    structlog.stdlib._LEVEL_TO_NAME[TRACE] = "trace"  # type: ignore
+    structlog.stdlib.NAME_TO_LEVEL["trace"] = TRACE  # type: ignore
+    structlog.stdlib.LEVEL_TO_NAME[TRACE] = "trace"  # type: ignore
+    structlog.stdlib._FixedFindCallerLogger.trace = _trace  # type: ignore
+    structlog.stdlib.BoundLogger.trace = _trace  # type: ignore
+    structlog.stdlib.AsyncBoundLogger.trace = _trace  # type: ignore
+    structlog._native.LEVEL_TO_FILTERING_LOGGER[TRACE] = (  # type: ignore
+        structlog._native._make_filtering_bound_logger(TRACE)  # type: ignore
+    )
+    for logger in structlog._native.LEVEL_TO_FILTERING_LOGGER.values():  # type: ignore
+        logger.trace = _trace
 
-    def trace(self, msg, *args, **kw):
-        return self.log(TRACE, msg, *args, **kw)
-
-    for logger in structlog._log_levels._LEVEL_TO_FILTERING_LOGGER.values():  # type: ignore
-        logger.trace = trace
-
-    structlog.stdlib._FixedFindCallerLogger.trace = trace  # type: ignore
-    structlog.stdlib.BoundLogger.trace = trace  # type: ignore
-
+    # apply logging
     if apply_logging:
         logging.config.dictConfig(LOGGING)
     if apply_structlog:
         structlog.configure(
             processors=[
-                structlog.stdlib.filter_by_level,
-                structlog.processors.TimeStamper(fmt="iso"),
-                format_otel_span,
-                structlog.stdlib.add_logger_name,
                 structlog.stdlib.add_log_level,
+                structlog.stdlib.filter_by_level,
+                structlog.stdlib.add_logger_name,
+                structlog.processors.TimeStamper(fmt="iso", utc=True, key="timestamp"),
+                *(
+                    (trim_logger, trim_otel_span)
+                    if LOG_MODE == LogMode.PLAIN
+                    else (inline_otel_span,)
+                ),
                 structlog.stdlib.PositionalArgumentsFormatter(),
                 structlog.processors.StackInfoRenderer(),
                 structlog.processors.format_exc_info,
@@ -107,7 +283,7 @@ def setup_logging(apply_logging: bool = True, apply_structlog: bool = True):
             ],
             context_class=dict,
             logger_factory=structlog.stdlib.LoggerFactory(),
-            wrapper_class=structlog.make_filtering_bound_logger(logging.NOTSET),
+            wrapper_class=structlog.make_filtering_bound_logger(PYTHON_LOG_LEVEL),
             cache_logger_on_first_use=True,
         )
 
@@ -170,7 +346,6 @@ def _add_logging_level(
                 "Function" if is_func else "Method", name, target
             ),
         )
-        return conflict
 
     # Lock because logger class and level name are queried and set
     logging._acquireLock()  # type: ignore

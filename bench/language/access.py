@@ -826,6 +826,7 @@ def generate_access_matrix(
         # add nested zones if there are any legislative nodes down here
         _assign_access_zones(root, root, root_zones_by_identity)
 
+    logger.trace("access.generate_access_matrix", subject=subject, span='current')
     return matrix
 
 

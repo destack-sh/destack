@@ -77,7 +77,7 @@ class QueueRunPlugin(HostPlugin[Run]):
             request = QueueRunRequest(run=run._to_data())
             try:
                 _ = await runtime.queue_run(request)
-                log.debug("scheduler.queue", machine=machine)
+                log.debug("scheduler.queue", machine=machine, span="current")
                 return  # success!
             except Exception as e:
                 log.error("scheduler.queue.error", machine=machine, error=e)
@@ -90,7 +90,12 @@ class QueueRunPlugin(HostPlugin[Run]):
             error = RunError(kind=RunErrorKind.INTERNAL, type=RunErrorType.NO_RUNTIME_AVAILABLE)
             async with self._host.session(autocommit=True):
                 run.fail(error)
-            log.error("scheduler.queue.failed", machines=environment.server.machines, error=error)
+            log.error(
+                "scheduler.queue.failed",
+                machines=environment.server.machines,
+                error=error,
+                span="current",
+            )
         else:
             # retry run later
             asyncio.get_event_loop().call_later(
@@ -101,4 +106,5 @@ class QueueRunPlugin(HostPlugin[Run]):
                 machines=environment.server.machines,
                 interval=op.retry.interval,
                 retry=op.retry,
+                span="current",
             )

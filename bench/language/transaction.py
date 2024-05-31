@@ -362,12 +362,12 @@ class Transaction:
             message = "transaction.commit.engine" if commit else "transaction.flush.engine"
             with tracer.start_as_current_span(
                 message, attributes={"engine": engine.__class__.__name__}
-            ) as span:
+            ):
                 if commit:
                     flush = await connection.commit(pending_edits)
                 else:
                     flush = await connection.flush(pending_edits)
-                log.trace(message, engine=engine, edits=len(pending_edits), span=span)
+                log.trace(message, engine=engine, edits=len(pending_edits))
             assert len(flush.revisions or ()) == len(pending_edits), "revisions mismatch"
             for edit, new_revision in zip(pending_edits, cast(list[int], flush.revisions)):
                 edit.revision = new_revision
@@ -381,9 +381,7 @@ class Transaction:
         for n in self._pending_nodes_by_ck.values():
             n._flushed_self()
         self._pending_nodes_by_ck.clear()
-        log.trace(
-            "transaction.commit" if commit else "transaction.flush", span=trace.get_current_span()
-        )
+        log.trace("transaction.commit" if commit else "transaction.flush")
 
     @tracer.start_as_current_span("transaction.flush")
     async def flush(self) -> tuple[list[EditData], list[EditData]]:

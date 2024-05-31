@@ -387,13 +387,7 @@ class Host(GraphIoServiceBase, HostBase, HostSpec):
             await asyncio.gather(*(plugin.start() for plugin in self._plugins))
             # wait for plugins to finish processing any commits (and to error early)
             await asyncio.gather(*(plugin.wait_step(timeout=10) for plugin in self._plugins))
-        logger.info(
-            "host.start",
-            host=self,
-            epoch=self.epoch,
-            plugins=self._plugins,
-            span=trace.get_current_span(),
-        )
+        logger.info("host.start", host=self, epoch=self.epoch, plugins=self._plugins, span='current')
 
     def close(self) -> None:
         super().close()
@@ -510,17 +504,13 @@ class Host(GraphIoServiceBase, HostBase, HostSpec):
             if commit.edited_types & plugin.watch_types:
                 with tracer.start_as_current_span(
                     "host.on_commit.plugin", attributes={"plugin": plugin.name}
-                ) as span:
+                ):
                     trimmed_commit = commit.trim_to(plugin.watch_types)
                     await plugin.on_commit(self._session, trimmed_commit)
                     logger.debug(
-                        "host.on_commit.plugin",
-                        host=self,
-                        plugin=plugin,
-                        commit=trimmed_commit,
-                        span=span,
+                        "host.on_commit.plugin", host=self, plugin=plugin, commit=trimmed_commit
                     )
         await self._session.commit(_skip_lock=True)  # already in a locked section
         if was_suspended:
             self._session.suspend()
-        logger.debug("host.on_commit", host=self, commit=commit, span=trace.get_current_span())
+        logger.debug("host.on_commit", host=self, commit=commit, span='current')

@@ -176,7 +176,7 @@ class GraphIoServiceBase(BenchServiceBase, GraphIoBase):
             if decision != PolicyEffect.ALLOW:
                 raise AccessError(accesses)
 
-        logger.info("graph.get", subject=subject, graph=graph, epoch=self.epoch)
+        logger.info("graph.get", subject=subject, graph=graph, epoch=self.epoch, span='current')
         return GetNodesResponse(
             nodes=[wiring.wrap_some_node(n) for n in adapted_nodes],
             access=cast(AccessMatrixData, matrix._to_data()),
@@ -222,7 +222,7 @@ class GraphIoServiceBase(BenchServiceBase, GraphIoBase):
             if decision != PolicyEffect.ALLOW:
                 raise AccessError(accesses)
 
-        logger.info("graph.search", subject=subject, graph=graph, epoch=self.epoch)
+        logger.info("graph.search", subject=subject, graph=graph, epoch=self.epoch, span='current')
         return SearchNodesResponse(
             roots=roots,
             nodes=[wiring.wrap_some_node(n) for n in adapted_nodes],
@@ -254,7 +254,7 @@ class GraphIoServiceBase(BenchServiceBase, GraphIoBase):
 
         # TODO :Security!: check aggregation access
 
-        logger.debug("graph.aggregate", subject=subject, epoch=self.epoch)
+        logger.debug("graph.aggregate", subject=subject, epoch=self.epoch, span='current')
         return AggregateNodesResponse(aggregation=result.aggregation, epoch=self.epoch)
 
     @override
@@ -280,7 +280,7 @@ class GraphIoServiceBase(BenchServiceBase, GraphIoBase):
             async with self.request_session(readonly=False) as session:
                 # read the affected nodes into a single graph
                 data_graph = NodeDataGraph()
-                with tracer.start_as_current_span("graph.commit.read") as span:
+                with tracer.start_as_current_span("graph.commit.read"):
                     for node_type, node_references in edit_scopes.scopes_by_type.items():
                         node_type = wiring.unpack_enum(NodeType, node_type)
                         # NOTE :Performance: select only properties required to evaluate edit (id/policies/...?)
@@ -298,10 +298,10 @@ class GraphIoServiceBase(BenchServiceBase, GraphIoBase):
                         for node_data in result.nodes:
                             if node_data.id not in data_graph:
                                 data_graph.add(node_data)
-                    logger.trace("graph.commit.read", graph=data_graph, span=span)
+                    logger.trace("graph.commit.read", graph=data_graph)
 
                 # check access
-                with tracer.start_as_current_span("graph.commit.check_access") as span:
+                with tracer.start_as_current_span("graph.commit.check_access"):
                     matrix = generate_access_matrix(subject, data_graph)
                     decision, accesses = evaluate_edit(matrix, data_graph, request.edits)
                     if decision != PolicyEffect.ALLOW:
@@ -355,6 +355,7 @@ class GraphIoServiceBase(BenchServiceBase, GraphIoBase):
             extended_edits=new_edits,
             cascaded_edits=len(cascaded_edits),
             epoch=self.epoch,
+            span='current'
         )
         accepted_revisions = [cast(int, e.revision) for e in request.edits]
         return CommitTransactionResponse(
@@ -416,7 +417,7 @@ class GraphIoServiceBase(BenchServiceBase, GraphIoBase):
                         )
 
             # listen for new epochs
-            logger.info("graph.watch", watcher=watcher)
+            logger.info("graph.watch", watcher=watcher, span='current')
             while True:
                 epoch = await watcher.sink.get()
                 yield WatchEditsResponse(edits=epoch.edits, epoch=epoch.epoch)

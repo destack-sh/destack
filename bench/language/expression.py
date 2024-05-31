@@ -266,8 +266,8 @@ class Expression(HasValues):
         ):
             py_ident = self.target.py_ident if self.target is not None else "???"
             value_str = str(self.value)
-            if len(value_str) > 32:
-                value_str = f"{value_str[:24]}...{value_str[-12:]}"
+            if len(value_str) > 60:
+                value_str = f"{value_str[:48]}...{value_str[-12:]}"
             return f"{py_ident}{_CONDITIONAL_OP_SIGN[self.op]}{value_str}"
         elif self.op in ExpressionOps.COND_EXISTENCE:
             py_ident = self.target.py_ident if self.target is not None else "???"
