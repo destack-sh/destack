@@ -239,6 +239,9 @@ TIMED_NODE_TYPES = bittuple(
     NodeType.NOTIFICATION,
     NodeType.MESSAGE,
 )
+SELF_LOGGED_NODE_TYPES: bittuple[NodeType] = bittuple(
+    NodeType.SESSION, NodeType.RUN, NodeType.SIGNAL, NodeType.LOG
+)
 IN_PACKAGE_NODE_TYPES = bittuple(*tuple(nt for nt in NODE_TYPES if 20 <= nt.id < 100))
 SUB_PACKAGE_NODE_TYPES = bittuple(*tuple(nt for nt in NODE_TYPES if 20 < nt.id < 100))
 IN_BENCH_NODE_TYPES = bittuple(

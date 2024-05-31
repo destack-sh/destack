@@ -1,7 +1,7 @@
 from collections import OrderedDict
 from copy import copy
 from itertools import chain
-from typing import Any, Collection, TypeVar, Union, cast
+from typing import Any, Collection, Union, cast
 from uuid import UUID
 
 import betterproto
@@ -40,13 +40,8 @@ BENCH_CLASS_BY_PROTO_CLASS: dict[
     cls: BENCH_CLASS_BY_TYPE[object_type] for cls, object_type in OBJECT_TYPE_BY_PROTO_CLASS.items()
 }
 
-NodeT = TypeVar("NodeT", bound=Node)
-NodeDataT = TypeVar("NodeDataT", bound=AnyNodeData)
-StructT = TypeVar("StructT", bound=Struct | Node)
-StructDataT = TypeVar("StructDataT", bound=Union[AnyStructData, AnyNodeData])
 
-
-def copy_data(data: StructDataT) -> StructDataT:
+def copy_data[T: AnyStructData | AnyNodeData](data: T) -> T:
     """Deepcopy a struct data object."""
     data_cls = PROTO_CLASS_BY_TYPE[cast(ObjectType, data.metatype)]
     bench_cls = BENCH_CLASS_BY_TYPE[cast(ObjectType, data.metatype)]
@@ -149,7 +144,7 @@ def unpack_struct_prop(prop: Property, value: Any, ignore_array: bool = False) -
         raise ValueError(f"could not unpack value: {value!r} for {prop!r}") from e
 
 
-def pack_struct(struct: Struct, expect: type[StructDataT] | None = None) -> StructDataT:
+def pack_struct[T: AnyStructData](struct: Struct, expect: type[T] | None = None) -> T:
     """Pack a struct and any contained structs."""
     data_cls = PROTO_CLASS_BY_TYPE[struct.metatype]
     metatype = pack_enum(ObjectType, struct.metatype)  # type: ignore
@@ -163,19 +158,19 @@ def pack_struct(struct: Struct, expect: type[StructDataT] | None = None) -> Stru
             value = getattr(struct, prop.name)
             value = pack_struct_prop(prop, value, ignore_array=False)
             setattr(struct_data, prop.name, value)
-        return cast(StructDataT, struct_data)
+        return cast(T, struct_data)
     except (AttributeError, TypeError, ValueError, KeyError) as e:
         raise ValueError(f"could not pack {struct.metatype.name}: {struct!r}") from e
 
 
-def pack_struct_maybe(struct: Struct | None, expect: type[StructDataT]) -> StructDataT | None:
+def pack_struct_maybe[T: AnyStructData](struct: Struct | None, expect: type[T]) -> T | None:
     if struct is None:
         return None
     else:
         return pack_struct(struct, expect)
 
 
-def unpack_struct(struct_data: AnyStructData, expect: type[StructT] | None = None) -> StructT:
+def unpack_struct[T: Struct](struct_data: AnyStructData, expect: type[T] | None = None) -> T:
     """Unpack a struct and any contained structs."""
     struct_cls = BENCH_CLASS_BY_TYPE[ObjectType(struct_data.metatype)]  # type: ignore
     if expect and struct_cls != expect:
@@ -188,25 +183,25 @@ def unpack_struct(struct_data: AnyStructData, expect: type[StructT] | None = Non
             value = getattr(struct_data, prop.name)
             struct_kwargs[prop.name] = unpack_struct_prop(prop, value, ignore_array=False)
         struct = struct_cls(**struct_kwargs)
-        return cast(StructT, struct)
+        return cast(T, struct)
     except (AttributeError, TypeError, ValueError, KeyError) as e:
         raise ValueError(f"could not unpack {struct_data.metatype.name}: {struct_data!r}") from e
 
 
-def unpack_struct_maybe(
-    struct_data: AnyStructData | None, expect: type[StructT] | None = None
-) -> StructT | None:
+def unpack_struct_maybe[T: Struct](
+    struct_data: AnyStructData | None, expect: type[T] | None = None
+) -> T | None:
     if struct_data is None:
         return None
     return unpack_struct(struct_data)
 
 
-def unpack_struct_interp(
+def unpack_struct_interp[T: Struct](
     struct_data: AnyStructData,
     scope: Node | None = None,
     notice: NoticeHandler = on_warning_raise,
-    expect: type[StructT] | None = None,
-) -> StructT:
+    expect: type[T] | None = None,
+) -> T:
     """Unpack, interpret and validate a Struct."""
     struct = unpack_struct(struct_data, expect=expect)
     struct._interp_rec(scope=scope, notice=notice)
@@ -214,19 +209,19 @@ def unpack_struct_interp(
     return struct
 
 
-def unpack_struct_interp_maybe(
+def unpack_struct_interp_maybe[T: Struct](
     struct_data: AnyStructData | None,
     scope: Node | None = None,
     notice: NoticeHandler = on_warning_raise,
-    expect: type[StructT] | None = None,
-) -> StructT | None:
+    expect: type[T] | None = None,
+) -> T | None:
     if struct_data is None:
         return None
     else:
         return unpack_struct_interp(struct_data, scope=scope, notice=notice, expect=expect)
 
 
-def pack_node(node: Node, expect: type[NodeT] | None = None) -> NodeT:
+def pack_node[T: Node](node: Node, expect: type[T] | None = None) -> T:
     return pack_struct(node)
 
 
@@ -236,12 +231,12 @@ def pack_node_maybe(node: Node | None) -> AnyNodeData | None:
     return pack_node(node)
 
 
-def unpack_node[NodeT: Node](
+def unpack_node[T: Node](
     node_data: AnyNodeData,
     parent: Node | None = None,
     session: Session | None = None,
-    expect: type[NodeT] | None = None,
-) -> NodeT:
+    expect: type[T] | None = None,
+) -> T:
     node_cls = NODE_CLASS_BY_TYPE[NodeType(node_data.metatype)]
     if expect is not None and node_cls is not expect:
         raise RuntimeError(f"expected {expect} but got {node_cls} for {node_data!r}")
