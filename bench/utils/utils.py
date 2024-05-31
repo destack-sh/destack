@@ -22,7 +22,7 @@ def get_from_env_maybe[T](
     typ: type[T] = str,
 ) -> T | None:
     value = os.getenv(key)
-    if alt and not value:
+    if (value is None or value == "") and alt:
         value = os.getenv(alt)
     if value is None or value == "":
         if optional:

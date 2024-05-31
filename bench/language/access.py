@@ -90,7 +90,10 @@ def _check_legislative_types():
 # 'owner' refers to both the root node and any user with root-level access to that root node.
 # This is effectively the 'root user' who can do anything with descendants of the root node*.
 #  (unless a system policy says otherwise)
-Owner = Union["User", "Organization", "Bench"]
+Ownable = Union["User", "Organization", "Bench"]
+OWNABLE_NODE_TYPES: bittuple[NodeType] = bittuple(
+    NodeType.USER, NodeType.ORGANIZATION, NodeType.BENCH
+)
 
 
 @node(NodeType.BADGE)
@@ -310,25 +313,23 @@ class PolicyRule(Struct):
             for verb_kind in self.verb_kinds or ():
                 self._verb_mask[verb_kind.from_ord : verb_kind.to_ord + 1] = True
 
-    def matches_subject(self, subject: "Subject", object_owner: Owner) -> bool:
-        # subject always matches (by definition) if the policy is delegated
-        if not self.subject_is_delegated:
-            if (
-                self.subject_is_authenticated is not None
-                and self.subject_is_authenticated != subject.is_authenticated
-            ):
-                return False
-            if self.subject_is_member is not None and self.subject_is_member != (
-                subject.memberships and object_owner not in subject.owned
-            ):
-                return False
-            if self.subject_is_owner is not None and self.subject_is_owner != (
-                subject.owned and object_owner not in subject.owned
-            ):
-                return False
-            if self.subject_is_staff and not subject.is_staff:
-                return False
-        return True  # no mismatch -> match
+    def matches_subject(self, subject: "Subject", root_id: UUID) -> bool:
+        if self.subject_is_delegated:
+            # subject always matches (by definition) if the policy is delegated
+            return True
+        if (
+            self.subject_is_authenticated is not None
+            and self.subject_is_authenticated != subject.is_authenticated
+        ):
+            return False
+        if self.subject_is_owner is not None and self.subject_is_owner != (
+            subject.owned and any(node.id == root_id for node in subject.owned)
+        ):
+            return False
+        if self.subject_is_staff and not subject.is_staff:  # noqa: SIM103
+            return False
+        # no mismatch -> match
+        return True
 
     def matches_verb(self, verb: AccessType) -> bool:
         assert self._verb_mask is not None, f"verb mask not updated in {self!r}"
@@ -422,11 +423,8 @@ class Subject(Struct):
         50, default=None, require=False, array=False, references=NodeType.IDENTITY
     )
     badges: list["Badge"] = p_system(51, require=False, array=True, references=NodeType.BADGE)
-    owned: list[Owner] = p_system(
-        52,
-        array=True,
-        require=False,
-        references=(NodeType.USER, NodeType.ORGANIZATION, NodeType.BENCH),
+    owned: list[Ownable] = p_system(
+        52, array=True, require=False, references=OWNABLE_NODE_TYPES.tuple
     )
     memberships: list[Union["Bench", "Organization"]] = p_system(
         53, require=False, array=True, references=NodeType.MEMBERSHIP
@@ -707,7 +705,7 @@ def adapt_read_options(
 @tracer.start_as_current_span("access.generate_access_matrix")
 def generate_access_matrix(
     subject: Subject,
-    graph: NodeDataGraph,
+    graph: NodeDataGraph[AnyNodeData],
     base_policies: tuple[Policy, ...] = SYSTEM_POLICIES,
     unpacked_graph: NodeGraph[Node] | None = None,
 ) -> AccessMatrix:
@@ -724,7 +722,7 @@ def generate_access_matrix(
     extra_policies_by_node_id: dict[str, list[Policy]] = defaultdict(list)
 
     def _assign_access_zones(
-        node_data: AnyNodeData, owner: Owner, parent_zones_by_identity: dict[int, int]
+        node_data: AnyNodeData, root_id: UUID, parent_zones_by_identity: dict[int, int]
     ):
         """Generates any new applicable access zones downstream from the node for all identities."""
 
@@ -757,7 +755,7 @@ def generate_access_matrix(
                     rule
                     for policy in extra_policies
                     for rule in policy.rules
-                    if rule.matches_subject(identity, owner)
+                    if rule.matches_subject(identity, root_id)
                 ]
                 if applicable_rules:
                     # new rules, so make new zone
@@ -793,7 +791,7 @@ def generate_access_matrix(
         #  (even if they don't have any legislative nodes since we want the runtime-only zone mapping)
         for child_type in CHILD_NODE_TYPES[node_type]:
             for child_node in graph.iter_descendants(node_data, child_type):
-                _assign_access_zones(child_node, owner, new_zones_by_identity)
+                _assign_access_zones(child_node, root_id, new_zones_by_identity)
 
     # start at root
     root_zones_by_identity = {}
@@ -801,6 +799,7 @@ def generate_access_matrix(
         # figure out owner
         root_type = wiring.unpack_enum(NodeType, root.metatype)
         root_cls = NODE_CLASS_BY_TYPE[root_type]
+        root_id = UUID(root.id)
         assert not root_cls.__roots__, f"unexpected non-root root: {root!r}"
 
         # base zones are checked before all others (typically for system policies)
@@ -810,7 +809,7 @@ def generate_access_matrix(
                 rule
                 for policy in base_policies
                 for rule in policy.rules
-                if rule.matches_subject(identity, root)
+                if rule.matches_subject(identity, root_id)
             ]
             base_zone = AccessZone(
                 scope_id=root.id,
@@ -824,9 +823,9 @@ def generate_access_matrix(
             matrix._base_zone_by_root[(identity.id, root.id)] = base_zone
 
         # add nested zones if there are any legislative nodes down here
-        _assign_access_zones(root, root, root_zones_by_identity)
+        _assign_access_zones(root, root_id, root_zones_by_identity)
 
-    logger.trace("access.generate_access_matrix", subject=subject, span='current')
+    logger.trace("access.generate_access_matrix", subject=subject, span="current")
     return matrix
 
 
@@ -940,7 +939,7 @@ def evaluate_access(
 @tracer.start_as_current_span("access.evaluate_and_adapt_read")
 def evaluate_and_adapt_read(
     matrix: AccessMatrix,
-    graph: NodeDataGraph,
+    graph: NodeDataGraph[AnyNodeData],
     *,
     required_nodes: Collection[NodeReferenceData] | None = None,
 ) -> tuple[PolicyEffect, Collection[Access], Collection[AnyNodeData]]:
@@ -960,9 +959,9 @@ def evaluate_and_adapt_read(
     all_nodes_preorder: list[AnyNodeData] = []
     visible_nodes: list[AnyNodeData] = []
     allowed_properties_by_node_id: dict[str, bitarray] = {}
-    denied_accesses: list[Access] = []
     skipped: set[str] = set()
     cache: dict[Any, Any] = {}
+    required_nodes_ids: set[str] = {str(n.id) for n in required_nodes or ()}
 
     # evaluate access per node
     with tracer.start_as_current_span("access.evaluate_read", attributes={"nodes": len(graph)}):
@@ -984,7 +983,7 @@ def evaluate_and_adapt_read(
                 )
                 if decision != PolicyEffect.DENY:
                     allowed_properties_by_node_id[node_.id] = allowed_properties
-                elif node_.id in required_nodes:
+                elif node_.id in required_nodes_ids:
                     node_cls = NODE_CLASS_BY_TYPE[node_type]
                     access = Access(
                         mode=AccessMode.ADAPTIVE,
@@ -993,7 +992,7 @@ def evaluate_and_adapt_read(
                         node_type=node_type,
                         allowed_properties=list(node_cls._unmask_properties(allowed_properties)),
                     )
-                    denied_accesses.append(access)
+                    return decision, (access,), ()
             # remember order
             all_nodes_preorder.append(root)
             all_nodes_preorder.extend(descendants)
@@ -1039,11 +1038,8 @@ def evaluate_and_adapt_read(
             skips[cast(str, node_.parent_ptr.id)] = skip
     visible_nodes.extend(skips.values())
 
-    if required_nodes and any(n.id in skips for n in required_nodes):
-        decision = PolicyEffect.DENY
-    else:
-        decision = PolicyEffect.ALLOW
-    return decision, denied_accesses, visible_nodes
+    # if we got here none of the required nodes were denied (above)
+    return PolicyEffect.ALLOW, (), visible_nodes
 
 
 @tracer.start_as_current_span("access.evaluate_edit")
