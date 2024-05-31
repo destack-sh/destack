@@ -1096,7 +1096,7 @@ def edit_data_graph(
             existing_node = graph.get(node_data.id)
             assert existing_node is not None, f"missing node for update: {edit}"
             if not update_nodes_in_place:
-                existing_node = wiring.copy_data(existing_node)
+                existing_node = wiring.copy_struct(existing_node)
             for prop_id in properties:
                 prop = node_cls.__properties_by_id__.get(prop_id)
                 if prop is None:

@@ -171,7 +171,7 @@ class GraphIoServiceBase(BenchServiceBase, GraphIoBase):
         with tracer.start_as_current_span("graph.get.check_access"):
             matrix = generate_access_matrix(subject, graph)
             decision, accesses, adapted_nodes = evaluate_and_adapt_read(
-                matrix, graph, required_nodes=request.roots, adapt_nodes_in_place=True
+                matrix, graph, required_nodes=request.roots
             )
             if decision != PolicyEffect.ALLOW:
                 raise AccessError(accesses)
@@ -217,7 +217,7 @@ class GraphIoServiceBase(BenchServiceBase, GraphIoBase):
         with tracer.start_as_current_span("graph.search.check_access"):
             matrix = generate_access_matrix(subject, graph)
             decision, accesses, adapted_nodes = evaluate_and_adapt_read(
-                matrix, graph, adapt_nodes_in_place=True, required_nodes=request.bases
+                matrix, graph, required_nodes=request.bases
             )
             if decision != PolicyEffect.ALLOW:
                 raise AccessError(accesses)

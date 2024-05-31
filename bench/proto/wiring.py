@@ -41,32 +41,37 @@ BENCH_CLASS_BY_PROTO_CLASS: dict[
 }
 
 
-def copy_data[T: AnyStructData | AnyNodeData](data: T) -> T:
+def copy_struct[T: AnyStructData | AnyNodeData](data: T) -> T:
     """Deepcopy a struct data object."""
-    data_cls = PROTO_CLASS_BY_TYPE[cast(ObjectType, data.metatype)]
     bench_cls = BENCH_CLASS_BY_TYPE[cast(ObjectType, data.metatype)]
-    data_kwargs = {}
+    data_copy = type(data)(metatype=data.metatype)  # type: ignore
     try:
         for prop in bench_cls.__wired_properties__.values():
             if not hasattr(data, prop.name):
                 continue
-            value: Any = getattr(data, prop.name)
-            if value is None or (value == "" and not prop.is_required):
-                data_kwargs[prop.name] = None
-            elif prop.is_list:
-                if prop.is_struct:
-                    data_kwargs[prop.name] = [copy_data(cast(Any, v)) for v in value]
-                else:
-                    data_kwargs[prop.name] = list(value)
-            elif prop.is_struct:
-                data_kwargs[prop.name] = copy_data(cast(Any, value))
-            elif prop.primitive_type == PrimitiveType.JSON:
-                data_kwargs[prop.name] = copy(value)
-            else:
-                data_kwargs[prop.name] = value
+            value = getattr(data, prop.name)
+            value = copy_struct_prop(prop, value)
+            setattr(data_copy, prop.name, value)
     except (AttributeError, TypeError, ValueError, KeyError) as e:
         raise ValueError(f"could not copy {data.metatype.name}: {data!r}") from e
-    return data_cls(**data_kwargs)  # type: ignore
+    return data_copy  # type: ignore
+
+
+def copy_struct_prop(prop: Property, value: Any) -> Any:
+    """Deepcopy a single struct property."""
+    if value is None or (value == "" and not prop.is_required):
+        return None
+    elif prop.is_list:
+        if prop.is_struct:
+            return [copy_struct(cast(Any, v)) for v in value]
+        else:
+            return list(value)
+    elif prop.is_struct:
+        return copy_struct(cast(Any, value))
+    elif prop.primitive_type == PrimitiveType.JSON:
+        return copy(value)
+    else:
+        return value
 
 
 def pack_json_struct(value: dict) -> BetterprotoStruct:

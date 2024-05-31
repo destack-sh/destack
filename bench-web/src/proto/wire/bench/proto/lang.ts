@@ -16,8 +16,6 @@ import { Duration } from "../../google/protobuf/duration";
 import { Struct } from "../../google/protobuf/struct";
 /**
  * An evaluated access on some objects as part of a larger request (by the same subject).
- * As in PolicyRule, if the decision is Deny, the object_properties are the denied ones.
- * (And if object_properties is unset, it applies to all properties.)
  *
  * @generated from protobuf message symbolx.bench.AccessData
  */
@@ -39,13 +37,13 @@ export interface AccessData {
      */
     verb: AccessType;
     /**
-     * @generated from protobuf field: symbolx.bench.ObjectType object_type = 33;
+     * @generated from protobuf field: symbolx.bench.NodeType node_type = 33;
      */
-    objectType: ObjectType;
+    nodeType: NodeType;
     /**
-     * @generated from protobuf field: repeated symbolx.bench.PropertyReferenceData object_properties_ptr = 34;
+     * @generated from protobuf field: repeated symbolx.bench.PropertyReferenceData allowed_properties_ptr = 34;
      */
-    objectPropertiesPtr: PropertyReferenceData[];
+    allowedPropertiesPtr: PropertyReferenceData[];
 }
 /**
  * The materialized access matrix generated for a specific subject to quickly evaluate access for objects.
@@ -1249,10 +1247,6 @@ export interface SubjectData {
      * @generated from protobuf field: optional symbolx.bench.NodeReferenceData user_ptr = 41;
      */
     userPtr?: NodeReferenceData;
-    /**
-     * @generated from protobuf field: optional symbolx.bench.NodeReferenceData server_ptr = 42;
-     */
-    serverPtr?: NodeReferenceData;
     /**
      * @generated from protobuf field: optional symbolx.bench.NodeReferenceData identity_ptr = 50;
      */
@@ -9897,8 +9891,8 @@ class AccessData$Type extends MessageType<AccessData> {
             { no: 30, name: "mode", kind: "enum", T: () => ["symbolx.bench.AccessMode", AccessMode, "ACCESS_MODE_"] },
             { no: 31, name: "decision", kind: "enum", T: () => ["symbolx.bench.PolicyEffect", PolicyEffect, "POLICY_EFFECT_"] },
             { no: 32, name: "verb", kind: "enum", T: () => ["symbolx.bench.AccessType", AccessType, "ACCESS_TYPE_"] },
-            { no: 33, name: "object_type", kind: "enum", T: () => ["symbolx.bench.ObjectType", ObjectType, "OBJECT_TYPE_"] },
-            { no: 34, name: "object_properties_ptr", kind: "message", repeat: 1 /*RepeatType.PACKED*/, T: () => PropertyReferenceData }
+            { no: 33, name: "node_type", kind: "enum", T: () => ["symbolx.bench.NodeType", NodeType, "NODE_TYPE_"] },
+            { no: 34, name: "allowed_properties_ptr", kind: "message", repeat: 1 /*RepeatType.PACKED*/, T: () => PropertyReferenceData }
         ]);
     }
     create(value?: PartialMessage<AccessData>): AccessData {
@@ -9907,8 +9901,8 @@ class AccessData$Type extends MessageType<AccessData> {
         message.mode = 0;
         message.decision = 0;
         message.verb = 0;
-        message.objectType = 0;
-        message.objectPropertiesPtr = [];
+        message.nodeType = 0;
+        message.allowedPropertiesPtr = [];
         if (value !== undefined)
             reflectionMergePartial<AccessData>(this, message, value);
         return message;
@@ -9930,11 +9924,11 @@ class AccessData$Type extends MessageType<AccessData> {
                 case /* symbolx.bench.AccessType verb */ 32:
                     message.verb = reader.int32();
                     break;
-                case /* symbolx.bench.ObjectType object_type */ 33:
-                    message.objectType = reader.int32();
+                case /* symbolx.bench.NodeType node_type */ 33:
+                    message.nodeType = reader.int32();
                     break;
-                case /* repeated symbolx.bench.PropertyReferenceData object_properties_ptr */ 34:
-                    message.objectPropertiesPtr.push(PropertyReferenceData.internalBinaryRead(reader, reader.uint32(), options));
+                case /* repeated symbolx.bench.PropertyReferenceData allowed_properties_ptr */ 34:
+                    message.allowedPropertiesPtr.push(PropertyReferenceData.internalBinaryRead(reader, reader.uint32(), options));
                     break;
                 default:
                     let u = options.readUnknownField;
@@ -9960,12 +9954,12 @@ class AccessData$Type extends MessageType<AccessData> {
         /* symbolx.bench.AccessType verb = 32; */
         if (message.verb !== 0)
             writer.tag(32, WireType.Varint).int32(message.verb);
-        /* symbolx.bench.ObjectType object_type = 33; */
-        if (message.objectType !== 0)
-            writer.tag(33, WireType.Varint).int32(message.objectType);
-        /* repeated symbolx.bench.PropertyReferenceData object_properties_ptr = 34; */
-        for (let i = 0; i < message.objectPropertiesPtr.length; i++)
-            PropertyReferenceData.internalBinaryWrite(message.objectPropertiesPtr[i], writer.tag(34, WireType.LengthDelimited).fork(), options).join();
+        /* symbolx.bench.NodeType node_type = 33; */
+        if (message.nodeType !== 0)
+            writer.tag(33, WireType.Varint).int32(message.nodeType);
+        /* repeated symbolx.bench.PropertyReferenceData allowed_properties_ptr = 34; */
+        for (let i = 0; i < message.allowedPropertiesPtr.length; i++)
+            PropertyReferenceData.internalBinaryWrite(message.allowedPropertiesPtr[i], writer.tag(34, WireType.LengthDelimited).fork(), options).join();
         let u = options.writeUnknownFields;
         if (u !== false)
             (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
@@ -12848,7 +12842,6 @@ class SubjectData$Type extends MessageType<SubjectData> {
             { no: 32, name: "is_system", kind: "scalar", opt: true, T: 8 /*ScalarType.BOOL*/ },
             { no: 40, name: "client_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 41, name: "user_ptr", kind: "message", T: () => NodeReferenceData },
-            { no: 42, name: "server_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 50, name: "identity_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 51, name: "badges_ptr", kind: "message", repeat: 1 /*RepeatType.PACKED*/, T: () => NodeReferenceData },
             { no: 52, name: "owned_ptr", kind: "message", repeat: 1 /*RepeatType.PACKED*/, T: () => NodeReferenceData },
@@ -12910,9 +12903,6 @@ class SubjectData$Type extends MessageType<SubjectData> {
                     break;
                 case /* optional symbolx.bench.NodeReferenceData user_ptr */ 41:
                     message.userPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.userPtr);
-                    break;
-                case /* optional symbolx.bench.NodeReferenceData server_ptr */ 42:
-                    message.serverPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.serverPtr);
                     break;
                 case /* optional symbolx.bench.NodeReferenceData identity_ptr */ 50:
                     message.identityPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.identityPtr);
@@ -12978,9 +12968,6 @@ class SubjectData$Type extends MessageType<SubjectData> {
         /* optional symbolx.bench.NodeReferenceData user_ptr = 41; */
         if (message.userPtr)
             NodeReferenceData.internalBinaryWrite(message.userPtr, writer.tag(41, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbolx.bench.NodeReferenceData server_ptr = 42; */
-        if (message.serverPtr)
-            NodeReferenceData.internalBinaryWrite(message.serverPtr, writer.tag(42, WireType.LengthDelimited).fork(), options).join();
         /* optional symbolx.bench.NodeReferenceData identity_ptr = 50; */
         if (message.identityPtr)
             NodeReferenceData.internalBinaryWrite(message.identityPtr, writer.tag(50, WireType.LengthDelimited).fork(), options).join();
@@ -24553,7 +24540,6 @@ export enum SubjectProperty {
   isSystem = 32,
   clientPtr = 40,
   userPtr = 41,
-  serverPtr = 42,
   identityPtr = 50,
   badgesPtr = 51,
   ownedPtr = 52,
@@ -24591,8 +24577,8 @@ export enum AccessProperty {
   mode = 30,
   decision = 31,
   verb = 32,
-  objectType = 33,
-  objectPropertiesPtr = 34,
+  nodeType = 33,
+  allowedPropertiesPtr = 34,
 }
 
 export enum ReadOptionsProperty {
@@ -25160,7 +25146,6 @@ export const SubjectDataInfo: Record<SubjectProperty, PropertyInfo> = {
   [SubjectProperty.isSystem]: { id: 32, name: 'is_system', component: ObjectType.SUBJECT, kind: 'primitive', primitiveType: PrimitiveType.BOOLEAN, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [SubjectProperty.clientPtr]: { id: 40, name: 'client_ptr', component: ObjectType.SUBJECT, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.CLIENT], referenceStruct: StructType.NODE_REFERENCE },
   [SubjectProperty.userPtr]: { id: 41, name: 'user_ptr', component: ObjectType.SUBJECT, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.USER], referenceStruct: StructType.NODE_REFERENCE },
-  [SubjectProperty.serverPtr]: { id: 42, name: 'server_ptr', component: ObjectType.SUBJECT, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.SERVER], referenceStruct: StructType.NODE_REFERENCE },
   [SubjectProperty.identityPtr]: { id: 50, name: 'identity_ptr', component: ObjectType.SUBJECT, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.IDENTITY], referenceStruct: StructType.NODE_REFERENCE },
   [SubjectProperty.badgesPtr]: { id: 51, name: 'badges_ptr', component: ObjectType.SUBJECT, kind: 'reference', isList: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.BADGE], referenceStruct: StructType.NODE_REFERENCE },
   [SubjectProperty.ownedPtr]: { id: 52, name: 'owned_ptr', component: ObjectType.SUBJECT, kind: 'reference', isList: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.USER, NodeType.ORGANIZATION, NodeType.BENCH], referenceStruct: StructType.NODE_REFERENCE },
@@ -25195,8 +25180,8 @@ export const AccessDataInfo: Record<AccessProperty, PropertyInfo> = {
   [AccessProperty.mode]: { id: 30, name: 'mode', component: ObjectType.ACCESS, enumType: EnumType.ACCESS_MODE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [AccessProperty.decision]: { id: 31, name: 'decision', component: ObjectType.ACCESS, enumType: EnumType.POLICY_EFFECT, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [AccessProperty.verb]: { id: 32, name: 'verb', component: ObjectType.ACCESS, enumType: EnumType.ACCESS_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
-  [AccessProperty.objectType]: { id: 33, name: 'object_type', component: ObjectType.ACCESS, enumType: EnumType.OBJECT_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
-  [AccessProperty.objectPropertiesPtr]: { id: 34, name: 'object_properties_ptr', component: ObjectType.ACCESS, kind: 'primitive', primitiveType: PrimitiveType.JSON, isList: true, isInternal: true, isRuntime: true, isWired: true, isStored: true, referenceStruct: StructType.PROPERTY_REFERENCE },
+  [AccessProperty.nodeType]: { id: 33, name: 'node_type', component: ObjectType.ACCESS, enumType: EnumType.NODE_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
+  [AccessProperty.allowedPropertiesPtr]: { id: 34, name: 'allowed_properties_ptr', component: ObjectType.ACCESS, kind: 'primitive', primitiveType: PrimitiveType.JSON, isList: true, isInternal: true, isRuntime: true, isWired: true, isStored: true, referenceStruct: StructType.PROPERTY_REFERENCE },
 }
 export const ReadOptionsDataInfo: Record<ReadOptionsProperty, PropertyInfo> = {
   [ReadOptionsProperty.metatype]: { id: 1, name: 'metatype', component: ObjectType.READ_OPTIONS, enumType: EnumType.OBJECT_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isComputed: true, isWired: true },

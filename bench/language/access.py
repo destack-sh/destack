@@ -1,5 +1,6 @@
 from collections import defaultdict
 from datetime import datetime
+from itertools import chain
 from typing import (
     TYPE_CHECKING,
     Any,
@@ -23,7 +24,6 @@ from bench.language.const import (
     PUBLIC_NODE_TYPES,
     ROOT_NODE_TYPES,
     SUB_PACKAGE_NODE_TYPES,
-    UNSET,
     AccessKind,
     AccessMode,
     AccessType,
@@ -525,15 +525,13 @@ class AccessMatrix(Struct):
 class Access(Struct):
     """
     An evaluated access on some objects as part of a larger request (by the same subject).
-    As in PolicyRule, if the decision is Deny, the object_properties are the denied ones.
-    (And if object_properties is unset, it applies to all properties.)
     """
 
     mode: AccessMode = p_system(30, require=True)
     decision: PolicyEffect = p_system(31, require=True)
     verb: AccessType = p_system(32, require=True)
-    object_type: ObjectType = p_system(33, require=True)
-    object_properties: list[Property] = p_system(
+    node_type: NodeType = p_system(33, require=True)
+    allowed_properties: list[Property] = p_system(
         34, require=False, array=True, struct=StructType.PROPERTY_REFERENCE
     )
 
@@ -541,11 +539,11 @@ class Access(Struct):
     # roots, read_options, ...
 
     def __content_str__(self) -> str:
-        if self.object_properties:
-            object_properties_str = "|".join(p.name for p in self.object_properties)
-            object_str = f"{self.object_type.bench_name} [{object_properties_str}]"
+        if self.allowed_properties:
+            object_properties_str = "|".join(p.name for p in self.allowed_properties)
+            object_str = f"{self.node_type.bench_name} [{object_properties_str}]"
         else:
-            object_str = f"{self.object_type.bench_name} [*]"
+            object_str = f"{self.node_type.bench_name} [*]"
         return f"{self.decision.bench_name} {self.verb.bench_name} {object_str}"
 
 
@@ -717,16 +715,20 @@ def generate_access_matrix(
 
     from bench.proto import wiring
 
-    # nocheckin: why is this so slow
+    # TODO :Performance :Architecture: figure out better way of checking access than access matrices
+    #  Current approach is a bit unwiedly, hard to update incrementally and not very efficient.
+
     roots = graph.find_roots()
     identities = subject.split_into_acting_subjects(graph)
     matrix = AccessMatrix(subject=subject, identities=list(identities))
-    applied_policies_by_node_id: dict[str, list[Policy]] = defaultdict(list)
+    extra_policies_by_node_id: dict[str, list[Policy]] = defaultdict(list)
 
     def _assign_access_zones(
         node_data: AnyNodeData, owner: Owner, parent_zones_by_identity: dict[int, int]
     ):
         """Generates any new applicable access zones downstream from the node for all identities."""
+
+        node_type: NodeType = wiring.unpack_enum(NodeType, node_data.metatype)
 
         # if this node defines new policies, apply them to their scope
         if getattr(node_data, "policies", None):
@@ -742,23 +744,23 @@ def generate_access_matrix(
                     for scope in policy.scopes:
                         # we don't check if scope <= current here, but we don't need to
                         #  (it's validated in Policy and ancestor policies were already considered)
-                        applied_policies_by_node_id[str(scope.id)].append(policy)
+                        extra_policies_by_node_id[str(scope.id)].append(policy)
                 else:
-                    applied_policies_by_node_id[node_data.id].append(policy)
+                    extra_policies_by_node_id[node_data.id].append(policy)
 
-        # gather all the policy rules that apply in this context (per identity)
-        applied_policies = applied_policies_by_node_id.get(node_data.id, ())
+        # gather all the additional policy rules that apply in this scope (per identity)
+        extra_policies = extra_policies_by_node_id.get(node_data.id, ())
         new_zones_by_identity: dict[int, int] | None = None
-        if applied_policies:
+        if extra_policies:
             for identity in identities:
                 applicable_rules = [
                     rule
-                    for policy in applied_policies
+                    for policy in extra_policies
                     for rule in policy.rules
                     if rule.matches_subject(identity, owner)
                 ]
                 if applicable_rules:
-                    # we got a new zone with different roles down here
+                    # new rules, so make new zone
                     zone = AccessZone(
                         parent_id=parent_zones_by_identity.get(identity.id),
                         scope_id=node_data.id,
@@ -789,8 +791,7 @@ def generate_access_matrix(
 
         # descend into children
         #  (even if they don't have any legislative nodes since we want the runtime-only zone mapping)
-        current_type: NodeType = wiring.unpack_enum(NodeType, node_data.metatype)
-        for child_type in CHILD_NODE_TYPES[current_type]:
+        for child_type in CHILD_NODE_TYPES[node_type]:
             for child_node in graph.iter_descendants(node_data, child_type):
                 _assign_access_zones(child_node, owner, new_zones_by_identity)
 
@@ -828,9 +829,8 @@ def generate_access_matrix(
     return matrix
 
 
-class _EvalCacheKey(NamedTuple):
+class _AccessCacheKey(NamedTuple):
     object_node_type: NodeType
-    # assumes object_properties are equivalent for every object_node_type in request
     root_id: str
     start_scope_id: int | None
     identity_id: int
@@ -845,21 +845,21 @@ def evaluate_access(
     wanted_properties: bitarray,
     root_id: str,
     scope_id: str | None,
-    trace: bool = False,
-    cache: dict[_EvalCacheKey, bitarray] | None = None,
-) -> tuple[bitarray, Access, bool]:
+    cache: dict[_AccessCacheKey, bitarray] | None,
+) -> tuple[PolicyEffect, bitarray]:
     """
     Evaluates Access for the given object type and properties in that scope.
-    Returns the *allowed* properties and the Access.
-    If passing a cache, caches evals per identity and Access is only created if the request is new.
+    Returns the decision and the allowed properties (all or subset if any).
+    NOTE: assumes verb & object_properties are equivalent for every object_node_type in request
     """
 
-    # the granted 'allow' mask for properties across identities
+    # NOTE :Performance: we can probably cache evaluate_access more aggressively
+    #  (e.g. cache the entire result, not just per identity+start zone)
+
     verb = verb.to(AccessType)
     composite_allowed_properties = bitarray(len(wanted_properties))
-    object_node_cls = NODE_CLASS_BY_TYPE[node_type]
+    node_cls = NODE_CLASS_BY_TYPE[node_type]
     matched_rules: list[PolicyRule] = []
-    num_cached_identities = 0
 
     # check the zones for each identity (separately)
     for identity in matrix.identities:
@@ -870,7 +870,7 @@ def evaluate_access(
             start_scoped_zone = None
 
         # check cache
-        cache_key = _EvalCacheKey(
+        cache_key = _AccessCacheKey(
             object_node_type=node_type,
             root_id=root_id,
             start_scope_id=start_scoped_zone.id if start_scoped_zone is not None else None,
@@ -894,12 +894,12 @@ def evaluate_access(
                             matched_rules.append(rule)
                         if rule.effect == PolicyEffect.ALLOW:
                             rule_properties_mask = rule._object_properties_masks.get(
-                                node_type, object_node_cls.__properties_mask_set__
+                                node_type, node_cls.__properties_mask_set__
                             )
                             allowed_properties |= rule_properties_mask & unset_properties
                         else:
                             rule_properties_mask = rule._object_properties_masks.get(
-                                node_type, object_node_cls.__properties_mask_unset__
+                                node_type, node_cls.__properties_mask_unset__
                             )
                             allowed_properties &= ~(rule_properties_mask & unset_properties)
                         unset_properties = unset_properties & ~rule_properties_mask
@@ -915,6 +915,8 @@ def evaluate_access(
                     current_zone = matrix.scoped_zones[cast(int, current_zone.parent.id)]
                 else:
                     break  # reached the top
+            if cache is not None:
+                cache[cache_key] = allowed_properties
 
         # accumulate (OR) allowed properties across identities
         composite_allowed_properties |= allowed_properties
@@ -931,25 +933,7 @@ def evaluate_access(
             decision = PolicyEffect.DENY
     else:
         raise ValueError(f"unexpected mode {mode!r}")
-    if decision == PolicyEffect.ALLOW:
-        decided_properties = composite_allowed_properties
-    elif decision == PolicyEffect.DENY:  # denied properties are inverse of allowed
-        decided_properties = ~composite_allowed_properties & wanted_properties
-    else:
-        raise ValueError(f"unexpected decision {decision!r}")
-    if decided_properties.all():
-        object_properties = ()
-    else:
-        object_properties = object_node_cls._unmask_properties(decided_properties)
-    access = Access(
-        mode=mode,
-        decision=decision,
-        verb=verb,
-        object_type=node_type,
-        object_properties=list(object_properties),
-    )
-    was_cached = num_cached_identities == len(matrix.identities)
-    return composite_allowed_properties, access, was_cached
+    return decision, composite_allowed_properties
 
 
 @tracer.start_as_current_span("access.evaluate_and_adapt_read")
@@ -957,9 +941,7 @@ def evaluate_and_adapt_read(
     matrix: AccessMatrix,
     graph: NodeDataGraph,
     *,
-    adapt_nodes_in_place: bool,
     required_nodes: Collection[NodeReferenceData] | None = None,
-    trace: bool = False,
 ) -> tuple[PolicyEffect, Collection[Access], Collection[AnyNodeData]]:
     """
     Evaluate *and* adapt access to all nodes in the given graph, pruning nodes & properties as needed.
@@ -971,79 +953,96 @@ def evaluate_and_adapt_read(
     NOTE: assumes that all policies are valid.
     NOTE: nodes are returned in pre-order (parents before children).
     """
-    from bench.proto import wire, wiring
+    from bench.proto import wire
 
+    trace.get_current_span().set_attribute("nodes", len(graph))
+    all_nodes_preorder: list[AnyNodeData] = []
     visible_nodes: list[AnyNodeData] = []
-    accesses: list[Access] = []
-    skips: dict[str, wire.SkipData] = {}
+    allowed_properties_by_node_id: dict[str, bitarray] = {}
+    denied_accesses: list[Access] = []
+    skipped: set[str] = set()
     cache: dict[Any, Any] = {}
 
+    # evaluate access per node
+    with tracer.start_as_current_span("access.evaluate_read", attributes={"nodes": len(graph)}):
+        for root in graph.find_roots():
+            descendants = graph.collect_descendants(root, recursive=True)
+            for node_ in chain((root,), descendants):
+                # evaluate access
+                node_type = cast(NodeType, node_.metatype)
+                node_properties: bitarray = NODE_CLASS_BY_TYPE[node_type].__properties_mask_set__
+                decision, allowed_properties = evaluate_access(
+                    matrix=matrix,
+                    verb=ReadType.GET,  # same for all?
+                    node_type=node_type,
+                    wanted_properties=node_properties,
+                    root_id=root.id,
+                    scope_id=node_.id,
+                    mode=AccessMode.ADAPTIVE,
+                    cache=cache,
+                )
+                if decision != PolicyEffect.DENY:
+                    allowed_properties_by_node_id[node_.id] = allowed_properties
+                elif node_.id in required_nodes:
+                    node_cls = NODE_CLASS_BY_TYPE[node_type]
+                    access = Access(
+                        mode=AccessMode.ADAPTIVE,
+                        decision=decision,
+                        verb=ReadType.GET,
+                        node_type=node_type,
+                        allowed_properties=list(node_cls._unmask_properties(allowed_properties)),
+                    )
+                    denied_accesses.append(access)
+            # remember order
+            all_nodes_preorder.append(root)
+            all_nodes_preorder.extend(descendants)
+
     # adapt & filter nodes
-
-    def _adapt_descendants(root: AnyNodeData, n: AnyNodeData) -> None:
-        # evaluate access
-        object_node_type: NodeType = wiring.unpack_enum(NodeType, n.metatype)
-        object_node_cls = NODE_CLASS_BY_TYPE[object_node_type]
-        object_properties: bitarray = object_node_cls.__properties_mask_set__
-        allowed_properties, access, was_cached = evaluate_access(
-            matrix=matrix,
-            verb=ReadType.GET,  # same for all?
-            node_type=object_node_type,
-            wanted_properties=object_properties,
-            root_id=root.id,
-            scope_id=n.id,
-            mode=AccessMode.ADAPTIVE,
-            trace=trace,
-            cache=cache,
-        )
-        if not was_cached:
-            accesses.append(access)
-
-        # apply decision (skip or adapt)
-        if access.decision == PolicyEffect.DENY:
-            skips[n.id] = UNSET  # mark as skipped
-        elif allowed_properties == object_properties:
-            visible_nodes.append(n)
-        else:
-            node_cls = NODE_CLASS_BY_TYPE[object_node_type]
-            # prune node properties to only allowed ones
-            if not adapt_nodes_in_place:
-                # NOTE :Performance: avoid copying properties that we'll prune anyway
-                n = wiring.copy_data(n)
-            pruned_properties = object_properties & (object_properties ^ allowed_properties)
-            for pruned_prop_ord in pruned_properties.search(True):
-                prop = node_cls.__properties_in_order__[pruned_prop_ord]
-                setattr(n, prop.name, None)
-            setattr(n, "metatype", object_node_type)  # always keep metatype
-            visible_nodes.append(n)
-
-        # traverse children
-        for child in graph.iter_descendants(n):
-            _adapt_descendants(root, child)
-
-    for root in graph.find_roots():
-        _adapt_descendants(root, root)
+    with tracer.start_as_current_span("access.adapt_read", attributes={"nodes": len(graph)}):
+        for node_ in all_nodes_preorder:
+            node_cls = NODE_CLASS_BY_TYPE[cast(NodeType, node_.metatype)]
+            allowed_properties = allowed_properties_by_node_id.get(node_.id)
+            node_type = cast(NodeType, node_.metatype)
+            node_properties: bitarray = NODE_CLASS_BY_TYPE[node_type].__properties_mask_set__
+            if allowed_properties is None:
+                # skip (will be added in as skip if needed below)
+                skipped.add(node_.id)
+            elif allowed_properties == node_properties:
+                # add as is (with all properties)
+                visible_nodes.append(node_)
+            else:
+                # add, but prune node properties to only allowed ones
+                node_copy = type(node_)(metatype=node_.metatype)
+                for prop_ord in allowed_properties.search(True):
+                    prop = node_cls.__properties_in_order__[prop_ord]
+                    if prop.reference_wired_ptr is not None:
+                        prop = prop.reference_wired_ptr
+                    setattr(node_copy, prop.name, getattr(node_, prop.name))
+                visible_nodes.append(node_copy)
 
     # add any required skipped nodes back in (as Skips)
-    for n in visible_nodes:
-        if n.parent_ptr is not None and skips.get(cast(str, n.parent_ptr.id), None) is UNSET:
+    skips: dict[str, wire.SkipData] = {}
+    for node_ in visible_nodes:
+        if node_.parent_ptr is not None and node_.parent_ptr.id in skipped:
+            if node_.parent_ptr.id in skips:
+                continue
             skip = wire.SkipData(
                 metatype=wire.ObjectType.SKIP,
-                id=n.id,
-                ck=getattr(n, "ck"),
-                parent_ptr=n.parent_ptr,
-                revision=n.revision,
-                order_key=getattr(n, "order_key", None),
-                reference_ptr=NodeReference.from_node_data(n),
+                id=node_.id,
+                ck=getattr(node_, "ck"),
+                parent_ptr=node_.parent_ptr,
+                revision=node_.revision,
+                order_key=getattr(node_, "order_key", None),
+                reference_ptr=NodeReference.from_node_data(node_),
             )
-            skips[cast(str, n.parent_ptr.id)] = skip
+            skips[cast(str, node_.parent_ptr.id)] = skip
     visible_nodes.extend(skips.values())
 
     if required_nodes and any(n.id in skips for n in required_nodes):
         decision = PolicyEffect.DENY
     else:
         decision = PolicyEffect.ALLOW
-    return decision, accesses, visible_nodes
+    return decision, denied_accesses, visible_nodes
 
 
 @tracer.start_as_current_span("access.evaluate_edit")
@@ -1053,7 +1052,7 @@ def evaluate_edit(
     edits: Collection[EditData],
     *,
     trace: bool = False,
-) -> tuple[PolicyEffect, list[Access]]:
+) -> tuple[PolicyEffect, Collection[Access]]:
     """
     Evaluates whether the given policies (base and in graph) allow the given edits.
     Assumes that all policies are valid, and that all relevant scopes are in the graph.
@@ -1062,8 +1061,6 @@ def evaluate_edit(
     """
     from bench.proto import wiring
 
-    accesses: list[Access] = []
-    cache: dict[Any, Any] = {}
     # when creating nested nodes in one transaction, the graph only knows about their 'root',
     #  so we remember the scopes for the new nodes to know which zone to use
     new_node_scopes_by_child_id: dict[str, str] = {}
@@ -1091,7 +1088,7 @@ def evaluate_edit(
             if edit.type in (EditType.CREATE, EditType.UPSERT):
                 # there's a system rule against creating roots, but would need special logic to enforce it
                 #  (because root would be a node itself, which isn't in the matrix as we expect)
-                return PolicyEffect.DENY, accesses
+                return PolicyEffect.DENY, ()
             scope = root = graph.get(node.id)
         try:
             object_properties = node_cls._mask_properties_ids(edit.properties)
@@ -1103,7 +1100,7 @@ def evaluate_edit(
         if scope is None or root is None:
             raise ValidationError(edit, f"scope {node.id} not in {graph!r}")
         # and evaluate it
-        _, access, was_cached = evaluate_access(
+        decision, allowed_properties = evaluate_access(
             matrix=matrix,
             verb=access_type,
             node_type=node_type,
@@ -1111,17 +1108,21 @@ def evaluate_edit(
             root_id=root.id,
             scope_id=scope.id,
             mode=AccessMode.ATOMIC,
-            trace=trace,
-            cache=cache,
+            cache=None,
         )
-        if not was_cached:
-            accesses.append(access)
-        if access.decision == PolicyEffect.DENY:
+        if decision == PolicyEffect.DENY:
             # implicit or explicit deny for access -> deny entire request
-            return PolicyEffect.DENY, accesses
+            access = Access(
+                mode=AccessMode.ATOMIC,
+                decision=PolicyEffect.DENY,
+                verb=access_type,
+                node_type=node_type,
+                allowed_properties=list(node_cls._unmask_properties(allowed_properties)),
+            )
+            return PolicyEffect.DENY, (access,)
 
     # at this point no implicit or explicit denies have happened -> explicit allow
-    return PolicyEffect.ALLOW, accesses
+    return PolicyEffect.ALLOW, ()
 
 
 @tracer.start_as_current_span("access.evaluate_use")
@@ -1129,15 +1130,13 @@ def evaluate_use(
     matrix: AccessMatrix,
     use_type: UseType,
     node: "Block",
-    *,
-    trace: bool = False,
-) -> tuple[PolicyEffect, list[Access]]:
+) -> tuple[PolicyEffect, Collection[Access]]:
     """
     Evaluates whether the given policies (base and in graph) allow the given run access.
     Assumes that all policies are valid.
     """
     node_cls = NODE_CLASS_BY_TYPE[node.metatype]
-    _, access, _ = evaluate_access(
+    decision, allowed_properties = evaluate_access(
         matrix=matrix,
         verb=use_type,
         node_type=node.metatype,
@@ -1145,6 +1144,13 @@ def evaluate_use(
         scope_id=str(node.id),
         root_id=str(node.bench.id),
         mode=AccessMode.ATOMIC,
-        trace=trace,
+        cache=None,
     )
-    return access.decision, [access]
+    access = Access(
+        mode=AccessMode.ATOMIC,
+        decision=decision,
+        verb=use_type,
+        node_type=node.metatype,
+        allowed_properties=list(node_cls._unmask_properties(allowed_properties)),
+    )
+    return decision, [access]
