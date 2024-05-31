@@ -681,7 +681,7 @@ async def pg_select_raw(
     """Executes an arbitrary select without any wrapping."""
     query_str = sql_to_str(cur, query) if not isinstance(query, str) else query
     trace.get_current_span().set_attributes({"sql_query": query_str})
-    logger.trace("pg.select_raw", query=query_str)
+    logger.trace("pg.select_raw", query=query_str, span='current')
     await _pg_execute(cur, cast(sql.Composed, query))
     return await cur.fetchall()
 
@@ -718,7 +718,7 @@ async def pg_select(
         statement += sqlstr(" OFFSET {}").format(sql.Literal(skip))
     query_str = sql_to_str(cur, statement)
     trace.get_current_span().set_attribute("sql_query", query_str)
-    logger.trace("pg.select", table=table, cur=cur, query=query_str)
+    logger.trace("pg.select", table=table, cur=cur, query=query_str, span='current')
     if any(c.is_encrypted for c in columns):
         params = {**(params or EMPTY_DICT), "PG_CRYPTO_KEY": get_pg_crypto_key(table)}
     try:
@@ -775,7 +775,7 @@ async def pg_exists(
     statement += sqlstr(")")
     query_str = sql_to_str(cur, statement)
     trace.get_current_span().set_attribute("sql_query", query_str)
-    logger.trace("pg.exists_rows", table=table, cur=cur, query=query_str)
+    logger.trace("pg.exists_rows", table=table, cur=cur, query=query_str, span='current')
     try:
         await _pg_execute(cur, statement)
         result = await cur.fetchone()
@@ -809,7 +809,7 @@ async def pg_insert(
         )
     query_str = sql_to_str(cur, statement)
     trace.get_current_span().set_attribute("sql_query", query_str)
-    logger.trace("pg.insert", table=table, cur=cur, query=query_str)
+    logger.trace("pg.insert", table=table, cur=cur, query=query_str, span='current')
 
     if any(c.is_encrypted for c in table.columns):
         templated_values = tuple({**row, "PG_CRYPTO_KEY": get_pg_crypto_key(table)} for row in rows)
@@ -875,7 +875,7 @@ async def pg_upsert(
         )
     query_str = sql_to_str(cur, statement)
     trace.get_current_span().set_attribute("sql_query", query_str)
-    logger.trace("pg.upsert", table=table, cur=cur, query=query_str)
+    logger.trace("pg.upsert", table=table, cur=cur, query=query_str, span='current')
 
     if any(c.is_encrypted for c in table.columns):
         templated_values = tuple({**row, "PG_CRYPTO_KEY": get_pg_crypto_key(table)} for row in rows)
@@ -989,7 +989,7 @@ async def pg_update_variable(
     query_str = sql_to_str(cur, statement)
     trace.get_current_span().set_attribute("sql_query", query_str)
     logger.trace(
-        "pg.update_variable", table=table, cur=cur, query=query_str, rows=len(dynamic_values)
+        "pg.update_variable", table=table, cur=cur, query=query_str, span='current', rows=len(dynamic_values)
     )
 
     is_any_encrypted = any(c.is_encrypted for c in table.columns)
@@ -1038,7 +1038,7 @@ async def pg_delete(
         )
     query_str = sql_to_str(cur, statement)
     trace.get_current_span().set_attribute("sql_query", query_str)
-    logger.trace("pg.delete", table=table, cur=cur, query=query_str)
+    logger.trace("pg.delete", table=table, cur=cur, query=query_str, span='current')
     try:
         await _pg_execute(cur, statement)
     except psycopg.errors.Error as e:

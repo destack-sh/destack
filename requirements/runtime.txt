@@ -296,7 +296,7 @@ soupsieve==2.5
     # via beautifulsoup4
 stone==3.3.6
     # via dropbox
-structlog==23.1.0
+structlog==24.2.0
 tqdm==4.66.4
     # via openai
 typer==0.12.3

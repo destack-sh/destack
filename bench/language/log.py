@@ -45,7 +45,7 @@ class LogKind(IdEnum):
 
 
 @enum_(EnumType.LOG_LEVEL)
-class LogLevel(IdEnum):
+class LogLevel(IdEnum):  # :LogLevel
     TRACE = 1
     DEBUG = 2
     INFO = 3
