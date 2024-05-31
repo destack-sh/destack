@@ -238,13 +238,13 @@ class BenchServer(grpclib.server.Server):
     def __repr__(self):
         return f"<BenchServer {self}>"
 
-    @tracer.start_as_current_span("server.start")
     async def start(self, host: str | None = None, port: int | None = None, **kwargs) -> None:
         self._host = host
         self._port = port
-        await asyncio.gather(*(h.start() for h in self._services))
+        with tracer.start_as_current_span("server.start"):
+            await asyncio.gather(*(h.start() for h in self._services))
+            logger.info("server.start", server=self, span="current")
         await super().start(host=host, port=port, **kwargs)
-        logger.info("server.start", server=self, span="current")
 
     @tracer.start_as_current_span("server.close")
     def close(self) -> None:

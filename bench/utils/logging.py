@@ -81,6 +81,34 @@ class KeyValueColumnFormatter:
         return sio.getvalue()
 
 
+@dataclass(slots=True)
+class DurationFormatter:
+    """
+    Formats duration with a fixed width and color corresponding to their length.
+    Duration should be in nanoseconds.
+    """
+
+    level_styles: dict[str, str]
+    reset_style: str
+    width: int
+
+    def __call__(self, key: str, value: object) -> str:
+        if value == "":
+            return _padright("", self.width)
+        assert isinstance(value, int), f"expected int, got {value!r}"
+        if value < 1_000_000:
+            level = "debug"
+        elif value < 100_000_000:
+            level = "info"
+        elif value < 1_000_000_000:
+            level = "warning"
+        else:
+            level = "error"
+        style = self.level_styles.get(level, "")
+        duration_str = f"{value / 1_000_000:.3f}ms"
+        return f"{style}{_padleft(duration_str, self.width)}{self.reset_style}"
+
+
 # monkey patch structlog to add color support for custom 'trace' level
 patched_styles = structlog.dev.ConsoleRenderer.get_default_level_styles()
 patched_styles["trace"] = patched_styles["debug"]
@@ -88,6 +116,17 @@ patched_styles["trace"] = patched_styles["debug"]
 # console style
 structlog.dev.ConsoleRenderer.get_default_level_styles = lambda *args: patched_styles  # type: ignore
 styles = structlog.dev._ColorfulStyles
+LEVEL_STYLES = {
+    "critical": styles.level_critical,
+    "exception": styles.level_exception,
+    "error": styles.level_error,
+    "warn": styles.level_warn,
+    "warning": styles.level_warn,
+    "info": styles.level_info,
+    "debug": styles.level_debug,
+    "trace": styles.level_debug,
+    "notset": styles.level_notset,
+}
 CONSOLE_FORMATTER = structlog.dev.ConsoleRenderer(
     columns=[
         # timestamp (dim)
@@ -103,21 +142,7 @@ CONSOLE_FORMATTER = structlog.dev.ConsoleRenderer(
         # level (color)
         structlog.dev.Column(
             "level",
-            structlog.dev.LogLevelColumnFormatter(
-                {
-                    "critical": styles.level_critical,
-                    "exception": styles.level_exception,
-                    "error": styles.level_error,
-                    "warn": styles.level_warn,
-                    "warning": styles.level_warn,
-                    "info": styles.level_info,
-                    "debug": styles.level_debug,
-                    "trace": styles.level_debug,
-                    "notset": styles.level_notset,
-                },
-                reset_style=styles.reset,
-                width=6,
-            ),
+            structlog.dev.LogLevelColumnFormatter(LEVEL_STYLES, reset_style=styles.reset, width=6),
         ),
         # event (very bright)
         structlog.dev.Column(
@@ -133,14 +158,7 @@ CONSOLE_FORMATTER = structlog.dev.ConsoleRenderer(
         # duration
         structlog.dev.Column(
             "duration",
-            KeyValueColumnFormatter(
-                key_style=None,
-                value_style=styles.bright + styles.kv_value,
-                reset_style=styles.reset,
-                value_repr=str,
-                width=10,
-                pad="<",
-            ),
+            DurationFormatter(level_styles=LEVEL_STYLES, reset_style=styles.reset, width=10),
         ),
         # logger (bright)
         structlog.dev.Column(
@@ -226,7 +244,7 @@ def trim_otel_span(_, __, event_dict):
         if hasattr(span, "start_time"):
             end_time = getattr(span, "end_time", None) or monons()
             duration = end_time - getattr(span, "start_time")
-            event_dict["duration"] = f"{(duration / 1_000_000):.3f}ms"
+            event_dict["duration"] = duration
     return event_dict
 
 

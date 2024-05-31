@@ -159,7 +159,7 @@ class Supervisor(GraphIoServiceBase, SupervisorBase):
             user.main_handle = user.handles.create(slug=user.slug)
             await session.commit()
 
-        logger.info("supervisor.signup_user", user=user, client=client)
+        logger.info("supervisor.signup_user", user=user, client=client, span="current")
         return SignupUserResponse(
             user=user._to_data(),
             client=client._to_data(),
@@ -188,7 +188,7 @@ class Supervisor(GraphIoServiceBase, SupervisorBase):
             user.password_hash = hash_password(request.new_password, user.password_salt)
             await session.commit()
 
-        logger.info("supervisor.change_user_password", user=user)
+        logger.info("supervisor.change_user_password", user=user, span="current")
         return ChangeUserPasswordResponse(user=user._to_data())
 
     @override
@@ -218,7 +218,7 @@ class Supervisor(GraphIoServiceBase, SupervisorBase):
             session.upsert(client)
             await session.commit()
 
-        logger.info("supervisor.login_user", user=user, client=client)
+        logger.info("supervisor.login_user", user=user, client=client, span="current")
         return LoginUserResponse(
             user=user._to_data(),
             client=client._to_data(),
@@ -253,7 +253,7 @@ class Supervisor(GraphIoServiceBase, SupervisorBase):
                 client.seen_at = utcnow()
             await session.commit()
 
-        logger.info("supervisor.logout_user", user=subject.user, clients=clients)
+        logger.info("supervisor.logout_user", user=subject.user, clients=clients, span="current")
         return LogoutUserResponse()
 
     #
@@ -315,7 +315,7 @@ class Supervisor(GraphIoServiceBase, SupervisorBase):
 
             await session.commit()
 
-        logger.info("supervisor.create_bench", bench=bench)
+        logger.info("supervisor.create_bench", bench=bench, span="current")
         return CreateBenchResponse(bench=bench._to_data())
 
     @override
