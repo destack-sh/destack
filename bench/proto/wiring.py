@@ -9,11 +9,11 @@ import structlog
 from betterproto.lib.google.protobuf import Struct as BetterprotoStruct
 from opentelemetry import trace
 
-from bench.language import Property
 from bench.language.const import UNSET, NodeType, ObjectType
 from bench.language.graph import NodeDataGraph
 from bench.language.node import NODE_CLASS_BY_TYPE, Node, NodeGraph, ReadInfo, Struct
 from bench.language.notice import NoticeHandler, on_notice_ignore, on_warning_raise
+from bench.language.property import Property
 from bench.language.session import Session
 from bench.language.setup import BENCH_CLASS_BY_TYPE
 from bench.language.validation import on_invalid_raise

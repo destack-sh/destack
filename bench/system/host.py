@@ -25,7 +25,14 @@ from bench.language.const import (
     NodeType,
 )
 from bench.language.expression import NodeReference
-from bench.language.graph import NodeDict, NodeGraphLike, edit_data_graph, edit_graph
+from bench.language.graph import (
+    NodeDict,
+    NodeGraphLike,
+    bump_data_graph,
+    bump_graph,
+    edit_data_graph,
+    edit_graph,
+)
 from bench.language.log import Log
 from bench.language.property import Property
 from bench.language.session import Session, unsuspend_session
@@ -223,7 +230,6 @@ class Host(GraphIoServiceBase, HostBase, HostSpec):
             _is_readonly=readonly,
             _default_scope=self.scope,
             _engines=engines if engines is not None else self.get_engines(),
-            _commit=self._commit_system_session,
         )
 
     @override
@@ -478,16 +484,24 @@ class Host(GraphIoServiceBase, HostBase, HostSpec):
             else:
                 bench_edits.append(edit)
             # edit_data_graph(edited_data_graph, (edit,), options)
-        # filter the in memory edits to only those with an origin
-        # (we/Host/system don't have an 'origin' and edit our nodes directly in the session)
         if bench_edits:
+            # filter the in memory edits to only those with an origin
+            # (we/Host/system don't have an 'origin' and edit our nodes directly in the session)
             inmemory_bench_edits = tuple(e for e in bench_edits if e.origin is not None)
-            edit_graph(self._bench._graph, inmemory_bench_edits, BENCH_QUERY._options)
-            edit_data_graph(self._bench._data_graph, bench_edits, BENCH_QUERY._options)
+            options = BENCH_QUERY._options
+            edit_graph(self._bench._graph, inmemory_bench_edits, options)
+            edit_data_graph(self._bench._data_graph, bench_edits, options)
+            # and also bump revisions (for all edits)
+            bump_graph(self._bench._graph, bench_edits, options)
+            bump_data_graph(self._bench._data_graph, bench_edits, options)
         if package_edits:
+            # same as above but for the main package
             inmemory_package_edits = tuple(e for e in package_edits if e.origin is not None)
-            edit_graph(self._main_package._graph, inmemory_package_edits, PACKAGE_QUERY._options)
-            edit_data_graph(self._main_package._data_graph, package_edits, PACKAGE_QUERY._options)
+            options = PACKAGE_QUERY._options
+            edit_graph(self._main_package._graph, inmemory_package_edits, options)
+            edit_data_graph(self._main_package._data_graph, package_edits, options)
+            bump_graph(self._main_package._graph, package_edits, options)
+            bump_data_graph(self._main_package._data_graph, package_edits, options)
         self._session.unsuppress()
 
         # run plugins on commit (in main session)

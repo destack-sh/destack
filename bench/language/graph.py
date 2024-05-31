@@ -153,7 +153,11 @@ class NodeGraphBase(abc.ABC, Generic[SomeNodeT, IdT]):
 
 
 class NodeDataGraph(NodeGraphBase[NodeDataT, str]):
-    """A NodeGraph for NodeData objects (strings for ids, parent_ptr)."""
+    """
+    A NodeGraph for NodeData objects (strings for ids, parent_ptr).
+    NOTE: unlike in the graphs for full Nodes we assume that NodeData objects are immutable and
+     update by replacing the node.
+    """
 
     def __init__(self, nodes: Collection[NodeDataT] | None = None):
         self.nodes_by_id: dict[str, NodeDataT] = {}
@@ -1103,3 +1107,35 @@ def edit_data_graph(
                 updated_value = getattr(node_data, prop.name)
                 setattr(existing_node, prop.name, updated_value)
             graph.update(existing_node)
+
+
+@tracer.start_as_current_span("graph.bump_graph")
+def bump_graph(
+    graph: NodeGraph["Node"] | DetachedNodeGraph["Node"],
+    edits: Collection[EditData],
+    options: "ReadOptions | None",
+) -> None:
+    """Bumps all revisions accordong to the relevant edits without applying them."""
+    from bench.proto import wiring
+
+    for edit in edits:
+        node_data = wiring.unwrap_some_node(edit.node)
+        node = graph.get(UUID(node_data.id))
+        if node is not None:  # node may have been deleted
+            node.revision += 1
+
+
+@tracer.start_as_current_span("graph.bump_data_graph")
+def bump_data_graph(
+    graph: NodeDataGraph[AnyNodeData],
+    edits: Collection[EditData],
+    options: "ReadOptions | None",
+) -> None:
+    """Bumps all revisions accordong to the relevant edits without applying them."""
+    from bench.proto import wiring
+
+    for edit in edits:
+        node_data = wiring.unwrap_some_node(edit.node)
+        node = graph.get(node_data.id)
+        if node is not None:
+            node.revision += 1
