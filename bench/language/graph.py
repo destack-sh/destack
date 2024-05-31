@@ -1,6 +1,5 @@
 import abc
-from collections import defaultdict, deque
-from itertools import chain
+from collections import deque
 from typing import (
     TYPE_CHECKING,
     Any,
@@ -155,8 +154,6 @@ class NodeGraphBase(abc.ABC, Generic[SomeNodeT, IdT]):
 class NodeDataGraph(NodeGraphBase[NodeDataT, str]):
     """
     A NodeGraph for NodeData objects (strings for ids, parent_ptr).
-    NOTE: unlike in the graphs for full Nodes we assume that NodeData objects are immutable and
-     update by replacing the node.
     """
 
     def __init__(self, nodes: Collection[NodeDataT] | None = None):
@@ -220,6 +217,16 @@ class NodeDataGraph(NodeGraphBase[NodeDataT, str]):
                 self._remove_from_parent(old)
             if node.parent_ptr is not None:
                 self._add_to_parent(node)
+        elif old_parent_id is not None:
+            # update in parent list (identity may have changed)
+            for i, child in enumerate(
+                self.nodes_by_parent_id_and_type[old_parent_id][node.metatype]
+            ):
+                if child.id == node.id:
+                    self.nodes_by_parent_id_and_type[old_parent_id][node.metatype][i] = node
+                    break
+            else:
+                raise ValueError(f"node {node!r} not in {self!r}")
 
     def remove(self, node: NodeDataT):
         assert isinstance(node.id, str), f"cannot add {node!r} to {self!r} with id {node.id!r}"
@@ -231,7 +238,7 @@ class NodeDataGraph(NodeGraphBase[NodeDataT, str]):
         # descend
         if node.id in self.nodes_by_parent_id_and_type:
             for child_type in self.nodes_by_parent_id_and_type[node.id]:
-                for child in self.nodes_by_parent_id_and_type[node.id][child_type]:
+                for child in tuple(self.nodes_by_parent_id_and_type[node.id][child_type]):
                     self.remove(child)
 
     def _add_to_parent(self, node: NodeDataT):
@@ -385,6 +392,16 @@ class NodeGraph(NodeGraphBase[NodeT, UUID]):
                 self._remove_from_parent(old)
             if node.parent_id is not None:
                 self._add_to_parent(node)
+        elif old.parent_id is not None:
+            # update in parent list (identity may have changed)
+            for i, child in enumerate(
+                self.nodes_by_parent_id_and_type[old.parent_id][node.metatype]
+            ):
+                if child.id == node.id:
+                    self.nodes_by_parent_id_and_type[old.parent_id][node.metatype][i] = node
+                    break
+            else:
+                raise ValueError(f"node {node!r} not in {self!r}")
 
     def remove(self, node: NodeT):
         assert isinstance(node.id, UUID), f"cannot add {node!r} to {self!r} with id {node.id!r}"
@@ -398,7 +415,7 @@ class NodeGraph(NodeGraphBase[NodeT, UUID]):
         # descend
         if node.id in self.nodes_by_parent_id_and_type:
             for child_type in CHILD_NODE_TYPES[node.metatype]:
-                for child in self.nodes_by_parent_id_and_type[node.id].get(child_type, ()):
+                for child in tuple(self.nodes_by_parent_id_and_type[node.id].get(child_type, ())):
                     self.remove(child)
 
     def _add_to_parent(self, node: NodeT):
@@ -482,7 +499,7 @@ class DetachedNodeGraph(NodeGraphBase[NodeT, UUID]):
 
     def __init__(self):
         self.nodes_by_ck: dict[UUID, NodeT] = {}
-        self.nodes_by_parent_ck: dict[UUID, list[NodeT]] = defaultdict(list)
+        self.nodes_by_parent_ck: dict[UUID, list[NodeT]] = {}
 
     @property
     def nodes(self) -> Collection[NodeT]:
@@ -508,31 +525,51 @@ class DetachedNodeGraph(NodeGraphBase[NodeT, UUID]):
         self.nodes_by_ck[node.ck] = node
 
         if node.parent is not None:
-            self.nodes_by_parent_ck[node.parent.ck].append(node)
+            self._add_to_parent(node)
 
     def update(self, node: NodeT):
         """Updates the node in this graph (must exist)"""
-        existing = self.nodes_by_ck.get(node.ck)
-        if existing is None:
+        old = self.nodes_by_ck.get(node.ck)
+        if old is None:
             raise ValueError(f"node {node!r} (ck={node.ck}) does not exist in {self!r}")
         self.nodes_by_ck[node.ck] = node
 
-        if existing.parent is not None and existing.parent in self.nodes_by_parent_ck:
-            self.nodes_by_parent_ck[existing.parent.ck].remove(existing)
-        if node.parent is not None and node not in self.nodes_by_parent_ck[node.parent.ck]:
-            self.nodes_by_parent_ck[node.parent.ck].append(node)
+        if old.parent_id != node.parent_id:
+            if old.parent_id is not None:
+                self._remove_from_parent(old)
+            if node.parent_id is not None:
+                self._add_to_parent(node)
+        elif old.parent_id is not None:
+            for i, child in enumerate(self.nodes_by_parent_ck.get(old.parent_id, ())):
+                if child.ck == node.ck:
+                    self.nodes_by_parent_ck[old.parent_id][i] = node
+                    break
+            # NOTE :Robustness: not an error, may be moving? not sure.
 
     def remove(self, node: NodeT):
         """Remove a node from the graph (incl. all descendants if recursive)"""
-        descendants = self.collect_descendants(node, recursive=True)
-        for descendant in chain((node,), descendants):
-            descendant_ck = descendant.ck
-            if descendant_ck in self.nodes_by_ck:
-                self.nodes_by_ck.pop(descendant_ck)
-            if descendant_ck in self.nodes_by_parent_ck:
-                self.nodes_by_parent_ck.pop(descendant_ck)
-            if descendant.parent and descendant.parent.ck in self.nodes_by_parent_ck:
-                self.nodes_by_parent_ck[descendant.parent.ck].remove(descendant)
+        if node.ck in self.nodes_by_ck:
+            self.nodes_by_ck.pop(node.ck)
+        if node.parent is not None:
+            self._remove_from_parent(node)
+        if node.ck in self.nodes_by_parent_ck:
+            for child in tuple(self.nodes_by_parent_ck.get(node.ck, ())):
+                self.remove(child)
+
+    def _add_to_parent(self, node: NodeT):
+        assert node.parent is not None, f"{node!r} has no parent"
+        parent_ck = node.parent.ck
+        if parent_ck not in self.nodes_by_parent_ck:
+            self.nodes_by_parent_ck[parent_ck] = []
+        self.nodes_by_parent_ck[parent_ck].append(node)
+
+    def _remove_from_parent(self, node: NodeT):
+        assert node.parent is not None, f"{node!r} has no parent"
+        parent_ck = node.parent.ck
+        if parent_ck in self.nodes_by_parent_ck:
+            self.nodes_by_parent_ck[parent_ck].remove(node)
+        if len(self.nodes_by_parent_ck[parent_ck]) == 0:
+            self.nodes_by_parent_ck.pop(parent_ck)
 
     def find_roots(self) -> tuple[NodeT, ...]:
         return tuple(
