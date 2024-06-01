@@ -7,6 +7,7 @@ from typing import TYPE_CHECKING, Any, Collection, Optional, TypeGuard, Union, c
 from uuid import UUID
 
 import structlog
+from betterproto.lib.google.protobuf import Struct as ProtoStruct
 
 from bench.language.const import (
     PY_TYPE_BY_PRIMITIVE_TYPE,
@@ -39,6 +40,7 @@ ScalarValueData = Union[
     PrimitiveValue,
     dict[str, "ScalarValueData"],
     list["ScalarValueData"],
+    ProtoStruct,
 ]
 SomeValue = Union[ScalarValue, Collection[ScalarValue], None]
 JsonPrimitive = Union[str, int, float, bool, None]
@@ -447,7 +449,7 @@ def pack_value_scalar(value: ScalarValue, typ: "TypeInfoBase") -> JsonValue:
             value = cast("Node", value).to_ref()
         return pack_struct_value_scalar_data(cast("NodeReference", value)._to_data())
     elif typ.kind == TypeKind.ENUM:
-        return cast(int, value)
+        return int(cast(int, value))
     elif typ.kind == TypeKind.STRUCT:
         return pack_struct_value_scalar_data(cast("Struct", value)._to_data())
     else:
@@ -493,6 +495,8 @@ def pack_value_scalar_data(value: ScalarValueData, typ: "TypeInfoBase") -> JsonV
             return base64.b64encode(cast(bytes, value)).decode()
         elif typ.primitive_type == PrimitiveType.UUID:
             return cast(str, value)
+        elif typ.primitive_type == PrimitiveType.JSON:
+            return cast(JsonValue, cast(ProtoStruct, value).to_dict())
         elif typ.primitive_type == PrimitiveType.DATETIME:
             return cast(datetime, value).isoformat()
         elif typ.primitive_type == PrimitiveType.INTERVAL:
@@ -500,7 +504,7 @@ def pack_value_scalar_data(value: ScalarValueData, typ: "TypeInfoBase") -> JsonV
         else:
             return cast(JsonValue, value)
     elif typ.kind == TypeKind.ENUM:
-        return cast(int, value)
+        return int(cast(int, value))
     elif typ.kind in (TypeKind.NODE, TypeKind.BASED_NODE, TypeKind.STRUCT):
         return pack_struct_value_scalar_data(cast(AnyStructData, value))
     else:
@@ -516,6 +520,8 @@ def unpack_value_scalar_data(value_packed: JsonValue, typ: "TypeInfoBase") -> Sc
             return base64.b64decode(cast(str, value_packed))
         elif typ.primitive_type == PrimitiveType.UUID:
             return cast(str, value_packed)  # leave as string
+        elif typ.primitive_type == PrimitiveType.JSON:
+            return ProtoStruct.from_dict(cast(dict, value_packed))
         elif typ.primitive_type == PrimitiveType.DATETIME:
             return datetime.fromisoformat(cast(str, value_packed))
         elif typ.primitive_type == PrimitiveType.INTERVAL:
@@ -532,14 +538,15 @@ def unpack_value_scalar_data(value_packed: JsonValue, typ: "TypeInfoBase") -> Sc
         raise TypeError(f"cannot unpack value of type {typ!r}")
 
 
-def pack_struct_value_scalar_data(value: AnyStructData | AnyNodeData) -> Any:
-    """Packs a single struct/node data value using proto ids as keys and enum values."""
+def pack_struct_value_scalar_data(
+    value: AnyStructData | AnyNodeData,
+    only: Collection[Property | Any] | None = None,
+) -> dict[str, JsonValue]:
+    """Packs a single struct/node data value using typed proto ids as keys and enum values."""
     value_packed: dict[str, JsonValue] = {}
-
     object_cls = OBJECT_CLASS_BY_TYPE[cast(ObjectType, value.metatype)]
-    for prop in object_cls.__wired_properties__.values():
+    for prop in only if only is not None else object_cls.__wired_properties__.values():
         prop_value = getattr(value, prop.name)
-        prop_key = prop.id_as_str
         if prop_value is None or (prop.is_list and len(prop_value) == 0):
             continue
         elif prop.is_list:
@@ -548,14 +555,18 @@ def pack_struct_value_scalar_data(value: AnyStructData | AnyNodeData) -> Any:
             ]
         else:
             prop_value_packed = pack_value_scalar_data(prop_value, prop.as_type_info)
-        value_packed[prop_key] = prop_value_packed
+        # nocheckin: use Property.id or .identity_key (includes type) for struct value encoding?
+        #  (also see below for unpack, and in Transactions for updates)
+        value_packed[prop.id_as_str] = prop_value_packed
     return value_packed
 
 
 def unpack_struct_value_scalar_data[T: AnyStructData | AnyNodeData](
-    value_packed: dict[str, Any], expect: type[T] | None = None
+    value_packed: dict[str, Any],
+    expect: type[T] | None = None,
+    only: Collection[Property | Any] | None = None,
 ) -> AnyStructData | AnyNodeData:
-    """Unpacks a single struct/node data value using proto ids as keys and enum values."""
+    """Unpacks a single struct/node data value using typed proto ids as keys and enum values."""
     from bench.proto import wire, wiring
 
     if expect is None:
@@ -569,9 +580,8 @@ def unpack_struct_value_scalar_data[T: AnyStructData | AnyNodeData](
     proto_cls = wiring.PROTO_CLASS_BY_TYPE[cast(ObjectType, object_type)]
 
     value = proto_cls(metatype=object_type)  # type: ignore
-    for prop in object_cls.__wired_properties__.values():
-        prop_key = prop.id_as_str
-        prop_value_packed = value_packed.get(prop_key)
+    for prop in only if only is not None else object_cls.__wired_properties__.values():
+        prop_value_packed = value_packed.get(prop.id_as_str)
         if prop_value_packed is None or (prop.is_list and len(prop_value_packed) == 0):
             continue
         elif prop.is_list:
@@ -660,7 +670,7 @@ def unpack_object_value_scalar(
 
 
 def pack_value(
-    value: SomeValue | None, typ: "TypeInfoBase", wrap_scalar: bool = True
+    value: SomeValue | None, typ: "TypeInfoBase", wrap_primitive: bool = True
 ) -> tuple[JsonValue, JsonValue | None]:
     """
     Packs a value into its constituent JSON-able parts (packed value & secret packed value).
@@ -696,7 +706,8 @@ def pack_value(
             value_packed = pack_value_scalar(cast(ScalarValue, value), typ)
         else:
             value_packed = [pack_value_scalar(element, typ) for element in cast(list, value)]
-        value_packed = {typ.identity_key: value_packed}
+        if wrap_primitive:
+            value_packed = {typ.identity_key: value_packed}
         return value_packed, None
 
 

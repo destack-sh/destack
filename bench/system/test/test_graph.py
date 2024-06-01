@@ -11,7 +11,7 @@ from bench.conftest import raises_grpc_error
 from bench.language import Node, Property, Text, User
 from bench.language.const import EditType, NodeType, PrimitiveType, StructType, UserStatus
 from bench.language.expression import NodeReference
-from bench.language.transaction import new_edit_id, pack_edit_node
+from bench.language.transaction import new_edit_id, pack_node_delta
 from bench.proto import wire, wiring
 from bench.proto.wire import (
     AnyNodeData,
@@ -107,8 +107,8 @@ class EditProducer:
                 type=wiring.pack_enum(EditType, edit_type),
                 node_ptr=NodeReference.from_node_data(node_data),
                 properties=[prop.id],
-                new_node_packed=pack_edit_node(node_data, only=(prop,)),
-                old_node_packed=pack_edit_node(node_data, only=(prop,)),
+                new_node_packed=pack_node_delta(node_data, only=(prop,)),
+                old_node_packed=pack_node_delta(node_data, only=(prop,)),
                 edited_at=utcnow(),
                 origin=self.client.origin,
                 subject_ptr=self.client.user.to_ref()._to_data(),
@@ -273,8 +273,8 @@ async def test_graph_update_node_with_invalid_property(
         type=wiring.pack_enum(EditType, EditType.UPDATE),
         node_ptr=NodeReference.from_node_data(node_data),
         properties=[cast(Property, User.name).id],
-        new_node_packed=pack_edit_node(node_data, only=(User.name,)),
-        old_node_packed=pack_edit_node(node_data, only=(User.name,)),
+        new_node_packed=pack_node_delta(node_data, only=(User.name,)),
+        old_node_packed=pack_node_delta(node_data, only=(User.name,)),
         edited_at=utcnow(),
         origin=some_user.origin,
         subject_ptr=some_user.user.to_ref()._to_data(),

@@ -44,7 +44,7 @@ from bench.language.graph import NodeDataGraph
 from bench.language.node import NODE_CLASS_BY_TYPE, UNSET, Node
 from bench.language.query import ReadOptions
 from bench.language.setup import NODE_CLASSES, PARENT_NODE_TYPES
-from bench.language.transaction import unpack_edit_node
+from bench.language.transaction import unpack_node_delta
 from bench.language.value import pack_struct_value_scalar_data, unpack_struct_value_scalar_data
 from bench.proto import wire, wiring
 from bench.proto.wire import AnyNodeData, EditData, IdEnum, NodeReferenceData
@@ -1580,7 +1580,7 @@ async def _pg_edit_batch(
         rows = []
         for edit in batch:
             assert edit.new_node_packed, f"no new node for {edit!r}"
-            node = unpack_edit_node(edit.new_node_packed, only=None)
+            node = unpack_node_delta(edit.new_node_packed)
             nodes.append(node)
             # inline implicit metadata
             row: dict[str, SqlPrimitive] = pg_pack_node_data_row(node)
@@ -1622,18 +1622,13 @@ async def _pg_edit_batch(
         EditType.RESTORE,
     ):
         # collect dynamic columns (incl. implicit metadata)
-        implicit_properties: list[Property | Any] = [
-            Node.updated_at,
-            Node.updated_epoch,
-            Node.updated_by,
-        ]
+        implicit_properties: list[Property | Any] = [node_cls.updated_at, node_cls.updated_by]
+        if "updated_epoch" in node_cls.__properties__:
+            implicit_properties.append(node_cls.updated_epoch)
         if edit_type in (EditType.ARCHIVE, EditType.UNARCHIVE):
-            implicit_properties.append(Node.archived_at)
+            implicit_properties.append(node_cls.archived_at)
         elif edit_type in (EditType.SOFT_DELETE, EditType.RESTORE):
-            implicit_properties.append(Node.deleted_at)
-        implicit_properties = [
-            p for p in implicit_properties if p.id in node_cls.__properties_by_id__
-        ]
+            implicit_properties.append(node_cls.deleted_at)
         dynamic_columns: list[Column] = [table._primary_key]
         for prop in chain(implicit_properties, updated_properties):
             if prop.is_node_reference:
@@ -1645,7 +1640,7 @@ async def _pg_edit_batch(
         dynamic_values: list[RowIn] = []
         for edit in batch:
             assert edit.new_node_packed, f"no new node for {edit!r}"
-            new_node_data = unpack_edit_node(edit.new_node_packed, only=None)
+            new_node_data = unpack_node_delta(edit.new_node_packed, node_type=node_type)
             row = {"id": edit.node_ptr.id}
             # directly edited properties
             for prop_id in edit.properties:
@@ -1658,7 +1653,7 @@ async def _pg_edit_batch(
                     value = getattr(new_node_data, prop.name)
                     value = _pack_struct_data_prop(prop, value, ignore_array=False)
                     row[prop.name] = value
-            # implicit metadata
+            # implicit properties
             row["updated_at"] = edit.edited_at
             if "updated_epoch" in node_cls.__properties__:
                 row["updated_epoch"] = edit.epoch

@@ -32,7 +32,7 @@ from bench.language.node import EDIT_SUBJECT_TYPES, BasedNode, Node, is_implicit
 from bench.language.property import Property
 from bench.language.query import QueryBuilder
 from bench.language.setup import NODE_CLASS_BY_TYPE
-from bench.language.transaction import edit_data_graph, unpack_edit_node
+from bench.language.transaction import edit_data_graph, unpack_node_delta
 from bench.language.validation import ValidationError, on_invalid_raise
 from bench.proto import wiring
 from bench.proto.services import BenchServiceBase
@@ -491,7 +491,9 @@ def parse_edit_scopes(edits: list[EditData]) -> _EditScopes:
         edited_node_ids.add(edit.node_ptr.id)
         if edit.type == EditType.CREATE or edit.type == EditType.UPSERT:
             assert edit.new_node_packed
-            node_data = unpack_edit_node(edit.new_node_packed, only=(Node.parent,))
+            node_data = unpack_node_delta(
+                edit.new_node_packed, node_type=node_type, only=(Node.parent,)
+            )
             # node scope is parent since we don't have this node yet
             if node_data.parent_ptr is None:
                 raise ValidationError(node_data, "can't create orphan")
@@ -508,14 +510,16 @@ def parse_edit_scopes(edits: list[EditData]) -> _EditScopes:
             if edit.type == EditType.MOVE:
                 # also add new parent to scope
                 assert edit.new_node_packed, f"missing new node for {edit}"
-                node_data = unpack_edit_node(edit.new_node_packed, only=(Node.parent,))
+                node_data = unpack_node_delta(
+                    edit.new_node_packed, node_type=node_type, only=(Node.parent,)
+                )
                 assert node_data.parent_ptr is not None, f"missing parent for {node_data}"
                 node_scopes_by_id[cast(str, node_data.parent_ptr.id)] = node_data.parent_ptr
         if node_type in BASED_NODE_TYPES:
             # also add base as node scope
             # NOTE :Performance: can we only unpack the required properties for based node types?
             assert edit.new_node_packed, f"missing new node for {edit}"
-            node_data = unpack_edit_node(edit.new_node_packed, only=None)
+            node_data = unpack_node_delta(edit.new_node_packed, node_type=node_type)
             node_cls = cast(type[BasedNode], NODE_CLASS_BY_TYPE[node_type])
             base_ptr = node_cls.get_base_from_data(node_data)
             if base_ptr is not None:
@@ -598,10 +602,15 @@ def _validate_edit(edit: EditData, subject: Subject, now: datetime) -> None:
         old_node_packed = edit.old_node_packed.to_dict()
         new_node_packed = edit.new_node_packed.to_dict()
         for p in edit.properties:
-            if p not in old_node_packed or p not in new_node_packed:
+            if p not in old_node_packed:
                 raise GRPCError(
                     GRPCStatus.INVALID_ARGUMENT,
-                    f"missing property in {edit!r}: {p} not in {edit.old_node_packed} or {edit.new_node_packed}",
+                    f"missing property in {edit!r}: {p} not in {old_node_packed.keys()}",
+                )
+            if p not in new_node_packed:
+                raise GRPCError(
+                    GRPCStatus.INVALID_ARGUMENT,
+                    f"missing property in {edit!r}: {p} not in {new_node_packed.keys()}",
                 )
         # no forbidden properties
         if any(is_implicit_node_property(p) for p in edit.properties):

@@ -400,6 +400,11 @@ class Property(_TypeQueryBuilder if TYPE_CHECKING else object):
         assert self.type_info is not None, f"{self!r} is not finalized"
         return self.type_info
 
+    @property
+    def identity_key(self) -> str:
+        """Identity key for packing node deltas"""
+        return f"{self.id}:{self.as_type_info.identity_key}"
+
     def _finalize(self) -> None:
         """Analyzes the final type and configures storage options. Must run after all class defs."""
 
