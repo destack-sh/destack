@@ -426,6 +426,7 @@ class Host(GraphIoServiceBase, HostBase, HostSpec):
             node_type = NodeType(edit.node_ptr.type)
             if node_type in SELF_LOGGED_NODE_TYPES:
                 continue
+            assert edit.revision is not None, f"revision not set in {edit!r}"
             assert edit.epoch is not None, f"epoch not set in {edit!r}"
             log_data = LogData(
                 metatype=wire.ObjectType.LOG,
@@ -460,6 +461,7 @@ class Host(GraphIoServiceBase, HostBase, HostSpec):
                 epoch=edit.epoch,
                 revision=log_data.revision,
                 new_node_packed=pack_node_delta(log_data),
+                edited_at=log_data.created_at,
             )
             log_edits.append(create_log_edit)
         extended_edits.extend(log_edits)
