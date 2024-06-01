@@ -1063,9 +1063,8 @@ def evaluate_edit(
     new_node_scopes_by_child_id: dict[str, str] = {}
     for edit in edits:
         access_type: AccessType = wiring.unpack_enum(EditType, edit.type)
-        node_type: NodeType = wiring.unpack_enum(NodeType, edit.node_type)
+        node_type: NodeType = wiring.unpack_enum(NodeType, edit.node_ptr.type)
         node_cls = NODE_CLASS_BY_TYPE[node_type]
-        node = wiring.unwrap_some_node(edit.node)
 
         # figure out the scope to evaluate what in
         if node_cls.__roots__:
@@ -1075,7 +1074,7 @@ def evaluate_edit(
                 scope_id = cast(str, node.parent_ptr.id)
                 while scope_id in new_node_scopes_by_child_id:
                     scope_id = new_node_scopes_by_child_id[scope_id]
-                new_node_scopes_by_child_id[node.id] = scope_id
+                new_node_scopes_by_child_id[edit.node_ptr.id] = scope_id
             else:
                 scope_id = new_node_scopes_by_child_id.get(node.id, node.id)
             scope = graph.get(scope_id)

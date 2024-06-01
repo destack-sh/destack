@@ -4,6 +4,8 @@ package symbolx.bench;
 
 import "bench/proto/lang.proto";
 import "google/protobuf/descriptor.proto";
+import "google/protobuf/struct.proto";
+import "google/protobuf/timestamp.proto";
 
 enum ServiceKind {
   UNSPECIFIED = 0;
@@ -53,29 +55,30 @@ message GraphScope {
   optional string transaction_id = 4;
 }
 
-// Edit describes an edit to a Node.
-// NOTE: obviously, we can only trust edits originating from the system
+// Edit to a Node.
 message EditData {
+  // Unique identifier for the edit within a transaction.
   string id = 2;
+  // Type of edit.
   EditType type = 30;
-  optional ClientOrigin origin = 31;
-  GraphScope scope = 32;
-  NodeType node_type = 33;
-  SomeNodeData node = 35;
-  repeated uint32 properties = 36;
-
-  // The last epoch seen by the client.
-  optional uint64 seen_epoch = 40;
-
-  // System-accepted revision for the edit.
-  optional int64 revision = 50;
-  // System-accepted epoch for the edit.
-  optional int64 epoch = 51;
-}
-
-// Transaction of edits to a Node.
-message TransactionData {
-  string id = 2;
-  ClientOrigin origin = 30;
-  repeated EditData edits = 31;
+  // Which node.
+  NodeReferenceData node_ptr = 31;
+  // Which non-tracking properties are edited in an update or move.
+  repeated uint32 properties = 32;
+  // The previous values for the edited properties (if any).
+  optional google.protobuf.Struct old_node_packed = 33;
+  // The new values for the edited properties (if any).
+  optional google.protobuf.Struct new_node_packed = 34;
+  
+  // Enclosing scope of the node.
+  GraphScope scope = 40;
+  // Who this? All non-system clients must set both.
+  optional ClientOrigin origin = 41;
+  optional NodeReferenceData subject_ptr = 42;
+  // When the edit was made.
+  google.protobuf.Timestamp edited_at = 43;
+  // Revision for the node.
+  optional int64 revision = 44;
+  // Epoch at that edit.
+  optional int64 epoch = 45;
 }

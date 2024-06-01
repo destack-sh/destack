@@ -43,7 +43,6 @@ from bench.language.graph import NodeDataGraph
 from bench.language.node import NODE_CLASS_BY_TYPE, UNSET, Node
 from bench.language.query import ReadOptions
 from bench.language.setup import NODE_CLASSES, PARENT_NODE_TYPES
-from bench.language.transaction import IMPLICIT_EDIT_PROPERTIES_IDS, IMPLICIT_EDIT_PROPERTIES_NAMES
 from bench.language.value import _pack_struct_value_scalar_data, _unpack_struct_value_scalar_data
 from bench.proto import wire, wiring
 from bench.proto.wire import AnyNodeData, EditData, IdEnum, NodeReferenceData
@@ -1500,7 +1499,7 @@ async def pg_edit(
         return [], []
 
     # batch operations by edit kind and node type
-    cur_node_cls = NODE_CLASS_BY_TYPE[wiring.unpack_enum(NodeType, edits[0].node_type)]
+    cur_node_cls = NODE_CLASS_BY_TYPE[wiring.unpack_enum(NodeType, edits[0].node_ptr.type)]
     cur_updated_properties: bitarray = bitarray(cur_node_cls.__max_property_ord__ + 1)
     cur_batch: list[EditData] = []
     all_new_revisions: list[int] = []
@@ -1521,10 +1520,10 @@ async def pg_edit(
         if (
             next_edit is None
             or edit.type != next_edit.type
-            or edit.node_type != next_edit.node_type
+            or edit.node_ptr.type != next_edit.node_ptr.type
         ):
             edit_type: EditType = wiring.unpack_enum(EditType, edit.type)
-            node_type: NodeType = wiring.unpack_enum(NodeType, edit.node_type)
+            node_type: NodeType = wiring.unpack_enum(NodeType, edit.node_ptr.type)
             updated_properties = cur_node_cls._unmask_properties(cur_updated_properties)
             changed_nodes = await _pg_edit_batch(
                 cur=cur,
@@ -1542,11 +1541,12 @@ async def pg_edit(
             # NOTE: in case of multiple edits to the same node, the returned revision is the latest.
             new_revisions_by_id = {node.id: node.revision for node in changed_nodes}
             for edit in cur_batch:
-                node = wiring.unwrap_some_node(edit.node)
-                all_new_revisions.append(new_revisions_by_id[node.id])
+                all_new_revisions.append(new_revisions_by_id[edit.node_ptr.id])
             # start new batch
             if next_edit is not None:
-                cur_node_cls = NODE_CLASS_BY_TYPE[wiring.unpack_enum(NodeType, next_edit.node_type)]
+                cur_node_cls = NODE_CLASS_BY_TYPE[
+                    wiring.unpack_enum(NodeType, next_edit.node_ptr.type)
+                ]
                 cur_updated_properties = bitarray(cur_node_cls.__max_property_ord__ + 1)
                 cur_batch.clear()
 
@@ -1663,7 +1663,7 @@ async def _pg_edit_batch(
             return None
 
     elif edit_type == EditType.DELETE:
-        nodes_ids = [wiring.unwrap_some_node(edit.node).id for edit in batch]
+        nodes_ids = [edit.node_ptr.id for edit in batch]
         where = SqlComparison(
             left=sqlident("id"),
             op=PostgresConditionalOp.EQ,

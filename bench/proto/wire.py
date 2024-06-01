@@ -3,7 +3,7 @@
 
 from typing import TYPE_CHECKING, Union
 
-VERSION = "2024.05.31.1"
+VERSION = "2024.06.01.0"
 
 if TYPE_CHECKING:
     from bench.language import Subject
@@ -1457,14 +1457,14 @@ class IconData(betterproto.Message):
 class NodeReferenceData(betterproto.Message):
     """
     A reference to a Node.
-     If the reference is to a node in a Bench, we include the Bench ID and 'ck' (where available).
+     If the reference is to a node in a Bench, we include the Bench and 'ck' (where available).
      If the second half of a ck is zero, it matches the closest node with the 'ck' prefix.
      Base tracks which node the node is 'based' on (like Record.parent->Block, Signal.type->Block).
     """
 
     metatype: "ObjectType" = betterproto.enum_field(1)
     type: "NodeType" = betterproto.enum_field(30)
-    id: Optional[str] = betterproto.string_field(31, optional=True)
+    id: str = betterproto.string_field(31)
     ck: Optional[str] = betterproto.string_field(32, optional=True)
     bench_id: Optional[str] = betterproto.string_field(33, optional=True)
     base_ck: Optional[str] = betterproto.string_field(34, optional=True)
@@ -2345,8 +2345,8 @@ class LogData(betterproto.Message):
     set_properties: List[int] = betterproto.int32_field(29)
     kind: "LogKind" = betterproto.enum_field(30)
     level: "LogLevel" = betterproto.enum_field(31)
-    node_ptr: Optional["NodeReferenceData"] = betterproto.message_field(40, optional=True)
-    type: Optional["AccessType"] = betterproto.enum_field(41, optional=True)
+    type: Optional["AccessType"] = betterproto.enum_field(40, optional=True)
+    node_ptr: Optional["NodeReferenceData"] = betterproto.message_field(41, optional=True)
     properties: List[int] = betterproto.int32_field(42)
     old_node_packed: Optional["betterproto_lib_google_protobuf.Struct"] = betterproto.message_field(
         43, optional=True
@@ -2354,6 +2354,7 @@ class LogData(betterproto.Message):
     new_node_packed: Optional["betterproto_lib_google_protobuf.Struct"] = betterproto.message_field(
         44, optional=True
     )
+    new_revision: Optional[int] = betterproto.int64_field(45, optional=True)
     title: Optional[str] = betterproto.string_field(50, optional=True)
     text: Optional["TextData"] = betterproto.message_field(51, optional=True)
     value_packed: Optional["betterproto_lib_google_protobuf.Struct"] = betterproto.message_field(
@@ -3235,35 +3236,45 @@ class GraphScope(betterproto.Message):
 
 @dataclass(eq=False, repr=False)
 class EditData(betterproto.Message):
-    """
-    Edit describes an edit to a Node.
-     NOTE: obviously, we can only trust edits originating from the system
-    """
+    """Edit to a Node."""
 
     id: str = betterproto.string_field(2)
+    """Unique identifier for the edit within a transaction."""
+
     type: "EditType" = betterproto.enum_field(30)
-    origin: Optional["ClientOrigin"] = betterproto.message_field(31, optional=True)
-    scope: "GraphScope" = betterproto.message_field(32)
-    node_type: "NodeType" = betterproto.enum_field(33)
-    node: "SomeNodeData" = betterproto.message_field(35)
-    properties: List[int] = betterproto.uint32_field(36)
-    seen_epoch: Optional[int] = betterproto.uint64_field(40, optional=True)
-    """The last epoch seen by the client."""
+    """Type of edit."""
 
-    revision: Optional[int] = betterproto.int64_field(50, optional=True)
-    """System-accepted revision for the edit."""
+    node_ptr: "NodeReferenceData" = betterproto.message_field(31)
+    """Which node."""
 
-    epoch: Optional[int] = betterproto.int64_field(51, optional=True)
-    """System-accepted epoch for the edit."""
+    properties: List[int] = betterproto.uint32_field(32)
+    """Which non-tracking properties are edited in an update or move."""
 
+    old_node_packed: Optional["betterproto_lib_google_protobuf.Struct"] = betterproto.message_field(
+        33, optional=True
+    )
+    """The previous values for the edited properties (if any)."""
 
-@dataclass(eq=False, repr=False)
-class TransactionData(betterproto.Message):
-    """Transaction of edits to a Node."""
+    new_node_packed: Optional["betterproto_lib_google_protobuf.Struct"] = betterproto.message_field(
+        34, optional=True
+    )
+    """The new values for the edited properties (if any)."""
 
-    id: str = betterproto.string_field(2)
-    origin: "ClientOrigin" = betterproto.message_field(30)
-    edits: List["EditData"] = betterproto.message_field(31)
+    scope: "GraphScope" = betterproto.message_field(40)
+    """Enclosing scope of the node."""
+
+    origin: Optional["ClientOrigin"] = betterproto.message_field(41, optional=True)
+    """Who this? All non-system clients must set both."""
+
+    subject_ptr: Optional["NodeReferenceData"] = betterproto.message_field(42, optional=True)
+    edited_at: datetime = betterproto.message_field(43)
+    """When the edit was made."""
+
+    revision: Optional[int] = betterproto.int64_field(44, optional=True)
+    """Revision for the node."""
+
+    epoch: Optional[int] = betterproto.int64_field(45, optional=True)
+    """Epoch at that edit."""
 
 
 @dataclass(eq=False, repr=False)

@@ -1361,6 +1361,10 @@ class ReadInfo:
     graph: NodeDataGraph | None = None
 
 
+def is_implicit_node_property(prop_id: int) -> bool:
+    return prop_id < 30 and prop_id == 4
+
+
 @node_component()
 class Node(Struct[NodeDataT], Generic[NodeDataT]):
     """
@@ -1400,11 +1404,11 @@ class Node(Struct[NodeDataT], Generic[NodeDataT]):
     if TYPE_CHECKING:
         parent_id: Optional[UUID] = None
         parent_ptr: Optional[NodeReference] = None
-    # template: Optional["Node"] = node_template(5)
     package: "Package" = p_node_ancestor_first(
-        6, NodeType.PACKAGE, require=True, store=True, wire=True, is_bench_implicit=True
+        5, NodeType.PACKAGE, require=True, store=True, wire=True, is_bench_implicit=True
     )
-    bench: "Bench" = p_node_ancestor_first(7, NodeType.BENCH, require=True, store=True, wire=True)
+    bench: "Bench" = p_node_ancestor_first(6, NodeType.BENCH, require=True, store=True, wire=True)
+    # template: Optional["Node"] = ...
     if TYPE_CHECKING:
         package_id: Optional[UUID] = None
         bench_id: Optional[UUID] = None

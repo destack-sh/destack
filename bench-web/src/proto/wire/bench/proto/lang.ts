@@ -571,7 +571,7 @@ export interface IconData {
 }
 /**
  * A reference to a Node.
- * If the reference is to a node in a Bench, we include the Bench ID and 'ck' (where available).
+ * If the reference is to a node in a Bench, we include the Bench and 'ck' (where available).
  * If the second half of a ck is zero, it matches the closest node with the 'ck' prefix.
  * Base tracks which node the node is 'based' on (like Record.parent->Block, Signal.type->Block).
  *
@@ -587,9 +587,9 @@ export interface NodeReferenceData {
      */
     type: NodeType;
     /**
-     * @generated from protobuf field: optional string id = 31;
+     * @generated from protobuf field: string id = 31;
      */
-    id?: string;
+    id: string;
     /**
      * @generated from protobuf field: optional string ck = 32;
      */
@@ -3035,13 +3035,13 @@ export interface LogData {
      */
     level: LogLevel;
     /**
-     * @generated from protobuf field: optional symbolx.bench.NodeReferenceData node_ptr = 40;
-     */
-    nodePtr?: NodeReferenceData;
-    /**
-     * @generated from protobuf field: optional symbolx.bench.AccessType type = 41;
+     * @generated from protobuf field: optional symbolx.bench.AccessType type = 40;
      */
     type?: AccessType;
+    /**
+     * @generated from protobuf field: optional symbolx.bench.NodeReferenceData node_ptr = 41;
+     */
+    nodePtr?: NodeReferenceData;
     /**
      * @generated from protobuf field: repeated int32 properties = 42;
      */
@@ -3054,6 +3054,10 @@ export interface LogData {
      * @generated from protobuf field: optional google.protobuf.Struct new_node_packed = 44;
      */
     newNodePacked?: Struct;
+    /**
+     * @generated from protobuf field: optional int64 new_revision = 45;
+     */
+    newRevision?: bigint;
     /**
      * @generated from protobuf field: optional string title = 50;
      */
@@ -11337,7 +11341,7 @@ class NodeReferenceData$Type extends MessageType<NodeReferenceData> {
         super("symbolx.bench.NodeReferenceData", [
             { no: 1, name: "metatype", kind: "enum", T: () => ["symbolx.bench.ObjectType", ObjectType, "OBJECT_TYPE_"] },
             { no: 30, name: "type", kind: "enum", T: () => ["symbolx.bench.NodeType", NodeType, "NODE_TYPE_"] },
-            { no: 31, name: "id", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
+            { no: 31, name: "id", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 32, name: "ck", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
             { no: 33, name: "bench_id", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
             { no: 34, name: "base_ck", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
@@ -11348,6 +11352,7 @@ class NodeReferenceData$Type extends MessageType<NodeReferenceData> {
         const message = globalThis.Object.create((this.messagePrototype!));
         message.metatype = 0;
         message.type = 0;
+        message.id = "";
         if (value !== undefined)
             reflectionMergePartial<NodeReferenceData>(this, message, value);
         return message;
@@ -11363,7 +11368,7 @@ class NodeReferenceData$Type extends MessageType<NodeReferenceData> {
                 case /* symbolx.bench.NodeType type */ 30:
                     message.type = reader.int32();
                     break;
-                case /* optional string id */ 31:
+                case /* string id */ 31:
                     message.id = reader.string();
                     break;
                 case /* optional string ck */ 32:
@@ -11396,8 +11401,8 @@ class NodeReferenceData$Type extends MessageType<NodeReferenceData> {
         /* symbolx.bench.NodeType type = 30; */
         if (message.type !== 0)
             writer.tag(30, WireType.Varint).int32(message.type);
-        /* optional string id = 31; */
-        if (message.id !== undefined)
+        /* string id = 31; */
+        if (message.id !== "")
             writer.tag(31, WireType.LengthDelimited).string(message.id);
         /* optional string ck = 32; */
         if (message.ck !== undefined)
@@ -16799,11 +16804,12 @@ class LogData$Type extends MessageType<LogData> {
             { no: 29, name: "set_properties", kind: "scalar", repeat: 1 /*RepeatType.PACKED*/, T: 5 /*ScalarType.INT32*/ },
             { no: 30, name: "kind", kind: "enum", T: () => ["symbolx.bench.LogKind", LogKind, "LOG_KIND_"] },
             { no: 31, name: "level", kind: "enum", T: () => ["symbolx.bench.LogLevel", LogLevel, "LOG_LEVEL_"] },
-            { no: 40, name: "node_ptr", kind: "message", T: () => NodeReferenceData },
-            { no: 41, name: "type", kind: "enum", opt: true, T: () => ["symbolx.bench.AccessType", AccessType, "ACCESS_TYPE_"] },
+            { no: 40, name: "type", kind: "enum", opt: true, T: () => ["symbolx.bench.AccessType", AccessType, "ACCESS_TYPE_"] },
+            { no: 41, name: "node_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 42, name: "properties", kind: "scalar", repeat: 1 /*RepeatType.PACKED*/, T: 5 /*ScalarType.INT32*/ },
             { no: 43, name: "old_node_packed", kind: "message", T: () => Struct },
             { no: 44, name: "new_node_packed", kind: "message", T: () => Struct },
+            { no: 45, name: "new_revision", kind: "scalar", opt: true, T: 3 /*ScalarType.INT64*/, L: 0 /*LongType.BIGINT*/ },
             { no: 50, name: "title", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
             { no: 51, name: "text", kind: "message", T: () => TextData },
             { no: 52, name: "value_packed", kind: "message", T: () => Struct },
@@ -16894,11 +16900,11 @@ class LogData$Type extends MessageType<LogData> {
                 case /* symbolx.bench.LogLevel level */ 31:
                     message.level = reader.int32();
                     break;
-                case /* optional symbolx.bench.NodeReferenceData node_ptr */ 40:
-                    message.nodePtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.nodePtr);
-                    break;
-                case /* optional symbolx.bench.AccessType type */ 41:
+                case /* optional symbolx.bench.AccessType type */ 40:
                     message.type = reader.int32();
+                    break;
+                case /* optional symbolx.bench.NodeReferenceData node_ptr */ 41:
+                    message.nodePtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.nodePtr);
                     break;
                 case /* repeated int32 properties */ 42:
                     if (wireType === WireType.LengthDelimited)
@@ -16912,6 +16918,9 @@ class LogData$Type extends MessageType<LogData> {
                     break;
                 case /* optional google.protobuf.Struct new_node_packed */ 44:
                     message.newNodePacked = Struct.internalBinaryRead(reader, reader.uint32(), options, message.newNodePacked);
+                    break;
+                case /* optional int64 new_revision */ 45:
+                    message.newRevision = reader.int64().toBigInt();
                     break;
                 case /* optional string title */ 50:
                     message.title = reader.string();
@@ -17019,12 +17028,12 @@ class LogData$Type extends MessageType<LogData> {
         /* symbolx.bench.LogLevel level = 31; */
         if (message.level !== 0)
             writer.tag(31, WireType.Varint).int32(message.level);
-        /* optional symbolx.bench.NodeReferenceData node_ptr = 40; */
-        if (message.nodePtr)
-            NodeReferenceData.internalBinaryWrite(message.nodePtr, writer.tag(40, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbolx.bench.AccessType type = 41; */
+        /* optional symbolx.bench.AccessType type = 40; */
         if (message.type !== undefined)
-            writer.tag(41, WireType.Varint).int32(message.type);
+            writer.tag(40, WireType.Varint).int32(message.type);
+        /* optional symbolx.bench.NodeReferenceData node_ptr = 41; */
+        if (message.nodePtr)
+            NodeReferenceData.internalBinaryWrite(message.nodePtr, writer.tag(41, WireType.LengthDelimited).fork(), options).join();
         /* repeated int32 properties = 42; */
         if (message.properties.length) {
             writer.tag(42, WireType.LengthDelimited).fork();
@@ -17038,6 +17047,9 @@ class LogData$Type extends MessageType<LogData> {
         /* optional google.protobuf.Struct new_node_packed = 44; */
         if (message.newNodePacked)
             Struct.internalBinaryWrite(message.newNodePacked, writer.tag(44, WireType.LengthDelimited).fork(), options).join();
+        /* optional int64 new_revision = 45; */
+        if (message.newRevision !== undefined)
+            writer.tag(45, WireType.Varint).int64(message.newRevision);
         /* optional string title = 50; */
         if (message.title !== undefined)
             writer.tag(50, WireType.LengthDelimited).string(message.title);
@@ -24018,11 +24030,12 @@ export enum LogProperty {
   setProperties = 29,
   kind = 30,
   level = 31,
-  nodePtr = 40,
-  type = 41,
+  type = 40,
+  nodePtr = 41,
   properties = 42,
   oldNodePacked = 43,
   newNodePacked = 44,
+  newRevision = 45,
   title = 50,
   text = 51,
   valuePacked = 52,
@@ -24996,7 +25009,7 @@ export const PathTokenDataInfo: Record<PathTokenProperty, PropertyInfo> = {
 export const NodeReferenceDataInfo: Record<NodeReferenceProperty, PropertyInfo> = {
   [NodeReferenceProperty.metatype]: { id: 1, name: 'metatype', component: ObjectType.NODE_REFERENCE, enumType: EnumType.OBJECT_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isComputed: true, isWired: true },
   [NodeReferenceProperty.type]: { id: 30, name: 'type', component: ObjectType.NODE_REFERENCE, enumType: EnumType.NODE_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isRuntime: true, isWired: true, isStored: true },
-  [NodeReferenceProperty.id]: { id: 31, name: 'id', component: ObjectType.NODE_REFERENCE, kind: 'primitive', primitiveType: PrimitiveType.UUID, isRuntime: true, isWired: true, isStored: true },
+  [NodeReferenceProperty.id]: { id: 31, name: 'id', component: ObjectType.NODE_REFERENCE, kind: 'primitive', primitiveType: PrimitiveType.UUID, isRequired: true, isRuntime: true, isWired: true, isStored: true },
   [NodeReferenceProperty.ck]: { id: 32, name: 'ck', component: ObjectType.NODE_REFERENCE, kind: 'primitive', primitiveType: PrimitiveType.UUID, isRuntime: true, isWired: true, isStored: true },
   [NodeReferenceProperty.benchId]: { id: 33, name: 'bench_id', component: ObjectType.NODE_REFERENCE, kind: 'primitive', primitiveType: PrimitiveType.UUID, isRuntime: true, isWired: true, isStored: true },
   [NodeReferenceProperty.baseCk]: { id: 34, name: 'base_ck', component: ObjectType.NODE_REFERENCE, kind: 'primitive', primitiveType: PrimitiveType.UUID, isRuntime: true, isWired: true, isStored: true },
@@ -26006,11 +26019,12 @@ export const LogDataInfo: Record<LogProperty, PropertyInfo> = {
   [LogProperty.setProperties]: { id: 29, name: 'set_properties', component: ObjectType.LOG, kind: 'primitive', primitiveType: PrimitiveType.INT32, isList: true, isRequired: true, isRuntime: true, isWired: true },
   [LogProperty.kind]: { id: 30, name: 'kind', component: ObjectType.LOG, enumType: EnumType.LOG_KIND, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [LogProperty.level]: { id: 31, name: 'level', component: ObjectType.LOG, enumType: EnumType.LOG_LEVEL, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
-  [LogProperty.nodePtr]: { id: 40, name: 'node_ptr', component: ObjectType.LOG, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.BENCH, NodeType.ENVIRONMENT, NodeType.BRANCH, NodeType.PACKAGE, NodeType.DEPENDENCY, NodeType.UPGRADE, NodeType.SPACE, NodeType.LINK, NodeType.SKIP, NodeType.NOTICE, NodeType.BLOCK, NodeType.TRIGGER, NodeType.FIELD, NodeType.QUERY, NodeType.VIEW, NodeType.STEP, NodeType.BADGE, NodeType.ROLE, NodeType.IDENTITY, NodeType.MEMBERSHIP, NodeType.INVITE, NodeType.SESSION, NodeType.RUN, NodeType.SIGNAL, NodeType.LOG, NodeType.NOTIFICATION, NodeType.MESSAGE, NodeType.RECORD, NodeType.SERVER, NodeType.STORE, NodeType.MACHINE, NodeType.DRIVE, NodeType.BLOB, NodeType.HANDLE, NodeType.USER, NodeType.ORGANIZATION, NodeType.CLIENT], referenceStruct: StructType.NODE_REFERENCE },
-  [LogProperty.type]: { id: 41, name: 'type', component: ObjectType.LOG, enumType: EnumType.ACCESS_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
+  [LogProperty.type]: { id: 40, name: 'type', component: ObjectType.LOG, enumType: EnumType.ACCESS_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
+  [LogProperty.nodePtr]: { id: 41, name: 'node_ptr', component: ObjectType.LOG, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.BENCH, NodeType.ENVIRONMENT, NodeType.BRANCH, NodeType.PACKAGE, NodeType.DEPENDENCY, NodeType.UPGRADE, NodeType.SPACE, NodeType.LINK, NodeType.SKIP, NodeType.NOTICE, NodeType.BLOCK, NodeType.TRIGGER, NodeType.FIELD, NodeType.QUERY, NodeType.VIEW, NodeType.STEP, NodeType.BADGE, NodeType.ROLE, NodeType.IDENTITY, NodeType.MEMBERSHIP, NodeType.INVITE, NodeType.SESSION, NodeType.RUN, NodeType.SIGNAL, NodeType.LOG, NodeType.NOTIFICATION, NodeType.MESSAGE, NodeType.RECORD, NodeType.SERVER, NodeType.STORE, NodeType.MACHINE, NodeType.DRIVE, NodeType.BLOB, NodeType.HANDLE, NodeType.USER, NodeType.ORGANIZATION, NodeType.CLIENT], referenceStruct: StructType.NODE_REFERENCE },
   [LogProperty.properties]: { id: 42, name: 'properties', component: ObjectType.LOG, kind: 'primitive', primitiveType: PrimitiveType.INT32, isList: true, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [LogProperty.oldNodePacked]: { id: 43, name: 'old_node_packed', component: ObjectType.LOG, kind: 'primitive', primitiveType: PrimitiveType.JSON, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [LogProperty.newNodePacked]: { id: 44, name: 'new_node_packed', component: ObjectType.LOG, kind: 'primitive', primitiveType: PrimitiveType.JSON, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
+  [LogProperty.newRevision]: { id: 45, name: 'new_revision', component: ObjectType.LOG, kind: 'primitive', primitiveType: PrimitiveType.INT64, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [LogProperty.title]: { id: 50, name: 'title', component: ObjectType.LOG, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [LogProperty.text]: { id: 51, name: 'text', component: ObjectType.LOG, kind: 'reference', primitiveType: PrimitiveType.JSON, isInternal: true, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.TEXT },
   [LogProperty.valuePacked]: { id: 52, name: 'value_packed', component: ObjectType.LOG, kind: 'primitive', primitiveType: PrimitiveType.JSON, isInternal: true, isRuntime: true, isWired: true, isStored: true, isValuePacked: true },

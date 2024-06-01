@@ -10,6 +10,7 @@ import structlog
 from bench.conftest import raises_grpc_error
 from bench.language import Node, Property, Text, User
 from bench.language.const import EditType, NodeType, PrimitiveType, StructType, UserStatus
+from bench.language.expression import NodeReference
 from bench.language.transaction import new_edit_id
 from bench.proto import wire, wiring
 from bench.proto.wire import (
@@ -106,7 +107,7 @@ class EditProducer:
             edit = EditData(
                 id=new_edit_id(),
                 type=wiring.pack_enum(EditType, edit_type),
-                node_type=wiring.pack_enum(NodeType, node.metatype),
+                node_ptr=NodeReference.from_node_data(node_data),
                 node=wiring.wrap_some_node(node_data),
                 properties=[prop.id],
                 origin=self.client.origin,
@@ -271,7 +272,7 @@ async def test_graph_update_node_with_invalid_property(
     edit = EditData(
         id=new_edit_id(),
         type=wiring.pack_enum(EditType, EditType.UPDATE),
-        node_type=wiring.pack_enum(NodeType, NodeType.USER),
+        node_ptr=NodeReference.from_node_data(node_data),
         node=wiring.wrap_some_node(node_data),
         properties=[cast(Property, User.name).id],
         origin=some_user.origin,

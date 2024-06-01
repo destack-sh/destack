@@ -36,26 +36,6 @@ import { uuidt } from "@/utils/uuidt";
 import type { RpcError } from "grpc-web";
 import { nextTick, ref, shallowRef, toRef, triggerRef, watch, type MaybeRef, type Ref } from "vue";
 
-const IMPLICIT_EDIT_PROPERTIES_NAMES: Record<EditType, string[]> = {
-  [EditType.UNSPECIFIED]: [],
-  [EditType.CREATE]: ["createdAt", "createdEpoch", "createdByPtr"],
-  [EditType.UPSERT]: ["createdAt", "createdEpoch", "createdByPtr", "updatedAt", "updatedEpoch", "updatedByPtr"],
-  [EditType.UPDATE]: ["updatedAt", "updatedEpoch", "updatedByPtr"],
-  [EditType.MOVE]: ["updatedAt", "updatedEpoch", "updatedByPtr", "parentPtr"],
-  [EditType.SOFT_DELETE]: ["updatedAt", "updatedEpoch", "updatedByPtr", "deletedAt"],
-  [EditType.RESTORE]: ["updatedAt", "updatedEpoch", "updatedByPtr", "deletedAt"],
-  [EditType.ARCHIVE]: ["updatedAt", "updatedEpoch", "updatedByPtr", "archivedAt"],
-  [EditType.UNARCHIVE]: ["updatedAt", "updatedEpoch", "updatedByPtr", "archivedAt"],
-  [EditType.DELETE]: ["updatedAt", "updatedEpoch", "updatedByPtr", "deletedAt"],
-};
-const IMPLICIT_PROPERTIES_IDS: Partial<Record<EditType, number[]>> = Object.fromEntries(
-  Object.entries(IMPLICIT_EDIT_PROPERTIES_NAMES).map(([k, v]) => [
-    k,
-    v.map((name) => PROPERTY_ENUM_BY_TYPE[ObjectType.BLOCK]![name as any]),
-  ]),
-);
-const ALL_IMPLICIT_EDIT_PROPERTIES_NAMES = new Set(Object.values(IMPLICIT_EDIT_PROPERTIES_NAMES).flat());
-
 export type DebounceLevel = "tick" | "short" | "long";
 const DEBOUNCE_LEVELS: Record<"short" | "long", number> = {
   short: 500,
@@ -505,7 +485,7 @@ export class ImmediateTransactionBuffer implements TransactionBuffer {
   reset() {
     // NOTE: we default to null user pointer in immediate transaction buffer since it's only used locally
     //  and we need some 'subject' to create edits (even when not connected to a 'real' remote graph)
-    const newTx = new TransactionBuilder(this.scope, uuidt({ nonce: NONCE_POSTFIX }), userOrNullPtr); 
+    const newTx = new TransactionBuilder(this.scope, uuidt({ nonce: NONCE_POSTFIX }), userOrNullPtr);
     // immediately apply and reset the transaction
     newTx.onEdit((edit) => {
       if (this.currentTx !== newTx) throw new Error("transaction is closed");
