@@ -1,10 +1,10 @@
 import dataclasses
 from collections import defaultdict
-from datetime import datetime
 from typing import TYPE_CHECKING, Any, Collection, Literal, Optional, cast
 from uuid import UUID
 
 import structlog
+from betterproto.lib.google.protobuf import Struct as ProtoStruct
 from opentelemetry import trace
 
 from bench.language.connection import (
@@ -15,15 +15,16 @@ from bench.language.connection import (
     scope_includes,
 )
 from bench.language.const import BenchError, EditType, NodeType
+from bench.language.graph import DetachedNodeGraph, NodeDataGraph, NodeGraph
 from bench.language.node import EditSubject, Node, Property
-from bench.proto import wire
+from bench.language.setup import NODE_CLASS_BY_TYPE
 from bench.proto.wire import AnyNodeData, ClientOrigin, EditData, GraphScope
 from bench.utils.dt import utcnow
 from bench.utils.func import uuid_to_str
 from bench.utils.uuidt import UUIDT
 
 if TYPE_CHECKING:
-    from bench.language import Session
+    from bench.language import ReadOptions, Session
 
 logger = structlog.get_logger(__name__)
 tracer = trace.get_tracer(__name__)
@@ -31,16 +32,6 @@ tracer = trace.get_tracer(__name__)
 
 def new_edit_id() -> str:
     return str(UUIDT())
-
-
-def _get_create_metadata(subject: EditSubject | None, now: datetime | None = None):
-    subject_ptr = subject.to_ref()._to_data() if subject is not None else None
-    return {"created_at": now or utcnow(), "created_epoch": -1, "created_by_ptr": subject_ptr}
-
-
-def _get_update_metadata(subject: EditSubject | None, now: datetime | None = None):
-    subject_ptr = subject.to_ref()._to_data() if subject is not None else None
-    return {"updated_at": now or utcnow(), "updated_epoch": -1, "updated_by_ptr": subject_ptr}
 
 
 @dataclasses.dataclass(slots=True)
@@ -140,41 +131,44 @@ class Transaction:
     # Edits
     #
 
-    def _make_edit(
+    def _make_simple_edit(
         self,
-        type: EditType,
+        typ: EditType,
         node_: Node,
-        metadata: dict[str, Any],
+        subject: EditSubject | None,
         origin: ClientOrigin | None,
     ) -> EditData:
-        """Creates an edit and adds it to the pending edits."""
+        """Creates a simple non-update/move edit and adds it to the pending edits."""
         assert self.session is not None, f"no session for {self!r}"
         if self.is_readonly:
-            raise RuntimeError(f"cannot {type.bench_name} {node_!r} in read-only {self.session}")
+            raise RuntimeError(f"cannot {typ.bench_name} {node_!r} in read-only {self.session}")
 
         from bench.proto import wiring
 
-        # pack node (with extra data)
-        node_data = cast(AnyNodeData, node_._to_data())
-        if node_._updated_properties:
-            properties = list(node_._unmask_properties_ids(node_._updated_properties))
+        if typ in (EditType.CREATE, EditType.UPSERT):
+            new_node_packed = pack_edit_node(node_._to_data(), only=None)
+            old_node_packed = None
+        elif typ == EditType.DELETE:
+            new_node_packed = None
+            old_node_packed = pack_edit_node(node_._to_data(), only=None)
+        elif typ in (EditType.UPDATE, EditType.MOVE):
+            raise RuntimeError(f"update edit {typ.bench_name} not supported for {node_!r}")
         else:
-            properties = []
-        for key, value in metadata.items():
-            prop = node_.__properties__.get(key)
-            if prop is not None:
-                setattr(node_data, key, value)
+            new_node_packed = None
+            old_node_packed = None
 
         # make edit
         scope = self._get_scope_for_node(node_)
         edit = EditData(
             id=new_edit_id(),
-            type=wiring.pack_enum(EditType, type),
-            node_type=cast(wire.NodeType, node_data.metatype),
-            node=wiring.wrap_some_node(node_data),
-            properties=list(properties),
+            type=wiring.pack_enum(EditType, typ),
+            node_ptr=node_.to_ref()._to_data(),
+            new_node_packed=new_node_packed,
+            old_node_packed=old_node_packed,
             scope=scope,
             origin=origin,
+            subject_ptr=subject.to_ref()._to_data() if subject is not None else None,
+            edited_at=utcnow(),
         )
         return edit
 
@@ -195,23 +189,11 @@ class Transaction:
             self._add_pending_edit(edit, node=None)
 
     def create(self, n: Node, subject: EditSubject | None, origin: ClientOrigin | None):
-        now = utcnow()
-        edit = self._make_edit(
-            type=EditType.CREATE,
-            node_=n,
-            metadata={**_get_create_metadata(subject, now), **_get_update_metadata(subject, now)},
-            origin=origin,
-        )
+        edit = self._make_simple_edit(typ=EditType.CREATE, node_=n, subject=subject, origin=origin)
         self._add_pending_edit(edit, n)
 
     def upsert(self, n: Node, subject: EditSubject | None, origin: ClientOrigin | None):
-        now = utcnow()
-        edit = self._make_edit(
-            type=EditType.UPSERT,
-            node_=n,
-            metadata={**_get_create_metadata(subject, now), **_get_update_metadata(subject, now)},
-            origin=origin,
-        )
+        edit = self._make_simple_edit(typ=EditType.UPSERT, node_=n, subject=subject, origin=origin)
         self._add_pending_edit(edit, n)
 
     def _update(
@@ -221,6 +203,7 @@ class Transaction:
         subject: EditSubject | None,
         origin: ClientOrigin | None,
         properties: Collection[Property],
+        old_values: dict[int, Any] | None,
     ):
         """Update or move a node."""
         from bench.proto import wiring
@@ -228,7 +211,7 @@ class Transaction:
         existing_edit_idx = self._pending_updates_idx.get(n)
         if existing_edit_idx is None:
             # new update/move
-            edit = self._make_edit(edit_type, n, _get_update_metadata(subject), origin)
+            edit = self._make_simple_edit(edit_type, n, subject, origin)
             engine = self._add_pending_edit(edit, n)
             edit_idx = len(self._pending_edits_by_engine_id[engine.id]) - 1
             self._pending_updates_idx[n] = engine.id, edit_idx
@@ -256,58 +239,40 @@ class Transaction:
         subject: EditSubject | None,
         origin: ClientOrigin | None,
         properties: Collection[Property],
+        old_values: dict[int, Any],
     ):
-        self._update(EditType.UPDATE, node_, subject, origin, properties)
+        self._update(EditType.UPDATE, node_, subject, origin, properties, old_values)
 
-    def move(self, node_: Node, subject: EditSubject | None, origin: ClientOrigin | None):
-        self._update(EditType.MOVE, node_, subject, origin, [])
+    def move(
+        self,
+        node_: Node,
+        subject: EditSubject | None,
+        origin: ClientOrigin | None,
+        properties: Collection[Property],
+        old_values: dict[int, Any],
+    ):
+        self._update(EditType.MOVE, node_, subject, origin, properties, old_values)
 
     def soft_delete(self, node_: Node, subject: EditSubject | None, origin: ClientOrigin | None):
-        now = utcnow()
-        edit = self._make_edit(
-            type=EditType.SOFT_DELETE,
-            node_=node_,
-            metadata={**_get_update_metadata(subject, now), "deleted_at": now},
-            origin=origin,
-        )
+        edit = self._make_simple_edit(EditType.SOFT_DELETE, node_, subject=subject, origin=origin)
         self._add_pending_edit(edit, node_)
 
     def restore(self, node_: Node, subject: EditSubject | None, origin: ClientOrigin | None):
-        edit = self._make_edit(
-            type=EditType.RESTORE,
-            node_=node_,
-            metadata={**_get_update_metadata(subject), "deleted_at": None},
-            origin=origin,
-        )
+        edit = self._make_simple_edit(EditType.RESTORE, node_, subject=subject, origin=origin)
         self._add_pending_edit(edit, node_)
 
     def archive(self, node_: Node, subject: EditSubject | None, origin: ClientOrigin | None):
-        now = utcnow()
-        edit = self._make_edit(
-            type=EditType.ARCHIVE,
-            node_=node_,
-            metadata={**_get_update_metadata(subject, now), "archived_at": now},
-            origin=origin,
-        )
+        edit = self._make_simple_edit(EditType.ARCHIVE, node_, subject=subject, origin=origin)
         self._add_pending_edit(edit, node_)
 
     def unarchive(self, node_: Node, subject: EditSubject | None, origin: ClientOrigin | None):
-        edit = self._make_edit(
-            type=EditType.UNARCHIVE,
-            node_=node_,
-            metadata={**_get_update_metadata(subject), "archived_at": None},
-            origin=origin,
+        edit = self._make_simple_edit(
+            EditType.UNARCHIVE, node_=node_, subject=subject, origin=origin
         )
         self._add_pending_edit(edit, node_)
 
     def delete(self, node_: Node, subject: EditSubject | None, origin: ClientOrigin | None):
-        now = utcnow()
-        edit = self._make_edit(
-            type=EditType.DELETE,
-            node_=node_,
-            metadata={**_get_update_metadata(subject, now), "deleted_at": now},
-            origin=origin,
-        )
+        edit = self._make_simple_edit(EditType.DELETE, node_, subject=subject, origin=origin)
         self._add_pending_edit(edit, node_)
 
     #
@@ -379,3 +344,208 @@ class Transaction:
         for connection in self._connections_by_engine_id.values():
             await connection.close()
         self._connections_by_engine_id.clear()
+
+
+# poor mans filters, see FilterNodeGraph in bench-web
+_INCLUDE_ALL_EDIT_TYPE_REMAP: dict[EditType, EditType] = {
+    EditType.ARCHIVE: EditType.UPDATE,
+    EditType.UNARCHIVE: EditType.UPDATE,
+    EditType.SOFT_DELETE: EditType.UPDATE,
+    EditType.RESTORE: EditType.UPDATE,
+    EditType.DELETE: EditType.UPDATE,
+}
+_INCLUDE_HIDDEN_EDIT_TYPE_REMAP: dict[EditType, EditType] = {
+    EditType.ARCHIVE: EditType.UPDATE,
+    EditType.UNARCHIVE: EditType.UPDATE,
+    EditType.SOFT_DELETE: EditType.UPDATE,
+    EditType.RESTORE: EditType.UPDATE,
+}
+_EXCLUDE_HIDDEN_EDIT_TYPE_REMAP: dict[EditType, EditType] = {
+    EditType.ARCHIVE: EditType.DELETE,
+    EditType.UNARCHIVE: EditType.CREATE,
+    EditType.SOFT_DELETE: EditType.DELETE,
+    EditType.RESTORE: EditType.CREATE,
+}
+
+
+def pack_edit_node(node_data: AnyNodeData, only: Collection[Property | Any] | None) -> ProtoStruct:
+    """Packs a node into its edit representation. If 'only' is set, only those properties are packed."""
+    raise NotImplementedError
+
+
+def unpack_edit_node(
+    node_packed: dict[str, Any] | ProtoStruct, only: Collection[Property | Any] | None
+) -> AnyNodeData:
+    """Unpacks a node from its packed edit representation. If 'only' is set, only those properties are unpacked."""
+    raise NotImplementedError
+
+
+@tracer.start_as_current_span("graph.edit_graph")
+def edit_graph(
+    graph: NodeGraph["Node"] | DetachedNodeGraph["Node"],
+    edits: Collection[EditData],
+    options: "ReadOptions | None",
+) -> None:
+    """Applies the edits to the graph (in place!)."""
+    trace.get_current_span().set_attribute("edits", len(edits))
+
+    from bench.language.query import DEFAULT_READ_OPTIONS
+    from bench.proto import wiring
+
+    if options is None:
+        options = DEFAULT_READ_OPTIONS
+
+    for edit in edits:
+        assert edit.epoch is not None, f"missing epoch for {edit!r}"
+        assert edit.revision is not None, f"missing revision for {edit!r}"
+        node_id = UUID(edit.node_ptr.id)
+
+        # remap edit according to read options
+        edit_type = cast(EditType, edit.type)
+        if options.include_hidden:
+            edit_type = _INCLUDE_HIDDEN_EDIT_TYPE_REMAP.get(edit_type, edit_type)
+        else:
+            edit_type = _EXCLUDE_HIDDEN_EDIT_TYPE_REMAP.get(edit_type, edit_type)
+
+        if edit_type in (EditType.CREATE, EditType.UPSERT):
+            assert edit.new_node_packed, f"missing new node for {edit!r}"
+            node_data = unpack_edit_node(edit.new_node_packed, only=None)
+            # inline implicit metadata
+            node_data.created_at = node_data.updated_at = edit.edited_at
+            if hasattr(node_data, "created_epoch"):
+                setattr(node_data, "created_epoch", edit.edited_at)
+                setattr(node_data, "updated_epoch", edit.edited_at)
+            node_data.created_by_ptr = node_data.updated_by_ptr = edit.subject_ptr
+            # unpack
+            if node_data.parent_ptr is not None:
+                parent = graph.get(UUID(node_data.parent_ptr.id))
+            else:
+                parent = None
+            node = wiring.unpack_node(node_data, parent)
+            if edit_type == EditType.CREATE or node.id not in graph:
+                graph.add(node)
+            else:
+                graph.update(node)
+        elif edit_type == EditType.DELETE:
+            node = graph.get(node_id)
+            assert node is not None, f"missing node {node_id!r} for delete: {edit!r}"
+            graph.remove(node)
+        else:
+            # some update
+            assert edit.new_node_packed, f"missing new node for {edit!r}"
+            new_node_data = unpack_edit_node(edit.new_node_packed, only=None)
+            node = graph.get(node_id)
+            assert node is not None, f"missing node {node_id!r} for update: {edit!r}"
+            # directly edited properties
+            for prop_id in edit.properties:
+                prop = node.__properties_by_id__.get(prop_id)
+                assert prop is not None, f"no property {prop_id} for {node!r} in {edit!r}"
+                if prop.reference_wired_ptr is not None:
+                    prop = prop.reference_wired_ptr
+                new_value_data = getattr(new_node_data, prop.name)
+                new_value = wiring.unpack_struct_prop(prop, new_value_data)
+                setattr(node, prop.name, new_value)
+            # implicit metadata
+            node.updated_at = edit.edited_at
+            if "updated_epoch" in node.__properties__:
+                node.updated_epoch = edit.epoch
+            setattr(node, "updated_by_ptr", edit.subject_ptr)
+            node.revision = edit.revision
+            if edit_type == EditType.ARCHIVE:
+                node.archived_at = edit.edited_at
+            elif edit_type == EditType.UNARCHIVE:
+                node.archived_at = None
+            elif edit_type == EditType.SOFT_DELETE:
+                node.deleted_at = edit.edited_at
+            elif edit_type == EditType.RESTORE:
+                node.deleted_at = None
+            elif edit_type == EditType.MOVE:
+                if new_node_data.parent_ptr is not None:
+                    new_parent = graph.get(UUID(new_node_data.parent_ptr.id))
+                else:
+                    new_parent = None
+                node.parent = new_parent
+            graph.update(node)
+
+
+@tracer.start_as_current_span("graph.edit_data_graph")
+def edit_data_graph(
+    graph: NodeDataGraph[AnyNodeData],
+    edits: Collection[EditData],
+    options: "ReadOptions | None",
+    *,
+    keep_all: bool = False,
+    reset_old: bool = False,
+    bump: bool = False,
+) -> None:
+    """Applies the edits to the data graph (edited nodes are copied before update)."""
+    trace.get_current_span().set_attribute("edits", len(edits))
+
+    from bench.language.query import DEFAULT_READ_OPTIONS
+    from bench.proto import wiring
+
+    if options is None:
+        options = DEFAULT_READ_OPTIONS
+
+    for edit in edits:
+        assert edit.epoch is not None, f"missing epoch for {edit!r}"
+        assert edit.revision is not None, f"missing revision for {edit!r}"
+
+        # remap edit according to read options
+        edit_type = cast(EditType, edit.type)
+        if keep_all:
+            edit_type = _INCLUDE_ALL_EDIT_TYPE_REMAP.get(edit_type, edit_type)
+        elif options.include_hidden:
+            edit_type = _INCLUDE_HIDDEN_EDIT_TYPE_REMAP.get(edit_type, edit_type)
+        else:
+            edit_type = _EXCLUDE_HIDDEN_EDIT_TYPE_REMAP.get(edit_type, edit_type)
+
+        if edit_type in (EditType.CREATE, EditType.UPSERT):
+            assert edit.new_node_packed, f"missing new node for {edit!r}"
+            new_node_data = unpack_edit_node(edit.new_node_packed, only=None)
+            graph.add(new_node_data)
+        elif edit_type == EditType.DELETE:
+            old_node_data = graph.get(edit.node_ptr.id)
+            assert old_node_data is not None, f"missing node {edit.node_ptr!r} for {edit!r}"
+            graph.remove(old_node_data)
+        else:
+            # some update
+            assert edit.new_node_packed, f"missing new node for {edit!r}"
+            new_node_data = unpack_edit_node(edit.new_node_packed, only=None)
+            node_cls = NODE_CLASS_BY_TYPE[cast(NodeType, edit.node_ptr.type)]
+            updated_node_data = graph.get(edit.node_ptr.id)
+            assert updated_node_data is not None, f"missing node {edit.node_ptr!r} for {edit!r}"
+            updated_node_data = wiring.copy_struct(updated_node_data)
+            # directly edited properties
+            for prop_id in edit.properties:
+                prop = node_cls.__properties_by_id__.get(prop_id)
+                assert prop is not None, f"missing property {prop_id} for update: {edit!r}"
+                if prop.reference_wired_ptr is not None:
+                    prop = prop.reference_wired_ptr
+                new_value_data = getattr(new_node_data, prop.name)
+                setattr(updated_node_data, prop.name, new_value_data)
+            # implicit metadata
+            updated_node_data.updated_at = edit.edited_at
+            if "updated_epoch" in node_cls.__properties_by_id__:
+                setattr(updated_node_data, "updated_epoch", edit.epoch)
+            setattr(updated_node_data, "updated_by_ptr", edit.subject_ptr)
+            updated_node_data.revision = edit.revision
+            if edit_type == EditType.ARCHIVE:
+                updated_node_data.archived_at = edit.edited_at
+            elif edit_type == EditType.UNARCHIVE:
+                updated_node_data.archived_at = None
+            elif edit_type == EditType.SOFT_DELETE:
+                updated_node_data.deleted_at = edit.edited_at
+            elif edit_type == EditType.RESTORE:
+                updated_node_data.deleted_at = None
+            graph.update(updated_node_data)
+
+
+@tracer.start_as_current_span("graph.sync_graph_revisions")
+def sync_graph_revisions(
+    source: NodeDataGraph[AnyNodeData], target: NodeGraph["Node"] | DetachedNodeGraph["Node"]
+):
+    """Syncs the revisions of nodes in the target graph with the source graph."""
+    for node in source.nodes:
+        target_node = target[UUID(node.id)]
+        target_node.revision = node.revision

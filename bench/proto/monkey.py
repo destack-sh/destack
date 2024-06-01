@@ -8,13 +8,13 @@ import json
 from base64 import b64decode, b64encode
 from dataclasses import dataclass
 from datetime import datetime
-from typing import Any, Iterable, Mapping, Self, Union
+from typing import Any, Collection, Iterable, Mapping, Self, Union
 
 import betterproto
 from betterproto import Message as BetterprotoMessage
 from betterproto.lib.google.protobuf import ListValue, NullValue
-from betterproto.lib.google.protobuf import Struct as BetterprotoStruct
-from betterproto.lib.google.protobuf import Value as BetterprotoValue
+from betterproto.lib.google.protobuf import Struct as ProtoStruct
+from betterproto.lib.google.protobuf import Value as ProtoValue
 from betterproto.utils import hybridmethod
 
 from bench.utils.utils import frozendict
@@ -102,32 +102,32 @@ betterproto.Message.__str__ = _PatchedMessage.__str__  # type: ignore
 betterproto.Message.__repr__ = _PatchedMessage.__repr__  # type: ignore
 
 
-def _wrap_value(value: Any) -> BetterprotoValue:
+def _wrap_value(value: Any) -> ProtoValue:
     """Wrap a JSON-able Python value in a betterproto Value."""
     if value is None:
-        return BetterprotoValue(null_value=NullValue.NULL_VALUE)
+        return ProtoValue(null_value=NullValue.NULL_VALUE)
     elif type(value) is bool:
-        return BetterprotoValue(bool_value=value)
+        return ProtoValue(bool_value=value)
     elif type(value) is int:
-        return BetterprotoValue(number_value=float(value))
+        return ProtoValue(number_value=float(value))
     elif type(value) is float:
-        return BetterprotoValue(number_value=value)
+        return ProtoValue(number_value=value)
     elif type(value) is str:
-        return BetterprotoValue(string_value=value)
+        return ProtoValue(string_value=value)
     elif type(value) is dict:
-        return BetterprotoValue(struct_value=_PatchedStruct.from_dict(value))
+        return ProtoValue(struct_value=_PatchedProtoStruct.from_dict(value))
     elif type(value) is list:
-        return BetterprotoValue(list_value=ListValue([_wrap_value(v) for v in value]))
+        return ProtoValue(list_value=ListValue([_wrap_value(v) for v in value]))
     else:
         raise ValueError(f"cannot wrap non-JSON value: {value!r} ({type(value)!r})")
 
 
-def _unwrap_value(value: BetterprotoValue) -> Any:
+def _unwrap_value(value: ProtoValue) -> Any:
     """Unwrap a betterproto Value into a JSON-able Python value."""
     _, v = betterproto.which_one_of(value, "kind")
     if v is None or isinstance(v, NullValue):
         return None
-    elif isinstance(v, BetterprotoStruct):
+    elif isinstance(v, ProtoStruct):
         return v.to_dict()
     elif isinstance(v, ListValue):
         return [_unwrap_value(e) for e in v.values]
@@ -141,7 +141,7 @@ def _unwrap_value(value: BetterprotoValue) -> Any:
 
 
 @dataclass(eq=False, repr=False)
-class _PatchedStruct(BetterprotoStruct):
+class _PatchedProtoStruct(ProtoStruct):
     @hybridmethod
     def from_dict(self: type[Self], mapping: Mapping[str, Any]) -> Self:  # type: ignore
         self = self()  # type: ignore
@@ -151,7 +151,7 @@ class _PatchedStruct(BetterprotoStruct):
     def from_dict(self, mapping: Mapping[str, Any]) -> Self:  # type: ignore
         fields = {**mapping}
         for k, v in fields.items():
-            if not isinstance(v, BetterprotoValue):
+            if not isinstance(v, ProtoValue):
                 fields[k] = _wrap_value(v)
         self.fields = fields
         return self
@@ -160,9 +160,12 @@ class _PatchedStruct(BetterprotoStruct):
         self,
         casing: betterproto.Casing | None = None,
         include_default_values: bool = False,
+        only: Collection[str] | None = None,
     ) -> dict[str, Any]:
         output = {}
         for k, v in self.fields.items():
+            if only is not None and k not in only:
+                continue
             output[k] = _unwrap_value(v)
         return output
 
@@ -171,10 +174,10 @@ class _PatchedStruct(BetterprotoStruct):
 # if we don't do this here calls will fail mysteriously later
 from betterproto.lib.google.protobuf import Value  # noqa
 
-_PatchedStruct()
+_PatchedProtoStruct()
 
-BetterprotoStruct.from_dict = _PatchedStruct.from_dict  # type: ignore
-BetterprotoStruct.to_dict = _PatchedStruct.to_dict  # type: ignore
+ProtoStruct.from_dict = _PatchedProtoStruct.from_dict  # type: ignore
+ProtoStruct.to_dict = _PatchedProtoStruct.to_dict  # type: ignore
 
 # add custom encode/decode methods for headers to RpcMetadata
 from bench.proto.wire import RpcMetadata, RpcMetadataBadgeInfo  # noqa

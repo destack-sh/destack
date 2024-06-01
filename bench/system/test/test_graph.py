@@ -11,7 +11,7 @@ from bench.conftest import raises_grpc_error
 from bench.language import Node, Property, Text, User
 from bench.language.const import EditType, NodeType, PrimitiveType, StructType, UserStatus
 from bench.language.expression import NodeReference
-from bench.language.transaction import new_edit_id
+from bench.language.transaction import new_edit_id, pack_edit_node
 from bench.proto import wire, wiring
 from bench.proto.wire import (
     AnyNodeData,
@@ -101,16 +101,17 @@ class EditProducer:
             else:
                 raise ValueError(f"unsupported primitive type: {prop.primitive_type}")
             node_data = cast(AnyNodeData, wiring.pack_node(node))
-            node_data.updated_at = utcnow()
-            node_data.updated_by_ptr = self.client.user.to_ref()._to_data()
             setattr(node_data, prop.name, new_value)
             edit = EditData(
                 id=new_edit_id(),
                 type=wiring.pack_enum(EditType, edit_type),
                 node_ptr=NodeReference.from_node_data(node_data),
-                node=wiring.wrap_some_node(node_data),
                 properties=[prop.id],
+                new_node_packed=pack_edit_node(node_data, only=(prop,)),
+                old_node_packed=pack_edit_node(node_data, only=(prop,)),
+                edited_at=utcnow(),
                 origin=self.client.origin,
+                subject_ptr=self.client.user.to_ref()._to_data(),
             )
             return edit
 
@@ -267,15 +268,16 @@ async def test_graph_update_node_with_invalid_property(
     user = some_user.user
     user.name = "thisiswaytoolong" * 64
     node_data = wiring.pack_node(user)
-    node_data.updated_at = utcnow()
-    node_data.updated_by_ptr = some_user.user.to_ref()._to_data()
     edit = EditData(
         id=new_edit_id(),
         type=wiring.pack_enum(EditType, EditType.UPDATE),
         node_ptr=NodeReference.from_node_data(node_data),
-        node=wiring.wrap_some_node(node_data),
         properties=[cast(Property, User.name).id],
+        new_node_packed=pack_edit_node(node_data, only=(User.name,)),
+        old_node_packed=pack_edit_node(node_data, only=(User.name,)),
+        edited_at=utcnow(),
         origin=some_user.origin,
+        subject_ptr=some_user.user.to_ref()._to_data(),
     )
     with raises_grpc_error(grpclib.Status.INVALID_ARGUMENT):
         _ = await supervisor.commit_transaction(

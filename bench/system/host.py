@@ -23,18 +23,18 @@ from bench.language.const import (
     SELF_LOGGED_NODE_TYPES,
     NodeType,
 )
-from bench.language.graph import (
-    NodeDict,
-    NodeGraphLike,
-    edit_data_graph,
-    edit_graph,
-    sync_graph_revisions,
-)
+from bench.language.graph import NodeDict, NodeGraphLike
 from bench.language.log import Log
 from bench.language.property import Property
 from bench.language.session import Session, unsuspend_session
+from bench.language.transaction import (
+    edit_data_graph,
+    edit_graph,
+    pack_edit_node,
+    sync_graph_revisions,
+)
 from bench.language.user import User
-from bench.proto import wire, wiring
+from bench.proto import wire
 from bench.proto.services import BenchServiceBase, RpcCallable
 from bench.proto.wire import EditData, GraphScope, HostBase, LogData, ServiceKind
 from bench.system.access import get_client_cached
@@ -428,6 +428,7 @@ class Host(GraphIoServiceBase, HostBase, HostSpec):
             log_data = LogData(
                 metatype=wire.ObjectType.LOG,
                 id=str(UUIDT()),
+                revision=0,
                 parent_ptr=package_ptr,
                 package_ptr=package_ptr,
                 bench_ptr=bench_ptr,
@@ -445,6 +446,7 @@ class Host(GraphIoServiceBase, HostBase, HostSpec):
                 properties=edit.properties,
                 old_node_packed=edit.old_node_packed,
                 new_node_packed=edit.new_node_packed,
+                new_revision=edit.revision,
                 # TODO :Incomplete: log session context
             )
             create_log_edit = EditData(
@@ -454,7 +456,8 @@ class Host(GraphIoServiceBase, HostBase, HostSpec):
                 node_ptr=edit.node_ptr,
                 origin=None,
                 epoch=edit.epoch,
-                node=wiring.wrap_some_node(log_data),
+                revision=log_data.revision,
+                new_node_packed=pack_edit_node(log_data, only=None),
             )
             extended_edits.append(create_log_edit)
 

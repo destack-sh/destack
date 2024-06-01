@@ -21,6 +21,7 @@ import cachetools
 import psycopg
 import pytz
 import structlog
+from betterproto.lib.google.protobuf import Struct as ProtoStruct
 from bitarray import bitarray
 from opentelemetry import trace
 from psycopg import OperationalError, sql
@@ -43,7 +44,8 @@ from bench.language.graph import NodeDataGraph
 from bench.language.node import NODE_CLASS_BY_TYPE, UNSET, Node
 from bench.language.query import ReadOptions
 from bench.language.setup import NODE_CLASSES, PARENT_NODE_TYPES
-from bench.language.value import _pack_struct_value_scalar_data, _unpack_struct_value_scalar_data
+from bench.language.transaction import unpack_edit_node
+from bench.language.value import pack_struct_value_scalar_data, unpack_struct_value_scalar_data
 from bench.proto import wire, wiring
 from bench.proto.wire import AnyNodeData, EditData, IdEnum, NodeReferenceData
 from bench.proto.wiring import PROTO_CLASS_BY_TYPE
@@ -1067,21 +1069,21 @@ async def pg_truncate(cur: psycopg.AsyncCursor, table: Table) -> None:
 NodeT = TypeVar("NodeT", bound=Node)
 
 
-def _pack_struct_data_prop(prop: Property, value: Any, ignore_array: bool) -> Any:
+def _pack_struct_data_prop(prop: Property, value: Any, ignore_array: bool) -> SqlPrimitive:
     """Packs the value of a struct property for storage in Postgres."""
     if value is None:
         return None
     elif prop.is_list and not ignore_array:
         return [_pack_struct_data_prop(prop, v, ignore_array=True) for v in value]
     elif prop.is_struct:
-        value = _pack_struct_value_scalar_data(value)
-        return Jsonb(value)
+        value = pack_struct_value_scalar_data(value)
+        return Jsonb(value)  # type: ignore
     elif prop.is_enum:
         return value.value
     elif prop.primitive_type == PrimitiveType.UUID:
         return to_uuid(value)
     elif prop.primitive_type == PrimitiveType.JSON:
-        return Jsonb(wiring.unpack_json_struct(value))
+        return Jsonb(value.to_dict())  # type: ignore
     else:
         return value
 
@@ -1093,7 +1095,7 @@ def _unpack_struct_data_prop(prop: Property, value: Any, ignore_array: bool) -> 
     elif prop.is_list and not ignore_array:
         return [_unpack_struct_data_prop(prop, v, ignore_array=True) for v in value]
     elif prop.reference_struct:
-        return _unpack_struct_value_scalar_data(value)
+        return unpack_struct_value_scalar_data(value)
     elif prop.is_enum:
         return wiring.pack_enum(prop.py_type_stripped, prop.py_type_stripped(value))
     elif prop.primitive_type == PrimitiveType.DATETIME:
@@ -1104,13 +1106,13 @@ def _unpack_struct_data_prop(prop: Property, value: Any, ignore_array: bool) -> 
     elif prop.primitive_type == PrimitiveType.UUID:
         return str(value)
     elif prop.primitive_type == PrimitiveType.JSON:
-        return wiring.pack_json_struct(value)
+        return ProtoStruct.from_dict(value)
     else:
         return value
 
 
 def _pg_pack_node_reference_into_row(
-    prop: Property,
+    prop: Property | Any,
     row: dict[str, Any],
     value: NodeReferenceData | Collection[NodeReferenceData] | None,
 ) -> None:
@@ -1223,17 +1225,15 @@ def _pg_unpack_node_reference_from_row(prop: Property, row: RowOut, node: AnyNod
                     ptr.base_bench_id = ptr.bench_id
 
 
-def pg_pack_node_data_row(node: AnyNodeData) -> dict[str, Any]:
+def pg_pack_node_data_row(node: AnyNodeData) -> dict[str, SqlPrimitive]:
     """Packs a node's data into a row for the respective table."""
     node_cls = NODE_CLASS_BY_TYPE[wiring.unpack_enum(NodeType, node.metatype)]
     try:
-        row: dict[str, Any] = {}
+        row: dict[str, SqlPrimitive] = {}
         for name, prop in node_cls.__wired_properties__.items():
             if prop.reference_source is None:
                 # regular non-ref property
-                value = getattr(node, name)
-                value = _pack_struct_data_prop(prop, value, ignore_array=False)
-                row[name] = value
+                row[name] = _pack_struct_data_prop(prop, getattr(node, name), ignore_array=False)
             else:
                 # unravel stored node reference :StoredPointers
                 value: NodeReferenceData | list[NodeReferenceData] | None = getattr(
@@ -1575,32 +1575,43 @@ async def _pg_edit_batch(
     assert table._primary_key is not None, f"no primary key for {node_cls!r}: {table!r}"
     selected_columns = tuple(prop.column for prop in selected_properties) if return_nodes else None
 
-    if edit_type == EditType.CREATE:
-        nodes = tuple(wiring.unwrap_some_node(edit.node) for edit in batch)
-        rows = tuple(pg_pack_node_data_row(node) for node in nodes)
-        _ = await pg_insert(cur=cur, table=table, rows=rows)
-        if return_nodes:
-            return nodes  # if we get here, the nodes are equivalent to the rows
-        else:
-            return None
+    if edit_type in (EditType.CREATE, EditType.UPSERT):
+        nodes = []
+        rows = []
+        for edit in batch:
+            assert edit.new_node_packed, f"no new node for {edit!r}"
+            node = unpack_edit_node(edit.new_node_packed, only=None)
+            nodes.append(node)
+            # inline implicit metadata
+            row: dict[str, SqlPrimitive] = pg_pack_node_data_row(node)
+            row["created_at"] = row["updated_at"] = edit.edited_at
+            if "created_epoch" in node_cls.__properties__:
+                row["created_epoch"] = row["updated_epoch"] = edit.epoch
+            _pg_pack_node_reference_into_row(Node.created_by, row, edit.subject_ptr)
+            _pg_pack_node_reference_into_row(Node.updated_by, row, edit.subject_ptr)
+            rows.append(row)
 
-    elif edit_type == EditType.UPSERT:
-        nodes = tuple(wiring.unwrap_some_node(edit.node) for edit in batch)
-        rows = tuple(pg_pack_node_data_row(node) for node in nodes)
-        rows = await pg_upsert(
-            cur=cur,
-            table=table,
-            rows=rows,
-            conflict_columns=(table._primary_key,),
-            static_columns=tuple(c for c in table.columns if c != table._primary_key),
-            static_values={"revision": sqlstr(f"{table.name}.revision + 1")},
-            returning=selected_columns if return_nodes else None,
-        )
-        if return_nodes:
-            assert rows is not None, f"no rows returned for {batch!r}"
-            return tuple(pg_unpack_node_data_row(node_cls, row) for row in rows)
+        if edit_type == EditType.CREATE:
+            _ = await pg_insert(cur=cur, table=table, rows=rows)
+            if return_nodes:
+                return nodes  # ithe nodes are equivalent to the rows (no need to unpack again)
+            else:
+                return None
         else:
-            return None
+            rows = await pg_upsert(
+                cur=cur,
+                table=table,
+                rows=rows,
+                conflict_columns=(table._primary_key,),
+                static_columns=tuple(c for c in table.columns if c != table._primary_key),
+                static_values={"revision": sqlstr(f"{table.name}.revision + 1")},
+                returning=selected_columns if return_nodes else None,
+            )
+            if return_nodes:
+                assert rows is not None, f"no rows returned for {batch!r}"
+                return tuple(pg_unpack_node_data_row(node_cls, row) for row in rows)
+            else:
+                return None
 
     elif edit_type in (
         EditType.UPDATE,
@@ -1610,14 +1621,19 @@ async def _pg_edit_batch(
         EditType.SOFT_DELETE,
         EditType.RESTORE,
     ):
-        nodes = tuple(wiring.unwrap_some_node(edit.node) for edit in batch)
-
-        # collect dynamic columns
-        implicit_properties = tuple(
-            node_cls.__properties__[n]
-            for n in IMPLICIT_EDIT_PROPERTIES_NAMES[edit_type]
-            if n in node_cls.__properties__
-        )
+        # collect dynamic columns (incl. implicit metadata)
+        implicit_properties: list[Property | Any] = [
+            Node.updated_at,
+            Node.updated_epoch,
+            Node.updated_by,
+        ]
+        if edit_type in (EditType.ARCHIVE, EditType.UNARCHIVE):
+            implicit_properties.append(Node.archived_at)
+        elif edit_type in (EditType.SOFT_DELETE, EditType.RESTORE):
+            implicit_properties.append(Node.deleted_at)
+        implicit_properties = [
+            p for p in implicit_properties if p.id in node_cls.__properties_by_id__
+        ]
         dynamic_columns: list[Column] = [table._primary_key]
         for prop in chain(implicit_properties, updated_properties):
             if prop.is_node_reference:
@@ -1627,19 +1643,34 @@ async def _pg_edit_batch(
 
         # collect dynamic values
         dynamic_values: list[RowIn] = []
-        for edit, node in zip(batch, nodes):
-            row = {"id": node.id}
-            for prop_id in chain(IMPLICIT_EDIT_PROPERTIES_IDS[edit_type], edit.properties):
+        for edit in batch:
+            assert edit.new_node_packed, f"no new node for {edit!r}"
+            new_node_data = unpack_edit_node(edit.new_node_packed, only=None)
+            row = {"id": edit.node_ptr.id}
+            # directly edited properties
+            for prop_id in edit.properties:
                 prop = node_cls.__properties_by_id__.get(prop_id)
-                if prop is None:
-                    continue
-                elif prop.is_node_reference:
-                    value = getattr(node, cast(Property, prop.reference_wired_ptr).name)
+                assert prop is not None, f"no property {prop_id!r} in {node_cls!r} for {edit!r}"
+                if prop.is_node_reference:
+                    value = getattr(new_node_data, cast(Property, prop.reference_wired_ptr).name)
                     _pg_pack_node_reference_into_row(prop, row, value)
                 else:
-                    value = getattr(node, prop.name)
+                    value = getattr(new_node_data, prop.name)
                     value = _pack_struct_data_prop(prop, value, ignore_array=False)
                     row[prop.name] = value
+            # implicit metadata
+            row["updated_at"] = edit.edited_at
+            if "updated_epoch" in node_cls.__properties__:
+                row["updated_epoch"] = edit.epoch
+            _pg_pack_node_reference_into_row(Node.updated_by, row, edit.subject_ptr)
+            if edit_type == EditType.ARCHIVE:
+                row["archived_at"] = edit.edited_at
+            elif edit_type == EditType.UNARCHIVE:
+                row["archived_at"] = None
+            elif edit_type == EditType.SOFT_DELETE:
+                row["deleted_at"] = edit.edited_at
+            elif edit_type == EditType.RESTORE:
+                row["deleted_at"] = None
             dynamic_values.append(row)
 
         # actually update
@@ -1653,7 +1684,7 @@ async def _pg_edit_batch(
             returning=selected_columns if return_nodes else (table._primary_key,),
         )
         if rows is None or len(rows) != len(batch) or any(r is None for r in rows):
-            missing_rows = {node.id for node in nodes} - {
+            missing_rows = {edit.node_ptr.id for edit in batch} - {
                 cast(str, r["id"]) for r in rows or () if r
             }
             raise SqlNotExistsError(f"missing {node_type.bench_name}: {missing_rows}", cur)

@@ -80,13 +80,6 @@ def map_bench_struct_to_proto(
             continue
         field = map_bench_property_to_proto(prop, cache)
         message.fields.append(field)
-    for reserved in struct.__reserved_properties__:
-        if isinstance(reserved, str):
-            message.reserved_names.append(reserved)
-        elif isinstance(reserved, int):
-            message.reserved_ids.append(reserved)
-        else:
-            raise TypeError(f"invalid reserved property: {reserved!r}")
     message.fields.sort(key=lambda f: cast(int, f.id))
     return message
 

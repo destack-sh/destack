@@ -154,13 +154,13 @@ export interface EditData {
     /**
      * Who this? All non-system clients must set both.
      *
-     * @generated from protobuf field: optional symbolx.bench.ClientOrigin origin = 41;
-     */
-    origin?: ClientOrigin;
-    /**
-     * @generated from protobuf field: optional symbolx.bench.NodeReferenceData subject_ptr = 42;
+     * @generated from protobuf field: optional symbolx.bench.NodeReferenceData subject_ptr = 41;
      */
     subjectPtr?: NodeReferenceData;
+    /**
+     * @generated from protobuf field: optional symbolx.bench.ClientOrigin origin = 42;
+     */
+    origin?: ClientOrigin;
     /**
      * When the edit was made.
      *
@@ -466,8 +466,8 @@ class EditData$Type extends MessageType<EditData> {
             { no: 33, name: "old_node_packed", kind: "message", T: () => Struct },
             { no: 34, name: "new_node_packed", kind: "message", T: () => Struct },
             { no: 40, name: "scope", kind: "message", T: () => GraphScope },
-            { no: 41, name: "origin", kind: "message", T: () => ClientOrigin },
-            { no: 42, name: "subject_ptr", kind: "message", T: () => NodeReferenceData },
+            { no: 41, name: "subject_ptr", kind: "message", T: () => NodeReferenceData },
+            { no: 42, name: "origin", kind: "message", T: () => ClientOrigin },
             { no: 43, name: "edited_at", kind: "message", T: () => Timestamp },
             { no: 44, name: "revision", kind: "scalar", opt: true, T: 3 /*ScalarType.INT64*/, L: 0 /*LongType.BIGINT*/ },
             { no: 45, name: "epoch", kind: "scalar", opt: true, T: 3 /*ScalarType.INT64*/, L: 0 /*LongType.BIGINT*/ }
@@ -512,11 +512,11 @@ class EditData$Type extends MessageType<EditData> {
                 case /* symbolx.bench.GraphScope scope */ 40:
                     message.scope = GraphScope.internalBinaryRead(reader, reader.uint32(), options, message.scope);
                     break;
-                case /* optional symbolx.bench.ClientOrigin origin */ 41:
-                    message.origin = ClientOrigin.internalBinaryRead(reader, reader.uint32(), options, message.origin);
-                    break;
-                case /* optional symbolx.bench.NodeReferenceData subject_ptr */ 42:
+                case /* optional symbolx.bench.NodeReferenceData subject_ptr */ 41:
                     message.subjectPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.subjectPtr);
+                    break;
+                case /* optional symbolx.bench.ClientOrigin origin */ 42:
+                    message.origin = ClientOrigin.internalBinaryRead(reader, reader.uint32(), options, message.origin);
                     break;
                 case /* google.protobuf.Timestamp edited_at */ 43:
                     message.editedAt = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.editedAt);
@@ -564,12 +564,12 @@ class EditData$Type extends MessageType<EditData> {
         /* symbolx.bench.GraphScope scope = 40; */
         if (message.scope)
             GraphScope.internalBinaryWrite(message.scope, writer.tag(40, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbolx.bench.ClientOrigin origin = 41; */
-        if (message.origin)
-            ClientOrigin.internalBinaryWrite(message.origin, writer.tag(41, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbolx.bench.NodeReferenceData subject_ptr = 42; */
+        /* optional symbolx.bench.NodeReferenceData subject_ptr = 41; */
         if (message.subjectPtr)
-            NodeReferenceData.internalBinaryWrite(message.subjectPtr, writer.tag(42, WireType.LengthDelimited).fork(), options).join();
+            NodeReferenceData.internalBinaryWrite(message.subjectPtr, writer.tag(41, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbolx.bench.ClientOrigin origin = 42; */
+        if (message.origin)
+            ClientOrigin.internalBinaryWrite(message.origin, writer.tag(42, WireType.LengthDelimited).fork(), options).join();
         /* google.protobuf.Timestamp edited_at = 43; */
         if (message.editedAt)
             Timestamp.internalBinaryWrite(message.editedAt, writer.tag(43, WireType.LengthDelimited).fork(), options).join();

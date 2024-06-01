@@ -16,6 +16,7 @@ from bench.language.connection import PostgresEngine, StoreEngine
 from bench.language.const import GLOBAL_NODE_TYPES, VERSION, EditType
 from bench.language.graph import NodeGraphLike
 from bench.language.session import Session
+from bench.language.transaction import unpack_edit_node
 from bench.proto import wiring
 from bench.proto.wire import EditData, GraphScope
 from bench.sql.client import GLOBAL_PG_CRYPTO_KEY, _PgStoreConnection
@@ -188,7 +189,7 @@ def unpack_commit(
 
     def _add_edit(edit: EditData, node: Node):
         if edit.type in (EditType.CREATE, EditType.UNARCHIVE, EditType.RESTORE):
-            # NOTE :Broken: not sure how to handle upsert here yet (just error for now)
+            # TODO :Broken: not sure how to handle upsert here yet (just error for now)
             added[node.id] = node
             if node.id in removed:
                 del removed[node.id]
@@ -227,7 +228,8 @@ def unpack_commit(
         node_type = NodeType(edit.node_ptr.type)
         edited_types[node_type.ord] = True
         # unpack
-        node = wiring.unwrap_some_node(edit.node)
+        assert edit.new_node_packed, f"missing node data for {edit!r}"
+        node = unpack_edit_node(edit.new_node_packed, only=None)
         assert node.parent_ptr, f"missing parent ptr for {node!r} in {edit!r}"
         parent_id = UUID(node.parent_ptr.id)
         for graph in graphs:

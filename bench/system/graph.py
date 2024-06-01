@@ -27,11 +27,12 @@ from bench.language.const import (
     NodeType,
     PolicyEffect,
 )
-from bench.language.graph import NodeDataGraph, NodeGraphLike, edit_data_graph
+from bench.language.graph import NodeDataGraph, NodeGraphLike
 from bench.language.node import EDIT_SUBJECT_TYPES, BasedNode, Node, is_implicit_node_property
 from bench.language.property import Property
 from bench.language.query import QueryBuilder
 from bench.language.setup import NODE_CLASS_BY_TYPE
+from bench.language.transaction import edit_data_graph, unpack_edit_node
 from bench.language.validation import ValidationError, on_invalid_raise
 from bench.proto import wiring
 from bench.proto.services import BenchServiceBase
@@ -489,6 +490,8 @@ def parse_edit_scopes(edits: list[EditData]) -> _EditScopes:
         node_type = NodeType(edit.node_ptr.type)
         edited_node_ids.add(edit.node_ptr.id)
         if edit.type == EditType.CREATE or edit.type == EditType.UPSERT:
+            assert edit.new_node_packed
+            node_data = unpack_edit_node(edit.new_node_packed, only=(Node.parent,))
             # node scope is parent since we don't have this node yet
             if node_data.parent_ptr is None:
                 raise ValidationError(node_data, "can't create orphan")
@@ -501,13 +504,18 @@ def parse_edit_scopes(edits: list[EditData]) -> _EditScopes:
             # node scope is the edited node itself
             if edit.node_ptr.id in in_tx_created_nodes_ids:
                 continue  # skip just created nodes
-            node_scope = NodeReference.from_node_data(node_data)
+            node_scope = edit.node_ptr
             if edit.type == EditType.MOVE:
-                # also add new parent as node scope
+                # also add new parent to scope
+                assert edit.new_node_packed, f"missing new node for {edit}"
+                node_data = unpack_edit_node(edit.new_node_packed, only=(Node.parent,))
                 assert node_data.parent_ptr is not None, f"missing parent for {node_data}"
                 node_scopes_by_id[cast(str, node_data.parent_ptr.id)] = node_data.parent_ptr
         if node_type in BASED_NODE_TYPES:
             # also add base as node scope
+            # NOTE :Performance: can we only unpack the required properties for based node types?
+            assert edit.new_node_packed, f"missing new node for {edit}"
+            node_data = unpack_edit_node(edit.new_node_packed, only=None)
             node_cls = cast(type[BasedNode], NODE_CLASS_BY_TYPE[node_type])
             base_ptr = node_cls.get_base_from_data(node_data)
             if base_ptr is not None:
@@ -519,17 +527,6 @@ def parse_edit_scopes(edits: list[EditData]) -> _EditScopes:
         graph_scope_hash = hash((graph_scope.bench_id, graph_scope.package_id))
         if graph_scope_hash not in graph_scopes:
             graph_scopes[graph_scope_hash] = graph_scope
-
-        # validate node scope with data
-        # NOTE :Cleanup: not sure where to validate node *data* scopes
-        #  e.g., we want to check that bench_ptr and package_ptr are correct
-        #   but they are only present in NodeData, not in Nodes (where they are computed, not set).
-        bench_ptr = getattr(node_data, "bench_ptr", None)
-        if bench_ptr and bench_ptr.id != graph_scope.bench_id:
-            raise ValidationError(
-                node_data,
-                f"node {node_data} has bench_id: {bench_ptr.id} != {graph_scope.bench_id}",
-            )
 
     node_scopes: dict[UUID, NodeReference] = {
         UUID(k): cast(NodeReference, wiring.unpack_struct(v)) for k, v in node_scopes_by_id.items()
@@ -598,8 +595,8 @@ def _validate_edit(edit: EditData, subject: Subject, now: datetime) -> None:
     if edit.type in (EditType.UPDATE, EditType.MOVE):
         # check that properties are in both old and new
         assert edit.old_node_packed and edit.new_node_packed
-        old_node_packed = wiring.unpack_json_struct(edit.old_node_packed)
-        new_node_packed = wiring.unpack_json_struct(edit.new_node_packed)
+        old_node_packed = edit.old_node_packed.to_dict()
+        new_node_packed = edit.new_node_packed.to_dict()
         for p in edit.properties:
             if p not in old_node_packed or p not in new_node_packed:
                 raise GRPCError(
