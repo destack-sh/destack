@@ -309,7 +309,7 @@ BASE_64 = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/"
 
 
 def encode_b64vlq(value: int) -> str:
-    """Encodes an integer as a variable length quantity B64 string for concise."""
+    """Encodes an integer as a variable length quantity B64 string for conciseness."""
     if value == 0:
         return "A"
     elif value < 0:

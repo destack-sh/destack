@@ -23,6 +23,7 @@ from bench.language.const import (
     SELF_LOGGED_NODE_TYPES,
     NodeType,
 )
+from bench.language.expression import NodeReference
 from bench.language.graph import NodeDict, NodeGraphLike
 from bench.language.log import Log
 from bench.language.property import Property
@@ -30,7 +31,7 @@ from bench.language.session import Session, unsuspend_session
 from bench.language.transaction import (
     edit_data_graph,
     edit_graph,
-    pack_edit_node,
+    pack_node_delta,
     sync_graph_revisions,
 )
 from bench.language.user import User
@@ -420,6 +421,7 @@ class Host(GraphIoServiceBase, HostBase, HostSpec):
         # add logs
         package_ptr = session.package.to_ref()._to_data()
         bench_ptr = session.bench.to_ref()._to_data()
+        log_edits: list[EditData] = []
         for edit in chain(edits, extended_edits):
             node_type = NodeType(edit.node_ptr.type)
             if node_type in SELF_LOGGED_NODE_TYPES:
@@ -453,13 +455,14 @@ class Host(GraphIoServiceBase, HostBase, HostSpec):
                 id=log_data.id,
                 type=wire.EditType.CREATE,
                 scope=edit.scope,
-                node_ptr=edit.node_ptr,
+                node_ptr=NodeReference.from_node_data(log_data),
                 origin=None,
                 epoch=edit.epoch,
                 revision=log_data.revision,
-                new_node_packed=pack_edit_node(log_data, only=None),
+                new_node_packed=pack_node_delta(log_data),
             )
-            extended_edits.append(create_log_edit)
+            log_edits.append(create_log_edit)
+        extended_edits.extend(log_edits)
 
         return extended_edits, epoch
 

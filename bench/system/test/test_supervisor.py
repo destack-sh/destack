@@ -18,7 +18,7 @@ from bench.language.expression import A
 from bench.language.node import Node
 from bench.language.property import Property
 from bench.language.setup import NODE_CLASS_BY_TYPE
-from bench.language.transaction import new_edit_id, pack_edit_node
+from bench.language.transaction import new_edit_id, pack_node_delta
 from bench.language.user import UserStatus
 from bench.proto import wire, wiring
 from bench.proto.wire import (
@@ -162,8 +162,8 @@ async def test_cross_user_access(supervisor: SupervisorStub):
                 type=wire.EditType.UPDATE,
                 node_ptr=target.to_ref()._to_data(),
                 properties=[User.name.id],  # type: ignore
-                new_node_packed=pack_edit_node(target_data, only=(User.name,)),
-                old_node_packed=pack_edit_node(target_data, only=(User.name,)),
+                new_node_packed=pack_node_delta(target_data, only=(User.name,)),
+                old_node_packed=pack_node_delta(target_data, only=(User.name,)),
                 origin=actor_handle.origin,
                 subject_ptr=actor_handle.subject,
                 edited_at=utcnow(),
@@ -186,8 +186,8 @@ async def test_cross_user_access(supervisor: SupervisorStub):
                 type=wire.EditType.UPDATE,
                 node_ptr=target_handle.client.to_ref()._to_data(),
                 properties=[Client.device_name.id],  # type: ignore
-                new_node_packed=pack_edit_node(target_data, only=(Client.device_name,)),
-                old_node_packed=pack_edit_node(target_data, only=(Client.device_name,)),
+                new_node_packed=pack_node_delta(target_data, only=(Client.device_name,)),
+                old_node_packed=pack_node_delta(target_data, only=(Client.device_name,)),
                 origin=actor_handle.origin,
                 subject_ptr=actor_handle.subject,
                 edited_at=utcnow(),
@@ -254,7 +254,7 @@ async def test_root_node_create_denied(
             id=new_edit_id(),
             type=edit_type,
             node_ptr=node.to_ref()._to_data(),
-            new_node_packed=pack_edit_node(node_data, only=None),
+            new_node_packed=pack_node_delta(node_data),
             origin=some_user.origin,
             subject_ptr=some_user.user.to_ref()._to_data(),
             edited_at=utcnow(),
