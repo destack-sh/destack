@@ -28,10 +28,10 @@ from bench.language.const import (
     PolicyEffect,
 )
 from bench.language.graph import NodeDataGraph, NodeGraphLike, edit_data_graph
-from bench.language.node import EDIT_SUBJECT_TYPES, BasedNode, Node
+from bench.language.node import EDIT_SUBJECT_TYPES, BasedNode, Node, is_implicit_node_property
+from bench.language.property import Property
 from bench.language.query import QueryBuilder
 from bench.language.setup import NODE_CLASS_BY_TYPE
-from bench.language.transaction import ALL_IMPLICIT_PROPERTIES_IDS
 from bench.language.validation import ValidationError, on_invalid_raise
 from bench.proto import wiring
 from bench.proto.services import BenchServiceBase
@@ -39,7 +39,6 @@ from bench.proto.wire import (
     AccessMatrixData,
     AggregateNodesRequest,
     AggregateNodesResponse,
-    AnyNodeData,
     CancelTransactionRequest,
     CancelTransactionResponse,
     CommitTransactionRequest,
@@ -267,12 +266,8 @@ class GraphIoServiceBase(BenchServiceBase, GraphIoBase):
             epoch = self.epoch
             for edit in request.edits:
                 _validate_edit(edit, subject, now)  # and pre-validate!
-                node_data = wiring.unwrap_some_node(edit.node)
                 epoch += 1
                 edit.epoch = epoch
-                if edit.type in (EditType.CREATE, EditType.UPSERT):
-                    node_data.created_epoch = epoch
-                node_data.updated_epoch = epoch
 
         # process edits
         async with self.tx_lock:
@@ -306,10 +301,14 @@ class GraphIoServiceBase(BenchServiceBase, GraphIoBase):
                     if decision != PolicyEffect.ALLOW:
                         raise AccessError(accesses)
 
-                # validate edits (in copy)
+                # apply edits in copy (to validate and get current 'old' values)
                 # TODO :Robustness: prevent circular parent/child references
                 edit_data_graph(
-                    graph=data_graph, edits=request.edits, options=ReadOptions.all(), keep_all=True
+                    graph=data_graph,
+                    edits=request.edits,
+                    options=ReadOptions.all(),
+                    keep_all=True,
+                    reset_old=True,
                 )
                 unpacked_graph = wiring.unpack_node_graph(data_graph, parent=None, session=session)
                 for node_id in edit_scopes.edited_node_ids:
@@ -463,7 +462,7 @@ class GraphIoServiceBase(BenchServiceBase, GraphIoBase):
         # TODO :Broken :Security!: adapt graph edits to watcher's access
         adapted_edits = []
         for edit in edits:
-            node_type = wiring.unpack_enum(NodeType, edit.node_type)
+            node_type = wiring.unpack_enum(NodeType, edit.node_ptr.type)
             if node_type in watcher.node_types:
                 adapted_edits.append(edit)
         return adapted_edits
@@ -475,19 +474,9 @@ class _EditScopes(NamedTuple):
     graph_scopes: tuple[GraphScope, ...]
 
 
-def validate_node_scope(node_data: AnyNodeData, graph_scope: GraphScope):
-    bench_ptr = getattr(node_data, "bench_ptr", None)
-    if bench_ptr and bench_ptr.id != graph_scope.bench_id:
-        raise ValidationError(
-            node_data,
-            f"node {node_data} has bench_id: {bench_ptr.id} != {graph_scope.bench_id}",
-        )
-
-
 def parse_edit_scopes(edits: list[EditData]) -> _EditScopes:
     """
     Gets the specific nodes (scopes) and broader graph scopes that are edited.
-    Also verifies that the edited scopes match the nodes data.
     :NodeEditScope
     """
     from bench.proto import wiring
@@ -495,11 +484,10 @@ def parse_edit_scopes(edits: list[EditData]) -> _EditScopes:
     edited_node_ids: set[str] = set()
     node_scopes_by_id: dict[str, NodeReferenceData] = {}
     graph_scopes: dict[int, GraphScope] = {}
-    just_created_nodes_id: set[str] = set()
+    in_tx_created_nodes_ids: set[str] = set()
     for edit in edits:
-        node_type = NodeType(edit.node_type)
-        node_data = wiring.unwrap_some_node(edit.node)
-        edited_node_ids.add(node_data.id)
+        node_type = NodeType(edit.node_ptr.type)
+        edited_node_ids.add(edit.node_ptr.id)
         if edit.type == EditType.CREATE or edit.type == EditType.UPSERT:
             # node scope is parent since we don't have this node yet
             if node_data.parent_ptr is None:
@@ -508,10 +496,10 @@ def parse_edit_scopes(edits: list[EditData]) -> _EditScopes:
                 node_scope = node_data.parent_ptr
             else:
                 node_scope = node_scopes_by_id[node_data.parent_ptr.id]
-            just_created_nodes_id.add(node_data.id)
+            in_tx_created_nodes_ids.add(edit.node_ptr.id)
         else:
             # node scope is the edited node itself
-            if node_data.id in just_created_nodes_id:
+            if edit.node_ptr.id in in_tx_created_nodes_ids:
                 continue  # skip just created nodes
             node_scope = NodeReference.from_node_data(node_data)
             if edit.type == EditType.MOVE:
@@ -524,7 +512,7 @@ def parse_edit_scopes(edits: list[EditData]) -> _EditScopes:
             base_ptr = node_cls.get_base_from_data(node_data)
             if base_ptr is not None:
                 node_scopes_by_id[cast(str, base_ptr.id)] = base_ptr
-        node_scopes_by_id[node_data.id] = node_scope
+        node_scopes_by_id[edit.node_ptr.id] = node_scope
 
         # graph scope
         graph_scope = edit.scope
@@ -536,7 +524,12 @@ def parse_edit_scopes(edits: list[EditData]) -> _EditScopes:
         # NOTE :Cleanup: not sure where to validate node *data* scopes
         #  e.g., we want to check that bench_ptr and package_ptr are correct
         #   but they are only present in NodeData, not in Nodes (where they are computed, not set).
-        validate_node_scope(node_data, graph_scope)
+        bench_ptr = getattr(node_data, "bench_ptr", None)
+        if bench_ptr and bench_ptr.id != graph_scope.bench_id:
+            raise ValidationError(
+                node_data,
+                f"node {node_data} has bench_id: {bench_ptr.id} != {graph_scope.bench_id}",
+            )
 
     node_scopes: dict[UUID, NodeReference] = {
         UUID(k): cast(NodeReference, wiring.unpack_struct(v)) for k, v in node_scopes_by_id.items()
@@ -555,89 +548,82 @@ def _is_allowable_drift(dt: datetime, now: datetime) -> bool:
 
 
 def _validate_edit(edit: EditData, subject: Subject, now: datetime) -> None:
-    """Checks the given edit for basic validity."""
+    """Checks the given edit for basic validity in isolation."""
     assert subject.client, f"{subject!r} has no client"
-    node_data = wiring.unwrap_some_node(edit.node)
-    node_cls = NODE_CLASS_BY_TYPE[cast(NodeType, edit.node_type)]
+    node_cls = NODE_CLASS_BY_TYPE[cast(NodeType, edit.node_ptr.type)]
 
-    # subject/origin match
-    user_id = str(subject.user.id) if subject.user else None
+    # subject
     if subject.client.parent_type == NodeType.USER:
+        user_id = str(subject.user.id) if subject.user else None
         # subject must match user
-        if edit.type in (EditType.CREATE, EditType.UPSERT) and (
-            not node_data.created_by_ptr or node_data.created_by_ptr.id != user_id
-        ):
+        if not edit.subject_ptr or edit.subject_ptr.id != user_id:
             raise GRPCError(
                 GRPCStatus.PERMISSION_DENIED,
-                f"created_by mismatch in {edit!r}: {node_data.created_by_ptr} != {user_id}",
-            )
-        if not node_data.updated_by_ptr or node_data.updated_by_ptr.id != user_id:
-            raise GRPCError(
-                GRPCStatus.PERMISSION_DENIED,
-                f"updated_by mismatch in {edit!r}: {node_data.updated_by_ptr} != {user_id}",
+                f"subject mismatch in {edit!r}: {edit.subject_ptr} != {user_id}",
             )
     else:
         # subject must be a Run/Server
-        if edit.type in (EditType.CREATE, EditType.UPSERT) and (
-            not node_data.created_by_ptr or node_data.created_by_ptr.type not in EDIT_SUBJECT_TYPES
-        ):
+        if not edit.subject_ptr or edit.subject_ptr.type not in EDIT_SUBJECT_TYPES:
             raise GRPCError(
                 GRPCStatus.PERMISSION_DENIED,
-                f"bad created_by in {edit!r}: {node_data.created_by_ptr!r}",
+                f"bad created_by in {edit!r}: {edit.subject_ptr!r}",
             )
-        if not node_data.updated_by_ptr or node_data.updated_by_ptr.type not in EDIT_SUBJECT_TYPES:
-            raise GRPCError(
-                GRPCStatus.PERMISSION_DENIED,
-                f"bad updated_by in {edit!r}: {node_data.updated_by_ptr!r}",
-            )
+    # origin
     if not edit.origin or UUID(edit.origin.id) != subject.client.id:
         raise GRPCError(
             GRPCStatus.PERMISSION_DENIED,
             f"origin mismatch in {edit!r}: {edit.origin!r} != {subject.client!r}",
         )
 
-    # specific edit type constraints
-    if any(p in edit.properties for p in ALL_IMPLICIT_PROPERTIES_IDS):
-        bad_properties = [
-            node_cls.__properties_by_id__[p]
-            for p in ALL_IMPLICIT_PROPERTIES_IDS
-            if p in edit.properties
-        ]
+    # time
+    if not edit.edited_at or not _is_allowable_drift(edit.edited_at, now):
         raise GRPCError(
-            GRPCStatus.PERMISSION_DENIED,
-            f"implicit properties set explicitly in {edit!r}: {bad_properties!r}",
+            GRPCStatus.INVALID_ARGUMENT,
+            f"bad edited_at in {edit!r}: {edit.edited_at} != {now}",
         )
-    if edit.type in (EditType.CREATE, EditType.UPSERT):
-        if not node_data.created_at:
-            raise GRPCError(GRPCStatus.INVALID_ARGUMENT, f"missing created_at in {edit!r}")
-    if not node_data.updated_at:
-        raise GRPCError(GRPCStatus.INVALID_ARGUMENT, f"missing updated_at in {edit!r}")
-    if not _is_allowable_drift(node_data.updated_at, now):
-        raise GRPCError(GRPCStatus.INVALID_ARGUMENT, f"updated_at in {edit!r} has drifted too much")
-    if edit.type == EditType.ARCHIVE:
-        if not node_data.archived_at:
-            raise GRPCError(GRPCStatus.INVALID_ARGUMENT, f"missing archived_at in {edit!r}")
-        if not _is_allowable_drift(node_data.archived_at, now):
+
+    # old/new node packed
+    should_set_new = edit.type in (EditType.CREATE, EditType.UPSERT, EditType.UPDATE, EditType.MOVE)
+    should_set_old = edit.type in (EditType.UPDATE, EditType.MOVE, EditType.DELETE)
+    if should_set_new != (edit.new_node_packed is not None):
+        raise GRPCError(
+            GRPCStatus.INVALID_ARGUMENT, f"bad new_node_packed in {edit!r}: {edit.new_node_packed}"
+        )
+    if should_set_old != (edit.old_node_packed is not None):
+        raise GRPCError(
+            GRPCStatus.INVALID_ARGUMENT, f"bad old_node_packed in {edit!r}: {edit.old_node_packed}"
+        )
+
+    # properties
+    if edit.type in (EditType.UPDATE, EditType.MOVE):
+        # check that properties are in both old and new
+        assert edit.old_node_packed and edit.new_node_packed
+        old_node_packed = wiring.unpack_json_struct(edit.old_node_packed)
+        new_node_packed = wiring.unpack_json_struct(edit.new_node_packed)
+        for p in edit.properties:
+            if p not in old_node_packed or p not in new_node_packed:
+                raise GRPCError(
+                    GRPCStatus.INVALID_ARGUMENT,
+                    f"missing property in {edit!r}: {p} not in {edit.old_node_packed} or {edit.new_node_packed}",
+                )
+        # no forbidden properties
+        if any(is_implicit_node_property(p) for p in edit.properties):
+            bad_properties = [
+                node_cls.__properties_by_id__[p]
+                for p in edit.properties
+                if is_implicit_node_property(p)
+            ]
             raise GRPCError(
-                GRPCStatus.INVALID_ARGUMENT, f"archived_at in {edit!r} has drifted too much"
+                GRPCStatus.PERMISSION_DENIED,
+                f"cannot explicitly set implicit properties in {edit!r}: {bad_properties!r}",
             )
-    if edit.type == EditType.UNARCHIVE:
-        if node_data.archived_at:
-            raise GRPCError(GRPCStatus.INVALID_ARGUMENT, f"set archived_at in {edit!r}")
-    if edit.type == EditType.SOFT_DELETE:
-        if not node_data.deleted_at:
-            raise GRPCError(GRPCStatus.INVALID_ARGUMENT, f"missing deleted_at in {edit!r}")
-        if not _is_allowable_drift(node_data.deleted_at, now):
+        has_parent = cast(Property, Node.parent).id in edit.properties
+        if edit.type == EditType.MOVE != has_parent:
             raise GRPCError(
-                GRPCStatus.INVALID_ARGUMENT, f"deleted_at in {edit!r} has drifted too much"
+                GRPCStatus.INVALID_ARGUMENT,
+                f"only move can set parent property in {edit!r}: {edit.properties}",
             )
-    if edit.type == EditType.RESTORE:
-        if node_data.deleted_at:
-            raise GRPCError(GRPCStatus.INVALID_ARGUMENT, f"set deleted_at in {edit!r}")
-    if edit.type == EditType.DELETE:
-        if not node_data.deleted_at:
-            raise GRPCError(GRPCStatus.INVALID_ARGUMENT, f"missing deleted_at in {edit!r}")
-        if not _is_allowable_drift(node_data.deleted_at, now):
-            raise GRPCError(
-                GRPCStatus.INVALID_ARGUMENT, f"deleted_at in {edit!r} has drifted too much"
-            )
+    elif edit.properties:
+        raise GRPCError(
+            GRPCStatus.INVALID_ARGUMENT, f"cannot set properties in {edit!r}: {edit.properties}"
+        )

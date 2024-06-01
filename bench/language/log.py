@@ -67,13 +67,14 @@ class Log(Node, HasSessionContext, HasValues):
     level: LogLevel = p_system(31, default=LogLevel.INFO)
 
     # content (access)
+    type: AccessType | None = p_system(40, default=None)
     node: Optional["Node"] = p_system(
-        40, require=False, array=False, references=NODE_TYPES.tuple, same_bench=True
+        41, require=False, array=False, references=NODE_TYPES.tuple, same_bench=True
     )
-    type: AccessType | None = p_system(41, default=None)
-    properties: list[int] = p_system(42, array=True)
+    properties: list[int] = p_system(42, array=True, primitive_type=PrimitiveType.INT16)
     old_node_packed: Any | None = p_system(43, primitive_type=PrimitiveType.JSON)
     new_node_packed: Any | None = p_system(44, primitive_type=PrimitiveType.JSON)
+    new_revision: int | None = p_system(45, primitive_type=PrimitiveType.INT64)
 
     # content (custom)
     title: Optional[str] = p_internal(50, default=None)

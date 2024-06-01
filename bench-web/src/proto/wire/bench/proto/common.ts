@@ -11,8 +11,9 @@ import { UnknownFieldHandler } from "@protobuf-ts/runtime";
 import type { PartialMessage } from "@protobuf-ts/runtime";
 import { reflectionMergePartial } from "@protobuf-ts/runtime";
 import { MessageType } from "@protobuf-ts/runtime";
-import { SomeNodeData } from "./lang";
-import { NodeType } from "./lang";
+import { Timestamp } from "../../google/protobuf/timestamp";
+import { Struct } from "../../google/protobuf/struct";
+import { NodeReferenceData } from "./lang";
 import { EditType } from "./lang";
 import { ClientType } from "./lang";
 /**
@@ -103,77 +104,81 @@ export interface GraphScope {
     transactionId?: string;
 }
 /**
- * Edit describes an edit to a Node.
- * NOTE: obviously, we can only trust edits originating from the system
+ * Edit to a Node.
  *
  * @generated from protobuf message symbolx.bench.EditData
  */
 export interface EditData {
     /**
+     * Unique identifier for the edit within a transaction.
+     *
      * @generated from protobuf field: string id = 2;
      */
     id: string;
     /**
+     * Type of edit.
+     *
      * @generated from protobuf field: symbolx.bench.EditType type = 30;
      */
     type: EditType;
     /**
-     * @generated from protobuf field: optional symbolx.bench.ClientOrigin origin = 31;
+     * Which node.
+     *
+     * @generated from protobuf field: symbolx.bench.NodeReferenceData node_ptr = 31;
      */
-    origin?: ClientOrigin;
+    nodePtr?: NodeReferenceData;
     /**
-     * @generated from protobuf field: symbolx.bench.GraphScope scope = 32;
-     */
-    scope?: GraphScope;
-    /**
-     * @generated from protobuf field: symbolx.bench.NodeType node_type = 33;
-     */
-    nodeType: NodeType;
-    /**
-     * @generated from protobuf field: symbolx.bench.SomeNodeData node = 35;
-     */
-    node?: SomeNodeData;
-    /**
-     * @generated from protobuf field: repeated uint32 properties = 36;
+     * Which non-tracking properties are edited in an update or move.
+     *
+     * @generated from protobuf field: repeated uint32 properties = 32;
      */
     properties: number[];
     /**
-     * The last epoch seen by the client.
+     * The previous values for the edited properties (if any).
      *
-     * @generated from protobuf field: optional uint64 seen_epoch = 40;
+     * @generated from protobuf field: optional google.protobuf.Struct old_node_packed = 33;
      */
-    seenEpoch?: bigint;
+    oldNodePacked?: Struct;
     /**
-     * System-accepted revision for the edit.
+     * The new values for the edited properties (if any).
      *
-     * @generated from protobuf field: optional int64 revision = 50;
+     * @generated from protobuf field: optional google.protobuf.Struct new_node_packed = 34;
      */
-    revision?: bigint;
+    newNodePacked?: Struct;
     /**
-     * System-accepted epoch for the edit.
+     * Enclosing scope of the node.
      *
-     * @generated from protobuf field: optional int64 epoch = 51;
+     * @generated from protobuf field: symbolx.bench.GraphScope scope = 40;
      */
-    epoch?: bigint;
-}
-/**
- * Transaction of edits to a Node.
- *
- * @generated from protobuf message symbolx.bench.TransactionData
- */
-export interface TransactionData {
+    scope?: GraphScope;
     /**
-     * @generated from protobuf field: string id = 2;
-     */
-    id: string;
-    /**
-     * @generated from protobuf field: symbolx.bench.ClientOrigin origin = 30;
+     * Who this? All non-system clients must set both.
+     *
+     * @generated from protobuf field: optional symbolx.bench.ClientOrigin origin = 41;
      */
     origin?: ClientOrigin;
     /**
-     * @generated from protobuf field: repeated symbolx.bench.EditData edits = 31;
+     * @generated from protobuf field: optional symbolx.bench.NodeReferenceData subject_ptr = 42;
      */
-    edits: EditData[];
+    subjectPtr?: NodeReferenceData;
+    /**
+     * When the edit was made.
+     *
+     * @generated from protobuf field: google.protobuf.Timestamp edited_at = 43;
+     */
+    editedAt?: Timestamp;
+    /**
+     * Revision for the node.
+     *
+     * @generated from protobuf field: optional int64 revision = 44;
+     */
+    revision?: bigint;
+    /**
+     * Epoch at that edit.
+     *
+     * @generated from protobuf field: optional int64 epoch = 45;
+     */
+    epoch?: bigint;
 }
 /**
  * @generated from protobuf enum symbolx.bench.ServiceKind
@@ -456,21 +461,22 @@ class EditData$Type extends MessageType<EditData> {
         super("symbolx.bench.EditData", [
             { no: 2, name: "id", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 30, name: "type", kind: "enum", T: () => ["symbolx.bench.EditType", EditType, "EDIT_TYPE_"] },
-            { no: 31, name: "origin", kind: "message", T: () => ClientOrigin },
-            { no: 32, name: "scope", kind: "message", T: () => GraphScope },
-            { no: 33, name: "node_type", kind: "enum", T: () => ["symbolx.bench.NodeType", NodeType, "NODE_TYPE_"] },
-            { no: 35, name: "node", kind: "message", T: () => SomeNodeData },
-            { no: 36, name: "properties", kind: "scalar", repeat: 1 /*RepeatType.PACKED*/, T: 13 /*ScalarType.UINT32*/ },
-            { no: 40, name: "seen_epoch", kind: "scalar", opt: true, T: 4 /*ScalarType.UINT64*/, L: 0 /*LongType.BIGINT*/ },
-            { no: 50, name: "revision", kind: "scalar", opt: true, T: 3 /*ScalarType.INT64*/, L: 0 /*LongType.BIGINT*/ },
-            { no: 51, name: "epoch", kind: "scalar", opt: true, T: 3 /*ScalarType.INT64*/, L: 0 /*LongType.BIGINT*/ }
+            { no: 31, name: "node_ptr", kind: "message", T: () => NodeReferenceData },
+            { no: 32, name: "properties", kind: "scalar", repeat: 1 /*RepeatType.PACKED*/, T: 13 /*ScalarType.UINT32*/ },
+            { no: 33, name: "old_node_packed", kind: "message", T: () => Struct },
+            { no: 34, name: "new_node_packed", kind: "message", T: () => Struct },
+            { no: 40, name: "scope", kind: "message", T: () => GraphScope },
+            { no: 41, name: "origin", kind: "message", T: () => ClientOrigin },
+            { no: 42, name: "subject_ptr", kind: "message", T: () => NodeReferenceData },
+            { no: 43, name: "edited_at", kind: "message", T: () => Timestamp },
+            { no: 44, name: "revision", kind: "scalar", opt: true, T: 3 /*ScalarType.INT64*/, L: 0 /*LongType.BIGINT*/ },
+            { no: 45, name: "epoch", kind: "scalar", opt: true, T: 3 /*ScalarType.INT64*/, L: 0 /*LongType.BIGINT*/ }
         ]);
     }
     create(value?: PartialMessage<EditData>): EditData {
         const message = globalThis.Object.create((this.messagePrototype!));
         message.id = "";
         message.type = 0;
-        message.nodeType = 0;
         message.properties = [];
         if (value !== undefined)
             reflectionMergePartial<EditData>(this, message, value);
@@ -487,32 +493,38 @@ class EditData$Type extends MessageType<EditData> {
                 case /* symbolx.bench.EditType type */ 30:
                     message.type = reader.int32();
                     break;
-                case /* optional symbolx.bench.ClientOrigin origin */ 31:
-                    message.origin = ClientOrigin.internalBinaryRead(reader, reader.uint32(), options, message.origin);
+                case /* symbolx.bench.NodeReferenceData node_ptr */ 31:
+                    message.nodePtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.nodePtr);
                     break;
-                case /* symbolx.bench.GraphScope scope */ 32:
-                    message.scope = GraphScope.internalBinaryRead(reader, reader.uint32(), options, message.scope);
-                    break;
-                case /* symbolx.bench.NodeType node_type */ 33:
-                    message.nodeType = reader.int32();
-                    break;
-                case /* symbolx.bench.SomeNodeData node */ 35:
-                    message.node = SomeNodeData.internalBinaryRead(reader, reader.uint32(), options, message.node);
-                    break;
-                case /* repeated uint32 properties */ 36:
+                case /* repeated uint32 properties */ 32:
                     if (wireType === WireType.LengthDelimited)
                         for (let e = reader.int32() + reader.pos; reader.pos < e;)
                             message.properties.push(reader.uint32());
                     else
                         message.properties.push(reader.uint32());
                     break;
-                case /* optional uint64 seen_epoch */ 40:
-                    message.seenEpoch = reader.uint64().toBigInt();
+                case /* optional google.protobuf.Struct old_node_packed */ 33:
+                    message.oldNodePacked = Struct.internalBinaryRead(reader, reader.uint32(), options, message.oldNodePacked);
                     break;
-                case /* optional int64 revision */ 50:
+                case /* optional google.protobuf.Struct new_node_packed */ 34:
+                    message.newNodePacked = Struct.internalBinaryRead(reader, reader.uint32(), options, message.newNodePacked);
+                    break;
+                case /* symbolx.bench.GraphScope scope */ 40:
+                    message.scope = GraphScope.internalBinaryRead(reader, reader.uint32(), options, message.scope);
+                    break;
+                case /* optional symbolx.bench.ClientOrigin origin */ 41:
+                    message.origin = ClientOrigin.internalBinaryRead(reader, reader.uint32(), options, message.origin);
+                    break;
+                case /* optional symbolx.bench.NodeReferenceData subject_ptr */ 42:
+                    message.subjectPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.subjectPtr);
+                    break;
+                case /* google.protobuf.Timestamp edited_at */ 43:
+                    message.editedAt = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.editedAt);
+                    break;
+                case /* optional int64 revision */ 44:
                     message.revision = reader.int64().toBigInt();
                     break;
-                case /* optional int64 epoch */ 51:
+                case /* optional int64 epoch */ 45:
                     message.epoch = reader.int64().toBigInt();
                     break;
                 default:
@@ -533,34 +545,40 @@ class EditData$Type extends MessageType<EditData> {
         /* symbolx.bench.EditType type = 30; */
         if (message.type !== 0)
             writer.tag(30, WireType.Varint).int32(message.type);
-        /* optional symbolx.bench.ClientOrigin origin = 31; */
-        if (message.origin)
-            ClientOrigin.internalBinaryWrite(message.origin, writer.tag(31, WireType.LengthDelimited).fork(), options).join();
-        /* symbolx.bench.GraphScope scope = 32; */
-        if (message.scope)
-            GraphScope.internalBinaryWrite(message.scope, writer.tag(32, WireType.LengthDelimited).fork(), options).join();
-        /* symbolx.bench.NodeType node_type = 33; */
-        if (message.nodeType !== 0)
-            writer.tag(33, WireType.Varint).int32(message.nodeType);
-        /* symbolx.bench.SomeNodeData node = 35; */
-        if (message.node)
-            SomeNodeData.internalBinaryWrite(message.node, writer.tag(35, WireType.LengthDelimited).fork(), options).join();
-        /* repeated uint32 properties = 36; */
+        /* symbolx.bench.NodeReferenceData node_ptr = 31; */
+        if (message.nodePtr)
+            NodeReferenceData.internalBinaryWrite(message.nodePtr, writer.tag(31, WireType.LengthDelimited).fork(), options).join();
+        /* repeated uint32 properties = 32; */
         if (message.properties.length) {
-            writer.tag(36, WireType.LengthDelimited).fork();
+            writer.tag(32, WireType.LengthDelimited).fork();
             for (let i = 0; i < message.properties.length; i++)
                 writer.uint32(message.properties[i]);
             writer.join();
         }
-        /* optional uint64 seen_epoch = 40; */
-        if (message.seenEpoch !== undefined)
-            writer.tag(40, WireType.Varint).uint64(message.seenEpoch);
-        /* optional int64 revision = 50; */
+        /* optional google.protobuf.Struct old_node_packed = 33; */
+        if (message.oldNodePacked)
+            Struct.internalBinaryWrite(message.oldNodePacked, writer.tag(33, WireType.LengthDelimited).fork(), options).join();
+        /* optional google.protobuf.Struct new_node_packed = 34; */
+        if (message.newNodePacked)
+            Struct.internalBinaryWrite(message.newNodePacked, writer.tag(34, WireType.LengthDelimited).fork(), options).join();
+        /* symbolx.bench.GraphScope scope = 40; */
+        if (message.scope)
+            GraphScope.internalBinaryWrite(message.scope, writer.tag(40, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbolx.bench.ClientOrigin origin = 41; */
+        if (message.origin)
+            ClientOrigin.internalBinaryWrite(message.origin, writer.tag(41, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbolx.bench.NodeReferenceData subject_ptr = 42; */
+        if (message.subjectPtr)
+            NodeReferenceData.internalBinaryWrite(message.subjectPtr, writer.tag(42, WireType.LengthDelimited).fork(), options).join();
+        /* google.protobuf.Timestamp edited_at = 43; */
+        if (message.editedAt)
+            Timestamp.internalBinaryWrite(message.editedAt, writer.tag(43, WireType.LengthDelimited).fork(), options).join();
+        /* optional int64 revision = 44; */
         if (message.revision !== undefined)
-            writer.tag(50, WireType.Varint).int64(message.revision);
-        /* optional int64 epoch = 51; */
+            writer.tag(44, WireType.Varint).int64(message.revision);
+        /* optional int64 epoch = 45; */
         if (message.epoch !== undefined)
-            writer.tag(51, WireType.Varint).int64(message.epoch);
+            writer.tag(45, WireType.Varint).int64(message.epoch);
         let u = options.writeUnknownFields;
         if (u !== false)
             (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
@@ -571,65 +589,3 @@ class EditData$Type extends MessageType<EditData> {
  * @generated MessageType for protobuf message symbolx.bench.EditData
  */
 export const EditData = new EditData$Type();
-// @generated message type with reflection information, may provide speed optimized methods
-class TransactionData$Type extends MessageType<TransactionData> {
-    constructor() {
-        super("symbolx.bench.TransactionData", [
-            { no: 2, name: "id", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
-            { no: 30, name: "origin", kind: "message", T: () => ClientOrigin },
-            { no: 31, name: "edits", kind: "message", repeat: 1 /*RepeatType.PACKED*/, T: () => EditData }
-        ]);
-    }
-    create(value?: PartialMessage<TransactionData>): TransactionData {
-        const message = globalThis.Object.create((this.messagePrototype!));
-        message.id = "";
-        message.edits = [];
-        if (value !== undefined)
-            reflectionMergePartial<TransactionData>(this, message, value);
-        return message;
-    }
-    internalBinaryRead(reader: IBinaryReader, length: number, options: BinaryReadOptions, target?: TransactionData): TransactionData {
-        let message = target ?? this.create(), end = reader.pos + length;
-        while (reader.pos < end) {
-            let [fieldNo, wireType] = reader.tag();
-            switch (fieldNo) {
-                case /* string id */ 2:
-                    message.id = reader.string();
-                    break;
-                case /* symbolx.bench.ClientOrigin origin */ 30:
-                    message.origin = ClientOrigin.internalBinaryRead(reader, reader.uint32(), options, message.origin);
-                    break;
-                case /* repeated symbolx.bench.EditData edits */ 31:
-                    message.edits.push(EditData.internalBinaryRead(reader, reader.uint32(), options));
-                    break;
-                default:
-                    let u = options.readUnknownField;
-                    if (u === "throw")
-                        throw new globalThis.Error(`Unknown field ${fieldNo} (wire type ${wireType}) for ${this.typeName}`);
-                    let d = reader.skip(wireType);
-                    if (u !== false)
-                        (u === true ? UnknownFieldHandler.onRead : u)(this.typeName, message, fieldNo, wireType, d);
-            }
-        }
-        return message;
-    }
-    internalBinaryWrite(message: TransactionData, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
-        /* string id = 2; */
-        if (message.id !== "")
-            writer.tag(2, WireType.LengthDelimited).string(message.id);
-        /* symbolx.bench.ClientOrigin origin = 30; */
-        if (message.origin)
-            ClientOrigin.internalBinaryWrite(message.origin, writer.tag(30, WireType.LengthDelimited).fork(), options).join();
-        /* repeated symbolx.bench.EditData edits = 31; */
-        for (let i = 0; i < message.edits.length; i++)
-            EditData.internalBinaryWrite(message.edits[i], writer.tag(31, WireType.LengthDelimited).fork(), options).join();
-        let u = options.writeUnknownFields;
-        if (u !== false)
-            (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
-        return writer;
-    }
-}
-/**
- * @generated MessageType for protobuf message symbolx.bench.TransactionData
- */
-export const TransactionData = new TransactionData$Type();

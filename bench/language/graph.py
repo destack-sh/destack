@@ -1046,7 +1046,6 @@ def edit_graph(
     trace.get_current_span().set_attribute("edits", len(edits))
 
     from bench.language.query import DEFAULT_READ_OPTIONS
-    from bench.language.transaction import IMPLICIT_EDIT_PROPERTIES_IDS
     from bench.proto import wiring
 
     if options is None:
@@ -1101,12 +1100,13 @@ def edit_data_graph(
     options: "ReadOptions | None",
     *,
     keep_all: bool = False,
+    reset_old: bool = False,
+    bump: bool = False,
 ) -> None:
     """Applies the edits to the data graph."""
     trace.get_current_span().set_attribute("edits", len(edits))
 
     from bench.language.query import DEFAULT_READ_OPTIONS
-    from bench.language.transaction import IMPLICIT_EDIT_PROPERTIES_IDS
     from bench.proto import wiring
 
     if options is None:
@@ -1131,7 +1131,7 @@ def edit_data_graph(
         elif edit_type == EditType.DELETE:
             graph.remove(node_data)
         else:  # some update
-            node_cls = NODE_CLASS_BY_TYPE[cast(NodeType, edit.node_type)]
+            node_cls = NODE_CLASS_BY_TYPE[cast(NodeType, edit.node_ptr.type)]
             properties = (*edit.properties, *IMPLICIT_EDIT_PROPERTIES_IDS[edit_type])
             existing_node = graph.get(node_data.id)
             assert existing_node is not None, f"missing node for update: {edit}"
@@ -1146,33 +1146,10 @@ def edit_data_graph(
             graph.update(existing_node)
 
 
-@tracer.start_as_current_span("graph.bump_graph")
-def bump_graph(
-    graph: NodeGraph["Node"] | DetachedNodeGraph["Node"],
-    edits: Collection[EditData],
-    options: "ReadOptions | None",
-) -> None:
-    """Bumps all revisions accordong to the relevant edits without applying them."""
-    from bench.proto import wiring
-
-    for edit in edits:
-        node_data = wiring.unwrap_some_node(edit.node)
-        node = graph.get(UUID(node_data.id))
-        if node is not None:  # node may have been deleted
-            node.revision += 1
-
-
-@tracer.start_as_current_span("graph.bump_data_graph")
-def bump_data_graph(
-    graph: NodeDataGraph[AnyNodeData],
-    edits: Collection[EditData],
-    options: "ReadOptions | None",
-) -> None:
-    """Bumps all revisions accordong to the relevant edits without applying them."""
-    from bench.proto import wiring
-
-    for edit in edits:
-        node_data = wiring.unwrap_some_node(edit.node)
-        node = graph.get(node_data.id)
-        if node is not None:
-            node.revision += 1
+def sync_graph_revisions(
+    source: NodeDataGraph[AnyNodeData], target: NodeGraph[Node] | DetachedNodeGraph[Node]
+):
+    """Syncs the revisions of nodes in the target graph with the source graph."""
+    for node in source.nodes:
+        target_node = target[UUID(node.id)]
+        target_node.revision = node.revision

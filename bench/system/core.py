@@ -156,8 +156,10 @@ class Commit[T: Node]:
         elif isinstance(node_types, tuple):
             node_types = bittuple(*node_types)
         return Commit(
-            edits=[e for e in self.edits if NodeType(e.node_type) in node_types],
-            cascaded_edits=[e for e in self.cascaded_edits if NodeType(e.node_type) in node_types],
+            edits=[e for e in self.edits if NodeType(e.node_ptr.type) in node_types],
+            cascaded_edits=[
+                e for e in self.cascaded_edits if NodeType(e.node_ptr.type) in node_types
+            ],
             edited_types=self.edited_types & node_types,
             added=tuple(node for node in self.added if node.metatype in node_types),
             updated=tuple(node for node in self.updated if node.metatype in node_types),
@@ -202,19 +204,18 @@ def unpack_commit(
 
     # the nodes edited in 'edits' are expected to be in 'graph'
     for edit in edits:
-        node_type = NodeType(edit.node_type)
+        node_type = NodeType(edit.node_ptr.type)
         edited_types[node_type.ord] = True
         # unpack
-        node_data = wiring.unwrap_some_node(edit.node)
-        node_id = UUID(node_data.id)
+        node_id = UUID(edit.node_ptr.id)
         node = None
         for graph in graphs:
             if node_id in graph:
                 node = graph.get(node_id)
                 break
         if node is None:
-            # except for access logs which are just created for each edit
-            if edit.node_type == NodeType.LOG and node_data.created_by_ptr is None:
+            if node_type == NodeType.LOG:
+                # access logs which are just created for each edit
                 continue
             raise RuntimeError(f"missing node {node_id!r} in {graphs!r} for {edit!r}")
         # map
@@ -223,7 +224,7 @@ def unpack_commit(
     # any cascaded edits are expected to be full trusted nodes (from archive/unarchive/...)
     unpacked_nodes: dict[UUID, Node] = {}
     for edit in cascaded_edits:
-        node_type = NodeType(edit.node_type)
+        node_type = NodeType(edit.node_ptr.type)
         edited_types[node_type.ord] = True
         # unpack
         node = wiring.unwrap_some_node(edit.node)

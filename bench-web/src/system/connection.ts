@@ -174,7 +174,7 @@ function filterRemoteEdits(filter: EditFilter, edits: EditData[]): EditData[] {
   // TODO :Broken: connection 'overlap' detection is broken :ConnectionFilter
   //  maybe we should just filter for edits whose dependencies are in the graph?
   //  (e.g. create -> parent present, update -> node present, etc.)
-  return edits.filter((e) => filter.includedNodeTypes.includes(e.nodeType));
+  return edits.filter((e) => filter.includedNodeTypes.includes(e.nodePtr?.type!));
 }
 
 /** Derives the overlay graph for a specific connection */

@@ -159,7 +159,7 @@ async def test_cross_user_access(supervisor: SupervisorStub):
             edit = EditData(
                 id=new_edit_id(),
                 type=wire.EditType.UPDATE,
-                node_type=wire.NodeType.USER,
+                node_ptr=target.to_ref()._to_data(),
                 node=wiring.wrap_some_node(target_data),
                 properties=[User.name.id],  # type: ignore
                 origin=actor_handle.origin,
@@ -180,7 +180,7 @@ async def test_cross_user_access(supervisor: SupervisorStub):
             edit = EditData(
                 id=new_edit_id(),
                 type=wire.EditType.UPDATE,
-                node_type=wire.NodeType.CLIENT,
+                node_ptr=target_handle.client.to_ref()._to_data(),
                 node=wiring.wrap_some_node(target_data),
                 properties=[Client.device_name.id],  # type: ignore
                 origin=actor_handle.origin,
@@ -246,7 +246,7 @@ async def test_root_node_create_denied(
         edit = EditData(
             id=new_edit_id(),
             type=edit_type,
-            node_type=node_data.metatype,
+            node_ptr=node.to_ref()._to_data(),
             node=wiring.wrap_some_node(node_data),
         )
         commit_req = CommitTransactionRequest(id=str(uuid4()), edits=[edit])

@@ -21,17 +21,14 @@ from bench.language.const import (
     IN_BENCH_NODE_TYPES,
     LOCAL_NODE_TYPES,
     SELF_LOGGED_NODE_TYPES,
-    EditType,
     NodeType,
 )
-from bench.language.expression import NodeReference
 from bench.language.graph import (
     NodeDict,
     NodeGraphLike,
-    bump_data_graph,
-    bump_graph,
     edit_data_graph,
     edit_graph,
+    sync_graph_revisions,
 )
 from bench.language.log import Log
 from bench.language.property import Property
@@ -57,7 +54,6 @@ from bench.system.core import (
 from bench.system.graph import GraphIoServiceBase
 from bench.system.provisioner import Provisioner, get_provisioners_for
 from bench.system.scheduler import QueueRunPlugin
-from bench.utils.dt import utcnow
 from bench.utils.func import to_uuid
 from bench.utils.utils import get_from_env_maybe
 from bench.utils.uuidt import UUIDT
@@ -422,13 +418,12 @@ class Host(GraphIoServiceBase, HostBase, HostSpec):
         ...
 
         # add logs
-        now = utcnow()
         package_ptr = session.package.to_ref()._to_data()
         bench_ptr = session.bench.to_ref()._to_data()
         for edit in chain(edits, extended_edits):
-            if NodeType(edit.node_type) in SELF_LOGGED_NODE_TYPES:
+            node_type = NodeType(edit.node_ptr.type)
+            if node_type in SELF_LOGGED_NODE_TYPES:
                 continue
-            node = wiring.unwrap_some_node(edit.node)
             assert edit.epoch is not None, f"epoch not set in {edit!r}"
             log_data = LogData(
                 metatype=wire.ObjectType.LOG,
@@ -436,25 +431,30 @@ class Host(GraphIoServiceBase, HostBase, HostSpec):
                 parent_ptr=package_ptr,
                 package_ptr=package_ptr,
                 bench_ptr=bench_ptr,
-                created_at=now,
+                created_at=edit.edited_at,
                 created_epoch=edit.epoch,
-                updated_at=now,
+                created_by_ptr=edit.subject_ptr,
+                # NOTE :Architecture: ideally we shouldn't need to store updated_* for Logs
+                updated_at=edit.edited_at,
                 updated_epoch=edit.epoch,
+                updated_by_ptr=edit.subject_ptr,
                 kind=wire.LogKind.EDIT,
                 level=wire.LogLevel.INFO,
                 type=cast(wire.AccessType, edit.type),
-                node_ptr=NodeReference.from_node_data(node),
+                node_ptr=edit.node_ptr,
                 properties=edit.properties,
+                old_node_packed=edit.old_node_packed,
+                new_node_packed=edit.new_node_packed,
+                # TODO :Incomplete: log session context
             )
             create_log_edit = EditData(
                 id=log_data.id,
                 type=wire.EditType.CREATE,
                 scope=edit.scope,
-                node_type=cast(wire.NodeType, log_data.metatype),
+                node_ptr=edit.node_ptr,
                 origin=None,
                 epoch=edit.epoch,
                 node=wiring.wrap_some_node(log_data),
-                # TODO :Incomplete: log session context
             )
             extended_edits.append(create_log_edit)
 
@@ -474,34 +474,30 @@ class Host(GraphIoServiceBase, HostBase, HostSpec):
         bench_edits: list[EditData] = []
         package_edits: list[EditData] = []
         for edit in edits:
-            if NodeType(edit.node_type) not in LOADED_HOST_NODE_TYPES:
+            node_type = NodeType(edit.node_ptr.type)
+            if node_type not in LOADED_HOST_NODE_TYPES:
                 continue  # not loaded
-            node_data = wiring.unwrap_some_node(edit.node)
-            if hasattr(node_data, "package_ptr"):  # :Branching
-                package_id = to_uuid(getattr(node_data, "package_ptr").id)
+            if edit.scope.package_id:
+                package_id = to_uuid(edit.scope.package_id)
                 assert package_id == self._main_package.id, f"bad package id: {package_id!r}"
                 package_edits.append(edit)
             else:
                 bench_edits.append(edit)
-            # edit_data_graph(edited_data_graph, (edit,), options)
         if bench_edits:
             # filter the in memory edits to only those with an origin
             # (we/Host/system don't have an 'origin' and edit our nodes directly in the session)
             inmemory_bench_edits = tuple(e for e in bench_edits if e.origin is not None)
             options = BENCH_QUERY._options
             edit_graph(self._bench._graph, inmemory_bench_edits, options)
-            edit_data_graph(self._bench._data_graph, bench_edits, options)
-            # and also bump revisions (for all edits)
-            bump_graph(self._bench._graph, bench_edits, options)
-            bump_data_graph(self._bench._data_graph, bench_edits, options)
+            edit_data_graph(self._bench._data_graph, bench_edits, options, bump=True)
+            sync_graph_revisions(self._bench._data_graph, self._bench._graph)
         if package_edits:
             # same as above but for the main package
             inmemory_package_edits = tuple(e for e in package_edits if e.origin is not None)
             options = PACKAGE_QUERY._options
             edit_graph(self._main_package._graph, inmemory_package_edits, options)
-            edit_data_graph(self._main_package._data_graph, package_edits, options)
-            bump_graph(self._main_package._graph, package_edits, options)
-            bump_data_graph(self._main_package._data_graph, package_edits, options)
+            edit_data_graph(self._main_package._data_graph, package_edits, options, bump=True)
+            sync_graph_revisions(self._bench._data_graph, self._bench._graph)
         self._session.unsuppress()
 
         # run plugins on commit (in main session)
@@ -544,12 +540,8 @@ class Host(GraphIoServiceBase, HostBase, HostSpec):
         # assign epochs
         epoch = self.epoch
         for edit in session._tx.edits:
-            node_data = wiring.unwrap_some_node(edit.node)
             epoch += 1
             edit.epoch = epoch
-            if edit.type in (EditType.CREATE, EditType.UPSERT):
-                node_data.created_epoch = epoch
-            node_data.updated_epoch = epoch
 
         # flush edits to get cascaded edits
         edits, cascaded_edits = await session._tx.flush()

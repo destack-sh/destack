@@ -33,35 +33,6 @@ def new_edit_id() -> str:
     return str(UUIDT())
 
 
-# NOTE: some identity and most tracking properties aren't explicitly included
-#  in Edit.properties because they are implicit in the edit type :ImplicitProperties
-IMPLICIT_EDIT_PROPERTIES_NAMES: dict[EditType, tuple[str, ...]] = {
-    EditType.CREATE: ("created_at", "created_epoch", "created_by_ptr"),
-    EditType.UPSERT: (
-        "created_at",
-        "created_epoch",
-        "created_by_ptr",
-        "updated_at",
-        "updated_epoch",
-        "updated_by_ptr",
-    ),
-    EditType.UPDATE: ("updated_at", "updated_epoch", "updated_by_ptr"),
-    EditType.MOVE: ("updated_at", "updated_epoch", "updated_by_ptr", "parent_ptr"),
-    EditType.SOFT_DELETE: ("updated_at", "updated_epoch", "updated_by_ptr", "deleted_at"),
-    EditType.RESTORE: ("updated_at", "updated_epoch", "updated_by_ptr", "deleted_at"),
-    EditType.ARCHIVE: ("updated_at", "updated_epoch", "updated_by_ptr", "archived_at"),
-    EditType.UNARCHIVE: ("updated_at", "updated_epoch", "updated_by_ptr", "archived_at"),
-    EditType.DELETE: ("updated_at", "updated_epoch", "updated_by_ptr", "deleted_at"),
-}
-IMPLICIT_EDIT_PROPERTIES_IDS: dict[EditType, tuple[int, ...]] = {
-    edit_type: tuple(Node.__properties__[name].id for name in names)
-    for edit_type, names in IMPLICIT_EDIT_PROPERTIES_NAMES.items()
-}
-ALL_IMPLICIT_PROPERTIES_IDS: set[int] = {
-    prop_id for prop_ids in IMPLICIT_EDIT_PROPERTIES_IDS.values() for prop_id in prop_ids
-}
-
-
 def _get_create_metadata(subject: EditSubject | None, now: datetime | None = None):
     subject_ptr = subject.to_ref()._to_data() if subject is not None else None
     return {"created_at": now or utcnow(), "created_epoch": -1, "created_by_ptr": subject_ptr}
@@ -210,7 +181,7 @@ class Transaction:
     def _add_pending_edit(self, edit: EditData, node: Optional[Node]) -> StoreEngine:
         from bench.proto import wiring
 
-        node_type = wiring.unpack_enum(NodeType, edit.node_type)
+        node_type = wiring.unpack_enum(NodeType, edit.node_ptr.type)
         engine = self._get_engine(edit.scope, node_type, is_readonly=False)
         self.edits.append(edit)
         self._pending_edits_by_engine_id[engine.id].append(edit)
