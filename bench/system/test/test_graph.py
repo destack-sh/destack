@@ -109,9 +109,9 @@ class EditProducer:
                 properties=[prop.id],
                 new_node_packed=pack_node_delta(node_data, only=(prop,)),
                 old_node_packed=pack_node_delta(node_data, only=(prop,)),
-                edited_at=utcnow(),
                 origin=self.client.origin,
                 subject_ptr=self.client.user.to_ref()._to_data(),
+                edited_at=utcnow(),
             )
             return edit
 
