@@ -6,7 +6,7 @@ from uuid import UUID
 
 import betterproto
 import structlog
-from betterproto.lib.google.protobuf import Struct as BetterprotoStruct
+from betterproto.lib.google.protobuf import Struct as ProtoStruct
 from opentelemetry import trace
 
 from bench.language.const import NODE_TYPES_SET, UNSET, NodeType, ObjectType
@@ -75,11 +75,11 @@ def copy_struct_prop(prop: Property, value: Any) -> Any:
         return value
 
 
-def pack_json_struct(value: dict) -> BetterprotoStruct:
-    return BetterprotoStruct.from_dict(value)
+def pack_proto_json(value: dict[str, Any]) -> ProtoStruct:
+    return ProtoStruct.from_dict(value)
 
 
-def unpack_json_struct(value: BetterprotoStruct) -> dict:
+def unpack_proto_json(value: ProtoStruct) -> dict[str, Any]:
     return value.to_dict()
 
 
@@ -116,7 +116,7 @@ def pack_struct_prop(prop: Property, value: Any, ignore_array: bool) -> Any:
     elif prop.primitive_type == PrimitiveType.UUID:
         return str(value)  # uuids are wired as strings
     elif prop.primitive_type == PrimitiveType.JSON:
-        return BetterprotoStruct.from_dict(value)
+        return ProtoStruct.from_dict(value)
     else:
         return value
 

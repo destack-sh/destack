@@ -196,7 +196,7 @@ class Branch(Node[BranchData]):
     unique=(("bench_id", "slug"),),
 )
 class Package(Node[PackageData]):
-    """A package is a version of a Bench."""
+    """A package is a version of a Bench in a Branch."""
 
     parent: Branch = p_node_parent(4, NodeType.BRANCH)
     slug: Optional[str] = p_regular(33, require=False, default=None, constraint=SLUG_CONSTRAINT)

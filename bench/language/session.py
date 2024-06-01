@@ -2,7 +2,7 @@ import asyncio
 import contextvars
 from contextlib import asynccontextmanager
 from datetime import datetime
-from typing import TYPE_CHECKING, Awaitable, Callable, Collection, Optional
+from typing import TYPE_CHECKING, Any, Awaitable, Callable, Collection, Optional
 from uuid import UUID
 
 import structlog
@@ -334,23 +334,21 @@ class Session(Node[SessionData]):
                 self._edited_nodes_by_id[n.id] = n
                 self._tx.upsert(n, self._get_edit_subject(), self._origin)
 
-    def update(self, *nodes: Node, properties: Collection[Property]):
+    def update(self, node_: Node, properties: Collection[Property], old_values: dict[int, Any]):
         """Updates an existing node. Cannot move. The given properties are overwritten."""
         if not self._is_suppressed:
             assert self._tx is not None, f"no active transaction in {self!r}"
             assert not self._is_readonly and not self._is_suspended, f"cannot edit in {self!r}"
-            for n in nodes:
-                self._edited_nodes_by_id[n.id] = n
-                self._tx.update(n, self._get_edit_subject(), self._origin, properties)
+            self._edited_nodes_by_id[node_.id] = node_
+            self._tx.update(node_, self._get_edit_subject(), self._origin, properties, old_values)
 
-    def move(self, *nodes: Node):
+    def move(self, node_: Node, properties: Collection[Property], old_values: dict[int, Any]):
         """Moves and updates an existing node."""
         if not self._is_suppressed:
             assert self._tx is not None, f"no active transaction in {self!r}"
             assert not self._is_readonly and not self._is_suspended, f"cannot edit in {self!r}"
-            for n in nodes:
-                self._edited_nodes_by_id[n.id] = n
-                self._tx.move(n, self._get_edit_subject(), self._origin)
+            self._edited_nodes_by_id[node_.id] = node_
+            self._tx.move(node_, self._get_edit_subject(), self._origin, properties, old_values)
 
     def soft_delete(self, *nodes: Node):
         """Deletes a node with the option to recover it for a limited time."""

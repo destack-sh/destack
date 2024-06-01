@@ -215,8 +215,8 @@ class TableObject(Object):
         return dataclasses.replace(self, _table=None)
 
 
-SqlPrimitiveSingle = Union[str, int, float, bool, datetime, UUID, bytes, type(None)]
-SqlPrimitive = Union[SqlPrimitiveSingle, list[SqlPrimitiveSingle], dict[str, SqlPrimitiveSingle]]
+SqlPrimitiveScalar = Union[str, int, float, bool, datetime, UUID, bytes, type(None)]
+SqlPrimitive = Union[SqlPrimitiveScalar, list["SqlPrimitive"], dict[str, SqlPrimitiveScalar]]
 
 
 class CascadeAction(enum.StrEnum):

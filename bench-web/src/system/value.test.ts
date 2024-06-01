@@ -2,8 +2,8 @@ import { BenchType, EnumType, NodeType, ObjectType, PrimitiveType, StructType, T
 import { fabricate } from "@/system/graph.test";
 import { OBJECT_TYPES, getTkFromPtrMaybe } from "@/system/lang";
 import {
-  _packStructValueScalar,
-  _unpackStructValueScalar,
+  packStructValueScalar,
+  unpackStructValueScalar,
   decodeTypeIdentity,
   encodeTypeIdentity,
   type TypeIdentity,
@@ -92,8 +92,8 @@ describe("packing structs", () => {
   test.each(OBJECT_TYPES_NAMES)("roundtrip robust json %s", (typeName) => {
     const objectType = ObjectType[typeName as any] as unknown as ObjectType;
     const object = fabricate(objectType);
-    const packedJson = _packStructValueScalar(object);
-    const unpackedObject = _unpackStructValueScalar(packedJson);
+    const packedJson = packStructValueScalar(object);
+    const unpackedObject = unpackStructValueScalar(packedJson);
     expect(unpackedObject).toEqual(object);
   });
 });

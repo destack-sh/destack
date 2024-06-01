@@ -23,6 +23,7 @@ from bench.language.property import (
 from bench.language.session import HasSessionContext
 from bench.language.text import Text
 from bench.language.value import HasValues
+from bench.proto.wire import EditData, NodeReferenceData
 from bench.utils.func import IdEnum
 
 if TYPE_CHECKING:
@@ -71,6 +72,8 @@ class Log(Node, HasSessionContext, HasValues):
     node: Optional["Node"] = p_system(
         41, require=False, array=False, references=NODE_TYPES.tuple, same_bench=True
     )
+    if TYPE_CHECKING:
+        node_ptr: Optional[NodeReferenceData] = None
     properties: list[int] = p_system(42, array=True, primitive_type=PrimitiveType.INT16)
     old_node_packed: Any | None = p_system(43, primitive_type=PrimitiveType.JSON)
     new_node_packed: Any | None = p_system(44, primitive_type=PrimitiveType.JSON)
@@ -90,3 +93,34 @@ class Log(Node, HasSessionContext, HasValues):
 
     def __content_str__(self):
         return f"[{self.kind.bench_name}:{self.level.bench_name}] '{self.title or self.text or '<empty>'}' ({self.created_at})"
+
+    def to_edit(self) -> EditData:
+        """Restores the edit of an access Log"""
+        from bench.proto import wire, wiring
+
+        assert self.kind == LogKind.EDIT, f"{self!r} is not an edit"
+        assert self.type is not None, f"{self!r} has no type"
+        assert self.node_ptr is not None, f"{self!r} has no node"
+
+        old_node_packed = (
+            wiring.pack_proto_json(self.old_node_packed)
+            if self.old_node_packed is not None
+            else None
+        )
+        new_node_packed = (
+            wiring.pack_proto_json(self.new_node_packed)
+            if self.new_node_packed is not None
+            else None
+        )
+        edit = EditData(
+            id=str(self.id),
+            type=wire.EditType(self.type),
+            node_ptr=self.node_ptr,
+            properties=self.properties,
+            old_node_packed=old_node_packed,
+            new_node_packed=new_node_packed,
+            revision=self.new_revision,
+            epoch=self.created_epoch,
+            edited_at=self.created_at,
+        )
+        return edit

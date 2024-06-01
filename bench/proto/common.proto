@@ -73,8 +73,8 @@ message EditData {
   // Enclosing scope of the node.
   GraphScope scope = 40;
   // Who this? All non-system clients must set both.
-  optional ClientOrigin origin = 41;
-  optional NodeReferenceData subject_ptr = 42;
+  optional NodeReferenceData subject_ptr = 41;
+  optional ClientOrigin origin = 42;
   // When the edit was made.
   google.protobuf.Timestamp edited_at = 43;
   // Revision for the node.

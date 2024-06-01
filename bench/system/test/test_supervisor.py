@@ -18,11 +18,12 @@ from bench.language.expression import A
 from bench.language.node import Node
 from bench.language.property import Property
 from bench.language.setup import NODE_CLASS_BY_TYPE
-from bench.language.transaction import new_edit_id
+from bench.language.transaction import new_edit_id, pack_edit_node
 from bench.language.user import UserStatus
 from bench.proto import wire, wiring
 from bench.proto.wire import (
     AggregateNodesRequest,
+    AnyNodeData,
     CommitTransactionRequest,
     EditData,
     GetNodesRequest,
@@ -160,9 +161,12 @@ async def test_cross_user_access(supervisor: SupervisorStub):
                 id=new_edit_id(),
                 type=wire.EditType.UPDATE,
                 node_ptr=target.to_ref()._to_data(),
-                node=wiring.wrap_some_node(target_data),
                 properties=[User.name.id],  # type: ignore
+                new_node_packed=pack_edit_node(target_data, only=(User.name,)),
+                old_node_packed=pack_edit_node(target_data, only=(User.name,)),
                 origin=actor_handle.origin,
+                subject_ptr=actor_handle.subject,
+                edited_at=utcnow(),
             )
             commit_req = CommitTransactionRequest(id=str(uuid4()), edits=[edit])
             if is_target_self:  # can update our own data
@@ -181,9 +185,12 @@ async def test_cross_user_access(supervisor: SupervisorStub):
                 id=new_edit_id(),
                 type=wire.EditType.UPDATE,
                 node_ptr=target_handle.client.to_ref()._to_data(),
-                node=wiring.wrap_some_node(target_data),
                 properties=[Client.device_name.id],  # type: ignore
+                new_node_packed=pack_edit_node(target_data, only=(Client.device_name,)),
+                old_node_packed=pack_edit_node(target_data, only=(Client.device_name,)),
                 origin=actor_handle.origin,
+                subject_ptr=actor_handle.subject,
+                edited_at=utcnow(),
             )
             commit_req = CommitTransactionRequest(id=str(uuid4()), edits=[edit])
             if is_target_self:  # can update our own data
@@ -237,8 +244,8 @@ async def test_root_node_create_denied(
 ):
     """Only the system can create root nodes."""
 
-    node: Node = fabricator.fabricate(NODE_CLASS_BY_TYPE[node_type])
-    node_data = wiring.pack_node(node)
+    node: Node[AnyNodeData] = fabricator.fabricate(NODE_CLASS_BY_TYPE[node_type])
+    node_data: AnyNodeData = wiring.pack_node(node)
     node_data.parent_ptr = None  # roots don't have parents
 
     # try create
@@ -247,7 +254,10 @@ async def test_root_node_create_denied(
             id=new_edit_id(),
             type=edit_type,
             node_ptr=node.to_ref()._to_data(),
-            node=wiring.wrap_some_node(node_data),
+            new_node_packed=pack_edit_node(node_data, only=None),
+            origin=some_user.origin,
+            subject_ptr=some_user.user.to_ref()._to_data(),
+            edited_at=utcnow(),
         )
         commit_req = CommitTransactionRequest(id=str(uuid4()), edits=[edit])
         with raises_grpc_error(GRPCStatus.PERMISSION_DENIED, GRPCStatus.INVALID_ARGUMENT):

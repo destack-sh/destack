@@ -8,10 +8,10 @@ from opentelemetry import trace
 
 from bench.language.bench import Bench, Package
 from bench.language.const import NodeType, get_active_session
-from bench.language.graph import edit_graph
 from bench.language.node import Node
 from bench.language.query import QueryBuilder
 from bench.language.session import Session
+from bench.language.transaction import edit_graph
 from bench.proto import wire
 from bench.proto.monkey import _PatchedRpcMetadata
 from bench.proto.wire import (

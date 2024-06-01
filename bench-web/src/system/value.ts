@@ -245,49 +245,49 @@ export function resolveFields(type: TypeIdentity, graph: ReadNodeGraph): FieldDa
 //   without introducing an entire new layer like in the backend).
 
 /** Packs a single scalar value in its robust JSON-able representation. */
-function _packValueScalar(value: ScalarValue, type: TypeIdentity): JsonValue {
+function packValueScalar(value: ScalarValue, type: TypeIdentity): JsonValue {
   if (type.kind == TypeKind.PRIMITIVE) {
     return value as JsonPrimimtive;
   } else if (type.kind == TypeKind.NODE || type.kind == TypeKind.BASED_NODE) {
     if ((value as NodeReferenceData).metatype != ObjectType.NODE_REFERENCE) {
       throw new Error(`unexpected value ${JSON.stringify(value)} for type ${describeTypeIdentity(type)}`);
     }
-    return _packStructValueScalar(value as NodeReferenceData);
+    return packStructValueScalar(value as NodeReferenceData);
   } else if (type.kind == TypeKind.ENUM) {
     return value as JsonPrimimtive;
   } else if (type.kind == TypeKind.STRUCT) {
     if (!isStruct(value)) {
       throw new Error(`unexpected value ${JSON.stringify(value)} for type ${describeTypeIdentity(type)}`);
     }
-    return _packStructValueScalar(value);
+    return packStructValueScalar(value);
   } else {
     throw new Error(`cannot pack value of type ${describeTypeIdentity(type)}`);
   }
 }
 
 /** Unpacks a single scalar value from its robust JSON-able representation. */
-function _unpackValueScalar(valuePacked: JsonValue, type: TypeIdentity): ScalarValue {
+function unpackValueScalar(valuePacked: JsonValue, type: TypeIdentity): ScalarValue {
   if (type.kind == TypeKind.PRIMITIVE) {
     return valuePacked as PrimitiveValue;
   } else if (type.kind == TypeKind.NODE || type.kind == TypeKind.BASED_NODE) {
     if (typeof valuePacked !== "object") {
       throw new Error(`unexpected value ${JSON.stringify(valuePacked)} for type ${describeTypeIdentity(type)}`);
     }
-    return _unpackStructValueScalar(valuePacked as unknown as NodeReferenceData);
+    return unpackStructValueScalar(valuePacked as unknown as NodeReferenceData);
   } else if (type.kind == TypeKind.ENUM) {
     return valuePacked as PrimitiveValue;
   } else if (type.kind == TypeKind.STRUCT) {
     if (typeof valuePacked !== "object") {
       throw new Error(`unexpected value ${JSON.stringify(valuePacked)} for type ${describeTypeIdentity(type)}`);
     }
-    return _unpackStructValueScalar(valuePacked as unknown as AnyStructData);
+    return unpackStructValueScalar(valuePacked as unknown as AnyStructData);
   } else {
     throw new Error(`cannot unpack value of type ${describeTypeIdentity(type)}`);
   }
 }
 
 /** Packs a single struct/node proto value using proto ids for keys and enums. */
-export function _packStructValueScalar(object: AnyStructData | AnyNodeData): any {
+export function packStructValueScalar(object: AnyStructData | AnyNodeData): any {
   const messageType = MESSAGE_TYPE_BY_OBJECT_TYPE[object.metatype];
   if (messageType == null) throw new Error(`unexpected object type ${object.metatype}`);
 
@@ -304,13 +304,13 @@ export function _packStructValueScalar(object: AnyStructData | AnyNodeData): any
         } else if (!MESSAGE_TYPE_BY_OBJECT_TYPE[value[0].metatype as ObjectType]) {
           robustJson[key] = value; // not one of our objects
         } else {
-          robustJson[key] = value.map(_packStructValueScalar);
+          robustJson[key] = value.map(packStructValueScalar);
         }
       } else {
         if (typeof value != "object" || !MESSAGE_TYPE_BY_OBJECT_TYPE[value.metatype as ObjectType]) {
           robustJson[key] = value; // not one of our objects
         } else {
-          robustJson[key] = _packStructValueScalar(value);
+          robustJson[key] = packStructValueScalar(value);
         }
       }
     } else {
@@ -322,7 +322,7 @@ export function _packStructValueScalar(object: AnyStructData | AnyNodeData): any
 }
 
 /** Decodes 'robust' proto value. See encode. */
-export function _unpackStructValueScalar(value: any): AnyStructData | AnyNodeData {
+export function unpackStructValueScalar(value: any): AnyStructData | AnyNodeData {
   const objectType = value["1"] as ObjectType;
   const messageType = MESSAGE_TYPE_BY_OBJECT_TYPE[objectType];
   if (messageType == null) throw new Error(`unexpected object type ${objectType}`);
@@ -339,13 +339,13 @@ export function _unpackStructValueScalar(value: any): AnyStructData | AnyNodeDat
           } else if (!MESSAGE_TYPE_BY_OBJECT_TYPE[fieldValue[0]["1"] as ObjectType]) {
             object[field.jsonName] = fieldValue; // not one of our objects
           } else {
-            object[field.jsonName] = fieldValue.map(_unpackStructValueScalar);
+            object[field.jsonName] = fieldValue.map(unpackStructValueScalar);
           }
         } else {
           if (typeof fieldValue != "object" || !MESSAGE_TYPE_BY_OBJECT_TYPE[fieldValue["1"] as ObjectType]) {
             object[field.jsonName] = fieldValue; // not one of our objects
           } else {
-            object[field.jsonName] = _unpackStructValueScalar(fieldValue);
+            object[field.jsonName] = unpackStructValueScalar(fieldValue);
           }
         }
       } else {
@@ -360,7 +360,7 @@ export function _unpackStructValueScalar(value: any): AnyStructData | AnyNodeDat
 // TODO :Test!: figure out how to test value packing on bench-web
 
 /** Packs a single object value into a packed & secret packed value. */
-function _packObjectScalar(
+function packObjectScalar(
   value: ScalarValue,
   type: TypeIdentity,
   graph: ReadNodeGraph,
@@ -376,16 +376,16 @@ function _packObjectScalar(
     } else if (fieldType.kind == TypeKind.OBJECT) {
       valuePacked[fieldStorageKey] = packValue(fieldValue, fieldType, graph).valuePacked; // :SecretValues
     } else if (!fieldType.isList) {
-      valuePacked[fieldStorageKey] = _packValueScalar(fieldValue, fieldType);
+      valuePacked[fieldStorageKey] = packValueScalar(fieldValue, fieldType);
     } else {
-      valuePacked[fieldStorageKey] = fieldValue.map((v: any) => _packValueScalar(v, fieldType));
+      valuePacked[fieldStorageKey] = fieldValue.map((v: any) => packValueScalar(v, fieldType));
     }
   }
   return { valuePacked, secretValuePacked: undefined };
 }
 
 /** Unpacks a single packed & secret packed value into an object. */
-function _unpackObjectScalar(
+function unpackObjectScalar(
   valuePacked: JsonValue,
   secretValuePacked: JsonValue | undefined,
   type: TypeIdentity,
@@ -405,9 +405,9 @@ function _unpackObjectScalar(
         value[fieldStorageKey] = fieldValue;
       }
     } else if (!fieldType.isList) {
-      value[fieldStorageKey] = _unpackValueScalar(fieldValuePacked, fieldType);
+      value[fieldStorageKey] = unpackValueScalar(fieldValuePacked, fieldType);
     } else {
-      value[fieldStorageKey] = fieldValuePacked.map((v: any) => _unpackValueScalar(v, fieldType));
+      value[fieldStorageKey] = fieldValuePacked.map((v: any) => unpackValueScalar(v, fieldType));
     }
   }
   return value;
@@ -432,12 +432,12 @@ export function packValue(
     if (value == null) {
       return { valuePacked: null, secretValuePacked: undefined };
     } else if (!type.isList) {
-      return _packObjectScalar(value, type, graph);
+      return packObjectScalar(value, type, graph);
     } else {
       const valuePacked: JsonValue[] = [];
       const secretValuePacked: JsonValue[] = [];
       for (let i = 0; i < value.length; i++) {
-        const packed = _packObjectScalar(value[i], type, graph);
+        const packed = packObjectScalar(value[i], type, graph);
         valuePacked.push(packed.valuePacked);
         if (packed.secretValuePacked != null) secretValuePacked.push(packed.secretValuePacked);
       }
@@ -449,9 +449,9 @@ export function packValue(
     if (value == null) {
       valuePacked = null;
     } else if (!type.isList) {
-      valuePacked = _packValueScalar(value, type);
+      valuePacked = packValueScalar(value, type);
     } else {
-      valuePacked = value.map((v: any) => _packValueScalar(v, type));
+      valuePacked = value.map((v: any) => packValueScalar(v, type));
     }
     valuePacked = { [encodeTypeIdentity(type)]: valuePacked };
     return { valuePacked, secretValuePacked: undefined };
@@ -475,13 +475,13 @@ export function unpackValue(
     if (packed.valuePacked == null) {
       return null;
     } else if (!type.isList) {
-      return _unpackObjectScalar(packed.valuePacked, packed.secretValuePacked, type, graph);
+      return unpackObjectScalar(packed.valuePacked, packed.secretValuePacked, type, graph);
     } else {
       if (!Array.isArray(packed.valuePacked)) {
         throw new Error(`expected array for list type ${describeTypeIdentity(type)}`);
       }
       return packed.valuePacked!.map((v: any, i: number) =>
-        _unpackObjectScalar(v, (packed.secretValuePacked as Array<JsonValue>)?.[i], type, graph),
+        unpackObjectScalar(v, (packed.secretValuePacked as Array<JsonValue>)?.[i], type, graph),
       );
     }
   } else {
@@ -495,12 +495,12 @@ export function unpackValue(
     if (valuePacked == null) {
       return null;
     } else if (!type.isList) {
-      return _unpackValueScalar(valuePacked, type);
+      return unpackValueScalar(valuePacked, type);
     } else {
       if (!Array.isArray(valuePacked)) {
         throw new Error(`expected array for list type ${describeTypeIdentity(type)}`);
       }
-      return valuePacked.map((v: any) => _unpackValueScalar(v, type));
+      return valuePacked.map((v: any) => unpackValueScalar(v, type));
     }
   }
 }

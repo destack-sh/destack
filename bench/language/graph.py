@@ -19,18 +19,18 @@ import structlog
 from more_itertools import first
 from opentelemetry import trace
 
-from bench.language.const import EMPTY_DICT, EMPTY_LIST, EditType, NodeType, ReferenceKind
+from bench.language.const import EMPTY_DICT, EMPTY_LIST, NodeType, ReferenceKind
 from bench.language.setup import CHILD_NODE_TYPES, NODE_CLASS_BY_TYPE, STRUCT_CLASS_BY_TYPE
 from bench.language.validation import on_invalid_raise
 from bench.proto import wire
-from bench.proto.wire import AnyNodeData, EditData
+from bench.proto.wire import AnyNodeData
 from bench.utils.casing import Casing, to_casing
 from bench.utils.fractional import get_key_bounds, get_order_key, get_order_keys
-from bench.utils.func import IdEnum, to_uuid
+from bench.utils.func import IdEnum
 
 if TYPE_CHECKING:
     # noinspection PyUnresolvedReferences
-    from bench.language import Field, Node, Object, Property, ReadOptions, Struct
+    from bench.language import Field, Node, Object, Property, Struct
 
 logger = structlog.get_logger(__name__)
 tracer = trace.get_tracer(__name__)
@@ -1012,144 +1012,3 @@ class ValueList(list, Generic[ValueParentT]):
         ):
             values = [v._copy_to(parent, parent_prop) for v in values]  # type: ignore
         return ValueList(parent, parent_prop, ancestor_prop, values)
-
-
-# poor mans filters, see FilterNodeGraph in bench-web
-_INCLUDE_ALL_EDIT_TYPE_REMAP: dict[EditType, EditType] = {
-    EditType.ARCHIVE: EditType.UPDATE,
-    EditType.UNARCHIVE: EditType.UPDATE,
-    EditType.SOFT_DELETE: EditType.UPDATE,
-    EditType.RESTORE: EditType.UPDATE,
-    EditType.DELETE: EditType.UPDATE,
-}
-_INCLUDE_HIDDEN_EDIT_TYPE_REMAP: dict[EditType, EditType] = {
-    EditType.ARCHIVE: EditType.UPDATE,
-    EditType.UNARCHIVE: EditType.UPDATE,
-    EditType.SOFT_DELETE: EditType.UPDATE,
-    EditType.RESTORE: EditType.UPDATE,
-}
-_EXCLUDE_HIDDEN_EDIT_TYPE_REMAP: dict[EditType, EditType] = {
-    EditType.ARCHIVE: EditType.DELETE,
-    EditType.UNARCHIVE: EditType.CREATE,
-    EditType.SOFT_DELETE: EditType.DELETE,
-    EditType.RESTORE: EditType.CREATE,
-}
-
-
-@tracer.start_as_current_span("graph.edit_graph")
-def edit_graph(
-    graph: NodeGraph["Node"] | DetachedNodeGraph["Node"],
-    edits: Collection[EditData],
-    options: "ReadOptions | None",
-) -> None:
-    """Applies the edits to the graph (in place!)."""
-    trace.get_current_span().set_attribute("edits", len(edits))
-
-    from bench.language.query import DEFAULT_READ_OPTIONS
-    from bench.proto import wiring
-
-    if options is None:
-        options = DEFAULT_READ_OPTIONS
-
-    for edit in edits:
-        node_data = wiring.unwrap_some_node(edit.node)
-        node_id = to_uuid(node_data.id)
-        if node_id is None:
-            raise ValueError(f"invalid node id in edit {edit!r}: {node_data!r}")
-
-        # remap edit according to read options
-        edit_type = cast(EditType, edit.type)
-        if options.include_hidden:
-            edit_type = _INCLUDE_HIDDEN_EDIT_TYPE_REMAP.get(edit_type, edit_type)
-        else:
-            edit_type = _EXCLUDE_HIDDEN_EDIT_TYPE_REMAP.get(edit_type, edit_type)
-
-        if edit_type == EditType.CREATE or (edit_type == EditType.UPSERT and node_id not in graph):
-            if node_data.parent_ptr is not None:
-                parent = graph.get(UUID(node_data.parent_ptr.id))
-            else:
-                parent = None
-            node = wiring.unpack_node(node_data, parent)
-            graph.add(node)
-        elif edit_type == EditType.DELETE:
-            node = graph.get(node_id)
-            assert node is not None, f"missing node {node_id!r} for delete: {edit!r}"
-            graph.remove(node)
-        else:  # some update
-            node = graph.get(node_id)
-            assert node is not None, f"missing node {node_id!r} for update: {edit!r}"
-            properties = (*edit.properties, *IMPLICIT_EDIT_PROPERTIES_IDS[edit_type])
-            for prop_id in properties:
-                prop = node.__properties_by_id__[prop_id]
-                prop = prop.reference_wired_ptr or prop
-                updated_value_data = getattr(node_data, prop.name)
-                updated_value = wiring.unpack_struct_prop(prop, updated_value_data)
-                setattr(node, prop.name, updated_value)
-            if edit_type == EditType.MOVE:
-                if node_data.parent_ptr is not None:
-                    new_parent = graph.get(UUID(node_data.parent_ptr.id))
-                else:
-                    new_parent = None
-                node.parent = new_parent
-
-
-@tracer.start_as_current_span("graph.edit_data_graph")
-def edit_data_graph(
-    graph: NodeDataGraph[AnyNodeData],
-    edits: Collection[EditData],
-    options: "ReadOptions | None",
-    *,
-    keep_all: bool = False,
-    reset_old: bool = False,
-    bump: bool = False,
-) -> None:
-    """Applies the edits to the data graph."""
-    trace.get_current_span().set_attribute("edits", len(edits))
-
-    from bench.language.query import DEFAULT_READ_OPTIONS
-    from bench.proto import wiring
-
-    if options is None:
-        options = DEFAULT_READ_OPTIONS
-
-    for edit in edits:
-        node_data = wiring.unwrap_some_node(edit.node)
-
-        # remap edit according to read options
-        edit_type = cast(EditType, edit.type)
-        if keep_all:
-            edit_type = _INCLUDE_ALL_EDIT_TYPE_REMAP.get(edit_type, edit_type)
-        elif options.include_hidden:
-            edit_type = _INCLUDE_HIDDEN_EDIT_TYPE_REMAP.get(edit_type, edit_type)
-        else:
-            edit_type = _EXCLUDE_HIDDEN_EDIT_TYPE_REMAP.get(edit_type, edit_type)
-
-        if edit_type == EditType.CREATE or (
-            edit_type == EditType.UPSERT and node_data.id not in graph
-        ):
-            graph.add(node_data)
-        elif edit_type == EditType.DELETE:
-            graph.remove(node_data)
-        else:  # some update
-            node_cls = NODE_CLASS_BY_TYPE[cast(NodeType, edit.node_ptr.type)]
-            properties = (*edit.properties, *IMPLICIT_EDIT_PROPERTIES_IDS[edit_type])
-            existing_node = graph.get(node_data.id)
-            assert existing_node is not None, f"missing node for update: {edit}"
-            existing_node = wiring.copy_struct(existing_node)
-            for prop_id in properties:
-                prop = node_cls.__properties_by_id__.get(prop_id)
-                if prop is None:
-                    continue  # does not exist in this node
-                prop = prop.reference_wired_ptr or prop
-                updated_value = getattr(node_data, prop.name)
-                setattr(existing_node, prop.name, updated_value)
-            graph.update(existing_node)
-
-
-def sync_graph_revisions(
-    source: NodeDataGraph[AnyNodeData], target: NodeGraph[Node] | DetachedNodeGraph[Node]
-):
-    """Syncs the revisions of nodes in the target graph with the source graph."""
-    for node in source.nodes:
-        target_node = target[UUID(node.id)]
-        target_node.revision = node.revision

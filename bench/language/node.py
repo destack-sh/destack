@@ -275,7 +275,7 @@ def _process_struct_base_cls(
                 raise ValueError(f"struct {cls} has non-inlined struct {component}")
 
     # collect properties from this
-    declared_properties: dict[str, Property] = {}
+    own_properties: dict[str, Property] = {}
     for name, prop in list(cls.__dict__.items()):
         if (
             name.startswith("__")
@@ -292,12 +292,11 @@ def _process_struct_base_cls(
         prop.component = cls
         prop.py_type_raw = cls.__annotations__.get(name, None)
         properties_by_name[name] = prop
-        declared_properties[name] = prop
-    cls.__declared_properties__ = frozendict(declared_properties)
+        own_properties[name] = prop
+    cls.__declared_properties__ = frozendict(own_properties)
     cls.__own_properties__ = frozendict(properties_by_name)  # remember 'own' properties
 
-    # collect properties from all components (static and dynamic, least to most specific)
-    reserved_properties: set[str | int] = set(reserved or ())
+    # collect properties from all components
     for component in reversed(static_components):
         for name, prop in component.__own_properties__.items():
             # system struct identity is only for non-inlined structs :MagicProps
@@ -319,8 +318,6 @@ def _process_struct_base_cls(
                 raise ValueError(f"property conflict '{name}': {prop!r}, {existing!r}")
             if not is_node and prop.is_tree_reference:
                 raise ValueError(f"non-node {cls} has node-only relation {prop}")
-        reserved_properties.update(component.__reserved_properties__)
-    cls.__reserved_properties__ = frozenset(reserved_properties)
 
     if is_node and is_variable_root:
         # bench is optional in variable root types (since they can have other roots)
@@ -881,7 +878,6 @@ class Struct(abc.ABC, Generic[StructDataT]):
     __stored_properties__: ClassVar[dict[str, Property]] = {}
     __wired_properties__: ClassVar[dict[str, Property]] = {}
     __runtime_properties__: ClassVar[dict[str, Property]] = {}
-    __reserved_properties__: ClassVar[frozenset[int | str]] = frozenset()
     __properties_in_order__: ClassVar[tuple[Property, ...]]
     __properties_id_in_order__: ClassVar[tuple[int, ...]]
     __max_property_ord__: ClassVar[int] = UNSET
@@ -907,7 +903,8 @@ class Struct(abc.ABC, Generic[StructDataT]):
         parent_type: NodeType | None = p_internal(4, default=None)
         parent_id: int | None = None
         parent_key: str | None = None
-    order_key: str | None = p_internal(5, default=None)
+    # struct-only order_key
+    order_key: str | None = p_internal(9, default=None)
     # for source nodes:
     # computed_properties: dict[int, ValueReference] | None = p_regular(28)
     # for branched/templated instances
@@ -1046,7 +1043,7 @@ class Struct(abc.ABC, Generic[StructDataT]):
         else:
             raise AttributeError(f"{self!r} has no attribute '{item}'")
 
-    def __setattr(self, key, value):
+    def __setattr(self, key: str, value):
         """Sets *any* attribute on this node (incl. slots)."""
         session = self.__dict__.get("_session", None)
         is_tracked = session is not None and session is not UNSET
@@ -1064,17 +1061,17 @@ class Struct(abc.ABC, Generic[StructDataT]):
                 raise AttributeError(f"cannot set computed property {prop!r}: {value!r}")
 
             # validate/set
+            old_value = self.__dict__.get(key)
             if is_tracked:
                 # coerce & check type
                 if prop.type_info is not None and prop.reference_source is None:
                     value = coerce_value(value, prop.type_info, self, prop, prop)
                     check_value(value, prop.type_info, invalid=on_invalid_raise)
-                prev = self.__dict__.get(key)
                 object.__setattr__(self, key, value)
                 try:
                     self._validate_self((prop,), invalid=on_invalid_raise)
                 except ValidationError:  # reset on error
-                    object.__setattr__(self, key, prev)
+                    object.__setattr__(self, key, old_value)
                     raise
             else:
                 object.__setattr__(self, key, value)
@@ -1095,7 +1092,7 @@ class Struct(abc.ABC, Generic[StructDataT]):
                         if self._updated_properties is None:
                             self._updated_properties = bitarray(self.__max_property_ord__ + 1)
                         self._updated_properties[prop.ord] = True
-                        session.update(node, properties=(prop,))
+                        session.update(node, properties=(prop,), old_values={prop.id: old_value})
                 else:  # is struct
                     # will need to deal with Value parents eventually...
                     assert isinstance(self.parent, Struct), f"unexpected parent: {self.parent!r}"
@@ -1223,7 +1220,7 @@ class Struct(abc.ABC, Generic[StructDataT]):
     def _resolve_references(self, scope: Optional["Node"], notice: "NoticeHandler"):
         from bench.language.notice import NoticeType
 
-        # TODO :Robustness? :Architecture: turn regular node refs into computed properties? :NodeRefs
+        # NOTE :Robustness? :Architecture: turn regular node refs into computed properties? :NodeRefs
         #  Currently, we manually set wired ptrs on set and resolve on interp.
         #  If we had immediate (=fast) access to a graph in all Object/Struct/Nodes,
         #  we could skip having to resolve during interp and leaving stale refs until re-interp.
@@ -1412,6 +1409,7 @@ class Node(Struct[NodeDataT], Generic[NodeDataT]):
     if TYPE_CHECKING:
         package_id: Optional[UUID] = None
         bench_id: Optional[UUID] = None
+    # Struct only: order_key (9)
 
     # 10-29: reserved for node tracking
     revision: int = p_system(
