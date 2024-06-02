@@ -555,8 +555,6 @@ def pack_struct_value_scalar_data(
             ]
         else:
             prop_value_packed = pack_value_scalar_data(prop_value, prop.as_type_info)
-        # nocheckin: use Property.id or .identity_key (includes type) for struct value encoding?
-        #  (also see below for unpack, and in Transactions for updates)
         value_packed[prop.id_as_str] = prop_value_packed
     return value_packed
 

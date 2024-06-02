@@ -69,7 +69,7 @@ from bench.sql.core import (
     Table,
 )
 from bench.utils.casing import Casing, to_casing
-from bench.utils.env import IS_DEBUG
+from bench.utils.env import IS_DEV
 from bench.utils.func import describe_type, to_uuid
 from bench.utils.tenacity import RetryOptions, retry
 
@@ -1262,7 +1262,7 @@ def pg_unpack_node_data_row(node_cls: type[Node], row: Mapping[str, Any]) -> Any
                 _pg_unpack_node_reference_from_row(prop.reference_source, row, data)
         return data
     except (AttributeError, TypeError, ValueError, KeyError) as e:
-        row_str = repr(row) if IS_DEBUG else describe_type(row)
+        row_str = repr(row) if IS_DEV else describe_type(row)
         raise ValueError(f"could not unpack row {node_cls.metatype.name}: {row_str}") from e
 
 

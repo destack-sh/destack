@@ -35,7 +35,7 @@ from bench.language.setup import NODE_CLASS_BY_TYPE
 from bench.language.transaction import edit_data_graph, unpack_node_delta
 from bench.language.validation import ValidationError, on_invalid_raise
 from bench.proto import wiring
-from bench.proto.services import BenchServiceBase
+from bench.proto.services import ServiceBase
 from bench.proto.wire import (
     AccessMatrixData,
     AggregateNodesRequest,
@@ -91,7 +91,7 @@ class EditWatcher:
         return f"{self.subject}: {'|'.join(n.bench_name for n in self.node_types.tuple)} [{self.filters}]"
 
 
-class GraphIoServiceBase(BenchServiceBase, GraphIoBase):
+class GraphIoServiceBase(ServiceBase, GraphIoBase):
     """Common base for global & Bench-local graph I/O operations."""
 
     def __init__(self, *, bench_id: UUID | None, node_types: bittuple[NodeType]):

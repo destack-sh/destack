@@ -34,10 +34,15 @@ def setup_dotenv():
         dotenv.load_dotenv(dot_env_path, verbose=True, override=True)
 
 
+IS_DEBUG: bool = hasattr(sys, "gettrace") and sys.gettrace() is not None
 ENVIRONMENT = get_from_env("ENVIRONMENT")
-IS_DEBUG: bool = get_from_env("IS_DEBUG", default=ENVIRONMENT == "dev", typ=bool)
-IS_TEST: bool = (
-    "test" in sys.argv or "pytest" in sys.argv[0] or get_from_env("TEST", default=False, typ=bool)
-)
 IS_DEV = ENVIRONMENT == "dev"
+IS_TEST: bool = (
+    "test" in sys.argv
+    or "pytest" in sys.argv[0]
+    or get_from_env("TEST", default=False, typ=bool)
+    or ENVIRONMENT == "test"
+)
+IS_PROD = ENVIRONMENT == "prod"
+IS_STAGE = ENVIRONMENT == "stage"
 REPOSITORY_PATH = Path(__file__).parent.parent.parent.resolve()

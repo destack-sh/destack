@@ -16,7 +16,7 @@ from opentelemetry.sdk.resources import (
 from opentelemetry.sdk.trace import Span, TracerProvider
 from opentelemetry.sdk.trace.export import BatchSpanProcessor
 
-from bench.utils.env import ENVIRONMENT, IS_DEV
+from bench.utils.env import ENVIRONMENT, IS_DEBUG, IS_DEV, IS_TEST
 from bench.utils.utils import get_from_env
 
 VERSION = Path("version").read_text().strip()
@@ -33,8 +33,9 @@ def setup_tracing():
     global _setup_tracing
     if _setup_tracing:
         return
-
-    # nocheckin: don't trace in debug mode or tests?
+    if IS_DEBUG or IS_TEST:
+        # NOTE: we don't trace in debug mode because it's pretty slow
+        return
 
     resource = Resource(
         attributes={

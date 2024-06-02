@@ -23,7 +23,6 @@
         "ENVIRONMENT": "dev",
         "PYTHONUNBUFFERED": "1",
         "SERVICE_NAME": "system",
-        "DEBUG": "1"
       },
       "console": "integratedTerminal",
       "cwd": "${workspaceFolder}",
@@ -39,7 +38,6 @@
         "ENVIRONMENT": "dev",
         "PYTHONUNBUFFERED": "1",
         "SERVICE_NAME": "runtime",
-        "DEBUG": "1",
         "SUPERVISOR_URL": "http://localhost:60061",
         // this is the 'test' bench (should probably set this in a local.env?)
         "BENCH_ID": "56cf3720-e93e-4238-92c5-e14f565bc0d7",
