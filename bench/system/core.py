@@ -12,7 +12,7 @@ from opentelemetry import trace
 
 from bench.language import Bench, Node, NodeType, Store
 from bench.language.bench import Branch, Package, Region
-from bench.language.connection import PostgresEngine, StoreEngine
+from bench.language.connection import PostgresEngine
 from bench.language.const import GLOBAL_NODE_TYPES, VERSION, EditType
 from bench.language.graph import NodeGraphLike
 from bench.language.session import Session
@@ -103,14 +103,6 @@ async def global_session():
     async with Session(
         parent=None, _default_scope=GraphScope(), _engines=(GLOBAL_POSTGRES_ENGINE,)
     ) as session:
-        yield session
-
-
-@asynccontextmanager
-async def local_session(scope: GraphScope, engines: tuple[StoreEngine, ...]):
-    """Session for local operations (no remote calls)."""
-    session = Session(_default_scope=scope, _engines=engines)
-    async with session:
         yield session
 
 

@@ -75,19 +75,21 @@ async def test_cur():
         yield cur
 
 
-def global_session():
+def global_session(epoch: int = 0):
     from bench.language.session import Session
     from bench.system.core import GLOBAL_POSTGRES_ENGINE
 
-    return Session(parent=None, _engines=(GLOBAL_POSTGRES_ENGINE,))
+    return Session(parent=None, _engines=(GLOBAL_POSTGRES_ENGINE,), _epoch=epoch)
 
 
-def bench_session(bench: "Bench"):
+def bench_session(bench: "Bench", epoch: int = 0):
     from bench.language.session import Session
     from bench.system.core import GLOBAL_POSTGRES_ENGINE
 
     assert bench.main_branch is not None, f"{bench!r} has no main branch"
-    return Session(parent=bench.main_branch.main_package, _engines=(GLOBAL_POSTGRES_ENGINE,))
+    return Session(
+        parent=bench.main_branch.main_package, _engines=(GLOBAL_POSTGRES_ENGINE,), _epoch=epoch
+    )
 
 
 @pytest.fixture()
