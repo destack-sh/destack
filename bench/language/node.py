@@ -75,7 +75,7 @@ from bench.proto.wire import AnyNodeData, AnyStructData, NodeReferenceData, Some
 from bench.sql.core import Constraint, ConstraintType, Index, IndexType, PrimitiveType, Table
 from bench.utils.casing import PYTHON_CASING, IdentifierType, to_casing
 from bench.utils.dt import utcnow
-from bench.utils.env import IS_DEV
+from bench.utils.env import IS_DEV, IS_TEST
 from bench.utils.func import bittuple, did_you_mean_str
 from bench.utils.utils import frozendict
 from bench.utils.uuidt import UUIDT
@@ -252,7 +252,7 @@ def _process_struct_base_cls(
                 if grandparent not in static_components:
                     static_components.append(grandparent)
 
-    if IS_DEV:
+    if IS_DEV or IS_TEST:
         # check that no forbidden methods are defined in non-base classes
         if cls.__name__ not in _CORE_TYPES:
             for name in _FORBIDDEN_COMPONENT_METHODS:

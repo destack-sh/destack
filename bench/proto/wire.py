@@ -3,7 +3,7 @@
 
 from typing import TYPE_CHECKING, Union
 
-VERSION = "2024.06.01.1"
+VERSION = "2024.06.02.0"
 
 if TYPE_CHECKING:
     from bench.language import Subject
@@ -1464,7 +1464,7 @@ class NodeReferenceData(betterproto.Message):
 
     metatype: "ObjectType" = betterproto.enum_field(1)
     type: "NodeType" = betterproto.enum_field(30)
-    id: str = betterproto.string_field(31)
+    id: Optional[str] = betterproto.string_field(31, optional=True)
     ck: Optional[str] = betterproto.string_field(32, optional=True)
     bench_id: Optional[str] = betterproto.string_field(33, optional=True)
     base_ck: Optional[str] = betterproto.string_field(34, optional=True)

@@ -111,6 +111,7 @@ class Session(Node[SessionData]):
     _host: Optional["HostStub"] = p_runtime(default=None)
 
     # system
+    _epoch: int | None = p_runtime(default=None)
     _commit: CustomCommit | None = p_runtime(default=None)
 
     def __content_str__(self):
@@ -153,6 +154,11 @@ class Session(Node[SessionData]):
     def has_pending_edits(self):
         """Whether this session has any pending (unflushed) edits."""
         return self._tx is not None and self._tx.has_pending_edits
+
+    @property
+    def epoch(self) -> int:
+        assert self._epoch is not None, f"epoch not available in {self!r}"
+        return self._epoch
 
     @property
     def is_open(self) -> bool:

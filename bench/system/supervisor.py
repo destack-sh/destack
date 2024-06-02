@@ -7,7 +7,6 @@ from grpclib import GRPCError
 from grpclib import Status as GRPCStatus
 from opentelemetry import trace
 
-from bench.conftest import global_session
 from bench.language import Bench, Client, NodeReference, Server, User
 from bench.language.access import Subject
 from bench.language.bench import Region, ServerProfile
@@ -41,7 +40,7 @@ from bench.system.access import (
     get_client_cached,
     hash_password,
 )
-from bench.system.core import GLOBAL_POSTGRES_ENGINE
+from bench.system.core import GLOBAL_POSTGRES_ENGINE, global_session
 from bench.system.graph import GraphIoServiceBase
 from bench.system.provisioner import provision
 from bench.system.test.test_host import MockHost

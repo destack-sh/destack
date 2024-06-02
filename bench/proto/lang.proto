@@ -1347,7 +1347,7 @@ message IconData {
 message NodeReferenceData {
   ObjectType metatype = 1;
   NodeType type = 30;
-  string id = 31;
+  optional string id = 31;
   optional string ck = 32;
   optional string bench_id = 33;
   optional string base_ck = 34;

@@ -1541,7 +1541,8 @@ async def pg_edit(
             # NOTE: in case of multiple edits to the same node, the returned revision is the latest.
             new_revisions_by_id = {node.id: node.revision for node in changed_nodes}
             for edit in cur_batch:
-                all_new_revisions.append(new_revisions_by_id[edit.node_ptr.id])
+                node_id = cast(str, edit.node_ptr.id)
+                all_new_revisions.append(new_revisions_by_id[node_id])
             # start new batch
             if next_edit is not None:
                 cur_node_cls = NODE_CLASS_BY_TYPE[
@@ -1579,6 +1580,7 @@ async def _pg_edit_batch(
         nodes = []
         rows = []
         for edit in batch:
+            assert edit.epoch is not None, f"no epoch for {edit!r}"
             assert edit.new_node_packed, f"no new node for {edit!r}"
             node = unpack_node_delta(edit.new_node_packed)
             nodes.append(node)
@@ -1639,6 +1641,7 @@ async def _pg_edit_batch(
         # collect dynamic values
         dynamic_values: list[RowIn] = []
         for edit in batch:
+            assert edit.epoch is not None, f"no epoch for {edit!r}"
             assert edit.new_node_packed, f"no new node for {edit!r}"
             new_node_data = unpack_node_delta(edit.new_node_packed, node_type=node_type)
             row = {"id": edit.node_ptr.id}

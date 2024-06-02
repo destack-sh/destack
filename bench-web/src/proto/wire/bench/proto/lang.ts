@@ -587,9 +587,9 @@ export interface NodeReferenceData {
      */
     type: NodeType;
     /**
-     * @generated from protobuf field: string id = 31;
+     * @generated from protobuf field: optional string id = 31;
      */
-    id: string;
+    id?: string;
     /**
      * @generated from protobuf field: optional string ck = 32;
      */
@@ -11341,7 +11341,7 @@ class NodeReferenceData$Type extends MessageType<NodeReferenceData> {
         super("symbolx.bench.NodeReferenceData", [
             { no: 1, name: "metatype", kind: "enum", T: () => ["symbolx.bench.ObjectType", ObjectType, "OBJECT_TYPE_"] },
             { no: 30, name: "type", kind: "enum", T: () => ["symbolx.bench.NodeType", NodeType, "NODE_TYPE_"] },
-            { no: 31, name: "id", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
+            { no: 31, name: "id", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
             { no: 32, name: "ck", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
             { no: 33, name: "bench_id", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
             { no: 34, name: "base_ck", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
@@ -11352,7 +11352,6 @@ class NodeReferenceData$Type extends MessageType<NodeReferenceData> {
         const message = globalThis.Object.create((this.messagePrototype!));
         message.metatype = 0;
         message.type = 0;
-        message.id = "";
         if (value !== undefined)
             reflectionMergePartial<NodeReferenceData>(this, message, value);
         return message;
@@ -11368,7 +11367,7 @@ class NodeReferenceData$Type extends MessageType<NodeReferenceData> {
                 case /* symbolx.bench.NodeType type */ 30:
                     message.type = reader.int32();
                     break;
-                case /* string id */ 31:
+                case /* optional string id */ 31:
                     message.id = reader.string();
                     break;
                 case /* optional string ck */ 32:
@@ -11401,8 +11400,8 @@ class NodeReferenceData$Type extends MessageType<NodeReferenceData> {
         /* symbolx.bench.NodeType type = 30; */
         if (message.type !== 0)
             writer.tag(30, WireType.Varint).int32(message.type);
-        /* string id = 31; */
-        if (message.id !== "")
+        /* optional string id = 31; */
+        if (message.id !== undefined)
             writer.tag(31, WireType.LengthDelimited).string(message.id);
         /* optional string ck = 32; */
         if (message.ck !== undefined)
@@ -25009,7 +25008,7 @@ export const PathTokenDataInfo: Record<PathTokenProperty, PropertyInfo> = {
 export const NodeReferenceDataInfo: Record<NodeReferenceProperty, PropertyInfo> = {
   [NodeReferenceProperty.metatype]: { id: 1, name: 'metatype', component: ObjectType.NODE_REFERENCE, enumType: EnumType.OBJECT_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isComputed: true, isWired: true },
   [NodeReferenceProperty.type]: { id: 30, name: 'type', component: ObjectType.NODE_REFERENCE, enumType: EnumType.NODE_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isRuntime: true, isWired: true, isStored: true },
-  [NodeReferenceProperty.id]: { id: 31, name: 'id', component: ObjectType.NODE_REFERENCE, kind: 'primitive', primitiveType: PrimitiveType.UUID, isRequired: true, isRuntime: true, isWired: true, isStored: true },
+  [NodeReferenceProperty.id]: { id: 31, name: 'id', component: ObjectType.NODE_REFERENCE, kind: 'primitive', primitiveType: PrimitiveType.UUID, isRuntime: true, isWired: true, isStored: true },
   [NodeReferenceProperty.ck]: { id: 32, name: 'ck', component: ObjectType.NODE_REFERENCE, kind: 'primitive', primitiveType: PrimitiveType.UUID, isRuntime: true, isWired: true, isStored: true },
   [NodeReferenceProperty.benchId]: { id: 33, name: 'bench_id', component: ObjectType.NODE_REFERENCE, kind: 'primitive', primitiveType: PrimitiveType.UUID, isRuntime: true, isWired: true, isStored: true },
   [NodeReferenceProperty.baseCk]: { id: 34, name: 'base_ck', component: ObjectType.NODE_REFERENCE, kind: 'primitive', primitiveType: PrimitiveType.UUID, isRuntime: true, isWired: true, isStored: true },

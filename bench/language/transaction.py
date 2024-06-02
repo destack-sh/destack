@@ -14,7 +14,7 @@ from bench.language.connection import (
     StoreEngine,
     scope_includes,
 )
-from bench.language.const import BenchError, EditType, NodeType
+from bench.language.const import UNSET, BenchError, EditType, NodeType
 from bench.language.graph import DetachedNodeGraph, NodeDataGraph, NodeGraph
 from bench.language.node import EditSubject, Node, Property
 from bench.language.setup import NODE_CLASS_BY_TYPE
@@ -53,6 +53,7 @@ class Transaction:
     _used_engine_ids: set[Any] = dataclasses.field(default_factory=set)
 
     """Pending (unflushed) edits."""
+    pending_edits: list[EditData] = dataclasses.field(default_factory=list)
     _pending_edits_by_engine_id: dict[Any, list[EditData]] = dataclasses.field(
         default_factory=lambda: defaultdict(list)
     )
@@ -180,22 +181,6 @@ class Transaction:
         )
         return edit
 
-    def _add_pending_edit(self, edit: EditData, node: Optional[Node]) -> StoreEngine:
-        from bench.proto import wiring
-
-        node_type = wiring.unpack_enum(NodeType, edit.node_ptr.type)
-        engine = self._get_engine(edit.scope, node_type, is_readonly=False)
-        self.edits.append(edit)
-        self._pending_edits_by_engine_id[engine.id].append(edit)
-        if node is not None:
-            self._pending_nodes_by_ck[node.ck] = node
-        return engine
-
-    def _add_pending_edits(self, edits: Collection[EditData]):
-        """Adds a collection of edits to the pending edits."""
-        for edit in edits:
-            self._add_pending_edit(edit, node=None)
-
     def create(self, node_: Node, subject: EditSubject | None, origin: ClientOrigin | None):
         edit = self._make_simple_edit(EditType.CREATE, node_, subject=subject, origin=origin)
         self._add_pending_edit(edit, node_)
@@ -224,15 +209,17 @@ class Transaction:
             old_node_packed = {}
             new_node_packed = {}
             for prop in properties:
-                old_value = old_values.get(prop.id)
-                assert old_value is not None, f"missing old value for {prop!r} in {node_!r}"
-                typ = prop.as_type_info
+                if prop.reference_wired_ptr is not None:
+                    prop = prop.reference_wired_ptr
+                old_value = old_values.get(prop.id, UNSET)
+                assert old_value is not UNSET, f"missing old value for {prop!r} in {node_!r}"
+                prop_type = prop.as_type_info
                 old_node_packed[prop.id_as_str], _ = pack_value(
-                    old_value, typ, wrap_primitive=False
+                    old_value, prop_type, wrap_primitive=False
                 )
                 new_value = getattr(node_, prop.name)
                 new_node_packed[prop.id_as_str], _ = pack_value(
-                    new_value, typ, wrap_primitive=False
+                    new_value, prop_type, wrap_primitive=False
                 )
             edit = EditData(
                 id=new_edit_id(),
@@ -250,20 +237,32 @@ class Transaction:
             edit_idx = len(self._pending_edits_by_engine_id[engine.id]) - 1
             self._pending_updates_idx[node_] = engine.id, edit_idx
         else:
-            # update existing edit in place
-            #  (to avoid re-packing everything for successive updates)
+            # update existing edit in place ('debounce')
+            # NOTE :Performance: unpacking/repacking proto json is inefficient
             assert node_._updated_properties is not None, f"missing property mask for {node_!r}"
             engine_id, current_update_idx = existing_edit_idx
             edit = self._pending_edits_by_engine_id[engine_id][current_update_idx]
             edit.properties = list(node_._unmask_properties_ids(node_._updated_properties))
-            node_data = wiring.unwrap_some_node(edit.node)
+            assert edit.new_node_packed and edit.old_node_packed, f"missing node data for {edit!r}"
+            new_node_packed = wiring.unpack_proto_json(edit.new_node_packed)
+            old_node_packed = wiring.unpack_proto_json(edit.old_node_packed)
             for prop in properties:
-                if prop.reference_wired_ptr:
+                if prop.reference_wired_ptr is not None:
                     prop = prop.reference_wired_ptr
-                value = getattr(node_, prop.name)
-                value = wiring.pack_struct_prop(prop, value, ignore_array=False)
-                setattr(node_data, prop.name, value)
-            # coalesce any successive move/update into a move
+                if prop.id_as_str not in old_node_packed:
+                    # keep old value if it already exists
+                    old_value = old_values.get(prop.id, UNSET)
+                    assert old_value is not UNSET, f"missing old value for {prop!r} in {node_!r}"
+                    old_node_packed[prop.id_as_str], _ = pack_value(
+                        old_value, prop.as_type_info, wrap_primitive=False
+                    )
+                # and update new value
+                new_value = getattr(node_, prop.name)
+                new_node_packed[prop.id_as_str], _ = pack_value(
+                    new_value, prop.as_type_info, wrap_primitive=False
+                )
+            edit.new_node_packed = wiring.pack_proto_json(new_node_packed)
+            edit.old_node_packed = wiring.pack_proto_json(old_node_packed)
             if edit_type == EditType.MOVE and edit.type != EditType.MOVE:
                 edit.type = wiring.pack_enum(EditType, EditType.MOVE)
 
@@ -316,6 +315,26 @@ class Transaction:
     async def open(self):
         pass
 
+    def _add_pending_edit(self, edit: EditData, node: Optional[Node]) -> StoreEngine:
+        from bench.proto import wiring
+
+        node_type = wiring.unpack_enum(NodeType, edit.node_ptr.type)
+        engine = self._get_engine(edit.scope, node_type, is_readonly=False)
+        self.edits.append(edit)
+        self.pending_edits.append(edit)
+        self._pending_edits_by_engine_id[engine.id].append(edit)
+        if node is not None:
+            self._pending_nodes_by_ck[node.ck] = node
+        # bump epoch if we have one
+        if self.session._epoch is not None:
+            self.session._epoch += 1
+            edit.epoch = self.session._epoch
+        return engine
+
+    def _add_pending_edits(self, edits: Collection[EditData]):
+        for edit in edits:
+            self._add_pending_edit(edit, node=None)
+
     async def _do_flush(self, *, commit: bool):
         assert self.session is not None, f"no session for {self!r}"
         log = logger.bind(edits=len(self.edits), transaction=self)
@@ -344,6 +363,7 @@ class Transaction:
             pending_edits.clear()
             self.cascaded_edits.extend(flush.cascaded_edits)
             self._used_engine_ids.add(engine.id)
+        self.pending_edits.clear()
         self._pending_edits_by_engine_id.clear()
         self._pending_updates_idx.clear()
 
@@ -448,9 +468,9 @@ def edit_graph(
     for edit in edits:
         assert edit.epoch is not None, f"missing epoch for {edit!r}"
         assert edit.revision is not None, f"missing revision for {edit!r}"
-        node_id = UUID(edit.node_ptr.id)
-        node_type = NodeType(edit.node_ptr.type)
         edit_type = cast(EditType, edit.type)
+        node_type = NodeType(edit.node_ptr.type)
+        node_id = UUID(edit.node_ptr.id)
 
         # remap edit according to read options
         if options.include_hidden:
@@ -540,9 +560,10 @@ def edit_data_graph(
 
     for edit in edits:
         assert edit.epoch is not None, f"missing epoch for {edit!r}"
-        assert edit.revision is not None, f"missing revision for {edit!r}"
         edit_type = cast(EditType, edit.type)
         node_type = NodeType(edit.node_ptr.type)
+        node_id = edit.node_ptr.id
+        assert node_id is not None, f"missing node id for {edit!r}"
 
         # remap edit according to read options
         if keep_all:
@@ -557,14 +578,14 @@ def edit_data_graph(
             new_node_data = unpack_node_delta(edit.new_node_packed)
             graph.add(new_node_data)
         elif edit_type == EditType.DELETE:
-            old_node_data = graph.get(edit.node_ptr.id)
+            old_node_data = graph.get(node_id)
             assert old_node_data is not None, f"missing node {edit.node_ptr!r} for {edit!r}"
             graph.remove(old_node_data)
         else:
             # some update
             assert edit.new_node_packed, f"missing new node for {edit!r}"
             new_node_data = unpack_node_delta(edit.new_node_packed, node_type=node_type)
-            updated_node_data = graph.get(edit.node_ptr.id)
+            updated_node_data = graph.get(node_id)
             assert updated_node_data is not None, f"missing node {edit.node_ptr!r} for {edit!r}"
             updated_node_data = wiring.copy_struct(updated_node_data)
             # directly edited properties
@@ -581,7 +602,9 @@ def edit_data_graph(
             if "updated_epoch" in node_cls.__properties_by_id__:
                 setattr(updated_node_data, "updated_epoch", edit.epoch)
             setattr(updated_node_data, "updated_by_ptr", edit.subject_ptr)
-            updated_node_data.revision = edit.revision
+            if edit.revision is not None:
+                # Edit.revision may be unset when editing before flushing for validation
+                updated_node_data.revision = edit.revision
             if edit_type == EditType.ARCHIVE:
                 updated_node_data.archived_at = edit.edited_at
             elif edit_type == EditType.UNARCHIVE:
