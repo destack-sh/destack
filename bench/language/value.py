@@ -463,6 +463,8 @@ def unpack_value_scalar(value_packed: JsonValue, typ: "TypeInfoBase") -> ScalarV
     if typ.kind == TypeKind.PRIMITIVE:
         if typ.primitive_type == PrimitiveType.BYTES:
             return base64.b64decode(cast(str, value_packed))
+        elif typ.primitive_type in (PrimitiveType.INT16, PrimitiveType.INT32, PrimitiveType.INT64):
+            return int(cast(int, value_packed))
         elif typ.primitive_type == PrimitiveType.UUID:
             return UUID(cast(str, value_packed))
         elif typ.primitive_type == PrimitiveType.DATETIME:
@@ -489,6 +491,7 @@ def pack_value_scalar_data(value: ScalarValueData, typ: "TypeInfoBase") -> JsonV
     Packs the given scalar value into its proto data representation (for struct values).
     This is pretty similar to _pack_value_data, but packs properties in the form that proto
      data expects (so e.g. UUIDs are strings, and of course Structs are StructData).
+     NOTE :Cleanup: consolidate pack_value_scalar/data variants?
     """
     if typ.kind == TypeKind.PRIMITIVE:
         if typ.primitive_type == PrimitiveType.BYTES:
@@ -518,6 +521,8 @@ def unpack_value_scalar_data(value_packed: JsonValue, typ: "TypeInfoBase") -> Sc
     if typ.kind == TypeKind.PRIMITIVE:
         if typ.primitive_type == PrimitiveType.BYTES:
             return base64.b64decode(cast(str, value_packed))
+        elif typ.primitive_type in (PrimitiveType.INT16, PrimitiveType.INT32, PrimitiveType.INT64):
+            return int(cast(int, value_packed))
         elif typ.primitive_type == PrimitiveType.UUID:
             return cast(str, value_packed)  # leave as string
         elif typ.primitive_type == PrimitiveType.JSON:
@@ -546,6 +551,8 @@ def pack_struct_value_scalar_data(
     value_packed: dict[str, JsonValue] = {}
     object_cls = OBJECT_CLASS_BY_TYPE[cast(ObjectType, value.metatype)]
     for prop in only if only is not None else object_cls.__wired_properties__.values():
+        if prop.reference_wired_ptr is not None:
+            prop = prop.reference_wired_ptr
         prop_value = getattr(value, prop.name)
         if prop_value is None or (prop.is_list and len(prop_value) == 0):
             continue
@@ -579,6 +586,8 @@ def unpack_struct_value_scalar_data[T: AnyStructData | AnyNodeData](
 
     value = proto_cls(metatype=object_type)  # type: ignore
     for prop in only if only is not None else object_cls.__wired_properties__.values():
+        if prop.reference_wired_ptr is not None:
+            prop = prop.reference_wired_ptr
         prop_value_packed = value_packed.get(prop.id_as_str)
         if prop_value_packed is None or (prop.is_list and len(prop_value_packed) == 0):
             continue

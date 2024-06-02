@@ -74,13 +74,12 @@ _CONDITIONAL_OP_SIGN: dict[ConditionalOp, str] = {
 class NodeReference(Struct[NodeReferenceData]):
     """
     A reference to a Node.
-    If the reference is to a node in a Bench, we include the Bench and 'ck' (where available).
-    If the second half of a ck is zero, it matches the closest node with the 'ck' prefix.
-    Base tracks which node the node is 'based' on (like Record.parent->Block, Signal.type->Block).
+    We include the Bench and 'ck' where available.
+    Base = the node is 'based' on (like Record.parent->Block, Signal.type->Block).
     """
 
     type: NodeType = p_regular(30, require=True)
-    id: UUID = p_regular(31)
+    id: Optional[UUID] = p_regular(31, default=None)
     ck: Optional[UUID] = p_regular(32, default=None)
     bench_id: Optional[UUID] = p_regular(33, default=None)
     base_ck: Optional[UUID] = p_regular(34, default=None)

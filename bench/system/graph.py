@@ -27,7 +27,7 @@ from bench.language.const import (
     NodeType,
     PolicyEffect,
 )
-from bench.language.graph import NodeDataGraph, NodeGraphLike
+from bench.language.graph import NodeDataGraph, NodeDict, NodeGraphLike
 from bench.language.node import EDIT_SUBJECT_TYPES, BasedNode, Node, is_implicit_node_property
 from bench.language.property import Property
 from bench.language.query import QueryBuilder
@@ -123,6 +123,7 @@ class GraphIoServiceBase(ServiceBase, GraphIoBase):
         *,
         engines: tuple[StoreEngine, ...] | None = None,
         readonly: bool = True,
+        system_commit: bool = True,
     ):
         """Gets a new session for processing a single request."""
         return Session(
@@ -130,6 +131,8 @@ class GraphIoServiceBase(ServiceBase, GraphIoBase):
             _is_readonly=readonly,
             _default_scope=self.scope,
             _engines=engines if engines is not None else self.get_engines(),
+            _epoch=self.epoch,
+            _commit=self._commit_system_session if system_commit else None,
         )
 
     @override
@@ -272,7 +275,7 @@ class GraphIoServiceBase(ServiceBase, GraphIoBase):
 
         # process edits
         async with self.tx_lock:
-            async with self.request_session(readonly=False) as session:
+            async with self.request_session(readonly=False, system_commit=False) as session:
                 # read the affected nodes into a single graph for evaluation
                 data_graph = NodeDataGraph()
                 with tracer.start_as_current_span("graph.commit.read"):
@@ -313,10 +316,10 @@ class GraphIoServiceBase(ServiceBase, GraphIoBase):
                 )
                 unpacked_graph = wiring.unpack_node_graph(data_graph, parent=None, session=session)
                 for node_id in edit_scopes.edited_node_ids:
-                    node_data = unpacked_graph.get(UUID(node_id))
-                    if node_data is None:
+                    node_ = unpacked_graph.get(UUID(node_id))
+                    if node_ is None:
                         raise GRPCError(GRPCStatus.NOT_FOUND, f"{node_id} not found")
-                    node_data._validate_self(properties=(), invalid=on_invalid_raise)
+                    node_._validate_self(properties=(), invalid=on_invalid_raise)
 
                 # flush edits to get cascaded edits
                 session.tx._add_pending_edits(request.edits)
@@ -356,6 +359,33 @@ class GraphIoServiceBase(ServiceBase, GraphIoBase):
         return CommitTransactionResponse(
             revisions=accepted_revisions, cascaded_edits=cascaded_edits, epoch=self.epoch
         )
+
+    async def _commit_system_session(
+        self, session: Session
+    ) -> tuple[list[EditData], list[EditData]]:
+        """
+        Commits our main session for us (the system) from outside a request context.
+        This should emulate what GraphService.commit_transaction does (skipping validation).
+        """
+        assert session._tx is not None, f"no active transaction in {session!r}"
+        edit_graph = NodeDict(session._edited_nodes_by_id)
+
+        # flush edits to get cascaded edits
+        edits, cascaded_edits = await session._tx.flush()
+
+        # extend commit
+        new_edits, epoch = await self.extend_commit(
+            session, edit_graph, edits, session.epoch, cascaded_edits
+        )
+        session._tx._add_pending_edits(new_edits)
+
+        # commit
+        edits, cascaded_edits = await session._tx.commit()
+
+        # handle on commit
+        self.epoch = session.epoch
+        await self.on_commit(edit_graph, edits, epoch, cascaded_edits)
+        return edits, cascaded_edits
 
     @override
     async def flush_transaction(
@@ -488,11 +518,13 @@ def parse_edit_scopes(edits: list[EditData]) -> _EditScopes:
     in_tx_created_nodes_ids: set[str] = set()
     for edit in edits:
         node_type = NodeType(edit.node_ptr.type)
-        edited_node_ids.add(edit.node_ptr.id)
+        node_id = cast(str, edit.node_ptr.id)
+        node_cls = NODE_CLASS_BY_TYPE[node_type]
+        edited_node_ids.add(node_id)
         if edit.type == EditType.CREATE or edit.type == EditType.UPSERT:
             assert edit.new_node_packed
             node_data = unpack_node_delta(
-                edit.new_node_packed, node_type=node_type, only=(Node.parent,)
+                edit.new_node_packed, node_type=node_type, only=(node_cls.parent,)
             )
             # node scope is parent since we don't have this node yet
             if node_data.parent_ptr is None:
@@ -501,17 +533,17 @@ def parse_edit_scopes(edits: list[EditData]) -> _EditScopes:
                 node_scope = node_data.parent_ptr
             else:
                 node_scope = node_scopes_by_id[node_data.parent_ptr.id]
-            in_tx_created_nodes_ids.add(edit.node_ptr.id)
+            in_tx_created_nodes_ids.add(node_id)
         else:
             # node scope is the edited node itself
-            if edit.node_ptr.id in in_tx_created_nodes_ids:
+            if node_id in in_tx_created_nodes_ids:
                 continue  # skip just created nodes
             node_scope = edit.node_ptr
             if edit.type == EditType.MOVE:
                 # also add new parent to scope
                 assert edit.new_node_packed, f"missing new node for {edit}"
                 node_data = unpack_node_delta(
-                    edit.new_node_packed, node_type=node_type, only=(Node.parent,)
+                    edit.new_node_packed, node_type=node_type, only=(node_cls.parent,)
                 )
                 assert node_data.parent_ptr is not None, f"missing parent for {node_data}"
                 node_scopes_by_id[cast(str, node_data.parent_ptr.id)] = node_data.parent_ptr
@@ -524,7 +556,7 @@ def parse_edit_scopes(edits: list[EditData]) -> _EditScopes:
             base_ptr = node_cls.get_base_from_data(node_data)
             if base_ptr is not None:
                 node_scopes_by_id[cast(str, base_ptr.id)] = base_ptr
-        node_scopes_by_id[edit.node_ptr.id] = node_scope
+        node_scopes_by_id[node_id] = node_scope
 
         # graph scope
         graph_scope = edit.scope
@@ -602,15 +634,15 @@ def _validate_edit(edit: EditData, subject: Subject, now: datetime) -> None:
         old_node_packed = edit.old_node_packed.to_dict()
         new_node_packed = edit.new_node_packed.to_dict()
         for p in edit.properties:
-            if p not in old_node_packed:
+            if str(p) not in old_node_packed:
                 raise GRPCError(
                     GRPCStatus.INVALID_ARGUMENT,
-                    f"missing property in {edit!r}: {p} not in {old_node_packed.keys()}",
+                    f"missing property in {edit!r}: {p} not in {tuple(old_node_packed.keys())}",
                 )
-            if p not in new_node_packed:
+            if str(p) not in new_node_packed:
                 raise GRPCError(
                     GRPCStatus.INVALID_ARGUMENT,
-                    f"missing property in {edit!r}: {p} not in {new_node_packed.keys()}",
+                    f"missing property in {edit!r}: {p} not in {tuple(new_node_packed.keys())}",
                 )
         # no forbidden properties
         if any(is_implicit_node_property(p) for p in edit.properties):

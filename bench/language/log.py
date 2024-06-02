@@ -101,6 +101,7 @@ class Log(Node, HasSessionContext, HasValues):
         assert self.kind == LogKind.EDIT, f"{self!r} is not an edit"
         assert self.type is not None, f"{self!r} has no type"
         assert self.node_ptr is not None, f"{self!r} has no node"
+        assert self.new_revision is not None, f"{self!r} has no new revision"
 
         old_node_packed = (
             wiring.pack_proto_json(self.old_node_packed)

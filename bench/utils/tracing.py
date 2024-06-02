@@ -20,7 +20,6 @@ from bench.utils.env import ENVIRONMENT, IS_DEBUG, IS_DEV, IS_TEST
 from bench.utils.utils import get_from_env
 
 VERSION = Path("version").read_text().strip()
-OLTP_ENDPOINT = get_from_env("OTLP_ENDPOINT")
 
 _setup_tracing = False
 _processor: BatchSpanProcessor | None
@@ -37,6 +36,7 @@ def setup_tracing():
         # NOTE: we don't trace in debug mode because it's pretty slow
         return
 
+    OLTP_ENDPOINT = get_from_env("OTLP_ENDPOINT")
     resource = Resource(
         attributes={
             SERVICE_NAME: get_from_env("SERVICE_NAME", default="cli" if IS_DEV else None),

@@ -24,7 +24,7 @@ from bench.language.const import (
     NodeType,
 )
 from bench.language.expression import NodeReference
-from bench.language.graph import NodeDict, NodeGraphLike
+from bench.language.graph import NodeGraphLike
 from bench.language.log import Log
 from bench.language.property import Property
 from bench.language.session import Session, unsuspend_session
@@ -215,19 +215,19 @@ class Host(GraphIoServiceBase, HostBase, HostSpec):
     def on_error(self, source: HostPlugin, error: Exception) -> None:
         pass  # error is already reported, we just keep running
 
+    @override
     def request_session(
         self,
         *,
         engines: tuple[StoreEngine, ...] | None = None,
         readonly: bool = True,
+        system_commit: bool = True,
     ):
-        """Gets a new session for processing a request."""
-        return Session(
-            parent=self._main_package,
-            _is_readonly=readonly,
-            _default_scope=self.scope,
-            _engines=engines if engines is not None else self.get_engines(),
+        session = super().request_session(
+            engines=engines, readonly=readonly, system_commit=system_commit
         )
+        session.parent = self._main_package
+        return session
 
     @override
     @asynccontextmanager
@@ -237,6 +237,7 @@ class Host(GraphIoServiceBase, HostBase, HostSpec):
         async with self.tx_lock, unsuspend_session(
             self._session, readonly=readonly, autocommit=autocommit
         ):
+            self._session._epoch = self.epoch
             yield self._session
 
     @property
@@ -532,38 +533,11 @@ class Host(GraphIoServiceBase, HostBase, HostSpec):
         await self._session.commit(_skip_lock=True)  # already in a locked section
         if was_suspended:
             self._session.suspend()
-        logger.debug("host.on_commit", host=self, commit=commit, span="current")
-
-    async def _commit_system_session(
-        self, session: Session
-    ) -> tuple[list[EditData], list[EditData]]:
-        """
-        Commits our main session for us (the system) from outside a request context.
-        This should emulate what GraphService.commit_transaction does (skipping validation).
-        """
-        assert session is self._session, f"session other than own in {self!r}"
-        assert session._tx is not None, f"no active transaction in {session!r}"
-        edit_graph = NodeDict(session._edited_nodes_by_id)
-
-        # assign epochs
-        epoch = self.epoch
-        for edit in session._tx.edits:
-            epoch += 1
-            edit.epoch = epoch
-
-        # flush edits to get cascaded edits
-        edits, cascaded_edits = await session._tx.flush()
-
-        # extend commit
-        new_edits, epoch = await self.extend_commit(
-            session, edit_graph, edits, epoch, cascaded_edits
+        logger.debug(
+            "host.on_commit",
+            host=self,
+            added=commit.added,
+            updated=commit.updated,
+            removed=commit.removed,
+            span="current",
         )
-        session._tx._add_pending_edits(new_edits)
-
-        # commit
-        edits, cascaded_edits = await session._tx.commit()
-
-        # handle on commit
-        self.epoch = epoch
-        await self.on_commit(edit_graph, edits, epoch, cascaded_edits)
-        return edits, cascaded_edits

@@ -1066,6 +1066,8 @@ def evaluate_edit(
         access_type: AccessType = wiring.unpack_enum(EditType, edit.type)
         node_type: NodeType = wiring.unpack_enum(NodeType, edit.node_ptr.type)
         node_cls = NODE_CLASS_BY_TYPE[node_type]
+        node_id = edit.node_ptr.id
+        assert node_id is not None, f"no node id for {edit!r}"
 
         # figure out the scope to evaluate what in
         if node_cls.__roots__:
@@ -1073,15 +1075,15 @@ def evaluate_edit(
             if edit.type in (EditType.CREATE, EditType.UPSERT):
                 assert edit.new_node_packed, f"no new node for {edit!r}"
                 node_data = unpack_node_delta(
-                    edit.new_node_packed, node_type=node_type, only=(Node.parent,)
+                    edit.new_node_packed, node_type=node_type, only=(node_cls.parent,)
                 )
                 assert node_data.parent_ptr, f"no parent for {edit!r}"
                 scope_id = cast(str, node_data.parent_ptr.id)
                 while scope_id in new_node_scopes_by_child_id:
                     scope_id = new_node_scopes_by_child_id[scope_id]
-                new_node_scopes_by_child_id[edit.node_ptr.id] = scope_id
+                new_node_scopes_by_child_id[node_id] = scope_id
             else:
-                scope_id = new_node_scopes_by_child_id.get(edit.node_ptr.id, edit.node_ptr.id)
+                scope_id = new_node_scopes_by_child_id.get(node_id, node_id)
             scope = graph.get(scope_id)
             assert scope is not None, f"scope {scope_id} for {edit!r} not in {graph!r}"
             root = graph.get_root(scope)
@@ -1090,7 +1092,7 @@ def evaluate_edit(
                 # there's a system rule against creating roots, but would need special logic to enforce it
                 #  (because root would be a node itself, which isn't in the matrix as we expect)
                 return PolicyEffect.DENY, ()
-            scope = root = graph.get(edit.node_ptr.id)
+            scope = root = graph.get(node_id)
         try:
             object_properties = node_cls._mask_properties_ids(edit.properties)
             if not object_properties.any():  # if nothing specified, default to all
@@ -1099,7 +1101,7 @@ def evaluate_edit(
             raise ValidationError(edit, "invalid properties") from e
 
         if scope is None or root is None:
-            raise ValidationError(edit, f"scope {edit.node_ptr.id} not in {graph!r}")
+            raise ValidationError(edit, f"scope {node_id} not in {graph!r}")
         # and evaluate it
         decision, allowed_properties = evaluate_access(
             matrix=matrix,

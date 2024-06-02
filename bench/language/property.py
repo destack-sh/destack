@@ -327,7 +327,7 @@ class Property(_TypeQueryBuilder if TYPE_CHECKING else object):
                 if type(ref) is Object or (
                     ref.__is_struct_only__ and not ref.__is_struct_inlined__
                 ):
-                    assert isinstance(ref.id, int), f"expected id for {self!r}: {ref!r}.id={ref.id}"
+                    assert isinstance(ref.id, int), f"bad {self!r}: {ref!r}.id={ref.id}"
                     return ref.id
                 else:
                     return None  # not stored
