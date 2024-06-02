@@ -31,7 +31,7 @@ from more_itertools import first
 
 from bench.utils.base58 import base58_encode
 from bench.utils.dt import monons
-from bench.utils.env import IS_DEBUG, IS_TEST
+from bench.utils.env import IS_DEV, IS_TEST
 from bench.utils.utils import get_from_env, sentry_capture
 
 logger = structlog.get_logger(__name__)
@@ -376,7 +376,7 @@ class CriticalLock(asyncio.Lock):
     def __init__(
         self,
         name: str,
-        track_acquirer: bool = IS_DEBUG or IS_TEST,
+        track_acquirer: bool = IS_DEV or IS_TEST,
         timeout: float = CRITICAL_LOCK_TIMEOUT,
     ):
         super().__init__()

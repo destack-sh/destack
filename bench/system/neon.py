@@ -8,7 +8,7 @@ import httpx
 import structlog
 
 from bench.language.bench import Region
-from bench.utils.env import IS_DEBUG
+from bench.utils.env import IS_DEV
 from bench.utils.tenacity import RetryOptions, retry
 from bench.utils.utils import get_from_env
 
@@ -256,7 +256,7 @@ class NeonApiRemote(NeonApi):
         raise NotImplementedError
 
 
-IS_NEON_LOCAL = get_from_env("IS_NEON_LOCAL", default=IS_DEBUG, typ=bool)
+IS_NEON_LOCAL = get_from_env("IS_NEON_LOCAL", default=IS_DEV, typ=bool)
 if IS_NEON_LOCAL:
     neon_api = NeonApiLocal(neon_path=get_from_env("NEON_PATH"))
 else:

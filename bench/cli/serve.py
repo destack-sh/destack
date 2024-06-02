@@ -8,11 +8,11 @@ from grpclib.utils import graceful_exit
 
 from bench.cli.utils import async_to_sync_blocking, check_is_consistent
 from bench.language.const import ClientType
-from bench.proto.services import BenchServer, BenchServiceBase
+from bench.proto.services import GrpcServer, ServiceBase
 from bench.runtime.runtime import Runtime
 from bench.system.host import HostRouter
 from bench.system.supervisor import Supervisor
-from bench.utils.env import ENVIRONMENT, IS_DEBUG
+from bench.utils.env import ENVIRONMENT, IS_DEV
 from bench.utils.utils import get_from_env, get_from_env_maybe
 from bench.utils.watch import restart_on_file_changes
 
@@ -26,11 +26,11 @@ async def system(host: str, port: int, watch: bool = False, no_supervisor: bool 
     await check_is_consistent(check_db=True)
     start = time_ns()
     logger.info("serve.system", host=host, port=port, env=ENVIRONMENT)
-    services: list[BenchServiceBase] = [HostRouter()]
+    services: list[ServiceBase] = [HostRouter()]
     if not no_supervisor:
         services.append(Supervisor())
-    server = BenchServer(handlers=services)
-    if IS_DEBUG and watch:
+    server = GrpcServer(handlers=services)
+    if IS_DEV and watch:
         _ = asyncio.create_task(restart_on_file_changes())  # noqa: RUF006
     with graceful_exit([server]):
         await server.start(host=host, port=port)
@@ -53,9 +53,9 @@ async def runtime(host: str, port: int, watch: bool = False):
         machine_id=get_from_env_maybe("MACHINE_ID", typ=UUID),
     )
     services = [server]
-    server = BenchServer(services)
+    server = GrpcServer(services)
 
-    if IS_DEBUG and watch:
+    if IS_DEV and watch:
         _ = asyncio.create_task(restart_on_file_changes())  # noqa: RUF006
     with graceful_exit([server]):
         await server.start(host=host, port=port)

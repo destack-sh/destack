@@ -11,7 +11,7 @@ from bench.language import Client, Server, User
 from bench.language.bench import Bench
 from bench.language.query import NodeNotFoundError
 from bench.language.session import Session
-from bench.utils.env import IS_DEBUG
+from bench.utils.env import IS_DEV
 from bench.utils.utils import get_from_env
 
 logger = structlog.get_logger(__name__)
@@ -82,9 +82,7 @@ async def get_client(session: Session, client_id: UUID) -> Client:
         client._untrack_rec()
         return client
     except NodeNotFoundError as e:
-        raise GRPCError(
-            GRPCStatus.UNAUTHENTICATED, str(e) if IS_DEBUG else "client not found"
-        ) from e
+        raise GRPCError(GRPCStatus.UNAUTHENTICATED, str(e) if IS_DEV else "client not found") from e
 
 
 async def get_client_cached(session: Session, client_id: UUID, client_access_token: str) -> Client:

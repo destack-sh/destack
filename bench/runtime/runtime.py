@@ -21,7 +21,7 @@ from bench.language.const import (
 from bench.language.run import Run
 from bench.language.session import Session, unsuspend_session
 from bench.proto import wire, wiring
-from bench.proto.services import BenchServiceBase
+from bench.proto.services import ServiceBase
 from bench.proto.wire import (
     GraphScope,
     HostStub,
@@ -52,7 +52,7 @@ logger = structlog.get_logger(__name__)
 tracer = trace.get_tracer(__name__)
 
 
-class Runtime(BenchServiceBase, RuntimeBase):
+class Runtime(ServiceBase, RuntimeBase):
     """
     A Runtime processes selected Runs in a Bench/Package in Sessions on a Client.
     """

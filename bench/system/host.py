@@ -36,7 +36,7 @@ from bench.language.transaction import (
 )
 from bench.language.user import User
 from bench.proto import wire
-from bench.proto.services import BenchServiceBase, RpcCallable
+from bench.proto.services import RpcCallable, ServiceBase
 from bench.proto.wire import EditData, GraphScope, HostBase, LogData, ServiceKind
 from bench.system.access import get_client_cached
 from bench.system.core import (
@@ -71,7 +71,7 @@ LOCAL_MACHINE = Machine(
 )
 
 
-class HostRouter(BenchServiceBase, HostBase):
+class HostRouter(ServiceBase, HostBase):
     """
     Multiplexes requests per Bench to a Host using gRPC metadata ('bench-id').
     Also provides some process-level shared functionality.

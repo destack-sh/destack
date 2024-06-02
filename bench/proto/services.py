@@ -32,8 +32,9 @@ from bench.proto.wire import RpcMetadata, ServiceKind
 from bench.proto.wiring import BENCH_CLASS_BY_PROTO_CLASS
 from bench.sql.engine import SqlAlreadyExistsError, SqlNotExistsError
 from bench.utils.casing import Casing, to_casing
-from bench.utils.env import IS_DEBUG, IS_TEST
+from bench.utils.env import IS_DEV, IS_TEST
 from bench.utils.task import TaskManager
+from bench.utils.tracing import export_now
 from bench.utils.utils import sentry_capture
 
 logger = structlog.get_logger(__name__)
@@ -64,7 +65,7 @@ def get_grpc_status_from_bench_error(e: BenchError) -> GRPCStatus:
     return status
 
 
-class BenchServiceBase:
+class ServiceBase:
     """gRPC service with some extra stuff for custom loops, auth, logging, metadata, ..."""
 
     kind: ClassVar[ServiceKind]
@@ -88,7 +89,7 @@ class BenchServiceBase:
         # combine mappings from non-overlapping superclasses
         patched_mapping = {}
         for cls in self.__class__.__bases__:
-            if cls.__mapping__ == BenchServiceBase.__mapping__:
+            if cls.__mapping__ == ServiceBase.__mapping__:
                 continue
             for method, handler in cls.__mapping__(self).items():
                 patched_mapping[method] = self._wrap_rpc(method, handler)
@@ -212,7 +213,7 @@ class BenchServiceBase:
                 # internal error
                 sentry_capture(e)
                 log.exception(f"{rpc_name}.internal_error", error=e, span="current")
-                if IS_DEBUG or IS_TEST:
+                if IS_DEV or IS_TEST:
                     details = f"{e.__class__.__name__}: {e}"
                 else:
                     details = e.__class__.__name__
@@ -221,13 +222,13 @@ class BenchServiceBase:
         return grpclib.const.Handler(_managed_rpc, cardinality, request_type, reply_type)
 
 
-class BenchServer(grpclib.server.Server):
+class GrpcServer(grpclib.server.Server):
     """gRPC server with extra bells and whistles."""
 
     def __init__(self, handlers: Collection["IServable"], **kwargs):
         super().__init__(handlers, **kwargs)
-        self._services: tuple[BenchServiceBase, ...] = tuple(
-            h for h in handlers if isinstance(h, BenchServiceBase)
+        self._services: tuple[ServiceBase, ...] = tuple(
+            h for h in handlers if isinstance(h, ServiceBase)
         )
         self._host: str | None = None
         self._port: int | None = None
@@ -250,6 +251,7 @@ class BenchServer(grpclib.server.Server):
         for task in self._services:
             task.close()
         super().close()
+        export_now()
         logger.debug("server.close", server=self)
 
     async def wait_closed(self) -> None:

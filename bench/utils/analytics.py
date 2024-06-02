@@ -7,7 +7,7 @@ import sentry_sdk
 import structlog
 from sentry_sdk.integrations.logging import LoggingIntegration
 
-from bench.utils.env import IS_DEBUG, IS_TEST
+from bench.utils.env import IS_DEV, IS_TEST
 from bench.utils.utils import get_from_env
 
 logger = structlog.get_logger(__name__)
@@ -44,12 +44,12 @@ def init_sentry():
 
 def setup_analytics():
     # Sentry
-    if not (IS_TEST or IS_DEBUG or TYPE_CHECKING):
+    if not (IS_TEST or IS_DEV or TYPE_CHECKING):
         init_sentry()
 
     # Posthog
     posthog.api_key = "phc_d8mi3OMdtKSVA8kzHbBoKtYU3ZsMQakAiLpuOn3W9ma"
     posthog.host = "https://eu.posthog.com"
 
-    if IS_TEST or IS_DEBUG or TYPE_CHECKING:
+    if IS_TEST or IS_DEV or TYPE_CHECKING:
         posthog.disabled = True
