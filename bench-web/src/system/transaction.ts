@@ -178,17 +178,17 @@ export class TransactionBuilder implements Transaction {
     node: AnyNodeData,
     debounce: DebounceLevel | null,
   ) {
-    let newNodePacked = null;
-    let oldNodePacked = null;
+    let newNodePacked = undefined;
+    let oldNodePacked = undefined;
     if (
       editType == EditType.CREATE ||
       editType == EditType.UPSERT ||
       editType == EditType.UNARCHIVE ||
       editType == EditType.RESTORE
     ) {
-      newNodePacked = packStructValueScalar(node);
+      newNodePacked = packNodeDelta(node);
     } else if (editType == EditType.DELETE || editType == EditType.ARCHIVE || editType == EditType.SOFT_DELETE) {
-      oldNodePacked = packStructValueScalar(node);
+      oldNodePacked = packNodeDelta(node);
     }
 
     const edit: EditData = {
@@ -196,8 +196,8 @@ export class TransactionBuilder implements Transaction {
       type: editType,
       nodePtr: toNodeReference(node),
       scope: this._getScope(node),
-      oldNodePacked: oldNodePacked != null ? Struct.fromJson(oldNodePacked) : undefined,
-      newNodePacked: newNodePacked != null ? Struct.fromJson(newNodePacked) : undefined,
+      oldNodePacked,
+      newNodePacked,
       properties: [],
       origin: origin.value,
       subjectPtr: this.subject,
@@ -412,9 +412,9 @@ export function editGraph(
       } else {
         graph.update(newNodeData);
       }
-    } else if (edit.type == EditType.DELETE) {
+    } else if (edit.type == EditType.DELETE && !(options?.isOverlayOf && !graph.has(edit.nodePtr!))) {
       // remove
-      const oldNode = graph.get({ id: edit.nodePtr!.id });
+      const oldNode = graph.get(edit.nodePtr!);
       if (!oldNode) throw new Error(`missing node for delete: ${edit.nodePtr!.id}`);
       graph.remove(oldNode);
     } else {
@@ -424,9 +424,9 @@ export function editGraph(
         if (edit.oldNodePacked == null) throw new Error(`missing old node in edit: ${describeEdit(edit)}`);
         updatedNode = unpackNodeDelta(edit.oldNodePacked, nodeType);
       } else {
-        updatedNode = graph.get({ id: edit.nodePtr!.id });
+        updatedNode = graph.get(edit.nodePtr!);
         if (!updatedNode && options?.isOverlayOf) {
-          updatedNode = options.isOverlayOf.get({ id: edit.nodePtr!.id });
+          updatedNode = options.isOverlayOf.get(edit.nodePtr!);
         }
         if (!updatedNode) {
           throw new Error(`missing node for update: ${edit.nodePtr!.id}`);
@@ -450,6 +450,7 @@ export function editGraph(
       }
 
       // implicit metadata
+      const extraImplicitProperties: number[] = [];
       updatedNode.updatedAt = edit.editedAt;
       if (edit.epoch != null && "updatedEpoch" in updatedNode) {
         updatedNode.updatedEpoch = edit.epoch;
@@ -458,20 +459,29 @@ export function editGraph(
       updatedNode.revision = edit.revision ?? BigInt(-1);
       if (edit.type == EditType.ARCHIVE) {
         updatedNode.archivedAt = edit.editedAt;
+        extraImplicitProperties.push(BlockProperty.archivedAt);
       } else if (edit.type == EditType.UNARCHIVE) {
         updatedNode.archivedAt = undefined;
-      } else if (edit.type == EditType.SOFT_DELETE) {
+        extraImplicitProperties.push(BlockProperty.archivedAt);
+      } else if (edit.type == EditType.SOFT_DELETE || edit.type == EditType.DELETE) {
+        // (we handle DELETE here for overlays)
         updatedNode.deletedAt = edit.editedAt;
+        extraImplicitProperties.push(BlockProperty.deletedAt);
       } else if (edit.type == EditType.RESTORE) {
         updatedNode.deletedAt = undefined;
+        extraImplicitProperties.push(BlockProperty.deletedAt);
       }
 
       // extend setProperties for overlay
       if (options?.isOverlayOf != null) {
         if ((updatedNode.setProperties?.length ?? 0) == 0) {
-          updatedNode.setProperties = [...IMPLICIT_UPDATE_PROPERTIES_IDS, ...edit.properties];
+          updatedNode.setProperties = [
+            ...IMPLICIT_UPDATE_PROPERTIES_IDS,
+            ...edit.properties,
+            ...extraImplicitProperties,
+          ];
         } else {
-          for (const propId of edit.properties) {
+          for (const propId of [...edit.properties, ...extraImplicitProperties]) {
             if (!updatedNode.setProperties.includes(propId)) updatedNode.setProperties.push(propId);
           }
         }
