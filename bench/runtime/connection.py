@@ -78,6 +78,12 @@ class ConnectedQuery[NodeT: Node, NodeDataT: AnyNodeData](abc.ABC):
         """The current result of the query (if any)."""
         ...
 
+    @property
+    @abc.abstractmethod
+    def epoch(self) -> int:
+        """The current epoch of the query (if any)."""
+        ...
+
     def migrate(self, session: Session):
         """Migrate the query to a new session."""
         if self._node is not None:
@@ -119,6 +125,7 @@ class RemoteQuery[NodeT: Node, NodeDataT: AnyNodeData](ConnectedQuery[NodeT, Nod
         self._remote = remote
         self._scope = scope
         self._has_result: asyncio.Event = asyncio.Event()
+        self._epoch: int | None = None
         self._is_closed: bool = False
         self._is_paused: bool = False
         self._rpc_metadata = rpc_metadata
@@ -131,8 +138,13 @@ class RemoteQuery[NodeT: Node, NodeDataT: AnyNodeData](ConnectedQuery[NodeT, Nod
 
     @property
     def node(self) -> NodeT:
-        assert self._node is not None, "query has no current result"
+        assert self._node is not None, f"{self!r} has no result"
         return self._node
+
+    @property
+    def epoch(self) -> int:
+        assert self._epoch is not None, f"{self!r} has no result"
+        return self._epoch
 
     @tracer.start_as_current_span("query.start")
     async def start(self) -> None:
@@ -158,6 +170,7 @@ class RemoteQuery[NodeT: Node, NodeDataT: AnyNodeData](ConnectedQuery[NodeT, Nod
                     assert (
                         self._node._read is not None and self._node._read.epoch is not None
                     ), f"need read info for {self._node!r} from {self._query!r}: {self._node._read!r}"
+                    self._epoch = self._node._read.epoch
                     self._has_result.set()
                     logger.debug(
                         "query.connect",
@@ -188,6 +201,7 @@ class RemoteQuery[NodeT: Node, NodeDataT: AnyNodeData](ConnectedQuery[NodeT, Nod
                         self._session.suppress()  # ignore edits
                         edit_graph(graph, rep.edits, options=self._query._options)
                         self._session.unsuppress()
+                        self._epoch = rep.epoch
             except self._retry.retry_on as e:
                 logger.error("query.error", query=self._query, exc_info=e)
                 retry.on_error(e)

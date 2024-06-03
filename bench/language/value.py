@@ -43,9 +43,9 @@ ScalarValueData = Union[
     ProtoStruct,
 ]
 SomeValue = Union[ScalarValue, Collection[ScalarValue], None]
+SomeValueData = Union[ScalarValueData, Collection[ScalarValueData], None]
 JsonPrimitive = Union[str, int, float, bool, None]
 JsonValue = Union[JsonPrimitive, dict[str, "JsonValue"], list["JsonValue"]]
-
 ValueParent = Union["Object", "Struct", "Node"]
 ValueProperty = Union["Property", "Field"]
 
@@ -488,7 +488,7 @@ def unpack_value_scalar(value_packed: JsonValue, typ: "TypeInfoBase") -> ScalarV
 
 def pack_value_scalar_data(value: ScalarValueData, typ: "TypeInfoBase") -> JsonValue:
     """
-    Packs the given scalar value into its proto data representation (for struct values).
+    Packs the given scalar value into its proto value representation.
     This is pretty similar to _pack_value_data, but packs properties in the form that proto
      data expects (so e.g. UUIDs are strings, and of course Structs are StructData).
      NOTE :Cleanup: consolidate pack_value_scalar/data variants?
@@ -516,7 +516,7 @@ def pack_value_scalar_data(value: ScalarValueData, typ: "TypeInfoBase") -> JsonV
 
 def unpack_value_scalar_data(value_packed: JsonValue, typ: "TypeInfoBase") -> ScalarValueData:
     """
-    Unpacks the given scalar value into its proto data representation (for struct values). See above.
+    Unpacks the given scalar value into its proto data representation. See above.
     """
     if typ.kind == TypeKind.PRIMITIVE:
         if typ.primitive_type == PrimitiveType.BYTES:
@@ -680,7 +680,7 @@ def pack_value(
     value: SomeValue | None, typ: "TypeInfoBase", wrap_primitive: bool = True
 ) -> tuple[JsonValue, JsonValue | None]:
     """
-    Packs a value into its constituent JSON-able parts (packed value & secret packed value).
+    Packs a value into JSON-able parts (packed value & secret packed value).
     Only minimal type checks are performed, invalid values will error in various ways.
     TODO :Incomplete: handle :SecretValues
     """
@@ -716,6 +716,26 @@ def pack_value(
         if wrap_primitive:
             value_packed = {typ.identity_key: value_packed}
         return value_packed, None
+
+
+def pack_value_data(
+    value: SomeValueData, typ: "TypeInfoBase", wrap_primitive: bool = True
+) -> tuple[JsonValue, JsonValue | None]:
+    """Packs a data value into JSON-able parts. See above."""
+    typ = typ._to_resolved()
+    assert typ.kind != TypeKind.ALIAS, f"unresolved type {typ!r}"
+    assert typ.kind != TypeKind.OBJECT, f"cannot pack data for {typ!r}"
+    # wrap scalar
+    value_packed: JsonValue
+    if value is None:
+        value_packed = None
+    elif not typ.is_list:
+        value_packed = pack_value_scalar_data(cast(ScalarValueData, value), typ)
+    else:
+        value_packed = [pack_value_scalar_data(element, typ) for element in cast(list, value)]
+    if wrap_primitive:
+        value_packed = {typ.identity_key: value_packed}
+    return value_packed, None
 
 
 def unpack_value(

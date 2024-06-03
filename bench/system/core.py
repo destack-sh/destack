@@ -3,7 +3,7 @@ import asyncio
 from contextlib import asynccontextmanager
 from dataclasses import dataclass
 from itertools import chain
-from typing import Any, ClassVar, Collection, Generator, Iterable, cast, final, override
+from typing import Any, ClassVar, Collection, Generator, Iterable, final, override
 from uuid import UUID
 
 import bitarray
@@ -166,6 +166,7 @@ def unpack_commit(
     graphs: Collection[NodeGraphLike],
     edits: list[EditData],
     cascaded_edits: list[EditData],
+    epoch: int,
 ) -> Commit:
     """
     Get the summarized, unpacked nodes that change in the given edits.
@@ -246,7 +247,7 @@ def unpack_commit(
         added=tuple(added.values()),
         updated=tuple(updated.values()),
         removed=tuple(removed.values()),
-        epoch=cast(int, edits[-1].epoch),
+        epoch=epoch,
     )
     return commit
 

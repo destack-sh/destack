@@ -55,7 +55,9 @@ class Supervisor(GraphIoServiceBase, SupervisorBase):
     kind = ServiceKind.PUBLIC  # :ServiceKind
 
     def __init__(self):
-        GraphIoServiceBase.__init__(self, bench_id=None, node_types=USER_NODE_TYPES)
+        GraphIoServiceBase.__init__(
+            self, bench_id=None, node_types=USER_NODE_TYPES, logger=logger, tracer=tracer
+        )
 
     def __str__(self):
         return "shards=[*]"
