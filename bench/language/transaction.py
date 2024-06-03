@@ -248,7 +248,7 @@ class Transaction:
                 if prop.reference_wired_ptr is not None:
                     prop = prop.reference_wired_ptr
                 if prop.id_as_str not in old_node_packed:
-                    # keep old value if it already exists
+                    # add old value if it doesn't already exist
                     old_value = old_values.get(prop.id, UNSET)
                     assert old_value is not UNSET, f"missing old value for {prop!r} in {node_!r}"
                     old_node_packed[prop.id_as_str], _ = pack_value(
@@ -572,6 +572,7 @@ def edit_data_graph(
             edit_type = _EXCLUDE_HIDDEN_EDIT_TYPE_REMAP.get(edit_type, edit_type)
 
         if edit_type in (EditType.CREATE, EditType.UPSERT):
+            # add
             assert edit.new_node_packed, f"missing new node for {edit!r}"
             new_node_data = unpack_node_delta(edit.new_node_packed)
             # inline implicit metadata
@@ -585,11 +586,12 @@ def edit_data_graph(
             else:
                 graph.update(new_node_data)
         elif edit_type == EditType.DELETE:
+            # remove
             old_node_data = graph.get(node_id)
             assert old_node_data is not None, f"missing node {edit.node_ptr!r} for {edit!r}"
             graph.remove(old_node_data)
         else:
-            # some update
+            # update
             assert edit.new_node_packed, f"missing new node for {edit!r}"
             new_node_data = unpack_node_delta(edit.new_node_packed, node_type=node_type)
             updated_node_data = graph.get(node_id)
@@ -629,4 +631,5 @@ def edit_data_graph(
                 updated_node_data.deleted_at = edit.edited_at
             elif edit_type == EditType.RESTORE:
                 updated_node_data.deleted_at = None
+                
             graph.update(updated_node_data)

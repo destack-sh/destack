@@ -332,7 +332,7 @@ export function toNodeReferenceRef<T extends NodeType>(
   node: MaybeRef<NodeTypeMapping[T] | null>,
 ): Ref<TypedNodeReferenceData<T> | null> {
   const nodeRef = toRef(node) as Ref<NodeTypeMapping[T] | null>;
-  return computed(() => toNodeReference(nodeRef.value!)); // TODO :Cleanup: shouldn't have to ! to type check here?
+  return computed(() => toNodeReference(nodeRef.value!)); // NOTE :Cleanup: shouldn't have to ! to type check here?
 }
 
 export function toNodeReferenceInPackage<T extends NodeType>(

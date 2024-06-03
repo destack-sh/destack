@@ -8,6 +8,7 @@ import {
   NodeType,
   ObjectType,
   PROPERTY_ENUM_BY_TYPE,
+  PROPERTY_INFOS_BY_TYPE,
   PackageData,
   Struct,
   Timestamp,
@@ -16,9 +17,11 @@ import {
   type EditData,
   type IGraphIOClient,
   type NodeTypeMapping,
+  type PropertyInfo,
 } from "@/proto/wire";
 import {
   describeNode,
+  isNode,
   makeNode,
   nodeReference,
   toNodeReference,
@@ -30,11 +33,18 @@ import { nonce, origin, userOrNullPtr, userPtr } from "@/system/client";
 import { type ReadNodeGraph, type WriteNodeGraph } from "@/system/graph";
 import { makeIcon } from "@/system/icon";
 import { toaster } from "@/system/toast";
-import { packStructValueScalar } from "@/system/value";
+import {
+  getTypeIdentityForProperty,
+  packStructValueScalar,
+  packValue,
+  unpackStructValueScalar,
+  type JsonValue,
+} from "@/system/value";
 import { AsyncEvent } from "@/utils/functools";
 import { IS_DEBUG } from "@/utils/globals";
 import { log } from "@/utils/log";
 import { toValueRef } from "@/utils/ref";
+import { Casing, toCasing } from "@/utils/string";
 import { uuidt } from "@/utils/uuidt";
 import type { RpcError } from "grpc-web";
 import { nextTick, ref, shallowRef, toRef, triggerRef, watch, type MaybeRef, type Ref } from "vue";
@@ -237,34 +247,46 @@ export class TransactionBuilder implements Transaction {
     update: Partial<T>,
     options?: { debounce?: DebounceLevel },
   ) {
-    const allProperties: AnyPropertyType = NODE_PROPERTY_ENUM_BY_TYPE[node.metatype as unknown as NodeType]!;
+    const nodeProperties = NODE_PROPERTY_ENUM_BY_TYPE[node.metatype]!;
+    const nodePropertiesInfo = PROPERTY_INFOS_BY_TYPE[node.metatype]!;
 
     // collect properties
-    const properties = [];
+    const properties: PropertyInfo[] = [];
     for (const propName of Object.keys(update)) {
       if (IMPLICIT_PROPERTIES.includes(propName)) {
         throw new Error(`cannot update constant property for ${describeNode(node)}: ${propName}`);
       }
-      const propId = (allProperties as any)[propName];
-      if (propId == null) {
-        throw new Error(`missing property id for ${describeNode(node)}: ${propName as string}`);
+      const propId = nodeProperties[propName as any];
+      const propInfo = nodePropertiesInfo[propId];
+      if (propInfo == null) {
+        throw new Error(`missing property info for ${describeNode(node)}: ${propName as string}`);
       }
-      properties.push(propId);
+      properties.push(propInfo);
     }
 
     if (!options?.debounce || !this.debouncedUpdates[node.id]) {
       // create new edit
       const patchedNode = { ...node, ...update } as T;
-      const oldNodePacked = {};
-      const newNodePacked = {};
-      for (const propId of properties) {
+      const oldNodePacked: Record<string, JsonValue> = {};
+      const newNodePacked: Record<string, JsonValue> = {};
+      for (const prop of properties) {
+        const typeInfo = getTypeIdentityForProperty(prop);
+        const propName = toCasing(prop.name, Casing.CAMEL);
+        const oldValue = (node as any)[propName];
+        const newValue = (patchedNode as any)[propName];
+        const { valuePacked: oldValuePacked } = packValue(oldValue, typeInfo, null, { wrapPrimitive: false });
+        const { valuePacked: newValuePacked } = packValue(newValue, typeInfo, null, { wrapPrimitive: false });
+        oldNodePacked[prop.id.toString()] = oldValuePacked;
+        newNodePacked[prop.id.toString()] = newValuePacked;
       }
       const edit: EditData = {
         id: newEditId(),
         type: editType,
         nodePtr: toNodeReference(patchedNode),
         scope: this._getScope(patchedNode),
-        properties,
+        properties: properties.map((p) => p.id),
+        oldNodePacked: Struct.fromJson(oldNodePacked),
+        newNodePacked: Struct.fromJson(newNodePacked),
         origin: origin.value,
         subjectPtr: this.subject,
         editedAt: Timestamp.now(),
@@ -276,20 +298,37 @@ export class TransactionBuilder implements Transaction {
       this._notifyEdit(edit, options?.debounce ?? null);
     } else {
       // merge into existing edit & notify directly
-      const debouncedEdit = this.debouncedUpdates[node.id];
-      properties
-        .filter((propId) => !debouncedEdit.properties.includes(propId))
-        .forEach((i) => debouncedEdit.properties.push(i));
-      const prevNode = unwrapSomeNode(debouncedEdit.node!);
-      for (const propName of propertiesNames) {
-        (prevNode as any)[propName] = (update as any)[propName];
+      const edit = this.debouncedUpdates[node.id];
+      if (edit.oldNodePacked == null || edit.newNodePacked == null) {
+        throw new Error(`missing old/new node in debounced edit: ${JSON.stringify(edit)}`);
       }
+      const oldNodePacked = Struct.toJson(edit.oldNodePacked) as Record<string, JsonValue>;
+      const newNodePacked = Struct.toJson(edit.newNodePacked) as Record<string, JsonValue>;
+      for (const prop of properties) {
+        const propName = toCasing(prop.name, Casing.CAMEL);
+        const typeInfo = getTypeIdentityForProperty(prop);
+        // add to Edit.properties if not there yet
+        if (!edit.properties.includes(prop.id)) {
+          edit.properties.push(prop.id);
+        }
+        if (oldNodePacked[prop.id.toString()] == null) {
+          // add old value if it doesn't already exist
+          const oldValue = (node as any)[propName];
+          const { valuePacked: oldValuePacked } = packValue(oldValue, typeInfo, null, { wrapPrimitive: false });
+          oldNodePacked[prop.id.toString()] = oldValuePacked;
+        }
+        // and update new value
+        const newValue = (node as any)[propName];
+        const { valuePacked: newValuePacked } = packValue(newValue, typeInfo, null, { wrapPrimitive: false });
+        newNodePacked[prop.id.toString()] = newValuePacked;
+      }
+      edit.oldNodePacked = Struct.fromJson(oldNodePacked);
+      edit.newNodePacked = Struct.fromJson(newNodePacked);
       // coalesce successive move/update into move edit
-      if (editType == EditType.MOVE) {
-        debouncedEdit.type = EditType.MOVE;
+      if (editType == EditType.MOVE && edit.type != EditType.MOVE) {
+        edit.type = EditType.MOVE;
       }
-      debouncedEdit.node = wrapSomeNode(prevNode);
-      this._notifyEdit(debouncedEdit, options?.debounce);
+      this._notifyEdit(edit, options?.debounce);
     }
   }
 
@@ -326,38 +365,79 @@ export class TransactionBuilder implements Transaction {
   }
 }
 
+export function packNodeDelta(node: AnyNodeData): Struct {
+  const nodePacked = packStructValueScalar(node);
+  return Struct.fromJson(nodePacked);
+}
+
+export function unpackNodeDelta(nodePackedStruct: Struct, nodeType?: NodeType): AnyNodeData {
+  const nodePacked = Struct.toJson(nodePackedStruct);
+  const node = unpackStructValueScalar(nodePacked, nodeType as unknown as ObjectType);
+  if (!isNode(node)) throw new Error(`unexpected node data: ${JSON.stringify(node)}`);
+  return node;
+}
+
 /**
  * Applies the edits to the graph (in place!).
- * If a 'base' graph is provided, the given graph is edited as an overlay.
  */
 export function editGraph(graph: ReadNodeGraph & WriteNodeGraph, edits: EditData[], options?: { isOverlay: boolean }) {
   for (const edit of edits) {
-    if (edit.node == null) throw new Error(`missing node in edit: ${edit}`);
-    const nodeData = unwrapSomeNode(edit.node);
-    if (edit.type == EditType.CREATE || (edit.type == EditType.UPSERT && !graph.get({ id: nodeData.id }))) {
-      graph.add(nodeData);
-    } else if (edit.type == EditType.DELETE && !options?.isOverlay) {
-      graph.remove(nodeData);
+    // nocheckin: handle overlays
+    if (edit.type == EditType.CREATE || edit.type == EditType.UPSERT) {
+      // add
+      if (edit.newNodePacked == null) throw new Error(`missing newNodePacked in edit: ${JSON.stringify(edit)}`);
+      const newNodeData = unpackNodeDelta(edit.newNodePacked);
+      // implicit metadata
+      newNodeData.createdAt = newNodeData.updatedAt = edit.editedAt;
+      if (edit.epoch != null && "createdEpoch" in newNodeData && "updatedEpoch" in newNodeData) {
+        newNodeData.createdEpoch = newNodeData.updatedEpoch = edit.epoch;
+      }
+      newNodeData.createdByPtr = newNodeData.updatedByPtr = edit.subjectPtr;
+      if (edit.type == EditType.CREATE || !graph.has(newNodeData)) {
+        graph.add(newNodeData);
+      } else {
+        graph.update(newNodeData);
+      }
+    } else if (edit.type == EditType.DELETE) {
+      // remove
+      const oldNode = graph.get({ id: edit.nodePtr!.id });
+      if (!oldNode) throw new Error(`missing node for delete: ${edit.nodePtr!.id}`);
+      graph.remove(oldNode);
     } else {
-      const nodeProperties = NODE_PROPERTY_ENUM_BY_TYPE[nodeData.metatype]!;
-      const properties = [...edit.properties, ...(IMPLICIT_PROPERTIES_IDS[edit.type] ?? [])];
-      let existingNode = graph.get({ id: nodeData.id }) as Readonly<Partial<AnyNodeData>> | undefined;
-      if (!existingNode) {
-        if (options?.isOverlay) existingNode = nodeData;
-        else throw new Error(`missing node for ${EditType[edit.type]}: ${describeNode(nodeData)}`);
+      // update
+      if (edit.newNodePacked == null) throw new Error(`missing new node in edit: ${JSON.stringify(edit)}`);
+      const newNode = unpackNodeDelta(edit.newNodePacked, edit.nodePtr!.type);
+      let updatedNode = graph.get({ id: edit.nodePtr!.id });
+      if (!updatedNode) {
+        if (options?.isOverlay) updatedNode = newNode;
+        else throw new Error(`missing node for update: ${edit.nodePtr!.id}`);
+      }
+      updatedNode = { ...updatedNode };
+
+      // directly edited properties
+      for (const propId of edit.properties) {
+        const prop = PROPERTY_INFOS_BY_TYPE[updatedNode.metatype]![propId];
+        if (!prop) throw new Error(`missing property info for ${updatedNode.metatype}: ${propId}`);
+        const propName = toCasing(prop.name, Casing.CAMEL);
+        const newValue = (newNode as any)[propName];
+        (updatedNode as any)[propName] = newValue;
       }
 
-      const updatedNode = { setProperties: [], ...existingNode } as AnyNodeData; // clone
-      for (const propId of properties) {
-        const propName = nodeProperties[propId];
-        (updatedNode as any)[propName] = (nodeData as any)[propName];
+      // implicit metadata
+      updatedNode.updatedAt = edit.editedAt;
+      if (edit.epoch != null && "updatedEpoch" in updatedNode) {
+        updatedNode.updatedEpoch = edit.epoch;
       }
-      if (options?.isOverlay) {
-        // update 'setProperties' with newly set properties
-        updatedNode.setProperties = [...(existingNode.setProperties ?? [])];
-        properties
-          .filter((propId) => !updatedNode.setProperties.includes(propId))
-          .forEach((i) => updatedNode.setProperties.push(i));
+      updatedNode.updatedByPtr = edit.subjectPtr;
+      updatedNode.revision = edit.revision ?? BigInt(-1);
+      if (edit.type == EditType.ARCHIVE) {
+        updatedNode.archivedAt = edit.editedAt;
+      } else if (edit.type == EditType.UNARCHIVE) {
+        updatedNode.archivedAt = undefined;
+      } else if (edit.type == EditType.SOFT_DELETE) {
+        updatedNode.deletedAt = edit.editedAt;
+      } else if (edit.type == EditType.RESTORE) {
+        updatedNode.deletedAt = undefined;
       }
 
       graph.update(updatedNode);

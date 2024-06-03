@@ -178,8 +178,6 @@ export const packagePtr = computed(() => {
       benchId: _benchPtr.value.id!,
     });
 }) as Readonly<Ref<TypedNodeReferenceData<NodeType.PACKAGE> | null>>;
-// Local persisted graphs.
-const _localGraphs = useLocal("localGraphs") as Ref<LocalNodeGraph[] | null>;
 // Current local Space graph (not yet persisted).
 const _spaceGraphLocal = new NodeGraph({ scope: { benchId: LOCAL_BENCH_ID, packageId: LOCAL_PACKAGE_ID } });
 _spaceGraphLocal.add({
