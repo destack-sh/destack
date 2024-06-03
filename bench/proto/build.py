@@ -253,6 +253,7 @@ AnyStructData = Union[{', '.join([cls.__name__ + 'Data' for cls in STRUCT_CLASSE
         property_enum_maps_parts.append(property_enum_map_str)
     property_enum_maps_str = "\n".join(property_enum_maps_parts)
 
+    # TODO :Incomplete: add TypeConstraint to PropertyInfo for bench-web
     object_info_type_str = """
 export type PropertyKind = 'primitive' | 'enum' | 'reference';
 export type PropertyInfo = {

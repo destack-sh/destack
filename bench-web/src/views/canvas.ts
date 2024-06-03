@@ -1,15 +1,20 @@
 import {
   Anchor,
+  BenchType,
   DESCENDANT_NODE_TYPES,
   IconData,
   NodeReferenceData,
   NodeType,
   ObjectType,
   Orientation,
+  PrimitiveType,
   SelectionData,
   SelectionKind,
   SpaceData,
   StructType,
+  TypeInfoData,
+  TypeKind,
+  Variant,
   ViewData,
   ViewType,
   type AnyNodeData,
@@ -27,7 +32,7 @@ import {
 } from "@/proto/wiring";
 import type { GraphConnection } from "@/system/connection";
 import { isDescendantOf, type NodeKey, type ReadNodeGraph } from "@/system/graph";
-import { toIconMaybe } from "@/system/icon";
+import { ENUM_ICONS_BY_TYPE, toIconMaybe } from "@/system/icon";
 import {
   NODE_VIEW_TYPES,
   HELPER_VIEW_TYPES,
@@ -35,9 +40,13 @@ import {
   generateNodeName,
   getOrderKey,
   updateOrder,
+  getEnumOptions,
+  isEnumType,
+  isNodeType,
 } from "@/system/lang";
 import { inspectionBasePtr, inspectionPtr } from "@/system/space";
 import type { Transaction } from "@/system/transaction";
+import { type TypeIdentity, makeTypeInfo } from "@/system/value";
 import type { SplitAnchor } from "@/utils/drag";
 import { getElement, isFocusableElement } from "@/utils/element";
 import { generateOrderKey } from "@/utils/fractional";
@@ -46,7 +55,7 @@ import { DEFAULT_ORIENTATION, splitBox } from "@/utils/layout";
 import { log } from "@/utils/log";
 import { deepValueEquals, toValueRef } from "@/utils/ref";
 import { Casing, toCasing } from "@/utils/string";
-import { getViewTypeByComponentName, type FocusAnchor, type ViewComponent } from "@/views/common";
+import { getViewTypeByComponentName, type FocusAnchor, type ViewComponent, type ViewProps } from "@/views/common";
 import { useActiveElement, useEventListener, type MaybeElement } from "@vueuse/core";
 import {
   computed,
@@ -1128,17 +1137,13 @@ export function useExpansion(options: {
     if (isExpanded(node)) {
       options.connection.tx.update(
         selfNode,
-        {
-          expansion: collapseSelection(selfNode.expansion!, [node]),
-        },
+        { expansion: collapseSelection(selfNode.expansion!, [node]) },
         { debounce: "tick" },
       );
     } else if (!isExpanded(node)) {
       options.connection.tx.update(
         selfNode,
-        {
-          expansion: expandSelection(selfNode.expansion, [node]),
-        },
+        { expansion: expandSelection(selfNode.expansion, [node]) },
         { debounce: "tick" },
       );
     }

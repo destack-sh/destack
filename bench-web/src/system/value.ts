@@ -15,6 +15,7 @@ import {
   ViewType,
   type AnyNodeData,
   type AnyStructData,
+  type PropertyInfo,
   type TypeInfoData,
 } from "@/proto/wire";
 import { describeNode, isStruct, makeDefaultStruct } from "@/proto/wiring";
@@ -34,6 +35,7 @@ import {
 import { decodeB64VLQ, encodeB64VLQ } from "@/utils/functools";
 import { toCamelCase } from "@/utils/string";
 import type { ViewProps } from "@/views/common";
+import type { MessageType } from "@protobuf-ts/runtime";
 
 export type TypeIdentity = Pick<
   TypeInfoData,
@@ -73,52 +75,34 @@ export function makeTypeInfo(partial: Partial<Omit<TypeInfoData, "metatype">>): 
   return makeDefaultStruct({ ...partial, metatype: StructType.TYPE_INFO });
 }
 
-const VIEW_TYPE_BY_BENCH_TYPE: Partial<Record<BenchType, ViewType>> = {
-  [BenchType.ICON]: ViewType.ICON,
-  [BenchType.CODE]: ViewType.CODE,
-  [BenchType.TEXT]: ViewType.TEXT,
-};
-const VIEW_TYPE_BY_PRIMITIVE_TYPE: Partial<Record<PrimitiveType, ViewType>> = {
-  [PrimitiveType.STRING]: ViewType.STRING,
-  [PrimitiveType.INT16]: ViewType.NUMBER,
-  [PrimitiveType.INT32]: ViewType.NUMBER,
-  [PrimitiveType.INT64]: ViewType.NUMBER,
-  [PrimitiveType.FLOAT32]: ViewType.NUMBER,
-  [PrimitiveType.FLOAT64]: ViewType.NUMBER,
-  [PrimitiveType.BOOLEAN]: ViewType.TOGGLE,
-  [PrimitiveType.DATETIME]: ViewType.CALENDAR,
-  [PrimitiveType.INTERVAL]: ViewType.CALENDAR,
-  [PrimitiveType.JSON]: ViewType.JSON,
-};
-
-export function getViewForValueType(type: TypeIdentity & Partial<TypeInfoData>): {
-  viewType: ViewType;
-  props?: ViewProps;
-} | null {
-  if (type.kind == TypeKind.OBJECT) {
-    return { viewType: ViewType.OBJECT, props: { valueType: type as TypeInfoData } };
-  } else if (type.benchType != null) {
-    if (VIEW_TYPE_BY_BENCH_TYPE[type.benchType] != null) {
-      return { viewType: VIEW_TYPE_BY_BENCH_TYPE[type.benchType]! };
-    } else if (isEnumType(type.benchType)) {
-      // prefer inline picker if possible
-      if (getEnumOptions(type.benchType).length <= 5) {
-        const variant = ENUM_ICONS_BY_TYPE[type.benchType] != null ? Variant.STEALTH : Variant.COMPACT;
-        return {
-          viewType: ViewType.PICKER,
-          props: { valueType: makeTypeInfo(type), variant, isInline: true },
-        };
-      } else {
-        return { viewType: ViewType.PICKER, props: { valueType: makeTypeInfo(type) } };
-      }
-    } else if (isNodeType(type.benchType)) {
-      return { viewType: ViewType.PICKER, props: { valueType: makeTypeInfo(type) } };
-    }
-  } else if (VIEW_TYPE_BY_PRIMITIVE_TYPE[type.primitiveType!] != null) {
-    return { viewType: VIEW_TYPE_BY_PRIMITIVE_TYPE[type.primitiveType!]! };
+export function getTypeIdentityForProperty(property: PropertyInfo): TypeIdentity {
+  // TODO :Performance: cache PropertyInfo->TypeIdentity
+  let kind: TypeKind;
+  let benchType: BenchType | undefined;
+  let primitiveType: PrimitiveType | undefined;
+  if ((property.referenceNodes?.length ?? 0) > 0) {
+    kind = TypeKind.NODE;
+    benchType = property.referenceNodes![0] as unknown as BenchType;
+  } else if (property.referenceStruct != null) {
+    kind = TypeKind.STRUCT;
+    benchType = property.referenceStruct as unknown as BenchType;
+  } else if (property.enumType != null) {
+    kind = TypeKind.ENUM;
+    benchType = property.enumType as unknown as BenchType;
+  } else if (property.primitiveType != null) {
+    kind = TypeKind.PRIMITIVE;
+    primitiveType = property.primitiveType;
+  } else {
+    throw new Error(`cannot determine type info for ${JSON.stringify(property)}`);
   }
 
-  return null;
+  return {
+    kind,
+    benchType,
+    primitiveType,
+    isList: property.isList ?? false,
+    isSecret: property.isEncrypted ?? false,
+  };
 }
 
 const LETTER_BY_TYPE_KIND: Partial<Record<TypeKind, string>> = {
@@ -322,8 +306,10 @@ export function packStructValueScalar(object: AnyStructData | AnyNodeData): any 
 }
 
 /** Decodes 'robust' proto value. See encode. */
-export function unpackStructValueScalar(value: any): AnyStructData | AnyNodeData {
-  const objectType = value["1"] as ObjectType;
+export function unpackStructValueScalar(value: any, objectType?: ObjectType): AnyStructData | AnyNodeData {
+  if (objectType == null) {
+    objectType = value["1"] as ObjectType;
+  }
   const messageType = MESSAGE_TYPE_BY_OBJECT_TYPE[objectType];
   if (messageType == null) throw new Error(`unexpected object type ${objectType}`);
 
@@ -414,22 +400,27 @@ function unpackObjectScalar(
 }
 
 /**
- * Pack the value into robust wire format.
+ * Pack the value data into JSON wire format.
+ * Graph is required if we're dealing with an alias or any object type.
  * If previous is passed, old values with different types will be retained.
  * TODO :Incomplete: handle :SecretValues
  * */
 export function packValue(
   value: any,
   type: TypeIdentity,
-  graph: ReadNodeGraph,
+  graph: ReadNodeGraph | null,
   options: { wrapPrimitive: boolean } = { wrapPrimitive: true },
   previous?: { valuePacked?: JsonValue; secretValuePacked?: JsonValue | undefined },
 ): { valuePacked: JsonValue; secretValuePacked: JsonValue | undefined } {
-  type = resolveType(type, graph);
+  if (type.kind == TypeKind.ALIAS) {
+    if (graph == null) throw new Error(`missing graph to resolve ${describeTypeIdentity(type)}`);
+    type = resolveType(type, graph);
+  }
   if (type.kind == TypeKind.ALIAS) {
     throw new Error(`unresolved type ${describeTypeIdentity(type)}`);
   } else if (type.kind == TypeKind.OBJECT) {
     // nested object
+    if (graph == null) throw new Error(`missing graph to pack object type ${describeTypeIdentity(type)}`);
     if (value == null) {
       return { valuePacked: null, secretValuePacked: undefined };
     } else if (!type.isList) {
@@ -462,18 +453,24 @@ export function packValue(
 }
 
 /**
- * Unpack the value from robust wire format.
+ * Unpack the value data from JSON wire format.
+ * Graph is required if we're dealing with an alias or any object type.
  */
 export function unpackValue(
   packed: { valuePacked?: JsonValue; secretValuePacked?: JsonValue },
   type: TypeIdentity,
-  graph: ReadNodeGraph,
+  graph: ReadNodeGraph | null,
 ): any {
-  type = resolveType(type, graph);
+  if (type.kind == TypeKind.ALIAS) {
+    if (graph == null) throw new Error(`missing graph to resolve ${describeTypeIdentity(type)}`);
+    type = resolveType(type, graph);
+  }
+
   if (type.kind == TypeKind.ALIAS) {
     throw new Error(`unresolved type ${describeTypeIdentity(type)}`);
   } else if (type.kind == TypeKind.OBJECT) {
     // nested object
+    if (graph == null) throw new Error(`missing graph to unpack object type ${describeTypeIdentity(type)}`);
     if (packed.valuePacked == null) {
       return null;
     } else if (!type.isList) {

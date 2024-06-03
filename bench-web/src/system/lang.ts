@@ -46,7 +46,8 @@ import {
 import { isDescendantOf, resolveNode, type ReadNodeGraph } from "@/system/graph";
 import { ENUM_ICONS_BY_TYPE, getNodeIcon, makeIcon } from "@/system/icon";
 import type { DebounceLevel, Transaction } from "@/system/transaction";
-import { getViewForValueType, makeTypeInfo, type TypeIdentity } from "@/system/value";
+import { makeTypeInfo, type TypeIdentity } from "@/system/value";
+import { getViewForValueType } from "@/system/view";
 import { generateOrderKey, generateOrderKeys, isValidOrderKey } from "@/utils/fractional";
 import { log } from "@/utils/log";
 import { Casing, toCasing } from "@/utils/string";

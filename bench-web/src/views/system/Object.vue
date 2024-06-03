@@ -14,9 +14,10 @@ import { computed, ref, toRef, type Ref } from "vue";
 import { useExistingConnection, type PreparedGetConnection } from "@/system/connection";
 import type { PopoverInfoIn } from "@/utils/menu";
 import { ICON_BY_BLOCK_TYPE, IconInline } from "@/system/icon";
-import { getStorageKey, getViewForValueType, resolveType, type TypeIdentity } from "@/system/value";
+import { getStorageKey, resolveType, type TypeIdentity } from "@/system/value";
 import { getViewComponent } from "@/views/registry";
 import { FULL_WIDTH_VIEW_TYPES } from "@/system/lang";
+import { getViewForValueType } from "@/system/view";
 
 const MIN_WIDTH = 320;
 const DEFAULT_WIDTH = 280;
