@@ -545,14 +545,14 @@ def edit_data_graph(
     edits: Collection[EditData],
     options: "ReadOptions | None",
     *,
-    keep_all: bool = False,
+    keep_removed: bool = False,
     reset_old: bool = False,
-    bump: bool = False,
 ) -> None:
     """Applies the edits to the data graph (edited nodes are copied before update)."""
     trace.get_current_span().set_attribute("edits", len(edits))
 
     from bench.language.query import DEFAULT_READ_OPTIONS
+    from bench.language.value import pack_value_data
     from bench.proto import wiring
 
     if options is None:
@@ -566,7 +566,7 @@ def edit_data_graph(
         assert node_id is not None, f"missing node id for {edit!r}"
 
         # remap edit according to read options
-        if keep_all:
+        if keep_removed:
             edit_type = _INCLUDE_ALL_EDIT_TYPE_REMAP.get(edit_type, edit_type)
         elif options.include_hidden:
             edit_type = _INCLUDE_HIDDEN_EDIT_TYPE_REMAP.get(edit_type, edit_type)
@@ -576,7 +576,16 @@ def edit_data_graph(
         if edit_type in (EditType.CREATE, EditType.UPSERT):
             assert edit.new_node_packed, f"missing new node for {edit!r}"
             new_node_data = unpack_node_delta(edit.new_node_packed)
-            graph.add(new_node_data)
+            # inline implicit metadata
+            new_node_data.created_at = new_node_data.updated_at = edit.edited_at
+            if hasattr(new_node_data, "created_epoch"):
+                setattr(new_node_data, "created_epoch", edit.epoch)
+                setattr(new_node_data, "updated_epoch", edit.epoch)
+            new_node_data.created_by_ptr = new_node_data.updated_by_ptr = edit.subject_ptr
+            if edit_type == EditType.CREATE or new_node_data.id not in graph:
+                graph.add(new_node_data)
+            else:
+                graph.update(new_node_data)
         elif edit_type == EditType.DELETE:
             old_node_data = graph.get(node_id)
             assert old_node_data is not None, f"missing node {edit.node_ptr!r} for {edit!r}"
@@ -588,23 +597,32 @@ def edit_data_graph(
             updated_node_data = graph.get(node_id)
             assert updated_node_data is not None, f"missing node {edit.node_ptr!r} for {edit!r}"
             updated_node_data = wiring.copy_struct(updated_node_data)
+
             # directly edited properties
             node_cls = NODE_CLASS_BY_TYPE[node_type]
+            old_node_data = {}
             for prop_id in edit.properties:
                 prop = node_cls.__properties_by_id__.get(prop_id)
                 assert prop is not None, f"missing property {prop_id} for update: {edit!r}"
                 if prop.reference_wired_ptr is not None:
                     prop = prop.reference_wired_ptr
+                if reset_old:
+                    old_value = getattr(updated_node_data, prop.name)
+                    old_node_data[prop.id_as_str], _ = pack_value_data(
+                        old_value, prop.as_type_info, wrap_primitive=False
+                    )
                 new_value_data = getattr(new_node_data, prop.name)
                 setattr(updated_node_data, prop.name, new_value_data)
+            if reset_old:
+                edit.old_node_packed = wiring.pack_proto_json(old_node_data)
+
             # implicit metadata
             updated_node_data.updated_at = edit.edited_at
             if "updated_epoch" in node_cls.__properties_by_id__:
                 setattr(updated_node_data, "updated_epoch", edit.epoch)
             setattr(updated_node_data, "updated_by_ptr", edit.subject_ptr)
-            if edit.revision is not None:
-                # Edit.revision may be unset when editing before flushing for validation
-                updated_node_data.revision = edit.revision
+            # Edit.revision may be unset when editing before flushing for validation
+            updated_node_data.revision = edit.revision if edit.revision is not None else -1
             if edit_type == EditType.ARCHIVE:
                 updated_node_data.archived_at = edit.edited_at
             elif edit_type == EditType.UNARCHIVE:
@@ -614,13 +632,3 @@ def edit_data_graph(
             elif edit_type == EditType.RESTORE:
                 updated_node_data.deleted_at = None
             graph.update(updated_node_data)
-
-
-@tracer.start_as_current_span("graph.sync_graph_revisions")
-def sync_graph_revisions(
-    source: NodeDataGraph[AnyNodeData], target: NodeGraph["Node"] | DetachedNodeGraph["Node"]
-):
-    """Syncs the revisions of nodes in the target graph with the source graph."""
-    for node in source.nodes:
-        target_node = target[UUID(node.id)]
-        target_node.revision = node.revision

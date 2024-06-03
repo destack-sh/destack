@@ -69,7 +69,7 @@ class Runtime(ServiceBase, RuntimeBase):
         client_access_token: str,
         machine_id: UUID | None,
     ):
-        super().__init__()
+        super().__init__(logger=logger, tracer=tracer)
 
         # parse out supervisor host and port
         _supervisor_url = urlparse(supervisor_url)

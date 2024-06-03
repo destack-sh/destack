@@ -32,7 +32,6 @@ from bench.language.transaction import (
     edit_data_graph,
     edit_graph,
     pack_node_delta,
-    sync_graph_revisions,
 )
 from bench.language.user import User
 from bench.proto import wire
@@ -81,7 +80,7 @@ class HostRouter(ServiceBase, HostBase):
     kind = ServiceKind.PUBLIC  # :ServiceKind
 
     def __init__(self):
-        super().__init__()
+        super().__init__(logger=logger, tracer=tracer)
         self._hosts: dict[UUID, Host] = {}
         self._hosts_lock = asyncio.Lock()
 
@@ -177,7 +176,9 @@ class Host(GraphIoServiceBase, HostBase, HostSpec):
     kind = ServiceKind.PUBLIC  # :ServiceKind
 
     def __init__(self, bench_id: UUID):
-        GraphIoServiceBase.__init__(self, bench_id=bench_id, node_types=IN_BENCH_NODE_TYPES)
+        GraphIoServiceBase.__init__(
+            self, bench_id=bench_id, node_types=IN_BENCH_NODE_TYPES, logger=logger, tracer=tracer
+        )
 
         self.bench_id = bench_id
         self._bench: Bench | None = None
@@ -492,21 +493,20 @@ class Host(GraphIoServiceBase, HostBase, HostSpec):
                 package_edits.append(edit)
             else:
                 bench_edits.append(edit)
-        if bench_edits:
-            # filter the in memory edits to only those with an origin
-            # (we/Host/system don't have an 'origin' and edit our nodes directly in the session)
-            inmemory_bench_edits = tuple(e for e in bench_edits if e.origin is not None)
-            options = BENCH_QUERY._options
-            edit_graph(self._bench._graph, inmemory_bench_edits, options)
-            edit_data_graph(self._bench._data_graph, bench_edits, options, bump=True)
-            sync_graph_revisions(self._bench._data_graph, self._bench._graph)
-        if package_edits:
-            # same as above but for the main package
-            inmemory_package_edits = tuple(e for e in package_edits if e.origin is not None)
-            options = PACKAGE_QUERY._options
-            edit_graph(self._main_package._graph, inmemory_package_edits, options)
-            edit_data_graph(self._main_package._data_graph, package_edits, options, bump=True)
-            sync_graph_revisions(self._bench._data_graph, self._bench._graph)
+        for root_node, options, subedits in (
+            (self._bench, BENCH_QUERY._options, bench_edits),
+            (self._main_package, PACKAGE_QUERY._options, package_edits),
+        ):
+            # filter the in memory edits to only those with an origin (the system has origin = null)
+            external_edits = tuple(e for e in subedits if e.origin is not None)
+            edit_graph(root_node._graph, external_edits, options)
+            for edit in subedits:
+                # manually patch revisions since we skipped some edits above
+                assert edit.revision is not None, f"revision not set in {edit!r}"
+                edited_node = root_node._graph[UUID(edit.node_ptr.id)]
+                edited_node.revision = edit.revision
+            # and apply all edits to the data graph
+            edit_data_graph(root_node._data_graph, subedits, options)
         self._session.unsuppress()
 
         # run plugins on commit (in main session)
@@ -519,6 +519,7 @@ class Host(GraphIoServiceBase, HostBase, HostSpec):
             graphs=(*self.graphs, graph),
             edits=edits,
             cascaded_edits=cascaded_edits,
+            epoch=self.epoch,
         )
         for plugin in self._plugins:
             if commit.edited_types & plugin.watch_types:

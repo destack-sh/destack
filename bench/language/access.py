@@ -1075,7 +1075,7 @@ def evaluate_edit(
             if edit.type in (EditType.CREATE, EditType.UPSERT):
                 assert edit.new_node_packed, f"no new node for {edit!r}"
                 node_data = unpack_node_delta(
-                    edit.new_node_packed, node_type=node_type, only=(node_cls.parent,)
+                    edit.new_node_packed, node_type=node_type, only=(node_cls.__parent_property__,)
                 )
                 assert node_data.parent_ptr, f"no parent for {edit!r}"
                 scope_id = cast(str, node_data.parent_ptr.id)

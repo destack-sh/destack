@@ -70,8 +70,10 @@ class ServiceBase:
 
     kind: ClassVar[ServiceKind]
 
-    def __init__(self):
+    def __init__(self, logger: Any, tracer: trace.Tracer):
         self._tasks = TaskManager(owner=self, logger=logger)
+        self.logger = logger
+        self.tracer = tracer
 
     async def start(self) -> None:
         """Start the service. Should be ready for service when returning."""
@@ -159,11 +161,11 @@ class ServiceBase:
         func = self._wrap_rpc_func(func, method_slug, handler)  # custom wrap per service
 
         @functools.wraps(func)
-        @tracer.start_as_current_span(rpc_name)
+        @self.tracer.start_as_current_span(rpc_name)
         async def _managed_rpc(stream: grpclib.server.Stream) -> None:
             """Managed RPC call with some instrumentation and error handling."""
 
-            log = logger.bind(service=self, method=method)
+            log = self.logger.bind(service=self, method=method)
             span = trace.get_current_span()
             try:
                 request = cast(betterproto.Message, await stream.recv_message())
@@ -195,7 +197,7 @@ class ServiceBase:
                         await stream.send_message(partial_response)
                 else:
                     raise NotImplementedError(f"unsupported cardinality {cardinality}")
-                log.debug(rpc_name, span="current")
+                log.info(rpc_name, span="current")
 
             except GRPCError as e:
                 # pass through GRPC errors

@@ -86,7 +86,9 @@ class RuntimeThread:
 
     @property
     def epoch(self) -> int:
-        return -1  # nocheckin ???
+        assert self._bench is not None, f"no bench for {self!r}"
+        assert self._main_package is not None, f"no main package for {self!r}"
+        return max(self._bench.epoch, self._main_package.epoch)
 
     @asynccontextmanager
     async def session(self, *, readonly: bool = False, autocommit: bool = False):
@@ -133,12 +135,12 @@ class RuntimeThread:
         logger.info("thread.start", process=self, bench=self._bench, span="current")
 
     async def _process_run(self, run_data: RunData):
+        assert self._main_package is not None, f"no main package for {self!r}"
+        package = self._main_package.node
         assert (
-            run_data.parent_ptr and UUID(run_data.parent_ptr.id) == self.main_package.id
-        ), f"{run_data!r} not in {self.main_package!r}"
-        run = wiring.unpack_node(run_data, self.main_package, self._session, Run)
-
-        # nocheckin: run properly
+            run_data.parent_ptr and UUID(run_data.parent_ptr.id) == package.id
+        ), f"{run_data!r} not in {package!r}"
+        run = wiring.unpack_node(run_data, package, self._session, Run)
 
         async with self.session(readonly=False, autocommit=True):
             run.status = RunStatus.RUNNING

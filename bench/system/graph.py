@@ -63,9 +63,6 @@ from bench.utils.dt import utcnow
 from bench.utils.func import CriticalLock, bittuple, group_by, to_uuid, uuid_to_str
 from bench.utils.utils import get_from_env
 
-logger = structlog.get_logger(__name__)
-tracer = trace.get_tracer(__name__)
-
 TRANSACTION_BUFFER_SIZE = get_from_env("TRANSACTION_BUFFER_SIZE", typ=int, default=1000)
 MAX_TIME_DRIFT_SECONDS = get_from_env("MAX_TIME_DRIFT_SECONDS", typ=int, default=60)
 
@@ -94,8 +91,15 @@ class EditWatcher:
 class GraphIoServiceBase(ServiceBase, GraphIoBase):
     """Common base for global & Bench-local graph I/O operations."""
 
-    def __init__(self, *, bench_id: UUID | None, node_types: bittuple[NodeType]):
-        super().__init__()
+    def __init__(
+        self,
+        *,
+        bench_id: UUID | None,
+        node_types: bittuple[NodeType],
+        logger: structlog.BoundLogger,
+        tracer: trace.Tracer,
+    ):
+        super().__init__(logger=logger, tracer=tracer)
         self.epoch: int = 0
         self.recent_transactions: deque[_Commit] = deque(maxlen=TRANSACTION_BUFFER_SIZE)
         self.bench_id: UUID | None = bench_id
@@ -168,7 +172,7 @@ class GraphIoServiceBase(ServiceBase, GraphIoBase):
             raise GRPCError(GRPCStatus.NOT_FOUND, f"roots not found: {missing_roots}")
 
         # check access
-        with tracer.start_as_current_span("graph.get.check_access"):
+        with self.tracer.start_as_current_span("graph.get.check_access"):
             matrix = generate_access_matrix(subject, graph)
             decision, accesses, adapted_nodes = evaluate_and_adapt_read(
                 matrix, graph, required_nodes=request.roots
@@ -176,7 +180,9 @@ class GraphIoServiceBase(ServiceBase, GraphIoBase):
             if decision != PolicyEffect.ALLOW:
                 raise AccessError(accesses)
 
-        logger.info("graph.get", subject=subject, graph=graph, epoch=self.epoch, span="current")
+        self.logger.info(
+            "graph.get", subject=subject, graph=graph, epoch=self.epoch, span="current"
+        )
         return GetNodesResponse(
             nodes=[wiring.wrap_some_node(n) for n in adapted_nodes],
             access=cast(AccessMatrixData, matrix._to_data()),
@@ -214,7 +220,7 @@ class GraphIoServiceBase(ServiceBase, GraphIoBase):
             graph = NodeDataGraph(result.nodes)
 
         # check access
-        with tracer.start_as_current_span("graph.search.check_access"):
+        with self.tracer.start_as_current_span("graph.search.check_access"):
             matrix = generate_access_matrix(subject, graph)
             decision, accesses, adapted_nodes = evaluate_and_adapt_read(
                 matrix, graph, required_nodes=request.bases
@@ -222,7 +228,9 @@ class GraphIoServiceBase(ServiceBase, GraphIoBase):
             if decision != PolicyEffect.ALLOW:
                 raise AccessError(accesses)
 
-        logger.info("graph.search", subject=subject, graph=graph, epoch=self.epoch, span="current")
+        self.logger.info(
+            "graph.search", subject=subject, graph=graph, epoch=self.epoch, span="current"
+        )
         return SearchNodesResponse(
             roots=roots,
             nodes=[wiring.wrap_some_node(n) for n in adapted_nodes],
@@ -254,7 +262,7 @@ class GraphIoServiceBase(ServiceBase, GraphIoBase):
 
         # TODO :Security!: check aggregation access
 
-        logger.debug("graph.aggregate", subject=subject, epoch=self.epoch, span="current")
+        self.logger.debug("graph.aggregate", subject=subject, epoch=self.epoch, span="current")
         return AggregateNodesResponse(aggregation=result.aggregation, epoch=self.epoch)
 
     @override
@@ -262,7 +270,7 @@ class GraphIoServiceBase(ServiceBase, GraphIoBase):
         self, subject: Subject, request: "CommitTransactionRequest"
     ) -> "CommitTransactionResponse":
         # pre-validate/prepare edits
-        with tracer.start_as_current_span("graph.commit.prevalidate"):
+        with self.tracer.start_as_current_span("graph.commit.prevalidate"):
             assert subject.client, f"{subject!r} has no client"
             edit_scopes = parse_edit_scopes(request.edits)
             now = utcnow()
@@ -278,7 +286,7 @@ class GraphIoServiceBase(ServiceBase, GraphIoBase):
             async with self.request_session(readonly=False, system_commit=False) as session:
                 # read the affected nodes into a single graph for evaluation
                 data_graph = NodeDataGraph()
-                with tracer.start_as_current_span("graph.commit.read"):
+                with self.tracer.start_as_current_span("graph.commit.read"):
                     for node_type, node_references in edit_scopes.scopes_by_type.items():
                         node_type = wiring.unpack_enum(NodeType, node_type)
                         # NOTE :Performance: select only properties required to evaluate edit (id/policies/...?)
@@ -296,10 +304,10 @@ class GraphIoServiceBase(ServiceBase, GraphIoBase):
                         for node_data in result.nodes:
                             if node_data.id not in data_graph:
                                 data_graph.add(node_data)
-                    logger.trace("graph.commit.read", graph=data_graph)
+                    self.logger.trace("graph.commit.read", graph=data_graph)
 
                 # check access
-                with tracer.start_as_current_span("graph.commit.check_access"):
+                with self.tracer.start_as_current_span("graph.commit.check_access"):
                     matrix = generate_access_matrix(subject, data_graph)
                     decision, accesses = evaluate_edit(matrix, data_graph, request.edits)
                     if decision != PolicyEffect.ALLOW:
@@ -311,7 +319,7 @@ class GraphIoServiceBase(ServiceBase, GraphIoBase):
                     graph=data_graph,
                     edits=request.edits,
                     options=ReadOptions.all(),
-                    keep_all=True,
+                    keep_removed=True,
                     reset_old=True,
                 )
                 unpacked_graph = wiring.unpack_node_graph(data_graph, parent=None, session=session)
@@ -345,7 +353,7 @@ class GraphIoServiceBase(ServiceBase, GraphIoBase):
                 graph=unpacked_graph, edits=edits, epoch=epoch, cascaded_edits=cascaded_edits
             )
 
-        logger.info(
+        self.logger.info(
             "graph.commit",
             subject=subject,
             request=request,
@@ -435,14 +443,14 @@ class GraphIoServiceBase(ServiceBase, GraphIoBase):
                     cascaded_edits = self._filter_and_adapt_edits(watcher, cascaded_edits)
                     epochs_to_replay.append((epoch, edits, cascaded_edits))
                 if epochs_to_replay:
-                    logger.info("graph.watch.replay", watcher=watcher, epochs=epochs_to_replay)
+                    self.logger.info("graph.watch.replay", watcher=watcher, epochs=epochs_to_replay)
                     for epoch, edits, cascaded_edits in epochs_to_replay:
                         yield WatchEditsResponse(
                             edits=edits, cascaded_edits=cascaded_edits, epoch=epoch
                         )
 
             # listen for new epochs
-            logger.info("graph.watch", watcher=watcher, span="current")
+            self.logger.info("graph.watch", watcher=watcher, span="current")
             while True:
                 epoch = await watcher.sink.get()
                 yield WatchEditsResponse(edits=epoch.edits, epoch=epoch.epoch)
@@ -524,7 +532,7 @@ def parse_edit_scopes(edits: list[EditData]) -> _EditScopes:
         if edit.type == EditType.CREATE or edit.type == EditType.UPSERT:
             assert edit.new_node_packed
             node_data = unpack_node_delta(
-                edit.new_node_packed, node_type=node_type, only=(node_cls.parent,)
+                edit.new_node_packed, node_type=node_type, only=(node_cls.__parent_property__,)
             )
             # node scope is parent since we don't have this node yet
             if node_data.parent_ptr is None:
@@ -543,7 +551,7 @@ def parse_edit_scopes(edits: list[EditData]) -> _EditScopes:
                 # also add new parent to scope
                 assert edit.new_node_packed, f"missing new node for {edit}"
                 node_data = unpack_node_delta(
-                    edit.new_node_packed, node_type=node_type, only=(node_cls.parent,)
+                    edit.new_node_packed, node_type=node_type, only=(node_cls.__parent_property__,)
                 )
                 assert node_data.parent_ptr is not None, f"missing parent for {node_data}"
                 node_scopes_by_id[cast(str, node_data.parent_ptr.id)] = node_data.parent_ptr
