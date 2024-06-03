@@ -7,9 +7,12 @@ import {
   NodeReferenceData,
   NodeType,
   ObjectType,
+  PROPERTY_ENUM_BY_TYPE,
+  PROPERTY_INFOS_BY_TYPE,
   PrimitiveType,
   Struct as ProtoStruct,
   StructType,
+  Timestamp,
   TypeKind,
   Variant,
   ViewType,
@@ -67,7 +70,7 @@ export function describeTypeIdentity(type: TypeIdentity & Partial<AnyNodeData>):
 
 export type JsonPrimimtive = string | number | boolean | null;
 export type JsonValue = JsonPrimimtive | { [key: string]: JsonValue } | JsonValue[];
-export type PrimitiveValue = JsonPrimimtive;
+export type PrimitiveValue = JsonPrimimtive | Timestamp;
 export type ScalarValue = PrimitiveValue | ProtoStruct | AnyStructData | AnyNodeData;
 export type SomeValue = ScalarValue | SomeValue[] | { [key: string]: SomeValue };
 
@@ -231,7 +234,11 @@ export function resolveFields(type: TypeIdentity, graph: ReadNodeGraph): FieldDa
 /** Packs a single scalar value in its robust JSON-able representation. */
 function packValueScalar(value: ScalarValue, type: TypeIdentity): JsonValue {
   if (type.kind == TypeKind.PRIMITIVE) {
-    return value as JsonPrimimtive;
+    if (type.primitiveType == PrimitiveType.DATETIME) {
+      return Timestamp.toDate(value as Timestamp).toISOString();
+    } else {
+      return value as JsonPrimimtive;
+    }
   } else if (type.kind == TypeKind.NODE || type.kind == TypeKind.BASED_NODE) {
     if ((value as NodeReferenceData).metatype != ObjectType.NODE_REFERENCE) {
       throw new Error(`unexpected value ${JSON.stringify(value)} for type ${describeTypeIdentity(type)}`);
@@ -252,7 +259,11 @@ function packValueScalar(value: ScalarValue, type: TypeIdentity): JsonValue {
 /** Unpacks a single scalar value from its robust JSON-able representation. */
 function unpackValueScalar(valuePacked: JsonValue, type: TypeIdentity): ScalarValue {
   if (type.kind == TypeKind.PRIMITIVE) {
-    return valuePacked as PrimitiveValue;
+    if (type.primitiveType == PrimitiveType.DATETIME) {
+      return Timestamp.fromDate(new Date(valuePacked as string));
+    } else {
+      return valuePacked as PrimitiveValue;
+    }
   } else if (type.kind == TypeKind.NODE || type.kind == TypeKind.BASED_NODE) {
     if (typeof valuePacked !== "object") {
       throw new Error(`unexpected value ${JSON.stringify(valuePacked)} for type ${describeTypeIdentity(type)}`);
@@ -271,76 +282,63 @@ function unpackValueScalar(valuePacked: JsonValue, type: TypeIdentity): ScalarVa
 }
 
 /** Packs a single struct/node proto value using proto ids for keys and enums. */
-export function packStructValueScalar(object: AnyStructData | AnyNodeData): any {
-  const messageType = MESSAGE_TYPE_BY_OBJECT_TYPE[object.metatype];
-  if (messageType == null) throw new Error(`unexpected object type ${object.metatype}`);
+export function packStructValueScalar(value: AnyStructData | AnyNodeData): any {
+  const propertyEnum = PROPERTY_ENUM_BY_TYPE[value.metatype];
+  const properties = PROPERTY_INFOS_BY_TYPE[value.metatype];
+  if (propertyEnum == null || properties == null) throw new Error(`unexpected object type ${value.metatype}`);
 
-  const robustJson: Record<string, any> = {};
-  for (const field of messageType.fields) {
-    const key = field.no.toString();
-    const value = (object as any)[field.jsonName];
-    if (value === null || value === undefined) continue;
-
-    if (field.kind == "message") {
-      if (field.repeat) {
-        if (value.length == 0) {
-          robustJson[key] = [];
-        } else if (!MESSAGE_TYPE_BY_OBJECT_TYPE[value[0].metatype as ObjectType]) {
-          robustJson[key] = value; // not one of our objects
-        } else {
-          robustJson[key] = value.map(packStructValueScalar);
-        }
-      } else {
-        if (typeof value != "object" || !MESSAGE_TYPE_BY_OBJECT_TYPE[value.metatype as ObjectType]) {
-          robustJson[key] = value; // not one of our objects
-        } else {
-          robustJson[key] = packStructValueScalar(value);
-        }
-      }
+  const valuePacked: Record<string, any> = {};
+  for (const prop of Object.values(properties)) {
+    const propName = propertyEnum[prop.id];
+    const propType = getTypeIdentityForProperty(prop);
+    const propValue = (value as any)[propName];
+    let propValuePacked;
+    if (propValue == null || (prop.isList && propValue.length == 0)) {
+      continue;
+    } else if (prop.isList) {
+      propValuePacked = propValue.map((v: any) => packValueScalar(v, propType));
     } else {
-      robustJson[key] = value;
+      propValuePacked = packValueScalar(propValue, propType);
     }
+    valuePacked[prop.id.toString()] = propValuePacked;
   }
 
-  return robustJson;
+  return valuePacked;
 }
 
-/** Decodes 'robust' proto value. See encode. */
-export function unpackStructValueScalar(value: any, objectType?: ObjectType): AnyStructData | AnyNodeData {
+/** Decodes proto value representation of a struct. See encode. */
+export function unpackStructValueScalar(valuePacked: any, objectType?: ObjectType): AnyStructData | AnyNodeData {
   if (objectType == null) {
-    objectType = value["1"] as ObjectType;
+    if (valuePacked["1"] == null) throw new Error(`missing object type in ${JSON.stringify(valuePacked)}`);
+    objectType = valuePacked["1"] as ObjectType;
   }
-  const messageType = MESSAGE_TYPE_BY_OBJECT_TYPE[objectType];
-  if (messageType == null) throw new Error(`unexpected object type ${objectType}`);
+  const propertyEnum = PROPERTY_ENUM_BY_TYPE[objectType];
+  const properties = PROPERTY_INFOS_BY_TYPE[objectType];
+  if (propertyEnum == null || properties == null) throw new Error(`unexpected object type ${objectType}`);
 
-  const object: Record<string, any> = { metatype: objectType };
-  for (const field of messageType.fields) {
-    const key = field.no.toString();
-    if (key in value) {
-      const fieldValue = value[key];
-      if (field.kind == "message") {
-        if (field.repeat) {
-          if (fieldValue.length == 0) {
-            object[field.jsonName] = [];
-          } else if (!MESSAGE_TYPE_BY_OBJECT_TYPE[fieldValue[0]["1"] as ObjectType]) {
-            object[field.jsonName] = fieldValue; // not one of our objects
-          } else {
-            object[field.jsonName] = fieldValue.map(unpackStructValueScalar);
-          }
-        } else {
-          if (typeof fieldValue != "object" || !MESSAGE_TYPE_BY_OBJECT_TYPE[fieldValue["1"] as ObjectType]) {
-            object[field.jsonName] = fieldValue; // not one of our objects
-          } else {
-            object[field.jsonName] = unpackStructValueScalar(fieldValue);
-          }
-        }
+  const value: AnyNodeData | AnyStructData = { metatype: objectType };
+  for (const prop of Object.values(properties)) {
+    const propName = propertyEnum[prop.id];
+    const propType = getTypeIdentityForProperty(prop);
+    const propValuePacked = valuePacked[prop.id.toString()];
+    let propValue;
+    if (prop.isList) {
+      if (propValuePacked == null) {
+        propValue = [];
       } else {
-        object[field.jsonName] = fieldValue;
+        propValue = propValuePacked.map((v: any) => unpackValueScalar(v, propType));
+      }
+    } else {
+      if (propValuePacked == null) {
+        propValue = null;
+      } else {
+        propValue = unpackValueScalar(propValuePacked, propType);
       }
     }
+    (value as any)[propName] = propValue;
   }
 
-  return object as AnyStructData | AnyNodeData;
+  return value;
 }
 
 // TODO :Test!: figure out how to test value packing on bench-web

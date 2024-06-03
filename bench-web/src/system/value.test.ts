@@ -10,32 +10,6 @@ import {
 } from "@/system/value";
 import { describe, expect, test } from "vitest";
 
-// TYPE_IDENTITIES: tuple[tuple[TypeInfo, str], ...] = (
-// 	(TypeInfo(primitive_type=PrimitiveType.DATETIME), "pU"),
-// 	(TypeInfo(bench_type=NodeType.USER, is_list=True), "NdD"),
-// 	(TypeInfo(bench_type=StructType.TEXT), "sIS"),
-// 	(TypeInfo(bench_type=EnumType.OBJECT_TYPE, is_secret=True), "!eUf"),
-// 	(
-// 			TypeInfo(
-// 					bench_type=NodeType.FIELD,
-// 					base_type_ptr=NodeReference(
-// 							type=NodeType.BLOCK, ck=UUID("12345678-ffff-0000-0000-000000000000")
-// 					),
-// 					is_secret=True,
-// 					is_list=True,
-// 			),
-// 			"!BEjRWeP//AAA=g",
-// 	),
-// 	(
-// 			TypeInfo(
-// 					base_type_ptr=NodeReference(
-// 							type=NodeType.BLOCK, ck=UUID("12345678-ffff-0000-0000-000000000000")
-// 					),
-// 			),
-// 			"aEjRWeP//AAA=",
-// 	),
-// )
-
 // the test data & targets are from the backend bench implementation
 const TEST_TYPE_IDENTITIES: (Partial<TypeIdentity> & { identityKey: string })[] = [
   {
@@ -89,11 +63,11 @@ describe("type encoding", () => {
 
 describe("packing structs", () => {
   const OBJECT_TYPES_NAMES = OBJECT_TYPES.map((t) => ObjectType[t]);
-  test.each(OBJECT_TYPES_NAMES)("roundtrip robust json %s", (typeName) => {
+  test.each(OBJECT_TYPES_NAMES)("roundtrip struct value %s", (typeName) => {
     const objectType = ObjectType[typeName as any] as unknown as ObjectType;
-    const object = fabricate(objectType);
-    const packedJson = packStructValueScalar(object);
-    const unpackedObject = unpackStructValueScalar(packedJson);
-    expect(unpackedObject).toEqual(object);
+    const value = fabricate(objectType);
+    const valuePacked = packStructValueScalar(value);
+    const valueUnpacked = unpackStructValueScalar(valuePacked);
+    expect(valueUnpacked).toEqual(value);
   });
 });

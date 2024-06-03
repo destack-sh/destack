@@ -398,28 +398,6 @@ class Transaction:
         self._connections_by_engine_id.clear()
 
 
-# poor mans filters, see FilterNodeGraph in bench-web
-_INCLUDE_ALL_EDIT_TYPE_REMAP: dict[EditType, EditType] = {
-    EditType.ARCHIVE: EditType.UPDATE,
-    EditType.UNARCHIVE: EditType.UPDATE,
-    EditType.SOFT_DELETE: EditType.UPDATE,
-    EditType.RESTORE: EditType.UPDATE,
-    EditType.DELETE: EditType.UPDATE,
-}
-_INCLUDE_HIDDEN_EDIT_TYPE_REMAP: dict[EditType, EditType] = {
-    EditType.ARCHIVE: EditType.UPDATE,
-    EditType.UNARCHIVE: EditType.UPDATE,
-    EditType.SOFT_DELETE: EditType.UPDATE,
-    EditType.RESTORE: EditType.UPDATE,
-}
-_EXCLUDE_HIDDEN_EDIT_TYPE_REMAP: dict[EditType, EditType] = {
-    EditType.ARCHIVE: EditType.DELETE,
-    EditType.UNARCHIVE: EditType.CREATE,
-    EditType.SOFT_DELETE: EditType.DELETE,
-    EditType.RESTORE: EditType.CREATE,
-}
-
-
 def pack_node_delta(
     node_data: AnyNodeData, *, only: Collection[Property | Any] | None = None
 ) -> ProtoStruct:
@@ -470,13 +448,9 @@ def edit_graph(
         node_type = NodeType(edit.node_ptr.type)
         node_id = UUID(edit.node_ptr.id)
 
-        # remap edit according to read options
-        if options.include_hidden:
-            edit_type = _INCLUDE_HIDDEN_EDIT_TYPE_REMAP.get(edit_type, edit_type)
-        else:
-            edit_type = _EXCLUDE_HIDDEN_EDIT_TYPE_REMAP.get(edit_type, edit_type)
-
-        if edit_type in (EditType.CREATE, EditType.UPSERT):
+        if edit_type in (EditType.CREATE, EditType.UPSERT) or (
+            not options.include_hidden and edit_type in (EditType.UNARCHIVE, EditType.RESTORE)
+        ):
             assert edit.new_node_packed, f"missing new node for {edit!r}"
             new_node_data = unpack_node_delta(edit.new_node_packed)
             # inline implicit metadata
@@ -495,9 +469,11 @@ def edit_graph(
                 graph.add(node)
             else:
                 graph.update(node)
-        elif edit_type == EditType.DELETE:
+        elif edit_type == EditType.DELETE or (
+            not options.include_hidden and edit_type in (EditType.ARCHIVE, EditType.SOFT_DELETE)
+        ):
             node = graph.get(node_id)
-            assert node is not None, f"missing node {node_id!r} for delete: {edit!r}"
+            assert node is not None, f"missing node {node_id!r} for remove: {edit!r}"
             graph.remove(node)
         else:
             # some update
@@ -543,10 +519,13 @@ def edit_data_graph(
     edits: Collection[EditData],
     options: "ReadOptions | None",
     *,
-    keep_removed: bool = False,
-    reset_old: bool = False,
+    is_prepass: bool = False,
 ) -> None:
-    """Applies the edits to the data graph (edited nodes are copied before update)."""
+    """
+    Applies the edits to the data graph (edited nodes are copied before update).
+    For the 'prepass' (before validating & applying the edits, with ground truth loaded)
+     we do some extra work ensure the edits are in a consistent state.
+    """
     trace.get_current_span().set_attribute("edits", len(edits))
 
     from bench.language.query import DEFAULT_READ_OPTIONS
@@ -560,18 +539,15 @@ def edit_data_graph(
         assert edit.epoch is not None, f"missing epoch for {edit!r}"
         edit_type = cast(EditType, edit.type)
         node_type = NodeType(edit.node_ptr.type)
+        node_cls = NODE_CLASS_BY_TYPE[node_type]
         node_id = edit.node_ptr.id
         assert node_id is not None, f"missing node id for {edit!r}"
 
-        # remap edit according to read options
-        if keep_removed:
-            edit_type = _INCLUDE_ALL_EDIT_TYPE_REMAP.get(edit_type, edit_type)
-        elif options.include_hidden:
-            edit_type = _INCLUDE_HIDDEN_EDIT_TYPE_REMAP.get(edit_type, edit_type)
-        else:
-            edit_type = _EXCLUDE_HIDDEN_EDIT_TYPE_REMAP.get(edit_type, edit_type)
-
-        if edit_type in (EditType.CREATE, EditType.UPSERT):
+        if edit_type in (EditType.CREATE, EditType.UPSERT) or (
+            not options.include_hidden
+            and edit_type in (EditType.UNARCHIVE, EditType.RESTORE)
+            and not is_prepass
+        ):
             # add
             assert edit.new_node_packed, f"missing new node for {edit!r}"
             new_node_data = unpack_node_delta(edit.new_node_packed)
@@ -585,36 +561,54 @@ def edit_data_graph(
                 graph.add(new_node_data)
             else:
                 graph.update(new_node_data)
-        elif edit_type == EditType.DELETE:
+        elif (
+            edit_type == EditType.DELETE
+            or (
+                not options.include_hidden and edit_type in (EditType.ARCHIVE, EditType.SOFT_DELETE)
+            )
+        ) and not is_prepass:
             # remove
             old_node_data = graph.get(node_id)
             assert old_node_data is not None, f"missing node {edit.node_ptr!r} for {edit!r}"
             graph.remove(old_node_data)
         else:
             # update
-            assert edit.new_node_packed, f"missing new node for {edit!r}"
-            new_node_data = unpack_node_delta(edit.new_node_packed, node_type=node_type)
+            # (or any other edit if prepass, where we assume all nodes are loaded in the graph)
+            if edit.new_node_packed is not None:
+                new_node_data = unpack_node_delta(edit.new_node_packed, node_type=node_type)
+            else:
+                new_node_data = None
             updated_node_data = graph.get(node_id)
             assert updated_node_data is not None, f"missing node {edit.node_ptr!r} for {edit!r}"
             updated_node_data = wiring.copy_struct(updated_node_data)
 
             # directly edited properties
-            node_cls = NODE_CLASS_BY_TYPE[node_type]
             old_node_data = {}
-            for prop_id in edit.properties:
-                prop = node_cls.__properties_by_id__.get(prop_id)
-                assert prop is not None, f"missing property {prop_id} for update: {edit!r}"
-                if prop.reference_wired_ptr is not None:
-                    prop = prop.reference_wired_ptr
-                if reset_old:
-                    old_value = getattr(updated_node_data, prop.name)
-                    old_node_data[prop.id_as_str], _ = pack_value_data(
-                        old_value, prop.as_type_info, wrap_primitive=False
-                    )
-                new_value_data = getattr(new_node_data, prop.name)
-                setattr(updated_node_data, prop.name, new_value_data)
-            if reset_old:
-                edit.old_node_packed = wiring.pack_proto_json(old_node_data)
+            if edit_type in (EditType.UPDATE, EditType.MOVE):
+                for prop_id in edit.properties:
+                    prop = node_cls.__properties_by_id__.get(prop_id)
+                    assert prop is not None, f"missing property {prop_id} for update: {edit!r}"
+                    if prop.reference_wired_ptr is not None:
+                        prop = prop.reference_wired_ptr
+                    if is_prepass:
+                        old_value = getattr(updated_node_data, prop.name)
+                        old_node_data[prop.id_as_str], _ = pack_value_data(
+                            old_value, prop.as_type_info, wrap_primitive=False
+                        )
+                    new_value_data = getattr(new_node_data, prop.name)
+                    setattr(updated_node_data, prop.name, new_value_data)
+                
+            # prepass: 'reset' externally provided data to known ground truth (from graph)
+            if is_prepass:
+                if edit_type in (EditType.UPDATE, EditType.MOVE):
+                    # reset only partial old data
+                    edit.old_node_packed = wiring.pack_proto_json(old_node_data)
+                elif edit_type in (EditType.ARCHIVE, EditType.SOFT_DELETE, EditType.DELETE):
+                    # reset full node data as 'old'
+                    edit.old_node_packed = pack_node_delta(updated_node_data)
+                elif edit_type in (EditType.UNARCHIVE, EditType.RESTORE):
+                    # reset full node data as 'new'
+                    edit.new_node_packed = pack_node_delta(updated_node_data)
 
             # implicit metadata
             updated_node_data.updated_at = edit.edited_at
@@ -631,5 +625,5 @@ def edit_data_graph(
                 updated_node_data.deleted_at = edit.edited_at
             elif edit_type == EditType.RESTORE:
                 updated_node_data.deleted_at = None
-                
+
             graph.update(updated_node_data)

@@ -16,6 +16,8 @@ import {
   type NodeTypeMapping,
   type StructTypeMapping,
   PackageData,
+  EditType,
+  EditData,
 } from "@/proto/wire";
 import { BASED_NODE_TYPES, TIMED_NODE_TYPES, getBaseFromNode, toCamelName } from "@/system/lang";
 import { reverseRecord } from "@/utils/functools";
@@ -56,6 +58,14 @@ export function describeNode(node: {
   const type = node.metatype == ObjectType.NODE_REFERENCE ? (node as NodeReferenceData).type : node.metatype;
   const typeName = type == null ? "Node" : toCamelName(NodeType, type);
   return `${typeName}:[${nodeParts.join(", ")}]`;
+}
+
+export function describeEdit(edit: Pick<EditData, "type" | "nodePtr" | "revision" | "properties">) {
+  const editParts: string[] = [EditType[edit.type]];
+  if (edit.nodePtr) editParts.push(describeNode(edit.nodePtr));
+  if (edit.revision) editParts.push(`r=${edit.revision}`);
+  if (edit.properties) editParts.push(`properties=${Object.keys(edit.properties).join(",")}`);
+  return editParts.join(" ");
 }
 
 export function newStructId(): number {

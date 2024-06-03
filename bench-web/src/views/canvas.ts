@@ -40,13 +40,9 @@ import {
   generateNodeName,
   getOrderKey,
   updateOrder,
-  getEnumOptions,
-  isEnumType,
-  isNodeType,
 } from "@/system/lang";
 import { inspectionBasePtr, inspectionPtr } from "@/system/space";
 import type { Transaction } from "@/system/transaction";
-import { type TypeIdentity, makeTypeInfo } from "@/system/value";
 import type { SplitAnchor } from "@/utils/drag";
 import { getElement, isFocusableElement } from "@/utils/element";
 import { generateOrderKey } from "@/utils/fractional";
@@ -421,7 +417,7 @@ export class ViewCanvas {
   /** Focuses the given view absolutely in the graph. */
   focusInGraph(
     tx: Transaction,
-    focus: { view: SomeView; focus?: SelectionData; parent?: SomeView; clearDown?: boolean },
+    focus: { view: SomeView; focus?: SelectionData; parent?: SomeView; resetDown?: boolean },
   ) {
     // focus the given selection within the view
     if (focus.focus != null) {
@@ -441,7 +437,7 @@ export class ViewCanvas {
     }
 
     // reset focus 'down' from view
-    if (focus.clearDown) {
+    if (focus.resetDown) {
       const descendants = this.graph.getDescendants(child, { metatypes: [NodeType.VIEW] });
       descendants
         .filter((v) => v.focus != null)

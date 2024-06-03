@@ -1359,7 +1359,7 @@ class ReadInfo:
 
 
 def is_implicit_node_property(prop_id: int) -> bool:
-    return prop_id < 30 and prop_id == 4
+    return prop_id < 30 and prop_id != 4  # parent is fine
 
 
 @node_component()
@@ -1532,7 +1532,7 @@ class Node(Struct[NodeDataT], Generic[NodeDataT]):
             else:
                 status_str = " [archived]"
         elif self.deleted_at is not None:
-            status_str = " [soft deleted]"
+            status_str = " [deleted]"
         else:
             status_str = ""
         if self.__parent_property__ is None:

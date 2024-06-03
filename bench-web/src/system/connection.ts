@@ -188,7 +188,7 @@ function derivePendingOverlayGraph(
   const sub = txBuffer.subscribePending((e) => {
     if (e.type == "reset") overlay.clear();
     const filteredEdits = filterRemoteEdits(filter, e.edits);
-    if (filteredEdits.length > 0) editGraph(overlay, filteredEdits, { isOverlay: true });
+    if (filteredEdits.length > 0) editGraph(overlay, filteredEdits, { isOverlayOf: base });
   });
   subs.push(sub);
   return overlay;

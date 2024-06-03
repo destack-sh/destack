@@ -1642,8 +1642,11 @@ async def _pg_edit_batch(
         dynamic_values: list[RowIn] = []
         for edit in batch:
             assert edit.epoch is not None, f"no epoch for {edit!r}"
-            assert edit.new_node_packed, f"no new node for {edit!r}"
-            new_node_data = unpack_node_delta(edit.new_node_packed, node_type=node_type)
+            if edit_type == EditType.UPDATE or edit_type == EditType.MOVE:
+                assert edit.new_node_packed, f"no new node for {edit!r}"
+                new_node_data = unpack_node_delta(edit.new_node_packed, node_type=node_type)
+            else:
+                new_node_data = None
             row = {"id": edit.node_ptr.id}
             # directly edited properties
             for prop_id in edit.properties:

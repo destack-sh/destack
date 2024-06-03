@@ -226,7 +226,9 @@ class NodeDataGraph(NodeGraphBase[NodeDataT, str]):
                     self.nodes_by_parent_id_and_type[old_parent_id][node.metatype][i] = node
                     break
             else:
-                raise ValueError(f"node {node!r} not in {self!r}")
+                raise ValueError(
+                    f"node {node!r} not in {self!r} (should be in {self.nodes_by_parent_id_and_type[old_parent_id][node.metatype]}, was {old!r})"
+                )
 
     def remove(self, node: NodeDataT):
         assert isinstance(node.id, str), f"cannot add {node!r} to {self!r} with id {node.id!r}"
@@ -401,7 +403,9 @@ class NodeGraph(NodeGraphBase[NodeT, UUID]):
                     self.nodes_by_parent_id_and_type[old.parent_id][node.metatype][i] = node
                     break
             else:
-                raise ValueError(f"node {node!r} not in {self!r}")
+                raise ValueError(
+                    f"node {node!r} not in {self!r} (should be in {self.nodes_by_parent_id_and_type[old.parent_id][node.metatype]}, was {old!r})"
+                )
 
     def remove(self, node: NodeT):
         assert isinstance(node.id, UUID), f"cannot add {node!r} to {self!r} with id {node.id!r}"
