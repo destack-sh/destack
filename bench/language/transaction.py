@@ -597,7 +597,7 @@ def edit_data_graph(
                         )
                     new_value_data = getattr(new_node_data, prop.name)
                     setattr(updated_node_data, prop.name, new_value_data)
-                
+
             # prepass: 'reset' externally provided data to known ground truth (from graph)
             if is_prepass:
                 if edit_type in (EditType.UPDATE, EditType.MOVE):
