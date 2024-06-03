@@ -449,7 +449,7 @@ export * from './google/protobuf/timestamp';
     for path in Path(TEMP_TS_DIR).glob("**/*.client.ts"):
         patched_file = path.read_text().replace(": RpcOptions", ": OperationOptions")
         # append import
-        patched_file = patched_file + '\nimport type { OperationOptions } from "@/proto/system";'
+        patched_file = patched_file + '\nimport type { OperationOptions } from "@/proto/services";'
         path.write_text(patched_file)
 
     # overwrite WIRE_TS_DIR with TEMP_TS_DIR

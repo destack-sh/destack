@@ -184,6 +184,13 @@ const actions: Partial<ActionMapImplementation<"common">> = {
     },
   },
   // edit
+  "common.edit.archive": {
+    action: (action, context) => {
+      const { block } = getBlockFromContext(context);
+      if (block == null) return false;
+      pkgConnection.tx.archive(block);
+    },
+  },
   "common.edit.delete": {
     action: (action, context) => {
       const { block } = getBlockFromContext(context);

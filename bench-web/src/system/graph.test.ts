@@ -33,7 +33,7 @@ const SCALAR_GENERATORS: Partial<Record<ScalarType, () => any>> = {
   [ScalarType.DOUBLE]: () => Math.random(),
   [ScalarType.FLOAT]: () => Math.random(),
   [ScalarType.INT32]: () => Math.floor(Math.random() * 0x7fffffff),
-  [ScalarType.INT64]: () => Math.floor(Math.random() * 0x7fffffff),
+  [ScalarType.INT64]: () => BigInt(Math.floor(Math.random() * 0x7fffffff)),
   [ScalarType.UINT32]: () => Math.floor(Math.random() * 0x7fffffff),
   [ScalarType.UINT64]: () => Math.floor(Math.random() * 0x7fffffff),
   [ScalarType.SINT32]: () => Math.floor(Math.random() * 0x7fffffff),
