@@ -105,6 +105,10 @@ export interface GraphScope {
 }
 /**
  * Edit to a Node.
+ * For updates/moves, the old/new node values are just the edited properties.
+ * For archive, soft delete and delete, the old node is the full node.
+ *  (technically we don't *need* if for non-hard deletes, but it's very convenient)
+ * Similarly, for unarchive/restore, the new node is the full node.
  *
  * @generated from protobuf message symbolx.bench.EditData
  */

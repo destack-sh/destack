@@ -523,4 +523,4 @@ export class HostClient implements IHostClient, ServiceInfo {
     }
 }
 
-import type { OperationOptions } from "@/proto/system";
+import type { OperationOptions } from "@/proto/services";
