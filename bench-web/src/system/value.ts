@@ -70,7 +70,7 @@ export function describeTypeIdentity(type: TypeIdentity & Partial<AnyNodeData>):
 
 export type JsonPrimimtive = string | number | boolean | null;
 export type JsonValue = JsonPrimimtive | { [key: string]: JsonValue } | JsonValue[];
-export type PrimitiveValue = JsonPrimimtive | Timestamp;
+export type PrimitiveValue = JsonPrimimtive | bigint | Timestamp;
 export type ScalarValue = PrimitiveValue | ProtoStruct | AnyStructData | AnyNodeData;
 export type SomeValue = ScalarValue | SomeValue[] | { [key: string]: SomeValue };
 
@@ -236,6 +236,12 @@ function packValueScalar(value: ScalarValue, type: TypeIdentity): JsonValue {
   if (type.kind == TypeKind.PRIMITIVE) {
     if (type.primitiveType == PrimitiveType.DATETIME) {
       return Timestamp.toDate(value as Timestamp).toISOString();
+    } else if (typeof value == "bigint") {
+      // NOTE :Robustness: we pack bigints as numbers, which is only safe up to 2^53-1
+      //  (should be fine, we only use it for epoch/revision which will last ~300k years at 1000edits/sec)
+      if (value > Number.MAX_SAFE_INTEGER)
+        throw new Error(`bigint ${value} too large for Number for ${describeTypeIdentity(type)}`);
+      return Number(value);
     } else {
       return value as JsonPrimimtive;
     }
@@ -261,6 +267,9 @@ function unpackValueScalar(valuePacked: JsonValue, type: TypeIdentity): ScalarVa
   if (type.kind == TypeKind.PRIMITIVE) {
     if (type.primitiveType == PrimitiveType.DATETIME) {
       return Timestamp.fromDate(new Date(valuePacked as string));
+    } else if (type.primitiveType == PrimitiveType.INT64) {
+      // see above
+      return BigInt(valuePacked as number);
     } else {
       return valuePacked as PrimitiveValue;
     }
