@@ -516,7 +516,8 @@ class SqlCompound(SqlExpression):
     operands: list[SqlNode]
 
     def sql(self) -> sql.Composable:
-        return sqlstr(f" {self.op} ").join(sql_node_to_sql(o) for o in self.operands)
+        inner = sqlstr(f" {self.op} ").join(sql_node_to_sql(o) for o in self.operands)
+        return sqlstr("({})").format(inner)
 
 
 @dataclass(frozen=True)

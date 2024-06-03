@@ -295,7 +295,7 @@ class GraphIoServiceBase(ServiceBase, GraphIoBase):
                     for node_type, node_references in edit_scopes.scopes_by_type.items():
                         node_type = wiring.unpack_enum(NodeType, node_type)
                         # NOTE :Performance: select only properties required to evaluate edit (id/policies/...?)
-                        options = adapt_read_options(subject, node_type, ReadOptions.default())
+                        options = adapt_read_options(subject, node_type, ReadOptions.all())
                         node_ids = tuple(r.id for r in node_references)
                         query = QueryBuilder(
                             node_type=node_type,
