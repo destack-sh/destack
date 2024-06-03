@@ -282,6 +282,11 @@ class GraphIoServiceBase(ServiceBase, GraphIoBase):
                 edit.epoch = epoch
 
         # process edits
+        # NOTE :Performance: obviously, putting a big lock around commit is not ideal
+        #  but we have to guarantee absolute order and integrity of any loaded graphs (in Host)
+        # We can probably optimize this by only locking some tighter critical sections
+        #  if we rollback somehow if the actual commit (outside the lock) fails.
+        # For now it's fine.
         async with self.tx_lock:
             async with self.request_session(readonly=False, system_commit=False) as session:
                 # read the affected nodes into a single graph for evaluation
@@ -319,8 +324,7 @@ class GraphIoServiceBase(ServiceBase, GraphIoBase):
                     graph=data_graph,
                     edits=request.edits,
                     options=ReadOptions.all(),
-                    keep_removed=True,
-                    reset_old=True,
+                    is_prepass=True,
                 )
                 unpacked_graph = wiring.unpack_node_graph(data_graph, parent=None, session=session)
                 for node_id in edit_scopes.edited_node_ids:
@@ -624,8 +628,21 @@ def _validate_edit(edit: EditData, subject: Subject, now: datetime) -> None:
         )
 
     # old/new node packed
-    should_set_new = edit.type in (EditType.CREATE, EditType.UPSERT, EditType.UPDATE, EditType.MOVE)
-    should_set_old = edit.type in (EditType.UPDATE, EditType.MOVE, EditType.DELETE)
+    should_set_new = edit.type in (
+        EditType.CREATE,
+        EditType.UPSERT,
+        EditType.UPDATE,
+        EditType.MOVE,
+        EditType.UNARCHIVE,
+        EditType.RESTORE,
+    )
+    should_set_old = edit.type in (
+        EditType.UPDATE,
+        EditType.MOVE,
+        EditType.SOFT_DELETE,
+        EditType.ARCHIVE,
+        EditType.DELETE,
+    )
     if should_set_new != (edit.new_node_packed is not None):
         raise GRPCError(
             GRPCStatus.INVALID_ARGUMENT, f"bad new_node_packed in {edit!r}: {edit.new_node_packed}"
@@ -664,7 +681,7 @@ def _validate_edit(edit: EditData, subject: Subject, now: datetime) -> None:
                 f"cannot explicitly set implicit properties in {edit!r}: {bad_properties!r}",
             )
         has_parent = cast(Property, Node.parent).id in edit.properties
-        if edit.type == EditType.MOVE != has_parent:
+        if (edit.type == EditType.MOVE) != has_parent:
             raise GRPCError(
                 GRPCStatus.INVALID_ARGUMENT,
                 f"only move can set parent property in {edit!r}: {edit.properties}",

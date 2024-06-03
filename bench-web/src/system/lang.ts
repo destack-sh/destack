@@ -290,7 +290,7 @@ export function updateOrder<T extends AnyNodeData & { orderKey: string }>(order:
     });
   }
   // @ts-ignore: orderKey must exist
-  order.tx.update({ ...order.node, orderKey }, ["orderKey"], { debounce: "tick" });
+  order.tx.update(order.node, { orderKey }, { debounce: "tick" });
 }
 
 /**

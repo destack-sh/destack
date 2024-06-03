@@ -503,8 +503,9 @@ class Host(GraphIoServiceBase, HostBase, HostSpec):
             for edit in subedits:
                 # manually patch revisions since we skipped some edits above
                 assert edit.revision is not None, f"revision not set in {edit!r}"
-                edited_node = root_node._graph[UUID(edit.node_ptr.id)]
-                edited_node.revision = edit.revision
+                edited_node = root_node._graph.get(UUID(edit.node_ptr.id))
+                if edited_node is not None:
+                    edited_node.revision = edit.revision
             # and apply all edits to the data graph
             edit_data_graph(root_node._data_graph, subedits, options)
         self._session.unsuppress()

@@ -56,8 +56,6 @@ const PROP_NAME_GENERATORS: Record<string, () => any> = {
 
 const MEMBERS_BY_ENUM: Record<string, number[]> = {};
 
-class CircularError extends Error {}
-
 export function fabricate<T extends ObjectType>(
   metatype: T,
   options?: { path?: ObjectType[]; unset?: (keyof AnyTypeMapping[T])[]; set?: Partial<AnyTypeMapping[T]> },
@@ -87,12 +85,8 @@ export function fabricate<T extends ObjectType>(
       value = members[Math.floor(Math.random() * members.length)];
     } else if (field.kind == "message" && OBJECT_TYPE_BY_MESSAGE_TYPE_NAME[field.T().typeName]) {
       const benchType = OBJECT_TYPE_BY_MESSAGE_TYPE_NAME[field.T().typeName]!;
-      if (options?.path?.includes(benchType)) {
-        throw new CircularError(`circular reference for ${ObjectType[metatype]} -> ${ObjectType[benchType]}`);
-      } else {
-        const path = (options?.path ?? []).concat(metatype);
-        value = fabricate(benchType, { path });
-      }
+      const path = (options?.path ?? []).concat(metatype);
+      value = fabricate(benchType, { path });
     } else if (field.kind == "message" && MESSAGE_TYPE_GENERATORS[field.T().typeName]) {
       value = MESSAGE_TYPE_GENERATORS[field.T().typeName]!();
     } else if (PROP_NAME_GENERATORS[propName]) {
@@ -108,22 +102,22 @@ export function fabricate<T extends ObjectType>(
   for (const propName of Object.keys(allProperties)) {
     const field = messageType.fields[ord];
     if (!Number.isNaN(Number(propName))) continue; // skip numeric keys
-    try {
-      let value: any;
-      if (propName == "metatype") {
-        value = metatype;
-      } else if (propName == "setProperties") {
-        value = []; // never
-      } else if (field.repeat) {
-        value = [fabricateScalarProp(propName, field)];
-      } else {
-        value = fabricateScalarProp(propName, field);
-      }
-      (struct as any)[propName] = value;
-    } catch (e) {
-      if (!(e instanceof CircularError)) throw e;
-      // ignore circular references
+    let value: any;
+    // skip recursive fields
+    const fieldObjectType = field.kind == "message" ? OBJECT_TYPE_BY_MESSAGE_TYPE_NAME[field.T().typeName] : null;
+    if (fieldObjectType && options?.path?.includes(fieldObjectType)) {
+      // skip recursive fields
+      value = field.repeat ? [] : null;
+    } else if (propName == "metatype") {
+      value = metatype;
+    } else if (propName == "setProperties") {
+      value = []; // never
+    } else if (field.repeat) {
+      value = [fabricateScalarProp(propName, field)];
+    } else {
+      value = fabricateScalarProp(propName, field);
     }
+    (struct as any)[propName] = value;
     ord += 1;
   }
   return struct as AnyTypeMapping[T];

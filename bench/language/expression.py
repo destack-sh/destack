@@ -257,7 +257,8 @@ class Expression(HasValues):
         if self.op in ExpressionOps.COND_STATIC:
             return to_casing(self.op.name, Casing.CAMEL)
         elif self.op in ExpressionOps.COND_LOGICAL:
-            return f" {_CONDITIONAL_OP_SIGN[self.op]} ".join(str(q) for q in self.clauses or ())
+            inner = f" {_CONDITIONAL_OP_SIGN[self.op]} ".join(str(q) for q in self.clauses or ())
+            return f"({inner})"
         elif (
             self.op in ExpressionOps.COND_EXACT
             or self.op in ExpressionOps.COND_RANGE
