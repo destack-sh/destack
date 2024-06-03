@@ -337,6 +337,8 @@ class NodeGraph(NodeGraphBase[NodeT, UUID]):
         self.nodes_by_id: dict[UUID, NodeT] = {}
         self.nodes_by_ck: dict[UUID, NodeT] = {}  # most nodes have a ck as well
         self.nodes_by_parent_id_and_type: dict[UUID, dict[NodeType, list[NodeT]]] = {}
+        # (nodes may be edited in place, so we remember the last parent id we know manually)
+        self.parent_id_by_node_identity: dict[int, UUID] = {}
 
         if isinstance(nodes, list):
             for node in nodes or []:
@@ -389,22 +391,24 @@ class NodeGraph(NodeGraphBase[NodeT, UUID]):
         self.nodes_by_ck[node.ck] = node
 
         # update parent if changed
-        if old.parent_id != node.parent_id:
+        # (the instance may be edited in place, so we remember the last parent by identity as well)
+        old_parent_id = self.parent_id_by_node_identity.get(id(old), old.parent_id)
+        if old_parent_id != node.parent_id:
             if old.parent_id is not None:
                 self._remove_from_parent(old)
             if node.parent_id is not None:
                 self._add_to_parent(node)
-        elif old.parent_id is not None:
+        elif old_parent_id is not None:
             # update in parent list (identity may have changed)
             for i, child in enumerate(
-                self.nodes_by_parent_id_and_type[old.parent_id][node.metatype]
+                self.nodes_by_parent_id_and_type[old_parent_id][node.metatype]
             ):
                 if child.id == node.id:
-                    self.nodes_by_parent_id_and_type[old.parent_id][node.metatype][i] = node
+                    self.nodes_by_parent_id_and_type[old_parent_id][node.metatype][i] = node
                     break
             else:
                 raise ValueError(
-                    f"node {node!r} not in {self!r} (should be in {self.nodes_by_parent_id_and_type[old.parent_id][node.metatype]}, was {old!r})"
+                    f"node {node!r} not in {self!r} (should be in {self.nodes_by_parent_id_and_type[old_parent_id][node.metatype]}, was {old!r})"
                 )
 
     def remove(self, node: NodeT):
@@ -430,10 +434,11 @@ class NodeGraph(NodeGraphBase[NodeT, UUID]):
         if node.metatype not in self.nodes_by_parent_id_and_type[parent_id]:
             self.nodes_by_parent_id_and_type[parent_id][node.metatype] = []
         self.nodes_by_parent_id_and_type[parent_id][node.metatype].append(node)
+        self.parent_id_by_node_identity[id(node)] = parent_id
 
     def _remove_from_parent(self, node: NodeT):
         assert node.parent is not None, f"{node!r} has no parent"
-        parent_id = node.parent.id
+        parent_id = self.parent_id_by_node_identity.pop(id(node))
         assert parent_id in self.nodes_by_parent_id_and_type, f"{node!r} has no parent in {self!r}"
         assert (
             node.metatype in self.nodes_by_parent_id_and_type[parent_id]
