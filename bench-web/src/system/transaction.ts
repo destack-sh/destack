@@ -9,6 +9,7 @@ import {
   ObjectType,
   PROPERTY_ENUM_BY_TYPE,
   PackageData,
+  Struct,
   Timestamp,
   type AnyNodeData,
   type AnyPropertyType,
@@ -20,6 +21,7 @@ import {
   describeNode,
   makeNode,
   nodeReference,
+  toNodeReference,
   unwrapSomeNode,
   wrapSomeNode,
   type TypedNodeReferenceData,
@@ -28,6 +30,7 @@ import { nonce, origin, userOrNullPtr, userPtr } from "@/system/client";
 import { type ReadNodeGraph, type WriteNodeGraph } from "@/system/graph";
 import { makeIcon } from "@/system/icon";
 import { toaster } from "@/system/toast";
+import { packStructValueScalar } from "@/system/value";
 import { AsyncEvent } from "@/utils/functools";
 import { IS_DEBUG } from "@/utils/globals";
 import { log } from "@/utils/log";
@@ -42,7 +45,17 @@ const DEBOUNCE_LEVELS: Record<"short" | "long", number> = {
   long: 2000,
 };
 
-const CONSTANT_PROPERTIES = ["metatype", "id", "ck"];
+const IMPLICIT_PROPERTIES = [
+  "metatype",
+  "id",
+  "ck",
+  "createdAt",
+  "createdEpoch",
+  "createdByPtr",
+  "updatedAt",
+  "updatedEpoch",
+  "updatedByPtr",
+];
 const NONCE_POSTFIX = nonce.replace("-", "").slice(0, 16);
 
 function newEditId(): string {
@@ -71,15 +84,11 @@ export type Transaction = {
   upsert(node: AnyNodeData): void;
 
   /** Update regular properties in this node. v*/
-  update<T extends AnyNodeData>(
-    node: T,
-    update: Partial<T> | (keyof Omit<T, "metatype" | "id" | "ck">)[],
-    options?: { debounce?: DebounceLevel },
-  ): void;
+  update<T extends AnyNodeData>(node: T, update: Partial<T>, options?: { debounce?: DebounceLevel }): void;
   /** Move node between parents (and update it) */
   move<T extends AnyNodeData>(
     node: T,
-    update: (Partial<T> & { parentPtr: NodeReferenceData }) | (keyof Omit<T, "metatype" | "id" | "ck">)[],
+    update: Partial<T> & { parentPtr: NodeReferenceData },
     options?: { debounce?: DebounceLevel },
   ): void;
   /** Archive node (incl. descendants) */
@@ -97,34 +106,6 @@ export type Transaction = {
    */
   delete(node: AnyNodeData): void;
 };
-
-type NodeMetadata = Pick<
-  PackageData,
-  | "createdAt"
-  | "createdByPtr"
-  | "createdEpoch"
-  | "updatedAt"
-  | "updatedByPtr"
-  | "updatedEpoch"
-  | "archivedAt"
-  | "deletedAt"
->;
-
-function _getCreateMetadata(subject: NodeReferenceData, now?: Timestamp): Partial<NodeMetadata> {
-  return {
-    createdAt: now ?? Timestamp.now(),
-    createdByPtr: subject,
-    createdEpoch: BigInt(-1),
-  };
-}
-
-function _getUpdateMetadata(subject: NodeReferenceData, now?: Timestamp): Partial<NodeMetadata> {
-  return {
-    updatedAt: now ?? Timestamp.now(),
-    updatedByPtr: subject,
-    updatedEpoch: BigInt(-1),
-  };
-}
 
 export class TransactionBuilder implements Transaction {
   public readonly scope: GraphScope;
@@ -159,38 +140,48 @@ export class TransactionBuilder implements Transaction {
     };
   }
 
-  _makeEdit(type: EditType, node: AnyNodeData, properties: number[], metadata: Partial<NodeMetadata>): EditData {
-    node = { ...node, ...metadata };
+  _getScope(node: AnyNodeData): GraphScope {
+    const allProperties = NODE_PROPERTY_ENUM_BY_TYPE[node.metatype]!;
     const benchId = (node as any).benchPtr?.id ?? this.scope.benchId;
     const packageId = (node as any).packagePtr?.id ?? this.scope.packageId;
-    const allProperties = NODE_PROPERTY_ENUM_BY_TYPE[node.metatype]!;
     if ("packagePtr" in allProperties && packageId == null)
       throw new Error(`missing packagePtr in ${describeNode(node)}`);
+    return { benchId, packageId, transactionId: this.id };
+  }
+
+  /** Adds a simple (non-update) edit */
+  _addSimpleEdit(
+    editType:
+      | EditType.CREATE
+      | EditType.UPSERT
+      | EditType.ARCHIVE
+      | EditType.UNARCHIVE
+      | EditType.SOFT_DELETE
+      | EditType.RESTORE
+      | EditType.DELETE,
+    node: AnyNodeData,
+    debounce: DebounceLevel | null,
+  ) {
+    let newNodePacked = null;
+    let oldNodePacked = null;
+    if (editType == EditType.CREATE || editType == EditType.UPSERT) {
+      newNodePacked = packStructValueScalar(node);
+    } else if (editType == EditType.DELETE) {
+      oldNodePacked = packStructValueScalar(node);
+    }
 
     const edit: EditData = {
       id: newEditId(),
-      type,
+      type: editType,
+      nodePtr: toNodeReference(node),
+      scope: this._getScope(node),
+      oldNodePacked: oldNodePacked != null ? Struct.fromJson(oldNodePacked) : undefined,
+      newNodePacked: newNodePacked != null ? Struct.fromJson(newNodePacked) : undefined,
+      properties: [],
       origin: origin.value,
-      scope: {
-        benchId,
-        packageId,
-        transactionId: this.id,
-      },
-      nodeType: node.metatype as unknown as NodeType,
-      node: wrapSomeNode(node),
-      properties: properties ?? [],
+      subjectPtr: this.subject,
+      editedAt: Timestamp.now(),
     };
-    return edit;
-  }
-
-  _addEdit(
-    type: EditType,
-    node: AnyNodeData,
-    properties: number[],
-    debounce: DebounceLevel | null,
-    metadata: Partial<NodeMetadata>,
-  ) {
-    const edit = this._makeEdit(type, node, properties, metadata);
     this.edits.push(edit);
     this._notifyEdit(edit, debounce);
     return edit;
@@ -232,52 +223,27 @@ export class TransactionBuilder implements Transaction {
     const node: NodeTypeMapping[T] =
       nodeIn.id == null ? makeNode(nodeIn as any) : (nodeIn as unknown as NodeTypeMapping[T]);
 
-    this._addEdit(EditType.CREATE, node, [], null, {
-      ..._getCreateMetadata(this.subject),
-      ..._getUpdateMetadata(this.subject),
-    });
+    this._addSimpleEdit(EditType.CREATE, node, null);
     return node as NodeTypeMapping[T];
   }
 
   upsert(node: AnyNodeData) {
-    this._addEdit(EditType.UPSERT, { ...node }, [], null, {
-      ..._getCreateMetadata(this.subject),
-      ..._getUpdateMetadata(this.subject),
-    });
+    this._addSimpleEdit(EditType.UPSERT, { ...node }, null);
   }
 
   _doUpdate<T extends AnyNodeData>(
     editType: EditType.UPDATE | EditType.MOVE,
     node: T,
-    update: Partial<T> | (keyof Omit<T, "metatype" | "id" | "ck">)[],
+    update: Partial<T>,
     options?: { debounce?: DebounceLevel },
   ) {
     const allProperties: AnyPropertyType = NODE_PROPERTY_ENUM_BY_TYPE[node.metatype as unknown as NodeType]!;
 
-    // map update values
-    let propertiesNames: string[];
-    if (Array.isArray(update)) {
-      propertiesNames = update as string[];
-      update = {}; // node is already updated
-      propertiesNames.forEach((propName) => ((update as any)[propName] = (node as any)[propName]));
-    } else if (typeof update == "object") {
-      propertiesNames = Object.keys(update);
-    } else {
-      throw new Error(`unexpected update type: ${update}`);
-    }
-
-    // map properties (exclude implicit properties)
+    // collect properties
     const properties = [];
-    for (const propName of propertiesNames) {
-      if (CONSTANT_PROPERTIES.includes(propName)) {
+    for (const propName of Object.keys(update)) {
+      if (IMPLICIT_PROPERTIES.includes(propName)) {
         throw new Error(`cannot update constant property for ${describeNode(node)}: ${propName}`);
-      }
-      if (ALL_IMPLICIT_EDIT_PROPERTIES_NAMES.has(propName)) {
-        if (!IMPLICIT_EDIT_PROPERTIES_NAMES[editType].includes(propName)) {
-          throw new Error(`cannot update implicit property for ${describeNode(node)} in ${editType}: ${propName}`);
-        } else {
-          continue; // ignore implicit properties for this edit type
-        }
       }
       const propId = (allProperties as any)[propName];
       if (propId == null) {
@@ -286,7 +252,29 @@ export class TransactionBuilder implements Transaction {
       properties.push(propId);
     }
 
-    if (options?.debounce && this.debouncedUpdates[node.id]) {
+    if (!options?.debounce || !this.debouncedUpdates[node.id]) {
+      // create new edit
+      const patchedNode = { ...node, ...update } as T;
+      const oldNodePacked = {};
+      const newNodePacked = {};
+      for (const propId of properties) {
+      }
+      const edit: EditData = {
+        id: newEditId(),
+        type: editType,
+        nodePtr: toNodeReference(patchedNode),
+        scope: this._getScope(patchedNode),
+        properties,
+        origin: origin.value,
+        subjectPtr: this.subject,
+        editedAt: Timestamp.now(),
+      };
+      if (options?.debounce) {
+        this.debouncedUpdates[node.id] = edit;
+      }
+      this.edits.push(edit);
+      this._notifyEdit(edit, options?.debounce ?? null);
+    } else {
       // merge into existing edit & notify directly
       const debouncedEdit = this.debouncedUpdates[node.id];
       properties
@@ -302,71 +290,39 @@ export class TransactionBuilder implements Transaction {
       }
       debouncedEdit.node = wrapSomeNode(prevNode);
       this._notifyEdit(debouncedEdit, options?.debounce);
-    } else {
-      // create new edit
-      const patchedNode = { ...node, ...update } as T;
-      const edit = this._addEdit(
-        editType,
-        patchedNode,
-        properties,
-        options?.debounce ?? null,
-        _getUpdateMetadata(this.subject),
-      );
-      if (options?.debounce) {
-        this.debouncedUpdates[node.id] = edit;
-      }
     }
   }
 
-  update<T extends AnyNodeData>(
-    node: T,
-    update: Partial<T> | (keyof Omit<T, "metatype" | "id" | "ck">)[],
-    options?: { debounce?: DebounceLevel },
-  ) {
+  update<T extends AnyNodeData>(node: T, update: Partial<T>, options?: { debounce?: DebounceLevel }) {
     this._doUpdate(EditType.UPDATE, node, update, options);
   }
 
   move<T extends AnyNodeData>(
     node: T,
-    update: (Partial<T> & { parentPtr: NodeReferenceData }) | (keyof Omit<T, "metatype" | "id" | "ck">)[],
+    update: Partial<T> & { parentPtr: NodeReferenceData },
     options?: { debounce?: DebounceLevel },
   ) {
     this._doUpdate(EditType.MOVE, node, update, options);
   }
 
   archive(node: AnyNodeData) {
-    this._addEdit(EditType.ARCHIVE, { ...node }, [], null, {
-      ..._getUpdateMetadata(this.subject),
-      archivedAt: Timestamp.now(),
-    });
+    this._addSimpleEdit(EditType.ARCHIVE, { ...node }, null);
   }
 
   unarchive(node: AnyNodeData) {
-    this._addEdit(EditType.UNARCHIVE, { ...node }, [], null, {
-      ..._getUpdateMetadata(this.subject),
-      archivedAt: undefined,
-    });
+    this._addSimpleEdit(EditType.UNARCHIVE, { ...node }, null);
   }
 
   softDelete(node: AnyNodeData) {
-    this._addEdit(EditType.SOFT_DELETE, { ...node }, [], null, {
-      ..._getUpdateMetadata(this.subject),
-      deletedAt: Timestamp.now(),
-    });
+    this._addSimpleEdit(EditType.SOFT_DELETE, { ...node }, null);
   }
 
   restore(node: AnyNodeData) {
-    this._addEdit(EditType.RESTORE, { ...node }, [], null, {
-      ..._getUpdateMetadata(this.subject),
-      deletedAt: undefined,
-    });
+    this._addSimpleEdit(EditType.RESTORE, { ...node }, null);
   }
 
   delete(node: AnyNodeData) {
-    this._addEdit(EditType.DELETE, { ...node }, [], null, {
-      ..._getUpdateMetadata(this.subject),
-      deletedAt: Timestamp.now(),
-    });
+    this._addSimpleEdit(EditType.DELETE, { ...node }, null);
   }
 }
 

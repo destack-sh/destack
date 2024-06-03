@@ -197,7 +197,7 @@ class ServiceBase:
                         await stream.send_message(partial_response)
                 else:
                     raise NotImplementedError(f"unsupported cardinality {cardinality}")
-                log.info(rpc_name, span="current")
+                log.debug(rpc_name, span="current")
 
             except GRPCError as e:
                 # pass through GRPC errors

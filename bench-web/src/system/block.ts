@@ -1,4 +1,4 @@
-import { NodeReferenceData, NodeType } from "@/proto/wire";
+import { BlockData, NodeReferenceData, NodeType } from "@/proto/wire";
 import { describeNode, isNode } from "@/proto/wiring";
 import type { ActionContext, ActionMapImplementation } from "@/system/action";
 import { type NodeTreeItem, type ReadNodeGraph } from "@/system/graph";
@@ -44,7 +44,7 @@ export function useHierarchicalNodeMoveActions<T extends NodeType>(options: {
       reference: graph.getChildren(rightParent.node, NodeType.BLOCK).slice(-1)[0],
       getNodes: () => graph.getChildren(rightParent.node, NodeType.BLOCK),
     });
-    tx.move({ ...item.node, parentPtr: rightParent.nodePtr }, ["parentPtr"], { debounce: "tick" });
+    tx.move(item.node as BlockData, { parentPtr: rightParent.nodePtr! }, { debounce: "tick" });
   }
 
   /** Moves the item one level to the left */

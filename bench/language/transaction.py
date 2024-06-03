@@ -167,14 +167,13 @@ class Transaction:
             old_node_packed = None
 
         # make edit
-        scope = self._get_scope_for_node(node_)
         edit = EditData(
             id=new_edit_id(),
             type=wiring.pack_enum(EditType, edit_type),
             node_ptr=node_.to_ref()._to_data(),
             new_node_packed=new_node_packed,
             old_node_packed=old_node_packed,
-            scope=scope,
+            scope=self._get_scope_for_node(node_),
             origin=origin,
             subject_ptr=subject.to_ref()._to_data() if subject is not None else None,
             edited_at=utcnow(),
@@ -205,7 +204,6 @@ class Transaction:
         existing_edit_idx = self._pending_updates_idx.get(node_)
         if existing_edit_idx is None:
             # new update/move
-            scope = self._get_scope_for_node(node_)
             old_node_packed = {}
             new_node_packed = {}
             for prop in properties:
@@ -228,7 +226,7 @@ class Transaction:
                 properties=[prop.id for prop in properties],
                 old_node_packed=wiring.pack_proto_json(old_node_packed),
                 new_node_packed=wiring.pack_proto_json(new_node_packed),
-                scope=scope,
+                scope=self._get_scope_for_node(node_),
                 origin=origin,
                 subject_ptr=subject.to_ref()._to_data() if subject is not None else None,
                 edited_at=utcnow(),

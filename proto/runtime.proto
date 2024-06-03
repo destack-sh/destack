@@ -1,0 +1,34 @@
+syntax = "proto3";
+
+package symbolx.bench;
+
+import "proto/common.proto";
+import "proto/lang.proto";
+
+//
+// Runtime
+//
+
+message RestartRuntimeRequest {
+	bool force = 1;
+  }
+  message RestartRuntimeResponse {
+  }
+  
+  message QueueRunRequest {
+	RunData run = 1;
+  }
+  message QueueRunResponse {
+  }
+  
+  // A Runtime for running a Bench in an isolated environment on/for a Client.
+  // The Runtime may run any number of processes and threads to process its Runs in Sessions.
+  service Runtime {
+	option (kind) = INTERNAL; // :ServiceKind
+  
+	// Restart this runtime. If force, skip graceful shutdown.
+	rpc Restart(RestartRuntimeRequest) returns (RestartRuntimeResponse);
+	// Starts a new Run in this runtime. The Run must already exist in the graph.
+	rpc QueueRun(QueueRunRequest) returns (QueueRunResponse);
+  }
+  

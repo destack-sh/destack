@@ -1341,9 +1341,8 @@ message IconData {
 }
 
 // A reference to a Node.
-// If the reference is to a node in a Bench, we include the Bench and 'ck' (where available).
-// If the second half of a ck is zero, it matches the closest node with the 'ck' prefix.
-// Base tracks which node the node is 'based' on (like Record.parent->Block, Signal.type->Block).
+// We include the Bench and 'ck' where available.
+// Base = the node is 'based' on (like Record.parent->Block, Signal.type->Block).
 message NodeReferenceData {
   ObjectType metatype = 1;
   NodeType type = 30;

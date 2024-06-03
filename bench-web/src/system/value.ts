@@ -422,6 +422,7 @@ export function packValue(
   value: any,
   type: TypeIdentity,
   graph: ReadNodeGraph,
+  options: { wrapPrimitive: boolean } = { wrapPrimitive: true },
   previous?: { valuePacked?: JsonValue; secretValuePacked?: JsonValue | undefined },
 ): { valuePacked: JsonValue; secretValuePacked: JsonValue | undefined } {
   type = resolveType(type, graph);
@@ -453,14 +454,15 @@ export function packValue(
     } else {
       valuePacked = value.map((v: any) => packValueScalar(v, type));
     }
-    valuePacked = { [encodeTypeIdentity(type)]: valuePacked };
+    if (options.wrapPrimitive) {
+      valuePacked = { [encodeTypeIdentity(type)]: valuePacked };
+    }
     return { valuePacked, secretValuePacked: undefined };
   }
 }
 
 /**
  * Unpack the value from robust wire format.
- * TODO :Incomplete: handle :SecretValues
  */
 export function unpackValue(
   packed: { valuePacked?: JsonValue; secretValuePacked?: JsonValue },
