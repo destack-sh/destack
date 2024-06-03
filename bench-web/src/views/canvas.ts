@@ -798,7 +798,7 @@ export class ViewCanvas {
       });
     }
     if (child.parentPtr?.id != self.id) {
-      tx.move({ ...child, parentPtr: toNodeReference(self) }, ["parentPtr"], { debounce: "tick" });
+      tx.move(child, { parentPtr: toNodeReference(self) }, { debounce: "tick" });
       this.cleanupRootViews(tx, graph, graph.get(child.parentPtr!) as ViewData);
     }
   }

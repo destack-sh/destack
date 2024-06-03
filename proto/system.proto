@@ -1,13 +1,9 @@
-/*
-All the services and any additional stuff not auto-generated in bench.proto.
- */
-
 syntax = "proto3";
 
 package symbolx.bench;
 
-import "bench/proto/common.proto";
-import "bench/proto/lang.proto";
+import "proto/common.proto";
+import "proto/lang.proto";
 
 //
 // Graph
@@ -283,31 +279,4 @@ service Host {
   rpc WatchEdits(WatchEditsRequest) returns (stream WatchEditsResponse);
 
   // ...
-}
-
-//
-// Runtime
-//
-
-message RestartRuntimeRequest {
-  bool force = 1;
-}
-message RestartRuntimeResponse {
-}
-
-message QueueRunRequest {
-  RunData run = 1;
-}
-message QueueRunResponse {
-}
-
-// A Runtime for running a Bench in an isolated environment on/for a Client.
-// The Runtime may run any number of processes and threads to process its Runs in Sessions.
-service Runtime {
-  option (kind) = INTERNAL; // :ServiceKind
-
-  // Restart this runtime. If force, skip graceful shutdown.
-  rpc Restart(RestartRuntimeRequest) returns (RestartRuntimeResponse);
-  // Starts a new Run in this runtime. The Run must already exist in the graph.
-  rpc QueueRun(QueueRunRequest) returns (QueueRunResponse);
 }

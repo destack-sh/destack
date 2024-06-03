@@ -27,14 +27,14 @@ from bench.language.setup import (
 from bench.proto.engine import generate_proto_schema
 from bench.utils.casing import Casing, to_casing
 
-LANG_PROTO = "bench/proto/lang.proto"
+LANG_PROTO = "proto/lang.proto"
 TEMP_PY_DIR = "bench/proto/wire.tmp"
 TEMP_PY_FILE = "bench/proto/wire.py.tmp"
 WIRE_PY_FILE = "bench/proto/wire.py"
 TEMP_TS_DIR = "bench-web/src/proto/wire.tmp"
 WIRE_TS_DIR = "bench-web/src/proto/wire"
-EXTRA_PROTO_PY_FILES = "bench/proto/common.proto bench/proto/services.proto"
-EXTRA_PROTO_TS_FILES = "bench/proto/common.proto bench/proto/services.proto bench/proto/web.proto"
+EXTRA_PROTO_PY_FILES = "proto/common.proto proto/system.proto proto/runtime.proto"
+EXTRA_PROTO_TS_FILES = "proto/common.proto proto/system.proto proto/web.proto"
 
 logger = structlog.get_logger(__name__)
 app = typer.Typer(short_help="proto management")
@@ -422,18 +422,18 @@ export type AnyPropertyType = {' | '.join('typeof ' + cls.__name__ + 'Property' 
 {object_info_definitions_str}
 {object_info_map_str}
     """
-    lang_ts = Path(TEMP_TS_DIR + "/bench/proto/lang.ts").read_text()
-    Path(TEMP_TS_DIR + "/bench/proto/lang.ts").write_text(lang_ts + "\n\n" + patch_postfix_code)
+    lang_ts = Path(TEMP_TS_DIR + "/proto/lang.ts").read_text()
+    Path(TEMP_TS_DIR + "/proto/lang.ts").write_text(lang_ts + "\n\n" + patch_postfix_code)
 
     # index.ts
     Path(TEMP_TS_DIR + "/index.ts").write_text(
         """
 // re-export generated wire files
-export * from './bench/proto/common';
-export * from './bench/proto/lang';
-export * from './bench/proto/web';
-export * from './bench/proto/services';
-export * from './bench/proto/services.client';
+export * from './proto/common';
+export * from './proto/lang';
+export * from './proto/web';
+export * from './proto/system';
+export * from './proto/system.client';
 export * from './google/protobuf/descriptor';
 export * from './google/protobuf/struct';
 export * from './google/protobuf/timestamp';
@@ -448,7 +448,7 @@ export * from './google/protobuf/timestamp';
     for path in Path(TEMP_TS_DIR).glob("**/*.client.ts"):
         patched_file = path.read_text().replace(": RpcOptions", ": OperationOptions")
         # append import
-        patched_file = patched_file + '\nimport type { OperationOptions } from "@/proto/services";'
+        patched_file = patched_file + '\nimport type { OperationOptions } from "@/proto/system";'
         path.write_text(patched_file)
 
     # overwrite WIRE_TS_DIR with TEMP_TS_DIR

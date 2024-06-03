@@ -328,7 +328,8 @@ export function fixOrderKeys<T extends AnyNodeData & { orderKey: string }>(tx: T
     if (!isValidOrderKey(node.orderKey)) {
       // just patch in place
       const orderKey = generateOrderKey(prevOrderKey, nodes[i + 1]?.orderKey ?? null);
-      tx.update({ ...node, orderKey }, ["orderKey"], { debounce: "tick" });
+      // @ts-ignore: orderKey must exist
+      tx.update(node, { orderKey }, { debounce: "tick" });
     } else if (node.orderKey == prevOrderKey) {
       // find all duplicates with same key from here and fix them in one go
       const numDuplicates = nodes.slice(i).filter((n) => n.orderKey == node.orderKey).length;
@@ -336,7 +337,7 @@ export function fixOrderKeys<T extends AnyNodeData & { orderKey: string }>(tx: T
       const orderKeys = generateOrderKeys(prevOrderKey, nodes[i + numDuplicates]?.orderKey ?? null, numDuplicates);
       for (let j = 0; j < numDuplicates; j++) {
         // @ts-ignore: orderKey must exist
-        tx.update({ ...duplicates[j], orderKey: orderKeys[j] }, ["orderKey"], { debounce: "tick" });
+        tx.update(duplicates[j], { orderKey: orderKeys[j] }, { debounce: "tick" });
       }
       i += numDuplicates;
     } else {
@@ -433,7 +434,7 @@ export function onNodeMorphed(tx: Transaction, graph: ReadNodeGraph, node: AnyNo
       .getChildren(node.parentPtr!, node.metatype as unknown as NodeType)
       .filter((n) => n.id != node.id);
     const name = generateNodeName(node.metatype as unknown as NodeType, siblings, getNodeDiscriminator(node));
-    if (name != node.name) tx.update({ ...node, name }, ["name"], { debounce: "tick" });
+    if (name != node.name) tx.update(node, { name }, { debounce: "tick" });
   }
 
   // auto update block flags
@@ -479,7 +480,7 @@ export function moveNode(
         getNodes: () => graph.getChildren(targetParent, target!.metatype as unknown as NodeType) as any,
       });
     }
-    tx.move({ ...node, parentPtr: target.parentPtr }, ["parentPtr"], { debounce: "tick" });
+    tx.move(node, { parentPtr: target.parentPtr! }, { debounce: "tick" });
   } else if (anchor == "center") {
     // move to end of target's children of that type
     if (target == null) throw new Error(`target required to move node ${anchor} ${describeNode(node)}`);
@@ -492,7 +493,7 @@ export function moveNode(
         getNodes: () => graph.getChildren(target!, node.metatype as unknown as NodeType) as any,
       });
     }
-    tx.move({ ...node, parentPtr: toNodeReference(target) }, ["parentPtr"], { debounce: "tick" });
+    tx.move(node, { parentPtr: toNodeReference(target) }, { debounce: "tick" });
   } else {
     throw new Error(`unexpected anchor: ${anchor}`);
   }

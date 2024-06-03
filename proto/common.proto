@@ -2,7 +2,7 @@ syntax = "proto3";
 
 package symbolx.bench;
 
-import "bench/proto/lang.proto";
+import "proto/lang.proto";
 import "google/protobuf/descriptor.proto";
 import "google/protobuf/struct.proto";
 import "google/protobuf/timestamp.proto";
