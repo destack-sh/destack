@@ -46,7 +46,7 @@ import type { Transaction } from "@/system/transaction";
 import type { SplitAnchor } from "@/utils/drag";
 import { getElement, isFocusableElement } from "@/utils/element";
 import { generateOrderKey } from "@/utils/fractional";
-import { IS_DEBUG, isDeveloperMode } from "@/utils/globals";
+import { IS_DEV, isDeveloperMode } from "@/utils/globals";
 import { DEFAULT_ORIENTATION, splitBox } from "@/utils/layout";
 import { log } from "@/utils/log";
 import { deepValueEquals, toValueRef } from "@/utils/ref";
@@ -563,7 +563,7 @@ export class ViewCanvas {
 
         const componentId = self.value?.id ?? id?.value!;
         const existingComponent = this.viewRefsById.value[componentId];
-        if (existingComponent != null && (IS_DEBUG || isDeveloperMode.value)) {
+        if (existingComponent != null && (IS_DEV || isDeveloperMode.value)) {
           // NOTE: checking for duplicate components only works reliably on next tick
           //  (because we may be registering a new component before the old component is unmounted)
           nextTick(() => {

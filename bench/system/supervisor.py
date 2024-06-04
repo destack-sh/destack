@@ -39,7 +39,7 @@ from bench.system.access import (
     check_password,
     get_client_cached,
     hash_password,
-    prune_client_cache,
+    purge_client_cache,
 )
 from bench.system.core import GLOBAL_POSTGRES_ENGINE, global_session
 from bench.system.graph import GraphIoServiceBase
@@ -188,6 +188,7 @@ class Supervisor(GraphIoServiceBase, SupervisorBase):
             user.password_hash = hash_password(request.new_password, user.password_salt)
             await session.commit()
 
+        purge_client_cache(user)
         logger.info("supervisor.change_user_password", user=user, span="current")
         return ChangeUserPasswordResponse(user=user._to_data())
 
@@ -219,6 +220,7 @@ class Supervisor(GraphIoServiceBase, SupervisorBase):
             await session.commit()
 
         logger.info("supervisor.login_user", user=user, client=client, span="current")
+        purge_client_cache(user)
         return LoginUserResponse(
             user=user._to_data(),
             client=client._to_data(),
@@ -253,6 +255,7 @@ class Supervisor(GraphIoServiceBase, SupervisorBase):
                 client.seen_at = utcnow()
             await session.commit()
 
+        purge_client_cache(subject.user)
         logger.info("supervisor.logout_user", user=subject.user, clients=clients, span="current")
         return LogoutUserResponse()
 
@@ -317,7 +320,7 @@ class Supervisor(GraphIoServiceBase, SupervisorBase):
 
         if isinstance(owner, User):
             # update user with new bench (supervisor and host may be in same process)
-            prune_client_cache(owner)
+            purge_client_cache(owner)
         logger.info("supervisor.create_bench", bench=bench, span="current")
         return CreateBenchResponse(bench=bench._to_data())
 

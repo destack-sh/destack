@@ -21,7 +21,7 @@ import { toaster } from "@/system/toast";
 import { getAllTransactionBuffers } from "@/system/transaction";
 import { generateOrderKey } from "@/utils/fractional";
 import { type FilterPrefix } from "@/utils/functools";
-import { DISCORD_URL, IS_DEBUG } from "@/utils/globals";
+import { DISCORD_URL, IS_DEV } from "@/utils/globals";
 import { keytrap, type KeySignature } from "@/utils/keymap";
 import { log } from "@/utils/log";
 import { generateRandomName } from "@/utils/naming";
@@ -136,7 +136,6 @@ export const ACTION_BUILTIN_IDS = [
   "common.sense.findReferences",
   "common.sense.findImplementations",
   "common.session.run",
-  "common.session.debug",
   "common.session.pause",
   "common.session.resume",
   "common.session.stop",
@@ -280,7 +279,7 @@ export function addAction(kind: ActionKind, in_: ActionIn) {
     subcategory: idParts[1],
     path: idParts.slice(0, -1).join(" / "),
   };
-  if (DECLARED_ACTIONS_BY_ID.value[in_.id] != null && (!IS_DEBUG || getCurrentInstance() == null))
+  if (DECLARED_ACTIONS_BY_ID.value[in_.id] != null && (!IS_DEV || getCurrentInstance() == null))
     // hot-reloading re-registers actions
     throw new Error(`action already exists: ${in_.id} (${in_} != ${DECLARED_ACTIONS_BY_ID.value[in_.id]})`);
   DECLARED_ACTIONS_BY_ID.value[in_.id as ActionBuiltinId] = action;
@@ -744,12 +743,6 @@ declareActionMap<"common">({
     title: "Run",
     text: "Run this node",
     shortcuts: ["ctrl+r", "f5"],
-  },
-  "common.session.debug": {
-    icon: "fas fa-bug",
-    title: "Debug",
-    text: "Debug this node",
-    shortcuts: ["ctrl+d", "f6"],
   },
   "common.session.pause": {
     icon: "fas fa-pause",

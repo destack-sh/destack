@@ -47,16 +47,26 @@ export function describeNode(node: {
   title?: string | null;
 }): string {
   const nodeParts: string[] = [`id=${node.id}`];
+  const nodeType = node.metatype == ObjectType.NODE_REFERENCE ? (node as NodeReferenceData).type : node.metatype;
   if ("ck" in node) nodeParts.push(`ck=${node.ck}`);
   if ("revision" in node) nodeParts.push(`r=${node.revision}`);
   if (node.name) nodeParts.push(`name='${node.name}'`);
   if (node.slug) nodeParts.push(`slug=${node.slug}`);
+  if (node.metatype != ObjectType.NODE_REFERENCE && nodeType != null && node.type != null) {
+    // coerce 'type' property into actual name
+    const messageType = MESSAGE_TYPE_BY_OBJECT_TYPE[nodeType as unknown as ObjectType];
+    if (messageType != null) {
+      const field = messageType.fields.find((f) => f.name == "type");
+      if (field?.kind == "enum") {
+        nodeParts.push(`type=${field.T()[1][node.type] ?? node.type}`);
+      }
+    }
+  }
   if (node.title) nodeParts.push(`title='${node.title}'`);
   if (node.parentPtr) nodeParts.push(`parent=${toCamelName(NodeType, node.parentPtr.type)}:${node.parentPtr.id}`);
   if ("benchId" in node) nodeParts.push(`benchId=${node.benchId}`);
   if ("benchCk" in node) nodeParts.push(`benchId=${node.benchCk}`);
-  const type = node.metatype == ObjectType.NODE_REFERENCE ? (node as NodeReferenceData).type : node.metatype;
-  const typeName = type == null ? "Node" : toCamelName(NodeType, type);
+  const typeName = nodeType == null ? "Node" : toCamelName(NodeType, nodeType);
   return `${typeName}:[${nodeParts.join(", ")}]`;
 }
 

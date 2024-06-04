@@ -3050,11 +3050,19 @@ export interface LogData {
      */
     oldNodePacked?: Struct;
     /**
-     * @generated from protobuf field: optional google.protobuf.Struct new_node_packed = 44;
+     * @generated from protobuf field: optional google.protobuf.Struct old_node_secret_packed = 44;
+     */
+    oldNodeSecretPacked?: Struct;
+    /**
+     * @generated from protobuf field: optional google.protobuf.Struct new_node_packed = 45;
      */
     newNodePacked?: Struct;
     /**
-     * @generated from protobuf field: optional int64 new_revision = 45;
+     * @generated from protobuf field: optional google.protobuf.Struct new_node_secret_packed = 46;
+     */
+    newNodeSecretPacked?: Struct;
+    /**
+     * @generated from protobuf field: optional int64 new_revision = 47;
      */
     newRevision?: bigint;
     /**
@@ -16806,8 +16814,10 @@ class LogData$Type extends MessageType<LogData> {
             { no: 41, name: "node_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 42, name: "properties", kind: "scalar", repeat: 1 /*RepeatType.PACKED*/, T: 5 /*ScalarType.INT32*/ },
             { no: 43, name: "old_node_packed", kind: "message", T: () => Struct },
-            { no: 44, name: "new_node_packed", kind: "message", T: () => Struct },
-            { no: 45, name: "new_revision", kind: "scalar", opt: true, T: 3 /*ScalarType.INT64*/, L: 0 /*LongType.BIGINT*/ },
+            { no: 44, name: "old_node_secret_packed", kind: "message", T: () => Struct },
+            { no: 45, name: "new_node_packed", kind: "message", T: () => Struct },
+            { no: 46, name: "new_node_secret_packed", kind: "message", T: () => Struct },
+            { no: 47, name: "new_revision", kind: "scalar", opt: true, T: 3 /*ScalarType.INT64*/, L: 0 /*LongType.BIGINT*/ },
             { no: 50, name: "title", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
             { no: 51, name: "text", kind: "message", T: () => TextData },
             { no: 52, name: "value_packed", kind: "message", T: () => Struct },
@@ -16914,10 +16924,16 @@ class LogData$Type extends MessageType<LogData> {
                 case /* optional google.protobuf.Struct old_node_packed */ 43:
                     message.oldNodePacked = Struct.internalBinaryRead(reader, reader.uint32(), options, message.oldNodePacked);
                     break;
-                case /* optional google.protobuf.Struct new_node_packed */ 44:
+                case /* optional google.protobuf.Struct old_node_secret_packed */ 44:
+                    message.oldNodeSecretPacked = Struct.internalBinaryRead(reader, reader.uint32(), options, message.oldNodeSecretPacked);
+                    break;
+                case /* optional google.protobuf.Struct new_node_packed */ 45:
                     message.newNodePacked = Struct.internalBinaryRead(reader, reader.uint32(), options, message.newNodePacked);
                     break;
-                case /* optional int64 new_revision */ 45:
+                case /* optional google.protobuf.Struct new_node_secret_packed */ 46:
+                    message.newNodeSecretPacked = Struct.internalBinaryRead(reader, reader.uint32(), options, message.newNodeSecretPacked);
+                    break;
+                case /* optional int64 new_revision */ 47:
                     message.newRevision = reader.int64().toBigInt();
                     break;
                 case /* optional string title */ 50:
@@ -17042,12 +17058,18 @@ class LogData$Type extends MessageType<LogData> {
         /* optional google.protobuf.Struct old_node_packed = 43; */
         if (message.oldNodePacked)
             Struct.internalBinaryWrite(message.oldNodePacked, writer.tag(43, WireType.LengthDelimited).fork(), options).join();
-        /* optional google.protobuf.Struct new_node_packed = 44; */
+        /* optional google.protobuf.Struct old_node_secret_packed = 44; */
+        if (message.oldNodeSecretPacked)
+            Struct.internalBinaryWrite(message.oldNodeSecretPacked, writer.tag(44, WireType.LengthDelimited).fork(), options).join();
+        /* optional google.protobuf.Struct new_node_packed = 45; */
         if (message.newNodePacked)
-            Struct.internalBinaryWrite(message.newNodePacked, writer.tag(44, WireType.LengthDelimited).fork(), options).join();
-        /* optional int64 new_revision = 45; */
+            Struct.internalBinaryWrite(message.newNodePacked, writer.tag(45, WireType.LengthDelimited).fork(), options).join();
+        /* optional google.protobuf.Struct new_node_secret_packed = 46; */
+        if (message.newNodeSecretPacked)
+            Struct.internalBinaryWrite(message.newNodeSecretPacked, writer.tag(46, WireType.LengthDelimited).fork(), options).join();
+        /* optional int64 new_revision = 47; */
         if (message.newRevision !== undefined)
-            writer.tag(45, WireType.Varint).int64(message.newRevision);
+            writer.tag(47, WireType.Varint).int64(message.newRevision);
         /* optional string title = 50; */
         if (message.title !== undefined)
             writer.tag(50, WireType.LengthDelimited).string(message.title);
@@ -24032,8 +24054,10 @@ export enum LogProperty {
   nodePtr = 41,
   properties = 42,
   oldNodePacked = 43,
-  newNodePacked = 44,
-  newRevision = 45,
+  oldNodeSecretPacked = 44,
+  newNodePacked = 45,
+  newNodeSecretPacked = 46,
+  newRevision = 47,
   title = 50,
   text = 51,
   valuePacked = 52,
@@ -26021,8 +26045,10 @@ export const LogDataInfo: Record<LogProperty, PropertyInfo> = {
   [LogProperty.nodePtr]: { id: 41, name: 'node_ptr', component: ObjectType.LOG, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.BENCH, NodeType.ENVIRONMENT, NodeType.BRANCH, NodeType.PACKAGE, NodeType.DEPENDENCY, NodeType.UPGRADE, NodeType.SPACE, NodeType.LINK, NodeType.SKIP, NodeType.NOTICE, NodeType.BLOCK, NodeType.TRIGGER, NodeType.FIELD, NodeType.QUERY, NodeType.VIEW, NodeType.STEP, NodeType.BADGE, NodeType.ROLE, NodeType.IDENTITY, NodeType.MEMBERSHIP, NodeType.INVITE, NodeType.SESSION, NodeType.RUN, NodeType.SIGNAL, NodeType.LOG, NodeType.NOTIFICATION, NodeType.MESSAGE, NodeType.RECORD, NodeType.SERVER, NodeType.STORE, NodeType.MACHINE, NodeType.DRIVE, NodeType.BLOB, NodeType.HANDLE, NodeType.USER, NodeType.ORGANIZATION, NodeType.CLIENT], referenceStruct: StructType.NODE_REFERENCE },
   [LogProperty.properties]: { id: 42, name: 'properties', component: ObjectType.LOG, kind: 'primitive', primitiveType: PrimitiveType.INT16, isList: true, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [LogProperty.oldNodePacked]: { id: 43, name: 'old_node_packed', component: ObjectType.LOG, kind: 'primitive', primitiveType: PrimitiveType.JSON, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
-  [LogProperty.newNodePacked]: { id: 44, name: 'new_node_packed', component: ObjectType.LOG, kind: 'primitive', primitiveType: PrimitiveType.JSON, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
-  [LogProperty.newRevision]: { id: 45, name: 'new_revision', component: ObjectType.LOG, kind: 'primitive', primitiveType: PrimitiveType.INT64, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
+  [LogProperty.oldNodeSecretPacked]: { id: 44, name: 'old_node_secret_packed', component: ObjectType.LOG, kind: 'primitive', primitiveType: PrimitiveType.JSON, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
+  [LogProperty.newNodePacked]: { id: 45, name: 'new_node_packed', component: ObjectType.LOG, kind: 'primitive', primitiveType: PrimitiveType.JSON, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
+  [LogProperty.newNodeSecretPacked]: { id: 46, name: 'new_node_secret_packed', component: ObjectType.LOG, kind: 'primitive', primitiveType: PrimitiveType.JSON, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
+  [LogProperty.newRevision]: { id: 47, name: 'new_revision', component: ObjectType.LOG, kind: 'primitive', primitiveType: PrimitiveType.INT64, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [LogProperty.title]: { id: 50, name: 'title', component: ObjectType.LOG, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [LogProperty.text]: { id: 51, name: 'text', component: ObjectType.LOG, kind: 'reference', primitiveType: PrimitiveType.JSON, isInternal: true, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.TEXT },
   [LogProperty.valuePacked]: { id: 52, name: 'value_packed', component: ObjectType.LOG, kind: 'primitive', primitiveType: PrimitiveType.JSON, isInternal: true, isRuntime: true, isWired: true, isStored: true, isValuePacked: true },

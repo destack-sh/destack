@@ -101,7 +101,7 @@ async def get_client_cached(session: Session, client_id: UUID, client_access_tok
     return client
 
 
-def prune_client_cache(user: User) -> None:
+def purge_client_cache(user: User) -> None:
     for key, client in list(client_cache.items()):
         if client.parent_id == user.id:
             client_cache.pop(key)

@@ -37,7 +37,7 @@ import {
   type TransactionBuffer,
 } from "@/system/transaction";
 import { AsyncEvent } from "@/utils/functools";
-import { IS_DEBUG } from "@/utils/globals";
+import { IS_DEV } from "@/utils/globals";
 import { log } from "@/utils/log";
 import { deepValueEquals, immediateStopWatch, pretendReadonly, toValueRef } from "@/utils/ref";
 import type { RpcError } from "@protobuf-ts/runtime-rpc";
@@ -351,7 +351,7 @@ export abstract class GraphConnectionBase<K extends GraphConnectionKind, T exten
         toaster.error({
           key: `connection:${this.meta.id}`,
           title: HUMANIZED_OPERATION_STATUS[(error as RpcError).code] ?? "Server error",
-          text: `'${this.kind}:${this.meta.name}' failed: ${IS_DEBUG ? error.message : (error as RpcError).code}`,
+          text: `'${this.kind}:${this.meta.name}' failed: ${IS_DEV ? error.message : (error as RpcError).code}`,
           override: true,
         });
         lastErrorCode = errorCode;

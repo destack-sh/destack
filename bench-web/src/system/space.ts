@@ -105,6 +105,7 @@ export async function assignSpaceInPackage() {
   }
 
   if (ownedSpacesInPkg.value.length > 0) {
+  // nocheckin: need to create a view if we don't have one (somewhere.. repair canvas?)
     // we already have a space in the package
     local.setSpace(toNodeReference(ownedSpacesInPkg.value[0]));
     spaceGraph.graph = pkgGraph;

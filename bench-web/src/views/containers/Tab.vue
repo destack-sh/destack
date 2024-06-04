@@ -6,7 +6,7 @@ import { useExistingConnection } from "@/system/connection";
 import { ICON_BY_NODE_TYPE, ICON_BY_VIEW_TYPE, IconInline } from "@/system/icon";
 import { canvas } from "@/system/space";
 import { startDragging, useMultiDropZone, useSplitDropZone, type SplitAnchor } from "@/utils/drag";
-import { IS_DEBUG, isDeveloperMode } from "@/utils/globals";
+import { IS_DEV, isDeveloperMode } from "@/utils/globals";
 import { ScrollbarWidth } from "@/utils/layout";
 import { menuActionsLike, type PopoverContext, type PopoverInfo } from "@/utils/menu";
 import { getViewBinding, getViewComponent } from "@/views/registry";
@@ -257,7 +257,7 @@ defineExpose<ViewExposed>({ self, actions });
         class="flex h-full w-full flex-col justify-center bg-danger-200 text-center"
       >
         <!-- missing view -->
-        <span v-if="IS_DEBUG || isDeveloperMode" class="font-mono">{{ ViewType[tabs[focusedTabIdx].type] }}</span>
+        <span v-if="IS_DEV || isDeveloperMode" class="font-mono">{{ ViewType[tabs[focusedTabIdx].type] }}</span>
       </div>
       <Empty v-else :type="ViewType.TAB" class="flex h-full w-full flex-col items-center justify-center" />
     </div>
