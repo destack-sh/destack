@@ -22,13 +22,15 @@ from bench.language.const import (
     IN_BENCH_NODE_TYPES,
     LOCAL_NODE_TYPES,
     SELF_LOGGED_NODE_TYPES,
+    ClientType,
     NodeType,
 )
 from bench.language.expression import NodeReference
 from bench.language.graph import NodeGraphLike
 from bench.language.log import Log
+from bench.language.notice import on_notice_ignore
 from bench.language.property import Property
-from bench.language.session import Session, unsuspend_session
+from bench.language.session import Session, SessionContext, unsuspend_session
 from bench.language.setup import NODE_CLASS_BY_TYPE
 from bench.language.transaction import (
     edit_data_graph,
@@ -38,7 +40,14 @@ from bench.language.transaction import (
 from bench.language.user import User
 from bench.proto import wire
 from bench.proto.services import RpcCallable, ServiceBase
-from bench.proto.wire import EditData, GraphScope, HostBase, LogData, ServiceKind
+from bench.proto.wire import (
+    EditData,
+    GraphScope,
+    HostBase,
+    LogData,
+    ServiceKind,
+    SessionContextData,
+)
 from bench.proto.wiring import unpack_proto_json
 from bench.system.access import get_client_cached
 from bench.system.core import (
@@ -265,6 +274,7 @@ class Host(GraphIoServiceBase, HostBase, HostSpec):
         # get client
         is_staff = False
         user: User | None = None
+        server: Server | None = None
         owned: list[Ownable] = []
         if metadata.client_id and metadata.client_access_token:
             if metadata.client_type is None:
@@ -289,6 +299,7 @@ class Host(GraphIoServiceBase, HostBase, HostSpec):
                 if not isinstance(client, Client):
                     raise GRPCError(GRPCStatus.UNAUTHENTICATED, "invalid client id")
                 assert isinstance(client.parent, Server)
+                server = client.parent
                 owned = [self._bench]  # servers own the bench for now
         else:
             client = None
@@ -312,6 +323,7 @@ class Host(GraphIoServiceBase, HostBase, HostSpec):
             is_staff=is_staff,
             client=client,
             user=user,
+            server=server,
             badges=badges,
             owned=owned,
         )
@@ -416,9 +428,13 @@ class Host(GraphIoServiceBase, HostBase, HostSpec):
 
     @override
     @tracer.start_as_current_span("host.prepare_commit")
-    def _prepare_commit(self, subject: Subject, edits: list[EditData]) -> tuple[CommitScope, int]:
+    def _prepare_commit(
+        self, subject: Subject, context: SessionContext, edits: list[EditData]
+    ) -> tuple[CommitScope, int]:
+        assert subject.client and subject.client_ptr, f"no client for {subject!r}"
         assert self._main_package is not None, f"package not loaded in {self!r}"
 
+        # prepare commit
         scope = parse_commit_scope(edits, base_graph=self._main_package._data_graph)
         now = utcnow()
         epoch = self.epoch
@@ -426,6 +442,11 @@ class Host(GraphIoServiceBase, HostBase, HostSpec):
             validate_edit(edit, subject, now)
             epoch += 1
             edit.epoch = epoch
+
+        # check context
+        context._resolve_references(self._bench, on_notice_ignore)
+        validate_context(subject, context, edits)
+
         return scope, epoch
 
     @override
@@ -433,6 +454,7 @@ class Host(GraphIoServiceBase, HostBase, HostSpec):
     async def extend_commit(
         self,
         session: Session,
+        context: SessionContext | None,
         graph: NodeGraphLike,
         edits: list[EditData],
         cascaded_edits: list[EditData],
@@ -468,6 +490,9 @@ class Host(GraphIoServiceBase, HostBase, HostSpec):
             return ProtoStruct.from_dict(node_packed), node_secret_packed_struct
 
         # add logs
+        context_data: SessionContextData = (
+            context._to_data() if context is not None else SessionContextData()
+        )
         package_ptr = session.package.to_ref()._to_data()
         bench_ptr = session.bench.to_ref()._to_data()
         log_edits: list[EditData] = []
@@ -508,7 +533,15 @@ class Host(GraphIoServiceBase, HostBase, HostSpec):
                 new_node_packed=new_node_packed,
                 new_node_secret_packed=new_node_secret_packed,
                 new_revision=edit.revision,
-                # nocheckin: add session context to Log
+                block_ptr=edit.context.block_ptr if edit.context else None,
+                step_ptr=edit.context.step_ptr if edit.context else None,
+                session_ptr=edit.context.session_ptr if edit.context else None,
+                run_ptr=edit.context.run_ptr if edit.context else None,
+                run_root_ptr=edit.context.run_root_ptr if edit.context else None,
+                client_ptr=context_data.client_ptr,
+                machine_ptr=context_data.machine_ptr,
+                server_ptr=context_data.server_ptr,
+                user_ptr=context_data.user_ptr,
             )
             create_log_edit = EditData(
                 id=log_data.id,
@@ -602,3 +635,32 @@ class Host(GraphIoServiceBase, HostBase, HostSpec):
             removed=commit.removed,
             span="current",
         )
+
+
+def validate_context(subject: Subject, context: SessionContext, edits: list[EditData]):
+    """Checks the session context and per edit context for consistency."""
+    assert subject.client and subject.client_ptr, f"no client for {subject!r}"
+    if not context.client_ptr or context.client_ptr.id != subject.client_ptr.id:
+        raise GRPCError(
+            GRPCStatus.INVALID_ARGUMENT,
+            f"bad client context for {subject!r}: {context.client_ptr!r}",
+        )
+    if subject.user_ptr and (not context.user_ptr or context.user_ptr.id != subject.user_ptr.id):
+        raise GRPCError(
+            GRPCStatus.INVALID_ARGUMENT,
+            f"bad user context for {subject!r}: {context.user_ptr!r}",
+        )
+    if subject.server_ptr and (
+        not context.server_ptr or context.server_ptr.id != subject.server_ptr.id
+    ):
+        raise GRPCError(
+            GRPCStatus.INVALID_ARGUMENT,
+            f"bad server context for {subject!r}: {context.server_ptr!r}",
+        )
+    if subject.client.type == ClientType.BENCH_SERVER:
+        if not context.machine or context.machine.parent != subject.server:
+            raise GRPCError(
+                GRPCStatus.INVALID_ARGUMENT,
+                f"bad machine context for {subject!r}: {context.machine!r}",
+            )
+    # NOTE :Incomplete: validate Edit context in Host

@@ -3,7 +3,7 @@
 
 from typing import TYPE_CHECKING, Union
 
-VERSION = "2024.06.04.1"
+VERSION = "2024.06.04.2"
 
 if TYPE_CHECKING:
     from bench.language import Subject
@@ -163,6 +163,8 @@ class BenchType(betterproto.Enum):
     TYPE_INFO = 1010
     TYPE_CONSTRAINT = 1011
     CONTEXT = 1020
+    SESSION_CONTEXT = 1021
+    EDIT_CONTEXT = 1022
     SCHEDULE = 1012
     PROJECTION = 1013
     POLICY = 1030
@@ -740,6 +742,8 @@ class ObjectType(betterproto.Enum):
     TYPE_INFO = 1010
     TYPE_CONSTRAINT = 1011
     CONTEXT = 1020
+    SESSION_CONTEXT = 1021
+    EDIT_CONTEXT = 1022
     SCHEDULE = 1012
     PROJECTION = 1013
     POLICY = 1030
@@ -1045,6 +1049,8 @@ class StructType(betterproto.Enum):
     TYPE_INFO = 1010
     TYPE_CONSTRAINT = 1011
     CONTEXT = 1020
+    SESSION_CONTEXT = 1021
+    EDIT_CONTEXT = 1022
     SCHEDULE = 1012
     PROJECTION = 1013
     POLICY = 1030
@@ -1367,16 +1373,9 @@ class ColorData(betterproto.Message):
 
 @dataclass(eq=False, repr=False)
 class ContextData(betterproto.Message):
-    """
-    A semi-magical value of context down a Bench tree (starting with system context).
-    """
+    """The context at some point and time in the Bench tree."""
 
     metatype: "ObjectType" = betterproto.enum_field(1)
-    id: int = betterproto.int32_field(2)
-    parent_id: Optional[int] = betterproto.int32_field(3, optional=True)
-    parent_key: Optional[str] = betterproto.string_field(4, optional=True)
-    order_key: Optional[str] = betterproto.string_field(9, optional=True)
-    set_properties: List[int] = betterproto.int32_field(29)
     bench_ptr: Optional["NodeReferenceData"] = betterproto.message_field(30, optional=True)
     environment_ptr: Optional["NodeReferenceData"] = betterproto.message_field(31, optional=True)
     branch_ptr: Optional["NodeReferenceData"] = betterproto.message_field(32, optional=True)
@@ -1394,6 +1393,20 @@ class ContextData(betterproto.Message):
     run_root_ptr: Optional["NodeReferenceData"] = betterproto.message_field(53, optional=True)
     trigger_ptr: Optional["NodeReferenceData"] = betterproto.message_field(54, optional=True)
     signal_ptr: Optional["NodeReferenceData"] = betterproto.message_field(55, optional=True)
+
+
+@dataclass(eq=False, repr=False)
+class EditContextData(betterproto.Message):
+    """
+    Additional context for a specific edit (per-edit variable subset of Session context).
+    """
+
+    metatype: "ObjectType" = betterproto.enum_field(1)
+    block_ptr: Optional["NodeReferenceData"] = betterproto.message_field(60, optional=True)
+    step_ptr: Optional["NodeReferenceData"] = betterproto.message_field(61, optional=True)
+    session_ptr: Optional["NodeReferenceData"] = betterproto.message_field(62, optional=True)
+    run_ptr: Optional["NodeReferenceData"] = betterproto.message_field(63, optional=True)
+    run_root_ptr: Optional["NodeReferenceData"] = betterproto.message_field(64, optional=True)
 
 
 @dataclass(eq=False, repr=False)
@@ -1731,6 +1744,24 @@ class SelectionData(betterproto.Message):
 
 
 @dataclass(eq=False, repr=False)
+class SessionContextData(betterproto.Message):
+    """
+    SessionContext(parent: Union[ForwardRef('Struct'), ForwardRef('Node'), ForwardRef('Object'), NoneType] = None, _is_interped: bool = False, _session: 'Session | None' = None, _updated_properties: bitarray.bitarray | None = None, block: Optional[ForwardRef('Block')] = None, step: Optional[ForwardRef('Step')] = None, session: Optional[ForwardRef('Session')] = None, run: Optional[ForwardRef('Run')] = None, run_root: Optional[ForwardRef('Run')] = None, client: Optional[ForwardRef('Client')] = None, machine: Optional[ForwardRef('Machine')] = None, server: Optional[ForwardRef('Server')] = None, user: Optional[ForwardRef('User')] = None, parent_id: int = None, parent_key: str = None, block_ptr: 'NodeReference' = None, step_ptr: 'NodeReference' = None, session_ptr: 'NodeReference' = None, run_ptr: 'NodeReference' = None, run_root_ptr: 'NodeReference' = None, client_ptr: 'NodeReference' = None, machine_ptr: 'NodeReference' = None, server_ptr: 'NodeReference' = None, user_ptr: 'NodeReference' = None)
+    """
+
+    metatype: "ObjectType" = betterproto.enum_field(1)
+    block_ptr: Optional["NodeReferenceData"] = betterproto.message_field(60, optional=True)
+    step_ptr: Optional["NodeReferenceData"] = betterproto.message_field(61, optional=True)
+    session_ptr: Optional["NodeReferenceData"] = betterproto.message_field(62, optional=True)
+    run_ptr: Optional["NodeReferenceData"] = betterproto.message_field(63, optional=True)
+    run_root_ptr: Optional["NodeReferenceData"] = betterproto.message_field(64, optional=True)
+    client_ptr: Optional["NodeReferenceData"] = betterproto.message_field(65, optional=True)
+    machine_ptr: Optional["NodeReferenceData"] = betterproto.message_field(66, optional=True)
+    server_ptr: Optional["NodeReferenceData"] = betterproto.message_field(67, optional=True)
+    user_ptr: Optional["NodeReferenceData"] = betterproto.message_field(68, optional=True)
+
+
+@dataclass(eq=False, repr=False)
 class StepConnectionData(betterproto.Message):
     """A connection between to a Step in a Flow."""
 
@@ -1761,6 +1792,7 @@ class SubjectData(betterproto.Message):
     is_system: Optional[bool] = betterproto.bool_field(32, optional=True)
     client_ptr: Optional["NodeReferenceData"] = betterproto.message_field(40, optional=True)
     user_ptr: Optional["NodeReferenceData"] = betterproto.message_field(41, optional=True)
+    server_ptr: Optional["NodeReferenceData"] = betterproto.message_field(42, optional=True)
     identity_ptr: Optional["NodeReferenceData"] = betterproto.message_field(50, optional=True)
     badges_ptr: List["NodeReferenceData"] = betterproto.message_field(51)
     owned_ptr: List["NodeReferenceData"] = betterproto.message_field(52)
@@ -3275,16 +3307,21 @@ class EditData(betterproto.Message):
     """Enclosing scope of the node."""
 
     subject_ptr: Optional["NodeReferenceData"] = betterproto.message_field(41, optional=True)
-    """Who this? All non-system clients must set both."""
+    """Who made the edit (subject)."""
 
     origin: Optional["ClientOrigin"] = betterproto.message_field(42, optional=True)
-    edited_at: datetime = betterproto.message_field(43)
+    """WHo made the edit (client)."""
+
+    context: Optional["EditContextData"] = betterproto.message_field(43, optional=True)
+    """Additional context for server clients."""
+
+    edited_at: datetime = betterproto.message_field(44)
     """When the edit was made."""
 
-    revision: Optional[int] = betterproto.int64_field(44, optional=True)
+    revision: Optional[int] = betterproto.int64_field(45, optional=True)
     """Revision for the node."""
 
-    epoch: Optional[int] = betterproto.int64_field(45, optional=True)
+    epoch: Optional[int] = betterproto.int64_field(46, optional=True)
     """Epoch at that edit."""
 
 
@@ -3300,10 +3337,11 @@ class GetNodesRequest(betterproto.Message):
 @dataclass(eq=False, repr=False)
 class GetNodesResponse(betterproto.Message):
     nodes: List["SomeNodeData"] = betterproto.message_field(1)
-    """Nodes in pre-order (parent before children) traversal."""
+    """Nodes are in pre-order (parent before children) traversal."""
 
     access: Optional["AccessMatrixData"] = betterproto.message_field(2, optional=True)
     epoch: int = betterproto.uint64_field(3)
+    query_id: str = betterproto.string_field(4)
 
 
 @dataclass(eq=False, repr=False)
@@ -3318,8 +3356,6 @@ class SearchNodesRequest(betterproto.Message):
     after: Optional[str] = betterproto.string_field(8, optional=True)
     options: Optional["ReadOptionsData"] = betterproto.message_field(9, optional=True)
     count: Optional[bool] = betterproto.bool_field(10, optional=True)
-    lock_for_update: Optional[bool] = betterproto.bool_field(11, optional=True)
-    skip_locked: Optional[bool] = betterproto.bool_field(12, optional=True)
 
 
 @dataclass(eq=False, repr=False)
@@ -3333,6 +3369,7 @@ class SearchNodesResponse(betterproto.Message):
     total: Optional[int] = betterproto.int32_field(5, optional=True)
     access: Optional["AccessMatrixData"] = betterproto.message_field(6, optional=True)
     epoch: int = betterproto.uint64_field(7)
+    query_id: str = betterproto.string_field(8)
 
 
 @dataclass(eq=False, repr=False)
@@ -3349,6 +3386,24 @@ class AggregateNodesRequest(betterproto.Message):
 class AggregateNodesResponse(betterproto.Message):
     aggregation: "AggregationData" = betterproto.message_field(1)
     epoch: int = betterproto.uint64_field(2)
+    query_id: str = betterproto.string_field(3)
+
+
+@dataclass(eq=False, repr=False)
+class WatchEditsRequest(betterproto.Message):
+    scope: "GraphScope" = betterproto.message_field(1)
+    node_types: List["NodeType"] = betterproto.enum_field(2)
+    since_epoch: Optional[int] = betterproto.uint64_field(3, optional=True)
+    filters: Dict[int, "ExpressionData"] = betterproto.map_field(
+        4, betterproto.TYPE_INT32, betterproto.TYPE_MESSAGE
+    )
+
+
+@dataclass(eq=False, repr=False)
+class WatchEditsResponse(betterproto.Message):
+    edits: List["EditData"] = betterproto.message_field(1)
+    cascaded_edits: List["EditData"] = betterproto.message_field(2)
+    epoch: int = betterproto.uint64_field(3)
 
 
 @dataclass(eq=False, repr=False)
@@ -3356,6 +3411,7 @@ class CommitTransactionRequest(betterproto.Message):
     scope: "GraphScope" = betterproto.message_field(1)
     id: str = betterproto.string_field(2)
     edits: List["EditData"] = betterproto.message_field(3)
+    context: Optional["SessionContextData"] = betterproto.message_field(4, optional=True)
 
 
 @dataclass(eq=False, repr=False)
@@ -3410,23 +3466,6 @@ class CancelTransactionRequest(betterproto.Message):
 @dataclass(eq=False, repr=False)
 class CancelTransactionResponse(betterproto.Message):
     pass
-
-
-@dataclass(eq=False, repr=False)
-class WatchEditsRequest(betterproto.Message):
-    scope: "GraphScope" = betterproto.message_field(1)
-    node_types: List["NodeType"] = betterproto.enum_field(2)
-    since_epoch: Optional[int] = betterproto.uint64_field(3, optional=True)
-    filters: Dict[int, "ExpressionData"] = betterproto.map_field(
-        4, betterproto.TYPE_INT32, betterproto.TYPE_MESSAGE
-    )
-
-
-@dataclass(eq=False, repr=False)
-class WatchEditsResponse(betterproto.Message):
-    edits: List["EditData"] = betterproto.message_field(1)
-    cascaded_edits: List["EditData"] = betterproto.message_field(2)
-    epoch: int = betterproto.uint64_field(3)
 
 
 @dataclass(eq=False, repr=False)
@@ -3613,6 +3652,24 @@ class GraphIoStub(betterproto.ServiceStub):
             metadata=metadata,
         )
 
+    async def watch_edits(
+        self,
+        request: "WatchEditsRequest",
+        *,
+        timeout: Optional[float] = None,
+        deadline: Optional["Deadline"] = None,
+        metadata: Optional["MetadataLike"] = None,
+    ) -> AsyncIterator["WatchEditsResponse"]:
+        async for response in self._unary_stream(
+            "/symbolx.bench.GraphIO/WatchEdits",
+            request,
+            WatchEditsResponse,
+            timeout=timeout,
+            deadline=deadline,
+            metadata=metadata,
+        ):
+            yield response
+
     async def commit_transaction(
         self,
         request: "CommitTransactionRequest",
@@ -3681,24 +3738,6 @@ class GraphIoStub(betterproto.ServiceStub):
             metadata=metadata,
         )
 
-    async def watch_edits(
-        self,
-        request: "WatchEditsRequest",
-        *,
-        timeout: Optional[float] = None,
-        deadline: Optional["Deadline"] = None,
-        metadata: Optional["MetadataLike"] = None,
-    ) -> AsyncIterator["WatchEditsResponse"]:
-        async for response in self._unary_stream(
-            "/symbolx.bench.GraphIO/WatchEdits",
-            request,
-            WatchEditsResponse,
-            timeout=timeout,
-            deadline=deadline,
-            metadata=metadata,
-        ):
-            yield response
-
 
 class SupervisorStub(betterproto.ServiceStub):
     async def get_nodes(
@@ -3751,6 +3790,24 @@ class SupervisorStub(betterproto.ServiceStub):
             deadline=deadline,
             metadata=metadata,
         )
+
+    async def watch_edits(
+        self,
+        request: "WatchEditsRequest",
+        *,
+        timeout: Optional[float] = None,
+        deadline: Optional["Deadline"] = None,
+        metadata: Optional["MetadataLike"] = None,
+    ) -> AsyncIterator["WatchEditsResponse"]:
+        async for response in self._unary_stream(
+            "/symbolx.bench.Supervisor/WatchEdits",
+            request,
+            WatchEditsResponse,
+            timeout=timeout,
+            deadline=deadline,
+            metadata=metadata,
+        ):
+            yield response
 
     async def commit_transaction(
         self,
@@ -3819,24 +3876,6 @@ class SupervisorStub(betterproto.ServiceStub):
             deadline=deadline,
             metadata=metadata,
         )
-
-    async def watch_edits(
-        self,
-        request: "WatchEditsRequest",
-        *,
-        timeout: Optional[float] = None,
-        deadline: Optional["Deadline"] = None,
-        metadata: Optional["MetadataLike"] = None,
-    ) -> AsyncIterator["WatchEditsResponse"]:
-        async for response in self._unary_stream(
-            "/symbolx.bench.Supervisor/WatchEdits",
-            request,
-            WatchEditsResponse,
-            timeout=timeout,
-            deadline=deadline,
-            metadata=metadata,
-        ):
-            yield response
 
     async def signup_user(
         self,
@@ -3993,6 +4032,24 @@ class HostStub(betterproto.ServiceStub):
             metadata=metadata,
         )
 
+    async def watch_edits(
+        self,
+        request: "WatchEditsRequest",
+        *,
+        timeout: Optional[float] = None,
+        deadline: Optional["Deadline"] = None,
+        metadata: Optional["MetadataLike"] = None,
+    ) -> AsyncIterator["WatchEditsResponse"]:
+        async for response in self._unary_stream(
+            "/symbolx.bench.Host/WatchEdits",
+            request,
+            WatchEditsResponse,
+            timeout=timeout,
+            deadline=deadline,
+            metadata=metadata,
+        ):
+            yield response
+
     async def commit_transaction(
         self,
         request: "CommitTransactionRequest",
@@ -4061,24 +4118,6 @@ class HostStub(betterproto.ServiceStub):
             metadata=metadata,
         )
 
-    async def watch_edits(
-        self,
-        request: "WatchEditsRequest",
-        *,
-        timeout: Optional[float] = None,
-        deadline: Optional["Deadline"] = None,
-        metadata: Optional["MetadataLike"] = None,
-    ) -> AsyncIterator["WatchEditsResponse"]:
-        async for response in self._unary_stream(
-            "/symbolx.bench.Host/WatchEdits",
-            request,
-            WatchEditsResponse,
-            timeout=timeout,
-            deadline=deadline,
-            metadata=metadata,
-        ):
-            yield response
-
 
 class RuntimeStub(betterproto.ServiceStub):
     async def restart(
@@ -4130,6 +4169,12 @@ class GraphIoBase(ServiceBase):
     ) -> "AggregateNodesResponse":
         raise grpclib.GRPCError(grpclib.const.Status.UNIMPLEMENTED)
 
+    async def watch_edits(
+        self, subject: "Subject", request: "WatchEditsRequest"
+    ) -> AsyncIterator["WatchEditsResponse"]:
+        raise grpclib.GRPCError(grpclib.const.Status.UNIMPLEMENTED)
+        yield WatchEditsResponse()
+
     async def commit_transaction(
         self, subject: "Subject", request: "CommitTransactionRequest"
     ) -> "CommitTransactionResponse":
@@ -4149,12 +4194,6 @@ class GraphIoBase(ServiceBase):
         self, subject: "Subject", request: "CancelTransactionRequest"
     ) -> "CancelTransactionResponse":
         raise grpclib.GRPCError(grpclib.const.Status.UNIMPLEMENTED)
-
-    async def watch_edits(
-        self, subject: "Subject", request: "WatchEditsRequest"
-    ) -> AsyncIterator["WatchEditsResponse"]:
-        raise grpclib.GRPCError(grpclib.const.Status.UNIMPLEMENTED)
-        yield WatchEditsResponse()
 
     async def __rpc_get_nodes(
         self, stream: "grpclib.server.Stream[GetNodesRequest, GetNodesResponse]"
@@ -4177,6 +4216,16 @@ class GraphIoBase(ServiceBase):
         request = await stream.recv_message()
         response = await self.aggregate_nodes(request)
         await stream.send_message(response)
+
+    async def __rpc_watch_edits(
+        self, stream: "grpclib.server.Stream[WatchEditsRequest, WatchEditsResponse]"
+    ) -> None:
+        request = await stream.recv_message()
+        await self._call_rpc_handler_server_stream(
+            self.watch_edits,
+            stream,
+            request,
+        )
 
     async def __rpc_commit_transaction(
         self,
@@ -4210,16 +4259,6 @@ class GraphIoBase(ServiceBase):
         response = await self.cancel_transaction(request)
         await stream.send_message(response)
 
-    async def __rpc_watch_edits(
-        self, stream: "grpclib.server.Stream[WatchEditsRequest, WatchEditsResponse]"
-    ) -> None:
-        request = await stream.recv_message()
-        await self._call_rpc_handler_server_stream(
-            self.watch_edits,
-            stream,
-            request,
-        )
-
     def __mapping__(self) -> Dict[str, grpclib.const.Handler]:
         return {
             "/symbolx.bench.GraphIO/GetNodes": grpclib.const.Handler(
@@ -4239,6 +4278,12 @@ class GraphIoBase(ServiceBase):
                 grpclib.const.Cardinality.UNARY_UNARY,
                 AggregateNodesRequest,
                 AggregateNodesResponse,
+            ),
+            "/symbolx.bench.GraphIO/WatchEdits": grpclib.const.Handler(
+                self.__rpc_watch_edits,
+                grpclib.const.Cardinality.UNARY_STREAM,
+                WatchEditsRequest,
+                WatchEditsResponse,
             ),
             "/symbolx.bench.GraphIO/CommitTransaction": grpclib.const.Handler(
                 self.__rpc_commit_transaction,
@@ -4264,12 +4309,6 @@ class GraphIoBase(ServiceBase):
                 CancelTransactionRequest,
                 CancelTransactionResponse,
             ),
-            "/symbolx.bench.GraphIO/WatchEdits": grpclib.const.Handler(
-                self.__rpc_watch_edits,
-                grpclib.const.Cardinality.UNARY_STREAM,
-                WatchEditsRequest,
-                WatchEditsResponse,
-            ),
         }
 
 
@@ -4286,6 +4325,12 @@ class SupervisorBase(ServiceBase):
         self, subject: "Subject", request: "AggregateNodesRequest"
     ) -> "AggregateNodesResponse":
         raise grpclib.GRPCError(grpclib.const.Status.UNIMPLEMENTED)
+
+    async def watch_edits(
+        self, subject: "Subject", request: "WatchEditsRequest"
+    ) -> AsyncIterator["WatchEditsResponse"]:
+        raise grpclib.GRPCError(grpclib.const.Status.UNIMPLEMENTED)
+        yield WatchEditsResponse()
 
     async def commit_transaction(
         self, subject: "Subject", request: "CommitTransactionRequest"
@@ -4306,12 +4351,6 @@ class SupervisorBase(ServiceBase):
         self, subject: "Subject", request: "CancelTransactionRequest"
     ) -> "CancelTransactionResponse":
         raise grpclib.GRPCError(grpclib.const.Status.UNIMPLEMENTED)
-
-    async def watch_edits(
-        self, subject: "Subject", request: "WatchEditsRequest"
-    ) -> AsyncIterator["WatchEditsResponse"]:
-        raise grpclib.GRPCError(grpclib.const.Status.UNIMPLEMENTED)
-        yield WatchEditsResponse()
 
     async def signup_user(
         self, subject: "Subject", request: "SignupUserRequest"
@@ -4363,6 +4402,16 @@ class SupervisorBase(ServiceBase):
         response = await self.aggregate_nodes(request)
         await stream.send_message(response)
 
+    async def __rpc_watch_edits(
+        self, stream: "grpclib.server.Stream[WatchEditsRequest, WatchEditsResponse]"
+    ) -> None:
+        request = await stream.recv_message()
+        await self._call_rpc_handler_server_stream(
+            self.watch_edits,
+            stream,
+            request,
+        )
+
     async def __rpc_commit_transaction(
         self,
         stream: "grpclib.server.Stream[CommitTransactionRequest, CommitTransactionResponse]",
@@ -4394,16 +4443,6 @@ class SupervisorBase(ServiceBase):
         request = await stream.recv_message()
         response = await self.cancel_transaction(request)
         await stream.send_message(response)
-
-    async def __rpc_watch_edits(
-        self, stream: "grpclib.server.Stream[WatchEditsRequest, WatchEditsResponse]"
-    ) -> None:
-        request = await stream.recv_message()
-        await self._call_rpc_handler_server_stream(
-            self.watch_edits,
-            stream,
-            request,
-        )
 
     async def __rpc_signup_user(
         self, stream: "grpclib.server.Stream[SignupUserRequest, SignupUserResponse]"
@@ -4468,6 +4507,12 @@ class SupervisorBase(ServiceBase):
                 AggregateNodesRequest,
                 AggregateNodesResponse,
             ),
+            "/symbolx.bench.Supervisor/WatchEdits": grpclib.const.Handler(
+                self.__rpc_watch_edits,
+                grpclib.const.Cardinality.UNARY_STREAM,
+                WatchEditsRequest,
+                WatchEditsResponse,
+            ),
             "/symbolx.bench.Supervisor/CommitTransaction": grpclib.const.Handler(
                 self.__rpc_commit_transaction,
                 grpclib.const.Cardinality.UNARY_UNARY,
@@ -4491,12 +4536,6 @@ class SupervisorBase(ServiceBase):
                 grpclib.const.Cardinality.UNARY_UNARY,
                 CancelTransactionRequest,
                 CancelTransactionResponse,
-            ),
-            "/symbolx.bench.Supervisor/WatchEdits": grpclib.const.Handler(
-                self.__rpc_watch_edits,
-                grpclib.const.Cardinality.UNARY_STREAM,
-                WatchEditsRequest,
-                WatchEditsResponse,
             ),
             "/symbolx.bench.Supervisor/SignupUser": grpclib.const.Handler(
                 self.__rpc_signup_user,
@@ -4551,6 +4590,12 @@ class HostBase(ServiceBase):
     ) -> "AggregateNodesResponse":
         raise grpclib.GRPCError(grpclib.const.Status.UNIMPLEMENTED)
 
+    async def watch_edits(
+        self, subject: "Subject", request: "WatchEditsRequest"
+    ) -> AsyncIterator["WatchEditsResponse"]:
+        raise grpclib.GRPCError(grpclib.const.Status.UNIMPLEMENTED)
+        yield WatchEditsResponse()
+
     async def commit_transaction(
         self, subject: "Subject", request: "CommitTransactionRequest"
     ) -> "CommitTransactionResponse":
@@ -4570,12 +4615,6 @@ class HostBase(ServiceBase):
         self, subject: "Subject", request: "CancelTransactionRequest"
     ) -> "CancelTransactionResponse":
         raise grpclib.GRPCError(grpclib.const.Status.UNIMPLEMENTED)
-
-    async def watch_edits(
-        self, subject: "Subject", request: "WatchEditsRequest"
-    ) -> AsyncIterator["WatchEditsResponse"]:
-        raise grpclib.GRPCError(grpclib.const.Status.UNIMPLEMENTED)
-        yield WatchEditsResponse()
 
     async def __rpc_get_nodes(
         self, stream: "grpclib.server.Stream[GetNodesRequest, GetNodesResponse]"
@@ -4598,6 +4637,16 @@ class HostBase(ServiceBase):
         request = await stream.recv_message()
         response = await self.aggregate_nodes(request)
         await stream.send_message(response)
+
+    async def __rpc_watch_edits(
+        self, stream: "grpclib.server.Stream[WatchEditsRequest, WatchEditsResponse]"
+    ) -> None:
+        request = await stream.recv_message()
+        await self._call_rpc_handler_server_stream(
+            self.watch_edits,
+            stream,
+            request,
+        )
 
     async def __rpc_commit_transaction(
         self,
@@ -4631,16 +4680,6 @@ class HostBase(ServiceBase):
         response = await self.cancel_transaction(request)
         await stream.send_message(response)
 
-    async def __rpc_watch_edits(
-        self, stream: "grpclib.server.Stream[WatchEditsRequest, WatchEditsResponse]"
-    ) -> None:
-        request = await stream.recv_message()
-        await self._call_rpc_handler_server_stream(
-            self.watch_edits,
-            stream,
-            request,
-        )
-
     def __mapping__(self) -> Dict[str, grpclib.const.Handler]:
         return {
             "/symbolx.bench.Host/GetNodes": grpclib.const.Handler(
@@ -4660,6 +4699,12 @@ class HostBase(ServiceBase):
                 grpclib.const.Cardinality.UNARY_UNARY,
                 AggregateNodesRequest,
                 AggregateNodesResponse,
+            ),
+            "/symbolx.bench.Host/WatchEdits": grpclib.const.Handler(
+                self.__rpc_watch_edits,
+                grpclib.const.Cardinality.UNARY_STREAM,
+                WatchEditsRequest,
+                WatchEditsResponse,
             ),
             "/symbolx.bench.Host/CommitTransaction": grpclib.const.Handler(
                 self.__rpc_commit_transaction,
@@ -4684,12 +4729,6 @@ class HostBase(ServiceBase):
                 grpclib.const.Cardinality.UNARY_UNARY,
                 CancelTransactionRequest,
                 CancelTransactionResponse,
-            ),
-            "/symbolx.bench.Host/WatchEdits": grpclib.const.Handler(
-                self.__rpc_watch_edits,
-                grpclib.const.Cardinality.UNARY_STREAM,
-                WatchEditsRequest,
-                WatchEditsResponse,
             ),
         }
 
@@ -4786,6 +4825,8 @@ AnyStructData = Union[
     TypeInfoData,
     TypeConstraintData,
     ContextData,
+    SessionContextData,
+    EditContextData,
     ScheduleData,
     ProjectionData,
     PolicyData,

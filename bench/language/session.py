@@ -430,6 +430,23 @@ class Session(Node[SessionData]):
                 self._tx.delete(n, self._get_edit_subject(), self._origin)
 
 
+@struct(StructType.EDIT_CONTEXT, inline=True)
+class EditContext(Struct):
+    """Additional context for a specific edit (per-edit variable subset of Session context)."""
+
+    block: Optional["Block"] = p_internal(60, require=False, array=False, references=NodeType.BLOCK)
+    step: Optional["Step"] = p_internal(61, require=False, array=False, references=NodeType.STEP)
+    session: Optional["Session"] = p_internal(
+        62, require=False, array=False, references=NodeType.SESSION, same_bench=True
+    )
+    run: Optional["Run"] = p_internal(
+        63, require=False, array=False, references=NodeType.RUN, same_bench=True
+    )
+    run_root: Optional["Run"] = p_internal(
+        64, require=False, array=False, references=NodeType.RUN, same_bench=True
+    )
+
+
 @struct_component()
 class HasSessionContext(Struct):
     """Context for the creation of a node in some Session."""
@@ -471,9 +488,14 @@ class HasSessionContext(Struct):
         user_ptr: Optional[NodeReferenceData] = None
 
 
-@struct(StructType.CONTEXT)
+@struct(StructType.SESSION_CONTEXT, inline=True)
+class SessionContext(HasSessionContext):
+    pass
+
+
+@struct(StructType.CONTEXT, inline=True)
 class Context(Struct):
-    """A semi-magical value of context down a Bench tree (starting with system context)."""
+    """The context at some point and time in the Bench tree."""
 
     # location
     bench: Optional["Bench"] = p_internal(30, require=False, array=False, references=NodeType.BENCH)

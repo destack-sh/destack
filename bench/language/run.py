@@ -83,6 +83,8 @@ class Run(BasedNode[RunData], HasSessionContext, HasValues):
         56, default=None, require=False, array=False, struct=StructType.RUN_ERROR
     )
 
+    # ...HasSessionContext[60-69]
+
     # NOTE :Architecture :Performance: (some) Runs will likely be stored outside the main user DB later.
     #  And maybe we'll also have 'inline runs' for non-Bench constructs that were run (like deeper profiling).
     runs: list["Run"] = p_node_child(NodeType.RUN)

@@ -18,6 +18,7 @@ import { OrganizationData } from "./lang";
 import { ClientData } from "./lang";
 import { UserData } from "./lang";
 import { ClientType } from "./lang";
+import { SessionContextData } from "./lang";
 import { EditData } from "./common";
 import { AggregationData } from "./lang";
 import { ExpressionData } from "./lang";
@@ -61,7 +62,7 @@ export interface GetNodesRequest {
  */
 export interface GetNodesResponse {
     /**
-     * Nodes in pre-order (parent before children) traversal.
+     * Nodes are in pre-order (parent before children) traversal.
      *
      * @generated from protobuf field: repeated symbolx.bench.SomeNodeData nodes = 1;
      */
@@ -74,6 +75,10 @@ export interface GetNodesResponse {
      * @generated from protobuf field: uint64 epoch = 3;
      */
     epoch: bigint;
+    /**
+     * @generated from protobuf field: string query_id = 4;
+     */
+    queryId: string;
 }
 /**
  * @generated from protobuf message symbolx.bench.SearchNodesRequest
@@ -119,14 +124,6 @@ export interface SearchNodesRequest {
      * @generated from protobuf field: optional bool count = 10;
      */
     count?: boolean;
-    /**
-     * @generated from protobuf field: optional bool lock_for_update = 11;
-     */
-    lockForUpdate?: boolean;
-    /**
-     * @generated from protobuf field: optional bool skip_locked = 12;
-     */
-    skipLocked?: boolean;
 }
 /**
  * @generated from protobuf message symbolx.bench.SearchNodesResponse
@@ -162,6 +159,10 @@ export interface SearchNodesResponse {
      * @generated from protobuf field: uint64 epoch = 7;
      */
     epoch: bigint;
+    /**
+     * @generated from protobuf field: string query_id = 8;
+     */
+    queryId: string;
 }
 /**
  * @generated from protobuf message symbolx.bench.AggregateNodesRequest
@@ -204,6 +205,50 @@ export interface AggregateNodesResponse {
      * @generated from protobuf field: uint64 epoch = 2;
      */
     epoch: bigint;
+    /**
+     * @generated from protobuf field: string query_id = 3;
+     */
+    queryId: string;
+}
+/**
+ * @generated from protobuf message symbolx.bench.WatchEditsRequest
+ */
+export interface WatchEditsRequest {
+    /**
+     * @generated from protobuf field: symbolx.bench.GraphScope scope = 1;
+     */
+    scope?: GraphScope;
+    /**
+     * @generated from protobuf field: repeated symbolx.bench.NodeType node_types = 2;
+     */
+    nodeTypes: NodeType[];
+    /**
+     * @generated from protobuf field: optional uint64 since_epoch = 3;
+     */
+    sinceEpoch?: bigint;
+    /**
+     * @generated from protobuf field: map<int32, symbolx.bench.ExpressionData> filters = 4;
+     */
+    filters: {
+        [key: number]: ExpressionData;
+    };
+}
+/**
+ * @generated from protobuf message symbolx.bench.WatchEditsResponse
+ */
+export interface WatchEditsResponse {
+    /**
+     * @generated from protobuf field: repeated symbolx.bench.EditData edits = 1;
+     */
+    edits: EditData[];
+    /**
+     * @generated from protobuf field: repeated symbolx.bench.EditData cascaded_edits = 2;
+     */
+    cascadedEdits: EditData[];
+    /**
+     * @generated from protobuf field: uint64 epoch = 3;
+     */
+    epoch: bigint;
 }
 /**
  * @generated from protobuf message symbolx.bench.CommitTransactionRequest
@@ -221,6 +266,10 @@ export interface CommitTransactionRequest {
      * @generated from protobuf field: repeated symbolx.bench.EditData edits = 3;
      */
     edits: EditData[];
+    /**
+     * @generated from protobuf field: optional symbolx.bench.SessionContextData context = 4;
+     */
+    context?: SessionContextData;
 }
 /**
  * @generated from protobuf message symbolx.bench.CommitTransactionResponse
@@ -326,46 +375,6 @@ export interface CancelTransactionRequest {
  * @generated from protobuf message symbolx.bench.CancelTransactionResponse
  */
 export interface CancelTransactionResponse {
-}
-/**
- * @generated from protobuf message symbolx.bench.WatchEditsRequest
- */
-export interface WatchEditsRequest {
-    /**
-     * @generated from protobuf field: symbolx.bench.GraphScope scope = 1;
-     */
-    scope?: GraphScope;
-    /**
-     * @generated from protobuf field: repeated symbolx.bench.NodeType node_types = 2;
-     */
-    nodeTypes: NodeType[];
-    /**
-     * @generated from protobuf field: optional uint64 since_epoch = 3;
-     */
-    sinceEpoch?: bigint;
-    /**
-     * @generated from protobuf field: map<int32, symbolx.bench.ExpressionData> filters = 4;
-     */
-    filters: {
-        [key: number]: ExpressionData;
-    };
-}
-/**
- * @generated from protobuf message symbolx.bench.WatchEditsResponse
- */
-export interface WatchEditsResponse {
-    /**
-     * @generated from protobuf field: repeated symbolx.bench.EditData edits = 1;
-     */
-    edits: EditData[];
-    /**
-     * @generated from protobuf field: repeated symbolx.bench.EditData cascaded_edits = 2;
-     */
-    cascadedEdits: EditData[];
-    /**
-     * @generated from protobuf field: uint64 epoch = 3;
-     */
-    epoch: bigint;
 }
 // 
 // Supervisor
@@ -737,13 +746,15 @@ class GetNodesResponse$Type extends MessageType<GetNodesResponse> {
         super("symbolx.bench.GetNodesResponse", [
             { no: 1, name: "nodes", kind: "message", repeat: 1 /*RepeatType.PACKED*/, T: () => SomeNodeData },
             { no: 2, name: "access", kind: "message", T: () => AccessMatrixData },
-            { no: 3, name: "epoch", kind: "scalar", T: 4 /*ScalarType.UINT64*/, L: 0 /*LongType.BIGINT*/ }
+            { no: 3, name: "epoch", kind: "scalar", T: 4 /*ScalarType.UINT64*/, L: 0 /*LongType.BIGINT*/ },
+            { no: 4, name: "query_id", kind: "scalar", T: 9 /*ScalarType.STRING*/ }
         ]);
     }
     create(value?: PartialMessage<GetNodesResponse>): GetNodesResponse {
         const message = globalThis.Object.create((this.messagePrototype!));
         message.nodes = [];
         message.epoch = 0n;
+        message.queryId = "";
         if (value !== undefined)
             reflectionMergePartial<GetNodesResponse>(this, message, value);
         return message;
@@ -761,6 +772,9 @@ class GetNodesResponse$Type extends MessageType<GetNodesResponse> {
                     break;
                 case /* uint64 epoch */ 3:
                     message.epoch = reader.uint64().toBigInt();
+                    break;
+                case /* string query_id */ 4:
+                    message.queryId = reader.string();
                     break;
                 default:
                     let u = options.readUnknownField;
@@ -783,6 +797,9 @@ class GetNodesResponse$Type extends MessageType<GetNodesResponse> {
         /* uint64 epoch = 3; */
         if (message.epoch !== 0n)
             writer.tag(3, WireType.Varint).uint64(message.epoch);
+        /* string query_id = 4; */
+        if (message.queryId !== "")
+            writer.tag(4, WireType.LengthDelimited).string(message.queryId);
         let u = options.writeUnknownFields;
         if (u !== false)
             (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
@@ -806,9 +823,7 @@ class SearchNodesRequest$Type extends MessageType<SearchNodesRequest> {
             { no: 7, name: "skip", kind: "scalar", opt: true, T: 5 /*ScalarType.INT32*/ },
             { no: 8, name: "after", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
             { no: 9, name: "options", kind: "message", T: () => ReadOptionsData },
-            { no: 10, name: "count", kind: "scalar", opt: true, T: 8 /*ScalarType.BOOL*/ },
-            { no: 11, name: "lock_for_update", kind: "scalar", opt: true, T: 8 /*ScalarType.BOOL*/ },
-            { no: 12, name: "skip_locked", kind: "scalar", opt: true, T: 8 /*ScalarType.BOOL*/ }
+            { no: 10, name: "count", kind: "scalar", opt: true, T: 8 /*ScalarType.BOOL*/ }
         ]);
     }
     create(value?: PartialMessage<SearchNodesRequest>): SearchNodesRequest {
@@ -855,12 +870,6 @@ class SearchNodesRequest$Type extends MessageType<SearchNodesRequest> {
                 case /* optional bool count */ 10:
                     message.count = reader.bool();
                     break;
-                case /* optional bool lock_for_update */ 11:
-                    message.lockForUpdate = reader.bool();
-                    break;
-                case /* optional bool skip_locked */ 12:
-                    message.skipLocked = reader.bool();
-                    break;
                 default:
                     let u = options.readUnknownField;
                     if (u === "throw")
@@ -903,12 +912,6 @@ class SearchNodesRequest$Type extends MessageType<SearchNodesRequest> {
         /* optional bool count = 10; */
         if (message.count !== undefined)
             writer.tag(10, WireType.Varint).bool(message.count);
-        /* optional bool lock_for_update = 11; */
-        if (message.lockForUpdate !== undefined)
-            writer.tag(11, WireType.Varint).bool(message.lockForUpdate);
-        /* optional bool skip_locked = 12; */
-        if (message.skipLocked !== undefined)
-            writer.tag(12, WireType.Varint).bool(message.skipLocked);
         let u = options.writeUnknownFields;
         if (u !== false)
             (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
@@ -929,7 +932,8 @@ class SearchNodesResponse$Type extends MessageType<SearchNodesResponse> {
             { no: 4, name: "start_cursor", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
             { no: 5, name: "total", kind: "scalar", opt: true, T: 5 /*ScalarType.INT32*/ },
             { no: 6, name: "access", kind: "message", T: () => AccessMatrixData },
-            { no: 7, name: "epoch", kind: "scalar", T: 4 /*ScalarType.UINT64*/, L: 0 /*LongType.BIGINT*/ }
+            { no: 7, name: "epoch", kind: "scalar", T: 4 /*ScalarType.UINT64*/, L: 0 /*LongType.BIGINT*/ },
+            { no: 8, name: "query_id", kind: "scalar", T: 9 /*ScalarType.STRING*/ }
         ]);
     }
     create(value?: PartialMessage<SearchNodesResponse>): SearchNodesResponse {
@@ -938,6 +942,7 @@ class SearchNodesResponse$Type extends MessageType<SearchNodesResponse> {
         message.roots = [];
         message.cursors = [];
         message.epoch = 0n;
+        message.queryId = "";
         if (value !== undefined)
             reflectionMergePartial<SearchNodesResponse>(this, message, value);
         return message;
@@ -967,6 +972,9 @@ class SearchNodesResponse$Type extends MessageType<SearchNodesResponse> {
                     break;
                 case /* uint64 epoch */ 7:
                     message.epoch = reader.uint64().toBigInt();
+                    break;
+                case /* string query_id */ 8:
+                    message.queryId = reader.string();
                     break;
                 default:
                     let u = options.readUnknownField;
@@ -1001,6 +1009,9 @@ class SearchNodesResponse$Type extends MessageType<SearchNodesResponse> {
         /* uint64 epoch = 7; */
         if (message.epoch !== 0n)
             writer.tag(7, WireType.Varint).uint64(message.epoch);
+        /* string query_id = 8; */
+        if (message.queryId !== "")
+            writer.tag(8, WireType.LengthDelimited).string(message.queryId);
         let u = options.writeUnknownFields;
         if (u !== false)
             (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
@@ -1100,12 +1111,14 @@ class AggregateNodesResponse$Type extends MessageType<AggregateNodesResponse> {
     constructor() {
         super("symbolx.bench.AggregateNodesResponse", [
             { no: 1, name: "aggregation", kind: "message", T: () => AggregationData },
-            { no: 2, name: "epoch", kind: "scalar", T: 4 /*ScalarType.UINT64*/, L: 0 /*LongType.BIGINT*/ }
+            { no: 2, name: "epoch", kind: "scalar", T: 4 /*ScalarType.UINT64*/, L: 0 /*LongType.BIGINT*/ },
+            { no: 3, name: "query_id", kind: "scalar", T: 9 /*ScalarType.STRING*/ }
         ]);
     }
     create(value?: PartialMessage<AggregateNodesResponse>): AggregateNodesResponse {
         const message = globalThis.Object.create((this.messagePrototype!));
         message.epoch = 0n;
+        message.queryId = "";
         if (value !== undefined)
             reflectionMergePartial<AggregateNodesResponse>(this, message, value);
         return message;
@@ -1120,6 +1133,9 @@ class AggregateNodesResponse$Type extends MessageType<AggregateNodesResponse> {
                     break;
                 case /* uint64 epoch */ 2:
                     message.epoch = reader.uint64().toBigInt();
+                    break;
+                case /* string query_id */ 3:
+                    message.queryId = reader.string();
                     break;
                 default:
                     let u = options.readUnknownField;
@@ -1139,6 +1155,9 @@ class AggregateNodesResponse$Type extends MessageType<AggregateNodesResponse> {
         /* uint64 epoch = 2; */
         if (message.epoch !== 0n)
             writer.tag(2, WireType.Varint).uint64(message.epoch);
+        /* string query_id = 3; */
+        if (message.queryId !== "")
+            writer.tag(3, WireType.LengthDelimited).string(message.queryId);
         let u = options.writeUnknownFields;
         if (u !== false)
             (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
@@ -1150,12 +1169,173 @@ class AggregateNodesResponse$Type extends MessageType<AggregateNodesResponse> {
  */
 export const AggregateNodesResponse = new AggregateNodesResponse$Type();
 // @generated message type with reflection information, may provide speed optimized methods
+class WatchEditsRequest$Type extends MessageType<WatchEditsRequest> {
+    constructor() {
+        super("symbolx.bench.WatchEditsRequest", [
+            { no: 1, name: "scope", kind: "message", T: () => GraphScope },
+            { no: 2, name: "node_types", kind: "enum", repeat: 1 /*RepeatType.PACKED*/, T: () => ["symbolx.bench.NodeType", NodeType, "NODE_TYPE_"] },
+            { no: 3, name: "since_epoch", kind: "scalar", opt: true, T: 4 /*ScalarType.UINT64*/, L: 0 /*LongType.BIGINT*/ },
+            { no: 4, name: "filters", kind: "map", K: 5 /*ScalarType.INT32*/, V: { kind: "message", T: () => ExpressionData } }
+        ]);
+    }
+    create(value?: PartialMessage<WatchEditsRequest>): WatchEditsRequest {
+        const message = globalThis.Object.create((this.messagePrototype!));
+        message.nodeTypes = [];
+        message.filters = {};
+        if (value !== undefined)
+            reflectionMergePartial<WatchEditsRequest>(this, message, value);
+        return message;
+    }
+    internalBinaryRead(reader: IBinaryReader, length: number, options: BinaryReadOptions, target?: WatchEditsRequest): WatchEditsRequest {
+        let message = target ?? this.create(), end = reader.pos + length;
+        while (reader.pos < end) {
+            let [fieldNo, wireType] = reader.tag();
+            switch (fieldNo) {
+                case /* symbolx.bench.GraphScope scope */ 1:
+                    message.scope = GraphScope.internalBinaryRead(reader, reader.uint32(), options, message.scope);
+                    break;
+                case /* repeated symbolx.bench.NodeType node_types */ 2:
+                    if (wireType === WireType.LengthDelimited)
+                        for (let e = reader.int32() + reader.pos; reader.pos < e;)
+                            message.nodeTypes.push(reader.int32());
+                    else
+                        message.nodeTypes.push(reader.int32());
+                    break;
+                case /* optional uint64 since_epoch */ 3:
+                    message.sinceEpoch = reader.uint64().toBigInt();
+                    break;
+                case /* map<int32, symbolx.bench.ExpressionData> filters */ 4:
+                    this.binaryReadMap4(message.filters, reader, options);
+                    break;
+                default:
+                    let u = options.readUnknownField;
+                    if (u === "throw")
+                        throw new globalThis.Error(`Unknown field ${fieldNo} (wire type ${wireType}) for ${this.typeName}`);
+                    let d = reader.skip(wireType);
+                    if (u !== false)
+                        (u === true ? UnknownFieldHandler.onRead : u)(this.typeName, message, fieldNo, wireType, d);
+            }
+        }
+        return message;
+    }
+    private binaryReadMap4(map: WatchEditsRequest["filters"], reader: IBinaryReader, options: BinaryReadOptions): void {
+        let len = reader.uint32(), end = reader.pos + len, key: keyof WatchEditsRequest["filters"] | undefined, val: WatchEditsRequest["filters"][any] | undefined;
+        while (reader.pos < end) {
+            let [fieldNo, wireType] = reader.tag();
+            switch (fieldNo) {
+                case 1:
+                    key = reader.int32();
+                    break;
+                case 2:
+                    val = ExpressionData.internalBinaryRead(reader, reader.uint32(), options);
+                    break;
+                default: throw new globalThis.Error("unknown map entry field for field symbolx.bench.WatchEditsRequest.filters");
+            }
+        }
+        map[key ?? 0] = val ?? ExpressionData.create();
+    }
+    internalBinaryWrite(message: WatchEditsRequest, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
+        /* symbolx.bench.GraphScope scope = 1; */
+        if (message.scope)
+            GraphScope.internalBinaryWrite(message.scope, writer.tag(1, WireType.LengthDelimited).fork(), options).join();
+        /* repeated symbolx.bench.NodeType node_types = 2; */
+        if (message.nodeTypes.length) {
+            writer.tag(2, WireType.LengthDelimited).fork();
+            for (let i = 0; i < message.nodeTypes.length; i++)
+                writer.int32(message.nodeTypes[i]);
+            writer.join();
+        }
+        /* optional uint64 since_epoch = 3; */
+        if (message.sinceEpoch !== undefined)
+            writer.tag(3, WireType.Varint).uint64(message.sinceEpoch);
+        /* map<int32, symbolx.bench.ExpressionData> filters = 4; */
+        for (let k of globalThis.Object.keys(message.filters)) {
+            writer.tag(4, WireType.LengthDelimited).fork().tag(1, WireType.Varint).int32(parseInt(k));
+            writer.tag(2, WireType.LengthDelimited).fork();
+            ExpressionData.internalBinaryWrite(message.filters[k as any], writer, options);
+            writer.join().join();
+        }
+        let u = options.writeUnknownFields;
+        if (u !== false)
+            (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
+        return writer;
+    }
+}
+/**
+ * @generated MessageType for protobuf message symbolx.bench.WatchEditsRequest
+ */
+export const WatchEditsRequest = new WatchEditsRequest$Type();
+// @generated message type with reflection information, may provide speed optimized methods
+class WatchEditsResponse$Type extends MessageType<WatchEditsResponse> {
+    constructor() {
+        super("symbolx.bench.WatchEditsResponse", [
+            { no: 1, name: "edits", kind: "message", repeat: 1 /*RepeatType.PACKED*/, T: () => EditData },
+            { no: 2, name: "cascaded_edits", kind: "message", repeat: 1 /*RepeatType.PACKED*/, T: () => EditData },
+            { no: 3, name: "epoch", kind: "scalar", T: 4 /*ScalarType.UINT64*/, L: 0 /*LongType.BIGINT*/ }
+        ]);
+    }
+    create(value?: PartialMessage<WatchEditsResponse>): WatchEditsResponse {
+        const message = globalThis.Object.create((this.messagePrototype!));
+        message.edits = [];
+        message.cascadedEdits = [];
+        message.epoch = 0n;
+        if (value !== undefined)
+            reflectionMergePartial<WatchEditsResponse>(this, message, value);
+        return message;
+    }
+    internalBinaryRead(reader: IBinaryReader, length: number, options: BinaryReadOptions, target?: WatchEditsResponse): WatchEditsResponse {
+        let message = target ?? this.create(), end = reader.pos + length;
+        while (reader.pos < end) {
+            let [fieldNo, wireType] = reader.tag();
+            switch (fieldNo) {
+                case /* repeated symbolx.bench.EditData edits */ 1:
+                    message.edits.push(EditData.internalBinaryRead(reader, reader.uint32(), options));
+                    break;
+                case /* repeated symbolx.bench.EditData cascaded_edits */ 2:
+                    message.cascadedEdits.push(EditData.internalBinaryRead(reader, reader.uint32(), options));
+                    break;
+                case /* uint64 epoch */ 3:
+                    message.epoch = reader.uint64().toBigInt();
+                    break;
+                default:
+                    let u = options.readUnknownField;
+                    if (u === "throw")
+                        throw new globalThis.Error(`Unknown field ${fieldNo} (wire type ${wireType}) for ${this.typeName}`);
+                    let d = reader.skip(wireType);
+                    if (u !== false)
+                        (u === true ? UnknownFieldHandler.onRead : u)(this.typeName, message, fieldNo, wireType, d);
+            }
+        }
+        return message;
+    }
+    internalBinaryWrite(message: WatchEditsResponse, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
+        /* repeated symbolx.bench.EditData edits = 1; */
+        for (let i = 0; i < message.edits.length; i++)
+            EditData.internalBinaryWrite(message.edits[i], writer.tag(1, WireType.LengthDelimited).fork(), options).join();
+        /* repeated symbolx.bench.EditData cascaded_edits = 2; */
+        for (let i = 0; i < message.cascadedEdits.length; i++)
+            EditData.internalBinaryWrite(message.cascadedEdits[i], writer.tag(2, WireType.LengthDelimited).fork(), options).join();
+        /* uint64 epoch = 3; */
+        if (message.epoch !== 0n)
+            writer.tag(3, WireType.Varint).uint64(message.epoch);
+        let u = options.writeUnknownFields;
+        if (u !== false)
+            (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
+        return writer;
+    }
+}
+/**
+ * @generated MessageType for protobuf message symbolx.bench.WatchEditsResponse
+ */
+export const WatchEditsResponse = new WatchEditsResponse$Type();
+// @generated message type with reflection information, may provide speed optimized methods
 class CommitTransactionRequest$Type extends MessageType<CommitTransactionRequest> {
     constructor() {
         super("symbolx.bench.CommitTransactionRequest", [
             { no: 1, name: "scope", kind: "message", T: () => GraphScope },
             { no: 2, name: "id", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
-            { no: 3, name: "edits", kind: "message", repeat: 1 /*RepeatType.PACKED*/, T: () => EditData }
+            { no: 3, name: "edits", kind: "message", repeat: 1 /*RepeatType.PACKED*/, T: () => EditData },
+            { no: 4, name: "context", kind: "message", T: () => SessionContextData }
         ]);
     }
     create(value?: PartialMessage<CommitTransactionRequest>): CommitTransactionRequest {
@@ -1180,6 +1360,9 @@ class CommitTransactionRequest$Type extends MessageType<CommitTransactionRequest
                 case /* repeated symbolx.bench.EditData edits */ 3:
                     message.edits.push(EditData.internalBinaryRead(reader, reader.uint32(), options));
                     break;
+                case /* optional symbolx.bench.SessionContextData context */ 4:
+                    message.context = SessionContextData.internalBinaryRead(reader, reader.uint32(), options, message.context);
+                    break;
                 default:
                     let u = options.readUnknownField;
                     if (u === "throw")
@@ -1201,6 +1384,9 @@ class CommitTransactionRequest$Type extends MessageType<CommitTransactionRequest
         /* repeated symbolx.bench.EditData edits = 3; */
         for (let i = 0; i < message.edits.length; i++)
             EditData.internalBinaryWrite(message.edits[i], writer.tag(3, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbolx.bench.SessionContextData context = 4; */
+        if (message.context)
+            SessionContextData.internalBinaryWrite(message.context, writer.tag(4, WireType.LengthDelimited).fork(), options).join();
         let u = options.writeUnknownFields;
         if (u !== false)
             (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
@@ -1652,166 +1838,6 @@ class CancelTransactionResponse$Type extends MessageType<CancelTransactionRespon
  * @generated MessageType for protobuf message symbolx.bench.CancelTransactionResponse
  */
 export const CancelTransactionResponse = new CancelTransactionResponse$Type();
-// @generated message type with reflection information, may provide speed optimized methods
-class WatchEditsRequest$Type extends MessageType<WatchEditsRequest> {
-    constructor() {
-        super("symbolx.bench.WatchEditsRequest", [
-            { no: 1, name: "scope", kind: "message", T: () => GraphScope },
-            { no: 2, name: "node_types", kind: "enum", repeat: 1 /*RepeatType.PACKED*/, T: () => ["symbolx.bench.NodeType", NodeType, "NODE_TYPE_"] },
-            { no: 3, name: "since_epoch", kind: "scalar", opt: true, T: 4 /*ScalarType.UINT64*/, L: 0 /*LongType.BIGINT*/ },
-            { no: 4, name: "filters", kind: "map", K: 5 /*ScalarType.INT32*/, V: { kind: "message", T: () => ExpressionData } }
-        ]);
-    }
-    create(value?: PartialMessage<WatchEditsRequest>): WatchEditsRequest {
-        const message = globalThis.Object.create((this.messagePrototype!));
-        message.nodeTypes = [];
-        message.filters = {};
-        if (value !== undefined)
-            reflectionMergePartial<WatchEditsRequest>(this, message, value);
-        return message;
-    }
-    internalBinaryRead(reader: IBinaryReader, length: number, options: BinaryReadOptions, target?: WatchEditsRequest): WatchEditsRequest {
-        let message = target ?? this.create(), end = reader.pos + length;
-        while (reader.pos < end) {
-            let [fieldNo, wireType] = reader.tag();
-            switch (fieldNo) {
-                case /* symbolx.bench.GraphScope scope */ 1:
-                    message.scope = GraphScope.internalBinaryRead(reader, reader.uint32(), options, message.scope);
-                    break;
-                case /* repeated symbolx.bench.NodeType node_types */ 2:
-                    if (wireType === WireType.LengthDelimited)
-                        for (let e = reader.int32() + reader.pos; reader.pos < e;)
-                            message.nodeTypes.push(reader.int32());
-                    else
-                        message.nodeTypes.push(reader.int32());
-                    break;
-                case /* optional uint64 since_epoch */ 3:
-                    message.sinceEpoch = reader.uint64().toBigInt();
-                    break;
-                case /* map<int32, symbolx.bench.ExpressionData> filters */ 4:
-                    this.binaryReadMap4(message.filters, reader, options);
-                    break;
-                default:
-                    let u = options.readUnknownField;
-                    if (u === "throw")
-                        throw new globalThis.Error(`Unknown field ${fieldNo} (wire type ${wireType}) for ${this.typeName}`);
-                    let d = reader.skip(wireType);
-                    if (u !== false)
-                        (u === true ? UnknownFieldHandler.onRead : u)(this.typeName, message, fieldNo, wireType, d);
-            }
-        }
-        return message;
-    }
-    private binaryReadMap4(map: WatchEditsRequest["filters"], reader: IBinaryReader, options: BinaryReadOptions): void {
-        let len = reader.uint32(), end = reader.pos + len, key: keyof WatchEditsRequest["filters"] | undefined, val: WatchEditsRequest["filters"][any] | undefined;
-        while (reader.pos < end) {
-            let [fieldNo, wireType] = reader.tag();
-            switch (fieldNo) {
-                case 1:
-                    key = reader.int32();
-                    break;
-                case 2:
-                    val = ExpressionData.internalBinaryRead(reader, reader.uint32(), options);
-                    break;
-                default: throw new globalThis.Error("unknown map entry field for field symbolx.bench.WatchEditsRequest.filters");
-            }
-        }
-        map[key ?? 0] = val ?? ExpressionData.create();
-    }
-    internalBinaryWrite(message: WatchEditsRequest, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
-        /* symbolx.bench.GraphScope scope = 1; */
-        if (message.scope)
-            GraphScope.internalBinaryWrite(message.scope, writer.tag(1, WireType.LengthDelimited).fork(), options).join();
-        /* repeated symbolx.bench.NodeType node_types = 2; */
-        if (message.nodeTypes.length) {
-            writer.tag(2, WireType.LengthDelimited).fork();
-            for (let i = 0; i < message.nodeTypes.length; i++)
-                writer.int32(message.nodeTypes[i]);
-            writer.join();
-        }
-        /* optional uint64 since_epoch = 3; */
-        if (message.sinceEpoch !== undefined)
-            writer.tag(3, WireType.Varint).uint64(message.sinceEpoch);
-        /* map<int32, symbolx.bench.ExpressionData> filters = 4; */
-        for (let k of globalThis.Object.keys(message.filters)) {
-            writer.tag(4, WireType.LengthDelimited).fork().tag(1, WireType.Varint).int32(parseInt(k));
-            writer.tag(2, WireType.LengthDelimited).fork();
-            ExpressionData.internalBinaryWrite(message.filters[k as any], writer, options);
-            writer.join().join();
-        }
-        let u = options.writeUnknownFields;
-        if (u !== false)
-            (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
-        return writer;
-    }
-}
-/**
- * @generated MessageType for protobuf message symbolx.bench.WatchEditsRequest
- */
-export const WatchEditsRequest = new WatchEditsRequest$Type();
-// @generated message type with reflection information, may provide speed optimized methods
-class WatchEditsResponse$Type extends MessageType<WatchEditsResponse> {
-    constructor() {
-        super("symbolx.bench.WatchEditsResponse", [
-            { no: 1, name: "edits", kind: "message", repeat: 1 /*RepeatType.PACKED*/, T: () => EditData },
-            { no: 2, name: "cascaded_edits", kind: "message", repeat: 1 /*RepeatType.PACKED*/, T: () => EditData },
-            { no: 3, name: "epoch", kind: "scalar", T: 4 /*ScalarType.UINT64*/, L: 0 /*LongType.BIGINT*/ }
-        ]);
-    }
-    create(value?: PartialMessage<WatchEditsResponse>): WatchEditsResponse {
-        const message = globalThis.Object.create((this.messagePrototype!));
-        message.edits = [];
-        message.cascadedEdits = [];
-        message.epoch = 0n;
-        if (value !== undefined)
-            reflectionMergePartial<WatchEditsResponse>(this, message, value);
-        return message;
-    }
-    internalBinaryRead(reader: IBinaryReader, length: number, options: BinaryReadOptions, target?: WatchEditsResponse): WatchEditsResponse {
-        let message = target ?? this.create(), end = reader.pos + length;
-        while (reader.pos < end) {
-            let [fieldNo, wireType] = reader.tag();
-            switch (fieldNo) {
-                case /* repeated symbolx.bench.EditData edits */ 1:
-                    message.edits.push(EditData.internalBinaryRead(reader, reader.uint32(), options));
-                    break;
-                case /* repeated symbolx.bench.EditData cascaded_edits */ 2:
-                    message.cascadedEdits.push(EditData.internalBinaryRead(reader, reader.uint32(), options));
-                    break;
-                case /* uint64 epoch */ 3:
-                    message.epoch = reader.uint64().toBigInt();
-                    break;
-                default:
-                    let u = options.readUnknownField;
-                    if (u === "throw")
-                        throw new globalThis.Error(`Unknown field ${fieldNo} (wire type ${wireType}) for ${this.typeName}`);
-                    let d = reader.skip(wireType);
-                    if (u !== false)
-                        (u === true ? UnknownFieldHandler.onRead : u)(this.typeName, message, fieldNo, wireType, d);
-            }
-        }
-        return message;
-    }
-    internalBinaryWrite(message: WatchEditsResponse, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
-        /* repeated symbolx.bench.EditData edits = 1; */
-        for (let i = 0; i < message.edits.length; i++)
-            EditData.internalBinaryWrite(message.edits[i], writer.tag(1, WireType.LengthDelimited).fork(), options).join();
-        /* repeated symbolx.bench.EditData cascaded_edits = 2; */
-        for (let i = 0; i < message.cascadedEdits.length; i++)
-            EditData.internalBinaryWrite(message.cascadedEdits[i], writer.tag(2, WireType.LengthDelimited).fork(), options).join();
-        /* uint64 epoch = 3; */
-        if (message.epoch !== 0n)
-            writer.tag(3, WireType.Varint).uint64(message.epoch);
-        let u = options.writeUnknownFields;
-        if (u !== false)
-            (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
-        return writer;
-    }
-}
-/**
- * @generated MessageType for protobuf message symbolx.bench.WatchEditsResponse
- */
-export const WatchEditsResponse = new WatchEditsResponse$Type();
 // @generated message type with reflection information, may provide speed optimized methods
 class ClientDataIn$Type extends MessageType<ClientDataIn> {
     constructor() {
@@ -2746,11 +2772,11 @@ export const GraphIO = new ServiceType("symbolx.bench.GraphIO", [
     { name: "GetNodes", options: {}, I: GetNodesRequest, O: GetNodesResponse },
     { name: "SearchNodes", options: {}, I: SearchNodesRequest, O: SearchNodesResponse },
     { name: "AggregateNodes", options: {}, I: AggregateNodesRequest, O: AggregateNodesResponse },
+    { name: "WatchEdits", serverStreaming: true, options: {}, I: WatchEditsRequest, O: WatchEditsResponse },
     { name: "CommitTransaction", options: {}, I: CommitTransactionRequest, O: CommitTransactionResponse },
     { name: "FlushTransaction", options: {}, I: FlushTransactionRequest, O: FlushTransactionResponse },
     { name: "CompleteTransaction", options: {}, I: CompleteTransactionRequest, O: CompleteTransactionResponse },
-    { name: "CancelTransaction", options: {}, I: CancelTransactionRequest, O: CancelTransactionResponse },
-    { name: "WatchEdits", serverStreaming: true, options: {}, I: WatchEditsRequest, O: WatchEditsResponse }
+    { name: "CancelTransaction", options: {}, I: CancelTransactionRequest, O: CancelTransactionResponse }
 ]);
 /**
  * @generated ServiceType for protobuf service symbolx.bench.Supervisor
@@ -2759,11 +2785,11 @@ export const Supervisor = new ServiceType("symbolx.bench.Supervisor", [
     { name: "GetNodes", options: {}, I: GetNodesRequest, O: GetNodesResponse },
     { name: "SearchNodes", options: {}, I: SearchNodesRequest, O: SearchNodesResponse },
     { name: "AggregateNodes", options: {}, I: AggregateNodesRequest, O: AggregateNodesResponse },
+    { name: "WatchEdits", serverStreaming: true, options: {}, I: WatchEditsRequest, O: WatchEditsResponse },
     { name: "CommitTransaction", options: {}, I: CommitTransactionRequest, O: CommitTransactionResponse },
     { name: "FlushTransaction", options: {}, I: FlushTransactionRequest, O: FlushTransactionResponse },
     { name: "CompleteTransaction", options: {}, I: CompleteTransactionRequest, O: CompleteTransactionResponse },
     { name: "CancelTransaction", options: {}, I: CancelTransactionRequest, O: CancelTransactionResponse },
-    { name: "WatchEdits", serverStreaming: true, options: {}, I: WatchEditsRequest, O: WatchEditsResponse },
     { name: "SignupUser", options: {}, I: SignupUserRequest, O: SignupUserResponse },
     { name: "ChangeUserPassword", options: {}, I: ChangeUserPasswordRequest, O: ChangeUserPasswordResponse },
     { name: "LoginUser", options: {}, I: LoginUserRequest, O: LoginUserResponse },
@@ -2778,9 +2804,9 @@ export const Host = new ServiceType("symbolx.bench.Host", [
     { name: "GetNodes", options: {}, I: GetNodesRequest, O: GetNodesResponse },
     { name: "SearchNodes", options: {}, I: SearchNodesRequest, O: SearchNodesResponse },
     { name: "AggregateNodes", options: {}, I: AggregateNodesRequest, O: AggregateNodesResponse },
+    { name: "WatchEdits", serverStreaming: true, options: {}, I: WatchEditsRequest, O: WatchEditsResponse },
     { name: "CommitTransaction", options: {}, I: CommitTransactionRequest, O: CommitTransactionResponse },
     { name: "FlushTransaction", options: {}, I: FlushTransactionRequest, O: FlushTransactionResponse },
     { name: "CompleteTransaction", options: {}, I: CompleteTransactionRequest, O: CompleteTransactionResponse },
-    { name: "CancelTransaction", options: {}, I: CancelTransactionRequest, O: CancelTransactionResponse },
-    { name: "WatchEdits", serverStreaming: true, options: {}, I: WatchEditsRequest, O: WatchEditsResponse }
+    { name: "CancelTransaction", options: {}, I: CancelTransactionRequest, O: CancelTransactionResponse }
 ], { "symbolx.bench.kind": "PUBLIC" });

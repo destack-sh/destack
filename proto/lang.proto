@@ -128,6 +128,8 @@ enum BenchType {
   BENCH_TYPE_TYPE_INFO = 1010;
   BENCH_TYPE_TYPE_CONSTRAINT = 1011;
   BENCH_TYPE_CONTEXT = 1020;
+  BENCH_TYPE_SESSION_CONTEXT = 1021;
+  BENCH_TYPE_EDIT_CONTEXT = 1022;
   BENCH_TYPE_SCHEDULE = 1012;
   BENCH_TYPE_PROJECTION = 1013;
   BENCH_TYPE_POLICY = 1030;
@@ -697,6 +699,8 @@ enum ObjectType {
   OBJECT_TYPE_TYPE_INFO = 1010;
   OBJECT_TYPE_TYPE_CONSTRAINT = 1011;
   OBJECT_TYPE_CONTEXT = 1020;
+  OBJECT_TYPE_SESSION_CONTEXT = 1021;
+  OBJECT_TYPE_EDIT_CONTEXT = 1022;
   OBJECT_TYPE_SCHEDULE = 1012;
   OBJECT_TYPE_PROJECTION = 1013;
   OBJECT_TYPE_POLICY = 1030;
@@ -987,6 +991,8 @@ enum StructType {
   STRUCT_TYPE_TYPE_INFO = 1010;
   STRUCT_TYPE_TYPE_CONSTRAINT = 1011;
   STRUCT_TYPE_CONTEXT = 1020;
+  STRUCT_TYPE_SESSION_CONTEXT = 1021;
+  STRUCT_TYPE_EDIT_CONTEXT = 1022;
   STRUCT_TYPE_SCHEDULE = 1012;
   STRUCT_TYPE_PROJECTION = 1013;
   STRUCT_TYPE_POLICY = 1030;
@@ -1268,14 +1274,9 @@ message ColorData {
   optional string hex = 33;
 }
 
-// A semi-magical value of context down a Bench tree (starting with system context).
+// The context at some point and time in the Bench tree.
 message ContextData {
   ObjectType metatype = 1;
-  int32 id = 2;
-  optional int32 parent_id = 3;
-  optional string parent_key = 4;
-  optional string order_key = 9;
-  repeated int32 set_properties = 29;
   optional NodeReferenceData bench_ptr = 30;
   optional NodeReferenceData environment_ptr = 31;
   optional NodeReferenceData branch_ptr = 32;
@@ -1293,6 +1294,16 @@ message ContextData {
   optional NodeReferenceData run_root_ptr = 53;
   optional NodeReferenceData trigger_ptr = 54;
   optional NodeReferenceData signal_ptr = 55;
+}
+
+// Additional context for a specific edit (per-edit variable subset of Session context).
+message EditContextData {
+  ObjectType metatype = 1;
+  optional NodeReferenceData block_ptr = 60;
+  optional NodeReferenceData step_ptr = 61;
+  optional NodeReferenceData session_ptr = 62;
+  optional NodeReferenceData run_ptr = 63;
+  optional NodeReferenceData run_root_ptr = 64;
 }
 
 // An expression (conditional, aggregation, sort, etc).
@@ -1571,6 +1582,20 @@ message SelectionData {
   optional NodeReferenceData to_node_ptr = 33;
 }
 
+// SessionContext(parent: Union[ForwardRef('Struct'), ForwardRef('Node'), ForwardRef('Object'), NoneType] = None, _is_interped: bool = False, _session: 'Session | None' = None, _updated_properties: bitarray.bitarray | None = None, block: Optional[ForwardRef('Block')] = None, step: Optional[ForwardRef('Step')] = None, session: Optional[ForwardRef('Session')] = None, run: Optional[ForwardRef('Run')] = None, run_root: Optional[ForwardRef('Run')] = None, client: Optional[ForwardRef('Client')] = None, machine: Optional[ForwardRef('Machine')] = None, server: Optional[ForwardRef('Server')] = None, user: Optional[ForwardRef('User')] = None, parent_id: int = None, parent_key: str = None, block_ptr: 'NodeReference' = None, step_ptr: 'NodeReference' = None, session_ptr: 'NodeReference' = None, run_ptr: 'NodeReference' = None, run_root_ptr: 'NodeReference' = None, client_ptr: 'NodeReference' = None, machine_ptr: 'NodeReference' = None, server_ptr: 'NodeReference' = None, user_ptr: 'NodeReference' = None)
+message SessionContextData {
+  ObjectType metatype = 1;
+  optional NodeReferenceData block_ptr = 60;
+  optional NodeReferenceData step_ptr = 61;
+  optional NodeReferenceData session_ptr = 62;
+  optional NodeReferenceData run_ptr = 63;
+  optional NodeReferenceData run_root_ptr = 64;
+  optional NodeReferenceData client_ptr = 65;
+  optional NodeReferenceData machine_ptr = 66;
+  optional NodeReferenceData server_ptr = 67;
+  optional NodeReferenceData user_ptr = 68;
+}
+
 // A connection between to a Step in a Flow.
 message StepConnectionData {
   ObjectType metatype = 1;
@@ -1596,6 +1621,7 @@ message SubjectData {
   optional bool is_system = 32;
   optional NodeReferenceData client_ptr = 40;
   optional NodeReferenceData user_ptr = 41;
+  optional NodeReferenceData server_ptr = 42;
   optional NodeReferenceData identity_ptr = 50;
   repeated NodeReferenceData badges_ptr = 51;
   repeated NodeReferenceData owned_ptr = 52;

@@ -17,6 +17,7 @@ import structlog
 from bitarray import bitarray
 from opentelemetry import trace
 
+from bench.language.bench import Server
 from bench.language.const import (
     ACCESS_CLASSES,
     IN_BENCH_NODE_TYPES,
@@ -417,6 +418,13 @@ class Subject(Struct):
     user: Optional["User"] = p_system(
         41, default=None, require=False, array=False, references=NodeType.USER
     )
+    server: Optional["Server"] = p_system(
+        42, default=None, require=False, array=False, references=NodeType.SERVER
+    )
+    if TYPE_CHECKING:
+        client_ptr: Optional[NodeReferenceData] = None
+        user_ptr: Optional[NodeReferenceData] = None
+        server_ptr: Optional[NodeReferenceData] = None
 
     # accessories
     identity: Optional["Identity"] = p_system(

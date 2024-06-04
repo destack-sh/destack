@@ -40,10 +40,10 @@
         "SERVICE_NAME": "runtime",
         "SUPERVISOR_URL": "http://localhost:60061",
         // this is the 'test' bench (should probably set this in a local.env?)
-        "BENCH_ID": "56cf3720-e93e-4238-92c5-e14f565bc0d7",
+        "BENCH_ID": "028aaaa8-3b2b-4512-ada6-f9a3aa7aa670",
         "CLIENT_TYPE": "10",
-        "CLIENT_ID": "b81d8261-d738-4ed9-adda-84cfa844a601",
-        "CLIENT_ACCESS_TOKEN": "ABqEoQRK9ACknUShfNUdcYBjHKvUkc7d7Jt2p88pJiPY"
+        "CLIENT_ID": "9b521aff-cd6f-4704-a6d0-fafa0ce09420",
+        "CLIENT_ACCESS_TOKEN": "G5nXe9eCjFgJmYGQny652MR1CJ1p8hgvdqnZjceXqUFN"
       },
       "console": "integratedTerminal",
       "cwd": "${workspaceFolder}",

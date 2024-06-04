@@ -19,9 +19,6 @@ import type { SignupUserRequest } from "./system";
 import type { RpcTransport } from "@protobuf-ts/runtime-rpc";
 import type { ServiceInfo } from "@protobuf-ts/runtime-rpc";
 import { GraphIO } from "./system";
-import type { WatchEditsResponse } from "./system";
-import type { WatchEditsRequest } from "./system";
-import type { ServerStreamingCall } from "@protobuf-ts/runtime-rpc";
 import type { CancelTransactionResponse } from "./system";
 import type { CancelTransactionRequest } from "./system";
 import type { CompleteTransactionResponse } from "./system";
@@ -30,6 +27,9 @@ import type { FlushTransactionResponse } from "./system";
 import type { FlushTransactionRequest } from "./system";
 import type { CommitTransactionResponse } from "./system";
 import type { CommitTransactionRequest } from "./system";
+import type { WatchEditsResponse } from "./system";
+import type { WatchEditsRequest } from "./system";
+import type { ServerStreamingCall } from "@protobuf-ts/runtime-rpc";
 import type { AggregateNodesResponse } from "./system";
 import type { AggregateNodesRequest } from "./system";
 import type { SearchNodesResponse } from "./system";
@@ -64,6 +64,12 @@ export interface IGraphIOClient {
      */
     aggregateNodes(input: AggregateNodesRequest, options?: OperationOptions): UnaryCall<AggregateNodesRequest, AggregateNodesResponse>;
     /**
+     * Receive any relevant edits to this graph.
+     *
+     * @generated from protobuf rpc: WatchEdits(symbolx.bench.WatchEditsRequest) returns (stream symbolx.bench.WatchEditsResponse);
+     */
+    watchEdits(input: WatchEditsRequest, options?: OperationOptions): ServerStreamingCall<WatchEditsRequest, WatchEditsResponse>;
+    /**
      * Commit a new or pending completed transaction to this graph.
      *
      * @generated from protobuf rpc: CommitTransaction(symbolx.bench.CommitTransactionRequest) returns (symbolx.bench.CommitTransactionResponse);
@@ -87,12 +93,6 @@ export interface IGraphIOClient {
      * @generated from protobuf rpc: CancelTransaction(symbolx.bench.CancelTransactionRequest) returns (symbolx.bench.CancelTransactionResponse);
      */
     cancelTransaction(input: CancelTransactionRequest, options?: OperationOptions): UnaryCall<CancelTransactionRequest, CancelTransactionResponse>;
-    /**
-     * Receive any relevant edits to this graph.
-     *
-     * @generated from protobuf rpc: WatchEdits(symbolx.bench.WatchEditsRequest) returns (stream symbolx.bench.WatchEditsResponse);
-     */
-    watchEdits(input: WatchEditsRequest, options?: OperationOptions): ServerStreamingCall<WatchEditsRequest, WatchEditsResponse>;
 }
 /**
  * Common service definition for global and bench-local :GraphIO
@@ -133,12 +133,21 @@ export class GraphIOClient implements IGraphIOClient, ServiceInfo {
         return stackIntercept<AggregateNodesRequest, AggregateNodesResponse>("unary", this._transport, method, opt, input);
     }
     /**
+     * Receive any relevant edits to this graph.
+     *
+     * @generated from protobuf rpc: WatchEdits(symbolx.bench.WatchEditsRequest) returns (stream symbolx.bench.WatchEditsResponse);
+     */
+    watchEdits(input: WatchEditsRequest, options?: OperationOptions): ServerStreamingCall<WatchEditsRequest, WatchEditsResponse> {
+        const method = this.methods[3], opt = this._transport.mergeOptions(options);
+        return stackIntercept<WatchEditsRequest, WatchEditsResponse>("serverStreaming", this._transport, method, opt, input);
+    }
+    /**
      * Commit a new or pending completed transaction to this graph.
      *
      * @generated from protobuf rpc: CommitTransaction(symbolx.bench.CommitTransactionRequest) returns (symbolx.bench.CommitTransactionResponse);
      */
     commitTransaction(input: CommitTransactionRequest, options?: OperationOptions): UnaryCall<CommitTransactionRequest, CommitTransactionResponse> {
-        const method = this.methods[3], opt = this._transport.mergeOptions(options);
+        const method = this.methods[4], opt = this._transport.mergeOptions(options);
         return stackIntercept<CommitTransactionRequest, CommitTransactionResponse>("unary", this._transport, method, opt, input);
     }
     /**
@@ -147,7 +156,7 @@ export class GraphIOClient implements IGraphIOClient, ServiceInfo {
      * @generated from protobuf rpc: FlushTransaction(symbolx.bench.FlushTransactionRequest) returns (symbolx.bench.FlushTransactionResponse);
      */
     flushTransaction(input: FlushTransactionRequest, options?: OperationOptions): UnaryCall<FlushTransactionRequest, FlushTransactionResponse> {
-        const method = this.methods[4], opt = this._transport.mergeOptions(options);
+        const method = this.methods[5], opt = this._transport.mergeOptions(options);
         return stackIntercept<FlushTransactionRequest, FlushTransactionResponse>("unary", this._transport, method, opt, input);
     }
     /**
@@ -156,7 +165,7 @@ export class GraphIOClient implements IGraphIOClient, ServiceInfo {
      * @generated from protobuf rpc: CompleteTransaction(symbolx.bench.CompleteTransactionRequest) returns (symbolx.bench.CompleteTransactionResponse);
      */
     completeTransaction(input: CompleteTransactionRequest, options?: OperationOptions): UnaryCall<CompleteTransactionRequest, CompleteTransactionResponse> {
-        const method = this.methods[5], opt = this._transport.mergeOptions(options);
+        const method = this.methods[6], opt = this._transport.mergeOptions(options);
         return stackIntercept<CompleteTransactionRequest, CompleteTransactionResponse>("unary", this._transport, method, opt, input);
     }
     /**
@@ -165,17 +174,8 @@ export class GraphIOClient implements IGraphIOClient, ServiceInfo {
      * @generated from protobuf rpc: CancelTransaction(symbolx.bench.CancelTransactionRequest) returns (symbolx.bench.CancelTransactionResponse);
      */
     cancelTransaction(input: CancelTransactionRequest, options?: OperationOptions): UnaryCall<CancelTransactionRequest, CancelTransactionResponse> {
-        const method = this.methods[6], opt = this._transport.mergeOptions(options);
-        return stackIntercept<CancelTransactionRequest, CancelTransactionResponse>("unary", this._transport, method, opt, input);
-    }
-    /**
-     * Receive any relevant edits to this graph.
-     *
-     * @generated from protobuf rpc: WatchEdits(symbolx.bench.WatchEditsRequest) returns (stream symbolx.bench.WatchEditsResponse);
-     */
-    watchEdits(input: WatchEditsRequest, options?: OperationOptions): ServerStreamingCall<WatchEditsRequest, WatchEditsResponse> {
         const method = this.methods[7], opt = this._transport.mergeOptions(options);
-        return stackIntercept<WatchEditsRequest, WatchEditsResponse>("serverStreaming", this._transport, method, opt, input);
+        return stackIntercept<CancelTransactionRequest, CancelTransactionResponse>("unary", this._transport, method, opt, input);
     }
 }
 /**
@@ -201,6 +201,10 @@ export interface ISupervisorClient {
      */
     aggregateNodes(input: AggregateNodesRequest, options?: OperationOptions): UnaryCall<AggregateNodesRequest, AggregateNodesResponse>;
     /**
+     * @generated from protobuf rpc: WatchEdits(symbolx.bench.WatchEditsRequest) returns (stream symbolx.bench.WatchEditsResponse);
+     */
+    watchEdits(input: WatchEditsRequest, options?: OperationOptions): ServerStreamingCall<WatchEditsRequest, WatchEditsResponse>;
+    /**
      * @generated from protobuf rpc: CommitTransaction(symbolx.bench.CommitTransactionRequest) returns (symbolx.bench.CommitTransactionResponse);
      */
     commitTransaction(input: CommitTransactionRequest, options?: OperationOptions): UnaryCall<CommitTransactionRequest, CommitTransactionResponse>;
@@ -216,10 +220,6 @@ export interface ISupervisorClient {
      * @generated from protobuf rpc: CancelTransaction(symbolx.bench.CancelTransactionRequest) returns (symbolx.bench.CancelTransactionResponse);
      */
     cancelTransaction(input: CancelTransactionRequest, options?: OperationOptions): UnaryCall<CancelTransactionRequest, CancelTransactionResponse>;
-    /**
-     * @generated from protobuf rpc: WatchEdits(symbolx.bench.WatchEditsRequest) returns (stream symbolx.bench.WatchEditsResponse);
-     */
-    watchEdits(input: WatchEditsRequest, options?: OperationOptions): ServerStreamingCall<WatchEditsRequest, WatchEditsResponse>;
     // 
     // User management
     // 
@@ -302,39 +302,39 @@ export class SupervisorClient implements ISupervisorClient, ServiceInfo {
         return stackIntercept<AggregateNodesRequest, AggregateNodesResponse>("unary", this._transport, method, opt, input);
     }
     /**
+     * @generated from protobuf rpc: WatchEdits(symbolx.bench.WatchEditsRequest) returns (stream symbolx.bench.WatchEditsResponse);
+     */
+    watchEdits(input: WatchEditsRequest, options?: OperationOptions): ServerStreamingCall<WatchEditsRequest, WatchEditsResponse> {
+        const method = this.methods[3], opt = this._transport.mergeOptions(options);
+        return stackIntercept<WatchEditsRequest, WatchEditsResponse>("serverStreaming", this._transport, method, opt, input);
+    }
+    /**
      * @generated from protobuf rpc: CommitTransaction(symbolx.bench.CommitTransactionRequest) returns (symbolx.bench.CommitTransactionResponse);
      */
     commitTransaction(input: CommitTransactionRequest, options?: OperationOptions): UnaryCall<CommitTransactionRequest, CommitTransactionResponse> {
-        const method = this.methods[3], opt = this._transport.mergeOptions(options);
+        const method = this.methods[4], opt = this._transport.mergeOptions(options);
         return stackIntercept<CommitTransactionRequest, CommitTransactionResponse>("unary", this._transport, method, opt, input);
     }
     /**
      * @generated from protobuf rpc: FlushTransaction(symbolx.bench.FlushTransactionRequest) returns (symbolx.bench.FlushTransactionResponse);
      */
     flushTransaction(input: FlushTransactionRequest, options?: OperationOptions): UnaryCall<FlushTransactionRequest, FlushTransactionResponse> {
-        const method = this.methods[4], opt = this._transport.mergeOptions(options);
+        const method = this.methods[5], opt = this._transport.mergeOptions(options);
         return stackIntercept<FlushTransactionRequest, FlushTransactionResponse>("unary", this._transport, method, opt, input);
     }
     /**
      * @generated from protobuf rpc: CompleteTransaction(symbolx.bench.CompleteTransactionRequest) returns (symbolx.bench.CompleteTransactionResponse);
      */
     completeTransaction(input: CompleteTransactionRequest, options?: OperationOptions): UnaryCall<CompleteTransactionRequest, CompleteTransactionResponse> {
-        const method = this.methods[5], opt = this._transport.mergeOptions(options);
+        const method = this.methods[6], opt = this._transport.mergeOptions(options);
         return stackIntercept<CompleteTransactionRequest, CompleteTransactionResponse>("unary", this._transport, method, opt, input);
     }
     /**
      * @generated from protobuf rpc: CancelTransaction(symbolx.bench.CancelTransactionRequest) returns (symbolx.bench.CancelTransactionResponse);
      */
     cancelTransaction(input: CancelTransactionRequest, options?: OperationOptions): UnaryCall<CancelTransactionRequest, CancelTransactionResponse> {
-        const method = this.methods[6], opt = this._transport.mergeOptions(options);
-        return stackIntercept<CancelTransactionRequest, CancelTransactionResponse>("unary", this._transport, method, opt, input);
-    }
-    /**
-     * @generated from protobuf rpc: WatchEdits(symbolx.bench.WatchEditsRequest) returns (stream symbolx.bench.WatchEditsResponse);
-     */
-    watchEdits(input: WatchEditsRequest, options?: OperationOptions): ServerStreamingCall<WatchEditsRequest, WatchEditsResponse> {
         const method = this.methods[7], opt = this._transport.mergeOptions(options);
-        return stackIntercept<WatchEditsRequest, WatchEditsResponse>("serverStreaming", this._transport, method, opt, input);
+        return stackIntercept<CancelTransactionRequest, CancelTransactionResponse>("unary", this._transport, method, opt, input);
     }
     // 
     // User management
@@ -426,6 +426,10 @@ export interface IHostClient {
      */
     aggregateNodes(input: AggregateNodesRequest, options?: OperationOptions): UnaryCall<AggregateNodesRequest, AggregateNodesResponse>;
     /**
+     * @generated from protobuf rpc: WatchEdits(symbolx.bench.WatchEditsRequest) returns (stream symbolx.bench.WatchEditsResponse);
+     */
+    watchEdits(input: WatchEditsRequest, options?: OperationOptions): ServerStreamingCall<WatchEditsRequest, WatchEditsResponse>;
+    /**
      * @generated from protobuf rpc: CommitTransaction(symbolx.bench.CommitTransactionRequest) returns (symbolx.bench.CommitTransactionResponse);
      */
     commitTransaction(input: CommitTransactionRequest, options?: OperationOptions): UnaryCall<CommitTransactionRequest, CommitTransactionResponse>;
@@ -441,10 +445,6 @@ export interface IHostClient {
      * @generated from protobuf rpc: CancelTransaction(symbolx.bench.CancelTransactionRequest) returns (symbolx.bench.CancelTransactionResponse);
      */
     cancelTransaction(input: CancelTransactionRequest, options?: OperationOptions): UnaryCall<CancelTransactionRequest, CancelTransactionResponse>;
-    /**
-     * @generated from protobuf rpc: WatchEdits(symbolx.bench.WatchEditsRequest) returns (stream symbolx.bench.WatchEditsResponse);
-     */
-    watchEdits(input: WatchEditsRequest, options?: OperationOptions): ServerStreamingCall<WatchEditsRequest, WatchEditsResponse>;
 }
 // 
 // Host
@@ -487,39 +487,39 @@ export class HostClient implements IHostClient, ServiceInfo {
         return stackIntercept<AggregateNodesRequest, AggregateNodesResponse>("unary", this._transport, method, opt, input);
     }
     /**
+     * @generated from protobuf rpc: WatchEdits(symbolx.bench.WatchEditsRequest) returns (stream symbolx.bench.WatchEditsResponse);
+     */
+    watchEdits(input: WatchEditsRequest, options?: OperationOptions): ServerStreamingCall<WatchEditsRequest, WatchEditsResponse> {
+        const method = this.methods[3], opt = this._transport.mergeOptions(options);
+        return stackIntercept<WatchEditsRequest, WatchEditsResponse>("serverStreaming", this._transport, method, opt, input);
+    }
+    /**
      * @generated from protobuf rpc: CommitTransaction(symbolx.bench.CommitTransactionRequest) returns (symbolx.bench.CommitTransactionResponse);
      */
     commitTransaction(input: CommitTransactionRequest, options?: OperationOptions): UnaryCall<CommitTransactionRequest, CommitTransactionResponse> {
-        const method = this.methods[3], opt = this._transport.mergeOptions(options);
+        const method = this.methods[4], opt = this._transport.mergeOptions(options);
         return stackIntercept<CommitTransactionRequest, CommitTransactionResponse>("unary", this._transport, method, opt, input);
     }
     /**
      * @generated from protobuf rpc: FlushTransaction(symbolx.bench.FlushTransactionRequest) returns (symbolx.bench.FlushTransactionResponse);
      */
     flushTransaction(input: FlushTransactionRequest, options?: OperationOptions): UnaryCall<FlushTransactionRequest, FlushTransactionResponse> {
-        const method = this.methods[4], opt = this._transport.mergeOptions(options);
+        const method = this.methods[5], opt = this._transport.mergeOptions(options);
         return stackIntercept<FlushTransactionRequest, FlushTransactionResponse>("unary", this._transport, method, opt, input);
     }
     /**
      * @generated from protobuf rpc: CompleteTransaction(symbolx.bench.CompleteTransactionRequest) returns (symbolx.bench.CompleteTransactionResponse);
      */
     completeTransaction(input: CompleteTransactionRequest, options?: OperationOptions): UnaryCall<CompleteTransactionRequest, CompleteTransactionResponse> {
-        const method = this.methods[5], opt = this._transport.mergeOptions(options);
+        const method = this.methods[6], opt = this._transport.mergeOptions(options);
         return stackIntercept<CompleteTransactionRequest, CompleteTransactionResponse>("unary", this._transport, method, opt, input);
     }
     /**
      * @generated from protobuf rpc: CancelTransaction(symbolx.bench.CancelTransactionRequest) returns (symbolx.bench.CancelTransactionResponse);
      */
     cancelTransaction(input: CancelTransactionRequest, options?: OperationOptions): UnaryCall<CancelTransactionRequest, CancelTransactionResponse> {
-        const method = this.methods[6], opt = this._transport.mergeOptions(options);
-        return stackIntercept<CancelTransactionRequest, CancelTransactionResponse>("unary", this._transport, method, opt, input);
-    }
-    /**
-     * @generated from protobuf rpc: WatchEdits(symbolx.bench.WatchEditsRequest) returns (stream symbolx.bench.WatchEditsResponse);
-     */
-    watchEdits(input: WatchEditsRequest, options?: OperationOptions): ServerStreamingCall<WatchEditsRequest, WatchEditsResponse> {
         const method = this.methods[7], opt = this._transport.mergeOptions(options);
-        return stackIntercept<WatchEditsRequest, WatchEditsResponse>("serverStreaming", this._transport, method, opt, input);
+        return stackIntercept<CancelTransactionRequest, CancelTransactionResponse>("unary", this._transport, method, opt, input);
     }
 }
 

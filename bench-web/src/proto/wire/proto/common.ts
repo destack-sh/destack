@@ -12,6 +12,7 @@ import type { PartialMessage } from "@protobuf-ts/runtime";
 import { reflectionMergePartial } from "@protobuf-ts/runtime";
 import { MessageType } from "@protobuf-ts/runtime";
 import { Timestamp } from "../google/protobuf/timestamp";
+import { EditContextData } from "./lang";
 import { Struct } from "../google/protobuf/struct";
 import { NodeReferenceData } from "./lang";
 import { EditType } from "./lang";
@@ -156,31 +157,39 @@ export interface EditData {
      */
     scope?: GraphScope;
     /**
-     * Who this? All non-system clients must set both.
+     * Who made the edit (subject).
      *
      * @generated from protobuf field: optional symbolx.bench.NodeReferenceData subject_ptr = 41;
      */
     subjectPtr?: NodeReferenceData;
     /**
+     * WHo made the edit (client).
+     *
      * @generated from protobuf field: optional symbolx.bench.ClientOrigin origin = 42;
      */
     origin?: ClientOrigin;
     /**
+     * Additional context for server clients.
+     *
+     * @generated from protobuf field: optional symbolx.bench.EditContextData context = 43;
+     */
+    context?: EditContextData;
+    /**
      * When the edit was made.
      *
-     * @generated from protobuf field: google.protobuf.Timestamp edited_at = 43;
+     * @generated from protobuf field: google.protobuf.Timestamp edited_at = 44;
      */
     editedAt?: Timestamp;
     /**
      * Revision for the node.
      *
-     * @generated from protobuf field: optional int64 revision = 44;
+     * @generated from protobuf field: optional int64 revision = 45;
      */
     revision?: bigint;
     /**
      * Epoch at that edit.
      *
-     * @generated from protobuf field: optional int64 epoch = 45;
+     * @generated from protobuf field: optional int64 epoch = 46;
      */
     epoch?: bigint;
 }
@@ -472,9 +481,10 @@ class EditData$Type extends MessageType<EditData> {
             { no: 40, name: "scope", kind: "message", T: () => GraphScope },
             { no: 41, name: "subject_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 42, name: "origin", kind: "message", T: () => ClientOrigin },
-            { no: 43, name: "edited_at", kind: "message", T: () => Timestamp },
-            { no: 44, name: "revision", kind: "scalar", opt: true, T: 3 /*ScalarType.INT64*/, L: 0 /*LongType.BIGINT*/ },
-            { no: 45, name: "epoch", kind: "scalar", opt: true, T: 3 /*ScalarType.INT64*/, L: 0 /*LongType.BIGINT*/ }
+            { no: 43, name: "context", kind: "message", T: () => EditContextData },
+            { no: 44, name: "edited_at", kind: "message", T: () => Timestamp },
+            { no: 45, name: "revision", kind: "scalar", opt: true, T: 3 /*ScalarType.INT64*/, L: 0 /*LongType.BIGINT*/ },
+            { no: 46, name: "epoch", kind: "scalar", opt: true, T: 3 /*ScalarType.INT64*/, L: 0 /*LongType.BIGINT*/ }
         ]);
     }
     create(value?: PartialMessage<EditData>): EditData {
@@ -522,13 +532,16 @@ class EditData$Type extends MessageType<EditData> {
                 case /* optional symbolx.bench.ClientOrigin origin */ 42:
                     message.origin = ClientOrigin.internalBinaryRead(reader, reader.uint32(), options, message.origin);
                     break;
-                case /* google.protobuf.Timestamp edited_at */ 43:
+                case /* optional symbolx.bench.EditContextData context */ 43:
+                    message.context = EditContextData.internalBinaryRead(reader, reader.uint32(), options, message.context);
+                    break;
+                case /* google.protobuf.Timestamp edited_at */ 44:
                     message.editedAt = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.editedAt);
                     break;
-                case /* optional int64 revision */ 44:
+                case /* optional int64 revision */ 45:
                     message.revision = reader.int64().toBigInt();
                     break;
-                case /* optional int64 epoch */ 45:
+                case /* optional int64 epoch */ 46:
                     message.epoch = reader.int64().toBigInt();
                     break;
                 default:
@@ -574,15 +587,18 @@ class EditData$Type extends MessageType<EditData> {
         /* optional symbolx.bench.ClientOrigin origin = 42; */
         if (message.origin)
             ClientOrigin.internalBinaryWrite(message.origin, writer.tag(42, WireType.LengthDelimited).fork(), options).join();
-        /* google.protobuf.Timestamp edited_at = 43; */
+        /* optional symbolx.bench.EditContextData context = 43; */
+        if (message.context)
+            EditContextData.internalBinaryWrite(message.context, writer.tag(43, WireType.LengthDelimited).fork(), options).join();
+        /* google.protobuf.Timestamp edited_at = 44; */
         if (message.editedAt)
-            Timestamp.internalBinaryWrite(message.editedAt, writer.tag(43, WireType.LengthDelimited).fork(), options).join();
-        /* optional int64 revision = 44; */
+            Timestamp.internalBinaryWrite(message.editedAt, writer.tag(44, WireType.LengthDelimited).fork(), options).join();
+        /* optional int64 revision = 45; */
         if (message.revision !== undefined)
-            writer.tag(44, WireType.Varint).int64(message.revision);
-        /* optional int64 epoch = 45; */
+            writer.tag(45, WireType.Varint).int64(message.revision);
+        /* optional int64 epoch = 46; */
         if (message.epoch !== undefined)
-            writer.tag(45, WireType.Varint).int64(message.epoch);
+            writer.tag(46, WireType.Varint).int64(message.epoch);
         let u = options.writeUnknownFields;
         if (u !== false)
             (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);

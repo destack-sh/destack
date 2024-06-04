@@ -99,7 +99,9 @@ class Supervisor(GraphIoServiceBase, SupervisorBase):
                     owned=[client.parent],
                 )
             elif isinstance(client.parent, Server):
-                return Subject(is_authenticated=True, client=client, owned=[client.bench])
+                return Subject(
+                    is_authenticated=True, client=client, server=client.parent, owned=[client.bench]
+                )
             else:
                 raise RuntimeError(f"unexpected client: {client!r}")
 

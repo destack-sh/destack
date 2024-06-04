@@ -76,13 +76,16 @@ message EditData {
   
   // Enclosing scope of the node.
   GraphScope scope = 40;
-  // Who this? All non-system clients must set both.
+  // Who made the edit (subject).
   optional NodeReferenceData subject_ptr = 41;
+  // WHo made the edit (client).
   optional ClientOrigin origin = 42;
+  // Additional context for server clients.
+  optional EditContextData context = 43;
   // When the edit was made.
-  google.protobuf.Timestamp edited_at = 43;
+  google.protobuf.Timestamp edited_at = 44;
   // Revision for the node.
-  optional int64 revision = 44;
+  optional int64 revision = 45;
   // Epoch at that edit.
-  optional int64 epoch = 45;
+  optional int64 epoch = 46;
 }
