@@ -37,8 +37,7 @@ def new_edit_id() -> str:
 @dataclasses.dataclass(slots=True)
 class Transaction:
     """
-    A transaction in the Bench state graph.
-    Edits in a transaction are atomic (in our primary Postgres/Relational stores).
+    A transaction in the Bench graph with an atomic list of edits.
     """
 
     id: UUID
@@ -64,7 +63,7 @@ class Transaction:
         self._read_connection = SplitConnection(self.session)
 
     def __str__(self):
-        return f"[id={self.id}] ({len(self.edits)} edits, {len(self._pending_nodes_by_ck)} pending nodes)"
+        return f"[id={self.id}] ({len(self.edits)} edits, {len(self.cascaded_edits)} cascaded, {len(self.pending_edits)} pending)"
 
     def __repr__(self):
         return f"<Transaction {self}>"
@@ -390,6 +389,19 @@ class Transaction:
     async def rollback(self):
         """Rolls back uncommitted edits in primary stores."""
         raise NotImplementedError("not yet supported")  # :2PC
+
+    async def reset(self):
+        """Resets the transaction, any edits and connections (without closing)."""
+        self.edits.clear()
+        self.cascaded_edits.clear()
+        self.pending_edits.clear()
+        self._pending_edits_by_engine_id.clear()
+        self._pending_updates_idx.clear()
+        self._pending_nodes_by_ck.clear()
+        self._used_engine_ids.clear()
+        for connection in self._connections_by_engine_id.values():
+            await connection.close()
+        self._connections_by_engine_id.clear()
 
     async def close(self):
         """Closes the transaction and associated store engines, rolling back uncommitted edits."""

@@ -42,7 +42,7 @@ export function accessNone(): AccessArbiter {
 }
 
 export function accessFromMatrix(matrix: AccessMatrixData) {
-  // TODO :Broken!: parse & watch access
+  // TODO :Incomplete!: parse & watch access
   return {
     can(verb: SomeAccessType, node: NodeType, options?: AccessOptions) {
       return true;

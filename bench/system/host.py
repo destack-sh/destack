@@ -364,7 +364,7 @@ class Host(GraphIoServiceBase, HostBase, HostSpec):
             _is_readonly=False,
             _default_scope=self.scope,
             _engines=self._engines,
-            _commit=self._commit_system_session,
+            _custom_commit=self._commit_system_session,
         )
         self._bench._track_rec(self._session)
         self._main_package._track_rec(self._session)
@@ -411,9 +411,8 @@ class Host(GraphIoServiceBase, HostBase, HostSpec):
         session: Session,
         graph: NodeGraphLike,
         edits: list[EditData],
-        epoch: int,
         cascaded_edits: list[EditData],
-    ) -> tuple[list[EditData], int]:
+    ) -> list[EditData]:
         extended_edits: list[EditData] = []
         # NOTE :Incomplete: run plugins to extend commit (not needed yet)
 
@@ -466,9 +465,12 @@ class Host(GraphIoServiceBase, HostBase, HostSpec):
                 edited_at=log_data.created_at,
             )
             log_edits.append(create_log_edit)
-        extended_edits.extend(log_edits)
 
-        return extended_edits, epoch
+        # add edits to session
+        extended_edits.extend(log_edits)
+        session.tx._add_pending_edits(log_edits)
+
+        return extended_edits
 
     @override
     @tracer.start_as_current_span("host.on_commit")

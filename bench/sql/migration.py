@@ -312,14 +312,19 @@ async def _do_sql_migrate(
             await func(cur)
         except Exception as e:
             logger.error(
-                "migration.apply.error", cur=cur, migration=migration, store=store, error=e, span='current'
+                "migration.apply.error",
+                cur=cur,
+                migration=migration,
+                store=store,
+                error=e,
+                span="current",
             )
             raise
         if is_upgrade:
             migration.applied_at = now
         else:
             migration.applied_at = None
-        logger.debug("migration.apply", cur=cur, migration=migration, store=store, span='current')
+        logger.debug("migration.apply", cur=cur, migration=migration, store=store, span="current")
 
 
 #
@@ -640,9 +645,9 @@ def _render_migration_body(ops: list[MigrationOp] | None) -> str:
     return method_body
 
 
+@tracer.start_as_current_span("sql.apply_migration_ops")
 async def apply_sql_migration_ops(cur: psycopg.AsyncCursor, ops: list[MigrationOp]) -> None:
     """Directly apply the given migration ops."""
-    logger.info("apply_migration_ops", ops=ops)
     method_body = _render_migration_body(ops)
     method_body = format_python(method_body)
 
@@ -652,6 +657,7 @@ async def apply_sql_migration_ops(cur: psycopg.AsyncCursor, ops: list[MigrationO
     exec(method, method_locals)
     _apply_inline = method_locals["_apply_inline"]
     await _apply_inline(cur)
+    logger.info("sql.apply_migration_ops", ops=ops, cur=cur, span="current")
 
 
 async def force_create_schema(cur: psycopg.AsyncCursor, schema: Schema) -> None:
@@ -1056,6 +1062,6 @@ WHERE
         )
         tables.append(table)
 
-    logger.debug("sql.introspect", cur=cur, tables=[t.name for t in tables])
+    logger.debug("sql.introspect", cur=cur, tables=tables, span="current")
 
     return Schema(extensions=extensions, tables=tuple(tables))

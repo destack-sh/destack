@@ -34,7 +34,7 @@ def pytest_collection_modifyitems(items):
 
 @pytest.fixture(autouse=True, scope="session")
 async def _prepared_test_db():
-    from bench.sql.client import get_pg_connection_uri, pg_cursor
+    from bench.sql.client import pg_store_connection
     from bench.sql.engine import GLOBAL_SCHEMA
     from bench.sql.migration import (
         EXTENSIONS,
@@ -51,8 +51,7 @@ async def _prepared_test_db():
 
     # reset test database (connect to bench since we can't drop active db)
     #  (reconstruct default connection str here because GLOBAL_PG_NAME is different in test)
-    default_connection_uri = get_pg_connection_uri(GLOBAL_STORE, "bench")
-    async with pg_cursor(default_connection_uri, autocommit=True) as cur:
+    async with pg_store_connection(GLOBAL_STORE, database="bench", autocommit=True) as cur:
         await cur.execute("DROP DATABASE IF EXISTS test")
         await cur.execute("CREATE DATABASE test")
 
@@ -68,10 +67,10 @@ async def _prepared_test_db():
 
 @pytest.fixture()
 async def test_cur():
-    from bench.sql.client import get_pg_connection_uri, pg_cursor
+    from bench.sql.client import pg_store_connection
     from bench.system.core import GLOBAL_STORE
 
-    async with pg_cursor(get_pg_connection_uri(GLOBAL_STORE, "test")) as cur:
+    async with pg_store_connection(GLOBAL_STORE, database="test") as cur:
         yield cur
 
 

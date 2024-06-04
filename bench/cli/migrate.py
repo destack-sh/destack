@@ -11,7 +11,7 @@ from bench.cli.utils import async_to_sync_blocking
 from bench.language import Bench, Environment, Store
 from bench.language.const import VERSION, NodeType
 from bench.language.query import NodeNotFoundError
-from bench.sql.client import pg_cursor_to_store
+from bench.sql.client import pg_store_connection
 from bench.sql.core import Schema
 from bench.sql.engine import (
     GLOBAL_SCHEMA,
@@ -78,7 +78,7 @@ async def make(
                     await Bench.descendants(Environment, Store).select_all().get(slug=bench)
                 )
                 assert bench_node.main_environment, f"{bench!r} has no main environment"
-                async with pg_cursor_to_store(bench_node.main_environment.store) as cur:
+                async with pg_store_connection(bench_node.main_environment.store) as cur:
                     old_local_schema = await introspect_sql_schema(cur)
             except (NodeNotFoundError, SqlUndefinedObjectError):
                 old_local_schema = Schema.blank()  # initial migration
@@ -145,7 +145,7 @@ async def apply(
         stores = (GLOBAL_STORE,)
 
     for store in stores:
-        async with pg_cursor_to_store(store) as cur:
+        async with pg_store_connection(store) as cur:
             await _migrate(cur=cur, target=target, is_global=bench is None)
             if not dry_run:
                 await cur.connection.commit()
@@ -169,7 +169,7 @@ async def clear(from_id: int, to_id: int):
         for bench in benches:
             stores = tuple(e.store for e in bench.environments)
             for store in stores:
-                async with pg_cursor_to_store(store) as cur:
+                async with pg_store_connection(store) as cur:
                     await delete_migrations_in_pg(cur, from_id=from_id, to_id=to_id)
                     await cur.connection.commit()
 
@@ -188,7 +188,7 @@ async def introspect(bench: Optional[str] = None):  # type: ignore
                 slug=bench
             )
             assert bench_node.main_environment, f"{bench!r} has no main environment"
-        async with pg_cursor_to_store(bench_node.main_environment.store) as cur:
+        async with pg_store_connection(bench_node.main_environment.store) as cur:
             schema = await introspect_sql_schema(
                 cur, include_columns=True, include_indexes=True, include_constraints=True
             )

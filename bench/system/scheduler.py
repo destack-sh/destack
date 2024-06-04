@@ -9,9 +9,11 @@ from bench.language.bench import Bench, ResourceStatus
 from bench.language.const import NodeType, RunStatus
 from bench.language.run import Run, RunError, RunErrorKind, RunErrorType
 from bench.language.session import Session
+from bench.language.signal import Signal
+from bench.language.trigger import Trigger
 from bench.proto.services import get_channel_cached
 from bench.proto.wire import QueueRunRequest, RuntimeStub
-from bench.system.core import Commit, HostPlugin, HostSpec
+from bench.system.core import Commit, DeferredHostPlugin, HostPlugin, HostSpec
 from bench.utils.func import bittuple
 from bench.utils.tenacity import RETRY_GRPC, RetryOptions, RetryState
 
@@ -31,7 +33,7 @@ class QueueOperation:
 
 
 class QueueRunPlugin(HostPlugin[Run]):
-    """Distribute new (and forlorn) unassigned Runs to Runtimes (on Machines)."""
+    """Queue new (and forlorn) unassigned Runs in Runtimes (on Machines)."""
 
     watch_types = bittuple(NodeType.RUN)
 
@@ -108,3 +110,9 @@ class QueueRunPlugin(HostPlugin[Run]):
                 retry=op.retry,
                 span="current",
             )
+
+
+class SignalTriggerPlugin(DeferredHostPlugin[Signal | Trigger]):
+    """Process active Triggers when they receive Signals."""
+
+    watch_types = bittuple(NodeType.SIGNAL, NodeType.TRIGGER)

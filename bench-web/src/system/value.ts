@@ -339,7 +339,11 @@ export function unpackStructValueScalar(valuePacked: any, objectType?: ObjectTyp
       }
     } else {
       if (propValuePacked == null) {
-        propValue = null;
+        if (!prop.isRequired) {
+          continue;
+        } else {
+          propValue = null;
+        }
       } else {
         propValue = unpackValueScalar(propValuePacked, propType);
       }

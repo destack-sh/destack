@@ -2,6 +2,8 @@
 # Queries
 #
 import abc
+import asyncio
+from functools import wraps
 from typing import (
     TYPE_CHECKING,
     Any,
@@ -43,14 +45,14 @@ from bench.proto.wire import (
     SupervisorStub,
 )
 from bench.utils.func import bittuple, group_by
-from bench.utils.tenacity import RETRY_GRPC, RetryOptions, retry
+from bench.utils.tenacity import RETRY_GRPC, RetryOptions
 
 if TYPE_CHECKING:
     from bench.language import Bench, Expression, Field, Property, Session, Store
     from bench.language.graph import NodeDataGraph
     from bench.language.query import QueryBuilder
     from bench.proto.monkey import _PatchedRpcMetadata
-    from bench.sql.client import _PgStoreConnection
+    from bench.sql.client import PgStoreConnection
 
 # pyright: reportIncompatibleVariableOverride=false
 
@@ -65,11 +67,11 @@ FieldOrProperty = Union[
 NodeTypeOrClass = Union[NodeType, type[Node]]
 
 
-class StoreEngineError(BenchError, ValueError):
+class ConnectionError(BenchError):
     def __init__(
         self,
         engine: Union["StoreEngine", "StoreConnection", StoreConnectionType],
-        query: Optional["QueryBuilder"] = None,
+        query: Optional["QueryBuilder"] | Collection[EditData] = None,
         expression: Union["Expression", list["Expression"], None] = None,
         reason: str | None = None,
     ):
@@ -86,7 +88,15 @@ class StoreEngineError(BenchError, ValueError):
         self.reason = reason
 
 
-class ConnectionIncapableError(StoreEngineError):
+class ConnectionFailedError(ConnectionError):
+    """The connection is temporarily unavailable."""
+
+    pass
+
+
+class ConnectionIncapableError(ConnectionError):
+    """The connection can't do this thing."""
+
     pass
 
 
@@ -246,14 +256,36 @@ class RemoteConnection(StoreConnection[NodeT, NodeDataT]):
     def __str__(self):
         return f"engine={self.engine!r}, session={self.session}"
 
+    @staticmethod
+    def _remote_method(func):
+        """Wraps an RPC connection function with tracing & retries."""
+        method_name = func.__name__
+
+        @wraps(func)
+        @tracer.start_as_current_span(f"remote.{method_name}")
+        async def wrapper(self: "RemoteConnection", *args, **kwargs):
+            retry = self.engine.retry.new()
+            while retry.should_retry:
+                retry.on_attempt()
+                try:
+                    return await func(self, *args, **kwargs)
+                except self.engine.retry.retry_on as e:
+                    retry.on_error(e)
+                    logger.error(f"remote.{method_name}.error", connection=self, exc_info=True)
+                    if retry.should_retry:
+                        await asyncio.sleep(retry.interval)
+            error = retry.to_error()
+            if isinstance(error, (OSError,)):
+                raise ConnectionFailedError(
+                    self, args[0] if args else None, reason=str(error)
+                ) from error
+            else:
+                raise error
+
+        return wrapper
+
     @override
-    @retry(
-        lambda self, *args, **kwargs: self.engine.retry,
-        on_error=lambda self, query, options, e: logger.error(
-            "remote.fetch.error", connection=self, query=query, options=options, exc_info=e
-        ),
-    )
-    @tracer.start_as_current_span("remote.fetch")
+    @_remote_method
     async def fetch(
         self, query: "QueryBuilder[NodeT, NodeDataT]", options: FetchOptions
     ) -> FetchResult:
@@ -282,13 +314,7 @@ class RemoteConnection(StoreConnection[NodeT, NodeDataT]):
         )
 
     @override
-    @retry(
-        lambda self, *args, **kwargs: self.engine.retry,
-        on_error=lambda self, query, e: logger.error(
-            "remote.aggregate.error", connection=self, query=query, exc_info=e
-        ),
-    )
-    @tracer.start_as_current_span("remote.aggregate")
+    @_remote_method
     async def aggregate(self, query: "QueryBuilder[NodeT, NodeDataT]") -> AggregateResult:
         from bench.proto import wire, wiring
 
@@ -306,13 +332,7 @@ class RemoteConnection(StoreConnection[NodeT, NodeDataT]):
         return AggregateResult(response.aggregation)
 
     @override
-    @retry(
-        lambda self, *args, **kwargs: self.engine.retry,
-        on_error=lambda self, edits, e: logger.error(
-            "remote.commit.error", connection=self, edits=edits, exc_info=e
-        ),
-    )
-    @tracer.start_as_current_span("remote.commit")
+    @_remote_method
     async def commit(self, edits: list[EditData] | tuple[EditData, ...]) -> FlushResult:
         from bench.proto import wire
 
@@ -346,9 +366,9 @@ class PostgresEngine(StoreEngine[NodeT, NodeDataT], Generic[NodeT, NodeDataT]):
 
     @override
     async def connect(self, session: "Session") -> "PostgresConnection":
-        from bench.sql.client import get_pg_store_connection
+        from bench.sql.client import pg_store_connection
 
-        conn = get_pg_store_connection(self.store)
+        conn = pg_store_connection(self.store)
         cur = await conn.open()
         return PostgresConnection(self, session, conn, cur)
 
@@ -360,7 +380,7 @@ class PostgresConnection(StoreConnection[NodeT, NodeDataT], Generic[NodeT, NodeD
         self,
         engine: "PostgresEngine",
         session: "Session",
-        conn: "_PgStoreConnection",
+        conn: "PgStoreConnection",
         cur: psycopg.AsyncCursor,
     ):
         super().__init__(session)
@@ -371,8 +391,25 @@ class PostgresConnection(StoreConnection[NodeT, NodeDataT], Generic[NodeT, NodeD
     def __str__(self):
         return f"engine={self.engine!r}, session={self.session}"
 
+    @staticmethod
+    def _pg_method(func):
+        """Wraps a Postgres connection function with tracing & error wrapping."""
+        method_name = func.__name__
+
+        @wraps(func)
+        @tracer.start_as_current_span(f"pg.{method_name}")
+        async def wrapper(self: "PostgresConnection", *args, **kwargs):
+            from bench.sql.engine import SqlConnectionError
+
+            try:
+                return await func(self, *args, **kwargs)
+            except SqlConnectionError as e:
+                raise ConnectionFailedError(self, args[0] if args else None, reason=str(e)) from e
+
+        return wrapper
+
     @override
-    @tracer.start_as_current_span("pg.fetch")
+    @_pg_method
     async def fetch(
         self, query: "QueryBuilder[NodeT, NodeDataT]", options: FetchOptions
     ) -> FetchResult:
@@ -406,7 +443,7 @@ class PostgresConnection(StoreConnection[NodeT, NodeDataT], Generic[NodeT, NodeD
         )
 
     @override
-    @tracer.start_as_current_span("pg.aggregate")
+    @_pg_method
     async def aggregate(self, query: "QueryBuilder[NodeT, NodeDataT]") -> AggregateResult:
         from bench.sql.engine import _pg_compile_conditional_maybe, pg_count, pg_exists
 
@@ -425,7 +462,7 @@ class PostgresConnection(StoreConnection[NodeT, NodeDataT], Generic[NodeT, NodeD
             )
 
     @override
-    @tracer.start_as_current_span("pg.flush")
+    @_pg_method
     async def flush(self, edits: list[EditData] | tuple[EditData, ...]) -> FlushResult:
         from bench.sql.engine import pg_edit
 
@@ -433,7 +470,7 @@ class PostgresConnection(StoreConnection[NodeT, NodeDataT], Generic[NodeT, NodeD
         return FlushResult(revisions=new_revisions, cascaded_edits=cascaded_edits)
 
     @override
-    @tracer.start_as_current_span("pg.commit")
+    @_pg_method
     async def commit(self, edits: list[EditData] | tuple[EditData, ...]) -> FlushResult:
         from bench.sql.engine import pg_edit
 
@@ -442,11 +479,12 @@ class PostgresConnection(StoreConnection[NodeT, NodeDataT], Generic[NodeT, NodeD
         return FlushResult(revisions=new_revisions, cascaded_edits=cascaded_edits)
 
     @override
-    @tracer.start_as_current_span("pg.cancel")
+    @_pg_method
     async def cancel(self) -> None:
         await self.cur.connection.rollback()
 
-    @tracer.start_as_current_span("pg.close")
+    @override
+    @_pg_method
     async def close(self):
         await self.cur.connection.rollback()
         await self.conn.close()

@@ -103,7 +103,9 @@ async def pg_cursor(connection_uri: str, autocommit: bool = False):
             yield cur
 
 
-class _PgStoreConnection:
+class PgStoreConnection:
+    """A Postgres connection to a Store. Wraps an underlying psycopg connection."""
+
     __slots__ = ("_conn", "_pool", "_reset_token", "autocommit", "bench", "database", "store")
 
     def __init__(
@@ -142,13 +144,7 @@ class _PgStoreConnection:
         await self.close()
 
 
-@asynccontextmanager
-async def pg_cursor_to_store(store: Store, bench: Bench | None = None, autocommit: bool = False):
-    async with _PgStoreConnection(store, bench or store.bench, autocommit=autocommit) as cur:
-        yield cur
-
-
-def get_pg_store_connection(
-    store: Store, bench: Bench | None = None, autocommit: bool = False
-) -> _PgStoreConnection:
-    return _PgStoreConnection(store, bench or store.bench, autocommit=autocommit)
+def pg_store_connection(
+    store: Store, bench: Bench | None = None, autocommit: bool = False, database: str | None = None
+):
+    return PgStoreConnection(store, bench or store.bench, database=database, autocommit=autocommit)

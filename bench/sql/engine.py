@@ -117,6 +117,10 @@ class SqlNotExistsError(SqlError):
     pass
 
 
+class SqlConnectionError(SqlError):
+    pass
+
+
 @dataclass(frozen=True)
 class SqlExpression:
     def sql(self) -> sql.Composable:
@@ -559,6 +563,8 @@ def _pg_wrap_error(
         wrapped_t = SqlAlreadyExistsError
     elif "Violation" in e.__class__.__name__:
         wrapped_t = SqlViolationError
+    elif isinstance(e, (psycopg.errors.OperationalError, psycopg.errors.InterfaceError)):
+        wrapped_t = SqlConnectionError
     else:
         wrapped_t = SqlError
     message = f"{e}\nin {resource!r}" if "\n" in str(e) else f"{e} in {resource!r}"
@@ -566,8 +572,8 @@ def _pg_wrap_error(
 
 
 # NOTE: we retry only on operational PG errors to handle transient issues (e.g. network)
-
-RETRY_PG = RetryOptions(max_attempts=3, max_retry_interval=10, retry_on=(OperationalError,))
+#  (this does *not* handle actual disconnects like due to Postgres restarts)
+RETRY_PG = RetryOptions(max_attempts=2, max_retry_interval=5, retry_on=(OperationalError,))
 
 
 @retry(RETRY_PG)
@@ -590,56 +596,52 @@ async def _pg_executemany(
 
 
 def _pg_wrap_write_column(column: Column, value: SqlNode) -> SqlNode:
-    if column.is_encrypted:
-        assert not column.is_array, f"cannot encrypt array column: {column!r}"
-        if not isinstance(value, sql.Composable) and column._unencrypted_type == PrimitiveType.JSON:
-            value = Jsonb(value)  # adapt json
-        # first to bytea
-        if column._unencrypted_type == PrimitiveType.BYTES:
-            value = sqlstr("{}::bytea").format(value)
-        elif column._unencrypted_type in (PrimitiveType.STRING, PrimitiveType.JSON):
-            value = sqlstr("convert_to({}::text, 'UTF8')").format(value)
-        else:
-            pg_cast = PG_CAST_PRIMITIVE_TYPE[cast(PrimitiveType, column._unencrypted_type)]
-            value = sqlstr("{}::{}::text::bytea").format(value, sqlstr(pg_cast))
-        # then encrypt with pgp_sym_encrypt_bytea
-        value = sqlstr("pgp_sym_encrypt_bytea({}, %(PG_CRYPTO_KEY)s::text)").format(
-            sql_node_to_sql(value)
-        )
-        # bail if original value is null
-        # value = sqlstr("(CASE WHEN {} IS NULL THEN NULL ELSE {} END)").format(
-        #     sql_node_to_sql(original_value), value
-        # )
+    if not column.is_encrypted:
         return value
+
+    # convert and decrypt
+    assert not column.is_array, f"cannot encrypt array column: {column!r}"
+    if not isinstance(value, sql.Composable) and column._unencrypted_type == PrimitiveType.JSON:
+        value = Jsonb(value)  # adapt json
+    # first to bytea
+    if column._unencrypted_type == PrimitiveType.BYTES:
+        value = sqlstr("{}::bytea").format(value)
+    elif column._unencrypted_type in (PrimitiveType.STRING, PrimitiveType.JSON):
+        value = sqlstr("convert_to({}::text, 'UTF8')").format(value)
     else:
-        return value
+        pg_cast = PG_CAST_PRIMITIVE_TYPE[cast(PrimitiveType, column._unencrypted_type)]
+        value = sqlstr("{}::{}::text::bytea").format(value, sqlstr(pg_cast))
+    # then encrypt
+    value = sqlstr("pgp_sym_encrypt_bytea({}, %(PG_CRYPTO_KEY)s::text)").format(
+        sql_node_to_sql(value)
+    )
+    return value
 
 
 def _pg_wrap_read_column(column: Column, value: SqlNode) -> SqlNode:
-    if column.is_encrypted:
-        assert not column.is_array, f"cannot encrypt array column: {column!r}"
-        original = value
-        # first decrypt with pgp_sym_decrypt_bytea
-        value = sqlstr("pgp_sym_decrypt_bytea({}, %(PG_CRYPTO_KEY)s::text)").format(
-            sql_node_to_sql(value), sql.Literal(get_pg_crypto_key(column))
-        )
-        # then convert from bytea to the correct type
-        if column._unencrypted_type == PrimitiveType.BYTES:
-            value = sqlstr("{}::bytea").format(value)
-        else:
-            pg_cast = PG_CAST_PRIMITIVE_TYPE[cast(PrimitiveType, column._unencrypted_type)]
-            value = sqlstr("convert_from({}::bytea, 'UTF8')::text::{}").format(
-                value, sqlstr(pg_cast)
-            )
-        # and bail if original value is null
-        value = sqlstr("(CASE WHEN {} IS NULL THEN NULL ELSE {} END)").format(
-            sql_node_to_sql(original), value
-        )
-        # and label column
-        value = sqlstr("{} as {}").format(value, sqlident(column.name))
+    if not column.is_encrypted:
         return value
+
+    # decrypt and convert
+    assert not column.is_array, f"cannot encrypt array column: {column!r}"
+    original = value
+    # first decrypt with
+    value = sqlstr("pgp_sym_decrypt_bytea({}, %(PG_CRYPTO_KEY)s::text)").format(
+        sql_node_to_sql(value), sql.Literal(get_pg_crypto_key(column))
+    )
+    # then convert from bytea to the correct type
+    if column._unencrypted_type == PrimitiveType.BYTES:
+        value = sqlstr("{}::bytea").format(value)
     else:
-        return value
+        pg_cast = PG_CAST_PRIMITIVE_TYPE[cast(PrimitiveType, column._unencrypted_type)]
+        value = sqlstr("convert_from({}::bytea, 'UTF8')::text::{}").format(value, sqlstr(pg_cast))
+    # and bail if original value is null
+    value = sqlstr("(CASE WHEN {} IS NULL THEN NULL ELSE {} END)").format(
+        sql_node_to_sql(original), value
+    )
+    # and label column
+    value = sqlstr("{} as {}").format(value, sqlident(column.name))
+    return value
 
 
 def _pg_adapt_row(table: Table, row: Mapping[str, Any]) -> Mapping[str, Any]:
@@ -1504,7 +1506,9 @@ async def pg_edit(
     cur_updated_properties: bitarray = bitarray(cur_node_cls.__max_property_ord__ + 1)
     cur_batch: list[EditData] = []
     all_new_revisions: list[int] = []
-    cascaded_edits: list[EditData] = []  # nocheckin cascade edits down
+    # TODO :Broken!: cascade edits down (for remove/add edits like archive/restore/delete/...)
+    #  (do we really need to cascade down in postgres for remove? what if the graph is loaded?)
+    cascaded_edits: list[EditData] = []
 
     for i in range(len(edits)):
         edit = edits[i]
