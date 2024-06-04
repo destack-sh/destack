@@ -30,8 +30,8 @@ import {
   DEFAULT_BAR_POSITION,
   clearCanvas,
   collectViewComponentsUp,
-  setupDefaultCanvas,
-  setupEmptyCanvas,
+  createDefaultCanvas,
+  createEmptyCanvas,
 } from "@/views/canvas";
 import type { ViewComponent } from "@/views/common";
 import { useKeyModifier } from "@vueuse/core";
@@ -1019,7 +1019,7 @@ contributeActionMap<"view">({
       if (space.value == null) throw new Error(`${describeNode(pkg.value)} has no space`);
       const tx = canvas.txFactory();
       clearCanvas(tx, canvas.graph, space.value);
-      setupEmptyCanvas(tx, space.value);
+      createEmptyCanvas(tx, space.value);
     },
   },
   "view.canvas.resetDefault": {
@@ -1032,7 +1032,7 @@ contributeActionMap<"view">({
       if (space.value == null) throw new Error(`${describeNode(pkg.value)} has no space`);
       const tx = canvas.txFactory();
       clearCanvas(tx, canvas.graph, space.value);
-      setupDefaultCanvas(tx, space.value);
+      createDefaultCanvas(tx, space.value);
     },
   },
   "view.canvas.rotateBarPosition": {

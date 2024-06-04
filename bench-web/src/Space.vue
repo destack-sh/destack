@@ -20,7 +20,7 @@ import { computed, onBeforeUnmount, ref, watch } from "vue";
 import { makeIcon } from "@/system/icon";
 import { assignSpaceInPackage } from "@/system/space";
 import Button from "@/views/controls/Button.vue";
-import { DEFAULT_BAR_POSITION } from "@/views/canvas";
+import { DEFAULT_BAR_POSITION, createDefaultCanvas } from "@/views/canvas";
 import { user } from "@/system/user";
 
 const BAR_WIDTH = 44;
@@ -146,7 +146,7 @@ watch([canvas.focusedViewPtr, bench], () => {
         <i class="fas fa-spinner-third animate-spin text-xl text-gray-400" />
       </div>
     </div>
-    <!-- Does not have a space (not signed in or space disappeared) -->
+    <!-- Does not have a space (not signed, space empty or disappeared) -->
     <div
       v-else
       class="absolute flex flex-col justify-center bg-white text-center"
@@ -156,13 +156,31 @@ watch([canvas.focusedViewPtr, bench], () => {
         ...mainOffsetStyle,
       }"
     >
-      <div v-if="bench" class="flex w-fit flex-col gap-y-2 self-center">
+      <div v-if="space" class="flex w-fit flex-col gap-y-2 self-center">
+        <!-- Space empty for some reason -->
+        <span>
+          <i class="fas fa-empty-set mr-1.5 text-gray-500" />
+          <span class="text-gray-600">Space Is Empty</span>
+        </span>
+        <Button
+          name="Create"
+          :icon="makeIcon('fas fa-redo-alt')"
+          title="Restore Default"
+          @click="() => createDefaultCanvas(spaceConnection.tx, space!)"
+        />
+      </div>
+      <div v-else-if="bench" class="flex w-fit flex-col gap-y-2 self-center">
         <!-- Space inaccessible for some reason -->
         <span>
           <i class="fas fa-exclamation-triangle mr-1.5 text-gray-500" />
           <span class="text-gray-600">Space Not Found</span>
         </span>
-        <Button name="Create" :icon="makeIcon('fas fa-plus')" title="Create Space" @click="assignSpaceInPackage" />
+        <Button
+          name="Create"
+          :icon="makeIcon('fas fa-plus')"
+          title="Create Space"
+          @click="() => assignSpaceInPackage()"
+        />
       </div>
       <div v-else-if="user">
         <!-- Logged in, but not on any space (not sure if this should even show or just auto-redirect?) -->
