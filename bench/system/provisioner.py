@@ -7,7 +7,7 @@ from opentelemetry import trace
 from bench.language import Bench, Drive, Machine, Resource, ResourceStatus, Server, Store
 from bench.language.bench import MachineProfile
 from bench.language.const import VERSION, NodeType
-from bench.sql.client import pg_cursor_to_store
+from bench.sql.client import pg_store_connection
 from bench.sql.migration import sql_migrate
 from bench.system.core import Commit, DeferredHostPlugin, HostSpec
 from bench.system.neon import NeonApi
@@ -162,7 +162,7 @@ class NeonStoreProvisioner(Provisioner[Store, Store]):
 
     async def _migrate(self, resource: Store):
         assert resource.version, f"{resource!r} has no version"
-        async with pg_cursor_to_store(resource) as cur:
+        async with pg_store_connection(resource) as cur:
             await sql_migrate(cur, target=resource.version, is_global=False, store=resource)
             await cur.connection.commit()
         async with self._host.session(autocommit=True):

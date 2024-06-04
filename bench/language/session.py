@@ -6,8 +6,9 @@ from typing import TYPE_CHECKING, Any, Awaitable, Callable, Collection, Optional
 from uuid import UUID
 
 import structlog
+from opentelemetry import trace
 
-from bench.language.connection import StoreEngine
+from bench.language.connection import ConnectionFailedError, StoreEngine
 from bench.language.const import (
     NodeType,
     PrimitiveType,
@@ -59,6 +60,8 @@ if TYPE_CHECKING:
 # pyright: reportIncompatibleVariableOverride=false
 
 logger = structlog.get_logger(__name__)
+tracer = trace.get_tracer(__name__)
+
 CustomCommit = Callable[["Session"], Awaitable[tuple[list[EditData], list[EditData]]]]
 
 
@@ -112,7 +115,7 @@ class Session(Node[SessionData]):
 
     # system
     _epoch: int | None = p_runtime(default=None)
-    _commit: CustomCommit | None = p_runtime(default=None)
+    _custom_commit: CustomCommit | None = p_runtime(default=None)
 
     def __content_str__(self):
         status_strs = []
@@ -238,20 +241,31 @@ class Session(Node[SessionData]):
         self._is_suspended = False
         self._active_session_token = _active_session.set(self)
 
-    async def flush(self) -> tuple[list[EditData], list[EditData]]:
+    # TODO :Robustness: auto re-connect Session.flush/commit/...? on ConnectionFailedError
+    #  (need to replay all previous edits as well)
+
+    @tracer.start_as_current_span("session.flush")
+    async def flush(self, *, _skip_lock: bool = False) -> tuple[list[EditData], list[EditData]]:
         """Flushes the current pending edits. Returns *all* uncommitted edits / cascaded edits."""
         assert self.is_open, f"cannot flush {self!r} when closed"
         assert self._tx is not None, f"no active transaction in {self!r}"
 
-        async with self._tx_lock:
-            assert self.is_open, f"cannot flush {self!r} when closed"
+        try:
+            if not _skip_lock:
+                await self._tx_lock.acquire()
             await self._tx.flush()
             return self._tx.edits, self._tx.cascaded_edits
+        except ConnectionFailedError as e:
+            logger.error("session.flush.error", session=self, error=e)
+            await self._tx.reset()
+            raise
+        finally:
+            if not _skip_lock:
+                self._tx_lock.release()
 
-    async def commit(
-        self, *, _skip_lock: bool = False, _suppress_hooks: bool = False
-    ) -> tuple[list[EditData], list[EditData]]:
-        """Commits all edits. Returns *all* committed edits / cascaded edits, and resets."""
+    @tracer.start_as_current_span("session.flush")
+    async def commit(self, *, _skip_lock: bool = False) -> tuple[list[EditData], list[EditData]]:
+        """Commits all edits. Returns *all* committed edits / cascaded edits *and* resets them."""
         assert self.is_open, f"cannot commit {self!r} when closed"
         assert self._tx is not None, f"no active transaction in {self!r}"
 
@@ -262,16 +276,21 @@ class Session(Node[SessionData]):
         try:
             if not _skip_lock:
                 await self._tx_lock.acquire()
-            if not self._commit:
+            if self._custom_commit is None:
                 # simple commit
                 return await self._tx.commit()
             else:
                 # custom commit (in system)
-                return await self._commit(self)
+                return await self._custom_commit(self)
+        except ConnectionFailedError as e:
+            logger.error("session.commit.error", session=self, error=e)
+            await self._tx.reset()
+            raise
         finally:
             if not _skip_lock:
                 self._tx_lock.release()
 
+    @tracer.start_as_current_span("session.rollback")
     async def rollback(self):
         assert self.is_open, f"cannot rollback {self!r} when closed"
         async with self._tx_lock:

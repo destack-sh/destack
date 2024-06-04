@@ -23,6 +23,7 @@ from bench.language import (
 from bench.language.const import ClientType, EnumType, NodeType
 from bench.language.field import TypeKind
 from bench.language.test.fabricator import Fabricator
+from bench.sql.client import pg_store_connection
 from bench.sql.core import GLOBAL_EXTENSIONS, Column, Schema, Table
 from bench.sql.engine import (
     RowIn,
@@ -96,11 +97,11 @@ COLUMN_VALUE_GENERATORS: Mapping[PrimitiveType, Callable[[], Any]] = {
 
 @pytest.fixture(autouse=True, scope="module")
 async def _test_tables():
-    from bench.sql.client import get_pg_connection_uri, pg_cursor
     from bench.system.core import GLOBAL_STORE
 
-    async with pg_cursor(get_pg_connection_uri(GLOBAL_STORE, "test")) as cur:
+    async with pg_store_connection(GLOBAL_STORE, database="test") as cur:
         await force_create_schema(cur, _TEST_SCHEMA)
+        await cur.connection.commit()
 
 
 @pytest.mark.parametrize("table", _TEST_TABLES, ids=lambda t: t.name)

@@ -19,7 +19,7 @@ from bench.language.session import Session
 from bench.language.transaction import unpack_node_delta
 from bench.proto import wiring
 from bench.proto.wire import EditData, GraphScope
-from bench.sql.client import GLOBAL_PG_CRYPTO_KEY, _PgStoreConnection
+from bench.sql.client import GLOBAL_PG_CRYPTO_KEY, PgStoreConnection
 from bench.utils.func import bittuple
 from bench.utils.task import TaskManager
 from bench.utils.utils import get_from_env
@@ -92,18 +92,12 @@ PACKAGE_QUERY = (
 )
 
 
-@asynccontextmanager
-async def global_pg_cursor(autocommit: bool = False):
-    async with _PgStoreConnection(GLOBAL_STORE, SYSTEM_BENCH_STUB, autocommit=autocommit) as cur:
-        yield cur
+def global_pg_cursor(autocommit: bool = False):
+    return PgStoreConnection(GLOBAL_STORE, SYSTEM_BENCH_STUB, autocommit=autocommit)
 
 
-@asynccontextmanager
-async def global_session():
-    async with Session(
-        parent=None, _default_scope=GraphScope(), _engines=(GLOBAL_POSTGRES_ENGINE,)
-    ) as session:
-        yield session
+def global_session():
+    return Session(parent=None, _default_scope=GraphScope(), _engines=(GLOBAL_POSTGRES_ENGINE,))
 
 
 @dataclass(slots=True)

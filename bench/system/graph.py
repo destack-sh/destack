@@ -19,7 +19,7 @@ from bench.language.access import (
     evaluate_edit,
     generate_access_matrix,
 )
-from bench.language.connection import FetchOptions, StoreEngine
+from bench.language.connection import ConnectionFailedError, FetchOptions, StoreEngine
 from bench.language.const import (
     BASED_NODE_TYPES,
     ConditionalOp,
@@ -136,7 +136,7 @@ class GraphIoServiceBase(ServiceBase, GraphIoBase):
             _default_scope=self.scope,
             _engines=engines if engines is not None else self.get_engines(),
             _epoch=self.epoch,
-            _commit=self._commit_system_session if system_commit else None,
+            _custom_commit=self._commit_system_session if system_commit else None,
         )
 
     @override
@@ -338,17 +338,15 @@ class GraphIoServiceBase(ServiceBase, GraphIoBase):
                 _, cascaded_edits = await session.flush()
 
                 # extend commit
-                new_edits, epoch = await self.extend_commit(
+                new_edits = await self.extend_commit(
                     session=session,
                     graph=unpacked_graph,
                     edits=request.edits,
-                    epoch=epoch,
                     cascaded_edits=cascaded_edits,
                 )
-                session.tx._add_pending_edits(new_edits)
 
-                # commit (suppress hooks because we're firing them manually above/below)
-                edits, cascaded_edits = await session.commit(_suppress_hooks=True)
+                # actually commit
+                edits, cascaded_edits = await session.commit()
             session.untrack_many(*unpacked_graph.nodes)
 
             # handle on commit
@@ -376,27 +374,29 @@ class GraphIoServiceBase(ServiceBase, GraphIoBase):
         self, session: Session
     ) -> tuple[list[EditData], list[EditData]]:
         """
-        Commits our main session for us (the system) from outside a request context.
-        This should emulate what GraphService.commit_transaction does (skipping validation).
+        Commits a system session (outside a request context).
+        This is like GraphIo.commit_transaction but without validation.
         """
-        assert session._tx is not None, f"no active transaction in {session!r}"
+        assert session._tx is not None, f"no active tx in {session!r}"
         edit_graph = NodeDict(session._edited_nodes_by_id)
 
-        # flush edits to get cascaded edits
-        edits, cascaded_edits = await session._tx.flush()
+        try:
+            # flush edits to get cascaded edits
+            edits, cascaded_edits = await session._tx.flush()
 
-        # extend commit
-        new_edits, epoch = await self.extend_commit(
-            session, edit_graph, edits, session.epoch, cascaded_edits
-        )
-        session._tx._add_pending_edits(new_edits)
+            # extend commit
+            await self.extend_commit(session, edit_graph, edits, cascaded_edits)
 
-        # commit
-        edits, cascaded_edits = await session._tx.commit()
+            # commit
+            edits, cascaded_edits = await session._tx.commit()
+        except ConnectionFailedError as e:
+            self.logger.error("graph.commit.error", session=session, error=e)
+            await session._tx.reset()
+            raise
 
         # handle on commit
         self.epoch = session.epoch
-        await self.on_commit(edit_graph, edits, epoch, cascaded_edits)
+        await self.on_commit(edit_graph, edits, self.epoch, cascaded_edits)
         return edits, cascaded_edits
 
     @override
@@ -466,11 +466,10 @@ class GraphIoServiceBase(ServiceBase, GraphIoBase):
         session: Session,
         graph: NodeGraphLike,
         edits: list[EditData],
-        epoch: int,
         cascaded_edits: list[EditData],
-    ) -> tuple[list[EditData], int]:
-        """Extend a commit in a request session"""
-        return [], epoch  # do nothing by default
+    ) -> list[EditData]:
+        """Extend a commit in a request session. Returns any new edits, but must add them to session."""
+        return []  # do nothing by default
 
     @final
     async def on_commit(
