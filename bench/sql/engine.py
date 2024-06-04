@@ -35,6 +35,7 @@ from bench.language.const import (
     BenchError,
     BlockType,
     EditType,
+    EnumType,
     NodeType,
     ReferenceKind,
     SortOp,
@@ -343,17 +344,6 @@ def map_node_class_to_pg_table(node: type[Node]) -> Table:
                 )
                 constraints.append(constraint)
         columns.append(column)
-
-    # one of the parent_<type>_id columns must be non-null
-    parent_columns: tuple[str, ...] = tuple(c.name for c in columns if c.name.startswith("parent_"))
-    if parent_columns:
-        constraint = Constraint(
-            "bench_check_one_parent",
-            type=ConstraintType.CHECK,
-            condition=f"({') OR ('.join(f'{c} IS NOT NULL' for c in parent_columns)})",
-            _source=node.metatype.id,
-        )
-        constraints.append(constraint)
 
     table = Table(
         _source=node.metatype.id,
@@ -1195,7 +1185,14 @@ def _pg_unpack_node_reference_from_row(prop: Property, row: RowOut, node: AnyNod
         for i, ptr in enumerate(ptrs):
             for meta_key, meta_prop in prop.reference_stored_meta.items():
                 extra_value = cast(list, row.get(meta_prop.name))[i]
-                extra_value = str(extra_value) if isinstance(extra_value, UUID) else extra_value
+                if extra_value is None:
+                    continue
+                elif meta_prop.primitive_type == PrimitiveType.UUID:
+                    extra_value = str(extra_value)
+                elif meta_prop.enum_type == EnumType.NODE_TYPE:
+                    extra_value = NodeType(extra_value)
+                else:
+                    raise RuntimeError(f"unexpected meta prop type: {meta_prop!r}")
                 setattr(ptr, meta_key, extra_value)
             if prop.reference_is_bench_implicit:
                 ptr.bench_id = bench_id
@@ -1220,7 +1217,14 @@ def _pg_unpack_node_reference_from_row(prop: Property, row: RowOut, node: AnyNod
         if ptr is not None:
             for meta_key, meta_prop in prop.reference_stored_meta.items():
                 extra_value = row.get(meta_prop.name)
-                extra_value = str(extra_value) if isinstance(extra_value, UUID) else extra_value
+                if extra_value is None:
+                    continue
+                elif meta_prop.primitive_type == PrimitiveType.UUID:
+                    extra_value = str(extra_value)
+                elif meta_prop.enum_type == EnumType.NODE_TYPE:
+                    extra_value = NodeType(extra_value)
+                else:
+                    raise RuntimeError(f"unexpected meta prop type: {meta_prop!r}")
                 setattr(ptr, meta_key, extra_value)
             if prop.reference_is_bench_implicit:
                 ptr.bench_id = bench_id

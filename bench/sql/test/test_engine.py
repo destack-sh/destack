@@ -224,13 +224,13 @@ async def test_crud_node_pointers(fabricator: "Fabricator"):
         assert server.parent_ptr.equals_content(bench.to_ref())
         assert server.bench_id == bench.id
         assert server.to_ref().equals_content(
-            NodeReference(type=NodeType.SERVER, id=server.id, bench_id=bench.id)
+            NodeReference(type=NodeType.SERVER, id=server.id, ck=server.ck, bench_id=bench.id)
         )
 
         client = await Client.include_ancestors().get(id=client.id)
         assert client.bench_id == bench.id
         assert client.to_ref().equals_content(
-            NodeReference(type=NodeType.CLIENT, id=client.id, bench_id=bench.id)
+            NodeReference(type=NodeType.CLIENT, id=client.id, ck=client.ck, bench_id=bench.id)
         )
 
         block_1 = await Block.include_ancestors().get(id=block_1.id)

@@ -3,7 +3,7 @@ import asyncio
 from contextlib import asynccontextmanager
 from dataclasses import dataclass
 from itertools import chain
-from typing import Any, ClassVar, Collection, Generator, Iterable, final, override
+from typing import Any, ClassVar, Collection, Generator, Iterable, Optional, final, override
 from uuid import UUID
 
 import bitarray
@@ -96,8 +96,10 @@ def global_pg_cursor(autocommit: bool = False):
     return PgStoreConnection(GLOBAL_STORE, SYSTEM_BENCH_STUB, autocommit=autocommit)
 
 
-def global_session():
-    return Session(parent=None, _default_scope=GraphScope(), _engines=(GLOBAL_POSTGRES_ENGINE,))
+def global_session(epoch: Optional[int] = None):
+    return Session(
+        parent=None, _default_scope=GraphScope(), _engines=(GLOBAL_POSTGRES_ENGINE,), _epoch=epoch
+    )
 
 
 @dataclass(slots=True)

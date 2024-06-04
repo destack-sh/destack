@@ -507,14 +507,13 @@ class Property(_TypeQueryBuilder if TYPE_CHECKING else object):
         if self.is_introspectable or self.reference_source is not None or self.id == 1:
             self.type_info = self._to_type_info()
 
-    def _contribute_ptrs(self, is_inlined: bool) -> tuple["Property", ...]:
+    def _contribute_ptrs(self, *, is_root: bool, is_inlined: bool) -> tuple["Property", ...]:
         """
         Contribute the wired and stored pointer properties required by this property.
         NOTE: contribute mutates this property, so can only be called once.
         """
 
         assert self.reference_stored_ids is None, f"already contributed {self!r}"
-        is_parent = self.reference_kind == ReferenceKind.NODE_PARENT
 
         # property reference
         if self.reference_kind == ReferenceKind.PROPERTY:
@@ -589,10 +588,10 @@ class Property(_TypeQueryBuilder if TYPE_CHECKING else object):
         #  :StoredPointers
 
         # wired/stored pointer settings for each node reference kind
-        elif is_parent:
+        elif self.reference_kind == ReferenceKind.NODE_PARENT:
             is_wired = True
             is_stored = True
-            is_required = False
+            is_required = not is_root
             is_list = False
             is_computed = False
             is_internal = True
@@ -651,16 +650,16 @@ class Property(_TypeQueryBuilder if TYPE_CHECKING else object):
         # ... and any other metadata (type, base, etc.)
         extra_stored_props: dict[PropertyReferenceMetadata, Property] = {}
         if is_stored and self.component.__is_node__:  # only nodes are stored
-            need_fks = self.reference_force_fk or is_parent
+            need_fks = self.reference_force_fk
 
             # figure out which reference types (if any) to pack into the shared 'id'/'ck'
             shared_ptr_types: list[NodeType] = []
             if need_fks:
                 assert self.reference_nodes is not None, f"unset reference nodes for {self!r}"
                 for ref_type in self.reference_nodes:
-                    if not is_parent and ref_type in SUB_PACKAGE_NODE_TYPES:
+                    if ref_type in SUB_PACKAGE_NODE_TYPES:
                         shared_ptr_types.append(ref_type)
-                        continue
+                        continue  # no FKs for package types
                     if ref_type.name.lower() in self.name:
                         # reduce clutter if type is unambiguous
                         prop_name = f"{self.name}_id"
@@ -748,7 +747,11 @@ class Property(_TypeQueryBuilder if TYPE_CHECKING else object):
 
             # we need the 'bench_id' for the reference if it could be in a Bench
             is_sub_bench = any(t in SUB_BENCH_NODE_TYPES for t in self.reference_nodes or ())
-            if is_sub_bench and not is_parent and not self.reference_is_bench_implicit:
+            if (
+                is_sub_bench
+                and self.reference_kind != ReferenceKind.NODE_PARENT
+                and not self.reference_is_bench_implicit
+            ):
                 extra_stored_props["bench_id"] = Property(
                     id=self.id,
                     name=self.name + "_bench_id",
@@ -785,7 +788,11 @@ class Property(_TypeQueryBuilder if TYPE_CHECKING else object):
                     is_required=False,
                     primitive_type=PrimitiveType.UUID,
                 )
-                if is_sub_bench and not is_parent and not self.reference_is_bench_implicit:
+                if (
+                    is_sub_bench
+                    and self.reference_kind != ReferenceKind.NODE_PARENT
+                    and not self.reference_is_bench_implicit
+                ):
                     stored_base_bench_id = extra_stored_props["bench_id"].clone()
                     stored_base_bench_id.is_required = False
                     stored_base_bench_id.name = self.name + "_base_bench_id"

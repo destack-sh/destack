@@ -307,16 +307,12 @@ export function toNodeReference<T extends NodeType>(node: NodeTypeMapping[T]): T
 export function toNodeReference<T extends NodeType>(node: NodeTypeMapping[T] | null): TypedNodeReferenceData<T> | null {
   if (!node) return null;
   if (node.metatype == ObjectType.NODE_REFERENCE) return node as unknown as TypedNodeReferenceData<T>;
-  const allProperties: AnyPropertyType = NODE_PROPERTY_ENUM_BY_TYPE[node.metatype]!;
   const reference: TypedNodeReferenceData<T> = {
     metatype: ObjectType.NODE_REFERENCE,
     type: node.metatype as unknown as T,
     id: node.id,
+    ck: (node as any).ck ?? node.id,
   };
-  // ck
-  if ("ck" in allProperties) {
-    reference.ck = (node as { ck: string }).ck;
-  }
   // benchId
   if (node.metatype == ObjectType.BENCH) {
     reference.benchId = node.id;

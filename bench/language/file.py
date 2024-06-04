@@ -30,7 +30,7 @@ class FileRetentionMode(IdEnum):
     TIMED = 3  # delete after a certain time
 
 
-@node(NodeType.BLOB, unique=(("parent_drive_id", "sha512"),))
+@node(NodeType.BLOB, unique=(("parent_id", "sha512"),))
 class Blob(Resource[BlobData]):
     """The actual file content stored as a Blob in a Drive. De-duped to 1 per sha512."""
 

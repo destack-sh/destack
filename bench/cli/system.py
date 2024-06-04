@@ -33,7 +33,7 @@ async def check(check_db: bool = False):
 @app.command(help="create 'bench' and 'system' Benches (owned by 'system' User)")
 @async_to_sync_blocking
 async def bootstrap(region: Region = Region.EUROPE_CENTRAL):
-    async with global_session() as session:
+    async with global_session(epoch=0) as session:
         system_user = User(
             name="System", slug="system", email="system@bench.com", status=UserStatus.REGISTERED
         )

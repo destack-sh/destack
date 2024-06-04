@@ -1707,7 +1707,7 @@ message BadgeData {
   ObjectType metatype = 1;
   string id = 2;
   string ck = 3;
-  optional NodeReferenceData parent_ptr = 4;
+  NodeReferenceData parent_ptr = 4;
   NodeReferenceData package_ptr = 5;
   NodeReferenceData bench_ptr = 6;
   int64 revision = 10;
@@ -1759,7 +1759,7 @@ message BenchData {
 message BlobData {
   ObjectType metatype = 1;
   string id = 2;
-  optional NodeReferenceData parent_ptr = 4;
+  NodeReferenceData parent_ptr = 4;
   NodeReferenceData bench_ptr = 6;
   int64 revision = 10;
   google.protobuf.Timestamp created_at = 11;
@@ -1787,7 +1787,7 @@ message BlockData {
   ObjectType metatype = 1;
   string id = 2;
   string ck = 3;
-  optional NodeReferenceData parent_ptr = 4;
+  NodeReferenceData parent_ptr = 4;
   NodeReferenceData package_ptr = 5;
   NodeReferenceData bench_ptr = 6;
   int64 revision = 10;
@@ -1825,7 +1825,7 @@ message BlockData {
 message BranchData {
   ObjectType metatype = 1;
   string id = 2;
-  optional NodeReferenceData parent_ptr = 4;
+  NodeReferenceData parent_ptr = 4;
   NodeReferenceData bench_ptr = 6;
   int64 revision = 10;
   google.protobuf.Timestamp created_at = 11;
@@ -1852,7 +1852,7 @@ message BranchData {
 message ClientData {
   ObjectType metatype = 1;
   string id = 2;
-  optional NodeReferenceData parent_ptr = 4;
+  NodeReferenceData parent_ptr = 4;
   optional NodeReferenceData bench_ptr = 6;
   int64 revision = 10;
   google.protobuf.Timestamp created_at = 11;
@@ -1885,7 +1885,7 @@ message DependencyData {
   ObjectType metatype = 1;
   string id = 2;
   string ck = 3;
-  optional NodeReferenceData parent_ptr = 4;
+  NodeReferenceData parent_ptr = 4;
   NodeReferenceData package_ptr = 5;
   NodeReferenceData bench_ptr = 6;
   int64 revision = 10;
@@ -1907,7 +1907,7 @@ message DependencyData {
 message DriveData {
   ObjectType metatype = 1;
   string id = 2;
-  optional NodeReferenceData parent_ptr = 4;
+  NodeReferenceData parent_ptr = 4;
   NodeReferenceData bench_ptr = 6;
   int64 revision = 10;
   google.protobuf.Timestamp created_at = 11;
@@ -1929,7 +1929,7 @@ message DriveData {
 message EnvironmentData {
   ObjectType metatype = 1;
   string id = 2;
-  optional NodeReferenceData parent_ptr = 4;
+  NodeReferenceData parent_ptr = 4;
   NodeReferenceData bench_ptr = 6;
   int64 revision = 10;
   google.protobuf.Timestamp created_at = 11;
@@ -1956,7 +1956,7 @@ message FieldData {
   ObjectType metatype = 1;
   string id = 2;
   string ck = 3;
-  optional NodeReferenceData parent_ptr = 4;
+  NodeReferenceData parent_ptr = 4;
   NodeReferenceData package_ptr = 5;
   NodeReferenceData bench_ptr = 6;
   int64 revision = 10;
@@ -1994,7 +1994,7 @@ message FieldData {
 message HandleData {
   ObjectType metatype = 1;
   string id = 2;
-  optional NodeReferenceData parent_ptr = 4;
+  NodeReferenceData parent_ptr = 4;
   optional NodeReferenceData bench_ptr = 6;
   int64 revision = 10;
   google.protobuf.Timestamp created_at = 11;
@@ -2016,7 +2016,7 @@ message IdentityData {
   ObjectType metatype = 1;
   string id = 2;
   string ck = 3;
-  optional NodeReferenceData parent_ptr = 4;
+  NodeReferenceData parent_ptr = 4;
   NodeReferenceData package_ptr = 5;
   NodeReferenceData bench_ptr = 6;
   int64 revision = 10;
@@ -2037,7 +2037,7 @@ message InviteData {
   ObjectType metatype = 1;
   string id = 2;
   string ck = 3;
-  optional NodeReferenceData parent_ptr = 4;
+  NodeReferenceData parent_ptr = 4;
   NodeReferenceData package_ptr = 5;
   NodeReferenceData bench_ptr = 6;
   int64 revision = 10;
@@ -2063,7 +2063,7 @@ message LinkData {
   ObjectType metatype = 1;
   string id = 2;
   string ck = 3;
-  optional NodeReferenceData parent_ptr = 4;
+  NodeReferenceData parent_ptr = 4;
   NodeReferenceData package_ptr = 5;
   NodeReferenceData bench_ptr = 6;
   int64 revision = 10;
@@ -2084,7 +2084,7 @@ message LinkData {
 message LogData {
   ObjectType metatype = 1;
   string id = 2;
-  optional NodeReferenceData parent_ptr = 4;
+  NodeReferenceData parent_ptr = 4;
   NodeReferenceData package_ptr = 5;
   NodeReferenceData bench_ptr = 6;
   int64 revision = 10;
@@ -2124,7 +2124,7 @@ message LogData {
 message MachineData {
   ObjectType metatype = 1;
   string id = 2;
-  optional NodeReferenceData parent_ptr = 4;
+  NodeReferenceData parent_ptr = 4;
   NodeReferenceData bench_ptr = 6;
   int64 revision = 10;
   google.protobuf.Timestamp created_at = 11;
@@ -2157,7 +2157,7 @@ message MembershipData {
   ObjectType metatype = 1;
   string id = 2;
   string ck = 3;
-  optional NodeReferenceData parent_ptr = 4;
+  NodeReferenceData parent_ptr = 4;
   NodeReferenceData package_ptr = 5;
   NodeReferenceData bench_ptr = 6;
   int64 revision = 10;
@@ -2179,7 +2179,7 @@ message MembershipData {
 message MessageData {
   ObjectType metatype = 1;
   string id = 2;
-  optional NodeReferenceData parent_ptr = 4;
+  NodeReferenceData parent_ptr = 4;
   NodeReferenceData package_ptr = 5;
   NodeReferenceData bench_ptr = 6;
   int64 revision = 10;
@@ -2219,7 +2219,7 @@ message BaseNodeData {
   ObjectType metatype = 1;
   string id = 2;
   string ck = 3;
-  optional NodeReferenceData parent_ptr = 4;
+  NodeReferenceData parent_ptr = 4;
   NodeReferenceData package_ptr = 5;
   NodeReferenceData bench_ptr = 6;
   int64 revision = 10;
@@ -2240,7 +2240,7 @@ message NoticeData {
   ObjectType metatype = 1;
   string id = 2;
   string ck = 3;
-  optional NodeReferenceData parent_ptr = 4;
+  NodeReferenceData parent_ptr = 4;
   NodeReferenceData package_ptr = 5;
   NodeReferenceData bench_ptr = 6;
   int64 revision = 10;
@@ -2266,7 +2266,7 @@ message NoticeData {
 message NotificationData {
   ObjectType metatype = 1;
   string id = 2;
-  optional NodeReferenceData parent_ptr = 4;
+  NodeReferenceData parent_ptr = 4;
   NodeReferenceData package_ptr = 5;
   NodeReferenceData bench_ptr = 6;
   int64 revision = 10;
@@ -2325,7 +2325,7 @@ message OrganizationData {
 message PackageData {
   ObjectType metatype = 1;
   string id = 2;
-  optional NodeReferenceData parent_ptr = 4;
+  NodeReferenceData parent_ptr = 4;
   NodeReferenceData bench_ptr = 6;
   int64 revision = 10;
   google.protobuf.Timestamp created_at = 11;
@@ -2353,7 +2353,7 @@ message QueryData {
   ObjectType metatype = 1;
   string id = 2;
   string ck = 3;
-  optional NodeReferenceData parent_ptr = 4;
+  NodeReferenceData parent_ptr = 4;
   NodeReferenceData package_ptr = 5;
   NodeReferenceData bench_ptr = 6;
   int64 revision = 10;
@@ -2379,7 +2379,7 @@ message RecordData {
   ObjectType metatype = 1;
   string id = 2;
   string ck = 3;
-  optional NodeReferenceData parent_ptr = 4;
+  NodeReferenceData parent_ptr = 4;
   NodeReferenceData package_ptr = 5;
   NodeReferenceData bench_ptr = 6;
   int64 revision = 10;
@@ -2403,7 +2403,7 @@ message RoleData {
   ObjectType metatype = 1;
   string id = 2;
   string ck = 3;
-  optional NodeReferenceData parent_ptr = 4;
+  NodeReferenceData parent_ptr = 4;
   NodeReferenceData package_ptr = 5;
   NodeReferenceData bench_ptr = 6;
   int64 revision = 10;
@@ -2426,7 +2426,7 @@ message RoleData {
 message RunData {
   ObjectType metatype = 1;
   string id = 2;
-  optional NodeReferenceData parent_ptr = 4;
+  NodeReferenceData parent_ptr = 4;
   NodeReferenceData package_ptr = 5;
   NodeReferenceData bench_ptr = 6;
   int64 revision = 10;
@@ -2475,7 +2475,7 @@ message RunData {
 message ServerData {
   ObjectType metatype = 1;
   string id = 2;
-  optional NodeReferenceData parent_ptr = 4;
+  NodeReferenceData parent_ptr = 4;
   NodeReferenceData bench_ptr = 6;
   int64 revision = 10;
   google.protobuf.Timestamp created_at = 11;
@@ -2506,7 +2506,7 @@ message ServerData {
 message SessionData {
   ObjectType metatype = 1;
   string id = 2;
-  optional NodeReferenceData parent_ptr = 4;
+  NodeReferenceData parent_ptr = 4;
   NodeReferenceData package_ptr = 5;
   NodeReferenceData bench_ptr = 6;
   int64 revision = 10;
@@ -2533,7 +2533,7 @@ message SessionData {
 message SignalData {
   ObjectType metatype = 1;
   string id = 2;
-  optional NodeReferenceData parent_ptr = 4;
+  NodeReferenceData parent_ptr = 4;
   NodeReferenceData package_ptr = 5;
   NodeReferenceData bench_ptr = 6;
   int64 revision = 10;
@@ -2565,7 +2565,7 @@ message SkipData {
   ObjectType metatype = 1;
   string id = 2;
   string ck = 3;
-  optional NodeReferenceData parent_ptr = 4;
+  NodeReferenceData parent_ptr = 4;
   NodeReferenceData package_ptr = 5;
   NodeReferenceData bench_ptr = 6;
   int64 revision = 10;
@@ -2587,7 +2587,7 @@ message SpaceData {
   ObjectType metatype = 1;
   string id = 2;
   string ck = 3;
-  optional NodeReferenceData parent_ptr = 4;
+  NodeReferenceData parent_ptr = 4;
   NodeReferenceData package_ptr = 5;
   NodeReferenceData bench_ptr = 6;
   int64 revision = 10;
@@ -2617,7 +2617,7 @@ message StepData {
   ObjectType metatype = 1;
   string id = 2;
   string ck = 3;
-  optional NodeReferenceData parent_ptr = 4;
+  NodeReferenceData parent_ptr = 4;
   NodeReferenceData package_ptr = 5;
   NodeReferenceData bench_ptr = 6;
   int64 revision = 10;
@@ -2647,7 +2647,7 @@ message StepData {
 message StoreData {
   ObjectType metatype = 1;
   string id = 2;
-  optional NodeReferenceData parent_ptr = 4;
+  NodeReferenceData parent_ptr = 4;
   NodeReferenceData bench_ptr = 6;
   int64 revision = 10;
   google.protobuf.Timestamp created_at = 11;
@@ -2675,7 +2675,7 @@ message TriggerData {
   ObjectType metatype = 1;
   string id = 2;
   string ck = 3;
-  optional NodeReferenceData parent_ptr = 4;
+  NodeReferenceData parent_ptr = 4;
   NodeReferenceData package_ptr = 5;
   NodeReferenceData bench_ptr = 6;
   int64 revision = 10;
@@ -2702,7 +2702,7 @@ message UpgradeData {
   ObjectType metatype = 1;
   string id = 2;
   string ck = 3;
-  optional NodeReferenceData parent_ptr = 4;
+  NodeReferenceData parent_ptr = 4;
   NodeReferenceData package_ptr = 5;
   NodeReferenceData bench_ptr = 6;
   int64 revision = 10;
@@ -2752,7 +2752,7 @@ message ViewData {
   ObjectType metatype = 1;
   string id = 2;
   string ck = 3;
-  optional NodeReferenceData parent_ptr = 4;
+  NodeReferenceData parent_ptr = 4;
   NodeReferenceData package_ptr = 5;
   NodeReferenceData bench_ptr = 6;
   int64 revision = 10;

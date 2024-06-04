@@ -1,8 +1,8 @@
-# This migration was automatically generated on 2024.05.29. Edit as needed.
+# This migration was automatically generated on 2024.06.04. Edit as needed.
 import psycopg
 
 ID = 1
-VERSION = "2024.05.29.1"
+VERSION = "2024.06.04.0"
 HAS_GLOBAL = True
 HAS_LOCAL = True
 
@@ -13,9 +13,9 @@ HAS_LOCAL = True
 
 
 async def upgrade_global(cur: psycopg.AsyncCursor):
-    await cur.execute('CREATE EXTENSION IF NOT EXISTS "bloom"')
     await cur.execute('CREATE EXTENSION IF NOT EXISTS "pgcrypto"')
     await cur.execute('CREATE EXTENSION IF NOT EXISTS "uuid-ossp"')
+    await cur.execute('CREATE EXTENSION IF NOT EXISTS "bloom"')
 
     # bench_migration
     await cur.execute(
@@ -65,6 +65,7 @@ async def upgrade_global(cur: psycopg.AsyncCursor):
         """
     CREATE TABLE "bench_environment" (
         "id" uuid NOT NULL PRIMARY KEY,
+        "parent_id" uuid NOT NULL,
         "bench_id" uuid NOT NULL,
         "revision" bigint NOT NULL,
         "created_at" timestamp NOT NULL,
@@ -92,6 +93,7 @@ async def upgrade_global(cur: psycopg.AsyncCursor):
         """
     CREATE TABLE "bench_branch" (
         "id" uuid NOT NULL PRIMARY KEY,
+        "parent_id" uuid NOT NULL,
         "bench_id" uuid NOT NULL,
         "revision" bigint NOT NULL,
         "created_at" timestamp NOT NULL,
@@ -122,6 +124,7 @@ async def upgrade_global(cur: psycopg.AsyncCursor):
         """
     CREATE TABLE "bench_package" (
         "id" uuid NOT NULL PRIMARY KEY,
+        "parent_id" uuid NOT NULL,
         "bench_id" uuid NOT NULL,
         "revision" bigint NOT NULL,
         "created_at" timestamp NOT NULL,
@@ -153,6 +156,9 @@ async def upgrade_global(cur: psycopg.AsyncCursor):
     CREATE TABLE "bench_dependency" (
         "id" uuid NOT NULL PRIMARY KEY,
         "ck" uuid NOT NULL,
+        "parent_id" uuid NOT NULL,
+        "parent_ck" uuid NOT NULL,
+        "parent_type" smallint NOT NULL,
         "package_id" uuid NOT NULL,
         "bench_id" uuid NOT NULL,
         "revision" bigint NOT NULL,
@@ -187,6 +193,7 @@ async def upgrade_global(cur: psycopg.AsyncCursor):
     CREATE TABLE "bench_upgrade" (
         "id" uuid NOT NULL PRIMARY KEY,
         "ck" uuid NOT NULL,
+        "parent_id" uuid NOT NULL,
         "package_id" uuid NOT NULL,
         "bench_id" uuid NOT NULL,
         "revision" bigint NOT NULL,
@@ -216,6 +223,7 @@ async def upgrade_global(cur: psycopg.AsyncCursor):
     CREATE TABLE "bench_space" (
         "id" uuid NOT NULL PRIMARY KEY,
         "ck" uuid NOT NULL,
+        "parent_id" uuid NOT NULL,
         "package_id" uuid NOT NULL,
         "bench_id" uuid NOT NULL,
         "revision" bigint NOT NULL,
@@ -261,6 +269,9 @@ async def upgrade_global(cur: psycopg.AsyncCursor):
     CREATE TABLE "bench_link" (
         "id" uuid NOT NULL PRIMARY KEY,
         "ck" uuid NOT NULL,
+        "parent_id" uuid NOT NULL,
+        "parent_ck" uuid NOT NULL,
+        "parent_type" smallint NOT NULL,
         "package_id" uuid NOT NULL,
         "bench_id" uuid NOT NULL,
         "revision" bigint NOT NULL,
@@ -294,6 +305,10 @@ async def upgrade_global(cur: psycopg.AsyncCursor):
     CREATE TABLE "bench_notice" (
         "id" uuid NOT NULL PRIMARY KEY,
         "ck" uuid NOT NULL,
+        "parent_id" uuid NOT NULL,
+        "parent_ck" uuid NOT NULL,
+        "parent_type" smallint NOT NULL,
+        "parent_base_ck" uuid,
         "package_id" uuid NOT NULL,
         "bench_id" uuid NOT NULL,
         "revision" bigint NOT NULL,
@@ -332,6 +347,9 @@ async def upgrade_global(cur: psycopg.AsyncCursor):
     CREATE TABLE "bench_block" (
         "id" uuid NOT NULL PRIMARY KEY,
         "ck" uuid NOT NULL,
+        "parent_id" uuid NOT NULL,
+        "parent_ck" uuid NOT NULL,
+        "parent_type" smallint NOT NULL,
         "package_id" uuid NOT NULL,
         "bench_id" uuid NOT NULL,
         "revision" bigint NOT NULL,
@@ -379,6 +397,9 @@ async def upgrade_global(cur: psycopg.AsyncCursor):
     CREATE TABLE "bench_trigger" (
         "id" uuid NOT NULL PRIMARY KEY,
         "ck" uuid NOT NULL,
+        "parent_id" uuid NOT NULL,
+        "parent_ck" uuid NOT NULL,
+        "parent_type" smallint NOT NULL,
         "package_id" uuid NOT NULL,
         "bench_id" uuid NOT NULL,
         "revision" bigint NOT NULL,
@@ -414,6 +435,9 @@ async def upgrade_global(cur: psycopg.AsyncCursor):
     CREATE TABLE "bench_field" (
         "id" uuid NOT NULL PRIMARY KEY,
         "ck" uuid NOT NULL,
+        "parent_id" uuid NOT NULL,
+        "parent_ck" uuid NOT NULL,
+        "parent_type" smallint NOT NULL,
         "package_id" uuid NOT NULL,
         "bench_id" uuid NOT NULL,
         "revision" bigint NOT NULL,
@@ -462,6 +486,8 @@ async def upgrade_global(cur: psycopg.AsyncCursor):
     CREATE TABLE "bench_query" (
         "id" uuid NOT NULL PRIMARY KEY,
         "ck" uuid NOT NULL,
+        "parent_id" uuid NOT NULL,
+        "parent_ck" uuid NOT NULL,
         "package_id" uuid NOT NULL,
         "bench_id" uuid NOT NULL,
         "revision" bigint NOT NULL,
@@ -496,6 +522,9 @@ async def upgrade_global(cur: psycopg.AsyncCursor):
     CREATE TABLE "bench_view" (
         "id" uuid NOT NULL PRIMARY KEY,
         "ck" uuid NOT NULL,
+        "parent_id" uuid NOT NULL,
+        "parent_ck" uuid NOT NULL,
+        "parent_type" smallint NOT NULL,
         "package_id" uuid NOT NULL,
         "bench_id" uuid NOT NULL,
         "revision" bigint NOT NULL,
@@ -552,6 +581,9 @@ async def upgrade_global(cur: psycopg.AsyncCursor):
     CREATE TABLE "bench_step" (
         "id" uuid NOT NULL PRIMARY KEY,
         "ck" uuid NOT NULL,
+        "parent_id" uuid NOT NULL,
+        "parent_ck" uuid NOT NULL,
+        "parent_type" smallint NOT NULL,
         "package_id" uuid NOT NULL,
         "bench_id" uuid NOT NULL,
         "revision" bigint NOT NULL,
@@ -592,6 +624,9 @@ async def upgrade_global(cur: psycopg.AsyncCursor):
     CREATE TABLE "bench_badge" (
         "id" uuid NOT NULL PRIMARY KEY,
         "ck" uuid NOT NULL,
+        "parent_id" uuid NOT NULL,
+        "parent_ck" uuid NOT NULL,
+        "parent_type" smallint NOT NULL,
         "package_id" uuid NOT NULL,
         "bench_id" uuid NOT NULL,
         "revision" bigint NOT NULL,
@@ -625,6 +660,9 @@ async def upgrade_global(cur: psycopg.AsyncCursor):
     CREATE TABLE "bench_role" (
         "id" uuid NOT NULL PRIMARY KEY,
         "ck" uuid NOT NULL,
+        "parent_id" uuid NOT NULL,
+        "parent_ck" uuid NOT NULL,
+        "parent_type" smallint NOT NULL,
         "package_id" uuid NOT NULL,
         "bench_id" uuid NOT NULL,
         "revision" bigint NOT NULL,
@@ -654,6 +692,9 @@ async def upgrade_global(cur: psycopg.AsyncCursor):
     CREATE TABLE "bench_identity" (
         "id" uuid NOT NULL PRIMARY KEY,
         "ck" uuid NOT NULL,
+        "parent_id" uuid NOT NULL,
+        "parent_ck" uuid NOT NULL,
+        "parent_type" smallint NOT NULL,
         "package_id" uuid NOT NULL,
         "bench_id" uuid NOT NULL,
         "revision" bigint NOT NULL,
@@ -683,6 +724,7 @@ async def upgrade_global(cur: psycopg.AsyncCursor):
     CREATE TABLE "bench_membership" (
         "id" uuid NOT NULL PRIMARY KEY,
         "ck" uuid NOT NULL,
+        "parent_id" uuid NOT NULL,
         "package_id" uuid NOT NULL,
         "bench_id" uuid NOT NULL,
         "revision" bigint NOT NULL,
@@ -711,6 +753,7 @@ async def upgrade_global(cur: psycopg.AsyncCursor):
     CREATE TABLE "bench_invite" (
         "id" uuid NOT NULL PRIMARY KEY,
         "ck" uuid NOT NULL,
+        "parent_id" uuid NOT NULL,
         "package_id" uuid NOT NULL,
         "bench_id" uuid NOT NULL,
         "revision" bigint NOT NULL,
@@ -742,6 +785,7 @@ async def upgrade_global(cur: psycopg.AsyncCursor):
         """
     CREATE TABLE "bench_server" (
         "id" uuid NOT NULL PRIMARY KEY,
+        "parent_id" uuid NOT NULL,
         "bench_id" uuid NOT NULL,
         "revision" bigint NOT NULL,
         "created_at" timestamp NOT NULL,
@@ -758,7 +802,7 @@ async def upgrade_global(cur: psycopg.AsyncCursor):
         "updated_by_base_ck" uuid,
         "name" varchar NOT NULL,
         "text" jsonb,
-        "region" smallint NOT NULL DEFAULT 1,
+        "region" smallint NOT NULL,
         "status" smallint NOT NULL DEFAULT 1,
         "profile" smallint NOT NULL,
         "current_profile" smallint,
@@ -775,6 +819,7 @@ async def upgrade_global(cur: psycopg.AsyncCursor):
         """
     CREATE TABLE "bench_store" (
         "id" uuid NOT NULL PRIMARY KEY,
+        "parent_id" uuid NOT NULL,
         "bench_id" uuid NOT NULL,
         "revision" bigint NOT NULL,
         "created_at" timestamp NOT NULL,
@@ -791,7 +836,7 @@ async def upgrade_global(cur: psycopg.AsyncCursor):
         "updated_by_base_ck" uuid,
         "name" varchar NOT NULL,
         "text" jsonb,
-        "region" smallint NOT NULL DEFAULT 1,
+        "region" smallint NOT NULL,
         "status" smallint NOT NULL DEFAULT 1,
         "version" varchar,
         "current_version" varchar,
@@ -807,6 +852,7 @@ async def upgrade_global(cur: psycopg.AsyncCursor):
         """
     CREATE TABLE "bench_machine" (
         "id" uuid NOT NULL PRIMARY KEY,
+        "parent_id" uuid NOT NULL,
         "bench_id" uuid NOT NULL,
         "revision" bigint NOT NULL,
         "created_at" timestamp NOT NULL,
@@ -823,7 +869,7 @@ async def upgrade_global(cur: psycopg.AsyncCursor):
         "updated_by_base_ck" uuid,
         "name" varchar NOT NULL,
         "text" jsonb,
-        "region" smallint NOT NULL DEFAULT 1,
+        "region" smallint NOT NULL,
         "status" smallint NOT NULL DEFAULT 1,
         "profile" smallint NOT NULL,
         "current_profile" smallint,
@@ -844,6 +890,7 @@ async def upgrade_global(cur: psycopg.AsyncCursor):
         """
     CREATE TABLE "bench_drive" (
         "id" uuid NOT NULL PRIMARY KEY,
+        "parent_id" uuid NOT NULL,
         "bench_id" uuid NOT NULL,
         "revision" bigint NOT NULL,
         "created_at" timestamp NOT NULL,
@@ -860,7 +907,7 @@ async def upgrade_global(cur: psycopg.AsyncCursor):
         "updated_by_base_ck" uuid,
         "name" varchar NOT NULL,
         "text" jsonb,
-        "region" smallint NOT NULL DEFAULT 1,
+        "region" smallint NOT NULL,
         "status" smallint NOT NULL DEFAULT 1
     )
     """
@@ -871,6 +918,7 @@ async def upgrade_global(cur: psycopg.AsyncCursor):
         """
     CREATE TABLE "bench_blob" (
         "id" uuid NOT NULL PRIMARY KEY,
+        "parent_id" uuid NOT NULL,
         "bench_id" uuid NOT NULL,
         "revision" bigint NOT NULL,
         "created_at" timestamp NOT NULL,
@@ -887,7 +935,7 @@ async def upgrade_global(cur: psycopg.AsyncCursor):
         "updated_by_base_ck" uuid,
         "name" varchar NOT NULL,
         "text" jsonb,
-        "region" smallint NOT NULL DEFAULT 1,
+        "region" smallint NOT NULL,
         "status" smallint NOT NULL DEFAULT 1,
         "sha512" varchar NOT NULL,
         "size" bigint NOT NULL,
@@ -903,6 +951,8 @@ async def upgrade_global(cur: psycopg.AsyncCursor):
         """
     CREATE TABLE "bench_handle" (
         "id" uuid NOT NULL PRIMARY KEY,
+        "parent_id" uuid NOT NULL,
+        "parent_type" smallint NOT NULL,
         "bench_id" uuid,
         "revision" bigint NOT NULL,
         "created_at" timestamp NOT NULL,
@@ -984,6 +1034,8 @@ async def upgrade_global(cur: psycopg.AsyncCursor):
         """
     CREATE TABLE "bench_client" (
         "id" uuid NOT NULL PRIMARY KEY,
+        "parent_id" uuid NOT NULL,
+        "parent_type" smallint NOT NULL,
         "bench_id" uuid,
         "revision" bigint NOT NULL,
         "created_at" timestamp NOT NULL,
@@ -1036,9 +1088,6 @@ async def upgrade_global(cur: psycopg.AsyncCursor):
 
     # bench_environment
     await cur.execute(
-        'ALTER TABLE "bench_environment" ADD COLUMN "parent_bench_id" uuid REFERENCES bench_bench ON DELETE CASCADE'
-    )
-    await cur.execute(
         'ALTER TABLE "bench_environment" ADD COLUMN "server_id" uuid NOT NULL REFERENCES bench_server ON DELETE SET NULL'
     )
     await cur.execute(
@@ -1047,14 +1096,8 @@ async def upgrade_global(cur: psycopg.AsyncCursor):
     await cur.execute(
         'ALTER TABLE "bench_environment" ADD COLUMN "drive_id" uuid NOT NULL REFERENCES bench_drive ON DELETE SET NULL'
     )
-    await cur.execute(
-        'ALTER TABLE "bench_environment" ADD CONSTRAINT "bench_environment_bench_check_one_parent" CHECK ((parent_bench_id IS NOT NULL))'
-    )
 
     # bench_branch
-    await cur.execute(
-        'ALTER TABLE "bench_branch" ADD COLUMN "parent_bench_id" uuid REFERENCES bench_bench ON DELETE CASCADE'
-    )
     await cur.execute(
         'ALTER TABLE "bench_branch" ADD COLUMN "main_package_id" uuid REFERENCES bench_package ON DELETE SET NULL'
     )
@@ -1067,14 +1110,8 @@ async def upgrade_global(cur: psycopg.AsyncCursor):
     await cur.execute(
         'ALTER TABLE "bench_branch" ADD CONSTRAINT "bench_branch_bench_idx_bench_id_slug" UNIQUE USING INDEX bench_branch_bench_idx_bench_id_slug'
     )
-    await cur.execute(
-        'ALTER TABLE "bench_branch" ADD CONSTRAINT "bench_branch_bench_check_one_parent" CHECK ((parent_bench_id IS NOT NULL))'
-    )
 
     # bench_package
-    await cur.execute(
-        'ALTER TABLE "bench_package" ADD COLUMN "parent_branch_id" uuid REFERENCES bench_branch ON DELETE CASCADE'
-    )
     await cur.execute(
         'ALTER TABLE "bench_package" ADD COLUMN "environment_id" uuid NOT NULL REFERENCES bench_environment ON DELETE SET NULL'
     )
@@ -1087,138 +1124,8 @@ async def upgrade_global(cur: psycopg.AsyncCursor):
     await cur.execute(
         'ALTER TABLE "bench_package" ADD CONSTRAINT "bench_package_bench_idx_bench_id_slug" UNIQUE USING INDEX bench_package_bench_idx_bench_id_slug'
     )
-    await cur.execute(
-        'ALTER TABLE "bench_package" ADD CONSTRAINT "bench_package_bench_check_one_parent" CHECK ((parent_branch_id IS NOT NULL))'
-    )
-
-    # bench_dependency
-    await cur.execute(
-        'ALTER TABLE "bench_dependency" ADD COLUMN "parent_package_id" uuid REFERENCES bench_package ON DELETE CASCADE'
-    )
-    await cur.execute(
-        'ALTER TABLE "bench_dependency" ADD COLUMN "parent_block_id" uuid REFERENCES bench_block ON DELETE CASCADE'
-    )
-    await cur.execute(
-        'ALTER TABLE "bench_dependency" ADD CONSTRAINT "bench_dependency_bench_check_one_parent" CHECK ((parent_package_id IS NOT NULL) OR (parent_block_id IS NOT NULL))'
-    )
-
-    # bench_upgrade
-    await cur.execute(
-        'ALTER TABLE "bench_upgrade" ADD COLUMN "parent_package_id" uuid REFERENCES bench_package ON DELETE CASCADE'
-    )
-    await cur.execute(
-        'ALTER TABLE "bench_upgrade" ADD CONSTRAINT "bench_upgrade_bench_check_one_parent" CHECK ((parent_package_id IS NOT NULL))'
-    )
-
-    # bench_space
-    await cur.execute(
-        'ALTER TABLE "bench_space" ADD COLUMN "parent_package_id" uuid REFERENCES bench_package ON DELETE CASCADE'
-    )
-    await cur.execute(
-        'ALTER TABLE "bench_space" ADD CONSTRAINT "bench_space_bench_check_one_parent" CHECK ((parent_package_id IS NOT NULL))'
-    )
-
-    # bench_link
-    await cur.execute(
-        'ALTER TABLE "bench_link" ADD COLUMN "parent_package_id" uuid REFERENCES bench_package ON DELETE CASCADE'
-    )
-    await cur.execute(
-        'ALTER TABLE "bench_link" ADD COLUMN "parent_block_id" uuid REFERENCES bench_block ON DELETE CASCADE'
-    )
-    await cur.execute(
-        'ALTER TABLE "bench_link" ADD CONSTRAINT "bench_link_bench_check_one_parent" CHECK ((parent_package_id IS NOT NULL) OR (parent_block_id IS NOT NULL))'
-    )
-
-    # bench_notice
-    await cur.execute(
-        'ALTER TABLE "bench_notice" ADD COLUMN "parent_block_id" uuid REFERENCES bench_block ON DELETE CASCADE'
-    )
-    await cur.execute(
-        'ALTER TABLE "bench_notice" ADD COLUMN "parent_field_id" uuid REFERENCES bench_field ON DELETE CASCADE'
-    )
-    await cur.execute(
-        'ALTER TABLE "bench_notice" ADD COLUMN "parent_step_id" uuid REFERENCES bench_step ON DELETE CASCADE'
-    )
-    await cur.execute(
-        'ALTER TABLE "bench_notice" ADD COLUMN "parent_view_id" uuid REFERENCES bench_view ON DELETE CASCADE'
-    )
-    await cur.execute(
-        'ALTER TABLE "bench_notice" ADD CONSTRAINT "bench_notice_bench_check_one_parent" CHECK ((parent_block_id IS NOT NULL) OR (parent_field_id IS NOT NULL) OR (parent_step_id IS NOT NULL) OR (parent_view_id IS NOT NULL))'
-    )
-
-    # bench_block
-    await cur.execute(
-        'ALTER TABLE "bench_block" ADD COLUMN "parent_block_id" uuid REFERENCES bench_block ON DELETE CASCADE'
-    )
-    await cur.execute(
-        'ALTER TABLE "bench_block" ADD COLUMN "parent_package_id" uuid REFERENCES bench_package ON DELETE CASCADE'
-    )
-    await cur.execute(
-        'ALTER TABLE "bench_block" ADD CONSTRAINT "bench_block_bench_check_one_parent" CHECK ((parent_block_id IS NOT NULL) OR (parent_package_id IS NOT NULL))'
-    )
-
-    # bench_trigger
-    await cur.execute(
-        'ALTER TABLE "bench_trigger" ADD COLUMN "parent_block_id" uuid REFERENCES bench_block ON DELETE CASCADE'
-    )
-    await cur.execute(
-        'ALTER TABLE "bench_trigger" ADD COLUMN "parent_step_id" uuid REFERENCES bench_step ON DELETE CASCADE'
-    )
-    await cur.execute(
-        'ALTER TABLE "bench_trigger" ADD CONSTRAINT "bench_trigger_bench_check_one_parent" CHECK ((parent_block_id IS NOT NULL) OR (parent_step_id IS NOT NULL))'
-    )
-
-    # bench_field
-    await cur.execute(
-        'ALTER TABLE "bench_field" ADD COLUMN "parent_block_id" uuid REFERENCES bench_block ON DELETE CASCADE'
-    )
-    await cur.execute(
-        'ALTER TABLE "bench_field" ADD COLUMN "parent_step_id" uuid REFERENCES bench_step ON DELETE CASCADE'
-    )
-    await cur.execute(
-        'ALTER TABLE "bench_field" ADD CONSTRAINT "bench_field_bench_check_one_parent" CHECK ((parent_block_id IS NOT NULL) OR (parent_step_id IS NOT NULL))'
-    )
-
-    # bench_query
-    await cur.execute(
-        'ALTER TABLE "bench_query" ADD COLUMN "parent_block_id" uuid REFERENCES bench_block ON DELETE CASCADE'
-    )
-    await cur.execute(
-        'ALTER TABLE "bench_query" ADD CONSTRAINT "bench_query_bench_check_one_parent" CHECK ((parent_block_id IS NOT NULL))'
-    )
-
-    # bench_view
-    await cur.execute(
-        'ALTER TABLE "bench_view" ADD COLUMN "parent_space_id" uuid REFERENCES bench_space ON DELETE CASCADE'
-    )
-    await cur.execute(
-        'ALTER TABLE "bench_view" ADD COLUMN "parent_view_id" uuid REFERENCES bench_view ON DELETE CASCADE'
-    )
-    await cur.execute(
-        'ALTER TABLE "bench_view" ADD COLUMN "parent_block_id" uuid REFERENCES bench_block ON DELETE CASCADE'
-    )
-    await cur.execute(
-        'ALTER TABLE "bench_view" ADD CONSTRAINT "bench_view_bench_check_one_parent" CHECK ((parent_space_id IS NOT NULL) OR (parent_view_id IS NOT NULL) OR (parent_block_id IS NOT NULL))'
-    )
-
-    # bench_step
-    await cur.execute(
-        'ALTER TABLE "bench_step" ADD COLUMN "parent_block_id" uuid REFERENCES bench_block ON DELETE CASCADE'
-    )
-    await cur.execute(
-        'ALTER TABLE "bench_step" ADD COLUMN "parent_step_id" uuid REFERENCES bench_step ON DELETE CASCADE'
-    )
-    await cur.execute(
-        'ALTER TABLE "bench_step" ADD CONSTRAINT "bench_step_bench_check_one_parent" CHECK ((parent_block_id IS NOT NULL) OR (parent_step_id IS NOT NULL))'
-    )
 
     # bench_badge
-    await cur.execute(
-        'ALTER TABLE "bench_badge" ADD COLUMN "parent_package_id" uuid REFERENCES bench_package ON DELETE CASCADE'
-    )
-    await cur.execute(
-        'ALTER TABLE "bench_badge" ADD COLUMN "parent_block_id" uuid REFERENCES bench_block ON DELETE CASCADE'
-    )
     await cur.execute(
         'CREATE UNIQUE INDEX "bench_badge_bench_idx_key" ON bench_badge USING BTREE (key)'
     )
@@ -1231,107 +1138,16 @@ async def upgrade_global(cur: psycopg.AsyncCursor):
     await cur.execute(
         'ALTER TABLE "bench_badge" ADD CONSTRAINT "bench_badge_bench_idx_key_hash" UNIQUE USING INDEX bench_badge_bench_idx_key_hash'
     )
-    await cur.execute(
-        'ALTER TABLE "bench_badge" ADD CONSTRAINT "bench_badge_bench_check_one_parent" CHECK ((parent_package_id IS NOT NULL) OR (parent_block_id IS NOT NULL))'
-    )
-
-    # bench_role
-    await cur.execute(
-        'ALTER TABLE "bench_role" ADD COLUMN "parent_block_id" uuid REFERENCES bench_block ON DELETE CASCADE'
-    )
-    await cur.execute(
-        'ALTER TABLE "bench_role" ADD COLUMN "parent_membership_id" uuid REFERENCES bench_membership ON DELETE CASCADE'
-    )
-    await cur.execute(
-        'ALTER TABLE "bench_role" ADD CONSTRAINT "bench_role_bench_check_one_parent" CHECK ((parent_block_id IS NOT NULL) OR (parent_membership_id IS NOT NULL))'
-    )
-
-    # bench_identity
-    await cur.execute(
-        'ALTER TABLE "bench_identity" ADD COLUMN "parent_block_id" uuid REFERENCES bench_block ON DELETE CASCADE'
-    )
-    await cur.execute(
-        'ALTER TABLE "bench_identity" ADD COLUMN "parent_membership_id" uuid REFERENCES bench_membership ON DELETE CASCADE'
-    )
-    await cur.execute(
-        'ALTER TABLE "bench_identity" ADD COLUMN "parent_user_id" uuid REFERENCES bench_user ON DELETE CASCADE'
-    )
-    await cur.execute(
-        'ALTER TABLE "bench_identity" ADD CONSTRAINT "bench_identity_bench_check_one_parent" CHECK ((parent_block_id IS NOT NULL) OR (parent_membership_id IS NOT NULL) OR (parent_user_id IS NOT NULL))'
-    )
-
-    # bench_membership
-    await cur.execute(
-        'ALTER TABLE "bench_membership" ADD COLUMN "parent_package_id" uuid REFERENCES bench_package ON DELETE CASCADE'
-    )
-    await cur.execute(
-        'ALTER TABLE "bench_membership" ADD CONSTRAINT "bench_membership_bench_check_one_parent" CHECK ((parent_package_id IS NOT NULL))'
-    )
-
-    # bench_invite
-    await cur.execute(
-        'ALTER TABLE "bench_invite" ADD COLUMN "parent_package_id" uuid REFERENCES bench_package ON DELETE CASCADE'
-    )
-    await cur.execute(
-        'ALTER TABLE "bench_invite" ADD CONSTRAINT "bench_invite_bench_check_one_parent" CHECK ((parent_package_id IS NOT NULL))'
-    )
-
-    # bench_server
-    await cur.execute(
-        'ALTER TABLE "bench_server" ADD COLUMN "parent_bench_id" uuid REFERENCES bench_bench ON DELETE CASCADE'
-    )
-    await cur.execute(
-        'ALTER TABLE "bench_server" ADD CONSTRAINT "bench_server_bench_check_one_parent" CHECK ((parent_bench_id IS NOT NULL))'
-    )
-
-    # bench_store
-    await cur.execute(
-        'ALTER TABLE "bench_store" ADD COLUMN "parent_bench_id" uuid REFERENCES bench_bench ON DELETE CASCADE'
-    )
-    await cur.execute(
-        'ALTER TABLE "bench_store" ADD CONSTRAINT "bench_store_bench_check_one_parent" CHECK ((parent_bench_id IS NOT NULL))'
-    )
-
-    # bench_machine
-    await cur.execute(
-        'ALTER TABLE "bench_machine" ADD COLUMN "parent_server_id" uuid REFERENCES bench_server ON DELETE CASCADE'
-    )
-    await cur.execute(
-        'ALTER TABLE "bench_machine" ADD CONSTRAINT "bench_machine_bench_check_one_parent" CHECK ((parent_server_id IS NOT NULL))'
-    )
-
-    # bench_drive
-    await cur.execute(
-        'ALTER TABLE "bench_drive" ADD COLUMN "parent_bench_id" uuid REFERENCES bench_bench ON DELETE CASCADE'
-    )
-    await cur.execute(
-        'ALTER TABLE "bench_drive" ADD CONSTRAINT "bench_drive_bench_check_one_parent" CHECK ((parent_bench_id IS NOT NULL))'
-    )
 
     # bench_blob
     await cur.execute(
-        'ALTER TABLE "bench_blob" ADD COLUMN "parent_drive_id" uuid REFERENCES bench_drive ON DELETE CASCADE'
+        'CREATE UNIQUE INDEX "bench_blob_bench_idx_parent_id_sha512" ON bench_blob USING BTREE (parent_id, sha512)'
     )
     await cur.execute(
-        'CREATE UNIQUE INDEX "bench_blob_bench_idx_parent_drive_id_sha512" ON bench_blob USING BTREE (parent_drive_id, sha512)'
-    )
-    await cur.execute(
-        'ALTER TABLE "bench_blob" ADD CONSTRAINT "bench_blob_bench_idx_parent_drive_id_sha512" UNIQUE USING INDEX bench_blob_bench_idx_parent_drive_id_sha512'
-    )
-    await cur.execute(
-        'ALTER TABLE "bench_blob" ADD CONSTRAINT "bench_blob_bench_check_one_parent" CHECK ((parent_drive_id IS NOT NULL))'
+        'ALTER TABLE "bench_blob" ADD CONSTRAINT "bench_blob_bench_idx_parent_id_sha512" UNIQUE USING INDEX bench_blob_bench_idx_parent_id_sha512'
     )
 
     # bench_handle
-    await cur.execute(
-        'ALTER TABLE "bench_handle" ADD COLUMN "parent_user_id" uuid REFERENCES bench_user ON DELETE CASCADE'
-    )
-    await cur.execute(
-        'ALTER TABLE "bench_handle" ADD COLUMN "parent_organization_id" uuid REFERENCES bench_organization ON DELETE CASCADE'
-    )
-    await cur.execute(
-        'ALTER TABLE "bench_handle" ADD COLUMN "parent_bench_id" uuid REFERENCES bench_bench ON DELETE CASCADE'
-    )
     await cur.execute(
         'CREATE UNIQUE INDEX "bench_handle_bench_idx_slug" ON bench_handle USING BTREE (slug)'
     )
@@ -1340,9 +1156,6 @@ async def upgrade_global(cur: psycopg.AsyncCursor):
     )
     await cur.execute(
         'ALTER TABLE "bench_handle" ADD CONSTRAINT "bench_handle_bench_idx_slug" UNIQUE USING INDEX bench_handle_bench_idx_slug'
-    )
-    await cur.execute(
-        'ALTER TABLE "bench_handle" ADD CONSTRAINT "bench_handle_bench_check_one_parent" CHECK ((parent_user_id IS NOT NULL) OR (parent_organization_id IS NOT NULL) OR (parent_bench_id IS NOT NULL))'
     )
 
     # bench_user
@@ -1381,12 +1194,6 @@ async def upgrade_global(cur: psycopg.AsyncCursor):
 
     # bench_client
     await cur.execute(
-        'ALTER TABLE "bench_client" ADD COLUMN "parent_user_id" uuid REFERENCES bench_user ON DELETE CASCADE'
-    )
-    await cur.execute(
-        'ALTER TABLE "bench_client" ADD COLUMN "parent_server_id" uuid REFERENCES bench_server ON DELETE CASCADE'
-    )
-    await cur.execute(
         'ALTER TABLE "bench_client" ADD COLUMN "machine_id" uuid REFERENCES bench_machine ON DELETE SET NULL'
     )
     await cur.execute(
@@ -1394,9 +1201,6 @@ async def upgrade_global(cur: psycopg.AsyncCursor):
     )
     await cur.execute(
         'ALTER TABLE "bench_client" ADD CONSTRAINT "bench_client_bench_idx_access_token" UNIQUE USING INDEX bench_client_bench_idx_access_token'
-    )
-    await cur.execute(
-        'ALTER TABLE "bench_client" ADD CONSTRAINT "bench_client_bench_check_one_parent" CHECK ((parent_user_id IS NOT NULL) OR (parent_server_id IS NOT NULL))'
     )
 
 
@@ -1410,13 +1214,13 @@ async def downgrade_global(cur: psycopg.AsyncCursor):
 
 
 async def upgrade_local(cur: psycopg.AsyncCursor):
-    await cur.execute('CREATE EXTENSION IF NOT EXISTS "uuid-ossp"')
-    await cur.execute('CREATE EXTENSION IF NOT EXISTS "bloom"')
-    await cur.execute('CREATE EXTENSION IF NOT EXISTS "vector"')
-    await cur.execute('CREATE EXTENSION IF NOT EXISTS "timescaledb"')
-    await cur.execute('CREATE EXTENSION IF NOT EXISTS "pg_trgm"')
     await cur.execute('CREATE EXTENSION IF NOT EXISTS "pgcrypto"')
     await cur.execute('CREATE EXTENSION IF NOT EXISTS "plpgsql"')
+    await cur.execute('CREATE EXTENSION IF NOT EXISTS "bloom"')
+    await cur.execute('CREATE EXTENSION IF NOT EXISTS "uuid-ossp"')
+    await cur.execute('CREATE EXTENSION IF NOT EXISTS "pg_trgm"')
+    await cur.execute('CREATE EXTENSION IF NOT EXISTS "timescaledb"')
+    await cur.execute('CREATE EXTENSION IF NOT EXISTS "vector"')
 
     # bench_migration
     await cur.execute(
@@ -1458,7 +1262,7 @@ async def upgrade_local(cur: psycopg.AsyncCursor):
         """
     CREATE TABLE "bench_session" (
         "id" uuid NOT NULL PRIMARY KEY,
-        "parent_package_id" uuid,
+        "parent_id" uuid NOT NULL,
         "package_id" uuid NOT NULL,
         "bench_id" uuid NOT NULL,
         "revision" bigint NOT NULL,
@@ -1494,7 +1298,9 @@ async def upgrade_local(cur: psycopg.AsyncCursor):
         """
     CREATE TABLE "bench_run" (
         "id" uuid NOT NULL PRIMARY KEY,
-        "parent_package_id" uuid,
+        "parent_id" uuid NOT NULL,
+        "parent_type" smallint NOT NULL,
+        "parent_base_ck" uuid,
         "package_id" uuid NOT NULL,
         "bench_id" uuid NOT NULL,
         "revision" bigint NOT NULL,
@@ -1555,7 +1361,7 @@ async def upgrade_local(cur: psycopg.AsyncCursor):
         """
     CREATE TABLE "bench_signal" (
         "id" uuid NOT NULL PRIMARY KEY,
-        "parent_package_id" uuid,
+        "parent_id" uuid NOT NULL,
         "package_id" uuid NOT NULL,
         "bench_id" uuid NOT NULL,
         "revision" bigint NOT NULL,
@@ -1600,7 +1406,7 @@ async def upgrade_local(cur: psycopg.AsyncCursor):
         """
     CREATE TABLE "bench_log" (
         "id" uuid NOT NULL PRIMARY KEY,
-        "parent_package_id" uuid,
+        "parent_id" uuid NOT NULL,
         "package_id" uuid NOT NULL,
         "bench_id" uuid NOT NULL,
         "revision" bigint NOT NULL,
@@ -1618,14 +1424,15 @@ async def upgrade_local(cur: psycopg.AsyncCursor):
         "updated_by_base_ck" uuid,
         "kind" smallint NOT NULL,
         "level" smallint NOT NULL DEFAULT 3,
+        "type" smallint,
         "node_id" uuid,
         "node_ck" uuid,
         "node_type" smallint,
         "node_base_ck" uuid,
-        "type" smallint,
-        "properties" integer[] NOT NULL,
-        "new_node_packed" jsonb,
+        "properties" smallint[] NOT NULL,
         "old_node_packed" jsonb,
+        "new_node_packed" jsonb,
+        "new_revision" bigint,
         "title" varchar,
         "text" jsonb,
         "value_packed" jsonb,
@@ -1654,7 +1461,7 @@ async def upgrade_local(cur: psycopg.AsyncCursor):
         """
     CREATE TABLE "bench_notification" (
         "id" uuid NOT NULL PRIMARY KEY,
-        "parent_package_id" uuid,
+        "parent_id" uuid NOT NULL,
         "package_id" uuid NOT NULL,
         "bench_id" uuid NOT NULL,
         "revision" bigint NOT NULL,
@@ -1704,8 +1511,10 @@ async def upgrade_local(cur: psycopg.AsyncCursor):
         """
     CREATE TABLE "bench_message" (
         "id" uuid NOT NULL PRIMARY KEY,
-        "parent_package_id" uuid,
-        "parent_block_id" uuid,
+        "parent_id" uuid NOT NULL,
+        "parent_ck" uuid NOT NULL,
+        "parent_type" smallint NOT NULL,
+        "parent_base_ck" uuid,
         "package_id" uuid NOT NULL,
         "bench_id" uuid NOT NULL,
         "revision" bigint NOT NULL,
@@ -1770,14 +1579,8 @@ async def upgrade_local(cur: psycopg.AsyncCursor):
     await cur.execute(
         'CREATE INDEX "bench_session_bench_idx_status" ON bench_session USING BTREE (status)'
     )
-    await cur.execute(
-        'ALTER TABLE "bench_session" ADD CONSTRAINT "bench_session_bench_check_one_parent" CHECK ((parent_package_id IS NOT NULL))'
-    )
 
     # bench_run
-    await cur.execute(
-        'ALTER TABLE "bench_run" ADD COLUMN "parent_run_id" uuid REFERENCES bench_run ON DELETE CASCADE'
-    )
     await cur.execute(
         'CREATE INDEX "bench_run_bench_idx_created_at" ON bench_run USING BTREE (created_at)'
     )
@@ -1789,9 +1592,6 @@ async def upgrade_local(cur: psycopg.AsyncCursor):
     )
     await cur.execute(
         'CREATE INDEX "bench_run_bench_idx_package_id_created_epoch" ON bench_run USING BTREE (package_id, created_epoch)'
-    )
-    await cur.execute(
-        'ALTER TABLE "bench_run" ADD CONSTRAINT "bench_run_bench_check_one_parent" CHECK ((parent_package_id IS NOT NULL) OR (parent_run_id IS NOT NULL))'
     )
 
     # bench_signal
@@ -1807,9 +1607,6 @@ async def upgrade_local(cur: psycopg.AsyncCursor):
     await cur.execute(
         'CREATE INDEX "bench_signal_bench_idx_package_id_created_epoch" ON bench_signal USING BTREE (package_id, created_epoch)'
     )
-    await cur.execute(
-        'ALTER TABLE "bench_signal" ADD CONSTRAINT "bench_signal_bench_check_one_parent" CHECK ((parent_package_id IS NOT NULL))'
-    )
 
     # bench_log
     await cur.execute(
@@ -1823,9 +1620,6 @@ async def upgrade_local(cur: psycopg.AsyncCursor):
     )
     await cur.execute(
         'CREATE INDEX "bench_log_bench_idx_package_id_created_epoch" ON bench_log USING BTREE (package_id, created_epoch)'
-    )
-    await cur.execute(
-        'ALTER TABLE "bench_log" ADD CONSTRAINT "bench_log_bench_check_one_parent" CHECK ((parent_package_id IS NOT NULL))'
     )
 
     # bench_notification
@@ -1841,14 +1635,8 @@ async def upgrade_local(cur: psycopg.AsyncCursor):
     await cur.execute(
         'CREATE INDEX "bench_notification_bench_idx_package_id_created_epoch" ON bench_notification USING BTREE (package_id, created_epoch)'
     )
-    await cur.execute(
-        'ALTER TABLE "bench_notification" ADD CONSTRAINT "bench_notification_bench_check_one_parent" CHECK ((parent_package_id IS NOT NULL))'
-    )
 
     # bench_message
-    await cur.execute(
-        'ALTER TABLE "bench_message" ADD COLUMN "parent_message_id" uuid REFERENCES bench_message ON DELETE CASCADE'
-    )
     await cur.execute(
         'CREATE INDEX "bench_message_bench_idx_created_at" ON bench_message USING BTREE (created_at)'
     )
@@ -1860,9 +1648,6 @@ async def upgrade_local(cur: psycopg.AsyncCursor):
     )
     await cur.execute(
         'CREATE INDEX "bench_message_bench_idx_package_id_created_epoch" ON bench_message USING BTREE (package_id, created_epoch)'
-    )
-    await cur.execute(
-        'ALTER TABLE "bench_message" ADD CONSTRAINT "bench_message_bench_check_one_parent" CHECK ((parent_package_id IS NOT NULL) OR (parent_block_id IS NOT NULL) OR (parent_message_id IS NOT NULL))'
     )
 
 

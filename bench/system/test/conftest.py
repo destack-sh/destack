@@ -8,6 +8,7 @@ import pytest
 from grpclib.testing import ChannelFor
 
 from bench.proto.wire import (
+    ClientDataIn,
     ClientOrigin,
     HostBase,
     HostStub,
@@ -106,7 +107,7 @@ async def make_new_user_handle(
         name=user.name,
         email=user.email,
         password=password,
-        client=client._to_data(),
+        client=cast(ClientDataIn, client._to_data()),
     )
     signup_rep = await supervisor.signup_user(signup_req)
     origin = ClientOrigin(
@@ -152,7 +153,7 @@ async def make_existing_user_handle(
         slug=cast(str, user.slug),
         email=user.email,
         password=password,
-        client=client._to_data(),
+        client=cast(ClientDataIn, client._to_data()),
     )
     login_rep = await supervisor.login_user(login_req)
     origin = ClientOrigin(id=str(client.id), nonce=str(random.randint(0, 2**32)))
