@@ -242,6 +242,8 @@ class NodeDataGraph(NodeGraphBase[NodeDataT, str]):
             for child_type in self.nodes_by_parent_id_and_type[node.id]:
                 for child in tuple(self.nodes_by_parent_id_and_type[node.id][child_type]):
                     self.remove(child)
+                if node.id not in self.nodes_by_parent_id_and_type:
+                    break
 
     def _add_to_parent(self, node: NodeDataT):
         assert node.parent_ptr is not None, f"{node!r} has no parent"
@@ -425,6 +427,8 @@ class NodeGraph(NodeGraphBase[NodeT, UUID]):
             for child_type in CHILD_NODE_TYPES[node.metatype]:
                 for child in tuple(self.nodes_by_parent_id_and_type[node.id].get(child_type, ())):
                     self.remove(child)
+                if node.id not in self.nodes_by_parent_id_and_type:
+                    break  # may have been removed
 
     def _add_to_parent(self, node: NodeT):
         assert node.parent is not None, f"{node!r} has no parent"

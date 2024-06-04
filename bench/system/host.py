@@ -301,7 +301,7 @@ class Host(GraphIoServiceBase, HostBase, HostSpec):
                 raise GRPCError(GRPCStatus.UNAUTHENTICATED, "invalid badge password")
             badges.append(badge)
 
-        # NOTE :Incomplete: get roles/memberships/identities/... for subject in Host
+        # NOTE :Incomplete!: get roles/memberships/identities/... for subject in Host
 
         subject = Subject(
             is_authenticated=client is not None,
