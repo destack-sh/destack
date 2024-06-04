@@ -162,7 +162,7 @@ watch([canvas.focusedViewPtr, bench], () => {
           <i class="fas fa-exclamation-triangle mr-1.5 text-gray-500" />
           <span class="text-gray-600">Space Not Found</span>
         </span>
-        <Button name="fix" :icon="makeIcon('fas fa-plus')" title="Create Space" @click="assignSpaceInPackage" />
+        <Button name="Create" :icon="makeIcon('fas fa-plus')" title="Create Space" @click="assignSpaceInPackage" />
       </div>
       <div v-else-if="user">
         <!-- Logged in, but not on any space (not sure if this should even show or just auto-redirect?) -->

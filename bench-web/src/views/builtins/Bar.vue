@@ -5,7 +5,7 @@ import { CLIENT_TYPE, isDeveloperMode } from "@/system/client";
 import { DEFAULT_USER_ICON, ICON_BY_NODE_TYPE, IconInline, makeIcon } from "@/system/icon";
 import { bench, hasLocalBench } from "@/system/space";
 import { isAuthenticated, user } from "@/system/user";
-import { COMMIT, IS_DEBUG, VERSION } from "@/utils/globals";
+import { COMMIT, IS_DEV, VERSION } from "@/utils/globals";
 import { menuActionsLike, menuItemFromAction, type MenuItem } from "@/utils/menu";
 import Button from "@/views/controls/Button.vue";
 import Menu from "@/views/builtins/Menu.vue";
@@ -184,7 +184,7 @@ const dockActions: Ref<Action[]> = computed(
               <span class="ml-auto select-all">{{ VERSION }}</span>
             </div>
             <div class="flex w-full flex-row px-2.5 pb-1.5 text-xs text-gray-500">
-              <span class="select-all">{{ IS_DEBUG ? "developmnet" : "production" }}</span>
+              <span class="select-all">{{ IS_DEV ? "developmnet" : "production" }}</span>
               <span class="ml-auto select-all">#{{ COMMIT?.slice(0, 8) ?? "???" }}</span>
             </div>
           </template>

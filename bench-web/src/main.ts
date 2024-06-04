@@ -2,7 +2,7 @@ import "./assets/index.css";
 
 import { toaster } from "@/system/toast";
 import { setupTransactionManagement } from "@/system/transaction";
-import { COMMIT, IS_DEBUG, SUPERVISOR_URL, VERSION } from "@/utils/globals";
+import { COMMIT, IS_DEV, SUPERVISOR_URL, VERSION } from "@/utils/globals";
 import { keytrap } from "@/utils/keymap";
 import { CONTEXT_MENU_DIRECTIVE, MENU_DIRECTIVE } from "@/utils/menu";
 import { EVENT_OUTSIDE_DIRECTIVE, HOVER_DIRECTIVE, TOOLTIP_DIRECTIVE } from "@/utils/tooltip";
@@ -16,7 +16,7 @@ async function init() {
   const app = createApp(Space);
 
   // sentry / posthog instrumentation
-  if (!IS_DEBUG) {
+  if (!IS_DEV) {
     posthog.init("phc_d8mi3OMdtKSVA8kzHbBoKtYU3ZsMQakAiLpuOn3W9ma", {
       // public capture key
       api_host: "https://eu.posthog.com",
@@ -51,7 +51,7 @@ async function init() {
   window.addEventListener("drop", (e) => e.preventDefault(), false);
 
   // set vue stuff
-  if (IS_DEBUG) {
+  if (IS_DEV) {
     app.config.performance = true;
   }
   app.config.errorHandler = (err, instance, info) => {

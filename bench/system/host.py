@@ -8,6 +8,7 @@ from uuid import UUID
 import betterproto
 import grpclib.server
 import structlog
+from betterproto.lib.google.protobuf import Struct as ProtoStruct
 from grpclib import GRPCError
 from grpclib import Status as GRPCStatus
 from opentelemetry import trace
@@ -28,6 +29,7 @@ from bench.language.graph import NodeGraphLike
 from bench.language.log import Log
 from bench.language.property import Property
 from bench.language.session import Session, unsuspend_session
+from bench.language.setup import NODE_CLASS_BY_TYPE
 from bench.language.transaction import (
     edit_data_graph,
     edit_graph,
@@ -37,6 +39,7 @@ from bench.language.user import User
 from bench.proto import wire
 from bench.proto.services import RpcCallable, ServiceBase
 from bench.proto.wire import EditData, GraphScope, HostBase, LogData, ServiceKind
+from bench.proto.wiring import unpack_proto_json
 from bench.system.access import get_client_cached
 from bench.system.core import (
     BENCH_QUERY,
@@ -391,7 +394,13 @@ class Host(GraphIoServiceBase, HostBase, HostSpec):
             # wait for plugins to finish processing any commits (and to error early)
             await asyncio.gather(*(plugin.wait_idle(timeout=10) for plugin in self._plugins))
         logger.info(
-            "host.start", host=self, epoch=self.epoch, plugins=self._plugins, span="current"
+            "host.start",
+            host=self,
+            bench=self._bench,
+            main_package=self._main_package,
+            epoch=self.epoch,
+            plugins=self._plugins,
+            span="current",
         )
 
     def close(self) -> None:
@@ -434,6 +443,30 @@ class Host(GraphIoServiceBase, HostBase, HostSpec):
         # create signals
         ...
 
+        def _split_node_packed_secret(
+            node_type: NodeType, node_packed_struct: ProtoStruct | None
+        ) -> tuple[ProtoStruct | None, ProtoStruct | None]:
+            # NOTE :Incomplete: we ignore nested :SecretValues (inside value properties) for now
+            if node_packed_struct is None:
+                return None, None
+            node_cls = NODE_CLASS_BY_TYPE[node_type]
+            node_packed = unpack_proto_json(node_packed_struct)
+            node_secret_packed = {}
+            for prop_key, prop_value in node_packed.items():
+                prop = node_cls.__properties_by_id__.get(int(prop_key))
+                assert prop is not None, f"missing prop {prop_key} in {node_cls!r}"
+                if prop.is_sensitive:
+                    node_secret_packed[prop_key] = prop_value
+            # prune secret properties from node_packed (after to avoid concurrent modification)
+            for prop_key in node_secret_packed:
+                del node_packed[prop_key]
+            # only keep secret properties if there are any
+            if len(node_secret_packed) > 0:
+                node_secret_packed_struct = ProtoStruct.from_dict(node_secret_packed)
+            else:
+                node_secret_packed_struct = None
+            return ProtoStruct.from_dict(node_packed), node_secret_packed_struct
+
         # add logs
         package_ptr = session.package.to_ref()._to_data()
         bench_ptr = session.bench.to_ref()._to_data()
@@ -444,6 +477,13 @@ class Host(GraphIoServiceBase, HostBase, HostSpec):
                 continue
             assert edit.revision is not None, f"revision not set in {edit!r}"
             assert edit.epoch is not None, f"epoch not set in {edit!r}"
+            # break out secret properties
+            old_node_packed, old_node_secret_packed = _split_node_packed_secret(
+                node_type, edit.old_node_packed
+            )
+            new_node_packed, new_node_secret_packed = _split_node_packed_secret(
+                node_type, edit.new_node_packed
+            )
             log_data = LogData(
                 metatype=wire.ObjectType.LOG,
                 id=str(UUIDT()),
@@ -463,10 +503,12 @@ class Host(GraphIoServiceBase, HostBase, HostSpec):
                 type=cast(wire.AccessType, edit.type),
                 node_ptr=edit.node_ptr,
                 properties=edit.properties,
-                old_node_packed=edit.old_node_packed,
-                new_node_packed=edit.new_node_packed,
+                old_node_packed=old_node_packed,
+                old_node_secret_packed=old_node_secret_packed,
+                new_node_packed=new_node_packed,
+                new_node_secret_packed=new_node_secret_packed,
                 new_revision=edit.revision,
-                # TODO :Incomplete!: add session context to Log
+                # nocheckin: add session context to Log
             )
             create_log_edit = EditData(
                 id=log_data.id,

@@ -348,7 +348,7 @@ _MAX_ID_BY_ENUM: dict[type, int] = {}
 
 IdEnumT = TypeVar("IdEnumT", bound="IdEnum")
 
-DEBUG_LOCKS = get_from_env("DEBUG_LOCKS", typ=bool, default=False)
+TRACE_LOCKS = get_from_env("TRACE_LOCKS", typ=bool, default=False)
 CRITICAL_LOCK_TIMEOUT = get_from_env("CRITICAL_LOCK_TIMEOUT", typ=int, default=10)
 
 
@@ -387,7 +387,7 @@ class CriticalLock(asyncio.Lock):
         self._acquired_at: float | None = None
 
     async def acquire(self):
-        if DEBUG_LOCKS:
+        if TRACE_LOCKS:
             logger.trace("lock.acquire.wait", name=self._name)
 
         if self._timeout is not None:
@@ -415,13 +415,13 @@ class CriticalLock(asyncio.Lock):
         if self._track_acquirer:
             self._acquired_by = traceback.extract_stack()[:-1]
         self._acquired_at = monons()
-        if DEBUG_LOCKS:
+        if TRACE_LOCKS:
             logger.trace("lock.acquire.success", name=self._name, acquired_at=self._acquired_at)
         return True
 
     def release(self):
         super().release()
-        if DEBUG_LOCKS:
+        if TRACE_LOCKS:
             logger.trace("lock.release", name=self._name, acquired_at=self._acquired_at)
         if self._timeout is not None:
             assert self._acquired_at is not None

@@ -76,8 +76,14 @@ class Log(Node, HasSessionContext, HasValues):
         node_ptr: Optional[NodeReferenceData] = None
     properties: list[int] = p_system(42, array=True, primitive_type=PrimitiveType.INT16)
     old_node_packed: Any | None = p_system(43, primitive_type=PrimitiveType.JSON)
-    new_node_packed: Any | None = p_system(44, primitive_type=PrimitiveType.JSON)
-    new_revision: int | None = p_system(45, primitive_type=PrimitiveType.INT64)
+    old_node_secret_packed: Any | None = p_system(
+        44, primitive_type=PrimitiveType.JSON, encrypt=True, sensitive=True, defer=True
+    )
+    new_node_packed: Any | None = p_system(45, primitive_type=PrimitiveType.JSON)
+    new_node_secret_packed: Any | None = p_system(
+        46, primitive_type=PrimitiveType.JSON, encrypt=True, sensitive=True, defer=True
+    )
+    new_revision: int | None = p_system(47, primitive_type=PrimitiveType.INT64)
 
     # content (custom)
     title: Optional[str] = p_internal(50, default=None)
@@ -103,6 +109,7 @@ class Log(Node, HasSessionContext, HasValues):
         assert self.node_ptr is not None, f"{self!r} has no node"
         assert self.new_revision is not None, f"{self!r} has no new revision"
 
+        # NOTE :Incomplete: we ignore :SecretValues in edit Log for now
         old_node_packed = (
             wiring.pack_proto_json(self.old_node_packed)
             if self.old_node_packed is not None

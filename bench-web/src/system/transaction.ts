@@ -43,7 +43,7 @@ import {
   type JsonValue,
 } from "@/system/value";
 import { AsyncEvent } from "@/utils/functools";
-import { IS_DEBUG } from "@/utils/globals";
+import { IS_DEV } from "@/utils/globals";
 import { log } from "@/utils/log";
 import { toValueRef } from "@/utils/ref";
 import { Casing, toCasing } from "@/utils/string";
@@ -692,7 +692,7 @@ export class RemoteTransactionBuffer implements TransactionBuffer {
       log.error("transaction.commit.error", { scope: this.scope, error });
       toaster.error({
         title: HUMANIZED_OPERATION_STATUS[(error as RpcError).code] ?? "Synchronization error",
-        text: `Saving ${this.pendingTx?.edits.length ?? 0} edits failed: ${IS_DEBUG ? (error as Error).message : (error as RpcError).code}`,
+        text: `Saving ${this.pendingTx?.edits.length ?? 0} edits failed: ${IS_DEV ? (error as Error).message : (error as RpcError).code}`,
         actions: [
           {
             title: "Retry",

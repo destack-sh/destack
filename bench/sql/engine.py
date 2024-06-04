@@ -1397,28 +1397,21 @@ async def pg_get_node_graph(
             next_parents: list[AnyNodeData] = []
             # traverse all direct children of plausible types
             for child_type in options.descendant_types:
-                # collect possible parents
-                parent_ids_by_type: dict[NodeType, list[str]] = defaultdict(list)
-                for parent in current_parents:
-                    if cast(NodeType, parent.metatype) in PARENT_NODE_TYPES[child_type]:
-                        parent_ids_by_type[parent.metatype].append(parent.id)  # type: ignore
-                if not parent_ids_by_type:
+                child_cls = NODE_CLASS_BY_TYPE[child_type]
+                if not child_cls.__parent_property__.reference_stored_ids:
                     continue
 
-                # build initial filter
-                parents_filters: list[Expression] = []
-                for parent_property in (
-                    NODE_CLASS_BY_TYPE[child_type].__parent_property__.reference_stored_ids or ()
-                ):
-                    assert parent_property.reference_nodes, f"no reference for {parent_property!r}"
-                    filter = C(
-                        op=ConditionalOp.IN,
-                        property=parent_property,
-                        value=parent_ids_by_type[parent_property.reference_nodes[0]],
-                        value_packed={},  # avoid packing this
-                    )
-                    parents_filters.append(filter)
-                parent_filter = C(op=ConditionalOp.OR, clauses=parents_filters)
+                # collect possible parents
+                parent_ids: list[str] = []
+                for parent in current_parents:
+                    if cast(NodeType, parent.metatype) in PARENT_NODE_TYPES[child_type]:
+                        parent_ids.append(parent.id)
+                parent_filter = C(
+                    op=ConditionalOp.IN,
+                    property=child_cls.__parent_property__.reference_stored_ids[0],
+                    value=parent_ids,
+                    value_packed=UNSET,  # don't pack this
+                )
 
                 # collect children
                 children = await pg_get_nodes(
@@ -1508,7 +1501,7 @@ async def pg_edit(
     cur_updated_properties: bitarray = bitarray(cur_node_cls.__max_property_ord__ + 1)
     cur_batch: list[EditData] = []
     all_new_revisions: list[int] = []
-    # TODO :Broken!: cascade edits down (for remove/add edits like archive/restore/delete/...)
+    # nocheckin: cascade edits down (for remove/add edits like archive/restore/delete/...)
     #  (do we really need to cascade down in postgres for remove? what if the graph is loaded?)
     cascaded_edits: list[EditData] = []
 

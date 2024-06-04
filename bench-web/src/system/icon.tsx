@@ -30,7 +30,7 @@ import type { FunctionalComponent } from "vue";
 //  | jq 'to_entries | map(select(.value.free | index("solid") or index("brands")) | {"id": .key, label: .value.label, unicode: .value.unicode, alias: .value.search.terms, family: (if .value.free | index("solid") then "fas" else "fab" end)})'
 //  > fa-icons.json
 import _AVAILABLE_FA_ICONS from "@/assets/fa-icons.json";
-import { IS_DEBUG, isDeveloperMode } from "@/utils/globals";
+import { IS_DEV, isDeveloperMode } from "@/utils/globals";
 import { getColorHex, makeColor } from "@/utils/style";
 
 export type IconMetadata = {
@@ -77,7 +77,7 @@ export const IconInline: FunctionalComponent<IconInlineProps> = (props) => {
   } else if (props.emoji) {
     return <span style={{ color: colorHex }}>{props.emoji}</span>;
   } else {
-    if (IS_DEBUG || isDeveloperMode.value)
+    if (IS_DEV || isDeveloperMode.value)
       return <span class="text-danger-500">?invalid: {JSON.stringify(props)}</span>;
     else return <span style={{ color: colorHex }}>???</span>;
   }
