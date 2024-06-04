@@ -114,16 +114,13 @@ class NodeReference(Struct[NodeReferenceData]):
     @staticmethod
     def from_node(node: Node) -> "NodeReference":  # type: ignore
         assert isinstance(node, Node), f"expected Node, got {node!r}"
-        reference = NodeReference(type=node.metatype, id=node.id)
+        reference = NodeReference(type=node.metatype, id=node.id, ck=node.ck)
 
         # bench_id
         if node.metatype == NodeType.BENCH:
             reference.bench_id = node.id
         elif "bench" in node.__properties__:
             reference.bench_id = node.bench_id
-        # ck
-        if "ck" in node.__properties__:
-            reference.ck = node.ck
         # base
         if node.metatype in BASED_NODE_TYPES:
             base = cast(BasedNode, node).base

@@ -24,6 +24,8 @@ from bench.proto import wire, wiring
 from bench.proto.wire import (
     AggregateNodesRequest,
     AnyNodeData,
+    BenchData,
+    ClientDataIn,
     CommitTransactionRequest,
     EditData,
     GetNodesRequest,
@@ -60,7 +62,7 @@ async def test_user_registration(supervisor: SupervisorStub):
         slug=user.slug,
         name=user.name,
         email=user.email,
-        client=client._to_data(),
+        client=cast(ClientDataIn, client._to_data()),
         password="Password123!",
     )
     signup_rep = await supervisor.signup_user(signup_req)
@@ -70,19 +72,23 @@ async def test_user_registration(supervisor: SupervisorStub):
     # TODO :Security: user email confirmation etc.
 
     # login, invalid password -> fail
-    login_req = LoginUserRequest(slug=user.slug, password="bad", client=client._to_data())
+    login_req = LoginUserRequest(
+        slug=user.slug, password="bad", client=cast(ClientDataIn, client._to_data())
+    )
     with raises_grpc_error(GRPCStatus.UNAUTHENTICATED):
         _ = await supervisor.login_user(login_req)
 
     # login, wrong password -> fail
     login_req = LoginUserRequest(
-        slug=user.slug, password="321Password!!!", client=client._to_data()
+        slug=user.slug, password="321Password!!!", client=cast(ClientDataIn, client._to_data())
     )
     with raises_grpc_error(GRPCStatus.UNAUTHENTICATED):
         _ = await supervisor.login_user(login_req)
 
     # login, correct password -> success
-    login_req = LoginUserRequest(slug=user.slug, password="Password123!", client=client._to_data())
+    login_req = LoginUserRequest(
+        slug=user.slug, password="Password123!", client=cast(ClientDataIn, client._to_data())
+    )
     login_rep = await supervisor.login_user(login_req)
     assert login_rep.access_token
 
@@ -246,7 +252,7 @@ async def test_root_node_create_denied(
 
     node: Node[AnyNodeData] = fabricator.fabricate(NODE_CLASS_BY_TYPE[node_type])
     node_data: AnyNodeData = wiring.pack_node(node)
-    node_data.parent_ptr = None  # roots don't have parents
+    cast(BenchData, node_data).parent_ptr = None  # roots don't have parents
 
     # try create
     for edit_type in (wire.EditType.CREATE, wire.EditType.UPSERT):

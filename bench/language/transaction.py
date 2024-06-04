@@ -414,6 +414,7 @@ def pack_node_delta(
     node_data: AnyNodeData, *, only: Collection[Property | Any] | None = None
 ) -> ProtoStruct:
     """Packs a node into its edit representation. If 'only' is set, only those properties are packed."""
+    # nocheckin: ensure sensitive properties aren't packed in node delta
     from bench.language.value import pack_struct_value_scalar_data
 
     node_packed = pack_struct_value_scalar_data(node_data, only=only)

@@ -11,7 +11,7 @@ from bench.sql.core import (
     Table,
 )
 
-VERSION = "2024.06.03.0"
+VERSION = "2024.06.04.0"
 
 BENCH_TABLE = Table(
     "bench_bench",
@@ -72,13 +72,7 @@ ENVIRONMENT_TABLE = Table(
     "bench_environment",
     (
         Column("id", PrimitiveType.UUID, is_primary_key=True),
-        Column(
-            "parent_bench_id",
-            PrimitiveType.UUID,
-            is_foreign_key_to="bench_bench",
-            on_delete=CascadeAction.CASCADE,
-            is_nullable=True,
-        ),
+        Column("parent_id", PrimitiveType.UUID),
         Column("bench_id", PrimitiveType.UUID),
         Column("revision", PrimitiveType.INT64),
         Column("created_at", PrimitiveType.DATETIME),
@@ -116,26 +110,13 @@ ENVIRONMENT_TABLE = Table(
             on_delete=CascadeAction.SET_NULL,
         ),
     ),
-    constraints=(
-        Constraint(
-            "bench_check_one_parent",
-            ConstraintType.CHECK,
-            condition="(parent_bench_id IS NOT NULL)",
-        ),
-    ),
 )
 
 BRANCH_TABLE = Table(
     "bench_branch",
     (
         Column("id", PrimitiveType.UUID, is_primary_key=True),
-        Column(
-            "parent_bench_id",
-            PrimitiveType.UUID,
-            is_foreign_key_to="bench_bench",
-            on_delete=CascadeAction.CASCADE,
-            is_nullable=True,
-        ),
+        Column("parent_id", PrimitiveType.UUID),
         Column("bench_id", PrimitiveType.UUID),
         Column("revision", PrimitiveType.INT64),
         Column("created_at", PrimitiveType.DATETIME),
@@ -182,11 +163,6 @@ BRANCH_TABLE = Table(
             columns=("bench_id", "slug"),
             index="bench_idx_bench_id_slug",
         ),
-        Constraint(
-            "bench_check_one_parent",
-            ConstraintType.CHECK,
-            condition="(parent_bench_id IS NOT NULL)",
-        ),
     ),
 )
 
@@ -194,13 +170,7 @@ PACKAGE_TABLE = Table(
     "bench_package",
     (
         Column("id", PrimitiveType.UUID, is_primary_key=True),
-        Column(
-            "parent_branch_id",
-            PrimitiveType.UUID,
-            is_foreign_key_to="bench_branch",
-            on_delete=CascadeAction.CASCADE,
-            is_nullable=True,
-        ),
+        Column("parent_id", PrimitiveType.UUID),
         Column("bench_id", PrimitiveType.UUID),
         Column("revision", PrimitiveType.INT64),
         Column("created_at", PrimitiveType.DATETIME),
@@ -246,11 +216,6 @@ PACKAGE_TABLE = Table(
             columns=("bench_id", "slug"),
             index="bench_idx_bench_id_slug",
         ),
-        Constraint(
-            "bench_check_one_parent",
-            ConstraintType.CHECK,
-            condition="(parent_branch_id IS NOT NULL)",
-        ),
     ),
 )
 
@@ -259,20 +224,9 @@ DEPENDENCY_TABLE = Table(
     (
         Column("id", PrimitiveType.UUID, is_primary_key=True),
         Column("ck", PrimitiveType.UUID),
-        Column(
-            "parent_package_id",
-            PrimitiveType.UUID,
-            is_foreign_key_to="bench_package",
-            on_delete=CascadeAction.CASCADE,
-            is_nullable=True,
-        ),
-        Column(
-            "parent_block_id",
-            PrimitiveType.UUID,
-            is_foreign_key_to="bench_block",
-            on_delete=CascadeAction.CASCADE,
-            is_nullable=True,
-        ),
+        Column("parent_id", PrimitiveType.UUID),
+        Column("parent_ck", PrimitiveType.UUID),
+        Column("parent_type", PrimitiveType.INT16),
         Column("package_id", PrimitiveType.UUID),
         Column("bench_id", PrimitiveType.UUID),
         Column("revision", PrimitiveType.INT64),
@@ -298,13 +252,6 @@ DEPENDENCY_TABLE = Table(
         Column("dependency_scopes_ck", PrimitiveType.UUID, is_array=True),
         Column("dependency_scopes_bench_id", PrimitiveType.UUID, is_array=True),
     ),
-    constraints=(
-        Constraint(
-            "bench_check_one_parent",
-            ConstraintType.CHECK,
-            condition="(parent_package_id IS NOT NULL) OR (parent_block_id IS NOT NULL)",
-        ),
-    ),
 )
 
 UPGRADE_TABLE = Table(
@@ -312,13 +259,7 @@ UPGRADE_TABLE = Table(
     (
         Column("id", PrimitiveType.UUID, is_primary_key=True),
         Column("ck", PrimitiveType.UUID),
-        Column(
-            "parent_package_id",
-            PrimitiveType.UUID,
-            is_foreign_key_to="bench_package",
-            on_delete=CascadeAction.CASCADE,
-            is_nullable=True,
-        ),
+        Column("parent_id", PrimitiveType.UUID),
         Column("package_id", PrimitiveType.UUID),
         Column("bench_id", PrimitiveType.UUID),
         Column("revision", PrimitiveType.INT64),
@@ -339,13 +280,6 @@ UPGRADE_TABLE = Table(
         Column("title", PrimitiveType.STRING, is_nullable=True),
         Column("text", PrimitiveType.JSON, is_nullable=True),
     ),
-    constraints=(
-        Constraint(
-            "bench_check_one_parent",
-            ConstraintType.CHECK,
-            condition="(parent_package_id IS NOT NULL)",
-        ),
-    ),
 )
 
 SPACE_TABLE = Table(
@@ -353,13 +287,7 @@ SPACE_TABLE = Table(
     (
         Column("id", PrimitiveType.UUID, is_primary_key=True),
         Column("ck", PrimitiveType.UUID),
-        Column(
-            "parent_package_id",
-            PrimitiveType.UUID,
-            is_foreign_key_to="bench_package",
-            on_delete=CascadeAction.CASCADE,
-            is_nullable=True,
-        ),
+        Column("parent_id", PrimitiveType.UUID),
         Column("package_id", PrimitiveType.UUID),
         Column("bench_id", PrimitiveType.UUID),
         Column("revision", PrimitiveType.INT64),
@@ -396,13 +324,6 @@ SPACE_TABLE = Table(
         Column("base_base_ck", PrimitiveType.UUID, is_nullable=True),
         Column("base_base_bench_id", PrimitiveType.UUID, is_nullable=True),
     ),
-    constraints=(
-        Constraint(
-            "bench_check_one_parent",
-            ConstraintType.CHECK,
-            condition="(parent_package_id IS NOT NULL)",
-        ),
-    ),
 )
 
 LINK_TABLE = Table(
@@ -410,20 +331,9 @@ LINK_TABLE = Table(
     (
         Column("id", PrimitiveType.UUID, is_primary_key=True),
         Column("ck", PrimitiveType.UUID),
-        Column(
-            "parent_package_id",
-            PrimitiveType.UUID,
-            is_foreign_key_to="bench_package",
-            on_delete=CascadeAction.CASCADE,
-            is_nullable=True,
-        ),
-        Column(
-            "parent_block_id",
-            PrimitiveType.UUID,
-            is_foreign_key_to="bench_block",
-            on_delete=CascadeAction.CASCADE,
-            is_nullable=True,
-        ),
+        Column("parent_id", PrimitiveType.UUID),
+        Column("parent_ck", PrimitiveType.UUID),
+        Column("parent_type", PrimitiveType.INT16),
         Column("package_id", PrimitiveType.UUID),
         Column("bench_id", PrimitiveType.UUID),
         Column("revision", PrimitiveType.INT64),
@@ -448,13 +358,6 @@ LINK_TABLE = Table(
         Column("reference_base_bench_id", PrimitiveType.UUID, is_nullable=True),
         Column("order_key", PrimitiveType.STRING, is_nullable=True),
     ),
-    constraints=(
-        Constraint(
-            "bench_check_one_parent",
-            ConstraintType.CHECK,
-            condition="(parent_package_id IS NOT NULL) OR (parent_block_id IS NOT NULL)",
-        ),
-    ),
 )
 
 NOTICE_TABLE = Table(
@@ -462,34 +365,10 @@ NOTICE_TABLE = Table(
     (
         Column("id", PrimitiveType.UUID, is_primary_key=True),
         Column("ck", PrimitiveType.UUID),
-        Column(
-            "parent_block_id",
-            PrimitiveType.UUID,
-            is_foreign_key_to="bench_block",
-            on_delete=CascadeAction.CASCADE,
-            is_nullable=True,
-        ),
-        Column(
-            "parent_field_id",
-            PrimitiveType.UUID,
-            is_foreign_key_to="bench_field",
-            on_delete=CascadeAction.CASCADE,
-            is_nullable=True,
-        ),
-        Column(
-            "parent_step_id",
-            PrimitiveType.UUID,
-            is_foreign_key_to="bench_step",
-            on_delete=CascadeAction.CASCADE,
-            is_nullable=True,
-        ),
-        Column(
-            "parent_view_id",
-            PrimitiveType.UUID,
-            is_foreign_key_to="bench_view",
-            on_delete=CascadeAction.CASCADE,
-            is_nullable=True,
-        ),
+        Column("parent_id", PrimitiveType.UUID),
+        Column("parent_ck", PrimitiveType.UUID),
+        Column("parent_type", PrimitiveType.INT16),
+        Column("parent_base_ck", PrimitiveType.UUID, is_nullable=True),
         Column("package_id", PrimitiveType.UUID),
         Column("bench_id", PrimitiveType.UUID),
         Column("revision", PrimitiveType.INT64),
@@ -519,13 +398,6 @@ NOTICE_TABLE = Table(
         Column("title", PrimitiveType.STRING, is_nullable=True),
         Column("text", PrimitiveType.JSON, is_nullable=True),
     ),
-    constraints=(
-        Constraint(
-            "bench_check_one_parent",
-            ConstraintType.CHECK,
-            condition="(parent_block_id IS NOT NULL) OR (parent_field_id IS NOT NULL) OR (parent_step_id IS NOT NULL) OR (parent_view_id IS NOT NULL)",
-        ),
-    ),
 )
 
 BLOCK_TABLE = Table(
@@ -533,20 +405,9 @@ BLOCK_TABLE = Table(
     (
         Column("id", PrimitiveType.UUID, is_primary_key=True),
         Column("ck", PrimitiveType.UUID),
-        Column(
-            "parent_block_id",
-            PrimitiveType.UUID,
-            is_foreign_key_to="bench_block",
-            on_delete=CascadeAction.CASCADE,
-            is_nullable=True,
-        ),
-        Column(
-            "parent_package_id",
-            PrimitiveType.UUID,
-            is_foreign_key_to="bench_package",
-            on_delete=CascadeAction.CASCADE,
-            is_nullable=True,
-        ),
+        Column("parent_id", PrimitiveType.UUID),
+        Column("parent_ck", PrimitiveType.UUID),
+        Column("parent_type", PrimitiveType.INT16),
         Column("package_id", PrimitiveType.UUID),
         Column("bench_id", PrimitiveType.UUID),
         Column("revision", PrimitiveType.INT64),
@@ -585,13 +446,6 @@ BLOCK_TABLE = Table(
         Column("is_materialized", PrimitiveType.BOOLEAN, default="false"),
         Column("is_paused", PrimitiveType.BOOLEAN, default="false"),
     ),
-    constraints=(
-        Constraint(
-            "bench_check_one_parent",
-            ConstraintType.CHECK,
-            condition="(parent_block_id IS NOT NULL) OR (parent_package_id IS NOT NULL)",
-        ),
-    ),
 )
 
 TRIGGER_TABLE = Table(
@@ -599,20 +453,9 @@ TRIGGER_TABLE = Table(
     (
         Column("id", PrimitiveType.UUID, is_primary_key=True),
         Column("ck", PrimitiveType.UUID),
-        Column(
-            "parent_block_id",
-            PrimitiveType.UUID,
-            is_foreign_key_to="bench_block",
-            on_delete=CascadeAction.CASCADE,
-            is_nullable=True,
-        ),
-        Column(
-            "parent_step_id",
-            PrimitiveType.UUID,
-            is_foreign_key_to="bench_step",
-            on_delete=CascadeAction.CASCADE,
-            is_nullable=True,
-        ),
+        Column("parent_id", PrimitiveType.UUID),
+        Column("parent_ck", PrimitiveType.UUID),
+        Column("parent_type", PrimitiveType.INT16),
         Column("package_id", PrimitiveType.UUID),
         Column("bench_id", PrimitiveType.UUID),
         Column("revision", PrimitiveType.INT64),
@@ -639,13 +482,6 @@ TRIGGER_TABLE = Table(
         Column("condition", PrimitiveType.JSON, is_nullable=True),
         Column("is_paused", PrimitiveType.BOOLEAN, default="false"),
     ),
-    constraints=(
-        Constraint(
-            "bench_check_one_parent",
-            ConstraintType.CHECK,
-            condition="(parent_block_id IS NOT NULL) OR (parent_step_id IS NOT NULL)",
-        ),
-    ),
 )
 
 FIELD_TABLE = Table(
@@ -653,20 +489,9 @@ FIELD_TABLE = Table(
     (
         Column("id", PrimitiveType.UUID, is_primary_key=True),
         Column("ck", PrimitiveType.UUID),
-        Column(
-            "parent_block_id",
-            PrimitiveType.UUID,
-            is_foreign_key_to="bench_block",
-            on_delete=CascadeAction.CASCADE,
-            is_nullable=True,
-        ),
-        Column(
-            "parent_step_id",
-            PrimitiveType.UUID,
-            is_foreign_key_to="bench_step",
-            on_delete=CascadeAction.CASCADE,
-            is_nullable=True,
-        ),
+        Column("parent_id", PrimitiveType.UUID),
+        Column("parent_ck", PrimitiveType.UUID),
+        Column("parent_type", PrimitiveType.INT16),
         Column("package_id", PrimitiveType.UUID),
         Column("bench_id", PrimitiveType.UUID),
         Column("revision", PrimitiveType.INT64),
@@ -706,13 +531,6 @@ FIELD_TABLE = Table(
         Column("is_secret", PrimitiveType.BOOLEAN, default="false"),
         Column("is_required", PrimitiveType.BOOLEAN, default="false"),
     ),
-    constraints=(
-        Constraint(
-            "bench_check_one_parent",
-            ConstraintType.CHECK,
-            condition="(parent_block_id IS NOT NULL) OR (parent_step_id IS NOT NULL)",
-        ),
-    ),
 )
 
 QUERY_TABLE = Table(
@@ -720,13 +538,8 @@ QUERY_TABLE = Table(
     (
         Column("id", PrimitiveType.UUID, is_primary_key=True),
         Column("ck", PrimitiveType.UUID),
-        Column(
-            "parent_block_id",
-            PrimitiveType.UUID,
-            is_foreign_key_to="bench_block",
-            on_delete=CascadeAction.CASCADE,
-            is_nullable=True,
-        ),
+        Column("parent_id", PrimitiveType.UUID),
+        Column("parent_ck", PrimitiveType.UUID),
         Column("package_id", PrimitiveType.UUID),
         Column("bench_id", PrimitiveType.UUID),
         Column("revision", PrimitiveType.INT64),
@@ -752,13 +565,6 @@ QUERY_TABLE = Table(
         Column("filter", PrimitiveType.JSON, is_nullable=True),
         Column("sort", PrimitiveType.JSON, is_array=True, is_nullable=True),
     ),
-    constraints=(
-        Constraint(
-            "bench_check_one_parent",
-            ConstraintType.CHECK,
-            condition="(parent_block_id IS NOT NULL)",
-        ),
-    ),
 )
 
 VIEW_TABLE = Table(
@@ -766,27 +572,9 @@ VIEW_TABLE = Table(
     (
         Column("id", PrimitiveType.UUID, is_primary_key=True),
         Column("ck", PrimitiveType.UUID),
-        Column(
-            "parent_space_id",
-            PrimitiveType.UUID,
-            is_foreign_key_to="bench_space",
-            on_delete=CascadeAction.CASCADE,
-            is_nullable=True,
-        ),
-        Column(
-            "parent_view_id",
-            PrimitiveType.UUID,
-            is_foreign_key_to="bench_view",
-            on_delete=CascadeAction.CASCADE,
-            is_nullable=True,
-        ),
-        Column(
-            "parent_block_id",
-            PrimitiveType.UUID,
-            is_foreign_key_to="bench_block",
-            on_delete=CascadeAction.CASCADE,
-            is_nullable=True,
-        ),
+        Column("parent_id", PrimitiveType.UUID),
+        Column("parent_ck", PrimitiveType.UUID),
+        Column("parent_type", PrimitiveType.INT16),
         Column("package_id", PrimitiveType.UUID),
         Column("bench_id", PrimitiveType.UUID),
         Column("revision", PrimitiveType.INT64),
@@ -834,13 +622,6 @@ VIEW_TABLE = Table(
         Column("is_inline", PrimitiveType.BOOLEAN, is_nullable=True, default="false"),
         Column("is_loading", PrimitiveType.BOOLEAN, is_nullable=True, default="false"),
     ),
-    constraints=(
-        Constraint(
-            "bench_check_one_parent",
-            ConstraintType.CHECK,
-            condition="(parent_space_id IS NOT NULL) OR (parent_view_id IS NOT NULL) OR (parent_block_id IS NOT NULL)",
-        ),
-    ),
 )
 
 STEP_TABLE = Table(
@@ -848,20 +629,9 @@ STEP_TABLE = Table(
     (
         Column("id", PrimitiveType.UUID, is_primary_key=True),
         Column("ck", PrimitiveType.UUID),
-        Column(
-            "parent_block_id",
-            PrimitiveType.UUID,
-            is_foreign_key_to="bench_block",
-            on_delete=CascadeAction.CASCADE,
-            is_nullable=True,
-        ),
-        Column(
-            "parent_step_id",
-            PrimitiveType.UUID,
-            is_foreign_key_to="bench_step",
-            on_delete=CascadeAction.CASCADE,
-            is_nullable=True,
-        ),
+        Column("parent_id", PrimitiveType.UUID),
+        Column("parent_ck", PrimitiveType.UUID),
+        Column("parent_type", PrimitiveType.INT16),
         Column("package_id", PrimitiveType.UUID),
         Column("bench_id", PrimitiveType.UUID),
         Column("revision", PrimitiveType.INT64),
@@ -893,13 +663,6 @@ STEP_TABLE = Table(
         Column("node_bench_id", PrimitiveType.UUID, is_nullable=True),
         Column("condition", PrimitiveType.JSON, is_nullable=True),
     ),
-    constraints=(
-        Constraint(
-            "bench_check_one_parent",
-            ConstraintType.CHECK,
-            condition="(parent_block_id IS NOT NULL) OR (parent_step_id IS NOT NULL)",
-        ),
-    ),
 )
 
 BADGE_TABLE = Table(
@@ -907,20 +670,9 @@ BADGE_TABLE = Table(
     (
         Column("id", PrimitiveType.UUID, is_primary_key=True),
         Column("ck", PrimitiveType.UUID),
-        Column(
-            "parent_package_id",
-            PrimitiveType.UUID,
-            is_foreign_key_to="bench_package",
-            on_delete=CascadeAction.CASCADE,
-            is_nullable=True,
-        ),
-        Column(
-            "parent_block_id",
-            PrimitiveType.UUID,
-            is_foreign_key_to="bench_block",
-            on_delete=CascadeAction.CASCADE,
-            is_nullable=True,
-        ),
+        Column("parent_id", PrimitiveType.UUID),
+        Column("parent_ck", PrimitiveType.UUID),
+        Column("parent_type", PrimitiveType.INT16),
         Column("package_id", PrimitiveType.UUID),
         Column("bench_id", PrimitiveType.UUID),
         Column("revision", PrimitiveType.INT64),
@@ -959,11 +711,6 @@ BADGE_TABLE = Table(
             columns=("key_hash",),
             index="bench_idx_key_hash",
         ),
-        Constraint(
-            "bench_check_one_parent",
-            ConstraintType.CHECK,
-            condition="(parent_package_id IS NOT NULL) OR (parent_block_id IS NOT NULL)",
-        ),
     ),
 )
 
@@ -972,20 +719,9 @@ ROLE_TABLE = Table(
     (
         Column("id", PrimitiveType.UUID, is_primary_key=True),
         Column("ck", PrimitiveType.UUID),
-        Column(
-            "parent_block_id",
-            PrimitiveType.UUID,
-            is_foreign_key_to="bench_block",
-            on_delete=CascadeAction.CASCADE,
-            is_nullable=True,
-        ),
-        Column(
-            "parent_membership_id",
-            PrimitiveType.UUID,
-            is_foreign_key_to="bench_membership",
-            on_delete=CascadeAction.CASCADE,
-            is_nullable=True,
-        ),
+        Column("parent_id", PrimitiveType.UUID),
+        Column("parent_ck", PrimitiveType.UUID),
+        Column("parent_type", PrimitiveType.INT16),
         Column("package_id", PrimitiveType.UUID),
         Column("bench_id", PrimitiveType.UUID),
         Column("revision", PrimitiveType.INT64),
@@ -1005,13 +741,6 @@ ROLE_TABLE = Table(
         Column("type_id", PrimitiveType.UUID),
         Column("type_ck", PrimitiveType.UUID),
         Column("type_bench_id", PrimitiveType.UUID),
-    ),
-    constraints=(
-        Constraint(
-            "bench_check_one_parent",
-            ConstraintType.CHECK,
-            condition="(parent_block_id IS NOT NULL) OR (parent_membership_id IS NOT NULL)",
-        ),
     ),
 )
 
@@ -1020,27 +749,9 @@ IDENTITY_TABLE = Table(
     (
         Column("id", PrimitiveType.UUID, is_primary_key=True),
         Column("ck", PrimitiveType.UUID),
-        Column(
-            "parent_block_id",
-            PrimitiveType.UUID,
-            is_foreign_key_to="bench_block",
-            on_delete=CascadeAction.CASCADE,
-            is_nullable=True,
-        ),
-        Column(
-            "parent_membership_id",
-            PrimitiveType.UUID,
-            is_foreign_key_to="bench_membership",
-            on_delete=CascadeAction.CASCADE,
-            is_nullable=True,
-        ),
-        Column(
-            "parent_user_id",
-            PrimitiveType.UUID,
-            is_foreign_key_to="bench_user",
-            on_delete=CascadeAction.CASCADE,
-            is_nullable=True,
-        ),
+        Column("parent_id", PrimitiveType.UUID),
+        Column("parent_ck", PrimitiveType.UUID),
+        Column("parent_type", PrimitiveType.INT16),
         Column("package_id", PrimitiveType.UUID),
         Column("bench_id", PrimitiveType.UUID),
         Column("revision", PrimitiveType.INT64),
@@ -1061,13 +772,6 @@ IDENTITY_TABLE = Table(
         Column("type_ck", PrimitiveType.UUID),
         Column("type_bench_id", PrimitiveType.UUID),
     ),
-    constraints=(
-        Constraint(
-            "bench_check_one_parent",
-            ConstraintType.CHECK,
-            condition="(parent_block_id IS NOT NULL) OR (parent_membership_id IS NOT NULL) OR (parent_user_id IS NOT NULL)",
-        ),
-    ),
 )
 
 MEMBERSHIP_TABLE = Table(
@@ -1075,13 +779,7 @@ MEMBERSHIP_TABLE = Table(
     (
         Column("id", PrimitiveType.UUID, is_primary_key=True),
         Column("ck", PrimitiveType.UUID),
-        Column(
-            "parent_package_id",
-            PrimitiveType.UUID,
-            is_foreign_key_to="bench_package",
-            on_delete=CascadeAction.CASCADE,
-            is_nullable=True,
-        ),
+        Column("parent_id", PrimitiveType.UUID),
         Column("package_id", PrimitiveType.UUID),
         Column("bench_id", PrimitiveType.UUID),
         Column("revision", PrimitiveType.INT64),
@@ -1101,13 +799,6 @@ MEMBERSHIP_TABLE = Table(
         Column("user_id", PrimitiveType.UUID),
         Column("is_owner", PrimitiveType.BOOLEAN, default="false"),
     ),
-    constraints=(
-        Constraint(
-            "bench_check_one_parent",
-            ConstraintType.CHECK,
-            condition="(parent_package_id IS NOT NULL)",
-        ),
-    ),
 )
 
 INVITE_TABLE = Table(
@@ -1115,13 +806,7 @@ INVITE_TABLE = Table(
     (
         Column("id", PrimitiveType.UUID, is_primary_key=True),
         Column("ck", PrimitiveType.UUID),
-        Column(
-            "parent_package_id",
-            PrimitiveType.UUID,
-            is_foreign_key_to="bench_package",
-            on_delete=CascadeAction.CASCADE,
-            is_nullable=True,
-        ),
+        Column("parent_id", PrimitiveType.UUID),
         Column("package_id", PrimitiveType.UUID),
         Column("bench_id", PrimitiveType.UUID),
         Column("revision", PrimitiveType.INT64),
@@ -1145,20 +830,13 @@ INVITE_TABLE = Table(
         Column("roles_ck", PrimitiveType.UUID, is_array=True, is_nullable=True),
         Column("roles_bench_id", PrimitiveType.UUID, is_array=True, is_nullable=True),
     ),
-    constraints=(
-        Constraint(
-            "bench_check_one_parent",
-            ConstraintType.CHECK,
-            condition="(parent_package_id IS NOT NULL)",
-        ),
-    ),
 )
 
 SESSION_TABLE = Table(
     "bench_session",
     (
         Column("id", PrimitiveType.UUID, is_primary_key=True),
-        Column("parent_package_id", PrimitiveType.UUID, is_nullable=True),
+        Column("parent_id", PrimitiveType.UUID),
         Column("package_id", PrimitiveType.UUID),
         Column("bench_id", PrimitiveType.UUID),
         Column("revision", PrimitiveType.INT64),
@@ -1195,27 +873,15 @@ SESSION_TABLE = Table(
         ),
         Index("bench_idx_status", IndexType.BTREE, ("status",)),
     ),
-    constraints=(
-        Constraint(
-            "bench_check_one_parent",
-            ConstraintType.CHECK,
-            condition="(parent_package_id IS NOT NULL)",
-        ),
-    ),
 )
 
 RUN_TABLE = Table(
     "bench_run",
     (
         Column("id", PrimitiveType.UUID, is_primary_key=True),
-        Column("parent_package_id", PrimitiveType.UUID, is_nullable=True),
-        Column(
-            "parent_run_id",
-            PrimitiveType.UUID,
-            is_foreign_key_to="bench_run",
-            on_delete=CascadeAction.CASCADE,
-            is_nullable=True,
-        ),
+        Column("parent_id", PrimitiveType.UUID),
+        Column("parent_type", PrimitiveType.INT16),
+        Column("parent_base_ck", PrimitiveType.UUID, is_nullable=True),
         Column("package_id", PrimitiveType.UUID),
         Column("bench_id", PrimitiveType.UUID),
         Column("revision", PrimitiveType.INT64),
@@ -1276,20 +942,13 @@ RUN_TABLE = Table(
             "bench_idx_package_id_created_epoch", IndexType.BTREE, ("package_id", "created_epoch")
         ),
     ),
-    constraints=(
-        Constraint(
-            "bench_check_one_parent",
-            ConstraintType.CHECK,
-            condition="(parent_package_id IS NOT NULL) OR (parent_run_id IS NOT NULL)",
-        ),
-    ),
 )
 
 SIGNAL_TABLE = Table(
     "bench_signal",
     (
         Column("id", PrimitiveType.UUID, is_primary_key=True),
-        Column("parent_package_id", PrimitiveType.UUID, is_nullable=True),
+        Column("parent_id", PrimitiveType.UUID),
         Column("package_id", PrimitiveType.UUID),
         Column("bench_id", PrimitiveType.UUID),
         Column("revision", PrimitiveType.INT64),
@@ -1334,20 +993,13 @@ SIGNAL_TABLE = Table(
             "bench_idx_package_id_created_epoch", IndexType.BTREE, ("package_id", "created_epoch")
         ),
     ),
-    constraints=(
-        Constraint(
-            "bench_check_one_parent",
-            ConstraintType.CHECK,
-            condition="(parent_package_id IS NOT NULL)",
-        ),
-    ),
 )
 
 LOG_TABLE = Table(
     "bench_log",
     (
         Column("id", PrimitiveType.UUID, is_primary_key=True),
-        Column("parent_package_id", PrimitiveType.UUID, is_nullable=True),
+        Column("parent_id", PrimitiveType.UUID),
         Column("package_id", PrimitiveType.UUID),
         Column("bench_id", PrimitiveType.UUID),
         Column("revision", PrimitiveType.INT64),
@@ -1402,20 +1054,13 @@ LOG_TABLE = Table(
             "bench_idx_package_id_created_epoch", IndexType.BTREE, ("package_id", "created_epoch")
         ),
     ),
-    constraints=(
-        Constraint(
-            "bench_check_one_parent",
-            ConstraintType.CHECK,
-            condition="(parent_package_id IS NOT NULL)",
-        ),
-    ),
 )
 
 NOTIFICATION_TABLE = Table(
     "bench_notification",
     (
         Column("id", PrimitiveType.UUID, is_primary_key=True),
-        Column("parent_package_id", PrimitiveType.UUID, is_nullable=True),
+        Column("parent_id", PrimitiveType.UUID),
         Column("package_id", PrimitiveType.UUID),
         Column("bench_id", PrimitiveType.UUID),
         Column("revision", PrimitiveType.INT64),
@@ -1465,28 +1110,16 @@ NOTIFICATION_TABLE = Table(
             "bench_idx_package_id_created_epoch", IndexType.BTREE, ("package_id", "created_epoch")
         ),
     ),
-    constraints=(
-        Constraint(
-            "bench_check_one_parent",
-            ConstraintType.CHECK,
-            condition="(parent_package_id IS NOT NULL)",
-        ),
-    ),
 )
 
 MESSAGE_TABLE = Table(
     "bench_message",
     (
         Column("id", PrimitiveType.UUID, is_primary_key=True),
-        Column("parent_package_id", PrimitiveType.UUID, is_nullable=True),
-        Column("parent_block_id", PrimitiveType.UUID, is_nullable=True),
-        Column(
-            "parent_message_id",
-            PrimitiveType.UUID,
-            is_foreign_key_to="bench_message",
-            on_delete=CascadeAction.CASCADE,
-            is_nullable=True,
-        ),
+        Column("parent_id", PrimitiveType.UUID),
+        Column("parent_ck", PrimitiveType.UUID),
+        Column("parent_type", PrimitiveType.INT16),
+        Column("parent_base_ck", PrimitiveType.UUID, is_nullable=True),
         Column("package_id", PrimitiveType.UUID),
         Column("bench_id", PrimitiveType.UUID),
         Column("revision", PrimitiveType.INT64),
@@ -1540,26 +1173,13 @@ MESSAGE_TABLE = Table(
             "bench_idx_package_id_created_epoch", IndexType.BTREE, ("package_id", "created_epoch")
         ),
     ),
-    constraints=(
-        Constraint(
-            "bench_check_one_parent",
-            ConstraintType.CHECK,
-            condition="(parent_package_id IS NOT NULL) OR (parent_block_id IS NOT NULL) OR (parent_message_id IS NOT NULL)",
-        ),
-    ),
 )
 
 SERVER_TABLE = Table(
     "bench_server",
     (
         Column("id", PrimitiveType.UUID, is_primary_key=True),
-        Column(
-            "parent_bench_id",
-            PrimitiveType.UUID,
-            is_foreign_key_to="bench_bench",
-            on_delete=CascadeAction.CASCADE,
-            is_nullable=True,
-        ),
+        Column("parent_id", PrimitiveType.UUID),
         Column("bench_id", PrimitiveType.UUID),
         Column("revision", PrimitiveType.INT64),
         Column("created_at", PrimitiveType.DATETIME),
@@ -1585,26 +1205,13 @@ SERVER_TABLE = Table(
         Column("active_at", PrimitiveType.DATETIME, is_nullable=True),
         Column("bumped_at", PrimitiveType.DATETIME, is_nullable=True),
     ),
-    constraints=(
-        Constraint(
-            "bench_check_one_parent",
-            ConstraintType.CHECK,
-            condition="(parent_bench_id IS NOT NULL)",
-        ),
-    ),
 )
 
 STORE_TABLE = Table(
     "bench_store",
     (
         Column("id", PrimitiveType.UUID, is_primary_key=True),
-        Column(
-            "parent_bench_id",
-            PrimitiveType.UUID,
-            is_foreign_key_to="bench_bench",
-            on_delete=CascadeAction.CASCADE,
-            is_nullable=True,
-        ),
+        Column("parent_id", PrimitiveType.UUID),
         Column("bench_id", PrimitiveType.UUID),
         Column("revision", PrimitiveType.INT64),
         Column("created_at", PrimitiveType.DATETIME),
@@ -1629,26 +1236,13 @@ STORE_TABLE = Table(
         Column("external_id", PrimitiveType.STRING, is_nullable=True),
         Column("connection_uri", PrimitiveType.STRING, is_nullable=True, is_encrypted=True),
     ),
-    constraints=(
-        Constraint(
-            "bench_check_one_parent",
-            ConstraintType.CHECK,
-            condition="(parent_bench_id IS NOT NULL)",
-        ),
-    ),
 )
 
 MACHINE_TABLE = Table(
     "bench_machine",
     (
         Column("id", PrimitiveType.UUID, is_primary_key=True),
-        Column(
-            "parent_server_id",
-            PrimitiveType.UUID,
-            is_foreign_key_to="bench_server",
-            on_delete=CascadeAction.CASCADE,
-            is_nullable=True,
-        ),
+        Column("parent_id", PrimitiveType.UUID),
         Column("bench_id", PrimitiveType.UUID),
         Column("revision", PrimitiveType.INT64),
         Column("created_at", PrimitiveType.DATETIME),
@@ -1678,26 +1272,13 @@ MACHINE_TABLE = Table(
         Column("terminated_at", PrimitiveType.DATETIME, is_nullable=True),
         Column("active_at", PrimitiveType.DATETIME, is_nullable=True),
     ),
-    constraints=(
-        Constraint(
-            "bench_check_one_parent",
-            ConstraintType.CHECK,
-            condition="(parent_server_id IS NOT NULL)",
-        ),
-    ),
 )
 
 DRIVE_TABLE = Table(
     "bench_drive",
     (
         Column("id", PrimitiveType.UUID, is_primary_key=True),
-        Column(
-            "parent_bench_id",
-            PrimitiveType.UUID,
-            is_foreign_key_to="bench_bench",
-            on_delete=CascadeAction.CASCADE,
-            is_nullable=True,
-        ),
+        Column("parent_id", PrimitiveType.UUID),
         Column("bench_id", PrimitiveType.UUID),
         Column("revision", PrimitiveType.INT64),
         Column("created_at", PrimitiveType.DATETIME),
@@ -1717,26 +1298,13 @@ DRIVE_TABLE = Table(
         Column("region", PrimitiveType.INT16),
         Column("status", PrimitiveType.INT16, default="1"),
     ),
-    constraints=(
-        Constraint(
-            "bench_check_one_parent",
-            ConstraintType.CHECK,
-            condition="(parent_bench_id IS NOT NULL)",
-        ),
-    ),
 )
 
 BLOB_TABLE = Table(
     "bench_blob",
     (
         Column("id", PrimitiveType.UUID, is_primary_key=True),
-        Column(
-            "parent_drive_id",
-            PrimitiveType.UUID,
-            is_foreign_key_to="bench_drive",
-            on_delete=CascadeAction.CASCADE,
-            is_nullable=True,
-        ),
+        Column("parent_id", PrimitiveType.UUID),
         Column("bench_id", PrimitiveType.UUID),
         Column("revision", PrimitiveType.INT64),
         Column("created_at", PrimitiveType.DATETIME),
@@ -1763,23 +1331,15 @@ BLOB_TABLE = Table(
     ),
     indexes=(
         Index(
-            "bench_idx_parent_drive_id_sha512",
-            IndexType.BTREE,
-            ("parent_drive_id", "sha512"),
-            is_unique=True,
+            "bench_idx_parent_id_sha512", IndexType.BTREE, ("parent_id", "sha512"), is_unique=True
         ),
     ),
     constraints=(
         Constraint(
-            "bench_idx_parent_drive_id_sha512",
+            "bench_idx_parent_id_sha512",
             ConstraintType.UNIQUE,
-            columns=("parent_drive_id", "sha512"),
-            index="bench_idx_parent_drive_id_sha512",
-        ),
-        Constraint(
-            "bench_check_one_parent",
-            ConstraintType.CHECK,
-            condition="(parent_drive_id IS NOT NULL)",
+            columns=("parent_id", "sha512"),
+            index="bench_idx_parent_id_sha512",
         ),
     ),
 )
@@ -1788,27 +1348,8 @@ HANDLE_TABLE = Table(
     "bench_handle",
     (
         Column("id", PrimitiveType.UUID, is_primary_key=True),
-        Column(
-            "parent_user_id",
-            PrimitiveType.UUID,
-            is_foreign_key_to="bench_user",
-            on_delete=CascadeAction.CASCADE,
-            is_nullable=True,
-        ),
-        Column(
-            "parent_organization_id",
-            PrimitiveType.UUID,
-            is_foreign_key_to="bench_organization",
-            on_delete=CascadeAction.CASCADE,
-            is_nullable=True,
-        ),
-        Column(
-            "parent_bench_id",
-            PrimitiveType.UUID,
-            is_foreign_key_to="bench_bench",
-            on_delete=CascadeAction.CASCADE,
-            is_nullable=True,
-        ),
+        Column("parent_id", PrimitiveType.UUID),
+        Column("parent_type", PrimitiveType.INT16),
         Column("bench_id", PrimitiveType.UUID, is_nullable=True),
         Column("revision", PrimitiveType.INT64),
         Column("created_at", PrimitiveType.DATETIME),
@@ -1834,11 +1375,6 @@ HANDLE_TABLE = Table(
         ),
         Constraint(
             "bench_idx_slug", ConstraintType.UNIQUE, columns=("slug",), index="bench_idx_slug"
-        ),
-        Constraint(
-            "bench_check_one_parent",
-            ConstraintType.CHECK,
-            condition="(parent_user_id IS NOT NULL) OR (parent_organization_id IS NOT NULL) OR (parent_bench_id IS NOT NULL)",
         ),
     ),
 )
@@ -1946,20 +1482,8 @@ CLIENT_TABLE = Table(
     "bench_client",
     (
         Column("id", PrimitiveType.UUID, is_primary_key=True),
-        Column(
-            "parent_user_id",
-            PrimitiveType.UUID,
-            is_foreign_key_to="bench_user",
-            on_delete=CascadeAction.CASCADE,
-            is_nullable=True,
-        ),
-        Column(
-            "parent_server_id",
-            PrimitiveType.UUID,
-            is_foreign_key_to="bench_server",
-            on_delete=CascadeAction.CASCADE,
-            is_nullable=True,
-        ),
+        Column("parent_id", PrimitiveType.UUID),
+        Column("parent_type", PrimitiveType.INT16),
         Column("bench_id", PrimitiveType.UUID, is_nullable=True),
         Column("revision", PrimitiveType.INT64),
         Column("created_at", PrimitiveType.DATETIME),
@@ -2004,11 +1528,6 @@ CLIENT_TABLE = Table(
             ConstraintType.UNIQUE,
             columns=("access_token",),
             index="bench_idx_access_token",
-        ),
-        Constraint(
-            "bench_check_one_parent",
-            ConstraintType.CHECK,
-            condition="(parent_user_id IS NOT NULL) OR (parent_server_id IS NOT NULL)",
         ),
     ),
 )

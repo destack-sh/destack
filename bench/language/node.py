@@ -219,11 +219,11 @@ _CORE_TYPES = ("Struct", "Node")
 
 def _process_struct_base_cls(
     cls: type[_StructT],
-    reserved: set[str | int] | None = None,
     # for nodes only
     is_final: bool = False,
     is_sub_package: bool = False,
     is_sub_bench: bool = False,
+    is_root: bool = False,
     is_variable_root: bool = False,
     no_ck: bool = False,
     # for structs only
@@ -335,7 +335,7 @@ def _process_struct_base_cls(
             ReferenceKind.STRUCT_PARENT,
             ReferenceKind.PROPERTY,
         ):
-            for p in prop._contribute_ptrs(is_inlined=is_inlined):
+            for p in prop._contribute_ptrs(is_root=is_root, is_inlined=is_inlined):
                 if p.name in properties_by_name:
                     raise ValueError(
                         f"property conflict '{p.name}': {p!r}, {properties_by_name[prop.name]!r}"
@@ -530,7 +530,6 @@ _StructT = TypeVar("_StructT", bound="Struct")
 @dataclass_transform(kw_only_default=True, field_specifiers=_PROPERTY_SPECIFIERS)
 def struct_component(
     struct_type: StructType | None = None,
-    reserved: set[str | int] | None = None,
     is_final: bool = False,
     is_inlined: bool = False,
 ):
@@ -540,7 +539,7 @@ def struct_component(
 
     def decorate(cls_in: Type[_StructT]) -> Type[_StructT]:
         cls, _properties = _process_struct_base_cls(
-            cls=cast(Any, cls_in), reserved=reserved, is_final=is_final, is_inlined=is_inlined
+            cls=cast(Any, cls_in), is_final=is_final, is_inlined=is_inlined
         )
 
         # register struct
@@ -557,15 +556,9 @@ def struct_component(
 
 
 @dataclass_transform(kw_only_default=True, field_specifiers=_PROPERTY_SPECIFIERS)
-def struct(
-    struct_type: StructType,
-    reserved: set[str | int] | None = None,
-    inline: bool = False,
-):
+def struct(struct_type: StructType, inline: bool = False):
     def decorate(cls: Type[_StructT]) -> Type[_StructT]:
-        cls = struct_component(
-            struct_type=struct_type, reserved=reserved, is_final=True, is_inlined=inline
-        )(cls)
+        cls = struct_component(struct_type=struct_type, is_final=True, is_inlined=inline)(cls)
         return cls
 
     return decorate
@@ -578,7 +571,7 @@ _NodeT = TypeVar("_NodeT", bound="Node")
 def node_component(
     node_type: NodeType | None = None,
     passthrough: str | None = None,
-    reserved: set[str | int] | None = None,
+    is_root: bool = False,
     is_variable_root: bool = False,
     is_sub_package: bool = False,
     is_sub_bench: bool = False,
@@ -593,7 +586,7 @@ def node_component(
     def decorate(cls: Type[_NodeT]) -> Type[_NodeT]:
         cls, properties = _process_struct_base_cls(
             cls=cls,
-            reserved=reserved,
+            is_root=is_root,
             is_variable_root=is_variable_root,
             is_sub_bench=is_sub_bench,
             is_sub_package=is_sub_package,
@@ -642,7 +635,6 @@ def node(
     no_ck: bool = False,
     local: bool = False,
     roots: tuple[NodeType, ...] = (NodeType.BENCH,),
-    reserved: set[str | int] | None = None,
     constraints: tuple[Constraint, ...] = (),
     indexes: tuple[Index | tuple[str, ...], ...] = (),
     unique: tuple[tuple[str, ...], ...] = (),
@@ -663,7 +655,7 @@ def node(
         cls = node_component(
             node_type=node_type,
             passthrough=passthrough,
-            reserved=reserved,
+            is_root=len(roots) == 0,
             is_variable_root=len(roots) > 1,
             is_sub_bench=sub_bench,
             is_sub_package=sub_package,

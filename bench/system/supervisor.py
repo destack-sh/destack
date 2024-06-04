@@ -18,7 +18,7 @@ from bench.proto import wiring
 from bench.proto.wire import (
     ChangeUserPasswordRequest,
     ChangeUserPasswordResponse,
-    ClientData,
+    ClientDataIn,
     CreateBenchRequest,
     CreateBenchResponse,
     GetHostRequest,
@@ -39,6 +39,7 @@ from bench.system.access import (
     check_password,
     get_client_cached,
     hash_password,
+    prune_client_cache,
 )
 from bench.system.core import GLOBAL_POSTGRES_ENGINE, global_session
 from bench.system.graph import GraphIoServiceBase
@@ -106,7 +107,7 @@ class Supervisor(GraphIoServiceBase, SupervisorBase):
     # User management
     #
 
-    async def _make_client(self, user: User, client_data: ClientData) -> Client:
+    async def _make_client(self, user: User, client_data: ClientDataIn) -> Client:
         """Maps the given client info to a Client instance, trying to preserve a stable identity."""
         if client_data.id:
             client_id = UUID(client_data.id)
@@ -120,16 +121,14 @@ class Supervisor(GraphIoServiceBase, SupervisorBase):
         client = Client(
             id=client_id or uuid4(),
             parent=user,
-            type=cast(ClientType, client_data.type),
             name=name,
-            device_name=client_data.device_name,
-            device_type=client_data.device_type,
-            operating_system=client_data.operating_system,
-            browser_name=client_data.browser_name,
-            browser_version=client_data.browser_version,
-            seen_at=utcnow(),
+            type=cast(ClientType, client_data.type),
             _is_new=True,  # force create
         )
+        # copy over other properties
+        for key, value in client_data.__dict__.items():
+            if key not in ("id", "name") and key in client.__properties__:
+                setattr(client, key, value)
         return client
 
     @override
@@ -316,6 +315,9 @@ class Supervisor(GraphIoServiceBase, SupervisorBase):
 
             await session.commit()
 
+        if isinstance(owner, User):
+            # update user with new bench (supervisor and host may be in same process)
+            prune_client_cache(owner)
         logger.info("supervisor.create_bench", bench=bench, span="current")
         return CreateBenchResponse(bench=bench._to_data())
 

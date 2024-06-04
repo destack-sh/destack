@@ -141,13 +141,27 @@ service GraphIO {
 // Supervisor
 //
 
+message ClientDataIn {
+  optional string id = 2;
+  ClientType type = 30;
+  string name = 32;
+  optional string device_type = 40;
+  optional string device_name = 41;
+  optional string operating_system = 42;
+  optional string browser_name = 43;
+  optional string browser_version = 44;
+  optional string place_id = 45;
+  optional string access_token = 50;
+  optional NodeReferenceData space_ptr = 60;
+}
+
 message SignupUserRequest {
   optional string id = 1;
   string slug = 2;
   optional string name = 3;
   string email = 4 [(sensitive) = true];
   string password = 5 [(sensitive) = true];
-  ClientData client = 6;
+  ClientDataIn client = 6;
 }
 message SignupUserResponse {
   UserData user = 1;
@@ -171,7 +185,7 @@ message LoginUserRequest {
     string email = 3 [(sensitive) = true];
   }
   string password = 4 [(sensitive) = true];
-  ClientData client = 5;
+  ClientDataIn client = 5;
 }
 message LoginUserResponse {
   UserData user = 1;

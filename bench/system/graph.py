@@ -269,9 +269,12 @@ class GraphIoServiceBase(ServiceBase, GraphIoBase):
     def _prepare_commit(self, subject: Subject, edits: list[EditData]) -> tuple["CommitScope", int]:
         scope = parse_commit_scope(edits, base_graph=None)
         now = utcnow()
+        epoch = self.epoch
         for edit in edits:
             validate_edit(edit, subject, now)
-        return scope, self.epoch + 1
+            epoch += 1
+            edit.epoch = epoch
+        return scope, epoch
 
     @override
     async def commit_transaction(
@@ -564,10 +567,9 @@ def parse_commit_scope(
                 )
                 assert new_node.parent_ptr is not None, f"missing parent for {new_node}"
                 node_scopes_by_id[cast(str, new_node.parent_ptr.id)] = new_node.parent_ptr
-        if node_type in BASED_NODE_TYPES:
+        if node_type in BASED_NODE_TYPES and edit.node_ptr.base_ck is not None:
             # also add base as node scope
             assert base_graph is not None, f"missing base graph for {edit!r}"
-            assert edit.node_ptr.base_ck is not None, f"{edit.node_ptr!r} missing base for {edit!r}"
             node_cls = cast(type[BasedNode], NODE_CLASS_BY_TYPE[node_type])
             # add current base (base is immutable)
             old_base_node = base_graph.get(edit.node_ptr.base_ck)
