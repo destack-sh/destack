@@ -31,6 +31,7 @@ from bench.language.graph import NodeDataGraph, NodeDict, NodeGraphLike
 from bench.language.node import EDIT_SUBJECT_TYPES, BasedNode, Node, is_implicit_node_property
 from bench.language.property import Property
 from bench.language.query import QueryBuilder
+from bench.language.session import SessionContext
 from bench.language.setup import NODE_CLASS_BY_TYPE
 from bench.language.transaction import edit_data_graph, unpack_node_delta
 from bench.language.validation import ValidationError, on_invalid_raise
@@ -266,7 +267,10 @@ class GraphIoServiceBase(ServiceBase, GraphIoBase):
         self.logger.debug("graph.aggregate", subject=subject, epoch=self.epoch, span="current")
         return AggregateNodesResponse(aggregation=result.aggregation, epoch=self.epoch)
 
-    def _prepare_commit(self, subject: Subject, edits: list[EditData]) -> tuple["CommitScope", int]:
+    def _prepare_commit(
+        self, subject: Subject, context: SessionContext, edits: list[EditData]
+    ) -> tuple["CommitScope", int]:
+        """Prepares and validates the edits for a commit."""
         scope = parse_commit_scope(edits, base_graph=None)
         now = utcnow()
         epoch = self.epoch
@@ -277,19 +281,73 @@ class GraphIoServiceBase(ServiceBase, GraphIoBase):
         return scope, epoch
 
     @override
+    async def watch_edits(
+        self, subject: Subject, request: "WatchEditsRequest"
+    ) -> AsyncIterator["WatchEditsResponse"]:
+        if not request.node_types:
+            raise GRPCError(GRPCStatus.INVALID_ARGUMENT, "no node types provided")
+        node_types = bittuple(*tuple(wiring.unpack_enum(NodeType, t) for t in request.node_types))
+        filters: dict[NodeType, Expression] = {
+            wiring.unpack_enum(NodeType, k): cast(Expression, wiring.unpack_struct_interp(v))
+            for k, v in request.filters.items()
+        }
+        watcher = EditWatcher(subject=subject, node_types=node_types, filters=filters)
+        self.watchers.append(watcher)
+
+        try:
+            # replay recent epochs
+            if request.since_epoch is not None and request.since_epoch > self.epoch:
+                raise GRPCError(GRPCStatus.INVALID_ARGUMENT, "can't watch from the future")
+            if request.since_epoch is not None:
+                num_epochs_to_replay = self.epoch - request.since_epoch
+                if num_epochs_to_replay > TRANSACTION_BUFFER_SIZE:
+                    raise GRPCError(GRPCStatus.INVALID_ARGUMENT, "too much to replay")
+                commits_to_replay = []
+                for epoch, edits, cascaded_edits in reversed(self.recent_transactions):
+                    if epoch <= request.since_epoch:
+                        break
+                    edits = self._filter_and_adapt_edits(watcher, edits)
+                    cascaded_edits = self._filter_and_adapt_edits(watcher, cascaded_edits)
+                    commits_to_replay.append((epoch, edits, cascaded_edits))
+                if commits_to_replay:
+                    self.logger.info(
+                        "graph.watch.replay", watcher=watcher, commits=commits_to_replay
+                    )
+                    for epoch, edits, cascaded_edits in commits_to_replay:
+                        yield WatchEditsResponse(
+                            edits=edits, cascaded_edits=cascaded_edits, epoch=epoch
+                        )
+
+            # listen for new epochs
+            self.logger.info("graph.watch", watcher=watcher, span="current")
+            while True:
+                epoch = await watcher.sink.get()
+                yield WatchEditsResponse(edits=epoch.edits, epoch=epoch.epoch)
+        finally:
+            self.watchers.remove(watcher)
+
+    @override
     async def commit_transaction(
         self, subject: Subject, request: "CommitTransactionRequest"
     ) -> "CommitTransactionResponse":
         assert subject.client is not None, f"no client for {subject!r}"
 
+        # figure out context
+        context = wiring.unpack_struct_interp_maybe(request.context, expect=SessionContext)
+        if context is None:
+            context = SessionContext(
+                client=subject.client,
+                server=subject.server,
+                user=subject.user,
+            )
+
         # NOTE :Performance: obviously, putting a big lock around commit is not ideal
         #  but we have to guarantee absolute order and integrity of any loaded graphs (in Host)
         # We can probably optimize this by only locking some tighter critical sections
-        #  if we rollback somehow if the actual commit (outside the lock) fails.
-        # For now it's fine.
+        #  if we rollback somehow if the actual commit (outside the lock) fails... maybe.
         async with self.tx_lock:
             # pre-validate/prepare edits
-            scope, epoch = self._prepare_commit(subject, request.edits)
+            scope, epoch = self._prepare_commit(subject, context, request.edits)
 
             async with self.request_session(readonly=False, system_commit=False) as session:
                 # read the affected nodes into a single graph for evaluation
@@ -336,19 +394,20 @@ class GraphIoServiceBase(ServiceBase, GraphIoBase):
                         raise GRPCError(GRPCStatus.NOT_FOUND, f"{node_id} not found")
                     node_._validate_self(properties=(), invalid=on_invalid_raise)
 
-                # flush edits to get cascaded edits
+                # flush edits to get cascaded edits for extend
                 session.tx._add_pending_edits(request.edits)
                 _, cascaded_edits = await session.flush()
 
                 # extend commit
                 new_edits = await self.extend_commit(
                     session=session,
+                    context=context,
                     graph=unpacked_graph,
                     edits=request.edits,
                     cascaded_edits=cascaded_edits,
                 )
 
-                # actually commit
+                # actually commit (with new edits)
                 edits, cascaded_edits = await session.commit()
             session.untrack_many(*unpacked_graph.nodes)
 
@@ -388,7 +447,13 @@ class GraphIoServiceBase(ServiceBase, GraphIoBase):
             edits, cascaded_edits = await session._tx.flush()
 
             # extend commit
-            await self.extend_commit(session, edit_graph, edits, cascaded_edits)
+            await self.extend_commit(
+                session=session,
+                context=None,
+                graph=edit_graph,
+                edits=edits,
+                cascaded_edits=cascaded_edits,
+            )
 
             # commit
             edits, cascaded_edits = await session._tx.commit()
@@ -422,53 +487,10 @@ class GraphIoServiceBase(ServiceBase, GraphIoBase):
     ) -> "CancelTransactionResponse":
         raise GRPCError(GRPCStatus.UNIMPLEMENTED)  # :2PC
 
-    @override
-    async def watch_edits(
-        self, subject: Subject, request: "WatchEditsRequest"
-    ) -> AsyncIterator["WatchEditsResponse"]:
-        if not request.node_types:
-            raise GRPCError(GRPCStatus.INVALID_ARGUMENT, "no node types provided")
-        node_types = bittuple(*tuple(wiring.unpack_enum(NodeType, t) for t in request.node_types))
-        filters: dict[NodeType, Expression] = {
-            wiring.unpack_enum(NodeType, k): cast(Expression, wiring.unpack_struct_interp(v))
-            for k, v in request.filters.items()
-        }
-        watcher = EditWatcher(subject=subject, node_types=node_types, filters=filters)
-        self.watchers.append(watcher)
-
-        try:
-            # replay recent epochs
-            if request.since_epoch is not None and request.since_epoch > self.epoch:
-                raise GRPCError(GRPCStatus.INVALID_ARGUMENT, "can't watch from the future")
-            if request.since_epoch is not None:
-                num_epochs_to_replay = self.epoch - request.since_epoch
-                if num_epochs_to_replay > TRANSACTION_BUFFER_SIZE:
-                    raise GRPCError(GRPCStatus.INVALID_ARGUMENT, "too much to replay")
-                epochs_to_replay = []
-                for epoch, edits, cascaded_edits in reversed(self.recent_transactions):
-                    if epoch <= request.since_epoch:
-                        break
-                    edits = self._filter_and_adapt_edits(watcher, edits)
-                    cascaded_edits = self._filter_and_adapt_edits(watcher, cascaded_edits)
-                    epochs_to_replay.append((epoch, edits, cascaded_edits))
-                if epochs_to_replay:
-                    self.logger.info("graph.watch.replay", watcher=watcher, epochs=epochs_to_replay)
-                    for epoch, edits, cascaded_edits in epochs_to_replay:
-                        yield WatchEditsResponse(
-                            edits=edits, cascaded_edits=cascaded_edits, epoch=epoch
-                        )
-
-            # listen for new epochs
-            self.logger.info("graph.watch", watcher=watcher, span="current")
-            while True:
-                epoch = await watcher.sink.get()
-                yield WatchEditsResponse(edits=epoch.edits, epoch=epoch.epoch)
-        finally:
-            self.watchers.remove(watcher)
-
     async def extend_commit(
         self,
         session: Session,
+        context: SessionContext | None,
         graph: NodeGraphLike,
         edits: list[EditData],
         cascaded_edits: list[EditData],

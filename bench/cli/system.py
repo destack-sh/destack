@@ -71,7 +71,7 @@ async def provision(bench_slug: str):
 @app.command(name="make-server-client", help="gets or creates a server Client for a Bench")
 @async_to_sync_blocking
 async def make_server_client(bench_slug: str, name: str = "Localhost"):
-    async with global_session() as session:
+    async with global_session(epoch=0) as session:
         bench = (
             await Bench.descendants(NodeType.SERVER, NodeType.CLIENT)
             .select_all()
@@ -88,6 +88,7 @@ async def make_server_client(bench_slug: str, name: str = "Localhost"):
             )
 
         client_env = {
+            "BENCH_ID": str(bench.id),
             "CLIENT_TYPE": str(int(client.type)),
             "CLIENT_ID": str(client.id),
             "CLIENT_ACCESS_TOKEN": client.access_token,
