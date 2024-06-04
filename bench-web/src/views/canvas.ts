@@ -674,7 +674,7 @@ export class ViewCanvas {
         // no parent at all, reset space (got messed up somehow)
         log.info("canvas.repairCanvas", this.spacePtr.value);
         const space = this.graph.getOrError(this.spacePtr.value!);
-        parent = setupEmptyCanvas(tx, space).primary;
+        parent = createEmptyCanvas(tx, space).primary;
       }
 
       // create & focus
@@ -945,7 +945,7 @@ export function clearCanvas(tx: Transaction, graph: ReadNodeGraph, space: SpaceD
 }
 
 /** Sets up a minimal empty space with one root tab */
-export function setupEmptyCanvas(tx: Transaction, space: SpaceData): { primary: ViewData } {
+export function createEmptyCanvas(tx: Transaction, space: SpaceData): { primary: ViewData } {
   const window = makeMainWindow(space, tx);
   const primary = makeNode({
     metatype: NodeType.VIEW,
@@ -961,7 +961,7 @@ export function setupEmptyCanvas(tx: Transaction, space: SpaceData): { primary: 
 }
 
 /** Setups up the default three-frame canvas (side, primary, secondary views) */
-export function setupDefaultCanvas(
+export function createDefaultCanvas(
   tx: Transaction,
   space: SpaceData,
   options: { secondary: "split" | "side" | false } = { secondary: "split" },
