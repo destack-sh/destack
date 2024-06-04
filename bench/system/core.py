@@ -321,8 +321,8 @@ class HostPlugin[T: Node](abc.ABC):
         """After closing, wait for any stuff you need to wait for (if any)."""
         await self._tasks.wait_closed()
 
-    async def wait_step(self, timeout: float) -> None:  # noqa: B027
-        """Wait for any events in this logical 'step' to finish processing (if any)."""
+    async def wait_idle(self, timeout: float) -> None:  # noqa: B027
+        """Wait for any pending events to finish processing."""
         pass
 
     #
@@ -368,7 +368,7 @@ class DeferredHostPlugin[T: Node](HostPlugin, abc.ABC):
         pass
 
     @final
-    async def wait_step(self, timeout: float) -> None:
+    async def wait_idle(self, timeout: float) -> None:
         if self._commit_queue.empty():
             return  # NOTE :Robustness: not sure why we need this early exit, otherwise we stall
         try:

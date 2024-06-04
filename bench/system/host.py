@@ -51,9 +51,10 @@ from bench.system.core import (
     global_session,
     unpack_commit,
 )
-from bench.system.graph import GraphIoServiceBase
+from bench.system.graph import CommitScope, GraphIoServiceBase, parse_commit_scope, validate_edit
 from bench.system.provisioner import Provisioner, get_provisioners_for
 from bench.system.scheduler import QueueRunPlugin
+from bench.utils.dt import utcnow
 from bench.utils.func import to_uuid
 from bench.utils.utils import get_from_env_maybe
 from bench.utils.uuidt import UUIDT
@@ -388,7 +389,7 @@ class Host(GraphIoServiceBase, HostBase, HostSpec):
             self._plugins = (QueueRunPlugin(self, self._bench), *self._provisioners)
             await asyncio.gather(*(plugin.start() for plugin in self._plugins))
             # wait for plugins to finish processing any commits (and to error early)
-            await asyncio.gather(*(plugin.wait_step(timeout=10) for plugin in self._plugins))
+            await asyncio.gather(*(plugin.wait_idle(timeout=10) for plugin in self._plugins))
         logger.info(
             "host.start", host=self, epoch=self.epoch, plugins=self._plugins, span="current"
         )
@@ -403,6 +404,20 @@ class Host(GraphIoServiceBase, HostBase, HostSpec):
         await asyncio.gather(*(plugin.wait_closed() for plugin in self._plugins))
         if self._session is not None:
             await self._session.close()
+
+    @override
+    @tracer.start_as_current_span("host.prepare_commit")
+    def _prepare_commit(self, subject: Subject, edits: list[EditData]) -> tuple[CommitScope, int]:
+        assert self._main_package is not None, f"package not loaded in {self!r}"
+
+        scope = parse_commit_scope(edits, base_graph=self._main_package._data_graph)
+        now = utcnow()
+        epoch = self.epoch
+        for edit in edits:
+            validate_edit(edit, subject, now)
+            epoch += 1
+            edit.epoch = epoch
+        return scope, epoch
 
     @override
     @tracer.start_as_current_span("host.extend_commit")
@@ -451,7 +466,7 @@ class Host(GraphIoServiceBase, HostBase, HostSpec):
                 old_node_packed=edit.old_node_packed,
                 new_node_packed=edit.new_node_packed,
                 new_revision=edit.revision,
-                # TODO :Incomplete: log session context
+                # TODO :Incomplete!: add session context to Log
             )
             create_log_edit = EditData(
                 id=log_data.id,

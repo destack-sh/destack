@@ -116,3 +116,13 @@ class SignalTriggerPlugin(DeferredHostPlugin[Signal | Trigger]):
     """Process active Triggers when they receive Signals."""
 
     watch_types = bittuple(NodeType.SIGNAL, NodeType.TRIGGER)
+
+    ...
+
+
+class ScheduleTriggerPlugin(DeferredHostPlugin[Trigger]):
+    """Process active Triggers when their Schedule fires."""
+
+    watch_types = bittuple(NodeType.TRIGGER)
+
+    ...

@@ -620,9 +620,9 @@ export function createField(
 //  (in code and backend the entire ranges are available)
 export const EXPOSED_BLOCK_TYPES = [
   BlockType.PAGE,
-  BlockType.TEXT,
   BlockType.CLASS,
   BlockType.CHOICE,
+  BlockType.TEXT,
   BlockType.CODE,
   BlockType.VARIABLE,
 ];
