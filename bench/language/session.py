@@ -241,8 +241,8 @@ class Session(Node[SessionData]):
         self._is_suspended = False
         self._active_session_token = _active_session.set(self)
 
-    # TODO :Robustness: auto re-connect Session.flush/commit/...? on ConnectionFailedError
-    #  (need to replay all previous edits as well)
+    # TODO :Robustness!: auto re-connect Session.flush/commit/...? on ConnectionFailedError
+    #  (need to replay all previous edits, maybe do some other stuff?)
 
     @tracer.start_as_current_span("session.flush")
     async def flush(self, *, _skip_lock: bool = False) -> tuple[list[EditData], list[EditData]]:

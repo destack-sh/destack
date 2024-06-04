@@ -47,7 +47,7 @@ static_resources:
                   - name: envoy.filters.http.router
                     typed_config:
                       "@type": type.googleapis.com/envoy.extensions.filters.http.router.v3.Router
-          # tls to enable h2 (required for reliable grpc-web)
+          # tls to enable h2
           transport_socket:
             name: envoy.transport_sockets.tls
             typed_config:

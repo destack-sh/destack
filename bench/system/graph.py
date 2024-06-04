@@ -40,6 +40,7 @@ from bench.proto.wire import (
     AccessMatrixData,
     AggregateNodesRequest,
     AggregateNodesResponse,
+    AnyNodeData,
     CancelTransactionRequest,
     CancelTransactionResponse,
     CommitTransactionRequest,
@@ -265,34 +266,33 @@ class GraphIoServiceBase(ServiceBase, GraphIoBase):
         self.logger.debug("graph.aggregate", subject=subject, epoch=self.epoch, span="current")
         return AggregateNodesResponse(aggregation=result.aggregation, epoch=self.epoch)
 
+    def _prepare_commit(self, subject: Subject, edits: list[EditData]) -> tuple["CommitScope", int]:
+        scope = parse_commit_scope(edits, base_graph=None)
+        now = utcnow()
+        for edit in edits:
+            validate_edit(edit, subject, now)
+        return scope, self.epoch + 1
+
     @override
     async def commit_transaction(
         self, subject: Subject, request: "CommitTransactionRequest"
     ) -> "CommitTransactionResponse":
-        # pre-validate/prepare edits
-        with self.tracer.start_as_current_span("graph.commit.prevalidate"):
-            assert subject.client, f"{subject!r} has no client"
-            edit_scopes = parse_edit_scopes(request.edits)
-            now = utcnow()
-            # assign epochs
-            epoch = self.epoch
-            for edit in request.edits:
-                _validate_edit(edit, subject, now)  # and pre-validate!
-                epoch += 1
-                edit.epoch = epoch
+        assert subject.client is not None, f"no client for {subject!r}"
 
-        # process edits
         # NOTE :Performance: obviously, putting a big lock around commit is not ideal
         #  but we have to guarantee absolute order and integrity of any loaded graphs (in Host)
         # We can probably optimize this by only locking some tighter critical sections
         #  if we rollback somehow if the actual commit (outside the lock) fails.
         # For now it's fine.
         async with self.tx_lock:
+            # pre-validate/prepare edits
+            scope, epoch = self._prepare_commit(subject, request.edits)
+
             async with self.request_session(readonly=False, system_commit=False) as session:
                 # read the affected nodes into a single graph for evaluation
                 data_graph = NodeDataGraph()
                 with self.tracer.start_as_current_span("graph.commit.read"):
-                    for node_type, node_references in edit_scopes.scopes_by_type.items():
+                    for node_type, node_references in scope.scopes_by_type.items():
                         node_type = wiring.unpack_enum(NodeType, node_type)
                         # NOTE :Performance: select only properties required to evaluate edit (id/policies/...?)
                         options = adapt_read_options(subject, node_type, ReadOptions.all())
@@ -319,7 +319,7 @@ class GraphIoServiceBase(ServiceBase, GraphIoBase):
                         raise AccessError(accesses)
 
                 # apply edits in copy (to validate and get current 'old' values)
-                # TODO :Robustness: prevent circular parent/child references
+                # TODO :Robustness!: prevent circular parent/child references
                 edit_data_graph(
                     graph=data_graph,
                     edits=request.edits,
@@ -327,7 +327,7 @@ class GraphIoServiceBase(ServiceBase, GraphIoBase):
                     is_prepass=True,
                 )
                 unpacked_graph = wiring.unpack_node_graph(data_graph, parent=None, session=session)
-                for node_id in edit_scopes.edited_node_ids:
+                for node_id in scope.edited_node_ids:
                     node_ = unpacked_graph.get(UUID(node_id))
                     if node_ is None:
                         raise GRPCError(GRPCStatus.NOT_FOUND, f"{node_id} not found")
@@ -352,7 +352,7 @@ class GraphIoServiceBase(ServiceBase, GraphIoBase):
             # handle on commit
             self.epoch = epoch
             await self.on_commit(
-                graph=unpacked_graph, edits=edits, epoch=epoch, cascaded_edits=cascaded_edits
+                graph=unpacked_graph, edits=edits, cascaded_edits=cascaded_edits, epoch=self.epoch
             )
 
         self.logger.info(
@@ -396,7 +396,9 @@ class GraphIoServiceBase(ServiceBase, GraphIoBase):
 
         # handle on commit
         self.epoch = session.epoch
-        await self.on_commit(edit_graph, edits, self.epoch, cascaded_edits)
+        await self.on_commit(
+            edit_graph, edits=edits, cascaded_edits=cascaded_edits, epoch=self.epoch
+        )
         return edits, cascaded_edits
 
     @override
@@ -476,8 +478,8 @@ class GraphIoServiceBase(ServiceBase, GraphIoBase):
         self,
         graph: NodeGraphLike,
         edits: list[EditData],
-        epoch: int,
         cascaded_edits: list[EditData],
+        epoch: int,
     ):
         """Handle a commit in the request session."""
         self.recent_transactions.append(_Commit(self.epoch, edits, cascaded_edits))
@@ -510,15 +512,19 @@ class GraphIoServiceBase(ServiceBase, GraphIoBase):
         return adapted_edits
 
 
-class _EditScopes(NamedTuple):
+class CommitScope(NamedTuple):
+    """The scope of relevant nodes for a transaction."""
+
     edited_node_ids: set[str]
     scopes_by_type: dict[NodeType, list[NodeReference]]
     graph_scopes: tuple[GraphScope, ...]
 
 
-def parse_edit_scopes(edits: list[EditData]) -> _EditScopes:
+def parse_commit_scope(
+    edits: list[EditData], base_graph: NodeDataGraph[AnyNodeData] | None
+) -> CommitScope:
     """
-    Gets the specific nodes (scopes) and broader graph scopes that are edited.
+    Gets the specific nodes (scopes) and related nodes that are edited.
     :NodeEditScope
     """
     from bench.proto import wiring
@@ -534,16 +540,16 @@ def parse_edit_scopes(edits: list[EditData]) -> _EditScopes:
         edited_node_ids.add(node_id)
         if edit.type == EditType.CREATE or edit.type == EditType.UPSERT:
             assert edit.new_node_packed
-            node_data = unpack_node_delta(
+            new_node = unpack_node_delta(
                 edit.new_node_packed, node_type=node_type, only=(node_cls.__parent_property__,)
             )
             # node scope is parent since we don't have this node yet
-            if node_data.parent_ptr is None:
-                raise ValidationError(node_data, "can't create orphan")
-            elif node_data.parent_ptr.id not in node_scopes_by_id:
-                node_scope = node_data.parent_ptr
+            if new_node.parent_ptr is None:
+                raise ValidationError(new_node, "can't create orphan")
+            elif new_node.parent_ptr.id not in node_scopes_by_id:
+                node_scope = new_node.parent_ptr
             else:
-                node_scope = node_scopes_by_id[node_data.parent_ptr.id]
+                node_scope = node_scopes_by_id[new_node.parent_ptr.id]
             in_tx_created_nodes_ids.add(node_id)
         else:
             # node scope is the edited node itself
@@ -552,21 +558,22 @@ def parse_edit_scopes(edits: list[EditData]) -> _EditScopes:
             node_scope = edit.node_ptr
             if edit.type == EditType.MOVE:
                 # also add new parent to scope
-                assert edit.new_node_packed, f"missing new node for {edit}"
-                node_data = unpack_node_delta(
+                assert edit.new_node_packed, f"missing new node for {edit!r}"
+                new_node = unpack_node_delta(
                     edit.new_node_packed, node_type=node_type, only=(node_cls.__parent_property__,)
                 )
-                assert node_data.parent_ptr is not None, f"missing parent for {node_data}"
-                node_scopes_by_id[cast(str, node_data.parent_ptr.id)] = node_data.parent_ptr
+                assert new_node.parent_ptr is not None, f"missing parent for {new_node}"
+                node_scopes_by_id[cast(str, new_node.parent_ptr.id)] = new_node.parent_ptr
         if node_type in BASED_NODE_TYPES:
             # also add base as node scope
-            # NOTE :Performance: can we only unpack the required properties for based node types?
-            assert edit.new_node_packed, f"missing new node for {edit}"
-            node_data = unpack_node_delta(edit.new_node_packed, node_type=node_type)
+            assert base_graph is not None, f"missing base graph for {edit!r}"
+            assert edit.node_ptr.base_ck is not None, f"{edit.node_ptr!r} missing base for {edit!r}"
             node_cls = cast(type[BasedNode], NODE_CLASS_BY_TYPE[node_type])
-            base_ptr = node_cls.get_base_from_data(node_data)
-            if base_ptr is not None:
-                node_scopes_by_id[cast(str, base_ptr.id)] = base_ptr
+            # add current base (base is immutable)
+            old_base_node = base_graph.get(edit.node_ptr.base_ck)
+            if old_base_node is not None:
+                old_base_ptr = NodeReference.from_node_data(old_base_node)
+                node_scopes_by_id[cast(str, old_base_ptr.id)] = old_base_ptr
         node_scopes_by_id[node_id] = node_scope
 
         # graph scope
@@ -579,7 +586,7 @@ def parse_edit_scopes(edits: list[EditData]) -> _EditScopes:
         UUID(k): cast(NodeReference, wiring.unpack_struct(v)) for k, v in node_scopes_by_id.items()
     }
     node_scopes_by_type = group_by(node_scopes.values(), lambda n: n.type)
-    return _EditScopes(
+    return CommitScope(
         edited_node_ids=edited_node_ids,
         scopes_by_type=node_scopes_by_type,
         graph_scopes=tuple(graph_scopes.values()),
@@ -591,7 +598,7 @@ def _is_allowable_drift(dt: datetime, now: datetime) -> bool:
     return abs((now - dt).total_seconds()) <= MAX_TIME_DRIFT_SECONDS
 
 
-def _validate_edit(edit: EditData, subject: Subject, now: datetime) -> None:
+def validate_edit(edit: EditData, subject: Subject, now: datetime) -> None:
     """Checks the given edit for basic validity in isolation."""
     assert subject.client, f"{subject!r} has no client"
     node_cls = NODE_CLASS_BY_TYPE[cast(NodeType, edit.node_ptr.type)]

@@ -26,7 +26,7 @@ from bench.proto.wire import (
 from bench.system.test.conftest import UserHandle, make_existing_user_handle, make_new_user_handle
 from bench.utils.dt import utcnow
 
-# TODO :Robustness! :Test!: test GraphIO much more thoroughly (see for instance FoundationDB)
+# TODO :Robustness! :Test!: test GraphIO much more thoroughly (see hypothesis, FoundationDB, ...)
 
 logger = structlog.get_logger(__name__)
 

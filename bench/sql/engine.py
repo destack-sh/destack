@@ -1319,7 +1319,7 @@ async def pg_get_node_graph(
     roots: tuple[UUID, ...] | tuple[AnyNodeData, ...],
     options: ReadOptions,
     _graph: NodeDataGraph | None = None,
-) -> NodeDataGraph[AnyNodeData] | None:
+) -> NodeDataGraph[AnyNodeData]:
     """
     Reads regular nodes from the given PG database.
     Returns a graph of nodes that *may* contain the requested nodes.
@@ -1327,10 +1327,8 @@ async def pg_get_node_graph(
     """
     trace.get_current_span().set_attribute("node_type", root_type.bench_name)
 
+    assert roots, "no roots to select"
     visited_graph = _graph if _graph is not None else NodeDataGraph()
-
-    if not roots:
-        return visited_graph
 
     # get roots
     if isinstance(roots[0], UUID):
@@ -1343,7 +1341,7 @@ async def pg_get_node_graph(
             properties=options.select(root_type),
         )
         if not roots_result.nodes:
-            return None
+            return visited_graph
         root_nodes = roots_result.nodes
     else:  # already got nodes
         root_nodes = cast(tuple[AnyNodeData, ...], roots)
@@ -1469,7 +1467,7 @@ async def pg_search_node_graph(
             roots=roots.nodes,
             options=options,
         )
-        return roots, graph or NodeDataGraph()
+        return roots, graph
     else:
         # otherwise just select in one go
         roots = await pg_get_nodes(
