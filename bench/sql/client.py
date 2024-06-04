@@ -136,6 +136,7 @@ class PgStoreConnection:
     async def close(self) -> None:
         if self._pool is not None and self._conn is not None:
             await self._pool.putconn(self._conn)
+            self._conn = None
 
     async def __aenter__(self) -> psycopg.AsyncCursor:
         return await self.open()
