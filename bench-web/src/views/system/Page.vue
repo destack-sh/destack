@@ -498,6 +498,7 @@ defineExpose<ViewExposed>({ self, actions, focus });
                 hideDelay: 100,
                 small: true,
                 referenceMargin: 8,
+                group: 'page.footer',
               }"
               class="rounded px-2 py-1 text-base transition-colors duration-100 hover:bg-gray-100 hover:text-primary-900"
               :class="isFocusedAbsolute ? 'text-gray-600' : 'text-gray-400 group-hover/footer:text-gray-500'"
