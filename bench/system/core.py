@@ -217,8 +217,12 @@ def unpack_commit(
         node_type = NodeType(edit.node_ptr.type)
         edited_types[node_type.ord] = True
         # unpack
-        assert edit.new_node_packed, f"missing node data for {edit!r}"
-        node = unpack_node_delta(edit.new_node_packed, node_type=node_type)
+        if edit.type in (EditType.ARCHIVE, EditType.DELETE, EditType.ERASE):
+            assert edit.old_node_packed, f"missing old node data for {edit!r}"
+            node = unpack_node_delta(edit.old_node_packed, node_type=node_type)
+        else:
+            assert edit.new_node_packed, f"missing new node data for {edit!r}"
+            node = unpack_node_delta(edit.new_node_packed, node_type=node_type)
         assert node.parent_ptr, f"missing parent ptr for {node!r} in {edit!r}"
         parent_id = UUID(node.parent_ptr.id)
         for graph in graphs:

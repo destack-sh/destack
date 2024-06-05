@@ -95,6 +95,8 @@ class BenchHandle:
         )
         return Session(
             parent=self.package,
+            client=self.owner_handle.client,
+            user=self.owner_handle.user,
             _engines=engines,
             _supervisor=self._supervisor,
             _host=self._host,
@@ -216,7 +218,7 @@ async def test_activate_user(some_bench: BenchHandle):
 
 
 async def test_create_run(some_bench: BenchHandle):
-    # TODO :Test :Incomplete: test runs
+    # TODO :Test: test runs
     async with some_bench.session() as session:
         run = Run(
             parent=some_bench.package,
@@ -230,9 +232,3 @@ async def test_create_run(some_bench: BenchHandle):
         run = await Run.get(id=run.id)
         run = await Run.include_ancestors().get(id=run.id)
         ...
-
-
-@pytest.mark.skip()
-async def test_get_logs_for_edits(some_bench: BenchHandle) -> None:
-    # TODO :Test :Incomplete: test logs
-    pass

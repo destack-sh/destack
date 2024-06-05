@@ -158,7 +158,7 @@ const dockActions: Ref<Action[]> = computed(
           :class="[isOpen ? ' bg-gray-100' : '']"
           @click="toggle"
         >
-          <i class="fas fa-fort" />
+          <i class="fas fa-circle-notch" />
         </button>
       </template>
 

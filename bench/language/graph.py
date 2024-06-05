@@ -239,11 +239,11 @@ class NodeDataGraph(NodeGraphBase[NodeDataT, str]):
             self.nodes_by_ck.pop(getattr(node, "ck"), None)
         # descend
         if node.id in self.nodes_by_parent_id_and_type:
-            for child_type in self.nodes_by_parent_id_and_type[node.id]:
+            for child_type in tuple(self.nodes_by_parent_id_and_type[node.id]):
                 for child in tuple(self.nodes_by_parent_id_and_type[node.id][child_type]):
                     self.remove(child)
                 if node.id not in self.nodes_by_parent_id_and_type:
-                    break
+                    break  # may have been removed
 
     def _add_to_parent(self, node: NodeDataT):
         assert node.parent_ptr is not None, f"{node!r} has no parent"

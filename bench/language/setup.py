@@ -7,6 +7,7 @@ from bench.language.const import (
     _ENUM_CLASS_BY_TYPE,
     IN_BENCH_NODE_TYPES,
     IN_PACKAGE_NODE_TYPES,
+    LOCAL_NODE_TYPES,
     NODE_TYPES,
     STRUCT_TYPES,
     EnumType,
@@ -42,6 +43,7 @@ HAS_CHILD_NODE_TYPES: set[NodeType] = set()
 # transient parent/child
 ANCESTOR_NODE_TYPES: dict[NodeType, bittuple[NodeType]] = {}
 DESCENDANT_NODE_TYPES: dict[NodeType, bittuple[NodeType]] = {}
+DESCENDANT_NODE_TYPES_IN_STORE: dict[NodeType, bittuple[NodeType]] = {}
 
 _COMPLETED_SETUP = False
 
@@ -173,10 +175,15 @@ def _complete_bench_setup():
             descendant_types[node_type] |= descendant_types[new_child]
             new_children.extend(child_types[new_child] - descendant_types[node_type])
     global ANCESTOR_NODE_TYPES, DESCENDANT_NODE_TYPES, PARENT_NODE_TYPES, CHILD_NODE_TYPES
-    global HAS_CHILD_NODE_TYPES
+    global DESCENDANT_NODE_TYPES_IN_STORE, HAS_CHILD_NODE_TYPES
     for node_type in NODE_TYPES:
+        is_local = node_type in LOCAL_NODE_TYPES
         ANCESTOR_NODE_TYPES[node_type] = bittuple(*ancestor_types[node_type], enum_cls=NodeType)
         DESCENDANT_NODE_TYPES[node_type] = bittuple(*descendant_types[node_type], enum_cls=NodeType)
+        DESCENDANT_NODE_TYPES_IN_STORE[node_type] = bittuple(
+            *(t for t in descendant_types[node_type] if (t in LOCAL_NODE_TYPES) == (is_local)),
+            enum_cls=NodeType,
+        )
         PARENT_NODE_TYPES[node_type] = bittuple(*parent_types[node_type], enum_cls=NodeType)
         CHILD_NODE_TYPES[node_type] = bittuple(*child_types[node_type], enum_cls=NodeType)
         if child_types[node_type]:

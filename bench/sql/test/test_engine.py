@@ -20,9 +20,11 @@ from bench.language import (
     Server,
     ServerProfile,
 )
-from bench.language.const import ClientType, EnumType, NodeType
+from bench.language.const import ClientType, EnumType, NodeType, UserStatus
 from bench.language.field import TypeKind
+from bench.language.query import NodeNotFoundError
 from bench.language.test.fabricator import Fabricator
+from bench.language.user import User
 from bench.sql.client import pg_store_connection
 from bench.sql.core import GLOBAL_EXTENSIONS, Column, Schema, Table
 from bench.sql.engine import (
@@ -32,7 +34,7 @@ from bench.sql.engine import (
     pg_delete,
     pg_insert,
     pg_select,
-    pg_update_constant,
+    pg_update_static,
     pg_update_variable,
     pg_upsert,
 )
@@ -130,17 +132,17 @@ async def test_crud_rows(test_cur: psycopg.AsyncCursor, table: Table):
     initial_rows: tuple[RowIn, ...] = tuple(_generate_row(id) for id in range(0, 3))
     target_rows = list(initial_rows)
     db_rows = await pg_insert(
-        test_cur, table, _pg_adapt_rows(table, initial_rows), returning=table.columns
+        cur=test_cur, table=table, rows=_pg_adapt_rows(table, initial_rows), returning=table.columns
     )
     assert db_rows == target_rows
-    db_rows = await pg_select(test_cur, table, order_by=sql.SQL("id"))
+    db_rows = await pg_select(cur=test_cur, table=table, order_by=sql.SQL("id"))
     assert db_rows == target_rows
 
     # upsert
     upsert_rows: tuple[RowIn, ...] = tuple(_generate_row(id) for id in range(2, 5))
-    await pg_upsert(test_cur, table, _pg_adapt_rows(table, upsert_rows))
+    await pg_upsert(cur=test_cur, table=table, rows=_pg_adapt_rows(table, upsert_rows))
     target_rows = target_rows[:2] + list(upsert_rows)
-    db_rows = await pg_select(test_cur, table, order_by=sql.SQL("id"))
+    db_rows = await pg_select(cur=test_cur, table=table, order_by=sql.SQL("id"))
     assert db_rows == target_rows
 
     # update with dynamic values (only some columns are updated)
@@ -160,7 +162,7 @@ async def test_crud_rows(test_cur: psycopg.AsyncCursor, table: Table):
     assert db_rows is not None
     db_rows.sort(key=lambda r: cast(int, r["id"]))
     assert db_rows == target_rows[1:4]
-    db_rows = await pg_select(test_cur, table, order_by=sql.SQL("id"))
+    db_rows = await pg_select(cur=test_cur, table=table, order_by=sql.SQL("id"))
     assert db_rows == target_rows
 
     # update with fixed values
@@ -170,19 +172,22 @@ async def test_crud_rows(test_cur: psycopg.AsyncCursor, table: Table):
         if not column.is_primary_key and not column.is_array and i % 2 == 0
     }
     target_rows = [{**row, **static_value} for row in target_rows]
-    db_rows = await pg_update_constant(
-        test_cur, table, static_value=_pg_adapt_row(table, static_value), returning=table.columns
+    db_rows = await pg_update_static(
+        cur=test_cur,
+        table=table,
+        static_value=_pg_adapt_row(table, static_value),
+        returning=table.columns,
     )
     assert db_rows is not None
     db_rows.sort(key=lambda r: cast(int, r["id"]))
     assert db_rows == target_rows
-    db_rows = await pg_select(test_cur, table, order_by=sql.SQL("id"))
+    db_rows = await pg_select(cur=test_cur, table=table, order_by=sql.SQL("id"))
     assert db_rows == target_rows
 
     # delete
-    await pg_delete(test_cur, table, where=sql.SQL("id > 3"))
+    await pg_delete(cur=test_cur, table=table, where=sql.SQL("id > 3"))
     target_rows = target_rows[:4]
-    db_rows = await pg_select(test_cur, table, order_by=sql.SQL("id"))
+    db_rows = await pg_select(cur=test_cur, table=table, order_by=sql.SQL("id"))
     assert db_rows is not None
     db_rows.sort(key=lambda r: cast(int, r["id"]))
     assert db_rows == target_rows
@@ -238,3 +243,52 @@ async def test_crud_node_pointers(fabricator: "Fabricator"):
         assert block_1.to_ref().equals_content(
             NodeReference(type=NodeType.BLOCK, id=block_1.id, ck=block_1.ck, bench_id=bench.id)
         )
+
+
+async def test_cascade_edits():
+    # NOTE :Test: this is a placeholder test until we test graphs & edits more deeply (hypothesis?)
+    async with global_session() as session:
+        user_1 = User(
+            name="Rabbit", slug="rabbit", status=UserStatus.REGISTERED, email="rabbit@symbolx.com"
+        )
+        session.create(user_1)
+        await session.flush()
+
+        client_1_a = Client(parent=user_1, type=ClientType.BENCH_WEB, name="Rabbit's Web")
+        client_1_b = Client(parent=user_1, type=ClientType.BENCH_MOBILE, name="Rabbit's iPhone")
+        client_1_c = Client(parent=user_1, type=ClientType.BENCH_MOBILE, name="Rabbit's Android")
+        session.create(client_1_a, client_1_b, client_1_c)
+        await session.commit()
+
+        # delete non-cascading
+        session.delete(client_1_c)
+        await session.commit()
+        with pytest.raises(NodeNotFoundError):
+            await Client.get(id=client_1_c.id)
+
+        # delete cascading
+        session.delete(user_1)
+        edits, cascaded_edits = await session.commit()
+        assert len(edits) == 1
+        assert len(cascaded_edits) == 2
+        with pytest.raises(NodeNotFoundError):
+            await User.get(id=user_1.id)
+        with pytest.raises(NodeNotFoundError):
+            await Client.get(id=client_1_a.id)
+
+        # restore cascading
+        session.restore(user_1)
+        edits, cascaded_edits = await session.commit()
+        assert len(edits) == 1
+        assert len(cascaded_edits) == 2
+        assert await User.get(id=user_1.id)
+        assert await Client.get(id=client_1_a.id)
+        with pytest.raises(NodeNotFoundError):  # should only restore its own deleted children
+            await Client.get(id=client_1_c.id)
+
+        # restore non-cascading
+        session.restore(client_1_c)
+        edits, cascaded_edits = await session.commit()
+        assert len(edits) == 1
+        assert len(cascaded_edits) == 0
+        assert await Client.get(id=client_1_c.id)

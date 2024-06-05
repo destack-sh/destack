@@ -3,6 +3,7 @@ import enum
 import struct
 from collections import defaultdict
 from dataclasses import dataclass
+from functools import wraps
 from itertools import chain
 from typing import (
     Any,
@@ -30,6 +31,7 @@ from psycopg.types.json import Jsonb
 from bench.language import Block, ConditionalOp, Field, Property, StoreConnectionType
 from bench.language.connection import ConnectionIncapableError
 from bench.language.const import (
+    CASCADING_EDIT_TYPES,
     EMPTY_DICT,
     NODE_TYPES,
     BenchError,
@@ -40,12 +42,17 @@ from bench.language.const import (
     ReferenceKind,
     SortOp,
 )
-from bench.language.expression import C, Expression, ExpressionOps
+from bench.language.expression import C, Expression, ExpressionOps, NodeReference
 from bench.language.graph import NodeDataGraph
 from bench.language.node import NODE_CLASS_BY_TYPE, UNSET, Node
-from bench.language.query import ReadOptions
-from bench.language.setup import NODE_CLASSES, PARENT_NODE_TYPES
-from bench.language.transaction import unpack_node_delta
+from bench.language.query import FILTER_VISIBLE, SELECT_ALL_PROPERTIES, ReadOptions
+from bench.language.setup import (
+    DESCENDANT_NODE_TYPES_IN_STORE,
+    HAS_CHILD_NODE_TYPES,
+    NODE_CLASSES,
+    PARENT_NODE_TYPES,
+)
+from bench.language.transaction import pack_node_delta, unpack_node_delta
 from bench.language.value import pack_struct_value_scalar_data, unpack_struct_value_scalar_data
 from bench.proto import wire, wiring
 from bench.proto.wire import AnyNodeData, EditData, IdEnum, NodeReferenceData
@@ -71,14 +78,45 @@ from bench.sql.core import (
 )
 from bench.utils.casing import Casing, to_casing
 from bench.utils.env import IS_DEV
-from bench.utils.func import describe_type, to_uuid
+from bench.utils.func import bittuple, describe_type, group_by, to_uuid
 from bench.utils.tenacity import RetryOptions, retry
+from bench.utils.uuidt import UUIDT
 
 # NOTE :Performance: check out asyncpg instead of psycopg (up to 5x faster?)
 #  see https://github.com/MagicStack/asyncpg
 
 logger = structlog.get_logger(__name__)
 tracer = trace.get_tracer(__name__)
+
+
+def _trace_pg_span(func):
+    """Instruments a pg function with common parameters as span attributes"""
+    func_name = func.__name__
+    if func_name.startswith("_"):
+        func_name = func_name[1:]
+    assert func_name.startswith("pg_"), f"unexpected pg function: {func.__name__}"
+
+    @wraps(func)
+    @tracer.start_as_current_span(f"pg.{func_name[3:]}")
+    async def wrapped(**kwargs):
+        cur = kwargs.get("cur")
+        assert isinstance(cur, psycopg.AsyncCursor), f"bad cur for {func.__name__}: {cur!r}"
+        span = trace.get_current_span()
+        span.set_attribute("connection_uri", get_sanitized_connection_uri(cur.connection))
+        span.set_attribute("connection_id", id(cur.connection))
+        table = kwargs.get("table")
+        if isinstance(table, Table):
+            span.set_attribute("table", table.name)
+        node_type = kwargs.get("node_type")
+        if node_type is not None:
+            span.set_attribute("node_type", NodeType(node_type).bench_name)
+        try:
+            return await func(**kwargs)  # type: ignore
+        except Exception as e:
+            logger.error(f"{func_name}.error", **kwargs, exc_info=e, span="current")
+            raise
+
+    return wrapped
 
 
 def get_sanitized_connection_uri(conn: psycopg.AsyncConnection) -> str:
@@ -668,9 +706,9 @@ async def _pg_fetchall_from_many(cur: psycopg.AsyncCursor, expected: int) -> lis
     return results
 
 
-@tracer.start_as_current_span("pg.select_raw")
+@_trace_pg_span
 async def pg_select_raw(
-    cur: psycopg.AsyncCursor, query: str | sql.Composed
+    *, cur: psycopg.AsyncCursor, query: str | sql.Composed
 ) -> list[dict[str, Any]]:
     """Executes an arbitrary select without any wrapping."""
     query_str = sql_to_str(cur, query) if not isinstance(query, str) else query
@@ -680,11 +718,11 @@ async def pg_select_raw(
     return await cur.fetchall()
 
 
-@tracer.start_as_current_span("pg.select")
+@_trace_pg_span
 async def pg_select(
+    *,
     cur: psycopg.AsyncCursor,
     table: Table,
-    *,
     columns: Collection[Column] | None = None,
     joins: Collection[SqlJoin] | None = None,
     where: SqlNode | None = None,
@@ -694,7 +732,6 @@ async def pg_select(
     params: Mapping | None = None,
 ) -> list[RowOut]:
     """Selects from the given table."""
-    trace.get_current_span().set_attributes({"table": table.name})
     columns = columns or table.columns
     statement = sqlstr("SELECT {fields} FROM {table}").format(
         fields=sqljoin(", ", (_pg_wrap_read_column(c, sqlident(c.name)) for c in columns)),
@@ -722,15 +759,14 @@ async def pg_select(
     return await cur.fetchall()
 
 
-@tracer.start_as_current_span("pg.count")
+@_trace_pg_span
 async def pg_count(
+    *,
     cur: psycopg.AsyncCursor,
     table: Table,
-    *,
     where: SqlNode | None = None,
 ) -> int:
     """Counts rows matching the given query."""
-    trace.get_current_span().set_attribute("table", table.name)
     statement = sqlstr("SELECT COUNT(*) FROM {table}").format(
         table=sqlident(table.name),
     )
@@ -749,16 +785,15 @@ async def pg_count(
         raise _pg_wrap_error(table, cur, e) from e
 
 
-@tracer.start_as_current_span("pg.exists")
+@_trace_pg_span
 async def pg_exists(
+    *,
     cur: psycopg.AsyncCursor,
     table: Table,
-    *,
     where: SqlNode | None = None,
     joins: list[SqlJoin] | None = None,
 ) -> bool:
     """Checks if rows matching the given query exist."""
-    trace.get_current_span().set_attribute("table", table.name)
     statement = sqlstr("SELECT EXISTS (SELECT 1 FROM {table}").format(
         table=sqlident(table.name),
     )
@@ -780,16 +815,15 @@ async def pg_exists(
         raise _pg_wrap_error(table, cur, e) from e
 
 
-@tracer.start_as_current_span("pg.insert")
+@_trace_pg_span
 async def pg_insert(
+    *,
     cur: psycopg.AsyncCursor,
     table: Table,
     rows: Collection[RowIn],
-    *,
     returning: Collection[Column] | None = None,
 ) -> tuple[RowOut, ...] | list[RowOut] | None:
     """Inserts into the given table. Expects rows to be adapted and wrapped."""
-    trace.get_current_span().set_attribute("table", table.name)
     statement = sqlstr("INSERT INTO {table} ({fields}) VALUES ({values})").format(
         table=sqlident(table.name),
         fields=sqljoin(", ", (sqlident(c.name) for c in table.columns)),
@@ -817,19 +851,18 @@ async def pg_insert(
         return await _pg_fetchall_from_many(cur, len(rows))
 
 
-@tracer.start_as_current_span("pg.upsert")
+@_trace_pg_span
 async def pg_upsert(
+    *,
     cur: psycopg.AsyncCursor,
     table: Table,
     rows: Collection[RowIn],
-    *,
     conflict_columns: list[Column] | tuple[Column, ...] | None = None,
     static_columns: list[Column] | tuple[Column, ...] | None = None,
     static_values: RowIn | None = None,
     returning: Collection[Column] | None = None,
 ) -> tuple[RowOut, ...] | list[RowOut] | None:
     """Upserts into the given table. Expect rows to be adapted and wrapped."""
-    trace.get_current_span().set_attribute("table", table.name)
     if conflict_columns is None:
         assert table._primary_key, f"no primary key for {table!r}"
         conflict_columns = (table._primary_key,)
@@ -883,11 +916,11 @@ async def pg_upsert(
         return await _pg_fetchall_from_many(cur, len(rows))
 
 
-@tracer.start_as_current_span("pg.update_constant")
-async def pg_update_constant(
+@_trace_pg_span
+async def pg_update_static(
+    *,
     cur: psycopg.AsyncCursor,
     table: Table,
-    *,
     where: SqlNode | None = None,
     static_value: RowIn,
     returning: Collection[Column] | None = None,
@@ -929,11 +962,11 @@ async def pg_update_constant(
         return await cur.fetchall()
 
 
-@tracer.start_as_current_span("pg.update_variable")
+@_trace_pg_span
 async def pg_update_variable(
+    *,
     cur: psycopg.AsyncCursor,
     table: Table,
-    *,
     dynamic_columns: Collection[Column],
     dynamic_values: Collection[RowIn],
     static_values: RowIn | None = None,
@@ -944,8 +977,6 @@ async def pg_update_variable(
     Expects values to be adapted and wrapped.
     If a column is in dynamic_columns but not in dynamic_values for a row, keep the current value.
     """
-    trace.get_current_span().set_attribute("table", table.name)
-
     assert table._primary_key, f"no primary key for {table!r}"
     if not any(c.is_primary_key for c in dynamic_columns):
         raise ValueError(
@@ -955,12 +986,12 @@ async def pg_update_variable(
     static_values = static_values or {}
 
     # join fixed and dynamic values
-    static_values_sql = (
+    static_values_sql = tuple(
         sqlstr("{} = {}").format(sqlident(k), _pg_wrap_write_column(table._columns_by_name[k], v))
         for k, v in static_values.items()
     )
     # only set dynamic columns if they are in the row (otherwise keep current value)
-    dynamic_values_sql = (
+    dynamic_values_sql = tuple(
         sqlstr(f"{{}} = CASE WHEN %(__{c.name}_set)s THEN {{}} ELSE {c.name} END").format(
             sqlident(c.name), _pg_wrap_write_column(c, sqlstr(f"%({c.name})s"))
         )
@@ -1015,17 +1046,15 @@ async def pg_update_variable(
         return await _pg_fetchall_from_many(cur, len(dynamic_values))
 
 
-@tracer.start_as_current_span("pg.delete")
+@_trace_pg_span
 async def pg_delete(
+    *,
     cur: psycopg.AsyncCursor,
     table: Table,
-    *,
     where: SqlNode | None = None,
     returning: Collection[Column] | None = None,
 ) -> list[RowOut] | None:
     """Deletes from the given table."""
-    trace.get_current_span().set_attribute("table", table.name)
-
     statement = sqlstr("DELETE FROM {table}").format(
         table=sqlident(table.name),
     )
@@ -1046,10 +1075,9 @@ async def pg_delete(
         return await cur.fetchall()
 
 
-@tracer.start_as_current_span("pg.truncate")
+@_trace_pg_span
 async def pg_truncate(cur: psycopg.AsyncCursor, table: Table) -> None:
     """Truncates the given table."""
-    trace.get_current_span().set_attribute("table", table.name)
     await _pg_execute(cur, sqlstr("TRUNCATE TABLE {}").format(sqlident(table.name)))
 
 
@@ -1279,7 +1307,7 @@ class PgSelectNodesDataResult(NamedTuple):
     start_cursor: str | None
 
 
-@tracer.start_as_current_span("pg.get_nodes")
+@_trace_pg_span
 async def pg_get_nodes(
     cur: psycopg.AsyncCursor,
     node_type: NodeType,
@@ -1292,7 +1320,6 @@ async def pg_get_nodes(
     after: str | None = None,
 ) -> PgSelectNodesDataResult:
     """Selects regular nodes from the given PG database."""
-    trace.get_current_span().set_attribute("node_type", node_type.bench_name)
     node_cls = NODE_CLASS_BY_TYPE[node_type]
     assert node_cls.__table__, f"no table for {node_cls!r}"
     if after:
@@ -1316,8 +1343,97 @@ async def pg_get_nodes(
     return PgSelectNodesDataResult(nodes_data, cursors, after)
 
 
-@tracer.start_as_current_span("pg.get_node_graph")
+@_trace_pg_span
+async def pg_walk_graph_down(
+    *,
+    cur: psycopg.AsyncCursor,
+    roots: list[NodeReferenceData]
+    | list[AnyNodeData]
+    | tuple[NodeReferenceData, ...]
+    | tuple[AnyNodeData, ...],
+    descendant_types: Collection[NodeType],
+    extra_filter: Expression | None,
+) -> tuple[list[NodeReferenceData], dict[str, list[NodeReferenceData]]]:
+    """Gets node pointers to all descendants down from the roots matching the filter."""
+    if not roots:
+        return [], {}
+    if not isinstance(roots[0], NodeReferenceData):
+        roots_ptrs = [NodeReference.from_node_data(cast(AnyNodeData, node)) for node in roots]
+    else:
+        roots_ptrs = cast(list[NodeReferenceData], roots)
+
+    # filter to descendant types that have a table with parents
+    descendant_types = [
+        t
+        for t in descendant_types
+        if NODE_CLASS_BY_TYPE[t].__parent_property__.reference_stored_ids
+        and NODE_CLASS_BY_TYPE[t].__table__ is not None
+    ]
+
+    # descend
+    all_descendants: list[NodeReferenceData] = []
+    root_id_by_node_id = {cast(str, node.id): cast(str, node.id) for node in roots_ptrs}
+    all_descendants_by_root_id: dict[str, list[NodeReferenceData]] = defaultdict(list)
+    current_parents = roots_ptrs
+    while current_parents:
+        next_parents: list[NodeReferenceData] = []
+        # traverse all direct children of plausible types
+        for child_type in descendant_types:
+            child_cls = NODE_CLASS_BY_TYPE[child_type]
+            assert child_cls.__parent_property__.reference_stored_ids
+
+            # collect possible parents
+            parent_ids: list[str] = []
+            for parent in current_parents:
+                if NodeType(parent.type) in PARENT_NODE_TYPES[child_type]:
+                    parent_ids.append(cast(str, parent.id))
+            if not parent_ids:
+                continue  # nothing to do
+            parent_filter = C(
+                op=ConditionalOp.IN,
+                property=child_cls.__parent_property__.reference_stored_ids[0],
+                value=parent_ids,
+                value_packed=UNSET,  # don't pack this value
+            )
+            if extra_filter is not None:
+                parent_filter = parent_filter & extra_filter
+
+            # collect children
+            child_table = child_cls.__table__
+            assert child_table, f"no table for {child_cls!r}"
+            assert child_table._primary_key, f"no primary key for {child_cls!r}"
+            parent_where = _pg_compile_conditional(child_cls, parent_filter)
+            children_rows = await pg_select(
+                cur=cur,
+                table=child_table,
+                columns=(
+                    child_table._columns_by_name["id"],
+                    child_table._columns_by_name["parent_id"],
+                ),
+                where=parent_where,
+            )
+            for child_row in children_rows:
+                child_ptr = NodeReferenceData(
+                    metatype=wire.ObjectType.NODE_REFERENCE,
+                    id=str(child_row["id"]),
+                    type=wire.NodeType(child_type),
+                )
+                next_parents.append(child_ptr)
+                all_descendants.append(child_ptr)
+                # remember root
+                root_id = root_id_by_node_id.get(str(child_row["parent_id"]))
+                assert root_id is not None, f"no root id for {child_row!r}"
+                root_id_by_node_id[cast(str, child_ptr.id)] = root_id
+                all_descendants_by_root_id[root_id].append(child_ptr)
+
+        current_parents = next_parents
+
+    return all_descendants, all_descendants_by_root_id
+
+
+@_trace_pg_span
 async def pg_get_node_graph(
+    *,
     cur: psycopg.AsyncCursor,
     root_type: NodeType,
     roots: tuple[UUID, ...] | tuple[AnyNodeData, ...],
@@ -1328,9 +1444,8 @@ async def pg_get_node_graph(
     Reads regular nodes from the given PG database.
     Returns a graph of nodes that *may* contain the requested nodes.
     'Root' here is the base level, we get ancestor/descendants relative to the 'roots'.
+    NOTE :Performance: we could read all package contents with package_id=x if we know it's a package query.
     """
-    trace.get_current_span().set_attribute("node_type", root_type.bench_name)
-
     assert roots, "no roots to select"
     visited_graph = _graph if _graph is not None else NodeDataGraph()
 
@@ -1353,7 +1468,7 @@ async def pg_get_node_graph(
         visited_graph.add(node)
 
     # select ancestors (recursively)
-    # (basically, walk parent pointer if type is in ancestor_types)
+    # (since this is usually a straight, short walk we just select up step by step)
     if options.ancestor_types:
         current_parents = root_nodes
         to_select_by_type: dict[NodeType, list[str]] = defaultdict(list)
@@ -1368,7 +1483,8 @@ async def pg_get_node_graph(
                     and node.parent_ptr.type in options.ancestor_types
                     and node.parent_ptr.id not in visited_graph
                 ):
-                    to_select_by_type[node.parent_ptr.type].append(node.parent_ptr.id)
+                    parent_type = NodeType(node.parent_ptr.type)
+                    to_select_by_type[parent_type].append(node.parent_ptr.id)
 
             # select next parents
             next_parents = []
@@ -1387,53 +1503,38 @@ async def pg_get_node_graph(
                     visited_graph.add(node)
             current_parents = next_parents
 
-    # select descendants
-    # TODO :Performance!: recurse read nodes up?/down in SQL & leverage cascades for some reads
-    #  (take advantage of the ancestry graph to optimize this...
-    #   also we could just query every node in the package with package_id=X if the roots are packages)
+    # select descendants (recursively)
+    # (since this may be a long wide search down, we first collect the pointers, then select by type)
     if options.descendant_types:
-        current_parents = root_nodes
-        while current_parents:
-            next_parents: list[AnyNodeData] = []
-            # traverse all direct children of plausible types
-            for child_type in options.descendant_types:
-                child_cls = NODE_CLASS_BY_TYPE[child_type]
-                if not child_cls.__parent_property__.reference_stored_ids:
-                    continue
-
-                # collect possible parents
-                parent_ids: list[str] = []
-                for parent in current_parents:
-                    if cast(NodeType, parent.metatype) in PARENT_NODE_TYPES[child_type]:
-                        parent_ids.append(parent.id)
-                parent_filter = C(
-                    op=ConditionalOp.IN,
-                    property=child_cls.__parent_property__.reference_stored_ids[0],
-                    value=parent_ids,
-                    value_packed=UNSET,  # don't pack this
-                )
-
-                # collect children
-                children = await pg_get_nodes(
-                    cur=cur,
-                    node_type=child_type,
-                    filter=options.filter(child_type, parent_filter),
-                    properties=options.select(child_type),
-                )
-                next_parents.extend(n for n in children.nodes if n.id not in visited_graph)
-                for child in children.nodes:
-                    visited_graph.add(child)
-
-            current_parents = next_parents
+        descendant_node_ptrs, _ = await pg_walk_graph_down(
+            cur=cur,
+            roots=root_nodes,
+            descendant_types=options.descendant_types,
+            extra_filter=FILTER_VISIBLE if not options.include_hidden else None,
+        )
+        descendant_node_ptrs_by_type = group_by(descendant_node_ptrs, lambda ptr: ptr.type)
+        for wire_node_type, node_ptrs in descendant_node_ptrs_by_type.items():
+            node_type = NodeType(wire_node_type)
+            layer = await pg_get_nodes(
+                cur=cur,
+                node_type=node_type,
+                filter=options.filter(
+                    node_type,
+                    C(ConditionalOp.IN, property=Node.id, value=[ptr.id for ptr in node_ptrs]),
+                ),
+                properties=options.select(node_type),
+            )
+            for node in layer.nodes:
+                visited_graph.add(node)
 
     return visited_graph
 
 
-@tracer.start_as_current_span("pg.search_node_graph")
+@_trace_pg_span
 async def pg_search_node_graph(
+    *,
     cur: psycopg.AsyncCursor,
     node_type: NodeType,
-    *,
     options: ReadOptions,
     filter: Expression | None = None,
     sort: Collection[Expression] | None = None,
@@ -1442,8 +1543,6 @@ async def pg_search_node_graph(
     after: str | None = None,
 ) -> tuple[PgSelectNodesDataResult, NodeDataGraph[AnyNodeData]]:
     """Select root nodes and then read the graph of nodes from the given PG database."""
-    trace.get_current_span().set_attribute("node_type", node_type.bench_name)
-
     if options.ancestor_types or options.descendant_types:
         # split into two passes if we have other nodes to fetch
         roots = await pg_get_nodes(
@@ -1484,10 +1583,12 @@ async def pg_search_node_graph(
 # TODO :Performance: use psycopg3/postgres pipelining to batch edits?
 
 
-@tracer.start_as_current_span("pg.edit")
+@_trace_pg_span
 async def pg_edit(
+    *,
     cur: psycopg.AsyncCursor,
     edits: list[EditData] | tuple[EditData, ...],
+    cascade: bittuple[EditType] = CASCADING_EDIT_TYPES,
 ) -> tuple[list["int"], list[EditData]]:
     """
     Writes 'regular' edits to nodes (that aren't stored specially like records).
@@ -1497,64 +1598,161 @@ async def pg_edit(
         return [], []
 
     # batch operations by edit kind and node type
-    cur_node_cls = NODE_CLASS_BY_TYPE[wiring.unpack_enum(NodeType, edits[0].node_ptr.type)]
-    cur_updated_properties: bitarray = bitarray(cur_node_cls.__max_property_ord__ + 1)
-    cur_batch: list[EditData] = []
+    batch_node_cls = NODE_CLASS_BY_TYPE[wiring.unpack_enum(NodeType, edits[0].node_ptr.type)]
+    batch_updated_properties: bitarray = bitarray(batch_node_cls.__max_property_ord__ + 1)
+    batch: list[EditData] = []
     all_new_revisions: list[int] = []
-    # nocheckin: cascade edits down (for remove/add edits like archive/restore/delete/...)
-    #  (do we really need to cascade down in postgres for remove? what if the graph is loaded?)
-    cascaded_edits: list[EditData] = []
+    all_cascaded_edits: list[EditData] = []
 
-    for i in range(len(edits)):
-        edit = edits[i]
+    for i, prev_edit in enumerate(edits):
         next_edit = edits[i + 1] if i + 1 < len(edits) else None
-        cur_batch.append(edit)
+        batch.append(prev_edit)
 
-        # collect updated properties
-        if edit.properties is not None:
-            for prop_id in edit.properties:
-                prop_ord = cur_node_cls.__properties_by_id__[prop_id].ord
-                cur_updated_properties[prop_ord] = True
+        # accumulate updated properties
+        for prop_id in prev_edit.properties:
+            prop_ord = batch_node_cls.__properties_by_id__[prop_id].ord
+            batch_updated_properties[prop_ord] = True
 
-        # new op or end, flush batch
+        # continue batch if same edit + node types
         if (
-            next_edit is None
-            or edit.type != next_edit.type
-            or edit.node_ptr.type != next_edit.node_ptr.type
+            next_edit is not None
+            and next_edit.type == prev_edit.type
+            and next_edit.node_ptr.type == prev_edit.node_ptr.type
         ):
-            edit_type: EditType = wiring.unpack_enum(EditType, edit.type)
-            node_type: NodeType = wiring.unpack_enum(NodeType, edit.node_ptr.type)
-            updated_properties = cur_node_cls._unmask_properties(cur_updated_properties)
-            changed_nodes = await _pg_edit_batch(
-                cur=cur,
-                edit_type=edit_type,
-                node_type=node_type,
-                batch=cur_batch,
-                return_nodes=True,
-                updated_properties=updated_properties,
-                selected_properties=cast(
-                    tuple[Property, ...], (cur_node_cls.id, cur_node_cls.revision)
-                ),
+            continue
+
+        # flush batch (at end or next is different)
+        edit_type: EditType = wiring.unpack_enum(EditType, prev_edit.type)
+        node_type = wiring.unpack_enum(NodeType, prev_edit.node_ptr.type)
+        del prev_edit  # for clarity
+
+        # cascade edits down
+        # NOTE :Performance: we probably don't _always_ need to cascade down removes
+        #  (for instance in Host we may the edited graph loaded, so we could do this in memory)
+        if edit_type in cascade and node_type in HAS_CHILD_NODE_TYPES:
+            cascaded_edits = await _pg_edit_cascade(
+                cur=cur, edit_type=edit_type, node_type=node_type, batch=batch
             )
-            assert changed_nodes is not None, f"no nodes returned for {cur_batch!r}"
-            assert len(changed_nodes) == len(cur_batch), f"unexpected nodes: {changed_nodes!r}"
-            # NOTE: in case of multiple edits to the same node, the returned revision is the latest.
-            new_revisions_by_id = {node.id: node.revision for node in changed_nodes}
-            for edit in cur_batch:
-                node_id = cast(str, edit.node_ptr.id)
-                all_new_revisions.append(new_revisions_by_id[node_id])
-            # start new batch
-            if next_edit is not None:
-                cur_node_cls = NODE_CLASS_BY_TYPE[
-                    wiring.unpack_enum(NodeType, next_edit.node_ptr.type)
-                ]
-                cur_updated_properties = bitarray(cur_node_cls.__max_property_ord__ + 1)
-                cur_batch.clear()
+            all_cascaded_edits.extend(cascaded_edits)
 
-    return all_new_revisions, cascaded_edits
+        # write edits to pg
+        updated_properties = batch_node_cls._unmask_properties(batch_updated_properties)
+        changed_nodes = await _pg_edit_batch(
+            cur=cur,
+            edit_type=edit_type,
+            node_type=cast(NodeType, node_type),
+            batch=batch,
+            return_nodes=True,
+            updated_properties=updated_properties,
+            selected_properties=cast(
+                tuple[Property, ...], (batch_node_cls.id, batch_node_cls.revision)
+            ),
+        )
+        assert changed_nodes is not None, f"no nodes returned for {batch!r}"
+        assert len(changed_nodes) == len(batch), f"unexpected nodes: {changed_nodes!r}"
+        # NOTE: in case of multiple edits to the same node, the returned revision is the latest.
+        new_revisions_by_id = {node.id: node.revision for node in changed_nodes}
+        for edit in batch:
+            node_id = cast(str, edit.node_ptr.id)
+            all_new_revisions.append(new_revisions_by_id[node_id])
+
+        # start new batch if needed
+        if next_edit is not None:
+            batch_node_cls = NODE_CLASS_BY_TYPE[
+                wiring.unpack_enum(NodeType, next_edit.node_ptr.type)
+            ]
+            batch_updated_properties = bitarray(batch_node_cls.__max_property_ord__ + 1)
+            batch.clear()
+
+    return all_new_revisions, all_cascaded_edits
 
 
-@tracer.start_as_current_span("pg.edit_batch")
+@_trace_pg_span
+async def _pg_edit_cascade(
+    *, cur: psycopg.AsyncCursor, edit_type: EditType, node_type: NodeType, batch: list[EditData]
+) -> list[EditData]:
+    """Cascades a batch of edits to the relevant descendants of the node."""
+
+    # figure out which nodes to cascade to
+    root_nodes = tuple(root_edit.node_ptr for root_edit in batch)
+    root_edit_by_node_id = {cast(str, root_edit.node_ptr.id): root_edit for root_edit in batch}
+    if edit_type in (EditType.UNARCHIVE, EditType.RESTORE):
+        # only cascade to nodes that were removed at the exact same time
+        removed_dts = []
+        for root_edit in batch:
+            assert root_edit.old_node_packed is not None, f"no old node for {root_edit!r}"
+            old_node = unpack_node_delta(root_edit.old_node_packed, node_type=node_type)
+            if edit_type == EditType.UNARCHIVE:
+                removed_at = old_node.archived_at
+            elif edit_type == EditType.RESTORE:
+                removed_at = old_node.deleted_at
+            else:
+                raise RuntimeError(f"unexpected edit type: {edit_type!r}")
+            assert removed_at is not None, f"no removed at for {root_edit!r}"
+            removed_dts.append(removed_at)
+        extra_filter = C(
+            op=ConditionalOp.IN,
+            property=Node.archived_at if edit_type == EditType.UNARCHIVE else Node.deleted_at,
+            value=removed_dts,
+        )
+    elif edit_type == EditType.ERASE:
+        # cascade to all
+        extra_filter = None
+    else:
+        # only cascade to visible
+        extra_filter = FILTER_VISIBLE
+
+    # select cascaded nodes from graph
+    _, cascaded_nodes_by_root_id = await pg_walk_graph_down(
+        cur=cur,
+        roots=root_nodes,
+        # only descend to node types in the same store
+        descendant_types=DESCENDANT_NODE_TYPES_IN_STORE[node_type],
+        extra_filter=extra_filter,
+    )
+
+    # turn into cascaded edits with source root for exact context
+    all_cascaded_edits: list[EditData] = []
+    for root_id, node_ptrs in cascaded_nodes_by_root_id.items():
+        root_edit = root_edit_by_node_id[root_id]
+        for node_ptr in node_ptrs:
+            cascaded_edit = EditData(
+                id=str(UUIDT()),
+                type=cast(wire.EditType, edit_type),
+                node_ptr=node_ptr,
+                edited_at=root_edit.edited_at,
+                epoch=root_edit.epoch,
+                subject_ptr=root_edit.subject_ptr,
+                context=root_edit.context,
+            )
+            all_cascaded_edits.append(cascaded_edit)
+
+    # batch operations by edit kind and node type
+    cascaded_edits_by_type = group_by(all_cascaded_edits, lambda edit: edit.node_ptr.type)
+    for descendant_node_type, cascaded_edits in cascaded_edits_by_type.items():
+        nodes = await _pg_edit_batch(
+            cur=cur,
+            edit_type=edit_type,
+            node_type=NodeType(descendant_node_type),
+            batch=cascaded_edits,
+            return_nodes=True,
+            updated_properties=(),
+            selected_properties=SELECT_ALL_PROPERTIES[cast(NodeType, descendant_node_type)],
+        )
+
+        # and assign new/old node to edit that we have the full data
+        assert nodes
+        assert len(nodes) == len(cascaded_edits)
+        for node, cascaded_edit in zip(nodes, cascaded_edits):
+            if edit_type in (EditType.UNARCHIVE, EditType.RESTORE):
+                cascaded_edit.new_node_packed = pack_node_delta(node)
+            else:
+                cascaded_edit.old_node_packed = pack_node_delta(node)
+
+    return all_cascaded_edits
+
+
+@_trace_pg_span
 async def _pg_edit_batch(
     *,
     cur: psycopg.AsyncCursor,
@@ -1568,8 +1766,10 @@ async def _pg_edit_batch(
     """
     Writes a batch of regular (not custom stored) node edits of the same edit type.
     """
+    trace.get_current_span().set_attributes(
+        {"edit_type": edit_type.bench_name, "edits": len(batch)}
+    )
 
-    trace.get_current_span().set_attribute("node_type", node_type.bench_name)
     node_cls = NODE_CLASS_BY_TYPE[node_type]
     table = node_cls.__table__
     assert table is not None, f"no table for {node_cls!r}"

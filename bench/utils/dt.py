@@ -7,8 +7,11 @@ LOCAL_TZ = pytz.timezone("Europe/Zurich")
 
 
 def utcnow():
-    """A real and proper UTC datetime."""
-    return datetime.now(pytz.utc)
+    """
+    A real and proper high precision UTC datetime (at least microsecond precision).
+    Convenient and fast, and necessary for using timestamps as keys for certain operations.
+    """
+    return datetime.fromtimestamp(time_ns() / 1e9, tz=pytz.utc)
 
 
 monons = time_ns

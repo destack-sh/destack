@@ -291,7 +291,7 @@ function unpackValueScalar(valuePacked: JsonValue, type: TypeIdentity): ScalarVa
 }
 
 /** Packs a single struct/node proto value using proto ids for keys and enums. */
-export function packStructValueScalar(value: AnyStructData | AnyNodeData): any {
+export function packStructValueScalar(value: AnyStructData | AnyNodeData, options?: { only?: string[] }): any {
   const propertyEnum = PROPERTY_ENUM_BY_TYPE[value.metatype];
   const properties = PROPERTY_INFOS_BY_TYPE[value.metatype];
   if (propertyEnum == null || properties == null) throw new Error(`unexpected object type ${value.metatype}`);

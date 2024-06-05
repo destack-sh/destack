@@ -454,10 +454,10 @@ class PostgresConnection(StoreConnection[NodeT, NodeDataT], Generic[NodeT, NodeD
         assert query._aggregation is not None
         where = _pg_compile_conditional_maybe(query._node_cls, query._filter)
         if query._aggregation.op == AggregationOp.EXISTS:
-            exists = await pg_exists(self.cur, query._node_cls.__table__, where=where)
+            exists = await pg_exists(cur=self.cur, table=query._node_cls.__table__, where=where)
             return AggregateResult(AggregationData(exists=exists))
         elif query._aggregation.op == AggregationOp.COUNT:
-            count = await pg_count(self.cur, query._node_cls.__table__, where=where)
+            count = await pg_count(cur=self.cur, table=query._node_cls.__table__, where=where)
             return AggregateResult(AggregationData(count=count))
         else:
             raise ConnectionIncapableError(
@@ -469,7 +469,7 @@ class PostgresConnection(StoreConnection[NodeT, NodeDataT], Generic[NodeT, NodeD
     async def flush(self, edits: list[EditData] | tuple[EditData, ...]) -> FlushResult:
         from bench.sql.engine import pg_edit
 
-        new_revisions, cascaded_edits = await pg_edit(self.cur, edits)
+        new_revisions, cascaded_edits = await pg_edit(cur=self.cur, edits=edits)
         return FlushResult(revisions=new_revisions, cascaded_edits=cascaded_edits)
 
     @override
@@ -477,7 +477,7 @@ class PostgresConnection(StoreConnection[NodeT, NodeDataT], Generic[NodeT, NodeD
     async def commit(self, edits: list[EditData] | tuple[EditData, ...]) -> FlushResult:
         from bench.sql.engine import pg_edit
 
-        new_revisions, cascaded_edits = await pg_edit(self.cur, edits)
+        new_revisions, cascaded_edits = await pg_edit(cur=self.cur, edits=edits)
         await self.cur.connection.commit()
         return FlushResult(revisions=new_revisions, cascaded_edits=cascaded_edits)
 
@@ -559,7 +559,7 @@ class InMemoryConnection(StoreConnection[NodeT, NodeDataT], Generic[NodeT, NodeD
         # select ancestors
         ancestor_types = query._options.ancestor_types if query._options else ()
         if len(ancestor_types) > 0:
-            with tracer.start_as_current_span("memory.get_ancestors"):
+            with tracer.start_as_current_span("memory.fetch.get_ancestors"):
                 current_parents = roots
                 while current_parents:
                     next_parents = []
@@ -578,7 +578,7 @@ class InMemoryConnection(StoreConnection[NodeT, NodeDataT], Generic[NodeT, NodeD
         # select descendants
         descendant_types = query._options.descendant_types if query._options else ()
         if len(descendant_types) > 0:
-            with tracer.start_as_current_span("memory.get_descendants"):
+            with tracer.start_as_current_span("memory.fetch.get_descendants"):
                 child_types_by_parent: dict[wire.NodeType, tuple[NodeType, ...]] = {
                     cast(wire.NodeType, node_type): tuple(
                         t for t in CHILD_NODE_TYPES[node_type] if t in descendant_types

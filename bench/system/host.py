@@ -68,12 +68,13 @@ from bench.system.provisioner import Provisioner, get_provisioners_for
 from bench.system.scheduler import QueueRunPlugin
 from bench.utils.dt import utcnow
 from bench.utils.func import to_uuid
-from bench.utils.utils import get_from_env_maybe
+from bench.utils.utils import get_from_env, get_from_env_maybe
 from bench.utils.uuidt import UUIDT
 
 logger = structlog.get_logger(__name__)
 tracer = trace.get_tracer(__name__)
 
+HOST_MEMORY_ENGINE_ENABLED = get_from_env("HOST_MEMORY_ENGINE_ENABLED", typ=bool, default=True)
 LOCAL_MACHINE_URL = get_from_env_maybe("LOCAL_MACHINE_URL")
 LOCAL_MACHINE = Machine(
     name="localhost",
@@ -361,19 +362,21 @@ class Host(GraphIoServiceBase, HostBase, HostSpec):
             scope=self._scope,
             node_types=LOCAL_NODE_TYPES,
         )
-        self._engines = (
-            # in order of priority (prefer in-memory)
-            InMemoryEngine(
-                scope=self._scope, node_types=LOADED_BENCH_NODE_TYPES, graph=self._bench._data_graph
-            ),
-            InMemoryEngine(
-                scope=self._scope,
-                node_types=LOADED_PACKAGE_NODE_TYPES,
-                graph=self._main_package._data_graph,
-            ),
-            self._global_pg_engine,
-            self._local_pg_engine,
-        )
+        self._engines = (self._global_pg_engine, self._local_pg_engine)
+        if HOST_MEMORY_ENGINE_ENABLED:
+            inmemory_engines = (
+                InMemoryEngine(
+                    scope=self._scope,
+                    node_types=LOADED_BENCH_NODE_TYPES,
+                    graph=self._bench._data_graph,
+                ),
+                InMemoryEngine(
+                    scope=self._scope,
+                    node_types=LOADED_PACKAGE_NODE_TYPES,
+                    graph=self._main_package._data_graph,
+                ),
+            )
+            self._engines = (*inmemory_engines, *self._engines)  # in order of priority
         # we open one Session for the entire lifecycle of the Host
         self._session = Session(
             parent=self._bench.main_branch.main_package,
@@ -412,6 +415,7 @@ class Host(GraphIoServiceBase, HostBase, HostSpec):
             main_package=self._main_package,
             epoch=self.epoch,
             plugins=self._plugins,
+            memory=HOST_MEMORY_ENGINE_ENABLED,
             span="current",
         )
 
