@@ -5929,17 +5929,17 @@ export enum AccessType {
      */
     UNARCHIVE = 25,
     /**
-     * @generated from protobuf enum value: ACCESS_TYPE_SOFT_DELETE = 26;
+     * @generated from protobuf enum value: ACCESS_TYPE_DELETE = 26;
      */
-    SOFT_DELETE = 26,
+    DELETE = 26,
     /**
      * @generated from protobuf enum value: ACCESS_TYPE_RESTORE = 27;
      */
     RESTORE = 27,
     /**
-     * @generated from protobuf enum value: ACCESS_TYPE_DELETE = 28;
+     * @generated from protobuf enum value: ACCESS_TYPE_ERASE = 28;
      */
-    DELETE = 28,
+    ERASE = 28,
     /**
      * @generated from protobuf enum value: ACCESS_TYPE_START = 40;
      */
@@ -7110,17 +7110,17 @@ export enum EditType {
      */
     UNARCHIVE = 25,
     /**
-     * @generated from protobuf enum value: EDIT_TYPE_SOFT_DELETE = 26;
+     * @generated from protobuf enum value: EDIT_TYPE_DELETE = 26;
      */
-    SOFT_DELETE = 26,
+    DELETE = 26,
     /**
      * @generated from protobuf enum value: EDIT_TYPE_RESTORE = 27;
      */
     RESTORE = 27,
     /**
-     * @generated from protobuf enum value: EDIT_TYPE_DELETE = 28;
+     * @generated from protobuf enum value: EDIT_TYPE_ERASE = 28;
      */
-    DELETE = 28
+    ERASE = 28
 }
 /**
  * @generated from protobuf enum symbolx.bench.EnumType

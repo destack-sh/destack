@@ -13,7 +13,7 @@ from bench.utils.utils import frozendict, get_from_env
 if typing.TYPE_CHECKING:
     from bench.language import Bench, Run, Session, Transaction
 
-VERSION = "2024.06.05.0"
+VERSION = "2024.06.05.1"
 REVISION_PENDING = -1
 TK_LENGTH_BYTES = 8
 TK_LENGTH_B64 = 12  # 1.5 * TK_LENGTH_BYTES (must be integer)
@@ -520,11 +520,14 @@ NRel = NodeRelationFlag
 
 @enum_(EnumType.READ_TYPE)
 class ReadType(IdEnum):
-    """A type of Read access on nodes."""
+    """Ways to read nodes."""
 
-    GET = 1  # any direct read access
-    AGGREGATE = 3  # count, sum, min, etc.
-    LIST = 5  # list, search, filter, etc.
+    """Any direct read for a single node."""
+    GET = 1
+    """Aggregate statistics."""
+    AGGREGATE = 3
+    """Search all nodes."""
+    LIST = 5
 
     @property
     def kind(self) -> "AccessKind":
@@ -533,7 +536,7 @@ class ReadType(IdEnum):
 
 @enum_(EnumType.EDIT_TYPE)
 class EditType(IdEnum):
-    """A type of Edit access on nodes."""
+    """Ways to edit nodes."""
 
     CREATE = 20
     UPSERT = 21
@@ -541,9 +544,9 @@ class EditType(IdEnum):
     MOVE = 23
     ARCHIVE = 24
     UNARCHIVE = 25
-    SOFT_DELETE = 26
+    DELETE = 26
     RESTORE = 27
-    DELETE = 28
+    ERASE = 28
 
     @property
     def kind(self) -> "AccessKind":
@@ -552,7 +555,7 @@ class EditType(IdEnum):
 
 @enum_(EnumType.USE_TYPE)
 class UseType(IdEnum):
-    """A type of Run access on nodes."""
+    """Ways to use nodes."""
 
     START = 40
     PAUSE = 41

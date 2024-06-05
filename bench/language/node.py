@@ -1519,10 +1519,7 @@ class Node(Struct[NodeDataT], Generic[NodeDataT]):
         if content_str:
             content_str = f" ({content_str})"
         if self.archived_at is not None:
-            if self.deleted_at is not None:
-                status_str = " [archived, soft deleted]"
-            else:
-                status_str = " [archived]"
+            status_str = " [archived, deleted]" if self.deleted_at is not None else " [archived]"
         elif self.deleted_at is not None:
             status_str = " [deleted]"
         else:
@@ -1674,10 +1671,8 @@ class Node(Struct[NodeDataT], Generic[NodeDataT]):
         return self.archived_at is not None or (self.parent is not None and self.parent.is_archived)
 
     @property
-    def is_soft_deleted(self) -> bool:
-        return self.deleted_at is not None or (
-            self.parent is not None and self.parent.is_soft_deleted
-        )
+    def is_deleted(self) -> bool:
+        return self.deleted_at is not None or (self.parent is not None and self.parent.is_deleted)
 
     def move_to(
         self,
@@ -1690,15 +1685,15 @@ class Node(Struct[NodeDataT], Generic[NodeDataT]):
 
     def delete(self):
         """Soft delete this node."""
-        assert not self.is_soft_deleted, f"{self!r} is already deleted"
+        assert not self.is_deleted, f"{self!r} is already deleted"
         raise NotImplementedError
 
     def restore(self):
         """Restore this node from soft deletion."""
-        assert self.is_soft_deleted, f"{self!r} is not deleted"
+        assert self.is_deleted, f"{self!r} is not deleted"
         raise NotImplementedError
 
-    def hard_delete(self):
+    def erase(self):
         """Hard delete this node. Forever. Irreversibly."""
         raise NotImplementedError
 

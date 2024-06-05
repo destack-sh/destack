@@ -597,11 +597,11 @@ SYSTEM_POLICIES: tuple[Policy, ...] = (
         .deny(
             EditType.CREATE,
             EditType.UPSERT,
-            EditType.SOFT_DELETE,
+            EditType.DELETE,
             EditType.RESTORE,
             EditType.ARCHIVE,
             EditType.UNARCHIVE,
-            EditType.DELETE,
+            EditType.ERASE,
         )
         .object(node_types=(*ROOT_NODE_TYPES.tuple, NodeType.CLIENT)),
         PolicyRule(

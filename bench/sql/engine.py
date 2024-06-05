@@ -1620,7 +1620,7 @@ async def _pg_edit_batch(
         EditType.MOVE,
         EditType.ARCHIVE,
         EditType.UNARCHIVE,
-        EditType.SOFT_DELETE,
+        EditType.DELETE,
         EditType.RESTORE,
     ):
         # collect dynamic columns (incl. implicit metadata)
@@ -1629,7 +1629,7 @@ async def _pg_edit_batch(
             implicit_properties.append(node_cls.updated_epoch)
         if edit_type in (EditType.ARCHIVE, EditType.UNARCHIVE):
             implicit_properties.append(node_cls.archived_at)
-        elif edit_type in (EditType.SOFT_DELETE, EditType.RESTORE):
+        elif edit_type in (EditType.DELETE, EditType.RESTORE):
             implicit_properties.append(node_cls.deleted_at)
         dynamic_columns: list[Column] = [table._primary_key]
         for prop in chain(implicit_properties, updated_properties):
@@ -1668,7 +1668,7 @@ async def _pg_edit_batch(
                 row["archived_at"] = edit.edited_at
             elif edit_type == EditType.UNARCHIVE:
                 row["archived_at"] = None
-            elif edit_type == EditType.SOFT_DELETE:
+            elif edit_type == EditType.DELETE:
                 row["deleted_at"] = edit.edited_at
             elif edit_type == EditType.RESTORE:
                 row["deleted_at"] = None
@@ -1694,7 +1694,7 @@ async def _pg_edit_batch(
         else:
             return None
 
-    elif edit_type == EditType.DELETE:
+    elif edit_type == EditType.ERASE:
         nodes_ids = [edit.node_ptr.id for edit in batch]
         where = SqlComparison(
             left=sqlident("id"),

@@ -260,7 +260,7 @@ const actions: Partial<ActionMapImplementation<"common">> = {
   },
   "common.edit.delete": {
     isEnabled: hasFocusedNode,
-    action: () => pkgConnection.tx.softDelete(focusedNode.value!),
+    action: () => pkgConnection.tx.delete(focusedNode.value!),
   },
   ...useHierarchicalNodeMoveActions({
     graph: pkgGraph,

@@ -266,7 +266,7 @@ const actions: Partial<ActionMapImplementation<"common">> & ActionMapImplementat
     action: (action, context) => {
       const { message } = getMessageFromContext(context);
       if (message == null) return false;
-      pkgConnection.tx.softDelete(message);
+      pkgConnection.tx.delete(message);
     },
   },
   "common.navigate.up": {

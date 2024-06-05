@@ -145,9 +145,9 @@ class Transaction:
             EditType.UPSERT,
             EditType.ARCHIVE,
             EditType.UNARCHIVE,
-            EditType.SOFT_DELETE,
-            EditType.RESTORE,
             EditType.DELETE,
+            EditType.RESTORE,
+            EditType.ERASE,
         ],
         node_: Node,
         subject: NodeReferenceData | None,
@@ -166,7 +166,7 @@ class Transaction:
         if edit_type in (EditType.CREATE, EditType.UPSERT):
             new_node_packed = pack_node_delta(node_._to_data())
             old_node_packed = None
-        elif edit_type == EditType.DELETE:
+        elif edit_type == EditType.ERASE:
             new_node_packed = None
             old_node_packed = pack_node_delta(node_._to_data())
         else:
@@ -312,7 +312,7 @@ class Transaction:
     ):
         self._do_update(EditType.MOVE, node_, subject, origin, context, properties, old_values)
 
-    def soft_delete(
+    def delete(
         self,
         node_: Node,
         subject: NodeReferenceData | None,
@@ -320,7 +320,7 @@ class Transaction:
         context: EditContextData | None,
     ):
         edit = self._make_simple_edit(
-            EditType.SOFT_DELETE, node_, subject=subject, origin=origin, context=context
+            EditType.DELETE, node_, subject=subject, origin=origin, context=context
         )
         self._add_pending_edit(edit, node_)
 
@@ -360,7 +360,7 @@ class Transaction:
         )
         self._add_pending_edit(edit, node_)
 
-    def delete(
+    def erase(
         self,
         node_: Node,
         subject: NodeReferenceData | None,
@@ -368,7 +368,7 @@ class Transaction:
         context: EditContextData | None,
     ):
         edit = self._make_simple_edit(
-            EditType.DELETE, node_, subject=subject, origin=origin, context=context
+            EditType.ERASE, node_, subject=subject, origin=origin, context=context
         )
         self._add_pending_edit(edit, node_)
 
@@ -548,8 +548,8 @@ def edit_graph(
                 graph.add(node)
             else:
                 graph.update(node)
-        elif edit_type == EditType.DELETE or (
-            not options.include_hidden and edit_type in (EditType.ARCHIVE, EditType.SOFT_DELETE)
+        elif edit_type == EditType.ERASE or (
+            not options.include_hidden and edit_type in (EditType.ARCHIVE, EditType.DELETE)
         ):
             node = graph.get(node_id)
             assert node is not None, f"missing node {node_id!r} for remove: {edit!r}"
@@ -579,7 +579,7 @@ def edit_graph(
                 node.archived_at = edit.edited_at
             elif edit_type == EditType.UNARCHIVE:
                 node.archived_at = None
-            elif edit_type == EditType.SOFT_DELETE:
+            elif edit_type == EditType.DELETE:
                 node.deleted_at = edit.edited_at
             elif edit_type == EditType.RESTORE:
                 node.deleted_at = None
@@ -641,10 +641,8 @@ def edit_data_graph(
             else:
                 graph.update(new_node_data)
         elif (
-            edit_type == EditType.DELETE
-            or (
-                not options.include_hidden and edit_type in (EditType.ARCHIVE, EditType.SOFT_DELETE)
-            )
+            edit_type == EditType.ERASE
+            or (not options.include_hidden and edit_type in (EditType.ARCHIVE, EditType.DELETE))
         ) and not is_prepass:
             # remove
             old_node_data = graph.get(node_id)
@@ -682,7 +680,7 @@ def edit_data_graph(
                 if edit_type in (EditType.UPDATE, EditType.MOVE):
                     # reset only partial old data
                     edit.old_node_packed = wiring.pack_proto_json(old_node_data)
-                elif edit_type in (EditType.ARCHIVE, EditType.SOFT_DELETE, EditType.DELETE):
+                elif edit_type in (EditType.ARCHIVE, EditType.DELETE, EditType.ERASE):
                     # reset full node data as 'old'
                     edit.old_node_packed = pack_node_delta(updated_node_data)
                 elif edit_type in (EditType.UNARCHIVE, EditType.RESTORE):
@@ -700,7 +698,7 @@ def edit_data_graph(
                 updated_node_data.archived_at = edit.edited_at
             elif edit_type == EditType.UNARCHIVE:
                 updated_node_data.archived_at = None
-            elif edit_type == EditType.SOFT_DELETE:
+            elif edit_type == EditType.DELETE:
                 updated_node_data.deleted_at = edit.edited_at
             elif edit_type == EditType.RESTORE:
                 updated_node_data.deleted_at = None
