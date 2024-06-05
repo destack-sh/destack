@@ -37,8 +37,8 @@ class ViewType(IdEnum):
     USER_WIZARD = 1
     BENCH_WIZARD = 2
     CHALLENGE_WIZARD = 3
-    # debugging
-    MOCK = 90
+    # internal
+    EMPTY = 80
 
     # 'system'
     # nodes
@@ -59,6 +59,9 @@ class ViewType(IdEnum):
     CREATE = 154
     CHAT = 155
     LOG = 156
+    RUN = 157
+    TIMELINE = 158
+    HISTORY = 159
 
     #
     # General
@@ -74,8 +77,7 @@ class ViewType(IdEnum):
     DRAWER = 511
     SCROLL = 512
     GRID = 513
-    # ROW = 514
-    # COLUMN = 515
+    # ROW, COLUMN, ...?
     # containers (data)
     LIST = 520
     TABLE = 521
@@ -99,7 +101,7 @@ class ViewType(IdEnum):
     LINK = 610
 
     # content
-    VALUE = 620  # (generic content routed with valueType)
+    VALUE = 620  # (generic content routed according to value type)
     # numeric
     NUMBER = 632
     SLIDER = 633

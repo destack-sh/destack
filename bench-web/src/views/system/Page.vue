@@ -373,7 +373,7 @@ defineExpose<ViewExposed>({ self, actions, focus });
 
             <!-- Create above/below (in between blocks) -->
             <div
-              v-for="anchor in i < expandedBlocks.length - 1 ? (i == 0 ? [] : ['start']) : ['start', 'end']"
+              v-for="anchor in i == 0 ? [] : i < expandedBlocks.length - 1 ? ['start'] : ['start', 'end']"
               :key="anchor"
               v-menu="
                 (): PopoverInfoIn => ({

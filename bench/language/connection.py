@@ -484,12 +484,14 @@ class PostgresConnection(StoreConnection[NodeT, NodeDataT], Generic[NodeT, NodeD
     @override
     @_pg_method
     async def cancel(self) -> None:
-        await self.cur.connection.rollback()
+        if not self.cur.connection.broken:
+            await self.cur.connection.rollback()
 
     @override
     @_pg_method
     async def close(self):
-        await self.cur.connection.rollback()
+        if not self.cur.connection.broken:
+            await self.cur.connection.rollback()
         await self.conn.close()
 
 

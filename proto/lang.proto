@@ -338,7 +338,7 @@ enum Day {
   DAY_SUNDAY = 7;
 }
 
-// A type of Edit access on nodes.
+// Ways to edit nodes.
 enum EditType {
   EDIT_TYPE_UNSPECIFIED = 0;
   EDIT_TYPE_CREATE = 20;
@@ -801,7 +801,7 @@ enum PrimitiveType {
   PRIMITIVE_TYPE_INTERVAL = 31;
 }
 
-// A type of Read access on nodes.
+// Ways to read nodes.
 enum ReadType {
   READ_TYPE_UNSPECIFIED = 0;
   READ_TYPE_GET = 1;
@@ -1073,7 +1073,7 @@ enum TypeKind {
   TYPE_KIND_ALIAS = 10;
 }
 
-// A type of Run access on nodes.
+// Ways to use nodes.
 enum UseType {
   USE_TYPE_UNSPECIFIED = 0;
   USE_TYPE_START = 40;
@@ -1108,7 +1108,7 @@ enum ViewType {
   VIEW_TYPE_USER_WIZARD = 1;
   VIEW_TYPE_BENCH_WIZARD = 2;
   VIEW_TYPE_CHALLENGE_WIZARD = 3;
-  VIEW_TYPE_MOCK = 90;
+  VIEW_TYPE_EMPTY = 80;
   VIEW_TYPE_PAGE = 101;
   VIEW_TYPE_BLOCK = 102;
   VIEW_TYPE_FIELD = 103;
@@ -1125,6 +1125,9 @@ enum ViewType {
   VIEW_TYPE_CREATE = 154;
   VIEW_TYPE_CHAT = 155;
   VIEW_TYPE_LOG = 156;
+  VIEW_TYPE_RUN = 157;
+  VIEW_TYPE_TIMELINE = 158;
+  VIEW_TYPE_HISTORY = 159;
   VIEW_TYPE_WINDOW = 500;
   VIEW_TYPE_TAB = 502;
   VIEW_TYPE_SPLIT = 503;

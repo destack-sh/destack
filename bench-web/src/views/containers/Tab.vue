@@ -254,10 +254,12 @@ defineExpose<ViewExposed>({ self, actions });
       />
       <div
         v-else-if="focusedTabIdx != null"
-        class="flex h-full w-full flex-col justify-center bg-danger-200 text-center"
+        class="flex h-full w-full flex-col justify-center bg-danger-300 text-center"
       >
         <!-- missing view -->
-        <span v-if="IS_DEV || isDeveloperMode" class="font-mono">{{ ViewType[tabs[focusedTabIdx].type] }}</span>
+        <span v-if="IS_DEV || isDeveloperMode" class="font-mono font-semibold">
+          {{ ViewType[tabs[focusedTabIdx].type] }}
+        </span>
       </div>
       <Empty v-else :type="ViewType.TAB" class="flex h-full w-full flex-col items-center justify-center" />
     </div>

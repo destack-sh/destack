@@ -1,14 +1,14 @@
 import io
 from datetime import datetime
-from typing import TYPE_CHECKING, BinaryIO, Collection, Optional
+from typing import TYPE_CHECKING, BinaryIO, Optional
 
 import structlog
 
 from bench.language.bench import Drive, Resource
 from bench.language.const import EnumType, NodeType, PrimitiveType, StructType, enum_
 from bench.language.node import Struct, node, struct
-from bench.language.property import Property, p_internal, p_node_parent, p_regular, p_runtime
-from bench.language.validation import NAME_CONSTRAINT, ValidationHandler
+from bench.language.property import p_internal, p_node_parent, p_regular, p_runtime
+from bench.language.validation import NAME_CONSTRAINT
 from bench.proto.wire import BlobData
 from bench.utils.func import IdEnum
 
@@ -55,15 +55,6 @@ class File(Struct):
 
     _cached_bytes: Optional[bytes] = p_runtime(default=None)
 
-    def __content_str__(self):
-        return f"{self.name} {self.type}, {self.size} bytes"
-
-    def _validate_component(
-        self, properties: Collection[Property], invalid: ValidationHandler
-    ) -> None:
-        if self.size and self.size > FILE_MAX_SIZE:
-            invalid(self, f"{self} is too big ({self.size} > {FILE_MAX_SIZE} bytes)", (File.size,))
-
     async def download(self) -> bytes:
         """Read the object from the remote storage."""
         raise NotImplementedError
@@ -71,17 +62,19 @@ class File(Struct):
     async def get_url(self):
         raise NotImplementedError
 
+    async def io(self) -> BinaryIO:
+        """Get a native file-like object for the file."""
+        return io.BytesIO(await self.download())
+
     async def text(self) -> str:
+        """Interprets the file contents as text."""
         content = self._cached_bytes or await self.download()
         return content.decode()
 
     async def lines(self) -> list[str]:
+        """Splits the interpreted text content into lines."""
         content = self._cached_bytes or await self.download()
         return content.decode().splitlines()
-
-    async def io(self) -> BinaryIO:
-        """Get a file-like object for the file."""
-        return io.BytesIO(await self.download())
 
 
 @enum_(EnumType.ICON_KIND)

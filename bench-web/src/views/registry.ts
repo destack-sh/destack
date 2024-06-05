@@ -3,10 +3,10 @@ import { toNodeReference } from "@/proto/wiring";
 import { getVueComponentType } from "@/views/canvas";
 import type { ViewComponent } from "@/views/common";
 
-// NOTE!: Only but ABSOLUTELY NECESSARY definitions for the view registry here. Any change in any component or here will cause all dependencies to hot reload!
+// NOTE!: Only put ABSOLUTELY NECESSARY definitions for the view registry here.
+// Any change in any component or import will cause all dependencies to hot reload!
 // NOTE: Architecture: we register these components lazily to avoid force reloading everything during local development.
 //  (Otherwise any change in any component requires this file to be reloaded, forcing *all* components to be reloaded.)
-
 // NOTE: sync with inverse registry in common :ViewRegistry
 //  (see above for why we can't import from here)
 const COMPONENT_BY_VIEW_TYPE_LAZY = {
@@ -22,12 +22,13 @@ const COMPONENT_BY_VIEW_TYPE_LAZY = {
   [ViewType.TYPE]: () => import("@/views/system/Type.vue"),
   [ViewType.OBJECT]: () => import("@/views/system/Object.vue"),
   // helpers
-  [ViewType.MOCK]: () => import("@/views/system/Mock.vue"),
+  [ViewType.EMPTY]: () => import("@/views/system/Empty.vue"),
   [ViewType.EXPLORE]: () => import("@/views/system/Explore.vue"),
   [ViewType.OUTLINE]: () => import("@/views/system/Explore.vue"), // shared with Explore
   [ViewType.INSPECT]: () => import("@/views/system/Inspect.vue"),
   [ViewType.CREATE]: () => import("@/views/system/Create.vue"),
   [ViewType.CHAT]: () => import("@/views/system/Chat.vue"),
+  [ViewType.RUN]: () => import("@/views/system/Run.vue"),
 
   // containers
   [ViewType.WINDOW]: () => import("@/views/containers/Split.vue"), // shared with Split

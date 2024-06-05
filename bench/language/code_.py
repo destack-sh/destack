@@ -33,6 +33,10 @@ class Code(Struct):
     def from_string(s: str) -> "Code":
         return string_to_code(s)
 
+    @staticmethod
+    def empty() -> "Code":
+        return Code(lines=[])
+
 
 def code_to_string(code: Code) -> str:
     return "\n".join(line.content for line in code.lines)

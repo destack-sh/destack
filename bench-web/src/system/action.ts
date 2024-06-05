@@ -199,7 +199,7 @@ export const ACTION_BUILTIN_IDS = [
   // developer
   "developer.developerMode",
   "developer.tx.retryAllFailed",
-  "developer.view.addMockView",
+  "developer.view.addEmptyView",
   "developer.create.addRootPages",
   "developer.create.addRandomBlocks",
   "developer.create.addRandomFields",
@@ -1090,14 +1090,14 @@ contributeActionMap<"developer">({
       });
     },
   },
-  "developer.view.addMockView": {
+  "developer.view.addEmptyView": {
     isEnabled: isDeveloperMode,
     icon: "fas fa-window",
-    title: "Add Mock View",
-    text: "Adds a debug view to this root",
+    title: "Add Empty View",
+    text: "Adds an empty debug view to this root",
     action: () => {
       const name = toCasing(generateRandomName().toUpperCase(), Casing.CAMEL, true);
-      canvas.addView({ type: ViewType.MOCK, name, title: name });
+      canvas.addView({ type: ViewType.EMPTY, name, title: name });
     },
   },
   "developer.create.addRootPages": {
