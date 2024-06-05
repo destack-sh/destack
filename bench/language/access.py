@@ -422,9 +422,9 @@ class Subject(Struct):
         42, default=None, require=False, array=False, references=NodeType.SERVER
     )
     if TYPE_CHECKING:
-        client_ptr: Optional[NodeReferenceData] = None
-        user_ptr: Optional[NodeReferenceData] = None
-        server_ptr: Optional[NodeReferenceData] = None
+        client_ptr: Optional[NodeReference] = None
+        user_ptr: Optional[NodeReference] = None
+        server_ptr: Optional[NodeReference] = None
 
     # accessories
     identity: Optional["Identity"] = p_system(

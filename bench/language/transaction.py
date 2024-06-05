@@ -16,9 +16,16 @@ from bench.language.connection import (
 )
 from bench.language.const import UNSET, BenchError, EditType, NodeType
 from bench.language.graph import DetachedNodeGraph, NodeDataGraph, NodeGraph
-from bench.language.node import EditSubject, Node, Property
+from bench.language.node import Node, Property
 from bench.language.setup import NODE_CLASS_BY_TYPE
-from bench.proto.wire import AnyNodeData, ClientOrigin, EditData, GraphScope
+from bench.proto.wire import (
+    AnyNodeData,
+    ClientOrigin,
+    EditContextData,
+    EditData,
+    GraphScope,
+    NodeReferenceData,
+)
 from bench.utils.dt import utcnow
 from bench.utils.func import uuid_to_str
 from bench.utils.uuidt import UUIDT
@@ -143,8 +150,9 @@ class Transaction:
             EditType.DELETE,
         ],
         node_: Node,
-        subject: EditSubject | None,
+        subject: NodeReferenceData | None,
         origin: ClientOrigin | None,
+        context: EditContextData | None,
     ) -> EditData:
         """Creates a simple non-update/move edit and adds it to the pending edits."""
         assert self.session is not None, f"no session for {self!r}"
@@ -169,30 +177,48 @@ class Transaction:
         edit = EditData(
             id=new_edit_id(),
             type=wiring.pack_enum(EditType, edit_type),
-            node_ptr=node_.to_ref()._to_data(),
+            node_ptr=node_._to_ref_data(),
             new_node_packed=new_node_packed,
             old_node_packed=old_node_packed,
             scope=self._get_scope_for_node(node_),
             origin=origin,
-            subject_ptr=subject.to_ref()._to_data() if subject is not None else None,
+            subject_ptr=subject,
+            context=context,
             edited_at=utcnow(),
         )
         return edit
 
-    def create(self, node_: Node, subject: EditSubject | None, origin: ClientOrigin | None):
-        edit = self._make_simple_edit(EditType.CREATE, node_, subject=subject, origin=origin)
+    def create(
+        self,
+        node_: Node,
+        subject: NodeReferenceData | None,
+        origin: ClientOrigin | None,
+        context: EditContextData | None,
+    ):
+        edit = self._make_simple_edit(
+            EditType.CREATE, node_, subject=subject, origin=origin, context=context
+        )
         self._add_pending_edit(edit, node_)
 
-    def upsert(self, node_: Node, subject: EditSubject | None, origin: ClientOrigin | None):
-        edit = self._make_simple_edit(EditType.UPSERT, node_, subject=subject, origin=origin)
+    def upsert(
+        self,
+        node_: Node,
+        subject: NodeReferenceData | None,
+        origin: ClientOrigin | None,
+        context: EditContextData | None,
+    ):
+        edit = self._make_simple_edit(
+            EditType.UPSERT, node_, subject=subject, origin=origin, context=context
+        )
         self._add_pending_edit(edit, node_)
 
     def _do_update(
         self,
         edit_type: Literal[EditType.UPDATE, EditType.MOVE],
         node_: Node,
-        subject: EditSubject | None,
+        subject: NodeReferenceData | None,
         origin: ClientOrigin | None,
+        context: EditContextData | None,
         properties: Collection[Property],
         old_values: dict[int, Any],
     ):
@@ -221,13 +247,14 @@ class Transaction:
             edit = EditData(
                 id=new_edit_id(),
                 type=wiring.pack_enum(EditType, edit_type),
-                node_ptr=node_.to_ref()._to_data(),
+                node_ptr=node_._to_ref_data(),
                 properties=[prop.id for prop in properties],
                 old_node_packed=wiring.pack_proto_json(old_node_packed),
                 new_node_packed=wiring.pack_proto_json(new_node_packed),
                 scope=self._get_scope_for_node(node_),
+                subject_ptr=subject,
                 origin=origin,
-                subject_ptr=subject.to_ref()._to_data() if subject is not None else None,
+                context=context,
                 edited_at=utcnow(),
             )
             engine = self._add_pending_edit(edit, node_)
@@ -266,43 +293,83 @@ class Transaction:
     def update(
         self,
         node_: Node,
-        subject: EditSubject | None,
+        subject: NodeReferenceData | None,
         origin: ClientOrigin | None,
+        context: EditContextData | None,
         properties: Collection[Property],
         old_values: dict[int, Any],
     ):
-        self._do_update(EditType.UPDATE, node_, subject, origin, properties, old_values)
+        self._do_update(EditType.UPDATE, node_, subject, origin, context, properties, old_values)
 
     def move(
         self,
         node_: Node,
-        subject: EditSubject | None,
+        subject: NodeReferenceData | None,
         origin: ClientOrigin | None,
+        context: EditContextData | None,
         properties: Collection[Property],
         old_values: dict[int, Any],
     ):
-        self._do_update(EditType.MOVE, node_, subject, origin, properties, old_values)
+        self._do_update(EditType.MOVE, node_, subject, origin, context, properties, old_values)
 
-    def soft_delete(self, node_: Node, subject: EditSubject | None, origin: ClientOrigin | None):
-        edit = self._make_simple_edit(EditType.SOFT_DELETE, node_, subject=subject, origin=origin)
-        self._add_pending_edit(edit, node_)
-
-    def restore(self, node_: Node, subject: EditSubject | None, origin: ClientOrigin | None):
-        edit = self._make_simple_edit(EditType.RESTORE, node_, subject=subject, origin=origin)
-        self._add_pending_edit(edit, node_)
-
-    def archive(self, node_: Node, subject: EditSubject | None, origin: ClientOrigin | None):
-        edit = self._make_simple_edit(EditType.ARCHIVE, node_, subject=subject, origin=origin)
-        self._add_pending_edit(edit, node_)
-
-    def unarchive(self, node_: Node, subject: EditSubject | None, origin: ClientOrigin | None):
+    def soft_delete(
+        self,
+        node_: Node,
+        subject: NodeReferenceData | None,
+        origin: ClientOrigin | None,
+        context: EditContextData | None,
+    ):
         edit = self._make_simple_edit(
-            EditType.UNARCHIVE, node_=node_, subject=subject, origin=origin
+            EditType.SOFT_DELETE, node_, subject=subject, origin=origin, context=context
         )
         self._add_pending_edit(edit, node_)
 
-    def delete(self, node_: Node, subject: EditSubject | None, origin: ClientOrigin | None):
-        edit = self._make_simple_edit(EditType.DELETE, node_, subject=subject, origin=origin)
+    def restore(
+        self,
+        node_: Node,
+        subject: NodeReferenceData | None,
+        origin: ClientOrigin | None,
+        context: EditContextData | None,
+    ):
+        edit = self._make_simple_edit(
+            EditType.RESTORE, node_, subject=subject, origin=origin, context=context
+        )
+        self._add_pending_edit(edit, node_)
+
+    def archive(
+        self,
+        node_: Node,
+        subject: NodeReferenceData | None,
+        origin: ClientOrigin | None,
+        context: EditContextData | None,
+    ):
+        edit = self._make_simple_edit(
+            EditType.ARCHIVE, node_, subject=subject, origin=origin, context=context
+        )
+        self._add_pending_edit(edit, node_)
+
+    def unarchive(
+        self,
+        node_: Node,
+        subject: NodeReferenceData | None,
+        origin: ClientOrigin | None,
+        context: EditContextData | None,
+    ):
+        edit = self._make_simple_edit(
+            EditType.UNARCHIVE, node_=node_, subject=subject, origin=origin, context=context
+        )
+        self._add_pending_edit(edit, node_)
+
+    def delete(
+        self,
+        node_: Node,
+        subject: NodeReferenceData | None,
+        origin: ClientOrigin | None,
+        context: EditContextData | None,
+    ):
+        edit = self._make_simple_edit(
+            EditType.DELETE, node_, subject=subject, origin=origin, context=context
+        )
         self._add_pending_edit(edit, node_)
 
     #

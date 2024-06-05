@@ -493,8 +493,8 @@ class Host(GraphIoServiceBase, HostBase, HostSpec):
         context_data: SessionContextData = (
             context._to_data() if context is not None else SessionContextData()
         )
-        package_ptr = session.package.to_ref()._to_data()
-        bench_ptr = session.bench.to_ref()._to_data()
+        package_ptr = session.package._to_ref_data()
+        bench_ptr = session.bench._to_ref_data()
         log_edits: list[EditData] = []
         for edit in chain(edits, extended_edits):
             node_type = NodeType(edit.node_ptr.type)

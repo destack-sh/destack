@@ -112,11 +112,12 @@ class NodeReference(Struct[NodeReferenceData]):
             invalid(self, "base_ck is required", (NodeReference.base_ck,))
 
     @staticmethod
-    def from_node(node: Node) -> "NodeReference":  # type: ignore
+    def from_node(node: Node) -> "NodeReference":
+        """Turn a node into a reference to that node."""
         assert isinstance(node, Node), f"expected Node, got {node!r}"
         reference = NodeReference(type=node.metatype, id=node.id, ck=node.ck)
 
-        # bench_id
+        # bench
         if node.metatype == NodeType.BENCH:
             reference.bench_id = node.id
         elif "bench" in node.__properties__:
@@ -132,6 +133,7 @@ class NodeReference(Struct[NodeReferenceData]):
 
     @staticmethod
     def from_node_data(node_data: AnyNodeData) -> "NodeReferenceData":
+        """Turn a data node into a data node reference to that node."""
         from bench.proto import wire
 
         node_cls = OBJECT_CLASS_BY_TYPE[cast(ObjectType, node_data.metatype)]
@@ -139,22 +141,47 @@ class NodeReference(Struct[NodeReferenceData]):
             metatype=wire.ObjectType.NODE_REFERENCE,
             type=cast(wire.NodeType, node_data.metatype),
             id=node_data.id,
+            ck=getattr(node_data, "ck", node_data.id),
         )
 
-        # bench_id
+        # bench
         if node_data.metatype == NodeType.BENCH:
             reference.bench_id = node_data.id
         elif "bench" in node_cls.__properties__ and node_data.parent_ptr is not None:
             reference.bench_id = node_data.parent_ptr.bench_id
-        # ck
-        if "ck" in node_cls.__properties__:
-            reference.ck = getattr(node_data, "ck")
         # base
         if NodeType(node_data.metatype) in BASED_NODE_TYPES:
             base = cast(BasedNode, node_cls).get_base_from_data(node_data)
             if base is not None:
                 reference.base_ck = base.ck
                 reference.base_bench_id = base.bench_id
+
+        return reference
+
+    @staticmethod
+    def data_from_node(node: Node) -> "NodeReferenceData":
+        """Turn a node straight to a data node reference."""
+        from bench.proto import wire
+
+        node_cls = OBJECT_CLASS_BY_TYPE[node.metatype]
+        reference = NodeReferenceData(
+            metatype=wire.ObjectType.NODE_REFERENCE,
+            type=cast(wire.NodeType, node.metatype),
+            id=str(node.id),
+            ck=str(node.ck),
+        )
+
+        # bench
+        if node.metatype == NodeType.BENCH:
+            reference.bench_id = str(node.id)
+        elif "bench" in node_cls.__properties__:
+            reference.bench_id = str(node.bench_id)
+        # base
+        if node.metatype in BASED_NODE_TYPES:
+            base = cast(BasedNode, node).base
+            if base is not None:
+                reference.base_ck = str(base.ck)
+                reference.base_bench_id = str(base.bench_id)
 
         return reference
 

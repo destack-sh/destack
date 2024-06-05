@@ -37,7 +37,6 @@ from bench.proto.wire import (
     DriveData,
     EnvironmentData,
     MachineData,
-    NodeReferenceData,
     PackageData,
     ServerData,
     StoreData,
@@ -53,6 +52,7 @@ if TYPE_CHECKING:
         Drive,
         Handle,
         Icon,
+        NodeReference,
         Organization,
         Policy,
         Region,
@@ -178,7 +178,7 @@ class Branch(Node[BranchData]):
     )
     if TYPE_CHECKING:
         main_package_id: Optional[UUID] = None
-        main_package_ptr: Optional[NodeReferenceData] = None
+        main_package_ptr: Optional[NodeReference] = None
     base: Optional["Branch"] = p_system(
         41, require=False, array=False, references=NodeType.BRANCH, fk=True, same_bench=True
     )

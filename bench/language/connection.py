@@ -339,7 +339,10 @@ class RemoteConnection(StoreConnection[NodeT, NodeDataT]):
         trace.get_current_span().set_attribute("connection", repr(self))
         edits = list(edits)
         request = wire.CommitTransactionRequest(
-            id=str(self.session.tx.id), edits=edits, scope=self.engine.scope
+            id=str(self.session.tx.id),
+            edits=edits,
+            scope=self.engine.scope,
+            context=self.session._get_session_context(),
         )
         response = await self.engine.remote.commit_transaction(
             request, metadata=self.engine.rpc_headers

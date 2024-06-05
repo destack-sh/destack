@@ -1642,9 +1642,16 @@ class Node(Struct[NodeDataT], Generic[NodeDataT]):
             return path
 
     def to_ref(self) -> "NodeReference":
+        """Gets a reference to this node."""
         from bench.language.expression import NodeReference
 
         return NodeReference.from_node(self)
+
+    def _to_ref_data(self) -> NodeReferenceData:
+        """Gets a data reference to this node."""
+        from bench.language.expression import NodeReference
+
+        return NodeReference.data_from_node(self)
 
     def __eq__(self, other: Any):
         return type(self) == type(other) and (
@@ -1681,7 +1688,7 @@ class Node(Struct[NodeDataT], Generic[NodeDataT]):
     ):
         raise NotImplementedError
 
-    def soft_delete(self):
+    def delete(self):
         """Soft delete this node."""
         assert not self.is_soft_deleted, f"{self!r} is already deleted"
         raise NotImplementedError

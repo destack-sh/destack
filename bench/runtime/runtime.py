@@ -80,6 +80,8 @@ class Runtime(ServiceBase, RuntimeBase):
         self._supervisor = SupervisorStub(Channel(self._supervisor_host, self._supervisor_port))
 
         # context
+        if client_type == ClientType.BENCH_SERVER and machine_id is None:
+            raise ValueError(f"missing machine_id for {client_type} {client_id}")
         self._client_type = client_type
         self._client_id = client_id
         self._client_access_token = client_access_token
@@ -188,6 +190,7 @@ class Runtime(ServiceBase, RuntimeBase):
         await self._session.open(in_context=False)
 
         # connect
+        # NOTE :Performance: share query connections between runtime/threads?
         async with self.session(readonly=True):
             # connect bench
             self._bench = await self._connector.connect(
@@ -208,6 +211,12 @@ class Runtime(ServiceBase, RuntimeBase):
                 assert (
                     self._machine is not None
                 ), f"{main_environment.server!r} has no machine {self._machine_id}"
+            self._session.machine = self._machine
+            self._session.client = self._client
+            if isinstance(self._client.parent, Server):
+                self._session.server = self._client.parent
+            else:
+                self._session.user = self._client.parent
             self._session._subject = self._client.parent
             self._session._origin = self._client.to_origin()
 
@@ -226,7 +235,7 @@ class Runtime(ServiceBase, RuntimeBase):
                 supervisor=self._supervisor,
                 host=self._host,
                 client=self._client,
-                # TODO :Performance: share query connections between runtime/threads
+                machine=self._machine,
                 connector=self._connector,
                 engines=self._engines,
                 queue=self._run_queue,
@@ -264,7 +273,6 @@ class Runtime(ServiceBase, RuntimeBase):
         assert self._client is not None, f"{self!r} not ready"
 
         # mark run as queued in this runtime
-        # nocheckin: set context in runtime (for edits)
         run = wiring.unpack_node(request.run, self.main_package, self._session, Run)
         async with self.session(autocommit=True):
             run.status = RunStatus.QUEUED

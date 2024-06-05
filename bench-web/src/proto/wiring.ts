@@ -289,7 +289,7 @@ export function nodeReference<T extends NodeType>(
     baseBenchId?: string;
   },
 ): TypedNodeReferenceData<T> {
-  const ptr = { metatype: ObjectType.NODE_REFERENCE, type: nodeType, ...meta, id };
+  const ptr = { metatype: ObjectType.NODE_REFERENCE, type: nodeType, ...meta, id, ck: meta?.ck ?? id };
   if (nodeType == NodeType.BENCH && ptr.benchId == null) ptr.benchId = id;
   return ptr;
 }
@@ -357,7 +357,7 @@ export function toNodeReferenceInPackage<T extends NodeType>(
 ): TypedNodeReferenceData<T> {
   const packageId = typeof pkg == "string" ? pkg : pkg.id!;
   if (ref.ck == null) return ref as TypedNodeReferenceData<T>;
-  else return { ...ref, id: newNodeIdFromCk(packageId, ref.ck), ck: undefined } as TypedNodeReferenceData<T>;
+  else return { ...ref, id: newNodeIdFromCk(packageId, ref.ck), ck: ref.ck } as TypedNodeReferenceData<T>;
 }
 
 export function getNodeType(node: AnyNodeData | AnyNodeReferenceData): NodeType {

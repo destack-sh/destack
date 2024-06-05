@@ -32,7 +32,7 @@ from bench.proto.wire import AnyNodeData, NodeReferenceData, RunData
 from bench.utils.func import IdEnum
 
 if TYPE_CHECKING:
-    from bench.language import Block, Package
+    from bench.language import Block, NodeReference, Package
 
 # pyright: reportIncompatibleVariableOverride=false
 
@@ -53,7 +53,7 @@ class Run(BasedNode[RunData], HasSessionContext, HasValues):
         32, NodeType.RUN, require=True, store=True, wire=True, is_bench_implicit=True
     )
     if TYPE_CHECKING:
-        root_ptr: Optional[NodeReferenceData] = None
+        root_ptr: Optional[NodeReference] = None
 
     code: Optional["Code"] = p_internal(36, require=False, array=False, struct=StructType.CODE)
     text: Optional["Text"] = p_internal(37, require=False, array=False, struct=StructType.TEXT)

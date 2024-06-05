@@ -73,7 +73,7 @@ async def provision(bench_slug: str):
 async def make_server_client(bench_slug: str, name: str = "Localhost"):
     async with global_session(epoch=0) as session:
         bench = (
-            await Bench.descendants(NodeType.SERVER, NodeType.CLIENT)
+            await Bench.descendants(NodeType.SERVER, NodeType.MACHINE, NodeType.CLIENT)
             .select_all()
             .get(slug=bench_slug)
         )
@@ -86,9 +86,13 @@ async def make_server_client(bench_slug: str, name: str = "Localhost"):
                 name=name,
                 access_token=generate_access_token(ACCESS_TOKEN_LENGTH),
             )
+        machine = first(server.machines, None)
+        if machine is None:
+            raise ValueError(f"{server!r} has no machines")
 
         client_env = {
             "BENCH_ID": str(bench.id),
+            "MACHINE_ID": str(machine.id),
             "CLIENT_TYPE": str(int(client.type)),
             "CLIENT_ID": str(client.id),
             "CLIENT_ACCESS_TOKEN": client.access_token,

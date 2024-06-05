@@ -41,6 +41,7 @@
         "SUPERVISOR_URL": "http://localhost:60061",
         // this is the 'test' bench (should probably set this in a local.env?)
         "BENCH_ID": "028aaaa8-3b2b-4512-ada6-f9a3aa7aa670",
+        "MACHINE_ID": "99e9ac5c-5e77-467f-854e-49ed56a65bc7",
         "CLIENT_TYPE": "10",
         "CLIENT_ID": "9b521aff-cd6f-4704-a6d0-fafa0ce09420",
         "CLIENT_ACCESS_TOKEN": "G5nXe9eCjFgJmYGQny652MR1CJ1p8hgvdqnZjceXqUFN"

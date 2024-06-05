@@ -106,12 +106,12 @@ def pack_struct_prop(prop: Property, value: Any, ignore_array: bool) -> Any:
     elif prop.is_enum:
         return pack_enum(prop.py_type_stripped, value)
     elif prop.reference_kind is not None and not prop.reference_kind.is_struct_tree:
-        # struct references are just integers
+        value_id = str(value.id)
         return NodeReferenceData(
             metatype=wire.ObjectType.NODE_REFERENCE,
             type=pack_enum(NodeType, value.type),
-            id=str(value.id),
-            ck=str(value.ck) if value.ck is not None else None,
+            id=value_id,
+            ck=str(value.ck) if value.ck is not None else value_id,
         )
     elif prop.primitive_type == PrimitiveType.UUID:
         return str(value)  # uuids are wired as strings
@@ -134,11 +134,11 @@ def unpack_struct_prop(prop: Property, value: Any, ignore_array: bool = False) -
         elif prop.is_enum:
             return unpack_enum(prop.py_type_stripped, value)
         elif prop.reference_kind is not None and not prop.reference_kind.is_struct_tree:
-            # struct references are just integers
+            value_id = UUID(value.id)
             return NodeReference(
                 type=unpack_enum(NodeType, value.type),
-                id=UUID(value.id),
-                ck=UUID(value.ck) if value.ck else None,
+                id=value_id,
+                ck=UUID(value.ck) if value.ck else value_id,
             )
         elif prop.primitive_type == PrimitiveType.UUID:
             return UUID(value)  # uuids are wired as strings
