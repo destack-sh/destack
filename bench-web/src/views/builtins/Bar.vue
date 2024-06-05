@@ -205,7 +205,7 @@ const dockActions: Ref<Action[]> = computed(
       <button
         v-for="action in dockActions"
         :key="action.id"
-        v-tooltip="tooltipFromAction(action, { placement: 'top', showDelay: 800 })"
+        v-tooltip="tooltipFromAction(action, { placement: 'top', showDelay: 800, group: 'bar.dock' })"
         class="rounded px-2.5 py-1 text-gray-700 hover:bg-gray-100 hover:text-primary-900"
         @click="fireActionById(action.id)"
       >

@@ -21,6 +21,7 @@ import { canvas, inspectionPtr } from "@/system/space";
 import { makeTypeInfo, packValue, resolveType, unpackValue, type TypeIdentity } from "@/system/value";
 import { onMouseReleasedOnce } from "@/utils/layout";
 import { menuActionsLike, pushPopover, type PopoverContext, type PopoverInfo, type PopoverInfoIn } from "@/utils/menu";
+import type { TooltipInfo } from "@/utils/tooltip";
 import Inaccessible from "@/views/builtins/Inaccessible.vue";
 import { makeViewId, viewEmits, type FocusAnchor, type ViewExposed } from "@/views/common";
 import Code from "@/views/content/Code.vue";
@@ -130,7 +131,7 @@ defineExpose<ViewExposed>({ self, id, variants: [Variant.PRIMARY, Variant.STEALT
         "
       >
         <IconInline
-          v-tooltip="{ small: true, text: `Change icon` }"
+          v-tooltip="{ small: true, text: `Change icon` } as TooltipInfo"
           v-menu="
             (): PopoverInfoIn => ({
               component: Icon,

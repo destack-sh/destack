@@ -1,11 +1,13 @@
-import type { IconData, TextData } from "@/proto/wire";
+import type { IconData, TextData, Timestamp } from "@/proto/wire";
 import type { Action } from "@/system/action";
 import { isOnMac } from "@/utils/browser";
 import { findFloatingContainer, type FloatingOptions, type FloatingPlacement } from "@/utils/floating";
 import { normalizeKeymapKey, parseKeymapSignature } from "@/utils/keymap";
+import { log } from "@/utils/log";
 import { pretendReadonly } from "@/utils/ref";
 import { Casing, toCasing } from "@/utils/string";
 import type { MaybeElement } from "@vueuse/core";
+import { DateTime } from "luxon";
 import { computed, shallowRef, toValue, type Directive, type FunctionalComponent, type Ref } from "vue";
 
 //
@@ -80,6 +82,7 @@ export type TooltipInfo = Omit<FloatingOptions, "placement"> & {
   hideDelay?: number;
   placement?: FloatingPlacement;
   isEnabled?: boolean | (() => boolean);
+  group?: string;
 };
 
 export function tooltipFromAction(action: Action, override?: Partial<TooltipInfo>): TooltipInfo {
@@ -88,7 +91,7 @@ export function tooltipFromAction(action: Action, override?: Partial<TooltipInfo
     title: toValue(action.title),
     text: action.text,
     shortcuts: action.shortcuts,
-    placement: 'top',
+    placement: "top",
     ...override,
   };
 }
@@ -108,33 +111,40 @@ export type TooltipInstance = {
   info: TooltipInfo;
   reference: TooltipTriggerElement;
   container?: HTMLElement | SVGElement;
+  createdAt: DateTime;
 };
 
 const _activeTooltips: Ref<TooltipInstance[]> = shallowRef([]);
 export const activeTooltips = pretendReadonly(_activeTooltips);
-let tooltipId = 0;
+let lastActiveTooltip: TooltipInstance | undefined;
 
 const TOOLTIP_DATA_SET_ATTRIBUTE = "tooltip";
 const TOOLTIP_DATA_ID_ATTRIBUTE = "tooltipid";
 
+let tooltipId = 0;
 function createTooltip(
   reference: TooltipTriggerElement,
   info: TooltipInfo,
   container: HTMLElement | SVGElement | undefined,
 ): TooltipInstance {
-  const instance = { id: tooltipId++, info, reference, container };
+  const instance = { id: tooltipId++, info, reference, container, createdAt: DateTime.now() };
   _activeTooltips.value = [..._activeTooltips.value, instance];
   reference.dataset[TOOLTIP_DATA_SET_ATTRIBUTE] = "true";
   reference.dataset[TOOLTIP_DATA_ID_ATTRIBUTE] = instance.id.toString();
+  reference.tooltipInstance = instance;
+  lastActiveTooltip = instance;
+  log.trace("tooltip.create", instance);
   return instance;
 }
 
 function destroyTooltip(instance: TooltipInstance) {
   _activeTooltips.value = _activeTooltips.value.filter((t) => t !== instance);
+  lastActiveTooltip = _activeTooltips.value[_activeTooltips.value.length - 1];
   if (instance.reference.dataset[TOOLTIP_DATA_ID_ATTRIBUTE] == instance.id.toString()) {
     delete instance.reference.dataset[TOOLTIP_DATA_SET_ATTRIBUTE];
     delete instance.reference.dataset[TOOLTIP_DATA_ID_ATTRIBUTE];
   }
+  instance.reference.tooltipInstance = undefined;
 }
 
 /** Simple tooltip directive that shows/hides itself on hover with a delay*/
@@ -143,26 +153,44 @@ export const TOOLTIP_DIRECTIVE: Directive<MaybeElement, TooltipInfo> = {
     const triggerEl = el as TooltipTriggerElement;
 
     triggerEl.tooltipOnMouseEnter = (e: MouseEvent) => {
+      const info = binding.value;
       if (e.target == triggerEl) {
-        // create a new tooltip instance if trigger is hovered for a while
+        // create a new tooltip instance if trigger is hovered for a while or its group was recently hovered
         const container = findFloatingContainer(triggerEl) ?? undefined;
-        if (triggerEl.tooltipShowTimeout != null) clearTimeout(triggerEl.tooltipShowTimeout);
-        triggerEl.tooltipShowTimeout = window.setTimeout(() => {
-          if (binding.value.isEnabled != null && !toValue(binding.value.isEnabled)) return;
-          triggerEl.tooltipInstance = createTooltip(triggerEl, binding.value, container);
-        }, binding.value.showDelay ?? DEFAULT_HOVER_SHOW_DELAY);
+        if (triggerEl.tooltipShowTimeout != null) {
+          clearTimeout(triggerEl.tooltipShowTimeout);
+        }
+        if (
+          info.group != null &&
+          info.group == lastActiveTooltip?.info?.group &&
+          lastActiveTooltip.createdAt.diffNow().milliseconds < 500
+        ) {
+          destroyTooltip(lastActiveTooltip!);
+          createTooltip(triggerEl, info, container);
+        } else {
+          triggerEl.tooltipShowTimeout = window.setTimeout(() => {
+            if (info.isEnabled == null || toValue(info.isEnabled)) {
+              createTooltip(triggerEl, info, container);
+            }
+          }, info.showDelay ?? DEFAULT_HOVER_SHOW_DELAY);
+        }
       } else if (triggerEl.tooltipInstance != null) {
         // some part of the tooltip is hovered, so cancel the hide timeout
-        if (triggerEl.tooltipHideTimeout != null) clearTimeout(triggerEl.tooltipHideTimeout);
+        if (triggerEl.tooltipHideTimeout != null) {
+          clearTimeout(triggerEl.tooltipHideTimeout);
+        }
       }
     };
     triggerEl.tooltipOnMouseLeave = (e: MouseEvent) => {
-      if (triggerEl.tooltipShowTimeout != null) clearTimeout(triggerEl.tooltipShowTimeout);
+      if (triggerEl.tooltipShowTimeout != null) {
+        clearTimeout(triggerEl.tooltipShowTimeout);
+      }
+      const info = binding.value;
       triggerEl.tooltipHideTimeout = window.setTimeout(() => {
         if (triggerEl.tooltipInstance != null) {
           destroyTooltip(triggerEl.tooltipInstance);
         }
-      }, binding.value.hideDelay ?? DEFAULT_HOVER_HIDE_DELAY);
+      }, info.hideDelay ?? DEFAULT_HOVER_HIDE_DELAY);
     };
     triggerEl.addEventListener("mouseenter", triggerEl.tooltipOnMouseEnter);
     triggerEl.addEventListener("mouseleave", triggerEl.tooltipOnMouseLeave);
