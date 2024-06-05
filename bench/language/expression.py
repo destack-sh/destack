@@ -9,6 +9,7 @@ from bench.language.const import (
     BASED_NODE_TYPES,
     IN_BENCH_NODE_TYPES,
     SUB_BENCH_NODE_TYPES,
+    USER_NODE_TYPES,
     AggregationOp,
     ConditionalOp,
     EnumType,
@@ -106,7 +107,11 @@ class NodeReference(Struct[NodeReferenceData]):
     ) -> None:
         if self.id is None:
             invalid(self, "id is required", (NodeReference.id,))
-        if self.type in SUB_BENCH_NODE_TYPES and self.bench_id is None:
+        if (
+            self.type in SUB_BENCH_NODE_TYPES
+            and self.type not in USER_NODE_TYPES
+            and self.bench_id is None
+        ):
             invalid(self, "bench_id is required", (NodeReference.bench_id,))
         if self.type in BASED_NODE_TYPES and self.base_ck is None:
             invalid(self, "base_ck is required", (NodeReference.base_ck,))
