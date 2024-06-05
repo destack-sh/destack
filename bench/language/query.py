@@ -45,14 +45,14 @@ logger = structlog.get_logger(__name__)
 tracer = trace.get_tracer(__name__)
 
 # default read options
-DEFAULT_FILTER: Expression = C(ConditionalOp.AND, clauses=[])
+FILTER_VISIBLE: Expression = C(ConditionalOp.AND, clauses=[])
 SELECT_DEFAULT_PROPERTIES: dict[NodeType, tuple[Property, ...]] = {}
 SELECT_ALL_PROPERTIES: dict[NodeType, tuple[Property, ...]] = {}
 
 
 @_on_completing_setup
-def _populate_default_access():
-    DEFAULT_FILTER.clauses = [
+def _populate_default_query():
+    FILTER_VISIBLE.clauses = [
         C(ConditionalOp.NOT_EXISTS, property=Node.deleted_at),
         C(ConditionalOp.NOT_EXISTS, property=Node.archived_at),
     ]
@@ -162,7 +162,7 @@ class ReadOptions(Struct):
     def filter(
         self, node_type: NodeType, custom_filter: Optional["Expression"] = None
     ) -> "Expression":
-        filter = C(ConditionalOp.TRUE) if self.include_hidden else DEFAULT_FILTER
+        filter = C(ConditionalOp.TRUE) if self.include_hidden else FILTER_VISIBLE
         if custom_filter is not None:
             filter &= custom_filter
         return filter

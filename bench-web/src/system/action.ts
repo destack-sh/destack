@@ -1288,7 +1288,7 @@ contributeActionMap<"bench">({
   "bench.go.goToBench": {
     title: "Switch Bench",
     text: "Open another Bench",
-    icon: "fas fa-fort",
+    icon: "fas fa-circle-notch",
     action: ACTION_COMING_SOON,
   },
   "bench.go.goToBranch": {

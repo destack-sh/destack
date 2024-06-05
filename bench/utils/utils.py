@@ -25,10 +25,10 @@ def get_from_env_maybe[T](
     if (value is None or value == "") and alt:
         value = os.getenv(alt)
     if value is None or value == "":
-        if optional:
+        if default is not None:
+            return default
+        elif optional:
             return None
-        elif default is not None:
-            value = default
         else:
             raise ValueError(
                 f'environment variable {key} is required (alt={alt or "<not set>"}, type_cast={typ}).'

@@ -129,7 +129,9 @@ async def read_migrations_from_pg(
             where = sql.SQL("applied_at IS NOT NULL") if applied else sql.SQL("applied_at IS NULL")
         else:
             where = None
-        migrations_rows = await pg_select(cur, MIGRATION_TABLE, where=where, order_by=sql.SQL("id"))
+        migrations_rows = await pg_select(
+            cur=cur, table=MIGRATION_TABLE, where=where, order_by=sql.SQL("id")
+        )
         migrations = [unpack_migration_row(row) for row in migrations_rows]
         return migrations
     except SqlUndefinedObjectError:
@@ -140,14 +142,14 @@ async def read_migrations_from_pg(
 async def _write_migrations_to_pg(cur: psycopg.AsyncCursor, migrations: list[Migration]):
     """Upserts the given migrations into the table. Errors if the table doesn't exist."""
     migrations_rows = [pack_migration_row(m) for m in migrations]
-    await pg_upsert(cur, MIGRATION_TABLE, migrations_rows)
+    await pg_upsert(cur=cur, table=MIGRATION_TABLE, rows=migrations_rows)
 
 
 async def delete_migrations_in_pg(cur: psycopg.AsyncCursor, from_id: int, to_id: int) -> None:
     """Deletes migrations from the database."""
     migrations_rows = await pg_delete(
-        cur,
-        MIGRATION_TABLE,
+        cur=cur,
+        table=MIGRATION_TABLE,
         where=sqlstr(f"id >= {from_id} AND id <= {to_id}"),
         returning=MIGRATION_TABLE.columns,
     )
@@ -831,7 +833,7 @@ async def introspect_sql_schema(
     FROM
         pg_extension
     """
-    extensions_rows = await pg_select_raw(cur, extensions_query)
+    extensions_rows = await pg_select_raw(cur=cur, query=extensions_query)
     extensions = tuple(Extension(name=row["extname"]) for row in extensions_rows)
 
     def _strip_condition(condition: str) -> str:
@@ -851,7 +853,7 @@ async def introspect_sql_schema(
         AND table_name LIKE {};
     """
     tables_query = sqlstr(tables_query).format(sql.Literal(table_prefix + "%"))
-    tables_rows = await pg_select_raw(cur, tables_query)
+    tables_rows = await pg_select_raw(cur=cur, query=tables_query)
     tables_names: list[str] = [str(row["table_name"]) for row in tables_rows]
 
     # columns
@@ -891,7 +893,7 @@ GROUP BY
     col.table_name, col.column_name, col.data_type, col.udt_name, col.is_nullable, col.column_default;
                """
         columns_query = sql.SQL(columns_query).format(sql.Literal(tables_names))
-        columns_rows = await pg_select_raw(cur, columns_query)
+        columns_rows = await pg_select_raw(cur=cur, query=columns_query)
         columns_by_table: dict[str, list[Column]] = defaultdict(list)
         for row in columns_rows:
             udt_name = row["udt_name"]
@@ -976,7 +978,9 @@ GROUP BY
     tc.table_name, tc.constraint_name, tc.constraint_type, chk.check_clause;
         """
         constraints_query = sql.SQL(constraints_query).format(sql.Literal(tables_names))
-        constraints_rows: list[dict[str, str]] = await pg_select_raw(cur, constraints_query)
+        constraints_rows: list[dict[str, str]] = await pg_select_raw(
+            cur=cur, query=constraints_query
+        )
         constraints_by_table: dict[str, list[Constraint]] = defaultdict(list)
         for row in constraints_rows:
             columns = tuple(row["column_names"].split(", ")) if row["column_names"] else ()
@@ -1010,7 +1014,7 @@ WHERE
     idx.schemaname = 'public' AND idx.tablename = ANY({});
             """
         indexes_query = sql.SQL(indexes_query).format(sql.Literal(tables_names))
-        indexes_rows: list[dict[str, str]] = await pg_select_raw(cur, indexes_query)
+        indexes_rows: list[dict[str, str]] = await pg_select_raw(cur=cur, query=indexes_query)
         for row in indexes_rows:
             definition = row["index_definition"]
             columns_str = definition.split("(")[1].split(")")[0]

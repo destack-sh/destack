@@ -386,100 +386,118 @@ class Session(Node[SessionData]):
 
     def create(self, *nodes: Node):
         """Creates a new node. Errors if the node already exists."""
-        if not self._is_suppressed:
-            assert self._tx is not None, f"no active transaction in {self!r}"
-            assert not self._is_readonly and not self._is_suspended, f"cannot edit in {self!r}"
-            subject, context = self._get_edit_context()
-            for n in nodes:
-                self._edited_nodes_by_id[n.id] = n
-                self._tx.create(n, subject, self._origin, context)
+        if self._is_suppressed:
+            return
+        assert self._tx is not None, f"no active transaction in {self!r}"
+        assert not self._is_readonly and not self._is_suspended, f"cannot edit in {self!r}"
+        subject, context = self._get_edit_context()
+        for n in nodes:
+            self._edited_nodes_by_id[n.id] = n
+            self._tx.create(n, subject, self._origin, context, utcnow())
 
     def upsert(self, *nodes: Node):
         """Creates or updates a node. Any non-id properties will be overwritten."""
-        if not self._is_suppressed:
-            assert self._tx is not None, f"no active transaction in {self!r}"
-            assert not self._is_readonly and not self._is_suspended, f"cannot edit in {self!r}"
-            subject, context = self._get_edit_context()
-            for n in nodes:
-                self._edited_nodes_by_id[n.id] = n
-                self._tx.upsert(n, subject, self._origin, context)
+        if self._is_suppressed:
+            return
+        assert self._tx is not None, f"no active transaction in {self!r}"
+        assert not self._is_readonly and not self._is_suspended, f"cannot edit in {self!r}"
+        subject, context = self._get_edit_context()
+        for n in nodes:
+            self._edited_nodes_by_id[n.id] = n
+            self._tx.upsert(n, subject, self._origin, context, utcnow())
 
     def update(self, node_: Node, properties: Collection[Property], old_values: dict[int, Any]):
         """Updates an existing node. Cannot move. The given properties are overwritten."""
-        if not self._is_suppressed:
-            assert self._tx is not None, f"no active transaction in {self!r}"
-            assert not self._is_readonly and not self._is_suspended, f"cannot edit in {self!r}"
-            self._edited_nodes_by_id[node_.id] = node_
-            subject, context = self._get_edit_context()
-            self._tx.update(node_, subject, self._origin, context, properties, old_values)
+        if self._is_suppressed:
+            return
+        assert self._tx is not None, f"no active transaction in {self!r}"
+        assert not self._is_readonly and not self._is_suspended, f"cannot edit in {self!r}"
+        self._edited_nodes_by_id[node_.id] = node_
+        subject, context = self._get_edit_context()
+        self._tx.update(node_, subject, self._origin, context, properties, old_values, utcnow())
 
     def move(self, node_: Node, properties: Collection[Property], old_values: dict[int, Any]):
         """Moves and updates an existing node."""
-        if not self._is_suppressed:
-            assert self._tx is not None, f"no active transaction in {self!r}"
-            assert not self._is_readonly and not self._is_suspended, f"cannot edit in {self!r}"
-            self._edited_nodes_by_id[node_.id] = node_
-            subject, context = self._get_edit_context()
-            self._tx.move(node_, subject, self._origin, context, properties, old_values)
-
-    def delete(self, *nodes: Node):
-        """Deletes a node with the option to recover it for a limited time."""
-        if not self._is_suppressed:
-            assert self._tx is not None, f"no active transaction in {self!r}"
-            assert not self._is_readonly and not self._is_suspended, f"cannot edit in {self!r}"
-            subject, context = self._get_edit_context()
-            for n in nodes:
-                self._edited_nodes_by_id[n.id] = n
-                # descendants will be removed from graph, so track them manually
-                for descendant in n._graph.iter_descendants(n, recursive=True):
-                    self._edited_nodes_by_id[descendant.id] = descendant
-                self._tx.delete(n, subject, self._origin, context)
-
-    def restore(self, *nodes: Node):
-        """Restore a deleted node."""
-        if not self._is_suppressed:
-            assert self._tx is not None, f"no active  transaction in {self!r}"
-            assert not self._is_readonly and not self._is_suspended, f"cannot edit in {self!r}"
-            subject, context = self._get_edit_context()
-            for n in nodes:
-                self._edited_nodes_by_id[n.id] = n
-                self._tx.restore(n, subject, self._origin, context)
+        if self._is_suppressed:
+            return
+        assert self._tx is not None, f"no active transaction in {self!r}"
+        assert not self._is_readonly and not self._is_suspended, f"cannot edit in {self!r}"
+        self._edited_nodes_by_id[node_.id] = node_
+        subject, context = self._get_edit_context()
+        self._tx.move(node_, subject, self._origin, context, properties, old_values, utcnow())
 
     def archive(self, *nodes: Node):
         """Marks a node as archived, so it will be hidden by default."""
-        if not self._is_suppressed:
-            assert self._tx is not None, f"no active transaction in {self!r}"
-            assert not self._is_readonly and not self._is_suspended, f"cannot edit in {self!r}"
-            subject, context = self._get_edit_context()
-            for n in nodes:
-                self._edited_nodes_by_id[n.id] = n
-                # descendants will be removed from graph, so track them manually
-                for descendant in n._graph.iter_descendants(n, recursive=True):
-                    self._edited_nodes_by_id[descendant.id] = descendant
-                self._tx.archive(n, subject, self._origin, context)
+        if self._is_suppressed:
+            return
+        assert self._tx is not None, f"no active transaction in {self!r}"
+        assert not self._is_readonly and not self._is_suspended, f"cannot edit in {self!r}"
+        subject, context = self._get_edit_context()
+        for n in nodes:
+            now = utcnow()
+            self._edited_nodes_by_id[n.id] = n
+            # descendants will be removed from graph, so track them manually
+            for descendant in n._graph.iter_descendants(n, recursive=True):
+                self._edited_nodes_by_id[descendant.id] = descendant
+            self._tx.archive(n, subject, self._origin, context, now)
+            n.archived_at = now
 
     def unarchive(self, *nodes: Node):
-        """Re-track a node from the archive in its original place."""
-        if not self._is_suppressed:
-            assert self._tx is not None, f"no active transaction in {self!r}"
-            assert not self._is_readonly and not self._is_suspended, f"cannot edit in {self!r}"
-            subject, context = self._get_edit_context()
-            for n in nodes:
-                self._edited_nodes_by_id[n.id] = n
-                self._tx.unarchive(n, subject, self._origin, context)
+        """Restore a node from the archive in its original place."""
+        if self._is_suppressed:
+            return
+        assert self._tx is not None, f"no active transaction in {self!r}"
+        assert not self._is_readonly and not self._is_suspended, f"cannot edit in {self!r}"
+        subject, context = self._get_edit_context()
+        for n in nodes:
+            self._edited_nodes_by_id[n.id] = n
+            self._tx.unarchive(n, subject, self._origin, context, utcnow())
+            n.archived_at = None
+
+    def delete(self, *nodes: Node):
+        """Deletes a node with the option to recover it for a limited time."""
+        if self._is_suppressed:
+            return
+        assert self._tx is not None, f"no active transaction in {self!r}"
+        assert not self._is_readonly and not self._is_suspended, f"cannot edit in {self!r}"
+        subject, context = self._get_edit_context()
+        for n in nodes:
+            now = utcnow()
+            self._edited_nodes_by_id[n.id] = n
+            # descendants will be removed from graph, so track them manually
+            for descendant in n._graph.iter_descendants(n, recursive=True):
+                self._edited_nodes_by_id[descendant.id] = descendant
+            self._tx.delete(n, subject, self._origin, context, now)
+            n.deleted_at = now
+
+    def restore(self, *nodes: Node):
+        """Restore a deleted node."""
+        if self._is_suppressed:
+            return
+        assert self._tx is not None, f"no active  transaction in {self!r}"
+        assert not self._is_readonly and not self._is_suspended, f"cannot edit in {self!r}"
+        subject, context = self._get_edit_context()
+        for n in nodes:
+            now = utcnow()
+            self._edited_nodes_by_id[n.id] = n
+            self._tx.restore(n, subject, self._origin, context, now)
+            n.deleted_at = None
 
     def erase(self, *nodes: Node):
-        """Irreversibly wipes a node and its descendants from the graph."""
-        if not self._is_suppressed:
-            assert self._tx is not None, f"no active transaction in {self!r}"
-            assert not self._is_readonly and not self._is_suspended, f"cannot edit in {self!r}"
-            subject, context = self._get_edit_context()
-            for n in nodes:
-                self._edited_nodes_by_id[n.id] = n
-                # descendants will be removed from graph, so track them manually
-                for descendant in n._graph.iter_descendants(n, recursive=True):
-                    self._edited_nodes_by_id[descendant.id] = descendant
-                self._tx.erase(n, subject, self._origin, context)
+        """Irreversibly wipe a node and its descendants from the graph."""
+        if self._is_suppressed:
+            return
+        assert self._tx is not None, f"no active transaction in {self!r}"
+        assert not self._is_readonly and not self._is_suspended, f"cannot edit in {self!r}"
+        subject, context = self._get_edit_context()
+        for n in nodes:
+            now = utcnow()
+            self._edited_nodes_by_id[n.id] = n
+            # descendants will be removed from graph, so track them manually
+            for descendant in n._graph.iter_descendants(n, recursive=True):
+                self._edited_nodes_by_id[descendant.id] = descendant
+            self._tx.erase(n, subject, self._origin, context, now)
+            n.deleted_at = now
 
 
 @struct(StructType.EDIT_CONTEXT, inline=True)

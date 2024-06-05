@@ -175,19 +175,27 @@ export class TransactionBuilder implements Transaction {
     node: AnyNodeData,
     debounce: DebounceLevel | null,
   ) {
+    // pack 'old' and 'new' node delta
     let newNodePacked = undefined;
     let oldNodePacked = undefined;
-    if (
-      editType == EditType.CREATE ||
-      editType == EditType.UPSERT ||
-      editType == EditType.UNARCHIVE ||
-      editType == EditType.RESTORE
-    ) {
+    if (editType == EditType.CREATE || editType == EditType.UPSERT) {
       newNodePacked = packNodeDelta(node);
     } else if (editType == EditType.ERASE || editType == EditType.ARCHIVE || editType == EditType.DELETE) {
+      if (node.deletedAt != null || node.archivedAt != null) {
+        node = { ...node, deletedAt: undefined, archivedAt: undefined };
+      }
       oldNodePacked = packNodeDelta(node);
+    } else if (editType == EditType.UNARCHIVE) {
+      // remember old 'archived_at' in old node, put full restored node in new node
+      oldNodePacked = packNodeDelta(node, { only: ["archivedAt"] });
+      newNodePacked = packNodeDelta({ ...node, archivedAt: undefined });
+    } else if (editType == EditType.RESTORE) {
+      // remember old 'deleted_at' in old node, put full restored node in new node
+      oldNodePacked = packNodeDelta(node, { only: ["deletedAt"] });
+      newNodePacked = packNodeDelta({ ...node, deletedAt: undefined });
     }
 
+    // make edit & notify
     const edit: EditData = {
       id: newEditId(),
       type: editType,
@@ -304,7 +312,7 @@ export class TransactionBuilder implements Transaction {
       this.edits.push(edit);
       this._notifyEdit(edit, options?.debounce ?? null);
     } else {
-      // merge into existing edit & notify directly
+      // merge into existing edit & notify directly :DebouncedUpdate
       const edit = this.debouncedUpdates[node.id];
       if (edit.oldNodePacked == null || edit.newNodePacked == null) {
         throw new Error(`missing old/new node in debounced edit: ${describeEdit(edit)}`);
@@ -372,8 +380,8 @@ export class TransactionBuilder implements Transaction {
   }
 }
 
-export function packNodeDelta(node: AnyNodeData): Struct {
-  const nodePacked = packStructValueScalar(node);
+export function packNodeDelta(node: AnyNodeData, options?: { only?: string[] }): Struct {
+  const nodePacked = packStructValueScalar(node, options);
   return Struct.fromJson(nodePacked);
 }
 

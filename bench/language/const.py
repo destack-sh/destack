@@ -611,6 +611,9 @@ ACCESS_CLASS_BY_KIND: dict[AccessKind, type[AccessType]] = {
 ACCESS_KIND_BY_ACCESS: dict[AccessType, AccessKind] = {
     access: kind for kind, access_types in ACCESS_TYPES_BY_KIND.items() for access in access_types
 }
+CASCADING_EDIT_TYPES: bittuple[EditType] = bittuple(
+    EditType.ARCHIVE, EditType.UNARCHIVE, EditType.DELETE, EditType.RESTORE, EditType.ERASE
+)
 
 
 @enum_(EnumType.ACCESS_MODE)

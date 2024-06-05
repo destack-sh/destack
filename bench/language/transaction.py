@@ -1,5 +1,6 @@
 import dataclasses
 from collections import defaultdict
+from datetime import datetime
 from typing import TYPE_CHECKING, Any, Collection, Literal, Optional, cast
 from uuid import UUID
 
@@ -26,7 +27,6 @@ from bench.proto.wire import (
     GraphScope,
     NodeReferenceData,
 )
-from bench.utils.dt import utcnow
 from bench.utils.func import uuid_to_str
 from bench.utils.uuidt import UUIDT
 
@@ -153,6 +153,7 @@ class Transaction:
         subject: NodeReferenceData | None,
         origin: ClientOrigin | None,
         context: EditContextData | None,
+        now: datetime,
     ) -> EditData:
         """Creates a simple non-update/move edit and adds it to the pending edits."""
         assert self.session is not None, f"no session for {self!r}"
@@ -163,15 +164,29 @@ class Transaction:
 
         from bench.proto import wiring
 
+        # pack 'old' and 'new' node deltas
+        old_node_packed = None
+        new_node_packed = None
         if edit_type in (EditType.CREATE, EditType.UPSERT):
             new_node_packed = pack_node_delta(node_._to_data())
-            old_node_packed = None
-        elif edit_type == EditType.ERASE:
-            new_node_packed = None
+        elif edit_type in (EditType.ARCHIVE, EditType.DELETE, EditType.ERASE):
             old_node_packed = pack_node_delta(node_._to_data())
+        elif edit_type == EditType.UNARCHIVE:
+            # put old archived_at in 'old', put full restored node in new
+            assert node_.archived_at, f"cannot unarchive {node_!r} that is not archived"
+            new_node = node_._to_data()
+            old_node_packed = pack_node_delta(new_node, only=(type(node_).archived_at,))
+            new_node.archived_at = None
+            new_node_packed = pack_node_delta(new_node)
+        elif edit_type == EditType.RESTORE:
+            # put old deleted_at in 'old', put full restored node in new
+            assert node_.deleted_at, f"cannot restore {node_!r} that is not deleted"
+            new_node = node_._to_data()
+            old_node_packed = pack_node_delta(new_node, only=(type(node_).deleted_at,))
+            new_node.deleted_at = None
+            new_node_packed = pack_node_delta(new_node)
         else:
-            new_node_packed = None
-            old_node_packed = None
+            raise ValueError(f"unexpected edit type for {node_!r}: {edit_type.name}")
 
         # make edit
         edit = EditData(
@@ -184,7 +199,7 @@ class Transaction:
             origin=origin,
             subject_ptr=subject,
             context=context,
-            edited_at=utcnow(),
+            edited_at=now,
         )
         return edit
 
@@ -194,9 +209,10 @@ class Transaction:
         subject: NodeReferenceData | None,
         origin: ClientOrigin | None,
         context: EditContextData | None,
+        now: datetime,
     ):
         edit = self._make_simple_edit(
-            EditType.CREATE, node_, subject=subject, origin=origin, context=context
+            EditType.CREATE, node_, subject=subject, origin=origin, context=context, now=now
         )
         self._add_pending_edit(edit, node_)
 
@@ -206,9 +222,10 @@ class Transaction:
         subject: NodeReferenceData | None,
         origin: ClientOrigin | None,
         context: EditContextData | None,
+        now: datetime,
     ):
         edit = self._make_simple_edit(
-            EditType.UPSERT, node_, subject=subject, origin=origin, context=context
+            EditType.UPSERT, node_, subject=subject, origin=origin, context=context, now=now
         )
         self._add_pending_edit(edit, node_)
 
@@ -221,6 +238,7 @@ class Transaction:
         context: EditContextData | None,
         properties: Collection[Property],
         old_values: dict[int, Any],
+        now: datetime,
     ):
         """Update or move a node."""
         from bench.language.value import pack_value
@@ -255,13 +273,13 @@ class Transaction:
                 subject_ptr=subject,
                 origin=origin,
                 context=context,
-                edited_at=utcnow(),
+                edited_at=now,
             )
             engine = self._add_pending_edit(edit, node_)
             edit_idx = len(self._pending_edits_by_engine_id[engine.id]) - 1
             self._pending_updates_idx[node_] = engine.id, edit_idx
         else:
-            # update existing edit in place ('debounce')
+            # update existing edit in place ('debounce') :DebouncedUpdate
             # NOTE :Performance: unpacking/repacking proto json is inefficient
             assert node_._updated_properties is not None, f"missing property mask for {node_!r}"
             engine_id, current_update_idx = existing_edit_idx
@@ -289,6 +307,7 @@ class Transaction:
             edit.old_node_packed = wiring.pack_proto_json(old_node_packed)
             if edit_type == EditType.MOVE and edit.type != EditType.MOVE:
                 edit.type = wiring.pack_enum(EditType, EditType.MOVE)
+            edit.edited_at = now
 
     def update(
         self,
@@ -298,8 +317,11 @@ class Transaction:
         context: EditContextData | None,
         properties: Collection[Property],
         old_values: dict[int, Any],
+        now: datetime,
     ):
-        self._do_update(EditType.UPDATE, node_, subject, origin, context, properties, old_values)
+        self._do_update(
+            EditType.UPDATE, node_, subject, origin, context, properties, old_values, now
+        )
 
     def move(
         self,
@@ -309,8 +331,9 @@ class Transaction:
         context: EditContextData | None,
         properties: Collection[Property],
         old_values: dict[int, Any],
+        now: datetime,
     ):
-        self._do_update(EditType.MOVE, node_, subject, origin, context, properties, old_values)
+        self._do_update(EditType.MOVE, node_, subject, origin, context, properties, old_values, now)
 
     def delete(
         self,
@@ -318,9 +341,10 @@ class Transaction:
         subject: NodeReferenceData | None,
         origin: ClientOrigin | None,
         context: EditContextData | None,
+        now: datetime,
     ):
         edit = self._make_simple_edit(
-            EditType.DELETE, node_, subject=subject, origin=origin, context=context
+            EditType.DELETE, node_, subject=subject, origin=origin, context=context, now=now
         )
         self._add_pending_edit(edit, node_)
 
@@ -330,9 +354,10 @@ class Transaction:
         subject: NodeReferenceData | None,
         origin: ClientOrigin | None,
         context: EditContextData | None,
+        now: datetime,
     ):
         edit = self._make_simple_edit(
-            EditType.RESTORE, node_, subject=subject, origin=origin, context=context
+            EditType.RESTORE, node_, subject=subject, origin=origin, context=context, now=now
         )
         self._add_pending_edit(edit, node_)
 
@@ -342,9 +367,10 @@ class Transaction:
         subject: NodeReferenceData | None,
         origin: ClientOrigin | None,
         context: EditContextData | None,
+        now: datetime,
     ):
         edit = self._make_simple_edit(
-            EditType.ARCHIVE, node_, subject=subject, origin=origin, context=context
+            EditType.ARCHIVE, node_, subject=subject, origin=origin, context=context, now=now
         )
         self._add_pending_edit(edit, node_)
 
@@ -354,9 +380,15 @@ class Transaction:
         subject: NodeReferenceData | None,
         origin: ClientOrigin | None,
         context: EditContextData | None,
+        now: datetime,
     ):
         edit = self._make_simple_edit(
-            EditType.UNARCHIVE, node_=node_, subject=subject, origin=origin, context=context
+            EditType.UNARCHIVE,
+            node_=node_,
+            subject=subject,
+            origin=origin,
+            context=context,
+            now=now,
         )
         self._add_pending_edit(edit, node_)
 
@@ -366,9 +398,10 @@ class Transaction:
         subject: NodeReferenceData | None,
         origin: ClientOrigin | None,
         context: EditContextData | None,
+        now: datetime,
     ):
         edit = self._make_simple_edit(
-            EditType.ERASE, node_, subject=subject, origin=origin, context=context
+            EditType.ERASE, node_, subject=subject, origin=origin, context=context, now=now
         )
         self._add_pending_edit(edit, node_)
 
@@ -380,6 +413,7 @@ class Transaction:
         pass
 
     def _add_pending_edit(self, edit: EditData, node: Optional[Node]) -> StoreEngine:
+        """Adds an edit to the pending (unflushed, uncommitted)"""
         from bench.proto import wiring
 
         node_type = wiring.unpack_enum(NodeType, edit.node_ptr.type)
