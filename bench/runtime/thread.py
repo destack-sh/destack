@@ -8,7 +8,7 @@ from opentelemetry import trace
 
 from bench.language import Bench, Package, User
 from bench.language.bench import Client, Machine
-from bench.language.code_ import run_code_exec
+from bench.language.code_ import Code, run_code_exec
 from bench.language.connection import StoreEngine
 from bench.language.const import BlockType, RunKind, RunStatus, _active_run
 from bench.language.run import Run, RunError
@@ -152,15 +152,17 @@ class RuntimeThread:
             run.status = RunStatus.RUNNING
             run.started_at = utcnow()
             run.started_epoch = self.epoch
-            logger.info("run.start", thread=self, run=run)
             run_token = _active_run.set(run)
+            logger.info("run.start", thread=self, run=run)
             try:
                 if run.kind == RunKind.BLOCK:
                     block = run.block
                     assert block is not None, f"no block for {run!r}"
                     if block.type == BlockType.CODE:
-                        assert block.code is not None, f"no code for {run!r}"
-                        run_code_exec(block.code.to_string(), {"self": block})
+                        code = block.code or Code.empty()
+                        run_code_exec(code.to_string(), {"self": block})
+                    elif block.type == BlockType.TEXT:
+                        ...  # nocheckin
                     else:
                         raise NotImplementedError(f"unsupported block type {block.type}")
                 else:
@@ -169,7 +171,7 @@ class RuntimeThread:
                 logger.info("run.complete", thread=self, run=run)
             except Exception as e:
                 run.fail(RunError.from_exception(e))
-                logger.error("run.fail", thread=self, run=run, error=e)
+                logger.error("run.fail", thread=self, run=run, error=e, exc_info=e)
             finally:
                 run.terminated_at = utcnow()
                 run.terminated_epoch = self.epoch

@@ -7076,7 +7076,7 @@ export enum Day {
     SUNDAY = 7
 }
 /**
- * A type of Edit access on nodes.
+ * Ways to edit nodes.
  *
  * @generated from protobuf enum symbolx.bench.EditType
  */
@@ -8720,7 +8720,7 @@ export enum PrimitiveType {
     INTERVAL = 31
 }
 /**
- * A type of Read access on nodes.
+ * Ways to read nodes.
  *
  * @generated from protobuf enum symbolx.bench.ReadType
  */
@@ -9612,7 +9612,7 @@ export enum TypeKind {
     ALIAS = 10
 }
 /**
- * A type of Run access on nodes.
+ * Ways to use nodes.
  *
  * @generated from protobuf enum symbolx.bench.UseType
  */
@@ -9727,9 +9727,9 @@ export enum ViewType {
      */
     CHALLENGE_WIZARD = 3,
     /**
-     * @generated from protobuf enum value: VIEW_TYPE_MOCK = 90;
+     * @generated from protobuf enum value: VIEW_TYPE_EMPTY = 80;
      */
-    MOCK = 90,
+    EMPTY = 80,
     /**
      * @generated from protobuf enum value: VIEW_TYPE_PAGE = 101;
      */
@@ -9794,6 +9794,18 @@ export enum ViewType {
      * @generated from protobuf enum value: VIEW_TYPE_LOG = 156;
      */
     LOG = 156,
+    /**
+     * @generated from protobuf enum value: VIEW_TYPE_RUN = 157;
+     */
+    RUN = 157,
+    /**
+     * @generated from protobuf enum value: VIEW_TYPE_TIMELINE = 158;
+     */
+    TIMELINE = 158,
+    /**
+     * @generated from protobuf enum value: VIEW_TYPE_HISTORY = 159;
+     */
+    HISTORY = 159,
     /**
      * @generated from protobuf enum value: VIEW_TYPE_WINDOW = 500;
      */

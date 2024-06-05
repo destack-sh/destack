@@ -77,8 +77,7 @@ export const IconInline: FunctionalComponent<IconInlineProps> = (props) => {
   } else if (props.emoji) {
     return <span style={{ color: colorHex }}>{props.emoji}</span>;
   } else {
-    if (IS_DEV || isDeveloperMode.value)
-      return <span class="text-danger-500">?invalid: {JSON.stringify(props)}</span>;
+    if (IS_DEV || isDeveloperMode.value) return <span class="text-danger-500">?invalid: {JSON.stringify(props)}</span>;
     else return <span style={{ color: colorHex }}>???</span>;
   }
 };
@@ -156,14 +155,14 @@ export const ICON_BY_NODE_TYPE: Partial<Record<NodeType, IconData>> = _makeIcons
   [NodeType.QUERY]: "fas fa-magnifying-glass",
   [NodeType.VIEW]: "fas fa-browser",
   [NodeType.STEP]: "fas fa-step-forward",
-  
+
   // auth
   [NodeType.BADGE]: "fas fa-id-badge",
   [NodeType.ROLE]: "fas fa-user-tag",
   [NodeType.IDENTITY]: "fas fa-image-user",
   [NodeType.MEMBERSHIP]: "fas fa-book-user",
   [NodeType.INVITE]: "fas fa-circle-nodes",
-  
+
   // runtime
   [NodeType.SESSION]: "fas fa-circle-play",
   [NodeType.RUN]: "fas fa-play",
@@ -257,7 +256,7 @@ export const ICON_BY_VIEW_TYPE: Partial<Record<ViewType, IconData>> = _makeIcons
   [ViewType.USER_WIZARD]: "fas fa-user",
   [ViewType.BENCH_WIZARD]: "fas fa-circle-notch",
   [ViewType.CHALLENGE_WIZARD]: "fas fa-trophy",
-  [ViewType.MOCK]: "fas fa-bug",
+  [ViewType.EMPTY]: "fas fa-bug",
 
   // system
   // nodes
@@ -273,6 +272,9 @@ export const ICON_BY_VIEW_TYPE: Partial<Record<ViewType, IconData>> = _makeIcons
   [ViewType.INSPECT]: "fas fa-eye",
   [ViewType.CREATE]: "fas fa-plus",
   [ViewType.CHAT]: "fas fa-message",
+  [ViewType.RUN]: "fas fa-play",
+  [ViewType.HISTORY]: "fas fa-clock-rotate-left",
+  [ViewType.TIMELINE]: "fas fa-timeline",
 
   //
   // General

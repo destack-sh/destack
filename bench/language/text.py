@@ -164,6 +164,10 @@ class Text(Struct):
     def from_markdown(markdown: str) -> "Text":
         return markdown_to_text(markdown)
 
+    @staticmethod
+    def empty() -> "Text":
+        return Text(lines=[])
+
 
 TextIn = Text | str
 

@@ -28,7 +28,7 @@ const ITEMS_PER_ROW = 10;
 
 const props = defineProps<
   { self?: TypedNodeReferenceData<NodeType.VIEW>; modelValue?: IconData } & Partial<
-    Pick<ViewData, "name" | "title" | "text" | "icon" | "variant" | "isInput" | "isInline" | "isDisabled">
+    Pick<ViewData, "name" | "title" | "text" | "icon" | "variant" | "isInput" | "isInline" | "isDisabled" | "valueType">
   >
 >();
 const emit = defineEmits(viewEmits());
@@ -69,7 +69,7 @@ function fire(item: IconMetadata) {
   const icon = metadataToIcon(item, color.value ?? undefined);
   apply(icon);
 }
-function apply(icon: IconData) {
+function apply(icon: IconData | null) {
   emit("update:modelValue", icon);
   emit("apply", icon);
 }
@@ -144,6 +144,13 @@ defineExpose<ViewExposed>({ self, id, focus });
           @keydown.left.stop.prevent="focus('left')"
           @keydown.right.stop.prevent="focus('right')"
         />
+        <!-- Clear -->
+        <i
+          v-if="modelValue != null && !valueType?.isRequired"
+          role="button"
+          class="fas fa-xmark mr-2 text-gray-400 hover:text-primary-900"
+          @click.stop="apply(null)"
+        />
         <!-- Color -->
         <button
           v-tooltip="{ title: 'Change color', small: true }"
@@ -153,7 +160,7 @@ defineExpose<ViewExposed>({ self, id, focus });
               placement: 'top',
               reference: headerRef!,
               props: { modelValue: color },
-              // NOTE: not sure whether changing Color in Icon picker should instantly apply to current icon
+              // NOTE :UX: not sure whether changing Color in Icon picker should instantly apply to current icon
               onApply: (value) => (color = value),
             })
           "

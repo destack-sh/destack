@@ -3,7 +3,7 @@
 
 from typing import TYPE_CHECKING, Union
 
-VERSION = "2024.06.05.1"
+VERSION = "2024.06.05.2"
 
 if TYPE_CHECKING:
     from bench.language import Subject
@@ -376,7 +376,7 @@ class Day(betterproto.Enum):
 
 
 class EditType(betterproto.Enum):
-    """A type of Edit access on nodes."""
+    """Ways to edit nodes."""
 
     UNSPECIFIED = 0
     CREATE = 20
@@ -849,7 +849,7 @@ class PrimitiveType(betterproto.Enum):
 
 
 class ReadType(betterproto.Enum):
-    """A type of Read access on nodes."""
+    """Ways to read nodes."""
 
     UNSPECIFIED = 0
     GET = 1
@@ -1135,7 +1135,7 @@ class TypeKind(betterproto.Enum):
 
 
 class UseType(betterproto.Enum):
-    """A type of Run access on nodes."""
+    """Ways to use nodes."""
 
     UNSPECIFIED = 0
     START = 40
@@ -1171,7 +1171,7 @@ class ViewType(betterproto.Enum):
     USER_WIZARD = 1
     BENCH_WIZARD = 2
     CHALLENGE_WIZARD = 3
-    MOCK = 90
+    EMPTY = 80
     PAGE = 101
     BLOCK = 102
     FIELD = 103
@@ -1188,6 +1188,9 @@ class ViewType(betterproto.Enum):
     CREATE = 154
     CHAT = 155
     LOG = 156
+    RUN = 157
+    TIMELINE = 158
+    HISTORY = 159
     WINDOW = 500
     TAB = 502
     SPLIT = 503
