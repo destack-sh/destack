@@ -23,7 +23,6 @@ from bench.proto.wire import (
     HandleData,
     InviteData,
     MembershipData,
-    NodeReferenceData,
     OrganizationData,
     UserData,
 )
@@ -31,7 +30,7 @@ from bench.sql.core import Constraint, ConstraintType
 from bench.utils.casing import IdentifierType
 
 if TYPE_CHECKING:
-    from bench.language import Bench, Client, Icon, Package, Role, Text
+    from bench.language import Bench, Client, Icon, NodeReference, Package, Role, Text
 
 # pyright: reportIncompatibleVariableOverride=false
 
@@ -78,7 +77,7 @@ class User(Node[UserData]):
     )
     if TYPE_CHECKING:
         main_bench_id: Optional[UUID] = None
-        main_bench_ptr: Optional[NodeReferenceData] = None
+        main_bench_ptr: Optional[NodeReference] = None
     status: UserStatus = p_system(38)
 
     # auth

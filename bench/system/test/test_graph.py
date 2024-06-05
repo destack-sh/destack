@@ -110,7 +110,7 @@ class EditProducer:
                 new_node_packed=pack_node_delta(node_data, only=(prop,)),
                 old_node_packed=pack_node_delta(node_data, only=(prop,)),
                 origin=self.client.origin,
-                subject_ptr=self.client.user.to_ref()._to_data(),
+                subject_ptr=self.client.user._to_ref_data(),
                 edited_at=utcnow(),
             )
             return edit
@@ -277,7 +277,7 @@ async def test_graph_update_node_with_invalid_property(
         old_node_packed=pack_node_delta(node_data, only=(User.name,)),
         edited_at=utcnow(),
         origin=some_user.origin,
-        subject_ptr=some_user.user.to_ref()._to_data(),
+        subject_ptr=some_user.user._to_ref_data(),
     )
     with raises_grpc_error(grpclib.Status.INVALID_ARGUMENT):
         _ = await supervisor.commit_transaction(

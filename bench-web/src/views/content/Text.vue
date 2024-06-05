@@ -61,7 +61,7 @@ const mentionPtrs = computed(() => {
 });
 // TODO :Incomplete: some mentioned nodes may not be in package graph for Text
 const mentions = pkgGraph.getManyRef(mentionPtrs);
-function resolveMention(mention: { id: string; ck?: string }): AnyNodeData | null {
+function resolveMention(mention: { id: string; ck: string }): AnyNodeData | null {
   return pkgGraph.get(mention);
 }
 
@@ -184,7 +184,7 @@ watch(mentions, () => {
   if (view == null) return;
   view.dom.querySelectorAll(".mention").forEach((mentionDom) => {
     if (!(mentionDom instanceof HTMLElement)) return;
-    const node = resolveMention({ id: mentionDom.dataset.nodeId!, ck: mentionDom.dataset.nodeCk });
+    const node = resolveMention({ id: mentionDom.dataset.nodeId!, ck: mentionDom.dataset.nodeCk! });
     const pmView = (mentionDom as any).__pmView as MentionView;
     if (node == null || pmView == null) return;
     pmView.updateNode(node);

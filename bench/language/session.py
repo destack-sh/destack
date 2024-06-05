@@ -2,7 +2,7 @@ import asyncio
 import contextvars
 from contextlib import asynccontextmanager
 from datetime import datetime
-from typing import TYPE_CHECKING, Any, Awaitable, Callable, Collection, Optional
+from typing import TYPE_CHECKING, Any, Awaitable, Callable, Collection, Optional, cast
 from uuid import UUID
 
 import structlog
@@ -27,12 +27,15 @@ from bench.language.node import (
 )
 from bench.language.property import Property, p_internal, p_node_parent, p_runtime, p_system
 from bench.language.transaction import Transaction
+from bench.proto import wire
 from bench.proto.wire import (
     ClientOrigin,
+    EditContextData,
     EditData,
     GraphScope,
     HostStub,
     NodeReferenceData,
+    SessionContextData,
     SessionData,
     SupervisorStub,
 )
@@ -48,6 +51,7 @@ if TYPE_CHECKING:
         Client,
         Environment,
         Machine,
+        NodeReference,
         Package,
         Run,
         Server,
@@ -93,6 +97,11 @@ class Session(Node[SessionData]):
         63, require=False, array=False, references=NodeType.MACHINE
     )
     user: Optional["User"] = p_internal(64, require=False, array=False, references=NodeType.USER)
+    if TYPE_CHECKING:
+        client_ptr: Optional[NodeReference] = None
+        server_ptr: Optional[NodeReference] = None
+        machine_ptr: Optional[NodeReference] = None
+        user_ptr: Optional[NodeReference] = None
 
     # flags
     _is_readonly: bool = p_runtime(default=False)
@@ -335,29 +344,65 @@ class Session(Node[SessionData]):
     # Transaction
     #
 
-    def _get_edit_subject(self) -> Optional[EditSubject]:
-        if self._subject is not None:
-            return self._subject
-        else:
-            return get_active_run()
+    def _get_session_context(self) -> SessionContextData:
+        """Gathers context valid for the entire session"""
+        context = SessionContextData(metatype=wire.ObjectType.SESSION_CONTEXT)
+        if self.client_ptr is not None:
+            context.client_ptr = self.client_ptr._to_data()
+        if self.machine_ptr is not None:
+            context.machine_ptr = self.machine_ptr._to_data()
+        if self.server_ptr is not None:
+            context.server_ptr = self.server_ptr._to_data()
+        if self.user_ptr is not None:
+            context.user_ptr = self.user_ptr._to_data()
+        return context
+
+    def _get_edit_context(self) -> tuple[NodeReferenceData | None, EditContextData | None]:
+        """Gathers current context for a specific edit"""
+        # NOTE :Performance: gathering the context for every edit seems a bit expensive
+        subject = get_active_run() or self._subject
+
+        if subject is None:
+            return None, None
+
+        subject_ptr = subject._to_ref_data()
+        context = EditContextData(metatype=wire.ObjectType.EDIT_CONTEXT)
+        if self.client_ptr is not None:
+            context.client_ptr = self.client_ptr._to_data()
+        if self.machine_ptr is not None:
+            context.machine_ptr = self.machine_ptr._to_data()
+        if self.server_ptr is not None:
+            context.server_ptr = self.server_ptr._to_data()
+        if self.user_ptr is not None:
+            context.user_ptr = self.user_ptr._to_data()
+        if subject.metatype == NodeType.RUN:
+            run = cast("Run", subject)
+            context.run_ptr = subject_ptr
+            context.run_root_ptr = run.root._to_ref_data()
+            context.block_ptr = run.block_ptr._to_data() if run.block_ptr is not None else None
+            context.step_ptr = run.step_ptr._to_data() if run.step_ptr is not None else None
+
+        return subject_ptr, context
 
     def create(self, *nodes: Node):
         """Creates a new node. Errors if the node already exists."""
         if not self._is_suppressed:
             assert self._tx is not None, f"no active transaction in {self!r}"
             assert not self._is_readonly and not self._is_suspended, f"cannot edit in {self!r}"
+            subject, context = self._get_edit_context()
             for n in nodes:
                 self._edited_nodes_by_id[n.id] = n
-                self._tx.create(n, self._get_edit_subject(), self._origin)
+                self._tx.create(n, subject, self._origin, context)
 
     def upsert(self, *nodes: Node):
         """Creates or updates a node. Any non-id properties will be overwritten."""
         if not self._is_suppressed:
             assert self._tx is not None, f"no active transaction in {self!r}"
             assert not self._is_readonly and not self._is_suspended, f"cannot edit in {self!r}"
+            subject, context = self._get_edit_context()
             for n in nodes:
                 self._edited_nodes_by_id[n.id] = n
-                self._tx.upsert(n, self._get_edit_subject(), self._origin)
+                self._tx.upsert(n, subject, self._origin, context)
 
     def update(self, node_: Node, properties: Collection[Property], old_values: dict[int, Any]):
         """Updates an existing node. Cannot move. The given properties are overwritten."""
@@ -365,7 +410,8 @@ class Session(Node[SessionData]):
             assert self._tx is not None, f"no active transaction in {self!r}"
             assert not self._is_readonly and not self._is_suspended, f"cannot edit in {self!r}"
             self._edited_nodes_by_id[node_.id] = node_
-            self._tx.update(node_, self._get_edit_subject(), self._origin, properties, old_values)
+            subject, context = self._get_edit_context()
+            self._tx.update(node_, subject, self._origin, context, properties, old_values)
 
     def move(self, node_: Node, properties: Collection[Property], old_values: dict[int, Any]):
         """Moves and updates an existing node."""
@@ -373,61 +419,67 @@ class Session(Node[SessionData]):
             assert self._tx is not None, f"no active transaction in {self!r}"
             assert not self._is_readonly and not self._is_suspended, f"cannot edit in {self!r}"
             self._edited_nodes_by_id[node_.id] = node_
-            self._tx.move(node_, self._get_edit_subject(), self._origin, properties, old_values)
+            subject, context = self._get_edit_context()
+            self._tx.move(node_, subject, self._origin, context, properties, old_values)
 
-    def soft_delete(self, *nodes: Node):
+    def delete(self, *nodes: Node):
         """Deletes a node with the option to recover it for a limited time."""
         if not self._is_suppressed:
             assert self._tx is not None, f"no active transaction in {self!r}"
             assert not self._is_readonly and not self._is_suspended, f"cannot edit in {self!r}"
+            subject, context = self._get_edit_context()
             for n in nodes:
                 self._edited_nodes_by_id[n.id] = n
                 # descendants will be removed from graph, so track them manually
                 for descendant in n._graph.iter_descendants(n, recursive=True):
                     self._edited_nodes_by_id[descendant.id] = descendant
-                self._tx.soft_delete(n, self._get_edit_subject(), self._origin)
+                self._tx.soft_delete(n, subject, self._origin, context)
 
     def restore(self, *nodes: Node):
         """Restore a soft deleted node."""
         if not self._is_suppressed:
             assert self._tx is not None, f"no active  transaction in {self!r}"
             assert not self._is_readonly and not self._is_suspended, f"cannot edit in {self!r}"
+            subject, context = self._get_edit_context()
             for n in nodes:
                 self._edited_nodes_by_id[n.id] = n
-                self._tx.restore(n, self._get_edit_subject(), self._origin)
+                self._tx.restore(n, subject, self._origin, context)
 
     def archive(self, *nodes: Node):
         """Marks a node as archived, so it will be hidden by default."""
         if not self._is_suppressed:
             assert self._tx is not None, f"no active transaction in {self!r}"
             assert not self._is_readonly and not self._is_suspended, f"cannot edit in {self!r}"
+            subject, context = self._get_edit_context()
             for n in nodes:
                 self._edited_nodes_by_id[n.id] = n
                 # descendants will be removed from graph, so track them manually
                 for descendant in n._graph.iter_descendants(n, recursive=True):
                     self._edited_nodes_by_id[descendant.id] = descendant
-                self._tx.archive(n, self._get_edit_subject(), self._origin)
+                self._tx.archive(n, subject, self._origin, context)
 
     def unarchive(self, *nodes: Node):
         """Re-track a node from the archive in its original place."""
         if not self._is_suppressed:
             assert self._tx is not None, f"no active transaction in {self!r}"
             assert not self._is_readonly and not self._is_suspended, f"cannot edit in {self!r}"
+            subject, context = self._get_edit_context()
             for n in nodes:
                 self._edited_nodes_by_id[n.id] = n
-                self._tx.unarchive(n, self._get_edit_subject(), self._origin)
+                self._tx.unarchive(n, subject, self._origin, context)
 
     def hard_delete(self, *nodes: Node):
         """Irreversibly deletes a node."""
         if not self._is_suppressed:
             assert self._tx is not None, f"no active transaction in {self!r}"
             assert not self._is_readonly and not self._is_suspended, f"cannot edit in {self!r}"
+            subject, context = self._get_edit_context()
             for n in nodes:
                 self._edited_nodes_by_id[n.id] = n
                 # descendants will be removed from graph, so track them manually
                 for descendant in n._graph.iter_descendants(n, recursive=True):
                     self._edited_nodes_by_id[descendant.id] = descendant
-                self._tx.delete(n, self._get_edit_subject(), self._origin)
+                self._tx.delete(n, subject, self._origin, context)
 
 
 @struct(StructType.EDIT_CONTEXT, inline=True)
@@ -477,15 +529,15 @@ class HasSessionContext(Struct):
     user: Optional["User"] = p_internal(68, require=False, array=False, references=NodeType.USER)
 
     if TYPE_CHECKING:
-        block_ptr: Optional[NodeReferenceData] = None
-        step_ptr: Optional[NodeReferenceData] = None
-        session_ptr: Optional[NodeReferenceData] = None
-        run_ptr: Optional[NodeReferenceData] = None
-        run_root_ptr: Optional[NodeReferenceData] = None
-        client_ptr: Optional[NodeReferenceData] = None
-        machine_ptr: Optional[NodeReferenceData] = None
-        server_ptr: Optional[NodeReferenceData] = None
-        user_ptr: Optional[NodeReferenceData] = None
+        block_ptr: Optional[NodeReference] = None
+        step_ptr: Optional[NodeReference] = None
+        session_ptr: Optional[NodeReference] = None
+        run_ptr: Optional[NodeReference] = None
+        run_root_ptr: Optional[NodeReference] = None
+        client_ptr: Optional[NodeReference] = None
+        machine_ptr: Optional[NodeReference] = None
+        server_ptr: Optional[NodeReference] = None
+        user_ptr: Optional[NodeReference] = None
 
 
 @struct(StructType.SESSION_CONTEXT, inline=True)

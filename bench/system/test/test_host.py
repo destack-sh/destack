@@ -109,7 +109,7 @@ async def make_some_bench(supervisor: SupervisorStub, host: HostStub):
 
     # make bench in supervisor
     create_bench_req = CreateBenchRequest(
-        owner=some_user.user.to_ref()._to_data(),
+        owner=some_user.user._to_ref_data(),
         slug=cast(str, some_user.user.slug),
         is_main=True,
         region=wire.Region.EUROPE_CENTRAL,
@@ -185,7 +185,7 @@ async def test_activate_user(some_bench: BenchHandle):
 
     # get user to check they're activated with a main Bench
     read_user_req = GetNodesRequest(
-        roots=[some_bench.owner.to_ref()._to_data()],
+        roots=[some_bench.owner._to_ref_data()],
         options=ReadOptions(select_all_properties=True)._to_data(),
     )
     read_user_rep = await some_bench.supervisor.get_nodes(

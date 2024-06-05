@@ -890,7 +890,7 @@ class GraphNodeList(NodeList[NodeT]):
 
     def remove(self, n: NodeT):  # type: ignore
         if self._parent._session is not None:
-            self._parent._session.soft_delete(n)
+            self._parent._session.delete(n)
         self._parent._graph.remove(n)
         n.parent = None
 

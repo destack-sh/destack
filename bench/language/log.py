@@ -23,11 +23,11 @@ from bench.language.property import (
 from bench.language.session import HasSessionContext
 from bench.language.text import Text
 from bench.language.value import HasValues
-from bench.proto.wire import EditData, NodeReferenceData
+from bench.proto.wire import EditData
 from bench.utils.func import IdEnum
 
 if TYPE_CHECKING:
-    from bench.language import Package
+    from bench.language import NodeReference, Package
 
 # pyright: reportIncompatibleVariableOverride=false
 
@@ -73,7 +73,7 @@ class Log(Node, HasSessionContext, HasValues):
         41, require=False, array=False, references=NODE_TYPES.tuple, same_bench=True
     )
     if TYPE_CHECKING:
-        node_ptr: Optional[NodeReferenceData] = None
+        node_ptr: Optional[NodeReference] = None
     properties: list[int] = p_system(42, array=True, primitive_type=PrimitiveType.INT16)
     old_node_packed: Any | None = p_system(43, primitive_type=PrimitiveType.JSON)
     old_node_secret_packed: Any | None = p_system(
@@ -123,7 +123,7 @@ class Log(Node, HasSessionContext, HasValues):
         edit = EditData(
             id=str(self.id),
             type=wire.EditType(self.type),
-            node_ptr=self.node_ptr,
+            node_ptr=self.node_ptr._to_data(),
             properties=self.properties,
             old_node_packed=old_node_packed,
             new_node_packed=new_node_packed,

@@ -97,7 +97,7 @@ async def test_user_registration(supervisor: SupervisorStub):
         include_properties=[cast(Property, User.email)],
         descendant_types=[NodeType.CLIENT, NodeType.HANDLE],
     )._to_data()
-    read_user_req = GetNodesRequest(roots=[user.to_ref()._to_data()], options=options)
+    read_user_req = GetNodesRequest(roots=[user._to_ref_data()], options=options)
     access_metadata = RpcMetadata(
         client_id=str(client.id), client_access_token=login_rep.access_token
     )
@@ -147,7 +147,7 @@ async def test_cross_user_access(supervisor: SupervisorStub):
                 list[Property], [User.email, User.password_salt, User.password_hash]
             )
             read_user_req = GetNodesRequest(
-                roots=[target.to_ref()._to_data()],
+                roots=[target._to_ref_data()],
                 options=ReadOptions(include_properties=sensitive_properties)._to_data(),
             )
             read_user_rep = await supervisor.get_nodes(read_user_req, metadata=actor_handle.headers)
@@ -166,7 +166,7 @@ async def test_cross_user_access(supervisor: SupervisorStub):
             edit = EditData(
                 id=new_edit_id(),
                 type=wire.EditType.UPDATE,
-                node_ptr=target.to_ref()._to_data(),
+                node_ptr=target._to_ref_data(),
                 properties=[User.name.id],  # type: ignore
                 new_node_packed=pack_node_delta(target_data, only=(User.name,)),
                 old_node_packed=pack_node_delta(target_data, only=(User.name,)),
@@ -190,7 +190,7 @@ async def test_cross_user_access(supervisor: SupervisorStub):
             edit = EditData(
                 id=new_edit_id(),
                 type=wire.EditType.UPDATE,
-                node_ptr=target_handle.client.to_ref()._to_data(),
+                node_ptr=target_handle.client._to_ref_data(),
                 properties=[Client.device_name.id],  # type: ignore
                 new_node_packed=pack_node_delta(target_data, only=(Client.device_name,)),
                 old_node_packed=pack_node_delta(target_data, only=(Client.device_name,)),
@@ -259,10 +259,10 @@ async def test_root_node_create_denied(
         edit = EditData(
             id=new_edit_id(),
             type=edit_type,
-            node_ptr=node.to_ref()._to_data(),
+            node_ptr=node._to_ref_data(),
             new_node_packed=pack_node_delta(node_data),
             origin=some_user.origin,
-            subject_ptr=some_user.user.to_ref()._to_data(),
+            subject_ptr=some_user.user._to_ref_data(),
             edited_at=utcnow(),
         )
         commit_req = CommitTransactionRequest(id=str(uuid4()), edits=[edit])

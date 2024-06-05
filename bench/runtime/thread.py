@@ -6,11 +6,11 @@ from uuid import UUID
 import structlog
 from opentelemetry import trace
 
-from bench.language import Bench, Package
-from bench.language.bench import Client
+from bench.language import Bench, Package, User
+from bench.language.bench import Client, Machine
 from bench.language.code_ import run_code_exec
 from bench.language.connection import StoreEngine
-from bench.language.const import BlockType, RunKind, RunStatus
+from bench.language.const import BlockType, RunKind, RunStatus, _active_run
 from bench.language.run import Run, RunError
 from bench.language.session import Session, unsuspend_session
 from bench.proto import wiring
@@ -41,6 +41,7 @@ class RuntimeThread:
         supervisor: SupervisorStub,
         host: HostStub,
         client: Client,
+        machine: Machine | None,
         connector: QueryConnector,
         engines: tuple[StoreEngine, ...],
         queue: asyncio.Queue[RunData],
@@ -56,6 +57,7 @@ class RuntimeThread:
 
         # context
         self._client = client
+        self._machine = machine
         self._connector = connector
         self._engines = engines
 
@@ -103,6 +105,10 @@ class RuntimeThread:
     async def start(self):
         # setup thread
         self._session = Session(
+            client=self._client,
+            machine=self._machine,
+            server=self._machine.parent if self._machine else None,
+            user=self._client.parent if isinstance(self._client.parent, User) else None,
             _is_readonly=False,
             _default_scope=GraphScope(bench_id=str(self._bench_id)),
             _engines=self._engines,
@@ -147,6 +153,7 @@ class RuntimeThread:
             run.started_at = utcnow()
             run.started_epoch = self.epoch
             logger.info("run.start", thread=self, run=run)
+            run_token = _active_run.set(run)
             try:
                 if run.kind == RunKind.BLOCK:
                     block = run.block
@@ -167,6 +174,7 @@ class RuntimeThread:
                 run.terminated_at = utcnow()
                 run.terminated_epoch = self.epoch
                 run.duration = (run.terminated_at - run.started_at).total_seconds()
+                _active_run.reset(run_token)
 
     def close(self):
         self._tasks.close()

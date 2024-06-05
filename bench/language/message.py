@@ -10,7 +10,7 @@ from bench.language.value import HasValues
 from bench.proto.wire import AnyNodeData, MessageData, NodeReferenceData
 
 if TYPE_CHECKING:
-    from bench.language import Block, Package, Path, Text
+    from bench.language import Block, NodeReference, Package, Path, Text
 
 # pyright: reportIncompatibleVariableOverride=false
 
@@ -34,8 +34,8 @@ class Message(BasedNode[MessageData], HasSessionContext, HasValues):
         34, require=False, default=None, references=NodeType.MESSAGE, same_bench=True
     )
     if TYPE_CHECKING:
-        origin_ptr: Optional[NodeReferenceData] = None
-        reply_to_ptr: Optional[NodeReferenceData] = None
+        origin_ptr: Optional[NodeReference] = None
+        reply_to_ptr: Optional[NodeReference] = None
 
     # content
     title: Optional[str] = p_regular(40, require=False, default=None)

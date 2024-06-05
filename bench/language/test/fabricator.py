@@ -75,7 +75,7 @@ class Fabricator:
         if object_type == StructType.NODE_REFERENCE:
             type = random.choice(NODE_TYPES)
             id = uuid.uuid4()
-            ck = uuid.uuid4() if "ck" in NODE_CLASS_BY_TYPE[type].__properties__ else None
+            ck = uuid.uuid4() if "ck" in NODE_CLASS_BY_TYPE[type].__properties__ else id
             return cast(ObjectT, NodeReference(type=type, id=id, ck=ck))
         elif object_type == StructType.PROPERTY_REFERENCE:
             type = random.choice(NODE_TYPES)
