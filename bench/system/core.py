@@ -185,7 +185,7 @@ def unpack_commit(
         elif edit.type in (EditType.MOVE, EditType.UPDATE):
             if node.id not in added:
                 updated[node.id] = node
-        elif edit.type in (EditType.ARCHIVE, EditType.SOFT_DELETE, EditType.DELETE):
+        elif edit.type in (EditType.ARCHIVE, EditType.DELETE, EditType.ERASE):
             if node.id in added:
                 del added[node.id]
             removed[node.id] = node

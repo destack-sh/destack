@@ -113,14 +113,11 @@ export type Transaction = {
   unarchive(node: AnyNodeData): void;
 
   /** Soft delete node (incl. descendants), marked for later deletion after retention period */
-  softDelete(node: AnyNodeData): void;
+  delete(node: AnyNodeData): void;
   /** Restore node from soft delete */
   restore(node: AnyNodeData): void;
-  /**
-   * @deprecated use softDelete (not actually deprecated, but to be used deliberately)
-   * also NOTE: Transaction.delete is not handled optimistically in our transaction buffer overlays
-   */
-  delete(node: AnyNodeData): void;
+  /** Erase a node and its descendants forever */
+  erase(node: AnyNodeData): void;
 };
 
 export class TransactionBuilder implements Transaction {
@@ -172,9 +169,9 @@ export class TransactionBuilder implements Transaction {
       | EditType.UPSERT
       | EditType.ARCHIVE
       | EditType.UNARCHIVE
-      | EditType.SOFT_DELETE
+      | EditType.DELETE
       | EditType.RESTORE
-      | EditType.DELETE,
+      | EditType.ERASE,
     node: AnyNodeData,
     debounce: DebounceLevel | null,
   ) {
@@ -187,7 +184,7 @@ export class TransactionBuilder implements Transaction {
       editType == EditType.RESTORE
     ) {
       newNodePacked = packNodeDelta(node);
-    } else if (editType == EditType.DELETE || editType == EditType.ARCHIVE || editType == EditType.SOFT_DELETE) {
+    } else if (editType == EditType.ERASE || editType == EditType.ARCHIVE || editType == EditType.DELETE) {
       oldNodePacked = packNodeDelta(node);
     }
 
@@ -362,16 +359,16 @@ export class TransactionBuilder implements Transaction {
     this._addSimpleEdit(EditType.UNARCHIVE, { ...node, archivedAt: undefined }, null);
   }
 
-  softDelete(node: AnyNodeData) {
-    this._addSimpleEdit(EditType.SOFT_DELETE, { ...node }, null);
+  delete(node: AnyNodeData) {
+    this._addSimpleEdit(EditType.DELETE, { ...node }, null);
   }
 
   restore(node: AnyNodeData) {
     this._addSimpleEdit(EditType.RESTORE, { ...node, deletedAt: undefined }, null);
   }
 
-  delete(node: AnyNodeData) {
-    this._addSimpleEdit(EditType.DELETE, { ...node }, null);
+  erase(node: AnyNodeData) {
+    this._addSimpleEdit(EditType.ERASE, { ...node }, null);
   }
 }
 
@@ -412,7 +409,7 @@ export function editGraph(
       } else {
         graph.update(newNodeData);
       }
-    } else if (edit.type == EditType.DELETE && !(options?.isOverlayOf && !graph.has(edit.nodePtr!))) {
+    } else if (edit.type == EditType.ERASE && !(options?.isOverlayOf && !graph.has(edit.nodePtr!))) {
       // remove
       const oldNode = graph.get(edit.nodePtr!);
       if (!oldNode) throw new Error(`missing node for delete: ${edit.nodePtr!.id}`);
@@ -463,7 +460,7 @@ export function editGraph(
       } else if (edit.type == EditType.UNARCHIVE) {
         updatedNode.archivedAt = undefined;
         extraImplicitProperties.push(BlockProperty.archivedAt);
-      } else if (edit.type == EditType.SOFT_DELETE || edit.type == EditType.DELETE) {
+      } else if (edit.type == EditType.DELETE || edit.type == EditType.ERASE) {
         // (we handle DELETE here for overlays)
         updatedNode.deletedAt = edit.editedAt;
         extraImplicitProperties.push(BlockProperty.deletedAt);

@@ -433,10 +433,10 @@ class Session(Node[SessionData]):
                 # descendants will be removed from graph, so track them manually
                 for descendant in n._graph.iter_descendants(n, recursive=True):
                     self._edited_nodes_by_id[descendant.id] = descendant
-                self._tx.soft_delete(n, subject, self._origin, context)
+                self._tx.delete(n, subject, self._origin, context)
 
     def restore(self, *nodes: Node):
-        """Restore a soft deleted node."""
+        """Restore a deleted node."""
         if not self._is_suppressed:
             assert self._tx is not None, f"no active  transaction in {self!r}"
             assert not self._is_readonly and not self._is_suspended, f"cannot edit in {self!r}"
@@ -468,8 +468,8 @@ class Session(Node[SessionData]):
                 self._edited_nodes_by_id[n.id] = n
                 self._tx.unarchive(n, subject, self._origin, context)
 
-    def hard_delete(self, *nodes: Node):
-        """Irreversibly deletes a node."""
+    def erase(self, *nodes: Node):
+        """Irreversibly wipes a node and its descendants from the graph."""
         if not self._is_suppressed:
             assert self._tx is not None, f"no active transaction in {self!r}"
             assert not self._is_readonly and not self._is_suspended, f"cannot edit in {self!r}"
@@ -479,7 +479,7 @@ class Session(Node[SessionData]):
                 # descendants will be removed from graph, so track them manually
                 for descendant in n._graph.iter_descendants(n, recursive=True):
                     self._edited_nodes_by_id[descendant.id] = descendant
-                self._tx.delete(n, subject, self._origin, context)
+                self._tx.erase(n, subject, self._origin, context)
 
 
 @struct(StructType.EDIT_CONTEXT, inline=True)

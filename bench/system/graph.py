@@ -669,9 +669,9 @@ def validate_edit(edit: EditData, subject: Subject, now: datetime) -> None:
     should_set_old = edit.type in (
         EditType.UPDATE,
         EditType.MOVE,
-        EditType.SOFT_DELETE,
-        EditType.ARCHIVE,
         EditType.DELETE,
+        EditType.ARCHIVE,
+        EditType.ERASE,
     )
     if should_set_new != (edit.new_node_packed is not None):
         raise GRPCError(

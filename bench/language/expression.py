@@ -174,7 +174,7 @@ class NodeReference(Struct[NodeReferenceData]):
         # bench
         if node.metatype == NodeType.BENCH:
             reference.bench_id = str(node.id)
-        elif "bench" in node_cls.__properties__:
+        elif "bench" in node_cls.__properties__ and node.bench_id is not None:
             reference.bench_id = str(node.bench_id)
         # base
         if node.metatype in BASED_NODE_TYPES:

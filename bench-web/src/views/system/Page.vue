@@ -195,7 +195,7 @@ const actions: Partial<ActionMapImplementation<"common">> = {
     action: (action, context) => {
       const { block } = getBlockFromContext(context);
       if (block == null) return false;
-      pkgConnection.tx.softDelete(block);
+      pkgConnection.tx.delete(block);
     },
   },
   // navigation

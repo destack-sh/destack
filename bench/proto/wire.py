@@ -3,7 +3,7 @@
 
 from typing import TYPE_CHECKING, Union
 
-VERSION = "2024.06.05.0"
+VERSION = "2024.06.05.1"
 
 if TYPE_CHECKING:
     from bench.language import Subject
@@ -63,9 +63,9 @@ class AccessType(betterproto.Enum):
     MOVE = 23
     ARCHIVE = 24
     UNARCHIVE = 25
-    SOFT_DELETE = 26
+    DELETE = 26
     RESTORE = 27
-    DELETE = 28
+    ERASE = 28
     START = 40
     PAUSE = 41
     RESUME = 42
@@ -385,9 +385,9 @@ class EditType(betterproto.Enum):
     MOVE = 23
     ARCHIVE = 24
     UNARCHIVE = 25
-    SOFT_DELETE = 26
+    DELETE = 26
     RESTORE = 27
-    DELETE = 28
+    ERASE = 28
 
 
 class EnumType(betterproto.Enum):

@@ -151,7 +151,7 @@ const actions: Partial<ActionMapImplementation<"common">> = {
     action: (action, ctx) => {
       const { field } = getFieldFromContext(ctx);
       if (field == null) return false;
-      pkgConnection.tx.softDelete(field);
+      pkgConnection.tx.delete(field);
     },
   },
 };
