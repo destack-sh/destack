@@ -1,5 +1,4 @@
-import functools
-from typing import TYPE_CHECKING, Any, Callable, Collection, Optional, TypedDict, Union
+from typing import TYPE_CHECKING, Any, Collection, Optional, TypedDict, Union
 from uuid import UUID
 
 from bench.language.const import BenchError, EnumType, NodeType, NoticeKind, StructType, enum_
@@ -11,7 +10,7 @@ from bench.proto.wire import NoticeData
 from bench.utils.func import IdEnum
 
 if TYPE_CHECKING:
-    from bench.language import Block, Field, Path, Step, Struct, View
+    from bench.language import Block, Field, Path, Step, View
 
 # pyright: reportIncompatibleVariableOverride=false
 
@@ -100,25 +99,3 @@ class NoticeIn(TypedDict, total=False):
     text: Optional[str | Text]
     path: Optional["Path"]
     properties: Optional[Collection[Property] | Collection[Any]]
-
-
-NoticeHandler = Callable[["Struct", NoticeType, Optional[NoticeIn]], None]
-
-
-def on_warning_raise(
-    subject: "Struct",
-    type: "NoticeType",
-    options: Optional[NoticeIn] = None,
-    min_level: NoticeKind = NoticeKind.WARNING,
-):
-    if type.kind < min_level:
-        return
-    options = options or {}
-    raise NotImplementedError(":Incomplete Notices")
-
-
-on_error_raise = functools.partial(on_warning_raise, min_level=NoticeKind.ERROR)
-
-
-def on_notice_ignore(*args, **kwargs):
-    pass

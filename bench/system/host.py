@@ -28,7 +28,6 @@ from bench.language.const import (
 from bench.language.expression import NodeReference
 from bench.language.graph import NodeGraphLike
 from bench.language.log import Log
-from bench.language.notice import on_notice_ignore
 from bench.language.property import Property
 from bench.language.session import Session, SessionContext, unsuspend_session
 from bench.language.setup import NODE_CLASS_BY_TYPE
@@ -448,7 +447,7 @@ class Host(GraphIoServiceBase, HostBase, HostSpec):
             edit.epoch = epoch
 
         # check context
-        context._resolve_references(self._bench, on_notice_ignore)
+        context._resolve_references(self._bench)
         validate_context(subject, context, edits)
 
         return scope, epoch

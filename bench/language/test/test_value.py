@@ -6,8 +6,7 @@ from bench.conftest import global_session
 from bench.language.block import Block
 from bench.language.const import OBJECT_TYPES, BlockType, NodeType, PrimitiveType, StructType
 from bench.language.field import Field, FieldZone, TypeKind, to_type
-from bench.language.node import Node, Struct
-from bench.language.notice import on_notice_ignore
+from bench.language.node import BuiltinObject
 from bench.language.setup import OBJECT_CLASS_BY_TYPE
 from bench.language.test.fabricator import Fabricator
 from bench.language.text import Text
@@ -32,7 +31,7 @@ def test_coerce_nested_value() -> None:
     Choice1.fields.extend(
         Field.option(name="Option1"), Field.option(name="Option2"), Field.option(name="Option3")
     )
-    Choice1._interp_rec(None, on_notice_ignore)
+    Choice1._interp_rec(None)
     Option1 = Choice1("Option1")
     assert Option1 == Choice1.fields.Option1
     with pytest.raises(ValueError):
@@ -43,7 +42,7 @@ def test_coerce_nested_value() -> None:
     ClassInner.fields.extend(
         Field.member("Field1", Choice1), Field.member("Field2", NodeType.BLOCK)
     )
-    ClassInner._interp_rec(None, on_notice_ignore)
+    ClassInner._interp_rec(None)
     object_inner = ClassInner(field1=Option1)
     assert object_inner.field1 == Option1
 
@@ -55,7 +54,7 @@ def test_coerce_nested_value() -> None:
         Field.member("Field3", Text),
         Field.member("Field4", ClassInner),
     )
-    ClassOuter._interp_rec(None, on_notice_ignore)
+    ClassOuter._interp_rec(None)
     object_outer = ClassOuter(
         field1=Option1, field2=False, field3=[Text.plain("hello bench!")], field4=object_inner
     )
@@ -112,9 +111,9 @@ def test_roundtrip_nested_value():
 
     # TODO :Cleanup :Test: interp in in this test shouldn't be necessary
     #  (run this test in session? or somehow in 'tracked' mode)
-    choice1._interp_rec(None, on_notice_ignore)
-    class2._interp_rec(None, on_notice_ignore)
-    class1._interp_rec(None, on_notice_ignore)
+    choice1._interp_rec(None)
+    class2._interp_rec(None)
+    class1._interp_rec(None)
 
     # outer value
     value = cast(Object, class1())
@@ -131,8 +130,8 @@ def test_roundtrip_nested_value():
 
 
 @pytest.mark.parametrize("bench_obj", BENCH_OBJECTS, ids=lambda o: o.__class__.__name__)
-def test_roundtrip_robust_json(bench_obj: Node | Struct):
-    packed_wire_obj = wiring.pack_struct(bench_obj)
+def test_roundtrip_robust_json(bench_obj: BuiltinObject):
+    packed_wire_obj = wiring.pack_object(bench_obj)
     packed_json = pack_struct_value_scalar_data(packed_wire_obj)
     unpacked_wire_obj = unpack_struct_value_scalar_data(packed_json)
     unpacked_obj = wiring.unpack_object(unpacked_wire_obj)  # type: ignore

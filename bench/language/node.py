@@ -1,6 +1,5 @@
 import abc
 import base64
-import contextlib
 import dataclasses
 import enum
 import functools
@@ -17,7 +16,6 @@ from typing import (
     Callable,
     ClassVar,
     Collection,
-    Generic,
     Iterable,
     Optional,
     Self,
@@ -44,6 +42,7 @@ from bench.language.const import (
     UNSET,
     NodeType,
     ObjectType,
+    PrimitiveType,
     ReferenceKind,
     StructType,
     _active_session,
@@ -74,7 +73,7 @@ from bench.language.setup import (
 )
 from bench.language.validation import ValidationError, ValidationHandler, on_invalid_raise
 from bench.proto.wire import AnyNodeData, AnyStructData, NodeReferenceData, SomeNodeData
-from bench.sql.core import Constraint, ConstraintType, Index, IndexType, PrimitiveType, Table
+from bench.sql.core import Constraint, ConstraintType, Index, IndexType, Table
 from bench.utils.casing import PYTHON_CASING, IdentifierType, to_casing
 from bench.utils.dt import utcnow
 from bench.utils.env import IS_DEV, IS_TEST
@@ -88,18 +87,16 @@ if TYPE_CHECKING:
         Expression,
         Field,
         NodeReference,
-        NoticeType,
         Object,
         Package,
         PropertyReference,
+        QueryBuilder,
         ReadOptions,
         Run,
         Server,
         Session,
         User,
     )
-    from bench.language.notice import NoticeHandler, NoticeIn
-    from bench.language.query import QueryBuilder
 
 # pyright: reportIncompatibleVariableOverride=false
 
@@ -187,7 +184,7 @@ _COMPONENT_CALL_ORDER: tuple[str, ...] = ("Struct", "Node", "TypeInfoBase")  # .
 
 
 def _sort_components_in_call_order(
-    components: Collection[type["Node"] | type["Struct"]],
+    components: Collection[type["BuiltinObject"]],
 ) -> list[type["Node"]]:
     """Sorts components by call order. Nodes without call order are left as-is."""
     sorted_components = []
@@ -204,7 +201,7 @@ def _sort_components_in_call_order(
 @cached(cache={}, key=lambda cls, components, method: (cls, method))
 def _get_component_methods(
     cls: type,
-    components: Collection[type["Node"] | type["Struct"]],
+    components: Collection[type["BuiltinObject"]],
     method: _ComponentMethod,
 ) -> tuple[Callable, ...]:
     """Get the actually implemented methods in the given components in call order."""
@@ -215,36 +212,33 @@ def _get_component_methods(
     return tuple(methods)
 
 
-_StructT = TypeVar("_StructT", bound="Struct")
-_CORE_TYPES = ("Struct", "Node")
+_CORE_TYPES = ("BuiltinObject", "InlineStruct", "Struct", "Node")
 
 
-def _process_struct_base_cls(
-    cls: type[_StructT],
+def _process_object_cls[ObjectT: BuiltinObject](
+    cls: type[ObjectT],
     object_type: ObjectType | None,
-    # for nodes only
     is_final: bool = False,
-    is_sub_package: bool = False,
-    is_sub_bench: bool = False,
+    # for nodes only
     is_root: bool = False,
     is_variable_root: bool = False,
-    no_ck: bool = False,
     # for structs only
     is_inlined: bool = False,
-) -> tuple[type[_StructT], dict[str, "Property"]]:
-    """Process a struct base class and return the processed class and its properties."""
+) -> tuple[type[ObjectT], dict[str, "Property"]]:
+    """Process an object base class and return the processed class and its properties."""
     assert isinstance(cls, type), f"expected type, got {cls} ({type(cls)})"
 
-    is_node_base = cls.__name__ in "Node"
-    is_struct_base = cls.__name__ == "Struct"
-    is_node = not is_struct_base and (is_node_base or issubclass(cls, Node))
-    is_struct = not is_node
+    is_object_base = cls.__name__ == "BuiltinObject"
+    is_node_base = cls.__name__ == "Node"
+    is_struct_base = cls.__name__ in ("InlineStruct", "Struct")
+    is_struct = not is_object_base and (is_struct_base or issubclass(cls, InlineStruct))
+    is_node = not is_object_base and not is_struct_base and (is_node_base or issubclass(cls, Node))
     metatype = METATYPE_PROPERTY.clone()
     metatype.component = cls
     properties_by_name: dict[str, Property] = {"metatype": metatype}
 
     # collect static components from class hierarchy
-    static_components: list[type[Node] | type[Struct]] = [cls]
+    static_components: list[type[BuiltinObject]] = [cls]
     for base in cls.__bases__:
         if base.__name__ == "ABC":
             continue
@@ -302,10 +296,6 @@ def _process_struct_base_cls(
     # collect properties from all components
     for component in reversed(static_components):
         for name, prop in component.__own_properties__.items():
-            # system struct identity is only for non-inlined structs :MagicProps
-            #  (we remove it here because it conflicts with downstream props)
-            if not is_struct and (prop.id == Struct.__properties__["order_key"].id):
-                continue
             existing = properties_by_name.get(name)
             # override parent/id with more specific properties
             if (
@@ -322,7 +312,7 @@ def _process_struct_base_cls(
             if not is_node and prop.is_tree_reference:
                 raise ValueError(f"non-node {cls} has node-only relation {prop}")
 
-    if is_node and is_variable_root:
+    if is_node and is_variable_root and "bench" in properties_by_name:
         # bench is optional in variable root types (since they can have other roots)
         properties_by_name["bench"].is_required = False
 
@@ -355,49 +345,6 @@ def _process_struct_base_cls(
                 properties_by_name[p.name] = p
                 if not p.is_computed:  # why is this needed?
                     setattr(cls, p.name, p)
-
-    if is_final:
-        # prune :MagicProps that shouldn't exist on this node type
-        def _remove_magic_prop(name: str, delete_attr: bool = True):
-            prop = properties_by_name.get(name)
-            # property may be overwritten (like in PropertyReference.id)
-            if prop is not None and prop.id < 30:
-                del properties_by_name[name]
-                if delete_attr:
-                    with contextlib.suppress(AttributeError):
-                        delattr(cls, name)
-                cls.__annotations__.pop(name, None)
-                for contributed_prop in prop.contributed_props:
-                    _remove_magic_prop(contributed_prop.name)
-
-        if is_node and not is_sub_bench:
-            if cls.__name__ == "Bench":
-                cls.bench = _node_computed_ancestor_prop(properties_by_name["bench"])  # type: ignore
-                _remove_magic_prop("bench", delete_attr=False)
-            else:
-                _remove_magic_prop("bench")
-            _remove_magic_prop("created_epoch")
-            _remove_magic_prop("updated_epoch")
-        if is_node and not is_sub_package:
-            if cls.__name__ == "Package":
-                cls.package = _node_computed_ancestor_prop(properties_by_name["package"])  # type: ignore
-                _remove_magic_prop("package", delete_attr=False)
-            else:
-                _remove_magic_prop("package")
-        if is_node and (no_ck or not is_sub_package):
-            _remove_magic_prop("ck")
-            _remove_magic_prop("template")
-            _remove_magic_prop("templated_epoch")
-            _remove_magic_prop("computed_properties")
-            # don't need to store set_properties if it's not a full source node
-            # (but still want it at runtime/wired, e.g. for optimistic overrides)
-            properties_by_name["set_properties"].is_stored = False
-            setattr(cls, "ck", _node_ck_from_id_prop(properties_by_name["id"]))
-        if is_struct and is_inlined:
-            _remove_magic_prop("id")
-            _remove_magic_prop("order_key")
-            _remove_magic_prop("computed_properties")
-            _remove_magic_prop("set_properties")
 
     # create class (map properties to dataclass fields)
     for name, prop in list(properties_by_name.items()):
@@ -517,7 +464,7 @@ def _process_struct_base_cls(
     cls.__properties_mask_unset__ = bitarray(cls.__max_property_ord__ + 1)
 
     parent_property = cls.__properties__.get("parent", None)
-    if (is_node or not is_inlined) and parent_property is None:
+    if is_final and (is_node or (is_struct and not is_inlined)) and parent_property is None:
         raise ValueError(f"missing parent property for node {cls}")
     cls.__parent_property__ = parent_property
 
@@ -540,21 +487,21 @@ def _process_struct_base_cls(
     return cls, properties_by_name
 
 
-_StructT = TypeVar("_StructT", bound="Struct")
+_StructT = TypeVar("_StructT", bound="BuiltinObject")
 
 
 @dataclass_transform(kw_only_default=True, field_specifiers=_PROPERTY_SPECIFIERS)
-def struct_component(
+def object_component(
     struct_type: StructType | None = None,
     is_final: bool = False,
     is_inlined: bool = False,
 ):
     """
-    Mark a class as a struct component (or concrete struct for a StructType).
+    Mark a class as an object component (or concrete struct for a StructType).
     """
 
     def decorate(cls_in: Type[_StructT]) -> Type[_StructT]:
-        cls, _properties = _process_struct_base_cls(
+        cls, _properties = _process_object_cls(
             cls=cast(Any, cls_in), object_type=struct_type, is_final=is_final, is_inlined=is_inlined
         )
 
@@ -573,8 +520,19 @@ def struct_component(
 
 @dataclass_transform(kw_only_default=True, field_specifiers=_PROPERTY_SPECIFIERS)
 def struct(struct_type: StructType, inline: bool = False):
+    """Register a class as a concrete struct for the given struct type."""
+
     def decorate(cls: Type[_StructT]) -> Type[_StructT]:
-        cls = struct_component(struct_type=struct_type, is_final=True, is_inlined=inline)(cls)
+        cls = object_component(struct_type=struct_type, is_final=True, is_inlined=inline)(cls)
+        if IS_DEV and cls.__name__ != "Struct" and cls.__name__ != "InlineStruct":
+            if not issubclass(cls, (InlineStruct, Struct)):
+                raise ValueError(f"{cls} is not a struct for {struct_type}")
+
+            # check that inline matches inheriting InlineStruct
+            is_cls_inlined = not issubclass(cls, Struct)
+            if is_cls_inlined != inline:
+                raise ValueError(f"inline mismatch for {cls}: ={is_cls_inlined}, inline={inline}")
+
         return cls
 
     return decorate
@@ -589,26 +547,17 @@ def node_component(
     passthrough: str | None = None,
     is_root: bool = False,
     is_variable_root: bool = False,
-    is_sub_package: bool = False,
-    is_sub_bench: bool = False,
     is_final: bool = False,
-    is_local: bool = False,
-    no_ck: bool = False,
 ):
-    """
-    Mark a class as a node component (or concrete node for a NodeType).
-    """
+    """Mark a class as a node component (or concrete node for a NodeType)."""
 
     def decorate(cls: Type[_NodeT]) -> Type[_NodeT]:
-        cls, properties = _process_struct_base_cls(
+        cls, properties = _process_object_cls(
             cls=cls,
             object_type=node_type,
             is_root=is_root,
             is_variable_root=is_variable_root,
-            is_sub_bench=is_sub_bench,
-            is_sub_package=is_sub_package,
             is_final=is_final,
-            no_ck=no_ck,
         )
         cls.__passthrough__ = passthrough
 
@@ -649,14 +598,12 @@ def node(
     passthrough: str | None = None,
     stored: bool = True,
     stored_custom: bool = False,
-    no_ck: bool = False,
     local: bool = False,
     roots: tuple[NodeType, ...] = (NodeType.BENCH,),
     constraints: tuple[Constraint, ...] = (),
     indexes: tuple[Index | tuple[str, ...], ...] = (),
     unique: tuple[tuple[str, ...], ...] = (),
     identifier: IdentifierType = IdentifierType.VARIABLE,
-    id_factory: Callable[[], UUID] = new_node_id,
 ):
     """Register a class as a concrete node for the given node type."""
 
@@ -665,26 +612,18 @@ def node(
     in_bench = node_type in IN_BENCH_NODE_TYPES
     sub_bench = node_type in SUB_BENCH_NODE_TYPES
 
-    if not no_ck and id_factory is not new_node_id:
-        raise ValueError(f"cannot specify custom id_factory while keeping ck for {node_type}")
-
     def decorate(cls: Type[_NodeT]) -> Type[_NodeT]:
         cls = node_component(
             node_type=node_type,
             passthrough=passthrough,
             is_root=len(roots) == 0,
             is_variable_root=len(roots) > 1,
-            is_sub_bench=sub_bench,
-            is_sub_package=sub_package,
-            no_ck=no_ck,
             is_final=True,
-            is_local=local,
         )(cls)
         cls.__is_stored__ = stored
         cls.__is_stored_custom__ = stored_custom
         cls.__is_local__ = local
         cls.__identifier_type__ = identifier
-        cls.__id_factory__ = id_factory
 
         extra_indexes: list[Index] = []
         extra_constraints: list[Constraint] = [*constraints]
@@ -734,8 +673,6 @@ def timed_node(
         node_type=node_type,
         passthrough=passthrough,
         local=True,
-        no_ck=True,
-        id_factory=UUIDT,
         indexes=(
             *indexes,
             ("created_at",),
@@ -855,8 +792,6 @@ def _node_ref_computed_prop(
     return property(get, set)
 
 
-StructDataT = TypeVar("StructDataT", bound="Union[AnyStructData, AnyNodeData]")
-
 # nocheckin :Architecture! :Cleanup!: extract & type (Inline)Struct/Node/PackageNode parent/order_key/etc.
 #   Struct.parent/order_key/.. in a covariant and specialized way.
 #   Probably want a more general uber-class like _Object, then InlineStruct/Struct/Node/PackageNode.
@@ -864,19 +799,19 @@ StructDataT = TypeVar("StructDataT", bound="Union[AnyStructData, AnyNodeData]")
 #   see all the parent # type: ignore / reportIncompatibleVariableOverride errors)
 
 
-@struct_component()
-class Struct(abc.ABC, Generic[StructDataT]):
-    """
-    A non-node data structure, usually inside a node (which is the only way to store/retrieve it).
-    Will track, track, etc. when we start using these in nodes.
-    """
+@object_component()
+class BuiltinObject[ObjectDataT: AnyNodeData | AnyStructData](abc.ABC):
+    """The base for all intrinsic objects like Structs and Nodes and their derivatives."""
 
-    metatype: ClassVar[StructType]  # type discriminator is field 0 if needed?
-    __components__: ClassVar[tuple[type["Node"] | type["Struct"], ...]] = ()
+    metatype: ClassVar[ObjectType]
+    __components__: ClassVar[tuple[type["BuiltinObject"], ...]] = ()
     __passthrough__: ClassVar[str | None] = None
 
-    __parent_property__: ClassVar[Property] = UNSET
+    __is_struct__: ClassVar[bool] = False
+    __is_struct_inlined__: ClassVar[bool] = False
+    __is_node__: ClassVar[bool] = False
 
+    __parent_property__: ClassVar[Property] = UNSET
     __properties__: ClassVar[dict[str, Property]] = {}
     __own_properties__: ClassVar[dict[str, Property]] = {}
     __declared_properties__: ClassVar[dict[str, Property]] = {}
@@ -899,25 +834,8 @@ class Struct(abc.ABC, Generic[StructDataT]):
     __properties_mask_set__: ClassVar[bitarray] = UNSET
     __properties_mask_unset__: ClassVar[bitarray] = UNSET
 
-    __is_struct_only__: ClassVar[bool] = True
-    __is_struct_inlined__: ClassVar[bool] = False
-    __is_node__: ClassVar[bool] = False
-
-    # NOTE :Architecture: struct identity props (id/parent/....) only exist sometimes :MagicProps
-    #  (if not inlined & not node, Struct.id is optional so that external clients don't need to generate ids for every struct,
-    #  and also so that its field presence is tracked and we can validate that it is set when needed)
-    id: int = p_system(2, default_factory=new_struct_id)
-    parent: Union["Struct", "Node", "Object", None] = p_struct_parent(3)
     if TYPE_CHECKING:
-        parent_type: NodeType | None = p_internal(4, default=None)
-        parent_id: int | None = None
-        parent_key: str | None = None
-    # struct-only order_key
-    order_key: str | None = p_internal(9, default=None)
-    # for source nodes:
-    # computed_properties: dict[int, ValueReference] | None = p_regular(28)
-    # for overlay branched/templated instances (the *additional* set properties)
-    set_properties: list[int] = p_regular(29, array=True)
+        parent: "BuiltinObject | Object | None" = None
 
     _is_interped: bool = p_runtime(default=False)
     _session: "Session | None" = p_runtime(default=None)
@@ -934,14 +852,6 @@ class Struct(abc.ABC, Generic[StructDataT]):
     @final
     def __str__(self):
         return self.__content_str__()
-
-    @final
-    def __repr__(self):
-        content_str = str(self)
-        if content_str:
-            return f"<{self.__class__.__name__} {content_str}>"
-        else:
-            return f"<{self.__class__.__name__} @ {self.id}>"
 
     @classmethod
     def _unmask_properties_ids(cls, mask: bitarray) -> tuple[int, ...]:
@@ -1104,7 +1014,9 @@ class Struct(abc.ABC, Generic[StructDataT]):
                         session.update(node, properties=(prop,), old_values={prop.id: old_value})
                 else:  # is struct
                     # will need to deal with Value parents eventually...
-                    assert isinstance(self.parent, Struct), f"unexpected parent: {self.parent!r}"
+                    assert isinstance(
+                        self.parent, InlineStruct
+                    ), f"unexpected parent: {self.parent!r}"
                     if self.parent is not None:
                         self.parent._updated_self((prop,))
         elif is_tracked and self.__passthrough__ is not None:
@@ -1126,42 +1038,6 @@ class Struct(abc.ABC, Generic[StructDataT]):
         __getattr__ = __getattr
         __setattr__ = __setattr
 
-    def _move_to(
-        self,
-        parent: Union["Node", "Struct", "Object"],
-        prop: Union[Property, "Field"],
-        ancestor_prop: Property | None = None,
-    ) -> "Struct":
-        """Move or copy this struct into given parent/prop."""
-        assert (
-            self.__is_struct_only__
-        ), f"cannot copy non-struct {self!r}"  # this is overriden by Node
-        prop_key = prop.id_as_str if isinstance(prop, Property) else prop.identity_key
-        if self.parent is None:  # not assigned
-            self.parent = parent
-            self.parent_key = prop_key
-            return self
-        elif self.parent is parent and self.parent_key == prop_key:
-            # already there
-            return self
-        else:
-            copy = self._copy_to(parent, prop)
-            return copy
-
-    def _copy_to(
-        self, parent: Union["Node", "Struct", "Object"], prop: Union[Property, "Field"]
-    ) -> Self:
-        """Create a copy of this struct for the given parent/prop."""
-        kwargs = {
-            p.name: getattr(self, p.name)
-            for p in self.__properties__.values()
-            if p.is_runtime and not p.is_ephemeral and not p.is_computed
-        }
-        kwargs["parent"] = parent
-        kwargs["parent_key"] = prop.id_as_str if isinstance(prop, Property) else prop.identity_key
-        copy = self.__class__(**kwargs)
-        return copy
-
     def _copy(self, **update) -> "Self":
         kwargs = {
             p.name: getattr(self, p.name)
@@ -1172,7 +1048,7 @@ class Struct(abc.ABC, Generic[StructDataT]):
         copy = self.__class__(**kwargs)
         return copy
 
-    def _walk_struct(self) -> Iterable["Struct"]:
+    def _walk_struct(self) -> Iterable["BuiltinObject"]:
         yield self
         for prop in self.__struct_properties__.values():
             value: Struct | list[Struct] | None = getattr(self, prop.name)
@@ -1226,9 +1102,7 @@ class Struct(abc.ABC, Generic[StructDataT]):
                 value = self.__dict__.get(prop.name)
                 check_value(value, prop.type_info, invalid=invalid)
 
-    def _resolve_references(self, scope: Optional["Node"], notice: "NoticeHandler"):
-        from bench.language.notice import NoticeType
-
+    def _resolve_references(self, scope: Optional["Node"]):
         # NOTE :Robustness? :Architecture: turn regular node refs into computed properties? :NodeRefs
         #  Currently, we manually set wired ptrs on set and resolve on interp.
         #  If we had immediate (=fast) access to a graph in all Object/Struct/Nodes,
@@ -1252,16 +1126,14 @@ class Struct(abc.ABC, Generic[StructDataT]):
                     resolved = []
                     for p in ptr:
                         r = graph.get(cast(UUID, p.id or p.ck))
-                        if r is None:
-                            notice(self, NoticeType.MISSING_REFERENCE, {"properties": (prop,)})
-                        resolved.append(r)
+                        if r is not None:
+                            resolved.append(r)
                     self.__dict__[prop.name] = resolved
                 else:
                     ptr = cast("NodeReference", ptr)
                     resolved = graph.get(cast(UUID, ptr.id or ptr.ck))
-                    if resolved is None:
-                        notice(self, NoticeType.MISSING_REFERENCE, {"properties": (prop,)})
-                    self.__dict__[prop.name] = resolved
+                    if resolved is not None:
+                        self.__dict__[prop.name] = resolved
 
         # resolve property references
         for prop in self.__property_reference_properties__.values():
@@ -1284,12 +1156,8 @@ class Struct(abc.ABC, Generic[StructDataT]):
             (cast("Node", self))._is_new = False
         self._updated_properties = None
 
-    def _updated_component(self, properties: Collection[Property]) -> None:
-        """Called when properties in this struct have been updated successfully, but before notifying the update."""
-        pass
-
     def __bool__(self):
-        return True  # allow truthy checks for structs
+        return True  # allow truthy checks for objects
 
     @final
     def _init_self(self):
@@ -1299,14 +1167,14 @@ class Struct(abc.ABC, Generic[StructDataT]):
             meth(self)
 
     @final
-    def _interp_self(self, scope: Optional["Node"], notice: "NoticeHandler"):
+    def _interp_self(self, scope: Optional["Node"]):
         # resolve references first
-        self._resolve_references(scope, notice)
+        self._resolve_references(scope)
         # and then component interps
         for meth in _get_component_methods(
             self.__class__, self.__components__, _ComponentMethod.interp
         ):
-            meth(self, scope, notice)
+            meth(self, scope)
         self._is_interped = True
 
     @final
@@ -1326,9 +1194,9 @@ class Struct(abc.ABC, Generic[StructDataT]):
             meth(self, properties)
 
     @final
-    def _interp_rec(self, scope: Optional["Node"], notice: "NoticeHandler"):
+    def _interp_rec(self, scope: Optional["Node"]):
         for inner_struct in self._walk_struct():
-            inner_struct._interp_self(scope, notice)
+            inner_struct._interp_self(scope)
 
     @final
     def _validate_rec(self, properties: Collection[Property], invalid: "ValidationHandler") -> None:
@@ -1336,21 +1204,95 @@ class Struct(abc.ABC, Generic[StructDataT]):
             inner_struct._validate_self(properties, invalid)
 
     @classmethod
-    def _from_data(cls, data: StructDataT) -> Self:
+    def _from_data(cls, data: ObjectDataT) -> Self:
         """Convert from wire format"""
-        from bench.proto.wiring import unpack_struct
+        from bench.proto.wiring import unpack_object
 
-        return unpack_struct(cast(AnyStructData, data))
+        return unpack_object(data, expect=cls)
 
     @final
-    def _to_data(self) -> StructDataT:
+    def _to_data(self) -> ObjectDataT:
         """Convert to wire format"""
-        from bench.proto.wiring import pack_struct
+        from bench.proto.wiring import pack_object
 
-        return pack_struct(self)
+        return pack_object(self)  # type: ignore
 
 
-NodeDataT = TypeVar("NodeDataT", bound="AnyNodeData")
+@object_component()
+class InlineStruct[StructDataT: AnyStructData](BuiltinObject[StructDataT], abc.ABC):
+    """A base for structs with properties."""
+
+    metatype: ClassVar[StructType]  # type: ignore
+
+    __is_struct_inlined__: ClassVar[bool] = True
+    __is_struct__: ClassVar[bool] = True
+
+    @final
+    def __repr__(self):
+        content_str = str(self)
+        if content_str:
+            return f"<{self.__class__.__name__} {content_str}>"
+        else:
+            return f"<{self.__class__.__name__}>"
+
+    def _move_to(
+        self,
+        parent: Union["BuiltinObject", "Object"],
+        prop: Union[Property, "Field"],
+        ancestor_prop: Property | None = None,
+    ) -> Self:
+        """Move or copy this struct into given parent/prop."""
+        assert self.__is_struct__, f"cannot copy non-struct {self!r}"  # this is overriden by Node
+        prop_key = prop.id_as_str if isinstance(prop, Property) else prop.identity_key
+        if self.parent is None:  # not assigned
+            self.parent = parent
+            self.parent_key = prop_key
+            return self
+        elif self.parent is parent and self.parent_key == prop_key:
+            # already there
+            return self
+        else:
+            copy = self._copy_to(parent, prop)
+            return copy
+
+    def _copy_to(
+        self, parent: Union["BuiltinObject", "Object"], prop: Union[Property, "Field"]
+    ) -> Self:
+        """Create a copy of this struct for the given parent/prop."""
+        kwargs = {
+            p.name: getattr(self, p.name)
+            for p in self.__properties__.values()
+            if p.is_runtime and not p.is_ephemeral and not p.is_computed
+        }
+        kwargs["parent"] = parent
+        kwargs["parent_key"] = prop.id_as_str if isinstance(prop, Property) else prop.identity_key
+        copy = self.__class__(**kwargs)
+        return copy
+
+
+@object_component()
+class Struct[StructDataT: AnyStructData](InlineStruct[StructDataT], abc.ABC):
+    """A base for structs with properties and a local identity (within a node or some other object)."""
+
+    __is_struct_inlined__: ClassVar[bool] = False
+    __is_struct__: ClassVar[bool] = True
+
+    id: int = p_system(2, default_factory=new_struct_id)
+    parent: Union["Struct", "Node", "Object", None] = p_struct_parent(3)
+    if TYPE_CHECKING:
+        parent_id: int | None = None
+        parent_key: str | None = None
+    order_key: str | None = p_internal(9, default=None)
+
+    @final
+    def __repr__(self):  # type: ignore
+        content_str = str(self)
+        if content_str:
+            return f"<{self.__class__.__name__} {content_str}>"
+        else:
+            return f"<{self.__class__.__name__} @ {self.id}>"
+
+
 FieldOrProperty = Union[
     Field if TYPE_CHECKING else "Field", Property if TYPE_CHECKING else "Property", Any
 ]
@@ -1372,16 +1314,12 @@ def is_implicit_node_property(prop_id: int) -> bool:
 
 
 @node_component()
-class Node(Struct[NodeDataT], Generic[NodeDataT]):
-    """
-    A node in the Bench graph: a struct with a globally unique identity.
-    Most nodes have a 'constant' key (ck) providing constant (id)entity across versions.
-    The first part of the constant key is the template key (tk), which is constant in all instances of a template.
-    For sub package nodes the 'id' is derived from the 'ck' per Package, otherwise it's just the id.
-    """
+class Node[NodeDataT: AnyNodeData](BuiltinObject[NodeDataT], abc.ABC):
+    """A simple node, which has properties like a Struct but has a persistent identity in our graph."""
 
     metatype: ClassVar[NodeType]  # type: ignore
-    __components__: ClassVar[tuple[type["Node"], ...]] = ()  # type: ignore
+
+    __is_node__: ClassVar[bool] = True
     __identifier_type__: ClassVar[IdentifierType] = IdentifierType.VARIABLE
     __id_factory__: ClassVar[Callable[[], UUID]] = new_node_id
 
@@ -1389,7 +1327,7 @@ class Node(Struct[NodeDataT], Generic[NodeDataT]):
     __node_child_properties__: ClassVar[dict[str, Property]] = {}
 
     __roots__: ClassVar[bittuple[NodeType]] = UNSET
-    __is_struct_only__: ClassVar[bool] = False
+    __is_struct__: ClassVar[bool] = False
     __is_node__: ClassVar[bool] = True
     __is_in_bench__: ClassVar[bool] = UNSET  # part of a Bench
     __is_sub_bench__: ClassVar[bool] = UNSET  # part of a Bench (excludes Bench itself)
@@ -1403,25 +1341,12 @@ class Node(Struct[NodeDataT], Generic[NodeDataT]):
     __table__: ClassVar[Table | None] = None  # if stored regularly, set after finalization
 
     # 1-9: reserved for node identity
-    # NOTE: some node identity props (ck/package/bench/etc.) only exist sometimes :MagicProps
     id: UUID = p_system(2, default=None, require=True, autoset=True)
-    ck: UUID = p_system(3, default=None, require=True, autoset=True)
     parent: Optional["Node"] = p_node_parent(4)  # type: ignore
     if TYPE_CHECKING:
+        parent_type: NodeType | None = None
         parent_id: Optional[UUID] = None
         parent_ptr: Optional[NodeReference] = None
-    package: "Package" = p_node_ancestor_first(
-        5, NodeType.PACKAGE, require=True, store=True, wire=True, is_bench_implicit=True
-    )
-    bench: "Bench" = p_node_ancestor_first(6, NodeType.BENCH, require=True, store=True, wire=True)
-    template: Optional["Node"] = p_node_template(7)
-    templated_epoch: int | None = p_system(
-        8, require=False, default=None, autoset=True, primitive_type=PrimitiveType.INT64
-    )
-    if TYPE_CHECKING:
-        package_id: Optional[UUID] = None
-        bench_id: Optional[UUID] = None
-    # Struct only: order_key (9)
 
     # 10-29: reserved for node tracking
     revision: int = p_system(
@@ -1466,7 +1391,7 @@ class Node(Struct[NodeDataT], Generic[NodeDataT]):
         created_by_type: NodeType | None = None
         updated_by_id: Optional[UUID] = None
         updated_by_type: NodeType | None = None
-    # from Struct: computed_properties (28), set_properties (29)
+    set_properties: list[int] = p_regular(29, array=True, store=False)
 
     # 30+ for 'user' node/struct properties
     # <... defined in concrete type ...>
@@ -1474,17 +1399,17 @@ class Node(Struct[NodeDataT], Generic[NodeDataT]):
     links: NodeList["Link"] = p_node_child(NodeType.LINK)
 
     _graph: Union["NodeGraph[Node]", "DetachedNodeGraph"] = p_runtime(default=None)
-    _read: ReadInfo | None = p_runtime(default=None)
+    _read: "ReadInfo | None" = p_runtime(default=None)
     _is_new: bool = p_runtime(default=False)
 
     def __post_init__(self):
         # init ck/id
-        if self.__is_sub_package__ and "ck" in self.__properties__:
+        if self.__is_sub_package__ and isinstance(self, IdentityNode):
             if self.ck is None:
                 self.ck = self.__class__.__id_factory__()
                 self._is_new = True
             if self.id is None and self.is_attached:
-                self._assign_id(self.package.id)
+                self._assign_id(cast(PackageNode, self).package.id)
         elif self.id is None:
             self.id = self.__class__.__id_factory__()
             self._is_new = True
@@ -1513,7 +1438,7 @@ class Node(Struct[NodeDataT], Generic[NodeDataT]):
         self._init_self()
         # track if in session
         if self._session is not None and self._session is not UNSET:
-            self._interp_self(self, notice=self._on_notice)
+            self._interp_self(self)
             self._track_self(self._session)
 
     def _assign_id(self, package_id: UUID):
@@ -1555,15 +1480,12 @@ class Node(Struct[NodeDataT], Generic[NodeDataT]):
         return f"<{self.__class__.__name__} {self!s}>"
 
     @property
+    def ck(self):
+        return self.id
+
+    @property
     def is_attached(self) -> bool:
-        if self.__is_sub_package__:
-            return self.parent is not None and self.package is not None
-        elif self.__is_sub_bench__:
-            return self.parent is not None and self.bench is not None
-        elif self.__roots__:
-            return self.parent is not None
-        else:
-            return True
+        return True
 
     @property
     def _data_graph(self) -> "NodeDataGraph":
@@ -1640,7 +1562,7 @@ class Node(Struct[NodeDataT], Generic[NodeDataT]):
                 if next_parent is None:
                     break
                 elif next_parent.metatype == NodeType.PACKAGE:
-                    next_parent = next_parent.bench
+                    next_parent = cast(Package, next_parent).bench
                 elif next_parent.metatype == NodeType.BRANCH:
                     next_parent = next_parent.parent
                 # skip bench & branch (same path as pkg)
@@ -1718,19 +1640,11 @@ class Node(Struct[NodeDataT], Generic[NodeDataT]):
         """Hard delete this node. Forever. Irreversibly."""
         raise NotImplementedError
 
-    def _on_notice(
-        self,
-        subject: "Struct",
-        type: "NoticeType",
-        options: Optional["NoticeIn"],
-    ) -> None:
-        pass  # TODO :Incomplete: Notices
-
     def _to_data_wrapped(self) -> SomeNodeData:
         """To wire format, wrapped in the generic any node container."""
-        from bench.proto.wiring import pack_node, wrap_some_node
+        from bench.proto.wiring import pack_object, wrap_some_node
 
-        return wrap_some_node(pack_node(self))
+        return wrap_some_node(pack_object(self))
 
     #
     # The :ComponentMethods
@@ -1770,16 +1684,16 @@ class Node(Struct[NodeDataT], Generic[NodeDataT]):
             self._validate_self((), invalid=on_invalid_raise)
 
     @final
-    def _interp_self(self, scope: Optional["Node"], notice: "NoticeHandler"):  # type: ignore
+    def _interp_self(self, scope: Optional["Node"]):  # type: ignore
         # interp contained structs
         for struct in self._walk_struct():
             if struct is not self:
-                struct._interp_self(scope, notice)
+                struct._interp_self(scope)
         # and the component interps
         for meth in _get_component_methods(
             self.__class__, self.__components__, _ComponentMethod.interp
         ):
-            meth(self, scope, notice)
+            meth(self, scope)
         self._is_interped = True
 
     @final
@@ -1805,12 +1719,12 @@ class Node(Struct[NodeDataT], Generic[NodeDataT]):
             yield from self._graph.collect_descendants(self, recursive=True)
 
     @final
-    def _interp_rec(self, scope: Optional["Node"], notice: "NoticeHandler"):  # type: ignore
+    def _interp_rec(self, scope: Optional["Node"]):  # type: ignore
         # interp contained structs
-        super()._interp_rec(scope, notice)
+        super()._interp_rec(scope)
         # and descendants
         for inner_node in self._walk_descendants():
-            inner_node._interp_self(scope, notice)
+            inner_node._interp_self(scope)
 
     @final
     def _validate_rec(self, properties: Collection[Property], invalid: "ValidationHandler") -> None:  # type: ignore
@@ -1904,9 +1818,85 @@ class Node(Struct[NodeDataT], Generic[NodeDataT]):
     async def exists(cls, filter: Optional["Expression"] = None, **kwargs) -> bool:
         return await cls.query().exists(filter, **kwargs)
 
+    pass
+
+
+@node_component()
+class BenchNode[NodeDataT: AnyNodeData](Node[NodeDataT], abc.ABC):
+    """A node that exists inside a Bench."""
+
+    bench: "Bench" = p_node_ancestor_first(6, NodeType.BENCH, require=True, store=True, wire=True)
+    if TYPE_CHECKING:
+        bench_id: Optional[UUID] = None
+        bench_ptr: Optional[NodeReference] = None
+
+    @property
+    def is_attached(self) -> bool:
+        return self.parent is not None and self.bench is not None
+
+
+@node_component()
+class PackageNode[NodeDataT: AnyNodeData](BenchNode[NodeDataT], abc.ABC):
+    """A node that exists inside a Package."""
+
+    package: "Package" = p_node_ancestor_first(
+        5, NodeType.PACKAGE, require=True, store=True, wire=True, is_bench_implicit=True
+    )
+    if TYPE_CHECKING:
+        package_id: Optional[UUID] = None
+        package_ptr: Optional[NodeReference] = None
+
+    @property
+    def is_attached(self) -> bool:
+        return self.parent is not None and self.package is not None
+
+
+@node_component()
+class IdentityNode[NodeDataT: AnyNodeData](PackageNode[NodeDataT], abc.ABC):
+    """A package node with a continous identity across versions."""
+
+    ck: UUID = p_system(3, default=None, require=True, autoset=True)  # type: ignore
+
+
+@node_component()
+class SourceNode[NodeDataT: AnyNodeData](IdentityNode[NodeDataT], abc.ABC):
+    """An identity node that can be instanced."""
+
+    template: Optional["Node"] = p_node_template(7)
+    templated_epoch: int | None = p_system(
+        8, require=False, default=None, autoset=True, primitive_type=PrimitiveType.INT64
+    )
+    if TYPE_CHECKING:
+        template_id: Optional[UUID] = None
+        template_ptr: Optional[NodeReference] = None
+
+
+@node_component()
+class HasBaseNode(BuiltinObject, abc.ABC):
+    """A node which may have a 'base' in another node (e.g., its type definition)."""
+
+    @property
+    def base(self) -> Optional[BenchNode]:
+        raise NotImplementedError
+
+    @property
+    def base_ck(self) -> Optional[UUID]:
+        return self.base.ck if self.base is not None else None
+
+    @staticmethod
+    def get_base_from_data(data: AnyNodeData) -> Optional[NodeReferenceData]:
+        raise NotImplementedError
+
+
+@node_component()
+class TimedNode[NodeDataT: AnyNodeData](PackageNode[NodeDataT], abc.ABC):
+    __id_factory__: ClassVar[Callable[[], UUID]] = UUIDT
+
 
 # NOTE: import from .value later to avoid circular import
 #  (but import at top level to avoid import in critical path)
+
+
 from bench.language.value import check_value, coerce_value  # noqa: E402
 
 LINK_TARGET_NODE_TYPES: tuple[NodeType, ...] = tuple(
@@ -1918,7 +1908,7 @@ LINK_PARENT_NODE_TYPES: tuple[NodeType, ...] = (NodeType.PACKAGE, NodeType.BLOCK
 
 
 @node(NodeType.LINK)
-class Link(Node):
+class Link(SourceNode):
     """
     A reference to another node in some graph.
     The referenced subtree is inlined on access.
@@ -1941,20 +1931,3 @@ class Skip(Node):
         30, array=False, references=LINK_TARGET_NODE_TYPES, require=True
     )
     order_key: Optional[str] = p_internal(31, default=None)
-
-
-@node_component()
-class BasedNode(Node[NodeDataT], Generic[NodeDataT]):
-    """A node that requires an explicit base (parent, type, whatever) in another node."""
-
-    @property
-    def base(self) -> Optional[Node]:
-        raise NotImplementedError
-
-    @property
-    def base_ck(self) -> Optional[UUID]:
-        return self.base.ck if self.base is not None else None
-
-    @staticmethod
-    def get_base_from_data(data: AnyNodeData) -> Optional[NodeReferenceData]:
-        raise NotImplementedError

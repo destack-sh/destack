@@ -30,7 +30,7 @@ from bench.utils.func import IdEnum
 
 if TYPE_CHECKING:
     # noinspection PyUnresolvedReferences
-    from bench.language import Field, Node, Object, Property, Struct
+    from bench.language import Field, Node, Object, PackageNode, Property, Struct
 
 logger = structlog.get_logger(__name__)
 tracer = trace.get_tracer(__name__)
@@ -841,7 +841,7 @@ class GraphNodeList(NodeList[NodeT]):
 
         # assign ids if newly attached to the package (ids are derived from ck + package)
         if "ck" in node.__properties__ and not node.is_attached and self._parent.is_attached:
-            package_id = self._parent.package.id
+            package_id = cast("PackageNode", self._parent).package.id
             for n in node._walk_descendants():
                 if n.id is None:
                     n._assign_id(package_id)
@@ -863,7 +863,8 @@ class GraphNodeList(NodeList[NodeT]):
 
         # assign order key to ordered nodes
         if hasattr(node, "order_key") and getattr(node, "order_key") is None:
-            node.order_key = get_order_key(*get_key_bounds(self.nodes, after, before))
+            ok = get_order_key(*get_key_bounds(self.nodes, after, before))
+            setattr(node, "order_key", ok)
 
         # 'create' node in session if it's attached
         if self._parent._session and self._parent.is_attached:
@@ -882,7 +883,7 @@ class GraphNodeList(NodeList[NodeT]):
         if hasattr(nodes[0], "order_key") and getattr(nodes[0], "order_key") is None:
             oks = get_order_keys(*get_key_bounds(self.nodes, after, before), n=len(nodes))
             for node, ok in zip(nodes, oks):
-                node.order_key = ok
+                setattr(node, "order_key", ok)
 
         for node in nodes:
             self.append(node)

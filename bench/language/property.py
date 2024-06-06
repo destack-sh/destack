@@ -46,6 +46,7 @@ from bench.utils.utils import frozendict
 if TYPE_CHECKING:
     # noinspection PyUnresolvedReferences
     from bench.language import (
+        BuiltinObject,
         Node,
         NodeReference,
         Object,
@@ -80,7 +81,7 @@ class Property(_TypeQueryBuilder if TYPE_CHECKING else object):
     # unstable ordinal for bit-packing
     ord: int = cast(int, None)  # noqa: RUF009
     name: str = UNSET  # name from LHS of assignment
-    component: type["Struct"] | type["Node"] = UNSET  # source component class
+    component: type["BuiltinObject"] = UNSET  # source component class
     py_type_raw: Any = None  # type annotation on LHS of assignment
     py_type_stripped: Any = UNSET  # stripped type annotation
     primitive_type: PrimitiveType | None = UNSET
@@ -299,7 +300,7 @@ class Property(_TypeQueryBuilder if TYPE_CHECKING else object):
 
     def to_wired_ptr(
         self,
-        ref: Union["Object", "Node", "Struct", list["Object"], list["Node"], list["Struct"], None],
+        ref: Union["Object", "BuiltinObject", list["Object"], list["Node"], list["Struct"], None],
     ) -> Union[
         "NodeReference",
         "PropertyReference",
@@ -319,12 +320,10 @@ class Property(_TypeQueryBuilder if TYPE_CHECKING else object):
             if self.is_node_reference or self.is_property_reference:
                 return (cast(Union["Node", "Property"], ref)).to_ref()
             elif self.is_struct_reference:
-                from bench.language.value import Object
+                from bench.language import Object, Struct
 
-                ref = cast(Union["Node", "Struct", "Object"], ref)
-                if type(ref) is Object or (
-                    ref.__is_struct_only__ and not ref.__is_struct_inlined__
-                ):
+                ref = cast(Union["BuiltinObject", "Object"], ref)
+                if isinstance(ref, (Object, Struct)):
                     assert isinstance(ref.id, int), f"bad {self!r}: {ref!r}.id={ref.id}"
                     return ref.id
                 else:
@@ -468,7 +467,7 @@ class Property(_TypeQueryBuilder if TYPE_CHECKING else object):
                 self.primitive_type = PrimitiveType.INT64
             elif getattr(annotation.type, "__is_node__", False):
                 raise ValueError(f"cannot store/wire node directly: {self!r}")
-            elif getattr(annotation.type, "__is_struct_only__", False):
+            elif getattr(annotation.type, "__is_struct__", False):
                 assert self.reference_struct is not None, f"missing struct type for {self!r}"
                 self.primitive_type = PrimitiveType.JSON  # robust json
             else:
@@ -501,7 +500,7 @@ class Property(_TypeQueryBuilder if TYPE_CHECKING else object):
                 self.id is not None
                 and self.id is not UNSET
                 and 10 < self.id < 30  # (below 10 would conflict anyway, above 30 is fine)
-                and self.component.__name__ not in ("Node", "Struct")
+                and self.component.__name__ not in ("BuiltinObject")
                 and self.id not in Node.__properties_by_id__
             ):
                 raise ValueError(f"can't use system id {self.id} for {self!r}")

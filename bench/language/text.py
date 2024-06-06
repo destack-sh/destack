@@ -4,7 +4,16 @@ from typing import TYPE_CHECKING, Optional
 from uuid import UUID
 
 from bench.language.const import EnumType, NodeType, StructType, enum_
-from bench.language.node import LINK_TARGET_NODE_TYPES, Node, Struct, struct, struct_component
+from bench.language.node import (
+    LINK_TARGET_NODE_TYPES,
+    BenchNode,
+    BuiltinObject,
+    InlineStruct,
+    Node,
+    Struct,
+    object_component,
+    struct,
+)
 from bench.language.property import p_regular
 from bench.utils.func import IdEnum
 
@@ -12,8 +21,8 @@ if TYPE_CHECKING:
     from bench.language import ColorType, Icon
 
 
-@struct_component()
-class TextOptions(Struct):
+@object_component()
+class TextOptions(BuiltinObject):
     # color?
     color: Optional["ColorType"] = p_regular(50, default=None)
     # flags
@@ -54,7 +63,7 @@ class TextLineType(IdEnum):
 
 
 @struct(StructType.TEXT_SPAN, inline=True)
-class TextSpan(TextOptions):
+class TextSpan(TextOptions, InlineStruct):
     content: Optional[str] = p_regular(33, default=None)
     node: Optional[Node] = p_regular(
         34, array=False, default=None, require=False, references=LINK_TARGET_NODE_TYPES
@@ -62,7 +71,7 @@ class TextSpan(TextOptions):
 
     def __content_str__(self):
         if self.content:
-            return _md_wrap_text_options(self.content, self)
+            return f"'{_md_wrap_text_options(self.content, self)}'"
         elif self.node:
             return f"@{self.node!r}"
         else:
@@ -92,7 +101,7 @@ class TextSpan(TextOptions):
 
 
 @struct(StructType.TEXT_LINE)
-class TextLine(TextOptions):
+class TextLine(TextOptions, Struct):
     """
     A single line of Text with formatting, composed of spans.
     A line may contain hard breaks, so it's effectively a paragraph.
@@ -211,7 +220,7 @@ def _mention_to_url(node: Node) -> str:
             else:
                 raise ValueError(f"unexpected value type: {type(value)}")
             url_parts.append(f"{key}={value}")
-    if node.bench:
+    if isinstance(node, BenchNode) and node.bench:
         return f"bench://{node.bench.slug}/node?{'&'.join(url_parts)}"
     else:
         return f"bench://node?{'&'.join(url_parts)}"

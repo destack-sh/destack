@@ -2,13 +2,14 @@ import enum
 from itertools import chain
 from typing import TYPE_CHECKING, Any, Collection, Union, cast
 
+from bench.language.node import BuiltinObject
 from bench.proto.core import Enum, EnumValue, Field, FieldType, Message, ProtoSchema, ProtoThing
 from bench.sql.core import PrimitiveType
 from bench.utils.casing import Casing, to_casing
 from bench.utils.func import IdEnum
 
 if TYPE_CHECKING:
-    from bench.language import Node, Property, Struct
+    from bench.language import Property
 
 #
 # Map Bench types to Proto types
@@ -30,7 +31,7 @@ PROTO_FIELD_TYPE_BY_PRIMITIVE_TYPE: dict[PrimitiveType, FieldType] = {
     PrimitiveType.JSON: FieldType.STRUCT,
 }
 
-_ThingType = type[Union["Node", "Struct", "Property", IdEnum, enum.IntFlag]]
+_ThingType = type[Union["BuiltinObject", "Property", IdEnum, enum.IntFlag]]
 
 
 def map_bench_property_to_proto(prop: "Property", cache: dict[_ThingType, ProtoThing]) -> Field:
@@ -68,14 +69,14 @@ def map_bench_property_to_proto(prop: "Property", cache: dict[_ThingType, ProtoT
         raise TypeError(f"cannot map to proto type: {prop!r}")
 
 
-def map_bench_struct_to_proto(
-    struct: type["Struct"], cache: dict[_ThingType, ProtoThing], alias: str | None = None
+def map_bench_object_to_proto(
+    cls: type[BuiltinObject], cache: dict[_ThingType, ProtoThing], alias: str | None = None
 ) -> Message:
-    message = Message(name=alias or struct.__name__, reserved_names=[], reserved_ids=[], fields=[])
-    assert struct.__doc__, f"missing docstring for {struct!r}"
-    message.comment = struct.__doc__.strip()
-    cache[struct] = message  # to solve recursive references
-    for prop in struct.__properties__.values():
+    message = Message(name=alias or cls.__name__, reserved_names=[], reserved_ids=[], fields=[])
+    assert cls.__doc__, f"missing docstring for {cls!r}"
+    message.comment = cls.__doc__.strip()
+    cache[cls] = message  # to solve recursive references
+    for prop in cls.__properties__.values():
         if not prop.is_wired:
             continue
         field = map_bench_property_to_proto(prop, cache)
@@ -122,7 +123,7 @@ def map_object_type_to_proto(
     if bench_t in cache:
         return cache[bench_t]
     if issubclass(bench_t, (Node, Struct)):
-        ret = map_bench_struct_to_proto(bench_t, cache, alias=alias)
+        ret = map_bench_object_to_proto(bench_t, cache, alias=alias)
     elif issubclass(bench_t, (IdEnum, enum.IntFlag)):
         ret = map_bench_enum_to_proto(bench_t, cache, alias=alias)
     else:
@@ -133,9 +134,9 @@ def map_object_type_to_proto(
 
 def generate_proto_schema(
     name: str,
-    bench_classes: Collection[type[Union["Node", "Struct", IdEnum]]],
-    aliases: dict[type[Union["Node", "Struct", IdEnum]], str],
-    unions: dict[str, tuple[str, Collection[type[Union["Node", "Struct", IdEnum]]]]],
+    bench_classes: Collection[type[Union["BuiltinObject", IdEnum]]],
+    aliases: dict[type[Union["BuiltinObject", IdEnum]], str],
+    unions: dict[str, tuple[str, Collection[type[Union["BuiltinObject", IdEnum]]]]],
     extras: list[Enum | Message],
     message_postfix: str = "",
 ) -> ProtoSchema:

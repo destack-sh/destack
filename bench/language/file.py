@@ -4,9 +4,9 @@ from typing import TYPE_CHECKING, BinaryIO, Optional
 
 import structlog
 
-from bench.language.bench import Drive, Resource
+from bench.language.bench import BenchResourceNode, Drive
 from bench.language.const import EnumType, NodeType, PrimitiveType, StructType, enum_
-from bench.language.node import Struct, node, struct
+from bench.language.node import InlineStruct, node, struct
 from bench.language.property import p_internal, p_node_parent, p_regular, p_runtime
 from bench.language.validation import NAME_CONSTRAINT
 from bench.proto.wire import BlobData
@@ -31,7 +31,7 @@ class FileRetentionMode(IdEnum):
 
 
 @node(NodeType.BLOB, unique=(("parent_id", "sha512"),))
-class Blob(Resource[BlobData]):
+class Blob(BenchResourceNode[BlobData]):
     """The actual file content stored as a Blob in a Drive. De-duped to 1 per sha512."""
 
     parent: Drive = p_node_parent(4, NodeType.DRIVE, is_system=True)
@@ -43,7 +43,7 @@ class Blob(Resource[BlobData]):
 
 
 @struct(StructType.FILE, inline=True)
-class File(Struct):
+class File(InlineStruct):
     """A reference to a file stored somewhere."""
 
     type: Optional[str] = p_internal(31)
@@ -85,7 +85,7 @@ class IconKind(IdEnum):
 
 
 @struct(StructType.ICON, inline=True)
-class Icon(Struct):
+class Icon(InlineStruct):
     kind: IconKind = p_internal(30, default=False)
     # content
     emoji: Optional[str] = p_internal(31, require=False)

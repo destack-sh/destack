@@ -7,7 +7,7 @@ from croniter import croniter
 from bench.language.const import NodeType, ScheduleType, StructType, TimeInterval, TriggerType
 from bench.language.field import TypeConstraint
 from bench.language.graph import NodeList
-from bench.language.node import Node, Struct, node, struct
+from bench.language.node import SourceNode, Struct, node, struct
 from bench.language.notice import Notice
 from bench.language.property import Property, p_node_child, p_node_parent, p_regular
 from bench.language.validation import NAME_CONSTRAINT, ValidationHandler
@@ -54,7 +54,7 @@ class Schedule(Struct):
 
 
 @node(NodeType.TRIGGER)
-class Trigger(Node[TriggerData]):
+class Trigger(SourceNode[TriggerData]):
     """A trigger to run the node it is attached to (like a Block or Step)."""
 
     parent: Union["Block", "Step"] = p_node_parent(4, NodeType.BLOCK, NodeType.STEP)

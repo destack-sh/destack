@@ -146,7 +146,7 @@ class RuntimeThread:
         assert (
             run_data.parent_ptr and UUID(run_data.parent_ptr.id) == package.id
         ), f"{run_data!r} not in {package!r}"
-        run = wiring.unpack_node(run_data, package, self._session, Run)
+        run = wiring.unpack_object(run_data, parent=package, session=self._session, expect=Run)
 
         async with self.session(readonly=False, autocommit=True):
             run.status = RunStatus.RUNNING

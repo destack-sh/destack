@@ -17,7 +17,7 @@ from bench.language.connection import (
 )
 from bench.language.const import UNSET, BenchError, EditType, NodeType
 from bench.language.graph import DetachedNodeGraph, NodeDataGraph, NodeGraph
-from bench.language.node import Node, Property
+from bench.language.node import BenchNode, Node, PackageNode, Property
 from bench.language.setup import NODE_CLASS_BY_TYPE
 from bench.proto.wire import (
     AnyNodeData,
@@ -94,9 +94,9 @@ class Transaction:
     def _get_scope_for_node(self, n: Node) -> GraphScope:
         """Gets the explicit or implicit scope for a node."""
         scope = GraphScope()
-        if "bench" in n.__properties__:
+        if isinstance(n, BenchNode):
             scope.bench_id = uuid_to_str(n.bench_id) or self.session._default_scope.bench_id
-        if "package" in n.__properties__:
+        if isinstance(n, PackageNode):
             scope.package_id = uuid_to_str(n.package_id) or self.session._default_scope.package_id
         return scope
 
@@ -577,7 +577,7 @@ def edit_graph(
                 parent = graph.get(UUID(new_node_data.parent_ptr.id))
             else:
                 parent = None
-            node = wiring.unpack_node(new_node_data, parent)
+            node = wiring.unpack_object(new_node_data, parent=parent, expect=Node)
             if edit_type == EditType.CREATE or node.id not in graph:
                 graph.add(node)
             else:
@@ -601,7 +601,7 @@ def edit_graph(
                 if prop.reference_wired_ptr is not None:
                     prop = prop.reference_wired_ptr
                 new_value_data = getattr(new_node_data, prop.name)
-                new_value = wiring.unpack_struct_prop(prop, new_value_data)
+                new_value = wiring.unpack_object_prop(prop, new_value_data)
                 setattr(node, prop.name, new_value)
             # implicit metadata
             node.updated_at = edit.edited_at

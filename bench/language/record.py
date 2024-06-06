@@ -1,4 +1,4 @@
-from typing import TYPE_CHECKING, Any, Optional, cast
+from typing import TYPE_CHECKING, Any, Optional
 
 import structlog
 
@@ -10,12 +10,9 @@ from bench.language.connection import (
     PostgresEngine,
 )
 from bench.language.const import NodeType
-from bench.language.node import BasedNode, Node, NodeList, node, node_component
-from bench.language.notice import NoticeHandler
+from bench.language.node import HasBaseNode, IdentityNode, node
 from bench.language.property import (
-    p_node_child,
     p_node_parent,
-    p_runtime,
     p_secret_value_packed,
     p_value_packed,
     p_value_runtime,
@@ -23,11 +20,10 @@ from bench.language.property import (
 from bench.language.query import QueryBuilder
 from bench.language.value import HasValues
 from bench.proto.wire import AnyNodeData, NodeReferenceData, RecordData
-from bench.sql.core import RECORD_SHARED_TABLE, Table
 from bench.utils.func import describe_type
 
 if TYPE_CHECKING:
-    from bench.language import Block, Query, TypeInfo
+    from bench.language import Block, TypeInfo
 
 # pyright: reportIncompatibleVariableOverride=false
 
@@ -35,7 +31,7 @@ logger = structlog.get_logger(__name__)
 
 
 @node(NodeType.RECORD, passthrough="value", stored_custom=True, local=True)
-class Record(BasedNode[RecordData], HasValues):
+class Record(IdentityNode[RecordData], HasBaseNode, HasValues):
     """A record in a database. The containing table is usually a real Postgres table."""
 
     # :RecordSchema
@@ -84,23 +80,3 @@ class RecordConnection(PostgresConnection[Record, RecordData]):
 
     async def aggregate(self, query: "QueryBuilder[Record, RecordData]") -> AggregateResult:
         raise NotImplementedError
-
-
-@node_component()
-class Database(Node):
-    queries: NodeList["Query"] = p_node_child(NodeType.QUERY)
-    # records: RecordList = p_node_child(NodeType.RECORD, NRel.STORED_CUSTOM, list=RecordList)
-    _table: Optional[Table] = p_runtime(default=None)
-
-    def _interp_component(self, scope: Optional["Node"], notice: "NoticeHandler") -> None:
-        from bench.sql.engine import map_block_to_pg_table
-
-        if self.is_materialized:
-            self._table = map_block_to_pg_table(cast("Block", self))
-        else:
-            self._table = RECORD_SHARED_TABLE
-
-    @property
-    def is_materialized(self):
-        # should this database be a real database table
-        return True

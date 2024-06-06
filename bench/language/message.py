@@ -3,7 +3,13 @@ from typing import TYPE_CHECKING, Any, Optional, Union, cast
 import structlog
 
 from bench.language.const import NodeType, StructType
-from bench.language.node import LINK_TARGET_NODE_TYPES, BasedNode, Node, timed_node
+from bench.language.node import (
+    LINK_TARGET_NODE_TYPES,
+    BenchNode,
+    HasBaseNode,
+    TimedNode,
+    timed_node,
+)
 from bench.language.property import p_node_parent, p_regular, p_value_packed, p_value_runtime
 from bench.language.session import HasSessionContext
 from bench.language.validation import TITLE_CONSTRAINT
@@ -22,14 +28,14 @@ MESSAGE_PARENT_TYPES: tuple[NodeType, ...] = (NodeType.PACKAGE, NodeType.BLOCK, 
 
 
 @timed_node(NodeType.MESSAGE)
-class Message(BasedNode[MessageData], HasSessionContext, HasValues):
+class Message(TimedNode[MessageData], HasBaseNode, HasSessionContext, HasValues):
     """
     A Message by a User or program (author = created_by).
     If the parent is also a Message, then this is part of a thread. Threads may be nested.
     """
 
     parent: MessageParent = p_node_parent(4, *MESSAGE_PARENT_TYPES)
-    origin: Node = p_regular(32, require=True, references=LINK_TARGET_NODE_TYPES)
+    origin: BenchNode = p_regular(32, require=True, references=LINK_TARGET_NODE_TYPES)
     path: Optional["Path"] = p_regular(33, require=False, array=False, struct=StructType.PATH)
     reply_to: Optional["Message"] = p_regular(
         34, require=False, default=None, references=NodeType.MESSAGE, same_bench=True
@@ -60,7 +66,7 @@ class Message(BasedNode[MessageData], HasSessionContext, HasValues):
             return "<empty>"
 
     @property
-    def base(self) -> "Node":
+    def base(self):
         return self.origin
 
     @staticmethod

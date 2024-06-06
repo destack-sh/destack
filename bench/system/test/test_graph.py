@@ -100,7 +100,7 @@ class EditProducer:
                 new_value = Text.plain(f"{prop.name} {self.client.client.name}:{round}")._to_data()
             else:
                 raise ValueError(f"unsupported primitive type: {prop.primitive_type}")
-            node_data = cast(AnyNodeData, wiring.pack_node(node))
+            node_data = cast(AnyNodeData, wiring.pack_object(node))
             setattr(node_data, prop.name, new_value)
             edit = EditData(
                 id=new_edit_id(),
@@ -267,7 +267,7 @@ async def test_graph_update_node_with_invalid_property(
 
     user = some_user.user
     user.name = "thisiswaytoolong" * 64
-    node_data = wiring.pack_node(user)
+    node_data = wiring.pack_object(user)
     edit = EditData(
         id=new_edit_id(),
         type=wiring.pack_enum(EditType, EditType.UPDATE),

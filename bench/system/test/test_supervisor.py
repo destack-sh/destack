@@ -251,7 +251,7 @@ async def test_root_node_create_denied(
     """Only the system can create root nodes."""
 
     node: Node[AnyNodeData] = fabricator.fabricate(NODE_CLASS_BY_TYPE[node_type])
-    node_data: AnyNodeData = wiring.pack_node(node)
+    node_data: AnyNodeData = wiring.pack_object(node)
     cast(BenchData, node_data).parent_ptr = None  # roots don't have parents
 
     # try create

@@ -31,7 +31,14 @@ from bench.language.const import (
 )
 from bench.language.expression import C, Expression
 from bench.language.graph import NodeDataGraph
-from bench.language.node import NODE_CLASS_BY_TYPE, Node, ReadInfo, Struct, node, struct
+from bench.language.node import (
+    NODE_CLASS_BY_TYPE,
+    InlineStruct,
+    Node,
+    ReadInfo,
+    node,
+    struct,
+)
 from bench.language.property import Property, p_node_parent, p_regular
 from bench.language.setup import ANCESTOR_NODE_TYPES, NODE_CLASSES, _on_completing_setup
 from bench.proto.wire import AnyNodeData, QueryData
@@ -74,7 +81,7 @@ NodeTypeOrClass = Union[NodeType, type[Node]]
 
 
 @struct(StructType.READ_OPTIONS, inline=True)
-class ReadOptions(Struct):
+class ReadOptions(InlineStruct):
     """
     Fine-grained options to a read request.
     This is an addition to primary options (like the filter for a search or aggregation).

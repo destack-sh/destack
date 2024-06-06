@@ -19,22 +19,22 @@ from bench.utils.func import IdEnum, assert_collections_equal, bittuple, get_sub
 from bench.utils.utils import frozendict
 
 if TYPE_CHECKING:
-    from bench.language import Node, Property, Struct
+    from bench.language import BuiltinObject, InlineStruct, Node, Property
 
 # some global indexes for language types/classes
 ENUM_CLASS_BY_TYPE = _ENUM_CLASS_BY_TYPE  # re-exported to avoid circular imports
 ENUM_TYPE_BY_CLASS: dict[type, EnumType] = {}
 NODE_CLASS_BY_TYPE: dict[NodeType, type["Node"]] = {}
 NODE_COMPONENT_CLASS_BY_NAME: dict[str, type["Node"]] = {}
-STRUCT_CLASS_BY_TYPE: dict[StructType, type["Struct"]] = {}
-OBJECT_CLASS_BY_TYPE: dict[ObjectType, type["Node"] | type["Struct"]] = {}
-OBJECT_TYPE_BY_CLASS: dict[type["Node"] | type["Struct"], ObjectType] = {}
-FINAL_BENCH_CLASSES_BY_NAME: dict[str, type[Union["Node", "Struct", IdEnum]]] = {}
-FINAL_BENCH_CLASSES: list[type[Union["Node", "Struct", IdEnum]]] = []
-BENCH_CLASS_BY_NAME: dict[str, type[Union["Node", "Struct", IdEnum]]] = {}
-BENCH_CLASSES: list[type[Union["Node", "Struct", IdEnum]]] = []
+STRUCT_CLASS_BY_TYPE: dict[StructType, type["InlineStruct"]] = {}
+OBJECT_CLASS_BY_TYPE: dict[ObjectType, type["BuiltinObject"]] = {}
+OBJECT_TYPE_BY_CLASS: dict[type["BuiltinObject"], ObjectType] = {}
+FINAL_BENCH_CLASSES_BY_NAME: dict[str, type[Union["BuiltinObject", IdEnum]]] = {}
+FINAL_BENCH_CLASSES: list[type[Union["BuiltinObject", IdEnum]]] = []
+BENCH_CLASS_BY_NAME: dict[str, type[Union["BuiltinObject", IdEnum]]] = {}
+BENCH_CLASSES: list[type[Union["BuiltinObject", IdEnum]]] = []
 NODE_CLASSES: list[type["Node"]] = []
-STRUCT_CLASSES: list[type["Struct"]] = []
+STRUCT_CLASSES: list[type["InlineStruct"]] = []
 
 # direct parent/child
 PARENT_NODE_TYPES: dict[NodeType, bittuple[NodeType]] = {}
@@ -66,7 +66,7 @@ def _on_completing_setup(func: Callable | None = None):
 def _complete_bench_setup():
     """Finalize setup of all language constructs after everything is imported."""
     from bench.language import Node, Object, Struct, const
-    from bench.language.node import BasedNode
+    from bench.language.node import HasBaseNode
 
     global _COMPLETED_SETUP
     if _COMPLETED_SETUP:
@@ -80,7 +80,7 @@ def _complete_bench_setup():
         if isinstance(bench_t, type) and issubclass(bench_t, IdEnum):
             FINAL_BENCH_CLASSES_BY_NAME[bench_t.__name__] = bench_t
             FINAL_BENCH_CLASSES.append(bench_t)
-    BENCH_CLASSES.extend(chain(get_subclasses(Struct), (Object,)))
+    BENCH_CLASSES.extend(chain(get_subclasses(BuiltinObject), (Object,)))
     for cls in BENCH_CLASSES:
         BENCH_CLASS_BY_NAME[cls.__name__] = cls
     for node_t in NODE_TYPES:
@@ -215,7 +215,7 @@ def _complete_bench_setup():
 
     # check that BASED_NODE_TYPES is consistent with HasBase
     base_node_types = [
-        cast(Node, n).metatype for n in get_subclasses(BasedNode) if hasattr(n, "metatype")
+        cast(Node, n).metatype for n in get_subclasses(HasBaseNode) if hasattr(n, "metatype")
     ]
     assert_collections_equal(base_node_types, const.BASED_NODE_TYPES.tuple)
 

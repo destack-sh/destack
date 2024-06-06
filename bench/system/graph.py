@@ -28,7 +28,12 @@ from bench.language.const import (
     PolicyEffect,
 )
 from bench.language.graph import NodeDataGraph, NodeDict, NodeGraphLike
-from bench.language.node import EDIT_SUBJECT_TYPES, BasedNode, Node, is_implicit_node_property
+from bench.language.node import (
+    EDIT_SUBJECT_TYPES,
+    HasBaseNode,
+    Node,
+    is_implicit_node_property,
+)
 from bench.language.property import Property
 from bench.language.query import QueryBuilder
 from bench.language.session import SessionContext
@@ -145,14 +150,14 @@ class GraphIoServiceBase(ServiceBase, GraphIoBase):
     async def get_nodes(self, subject: Subject, request: "GetNodesRequest") -> "GetNodesResponse":
         # parse request
         roots: tuple[NodeReference, ...] = tuple(
-            wiring.unpack_struct_interp(r, expect=NodeReference) for r in request.roots
+            wiring.unpack_object_interp(r, expect=NodeReference) for r in request.roots
         )
         if not roots:
             raise GRPCError(GRPCStatus.INVALID_ARGUMENT, "no roots provided")
         if any(not r.id for r in roots):
             raise GRPCError(GRPCStatus.INVALID_ARGUMENT, "root nodes must have an id")
         options: ReadOptions = (
-            wiring.unpack_struct_interp_maybe(request.options, expect=ReadOptions)
+            wiring.unpack_object_interp_maybe(request.options, expect=ReadOptions)
             or ReadOptions.default()
         )
 
@@ -197,14 +202,14 @@ class GraphIoServiceBase(ServiceBase, GraphIoBase):
     ) -> "SearchNodesResponse":
         # parse request
         node_type: NodeType = wiring.unpack_enum(NodeType, request.node_type)
-        filter: Expression | None = wiring.unpack_struct_interp_maybe(
+        filter: Expression | None = wiring.unpack_object_interp_maybe(
             request.filter, expect=Expression
         )
         sort: list[Expression] = [
-            wiring.unpack_struct_interp(s, expect=Expression) for s in request.sort
+            wiring.unpack_object_interp(s, expect=Expression) for s in request.sort
         ] or []
         options: ReadOptions = (
-            wiring.unpack_struct_interp_maybe(request.options, expect=ReadOptions)
+            wiring.unpack_object_interp_maybe(request.options, expect=ReadOptions)
             or ReadOptions.default()
         )
 
@@ -251,8 +256,8 @@ class GraphIoServiceBase(ServiceBase, GraphIoBase):
         if request.bases:
             raise GRPCError(GRPCStatus.INVALID_ARGUMENT, "global IO has no bases")
         node_type: NodeType = wiring.unpack_enum(NodeType, request.node_type)
-        filter: Expression | None = wiring.unpack_struct_interp_maybe(request.filter)
-        aggregation: Expression = wiring.unpack_struct_interp(request.aggregation)
+        filter: Expression | None = wiring.unpack_object_interp_maybe(request.filter)
+        aggregation: Expression = wiring.unpack_object_interp(request.aggregation)
 
         # fetch
         adapted_options = adapt_read_options(subject, node_type, ReadOptions())
@@ -288,7 +293,7 @@ class GraphIoServiceBase(ServiceBase, GraphIoBase):
             raise GRPCError(GRPCStatus.INVALID_ARGUMENT, "no node types provided")
         node_types = bittuple(*tuple(wiring.unpack_enum(NodeType, t) for t in request.node_types))
         filters: dict[NodeType, Expression] = {
-            wiring.unpack_enum(NodeType, k): cast(Expression, wiring.unpack_struct_interp(v))
+            wiring.unpack_enum(NodeType, k): cast(Expression, wiring.unpack_object_interp(v))
             for k, v in request.filters.items()
         }
         watcher = EditWatcher(subject=subject, node_types=node_types, filters=filters)
@@ -333,7 +338,7 @@ class GraphIoServiceBase(ServiceBase, GraphIoBase):
         assert subject.client is not None, f"no client for {subject!r}"
 
         # figure out context
-        context = wiring.unpack_struct_interp_maybe(request.context, expect=SessionContext)
+        context = wiring.unpack_object_interp_maybe(request.context, expect=SessionContext)
         if context is None:
             context = SessionContext(
                 client=subject.client,
@@ -592,7 +597,7 @@ def parse_commit_scope(
         if node_type in BASED_NODE_TYPES and edit.node_ptr.base_ck is not None:
             # also add base as node scope
             assert base_graph is not None, f"missing base graph for {edit!r}"
-            node_cls = cast(type[BasedNode], NODE_CLASS_BY_TYPE[node_type])
+            node_cls = cast(type[HasBaseNode], NODE_CLASS_BY_TYPE[node_type])
             # add current base (base is immutable)
             old_base_node = base_graph.get(edit.node_ptr.base_ck)
             if old_base_node is not None:
@@ -607,7 +612,7 @@ def parse_commit_scope(
             graph_scopes[graph_scope_hash] = graph_scope
 
     node_scopes: dict[UUID, NodeReference] = {
-        UUID(k): cast(NodeReference, wiring.unpack_struct(v)) for k, v in node_scopes_by_id.items()
+        UUID(k): wiring.unpack_object(v, expect=NodeReference) for k, v in node_scopes_by_id.items()
     }
     node_scopes_by_type = group_by(node_scopes.values(), lambda n: n.type)
     return CommitScope(

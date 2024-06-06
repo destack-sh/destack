@@ -13,7 +13,15 @@ from bench.language.const import (
     StructType,
     enum_,
 )
-from bench.language.node import BasedNode, Node, Struct, struct, timed_node
+from bench.language.node import (
+    HasBaseNode,
+    InlineStruct,
+    Node,
+    Struct,
+    TimedNode,
+    struct,
+    timed_node,
+)
 from bench.language.property import (
     Property,
     p_internal,
@@ -40,7 +48,7 @@ if TYPE_CHECKING:
 
 
 @struct(StructType.RUN_OPTIONS, inline=True)
-class RunOptions(Struct):
+class RunOptions(InlineStruct):
     """Options for running something."""
 
     max_concurrency: Optional[int] = p_regular(30, constraint=TypeConstraintIn(min_value=0))
@@ -52,7 +60,7 @@ class RunOptions(Struct):
 
 
 @struct(StructType.RETRY_ATTEMPT)
-class RetryAttempt(Struct):
+class RetryAttempt(InlineStruct):
     """A single attempt at a Run."""
 
     status: RunStatus = p_internal(30, default=RunStatus.SCHEDULED)
@@ -95,7 +103,7 @@ class RunError(Struct, BenchError):
 
 
 @timed_node(NodeType.RUN)
-class Run(BasedNode[RunData], HasSessionContext, HasValues):
+class Run(TimedNode[RunData], HasBaseNode, HasSessionContext, HasValues):
     """
     A 'run' of Blocks (and Steps within them) or 'lambdas' (just Code/Text).
     When 'running' something that's not directly runnable (like a Text Block, Text Step or Text Lambda),

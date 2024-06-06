@@ -22,7 +22,15 @@ from bench.language.const import (
     StructType,
     enum_,
 )
-from bench.language.node import BasedNode, Node, Property, Struct, struct
+from bench.language.node import (
+    BenchNode,
+    HasBaseNode,
+    InlineStruct,
+    Node,
+    Property,
+    Struct,
+    struct,
+)
 from bench.language.property import p_regular, p_value_packed, p_value_runtime
 from bench.language.setup import OBJECT_CLASS_BY_TYPE
 from bench.language.validation import ValidationHandler
@@ -72,7 +80,7 @@ _CONDITIONAL_OP_SIGN: dict[ConditionalOp, str] = {
 
 
 @struct(StructType.NODE_REFERENCE, inline=True)
-class NodeReference(Struct[NodeReferenceData]):
+class NodeReference(InlineStruct[NodeReferenceData]):
     """
     A reference to a Node.
     We include the Bench and 'ck' where available.
@@ -125,11 +133,11 @@ class NodeReference(Struct[NodeReferenceData]):
         # bench
         if node.metatype == NodeType.BENCH:
             reference.bench_id = node.id
-        elif "bench" in node.__properties__:
+        elif isinstance(node, BenchNode):
             reference.bench_id = node.bench_id
         # base
         if node.metatype in BASED_NODE_TYPES:
-            base = cast(BasedNode, node).base
+            base = cast(HasBaseNode, node).base
             if base is not None:
                 reference.base_ck = base.ck
                 reference.base_bench_id = base.bench_id
@@ -156,7 +164,7 @@ class NodeReference(Struct[NodeReferenceData]):
             reference.bench_id = node_data.parent_ptr.bench_id
         # base
         if NodeType(node_data.metatype) in BASED_NODE_TYPES:
-            base = cast(BasedNode, node_cls).get_base_from_data(node_data)
+            base = cast(HasBaseNode, node_cls).get_base_from_data(node_data)
             if base is not None:
                 reference.base_ck = base.ck
                 reference.base_bench_id = base.bench_id
@@ -168,7 +176,6 @@ class NodeReference(Struct[NodeReferenceData]):
         """Turn a node straight to a data node reference."""
         from bench.proto import wire
 
-        node_cls = OBJECT_CLASS_BY_TYPE[node.metatype]
         reference = NodeReferenceData(
             metatype=wire.ObjectType.NODE_REFERENCE,
             type=cast(wire.NodeType, node.metatype),
@@ -179,11 +186,11 @@ class NodeReference(Struct[NodeReferenceData]):
         # bench
         if node.metatype == NodeType.BENCH:
             reference.bench_id = str(node.id)
-        elif "bench" in node_cls.__properties__ and node.bench_id is not None:
+        elif isinstance(node, BenchNode) and node.bench_id is not None:
             reference.bench_id = str(node.bench_id)
         # base
         if node.metatype in BASED_NODE_TYPES:
-            base = cast(BasedNode, node).base
+            base = cast(HasBaseNode, node).base
             if base is not None:
                 reference.base_ck = str(base.ck)
                 reference.base_bench_id = str(base.bench_id)
@@ -192,7 +199,7 @@ class NodeReference(Struct[NodeReferenceData]):
 
 
 @struct(StructType.PROPERTY_REFERENCE, inline=True)
-class PropertyReference(Struct):
+class PropertyReference(InlineStruct):
     type: Optional[ObjectType] = p_regular(30, require=False)
     id: int = p_regular(31)
     # to disambiguate contributed properties
@@ -229,7 +236,7 @@ class SelectionKind(IdEnum):
 
 
 @struct(StructType.SELECTION, inline=True)
-class Selection(Struct):
+class Selection(InlineStruct):
     """A selection of nodes/values."""
 
     kind: SelectionKind = p_regular(30, require=True)
@@ -450,7 +457,7 @@ class Aggregation(Struct):
 
 
 @struct(StructType.AGGREGATION_BUCKET, inline=True)
-class AggregationBucket(Struct):
+class AggregationBucket(InlineStruct):
     """One bucket of an aggregation histogram."""
 
     key: Any = p_regular(30, require=True, primitive_type=PrimitiveType.JSON)

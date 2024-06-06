@@ -14,15 +14,15 @@ from bench.language.const import (
     ReferenceKind,
     StructType,
 )
-from bench.language.node import Node, Struct
+from bench.language.node import BuiltinObject, InlineStruct, Node, Struct
 from bench.language.setup import NODE_CLASS_BY_TYPE, OBJECT_CLASS_BY_TYPE
 from bench.proto.wire import NodeReferenceData
 from bench.utils.dt import utcnow
 from bench.utils.fractional import INTEGER_ZERO
 
 NodeT = TypeVar("NodeT", bound=Node)
-StructT = TypeVar("StructT", bound=Struct)
-ObjectT = TypeVar("ObjectT", bound=Node | Struct)
+StructT = TypeVar("StructT", bound=Struct | InlineStruct)
+ObjectT = TypeVar("ObjectT", bound=BuiltinObject)
 
 
 class Fabricator:

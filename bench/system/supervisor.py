@@ -280,7 +280,7 @@ class Supervisor(GraphIoServiceBase, SupervisorBase):
         if region == Region.GLOBAL:
             raise GRPCError(GRPCStatus.INVALID_ARGUMENT, "cannot create bench in global region")
 
-        owner_ptr: NodeReference = wiring.unpack_struct(request.owner)
+        owner_ptr: NodeReference = wiring.unpack_object(request.owner)
         async with self.request_session(readonly=False) as session:
             # check (and reload owner to get Handles)
             if owner_ptr.type == NodeType.USER:

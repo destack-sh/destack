@@ -11,6 +11,7 @@ from .access import (
 )
 from .bench import (
     Bench,
+    BenchResourceNode,
     Branch,
     Client,
     Dependency,
@@ -18,7 +19,6 @@ from .bench import (
     Environment,
     Machine,
     Package,
-    Resource,
     ResourceStatus,
     Server,
     ServerProfile,
@@ -64,7 +64,18 @@ from .file import Blob, File, Icon
 from .graph import ValueList
 from .log import Log, LogKind, LogLevel
 from .message import Message
-from .node import Link, Node, Struct
+from .node import (
+    BenchNode,
+    BuiltinObject,
+    HasBaseNode,
+    InlineStruct,
+    Link,
+    Node,
+    PackageNode,
+    SourceNode,
+    Struct,
+    TimedNode,
+)
 from .notice import Notice, NoticeError, NoticeType
 from .notification import Notification
 from .path import Path
@@ -95,11 +106,14 @@ __all__ = [
     "Badge",
     "Bench",
     "BenchError",
+    "BenchNode",
+    "BenchResourceNode",
     "BenchType",
     "Blob",
     "Block",
     "BlockType",
     "Branch",
+    "BuiltinObject",
     "C",
     "Client",
     "ClientType",
@@ -119,8 +133,10 @@ __all__ = [
     "File",
     "FormatHint",
     "Handle",
+    "HasBaseNode",
     "Icon",
     "Identity",
+    "InlineStruct",
     "Link",
     "Log",
     "LogKind",
@@ -140,6 +156,8 @@ __all__ = [
     "Organization",
     "Package",
     "Package",
+    "PackageNode",
+    "PackageNode",
     "Path",
     "Policy",
     "PolicyEffect",
@@ -153,7 +171,6 @@ __all__ = [
     "ReadOptions",
     "Record",
     "Region",
-    "Resource",
     "ResourceStatus",
     "RetryAttempt",
     "Role",
@@ -167,6 +184,7 @@ __all__ = [
     "Signal",
     "SortMode",
     "SortOp",
+    "SourceNode",
     "Space",
     "Step",
     "StepType",
@@ -178,6 +196,7 @@ __all__ = [
     "Tenancy",
     "Text",
     "TextSpan",
+    "TimedNode",
     "Transaction",
     "Trigger",
     "TriggerType",
