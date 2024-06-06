@@ -273,7 +273,9 @@ class Runtime(ServiceBase, RuntimeBase):
         assert self._client is not None, f"{self!r} not ready"
 
         # mark run as queued in this runtime
-        run = wiring.unpack_node(request.run, self.main_package, self._session, Run)
+        run = wiring.unpack_object(
+            request.run, parent=self.main_package, session=self._session, expect=Run
+        )
         async with self.session(autocommit=True):
             run.status = RunStatus.QUEUED
             if isinstance(self._client.parent, Server):

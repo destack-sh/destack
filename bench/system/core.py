@@ -235,7 +235,7 @@ def unpack_commit(
             else:
                 # cascaded edits should bei in pre-order, so the parent must exist
                 raise RuntimeError(f"missing parent {parent_id} for {node!r} in {edit!r}")
-        node = wiring.unpack_node(node, parent, session)
+        node = wiring.unpack_object(node, parent=parent, session=session, expect=Node)
         unpacked_nodes[node.id] = node
         # map
         _add_edit(edit, node)

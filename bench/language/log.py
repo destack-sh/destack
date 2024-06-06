@@ -11,7 +11,7 @@ from bench.language.const import (
     StructType,
     enum_,
 )
-from bench.language.node import Node, timed_node
+from bench.language.node import Node, TimedNode, timed_node
 from bench.language.property import (
     p_internal,
     p_node_parent,
@@ -23,7 +23,7 @@ from bench.language.property import (
 from bench.language.session import HasSessionContext
 from bench.language.text import Text
 from bench.language.value import HasValues
-from bench.proto.wire import EditData
+from bench.proto.wire import EditData, LogData
 from bench.utils.func import IdEnum
 
 if TYPE_CHECKING:
@@ -56,7 +56,7 @@ class LogLevel(IdEnum):  # :LogLevel
 
 
 @timed_node(NodeType.LOG)
-class Log(Node, HasSessionContext, HasValues):
+class Log(TimedNode[LogData], HasSessionContext, HasValues):
     """
     A Log of something happening in a Bench.
     """

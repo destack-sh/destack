@@ -18,11 +18,15 @@ from bench.language.const import (
     get_active_run,
 )
 from bench.language.node import (
+    BuiltinObject,
     EditSubject,
+    HasBaseNode,
+    InlineStruct,
     Node,
     Struct,
+    TimedNode,
+    object_component,
     struct,
-    struct_component,
     timed_node,
 )
 from bench.language.property import Property, p_internal, p_node_parent, p_runtime, p_system
@@ -70,7 +74,7 @@ CustomCommit = Callable[["Session"], Awaitable[tuple[list[EditData], list[EditDa
 
 
 @timed_node(NodeType.SESSION)
-class Session(Node[SessionData]):
+class Session(TimedNode[SessionData], HasBaseNode):
     """
     A managed Session for interacting with and running a Package in a Client.
     If a Run spans multiple Clients, each Client will have its own Session.
@@ -501,7 +505,7 @@ class Session(Node[SessionData]):
 
 
 @struct(StructType.EDIT_CONTEXT, inline=True)
-class EditContext(Struct):
+class EditContext(InlineStruct):
     """Additional context for a specific edit (per-edit variable subset of Session context)."""
 
     block: Optional["Block"] = p_internal(60, require=False, array=False, references=NodeType.BLOCK)
@@ -517,8 +521,8 @@ class EditContext(Struct):
     )
 
 
-@struct_component()
-class HasSessionContext(Struct):
+@object_component()
+class HasSessionContext(BuiltinObject):
     """Context for the creation of a node in some Session."""
 
     # NOTE :Security: session context properties are p_internal, not p_system so we can update
@@ -559,11 +563,11 @@ class HasSessionContext(Struct):
 
 
 @struct(StructType.SESSION_CONTEXT, inline=True)
-class SessionContext(HasSessionContext):
+class SessionContext(InlineStruct, HasSessionContext):
     pass
 
 
-@struct(StructType.CONTEXT, inline=True)
+@struct(StructType.CONTEXT)
 class Context(Struct):
     """The context at some point and time in the Bench tree."""
 

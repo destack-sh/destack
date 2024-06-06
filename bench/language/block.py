@@ -1,7 +1,7 @@
 from typing import TYPE_CHECKING, Any, Collection, Optional, Union, cast
 
 from bench.language.const import BlockType, NodeType, StructType, TypeKind, Visibility
-from bench.language.node import Node, NodeList, node
+from bench.language.node import NodeList, SourceNode, node
 from bench.language.property import (
     p_internal,
     p_node_child,
@@ -67,7 +67,7 @@ assert len(IDENTIFIER_TYPE_BY_BLOCK_TYPE) == len(BlockType)
 
 
 @node(NodeType.BLOCK, passthrough="value")
-class Block(Node[BlockData], HasValues):
+class Block(SourceNode[BlockData], HasValues):
     """A building block containing logic, types, UI, data, AI, - any Bench program source."""
 
     parent: Union["Block", "Package"] = p_node_parent(4, NodeType.BLOCK, NodeType.PACKAGE)

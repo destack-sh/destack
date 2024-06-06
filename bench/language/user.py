@@ -9,7 +9,7 @@ from bench.language.const import (
     UserStatus,
 )
 from bench.language.graph import NodeList
-from bench.language.node import Node, node
+from bench.language.node import Node, SourceNode, node
 from bench.language.property import (
     p_internal,
     p_kernel,
@@ -137,7 +137,7 @@ class Organization(Node[OrganizationData]):
 
 
 @node(NodeType.MEMBERSHIP)
-class Membership(Node[MembershipData]):
+class Membership(SourceNode[MembershipData]):
     """
     A membership to this Bench (and its owner if it's the main Bench).
     """
@@ -151,7 +151,7 @@ class Membership(Node[MembershipData]):
 
 
 @node(NodeType.INVITE)
-class Invite(Node[InviteData]):
+class Invite(SourceNode[InviteData]):
     """An invitation to become a member of this Bench."""
 
     parent: "Package" = p_node_parent(4, NodeType.PACKAGE)

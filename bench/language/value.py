@@ -26,14 +26,20 @@ from bench.language.validation import on_invalid_raise
 from bench.proto.wire import AnyNodeData, AnyStructData
 
 if TYPE_CHECKING:
-    from bench.language import Block, Field, Node, NodeReference, Struct, TypeInfoBase
-    from bench.language.node import BasedNode
-    from bench.language.notice import NoticeHandler
+    from bench.language import (
+        Block,
+        BuiltinObject,
+        Field,
+        Node,
+        NodeReference,
+        Struct,
+        TypeInfoBase,
+    )
     from bench.language.validation import ValidationHandler
 
 logger = structlog.get_logger(__name__)
 
-ScalarValue = Union["Object", PrimitiveValue, "Struct", "Node"]
+ScalarValue = Union["Object", PrimitiveValue, "BuiltinObject"]
 ScalarValueData = Union[
     AnyNodeData,
     AnyStructData,
@@ -46,7 +52,7 @@ SomeValue = Union[ScalarValue, Collection[ScalarValue], None]
 SomeValueData = Union[ScalarValueData, Collection[ScalarValueData], None]
 JsonPrimitive = Union[str, int, float, bool, None]
 JsonValue = Union[JsonPrimitive, dict[str, "JsonValue"], list["JsonValue"]]
-ValueParent = Union["Object", "Struct", "Node"]
+ValueParent = Union["Object", "BuiltinObject"]
 ValueProperty = Union["Property", "Field"]
 
 
@@ -354,10 +360,10 @@ def _check_value_scalar(
         ):
             invalid(value, "not of type", typ)
         if typ.kind == TypeKind.BASED_NODE:
-            if typ.base_type is not None and cast("BasedNode", value).base != typ.base_type:
+            if typ.base_type is not None and cast(HasBaseNode, value).base != typ.base_type:
                 invalid(value, f"not based on {typ.base_type}", typ)
     elif typ.kind == TypeKind.STRUCT:
-        if not getattr(cast("Struct", value), "__is_struct_only__", False):
+        if not getattr(cast("Struct", value), "__is_struct__", False):
             invalid(value, "not a Struct", typ)
         elif cast("Struct", value).metatype != typ.bench_type:
             invalid(value, "not of type", typ)
@@ -446,8 +452,10 @@ def pack_value_scalar(value: ScalarValue, typ: "TypeInfoBase") -> JsonValue:
             return cast(JsonValue, value)
     elif typ.kind == TypeKind.NODE or typ.kind == TypeKind.BASED_NODE:
         if cast("Struct", value).metatype != StructType.NODE_REFERENCE:
-            value = cast("Node", value).to_ref()
-        return pack_struct_value_scalar_data(cast("NodeReference", value)._to_data())
+            ref = cast("Node", value).to_ref()
+        else:
+            ref = cast("NodeReference", value)
+        return pack_struct_value_scalar_data(ref._to_data())
     elif typ.kind == TypeKind.ENUM:
         return int(cast(int, value))
     elif typ.kind == TypeKind.STRUCT:
@@ -481,7 +489,7 @@ def unpack_value_scalar(value_packed: JsonValue, typ: "TypeInfoBase") -> ScalarV
 
         assert isinstance(value_packed, dict), f"{value_packed!r} is not a dict (expected {typ!r})"
         value_struct = unpack_struct_value_scalar_data(value_packed)
-        return wiring.unpack_struct(cast(AnyStructData, value_struct))
+        return wiring.unpack_object(cast(AnyStructData, value_struct))
     else:
         raise TypeError(f"cannot unpack value of type {typ!r}")
 
@@ -795,16 +803,16 @@ def unpack_value(
 
 
 # import later to avoid circular imports (Object is used in node.py)
-from bench.language.node import Struct, struct_component  # noqa: E402
+from bench.language.node import HasBaseNode, Struct, object_component  # noqa: E402
 
 
-@struct_component()
+@object_component()
 class HasValues(Struct):
     def _init_component(self) -> None:
         if self._is_interped:
             self._pack_values_inplace(self.__value_properties__.values(), skip_already_set=True)
 
-    def _interp_component(self, scope: "Node | None", notice: "NoticeHandler"):
+    def _interp_component(self, scope: "Node | None"):
         # unpack values
         self._unpack_values_inplace(self.__value_properties__.values())
         # TODO :Incomplete: check type?

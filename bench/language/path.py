@@ -2,7 +2,7 @@ import re
 from typing import TYPE_CHECKING, Mapping, Optional
 
 from bench.language.const import EnumType, NodeType, StructType, enum_
-from bench.language.node import Struct, struct
+from bench.language.node import InlineStruct, Struct, struct
 from bench.language.property import p_regular
 from bench.utils.func import IdEnum
 
@@ -49,7 +49,7 @@ PATH_TOKEN_TO_STR: Mapping[PathTokenType, str] = {
 
 
 @struct(StructType.PATH_TOKEN, inline=True)
-class PathToken(Struct):
+class PathToken(InlineStruct):
     type: PathTokenType = p_regular(31)
 
 
@@ -76,7 +76,7 @@ class PathSegmentType(IdEnum):
 
 
 @struct(StructType.PATH_SEGMENT, inline=True)
-class PathSegment(Struct):
+class PathSegment(InlineStruct):
     type: PathSegmentType = p_regular(31)
     name: Optional[str] = p_regular(32, default=None)
     reference: Optional["Node"] = p_regular(

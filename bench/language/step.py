@@ -2,7 +2,7 @@ from typing import TYPE_CHECKING, Any, Optional, Union
 
 from bench.language.const import EnumType, NodeType, StructType, enum_
 from bench.language.graph import NodeList
-from bench.language.node import Node, Struct, node, struct
+from bench.language.node import SourceNode, Struct, node, struct
 from bench.language.notice import Notice
 from bench.language.property import (
     p_internal,
@@ -52,7 +52,7 @@ class StepConnection(Struct):
 
 
 @node(NodeType.STEP)
-class Step(Node[StepData], HasValues):
+class Step(SourceNode[StepData], HasValues):
     """
     An informational, logic, data or control flow unit in a Flow (Block).
     NOTE: steps only track incoming connections.

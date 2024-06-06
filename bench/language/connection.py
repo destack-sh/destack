@@ -294,12 +294,12 @@ class RemoteConnection(StoreConnection[NodeT, NodeDataT]):
         trace.get_current_span().set_attribute("connection", repr(self))
         request = wire.SearchNodesRequest(
             node_type=wiring.pack_enum(NodeType, query._node_type),
-            filter=wiring.pack_struct_maybe(query._filter, ExpressionData),
+            filter=wiring.pack_object_maybe(query._filter, ExpressionData),
             sort=(
-                [wiring.pack_struct(s, ExpressionData) for s in query._sort] if query._sort else []
+                [wiring.pack_object(s, ExpressionData) for s in query._sort] if query._sort else []
             ),
             first=query._first,
-            options=wiring.pack_struct_maybe(query._options, ReadOptionsData),
+            options=wiring.pack_object_maybe(query._options, ReadOptionsData),
             count=options.count,
             scope=self.engine.scope,
         )
@@ -322,7 +322,7 @@ class RemoteConnection(StoreConnection[NodeT, NodeDataT]):
         assert query._aggregation is not None, f"{query!r} has no aggregation"
         request = wire.AggregateNodesRequest(
             node_type=wiring.pack_enum(NodeType, query._node_type),
-            filter=wiring.pack_struct_maybe(query._filter, expect=ExpressionData),
+            filter=wiring.pack_object_maybe(query._filter, expect=ExpressionData),
             aggregation=cast(ExpressionData, query._aggregation._to_data()),
             scope=self.engine.scope,
         )

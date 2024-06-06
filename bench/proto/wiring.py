@@ -9,10 +9,9 @@ import structlog
 from betterproto.lib.google.protobuf import Struct as ProtoStruct
 from opentelemetry import trace
 
-from bench.language.const import NODE_TYPES_SET, UNSET, NodeType, ObjectType
+from bench.language.const import NodeType, ObjectType
 from bench.language.graph import NodeDataGraph
-from bench.language.node import NODE_CLASS_BY_TYPE, Node, NodeGraph, ReadInfo, Struct
-from bench.language.notice import NoticeHandler, on_notice_ignore, on_warning_raise
+from bench.language.node import BuiltinObject, Node, NodeGraph, ReadInfo
 from bench.language.property import Property
 from bench.language.session import Session
 from bench.language.setup import OBJECT_CLASS_BY_TYPE
@@ -34,9 +33,7 @@ PROTO_CLASS_BY_TYPE: dict[ObjectType, type[Union[AnyNodeData, AnyStructData]]] =
 OBJECT_TYPE_BY_PROTO_CLASS: dict[type[Union[AnyNodeData, AnyStructData]], ObjectType] = {
     cls: object_type for object_type, cls in PROTO_CLASS_BY_TYPE.items()
 }
-BENCH_CLASS_BY_PROTO_CLASS: dict[
-    type[Union[AnyNodeData, AnyStructData]], type[Union[Node, Struct]]
-] = {
+BENCH_CLASS_BY_PROTO_CLASS: dict[type[Union[AnyNodeData, AnyStructData]], type[BuiltinObject]] = {
     cls: OBJECT_CLASS_BY_TYPE[object_type]
     for cls, object_type in OBJECT_TYPE_BY_PROTO_CLASS.items()
 }
@@ -96,13 +93,13 @@ def unpack_enum[EnumT: IdEnumOrUnion](enum_cls: type[EnumT], value: Any) -> Enum
     return enum_cls(value)
 
 
-def pack_struct_prop(prop: Property, value: Any, ignore_array: bool) -> Any:
+def pack_object_prop(prop: Property, value: Any, ignore_array: bool) -> Any:
     if value is None:
         return None
     elif prop.is_list and not ignore_array:
-        return [pack_struct_prop(prop, v, ignore_array=True) for v in value]
+        return [pack_object_prop(prop, v, ignore_array=True) for v in value]
     elif prop.is_struct:
-        return pack_struct(value)
+        return pack_object(value)
     elif prop.is_enum:
         return pack_enum(prop.py_type_stripped, value)
     elif prop.reference_kind is not None and not prop.reference_kind.is_struct_tree:
@@ -121,16 +118,16 @@ def pack_struct_prop(prop: Property, value: Any, ignore_array: bool) -> Any:
         return value
 
 
-def unpack_struct_prop(prop: Property, value: Any, ignore_array: bool = False) -> Any:
+def unpack_object_prop(prop: Property, value: Any, ignore_array: bool = False) -> Any:
     from bench.language.expression import NodeReference
 
     try:
         if value is None:
             return None
         elif prop.is_list and not ignore_array:
-            return [unpack_struct_prop(prop, v, ignore_array=True) for v in value]
+            return [unpack_object_prop(prop, v, ignore_array=True) for v in value]
         elif prop.is_struct:
-            return unpack_struct(value)
+            return unpack_object(value)
         elif prop.is_enum:
             return unpack_enum(prop.py_type_stripped, value)
         elif prop.reference_kind is not None and not prop.reference_kind.is_struct_tree:
@@ -150,136 +147,88 @@ def unpack_struct_prop(prop: Property, value: Any, ignore_array: bool = False) -
         raise ValueError(f"could not unpack value: {value!r} for {prop!r}") from e
 
 
-def pack_struct[T: AnyStructData](struct: Struct, expect: type[T] | None = None) -> T:
+def pack_object[T: AnyStructData | AnyNodeData](
+    obj: BuiltinObject, expect: type[T] | None = None
+) -> T:
     """Pack a struct and any contained structs."""
-    data_cls = PROTO_CLASS_BY_TYPE[struct.metatype]
-    metatype = pack_enum(ObjectType, struct.metatype)  # type: ignore
+    data_cls = PROTO_CLASS_BY_TYPE[obj.metatype]
+    metatype = pack_enum(ObjectType, obj.metatype)  # type: ignore
     if expect is not None:
         expected_metatype = OBJECT_TYPE_BY_PROTO_CLASS[expect]
         if metatype != expected_metatype:
             raise RuntimeError(f"expected {expect.__name__} but got {metatype}")
-    struct_data = data_cls(metatype=metatype)  # type: ignore
+    data = data_cls(metatype=metatype)  # type: ignore
     try:
-        for prop in struct.__wired_properties__.values():
-            value = getattr(struct, prop.name)
-            value = pack_struct_prop(prop, value, ignore_array=False)
-            setattr(struct_data, prop.name, value)
-        return cast(T, struct_data)
+        for prop in obj.__wired_properties__.values():
+            value = getattr(obj, prop.name)
+            value = pack_object_prop(prop, value, ignore_array=False)
+            setattr(data, prop.name, value)
+        return cast(T, data)
     except (AttributeError, TypeError, ValueError, KeyError) as e:
-        raise ValueError(f"could not pack {struct.metatype.name}: {struct!r}") from e
+        raise ValueError(f"could not pack {obj.metatype.name}: {obj!r}") from e
 
 
-def pack_struct_maybe[T: AnyStructData](struct: Struct | None, expect: type[T]) -> T | None:
-    if struct is None:
+def pack_object_maybe[T: AnyStructData | AnyNodeData](
+    obj: BuiltinObject | None, expect: type[T]
+) -> T | None:
+    if obj is None:
         return None
     else:
-        return pack_struct(struct, expect)
+        return pack_object(obj, expect)
 
 
-def unpack_struct[T: Struct](struct_data: AnyStructData, expect: type[T] | None = None) -> T:
-    """Unpack a struct and any contained structs."""
-    struct_cls = OBJECT_CLASS_BY_TYPE[ObjectType(struct_data.metatype)]  # type: ignore
-    if expect and struct_cls != expect:
-        raise RuntimeError(f"expected {expect} but got {struct_cls}")
-    struct_kwargs = {}
-    try:
-        for prop in struct_cls.__wired_properties__.values():
-            if prop.is_computed:
-                continue
-            value = getattr(struct_data, prop.name)
-            struct_kwargs[prop.name] = unpack_struct_prop(prop, value, ignore_array=False)
-        struct = struct_cls(**struct_kwargs)
-        return cast(T, struct)
-    except (AttributeError, TypeError, ValueError, KeyError) as e:
-        raise ValueError(f"could not unpack {struct_data.metatype.name}: {struct_data!r}") from e
-
-
-def unpack_struct_maybe[T: Struct](
-    struct_data: AnyStructData | None, expect: type[T] | None = None
-) -> T | None:
-    if struct_data is None:
-        return None
-    return unpack_struct(struct_data)
-
-
-def unpack_struct_interp[T: Struct](
-    struct_data: AnyStructData,
-    scope: Node | None = None,
-    notice: NoticeHandler = on_warning_raise,
-    expect: type[T] | None = None,
-) -> T:
-    """Unpack, interpret and validate a Struct."""
-    struct = unpack_struct(struct_data, expect=expect)
-    struct._interp_rec(scope=scope, notice=notice)
-    struct._validate_rec(properties=(), invalid=on_invalid_raise)
-    return struct
-
-
-def unpack_struct_interp_maybe[T: Struct](
-    struct_data: AnyStructData | None,
-    scope: Node | None = None,
-    notice: NoticeHandler = on_warning_raise,
-    expect: type[T] | None = None,
-) -> T | None:
-    if struct_data is None:
-        return None
-    else:
-        return unpack_struct_interp(struct_data, scope=scope, notice=notice, expect=expect)
-
-
-def pack_node[T: Node](node: Node, expect: type[T] | None = None) -> T:
-    return pack_struct(node)
-
-
-def pack_node_maybe(node: Node | None) -> AnyNodeData | None:
-    if node is None:
-        return None
-    return pack_node(node)
-
-
-def unpack_node[T: Node](
-    node_data: AnyNodeData,
+def unpack_object[T: BuiltinObject](
+    obj_data: AnyStructData | AnyNodeData,
+    *,
     parent: Node | None = None,
-    session: Session | None = None,
     expect: type[T] | None = None,
+    session: Session | None = None,
 ) -> T:
-    node_cls = NODE_CLASS_BY_TYPE[NodeType(node_data.metatype)]
-    if expect is not None and node_cls is not expect:
-        raise RuntimeError(f"expected {expect} but got {node_cls} for {node_data!r}")
-    node_kwargs = {}
+    """Unpack a struct and any contained structs."""
+    object_cls = OBJECT_CLASS_BY_TYPE[ObjectType(obj_data.metatype)]  # type: ignore
+    if expect and object_cls != expect:
+        raise RuntimeError(f"expected {expect} but got {object_cls}")
+    object_kwargs = {}
     try:
-        for prop in node_cls.__wired_properties__.values():
+        for prop in object_cls.__wired_properties__.values():
             if not prop.is_runtime or prop.is_computed:
                 continue
-            value = getattr(node_data, prop.name)
-            node_kwargs[prop.name] = unpack_struct_prop(prop, value, ignore_array=False)
-        node = node_cls(**node_kwargs, parent=parent, _session=UNSET)
-        if session is not None:
-            node._resolve_references(node, notice=on_notice_ignore)
-            node._track_self(session)
-        return node  # type: ignore
+            value = getattr(obj_data, prop.name)
+            object_kwargs[prop.name] = unpack_object_prop(prop, value, ignore_array=False)
+        if parent is not None:
+            object_kwargs["parent"] = parent
+        obj = object_cls(**object_kwargs)
+        if session is not None and isinstance(obj, Node):
+            obj._resolve_references(obj)
+            obj._track_self(session)
+        return cast(T, obj)
     except (AttributeError, TypeError, ValueError, KeyError) as e:
-        raise ValueError(f"could not unpack {node_data.metatype.name}: {node_data!r}") from e
+        raise ValueError(f"could not unpack {obj_data.metatype.name}: {obj_data!r}") from e
 
 
-def pack_object[T: Struct[AnyStructData] | Node[AnyNodeData]](
-    obj: T, expect: type[T] | None = None
-) -> AnyStructData | AnyNodeData:
-    if isinstance(obj, Node):
-        return pack_node(obj, expect)  # type: ignore
-    elif isinstance(obj, Struct):
-        return pack_struct(obj, expect)  # type: ignore
-    else:
-        raise ValueError(f"cannot pack {obj!r}")
-
-
-def unpack_object[T: Struct[AnyStructData] | Node[AnyNodeData]](
-    obj_data: AnyStructData | AnyNodeData, expect: type[T] | None = None
+def unpack_object_interp[T: BuiltinObject](
+    obj_data: AnyStructData | AnyNodeData,
+    scope: Node | None = None,
+    expect: type[T] | None = None,
+    session: Session | None = None,
 ) -> T:
-    if obj_data.metatype in NODE_TYPES_SET:
-        return unpack_node(obj_data, expect=expect)  # type: ignore
+    """Unpack, interpret and validate a Struct."""
+    obj = unpack_object(obj_data, expect=expect, session=session)
+    obj._interp_rec(scope=scope)
+    obj._validate_rec(properties=(), invalid=on_invalid_raise)
+    return obj
+
+
+def unpack_object_interp_maybe[T: BuiltinObject](
+    obj_data: AnyStructData | AnyNodeData | None,
+    scope: Node | None = None,
+    expect: type[T] | None = None,
+    session: Session | None = None,
+) -> T | None:
+    if obj_data is None:
+        return None
     else:
-        return unpack_struct(obj_data, expect=expect)  # type: ignore
+        return unpack_object_interp(obj_data, scope=scope, expect=expect, session=session)
 
 
 @tracer.start_as_current_span("wiring.pack_node_graph")
@@ -291,11 +240,11 @@ def pack_node_graph(
     packed_by_id: dict[UUID, AnyNodeData] = OrderedDict()
 
     to_pack = root._graph.collect_descendants(root, recursive=True)
-    packed_by_id[root.id] = pack_node(root)
+    packed_by_id[root.id] = pack_object(root)
     for node in to_pack:
         if node.metatype in exclude:
             continue
-        packed_by_id[node.ck] = pack_node(node)
+        packed_by_id[node.ck] = pack_object(node)
 
     return packed_by_id[root.id], list(packed_by_id.values())
 
@@ -335,7 +284,7 @@ def unpack_node_graph(
                 #  (this errors here, but sometimes we just want a node without ancestors)
                 # if node_parent is None:
                 #     raise ValueError(f"parent {node_parent_id} not found in {unpacked_graph!r}")
-            node = unpack_node(node_data, node_parent)
+            node = unpack_object(node_data, parent=node_parent)
             node._read = read
 
             # keep parent instance if it was passed (update it in place)
@@ -349,7 +298,7 @@ def unpack_node_graph(
 
     # update parent references
     if parent is not None:
-        parent._resolve_references(parent, notice=on_notice_ignore)
+        parent._resolve_references(parent)
 
     # resolve references
     for source_root in source_roots:
@@ -358,7 +307,7 @@ def unpack_node_graph(
             raise ValueError(f"root {source_root!r} root found in unpacked {unpacked_graph!r}")
         root._graph.set(unpacked_graph.nodes)
         for node in unpacked_graph.nodes_by_id.values():
-            node._resolve_references(node, notice=on_notice_ignore)
+            node._resolve_references(node)
             if session is not None:
                 node._track_self(session)
         unpacked_roots.append(root)

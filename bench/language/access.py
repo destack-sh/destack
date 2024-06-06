@@ -39,8 +39,15 @@ from bench.language.const import (
 )
 from bench.language.expression import NodeReference
 from bench.language.graph import NodeDataGraph, NodeGraph, NodeList
-from bench.language.node import NODE_CLASS_BY_TYPE, Node, Struct, node, struct
-from bench.language.notice import NoticeHandler
+from bench.language.node import (
+    NODE_CLASS_BY_TYPE,
+    InlineStruct,
+    Node,
+    SourceNode,
+    Struct,
+    node,
+    struct,
+)
 from bench.language.property import (
     Property,
     p_internal,
@@ -98,7 +105,7 @@ OWNABLE_NODE_TYPES: bittuple[NodeType] = bittuple(
 
 
 @node(NodeType.BADGE)
-class Badge(Node):
+class Badge(SourceNode):
     """
     Attach a badge to a node with an inline definition.
     A badge's policies are delegated to the 'holder' (any client presenting its secrets).
@@ -122,7 +129,7 @@ class Badge(Node):
 
 
 @node(NodeType.ROLE)
-class Role(Node):
+class Role(SourceNode):
     """
     Attach a role to a block or member.
     Role policies are delegated to the parent and its descendants.
@@ -134,7 +141,7 @@ class Role(Node):
 
 
 @node(NodeType.IDENTITY)
-class Identity(Node):
+class Identity(SourceNode):
     """
     Attach an identity to a block, member or user (only the user itself can do that).
     Identity policies are delegated to the parent and its descendants.
@@ -273,7 +280,7 @@ class PolicyRule(Struct):
 
         return f"{self.name or '<unnamed>'} {self.effect.bench_name} {subject_str} {verb_str} {object_str}"
 
-    def _interp_component(self, scope: Optional["Node"], notice: "NoticeHandler"):
+    def _interp_component(self, scope: Optional["Node"]):
         self._update_verb_mask()
         self._update_object_mask()
 
@@ -528,7 +535,7 @@ class AccessMatrix(Struct):
 
 
 @struct(StructType.ACCESS, inline=True)
-class Access(Struct):
+class Access(InlineStruct):
     """
     An evaluated access on some objects as part of a larger request (by the same subject).
     """
@@ -675,10 +682,8 @@ SYSTEM_POLICIES: tuple[Policy, ...] = (
 
 @_on_completing_setup
 def _interp_system_policies():
-    from bench.language.notice import on_warning_raise
-
     for policy in SYSTEM_POLICIES:
-        policy._interp_rec(None, on_warning_raise)  # type: ignore
+        policy._interp_rec(None)  # type: ignore
         # (None isn't a valid scope, but we don't need it yet and not sure what to pass;
         #  when this errors, we'll come back and fix it)
 
@@ -743,7 +748,7 @@ def generate_access_matrix(
                 new_policies: list[Policy] = getattr(node, "policies")
             else:
                 new_policies: list[Policy] = [
-                    wiring.unpack_struct_interp(p) for p in getattr(node_data, "policies")
+                    wiring.unpack_object_interp(p) for p in getattr(node_data, "policies")
                 ]
             for policy in new_policies:
                 if policy.scopes:
@@ -820,9 +825,9 @@ def generate_access_matrix(
                 if rule.matches_subject(identity, root_id)
             ]
             base_zone = AccessZone(
+                parent_id=None,
                 scope_id=root.id,
                 _scope=root,
-                parent_id=None,
                 identity_id=identity.id,
                 _identity=identity,
                 rules=base_rules,

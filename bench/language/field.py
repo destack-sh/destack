@@ -24,15 +24,16 @@ from bench.language.const import (
 from bench.language.expression import NodeReference, _TypeQueryBuilder
 from bench.language.graph import NodeList
 from bench.language.node import (
-    BasedNode,
+    HasBaseNode,
     Node,
+    SourceNode,
     Struct,
     get_tk_b64_from_ck,
     get_tk_b64_from_ptr,
     node,
+    object_component,
     pad_ck_from_tk_b64,
     struct,
-    struct_component,
 )
 from bench.language.notice import Notice
 from bench.language.property import (
@@ -56,7 +57,6 @@ from bench.utils.func import decode_b64vlq, encode_b64vlq
 
 if typing.TYPE_CHECKING:
     from bench.language import Block, Expression, Icon, Step, Text
-    from bench.language.notice import NoticeHandler
 
 # pyright: reportIncompatibleVariableOverride=false
 
@@ -186,7 +186,7 @@ class TypeConstraint(Struct):
     max_length: Optional[int] = p_regular(52, require=False, default=None)
 
 
-@struct_component()
+@object_component()
 class TypeInfoBase(HasValues):
     """
     A type is a kind of value that can go somewhere, typically in a place designated by a Field.
@@ -288,7 +288,7 @@ class TypeInfoBase(HasValues):
             # immediately resolve determined types for convenience
             self._do_resolve_to(self)  # :TypeResolution
 
-    def _interp_component(self, scope: Optional["Node"], notice: "NoticeHandler"):
+    def _interp_component(self, scope: Optional["Node"]):
         # TODO :Incomplete: proper type resolution (consider multi-step aliases, inheritance, ...)
         # resolve the actual type :TypeResolution
         if self.kind == TypeKind.ALIAS:
@@ -419,7 +419,7 @@ def to_type(typ: TypeIn) -> "TypeInfo":
 
 # pyright: reportIncompatibleMethodOverride=false
 @node(NodeType.FIELD)
-class Field(BasedNode[FieldData], TypeInfoBase, _TypeQueryBuilder):
+class Field(SourceNode[FieldData], HasBaseNode, TypeInfoBase, _TypeQueryBuilder):
     """
     A used-defined attribute of some value
      (Bench defines Properties for Nodes/Structs, Users define Fields for Values inside those).

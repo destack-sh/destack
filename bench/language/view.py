@@ -3,7 +3,14 @@ from typing import TYPE_CHECKING, Any, Optional, Union
 from bench.language.const import NODE_TYPES, EnumType, NodeType, StructType, enum_
 from bench.language.expression import Selection
 from bench.language.graph import NodeList
-from bench.language.node import LINK_TARGET_NODE_TYPES, Node, Struct, node, struct
+from bench.language.node import (
+    LINK_TARGET_NODE_TYPES,
+    InlineStruct,
+    Node,
+    SourceNode,
+    node,
+    struct,
+)
 from bench.language.notice import Notice
 from bench.language.property import (
     p_internal,
@@ -191,7 +198,7 @@ class ColorShade(IdEnum):
 
 
 @struct(StructType.COLOR, inline=True)
-class Color(Struct):
+class Color(InlineStruct):
     """A color value."""
 
     type: Optional[ColorType] = p_regular(31, default=None)
@@ -251,7 +258,7 @@ class FontSize(IdEnum):
 
 
 @struct(StructType.FONT, inline=True)
-class Font(Struct):
+class Font(InlineStruct):
     """A font value."""
 
     type: Optional[FontType] = p_regular(31, default=None)
@@ -319,7 +326,7 @@ class Anchor(IdEnum):
 
 
 @struct(StructType.OFFSET, inline=True)
-class Offset(Struct):
+class Offset(InlineStruct):
     """A position value. Absolute units are in pixels, ideally in Spacing scale."""
 
     top: Optional[int] = p_regular(40, default=None)
@@ -334,7 +341,7 @@ class Offset(Struct):
 
 
 @struct(StructType.BOX, inline=True)
-class Box(Struct):
+class Box(InlineStruct):
     """A box value. Absolute units are in pixels, ideally in Spacing scale."""
 
     width: Optional[int] = p_regular(50, default=None)
@@ -364,7 +371,7 @@ class Alignment(IdEnum):
 
 
 @node(NodeType.VIEW, identifier=IdentifierType.VARIABLE)
-class View(Node[ViewData], HasValues):
+class View(SourceNode[ViewData], HasValues):
     """A view of a user interface in a Bench."""
 
     parent: Union["Space", "View", "Block"] = p_node_parent(
@@ -451,7 +458,7 @@ class SpaceType(IdEnum):
 
 
 @node(NodeType.SPACE, identifier=IdentifierType.VARIABLE)
-class Space(Node[SpaceData]):
+class Space(SourceNode[SpaceData]):
     """A space for a user to interact with the Bench."""
 
     parent: "Package" = p_node_parent(4, NodeType.PACKAGE)
