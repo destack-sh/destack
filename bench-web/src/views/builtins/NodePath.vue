@@ -9,7 +9,7 @@ import { computed } from "vue";
 
 const props = defineProps<{
   self?: NodeReferenceData;
-  focus?: NodeReferenceData;
+  focus?: NodeReferenceData | null;
   graph: ReadNodeGraph;
 }>();
 
@@ -25,14 +25,14 @@ const path = computed(() => ancestors.value.slice().reverse());
     <template v-for="(node, i) in path" :key="i">
       <!-- Node -->
       <button
-        class="flex cursor-pointer flex-row items-center rounded px-1 hover:bg-primary-100 hover:text-primary-900"
+        class="flex cursor-pointer flex-row items-center rounded px-1 hover:bg-gray-100 hover:text-primary-900"
         role="button"
         :class="node.id == self?.id || node.id == focus?.id ? 'text-primary-900' : 'text-gray-600'"
         :draggable="true"
         @click.stop="canvas.goToNode(node)"
         @dragstart.stop="(e: DragEvent) => startDragging(e, graph, node)"
       >
-        <IconInline v-bind="getNodeIcon(node)" class="mr-1.5" />
+        <IconInline v-bind="getNodeIcon(node)" class="w-5 mr-1.5" />
         <span class="">{{ node.name }}</span>
       </button>
       <!-- Separator -->

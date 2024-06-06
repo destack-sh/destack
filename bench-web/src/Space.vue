@@ -20,11 +20,11 @@ import { computed, onBeforeUnmount, ref, watch } from "vue";
 import { makeIcon } from "@/system/icon";
 import { assignSpaceInPackage } from "@/system/space";
 import Button from "@/views/controls/Button.vue";
-import { DEFAULT_BAR_POSITION, createDefaultCanvas } from "@/views/canvas";
+import { DEFAULT_BAR_POSITION, DEFAULT_HEADER_HEIGHT, createDefaultCanvas } from "@/views/canvas";
 import { user } from "@/system/user";
 
 const BAR_WIDTH = 44;
-const BAR_HEIGHT = 36;
+const BAR_HEIGHT = DEFAULT_HEADER_HEIGHT;
 const spaceRef = ref<HTMLElement | null>(null);
 const barRef = ref<InstanceType<typeof Bar> | null>(null);
 const { width: spaceWidth, height: spaceHeight } = useWindowSize(); // Space must be root element

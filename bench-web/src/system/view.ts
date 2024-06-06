@@ -1,7 +1,8 @@
-import { BenchType, ViewType, PrimitiveType, TypeInfoData, TypeKind, Variant } from "@/proto/wire";
+import { BenchType, ViewType, PrimitiveType, TypeInfoData, TypeKind, Variant, FieldData, FieldZone } from "@/proto/wire";
+import type { ReadNodeGraph } from "@/system/graph";
 import { ENUM_ICONS_BY_TYPE } from "@/system/icon";
-import { isEnumType, getEnumOptions, isNodeType } from "@/system/lang";
-import { type TypeIdentity, makeTypeInfo } from "@/system/value";
+import { isEnumType, getEnumOptions, isNodeType, FULL_WIDTH_VIEW_TYPES } from "@/system/lang";
+import { type TypeIdentity, makeTypeInfo, resolveType, getStorageKey } from "@/system/value";
 import type { ViewProps } from "@/views/common";
 
 const VIEW_TYPE_BY_BENCH_TYPE: Partial<Record<BenchType, ViewType>> = {
@@ -50,4 +51,45 @@ export function getViewForValueType(type: TypeIdentity & Partial<TypeInfoData>):
   }
 
   return null;
+}
+
+export type FieldView = {
+  field: FieldData;
+  fieldType: TypeIdentity;
+  storageKey: string;
+  isSet: boolean;
+  value: any;
+  viewType?: ViewType;
+  viewProps?: any;
+  isFullWidth?: boolean;
+};
+
+export function getFieldViews(
+  fields: FieldData[],
+  modelValue: Record<string, any>,
+  pkgGraph: ReadNodeGraph,
+  options?: {
+    zones?: FieldZone[];
+  }
+): FieldView[] {
+  const fieldViews: FieldView[] = [];
+  for (const field of fields) {
+    if (options?.zones != null && !options.zones.includes(field.zone)) continue;
+    const fieldType = resolveType(field, pkgGraph);
+    const storageKey = getStorageKey(field, fieldType);
+    const fieldValue = modelValue?.[storageKey];
+    const isSet = fieldValue != null && !(Array.isArray(fieldValue) && fieldValue.length === 0);
+    const view = getViewForValueType(fieldType);
+    fieldViews.push({
+      field,
+      fieldType,
+      storageKey,
+      isSet,
+      value: fieldValue,
+      viewType: view?.viewType,
+      viewProps: view?.props,
+      isFullWidth: FULL_WIDTH_VIEW_TYPES.includes(view?.viewType!),
+    });
+  }
+  return fieldViews;
 }

@@ -185,9 +185,9 @@ export const ACTION_BUILTIN_IDS = [
   "view.layout.splitLeft",
   "view.layout.splitRight",
   "view.layout.pinSplit",
-  "view.canvas.resetDefault",
-  "view.canvas.resetEmpty",
-  "view.canvas.rotateBarPosition",
+  "view.space.resetDefault",
+  "view.space.resetEmpty",
+  "view.space.rotateBarPosition",
   // user
   "user.auth.signup",
   "user.auth.login",
@@ -1023,11 +1023,11 @@ declareActionMap<"view">({
 });
 contributeActionMap<"view">({
   // canvas
-  "view.canvas.resetEmpty": {
+  "view.space.resetEmpty": {
     isEnabled: computed(() => isDeveloperMode.value && space.value != null),
     icon: "fas fa-window",
-    title: "Clear Canvas",
-    text: "Clear the canvas and start blank",
+    title: "Clear Space",
+    text: "Clear the space and start blank",
     action: () => {
       if (pkg.value == null) return;
       if (space.value == null) throw new Error(`${describeNode(pkg.value)} has no space`);
@@ -1036,10 +1036,10 @@ contributeActionMap<"view">({
       createEmptyCanvas(tx, space.value);
     },
   },
-  "view.canvas.resetDefault": {
+  "view.space.resetDefault": {
     isEnabled: hasLocalBench,
-    title: "Restore Default Canvas",
-    text: "Reset the canvas to the default layout",
+    title: "Restore Default Space",
+    text: "Reset the space to the default layout",
     icon: "fas fa-browser",
     action: () => {
       if (pkg.value == null) return;
@@ -1049,10 +1049,10 @@ contributeActionMap<"view">({
       createDefaultCanvas(tx, space.value);
     },
   },
-  "view.canvas.rotateBarPosition": {
+  "view.space.rotateBarPosition": {
     isEnabled: hasLocalBench,
     title: "Rotate the Bar",
-    text: "Rotate the bar position",
+    text: "Rotate the bar position in this space",
     icon: "fas fa-rotate",
     action: () => {
       if (space.value == null) throw new Error("no space");
@@ -1302,7 +1302,7 @@ contributeActionMap<"bench">({
   "bench.go.goToBench": {
     title: "Switch Bench",
     text: "Open another Bench",
-    icon: "fas fa-circle-notch",
+    icon: "fas fa-circle-dot",
     action: ACTION_COMING_SOON,
   },
   "bench.go.goToBranch": {

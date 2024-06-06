@@ -1,29 +1,21 @@
 <script lang="ts" setup>
-import {
-  BoxData,
-  ColorShade,
-  NodeType,
-  ObjectType,
-  Orientation,
-  PROPERTY_ENUM_BY_TYPE,
-  ViewData,
-  ViewType,
-} from "@/proto/wire";
+import { BoxData, ColorShade, NodeType, ObjectType, Orientation, ViewData, ViewType } from "@/proto/wire";
 import { type TypedNodeReferenceData } from "@/proto/wiring";
 import { useExistingConnection } from "@/system/connection";
-import { ICON_BY_NODE_TYPE, IconInline, getNodeIcon } from "@/system/icon";
+import { ICON_BY_NODE_TYPE, IconInline } from "@/system/icon";
 import { getInspectionLayout, getNodeSubtype, toCamelName } from "@/system/lang";
 import { canvas, inspectionPtr } from "@/system/space";
 import { ScrollbarWidth } from "@/utils/layout";
-import type { PopoverInfoIn } from "@/utils/menu";
-import { getViewComponent, hasViewComponent } from "@/views/registry";
+import NodeCrumb from "@/views/builtins/NodeCrumb.vue";
+import { DEFAULT_HEADER_HEIGHT, DEFAULT_MAX_WIDTH, DEFAULT_MIN_WIDTH } from "@/views/canvas";
 import { viewEmits, type ViewExposed } from "@/views/common";
 import Scroll from "@/views/containers/Scroll.vue";
+import { getViewComponent, hasViewComponent } from "@/views/registry";
 import { computed, toRef } from "vue";
 
-const MIN_WIDTH = 320;
-const MAX_WIDTH = 800;
-const HEADER_HEIGHT = 36;
+const HEADER_HEIGHT = DEFAULT_HEADER_HEIGHT;
+const MIN_WIDTH = DEFAULT_MIN_WIDTH;
+const MAX_WIDTH = DEFAULT_MAX_WIDTH;
 
 const props = defineProps<
   { self: TypedNodeReferenceData<NodeType.VIEW>; size: Required<Pick<BoxData, "width" | "height">> } & Pick<
@@ -39,9 +31,7 @@ const { graph: pkgGraph, connection: pkgConnection } = useExistingConnection(ins
 const node = pkgGraph.getRef(inspectionPtr);
 const nodeMetatype = computed(() => node.value?.metatype);
 const nodeSubtype = computed(() => (node.value != null ? getNodeSubtype(node.value) : null));
-const nodeProperties = computed(() => (nodeMetatype.value != null ? PROPERTY_ENUM_BY_TYPE[nodeMetatype.value] : null));
 const ancestors = pkgGraph.getAncestorsRef(node, { includeSelf: true });
-const path = computed(() => ancestors.value.slice().reverse());
 
 const inspectionLayout = computed(() => {
   if (nodeMetatype.value == null) return null;
@@ -59,35 +49,11 @@ defineExpose<ViewExposed>({ self });
     <!-- Header -->
     <div class="group w-full" :style="{ height: HEADER_HEIGHT + 'px' }">
       <div
-        class="mx-auto flex h-full max-w-full flex-row items-center pl-4 pr-5"
+        class="mx-auto flex h-full max-w-full flex-row items-center px-5"
         :style="{ minWidth: MIN_WIDTH + 'px', maxWidth: MAX_WIDTH + 'px' }"
       >
-        <!-- Icon -->
-        <IconInline
-          v-menu="
-            (): PopoverInfoIn => ({
-              component: ViewType.ICON,
-              placement: 'bottom-right',
-              offset: '-referenceWidth',
-              props: { modelValue: getNodeIcon(node!) },
-              isEnabled: nodeProperties != null && 'icon' in nodeProperties,
-              onApply: (newIcon) => pkgConnection.tx.update(node!, { icon: newIcon }),
-            })
-          "
-          v-bind="getNodeIcon(node)"
-          class="w-5 rounded p-1 text-gray-700 hover:cursor-pointer hover:bg-gray-100 data-[popover=true]:bg-gray-100"
-        />
-        <!-- Name -->
-        <input
-          class="ml-1 truncate rounded border-0 px-1 py-0.5 font-medium outline-none ring-0 hover:bg-gray-100 focus:ring-0"
-          spellcheck="false"
-          :value="'name' in node ? node.name : toCamelName(ObjectType, node.metatype)"
-          :disabled="!('name' in node)"
-          @input="
-            (event) =>
-              pkgConnection.tx.update(node!, { name: (event.target as HTMLInputElement).value }, { debounce: 'long' })
-          "
-        />
+        <!-- Node -->
+        <NodeCrumb :node="node" :connection="pkgConnection" class="font-medium" />
         <!-- Meta & Controls  -->
         <div class="ml-auto flex flex-row items-center pl-1.5">
           <IconInline
@@ -101,7 +67,7 @@ defineExpose<ViewExposed>({ self });
     </div>
     <!-- Inspection content -->
     <Scroll
-      :size="{ width: props.size.width, height: props.size.height - HEADER_HEIGHT }"
+      :size="{ width: props.size.width, height: props.size.height - DEFAULT_HEADER_HEIGHT }"
       :orientation="Orientation.VERTICAL"
       :track-width="ScrollbarWidth.sm"
       track-is-overlay

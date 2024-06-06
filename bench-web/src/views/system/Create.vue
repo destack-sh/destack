@@ -14,8 +14,8 @@ const self = toRef(props, "self");
 
 const basePtr = computed(() => inspectionPtr.value ?? inspectionBasePtr.value);
 const { graph: spaceGraph, connection: spaceConnection } = useExistingConnection(self);
-const { graph: inspectedGraph, connection: inspectedConnection } = useExistingConnection(basePtr);
-const baseNode = inspectedGraph.getRef(basePtr);
+const { graph: pkgGraph, connection: pkgConnection } = useExistingConnection(basePtr);
+const baseNode = pkgGraph.getRef(basePtr);
 
 canvas.registerView(self);
 defineExpose<ViewExposed>({ self });

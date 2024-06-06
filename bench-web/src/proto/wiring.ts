@@ -49,7 +49,7 @@ export function describeNode(node: {
   const nodeParts: string[] = [`id=${node.id}`];
   const nodeType = node.metatype == ObjectType.NODE_REFERENCE ? (node as NodeReferenceData).type : node.metatype;
   if ("ck" in node) nodeParts.push(`ck=${node.ck}`);
-  if ("revision" in node) nodeParts.push(`r=${node.revision}`);
+  if ("revision" in node) nodeParts.push(`revision=${node.revision}`);
   if (node.name) nodeParts.push(`name='${node.name}'`);
   if (node.slug) nodeParts.push(`slug=${node.slug}`);
   if (node.metatype != ObjectType.NODE_REFERENCE && nodeType != null && node.type != null) {
@@ -73,7 +73,7 @@ export function describeNode(node: {
 export function describeEdit(edit: Pick<EditData, "type" | "nodePtr" | "revision" | "properties">) {
   const editParts: string[] = [EditType[edit.type]];
   if (edit.nodePtr) editParts.push(describeNode(edit.nodePtr));
-  if (edit.revision) editParts.push(`r=${edit.revision}`);
+  if (edit.revision) editParts.push(`revision=${edit.revision}`);
   if (edit.properties) editParts.push(`properties=${Object.keys(edit.properties).join(",")}`);
   return editParts.join(" ");
 }

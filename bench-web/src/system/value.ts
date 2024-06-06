@@ -3,7 +3,6 @@ import {
   BlockData,
   FieldData,
   FieldZone,
-  MESSAGE_TYPE_BY_OBJECT_TYPE,
   NodeReferenceData,
   NodeType,
   ObjectType,
@@ -14,8 +13,6 @@ import {
   StructType,
   Timestamp,
   TypeKind,
-  Variant,
-  ViewType,
   type AnyNodeData,
   type AnyStructData,
   type PropertyInfo,
@@ -23,22 +20,15 @@ import {
 } from "@/proto/wire";
 import { describeNode, isStruct, makeDefaultStruct } from "@/proto/wiring";
 import type { ReadNodeGraph } from "@/system/graph";
-import { ENUM_ICONS_BY_TYPE } from "@/system/icon";
 import {
   CLASSY_BLOCK_TYPES,
   TK_LENGTH_B64,
-  getEnumOptions,
   getTkB64FromCk,
   getTkB64FromPtr,
-  isEnumType,
-  isNodeType,
   padCkFromTkB64,
   toCamelName,
 } from "@/system/lang";
 import { decodeB64VLQ, encodeB64VLQ } from "@/utils/functools";
-import { toCamelCase } from "@/utils/string";
-import type { ViewProps } from "@/views/common";
-import type { MessageType } from "@protobuf-ts/runtime";
 
 export type TypeIdentity = Pick<
   TypeInfoData,
@@ -58,7 +48,7 @@ export function describeTypeIdentity(type: TypeIdentity & Partial<AnyNodeData>):
   const typeParts: string[] = [];
   if ("id" in type) typeParts.push(`id=${type.id}`);
   if ("ck" in type) typeParts.push(`ck=${type.ck}`);
-  if ("revision" in type) typeParts.push(`r=${type.revision}`);
+  if ("revision" in type) typeParts.push(`revision=${type.revision}`);
   if (type.primitiveType != null) typeParts.push(toCamelName(PrimitiveType, type.primitiveType!));
   if (type.benchType != null) typeParts.push(toCamelName(BenchType, type.benchType!));
   if (type.baseTypePtr != null) typeParts.push(`base=${describeNode(type.baseTypePtr)}`);
