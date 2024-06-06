@@ -14,7 +14,7 @@ import {
   ViewType,
 } from "@/proto/wire/";
 import { makeNode, toNodeReference, type TypedNodeReferenceData } from "@/proto/wiring";
-import type { ActionContext, ActionMapImplementation } from "@/system/action";
+import { fireActionById, type ActionContext, type ActionMapImplementation } from "@/system/action";
 import { useHierarchicalNodeMoveActions } from "@/system/block";
 import { useExistingConnection, useGetConnection } from "@/system/connection";
 import { getGroupedChildrenRef, isDescendantOf, walkDescendantsRef, type NodeTreeItem } from "@/system/graph";
@@ -28,13 +28,14 @@ import { ScrollbarWidth } from "@/utils/layout";
 import { menuActionsLike, type PopoverContext, type PopoverInfo, type PopoverInfoIn } from "@/utils/menu";
 import { computedValue } from "@/utils/ref";
 import Inaccessible from "@/views/builtins/Inaccessible.vue";
-import NavigationBar from "@/views/builtins/NavigationBar.vue";
+import NodePath from "@/views/builtins/NodePath.vue";
+import { DEFAULT_HEADER_HEIGHT } from "@/views/canvas";
 import { viewEmits, type FocusAnchor, type ViewExposed } from "@/views/common";
 import Scroll from "@/views/containers/Scroll.vue";
 import Block from "@/views/system/Block.vue";
 import { computed, nextTick, ref, toRef, watch, type Ref } from "vue";
 
-const HEADER_HEIGHT = 36;
+const HEADER_HEIGHT = DEFAULT_HEADER_HEIGHT;
 const DEPTH_OFFSET = 40;
 const MIN_BLOCK_WIDTH = 500;
 const MAX_BLOCK_WIDTH = 800;
@@ -283,16 +284,22 @@ defineExpose<ViewExposed>({ self, actions, focus });
     :style="{ width: size.width + 'px', height: size.height + 'px' }"
     class="flex w-full flex-col bg-white text-gray-900"
   >
-    <!-- Page header -->
-    <NavigationBar
-      :width="size.width"
-      :height="HEADER_HEIGHT"
-      :self="nodePtr"
-      :focus="props.focus?.nodesPtr[0]"
-      :graph="pkgGraph"
-      class="border-gray-200"
+    <!-- Header -->
+    <div
       data-keep-inspection-in-base="true"
-    />
+      class="group px-2.5 flex w-full max-w-full flex-row"
+      :style="{ height: HEADER_HEIGHT + 'px' }"
+    >
+      <!-- Breadcrumb -->
+      <NodePath :self="self" :focus="$props.focus?.nodesPtr[0]" :graph="pkgGraph" />
+      <!-- Meta & Controls -->
+      <div class="ml-auto flex flex-shrink-0 flex-row items-center gap-x-1.5 pl-1">
+        <!-- Search -->
+        <button class="h-fit text-gray-400 hover:text-primary-900" @click="fireActionById('common.search.findInView')">
+          <i class="fas fa-magnifying-glass w-5 text-center" />
+        </button>
+      </div>
+    </div>
 
     <!-- Page content -->
     <Scroll

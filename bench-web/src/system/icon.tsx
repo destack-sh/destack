@@ -132,12 +132,12 @@ function _makeIcons<K extends string | number>(icons: Partial<Record<K, string |
 export const DEFAULT_MISSING_ICON = makeIcon({ faName: "fas fa-question" });
 export const DEFAULT_VIEW_ICON = makeIcon({ faName: "fas fa-browser" });
 export const DEFAULT_USER_ICON = makeIcon({ faName: "fas fa-user-tie" });
-export const DEFAULT_BENCH_ICON = makeIcon({ faName: "fas fa-circle-notch" });
+export const DEFAULT_BENCH_ICON = makeIcon({ faName: "fas fa-circle-dot" });
 export const DEFAULT_ENUM_ICON = makeIcon({ faName: "fas fa-caret-circle-down" });
 
 export const ICON_BY_NODE_TYPE: Partial<Record<NodeType, IconData>> = _makeIcons<NodeType>({
   // root
-  [NodeType.BENCH]: "fas fa-circle-notch",
+  [NodeType.BENCH]: "fas fa-circle-dot",
   [NodeType.ENVIRONMENT]: "fas fa-globe",
   [NodeType.BRANCH]: "fas fa-code-branch",
 
@@ -254,7 +254,7 @@ export const ICON_BY_VIEW_TYPE: Partial<Record<ViewType, IconData>> = _makeIcons
 
   // kernel
   [ViewType.USER_WIZARD]: "fas fa-user",
-  [ViewType.BENCH_WIZARD]: "fas fa-circle-notch",
+  [ViewType.BENCH_WIZARD]: "fas fa-circle-dot",
   [ViewType.CHALLENGE_WIZARD]: "fas fa-trophy",
   [ViewType.EMPTY]: "fas fa-bug",
 
@@ -350,7 +350,7 @@ export const ICON_BY_ANCHOR: Partial<Record<Anchor, IconData>> = _makeIcons({
 export const ICON_BY_VISIBILITY: Partial<Record<Visibility, IconData>> = _makeIcons({
   [Visibility.PAGE]: "fas fa-memo-pad",
   [Visibility.MODULE]: "fas fa-box-open",
-  [Visibility.BENCH]: "fas fa-circle-notch",
+  [Visibility.BENCH]: "fas fa-circle-dot",
   [Visibility.PUBLIC]: "fas fa-globe",
 });
 

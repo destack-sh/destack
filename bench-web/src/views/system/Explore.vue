@@ -18,21 +18,32 @@ import { useHierarchicalNodeMoveActions } from "@/system/block";
 import { packagePtr } from "@/system/client";
 import { useExistingConnection, type GraphConnection } from "@/system/connection";
 import { isDescendantOf, walkDescendantsRef, type NodeTreeItem } from "@/system/graph";
-import { IconInline, getNodeIcon } from "@/system/icon";
+import { DEFAULT_BENCH_ICON, IconInline, getNodeIcon } from "@/system/icon";
 import { createBlock, moveNode } from "@/system/lang";
 import { highlightMatches } from "@/system/search";
-import { inspectionBasePtr, canvas, inspectionPtr, pkg } from "@/system/space";
+import { inspectionBasePtr, canvas, inspectionPtr, pkg, bench } from "@/system/space";
 import { startDragging, useMultiDropZone } from "@/utils/drag";
 import { ScrollbarWidth } from "@/utils/layout";
 import { menuActionsLike, type PopoverContext, type PopoverInfo } from "@/utils/menu";
 import { computedValue } from "@/utils/ref";
-import { makeSelection, useExpansion } from "@/views/canvas";
+import NodeCrumb from "@/views/builtins/NodeCrumb.vue";
+import NodePath from "@/views/builtins/NodePath.vue";
+import {
+  DEFAULT_HEADER_HEIGHT,
+  DEFAULT_MAX_WIDTH,
+  DEFAULT_MIN_WIDTH,
+  makeSelection,
+  useExpansion,
+} from "@/views/canvas";
 import { viewEmits, type FocusAnchor, type ViewExposed } from "@/views/common";
 import Scroll from "@/views/containers/Scroll.vue";
 import uFuzzy from "@leeoniya/ufuzzy";
 import { computed, ref, toRef, watch, type Ref } from "vue";
 
 const DEPTH_OFFSET = 12;
+const HEADER_HEIGHT = DEFAULT_HEADER_HEIGHT;
+const MIN_WIDTH = DEFAULT_MIN_WIDTH;
+const MAX_WIDTH = DEFAULT_MAX_WIDTH;
 
 const props = defineProps<
   { self: TypedNodeReferenceData<NodeType.VIEW>; size: Required<Pick<BoxData, "width" | "height">> } & Pick<
@@ -70,6 +81,7 @@ const { graph: pkgGraph, connection: pkgConnection } = useExistingConnection(roo
     },
   },
 });
+const rootNode = pkgGraph.getRef(rootPtr);
 
 //
 // Visible subtree
@@ -275,25 +287,61 @@ canvas.registerView(self);
 defineExpose<ViewExposed>({ self, actions, focus });
 </script>
 <template>
-  <Scroll
-    :size="size"
-    :orientation="Orientation.VERTICAL"
-    :track-width="ScrollbarWidth.md"
-    track-is-overlay
-    class=""
-    @click.stop="queryRef?.focus()"
-  >
+  <div class="h-full w-full">
+    <!-- Header -->
+    <div class="group w-full" :style="{ height: DEFAULT_HEADER_HEIGHT + 'px' }">
+      <div
+        class="mx-auto flex h-full max-w-full flex-row items-center px-3"
+        :style="{ minWidth: DEFAULT_MIN_WIDTH + 'px', maxWidth: DEFAULT_MAX_WIDTH + 'px' }"
+      >
+        <!-- Location -->
+        <!-- NOTE :UX: should probably be only node crumb in explorer header? -->
+        <div v-if="type == ViewType.EXPLORE" class="flex flex-row items-center">
+          <IconInline
+            v-bind="bench != null ? getNodeIcon(bench) : DEFAULT_BENCH_ICON"
+            class="mr-1.5 w-5 text-gray-600"
+          />
+          <span class="text-gray-900">{{ bench?.name ?? "???" }}</span>
+        </div>
+        <NodePath v-else :focus="rootPtr" :graph="pkgGraph" />
+        <!-- Controls -->
+        <div class="ml-auto flex flex-row items-center pl-1.5">
+          <!-- Create -->
+          <button
+            v-if="type == ViewType.EXPLORE && pkg != null"
+            class="rounded py-0.5 text-gray-400 hover:text-primary-900"
+            @click="
+              () => {
+                // NOTE: we assume that pkg == pkgGraph root here (may be incorrect later)
+                if (pkg == null) return;
+                const block = createBlock(pkgConnection.tx, pkgGraph, { type: BlockType.PAGE }, 'inside', pkg);
+                canvas.goToNode(block, { where: 'nextFrameRoot', ifPresent: 'upsertAndFocus' });
+              }
+            "
+          >
+            <i class="fas fa-plus" />
+          </button>
+        </div>
+      </div>
+    </div>
     <!-- Magic floating query -->
     <!-- Captures focus for navigation & typing for search/highlight -->
     <div class="relative">
-      <div class="absolute -top-5 left-0 px-2 pl-4">
+      <div class="absolute -top-4 left-0 px-2 pl-4">
         <input
           ref="queryRef"
           v-model="query"
           class="max-w-60 cursor-default rounded border-0 bg-transparent font-semibold text-gray-900 decoration-2 underline-offset-2 caret-transparent outline-none ring-0 focus:underline focus:ring-0"
           spellcheck="false"
           :data-suppress-actions="'common.edit,common.navigate' /* allow select & move */"
-          @keydown.enter.stop.prevent="focusedNode != null && fire(focusedNode)"
+          @keydown.enter.stop.prevent="
+            () => {
+              if (focusedNode != null) {
+                query = '';
+                fire(focusedNode);
+              }
+            }
+          "
           @keydown.up.stop.prevent="focus('previous')"
           @keydown.down.stop.prevent="focus('next')"
           @keydown.right.stop.prevent="onNavigateHorizontal('right')"
@@ -302,127 +350,125 @@ defineExpose<ViewExposed>({ self, actions, focus });
       </div>
     </div>
 
-    <!-- Nodes -->
-    <ul v-if="expandedItems.length > 0" ref="containerRef" class="group/list my-1 flex flex-col text-gray-900">
-      <!-- Node -->
-      <li
-        v-for="({ node, depth, hasChildren }, i) in expandedItems"
-        :ref="(ref?: any) => (ref != null ? (expandedNodesRefs[node.id] = ref) : delete expandedNodesRefs[node.id])"
-        :key="node.id"
-        v-contextmenu="
-          (context: PopoverContext): PopoverInfo => {
-            doFocus(node);
-            context = { ...context, triggerNode: node };
-            return {
-              kind: 'menu',
-              placement: 'bottom-right',
-              items: menuActionsLike(
-                [
-                  'common.sense.*',
-                  'common.edit.morph',
-                  'common.edit.move',
-                  'common.edit.duplicate',
-                  'common.edit.archive',
-                  'common.edit.delete',
-                ],
-                { context },
-              ),
-              context,
-            };
-          }
-        "
-        class="group relative mx-1 mt-[1px] flex flex-row items-center rounded border py-0.5 hover:cursor-pointer hover:bg-gray-100 hover:text-primary-900 data-[dragging=true]:opacity-50"
-        :class="[
-          focusedNode?.id == node.id && isFocusAbsolute ? 'border-orange-900' : 'border-transparent',
-          isFocusedAbsolute(node) ? 'bg-gray-100' : '',
-          activeDropZone?.targetId == node.id && activeDropZone?.anchor == 'center'
-            ? 'border-primary-400 bg-primary-200'
-            : '',
-        ]"
-        :style="{ paddingLeft: 8 + depth * DEPTH_OFFSET + 'px', paddingRight: 4 + 'px' }"
-        role="treeitem"
-        :draggable="true"
-        @click.stop="fire(node)"
-        @dragstart.stop="(e: DragEvent) => startDragging(e, pkgGraph, node)"
-      >
-        <!-- Drop indicator -->
-        <div
-          v-if="activeDropZone?.targetId == node.id && activeDropZone?.anchor != 'center'"
-          class="absolute z-10 h-1 rounded-sm bg-primary-400"
-          :class="[activeDropZone?.anchor == 'start' ? (i == 0 ? 'top-0' : '-top-[4px]') : '-bottom-[3px]']"
-          :style="{ left: 8 + depth * DEPTH_OFFSET + 'px', width: 'calc(100% - ' + (8 + depth * DEPTH_OFFSET) + 'px)' }"
-        />
-        <!-- Expand button (or placeholder) -->
-        <button
-          v-if="hasChildren"
-          class="group mr-1 w-5 rounded enabled:hover:text-primary-900"
-          :class="focusedNode?.id == node.id ? '' : 'text-gray-400'"
-          :disabled="props.type == ViewType.OUTLINE"
-          @click.stop="toggleExpanded(node), doFocus(node)"
-        >
-          <i
-            class="fas fa-chevron-right dxuration-75 transition-transform"
-            :class="[isExpanded(node) ? 'rotate-90' : 'rotate-0']"
-          />
-        </button>
-        <!-- Icon / title -->
-        <IconInline
-          v-bind="getNodeIcon(node)"
-          class="mr-1.5 w-5"
+    <!-- Content -->
+    <Scroll
+      :size="size"
+      :orientation="Orientation.VERTICAL"
+      :track-width="ScrollbarWidth.md"
+      track-is-overlay
+      class=""
+      @click.stop="queryRef?.focus()"
+    >
+      <!-- Nodes -->
+      <ul v-if="expandedItems.length > 0" ref="containerRef" class="group/list mb-1 flex flex-col text-gray-900">
+        <!-- Node -->
+        <li
+          v-for="({ node, depth, hasChildren }, i) in expandedItems"
+          :ref="(ref?: any) => (ref != null ? (expandedNodesRefs[node.id] = ref) : delete expandedNodesRefs[node.id])"
+          :key="node.id"
+          v-contextmenu="
+            (context: PopoverContext): PopoverInfo => {
+              doFocus(node);
+              context = { ...context, triggerNode: node };
+              return {
+                kind: 'menu',
+                placement: 'bottom-right',
+                items: menuActionsLike(
+                  [
+                    'common.sense.*',
+                    'common.edit.morph',
+                    'common.edit.move',
+                    'common.edit.duplicate',
+                    'common.edit.archive',
+                    'common.edit.delete',
+                  ],
+                  { context },
+                ),
+                context,
+              };
+            }
+          "
+          class="group relative mx-1 mt-[1px] flex flex-row items-center rounded border py-0.5 hover:cursor-pointer hover:bg-gray-100 hover:text-primary-900 data-[dragging=true]:opacity-50"
           :class="[
-            isFocusedAbsolute(node) ? 'text-primary-900' : 'text-gray-700 group-hover:text-primary-900',
-            hasChildren ? '' : 'ml-6',
+            focusedNode?.id == node.id && isFocusAbsolute ? 'border-orange-900' : 'border-transparent',
+            isFocusedAbsolute(node) ? 'bg-gray-100' : '',
+            activeDropZone?.targetId == node.id && activeDropZone?.anchor == 'center'
+              ? 'border-primary-400 bg-primary-200'
+              : '',
           ]"
-        />
-        <span
-          class="select-none truncate group-hover:text-primary-900"
-          :class="isFocusedAbsolute(node) ? 'text-primary-900' : ''"
-          v-html="nodeTitlesMarked[i] ?? (node as any).name ?? node.id"
-        />
-        <!-- Meta -->
-        <div class="ml-auto flex flex-row gap-x-1 pl-3">
-          <!-- Create inside -->
+          :style="{ paddingLeft: 8 + depth * DEPTH_OFFSET + 'px', paddingRight: 4 + 'px' }"
+          role="treeitem"
+          :draggable="true"
+          @click.stop="fire(node)"
+          @dragstart.stop="(e: DragEvent) => startDragging(e, pkgGraph, node)"
+        >
+          <!-- Drop indicator -->
+          <div
+            v-if="activeDropZone?.targetId == node.id && activeDropZone?.anchor != 'center'"
+            class="absolute z-10 h-1 rounded-sm bg-primary-400"
+            :class="[activeDropZone?.anchor == 'start' ? (i == 0 ? 'top-0' : '-top-[4px]') : '-bottom-[3px]']"
+            :style="{
+              left: 8 + depth * DEPTH_OFFSET + 'px',
+              width: 'calc(100% - ' + (8 + depth * DEPTH_OFFSET) + 'px)',
+            }"
+          />
+          <!-- Expand button (or placeholder) -->
           <button
-            v-if="type == ViewType.EXPLORE && isNode(node, NodeType.BLOCK)"
-            role="button"
-            class="text-gray-400 opacity-0 hover:text-primary-900 group-hover:opacity-100"
-            @click.stop="
-              () => {
-                const block = createBlock(pkgConnection.tx, pkgGraph, { type: BlockType.PAGE }, 'inside', node);
-                canvas.goToNode(block, { where: 'nextFrameRoot', ifPresent: 'upsertAndFocus' });
-                if (!isExpanded(node)) toggleExpanded(node);
-              }
-            "
+            v-if="hasChildren"
+            class="group mr-1 w-5 rounded enabled:hover:text-primary-900"
+            :class="focusedNode?.id == node.id ? '' : 'text-gray-400'"
+            :disabled="props.type == ViewType.OUTLINE"
+            @click.stop="toggleExpanded(node), doFocus(node)"
           >
-            <i class="fas fa-plus" />
+            <i
+              class="fas fa-chevron-right dxuration-75 transition-transform"
+              :class="[isExpanded(node) ? 'rotate-90' : 'rotate-0']"
+            />
           </button>
-        </div>
-        <!-- ... -->
-      </li>
-    </ul>
-    <div v-else-if="type == ViewType.EXPLORE" class="flex h-full w-full flex-col justify-center text-center">
-      <!-- Empty state -->
-      <button
-        class="mx-auto flex flex-row items-center rounded px-2 py-0.5 text-gray-700 hover:text-primary-900"
-        @click="
-          () => {
-            // NOTE: we assume that pkg == pkgGraph root here (may be incorrect later)
-            if (pkg == null) return;
-            const block = createBlock(pkgConnection.tx, pkgGraph, { type: BlockType.PAGE }, 'inside', pkg);
-            canvas.goToNode(block, { where: 'nextFrameRoot', ifPresent: 'upsertAndFocus' });
-          }
-        "
-      >
-        <i class="fas fa-plus" />
-        <span class="ml-2.5">Page</span>
-      </button>
-    </div>
-    <div v-else class="flex h-full w-full flex-col justify-center text-center">
-      <!-- Missing state -->
-      <span>
-        <i class="fas fa-empty-set text-gray-500" />
-        <span class="ml-1.5 text-gray-600">{{ rootPtr != null ? "Nothing Here Yet" : "Select Node to Inspect" }}</span>
-      </span>
-    </div>
-  </Scroll>
+          <!-- Icon / title -->
+          <IconInline
+            v-bind="getNodeIcon(node)"
+            class="mr-1.5 w-5"
+            :class="[
+              isFocusedAbsolute(node) ? 'text-primary-900' : 'text-gray-700 group-hover:text-primary-900',
+              hasChildren ? '' : 'ml-6',
+            ]"
+          />
+          <span
+            class="select-none truncate group-hover:text-primary-900"
+            :class="isFocusedAbsolute(node) ? 'text-primary-900' : ''"
+            v-html="nodeTitlesMarked[i] ?? (node as any).name ?? node.id"
+          />
+          <!-- Meta -->
+          <div class="ml-auto flex flex-row gap-x-1 pl-3 pr-0.5">
+            <!-- Create inside -->
+            <button
+              v-if="type == ViewType.EXPLORE && isNode(node, NodeType.BLOCK)"
+              role="button"
+              class="text-gray-400 opacity-0 hover:text-primary-900 group-hover:opacity-100"
+              @click.stop="
+                () => {
+                  const block = createBlock(pkgConnection.tx, pkgGraph, { type: BlockType.PAGE }, 'inside', node);
+                  canvas.goToNode(block, { where: 'nextFrameRoot', ifPresent: 'upsertAndFocus' });
+                  if (!isExpanded(node)) toggleExpanded(node);
+                }
+              "
+            >
+              <i class="fas fa-plus" />
+            </button>
+          </div>
+          <!-- ... -->
+        </li>
+      </ul>
+      <div v-else class="flex h-full w-full flex-col justify-center text-center">
+        <!-- Missing state -->
+        <span>
+          <i class="fas fa-empty-set text-gray-500" />
+          <span class="ml-1.5 text-gray-600">{{
+            rootPtr != null ? "Nothing Here Yet" : "Select Node to Inspect"
+          }}</span>
+        </span>
+      </div>
+    </Scroll>
+  </div>
 </template>

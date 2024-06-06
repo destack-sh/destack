@@ -68,6 +68,10 @@ import {
 } from "vue";
 
 export const DEFAULT_BAR_POSITION = Anchor.TOP;
+export const DEFAULT_HEADER_HEIGHT = 36;
+export const DEFAULT_MIN_WIDTH = 320;
+export const DEFAULT_MAX_WIDTH = 800;
+export const DEFAULT_PADDING_X = 20;
 
 export function getVueComponentType(component: ComponentInstance<any>): string {
   return component.__name ?? (component as any).type.__name;

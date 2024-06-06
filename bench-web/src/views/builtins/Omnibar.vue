@@ -287,7 +287,7 @@ defineExpose({ isActive, open });
                   <IconInline v-bind="item.icon ?? DEFAULT_ACTION_ICON" class="w-5 text-gray-700" />
                   <span class="ml-2 truncate">
                     <span v-html="item.titleMarked ?? item.title" />
-                    <span class="ml-1.5 text-gray-500">
+                    <span class="ml-2 text-gray-500">
                       <span v-html="item.pathMarked ?? item.path" />
                     </span>
                   </span>

@@ -152,6 +152,10 @@ export const HELPER_VIEW_TYPES = new Set([
   ViewType.CREATE,
   ViewType.INSPECT,
   ViewType.CHAT,
+  ViewType.RUN,
+  ViewType.FEED,
+  ViewType.HISTORY,
+  ViewType.TIMELINE,
 ]);
 
 /**
@@ -763,6 +767,7 @@ type InspectionLayout = {
 };
 
 // NOTE: we (try to) only use metatype/type to avoid recomputing inspection layouts on every change (might have to revisit)
+// NOTE :Architecture: the inspection layout generation is a bit clumsy
 function getInspectionInfo(metatype: ObjectType, type: any): Record<string, InspectionCategory> | null {
   if (metatype == ObjectType.FIELD) {
     if (type == FieldZone.OPTION) {

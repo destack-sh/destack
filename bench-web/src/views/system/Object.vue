@@ -1,5 +1,5 @@
 <script lang="ts" setup>
-import { ViewData, NodeType, ViewType, ObjectType, BlockType, FieldData, BoxData } from "@/proto/wire";
+import { ViewData, NodeType, ViewType, ObjectType, BlockType, FieldData, BoxData, FieldZone } from "@/proto/wire";
 import { type TypedNodeReferenceData } from "@/proto/wiring";
 import {
   ViewContentWrapper,
@@ -15,9 +15,9 @@ import { useExistingConnection, type PreparedGetConnection } from "@/system/conn
 import type { PopoverInfoIn } from "@/utils/menu";
 import { ICON_BY_BLOCK_TYPE, IconInline } from "@/system/icon";
 import { getStorageKey, resolveType, type TypeIdentity } from "@/system/value";
-import { getViewComponent } from "@/views/registry";
+import { getViewComponent, hasViewComponent } from "@/views/registry";
 import { FULL_WIDTH_VIEW_TYPES } from "@/system/lang";
-import { getViewForValueType } from "@/system/view";
+import { getFieldViews, getViewForValueType } from "@/system/view";
 
 const MIN_WIDTH = 320;
 const DEFAULT_WIDTH = 280;
@@ -45,41 +45,9 @@ const baseTypePtr = computed(() => props.valueType?.baseTypePtr as TypedNodeRefe
 const { graph: pkgGraph } = props.preparedConnection ?? useExistingConnection(baseTypePtr);
 const baseType = pkgGraph.getRef(baseTypePtr);
 const fields = pkgGraph.getChildrenRef(baseType, NodeType.FIELD); // these need to be resolved later :TypeResolution
-
-type FieldView = {
-  field: FieldData;
-  fieldType: TypeIdentity;
-  storageKey: string;
-  isSet: boolean;
-  value: any;
-  component: any | undefined;
-  viewType?: ViewType;
-  viewProps?: any;
-  isFullWidth?: boolean;
-};
-const fieldViews: Ref<FieldView[]> = computed(() => {
-  const fieldViews: FieldView[] = [];
-  for (const field of fields.value) {
-    const fieldType = resolveType(field, pkgGraph);
-    const storageKey = getStorageKey(field, fieldType);
-    const fieldValue = props.modelValue?.[storageKey];
-    const isSet = fieldValue != null && !(Array.isArray(fieldValue) && fieldValue.length === 0);
-    const view = getViewForValueType(fieldType);
-    const component = view != null ? getViewComponent(view.viewType) : undefined;
-    fieldViews.push({
-      field,
-      fieldType,
-      storageKey,
-      isSet,
-      value: fieldValue,
-      component,
-      viewType: view?.viewType,
-      viewProps: view?.props,
-      isFullWidth: FULL_WIDTH_VIEW_TYPES.includes(view?.viewType!),
-    });
-  }
-  return fieldViews;
-});
+const fieldViews = computed(() =>
+  getFieldViews(fields.value, props.modelValue, pkgGraph, { zones: [FieldZone.MEMBER] }),
+);
 
 function focus() {
   if (!props.isInline) {
@@ -170,7 +138,7 @@ defineExpose<ViewExposed>({ self, id, focus });
       <!-- Fields -->
       <ul class="flex w-full flex-col gap-y-2.5 py-3" :style="{ width: width + 'px' }">
         <li
-          v-for="{ field, storageKey, value, viewType, component, isFullWidth, viewProps } of fieldViews"
+          v-for="{ field, storageKey, value, viewType, isFullWidth, viewProps } of fieldViews"
           :key="field.id"
           class="mx-auto w-full px-4"
           :class="[isFullWidth ? 'flex flex-col' : 'flex flex-row flex-wrap items-center gap-x-[10%]']"
@@ -182,8 +150,8 @@ defineExpose<ViewExposed>({ self, id, focus });
           </span>
           <!-- Value -->
           <component
-            :is="component"
-            v-if="component"
+            :is="getViewComponent(viewType)"
+            v-if="viewType != null && hasViewComponent(viewType)"
             :ref="(ref: any) => (ref != null ? (componentRefs[field.id] = ref) : delete componentRefs[field.id])"
             :class="['ml-auto flex-shrink-0', isFullWidth ? '' : 'text-right']"
             :style="{ width: isFullWidth ? '100%' : 'calc(90% - 100px)' }"

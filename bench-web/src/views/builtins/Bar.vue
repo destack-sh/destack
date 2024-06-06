@@ -58,7 +58,7 @@ const BENCH_MENU_ITEMS = computed(() => {
       category: "main",
       icon: ICON_BY_NODE_TYPE[NodeType.VIEW],
       title: "View",
-      action: { items: menuActionsLike(["view.navigate.close*", "view.layout.*", "view.canvas.*"]) },
+      action: { items: menuActionsLike(["view.navigate.close*", "view.layout.*", "view.space.*"]) },
     },
     {
       id: "edit",
@@ -158,7 +158,7 @@ const dockActions: Ref<Action[]> = computed(
           :class="[isOpen ? ' bg-gray-100' : '']"
           @click="toggle"
         >
-          <i class="fas fa-circle-notch" />
+          <i class="fas fa-circle-dot" />
         </button>
       </template>
 
