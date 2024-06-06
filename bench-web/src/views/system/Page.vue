@@ -430,7 +430,6 @@ defineExpose<ViewExposed>({ self, actions, focus });
                       'common.edit.archive',
                       'common.edit.delete',
                       'message.handle.startThread',
-                      'block.*',
                     ],
                     {
                       context: { ...context, triggerNode: blockPtr },

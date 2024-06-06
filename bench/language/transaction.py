@@ -156,13 +156,13 @@ class Transaction:
         now: datetime,
     ) -> EditData:
         """Creates a simple non-update/move edit and adds it to the pending edits."""
+        from bench.proto import wiring
+
         assert self.session is not None, f"no session for {self!r}"
         if self.is_readonly:
             raise RuntimeError(
                 f"cannot {edit_type.bench_name} {node_!r} in read-only {self.session}"
             )
-
-        from bench.proto import wiring
 
         # pack 'old' and 'new' node deltas
         old_node_packed = None

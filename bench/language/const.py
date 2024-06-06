@@ -1,5 +1,4 @@
 import contextvars
-import enum
 import secrets
 import typing
 from datetime import datetime, timedelta
@@ -13,7 +12,7 @@ from bench.utils.utils import frozendict, get_from_env
 if typing.TYPE_CHECKING:
     from bench.language import Bench, Run, Session, Transaction
 
-VERSION = "2024.06.05.2"
+VERSION = "2024.06.06.0"
 REVISION_PENDING = -1
 TK_LENGTH_BYTES = 8
 TK_LENGTH_B64 = 12  # 1.5 * TK_LENGTH_BYTES (must be integer)
@@ -307,7 +306,8 @@ class StructType(IdEnum):
     # flow
     STEP_CONNECTION = 1100
     RUN_ERROR = 1110
-    # CURSOR?
+    RUN_OPTIONS = 1111
+    RETRY_ATTEMPT = 1113
 
     # text
     TEXT = 1160
@@ -485,9 +485,10 @@ class ReferenceKind(IdEnum):
     NODE_PARENT = 3
     NODE_CHILDREN = 4
     NODE_REGULAR = 5
-    STRUCT_PARENT = 6
-    STRUCT_CHILD = 7
-    PROPERTY = 8
+    NODE_TEMPLATE = 6
+    STRUCT_PARENT = 10
+    STRUCT_CHILD = 11
+    PROPERTY = 20
 
     @property
     def is_node_tree(self):
@@ -495,21 +496,11 @@ class ReferenceKind(IdEnum):
 
     @property
     def is_node(self):
-        return self.id <= 5
+        return self.id < 10
 
     @property
     def is_struct_tree(self):
-        return self.id > 5
-
-
-class NodeRelationFlag(enum.IntFlag):
-    """Parent relation between node and descendants."""
-
-    DEFAULT = 0  # default inline relation
-    STORED_CUSTOM = 2**0  # not inline: Block->Record, ...
-
-
-NRel = NodeRelationFlag
+        return self.id >= 10 and self.id <= 20
 
 
 #
@@ -806,6 +797,12 @@ class RunKind(IdEnum):
     BLOCK = 1
     STEP = 2
     LAMBDA = 10
+
+
+@enum_(EnumType.RUN_ERROR_KIND)
+class RunErrorKind(IdEnum):
+    INTERNAL = 1
+    RUNTIME = 5
 
 
 @enum_(EnumType.RUN_STATUS)

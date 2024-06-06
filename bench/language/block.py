@@ -28,6 +28,7 @@ if TYPE_CHECKING:
         Package,
         Policy,
         Property,
+        RunOptions,
         Step,
         Text,
         Trigger,
@@ -91,7 +92,10 @@ class Block(Node[BlockData], HasValues):
     code: Optional["Code"] = p_regular(
         42, default=None, require=False, array=False, struct=StructType.CODE
     )
-    delegated_policies: list["Policy"] = p_regular(43, array=True, struct=StructType.POLICY)
+    run: Optional["RunOptions"] = p_regular(
+        43, default=None, require=False, array=False, struct=StructType.RUN_OPTIONS
+    )
+    delegated_policies: list["Policy"] = p_regular(49, array=True, struct=StructType.POLICY)
 
     # flags
     is_builtin: bool = p_system(60, default=False)  # intrinsic provided by the system

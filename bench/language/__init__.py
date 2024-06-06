@@ -72,7 +72,7 @@ from .projection import Projection
 from .property import Property
 from .query import Query, QueryBuilder, ReadOptions
 from .record import Record
-from .run import Run
+from .run import RetryAttempt, Run, RunOptions
 from .session import Context, Session
 from .setup import _complete_bench_setup
 from .signal import Signal
@@ -155,8 +155,10 @@ __all__ = [
     "Region",
     "Resource",
     "ResourceStatus",
+    "RetryAttempt",
     "Role",
     "Run",
+    "RunOptions",
     "S",
     "ScheduleType",
     "Server",

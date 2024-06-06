@@ -64,6 +64,7 @@ class TypeConstraintIn:
 SLUG_REGEX = r"^[a-z0-9-]{3,}$"
 EMAIL_REGEX = r"^[a-zA-Z0-9_.+-]+@[a-zA-Z0-9-]+\.[a-zA-Z0-9-.]+$"
 NAME_CONSTRAINT = TypeConstraintIn(min_length=1, max_length=128)
+TITLE_CONSTRAINT = TypeConstraintIn(min_length=1, max_length=256)
 SLUG_CONSTRAINT = TypeConstraintIn(regex=SLUG_REGEX)
 EMAIL_CONSTRAINT = TypeConstraintIn(regex=EMAIL_REGEX)
 

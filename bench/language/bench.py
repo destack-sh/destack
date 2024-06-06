@@ -26,7 +26,7 @@ from bench.language.property import (
     p_regular,
     p_system,
 )
-from bench.language.validation import NAME_CONSTRAINT, SLUG_CONSTRAINT
+from bench.language.validation import NAME_CONSTRAINT, SLUG_CONSTRAINT, TITLE_CONSTRAINT
 from bench.proto.wire import (
     AnyNodeData,
     BenchData,
@@ -266,7 +266,7 @@ class Upgrade(Node[UpgradeData]):
 
     parent: Package = p_node_parent(4, NodeType.PACKAGE)
     name: str = p_regular(32, constraint=NAME_CONSTRAINT)
-    title: Optional[str] = p_regular(34)
+    title: Optional[str] = p_regular(34, constraint=TITLE_CONSTRAINT)
     text: Optional["Text"] = p_regular(35, require=False, array=False, struct=StructType.TEXT)
 
 

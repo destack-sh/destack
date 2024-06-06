@@ -96,6 +96,15 @@ const actions: Partial<ActionMapImplementation<"common">> & ActionMapImplementat
     isChecked: () => block.value?.isTemplate ?? false,
     action: () => pkgConnection.tx.update(block.value!, { isTemplate: !block.value!.isTemplate }, { debounce: "tick" }),
   },
+  "block.edit.isMaterialized": {
+    isChecked: () => block.value?.isMaterialized ?? false,
+    action: () =>
+      pkgConnection.tx.update(block.value!, { isMaterialized: !block.value!.isMaterialized }, { debounce: "tick" }),
+  },
+  "block.edit.isPaused": {
+    isChecked: () => block.value?.isPaused ?? false,
+    action: () => pkgConnection.tx.update(block.value!, { isPaused: !block.value!.isPaused }, { debounce: "tick" }),
+  },
 };
 
 // focus
@@ -231,7 +240,6 @@ defineExpose<ViewExposed>({ self, id, variants: [Variant.PRIMARY, Variant.STEALT
                     'common.edit.archive',
                     'common.edit.delete',
                     'message.handle.startThread',
-                    'block.*',
                   ],
                   { context: { triggerNode: nodePtr } },
                 ),

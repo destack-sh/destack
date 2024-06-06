@@ -42,7 +42,7 @@ from bench.runtime.connection import (
 from bench.runtime.core import (
     BENCH_QUERY,
     PACKAGE_QUERY,
-    RUNTIME_PARALLELISM,
+    RUNTIME_CONCURRENCY,
 )
 from bench.runtime.thread import RuntimeThread
 from bench.utils.func import CriticalLock
@@ -228,7 +228,7 @@ class Runtime(ServiceBase, RuntimeBase):
             self._session.parent = self._main_package.node
 
         # start threads
-        for i in range(RUNTIME_PARALLELISM):
+        for i in range(RUNTIME_CONCURRENCY):
             thread = RuntimeThread(
                 id=i,
                 bench_id=self._bench_id,

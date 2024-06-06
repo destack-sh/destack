@@ -17,6 +17,7 @@ from bench.language.property import (
     p_value_runtime,
 )
 from bench.language.session import HasSessionContext
+from bench.language.validation import TITLE_CONSTRAINT
 from bench.language.value import HasValues
 from bench.proto.wire import (
     AnyNodeData,
@@ -43,7 +44,7 @@ class Notification(BasedNode[NotificationData], HasSessionContext, HasValues):
     read_at: Optional[datetime] = p_internal(34, default=None)
 
     # content
-    title: Optional[str] = p_regular(40)
+    title: Optional[str] = p_regular(40, constraint=TITLE_CONSTRAINT)
     text: Optional["Text"] = p_regular(41, require=False, array=False, struct=StructType.TEXT)
     value_packed: Any | None = p_value_packed(42)
     secret_value_packed: Any | None = p_secret_value_packed(43)

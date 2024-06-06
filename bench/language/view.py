@@ -13,7 +13,7 @@ from bench.language.property import (
     p_value_packed,
     p_value_runtime,
 )
-from bench.language.validation import NAME_CONSTRAINT
+from bench.language.validation import NAME_CONSTRAINT, TITLE_CONSTRAINT
 from bench.language.value import HasValues
 from bench.proto.wire import SpaceData, ViewData
 from bench.utils.casing import IdentifierType
@@ -58,10 +58,10 @@ class ViewType(IdEnum):
     INSPECT = 153
     CREATE = 154
     CHAT = 155
-    LOG = 156
-    RUN = 157
+    RUN = 156
+    FEED = 157
     TIMELINE = 158
-    HISTORY = 159
+    HISTORY = 179
 
     #
     # General
@@ -81,7 +81,6 @@ class ViewType(IdEnum):
     # containers (data)
     LIST = 520
     TABLE = 521
-    FEED = 522
     # containers (group)
     GROUP = 530
     SECTION = 531
@@ -375,7 +374,7 @@ class View(Node[ViewData], HasValues):
     # common
     type: ViewType = p_regular(30, require=True)
     name: str = p_regular(31, constraint=NAME_CONSTRAINT)
-    title: Optional[str] = p_regular(32, default=None, constraint=NAME_CONSTRAINT)
+    title: Optional[str] = p_regular(32, default=None, constraint=TITLE_CONSTRAINT)
     text: Optional["Text"] = p_regular(33, default=None, struct=StructType.TEXT)
     order_key: str = p_internal(34, default=INTEGER_ZERO)
     icon: Optional["Icon"] = p_regular(
@@ -434,6 +433,7 @@ class View(Node[ViewData], HasValues):
     is_disabled: Optional[bool] = p_regular(81, default=False)
     is_input: Optional[bool] = p_regular(82, default=False)
     is_inline: Optional[bool] = p_regular(83, default=False)
+    is_template: Optional[bool] = p_regular(84, default=False)
     is_loading: Optional[bool] = p_regular(90, default=False)
 
     views: NodeList["View"] = p_node_child(NodeType.VIEW)

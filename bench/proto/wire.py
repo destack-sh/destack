@@ -3,7 +3,7 @@
 
 from typing import TYPE_CHECKING, Union
 
-VERSION = "2024.06.05.2"
+VERSION = "2024.06.06.0"
 
 if TYPE_CHECKING:
     from bench.language import Subject
@@ -182,6 +182,8 @@ class BenchType(betterproto.Enum):
     CODE_LINE = 1091
     STEP_CONNECTION = 1100
     RUN_ERROR = 1110
+    RUN_OPTIONS = 1111
+    RETRY_ATTEMPT = 1113
     TEXT = 1160
     TEXT_LINE = 1161
     TEXT_SPAN = 1162
@@ -761,6 +763,8 @@ class ObjectType(betterproto.Enum):
     CODE_LINE = 1091
     STEP_CONNECTION = 1100
     RUN_ERROR = 1110
+    RUN_OPTIONS = 1111
+    RETRY_ATTEMPT = 1113
     TEXT = 1160
     TEXT_LINE = 1161
     TEXT_SPAN = 1162
@@ -868,9 +872,10 @@ class ReferenceKind(betterproto.Enum):
     NODE_PARENT = 3
     NODE_CHILDREN = 4
     NODE_REGULAR = 5
-    STRUCT_PARENT = 6
-    STRUCT_CHILD = 7
-    PROPERTY = 8
+    NODE_TEMPLATE = 6
+    STRUCT_PARENT = 10
+    STRUCT_CHILD = 11
+    PROPERTY = 20
 
 
 class Region(betterproto.Enum):
@@ -1068,6 +1073,8 @@ class StructType(betterproto.Enum):
     CODE_LINE = 1091
     STEP_CONNECTION = 1100
     RUN_ERROR = 1110
+    RUN_OPTIONS = 1111
+    RETRY_ATTEMPT = 1113
     TEXT = 1160
     TEXT_LINE = 1161
     TEXT_SPAN = 1162
@@ -1187,10 +1194,10 @@ class ViewType(betterproto.Enum):
     INSPECT = 153
     CREATE = 154
     CHAT = 155
-    LOG = 156
-    RUN = 157
+    RUN = 156
+    FEED = 157
     TIMELINE = 158
-    HISTORY = 159
+    HISTORY = 179
     WINDOW = 500
     TAB = 502
     SPLIT = 503
@@ -1201,7 +1208,6 @@ class ViewType(betterproto.Enum):
     GRID = 513
     LIST = 520
     TABLE = 521
-    FEED = 522
     GROUP = 530
     SECTION = 531
     SPACER = 540
@@ -1701,6 +1707,26 @@ class ReadOptionsData(betterproto.Message):
 
 
 @dataclass(eq=False, repr=False)
+class RetryAttemptData(betterproto.Message):
+    """A single attempt at a Run."""
+
+    metatype: "ObjectType" = betterproto.enum_field(1)
+    id: int = betterproto.int32_field(2)
+    parent_id: Optional[int] = betterproto.int32_field(3, optional=True)
+    parent_key: Optional[str] = betterproto.string_field(4, optional=True)
+    order_key: Optional[str] = betterproto.string_field(9, optional=True)
+    set_properties: List[int] = betterproto.int32_field(29)
+    status: "RunStatus" = betterproto.enum_field(30)
+    duration: Optional[float] = betterproto.float_field(31, optional=True)
+    started_at: Optional[datetime] = betterproto.message_field(32, optional=True)
+    started_epoch: Optional[int] = betterproto.int32_field(33, optional=True)
+    paused_at: Optional[datetime] = betterproto.message_field(34, optional=True)
+    terminated_at: Optional[datetime] = betterproto.message_field(35, optional=True)
+    terminated_epoch: Optional[int] = betterproto.int32_field(36, optional=True)
+    error: Optional["RunErrorData"] = betterproto.message_field(37, optional=True)
+
+
+@dataclass(eq=False, repr=False)
 class RunErrorData(betterproto.Message):
     """An error that occurred in the context of a Run."""
 
@@ -1715,6 +1741,19 @@ class RunErrorData(betterproto.Message):
     title: Optional[str] = betterproto.string_field(32, optional=True)
     text: Optional["TextData"] = betterproto.message_field(33, optional=True)
     node_ptr: Optional["NodeReferenceData"] = betterproto.message_field(34, optional=True)
+
+
+@dataclass(eq=False, repr=False)
+class RunOptionsData(betterproto.Message):
+    """Options for running something."""
+
+    metatype: "ObjectType" = betterproto.enum_field(1)
+    max_concurrency: Optional[int] = betterproto.int32_field(30, optional=True)
+    max_attempts: Optional[int] = betterproto.int32_field(31, optional=True)
+    retry_interval: Optional[float] = betterproto.float_field(32, optional=True)
+    backoff: Optional[float] = betterproto.float_field(33, optional=True)
+    max_retry_interval: Optional[float] = betterproto.float_field(34, optional=True)
+    retry_on: List["RunErrorType"] = betterproto.enum_field(35)
 
 
 @dataclass(eq=False, repr=False)
@@ -1938,6 +1977,8 @@ class BadgeData(betterproto.Message):
     parent_ptr: "NodeReferenceData" = betterproto.message_field(4)
     package_ptr: "NodeReferenceData" = betterproto.message_field(5)
     bench_ptr: "NodeReferenceData" = betterproto.message_field(6)
+    template_ptr: Optional["NodeReferenceData"] = betterproto.message_field(7, optional=True)
+    templated_epoch: Optional[int] = betterproto.int64_field(8, optional=True)
     revision: int = betterproto.int64_field(10)
     created_at: datetime = betterproto.message_field(11)
     created_epoch: int = betterproto.int64_field(12)
@@ -2032,6 +2073,8 @@ class BlockData(betterproto.Message):
     parent_ptr: "NodeReferenceData" = betterproto.message_field(4)
     package_ptr: "NodeReferenceData" = betterproto.message_field(5)
     bench_ptr: "NodeReferenceData" = betterproto.message_field(6)
+    template_ptr: Optional["NodeReferenceData"] = betterproto.message_field(7, optional=True)
+    templated_epoch: Optional[int] = betterproto.int64_field(8, optional=True)
     revision: int = betterproto.int64_field(10)
     created_at: datetime = betterproto.message_field(11)
     created_epoch: int = betterproto.int64_field(12)
@@ -2058,7 +2101,8 @@ class BlockData(betterproto.Message):
         betterproto.message_field(41, optional=True)
     )
     code: Optional["CodeData"] = betterproto.message_field(42, optional=True)
-    delegated_policies: List["PolicyData"] = betterproto.message_field(43)
+    run: Optional["RunOptionsData"] = betterproto.message_field(43, optional=True)
+    delegated_policies: List["PolicyData"] = betterproto.message_field(49)
     is_builtin: bool = betterproto.bool_field(60)
     is_page: bool = betterproto.bool_field(61)
     is_protocol: bool = betterproto.bool_field(62)
@@ -2142,6 +2186,8 @@ class DependencyData(betterproto.Message):
     parent_ptr: "NodeReferenceData" = betterproto.message_field(4)
     package_ptr: "NodeReferenceData" = betterproto.message_field(5)
     bench_ptr: "NodeReferenceData" = betterproto.message_field(6)
+    template_ptr: Optional["NodeReferenceData"] = betterproto.message_field(7, optional=True)
+    templated_epoch: Optional[int] = betterproto.int64_field(8, optional=True)
     revision: int = betterproto.int64_field(10)
     created_at: datetime = betterproto.message_field(11)
     created_epoch: int = betterproto.int64_field(12)
@@ -2221,6 +2267,8 @@ class FieldData(betterproto.Message):
     parent_ptr: "NodeReferenceData" = betterproto.message_field(4)
     package_ptr: "NodeReferenceData" = betterproto.message_field(5)
     bench_ptr: "NodeReferenceData" = betterproto.message_field(6)
+    template_ptr: Optional["NodeReferenceData"] = betterproto.message_field(7, optional=True)
+    templated_epoch: Optional[int] = betterproto.int64_field(8, optional=True)
     revision: int = betterproto.int64_field(10)
     created_at: datetime = betterproto.message_field(11)
     created_epoch: int = betterproto.int64_field(12)
@@ -2291,6 +2339,8 @@ class IdentityData(betterproto.Message):
     parent_ptr: "NodeReferenceData" = betterproto.message_field(4)
     package_ptr: "NodeReferenceData" = betterproto.message_field(5)
     bench_ptr: "NodeReferenceData" = betterproto.message_field(6)
+    template_ptr: Optional["NodeReferenceData"] = betterproto.message_field(7, optional=True)
+    templated_epoch: Optional[int] = betterproto.int64_field(8, optional=True)
     revision: int = betterproto.int64_field(10)
     created_at: datetime = betterproto.message_field(11)
     created_epoch: int = betterproto.int64_field(12)
@@ -2314,6 +2364,8 @@ class InviteData(betterproto.Message):
     parent_ptr: "NodeReferenceData" = betterproto.message_field(4)
     package_ptr: "NodeReferenceData" = betterproto.message_field(5)
     bench_ptr: "NodeReferenceData" = betterproto.message_field(6)
+    template_ptr: Optional["NodeReferenceData"] = betterproto.message_field(7, optional=True)
+    templated_epoch: Optional[int] = betterproto.int64_field(8, optional=True)
     revision: int = betterproto.int64_field(10)
     created_at: datetime = betterproto.message_field(11)
     created_epoch: int = betterproto.int64_field(12)
@@ -2344,6 +2396,8 @@ class LinkData(betterproto.Message):
     parent_ptr: "NodeReferenceData" = betterproto.message_field(4)
     package_ptr: "NodeReferenceData" = betterproto.message_field(5)
     bench_ptr: "NodeReferenceData" = betterproto.message_field(6)
+    template_ptr: Optional["NodeReferenceData"] = betterproto.message_field(7, optional=True)
+    templated_epoch: Optional[int] = betterproto.int64_field(8, optional=True)
     revision: int = betterproto.int64_field(10)
     created_at: datetime = betterproto.message_field(11)
     created_epoch: int = betterproto.int64_field(12)
@@ -2458,6 +2512,8 @@ class MembershipData(betterproto.Message):
     parent_ptr: "NodeReferenceData" = betterproto.message_field(4)
     package_ptr: "NodeReferenceData" = betterproto.message_field(5)
     bench_ptr: "NodeReferenceData" = betterproto.message_field(6)
+    template_ptr: Optional["NodeReferenceData"] = betterproto.message_field(7, optional=True)
+    templated_epoch: Optional[int] = betterproto.int64_field(8, optional=True)
     revision: int = betterproto.int64_field(10)
     created_at: datetime = betterproto.message_field(11)
     created_epoch: int = betterproto.int64_field(12)
@@ -2532,6 +2588,7 @@ class BaseNodeData(betterproto.Message):
     parent_ptr: "NodeReferenceData" = betterproto.message_field(4)
     package_ptr: "NodeReferenceData" = betterproto.message_field(5)
     bench_ptr: "NodeReferenceData" = betterproto.message_field(6)
+    templated_epoch: Optional[int] = betterproto.int64_field(8, optional=True)
     revision: int = betterproto.int64_field(10)
     created_at: datetime = betterproto.message_field(11)
     created_epoch: int = betterproto.int64_field(12)
@@ -2557,6 +2614,8 @@ class NoticeData(betterproto.Message):
     parent_ptr: "NodeReferenceData" = betterproto.message_field(4)
     package_ptr: "NodeReferenceData" = betterproto.message_field(5)
     bench_ptr: "NodeReferenceData" = betterproto.message_field(6)
+    template_ptr: Optional["NodeReferenceData"] = betterproto.message_field(7, optional=True)
+    templated_epoch: Optional[int] = betterproto.int64_field(8, optional=True)
     revision: int = betterproto.int64_field(10)
     created_at: datetime = betterproto.message_field(11)
     created_epoch: int = betterproto.int64_field(12)
@@ -2684,6 +2743,8 @@ class QueryData(betterproto.Message):
     parent_ptr: "NodeReferenceData" = betterproto.message_field(4)
     package_ptr: "NodeReferenceData" = betterproto.message_field(5)
     bench_ptr: "NodeReferenceData" = betterproto.message_field(6)
+    template_ptr: Optional["NodeReferenceData"] = betterproto.message_field(7, optional=True)
+    templated_epoch: Optional[int] = betterproto.int64_field(8, optional=True)
     revision: int = betterproto.int64_field(10)
     created_at: datetime = betterproto.message_field(11)
     created_epoch: int = betterproto.int64_field(12)
@@ -2714,6 +2775,8 @@ class RecordData(betterproto.Message):
     parent_ptr: "NodeReferenceData" = betterproto.message_field(4)
     package_ptr: "NodeReferenceData" = betterproto.message_field(5)
     bench_ptr: "NodeReferenceData" = betterproto.message_field(6)
+    template_ptr: Optional["NodeReferenceData"] = betterproto.message_field(7, optional=True)
+    templated_epoch: Optional[int] = betterproto.int64_field(8, optional=True)
     revision: int = betterproto.int64_field(10)
     created_at: datetime = betterproto.message_field(11)
     created_epoch: int = betterproto.int64_field(12)
@@ -2746,6 +2809,8 @@ class RoleData(betterproto.Message):
     parent_ptr: "NodeReferenceData" = betterproto.message_field(4)
     package_ptr: "NodeReferenceData" = betterproto.message_field(5)
     bench_ptr: "NodeReferenceData" = betterproto.message_field(6)
+    template_ptr: Optional["NodeReferenceData"] = betterproto.message_field(7, optional=True)
+    templated_epoch: Optional[int] = betterproto.int64_field(8, optional=True)
     revision: int = betterproto.int64_field(10)
     created_at: datetime = betterproto.message_field(11)
     created_epoch: int = betterproto.int64_field(12)
@@ -2787,6 +2852,7 @@ class RunData(betterproto.Message):
     root_ptr: "NodeReferenceData" = betterproto.message_field(32)
     code: Optional["CodeData"] = betterproto.message_field(36, optional=True)
     text: Optional["TextData"] = betterproto.message_field(37, optional=True)
+    options: Optional["RunOptionsData"] = betterproto.message_field(38, optional=True)
     status: "RunStatus" = betterproto.enum_field(40)
     duration: Optional[float] = betterproto.float_field(41, optional=True)
     scheduled_at: Optional[datetime] = betterproto.message_field(42, optional=True)
@@ -2796,6 +2862,7 @@ class RunData(betterproto.Message):
     paused_at: Optional[datetime] = betterproto.message_field(46, optional=True)
     terminated_at: Optional[datetime] = betterproto.message_field(47, optional=True)
     terminated_epoch: Optional[int] = betterproto.int32_field(48, optional=True)
+    attempts: List["RetryAttemptData"] = betterproto.message_field(49)
     inputs_packed: Optional["betterproto_lib_google_protobuf.Struct"] = betterproto.message_field(
         50, optional=True
     )
@@ -2942,6 +3009,8 @@ class SkipData(betterproto.Message):
     parent_ptr: "NodeReferenceData" = betterproto.message_field(4)
     package_ptr: "NodeReferenceData" = betterproto.message_field(5)
     bench_ptr: "NodeReferenceData" = betterproto.message_field(6)
+    template_ptr: Optional["NodeReferenceData"] = betterproto.message_field(7, optional=True)
+    templated_epoch: Optional[int] = betterproto.int64_field(8, optional=True)
     revision: int = betterproto.int64_field(10)
     created_at: datetime = betterproto.message_field(11)
     created_epoch: int = betterproto.int64_field(12)
@@ -2966,6 +3035,8 @@ class SpaceData(betterproto.Message):
     parent_ptr: "NodeReferenceData" = betterproto.message_field(4)
     package_ptr: "NodeReferenceData" = betterproto.message_field(5)
     bench_ptr: "NodeReferenceData" = betterproto.message_field(6)
+    template_ptr: Optional["NodeReferenceData"] = betterproto.message_field(7, optional=True)
+    templated_epoch: Optional[int] = betterproto.int64_field(8, optional=True)
     revision: int = betterproto.int64_field(10)
     created_at: datetime = betterproto.message_field(11)
     created_epoch: int = betterproto.int64_field(12)
@@ -3000,6 +3071,8 @@ class StepData(betterproto.Message):
     parent_ptr: "NodeReferenceData" = betterproto.message_field(4)
     package_ptr: "NodeReferenceData" = betterproto.message_field(5)
     bench_ptr: "NodeReferenceData" = betterproto.message_field(6)
+    template_ptr: Optional["NodeReferenceData"] = betterproto.message_field(7, optional=True)
+    templated_epoch: Optional[int] = betterproto.int64_field(8, optional=True)
     revision: int = betterproto.int64_field(10)
     created_at: datetime = betterproto.message_field(11)
     created_epoch: int = betterproto.int64_field(12)
@@ -3015,7 +3088,8 @@ class StepData(betterproto.Message):
     order_key: str = betterproto.string_field(33)
     text: Optional["TextData"] = betterproto.message_field(34, optional=True)
     code: Optional["CodeData"] = betterproto.message_field(35, optional=True)
-    connections: List["StepConnectionData"] = betterproto.message_field(36)
+    run: Optional["RunOptionsData"] = betterproto.message_field(36, optional=True)
+    connections: List["StepConnectionData"] = betterproto.message_field(37)
     value_type: Optional["TypeInfoData"] = betterproto.message_field(40, optional=True)
     value_packed: Optional["betterproto_lib_google_protobuf.Struct"] = betterproto.message_field(
         41, optional=True
@@ -3025,6 +3099,7 @@ class StepData(betterproto.Message):
     )
     node_ptr: Optional["NodeReferenceData"] = betterproto.message_field(43, optional=True)
     condition: Optional["ExpressionData"] = betterproto.message_field(46, optional=True)
+    is_template: bool = betterproto.bool_field(60)
 
 
 @dataclass(eq=False, repr=False)
@@ -3066,6 +3141,8 @@ class TriggerData(betterproto.Message):
     parent_ptr: "NodeReferenceData" = betterproto.message_field(4)
     package_ptr: "NodeReferenceData" = betterproto.message_field(5)
     bench_ptr: "NodeReferenceData" = betterproto.message_field(6)
+    template_ptr: Optional["NodeReferenceData"] = betterproto.message_field(7, optional=True)
+    templated_epoch: Optional[int] = betterproto.int64_field(8, optional=True)
     revision: int = betterproto.int64_field(10)
     created_at: datetime = betterproto.message_field(11)
     created_epoch: int = betterproto.int64_field(12)
@@ -3097,6 +3174,8 @@ class UpgradeData(betterproto.Message):
     parent_ptr: "NodeReferenceData" = betterproto.message_field(4)
     package_ptr: "NodeReferenceData" = betterproto.message_field(5)
     bench_ptr: "NodeReferenceData" = betterproto.message_field(6)
+    template_ptr: Optional["NodeReferenceData"] = betterproto.message_field(7, optional=True)
+    templated_epoch: Optional[int] = betterproto.int64_field(8, optional=True)
     revision: int = betterproto.int64_field(10)
     created_at: datetime = betterproto.message_field(11)
     created_epoch: int = betterproto.int64_field(12)
@@ -3151,6 +3230,8 @@ class ViewData(betterproto.Message):
     parent_ptr: "NodeReferenceData" = betterproto.message_field(4)
     package_ptr: "NodeReferenceData" = betterproto.message_field(5)
     bench_ptr: "NodeReferenceData" = betterproto.message_field(6)
+    template_ptr: Optional["NodeReferenceData"] = betterproto.message_field(7, optional=True)
+    templated_epoch: Optional[int] = betterproto.int64_field(8, optional=True)
     revision: int = betterproto.int64_field(10)
     created_at: datetime = betterproto.message_field(11)
     created_epoch: int = betterproto.int64_field(12)
@@ -3187,6 +3268,7 @@ class ViewData(betterproto.Message):
     is_disabled: Optional[bool] = betterproto.bool_field(81, optional=True)
     is_input: Optional[bool] = betterproto.bool_field(82, optional=True)
     is_inline: Optional[bool] = betterproto.bool_field(83, optional=True)
+    is_template: Optional[bool] = betterproto.bool_field(84, optional=True)
     is_loading: Optional[bool] = betterproto.bool_field(90, optional=True)
 
 
@@ -4847,6 +4929,8 @@ AnyStructData = Union[
     CodeLineData,
     StepConnectionData,
     RunErrorData,
+    RunOptionsData,
+    RetryAttemptData,
     TextData,
     TextLineData,
     TextSpanData,
