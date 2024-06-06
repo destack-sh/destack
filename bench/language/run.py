@@ -7,6 +7,7 @@ from bench.language.const import (
     BenchError,
     EnumType,
     NodeType,
+    RunErrorKind,
     RunKind,
     RunStatus,
     StructType,
@@ -19,6 +20,7 @@ from bench.language.property import (
     p_node_ancestor_first,
     p_node_child,
     p_node_parent,
+    p_regular,
     p_secret_value_packed,
     p_system,
     p_value_packed,
@@ -26,7 +28,7 @@ from bench.language.property import (
 )
 from bench.language.session import HasSessionContext
 from bench.language.text import Text
-from bench.language.validation import ValidationHandler
+from bench.language.validation import TITLE_CONSTRAINT, TypeConstraintIn, ValidationHandler
 from bench.language.value import HasValues
 from bench.proto.wire import AnyNodeData, NodeReferenceData, RunData
 from bench.utils.func import IdEnum
@@ -35,6 +37,61 @@ if TYPE_CHECKING:
     from bench.language import Block, NodeReference, Package
 
 # pyright: reportIncompatibleVariableOverride=false
+
+
+@struct(StructType.RUN_OPTIONS, inline=True)
+class RunOptions(Struct):
+    """Options for running something."""
+
+    max_concurrency: Optional[int] = p_regular(30, constraint=TypeConstraintIn(min_value=0))
+    max_attempts: Optional[int] = p_regular(31, constraint=TypeConstraintIn(min_value=-1))
+    retry_interval: Optional[float] = p_regular(32, constraint=TypeConstraintIn(min_value=0))
+    backoff: Optional[float] = p_regular(33, constraint=TypeConstraintIn(min_value=1))
+    max_retry_interval: Optional[float] = p_regular(34, constraint=TypeConstraintIn(min_value=0))
+    retry_on: list["RunErrorType"] = p_regular(35, array=True)
+
+
+@struct(StructType.RETRY_ATTEMPT)
+class RetryAttempt(Struct):
+    """A single attempt at a Run."""
+
+    status: RunStatus = p_internal(30, default=RunStatus.SCHEDULED)
+    duration: Optional[float] = p_internal(31, default=None)
+    started_at: Optional[datetime] = p_internal(32, default=None)
+    started_epoch: Optional[int] = p_internal(33, default=None)
+    paused_at: Optional[datetime] = p_internal(34, default=None)
+    terminated_at: Optional[datetime] = p_internal(35, default=None)
+    terminated_epoch: Optional[int] = p_internal(36, default=None)
+    error: Optional["RunError"] = p_internal(
+        37, require=False, array=False, struct=StructType.RUN_ERROR
+    )
+
+
+@enum_(EnumType.RUN_ERROR_TYPE)
+class RunErrorType(IdEnum):
+    NO_RUNTIME_AVAILABLE = 1
+
+
+@struct(StructType.RUN_ERROR)
+class RunError(Struct, BenchError):
+    """An error that occurred in the context of a Run."""
+
+    kind: RunErrorKind = p_internal(30)
+    type: Optional[RunErrorType] = p_internal(31, default=None)
+    title: Optional[str] = p_internal(32, default=None, constraint=TITLE_CONSTRAINT)
+    text: Optional["Text"] = p_internal(33, default=None, struct=StructType.TEXT)
+    node: Optional["Node"] = p_internal(34, require=False, array=False, references=NodeType.BLOCK)
+
+    def __content_str__(self) -> str:
+        parts = [self.kind.bench_name]
+        if self.type is not None:
+            parts.append(self.type.bench_name)
+        parts.append(self.title or "<no title>")
+        return ", ".join(parts)
+
+    @staticmethod
+    def from_exception(e: Exception) -> "RunError":
+        return RunError(kind=RunErrorKind.INTERNAL, title=str(e))
 
 
 @timed_node(NodeType.RUN)
@@ -57,8 +114,12 @@ class Run(BasedNode[RunData], HasSessionContext, HasValues):
 
     code: Optional["Code"] = p_internal(36, require=False, array=False, struct=StructType.CODE)
     text: Optional["Text"] = p_internal(37, require=False, array=False, struct=StructType.TEXT)
+    # extra run options if different from base (or base doesn't exist)
+    options: Optional["RunOptions"] = p_internal(
+        38, require=False, array=False, struct=StructType.RUN_OPTIONS
+    )
 
-    # status
+    # status (overall)
     status: RunStatus = p_internal(40, default=RunStatus.SCHEDULED)
     duration: Optional[float] = p_internal(41, default=None)
     scheduled_at: Optional[datetime] = p_internal(42, default=None)
@@ -68,8 +129,10 @@ class Run(BasedNode[RunData], HasSessionContext, HasValues):
     paused_at: Optional[datetime] = p_internal(46, default=None)
     terminated_at: Optional[datetime] = p_internal(47, default=None)
     terminated_epoch: Optional[int] = p_internal(48, default=None)
+    # attempts is populated if the first attempt is not successful
+    attempts: list[RetryAttempt] = p_internal(49, array=True, struct=StructType.RETRY_ATTEMPT)
 
-    # value
+    # content
     inputs_packed: Any = p_value_packed(50)
     inputs_secret_packed: Any = p_secret_value_packed(51)
     inputs: Any = p_value_runtime(50, 51)
@@ -125,36 +188,3 @@ class Run(BasedNode[RunData], HasSessionContext, HasValues):
             invalid(self, "no block, code or text", (Run.block, Run.code, Run.text))
         if self.step_ptr is not None and self.block_ptr is None:
             invalid(self, "step without block", (Run.step, Run.block))
-
-
-@enum_(EnumType.RUN_ERROR_KIND)
-class RunErrorKind(IdEnum):
-    INTERNAL = 1
-    RUNTIME = 5
-
-
-@enum_(EnumType.RUN_ERROR_TYPE)
-class RunErrorType(IdEnum):
-    NO_RUNTIME_AVAILABLE = 1
-
-
-@struct(StructType.RUN_ERROR)
-class RunError(Struct, BenchError):
-    """An error that occurred in the context of a Run."""
-
-    kind: RunErrorKind = p_internal(30)
-    type: Optional[RunErrorType] = p_internal(31, default=None)
-    title: Optional[str] = p_internal(32, default=None)
-    text: Optional["Text"] = p_internal(33, default=None, struct=StructType.TEXT)
-    node: Optional["Node"] = p_internal(34, require=False, array=False, references=NodeType.BLOCK)
-
-    def __content_str__(self) -> str:
-        parts = [self.kind.bench_name]
-        if self.type is not None:
-            parts.append(self.type.bench_name)
-        parts.append(self.title or "<no title>")
-        return ", ".join(parts)
-
-    @staticmethod
-    def from_exception(e: Exception) -> "RunError":
-        return RunError(kind=RunErrorKind.INTERNAL, title=str(e))

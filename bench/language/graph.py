@@ -802,7 +802,6 @@ class GraphNodeList(NodeList[NodeT]):
             property.reference_nodes and len(property.reference_nodes) == 1
         ), f"cannot have many child types: {property!r}"
         self._child_node_type: NodeType = property.reference_nodes[0]
-        self._flags = property.reference_flags
 
     def __str__(self):
         return str(self.nodes)

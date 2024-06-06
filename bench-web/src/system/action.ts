@@ -149,6 +149,8 @@ export const ACTION_BUILTIN_IDS = [
   "block.edit.isPage",
   "block.edit.isProtocol",
   "block.edit.isTemplate",
+  "block.edit.isMaterialized",
+  "block.edit.isPaused",
   // message
   "message.handle.reply",
   "message.handle.startThread",

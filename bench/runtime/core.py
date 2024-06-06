@@ -47,4 +47,4 @@ PACKAGE_QUERY = (
     .exclude(Bench.encryption_key)
 )
 
-RUNTIME_PARALLELISM = 1
+RUNTIME_CONCURRENCY = 1

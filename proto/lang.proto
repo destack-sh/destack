@@ -147,6 +147,8 @@ enum BenchType {
   BENCH_TYPE_CODE_LINE = 1091;
   BENCH_TYPE_STEP_CONNECTION = 1100;
   BENCH_TYPE_RUN_ERROR = 1110;
+  BENCH_TYPE_RUN_OPTIONS = 1111;
+  BENCH_TYPE_RETRY_ATTEMPT = 1113;
   BENCH_TYPE_TEXT = 1160;
   BENCH_TYPE_TEXT_LINE = 1161;
   BENCH_TYPE_TEXT_SPAN = 1162;
@@ -718,6 +720,8 @@ enum ObjectType {
   OBJECT_TYPE_CODE_LINE = 1091;
   OBJECT_TYPE_STEP_CONNECTION = 1100;
   OBJECT_TYPE_RUN_ERROR = 1110;
+  OBJECT_TYPE_RUN_OPTIONS = 1111;
+  OBJECT_TYPE_RETRY_ATTEMPT = 1113;
   OBJECT_TYPE_TEXT = 1160;
   OBJECT_TYPE_TEXT_LINE = 1161;
   OBJECT_TYPE_TEXT_SPAN = 1162;
@@ -817,9 +821,10 @@ enum ReferenceKind {
   REFERENCE_KIND_NODE_PARENT = 3;
   REFERENCE_KIND_NODE_CHILDREN = 4;
   REFERENCE_KIND_NODE_REGULAR = 5;
-  REFERENCE_KIND_STRUCT_PARENT = 6;
-  REFERENCE_KIND_STRUCT_CHILD = 7;
-  REFERENCE_KIND_PROPERTY = 8;
+  REFERENCE_KIND_NODE_TEMPLATE = 6;
+  REFERENCE_KIND_STRUCT_PARENT = 10;
+  REFERENCE_KIND_STRUCT_CHILD = 11;
+  REFERENCE_KIND_PROPERTY = 20;
 }
 
 // Where a Resource is located (physically).
@@ -1010,6 +1015,8 @@ enum StructType {
   STRUCT_TYPE_CODE_LINE = 1091;
   STRUCT_TYPE_STEP_CONNECTION = 1100;
   STRUCT_TYPE_RUN_ERROR = 1110;
+  STRUCT_TYPE_RUN_OPTIONS = 1111;
+  STRUCT_TYPE_RETRY_ATTEMPT = 1113;
   STRUCT_TYPE_TEXT = 1160;
   STRUCT_TYPE_TEXT_LINE = 1161;
   STRUCT_TYPE_TEXT_SPAN = 1162;
@@ -1124,10 +1131,10 @@ enum ViewType {
   VIEW_TYPE_INSPECT = 153;
   VIEW_TYPE_CREATE = 154;
   VIEW_TYPE_CHAT = 155;
-  VIEW_TYPE_LOG = 156;
-  VIEW_TYPE_RUN = 157;
+  VIEW_TYPE_RUN = 156;
+  VIEW_TYPE_FEED = 157;
   VIEW_TYPE_TIMELINE = 158;
-  VIEW_TYPE_HISTORY = 159;
+  VIEW_TYPE_HISTORY = 179;
   VIEW_TYPE_WINDOW = 500;
   VIEW_TYPE_TAB = 502;
   VIEW_TYPE_SPLIT = 503;
@@ -1138,7 +1145,6 @@ enum ViewType {
   VIEW_TYPE_GRID = 513;
   VIEW_TYPE_LIST = 520;
   VIEW_TYPE_TABLE = 521;
-  VIEW_TYPE_FEED = 522;
   VIEW_TYPE_GROUP = 530;
   VIEW_TYPE_SECTION = 531;
   VIEW_TYPE_SPACER = 540;
@@ -1545,6 +1551,24 @@ message ReadOptionsData {
   bool include_hidden = 50;
 }
 
+// A single attempt at a Run.
+message RetryAttemptData {
+  ObjectType metatype = 1;
+  int32 id = 2;
+  optional int32 parent_id = 3;
+  optional string parent_key = 4;
+  optional string order_key = 9;
+  repeated int32 set_properties = 29;
+  RunStatus status = 30;
+  optional float duration = 31;
+  optional google.protobuf.Timestamp started_at = 32;
+  optional int32 started_epoch = 33;
+  optional google.protobuf.Timestamp paused_at = 34;
+  optional google.protobuf.Timestamp terminated_at = 35;
+  optional int32 terminated_epoch = 36;
+  optional RunErrorData error = 37;
+}
+
 // An error that occurred in the context of a Run.
 message RunErrorData {
   ObjectType metatype = 1;
@@ -1558,6 +1582,17 @@ message RunErrorData {
   optional string title = 32;
   optional TextData text = 33;
   optional NodeReferenceData node_ptr = 34;
+}
+
+// Options for running something.
+message RunOptionsData {
+  ObjectType metatype = 1;
+  optional int32 max_concurrency = 30;
+  optional int32 max_attempts = 31;
+  optional float retry_interval = 32;
+  optional float backoff = 33;
+  optional float max_retry_interval = 34;
+  repeated RunErrorType retry_on = 35;
 }
 
 // The time-based schedule of something.
@@ -1739,6 +1774,8 @@ message BadgeData {
   NodeReferenceData parent_ptr = 4;
   NodeReferenceData package_ptr = 5;
   NodeReferenceData bench_ptr = 6;
+  optional NodeReferenceData template_ptr = 7;
+  optional int64 templated_epoch = 8;
   int64 revision = 10;
   google.protobuf.Timestamp created_at = 11;
   int64 created_epoch = 12;
@@ -1819,6 +1856,8 @@ message BlockData {
   NodeReferenceData parent_ptr = 4;
   NodeReferenceData package_ptr = 5;
   NodeReferenceData bench_ptr = 6;
+  optional NodeReferenceData template_ptr = 7;
+  optional int64 templated_epoch = 8;
   int64 revision = 10;
   google.protobuf.Timestamp created_at = 11;
   int64 created_epoch = 12;
@@ -1841,7 +1880,8 @@ message BlockData {
   optional google.protobuf.Struct value_packed = 40;
   optional google.protobuf.Struct secret_value_packed = 41;
   optional CodeData code = 42;
-  repeated PolicyData delegated_policies = 43;
+  optional RunOptionsData run = 43;
+  repeated PolicyData delegated_policies = 49;
   bool is_builtin = 60;
   bool is_page = 61;
   bool is_protocol = 62;
@@ -1917,6 +1957,8 @@ message DependencyData {
   NodeReferenceData parent_ptr = 4;
   NodeReferenceData package_ptr = 5;
   NodeReferenceData bench_ptr = 6;
+  optional NodeReferenceData template_ptr = 7;
+  optional int64 templated_epoch = 8;
   int64 revision = 10;
   google.protobuf.Timestamp created_at = 11;
   int64 created_epoch = 12;
@@ -1988,6 +2030,8 @@ message FieldData {
   NodeReferenceData parent_ptr = 4;
   NodeReferenceData package_ptr = 5;
   NodeReferenceData bench_ptr = 6;
+  optional NodeReferenceData template_ptr = 7;
+  optional int64 templated_epoch = 8;
   int64 revision = 10;
   google.protobuf.Timestamp created_at = 11;
   int64 created_epoch = 12;
@@ -2048,6 +2092,8 @@ message IdentityData {
   NodeReferenceData parent_ptr = 4;
   NodeReferenceData package_ptr = 5;
   NodeReferenceData bench_ptr = 6;
+  optional NodeReferenceData template_ptr = 7;
+  optional int64 templated_epoch = 8;
   int64 revision = 10;
   google.protobuf.Timestamp created_at = 11;
   int64 created_epoch = 12;
@@ -2069,6 +2115,8 @@ message InviteData {
   NodeReferenceData parent_ptr = 4;
   NodeReferenceData package_ptr = 5;
   NodeReferenceData bench_ptr = 6;
+  optional NodeReferenceData template_ptr = 7;
+  optional int64 templated_epoch = 8;
   int64 revision = 10;
   google.protobuf.Timestamp created_at = 11;
   int64 created_epoch = 12;
@@ -2095,6 +2143,8 @@ message LinkData {
   NodeReferenceData parent_ptr = 4;
   NodeReferenceData package_ptr = 5;
   NodeReferenceData bench_ptr = 6;
+  optional NodeReferenceData template_ptr = 7;
+  optional int64 templated_epoch = 8;
   int64 revision = 10;
   google.protobuf.Timestamp created_at = 11;
   int64 created_epoch = 12;
@@ -2191,6 +2241,8 @@ message MembershipData {
   NodeReferenceData parent_ptr = 4;
   NodeReferenceData package_ptr = 5;
   NodeReferenceData bench_ptr = 6;
+  optional NodeReferenceData template_ptr = 7;
+  optional int64 templated_epoch = 8;
   int64 revision = 10;
   google.protobuf.Timestamp created_at = 11;
   int64 created_epoch = 12;
@@ -2253,6 +2305,7 @@ message BaseNodeData {
   NodeReferenceData parent_ptr = 4;
   NodeReferenceData package_ptr = 5;
   NodeReferenceData bench_ptr = 6;
+  optional int64 templated_epoch = 8;
   int64 revision = 10;
   google.protobuf.Timestamp created_at = 11;
   int64 created_epoch = 12;
@@ -2274,6 +2327,8 @@ message NoticeData {
   NodeReferenceData parent_ptr = 4;
   NodeReferenceData package_ptr = 5;
   NodeReferenceData bench_ptr = 6;
+  optional NodeReferenceData template_ptr = 7;
+  optional int64 templated_epoch = 8;
   int64 revision = 10;
   google.protobuf.Timestamp created_at = 11;
   int64 created_epoch = 12;
@@ -2387,6 +2442,8 @@ message QueryData {
   NodeReferenceData parent_ptr = 4;
   NodeReferenceData package_ptr = 5;
   NodeReferenceData bench_ptr = 6;
+  optional NodeReferenceData template_ptr = 7;
+  optional int64 templated_epoch = 8;
   int64 revision = 10;
   google.protobuf.Timestamp created_at = 11;
   int64 created_epoch = 12;
@@ -2413,6 +2470,8 @@ message RecordData {
   NodeReferenceData parent_ptr = 4;
   NodeReferenceData package_ptr = 5;
   NodeReferenceData bench_ptr = 6;
+  optional NodeReferenceData template_ptr = 7;
+  optional int64 templated_epoch = 8;
   int64 revision = 10;
   google.protobuf.Timestamp created_at = 11;
   int64 created_epoch = 12;
@@ -2437,6 +2496,8 @@ message RoleData {
   NodeReferenceData parent_ptr = 4;
   NodeReferenceData package_ptr = 5;
   NodeReferenceData bench_ptr = 6;
+  optional NodeReferenceData template_ptr = 7;
+  optional int64 templated_epoch = 8;
   int64 revision = 10;
   google.protobuf.Timestamp created_at = 11;
   int64 created_epoch = 12;
@@ -2474,6 +2535,7 @@ message RunData {
   NodeReferenceData root_ptr = 32;
   optional CodeData code = 36;
   optional TextData text = 37;
+  optional RunOptionsData options = 38;
   RunStatus status = 40;
   optional float duration = 41;
   optional google.protobuf.Timestamp scheduled_at = 42;
@@ -2483,6 +2545,7 @@ message RunData {
   optional google.protobuf.Timestamp paused_at = 46;
   optional google.protobuf.Timestamp terminated_at = 47;
   optional int32 terminated_epoch = 48;
+  repeated RetryAttemptData attempts = 49;
   optional google.protobuf.Struct inputs_packed = 50;
   optional google.protobuf.Struct inputs_secret_packed = 51;
   optional google.protobuf.Struct outputs_packed = 52;
@@ -2599,6 +2662,8 @@ message SkipData {
   NodeReferenceData parent_ptr = 4;
   NodeReferenceData package_ptr = 5;
   NodeReferenceData bench_ptr = 6;
+  optional NodeReferenceData template_ptr = 7;
+  optional int64 templated_epoch = 8;
   int64 revision = 10;
   google.protobuf.Timestamp created_at = 11;
   int64 created_epoch = 12;
@@ -2621,6 +2686,8 @@ message SpaceData {
   NodeReferenceData parent_ptr = 4;
   NodeReferenceData package_ptr = 5;
   NodeReferenceData bench_ptr = 6;
+  optional NodeReferenceData template_ptr = 7;
+  optional int64 templated_epoch = 8;
   int64 revision = 10;
   google.protobuf.Timestamp created_at = 11;
   int64 created_epoch = 12;
@@ -2651,6 +2718,8 @@ message StepData {
   NodeReferenceData parent_ptr = 4;
   NodeReferenceData package_ptr = 5;
   NodeReferenceData bench_ptr = 6;
+  optional NodeReferenceData template_ptr = 7;
+  optional int64 templated_epoch = 8;
   int64 revision = 10;
   google.protobuf.Timestamp created_at = 11;
   int64 created_epoch = 12;
@@ -2666,12 +2735,14 @@ message StepData {
   string order_key = 33;
   optional TextData text = 34;
   optional CodeData code = 35;
-  repeated StepConnectionData connections = 36;
+  optional RunOptionsData run = 36;
+  repeated StepConnectionData connections = 37;
   optional TypeInfoData value_type = 40;
   optional google.protobuf.Struct value_packed = 41;
   optional google.protobuf.Struct secret_value_packed = 42;
   optional NodeReferenceData node_ptr = 43;
   optional ExpressionData condition = 46;
+  bool is_template = 60;
 }
 
 // Postgres database.
@@ -2709,6 +2780,8 @@ message TriggerData {
   NodeReferenceData parent_ptr = 4;
   NodeReferenceData package_ptr = 5;
   NodeReferenceData bench_ptr = 6;
+  optional NodeReferenceData template_ptr = 7;
+  optional int64 templated_epoch = 8;
   int64 revision = 10;
   google.protobuf.Timestamp created_at = 11;
   int64 created_epoch = 12;
@@ -2736,6 +2809,8 @@ message UpgradeData {
   NodeReferenceData parent_ptr = 4;
   NodeReferenceData package_ptr = 5;
   NodeReferenceData bench_ptr = 6;
+  optional NodeReferenceData template_ptr = 7;
+  optional int64 templated_epoch = 8;
   int64 revision = 10;
   google.protobuf.Timestamp created_at = 11;
   int64 created_epoch = 12;
@@ -2786,6 +2861,8 @@ message ViewData {
   NodeReferenceData parent_ptr = 4;
   NodeReferenceData package_ptr = 5;
   NodeReferenceData bench_ptr = 6;
+  optional NodeReferenceData template_ptr = 7;
+  optional int64 templated_epoch = 8;
   int64 revision = 10;
   google.protobuf.Timestamp created_at = 11;
   int64 created_epoch = 12;
@@ -2820,6 +2897,7 @@ message ViewData {
   optional bool is_disabled = 81;
   optional bool is_input = 82;
   optional bool is_inline = 83;
+  optional bool is_template = 84;
   optional bool is_loading = 90;
 }
 

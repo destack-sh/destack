@@ -20,7 +20,7 @@ from bench.utils.fractional import INTEGER_ZERO
 from bench.utils.func import IdEnum
 
 if TYPE_CHECKING:
-    from bench.language import Block, Code, Expression, Field, Text, Trigger, TypeInfo
+    from bench.language import Block, Code, Expression, Field, RunOptions, Text, Trigger, TypeInfo
 
 # pyright: reportIncompatibleVariableOverride=false
 
@@ -70,7 +70,10 @@ class Step(Node[StepData], HasValues):
     code: Optional["Code"] = p_regular(
         35, default=None, require=False, array=False, struct=StructType.CODE
     )
-    connections: list[StepConnection] = p_regular(36, array=True, struct=StructType.STEP_CONNECTION)
+    run: Optional["RunOptions"] = p_regular(
+        36, default=None, require=False, array=False, struct=StructType.RUN_OPTIONS
+    )
+    connections: list[StepConnection] = p_regular(37, array=True, struct=StructType.STEP_CONNECTION)
 
     value_type: Optional["TypeInfo"] = p_regular(40, default=None, struct=StructType.TYPE_INFO)
     value_packed: Any = p_value_packed(41)
@@ -84,7 +87,7 @@ class Step(Node[StepData], HasValues):
     )
 
     # flags
-    # ...?
+    is_template: bool = p_regular(60, default=False)
 
     steps: NodeList["Step"] = p_node_child(NodeType.STEP)
     fields: NodeList["Field"] = p_node_child(NodeType.FIELD)

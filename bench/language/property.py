@@ -23,9 +23,7 @@ from bench.language.const import (
     TIMED_NODE_TYPES,
     UNSET,
     EnumType,
-    NodeRelationFlag,
     NodeType,
-    NRel,
     ObjectType,
     PrimitiveType,
     ReferenceKind,
@@ -41,6 +39,7 @@ from bench.language.setup import (
 )
 from bench.language.validation import TypeConstraintIn
 from bench.sql.core import CascadeAction, Column, Table
+from bench.utils.env import IS_DEV
 from bench.utils.func import IdEnum, parse_py_annotation, try_tuple
 from bench.utils.utils import frozendict
 
@@ -128,7 +127,6 @@ class Property(_TypeQueryBuilder if TYPE_CHECKING else object):
     reference_source: Optional["Property"] = None
     reference_on_delete: CascadeAction | None = UNSET
     reference_struct: StructType | None = None  # for struct child types
-    reference_flags: NodeRelationFlag = NodeRelationFlag.DEFAULT
     reference_list_type: type["NodeList"] | type["ValueList"] | None = None
     reference_is_bench_implicit: bool = False
     reference_force_fk: bool = False
@@ -469,7 +467,7 @@ class Property(_TypeQueryBuilder if TYPE_CHECKING else object):
             elif issubclass(annotation.type, enum.IntFlag):
                 self.primitive_type = PrimitiveType.INT64
             elif getattr(annotation.type, "__is_node__", False):
-                raise ValueError(f"cannot store node directly: {self!r}")
+                raise ValueError(f"cannot store/wire node directly: {self!r}")
             elif getattr(annotation.type, "__is_struct_only__", False):
                 assert self.reference_struct is not None, f"missing struct type for {self!r}"
                 self.primitive_type = PrimitiveType.JSON  # robust json
@@ -479,33 +477,34 @@ class Property(_TypeQueryBuilder if TYPE_CHECKING else object):
                     raise ValueError(f"cannot determine storage for {self!r}: {self.py_type_raw!r}")
                 self.primitive_type = primitive_type
 
-        # sanity check some stuff
-        from bench.language.node import Node
-
-        if (
-            self.component.__is_struct_inlined__
-            and self.reference_kind == ReferenceKind.STRUCT_CHILD
-            and self.reference_struct
-        ):
-            referenced_struct_cls = STRUCT_CLASS_BY_TYPE[self.reference_struct]
-            if not referenced_struct_cls.__is_struct_inlined__:
-                raise ValueError(f"{self!r} cannot reference non-inlined struct {self!r}")
-        if self.is_encrypted and not self.is_sensitive:
-            raise ValueError(f"encrypted properties should be sensitive {self!r}")
-        if self.is_encrypted and not self.is_deferred:
-            raise ValueError(f"encrypted properties should be deferred {self!r}")
-        if (
-            self.id is not None
-            and self.id is not UNSET
-            and 10 < self.id < 30  # (below 10 would conflict anyway, above 30 is fine)
-            and self.component.__name__ not in ("Node", "Struct")
-            and self.id not in Node.__properties_by_id__
-        ):
-            raise ValueError(f"can't use system id {self.id} for {self!r}")
-
         # derive type info
         if self.is_introspectable or self.reference_source is not None or self.id == 1:
             self.type_info = self._to_type_info()
+
+        # sanity check some stuff
+        if IS_DEV:
+            from bench.language.node import Node
+
+            if (
+                self.component.__is_struct_inlined__
+                and self.reference_kind == ReferenceKind.STRUCT_CHILD
+                and self.reference_struct
+            ):
+                referenced_struct_cls = STRUCT_CLASS_BY_TYPE[self.reference_struct]
+                if not referenced_struct_cls.__is_struct_inlined__:
+                    raise ValueError(f"{self!r} cannot reference non-inlined struct {self!r}")
+            if self.is_encrypted and not self.is_sensitive:
+                raise ValueError(f"encrypted properties should be sensitive {self!r}")
+            if self.is_encrypted and not self.is_deferred:
+                raise ValueError(f"encrypted properties should be deferred {self!r}")
+            if (
+                self.id is not None
+                and self.id is not UNSET
+                and 10 < self.id < 30  # (below 10 would conflict anyway, above 30 is fine)
+                and self.component.__name__ not in ("Node", "Struct")
+                and self.id not in Node.__properties_by_id__
+            ):
+                raise ValueError(f"can't use system id {self.id} for {self!r}")
 
     def _contribute_ptrs(self, *, is_root: bool, is_inlined: bool) -> tuple["Property", ...]:
         """
@@ -609,7 +608,7 @@ class Property(_TypeQueryBuilder if TYPE_CHECKING else object):
             is_computed = True
             is_internal = True
             on_delete = CascadeAction.CASCADE
-        elif self.reference_kind == ReferenceKind.NODE_REGULAR:
+        elif self.reference_kind in (ReferenceKind.NODE_REGULAR, ReferenceKind.NODE_TEMPLATE):
             assert self.is_required is not UNSET, f"must set is_required on {self!r}"
             assert self.is_list is not UNSET, f"must set is_list on {self!r}"
             is_wired = True
@@ -975,19 +974,30 @@ p_node_ancestor_root = functools.partial(p_node_ancestor, kind=ReferenceKind.NOD
 
 def p_node_child(
     node_type: NodeType,
-    flags: NRel = NRel.DEFAULT,
     list: type["NodeList"] | None = None,
 ) -> Any:
     """Computed read/write children or descendants of the given type."""
     return Property(
         reference_kind=ReferenceKind.NODE_CHILDREN,
         reference_nodes=(node_type,),
-        reference_flags=flags,
         is_internal=True,
         is_required=True,
         is_list=True,
         reference_list_type=list or GraphNodeList,
         is_stored=False,
+    )
+
+
+def p_node_template(id: int) -> Any:
+    """Template property for a node."""
+    return Property(
+        id=id,
+        reference_kind=ReferenceKind.NODE_TEMPLATE,
+        is_internal=True,
+        is_stored=True,
+        is_wired=True,
+        is_list=False,
+        is_system=True,
     )
 
 

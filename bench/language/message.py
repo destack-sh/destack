@@ -6,6 +6,7 @@ from bench.language.const import NodeType, StructType
 from bench.language.node import LINK_TARGET_NODE_TYPES, BasedNode, Node, timed_node
 from bench.language.property import p_node_parent, p_regular, p_value_packed, p_value_runtime
 from bench.language.session import HasSessionContext
+from bench.language.validation import TITLE_CONSTRAINT
 from bench.language.value import HasValues
 from bench.proto.wire import AnyNodeData, MessageData, NodeReferenceData
 
@@ -38,7 +39,7 @@ class Message(BasedNode[MessageData], HasSessionContext, HasValues):
         reply_to_ptr: Optional[NodeReference] = None
 
     # content
-    title: Optional[str] = p_regular(40, require=False, default=None)
+    title: Optional[str] = p_regular(40, require=False, default=None, constraint=TITLE_CONSTRAINT)
     text: Optional["Text"] = p_regular(41, require=False, default=None, struct=StructType.TEXT)
     value_packed: Any = p_value_packed(42)
     secret_value_packed: Any = p_value_packed(43)

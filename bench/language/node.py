@@ -43,6 +43,7 @@ from bench.language.const import (
     TK_LENGTH_BYTES,
     UNSET,
     NodeType,
+    ObjectType,
     ReferenceKind,
     StructType,
     _active_session,
@@ -59,6 +60,7 @@ from bench.language.property import (
     p_node_ancestor_first,
     p_node_child,
     p_node_parent,
+    p_node_template,
     p_regular,
     p_runtime,
     p_struct_parent,
@@ -96,7 +98,7 @@ if TYPE_CHECKING:
         Session,
         User,
     )
-    from bench.language.notice import NoticeHandler, NoticeOptions
+    from bench.language.notice import NoticeHandler, NoticeIn
     from bench.language.query import QueryBuilder
 
 # pyright: reportIncompatibleVariableOverride=false
@@ -219,6 +221,7 @@ _CORE_TYPES = ("Struct", "Node")
 
 def _process_struct_base_cls(
     cls: type[_StructT],
+    object_type: ObjectType | None,
     # for nodes only
     is_final: bool = False,
     is_sub_package: bool = False,
@@ -332,9 +335,18 @@ def _process_struct_base_cls(
             ReferenceKind.NODE_ANCESTOR_FIRST,
             ReferenceKind.NODE_ANCESTOR_ROOT,
             ReferenceKind.NODE_REGULAR,
+            ReferenceKind.NODE_TEMPLATE,
             ReferenceKind.STRUCT_PARENT,
             ReferenceKind.PROPERTY,
         ):
+            if prop.reference_kind == ReferenceKind.NODE_TEMPLATE:
+                if not (is_final and is_node):
+                    prop.is_stored = False
+                    prop.is_wired = False
+                    continue
+                # template points to nodes of same type
+                prop.reference_nodes = (cast(NodeType, object_type),)
+
             for p in prop._contribute_ptrs(is_root=is_root, is_inlined=is_inlined):
                 if p.name in properties_by_name:
                     raise ValueError(
@@ -374,6 +386,8 @@ def _process_struct_base_cls(
                 _remove_magic_prop("package")
         if is_node and (no_ck or not is_sub_package):
             _remove_magic_prop("ck")
+            _remove_magic_prop("template")
+            _remove_magic_prop("templated_epoch")
             _remove_magic_prop("computed_properties")
             # don't need to store set_properties if it's not a full source node
             # (but still want it at runtime/wired, e.g. for optimistic overrides)
@@ -423,7 +437,9 @@ def _process_struct_base_cls(
                 ("ck", "ck", "ck"),
                 ("type", "metatype", "type"),
             ):
-                if postfix == "type" and len(cast(tuple[NodeType, ...], prop.reference_nodes)) <= 1:
+                if postfix == "type" and (
+                    not prop.reference_nodes or len(prop.reference_nodes) <= 1
+                ):
                     continue  # no need for type if only one possible node type
                 computed_prop = _node_ref_computed_prop(
                     ref_key, ptr_key, prop, prop.reference_wired_ptr
@@ -539,7 +555,7 @@ def struct_component(
 
     def decorate(cls_in: Type[_StructT]) -> Type[_StructT]:
         cls, _properties = _process_struct_base_cls(
-            cls=cast(Any, cls_in), is_final=is_final, is_inlined=is_inlined
+            cls=cast(Any, cls_in), object_type=struct_type, is_final=is_final, is_inlined=is_inlined
         )
 
         # register struct
@@ -586,6 +602,7 @@ def node_component(
     def decorate(cls: Type[_NodeT]) -> Type[_NodeT]:
         cls, properties = _process_struct_base_cls(
             cls=cls,
+            object_type=node_type,
             is_root=is_root,
             is_variable_root=is_variable_root,
             is_sub_bench=is_sub_bench,
@@ -840,6 +857,12 @@ def _node_ref_computed_prop(
 
 StructDataT = TypeVar("StructDataT", bound="Union[AnyStructData, AnyNodeData]")
 
+# nocheckin :Architecture! :Cleanup!: extract & type (Inline)Struct/Node/PackageNode parent/order_key/etc.
+#   Struct.parent/order_key/.. in a covariant and specialized way.
+#   Probably want a more general uber-class like _Object, then InlineStruct/Struct/Node/PackageNode.
+#  (subclasses make it more specific like Field.parent:Block..
+#   see all the parent # type: ignore / reportIncompatibleVariableOverride errors)
+
 
 @struct_component()
 class Struct(abc.ABC, Generic[StructDataT]):
@@ -880,14 +903,8 @@ class Struct(abc.ABC, Generic[StructDataT]):
     __is_struct_inlined__: ClassVar[bool] = False
     __is_node__: ClassVar[bool] = False
 
-    # TODO :Architecture :Cleanup: extract & type (Inline)Struct/Node parent/order_key/etc.
-    #   Struct.parent/order_key/.. in a covariant and specialized way.
-    #   Probably want a more general uber-class like Object, then InlineStruct/Struct/Node.
-    #  (subclasses make it more specific like Field.parent:Block..
-    #   see all the parent # type: ignore / reportIncompatibleVariableOverride errors)
-
-    # NOTE: struct identity props (id/parent/....) only exist if not inlined & not node :MagicProps
-    # (Struct.id is optional so that external clients don't need to generate ids for every struct,
+    # NOTE :Architecture: struct identity props (id/parent/....) only exist sometimes :MagicProps
+    #  (if not inlined & not node, Struct.id is optional so that external clients don't need to generate ids for every struct,
     #  and also so that its field presence is tracked and we can validate that it is set when needed)
     id: int = p_system(2, default_factory=new_struct_id)
     parent: Union["Struct", "Node", "Object", None] = p_struct_parent(3)
@@ -899,7 +916,7 @@ class Struct(abc.ABC, Generic[StructDataT]):
     order_key: str | None = p_internal(9, default=None)
     # for source nodes:
     # computed_properties: dict[int, ValueReference] | None = p_regular(28)
-    # for branched/templated instances
+    # for overlay branched/templated instances (the *additional* set properties)
     set_properties: list[int] = p_regular(29, array=True)
 
     _is_interped: bool = p_runtime(default=False)
@@ -1397,7 +1414,10 @@ class Node(Struct[NodeDataT], Generic[NodeDataT]):
         5, NodeType.PACKAGE, require=True, store=True, wire=True, is_bench_implicit=True
     )
     bench: "Bench" = p_node_ancestor_first(6, NodeType.BENCH, require=True, store=True, wire=True)
-    # template: Optional["Node"] = ...
+    template: Optional["Node"] = p_node_template(7)
+    templated_epoch: int | None = p_system(
+        8, require=False, default=None, autoset=True, primitive_type=PrimitiveType.INT64
+    )
     if TYPE_CHECKING:
         package_id: Optional[UUID] = None
         bench_id: Optional[UUID] = None
@@ -1422,7 +1442,7 @@ class Node(Struct[NodeDataT], Generic[NodeDataT]):
     )
     deleted_at: Optional[datetime] = p_system(15, default=None, autoset=True)
     archived_at: Optional[datetime] = p_system(16, default=None, autoset=True)
-    # changed_at (for nested), active_at (for runs), ...?
+    # changed_at (for nested), active_at (for runnables), ...?
     created_by: EditSubject | None = p_system(
         21,
         default=None,
@@ -1609,6 +1629,7 @@ class Node(Struct[NodeDataT], Generic[NodeDataT]):
         elif self.parent is None:
             return f"<detached>/{self.bench_path_key}"
         else:
+            # NOTE :Broken: Node.absolute_path is a mess & incorrect
             path_segments: list[str] = []
             current = self
             while current is not None:
@@ -1701,7 +1722,7 @@ class Node(Struct[NodeDataT], Generic[NodeDataT]):
         self,
         subject: "Struct",
         type: "NoticeType",
-        options: Optional["NoticeOptions"],
+        options: Optional["NoticeIn"],
     ) -> None:
         pass  # TODO :Incomplete: Notices
 

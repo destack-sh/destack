@@ -6,6 +6,7 @@ from bench.language.const import BenchError, EnumType, NodeType, NoticeKind, Str
 from bench.language.node import LINK_TARGET_NODE_TYPES, Node, Property, node
 from bench.language.property import p_node_parent, p_regular
 from bench.language.text import Text
+from bench.language.validation import TITLE_CONSTRAINT
 from bench.proto.wire import NoticeData
 from bench.utils.func import IdEnum
 
@@ -81,7 +82,7 @@ class Notice(Node[NoticeData]):
     )
 
     # content
-    title: Optional[str] = p_regular(40, require=False, default=None)
+    title: Optional[str] = p_regular(40, require=False, default=None, constraint=TITLE_CONSTRAINT)
     text: Optional["Text"] = p_regular(41, require=False, default=None, struct=StructType.TEXT)
     # value_packed, value: ... # custom value
 
@@ -93,7 +94,7 @@ class Notice(Node[NoticeData]):
         return self.parent.id if self.parent is not None else None
 
 
-class NoticeOptions(TypedDict, total=False):
+class NoticeIn(TypedDict, total=False):
     subject: Optional["Node"]  # if distinct form subject/parent
     title: Optional[str]
     text: Optional[str | Text]
@@ -101,13 +102,13 @@ class NoticeOptions(TypedDict, total=False):
     properties: Optional[Collection[Property] | Collection[Any]]
 
 
-NoticeHandler = Callable[["Struct", NoticeType, Optional[NoticeOptions]], None]
+NoticeHandler = Callable[["Struct", NoticeType, Optional[NoticeIn]], None]
 
 
 def on_warning_raise(
     subject: "Struct",
     type: "NoticeType",
-    options: Optional[NoticeOptions] = None,
+    options: Optional[NoticeIn] = None,
     min_level: NoticeKind = NoticeKind.WARNING,
 ):
     if type.kind < min_level:

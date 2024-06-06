@@ -280,7 +280,7 @@ defineExpose<ViewExposed>({ self, actions, focus });
     :orientation="Orientation.VERTICAL"
     :track-width="ScrollbarWidth.md"
     track-is-overlay
-    class="bg-white"
+    class=""
     @click.stop="queryRef?.focus()"
   >
     <!-- Magic floating query -->
@@ -400,7 +400,7 @@ defineExpose<ViewExposed>({ self, actions, focus });
         <!-- ... -->
       </li>
     </ul>
-    <div v-else-if="type == ViewType.EXPLORE" class="flex h-full w-full flex-col justify-center bg-white text-center">
+    <div v-else-if="type == ViewType.EXPLORE" class="flex h-full w-full flex-col justify-center text-center">
       <!-- Empty state -->
       <button
         class="mx-auto flex flex-row items-center rounded px-2 py-0.5 text-gray-700 hover:text-primary-900"
@@ -417,11 +417,11 @@ defineExpose<ViewExposed>({ self, actions, focus });
         <span class="ml-2.5">Page</span>
       </button>
     </div>
-    <div v-else class="flex h-full w-full flex-col justify-center bg-white text-center">
+    <div v-else class="flex h-full w-full flex-col justify-center text-center">
       <!-- Missing state -->
       <span>
         <i class="fas fa-empty-set text-gray-500" />
-        <span class="ml-1.5 text-gray-600">Select Node to Inspect</span>
+        <span class="ml-1.5 text-gray-600">{{ rootPtr != null ? "Nothing Here Yet" : "Select Node to Inspect" }}</span>
       </span>
     </div>
   </Scroll>
