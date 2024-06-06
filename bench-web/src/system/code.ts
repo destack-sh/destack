@@ -23,7 +23,6 @@ export function mapPmDocToCode(doc: PmText, prev: CodeData | undefined): CodeDat
     const line: CodeLineData = {
       metatype: ObjectType.CODE_LINE,
       id: lineIdx++,
-      setProperties: [],
       content: linePm,
     };
     lines.push(line);
@@ -31,7 +30,6 @@ export function mapPmDocToCode(doc: PmText, prev: CodeData | undefined): CodeDat
   const code: CodeData = {
     metatype: ObjectType.CODE,
     id: prev?.id ?? newStructId(),
-    setProperties: [],
     lines,
   };
   return code;

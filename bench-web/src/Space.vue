@@ -156,7 +156,7 @@ watch([canvas.focusedViewPtr, bench], () => {
         ...mainOffsetStyle,
       }"
     >
-      <div v-if="space" class="flex w-fit flex-col gap-y-2 self-center">
+      <div v-if="space && bench" class="flex w-fit flex-col gap-y-2 self-center">
         <!-- Space empty for some reason -->
         <span>
           <i class="fas fa-empty-set mr-1.5 text-gray-500" />

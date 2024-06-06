@@ -606,7 +606,7 @@ def edit_graph(
             # implicit metadata
             node.updated_at = edit.edited_at
             if "updated_epoch" in node.__properties__:
-                node.updated_epoch = edit.epoch
+                setattr(node, "updated_epoch", edit.epoch)
             setattr(node, "updated_by_ptr", edit.subject_ptr)
             node.revision = edit.revision
             if edit_type == EditType.ARCHIVE:

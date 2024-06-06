@@ -44,7 +44,7 @@ from bench.language.const import (
 )
 from bench.language.expression import C, Expression, ExpressionOps, NodeReference
 from bench.language.graph import NodeDataGraph
-from bench.language.node import NODE_CLASS_BY_TYPE, UNSET, Node
+from bench.language.node import NODE_CLASS_BY_TYPE, UNSET, BenchNode, Node
 from bench.language.query import FILTER_VISIBLE, SELECT_ALL_PROPERTIES, ReadOptions
 from bench.language.setup import (
     DESCENDANT_NODE_TYPES_IN_STORE,
@@ -99,6 +99,7 @@ def _trace_pg_span(func):
     @wraps(func)
     @tracer.start_as_current_span(f"pg.{func_name[3:]}")
     async def wrapped(**kwargs):
+        # extract out all the interesting attributes for the span
         cur = kwargs.get("cur")
         assert isinstance(cur, psycopg.AsyncCursor), f"bad cur for {func.__name__}: {cur!r}"
         span = trace.get_current_span()
@@ -110,10 +111,13 @@ def _trace_pg_span(func):
         node_type = kwargs.get("node_type")
         if node_type is not None:
             span.set_attribute("node_type", NodeType(node_type).bench_name)
+
+        # forward call
         try:
             return await func(**kwargs)  # type: ignore
         except Exception as e:
-            logger.error(f"{func_name}.error", **kwargs, exc_info=e, span="current")
+            # debug, not error, because this may not be an actual error at the application level
+            logger.debug(f"{func_name}.error", **kwargs, exc_info=e, span="current")
             raise
 
     return wrapped
@@ -1829,7 +1833,7 @@ async def _pg_edit_batch(
     ):
         # collect dynamic columns (incl. implicit metadata)
         implicit_properties: list[Property | Any] = [node_cls.updated_at, node_cls.updated_by]
-        if "updated_epoch" in node_cls.__properties__:
+        if issubclass(node_cls, BenchNode):
             implicit_properties.append(node_cls.updated_epoch)
         if edit_type in (EditType.ARCHIVE, EditType.UNARCHIVE):
             implicit_properties.append(node_cls.archived_at)

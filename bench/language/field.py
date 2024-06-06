@@ -374,7 +374,7 @@ class TypeInfoBase(HasValues):
 
 
 @struct(StructType.TYPE_INFO)
-class TypeInfo(TypeInfoBase):
+class TypeInfo(Struct, TypeInfoBase):
     pass
 
 

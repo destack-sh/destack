@@ -26,6 +26,12 @@ class Code(Struct):
     # language: ...
     lines: list[CodeLine] = p_regular(30, require=True, array=True, struct=StructType.CODE_LINE)
 
+    def __content_str__(self) -> str:
+        preview_str = "\\n".join(line.content for line in self.lines[:3])
+        if len(preview_str) > 100:
+            preview_str = preview_str[:100] + "..."
+        return f"'{preview_str}', {len(self.lines)} lines"
+
     def to_string(self) -> str:
         return code_to_string(self)
 

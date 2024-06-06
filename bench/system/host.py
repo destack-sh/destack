@@ -398,6 +398,7 @@ class Host(GraphIoServiceBase, HostBase, HostSpec):
             if last_epoch is not None:
                 self.epoch = last_epoch
             else:
+                self.epoch = 1  # start at 1
                 logger.debug("host.start.no_logs", host=self, bench=self._bench)
 
         # start plugins

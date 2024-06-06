@@ -212,7 +212,7 @@ def _get_component_methods(
     return tuple(methods)
 
 
-_CORE_TYPES = ("BuiltinObject", "InlineStruct", "Struct", "Node")
+_BASE_OBJECT_NAMES = ("BuiltinObject", "InlineStruct", "Struct", "Node")
 
 
 def _process_object_cls[ObjectT: BuiltinObject](
@@ -251,7 +251,7 @@ def _process_object_cls[ObjectT: BuiltinObject](
 
     if IS_DEV or IS_TEST:
         # check that no forbidden methods are defined in non-base classes
-        if cls.__name__ not in _CORE_TYPES:
+        if cls.__name__ not in _BASE_OBJECT_NAMES:
             for name in _FORBIDDEN_COMPONENT_METHODS:
                 meth = getattr(cls, name, None)
                 good_meths = (getattr(cls, name, None) for cls in (Struct, Node, Node))
@@ -260,7 +260,7 @@ def _process_object_cls[ObjectT: BuiltinObject](
 
         # check components
         for component in static_components[1:]:
-            if component.__name__ in _CORE_TYPES:
+            if component.__name__ in _BASE_OBJECT_NAMES:
                 continue  # ignore base classes
             if is_node and component.__is_struct_inlined__:
                 raise ValueError(f"node {cls} has inlined struct {component}")
@@ -297,12 +297,12 @@ def _process_object_cls[ObjectT: BuiltinObject](
     for component in reversed(static_components):
         for name, prop in component.__own_properties__.items():
             existing = properties_by_name.get(name)
-            # override parent/id with more specific properties
+            # allow overriding system properties with more specific properties
             if (
                 existing is None
-                or name == "id"
-                or name.startswith("parent")
                 or existing.id is UNSET
+                or existing.id is None
+                or ((prop.id is UNSET or prop.id is None or prop.id < 30) and existing.id < 30)
             ):
                 prop = prop.clone()
                 prop.component = cls
@@ -526,7 +526,9 @@ def struct(struct_type: StructType, inline: bool = False):
         cls = object_component(struct_type=struct_type, is_final=True, is_inlined=inline)(cls)
         if IS_DEV and cls.__name__ != "Struct" and cls.__name__ != "InlineStruct":
             if not issubclass(cls, (InlineStruct, Struct)):
-                raise ValueError(f"{cls} is not a struct for {struct_type}")
+                raise ValueError(f"{cls} is not a struct")
+            if issubclass(cls, Node):
+                raise ValueError(f"{cls} is a node for {struct_type}")
 
             # check that inline matches inheriting InlineStruct
             is_cls_inlined = not issubclass(cls, Struct)
@@ -656,6 +658,10 @@ def node(
         cls.__is_sub_package__ = sub_package
         cls.__is_in_bench__ = in_bench
         cls.__is_sub_bench__ = sub_bench
+
+        if IS_DEV:
+            if issubclass(cls, (InlineStruct, Struct)):
+                raise ValueError(f"{cls} is a struct")
 
         return cls
 
@@ -792,13 +798,6 @@ def _node_ref_computed_prop(
     return property(get, set)
 
 
-# nocheckin :Architecture! :Cleanup!: extract & type (Inline)Struct/Node/PackageNode parent/order_key/etc.
-#   Struct.parent/order_key/.. in a covariant and specialized way.
-#   Probably want a more general uber-class like _Object, then InlineStruct/Struct/Node/PackageNode.
-#  (subclasses make it more specific like Field.parent:Block..
-#   see all the parent # type: ignore / reportIncompatibleVariableOverride errors)
-
-
 @object_component()
 class BuiltinObject[ObjectDataT: AnyNodeData | AnyStructData](abc.ABC):
     """The base for all intrinsic objects like Structs and Nodes and their derivatives."""
@@ -921,7 +920,7 @@ class BuiltinObject[ObjectDataT: AnyNodeData | AnyStructData](abc.ABC):
         else:
             return self.equals_content(other)
 
-    def __getattr(self, item):
+    def _do_get(self, item):
         attr = self.__dict__.get(item, UNSET)
         if attr is not UNSET:
             return attr
@@ -962,7 +961,7 @@ class BuiltinObject[ObjectDataT: AnyNodeData | AnyStructData](abc.ABC):
         else:
             raise AttributeError(f"{self!r} has no attribute '{item}'")
 
-    def __setattr(self, key: str, value):
+    def _do_set(self, key: str, value, *, dont_track: bool = False):
         """Sets *any* attribute on this node (incl. slots)."""
         session = self.__dict__.get("_session", None)
         is_tracked = session is not None and session is not UNSET
@@ -981,7 +980,7 @@ class BuiltinObject[ObjectDataT: AnyNodeData | AnyStructData](abc.ABC):
 
             # validate/set
             old_value = self.__dict__.get(key)
-            if is_tracked:
+            if is_tracked and not dont_track:
                 # coerce & check type
                 if prop.type_info is not None and prop.reference_source is None:
                     value = coerce_value(value, prop.type_info, self, prop, prop)
@@ -1000,7 +999,7 @@ class BuiltinObject[ObjectDataT: AnyNodeData | AnyStructData](abc.ABC):
                 wired_ptr = prop.to_wired_ptr(cast(Any, value))
                 object.__setattr__(self, prop.reference_wired_ptr.name, wired_ptr)
 
-            if is_tracked:
+            if is_tracked and not dont_track:
                 # notify
                 self._updated_self((prop,))
                 if self.__is_node__:
@@ -1035,8 +1034,8 @@ class BuiltinObject[ObjectDataT: AnyNodeData | AnyStructData](abc.ABC):
     if not TYPE_CHECKING:
         # NOTE: __setattr__/__getattr__ confuses type checking, so only define it at runtime
         #  (we don't need it since dynamic access is meant for Values at runtime)
-        __getattr__ = __getattr
-        __setattr__ = __setattr
+        __getattr__ = _do_get
+        __setattr__ = _do_set
 
     def _copy(self, **update) -> "Self":
         kwargs = {
@@ -1227,6 +1226,11 @@ class InlineStruct[StructDataT: AnyStructData](BuiltinObject[StructDataT], abc.A
     __is_struct_inlined__: ClassVar[bool] = True
     __is_struct__: ClassVar[bool] = True
 
+    parent: Union["BuiltinObject", "Object", None] = p_struct_parent(3, wire=False)
+    if TYPE_CHECKING:
+        parent_id: int | None = None
+        parent_key: str | None = None
+
     @final
     def __repr__(self):
         content_str = str(self)
@@ -1277,11 +1281,9 @@ class Struct[StructDataT: AnyStructData](InlineStruct[StructDataT], abc.ABC):
     __is_struct_inlined__: ClassVar[bool] = False
     __is_struct__: ClassVar[bool] = True
 
+    parent: Union["BuiltinObject", "Object", None] = p_struct_parent(3, wire=False)
     id: int = p_system(2, default_factory=new_struct_id)
-    parent: Union["Struct", "Node", "Object", None] = p_struct_parent(3)
-    if TYPE_CHECKING:
-        parent_id: int | None = None
-        parent_key: str | None = None
+
     order_key: str | None = p_internal(9, default=None)
 
     @final
@@ -1358,13 +1360,7 @@ class Node[NodeDataT: AnyNodeData](BuiltinObject[NodeDataT], abc.ABC):
         primitive_type=PrimitiveType.INT64,
     )
     created_at: datetime = p_system(11, default=None, require=True, autoset=True)
-    created_epoch: int = p_system(
-        12, default=-1, default_sql=None, autoset=True, primitive_type=PrimitiveType.INT64
-    )
     updated_at: datetime = p_system(13, default=None, require=True, autoset=True)
-    updated_epoch: int = p_system(
-        14, default=-1, default_sql=None, autoset=True, primitive_type=PrimitiveType.INT64
-    )
     deleted_at: Optional[datetime] = p_system(15, default=None, autoset=True)
     archived_at: Optional[datetime] = p_system(16, default=None, autoset=True)
     # changed_at (for nested), active_at (for runnables), ...?
@@ -1562,7 +1558,7 @@ class Node[NodeDataT: AnyNodeData](BuiltinObject[NodeDataT], abc.ABC):
                 if next_parent is None:
                     break
                 elif next_parent.metatype == NodeType.PACKAGE:
-                    next_parent = cast(Package, next_parent).bench
+                    next_parent = cast("Package", next_parent).bench
                 elif next_parent.metatype == NodeType.BRANCH:
                     next_parent = next_parent.parent
                 # skip bench & branch (same path as pkg)
@@ -1829,6 +1825,12 @@ class BenchNode[NodeDataT: AnyNodeData](Node[NodeDataT], abc.ABC):
     if TYPE_CHECKING:
         bench_id: Optional[UUID] = None
         bench_ptr: Optional[NodeReference] = None
+    created_epoch: int = p_system(
+        12, default=-1, default_sql=None, autoset=True, primitive_type=PrimitiveType.INT64
+    )
+    updated_epoch: int = p_system(
+        14, default=-1, default_sql=None, autoset=True, primitive_type=PrimitiveType.INT64
+    )
 
     @property
     def is_attached(self) -> bool:
@@ -1869,6 +1871,7 @@ class SourceNode[NodeDataT: AnyNodeData](IdentityNode[NodeDataT], abc.ABC):
     if TYPE_CHECKING:
         template_id: Optional[UUID] = None
         template_ptr: Optional[NodeReference] = None
+    set_properties: list[int] = p_regular(29, array=True, store=True)
 
 
 @node_component()

@@ -117,19 +117,18 @@ export function mapPmNodeToText(node: PmNode, prev: TextData | undefined): TextD
       metatype: ObjectType.TEXT_LINE,
       id: lineNode.attrs.id ?? newStructId(),
       orderKey: orderKeys[lineIdx],
-      setProperties: [],
       type: lineNode.attrs.type,
       spans,
     };
     lines.push(line);
   }
 
-  const text: TextData = { metatype: ObjectType.TEXT, id: prev?.id ?? newStructId(), setProperties: [], lines };
+  const text: TextData = { metatype: ObjectType.TEXT, id: prev?.id ?? newStructId(), lines };
   return text;
 }
 
 export function emptyText(): TextData {
-  return { metatype: ObjectType.TEXT, id: newStructId(), setProperties: [], lines: [] };
+  return { metatype: ObjectType.TEXT, id: newStructId(), lines: [] };
 }
 
 export function trimText(text: TextData, numLines: number): TextData {

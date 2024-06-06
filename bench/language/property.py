@@ -115,7 +115,9 @@ class Property(_TypeQueryBuilder if TYPE_CHECKING else object):
     value_packed_ptr: Union[int, "Property", None] = None  # the packed value
     secret_value_packed_ptr: Union[int, "Property", None] = None  # the secret packed value
     value_type_info_ptr: Union[int, "Property", None] = None  # the type info for the value
-    value_type_info_getter: Callable[["Struct"], "TypeInfoBase"] | None = None  # type info getter
+    value_type_info_getter: Callable[["BuiltinObject"], "TypeInfoBase"] | None = (
+        None  # type info getter
+    )
 
     # references (nodes and struct/value)
     reference_kind: ReferenceKind | None = None
@@ -320,12 +322,16 @@ class Property(_TypeQueryBuilder if TYPE_CHECKING else object):
             if self.is_node_reference or self.is_property_reference:
                 return (cast(Union["Node", "Property"], ref)).to_ref()
             elif self.is_struct_reference:
-                from bench.language import Object, Struct
-
-                ref = cast(Union["BuiltinObject", "Object"], ref)
-                if isinstance(ref, (Object, Struct)):
-                    assert isinstance(ref.id, int), f"bad {self!r}: {ref!r}.id={ref.id}"
-                    return ref.id
+                maybe_ref = cast(Union["BuiltinObject", "Object"], ref)
+                if maybe_ref.__class__.__name__ == "Object" or (
+                    getattr(maybe_ref, "__is_struct__", False)
+                    and not getattr(maybe_ref, "__is_struct_inlined__", False)
+                ):
+                    struct_ref = cast("Struct", maybe_ref)
+                    assert isinstance(
+                        struct_ref.id, int
+                    ), f"bad {self!r}: {ref!r}.id={struct_ref.id}"
+                    return struct_ref.id
                 else:
                     return None  # not stored
         raise ValueError(f"unexpected ref {ref!r} for {self!r}")
@@ -482,8 +488,6 @@ class Property(_TypeQueryBuilder if TYPE_CHECKING else object):
 
         # sanity check some stuff
         if IS_DEV:
-            from bench.language.node import Node
-
             if (
                 self.component.__is_struct_inlined__
                 and self.reference_kind == ReferenceKind.STRUCT_CHILD
@@ -496,14 +500,6 @@ class Property(_TypeQueryBuilder if TYPE_CHECKING else object):
                 raise ValueError(f"encrypted properties should be sensitive {self!r}")
             if self.is_encrypted and not self.is_deferred:
                 raise ValueError(f"encrypted properties should be deferred {self!r}")
-            if (
-                self.id is not None
-                and self.id is not UNSET
-                and 10 < self.id < 30  # (below 10 would conflict anyway, above 30 is fine)
-                and self.component.__name__ not in ("BuiltinObject")
-                and self.id not in Node.__properties_by_id__
-            ):
-                raise ValueError(f"can't use system id {self.id} for {self!r}")
 
     def _contribute_ptrs(self, *, is_root: bool, is_inlined: bool) -> tuple["Property", ...]:
         """
@@ -1000,7 +996,7 @@ def p_node_template(id: int) -> Any:
     )
 
 
-def p_struct_parent(id: int) -> Any:
+def p_struct_parent(id: int, wire: bool) -> Any:
     """The parent of a struct."""
     return Property(
         id=id,
@@ -1008,7 +1004,7 @@ def p_struct_parent(id: int) -> Any:
         reference_nodes=(),
         is_internal=True,
         is_stored=True,
-        is_wired=True,
+        is_wired=wire,
         is_list=False,
     )
 
@@ -1017,7 +1013,7 @@ def p_value_runtime(
     packed: int,
     secret_packed: int | None = None,
     *,
-    type: int | Callable[["Struct"], "TypeInfoBase"] | None = None,
+    type: int | Callable[["BuiltinObject"], "TypeInfoBase"] | None = None,
 ) -> Any:
     """Runtime-only property for a Value and secret value."""
     value_type_info_id = None

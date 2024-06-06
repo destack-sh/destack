@@ -153,10 +153,8 @@ def pack_object[T: AnyStructData | AnyNodeData](
     """Pack a struct and any contained structs."""
     data_cls = PROTO_CLASS_BY_TYPE[obj.metatype]
     metatype = pack_enum(ObjectType, obj.metatype)  # type: ignore
-    if expect is not None:
-        expected_metatype = OBJECT_TYPE_BY_PROTO_CLASS[expect]
-        if metatype != expected_metatype:
-            raise RuntimeError(f"expected {expect.__name__} but got {metatype}")
+    if expect is not None and not issubclass(data_cls, expect):
+        raise RuntimeError(f"expected {expect.__name__} but got {data_cls}")
     data = data_cls(metatype=metatype)  # type: ignore
     try:
         for prop in obj.__wired_properties__.values():
@@ -186,7 +184,7 @@ def unpack_object[T: BuiltinObject](
 ) -> T:
     """Unpack a struct and any contained structs."""
     object_cls = OBJECT_CLASS_BY_TYPE[ObjectType(obj_data.metatype)]  # type: ignore
-    if expect and object_cls != expect:
+    if expect and not issubclass(object_cls, expect):
         raise RuntimeError(f"expected {expect} but got {object_cls}")
     object_kwargs = {}
     try:

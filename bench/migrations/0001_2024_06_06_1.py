@@ -1,8 +1,8 @@
-# This migration was automatically generated on 2024.06.04. Edit as needed.
+# This migration was automatically generated on 2024.06.06. Edit as needed.
 import psycopg
 
 ID = 1
-VERSION = "2024.06.04.0"
+VERSION = "2024.06.06.1"
 HAS_GLOBAL = True
 HAS_LOCAL = True
 
@@ -13,9 +13,9 @@ HAS_LOCAL = True
 
 
 async def upgrade_global(cur: psycopg.AsyncCursor):
-    await cur.execute('CREATE EXTENSION IF NOT EXISTS "pgcrypto"')
     await cur.execute('CREATE EXTENSION IF NOT EXISTS "uuid-ossp"')
     await cur.execute('CREATE EXTENSION IF NOT EXISTS "bloom"')
+    await cur.execute('CREATE EXTENSION IF NOT EXISTS "pgcrypto"')
 
     # bench_migration
     await cur.execute(
@@ -35,9 +35,12 @@ async def upgrade_global(cur: psycopg.AsyncCursor):
         """
     CREATE TABLE "bench_bench" (
         "id" uuid NOT NULL PRIMARY KEY,
+        "bench_id" uuid NOT NULL,
         "revision" bigint NOT NULL,
         "created_at" timestamp NOT NULL,
+        "created_epoch" bigint NOT NULL,
         "updated_at" timestamp NOT NULL,
+        "updated_epoch" bigint NOT NULL,
         "deleted_at" timestamp,
         "archived_at" timestamp,
         "created_by_id" uuid,
@@ -161,6 +164,10 @@ async def upgrade_global(cur: psycopg.AsyncCursor):
         "parent_type" smallint NOT NULL,
         "package_id" uuid NOT NULL,
         "bench_id" uuid NOT NULL,
+        "template_id" uuid,
+        "template_ck" uuid,
+        "template_bench_id" uuid,
+        "templated_epoch" bigint,
         "revision" bigint NOT NULL,
         "created_at" timestamp NOT NULL,
         "created_epoch" bigint NOT NULL,
@@ -196,6 +203,10 @@ async def upgrade_global(cur: psycopg.AsyncCursor):
         "parent_id" uuid NOT NULL,
         "package_id" uuid NOT NULL,
         "bench_id" uuid NOT NULL,
+        "template_id" uuid,
+        "template_ck" uuid,
+        "template_bench_id" uuid,
+        "templated_epoch" bigint,
         "revision" bigint NOT NULL,
         "created_at" timestamp NOT NULL,
         "created_epoch" bigint NOT NULL,
@@ -226,6 +237,10 @@ async def upgrade_global(cur: psycopg.AsyncCursor):
         "parent_id" uuid NOT NULL,
         "package_id" uuid NOT NULL,
         "bench_id" uuid NOT NULL,
+        "template_id" uuid,
+        "template_ck" uuid,
+        "template_bench_id" uuid,
+        "templated_epoch" bigint,
         "revision" bigint NOT NULL,
         "created_at" timestamp NOT NULL,
         "created_epoch" bigint NOT NULL,
@@ -274,6 +289,10 @@ async def upgrade_global(cur: psycopg.AsyncCursor):
         "parent_type" smallint NOT NULL,
         "package_id" uuid NOT NULL,
         "bench_id" uuid NOT NULL,
+        "template_id" uuid,
+        "template_ck" uuid,
+        "template_bench_id" uuid,
+        "templated_epoch" bigint,
         "revision" bigint NOT NULL,
         "created_at" timestamp NOT NULL,
         "created_epoch" bigint NOT NULL,
@@ -311,6 +330,10 @@ async def upgrade_global(cur: psycopg.AsyncCursor):
         "parent_base_ck" uuid,
         "package_id" uuid NOT NULL,
         "bench_id" uuid NOT NULL,
+        "template_id" uuid,
+        "template_ck" uuid,
+        "template_bench_id" uuid,
+        "templated_epoch" bigint,
         "revision" bigint NOT NULL,
         "created_at" timestamp NOT NULL,
         "created_epoch" bigint NOT NULL,
@@ -352,6 +375,10 @@ async def upgrade_global(cur: psycopg.AsyncCursor):
         "parent_type" smallint NOT NULL,
         "package_id" uuid NOT NULL,
         "bench_id" uuid NOT NULL,
+        "template_id" uuid,
+        "template_ck" uuid,
+        "template_bench_id" uuid,
+        "templated_epoch" bigint,
         "revision" bigint NOT NULL,
         "created_at" timestamp NOT NULL,
         "created_epoch" bigint NOT NULL,
@@ -380,6 +407,7 @@ async def upgrade_global(cur: psycopg.AsyncCursor):
         "value_packed" jsonb,
         "secret_value_packed" bytea,
         "code" jsonb,
+        "run" jsonb,
         "delegated_policies" jsonb[] NOT NULL,
         "is_builtin" boolean NOT NULL DEFAULT false,
         "is_page" boolean NOT NULL DEFAULT false,
@@ -402,6 +430,10 @@ async def upgrade_global(cur: psycopg.AsyncCursor):
         "parent_type" smallint NOT NULL,
         "package_id" uuid NOT NULL,
         "bench_id" uuid NOT NULL,
+        "template_id" uuid,
+        "template_ck" uuid,
+        "template_bench_id" uuid,
+        "templated_epoch" bigint,
         "revision" bigint NOT NULL,
         "created_at" timestamp NOT NULL,
         "created_epoch" bigint NOT NULL,
@@ -440,6 +472,12 @@ async def upgrade_global(cur: psycopg.AsyncCursor):
         "parent_type" smallint NOT NULL,
         "package_id" uuid NOT NULL,
         "bench_id" uuid NOT NULL,
+        "template_id" uuid,
+        "template_ck" uuid,
+        "template_bench_id" uuid,
+        "template_base_ck" uuid,
+        "template_base_bench_id" uuid,
+        "templated_epoch" bigint,
         "revision" bigint NOT NULL,
         "created_at" timestamp NOT NULL,
         "created_epoch" bigint NOT NULL,
@@ -490,6 +528,10 @@ async def upgrade_global(cur: psycopg.AsyncCursor):
         "parent_ck" uuid NOT NULL,
         "package_id" uuid NOT NULL,
         "bench_id" uuid NOT NULL,
+        "template_id" uuid,
+        "template_ck" uuid,
+        "template_bench_id" uuid,
+        "templated_epoch" bigint,
         "revision" bigint NOT NULL,
         "created_at" timestamp NOT NULL,
         "created_epoch" bigint NOT NULL,
@@ -527,6 +569,10 @@ async def upgrade_global(cur: psycopg.AsyncCursor):
         "parent_type" smallint NOT NULL,
         "package_id" uuid NOT NULL,
         "bench_id" uuid NOT NULL,
+        "template_id" uuid,
+        "template_ck" uuid,
+        "template_bench_id" uuid,
+        "templated_epoch" bigint,
         "revision" bigint NOT NULL,
         "created_at" timestamp NOT NULL,
         "created_epoch" bigint NOT NULL,
@@ -570,6 +616,7 @@ async def upgrade_global(cur: psycopg.AsyncCursor):
         "is_disabled" boolean DEFAULT false,
         "is_input" boolean DEFAULT false,
         "is_inline" boolean DEFAULT false,
+        "is_template" boolean DEFAULT false,
         "is_loading" boolean DEFAULT false
     )
     """
@@ -586,6 +633,10 @@ async def upgrade_global(cur: psycopg.AsyncCursor):
         "parent_type" smallint NOT NULL,
         "package_id" uuid NOT NULL,
         "bench_id" uuid NOT NULL,
+        "template_id" uuid,
+        "template_ck" uuid,
+        "template_bench_id" uuid,
+        "templated_epoch" bigint,
         "revision" bigint NOT NULL,
         "created_at" timestamp NOT NULL,
         "created_epoch" bigint NOT NULL,
@@ -605,6 +656,7 @@ async def upgrade_global(cur: psycopg.AsyncCursor):
         "order_key" varchar NOT NULL DEFAULT 'a0'::character varying,
         "text" jsonb,
         "code" jsonb,
+        "run" jsonb,
         "connections" jsonb[] NOT NULL,
         "value_type" jsonb,
         "value_packed" jsonb,
@@ -613,7 +665,8 @@ async def upgrade_global(cur: psycopg.AsyncCursor):
         "node_ck" uuid,
         "node_type" smallint,
         "node_bench_id" uuid,
-        "condition" jsonb
+        "condition" jsonb,
+        "is_template" boolean NOT NULL DEFAULT false
     )
     """
     )
@@ -629,6 +682,10 @@ async def upgrade_global(cur: psycopg.AsyncCursor):
         "parent_type" smallint NOT NULL,
         "package_id" uuid NOT NULL,
         "bench_id" uuid NOT NULL,
+        "template_id" uuid,
+        "template_ck" uuid,
+        "template_bench_id" uuid,
+        "templated_epoch" bigint,
         "revision" bigint NOT NULL,
         "created_at" timestamp NOT NULL,
         "created_epoch" bigint NOT NULL,
@@ -665,6 +722,10 @@ async def upgrade_global(cur: psycopg.AsyncCursor):
         "parent_type" smallint NOT NULL,
         "package_id" uuid NOT NULL,
         "bench_id" uuid NOT NULL,
+        "template_id" uuid,
+        "template_ck" uuid,
+        "template_bench_id" uuid,
+        "templated_epoch" bigint,
         "revision" bigint NOT NULL,
         "created_at" timestamp NOT NULL,
         "created_epoch" bigint NOT NULL,
@@ -697,6 +758,10 @@ async def upgrade_global(cur: psycopg.AsyncCursor):
         "parent_type" smallint NOT NULL,
         "package_id" uuid NOT NULL,
         "bench_id" uuid NOT NULL,
+        "template_id" uuid,
+        "template_ck" uuid,
+        "template_bench_id" uuid,
+        "templated_epoch" bigint,
         "revision" bigint NOT NULL,
         "created_at" timestamp NOT NULL,
         "created_epoch" bigint NOT NULL,
@@ -727,6 +792,10 @@ async def upgrade_global(cur: psycopg.AsyncCursor):
         "parent_id" uuid NOT NULL,
         "package_id" uuid NOT NULL,
         "bench_id" uuid NOT NULL,
+        "template_id" uuid,
+        "template_ck" uuid,
+        "template_bench_id" uuid,
+        "templated_epoch" bigint,
         "revision" bigint NOT NULL,
         "created_at" timestamp NOT NULL,
         "created_epoch" bigint NOT NULL,
@@ -756,6 +825,10 @@ async def upgrade_global(cur: psycopg.AsyncCursor):
         "parent_id" uuid NOT NULL,
         "package_id" uuid NOT NULL,
         "bench_id" uuid NOT NULL,
+        "template_id" uuid,
+        "template_ck" uuid,
+        "template_bench_id" uuid,
+        "templated_epoch" bigint,
         "revision" bigint NOT NULL,
         "created_at" timestamp NOT NULL,
         "created_epoch" bigint NOT NULL,
@@ -1214,12 +1287,12 @@ async def downgrade_global(cur: psycopg.AsyncCursor):
 
 
 async def upgrade_local(cur: psycopg.AsyncCursor):
-    await cur.execute('CREATE EXTENSION IF NOT EXISTS "pgcrypto"')
-    await cur.execute('CREATE EXTENSION IF NOT EXISTS "plpgsql"')
-    await cur.execute('CREATE EXTENSION IF NOT EXISTS "bloom"')
     await cur.execute('CREATE EXTENSION IF NOT EXISTS "uuid-ossp"')
-    await cur.execute('CREATE EXTENSION IF NOT EXISTS "pg_trgm"')
     await cur.execute('CREATE EXTENSION IF NOT EXISTS "timescaledb"')
+    await cur.execute('CREATE EXTENSION IF NOT EXISTS "pg_trgm"')
+    await cur.execute('CREATE EXTENSION IF NOT EXISTS "plpgsql"')
+    await cur.execute('CREATE EXTENSION IF NOT EXISTS "pgcrypto"')
+    await cur.execute('CREATE EXTENSION IF NOT EXISTS "bloom"')
     await cur.execute('CREATE EXTENSION IF NOT EXISTS "vector"')
 
     # bench_migration
@@ -1321,6 +1394,7 @@ async def upgrade_local(cur: psycopg.AsyncCursor):
         "root_base_ck" uuid,
         "code" jsonb,
         "text" jsonb,
+        "options" jsonb,
         "status" smallint NOT NULL DEFAULT 1,
         "duration" real,
         "scheduled_at" timestamp,
@@ -1330,6 +1404,7 @@ async def upgrade_local(cur: psycopg.AsyncCursor):
         "paused_at" timestamp,
         "terminated_at" timestamp,
         "terminated_epoch" integer,
+        "attempts" jsonb[] NOT NULL,
         "inputs_packed" jsonb,
         "inputs_secret_packed" bytea,
         "outputs_packed" jsonb,
@@ -1431,7 +1506,9 @@ async def upgrade_local(cur: psycopg.AsyncCursor):
         "node_base_ck" uuid,
         "properties" smallint[] NOT NULL,
         "old_node_packed" jsonb,
+        "old_node_secret_packed" bytea,
         "new_node_packed" jsonb,
+        "new_node_secret_packed" bytea,
         "new_revision" bigint,
         "title" varchar,
         "text" jsonb,

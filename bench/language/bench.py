@@ -128,6 +128,10 @@ class Bench(BenchNode[BenchData]):
     drives: NodeList["Drive"] = p_node_child(NodeType.DRIVE)
 
     @property
+    def is_attached(self) -> bool:
+        return True
+
+    @property
     def resources(self) -> Iterable["BenchResourceNode"]:
         return chain(
             self.servers,
@@ -224,6 +228,22 @@ class Package(BenchNode[PackageData]):
     blocks: NodeList["Block"] = p_node_child(NodeType.BLOCK)
     spaces: NodeList["Space"] = p_node_child(NodeType.SPACE)
     dependencies: NodeList["Dependency"] = p_node_child(NodeType.DEPENDENCY)
+
+    @property
+    def is_attached(self) -> bool:
+        return True
+
+    @property
+    def package(self):
+        return self
+
+    @property
+    def package_id(self):
+        return self.id
+
+    @property
+    def package_ptr(self):
+        return self.to_ref()
 
     @property
     def name(self):

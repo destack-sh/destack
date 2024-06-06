@@ -11,15 +11,18 @@ from bench.sql.core import (
     Table,
 )
 
-VERSION = "2024.06.06.0"
+VERSION = "2024.06.06.1"
 
 BENCH_TABLE = Table(
     "bench_bench",
     (
         Column("id", PrimitiveType.UUID, is_primary_key=True),
+        Column("bench_id", PrimitiveType.UUID),
         Column("revision", PrimitiveType.INT64),
         Column("created_at", PrimitiveType.DATETIME),
+        Column("created_epoch", PrimitiveType.INT64),
         Column("updated_at", PrimitiveType.DATETIME),
+        Column("updated_epoch", PrimitiveType.INT64),
         Column("deleted_at", PrimitiveType.DATETIME, is_nullable=True),
         Column("archived_at", PrimitiveType.DATETIME, is_nullable=True),
         Column("created_by_id", PrimitiveType.UUID, is_nullable=True),

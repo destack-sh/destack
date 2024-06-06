@@ -817,6 +817,18 @@ declareActionMap<"block">({
     title: "Template",
     text: "Mark this block as a template",
   },
+  "block.edit.isMaterialized": {
+    type: "toggle",
+    icon: "fas fa-cube",
+    title: "Materialized",
+    text: "Mark this block as materialized",
+  },
+  "block.edit.isPaused": {
+    type: "toggle",
+    icon: "fas fa-pause",
+    title: "Paused",
+    text: "Mark this block as paused",
+  },
 });
 
 // message

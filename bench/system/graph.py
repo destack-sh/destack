@@ -341,15 +341,13 @@ class GraphIoServiceBase(ServiceBase, GraphIoBase):
         context = wiring.unpack_object_interp_maybe(request.context, expect=SessionContext)
         if context is None:
             context = SessionContext(
-                client=subject.client,
-                server=subject.server,
-                user=subject.user,
+                client=subject.client, server=subject.server, user=subject.user
             )
 
-        # NOTE :Performance: obviously, putting a big lock around commit is not ideal
-        #  but we have to guarantee absolute order and integrity of any loaded graphs (in Host)
+        # NOTE :Performance: obviously, putting a big lock around commit is not ideal,
+        #  but we have to guarantee absolute order + integrity of any loaded graphs (in Host).
         # We can probably optimize this by only locking some tighter critical sections
-        #  if we rollback somehow if the actual commit (outside the lock) fails... maybe.
+        #  if we rollback somehow if an optimistic commit (outside the lock) fails... somehow.
         async with self.tx_lock:
             # pre-validate/prepare edits
             scope, epoch = self._prepare_commit(subject, context, request.edits)
@@ -400,6 +398,7 @@ class GraphIoServiceBase(ServiceBase, GraphIoBase):
                     node_._validate_self(properties=(), invalid=on_invalid_raise)
 
                 # flush edits to get cascaded edits for extend
+                assert len(session.tx.edits) == 0, f"unexpected edits in {session.tx!r}"
                 session.tx._add_pending_edits(request.edits)
                 _, cascaded_edits = await session.flush()
 
