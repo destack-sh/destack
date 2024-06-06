@@ -3,7 +3,7 @@
 
 from typing import TYPE_CHECKING, Union
 
-VERSION = "2024.06.06.0"
+VERSION = "2024.06.06.1"
 
 if TYPE_CHECKING:
     from bench.language import Subject
@@ -1278,7 +1278,6 @@ class AccessMatrixData(betterproto.Message):
     parent_id: Optional[int] = betterproto.int32_field(3, optional=True)
     parent_key: Optional[str] = betterproto.string_field(4, optional=True)
     order_key: Optional[str] = betterproto.string_field(9, optional=True)
-    set_properties: List[int] = betterproto.int32_field(29)
     subject: "SubjectData" = betterproto.message_field(30)
     identities: List["SubjectData"] = betterproto.message_field(32)
     scoped_zones: List["AccessZoneData"] = betterproto.message_field(33)
@@ -1297,7 +1296,6 @@ class AccessZoneData(betterproto.Message):
     parent_id: Optional[int] = betterproto.int32_field(3, optional=True)
     parent_key: Optional[str] = betterproto.string_field(4, optional=True)
     order_key: Optional[str] = betterproto.string_field(9, optional=True)
-    set_properties: List[int] = betterproto.int32_field(29)
     scope_id: str = betterproto.string_field(30)
     identity_id: int = betterproto.int32_field(31)
     rules: List["PolicyRuleData"] = betterproto.message_field(32)
@@ -1312,7 +1310,6 @@ class AggregationData(betterproto.Message):
     parent_id: Optional[int] = betterproto.int32_field(3, optional=True)
     parent_key: Optional[str] = betterproto.string_field(4, optional=True)
     order_key: Optional[str] = betterproto.string_field(9, optional=True)
-    set_properties: List[int] = betterproto.int32_field(29)
     op: "AggregationOp" = betterproto.enum_field(30)
     exists: Optional[bool] = betterproto.bool_field(31, optional=True)
     count: Optional[int] = betterproto.int32_field(32, optional=True)
@@ -1343,7 +1340,7 @@ class BoxData(betterproto.Message):
 @dataclass(eq=False, repr=False)
 class CodeData(betterproto.Message):
     """
-    Code(lines: list[bench.language.code_.CodeLine] = None, id: int = <factory>, parent: Union[ForwardRef('Struct'), ForwardRef('Node'), ForwardRef('Object'), NoneType] = None, order_key: str | None = None, set_properties: list[int] = <factory>, _is_interped: bool = False, _session: 'Session | None' = None, _updated_properties: bitarray.bitarray | None = None, parent_id: int = None, parent_key: str = None)
+    Code(lines: list[bench.language.code_.CodeLine] = None, _is_interped: bool = False, _session: 'Session | None' = None, _updated_properties: bitarray.bitarray | None = None, parent: Union[ForwardRef('BuiltinObject'), ForwardRef('Object'), NoneType] = None, id: int = <factory>, order_key: str | None = None, parent_id: int = None, parent_key: str = None)
     """
 
     metatype: "ObjectType" = betterproto.enum_field(1)
@@ -1351,14 +1348,13 @@ class CodeData(betterproto.Message):
     parent_id: Optional[int] = betterproto.int32_field(3, optional=True)
     parent_key: Optional[str] = betterproto.string_field(4, optional=True)
     order_key: Optional[str] = betterproto.string_field(9, optional=True)
-    set_properties: List[int] = betterproto.int32_field(29)
     lines: List["CodeLineData"] = betterproto.message_field(30)
 
 
 @dataclass(eq=False, repr=False)
 class CodeLineData(betterproto.Message):
     """
-    CodeLine(content: str = <factory>, id: int = <factory>, parent: Union[ForwardRef('Struct'), ForwardRef('Node'), ForwardRef('Object'), NoneType] = None, order_key: str | None = None, set_properties: list[int] = <factory>, _is_interped: bool = False, _session: 'Session | None' = None, _updated_properties: bitarray.bitarray | None = None, parent_id: int = None, parent_key: str = None)
+    CodeLine(content: str = <factory>, _is_interped: bool = False, _session: 'Session | None' = None, _updated_properties: bitarray.bitarray | None = None, parent: Union[ForwardRef('BuiltinObject'), ForwardRef('Object'), NoneType] = None, id: int = <factory>, order_key: str | None = None, parent_id: int = None, parent_key: str = None)
     """
 
     metatype: "ObjectType" = betterproto.enum_field(1)
@@ -1366,7 +1362,6 @@ class CodeLineData(betterproto.Message):
     parent_id: Optional[int] = betterproto.int32_field(3, optional=True)
     parent_key: Optional[str] = betterproto.string_field(4, optional=True)
     order_key: Optional[str] = betterproto.string_field(9, optional=True)
-    set_properties: List[int] = betterproto.int32_field(29)
     content: str = betterproto.string_field(32)
 
 
@@ -1385,6 +1380,10 @@ class ContextData(betterproto.Message):
     """The context at some point and time in the Bench tree."""
 
     metatype: "ObjectType" = betterproto.enum_field(1)
+    id: int = betterproto.int32_field(2)
+    parent_id: Optional[int] = betterproto.int32_field(3, optional=True)
+    parent_key: Optional[str] = betterproto.string_field(4, optional=True)
+    order_key: Optional[str] = betterproto.string_field(9, optional=True)
     bench_ptr: Optional["NodeReferenceData"] = betterproto.message_field(30, optional=True)
     environment_ptr: Optional["NodeReferenceData"] = betterproto.message_field(31, optional=True)
     branch_ptr: Optional["NodeReferenceData"] = betterproto.message_field(32, optional=True)
@@ -1427,7 +1426,6 @@ class ExpressionData(betterproto.Message):
     parent_id: Optional[int] = betterproto.int32_field(3, optional=True)
     parent_key: Optional[str] = betterproto.string_field(4, optional=True)
     order_key: Optional[str] = betterproto.string_field(9, optional=True)
-    set_properties: List[int] = betterproto.int32_field(29)
     op: "ExpressionOp" = betterproto.enum_field(30)
     field_ptr: Optional["NodeReferenceData"] = betterproto.message_field(31, optional=True)
     property_ptr: Optional["PropertyReferenceData"] = betterproto.message_field(32, optional=True)
@@ -1464,7 +1462,7 @@ class FontData(betterproto.Message):
 @dataclass(eq=False, repr=False)
 class IconData(betterproto.Message):
     """
-    Icon(kind: bench.language.file.IconKind = False, emoji: Optional[str] = <factory>, file: Optional[ForwardRef('File')] = None, fa_name: Optional[str] = <factory>, color: Optional[ForwardRef('Color')] = None, parent: Union[ForwardRef('Struct'), ForwardRef('Node'), ForwardRef('Object'), NoneType] = None, _is_interped: bool = False, _session: 'Session | None' = None, _updated_properties: bitarray.bitarray | None = None, parent_id: int = None, parent_key: str = None)
+    Icon(kind: bench.language.file.IconKind = False, emoji: Optional[str] = <factory>, file: Optional[ForwardRef('File')] = None, fa_name: Optional[str] = <factory>, color: Optional[ForwardRef('Color')] = None, _is_interped: bool = False, _session: 'Session | None' = None, _updated_properties: bitarray.bitarray | None = None, parent: Union[ForwardRef('BuiltinObject'), ForwardRef('Object'), NoneType] = None, parent_id: int = None, parent_key: str = None)
     """
 
     metatype: "ObjectType" = betterproto.enum_field(1)
@@ -1569,14 +1567,13 @@ class PathData(betterproto.Message):
     parent_id: Optional[int] = betterproto.int32_field(3, optional=True)
     parent_key: Optional[str] = betterproto.string_field(4, optional=True)
     order_key: Optional[str] = betterproto.string_field(9, optional=True)
-    set_properties: List[int] = betterproto.int32_field(29)
     segments: List["PathSegmentData"] = betterproto.message_field(31)
 
 
 @dataclass(eq=False, repr=False)
 class PathSegmentData(betterproto.Message):
     """
-    PathSegment(type: bench.language.path.PathSegmentType = <factory>, name: Optional[str] = None, reference: Optional[ForwardRef('Node')] = None, parent: Union[ForwardRef('Struct'), ForwardRef('Node'), ForwardRef('Object'), NoneType] = None, _is_interped: bool = False, _session: 'Session | None' = None, _updated_properties: bitarray.bitarray | None = None, reference_ptr: 'NodeReference' = None, parent_id: int = None, parent_key: str = None)
+    PathSegment(type: bench.language.path.PathSegmentType = <factory>, name: Optional[str] = None, reference: Optional[ForwardRef('Node')] = None, _is_interped: bool = False, _session: 'Session | None' = None, _updated_properties: bitarray.bitarray | None = None, parent: Union[ForwardRef('BuiltinObject'), ForwardRef('Object'), NoneType] = None, reference_ptr: 'NodeReference' = None, parent_id: int = None, parent_key: str = None)
     """
 
     metatype: "ObjectType" = betterproto.enum_field(1)
@@ -1588,7 +1585,7 @@ class PathSegmentData(betterproto.Message):
 @dataclass(eq=False, repr=False)
 class PathTokenData(betterproto.Message):
     """
-    PathToken(type: bench.language.path.PathTokenType = <factory>, parent: Union[ForwardRef('Struct'), ForwardRef('Node'), ForwardRef('Object'), NoneType] = None, _is_interped: bool = False, _session: 'Session | None' = None, _updated_properties: bitarray.bitarray | None = None, parent_id: int = None, parent_key: str = None)
+    PathToken(type: bench.language.path.PathTokenType = <factory>, _is_interped: bool = False, _session: 'Session | None' = None, _updated_properties: bitarray.bitarray | None = None, parent: Union[ForwardRef('BuiltinObject'), ForwardRef('Object'), NoneType] = None, parent_id: int = None, parent_key: str = None)
     """
 
     metatype: "ObjectType" = betterproto.enum_field(1)
@@ -1620,7 +1617,6 @@ class PolicyData(betterproto.Message):
     parent_id: Optional[int] = betterproto.int32_field(3, optional=True)
     parent_key: Optional[str] = betterproto.string_field(4, optional=True)
     order_key: Optional[str] = betterproto.string_field(9, optional=True)
-    set_properties: List[int] = betterproto.int32_field(29)
     name: str = betterproto.string_field(30)
     text: Optional["TextData"] = betterproto.message_field(31, optional=True)
     rules: List["PolicyRuleData"] = betterproto.message_field(32)
@@ -1640,7 +1636,6 @@ class PolicyRuleData(betterproto.Message):
     parent_id: Optional[int] = betterproto.int32_field(3, optional=True)
     parent_key: Optional[str] = betterproto.string_field(4, optional=True)
     order_key: Optional[str] = betterproto.string_field(9, optional=True)
-    set_properties: List[int] = betterproto.int32_field(29)
     name: str = betterproto.string_field(30)
     text: Optional["TextData"] = betterproto.message_field(31, optional=True)
     subject_is_delegated: Optional[bool] = betterproto.bool_field(40, optional=True)
@@ -1673,13 +1668,12 @@ class ProjectionData(betterproto.Message):
     parent_id: Optional[int] = betterproto.int32_field(3, optional=True)
     parent_key: Optional[str] = betterproto.string_field(4, optional=True)
     order_key: Optional[str] = betterproto.string_field(9, optional=True)
-    set_properties: List[int] = betterproto.int32_field(29)
 
 
 @dataclass(eq=False, repr=False)
 class PropertyReferenceData(betterproto.Message):
     """
-    PropertyReference(type: Optional[bench.utils.func.ObjectType] = <factory>, id: int = <factory>, references_type: Optional[bench.language.const.NodeType] = None, parent: Union[ForwardRef('Struct'), ForwardRef('Node'), ForwardRef('Object'), NoneType] = None, _is_interped: bool = False, _session: 'Session | None' = None, _updated_properties: bitarray.bitarray | None = None, parent_id: int = None, parent_key: str = None)
+    PropertyReference(type: Optional[bench.utils.func.ObjectType] = <factory>, id: int = <factory>, references_type: Optional[bench.language.const.NodeType] = None, _is_interped: bool = False, _session: 'Session | None' = None, _updated_properties: bitarray.bitarray | None = None, parent: Union[ForwardRef('BuiltinObject'), ForwardRef('Object'), NoneType] = None, parent_id: int = None, parent_key: str = None)
     """
 
     metatype: "ObjectType" = betterproto.enum_field(1)
@@ -1715,7 +1709,6 @@ class RetryAttemptData(betterproto.Message):
     parent_id: Optional[int] = betterproto.int32_field(3, optional=True)
     parent_key: Optional[str] = betterproto.string_field(4, optional=True)
     order_key: Optional[str] = betterproto.string_field(9, optional=True)
-    set_properties: List[int] = betterproto.int32_field(29)
     status: "RunStatus" = betterproto.enum_field(30)
     duration: Optional[float] = betterproto.float_field(31, optional=True)
     started_at: Optional[datetime] = betterproto.message_field(32, optional=True)
@@ -1735,7 +1728,6 @@ class RunErrorData(betterproto.Message):
     parent_id: Optional[int] = betterproto.int32_field(3, optional=True)
     parent_key: Optional[str] = betterproto.string_field(4, optional=True)
     order_key: Optional[str] = betterproto.string_field(9, optional=True)
-    set_properties: List[int] = betterproto.int32_field(29)
     kind: "RunErrorKind" = betterproto.enum_field(30)
     type: Optional["RunErrorType"] = betterproto.enum_field(31, optional=True)
     title: Optional[str] = betterproto.string_field(32, optional=True)
@@ -1748,6 +1740,10 @@ class RunOptionsData(betterproto.Message):
     """Options for running something."""
 
     metatype: "ObjectType" = betterproto.enum_field(1)
+    id: int = betterproto.int32_field(2)
+    parent_id: Optional[int] = betterproto.int32_field(3, optional=True)
+    parent_key: Optional[str] = betterproto.string_field(4, optional=True)
+    order_key: Optional[str] = betterproto.string_field(9, optional=True)
     max_concurrency: Optional[int] = betterproto.int32_field(30, optional=True)
     max_attempts: Optional[int] = betterproto.int32_field(31, optional=True)
     retry_interval: Optional[float] = betterproto.float_field(32, optional=True)
@@ -1765,7 +1761,6 @@ class ScheduleData(betterproto.Message):
     parent_id: Optional[int] = betterproto.int32_field(3, optional=True)
     parent_key: Optional[str] = betterproto.string_field(4, optional=True)
     order_key: Optional[str] = betterproto.string_field(9, optional=True)
-    set_properties: List[int] = betterproto.int32_field(29)
     type: "ScheduleType" = betterproto.enum_field(30)
     timezone: Optional[str] = betterproto.string_field(31, optional=True)
     every: int = betterproto.int32_field(40)
@@ -1788,7 +1783,7 @@ class SelectionData(betterproto.Message):
 @dataclass(eq=False, repr=False)
 class SessionContextData(betterproto.Message):
     """
-    SessionContext(parent: Union[ForwardRef('Struct'), ForwardRef('Node'), ForwardRef('Object'), NoneType] = None, _is_interped: bool = False, _session: 'Session | None' = None, _updated_properties: bitarray.bitarray | None = None, block: Optional[ForwardRef('Block')] = None, step: Optional[ForwardRef('Step')] = None, session: Optional[ForwardRef('Session')] = None, run: Optional[ForwardRef('Run')] = None, run_root: Optional[ForwardRef('Run')] = None, client: Optional[ForwardRef('Client')] = None, machine: Optional[ForwardRef('Machine')] = None, server: Optional[ForwardRef('Server')] = None, user: Optional[ForwardRef('User')] = None, parent_id: int = None, parent_key: str = None, block_ptr: 'NodeReference' = None, step_ptr: 'NodeReference' = None, session_ptr: 'NodeReference' = None, run_ptr: 'NodeReference' = None, run_root_ptr: 'NodeReference' = None, client_ptr: 'NodeReference' = None, machine_ptr: 'NodeReference' = None, server_ptr: 'NodeReference' = None, user_ptr: 'NodeReference' = None)
+    SessionContext(block: Optional[ForwardRef('Block')] = None, step: Optional[ForwardRef('Step')] = None, session: Optional[ForwardRef('Session')] = None, run: Optional[ForwardRef('Run')] = None, run_root: Optional[ForwardRef('Run')] = None, client: Optional[ForwardRef('Client')] = None, machine: Optional[ForwardRef('Machine')] = None, server: Optional[ForwardRef('Server')] = None, user: Optional[ForwardRef('User')] = None, _is_interped: bool = False, _session: 'Session | None' = None, _updated_properties: bitarray.bitarray | None = None, parent: Union[ForwardRef('BuiltinObject'), ForwardRef('Object'), NoneType] = None, block_ptr: 'NodeReference' = None, step_ptr: 'NodeReference' = None, session_ptr: 'NodeReference' = None, run_ptr: 'NodeReference' = None, run_root_ptr: 'NodeReference' = None, client_ptr: 'NodeReference' = None, machine_ptr: 'NodeReference' = None, server_ptr: 'NodeReference' = None, user_ptr: 'NodeReference' = None, parent_id: int = None, parent_key: str = None)
     """
 
     metatype: "ObjectType" = betterproto.enum_field(1)
@@ -1812,7 +1807,6 @@ class StepConnectionData(betterproto.Message):
     parent_id: Optional[int] = betterproto.int32_field(3, optional=True)
     parent_key: Optional[str] = betterproto.string_field(4, optional=True)
     order_key: Optional[str] = betterproto.string_field(9, optional=True)
-    set_properties: List[int] = betterproto.int32_field(29)
     source_ptr: "NodeReferenceData" = betterproto.message_field(30)
 
 
@@ -1828,7 +1822,6 @@ class SubjectData(betterproto.Message):
     parent_id: Optional[int] = betterproto.int32_field(3, optional=True)
     parent_key: Optional[str] = betterproto.string_field(4, optional=True)
     order_key: Optional[str] = betterproto.string_field(9, optional=True)
-    set_properties: List[int] = betterproto.int32_field(29)
     is_authenticated: Optional[bool] = betterproto.bool_field(30, optional=True)
     is_staff: Optional[bool] = betterproto.bool_field(31, optional=True)
     is_system: Optional[bool] = betterproto.bool_field(32, optional=True)
@@ -1855,7 +1848,6 @@ class TextData(betterproto.Message):
     parent_id: Optional[int] = betterproto.int32_field(3, optional=True)
     parent_key: Optional[str] = betterproto.string_field(4, optional=True)
     order_key: Optional[str] = betterproto.string_field(9, optional=True)
-    set_properties: List[int] = betterproto.int32_field(29)
     lines: List["TextLineData"] = betterproto.message_field(32)
 
 
@@ -1871,7 +1863,6 @@ class TextLineData(betterproto.Message):
     parent_id: Optional[int] = betterproto.int32_field(3, optional=True)
     parent_key: Optional[str] = betterproto.string_field(4, optional=True)
     order_key: Optional[str] = betterproto.string_field(9, optional=True)
-    set_properties: List[int] = betterproto.int32_field(29)
     type: "TextLineType" = betterproto.enum_field(30)
     spans: List["TextSpanData"] = betterproto.message_field(33)
     icon: Optional["IconData"] = betterproto.message_field(34, optional=True)
@@ -1886,7 +1877,7 @@ class TextLineData(betterproto.Message):
 @dataclass(eq=False, repr=False)
 class TextSpanData(betterproto.Message):
     """
-    TextSpan(content: Optional[str] = None, node: Optional[bench.language.node.Node] = None, parent: Union[ForwardRef('Struct'), ForwardRef('Node'), ForwardRef('Object'), NoneType] = None, _is_interped: bool = False, _session: 'Session | None' = None, _updated_properties: bitarray.bitarray | None = None, color: Optional[ForwardRef('ColorType')] = None, is_bold: Optional[bool] = None, is_italic: Optional[bool] = None, is_strikethrough: Optional[bool] = None, is_underline: Optional[bool] = None, is_code: Optional[bool] = None, node_ptr: 'NodeReference' = None, parent_id: int = None, parent_key: str = None)
+    TextSpan(content: Optional[str] = None, node: Optional[bench.language.node.Node] = None, parent: Union[ForwardRef('BuiltinObject'), ForwardRef('Object'), NoneType] = None, _is_interped: bool = False, _session: 'Session | None' = None, _updated_properties: bitarray.bitarray | None = None, color: Optional[ForwardRef('ColorType')] = None, is_bold: Optional[bool] = None, is_italic: Optional[bool] = None, is_strikethrough: Optional[bool] = None, is_underline: Optional[bool] = None, is_code: Optional[bool] = None, node_ptr: 'NodeReference' = None, parent_id: int = None, parent_key: str = None)
     """
 
     metatype: "ObjectType" = betterproto.enum_field(1)
@@ -1912,7 +1903,6 @@ class TypeConstraintData(betterproto.Message):
     parent_id: Optional[int] = betterproto.int32_field(3, optional=True)
     parent_key: Optional[str] = betterproto.string_field(4, optional=True)
     order_key: Optional[str] = betterproto.string_field(9, optional=True)
-    set_properties: List[int] = betterproto.int32_field(29)
     min_value: Optional[float] = betterproto.float_field(40, optional=True)
     max_value: Optional[float] = betterproto.float_field(41, optional=True)
     step_value: Optional[float] = betterproto.float_field(42, optional=True)
@@ -1924,7 +1914,7 @@ class TypeConstraintData(betterproto.Message):
 @dataclass(eq=False, repr=False)
 class TypeInfoData(betterproto.Message):
     """
-    TypeInfo(id: int = <factory>, parent: Union[ForwardRef('Struct'), ForwardRef('Node'), ForwardRef('Object'), NoneType] = None, order_key: str | None = None, set_properties: list[int] = <factory>, _is_interped: bool = False, _session: 'Session | None' = None, _updated_properties: bitarray.bitarray | None = None, kind: Optional[bench.language.const.TypeKind] = None, primitive_type: Optional[bench.language.const.PrimitiveType] = None, bench_type: Optional[bench.utils.func.BenchType] = None, base_type: Union[ForwardRef('Block'), ForwardRef('Step'), NoneType] = None, base_field_zone: Optional[ForwardRef('FieldZone')] = None, default_packed: Optional[Any] = None, default: None = None, visibility: Optional[bench.language.const.Visibility] = None, format_hint: Optional[bench.language.const.FormatHint] = None, condition: Optional[ForwardRef('Expression')] = None, constraint: Optional[ForwardRef('TypeConstraint')] = None, is_list: bool = False, is_secret: bool = False, is_required: bool = False, _resolved_type: Optional[ForwardRef('TypeInfoBase')] = None, _resolved_identity_key: str | None = None, _from_property: Optional[ForwardRef('Property')] = None, parent_id: int = None, parent_key: str = None, base_type_ptr: 'NodeReference' = None)
+    TypeInfo(kind: Optional[bench.language.const.TypeKind] = None, primitive_type: Optional[bench.language.const.PrimitiveType] = None, bench_type: Optional[bench.utils.func.BenchType] = None, base_type: Union[ForwardRef('Block'), ForwardRef('Step'), NoneType] = None, base_field_zone: Optional[ForwardRef('FieldZone')] = None, default_packed: Optional[Any] = None, default: None = None, visibility: Optional[bench.language.const.Visibility] = None, format_hint: Optional[bench.language.const.FormatHint] = None, condition: Optional[ForwardRef('Expression')] = None, constraint: Optional[ForwardRef('TypeConstraint')] = None, is_list: bool = False, is_secret: bool = False, is_required: bool = False, _resolved_type: Optional[ForwardRef('TypeInfoBase')] = None, _resolved_identity_key: str | None = None, _from_property: Optional[ForwardRef('Property')] = None, _is_interped: bool = False, _session: 'Session | None' = None, _updated_properties: bitarray.bitarray | None = None, parent: Union[ForwardRef('BuiltinObject'), ForwardRef('Object'), NoneType] = None, id: int = <factory>, order_key: str | None = None, base_type_ptr: 'NodeReference' = None, parent_id: int = None, parent_key: str = None)
     """
 
     metatype: "ObjectType" = betterproto.enum_field(1)
@@ -1932,7 +1922,6 @@ class TypeInfoData(betterproto.Message):
     parent_id: Optional[int] = betterproto.int32_field(3, optional=True)
     parent_key: Optional[str] = betterproto.string_field(4, optional=True)
     order_key: Optional[str] = betterproto.string_field(9, optional=True)
-    set_properties: List[int] = betterproto.int32_field(29)
     kind: Optional["TypeKind"] = betterproto.enum_field(40, optional=True)
     primitive_type: Optional["PrimitiveType"] = betterproto.enum_field(41, optional=True)
     bench_type: Optional["BenchType"] = betterproto.enum_field(42, optional=True)
@@ -1959,7 +1948,6 @@ class ValueReferenceData(betterproto.Message):
     parent_id: Optional[int] = betterproto.int32_field(3, optional=True)
     parent_key: Optional[str] = betterproto.string_field(4, optional=True)
     order_key: Optional[str] = betterproto.string_field(9, optional=True)
-    set_properties: List[int] = betterproto.int32_field(29)
     path: "PathData" = betterproto.message_field(31)
 
 
@@ -2007,9 +1995,12 @@ class BenchData(betterproto.Message):
     metatype: "ObjectType" = betterproto.enum_field(1)
     id: str = betterproto.string_field(2)
     parent_ptr: Optional["NodeReferenceData"] = betterproto.message_field(4, optional=True)
+    bench_ptr: "NodeReferenceData" = betterproto.message_field(6)
     revision: int = betterproto.int64_field(10)
     created_at: datetime = betterproto.message_field(11)
+    created_epoch: int = betterproto.int64_field(12)
     updated_at: datetime = betterproto.message_field(13)
+    updated_epoch: int = betterproto.int64_field(14)
     deleted_at: Optional[datetime] = betterproto.message_field(15, optional=True)
     archived_at: Optional[datetime] = betterproto.message_field(16, optional=True)
     created_by_ptr: Optional["NodeReferenceData"] = betterproto.message_field(21, optional=True)
@@ -2576,24 +2567,15 @@ class MessageData(betterproto.Message):
 @dataclass(eq=False, repr=False)
 class BaseNodeData(betterproto.Message):
     """
-    A node in the Bench graph: a struct with a globally unique identity.
-     Most nodes have a 'constant' key (ck) providing constant (id)entity across versions.
-     The first part of the constant key is the template key (tk), which is constant in all instances of a template.
-     For sub package nodes the 'id' is derived from the 'ck' per Package, otherwise it's just the id.
+    A simple node, which has properties like a Struct but has a persistent identity in our graph.
     """
 
     metatype: "ObjectType" = betterproto.enum_field(1)
     id: str = betterproto.string_field(2)
-    ck: str = betterproto.string_field(3)
     parent_ptr: "NodeReferenceData" = betterproto.message_field(4)
-    package_ptr: "NodeReferenceData" = betterproto.message_field(5)
-    bench_ptr: "NodeReferenceData" = betterproto.message_field(6)
-    templated_epoch: Optional[int] = betterproto.int64_field(8, optional=True)
     revision: int = betterproto.int64_field(10)
     created_at: datetime = betterproto.message_field(11)
-    created_epoch: int = betterproto.int64_field(12)
     updated_at: datetime = betterproto.message_field(13)
-    updated_epoch: int = betterproto.int64_field(14)
     deleted_at: Optional[datetime] = betterproto.message_field(15, optional=True)
     archived_at: Optional[datetime] = betterproto.message_field(16, optional=True)
     created_by_ptr: Optional["NodeReferenceData"] = betterproto.message_field(21, optional=True)
@@ -2775,8 +2757,6 @@ class RecordData(betterproto.Message):
     parent_ptr: "NodeReferenceData" = betterproto.message_field(4)
     package_ptr: "NodeReferenceData" = betterproto.message_field(5)
     bench_ptr: "NodeReferenceData" = betterproto.message_field(6)
-    template_ptr: Optional["NodeReferenceData"] = betterproto.message_field(7, optional=True)
-    templated_epoch: Optional[int] = betterproto.int64_field(8, optional=True)
     revision: int = betterproto.int64_field(10)
     created_at: datetime = betterproto.message_field(11)
     created_epoch: int = betterproto.int64_field(12)
@@ -3005,17 +2985,10 @@ class SkipData(betterproto.Message):
 
     metatype: "ObjectType" = betterproto.enum_field(1)
     id: str = betterproto.string_field(2)
-    ck: str = betterproto.string_field(3)
     parent_ptr: "NodeReferenceData" = betterproto.message_field(4)
-    package_ptr: "NodeReferenceData" = betterproto.message_field(5)
-    bench_ptr: "NodeReferenceData" = betterproto.message_field(6)
-    template_ptr: Optional["NodeReferenceData"] = betterproto.message_field(7, optional=True)
-    templated_epoch: Optional[int] = betterproto.int64_field(8, optional=True)
     revision: int = betterproto.int64_field(10)
     created_at: datetime = betterproto.message_field(11)
-    created_epoch: int = betterproto.int64_field(12)
     updated_at: datetime = betterproto.message_field(13)
-    updated_epoch: int = betterproto.int64_field(14)
     deleted_at: Optional[datetime] = betterproto.message_field(15, optional=True)
     archived_at: Optional[datetime] = betterproto.message_field(16, optional=True)
     created_by_ptr: Optional["NodeReferenceData"] = betterproto.message_field(21, optional=True)

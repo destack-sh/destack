@@ -36,6 +36,7 @@ from bench.language.node import (
     InlineStruct,
     Node,
     ReadInfo,
+    SourceNode,
     node,
     struct,
 )
@@ -666,7 +667,7 @@ class QueryBuilder(
 
 
 @node(NodeType.QUERY)
-class Query(Node[QueryData]):
+class Query(SourceNode[QueryData]):
     """A stored query."""
 
     parent: "Block" = p_node_parent(4, NodeType.BLOCK)

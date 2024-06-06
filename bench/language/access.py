@@ -924,7 +924,7 @@ def evaluate_access(
                     if start_scoped_zone is None:
                         break  # no scope zones
                     current_zone = start_scoped_zone
-                elif current_zone.parent is not None and current_zone.parent.id is not None:
+                elif current_zone.parent is not None:
                     current_zone = matrix.scoped_zones[cast(int, current_zone.parent.id)]
                 else:
                     break  # reached the top
@@ -1042,7 +1042,6 @@ def evaluate_and_adapt_read(
             skip = wire.SkipData(
                 metatype=wire.ObjectType.SKIP,
                 id=node_.id,
-                ck=getattr(node_, "ck"),
                 parent_ptr=node_.parent_ptr,
                 revision=node_.revision,
                 order_key=getattr(node_, "order_key", None),

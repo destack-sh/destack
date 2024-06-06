@@ -255,7 +255,7 @@ __property__ = property
 
 
 @struct(StructType.EXPRESSION)
-class Expression(HasValues):
+class Expression(Struct, HasValues):
     """An expression (conditional, aggregation, sort, etc)."""
 
     op: ExpressionOp = p_regular(30, require=True)

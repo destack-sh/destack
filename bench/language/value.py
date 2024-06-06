@@ -59,8 +59,8 @@ ValueProperty = Union["Property", "Field"]
 @dataclass(slots=True)
 class Object:
     """
-    Any user-defined Value with fields, can also be partial (e.g., Block variable, Run inputs, Class instance).
-    This is the user-defined equivalent of our built-in Objects (Structs/Nodes).
+    An Object-like Value with fields, the user defined equivalent of our built-in Objects (Structs/Nodes).
+    Objects can also be 'partial' (e.g., Block variable, Run inputs, Class instance).
     TODO :Incomplete: handle :SecretValues
     """
 
@@ -803,11 +803,13 @@ def unpack_value(
 
 
 # import later to avoid circular imports (Object is used in node.py)
-from bench.language.node import HasBaseNode, Struct, object_component  # noqa: E402
+from bench.language.node import BuiltinObject, HasBaseNode, object_component  # noqa: E402
 
 
 @object_component()
-class HasValues(Struct):
+class HasValues(BuiltinObject):
+    # TODO :Robustness: ensure HasValues never accidentally 'edits' the node during init or such
+
     def _init_component(self) -> None:
         if self._is_interped:
             self._pack_values_inplace(self.__value_properties__.values(), skip_already_set=True)
@@ -849,7 +851,7 @@ class HasValues(Struct):
             if value_packed is not None:
                 value_type = self._resolve_value_prop_type(prop)
                 value = unpack_value(value_packed, None, value_type)
-                setattr(self, prop.name, value)
+                self._do_set(prop.name, value, dont_track=True)
 
     def _pack_values_inplace(
         self, properties: Collection[Property], skip_already_set: bool = False
@@ -868,6 +870,6 @@ class HasValues(Struct):
             if value is not None:
                 value_type = self._resolve_value_prop_type(prop)
                 value_packed, _ = pack_value(value, value_type)
-                setattr(self, prop.value_packed_ptr.name, value_packed)
+                self._do_set(prop.value_packed_ptr.name, value_packed, dont_track=True)
             else:
-                setattr(self, prop.value_packed_ptr.name, None)
+                self._do_set(prop.value_packed_ptr.name, None, dont_track=True)

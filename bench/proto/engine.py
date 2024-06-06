@@ -2,7 +2,7 @@ import enum
 from itertools import chain
 from typing import TYPE_CHECKING, Any, Collection, Union, cast
 
-from bench.language.node import BuiltinObject
+from bench.language.node import BuiltinObject, InlineStruct
 from bench.proto.core import Enum, EnumValue, Field, FieldType, Message, ProtoSchema, ProtoThing
 from bench.sql.core import PrimitiveType
 from bench.utils.casing import Casing, to_casing
@@ -117,12 +117,12 @@ def map_object_type_to_proto(
     bench_t: _ThingType, cache: dict[_ThingType, ProtoThing], alias: str | None = None
 ) -> ProtoThing:
     """Maps a Bench type to a Proto type. If not yet mapped, adds it to the cache."""
-    from bench.language import Node, Struct
+    from bench.language import BuiltinObject
 
     assert isinstance(bench_t, type), f"invalid type: {bench_t!r}"
     if bench_t in cache:
         return cache[bench_t]
-    if issubclass(bench_t, (Node, Struct)):
+    if issubclass(bench_t, BuiltinObject):
         ret = map_bench_object_to_proto(bench_t, cache, alias=alias)
     elif issubclass(bench_t, (IdEnum, enum.IntFlag)):
         ret = map_bench_enum_to_proto(bench_t, cache, alias=alias)
@@ -149,8 +149,8 @@ def generate_proto_schema(
     collected_enums: list[type[enum.Enum]] = [
         t for t in proto_types_cache if issubclass(t, enum.Enum)
     ]
-    collected_structs: list[type[Struct]] = [
-        t for t in bench_classes if issubclass(t, Struct) and not issubclass(t, Node)
+    collected_structs: list[type[InlineStruct]] = [
+        t for t in bench_classes if issubclass(t, (InlineStruct, Struct))
     ]
     collected_nodes: list[type[Node]] = [t for t in bench_classes if issubclass(t, Node)]
     collected_enums.sort(key=lambda t: t.__name__)

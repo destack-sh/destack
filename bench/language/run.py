@@ -15,7 +15,6 @@ from bench.language.const import (
 )
 from bench.language.node import (
     HasBaseNode,
-    InlineStruct,
     Node,
     Struct,
     TimedNode,
@@ -47,8 +46,8 @@ if TYPE_CHECKING:
 # pyright: reportIncompatibleVariableOverride=false
 
 
-@struct(StructType.RUN_OPTIONS, inline=True)
-class RunOptions(InlineStruct):
+@struct(StructType.RUN_OPTIONS)
+class RunOptions(Struct):
     """Options for running something."""
 
     max_concurrency: Optional[int] = p_regular(30, constraint=TypeConstraintIn(min_value=0))
@@ -60,7 +59,7 @@ class RunOptions(InlineStruct):
 
 
 @struct(StructType.RETRY_ATTEMPT)
-class RetryAttempt(InlineStruct):
+class RetryAttempt(Struct):
     """A single attempt at a Run."""
 
     status: RunStatus = p_internal(30, default=RunStatus.SCHEDULED)

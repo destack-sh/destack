@@ -9,7 +9,7 @@ from bench.language.const import (
     UserStatus,
 )
 from bench.language.graph import NodeList
-from bench.language.node import Node, SourceNode, node
+from bench.language.node import BenchNode, Node, SourceNode, node
 from bench.language.property import (
     p_internal,
     p_kernel,
@@ -48,7 +48,7 @@ if TYPE_CHECKING:
         ),
     ),
 )
-class Handle(Node[HandleData]):
+class Handle(BenchNode[HandleData]):
     """A Bench @handle. Can only be created/edited by the system."""
 
     parent: Union["User", "Organization", "Bench"] = p_node_parent(

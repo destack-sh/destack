@@ -178,7 +178,7 @@ defineExpose<ViewExposed>({ self, id, actions });
           dontFocus: true, // keep focus on the editor
         })
       "
-      class="code rounded bg-gray-100 py-1.5 px-1 hover:cursor-text"
+      class="code rounded bg-gray-100 px-1 py-1.5 hover:cursor-text"
       :class="[
         variant != Variant.STEALTH
           ? 'border border-gray-200 focus-within:border-primary-900 not-focus-within:hover:border-gray-300'

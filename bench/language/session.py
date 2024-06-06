@@ -20,7 +20,6 @@ from bench.language.const import (
 from bench.language.node import (
     BuiltinObject,
     EditSubject,
-    HasBaseNode,
     InlineStruct,
     Node,
     Struct,
@@ -74,7 +73,7 @@ CustomCommit = Callable[["Session"], Awaitable[tuple[list[EditData], list[EditDa
 
 
 @timed_node(NodeType.SESSION)
-class Session(TimedNode[SessionData], HasBaseNode):
+class Session(TimedNode[SessionData]):
     """
     A managed Session for interacting with and running a Package in a Client.
     If a Run spans multiple Clients, each Client will have its own Session.

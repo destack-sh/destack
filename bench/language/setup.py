@@ -15,6 +15,7 @@ from bench.language.const import (
     ObjectType,
     StructType,
 )
+from bench.utils.env import IS_DEV
 from bench.utils.func import IdEnum, assert_collections_equal, bittuple, get_subclasses
 from bench.utils.utils import frozendict
 
@@ -65,7 +66,7 @@ def _on_completing_setup(func: Callable | None = None):
 
 def _complete_bench_setup():
     """Finalize setup of all language constructs after everything is imported."""
-    from bench.language import Node, Object, Struct, const
+    from bench.language import BuiltinObject, InlineStruct, Node, Object, const
     from bench.language.node import HasBaseNode
 
     global _COMPLETED_SETUP
@@ -104,7 +105,7 @@ def _complete_bench_setup():
         ENUM_TYPE_BY_CLASS[enum_cls] = enum_type
 
     # finalize classes
-    for cls in get_subclasses(Struct):
+    for cls in get_subclasses(BuiltinObject):
         # misc finalization on properties
         for name, prop in cls.__properties__.items():
             prop: Property
@@ -124,22 +125,23 @@ def _complete_bench_setup():
             if prop.is_introspectable:
                 setattr(cls, name, prop)
 
-            # check deferred/encrypted properties
-            if prop.is_deferred and not prop.is_stored:
-                raise ValueError(f"{prop!r} cannot be deferred and not stored on {cls!r}")
+            if IS_DEV:
+                # check deferred/encrypted properties
+                if prop.is_deferred and not prop.is_stored:
+                    raise ValueError(f"{prop!r} cannot be deferred and not stored on {cls!r}")
 
-            # check py_type matches struct type as defined
-            if (
-                isinstance(prop.py_type_raw, type)
-                and issubclass(prop.py_type_raw, Struct)
-                and not issubclass(prop.py_type_raw, Node)
-            ):
-                if not prop.reference_struct:
-                    raise ValueError(
-                        f"cannot store {prop!r} as {prop.py_type_raw!r} (missing struct_type)"
-                    )
-                if STRUCT_CLASS_BY_TYPE[prop.reference_struct] is not prop.py_type_raw:
-                    raise ValueError(f"{prop!r} {prop.reference_struct} != {prop.py_type_raw}")
+                # check py_type matches struct type as defined
+                if (
+                    isinstance(prop.py_type_raw, type)
+                    and issubclass(prop.py_type_raw, InlineStruct)
+                    and not issubclass(prop.py_type_raw, Node)
+                ):
+                    if not prop.reference_struct:
+                        raise ValueError(
+                            f"cannot store {prop!r} as {prop.py_type_raw!r} (missing struct_type)"
+                        )
+                    if STRUCT_CLASS_BY_TYPE[prop.reference_struct] is not prop.py_type_raw:
+                        raise ValueError(f"{prop!r} {prop.reference_struct} != {prop.py_type_raw}")
 
         cls.__stored_properties__ = frozendict(
             {p.name: p for p in cls.__properties__.values() if p.is_stored is True}
@@ -189,36 +191,6 @@ def _complete_bench_setup():
         if child_types[node_type]:
             HAS_CHILD_NODE_TYPES.add(node_type)
 
-    # check that is_in_package/is_in_bench was declared correctly
-    #  (need to set that in @node upfront because traversing parents like here can only happen in finalization)
-    for node_cls in NODE_CLASS_BY_TYPE.values():
-        in_bench = (
-            node_cls.metatype == NodeType.BENCH
-            or node_cls.metatype in DESCENDANT_NODE_TYPES[NodeType.BENCH]
-        )
-        in_package = (
-            node_cls.metatype == NodeType.PACKAGE
-            or node_cls.metatype in DESCENDANT_NODE_TYPES[NodeType.PACKAGE]
-        )
-        if in_bench != node_cls.__is_in_bench__ or in_package != node_cls.__is_in_package__:
-            raise ValueError(
-                f"{node_cls!r} parent types are inconsistent: root={node_cls.__roots__} implies in_bench={in_bench} and in_package={in_package}, but configured in_bench={node_cls.__is_in_bench__} and in_package={node_cls.__is_in_package__}"
-            )
-    assert_collections_equal(
-        IN_BENCH_NODE_TYPES.tuple,
-        [t.metatype for t in NODE_CLASS_BY_TYPE.values() if t.__is_in_bench__],
-    )
-    assert_collections_equal(
-        IN_PACKAGE_NODE_TYPES.tuple,
-        [t.metatype for t in NODE_CLASS_BY_TYPE.values() if t.__is_in_package__],
-    )
-
-    # check that BASED_NODE_TYPES is consistent with HasBase
-    base_node_types = [
-        cast(Node, n).metatype for n in get_subclasses(HasBaseNode) if hasattr(n, "metatype")
-    ]
-    assert_collections_equal(base_node_types, const.BASED_NODE_TYPES.tuple)
-
     _COMPLETED_SETUP = True
 
     # run completion hooks
@@ -232,3 +204,34 @@ def _complete_bench_setup():
         if node_cls.__is_stored__ and not node_cls.__is_stored_custom__:
             # NOTE: table usually should exist, but maybe we're just creating the node type
             node_cls.__table__ = TABLE_BY_NODE_TYPE.get(node_cls.metatype)
+
+    if IS_DEV:
+        # check that is_in_package/is_in_bench was declared correctly
+        #  (need to set that in @node upfront because traversing parents like here can only happen in finalization)
+        for node_cls in NODE_CLASS_BY_TYPE.values():
+            in_bench = (
+                node_cls.metatype == NodeType.BENCH
+                or node_cls.metatype in DESCENDANT_NODE_TYPES[NodeType.BENCH]
+            )
+            in_package = (
+                node_cls.metatype == NodeType.PACKAGE
+                or node_cls.metatype in DESCENDANT_NODE_TYPES[NodeType.PACKAGE]
+            )
+            if in_bench != node_cls.__is_in_bench__ or in_package != node_cls.__is_in_package__:
+                raise ValueError(
+                    f"{node_cls!r} parent types are inconsistent: root={node_cls.__roots__} implies in_bench={in_bench} and in_package={in_package}, but configured in_bench={node_cls.__is_in_bench__} and in_package={node_cls.__is_in_package__}"
+                )
+        assert_collections_equal(
+            IN_BENCH_NODE_TYPES.tuple,
+            [t.metatype for t in NODE_CLASS_BY_TYPE.values() if t.__is_in_bench__],
+        )
+        assert_collections_equal(
+            IN_PACKAGE_NODE_TYPES.tuple,
+            [t.metatype for t in NODE_CLASS_BY_TYPE.values() if t.__is_in_package__],
+        )
+
+        # check that BASED_NODE_TYPES is consistent with HasBase
+        base_node_types = [
+            cast(Node, n).metatype for n in get_subclasses(HasBaseNode) if hasattr(n, "metatype")
+        ]
+        assert_collections_equal(base_node_types, const.BASED_NODE_TYPES.tuple)

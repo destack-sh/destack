@@ -2,7 +2,7 @@ from typing import TYPE_CHECKING, Any, Collection, Optional, TypedDict, Union
 from uuid import UUID
 
 from bench.language.const import BenchError, EnumType, NodeType, NoticeKind, StructType, enum_
-from bench.language.node import LINK_TARGET_NODE_TYPES, Node, Property, node
+from bench.language.node import LINK_TARGET_NODE_TYPES, Node, Property, SourceNode, node
 from bench.language.property import p_node_parent, p_regular
 from bench.language.text import Text
 from bench.language.validation import TITLE_CONSTRAINT
@@ -65,7 +65,7 @@ NOTICE_PARENT_TYPES: tuple[NodeType, ...] = (
 
 
 @node(NodeType.NOTICE)
-class Notice(Node[NoticeData]):
+class Notice(SourceNode[NoticeData]):
     """
     An informational or diagnostic Notice about something in the Bench source.
     Notices are generally 'sticky' until resolved.
