@@ -43,7 +43,7 @@ defineExpose<ViewExposed>({ self, id });
     />
     <div v-else class="flex flex-row items-center px-1 py-0.5 text-warning-600">
       <i class="fas fa-empty-set" />
-      <span class="ml-1.5">No View for Value Type</span>
+      <span class="ml-1.5">No View for Type Type</span>
     </div>
   </ViewContentWrapper>
 </template>

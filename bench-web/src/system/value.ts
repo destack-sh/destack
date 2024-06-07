@@ -58,9 +58,9 @@ export function describeTypeIdentity(type: TypeIdentity & Partial<AnyNodeData>):
   return `${kindName}[${typeParts.join(", ")}]`;
 }
 
-export type JsonPrimimtive = string | number | boolean | null;
-export type JsonValue = JsonPrimimtive | { [key: string]: JsonValue } | JsonValue[];
-export type PrimitiveValue = JsonPrimimtive | bigint | Timestamp;
+export type JsonPrimitive = string | number | boolean | null;
+export type JsonValue = JsonPrimitive | { [key: string]: JsonValue } | JsonValue[];
+export type PrimitiveValue = JsonPrimitive | bigint | Timestamp;
 export type ScalarValue = PrimitiveValue | ProtoStruct | AnyStructData | AnyNodeData;
 export type SomeValue = ScalarValue | SomeValue[] | { [key: string]: SomeValue };
 
@@ -218,10 +218,14 @@ export function resolveFields(type: TypeIdentity, graph: ReadNodeGraph): FieldDa
 
 // TODO :Architecture :Performance: encode/decode protoStruct/Json in connections (at the fetch/commit boundary) :ProtoStructMapping
 //  (Currently, we have to eagerly encode/decode for every single edit, which is possibly every frame or keystroke,
-//   It's likely possible to just cheat a little and auto-encode/decode ProtoStruct properties at the boundary
+//   It's likely possible to just cheat/refactor a little and auto-encode/decode ProtoStruct properties at the boundary
 //   without introducing an entire new layer like in the backend).
 
-/** Packs a single scalar value in its robust JSON-able representation. */
+function isProtoJson(value: any): value is ProtoStruct {
+  return typeof value == "object" && "fields" in value;
+}
+
+/** Packs a single data value in its robust JSON-able representation. */
 function packValueScalar(value: ScalarValue, type: TypeIdentity): JsonValue {
   if (type.kind == TypeKind.PRIMITIVE) {
     if (type.primitiveType == PrimitiveType.DATETIME) {
@@ -232,27 +236,29 @@ function packValueScalar(value: ScalarValue, type: TypeIdentity): JsonValue {
       if (value > Number.MAX_SAFE_INTEGER)
         throw new Error(`bigint ${value} too large for Number for ${describeTypeIdentity(type)}`);
       return Number(value);
+    } else if (type.primitiveType == PrimitiveType.JSON) {
+      // auto-unpack proto json
+      if (isProtoJson(value)) return ProtoStruct.toJson(value);
+      else return value as JsonValue;
     } else {
-      return value as JsonPrimimtive;
+      return value as JsonPrimitive;
     }
   } else if (type.kind == TypeKind.NODE || type.kind == TypeKind.BASED_NODE) {
-    if ((value as NodeReferenceData).metatype != ObjectType.NODE_REFERENCE) {
+    if ((value as NodeReferenceData).metatype != ObjectType.NODE_REFERENCE)
       throw new Error(`unexpected value ${JSON.stringify(value)} for type ${describeTypeIdentity(type)}`);
-    }
-    return packStructValueScalar(value as NodeReferenceData);
+    return packBuiltinObject(value as NodeReferenceData);
   } else if (type.kind == TypeKind.ENUM) {
-    return value as JsonPrimimtive;
+    return value as JsonPrimitive;
   } else if (type.kind == TypeKind.STRUCT) {
-    if (!isStruct(value)) {
+    if (!isStruct(value))
       throw new Error(`unexpected value ${JSON.stringify(value)} for type ${describeTypeIdentity(type)}`);
-    }
-    return packStructValueScalar(value);
+    return packBuiltinObject(value);
   } else {
     throw new Error(`cannot pack value of type ${describeTypeIdentity(type)}`);
   }
 }
 
-/** Unpacks a single scalar value from its robust JSON-able representation. */
+/** Unpacks a single value into its data representation (except for JSON, which remains as is for value objects). */
 function unpackValueScalar(valuePacked: JsonValue, type: TypeIdentity): ScalarValue {
   if (type.kind == TypeKind.PRIMITIVE) {
     if (type.primitiveType == PrimitiveType.DATETIME) {
@@ -267,21 +273,33 @@ function unpackValueScalar(valuePacked: JsonValue, type: TypeIdentity): ScalarVa
     if (typeof valuePacked !== "object") {
       throw new Error(`unexpected value ${JSON.stringify(valuePacked)} for type ${describeTypeIdentity(type)}`);
     }
-    return unpackStructValueScalar(valuePacked as unknown as NodeReferenceData);
+    return unpackBuiltinObject(valuePacked as unknown as NodeReferenceData);
   } else if (type.kind == TypeKind.ENUM) {
     return valuePacked as PrimitiveValue;
   } else if (type.kind == TypeKind.STRUCT) {
     if (typeof valuePacked !== "object") {
       throw new Error(`unexpected value ${JSON.stringify(valuePacked)} for type ${describeTypeIdentity(type)}`);
     }
-    return unpackStructValueScalar(valuePacked as unknown as AnyStructData);
+    return unpackBuiltinObject(valuePacked as unknown as AnyStructData);
   } else {
     throw new Error(`cannot unpack value of type ${describeTypeIdentity(type)}`);
   }
 }
 
+/** Unpacks a single value into its data representation (converting JSON into ProtoJson ƒor builtin objects).  */
+function unpackValueScalarData(valuePacked: JsonValue, type: TypeIdentity): ScalarValue {
+  let value = unpackValueScalar(valuePacked, type);
+  if (type.kind == TypeKind.PRIMITIVE) {
+    // unpack 
+    if (type.primitiveType == PrimitiveType.JSON) {
+      value = ProtoStruct.fromJson(value as JsonValue);
+    }
+  }
+  return value;
+}
+
 /** Packs a single struct/node proto value using proto ids for keys and enums. */
-export function packStructValueScalar(value: AnyStructData | AnyNodeData, options?: { only?: string[] }): any {
+export function packBuiltinObject(value: AnyStructData | AnyNodeData, options?: { only?: string[] }): any {
   const propertyEnum = PROPERTY_ENUM_BY_TYPE[value.metatype];
   const properties = PROPERTY_INFOS_BY_TYPE[value.metatype];
   if (propertyEnum == null || properties == null) throw new Error(`unexpected object type ${value.metatype}`);
@@ -306,7 +324,7 @@ export function packStructValueScalar(value: AnyStructData | AnyNodeData, option
 }
 
 /** Decodes proto value representation of a struct. See encode. */
-export function unpackStructValueScalar(valuePacked: any, objectType?: ObjectType): AnyStructData | AnyNodeData {
+export function unpackBuiltinObject(valuePacked: any, objectType?: ObjectType): AnyStructData | AnyNodeData {
   if (objectType == null) {
     if (valuePacked["1"] == null) throw new Error(`missing object type in ${JSON.stringify(valuePacked)}`);
     objectType = valuePacked["1"] as ObjectType;
@@ -325,7 +343,7 @@ export function unpackStructValueScalar(valuePacked: any, objectType?: ObjectTyp
       if (propValuePacked == null) {
         propValue = [];
       } else {
-        propValue = propValuePacked.map((v: any) => unpackValueScalar(v, propType));
+        propValue = propValuePacked.map((v: any) => unpackValueScalarData(v, propType));
       }
     } else {
       if (propValuePacked == null) {
@@ -335,7 +353,7 @@ export function unpackStructValueScalar(valuePacked: any, objectType?: ObjectTyp
           propValue = null;
         }
       } else {
-        propValue = unpackValueScalar(propValuePacked, propType);
+        propValue = unpackValueScalarData(propValuePacked, propType);
       }
     }
     (value as any)[propName] = propValue;
@@ -347,7 +365,7 @@ export function unpackStructValueScalar(valuePacked: any, objectType?: ObjectTyp
 // TODO :Test!: figure out how to test value packing on bench-web
 
 /** Packs a single object value into a packed & secret packed value. */
-function packObjectScalar(
+function packValueObject(
   value: ScalarValue,
   type: TypeIdentity,
   graph: ReadNodeGraph,
@@ -372,7 +390,7 @@ function packObjectScalar(
 }
 
 /** Unpacks a single packed & secret packed value into an object. */
-function unpackObjectScalar(
+function unpackValueObject(
   valuePacked: JsonValue,
   secretValuePacked: JsonValue | undefined,
   type: TypeIdentity,
@@ -425,12 +443,12 @@ export function packValue(
     if (value == null) {
       return { valuePacked: null, secretValuePacked: undefined };
     } else if (!type.isList) {
-      return packObjectScalar(value, type, graph);
+      return packValueObject(value, type, graph);
     } else {
       const valuePacked: JsonValue[] = [];
       const secretValuePacked: JsonValue[] = [];
       for (let i = 0; i < value.length; i++) {
-        const packed = packObjectScalar(value[i], type, graph);
+        const packed = packValueObject(value[i], type, graph);
         valuePacked.push(packed.valuePacked);
         if (packed.secretValuePacked != null) secretValuePacked.push(packed.secretValuePacked);
       }
@@ -475,13 +493,13 @@ export function unpackValue(
     if (packed.valuePacked == null) {
       return null;
     } else if (!type.isList) {
-      return unpackObjectScalar(packed.valuePacked, packed.secretValuePacked, type, graph);
+      return unpackValueObject(packed.valuePacked, packed.secretValuePacked, type, graph);
     } else {
       if (!Array.isArray(packed.valuePacked)) {
         throw new Error(`expected array for list type ${describeTypeIdentity(type)}`);
       }
       return packed.valuePacked!.map((v: any, i: number) =>
-        unpackObjectScalar(v, (packed.secretValuePacked as Array<JsonValue>)?.[i], type, graph),
+        unpackValueObject(v, (packed.secretValuePacked as Array<JsonValue>)?.[i], type, graph),
       );
     }
   } else {

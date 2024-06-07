@@ -143,12 +143,16 @@ class RuntimeThread:
         logger.info("thread.start", process=self, bench=self._bench, span="current")
 
     async def _process_run(self, run_data: RunData):
+        # TODO :Architecture!: process run in steps/ticks somehow
+        #  (also: flush run/session state independent from other nodes, handle pausing, ...)
         assert self._main_package is not None, f"no main package for {self!r}"
         package = self._main_package.node
         assert (
             run_data.parent_ptr and UUID(run_data.parent_ptr.id) == package.id
         ), f"{run_data!r} not in {package!r}"
-        run = wiring.unpack_object(run_data, parent=package, session=self._session, expect=Run)
+        run = wiring.unpack_object_interp(
+            run_data, parent=package, session=self._session, expect=Run
+        )
 
         async with self.session(readonly=False, autocommit=True):
             run.status = RunStatus.RUNNING

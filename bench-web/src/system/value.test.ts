@@ -2,8 +2,8 @@ import { BenchType, EnumType, NodeType, ObjectType, PrimitiveType, StructType, T
 import { fabricate } from "@/system/graph.test";
 import { OBJECT_TYPES, getTkFromPtrMaybe } from "@/system/lang";
 import {
-  packStructValueScalar,
-  unpackStructValueScalar,
+  packBuiltinObject,
+  unpackBuiltinObject,
   decodeTypeIdentity,
   encodeTypeIdentity,
   type TypeIdentity,
@@ -66,8 +66,8 @@ describe("packing structs", () => {
   test.each(OBJECT_TYPES_NAMES)("roundtrip struct value %s", (typeName) => {
     const objectType = ObjectType[typeName as any] as unknown as ObjectType;
     const value = fabricate(objectType);
-    const valuePacked = packStructValueScalar(value);
-    const valueUnpacked = unpackStructValueScalar(valuePacked);
+    const valuePacked = packBuiltinObject(value);
+    const valueUnpacked = unpackBuiltinObject(valuePacked);
     expect(valueUnpacked).toEqual(value);
   });
 });

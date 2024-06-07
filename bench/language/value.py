@@ -208,8 +208,8 @@ class Object:
         self, parent: ValueParent, prop: ValueProperty, ancestor_prop: Optional["Property"]
     ) -> "Object":
         """Copy this object into the given parent/prop."""
-        value_packed, secret_value_packed = pack_object_value_scalar(self, self._type)
-        copy = unpack_object_value_scalar(
+        value_packed, secret_value_packed = pack_value_object(self, self._type)
+        copy = unpack_value_object(
             value_packed, secret_value_packed, self._type, parent, prop, ancestor_prop
         )
         copy.parent_key = prop.id_as_str if isinstance(prop, Property) else prop.identity_key
@@ -450,15 +450,20 @@ def check_value(value: Any, typ: "TypeInfoBase", invalid: "ValidationHandler") -
 #
 
 
-def pack_value_scalar(value: ScalarValue, typ: "TypeInfoBase") -> JsonValue:
+def pack_value_scalar(value: ScalarValue | ScalarValueData, typ: "TypeInfoBase") -> JsonValue:
     """
-    Packs the given scalar runtime value into a JSON-able representation.
+    Packs the given scalar runtime or data value into a JSON-able representation.
     """
     if typ.kind == TypeKind.PRIMITIVE:
         if typ.primitive_type == PrimitiveType.BYTES:
             return base64.b64encode(cast(bytes, value)).decode()
         elif typ.primitive_type == PrimitiveType.UUID:
             return str(cast(UUID, value))
+        elif typ.primitive_type == PrimitiveType.JSON:
+            if isinstance(value, ProtoStruct):
+                return cast(JsonValue, value.to_dict())
+            else:
+                return cast(JsonValue, value)
         elif typ.primitive_type == PrimitiveType.DATETIME:
             return cast(datetime, value).isoformat()
         elif typ.primitive_type == PrimitiveType.INTERVAL:
@@ -470,11 +475,15 @@ def pack_value_scalar(value: ScalarValue, typ: "TypeInfoBase") -> JsonValue:
             ref = cast("Node", value).to_ref()
         else:
             ref = cast("NodeReference", value)
-        return pack_struct_value_scalar_data(ref._to_data())
+        if isinstance(ref, BuiltinObject):
+            ref = ref._to_data()
+        return pack_builtin_object_data(ref)
     elif typ.kind == TypeKind.ENUM:
         return int(cast(int, value))
     elif typ.kind == TypeKind.STRUCT:
-        return pack_struct_value_scalar_data(cast("Struct", value)._to_data())
+        if isinstance(value, BuiltinObject):
+            value = value._to_data()
+        return pack_builtin_object_data(cast(AnyStructData | AnyNodeData, value))
     else:
         raise TypeError(f"cannot pack value of type {typ!r}")
 
@@ -503,38 +512,10 @@ def unpack_value_scalar(value_packed: JsonValue, typ: "TypeInfoBase") -> ScalarV
         from bench.proto import wiring
 
         assert isinstance(value_packed, dict), f"{value_packed!r} is not a dict (expected {typ!r})"
-        value_struct = unpack_struct_value_scalar_data(value_packed)
+        value_struct = unpack_builtin_object_data(value_packed)
         return wiring.unpack_object(cast(AnyStructData, value_struct))
     else:
         raise TypeError(f"cannot unpack value of type {typ!r}")
-
-
-def pack_value_scalar_data(value: ScalarValueData, typ: "TypeInfoBase") -> JsonValue:
-    """
-    Packs the given scalar value into its proto value representation.
-    This is pretty similar to _pack_value_data, but packs properties in the form that proto
-     data expects (so e.g. UUIDs are strings, and of course Structs are StructData).
-     NOTE :Cleanup: consolidate pack_value_scalar/data variants?
-    """
-    if typ.kind == TypeKind.PRIMITIVE:
-        if typ.primitive_type == PrimitiveType.BYTES:
-            return base64.b64encode(cast(bytes, value)).decode()
-        elif typ.primitive_type == PrimitiveType.UUID:
-            return cast(str, value)
-        elif typ.primitive_type == PrimitiveType.JSON:
-            return cast(JsonValue, cast(ProtoStruct, value).to_dict())
-        elif typ.primitive_type == PrimitiveType.DATETIME:
-            return cast(datetime, value).isoformat()
-        elif typ.primitive_type == PrimitiveType.INTERVAL:
-            return cast(timedelta, value).total_seconds()
-        else:
-            return cast(JsonValue, value)
-    elif typ.kind == TypeKind.ENUM:
-        return int(cast(int, value))
-    elif typ.kind in (TypeKind.NODE, TypeKind.BASED_NODE, TypeKind.STRUCT):
-        return pack_struct_value_scalar_data(cast(AnyStructData, value))
-    else:
-        raise TypeError(f"cannot pack value of type {typ!r}")
 
 
 def unpack_value_scalar_data(value_packed: JsonValue, typ: "TypeInfoBase") -> ScalarValueData:
@@ -561,12 +542,12 @@ def unpack_value_scalar_data(value_packed: JsonValue, typ: "TypeInfoBase") -> Sc
         return enum_cls(cast(int, value_packed))
     elif typ.kind in (TypeKind.NODE, TypeKind.BASED_NODE, TypeKind.STRUCT):
         assert isinstance(value_packed, dict), f"{value_packed!r} is not a dict (expected {typ!r})"
-        return unpack_struct_value_scalar_data(value_packed)
+        return unpack_builtin_object_data(value_packed)
     else:
         raise TypeError(f"cannot unpack value of type {typ!r}")
 
 
-def pack_struct_value_scalar_data(
+def pack_builtin_object_data(
     value: AnyStructData | AnyNodeData,
     only: Collection[Property | Any] | None = None,
 ) -> dict[str, JsonValue]:
@@ -581,15 +562,15 @@ def pack_struct_value_scalar_data(
             continue
         elif prop.is_list:
             prop_value_packed = [
-                pack_value_scalar_data(element, prop.as_type_info) for element in prop_value
+                pack_value_scalar(element, prop.as_type_info) for element in prop_value
             ]
         else:
-            prop_value_packed = pack_value_scalar_data(prop_value, prop.as_type_info)
+            prop_value_packed = pack_value_scalar(prop_value, prop.as_type_info)
         value_packed[prop.id_as_str] = prop_value_packed
     return value_packed
 
 
-def unpack_struct_value_scalar_data[T: AnyStructData | AnyNodeData](
+def unpack_builtin_object_data[T: AnyStructData | AnyNodeData](
     value_packed: dict[str, Any],
     expect: type[T] | None = None,
     only: Collection[Property | Any] | None = None,
@@ -625,7 +606,7 @@ def unpack_struct_value_scalar_data[T: AnyStructData | AnyNodeData](
     return value
 
 
-def pack_object_value_scalar(
+def pack_value_object(
     value: Object, typ: "TypeInfoBase"
 ) -> tuple[dict[str, JsonValue], dict[str, JsonValue] | None]:
     """
@@ -658,7 +639,7 @@ def pack_object_value_scalar(
     return value_packed, None
 
 
-def unpack_object_value_scalar(
+def unpack_value_object(
     value_packed: dict[str, JsonValue],
     secret_value_packed: JsonValue | None,
     typ: "TypeInfoBase",
@@ -714,16 +695,14 @@ def pack_value(
         if not typ.is_list:
             if type(value) is not Object:
                 raise TypeError(f"{value!r} is not an Object (expected {typ!r})")
-            return pack_object_value_scalar(value, typ)
+            return pack_value_object(value, typ)
         else:
             value_packed: JsonValue = []
             secret_value_packed: JsonValue = []
             for element in cast(Collection[SomeValue], value):
                 if type(element) is not Object:
                     raise TypeError(f"{element!r} is not an Object (expected {typ!r})")
-                inner_value_packed, inner_secret_value_packed = pack_object_value_scalar(
-                    element, typ
-                )
+                inner_value_packed, inner_secret_value_packed = pack_value_object(element, typ)
                 value_packed.append(inner_value_packed)
                 secret_value_packed.append(inner_secret_value_packed)
             return value_packed, secret_value_packed
@@ -753,9 +732,9 @@ def pack_value_data(
     if value is None:
         value_packed = None
     elif not typ.is_list:
-        value_packed = pack_value_scalar_data(cast(ScalarValueData, value), typ)
+        value_packed = pack_value_scalar(cast(ScalarValueData, value), typ)
     else:
-        value_packed = [pack_value_scalar_data(element, typ) for element in cast(list, value)]
+        value_packed = [pack_value_scalar(element, typ) for element in cast(list, value)]
     if wrap_primitive:
         value_packed = {typ.identity_key: value_packed}
     return value_packed, None
@@ -781,7 +760,7 @@ def unpack_value(
         if not typ.is_list:
             if not isinstance(value_packed, dict):
                 raise TypeError(f"{value_packed!r} is not a dict (expected {typ!r})")
-            return unpack_object_value_scalar(
+            return unpack_value_object(
                 value_packed=value_packed,
                 secret_value_packed=secret_value_packed,
                 typ=typ,
@@ -793,7 +772,7 @@ def unpack_value(
             if not isinstance(value_packed, list):
                 raise TypeError(f"{value_packed!r} is not a list (expected {typ!r})")
             return [
-                unpack_object_value_scalar(
+                unpack_value_object(
                     value_packed=cast(dict[str, JsonValue], element),
                     secret_value_packed=secret_value_packed,
                     typ=typ,
