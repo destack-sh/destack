@@ -13,6 +13,8 @@ from bench.language.connection import StoreEngine
 from bench.language.const import BlockType, RunKind, RunStatus, _active_run
 from bench.language.run import Run, RunError
 from bench.language.session import Session, unsuspend_session
+from bench.language.validation import on_invalid_raise
+from bench.language.value import check_value
 from bench.proto import wiring
 from bench.proto.wire import GraphScope, HostStub, RunData, SupervisorStub
 from bench.runtime.connection import ConnectedBench, ConnectedPackage, QueryConnector
@@ -158,6 +160,7 @@ class RuntimeThread:
                 if run.kind == RunKind.BLOCK:
                     block = run.block
                     assert block is not None, f"no block for {run!r}"
+                    check_value(run.inputs, block.as_type, on_invalid_raise)
                     if block.type == BlockType.CODE:
                         code = block.code or Code.empty()
                         run_code_exec(code.to_string(), {"self": block})

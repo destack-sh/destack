@@ -9,7 +9,7 @@ import structlog
 from betterproto.lib.google.protobuf import Struct as ProtoStruct
 from opentelemetry import trace
 
-from bench.language.const import NodeType, ObjectType
+from bench.language.const import UNSET, NodeType, ObjectType
 from bench.language.graph import NodeDataGraph
 from bench.language.node import BuiltinObject, Node, NodeGraph, ReadInfo
 from bench.language.property import Property
@@ -195,6 +195,8 @@ def unpack_object[T: BuiltinObject](
             object_kwargs[prop.name] = unpack_object_prop(prop, value, ignore_array=False)
         if parent is not None:
             object_kwargs["parent"] = parent
+        if issubclass(object_cls, Node):
+            object_kwargs["_session"] = UNSET
         obj = object_cls(**object_kwargs)
         if session is not None and isinstance(obj, Node):
             obj._resolve_references(obj)

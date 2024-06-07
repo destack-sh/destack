@@ -825,7 +825,7 @@ from bench.language.node import BuiltinObject, HasBaseNode, object_component  # 
 
 @object_component()
 class HasValues(BuiltinObject):
-    # TODO :Robustness: ensure HasValues never accidentally 'edits' the node during init or such
+    # NOTE :Robustness: ensure HasValues never accidentally 'edits' the node during init or such
 
     def _init_component(self) -> None:
         if self._is_interped:
@@ -834,12 +834,11 @@ class HasValues(BuiltinObject):
     def _interp_component(self, scope: "Node | None"):
         # unpack values
         self._unpack_values_inplace(self.__value_properties__.values())
-        # TODO :Incomplete: check type?
 
     def _updated_component(self, properties: Collection[Property]) -> None:
         # update packed properties
         if len(properties) == 0 or any(prop.is_value_runtime for prop in properties):
-            # TODO :Performance: only update packed values prior to serialization?
+            # NOTE :Performance: only update packed values prior to serialization?
             #  (would be nice to summarize them into bigger edits to avoid unnecessary work)
             self._pack_values_inplace(properties)
 
@@ -878,11 +877,9 @@ class HasValues(BuiltinObject):
             if not prop.is_value_runtime:
                 continue
             assert type(prop.value_packed_ptr) is Property, f"{prop!r} has no value_packed_ptr"
-            if skip_already_set:
-                # allow us to bail if we want to force set a temporary value in the constructor
-                value_packed = getattr(self, prop.value_packed_ptr.name)
-                if value_packed is not None:
-                    continue
+            # allow us to bail if we want to force set a temporary value in the constructor
+            if skip_already_set and getattr(self, prop.value_packed_ptr.name) is not None:
+                continue
             value = getattr(self, prop.name)
             if value is not None:
                 value_type = self._resolve_value_prop_type(prop)
