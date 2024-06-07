@@ -69,7 +69,7 @@ LOADED_PACKAGE_NODE_TYPES: bittuple[NodeType] = bittuple(
     NodeType.UPGRADE,
     NodeType.SPACE,
     NodeType.LINK,
-    NodeType.NOTICE,
+    NodeType.ISSUE,
     NodeType.BLOCK,
     NodeType.TRIGGER,
     NodeType.FIELD,

@@ -23,6 +23,7 @@ from bench.language.const import (
 )
 from bench.language.expression import NodeReference, _TypeQueryBuilder
 from bench.language.graph import NodeList
+from bench.language.issue import Issue
 from bench.language.node import (
     HasBaseNode,
     Node,
@@ -35,7 +36,6 @@ from bench.language.node import (
     pad_ck_from_tk_b64,
     struct,
 )
-from bench.language.notice import Notice
 from bench.language.property import (
     Property,
     p_internal,
@@ -75,6 +75,7 @@ TYPE_KIND_BY_LETTER: dict[str, TypeKind] = {v: k for k, v in LETTER_BY_TYPE_KIND
 
 
 def get_implied_type_kind(typ: "TypeInfoBase") -> TypeKind | None:
+    """Figure out which 'kind' of type is implied by the type info (ignoring its current 'kind')"""
     if typ.primitive_type:
         return TypeKind.PRIMITIVE
     elif typ.bench_type:
@@ -445,7 +446,7 @@ class Field(SourceNode[FieldData], HasBaseNode, TypeInfoBase, _TypeQueryBuilder)
     # is_indexed: bool = ... # for database fields
     # is_unique: bool = ... # for database fields
 
-    notices: NodeList["Notice"] = p_node_child(NodeType.NOTICE)
+    notices: NodeList["Issue"] = p_node_child(NodeType.ISSUE)
 
     _introspected_from: Optional[Property] = p_runtime(default=None)
 

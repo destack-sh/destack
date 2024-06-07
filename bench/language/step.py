@@ -2,8 +2,8 @@ from typing import TYPE_CHECKING, Any, Optional, Union
 
 from bench.language.const import EnumType, NodeType, StructType, enum_
 from bench.language.graph import NodeList
+from bench.language.issue import Issue
 from bench.language.node import SourceNode, Struct, node, struct
-from bench.language.notice import Notice
 from bench.language.property import (
     p_internal,
     p_node_child,
@@ -92,4 +92,4 @@ class Step(SourceNode[StepData], HasValues):
     steps: NodeList["Step"] = p_node_child(NodeType.STEP)
     fields: NodeList["Field"] = p_node_child(NodeType.FIELD)
     triggers: NodeList["Trigger"] = p_node_child(NodeType.TRIGGER)
-    notices: NodeList["Notice"] = p_node_child(NodeType.NOTICE)
+    notices: NodeList["Issue"] = p_node_child(NodeType.ISSUE)

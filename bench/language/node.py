@@ -271,7 +271,7 @@ def _process_object_cls[ObjectT: BuiltinObject](
             ):
                 raise ValueError(f"struct {cls} has non-inlined struct {component}")
 
-    # collect properties from this
+    # collect properties from this class
     own_properties: dict[str, Property] = {}
     for name, prop in list(cls.__dict__.items()):
         if (
@@ -1855,14 +1855,14 @@ class PackageNode[NodeDataT: AnyNodeData](BenchNode[NodeDataT], abc.ABC):
 
 @node_component()
 class IdentityNode[NodeDataT: AnyNodeData](PackageNode[NodeDataT], abc.ABC):
-    """A package node with a continous identity across versions."""
+    """A package node with a persistent identity across versions."""
 
     ck: UUID = p_system(3, default=None, require=True, autoset=True)  # type: ignore
 
 
 @node_component()
 class SourceNode[NodeDataT: AnyNodeData](IdentityNode[NodeDataT], abc.ABC):
-    """An identity node that can be instanced."""
+    """A package node with a persistent identity that can be instanced."""
 
     template: Optional["Node"] = p_node_template(7)
     templated_epoch: int | None = p_system(
@@ -1872,6 +1872,13 @@ class SourceNode[NodeDataT: AnyNodeData](IdentityNode[NodeDataT], abc.ABC):
         template_id: Optional[UUID] = None
         template_ptr: Optional[NodeReference] = None
     set_properties: list[int] = p_regular(29, array=True, store=True)
+
+
+@node_component()
+class TimedNode[NodeDataT: AnyNodeData](PackageNode[NodeDataT], abc.ABC):
+    """A package node whose identity is tied to a specific point in time."""
+
+    __id_factory__: ClassVar[Callable[[], UUID]] = UUIDT
 
 
 @node_component()
@@ -1889,11 +1896,6 @@ class HasBaseNode(BuiltinObject, abc.ABC):
     @staticmethod
     def get_base_from_data(data: AnyNodeData) -> Optional[NodeReferenceData]:
         raise NotImplementedError
-
-
-@node_component()
-class TimedNode[NodeDataT: AnyNodeData](PackageNode[NodeDataT], abc.ABC):
-    __id_factory__: ClassVar[Callable[[], UUID]] = UUIDT
 
 
 # NOTE: import from .value later to avoid circular import

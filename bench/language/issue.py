@@ -1,12 +1,18 @@
-from typing import TYPE_CHECKING, Any, Collection, Optional, TypedDict, Union
+from typing import TYPE_CHECKING, Optional, Union
 from uuid import UUID
 
-from bench.language.const import BenchError, EnumType, NodeType, NoticeKind, StructType, enum_
-from bench.language.node import LINK_TARGET_NODE_TYPES, Node, Property, SourceNode, node
+from bench.language.const import BenchError, EnumType, IssueKind, NodeType, StructType, enum_
+from bench.language.node import (
+    LINK_TARGET_NODE_TYPES,
+    Node,
+    PackageNode,
+    Property,
+    node,
+)
 from bench.language.property import p_node_parent, p_regular
 from bench.language.text import Text
 from bench.language.validation import TITLE_CONSTRAINT
-from bench.proto.wire import NoticeData
+from bench.proto.wire import IssueData
 from bench.utils.func import IdEnum
 
 if TYPE_CHECKING:
@@ -15,9 +21,9 @@ if TYPE_CHECKING:
 # pyright: reportIncompatibleVariableOverride=false
 
 
-@enum_(EnumType.NOTICE_TYPE)
-class NoticeType(IdEnum):
-    """Built-in notice types."""
+@enum_(EnumType.ISSUE_TYPE)
+class IssueType(IdEnum):
+    """Built-in issue types."""
 
     # errors
     MISSING_REFERENCE = 1
@@ -34,29 +40,29 @@ class NoticeType(IdEnum):
     ...
 
     @property
-    def kind(self) -> NoticeKind:
+    def kind(self) -> IssueKind:
         if self.id < 100:
-            return NoticeKind.ERROR
+            return IssueKind.ERROR
         elif self.id < 200:
-            return NoticeKind.WARNING
+            return IssueKind.WARNING
         elif self.id < 300:
-            return NoticeKind.INFO
+            return IssueKind.INFO
         else:
-            return NoticeKind.HINT
+            return IssueKind.HINT
 
 
-NOTICE_TYPES = tuple(NoticeType)
+NOTICE_TYPES = tuple(IssueType)
 
 
-class NoticeError(BenchError, ValueError):
-    def __init__(self, notice: "Notice", cause: Exception | None = None):
+class IssueError(BenchError, ValueError):
+    def __init__(self, notice: "Issue", cause: Exception | None = None):
         super().__init__(repr(notice))
         self.notice = notice
         self.cause = cause
 
 
-NoticeParent = Union["Block", "Field", "Step", "View"]
-NOTICE_PARENT_TYPES: tuple[NodeType, ...] = (
+IssueParent = Union["Block", "Field", "Step", "View"]
+ISSUE_PARENT_TYPES: tuple[NodeType, ...] = (
     NodeType.BLOCK,
     NodeType.FIELD,
     NodeType.STEP,
@@ -64,16 +70,15 @@ NOTICE_PARENT_TYPES: tuple[NodeType, ...] = (
 )
 
 
-@node(NodeType.NOTICE)
-class Notice(SourceNode[NoticeData]):
+@node(NodeType.ISSUE)
+class Issue(PackageNode[IssueData]):
     """
-    An informational or diagnostic Notice about something in the Bench source.
-    Notices are generally 'sticky' until resolved.
+    A diagnostic regarding something in the Bench source.
     """
 
-    parent: NoticeParent = p_node_parent(4, *NOTICE_PARENT_TYPES)
-    kind: NoticeKind = p_regular(30, default=None)
-    type: NoticeType = p_regular(31)
+    parent: IssueParent = p_node_parent(4, *ISSUE_PARENT_TYPES)
+    kind: IssueKind = p_regular(30, default=None)
+    type: IssueType = p_regular(31)
     subject: Node = p_regular(33, require=False, references=LINK_TARGET_NODE_TYPES)
     path: Optional["Path"] = p_regular(34, require=False, array=False, struct=StructType.PATH)
     properties: Optional[list[Property]] = p_regular(
@@ -91,11 +96,3 @@ class Notice(SourceNode[NoticeData]):
     @property
     def subject_id(self) -> UUID | None:
         return self.parent.id if self.parent is not None else None
-
-
-class NoticeIn(TypedDict, total=False):
-    subject: Optional["Node"]  # if distinct form subject/parent
-    title: Optional[str]
-    text: Optional[str | Text]
-    path: Optional["Path"]
-    properties: Optional[Collection[Property] | Collection[Any]]

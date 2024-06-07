@@ -12,7 +12,7 @@ from bench.utils.utils import frozendict, get_from_env
 if typing.TYPE_CHECKING:
     from bench.language import Bench, Run, Session, Transaction
 
-VERSION = "2024.06.06.2"
+VERSION = "2024.06.07.0"
 REVISION_PENDING = -1
 TK_LENGTH_BYTES = 8
 TK_LENGTH_B64 = 12  # 1.5 * TK_LENGTH_BYTES (must be integer)
@@ -99,8 +99,9 @@ class EnumType(IdEnum):
     DAY = 2102
     MONTH = 2103
 
-    # notice
-    NOTICE_TYPE = 2170
+    # issue
+    ISSUE_KIND = 2170
+    ISSUE_TYPE = 2171
 
     # flow
     STEP_TYPE = 2180
@@ -129,7 +130,6 @@ class EnumType(IdEnum):
     RUN_ERROR_TYPE = 2263
     SESSION_STATUS = 2264
     TRIGGER_TYPE = 2270
-    NOTICE_KIND = 2280
     NOTIFICATION_KIND = 2281
 
     # expression
@@ -171,7 +171,7 @@ class NodeType(IdEnum):
     SPACE = 23
     LINK = 24
     SKIP = 25
-    NOTICE = 26
+    ISSUE = 26
     BLOCK = 30
     TRIGGER = 31
     FIELD = 32  # (based)
@@ -782,8 +782,8 @@ class Month(IdEnum):
     DECEMBER = 12
 
 
-@enum_(EnumType.NOTICE_KIND)
-class NoticeKind(IdEnum):
+@enum_(EnumType.ISSUE_KIND)
+class IssueKind(IdEnum):
     """Type of diagnostic in increasing severity."""
 
     HINT = 1

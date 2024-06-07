@@ -7,8 +7,8 @@ from croniter import croniter
 from bench.language.const import NodeType, ScheduleType, StructType, TimeInterval, TriggerType
 from bench.language.field import TypeConstraint
 from bench.language.graph import NodeList
+from bench.language.issue import Issue
 from bench.language.node import SourceNode, Struct, node, struct
-from bench.language.notice import Notice
 from bench.language.property import Property, p_node_child, p_node_parent, p_regular
 from bench.language.validation import NAME_CONSTRAINT, ValidationHandler
 from bench.proto.wire import TriggerData
@@ -76,7 +76,7 @@ class Trigger(SourceNode[TriggerData]):
     # flags
     is_paused: bool = p_regular(50, default=False)
 
-    notices: NodeList["Notice"] = p_node_child(NodeType.NOTICE)
+    notices: NodeList["Issue"] = p_node_child(NodeType.ISSUE)
 
     def __content_str__(self):
         if self.type == TriggerType.SCHEDULE and self.schedule:

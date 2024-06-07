@@ -148,7 +148,7 @@ export const ICON_BY_NODE_TYPE: Partial<Record<NodeType, IconData>> = _makeIcons
   [NodeType.SPACE]: "fas fa-galaxy",
   [NodeType.LINK]: "fas fa-link",
   [NodeType.SKIP]: "fas fa-ban",
-  [NodeType.NOTICE]: "fas fa-square-exclamation",
+  [NodeType.ISSUE]: "fas fa-square-exclamation",
   [NodeType.BLOCK]: "fas fa-cube",
   [NodeType.TRIGGER]: "fas fa-bolt",
   [NodeType.FIELD]: "fas fa-font",
@@ -255,7 +255,6 @@ export const ICON_BY_VIEW_TYPE: Partial<Record<ViewType, IconData>> = _makeIcons
   // kernel
   [ViewType.USER_WIZARD]: "fas fa-user",
   [ViewType.BENCH_WIZARD]: "fas fa-circle-dot",
-  [ViewType.CHALLENGE_WIZARD]: "fas fa-trophy",
   [ViewType.EMPTY]: "fas fa-bug",
 
   // system
