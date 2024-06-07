@@ -35,7 +35,7 @@ class TextOptions(BuiltinObject):
     def _to_option_kwargs(self):
         kwargs = {}
         for prop in self.__declared_properties__.values():
-            value = self.__dict__.get(prop.name)
+            value = getattr(self, prop.name)
             if value is not None:
                 kwargs[prop.name] = value
         return kwargs
@@ -294,7 +294,7 @@ def _split_parse_spans(md_line: str) -> list[TextSpan]:
     This is a single line, so we only need to parse out marks & mentions.
     TODO :Performance :Robustness: improve markdown parsing
     """
-    current_options = TextOptions()
+    current_options = {}
     cur_pos = 0
     spans = []
 
@@ -303,7 +303,7 @@ def _split_parse_spans(md_line: str) -> list[TextSpan]:
         # add previous span
         if match.start() > cur_pos:
             content = md_line[cur_pos : match.start()]
-            spans.append(TextSpan(content=content, **current_options._to_option_kwargs()))
+            spans.append(TextSpan(content=content, **current_options))
 
         # check match (mark or mention)
         for k, v in match.groupdict().items():
@@ -313,10 +313,10 @@ def _split_parse_spans(md_line: str) -> list[TextSpan]:
                     raise NotImplementedError(":Incomplete parse mentions")
                 else:
                     # toggle option
-                    if current_options.__dict__.get(k, False):
-                        current_options.__dict__[k] = None
+                    if current_options.get(k, False):
+                        current_options.pop(k)
                     else:
-                        current_options.__dict__[k] = True
+                        current_options[k] = True
 
         # next
         cur_pos = match.end()
@@ -324,7 +324,7 @@ def _split_parse_spans(md_line: str) -> list[TextSpan]:
     # add last span
     if cur_pos < len(md_line):
         content = md_line[cur_pos:]
-        spans.append(TextSpan(content=content, **current_options._to_option_kwargs()))
+        spans.append(TextSpan(content=content, **current_options))
 
     return spans
 

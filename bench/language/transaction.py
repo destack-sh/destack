@@ -723,7 +723,7 @@ def edit_data_graph(
 
             # implicit metadata
             updated_node_data.updated_at = edit.edited_at
-            if "updated_epoch" in node_cls.__properties_by_id__:
+            if "updated_epoch" in node_cls.__properties__:
                 setattr(updated_node_data, "updated_epoch", edit.epoch)
             setattr(updated_node_data, "updated_by_ptr", edit.subject_ptr)
             # Edit.revision may be unset when editing before flushing for validation

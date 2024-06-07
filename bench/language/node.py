@@ -78,7 +78,7 @@ from bench.sql.core import Constraint, ConstraintType, Index, IndexType, Table
 from bench.utils.casing import PYTHON_CASING, IdentifierType, to_casing
 from bench.utils.dt import utcnow
 from bench.utils.env import IS_DEV, IS_TEST
-from bench.utils.func import bittuple, did_you_mean_str
+from bench.utils.func import bittuple
 from bench.utils.utils import frozendict
 from bench.utils.uuidt import UUIDT
 
@@ -313,13 +313,12 @@ def _process_object_cls[ObjectT: BuiltinObject](
             if not is_node and prop.is_tree_reference:
                 raise ValueError(f"non-node {cls} has node-only relation {prop}")
 
+    # bench is optional in variable root types (since they can have other roots)
     if is_node and is_variable_root and "bench" in properties_by_name:
-        # bench is optional in variable root types (since they can have other roots)
         properties_by_name["bench"].is_required = False
 
     # contribute extra properties
     for prop in tuple(properties_by_name.values()):
-        prop: Property
         # collect any extra contributed properties
         if prop.reference_struct == StructType.PROPERTY_REFERENCE or prop.reference_kind in (
             ReferenceKind.NODE_PARENT,
@@ -344,61 +343,77 @@ def _process_object_cls[ObjectT: BuiltinObject](
                         f"property conflict '{p.name}': {p!r}, {properties_by_name[prop.name]!r}"
                     )
                 properties_by_name[p.name] = p
-                if not p.is_computed:  # why is this needed?
-                    setattr(cls, p.name, p)
 
+    # NOTE :Performance :Architecture: we can't really use slots for our builtin objects 
+    #  (as it stands today, __slots__ always uses class-level descriptors, but we also
+    #   want to use class level attributes for our own properties, like Block.type, ...
+    #   - neglecting this conflict causes fun errors like 'X is a read-only attribute')
     # create class (map properties to dataclass fields)
-    for name, prop in list(properties_by_name.items()):
-        # only set attributes in final class to prevent conflicts
-        if not is_final:
-            attr = UNSET
-        # map property to class attribute or dataclass field
-        elif (
-            prop.reference_kind == ReferenceKind.NODE_ANCESTOR_FIRST
-            or prop.reference_kind == ReferenceKind.NODE_ANCESTOR_ROOT
-        ) and not is_node_base:
-            if prop.reference_source is None:  # actual ancestor property
-                attr = _node_computed_ancestor_prop(prop)
-            elif prop.name.endswith("_ptr"):  # wired pointer to ancestor property
-                attr = _node_computed_ancestor_ptr_prop(prop)
+    if is_final:
+        for name, prop in list(properties_by_name.items()):
+            # map property to computed property or dataclass field
+            if (
+                prop.reference_kind == ReferenceKind.NODE_ANCESTOR_FIRST
+                or prop.reference_kind == ReferenceKind.NODE_ANCESTOR_ROOT
+            ) and not is_node_base:
+                if prop.reference_source is None:  # actual ancestor property
+                    attr = _node_computed_ancestor_prop(prop)
+                elif prop.name.endswith("_ptr"):  # wired pointer to ancestor property
+                    attr = _node_computed_ancestor_ptr_prop(prop)
+                else:
+                    attr = UNSET  # will be set as extra computed property below
+            elif prop.is_computed or not prop.is_runtime:
+                attr = UNSET
+            elif prop.default_factory is not None:
+                attr = dataclasses.field(default_factory=prop.default_factory)
+            elif prop.default is not UNSET:
+                attr = dataclasses.field(default=prop.default)
             else:
-                attr = UNSET  # will be set as extra computed property below
-        elif prop.is_computed or not prop.is_runtime:
-            attr = UNSET
-        elif prop.default_factory is not None:
-            attr = dataclasses.field(default_factory=prop.default_factory)
-        elif prop.default is not UNSET:
-            attr = dataclasses.field(default=prop.default)
-        else:
-            attr = _required_prop(prop)
-        # set attribute and annotation accordingly
-        if attr is not UNSET:
-            setattr(cls, name, attr)
-        if isinstance(attr, dataclasses.Field):
-            cls.__annotations__[name] = prop.py_type_raw
-        elif name in cls.__annotations__:
-            del cls.__annotations__[name]
-        # also set extra computed reference properties
-        if prop.is_node_reference and not prop.reference_source:
-            for postfix, ref_key, ptr_key in (
-                ("id", "id", "id"),
-                ("ck", "ck", "ck"),
-                ("type", "metatype", "type"),
-            ):
-                if postfix == "type" and (
-                    not prop.reference_nodes or len(prop.reference_nodes) <= 1
-                ):
-                    continue  # no need for type if only one possible node type
-                computed_prop = _node_ref_computed_prop(
-                    ref_key, ptr_key, prop, prop.reference_wired_ptr
-                )
-                computed_prop_name = prop.name + "_" + postfix
-                existing = properties_by_name.get(computed_prop_name)
-                if existing is not None and existing.reference_source is not prop:
-                    raise ValueError(
-                        f"computed property conflict '{computed_prop_name}': {computed_prop!r}, {existing!r}"
+                attr = _required_prop(prop)
+            # set attribute and annotation accordingly
+            if attr is not UNSET:
+                setattr(cls, name, attr)
+            if isinstance(attr, dataclasses.Field):
+                cls.__annotations__[name] = prop.py_type_raw
+            elif name in cls.__annotations__:
+                del cls.__annotations__[name]
+
+            # also set extra computed reference properties
+            if prop.is_node_reference and not prop.reference_source:
+                for key in ("id", "ck", "type"):
+                    if key == "type" and (
+                        not prop.reference_nodes or len(prop.reference_nodes) <= 1
+                    ):
+                        continue  # no need for *_type if only one possible node type
+                    ref_key = "metatype" if key == "type" else key
+                    computed_prop = _node_ref_computed_prop(
+                        ref_key, key, prop, prop.reference_wired_ptr
                     )
-                setattr(cls, computed_prop_name, computed_prop)
+                    computed_prop_name = prop.name + "_" + key
+                    existing = properties_by_name.get(computed_prop_name)
+                    if existing is not None and existing.reference_source is not prop:
+                        raise RuntimeError(f"property conflict: {computed_prop!r} != {existing!r}")
+                    setattr(cls, computed_prop_name, computed_prop)
+
+        cls = dataclass(cls, slots=False, repr=False, eq=False)  # type: ignore
+    else:
+        # make empty dataclass (ensure all properties are only defined in final classes)
+        for annotation in tuple(cls.__annotations__.keys()):
+            del cls.__annotations__[annotation]
+        cls = dataclass(cls, slots=False, repr=False, eq=False)  # type: ignore
+        
+        def _fail_init_abc(self, *args, **kwargs):
+            raise RuntimeError(f"cannot instantiate non-final class {cls}")
+        
+        cls.__init__ = _fail_init_abc
+
+    # update reference to transformed class
+    for prop in properties_by_name.values():
+        prop.component = cls
+        # dataclass set the default value as a class attribute, but we don't want that
+        #  (I can't figure out why they do that, the defaults are set in __init__ too?)
+        if prop.default is not None and getattr(cls, prop.name, None) == prop.default:
+            setattr(cls, prop.name, None)
 
     # collect component methods implemented in this component
     for meth_type in _ComponentMethod:
@@ -469,26 +484,10 @@ def _process_object_cls[ObjectT: BuiltinObject](
         raise ValueError(f"missing parent property for node {cls}")
     cls.__parent_property__ = parent_property
 
-    # TODO :Performance!: use slots for Struct/Node and wire types (StructData/NodeData/...)
-    #  Using slots everywhere is trickier than it seems because
-    #   1) some weird runtime errors
-    #   2) we use dynamic props in Blocks (for now?)
-    #   3) lack of betterproto support for our *Data types
-    #       (unclear how challenging it would be to add)
-
-    # transform class
-    cls = dataclass(cls, slots=False, repr=False, eq=False)  # type: ignore
-    for prop in props:  # update reference to 'new' class
-        prop.component = cls
-        # dataclass set the default value as a class attribute, but we don't want that
-        #  (I can't figure out why they do that, the defaults are set in __init__ too?)
-        if prop.default is not None and getattr(cls, prop.name, None) == prop.default:
-            setattr(cls, prop.name, None)
-
-    return cls, properties_by_name
+    return cls, properties_by_name  # type: ignore
 
 
-_StructT = TypeVar("_StructT", bound="BuiltinObject")
+_ObjectT = TypeVar("_ObjectT", bound="BuiltinObject")
 
 
 @dataclass_transform(kw_only_default=True, field_specifiers=_PROPERTY_SPECIFIERS)
@@ -501,7 +500,7 @@ def object_component(
     Mark a class as an object component (or concrete struct for a StructType).
     """
 
-    def decorate(cls_in: Type[_StructT]) -> Type[_StructT]:
+    def decorate(cls_in: Type[_ObjectT]) -> Type[_ObjectT]:
         cls, _properties = _process_object_cls(
             cls=cast(Any, cls_in), object_type=struct_type, is_final=is_final, is_inlined=is_inlined
         )
@@ -514,7 +513,7 @@ def object_component(
                     f"struct class conflict for {struct_type}: {cls}, {STRUCT_CLASS_BY_TYPE[struct_type]}"
                 )
             STRUCT_CLASS_BY_TYPE[struct_type] = cls
-        return cast(Type[_StructT], cls)
+        return cast(Type[_ObjectT], cls)
 
     return decorate
 
@@ -523,7 +522,7 @@ def object_component(
 def struct_(struct_type: StructType, inline: bool = False):
     """Register a class as a concrete struct for the given struct type."""
 
-    def decorate(cls: Type[_StructT]) -> Type[_StructT]:
+    def decorate(cls: Type[_ObjectT]) -> Type[_ObjectT]:
         cls = object_component(struct_type=struct_type, is_final=True, is_inlined=inline)(cls)
         if IS_DEV and cls.__name__ != "Struct" and cls.__name__ != "InlineStruct":
             if not issubclass(cls, (InlineStruct, Struct)):
@@ -705,6 +704,18 @@ def _node_ck_from_id_prop(prop: Property) -> property:
     return property(get, set)
 
 
+def _required_prop(prop: Property) -> dataclasses.Field:
+    """Hacky way to make a field required when subclassing a dataclass with defaults."""
+
+    _field = None
+
+    def _raise_must_set():
+        raise ValueError(f"{prop!r} must be set")
+
+    _field = dataclasses.field(default_factory=_raise_must_set, metadata={"required": True})
+    return _field
+
+
 def _node_computed_ancestor_prop(prop: Property) -> property:
     """Computed ancestor property for Node instances."""
 
@@ -740,18 +751,6 @@ def _node_computed_ancestor_prop(prop: Property) -> property:
         raise NotImplementedError(f"cannot set computed property {prop!r}: {value!r}")
 
     return property(get, set)
-
-
-def _required_prop(prop: Property) -> dataclasses.Field:
-    """Hacky way to make a field required when subclassing a dataclass with defaults."""
-
-    _field = None
-
-    def _raise_must_set():
-        raise ValueError(f"{prop!r} must be set")
-
-    _field = dataclasses.field(default_factory=_raise_must_set, metadata={"required": True})
-    return _field
 
 
 def _node_computed_ancestor_ptr_prop(prop: Property) -> property:
@@ -801,7 +800,7 @@ def _node_ref_computed_prop(
 
 @object_component()
 class BuiltinObject[ObjectDataT: AnyNodeData | AnyStructData](abc.ABC):
-    """The base for all intrinsic objects like Structs and Nodes and their derivatives."""
+    """The base for all intrinsic objects like Structs and Nodes and all their derivatives."""
 
     metatype: ClassVar[ObjectType]
     __components__: ClassVar[tuple[type["BuiltinObject"], ...]] = ()
@@ -847,7 +846,7 @@ class BuiltinObject[ObjectDataT: AnyNodeData | AnyStructData](abc.ABC):
         self._init_self()
 
     def __content_str__(self) -> str:
-        return ""
+        return ""  # nothing by default
 
     @final
     def __str__(self):
@@ -922,50 +921,21 @@ class BuiltinObject[ObjectDataT: AnyNodeData | AnyStructData](abc.ABC):
             return self.equals_content(other)
 
     def _do_get(self, item):
-        attr = self.__dict__.get(item, UNSET)
-        if attr is not UNSET:
-            return attr
-        else:
-            # try components methods
-            for component in self.__components__:
-                attr = getattr(component, item, UNSET)
-                if attr is not UNSET:
-                    break
-            else:
-                # check passthrough if tracked in session
-                if attr is UNSET and self._session is not None and self.__passthrough__ is not None:
-                    target = getattr(self, self.__passthrough__)
-                    attr = getattr(target, item, UNSET)
-            # attribute could be property, method, or just plain value
-            if attr is not UNSET:
-                if type(attr) is property:
-                    return attr.fget(self)  # type: ignore
-                elif callable(attr) and not isinstance(attr, Node) and not inspect.ismethod(attr):
-                    return functools.partial(attr, self)
-                else:
-                    return attr
+        """Called if an attribute doesn't exist on the object."""
 
-        # report attribute error
-        candidates = {
-            # own properties
-            **{
-                p.name: p
-                for p in self.__properties__.values()
-                if p.reference_kind or not p.is_ephemeral
-            },
-            # public methods
-            **{m: None for m in dir(self) if not m.startswith("_")},
-        }
-        did_you_mean = did_you_mean_str(candidates, item)
-        if did_you_mean:
-            raise AttributeError(f"{self!r} has no attribute '{item}'. {did_you_mean}")
-        else:
-            raise AttributeError(f"{self!r} has no attribute '{item}'")
+        # check passthrough (if 'live' in session)
+        if self.__passthrough__ is not None and self._session is not None:
+            target = getattr(self, self.__passthrough__)
+            attr = getattr(target, item, UNSET)
+            if attr is not UNSET:
+                return attr
+
+        raise AttributeError(item)
 
     def _do_set(self, key: str, value, *, dont_track: bool = False):
-        """Sets *any* attribute on this node (incl. slots)."""
-        session = self.__dict__.get("_session", None)
-        is_tracked = session is not None and session is not UNSET
+        """Sets *any* attribute on this node (incl. slots if using)."""
+        session = getattr(self, "_session", None)
+        is_tracked = not dont_track and session is not None and session is not UNSET
         prop = self.__properties__.get(key)
         if prop is not None:
             if (prop.is_ephemeral and not prop.is_value_runtime) or prop.is_autoset:  # untracked
@@ -977,11 +947,11 @@ class BuiltinObject[ObjectDataT: AnyNodeData | AnyStructData](abc.ABC):
                 else:
                     return attr.set(value)  # has its own set
             elif prop.is_computed:
-                raise AttributeError(f"cannot set computed property {prop!r}: {value!r}")
+                raise AttributeError(f"cannot set computed property: '{key}'")
 
             # validate/set
-            old_value = self.__dict__.get(key)
-            if is_tracked and not dont_track:
+            old_value = getattr(self, key, UNSET)
+            if is_tracked and old_value is not UNSET:
                 # coerce & check type
                 if prop.type_info is not None and prop.reference_source is None:
                     value = coerce_value(value, prop.type_info, self, prop, prop)
@@ -1000,7 +970,7 @@ class BuiltinObject[ObjectDataT: AnyNodeData | AnyStructData](abc.ABC):
                 wired_ptr = prop.to_wired_ptr(cast(Any, value))
                 object.__setattr__(self, prop.reference_wired_ptr.name, wired_ptr)
 
-            if is_tracked and not dont_track:
+            if is_tracked:
                 # notify
                 self._updated_self((prop,))
                 if self.__is_node__:
@@ -1019,18 +989,15 @@ class BuiltinObject[ObjectDataT: AnyNodeData | AnyStructData](abc.ABC):
                     ), f"unexpected parent: {self.parent!r}"
                     if self.parent is not None:
                         self.parent._updated_self((prop,))
+            return
         elif is_tracked and self.__passthrough__ is not None:
             # try passthrough target (if any)
-            target = getattr(self, self.__passthrough__)
-            setattr(target, key, value)
-        else:
-            # report set error with additional info
-            candidates = {p.name: p for p in self.__properties__.values() if not p.is_computed}
-            did_you_mean = did_you_mean_str(candidates, key)
-            if did_you_mean:
-                raise AttributeError(f"Cannot set '{key}' on {self!r}. {did_you_mean}")
-            else:
-                raise AttributeError(f"Cannot set '{key}' on {self!r}")
+            target = getattr(self, self.__passthrough__, UNSET)
+            if target is not UNSET:
+                setattr(target, key, value)
+                return
+
+        raise AttributeError(key)
 
     if not TYPE_CHECKING:
         # NOTE: __setattr__/__getattr__ confuses type checking, so only define it at runtime
@@ -1055,9 +1022,11 @@ class BuiltinObject[ObjectDataT: AnyNodeData | AnyStructData](abc.ABC):
             if value is None:
                 continue
             elif not prop.is_list:
+                assert isinstance(value, InlineStruct), f"unexpected value for {prop!r}: {value!r}"
                 yield from (cast(Struct, value))._walk_struct()
             elif len(cast(list, value)) > 0:
-                for item in cast(list[Struct], value):
+                for item in cast(list, value):
+                    assert isinstance(item, InlineStruct), f"unexpected item for {prop!r}: {item!r}"
                     yield from item._walk_struct()
 
     def _init_component(self):
@@ -1067,13 +1036,15 @@ class BuiltinObject[ObjectDataT: AnyNodeData | AnyStructData](abc.ABC):
                 existing = getattr(self, prop.name, None)
                 if prop.is_list:
                     assert prop.reference_list_type is not None
-                    self.__dict__[prop.name] = prop.reference_list_type(cast(Node, self), prop)
+                    self._do_set(
+                        prop.name, prop.reference_list_type(cast(Node, self), prop), dont_track=True
+                    )
                     if existing:
                         # will auto copy if needed
-                        self.__dict__[prop.name].extend(existing)
+                        getattr(self, prop.name).extend(existing)
                 elif existing is not None:
                     if prop.reference_kind == ReferenceKind.STRUCT_CHILD:
-                        self.__dict__[prop.name] = existing._move_to(self, prop)
+                        self._do_set(prop.name, existing._move_to(self, prop), dont_track=True)
 
             # init property reference pointers if references are set
             if prop.reference_kind == ReferenceKind.PROPERTY:
@@ -1081,9 +1052,15 @@ class BuiltinObject[ObjectDataT: AnyNodeData | AnyStructData](abc.ABC):
                 existing = getattr(self, prop.name, None)
                 if prop.is_list:
                     if existing:
-                        self.__dict__[prop.reference_wired_ptr.name] = prop.to_wired_ptr(existing)
+                        self._do_set(
+                            prop.reference_wired_ptr.name,
+                            prop.to_wired_ptr(existing),
+                            dont_track=True,
+                        )
                 elif existing is not None:
-                    self.__dict__[prop.reference_wired_ptr.name] = prop.to_wired_ptr(existing)
+                    self._do_set(
+                        prop.reference_wired_ptr.name, prop.to_wired_ptr(existing), dont_track=True
+                    )
 
         # init reference pointers if references are set
         for prop in self.__node_reference_properties__.values():
@@ -1092,14 +1069,14 @@ class BuiltinObject[ObjectDataT: AnyNodeData | AnyStructData](abc.ABC):
             if prop.reference_wired_ptr is not None:
                 value = getattr(self, prop.name)
                 if value is not None:  # keep old value)
-                    self.__dict__[prop.reference_wired_ptr.name] = prop.to_wired_ptr(value)
+                    self._do_set(prop.reference_wired_ptr.name, prop.to_wired_ptr(value))
 
     def _validate_component(self, properties: Collection[Property], invalid: "ValidationHandler"):
         if properties == ():
             properties = self.__tracked_properties__.values()
         for prop in properties:
             if prop.type_info is not None and prop.reference_source is None:
-                value = self.__dict__.get(prop.name)
+                value = getattr(self, prop.name)
                 check_value(value, prop.type_info, invalid=invalid)
 
     def _resolve_references(self, scope: Optional["Node"]):
@@ -1128,12 +1105,12 @@ class BuiltinObject[ObjectDataT: AnyNodeData | AnyStructData](abc.ABC):
                         r = graph.get(cast(UUID, p.id or p.ck))
                         if r is not None:
                             resolved.append(r)
-                    self.__dict__[prop.name] = resolved
+                    self._do_set(prop.name, resolved)
                 else:
                     ptr = cast("NodeReference", ptr)
                     resolved = graph.get(cast(UUID, ptr.id or ptr.ck))
                     if resolved is not None:
-                        self.__dict__[prop.name] = resolved
+                        self._do_set(prop.name, resolved)
 
         # resolve property references
         for prop in self.__property_reference_properties__.values():
@@ -1282,9 +1259,8 @@ class Struct[StructDataT: AnyStructData](InlineStruct[StructDataT], abc.ABC):
     __is_struct_inlined__: ClassVar[bool] = False
     __is_struct__: ClassVar[bool] = True
 
-    parent: Union["BuiltinObject", "Object", None] = p_struct_parent(3, wire=False)
     id: int = p_system(2, default_factory=new_struct_id)
-
+    parent: Union["BuiltinObject", "Object", None] = p_struct_parent(3, wire=True)
     order_key: str | None = p_internal(9, default=None)
 
     @final

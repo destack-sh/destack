@@ -43,7 +43,8 @@ class StepType(IdEnum):
 
 @enum_(EnumType.STEP_CONNECTION_TYPE)
 class StepConnectionType(IdEnum):
-    pass  # not sure yet
+    THEN = 1
+    # ... not sure yet
 
 
 @struct_(StructType.STEP_CONNECTION)
@@ -51,8 +52,8 @@ class StepConnection(Struct):
     """A connection between two Steps in a FlowBlock."""
 
     type: StepConnectionType = p_internal(30)
-    source: Union["Block", "Step", "Trigger"] = p_regular(
-        31, require=True, references=NodeType.STEP
+    source: Union["Step", "Trigger"] = p_regular(
+        31, require=True, references=(NodeType.STEP, NodeType.TRIGGER)
     )
 
 

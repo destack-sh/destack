@@ -1028,6 +1028,7 @@ class Spacing(betterproto.Enum):
 
 class StepConnectionType(betterproto.Enum):
     UNSPECIFIED = 0
+    THEN = 1
 
 
 class StepType(betterproto.Enum):
