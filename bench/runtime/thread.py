@@ -160,10 +160,16 @@ class RuntimeThread:
                 if run.kind == RunKind.BLOCK:
                     block = run.block
                     assert block is not None, f"no block for {run!r}"
-                    check_value(run.inputs, block.as_type, on_invalid_raise)
+                    input_type = block.input_type
+                    # nocheckin
+                    print(input_type)
+                    print(run.inputs)
+                    print(run.inputs_packed)
+                    if input_type is not None:
+                        check_value(run.inputs, input_type, on_invalid_raise)
                     if block.type == BlockType.CODE:
                         code = block.code or Code.empty()
-                        run_code_exec(code.to_string(), {"self": block})
+                        run_code_exec(code.to_string(), {"self": block, **(run.inputs or {})})
                     elif block.type == BlockType.TEXT:
                         ...  # nocheckin
                     else:

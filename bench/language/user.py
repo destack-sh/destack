@@ -9,7 +9,7 @@ from bench.language.const import (
     UserStatus,
 )
 from bench.language.graph import NodeList
-from bench.language.node import BenchNode, Node, SourceNode, node
+from bench.language.node import BenchNode, Node, SourceNode, node_
 from bench.language.property import (
     p_internal,
     p_kernel,
@@ -35,7 +35,7 @@ if TYPE_CHECKING:
 # pyright: reportIncompatibleVariableOverride=false
 
 
-@node(
+@node_(
     NodeType.HANDLE,
     roots=(NodeType.USER, NodeType.ORGANIZATION, NodeType.BENCH),
     identifier=IdentifierType.VARIABLE,
@@ -57,7 +57,7 @@ class Handle(BenchNode[HandleData]):
     slug: str = p_system(30, unique=True, constraint=SLUG_CONSTRAINT)
 
 
-@node(NodeType.USER, roots=(), identifier=IdentifierType.VARIABLE)
+@node_(NodeType.USER, roots=(), identifier=IdentifierType.VARIABLE)
 class User(Node[UserData]):
     """A Bench user."""
 
@@ -81,6 +81,7 @@ class User(Node[UserData]):
     status: UserStatus = p_system(38)
 
     # auth
+    # TODO :Architecture: refactor out authentication & challenges for Users/Client
     password_salt: Optional[bytes] = p_kernel(
         50, default=None, defer=True, encrypt=True, sensitive=True
     )
@@ -107,7 +108,7 @@ class User(Node[UserData]):
         return self.main_bench
 
 
-@node(NodeType.ORGANIZATION, roots=(), identifier=IdentifierType.VARIABLE)
+@node_(NodeType.ORGANIZATION, roots=(), identifier=IdentifierType.VARIABLE)
 class Organization(Node[OrganizationData]):
     """
     A Bench organization with Users as members.
@@ -136,7 +137,7 @@ class Organization(Node[OrganizationData]):
         return self.main_bench
 
 
-@node(NodeType.MEMBERSHIP)
+@node_(NodeType.MEMBERSHIP)
 class Membership(SourceNode[MembershipData]):
     """
     A membership to this Bench (and its owner if it's the main Bench).
@@ -150,7 +151,7 @@ class Membership(SourceNode[MembershipData]):
     roles: NodeList["Role"] = p_node_child(NodeType.ROLE)
 
 
-@node(NodeType.INVITE)
+@node_(NodeType.INVITE)
 class Invite(SourceNode[InviteData]):
     """An invitation to become a member of this Bench."""
 

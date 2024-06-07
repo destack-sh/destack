@@ -37,11 +37,12 @@ from bench.language.node import (
     Node,
     ReadInfo,
     SourceNode,
-    node,
-    struct,
+    node_,
+    struct_,
 )
 from bench.language.property import Property, p_node_parent, p_regular
 from bench.language.setup import ANCESTOR_NODE_TYPES, NODE_CLASSES, _on_completing_setup
+from bench.language.validation import NAME_CONSTRAINT
 from bench.proto.wire import AnyNodeData, QueryData
 from bench.utils.fractional import INTEGER_ZERO
 
@@ -81,7 +82,7 @@ FieldOrProperty = Union[
 NodeTypeOrClass = Union[NodeType, type[Node]]
 
 
-@struct(StructType.READ_OPTIONS, inline=True)
+@struct_(StructType.READ_OPTIONS, inline=True)
 class ReadOptions(InlineStruct):
     """
     Fine-grained options to a read request.
@@ -666,12 +667,12 @@ class QueryBuilder(
             ]
 
 
-@node(NodeType.QUERY)
+@node_(NodeType.QUERY)
 class Query(SourceNode[QueryData]):
     """A stored query."""
 
     parent: "Block" = p_node_parent(4, NodeType.BLOCK)
-    name: str | None = p_regular(30, default=None)
+    name: str = p_regular(30, constraint=NAME_CONSTRAINT)
     order_key: str = p_regular(31, default=INTEGER_ZERO)
     node_type: NodeType = p_regular(32)
     base: Optional["Block"] = p_regular(

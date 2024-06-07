@@ -5,7 +5,7 @@ from uuid import UUID
 
 from bench.language.const import EnumType, NodeType, PrimitiveType, StructType, TypeKind
 from bench.language.graph import NodeList
-from bench.language.node import Node, Struct, struct
+from bench.language.node import Node, Struct, struct_
 from bench.language.setup import ENUM_CLASS_BY_TYPE
 
 if TYPE_CHECKING:
@@ -32,7 +32,7 @@ class NodeVisitor:
         self._reference_by_ck[node.ck] = node
 
 
-@struct(StructType.PROJECTION)
+@struct_(StructType.PROJECTION)
 class Projection(Struct):
     """
     A projection into the graph.

@@ -29,7 +29,7 @@ from bench.language.node import (
     Node,
     Property,
     Struct,
-    struct,
+    struct_,
 )
 from bench.language.property import p_regular, p_value_packed, p_value_runtime
 from bench.language.setup import OBJECT_CLASS_BY_TYPE
@@ -79,7 +79,7 @@ _CONDITIONAL_OP_SIGN: dict[ConditionalOp, str] = {
 }
 
 
-@struct(StructType.NODE_REFERENCE, inline=True)
+@struct_(StructType.NODE_REFERENCE, inline=True)
 class NodeReference(InlineStruct[NodeReferenceData]):
     """
     A reference to a Node.
@@ -198,7 +198,7 @@ class NodeReference(InlineStruct[NodeReferenceData]):
         return reference
 
 
-@struct(StructType.PROPERTY_REFERENCE, inline=True)
+@struct_(StructType.PROPERTY_REFERENCE, inline=True)
 class PropertyReference(InlineStruct):
     type: Optional[ObjectType] = p_regular(30, require=False)
     id: int = p_regular(31)
@@ -219,7 +219,7 @@ class PropertyReference(InlineStruct):
             return Node._resolve_property(self)
 
 
-@struct(StructType.VALUE_REFERENCE)
+@struct_(StructType.VALUE_REFERENCE)
 class ValueReference(Struct):
     """Reference a value at a path of a Node."""
 
@@ -235,7 +235,7 @@ class SelectionKind(IdEnum):
     LIST = 2
 
 
-@struct(StructType.SELECTION, inline=True)
+@struct_(StructType.SELECTION, inline=True)
 class Selection(InlineStruct):
     """A selection of nodes/values."""
 
@@ -254,7 +254,7 @@ class Selection(InlineStruct):
 __property__ = property
 
 
-@struct(StructType.EXPRESSION)
+@struct_(StructType.EXPRESSION)
 class Expression(Struct, HasValues):
     """An expression (conditional, aggregation, sort, etc)."""
 
@@ -265,7 +265,7 @@ class Expression(Struct, HasValues):
     )
     clauses: list["Expression"] | None = p_regular(35, array=True, struct=StructType.EXPRESSION)
     value_packed: Any = p_value_packed(36)
-    value: Any = p_value_runtime(36, type=lambda self: cast(Expression, self)._value_type)
+    value: Any = p_value_runtime(36, typ=lambda self: cast(Expression, self)._value_type)
     sort_mode: Optional[SortMode] = p_regular(38, default=None)
 
     @__property__
@@ -443,7 +443,7 @@ CONDITIONAL_OP_BY_DJANGO_STR: dict[str, ConditionalOp] = {
 }
 
 
-@struct(StructType.AGGREGATION)
+@struct_(StructType.AGGREGATION)
 class Aggregation(Struct):
     """The result of an aggregation expression."""
 
@@ -456,7 +456,7 @@ class Aggregation(Struct):
     )
 
 
-@struct(StructType.AGGREGATION_BUCKET, inline=True)
+@struct_(StructType.AGGREGATION_BUCKET, inline=True)
 class AggregationBucket(InlineStruct):
     """One bucket of an aggregation histogram."""
 

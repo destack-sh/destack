@@ -259,13 +259,13 @@ defineExpose<ViewExposed>({ self, id, variants: [Variant.PRIMARY, Variant.STEALT
       <Value
         v-if="block.type == BlockType.VARIABLE"
         :value-type="
-          block.builtinBase != null
-            ? (resolveType(block.builtinBase, pkgGraph) as TypeInfoData) /* close enough */
+          block.valueType != null
+            ? (resolveType(block.valueType, pkgGraph) as TypeInfoData) /* close enough */
             : undefined
         "
         :model-value="
           // unfortunate :ProtoStructMapping for every change
-          block!.builtinBase == null
+          block!.valueType == null
             ? undefined
             : unpackValue(
                 {
@@ -273,13 +273,13 @@ defineExpose<ViewExposed>({ self, id, variants: [Variant.PRIMARY, Variant.STEALT
                   secretValuePacked:
                     block?.secretValuePacked == null ? null : ProtoStruct.toJson(block.secretValuePacked),
                 },
-                block!.builtinBase,
+                block!.valueType,
                 pkgGraph,
               )
         "
         @update:model-value="
           (newValue) => {
-            const packed = packValue(newValue, block?.builtinBase!, pkgGraph);
+            const packed = packValue(newValue, block?.valueType!, pkgGraph);
             if (packed.secretValuePacked != null) {
               pkgConnection.tx.update(
                 block!,

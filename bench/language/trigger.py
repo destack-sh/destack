@@ -8,7 +8,7 @@ from bench.language.const import NodeType, ScheduleType, StructType, TimeInterva
 from bench.language.field import TypeConstraint
 from bench.language.graph import NodeList
 from bench.language.issue import Issue
-from bench.language.node import SourceNode, Struct, node, struct
+from bench.language.node import SourceNode, Struct, node_, struct_
 from bench.language.property import Property, p_node_child, p_node_parent, p_regular
 from bench.language.validation import NAME_CONSTRAINT, ValidationHandler
 from bench.proto.wire import TriggerData
@@ -21,7 +21,7 @@ if TYPE_CHECKING:
 # :TriggerSchedule
 
 
-@struct(StructType.SCHEDULE)
+@struct_(StructType.SCHEDULE)
 class Schedule(Struct):
     """The time-based schedule of something."""
 
@@ -53,7 +53,7 @@ class Schedule(Struct):
                 invalid(self, f"invalid cron ('{self.cron}')", (Schedule.cron,))
 
 
-@node(NodeType.TRIGGER)
+@node_(NodeType.TRIGGER)
 class Trigger(SourceNode[TriggerData]):
     """A trigger to run the node it is attached to (like a Block or Step)."""
 
@@ -76,7 +76,7 @@ class Trigger(SourceNode[TriggerData]):
     # flags
     is_paused: bool = p_regular(50, default=False)
 
-    notices: NodeList["Issue"] = p_node_child(NodeType.ISSUE)
+    issues: NodeList["Issue"] = p_node_child(NodeType.ISSUE)
 
     def __content_str__(self):
         if self.type == TriggerType.SCHEDULE and self.schedule:

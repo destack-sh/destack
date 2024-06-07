@@ -20,6 +20,7 @@ from typing import (
     Optional,
     Self,
     Type,
+    TypeGuard,
     TypeVar,
     Union,
     cast,
@@ -519,7 +520,7 @@ def object_component(
 
 
 @dataclass_transform(kw_only_default=True, field_specifiers=_PROPERTY_SPECIFIERS)
-def struct(struct_type: StructType, inline: bool = False):
+def struct_(struct_type: StructType, inline: bool = False):
     """Register a class as a concrete struct for the given struct type."""
 
     def decorate(cls: Type[_StructT]) -> Type[_StructT]:
@@ -595,7 +596,7 @@ def node_component(
 
 
 @dataclass_transform(kw_only_default=True, field_specifiers=_PROPERTY_SPECIFIERS)
-def node(
+def node_(
     node_type: NodeType,
     passthrough: str | None = None,
     stored: bool = True,
@@ -675,7 +676,7 @@ def timed_node(
     indexes: tuple[Index | tuple[str, ...], ...] = (),
 ):
     """Register a class as a concrete node for the given node type."""
-    return node(
+    return node_(
         node_type=node_type,
         passthrough=passthrough,
         local=True,
@@ -1898,6 +1899,14 @@ class HasBaseNode(BuiltinObject, abc.ABC):
         raise NotImplementedError
 
 
+def is_node[T: Node](obj: Any, node_cls: type[T]) -> TypeGuard[T]:
+    return isinstance(obj, Node) and obj.metatype == node_cls.metatype
+
+
+def is_struct[T: InlineStruct | Struct](obj: Any, struct_cls: type[T]) -> TypeGuard[T]:
+    return isinstance(obj, (InlineStruct, Struct)) and obj.metatype == struct_cls.metatype
+
+
 # NOTE: import from .value later to avoid circular import
 #  (but import at top level to avoid import in critical path)
 
@@ -1912,7 +1921,7 @@ LINK_TARGET_NODE_TYPES: tuple[NodeType, ...] = tuple(
 LINK_PARENT_NODE_TYPES: tuple[NodeType, ...] = (NodeType.PACKAGE, NodeType.BLOCK)
 
 
-@node(NodeType.LINK)
+@node_(NodeType.LINK)
 class Link(SourceNode):
     """
     A reference to another node in some graph.
@@ -1927,7 +1936,7 @@ class Link(SourceNode):
     order_key: Optional[str] = p_internal(32, default=None)
 
 
-@node(NodeType.SKIP, stored=False)
+@node_(NodeType.SKIP, stored=False)
 class Skip(Node):
     """A reference to another node in some graph that wasn't available for some reason (usually permissions)."""
 

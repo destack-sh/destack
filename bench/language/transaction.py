@@ -149,7 +149,7 @@ class Transaction:
             EditType.RESTORE,
             EditType.ERASE,
         ],
-        node_: Node,
+        node: Node,
         subject: NodeReferenceData | None,
         origin: ClientOrigin | None,
         context: EditContextData | None,
@@ -161,41 +161,41 @@ class Transaction:
         assert self.session is not None, f"no session for {self!r}"
         if self.is_readonly:
             raise RuntimeError(
-                f"cannot {edit_type.bench_name} {node_!r} in read-only {self.session}"
+                f"cannot {edit_type.bench_name} {node!r} in read-only {self.session}"
             )
 
         # pack 'old' and 'new' node deltas
         old_node_packed = None
         new_node_packed = None
         if edit_type in (EditType.CREATE, EditType.UPSERT):
-            new_node_packed = pack_node_delta(node_._to_data())
+            new_node_packed = pack_node_delta(node._to_data())
         elif edit_type in (EditType.ARCHIVE, EditType.DELETE, EditType.ERASE):
-            old_node_packed = pack_node_delta(node_._to_data())
+            old_node_packed = pack_node_delta(node._to_data())
         elif edit_type == EditType.UNARCHIVE:
             # put old archived_at in 'old', put full restored node in new
-            assert node_.archived_at, f"cannot unarchive {node_!r} that is not archived"
-            new_node = node_._to_data()
-            old_node_packed = pack_node_delta(new_node, only=(type(node_).archived_at,))
+            assert node.archived_at, f"cannot unarchive {node!r} that is not archived"
+            new_node = node._to_data()
+            old_node_packed = pack_node_delta(new_node, only=(type(node).archived_at,))
             new_node.archived_at = None
             new_node_packed = pack_node_delta(new_node)
         elif edit_type == EditType.RESTORE:
             # put old deleted_at in 'old', put full restored node in new
-            assert node_.deleted_at, f"cannot restore {node_!r} that is not deleted"
-            new_node = node_._to_data()
-            old_node_packed = pack_node_delta(new_node, only=(type(node_).deleted_at,))
+            assert node.deleted_at, f"cannot restore {node!r} that is not deleted"
+            new_node = node._to_data()
+            old_node_packed = pack_node_delta(new_node, only=(type(node).deleted_at,))
             new_node.deleted_at = None
             new_node_packed = pack_node_delta(new_node)
         else:
-            raise ValueError(f"unexpected edit type for {node_!r}: {edit_type.name}")
+            raise ValueError(f"unexpected edit type for {node!r}: {edit_type.name}")
 
         # make edit
         edit = EditData(
             id=new_edit_id(),
             type=wiring.pack_enum(EditType, edit_type),
-            node_ptr=node_._to_ref_data(),
+            node_ptr=node._to_ref_data(),
             new_node_packed=new_node_packed,
             old_node_packed=old_node_packed,
-            scope=self._get_scope_for_node(node_),
+            scope=self._get_scope_for_node(node),
             origin=origin,
             subject_ptr=subject,
             context=context,
@@ -205,34 +205,34 @@ class Transaction:
 
     def create(
         self,
-        node_: Node,
+        node: Node,
         subject: NodeReferenceData | None,
         origin: ClientOrigin | None,
         context: EditContextData | None,
         now: datetime,
     ):
         edit = self._make_simple_edit(
-            EditType.CREATE, node_, subject=subject, origin=origin, context=context, now=now
+            EditType.CREATE, node, subject=subject, origin=origin, context=context, now=now
         )
-        self._add_pending_edit(edit, node_)
+        self._add_pending_edit(edit, node)
 
     def upsert(
         self,
-        node_: Node,
+        node: Node,
         subject: NodeReferenceData | None,
         origin: ClientOrigin | None,
         context: EditContextData | None,
         now: datetime,
     ):
         edit = self._make_simple_edit(
-            EditType.UPSERT, node_, subject=subject, origin=origin, context=context, now=now
+            EditType.UPSERT, node, subject=subject, origin=origin, context=context, now=now
         )
-        self._add_pending_edit(edit, node_)
+        self._add_pending_edit(edit, node)
 
     def _do_update(
         self,
         edit_type: Literal[EditType.UPDATE, EditType.MOVE],
-        node_: Node,
+        node: Node,
         subject: NodeReferenceData | None,
         origin: ClientOrigin | None,
         context: EditContextData | None,
@@ -244,7 +244,7 @@ class Transaction:
         from bench.language.value import pack_value
         from bench.proto import wiring
 
-        existing_edit_idx = self._pending_updates_idx.get(node_)
+        existing_edit_idx = self._pending_updates_idx.get(node)
         if existing_edit_idx is None:
             # new update/move
             old_node_packed = {}
@@ -253,38 +253,38 @@ class Transaction:
                 if prop.reference_wired_ptr is not None:
                     prop = prop.reference_wired_ptr
                 old_value = old_values.get(prop.id, UNSET)
-                assert old_value is not UNSET, f"missing old value for {prop!r} in {node_!r}"
+                assert old_value is not UNSET, f"missing old value for {prop!r} in {node!r}"
                 prop_type = prop.as_type_info
                 old_node_packed[prop.id_as_str], _ = pack_value(
                     old_value, prop_type, wrap_primitive=False
                 )
-                new_value = getattr(node_, prop.name)
+                new_value = getattr(node, prop.name)
                 new_node_packed[prop.id_as_str], _ = pack_value(
                     new_value, prop_type, wrap_primitive=False
                 )
             edit = EditData(
                 id=new_edit_id(),
                 type=wiring.pack_enum(EditType, edit_type),
-                node_ptr=node_._to_ref_data(),
+                node_ptr=node._to_ref_data(),
                 properties=[prop.id for prop in properties],
                 old_node_packed=wiring.pack_proto_json(old_node_packed),
                 new_node_packed=wiring.pack_proto_json(new_node_packed),
-                scope=self._get_scope_for_node(node_),
+                scope=self._get_scope_for_node(node),
                 subject_ptr=subject,
                 origin=origin,
                 context=context,
                 edited_at=now,
             )
-            engine = self._add_pending_edit(edit, node_)
+            engine = self._add_pending_edit(edit, node)
             edit_idx = len(self._pending_edits_by_engine_id[engine.id]) - 1
-            self._pending_updates_idx[node_] = engine.id, edit_idx
+            self._pending_updates_idx[node] = engine.id, edit_idx
         else:
             # update existing edit in place ('debounce') :DebouncedUpdate
             # NOTE :Performance: unpacking/repacking proto json is inefficient
-            assert node_._updated_properties is not None, f"missing property mask for {node_!r}"
+            assert node._updated_properties is not None, f"missing property mask for {node!r}"
             engine_id, current_update_idx = existing_edit_idx
             edit = self._pending_edits_by_engine_id[engine_id][current_update_idx]
-            edit.properties = list(node_._unmask_properties_ids(node_._updated_properties))
+            edit.properties = list(node._unmask_properties_ids(node._updated_properties))
             assert edit.new_node_packed and edit.old_node_packed, f"missing node data for {edit!r}"
             new_node_packed = wiring.unpack_proto_json(edit.new_node_packed)
             old_node_packed = wiring.unpack_proto_json(edit.old_node_packed)
@@ -294,12 +294,12 @@ class Transaction:
                 if prop.id_as_str not in old_node_packed:
                     # add old value if it doesn't already exist
                     old_value = old_values.get(prop.id, UNSET)
-                    assert old_value is not UNSET, f"missing old value for {prop!r} in {node_!r}"
+                    assert old_value is not UNSET, f"missing old value for {prop!r} in {node!r}"
                     old_node_packed[prop.id_as_str], _ = pack_value(
                         old_value, prop.as_type_info, wrap_primitive=False
                     )
                 # and update new value
-                new_value = getattr(node_, prop.name)
+                new_value = getattr(node, prop.name)
                 new_node_packed[prop.id_as_str], _ = pack_value(
                     new_value, prop.as_type_info, wrap_primitive=False
                 )
@@ -311,7 +311,7 @@ class Transaction:
 
     def update(
         self,
-        node_: Node,
+        node: Node,
         subject: NodeReferenceData | None,
         origin: ClientOrigin | None,
         context: EditContextData | None,
@@ -320,12 +320,12 @@ class Transaction:
         now: datetime,
     ):
         self._do_update(
-            EditType.UPDATE, node_, subject, origin, context, properties, old_values, now
+            EditType.UPDATE, node, subject, origin, context, properties, old_values, now
         )
 
     def move(
         self,
-        node_: Node,
+        node: Node,
         subject: NodeReferenceData | None,
         origin: ClientOrigin | None,
         context: EditContextData | None,
@@ -333,50 +333,50 @@ class Transaction:
         old_values: dict[int, Any],
         now: datetime,
     ):
-        self._do_update(EditType.MOVE, node_, subject, origin, context, properties, old_values, now)
+        self._do_update(EditType.MOVE, node, subject, origin, context, properties, old_values, now)
 
     def delete(
         self,
-        node_: Node,
+        node: Node,
         subject: NodeReferenceData | None,
         origin: ClientOrigin | None,
         context: EditContextData | None,
         now: datetime,
     ):
         edit = self._make_simple_edit(
-            EditType.DELETE, node_, subject=subject, origin=origin, context=context, now=now
+            EditType.DELETE, node, subject=subject, origin=origin, context=context, now=now
         )
-        self._add_pending_edit(edit, node_)
+        self._add_pending_edit(edit, node)
 
     def restore(
         self,
-        node_: Node,
+        node: Node,
         subject: NodeReferenceData | None,
         origin: ClientOrigin | None,
         context: EditContextData | None,
         now: datetime,
     ):
         edit = self._make_simple_edit(
-            EditType.RESTORE, node_, subject=subject, origin=origin, context=context, now=now
+            EditType.RESTORE, node, subject=subject, origin=origin, context=context, now=now
         )
-        self._add_pending_edit(edit, node_)
+        self._add_pending_edit(edit, node)
 
     def archive(
         self,
-        node_: Node,
+        node: Node,
         subject: NodeReferenceData | None,
         origin: ClientOrigin | None,
         context: EditContextData | None,
         now: datetime,
     ):
         edit = self._make_simple_edit(
-            EditType.ARCHIVE, node_, subject=subject, origin=origin, context=context, now=now
+            EditType.ARCHIVE, node, subject=subject, origin=origin, context=context, now=now
         )
-        self._add_pending_edit(edit, node_)
+        self._add_pending_edit(edit, node)
 
     def unarchive(
         self,
-        node_: Node,
+        node: Node,
         subject: NodeReferenceData | None,
         origin: ClientOrigin | None,
         context: EditContextData | None,
@@ -384,26 +384,26 @@ class Transaction:
     ):
         edit = self._make_simple_edit(
             EditType.UNARCHIVE,
-            node_=node_,
+            node=node,
             subject=subject,
             origin=origin,
             context=context,
             now=now,
         )
-        self._add_pending_edit(edit, node_)
+        self._add_pending_edit(edit, node)
 
     def erase(
         self,
-        node_: Node,
+        node: Node,
         subject: NodeReferenceData | None,
         origin: ClientOrigin | None,
         context: EditContextData | None,
         now: datetime,
     ):
         edit = self._make_simple_edit(
-            EditType.ERASE, node_, subject=subject, origin=origin, context=context, now=now
+            EditType.ERASE, node, subject=subject, origin=origin, context=context, now=now
         )
-        self._add_pending_edit(edit, node_)
+        self._add_pending_edit(edit, node)
 
     #
     # Transaction management

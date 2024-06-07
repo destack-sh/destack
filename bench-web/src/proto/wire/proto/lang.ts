@@ -1297,7 +1297,7 @@ export interface SessionContextData {
     userPtr?: NodeReferenceData;
 }
 /**
- * A connection between to a Step in a Flow.
+ * A connection between two Steps in a FlowBlock.
  *
  * @generated from protobuf message symbolx.bench.StepConnectionData
  */
@@ -1323,7 +1323,11 @@ export interface StepConnectionData {
      */
     orderKey?: string;
     /**
-     * @generated from protobuf field: symbolx.bench.NodeReferenceData source_ptr = 30;
+     * @generated from protobuf field: symbolx.bench.StepConnectionType type = 30;
+     */
+    type: StepConnectionType;
+    /**
+     * @generated from protobuf field: symbolx.bench.NodeReferenceData source_ptr = 31;
      */
     sourcePtr?: NodeReferenceData;
 }
@@ -2123,21 +2127,21 @@ export interface BlockData {
      */
     basesPtr: NodeReferenceData[];
     /**
-     * @generated from protobuf field: optional symbolx.bench.TypeInfoData builtin_base = 36;
-     */
-    builtinBase?: TypeInfoData;
-    /**
-     * @generated from protobuf field: optional symbolx.bench.TextData text = 37;
+     * @generated from protobuf field: optional symbolx.bench.TextData text = 36;
      */
     text?: TextData;
     /**
-     * @generated from protobuf field: optional symbolx.bench.IconData icon = 38;
+     * @generated from protobuf field: optional symbolx.bench.IconData icon = 37;
      */
     icon?: IconData;
     /**
-     * @generated from protobuf field: optional symbolx.bench.Visibility visibility = 39;
+     * @generated from protobuf field: optional symbolx.bench.Visibility visibility = 38;
      */
     visibility?: Visibility;
+    /**
+     * @generated from protobuf field: optional symbolx.bench.TypeInfoData value_type = 39;
+     */
+    valueType?: TypeInfoData;
     /**
      * @generated from protobuf field: optional google.protobuf.Struct value_packed = 40;
      */
@@ -2151,9 +2155,9 @@ export interface BlockData {
      */
     code?: CodeData;
     /**
-     * @generated from protobuf field: optional symbolx.bench.RunOptionsData run = 43;
+     * @generated from protobuf field: optional symbolx.bench.RunOptionsData run_options = 43;
      */
-    run?: RunOptionsData;
+    runOptions?: RunOptionsData;
     /**
      * @generated from protobuf field: repeated symbolx.bench.PolicyData delegated_policies = 49;
      */
@@ -3869,7 +3873,7 @@ export interface NotificationData {
      */
     kind: NotificationKind;
     /**
-     * @generated from protobuf field: optional symbolx.bench.NodeReferenceData type_ptr = 32;
+     * @generated from protobuf field: symbolx.bench.NodeReferenceData type_ptr = 32;
      */
     typePtr?: NodeReferenceData;
     /**
@@ -4191,9 +4195,9 @@ export interface QueryData {
      */
     setProperties: number[];
     /**
-     * @generated from protobuf field: optional string name = 30;
+     * @generated from protobuf field: string name = 30;
      */
-    name?: string;
+    name: string;
     /**
      * @generated from protobuf field: string order_key = 31;
      */
@@ -4216,7 +4220,8 @@ export interface QueryData {
     sort: ExpressionData[];
 }
 /**
- * A record in a database. The containing table is usually a real Postgres table.
+ * A record in a DatabaseBlock.
+ * If the block is_materialized, the backing table is a real Postgres table.
  *
  * @generated from protobuf message symbolx.bench.RecordData
  */
@@ -4846,7 +4851,7 @@ export interface SignalData {
      */
     setProperties: number[];
     /**
-     * @generated from protobuf field: optional symbolx.bench.NodeReferenceData type_ptr = 32;
+     * @generated from protobuf field: symbolx.bench.NodeReferenceData type_ptr = 32;
      */
     typePtr?: NodeReferenceData;
     /**
@@ -5069,8 +5074,7 @@ export interface SpaceData {
     basePtr?: NodeReferenceData;
 }
 /**
- * An informational, logic, data or control flow unit in a Flow (Block).
- * NOTE: steps only track incoming connections.
+ * An data or control flow unit in a FlowBlock.
  *
  * @generated from protobuf message symbolx.bench.StepData
  */
@@ -5152,9 +5156,9 @@ export interface StepData {
      */
     type: StepType;
     /**
-     * @generated from protobuf field: optional string name = 32;
+     * @generated from protobuf field: string name = 32;
      */
-    name?: string;
+    name: string;
     /**
      * @generated from protobuf field: string order_key = 33;
      */
@@ -5168,9 +5172,9 @@ export interface StepData {
      */
     code?: CodeData;
     /**
-     * @generated from protobuf field: optional symbolx.bench.RunOptionsData run = 36;
+     * @generated from protobuf field: optional symbolx.bench.RunOptionsData run_options = 36;
      */
-    run?: RunOptionsData;
+    runOptions?: RunOptionsData;
     /**
      * @generated from protobuf field: repeated symbolx.bench.StepConnectionData connections = 37;
      */
@@ -6707,6 +6711,10 @@ export enum BenchType {
      */
     STEP_TYPE = 2180,
     /**
+     * @generated from protobuf enum value: BENCH_TYPE_STEP_CONNECTION_TYPE = 2181;
+     */
+    STEP_CONNECTION_TYPE = 2181,
+    /**
      * @generated from protobuf enum value: BENCH_TYPE_SPACE_TYPE = 2200;
      */
     SPACE_TYPE = 2200,
@@ -7436,6 +7444,10 @@ export enum EnumType {
      * @generated from protobuf enum value: ENUM_TYPE_STEP_TYPE = 2180;
      */
     STEP_TYPE = 2180,
+    /**
+     * @generated from protobuf enum value: ENUM_TYPE_STEP_CONNECTION_TYPE = 2181;
+     */
+    STEP_CONNECTION_TYPE = 2181,
     /**
      * @generated from protobuf enum value: ENUM_TYPE_SPACE_TYPE = 2200;
      */
@@ -9412,6 +9424,15 @@ export enum Spacing {
     S256 = 256
 }
 /**
+ * @generated from protobuf enum symbolx.bench.StepConnectionType
+ */
+export enum StepConnectionType {
+    /**
+     * @generated from protobuf enum value: STEP_CONNECTION_TYPE_UNSPECIFIED = 0;
+     */
+    UNSPECIFIED = 0
+}
+/**
  * @generated from protobuf enum symbolx.bench.StepType
  */
 export enum StepType {
@@ -9420,21 +9441,21 @@ export enum StepType {
      */
     UNSPECIFIED = 0,
     /**
-     * @generated from protobuf enum value: STEP_TYPE_BLANK = 1;
+     * @generated from protobuf enum value: STEP_TYPE_VALUE = 1;
      */
-    BLANK = 1,
+    VALUE = 1,
     /**
      * @generated from protobuf enum value: STEP_TYPE_TRIGGER = 10;
      */
     TRIGGER = 10,
     /**
-     * @generated from protobuf enum value: STEP_TYPE_RUN_BLOCK = 20;
+     * @generated from protobuf enum value: STEP_TYPE_RUN = 20;
      */
-    RUN_BLOCK = 20,
+    RUN = 20,
     /**
-     * @generated from protobuf enum value: STEP_TYPE_RUN_STEP = 21;
+     * @generated from protobuf enum value: STEP_TYPE_SEND = 21;
      */
-    RUN_STEP = 21,
+    SEND = 21,
     /**
      * @generated from protobuf enum value: STEP_TYPE_BRANCH = 30;
      */
@@ -13280,13 +13301,15 @@ class StepConnectionData$Type extends MessageType<StepConnectionData> {
             { no: 3, name: "parent_id", kind: "scalar", opt: true, T: 5 /*ScalarType.INT32*/ },
             { no: 4, name: "parent_key", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
             { no: 9, name: "order_key", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
-            { no: 30, name: "source_ptr", kind: "message", T: () => NodeReferenceData }
+            { no: 30, name: "type", kind: "enum", T: () => ["symbolx.bench.StepConnectionType", StepConnectionType, "STEP_CONNECTION_TYPE_"] },
+            { no: 31, name: "source_ptr", kind: "message", T: () => NodeReferenceData }
         ]);
     }
     create(value?: PartialMessage<StepConnectionData>): StepConnectionData {
         const message = globalThis.Object.create((this.messagePrototype!));
         message.metatype = 0;
         message.id = 0;
+        message.type = 0;
         if (value !== undefined)
             reflectionMergePartial<StepConnectionData>(this, message, value);
         return message;
@@ -13311,7 +13334,10 @@ class StepConnectionData$Type extends MessageType<StepConnectionData> {
                 case /* optional string order_key */ 9:
                     message.orderKey = reader.string();
                     break;
-                case /* symbolx.bench.NodeReferenceData source_ptr */ 30:
+                case /* symbolx.bench.StepConnectionType type */ 30:
+                    message.type = reader.int32();
+                    break;
+                case /* symbolx.bench.NodeReferenceData source_ptr */ 31:
                     message.sourcePtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.sourcePtr);
                     break;
                 default:
@@ -13341,9 +13367,12 @@ class StepConnectionData$Type extends MessageType<StepConnectionData> {
         /* optional string order_key = 9; */
         if (message.orderKey !== undefined)
             writer.tag(9, WireType.LengthDelimited).string(message.orderKey);
-        /* symbolx.bench.NodeReferenceData source_ptr = 30; */
+        /* symbolx.bench.StepConnectionType type = 30; */
+        if (message.type !== 0)
+            writer.tag(30, WireType.Varint).int32(message.type);
+        /* symbolx.bench.NodeReferenceData source_ptr = 31; */
         if (message.sourcePtr)
-            NodeReferenceData.internalBinaryWrite(message.sourcePtr, writer.tag(30, WireType.LengthDelimited).fork(), options).join();
+            NodeReferenceData.internalBinaryWrite(message.sourcePtr, writer.tag(31, WireType.LengthDelimited).fork(), options).join();
         let u = options.writeUnknownFields;
         if (u !== false)
             (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
@@ -14935,14 +14964,14 @@ class BlockData$Type extends MessageType<BlockData> {
             { no: 33, name: "order_key", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 34, name: "policies", kind: "message", repeat: 1 /*RepeatType.PACKED*/, T: () => PolicyData },
             { no: 35, name: "bases_ptr", kind: "message", repeat: 1 /*RepeatType.PACKED*/, T: () => NodeReferenceData },
-            { no: 36, name: "builtin_base", kind: "message", T: () => TypeInfoData },
-            { no: 37, name: "text", kind: "message", T: () => TextData },
-            { no: 38, name: "icon", kind: "message", T: () => IconData },
-            { no: 39, name: "visibility", kind: "enum", opt: true, T: () => ["symbolx.bench.Visibility", Visibility, "VISIBILITY_"] },
+            { no: 36, name: "text", kind: "message", T: () => TextData },
+            { no: 37, name: "icon", kind: "message", T: () => IconData },
+            { no: 38, name: "visibility", kind: "enum", opt: true, T: () => ["symbolx.bench.Visibility", Visibility, "VISIBILITY_"] },
+            { no: 39, name: "value_type", kind: "message", T: () => TypeInfoData },
             { no: 40, name: "value_packed", kind: "message", T: () => Struct },
             { no: 41, name: "secret_value_packed", kind: "message", T: () => Struct },
             { no: 42, name: "code", kind: "message", T: () => CodeData },
-            { no: 43, name: "run", kind: "message", T: () => RunOptionsData },
+            { no: 43, name: "run_options", kind: "message", T: () => RunOptionsData },
             { no: 49, name: "delegated_policies", kind: "message", repeat: 1 /*RepeatType.PACKED*/, T: () => PolicyData },
             { no: 60, name: "is_builtin", kind: "scalar", T: 8 /*ScalarType.BOOL*/ },
             { no: 61, name: "is_page", kind: "scalar", T: 8 /*ScalarType.BOOL*/ },
@@ -15055,17 +15084,17 @@ class BlockData$Type extends MessageType<BlockData> {
                 case /* repeated symbolx.bench.NodeReferenceData bases_ptr */ 35:
                     message.basesPtr.push(NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options));
                     break;
-                case /* optional symbolx.bench.TypeInfoData builtin_base */ 36:
-                    message.builtinBase = TypeInfoData.internalBinaryRead(reader, reader.uint32(), options, message.builtinBase);
-                    break;
-                case /* optional symbolx.bench.TextData text */ 37:
+                case /* optional symbolx.bench.TextData text */ 36:
                     message.text = TextData.internalBinaryRead(reader, reader.uint32(), options, message.text);
                     break;
-                case /* optional symbolx.bench.IconData icon */ 38:
+                case /* optional symbolx.bench.IconData icon */ 37:
                     message.icon = IconData.internalBinaryRead(reader, reader.uint32(), options, message.icon);
                     break;
-                case /* optional symbolx.bench.Visibility visibility */ 39:
+                case /* optional symbolx.bench.Visibility visibility */ 38:
                     message.visibility = reader.int32();
+                    break;
+                case /* optional symbolx.bench.TypeInfoData value_type */ 39:
+                    message.valueType = TypeInfoData.internalBinaryRead(reader, reader.uint32(), options, message.valueType);
                     break;
                 case /* optional google.protobuf.Struct value_packed */ 40:
                     message.valuePacked = Struct.internalBinaryRead(reader, reader.uint32(), options, message.valuePacked);
@@ -15076,8 +15105,8 @@ class BlockData$Type extends MessageType<BlockData> {
                 case /* optional symbolx.bench.CodeData code */ 42:
                     message.code = CodeData.internalBinaryRead(reader, reader.uint32(), options, message.code);
                     break;
-                case /* optional symbolx.bench.RunOptionsData run */ 43:
-                    message.run = RunOptionsData.internalBinaryRead(reader, reader.uint32(), options, message.run);
+                case /* optional symbolx.bench.RunOptionsData run_options */ 43:
+                    message.runOptions = RunOptionsData.internalBinaryRead(reader, reader.uint32(), options, message.runOptions);
                     break;
                 case /* repeated symbolx.bench.PolicyData delegated_policies */ 49:
                     message.delegatedPolicies.push(PolicyData.internalBinaryRead(reader, reader.uint32(), options));
@@ -15185,18 +15214,18 @@ class BlockData$Type extends MessageType<BlockData> {
         /* repeated symbolx.bench.NodeReferenceData bases_ptr = 35; */
         for (let i = 0; i < message.basesPtr.length; i++)
             NodeReferenceData.internalBinaryWrite(message.basesPtr[i], writer.tag(35, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbolx.bench.TypeInfoData builtin_base = 36; */
-        if (message.builtinBase)
-            TypeInfoData.internalBinaryWrite(message.builtinBase, writer.tag(36, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbolx.bench.TextData text = 37; */
+        /* optional symbolx.bench.TextData text = 36; */
         if (message.text)
-            TextData.internalBinaryWrite(message.text, writer.tag(37, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbolx.bench.IconData icon = 38; */
+            TextData.internalBinaryWrite(message.text, writer.tag(36, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbolx.bench.IconData icon = 37; */
         if (message.icon)
-            IconData.internalBinaryWrite(message.icon, writer.tag(38, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbolx.bench.Visibility visibility = 39; */
+            IconData.internalBinaryWrite(message.icon, writer.tag(37, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbolx.bench.Visibility visibility = 38; */
         if (message.visibility !== undefined)
-            writer.tag(39, WireType.Varint).int32(message.visibility);
+            writer.tag(38, WireType.Varint).int32(message.visibility);
+        /* optional symbolx.bench.TypeInfoData value_type = 39; */
+        if (message.valueType)
+            TypeInfoData.internalBinaryWrite(message.valueType, writer.tag(39, WireType.LengthDelimited).fork(), options).join();
         /* optional google.protobuf.Struct value_packed = 40; */
         if (message.valuePacked)
             Struct.internalBinaryWrite(message.valuePacked, writer.tag(40, WireType.LengthDelimited).fork(), options).join();
@@ -15206,9 +15235,9 @@ class BlockData$Type extends MessageType<BlockData> {
         /* optional symbolx.bench.CodeData code = 42; */
         if (message.code)
             CodeData.internalBinaryWrite(message.code, writer.tag(42, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbolx.bench.RunOptionsData run = 43; */
-        if (message.run)
-            RunOptionsData.internalBinaryWrite(message.run, writer.tag(43, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbolx.bench.RunOptionsData run_options = 43; */
+        if (message.runOptions)
+            RunOptionsData.internalBinaryWrite(message.runOptions, writer.tag(43, WireType.LengthDelimited).fork(), options).join();
         /* repeated symbolx.bench.PolicyData delegated_policies = 49; */
         for (let i = 0; i < message.delegatedPolicies.length; i++)
             PolicyData.internalBinaryWrite(message.delegatedPolicies[i], writer.tag(49, WireType.LengthDelimited).fork(), options).join();
@@ -18860,7 +18889,7 @@ class NotificationData$Type extends MessageType<NotificationData> {
                 case /* symbolx.bench.NotificationKind kind */ 30:
                     message.kind = reader.int32();
                     break;
-                case /* optional symbolx.bench.NodeReferenceData type_ptr */ 32:
+                case /* symbolx.bench.NodeReferenceData type_ptr */ 32:
                     message.typePtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.typePtr);
                     break;
                 case /* optional google.protobuf.Timestamp expires_at */ 33:
@@ -18972,7 +19001,7 @@ class NotificationData$Type extends MessageType<NotificationData> {
         /* symbolx.bench.NotificationKind kind = 30; */
         if (message.kind !== 0)
             writer.tag(30, WireType.Varint).int32(message.kind);
-        /* optional symbolx.bench.NodeReferenceData type_ptr = 32; */
+        /* symbolx.bench.NodeReferenceData type_ptr = 32; */
         if (message.typePtr)
             NodeReferenceData.internalBinaryWrite(message.typePtr, writer.tag(32, WireType.LengthDelimited).fork(), options).join();
         /* optional google.protobuf.Timestamp expires_at = 33; */
@@ -19449,7 +19478,7 @@ class QueryData$Type extends MessageType<QueryData> {
             { no: 21, name: "created_by_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 22, name: "updated_by_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 29, name: "set_properties", kind: "scalar", repeat: 1 /*RepeatType.PACKED*/, T: 5 /*ScalarType.INT32*/ },
-            { no: 30, name: "name", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
+            { no: 30, name: "name", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 31, name: "order_key", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 32, name: "node_type", kind: "enum", T: () => ["symbolx.bench.NodeType", NodeType, "NODE_TYPE_"] },
             { no: 33, name: "base_ptr", kind: "message", T: () => NodeReferenceData },
@@ -19466,6 +19495,7 @@ class QueryData$Type extends MessageType<QueryData> {
         message.createdEpoch = 0n;
         message.updatedEpoch = 0n;
         message.setProperties = [];
+        message.name = "";
         message.orderKey = "";
         message.nodeType = 0;
         message.sort = [];
@@ -19536,7 +19566,7 @@ class QueryData$Type extends MessageType<QueryData> {
                     else
                         message.setProperties.push(reader.int32());
                     break;
-                case /* optional string name */ 30:
+                case /* string name */ 30:
                     message.name = reader.string();
                     break;
                 case /* string order_key */ 31:
@@ -19624,8 +19654,8 @@ class QueryData$Type extends MessageType<QueryData> {
                 writer.int32(message.setProperties[i]);
             writer.join();
         }
-        /* optional string name = 30; */
-        if (message.name !== undefined)
+        /* string name = 30; */
+        if (message.name !== "")
             writer.tag(30, WireType.LengthDelimited).string(message.name);
         /* string order_key = 31; */
         if (message.orderKey !== "")
@@ -20936,7 +20966,7 @@ class SignalData$Type extends MessageType<SignalData> {
                     else
                         message.setProperties.push(reader.int32());
                     break;
-                case /* optional symbolx.bench.NodeReferenceData type_ptr */ 32:
+                case /* symbolx.bench.NodeReferenceData type_ptr */ 32:
                     message.typePtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.typePtr);
                     break;
                 case /* optional google.protobuf.Struct value_packed */ 42:
@@ -21033,7 +21063,7 @@ class SignalData$Type extends MessageType<SignalData> {
                 writer.int32(message.setProperties[i]);
             writer.join();
         }
-        /* optional symbolx.bench.NodeReferenceData type_ptr = 32; */
+        /* symbolx.bench.NodeReferenceData type_ptr = 32; */
         if (message.typePtr)
             NodeReferenceData.internalBinaryWrite(message.typePtr, writer.tag(32, WireType.LengthDelimited).fork(), options).join();
         /* optional google.protobuf.Struct value_packed = 42; */
@@ -21491,11 +21521,11 @@ class StepData$Type extends MessageType<StepData> {
             { no: 22, name: "updated_by_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 29, name: "set_properties", kind: "scalar", repeat: 1 /*RepeatType.PACKED*/, T: 5 /*ScalarType.INT32*/ },
             { no: 30, name: "type", kind: "enum", T: () => ["symbolx.bench.StepType", StepType, "STEP_TYPE_"] },
-            { no: 32, name: "name", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
+            { no: 32, name: "name", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 33, name: "order_key", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 34, name: "text", kind: "message", T: () => TextData },
             { no: 35, name: "code", kind: "message", T: () => CodeData },
-            { no: 36, name: "run", kind: "message", T: () => RunOptionsData },
+            { no: 36, name: "run_options", kind: "message", T: () => RunOptionsData },
             { no: 37, name: "connections", kind: "message", repeat: 1 /*RepeatType.PACKED*/, T: () => StepConnectionData },
             { no: 40, name: "value_type", kind: "message", T: () => TypeInfoData },
             { no: 41, name: "value_packed", kind: "message", T: () => Struct },
@@ -21515,6 +21545,7 @@ class StepData$Type extends MessageType<StepData> {
         message.updatedEpoch = 0n;
         message.setProperties = [];
         message.type = 0;
+        message.name = "";
         message.orderKey = "";
         message.connections = [];
         message.isTemplate = false;
@@ -21588,7 +21619,7 @@ class StepData$Type extends MessageType<StepData> {
                 case /* symbolx.bench.StepType type */ 30:
                     message.type = reader.int32();
                     break;
-                case /* optional string name */ 32:
+                case /* string name */ 32:
                     message.name = reader.string();
                     break;
                 case /* string order_key */ 33:
@@ -21600,8 +21631,8 @@ class StepData$Type extends MessageType<StepData> {
                 case /* optional symbolx.bench.CodeData code */ 35:
                     message.code = CodeData.internalBinaryRead(reader, reader.uint32(), options, message.code);
                     break;
-                case /* optional symbolx.bench.RunOptionsData run */ 36:
-                    message.run = RunOptionsData.internalBinaryRead(reader, reader.uint32(), options, message.run);
+                case /* optional symbolx.bench.RunOptionsData run_options */ 36:
+                    message.runOptions = RunOptionsData.internalBinaryRead(reader, reader.uint32(), options, message.runOptions);
                     break;
                 case /* repeated symbolx.bench.StepConnectionData connections */ 37:
                     message.connections.push(StepConnectionData.internalBinaryRead(reader, reader.uint32(), options));
@@ -21697,8 +21728,8 @@ class StepData$Type extends MessageType<StepData> {
         /* symbolx.bench.StepType type = 30; */
         if (message.type !== 0)
             writer.tag(30, WireType.Varint).int32(message.type);
-        /* optional string name = 32; */
-        if (message.name !== undefined)
+        /* string name = 32; */
+        if (message.name !== "")
             writer.tag(32, WireType.LengthDelimited).string(message.name);
         /* string order_key = 33; */
         if (message.orderKey !== "")
@@ -21709,9 +21740,9 @@ class StepData$Type extends MessageType<StepData> {
         /* optional symbolx.bench.CodeData code = 35; */
         if (message.code)
             CodeData.internalBinaryWrite(message.code, writer.tag(35, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbolx.bench.RunOptionsData run = 36; */
-        if (message.run)
-            RunOptionsData.internalBinaryWrite(message.run, writer.tag(36, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbolx.bench.RunOptionsData run_options = 36; */
+        if (message.runOptions)
+            RunOptionsData.internalBinaryWrite(message.runOptions, writer.tag(36, WireType.LengthDelimited).fork(), options).join();
         /* repeated symbolx.bench.StepConnectionData connections = 37; */
         for (let i = 0; i < message.connections.length; i++)
             StepConnectionData.internalBinaryWrite(message.connections[i], writer.tag(37, WireType.LengthDelimited).fork(), options).join();
@@ -23757,6 +23788,7 @@ export const ENUM_BY_TYPE: Record<EnumType, Record<number | string, number | str
   [EnumType.ISSUE_KIND]: IssueKind,
   [EnumType.ISSUE_TYPE]: IssueType,
   [EnumType.STEP_TYPE]: StepType,
+  [EnumType.STEP_CONNECTION_TYPE]: StepConnectionType,
   [EnumType.SPACE_TYPE]: SpaceType,
   [EnumType.VIEW_TYPE]: ViewType,
   [EnumType.VARIANT]: Variant,
@@ -23990,6 +24022,7 @@ export interface EnumTypeMapping extends Record<EnumType, any> {
   [EnumType.ISSUE_KIND]: IssueKind,
   [EnumType.ISSUE_TYPE]: IssueType,
   [EnumType.STEP_TYPE]: StepType,
+  [EnumType.STEP_CONNECTION_TYPE]: StepConnectionType,
   [EnumType.SPACE_TYPE]: SpaceType,
   [EnumType.VIEW_TYPE]: ViewType,
   [EnumType.VARIANT]: Variant,
@@ -24297,14 +24330,14 @@ export enum BlockProperty {
   orderKey = 33,
   policies = 34,
   basesPtr = 35,
-  builtinBase = 36,
-  text = 37,
-  icon = 38,
-  visibility = 39,
+  text = 36,
+  icon = 37,
+  visibility = 38,
+  valueType = 39,
   valuePacked = 40,
   secretValuePacked = 41,
   code = 42,
-  run = 43,
+  runOptions = 43,
   delegatedPolicies = 49,
   isBuiltin = 60,
   isPage = 61,
@@ -24480,7 +24513,7 @@ export enum StepProperty {
   orderKey = 33,
   text = 34,
   code = 35,
-  run = 36,
+  runOptions = 36,
   connections = 37,
   valueType = 40,
   valuePacked = 41,
@@ -25389,7 +25422,8 @@ export enum StepConnectionProperty {
   parentId = 3,
   parentKey = 4,
   orderKey = 9,
-  sourcePtr = 30,
+  type = 30,
+  sourcePtr = 31,
 }
 
 export enum RunErrorProperty {
@@ -26025,7 +26059,8 @@ export const StepConnectionDataInfo: Record<StepConnectionProperty, PropertyInfo
   [StepConnectionProperty.parentId]: { id: 3, name: 'parent_id', component: ObjectType.STEP_CONNECTION, kind: 'reference', primitiveType: PrimitiveType.INT32, isInternal: true, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_PARENT },
   [StepConnectionProperty.parentKey]: { id: 4, name: 'parent_key', component: ObjectType.STEP_CONNECTION, kind: 'reference', primitiveType: PrimitiveType.STRING, isInternal: true, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_PARENT },
   [StepConnectionProperty.orderKey]: { id: 9, name: 'order_key', component: ObjectType.STEP_CONNECTION, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isRuntime: true, isWired: true, isStored: true },
-  [StepConnectionProperty.sourcePtr]: { id: 30, name: 'source_ptr', component: ObjectType.STEP_CONNECTION, kind: 'reference', isRequired: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.STEP], referenceStruct: StructType.NODE_REFERENCE },
+  [StepConnectionProperty.type]: { id: 30, name: 'type', component: ObjectType.STEP_CONNECTION, enumType: EnumType.STEP_CONNECTION_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isRuntime: true, isWired: true, isStored: true },
+  [StepConnectionProperty.sourcePtr]: { id: 31, name: 'source_ptr', component: ObjectType.STEP_CONNECTION, kind: 'reference', isRequired: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.STEP], referenceStruct: StructType.NODE_REFERENCE },
 }
 export const RunErrorDataInfo: Record<RunErrorProperty, PropertyInfo> = {
   [RunErrorProperty.metatype]: { id: 1, name: 'metatype', component: ObjectType.RUN_ERROR, enumType: EnumType.OBJECT_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isComputed: true, isWired: true },
@@ -26409,14 +26444,14 @@ export const BlockDataInfo: Record<BlockProperty, PropertyInfo> = {
   [BlockProperty.orderKey]: { id: 33, name: 'order_key', component: ObjectType.BLOCK, kind: 'primitive', primitiveType: PrimitiveType.STRING, isRequired: true, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [BlockProperty.policies]: { id: 34, name: 'policies', component: ObjectType.BLOCK, kind: 'reference', primitiveType: PrimitiveType.JSON, isList: true, isRequired: true, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.POLICY },
   [BlockProperty.basesPtr]: { id: 35, name: 'bases_ptr', component: ObjectType.BLOCK, kind: 'reference', isList: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.BLOCK], referenceStruct: StructType.NODE_REFERENCE },
-  [BlockProperty.builtinBase]: { id: 36, name: 'builtin_base', component: ObjectType.BLOCK, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.TYPE_INFO },
-  [BlockProperty.text]: { id: 37, name: 'text', component: ObjectType.BLOCK, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.TEXT },
-  [BlockProperty.icon]: { id: 38, name: 'icon', component: ObjectType.BLOCK, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.ICON },
-  [BlockProperty.visibility]: { id: 39, name: 'visibility', component: ObjectType.BLOCK, enumType: EnumType.VISIBILITY, kind: 'enum', primitiveType: PrimitiveType.INT16, isRuntime: true, isWired: true, isStored: true },
+  [BlockProperty.text]: { id: 36, name: 'text', component: ObjectType.BLOCK, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.TEXT },
+  [BlockProperty.icon]: { id: 37, name: 'icon', component: ObjectType.BLOCK, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.ICON },
+  [BlockProperty.visibility]: { id: 38, name: 'visibility', component: ObjectType.BLOCK, enumType: EnumType.VISIBILITY, kind: 'enum', primitiveType: PrimitiveType.INT16, isRuntime: true, isWired: true, isStored: true },
+  [BlockProperty.valueType]: { id: 39, name: 'value_type', component: ObjectType.BLOCK, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.TYPE_INFO },
   [BlockProperty.valuePacked]: { id: 40, name: 'value_packed', component: ObjectType.BLOCK, kind: 'primitive', primitiveType: PrimitiveType.JSON, isInternal: true, isRuntime: true, isWired: true, isStored: true, isValuePacked: true },
   [BlockProperty.secretValuePacked]: { id: 41, name: 'secret_value_packed', component: ObjectType.BLOCK, kind: 'primitive', primitiveType: PrimitiveType.JSON, isInternal: true, isRuntime: true, isWired: true, isStored: true, isDeferred: true, isSensitive: true, isEncrypted: true, isValuePacked: true },
   [BlockProperty.code]: { id: 42, name: 'code', component: ObjectType.BLOCK, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.CODE },
-  [BlockProperty.run]: { id: 43, name: 'run', component: ObjectType.BLOCK, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.RUN_OPTIONS },
+  [BlockProperty.runOptions]: { id: 43, name: 'run_options', component: ObjectType.BLOCK, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.RUN_OPTIONS },
   [BlockProperty.delegatedPolicies]: { id: 49, name: 'delegated_policies', component: ObjectType.BLOCK, kind: 'reference', primitiveType: PrimitiveType.JSON, isList: true, isRequired: true, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.POLICY },
   [BlockProperty.isBuiltin]: { id: 60, name: 'is_builtin', component: ObjectType.BLOCK, kind: 'primitive', primitiveType: PrimitiveType.BOOLEAN, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [BlockProperty.isPage]: { id: 61, name: 'is_page', component: ObjectType.BLOCK, kind: 'primitive', primitiveType: PrimitiveType.BOOLEAN, isRequired: true, isRuntime: true, isWired: true, isStored: true },
@@ -26510,7 +26545,7 @@ export const QueryDataInfo: Record<QueryProperty, PropertyInfo> = {
   [QueryProperty.createdByPtr]: { id: 21, name: 'created_by_ptr', component: ObjectType.QUERY, kind: 'reference', isAutoset: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.USER, NodeType.SERVER, NodeType.RUN], referenceStruct: StructType.NODE_REFERENCE },
   [QueryProperty.updatedByPtr]: { id: 22, name: 'updated_by_ptr', component: ObjectType.QUERY, kind: 'reference', isAutoset: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.USER, NodeType.SERVER, NodeType.RUN], referenceStruct: StructType.NODE_REFERENCE },
   [QueryProperty.setProperties]: { id: 29, name: 'set_properties', component: ObjectType.QUERY, kind: 'primitive', primitiveType: PrimitiveType.INT32, isList: true, isRequired: true, isRuntime: true, isWired: true, isStored: true },
-  [QueryProperty.name]: { id: 30, name: 'name', component: ObjectType.QUERY, kind: 'primitive', primitiveType: PrimitiveType.STRING, isRuntime: true, isWired: true, isStored: true },
+  [QueryProperty.name]: { id: 30, name: 'name', component: ObjectType.QUERY, kind: 'primitive', primitiveType: PrimitiveType.STRING, isRequired: true, isRuntime: true, isWired: true, isStored: true },
   [QueryProperty.orderKey]: { id: 31, name: 'order_key', component: ObjectType.QUERY, kind: 'primitive', primitiveType: PrimitiveType.STRING, isRequired: true, isRuntime: true, isWired: true, isStored: true },
   [QueryProperty.nodeType]: { id: 32, name: 'node_type', component: ObjectType.QUERY, enumType: EnumType.NODE_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isRuntime: true, isWired: true, isStored: true },
   [QueryProperty.basePtr]: { id: 33, name: 'base_ptr', component: ObjectType.QUERY, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.BLOCK], referenceStruct: StructType.NODE_REFERENCE },
@@ -26583,16 +26618,16 @@ export const StepDataInfo: Record<StepProperty, PropertyInfo> = {
   [StepProperty.updatedByPtr]: { id: 22, name: 'updated_by_ptr', component: ObjectType.STEP, kind: 'reference', isAutoset: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.USER, NodeType.SERVER, NodeType.RUN], referenceStruct: StructType.NODE_REFERENCE },
   [StepProperty.setProperties]: { id: 29, name: 'set_properties', component: ObjectType.STEP, kind: 'primitive', primitiveType: PrimitiveType.INT32, isList: true, isRequired: true, isRuntime: true, isWired: true, isStored: true },
   [StepProperty.type]: { id: 30, name: 'type', component: ObjectType.STEP, enumType: EnumType.STEP_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isRuntime: true, isWired: true, isStored: true },
-  [StepProperty.name]: { id: 32, name: 'name', component: ObjectType.STEP, kind: 'primitive', primitiveType: PrimitiveType.STRING, isRuntime: true, isWired: true, isStored: true },
+  [StepProperty.name]: { id: 32, name: 'name', component: ObjectType.STEP, kind: 'primitive', primitiveType: PrimitiveType.STRING, isRequired: true, isRuntime: true, isWired: true, isStored: true },
   [StepProperty.orderKey]: { id: 33, name: 'order_key', component: ObjectType.STEP, kind: 'primitive', primitiveType: PrimitiveType.STRING, isRequired: true, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [StepProperty.text]: { id: 34, name: 'text', component: ObjectType.STEP, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.TEXT },
   [StepProperty.code]: { id: 35, name: 'code', component: ObjectType.STEP, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.CODE },
-  [StepProperty.run]: { id: 36, name: 'run', component: ObjectType.STEP, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.RUN_OPTIONS },
+  [StepProperty.runOptions]: { id: 36, name: 'run_options', component: ObjectType.STEP, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.RUN_OPTIONS },
   [StepProperty.connections]: { id: 37, name: 'connections', component: ObjectType.STEP, kind: 'reference', primitiveType: PrimitiveType.JSON, isList: true, isRequired: true, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.STEP_CONNECTION },
   [StepProperty.valueType]: { id: 40, name: 'value_type', component: ObjectType.STEP, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.TYPE_INFO },
   [StepProperty.valuePacked]: { id: 41, name: 'value_packed', component: ObjectType.STEP, kind: 'primitive', primitiveType: PrimitiveType.JSON, isInternal: true, isRuntime: true, isWired: true, isStored: true, isValuePacked: true },
   [StepProperty.secretValuePacked]: { id: 42, name: 'secret_value_packed', component: ObjectType.STEP, kind: 'primitive', primitiveType: PrimitiveType.JSON, isInternal: true, isRuntime: true, isWired: true, isStored: true, isDeferred: true, isSensitive: true, isEncrypted: true, isValuePacked: true },
-  [StepProperty.nodePtr]: { id: 43, name: 'node_ptr', component: ObjectType.STEP, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.BLOCK, NodeType.STEP], referenceStruct: StructType.NODE_REFERENCE },
+  [StepProperty.nodePtr]: { id: 43, name: 'node_ptr', component: ObjectType.STEP, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.BLOCK, NodeType.STEP, NodeType.TRIGGER], referenceStruct: StructType.NODE_REFERENCE },
   [StepProperty.condition]: { id: 46, name: 'condition', component: ObjectType.STEP, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.EXPRESSION },
   [StepProperty.isTemplate]: { id: 60, name: 'is_template', component: ObjectType.STEP, kind: 'primitive', primitiveType: PrimitiveType.BOOLEAN, isRequired: true, isRuntime: true, isWired: true, isStored: true },
 }
@@ -26800,7 +26835,7 @@ export const SignalDataInfo: Record<SignalProperty, PropertyInfo> = {
   [SignalProperty.createdByPtr]: { id: 21, name: 'created_by_ptr', component: ObjectType.SIGNAL, kind: 'reference', isAutoset: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.USER, NodeType.SERVER, NodeType.RUN], referenceStruct: StructType.NODE_REFERENCE },
   [SignalProperty.updatedByPtr]: { id: 22, name: 'updated_by_ptr', component: ObjectType.SIGNAL, kind: 'reference', isAutoset: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.USER, NodeType.SERVER, NodeType.RUN], referenceStruct: StructType.NODE_REFERENCE },
   [SignalProperty.setProperties]: { id: 29, name: 'set_properties', component: ObjectType.SIGNAL, kind: 'primitive', primitiveType: PrimitiveType.INT32, isList: true, isRequired: true, isRuntime: true, isWired: true },
-  [SignalProperty.typePtr]: { id: 32, name: 'type_ptr', component: ObjectType.SIGNAL, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.BLOCK], referenceStruct: StructType.NODE_REFERENCE },
+  [SignalProperty.typePtr]: { id: 32, name: 'type_ptr', component: ObjectType.SIGNAL, kind: 'reference', isRequired: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.BLOCK], referenceStruct: StructType.NODE_REFERENCE },
   [SignalProperty.valuePacked]: { id: 42, name: 'value_packed', component: ObjectType.SIGNAL, kind: 'primitive', primitiveType: PrimitiveType.JSON, isInternal: true, isRuntime: true, isWired: true, isStored: true, isValuePacked: true },
   [SignalProperty.secretValuePacked]: { id: 43, name: 'secret_value_packed', component: ObjectType.SIGNAL, kind: 'primitive', primitiveType: PrimitiveType.JSON, isInternal: true, isRuntime: true, isWired: true, isStored: true, isDeferred: true, isSensitive: true, isEncrypted: true, isValuePacked: true },
   [SignalProperty.blockPtr]: { id: 60, name: 'block_ptr', component: ObjectType.SIGNAL, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.BLOCK], referenceStruct: StructType.NODE_REFERENCE },
@@ -26870,7 +26905,7 @@ export const NotificationDataInfo: Record<NotificationProperty, PropertyInfo> = 
   [NotificationProperty.updatedByPtr]: { id: 22, name: 'updated_by_ptr', component: ObjectType.NOTIFICATION, kind: 'reference', isAutoset: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.USER, NodeType.SERVER, NodeType.RUN], referenceStruct: StructType.NODE_REFERENCE },
   [NotificationProperty.setProperties]: { id: 29, name: 'set_properties', component: ObjectType.NOTIFICATION, kind: 'primitive', primitiveType: PrimitiveType.INT32, isList: true, isRequired: true, isRuntime: true, isWired: true },
   [NotificationProperty.kind]: { id: 30, name: 'kind', component: ObjectType.NOTIFICATION, enumType: EnumType.NOTIFICATION_KIND, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isRuntime: true, isWired: true, isStored: true },
-  [NotificationProperty.typePtr]: { id: 32, name: 'type_ptr', component: ObjectType.NOTIFICATION, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.BLOCK], referenceStruct: StructType.NODE_REFERENCE },
+  [NotificationProperty.typePtr]: { id: 32, name: 'type_ptr', component: ObjectType.NOTIFICATION, kind: 'reference', isRequired: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.BLOCK], referenceStruct: StructType.NODE_REFERENCE },
   [NotificationProperty.expiresAt]: { id: 33, name: 'expires_at', component: ObjectType.NOTIFICATION, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [NotificationProperty.readAt]: { id: 34, name: 'read_at', component: ObjectType.NOTIFICATION, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [NotificationProperty.title]: { id: 40, name: 'title', component: ObjectType.NOTIFICATION, kind: 'primitive', primitiveType: PrimitiveType.STRING, isRuntime: true, isWired: true, isStored: true },

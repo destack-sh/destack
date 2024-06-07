@@ -3,7 +3,7 @@
 
 from typing import TYPE_CHECKING, Union
 
-VERSION = "2024.06.07.0"
+VERSION = "2024.06.07.1"
 
 if TYPE_CHECKING:
     from bench.language import Subject
@@ -226,6 +226,7 @@ class BenchType(betterproto.Enum):
     ISSUE_KIND = 2170
     ISSUE_TYPE = 2171
     STEP_TYPE = 2180
+    STEP_CONNECTION_TYPE = 2181
     SPACE_TYPE = 2200
     VIEW_TYPE = 2201
     VARIANT = 2202
@@ -427,6 +428,7 @@ class EnumType(betterproto.Enum):
     ISSUE_KIND = 2170
     ISSUE_TYPE = 2171
     STEP_TYPE = 2180
+    STEP_CONNECTION_TYPE = 2181
     SPACE_TYPE = 2200
     VIEW_TYPE = 2201
     VARIANT = 2202
@@ -1024,12 +1026,16 @@ class Spacing(betterproto.Enum):
     S256 = 256
 
 
+class StepConnectionType(betterproto.Enum):
+    UNSPECIFIED = 0
+
+
 class StepType(betterproto.Enum):
     UNSPECIFIED = 0
-    BLANK = 1
+    VALUE = 1
     TRIGGER = 10
-    RUN_BLOCK = 20
-    RUN_STEP = 21
+    RUN = 20
+    SEND = 21
     BRANCH = 30
     FILTER = 31
     LOOP = 32
@@ -1800,14 +1806,15 @@ class SessionContextData(betterproto.Message):
 
 @dataclass(eq=False, repr=False)
 class StepConnectionData(betterproto.Message):
-    """A connection between to a Step in a Flow."""
+    """A connection between two Steps in a FlowBlock."""
 
     metatype: "ObjectType" = betterproto.enum_field(1)
     id: int = betterproto.int32_field(2)
     parent_id: Optional[int] = betterproto.int32_field(3, optional=True)
     parent_key: Optional[str] = betterproto.string_field(4, optional=True)
     order_key: Optional[str] = betterproto.string_field(9, optional=True)
-    source_ptr: "NodeReferenceData" = betterproto.message_field(30)
+    type: "StepConnectionType" = betterproto.enum_field(30)
+    source_ptr: "NodeReferenceData" = betterproto.message_field(31)
 
 
 @dataclass(eq=False, repr=False)
@@ -2083,10 +2090,10 @@ class BlockData(betterproto.Message):
     order_key: str = betterproto.string_field(33)
     policies: List["PolicyData"] = betterproto.message_field(34)
     bases_ptr: List["NodeReferenceData"] = betterproto.message_field(35)
-    builtin_base: Optional["TypeInfoData"] = betterproto.message_field(36, optional=True)
-    text: Optional["TextData"] = betterproto.message_field(37, optional=True)
-    icon: Optional["IconData"] = betterproto.message_field(38, optional=True)
-    visibility: Optional["Visibility"] = betterproto.enum_field(39, optional=True)
+    text: Optional["TextData"] = betterproto.message_field(36, optional=True)
+    icon: Optional["IconData"] = betterproto.message_field(37, optional=True)
+    visibility: Optional["Visibility"] = betterproto.enum_field(38, optional=True)
+    value_type: Optional["TypeInfoData"] = betterproto.message_field(39, optional=True)
     value_packed: Optional["betterproto_lib_google_protobuf.Struct"] = betterproto.message_field(
         40, optional=True
     )
@@ -2094,7 +2101,7 @@ class BlockData(betterproto.Message):
         betterproto.message_field(41, optional=True)
     )
     code: Optional["CodeData"] = betterproto.message_field(42, optional=True)
-    run: Optional["RunOptionsData"] = betterproto.message_field(43, optional=True)
+    run_options: Optional["RunOptionsData"] = betterproto.message_field(43, optional=True)
     delegated_policies: List["PolicyData"] = betterproto.message_field(49)
     is_builtin: bool = betterproto.bool_field(60)
     is_page: bool = betterproto.bool_field(61)
@@ -2633,7 +2640,7 @@ class NotificationData(betterproto.Message):
     updated_by_ptr: Optional["NodeReferenceData"] = betterproto.message_field(22, optional=True)
     set_properties: List[int] = betterproto.int32_field(29)
     kind: "NotificationKind" = betterproto.enum_field(30)
-    type_ptr: Optional["NodeReferenceData"] = betterproto.message_field(32, optional=True)
+    type_ptr: "NodeReferenceData" = betterproto.message_field(32)
     expires_at: Optional[datetime] = betterproto.message_field(33, optional=True)
     read_at: Optional[datetime] = betterproto.message_field(34, optional=True)
     title: Optional[str] = betterproto.string_field(40, optional=True)
@@ -2733,7 +2740,7 @@ class QueryData(betterproto.Message):
     created_by_ptr: Optional["NodeReferenceData"] = betterproto.message_field(21, optional=True)
     updated_by_ptr: Optional["NodeReferenceData"] = betterproto.message_field(22, optional=True)
     set_properties: List[int] = betterproto.int32_field(29)
-    name: Optional[str] = betterproto.string_field(30, optional=True)
+    name: str = betterproto.string_field(30)
     order_key: str = betterproto.string_field(31)
     node_type: "NodeType" = betterproto.enum_field(32)
     base_ptr: Optional["NodeReferenceData"] = betterproto.message_field(33, optional=True)
@@ -2744,7 +2751,8 @@ class QueryData(betterproto.Message):
 @dataclass(eq=False, repr=False)
 class RecordData(betterproto.Message):
     """
-    A record in a database. The containing table is usually a real Postgres table.
+    A record in a DatabaseBlock.
+     If the block is_materialized, the backing table is a real Postgres table.
     """
 
     metatype: "ObjectType" = betterproto.enum_field(1)
@@ -2955,7 +2963,7 @@ class SignalData(betterproto.Message):
     created_by_ptr: Optional["NodeReferenceData"] = betterproto.message_field(21, optional=True)
     updated_by_ptr: Optional["NodeReferenceData"] = betterproto.message_field(22, optional=True)
     set_properties: List[int] = betterproto.int32_field(29)
-    type_ptr: Optional["NodeReferenceData"] = betterproto.message_field(32, optional=True)
+    type_ptr: "NodeReferenceData" = betterproto.message_field(32)
     value_packed: Optional["betterproto_lib_google_protobuf.Struct"] = betterproto.message_field(
         42, optional=True
     )
@@ -3029,10 +3037,7 @@ class SpaceData(betterproto.Message):
 
 @dataclass(eq=False, repr=False)
 class StepData(betterproto.Message):
-    """
-    An informational, logic, data or control flow unit in a Flow (Block).
-     NOTE: steps only track incoming connections.
-    """
+    """An data or control flow unit in a FlowBlock."""
 
     metatype: "ObjectType" = betterproto.enum_field(1)
     id: str = betterproto.string_field(2)
@@ -3053,11 +3058,11 @@ class StepData(betterproto.Message):
     updated_by_ptr: Optional["NodeReferenceData"] = betterproto.message_field(22, optional=True)
     set_properties: List[int] = betterproto.int32_field(29)
     type: "StepType" = betterproto.enum_field(30)
-    name: Optional[str] = betterproto.string_field(32, optional=True)
+    name: str = betterproto.string_field(32)
     order_key: str = betterproto.string_field(33)
     text: Optional["TextData"] = betterproto.message_field(34, optional=True)
     code: Optional["CodeData"] = betterproto.message_field(35, optional=True)
-    run: Optional["RunOptionsData"] = betterproto.message_field(36, optional=True)
+    run_options: Optional["RunOptionsData"] = betterproto.message_field(36, optional=True)
     connections: List["StepConnectionData"] = betterproto.message_field(37)
     value_type: Optional["TypeInfoData"] = betterproto.message_field(40, optional=True)
     value_packed: Optional["betterproto_lib_google_protobuf.Struct"] = betterproto.message_field(

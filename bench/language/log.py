@@ -92,7 +92,7 @@ class Log(TimedNode[LogData], HasSessionContext, HasValues):
     )
     value_packed: Any | None = p_value_packed(52)
     secret_value_packed: Any | None = p_secret_value_packed(53)
-    value: Any = p_value_runtime(52, 53)
+    value: Any = p_value_runtime(52, 53, typ=None)  # free type
 
     # context
     # ...HasSessionContext[60-69]

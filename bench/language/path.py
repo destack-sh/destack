@@ -2,7 +2,7 @@ import re
 from typing import TYPE_CHECKING, Mapping, Optional
 
 from bench.language.const import EnumType, NodeType, StructType, enum_
-from bench.language.node import InlineStruct, Struct, struct
+from bench.language.node import InlineStruct, Struct, struct_
 from bench.language.property import p_regular
 from bench.utils.func import IdEnum
 
@@ -48,7 +48,7 @@ PATH_TOKEN_TO_STR: Mapping[PathTokenType, str] = {
 }
 
 
-@struct(StructType.PATH_TOKEN, inline=True)
+@struct_(StructType.PATH_TOKEN, inline=True)
 class PathToken(InlineStruct):
     type: PathTokenType = p_regular(31)
 
@@ -75,7 +75,7 @@ class PathSegmentType(IdEnum):
     FILTER = 20
 
 
-@struct(StructType.PATH_SEGMENT, inline=True)
+@struct_(StructType.PATH_SEGMENT, inline=True)
 class PathSegment(InlineStruct):
     type: PathSegmentType = p_regular(31)
     name: Optional[str] = p_regular(32, default=None)
@@ -96,7 +96,7 @@ class PathSegment(InlineStruct):
     )
 
 
-@struct(StructType.PATH)
+@struct_(StructType.PATH)
 class Path(Struct):
     """
     A human-readable Bench path to reference source nodes and their fields/properties. Absolute or relative.

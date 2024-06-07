@@ -65,7 +65,6 @@ defineExpose<ViewExposed>({ self });
         <!-- Runnable -->
         <NodeCrumb class="font-medium" :node="runnableNode" :connection="pkgConnection" />
         <!-- Controls -->
-        <!-- nocheckin -->
         <div class="ml-auto flex flex-row items-center pl-1.5">
           <button
             :disabled="runnableNode == null"
@@ -74,6 +73,7 @@ defineExpose<ViewExposed>({ self });
               () => {
                 if (runnableNode == null) return;
                 const run = makeRun(runnableNode, pkgGraph, { inputsPacked });
+                console.log('run', run); // nocheckin
                 pkgConnection.tx.create(run);
               }
             "

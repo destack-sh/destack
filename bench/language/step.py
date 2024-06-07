@@ -1,9 +1,9 @@
-from typing import TYPE_CHECKING, Any, Optional, Union
+from typing import TYPE_CHECKING, Any, Optional, Union, final
 
-from bench.language.const import EnumType, NodeType, StructType, enum_
+from bench.language.const import EnumType, FieldZone, NodeType, StructType, enum_
 from bench.language.graph import NodeList
 from bench.language.issue import Issue
-from bench.language.node import SourceNode, Struct, node, struct
+from bench.language.node import SourceNode, Struct, node_, struct_
 from bench.language.property import (
     p_internal,
     p_node_child,
@@ -27,13 +27,13 @@ if TYPE_CHECKING:
 
 @enum_(EnumType.STEP_TYPE)
 class StepType(IdEnum):
-    BLANK = 1
-    # trigger
+    # source
+    VALUE = 1
     TRIGGER = 10
     # function
-    RUN_BLOCK = 20
-    RUN_STEP = 21
-    # conditional
+    RUN = 20
+    SEND = 21
+    # logical
     BRANCH = 30
     FILTER = 31
     LOOP = 32
@@ -41,28 +41,31 @@ class StepType(IdEnum):
     GROUP = 40
 
 
-@struct(StructType.STEP_CONNECTION)
+@enum_(EnumType.STEP_CONNECTION_TYPE)
+class StepConnectionType(IdEnum):
+    pass  # not sure yet
+
+
+@struct_(StructType.STEP_CONNECTION)
 class StepConnection(Struct):
-    """A connection between to a Step in a Flow."""
+    """A connection between two Steps in a FlowBlock."""
 
+    type: StepConnectionType = p_internal(30)
     source: Union["Block", "Step", "Trigger"] = p_regular(
-        30, require=True, references=NodeType.STEP
+        31, require=True, references=NodeType.STEP
     )
-    # ...?
 
 
-@node(NodeType.STEP)
+@node_(NodeType.STEP)
 class Step(SourceNode[StepData], HasValues):
     """
-    An informational, logic, data or control flow unit in a Flow (Block).
-    NOTE: steps only track incoming connections.
+    An data or control flow unit in a FlowBlock.
     """
 
     parent: Union["Block", "Step"] = p_node_parent(4, NodeType.BLOCK, NodeType.STEP)
 
-    type: StepType = p_internal(30, default=StepType.BLANK)
-    # custom type?
-    name: str | None = p_regular(32, default=None, constraint=NAME_CONSTRAINT)
+    type: StepType = p_internal(30)
+    name: str = p_regular(32, constraint=NAME_CONSTRAINT)
     order_key: str = p_internal(33, default=INTEGER_ZERO)
     text: Optional["Text"] = p_regular(
         34, default=None, require=False, array=False, struct=StructType.TEXT
@@ -70,7 +73,7 @@ class Step(SourceNode[StepData], HasValues):
     code: Optional["Code"] = p_regular(
         35, default=None, require=False, array=False, struct=StructType.CODE
     )
-    run: Optional["RunOptions"] = p_regular(
+    run_options: Optional["RunOptions"] = p_regular(
         36, default=None, require=False, array=False, struct=StructType.RUN_OPTIONS
     )
     connections: list[StepConnection] = p_regular(37, array=True, struct=StructType.STEP_CONNECTION)
@@ -78,9 +81,9 @@ class Step(SourceNode[StepData], HasValues):
     value_type: Optional["TypeInfo"] = p_regular(40, default=None, struct=StructType.TYPE_INFO)
     value_packed: Any = p_value_packed(41)
     secret_value_packed: Any = p_secret_value_packed(42)
-    value: Any = p_value_runtime(41, 42)
-    node: Union["Block", "Step", None] = p_regular(
-        43, require=False, references=(NodeType.BLOCK, NodeType.STEP)
+    value: Any = p_value_runtime(41, 42, typ=None)  # freely typed?
+    node: Union["Block", "Step", "Trigger", None] = p_regular(
+        43, require=False, references=(NodeType.BLOCK, NodeType.STEP, NodeType.TRIGGER)
     )
     condition: Optional["Expression"] = p_regular(
         46, require=False, array=False, default=None, struct=StructType.EXPRESSION
@@ -92,4 +95,12 @@ class Step(SourceNode[StepData], HasValues):
     steps: NodeList["Step"] = p_node_child(NodeType.STEP)
     fields: NodeList["Field"] = p_node_child(NodeType.FIELD)
     triggers: NodeList["Trigger"] = p_node_child(NodeType.TRIGGER)
-    notices: NodeList["Issue"] = p_node_child(NodeType.ISSUE)
+    issues: NodeList["Issue"] = p_node_child(NodeType.ISSUE)
+
+    @final
+    def __repr__(self):  # type: ignore we want to override the default repr
+        return f"<{self.type.bench_name}Step {self}>"
+
+    def to_type(self, as_object: bool = True, zone: FieldZone | None = None):
+        """Gets a type represented by this Step (if any)"""
+        raise NotImplementedError

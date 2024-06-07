@@ -31,10 +31,10 @@ from bench.language.node import (
     Struct,
     get_tk_b64_from_ck,
     get_tk_b64_from_ptr,
-    node,
+    node_,
     object_component,
     pad_ck_from_tk_b64,
-    struct,
+    struct_,
 )
 from bench.language.property import (
     Property,
@@ -172,7 +172,7 @@ def encode_storage_key(field: "Field") -> str:
     return f"{get_tk_b64_from_ck(field.ck)}{field.identity_key}"
 
 
-@struct(StructType.TYPE_CONSTRAINT)
+@struct_(StructType.TYPE_CONSTRAINT)
 class TypeConstraint(Struct):
     """
     A simple constraint on the values of a type. :TypeConstraint
@@ -236,7 +236,7 @@ class TypeInfoBase(HasValues):
 
     # + bonus info/constraints
     default_packed: Optional[Any] = p_value_packed(50)
-    default = p_value_runtime(packed=50, type=lambda self: cast("TypeInfoBase", self))
+    default = p_value_runtime(packed=50, typ=lambda self: cast("TypeInfoBase", self))
     visibility: Optional[Visibility] = p_regular(52, default=None)
     format_hint: Optional[FormatHint] = p_regular(53, default=None)
     condition: Optional["Expression"] = p_regular(
@@ -279,6 +279,9 @@ class TypeInfoBase(HasValues):
         if self._from_property:
             info_str += f" from {self._from_property!s}"
 
+        if self.base_field_zone:
+            info_str += f" [{self.base_field_zone.name}]"
+
         return info_str
 
     def _init_component(self) -> None:
@@ -305,9 +308,9 @@ class TypeInfoBase(HasValues):
                     resolved_type = TypeInfo(kind=TypeKind.OBJECT, base_type=self.base_type)
                 elif (
                     self.base_type.metatype == NodeType.BLOCK
-                    and cast("Block", self.base_type).builtin_base
+                    and cast("Block", self.base_type).value_type
                 ):
-                    resolved_type = cast("Block", self.base_type).builtin_base
+                    resolved_type = cast("Block", self.base_type).value_type
         else:
             resolved_type = self
         self._do_resolve_to(resolved_type)
@@ -376,7 +379,7 @@ class TypeInfoBase(HasValues):
         return None
 
 
-@struct(StructType.TYPE_INFO)
+@struct_(StructType.TYPE_INFO)
 class TypeInfo(Struct, TypeInfoBase):
     pass
 
@@ -392,13 +395,15 @@ TypeIn = Union[
 ]
 
 
-def to_type(typ: TypeIn) -> "TypeInfo":
+def to_type(typ: TypeIn, *, as_object: bool = False, zone: FieldZone | None = None) -> "TypeInfo":
     """Converts a type-like object to a TypeInfo."""
+
     if isinstance(typ, TypeInfoBase):
         return cast("TypeInfo", typ)
     elif isinstance(typ, Node) and typ.metatype == NodeType.BLOCK:
-        type_info = cast("Block", typ).to_type()
+        type_info = cast("Block", typ).to_type(as_object=as_object, zone=zone)
         if type_info is not None:
+            assert isinstance(type_info, TypeInfo), f"expected TypeInfo, got {type_info!r}"
             return type_info
     elif isinstance(typ, PrimitiveType):
         return TypeInfo(kind=TypeKind.PRIMITIVE, primitive_type=typ)
@@ -421,7 +426,7 @@ def to_type(typ: TypeIn) -> "TypeInfo":
 
 
 # pyright: reportIncompatibleMethodOverride=false
-@node(NodeType.FIELD)
+@node_(NodeType.FIELD)
 class Field(SourceNode[FieldData], HasBaseNode, TypeInfoBase, _TypeQueryBuilder):
     """
     A used-defined attribute of some value
@@ -437,7 +442,7 @@ class Field(SourceNode[FieldData], HasBaseNode, TypeInfoBase, _TypeQueryBuilder)
     )
     icon: Optional["Icon"] = p_regular(34, require=False, array=False, struct=StructType.ICON)
     value_packed: Any | None = p_value_packed(35)
-    value: Any = p_value_runtime(35)
+    value: Any = p_value_runtime(35, typ=None)  # freely typed?
 
     # type identity
     # ...TypeInfo
@@ -446,7 +451,7 @@ class Field(SourceNode[FieldData], HasBaseNode, TypeInfoBase, _TypeQueryBuilder)
     # is_indexed: bool = ... # for database fields
     # is_unique: bool = ... # for database fields
 
-    notices: NodeList["Issue"] = p_node_child(NodeType.ISSUE)
+    issues: NodeList["Issue"] = p_node_child(NodeType.ISSUE)
 
     _introspected_from: Optional[Property] = p_runtime(default=None)
 

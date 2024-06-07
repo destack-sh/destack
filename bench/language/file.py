@@ -6,7 +6,7 @@ import structlog
 
 from bench.language.bench import BenchResourceNode, Drive
 from bench.language.const import EnumType, NodeType, PrimitiveType, StructType, enum_
-from bench.language.node import InlineStruct, node, struct
+from bench.language.node import InlineStruct, node_, struct_
 from bench.language.property import p_internal, p_node_parent, p_regular, p_runtime
 from bench.language.validation import NAME_CONSTRAINT
 from bench.proto.wire import BlobData
@@ -30,7 +30,7 @@ class FileRetentionMode(IdEnum):
     TIMED = 3  # delete after a certain time
 
 
-@node(NodeType.BLOB, unique=(("parent_id", "sha512"),))
+@node_(NodeType.BLOB, unique=(("parent_id", "sha512"),))
 class Blob(BenchResourceNode[BlobData]):
     """The actual file content stored as a Blob in a Drive. De-duped to 1 per sha512."""
 
@@ -42,7 +42,7 @@ class Blob(BenchResourceNode[BlobData]):
     expires_at: Optional[datetime] = p_regular(44)
 
 
-@struct(StructType.FILE, inline=True)
+@struct_(StructType.FILE, inline=True)
 class File(InlineStruct):
     """A reference to a file stored somewhere."""
 
@@ -84,7 +84,7 @@ class IconKind(IdEnum):
     FONT_AWESOME = 3
 
 
-@struct(StructType.ICON, inline=True)
+@struct_(StructType.ICON, inline=True)
 class Icon(InlineStruct):
     kind: IconKind = p_internal(30, default=False)
     # content

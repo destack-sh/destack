@@ -49,7 +49,7 @@ class Message(TimedNode[MessageData], HasBaseNode, HasSessionContext, HasValues)
     text: Optional["Text"] = p_regular(41, require=False, default=None, struct=StructType.TEXT)
     value_packed: Any = p_value_packed(42)
     secret_value_packed: Any = p_value_packed(43)
-    value: Any = p_value_runtime(42, 43)
+    value: Any = p_value_runtime(42, 43, typ=None)  # freely typed
 
     # flags
     is_pinned: bool = p_regular(50, default=False)

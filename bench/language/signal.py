@@ -3,6 +3,7 @@ from typing import TYPE_CHECKING, Any, Optional, cast
 import structlog
 
 from bench.language.const import NodeType
+from bench.language.field import TypeInfoBase
 from bench.language.node import HasBaseNode, TimedNode, timed_node
 from bench.language.property import (
     p_internal,
@@ -33,15 +34,19 @@ class Signal(TimedNode[SignalData], HasBaseNode, HasSessionContext, HasValues):
     """
 
     parent: "Package" = p_node_parent(4, NodeType.PACKAGE)
-    type: Optional["Block"] = p_internal(32, require=False, array=False, references=NodeType.BLOCK)
+    type: "Block" = p_internal(32, require=True, array=False, references=NodeType.BLOCK)
 
     # content
     value_packed: Any | None = p_value_packed(42)
     secret_value_packed: Any | None = p_secret_value_packed(43)
-    value: Any = p_value_runtime(42, 43, type=32)
+    value: Any = p_value_runtime(42, 43, typ=lambda self: cast("Signal", self).value_type)
 
     # context
     # ...HasSessionContext[60-69]
+
+    @property
+    def value_type(self) -> "TypeInfoBase | None":
+        return self.type.to_type(as_object=True)
 
     @property
     def base(self) -> Optional["Block"]:
