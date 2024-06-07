@@ -25,7 +25,7 @@ from bench.language.node import (
     Struct,
     TimedNode,
     object_component,
-    struct,
+    struct_,
     timed_node,
 )
 from bench.language.property import Property, p_internal, p_node_parent, p_runtime, p_system
@@ -409,25 +409,25 @@ class Session(TimedNode[SessionData]):
             self._edited_nodes_by_id[n.id] = n
             self._tx.upsert(n, subject, self._origin, context, utcnow())
 
-    def update(self, node_: Node, properties: Collection[Property], old_values: dict[int, Any]):
+    def update(self, node: Node, properties: Collection[Property], old_values: dict[int, Any]):
         """Updates an existing node. Cannot move. The given properties are overwritten."""
         if self._is_suppressed:
             return
         assert self._tx is not None, f"no active transaction in {self!r}"
         assert not self._is_readonly and not self._is_suspended, f"cannot edit in {self!r}"
-        self._edited_nodes_by_id[node_.id] = node_
+        self._edited_nodes_by_id[node.id] = node
         subject, context = self._get_edit_context()
-        self._tx.update(node_, subject, self._origin, context, properties, old_values, utcnow())
+        self._tx.update(node, subject, self._origin, context, properties, old_values, utcnow())
 
-    def move(self, node_: Node, properties: Collection[Property], old_values: dict[int, Any]):
+    def move(self, node: Node, properties: Collection[Property], old_values: dict[int, Any]):
         """Moves and updates an existing node."""
         if self._is_suppressed:
             return
         assert self._tx is not None, f"no active transaction in {self!r}"
         assert not self._is_readonly and not self._is_suspended, f"cannot edit in {self!r}"
-        self._edited_nodes_by_id[node_.id] = node_
+        self._edited_nodes_by_id[node.id] = node
         subject, context = self._get_edit_context()
-        self._tx.move(node_, subject, self._origin, context, properties, old_values, utcnow())
+        self._tx.move(node, subject, self._origin, context, properties, old_values, utcnow())
 
     def archive(self, *nodes: Node):
         """Marks a node as archived, so it will be hidden by default."""
@@ -503,7 +503,7 @@ class Session(TimedNode[SessionData]):
             n.deleted_at = now
 
 
-@struct(StructType.EDIT_CONTEXT, inline=True)
+@struct_(StructType.EDIT_CONTEXT, inline=True)
 class EditContext(InlineStruct):
     """Additional context for a specific edit (per-edit variable subset of Session context)."""
 
@@ -561,12 +561,12 @@ class HasSessionContext(BuiltinObject):
         user_ptr: Optional[NodeReference] = None
 
 
-@struct(StructType.SESSION_CONTEXT, inline=True)
+@struct_(StructType.SESSION_CONTEXT, inline=True)
 class SessionContext(InlineStruct, HasSessionContext):
     pass
 
 
-@struct(StructType.CONTEXT)
+@struct_(StructType.CONTEXT)
 class Context(Struct):
     """The context at some point and time in the Bench tree."""
 

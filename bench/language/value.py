@@ -12,7 +12,6 @@ from betterproto.lib.google.protobuf import Struct as ProtoStruct
 from bench.language.const import (
     PY_TYPE_BY_PRIMITIVE_TYPE,
     EnumType,
-    NodeType,
     ObjectType,
     PrimitiveType,
     PrimitiveValue,
@@ -27,7 +26,6 @@ from bench.proto.wire import AnyNodeData, AnyStructData
 
 if TYPE_CHECKING:
     from bench.language import (
-        Block,
         BuiltinObject,
         Field,
         Node,
@@ -842,20 +840,10 @@ class HasValues(BuiltinObject):
             #  (would be nice to summarize them into bigger edits to avoid unnecessary work)
             self._pack_values_inplace(properties)
 
-    def _resolve_value_prop_type(self, prop: Property) -> "TypeInfoBase":
+    def _resolve_value_prop_type(self, prop: Property) -> "TypeInfoBase | None":
         """Gets the effective type info for the given value prop"""
-        if prop.value_type_info_getter is not None:
-            return prop.value_type_info_getter(self)
-        elif prop.value_type_info_ptr is not None:
-            assert (
-                type(prop.value_type_info_ptr) is Property
-            ), f"{prop!r} has no value_type_info_ptr"
-            type_value = getattr(self, prop.value_type_info_ptr.name)
-            assert isinstance(type_value, Node), f"{type_value!r} is not a Node"
-            assert type_value.metatype == NodeType.BLOCK, f"{type_value!r} is not a Block"
-            return cast("Block", type_value).as_type
-        else:
-            raise RuntimeError(f"no type info for {prop!r} in {self!r}")
+        assert prop.value_type_info_getter is not None, f"{prop!r} has no value_type_info_getter"
+        return prop.value_type_info_getter(self)
 
     def _unpack_values_inplace(self, properties: Collection[Property]) -> None:
         # we don't handle :SecretValues yet
@@ -866,8 +854,9 @@ class HasValues(BuiltinObject):
             value_packed = getattr(self, prop.value_packed_ptr.name)
             if value_packed is not None:
                 value_type = self._resolve_value_prop_type(prop)
-                value = unpack_value(value_packed, None, value_type)
-                self._do_set(prop.name, value, dont_track=True)
+                if value_type is not None:
+                    value = unpack_value(value_packed, None, value_type)
+                    self._do_set(prop.name, value, dont_track=True)
 
     def _pack_values_inplace(
         self, properties: Collection[Property], skip_already_set: bool = False
@@ -883,7 +872,8 @@ class HasValues(BuiltinObject):
             value = getattr(self, prop.name)
             if value is not None:
                 value_type = self._resolve_value_prop_type(prop)
-                value_packed, _ = pack_value(value, value_type)
-                self._do_set(prop.value_packed_ptr.name, value_packed, dont_track=True)
+                if value_type is not None:
+                    value_packed, _ = pack_value(value, value_type)
+                    self._do_set(prop.value_packed_ptr.name, value_packed, dont_track=True)
             else:
                 self._do_set(prop.value_packed_ptr.name, None, dont_track=True)

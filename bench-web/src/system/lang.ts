@@ -809,32 +809,27 @@ function getInspectionInfo(metatype: ObjectType, type: any): Record<string, Insp
       Common: [BlockProperty.type],
       Flags: [{ from: 60, to: 70 }],
     };
-    if (type == BlockType.ALIAS || type == BlockType.VARIABLE) {
-      // base type
+    if (type == BlockType.VARIABLE) {
+      // value type
       properties.Common.push({
-        from: BlockProperty.builtinBase,
-        to: BlockProperty.builtinBase + 1,
+        from: BlockProperty.valueType,
+        to: BlockProperty.valueType + 1,
         replace: () => ({
-          title: "Base",
+          title: "Value Type",
           viewType: ViewType.PICKER,
           props: { valueType: makeTypeInfo({ benchType: BenchType.TYPE_INFO }) },
-          read: (node: AnyNodeData) => (node as BlockData).builtinBase,
+          read: (node: AnyNodeData) => (node as BlockData).valueType,
           write: (tx: Transaction, node: AnyNodeData, value: TypeIdentity | null) => {
-            tx.update(
-              node as BlockData,
-              {
-                builtinBase:
-                  value == null
-                    ? undefined
-                    : makeTypeInfo({
-                        kind: value.kind,
-                        primitiveType: value.primitiveType,
-                        benchType: value.benchType,
-                        baseTypePtr: value.baseTypePtr,
-                      }),
-              },
-              { debounce: "tick" },
-            );
+            const valueType =
+              value == null
+                ? undefined
+                : makeTypeInfo({
+                    kind: value.kind,
+                    primitiveType: value.primitiveType,
+                    benchType: value.benchType,
+                    baseTypePtr: value.baseTypePtr,
+                  });
+            tx.update(node as BlockData, { valueType }, { debounce: "tick" });
           },
         }),
       });

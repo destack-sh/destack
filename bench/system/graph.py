@@ -392,10 +392,10 @@ class GraphIoServiceBase(ServiceBase, GraphIoBase):
                 )
                 unpacked_graph = wiring.unpack_node_graph(data_graph, parent=None, session=session)
                 for node_id in scope.edited_node_ids:
-                    node_ = unpacked_graph.get(UUID(node_id))
-                    if node_ is None:
+                    node = unpacked_graph.get(UUID(node_id))
+                    if node is None:
                         raise GRPCError(GRPCStatus.NOT_FOUND, f"{node_id} not found")
-                    node_._validate_self(properties=(), invalid=on_invalid_raise)
+                    node._validate_self(properties=(), invalid=on_invalid_raise)
 
                 # flush edits to get cascaded edits for extend
                 assert len(session.tx.edits) == 0, f"unexpected edits in {session.tx!r}"

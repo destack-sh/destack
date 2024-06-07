@@ -1,4 +1,4 @@
-from typing import TYPE_CHECKING, Any, Optional
+from typing import TYPE_CHECKING, Any, Optional, cast
 
 import structlog
 
@@ -10,7 +10,8 @@ from bench.language.connection import (
     PostgresEngine,
 )
 from bench.language.const import NodeType
-from bench.language.node import HasBaseNode, IdentityNode, node
+from bench.language.field import TypeInfoBase
+from bench.language.node import HasBaseNode, IdentityNode, node_
 from bench.language.property import (
     p_node_parent,
     p_secret_value_packed,
@@ -30,20 +31,27 @@ if TYPE_CHECKING:
 logger = structlog.get_logger(__name__)
 
 
-@node(NodeType.RECORD, passthrough="value", stored_custom=True, local=True)
+@node_(NodeType.RECORD, passthrough="value", stored_custom=True, local=True)
 class Record(IdentityNode[RecordData], HasBaseNode, HasValues):
-    """A record in a database. The containing table is usually a real Postgres table."""
+    """
+    A record in a DatabaseBlock.
+    If the block is_materialized, the backing table is a real Postgres table.
+    """
 
     # :RecordSchema
     parent: "Block" = p_node_parent(4, NodeType.BLOCK)
     value_packed: Any = p_value_packed(30)
     secret_value_packed = p_secret_value_packed(31)
-    value: Any = p_value_runtime(30, 31, type=4)
+    value: Any = p_value_runtime(30, 31, typ=lambda self: cast("Record", self).value_type)
 
     # could also have Record.secret_value_packed as in Block (no materialization needed?)
 
     def __content_str__(self):
         return f"{describe_type(self.value) or '<empty>'}"
+
+    @property
+    def value_type(self) -> "TypeInfoBase | None":
+        return self.parent.to_type(as_object=True)
 
     @property
     def base(self) -> "Block":

@@ -1,4 +1,4 @@
-from typing import TYPE_CHECKING, Any, Optional, Union
+from typing import TYPE_CHECKING, Any, Optional, Union, final
 
 from bench.language.const import NODE_TYPES, EnumType, NodeType, StructType, enum_
 from bench.language.expression import Selection
@@ -9,8 +9,8 @@ from bench.language.node import (
     InlineStruct,
     Node,
     SourceNode,
-    node,
-    struct,
+    node_,
+    struct_,
 )
 from bench.language.property import (
     p_internal,
@@ -197,7 +197,7 @@ class ColorShade(IdEnum):
     S950 = 950
 
 
-@struct(StructType.COLOR, inline=True)
+@struct_(StructType.COLOR, inline=True)
 class Color(InlineStruct):
     """A color value."""
 
@@ -257,7 +257,7 @@ class FontSize(IdEnum):
     XL7 = 72
 
 
-@struct(StructType.FONT, inline=True)
+@struct_(StructType.FONT, inline=True)
 class Font(InlineStruct):
     """A font value."""
 
@@ -325,7 +325,7 @@ class Anchor(IdEnum):
     LEFT_BOTTOM = 33
 
 
-@struct(StructType.OFFSET, inline=True)
+@struct_(StructType.OFFSET, inline=True)
 class Offset(InlineStruct):
     """A position value. Absolute units are in pixels, ideally in Spacing scale."""
 
@@ -340,7 +340,7 @@ class Offset(InlineStruct):
     left_relative: Optional[float] = p_regular(47, default=None)
 
 
-@struct(StructType.BOX, inline=True)
+@struct_(StructType.BOX, inline=True)
 class Box(InlineStruct):
     """A box value. Absolute units are in pixels, ideally in Spacing scale."""
 
@@ -370,7 +370,7 @@ class Alignment(IdEnum):
     SPACE_BETWEEN = 4
 
 
-@node(NodeType.VIEW, identifier=IdentifierType.VARIABLE)
+@node_(NodeType.VIEW, identifier=IdentifierType.VARIABLE)
 class View(SourceNode[ViewData], HasValues):
     """A view of a user interface in a Bench."""
 
@@ -393,7 +393,7 @@ class View(SourceNode[ViewData], HasValues):
         40, default=None, require=False, struct=StructType.TYPE_INFO
     )
     value_packed: Any = p_value_packed(41)
-    value: Any = p_value_runtime(packed=41)
+    value: Any = p_value_runtime(packed=41, typ=None)  # freely typed for now
     # TODO :Cleanup :Architecture: View.node should probably just be in View.value
     #  (with relevant Views having that type... once we have the Value system more figured out)
     node: Optional["Node"] = p_regular(
@@ -444,8 +444,9 @@ class View(SourceNode[ViewData], HasValues):
     is_loading: Optional[bool] = p_regular(90, default=False)
 
     views: NodeList["View"] = p_node_child(NodeType.VIEW)
-    notices: NodeList["Issue"] = p_node_child(NodeType.ISSUE)
+    issues: NodeList["Issue"] = p_node_child(NodeType.ISSUE)
 
+    @final
     def __repr__(self):  # type: ignore we want to override the default repr
         return f"<{self.type.bench_name}View {self}>"
 
@@ -457,7 +458,7 @@ class SpaceType(IdEnum):
     EXTENSION = 30
 
 
-@node(NodeType.SPACE, identifier=IdentifierType.VARIABLE)
+@node_(NodeType.SPACE, identifier=IdentifierType.VARIABLE)
 class Space(SourceNode[SpaceData]):
     """A space for a user to interact with the Bench."""
 

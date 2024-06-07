@@ -1,7 +1,16 @@
-from typing import TYPE_CHECKING, Any, Collection, Optional, Union, cast
+from typing import TYPE_CHECKING, Any, Collection, Optional, Union, cast, final
 
-from bench.language.const import BlockType, NodeType, StructType, TypeKind, Visibility
-from bench.language.node import NodeList, SourceNode, node
+from bench.language.const import (
+    BenchError,
+    BlockType,
+    FieldZone,
+    NodeType,
+    StructType,
+    TypeKind,
+    Visibility,
+)
+from bench.language.field import TypeInfoBase
+from bench.language.node import NodeList, SourceNode, node_
 from bench.language.property import (
     p_internal,
     p_node_child,
@@ -66,7 +75,7 @@ assert len(IDENTIFIER_TYPE_BY_BLOCK_TYPE) == len(BlockType)
 #  see :AutoNaming
 
 
-@node(NodeType.BLOCK, passthrough="value")
+@node_(NodeType.BLOCK, passthrough="value")
 class Block(SourceNode[BlockData], HasValues):
     """A building block containing logic, types, UI, data, AI, - any Bench program source."""
 
@@ -78,21 +87,21 @@ class Block(SourceNode[BlockData], HasValues):
     order_key: str = p_internal(33, default=INTEGER_ZERO)
     policies: list["Policy"] = p_regular(34, array=True, struct=StructType.POLICY)
     bases: list["Block"] = p_regular(35, require=False, array=True, references=NodeType.BLOCK)
-    builtin_base: Optional["TypeInfo"] = p_regular(36, default=None, struct=StructType.TYPE_INFO)
     text: Optional["Text"] = p_regular(
-        37, default=None, require=False, array=False, struct=StructType.TEXT
+        36, default=None, require=False, array=False, struct=StructType.TEXT
     )
     icon: Optional["Icon"] = p_regular(
-        38, default=None, require=False, array=False, struct=StructType.ICON
+        37, default=None, require=False, array=False, struct=StructType.ICON
     )
-    visibility: Optional[Visibility] = p_regular(39, default=None, require=False)
+    visibility: Optional[Visibility] = p_regular(38, default=None, require=False)
+    value_type: Optional["TypeInfo"] = p_regular(39, default=None, struct=StructType.TYPE_INFO)
     value_packed: Any = p_value_packed(40)
     secret_value_packed: Any | None = p_secret_value_packed(41)
-    value: Any = p_value_runtime(40, 41, type=lambda self: cast("Block", self).as_type)
+    value: Any = p_value_runtime(40, 41, typ=lambda self: cast("Block", self).value_type)
     code: Optional["Code"] = p_regular(
         42, default=None, require=False, array=False, struct=StructType.CODE
     )
-    run: Optional["RunOptions"] = p_regular(
+    run_options: Optional["RunOptions"] = p_regular(
         43, default=None, require=False, array=False, struct=StructType.RUN_OPTIONS
     )
     delegated_policies: list["Policy"] = p_regular(49, array=True, struct=StructType.POLICY)
@@ -113,7 +122,7 @@ class Block(SourceNode[BlockData], HasValues):
     fields: NodeList["Field"] = p_node_child(NodeType.FIELD)
     steps: NodeList["Step"] = p_node_child(NodeType.STEP)
     triggers: NodeList["Trigger"] = p_node_child(NodeType.TRIGGER)
-    notices: NodeList["Issue"] = p_node_child(NodeType.ISSUE)
+    issues: NodeList["Issue"] = p_node_child(NodeType.ISSUE)
 
     def _validate_component(
         self, properties: Collection["Property"], invalid: "ValidationHandler"
@@ -125,6 +134,13 @@ class Block(SourceNode[BlockData], HasValues):
                 self, "type=Protocol must have is_protocol=True", (Block.type, Block.is_protocol)
             )
 
+    def __content_str__(self):
+        return ""  # implemented by dynamic components
+
+    @final
+    def __repr__(self):  # type: ignore we want to override the default repr
+        return f"<{self.type.bench_name}Block {self}>"
+
     @property
     def is_type(self) -> bool:
         return self.type.is_type
@@ -133,56 +149,62 @@ class Block(SourceNode[BlockData], HasValues):
     def is_runnable(self) -> bool:
         return self.type.is_runnable
 
-    def __content_str__(self):
-        return ""  # implemented by dynamic components
-
-    def __repr__(self):  # type: ignore we want to override the default repr
-        return f"<{self.type.bench_name}Block {self}>"
-
     def __call__(self, *args, **kwargs) -> Any:
         if self.type.is_runnable:
             raise NotImplementedError
-        else:
+        elif self.type in (BlockType.CLASS, BlockType.CHOICE, BlockType.SIGNAL):
             typ = self.to_type()
             if typ is None:
                 raise ValueError(f"{self!r} does not have an implicit type")
             return typ(*args, **kwargs)
-
-    def to_type(self) -> "TypeInfo | None":
-        """
-        Get the default implicit type for this Block (if any).
-        TODO :Performance: cache Block.to_type (in interp?)
-        """
-        from bench.language.field import TypeInfo
-
-        if self.type == BlockType.CLASS:
-            # NOTE: we turn Class Blocks into Object Types here so we can instantiate them immediately
-            #  but for storage we would have to make this an Alias that resolve to an Object Type..
-            typ = TypeInfo(kind=TypeKind.OBJECT, base_type=self)
-        elif self.type == BlockType.CHOICE:
-            typ = TypeInfo(kind=TypeKind.BASED_NODE, base_type=self, bench_type=NodeType.FIELD)
-        elif self.type == BlockType.SIGNAL:
-            typ = TypeInfo(kind=TypeKind.BASED_NODE, base_type=self, bench_type=NodeType.SIGNAL)
-        elif self.type == BlockType.VARIABLE:
-            return self.builtin_base  # nothing to resolve
-        elif self.type == BlockType.DATABASE:
-            typ = TypeInfo(kind=TypeKind.BASED_NODE, base_type=self, bench_type=NodeType.RECORD)
-        elif self.type.is_runnable:
-            typ = TypeInfo(kind=TypeKind.BASED_NODE, base_type=self, bench_type=NodeType.RUN)
         else:
-            return None
-        typ._do_resolve_to(typ)
-        return typ
-
-    @property
-    def as_type(self) -> "TypeInfo":
-        typ = self.to_type()
-        assert typ, f"{self!r} does not have an implicit type"
-        return typ
-
-    def morph(self, to_type: BlockType):
-        raise NotImplementedError(f"{self!r} does not support morphing yet")
+            raise BenchError(f"{self!r} is not callable")
 
     @property
     def identifier_type(self) -> IdentifierType:
         return IDENTIFIER_TYPE_BY_BLOCK_TYPE[self.type]
+
+    def to_type(self, *, as_object: bool = False, zone: FieldZone | None = None) -> "TypeInfoBase":
+        """Get a type represented by this Block (if any)"""
+        from bench.language.field import TypeInfo
+
+        if self.type == BlockType.CLASS:
+            # NOTE: we turn Class Blocks into Object Types here so we can instantiate them immediately
+            #  but for storage we would have to make this an Alias that resolves to an Object Type?
+            typ = TypeInfo(kind=TypeKind.OBJECT, base_type=self)
+        elif self.type == BlockType.CHOICE:
+            typ = TypeInfo(kind=TypeKind.BASED_NODE, base_type=self, bench_type=NodeType.FIELD)
+        elif self.type == BlockType.SIGNAL:
+            if not as_object:
+                typ = TypeInfo(kind=TypeKind.BASED_NODE, base_type=self, bench_type=NodeType.SIGNAL)
+            else:
+                typ = TypeInfo(
+                    kind=TypeKind.OBJECT, base_type=self, base_field_zone=zone or FieldZone.MEMBER
+                )
+        elif self.type == BlockType.VARIABLE:
+            assert self.value_type is not None, f"{self!r} has no builtin base"
+            return self.value_type._to_resolved()
+        elif self.type == BlockType.DATABASE:
+            if not as_object:
+                typ = TypeInfo(kind=TypeKind.BASED_NODE, base_type=self, bench_type=NodeType.RECORD)
+            else:
+                typ = TypeInfo(
+                    kind=TypeKind.OBJECT, base_type=self, base_field_zone=zone or FieldZone.MEMBER
+                )
+        elif self.type.is_runnable:
+            if not as_object:
+                typ = TypeInfo(kind=TypeKind.BASED_NODE, base_type=self, bench_type=NodeType.RUN)
+            else:
+                typ = TypeInfo(kind=TypeKind.OBJECT, base_type=self, base_field_zone=zone)
+        else:
+            raise ValueError(f"{self!r} has no type")
+        typ._do_resolve_to(typ)
+        return typ
+
+    @property
+    def input_type(self) -> "TypeInfoBase":
+        return self.to_type(as_object=True, zone=FieldZone.INPUT)
+
+    @property
+    def output_type(self) -> "TypeInfoBase":
+        return self.to_type(as_object=True, zone=FieldZone.OUTPUT)

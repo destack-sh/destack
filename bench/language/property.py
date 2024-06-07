@@ -114,10 +114,7 @@ class Property(_TypeQueryBuilder if TYPE_CHECKING else object):
     is_value_packed: bool = False  # for packed value properties (the underlying value)
     value_packed_ptr: Union[int, "Property", None] = None  # the packed value
     secret_value_packed_ptr: Union[int, "Property", None] = None  # the secret packed value
-    value_type_info_ptr: Union[int, "Property", None] = None  # the type info for the value
-    value_type_info_getter: Callable[["BuiltinObject"], "TypeInfoBase"] | None = (
-        None  # type info getter
-    )
+    value_type_info_getter: Callable[["BuiltinObject"], "TypeInfoBase | None"] | None = None
 
     # references (nodes and struct/value)
     reference_kind: ReferenceKind | None = None
@@ -423,12 +420,6 @@ class Property(_TypeQueryBuilder if TYPE_CHECKING else object):
             from bench.language.value import HasValues
 
             assert HasValues in self.component.__components__, f"{self.component} is not HasValues"
-            if isinstance(self.value_type_info_ptr, int):
-                resolved_ptr = self.component.__properties_by_id__.get(self.value_type_info_ptr)
-                assert (
-                    resolved_ptr is not None
-                ), f"invalid type ptr {self.value_type_info_ptr} info for {self!r}"
-                self.value_type_info_ptr = resolved_ptr
             assert self.value_packed_ptr is not None, f"{self!r} is missing value_packed_ptr"
             if isinstance(self.value_packed_ptr, int):
                 self.value_packed_ptr = self.component.__properties_by_id__[self.value_packed_ptr]
@@ -1013,17 +1004,9 @@ def p_value_runtime(
     packed: int,
     secret_packed: int | None = None,
     *,
-    type: int | Callable[["BuiltinObject"], "TypeInfoBase"] | None = None,
+    typ: Callable[["BuiltinObject"], "TypeInfoBase | None"] | None,
 ) -> Any:
     """Runtime-only property for a Value and secret value."""
-    value_type_info_id = None
-    value_type_info_getter = None
-    if isinstance(type, int):
-        value_type_info_id = type
-    elif callable(type):
-        value_type_info_getter = type
-    elif type is not None:
-        raise ValueError(f"invalid type info {type!r} for p_value_runtime")
     return Property(
         is_internal=True,
         is_runtime=True,
@@ -1036,8 +1019,7 @@ def p_value_runtime(
         default=None,
         value_packed_ptr=packed,
         secret_value_packed_ptr=secret_packed,
-        value_type_info_ptr=value_type_info_id,
-        value_type_info_getter=value_type_info_getter,
+        value_type_info_getter=typ,
     )
 
 

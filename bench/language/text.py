@@ -12,7 +12,7 @@ from bench.language.node import (
     Node,
     Struct,
     object_component,
-    struct,
+    struct_,
 )
 from bench.language.property import p_regular
 from bench.utils.func import IdEnum
@@ -62,7 +62,7 @@ class TextLineType(IdEnum):
     # ...
 
 
-@struct(StructType.TEXT_SPAN, inline=True)
+@struct_(StructType.TEXT_SPAN, inline=True)
 class TextSpan(TextOptions, InlineStruct):
     content: Optional[str] = p_regular(33, default=None)
     node: Optional[Node] = p_regular(
@@ -100,7 +100,7 @@ class TextSpan(TextOptions, InlineStruct):
         )
 
 
-@struct(StructType.TEXT_LINE)
+@struct_(StructType.TEXT_LINE)
 class TextLine(TextOptions, Struct):
     """
     A single line of Text with formatting, composed of spans.
@@ -149,7 +149,7 @@ class TextLine(TextOptions, Struct):
         )
 
 
-@struct(StructType.TEXT)
+@struct_(StructType.TEXT)
 class Text(Struct):
     """
     Rich, markdown-inspired Text with mentions, lists & other extensions.

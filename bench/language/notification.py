@@ -6,6 +6,7 @@ from bench.language.const import (
     NotificationKind,
     StructType,
 )
+from bench.language.field import TypeInfoBase
 from bench.language.node import HasBaseNode, TimedNode, timed_node
 from bench.language.property import (
     p_internal,
@@ -39,7 +40,7 @@ class Notification(TimedNode[NotificationData], HasBaseNode, HasSessionContext, 
 
     parent: "Package" = p_node_parent(4, NodeType.PACKAGE)
     kind: NotificationKind = p_regular(30)
-    type: Optional["Block"] = p_system(32, require=False, array=False, references=NodeType.BLOCK)
+    type: "Block" = p_system(32, require=True, array=False, references=NodeType.BLOCK)
     expires_at: Optional[datetime] = p_internal(33, default=None)
     read_at: Optional[datetime] = p_internal(34, default=None)
 
@@ -48,10 +49,16 @@ class Notification(TimedNode[NotificationData], HasBaseNode, HasSessionContext, 
     text: Optional["Text"] = p_regular(41, require=False, array=False, struct=StructType.TEXT)
     value_packed: Any | None = p_value_packed(42)
     secret_value_packed: Any | None = p_secret_value_packed(43)
-    value: Any = p_value_runtime(42, 43)
+    value: Any = p_value_runtime(42, 43, typ=lambda self: cast("Notification", self).value_type)
 
     # context
     # ...HasSessionContext[60-69]
+
+    @property
+    def value_type(self) -> "TypeInfoBase":
+        typ = self.type.to_type(as_object=True)
+        assert typ is not None, f"{self.type!r} has no type for {self!r}"
+        return typ
 
     @property
     def base(self) -> Optional["Block"]:

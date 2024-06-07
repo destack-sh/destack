@@ -6,6 +6,7 @@ from bench.language.const import (
     TERMINAL_RUN_STATUSES,
     BenchError,
     EnumType,
+    FieldZone,
     NodeType,
     RunErrorKind,
     RunKind,
@@ -18,7 +19,7 @@ from bench.language.node import (
     Node,
     Struct,
     TimedNode,
-    struct,
+    struct_,
     timed_node,
 )
 from bench.language.property import (
@@ -41,12 +42,12 @@ from bench.proto.wire import AnyNodeData, NodeReferenceData, RunData
 from bench.utils.func import IdEnum
 
 if TYPE_CHECKING:
-    from bench.language import Block, NodeReference, Package
+    from bench.language import Block, NodeReference, Package, TypeInfoBase
 
 # pyright: reportIncompatibleVariableOverride=false
 
 
-@struct(StructType.RUN_OPTIONS)
+@struct_(StructType.RUN_OPTIONS)
 class RunOptions(Struct):
     """Options for running something."""
 
@@ -58,7 +59,7 @@ class RunOptions(Struct):
     retry_on: list["RunErrorType"] = p_regular(35, array=True)
 
 
-@struct(StructType.RETRY_ATTEMPT)
+@struct_(StructType.RETRY_ATTEMPT)
 class RetryAttempt(Struct):
     """A single attempt at a Run."""
 
@@ -79,7 +80,7 @@ class RunErrorType(IdEnum):
     NO_RUNTIME_AVAILABLE = 1
 
 
-@struct(StructType.RUN_ERROR)
+@struct_(StructType.RUN_ERROR)
 class RunError(Struct, BenchError):
     """An error that occurred in the context of a Run."""
 
@@ -142,13 +143,13 @@ class Run(TimedNode[RunData], HasBaseNode, HasSessionContext, HasValues):
     # content
     inputs_packed: Any = p_value_packed(50)
     inputs_secret_packed: Any = p_secret_value_packed(51)
-    inputs: Any = p_value_runtime(50, 51)
+    inputs: Any = p_value_runtime(50, 51, typ=lambda self: cast("Run", self).input_type)
     outputs_packed: Any = p_value_packed(52)
     outputs_secret_packed: Any = p_secret_value_packed(53)
-    outputs: Any = p_value_runtime(52, 53)
+    outputs: Any = p_value_runtime(52, 53, typ=lambda self: cast("Run", self).output_type)
     value_packed: Any = p_value_packed(54)
     value_secret_packed: Any = p_secret_value_packed(55)
-    value: Any = p_value_runtime(54, 55)
+    value: Any = p_value_runtime(54, 55, typ=None)  # freely typed
     error: Optional["RunError"] = p_internal(
         56, default=None, require=False, array=False, struct=StructType.RUN_ERROR
     )
@@ -171,14 +172,27 @@ class Run(TimedNode[RunData], HasBaseNode, HasSessionContext, HasValues):
         else:
             return f"{content_str}, {self.status.bench_name}"
 
-    def fail(self, error: "RunError"):
-        assert not self.status.is_terminal, f"cannot fail {self.status} run {self!r}"
-        self.status = RunStatus.FAILED
-        self.error = error
+    @property
+    def is_active(self) -> bool:
+        return self.status not in TERMINAL_RUN_STATUSES
 
     @property
-    def active(self) -> bool:
-        return self.status not in TERMINAL_RUN_STATUSES
+    def input_type(self) -> "TypeInfoBase | None":
+        if self.step is not None:
+            return self.step.to_type(as_object=True, zone=FieldZone.INPUT)
+        elif self.block is not None:
+            return self.block.to_type(as_object=True, zone=FieldZone.INPUT)
+        else:
+            return None  # freely typed
+
+    @property
+    def output_type(self) -> "TypeInfoBase | None":
+        if self.step is not None:
+            return self.step.to_type(as_object=True, zone=FieldZone.OUTPUT)
+        elif self.block is not None:
+            return self.block.to_type(as_object=True, zone=FieldZone.OUTPUT)
+        else:
+            return None  # freely typed
 
     @property
     def base(self) -> Optional["Block"]:
@@ -187,6 +201,11 @@ class Run(TimedNode[RunData], HasBaseNode, HasSessionContext, HasValues):
     @staticmethod
     def get_base_from_data(data: AnyNodeData) -> Optional[NodeReferenceData]:
         return cast(RunData, data).block_ptr
+
+    def fail(self, error: "RunError"):
+        assert not self.status.is_terminal, f"cannot fail {self.status} run {self!r}"
+        self.status = RunStatus.FAILED
+        self.error = error
 
     def _validate_component(
         self, properties: Collection[Property], invalid: ValidationHandler

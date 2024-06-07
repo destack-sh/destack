@@ -17,7 +17,7 @@ from bench.language.const import (
     get_region,
 )
 from bench.language.graph import NodeList
-from bench.language.node import BenchNode, Node, SourceNode, node, node_component
+from bench.language.node import BenchNode, Node, SourceNode, node_, node_component
 from bench.language.property import (
     p_internal,
     p_kernel,
@@ -68,7 +68,7 @@ NodeT = Union[Node, "Node"]
 # pyright: reportIncompatibleVariableOverride=false
 
 
-@node(NodeType.BENCH, roots=(), identifier=IdentifierType.VARIABLE)
+@node_(NodeType.BENCH, roots=(), identifier=IdentifierType.VARIABLE)
 class Bench(BenchNode[BenchData]):
     """
     A Bench is an AI-native operating system for a new generation of fully integrated, fluid software.
@@ -141,7 +141,7 @@ class Bench(BenchNode[BenchData]):
         )
 
 
-@node(NodeType.ENVIRONMENT, identifier=IdentifierType.VARIABLE)
+@node_(NodeType.ENVIRONMENT, identifier=IdentifierType.VARIABLE)
 class Environment(BenchNode[EnvironmentData]):
     """An environment of resources for a Bench's packages."""
 
@@ -162,7 +162,7 @@ class Environment(BenchNode[EnvironmentData]):
     )
 
 
-@node(
+@node_(
     NodeType.BRANCH,
     identifier=IdentifierType.VARIABLE,
     unique=(("bench_id", "slug"),),
@@ -194,7 +194,7 @@ class Branch(BenchNode[BranchData]):
     packages: NodeList["Package"] = p_node_child(NodeType.PACKAGE)
 
 
-@node(
+@node_(
     NodeType.PACKAGE,
     identifier=IdentifierType.VARIABLE,
     unique=(("bench_id", "slug"),),
@@ -262,7 +262,7 @@ class Package(BenchNode[PackageData]):
         return ", ".join(parts)
 
 
-@node(NodeType.DEPENDENCY, identifier=IdentifierType.VARIABLE)
+@node_(NodeType.DEPENDENCY, identifier=IdentifierType.VARIABLE)
 class Dependency(SourceNode[DependencyData]):
     """
     A dependency on another Bench (pointing to a specific Package).
@@ -280,7 +280,7 @@ class Dependency(SourceNode[DependencyData]):
     )
 
 
-@node(NodeType.UPGRADE, identifier=IdentifierType.VARIABLE)
+@node_(NodeType.UPGRADE, identifier=IdentifierType.VARIABLE)
 class Upgrade(SourceNode[UpgradeData]):
     """An 'upgrade' to a Package, marking changes made to the containing Package."""
 
@@ -374,7 +374,7 @@ class MachineProfile(IdEnum):
     MEDIUM = 7
 
 
-@node(NodeType.SERVER)
+@node_(NodeType.SERVER)
 class Server(BenchResourceNode[ServerData]):
     """
     A server provides some compute for a Bench's Runtime.
@@ -393,7 +393,7 @@ class Server(BenchResourceNode[ServerData]):
     machines: NodeList["Machine"] = p_node_child(NodeType.MACHINE)
 
 
-@node(NodeType.MACHINE)
+@node_(NodeType.MACHINE)
 class Machine(BenchResourceNode[MachineData]):
     """
     A Machine provides some isolated compute for a Server.
@@ -417,7 +417,7 @@ class Machine(BenchResourceNode[MachineData]):
     active_at: Optional[datetime] = p_internal(62, default=None)
 
 
-@node(NodeType.STORE)
+@node_(NodeType.STORE)
 class Store(BenchResourceNode[StoreData]):
     """Postgres database."""
 
@@ -431,14 +431,14 @@ class Store(BenchResourceNode[StoreData]):
     )
 
 
-@node(NodeType.DRIVE)
+@node_(NodeType.DRIVE)
 class Drive(BenchResourceNode[DriveData]):
     """Drive for file storage."""
 
     ...
 
 
-@node(NodeType.CLIENT, roots=(NodeType.USER, NodeType.BENCH), identifier=IdentifierType.VARIABLE)
+@node_(NodeType.CLIENT, roots=(NodeType.USER, NodeType.BENCH), identifier=IdentifierType.VARIABLE)
 class Client(BenchNode[ClientData]):
     """A client to a Bench."""
 

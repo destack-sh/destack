@@ -45,8 +45,8 @@ from bench.language.node import (
     Node,
     SourceNode,
     Struct,
-    node,
-    struct,
+    node_,
+    struct_,
 )
 from bench.language.property import (
     Property,
@@ -104,7 +104,7 @@ OWNABLE_NODE_TYPES: bittuple[NodeType] = bittuple(
 )
 
 
-@node(NodeType.BADGE)
+@node_(NodeType.BADGE)
 class Badge(SourceNode):
     """
     Attach a badge to a node with an inline definition.
@@ -128,7 +128,7 @@ class Badge(SourceNode):
     )
 
 
-@node(NodeType.ROLE)
+@node_(NodeType.ROLE)
 class Role(SourceNode):
     """
     Attach a role to a block or member.
@@ -140,7 +140,7 @@ class Role(SourceNode):
     type: "Block" = p_regular(30, array=False, require=True, references=NodeType.BLOCK)
 
 
-@node(NodeType.IDENTITY)
+@node_(NodeType.IDENTITY)
 class Identity(SourceNode):
     """
     Attach an identity to a block, member or user (only the user itself can do that).
@@ -156,7 +156,7 @@ class Identity(SourceNode):
     roles: NodeList["Role"] = p_node_child(NodeType.ROLE)
 
 
-@struct(StructType.POLICY)
+@struct_(StructType.POLICY)
 class Policy(Struct):
     """
     A policy regulating access to nodes within its scope.
@@ -190,7 +190,7 @@ class Policy(Struct):
         return self
 
 
-@struct(StructType.POLICY_RULE)
+@struct_(StructType.POLICY_RULE)
 class PolicyRule(Struct):
     """
     A rule in a policy: [subject] + can/cannot [verb] + [object] [if condition].
@@ -405,7 +405,7 @@ class PolicyRule(Struct):
         return self
 
 
-@struct(StructType.SUBJECT)
+@struct_(StructType.SUBJECT)
 class Subject(Struct):
     """
     The <whoever/whatever> issuing a request. Unknown/ignored attributes are unset.
@@ -499,7 +499,7 @@ class Subject(Struct):
             return "<anonymous>"
 
 
-@struct(StructType.ACCESS_ZONE)
+@struct_(StructType.ACCESS_ZONE)
 class AccessZone(Struct):
     """
     The pre-filtered access rules for a given identity.
@@ -516,7 +516,7 @@ class AccessZone(Struct):
         return f"{(self._identity or self.identity_id)!r} in {self._scope or self.scope_id}: {len(self.rules)} rules"
 
 
-@struct(StructType.ACCESS_MATRIX)
+@struct_(StructType.ACCESS_MATRIX)
 class AccessMatrix(Struct):
     """The materialized access matrix generated for a specific subject to quickly evaluate access for objects."""
 
@@ -534,7 +534,7 @@ class AccessMatrix(Struct):
         return f"{self.subject!r}: {len(self.identities)} identities, {len(self.scoped_zones)} scoped zones, {len(self.base_zones)} base zones"
 
 
-@struct(StructType.ACCESS, inline=True)
+@struct_(StructType.ACCESS, inline=True)
 class Access(InlineStruct):
     """
     An evaluated access on some objects as part of a larger request (by the same subject).
@@ -980,9 +980,9 @@ def evaluate_and_adapt_read(
     with tracer.start_as_current_span("access.evaluate_read", attributes={"nodes": len(graph)}):
         for root in graph.find_roots():
             descendants = graph.collect_descendants(root, recursive=True)
-            for node_ in chain((root,), descendants):
+            for node in chain((root,), descendants):
                 # evaluate access
-                node_type = cast(NodeType, node_.metatype)
+                node_type = cast(NodeType, node.metatype)
                 node_properties: bitarray = NODE_CLASS_BY_TYPE[node_type].__properties_mask_set__
                 decision, allowed_properties = evaluate_access(
                     matrix=matrix,
@@ -990,13 +990,13 @@ def evaluate_and_adapt_read(
                     node_type=node_type,
                     wanted_properties=node_properties,
                     root_id=root.id,
-                    scope_id=node_.id,
+                    scope_id=node.id,
                     mode=AccessMode.ADAPTIVE,
                     cache=cache,
                 )
                 if decision != PolicyEffect.DENY:
-                    allowed_properties_by_node_id[node_.id] = allowed_properties
-                elif node_.id in required_nodes_ids:
+                    allowed_properties_by_node_id[node.id] = allowed_properties
+                elif node.id in required_nodes_ids:
                     node_cls = NODE_CLASS_BY_TYPE[node_type]
                     access = Access(
                         mode=AccessMode.ADAPTIVE,
@@ -1012,42 +1012,42 @@ def evaluate_and_adapt_read(
 
     # adapt & filter nodes
     with tracer.start_as_current_span("access.adapt_read", attributes={"nodes": len(graph)}):
-        for node_ in all_nodes_preorder:
-            node_cls = NODE_CLASS_BY_TYPE[cast(NodeType, node_.metatype)]
-            allowed_properties = allowed_properties_by_node_id.get(node_.id)
-            node_type = cast(NodeType, node_.metatype)
+        for node in all_nodes_preorder:
+            node_cls = NODE_CLASS_BY_TYPE[cast(NodeType, node.metatype)]
+            allowed_properties = allowed_properties_by_node_id.get(node.id)
+            node_type = cast(NodeType, node.metatype)
             node_properties: bitarray = NODE_CLASS_BY_TYPE[node_type].__properties_mask_set__
             if allowed_properties is None:
                 # skip (will be added in as skip if needed below)
-                skipped.add(node_.id)
+                skipped.add(node.id)
             elif allowed_properties == node_properties:
                 # add as is (with all properties)
-                visible_nodes.append(node_)
+                visible_nodes.append(node)
             else:
                 # add, but prune node properties to only allowed ones
-                node_copy = type(node_)(metatype=node_.metatype)
+                node_copy = type(node)(metatype=node.metatype)
                 for prop_ord in allowed_properties.search(True):
                     prop = node_cls.__properties_in_order__[prop_ord]
                     if prop.reference_wired_ptr is not None:
                         prop = prop.reference_wired_ptr
-                    setattr(node_copy, prop.name, getattr(node_, prop.name))
+                    setattr(node_copy, prop.name, getattr(node, prop.name))
                 visible_nodes.append(node_copy)
 
     # add any required skipped nodes back in (as Skips)
     skips: dict[str, wire.SkipData] = {}
-    for node_ in visible_nodes:
-        if node_.parent_ptr is not None and node_.parent_ptr.id in skipped:
-            if node_.parent_ptr.id in skips:
+    for node in visible_nodes:
+        if node.parent_ptr is not None and node.parent_ptr.id in skipped:
+            if node.parent_ptr.id in skips:
                 continue
             skip = wire.SkipData(
                 metatype=wire.ObjectType.SKIP,
-                id=node_.id,
-                parent_ptr=node_.parent_ptr,
-                revision=node_.revision,
-                order_key=getattr(node_, "order_key", None),
-                reference_ptr=NodeReference.from_node_data(node_),
+                id=node.id,
+                parent_ptr=node.parent_ptr,
+                revision=node.revision,
+                order_key=getattr(node, "order_key", None),
+                reference_ptr=NodeReference.from_node_data(node),
             )
-            skips[cast(str, node_.parent_ptr.id)] = skip
+            skips[cast(str, node.parent_ptr.id)] = skip
     visible_nodes.extend(skips.values())
 
     # if we got here none of the required nodes were denied (above)

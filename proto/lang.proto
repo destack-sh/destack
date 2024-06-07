@@ -191,6 +191,7 @@ enum BenchType {
   BENCH_TYPE_ISSUE_KIND = 2170;
   BENCH_TYPE_ISSUE_TYPE = 2171;
   BENCH_TYPE_STEP_TYPE = 2180;
+  BENCH_TYPE_STEP_CONNECTION_TYPE = 2181;
   BENCH_TYPE_SPACE_TYPE = 2200;
   BENCH_TYPE_VIEW_TYPE = 2201;
   BENCH_TYPE_VARIANT = 2202;
@@ -389,6 +390,7 @@ enum EnumType {
   ENUM_TYPE_ISSUE_KIND = 2170;
   ENUM_TYPE_ISSUE_TYPE = 2171;
   ENUM_TYPE_STEP_TYPE = 2180;
+  ENUM_TYPE_STEP_CONNECTION_TYPE = 2181;
   ENUM_TYPE_SPACE_TYPE = 2200;
   ENUM_TYPE_VIEW_TYPE = 2201;
   ENUM_TYPE_VARIANT = 2202;
@@ -966,12 +968,16 @@ enum Spacing {
   SPACING_S256 = 256;
 }
 
+enum StepConnectionType {
+  STEP_CONNECTION_TYPE_UNSPECIFIED = 0;
+}
+
 enum StepType {
   STEP_TYPE_UNSPECIFIED = 0;
-  STEP_TYPE_BLANK = 1;
+  STEP_TYPE_VALUE = 1;
   STEP_TYPE_TRIGGER = 10;
-  STEP_TYPE_RUN_BLOCK = 20;
-  STEP_TYPE_RUN_STEP = 21;
+  STEP_TYPE_RUN = 20;
+  STEP_TYPE_SEND = 21;
   STEP_TYPE_BRANCH = 30;
   STEP_TYPE_FILTER = 31;
   STEP_TYPE_LOOP = 32;
@@ -1629,14 +1635,15 @@ message SessionContextData {
   optional NodeReferenceData user_ptr = 68;
 }
 
-// A connection between to a Step in a Flow.
+// A connection between two Steps in a FlowBlock.
 message StepConnectionData {
   ObjectType metatype = 1;
   int32 id = 2;
   optional int32 parent_id = 3;
   optional string parent_key = 4;
   optional string order_key = 9;
-  NodeReferenceData source_ptr = 30;
+  StepConnectionType type = 30;
+  NodeReferenceData source_ptr = 31;
 }
 
 // The <whoever/whatever> issuing a request. Unknown/ignored attributes are unset.
@@ -1866,14 +1873,14 @@ message BlockData {
   string order_key = 33;
   repeated PolicyData policies = 34;
   repeated NodeReferenceData bases_ptr = 35;
-  optional TypeInfoData builtin_base = 36;
-  optional TextData text = 37;
-  optional IconData icon = 38;
-  optional Visibility visibility = 39;
+  optional TextData text = 36;
+  optional IconData icon = 37;
+  optional Visibility visibility = 38;
+  optional TypeInfoData value_type = 39;
   optional google.protobuf.Struct value_packed = 40;
   optional google.protobuf.Struct secret_value_packed = 41;
   optional CodeData code = 42;
-  optional RunOptionsData run = 43;
+  optional RunOptionsData run_options = 43;
   repeated PolicyData delegated_policies = 49;
   bool is_builtin = 60;
   bool is_page = 61;
@@ -2346,7 +2353,7 @@ message NotificationData {
   optional NodeReferenceData updated_by_ptr = 22;
   repeated int32 set_properties = 29;
   NotificationKind kind = 30;
-  optional NodeReferenceData type_ptr = 32;
+  NodeReferenceData type_ptr = 32;
   optional google.protobuf.Timestamp expires_at = 33;
   optional google.protobuf.Timestamp read_at = 34;
   optional string title = 40;
@@ -2434,7 +2441,7 @@ message QueryData {
   optional NodeReferenceData created_by_ptr = 21;
   optional NodeReferenceData updated_by_ptr = 22;
   repeated int32 set_properties = 29;
-  optional string name = 30;
+  string name = 30;
   string order_key = 31;
   NodeType node_type = 32;
   optional NodeReferenceData base_ptr = 33;
@@ -2442,7 +2449,8 @@ message QueryData {
   repeated ExpressionData sort = 35;
 }
 
-// A record in a database. The containing table is usually a real Postgres table.
+// A record in a DatabaseBlock.
+// If the block is_materialized, the backing table is a real Postgres table.
 message RecordData {
   ObjectType metatype = 1;
   string id = 2;
@@ -2618,7 +2626,7 @@ message SignalData {
   optional NodeReferenceData created_by_ptr = 21;
   optional NodeReferenceData updated_by_ptr = 22;
   repeated int32 set_properties = 29;
-  optional NodeReferenceData type_ptr = 32;
+  NodeReferenceData type_ptr = 32;
   optional google.protobuf.Struct value_packed = 42;
   optional google.protobuf.Struct secret_value_packed = 43;
   optional NodeReferenceData block_ptr = 60;
@@ -2680,8 +2688,7 @@ message SpaceData {
   optional NodeReferenceData base_ptr = 76;
 }
 
-// An informational, logic, data or control flow unit in a Flow (Block).
-// NOTE: steps only track incoming connections.
+// An data or control flow unit in a FlowBlock.
 message StepData {
   ObjectType metatype = 1;
   string id = 2;
@@ -2702,11 +2709,11 @@ message StepData {
   optional NodeReferenceData updated_by_ptr = 22;
   repeated int32 set_properties = 29;
   StepType type = 30;
-  optional string name = 32;
+  string name = 32;
   string order_key = 33;
   optional TextData text = 34;
   optional CodeData code = 35;
-  optional RunOptionsData run = 36;
+  optional RunOptionsData run_options = 36;
   repeated StepConnectionData connections = 37;
   optional TypeInfoData value_type = 40;
   optional google.protobuf.Struct value_packed = 41;

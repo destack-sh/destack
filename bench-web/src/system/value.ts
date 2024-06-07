@@ -197,8 +197,8 @@ export function resolveType(type: TypeIdentity, graph: ReadNodeGraph): TypeIdent
       const block = graph.get(type.baseTypePtr) as BlockData | null;
       if (CLASSY_BLOCK_TYPES.includes(block?.type!)) {
         return makeTypeInfo({ kind: TypeKind.OBJECT, baseTypePtr: type.baseTypePtr });
-      } else if (block?.builtinBase != null) {
-        return block.builtinBase;
+      } else if (block?.valueType != null) {
+        return block.valueType;
       }
     }
   } else {

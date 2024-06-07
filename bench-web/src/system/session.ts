@@ -11,14 +11,16 @@ export function makeRun(
 ): RunData {
   const block = isNode(runnable, NodeType.BLOCK)
     ? runnable
-    : graph.getAncestors(runnable).find((node) => isNode(node, NodeType.BLOCK));
+    : (graph.getAncestors(runnable, { includeSelf: true }).find((node) => isNode(node, NodeType.BLOCK)) as
+        | BlockData
+        | undefined);
   const run = makeNode({
     metatype: NodeType.RUN,
     parentPtr: runnable.packagePtr,
     packagePtr: runnable.packagePtr,
     kind: isNode(runnable, NodeType.BLOCK) ? RunKind.BLOCK : RunKind.STEP,
     status: RunStatus.SCHEDULED,
-    blockPtr: toNodeReference(block),
+    blockPtr: block != null ? toNodeReference(block) : undefined,
     stepPtr: isNode(runnable, NodeType.STEP) ? toNodeReference(runnable) : undefined,
     inputsPacked: options?.inputsPacked != null ? Struct.fromJson(options?.inputsPacked) : undefined,
   });
