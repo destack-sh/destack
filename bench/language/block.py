@@ -24,7 +24,7 @@ if TYPE_CHECKING:
         Code,
         Field,
         Icon,
-        Notice,
+        Issue,
         Package,
         Policy,
         Property,
@@ -113,7 +113,7 @@ class Block(SourceNode[BlockData], HasValues):
     fields: NodeList["Field"] = p_node_child(NodeType.FIELD)
     steps: NodeList["Step"] = p_node_child(NodeType.STEP)
     triggers: NodeList["Trigger"] = p_node_child(NodeType.TRIGGER)
-    notices: NodeList["Notice"] = p_node_child(NodeType.NOTICE)
+    notices: NodeList["Issue"] = p_node_child(NodeType.ISSUE)
 
     def _validate_component(
         self, properties: Collection["Property"], invalid: "ValidationHandler"

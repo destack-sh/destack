@@ -114,7 +114,7 @@ export const DEFAULT_LOADED_SOURCE_NODE_TYPES = [
   NodeType.UPGRADE,
   NodeType.SPACE,
   NodeType.LINK,
-  NodeType.NOTICE,
+  NodeType.ISSUE,
   NodeType.BLOCK,
   NodeType.TRIGGER,
   NodeType.FIELD,

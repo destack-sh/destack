@@ -62,6 +62,7 @@ from .expression import (
 from .field import Field, FieldZone, TypeConstraint, TypeInfo, TypeInfoBase
 from .file import Blob, File, Icon
 from .graph import ValueList
+from .issue import Issue, IssueError, IssueKind, IssueType
 from .log import Log, LogKind, LogLevel
 from .message import Message
 from .node import (
@@ -76,7 +77,6 @@ from .node import (
     Struct,
     TimedNode,
 )
-from .notice import Notice, NoticeError, NoticeType
 from .notification import Notification
 from .path import Path
 from .projection import Projection
@@ -137,6 +137,10 @@ __all__ = [
     "Icon",
     "Identity",
     "InlineStruct",
+    "Issue",
+    "IssueError",
+    "IssueKind",
+    "IssueType",
     "Link",
     "Log",
     "LogKind",
@@ -147,9 +151,6 @@ __all__ = [
     "Node",
     "NodeReference",
     "NodeType",
-    "Notice",
-    "NoticeError",
-    "NoticeType",
     "Notification",
     "Object",
     "ObjectType",

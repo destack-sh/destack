@@ -3,7 +3,7 @@
 
 from typing import TYPE_CHECKING, Union
 
-VERSION = "2024.06.06.2"
+VERSION = "2024.06.07.0"
 
 if TYPE_CHECKING:
     from bench.language import Subject
@@ -126,7 +126,7 @@ class BenchType(betterproto.Enum):
     SPACE = 23
     LINK = 24
     SKIP = 25
-    NOTICE = 26
+    ISSUE = 26
     BLOCK = 30
     TRIGGER = 31
     FIELD = 32
@@ -223,7 +223,8 @@ class BenchType(betterproto.Enum):
     TIME_INTERVAL = 2101
     DAY = 2102
     MONTH = 2103
-    NOTICE_TYPE = 2170
+    ISSUE_KIND = 2170
+    ISSUE_TYPE = 2171
     STEP_TYPE = 2180
     SPACE_TYPE = 2200
     VIEW_TYPE = 2201
@@ -246,7 +247,6 @@ class BenchType(betterproto.Enum):
     RUN_ERROR_TYPE = 2263
     SESSION_STATUS = 2264
     TRIGGER_TYPE = 2270
-    NOTICE_KIND = 2280
     NOTIFICATION_KIND = 2281
     EXPRESSION_KIND = 2300
     EXPRESSION_OP = 2301
@@ -424,7 +424,8 @@ class EnumType(betterproto.Enum):
     TIME_INTERVAL = 2101
     DAY = 2102
     MONTH = 2103
-    NOTICE_TYPE = 2170
+    ISSUE_KIND = 2170
+    ISSUE_TYPE = 2171
     STEP_TYPE = 2180
     SPACE_TYPE = 2200
     VIEW_TYPE = 2201
@@ -447,7 +448,6 @@ class EnumType(betterproto.Enum):
     RUN_ERROR_TYPE = 2263
     SESSION_STATUS = 2264
     TRIGGER_TYPE = 2270
-    NOTICE_KIND = 2280
     NOTIFICATION_KIND = 2281
     EXPRESSION_KIND = 2300
     EXPRESSION_OP = 2301
@@ -585,6 +585,26 @@ class IdEnum(betterproto.Enum):
     UNSPECIFIED = 0
 
 
+class IssueKind(betterproto.Enum):
+    """Type of diagnostic in increasing severity."""
+
+    UNSPECIFIED = 0
+    HINT = 1
+    INFO = 2
+    WARNING = 3
+    ERROR = 4
+
+
+class IssueType(betterproto.Enum):
+    """Built-in issue types."""
+
+    UNSPECIFIED = 0
+    MISSING_REFERENCE = 1
+    CIRCULAR_BASE = 2
+    MISMATCHED_BASE = 3
+    AMBIGUOUS_NAME = 100
+
+
 class LogKind(betterproto.Enum):
     UNSPECIFIED = 0
     READ = 1
@@ -637,7 +657,7 @@ class NodeType(betterproto.Enum):
     SPACE = 23
     LINK = 24
     SKIP = 25
-    NOTICE = 26
+    ISSUE = 26
     BLOCK = 30
     TRIGGER = 31
     FIELD = 32
@@ -667,26 +687,6 @@ class NodeType(betterproto.Enum):
     CLIENT = 223
 
 
-class NoticeKind(betterproto.Enum):
-    """Type of diagnostic in increasing severity."""
-
-    UNSPECIFIED = 0
-    HINT = 1
-    INFO = 2
-    WARNING = 3
-    ERROR = 4
-
-
-class NoticeType(betterproto.Enum):
-    """Built-in notice types."""
-
-    UNSPECIFIED = 0
-    MISSING_REFERENCE = 1
-    CIRCULAR_BASE = 2
-    MISMATCHED_BASE = 3
-    AMBIGUOUS_NAME = 100
-
-
 class NotificationKind(betterproto.Enum):
     """The level of interaction required for a notification."""
 
@@ -707,7 +707,7 @@ class ObjectType(betterproto.Enum):
     SPACE = 23
     LINK = 24
     SKIP = 25
-    NOTICE = 26
+    ISSUE = 26
     BLOCK = 30
     TRIGGER = 31
     FIELD = 32
@@ -1177,7 +1177,6 @@ class ViewType(betterproto.Enum):
     UNSPECIFIED = 0
     USER_WIZARD = 1
     BENCH_WIZARD = 2
-    CHALLENGE_WIZARD = 3
     EMPTY = 80
     PAGE = 101
     BLOCK = 102
@@ -1907,9 +1906,11 @@ class TypeConstraintData(betterproto.Message):
     min_value: Optional[float] = betterproto.float_field(40, optional=True)
     max_value: Optional[float] = betterproto.float_field(41, optional=True)
     step_value: Optional[float] = betterproto.float_field(42, optional=True)
-    regex: Optional[str] = betterproto.string_field(50, optional=True)
-    min_length: Optional[int] = betterproto.int32_field(51, optional=True)
-    max_length: Optional[int] = betterproto.int32_field(52, optional=True)
+    min_length: Optional[int] = betterproto.int32_field(50, optional=True)
+    max_length: Optional[int] = betterproto.int32_field(51, optional=True)
+    regex: Optional[str] = betterproto.string_field(60, optional=True)
+    starts_with: Optional[str] = betterproto.string_field(61, optional=True)
+    ends_with: Optional[str] = betterproto.string_field(62, optional=True)
 
 
 @dataclass(eq=False, repr=False)
@@ -2375,6 +2376,34 @@ class InviteData(betterproto.Message):
 
 
 @dataclass(eq=False, repr=False)
+class IssueData(betterproto.Message):
+    """A diagnostic regarding something in the Bench source."""
+
+    metatype: "ObjectType" = betterproto.enum_field(1)
+    id: str = betterproto.string_field(2)
+    parent_ptr: "NodeReferenceData" = betterproto.message_field(4)
+    package_ptr: "NodeReferenceData" = betterproto.message_field(5)
+    bench_ptr: "NodeReferenceData" = betterproto.message_field(6)
+    revision: int = betterproto.int64_field(10)
+    created_at: datetime = betterproto.message_field(11)
+    created_epoch: int = betterproto.int64_field(12)
+    updated_at: datetime = betterproto.message_field(13)
+    updated_epoch: int = betterproto.int64_field(14)
+    deleted_at: Optional[datetime] = betterproto.message_field(15, optional=True)
+    archived_at: Optional[datetime] = betterproto.message_field(16, optional=True)
+    created_by_ptr: Optional["NodeReferenceData"] = betterproto.message_field(21, optional=True)
+    updated_by_ptr: Optional["NodeReferenceData"] = betterproto.message_field(22, optional=True)
+    set_properties: List[int] = betterproto.int32_field(29)
+    kind: "IssueKind" = betterproto.enum_field(30)
+    type: "IssueType" = betterproto.enum_field(31)
+    subject_ptr: Optional["NodeReferenceData"] = betterproto.message_field(33, optional=True)
+    path: Optional["PathData"] = betterproto.message_field(34, optional=True)
+    properties_ptr: List["PropertyReferenceData"] = betterproto.message_field(35)
+    title: Optional[str] = betterproto.string_field(40, optional=True)
+    text: Optional["TextData"] = betterproto.message_field(41, optional=True)
+
+
+@dataclass(eq=False, repr=False)
 class LinkData(betterproto.Message):
     """
     A reference to another node in some graph.
@@ -2582,40 +2611,6 @@ class BaseNodeData(betterproto.Message):
     created_by_ptr: Optional["NodeReferenceData"] = betterproto.message_field(21, optional=True)
     updated_by_ptr: Optional["NodeReferenceData"] = betterproto.message_field(22, optional=True)
     set_properties: List[int] = betterproto.int32_field(29)
-
-
-@dataclass(eq=False, repr=False)
-class NoticeData(betterproto.Message):
-    """
-    An informational or diagnostic Notice about something in the Bench source.
-     Notices are generally 'sticky' until resolved.
-    """
-
-    metatype: "ObjectType" = betterproto.enum_field(1)
-    id: str = betterproto.string_field(2)
-    ck: str = betterproto.string_field(3)
-    parent_ptr: "NodeReferenceData" = betterproto.message_field(4)
-    package_ptr: "NodeReferenceData" = betterproto.message_field(5)
-    bench_ptr: "NodeReferenceData" = betterproto.message_field(6)
-    template_ptr: Optional["NodeReferenceData"] = betterproto.message_field(7, optional=True)
-    templated_epoch: Optional[int] = betterproto.int64_field(8, optional=True)
-    revision: int = betterproto.int64_field(10)
-    created_at: datetime = betterproto.message_field(11)
-    created_epoch: int = betterproto.int64_field(12)
-    updated_at: datetime = betterproto.message_field(13)
-    updated_epoch: int = betterproto.int64_field(14)
-    deleted_at: Optional[datetime] = betterproto.message_field(15, optional=True)
-    archived_at: Optional[datetime] = betterproto.message_field(16, optional=True)
-    created_by_ptr: Optional["NodeReferenceData"] = betterproto.message_field(21, optional=True)
-    updated_by_ptr: Optional["NodeReferenceData"] = betterproto.message_field(22, optional=True)
-    set_properties: List[int] = betterproto.int32_field(29)
-    kind: "NoticeKind" = betterproto.enum_field(30)
-    type: "NoticeType" = betterproto.enum_field(31)
-    subject_ptr: Optional["NodeReferenceData"] = betterproto.message_field(33, optional=True)
-    path: Optional["PathData"] = betterproto.message_field(34, optional=True)
-    properties_ptr: List["PropertyReferenceData"] = betterproto.message_field(35)
-    title: Optional[str] = betterproto.string_field(40, optional=True)
-    text: Optional["TextData"] = betterproto.message_field(41, optional=True)
 
 
 @dataclass(eq=False, repr=False)
@@ -3257,7 +3252,7 @@ class SomeNodeData(betterproto.Message):
     space: "SpaceData" = betterproto.message_field(7, group="node")
     link: "LinkData" = betterproto.message_field(8, group="node")
     skip: "SkipData" = betterproto.message_field(9, group="node")
-    notice: "NoticeData" = betterproto.message_field(10, group="node")
+    issue: "IssueData" = betterproto.message_field(10, group="node")
     block: "BlockData" = betterproto.message_field(11, group="node")
     trigger: "TriggerData" = betterproto.message_field(12, group="node")
     field: "FieldData" = betterproto.message_field(13, group="node")
@@ -4845,7 +4840,7 @@ AnyNodeData = Union[
     SpaceData,
     LinkData,
     SkipData,
-    NoticeData,
+    IssueData,
     BlockData,
     TriggerData,
     FieldData,

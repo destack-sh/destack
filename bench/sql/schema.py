@@ -11,7 +11,7 @@ from bench.sql.core import (
     Table,
 )
 
-VERSION = "2024.06.06.2"
+VERSION = "2024.06.07.0"
 
 BENCH_TABLE = Table(
     "bench_bench",
@@ -379,21 +379,16 @@ LINK_TABLE = Table(
     ),
 )
 
-NOTICE_TABLE = Table(
-    "bench_notice",
+ISSUE_TABLE = Table(
+    "bench_issue",
     (
         Column("id", PrimitiveType.UUID, is_primary_key=True),
-        Column("ck", PrimitiveType.UUID),
         Column("parent_id", PrimitiveType.UUID),
         Column("parent_ck", PrimitiveType.UUID),
         Column("parent_type", PrimitiveType.INT16),
         Column("parent_base_ck", PrimitiveType.UUID, is_nullable=True),
         Column("package_id", PrimitiveType.UUID),
         Column("bench_id", PrimitiveType.UUID),
-        Column("template_id", PrimitiveType.UUID, is_nullable=True),
-        Column("template_ck", PrimitiveType.UUID, is_nullable=True),
-        Column("template_bench_id", PrimitiveType.UUID, is_nullable=True),
-        Column("templated_epoch", PrimitiveType.INT64, is_nullable=True),
         Column("revision", PrimitiveType.INT64),
         Column("created_at", PrimitiveType.DATETIME),
         Column("created_epoch", PrimitiveType.INT64),
@@ -407,7 +402,6 @@ NOTICE_TABLE = Table(
         Column("updated_by_id", PrimitiveType.UUID, is_nullable=True),
         Column("updated_by_type", PrimitiveType.INT16, is_nullable=True),
         Column("updated_by_base_ck", PrimitiveType.UUID, is_nullable=True),
-        Column("set_properties", PrimitiveType.INT32, is_array=True),
         Column("kind", PrimitiveType.INT16),
         Column("type", PrimitiveType.INT16),
         Column("subject_id", PrimitiveType.UUID, is_nullable=True),
