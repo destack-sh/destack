@@ -9430,7 +9430,11 @@ export enum StepConnectionType {
     /**
      * @generated from protobuf enum value: STEP_CONNECTION_TYPE_UNSPECIFIED = 0;
      */
-    UNSPECIFIED = 0
+    UNSPECIFIED = 0,
+    /**
+     * @generated from protobuf enum value: STEP_CONNECTION_TYPE_THEN = 1;
+     */
+    THEN = 1
 }
 /**
  * @generated from protobuf enum symbolx.bench.StepType
@@ -26060,7 +26064,7 @@ export const StepConnectionDataInfo: Record<StepConnectionProperty, PropertyInfo
   [StepConnectionProperty.parentKey]: { id: 4, name: 'parent_key', component: ObjectType.STEP_CONNECTION, kind: 'reference', primitiveType: PrimitiveType.STRING, isInternal: true, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_PARENT },
   [StepConnectionProperty.orderKey]: { id: 9, name: 'order_key', component: ObjectType.STEP_CONNECTION, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [StepConnectionProperty.type]: { id: 30, name: 'type', component: ObjectType.STEP_CONNECTION, enumType: EnumType.STEP_CONNECTION_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isRuntime: true, isWired: true, isStored: true },
-  [StepConnectionProperty.sourcePtr]: { id: 31, name: 'source_ptr', component: ObjectType.STEP_CONNECTION, kind: 'reference', isRequired: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.STEP], referenceStruct: StructType.NODE_REFERENCE },
+  [StepConnectionProperty.sourcePtr]: { id: 31, name: 'source_ptr', component: ObjectType.STEP_CONNECTION, kind: 'reference', isRequired: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.STEP, NodeType.TRIGGER], referenceStruct: StructType.NODE_REFERENCE },
 }
 export const RunErrorDataInfo: Record<RunErrorProperty, PropertyInfo> = {
   [RunErrorProperty.metatype]: { id: 1, name: 'metatype', component: ObjectType.RUN_ERROR, enumType: EnumType.OBJECT_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isComputed: true, isWired: true },

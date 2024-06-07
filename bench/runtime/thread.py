@@ -165,7 +165,6 @@ class RuntimeThread:
                     block = run.block
                     assert block is not None, f"no block for {run!r}"
                     input_type = block.input_type
-                    # nocheckin
                     print(input_type)
                     print(run.inputs)
                     print(run.inputs_packed)
@@ -174,8 +173,6 @@ class RuntimeThread:
                     if block.type == BlockType.CODE:
                         code = block.code or Code.empty()
                         run_code_exec(code.to_string(), {"self": block, **(run.inputs or {})})
-                    elif block.type == BlockType.TEXT:
-                        ...  # nocheckin
                     else:
                         raise NotImplementedError(f"unsupported block type {block.type}")
                 else:

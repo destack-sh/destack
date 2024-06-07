@@ -970,6 +970,7 @@ enum Spacing {
 
 enum StepConnectionType {
   STEP_CONNECTION_TYPE_UNSPECIFIED = 0;
+  STEP_CONNECTION_TYPE_THEN = 1;
 }
 
 enum StepType {
