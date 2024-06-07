@@ -1,4 +1,13 @@
-import { BenchType, ViewType, PrimitiveType, TypeInfoData, TypeKind, Variant, FieldData, FieldZone } from "@/proto/wire";
+import {
+  BenchType,
+  ViewType,
+  PrimitiveType,
+  TypeInfoData,
+  TypeKind,
+  Variant,
+  FieldData,
+  FieldZone,
+} from "@/proto/wire";
 import type { ReadNodeGraph } from "@/system/graph";
 import { ENUM_ICONS_BY_TYPE } from "@/system/icon";
 import { isEnumType, getEnumOptions, isNodeType, FULL_WIDTH_VIEW_TYPES } from "@/system/lang";
@@ -33,7 +42,7 @@ export function getViewForValueType(type: TypeIdentity & Partial<TypeInfoData>):
     if (VIEW_TYPE_BY_BENCH_TYPE[type.benchType] != null) {
       return { viewType: VIEW_TYPE_BY_BENCH_TYPE[type.benchType]! };
     } else if (isEnumType(type.benchType)) {
-      // prefer inline picker if possible
+      // prefer inline picker if it fits
       if (getEnumOptions(type.benchType).length <= 5) {
         const variant = ENUM_ICONS_BY_TYPE[type.benchType] != null ? Variant.STEALTH : Variant.COMPACT;
         return {
@@ -70,7 +79,8 @@ export function getFieldViews(
   pkgGraph: ReadNodeGraph,
   options?: {
     zones?: FieldZone[];
-  }
+    isInput?: boolean;
+  },
 ): FieldView[] {
   const fieldViews: FieldView[] = [];
   for (const field of fields) {
@@ -87,7 +97,7 @@ export function getFieldViews(
       isSet,
       value: fieldValue,
       viewType: view?.viewType,
-      viewProps: view?.props,
+      viewProps: { ...view?.props, isInput: options?.isInput },
       isFullWidth: FULL_WIDTH_VIEW_TYPES.includes(view?.viewType!),
     });
   }

@@ -30,8 +30,8 @@ import {
   DEFAULT_BAR_POSITION,
   clearCanvas,
   collectViewComponentsUp,
-  createDefaultCanvas,
-  createEmptyCanvas,
+  createDefaultDesktopSpace,
+  createEmptySpace,
 } from "@/views/canvas";
 import type { ViewComponent } from "@/views/common";
 import { useKeyModifier } from "@vueuse/core";
@@ -76,7 +76,8 @@ export const ACTION_BUILTIN_IDS = [
   "space.launch.explorer",
   "space.launch.outline",
   "space.launch.docs",
-  "space.launch.logs",
+  "space.launch.log",
+  "space.launch.start",
   "space.launch.discord",
   "space.launch.notifications",
   "space.edit.inspect",
@@ -1033,7 +1034,7 @@ contributeActionMap<"view">({
       if (space.value == null) throw new Error(`${describeNode(pkg.value)} has no space`);
       const tx = canvas.txFactory();
       clearCanvas(tx, canvas.graph, space.value);
-      createEmptyCanvas(tx, space.value);
+      createEmptySpace(tx, space.value);
     },
   },
   "view.space.resetDefault": {
@@ -1046,7 +1047,7 @@ contributeActionMap<"view">({
       if (space.value == null) throw new Error(`${describeNode(pkg.value)} has no space`);
       const tx = canvas.txFactory();
       clearCanvas(tx, canvas.graph, space.value);
-      createDefaultCanvas(tx, space.value);
+      createDefaultDesktopSpace(tx, space.value);
     },
   },
   "view.space.rotateBarPosition": {
@@ -1276,11 +1277,19 @@ contributeActionMap<"space">({
     isEnabled: ref(false),
     action: ACTION_COMING_SOON,
   },
-  "space.launch.logs": {
+  "space.launch.log": {
     title: "Open Log",
     text: "Read the Logs",
     icon: "fas fa-clipboard-list",
     action: ACTION_COMING_SOON,
+  },
+  "space.launch.start": {
+    title: "Open Start",
+    text: "Start a new Run",
+    icon: "fas fa-play",
+    action: () => {
+      canvas.addView({ type: ViewType.START, title: "Start" }, { ifPresent: "upsertAndFocus" });
+    },
   },
   // edit
   "space.edit.inspect": {

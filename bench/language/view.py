@@ -43,7 +43,6 @@ class ViewType(IdEnum):
     # auth
     USER_WIZARD = 1
     BENCH_WIZARD = 2
-    CHALLENGE_WIZARD = 3
     # internal
     EMPTY = 80
 
@@ -59,13 +58,14 @@ class ViewType(IdEnum):
     TYPE = 108
     VARIABLE = 109
     OBJECT = 110
+    RUN = 111
     # helpers
     EXPLORE = 150
     OUTLINE = 151
     INSPECT = 153
     CREATE = 154
     CHAT = 155
-    RUN = 156
+    START = 156
     FEED = 157
     TIMELINE = 158
     HISTORY = 179

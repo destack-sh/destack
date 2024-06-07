@@ -1,5 +1,5 @@
 <script lang="ts" setup>
-import { BlockData, FieldZone, NodeType, Orientation, StepData, ViewData, ViewType } from "@/proto/wire";
+import { BlockData, BoxData, FieldZone, NodeType, Orientation, StepData, ViewData, ViewType } from "@/proto/wire";
 import { isNode, type TypedNodeReferenceData } from "@/proto/wiring";
 import { useExistingConnection } from "@/system/connection";
 import { RUNNABLE_BLOCK_TYPES } from "@/system/lang";
@@ -31,17 +31,23 @@ const { graph: spaceGraph, connection: spaceConnection } = useExistingConnection
 const { graph: pkgGraph, connection: pkgConnection } = useExistingConnection(focusPtr);
 const ancestors = pkgGraph.getAncestorsRef(focusPtr, { includeSelf: true });
 const runnableNode: Ref<BlockData | StepData | null> = computed(() => {
-  const runnable = ancestors.value.find(
-    (a) => (isNode(a, NodeType.BLOCK) && RUNNABLE_BLOCK_TYPES.includes(a.type)) || isNode(a, NodeType.STEP),
-  );
-  return runnable ?? null;
+  // for some reason this type checks but ancestors.find doesn't
+  for (const ancestor of ancestors.value) {
+    if (
+      (isNode(ancestor, NodeType.BLOCK) && RUNNABLE_BLOCK_TYPES.includes(ancestor.type)) ||
+      isNode(ancestor, NodeType.STEP)
+    ) {
+      return ancestor;
+    }
+  }
+  return null;
 });
-// NOTE :UX: run inputs should be recorded in view node state somehow
+// NOTE :UX :Architecture: run inputs should be recorded in view node state somehow
 //  (this is a general :Architecture issue, probably put these in View.value with some intrinsic types?)
 const inputs: Ref<Record<string, any>> = ref({});
 const inputFields = pkgGraph.getChildrenRef(runnableNode, NodeType.FIELD); // these need to be resolved later :TypeResolution
 const inputViews = computed(() =>
-  getFieldViews(inputFields.value, inputs.value, pkgGraph, { zones: [FieldZone.INPUT] }),
+  getFieldViews(inputFields.value, inputs.value, pkgGraph, { zones: [FieldZone.INPUT], isInput: true }),
 );
 
 canvas.registerView(self);
@@ -58,6 +64,7 @@ defineExpose<ViewExposed>({ self });
         <!-- Runnable -->
         <NodeCrumb class="font-medium" :node="runnableNode" :connection="pkgConnection" />
         <!-- Controls -->
+        <!-- nocheckin -->
         <div class="ml-auto flex flex-row items-center pl-1.5">
           <button
             :disabled="runnableNode == null"
@@ -76,6 +83,9 @@ defineExpose<ViewExposed>({ self });
       track-is-overlay
     >
       <!-- Inputs -->
+      <div class="mx-auto mt-1 px-5" :style="{ minWidth: MIN_WIDTH + 'px', maxWidth: MAX_WIDTH + 'px' }">
+        <h4 class="font-semibold">Inputs</h4>
+      </div>
       <ul class="flex flex-col gap-y-2.5 py-3">
         <!-- Property -->
         <li
@@ -97,19 +107,19 @@ defineExpose<ViewExposed>({ self });
             :style="{ width: isFullWidth ? '100%' : 'calc(90% - 100px)' }"
             v-bind="viewProps"
             :model-value="inputs[storageKey]"
-            @update:model-value="
-              (value: any) => {
-                inputs[storageKey] = value;
-              }
-            "
+            @update:model-value="(value: any) => (inputs[storageKey] = value)"
           />
           <div v-else class="ml-auto text-warning-600">
             {{ viewType != null ? ViewType[viewType] : "No View for Value" }}
           </div>
         </li>
       </ul>
+      <!-- Divider -->
+      <div class="mx-auto my-2 w-full px-5" :style="{ minWidth: MIN_WIDTH + 'px', maxWidth: MAX_WIDTH + 'px' }">
+        <div class="h-[1px] w-full min-w-fit bg-gray-200" />
+      </div>
       <!-- Feed -->
-      <!-- ... -->
+      <!-- nocheckin: ... -->
     </Scroll>
   </div>
   <div v-else class="flex h-full w-full flex-col justify-center bg-white text-center">

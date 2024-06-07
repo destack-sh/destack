@@ -80,19 +80,16 @@ defineExpose<ViewExposed>({ self });
           :key="property.id"
         >
           <!-- Category Header -->
-          <div
-            v-if="i != 0 && inspectionLayout.properties[i - 1].category != category"
-            class="mx-auto mt-2"
-            :style="{ minWidth: MIN_WIDTH + 'px', width: 'calc(100% - 28px)', maxWidth: MAX_WIDTH + 'px' }"
-          >
-            <div class="mb-3 h-[1px] w-full min-w-fit bg-gray-200" />
-            <div
-              class="px-1.5 font-semibold text-gray-900"
-              :style="{ minWidth: MIN_WIDTH + 'px', maxWidth: MAX_WIDTH + 'px' }"
-            >
-              {{ category }}
+          <template v-if="i != 0 && inspectionLayout.properties[i - 1].category != category">
+            <!-- Divider -->
+            <div class="mx-auto my-2 w-full px-5" :style="{ minWidth: MIN_WIDTH + 'px', maxWidth: MAX_WIDTH + 'px' }">
+              <div class="h-[1px] w-full min-w-fit bg-gray-200" />
             </div>
-          </div>
+            <!-- Label -->
+            <div class="mx-auto w-full px-5" :style="{ minWidth: MIN_WIDTH + 'px', maxWidth: MAX_WIDTH + 'px' }">
+              <h4 class="font-semibold text-gray-900">{{ category }}</h4>
+            </div>
+          </template>
           <!-- Property -->
           <li
             class="mx-auto w-full px-5"

@@ -46,7 +46,7 @@ const { graph: pkgGraph } = props.preparedConnection ?? useExistingConnection(ba
 const baseType = pkgGraph.getRef(baseTypePtr);
 const fields = pkgGraph.getChildrenRef(baseType, NodeType.FIELD); // these need to be resolved later :TypeResolution
 const fieldViews = computed(() =>
-  getFieldViews(fields.value, props.modelValue, pkgGraph, { zones: [FieldZone.MEMBER] }),
+  getFieldViews(fields.value, props.modelValue, pkgGraph, { zones: [FieldZone.MEMBER], isInput: true }),
 );
 
 function focus() {
