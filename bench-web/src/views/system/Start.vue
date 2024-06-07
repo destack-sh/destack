@@ -3,6 +3,7 @@ import { BlockData, BoxData, FieldZone, NodeType, Orientation, StepData, ViewDat
 import { isNode, type TypedNodeReferenceData } from "@/proto/wiring";
 import { useExistingConnection } from "@/system/connection";
 import { RUNNABLE_BLOCK_TYPES } from "@/system/lang";
+import { makeRun } from "@/system/session";
 import { canvas, inspectionPtr } from "@/system/space";
 import { getFieldViews } from "@/system/view";
 import { ScrollbarWidth } from "@/utils/layout";
@@ -44,10 +45,10 @@ const runnableNode: Ref<BlockData | StepData | null> = computed(() => {
 });
 // NOTE :UX :Architecture: run inputs should be recorded in view node state somehow
 //  (this is a general :Architecture issue, probably put these in View.value with some intrinsic types?)
-const inputs: Ref<Record<string, any>> = ref({});
+const inputsPacked: Ref<Record<string, any>> = ref({});
 const inputFields = pkgGraph.getChildrenRef(runnableNode, NodeType.FIELD); // these need to be resolved later :TypeResolution
 const inputViews = computed(() =>
-  getFieldViews(inputFields.value, inputs.value, pkgGraph, { zones: [FieldZone.INPUT], isInput: true }),
+  getFieldViews(inputFields.value, inputsPacked.value, pkgGraph, { zones: [FieldZone.INPUT], isInput: true }),
 );
 
 canvas.registerView(self);
@@ -69,6 +70,13 @@ defineExpose<ViewExposed>({ self });
           <button
             :disabled="runnableNode == null"
             class="h-fit hover:text-primary-900 enabled:text-gray-700 disabled:text-gray-400"
+            @click="
+              () => {
+                if (runnableNode == null) return;
+                const run = makeRun(runnableNode, pkgGraph, { inputsPacked });
+                pkgConnection.tx.create(run);
+              }
+            "
           >
             <i class="fas fa-play w-5 text-center" />
           </button>
@@ -106,8 +114,8 @@ defineExpose<ViewExposed>({ self });
             :class="['ml-auto flex-shrink-0', isFullWidth ? '' : 'text-right']"
             :style="{ width: isFullWidth ? '100%' : 'calc(90% - 100px)' }"
             v-bind="viewProps"
-            :model-value="inputs[storageKey]"
-            @update:model-value="(value: any) => (inputs[storageKey] = value)"
+            :model-value="inputsPacked[storageKey]"
+            @update:model-value="(value: any) => (inputsPacked[storageKey] = value)"
           />
           <div v-else class="ml-auto text-warning-600">
             {{ viewType != null ? ViewType[viewType] : "No View for Value" }}

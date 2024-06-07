@@ -20,6 +20,7 @@ import { useExistingConnection, useGetConnection } from "@/system/connection";
 import { getGroupedChildrenRef, isDescendantOf, walkDescendantsRef, type NodeTreeItem } from "@/system/graph";
 import { ICON_BY_BLOCK_TYPE, IconInline } from "@/system/icon";
 import { EXPOSED_BLOCK_TYPES, RUNNABLE_BLOCK_TYPES, createBlock, moveNode, toCamelName } from "@/system/lang";
+import { makeRun } from "@/system/session";
 import { canvas, inspectionPtr } from "@/system/space";
 import { makeTypeInfo } from "@/system/value";
 import { startDragging, useMultiDropZone } from "@/utils/drag";
@@ -287,7 +288,7 @@ defineExpose<ViewExposed>({ self, actions, focus });
     <!-- Header -->
     <div
       data-keep-inspection-in-base="true"
-      class="group px-2.5 flex w-full max-w-full flex-row"
+      class="group flex w-full max-w-full flex-row px-2.5"
       :style="{ height: HEADER_HEIGHT + 'px' }"
     >
       <!-- Breadcrumb -->
@@ -338,16 +339,7 @@ defineExpose<ViewExposed>({ self, actions, focus });
               data-keep-inspection-in-base="true"
               @click="
                 () => {
-                  // nocheckin: session.* action handling (in Block/Step/Page/...)
-                  const run = makeNode({
-                    metatype: NodeType.RUN,
-                    parentPtr: block.packagePtr,
-                    packagePtr: block.packagePtr,
-                    kind: RunKind.BLOCK,
-                    status: RunStatus.SCHEDULED,
-                    blockPtr: blockPtr,
-                  });
-                  run.rootPtr = toNodeReference(run);
+                  const run = makeRun(block, pkgGraph);
                   pkgConnection.tx.create(run);
                 }
               "
