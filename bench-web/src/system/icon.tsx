@@ -272,7 +272,7 @@ export const ICON_BY_VIEW_TYPE: Partial<Record<ViewType, IconData>> = _makeIcons
   [ViewType.INSPECT]: "fas fa-eye",
   [ViewType.CREATE]: "fas fa-plus",
   [ViewType.CHAT]: "fas fa-message",
-  [ViewType.RUN]: "fas fa-play",
+  [ViewType.START]: "fas fa-play",
   [ViewType.HISTORY]: "fas fa-clock-rotate-left",
   [ViewType.TIMELINE]: "fas fa-timeline",
 

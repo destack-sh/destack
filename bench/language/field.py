@@ -181,9 +181,11 @@ class TypeConstraint(Struct):
     min_value: Optional[float] = p_regular(40, require=False, default=None)
     max_value: Optional[float] = p_regular(41, require=False, default=None)
     step_value: Optional[float] = p_regular(42, require=False, default=None)
-    regex: Optional[str] = p_regular(50, require=False, default=None)
-    min_length: Optional[int] = p_regular(51, require=False, default=None)
-    max_length: Optional[int] = p_regular(52, require=False, default=None)
+    min_length: Optional[int] = p_regular(50, require=False, default=None)
+    max_length: Optional[int] = p_regular(51, require=False, default=None)
+    regex: Optional[str] = p_regular(60, require=False, default=None)
+    starts_with: Optional[str] = p_regular(61, require=False, default=None)
+    ends_with: Optional[str] = p_regular(62, require=False, default=None)
 
 
 @object_component()

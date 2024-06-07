@@ -226,6 +226,10 @@ class Object:
 
 VALUE_SLOTS: set[str] = set(Object.__dataclass_fields__.keys())
 
+#
+# Value coercion
+#
+
 
 def _coerce_value_scalar(
     value: ScalarValue,
@@ -319,12 +323,14 @@ def coerce_value(
             ]
 
 
+#
+# Type checking
+#
+
 EPSILON = 1e-6
 
 
-def _check_value_scalar(
-    value: SomeValue, typ: "TypeInfoBase", invalid: "ValidationHandler"
-) -> None:
+def check_value_scalar(value: SomeValue, typ: "TypeInfoBase", invalid: "ValidationHandler") -> None:
     """Checks whether the given scalar value has the expected type."""
     if typ.kind == TypeKind.PRIMITIVE:
         expected_type = PY_TYPE_BY_PRIMITIVE_TYPE.get(cast(PrimitiveType, typ.primitive_type))
@@ -350,6 +356,14 @@ def _check_value_scalar(
                     invalid(value, "too long", typ)
                 if typ.constraint.regex is not None and not re.match(typ.constraint.regex, value):
                     raise TypeError(f"{value!r} does not match {typ.constraint.regex!r}", typ)
+                if typ.constraint.starts_with is not None and not value.startswith(
+                    typ.constraint.starts_with
+                ):
+                    invalid(value, f"does not start with {typ.constraint.starts_with}", typ)
+                if typ.constraint.ends_with is not None and not value.endswith(
+                    typ.constraint.ends_with
+                ):
+                    invalid(value, f"does not end with {typ.constraint.ends_with}", typ)
     elif typ.kind == TypeKind.NODE or typ.kind == TypeKind.BASED_NODE:
         if not getattr(type(cast("Node", value)), "__is_node__", False):
             invalid(value, "not a Node", typ)
@@ -377,7 +391,7 @@ def _check_value_scalar(
         raise RuntimeError(f"unexpected type {typ!r}")
 
 
-def _check_list(
+def _check_is_list(
     value: SomeValue, typ: "TypeInfoBase", invalid: "ValidationHandler"
 ) -> TypeGuard[list]:
     """Checks whether the given value is a list of the expected dimensions."""
@@ -392,7 +406,7 @@ def _check_list(
     return True
 
 
-def _check_object_scalar(
+def check_object_scalar(
     value: SomeValue, typ: "TypeInfoBase", invalid: "ValidationHandler"
 ) -> None:
     """Checks whether the given object value has the expected type (recursively)."""
@@ -415,10 +429,10 @@ def check_value(value: Any, typ: "TypeInfoBase", invalid: "ValidationHandler") -
                     invalid(value, "missing required value", typ)
                 else:
                     return
-            _check_object_scalar(value, typ, invalid)
-        elif _check_list(value, typ, invalid):
+            check_object_scalar(value, typ, invalid)
+        elif _check_is_list(value, typ, invalid):
             for element in value:
-                _check_object_scalar(element, typ, invalid)
+                check_object_scalar(element, typ, invalid)
     else:
         if not typ.is_list:
             if value is None:
@@ -426,13 +440,16 @@ def check_value(value: Any, typ: "TypeInfoBase", invalid: "ValidationHandler") -
                     invalid(value, "missing required value", typ)
                 else:
                     return
-            _check_value_scalar(value, typ, invalid)
-        elif _check_list(value, typ, invalid):
+            check_value_scalar(value, typ, invalid)
+        elif _check_is_list(value, typ, invalid):
             for element in value:
-                _check_value_scalar(element, typ, invalid)
+                check_value_scalar(element, typ, invalid)
 
 
+#
+# Value packing
 # TODO :Incomplete: support freeform values (incl. alongside typed values)
+#
 
 
 def pack_value_scalar(value: ScalarValue, typ: "TypeInfoBase") -> JsonValue:

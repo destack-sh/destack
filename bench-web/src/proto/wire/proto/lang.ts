@@ -9970,6 +9970,10 @@ export enum ViewType {
      */
     OBJECT = 110,
     /**
+     * @generated from protobuf enum value: VIEW_TYPE_RUN = 111;
+     */
+    RUN = 111,
+    /**
      * @generated from protobuf enum value: VIEW_TYPE_EXPLORE = 150;
      */
     EXPLORE = 150,
@@ -9990,9 +9994,9 @@ export enum ViewType {
      */
     CHAT = 155,
     /**
-     * @generated from protobuf enum value: VIEW_TYPE_RUN = 156;
+     * @generated from protobuf enum value: VIEW_TYPE_START = 156;
      */
-    RUN = 156,
+    START = 156,
     /**
      * @generated from protobuf enum value: VIEW_TYPE_FEED = 157;
      */

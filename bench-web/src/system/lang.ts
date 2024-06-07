@@ -152,7 +152,7 @@ export const HELPER_VIEW_TYPES = new Set([
   ViewType.CREATE,
   ViewType.INSPECT,
   ViewType.CHAT,
-  ViewType.RUN,
+  ViewType.START,
   ViewType.FEED,
   ViewType.HISTORY,
   ViewType.TIMELINE,

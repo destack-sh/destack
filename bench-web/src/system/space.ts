@@ -14,7 +14,7 @@ import { NodeGraph, ProxyNodeGraph } from "@/system/graph";
 import { DEFAULT_LOADED_SOURCE_NODE_TYPES } from "@/system/lang";
 import { toaster } from "@/system/toast";
 import { log } from "@/utils/log";
-import { ViewCanvas, createDefaultCanvas, createEmptyCanvas } from "@/views/canvas";
+import { ViewCanvas, createDefaultDesktopSpace, createEmptySpace } from "@/views/canvas";
 import { computed, nextTick, watch } from "vue";
 
 // bench/packages
@@ -110,7 +110,7 @@ export async function assignSpaceInPackage() {
     local.setSpace(toNodeReference(ownedSpacesInPkg.value[0]));
     if (pkgGraph.getChildren(spacePtr.value, NodeType.VIEW).length == 0) {
       // setup default canvas if needed
-      createDefaultCanvas(pkgConnection.tx, space);
+      createDefaultDesktopSpace(pkgConnection.tx, space);
     }
     spaceGraph.graph = pkgGraph;
   } else if (pkgAccess.can(EditType.CREATE, NodeType.SPACE)) {
@@ -121,7 +121,7 @@ export async function assignSpaceInPackage() {
       parentPtr: toNodeReference(pkg.value),
       packagePtr: toNodeReference(pkg.value),
     });
-    createEmptyCanvas(pkgConnection.tx, space);
+    createEmptySpace(pkgConnection.tx, space);
     local.setSpace(toNodeReference(space));
     spaceGraph.graph = pkgGraph;
     await pkgConnection.txBuffer.commit();
