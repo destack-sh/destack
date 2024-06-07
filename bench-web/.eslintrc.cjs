@@ -30,6 +30,7 @@ module.exports = {
         "@typescript-eslint/no-unused-expressions": "error",
         "@typescript-eslint/no-unused-vars": "off",
         "prefer-const": "warn",
+        "no-console": "warn",
       },
     },
   ],

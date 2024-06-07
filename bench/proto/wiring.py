@@ -208,12 +208,13 @@ def unpack_object[T: BuiltinObject](
 
 def unpack_object_interp[T: BuiltinObject](
     obj_data: AnyStructData | AnyNodeData,
+    parent: Node | None = None,
     scope: Node | None = None,
     expect: type[T] | None = None,
     session: Session | None = None,
 ) -> T:
     """Unpack, interpret and validate a Struct."""
-    obj = unpack_object(obj_data, expect=expect, session=session)
+    obj = unpack_object(obj_data, parent=parent, expect=expect, session=session)
     obj._interp_rec(scope=scope)
     obj._validate_rec(properties=(), invalid=on_invalid_raise)
     return obj

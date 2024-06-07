@@ -165,7 +165,7 @@ defineExpose<ViewExposed>({ self, id, focus });
             "
           />
           <div v-else class="ml-auto text-warning-600">
-            {{ viewType != null ? ViewType[viewType] : "No View for Value" }}
+            {{ viewType != null ? ViewType[viewType] : "No View for Type" }}
           </div>
         </li>
       </ul>

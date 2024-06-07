@@ -148,7 +148,7 @@ function walkGraph(
 
     return items;
   }
-
+  
   const roots = options.roots ?? graph.roots;
   const items = [];
   for (const root of roots) {

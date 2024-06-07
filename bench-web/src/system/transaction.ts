@@ -10,11 +10,9 @@ import {
   ObjectType,
   PROPERTY_ENUM_BY_TYPE,
   PROPERTY_INFOS_BY_TYPE,
-  PackageData,
-  Struct,
+  Struct as ProtoStruct,
   Timestamp,
   type AnyNodeData,
-  type AnyPropertyType,
   type EditData,
   type IGraphIOClient,
   type NodeTypeMapping,
@@ -27,8 +25,6 @@ import {
   makeNode,
   nodeReference,
   toNodeReference,
-  unwrapSomeNode,
-  wrapSomeNode,
   type TypedNodeReferenceData,
 } from "@/proto/wiring";
 import { nonce, origin, userOrNullPtr, userPtr } from "@/system/client";
@@ -37,16 +33,15 @@ import { makeIcon } from "@/system/icon";
 import { toaster } from "@/system/toast";
 import {
   getTypeIdentityForProperty,
-  packStructValueScalar,
+  packBuiltinObject,
   packValue,
-  unpackStructValueScalar,
+  unpackBuiltinObject,
   type JsonValue,
 } from "@/system/value";
 import { AsyncEvent } from "@/utils/functools";
 import { IS_DEV } from "@/utils/globals";
 import { log } from "@/utils/log";
 import { toValueRef } from "@/utils/ref";
-import { Casing, toCasing } from "@/utils/string";
 import { uuidt } from "@/utils/uuidt";
 import type { RpcError } from "grpc-web";
 import { nextTick, ref, shallowRef, toRef, triggerRef, watch, type MaybeRef, type Ref } from "vue";
@@ -300,8 +295,8 @@ export class TransactionBuilder implements Transaction {
         nodePtr: toNodeReference(node),
         scope: this._getScope(node),
         properties: properties.map((p) => p.id),
-        oldNodePacked: Struct.fromJson(oldNodePacked),
-        newNodePacked: Struct.fromJson(newNodePacked),
+        oldNodePacked: ProtoStruct.fromJson(oldNodePacked),
+        newNodePacked: ProtoStruct.fromJson(newNodePacked),
         origin: origin.value,
         subjectPtr: this.subject,
         editedAt: Timestamp.now(),
@@ -317,8 +312,8 @@ export class TransactionBuilder implements Transaction {
       if (edit.oldNodePacked == null || edit.newNodePacked == null) {
         throw new Error(`missing old/new node in debounced edit: ${describeEdit(edit)}`);
       }
-      const oldNodePacked = Struct.toJson(edit.oldNodePacked) as Record<string, JsonValue>;
-      const newNodePacked = Struct.toJson(edit.newNodePacked) as Record<string, JsonValue>;
+      const oldNodePacked = ProtoStruct.toJson(edit.oldNodePacked) as Record<string, JsonValue>;
+      const newNodePacked = ProtoStruct.toJson(edit.newNodePacked) as Record<string, JsonValue>;
       for (const prop of properties) {
         const propName = propertiesEnum[prop.id];
         const typeInfo = getTypeIdentityForProperty(prop);
@@ -337,8 +332,8 @@ export class TransactionBuilder implements Transaction {
         const { valuePacked: newValuePacked } = packValue(newValue, typeInfo, null, { wrapPrimitive: false });
         newNodePacked[prop.id.toString()] = newValuePacked;
       }
-      edit.oldNodePacked = Struct.fromJson(oldNodePacked);
-      edit.newNodePacked = Struct.fromJson(newNodePacked);
+      edit.oldNodePacked = ProtoStruct.fromJson(oldNodePacked);
+      edit.newNodePacked = ProtoStruct.fromJson(newNodePacked);
       // coalesce successive move/update into move edit
       if (editType == EditType.MOVE && edit.type != EditType.MOVE) {
         edit.type = EditType.MOVE;
@@ -380,14 +375,14 @@ export class TransactionBuilder implements Transaction {
   }
 }
 
-export function packNodeDelta(node: AnyNodeData, options?: { only?: string[] }): Struct {
-  const nodePacked = packStructValueScalar(node, options);
-  return Struct.fromJson(nodePacked);
+export function packNodeDelta(node: AnyNodeData, options?: { only?: string[] }): ProtoStruct {
+  const nodePacked = packBuiltinObject(node, options);
+  return ProtoStruct.fromJson(nodePacked);
 }
 
-export function unpackNodeDelta(nodePackedStruct: Struct, nodeType?: NodeType): AnyNodeData {
-  const nodePacked = Struct.toJson(nodePackedStruct);
-  const node = unpackStructValueScalar(nodePacked, nodeType as unknown as ObjectType);
+export function unpackNodeDelta(nodePackedStruct: ProtoStruct, nodeType?: NodeType): AnyNodeData {
+  const nodePacked = ProtoStruct.toJson(nodePackedStruct);
+  const node = unpackBuiltinObject(nodePacked, nodeType as unknown as ObjectType);
   if (!isNode(node)) throw new Error(`unexpected node data: ${node.metatype}`);
   return node;
 }

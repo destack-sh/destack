@@ -515,9 +515,9 @@ def pack_node_delta(
     node_data: AnyNodeData, *, only: Collection[Property | Any] | None = None
 ) -> ProtoStruct:
     """Packs a node into its edit representation. If 'only' is set, only those properties are packed."""
-    from bench.language.value import pack_struct_value_scalar_data
+    from bench.language.value import pack_builtin_object_data
 
-    node_packed = pack_struct_value_scalar_data(node_data, only=only)
+    node_packed = pack_builtin_object_data(node_data, only=only)
     return ProtoStruct.from_dict(node_packed)  # type: ignore
 
 
@@ -528,14 +528,14 @@ def unpack_node_delta(
     only: Collection[Property | Any] | None = None,
 ) -> AnyNodeData:
     """Unpacks a node from its packed edit representation. If 'only' is set, only those properties are unpacked."""
-    from bench.language.value import unpack_struct_value_scalar_data
+    from bench.language.value import unpack_builtin_object_data
     from bench.proto import wiring
 
     if not isinstance(node_packed, dict):
         node_packed = node_packed.to_dict()
 
     proto_cls = wiring.PROTO_CLASS_BY_TYPE[node_type] if node_type is not None else None
-    node_data = unpack_struct_value_scalar_data(node_packed, expect=proto_cls, only=only)
+    node_data = unpack_builtin_object_data(node_packed, expect=proto_cls, only=only)
     return cast(AnyNodeData, node_data)
 
 

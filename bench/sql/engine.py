@@ -53,7 +53,7 @@ from bench.language.setup import (
     PARENT_NODE_TYPES,
 )
 from bench.language.transaction import pack_node_delta, unpack_node_delta
-from bench.language.value import pack_struct_value_scalar_data, unpack_struct_value_scalar_data
+from bench.language.value import pack_builtin_object_data, unpack_builtin_object_data
 from bench.proto import wire, wiring
 from bench.proto.wire import AnyNodeData, EditData, IdEnum, NodeReferenceData
 from bench.proto.wiring import PROTO_CLASS_BY_TYPE
@@ -1101,7 +1101,7 @@ def _pack_struct_data_prop(prop: Property, value: Any, ignore_array: bool) -> Sq
     elif prop.is_list and not ignore_array:
         return [_pack_struct_data_prop(prop, v, ignore_array=True) for v in value]
     elif prop.is_struct:
-        value = pack_struct_value_scalar_data(value)
+        value = pack_builtin_object_data(value)
         return Jsonb(value)  # type: ignore
     elif prop.is_enum:
         return value.value
@@ -1120,7 +1120,7 @@ def _unpack_struct_data_prop(prop: Property, value: Any, ignore_array: bool) -> 
     elif prop.is_list and not ignore_array:
         return [_unpack_struct_data_prop(prop, v, ignore_array=True) for v in value]
     elif prop.reference_struct:
-        return unpack_struct_value_scalar_data(value)
+        return unpack_builtin_object_data(value)
     elif prop.is_enum:
         return wiring.pack_enum(prop.py_type_stripped, prop.py_type_stripped(value))
     elif prop.primitive_type == PrimitiveType.DATETIME:

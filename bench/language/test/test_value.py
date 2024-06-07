@@ -12,9 +12,9 @@ from bench.language.test.fabricator import Fabricator
 from bench.language.text import Text
 from bench.language.value import (
     Object,
-    pack_struct_value_scalar_data,
+    pack_builtin_object_data,
     pack_value,
-    unpack_struct_value_scalar_data,
+    unpack_builtin_object_data,
     unpack_value,
 )
 from bench.proto import wiring
@@ -133,8 +133,8 @@ def test_roundtrip_nested_value():
 @pytest.mark.parametrize("bench_obj", BENCH_OBJECTS, ids=lambda o: o.__class__.__name__)
 def test_roundtrip_robust_json(bench_obj: BuiltinObject):
     packed_wire_obj = wiring.pack_object(bench_obj)
-    packed_json = pack_struct_value_scalar_data(packed_wire_obj)
-    unpacked_wire_obj = unpack_struct_value_scalar_data(packed_json)
+    packed_json = pack_builtin_object_data(packed_wire_obj)
+    unpacked_wire_obj = unpack_builtin_object_data(packed_json)
     unpacked_obj = wiring.unpack_object(unpacked_wire_obj)  # type: ignore
     assert unpacked_obj.equals_content(bench_obj), f"{unpacked_obj!r} != {bench_obj!r}"
 
