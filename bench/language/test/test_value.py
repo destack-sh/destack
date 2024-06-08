@@ -5,7 +5,7 @@ import pytest
 from bench.conftest import global_session
 from bench.language.block import Block
 from bench.language.const import OBJECT_TYPES, BlockType, NodeType, PrimitiveType, StructType
-from bench.language.field import Field, FieldZone, TypeKind, to_type
+from bench.language.field import Field, TypeKind, to_type
 from bench.language.node import BuiltinObject
 from bench.language.setup import OBJECT_CLASS_BY_TYPE
 from bench.language.test.fabricator import Fabricator
@@ -20,7 +20,7 @@ from bench.language.value import (
 from bench.proto import wiring
 
 fabricator = Fabricator(42)
-BENCH_OBJECTS = tuple(fabricator.fabricate(OBJECT_CLASS_BY_TYPE[t], ()) for t in OBJECT_TYPES)
+BUILTIN_OBJECTS = tuple(fabricator.fabricate(OBJECT_CLASS_BY_TYPE[t], ()) for t in OBJECT_TYPES)
 
 
 def test_coerce_nested_value() -> None:
@@ -82,9 +82,9 @@ def test_roundtrip_nested_value():
 
     # choice block
     choice1 = Block(type=BlockType.CHOICE, name="Choice1")
-    choice1.fields.create(name="Option1", zone=FieldZone.OPTION)
-    choice1.fields.create(name="Option2", zone=FieldZone.OPTION)
-    choice1.fields.create(name="Option3", zone=FieldZone.OPTION)
+    choice1.fields.append(Field.option("Option1"))
+    choice1.fields.append(Field.option("Option2"))
+    choice1.fields.append(Field.option("Option3"))
 
     # inner class
     class2 = Block(type=BlockType.CLASS, name="Class2")
@@ -121,13 +121,13 @@ def test_roundtrip_nested_value():
     assert unpacked_value == value
 
 
-@pytest.mark.parametrize("bench_obj", BENCH_OBJECTS, ids=lambda o: o.__class__.__name__)
-def test_roundtrip_builtin_object(bench_obj: BuiltinObject):
-    packed_wire_obj = wiring.pack_object(bench_obj)
+@pytest.mark.parametrize("bench_obj", BUILTIN_OBJECTS, ids=lambda o: o.__class__.__name__)
+def test_roundtrip_builtin_object(obj: BuiltinObject):
+    packed_wire_obj = wiring.pack_object(obj)
     packed_json = pack_builtin_object_data(packed_wire_obj)
     unpacked_wire_obj = unpack_builtin_object_data(packed_json)
     unpacked_obj = wiring.unpack_object(unpacked_wire_obj)  # type: ignore
-    assert unpacked_obj.equals_content(bench_obj), f"{unpacked_obj!r} != {bench_obj!r}"
+    assert unpacked_obj.equals_content(obj), f"{unpacked_obj!r} != {obj!r}"
 
 
 # TODO :Test: auto generate :Test types & values

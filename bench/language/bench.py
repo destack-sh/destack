@@ -335,6 +335,7 @@ class BenchResourceNode(BenchNode[NodeDataT], abc.ABC, Generic[NodeDataT]):
     text: Optional["Text"] = p_regular(34, default=None, struct=StructType.TEXT)
     region: Region = p_system(35, default_factory=get_region, default_sql=None)
     status: ResourceStatus = p_system(36, default=ResourceStatus.DECLARED)
+    current_status: Optional[ResourceStatus] = p_system(37, default=None)
 
     def __content_str__(self):
         value_strs: list[str] = []

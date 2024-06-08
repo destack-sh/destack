@@ -198,7 +198,7 @@ class Block(SourceNode[BlockData], HasValues):
                 typ = TypeInfo(kind=TypeKind.OBJECT, base_type=self, base_field_zone=zone)
         else:
             raise ValueError(f"{self!r} has no type")
-        typ._do_resolve_to(typ)
+        typ._resolve_type()  # pre-resolve
         return typ
 
     @property

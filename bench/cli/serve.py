@@ -22,8 +22,11 @@ logger = structlog.get_logger(__name__)
 
 @app.command()
 @async_to_sync_blocking
-async def system(host: str, port: int, watch: bool = False, no_supervisor: bool = False):
-    await check_is_consistent(check_db=True)
+async def system(
+    host: str, port: int, watch: bool = False, no_supervisor: bool = False, skip_check: bool = False
+):
+    if not skip_check:
+        await check_is_consistent(check_db=True)
     start = time_ns()
     logger.info("serve.system", host=host, port=port, env=ENVIRONMENT)
     services: list[ServiceBase] = [HostRouter()]
@@ -40,8 +43,9 @@ async def system(host: str, port: int, watch: bool = False, no_supervisor: bool 
 
 @app.command()
 @async_to_sync_blocking
-async def runtime(host: str, port: int, watch: bool = False):
-    await check_is_consistent(check_db=True)
+async def runtime(host: str, port: int, watch: bool = False, skip_check: bool = False):
+    if not skip_check:
+        await check_is_consistent(check_db=True)
     start = time_ns()
     logger.info("serve.runtime", host=host, port=port, env=ENVIRONMENT)
     server = Runtime(

@@ -5,6 +5,8 @@ import uuid
 from datetime import datetime, timedelta
 from typing import Any, Callable, Type, TypeVar, cast
 
+import structlog
+
 from bench.language import NodeReference, Property
 from bench.language.const import (
     EMPTY_DICT,
@@ -19,6 +21,8 @@ from bench.language.setup import NODE_CLASS_BY_TYPE, OBJECT_CLASS_BY_TYPE
 from bench.proto.wire import NodeReferenceData
 from bench.utils.dt import utcnow
 from bench.utils.fractional import INTEGER_ZERO
+
+logger = structlog.get_logger(__name__)
 
 NodeT = TypeVar("NodeT", bound=Node)
 StructT = TypeVar("StructT", bound=Struct | InlineStruct)
@@ -82,7 +86,8 @@ class Fabricator:
             prop = random.choice(
                 tuple(p for p in NODE_CLASS_BY_TYPE[type].__properties__.values() if p.id)
             )
-            return cast(ObjectT, prop.to_ref())
+            ref = prop.to_ref()
+            return ref  # type: ignore
         else:  # default unconstrained random jumble of properties
             kwargs = {**override}
             bench_cls = OBJECT_CLASS_BY_TYPE[object_type]
