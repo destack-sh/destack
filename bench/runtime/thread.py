@@ -165,6 +165,7 @@ class RuntimeThread:
                     block = run.block
                     assert block is not None, f"no block for {run!r}"
                     input_type = block.input_type
+                    # nocheckin
                     print(input_type)
                     print(run.inputs)
                     print(run.inputs_packed)

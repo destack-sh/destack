@@ -11,6 +11,7 @@ from betterproto.lib.google.protobuf import Struct as ProtoStruct
 
 from bench.language.const import (
     PY_TYPE_BY_PRIMITIVE_TYPE,
+    UNSET,
     EnumType,
     ObjectType,
     PrimitiveType,
@@ -803,6 +804,31 @@ from bench.language.node import BuiltinObject, HasNodeBase, object_component  # 
 @object_component()
 class HasValues(BuiltinObject):
     # NOTE :Robustness: ensure HasValues never accidentally 'edits' the node during init or such
+    # NOTE :Incomplete: we don't handle :SecretValues or :FreeformValues yet
+
+    @override
+    def _init_component(self):
+        # if unpacked is set, pack in place, otherwise vice versa
+        # NOTE :Architecture: unsure when to unpack, pack, and re-pack on edit (see _updated_component)
+        if not self._is_tracked:
+            return
+        for prop in self.__value_properties__.values():
+            assert type(prop.value_packed_ptr) is Property, f"{prop!r} has no value_packed_ptr"
+            value = getattr(self, prop.name)
+            value_packed = getattr(self, prop.value_packed_ptr.name)
+            if (value is None and value_packed is None) or value_packed is UNSET:
+                continue
+            value_type = prop.value_type_info_getter(self) if prop.value_type_info_getter else None
+            if value_type is None:
+                continue  # not ready yet or freeform
+            if value is not None:
+                if getattr(self, prop.value_packed_ptr.name) is not None:
+                    continue  # skip if already set
+                value_packed, _ = pack_value(value, value_type)
+                self._do_set(prop.value_packed_ptr.name, value_packed, untracked=True)
+            else:
+                value = unpack_value(value_packed, None, value_type)
+                self._do_set(prop.name, value, untracked=True)
 
     @override
     def _updated_component(self, properties: Collection[Property]) -> None:
@@ -812,20 +838,16 @@ class HasValues(BuiltinObject):
             #  (would be nice to summarize them into bigger edits to avoid unnecessary work)
             self._pack_values_inplace(properties)
 
-    def _resolve_value_prop_type(self, prop: Property) -> "TypeInfoBase | None":
-        """Gets the effective type info for the given value prop"""
-        assert prop.value_type_info_getter is not None, f"{prop!r} has no value_type_info_getter"
-        return prop.value_type_info_getter(self)
-
     def _unpack_values_inplace(self, properties: Collection[Property]) -> None:
-        # we don't handle :SecretValues yet
         for prop in properties:
             if not prop.is_value_runtime:
                 continue
             assert type(prop.value_packed_ptr) is Property, f"{prop!r} has no value_packed_ptr"
             value_packed = getattr(self, prop.value_packed_ptr.name)
             if value_packed is not None:
-                value_type = self._resolve_value_prop_type(prop)
+                value_type = (
+                    prop.value_type_info_getter(self) if prop.value_type_info_getter else None
+                )
                 if value_type is not None:
                     value = unpack_value(value_packed, None, value_type)
                     self._do_set(prop.name, value, untracked=True)
@@ -833,7 +855,6 @@ class HasValues(BuiltinObject):
     def _pack_values_inplace(
         self, properties: Collection[Property], skip_already_set: bool = False
     ) -> None:
-        # we don't handle :SecretValues yet
         for prop in properties:
             if not prop.is_value_runtime:
                 continue
@@ -843,7 +864,9 @@ class HasValues(BuiltinObject):
                 continue
             value = getattr(self, prop.name)
             if value is not None:
-                value_type = self._resolve_value_prop_type(prop)
+                value_type = (
+                    prop.value_type_info_getter(self) if prop.value_type_info_getter else None
+                )
                 if value_type is not None:
                     value_packed, _ = pack_value(value, value_type)
                     self._do_set(prop.value_packed_ptr.name, value_packed, untracked=True)

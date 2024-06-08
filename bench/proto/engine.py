@@ -69,7 +69,7 @@ def map_bench_property_to_proto(prop: "Property", cache: dict[_ThingType, ProtoT
         raise TypeError(f"cannot map to proto type: {prop!r}")
 
 
-def map_bench_object_to_proto(
+def map_builtin_object_to_proto(
     cls: type[BuiltinObject], cache: dict[_ThingType, ProtoThing], alias: str | None = None
 ) -> Message:
     message = Message(name=alias or cls.__name__, reserved_names=[], reserved_ids=[], fields=[])
@@ -85,7 +85,7 @@ def map_bench_object_to_proto(
     return message
 
 
-def map_bench_enum_to_proto(
+def map_builtin_enum_to_proto(
     bench_t: type[IdEnum] | type[enum.IntFlag],
     cache: dict[_ThingType, ProtoThing],
     alias: str | None = None,
@@ -123,9 +123,9 @@ def map_object_type_to_proto(
     if bench_t in cache:
         return cache[bench_t]
     if issubclass(bench_t, BuiltinObject):
-        ret = map_bench_object_to_proto(bench_t, cache, alias=alias)
+        ret = map_builtin_object_to_proto(bench_t, cache, alias=alias)
     elif issubclass(bench_t, (IdEnum, enum.IntFlag)):
-        ret = map_bench_enum_to_proto(bench_t, cache, alias=alias)
+        ret = map_builtin_enum_to_proto(bench_t, cache, alias=alias)
     else:
         raise TypeError(f"invalid bench type: {bench_t!r}")
     cache[bench_t] = ret

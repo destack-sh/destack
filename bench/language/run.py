@@ -124,7 +124,7 @@ class Run(PackageNode[RunData], HasTimeIdentity, HasNodeBase, HasSessionContext,
 
     code: Optional["Code"] = p_internal(36, require=False, array=False, struct=StructType.CODE)
     text: Optional["Text"] = p_internal(37, require=False, array=False, struct=StructType.TEXT)
-    # extra run options if different from base (or base doesn't exist)
+    # extra run options if different from base or it's a lambda
     options: Optional["RunOptions"] = p_regular(
         38, require=False, array=False, struct=StructType.RUN_OPTIONS
     )

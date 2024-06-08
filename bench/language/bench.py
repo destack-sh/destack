@@ -128,7 +128,7 @@ class Bench(BenchNode[BenchData]):
     drives: NodeList["Drive"] = p_node_child(NodeType.DRIVE)
 
     @property
-    def is_attached(self) -> bool:
+    def _is_attached(self) -> bool:
         return True
 
     @property
@@ -230,7 +230,7 @@ class Package(BenchNode[PackageData]):
     dependencies: NodeList["Dependency"] = p_node_child(NodeType.DEPENDENCY)
 
     @property
-    def is_attached(self) -> bool:
+    def _is_attached(self) -> bool:
         return True
 
     @property

@@ -1531,12 +1531,12 @@ message ProjectionData {
   optional string order_key = 9;
 }
 
-// PropertyReference(type: Optional[bench.utils.func.ObjectType] = <factory>, id: int = <factory>, references_type: Optional[bench.language.const.NodeType] = None, _session: 'Session | None' = None, _updated_properties: bitarray.bitarray | None = None, parent: Union[ForwardRef('BuiltinObject'), ForwardRef('Object'), NoneType] = None, parent_id: int = None, parent_key: str = None)
+// A reference to a builtin object's Property.
+// If type is unset, this refers to a base property in one of the base BuiltinObject types.
 message PropertyReferenceData {
   ObjectType metatype = 1;
   optional ObjectType type = 30;
   int32 id = 31;
-  optional NodeType references_type = 32;
 }
 
 // Fine-grained options to a read request.
@@ -1843,6 +1843,7 @@ message BlobData {
   optional TextData text = 34;
   Region region = 35;
   ResourceStatus status = 36;
+  optional ResourceStatus current_status = 37;
   string sha512 = 40;
   int64 size = 41;
   string mime_type = 42;
@@ -1996,6 +1997,7 @@ message DriveData {
   optional TextData text = 34;
   Region region = 35;
   ResourceStatus status = 36;
+  optional ResourceStatus current_status = 37;
 }
 
 // An environment of resources for a Bench's packages.
@@ -2249,6 +2251,7 @@ message MachineData {
   optional TextData text = 34;
   Region region = 35;
   ResourceStatus status = 36;
+  optional ResourceStatus current_status = 37;
   MachineProfile profile = 40;
   optional MachineProfile current_profile = 41;
   optional string version = 42;
@@ -2527,22 +2530,23 @@ message RunData {
   optional TextData text = 37;
   optional RunOptionsData options = 38;
   RunStatus status = 40;
-  optional float duration = 41;
-  optional google.protobuf.Timestamp scheduled_at = 42;
-  optional int32 scheduled_epoch = 43;
-  optional google.protobuf.Timestamp started_at = 44;
-  optional int32 started_epoch = 45;
-  optional google.protobuf.Timestamp paused_at = 46;
-  optional google.protobuf.Timestamp terminated_at = 47;
-  optional int32 terminated_epoch = 48;
-  repeated RetryAttemptData attempts = 49;
+  optional RunStatus current_status = 41;
+  optional float duration = 42;
+  optional google.protobuf.Timestamp scheduled_at = 43;
+  optional int32 scheduled_epoch = 44;
+  optional google.protobuf.Timestamp started_at = 45;
+  optional int32 started_epoch = 46;
+  optional google.protobuf.Timestamp paused_at = 47;
+  optional google.protobuf.Timestamp terminated_at = 48;
+  optional int32 terminated_epoch = 49;
   optional google.protobuf.Struct inputs_packed = 50;
   optional google.protobuf.Struct inputs_secret_packed = 51;
   optional google.protobuf.Struct outputs_packed = 52;
   optional google.protobuf.Struct outputs_secret_packed = 53;
   optional google.protobuf.Struct value_packed = 54;
   optional google.protobuf.Struct value_secret_packed = 55;
-  optional RunErrorData error = 56;
+  repeated RetryAttemptData attempts = 56;
+  optional RunErrorData error = 57;
   optional NodeReferenceData block_ptr = 60;
   optional NodeReferenceData step_ptr = 61;
   optional NodeReferenceData session_ptr = 62;
@@ -2575,6 +2579,7 @@ message ServerData {
   optional TextData text = 34;
   Region region = 35;
   ResourceStatus status = 36;
+  optional ResourceStatus current_status = 37;
   ServerProfile profile = 40;
   optional ServerProfile current_profile = 41;
   optional string version = 42;
@@ -2747,6 +2752,7 @@ message StoreData {
   optional TextData text = 34;
   Region region = 35;
   ResourceStatus status = 36;
+  optional ResourceStatus current_status = 37;
   optional string version = 40;
   optional string current_version = 41;
   optional string external_name = 50;

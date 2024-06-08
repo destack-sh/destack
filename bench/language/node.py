@@ -748,6 +748,13 @@ class BuiltinObject[ObjectDataT: AnyNodeData | AnyStructData](abc.ABC):
     _updated_properties: bitarray | None = p_runtime(default=None)
 
     def __post_init__(self):
+        self._init_pointers()
+        self._resolve_references(None)
+        if self._session is not UNSET and self._session is None:
+            self._session = _active_session.get()
+        self._init_self()
+
+    def _init_pointers(self):
         for prop in self.__struct_reference_properties__.values():
             # copy new structs if needed
             if prop.reference_kind == ReferenceKind.STRUCT_CHILD:
@@ -782,7 +789,7 @@ class BuiltinObject[ObjectDataT: AnyNodeData | AnyStructData](abc.ABC):
 
         # init reference pointers if references are set
         for prop in self.__node_reference_properties__.values():
-            if prop.reference_kind == ReferenceKind.NODE_ANCESTOR_FIRST:
+            if prop.is_computed:
                 continue
             if prop.reference_wired_ptr is not None:
                 value = getattr(self, prop.name)
@@ -882,7 +889,7 @@ class BuiltinObject[ObjectDataT: AnyNodeData | AnyStructData](abc.ABC):
                             self._updated_properties = bitarray(self.__max_property_ord__ + 1)
                         self._updated_properties[prop.ord] = True
                         session.update(node, properties=(prop,), old_values={prop.id: old_value})
-                else:  # is struct
+                elif self.parent is not None:  # is struct
                     # will need to deal with Value parents eventually...
                     assert isinstance(
                         self.parent, InlineStruct
@@ -904,6 +911,10 @@ class BuiltinObject[ObjectDataT: AnyNodeData | AnyStructData](abc.ABC):
         #  (we don't need it since dynamic access is meant for Values at runtime)
         __getattr__ = _do_get
         __setattr__ = _do_set
+
+    @property
+    def _is_tracked(self) -> bool:
+        return self._session is not None and self._session is not UNSET
 
     @property
     def active_session(self) -> "Session":
@@ -932,6 +943,15 @@ class BuiltinObject[ObjectDataT: AnyNodeData | AnyStructData](abc.ABC):
             elif len(cast(list, value)) > 0:
                 for item in cast(list, value):
                     yield from cast(InlineStruct, item)._walk_struct()
+
+    def _init_component(self):  # noqa: B027
+        """Called after post init is done."""
+        pass  # do nothing by default
+
+    def _init_self(self):
+        """Called after post init is done."""
+        for component in self.__components__:
+            component._init_component(self)
 
     def _validate_component(self, properties: tuple[Property, ...], invalid: "ValidationHandler"):  # noqa: B027
         """Check the integrity of the component."""
@@ -1061,27 +1081,6 @@ class BuiltinObject[ObjectDataT: AnyNodeData | AnyStructData](abc.ABC):
             prop = cls.__properties_by_id__[prop_id]
             mask[prop.ord] = True
         return mask
-
-    @classmethod
-    def _resolve_property(cls, ptr: "PropertyReference") -> Property:
-        prop = cls._get_property(ptr)
-        if prop is None:
-            raise ValueError(f"unknown property reference: {ptr!r} in {cls!r}")
-        return prop
-
-    @classmethod
-    def _get_property(cls, ptr: "PropertyReference") -> Property | None:
-        if not ptr.references_type:
-            return cls.__properties_by_id__.get(ptr.id, None)
-        else:
-            for prop in cls.__stored_properties__.values():
-                if (
-                    prop.id == ptr.id
-                    and prop.reference_nodes
-                    and prop.reference_nodes[0] == ptr.references_type
-                ):
-                    return prop
-            return None
 
 
 @object_component()
@@ -1286,7 +1285,8 @@ class Node[NodeDataT: AnyNodeData](BuiltinObject[NodeDataT], abc.ABC):
             self._graph = self.parent._graph
 
         # init super (builtin object)
-        super().__post_init__()
+        self._init_pointers()
+        self._resolve_references(None)
 
         # init node lists (preserving existing lists)
         existing_lists: dict[str, Any] | None = None
@@ -1314,12 +1314,8 @@ class Node[NodeDataT: AnyNodeData](BuiltinObject[NodeDataT], abc.ABC):
                     self._validate_self((), invalid=on_invalid_raise)
                 self._track_self(self._session)
 
-    def _find_root(self) -> "Node":
-        """Current root of this node. May not be *the* "right" root if detached."""
-        parent = self
-        while parent.parent is not None:
-            parent = parent.parent
-        return parent
+        # init components
+        self._init_self()
 
     @final
     def __str__(self):  # type: ignore
@@ -1351,7 +1347,7 @@ class Node[NodeDataT: AnyNodeData](BuiltinObject[NodeDataT], abc.ABC):
         return self.id
 
     @property
-    def is_attached(self) -> bool:
+    def _is_attached(self) -> bool:
         return True
 
     @property
@@ -1361,9 +1357,7 @@ class Node[NodeDataT: AnyNodeData](BuiltinObject[NodeDataT], abc.ABC):
         return self._read_info.graph
 
     def __eq__(self, other: Any):
-        return type(self) == type(other) and (
-            (self.id is not None and self.id == other.id) or self is other
-        )
+        return type(self) == type(other) and (self.id == other.id or self is other)
 
     def __hash__(self):
         if "ck" in self.__properties__:
@@ -1649,7 +1643,7 @@ class BenchNode[NodeDataT: AnyNodeData](Node[NodeDataT], abc.ABC):
     )
 
     @property
-    def is_attached(self) -> bool:
+    def _is_attached(self) -> bool:
         return self.parent is not None and self.bench is not None
 
 
@@ -1665,7 +1659,7 @@ class PackageNode[NodeDataT: AnyNodeData](BenchNode[NodeDataT], abc.ABC):
         package_ptr: Optional[NodeReference] = None
 
     @property
-    def is_attached(self) -> bool:
+    def _is_attached(self) -> bool:
         return self.parent is not None and self.package is not None
 
 

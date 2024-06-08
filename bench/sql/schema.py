@@ -11,7 +11,7 @@ from bench.sql.core import (
     Table,
 )
 
-VERSION = "2024.06.08.1"
+VERSION = "2024.06.08.2"
 
 BENCH_TABLE = Table(
     "bench_bench",
@@ -971,6 +971,7 @@ RUN_TABLE = Table(
         Column("text", PrimitiveType.JSON, is_nullable=True),
         Column("options", PrimitiveType.JSON, is_nullable=True),
         Column("status", PrimitiveType.INT16, default="1"),
+        Column("current_status", PrimitiveType.INT16, is_nullable=True),
         Column("duration", PrimitiveType.FLOAT32, is_nullable=True),
         Column("scheduled_at", PrimitiveType.DATETIME, is_nullable=True),
         Column("scheduled_epoch", PrimitiveType.INT32, is_nullable=True),
@@ -979,13 +980,13 @@ RUN_TABLE = Table(
         Column("paused_at", PrimitiveType.DATETIME, is_nullable=True),
         Column("terminated_at", PrimitiveType.DATETIME, is_nullable=True),
         Column("terminated_epoch", PrimitiveType.INT32, is_nullable=True),
-        Column("attempts", PrimitiveType.JSON, is_array=True),
         Column("inputs_packed", PrimitiveType.JSON, is_nullable=True),
         Column("inputs_secret_packed", PrimitiveType.JSON, is_nullable=True, is_encrypted=True),
         Column("outputs_packed", PrimitiveType.JSON, is_nullable=True),
         Column("outputs_secret_packed", PrimitiveType.JSON, is_nullable=True, is_encrypted=True),
         Column("value_packed", PrimitiveType.JSON, is_nullable=True),
         Column("value_secret_packed", PrimitiveType.JSON, is_nullable=True, is_encrypted=True),
+        Column("attempts", PrimitiveType.JSON, is_array=True),
         Column("error", PrimitiveType.JSON, is_nullable=True),
         Column("block_id", PrimitiveType.UUID, is_nullable=True),
         Column("block_ck", PrimitiveType.UUID, is_nullable=True),
@@ -1271,6 +1272,7 @@ SERVER_TABLE = Table(
         Column("text", PrimitiveType.JSON, is_nullable=True),
         Column("region", PrimitiveType.INT16),
         Column("status", PrimitiveType.INT16, default="1"),
+        Column("current_status", PrimitiveType.INT16, is_nullable=True),
         Column("profile", PrimitiveType.INT16),
         Column("current_profile", PrimitiveType.INT16, is_nullable=True),
         Column("version", PrimitiveType.STRING, is_nullable=True),
@@ -1303,6 +1305,7 @@ STORE_TABLE = Table(
         Column("text", PrimitiveType.JSON, is_nullable=True),
         Column("region", PrimitiveType.INT16),
         Column("status", PrimitiveType.INT16, default="1"),
+        Column("current_status", PrimitiveType.INT16, is_nullable=True),
         Column("version", PrimitiveType.STRING, is_nullable=True),
         Column("current_version", PrimitiveType.STRING, is_nullable=True),
         Column("external_name", PrimitiveType.STRING, is_nullable=True),
@@ -1334,6 +1337,7 @@ MACHINE_TABLE = Table(
         Column("text", PrimitiveType.JSON, is_nullable=True),
         Column("region", PrimitiveType.INT16),
         Column("status", PrimitiveType.INT16, default="1"),
+        Column("current_status", PrimitiveType.INT16, is_nullable=True),
         Column("profile", PrimitiveType.INT16),
         Column("current_profile", PrimitiveType.INT16, is_nullable=True),
         Column("version", PrimitiveType.STRING, is_nullable=True),
@@ -1370,6 +1374,7 @@ DRIVE_TABLE = Table(
         Column("text", PrimitiveType.JSON, is_nullable=True),
         Column("region", PrimitiveType.INT16),
         Column("status", PrimitiveType.INT16, default="1"),
+        Column("current_status", PrimitiveType.INT16, is_nullable=True),
     ),
 )
 
@@ -1396,6 +1401,7 @@ BLOB_TABLE = Table(
         Column("text", PrimitiveType.JSON, is_nullable=True),
         Column("region", PrimitiveType.INT16),
         Column("status", PrimitiveType.INT16, default="1"),
+        Column("current_status", PrimitiveType.INT16, is_nullable=True),
         Column("sha512", PrimitiveType.STRING),
         Column("size", PrimitiveType.INT64),
         Column("mime_type", PrimitiveType.STRING),

@@ -208,20 +208,7 @@ class Property(_TypeQueryBuilder if TYPE_CHECKING else object):
             assert self.component is not None, f"{self!r} is not finalized"
             from bench.language.expression import PropertyReference
 
-            if (
-                self.reference_kind
-                and self.reference_kind.is_node
-                and self.reference_nodes is not None
-                and len(self.reference_nodes) == 1
-            ):
-                references_type = self.reference_nodes[0]
-            else:
-                references_type = None
-            ref = PropertyReference(
-                type=getattr(self.component, "metatype", None),
-                id=self.id,
-                references_type=references_type,
-            )
+            ref = PropertyReference(type=getattr(self.component, "metatype", None), id=self.id)
             self._cached_as_ref = ref
         return self._cached_as_ref
 

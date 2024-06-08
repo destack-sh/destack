@@ -121,7 +121,7 @@ def test_roundtrip_nested_value():
     assert unpacked_value == value
 
 
-@pytest.mark.parametrize("bench_obj", BUILTIN_OBJECTS, ids=lambda o: o.__class__.__name__)
+@pytest.mark.parametrize("obj", BUILTIN_OBJECTS, ids=lambda o: o.__class__.__name__)
 def test_roundtrip_builtin_object(obj: BuiltinObject):
     packed_wire_obj = wiring.pack_object(obj)
     packed_json = pack_builtin_object_data(packed_wire_obj)
