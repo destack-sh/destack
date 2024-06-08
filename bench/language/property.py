@@ -391,7 +391,7 @@ class Property(_TypeQueryBuilder if TYPE_CHECKING else object):
             constraint=constraint,
             _from_property=self,
         )
-        typ._do_resolve_to(typ)  # auto-resolve to self
+        typ._resolve_type()  # pre-resolve
         return typ
 
     @property

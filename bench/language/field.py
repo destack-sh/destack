@@ -213,6 +213,7 @@ class TypeInfoBase(HasValues):
        6. Object (value is Object value of classy type, like Code inputs, Step outputs, Record value, ...)
           [base_type~Block[is_classy]|Step]
        7. Alias (value is whatever base_type resolves to, must be resolved to pack/unpack)
+       8. Literal (only allowable value is the actual constant value)
 
     Types may also specify:
        - field zone, narrowing the fields included from the base type (if any)
@@ -222,8 +223,8 @@ class TypeInfoBase(HasValues):
        - combination flags for arrays, optionals, ...
     """
 
-    # type identity (if unset this isn't a valid type (used for Field Options))
-    kind: Optional[TypeKind] = p_internal(40, require=False, default=None)
+    # type identity
+    kind: TypeKind = p_internal(40)
     primitive_type: Optional[PrimitiveType] = p_regular(41, default=None)
     bench_type: Optional[BenchType] = p_regular(42, default=None)
     base_type: Union["Block", "Step", None] = p_regular(
@@ -285,41 +286,39 @@ class TypeInfoBase(HasValues):
         return info_str
 
     def _resolve_type(self):
-        # nocheckin: call this at the appropriate times?
         # TODO :Incomplete: proper type resolution (consider multi-step aliases, inheritance, ...)
+        #  (also when do we even call this to react to edits? how do we get this into bench-web?)
+
         # resolve the actual type :TypeResolution
+        resolved_type = self
         if self.kind == TypeKind.ALIAS:
+            from bench.language import Block
+
             assert self.base_type_ptr is not None, f"missing base type for alias {self!r}"
-            resolved_type = None
             if self.base_type is not None:  # may not be resolved
-                if (
-                    self.base_type.metatype == NodeType.STEP
-                    or cast("Block", self.base_type).type.is_classy
+                if self.base_type.metatype == NodeType.STEP or (
+                    isinstance(self.base_type, Block) and self.base_type.type.is_classy
                 ):
                     resolved_type = TypeInfo(kind=TypeKind.OBJECT, base_type=self.base_type)
                 elif (
                     self.base_type.metatype == NodeType.BLOCK
-                    and cast("Block", self.base_type).value_type
+                    and self.base_type.value_type is not None
                 ):
-                    resolved_type = cast("Block", self.base_type).value_type
-        else:
-            resolved_type = self
-        self._do_resolve_to(resolved_type)
+                    resolved_type = self.base_type.value_type
 
-    def _do_resolve_to(self, typ: Optional["TypeInfoBase"]) -> None:
-        if self._resolved_type is typ:
-            return
-        self._resolved_type = typ
-        self._resolved_identity_key = encode_type_identity(typ) if typ else None
-        if typ is not None and typ is not self:
+        self._resolved_type = resolved_type
+        self._resolved_identity_key = encode_type_identity(resolved_type)
+        if resolved_type is not None and resolved_type is not self:
             # ensure the resolved type resolves to itself
-            typ._resolved_type = typ
-            typ._resolved_identity_key = self._resolved_identity_key
+            resolved_type._resolved_type = resolved_type
+            resolved_type._resolved_identity_key = self._resolved_identity_key
+        return resolved_type
 
     def _to_resolved(self) -> "TypeInfoBase":
-        assert self._resolved_type is not None, f"unresolved type {self!r}"
-        assert self._resolved_type.kind is not None, f"missing type identity {self!r}"
-        return self._resolved_type
+        if self._resolved_type is None:
+            return self._resolve_type()
+        else:
+            return self._resolved_type
 
     @override
     def _validate_component(
@@ -523,7 +522,7 @@ class Field(SourceNode[FieldData], HasNodeBase, TypeInfoBase, _TypeQueryBuilder)
 
     @staticmethod
     def option(name: str, **kwargs) -> "Field":
-        return Field(zone=FieldZone.OPTION, name=name, **kwargs)
+        return Field(kind=TypeKind.LITERAL, zone=FieldZone.OPTION, name=name, **kwargs)
 
     @staticmethod
     def variable(name: str, typ: TypeIn, **kwargs) -> "Field":

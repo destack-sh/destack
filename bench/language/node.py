@@ -802,7 +802,7 @@ class BuiltinObject[ObjectDataT: AnyNodeData | AnyStructData](abc.ABC):
             return False
         for prop in self.__wired_properties__.values():
             if prop.id < 30:
-                continue  # ignore struct identity
+                continue  # ignore identity/tracking
             self_value = getattr(self, prop.name)
             other_value = getattr(other, prop.name)
             if self_value != other_value and (
@@ -1017,10 +1017,10 @@ class BuiltinObject[ObjectDataT: AnyNodeData | AnyStructData](abc.ABC):
                 continue
             if prop.is_list:
                 ptr = cast(list["PropertyReference"], ptr)
-                setattr(self, prop.name, [p.resolve() for p in ptr])
+                self._do_set(prop.name, [p.resolve() for p in ptr], untracked=True)
             else:
                 ptr = cast("PropertyReference", ptr)
-                setattr(self, prop.name, ptr.resolve())
+                self._do_set(prop.name, ptr.resolve(), untracked=True)
 
     def __bool__(self):
         return True  # allow truthy checks for objects

@@ -32,7 +32,7 @@ const VIEW_TYPE_BY_PRIMITIVE_TYPE: Partial<Record<PrimitiveType, ViewType>> = {
   [PrimitiveType.JSON]: ViewType.JSON,
 };
 
-export function getViewForValueType(type: TypeIdentity & Partial<TypeInfoData>): {
+export function getViewForValueType(type: Omit<TypeIdentity, "kind"> & Partial<TypeInfoData>): {
   viewType: ViewType;
   props?: ViewProps;
 } | null {

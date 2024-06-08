@@ -18,10 +18,10 @@ from bench.language.access import Badge, Ownable
 from bench.language.bench import Client, Machine, MachineProfile, ResourceStatus
 from bench.language.connection import InMemoryEngine, PostgresEngine, StoreEngine
 from bench.language.const import (
+    ETERNAL_NODE_TYPES,
     IN_BENCH_GLOBAL_NODE_TYPES,
     IN_BENCH_NODE_TYPES,
     LOCAL_NODE_TYPES,
-    ETERNAL_NODE_TYPES,
     ClientType,
     NodeType,
 )

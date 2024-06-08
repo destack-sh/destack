@@ -125,26 +125,26 @@ class Run(PackageNode[RunData], HasTimeIdentity, HasNodeBase, HasSessionContext,
     code: Optional["Code"] = p_internal(36, require=False, array=False, struct=StructType.CODE)
     text: Optional["Text"] = p_internal(37, require=False, array=False, struct=StructType.TEXT)
     # extra run options if different from base (or base doesn't exist)
-    options: Optional["RunOptions"] = p_internal(
+    options: Optional["RunOptions"] = p_regular(
         38, require=False, array=False, struct=StructType.RUN_OPTIONS
     )
 
     # status (overall)
-    status: RunStatus = p_internal(40, default=RunStatus.SCHEDULED)
-    duration: Optional[float] = p_internal(
-        41,
+    status: RunStatus = p_regular(40, default=RunStatus.SCHEDULED)  # desired status
+    current_status: Optional[RunStatus] = p_regular(41, default=None)
+    duration: Optional[float] = p_regular(
+        42,
         default=None,
         description="Duration in seconds from first attempt start to last attempt termination.",
     )
-    scheduled_at: Optional[datetime] = p_internal(42, default=None)
-    scheduled_epoch: Optional[int] = p_internal(43, default=None)
-    started_at: Optional[datetime] = p_internal(44, default=None)
-    started_epoch: Optional[int] = p_internal(45, default=None)
-    paused_at: Optional[datetime] = p_internal(46, default=None)
-    terminated_at: Optional[datetime] = p_internal(47, default=None)
-    terminated_epoch: Optional[int] = p_internal(48, default=None)
+    scheduled_at: Optional[datetime] = p_regular(43, default=None)
+    scheduled_epoch: Optional[int] = p_regular(44, default=None)
+    started_at: Optional[datetime] = p_regular(45, default=None)
+    started_epoch: Optional[int] = p_regular(46, default=None)
+    paused_at: Optional[datetime] = p_regular(47, default=None)
+    terminated_at: Optional[datetime] = p_regular(48, default=None)
+    terminated_epoch: Optional[int] = p_regular(49, default=None)
     # attempts is populated if the first attempt is not successful
-    attempts: list[RetryAttempt] = p_internal(49, array=True, struct=StructType.RETRY_ATTEMPT)
 
     # content
     inputs_packed: Any = p_value_packed(50)
@@ -156,8 +156,9 @@ class Run(PackageNode[RunData], HasTimeIdentity, HasNodeBase, HasSessionContext,
     value_packed: Any = p_value_packed(54)
     value_secret_packed: Any = p_secret_value_packed(55)
     value: Any = p_value_runtime(54, 55, typ=None)  # freely typed
+    attempts: list[RetryAttempt] = p_internal(56, array=True, struct=StructType.RETRY_ATTEMPT)
     error: Optional["RunError"] = p_internal(
-        56, default=None, require=False, array=False, struct=StructType.RUN_ERROR
+        57, default=None, require=False, array=False, struct=StructType.RUN_ERROR
     )
 
     # ...HasSessionContext[60-69]

@@ -307,7 +307,7 @@ def unpack_node_graph(
             raise ValueError(f"root {source_root!r} root found in unpacked {unpacked_graph!r}")
         root._graph.set(unpacked_graph.nodes)
         for node in unpacked_graph.nodes_by_id.values():
-            node._resolve_references(node)
+            node._resolve_references(parent or node)
             if session is not None:
                 node._track_self(session)
         unpacked_roots.append(root)

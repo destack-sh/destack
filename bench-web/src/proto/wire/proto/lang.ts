@@ -1604,7 +1604,7 @@ export interface TypeConstraintData {
     endsWith?: string;
 }
 /**
- * TypeInfo(kind: Optional[bench.language.const.TypeKind] = None, primitive_type: Optional[bench.language.const.PrimitiveType] = None, bench_type: Optional[bench.utils.func.BenchType] = None, base_type: Union[ForwardRef('Block'), ForwardRef('Step'), NoneType] = None, base_field_zone: Optional[ForwardRef('FieldZone')] = None, default_packed: Optional[Any] = None, default: None = None, visibility: Optional[bench.language.const.Visibility] = None, format_hint: Optional[bench.language.const.FormatHint] = None, condition: Optional[ForwardRef('Expression')] = None, constraint: Optional[ForwardRef('TypeConstraint')] = None, is_list: bool = False, is_secret: bool = False, is_required: bool = False, _resolved_type: Optional[ForwardRef('TypeInfoBase')] = None, _resolved_identity_key: str | None = None, _from_property: Optional[ForwardRef('Property')] = None, _session: 'Session | None' = None, _updated_properties: bitarray.bitarray | None = None, parent: Union[ForwardRef('BuiltinObject'), ForwardRef('Object'), NoneType] = None, id: int = <factory>, order_key: str | None = None, base_type_ptr: 'NodeReference' = None, parent_id: int = None, parent_key: str = None)
+ * TypeInfo(kind: bench.language.const.TypeKind = <factory>, primitive_type: Optional[bench.language.const.PrimitiveType] = None, bench_type: Optional[bench.utils.func.BenchType] = None, base_type: Union[ForwardRef('Block'), ForwardRef('Step'), NoneType] = None, base_field_zone: Optional[ForwardRef('FieldZone')] = None, default_packed: Optional[Any] = None, default: None = None, visibility: Optional[bench.language.const.Visibility] = None, format_hint: Optional[bench.language.const.FormatHint] = None, condition: Optional[ForwardRef('Expression')] = None, constraint: Optional[ForwardRef('TypeConstraint')] = None, is_list: bool = False, is_secret: bool = False, is_required: bool = False, _resolved_type: Optional[ForwardRef('TypeInfoBase')] = None, _resolved_identity_key: str | None = None, _from_property: Optional[ForwardRef('Property')] = None, _session: 'Session | None' = None, _updated_properties: bitarray.bitarray | None = None, parent: Union[ForwardRef('BuiltinObject'), ForwardRef('Object'), NoneType] = None, id: int = <factory>, order_key: str | None = None, base_type_ptr: 'NodeReference' = None, parent_id: int = None, parent_key: str = None)
  *
  * @generated from protobuf message symbolx.bench.TypeInfoData
  */
@@ -1630,9 +1630,9 @@ export interface TypeInfoData {
      */
     orderKey?: string;
     /**
-     * @generated from protobuf field: optional symbolx.bench.TypeKind kind = 40;
+     * @generated from protobuf field: symbolx.bench.TypeKind kind = 40;
      */
-    kind?: TypeKind;
+    kind: TypeKind;
     /**
      * @generated from protobuf field: optional symbolx.bench.PrimitiveType primitive_type = 41;
      */
@@ -2767,9 +2767,9 @@ export interface FieldData {
      */
     valuePacked?: Struct;
     /**
-     * @generated from protobuf field: optional symbolx.bench.TypeKind kind = 40;
+     * @generated from protobuf field: symbolx.bench.TypeKind kind = 40;
      */
-    kind?: TypeKind;
+    kind: TypeKind;
     /**
      * @generated from protobuf field: optional symbolx.bench.PrimitiveType primitive_type = 41;
      */
@@ -9834,6 +9834,10 @@ export enum TypeKind {
      */
     OBJECT = 6,
     /**
+     * @generated from protobuf enum value: TYPE_KIND_LITERAL = 7;
+     */
+    LITERAL = 7,
+    /**
      * @generated from protobuf enum value: TYPE_KIND_ALIAS = 10;
      */
     ALIAS = 10
@@ -14021,7 +14025,7 @@ class TypeInfoData$Type extends MessageType<TypeInfoData> {
             { no: 3, name: "parent_id", kind: "scalar", opt: true, T: 5 /*ScalarType.INT32*/ },
             { no: 4, name: "parent_key", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
             { no: 9, name: "order_key", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
-            { no: 40, name: "kind", kind: "enum", opt: true, T: () => ["symbolx.bench.TypeKind", TypeKind, "TYPE_KIND_"] },
+            { no: 40, name: "kind", kind: "enum", T: () => ["symbolx.bench.TypeKind", TypeKind, "TYPE_KIND_"] },
             { no: 41, name: "primitive_type", kind: "enum", opt: true, T: () => ["symbolx.bench.PrimitiveType", PrimitiveType, "PRIMITIVE_TYPE_"] },
             { no: 42, name: "bench_type", kind: "enum", opt: true, T: () => ["symbolx.bench.BenchType", BenchType, "BENCH_TYPE_"] },
             { no: 43, name: "base_type_ptr", kind: "message", T: () => NodeReferenceData },
@@ -14040,6 +14044,7 @@ class TypeInfoData$Type extends MessageType<TypeInfoData> {
         const message = globalThis.Object.create((this.messagePrototype!));
         message.metatype = 0;
         message.id = 0;
+        message.kind = 0;
         message.isList = false;
         message.isSecret = false;
         message.isRequired = false;
@@ -14067,7 +14072,7 @@ class TypeInfoData$Type extends MessageType<TypeInfoData> {
                 case /* optional string order_key */ 9:
                     message.orderKey = reader.string();
                     break;
-                case /* optional symbolx.bench.TypeKind kind */ 40:
+                case /* symbolx.bench.TypeKind kind */ 40:
                     message.kind = reader.int32();
                     break;
                 case /* optional symbolx.bench.PrimitiveType primitive_type */ 41:
@@ -14133,8 +14138,8 @@ class TypeInfoData$Type extends MessageType<TypeInfoData> {
         /* optional string order_key = 9; */
         if (message.orderKey !== undefined)
             writer.tag(9, WireType.LengthDelimited).string(message.orderKey);
-        /* optional symbolx.bench.TypeKind kind = 40; */
-        if (message.kind !== undefined)
+        /* symbolx.bench.TypeKind kind = 40; */
+        if (message.kind !== 0)
             writer.tag(40, WireType.Varint).int32(message.kind);
         /* optional symbolx.bench.PrimitiveType primitive_type = 41; */
         if (message.primitiveType !== undefined)
@@ -16358,7 +16363,7 @@ class FieldData$Type extends MessageType<FieldData> {
             { no: 33, name: "text", kind: "message", T: () => TextData },
             { no: 34, name: "icon", kind: "message", T: () => IconData },
             { no: 35, name: "value_packed", kind: "message", T: () => Struct },
-            { no: 40, name: "kind", kind: "enum", opt: true, T: () => ["symbolx.bench.TypeKind", TypeKind, "TYPE_KIND_"] },
+            { no: 40, name: "kind", kind: "enum", T: () => ["symbolx.bench.TypeKind", TypeKind, "TYPE_KIND_"] },
             { no: 41, name: "primitive_type", kind: "enum", opt: true, T: () => ["symbolx.bench.PrimitiveType", PrimitiveType, "PRIMITIVE_TYPE_"] },
             { no: 42, name: "bench_type", kind: "enum", opt: true, T: () => ["symbolx.bench.BenchType", BenchType, "BENCH_TYPE_"] },
             { no: 43, name: "base_type_ptr", kind: "message", T: () => NodeReferenceData },
@@ -16385,6 +16390,7 @@ class FieldData$Type extends MessageType<FieldData> {
         message.name = "";
         message.orderKey = "";
         message.zone = 0;
+        message.kind = 0;
         message.isList = false;
         message.isSecret = false;
         message.isRequired = false;
@@ -16473,7 +16479,7 @@ class FieldData$Type extends MessageType<FieldData> {
                 case /* optional google.protobuf.Struct value_packed */ 35:
                     message.valuePacked = Struct.internalBinaryRead(reader, reader.uint32(), options, message.valuePacked);
                     break;
-                case /* optional symbolx.bench.TypeKind kind */ 40:
+                case /* symbolx.bench.TypeKind kind */ 40:
                     message.kind = reader.int32();
                     break;
                 case /* optional symbolx.bench.PrimitiveType primitive_type */ 41:
@@ -16600,8 +16606,8 @@ class FieldData$Type extends MessageType<FieldData> {
         /* optional google.protobuf.Struct value_packed = 35; */
         if (message.valuePacked)
             Struct.internalBinaryWrite(message.valuePacked, writer.tag(35, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbolx.bench.TypeKind kind = 40; */
-        if (message.kind !== undefined)
+        /* symbolx.bench.TypeKind kind = 40; */
+        if (message.kind !== 0)
             writer.tag(40, WireType.Varint).int32(message.kind);
         /* optional symbolx.bench.PrimitiveType primitive_type = 41; */
         if (message.primitiveType !== undefined)
@@ -25846,7 +25852,7 @@ export const TypeInfoDataInfo: Record<TypeInfoProperty, PropertyInfo> = {
   [TypeInfoProperty.parentId]: { id: 3, name: 'parent_id', component: ObjectType.TYPE_INFO, kind: 'reference', primitiveType: PrimitiveType.INT32, isInternal: true, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_PARENT },
   [TypeInfoProperty.parentKey]: { id: 4, name: 'parent_key', component: ObjectType.TYPE_INFO, kind: 'reference', primitiveType: PrimitiveType.STRING, isInternal: true, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_PARENT },
   [TypeInfoProperty.orderKey]: { id: 9, name: 'order_key', component: ObjectType.TYPE_INFO, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isRuntime: true, isWired: true, isStored: true },
-  [TypeInfoProperty.kind]: { id: 40, name: 'kind', component: ObjectType.TYPE_INFO, enumType: EnumType.TYPE_KIND, kind: 'enum', primitiveType: PrimitiveType.INT16, isInternal: true, isRuntime: true, isWired: true, isStored: true },
+  [TypeInfoProperty.kind]: { id: 40, name: 'kind', component: ObjectType.TYPE_INFO, enumType: EnumType.TYPE_KIND, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [TypeInfoProperty.primitiveType]: { id: 41, name: 'primitive_type', component: ObjectType.TYPE_INFO, enumType: EnumType.PRIMITIVE_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRuntime: true, isWired: true, isStored: true },
   [TypeInfoProperty.benchType]: { id: 42, name: 'bench_type', component: ObjectType.TYPE_INFO, enumType: EnumType.BENCH_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRuntime: true, isWired: true, isStored: true },
   [TypeInfoProperty.baseTypePtr]: { id: 43, name: 'base_type_ptr', component: ObjectType.TYPE_INFO, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.BLOCK, NodeType.STEP], referenceStruct: StructType.NODE_REFERENCE },
@@ -26542,7 +26548,7 @@ export const FieldDataInfo: Record<FieldProperty, PropertyInfo> = {
   [FieldProperty.text]: { id: 33, name: 'text', component: ObjectType.FIELD, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.TEXT },
   [FieldProperty.icon]: { id: 34, name: 'icon', component: ObjectType.FIELD, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.ICON },
   [FieldProperty.valuePacked]: { id: 35, name: 'value_packed', component: ObjectType.FIELD, kind: 'primitive', primitiveType: PrimitiveType.JSON, isInternal: true, isRuntime: true, isWired: true, isStored: true, isValuePacked: true },
-  [FieldProperty.kind]: { id: 40, name: 'kind', component: ObjectType.FIELD, enumType: EnumType.TYPE_KIND, kind: 'enum', primitiveType: PrimitiveType.INT16, isInternal: true, isRuntime: true, isWired: true, isStored: true },
+  [FieldProperty.kind]: { id: 40, name: 'kind', component: ObjectType.FIELD, enumType: EnumType.TYPE_KIND, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [FieldProperty.primitiveType]: { id: 41, name: 'primitive_type', component: ObjectType.FIELD, enumType: EnumType.PRIMITIVE_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRuntime: true, isWired: true, isStored: true },
   [FieldProperty.benchType]: { id: 42, name: 'bench_type', component: ObjectType.FIELD, enumType: EnumType.BENCH_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRuntime: true, isWired: true, isStored: true },
   [FieldProperty.baseTypePtr]: { id: 43, name: 'base_type_ptr', component: ObjectType.FIELD, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.BLOCK, NodeType.STEP], referenceStruct: StructType.NODE_REFERENCE },

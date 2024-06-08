@@ -1084,6 +1084,7 @@ enum TypeKind {
   TYPE_KIND_ENUM = 4;
   TYPE_KIND_BASED_NODE = 5;
   TYPE_KIND_OBJECT = 6;
+  TYPE_KIND_LITERAL = 7;
   TYPE_KIND_ALIAS = 10;
 }
 
@@ -1730,14 +1731,14 @@ message TypeConstraintData {
   optional string ends_with = 62;
 }
 
-// TypeInfo(kind: Optional[bench.language.const.TypeKind] = None, primitive_type: Optional[bench.language.const.PrimitiveType] = None, bench_type: Optional[bench.utils.func.BenchType] = None, base_type: Union[ForwardRef('Block'), ForwardRef('Step'), NoneType] = None, base_field_zone: Optional[ForwardRef('FieldZone')] = None, default_packed: Optional[Any] = None, default: None = None, visibility: Optional[bench.language.const.Visibility] = None, format_hint: Optional[bench.language.const.FormatHint] = None, condition: Optional[ForwardRef('Expression')] = None, constraint: Optional[ForwardRef('TypeConstraint')] = None, is_list: bool = False, is_secret: bool = False, is_required: bool = False, _resolved_type: Optional[ForwardRef('TypeInfoBase')] = None, _resolved_identity_key: str | None = None, _from_property: Optional[ForwardRef('Property')] = None, _session: 'Session | None' = None, _updated_properties: bitarray.bitarray | None = None, parent: Union[ForwardRef('BuiltinObject'), ForwardRef('Object'), NoneType] = None, id: int = <factory>, order_key: str | None = None, base_type_ptr: 'NodeReference' = None, parent_id: int = None, parent_key: str = None)
+// TypeInfo(kind: bench.language.const.TypeKind = <factory>, primitive_type: Optional[bench.language.const.PrimitiveType] = None, bench_type: Optional[bench.utils.func.BenchType] = None, base_type: Union[ForwardRef('Block'), ForwardRef('Step'), NoneType] = None, base_field_zone: Optional[ForwardRef('FieldZone')] = None, default_packed: Optional[Any] = None, default: None = None, visibility: Optional[bench.language.const.Visibility] = None, format_hint: Optional[bench.language.const.FormatHint] = None, condition: Optional[ForwardRef('Expression')] = None, constraint: Optional[ForwardRef('TypeConstraint')] = None, is_list: bool = False, is_secret: bool = False, is_required: bool = False, _resolved_type: Optional[ForwardRef('TypeInfoBase')] = None, _resolved_identity_key: str | None = None, _from_property: Optional[ForwardRef('Property')] = None, _session: 'Session | None' = None, _updated_properties: bitarray.bitarray | None = None, parent: Union[ForwardRef('BuiltinObject'), ForwardRef('Object'), NoneType] = None, id: int = <factory>, order_key: str | None = None, base_type_ptr: 'NodeReference' = None, parent_id: int = None, parent_key: str = None)
 message TypeInfoData {
   ObjectType metatype = 1;
   int32 id = 2;
   optional int32 parent_id = 3;
   optional string parent_key = 4;
   optional string order_key = 9;
-  optional TypeKind kind = 40;
+  TypeKind kind = 40;
   optional PrimitiveType primitive_type = 41;
   optional BenchType bench_type = 42;
   optional NodeReferenceData base_type_ptr = 43;
@@ -2049,7 +2050,7 @@ message FieldData {
   optional TextData text = 33;
   optional IconData icon = 34;
   optional google.protobuf.Struct value_packed = 35;
-  optional TypeKind kind = 40;
+  TypeKind kind = 40;
   optional PrimitiveType primitive_type = 41;
   optional BenchType bench_type = 42;
   optional NodeReferenceData base_type_ptr = 43;

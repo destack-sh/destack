@@ -200,16 +200,21 @@ class NodeReference(InlineStruct[NodeReferenceData]):
 
 @struct_(StructType.PROPERTY_REFERENCE, inline=True)
 class PropertyReference(InlineStruct):
-    type: Optional[ObjectType] = p_regular(30, require=False)
+    type: ObjectType = p_regular(30)
     id: int = p_regular(31)
     # to disambiguate contributed properties
     references_type: Optional[NodeType] = p_regular(32, default=None)
 
     def __content_str__(self):
-        if self.type is not None:
-            return f"{self.type.bench_name}.[id={self.id}]"
+        object_cls = OBJECT_CLASS_BY_TYPE.get(self.type)
+        if object_cls is None:
+            return f"{self.type.bench_name}.??? [id={self.id}]"
         else:
-            return f"???.[id={self.id}]"
+            prop = object_cls.__properties_by_id__.get(self.id)
+            if prop is None:
+                return f"{self.type.bench_name}.??? [id={self.id}]"
+            else:
+                return f"{self.type.bench_name}.{prop.name} [id={self.id}]"
 
     def resolve(self) -> Property:
         if self.type is not None:

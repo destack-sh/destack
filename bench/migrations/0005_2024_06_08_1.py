@@ -1,10 +1,10 @@
 # This migration was automatically generated on 2024.06.08. Edit as needed.
 import psycopg
 
-ID = 4
-VERSION = "2024.06.08.0"
-HAS_GLOBAL = False
-HAS_LOCAL = True
+ID = 5
+VERSION = "2024.06.08.1"
+HAS_GLOBAL = True
+HAS_LOCAL = False
 
 
 #
@@ -13,11 +13,17 @@ HAS_LOCAL = True
 
 
 async def upgrade_global(cur: psycopg.AsyncCursor):
-    pass
+    # bench_field
+    await cur.execute(
+        """
+        ALTER TABLE bench_field    
+        ALTER COLUMN kind SET NOT NULL
+    """
+    )
 
 
 async def downgrade_global(cur: psycopg.AsyncCursor):
-    pass
+    raise NotImplementedError
 
 
 #
@@ -26,11 +32,7 @@ async def downgrade_global(cur: psycopg.AsyncCursor):
 
 
 async def upgrade_local(cur: psycopg.AsyncCursor):
-    # bench_notification
-    await cur.execute('ALTER TABLE "bench_notification" ADD COLUMN "ck" uuid NOT NULL')
-
-    # bench_message
-    await cur.execute('ALTER TABLE "bench_message" ADD COLUMN "ck" uuid NOT NULL')
+    pass
 
 
 async def downgrade_local(cur: psycopg.AsyncCursor):

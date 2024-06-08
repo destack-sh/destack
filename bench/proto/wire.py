@@ -3,7 +3,7 @@
 
 from typing import TYPE_CHECKING, Union
 
-VERSION = "2024.06.08.0"
+VERSION = "2024.06.08.1"
 
 if TYPE_CHECKING:
     from bench.language import Subject
@@ -1145,6 +1145,7 @@ class TypeKind(betterproto.Enum):
     ENUM = 4
     BASED_NODE = 5
     OBJECT = 6
+    LITERAL = 7
     ALIAS = 10
 
 
@@ -1924,7 +1925,7 @@ class TypeConstraintData(betterproto.Message):
 @dataclass(eq=False, repr=False)
 class TypeInfoData(betterproto.Message):
     """
-    TypeInfo(kind: Optional[bench.language.const.TypeKind] = None, primitive_type: Optional[bench.language.const.PrimitiveType] = None, bench_type: Optional[bench.utils.func.BenchType] = None, base_type: Union[ForwardRef('Block'), ForwardRef('Step'), NoneType] = None, base_field_zone: Optional[ForwardRef('FieldZone')] = None, default_packed: Optional[Any] = None, default: None = None, visibility: Optional[bench.language.const.Visibility] = None, format_hint: Optional[bench.language.const.FormatHint] = None, condition: Optional[ForwardRef('Expression')] = None, constraint: Optional[ForwardRef('TypeConstraint')] = None, is_list: bool = False, is_secret: bool = False, is_required: bool = False, _resolved_type: Optional[ForwardRef('TypeInfoBase')] = None, _resolved_identity_key: str | None = None, _from_property: Optional[ForwardRef('Property')] = None, _session: 'Session | None' = None, _updated_properties: bitarray.bitarray | None = None, parent: Union[ForwardRef('BuiltinObject'), ForwardRef('Object'), NoneType] = None, id: int = <factory>, order_key: str | None = None, base_type_ptr: 'NodeReference' = None, parent_id: int = None, parent_key: str = None)
+    TypeInfo(kind: bench.language.const.TypeKind = <factory>, primitive_type: Optional[bench.language.const.PrimitiveType] = None, bench_type: Optional[bench.utils.func.BenchType] = None, base_type: Union[ForwardRef('Block'), ForwardRef('Step'), NoneType] = None, base_field_zone: Optional[ForwardRef('FieldZone')] = None, default_packed: Optional[Any] = None, default: None = None, visibility: Optional[bench.language.const.Visibility] = None, format_hint: Optional[bench.language.const.FormatHint] = None, condition: Optional[ForwardRef('Expression')] = None, constraint: Optional[ForwardRef('TypeConstraint')] = None, is_list: bool = False, is_secret: bool = False, is_required: bool = False, _resolved_type: Optional[ForwardRef('TypeInfoBase')] = None, _resolved_identity_key: str | None = None, _from_property: Optional[ForwardRef('Property')] = None, _session: 'Session | None' = None, _updated_properties: bitarray.bitarray | None = None, parent: Union[ForwardRef('BuiltinObject'), ForwardRef('Object'), NoneType] = None, id: int = <factory>, order_key: str | None = None, base_type_ptr: 'NodeReference' = None, parent_id: int = None, parent_key: str = None)
     """
 
     metatype: "ObjectType" = betterproto.enum_field(1)
@@ -1932,7 +1933,7 @@ class TypeInfoData(betterproto.Message):
     parent_id: Optional[int] = betterproto.int32_field(3, optional=True)
     parent_key: Optional[str] = betterproto.string_field(4, optional=True)
     order_key: Optional[str] = betterproto.string_field(9, optional=True)
-    kind: Optional["TypeKind"] = betterproto.enum_field(40, optional=True)
+    kind: "TypeKind" = betterproto.enum_field(40)
     primitive_type: Optional["PrimitiveType"] = betterproto.enum_field(41, optional=True)
     bench_type: Optional["BenchType"] = betterproto.enum_field(42, optional=True)
     base_type_ptr: Optional["NodeReferenceData"] = betterproto.message_field(43, optional=True)
@@ -2288,7 +2289,7 @@ class FieldData(betterproto.Message):
     value_packed: Optional["betterproto_lib_google_protobuf.Struct"] = betterproto.message_field(
         35, optional=True
     )
-    kind: Optional["TypeKind"] = betterproto.enum_field(40, optional=True)
+    kind: "TypeKind" = betterproto.enum_field(40)
     primitive_type: Optional["PrimitiveType"] = betterproto.enum_field(41, optional=True)
     bench_type: Optional["BenchType"] = betterproto.enum_field(42, optional=True)
     base_type_ptr: Optional["NodeReferenceData"] = betterproto.message_field(43, optional=True)

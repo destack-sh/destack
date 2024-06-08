@@ -7,6 +7,7 @@ import {
   NodeType,
   Struct as ProtoStruct,
   TypeInfoData,
+  TypeKind,
   Variant,
   ViewData,
   ViewType,
@@ -202,7 +203,10 @@ defineExpose<ViewExposed>({ self, id, variants: [Variant.PRIMARY, Variant.STEALT
             @click="
               (e) => {
                 if (block!.type == BlockType.CHOICE) {
-                  createField(pkgConnection.tx, pkgGraph, 'inside', block!, { zone: FieldZone.OPTION });
+                  createField(pkgConnection.tx, pkgGraph, 'inside', block!, {
+                    kind: TypeKind.LITERAL,
+                    zone: FieldZone.OPTION,
+                  });
                 } else {
                   const button = (e.target as HTMLElement).closest('button')!;
                   pushPopover({
