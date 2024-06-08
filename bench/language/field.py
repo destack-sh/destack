@@ -144,25 +144,38 @@ def decode_type_identity(key: str) -> "TypeInfoBase":
     # value
     if kind == TypeKind.PRIMITIVE.value:
         primitive_type = PrimitiveType(decode_b64vlq(value))
-        return TypeInfo(primitive_type=primitive_type, is_list=is_list, is_secret=is_secret)
+        return TypeInfo(
+            kind=TypeKind.PRIMITIVE,
+            primitive_type=primitive_type,
+            is_list=is_list,
+            is_secret=is_secret,
+        )
     elif (
         kind == TypeKind.NODE.value or kind == TypeKind.STRUCT.value or kind == TypeKind.ENUM.value
     ):
         bench_type = BenchType(decode_b64vlq(value))  # type: ignore
-        return TypeInfo(bench_type=bench_type, is_list=is_list, is_secret=is_secret)
+        return TypeInfo(
+            kind=TypeKind(kind), bench_type=bench_type, is_list=is_list, is_secret=is_secret
+        )
     elif kind == TypeKind.BASED_NODE.value:
         base_type_ptr = NodeReference(
             type=NodeType.BLOCK, ck=pad_ck_from_tk_b64(value[:TK_LENGTH_B64])
         )
         bench_type = BenchType(decode_b64vlq(value[TK_LENGTH_B64:]))  # type: ignore
         return TypeInfo(
-            base_type_ptr=base_type_ptr, bench_type=bench_type, is_list=is_list, is_secret=is_secret
+            kind=TypeKind.BASED_NODE,
+            base_type_ptr=base_type_ptr,
+            bench_type=bench_type,
+            is_list=is_list,
+            is_secret=is_secret,
         )
     elif kind == TypeKind.OBJECT.value:
         base_type_ptr = NodeReference(
             type=NodeType.BLOCK, ck=pad_ck_from_tk_b64(value[:TK_LENGTH_B64])
         )
-        return TypeInfo(base_type_ptr=base_type_ptr, is_list=is_list, is_secret=is_secret)
+        return TypeInfo(
+            kind=TypeKind.OBJECT, base_type_ptr=base_type_ptr, is_list=is_list, is_secret=is_secret
+        )
 
     raise ValueError(f"unsupported type kind {kind}")
 

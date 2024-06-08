@@ -739,7 +739,7 @@ class GraphNodeList(NodeList[NodeT]):
             setattr(node, "order_key", ok)
 
         # 'create' node in session if it's attached
-        if self._parent._session and self._parent.is_attached:
+        if self._parent._session and self._parent._is_attached:
             self._parent._session.create(*added)
             self._parent._session.track_many(*added)
 

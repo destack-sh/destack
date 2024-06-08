@@ -2,7 +2,7 @@
 
 import functools
 import re
-from typing import TYPE_CHECKING, Any, Collection, Optional, TypeVar, Union, cast
+from typing import TYPE_CHECKING, Any, Collection, Optional, Type, TypeVar, Union, cast, override
 from uuid import UUID
 
 from bench.language.const import (
@@ -24,6 +24,7 @@ from bench.language.const import (
 )
 from bench.language.node import (
     BenchNode,
+    BuiltinObject,
     HasNodeBase,
     InlineStruct,
     Node,
@@ -31,7 +32,7 @@ from bench.language.node import (
     Struct,
     struct_,
 )
-from bench.language.property import p_regular, p_value_packed, p_value_runtime
+from bench.language.property import p_internal, p_regular, p_value_packed, p_value_runtime
 from bench.language.setup import OBJECT_CLASS_BY_TYPE
 from bench.language.validation import ValidationHandler
 from bench.language.value import HasValues
@@ -41,7 +42,7 @@ from bench.utils.casing import Casing, to_casing
 from bench.utils.func import IdEnum
 
 if TYPE_CHECKING:
-    from bench.language import Block, Field, Path, TypeInfo
+    from bench.language import Block, Field, Path, TypeInfoBase
 
 # pyright: reportIncompatibleVariableOverride=false
 
@@ -87,13 +88,13 @@ class NodeReference(InlineStruct[NodeReferenceData]):
     Base = the node is 'based' on (like Record.parent->Block, Signal.type->Block).
     """
 
-    type: NodeType = p_regular(30, require=True)
-    id: Optional[UUID] = p_regular(31, default=None)
-    ck: Optional[UUID] = p_regular(32, default=None)
-    bench_id: Optional[UUID] = p_regular(33, default=None)
-    base_ck: Optional[UUID] = p_regular(34, default=None)
+    type: NodeType = p_internal(30, require=True)
+    id: Optional[UUID] = p_internal(31, default=None)
+    ck: Optional[UUID] = p_internal(32, default=None)
+    bench_id: Optional[UUID] = p_internal(33, default=None)
+    base_ck: Optional[UUID] = p_internal(34, default=None)
     # base could be in a different Bench (e.g. a Signal in Bench A with a type from Bench B)
-    base_bench_id: Optional[UUID] = p_regular(35, default=None)
+    base_bench_id: Optional[UUID] = p_internal(35, default=None)
 
     def __content_str__(self):
         selector_str_parts = []
@@ -200,28 +201,51 @@ class NodeReference(InlineStruct[NodeReferenceData]):
 
 @struct_(StructType.PROPERTY_REFERENCE, inline=True)
 class PropertyReference(InlineStruct):
-    type: ObjectType = p_regular(30)
+    """
+    A reference to a builtin object's Property.
+    If type is unset, this refers to a base property in one of the base BuiltinObject types.
+    """
+
+    type: ObjectType | None = p_regular(30)
     id: int = p_regular(31)
-    # to disambiguate contributed properties
-    references_type: Optional[NodeType] = p_regular(32, default=None)
 
     def __content_str__(self):
-        object_cls = OBJECT_CLASS_BY_TYPE.get(self.type)
+        object_cls = Node if self.type is None else OBJECT_CLASS_BY_TYPE.get(self.type)
         if object_cls is None:
-            return f"{self.type.bench_name}.??? [id={self.id}]"
+            if self.type is None:
+                return f"Node.??? [id={self.id}]"
+            else:
+                return f"{self.type.name}.??? [id={self.id}]"
         else:
             prop = object_cls.__properties_by_id__.get(self.id)
             if prop is None:
-                return f"{self.type.bench_name}.??? [id={self.id}]"
+                return f"{object_cls.__name__}.??? [id={self.id}]"
             else:
-                return f"{self.type.bench_name}.{prop.name} [id={self.id}]"
+                return f"{object_cls.__name__}.{prop.name} [id={self.id}]"
+
+    @property
+    def object_cls(self) -> Type[BuiltinObject] | None:
+        if self.type is None:
+            return Node
+        else:
+            return OBJECT_CLASS_BY_TYPE.get(self.type)
+
+    @override
+    def _validate_component(self, properties: tuple[Property, ...], invalid: "ValidationHandler"):
+        object_cls = self.object_cls
+        if object_cls is None:
+            invalid(self, "invalid type", (PropertyReference.type,))
+        else:
+            prop = object_cls.__properties_by_id__.get(self.id)
+            if prop is None:
+                invalid(self, "invalid prop id", (PropertyReference.id,))
 
     def resolve(self) -> Property:
-        if self.type is not None:
-            bench_cls = OBJECT_CLASS_BY_TYPE[self.type]
-            return bench_cls._resolve_property(self)
-        else:
-            return Node._resolve_property(self)
+        object_cls = self.object_cls
+        prop = (object_cls or Node).__properties_by_id__.get(self.id)
+        if prop is None:
+            raise ValueError(f"invalid property: {self!r}")
+        return prop
 
 
 @struct_(StructType.VALUE_REFERENCE)
@@ -270,7 +294,7 @@ class Expression(Struct, HasValues):
     )
     clauses: list["Expression"] | None = p_regular(35, array=True, struct=StructType.EXPRESSION)
     value_packed: Any = p_value_packed(36)
-    value: Any = p_value_runtime(36, typ=lambda self: cast(Expression, self)._value_type)
+    value: Any = p_value_runtime(36, typ=lambda self: cast(Expression, self).value_type)
     sort_mode: Optional[SortMode] = p_regular(38, default=None)
 
     @__property__
@@ -278,13 +302,13 @@ class Expression(Struct, HasValues):
         return EXPRESSION_KIND_BY_OP[self.op]
 
     @__property__
-    def _value_type(self) -> "TypeInfo":
+    def value_type(self) -> "TypeInfoBase | None":
         if self.field is not None:
             typ = self.field.as_type_info
         elif self.property is not None:
             typ = self.property.as_type_info
         else:
-            raise ValueError(f"no target for {self!r}")
+            return None
         # wrap as list if needed
         if not typ.is_list and (self.op == ConditionalOp.IN or self.op == ConditionalOp.NOT_IN):
             typ = typ._copy(is_list=True)
@@ -605,11 +629,11 @@ METATYPE_KEY = "_type"
 
 
 class UnsupportedExpressionError(ValueError):
-    def __init__(self, type: "TypeInfo", thing: Any):
+    def __init__(self, type: "TypeInfoBase", thing: Any):
         super().__init__(f"{type!r} does not support {thing!r}")
 
 
-def _check_type_supports(type: "TypeInfo", op: ExpressionOp):
+def _check_type_supports(type: "TypeInfoBase", op: ExpressionOp):
     """Asserts that the field supports the given expression operator."""
     if op in SortOp:
         if type.primitive_type in (
@@ -690,7 +714,7 @@ class _TypeQueryBuilder:
     """
 
     @property
-    def as_type_info(self) -> "TypeInfo":
+    def as_type_info(self) -> "TypeInfoBase":
         raise NotImplementedError(f"{self!r} does not implement type")
 
     #

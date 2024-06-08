@@ -948,7 +948,8 @@ export interface ProjectionData {
     orderKey?: string;
 }
 /**
- * PropertyReference(type: Optional[bench.utils.func.ObjectType] = <factory>, id: int = <factory>, references_type: Optional[bench.language.const.NodeType] = None, _session: 'Session | None' = None, _updated_properties: bitarray.bitarray | None = None, parent: Union[ForwardRef('BuiltinObject'), ForwardRef('Object'), NoneType] = None, parent_id: int = None, parent_key: str = None)
+ * A reference to a builtin object's Property.
+ * If type is unset, this refers to a base property in one of the base BuiltinObject types.
  *
  * @generated from protobuf message symbolx.bench.PropertyReferenceData
  */
@@ -965,10 +966,6 @@ export interface PropertyReferenceData {
      * @generated from protobuf field: int32 id = 31;
      */
     id: number;
-    /**
-     * @generated from protobuf field: optional symbolx.bench.NodeType references_type = 32;
-     */
-    referencesType?: NodeType;
 }
 /**
  * Fine-grained options to a read request.
@@ -2008,6 +2005,10 @@ export interface BlobData {
      */
     status: ResourceStatus;
     /**
+     * @generated from protobuf field: optional symbolx.bench.ResourceStatus current_status = 37;
+     */
+    currentStatus?: ResourceStatus;
+    /**
      * @generated from protobuf field: string sha512 = 40;
      */
     sha512: string;
@@ -2571,6 +2572,10 @@ export interface DriveData {
      * @generated from protobuf field: symbolx.bench.ResourceStatus status = 36;
      */
     status: ResourceStatus;
+    /**
+     * @generated from protobuf field: optional symbolx.bench.ResourceStatus current_status = 37;
+     */
+    currentStatus?: ResourceStatus;
 }
 /**
  * An environment of resources for a Bench's packages.
@@ -3487,6 +3492,10 @@ export interface MachineData {
      * @generated from protobuf field: symbolx.bench.ResourceStatus status = 36;
      */
     status: ResourceStatus;
+    /**
+     * @generated from protobuf field: optional symbolx.bench.ResourceStatus current_status = 37;
+     */
+    currentStatus?: ResourceStatus;
     /**
      * @generated from protobuf field: symbolx.bench.MachineProfile profile = 40;
      */
@@ -4486,41 +4495,41 @@ export interface RunData {
      */
     status: RunStatus;
     /**
-     * @generated from protobuf field: optional float duration = 41;
+     * @generated from protobuf field: optional symbolx.bench.RunStatus current_status = 41;
+     */
+    currentStatus?: RunStatus;
+    /**
+     * @generated from protobuf field: optional float duration = 42;
      */
     duration?: number;
     /**
-     * @generated from protobuf field: optional google.protobuf.Timestamp scheduled_at = 42;
+     * @generated from protobuf field: optional google.protobuf.Timestamp scheduled_at = 43;
      */
     scheduledAt?: Timestamp;
     /**
-     * @generated from protobuf field: optional int32 scheduled_epoch = 43;
+     * @generated from protobuf field: optional int32 scheduled_epoch = 44;
      */
     scheduledEpoch?: number;
     /**
-     * @generated from protobuf field: optional google.protobuf.Timestamp started_at = 44;
+     * @generated from protobuf field: optional google.protobuf.Timestamp started_at = 45;
      */
     startedAt?: Timestamp;
     /**
-     * @generated from protobuf field: optional int32 started_epoch = 45;
+     * @generated from protobuf field: optional int32 started_epoch = 46;
      */
     startedEpoch?: number;
     /**
-     * @generated from protobuf field: optional google.protobuf.Timestamp paused_at = 46;
+     * @generated from protobuf field: optional google.protobuf.Timestamp paused_at = 47;
      */
     pausedAt?: Timestamp;
     /**
-     * @generated from protobuf field: optional google.protobuf.Timestamp terminated_at = 47;
+     * @generated from protobuf field: optional google.protobuf.Timestamp terminated_at = 48;
      */
     terminatedAt?: Timestamp;
     /**
-     * @generated from protobuf field: optional int32 terminated_epoch = 48;
+     * @generated from protobuf field: optional int32 terminated_epoch = 49;
      */
     terminatedEpoch?: number;
-    /**
-     * @generated from protobuf field: repeated symbolx.bench.RetryAttemptData attempts = 49;
-     */
-    attempts: RetryAttemptData[];
     /**
      * @generated from protobuf field: optional google.protobuf.Struct inputs_packed = 50;
      */
@@ -4546,7 +4555,11 @@ export interface RunData {
      */
     valueSecretPacked?: Struct;
     /**
-     * @generated from protobuf field: optional symbolx.bench.RunErrorData error = 56;
+     * @generated from protobuf field: repeated symbolx.bench.RetryAttemptData attempts = 56;
+     */
+    attempts: RetryAttemptData[];
+    /**
+     * @generated from protobuf field: optional symbolx.bench.RunErrorData error = 57;
      */
     error?: RunErrorData;
     /**
@@ -4665,6 +4678,10 @@ export interface ServerData {
      * @generated from protobuf field: symbolx.bench.ResourceStatus status = 36;
      */
     status: ResourceStatus;
+    /**
+     * @generated from protobuf field: optional symbolx.bench.ResourceStatus current_status = 37;
+     */
+    currentStatus?: ResourceStatus;
     /**
      * @generated from protobuf field: symbolx.bench.ServerProfile profile = 40;
      */
@@ -5290,6 +5307,10 @@ export interface StoreData {
      * @generated from protobuf field: symbolx.bench.ResourceStatus status = 36;
      */
     status: ResourceStatus;
+    /**
+     * @generated from protobuf field: optional symbolx.bench.ResourceStatus current_status = 37;
+     */
+    currentStatus?: ResourceStatus;
     /**
      * @generated from protobuf field: optional string version = 40;
      */
@@ -12438,8 +12459,7 @@ class PropertyReferenceData$Type extends MessageType<PropertyReferenceData> {
         super("symbolx.bench.PropertyReferenceData", [
             { no: 1, name: "metatype", kind: "enum", T: () => ["symbolx.bench.ObjectType", ObjectType, "OBJECT_TYPE_"] },
             { no: 30, name: "type", kind: "enum", opt: true, T: () => ["symbolx.bench.ObjectType", ObjectType, "OBJECT_TYPE_"] },
-            { no: 31, name: "id", kind: "scalar", T: 5 /*ScalarType.INT32*/ },
-            { no: 32, name: "references_type", kind: "enum", opt: true, T: () => ["symbolx.bench.NodeType", NodeType, "NODE_TYPE_"] }
+            { no: 31, name: "id", kind: "scalar", T: 5 /*ScalarType.INT32*/ }
         ]);
     }
     create(value?: PartialMessage<PropertyReferenceData>): PropertyReferenceData {
@@ -12464,9 +12484,6 @@ class PropertyReferenceData$Type extends MessageType<PropertyReferenceData> {
                 case /* int32 id */ 31:
                     message.id = reader.int32();
                     break;
-                case /* optional symbolx.bench.NodeType references_type */ 32:
-                    message.referencesType = reader.int32();
-                    break;
                 default:
                     let u = options.readUnknownField;
                     if (u === "throw")
@@ -12488,9 +12505,6 @@ class PropertyReferenceData$Type extends MessageType<PropertyReferenceData> {
         /* int32 id = 31; */
         if (message.id !== 0)
             writer.tag(31, WireType.Varint).int32(message.id);
-        /* optional symbolx.bench.NodeType references_type = 32; */
-        if (message.referencesType !== undefined)
-            writer.tag(32, WireType.Varint).int32(message.referencesType);
         let u = options.writeUnknownFields;
         if (u !== false)
             (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
@@ -14755,6 +14769,7 @@ class BlobData$Type extends MessageType<BlobData> {
             { no: 34, name: "text", kind: "message", T: () => TextData },
             { no: 35, name: "region", kind: "enum", T: () => ["symbolx.bench.Region", Region, "REGION_"] },
             { no: 36, name: "status", kind: "enum", T: () => ["symbolx.bench.ResourceStatus", ResourceStatus, "RESOURCE_STATUS_"] },
+            { no: 37, name: "current_status", kind: "enum", opt: true, T: () => ["symbolx.bench.ResourceStatus", ResourceStatus, "RESOURCE_STATUS_"] },
             { no: 40, name: "sha512", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 41, name: "size", kind: "scalar", T: 3 /*ScalarType.INT64*/, L: 0 /*LongType.BIGINT*/ },
             { no: 42, name: "mime_type", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
@@ -14844,6 +14859,9 @@ class BlobData$Type extends MessageType<BlobData> {
                 case /* symbolx.bench.ResourceStatus status */ 36:
                     message.status = reader.int32();
                     break;
+                case /* optional symbolx.bench.ResourceStatus current_status */ 37:
+                    message.currentStatus = reader.int32();
+                    break;
                 case /* string sha512 */ 40:
                     message.sha512 = reader.string();
                     break;
@@ -14929,6 +14947,9 @@ class BlobData$Type extends MessageType<BlobData> {
         /* symbolx.bench.ResourceStatus status = 36; */
         if (message.status !== 0)
             writer.tag(36, WireType.Varint).int32(message.status);
+        /* optional symbolx.bench.ResourceStatus current_status = 37; */
+        if (message.currentStatus !== undefined)
+            writer.tag(37, WireType.Varint).int32(message.currentStatus);
         /* string sha512 = 40; */
         if (message.sha512 !== "")
             writer.tag(40, WireType.LengthDelimited).string(message.sha512);
@@ -15972,7 +15993,8 @@ class DriveData$Type extends MessageType<DriveData> {
             { no: 32, name: "name", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 34, name: "text", kind: "message", T: () => TextData },
             { no: 35, name: "region", kind: "enum", T: () => ["symbolx.bench.Region", Region, "REGION_"] },
-            { no: 36, name: "status", kind: "enum", T: () => ["symbolx.bench.ResourceStatus", ResourceStatus, "RESOURCE_STATUS_"] }
+            { no: 36, name: "status", kind: "enum", T: () => ["symbolx.bench.ResourceStatus", ResourceStatus, "RESOURCE_STATUS_"] },
+            { no: 37, name: "current_status", kind: "enum", opt: true, T: () => ["symbolx.bench.ResourceStatus", ResourceStatus, "RESOURCE_STATUS_"] }
         ]);
     }
     create(value?: PartialMessage<DriveData>): DriveData {
@@ -16053,6 +16075,9 @@ class DriveData$Type extends MessageType<DriveData> {
                 case /* symbolx.bench.ResourceStatus status */ 36:
                     message.status = reader.int32();
                     break;
+                case /* optional symbolx.bench.ResourceStatus current_status */ 37:
+                    message.currentStatus = reader.int32();
+                    break;
                 default:
                     let u = options.readUnknownField;
                     if (u === "throw")
@@ -16123,6 +16148,9 @@ class DriveData$Type extends MessageType<DriveData> {
         /* symbolx.bench.ResourceStatus status = 36; */
         if (message.status !== 0)
             writer.tag(36, WireType.Varint).int32(message.status);
+        /* optional symbolx.bench.ResourceStatus current_status = 37; */
+        if (message.currentStatus !== undefined)
+            writer.tag(37, WireType.Varint).int32(message.currentStatus);
         let u = options.writeUnknownFields;
         if (u !== false)
             (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
@@ -17967,6 +17995,7 @@ class MachineData$Type extends MessageType<MachineData> {
             { no: 34, name: "text", kind: "message", T: () => TextData },
             { no: 35, name: "region", kind: "enum", T: () => ["symbolx.bench.Region", Region, "REGION_"] },
             { no: 36, name: "status", kind: "enum", T: () => ["symbolx.bench.ResourceStatus", ResourceStatus, "RESOURCE_STATUS_"] },
+            { no: 37, name: "current_status", kind: "enum", opt: true, T: () => ["symbolx.bench.ResourceStatus", ResourceStatus, "RESOURCE_STATUS_"] },
             { no: 40, name: "profile", kind: "enum", T: () => ["symbolx.bench.MachineProfile", MachineProfile, "MACHINE_PROFILE_"] },
             { no: 41, name: "current_profile", kind: "enum", opt: true, T: () => ["symbolx.bench.MachineProfile", MachineProfile, "MACHINE_PROFILE_"] },
             { no: 42, name: "version", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
@@ -18057,6 +18086,9 @@ class MachineData$Type extends MessageType<MachineData> {
                     break;
                 case /* symbolx.bench.ResourceStatus status */ 36:
                     message.status = reader.int32();
+                    break;
+                case /* optional symbolx.bench.ResourceStatus current_status */ 37:
+                    message.currentStatus = reader.int32();
                     break;
                 case /* symbolx.bench.MachineProfile profile */ 40:
                     message.profile = reader.int32();
@@ -18158,6 +18190,9 @@ class MachineData$Type extends MessageType<MachineData> {
         /* symbolx.bench.ResourceStatus status = 36; */
         if (message.status !== 0)
             writer.tag(36, WireType.Varint).int32(message.status);
+        /* optional symbolx.bench.ResourceStatus current_status = 37; */
+        if (message.currentStatus !== undefined)
+            writer.tag(37, WireType.Varint).int32(message.currentStatus);
         /* symbolx.bench.MachineProfile profile = 40; */
         if (message.profile !== 0)
             writer.tag(40, WireType.Varint).int32(message.profile);
@@ -20108,22 +20143,23 @@ class RunData$Type extends MessageType<RunData> {
             { no: 37, name: "text", kind: "message", T: () => TextData },
             { no: 38, name: "options", kind: "message", T: () => RunOptionsData },
             { no: 40, name: "status", kind: "enum", T: () => ["symbolx.bench.RunStatus", RunStatus, "RUN_STATUS_"] },
-            { no: 41, name: "duration", kind: "scalar", opt: true, T: 2 /*ScalarType.FLOAT*/ },
-            { no: 42, name: "scheduled_at", kind: "message", T: () => Timestamp },
-            { no: 43, name: "scheduled_epoch", kind: "scalar", opt: true, T: 5 /*ScalarType.INT32*/ },
-            { no: 44, name: "started_at", kind: "message", T: () => Timestamp },
-            { no: 45, name: "started_epoch", kind: "scalar", opt: true, T: 5 /*ScalarType.INT32*/ },
-            { no: 46, name: "paused_at", kind: "message", T: () => Timestamp },
-            { no: 47, name: "terminated_at", kind: "message", T: () => Timestamp },
-            { no: 48, name: "terminated_epoch", kind: "scalar", opt: true, T: 5 /*ScalarType.INT32*/ },
-            { no: 49, name: "attempts", kind: "message", repeat: 1 /*RepeatType.PACKED*/, T: () => RetryAttemptData },
+            { no: 41, name: "current_status", kind: "enum", opt: true, T: () => ["symbolx.bench.RunStatus", RunStatus, "RUN_STATUS_"] },
+            { no: 42, name: "duration", kind: "scalar", opt: true, T: 2 /*ScalarType.FLOAT*/ },
+            { no: 43, name: "scheduled_at", kind: "message", T: () => Timestamp },
+            { no: 44, name: "scheduled_epoch", kind: "scalar", opt: true, T: 5 /*ScalarType.INT32*/ },
+            { no: 45, name: "started_at", kind: "message", T: () => Timestamp },
+            { no: 46, name: "started_epoch", kind: "scalar", opt: true, T: 5 /*ScalarType.INT32*/ },
+            { no: 47, name: "paused_at", kind: "message", T: () => Timestamp },
+            { no: 48, name: "terminated_at", kind: "message", T: () => Timestamp },
+            { no: 49, name: "terminated_epoch", kind: "scalar", opt: true, T: 5 /*ScalarType.INT32*/ },
             { no: 50, name: "inputs_packed", kind: "message", T: () => Struct },
             { no: 51, name: "inputs_secret_packed", kind: "message", T: () => Struct },
             { no: 52, name: "outputs_packed", kind: "message", T: () => Struct },
             { no: 53, name: "outputs_secret_packed", kind: "message", T: () => Struct },
             { no: 54, name: "value_packed", kind: "message", T: () => Struct },
             { no: 55, name: "value_secret_packed", kind: "message", T: () => Struct },
-            { no: 56, name: "error", kind: "message", T: () => RunErrorData },
+            { no: 56, name: "attempts", kind: "message", repeat: 1 /*RepeatType.PACKED*/, T: () => RetryAttemptData },
+            { no: 57, name: "error", kind: "message", T: () => RunErrorData },
             { no: 60, name: "block_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 61, name: "step_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 62, name: "session_ptr", kind: "message", T: () => NodeReferenceData },
@@ -20222,32 +20258,32 @@ class RunData$Type extends MessageType<RunData> {
                 case /* symbolx.bench.RunStatus status */ 40:
                     message.status = reader.int32();
                     break;
-                case /* optional float duration */ 41:
+                case /* optional symbolx.bench.RunStatus current_status */ 41:
+                    message.currentStatus = reader.int32();
+                    break;
+                case /* optional float duration */ 42:
                     message.duration = reader.float();
                     break;
-                case /* optional google.protobuf.Timestamp scheduled_at */ 42:
+                case /* optional google.protobuf.Timestamp scheduled_at */ 43:
                     message.scheduledAt = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.scheduledAt);
                     break;
-                case /* optional int32 scheduled_epoch */ 43:
+                case /* optional int32 scheduled_epoch */ 44:
                     message.scheduledEpoch = reader.int32();
                     break;
-                case /* optional google.protobuf.Timestamp started_at */ 44:
+                case /* optional google.protobuf.Timestamp started_at */ 45:
                     message.startedAt = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.startedAt);
                     break;
-                case /* optional int32 started_epoch */ 45:
+                case /* optional int32 started_epoch */ 46:
                     message.startedEpoch = reader.int32();
                     break;
-                case /* optional google.protobuf.Timestamp paused_at */ 46:
+                case /* optional google.protobuf.Timestamp paused_at */ 47:
                     message.pausedAt = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.pausedAt);
                     break;
-                case /* optional google.protobuf.Timestamp terminated_at */ 47:
+                case /* optional google.protobuf.Timestamp terminated_at */ 48:
                     message.terminatedAt = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.terminatedAt);
                     break;
-                case /* optional int32 terminated_epoch */ 48:
+                case /* optional int32 terminated_epoch */ 49:
                     message.terminatedEpoch = reader.int32();
-                    break;
-                case /* repeated symbolx.bench.RetryAttemptData attempts */ 49:
-                    message.attempts.push(RetryAttemptData.internalBinaryRead(reader, reader.uint32(), options));
                     break;
                 case /* optional google.protobuf.Struct inputs_packed */ 50:
                     message.inputsPacked = Struct.internalBinaryRead(reader, reader.uint32(), options, message.inputsPacked);
@@ -20267,7 +20303,10 @@ class RunData$Type extends MessageType<RunData> {
                 case /* optional google.protobuf.Struct value_secret_packed */ 55:
                     message.valueSecretPacked = Struct.internalBinaryRead(reader, reader.uint32(), options, message.valueSecretPacked);
                     break;
-                case /* optional symbolx.bench.RunErrorData error */ 56:
+                case /* repeated symbolx.bench.RetryAttemptData attempts */ 56:
+                    message.attempts.push(RetryAttemptData.internalBinaryRead(reader, reader.uint32(), options));
+                    break;
+                case /* optional symbolx.bench.RunErrorData error */ 57:
                     message.error = RunErrorData.internalBinaryRead(reader, reader.uint32(), options, message.error);
                     break;
                 case /* optional symbolx.bench.NodeReferenceData block_ptr */ 60:
@@ -20376,33 +20415,33 @@ class RunData$Type extends MessageType<RunData> {
         /* symbolx.bench.RunStatus status = 40; */
         if (message.status !== 0)
             writer.tag(40, WireType.Varint).int32(message.status);
-        /* optional float duration = 41; */
+        /* optional symbolx.bench.RunStatus current_status = 41; */
+        if (message.currentStatus !== undefined)
+            writer.tag(41, WireType.Varint).int32(message.currentStatus);
+        /* optional float duration = 42; */
         if (message.duration !== undefined)
-            writer.tag(41, WireType.Bit32).float(message.duration);
-        /* optional google.protobuf.Timestamp scheduled_at = 42; */
+            writer.tag(42, WireType.Bit32).float(message.duration);
+        /* optional google.protobuf.Timestamp scheduled_at = 43; */
         if (message.scheduledAt)
-            Timestamp.internalBinaryWrite(message.scheduledAt, writer.tag(42, WireType.LengthDelimited).fork(), options).join();
-        /* optional int32 scheduled_epoch = 43; */
+            Timestamp.internalBinaryWrite(message.scheduledAt, writer.tag(43, WireType.LengthDelimited).fork(), options).join();
+        /* optional int32 scheduled_epoch = 44; */
         if (message.scheduledEpoch !== undefined)
-            writer.tag(43, WireType.Varint).int32(message.scheduledEpoch);
-        /* optional google.protobuf.Timestamp started_at = 44; */
+            writer.tag(44, WireType.Varint).int32(message.scheduledEpoch);
+        /* optional google.protobuf.Timestamp started_at = 45; */
         if (message.startedAt)
-            Timestamp.internalBinaryWrite(message.startedAt, writer.tag(44, WireType.LengthDelimited).fork(), options).join();
-        /* optional int32 started_epoch = 45; */
+            Timestamp.internalBinaryWrite(message.startedAt, writer.tag(45, WireType.LengthDelimited).fork(), options).join();
+        /* optional int32 started_epoch = 46; */
         if (message.startedEpoch !== undefined)
-            writer.tag(45, WireType.Varint).int32(message.startedEpoch);
-        /* optional google.protobuf.Timestamp paused_at = 46; */
+            writer.tag(46, WireType.Varint).int32(message.startedEpoch);
+        /* optional google.protobuf.Timestamp paused_at = 47; */
         if (message.pausedAt)
-            Timestamp.internalBinaryWrite(message.pausedAt, writer.tag(46, WireType.LengthDelimited).fork(), options).join();
-        /* optional google.protobuf.Timestamp terminated_at = 47; */
+            Timestamp.internalBinaryWrite(message.pausedAt, writer.tag(47, WireType.LengthDelimited).fork(), options).join();
+        /* optional google.protobuf.Timestamp terminated_at = 48; */
         if (message.terminatedAt)
-            Timestamp.internalBinaryWrite(message.terminatedAt, writer.tag(47, WireType.LengthDelimited).fork(), options).join();
-        /* optional int32 terminated_epoch = 48; */
+            Timestamp.internalBinaryWrite(message.terminatedAt, writer.tag(48, WireType.LengthDelimited).fork(), options).join();
+        /* optional int32 terminated_epoch = 49; */
         if (message.terminatedEpoch !== undefined)
-            writer.tag(48, WireType.Varint).int32(message.terminatedEpoch);
-        /* repeated symbolx.bench.RetryAttemptData attempts = 49; */
-        for (let i = 0; i < message.attempts.length; i++)
-            RetryAttemptData.internalBinaryWrite(message.attempts[i], writer.tag(49, WireType.LengthDelimited).fork(), options).join();
+            writer.tag(49, WireType.Varint).int32(message.terminatedEpoch);
         /* optional google.protobuf.Struct inputs_packed = 50; */
         if (message.inputsPacked)
             Struct.internalBinaryWrite(message.inputsPacked, writer.tag(50, WireType.LengthDelimited).fork(), options).join();
@@ -20421,9 +20460,12 @@ class RunData$Type extends MessageType<RunData> {
         /* optional google.protobuf.Struct value_secret_packed = 55; */
         if (message.valueSecretPacked)
             Struct.internalBinaryWrite(message.valueSecretPacked, writer.tag(55, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbolx.bench.RunErrorData error = 56; */
+        /* repeated symbolx.bench.RetryAttemptData attempts = 56; */
+        for (let i = 0; i < message.attempts.length; i++)
+            RetryAttemptData.internalBinaryWrite(message.attempts[i], writer.tag(56, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbolx.bench.RunErrorData error = 57; */
         if (message.error)
-            RunErrorData.internalBinaryWrite(message.error, writer.tag(56, WireType.LengthDelimited).fork(), options).join();
+            RunErrorData.internalBinaryWrite(message.error, writer.tag(57, WireType.LengthDelimited).fork(), options).join();
         /* optional symbolx.bench.NodeReferenceData block_ptr = 60; */
         if (message.blockPtr)
             NodeReferenceData.internalBinaryWrite(message.blockPtr, writer.tag(60, WireType.LengthDelimited).fork(), options).join();
@@ -20483,6 +20525,7 @@ class ServerData$Type extends MessageType<ServerData> {
             { no: 34, name: "text", kind: "message", T: () => TextData },
             { no: 35, name: "region", kind: "enum", T: () => ["symbolx.bench.Region", Region, "REGION_"] },
             { no: 36, name: "status", kind: "enum", T: () => ["symbolx.bench.ResourceStatus", ResourceStatus, "RESOURCE_STATUS_"] },
+            { no: 37, name: "current_status", kind: "enum", opt: true, T: () => ["symbolx.bench.ResourceStatus", ResourceStatus, "RESOURCE_STATUS_"] },
             { no: 40, name: "profile", kind: "enum", T: () => ["symbolx.bench.ServerProfile", ServerProfile, "SERVER_PROFILE_"] },
             { no: 41, name: "current_profile", kind: "enum", opt: true, T: () => ["symbolx.bench.ServerProfile", ServerProfile, "SERVER_PROFILE_"] },
             { no: 42, name: "version", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
@@ -20569,6 +20612,9 @@ class ServerData$Type extends MessageType<ServerData> {
                     break;
                 case /* symbolx.bench.ResourceStatus status */ 36:
                     message.status = reader.int32();
+                    break;
+                case /* optional symbolx.bench.ResourceStatus current_status */ 37:
+                    message.currentStatus = reader.int32();
                     break;
                 case /* symbolx.bench.ServerProfile profile */ 40:
                     message.profile = reader.int32();
@@ -20658,6 +20704,9 @@ class ServerData$Type extends MessageType<ServerData> {
         /* symbolx.bench.ResourceStatus status = 36; */
         if (message.status !== 0)
             writer.tag(36, WireType.Varint).int32(message.status);
+        /* optional symbolx.bench.ResourceStatus current_status = 37; */
+        if (message.currentStatus !== undefined)
+            writer.tag(37, WireType.Varint).int32(message.currentStatus);
         /* symbolx.bench.ServerProfile profile = 40; */
         if (message.profile !== 0)
             writer.tag(40, WireType.Varint).int32(message.profile);
@@ -21830,6 +21879,7 @@ class StoreData$Type extends MessageType<StoreData> {
             { no: 34, name: "text", kind: "message", T: () => TextData },
             { no: 35, name: "region", kind: "enum", T: () => ["symbolx.bench.Region", Region, "REGION_"] },
             { no: 36, name: "status", kind: "enum", T: () => ["symbolx.bench.ResourceStatus", ResourceStatus, "RESOURCE_STATUS_"] },
+            { no: 37, name: "current_status", kind: "enum", opt: true, T: () => ["symbolx.bench.ResourceStatus", ResourceStatus, "RESOURCE_STATUS_"] },
             { no: 40, name: "version", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
             { no: 41, name: "current_version", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
             { no: 50, name: "external_name", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
@@ -21914,6 +21964,9 @@ class StoreData$Type extends MessageType<StoreData> {
                     break;
                 case /* symbolx.bench.ResourceStatus status */ 36:
                     message.status = reader.int32();
+                    break;
+                case /* optional symbolx.bench.ResourceStatus current_status */ 37:
+                    message.currentStatus = reader.int32();
                     break;
                 case /* optional string version */ 40:
                     message.version = reader.string();
@@ -22000,6 +22053,9 @@ class StoreData$Type extends MessageType<StoreData> {
         /* symbolx.bench.ResourceStatus status = 36; */
         if (message.status !== 0)
             writer.tag(36, WireType.Varint).int32(message.status);
+        /* optional symbolx.bench.ResourceStatus current_status = 37; */
+        if (message.currentStatus !== undefined)
+            writer.tag(37, WireType.Varint).int32(message.currentStatus);
         /* optional string version = 40; */
         if (message.version !== undefined)
             writer.tag(40, WireType.LengthDelimited).string(message.version);
@@ -24725,22 +24781,23 @@ export enum RunProperty {
   text = 37,
   options = 38,
   status = 40,
-  duration = 41,
-  scheduledAt = 42,
-  scheduledEpoch = 43,
-  startedAt = 44,
-  startedEpoch = 45,
-  pausedAt = 46,
-  terminatedAt = 47,
-  terminatedEpoch = 48,
-  attempts = 49,
+  currentStatus = 41,
+  duration = 42,
+  scheduledAt = 43,
+  scheduledEpoch = 44,
+  startedAt = 45,
+  startedEpoch = 46,
+  pausedAt = 47,
+  terminatedAt = 48,
+  terminatedEpoch = 49,
   inputsPacked = 50,
   inputsSecretPacked = 51,
   outputsPacked = 52,
   outputsSecretPacked = 53,
   valuePacked = 54,
   valueSecretPacked = 55,
-  error = 56,
+  attempts = 56,
+  error = 57,
   blockPtr = 60,
   stepPtr = 61,
   sessionPtr = 62,
@@ -24935,6 +24992,7 @@ export enum ServerProperty {
   text = 34,
   region = 35,
   status = 36,
+  currentStatus = 37,
   profile = 40,
   currentProfile = 41,
   version = 42,
@@ -24962,6 +25020,7 @@ export enum StoreProperty {
   text = 34,
   region = 35,
   status = 36,
+  currentStatus = 37,
   version = 40,
   currentVersion = 41,
   externalName = 50,
@@ -24988,6 +25047,7 @@ export enum MachineProperty {
   text = 34,
   region = 35,
   status = 36,
+  currentStatus = 37,
   profile = 40,
   currentProfile = 41,
   version = 42,
@@ -25019,6 +25079,7 @@ export enum DriveProperty {
   text = 34,
   region = 35,
   status = 36,
+  currentStatus = 37,
 }
 
 export enum BlobProperty {
@@ -25040,6 +25101,7 @@ export enum BlobProperty {
   text = 34,
   region = 35,
   status = 36,
+  currentStatus = 37,
   sha512 = 40,
   size = 41,
   mimeType = 42,
@@ -25177,7 +25239,6 @@ export enum PropertyReferenceProperty {
   metatype = 1,
   type = 30,
   id = 31,
-  referencesType = 32,
 }
 
 export enum ValueReferenceProperty {
@@ -25836,7 +25897,6 @@ export const PropertyReferenceDataInfo: Record<PropertyReferenceProperty, Proper
   [PropertyReferenceProperty.metatype]: { id: 1, name: 'metatype', component: ObjectType.PROPERTY_REFERENCE, enumType: EnumType.OBJECT_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isComputed: true, isWired: true },
   [PropertyReferenceProperty.type]: { id: 30, name: 'type', component: ObjectType.PROPERTY_REFERENCE, enumType: EnumType.OBJECT_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRuntime: true, isWired: true, isStored: true },
   [PropertyReferenceProperty.id]: { id: 31, name: 'id', component: ObjectType.PROPERTY_REFERENCE, kind: 'primitive', primitiveType: PrimitiveType.INT32, isRequired: true, isRuntime: true, isWired: true, isStored: true },
-  [PropertyReferenceProperty.referencesType]: { id: 32, name: 'references_type', component: ObjectType.PROPERTY_REFERENCE, enumType: EnumType.NODE_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRuntime: true, isWired: true, isStored: true },
 }
 export const ValueReferenceDataInfo: Record<ValueReferenceProperty, PropertyInfo> = {
   [ValueReferenceProperty.metatype]: { id: 1, name: 'metatype', component: ObjectType.VALUE_REFERENCE, enumType: EnumType.OBJECT_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isComputed: true, isWired: true },
@@ -26827,24 +26887,25 @@ export const RunDataInfo: Record<RunProperty, PropertyInfo> = {
   [RunProperty.rootPtr]: { id: 32, name: 'root_ptr', component: ObjectType.RUN, kind: 'reference', isRequired: true, isInternal: true, isComputed: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_ANCESTOR_FIRST, referenceNodes: [NodeType.RUN], referenceStruct: StructType.NODE_REFERENCE },
   [RunProperty.code]: { id: 36, name: 'code', component: ObjectType.RUN, kind: 'reference', primitiveType: PrimitiveType.JSON, isInternal: true, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.CODE },
   [RunProperty.text]: { id: 37, name: 'text', component: ObjectType.RUN, kind: 'reference', primitiveType: PrimitiveType.JSON, isInternal: true, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.TEXT },
-  [RunProperty.options]: { id: 38, name: 'options', component: ObjectType.RUN, kind: 'reference', primitiveType: PrimitiveType.JSON, isInternal: true, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.RUN_OPTIONS },
-  [RunProperty.status]: { id: 40, name: 'status', component: ObjectType.RUN, enumType: EnumType.RUN_STATUS, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isRuntime: true, isWired: true, isStored: true },
-  [RunProperty.duration]: { id: 41, name: 'duration', component: ObjectType.RUN, kind: 'primitive', primitiveType: PrimitiveType.FLOAT32, isInternal: true, isRuntime: true, isWired: true, isStored: true },
-  [RunProperty.scheduledAt]: { id: 42, name: 'scheduled_at', component: ObjectType.RUN, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isRuntime: true, isWired: true, isStored: true },
-  [RunProperty.scheduledEpoch]: { id: 43, name: 'scheduled_epoch', component: ObjectType.RUN, kind: 'primitive', primitiveType: PrimitiveType.INT32, isInternal: true, isRuntime: true, isWired: true, isStored: true },
-  [RunProperty.startedAt]: { id: 44, name: 'started_at', component: ObjectType.RUN, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isRuntime: true, isWired: true, isStored: true },
-  [RunProperty.startedEpoch]: { id: 45, name: 'started_epoch', component: ObjectType.RUN, kind: 'primitive', primitiveType: PrimitiveType.INT32, isInternal: true, isRuntime: true, isWired: true, isStored: true },
-  [RunProperty.pausedAt]: { id: 46, name: 'paused_at', component: ObjectType.RUN, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isRuntime: true, isWired: true, isStored: true },
-  [RunProperty.terminatedAt]: { id: 47, name: 'terminated_at', component: ObjectType.RUN, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isRuntime: true, isWired: true, isStored: true },
-  [RunProperty.terminatedEpoch]: { id: 48, name: 'terminated_epoch', component: ObjectType.RUN, kind: 'primitive', primitiveType: PrimitiveType.INT32, isInternal: true, isRuntime: true, isWired: true, isStored: true },
-  [RunProperty.attempts]: { id: 49, name: 'attempts', component: ObjectType.RUN, kind: 'reference', primitiveType: PrimitiveType.JSON, isList: true, isRequired: true, isInternal: true, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.RETRY_ATTEMPT },
+  [RunProperty.options]: { id: 38, name: 'options', component: ObjectType.RUN, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.RUN_OPTIONS },
+  [RunProperty.status]: { id: 40, name: 'status', component: ObjectType.RUN, enumType: EnumType.RUN_STATUS, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isRuntime: true, isWired: true, isStored: true },
+  [RunProperty.currentStatus]: { id: 41, name: 'current_status', component: ObjectType.RUN, enumType: EnumType.RUN_STATUS, kind: 'enum', primitiveType: PrimitiveType.INT16, isRuntime: true, isWired: true, isStored: true },
+  [RunProperty.duration]: { id: 42, name: 'duration', component: ObjectType.RUN, kind: 'primitive', primitiveType: PrimitiveType.FLOAT32, isRuntime: true, isWired: true, isStored: true },
+  [RunProperty.scheduledAt]: { id: 43, name: 'scheduled_at', component: ObjectType.RUN, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isRuntime: true, isWired: true, isStored: true },
+  [RunProperty.scheduledEpoch]: { id: 44, name: 'scheduled_epoch', component: ObjectType.RUN, kind: 'primitive', primitiveType: PrimitiveType.INT32, isRuntime: true, isWired: true, isStored: true },
+  [RunProperty.startedAt]: { id: 45, name: 'started_at', component: ObjectType.RUN, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isRuntime: true, isWired: true, isStored: true },
+  [RunProperty.startedEpoch]: { id: 46, name: 'started_epoch', component: ObjectType.RUN, kind: 'primitive', primitiveType: PrimitiveType.INT32, isRuntime: true, isWired: true, isStored: true },
+  [RunProperty.pausedAt]: { id: 47, name: 'paused_at', component: ObjectType.RUN, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isRuntime: true, isWired: true, isStored: true },
+  [RunProperty.terminatedAt]: { id: 48, name: 'terminated_at', component: ObjectType.RUN, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isRuntime: true, isWired: true, isStored: true },
+  [RunProperty.terminatedEpoch]: { id: 49, name: 'terminated_epoch', component: ObjectType.RUN, kind: 'primitive', primitiveType: PrimitiveType.INT32, isRuntime: true, isWired: true, isStored: true },
   [RunProperty.inputsPacked]: { id: 50, name: 'inputs_packed', component: ObjectType.RUN, kind: 'primitive', primitiveType: PrimitiveType.JSON, isInternal: true, isRuntime: true, isWired: true, isStored: true, isValuePacked: true },
   [RunProperty.inputsSecretPacked]: { id: 51, name: 'inputs_secret_packed', component: ObjectType.RUN, kind: 'primitive', primitiveType: PrimitiveType.JSON, isInternal: true, isRuntime: true, isWired: true, isStored: true, isDeferred: true, isSensitive: true, isEncrypted: true, isValuePacked: true },
   [RunProperty.outputsPacked]: { id: 52, name: 'outputs_packed', component: ObjectType.RUN, kind: 'primitive', primitiveType: PrimitiveType.JSON, isInternal: true, isRuntime: true, isWired: true, isStored: true, isValuePacked: true },
   [RunProperty.outputsSecretPacked]: { id: 53, name: 'outputs_secret_packed', component: ObjectType.RUN, kind: 'primitive', primitiveType: PrimitiveType.JSON, isInternal: true, isRuntime: true, isWired: true, isStored: true, isDeferred: true, isSensitive: true, isEncrypted: true, isValuePacked: true },
   [RunProperty.valuePacked]: { id: 54, name: 'value_packed', component: ObjectType.RUN, kind: 'primitive', primitiveType: PrimitiveType.JSON, isInternal: true, isRuntime: true, isWired: true, isStored: true, isValuePacked: true },
   [RunProperty.valueSecretPacked]: { id: 55, name: 'value_secret_packed', component: ObjectType.RUN, kind: 'primitive', primitiveType: PrimitiveType.JSON, isInternal: true, isRuntime: true, isWired: true, isStored: true, isDeferred: true, isSensitive: true, isEncrypted: true, isValuePacked: true },
-  [RunProperty.error]: { id: 56, name: 'error', component: ObjectType.RUN, kind: 'reference', primitiveType: PrimitiveType.JSON, isInternal: true, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.RUN_ERROR },
+  [RunProperty.attempts]: { id: 56, name: 'attempts', component: ObjectType.RUN, kind: 'reference', primitiveType: PrimitiveType.JSON, isList: true, isRequired: true, isInternal: true, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.RETRY_ATTEMPT },
+  [RunProperty.error]: { id: 57, name: 'error', component: ObjectType.RUN, kind: 'reference', primitiveType: PrimitiveType.JSON, isInternal: true, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.RUN_ERROR },
   [RunProperty.blockPtr]: { id: 60, name: 'block_ptr', component: ObjectType.RUN, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.BLOCK], referenceStruct: StructType.NODE_REFERENCE },
   [RunProperty.stepPtr]: { id: 61, name: 'step_ptr', component: ObjectType.RUN, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.STEP], referenceStruct: StructType.NODE_REFERENCE },
   [RunProperty.sessionPtr]: { id: 62, name: 'session_ptr', component: ObjectType.RUN, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.SESSION], referenceStruct: StructType.NODE_REFERENCE },
@@ -27033,6 +27094,7 @@ export const ServerDataInfo: Record<ServerProperty, PropertyInfo> = {
   [ServerProperty.text]: { id: 34, name: 'text', component: ObjectType.SERVER, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.TEXT },
   [ServerProperty.region]: { id: 35, name: 'region', component: ObjectType.SERVER, enumType: EnumType.REGION, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [ServerProperty.status]: { id: 36, name: 'status', component: ObjectType.SERVER, enumType: EnumType.RESOURCE_STATUS, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
+  [ServerProperty.currentStatus]: { id: 37, name: 'current_status', component: ObjectType.SERVER, enumType: EnumType.RESOURCE_STATUS, kind: 'enum', primitiveType: PrimitiveType.INT16, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [ServerProperty.profile]: { id: 40, name: 'profile', component: ObjectType.SERVER, enumType: EnumType.SERVER_PROFILE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isRuntime: true, isWired: true, isStored: true },
   [ServerProperty.currentProfile]: { id: 41, name: 'current_profile', component: ObjectType.SERVER, enumType: EnumType.SERVER_PROFILE, kind: 'enum', primitiveType: PrimitiveType.INT16, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [ServerProperty.version]: { id: 42, name: 'version', component: ObjectType.SERVER, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
@@ -27059,6 +27121,7 @@ export const StoreDataInfo: Record<StoreProperty, PropertyInfo> = {
   [StoreProperty.text]: { id: 34, name: 'text', component: ObjectType.STORE, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.TEXT },
   [StoreProperty.region]: { id: 35, name: 'region', component: ObjectType.STORE, enumType: EnumType.REGION, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [StoreProperty.status]: { id: 36, name: 'status', component: ObjectType.STORE, enumType: EnumType.RESOURCE_STATUS, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
+  [StoreProperty.currentStatus]: { id: 37, name: 'current_status', component: ObjectType.STORE, enumType: EnumType.RESOURCE_STATUS, kind: 'enum', primitiveType: PrimitiveType.INT16, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [StoreProperty.version]: { id: 40, name: 'version', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [StoreProperty.currentVersion]: { id: 41, name: 'current_version', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [StoreProperty.externalName]: { id: 50, name: 'external_name', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isSystem: true, isKernel: true, isRuntime: true, isWired: true, isStored: true, isSensitive: true },
@@ -27084,6 +27147,7 @@ export const MachineDataInfo: Record<MachineProperty, PropertyInfo> = {
   [MachineProperty.text]: { id: 34, name: 'text', component: ObjectType.MACHINE, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.TEXT },
   [MachineProperty.region]: { id: 35, name: 'region', component: ObjectType.MACHINE, enumType: EnumType.REGION, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [MachineProperty.status]: { id: 36, name: 'status', component: ObjectType.MACHINE, enumType: EnumType.RESOURCE_STATUS, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
+  [MachineProperty.currentStatus]: { id: 37, name: 'current_status', component: ObjectType.MACHINE, enumType: EnumType.RESOURCE_STATUS, kind: 'enum', primitiveType: PrimitiveType.INT16, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [MachineProperty.profile]: { id: 40, name: 'profile', component: ObjectType.MACHINE, enumType: EnumType.MACHINE_PROFILE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [MachineProperty.currentProfile]: { id: 41, name: 'current_profile', component: ObjectType.MACHINE, enumType: EnumType.MACHINE_PROFILE, kind: 'enum', primitiveType: PrimitiveType.INT16, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [MachineProperty.version]: { id: 42, name: 'version', component: ObjectType.MACHINE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
@@ -27114,6 +27178,7 @@ export const DriveDataInfo: Record<DriveProperty, PropertyInfo> = {
   [DriveProperty.text]: { id: 34, name: 'text', component: ObjectType.DRIVE, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.TEXT },
   [DriveProperty.region]: { id: 35, name: 'region', component: ObjectType.DRIVE, enumType: EnumType.REGION, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [DriveProperty.status]: { id: 36, name: 'status', component: ObjectType.DRIVE, enumType: EnumType.RESOURCE_STATUS, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
+  [DriveProperty.currentStatus]: { id: 37, name: 'current_status', component: ObjectType.DRIVE, enumType: EnumType.RESOURCE_STATUS, kind: 'enum', primitiveType: PrimitiveType.INT16, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
 }
 export const BlobDataInfo: Record<BlobProperty, PropertyInfo> = {
   [BlobProperty.metatype]: { id: 1, name: 'metatype', component: ObjectType.BLOB, enumType: EnumType.OBJECT_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isComputed: true, isWired: true },
@@ -27134,6 +27199,7 @@ export const BlobDataInfo: Record<BlobProperty, PropertyInfo> = {
   [BlobProperty.text]: { id: 34, name: 'text', component: ObjectType.BLOB, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.TEXT },
   [BlobProperty.region]: { id: 35, name: 'region', component: ObjectType.BLOB, enumType: EnumType.REGION, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [BlobProperty.status]: { id: 36, name: 'status', component: ObjectType.BLOB, enumType: EnumType.RESOURCE_STATUS, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
+  [BlobProperty.currentStatus]: { id: 37, name: 'current_status', component: ObjectType.BLOB, enumType: EnumType.RESOURCE_STATUS, kind: 'enum', primitiveType: PrimitiveType.INT16, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [BlobProperty.sha512]: { id: 40, name: 'sha512', component: ObjectType.BLOB, kind: 'primitive', primitiveType: PrimitiveType.STRING, isRequired: true, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [BlobProperty.size]: { id: 41, name: 'size', component: ObjectType.BLOB, kind: 'primitive', primitiveType: PrimitiveType.INT64, isRequired: true, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [BlobProperty.mimeType]: { id: 42, name: 'mime_type', component: ObjectType.BLOB, kind: 'primitive', primitiveType: PrimitiveType.STRING, isRequired: true, isInternal: true, isRuntime: true, isWired: true, isStored: true },

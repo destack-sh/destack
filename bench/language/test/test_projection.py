@@ -12,15 +12,15 @@ from bench.language.setup import OBJECT_CLASS_BY_TYPE
 from bench.language.test.fabricator import Fabricator
 
 fabricator = Fabricator(42)
-BENCH_OBJECTS = tuple(fabricator.fabricate(OBJECT_CLASS_BY_TYPE[t], ()) for t in OBJECT_TYPES)
+BUILTIN_OBJECTS = tuple(fabricator.fabricate(OBJECT_CLASS_BY_TYPE[t], ()) for t in OBJECT_TYPES)
 
 
-@pytest.mark.parametrize("bench_obj", BENCH_OBJECTS, ids=lambda o: o.__class__.__name__)
-def test_render_struct(bench_obj: Node | Struct):
-    rendered = render_struct(bench_obj)
+@pytest.mark.parametrize("obj", BUILTIN_OBJECTS, ids=lambda o: o.__class__.__name__)
+def test_render_struct(obj: Node | Struct):
+    rendered = render_struct(obj)
     rendered = format_code(rendered)
     run_code_eval(rendered)
-    # assert cast(Struct, ret).equals_content(bench_obj) # TODO :Robustness :Incomplete: assert
+    # assert cast(Struct, ret).equals_content(obj) # TODO :Robustness :Incomplete: assert
 
 
 def test_render_nested():

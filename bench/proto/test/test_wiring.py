@@ -1,20 +1,16 @@
 import pytest
 
 from bench.language import Node, Struct
-from bench.language.const import StructType
+from bench.language.const import OBJECT_TYPES
 from bench.language.setup import OBJECT_CLASS_BY_TYPE
 from bench.language.test.fabricator import Fabricator
 from bench.proto import wiring
 
 fabricator = Fabricator(42)
-BUILTIN_OBJECTS = tuple(
-    # nocheckin
-    fabricator.fabricate(OBJECT_CLASS_BY_TYPE[t], ())
-    for t in (StructType.POLICY_RULE,)
-)
+BUILTIN_OBJECTS = tuple(fabricator.fabricate(OBJECT_CLASS_BY_TYPE[t], ()) for t in OBJECT_TYPES)
 
 
-@pytest.mark.parametrize("bench_obj", BUILTIN_OBJECTS, ids=lambda o: o.__class__.__name__)
+@pytest.mark.parametrize("obj", BUILTIN_OBJECTS, ids=lambda o: o.__class__.__name__)
 def test_roundtrip_bytes(obj: Node | Struct):
     packed_wire_obj = wiring.pack_object(obj)
     packed_bytes = bytes(packed_wire_obj)
@@ -23,7 +19,7 @@ def test_roundtrip_bytes(obj: Node | Struct):
     assert unpacked_obj.equals_content(obj), f"{unpacked_obj!r} != {obj!r}"
 
 
-@pytest.mark.parametrize("bench_obj", BUILTIN_OBJECTS, ids=lambda o: o.__class__.__name__)
+@pytest.mark.parametrize("obj", BUILTIN_OBJECTS, ids=lambda o: o.__class__.__name__)
 def test_roundtrip_json(obj: Node | Struct):
     packed_wire_obj = wiring.pack_object(obj)
     packed_json = packed_wire_obj.to_json(indent=2)
@@ -32,7 +28,7 @@ def test_roundtrip_json(obj: Node | Struct):
     assert unpacked_obj.equals_content(obj), f"{unpacked_obj!r} != {obj!r}"
 
 
-@pytest.mark.parametrize("bench_obj", BUILTIN_OBJECTS, ids=lambda o: o.__class__.__name__)
+@pytest.mark.parametrize("obj", BUILTIN_OBJECTS, ids=lambda o: o.__class__.__name__)
 def test_copy(obj: Node | Struct):
     packed_wire_obj = wiring.pack_object(obj)
     copied_obj = wiring.copy_struct(packed_wire_obj)

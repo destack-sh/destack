@@ -164,6 +164,7 @@ class GraphIoServiceBase(ServiceBase, GraphIoBase):
         # fetch
         roots_by_type: dict[NodeType, list[NodeReference]] = group_by(roots, lambda r: r.type)
         graph = NodeDataGraph()
+        queries: list[QueryBuilder] = []
         async with self.request_session() as session:
             for root_node_type, root_node_references in roots_by_type.items():
                 root_ids = tuple(r.id for r in root_node_references)
@@ -172,6 +173,7 @@ class GraphIoServiceBase(ServiceBase, GraphIoBase):
                     filter=C(ConditionalOp.IN, property=Node.id, value=root_ids),
                     options=adapt_read_options(subject, root_node_type, options),
                 )
+                queries.append(query)
                 result = await session.tx._read_connection.fetch(query, FetchOptions(count=False))
                 graph.extend(result.nodes)
         if any(cast(str, root.id) not in graph for root in request.roots):
@@ -188,7 +190,12 @@ class GraphIoServiceBase(ServiceBase, GraphIoBase):
                 raise AccessError(accesses)
 
         self.logger.info(
-            "graph.get", subject=subject, graph=graph, epoch=self.epoch, span="current"
+            "graph.get",
+            subject=subject,
+            queries=queries,
+            graph=graph,
+            epoch=self.epoch,
+            span="current",
         )
         return GetNodesResponse(
             nodes=[wiring.wrap_some_node(n) for n in adapted_nodes],
@@ -236,7 +243,12 @@ class GraphIoServiceBase(ServiceBase, GraphIoBase):
                 raise AccessError(accesses)
 
         self.logger.info(
-            "graph.search", subject=subject, graph=graph, epoch=self.epoch, span="current"
+            "graph.search",
+            subject=subject,
+            query=query,
+            graph=graph,
+            epoch=self.epoch,
+            span="current",
         )
         return SearchNodesResponse(
             roots=roots,

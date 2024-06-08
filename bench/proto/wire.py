@@ -3,7 +3,7 @@
 
 from typing import TYPE_CHECKING, Union
 
-VERSION = "2024.06.08.1"
+VERSION = "2024.06.08.2"
 
 if TYPE_CHECKING:
     from bench.language import Subject
@@ -1681,13 +1681,13 @@ class ProjectionData(betterproto.Message):
 @dataclass(eq=False, repr=False)
 class PropertyReferenceData(betterproto.Message):
     """
-    PropertyReference(type: Optional[bench.utils.func.ObjectType] = <factory>, id: int = <factory>, references_type: Optional[bench.language.const.NodeType] = None, _session: 'Session | None' = None, _updated_properties: bitarray.bitarray | None = None, parent: Union[ForwardRef('BuiltinObject'), ForwardRef('Object'), NoneType] = None, parent_id: int = None, parent_key: str = None)
+    A reference to a builtin object's Property.
+     If type is unset, this refers to a base property in one of the base BuiltinObject types.
     """
 
     metatype: "ObjectType" = betterproto.enum_field(1)
     type: Optional["ObjectType"] = betterproto.enum_field(30, optional=True)
     id: int = betterproto.int32_field(31)
-    references_type: Optional["NodeType"] = betterproto.enum_field(32, optional=True)
 
 
 @dataclass(eq=False, repr=False)
@@ -2056,6 +2056,7 @@ class BlobData(betterproto.Message):
     text: Optional["TextData"] = betterproto.message_field(34, optional=True)
     region: "Region" = betterproto.enum_field(35)
     status: "ResourceStatus" = betterproto.enum_field(36)
+    current_status: Optional["ResourceStatus"] = betterproto.enum_field(37, optional=True)
     sha512: str = betterproto.string_field(40)
     size: int = betterproto.int64_field(41)
     mime_type: str = betterproto.string_field(42)
@@ -2227,6 +2228,7 @@ class DriveData(betterproto.Message):
     text: Optional["TextData"] = betterproto.message_field(34, optional=True)
     region: "Region" = betterproto.enum_field(35)
     status: "ResourceStatus" = betterproto.enum_field(36)
+    current_status: Optional["ResourceStatus"] = betterproto.enum_field(37, optional=True)
 
 
 @dataclass(eq=False, repr=False)
@@ -2520,6 +2522,7 @@ class MachineData(betterproto.Message):
     text: Optional["TextData"] = betterproto.message_field(34, optional=True)
     region: "Region" = betterproto.enum_field(35)
     status: "ResourceStatus" = betterproto.enum_field(36)
+    current_status: Optional["ResourceStatus"] = betterproto.enum_field(37, optional=True)
     profile: "MachineProfile" = betterproto.enum_field(40)
     current_profile: Optional["MachineProfile"] = betterproto.enum_field(41, optional=True)
     version: Optional[str] = betterproto.string_field(42, optional=True)
@@ -2842,15 +2845,15 @@ class RunData(betterproto.Message):
     text: Optional["TextData"] = betterproto.message_field(37, optional=True)
     options: Optional["RunOptionsData"] = betterproto.message_field(38, optional=True)
     status: "RunStatus" = betterproto.enum_field(40)
-    duration: Optional[float] = betterproto.float_field(41, optional=True)
-    scheduled_at: Optional[datetime] = betterproto.message_field(42, optional=True)
-    scheduled_epoch: Optional[int] = betterproto.int32_field(43, optional=True)
-    started_at: Optional[datetime] = betterproto.message_field(44, optional=True)
-    started_epoch: Optional[int] = betterproto.int32_field(45, optional=True)
-    paused_at: Optional[datetime] = betterproto.message_field(46, optional=True)
-    terminated_at: Optional[datetime] = betterproto.message_field(47, optional=True)
-    terminated_epoch: Optional[int] = betterproto.int32_field(48, optional=True)
-    attempts: List["RetryAttemptData"] = betterproto.message_field(49)
+    current_status: Optional["RunStatus"] = betterproto.enum_field(41, optional=True)
+    duration: Optional[float] = betterproto.float_field(42, optional=True)
+    scheduled_at: Optional[datetime] = betterproto.message_field(43, optional=True)
+    scheduled_epoch: Optional[int] = betterproto.int32_field(44, optional=True)
+    started_at: Optional[datetime] = betterproto.message_field(45, optional=True)
+    started_epoch: Optional[int] = betterproto.int32_field(46, optional=True)
+    paused_at: Optional[datetime] = betterproto.message_field(47, optional=True)
+    terminated_at: Optional[datetime] = betterproto.message_field(48, optional=True)
+    terminated_epoch: Optional[int] = betterproto.int32_field(49, optional=True)
     inputs_packed: Optional["betterproto_lib_google_protobuf.Struct"] = betterproto.message_field(
         50, optional=True
     )
@@ -2869,7 +2872,8 @@ class RunData(betterproto.Message):
     value_secret_packed: Optional["betterproto_lib_google_protobuf.Struct"] = (
         betterproto.message_field(55, optional=True)
     )
-    error: Optional["RunErrorData"] = betterproto.message_field(56, optional=True)
+    attempts: List["RetryAttemptData"] = betterproto.message_field(56)
+    error: Optional["RunErrorData"] = betterproto.message_field(57, optional=True)
     block_ptr: Optional["NodeReferenceData"] = betterproto.message_field(60, optional=True)
     step_ptr: Optional["NodeReferenceData"] = betterproto.message_field(61, optional=True)
     session_ptr: Optional["NodeReferenceData"] = betterproto.message_field(62, optional=True)
@@ -2906,6 +2910,7 @@ class ServerData(betterproto.Message):
     text: Optional["TextData"] = betterproto.message_field(34, optional=True)
     region: "Region" = betterproto.enum_field(35)
     status: "ResourceStatus" = betterproto.enum_field(36)
+    current_status: Optional["ResourceStatus"] = betterproto.enum_field(37, optional=True)
     profile: "ServerProfile" = betterproto.enum_field(40)
     current_profile: Optional["ServerProfile"] = betterproto.enum_field(41, optional=True)
     version: Optional[str] = betterproto.string_field(42, optional=True)
@@ -3102,6 +3107,7 @@ class StoreData(betterproto.Message):
     text: Optional["TextData"] = betterproto.message_field(34, optional=True)
     region: "Region" = betterproto.enum_field(35)
     status: "ResourceStatus" = betterproto.enum_field(36)
+    current_status: Optional["ResourceStatus"] = betterproto.enum_field(37, optional=True)
     version: Optional[str] = betterproto.string_field(40, optional=True)
     current_version: Optional[str] = betterproto.string_field(41, optional=True)
     external_name: Optional[str] = betterproto.string_field(50, optional=True)
