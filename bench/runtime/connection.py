@@ -168,9 +168,10 @@ class RemoteQuery[NodeT: Node, NodeDataT: AnyNodeData](ConnectedQuery[NodeT, Nod
                     self._node = await self._query.get()
                     graph = self._node._graph
                     assert (
-                        self._node._read is not None and self._node._read.epoch is not None
-                    ), f"need read info for {self._node!r} from {self._query!r}: {self._node._read!r}"
-                    self._epoch = self._node._read.epoch
+                        self._node._read_info is not None
+                        and self._node._read_info.epoch is not None
+                    ), f"need read info for {self._node!r} from {self._query!r}: {self._node._read_info!r}"
+                    self._epoch = self._node._read_info.epoch
                     self._has_result.set()
                     logger.debug(
                         "query.connect",
@@ -189,7 +190,7 @@ class RemoteQuery[NodeT: Node, NodeDataT: AnyNodeData](ConnectedQuery[NodeT, Nod
                 watch_req = WatchEditsRequest(
                     scope=self._scope,
                     node_types=cast(list[wire.NodeType], node_types),
-                    since_epoch=self._node._read.epoch,
+                    since_epoch=self._node._read_info.epoch,
                 )
                 rpc_headers = cast(_PatchedRpcMetadata, self._rpc_metadata).to_headers()
                 async for rep in self._remote.watch_edits(watch_req, metadata=rpc_headers):

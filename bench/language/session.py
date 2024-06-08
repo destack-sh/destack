@@ -20,10 +20,11 @@ from bench.language.const import (
 from bench.language.node import (
     BuiltinObject,
     EditSubject,
+    HasTimeIdentity,
     InlineStruct,
     Node,
+    PackageNode,
     Struct,
-    TimedNode,
     object_component,
     struct_,
     timed_node,
@@ -73,7 +74,7 @@ CustomCommit = Callable[["Session"], Awaitable[tuple[list[EditData], list[EditDa
 
 
 @timed_node(NodeType.SESSION)
-class Session(TimedNode[SessionData]):
+class Session(PackageNode[SessionData], HasTimeIdentity):
     """
     A managed Session for interacting with and running a Package in a Client.
     If a Run spans multiple Clients, each Client will have its own Session.
@@ -148,13 +149,6 @@ class Session(TimedNode[SessionData]):
         else:
             return f"{', '.join(status_strs)}, tx={self._tx or '<no tx>'}"
 
-    def _init_component(self) -> None:
-        self._session = self
-        if self.parent is not None:
-            self._default_scope = GraphScope(
-                bench_id=uuid_to_str(self.parent.bench_id), package_id=uuid_to_str(self.parent.id)
-            )
-
     @property
     def tx(self) -> Transaction:
         assert self._tx is not None, f"no active transaction in {self!r}"
@@ -207,10 +201,16 @@ class Session(TimedNode[SessionData]):
         """Opens the session for regular business. Activates context (by default)."""
         assert not self.closed_at, f"session already closed {self!r}"
         assert not self.opened_at, f"session already open {self!r}"
+        async with self._tx_lock:
+            self._tx = Transaction(id=UUIDT(), session=self, is_readonly=self._is_readonly)
+        self.opened_at = utcnow()
+        self._session = self
+        if self.parent is not None:
+            self._default_scope = GraphScope(
+                bench_id=uuid_to_str(self.parent.bench_id), package_id=uuid_to_str(self.parent.id)
+            )
         if in_context:
             self._active_session_token = _active_session.set(self)
-        self._tx = Transaction(id=UUIDT(), session=self, is_readonly=self._is_readonly)
-        self.opened_at = utcnow()
         logger.trace("session.open", session=self)
 
     async def close(self):

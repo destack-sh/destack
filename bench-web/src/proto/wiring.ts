@@ -185,10 +185,6 @@ export function newNodeId(): string {
   return v4();
 }
 
-export function newNodeIdFromCk(packageId: string, ck: string): string {
-  return v5(packageId, ck);
-}
-
 /**
  * Create a node from the given data and assign it an id (and ck if in package).
  * NOTE: id/ck are only assigned if not present. To copy, use copyNode.
@@ -212,18 +208,15 @@ export function makeNode<T extends NodeType>(
       if (!("packagePtr" in data) || data.packagePtr == null) {
         throw new Error(`missing packagePtr to make sub-package node ${NodeType[data.metatype]}`);
       }
-      if ("ck" in properties) {
-        // regular node in package
-        if ((node as any).ck == null) {
-          (node as any).ck = newNodeCk();
+      if ("ck" in properties && (node as any).ck == null) {
+        (node as any).ck = newNodeCk();
+      }
+      if (node.id == null) {
+        if (TIMED_NODE_TYPES.includes(node.metatype as unknown as NodeType)) {
+          node.id == uuidt();
+        } else {
+          node.id = newNodeId();
         }
-        node.id = newNodeIdFromCk((data.packagePtr as NodeReferenceData).id!, (node as any).ck);
-      } else {
-        // 'timed' node with UUIDT
-        if (!TIMED_NODE_TYPES.includes(data.metatype)) {
-          throw new Error(`unexpected in-package node type ${NodeType[data.metatype]} without ck`);
-        }
-        node.id = uuidt();
       }
     } else {
       // out-of-package node
@@ -349,15 +342,6 @@ export function toNodeReferenceRef<T extends NodeType>(
 ): Ref<TypedNodeReferenceData<T> | null> {
   const nodeRef = toRef(node) as Ref<NodeTypeMapping[T] | null>;
   return computed(() => toNodeReference(nodeRef.value!)); // NOTE :Cleanup: shouldn't have to ! to type check here?
-}
-
-export function toNodeReferenceInPackage<T extends NodeType>(
-  ref: TypedNodeReferenceData<T> | NodeReferenceData,
-  pkg: string | TypedNodeReferenceData<NodeType.PACKAGE> | NodeReferenceData | PackageData,
-): TypedNodeReferenceData<T> {
-  const packageId = typeof pkg == "string" ? pkg : pkg.id!;
-  if (ref.ck == null) return ref as TypedNodeReferenceData<T>;
-  else return { ...ref, id: newNodeIdFromCk(packageId, ref.ck), ck: ref.ck } as TypedNodeReferenceData<T>;
 }
 
 export function getNodeType(node: AnyNodeData | AnyNodeReferenceData): NodeType {

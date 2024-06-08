@@ -58,7 +58,6 @@ from bench.language.property import (
     p_system,
 )
 from bench.language.setup import (
-    _COMPLETED_SETUP,
     ANCESTOR_NODE_TYPES,
     CHILD_NODE_TYPES,
     _on_completing_setup,
@@ -193,7 +192,7 @@ class Policy(Struct):
 @struct_(StructType.POLICY_RULE)
 class PolicyRule(Struct):
     """
-    A rule in a policy: [subject] + can/cannot [verb] + [object] [if condition].
+    A rule in a policy: [subject] + [effect] [verb] + [object] [if condition].
     Subject, verb and object are ORed, in-group conditions are ANDed.
      (where None/empty -> wildcard, any value -> filter)
     """
@@ -280,11 +279,11 @@ class PolicyRule(Struct):
 
         return f"{self.name or '<unnamed>'} {self.effect.bench_name} {subject_str} {verb_str} {object_str}"
 
-    def _interp_component(self, scope: Optional["Node"]):
-        self._update_verb_mask()
-        self._update_object_mask()
+    def _update_component(self, properties: tuple[Property, ...]):
+        self._update_masks()
 
-    def _update_object_mask(self):
+    def _update_masks(self):
+        # object mask
         self._object_node_types_mask = _enums_to_mask(self.object_node_types, NodeType)  # type: ignore
         self._object_properties_masks = {}
         all_properties = self.object_properties or ()
@@ -310,7 +309,7 @@ class PolicyRule(Struct):
                 )
             self._object_properties_masks[cast(NodeType, prop.type)][prop.ord] = True
 
-    def _update_verb_mask(self):
+        # verb mask
         self._verb_mask = bitarray(AccessType.get_max_ord())  # type: ignore
         if not self.verbs and not self.verb_kinds:
             self._verb_mask[AccessType.get_min_ord() : AccessType.get_max_ord()] = True  # type: ignore
@@ -340,7 +339,7 @@ class PolicyRule(Struct):
         return True
 
     def matches_verb(self, verb: AccessType) -> bool:
-        assert self._verb_mask is not None, f"verb mask not updated in {self!r}"
+        assert self._verb_mask is not None, f"verb mask not ready in {self!r}"
         assert type(verb) is AccessType, f"unexpected verb {verb!r}"
         return cast(bool, self._verb_mask[verb.ord])
 
@@ -353,8 +352,7 @@ class PolicyRule(Struct):
         self.verbs = [verb.to(AccessType) for verb in verbs if isinstance(verb, ACCESS_CLASSES)]
         self.verb_kinds = [verb for verb in verbs if isinstance(verb, AccessKind)]
         assert len(self.verbs) + len(self.verb_kinds) == len(verbs), f"invalid verbs {verbs!r}"
-        if _COMPLETED_SETUP:
-            self._update_verb_mask()
+        self._update_masks()
         return self
 
     def deny(self, *verbs: AccessType | AccessKind) -> "Self":
@@ -362,8 +360,7 @@ class PolicyRule(Struct):
         self.verbs = [verb.to(AccessType) for verb in verbs if isinstance(verb, ACCESS_CLASSES)]
         self.verb_kinds = [verb for verb in verbs if isinstance(verb, AccessKind)]
         assert len(self.verbs) + len(self.verb_kinds) == len(verbs), f"invalid verbs {verbs!r}"
-        if _COMPLETED_SETUP:
-            self._update_verb_mask()
+        self._update_masks()
         return self
 
     def subject(
@@ -400,8 +397,7 @@ class PolicyRule(Struct):
         self.object_properties_is_system = properties_is_system
         self.object_properties_is_sensitive = properties_is_sensitive
         self.object_properties_is_kernel = properties_is_kernel
-        if _COMPLETED_SETUP:
-            self._update_object_mask()
+        self._update_masks()
         return self
 
 
@@ -582,110 +578,110 @@ class AccessError(BenchError, ValueError):
         self.cause = cause
 
 
-SYSTEM_POLICIES: tuple[Policy, ...] = (
-    # NOTE: all policies (incl. these base policies) and their rules are evaluated in order
-    Policy(name="SystemProtection").append(
-        PolicyRule(
-            name="CannotAccessKernelProperties",
-            text=Text.plain("Kernel properties are inaccessible outside of the system."),
-        )
-        .deny()
-        .object(properties_is_kernel=True),
-        PolicyRule(
-            name="CannotUpdateSystemProperties",
-            text=Text.plain("System properties may only be edited through designated methods."),
-        )
-        .deny(EditType.UPDATE)
-        .object(properties_is_system=True),
-        PolicyRule(
-            name="CannotCreateOrDeleteSystemNodesDirectly",
-            text=Text.plain("System nodes must be managed through designated methods."),
-        )
-        .deny(
-            EditType.CREATE,
-            EditType.UPSERT,
-            EditType.DELETE,
-            EditType.RESTORE,
-            EditType.ARCHIVE,
-            EditType.UNARCHIVE,
-            EditType.ERASE,
-        )
-        .object(node_types=(*ROOT_NODE_TYPES.tuple, NodeType.CLIENT)),
-        PolicyRule(
-            name="CannotEditHandles",
-            text=Text.plain("Handles (like usernames) must be edited through special methods."),
-        )
-        .deny(AccessKind.EDIT)
-        .object(node_types=(NodeType.HANDLE,)),
-        PolicyRule(
-            name="CannotUpsertLegislativeNodes",
-            text=Text.plain(
-                "Nodes that define their own policies cannot be upserted to prevent ambiguities in evaluation."
-                # (we could do it, but it would be confusing and tedious)
-            ),
-        )
-        .deny(EditType.UPSERT)
-        .object(node_types=LEGISLATIVE_NODE_TYPES.tuple),
-    ),
-    Policy(name="OwnerAccess").append(
-        PolicyRule(
-            name="OwnerCanDoAnything",
-            text=Text.plain("Owners of a node can do anything (unless otherwise prohibited)."),
-        )
-        .subject(is_owner=True)
-        .allow(),
-    ),
-    Policy(name="StaffAccess").append(
-        PolicyRule(
-            name="StaffCanReadAnythingDuringEA",
-            text=Text.plain("During early access, staff users can access anything."),
-        )
-        .subject(is_staff=True)
-        .allow(AccessKind.READ),
-    ),
-    Policy(name="MemberAccess").append(
-        PolicyRule(
-            name="MemberCanReadBench",
-            text=Text.plain(
-                "Every member of your Bench/Organization can read its non-sensitive properties."
-            ),
-        )
-        .subject(is_member=True)
-        .allow(AccessKind.READ)
-        .object(
-            node_types=tuple(nt for nt in IN_BENCH_NODE_TYPES if nt not in SUB_PACKAGE_NODE_TYPES),
-            properties_is_sensitive=False,
-        )
-    ),
-    Policy(name="AuthenticatedAccess").append(
-        PolicyRule(
-            name="AuthenticatedCanReadPublic",
-            text=Text.plain(
-                "Authenticated users can read public nodes like User, Organization, Bench, etc.."
-            ),
-        )
-        .subject(is_authenticated=True)
-        .allow(AccessKind.READ)
-        .object(node_types=PUBLIC_NODE_TYPES.tuple, properties_is_sensitive=False),
-    ),
-    Policy(name="AnonymousAccess").append(
-        PolicyRule(
-            name="AnonCanReadHandle",
-            text=Text.plain("Everyone can read Handles (so they can create an account)."),
-        )
-        .subject(is_authenticated=False)
-        .allow(AccessKind.READ)
-        .object((NodeType.HANDLE,))
-    ),
-)
+_SYSTEM_POLICIES: list[Policy] = []
 
 
 @_on_completing_setup
-def _interp_system_policies():
-    for policy in SYSTEM_POLICIES:
-        policy._interp_rec(None)  # type: ignore
-        # (None isn't a valid scope, but we don't need it yet and not sure what to pass;
-        #  when this errors, we'll come back and fix it)
+def _setup_system_policies():
+    system_policies = (
+        # NOTE: all policies (incl. these base policies) and their rules are evaluated in order
+        Policy(name="SystemProtection").append(
+            PolicyRule(
+                name="CannotAccessKernelProperties",
+                text=Text.plain("Kernel properties are inaccessible outside of the system."),
+            )
+            .deny()
+            .object(properties_is_kernel=True),
+            PolicyRule(
+                name="CannotUpdateSystemProperties",
+                text=Text.plain("System properties may only be edited through designated methods."),
+            )
+            .deny(EditType.UPDATE)
+            .object(properties_is_system=True),
+            PolicyRule(
+                name="CannotCreateOrDeleteSystemNodesDirectly",
+                text=Text.plain("System nodes must be managed through designated methods."),
+            )
+            .deny(
+                EditType.CREATE,
+                EditType.UPSERT,
+                EditType.DELETE,
+                EditType.RESTORE,
+                EditType.ARCHIVE,
+                EditType.UNARCHIVE,
+                EditType.ERASE,
+            )
+            .object(node_types=(*ROOT_NODE_TYPES.tuple, NodeType.CLIENT)),
+            PolicyRule(
+                name="CannotEditHandles",
+                text=Text.plain("Handles (like usernames) must be edited through special methods."),
+            )
+            .deny(AccessKind.EDIT)
+            .object(node_types=(NodeType.HANDLE,)),
+            PolicyRule(
+                name="CannotUpsertLegislativeNodes",
+                text=Text.plain(
+                    "Nodes that define their own policies cannot be upserted to prevent ambiguities in evaluation."
+                    # (we could do it, but it would be confusing and tedious)
+                ),
+            )
+            .deny(EditType.UPSERT)
+            .object(node_types=LEGISLATIVE_NODE_TYPES.tuple),
+        ),
+        Policy(name="OwnerAccess").append(
+            PolicyRule(
+                name="OwnerCanDoAnything",
+                text=Text.plain("Owners of a node can do anything (unless otherwise prohibited)."),
+            )
+            .subject(is_owner=True)
+            .allow(),
+        ),
+        Policy(name="StaffAccess").append(
+            PolicyRule(
+                name="StaffCanReadAnythingDuringEA",
+                text=Text.plain("During early access, staff users can access anything."),
+            )
+            .subject(is_staff=True)
+            .allow(AccessKind.READ),
+        ),
+        Policy(name="MemberAccess").append(
+            PolicyRule(
+                name="MemberCanReadBench",
+                text=Text.plain(
+                    "Every member of your Bench/Organization can read its non-sensitive properties."
+                ),
+            )
+            .subject(is_member=True)
+            .allow(AccessKind.READ)
+            .object(
+                node_types=tuple(
+                    nt for nt in IN_BENCH_NODE_TYPES if nt not in SUB_PACKAGE_NODE_TYPES
+                ),
+                properties_is_sensitive=False,
+            )
+        ),
+        Policy(name="AuthenticatedAccess").append(
+            PolicyRule(
+                name="AuthenticatedCanReadPublic",
+                text=Text.plain(
+                    "Authenticated users can read public nodes like User, Organization, Bench, etc.."
+                ),
+            )
+            .subject(is_authenticated=True)
+            .allow(AccessKind.READ)
+            .object(node_types=PUBLIC_NODE_TYPES.tuple, properties_is_sensitive=False),
+        ),
+        Policy(name="AnonymousAccess").append(
+            PolicyRule(
+                name="AnonCanReadHandle",
+                text=Text.plain("Everyone can read Handles (so they can create an account)."),
+            )
+            .subject(is_authenticated=False)
+            .allow(AccessKind.READ)
+            .object((NodeType.HANDLE,))
+        ),
+    )
+    _SYSTEM_POLICIES.extend(system_policies)
 
 
 def adapt_read_options(
@@ -719,12 +715,15 @@ def adapt_read_options(
 def generate_access_matrix(
     subject: Subject,
     graph: NodeDataGraph[AnyNodeData],
-    base_policies: tuple[Policy, ...] = SYSTEM_POLICIES,
+    base_policies: Collection[Policy] | None = None,
     unpacked_graph: NodeGraph[Node] | None = None,
 ) -> AccessMatrix:
     """Generates an access matrix to quickly evaluate access for a specific subject."""
 
     from bench.proto import wiring
+
+    if base_policies is None:
+        base_policies = _SYSTEM_POLICIES
 
     # TODO :Performance :Architecture: figure out better way of checking access than access matrices
     #  Current approach is a bit unwiedly, hard to update incrementally and not very efficient.
@@ -748,7 +747,7 @@ def generate_access_matrix(
                 new_policies: list[Policy] = getattr(node, "policies")
             else:
                 new_policies: list[Policy] = [
-                    wiring.unpack_object_interp(p) for p in getattr(node_data, "policies")
+                    wiring.unpack_object_validate(p) for p in getattr(node_data, "policies")
                 ]
             for policy in new_policies:
                 if policy.scopes:

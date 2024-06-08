@@ -182,7 +182,7 @@ def unpack_object[T: BuiltinObject](
     expect: type[T] | None = None,
     session: Session | None = None,
 ) -> T:
-    """Unpack a struct and any contained structs."""
+    """Unpack a builtin object and any contained structs without validating."""
     object_cls = OBJECT_CLASS_BY_TYPE[ObjectType(obj_data.metatype)]  # type: ignore
     if expect and not issubclass(object_cls, expect):
         raise RuntimeError(f"expected {expect} but got {object_cls}")
@@ -198,29 +198,28 @@ def unpack_object[T: BuiltinObject](
         if issubclass(object_cls, Node):
             object_kwargs["_session"] = UNSET
         obj = object_cls(**object_kwargs)
+        obj._resolve_references(parent)
         if session is not None and isinstance(obj, Node):
-            obj._resolve_references(obj)
             obj._track_self(session)
         return cast(T, obj)
     except (AttributeError, TypeError, ValueError, KeyError) as e:
         raise ValueError(f"could not unpack {obj_data.metatype.name}: {obj_data!r}") from e
 
 
-def unpack_object_interp[T: BuiltinObject](
+def unpack_object_validate[T: BuiltinObject](
     obj_data: AnyStructData | AnyNodeData,
     parent: Node | None = None,
     scope: Node | None = None,
     expect: type[T] | None = None,
     session: Session | None = None,
 ) -> T:
-    """Unpack, interpret and validate a Struct."""
+    """Unpack a builtin object and validate it."""
     obj = unpack_object(obj_data, parent=parent, expect=expect, session=session)
-    obj._interp_rec(scope=scope)
-    obj._validate_rec(properties=(), invalid=on_invalid_raise)
+    obj._validate_rec(invalid=on_invalid_raise)
     return obj
 
 
-def unpack_object_interp_maybe[T: BuiltinObject](
+def unpack_object_validate_maybe[T: BuiltinObject](
     obj_data: AnyStructData | AnyNodeData | None,
     scope: Node | None = None,
     expect: type[T] | None = None,
@@ -229,7 +228,7 @@ def unpack_object_interp_maybe[T: BuiltinObject](
     if obj_data is None:
         return None
     else:
-        return unpack_object_interp(obj_data, scope=scope, expect=expect, session=session)
+        return unpack_object_validate(obj_data, scope=scope, expect=expect, session=session)
 
 
 @tracer.start_as_current_span("wiring.pack_node_graph")
@@ -256,7 +255,7 @@ def unpack_node_graph(
     parent: Node | None = None,
     session: Session | None = None,
     exclude: set[NodeType] | tuple[NodeType, ...] | None = (),
-    read: ReadInfo | None = None,
+    read_info: ReadInfo | None = None,
 ) -> NodeGraph["Node"]:
     """Unpacks the node data(s) into a node graph."""
     trace.get_current_span().set_attribute("nodes", len(data_graph))
@@ -285,8 +284,8 @@ def unpack_node_graph(
                 #  (this errors here, but sometimes we just want a node without ancestors)
                 # if node_parent is None:
                 #     raise ValueError(f"parent {node_parent_id} not found in {unpacked_graph!r}")
-            node = unpack_object(node_data, parent=node_parent)
-            node._read = read
+            node = unpack_object(node_data, parent=node_parent, expect=Node)
+            node._read_info = read_info
 
             # keep parent instance if it was passed (update it in place)
             if node.id == parent_id:
@@ -326,7 +325,7 @@ def unpack_node_roots(
 ) -> tuple[tuple[Node, ...], NodeGraph]:
     """Unpack nodes and their descendants. Returns the actual roots (or passed ones)."""
 
-    node_graph = unpack_node_graph(data_graph, parent, session, exclude=exclude, read=read)
+    node_graph = unpack_node_graph(data_graph, parent, session, exclude=exclude, read_info=read)
 
     if roots:
         # recover roots if specified (may not be actual roots)

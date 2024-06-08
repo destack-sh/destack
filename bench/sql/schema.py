@@ -11,7 +11,7 @@ from bench.sql.core import (
     Table,
 )
 
-VERSION = "2024.06.07.1"
+VERSION = "2024.06.08.0"
 
 BENCH_TABLE = Table(
     "bench_bench",
@@ -1131,6 +1131,7 @@ NOTIFICATION_TABLE = Table(
     "bench_notification",
     (
         Column("id", PrimitiveType.UUID, is_primary_key=True),
+        Column("ck", PrimitiveType.UUID),
         Column("parent_id", PrimitiveType.UUID),
         Column("package_id", PrimitiveType.UUID),
         Column("bench_id", PrimitiveType.UUID),
@@ -1187,6 +1188,7 @@ MESSAGE_TABLE = Table(
     "bench_message",
     (
         Column("id", PrimitiveType.UUID, is_primary_key=True),
+        Column("ck", PrimitiveType.UUID),
         Column("parent_id", PrimitiveType.UUID),
         Column("parent_ck", PrimitiveType.UUID),
         Column("parent_type", PrimitiveType.INT16),

@@ -140,7 +140,6 @@ async def test_cross_user_access(supervisor: SupervisorStub):
         for target_handle in all_handles:
             actor = actor_handle.user
             target = target_handle.user
-            is_target_self = actor == target
 
             # request our own and everyone else's data
             sensitive_properties = cast(
@@ -153,7 +152,7 @@ async def test_cross_user_access(supervisor: SupervisorStub):
             read_user_rep = await supervisor.get_nodes(read_user_req, metadata=actor_handle.headers)
             read_target = read_user_rep.nodes[0].user
             assert read_target.slug == target.slug
-            if is_target_self:  # we should be able to read our own sensitive data
+            if actor == target:  # we should be able to read our own sensitive data
                 assert read_target.email == target.email
             else:  # but not others
                 assert not read_target.email
@@ -175,7 +174,7 @@ async def test_cross_user_access(supervisor: SupervisorStub):
                 edited_at=utcnow(),
             )
             commit_req = CommitTransactionRequest(id=str(uuid4()), edits=[edit])
-            if is_target_self:  # can update our own data
+            if actor == target:  # can update our own data
                 _ = await supervisor.commit_transaction(commit_req, metadata=actor_handle.headers)
             else:  # but not for others
                 with raises_grpc_error(GRPCStatus.PERMISSION_DENIED):
@@ -199,7 +198,7 @@ async def test_cross_user_access(supervisor: SupervisorStub):
                 edited_at=utcnow(),
             )
             commit_req = CommitTransactionRequest(id=str(uuid4()), edits=[edit])
-            if is_target_self:  # can update our own data
+            if actor == target:  # can update our own data
                 _ = await supervisor.commit_transaction(commit_req, metadata=actor_handle.headers)
             else:  # but not for others
                 with raises_grpc_error(GRPCStatus.PERMISSION_DENIED):

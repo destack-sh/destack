@@ -3,7 +3,7 @@ import secrets
 import typing
 from datetime import datetime, timedelta
 from typing import Any, Mapping, Optional, cast
-from uuid import UUID, uuid4
+from uuid import UUID
 
 from bench.proto.wire import GraphScope
 from bench.utils.func import IdEnum, bittuple, cyrb53a
@@ -12,7 +12,7 @@ from bench.utils.utils import frozendict, get_from_env
 if typing.TYPE_CHECKING:
     from bench.language import Bench, Run, Session, Transaction
 
-VERSION = "2024.06.07.1"
+VERSION = "2024.06.08.0"
 REVISION_PENDING = -1
 TK_LENGTH_BYTES = 8
 TK_LENGTH_B64 = 12  # 1.5 * TK_LENGTH_BYTES (must be integer)
@@ -29,8 +29,6 @@ def new_struct_id() -> int:
         id = -id
     return id
 
-
-new_node_id = uuid4
 
 # NOTE: we have the enum registry here to avoid circular imports
 _ENUM_CLASS_BY_TYPE: dict["EnumType", type[IdEnum]] = {}
@@ -230,7 +228,6 @@ BASED_NODE_TYPES = bittuple(  # :HasBase
     NodeType.MESSAGE,
     NodeType.RECORD,
 )
-RUNTIME_NODE_TYPES = bittuple(*tuple(nt for nt in NODE_TYPES if 80 <= nt.id < 100))
 TIMED_NODE_TYPES = bittuple(
     NodeType.SESSION,
     NodeType.RUN,
@@ -239,7 +236,7 @@ TIMED_NODE_TYPES = bittuple(
     NodeType.NOTIFICATION,
     NodeType.MESSAGE,
 )
-SELF_LOGGED_NODE_TYPES: bittuple[NodeType] = bittuple(
+ETERNAL_NODE_TYPES: bittuple[NodeType] = bittuple(
     NodeType.SESSION, NodeType.RUN, NodeType.SIGNAL, NodeType.LOG
 )
 IN_PACKAGE_NODE_TYPES = bittuple(*tuple(nt for nt in NODE_TYPES if 20 <= nt.id < 100))

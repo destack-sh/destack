@@ -3,7 +3,7 @@ import dataclasses
 import re
 from dataclasses import dataclass
 from datetime import datetime, timedelta
-from typing import TYPE_CHECKING, Any, Collection, Optional, TypeGuard, Union, cast
+from typing import TYPE_CHECKING, Any, Collection, Optional, TypeGuard, Union, cast, override
 from uuid import UUID
 
 import structlog
@@ -372,7 +372,7 @@ def check_value_scalar(value: SomeValue, typ: "TypeInfoBase", invalid: "Validati
         ):
             invalid(value, "not of type", typ)
         if typ.kind == TypeKind.BASED_NODE:
-            if typ.base_type is not None and cast(HasBaseNode, value).base != typ.base_type:
+            if typ.base_type is not None and cast(HasNodeBase, value).base != typ.base_type:
                 invalid(value, f"not based on {typ.base_type}", typ)
     elif typ.kind == TypeKind.STRUCT:
         if not getattr(cast("Struct", value), "__is_struct__", False):
@@ -797,21 +797,14 @@ def unpack_value(
 
 
 # import later to avoid circular imports (Object is used in node.py)
-from bench.language.node import BuiltinObject, HasBaseNode, object_component  # noqa: E402
+from bench.language.node import BuiltinObject, HasNodeBase, object_component  # noqa: E402
 
 
 @object_component()
 class HasValues(BuiltinObject):
     # NOTE :Robustness: ensure HasValues never accidentally 'edits' the node during init or such
 
-    def _init_component(self) -> None:
-        if self._is_interped:
-            self._pack_values_inplace(self.__value_properties__.values(), skip_already_set=True)
-
-    def _interp_component(self, scope: "Node | None"):
-        # unpack values
-        self._unpack_values_inplace(self.__value_properties__.values())
-
+    @override
     def _updated_component(self, properties: Collection[Property]) -> None:
         # update packed properties
         if len(properties) == 0 or any(prop.is_value_runtime for prop in properties):
@@ -835,7 +828,7 @@ class HasValues(BuiltinObject):
                 value_type = self._resolve_value_prop_type(prop)
                 if value_type is not None:
                     value = unpack_value(value_packed, None, value_type)
-                    self._do_set(prop.name, value, dont_track=True)
+                    self._do_set(prop.name, value, untracked=True)
 
     def _pack_values_inplace(
         self, properties: Collection[Property], skip_already_set: bool = False
@@ -853,6 +846,6 @@ class HasValues(BuiltinObject):
                 value_type = self._resolve_value_prop_type(prop)
                 if value_type is not None:
                     value_packed, _ = pack_value(value, value_type)
-                    self._do_set(prop.value_packed_ptr.name, value_packed, dont_track=True)
+                    self._do_set(prop.value_packed_ptr.name, value_packed, untracked=True)
             else:
-                self._do_set(prop.value_packed_ptr.name, None, dont_track=True)
+                self._do_set(prop.value_packed_ptr.name, None, untracked=True)

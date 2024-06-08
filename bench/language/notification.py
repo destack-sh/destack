@@ -7,7 +7,13 @@ from bench.language.const import (
     StructType,
 )
 from bench.language.field import TypeInfoBase
-from bench.language.node import HasBaseNode, TimedNode, timed_node
+from bench.language.node import (
+    HasNodeBase,
+    HasPersistentIdentity,
+    HasTimeIdentity,
+    PackageNode,
+    timed_node,
+)
 from bench.language.property import (
     p_internal,
     p_node_parent,
@@ -33,7 +39,14 @@ if TYPE_CHECKING:
 
 
 @timed_node(NodeType.NOTIFICATION, passthrough="value")
-class Notification(TimedNode[NotificationData], HasBaseNode, HasSessionContext, HasValues):
+class Notification(
+    PackageNode[NotificationData],
+    HasTimeIdentity,
+    HasPersistentIdentity,
+    HasNodeBase,
+    HasSessionContext,
+    HasValues,
+):
     """
     A Notification for a Bench (author = created_by).
     """
