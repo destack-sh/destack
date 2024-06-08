@@ -67,7 +67,7 @@ def _on_completing_setup(func: Callable | None = None):
 def _complete_bench_setup():
     """Finalize setup of all language constructs after everything is imported."""
     from bench.language import BuiltinObject, InlineStruct, Node, Object, const
-    from bench.language.node import HasBaseNode
+    from bench.language.node import HasNodeBase
 
     global _COMPLETED_SETUP
     if _COMPLETED_SETUP:
@@ -232,6 +232,6 @@ def _complete_bench_setup():
 
         # check that BASED_NODE_TYPES is consistent with HasBase
         base_node_types = [
-            cast(Node, n).metatype for n in get_subclasses(HasBaseNode) if hasattr(n, "metatype")
+            cast(Node, n).metatype for n in get_subclasses(HasNodeBase) if hasattr(n, "metatype")
         ]
         assert_collections_equal(base_node_types, const.BASED_NODE_TYPES.tuple)

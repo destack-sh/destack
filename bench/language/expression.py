@@ -24,7 +24,7 @@ from bench.language.const import (
 )
 from bench.language.node import (
     BenchNode,
-    HasBaseNode,
+    HasNodeBase,
     InlineStruct,
     Node,
     Property,
@@ -137,7 +137,7 @@ class NodeReference(InlineStruct[NodeReferenceData]):
             reference.bench_id = node.bench_id
         # base
         if node.metatype in BASED_NODE_TYPES:
-            base = cast(HasBaseNode, node).base
+            base = cast(HasNodeBase, node).base
             if base is not None:
                 reference.base_ck = base.ck
                 reference.base_bench_id = base.bench_id
@@ -164,7 +164,7 @@ class NodeReference(InlineStruct[NodeReferenceData]):
             reference.bench_id = node_data.parent_ptr.bench_id
         # base
         if NodeType(node_data.metatype) in BASED_NODE_TYPES:
-            base = cast(HasBaseNode, node_cls).get_base_from_data(node_data)
+            base = cast(HasNodeBase, node_cls).get_base_from_data(node_data)
             if base is not None:
                 reference.base_ck = base.ck
                 reference.base_bench_id = base.bench_id
@@ -190,7 +190,7 @@ class NodeReference(InlineStruct[NodeReferenceData]):
             reference.bench_id = str(node.bench_id)
         # base
         if node.metatype in BASED_NODE_TYPES:
-            base = cast(HasBaseNode, node).base
+            base = cast(HasNodeBase, node).base
             if base is not None:
                 reference.base_ck = str(base.ck)
                 reference.base_bench_id = str(base.bench_id)

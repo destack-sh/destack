@@ -107,6 +107,7 @@ export const TIMED_NODE_TYPES = [
   NodeType.NOTIFICATION,
   NodeType.MESSAGE,
 ];
+export const ETERNAL_NODE_TYPES = [NodeType.SESSION, NodeType.RUN, NodeType.SIGNAL, NodeType.LOG];
 export const LOCAL_NODE_TYPES = [...RUNTIME_NODE_TYPES];
 export const DEFAULT_LOADED_SOURCE_NODE_TYPES = [
   NodeType.PACKAGE,

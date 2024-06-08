@@ -222,7 +222,7 @@ export interface BoxData {
     heightRelative?: number;
 }
 /**
- * Code(lines: list[bench.language.code_.CodeLine] = None, _is_interped: bool = False, _session: 'Session | None' = None, _updated_properties: bitarray.bitarray | None = None, parent: Union[ForwardRef('BuiltinObject'), ForwardRef('Object'), NoneType] = None, id: int = <factory>, order_key: str | None = None, parent_id: int = None, parent_key: str = None)
+ * Code(lines: list[bench.language.code_.CodeLine] = None, _session: 'Session | None' = None, _updated_properties: bitarray.bitarray | None = None, parent: Union[ForwardRef('BuiltinObject'), ForwardRef('Object'), NoneType] = None, id: int = <factory>, order_key: str | None = None, parent_id: int = None, parent_key: str = None)
  *
  * @generated from protobuf message symbolx.bench.CodeData
  */
@@ -253,7 +253,7 @@ export interface CodeData {
     lines: CodeLineData[];
 }
 /**
- * CodeLine(content: str = <factory>, _is_interped: bool = False, _session: 'Session | None' = None, _updated_properties: bitarray.bitarray | None = None, parent: Union[ForwardRef('BuiltinObject'), ForwardRef('Object'), NoneType] = None, id: int = <factory>, order_key: str | None = None, parent_id: int = None, parent_key: str = None)
+ * CodeLine(content: str = <factory>, _session: 'Session | None' = None, _updated_properties: bitarray.bitarray | None = None, parent: Union[ForwardRef('BuiltinObject'), ForwardRef('Object'), NoneType] = None, id: int = <factory>, order_key: str | None = None, parent_id: int = None, parent_key: str = None)
  *
  * @generated from protobuf message symbolx.bench.CodeLineData
  */
@@ -542,7 +542,7 @@ export interface FontData {
     size?: FontSize;
 }
 /**
- * Icon(kind: bench.language.file.IconKind = False, emoji: Optional[str] = <factory>, file: Optional[ForwardRef('File')] = None, fa_name: Optional[str] = <factory>, color: Optional[ForwardRef('Color')] = None, _is_interped: bool = False, _session: 'Session | None' = None, _updated_properties: bitarray.bitarray | None = None, parent: Union[ForwardRef('BuiltinObject'), ForwardRef('Object'), NoneType] = None, parent_id: int = None, parent_key: str = None)
+ * Icon(kind: bench.language.file.IconKind = False, emoji: Optional[str] = <factory>, file: Optional[ForwardRef('File')] = None, fa_name: Optional[str] = <factory>, color: Optional[ForwardRef('Color')] = None, _session: 'Session | None' = None, _updated_properties: bitarray.bitarray | None = None, parent: Union[ForwardRef('BuiltinObject'), ForwardRef('Object'), NoneType] = None, parent_id: int = None, parent_key: str = None)
  *
  * @generated from protobuf message symbolx.bench.IconData
  */
@@ -733,7 +733,7 @@ export interface PathData {
     segments: PathSegmentData[];
 }
 /**
- * PathSegment(type: bench.language.path.PathSegmentType = <factory>, name: Optional[str] = None, reference: Optional[ForwardRef('Node')] = None, _is_interped: bool = False, _session: 'Session | None' = None, _updated_properties: bitarray.bitarray | None = None, parent: Union[ForwardRef('BuiltinObject'), ForwardRef('Object'), NoneType] = None, reference_ptr: 'NodeReference' = None, parent_id: int = None, parent_key: str = None)
+ * PathSegment(type: bench.language.path.PathSegmentType = <factory>, name: Optional[str] = None, reference: Optional[ForwardRef('Node')] = None, _session: 'Session | None' = None, _updated_properties: bitarray.bitarray | None = None, parent: Union[ForwardRef('BuiltinObject'), ForwardRef('Object'), NoneType] = None, reference_ptr: 'NodeReference' = None, parent_id: int = None, parent_key: str = None)
  *
  * @generated from protobuf message symbolx.bench.PathSegmentData
  */
@@ -756,7 +756,7 @@ export interface PathSegmentData {
     referencePtr?: NodeReferenceData;
 }
 /**
- * PathToken(type: bench.language.path.PathTokenType = <factory>, _is_interped: bool = False, _session: 'Session | None' = None, _updated_properties: bitarray.bitarray | None = None, parent: Union[ForwardRef('BuiltinObject'), ForwardRef('Object'), NoneType] = None, parent_id: int = None, parent_key: str = None)
+ * PathToken(type: bench.language.path.PathTokenType = <factory>, _session: 'Session | None' = None, _updated_properties: bitarray.bitarray | None = None, parent: Union[ForwardRef('BuiltinObject'), ForwardRef('Object'), NoneType] = None, parent_id: int = None, parent_key: str = None)
  *
  * @generated from protobuf message symbolx.bench.PathTokenData
  */
@@ -828,7 +828,7 @@ export interface PolicyData {
     scopesPtr: NodeReferenceData[];
 }
 /**
- * A rule in a policy: [subject] + can/cannot [verb] + [object] [if condition].
+ * A rule in a policy: [subject] + [effect] [verb] + [object] [if condition].
  * Subject, verb and object are ORed, in-group conditions are ANDed.
  * (where None/empty -> wildcard, any value -> filter)
  *
@@ -948,7 +948,7 @@ export interface ProjectionData {
     orderKey?: string;
 }
 /**
- * PropertyReference(type: Optional[bench.utils.func.ObjectType] = <factory>, id: int = <factory>, references_type: Optional[bench.language.const.NodeType] = None, _is_interped: bool = False, _session: 'Session | None' = None, _updated_properties: bitarray.bitarray | None = None, parent: Union[ForwardRef('BuiltinObject'), ForwardRef('Object'), NoneType] = None, parent_id: int = None, parent_key: str = None)
+ * PropertyReference(type: Optional[bench.utils.func.ObjectType] = <factory>, id: int = <factory>, references_type: Optional[bench.language.const.NodeType] = None, _session: 'Session | None' = None, _updated_properties: bitarray.bitarray | None = None, parent: Union[ForwardRef('BuiltinObject'), ForwardRef('Object'), NoneType] = None, parent_id: int = None, parent_key: str = None)
  *
  * @generated from protobuf message symbolx.bench.PropertyReferenceData
  */
@@ -1250,7 +1250,7 @@ export interface SelectionData {
     toNodePtr?: NodeReferenceData;
 }
 /**
- * SessionContext(block: Optional[ForwardRef('Block')] = None, step: Optional[ForwardRef('Step')] = None, session: Optional[ForwardRef('Session')] = None, run: Optional[ForwardRef('Run')] = None, run_root: Optional[ForwardRef('Run')] = None, client: Optional[ForwardRef('Client')] = None, machine: Optional[ForwardRef('Machine')] = None, server: Optional[ForwardRef('Server')] = None, user: Optional[ForwardRef('User')] = None, _is_interped: bool = False, _session: 'Session | None' = None, _updated_properties: bitarray.bitarray | None = None, parent: Union[ForwardRef('BuiltinObject'), ForwardRef('Object'), NoneType] = None, block_ptr: 'NodeReference' = None, step_ptr: 'NodeReference' = None, session_ptr: 'NodeReference' = None, run_ptr: 'NodeReference' = None, run_root_ptr: 'NodeReference' = None, client_ptr: 'NodeReference' = None, machine_ptr: 'NodeReference' = None, server_ptr: 'NodeReference' = None, user_ptr: 'NodeReference' = None, parent_id: int = None, parent_key: str = None)
+ * SessionContext(block: Optional[ForwardRef('Block')] = None, step: Optional[ForwardRef('Step')] = None, session: Optional[ForwardRef('Session')] = None, run: Optional[ForwardRef('Run')] = None, run_root: Optional[ForwardRef('Run')] = None, client: Optional[ForwardRef('Client')] = None, machine: Optional[ForwardRef('Machine')] = None, server: Optional[ForwardRef('Server')] = None, user: Optional[ForwardRef('User')] = None, _session: 'Session | None' = None, _updated_properties: bitarray.bitarray | None = None, parent: Union[ForwardRef('BuiltinObject'), ForwardRef('Object'), NoneType] = None, block_ptr: 'NodeReference' = None, step_ptr: 'NodeReference' = None, session_ptr: 'NodeReference' = None, run_ptr: 'NodeReference' = None, run_root_ptr: 'NodeReference' = None, client_ptr: 'NodeReference' = None, machine_ptr: 'NodeReference' = None, server_ptr: 'NodeReference' = None, user_ptr: 'NodeReference' = None, parent_id: int = None, parent_key: str = None)
  *
  * @generated from protobuf message symbolx.bench.SessionContextData
  */
@@ -1501,7 +1501,7 @@ export interface TextLineData {
     isCode?: boolean;
 }
 /**
- * TextSpan(content: Optional[str] = None, node: Optional[bench.language.node.Node] = None, parent: Union[ForwardRef('BuiltinObject'), ForwardRef('Object'), NoneType] = None, _is_interped: bool = False, _session: 'Session | None' = None, _updated_properties: bitarray.bitarray | None = None, color: Optional[ForwardRef('ColorType')] = None, is_bold: Optional[bool] = None, is_italic: Optional[bool] = None, is_strikethrough: Optional[bool] = None, is_underline: Optional[bool] = None, is_code: Optional[bool] = None, node_ptr: 'NodeReference' = None, parent_id: int = None, parent_key: str = None)
+ * TextSpan(content: Optional[str] = None, node: Optional[bench.language.node.Node] = None, parent: Union[ForwardRef('BuiltinObject'), ForwardRef('Object'), NoneType] = None, _session: 'Session | None' = None, _updated_properties: bitarray.bitarray | None = None, color: Optional[ForwardRef('ColorType')] = None, is_bold: Optional[bool] = None, is_italic: Optional[bool] = None, is_strikethrough: Optional[bool] = None, is_underline: Optional[bool] = None, is_code: Optional[bool] = None, node_ptr: 'NodeReference' = None, parent_id: int = None, parent_key: str = None)
  *
  * @generated from protobuf message symbolx.bench.TextSpanData
  */
@@ -1604,7 +1604,7 @@ export interface TypeConstraintData {
     endsWith?: string;
 }
 /**
- * TypeInfo(kind: Optional[bench.language.const.TypeKind] = None, primitive_type: Optional[bench.language.const.PrimitiveType] = None, bench_type: Optional[bench.utils.func.BenchType] = None, base_type: Union[ForwardRef('Block'), ForwardRef('Step'), NoneType] = None, base_field_zone: Optional[ForwardRef('FieldZone')] = None, default_packed: Optional[Any] = None, default: None = None, visibility: Optional[bench.language.const.Visibility] = None, format_hint: Optional[bench.language.const.FormatHint] = None, condition: Optional[ForwardRef('Expression')] = None, constraint: Optional[ForwardRef('TypeConstraint')] = None, is_list: bool = False, is_secret: bool = False, is_required: bool = False, _resolved_type: Optional[ForwardRef('TypeInfoBase')] = None, _resolved_identity_key: str | None = None, _from_property: Optional[ForwardRef('Property')] = None, _is_interped: bool = False, _session: 'Session | None' = None, _updated_properties: bitarray.bitarray | None = None, parent: Union[ForwardRef('BuiltinObject'), ForwardRef('Object'), NoneType] = None, id: int = <factory>, order_key: str | None = None, base_type_ptr: 'NodeReference' = None, parent_id: int = None, parent_key: str = None)
+ * TypeInfo(kind: Optional[bench.language.const.TypeKind] = None, primitive_type: Optional[bench.language.const.PrimitiveType] = None, bench_type: Optional[bench.utils.func.BenchType] = None, base_type: Union[ForwardRef('Block'), ForwardRef('Step'), NoneType] = None, base_field_zone: Optional[ForwardRef('FieldZone')] = None, default_packed: Optional[Any] = None, default: None = None, visibility: Optional[bench.language.const.Visibility] = None, format_hint: Optional[bench.language.const.FormatHint] = None, condition: Optional[ForwardRef('Expression')] = None, constraint: Optional[ForwardRef('TypeConstraint')] = None, is_list: bool = False, is_secret: bool = False, is_required: bool = False, _resolved_type: Optional[ForwardRef('TypeInfoBase')] = None, _resolved_identity_key: str | None = None, _from_property: Optional[ForwardRef('Property')] = None, _session: 'Session | None' = None, _updated_properties: bitarray.bitarray | None = None, parent: Union[ForwardRef('BuiltinObject'), ForwardRef('Object'), NoneType] = None, id: int = <factory>, order_key: str | None = None, base_type_ptr: 'NodeReference' = None, parent_id: int = None, parent_key: str = None)
  *
  * @generated from protobuf message symbolx.bench.TypeInfoData
  */
@@ -3631,6 +3631,10 @@ export interface MessageData {
      */
     id: string;
     /**
+     * @generated from protobuf field: string ck = 3;
+     */
+    ck: string;
+    /**
      * @generated from protobuf field: symbolx.bench.NodeReferenceData parent_ptr = 4;
      */
     parentPtr?: NodeReferenceData;
@@ -3752,7 +3756,7 @@ export interface MessageData {
     userPtr?: NodeReferenceData;
 }
 /**
- * A simple node, which has properties like a Struct but has a persistent identity in our graph.
+ * A basic node with properties like a Struct and a global identity in our graph.
  *
  * @generated from protobuf message symbolx.bench.BaseNodeData
  */
@@ -3816,6 +3820,10 @@ export interface NotificationData {
      * @generated from protobuf field: string id = 2;
      */
     id: string;
+    /**
+     * @generated from protobuf field: string ck = 3;
+     */
+    ck: string;
     /**
      * @generated from protobuf field: symbolx.bench.NodeReferenceData parent_ptr = 4;
      */
@@ -18385,6 +18393,7 @@ class MessageData$Type extends MessageType<MessageData> {
         super("symbolx.bench.MessageData", [
             { no: 1, name: "metatype", kind: "enum", T: () => ["symbolx.bench.ObjectType", ObjectType, "OBJECT_TYPE_"] },
             { no: 2, name: "id", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
+            { no: 3, name: "ck", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 4, name: "parent_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 5, name: "package_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 6, name: "bench_ptr", kind: "message", T: () => NodeReferenceData },
@@ -18421,6 +18430,7 @@ class MessageData$Type extends MessageType<MessageData> {
         const message = globalThis.Object.create((this.messagePrototype!));
         message.metatype = 0;
         message.id = "";
+        message.ck = "";
         message.revision = 0n;
         message.createdEpoch = 0n;
         message.updatedEpoch = 0n;
@@ -18440,6 +18450,9 @@ class MessageData$Type extends MessageType<MessageData> {
                     break;
                 case /* string id */ 2:
                     message.id = reader.string();
+                    break;
+                case /* string ck */ 3:
+                    message.ck = reader.string();
                     break;
                 case /* symbolx.bench.NodeReferenceData parent_ptr */ 4:
                     message.parentPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.parentPtr);
@@ -18553,6 +18566,9 @@ class MessageData$Type extends MessageType<MessageData> {
         /* string id = 2; */
         if (message.id !== "")
             writer.tag(2, WireType.LengthDelimited).string(message.id);
+        /* string ck = 3; */
+        if (message.ck !== "")
+            writer.tag(3, WireType.LengthDelimited).string(message.ck);
         /* symbolx.bench.NodeReferenceData parent_ptr = 4; */
         if (message.parentPtr)
             NodeReferenceData.internalBinaryWrite(message.parentPtr, writer.tag(4, WireType.LengthDelimited).fork(), options).join();
@@ -18791,6 +18807,7 @@ class NotificationData$Type extends MessageType<NotificationData> {
         super("symbolx.bench.NotificationData", [
             { no: 1, name: "metatype", kind: "enum", T: () => ["symbolx.bench.ObjectType", ObjectType, "OBJECT_TYPE_"] },
             { no: 2, name: "id", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
+            { no: 3, name: "ck", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 4, name: "parent_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 5, name: "package_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 6, name: "bench_ptr", kind: "message", T: () => NodeReferenceData },
@@ -18827,6 +18844,7 @@ class NotificationData$Type extends MessageType<NotificationData> {
         const message = globalThis.Object.create((this.messagePrototype!));
         message.metatype = 0;
         message.id = "";
+        message.ck = "";
         message.revision = 0n;
         message.createdEpoch = 0n;
         message.updatedEpoch = 0n;
@@ -18846,6 +18864,9 @@ class NotificationData$Type extends MessageType<NotificationData> {
                     break;
                 case /* string id */ 2:
                     message.id = reader.string();
+                    break;
+                case /* string ck */ 3:
+                    message.ck = reader.string();
                     break;
                 case /* symbolx.bench.NodeReferenceData parent_ptr */ 4:
                     message.parentPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.parentPtr);
@@ -18959,6 +18980,9 @@ class NotificationData$Type extends MessageType<NotificationData> {
         /* string id = 2; */
         if (message.id !== "")
             writer.tag(2, WireType.LengthDelimited).string(message.id);
+        /* string ck = 3; */
+        if (message.ck !== "")
+            writer.tag(3, WireType.LengthDelimited).string(message.ck);
         /* symbolx.bench.NodeReferenceData parent_ptr = 4; */
         if (message.parentPtr)
             NodeReferenceData.internalBinaryWrite(message.parentPtr, writer.tag(4, WireType.LengthDelimited).fork(), options).join();
@@ -24796,6 +24820,7 @@ export enum LogProperty {
 export enum NotificationProperty {
   metatype = 1,
   id = 2,
+  ck = 3,
   parentPtr = 4,
   packagePtr = 5,
   benchPtr = 6,
@@ -24831,6 +24856,7 @@ export enum NotificationProperty {
 export enum MessageProperty {
   metatype = 1,
   id = 2,
+  ck = 3,
   parentPtr = 4,
   packagePtr = 5,
   benchPtr = 6,
@@ -26895,6 +26921,7 @@ export const LogDataInfo: Record<LogProperty, PropertyInfo> = {
 export const NotificationDataInfo: Record<NotificationProperty, PropertyInfo> = {
   [NotificationProperty.metatype]: { id: 1, name: 'metatype', component: ObjectType.NOTIFICATION, enumType: EnumType.OBJECT_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isComputed: true, isWired: true },
   [NotificationProperty.id]: { id: 2, name: 'id', component: ObjectType.NOTIFICATION, kind: 'primitive', primitiveType: PrimitiveType.UUID, isRequired: true, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
+  [NotificationProperty.ck]: { id: 3, name: 'ck', component: ObjectType.NOTIFICATION, kind: 'primitive', primitiveType: PrimitiveType.UUID, isRequired: true, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
   [NotificationProperty.parentPtr]: { id: 4, name: 'parent_ptr', component: ObjectType.NOTIFICATION, kind: 'reference', isRequired: true, isInternal: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_PARENT, referenceNodes: [NodeType.PACKAGE], referenceStruct: StructType.NODE_REFERENCE },
   [NotificationProperty.packagePtr]: { id: 5, name: 'package_ptr', component: ObjectType.NOTIFICATION, kind: 'reference', isRequired: true, isInternal: true, isComputed: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_ANCESTOR_FIRST, referenceNodes: [NodeType.PACKAGE], referenceStruct: StructType.NODE_REFERENCE },
   [NotificationProperty.benchPtr]: { id: 6, name: 'bench_ptr', component: ObjectType.NOTIFICATION, kind: 'reference', isRequired: true, isInternal: true, isComputed: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_ANCESTOR_FIRST, referenceNodes: [NodeType.BENCH], referenceStruct: StructType.NODE_REFERENCE },
@@ -26929,6 +26956,7 @@ export const NotificationDataInfo: Record<NotificationProperty, PropertyInfo> = 
 export const MessageDataInfo: Record<MessageProperty, PropertyInfo> = {
   [MessageProperty.metatype]: { id: 1, name: 'metatype', component: ObjectType.MESSAGE, enumType: EnumType.OBJECT_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isComputed: true, isWired: true },
   [MessageProperty.id]: { id: 2, name: 'id', component: ObjectType.MESSAGE, kind: 'primitive', primitiveType: PrimitiveType.UUID, isRequired: true, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
+  [MessageProperty.ck]: { id: 3, name: 'ck', component: ObjectType.MESSAGE, kind: 'primitive', primitiveType: PrimitiveType.UUID, isRequired: true, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
   [MessageProperty.parentPtr]: { id: 4, name: 'parent_ptr', component: ObjectType.MESSAGE, kind: 'reference', isRequired: true, isInternal: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_PARENT, referenceNodes: [NodeType.PACKAGE, NodeType.BLOCK, NodeType.MESSAGE], referenceStruct: StructType.NODE_REFERENCE },
   [MessageProperty.packagePtr]: { id: 5, name: 'package_ptr', component: ObjectType.MESSAGE, kind: 'reference', isRequired: true, isInternal: true, isComputed: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_ANCESTOR_FIRST, referenceNodes: [NodeType.PACKAGE], referenceStruct: StructType.NODE_REFERENCE },
   [MessageProperty.benchPtr]: { id: 6, name: 'bench_ptr', component: ObjectType.MESSAGE, kind: 'reference', isRequired: true, isInternal: true, isComputed: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_ANCESTOR_FIRST, referenceNodes: [NodeType.BENCH], referenceStruct: StructType.NODE_REFERENCE },

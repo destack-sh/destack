@@ -68,14 +68,13 @@ from .message import Message
 from .node import (
     BenchNode,
     BuiltinObject,
-    HasBaseNode,
+    HasNodeBase,
     InlineStruct,
     Link,
     Node,
     PackageNode,
     SourceNode,
     Struct,
-    TimedNode,
 )
 from .notification import Notification
 from .path import Path
@@ -133,7 +132,7 @@ __all__ = [
     "File",
     "FormatHint",
     "Handle",
-    "HasBaseNode",
+    "HasNodeBase",
     "Icon",
     "Identity",
     "InlineStruct",
@@ -197,7 +196,6 @@ __all__ = [
     "Tenancy",
     "Text",
     "TextSpan",
-    "TimedNode",
     "Transaction",
     "Trigger",
     "TriggerType",

@@ -15,10 +15,11 @@ from bench.language.const import (
     enum_,
 )
 from bench.language.node import (
-    HasBaseNode,
+    HasNodeBase,
+    HasTimeIdentity,
     Node,
+    PackageNode,
     Struct,
-    TimedNode,
     struct_,
     timed_node,
 )
@@ -39,6 +40,7 @@ from bench.language.text import Text
 from bench.language.validation import TITLE_CONSTRAINT, TypeConstraintIn, ValidationHandler
 from bench.language.value import HasValues
 from bench.proto.wire import AnyNodeData, NodeReferenceData, RunData
+from bench.utils.dt import utcnow
 from bench.utils.func import IdEnum
 
 if TYPE_CHECKING:
@@ -103,7 +105,7 @@ class RunError(Struct, BenchError):
 
 
 @timed_node(NodeType.RUN)
-class Run(TimedNode[RunData], HasBaseNode, HasSessionContext, HasValues):
+class Run(PackageNode[RunData], HasTimeIdentity, HasNodeBase, HasSessionContext, HasValues):
     """
     A 'run' of Blocks (and Steps within them) or 'lambdas' (just Code/Text).
     When 'running' something that's not directly runnable (like a Text Block, Text Step or Text Lambda),
@@ -129,7 +131,11 @@ class Run(TimedNode[RunData], HasBaseNode, HasSessionContext, HasValues):
 
     # status (overall)
     status: RunStatus = p_internal(40, default=RunStatus.SCHEDULED)
-    duration: Optional[float] = p_internal(41, default=None)
+    duration: Optional[float] = p_internal(
+        41,
+        default=None,
+        description="Duration in seconds from first attempt start to last attempt termination.",
+    )
     scheduled_at: Optional[datetime] = p_internal(42, default=None)
     scheduled_epoch: Optional[int] = p_internal(43, default=None)
     started_at: Optional[datetime] = p_internal(44, default=None)
@@ -202,7 +208,38 @@ class Run(TimedNode[RunData], HasBaseNode, HasSessionContext, HasValues):
     def get_base_from_data(data: AnyNodeData) -> Optional[NodeReferenceData]:
         return cast(RunData, data).block_ptr
 
+    def pause(self):
+        """Pauses the Run."""
+        assert self.status == RunStatus.RUNNING, f"cannot pause {self.status} run {self!r}"
+        self.status = RunStatus.PAUSED
+        self.paused_at = utcnow()
+
+    def resume(self):
+        """Resumes the Run."""
+        assert self.status == RunStatus.PAUSED, f"cannot resume {self.status} run {self!r}"
+        self.status = RunStatus.RUNNING
+        self.paused_at = None
+
+    def cancel(self):
+        """Cancels the Run before it happens."""
+        assert not self.status.is_terminal and not self.status.is_active, f"cannot cancel {self!r}"
+        self.status = RunStatus.CANCELLED
+
+    def abort(self):
+        """Stops an active Run forcefully."""
+        assert self.status.is_active, f"cannot abort {self!r}"
+        self.status = RunStatus.ABORTED
+
+    def kill(self):
+        """Kills a Run by any means necessary."""
+        assert not self.status.is_terminal, f"cannot kill {self!r}"
+        if self.status.is_active:
+            self.abort()
+        else:
+            self.cancel()
+
     def fail(self, error: "RunError"):
+        """Fails the Run with the given error."""
         assert not self.status.is_terminal, f"cannot fail {self.status} run {self!r}"
         self.status = RunStatus.FAILED
         self.error = error

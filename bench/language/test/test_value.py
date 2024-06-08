@@ -31,7 +31,6 @@ def test_coerce_nested_value() -> None:
     Choice1.fields.extend(
         Field.option(name="Option1"), Field.option(name="Option2"), Field.option(name="Option3")
     )
-    Choice1._interp_rec(None)
     Option1 = Choice1("Option1")
     assert Option1 == Choice1.fields.Option1
     with pytest.raises(ValueError):
@@ -42,7 +41,6 @@ def test_coerce_nested_value() -> None:
     ClassInner.fields.extend(
         Field.member("Field1", Choice1), Field.member("Field2", NodeType.BLOCK)
     )
-    ClassInner._interp_rec(None)
     object_inner = ClassInner(field1=Option1)
     assert object_inner.field1 == Option1
 
@@ -54,7 +52,6 @@ def test_coerce_nested_value() -> None:
         Field.member("Field3", Text),
         Field.member("Field4", ClassInner),
     )
-    ClassOuter._interp_rec(None)
     object_outer = ClassOuter(
         field1=Option1, field2=False, field3=[Text.plain("hello bench!")], field4=object_inner
     )
@@ -109,15 +106,9 @@ def test_roundtrip_nested_value():
     )
     class1.fields.create(name="Field4", base_type=class2, kind=TypeKind.ALIAS)
 
-    # TODO :Cleanup :Test: interp in in this test shouldn't be necessary
-    #  (run this test in session? or somehow in 'tracked' mode)
-    choice1._interp_rec(None)
-    class2._interp_rec(None)
-    class1._interp_rec(None)
-
     # outer value
     value = cast(Object, class1())
-    # TODO :Broken: pack/unpack_value does not yet turn node refs back into nodes
+    # TODO :Broken: value pack/unpack does not yet turn node refs back into nodes
     #  (so the assertion below would fail if the next line is uncommented)
     # value.field1 = choice1.fields.Option1
     value.field2 = False
@@ -131,7 +122,7 @@ def test_roundtrip_nested_value():
 
 
 @pytest.mark.parametrize("bench_obj", BENCH_OBJECTS, ids=lambda o: o.__class__.__name__)
-def test_roundtrip_robust_json(bench_obj: BuiltinObject):
+def test_roundtrip_builtin_object(bench_obj: BuiltinObject):
     packed_wire_obj = wiring.pack_object(bench_obj)
     packed_json = pack_builtin_object_data(packed_wire_obj)
     unpacked_wire_obj = unpack_builtin_object_data(packed_json)

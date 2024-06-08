@@ -21,7 +21,7 @@ from bench.language.const import (
     IN_BENCH_GLOBAL_NODE_TYPES,
     IN_BENCH_NODE_TYPES,
     LOCAL_NODE_TYPES,
-    SELF_LOGGED_NODE_TYPES,
+    ETERNAL_NODE_TYPES,
     ClientType,
     NodeType,
 )
@@ -502,7 +502,7 @@ class Host(GraphIoServiceBase, HostBase, HostSpec):
         log_edits: list[EditData] = []
         for edit in chain(edits, extended_edits):
             node_type = NodeType(edit.node_ptr.type)
-            if node_type in SELF_LOGGED_NODE_TYPES:
+            if node_type in ETERNAL_NODE_TYPES:
                 continue
             assert edit.revision is not None, f"revision not set in {edit!r}"
             assert edit.epoch is not None, f"epoch not set in {edit!r}"

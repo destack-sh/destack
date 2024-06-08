@@ -16,7 +16,7 @@ from bench.language.connection import (
     scope_includes,
 )
 from bench.language.const import UNSET, BenchError, EditType, NodeType
-from bench.language.graph import DetachedNodeGraph, NodeDataGraph, NodeGraph
+from bench.language.graph import NodeDataGraph, NodeGraph
 from bench.language.node import BenchNode, Node, PackageNode, Property
 from bench.language.setup import NODE_CLASS_BY_TYPE
 from bench.proto.wire import (
@@ -541,7 +541,7 @@ def unpack_node_delta(
 
 @tracer.start_as_current_span("graph.edit_graph")
 def edit_graph(
-    graph: NodeGraph["Node"] | DetachedNodeGraph["Node"],
+    graph: NodeGraph["Node"],
     edits: Collection[EditData],
     options: "ReadOptions | None",
 ) -> None:

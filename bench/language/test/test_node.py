@@ -38,7 +38,7 @@ def test_node_pointers_consistency(fabricator: "Fabricator"):
     )
 
     # sub bench, above package pointers
-    environment_a = Environment(parent=bench_a, name="Production A")
+    environment_a = bench_a.environments.create(name="Production A")
     assert environment_a.bench_id == bench_a.id
     assert environment_a.to_ref().equals_content(
         NodeReference(

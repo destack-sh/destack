@@ -1,11 +1,9 @@
 import abc
 import base64
 import dataclasses
-import enum
 import functools
 import inspect
 import math
-import uuid
 from collections import defaultdict
 from dataclasses import dataclass
 from datetime import datetime
@@ -27,18 +25,15 @@ from typing import (
     dataclass_transform,
     final,
 )
-from uuid import UUID
+from uuid import UUID, uuid4
 
 import structlog
 from bitarray import bitarray
-from cachetools import cached
 
 from bench.language.const import (
     IN_BENCH_NODE_TYPES,
     IN_PACKAGE_NODE_TYPES,
     NODE_TYPES,
-    SUB_BENCH_NODE_TYPES,
-    SUB_PACKAGE_NODE_TYPES,
     TK_LENGTH_BYTES,
     UNSET,
     NodeType,
@@ -47,18 +42,15 @@ from bench.language.const import (
     ReferenceKind,
     StructType,
     _active_session,
-    get_active_session,
-    new_node_id,
     new_struct_id,
 )
-from bench.language.graph import DetachedNodeGraph, NodeDataGraph, NodeGraph, NodeList
+from bench.language.graph import NodeDataGraph, NodeGraph, NodeList
 from bench.language.property import (
     _PROPERTY_SPECIFIERS,
     METATYPE_PROPERTY,
     Property,
     p_internal,
     p_node_ancestor_first,
-    p_node_child,
     p_node_parent,
     p_node_template,
     p_regular,
@@ -73,7 +65,7 @@ from bench.language.setup import (
     STRUCT_CLASS_BY_TYPE,
 )
 from bench.language.validation import ValidationError, ValidationHandler, on_invalid_raise
-from bench.proto.wire import AnyNodeData, AnyStructData, NodeReferenceData, SomeNodeData
+from bench.proto.wire import AnyNodeData, AnyStructData, NodeReferenceData
 from bench.sql.core import Constraint, ConstraintType, Index, IndexType, Table
 from bench.utils.casing import PYTHON_CASING, IdentifierType, to_casing
 from bench.utils.dt import utcnow
@@ -149,70 +141,6 @@ def pad_ck_from_tk_b64(tk_b64: str) -> UUID:
     return UUID(bytes=bytes)
 
 
-def derive_source_node_id(package_id: UUID, ck: UUID):
-    """Derive the version-specific node id from its constant key"""
-    return uuid.uuid5(package_id, str(ck))
-
-
-class _ComponentMethod(enum.Enum):
-    # lifecycle
-    init = "init"
-    interp = "interp"
-    validate = "validate"
-    updated = "updated"
-
-    @property
-    def component(self) -> str:
-        return f"_{self.value}_component"
-
-    @property
-    def self(self) -> str:
-        return f"_{self.value}_self"
-
-    @property
-    def rec(self) -> str:
-        return f"_{self.value}_rec"
-
-
-# :NodeMethods
-_FORBIDDEN_COMPONENT_METHODS = (
-    tuple(m.self for m in _ComponentMethod)
-    + tuple(m.rec for m in _ComponentMethod)
-    + ("__post_init__", "__del__")
-)
-_COMPONENT_METHODS: dict[tuple[_ComponentMethod, type["Node"]], Any] = {}
-_COMPONENT_CALL_ORDER: tuple[str, ...] = ("Struct", "Node", "TypeInfoBase")  # ... the rest
-
-
-def _sort_components_in_call_order(
-    components: Collection[type["BuiltinObject"]],
-) -> list[type["Node"]]:
-    """Sorts components by call order. Nodes without call order are left as-is."""
-    sorted_components = []
-    for component in components:
-        if component.__name__ in _COMPONENT_CALL_ORDER:
-            sorted_components.append(component)
-    sorted_components.sort(key=lambda c: _COMPONENT_CALL_ORDER.index(c.__name__))
-    for component in components:
-        if component.__name__ not in _COMPONENT_CALL_ORDER:
-            sorted_components.append(component)
-    return sorted_components
-
-
-@cached(cache={}, key=lambda cls, components, method: (cls, method))
-def _get_component_methods(
-    cls: type,
-    components: Collection[type["BuiltinObject"]],
-    method: _ComponentMethod,
-) -> tuple[Callable, ...]:
-    """Get the actually implemented methods in the given components in call order."""
-    methods = []
-    for component in _sort_components_in_call_order(components):
-        if _COMPONENT_METHODS.get((method, component), None) is not None:
-            methods.append(getattr(component, method.component))
-    return tuple(methods)
-
-
 _BASE_OBJECT_NAMES = ("BuiltinObject", "InlineStruct", "Struct", "Node")
 
 
@@ -251,14 +179,6 @@ def _process_object_cls[ObjectT: BuiltinObject](
                     static_components.append(grandparent)
 
     if IS_DEV or IS_TEST:
-        # check that no forbidden methods are defined in non-base classes
-        if cls.__name__ not in _BASE_OBJECT_NAMES:
-            for name in _FORBIDDEN_COMPONENT_METHODS:
-                meth = getattr(cls, name, None)
-                good_meths = (getattr(cls, name, None) for cls in (Struct, Node, Node))
-                if meth is not None and meth not in good_meths:
-                    raise ValueError(f"forbidden method {name} defined in {cls}")
-
         # check components
         for component in static_components[1:]:
             if component.__name__ in _BASE_OBJECT_NAMES:
@@ -344,11 +264,11 @@ def _process_object_cls[ObjectT: BuiltinObject](
                     )
                 properties_by_name[p.name] = p
 
-    # NOTE :Performance :Architecture: we can't really use slots for our builtin objects 
+    # create class (map properties to dataclass fields)
+    # NOTE :Performance :Architecture: we can't really use slots for our builtin objects
     #  (as it stands today, __slots__ always uses class-level descriptors, but we also
     #   want to use class level attributes for our own properties, like Block.type, ...
     #   - neglecting this conflict causes fun errors like 'X is a read-only attribute')
-    # create class (map properties to dataclass fields)
     if is_final:
         for name, prop in list(properties_by_name.items()):
             # map property to computed property or dataclass field
@@ -401,10 +321,10 @@ def _process_object_cls[ObjectT: BuiltinObject](
         for annotation in tuple(cls.__annotations__.keys()):
             del cls.__annotations__[annotation]
         cls = dataclass(cls, slots=False, repr=False, eq=False)  # type: ignore
-        
+
         def _fail_init_abc(self, *args, **kwargs):
             raise RuntimeError(f"cannot instantiate non-final class {cls}")
-        
+
         cls.__init__ = _fail_init_abc
 
     # update reference to transformed class
@@ -414,14 +334,6 @@ def _process_object_cls[ObjectT: BuiltinObject](
         #  (I can't figure out why they do that, the defaults are set in __init__ too?)
         if prop.default is not None and getattr(cls, prop.name, None) == prop.default:
             setattr(cls, prop.name, None)
-
-    # collect component methods implemented in this component
-    for meth_type in _ComponentMethod:
-        meth = getattr(cls, meth_type.component, None)
-        if meth is not None and not any(
-            meth is getattr(base, meth_type.component, None) for base in cls.__bases__
-        ):
-            _COMPONENT_METHODS[(meth_type, cls)] = meth  # type: ignore
 
     # register components and index properties
     cls.__components__ = tuple(static_components)  # type: ignore
@@ -610,9 +522,7 @@ def node_(
     """Register a class as a concrete node for the given node type."""
 
     in_package = node_type in IN_PACKAGE_NODE_TYPES
-    sub_package = node_type in SUB_PACKAGE_NODE_TYPES
     in_bench = node_type in IN_BENCH_NODE_TYPES
-    sub_bench = node_type in SUB_BENCH_NODE_TYPES
 
     def decorate(cls: Type[_NodeT]) -> Type[_NodeT]:
         cls = node_component(
@@ -655,9 +565,7 @@ def node_(
 
         cls.__roots__ = bittuple(*roots, enum_cls=NodeType)
         cls.__is_in_package__ = in_package
-        cls.__is_sub_package__ = sub_package
         cls.__is_in_bench__ = in_bench
-        cls.__is_sub_bench__ = sub_bench
 
         if IS_DEV:
             if issubclass(cls, (InlineStruct, Struct)):
@@ -836,65 +744,57 @@ class BuiltinObject[ObjectDataT: AnyNodeData | AnyStructData](abc.ABC):
     if TYPE_CHECKING:
         parent: "BuiltinObject | Object | None" = None
 
-    _is_interped: bool = p_runtime(default=False)
     _session: "Session | None" = p_runtime(default=None)
     _updated_properties: bitarray | None = p_runtime(default=None)
 
     def __post_init__(self):
-        if get_active_session() is not None:
-            self._is_interped = True
-        self._init_self()
+        for prop in self.__struct_reference_properties__.values():
+            # copy new structs if needed
+            if prop.reference_kind == ReferenceKind.STRUCT_CHILD:
+                existing = getattr(self, prop.name, None)
+                if prop.is_list:
+                    assert prop.reference_list_type is not None
+                    self._do_set(
+                        prop.name, prop.reference_list_type(cast(Node, self), prop), untracked=True
+                    )
+                    if existing:
+                        # will auto copy if needed
+                        getattr(self, prop.name).extend(existing)
+                elif existing is not None:
+                    if prop.reference_kind == ReferenceKind.STRUCT_CHILD:
+                        self._do_set(prop.name, existing._move_to(self, prop), untracked=True)
+
+            # init property reference pointers if references are set
+            if prop.reference_kind == ReferenceKind.PROPERTY:
+                assert prop.reference_wired_ptr is not None, f"no wired ptr for {prop!r}"
+                existing = getattr(self, prop.name, None)
+                if prop.is_list:
+                    if existing:
+                        self._do_set(
+                            prop.reference_wired_ptr.name,
+                            prop.to_wired_ptr(existing),
+                            untracked=True,
+                        )
+                elif existing is not None:
+                    self._do_set(
+                        prop.reference_wired_ptr.name, prop.to_wired_ptr(existing), untracked=True
+                    )
+
+        # init reference pointers if references are set
+        for prop in self.__node_reference_properties__.values():
+            if prop.reference_kind == ReferenceKind.NODE_ANCESTOR_FIRST:
+                continue
+            if prop.reference_wired_ptr is not None:
+                value = getattr(self, prop.name)
+                if value is not None:  # keep old value)
+                    self._do_set(prop.reference_wired_ptr.name, prop.to_wired_ptr(value))
 
     def __content_str__(self) -> str:
-        return ""  # nothing by default
+        return ""  # empty by default
 
     @final
     def __str__(self):
         return self.__content_str__()
-
-    @classmethod
-    def _unmask_properties_ids(cls, mask: bitarray) -> tuple[int, ...]:
-        return tuple(cls.__properties_id_in_order__[i] for i in mask.search(True))
-
-    @classmethod
-    def _unmask_properties(cls, mask: bitarray) -> tuple[Property, ...]:
-        return tuple(cls.__properties_in_order__[i] for i in mask.search(True))
-
-    @classmethod
-    def _mask_properties(cls, properties: Collection[Property]) -> bitarray:
-        mask = bitarray(cls.__max_property_ord__ + 1)
-        for prop in properties:
-            mask[prop.ord] = True
-        return mask
-
-    @classmethod
-    def _mask_properties_ids(cls, properties: Collection[int]) -> bitarray:
-        mask = bitarray(cls.__max_property_ord__ + 1)
-        for prop_id in properties:
-            prop = cls.__properties_by_id__[prop_id]
-            mask[prop.ord] = True
-        return mask
-
-    @classmethod
-    def _resolve_property(cls, ptr: "PropertyReference") -> Property:
-        prop = cls._get_property(ptr)
-        if prop is None:
-            raise ValueError(f"unknown property reference: {ptr!r} in {cls!r}")
-        return prop
-
-    @classmethod
-    def _get_property(cls, ptr: "PropertyReference") -> Property | None:
-        if not ptr.references_type:
-            return cls.__properties_by_id__.get(ptr.id, None)
-        else:
-            for prop in cls.__stored_properties__.values():
-                if (
-                    prop.id == ptr.id
-                    and prop.reference_nodes
-                    and prop.reference_nodes[0] == ptr.references_type
-                ):
-                    return prop
-            return None
 
     def equals_content(self, other: Any) -> bool:
         """Checks if all wired properties of the two structs are equal (recursively)."""
@@ -921,7 +821,7 @@ class BuiltinObject[ObjectDataT: AnyNodeData | AnyStructData](abc.ABC):
             return self.equals_content(other)
 
     def _do_get(self, item):
-        """Called if an attribute doesn't exist on the object."""
+        """Called if an attribute doesn't exist in __dict__ or the usual places."""
 
         # check passthrough (if 'live' in session)
         if self.__passthrough__ is not None and self._session is not None:
@@ -932,10 +832,10 @@ class BuiltinObject[ObjectDataT: AnyNodeData | AnyStructData](abc.ABC):
 
         raise AttributeError(item)
 
-    def _do_set(self, key: str, value, *, dont_track: bool = False):
-        """Sets *any* attribute on this node (incl. slots if using)."""
+    def _do_set(self, key: str, value, *, untracked: bool = False):
+        """Sets *any* attribute on this node."""
         session = getattr(self, "_session", None)
-        is_tracked = not dont_track and session is not None and session is not UNSET
+        is_tracked = not untracked and session is not None and session is not UNSET
         prop = self.__properties__.get(key)
         if prop is not None:
             if (prop.is_ephemeral and not prop.is_value_runtime) or prop.is_autoset:  # untracked
@@ -1005,6 +905,12 @@ class BuiltinObject[ObjectDataT: AnyNodeData | AnyStructData](abc.ABC):
         __getattr__ = _do_get
         __setattr__ = _do_set
 
+    @property
+    def active_session(self) -> "Session":
+        """The currently active session (errors if none)"""
+        assert self._session is not None, f"no session for {self!r}"
+        return self._session
+
     def _copy(self, **update) -> "Self":
         kwargs = {
             p.name: getattr(self, p.name)
@@ -1022,64 +928,53 @@ class BuiltinObject[ObjectDataT: AnyNodeData | AnyStructData](abc.ABC):
             if value is None:
                 continue
             elif not prop.is_list:
-                assert isinstance(value, InlineStruct), f"unexpected value for {prop!r}: {value!r}"
                 yield from (cast(Struct, value))._walk_struct()
             elif len(cast(list, value)) > 0:
                 for item in cast(list, value):
-                    assert isinstance(item, InlineStruct), f"unexpected item for {prop!r}: {item!r}"
-                    yield from item._walk_struct()
+                    yield from cast(InlineStruct, item)._walk_struct()
 
-    def _init_component(self):
-        for prop in self.__struct_reference_properties__.values():
-            # copy new structs if needed (now that we're init & have an id for sure)
-            if prop.reference_kind == ReferenceKind.STRUCT_CHILD:
-                existing = getattr(self, prop.name, None)
-                if prop.is_list:
-                    assert prop.reference_list_type is not None
-                    self._do_set(
-                        prop.name, prop.reference_list_type(cast(Node, self), prop), dont_track=True
-                    )
-                    if existing:
-                        # will auto copy if needed
-                        getattr(self, prop.name).extend(existing)
-                elif existing is not None:
-                    if prop.reference_kind == ReferenceKind.STRUCT_CHILD:
-                        self._do_set(prop.name, existing._move_to(self, prop), dont_track=True)
+    def _validate_component(self, properties: tuple[Property, ...], invalid: "ValidationHandler"):  # noqa: B027
+        """Check the integrity of the component."""
+        pass  # do nothing by default
 
-            # init property reference pointers if references are set
-            if prop.reference_kind == ReferenceKind.PROPERTY:
-                assert prop.reference_wired_ptr is not None, f"no wired ptr for {prop!r}"
-                existing = getattr(self, prop.name, None)
-                if prop.is_list:
-                    if existing:
-                        self._do_set(
-                            prop.reference_wired_ptr.name,
-                            prop.to_wired_ptr(existing),
-                            dont_track=True,
-                        )
-                elif existing is not None:
-                    self._do_set(
-                        prop.reference_wired_ptr.name, prop.to_wired_ptr(existing), dont_track=True
-                    )
-
-        # init reference pointers if references are set
-        for prop in self.__node_reference_properties__.values():
-            if prop.reference_kind == ReferenceKind.NODE_ANCESTOR_FIRST:
-                continue
-            if prop.reference_wired_ptr is not None:
-                value = getattr(self, prop.name)
-                if value is not None:  # keep old value)
-                    self._do_set(prop.reference_wired_ptr.name, prop.to_wired_ptr(value))
-
-    def _validate_component(self, properties: Collection[Property], invalid: "ValidationHandler"):
-        if properties == ():
-            properties = self.__tracked_properties__.values()
-        for prop in properties:
+    @final
+    def _validate_self(
+        self, properties: tuple[Property, ...], invalid: "ValidationHandler"
+    ) -> None:
+        """Check the integrity of this object."""
+        # check properties types
+        for prop in properties or self.__tracked_properties__.values():
             if prop.type_info is not None and prop.reference_source is None:
                 value = getattr(self, prop.name)
                 check_value(value, prop.type_info, invalid=invalid)
+        # check components
+        for component in self.__components__:
+            component._validate_component(self, properties, invalid)
+
+    @final
+    def _validate_rec(self, invalid: "ValidationHandler"):
+        # check inner structs
+        for inner_struct in self._walk_struct():
+            inner_struct._validate_self((), invalid)
+
+    def _updated_component(self, properties: tuple[Property, ...]):  # noqa: B027
+        """Called when properties have been updated."""
+        pass  # do nothing by default
+
+    @final
+    def _updated_self(self, properties: tuple[Property, ...]) -> None:
+        """Called when properties have been updated."""
+        for component in self.__components__:
+            component._updated_component(self, properties)
+
+    def _flushed_self(self):
+        """Called when this struct has been flushed to the store."""
+        if self.__is_node__:
+            (cast("Node", self))._is_new = False
+        self._updated_properties = None
 
     def _resolve_references(self, scope: Optional["Node"]):
+        # resolve node references
         # NOTE :Robustness? :Architecture: turn regular node refs into computed properties? :NodeRefs
         #  Currently, we manually set wired ptrs on set and resolve on interp.
         #  If we had immediate (=fast) access to a graph in all Object/Struct/Nodes,
@@ -1127,58 +1022,8 @@ class BuiltinObject[ObjectDataT: AnyNodeData | AnyStructData](abc.ABC):
                 ptr = cast("PropertyReference", ptr)
                 setattr(self, prop.name, ptr.resolve())
 
-    def _flushed_self(self):
-        """Called when this struct has been flushed to the store."""
-        if self.__is_node__:
-            (cast("Node", self))._is_new = False
-        self._updated_properties = None
-
     def __bool__(self):
         return True  # allow truthy checks for objects
-
-    @final
-    def _init_self(self):
-        for meth in _get_component_methods(
-            self.__class__, self.__components__, _ComponentMethod.init
-        ):
-            meth(self)
-
-    @final
-    def _interp_self(self, scope: Optional["Node"]):
-        # resolve references first
-        self._resolve_references(scope)
-        # and then component interps
-        for meth in _get_component_methods(
-            self.__class__, self.__components__, _ComponentMethod.interp
-        ):
-            meth(self, scope)
-        self._is_interped = True
-
-    @final
-    def _validate_self(
-        self, properties: Collection[Property], invalid: "ValidationHandler"
-    ) -> None:
-        for meth in _get_component_methods(
-            self.__class__, self.__components__, _ComponentMethod.validate
-        ):
-            meth(self, properties, invalid)
-
-    @final
-    def _updated_self(self, properties: Collection[Property]) -> None:
-        for meth in _get_component_methods(
-            self.__class__, self.__components__, _ComponentMethod.updated
-        ):
-            meth(self, properties)
-
-    @final
-    def _interp_rec(self, scope: Optional["Node"]):
-        for inner_struct in self._walk_struct():
-            inner_struct._interp_self(scope)
-
-    @final
-    def _validate_rec(self, properties: Collection[Property], invalid: "ValidationHandler") -> None:
-        for inner_struct in self._walk_struct():
-            inner_struct._validate_self(properties, invalid)
 
     @classmethod
     def _from_data(cls, data: ObjectDataT) -> Self:
@@ -1193,6 +1038,50 @@ class BuiltinObject[ObjectDataT: AnyNodeData | AnyStructData](abc.ABC):
         from bench.proto.wiring import pack_object
 
         return pack_object(self)  # type: ignore
+
+    @classmethod
+    def _unmask_properties_ids(cls, mask: bitarray) -> tuple[int, ...]:
+        return tuple(cls.__properties_id_in_order__[i] for i in mask.search(True))
+
+    @classmethod
+    def _unmask_properties(cls, mask: bitarray) -> tuple[Property, ...]:
+        return tuple(cls.__properties_in_order__[i] for i in mask.search(True))
+
+    @classmethod
+    def _mask_properties(cls, properties: Collection[Property]) -> bitarray:
+        mask = bitarray(cls.__max_property_ord__ + 1)
+        for prop in properties:
+            mask[prop.ord] = True
+        return mask
+
+    @classmethod
+    def _mask_properties_ids(cls, properties: Collection[int]) -> bitarray:
+        mask = bitarray(cls.__max_property_ord__ + 1)
+        for prop_id in properties:
+            prop = cls.__properties_by_id__[prop_id]
+            mask[prop.ord] = True
+        return mask
+
+    @classmethod
+    def _resolve_property(cls, ptr: "PropertyReference") -> Property:
+        prop = cls._get_property(ptr)
+        if prop is None:
+            raise ValueError(f"unknown property reference: {ptr!r} in {cls!r}")
+        return prop
+
+    @classmethod
+    def _get_property(cls, ptr: "PropertyReference") -> Property | None:
+        if not ptr.references_type:
+            return cls.__properties_by_id__.get(ptr.id, None)
+        else:
+            for prop in cls.__stored_properties__.values():
+                if (
+                    prop.id == ptr.id
+                    and prop.reference_nodes
+                    and prop.reference_nodes[0] == ptr.references_type
+                ):
+                    return prop
+            return None
 
 
 @object_component()
@@ -1294,13 +1183,14 @@ def is_implicit_node_property(prop_id: int) -> bool:
 
 @node_component()
 class Node[NodeDataT: AnyNodeData](BuiltinObject[NodeDataT], abc.ABC):
-    """A simple node, which has properties like a Struct but has a persistent identity in our graph."""
+    """A basic node with properties like a Struct and a global identity in our graph."""
 
     metatype: ClassVar[NodeType]  # type: ignore
 
     __is_node__: ClassVar[bool] = True
     __identifier_type__: ClassVar[IdentifierType] = IdentifierType.VARIABLE
-    __id_factory__: ClassVar[Callable[[], UUID]] = new_node_id
+    __id_factory__: ClassVar[Callable[[], UUID]] = uuid4
+    __ck_factory__: ClassVar[Callable[[], UUID]] = uuid4
 
     __ancestor_properties__: ClassVar[dict[str, Property]] = {}
     __node_child_properties__: ClassVar[dict[str, Property]] = {}
@@ -1309,9 +1199,7 @@ class Node[NodeDataT: AnyNodeData](BuiltinObject[NodeDataT], abc.ABC):
     __is_struct__: ClassVar[bool] = False
     __is_node__: ClassVar[bool] = True
     __is_in_bench__: ClassVar[bool] = UNSET  # part of a Bench
-    __is_sub_bench__: ClassVar[bool] = UNSET  # part of a Bench (excludes Bench itself)
     __is_in_package__: ClassVar[bool] = UNSET  # part of a Package
-    __is_sub_package__: ClassVar[bool] = UNSET  # part of a Package (excludes Package itself)
     __is_stored__: ClassVar[bool] = False  # stored in primary store (runtime or local)
     __is_stored_custom__: ClassVar[bool] = False  # custom storage logic (for records)
     __is_local__: ClassVar[bool] = False  # stored in Bench-local DB (instead of global Bench DB)
@@ -1369,20 +1257,17 @@ class Node[NodeDataT: AnyNodeData](BuiltinObject[NodeDataT], abc.ABC):
     # 30+ for 'user' node/struct properties
     # <... defined in concrete type ...>
 
-    links: NodeList["Link"] = p_node_child(NodeType.LINK)
-
-    _graph: Union["NodeGraph[Node]", "DetachedNodeGraph"] = p_runtime(default=None)
-    _read: "ReadInfo | None" = p_runtime(default=None)
+    _graph: "NodeGraph[Node]" = p_runtime(default=None)
+    _read_info: "ReadInfo | None" = p_runtime(default=None)
     _is_new: bool = p_runtime(default=False)
 
     def __post_init__(self):
         # init ck/id
-        if self.__is_sub_package__ and isinstance(self, IdentityNode):
+        if isinstance(self, HasPersistentIdentity):
             if self.ck is None:
-                self.ck = self.__class__.__id_factory__()
+                self.ck = self.__class__.__ck_factory__()
+                self.id = self.__class__.__id_factory__()
                 self._is_new = True
-            if self.id is None and self.is_attached:
-                self._assign_id(cast(PackageNode, self).package.id)
         elif self.id is None:
             self.id = self.__class__.__id_factory__()
             self._is_new = True
@@ -1394,31 +1279,40 @@ class Node[NodeDataT: AnyNodeData](BuiltinObject[NodeDataT], abc.ABC):
         # init graph
         if self.parent is None:
             # if we're not in a graph, start a new one
-            if NodeType.BENCH in self.__roots__:
-                self._graph = DetachedNodeGraph()
-            else:
-                self._graph = NodeGraph()
+            self._graph = NodeGraph()
             self._graph.add(self)
         else:
             # we'll be added to the graph by our parent
-            assert self.parent._graph is not None, f"no graph for {self.parent!r}"
             self._graph = self.parent._graph
-        # init session context
-        if self._session is None and self._session is not UNSET:
-            self._session = _active_session.get()
-            if self._session is not None:
-                self._is_interped = True
-        self._init_self()
-        # track if in session
-        if self._session is not None and self._session is not UNSET:
-            self._interp_self(self)
-            self._track_self(self._session)
 
-    def _assign_id(self, package_id: UUID):
-        assert package_id, f"cannot assign id to {self!r} without a package id"
-        assert self.id is None, f"cannot assign id to {self!r} twice"
-        assert self.ck is not None, f"cannot assign id to {self!r} without ck"
-        self.id = derive_source_node_id(package_id, self.ck)
+        # init super (builtin object)
+        super().__post_init__()
+
+        # init node lists (preserving existing lists)
+        existing_lists: dict[str, Any] | None = None
+        for name, prop in self.__node_child_properties__.items():
+            existing = getattr(self, name, None)
+            assert prop.reference_list_type is not None
+            node_list = prop.reference_list_type(self, prop)
+            setattr(self, name, node_list)
+            if existing and not isinstance(existing, NodeList):
+                if existing_lists is None:
+                    existing_lists = {}
+                existing_lists[name] = existing
+        # keep manually set node lists if passed in
+        if existing_lists:
+            for name, existing in existing_lists.items():
+                if existing and not isinstance(existing, NodeList):
+                    getattr(self, name).extend(*existing)
+
+        # init session context
+        if self._session is not UNSET:
+            if self._session is None:
+                self._session = _active_session.get()
+            if self._session is not None:
+                if self._is_new:
+                    self._validate_self((), invalid=on_invalid_raise)
+                self._track_self(self._session)
 
     def _find_root(self) -> "Node":
         """Current root of this node. May not be *the* "right" root if detached."""
@@ -1462,9 +1356,56 @@ class Node[NodeDataT: AnyNodeData](BuiltinObject[NodeDataT], abc.ABC):
 
     @property
     def _data_graph(self) -> "NodeDataGraph":
-        assert self._read is not None, f"no read info for {self!r}"
-        assert self._read.graph is not None, f"no read data graph for {self!r}"
-        return self._read.graph
+        assert self._read_info is not None, f"no read info for {self!r}"
+        assert self._read_info.graph is not None, f"no read data graph for {self!r}"
+        return self._read_info.graph
+
+    def __eq__(self, other: Any):
+        return type(self) == type(other) and (
+            (self.id is not None and self.id == other.id) or self is other
+        )
+
+    def __hash__(self):
+        if "ck" in self.__properties__:
+            # 'id' may not yet be assigned
+            return hash((type(self), self.id, getattr(self, "ck")))
+        else:
+            return hash((type(self), self.id))
+
+    def __bool__(self):
+        return True  # allow truthy checks for nodes
+
+    @final
+    def _track_self(self, session: "Session"):
+        """Track this object in the given session."""
+        if (
+            self._session is not None
+            and self._session is not UNSET
+            and self._session is not session
+        ):
+            raise RuntimeError(f"{self!r} is already in {self._session!r}, not {session!r}")
+        self._session = session
+
+    @final
+    def _untrack_self(self) -> None:
+        """Stop tracking this object."""
+        self._session = None
+
+    @final
+    def _walk_descendants(self) -> Iterable["Node"]:
+        yield self
+        if self.metatype in HAS_CHILD_NODE_TYPES:
+            yield from self._graph.collect_descendants(self, recursive=True)
+
+    @final
+    def _track_rec(self, session: "Session"):
+        for inner_node in self._walk_descendants():
+            inner_node._track_self(session)
+
+    @final
+    def _untrack_rec(self):
+        for inner_node in self._walk_descendants():
+            inner_node._untrack_self()
 
     @property
     def tk(self) -> str:
@@ -1566,17 +1507,9 @@ class Node[NodeDataT: AnyNodeData](BuiltinObject[NodeDataT], abc.ABC):
 
         return NodeReference.data_from_node(self)
 
-    def __eq__(self, other: Any):
-        return type(self) == type(other) and (
-            (self.id is not None and self.id == other.id) or self is other
-        )
-
-    def __hash__(self):
-        if "ck" in self.__properties__:
-            # 'id' may not yet be assigned
-            return hash((type(self), self.id, getattr(self, "ck")))
-        else:
-            return hash((type(self), self.id))
+    #
+    # Lifecycle
+    #
 
     @property
     def is_extant(self):
@@ -1599,123 +1532,29 @@ class Node[NodeDataT: AnyNodeData](BuiltinObject[NodeDataT], abc.ABC):
     ):
         raise NotImplementedError
 
+    def archive(self):
+        """Archive this node."""
+        assert not self.is_archived, f"{self!r} is already archived"
+        self.active_session.archive(self)
+
+    def unarchive(self):
+        """Unarchive this node."""
+        assert self.is_archived, f"{self!r} is not archived"
+        self.active_session.unarchive(self)
+
     def delete(self):
         """Soft delete this node."""
         assert not self.is_deleted, f"{self!r} is already deleted"
-        raise NotImplementedError
+        self.active_session.delete(self)
 
     def restore(self):
         """Restore this node from soft deletion."""
         assert self.is_deleted, f"{self!r} is not deleted"
-        raise NotImplementedError
+        self.active_session.restore(self)
 
     def erase(self):
         """Hard delete this node. Forever. Irreversibly."""
-        raise NotImplementedError
-
-    def _to_data_wrapped(self) -> SomeNodeData:
-        """To wire format, wrapped in the generic any node container."""
-        from bench.proto.wiring import pack_object, wrap_some_node
-
-        return wrap_some_node(pack_object(self))
-
-    #
-    # The :ComponentMethods
-    #
-
-    def __bool__(self):
-        return True  # allow truthy checks for nodes
-
-    @final
-    def _init_self(self):  # type: ignore
-        # init node lists
-        existing_lists: dict[str, Any] | None = None
-        for name, prop in self.__node_child_properties__.items():
-            existing = getattr(self, name, None)
-            assert prop.reference_list_type is not None
-            node_list = prop.reference_list_type(self, prop)
-            setattr(self, name, node_list)
-            if existing and not isinstance(existing, NodeList):
-                if existing_lists is None:
-                    existing_lists = {}
-                existing_lists[name] = existing
-
-        # run component inits
-        for meth in _get_component_methods(
-            self.__class__, self.__components__, _ComponentMethod.init
-        ):
-            meth(self)
-
-        # keep manually set node lists if passed in
-        if existing_lists:
-            for name, existing in existing_lists.items():
-                if existing and not isinstance(existing, NodeList):
-                    getattr(self, name).extend(*existing)
-
-        # validate if in session
-        if self._is_new and self._session is not None and self._session is not UNSET:
-            self._validate_self((), invalid=on_invalid_raise)
-
-    @final
-    def _interp_self(self, scope: Optional["Node"]):  # type: ignore
-        # interp contained structs
-        for struct in self._walk_struct():
-            if struct is not self:
-                struct._interp_self(scope)
-        # and the component interps
-        for meth in _get_component_methods(
-            self.__class__, self.__components__, _ComponentMethod.interp
-        ):
-            meth(self, scope)
-        self._is_interped = True
-
-    @final
-    def _track_self(self, session: "Session"):
-        """Track this object in the given session."""
-        if (
-            self._session is not None
-            and self._session is not UNSET
-            and self._session is not session
-        ):
-            raise RuntimeError(f"{self!r} is already in {self._session!r}, not {session!r}")
-        self._session = session
-
-    @final
-    def _untrack_self(self) -> None:
-        """Stop tracking this object."""
-        self._session = None
-
-    @final
-    def _walk_descendants(self) -> Iterable["Node"]:
-        yield self
-        if self.metatype in HAS_CHILD_NODE_TYPES:
-            yield from self._graph.collect_descendants(self, recursive=True)
-
-    @final
-    def _interp_rec(self, scope: Optional["Node"]):  # type: ignore
-        # interp contained structs
-        super()._interp_rec(scope)
-        # and descendants
-        for inner_node in self._walk_descendants():
-            inner_node._interp_self(scope)
-
-    @final
-    def _validate_rec(self, properties: Collection[Property], invalid: "ValidationHandler") -> None:  # type: ignore
-        # validate contained structs
-        super()._validate_rec(properties, invalid)
-        # and descendants
-        for inner_node in self._walk_descendants():
-            inner_node._validate_self(properties, invalid)
-
-    @final
-    def _track_rec(self, session: "Session"):
-        for inner_node in self._walk_descendants():
-            inner_node._track_self(session)
-
-    @final
-    def _untrack_rec(self):
-        for inner_node in self._walk_descendants():
-            inner_node._untrack_self()
+        self.active_session.erase(self)
 
     #
     # Querying
@@ -1831,14 +1670,14 @@ class PackageNode[NodeDataT: AnyNodeData](BenchNode[NodeDataT], abc.ABC):
 
 
 @node_component()
-class IdentityNode[NodeDataT: AnyNodeData](PackageNode[NodeDataT], abc.ABC):
-    """A package node with a persistent identity across versions."""
+class HasPersistentIdentity(Node, abc.ABC):
+    """A node with a persistent identity across versions."""
 
     ck: UUID = p_system(3, default=None, require=True, autoset=True)  # type: ignore
 
 
 @node_component()
-class SourceNode[NodeDataT: AnyNodeData](IdentityNode[NodeDataT], abc.ABC):
+class SourceNode[NodeDataT: AnyNodeData](PackageNode[NodeDataT], HasPersistentIdentity, abc.ABC):
     """A package node with a persistent identity that can be instanced."""
 
     template: Optional["Node"] = p_node_template(7)
@@ -1852,14 +1691,15 @@ class SourceNode[NodeDataT: AnyNodeData](IdentityNode[NodeDataT], abc.ABC):
 
 
 @node_component()
-class TimedNode[NodeDataT: AnyNodeData](PackageNode[NodeDataT], abc.ABC):
-    """A package node whose identity is tied to a specific point in time."""
+class HasTimeIdentity(BuiltinObject, abc.ABC):
+    """A node whose identity is tied to a specific point in time."""
 
     __id_factory__: ClassVar[Callable[[], UUID]] = UUIDT
+    __ck_factory__: ClassVar[Callable[[], UUID]] = UUIDT
 
 
 @node_component()
-class HasBaseNode(BuiltinObject, abc.ABC):
+class HasNodeBase(BuiltinObject, abc.ABC):
     """A node which may have a 'base' in another node (e.g., its type definition)."""
 
     @property

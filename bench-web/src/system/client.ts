@@ -1,5 +1,5 @@
 import { ObjectType, ClientOrigin, LocalNodeGraph, LocalStorage, NodeType, SpaceData, ClientType } from "@/proto/wire";
-import { describeNode, nodeReference, toNodeReferenceInPackage, type TypedNodeReferenceData } from "@/proto/wiring";
+import { describeNode, nodeReference, toNodeReference, type TypedNodeReferenceData } from "@/proto/wiring";
 import { getBrowserName, getBrowserVersion, getDeviceType, getOperatingSystem } from "@/utils/browser";
 import { log } from "@/utils/log";
 import { pickRef, pretendReadonly } from "@/utils/ref";
@@ -233,7 +233,7 @@ function setBench(set: {
   if (set.space == null) set = { ...set, space: getSpacePtr(bench.id!) };
   if (set.space != null) {
     if (set.space.benchId != bench.id) throw new Error(`space ${set.space.id} is not in the active Bench ${bench.id}`);
-    const adaptedSpace = toNodeReferenceInPackage(set.space, set.pkg);
+    const adaptedSpace = toNodeReference(set.space);
     setSpace(adaptedSpace);
   } else {
     setSpaceToLocal();

@@ -30,7 +30,7 @@ from bench.utils.func import IdEnum
 
 if TYPE_CHECKING:
     # noinspection PyUnresolvedReferences
-    from bench.language import Field, Node, Object, PackageNode, Property, Struct
+    from bench.language import Field, Node, Object, Property, Struct
 
 logger = structlog.get_logger(__name__)
 tracer = trace.get_tracer(__name__)
@@ -155,6 +155,12 @@ class NodeDataGraph(NodeGraphBase[NodeDataT, str]):
     """
     A NodeGraph for NodeData objects (strings for ids, parent_ptr).
     """
+
+    __slots__ = (
+        "nodes_by_ck",
+        "nodes_by_id",
+        "nodes_by_parent_id_and_type",
+    )
 
     def __init__(self, nodes: Collection[NodeDataT] | None = None):
         self.nodes_by_id: dict[str, NodeDataT] = {}
@@ -335,6 +341,13 @@ class NodeDataGraph(NodeGraphBase[NodeDataT, str]):
 class NodeGraph(NodeGraphBase[NodeT, UUID]):
     """A graph of Nodes with ids."""
 
+    __slots__ = (
+        "nodes_by_ck",
+        "nodes_by_id",
+        "nodes_by_parent_id_and_type",
+        "parent_id_by_node_identity",
+    )
+
     def __init__(self, nodes: Collection[NodeT] | "NodeGraph" | None = None):
         self.nodes_by_id: dict[UUID, NodeT] = {}
         self.nodes_by_ck: dict[UUID, NodeT] = {}  # most nodes have a ck as well
@@ -503,141 +516,6 @@ class NodeGraph(NodeGraphBase[NodeT, UUID]):
             return descendants
 
 
-class DetachedNodeGraph(NodeGraphBase[NodeT, UUID]):
-    """
-    A NodeGraph for nodes that may not have ids yet (are 'detached').
-    We have a separate graph for this because wire nodes work with ids only (for parent),
-     and we don't need to support all operations since it's only for detached nodes.
-    """
-
-    def __init__(self):
-        self.nodes_by_ck: dict[UUID, NodeT] = {}
-        self.nodes_by_parent_ck: dict[UUID, list[NodeT]] = {}
-
-    @property
-    def nodes(self) -> Collection[NodeT]:
-        return self.nodes_by_ck.values()
-
-    def __len__(self):
-        return len(self.nodes_by_ck)
-
-    def get(self, node_id_or_ck: UUID) -> Optional[NodeT]:
-        """Gets a node by id"""
-        assert isinstance(node_id_or_ck, UUID), f"expected UUID, got {node_id_or_ck!r}"
-        return self.nodes_by_ck.get(node_id_or_ck)
-
-    def clear(self):
-        """Clear the graph"""
-        self.nodes_by_ck.clear()
-        self.nodes_by_parent_ck.clear()
-
-    def add(self, node: NodeT):
-        """Add a node to the graph (error if node already exists)"""
-        if node.ck in self.nodes_by_ck and self.nodes_by_ck[node.ck] is not node:
-            raise ValueError(f"node {node!r} (ck={node.ck}) already exists in {self!r}")
-        self.nodes_by_ck[node.ck] = node
-
-        if node.parent is not None:
-            self._add_to_parent(node)
-
-    def update(self, node: NodeT):
-        """Updates the node in this graph (must exist)"""
-        old = self.nodes_by_ck.get(node.ck)
-        if old is None:
-            raise ValueError(f"node {node!r} (ck={node.ck}) does not exist in {self!r}")
-        self.nodes_by_ck[node.ck] = node
-
-        if old.parent_id != node.parent_id:
-            if old.parent_id is not None:
-                self._remove_from_parent(old)
-            if node.parent_id is not None:
-                self._add_to_parent(node)
-        elif old.parent_id is not None:
-            for i, child in enumerate(self.nodes_by_parent_ck.get(old.parent_id, ())):
-                if child.ck == node.ck:
-                    self.nodes_by_parent_ck[old.parent_id][i] = node
-                    break
-            # NOTE :Robustness: not an error, may be moving? not sure.
-
-    def remove(self, node: NodeT):
-        """Remove a node from the graph (incl. all descendants if recursive)"""
-        if node.ck in self.nodes_by_ck:
-            self.nodes_by_ck.pop(node.ck)
-        if node.parent is not None:
-            self._remove_from_parent(node)
-        if node.ck in self.nodes_by_parent_ck:
-            for child in tuple(self.nodes_by_parent_ck.get(node.ck, ())):
-                self.remove(child)
-
-    def _add_to_parent(self, node: NodeT):
-        assert node.parent is not None, f"{node!r} has no parent"
-        parent_ck = node.parent.ck
-        if parent_ck not in self.nodes_by_parent_ck:
-            self.nodes_by_parent_ck[parent_ck] = []
-        self.nodes_by_parent_ck[parent_ck].append(node)
-
-    def _remove_from_parent(self, node: NodeT):
-        assert node.parent is not None, f"{node!r} has no parent"
-        parent_ck = node.parent.ck
-        if parent_ck in self.nodes_by_parent_ck:
-            self.nodes_by_parent_ck[parent_ck].remove(node)
-        if len(self.nodes_by_parent_ck[parent_ck]) == 0:
-            self.nodes_by_parent_ck.pop(parent_ck)
-
-    def find_roots(self) -> tuple[NodeT, ...]:
-        return tuple(
-            node
-            for node in self.nodes_by_ck.values()
-            if node.parent is None or node.parent.ck not in self.nodes_by_ck
-        )
-
-    def has_descendants(self, node: NodeT, child_node_type: NodeType | None = None) -> bool:
-        if child_node_type is not None:
-            return any(
-                child.metatype == child_node_type
-                for child in self.nodes_by_parent_ck.get(node.ck, EMPTY_LIST)
-            )
-        else:
-            return len(self.nodes_by_parent_ck.get(node.ck, EMPTY_LIST)) > 0
-
-    def collect_descendants(
-        self,
-        node: NodeT,
-        child_node_type: NodeType | None = None,
-        recursive: bool = False,
-    ) -> list["NodeT"]:
-        assert isinstance(node.ck, UUID), f"expected UUID in node, got {node!r}"
-        if not CHILD_NODE_TYPES[node.metatype]:
-            return []
-        node_ck = node.ck
-        if not recursive:
-            if child_node_type is not None:
-                return [
-                    child
-                    for child in self.nodes_by_parent_ck.get(node_ck, EMPTY_LIST)
-                    if child.metatype == child_node_type
-                ]
-            else:
-                return self.nodes_by_parent_ck.get(node_ck, EMPTY_LIST)
-        else:
-            descendants: list[NodeT] = []
-            if child_node_type:
-                queue = deque(
-                    child
-                    for child in self.nodes_by_parent_ck.get(node_ck, EMPTY_LIST)
-                    if child.metatype == child_node_type
-                )
-            else:
-                queue = deque(self.nodes_by_parent_ck.get(node_ck, EMPTY_LIST))
-            while queue:
-                current_node = queue.popleft()
-                descendants.append(current_node)
-                children = self.nodes_by_parent_ck.get(current_node.ck, ())
-                if len(children) > 0:
-                    queue.extend(children)
-            return descendants
-
-
 class NodeDict:
     """A simple graph-like wrapper for a dict of nodes that has some of the same methods."""
 
@@ -664,7 +542,7 @@ class NodeDict:
         return self._nodes_by_id[item]
 
 
-NodeGraphLike = Union[NodeGraph["Node"], DetachedNodeGraph["Node"], NodeDict]
+NodeGraphLike = Union[NodeGraph["Node"], NodeDict]
 
 
 def extract_name_id(name: str) -> Optional[int]:
@@ -839,13 +717,7 @@ class GraphNodeList(NodeList[NodeT]):
         if node.parent is not None:
             raise ValueError(f"cannot attach {node!r} to {self!r}: attached to {node.parent!r}")
 
-        # assign ids if newly attached to the package (ids are derived from ck + package)
-        if "ck" in node.__properties__ and not node.is_attached and self._parent.is_attached:
-            package_id = cast("PackageNode", self._parent).package.id
-            for n in node._walk_descendants():
-                if n.id is None:
-                    n._assign_id(package_id)
-
+        # validate early
         node.parent = self._parent
         if self._parent._session is not None:
             node._validate_self((), invalid=on_invalid_raise)
@@ -854,9 +726,9 @@ class GraphNodeList(NodeList[NodeT]):
         if node._graph is not self._parent._graph:
             added = node._graph.collect_descendants(node, recursive=True)
             added = (*added, node)
-            node._graph.update(node)  # parent updated
             self._parent._graph.add_graph(node._graph)
-            node._graph = self._parent._graph
+            for n in added:
+                n._graph = self._parent._graph
         else:
             added = (node,)
             self._parent._graph.add(node)
@@ -940,7 +812,7 @@ ValueProperty = Union["Property", "Field"]
 
 class ValueList(list, Generic[ValueParentT]):
     """
-    A list of Values or Value-like Structs (with local identity, so can't be inlined).
+    A list of Values or Value-like objects (with local identity, so can't be inlined).
     Unlike a NodeList, value lists are actual lists and not computed on access.
     """
 

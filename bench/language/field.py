@@ -1,5 +1,5 @@
 import typing
-from typing import TYPE_CHECKING, Any, Collection, Optional, Type, Union, cast
+from typing import TYPE_CHECKING, Any, Collection, Optional, Type, Union, cast, override
 from uuid import UUID
 
 import structlog
@@ -25,7 +25,7 @@ from bench.language.expression import NodeReference, _TypeQueryBuilder
 from bench.language.graph import NodeList
 from bench.language.issue import Issue
 from bench.language.node import (
-    HasBaseNode,
+    HasNodeBase,
     Node,
     SourceNode,
     Struct,
@@ -284,17 +284,8 @@ class TypeInfoBase(HasValues):
 
         return info_str
 
-    def _init_component(self) -> None:
-        if self._is_interped and self.kind in (
-            TypeKind.PRIMITIVE,
-            TypeKind.STRUCT,
-            TypeKind.ENUM,
-            TypeKind.NODE,
-        ):
-            # immediately resolve determined types for convenience
-            self._do_resolve_to(self)  # :TypeResolution
-
-    def _interp_component(self, scope: Optional["Node"]):
+    def _resolve_type(self):
+        # nocheckin: call this at the appropriate times?
         # TODO :Incomplete: proper type resolution (consider multi-step aliases, inheritance, ...)
         # resolve the actual type :TypeResolution
         if self.kind == TypeKind.ALIAS:
@@ -315,6 +306,22 @@ class TypeInfoBase(HasValues):
             resolved_type = self
         self._do_resolve_to(resolved_type)
 
+    def _do_resolve_to(self, typ: Optional["TypeInfoBase"]) -> None:
+        if self._resolved_type is typ:
+            return
+        self._resolved_type = typ
+        self._resolved_identity_key = encode_type_identity(typ) if typ else None
+        if typ is not None and typ is not self:
+            # ensure the resolved type resolves to itself
+            typ._resolved_type = typ
+            typ._resolved_identity_key = self._resolved_identity_key
+
+    def _to_resolved(self) -> "TypeInfoBase":
+        assert self._resolved_type is not None, f"unresolved type {self!r}"
+        assert self._resolved_type.kind is not None, f"missing type identity {self!r}"
+        return self._resolved_type
+
+    @override
     def _validate_component(
         self, properties: Collection[Property], invalid: "ValidationHandler"
     ) -> None:
@@ -349,21 +356,6 @@ class TypeInfoBase(HasValues):
         """The identity of this type for packing."""
         assert self._resolved_identity_key is not None, f"unresolved type {self!r}"
         return self._resolved_identity_key
-
-    def _do_resolve_to(self, typ: Optional["TypeInfoBase"]) -> None:
-        if self._resolved_type is typ:
-            return
-        self._resolved_type = typ
-        self._resolved_identity_key = encode_type_identity(typ) if typ else None
-        if typ is not None and typ is not self:
-            # ensure the resolved type resolves to itself
-            typ._resolved_type = typ
-            typ._resolved_identity_key = self._resolved_identity_key
-
-    def _to_resolved(self) -> "TypeInfoBase":
-        assert self._resolved_type is not None, f"unresolved type {self!r}"
-        assert self._resolved_type.kind is not None, f"missing type identity {self!r}"
-        return self._resolved_type
 
     @property
     def _base_fields(self) -> NodeList["Field"]:
@@ -427,7 +419,7 @@ def to_type(typ: TypeIn, *, as_object: bool = False, zone: FieldZone | None = No
 
 # pyright: reportIncompatibleMethodOverride=false
 @node_(NodeType.FIELD)
-class Field(SourceNode[FieldData], HasBaseNode, TypeInfoBase, _TypeQueryBuilder):
+class Field(SourceNode[FieldData], HasNodeBase, TypeInfoBase, _TypeQueryBuilder):
     """
     A used-defined attribute of some value
      (Bench defines Properties for Nodes/Structs, Users define Fields for Values inside those).
