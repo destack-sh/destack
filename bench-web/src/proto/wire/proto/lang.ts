@@ -2180,13 +2180,13 @@ export interface BlockData {
      */
     isTemplate: boolean;
     /**
-     * @generated from protobuf field: bool is_materialized = 64;
-     */
-    isMaterialized: boolean;
-    /**
-     * @generated from protobuf field: bool is_paused = 65;
+     * @generated from protobuf field: bool is_paused = 64;
      */
     isPaused: boolean;
+    /**
+     * @generated from protobuf field: bool is_materialized = 65;
+     */
+    isMaterialized: boolean;
 }
 /**
  * A branch is a lineage of Bench history.
@@ -5193,9 +5193,9 @@ export interface StepData {
      */
     text?: TextData;
     /**
-     * @generated from protobuf field: optional symbolx.bench.CodeData code = 35;
+     * @generated from protobuf field: optional symbolx.bench.IconData icon = 35;
      */
-    code?: CodeData;
+    icon?: IconData;
     /**
      * @generated from protobuf field: optional symbolx.bench.RunOptionsData run_options = 36;
      */
@@ -5221,9 +5221,21 @@ export interface StepData {
      */
     nodePtr?: NodeReferenceData;
     /**
-     * @generated from protobuf field: optional symbolx.bench.ExpressionData condition = 46;
+     * @generated from protobuf field: optional symbolx.bench.CodeData code = 44;
+     */
+    code?: CodeData;
+    /**
+     * @generated from protobuf field: optional symbolx.bench.ExpressionData condition = 45;
      */
     condition?: ExpressionData;
+    /**
+     * @generated from protobuf field: optional symbolx.bench.OffsetData position = 50;
+     */
+    position?: OffsetData;
+    /**
+     * @generated from protobuf field: optional symbolx.bench.ColorData background_color = 51;
+     */
+    backgroundColor?: ColorData;
     /**
      * @generated from protobuf field: bool is_template = 60;
      */
@@ -9486,9 +9498,13 @@ export enum StepType {
      */
     RUN = 20,
     /**
-     * @generated from protobuf enum value: STEP_TYPE_SEND = 21;
+     * @generated from protobuf enum value: STEP_TYPE_RUN_DEFERRED = 21;
      */
-    SEND = 21,
+    RUN_DEFERRED = 21,
+    /**
+     * @generated from protobuf enum value: STEP_TYPE_SEND = 22;
+     */
+    SEND = 22,
     /**
      * @generated from protobuf enum value: STEP_TYPE_BRANCH = 30;
      */
@@ -9502,9 +9518,9 @@ export enum StepType {
      */
     LOOP = 32,
     /**
-     * @generated from protobuf enum value: STEP_TYPE_GROUP = 40;
+     * @generated from protobuf enum value: STEP_TYPE_GROUP = 50;
      */
-    GROUP = 40
+    GROUP = 50
 }
 /**
  * @generated from protobuf enum symbolx.bench.StoreConnectionType
@@ -15015,8 +15031,8 @@ class BlockData$Type extends MessageType<BlockData> {
             { no: 61, name: "is_page", kind: "scalar", T: 8 /*ScalarType.BOOL*/ },
             { no: 62, name: "is_protocol", kind: "scalar", T: 8 /*ScalarType.BOOL*/ },
             { no: 63, name: "is_template", kind: "scalar", T: 8 /*ScalarType.BOOL*/ },
-            { no: 64, name: "is_materialized", kind: "scalar", T: 8 /*ScalarType.BOOL*/ },
-            { no: 65, name: "is_paused", kind: "scalar", T: 8 /*ScalarType.BOOL*/ }
+            { no: 64, name: "is_paused", kind: "scalar", T: 8 /*ScalarType.BOOL*/ },
+            { no: 65, name: "is_materialized", kind: "scalar", T: 8 /*ScalarType.BOOL*/ }
         ]);
     }
     create(value?: PartialMessage<BlockData>): BlockData {
@@ -15038,8 +15054,8 @@ class BlockData$Type extends MessageType<BlockData> {
         message.isPage = false;
         message.isProtocol = false;
         message.isTemplate = false;
-        message.isMaterialized = false;
         message.isPaused = false;
+        message.isMaterialized = false;
         if (value !== undefined)
             reflectionMergePartial<BlockData>(this, message, value);
         return message;
@@ -15161,11 +15177,11 @@ class BlockData$Type extends MessageType<BlockData> {
                 case /* bool is_template */ 63:
                     message.isTemplate = reader.bool();
                     break;
-                case /* bool is_materialized */ 64:
-                    message.isMaterialized = reader.bool();
-                    break;
-                case /* bool is_paused */ 65:
+                case /* bool is_paused */ 64:
                     message.isPaused = reader.bool();
+                    break;
+                case /* bool is_materialized */ 65:
+                    message.isMaterialized = reader.bool();
                     break;
                 default:
                     let u = options.readUnknownField;
@@ -15291,12 +15307,12 @@ class BlockData$Type extends MessageType<BlockData> {
         /* bool is_template = 63; */
         if (message.isTemplate !== false)
             writer.tag(63, WireType.Varint).bool(message.isTemplate);
-        /* bool is_materialized = 64; */
-        if (message.isMaterialized !== false)
-            writer.tag(64, WireType.Varint).bool(message.isMaterialized);
-        /* bool is_paused = 65; */
+        /* bool is_paused = 64; */
         if (message.isPaused !== false)
-            writer.tag(65, WireType.Varint).bool(message.isPaused);
+            writer.tag(64, WireType.Varint).bool(message.isPaused);
+        /* bool is_materialized = 65; */
+        if (message.isMaterialized !== false)
+            writer.tag(65, WireType.Varint).bool(message.isMaterialized);
         let u = options.writeUnknownFields;
         if (u !== false)
             (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
@@ -21607,14 +21623,17 @@ class StepData$Type extends MessageType<StepData> {
             { no: 32, name: "name", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 33, name: "order_key", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 34, name: "text", kind: "message", T: () => TextData },
-            { no: 35, name: "code", kind: "message", T: () => CodeData },
+            { no: 35, name: "icon", kind: "message", T: () => IconData },
             { no: 36, name: "run_options", kind: "message", T: () => RunOptionsData },
             { no: 37, name: "connections", kind: "message", repeat: 1 /*RepeatType.PACKED*/, T: () => StepConnectionData },
             { no: 40, name: "value_type", kind: "message", T: () => TypeInfoData },
             { no: 41, name: "value_packed", kind: "message", T: () => Struct },
             { no: 42, name: "secret_value_packed", kind: "message", T: () => Struct },
             { no: 43, name: "node_ptr", kind: "message", T: () => NodeReferenceData },
-            { no: 46, name: "condition", kind: "message", T: () => ExpressionData },
+            { no: 44, name: "code", kind: "message", T: () => CodeData },
+            { no: 45, name: "condition", kind: "message", T: () => ExpressionData },
+            { no: 50, name: "position", kind: "message", T: () => OffsetData },
+            { no: 51, name: "background_color", kind: "message", T: () => ColorData },
             { no: 60, name: "is_template", kind: "scalar", T: 8 /*ScalarType.BOOL*/ }
         ]);
     }
@@ -21711,8 +21730,8 @@ class StepData$Type extends MessageType<StepData> {
                 case /* optional symbolx.bench.TextData text */ 34:
                     message.text = TextData.internalBinaryRead(reader, reader.uint32(), options, message.text);
                     break;
-                case /* optional symbolx.bench.CodeData code */ 35:
-                    message.code = CodeData.internalBinaryRead(reader, reader.uint32(), options, message.code);
+                case /* optional symbolx.bench.IconData icon */ 35:
+                    message.icon = IconData.internalBinaryRead(reader, reader.uint32(), options, message.icon);
                     break;
                 case /* optional symbolx.bench.RunOptionsData run_options */ 36:
                     message.runOptions = RunOptionsData.internalBinaryRead(reader, reader.uint32(), options, message.runOptions);
@@ -21732,8 +21751,17 @@ class StepData$Type extends MessageType<StepData> {
                 case /* optional symbolx.bench.NodeReferenceData node_ptr */ 43:
                     message.nodePtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.nodePtr);
                     break;
-                case /* optional symbolx.bench.ExpressionData condition */ 46:
+                case /* optional symbolx.bench.CodeData code */ 44:
+                    message.code = CodeData.internalBinaryRead(reader, reader.uint32(), options, message.code);
+                    break;
+                case /* optional symbolx.bench.ExpressionData condition */ 45:
                     message.condition = ExpressionData.internalBinaryRead(reader, reader.uint32(), options, message.condition);
+                    break;
+                case /* optional symbolx.bench.OffsetData position */ 50:
+                    message.position = OffsetData.internalBinaryRead(reader, reader.uint32(), options, message.position);
+                    break;
+                case /* optional symbolx.bench.ColorData background_color */ 51:
+                    message.backgroundColor = ColorData.internalBinaryRead(reader, reader.uint32(), options, message.backgroundColor);
                     break;
                 case /* bool is_template */ 60:
                     message.isTemplate = reader.bool();
@@ -21820,9 +21848,9 @@ class StepData$Type extends MessageType<StepData> {
         /* optional symbolx.bench.TextData text = 34; */
         if (message.text)
             TextData.internalBinaryWrite(message.text, writer.tag(34, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbolx.bench.CodeData code = 35; */
-        if (message.code)
-            CodeData.internalBinaryWrite(message.code, writer.tag(35, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbolx.bench.IconData icon = 35; */
+        if (message.icon)
+            IconData.internalBinaryWrite(message.icon, writer.tag(35, WireType.LengthDelimited).fork(), options).join();
         /* optional symbolx.bench.RunOptionsData run_options = 36; */
         if (message.runOptions)
             RunOptionsData.internalBinaryWrite(message.runOptions, writer.tag(36, WireType.LengthDelimited).fork(), options).join();
@@ -21841,9 +21869,18 @@ class StepData$Type extends MessageType<StepData> {
         /* optional symbolx.bench.NodeReferenceData node_ptr = 43; */
         if (message.nodePtr)
             NodeReferenceData.internalBinaryWrite(message.nodePtr, writer.tag(43, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbolx.bench.ExpressionData condition = 46; */
+        /* optional symbolx.bench.CodeData code = 44; */
+        if (message.code)
+            CodeData.internalBinaryWrite(message.code, writer.tag(44, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbolx.bench.ExpressionData condition = 45; */
         if (message.condition)
-            ExpressionData.internalBinaryWrite(message.condition, writer.tag(46, WireType.LengthDelimited).fork(), options).join();
+            ExpressionData.internalBinaryWrite(message.condition, writer.tag(45, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbolx.bench.OffsetData position = 50; */
+        if (message.position)
+            OffsetData.internalBinaryWrite(message.position, writer.tag(50, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbolx.bench.ColorData background_color = 51; */
+        if (message.backgroundColor)
+            ColorData.internalBinaryWrite(message.backgroundColor, writer.tag(51, WireType.LengthDelimited).fork(), options).join();
         /* bool is_template = 60; */
         if (message.isTemplate !== false)
             writer.tag(60, WireType.Varint).bool(message.isTemplate);
@@ -24433,8 +24470,8 @@ export enum BlockProperty {
   isPage = 61,
   isProtocol = 62,
   isTemplate = 63,
-  isMaterialized = 64,
-  isPaused = 65,
+  isPaused = 64,
+  isMaterialized = 65,
 }
 
 export enum TriggerProperty {
@@ -24602,14 +24639,17 @@ export enum StepProperty {
   name = 32,
   orderKey = 33,
   text = 34,
-  code = 35,
+  icon = 35,
   runOptions = 36,
   connections = 37,
   valueType = 40,
   valuePacked = 41,
   secretValuePacked = 42,
   nodePtr = 43,
-  condition = 46,
+  code = 44,
+  condition = 45,
+  position = 50,
+  backgroundColor = 51,
   isTemplate = 60,
 }
 
@@ -25886,12 +25926,12 @@ export const PathTokenDataInfo: Record<PathTokenProperty, PropertyInfo> = {
 }
 export const NodeReferenceDataInfo: Record<NodeReferenceProperty, PropertyInfo> = {
   [NodeReferenceProperty.metatype]: { id: 1, name: 'metatype', component: ObjectType.NODE_REFERENCE, enumType: EnumType.OBJECT_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isComputed: true, isWired: true },
-  [NodeReferenceProperty.type]: { id: 30, name: 'type', component: ObjectType.NODE_REFERENCE, enumType: EnumType.NODE_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isRuntime: true, isWired: true, isStored: true },
-  [NodeReferenceProperty.id]: { id: 31, name: 'id', component: ObjectType.NODE_REFERENCE, kind: 'primitive', primitiveType: PrimitiveType.UUID, isRuntime: true, isWired: true, isStored: true },
-  [NodeReferenceProperty.ck]: { id: 32, name: 'ck', component: ObjectType.NODE_REFERENCE, kind: 'primitive', primitiveType: PrimitiveType.UUID, isRuntime: true, isWired: true, isStored: true },
-  [NodeReferenceProperty.benchId]: { id: 33, name: 'bench_id', component: ObjectType.NODE_REFERENCE, kind: 'primitive', primitiveType: PrimitiveType.UUID, isRuntime: true, isWired: true, isStored: true },
-  [NodeReferenceProperty.baseCk]: { id: 34, name: 'base_ck', component: ObjectType.NODE_REFERENCE, kind: 'primitive', primitiveType: PrimitiveType.UUID, isRuntime: true, isWired: true, isStored: true },
-  [NodeReferenceProperty.baseBenchId]: { id: 35, name: 'base_bench_id', component: ObjectType.NODE_REFERENCE, kind: 'primitive', primitiveType: PrimitiveType.UUID, isRuntime: true, isWired: true, isStored: true },
+  [NodeReferenceProperty.type]: { id: 30, name: 'type', component: ObjectType.NODE_REFERENCE, enumType: EnumType.NODE_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isRuntime: true, isWired: true, isStored: true },
+  [NodeReferenceProperty.id]: { id: 31, name: 'id', component: ObjectType.NODE_REFERENCE, kind: 'primitive', primitiveType: PrimitiveType.UUID, isInternal: true, isRuntime: true, isWired: true, isStored: true },
+  [NodeReferenceProperty.ck]: { id: 32, name: 'ck', component: ObjectType.NODE_REFERENCE, kind: 'primitive', primitiveType: PrimitiveType.UUID, isInternal: true, isRuntime: true, isWired: true, isStored: true },
+  [NodeReferenceProperty.benchId]: { id: 33, name: 'bench_id', component: ObjectType.NODE_REFERENCE, kind: 'primitive', primitiveType: PrimitiveType.UUID, isInternal: true, isRuntime: true, isWired: true, isStored: true },
+  [NodeReferenceProperty.baseCk]: { id: 34, name: 'base_ck', component: ObjectType.NODE_REFERENCE, kind: 'primitive', primitiveType: PrimitiveType.UUID, isInternal: true, isRuntime: true, isWired: true, isStored: true },
+  [NodeReferenceProperty.baseBenchId]: { id: 35, name: 'base_bench_id', component: ObjectType.NODE_REFERENCE, kind: 'primitive', primitiveType: PrimitiveType.UUID, isInternal: true, isRuntime: true, isWired: true, isStored: true },
 }
 export const PropertyReferenceDataInfo: Record<PropertyReferenceProperty, PropertyInfo> = {
   [PropertyReferenceProperty.metatype]: { id: 1, name: 'metatype', component: ObjectType.PROPERTY_REFERENCE, enumType: EnumType.OBJECT_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isComputed: true, isWired: true },
@@ -26156,7 +26196,7 @@ export const StepConnectionDataInfo: Record<StepConnectionProperty, PropertyInfo
   [StepConnectionProperty.parentKey]: { id: 4, name: 'parent_key', component: ObjectType.STEP_CONNECTION, kind: 'reference', primitiveType: PrimitiveType.STRING, isInternal: true, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_PARENT },
   [StepConnectionProperty.orderKey]: { id: 9, name: 'order_key', component: ObjectType.STEP_CONNECTION, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [StepConnectionProperty.type]: { id: 30, name: 'type', component: ObjectType.STEP_CONNECTION, enumType: EnumType.STEP_CONNECTION_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isRuntime: true, isWired: true, isStored: true },
-  [StepConnectionProperty.sourcePtr]: { id: 31, name: 'source_ptr', component: ObjectType.STEP_CONNECTION, kind: 'reference', isRequired: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.STEP, NodeType.TRIGGER], referenceStruct: StructType.NODE_REFERENCE },
+  [StepConnectionProperty.sourcePtr]: { id: 31, name: 'source_ptr', component: ObjectType.STEP_CONNECTION, kind: 'reference', isRequired: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.STEP], referenceStruct: StructType.NODE_REFERENCE },
 }
 export const RunErrorDataInfo: Record<RunErrorProperty, PropertyInfo> = {
   [RunErrorProperty.metatype]: { id: 1, name: 'metatype', component: ObjectType.RUN_ERROR, enumType: EnumType.OBJECT_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isComputed: true, isWired: true },
@@ -26553,8 +26593,8 @@ export const BlockDataInfo: Record<BlockProperty, PropertyInfo> = {
   [BlockProperty.isPage]: { id: 61, name: 'is_page', component: ObjectType.BLOCK, kind: 'primitive', primitiveType: PrimitiveType.BOOLEAN, isRequired: true, isRuntime: true, isWired: true, isStored: true },
   [BlockProperty.isProtocol]: { id: 62, name: 'is_protocol', component: ObjectType.BLOCK, kind: 'primitive', primitiveType: PrimitiveType.BOOLEAN, isRequired: true, isRuntime: true, isWired: true, isStored: true },
   [BlockProperty.isTemplate]: { id: 63, name: 'is_template', component: ObjectType.BLOCK, kind: 'primitive', primitiveType: PrimitiveType.BOOLEAN, isRequired: true, isRuntime: true, isWired: true, isStored: true },
-  [BlockProperty.isMaterialized]: { id: 64, name: 'is_materialized', component: ObjectType.BLOCK, kind: 'primitive', primitiveType: PrimitiveType.BOOLEAN, isRequired: true, isRuntime: true, isWired: true, isStored: true },
-  [BlockProperty.isPaused]: { id: 65, name: 'is_paused', component: ObjectType.BLOCK, kind: 'primitive', primitiveType: PrimitiveType.BOOLEAN, isRequired: true, isRuntime: true, isWired: true, isStored: true },
+  [BlockProperty.isPaused]: { id: 64, name: 'is_paused', component: ObjectType.BLOCK, kind: 'primitive', primitiveType: PrimitiveType.BOOLEAN, isRequired: true, isRuntime: true, isWired: true, isStored: true },
+  [BlockProperty.isMaterialized]: { id: 65, name: 'is_materialized', component: ObjectType.BLOCK, kind: 'primitive', primitiveType: PrimitiveType.BOOLEAN, isRequired: true, isRuntime: true, isWired: true, isStored: true },
 }
 export const TriggerDataInfo: Record<TriggerProperty, PropertyInfo> = {
   [TriggerProperty.metatype]: { id: 1, name: 'metatype', component: ObjectType.TRIGGER, enumType: EnumType.OBJECT_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isComputed: true, isWired: true },
@@ -26717,14 +26757,17 @@ export const StepDataInfo: Record<StepProperty, PropertyInfo> = {
   [StepProperty.name]: { id: 32, name: 'name', component: ObjectType.STEP, kind: 'primitive', primitiveType: PrimitiveType.STRING, isRequired: true, isRuntime: true, isWired: true, isStored: true },
   [StepProperty.orderKey]: { id: 33, name: 'order_key', component: ObjectType.STEP, kind: 'primitive', primitiveType: PrimitiveType.STRING, isRequired: true, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [StepProperty.text]: { id: 34, name: 'text', component: ObjectType.STEP, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.TEXT },
-  [StepProperty.code]: { id: 35, name: 'code', component: ObjectType.STEP, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.CODE },
+  [StepProperty.icon]: { id: 35, name: 'icon', component: ObjectType.STEP, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.ICON },
   [StepProperty.runOptions]: { id: 36, name: 'run_options', component: ObjectType.STEP, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.RUN_OPTIONS },
   [StepProperty.connections]: { id: 37, name: 'connections', component: ObjectType.STEP, kind: 'reference', primitiveType: PrimitiveType.JSON, isList: true, isRequired: true, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.STEP_CONNECTION },
   [StepProperty.valueType]: { id: 40, name: 'value_type', component: ObjectType.STEP, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.TYPE_INFO },
   [StepProperty.valuePacked]: { id: 41, name: 'value_packed', component: ObjectType.STEP, kind: 'primitive', primitiveType: PrimitiveType.JSON, isInternal: true, isRuntime: true, isWired: true, isStored: true, isValuePacked: true },
   [StepProperty.secretValuePacked]: { id: 42, name: 'secret_value_packed', component: ObjectType.STEP, kind: 'primitive', primitiveType: PrimitiveType.JSON, isInternal: true, isRuntime: true, isWired: true, isStored: true, isDeferred: true, isSensitive: true, isEncrypted: true, isValuePacked: true },
   [StepProperty.nodePtr]: { id: 43, name: 'node_ptr', component: ObjectType.STEP, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.BLOCK, NodeType.STEP, NodeType.TRIGGER], referenceStruct: StructType.NODE_REFERENCE },
-  [StepProperty.condition]: { id: 46, name: 'condition', component: ObjectType.STEP, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.EXPRESSION },
+  [StepProperty.code]: { id: 44, name: 'code', component: ObjectType.STEP, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.CODE },
+  [StepProperty.condition]: { id: 45, name: 'condition', component: ObjectType.STEP, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.EXPRESSION },
+  [StepProperty.position]: { id: 50, name: 'position', component: ObjectType.STEP, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.OFFSET },
+  [StepProperty.backgroundColor]: { id: 51, name: 'background_color', component: ObjectType.STEP, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.COLOR },
   [StepProperty.isTemplate]: { id: 60, name: 'is_template', component: ObjectType.STEP, kind: 'primitive', primitiveType: PrimitiveType.BOOLEAN, isRequired: true, isRuntime: true, isWired: true, isStored: true },
 }
 export const BadgeDataInfo: Record<BadgeProperty, PropertyInfo> = {

@@ -11,7 +11,7 @@ from bench.sql.core import (
     Table,
 )
 
-VERSION = "2024.06.08.2"
+VERSION = "2024.06.09.0"
 
 BENCH_TABLE = Table(
     "bench_bench",
@@ -465,8 +465,8 @@ BLOCK_TABLE = Table(
         Column("is_page", PrimitiveType.BOOLEAN, default="false"),
         Column("is_protocol", PrimitiveType.BOOLEAN, default="false"),
         Column("is_template", PrimitiveType.BOOLEAN, default="false"),
-        Column("is_materialized", PrimitiveType.BOOLEAN, default="false"),
         Column("is_paused", PrimitiveType.BOOLEAN, default="false"),
+        Column("is_materialized", PrimitiveType.BOOLEAN, default="false"),
     ),
 )
 
@@ -697,7 +697,7 @@ STEP_TABLE = Table(
         Column("name", PrimitiveType.STRING),
         Column("order_key", PrimitiveType.STRING, default="'a0'::character varying"),
         Column("text", PrimitiveType.JSON, is_nullable=True),
-        Column("code", PrimitiveType.JSON, is_nullable=True),
+        Column("icon", PrimitiveType.JSON, is_nullable=True),
         Column("run_options", PrimitiveType.JSON, is_nullable=True),
         Column("connections", PrimitiveType.JSON, is_array=True),
         Column("value_type", PrimitiveType.JSON, is_nullable=True),
@@ -707,7 +707,10 @@ STEP_TABLE = Table(
         Column("node_ck", PrimitiveType.UUID, is_nullable=True),
         Column("node_type", PrimitiveType.INT16, is_nullable=True),
         Column("node_bench_id", PrimitiveType.UUID, is_nullable=True),
+        Column("code", PrimitiveType.JSON, is_nullable=True),
         Column("condition", PrimitiveType.JSON, is_nullable=True),
+        Column("position", PrimitiveType.JSON, is_nullable=True),
+        Column("background_color", PrimitiveType.JSON, is_nullable=True),
         Column("is_template", PrimitiveType.BOOLEAN, default="false"),
     ),
 )

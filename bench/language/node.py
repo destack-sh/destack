@@ -889,13 +889,8 @@ class BuiltinObject[ObjectDataT: AnyNodeData | AnyStructData](abc.ABC):
                             self._updated_properties = bitarray(self.__max_property_ord__ + 1)
                         self._updated_properties[prop.ord] = True
                         session.update(node, properties=(prop,), old_values={prop.id: old_value})
-                elif self.parent is not None:  # is struct
-                    # will need to deal with Value parents eventually...
-                    assert isinstance(
-                        self.parent, InlineStruct
-                    ), f"unexpected parent: {self.parent!r}"
-                    if self.parent is not None:
-                        self.parent._updated_self((prop,))
+                else:
+                    pass  # TODO :Broken: handle in struct updates!
             return
         elif is_tracked and self.__passthrough__ is not None:
             # try passthrough target (if any)

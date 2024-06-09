@@ -20,7 +20,19 @@ from bench.utils.fractional import INTEGER_ZERO
 from bench.utils.func import IdEnum
 
 if TYPE_CHECKING:
-    from bench.language import Block, Code, Expression, Field, RunOptions, Text, Trigger, TypeInfo
+    from bench.language import (
+        Block,
+        Code,
+        Color,
+        Expression,
+        Field,
+        Icon,
+        Offset,
+        RunOptions,
+        Text,
+        Trigger,
+        TypeInfo,
+    )
 
 # pyright: reportIncompatibleVariableOverride=false
 
@@ -28,17 +40,20 @@ if TYPE_CHECKING:
 @enum_(EnumType.STEP_TYPE)
 class StepType(IdEnum):
     # source
+    START = 1
     VALUE = 1
     TRIGGER = 10
     # function
     RUN = 20
-    SEND = 21
+    RUN_DEFERRED = 21
+    SEND = 22
+    COMPLETE = 23
     # logical
     BRANCH = 30
     FILTER = 31
     LOOP = 32
     # organizational
-    GROUP = 40
+    GROUP = 50
 
 
 @enum_(EnumType.STEP_CONNECTION_TYPE)
@@ -52,9 +67,7 @@ class StepConnection(Struct):
     """A connection between two Steps in a FlowBlock."""
 
     type: StepConnectionType = p_internal(30)
-    source: Union["Step", "Trigger"] = p_regular(
-        31, require=True, references=(NodeType.STEP, NodeType.TRIGGER)
-    )
+    source: "Step" = p_regular(31, require=True, references=(NodeType.STEP,))
 
 
 @node_(NodeType.STEP)
@@ -65,20 +78,22 @@ class Step(SourceNode[StepData], HasValues):
 
     parent: Union["Block", "Step"] = p_node_parent(4, NodeType.BLOCK, NodeType.STEP)
 
+    # common
     type: StepType = p_internal(30)
     name: str = p_regular(32, constraint=NAME_CONSTRAINT)
     order_key: str = p_internal(33, default=INTEGER_ZERO)
     text: Optional["Text"] = p_regular(
         34, default=None, require=False, array=False, struct=StructType.TEXT
     )
-    code: Optional["Code"] = p_regular(
-        35, default=None, require=False, array=False, struct=StructType.CODE
+    icon: Optional["Icon"] = p_regular(
+        35, default=None, require=False, array=False, struct=StructType.ICON
     )
     run_options: Optional["RunOptions"] = p_regular(
         36, default=None, require=False, array=False, struct=StructType.RUN_OPTIONS
     )
     connections: list[StepConnection] = p_regular(37, array=True, struct=StructType.STEP_CONNECTION)
 
+    # content
     value_type: Optional["TypeInfo"] = p_regular(40, default=None, struct=StructType.TYPE_INFO)
     value_packed: Any = p_value_packed(41)
     secret_value_packed: Any = p_secret_value_packed(42)
@@ -86,8 +101,19 @@ class Step(SourceNode[StepData], HasValues):
     node: Union["Block", "Step", "Trigger", None] = p_regular(
         43, require=False, references=(NodeType.BLOCK, NodeType.STEP, NodeType.TRIGGER)
     )
+    code: Optional["Code"] = p_regular(
+        44, default=None, require=False, array=False, struct=StructType.CODE
+    )
     condition: Optional["Expression"] = p_regular(
-        46, require=False, array=False, default=None, struct=StructType.EXPRESSION
+        45, require=False, array=False, default=None, struct=StructType.EXPRESSION
+    )
+
+    # layout/style ('view')
+    position: Optional["Offset"] = p_regular(
+        50, default=None, require=False, array=False, struct=StructType.OFFSET
+    )
+    background_color: Optional["Color"] = p_regular(
+        51, default=None, require=False, array=False, struct=StructType.COLOR
     )
 
     # flags
