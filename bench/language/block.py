@@ -107,12 +107,22 @@ class Block(SourceNode[BlockData], HasValues):
     delegated_policies: list["Policy"] = p_regular(49, array=True, struct=StructType.POLICY)
 
     # flags
-    is_builtin: bool = p_system(60, default=False)  # intrinsic provided by the system
-    is_page: bool = p_regular(61, default=False)  # on its own page
-    is_protocol: bool = p_regular(62, default=False)  # defines a protocol
-    is_template: bool = p_regular(63, default=False)  # mark as template
-    is_materialized: bool = p_regular(64, default=False)  # database should be materialized
-    is_paused: bool = p_regular(65, default=False)  # all blocks <= this are paused
+    is_builtin: bool = p_system(
+        60, default=False, description="Whether this is an intrinsic provided by the system."
+    )
+    is_page: bool = p_regular(
+        61, default=False, description="Whether to consider this block to be its own page."
+    )
+    is_protocol: bool = p_regular(
+        62, default=False, description="Whether this block defines a protocol to conform to."
+    )
+    is_template: bool = p_regular(
+        63, default=False, description="Whether this as a template to instantiate."
+    )
+    is_paused: bool = p_regular(
+        64, default=False, description="Whether to pause any runtime activity within this block."
+    )
+    is_materialized: bool = p_regular(65, default=False)
     # is_method? (bound to instances of parent)
     # is_unique? (by name in parent module, like in Godot)
     # is_frozen? (read-only in instances of template)

@@ -3,7 +3,7 @@
 
 from typing import TYPE_CHECKING, Union
 
-VERSION = "2024.06.08.2"
+VERSION = "2024.06.09.0"
 
 if TYPE_CHECKING:
     from bench.language import Subject
@@ -1036,11 +1036,12 @@ class StepType(betterproto.Enum):
     VALUE = 1
     TRIGGER = 10
     RUN = 20
-    SEND = 21
+    RUN_DEFERRED = 21
+    SEND = 22
     BRANCH = 30
     FILTER = 31
     LOOP = 32
-    GROUP = 40
+    GROUP = 50
 
 
 class StoreConnectionType(betterproto.Enum):
@@ -2110,8 +2111,8 @@ class BlockData(betterproto.Message):
     is_page: bool = betterproto.bool_field(61)
     is_protocol: bool = betterproto.bool_field(62)
     is_template: bool = betterproto.bool_field(63)
-    is_materialized: bool = betterproto.bool_field(64)
-    is_paused: bool = betterproto.bool_field(65)
+    is_paused: bool = betterproto.bool_field(64)
+    is_materialized: bool = betterproto.bool_field(65)
 
 
 @dataclass(eq=False, repr=False)
@@ -3070,7 +3071,7 @@ class StepData(betterproto.Message):
     name: str = betterproto.string_field(32)
     order_key: str = betterproto.string_field(33)
     text: Optional["TextData"] = betterproto.message_field(34, optional=True)
-    code: Optional["CodeData"] = betterproto.message_field(35, optional=True)
+    icon: Optional["IconData"] = betterproto.message_field(35, optional=True)
     run_options: Optional["RunOptionsData"] = betterproto.message_field(36, optional=True)
     connections: List["StepConnectionData"] = betterproto.message_field(37)
     value_type: Optional["TypeInfoData"] = betterproto.message_field(40, optional=True)
@@ -3081,7 +3082,10 @@ class StepData(betterproto.Message):
         betterproto.message_field(42, optional=True)
     )
     node_ptr: Optional["NodeReferenceData"] = betterproto.message_field(43, optional=True)
-    condition: Optional["ExpressionData"] = betterproto.message_field(46, optional=True)
+    code: Optional["CodeData"] = betterproto.message_field(44, optional=True)
+    condition: Optional["ExpressionData"] = betterproto.message_field(45, optional=True)
+    position: Optional["OffsetData"] = betterproto.message_field(50, optional=True)
+    background_color: Optional["ColorData"] = betterproto.message_field(51, optional=True)
     is_template: bool = betterproto.bool_field(60)
 
 

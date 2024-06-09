@@ -978,11 +978,12 @@ enum StepType {
   STEP_TYPE_VALUE = 1;
   STEP_TYPE_TRIGGER = 10;
   STEP_TYPE_RUN = 20;
-  STEP_TYPE_SEND = 21;
+  STEP_TYPE_RUN_DEFERRED = 21;
+  STEP_TYPE_SEND = 22;
   STEP_TYPE_BRANCH = 30;
   STEP_TYPE_FILTER = 31;
   STEP_TYPE_LOOP = 32;
-  STEP_TYPE_GROUP = 40;
+  STEP_TYPE_GROUP = 50;
 }
 
 enum StoreConnectionType {
@@ -1889,8 +1890,8 @@ message BlockData {
   bool is_page = 61;
   bool is_protocol = 62;
   bool is_template = 63;
-  bool is_materialized = 64;
-  bool is_paused = 65;
+  bool is_paused = 64;
+  bool is_materialized = 65;
 }
 
 // A branch is a lineage of Bench history.
@@ -2721,14 +2722,17 @@ message StepData {
   string name = 32;
   string order_key = 33;
   optional TextData text = 34;
-  optional CodeData code = 35;
+  optional IconData icon = 35;
   optional RunOptionsData run_options = 36;
   repeated StepConnectionData connections = 37;
   optional TypeInfoData value_type = 40;
   optional google.protobuf.Struct value_packed = 41;
   optional google.protobuf.Struct secret_value_packed = 42;
   optional NodeReferenceData node_ptr = 43;
-  optional ExpressionData condition = 46;
+  optional CodeData code = 44;
+  optional ExpressionData condition = 45;
+  optional OffsetData position = 50;
+  optional ColorData background_color = 51;
   bool is_template = 60;
 }
 
