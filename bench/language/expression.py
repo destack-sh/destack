@@ -284,8 +284,7 @@ __property__ = property
 @struct_(StructType.EXPRESSION)
 class Expression(Struct, HasValues):
     """
-    An expression.
-    For now, just a query expression like conditional/sort/...
+    An expression like a value, function, comparison or such.
     """
 
     op: ExpressionOp = p_regular(30, require=True)
@@ -298,27 +297,6 @@ class Expression(Struct, HasValues):
     value: Any = p_value_runtime(36, typ=lambda self: cast(Expression, self).value_type)
     sort_mode: Optional[SortMode] = p_regular(38, default=None)
     tolerance: Optional[float] = p_regular(39, default=None)
-
-    @__property__
-    def kind(self) -> ExpressionKind:
-        return EXPRESSION_KIND_BY_OP[self.op]
-
-    @__property__
-    def value_type(self) -> "TypeInfoBase | None":
-        if self.field is not None:
-            typ = self.field.as_type_info
-        elif self.property is not None:
-            typ = self.property.as_type_info
-        else:
-            return None
-        # wrap as list if needed
-        if not typ.is_list and (self.op == ConditionalOp.IN or self.op == ConditionalOp.NOT_IN):
-            typ = typ._copy(is_list=True)
-        return typ
-
-    def __bool__(self):
-        # safe-guard to ensure expressions are not used directly in boolean context
-        raise TypeError(f"cannot evaluate {self!r} directly (did you mean to compare a property?)")
 
     def __content_str__(self):
         if self.op in ExpressionOps.COND_LOGICAL:
@@ -341,6 +319,27 @@ class Expression(Struct, HasValues):
             py_ident = self.target.py_ident if self.target is not None else "???"
             return f"{'-' if self.op == SortOp.DESCENDING else ''}{py_ident}"
         return to_casing(self.op.name, Casing.CAMEL)
+
+    @__property__
+    def kind(self) -> ExpressionKind:
+        return EXPRESSION_KIND_BY_OP[self.op]
+
+    @__property__
+    def value_type(self) -> "TypeInfoBase | None":
+        if self.field is not None:
+            typ = self.field.as_type_info
+        elif self.property is not None:
+            typ = self.property.as_type_info
+        else:
+            return None
+        # wrap as list if needed
+        if not typ.is_list and (self.op == ConditionalOp.IN or self.op == ConditionalOp.NOT_IN):
+            typ = typ._copy(is_list=True)
+        return typ
+
+    def __bool__(self):
+        # safe-guard to ensure expressions are not used directly in boolean context
+        raise TypeError(f"cannot evaluate {self!r} directly (did you mean to compare a property?)")
 
     def __invert__(self):
         if self.kind != ExpressionKind.CONDITIONAL:

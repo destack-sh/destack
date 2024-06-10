@@ -392,7 +392,7 @@ class QueryBuilder(
             v = getattr(self, f"_{k}", None)
             if k == "query":
                 v = f"({v})" if v is not None else None
-            if v is not None:
+            if v is not None and not (type(v) is list and len(v) == 0):
                 args_strs.append(f"{k}={v}")
         args_str = ", ".join(args_strs) if args_strs else "[*]"
         return args_str

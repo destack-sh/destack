@@ -148,34 +148,39 @@ class GraphIoServiceBase(ServiceBase, GraphIoBase):
 
     @override
     async def get_nodes(self, subject: Subject, request: "GetNodesRequest") -> "GetNodesResponse":
-        # parse request
-        roots: tuple[NodeReference, ...] = tuple(
-            wiring.unpack_object_validate(r, expect=NodeReference) for r in request.roots
-        )
-        if not roots:
-            raise GRPCError(GRPCStatus.INVALID_ARGUMENT, "no roots provided")
-        if any(not r.id for r in roots):
-            raise GRPCError(GRPCStatus.INVALID_ARGUMENT, "root nodes must have an id")
-        options: ReadOptions = (
-            wiring.unpack_object_validate_maybe(request.options, expect=ReadOptions)
-            or ReadOptions.default()
-        )
-
-        # fetch
-        roots_by_type: dict[NodeType, list[NodeReference]] = group_by(roots, lambda r: r.type)
-        graph = NodeDataGraph()
+        # parse query & fetch
         queries: list[QueryBuilder] = []
         async with self.request_session() as session:
-            for root_node_type, root_node_references in roots_by_type.items():
-                root_ids = tuple(r.id for r in root_node_references)
-                query = QueryBuilder(
-                    node_type=wiring.unpack_enum(NodeType, root_node_type),
-                    filter=C(ConditionalOp.IN, property=Node.id, value=root_ids),
-                    options=adapt_read_options(subject, root_node_type, options),
+            with self.tracer.start_as_current_span("graph.get.parse"):
+                roots = tuple(
+                    wiring.unpack_object_validate(r, expect=NodeReference) for r in request.roots
                 )
-                queries.append(query)
-                result = await session.tx._read_connection.fetch(query, FetchOptions(count=False))
-                graph.extend(result.nodes)
+                if not roots:
+                    raise GRPCError(GRPCStatus.INVALID_ARGUMENT, "no roots provided")
+                if any(not r.id for r in roots):
+                    raise GRPCError(GRPCStatus.INVALID_ARGUMENT, "root nodes must have an id")
+                options: ReadOptions = (
+                    wiring.unpack_object_validate_maybe(request.options, expect=ReadOptions)
+                    or ReadOptions.default()
+                )
+                roots_by_type: dict[NodeType, list[NodeReference]] = group_by(
+                    roots, lambda r: r.type
+                )
+
+            with self.tracer.start_as_current_span("graph.get.fetch"):
+                graph = NodeDataGraph()
+                for root_node_type, root_node_references in roots_by_type.items():
+                    root_ids = tuple(r.id for r in root_node_references)
+                    query = QueryBuilder(
+                        node_type=wiring.unpack_enum(NodeType, root_node_type),
+                        filter=C(ConditionalOp.IN, property=Node.id, value=root_ids),
+                        options=adapt_read_options(subject, root_node_type, options),
+                    )
+                    queries.append(query)
+                    result = await session.tx._read_connection.fetch(
+                        query, FetchOptions(count=False)
+                    )
+                    graph.extend(result.nodes)
         if any(cast(str, root.id) not in graph for root in request.roots):
             missing_roots = tuple(root for root in roots if str(root.id) not in graph)
             raise GRPCError(GRPCStatus.NOT_FOUND, f"roots not found: {missing_roots}")
@@ -207,31 +212,30 @@ class GraphIoServiceBase(ServiceBase, GraphIoBase):
     async def search_nodes(
         self, subject: Subject, request: "SearchNodesRequest"
     ) -> "SearchNodesResponse":
-        # parse request
-        node_type: NodeType = wiring.unpack_enum(NodeType, request.node_type)
-        filter: Expression | None = wiring.unpack_object_validate_maybe(
-            request.filter, expect=Expression
-        )
-        sort: list[Expression] = [
-            wiring.unpack_object_validate(s, expect=Expression) for s in request.sort
-        ] or []
-        options: ReadOptions = (
-            wiring.unpack_object_validate_maybe(request.options, expect=ReadOptions)
-            or ReadOptions.default()
-        )
-
-        # fetch
-        adapted_options = adapt_read_options(subject, node_type, options)
+        # parse query & fetch
         roots: list[NodeReferenceData] = []
         async with self.request_session() as session:
-            query = QueryBuilder(
-                node_type=node_type, filter=filter, options=adapted_options, sort=sort
-            )
-            result = await session.tx._read_connection.fetch(
-                query, FetchOptions(count=request.count or False)
-            )
-            roots.extend(result.roots)
-            graph = NodeDataGraph(result.nodes)
+            with self.tracer.start_as_current_span("graph.search.parse"):
+                node_type: NodeType = wiring.unpack_enum(NodeType, request.node_type)
+                filter = wiring.unpack_object_validate_maybe(request.filter, expect=Expression)
+                sort = [
+                    wiring.unpack_object_validate(s, expect=Expression) for s in request.sort
+                ] or []
+                options = (
+                    wiring.unpack_object_validate_maybe(request.options, expect=ReadOptions)
+                    or ReadOptions.default()
+                )
+                adapted_options = adapt_read_options(subject, node_type, options)
+                query = QueryBuilder(
+                    node_type=node_type, filter=filter, options=adapted_options, sort=sort
+                )
+
+            with self.tracer.start_as_current_span("graph.search.fetch"):
+                result = await session.tx._read_connection.fetch(
+                    query, FetchOptions(count=request.count or False)
+                )
+                roots.extend(result.roots)
+                graph = NodeDataGraph(result.nodes)
 
         # check access
         with self.tracer.start_as_current_span("graph.search.check_access"):
@@ -264,20 +268,22 @@ class GraphIoServiceBase(ServiceBase, GraphIoBase):
     async def aggregate_nodes(
         self, subject: Subject, request: "AggregateNodesRequest"
     ) -> "AggregateNodesResponse":
-        # parse request
-        if request.bases:
-            raise GRPCError(GRPCStatus.INVALID_ARGUMENT, "global IO has no bases")
-        node_type: NodeType = wiring.unpack_enum(NodeType, request.node_type)
-        filter: Expression | None = wiring.unpack_object_validate_maybe(request.filter)
-        aggregation: Expression = wiring.unpack_object_validate(request.aggregation)
-
-        # fetch
-        adapted_options = adapt_read_options(subject, node_type, ReadOptions())
+        # parse query & fetch
         async with self.request_session() as session:
-            query = QueryBuilder(
-                node_type=node_type, filter=filter, options=adapted_options, aggregation=aggregation
-            )
-            result = await session.tx._read_connection.aggregate(query)
+            with self.tracer.start_as_current_span("graph.aggregate.parse"):
+                node_type: NodeType = wiring.unpack_enum(NodeType, request.node_type)
+                filter: Expression | None = wiring.unpack_object_validate_maybe(request.filter)
+                aggregation: Expression = wiring.unpack_object_validate(request.aggregation)
+                adapted_options = adapt_read_options(subject, node_type, ReadOptions())
+                query = QueryBuilder(
+                    node_type=node_type,
+                    filter=filter,
+                    options=adapted_options,
+                    aggregation=aggregation,
+                )
+
+            with self.tracer.start_as_current_span("graph.aggregate.fetch"):
+                result = await session.tx._read_connection.aggregate(query)
 
         # TODO :Security!: check aggregation access
 
@@ -565,8 +571,7 @@ def parse_commit_scope(
     edits: list[EditData], base_graph: NodeDataGraph[AnyNodeData] | None
 ) -> CommitScope:
     """
-    Gets the specific nodes (scopes) and related nodes that are edited.
-    :NodeEditScope
+    Gets the specific nodes (scopes) and related nodes that are edited. :NodeEditScope
     """
     from bench.proto import wiring
 
@@ -576,7 +581,8 @@ def parse_commit_scope(
     in_tx_created_nodes_ids: set[str] = set()
     for edit in edits:
         node_type = NodeType(edit.node_ptr.type)
-        node_id = cast(str, edit.node_ptr.id)
+        assert edit.node_ptr.id, f"missing id for {edit!r}"
+        node_id = edit.node_ptr.id
         node_cls = NODE_CLASS_BY_TYPE[node_type]
         edited_node_ids.add(node_id)
         if edit.type == EditType.CREATE or edit.type == EditType.UPSERT:
@@ -603,8 +609,11 @@ def parse_commit_scope(
                 new_node = unpack_node_delta(
                     edit.new_node_packed, node_type=node_type, only=(node_cls.__parent_property__,)
                 )
-                assert new_node.parent_ptr is not None, f"missing parent for {new_node}"
-                node_scopes_by_id[cast(str, new_node.parent_ptr.id)] = new_node.parent_ptr
+                assert (
+                    new_node.parent_ptr is not None
+                ), f"missing parent for {new_node!r} in {edit!r}"
+                assert new_node.parent_ptr.id, f"missing parent id for {new_node!r} in {edit!r}"
+                node_scopes_by_id[new_node.parent_ptr.id] = new_node.parent_ptr
         if node_type in BASED_NODE_TYPES and edit.node_ptr.base_ck is not None:
             # also add base as node scope
             assert base_graph is not None, f"missing base graph for {edit!r}"
@@ -613,7 +622,8 @@ def parse_commit_scope(
             old_base_node = base_graph.get(edit.node_ptr.base_ck)
             if old_base_node is not None:
                 old_base_ptr = NodeReference.from_node_data(old_base_node)
-                node_scopes_by_id[cast(str, old_base_ptr.id)] = old_base_ptr
+                assert old_base_ptr.id, f"missing base id for {old_base_ptr!r} in {edit!r}"
+                node_scopes_by_id[old_base_ptr.id] = old_base_ptr
         node_scopes_by_id[node_id] = node_scope
 
         # graph scope

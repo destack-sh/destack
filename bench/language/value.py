@@ -811,6 +811,8 @@ class HasValues(BuiltinObject):
     @override
     def _init_component(self):
         # if unpacked is set, pack in place, otherwise vice versa
+        # (this is a bit unwieldy and means we don't get value if the object is created
+        #  outside a session, but we'll likely change this soon anyway - see above)
         if not self._is_tracked:
             return
         for prop in self.__value_properties__.values():

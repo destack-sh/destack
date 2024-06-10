@@ -1,7 +1,7 @@
 import abc
 import asyncio
 import contextlib
-from typing import cast, override
+from typing import Any, cast, override
 
 import structlog
 from opentelemetry import trace
@@ -36,7 +36,11 @@ class QueryConnector(abc.ABC):
 
     @abc.abstractmethod
     async def connect[NodeT: Node, NodeDataT: AnyNodeData](
-        self, query: QueryBuilder[NodeT, NodeDataT], tx_lock: asyncio.Lock, session: Session
+        self,
+        query: QueryBuilder[NodeT, NodeDataT],
+        tx_lock: asyncio.Lock,
+        session: Session,
+        owner: Any,
     ) -> "ConnectedQuery[NodeT, NodeDataT]":
         """Create a connected query."""
         ...
@@ -51,10 +55,12 @@ class ConnectedQuery[NodeT: Node, NodeDataT: AnyNodeData](abc.ABC):
         query: QueryBuilder[NodeT, NodeDataT],
         tx_lock: asyncio.Lock,
         session: Session,
+        owner: Any,
     ):
         self._query = query
         self._tx_lock = tx_lock
         self._session = session
+        self._owner = owner
         self._node: NodeT | None = None
 
     def __str__(self):
@@ -116,12 +122,13 @@ class RemoteQuery[NodeT: Node, NodeDataT: AnyNodeData](ConnectedQuery[NodeT, Nod
         query: QueryBuilder[NodeT, NodeDataT],
         tx_lock: asyncio.Lock,
         session: Session,
+        owner: Any,
         remote: GraphIoStub | HostStub | SupervisorStub,
         scope: GraphScope,
         rpc_metadata: RpcMetadata,
         retry: RetryOptions = RETRY_GRPC,
     ):
-        super().__init__(query=query, tx_lock=tx_lock, session=session)
+        super().__init__(query=query, tx_lock=tx_lock, session=session, owner=owner)
         self._remote = remote
         self._scope = scope
         self._has_result: asyncio.Event = asyncio.Event()
@@ -157,6 +164,7 @@ class RemoteQuery[NodeT: Node, NodeDataT: AnyNodeData](ConnectedQuery[NodeT, Nod
     async def _do_connect(self) -> None:
         """Runs the core connection loop forever (or until closed)."""
         retry = self._retry.new()
+        log = logger.bind(query=self._query, owner=self._owner, retry=retry)
 
         while not self._is_closed:
             if not retry.should_retry:
@@ -173,13 +181,8 @@ class RemoteQuery[NodeT: Node, NodeDataT: AnyNodeData](ConnectedQuery[NodeT, Nod
                     ), f"need read info for {self._node!r} from {self._query!r}: {self._node._read_info!r}"
                     self._epoch = self._node._read_info.epoch
                     self._has_result.set()
-                    logger.debug(
-                        "query.connect",
-                        query=self._query,
-                        node=self._node,
-                        duration=retry.duration,
-                        retry=retry,
-                        span="current",
+                    log.debug(
+                        "query.connect", duration=retry.duration, node=self._node, span="current"
                     )
 
                 # subscribe forever (until error)
@@ -195,16 +198,12 @@ class RemoteQuery[NodeT: Node, NodeDataT: AnyNodeData](ConnectedQuery[NodeT, Nod
                 rpc_headers = cast(_PatchedRpcMetadata, self._rpc_metadata).to_headers()
                 async for rep in self._remote.watch_edits(watch_req, metadata=rpc_headers):
                     # apply edits (should filter these :ConnectionFilter)
-                    logger.trace(
-                        "query.update", query=self._query, node=self._node, epoch=rep.epoch
-                    )
+                    log.trace("query.update", node=self._node, epoch=rep.epoch)
                     async with self._tx_lock:
-                        self._session.suppress()  # ignore edits
-                        edit_graph(graph, rep.edits, options=self._query._options)
-                        self._session.unsuppress()
+                        edit_graph(graph, rep.edits, options=self._query._options, untracked=True)
                         self._epoch = rep.epoch
             except self._retry.retry_on as e:
-                logger.error("query.error", query=self._query, exc_info=e)
+                log.error("query.error", node=self._node, exc_info=e)
                 retry.on_error(e)
                 await asyncio.sleep(retry.interval)
 
@@ -236,11 +235,13 @@ class RemoteConnector(QueryConnector):
         query: QueryBuilder[NodeT, NodeDataT],
         tx_lock: asyncio.Lock,
         session: Session,
+        owner: Any,
     ) -> ConnectedQuery[NodeT, NodeDataT]:
         connected_query = RemoteQuery(
             query=query,
             tx_lock=tx_lock,
             session=session,
+            owner=owner,
             remote=self._remote,
             scope=self._scope,
             rpc_metadata=self._rpc_metadata,
