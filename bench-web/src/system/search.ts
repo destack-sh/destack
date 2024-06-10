@@ -148,7 +148,7 @@ function walkGraph(
 
     return items;
   }
-  
+
   const roots = options.roots ?? graph.roots;
   const items = [];
   for (const root of roots) {
@@ -285,6 +285,7 @@ export function typeIndex(options: {
   function mapFromOption(enumType: EnumType, option: EnumOption): TypeItem {
     const item: TypeItem = {
       ...option,
+      kind: TypeKind.LITERAL,
       id: `${enumType}-${option.id}`,
       isList: false,
       isSecret: false,
@@ -307,19 +308,21 @@ export function typeIndex(options: {
     // NOTE: technically there is more than one possible mapping from node to type identity
     //  (for instance Signal blocks could give both Signal nodes based in that block or Values of that Signal type)
     const blockType = (nodeItem.node as BlockData).type;
-    const item: TypeItem = { ...nodeItem, isList: false, isSecret: false, metatype: "type" };
+    let kind: TypeKind;
+    let benchType: BenchType | undefined;
     if (blockType == BlockType.CHOICE) {
-      item.benchType = BenchType.FIELD;
-      item.kind = TypeKind.BASED_NODE;
+      benchType = BenchType.FIELD;
+      kind = TypeKind.BASED_NODE;
     } else if (blockType == BlockType.SIGNAL) {
-      item.benchType = BenchType.SIGNAL;
-      item.kind = TypeKind.BASED_NODE;
+      benchType = BenchType.SIGNAL;
+      kind = TypeKind.BASED_NODE;
     } else if (blockType == BlockType.DATABASE) {
-      item.benchType = BenchType.RECORD;
-      item.kind = TypeKind.BASED_NODE;
+      benchType = BenchType.RECORD;
+      kind = TypeKind.BASED_NODE;
     } else {
-      item.kind = TypeKind.ALIAS;
+      kind = TypeKind.ALIAS;
     }
+    const item: TypeItem = { ...nodeItem, kind, benchType, isList: false, isSecret: false, metatype: "type" };
     item.baseTypePtr = toNodeReference(nodeItem.node);
     return item;
   }

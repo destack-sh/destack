@@ -11,7 +11,7 @@ import {
 import { describe, expect, test } from "vitest";
 
 // the test data & targets are from the backend bench implementation
-const TEST_TYPE_IDENTITIES: (Partial<TypeIdentity> & { identityKey: string })[] = [
+const TEST_TYPE_IDENTITIES: (Partial<TypeIdentity> & { kind: TypeKind, identityKey: string })[] = [
   {
     kind: TypeKind.PRIMITIVE,
     primitiveType: PrimitiveType.DATETIME,
