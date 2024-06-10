@@ -544,6 +544,8 @@ def edit_graph(
     graph: NodeGraph["Node"],
     edits: Collection[EditData],
     options: "ReadOptions | None",
+    *,
+    untracked: bool,
 ) -> None:
     """Applies the edits to the graph (in place!)."""
     trace.get_current_span().set_attribute("edits", len(edits))
@@ -602,7 +604,7 @@ def edit_graph(
                     prop = prop.reference_wired_ptr
                 new_value_data = getattr(new_node_data, prop.name)
                 new_value = wiring.unpack_object_prop(prop, new_value_data)
-                setattr(node, prop.name, new_value)
+                node._do_set(prop.name, new_value, untracked=untracked)
             # implicit metadata
             node.updated_at = edit.edited_at
             if "updated_epoch" in node.__properties__:

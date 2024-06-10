@@ -576,7 +576,6 @@ class Host(GraphIoServiceBase, HostBase, HostSpec):
         assert self._main_package is not None, f"package not loaded in {self!r}"
 
         # apply edits to loaded graphs (bench/package)
-        self._session.suppress()  # don't trigger the edits we're just applying
         bench_edits: list[EditData] = []
         package_edits: list[EditData] = []
         for edit in edits:
@@ -595,7 +594,7 @@ class Host(GraphIoServiceBase, HostBase, HostSpec):
         ):
             # filter the in memory edits to only those with an origin (the system has origin = null)
             external_edits = tuple(e for e in subedits if e.origin is not None)
-            edit_graph(root_node._graph, external_edits, options)
+            edit_graph(root_node._graph, external_edits, options, untracked=True)
             for edit in subedits:
                 # manually patch revisions since we skipped some edits above
                 assert edit.revision is not None, f"revision not set in {edit!r}"
@@ -604,7 +603,6 @@ class Host(GraphIoServiceBase, HostBase, HostSpec):
                     edited_node.revision = edit.revision
             # and apply all edits to the data graph
             edit_data_graph(root_node._data_graph, subedits, options)
-        self._session.unsuppress()
 
         # run plugins on commit (in main session)
         was_suspended = self._session.is_suspended

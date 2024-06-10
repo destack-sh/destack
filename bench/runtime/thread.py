@@ -124,7 +124,7 @@ class RuntimeThread:
         # connect
         async with self.session(readonly=True):
             self._bench = await self._connector.connect(
-                BENCH_QUERY.where(id=self._bench_id), self._tx_lock, self._session
+                BENCH_QUERY.where(id=self._bench_id), self._tx_lock, self._session, owner=self
             )
             main_environment = self._bench.node.main_environment
             assert main_environment is not None, f"{self._bench!r} has no main environment"
@@ -132,7 +132,10 @@ class RuntimeThread:
             assert main_branch is not None, f"{self._bench!r} has no main branch"
             assert main_branch.main_package_id is not None, f"{main_branch!r} has no main package"
             self._main_package = await self._connector.connect(
-                PACKAGE_QUERY.where(id=main_branch.main_package_id), self._tx_lock, self._session
+                PACKAGE_QUERY.where(id=main_branch.main_package_id),
+                self._tx_lock,
+                self._session,
+                owner=self,
             )
             self._session.parent = self._main_package.node
 

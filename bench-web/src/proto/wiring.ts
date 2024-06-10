@@ -213,7 +213,7 @@ export function makeNode<T extends NodeType>(
       }
       if (node.id == null) {
         if (TIMED_NODE_TYPES.includes(node.metatype as unknown as NodeType)) {
-          node.id == uuidt();
+          node.id = uuidt();
         } else {
           node.id = newNodeId();
         }

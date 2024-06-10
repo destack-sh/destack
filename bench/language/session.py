@@ -110,7 +110,6 @@ class Session(PackageNode[SessionData], HasTimeIdentity):
     # flags
     _is_readonly: bool = p_runtime(default=False)
     _is_suspended: bool = p_runtime(default=False)
-    _is_suppressed: bool = p_runtime(default=False)
 
     # transaction
     _origin: ClientOrigin | None = p_runtime(default=None)
@@ -142,8 +141,6 @@ class Session(PackageNode[SessionData], HasTimeIdentity):
             status_strs.append("readonly")
         if self._is_suspended:
             status_strs.append("suspended")
-        if self._is_suppressed:
-            status_strs.append("suppressed")
         if self.duration is not None:
             return f"{', '.join(status_strs)}, tx={self._tx or '<no tx>'}, duration={self.duration:.3f}s"
         else:
@@ -231,14 +228,6 @@ class Session(PackageNode[SessionData], HasTimeIdentity):
             self._active_session_token = None
 
         logger.trace("session.close", session=self)
-
-    def suppress(self):
-        """Suppress any the session, *ignoring* further edits."""
-        self._is_suppressed = True
-
-    def unsuppress(self):
-        """Stop suppressing the session, accepting further edits."""
-        self._is_suppressed = False
 
     def suspend(self):
         """Suspend the session, *erroring* on further edits. Deactivates context (if active)."""
@@ -389,8 +378,6 @@ class Session(PackageNode[SessionData], HasTimeIdentity):
 
     def create(self, *nodes: Node):
         """Creates a new node. Errors if the node already exists."""
-        if self._is_suppressed:
-            return
         assert self._tx is not None, f"no active transaction in {self!r}"
         assert not self._is_readonly and not self._is_suspended, f"cannot edit in {self!r}"
         subject, context = self._get_edit_context()
@@ -400,8 +387,6 @@ class Session(PackageNode[SessionData], HasTimeIdentity):
 
     def upsert(self, *nodes: Node):
         """Creates or updates a node. Any non-id properties will be overwritten."""
-        if self._is_suppressed:
-            return
         assert self._tx is not None, f"no active transaction in {self!r}"
         assert not self._is_readonly and not self._is_suspended, f"cannot edit in {self!r}"
         subject, context = self._get_edit_context()
@@ -411,8 +396,6 @@ class Session(PackageNode[SessionData], HasTimeIdentity):
 
     def update(self, node: Node, properties: Collection[Property], old_values: dict[int, Any]):
         """Updates an existing node. Cannot move. The given properties are overwritten."""
-        if self._is_suppressed:
-            return
         assert self._tx is not None, f"no active transaction in {self!r}"
         assert not self._is_readonly and not self._is_suspended, f"cannot edit in {self!r}"
         self._edited_nodes_by_id[node.id] = node
@@ -421,8 +404,6 @@ class Session(PackageNode[SessionData], HasTimeIdentity):
 
     def move(self, node: Node, properties: Collection[Property], old_values: dict[int, Any]):
         """Moves and updates an existing node."""
-        if self._is_suppressed:
-            return
         assert self._tx is not None, f"no active transaction in {self!r}"
         assert not self._is_readonly and not self._is_suspended, f"cannot edit in {self!r}"
         self._edited_nodes_by_id[node.id] = node
@@ -431,8 +412,6 @@ class Session(PackageNode[SessionData], HasTimeIdentity):
 
     def archive(self, *nodes: Node):
         """Marks a node as archived, so it will be hidden by default."""
-        if self._is_suppressed:
-            return
         assert self._tx is not None, f"no active transaction in {self!r}"
         assert not self._is_readonly and not self._is_suspended, f"cannot edit in {self!r}"
         subject, context = self._get_edit_context()
@@ -447,8 +426,6 @@ class Session(PackageNode[SessionData], HasTimeIdentity):
 
     def unarchive(self, *nodes: Node):
         """Restore a node from the archive in its original place."""
-        if self._is_suppressed:
-            return
         assert self._tx is not None, f"no active transaction in {self!r}"
         assert not self._is_readonly and not self._is_suspended, f"cannot edit in {self!r}"
         subject, context = self._get_edit_context()
@@ -459,8 +436,6 @@ class Session(PackageNode[SessionData], HasTimeIdentity):
 
     def delete(self, *nodes: Node):
         """Deletes a node with the option to recover it for a limited time."""
-        if self._is_suppressed:
-            return
         assert self._tx is not None, f"no active transaction in {self!r}"
         assert not self._is_readonly and not self._is_suspended, f"cannot edit in {self!r}"
         subject, context = self._get_edit_context()
@@ -475,8 +450,6 @@ class Session(PackageNode[SessionData], HasTimeIdentity):
 
     def restore(self, *nodes: Node):
         """Restore a deleted node."""
-        if self._is_suppressed:
-            return
         assert self._tx is not None, f"no active  transaction in {self!r}"
         assert not self._is_readonly and not self._is_suspended, f"cannot edit in {self!r}"
         subject, context = self._get_edit_context()
@@ -488,8 +461,6 @@ class Session(PackageNode[SessionData], HasTimeIdentity):
 
     def erase(self, *nodes: Node):
         """Irreversibly wipe a node and its descendants from the graph."""
-        if self._is_suppressed:
-            return
         assert self._tx is not None, f"no active transaction in {self!r}"
         assert not self._is_readonly and not self._is_suspended, f"cannot edit in {self!r}"
         subject, context = self._get_edit_context()
