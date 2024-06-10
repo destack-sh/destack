@@ -12,7 +12,7 @@ from bench.utils.utils import frozendict, get_from_env
 if typing.TYPE_CHECKING:
     from bench.language import Bench, Run, Session, Transaction
 
-VERSION = "2024.06.09.0"
+VERSION = "2024.06.10.0"
 REVISION_PENDING = -1
 TK_LENGTH_BYTES = 8
 TK_LENGTH_B64 = 12  # 1.5 * TK_LENGTH_BYTES (must be integer)
@@ -134,13 +134,15 @@ class EnumType(IdEnum):
     # expression
     EXPRESSION_KIND = 2300
     EXPRESSION_OP = 2301
-    CONDITIONAL_OP = 2302
-    AGGREGATION_OP = 2303
-    SORT_OP = 2304
-    SORT_MODE = 2305
-    SELECTION_KIND = 2306
-    PATH_TOKEN_TYPE = 2310
-    PATH_SEGMENT_TYPE = 2311
+    LITERAL_OP = 2302
+    FUNCTIONAL_OP = 2303
+    CONDITIONAL_OP = 2304
+    AGGREGATION_OP = 2305
+    SORT_MODE = 2306
+    SORT_OP = 2307
+    SELECTION_KIND = 2308
+    PATH_TOKEN_TYPE = 2320
+    PATH_SEGMENT_TYPE = 2321
 
     # user
     USER_STATUS = 2500
@@ -810,7 +812,7 @@ class RunStatus(IdEnum):
     QUEUED = 2
     RUNNING = 3
     PAUSED = 4
-    ABORTING = 5
+    SUSPENDED = 5
     # terminal statuses
     CANCELLED = 6
     ABORTED = 7
@@ -832,7 +834,7 @@ TERMINAL_RUN_STATUSES: bittuple[RunStatus] = bittuple(
     RunStatus.FAILED,
     RunStatus.COMPLETED,
 )
-ACTIVE_RUN_STATUSES = bittuple(RunStatus.RUNNING, RunStatus.PAUSED, RunStatus.ABORTING)
+ACTIVE_RUN_STATUSES = bittuple(RunStatus.RUNNING, RunStatus.PAUSED, RunStatus.SUSPENDED)
 
 
 @enum_(EnumType.SESSION_STATUS)
@@ -844,40 +846,59 @@ class SessionStatus(IdEnum):
 
 @enum_(EnumType.EXPRESSION_KIND)
 class ExpressionKind(IdEnum):
-    CONDITIONAL = 1
-    SORT = 2
-    AGGREGATION = 3
+    LITERAL = 1
+    FUNCTIONAL = 2
+    CONDITIONAL = 3
+    SORT = 4
+    AGGREGATION = 5
+
+
+@enum_(EnumType.LITERAL_OP)
+class LiteralOp(IdEnum):
+    VALUE = 100
+    TRUE = 101
+    FALSE = 102
+    NONE = 103
+
+
+@enum_(EnumType.FUNCTIONAL_OP)
+class FunctionalOp(IdEnum):
+    # math
+    ADD = 200
+    SUBTRACT = 201
+    MULTIPLY = 202
+    DIVIDE = 203
+    MODULO = 204
+    # ...
 
 
 @enum_(EnumType.CONDITIONAL_OP)
 class ConditionalOp(IdEnum):
     # logical
-    TRUE = 1
-    FALSE = 2
-    NOT = 3
-    AND = 4
-    OR = 5
+    NOT = 301
+    AND = 302
+    OR = 303
     # basic comparison
-    EQUALS = 10
-    NOT_EQUALS = 11
-    GREATER_THAN = 12
-    GREATER_THAN_OR_EQUALS = 13
-    LESS_THAN = 14
-    LESS_THAN_OR_EQUALS = 15
+    EQUALS = 310
+    NOT_EQUALS = 311
+    GREATER_THAN = 312
+    GREATER_THAN_OR_EQUALS = 313
+    LESS_THAN = 314
+    LESS_THAN_OR_EQUALS = 315
     # string comparison
-    MATCHES = 20
-    STARTS_WITH = 21
-    REGEX = 22
+    MATCHES = 320
+    STARTS_WITH = 321
+    REGEX = 322
     # containment
-    CONTAINS = 30
-    NOT_CONTAINS = 31
-    IN = 32
-    NOT_IN = 33
+    CONTAINS = 330
+    NOT_CONTAINS = 331
+    IN = 332
+    NOT_IN = 333
     # existence
-    EXISTS = 40
-    NOT_EXISTS = 41
+    EXISTS = 340
+    NOT_EXISTS = 341
     # vector
-    NEAR = 50
+    NEAR = 350
 
     @property
     def kind(self) -> "ExpressionKind":
@@ -886,14 +907,14 @@ class ConditionalOp(IdEnum):
 
 @enum_(EnumType.AGGREGATION_OP)
 class AggregationOp(IdEnum):
-    EXISTS = 100
-    COUNT = 101
-    SUM = 102
-    AVERAGE = 103
-    MIN = 104
-    MAX = 105
-    MEDIAN = 106
-    HISTOGRAM = 107
+    EXISTS = 400
+    COUNT = 401
+    SUM = 402
+    AVERAGE = 403
+    MIN = 404
+    MAX = 405
+    MEDIAN = 406
+    HISTOGRAM = 407
 
     @property
     def kind(self) -> "ExpressionKind":
@@ -902,8 +923,8 @@ class AggregationOp(IdEnum):
 
 @enum_(EnumType.SORT_OP)
 class SortOp(IdEnum):
-    ASCENDING = 200
-    DESCENDING = 201
+    ASCENDING = 500
+    DESCENDING = 501
 
     @property
     def kind(self) -> "ExpressionKind":

@@ -433,7 +433,8 @@ export interface EditContextData {
     runRootPtr?: NodeReferenceData;
 }
 /**
- * An expression (conditional, aggregation, sort, etc).
+ * An expression.
+ * For now, just a query expression like conditional/sort/...
  *
  * @generated from protobuf message symbolx.bench.ExpressionData
  */
@@ -6189,37 +6190,37 @@ export enum AggregationOp {
      */
     UNSPECIFIED = 0,
     /**
-     * @generated from protobuf enum value: AGGREGATION_OP_EXISTS = 100;
+     * @generated from protobuf enum value: AGGREGATION_OP_EXISTS = 400;
      */
-    EXISTS = 100,
+    EXISTS = 400,
     /**
-     * @generated from protobuf enum value: AGGREGATION_OP_COUNT = 101;
+     * @generated from protobuf enum value: AGGREGATION_OP_COUNT = 401;
      */
-    COUNT = 101,
+    COUNT = 401,
     /**
-     * @generated from protobuf enum value: AGGREGATION_OP_SUM = 102;
+     * @generated from protobuf enum value: AGGREGATION_OP_SUM = 402;
      */
-    SUM = 102,
+    SUM = 402,
     /**
-     * @generated from protobuf enum value: AGGREGATION_OP_AVERAGE = 103;
+     * @generated from protobuf enum value: AGGREGATION_OP_AVERAGE = 403;
      */
-    AVERAGE = 103,
+    AVERAGE = 403,
     /**
-     * @generated from protobuf enum value: AGGREGATION_OP_MIN = 104;
+     * @generated from protobuf enum value: AGGREGATION_OP_MIN = 404;
      */
-    MIN = 104,
+    MIN = 404,
     /**
-     * @generated from protobuf enum value: AGGREGATION_OP_MAX = 105;
+     * @generated from protobuf enum value: AGGREGATION_OP_MAX = 405;
      */
-    MAX = 105,
+    MAX = 405,
     /**
-     * @generated from protobuf enum value: AGGREGATION_OP_MEDIAN = 106;
+     * @generated from protobuf enum value: AGGREGATION_OP_MEDIAN = 406;
      */
-    MEDIAN = 106,
+    MEDIAN = 406,
     /**
-     * @generated from protobuf enum value: AGGREGATION_OP_HISTOGRAM = 107;
+     * @generated from protobuf enum value: AGGREGATION_OP_HISTOGRAM = 407;
      */
-    HISTOGRAM = 107
+    HISTOGRAM = 407
 }
 /**
  * How to align the contents/subviews of a view along its orientation.
@@ -6852,33 +6853,41 @@ export enum BenchType {
      */
     EXPRESSION_OP = 2301,
     /**
-     * @generated from protobuf enum value: BENCH_TYPE_CONDITIONAL_OP = 2302;
+     * @generated from protobuf enum value: BENCH_TYPE_LITERAL_OP = 2302;
      */
-    CONDITIONAL_OP = 2302,
+    LITERAL_OP = 2302,
     /**
-     * @generated from protobuf enum value: BENCH_TYPE_AGGREGATION_OP = 2303;
+     * @generated from protobuf enum value: BENCH_TYPE_FUNCTIONAL_OP = 2303;
      */
-    AGGREGATION_OP = 2303,
+    FUNCTIONAL_OP = 2303,
     /**
-     * @generated from protobuf enum value: BENCH_TYPE_SORT_OP = 2304;
+     * @generated from protobuf enum value: BENCH_TYPE_CONDITIONAL_OP = 2304;
      */
-    SORT_OP = 2304,
+    CONDITIONAL_OP = 2304,
     /**
-     * @generated from protobuf enum value: BENCH_TYPE_SORT_MODE = 2305;
+     * @generated from protobuf enum value: BENCH_TYPE_AGGREGATION_OP = 2305;
      */
-    SORT_MODE = 2305,
+    AGGREGATION_OP = 2305,
     /**
-     * @generated from protobuf enum value: BENCH_TYPE_SELECTION_KIND = 2306;
+     * @generated from protobuf enum value: BENCH_TYPE_SORT_MODE = 2306;
      */
-    SELECTION_KIND = 2306,
+    SORT_MODE = 2306,
     /**
-     * @generated from protobuf enum value: BENCH_TYPE_PATH_TOKEN_TYPE = 2310;
+     * @generated from protobuf enum value: BENCH_TYPE_SORT_OP = 2307;
      */
-    PATH_TOKEN_TYPE = 2310,
+    SORT_OP = 2307,
     /**
-     * @generated from protobuf enum value: BENCH_TYPE_PATH_SEGMENT_TYPE = 2311;
+     * @generated from protobuf enum value: BENCH_TYPE_SELECTION_KIND = 2308;
      */
-    PATH_SEGMENT_TYPE = 2311,
+    SELECTION_KIND = 2308,
+    /**
+     * @generated from protobuf enum value: BENCH_TYPE_PATH_TOKEN_TYPE = 2320;
+     */
+    PATH_TOKEN_TYPE = 2320,
+    /**
+     * @generated from protobuf enum value: BENCH_TYPE_PATH_SEGMENT_TYPE = 2321;
+     */
+    PATH_SEGMENT_TYPE = 2321,
     /**
      * @generated from protobuf enum value: BENCH_TYPE_USER_STATUS = 2500;
      */
@@ -7177,89 +7186,81 @@ export enum ConditionalOp {
      */
     UNSPECIFIED = 0,
     /**
-     * @generated from protobuf enum value: CONDITIONAL_OP_TRUE = 1;
+     * @generated from protobuf enum value: CONDITIONAL_OP_NOT = 301;
      */
-    TRUE = 1,
+    NOT = 301,
     /**
-     * @generated from protobuf enum value: CONDITIONAL_OP_FALSE = 2;
+     * @generated from protobuf enum value: CONDITIONAL_OP_AND = 302;
      */
-    FALSE = 2,
+    AND = 302,
     /**
-     * @generated from protobuf enum value: CONDITIONAL_OP_NOT = 3;
+     * @generated from protobuf enum value: CONDITIONAL_OP_OR = 303;
      */
-    NOT = 3,
+    OR = 303,
     /**
-     * @generated from protobuf enum value: CONDITIONAL_OP_AND = 4;
+     * @generated from protobuf enum value: CONDITIONAL_OP_EQUALS = 310;
      */
-    AND = 4,
+    EQUALS = 310,
     /**
-     * @generated from protobuf enum value: CONDITIONAL_OP_OR = 5;
+     * @generated from protobuf enum value: CONDITIONAL_OP_NOT_EQUALS = 311;
      */
-    OR = 5,
+    NOT_EQUALS = 311,
     /**
-     * @generated from protobuf enum value: CONDITIONAL_OP_EQUALS = 10;
+     * @generated from protobuf enum value: CONDITIONAL_OP_GREATER_THAN = 312;
      */
-    EQUALS = 10,
+    GREATER_THAN = 312,
     /**
-     * @generated from protobuf enum value: CONDITIONAL_OP_NOT_EQUALS = 11;
+     * @generated from protobuf enum value: CONDITIONAL_OP_GREATER_THAN_OR_EQUALS = 313;
      */
-    NOT_EQUALS = 11,
+    GREATER_THAN_OR_EQUALS = 313,
     /**
-     * @generated from protobuf enum value: CONDITIONAL_OP_GREATER_THAN = 12;
+     * @generated from protobuf enum value: CONDITIONAL_OP_LESS_THAN = 314;
      */
-    GREATER_THAN = 12,
+    LESS_THAN = 314,
     /**
-     * @generated from protobuf enum value: CONDITIONAL_OP_GREATER_THAN_OR_EQUALS = 13;
+     * @generated from protobuf enum value: CONDITIONAL_OP_LESS_THAN_OR_EQUALS = 315;
      */
-    GREATER_THAN_OR_EQUALS = 13,
+    LESS_THAN_OR_EQUALS = 315,
     /**
-     * @generated from protobuf enum value: CONDITIONAL_OP_LESS_THAN = 14;
+     * @generated from protobuf enum value: CONDITIONAL_OP_MATCHES = 320;
      */
-    LESS_THAN = 14,
+    MATCHES = 320,
     /**
-     * @generated from protobuf enum value: CONDITIONAL_OP_LESS_THAN_OR_EQUALS = 15;
+     * @generated from protobuf enum value: CONDITIONAL_OP_STARTS_WITH = 321;
      */
-    LESS_THAN_OR_EQUALS = 15,
+    STARTS_WITH = 321,
     /**
-     * @generated from protobuf enum value: CONDITIONAL_OP_MATCHES = 20;
+     * @generated from protobuf enum value: CONDITIONAL_OP_REGEX = 322;
      */
-    MATCHES = 20,
+    REGEX = 322,
     /**
-     * @generated from protobuf enum value: CONDITIONAL_OP_STARTS_WITH = 21;
+     * @generated from protobuf enum value: CONDITIONAL_OP_CONTAINS = 330;
      */
-    STARTS_WITH = 21,
+    CONTAINS = 330,
     /**
-     * @generated from protobuf enum value: CONDITIONAL_OP_REGEX = 22;
+     * @generated from protobuf enum value: CONDITIONAL_OP_NOT_CONTAINS = 331;
      */
-    REGEX = 22,
+    NOT_CONTAINS = 331,
     /**
-     * @generated from protobuf enum value: CONDITIONAL_OP_CONTAINS = 30;
+     * @generated from protobuf enum value: CONDITIONAL_OP_IN = 332;
      */
-    CONTAINS = 30,
+    IN = 332,
     /**
-     * @generated from protobuf enum value: CONDITIONAL_OP_NOT_CONTAINS = 31;
+     * @generated from protobuf enum value: CONDITIONAL_OP_NOT_IN = 333;
      */
-    NOT_CONTAINS = 31,
+    NOT_IN = 333,
     /**
-     * @generated from protobuf enum value: CONDITIONAL_OP_IN = 32;
+     * @generated from protobuf enum value: CONDITIONAL_OP_EXISTS = 340;
      */
-    IN = 32,
+    EXISTS = 340,
     /**
-     * @generated from protobuf enum value: CONDITIONAL_OP_NOT_IN = 33;
+     * @generated from protobuf enum value: CONDITIONAL_OP_NOT_EXISTS = 341;
      */
-    NOT_IN = 33,
+    NOT_EXISTS = 341,
     /**
-     * @generated from protobuf enum value: CONDITIONAL_OP_EXISTS = 40;
+     * @generated from protobuf enum value: CONDITIONAL_OP_NEAR = 350;
      */
-    EXISTS = 40,
-    /**
-     * @generated from protobuf enum value: CONDITIONAL_OP_NOT_EXISTS = 41;
-     */
-    NOT_EXISTS = 41,
-    /**
-     * @generated from protobuf enum value: CONDITIONAL_OP_NEAR = 50;
-     */
-    NEAR = 50
+    NEAR = 350
 }
 /**
  * @generated from protobuf enum symbolx.bench.Day
@@ -7586,33 +7587,41 @@ export enum EnumType {
      */
     EXPRESSION_OP = 2301,
     /**
-     * @generated from protobuf enum value: ENUM_TYPE_CONDITIONAL_OP = 2302;
+     * @generated from protobuf enum value: ENUM_TYPE_LITERAL_OP = 2302;
      */
-    CONDITIONAL_OP = 2302,
+    LITERAL_OP = 2302,
     /**
-     * @generated from protobuf enum value: ENUM_TYPE_AGGREGATION_OP = 2303;
+     * @generated from protobuf enum value: ENUM_TYPE_FUNCTIONAL_OP = 2303;
      */
-    AGGREGATION_OP = 2303,
+    FUNCTIONAL_OP = 2303,
     /**
-     * @generated from protobuf enum value: ENUM_TYPE_SORT_OP = 2304;
+     * @generated from protobuf enum value: ENUM_TYPE_CONDITIONAL_OP = 2304;
      */
-    SORT_OP = 2304,
+    CONDITIONAL_OP = 2304,
     /**
-     * @generated from protobuf enum value: ENUM_TYPE_SORT_MODE = 2305;
+     * @generated from protobuf enum value: ENUM_TYPE_AGGREGATION_OP = 2305;
      */
-    SORT_MODE = 2305,
+    AGGREGATION_OP = 2305,
     /**
-     * @generated from protobuf enum value: ENUM_TYPE_SELECTION_KIND = 2306;
+     * @generated from protobuf enum value: ENUM_TYPE_SORT_MODE = 2306;
      */
-    SELECTION_KIND = 2306,
+    SORT_MODE = 2306,
     /**
-     * @generated from protobuf enum value: ENUM_TYPE_PATH_TOKEN_TYPE = 2310;
+     * @generated from protobuf enum value: ENUM_TYPE_SORT_OP = 2307;
      */
-    PATH_TOKEN_TYPE = 2310,
+    SORT_OP = 2307,
     /**
-     * @generated from protobuf enum value: ENUM_TYPE_PATH_SEGMENT_TYPE = 2311;
+     * @generated from protobuf enum value: ENUM_TYPE_SELECTION_KIND = 2308;
      */
-    PATH_SEGMENT_TYPE = 2311,
+    SELECTION_KIND = 2308,
+    /**
+     * @generated from protobuf enum value: ENUM_TYPE_PATH_TOKEN_TYPE = 2320;
+     */
+    PATH_TOKEN_TYPE = 2320,
+    /**
+     * @generated from protobuf enum value: ENUM_TYPE_PATH_SEGMENT_TYPE = 2321;
+     */
+    PATH_SEGMENT_TYPE = 2321,
     /**
      * @generated from protobuf enum value: ENUM_TYPE_USER_STATUS = 2500;
      */
@@ -7631,17 +7640,25 @@ export enum ExpressionKind {
      */
     UNSPECIFIED = 0,
     /**
-     * @generated from protobuf enum value: EXPRESSION_KIND_CONDITIONAL = 1;
+     * @generated from protobuf enum value: EXPRESSION_KIND_LITERAL = 1;
      */
-    CONDITIONAL = 1,
+    LITERAL = 1,
     /**
-     * @generated from protobuf enum value: EXPRESSION_KIND_SORT = 2;
+     * @generated from protobuf enum value: EXPRESSION_KIND_FUNCTIONAL = 2;
      */
-    SORT = 2,
+    FUNCTIONAL = 2,
     /**
-     * @generated from protobuf enum value: EXPRESSION_KIND_AGGREGATION = 3;
+     * @generated from protobuf enum value: EXPRESSION_KIND_CONDITIONAL = 3;
      */
-    AGGREGATION = 3
+    CONDITIONAL = 3,
+    /**
+     * @generated from protobuf enum value: EXPRESSION_KIND_SORT = 4;
+     */
+    SORT = 4,
+    /**
+     * @generated from protobuf enum value: EXPRESSION_KIND_AGGREGATION = 5;
+     */
+    AGGREGATION = 5
 }
 /**
  * @generated from protobuf enum symbolx.bench.ExpressionOp
@@ -7652,125 +7669,117 @@ export enum ExpressionOp {
      */
     UNSPECIFIED = 0,
     /**
-     * @generated from protobuf enum value: EXPRESSION_OP_TRUE = 1;
+     * @generated from protobuf enum value: EXPRESSION_OP_NOT = 301;
      */
-    TRUE = 1,
+    NOT = 301,
     /**
-     * @generated from protobuf enum value: EXPRESSION_OP_FALSE = 2;
+     * @generated from protobuf enum value: EXPRESSION_OP_AND = 302;
      */
-    FALSE = 2,
+    AND = 302,
     /**
-     * @generated from protobuf enum value: EXPRESSION_OP_NOT = 3;
+     * @generated from protobuf enum value: EXPRESSION_OP_OR = 303;
      */
-    NOT = 3,
+    OR = 303,
     /**
-     * @generated from protobuf enum value: EXPRESSION_OP_AND = 4;
+     * @generated from protobuf enum value: EXPRESSION_OP_EQUALS = 310;
      */
-    AND = 4,
+    EQUALS = 310,
     /**
-     * @generated from protobuf enum value: EXPRESSION_OP_OR = 5;
+     * @generated from protobuf enum value: EXPRESSION_OP_NOT_EQUALS = 311;
      */
-    OR = 5,
+    NOT_EQUALS = 311,
     /**
-     * @generated from protobuf enum value: EXPRESSION_OP_EQUALS = 10;
+     * @generated from protobuf enum value: EXPRESSION_OP_GREATER_THAN = 312;
      */
-    EQUALS = 10,
+    GREATER_THAN = 312,
     /**
-     * @generated from protobuf enum value: EXPRESSION_OP_NOT_EQUALS = 11;
+     * @generated from protobuf enum value: EXPRESSION_OP_GREATER_THAN_OR_EQUALS = 313;
      */
-    NOT_EQUALS = 11,
+    GREATER_THAN_OR_EQUALS = 313,
     /**
-     * @generated from protobuf enum value: EXPRESSION_OP_GREATER_THAN = 12;
+     * @generated from protobuf enum value: EXPRESSION_OP_LESS_THAN = 314;
      */
-    GREATER_THAN = 12,
+    LESS_THAN = 314,
     /**
-     * @generated from protobuf enum value: EXPRESSION_OP_GREATER_THAN_OR_EQUALS = 13;
+     * @generated from protobuf enum value: EXPRESSION_OP_LESS_THAN_OR_EQUALS = 315;
      */
-    GREATER_THAN_OR_EQUALS = 13,
+    LESS_THAN_OR_EQUALS = 315,
     /**
-     * @generated from protobuf enum value: EXPRESSION_OP_LESS_THAN = 14;
+     * @generated from protobuf enum value: EXPRESSION_OP_MATCHES = 320;
      */
-    LESS_THAN = 14,
+    MATCHES = 320,
     /**
-     * @generated from protobuf enum value: EXPRESSION_OP_LESS_THAN_OR_EQUALS = 15;
+     * @generated from protobuf enum value: EXPRESSION_OP_STARTS_WITH = 321;
      */
-    LESS_THAN_OR_EQUALS = 15,
+    STARTS_WITH = 321,
     /**
-     * @generated from protobuf enum value: EXPRESSION_OP_MATCHES = 20;
+     * @generated from protobuf enum value: EXPRESSION_OP_REGEX = 322;
      */
-    MATCHES = 20,
+    REGEX = 322,
     /**
-     * @generated from protobuf enum value: EXPRESSION_OP_STARTS_WITH = 21;
+     * @generated from protobuf enum value: EXPRESSION_OP_CONTAINS = 330;
      */
-    STARTS_WITH = 21,
+    CONTAINS = 330,
     /**
-     * @generated from protobuf enum value: EXPRESSION_OP_REGEX = 22;
+     * @generated from protobuf enum value: EXPRESSION_OP_NOT_CONTAINS = 331;
      */
-    REGEX = 22,
+    NOT_CONTAINS = 331,
     /**
-     * @generated from protobuf enum value: EXPRESSION_OP_CONTAINS = 30;
+     * @generated from protobuf enum value: EXPRESSION_OP_IN = 332;
      */
-    CONTAINS = 30,
+    IN = 332,
     /**
-     * @generated from protobuf enum value: EXPRESSION_OP_NOT_CONTAINS = 31;
+     * @generated from protobuf enum value: EXPRESSION_OP_NOT_IN = 333;
      */
-    NOT_CONTAINS = 31,
+    NOT_IN = 333,
     /**
-     * @generated from protobuf enum value: EXPRESSION_OP_IN = 32;
+     * @generated from protobuf enum value: EXPRESSION_OP_EXISTS = 400;
      */
-    IN = 32,
+    EXISTS = 400,
     /**
-     * @generated from protobuf enum value: EXPRESSION_OP_NOT_IN = 33;
+     * @generated from protobuf enum value: EXPRESSION_OP_NOT_EXISTS = 341;
      */
-    NOT_IN = 33,
+    NOT_EXISTS = 341,
     /**
-     * @generated from protobuf enum value: EXPRESSION_OP_EXISTS = 100;
+     * @generated from protobuf enum value: EXPRESSION_OP_NEAR = 350;
      */
-    EXISTS = 100,
+    NEAR = 350,
     /**
-     * @generated from protobuf enum value: EXPRESSION_OP_NOT_EXISTS = 41;
+     * @generated from protobuf enum value: EXPRESSION_OP_COUNT = 401;
      */
-    NOT_EXISTS = 41,
+    COUNT = 401,
     /**
-     * @generated from protobuf enum value: EXPRESSION_OP_NEAR = 50;
+     * @generated from protobuf enum value: EXPRESSION_OP_SUM = 402;
      */
-    NEAR = 50,
+    SUM = 402,
     /**
-     * @generated from protobuf enum value: EXPRESSION_OP_COUNT = 101;
+     * @generated from protobuf enum value: EXPRESSION_OP_AVERAGE = 403;
      */
-    COUNT = 101,
+    AVERAGE = 403,
     /**
-     * @generated from protobuf enum value: EXPRESSION_OP_SUM = 102;
+     * @generated from protobuf enum value: EXPRESSION_OP_MIN = 404;
      */
-    SUM = 102,
+    MIN = 404,
     /**
-     * @generated from protobuf enum value: EXPRESSION_OP_AVERAGE = 103;
+     * @generated from protobuf enum value: EXPRESSION_OP_MAX = 405;
      */
-    AVERAGE = 103,
+    MAX = 405,
     /**
-     * @generated from protobuf enum value: EXPRESSION_OP_MIN = 104;
+     * @generated from protobuf enum value: EXPRESSION_OP_MEDIAN = 406;
      */
-    MIN = 104,
+    MEDIAN = 406,
     /**
-     * @generated from protobuf enum value: EXPRESSION_OP_MAX = 105;
+     * @generated from protobuf enum value: EXPRESSION_OP_HISTOGRAM = 407;
      */
-    MAX = 105,
+    HISTOGRAM = 407,
     /**
-     * @generated from protobuf enum value: EXPRESSION_OP_MEDIAN = 106;
+     * @generated from protobuf enum value: EXPRESSION_OP_ASCENDING = 500;
      */
-    MEDIAN = 106,
+    ASCENDING = 500,
     /**
-     * @generated from protobuf enum value: EXPRESSION_OP_HISTOGRAM = 107;
+     * @generated from protobuf enum value: EXPRESSION_OP_DESCENDING = 501;
      */
-    HISTOGRAM = 107,
-    /**
-     * @generated from protobuf enum value: EXPRESSION_OP_ASCENDING = 200;
-     */
-    ASCENDING = 200,
-    /**
-     * @generated from protobuf enum value: EXPRESSION_OP_DESCENDING = 201;
-     */
-    DESCENDING = 201
+    DESCENDING = 501
 }
 /**
  * The 'zone' of a Field within its Block.
@@ -8003,6 +8012,35 @@ export enum FormatHint {
     AUDIO = 62
 }
 /**
+ * @generated from protobuf enum symbolx.bench.FunctionalOp
+ */
+export enum FunctionalOp {
+    /**
+     * @generated from protobuf enum value: FUNCTIONAL_OP_UNSPECIFIED = 0;
+     */
+    UNSPECIFIED = 0,
+    /**
+     * @generated from protobuf enum value: FUNCTIONAL_OP_ADD = 200;
+     */
+    ADD = 200,
+    /**
+     * @generated from protobuf enum value: FUNCTIONAL_OP_SUBTRACT = 201;
+     */
+    SUBTRACT = 201,
+    /**
+     * @generated from protobuf enum value: FUNCTIONAL_OP_MULTIPLY = 202;
+     */
+    MULTIPLY = 202,
+    /**
+     * @generated from protobuf enum value: FUNCTIONAL_OP_DIVIDE = 203;
+     */
+    DIVIDE = 203,
+    /**
+     * @generated from protobuf enum value: FUNCTIONAL_OP_MODULO = 204;
+     */
+    MODULO = 204
+}
+/**
  * @generated from protobuf enum symbolx.bench.IconKind
  */
 export enum IconKind {
@@ -8085,6 +8123,31 @@ export enum IssueType {
      * @generated from protobuf enum value: ISSUE_TYPE_AMBIGUOUS_NAME = 100;
      */
     AMBIGUOUS_NAME = 100
+}
+/**
+ * @generated from protobuf enum symbolx.bench.LiteralOp
+ */
+export enum LiteralOp {
+    /**
+     * @generated from protobuf enum value: LITERAL_OP_UNSPECIFIED = 0;
+     */
+    UNSPECIFIED = 0,
+    /**
+     * @generated from protobuf enum value: LITERAL_OP_VALUE = 100;
+     */
+    VALUE = 100,
+    /**
+     * @generated from protobuf enum value: LITERAL_OP_TRUE = 101;
+     */
+    TRUE = 101,
+    /**
+     * @generated from protobuf enum value: LITERAL_OP_FALSE = 102;
+     */
+    FALSE = 102,
+    /**
+     * @generated from protobuf enum value: LITERAL_OP_NONE = 103;
+     */
+    NONE = 103
 }
 /**
  * @generated from protobuf enum symbolx.bench.LogKind
@@ -9170,9 +9233,9 @@ export enum RunStatus {
      */
     PAUSED = 4,
     /**
-     * @generated from protobuf enum value: RUN_STATUS_ABORTING = 5;
+     * @generated from protobuf enum value: RUN_STATUS_SUSPENDED = 5;
      */
-    ABORTING = 5,
+    SUSPENDED = 5,
     /**
      * @generated from protobuf enum value: RUN_STATUS_CANCELLED = 6;
      */
@@ -9304,13 +9367,13 @@ export enum SortOp {
      */
     UNSPECIFIED = 0,
     /**
-     * @generated from protobuf enum value: SORT_OP_ASCENDING = 200;
+     * @generated from protobuf enum value: SORT_OP_ASCENDING = 500;
      */
-    ASCENDING = 200,
+    ASCENDING = 500,
     /**
-     * @generated from protobuf enum value: SORT_OP_DESCENDING = 201;
+     * @generated from protobuf enum value: SORT_OP_DESCENDING = 501;
      */
-    DESCENDING = 201
+    DESCENDING = 501
 }
 /**
  * @generated from protobuf enum symbolx.bench.SpaceType
@@ -9486,9 +9549,13 @@ export enum StepType {
      */
     UNSPECIFIED = 0,
     /**
-     * @generated from protobuf enum value: STEP_TYPE_VALUE = 1;
+     * @generated from protobuf enum value: STEP_TYPE_START = 1;
      */
-    VALUE = 1,
+    START = 1,
+    /**
+     * @generated from protobuf enum value: STEP_TYPE_VALUE = 2;
+     */
+    VALUE = 2,
     /**
      * @generated from protobuf enum value: STEP_TYPE_TRIGGER = 10;
      */
@@ -9505,6 +9572,10 @@ export enum StepType {
      * @generated from protobuf enum value: STEP_TYPE_SEND = 22;
      */
     SEND = 22,
+    /**
+     * @generated from protobuf enum value: STEP_TYPE_COMPLETE = 23;
+     */
+    COMPLETE = 23,
     /**
      * @generated from protobuf enum value: STEP_TYPE_BRANCH = 30;
      */
@@ -23940,10 +24011,12 @@ export const ENUM_BY_TYPE: Record<EnumType, Record<number | string, number | str
   [EnumType.NOTIFICATION_KIND]: NotificationKind,
   [EnumType.EXPRESSION_KIND]: ExpressionKind,
   [EnumType.EXPRESSION_OP]: ExpressionOp,
+  [EnumType.LITERAL_OP]: LiteralOp,
+  [EnumType.FUNCTIONAL_OP]: FunctionalOp,
   [EnumType.CONDITIONAL_OP]: ConditionalOp,
   [EnumType.AGGREGATION_OP]: AggregationOp,
-  [EnumType.SORT_OP]: SortOp,
   [EnumType.SORT_MODE]: SortMode,
+  [EnumType.SORT_OP]: SortOp,
   [EnumType.SELECTION_KIND]: SelectionKind,
   [EnumType.PATH_TOKEN_TYPE]: PathTokenType,
   [EnumType.PATH_SEGMENT_TYPE]: PathSegmentType,
@@ -24174,10 +24247,12 @@ export interface EnumTypeMapping extends Record<EnumType, any> {
   [EnumType.NOTIFICATION_KIND]: NotificationKind,
   [EnumType.EXPRESSION_KIND]: ExpressionKind,
   [EnumType.EXPRESSION_OP]: ExpressionOp,
+  [EnumType.LITERAL_OP]: LiteralOp,
+  [EnumType.FUNCTIONAL_OP]: FunctionalOp,
   [EnumType.CONDITIONAL_OP]: ConditionalOp,
   [EnumType.AGGREGATION_OP]: AggregationOp,
-  [EnumType.SORT_OP]: SortOp,
   [EnumType.SORT_MODE]: SortMode,
+  [EnumType.SORT_OP]: SortOp,
   [EnumType.SELECTION_KIND]: SelectionKind,
   [EnumType.PATH_TOKEN_TYPE]: PathTokenType,
   [EnumType.PATH_SEGMENT_TYPE]: PathSegmentType,

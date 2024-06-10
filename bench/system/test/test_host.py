@@ -218,7 +218,7 @@ async def test_activate_user(some_bench: BenchHandle):
 
 
 async def test_create_run(some_bench: BenchHandle):
-    # TODO :Test: test runs
+    # TODO :Test: test runs properly
     async with some_bench.session() as session:
         run = Run(
             parent=some_bench.package,

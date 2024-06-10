@@ -38,6 +38,7 @@ from bench.language.const import (
     BlockType,
     EditType,
     EnumType,
+    LiteralOp,
     NodeType,
     ReferenceKind,
     SortOp,
@@ -255,8 +256,6 @@ class PostgresConditionalOp(enum.StrEnum):
 
 PG_CONDITIONAL_OP_BY_BENCH: dict[ConditionalOp, PostgresConditionalOp] = {
     # logical
-    ConditionalOp.TRUE: PostgresConditionalOp.TRUE,
-    ConditionalOp.FALSE: PostgresConditionalOp.FALSE,
     ConditionalOp.AND: PostgresConditionalOp.AND,
     ConditionalOp.OR: PostgresConditionalOp.OR,
     ConditionalOp.NOT: PostgresConditionalOp.NOT,
@@ -461,10 +460,12 @@ def _pg_compile_conditional(
     node: Union[type[Node], Block],
     cond: Expression,
 ) -> SqlNode:
-    if cond.op == ConditionalOp.TRUE:
+    if cond.op == LiteralOp.TRUE:
         return sqlstr("TRUE")
-    elif cond.op == ConditionalOp.FALSE:
+    elif cond.op == LiteralOp.FALSE:
         return sqlstr("FALSE")
+    elif cond.op == LiteralOp.NONE:
+        return sqlstr("NULL")
     elif cond.op in ExpressionOps.COND_LOGICAL and cond.op in PG_CONDITIONAL_OP_BY_BENCH:
         clauses = [_pg_compile_conditional(node, c) for c in cond.clauses or ()]
         return SqlCompound(op=PG_CONDITIONAL_OP_BY_BENCH[cond.op], operands=clauses)

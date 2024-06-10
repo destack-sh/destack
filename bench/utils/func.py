@@ -434,11 +434,12 @@ class IdEnum(enum.IntEnum):
     id: int
     ord: int
 
-    def __new__(cls, id: int):
+    def __new__(cls, id: int, doc: str | None = None):
         obj = int.__new__(cls, id)
         obj._value_ = id
         obj.ord = len(cls)
         obj.id = id
+        obj.__doc__ = doc
 
         # check id
         assert id > 0, f"invalid id {id}"
