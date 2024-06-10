@@ -1,6 +1,6 @@
 import asyncio
 from contextlib import asynccontextmanager
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 from uuid import UUID
 
 import structlog
@@ -153,11 +153,12 @@ class RuntimeThread:
         assert (
             run_data.parent_ptr and UUID(run_data.parent_ptr.id) == package.id
         ), f"{run_data!r} not in {package!r}"
-        run = wiring.unpack_object_validate(
-            run_data, parent=package, session=self._session, expect=Run
-        )
 
         async with self.session(readonly=False, autocommit=True):
+            run = wiring.unpack_object_validate(
+                run_data, parent=package, session=self._session, expect=Run
+            )
+            run._unpack_values_inplace()  # values are a bit crummy :NoFakeComputed
             run.status = RunStatus.RUNNING
             run.started_at = utcnow()
             run.started_epoch = self.epoch
@@ -167,16 +168,17 @@ class RuntimeThread:
                 if run.kind == RunKind.BLOCK:
                     block = run.block
                     assert block is not None, f"no block for {run!r}"
-                    input_type = block.input_type
-                    # nocheckin
-                    print(input_type)
-                    print(run.inputs)
-                    print(run.inputs_packed)
-                    if input_type is not None:
-                        check_value(run.inputs, input_type, on_invalid_raise)
+                    if block.input_type is not None:
+                        check_value(run.inputs, block.input_type, on_invalid_raise)
+                    context: dict[str, Any] = {"self": block, "run": run}
+                    if run.inputs:
+                        for field in run.inputs.fields:
+                            field_value = run.inputs._do_get(field)
+                            assert field.py_ident is not None, f"{field!r} has no py_ident"
+                            context[field.py_ident] = context[field.name] = field_value
                     if block.type == BlockType.CODE:
                         code = block.code or Code.empty()
-                        run_code_exec(code.to_string(), {"self": block, **(run.inputs or {})})
+                        run_code_exec(code.to_string(), context)
                     else:
                         raise NotImplementedError(f"unsupported block type {block.type}")
                 else:

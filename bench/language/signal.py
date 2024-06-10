@@ -17,7 +17,7 @@ from bench.language.value import HasValues
 from bench.proto.wire import AnyNodeData, NodeReferenceData, SignalData
 
 if TYPE_CHECKING:
-    from bench.language import Block, Package
+    from bench.language import Block, Package, ValueObject
 
 # pyright: reportIncompatibleVariableOverride=false
 
@@ -39,7 +39,9 @@ class Signal(PackageNode[SignalData], HasTimeIdentity, HasNodeBase, HasSessionCo
     # content
     value_packed: Any | None = p_value_packed(42)
     secret_value_packed: Any | None = p_secret_value_packed(43)
-    value: Any = p_value_runtime(42, 43, typ=lambda self: cast("Signal", self).value_type)
+    value: "ValueObject | None" = p_value_runtime(
+        42, 43, typ=lambda self: cast("Signal", self).value_type
+    )
 
     # context
     # ...HasSessionContext[60-69]

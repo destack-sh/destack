@@ -11,7 +11,7 @@ from bench.language.setup import OBJECT_CLASS_BY_TYPE
 from bench.language.test.fabricator import Fabricator
 from bench.language.text import Text
 from bench.language.value import (
-    Object,
+    ValueObject,
     pack_builtin_object_data,
     pack_value,
     unpack_builtin_object_data,
@@ -107,13 +107,13 @@ def test_roundtrip_nested_value():
     class1.fields.create(name="Field4", base_type=class2, kind=TypeKind.ALIAS)
 
     # outer value
-    value = cast(Object, class1())
+    value = cast(ValueObject, class1())
     # TODO :Broken: value pack/unpack does not yet turn node refs back into nodes
     #  (so the assertion below would fail if the next line is uncommented)
     # value.field1 = choice1.fields.Option1
     value.field2 = False
     value.field3 = [Text.plain("hello bench!")]
-    value.field4 = cast(Object, class2())
+    value.field4 = cast(ValueObject, class2())
 
     class1_type = class1.to_type(as_object=True)
     value_packed, secret_value_packed = pack_value(value, class1_type)

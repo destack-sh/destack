@@ -183,7 +183,7 @@ export function decodeTypeIdentity(key: string): TypeIdentity {
 export function getStorageKey(field: FieldData, fieldType?: TypeIdentity): string {
   fieldType = fieldType ?? field;
   if (field.ck == null) throw new Error(`missing ck for type ${describeTypeIdentity(field)}`);
-  return `${getTkB64FromCk(field.ck)}-${encodeTypeIdentity(fieldType)}`;
+  return `${getTkB64FromCk(field.ck)}${encodeTypeIdentity(fieldType)}`;
 }
 
 // NOTE :Architecture: :TypeResolution in frontend should probably happen reactively in a dedicated.. something.

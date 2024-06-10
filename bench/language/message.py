@@ -19,7 +19,7 @@ from bench.language.value import HasValues
 from bench.proto.wire import AnyNodeData, MessageData, NodeReferenceData
 
 if TYPE_CHECKING:
-    from bench.language import Block, NodeReference, Package, Path, Text
+    from bench.language import Block, NodeReference, Package, Path, Text, ValueObject
 
 # pyright: reportIncompatibleVariableOverride=false
 
@@ -58,7 +58,7 @@ class Message(
     text: Optional["Text"] = p_regular(41, require=False, default=None, struct=StructType.TEXT)
     value_packed: Any = p_value_packed(42)
     secret_value_packed: Any = p_value_packed(43)
-    value: Any = p_value_runtime(42, 43, typ=None)  # freely typed
+    value: "ValueObject | None" = p_value_runtime(42, 43, typ=None)  # freely typed
 
     # flags
     is_pinned: bool = p_regular(50, default=False)

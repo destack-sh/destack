@@ -49,12 +49,12 @@ if TYPE_CHECKING:
         BuiltinObject,
         Node,
         NodeReference,
-        Object,
         PropertyReference,
         Struct,
         TypeConstraint,
         TypeInfo,
         TypeInfoBase,
+        ValueObject,
     )
     from bench.language.expression import _TypeQueryBuilder
 
@@ -286,7 +286,9 @@ class Property(_TypeQueryBuilder if TYPE_CHECKING else object):
 
     def to_wired_ptr(
         self,
-        ref: Union["Object", "BuiltinObject", list["Object"], list["Node"], list["Struct"], None],
+        ref: Union[
+            "ValueObject", "BuiltinObject", list["ValueObject"], list["Node"], list["Struct"], None
+        ],
     ) -> Union[
         "NodeReference",
         "PropertyReference",
@@ -306,7 +308,7 @@ class Property(_TypeQueryBuilder if TYPE_CHECKING else object):
             if self.is_node_reference or self.is_property_reference:
                 return (cast(Union["Node", "Property"], ref)).to_ref()
             elif self.is_struct_reference:
-                maybe_ref = cast(Union["BuiltinObject", "Object"], ref)
+                maybe_ref = cast(Union["BuiltinObject", "ValueObject"], ref)
                 if maybe_ref.__class__.__name__ == "Object" or (
                     getattr(maybe_ref, "__is_struct__", False)
                     and not getattr(maybe_ref, "__is_struct_inlined__", False)

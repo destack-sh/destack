@@ -24,7 +24,7 @@ from bench.proto.wire import AnyNodeData, NodeReferenceData, RecordData
 from bench.utils.func import describe_type
 
 if TYPE_CHECKING:
-    from bench.language import Block, TypeInfo
+    from bench.language import Block, TypeInfo, ValueObject
 
 # pyright: reportIncompatibleVariableOverride=false
 
@@ -42,7 +42,9 @@ class Record(PackageNode[RecordData], HasPersistentIdentity, HasNodeBase, HasVal
     parent: "Block" = p_node_parent(4, NodeType.BLOCK)
     value_packed: Any = p_value_packed(30)
     secret_value_packed = p_secret_value_packed(31)
-    value: Any = p_value_runtime(30, 31, typ=lambda self: cast("Record", self).value_type)
+    value: "ValueObject | None" = p_value_runtime(
+        30, 31, typ=lambda self: cast("Record", self).value_type
+    )
 
     def __content_str__(self):
         return f"{describe_type(self.value) or '<empty>'}"
@@ -62,10 +64,6 @@ class Record(PackageNode[RecordData], HasPersistentIdentity, HasNodeBase, HasVal
     @property
     def _type(self) -> "TypeInfo":
         return getattr(self.parent, "as_type")
-
-    @property
-    def keys(self):
-        return self.value.keys
 
 
 class RecordPostgresEngine(PostgresEngine[Record, RecordData]):

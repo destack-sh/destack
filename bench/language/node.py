@@ -80,7 +80,6 @@ if TYPE_CHECKING:
         Expression,
         Field,
         NodeReference,
-        Object,
         Package,
         PropertyReference,
         QueryBuilder,
@@ -89,6 +88,7 @@ if TYPE_CHECKING:
         Server,
         Session,
         User,
+        ValueObject,
     )
 
 # pyright: reportIncompatibleVariableOverride=false
@@ -742,7 +742,7 @@ class BuiltinObject[ObjectDataT: AnyNodeData | AnyStructData](abc.ABC):
     __properties_mask_unset__: ClassVar[bitarray] = UNSET
 
     if TYPE_CHECKING:
-        parent: "BuiltinObject | Object | None" = None
+        parent: "BuiltinObject | ValueObject | None" = None
 
     _session: "Session | None" = p_runtime(default=None)
     _updated_properties: bitarray | None = p_runtime(default=None)
@@ -990,11 +990,13 @@ class BuiltinObject[ObjectDataT: AnyNodeData | AnyStructData](abc.ABC):
 
     def _resolve_references(self, scope: Optional["Node"]):
         # resolve node references
-        # TODO :Robustness :Architecture: turn regular node refs into computed properties? :NodeRefs
+        # TODO :Robustness :Architecture: turn regular node refs into computed properties?
+        #   :NodeRefs  :NoFakeComputed
         #  Currently, we manually set wired ptrs on set and resolve on interp.
         #  If we had immediate (=fast) access to a graph in all Object/Struct/Nodes,
         #  we could skip having to resolve during interp and leaving stale refs until re-interp.
         #  I'm not sure how Nodes that aren't in our current graph should be treated then.
+        #   (use a collective NodeGraphSet for all currently available graphs?)
         if scope is not None:
             graph = scope._graph
             for prop in self.__node_reference_properties__.values():
@@ -1087,7 +1089,7 @@ class InlineStruct[StructDataT: AnyStructData](BuiltinObject[StructDataT], abc.A
     __is_struct_inlined__: ClassVar[bool] = True
     __is_struct__: ClassVar[bool] = True
 
-    parent: Union["BuiltinObject", "Object", None] = p_struct_parent(3, wire=False)
+    parent: Union["BuiltinObject", "ValueObject", None] = p_struct_parent(3, wire=False)
     if TYPE_CHECKING:
         parent_id: int | None = None
         parent_key: str | None = None
@@ -1102,7 +1104,7 @@ class InlineStruct[StructDataT: AnyStructData](BuiltinObject[StructDataT], abc.A
 
     def _move_to(
         self,
-        parent: Union["BuiltinObject", "Object"],
+        parent: Union["BuiltinObject", "ValueObject"],
         prop: Union[Property, "Field"],
         ancestor_prop: Property | None = None,
     ) -> Self:
@@ -1121,7 +1123,7 @@ class InlineStruct[StructDataT: AnyStructData](BuiltinObject[StructDataT], abc.A
             return copy
 
     def _copy_to(
-        self, parent: Union["BuiltinObject", "Object"], prop: Union[Property, "Field"]
+        self, parent: Union["BuiltinObject", "ValueObject"], prop: Union[Property, "Field"]
     ) -> Self:
         """Create a copy of this struct for the given parent/prop."""
         kwargs = {
@@ -1143,7 +1145,7 @@ class Struct[StructDataT: AnyStructData](InlineStruct[StructDataT], abc.ABC):
     __is_struct__: ClassVar[bool] = True
 
     id: int = p_system(2, default_factory=new_struct_id)
-    parent: Union["BuiltinObject", "Object", None] = p_struct_parent(3, wire=True)
+    parent: Union["BuiltinObject", "ValueObject", None] = p_struct_parent(3, wire=True)
     order_key: str | None = p_internal(9, default=None)
 
     @final

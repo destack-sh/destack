@@ -30,7 +30,7 @@ from bench.utils.func import IdEnum
 
 if TYPE_CHECKING:
     # noinspection PyUnresolvedReferences
-    from bench.language import Field, Node, Object, Property, Struct
+    from bench.language import Field, Node, Property, Struct, ValueObject
 
 logger = structlog.get_logger(__name__)
 tracer = trace.get_tracer(__name__)
@@ -805,8 +805,8 @@ class GraphNodeList(NodeList[NodeT]):
             return False
 
 
-ValueParentT = TypeVar("ValueParentT", bound=Union["Object", "Struct", "Node"])
-ValueT = TypeVar("ValueT", bound=Union["Object", "Struct", "Property"])
+ValueParentT = TypeVar("ValueParentT", bound=Union["ValueObject", "Struct", "Node"])
+ValueT = TypeVar("ValueT", bound=Union["ValueObject", "Struct", "Property"])
 ValueProperty = Union["Property", "Field"]
 
 
@@ -852,7 +852,7 @@ class ValueList(list, Generic[ValueParentT]):
             item = item._move_to(self.parent, self.parent_prop)  # type: ignore
         super().append(item)
         if self.is_ordered:
-            cast(Union["Object", "Struct"], item).order_key = get_order_key(
+            cast(Union["ValueObject", "Struct"], item).order_key = get_order_key(
                 *get_key_bounds(self, after, before)
             )
         self.parent._updated_self((self.ancestor_prop,))
@@ -861,7 +861,7 @@ class ValueList(list, Generic[ValueParentT]):
     def extend(self, items: Collection[ValueT]):  # type: ignore
         super().extend(items)
         if not self.is_property_reference:
-            values = cast(list[Union["Object", "Struct"]], items)
+            values = cast(list[Union["ValueObject", "Struct"]], items)
             if any(item.parent is not None for item in values):
                 values = [e._copy_to(self.parent, self.parent_prop) for e in items]  # type: ignore
             else:
@@ -893,7 +893,7 @@ class ValueList(list, Generic[ValueParentT]):
         )
         if any(
             v.parent is not None and (v.parent != parent or v.parent_key != parent_key)
-            for v in cast(list[Union["Object", "Struct"]], values)
+            for v in cast(list[Union["ValueObject", "Struct"]], values)
         ):
             values = [v._copy_to(parent, parent_prop) for v in values]  # type: ignore
         return ValueList(parent, parent_prop, ancestor_prop, values)

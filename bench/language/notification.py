@@ -33,7 +33,7 @@ from bench.proto.wire import (
 )
 
 if TYPE_CHECKING:
-    from bench.language import Block, Package, Text
+    from bench.language import Block, Package, Text, ValueObject
 
 # pyright: reportIncompatibleVariableOverride=false
 
@@ -62,7 +62,9 @@ class Notification(
     text: Optional["Text"] = p_regular(41, require=False, array=False, struct=StructType.TEXT)
     value_packed: Any | None = p_value_packed(42)
     secret_value_packed: Any | None = p_secret_value_packed(43)
-    value: Any = p_value_runtime(42, 43, typ=lambda self: cast("Notification", self).value_type)
+    value: "ValueObject | None" = p_value_runtime(
+        42, 43, typ=lambda self: cast("Notification", self).value_type
+    )
 
     # context
     # ...HasSessionContext[60-69]

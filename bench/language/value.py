@@ -1,9 +1,17 @@
 import base64
-import dataclasses
 import re
-from dataclasses import dataclass
+from collections.abc import Mapping
 from datetime import datetime, timedelta
-from typing import TYPE_CHECKING, Any, Collection, Optional, TypeGuard, Union, cast, override
+from typing import (
+    TYPE_CHECKING,
+    Any,
+    Collection,
+    Optional,
+    TypeGuard,
+    Union,
+    cast,
+    override,
+)
 from uuid import UUID
 
 import structlog
@@ -38,7 +46,7 @@ if TYPE_CHECKING:
 
 logger = structlog.get_logger(__name__)
 
-ScalarValue = Union["Object", PrimitiveValue, "BuiltinObject"]
+ScalarValue = Union["ValueObject", PrimitiveValue, "BuiltinObject"]
 ScalarValueData = Union[
     AnyNodeData,
     AnyStructData,
@@ -51,38 +59,211 @@ SomeValue = Union[ScalarValue, Collection[ScalarValue], None]
 SomeValueData = Union[ScalarValueData, Collection[ScalarValueData], None]
 JsonPrimitive = Union[str, int, float, bool, None]
 JsonValue = Union[JsonPrimitive, dict[str, "JsonValue"], list["JsonValue"]]
-ValueParent = Union["Object", "BuiltinObject"]
+ValueParent = Union["ValueObject", "BuiltinObject"]
 ValueProperty = Union["Property", "Field"]
 
 # NOTE :Incomplete: handle :SecretValues and :FreeformValues
 
 
-@dataclass(slots=True)
-class Object:
+class ValueObject(Mapping[str, Any]):
     """
     An Object-like Value with fields, the user defined equivalent of our built-in Objects (Structs/Nodes).
     Objects can be 'partial' (e.g., Block variable, Run inputs, Class instance).
     """
 
-    # content
-    _type: "TypeInfoBase"
-    _value: dict[str, SomeValue] | None = None  # in unpacked representation
-    _is_revealed: bool = False
+    __slots__ = (
+        "_is_revealed",
+        "_type",
+        "_value",
+        "ancestor_prop",
+        "id",
+        "order_key",
+        "parent",
+        "parent_id",
+        "parent_key",
+        "parent_prop",
+    )
 
-    # local identity (conforms with Struct protocol)
-    id: int = dataclasses.field(default_factory=new_struct_id)
-    parent: ValueParent | None = None
-    parent_id: int | UUID | None = None
-    parent_prop: ValueProperty | None = None
-    ancestor_prop: Optional["Property"] = None
-    parent_key: str | None = None
-    order_key: str | None = None
-
-    def __post_init__(self):
+    def __init__(
+        self,
+        _type: "TypeInfoBase",
+        _value: dict[str, SomeValue] | None = None,
+        _is_revealed: bool = False,
+        id: int | None = None,
+        parent: ValueParent | None = None,
+        parent_prop: ValueProperty | None = None,
+        ancestor_prop: Optional["Property"] = None,
+        parent_key: str | None = None,
+        order_key: str | None = None,
+    ):
+        self._type = _type
+        self._value = _value
+        self._is_revealed = _is_revealed
+        self.id = id if id is not None else new_struct_id()
+        self.parent = parent
+        self.parent_prop = parent_prop
+        self.ancestor_prop = ancestor_prop
+        self.parent_key = parent_key
+        self.order_key = order_key
         if self.parent is not None and self.ancestor_prop is None:
             if type(self.parent_prop) is not Property:
                 raise ValueError(f"{self.parent_prop!r} is not a Property")
             self.ancestor_prop = self.parent_prop
+
+    def __str__(self) -> str:
+        if self._value is None:
+            return ""
+        set_fields: list[str] = []
+        for field in self._type._base_fields:
+            field_value = self._value.get(field.storage_key)
+            if field_value:
+                if type(field_value) is list:
+                    set_fields.append(f"{field.name}[{len(field_value)}]")
+                elif type(field_value) is ValueObject:
+                    set_fields.append(f"{field.name}=<{field_value._type_name} (...)>")
+                else:
+                    set_fields.append(f"{field.name}={field_value!r}")
+        return ", ".join(set_fields)
+
+    def __repr__(self) -> str:
+        return f"<{self._type_name} ({self})>"
+
+    def equals_content(self, other: Any) -> bool:
+        """Checks if all fields of the two Values are equal (recursively)."""
+        if other is None or type(other) is not ValueObject:
+            return False
+        elif self._value is None:
+            return other._value is None
+        elif other._value is None:
+            return False
+        for field in self._type._base_fields:
+            if self._value.get(field.storage_key) != other._value.get(field.storage_key):
+                return False
+        return True
+
+    def __eq__(self, other: Any) -> bool:
+        return self.equals_content(other)
+
+    def __getitem__(self, item: str) -> SomeValue:
+        # NOTE: __getattr__ is called only when ident is not in the slots, so this is a value lookup
+        # get field value
+        field = self._type._get_field(item)
+        if field is None:
+            raise AttributeError(f"{self._type!r} has no field with identifier {item}")
+        if self._type.base_field_zone is not None and field.zone != self._type.base_field_zone:
+            raise AttributeError(f"{field!r} is not in the same zone as {self._type!r}")
+        if self._value is None:
+            return field.default
+        value = self._value.get(field.storage_key)
+        if value is None:
+            return field.default
+        else:
+            return value
+
+    __getattr__ = __getitem__
+
+    def _do_get(self, field: "Field") -> SomeValue:
+        if self._value is None:
+            return field.default
+        value = self._value.get(field.storage_key)
+        if value is None:
+            return field.default
+        else:
+            return value
+
+    def __setitem__(self, item: str, value: SomeValue) -> None:
+        # set field value
+        field: Field | None = self._type._get_field(item)
+        if field is None:
+            raise AttributeError(f"{self._type!r} has no field with identifier {item}")
+        if self._type.base_field_zone is not None and field.zone != self._type.base_field_zone:
+            raise AttributeError(f"{field!r} is not in the same zone as {self._type!r}")
+        # coerce & copy if needed
+        value = coerce_value(
+            value, field, parent=self, parent_prop=field, ancestor_prop=self.ancestor_prop
+        )
+        check_value(value, field, invalid=on_invalid_raise)
+        if self._value is None:
+            self._value = {}
+        self._value[field.storage_key] = value
+        # notify
+        self._updated_self((field,))
+
+    def __setattr__(self, item: str, value: SomeValue) -> None:
+        # NOTE: __setattr__ is also called for slots so we have to bypass those
+        if item in ValueObject.__slots__:
+            return object.__setattr__(self, item, value)
+        self.__setitem__(item, value)
+
+    def __delitem__(self, item: str) -> None:
+        # delete field value if it's not required
+        field = self._type._get_field(item)
+        if field is None:
+            raise AttributeError(f"{self._type!r} has no field with identifier {item}")
+        if field.is_required:
+            raise AttributeError(f"{field!r} is required")
+        if self._value is not None:
+            self._value.pop(field.storage_key, None)
+        # notify
+        self._updated_self((field,))
+
+    @property
+    def fields(self):
+        for field in self._type._base_fields:
+            if self._type.base_field_zone is None or field.zone == self._type.base_field_zone:
+                yield field
+
+    def __iter__(self):
+        for field in self._type._base_fields:
+            if self._type.base_field_zone is None or field.zone == self._type.base_field_zone:
+                yield field.name
+
+    def __len__(self) -> int:
+        return len(self._type._base_fields)
+
+    def __contains__(self, item: object) -> bool:
+        for field in self._type._base_fields:
+            if self._type.base_field_zone is not None and field.zone != self._type.base_field_zone:
+                continue
+            if field.py_ident == item or field.name == item:
+                return True
+        return False
+
+    def _move_to(
+        self, parent: ValueParent, prop: ValueProperty, ancestor_prop: Optional["Property"]
+    ) -> "ValueObject":
+        """Move or copy this object into the given parent/prop."""
+        prop_key = prop.id_as_str if isinstance(prop, Property) else prop.identity_key
+        if self.parent is None:
+            # not yet assigned
+            self.parent = parent
+            self.parent_prop = prop
+            self.ancestor_prop = ancestor_prop
+            self.parent_key = prop_key
+            return self
+        elif self.parent is parent and self.parent_key == prop_key:
+            # already there
+            return self
+        else:
+            copy = self._copy_to(parent, prop, ancestor_prop)
+            return copy
+
+    def _copy_to(
+        self, parent: ValueParent, prop: ValueProperty, ancestor_prop: Optional["Property"]
+    ) -> "ValueObject":
+        """Copy this object into the given parent/prop."""
+        value_packed, secret_value_packed = pack_value_object(self, self._type)
+        copy = unpack_value_object(
+            value_packed, secret_value_packed, self._type, parent, prop, ancestor_prop
+        )
+        copy.parent_key = prop.id_as_str if isinstance(prop, Property) else prop.identity_key
+        return copy
+
+    def _updated_self(self, properties: tuple[Union["Property", "Field", Any], ...]) -> None:
+        if self.parent is not None:
+            prop = self.ancestor_prop if self.ancestor_prop is not None else self.parent_prop
+            assert type(prop) is Property, f"{prop!r} is not a Property"
+            self.parent._updated_self((prop,))
 
     @staticmethod
     def new(
@@ -92,10 +273,10 @@ class Object:
         parent_property: ValueProperty | None = None,
         ancestor_property: Optional["Property"] = None,
         is_revealed: bool = True,
-    ) -> "Object":
+    ) -> "ValueObject":
         """Creates a new Object of the given Object type, coercing the given value."""
         assert typ.kind == TypeKind.OBJECT, f"{typ!r} is not an Object type"
-        return Object(
+        return ValueObject(
             _type=typ,
             _value=value,
             _is_revealed=is_revealed,
@@ -116,117 +297,6 @@ class Object:
         else:
             return self._type.base_type.absolute_path
 
-    def __str__(self) -> str:
-        if self._value is None:
-            return ""
-        set_fields: list[str] = []
-        for field in self._type._base_fields:
-            field_value = self._value.get(field.storage_key)
-            if field_value:
-                key = field.py_ident or field.name
-                if type(field_value) is list:
-                    set_fields.append(f"{key}({len(field_value)})")
-                elif type(field_value) is Object:
-                    set_fields.append(f"{key}=<{field_value._type_name} (...)>")
-                else:
-                    set_fields.append(f"{key}={field_value!r}")
-        return ", ".join(set_fields)
-
-    def __repr__(self) -> str:
-        return f"<{self._type_name} ({self!s})>"
-
-    def equals_content(self, other: Any) -> bool:
-        """Checks if all fields of the two Values are equal (recursively)."""
-        if other is None or type(other) is not Object:
-            return False
-        elif self._value is None:
-            return other._value is None
-        elif other._value is None:
-            return False
-        for field in self._type._base_fields:
-            if self._value.get(field.storage_key) != other._value.get(field.storage_key):
-                return False
-        return True
-
-    def __eq__(self, other: Any) -> bool:
-        return self.equals_content(other)
-
-    def __getattr__(self, ident: str) -> SomeValue:
-        # NOTE: __getattr__ is called only when ident is not in the slots, so this is a value lookup
-        # get field value
-        field = self._type._get_field(ident)
-        if field is None:
-            raise AttributeError(f"{self._type!r} has no field with identifier {ident}")
-        if self._type.base_field_zone is not None and field.zone != self._type.base_field_zone:
-            raise AttributeError(f"{field!r} is not in the same zone as {self._type!r}")
-        if self._value is None:
-            return field.default
-        value = self._value.get(field.storage_key)
-        if value is None:
-            return field.default
-        else:
-            return value
-
-    def __setattr__(self, ident: str, value: SomeValue) -> None:
-        # NOTE: __setattr__ is also called for slots so we have to bypass those
-        if ident in VALUE_SLOTS:
-            return object.__setattr__(self, ident, value)
-
-        # set field value
-        field: Field | None = self._type._get_field(ident)
-        if field is None:
-            raise AttributeError(f"{self._type!r} has no field with identifier {ident}")
-        if self._type.base_field_zone is not None and field.zone != self._type.base_field_zone:
-            raise AttributeError(f"{field!r} is not in the same zone as {self._type!r}")
-        # coerce & copy if needed
-        value = coerce_value(
-            value, field, parent=self, parent_prop=field, ancestor_prop=self.ancestor_prop
-        )
-        check_value(value, field, invalid=on_invalid_raise)
-        if self._value is None:
-            self._value = {}
-        self._value[field.storage_key] = value
-        # notify
-        self._updated_self((field,))
-
-    def _move_to(
-        self, parent: ValueParent, prop: ValueProperty, ancestor_prop: Optional["Property"]
-    ) -> "Object":
-        """Move or copy this object into the given parent/prop."""
-        prop_key = prop.id_as_str if isinstance(prop, Property) else prop.identity_key
-        if self.parent is None:
-            # not yet assigned
-            self.parent = parent
-            self.parent_prop = prop
-            self.ancestor_prop = ancestor_prop
-            self.parent_key = prop_key
-            return self
-        elif self.parent is parent and self.parent_key == prop_key:
-            # already there
-            return self
-        else:
-            copy = self._copy_to(parent, prop, ancestor_prop)
-            return copy
-
-    def _copy_to(
-        self, parent: ValueParent, prop: ValueProperty, ancestor_prop: Optional["Property"]
-    ) -> "Object":
-        """Copy this object into the given parent/prop."""
-        value_packed, secret_value_packed = pack_value_object(self, self._type)
-        copy = unpack_value_object(
-            value_packed, secret_value_packed, self._type, parent, prop, ancestor_prop
-        )
-        copy.parent_key = prop.id_as_str if isinstance(prop, Property) else prop.identity_key
-        return copy
-
-    def _updated_self(self, properties: tuple[Union["Property", "Field", Any], ...]) -> None:
-        if self.parent is not None:
-            prop = self.ancestor_prop if self.ancestor_prop is not None else self.parent_prop
-            assert type(prop) is Property, f"{prop!r} is not a Property"
-            self.parent._updated_self((prop,))
-
-
-VALUE_SLOTS: set[str] = set(Object.__dataclass_fields__.keys())
 
 #
 # Value coercion
@@ -248,14 +318,14 @@ def _coerce_value_scalar(
 
 
 def coerce_object_scalar(
-    value: dict | Object,
+    value: dict | ValueObject,
     typ: "TypeInfoBase",
     parent: ValueParent | None = None,
     parent_prop: ValueProperty | None = None,
     ancestor_prop: "Property | None" = None,
-) -> Object:
+) -> ValueObject:
     """Coerces a single object from a dict representation or existing Object (recursively)."""
-    if type(value) is Object:
+    if type(value) is ValueObject:
         # NOTE :Robustness: not sure if _coerce_object_scalar is correct if given an existing object
         if parent is not None:
             assert parent_prop is not None, f"{typ!r} got parent {parent!r} but no parent_prop"
@@ -279,7 +349,7 @@ def coerce_object_scalar(
             value_coerced[field.storage_key] = coerce_value(
                 field_value, field_type, parent, parent_prop, ancestor_prop
             )
-        return Object.new(
+        return ValueObject.new(
             value=value_coerced,
             typ=typ,
             parent=parent,
@@ -611,7 +681,7 @@ def unpack_builtin_object_data[T: AnyStructData | AnyNodeData](
 
 
 def pack_value_object(
-    value: Object, typ: "TypeInfoBase"
+    value: ValueObject, typ: "TypeInfoBase"
 ) -> tuple[dict[str, JsonValue], dict[str, JsonValue] | None]:
     """
     Packs an object value into a packed value & secret packed value.
@@ -650,7 +720,7 @@ def unpack_value_object(
     parent: ValueParent | None = None,
     parent_prop: ValueProperty | None = None,
     ancestor_prop: Optional["Property"] = None,
-) -> Object:
+) -> ValueObject:
     """
     Unpacks an object value from a packed value & secret packed value.
     """
@@ -674,7 +744,7 @@ def unpack_value_object(
                 unpack_value_scalar(element, field_type) for element in field_value_packed
             ]
         value[field.storage_key] = field_value
-    return Object.new(
+    return ValueObject.new(
         value=value,
         typ=typ,
         is_revealed=secret_value_packed is not None,
@@ -697,14 +767,14 @@ def pack_value(
     if typ.kind == TypeKind.OBJECT:
         # nested object
         if not typ.is_list:
-            if type(value) is not Object:
+            if type(value) is not ValueObject:
                 raise TypeError(f"{value!r} is not an Object (expected {typ!r})")
             return pack_value_object(value, typ)
         else:
             value_packed: JsonValue = []
             secret_value_packed: JsonValue = []
             for element in cast(Collection[SomeValue], value):
-                if type(element) is not Object:
+                if type(element) is not ValueObject:
                     raise TypeError(f"{element!r} is not an Object (expected {typ!r})")
                 inner_value_packed, inner_secret_value_packed = pack_value_object(element, typ)
                 value_packed.append(inner_value_packed)
@@ -806,7 +876,7 @@ from bench.language.node import BuiltinObject, HasNodeBase, object_component  # 
 
 @object_component()
 class HasValues(BuiltinObject):
-    # TODO :Robustness :Architecture: turn value into computed property (like references)
+    # TODO :Robustness :Architecture: turn value into computed property :NoFakeComputed
 
     @override
     def _init_component(self):
@@ -835,12 +905,16 @@ class HasValues(BuiltinObject):
 
     @override
     def _updated_component(self, properties: Collection[Property]) -> None:
-        # update packed properties
-        if len(properties) == 0 or any(prop.is_value_runtime for prop in properties):
+        # update packed properties  :NoFakeComputed
+        if any(prop.is_value_runtime for prop in properties):
             # NOTE :Performance: only update packed values prior to serialization? (see above)
+            #  (but note that we would still need the packed data for the Edit)
             self._pack_values_inplace(properties)
 
-    def _unpack_values_inplace(self, properties: Collection[Property]) -> None:
+    def _unpack_values_inplace(self, properties: Collection[Property] = ()) -> None:
+        # also a bit crummy, see above :NoFakeComputed
+        if len(properties) == 0:
+            properties = self.__value_properties__.values()
         for prop in properties:
             if not prop.is_value_runtime:
                 continue
@@ -855,8 +929,9 @@ class HasValues(BuiltinObject):
                     self._do_set(prop.name, value, untracked=True)
 
     def _pack_values_inplace(
-        self, properties: Collection[Property], skip_already_set: bool = False
+        self, properties: Collection[Property] = (), skip_already_set: bool = False
     ) -> None:
+        # more ugh here  :NoFakeComputed
         for prop in properties:
             if not prop.is_value_runtime:
                 continue
