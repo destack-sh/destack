@@ -127,7 +127,7 @@ def test_roundtrip_builtin_object(obj: BuiltinObject):
     packed_json = pack_builtin_object_data(packed_wire_obj)
     unpacked_wire_obj = unpack_builtin_object_data(packed_json)
     unpacked_obj = wiring.unpack_object(unpacked_wire_obj)  # type: ignore
-    assert unpacked_obj.equals_content(obj), f"{unpacked_obj!r} != {obj!r}"
+    assert unpacked_obj._equals_content(obj), f"{unpacked_obj!r} != {obj!r}"
 
 
 # TODO :Test: auto generate :Test types & values

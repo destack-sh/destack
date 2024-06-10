@@ -3,7 +3,7 @@
 
 from typing import TYPE_CHECKING, Union
 
-VERSION = "2024.06.10.2"
+VERSION = "2024.06.10.3"
 
 if TYPE_CHECKING:
     from bench.language import Subject
@@ -3436,8 +3436,7 @@ class GetNodesRequest(betterproto.Message):
     scope: "GraphScope" = betterproto.message_field(1)
     roots: List["NodeReferenceData"] = betterproto.message_field(2)
     options: Optional["ReadOptionsData"] = betterproto.message_field(3, optional=True)
-    lock_for_update: Optional[bool] = betterproto.bool_field(4, optional=True)
-    skip_locked: Optional[bool] = betterproto.bool_field(5, optional=True)
+    no_cache: Optional[bool] = betterproto.bool_field(4, optional=True)
 
 
 @dataclass(eq=False, repr=False)
@@ -3447,7 +3446,7 @@ class GetNodesResponse(betterproto.Message):
 
     access: Optional["AccessMatrixData"] = betterproto.message_field(2, optional=True)
     epoch: int = betterproto.uint64_field(3)
-    query_id: str = betterproto.string_field(4)
+    query_token: str = betterproto.string_field(4)
 
 
 @dataclass(eq=False, repr=False)
@@ -3462,6 +3461,7 @@ class SearchNodesRequest(betterproto.Message):
     after: Optional[str] = betterproto.string_field(8, optional=True)
     options: Optional["ReadOptionsData"] = betterproto.message_field(9, optional=True)
     count: Optional[bool] = betterproto.bool_field(10, optional=True)
+    no_cache: Optional[bool] = betterproto.bool_field(11, optional=True)
 
 
 @dataclass(eq=False, repr=False)
@@ -3475,7 +3475,7 @@ class SearchNodesResponse(betterproto.Message):
     total: Optional[int] = betterproto.int32_field(5, optional=True)
     access: Optional["AccessMatrixData"] = betterproto.message_field(6, optional=True)
     epoch: int = betterproto.uint64_field(7)
-    query_id: str = betterproto.string_field(8)
+    query_token: str = betterproto.string_field(8)
 
 
 @dataclass(eq=False, repr=False)
@@ -3486,23 +3486,20 @@ class AggregateNodesRequest(betterproto.Message):
     filter: Optional["ExpressionData"] = betterproto.message_field(4, optional=True)
     sort: List["ExpressionData"] = betterproto.message_field(5)
     aggregation: "ExpressionData" = betterproto.message_field(6)
+    no_cache: Optional[bool] = betterproto.bool_field(7, optional=True)
 
 
 @dataclass(eq=False, repr=False)
 class AggregateNodesResponse(betterproto.Message):
     aggregation: "AggregationData" = betterproto.message_field(1)
     epoch: int = betterproto.uint64_field(2)
-    query_id: str = betterproto.string_field(3)
+    query_token: str = betterproto.string_field(3)
 
 
 @dataclass(eq=False, repr=False)
 class WatchEditsRequest(betterproto.Message):
-    scope: "GraphScope" = betterproto.message_field(1)
-    node_types: List["NodeType"] = betterproto.enum_field(2)
-    since_epoch: Optional[int] = betterproto.uint64_field(3, optional=True)
-    filters: Dict[int, "ExpressionData"] = betterproto.map_field(
-        4, betterproto.TYPE_INT32, betterproto.TYPE_MESSAGE
-    )
+    query_token: str = betterproto.string_field(1)
+    since_epoch: Optional[int] = betterproto.uint64_field(2, optional=True)
 
 
 @dataclass(eq=False, repr=False)
@@ -3510,6 +3507,18 @@ class WatchEditsResponse(betterproto.Message):
     edits: List["EditData"] = betterproto.message_field(1)
     cascaded_edits: List["EditData"] = betterproto.message_field(2)
     epoch: int = betterproto.uint64_field(3)
+
+
+@dataclass(eq=False, repr=False)
+class WatchAggregationRequest(betterproto.Message):
+    query_token: str = betterproto.string_field(1)
+    since_epoch: Optional[int] = betterproto.uint64_field(2, optional=True)
+
+
+@dataclass(eq=False, repr=False)
+class WatchAggregationResponse(betterproto.Message):
+    aggregation: "AggregationData" = betterproto.message_field(1)
+    epoch: int = betterproto.uint64_field(2)
 
 
 @dataclass(eq=False, repr=False)
@@ -3699,6 +3708,7 @@ class RestartRuntimeResponse(betterproto.Message):
 @dataclass(eq=False, repr=False)
 class QueueRunRequest(betterproto.Message):
     run: "RunData" = betterproto.message_field(1)
+    epoch: int = betterproto.int64_field(2)
 
 
 @dataclass(eq=False, repr=False)
@@ -3770,6 +3780,24 @@ class GraphIoStub(betterproto.ServiceStub):
             "/symbolx.bench.GraphIO/WatchEdits",
             request,
             WatchEditsResponse,
+            timeout=timeout,
+            deadline=deadline,
+            metadata=metadata,
+        ):
+            yield response
+
+    async def watch_aggregation(
+        self,
+        request: "WatchAggregationRequest",
+        *,
+        timeout: Optional[float] = None,
+        deadline: Optional["Deadline"] = None,
+        metadata: Optional["MetadataLike"] = None,
+    ) -> AsyncIterator["WatchAggregationResponse"]:
+        async for response in self._unary_stream(
+            "/symbolx.bench.GraphIO/WatchAggregation",
+            request,
+            WatchAggregationResponse,
             timeout=timeout,
             deadline=deadline,
             metadata=metadata,
@@ -3909,6 +3937,24 @@ class SupervisorStub(betterproto.ServiceStub):
             "/symbolx.bench.Supervisor/WatchEdits",
             request,
             WatchEditsResponse,
+            timeout=timeout,
+            deadline=deadline,
+            metadata=metadata,
+        ):
+            yield response
+
+    async def watch_aggregation(
+        self,
+        request: "WatchAggregationRequest",
+        *,
+        timeout: Optional[float] = None,
+        deadline: Optional["Deadline"] = None,
+        metadata: Optional["MetadataLike"] = None,
+    ) -> AsyncIterator["WatchAggregationResponse"]:
+        async for response in self._unary_stream(
+            "/symbolx.bench.Supervisor/WatchAggregation",
+            request,
+            WatchAggregationResponse,
             timeout=timeout,
             deadline=deadline,
             metadata=metadata,
@@ -4156,6 +4202,24 @@ class HostStub(betterproto.ServiceStub):
         ):
             yield response
 
+    async def watch_aggregation(
+        self,
+        request: "WatchAggregationRequest",
+        *,
+        timeout: Optional[float] = None,
+        deadline: Optional["Deadline"] = None,
+        metadata: Optional["MetadataLike"] = None,
+    ) -> AsyncIterator["WatchAggregationResponse"]:
+        async for response in self._unary_stream(
+            "/symbolx.bench.Host/WatchAggregation",
+            request,
+            WatchAggregationResponse,
+            timeout=timeout,
+            deadline=deadline,
+            metadata=metadata,
+        ):
+            yield response
+
     async def commit_transaction(
         self,
         request: "CommitTransactionRequest",
@@ -4281,6 +4345,12 @@ class GraphIoBase(ServiceBase):
         raise grpclib.GRPCError(grpclib.const.Status.UNIMPLEMENTED)
         yield WatchEditsResponse()
 
+    async def watch_aggregation(
+        self, subject: "Subject", request: "WatchAggregationRequest"
+    ) -> AsyncIterator["WatchAggregationResponse"]:
+        raise grpclib.GRPCError(grpclib.const.Status.UNIMPLEMENTED)
+        yield WatchAggregationResponse()
+
     async def commit_transaction(
         self, subject: "Subject", request: "CommitTransactionRequest"
     ) -> "CommitTransactionResponse":
@@ -4329,6 +4399,17 @@ class GraphIoBase(ServiceBase):
         request = await stream.recv_message()
         await self._call_rpc_handler_server_stream(
             self.watch_edits,
+            stream,
+            request,
+        )
+
+    async def __rpc_watch_aggregation(
+        self,
+        stream: "grpclib.server.Stream[WatchAggregationRequest, WatchAggregationResponse]",
+    ) -> None:
+        request = await stream.recv_message()
+        await self._call_rpc_handler_server_stream(
+            self.watch_aggregation,
             stream,
             request,
         )
@@ -4391,6 +4472,12 @@ class GraphIoBase(ServiceBase):
                 WatchEditsRequest,
                 WatchEditsResponse,
             ),
+            "/symbolx.bench.GraphIO/WatchAggregation": grpclib.const.Handler(
+                self.__rpc_watch_aggregation,
+                grpclib.const.Cardinality.UNARY_STREAM,
+                WatchAggregationRequest,
+                WatchAggregationResponse,
+            ),
             "/symbolx.bench.GraphIO/CommitTransaction": grpclib.const.Handler(
                 self.__rpc_commit_transaction,
                 grpclib.const.Cardinality.UNARY_UNARY,
@@ -4437,6 +4524,12 @@ class SupervisorBase(ServiceBase):
     ) -> AsyncIterator["WatchEditsResponse"]:
         raise grpclib.GRPCError(grpclib.const.Status.UNIMPLEMENTED)
         yield WatchEditsResponse()
+
+    async def watch_aggregation(
+        self, subject: "Subject", request: "WatchAggregationRequest"
+    ) -> AsyncIterator["WatchAggregationResponse"]:
+        raise grpclib.GRPCError(grpclib.const.Status.UNIMPLEMENTED)
+        yield WatchAggregationResponse()
 
     async def commit_transaction(
         self, subject: "Subject", request: "CommitTransactionRequest"
@@ -4514,6 +4607,17 @@ class SupervisorBase(ServiceBase):
         request = await stream.recv_message()
         await self._call_rpc_handler_server_stream(
             self.watch_edits,
+            stream,
+            request,
+        )
+
+    async def __rpc_watch_aggregation(
+        self,
+        stream: "grpclib.server.Stream[WatchAggregationRequest, WatchAggregationResponse]",
+    ) -> None:
+        request = await stream.recv_message()
+        await self._call_rpc_handler_server_stream(
+            self.watch_aggregation,
             stream,
             request,
         )
@@ -4619,6 +4723,12 @@ class SupervisorBase(ServiceBase):
                 WatchEditsRequest,
                 WatchEditsResponse,
             ),
+            "/symbolx.bench.Supervisor/WatchAggregation": grpclib.const.Handler(
+                self.__rpc_watch_aggregation,
+                grpclib.const.Cardinality.UNARY_STREAM,
+                WatchAggregationRequest,
+                WatchAggregationResponse,
+            ),
             "/symbolx.bench.Supervisor/CommitTransaction": grpclib.const.Handler(
                 self.__rpc_commit_transaction,
                 grpclib.const.Cardinality.UNARY_UNARY,
@@ -4702,6 +4812,12 @@ class HostBase(ServiceBase):
         raise grpclib.GRPCError(grpclib.const.Status.UNIMPLEMENTED)
         yield WatchEditsResponse()
 
+    async def watch_aggregation(
+        self, subject: "Subject", request: "WatchAggregationRequest"
+    ) -> AsyncIterator["WatchAggregationResponse"]:
+        raise grpclib.GRPCError(grpclib.const.Status.UNIMPLEMENTED)
+        yield WatchAggregationResponse()
+
     async def commit_transaction(
         self, subject: "Subject", request: "CommitTransactionRequest"
     ) -> "CommitTransactionResponse":
@@ -4750,6 +4866,17 @@ class HostBase(ServiceBase):
         request = await stream.recv_message()
         await self._call_rpc_handler_server_stream(
             self.watch_edits,
+            stream,
+            request,
+        )
+
+    async def __rpc_watch_aggregation(
+        self,
+        stream: "grpclib.server.Stream[WatchAggregationRequest, WatchAggregationResponse]",
+    ) -> None:
+        request = await stream.recv_message()
+        await self._call_rpc_handler_server_stream(
+            self.watch_aggregation,
             stream,
             request,
         )
@@ -4811,6 +4938,12 @@ class HostBase(ServiceBase):
                 grpclib.const.Cardinality.UNARY_STREAM,
                 WatchEditsRequest,
                 WatchEditsResponse,
+            ),
+            "/symbolx.bench.Host/WatchAggregation": grpclib.const.Handler(
+                self.__rpc_watch_aggregation,
+                grpclib.const.Cardinality.UNARY_STREAM,
+                WatchAggregationRequest,
+                WatchAggregationResponse,
             ),
             "/symbolx.bench.Host/CommitTransaction": grpclib.const.Handler(
                 self.__rpc_commit_transaction,

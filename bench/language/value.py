@@ -142,7 +142,7 @@ class ValueObject(Mapping[str, Any]):
         return True
 
     def __eq__(self, other: Any) -> bool:
-        return self.equals_content(other)
+        return self._equals_content(other)
 
     def __getitem__(self, item: str) -> SomeValue:
         # NOTE: __getattr__ is called only when ident is not in the slots, so this is a value lookup
