@@ -990,7 +990,7 @@ class BuiltinObject[ObjectDataT: AnyNodeData | AnyStructData](abc.ABC):
 
     def _resolve_references(self, scope: Optional["Node"]):
         # resolve node references
-        # NOTE :Robustness? :Architecture: turn regular node refs into computed properties? :NodeRefs
+        # TODO :Robustness :Architecture: turn regular node refs into computed properties? :NodeRefs
         #  Currently, we manually set wired ptrs on set and resolve on interp.
         #  If we had immediate (=fast) access to a graph in all Object/Struct/Nodes,
         #  we could skip having to resolve during interp and leaving stale refs until re-interp.
@@ -1252,6 +1252,7 @@ class Node[NodeDataT: AnyNodeData](BuiltinObject[NodeDataT], abc.ABC):
     # <... defined in concrete type ...>
 
     _graph: "NodeGraph[Node]" = p_runtime(default=None)
+    # _graph_set: NodeGraphSet?
     _read_info: "ReadInfo | None" = p_runtime(default=None)
     _is_new: bool = p_runtime(default=False)
 

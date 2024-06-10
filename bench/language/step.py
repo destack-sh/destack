@@ -41,18 +41,15 @@ if TYPE_CHECKING:
 class StepType(IdEnum):
     # source
     START = 1
-    VALUE = 1
+    VALUE = 2
     TRIGGER = 10
-    # function
     RUN = 20
     RUN_DEFERRED = 21
     SEND = 22
     COMPLETE = 23
-    # logical
     BRANCH = 30
     FILTER = 31
     LOOP = 32
-    # organizational
     GROUP = 50
 
 

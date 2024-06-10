@@ -54,13 +54,14 @@ JsonValue = Union[JsonPrimitive, dict[str, "JsonValue"], list["JsonValue"]]
 ValueParent = Union["Object", "BuiltinObject"]
 ValueProperty = Union["Property", "Field"]
 
+# NOTE :Incomplete: handle :SecretValues and :FreeformValues
+
 
 @dataclass(slots=True)
 class Object:
     """
     An Object-like Value with fields, the user defined equivalent of our built-in Objects (Structs/Nodes).
-    Objects can also be 'partial' (e.g., Block variable, Run inputs, Class instance).
-    TODO :Incomplete: handle :SecretValues
+    Objects can be 'partial' (e.g., Block variable, Run inputs, Class instance).
     """
 
     # content
@@ -152,6 +153,7 @@ class Object:
 
     def __getattr__(self, ident: str) -> SomeValue:
         # NOTE: __getattr__ is called only when ident is not in the slots, so this is a value lookup
+        # get field value
         field = self._type._get_field(ident)
         if field is None:
             raise AttributeError(f"{self._type!r} has no field with identifier {ident}")
@@ -161,19 +163,21 @@ class Object:
             return field.default
         value = self._value.get(field.storage_key)
         if value is None:
-            value = field.default
-        return value
+            return field.default
+        else:
+            return value
 
     def __setattr__(self, ident: str, value: SomeValue) -> None:
-        # NOTE: __setattr__ is also called for slots so we have to check and set directly
+        # NOTE: __setattr__ is also called for slots so we have to bypass those
         if ident in VALUE_SLOTS:
             return object.__setattr__(self, ident, value)
+
+        # set field value
         field: Field | None = self._type._get_field(ident)
         if field is None:
             raise AttributeError(f"{self._type!r} has no field with identifier {ident}")
         if self._type.base_field_zone is not None and field.zone != self._type.base_field_zone:
             raise AttributeError(f"{field!r} is not in the same zone as {self._type!r}")
-
         # coerce & copy if needed
         value = coerce_value(
             value, field, parent=self, parent_prop=field, ancestor_prop=self.ancestor_prop
@@ -182,7 +186,6 @@ class Object:
         if self._value is None:
             self._value = {}
         self._value[field.storage_key] = value
-
         # notify
         self._updated_self((field,))
 
@@ -803,13 +806,11 @@ from bench.language.node import BuiltinObject, HasNodeBase, object_component  # 
 
 @object_component()
 class HasValues(BuiltinObject):
-    # NOTE :Robustness: ensure HasValues never accidentally 'edits' the node during init or such
-    # NOTE :Incomplete: we don't handle :SecretValues or :FreeformValues yet
+    # TODO :Robustness :Architecture: turn value into computed property (like references)
 
     @override
     def _init_component(self):
         # if unpacked is set, pack in place, otherwise vice versa
-        # NOTE :Architecture: unsure when to unpack, pack, and re-pack on edit (see _updated_component)
         if not self._is_tracked:
             return
         for prop in self.__value_properties__.values():
@@ -820,7 +821,7 @@ class HasValues(BuiltinObject):
                 continue
             value_type = prop.value_type_info_getter(self) if prop.value_type_info_getter else None
             if value_type is None:
-                continue  # not ready yet or freeform
+                continue  # not ready yet or :FreeformValues
             if value is not None:
                 if getattr(self, prop.value_packed_ptr.name) is not None:
                     continue  # skip if already set
@@ -834,8 +835,7 @@ class HasValues(BuiltinObject):
     def _updated_component(self, properties: Collection[Property]) -> None:
         # update packed properties
         if len(properties) == 0 or any(prop.is_value_runtime for prop in properties):
-            # NOTE :Performance: only update packed values prior to serialization?
-            #  (would be nice to summarize them into bigger edits to avoid unnecessary work)
+            # NOTE :Performance: only update packed values prior to serialization? (see above)
             self._pack_values_inplace(properties)
 
     def _unpack_values_inplace(self, properties: Collection[Property]) -> None:

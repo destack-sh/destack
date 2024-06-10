@@ -122,8 +122,6 @@ class NodeReference(InlineStruct[NodeReferenceData]):
             and self.bench_id is None
         ):
             invalid(self, "bench_id is required", (NodeReference.bench_id,))
-        if self.type in BASED_NODE_TYPES and self.base_ck is None:
-            invalid(self, "base_ck is required", (NodeReference.base_ck,))
 
     @staticmethod
     def from_node(node: Node) -> "NodeReference":
@@ -285,7 +283,10 @@ __property__ = property
 
 @struct_(StructType.EXPRESSION)
 class Expression(Struct, HasValues):
-    """An expression (conditional, aggregation, sort, etc)."""
+    """
+    An expression.
+    For now, just a query expression like conditional/sort/...
+    """
 
     op: ExpressionOp = p_regular(30, require=True)
     field: Optional["Field"] = p_regular(31, require=False, array=False, references=NodeType.FIELD)
@@ -319,9 +320,7 @@ class Expression(Struct, HasValues):
         raise TypeError(f"cannot evaluate {self!r} directly (did you mean to compare a property?)")
 
     def __content_str__(self):
-        if self.op in ExpressionOps.COND_STATIC:
-            return to_casing(self.op.name, Casing.CAMEL)
-        elif self.op in ExpressionOps.COND_LOGICAL:
+        if self.op in ExpressionOps.COND_LOGICAL:
             inner = f" {_CONDITIONAL_OP_SIGN[self.op]} ".join(str(q) for q in self.clauses or ())
             return f"({inner})"
         elif (
@@ -345,10 +344,6 @@ class Expression(Struct, HasValues):
     def __invert__(self):
         if self.kind != ExpressionKind.CONDITIONAL:
             raise TypeError(f"cannot invert {self!r} (expected Conditional, got {self.kind})")
-        if self.op == ConditionalOp.TRUE:
-            return C(ConditionalOp.FALSE)
-        elif self.op == ConditionalOp.FALSE:
-            return C(ConditionalOp.TRUE)
         elif self.op == ConditionalOp.NOT:
             assert (
                 self.clauses is not None and len(self.clauses) == 1
@@ -416,7 +411,6 @@ class Expression(Struct, HasValues):
 
 class ExpressionOps:  # :ExpressionOps
     # Conditionals
-    COND_STATIC = {ConditionalOp.TRUE, ConditionalOp.FALSE}
     COND_LOGICAL = {ConditionalOp.NOT, ConditionalOp.AND, ConditionalOp.OR}
     COND_EXACT = {
         ConditionalOp.EQUALS,

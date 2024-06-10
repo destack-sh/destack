@@ -170,11 +170,17 @@ class ReadOptions(InlineStruct):
 
     def filter(
         self, node_type: NodeType, custom_filter: Optional["Expression"] = None
-    ) -> "Expression":
-        filter = C(ConditionalOp.TRUE) if self.include_hidden else FILTER_VISIBLE
-        if custom_filter is not None:
-            filter &= custom_filter
-        return filter
+    ) -> "Expression | None":
+        if self.include_hidden:
+            if custom_filter is None:
+                return None
+            else:
+                return custom_filter
+        else:
+            if custom_filter is None:
+                return FILTER_VISIBLE
+            else:
+                return FILTER_VISIBLE & custom_filter
 
     @staticmethod
     def default():
