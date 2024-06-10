@@ -1,3 +1,4 @@
+import { log } from "@/utils/log";
 import { computed, ref, type Ref } from "vue";
 
 export function useElementRefs<RefType = HTMLInputElement>(
@@ -7,7 +8,7 @@ export function useElementRefs<RefType = HTMLInputElement>(
     onUnregister?: (id: string, ref: RefType) => void;
     navigateLeft?: (index: number) => void;
     navigateRight?: (index: number) => void;
-  }
+  },
 ) {
   const refs: Ref<Record<string, RefType>> = ref({});
 
@@ -77,7 +78,7 @@ export function useNavigationGrid<ColumnType = string, RefType = HTMLInputElemen
     nowrapTop?: boolean;
     nowrapBottom?: boolean;
     onFocus?: (rowId: string, column: ColumnType) => void;
-  } = {}
+  } = {},
 ) {
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const gridId = Math.random().toString(36).substring(2, 15); // just for debugging
@@ -146,7 +147,7 @@ export function useNavigationGrid<ColumnType = string, RefType = HTMLInputElemen
   }
 
   function findRef(
-    predicate: (ref: RefType) => boolean
+    predicate: (ref: RefType) => boolean,
   ): { rowId: string; column: ColumnType; ref: RefType } | undefined {
     for (const row of rows.value) {
       for (const column of columnsInOrder.value) {
@@ -187,7 +188,7 @@ export function useNavigationGrid<ColumnType = string, RefType = HTMLInputElemen
     }
 
     if (!row) {
-      console.warn("no row found for index", index);
+      log.warn("no row found for index", index);
       return;
     }
     const columnId = row.id + "." + column;

@@ -68,7 +68,7 @@ class ViewType(IdEnum):
     START = 156
     FEED = 157
     TIMELINE = 158
-    HISTORY = 179
+    HISTORY = 159
 
     #
     # General

@@ -1,6 +1,6 @@
 {
   "name": "bench-web",
-  "version": "2024.06.10.1",
+  "version": "2024.06.10.2",
   "private": true,
   "type": "module",
   "scripts": {
@@ -67,7 +67,7 @@
     "@vue/test-utils": "^2.4.4",
     "@vue/tsconfig": "^0.5.1",
     "autoprefixer": "^10.4.17",
-    "eslint": "^9.4.0",
+    "eslint": "^8.57.0",
     "eslint-plugin-vue": "^9.26.0",
     "fast-check": "^3.19.0",
     "jsdom": "^24.0.0",

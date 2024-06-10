@@ -222,7 +222,7 @@ export interface BoxData {
     heightRelative?: number;
 }
 /**
- * Code(lines: list[bench.language.code_.CodeLine] = None, _session: 'Session | None' = None, _updated_properties: bitarray.bitarray | None = None, parent: Union[ForwardRef('BuiltinObject'), ForwardRef('Object'), NoneType] = None, id: int = <factory>, order_key: str | None = None, parent_id: int = None, parent_key: str = None)
+ * Code(lines: list[bench.language.code_.CodeLine] = None, _session: 'Session | None' = None, _updated_properties: bitarray.bitarray | None = None, parent: Union[ForwardRef('BuiltinObject'), ForwardRef('ValueObject'), NoneType] = None, id: int = <factory>, order_key: str | None = None, parent_id: int = None, parent_key: str = None)
  *
  * @generated from protobuf message symbolx.bench.CodeData
  */
@@ -253,7 +253,7 @@ export interface CodeData {
     lines: CodeLineData[];
 }
 /**
- * CodeLine(content: str = <factory>, _session: 'Session | None' = None, _updated_properties: bitarray.bitarray | None = None, parent: Union[ForwardRef('BuiltinObject'), ForwardRef('Object'), NoneType] = None, id: int = <factory>, order_key: str | None = None, parent_id: int = None, parent_key: str = None)
+ * CodeLine(content: str = <factory>, _session: 'Session | None' = None, _updated_properties: bitarray.bitarray | None = None, parent: Union[ForwardRef('BuiltinObject'), ForwardRef('ValueObject'), NoneType] = None, id: int = <factory>, order_key: str | None = None, parent_id: int = None, parent_key: str = None)
  *
  * @generated from protobuf message symbolx.bench.CodeLineData
  */
@@ -433,8 +433,7 @@ export interface EditContextData {
     runRootPtr?: NodeReferenceData;
 }
 /**
- * An expression.
- * For now, just a query expression like conditional/sort/...
+ * An expression like a value, function, comparison or such.
  *
  * @generated from protobuf message symbolx.bench.ExpressionData
  */
@@ -547,7 +546,7 @@ export interface FontData {
     size?: FontSize;
 }
 /**
- * Icon(kind: bench.language.file.IconKind = False, emoji: Optional[str] = <factory>, file: Optional[ForwardRef('File')] = None, fa_name: Optional[str] = <factory>, color: Optional[ForwardRef('Color')] = None, _session: 'Session | None' = None, _updated_properties: bitarray.bitarray | None = None, parent: Union[ForwardRef('BuiltinObject'), ForwardRef('Object'), NoneType] = None, parent_id: int = None, parent_key: str = None)
+ * Icon(kind: bench.language.file.IconKind = False, emoji: Optional[str] = <factory>, file: Optional[ForwardRef('File')] = None, fa_name: Optional[str] = <factory>, color: Optional[ForwardRef('Color')] = None, _session: 'Session | None' = None, _updated_properties: bitarray.bitarray | None = None, parent: Union[ForwardRef('BuiltinObject'), ForwardRef('ValueObject'), NoneType] = None, parent_id: int = None, parent_key: str = None)
  *
  * @generated from protobuf message symbolx.bench.IconData
  */
@@ -738,7 +737,7 @@ export interface PathData {
     segments: PathSegmentData[];
 }
 /**
- * PathSegment(type: bench.language.path.PathSegmentType = <factory>, name: Optional[str] = None, reference: Optional[ForwardRef('Node')] = None, _session: 'Session | None' = None, _updated_properties: bitarray.bitarray | None = None, parent: Union[ForwardRef('BuiltinObject'), ForwardRef('Object'), NoneType] = None, reference_ptr: 'NodeReference' = None, parent_id: int = None, parent_key: str = None)
+ * PathSegment(type: bench.language.path.PathSegmentType = <factory>, name: Optional[str] = None, reference: Optional[ForwardRef('Node')] = None, _session: 'Session | None' = None, _updated_properties: bitarray.bitarray | None = None, parent: Union[ForwardRef('BuiltinObject'), ForwardRef('ValueObject'), NoneType] = None, reference_ptr: 'NodeReference' = None, parent_id: int = None, parent_key: str = None)
  *
  * @generated from protobuf message symbolx.bench.PathSegmentData
  */
@@ -761,7 +760,7 @@ export interface PathSegmentData {
     referencePtr?: NodeReferenceData;
 }
 /**
- * PathToken(type: bench.language.path.PathTokenType = <factory>, _session: 'Session | None' = None, _updated_properties: bitarray.bitarray | None = None, parent: Union[ForwardRef('BuiltinObject'), ForwardRef('Object'), NoneType] = None, parent_id: int = None, parent_key: str = None)
+ * PathToken(type: bench.language.path.PathTokenType = <factory>, _session: 'Session | None' = None, _updated_properties: bitarray.bitarray | None = None, parent: Union[ForwardRef('BuiltinObject'), ForwardRef('ValueObject'), NoneType] = None, parent_id: int = None, parent_key: str = None)
  *
  * @generated from protobuf message symbolx.bench.PathTokenData
  */
@@ -1252,7 +1251,7 @@ export interface SelectionData {
     toNodePtr?: NodeReferenceData;
 }
 /**
- * SessionContext(block: Optional[ForwardRef('Block')] = None, step: Optional[ForwardRef('Step')] = None, session: Optional[ForwardRef('Session')] = None, run: Optional[ForwardRef('Run')] = None, run_root: Optional[ForwardRef('Run')] = None, client: Optional[ForwardRef('Client')] = None, machine: Optional[ForwardRef('Machine')] = None, server: Optional[ForwardRef('Server')] = None, user: Optional[ForwardRef('User')] = None, _session: 'Session | None' = None, _updated_properties: bitarray.bitarray | None = None, parent: Union[ForwardRef('BuiltinObject'), ForwardRef('Object'), NoneType] = None, block_ptr: 'NodeReference' = None, step_ptr: 'NodeReference' = None, session_ptr: 'NodeReference' = None, run_ptr: 'NodeReference' = None, run_root_ptr: 'NodeReference' = None, client_ptr: 'NodeReference' = None, machine_ptr: 'NodeReference' = None, server_ptr: 'NodeReference' = None, user_ptr: 'NodeReference' = None, parent_id: int = None, parent_key: str = None)
+ * SessionContext(block: Optional[ForwardRef('Block')] = None, step: Optional[ForwardRef('Step')] = None, session: Optional[ForwardRef('Session')] = None, run: Optional[ForwardRef('Run')] = None, run_root: Optional[ForwardRef('Run')] = None, client: Optional[ForwardRef('Client')] = None, machine: Optional[ForwardRef('Machine')] = None, server: Optional[ForwardRef('Server')] = None, user: Optional[ForwardRef('User')] = None, _session: 'Session | None' = None, _updated_properties: bitarray.bitarray | None = None, parent: Union[ForwardRef('BuiltinObject'), ForwardRef('ValueObject'), NoneType] = None, block_ptr: 'NodeReference' = None, step_ptr: 'NodeReference' = None, session_ptr: 'NodeReference' = None, run_ptr: 'NodeReference' = None, run_root_ptr: 'NodeReference' = None, client_ptr: 'NodeReference' = None, machine_ptr: 'NodeReference' = None, server_ptr: 'NodeReference' = None, user_ptr: 'NodeReference' = None, parent_id: int = None, parent_key: str = None)
  *
  * @generated from protobuf message symbolx.bench.SessionContextData
  */
@@ -1503,7 +1502,7 @@ export interface TextLineData {
     isCode?: boolean;
 }
 /**
- * TextSpan(content: Optional[str] = None, node: Optional[bench.language.node.Node] = None, parent: Union[ForwardRef('BuiltinObject'), ForwardRef('Object'), NoneType] = None, _session: 'Session | None' = None, _updated_properties: bitarray.bitarray | None = None, color: Optional[ForwardRef('ColorType')] = None, is_bold: Optional[bool] = None, is_italic: Optional[bool] = None, is_strikethrough: Optional[bool] = None, is_underline: Optional[bool] = None, is_code: Optional[bool] = None, node_ptr: 'NodeReference' = None, parent_id: int = None, parent_key: str = None)
+ * TextSpan(content: Optional[str] = None, node: Optional[bench.language.node.Node] = None, parent: Union[ForwardRef('BuiltinObject'), ForwardRef('ValueObject'), NoneType] = None, _session: 'Session | None' = None, _updated_properties: bitarray.bitarray | None = None, color: Optional[ForwardRef('ColorType')] = None, is_bold: Optional[bool] = None, is_italic: Optional[bool] = None, is_strikethrough: Optional[bool] = None, is_underline: Optional[bool] = None, is_code: Optional[bool] = None, node_ptr: 'NodeReference' = None, parent_id: int = None, parent_key: str = None)
  *
  * @generated from protobuf message symbolx.bench.TextSpanData
  */
@@ -1606,7 +1605,7 @@ export interface TypeConstraintData {
     endsWith?: string;
 }
 /**
- * TypeInfo(kind: bench.language.const.TypeKind = <factory>, primitive_type: Optional[bench.language.const.PrimitiveType] = None, bench_type: Optional[bench.utils.func.BenchType] = None, base_type: Union[ForwardRef('Block'), ForwardRef('Step'), NoneType] = None, base_field_zone: Optional[ForwardRef('FieldZone')] = None, default_packed: Optional[Any] = None, default: None = None, visibility: Optional[bench.language.const.Visibility] = None, format_hint: Optional[bench.language.const.FormatHint] = None, condition: Optional[ForwardRef('Expression')] = None, constraint: Optional[ForwardRef('TypeConstraint')] = None, is_list: bool = False, is_secret: bool = False, is_required: bool = False, _resolved_type: Optional[ForwardRef('TypeInfoBase')] = None, _resolved_identity_key: str | None = None, _from_property: Optional[ForwardRef('Property')] = None, _session: 'Session | None' = None, _updated_properties: bitarray.bitarray | None = None, parent: Union[ForwardRef('BuiltinObject'), ForwardRef('Object'), NoneType] = None, id: int = <factory>, order_key: str | None = None, base_type_ptr: 'NodeReference' = None, parent_id: int = None, parent_key: str = None)
+ * TypeInfo(kind: bench.language.const.TypeKind = <factory>, primitive_type: Optional[bench.language.const.PrimitiveType] = None, bench_type: Optional[bench.utils.func.BenchType] = None, base_type: Union[ForwardRef('Block'), ForwardRef('Step'), NoneType] = None, base_field_zone: Optional[ForwardRef('FieldZone')] = None, default_packed: Optional[Any] = None, default: None = None, visibility: Optional[bench.language.const.Visibility] = None, format_hint: Optional[bench.language.const.FormatHint] = None, condition: Optional[ForwardRef('Expression')] = None, constraint: Optional[ForwardRef('TypeConstraint')] = None, is_list: bool = False, is_secret: bool = False, is_required: bool = False, _resolved_type: Optional[ForwardRef('TypeInfoBase')] = None, _resolved_identity_key: str | None = None, _from_property: Optional[ForwardRef('Property')] = None, _session: 'Session | None' = None, _updated_properties: bitarray.bitarray | None = None, parent: Union[ForwardRef('BuiltinObject'), ForwardRef('ValueObject'), NoneType] = None, id: int = <factory>, order_key: str | None = None, base_type_ptr: 'NodeReference' = None, parent_id: int = None, parent_key: str = None)
  *
  * @generated from protobuf message symbolx.bench.TypeInfoData
  */
@@ -10190,9 +10189,9 @@ export enum ViewType {
      */
     TIMELINE = 158,
     /**
-     * @generated from protobuf enum value: VIEW_TYPE_HISTORY = 179;
+     * @generated from protobuf enum value: VIEW_TYPE_HISTORY = 159;
      */
-    HISTORY = 179,
+    HISTORY = 159,
     /**
      * @generated from protobuf enum value: VIEW_TYPE_WINDOW = 500;
      */
