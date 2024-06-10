@@ -187,7 +187,7 @@ class Runtime(ServiceBase, RuntimeBase):
             _supervisor=self._supervisor,
             _host=self._host,
         )
-        await self._session.open(in_context=False)
+        await self._session.open(set_in_context=False)
 
         # connect
         # NOTE :Performance: share query connections between runtime/threads?

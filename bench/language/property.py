@@ -947,7 +947,7 @@ p_node_ancestor_first = functools.partial(p_node_ancestor, kind=ReferenceKind.NO
 p_node_ancestor_root = functools.partial(p_node_ancestor, kind=ReferenceKind.NODE_ANCESTOR_ROOT)
 
 
-def p_node_child(
+def p_node_children(
     node_type: NodeType,
     list: type["NodeList"] | None = None,
 ) -> Any:
@@ -1074,7 +1074,7 @@ _PROPERTY_SPECIFIERS: tuple[Callable, ...] = (
     p_runtime,
     p_node_parent,
     p_node_ancestor,
-    p_node_child,
+    p_node_children,
     p_value_runtime,
     p_value_packed,
     p_secret_value_packed,

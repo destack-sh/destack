@@ -6,7 +6,7 @@ from bench.language.issue import Issue
 from bench.language.node import SourceNode, Struct, node_, struct_
 from bench.language.property import (
     p_internal,
-    p_node_child,
+    p_node_children,
     p_node_parent,
     p_regular,
     p_secret_value_packed,
@@ -116,10 +116,10 @@ class Step(SourceNode[StepData], HasValues):
     # flags
     is_template: bool = p_regular(60, default=False)
 
-    steps: NodeList["Step"] = p_node_child(NodeType.STEP)
-    fields: NodeList["Field"] = p_node_child(NodeType.FIELD)
-    triggers: NodeList["Trigger"] = p_node_child(NodeType.TRIGGER)
-    issues: NodeList["Issue"] = p_node_child(NodeType.ISSUE)
+    steps: NodeList["Step"] = p_node_children(NodeType.STEP)
+    fields: NodeList["Field"] = p_node_children(NodeType.FIELD)
+    triggers: NodeList["Trigger"] = p_node_children(NodeType.TRIGGER)
+    issues: NodeList["Issue"] = p_node_children(NodeType.ISSUE)
 
     @final
     def __repr__(self):  # type: ignore we want to override the default repr

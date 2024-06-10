@@ -13,7 +13,7 @@ from bench.language.node import BenchNode, Node, SourceNode, node_
 from bench.language.property import (
     p_internal,
     p_kernel,
-    p_node_child,
+    p_node_children,
     p_node_parent,
     p_regular,
     p_system,
@@ -66,7 +66,7 @@ class User(Node[UserData]):
     main_handle: Optional[Handle] = p_system(
         31, require=False, array=False, references=NodeType.HANDLE, fk=True
     )
-    handles: NodeList[Handle] = p_node_child(NodeType.HANDLE)
+    handles: NodeList[Handle] = p_node_children(NodeType.HANDLE)
     slug: Optional[str] = p_system(32, unique=True)  # must match main handle
     name: str = p_regular(33, constraint=NAME_CONSTRAINT)
     text: Optional["Text"] = p_regular(34, default=None, struct=StructType.TEXT)
@@ -100,7 +100,7 @@ class User(Node[UserData]):
     # flags
     is_staff: bool = p_system(90, default=False)
 
-    clients: NodeList["Client"] = p_node_child(NodeType.CLIENT)
+    clients: NodeList["Client"] = p_node_children(NodeType.CLIENT)
 
     @property
     def bench(self) -> "Bench":
@@ -118,7 +118,7 @@ class Organization(Node[OrganizationData]):
     main_handle: Optional[Handle] = p_system(
         31, require=False, array=False, references=NodeType.HANDLE, fk=True
     )  # not actually optional but Handle.parent = Organization
-    handles: NodeList[Handle] = p_node_child(NodeType.HANDLE)
+    handles: NodeList[Handle] = p_node_children(NodeType.HANDLE)
     slug: Optional[str] = p_system(32, unique=True)  # must match main handle
     name: str = p_regular(33, constraint=NAME_CONSTRAINT)
     text: Optional["Text"] = p_regular(34, default=None, struct=StructType.TEXT)
@@ -148,7 +148,7 @@ class Membership(SourceNode[MembershipData]):
     is_owner: bool = p_regular(31, default=False)
 
     # roles are defined (and resolved) in the main bench
-    roles: NodeList["Role"] = p_node_child(NodeType.ROLE)
+    roles: NodeList["Role"] = p_node_children(NodeType.ROLE)
 
 
 @node_(NodeType.INVITE)

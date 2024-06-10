@@ -9,7 +9,7 @@ from bench.language.field import TypeConstraint
 from bench.language.graph import NodeList
 from bench.language.issue import Issue
 from bench.language.node import SourceNode, Struct, node_, struct_
-from bench.language.property import Property, p_node_child, p_node_parent, p_regular
+from bench.language.property import Property, p_node_children, p_node_parent, p_regular
 from bench.language.validation import NAME_CONSTRAINT, ValidationHandler
 from bench.proto.wire import TriggerData
 
@@ -76,7 +76,7 @@ class Trigger(SourceNode[TriggerData]):
     # flags
     is_paused: bool = p_regular(50, default=False)
 
-    issues: NodeList["Issue"] = p_node_child(NodeType.ISSUE)
+    issues: NodeList["Issue"] = p_node_children(NodeType.ISSUE)
 
     def __content_str__(self):
         if self.type == TriggerType.SCHEDULE and self.schedule:

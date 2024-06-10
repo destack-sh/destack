@@ -90,15 +90,7 @@ export const BASED_NODE_TYPES = [
   NodeType.SIGNAL,
   NodeType.NOTIFICATION,
 ];
-export const RUNTIME_NODE_TYPES = [
-  NodeType.SESSION,
-  NodeType.RUN,
-  NodeType.SIGNAL,
-  NodeType.LOG,
-  NodeType.NOTIFICATION,
-  NodeType.MESSAGE,
-  NodeType.RECORD,
-];
+export const RUNTIME_NODE_TYPES = NODE_TYPES.filter((nt) => nt >= 80 && nt < 100);
 export const TIMED_NODE_TYPES = [
   NodeType.SESSION,
   NodeType.RUN,
@@ -109,20 +101,7 @@ export const TIMED_NODE_TYPES = [
 ];
 export const ETERNAL_NODE_TYPES = [NodeType.SESSION, NodeType.RUN, NodeType.SIGNAL, NodeType.LOG];
 export const LOCAL_NODE_TYPES = [...RUNTIME_NODE_TYPES];
-export const DEFAULT_LOADED_SOURCE_NODE_TYPES = [
-  NodeType.PACKAGE,
-  NodeType.DEPENDENCY,
-  NodeType.UPGRADE,
-  NodeType.SPACE,
-  NodeType.LINK,
-  NodeType.ISSUE,
-  NodeType.BLOCK,
-  NodeType.TRIGGER,
-  NodeType.FIELD,
-  NodeType.QUERY,
-  NodeType.STEP,
-  NodeType.VIEW,
-];
+export const SOURCE_NODE_TYPES = NODE_TYPES.filter((nt) => nt >= 20 && nt < 80);
 
 export const TYPE_BLOCK_TYPES = [BlockType.CLASS, BlockType.CHOICE, BlockType.SIGNAL, BlockType.DATABASE];
 export const RUNNABLE_BLOCK_TYPES = [BlockType.TEXT, BlockType.CODE, BlockType.FLOW];

@@ -21,7 +21,7 @@ from bench.language.node import BenchNode, Node, SourceNode, node_, node_compone
 from bench.language.property import (
     p_internal,
     p_kernel,
-    p_node_child,
+    p_node_children,
     p_node_parent,
     p_regular,
     p_system,
@@ -78,7 +78,7 @@ class Bench(BenchNode[BenchData]):
     main_handle: Optional["Handle"] = p_system(
         31, require=False, array=False, references=NodeType.HANDLE, fk=True
     )  # not actually optional but Handle.parent = Bench
-    handles: NodeList["Handle"] = p_node_child(NodeType.HANDLE)
+    handles: NodeList["Handle"] = p_node_children(NodeType.HANDLE)
     slug: str = p_system(32, unique=True)  # must match main handle
     name: str = p_regular(33, constraint=NAME_CONSTRAINT)
     text: Optional["Text"] = p_regular(
@@ -119,13 +119,13 @@ class Bench(BenchNode[BenchData]):
         fk=True,
         same_bench=True,
     )
-    environments: NodeList["Environment"] = p_node_child(NodeType.ENVIRONMENT)
-    branches: NodeList["Branch"] = p_node_child(NodeType.BRANCH)
+    environments: NodeList["Environment"] = p_node_children(NodeType.ENVIRONMENT)
+    branches: NodeList["Branch"] = p_node_children(NodeType.BRANCH)
 
     # resources
-    servers: NodeList["Server"] = p_node_child(NodeType.SERVER)
-    stores: NodeList["Store"] = p_node_child(NodeType.STORE)
-    drives: NodeList["Drive"] = p_node_child(NodeType.DRIVE)
+    servers: NodeList["Server"] = p_node_children(NodeType.SERVER)
+    stores: NodeList["Store"] = p_node_children(NodeType.STORE)
+    drives: NodeList["Drive"] = p_node_children(NodeType.DRIVE)
 
     @property
     def _is_attached(self) -> bool:
@@ -191,7 +191,7 @@ class Branch(BenchNode[BranchData]):
     is_overlay: bool = p_system(60, default=False)
     is_light: bool = p_system(61, default=False)
 
-    packages: NodeList["Package"] = p_node_child(NodeType.PACKAGE)
+    packages: NodeList["Package"] = p_node_children(NodeType.PACKAGE)
 
 
 @node_(
@@ -225,9 +225,9 @@ class Package(BenchNode[PackageData]):
     is_overlay: bool = p_system(61, default=False)
     is_paused: bool = p_system(65, default=False)
 
-    blocks: NodeList["Block"] = p_node_child(NodeType.BLOCK)
-    spaces: NodeList["Space"] = p_node_child(NodeType.SPACE)
-    dependencies: NodeList["Dependency"] = p_node_child(NodeType.DEPENDENCY)
+    blocks: NodeList["Block"] = p_node_children(NodeType.BLOCK)
+    spaces: NodeList["Space"] = p_node_children(NodeType.SPACE)
+    dependencies: NodeList["Dependency"] = p_node_children(NodeType.DEPENDENCY)
 
     @property
     def _is_attached(self) -> bool:
@@ -390,8 +390,8 @@ class Server(BenchResourceNode[ServerData]):
     active_at: Optional[datetime] = p_internal(60, default=None)
     bumped_at: Optional[datetime] = p_internal(61, default=None)
 
-    clients: NodeList["Client"] = p_node_child(NodeType.CLIENT)
-    machines: NodeList["Machine"] = p_node_child(NodeType.MACHINE)
+    clients: NodeList["Client"] = p_node_children(NodeType.CLIENT)
+    machines: NodeList["Machine"] = p_node_children(NodeType.MACHINE)
 
 
 @node_(NodeType.MACHINE)

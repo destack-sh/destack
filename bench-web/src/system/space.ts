@@ -11,7 +11,7 @@ import {
 import local, { LOCAL_SPACE_ID, spaceGraphLocal, spacePtr } from "@/system/client";
 import { makeReadOptions, useExistingConnection, useGetConnection } from "@/system/connection";
 import { NodeGraph, ProxyNodeGraph } from "@/system/graph";
-import { DEFAULT_LOADED_SOURCE_NODE_TYPES } from "@/system/lang";
+import { SOURCE_NODE_TYPES } from "@/system/lang";
 import { toaster } from "@/system/toast";
 import { log } from "@/utils/log";
 import { ViewCanvas, createDefaultDesktopSpace, createEmptySpace } from "@/views/canvas";
@@ -39,7 +39,7 @@ export const {
   { name: "pkg", live: true, paramsPretty: computed(() => ({ id: local.packagePtr.value?.id })) },
   computed(() => ({
     roots: [local.packagePtr.value!],
-    options: { ancestorTypes: [NodeType.BENCH], descendantTypes: DEFAULT_LOADED_SOURCE_NODE_TYPES },
+    options: { ancestorTypes: [NodeType.BENCH], descendantTypes: SOURCE_NODE_TYPES },
     isEnabled: local.packagePtr.value != null,
   })),
 );

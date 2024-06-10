@@ -14,7 +14,7 @@ from bench.language.node import (
 )
 from bench.language.property import (
     p_internal,
-    p_node_child,
+    p_node_children,
     p_node_parent,
     p_regular,
     p_value_packed,
@@ -443,8 +443,8 @@ class View(SourceNode[ViewData], HasValues):
     is_template: Optional[bool] = p_regular(84, default=False)
     is_loading: Optional[bool] = p_regular(90, default=False)
 
-    views: NodeList["View"] = p_node_child(NodeType.VIEW)
-    issues: NodeList["Issue"] = p_node_child(NodeType.ISSUE)
+    views: NodeList["View"] = p_node_children(NodeType.VIEW)
+    issues: NodeList["Issue"] = p_node_children(NodeType.ISSUE)
 
     @final
     def __repr__(self):  # type: ignore we want to override the default repr
@@ -469,7 +469,7 @@ class Space(SourceNode[SpaceData]):
     text: Optional["Text"] = p_regular(32, default=None, struct=StructType.TEXT)
     order_key: str = p_internal(33, default=INTEGER_ZERO)
     policies: list["Policy"] | None = p_regular(34, struct=StructType.POLICY, array=True)
-    views: list["View"] = p_node_child(NodeType.VIEW)
+    views: list["View"] = p_node_children(NodeType.VIEW)
 
     bar_position: Optional[Anchor] = p_regular(40, default=Anchor.TOP)
 

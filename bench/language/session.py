@@ -194,7 +194,7 @@ class Session(PackageNode[SessionData], HasTimeIdentity):
         assert self._host is not None, f"host not available in {self!r}"
         return self._host
 
-    async def open(self, *, in_context: bool = True):
+    async def open(self, *, set_in_context: bool = True):
         """Opens the session for regular business. Activates context (by default)."""
         assert not self.closed_at, f"session already closed {self!r}"
         assert not self.opened_at, f"session already open {self!r}"
@@ -206,7 +206,7 @@ class Session(PackageNode[SessionData], HasTimeIdentity):
             self._default_scope = GraphScope(
                 bench_id=uuid_to_str(self.parent.bench_id), package_id=uuid_to_str(self.parent.id)
             )
-        if in_context:
+        if set_in_context:
             self._active_session_token = _active_session.set(self)
         logger.trace("session.open", session=self)
 

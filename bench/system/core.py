@@ -13,7 +13,13 @@ from opentelemetry import trace
 from bench.language import Bench, Node, NodeType, Store
 from bench.language.bench import Branch, Package, Region
 from bench.language.connection import PostgresEngine
-from bench.language.const import GLOBAL_NODE_TYPES, VERSION, EditType
+from bench.language.const import (
+    GLOBAL_NODE_TYPES,
+    LOADED_BENCH_NODE_TYPES,
+    SOURCE_NODE_TYPES,
+    VERSION,
+    EditType,
+)
 from bench.language.graph import NodeGraphLike
 from bench.language.session import Session
 from bench.language.transaction import unpack_node_delta
@@ -51,41 +57,10 @@ GLOBAL_POSTGRES_ENGINE = PostgresEngine(
 )
 
 
-LOADED_BENCH_NODE_TYPES: bittuple[NodeType] = bittuple(
-    NodeType.BENCH,
-    NodeType.HANDLE,
-    NodeType.SERVER,
-    NodeType.CLIENT,
-    NodeType.MACHINE,
-    NodeType.STORE,
-    NodeType.DRIVE,
-    NodeType.ENVIRONMENT,
-    NodeType.BRANCH,
-    NodeType.PACKAGE,
-)
-LOADED_PACKAGE_NODE_TYPES: bittuple[NodeType] = bittuple(
-    NodeType.PACKAGE,
-    NodeType.DEPENDENCY,
-    NodeType.UPGRADE,
-    NodeType.SPACE,
-    NodeType.LINK,
-    NodeType.ISSUE,
-    NodeType.BLOCK,
-    NodeType.TRIGGER,
-    NodeType.FIELD,
-    NodeType.QUERY,
-    NodeType.VIEW,
-    NodeType.STEP,
-    NodeType.BADGE,
-    NodeType.ROLE,
-    NodeType.IDENTITY,
-    NodeType.MEMBERSHIP,
-    NodeType.INVITE,
-)
-LOADED_HOST_NODE_TYPES = LOADED_BENCH_NODE_TYPES | LOADED_PACKAGE_NODE_TYPES
+LOADED_HOST_NODE_TYPES = LOADED_BENCH_NODE_TYPES | SOURCE_NODE_TYPES
 BENCH_QUERY = Bench.descendants(*LOADED_BENCH_NODE_TYPES).select_all()
 PACKAGE_QUERY = (
-    Package.descendants(*LOADED_PACKAGE_NODE_TYPES)
+    Package.descendants(*SOURCE_NODE_TYPES)
     .ancestors(Bench, Branch)
     .select_all()
     .exclude(Bench.encryption_key)
