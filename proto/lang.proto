@@ -1175,7 +1175,7 @@ enum ViewType {
   VIEW_TYPE_START = 156;
   VIEW_TYPE_FEED = 157;
   VIEW_TYPE_TIMELINE = 158;
-  VIEW_TYPE_HISTORY = 179;
+  VIEW_TYPE_HISTORY = 159;
   VIEW_TYPE_WINDOW = 500;
   VIEW_TYPE_TAB = 502;
   VIEW_TYPE_SPLIT = 503;
@@ -1291,7 +1291,7 @@ message BoxData {
   optional float height_relative = 53;
 }
 
-// Code(lines: list[bench.language.code_.CodeLine] = None, _session: 'Session | None' = None, _updated_properties: bitarray.bitarray | None = None, parent: Union[ForwardRef('BuiltinObject'), ForwardRef('Object'), NoneType] = None, id: int = <factory>, order_key: str | None = None, parent_id: int = None, parent_key: str = None)
+// Code(lines: list[bench.language.code_.CodeLine] = None, _session: 'Session | None' = None, _updated_properties: bitarray.bitarray | None = None, parent: Union[ForwardRef('BuiltinObject'), ForwardRef('ValueObject'), NoneType] = None, id: int = <factory>, order_key: str | None = None, parent_id: int = None, parent_key: str = None)
 message CodeData {
   ObjectType metatype = 1;
   int32 id = 2;
@@ -1301,7 +1301,7 @@ message CodeData {
   repeated CodeLineData lines = 30;
 }
 
-// CodeLine(content: str = <factory>, _session: 'Session | None' = None, _updated_properties: bitarray.bitarray | None = None, parent: Union[ForwardRef('BuiltinObject'), ForwardRef('Object'), NoneType] = None, id: int = <factory>, order_key: str | None = None, parent_id: int = None, parent_key: str = None)
+// CodeLine(content: str = <factory>, _session: 'Session | None' = None, _updated_properties: bitarray.bitarray | None = None, parent: Union[ForwardRef('BuiltinObject'), ForwardRef('ValueObject'), NoneType] = None, id: int = <factory>, order_key: str | None = None, parent_id: int = None, parent_key: str = None)
 message CodeLineData {
   ObjectType metatype = 1;
   int32 id = 2;
@@ -1355,8 +1355,7 @@ message EditContextData {
   optional NodeReferenceData run_root_ptr = 64;
 }
 
-// An expression.
-// For now, just a query expression like conditional/sort/...
+// An expression like a value, function, comparison or such.
 message ExpressionData {
   ObjectType metatype = 1;
   int32 id = 2;
@@ -1391,7 +1390,7 @@ message FontData {
   optional FontSize size = 33;
 }
 
-// Icon(kind: bench.language.file.IconKind = False, emoji: Optional[str] = <factory>, file: Optional[ForwardRef('File')] = None, fa_name: Optional[str] = <factory>, color: Optional[ForwardRef('Color')] = None, _session: 'Session | None' = None, _updated_properties: bitarray.bitarray | None = None, parent: Union[ForwardRef('BuiltinObject'), ForwardRef('Object'), NoneType] = None, parent_id: int = None, parent_key: str = None)
+// Icon(kind: bench.language.file.IconKind = False, emoji: Optional[str] = <factory>, file: Optional[ForwardRef('File')] = None, fa_name: Optional[str] = <factory>, color: Optional[ForwardRef('Color')] = None, _session: 'Session | None' = None, _updated_properties: bitarray.bitarray | None = None, parent: Union[ForwardRef('BuiltinObject'), ForwardRef('ValueObject'), NoneType] = None, parent_id: int = None, parent_key: str = None)
 message IconData {
   ObjectType metatype = 1;
   IconKind kind = 30;
@@ -1486,7 +1485,7 @@ message PathData {
   repeated PathSegmentData segments = 31;
 }
 
-// PathSegment(type: bench.language.path.PathSegmentType = <factory>, name: Optional[str] = None, reference: Optional[ForwardRef('Node')] = None, _session: 'Session | None' = None, _updated_properties: bitarray.bitarray | None = None, parent: Union[ForwardRef('BuiltinObject'), ForwardRef('Object'), NoneType] = None, reference_ptr: 'NodeReference' = None, parent_id: int = None, parent_key: str = None)
+// PathSegment(type: bench.language.path.PathSegmentType = <factory>, name: Optional[str] = None, reference: Optional[ForwardRef('Node')] = None, _session: 'Session | None' = None, _updated_properties: bitarray.bitarray | None = None, parent: Union[ForwardRef('BuiltinObject'), ForwardRef('ValueObject'), NoneType] = None, reference_ptr: 'NodeReference' = None, parent_id: int = None, parent_key: str = None)
 message PathSegmentData {
   ObjectType metatype = 1;
   PathSegmentType type = 31;
@@ -1494,7 +1493,7 @@ message PathSegmentData {
   optional NodeReferenceData reference_ptr = 33;
 }
 
-// PathToken(type: bench.language.path.PathTokenType = <factory>, _session: 'Session | None' = None, _updated_properties: bitarray.bitarray | None = None, parent: Union[ForwardRef('BuiltinObject'), ForwardRef('Object'), NoneType] = None, parent_id: int = None, parent_key: str = None)
+// PathToken(type: bench.language.path.PathTokenType = <factory>, _session: 'Session | None' = None, _updated_properties: bitarray.bitarray | None = None, parent: Union[ForwardRef('BuiltinObject'), ForwardRef('ValueObject'), NoneType] = None, parent_id: int = None, parent_key: str = None)
 message PathTokenData {
   ObjectType metatype = 1;
   PathTokenType type = 31;
@@ -1658,7 +1657,7 @@ message SelectionData {
   optional NodeReferenceData to_node_ptr = 33;
 }
 
-// SessionContext(block: Optional[ForwardRef('Block')] = None, step: Optional[ForwardRef('Step')] = None, session: Optional[ForwardRef('Session')] = None, run: Optional[ForwardRef('Run')] = None, run_root: Optional[ForwardRef('Run')] = None, client: Optional[ForwardRef('Client')] = None, machine: Optional[ForwardRef('Machine')] = None, server: Optional[ForwardRef('Server')] = None, user: Optional[ForwardRef('User')] = None, _session: 'Session | None' = None, _updated_properties: bitarray.bitarray | None = None, parent: Union[ForwardRef('BuiltinObject'), ForwardRef('Object'), NoneType] = None, block_ptr: 'NodeReference' = None, step_ptr: 'NodeReference' = None, session_ptr: 'NodeReference' = None, run_ptr: 'NodeReference' = None, run_root_ptr: 'NodeReference' = None, client_ptr: 'NodeReference' = None, machine_ptr: 'NodeReference' = None, server_ptr: 'NodeReference' = None, user_ptr: 'NodeReference' = None, parent_id: int = None, parent_key: str = None)
+// SessionContext(block: Optional[ForwardRef('Block')] = None, step: Optional[ForwardRef('Step')] = None, session: Optional[ForwardRef('Session')] = None, run: Optional[ForwardRef('Run')] = None, run_root: Optional[ForwardRef('Run')] = None, client: Optional[ForwardRef('Client')] = None, machine: Optional[ForwardRef('Machine')] = None, server: Optional[ForwardRef('Server')] = None, user: Optional[ForwardRef('User')] = None, _session: 'Session | None' = None, _updated_properties: bitarray.bitarray | None = None, parent: Union[ForwardRef('BuiltinObject'), ForwardRef('ValueObject'), NoneType] = None, block_ptr: 'NodeReference' = None, step_ptr: 'NodeReference' = None, session_ptr: 'NodeReference' = None, run_ptr: 'NodeReference' = None, run_root_ptr: 'NodeReference' = None, client_ptr: 'NodeReference' = None, machine_ptr: 'NodeReference' = None, server_ptr: 'NodeReference' = None, user_ptr: 'NodeReference' = None, parent_id: int = None, parent_key: str = None)
 message SessionContextData {
   ObjectType metatype = 1;
   optional NodeReferenceData block_ptr = 60;
@@ -1735,7 +1734,7 @@ message TextLineData {
   optional bool is_code = 64;
 }
 
-// TextSpan(content: Optional[str] = None, node: Optional[bench.language.node.Node] = None, parent: Union[ForwardRef('BuiltinObject'), ForwardRef('Object'), NoneType] = None, _session: 'Session | None' = None, _updated_properties: bitarray.bitarray | None = None, color: Optional[ForwardRef('ColorType')] = None, is_bold: Optional[bool] = None, is_italic: Optional[bool] = None, is_strikethrough: Optional[bool] = None, is_underline: Optional[bool] = None, is_code: Optional[bool] = None, node_ptr: 'NodeReference' = None, parent_id: int = None, parent_key: str = None)
+// TextSpan(content: Optional[str] = None, node: Optional[bench.language.node.Node] = None, parent: Union[ForwardRef('BuiltinObject'), ForwardRef('ValueObject'), NoneType] = None, _session: 'Session | None' = None, _updated_properties: bitarray.bitarray | None = None, color: Optional[ForwardRef('ColorType')] = None, is_bold: Optional[bool] = None, is_italic: Optional[bool] = None, is_strikethrough: Optional[bool] = None, is_underline: Optional[bool] = None, is_code: Optional[bool] = None, node_ptr: 'NodeReference' = None, parent_id: int = None, parent_key: str = None)
 message TextSpanData {
   ObjectType metatype = 1;
   optional string content = 33;
@@ -1766,7 +1765,7 @@ message TypeConstraintData {
   optional string ends_with = 62;
 }
 
-// TypeInfo(kind: bench.language.const.TypeKind = <factory>, primitive_type: Optional[bench.language.const.PrimitiveType] = None, bench_type: Optional[bench.utils.func.BenchType] = None, base_type: Union[ForwardRef('Block'), ForwardRef('Step'), NoneType] = None, base_field_zone: Optional[ForwardRef('FieldZone')] = None, default_packed: Optional[Any] = None, default: None = None, visibility: Optional[bench.language.const.Visibility] = None, format_hint: Optional[bench.language.const.FormatHint] = None, condition: Optional[ForwardRef('Expression')] = None, constraint: Optional[ForwardRef('TypeConstraint')] = None, is_list: bool = False, is_secret: bool = False, is_required: bool = False, _resolved_type: Optional[ForwardRef('TypeInfoBase')] = None, _resolved_identity_key: str | None = None, _from_property: Optional[ForwardRef('Property')] = None, _session: 'Session | None' = None, _updated_properties: bitarray.bitarray | None = None, parent: Union[ForwardRef('BuiltinObject'), ForwardRef('Object'), NoneType] = None, id: int = <factory>, order_key: str | None = None, base_type_ptr: 'NodeReference' = None, parent_id: int = None, parent_key: str = None)
+// TypeInfo(kind: bench.language.const.TypeKind = <factory>, primitive_type: Optional[bench.language.const.PrimitiveType] = None, bench_type: Optional[bench.utils.func.BenchType] = None, base_type: Union[ForwardRef('Block'), ForwardRef('Step'), NoneType] = None, base_field_zone: Optional[ForwardRef('FieldZone')] = None, default_packed: Optional[Any] = None, default: None = None, visibility: Optional[bench.language.const.Visibility] = None, format_hint: Optional[bench.language.const.FormatHint] = None, condition: Optional[ForwardRef('Expression')] = None, constraint: Optional[ForwardRef('TypeConstraint')] = None, is_list: bool = False, is_secret: bool = False, is_required: bool = False, _resolved_type: Optional[ForwardRef('TypeInfoBase')] = None, _resolved_identity_key: str | None = None, _from_property: Optional[ForwardRef('Property')] = None, _session: 'Session | None' = None, _updated_properties: bitarray.bitarray | None = None, parent: Union[ForwardRef('BuiltinObject'), ForwardRef('ValueObject'), NoneType] = None, id: int = <factory>, order_key: str | None = None, base_type_ptr: 'NodeReference' = None, parent_id: int = None, parent_key: str = None)
 message TypeInfoData {
   ObjectType metatype = 1;
   int32 id = 2;

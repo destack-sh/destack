@@ -120,6 +120,10 @@ defineExpose<ViewExposed>({ self });
             {{ viewType != null ? ViewType[viewType] : "No View for Type" }}
           </div>
         </li>
+        <!-- Empty -->
+        <li v-if="inputViews.length === 0" class="mx-auto w-full px-5">
+          <span class="text-gray-500">No Inputs</span>
+        </li>
       </ul>
       <!-- Divider -->
       <div class="mx-auto my-2 w-full px-5" :style="{ minWidth: MIN_WIDTH + 'px', maxWidth: MAX_WIDTH + 'px' }">

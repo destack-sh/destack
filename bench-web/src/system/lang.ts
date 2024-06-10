@@ -113,30 +113,10 @@ export const CLASSY_BLOCK_TYPES = [
   BlockType.DATABASE,
 ];
 
-export const ROOT_VIEW_TYPES = new Set<ViewType>([ViewType.WINDOW, ViewType.TAB, ViewType.SPLIT]);
-export const NODE_VIEW_TYPES = new Set<ViewType>([
-  ViewType.PAGE,
-  ViewType.BLOCK,
-  ViewType.SCREEN,
-  ViewType.DATABASE,
-  ViewType.FLOW,
-  ViewType.FIELD,
-  ViewType.STEP,
-  ViewType.CHAT,
-]);
-
-// views that aren't about a specific node but should just keep the current root view node
-export const HELPER_VIEW_TYPES = new Set([
-  ViewType.EXPLORE,
-  ViewType.OUTLINE,
-  ViewType.CREATE,
-  ViewType.INSPECT,
-  ViewType.CHAT,
-  ViewType.START,
-  ViewType.FEED,
-  ViewType.HISTORY,
-  ViewType.TIMELINE,
-]);
+export const VIEW_TYPES = Object.values(ViewType).filter((v) => typeof v == "number" && v > 0) as ViewType[];
+export const ROOT_VIEW_TYPES = new Set([ViewType.WINDOW, ViewType.TAB, ViewType.SPLIT]);
+export const NODE_VIEW_TYPES = new Set(VIEW_TYPES.filter((vt) => vt >= 100 && vt < 150));
+export const HELPER_VIEW_TYPES = new Set(VIEW_TYPES.filter((vt) => vt >= 150 && vt < 200));
 
 /**
  * Gets the 'base' node defining a certain node. See :HasBase.

@@ -1,3 +1,4 @@
+/* eslint-disable no-console */
 import "./assets/index.css";
 
 import { toaster } from "@/system/toast";
