@@ -280,7 +280,7 @@ class Transaction:
             self._pending_updates_idx[node] = engine.id, edit_idx
         else:
             # update existing edit in place ('debounce') :DebouncedUpdate
-            # NOTE :Performance: unpacking/repacking proto json is inefficient
+            # NOTE :Performance: unpacking/repacking proto json is obviously inefficient
             assert node._updated_properties is not None, f"missing property mask for {node!r}"
             engine_id, current_update_idx = existing_edit_idx
             edit = self._pending_edits_by_engine_id[engine_id][current_update_idx]

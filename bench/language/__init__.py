@@ -92,7 +92,7 @@ from .transaction import Transaction
 from .trigger import Trigger
 from .user import Handle, Organization, User
 from .validation import ValidationError
-from .value import Object
+from .value import ValueObject
 from .view import (
     Alignment,
     Anchor,
@@ -179,7 +179,6 @@ __all__ = [
     "NodeReference",
     "NodeType",
     "Notification",
-    "Object",
     "ObjectType",
     "Offset",
     "Organization",
@@ -237,6 +236,7 @@ __all__ = [
     "User",
     "ValidationError",
     "ValueList",
+    "ValueObject",
     "ValueReference",
     "Variant",
     "View",

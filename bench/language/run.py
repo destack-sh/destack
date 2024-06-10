@@ -44,7 +44,7 @@ from bench.utils.dt import utcnow
 from bench.utils.func import IdEnum
 
 if TYPE_CHECKING:
-    from bench.language import Block, NodeReference, Package, TypeInfoBase
+    from bench.language import Block, NodeReference, Package, TypeInfoBase, ValueObject
 
 # pyright: reportIncompatibleVariableOverride=false
 
@@ -149,13 +149,17 @@ class Run(PackageNode[RunData], HasTimeIdentity, HasNodeBase, HasSessionContext,
     # content
     inputs_packed: Any = p_value_packed(50)
     inputs_secret_packed: Any = p_secret_value_packed(51)
-    inputs: Any = p_value_runtime(50, 51, typ=lambda self: cast("Run", self).input_type)
+    inputs: "ValueObject | None" = p_value_runtime(
+        50, 51, typ=lambda self: cast("Run", self).input_type
+    )
     outputs_packed: Any = p_value_packed(52)
     outputs_secret_packed: Any = p_secret_value_packed(53)
-    outputs: Any = p_value_runtime(52, 53, typ=lambda self: cast("Run", self).output_type)
+    outputs: "ValueObject | None" = p_value_runtime(
+        52, 53, typ=lambda self: cast("Run", self).output_type
+    )
     value_packed: Any = p_value_packed(54)
     value_secret_packed: Any = p_secret_value_packed(55)
-    value: Any = p_value_runtime(54, 55, typ=None)  # freely typed
+    value: "ValueObject | None" = p_value_runtime(54, 55, typ=None)  # freely typed
     attempts: list[RetryAttempt] = p_internal(56, array=True, struct=StructType.RETRY_ATTEMPT)
     error: Optional["RunError"] = p_internal(
         57, default=None, require=False, array=False, struct=StructType.RUN_ERROR

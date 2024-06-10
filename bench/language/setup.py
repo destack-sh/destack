@@ -66,7 +66,7 @@ def _on_completing_setup(func: Callable | None = None):
 
 def _complete_bench_setup():
     """Finalize setup of all language constructs after everything is imported."""
-    from bench.language import BuiltinObject, InlineStruct, Node, Object, const
+    from bench.language import BuiltinObject, InlineStruct, Node, ValueObject, const
     from bench.language.node import HasNodeBase
 
     global _COMPLETED_SETUP
@@ -81,7 +81,7 @@ def _complete_bench_setup():
         if isinstance(bench_t, type) and issubclass(bench_t, IdEnum):
             FINAL_BENCH_CLASSES_BY_NAME[bench_t.__name__] = bench_t
             FINAL_BENCH_CLASSES.append(bench_t)
-    BENCH_CLASSES.extend(chain(get_subclasses(BuiltinObject), (Object,)))
+    BENCH_CLASSES.extend(chain(get_subclasses(BuiltinObject), (ValueObject,)))
     for cls in BENCH_CLASSES:
         BENCH_CLASS_BY_NAME[cls.__name__] = cls
     for node_t in NODE_TYPES:

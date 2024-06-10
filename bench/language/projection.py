@@ -11,7 +11,7 @@ from bench.language.setup import ENUM_CLASS_BY_TYPE
 if TYPE_CHECKING:
     from bench.language import Code, Text
     from bench.language.field import TypeInfoBase
-    from bench.language.value import Object, ScalarValue, SomeValue
+    from bench.language.value import ScalarValue, SomeValue, ValueObject
 
 
 class NodeVisitor:
@@ -115,7 +115,7 @@ def render_value_scalar(value: "ScalarValue", typ: "TypeInfoBase") -> str:
         raise RuntimeError(f"unexpected type {typ!r}")
 
 
-def render_object_scalar(value: "Object", typ: "TypeInfoBase") -> str:
+def render_object_scalar(value: "ValueObject", typ: "TypeInfoBase") -> str:
     """Renders single Object into Bench python (recursively)."""
     assert typ.base_type is not None, f"{value!r} has no base type"
     repr_by_name: dict[str, str] = {}
@@ -129,7 +129,7 @@ def render_object_scalar(value: "Object", typ: "TypeInfoBase") -> str:
 
 def render_value(value: "SomeValue | None", typ: "TypeInfoBase") -> str:
     """Renders a value into Bench python (recursively)."""
-    from bench.language.value import Object
+    from bench.language.value import ValueObject
 
     if value is None:
         return "None"
@@ -138,11 +138,11 @@ def render_value(value: "SomeValue | None", typ: "TypeInfoBase") -> str:
     if typ.kind == TypeKind.OBJECT:
         # nested object
         if not typ.is_list:
-            assert type(value) is Object, f"{value!r} is not an object (expected {typ!r})"
+            assert type(value) is ValueObject, f"{value!r} is not an object (expected {typ!r})"
             return render_object_scalar(value, typ)
         else:
             assert isinstance(value, list), f"{value!r} is not a list (expected {typ!r})"
-            return f"[{', '.join(render_object_scalar(cast(Object, v), typ) for v in value)}]"
+            return f"[{', '.join(render_object_scalar(cast(ValueObject, v), typ) for v in value)}]"
     else:
         # scalar
         if not typ.is_list:
