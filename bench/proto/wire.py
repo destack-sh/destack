@@ -3,7 +3,7 @@
 
 from typing import TYPE_CHECKING, Union
 
-VERSION = "2024.06.10.0"
+VERSION = "2024.06.10.1"
 
 if TYPE_CHECKING:
     from bench.language import Subject
@@ -80,9 +80,9 @@ class AggregationOp(betterproto.Enum):
     EXISTS = 400
     COUNT = 401
     SUM = 402
-    AVERAGE = 403
-    MIN = 404
-    MAX = 405
+    MIN = 403
+    MAX = 404
+    AVERAGE = 405
     MEDIAN = 406
     HISTOGRAM = 407
 
@@ -355,9 +355,9 @@ class ConditionalOp(betterproto.Enum):
     GREATER_THAN_OR_EQUALS = 313
     LESS_THAN = 314
     LESS_THAN_OR_EQUALS = 315
-    MATCHES = 320
+    MATCHES_REGEX = 320
     STARTS_WITH = 321
-    REGEX = 322
+    ENDS_WITH = 322
     CONTAINS = 330
     NOT_CONTAINS = 331
     IN = 332
@@ -477,6 +477,16 @@ class ExpressionKind(betterproto.Enum):
 
 class ExpressionOp(betterproto.Enum):
     UNSPECIFIED = 0
+    VALUE = 100
+    NONE = 101
+    TRUE = 102
+    FALSE = 103
+    ADD = 200
+    SUBTRACT = 201
+    MULTIPLY = 202
+    DIVIDE = 203
+    MODULO = 204
+    POWER = 205
     NOT = 301
     AND = 302
     OR = 303
@@ -486,9 +496,9 @@ class ExpressionOp(betterproto.Enum):
     GREATER_THAN_OR_EQUALS = 313
     LESS_THAN = 314
     LESS_THAN_OR_EQUALS = 315
-    MATCHES = 320
+    MATCHES_REGEX = 320
     STARTS_WITH = 321
-    REGEX = 322
+    ENDS_WITH = 322
     CONTAINS = 330
     NOT_CONTAINS = 331
     IN = 332
@@ -498,9 +508,9 @@ class ExpressionOp(betterproto.Enum):
     NEAR = 350
     COUNT = 401
     SUM = 402
-    AVERAGE = 403
-    MIN = 404
-    MAX = 405
+    MIN = 403
+    MAX = 404
+    AVERAGE = 405
     MEDIAN = 406
     HISTOGRAM = 407
     ASCENDING = 500
@@ -585,6 +595,7 @@ class FunctionalOp(betterproto.Enum):
     MULTIPLY = 202
     DIVIDE = 203
     MODULO = 204
+    POWER = 205
 
 
 class IconKind(betterproto.Enum):
@@ -621,9 +632,9 @@ class IssueType(betterproto.Enum):
 class LiteralOp(betterproto.Enum):
     UNSPECIFIED = 0
     VALUE = 100
-    TRUE = 101
-    FALSE = 102
-    NONE = 103
+    NONE = 101
+    TRUE = 102
+    FALSE = 103
 
 
 class LogKind(betterproto.Enum):
@@ -1467,6 +1478,7 @@ class ExpressionData(betterproto.Message):
         36, optional=True
     )
     sort_mode: Optional["SortMode"] = betterproto.enum_field(38, optional=True)
+    tolerance: Optional[float] = betterproto.float_field(39, optional=True)
 
 
 @dataclass(eq=False, repr=False)
@@ -1929,7 +1941,7 @@ class TextSpanData(betterproto.Message):
 class TypeConstraintData(betterproto.Message):
     """
     A simple constraint on the values of a type. :TypeConstraint
-     NOTE :Architecture: ideally all type constraints should be done in expressions?
+     Basically a more restricted form of a condition Expression.
     """
 
     metatype: "ObjectType" = betterproto.enum_field(1)

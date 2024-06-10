@@ -269,9 +269,8 @@ PG_CONDITIONAL_OP_BY_BENCH: dict[ConditionalOp, PostgresConditionalOp] = {
     ConditionalOp.GREATER_THAN: PostgresConditionalOp.GT,
     ConditionalOp.GREATER_THAN_OR_EQUALS: PostgresConditionalOp.GTE,
     # string
-    ConditionalOp.MATCHES: PostgresConditionalOp.LIKE,
+    ConditionalOp.MATCHES_REGEX: PostgresConditionalOp.REGEXP,
     ConditionalOp.STARTS_WITH: PostgresConditionalOp.LIKE,
-    ConditionalOp.REGEX: PostgresConditionalOp.REGEXP,
     # containment
     ConditionalOp.CONTAINS: PostgresConditionalOp.CONTAINS,
     ConditionalOp.IN: PostgresConditionalOp.IN,
@@ -492,8 +491,6 @@ def _pg_compile_conditional(
             return SqlComparison(left=left, op=op, right=right)
         elif cond.op == ConditionalOp.STARTS_WITH:
             right = sqlstr("{} || '%'").format(sql.Literal(cond.value))
-        elif cond.op == ConditionalOp.MATCHES:
-            right = sqlstr("'%' || {} || '%'").format(sql.Literal(cond.value))
         else:
             assert cond.value is not None, f"cannot compare {cond!r} with None"
             right = sql.Literal(cond.value)

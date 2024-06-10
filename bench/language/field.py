@@ -189,14 +189,17 @@ def encode_storage_key(field: "Field") -> str:
 class TypeConstraint(Struct):
     """
     A simple constraint on the values of a type. :TypeConstraint
-    NOTE :Architecture: ideally all type constraints should be done in expressions?
+    Basically a more restricted form of a condition Expression.
     """
 
+    # numeric
     min_value: Optional[float] = p_regular(40, require=False, default=None)
     max_value: Optional[float] = p_regular(41, require=False, default=None)
     step_value: Optional[float] = p_regular(42, require=False, default=None)
+    # list-ish
     min_length: Optional[int] = p_regular(50, require=False, default=None)
     max_length: Optional[int] = p_regular(51, require=False, default=None)
+    # string-ish
     regex: Optional[str] = p_regular(60, require=False, default=None)
     starts_with: Optional[str] = p_regular(61, require=False, default=None)
     ends_with: Optional[str] = p_regular(62, require=False, default=None)

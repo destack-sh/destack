@@ -64,9 +64,9 @@ _CONDITIONAL_OP_SIGN: dict[ConditionalOp, str] = {
     ConditionalOp.LESS_THAN: "<",
     ConditionalOp.LESS_THAN_OR_EQUALS: "<=",
     # string comparison
-    ConditionalOp.MATCHES: "~=",
+    ConditionalOp.MATCHES_REGEX: "$re=",
     ConditionalOp.STARTS_WITH: "^=",
-    ConditionalOp.REGEX: "$re=",
+    ConditionalOp.ENDS_WITH: "$=",
     # containment
     ConditionalOp.CONTAINS: "∋",
     ConditionalOp.NOT_CONTAINS: "!∋",
@@ -297,6 +297,7 @@ class Expression(Struct, HasValues):
     value_packed: Any = p_value_packed(36)
     value: Any = p_value_runtime(36, typ=lambda self: cast(Expression, self).value_type)
     sort_mode: Optional[SortMode] = p_regular(38, default=None)
+    tolerance: Optional[float] = p_regular(39, default=None)
 
     @__property__
     def kind(self) -> ExpressionKind:
@@ -410,7 +411,7 @@ class Expression(Struct, HasValues):
 
 
 class ExpressionOps:  # :ExpressionOps
-    # Conditionals
+    # conditionals
     COND_LOGICAL = {ConditionalOp.NOT, ConditionalOp.AND, ConditionalOp.OR}
     COND_EXACT = {
         ConditionalOp.EQUALS,
@@ -428,9 +429,9 @@ class ExpressionOps:  # :ExpressionOps
     COND_SET = {ConditionalOp.CONTAINS, ConditionalOp.NOT_CONTAINS}
     COND_EXISTENCE = {ConditionalOp.EXISTS, ConditionalOp.NOT_EXISTS}
     COND_VECTOR = {ConditionalOp.NEAR}
-    COND_STRING = {ConditionalOp.STARTS_WITH, ConditionalOp.MATCHES}
+    COND_STRING = {ConditionalOp.MATCHES_REGEX, ConditionalOp.STARTS_WITH, ConditionalOp.ENDS_WITH}
     COND_SCORED = {ConditionalOp.NEAR, *COND_STRING}
-    # Aggregations
+    # aggregations
     AGG_BOOLEAN = {AggregationOp.EXISTS}
     AGG_SCALAR = {
         AggregationOp.COUNT,
@@ -441,7 +442,7 @@ class ExpressionOps:  # :ExpressionOps
         AggregationOp.MEDIAN,
     }
     AGG_BUCKET = {AggregationOp.HISTOGRAM}
-    # Sorts
+    # sorts
     SORT = {SortOp.ASCENDING, SortOp.DESCENDING}
 
 
@@ -662,9 +663,7 @@ SUPPORTED_PRIMITIVE_OPS: dict[PrimitiveType, set[ConditionalOp]] = {
     PrimitiveType.BOOLEAN: _ExprOps.COND_EXACT,
     PrimitiveType.DATETIME: _ExprOps.COND_RANGE | _ExprOps.COND_EXACT,
     PrimitiveType.VECTOR: _ExprOps.COND_VECTOR,
-    PrimitiveType.STRING: _ExprOps.COND_EXACT
-    | _ExprOps.COND_RANGE
-    | {ConditionalOp.MATCHES, ConditionalOp.STARTS_WITH, ConditionalOp.REGEX},
+    PrimitiveType.STRING: _ExprOps.COND_EXACT | _ExprOps.COND_RANGE | _ExprOps.COND_STRING,
 }
 SUPPORTED_NODE_OPS = _ExprOps.COND_RANGE | _ExprOps.COND_EXACT
 _EMPTY_SET = set()
@@ -762,19 +761,19 @@ class _TypeQueryBuilder:
 
     # string
 
-    @_require_expression_op(ConditionalOp.MATCHES)
-    def matches(self: Any, value: str) -> "Expression":
-        return _to_conditional(ConditionalOp.MATCHES, self, value=value)
+    @_require_expression_op(ConditionalOp.MATCHES_REGEX)
+    def matches_regex(self: Any, value: str | re.Pattern) -> "Expression":
+        if isinstance(value, re.Pattern):
+            value = value.pattern
+        return _to_conditional(ConditionalOp.MATCHES_REGEX, self, value=value)
 
     @_require_expression_op(ConditionalOp.STARTS_WITH)
     def starts_with(self: Any, value: str) -> "Expression":
         return _to_conditional(ConditionalOp.STARTS_WITH, self, value=value)
 
-    @_require_expression_op(ConditionalOp.REGEX)
-    def regex(self: Any, value: str | re.Pattern) -> "Expression":
-        if isinstance(value, re.Pattern):
-            value = value.pattern
-        return _to_conditional(ConditionalOp.REGEX, self, value=value)
+    @_require_expression_op(ConditionalOp.ENDS_WITH)
+    def ends_with(self: Any, value: str) -> "Expression":
+        return _to_conditional(ConditionalOp.ENDS_WITH, self, value=value)
 
     # containment
 
