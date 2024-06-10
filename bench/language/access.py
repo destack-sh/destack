@@ -51,7 +51,7 @@ from bench.language.node import (
 from bench.language.property import (
     Property,
     p_internal,
-    p_node_child,
+    p_node_children,
     p_node_parent,
     p_regular,
     p_runtime,
@@ -152,7 +152,7 @@ class Identity(SourceNode):
     )
     type: "Block" = p_regular(30, array=False, require=True, references=NodeType.BLOCK)
 
-    roles: NodeList["Role"] = p_node_child(NodeType.ROLE)
+    roles: NodeList["Role"] = p_node_children(NodeType.ROLE)
 
 
 @struct_(StructType.POLICY)

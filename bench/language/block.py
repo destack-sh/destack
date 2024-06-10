@@ -13,7 +13,7 @@ from bench.language.field import TypeInfoBase
 from bench.language.node import NodeList, SourceNode, node_
 from bench.language.property import (
     p_internal,
-    p_node_child,
+    p_node_children,
     p_node_parent,
     p_regular,
     p_secret_value_packed,
@@ -127,12 +127,12 @@ class Block(SourceNode[BlockData], HasValues):
     # is_unique? (by name in parent module, like in Godot)
     # is_frozen? (read-only in instances of template)
 
-    blocks: NodeList["Block"] = p_node_child(NodeType.BLOCK)
-    badges: NodeList["Badge"] = p_node_child(NodeType.BADGE)
-    fields: NodeList["Field"] = p_node_child(NodeType.FIELD)
-    steps: NodeList["Step"] = p_node_child(NodeType.STEP)
-    triggers: NodeList["Trigger"] = p_node_child(NodeType.TRIGGER)
-    issues: NodeList["Issue"] = p_node_child(NodeType.ISSUE)
+    blocks: NodeList["Block"] = p_node_children(NodeType.BLOCK)
+    badges: NodeList["Badge"] = p_node_children(NodeType.BADGE)
+    fields: NodeList["Field"] = p_node_children(NodeType.FIELD)
+    steps: NodeList["Step"] = p_node_children(NodeType.STEP)
+    triggers: NodeList["Trigger"] = p_node_children(NodeType.TRIGGER)
+    issues: NodeList["Issue"] = p_node_children(NodeType.ISSUE)
 
     def _validate_component(
         self, properties: Collection["Property"], invalid: "ValidationHandler"

@@ -183,8 +183,7 @@ class NodeType(IdEnum):
     # REACTION?
     # LOCK?
     # BREAKPOINT?
-
-    # auth
+    # source (auth)
     BADGE = 60
     ROLE = 61
     IDENTITY = 62
@@ -202,7 +201,7 @@ class NodeType(IdEnum):
 
     # resources (compute/storage/external/etc.)
     SERVER = 160
-    STORE = 161  # any 'database' (Postgres/OpenSearch/ClickHouse)
+    STORE = 161  # our trusted postgres store
     MACHINE = 162  # actual machine providing compute and such
     DRIVE = 163  # object store like S3/MinIO, maybe block storage later
     BLOB = 164  # in a Drive
@@ -222,6 +221,8 @@ NODE_TYPES_SET: frozenset[NodeType] = frozenset(NODE_TYPES)
 ROOT_NODE_TYPES = bittuple(NodeType.BENCH, NodeType.USER, NodeType.ORGANIZATION)
 LOCAL_NODE_TYPES = bittuple(*tuple(nt for nt in NODE_TYPES if 80 <= nt.id < 100))
 GLOBAL_NODE_TYPES = bittuple(*tuple(nt for nt in NODE_TYPES if nt not in LOCAL_NODE_TYPES))
+SOURCE_NODE_TYPES = bittuple(*tuple(nt for nt in NODE_TYPES if 20 <= nt.id < 80))
+
 BASED_NODE_TYPES = bittuple(  # :HasBase
     NodeType.FIELD,
     NodeType.RUN,
@@ -263,6 +264,7 @@ BENCH_NODE_TYPES = bittuple(
     NodeType.CLIENT,
     *RESOURCE_NODE_TYPES,
 )
+LOADED_BENCH_NODE_TYPES = bittuple(*(nt for nt in BENCH_NODE_TYPES if nt != NodeType.BLOB))
 PUBLIC_NODE_TYPES = bittuple(NodeType.USER, NodeType.ORGANIZATION)
 USER_NODE_TYPES = bittuple(*tuple(nt for nt in NODE_TYPES if nt.id >= 200))
 

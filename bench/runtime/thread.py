@@ -119,7 +119,7 @@ class RuntimeThread:
             _subject=self._client.parent,
             _origin=self._client.to_origin(),
         )
-        await self._session.open(in_context=False)
+        await self._session.open(set_in_context=False)
 
         # connect
         async with self.session(readonly=True):

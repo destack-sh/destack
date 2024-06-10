@@ -39,7 +39,7 @@ from bench.language.node import (
 from bench.language.property import (
     Property,
     p_internal,
-    p_node_child,
+    p_node_children,
     p_node_parent,
     p_regular,
     p_runtime,
@@ -458,7 +458,7 @@ class Field(SourceNode[FieldData], HasNodeBase, TypeInfoBase, _TypeQueryBuilder)
     # is_indexed: bool = ... # for database fields
     # is_unique: bool = ... # for database fields
 
-    issues: NodeList["Issue"] = p_node_child(NodeType.ISSUE)
+    issues: NodeList["Issue"] = p_node_children(NodeType.ISSUE)
 
     _introspected_from: Optional[Property] = p_runtime(default=None)
 

@@ -27,7 +27,7 @@ from bench.language.property import (
     Property,
     p_internal,
     p_node_ancestor_first,
-    p_node_child,
+    p_node_children,
     p_node_parent,
     p_regular,
     p_secret_value_packed,
@@ -169,7 +169,7 @@ class Run(PackageNode[RunData], HasTimeIdentity, HasNodeBase, HasSessionContext,
 
     # NOTE :Architecture :Performance: (some) Runs will likely be stored outside the main user DB later.
     #  And maybe we'll also have 'inline runs' for non-Bench constructs that were run (like deeper profiling).
-    runs: list["Run"] = p_node_child(NodeType.RUN)
+    runs: list["Run"] = p_node_children(NodeType.RUN)
 
     def __content_str__(self):
         if self.kind == RunKind.BLOCK:

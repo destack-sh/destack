@@ -22,6 +22,7 @@ from bench.language.const import (
     IN_BENCH_GLOBAL_NODE_TYPES,
     IN_BENCH_NODE_TYPES,
     LOCAL_NODE_TYPES,
+    SOURCE_NODE_TYPES,
     ClientType,
     NodeType,
 )
@@ -55,7 +56,6 @@ from bench.system.core import (
     GLOBAL_STORE,
     LOADED_BENCH_NODE_TYPES,
     LOADED_HOST_NODE_TYPES,
-    LOADED_PACKAGE_NODE_TYPES,
     PACKAGE_QUERY,
     HostPlugin,
     HostSpec,
@@ -371,7 +371,7 @@ class Host(GraphIoServiceBase, HostBase, HostSpec):
                 ),
                 InMemoryEngine(
                     scope=self._scope,
-                    node_types=LOADED_PACKAGE_NODE_TYPES,
+                    node_types=SOURCE_NODE_TYPES,
                     graph=self._main_package._data_graph,
                 ),
             )
@@ -386,7 +386,7 @@ class Host(GraphIoServiceBase, HostBase, HostSpec):
         )
         self._bench._track_rec(self._session)
         self._main_package._track_rec(self._session)
-        await self._session.open(in_context=False)
+        await self._session.open(set_in_context=False)
 
         # resume log
         async with self.session(readonly=True):
