@@ -226,21 +226,21 @@ async def test_crud_node_pointers(fabricator: "Fabricator"):
     async with bench_session(bench) as session:
         server = await Server.include_ancestors().get(id=server.id)
         assert server.parent_ptr
-        assert server.parent_ptr.equals_content(bench.to_ref())
+        assert server.parent_ptr._equals_content(bench.to_ref())
         assert server.bench_id == bench.id
-        assert server.to_ref().equals_content(
+        assert server.to_ref()._equals_content(
             NodeReference(type=NodeType.SERVER, id=server.id, ck=server.ck, bench_id=bench.id)
         )
 
         client = await Client.include_ancestors().get(id=client.id)
         assert client.bench_id == bench.id
-        assert client.to_ref().equals_content(
+        assert client.to_ref()._equals_content(
             NodeReference(type=NodeType.CLIENT, id=client.id, ck=client.ck, bench_id=bench.id)
         )
 
         block_1 = await Block.include_ancestors().get(id=block_1.id)
         assert block_1.bench_id == bench.id
-        assert block_1.to_ref().equals_content(
+        assert block_1.to_ref()._equals_content(
             NodeReference(type=NodeType.BLOCK, id=block_1.id, ck=block_1.ck, bench_id=bench.id)
         )
 

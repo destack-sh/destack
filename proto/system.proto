@@ -11,17 +11,15 @@ import "proto/lang.proto";
 
 message GetNodesRequest {
   GraphScope scope = 1;
-  repeated NodeReferenceData roots = 2;
+  repeated NodeReferenceData roots = 2;  // must be of same type
   optional ReadOptionsData options = 3;
-  optional bool lock_for_update = 4;
-  optional bool skip_locked = 5;
+  optional bool no_cache = 4;
 }
 message GetNodesResponse {
   // Nodes are in pre-order (parent before children) traversal.
   repeated SomeNodeData nodes = 1;
-  optional AccessMatrixData access = 2;
-  uint64 epoch = 3;
-  string query_id = 4;
+  uint64 epoch = 2;
+  string query_token = 3;
 }
 
 message SearchNodesRequest {
@@ -35,6 +33,7 @@ message SearchNodesRequest {
   optional string after = 8;
   optional ReadOptionsData options = 9;
   optional bool count = 10;
+  optional bool no_cache = 11;
 }
 message SearchNodesResponse {
   // Nodes in pre-order (parent before children) traversal.
@@ -43,9 +42,8 @@ message SearchNodesResponse {
   repeated string cursors = 3;
   optional string start_cursor = 4;
   optional int32 total = 5;
-  optional AccessMatrixData access = 6;
-  uint64 epoch = 7;
-  string query_id = 8;
+  uint64 epoch = 6;
+  string query_token = 7;
 }
 
 message AggregateNodesRequest {
@@ -55,23 +53,31 @@ message AggregateNodesRequest {
   optional ExpressionData filter = 4;
   repeated ExpressionData sort = 5;
   ExpressionData aggregation = 6;
+  optional bool no_cache = 7;
 }
 message AggregateNodesResponse {
   AggregationData aggregation = 1;
   uint64 epoch = 2;
-  string query_id = 3;
+  string query_token = 3;
 }
 
 message WatchEditsRequest {
-  GraphScope scope = 1;
-  repeated NodeType node_types = 2;
-  optional uint64 since_epoch = 3;
-  map<int32, ExpressionData> filters = 4;
+  string query_token = 1;
+  optional uint64 since_epoch = 2;
 }
 message WatchEditsResponse {
   repeated EditData edits = 1;
   repeated EditData cascaded_edits = 2;
   uint64 epoch = 3;
+}
+
+message WatchAggregationRequest {
+  string query_token = 1;
+  optional uint64 since_epoch = 2;
+}
+message WatchAggregationResponse {
+  AggregationData aggregation = 1;
+  uint64 epoch = 2;
 }
 
 message CommitTransactionRequest {
@@ -120,14 +126,16 @@ message CancelTransactionResponse {
 
 // Common service definition for global and bench-local :GraphIO
 service GraphIO {
-  // Get nodes in this graph. Error if any node is not found/accessible.
+  // Get nodes (of the same root type) in this graph. Error if any node is not found/accessible.
   rpc GetNodes(GetNodesRequest) returns (GetNodesResponse);
-  // Search nodes in this graph..
+  // Search nodes in this graph.
   rpc SearchNodes(SearchNodesRequest) returns (SearchNodesResponse);
   // Aggregate nodes in this graph.
   rpc AggregateNodes(AggregateNodesRequest) returns (AggregateNodesResponse);
-  // Receive any relevant edits to this graph.
+  // Receive any relevant node edits for a get/search query.
   rpc WatchEdits(WatchEditsRequest) returns (stream WatchEditsResponse);
+  // Receive any relevant aggregation updates for an aggregation query.
+  rpc WatchAggregation(WatchAggregationRequest) returns (stream WatchAggregationResponse);
   // Commit a new or pending completed transaction to this graph.
   rpc CommitTransaction(CommitTransactionRequest) returns (CommitTransactionResponse);
   // Begins or extends a pending transaction. Edits are additive.
@@ -245,6 +253,7 @@ service Supervisor {
   rpc SearchNodes(SearchNodesRequest) returns (SearchNodesResponse);
   rpc AggregateNodes(AggregateNodesRequest) returns (AggregateNodesResponse);
   rpc WatchEdits(WatchEditsRequest) returns (stream WatchEditsResponse);
+  rpc WatchAggregation(WatchAggregationRequest) returns (stream WatchAggregationResponse);
   rpc CommitTransaction(CommitTransactionRequest) returns (CommitTransactionResponse);
   rpc FlushTransaction(FlushTransactionRequest) returns (FlushTransactionResponse);
   rpc CompleteTransaction(CompleteTransactionRequest) returns (CompleteTransactionResponse);
@@ -289,6 +298,7 @@ service Host {
   rpc SearchNodes(SearchNodesRequest) returns (SearchNodesResponse);
   rpc AggregateNodes(AggregateNodesRequest) returns (AggregateNodesResponse);
   rpc WatchEdits(WatchEditsRequest) returns (stream WatchEditsResponse);
+  rpc WatchAggregation(WatchAggregationRequest) returns (stream WatchAggregationResponse);
   rpc CommitTransaction(CommitTransactionRequest) returns (CommitTransactionResponse);
   rpc FlushTransaction(FlushTransactionRequest) returns (FlushTransactionResponse);
   rpc CompleteTransaction(CompleteTransactionRequest) returns (CompleteTransactionResponse);

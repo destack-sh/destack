@@ -27,7 +27,7 @@ from bench.language.const import (
     NodeType,
 )
 from bench.language.expression import NodeReference
-from bench.language.graph import NodeGraphLike
+from bench.language.graph import NodeDataGraph, NodeGraphLike
 from bench.language.log import Log
 from bench.language.property import Property
 from bench.language.session import Session, SessionContext, unsuspend_session
@@ -568,9 +568,16 @@ class Host(GraphIoServiceBase, HostBase, HostSpec):
 
     @override
     @tracer.start_as_current_span("host.on_commit")
-    async def _on_commit(
-        self, graph: NodeGraphLike, edits: list[EditData], cascaded_edits: list[EditData]
+    async def on_commit(
+        self,
+        graph: NodeGraphLike,
+        data_graph: NodeDataGraph,
+        edits: list[EditData],
+        cascaded_edits: list[EditData],
+        epoch: int,
     ):
+        await super().on_commit(graph, data_graph, edits, cascaded_edits, epoch)
+
         assert self._session is not None, f"session not ready in {self!r}"
         assert self._bench is not None, f"bench not loaded in {self!r}"
         assert self._main_package is not None, f"package not loaded in {self!r}"

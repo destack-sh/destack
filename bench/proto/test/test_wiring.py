@@ -16,7 +16,7 @@ def test_roundtrip_bytes(obj: Node | Struct):
     packed_bytes = bytes(packed_wire_obj)
     unpacked_wire_obj = type(packed_wire_obj)().parse(packed_bytes)
     unpacked_obj = wiring.unpack_object(unpacked_wire_obj)
-    assert unpacked_obj.equals_content(obj), f"{unpacked_obj!r} != {obj!r}"
+    assert unpacked_obj._equals_content(obj), f"{unpacked_obj!r} != {obj!r}"
 
 
 @pytest.mark.parametrize("obj", BUILTIN_OBJECTS, ids=lambda o: o.__class__.__name__)
@@ -25,7 +25,7 @@ def test_roundtrip_json(obj: Node | Struct):
     packed_json = packed_wire_obj.to_json(indent=2)
     unpacked_wire_obj = type(packed_wire_obj)().from_json(packed_json)
     unpacked_obj = wiring.unpack_object(unpacked_wire_obj)
-    assert unpacked_obj.equals_content(obj), f"{unpacked_obj!r} != {obj!r}"
+    assert unpacked_obj._equals_content(obj), f"{unpacked_obj!r} != {obj!r}"
 
 
 @pytest.mark.parametrize("obj", BUILTIN_OBJECTS, ids=lambda o: o.__class__.__name__)
@@ -34,4 +34,4 @@ def test_copy(obj: Node | Struct):
     copied_obj = wiring.copy_struct(packed_wire_obj)
     assert copied_obj == packed_wire_obj, f"{copied_obj!r} != {packed_wire_obj!r}"
     unpacked_obj = wiring.unpack_object(copied_obj)
-    assert unpacked_obj.equals_content(obj), f"{unpacked_obj!r} != {obj!r}"
+    assert unpacked_obj._equals_content(obj), f"{unpacked_obj!r} != {obj!r}"

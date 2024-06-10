@@ -20,7 +20,7 @@ def test_render_struct(obj: Node | Struct):
     rendered = render_struct(obj)
     rendered = format_code(rendered)
     run_code_eval(rendered)
-    # assert cast(Struct, ret).equals_content(obj) # TODO :Robustness :Incomplete: assert
+    # assert cast(Struct, ret)._equals_content(obj) # TODO :Robustness :Incomplete: assert
 
 
 def test_render_nested():
@@ -55,4 +55,4 @@ def test_render_nested():
         ("ClassOuter", ClassOuter),
     ):
         assert key in ret
-        assert cast(Node, ret[key]).equals_content(value)
+        assert cast(Node, ret[key])._equals_content(value)

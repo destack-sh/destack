@@ -1,9 +1,9 @@
+import abc
 import asyncio
-from collections import deque
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from datetime import datetime
-from typing import AsyncIterator, Mapping, NamedTuple, cast, final, override
-from uuid import UUID
+from typing import Any, AsyncIterator, NamedTuple, cast, final, override
+from uuid import UUID, uuid4
 
 import betterproto
 import structlog
@@ -43,9 +43,9 @@ from bench.language.validation import ValidationError, on_invalid_raise
 from bench.proto import wiring
 from bench.proto.services import ServiceBase
 from bench.proto.wire import (
-    AccessMatrixData,
     AggregateNodesRequest,
     AggregateNodesResponse,
+    AggregationData,
     AnyNodeData,
     CancelTransactionRequest,
     CancelTransactionResponse,
@@ -63,36 +63,231 @@ from bench.proto.wire import (
     NodeReferenceData,
     SearchNodesRequest,
     SearchNodesResponse,
+    WatchAggregationRequest,
+    WatchAggregationResponse,
     WatchEditsRequest,
     WatchEditsResponse,
 )
-from bench.utils.dt import utcnow
+from bench.utils.dt import monons, utcnow
 from bench.utils.func import CriticalLock, bittuple, group_by, to_uuid, uuid_to_str
 from bench.utils.utils import get_from_env
 
-TRANSACTION_BUFFER_SIZE = get_from_env("TRANSACTION_BUFFER_SIZE", typ=int, default=1000)
 MAX_TIME_DRIFT_SECONDS = get_from_env("MAX_TIME_DRIFT_SECONDS", typ=int, default=60)
 
 
-class _Commit(NamedTuple):
-    """A commit of multiple edits (with their own epochs)"""
+class Connection[ResultT: Any, UpdateT: Any](abc.ABC):
+    def __init__(self, query: QueryBuilder):
+        self.hash = hash(query)
+        self.token: str = str(uuid4())
+        self.query = query
+        self._subscribers: list[ConnectionSubscriber[UpdateT]] = []
+        self._created_at = monons()
+        self._last_active_at = monons()
+        self._result: ResultT | None = None
 
-    epoch: int
-    edits: list[EditData]
-    cascaded_edits: list[EditData]
+    @abc.abstractmethod
+    def __content_str__(self) -> str: ...
+
+    @final
+    def __str__(self):
+        content_str = self.__content_str__()
+        return f"{self.query!r} (hash={self.hash}, token={self.token}) -> {content_str} (alive for {self.alive_duration:.1f}s, last active {self.active_duration:.1f}s, {len(self._subscribers)} subscribers)"
+
+    @final
+    def __repr__(self):
+        return f"<{self.__class__.__name__} {self}>"
+
+    @property
+    def has_result(self) -> bool:
+        return self._result is not None
+
+    @property
+    def result(self) -> ResultT:
+        assert self._result is not None, f"no result for {self!r}"
+        return self._result
+
+    @property
+    def alive_duration(self) -> float:
+        return (monons() - self._created_at) / 1_000_000
+
+    @property
+    def active_duration(self) -> float:
+        return (monons() - self._last_active_at) / 1_000_000
+
+    @abc.abstractmethod
+    async def connect(self, session: Session) -> ResultT:
+        """Execute the query."""
+        ...
+
+    @abc.abstractmethod
+    def on_commit(
+        self,
+        graph: NodeGraphLike,
+        data_graph: NodeDataGraph,
+        edits: list[EditData],
+        cascaded_edits: list[EditData],
+        epoch: int,
+    ):
+        """Update result according to the commit, updating subscribers (maybe asynchronously)."""
+        ...
+
+    @final
+    def _do_notify(self, update: UpdateT):
+        for subscriber in self._subscribers:
+            subscriber._updates.put_nowait(update)
+
+
+class ConnectionSubscriber[UpdateT: Any]:
+    """An active subscriber to the query."""
+
+    def __init__(self, connection: Connection, subject: Subject, since_epoch: int):
+        self.connection = connection
+        self.subject = subject
+        self._since_epoch = since_epoch
+        self._subscribed_at = monons()
+        self._updates: asyncio.Queue[UpdateT] = asyncio.Queue()
+
+    @property
+    def active_duration(self) -> float:
+        return (monons() - self._subscribed_at) / 1_000_000
+
+    def __str__(self):
+        return f"{self.subject!r} on {self.connection!r}"
+
+    def __repr__(self):
+        return f"<{self.__class__.__name__} {self}>"
+
+    async def watch(self) -> AsyncIterator[UpdateT]:
+        while True:
+            update = await self._updates.get()
+            yield update
 
 
 @dataclass(slots=True)
-class EditWatcher:
-    """An active subscriber to the watch_edits server stream."""
+class GetResult:
+    graph: NodeDataGraph
 
-    subject: Subject
-    node_types: bittuple[NodeType]
-    filters: Mapping[NodeType, Expression]
-    sink: asyncio.Queue[_Commit] = field(default_factory=asyncio.Queue)
 
-    def __str__(self):
-        return f"{self.subject}: {'|'.join(n.bench_name for n in self.node_types.tuple)} [{self.filters}]"
+@dataclass(slots=True)
+class WatchEditsUpdate:
+    edits: list[EditData]
+    cascaded_edits: list[EditData]
+    epoch: int
+
+
+class GetConnection(Connection[GetResult, WatchEditsUpdate]):
+    @override
+    async def connect(self, session: Session) -> GetResult:
+        fetch = await session.tx._read_connection.fetch(self.query, FetchOptions(count=False))
+        graph = NodeDataGraph(fetch.nodes)
+        result = GetResult(graph)
+        self._result = result
+        return result
+
+
+@dataclass(slots=True)
+class SearchResult:
+    graph: NodeDataGraph
+    roots: list[NodeReferenceData]
+    cursors: list[str]
+    start_cursor: str | None
+    total: int | None
+
+
+class SearchConnection(Connection):
+    @override
+    async def connect(self, session: Session) -> SearchResult:
+        fetch = await session.tx._read_connection.fetch(self.query, FetchOptions(count=True))
+        graph = NodeDataGraph(fetch.nodes)
+        result = SearchResult(
+            graph=graph,
+            roots=list(fetch.roots),
+            cursors=list(fetch.cursors),
+            start_cursor=fetch.start_cursor,
+            total=fetch.total,
+        )
+        self._result = result
+        return result
+
+
+@dataclass(slots=True)
+class AggregationResult:
+    aggregation: AggregationData
+
+
+@dataclass(slots=True)
+class AggregationUpdate:
+    aggregation: AggregationData
+
+
+class AggregationConnection(Connection[AggregationResult, AggregationUpdate]):
+    @override
+    async def connect(self, session: Session) -> AggregationResult:
+        aggregate = await session.tx._read_connection.aggregate(self.query)
+        result = AggregationResult(aggregation=aggregate.aggregation)
+        self._result = result
+        return result
+
+
+class QueryConnector:
+    """Connect and cache queries to the graph."""
+
+    def __init__(self):
+        self._connections_by_hash: dict[int, Connection] = {}
+        self._connections_by_token: dict[str, Connection] = {}
+        self._lock_by_hash: dict[int, asyncio.Lock] = {}
+
+    async def connect[ConnectionT: Connection, ResultT: Any](
+        self,
+        query: QueryBuilder,
+        session: Session,
+        query_t: type[ConnectionT],
+        result_t: type[ResultT],
+        *,
+        cache: bool,
+    ) -> tuple[ConnectionT, ResultT]:
+        """Gets or creates a connection for the query, using (and populating) the cache if allowed."""
+
+        raise NotImplementedError("nocheckin: connect")
+
+    async def get(
+        self, query: QueryBuilder, session: Session, *, cache: bool
+    ) -> tuple[GetConnection, GetResult]:
+        return await self.connect(query, session, GetConnection, GetResult, cache=cache)
+
+    async def search(
+        self, query: QueryBuilder, session: Session, *, cache: bool
+    ) -> tuple[SearchConnection, SearchResult]:
+        return await self.connect(query, session, SearchConnection, SearchResult, cache=cache)
+
+    async def aggregate(
+        self, query: QueryBuilder, session: Session, *, cache: bool
+    ) -> tuple[AggregationConnection, AggregationResult]:
+        return await self.connect(
+            query, session, AggregationConnection, AggregationResult, cache=cache
+        )
+
+    async def subscribe[ConnectionT: Connection](
+        self,
+        subject: Subject,
+        connection_t: type[ConnectionT],
+        connection_token: str,
+        since_epoch: int,
+    ) -> ConnectionT:
+        """Subscribes to an existing graph connection."""
+        raise NotImplementedError("nocheckin: subscribe")
+
+    def on_commit(
+        self,
+        graph: NodeGraphLike,
+        data_graph: NodeDataGraph,
+        edits: list[EditData],
+        cascaded_edits: list[EditData],
+        epoch: int,
+    ):
+        """Updates all active connections with a new commit (maybe async)."""
+        for connection in self._connections_by_hash.values():
+            connection.on_commit(graph, data_graph, edits, cascaded_edits, epoch)
 
 
 class GraphIoServiceBase(ServiceBase, GraphIoBase):
@@ -108,14 +303,13 @@ class GraphIoServiceBase(ServiceBase, GraphIoBase):
     ):
         super().__init__(logger=logger, tracer=tracer)
         self.epoch: int = 0
-        self.recent_transactions: deque[_Commit] = deque(maxlen=TRANSACTION_BUFFER_SIZE)
         self.bench_id: UUID | None = bench_id
         self.scope = GraphScope(bench_id=uuid_to_str(bench_id))
         self.node_types: bittuple[NodeType] = node_types
-        self.watchers: list[EditWatcher] = []
         self.tx_lock: asyncio.Lock = CriticalLock(
             name=f"{self.__class__.__name__}_{bench_id or ''}"
         )
+        self.connector = QueryConnector()
 
     def get_engines(self) -> tuple[StoreEngine, ...]:
         """Gets the store engines available to this subgraph. Implemented in the actual service."""
@@ -149,7 +343,6 @@ class GraphIoServiceBase(ServiceBase, GraphIoBase):
     @override
     async def get_nodes(self, subject: Subject, request: "GetNodesRequest") -> "GetNodesResponse":
         # parse query & fetch
-        queries: list[QueryBuilder] = []
         async with self.request_session() as session:
             with self.tracer.start_as_current_span("graph.get.parse"):
                 roots = tuple(
@@ -166,30 +359,32 @@ class GraphIoServiceBase(ServiceBase, GraphIoBase):
                 roots_by_type: dict[NodeType, list[NodeReference]] = group_by(
                     roots, lambda r: r.type
                 )
+                if len(roots_by_type) > 1:
+                    raise GRPCError(GRPCStatus.INVALID_ARGUMENT, "roots must be of the same type")
+                node_type = next(iter(roots_by_type.keys()))
 
-            with self.tracer.start_as_current_span("graph.get.fetch"):
-                graph = NodeDataGraph()
-                for root_node_type, root_node_references in roots_by_type.items():
-                    root_ids = tuple(r.id for r in root_node_references)
-                    query = QueryBuilder(
-                        node_type=wiring.unpack_enum(NodeType, root_node_type),
-                        filter=C(ConditionalOp.IN, property=Node.id, value=root_ids),
-                        options=adapt_read_options(subject, root_node_type, options),
-                    )
-                    queries.append(query)
-                    result = await session.tx._read_connection.fetch(
-                        query, FetchOptions(count=False)
-                    )
-                    graph.extend(result.nodes)
-        if any(cast(str, root.id) not in graph for root in request.roots):
-            missing_roots = tuple(root for root in roots if str(root.id) not in graph)
+            with self.tracer.start_as_current_span("graph.get.fetch") as span:
+                root_ids = tuple(r.id for r in roots)
+                query = QueryBuilder(
+                    node_type=wiring.unpack_enum(NodeType, node_type),
+                    filter=C(ConditionalOp.IN, property=Node.id, value=root_ids),
+                    options=adapt_read_options(subject, node_type, options),
+                )
+                connection, result = await self.connector.get(
+                    query, session, cache=not request.no_cache
+                )
+                span.set_attributes(
+                    {"connection_hash": connection.hash, "connection_token": connection.token}
+                )
+        if any(cast(str, root.id) not in result.graph for root in request.roots):
+            missing_roots = tuple(root for root in roots if str(root.id) not in result.graph)
             raise GRPCError(GRPCStatus.NOT_FOUND, f"roots not found: {missing_roots}")
 
         # check access
         with self.tracer.start_as_current_span("graph.get.check_access"):
-            matrix = generate_access_matrix(subject, graph)
+            matrix = generate_access_matrix(subject, result.graph)
             decision, accesses, adapted_nodes = evaluate_and_adapt_read(
-                matrix, graph, required_nodes=request.roots
+                matrix, result.graph, required_nodes=request.roots
             )
             if decision != PolicyEffect.ALLOW:
                 raise AccessError(accesses)
@@ -197,15 +392,14 @@ class GraphIoServiceBase(ServiceBase, GraphIoBase):
         self.logger.info(
             "graph.get",
             subject=subject,
-            queries=queries,
-            graph=graph,
+            query=query,
+            connection=connection,
+            graph=result.graph,
             epoch=self.epoch,
             span="current",
         )
         return GetNodesResponse(
-            nodes=[wiring.wrap_some_node(n) for n in adapted_nodes],
-            access=cast(AccessMatrixData, matrix._to_data()),
-            epoch=self.epoch,
+            nodes=[wiring.wrap_some_node(n) for n in adapted_nodes], epoch=self.epoch
         )
 
     @override
@@ -213,7 +407,6 @@ class GraphIoServiceBase(ServiceBase, GraphIoBase):
         self, subject: Subject, request: "SearchNodesRequest"
     ) -> "SearchNodesResponse":
         # parse query & fetch
-        roots: list[NodeReferenceData] = []
         async with self.request_session() as session:
             with self.tracer.start_as_current_span("graph.search.parse"):
                 node_type: NodeType = wiring.unpack_enum(NodeType, request.node_type)
@@ -230,18 +423,19 @@ class GraphIoServiceBase(ServiceBase, GraphIoBase):
                     node_type=node_type, filter=filter, options=adapted_options, sort=sort
                 )
 
-            with self.tracer.start_as_current_span("graph.search.fetch"):
-                result = await session.tx._read_connection.fetch(
-                    query, FetchOptions(count=request.count or False)
+            with self.tracer.start_as_current_span("graph.search.fetch") as span:
+                connection, result = await self.connector.search(
+                    query, session, cache=not request.no_cache
                 )
-                roots.extend(result.roots)
-                graph = NodeDataGraph(result.nodes)
+                span.set_attributes(
+                    {"connection_hash": connection.hash, "connection_token": connection.token}
+                )
 
         # check access
         with self.tracer.start_as_current_span("graph.search.check_access"):
-            matrix = generate_access_matrix(subject, graph)
+            matrix = generate_access_matrix(subject, result.graph)
             decision, accesses, adapted_nodes = evaluate_and_adapt_read(
-                matrix, graph, required_nodes=request.bases
+                matrix, result.graph, required_nodes=request.bases
             )
             if decision != PolicyEffect.ALLOW:
                 raise AccessError(accesses)
@@ -250,17 +444,17 @@ class GraphIoServiceBase(ServiceBase, GraphIoBase):
             "graph.search",
             subject=subject,
             query=query,
-            graph=graph,
+            connection=connection,
+            graph=result.graph,
             epoch=self.epoch,
             span="current",
         )
         return SearchNodesResponse(
-            roots=roots,
+            roots=result.roots,
             nodes=[wiring.wrap_some_node(n) for n in adapted_nodes],
             cursors=list(result.cursors),
             start_cursor=result.start_cursor,
             total=result.total,
-            access=cast(AccessMatrixData, matrix._to_data()),
             epoch=self.epoch,
         )
 
@@ -282,8 +476,13 @@ class GraphIoServiceBase(ServiceBase, GraphIoBase):
                     aggregation=aggregation,
                 )
 
-            with self.tracer.start_as_current_span("graph.aggregate.fetch"):
-                result = await session.tx._read_connection.aggregate(query)
+            with self.tracer.start_as_current_span("graph.aggregate.fetch") as span:
+                connection, result = await self.connector.aggregate(
+                    query, session, cache=not request.no_cache
+                )
+                span.set_attributes(
+                    {"connection_hash": connection.hash, "connection_token": connection.token}
+                )
 
         # TODO :Security!: check aggregation access
 
@@ -307,47 +506,15 @@ class GraphIoServiceBase(ServiceBase, GraphIoBase):
     async def watch_edits(
         self, subject: Subject, request: "WatchEditsRequest"
     ) -> AsyncIterator["WatchEditsResponse"]:
-        if not request.node_types:
-            raise GRPCError(GRPCStatus.INVALID_ARGUMENT, "no node types provided")
-        node_types = bittuple(*tuple(wiring.unpack_enum(NodeType, t) for t in request.node_types))
-        filters: dict[NodeType, Expression] = {
-            wiring.unpack_enum(NodeType, k): cast(Expression, wiring.unpack_object_validate(v))
-            for k, v in request.filters.items()
-        }
-        watcher = EditWatcher(subject=subject, node_types=node_types, filters=filters)
-        self.watchers.append(watcher)
+        raise NotImplementedError("nocheckin: watch_edits")
+        yield
 
-        try:
-            # replay recent epochs
-            if request.since_epoch is not None and request.since_epoch > self.epoch:
-                raise GRPCError(GRPCStatus.INVALID_ARGUMENT, "can't watch from the future")
-            if request.since_epoch is not None:
-                num_epochs_to_replay = self.epoch - request.since_epoch
-                if num_epochs_to_replay > TRANSACTION_BUFFER_SIZE:
-                    raise GRPCError(GRPCStatus.INVALID_ARGUMENT, "too much to replay")
-                commits_to_replay = []
-                for epoch, edits, cascaded_edits in reversed(self.recent_transactions):
-                    if epoch <= request.since_epoch:
-                        break
-                    edits = self._filter_and_adapt_edits(watcher, edits)
-                    cascaded_edits = self._filter_and_adapt_edits(watcher, cascaded_edits)
-                    commits_to_replay.append((epoch, edits, cascaded_edits))
-                if commits_to_replay:
-                    self.logger.info(
-                        "graph.watch.replay", watcher=watcher, commits=commits_to_replay
-                    )
-                    for epoch, edits, cascaded_edits in commits_to_replay:
-                        yield WatchEditsResponse(
-                            edits=edits, cascaded_edits=cascaded_edits, epoch=epoch
-                        )
-
-            # listen for new epochs
-            self.logger.info("graph.watch", watcher=watcher, span="current")
-            while True:
-                epoch = await watcher.sink.get()
-                yield WatchEditsResponse(edits=epoch.edits, epoch=epoch.epoch)
-        finally:
-            self.watchers.remove(watcher)
+    @override
+    async def watch_aggregation(
+        self, subject: Subject, request: WatchAggregationRequest
+    ) -> AsyncIterator[WatchAggregationResponse]:
+        raise NotImplementedError("nocheckin: watch_aggregation")
+        yield
 
     @override
     async def commit_transaction(
@@ -436,7 +603,11 @@ class GraphIoServiceBase(ServiceBase, GraphIoBase):
             # handle on commit
             self.epoch = epoch
             await self.on_commit(
-                graph=unpacked_graph, edits=edits, cascaded_edits=cascaded_edits, epoch=self.epoch
+                graph=unpacked_graph,
+                data_graph=data_graph,
+                edits=edits,
+                cascaded_edits=cascaded_edits,
+                epoch=self.epoch,
             )
 
         self.logger.info(
@@ -487,7 +658,7 @@ class GraphIoServiceBase(ServiceBase, GraphIoBase):
         # handle on commit
         self.epoch = session.epoch
         await self.on_commit(
-            edit_graph, edits=edits, cascaded_edits=cascaded_edits, epoch=self.epoch
+            edit_graph, data_graph, edits=edits, cascaded_edits=cascaded_edits, epoch=self.epoch
         )
         return edits, cascaded_edits
 
@@ -520,43 +691,16 @@ class GraphIoServiceBase(ServiceBase, GraphIoBase):
         """Extend a commit in a request session. Returns any new edits, but must add them to session."""
         return []  # do nothing by default
 
-    @final
     async def on_commit(
         self,
         graph: NodeGraphLike,
+        data_graph: NodeDataGraph,
         edits: list[EditData],
         cascaded_edits: list[EditData],
         epoch: int,
     ):
         """Handle a commit in the request session."""
-        self.recent_transactions.append(_Commit(self.epoch, edits, cascaded_edits))
-
-        # notify watchers
-        for watcher in self.watchers:
-            adapted_edits = self._filter_and_adapt_edits(watcher, edits)
-            adapted_cascaded_edits = self._filter_and_adapt_edits(watcher, cascaded_edits)
-            if adapted_edits:
-                watcher.sink.put_nowait(_Commit(self.epoch, adapted_edits, adapted_cascaded_edits))
-
-        await self._on_commit(graph=graph, edits=edits, cascaded_edits=cascaded_edits)
-
-    async def _on_commit(
-        self, graph: NodeGraphLike, edits: list[EditData], cascaded_edits: list[EditData]
-    ):
-        """Handle a commit in the request session."""
-        pass  # do nothing by default
-
-    @final
-    def _filter_and_adapt_edits(
-        self, watcher: EditWatcher, edits: list[EditData]
-    ) -> list[EditData]:
-        # TODO :Broken :Security!: adapt graph edits to watcher's access
-        adapted_edits = []
-        for edit in edits:
-            node_type = wiring.unpack_enum(NodeType, edit.node_ptr.type)
-            if node_type in watcher.node_types:
-                adapted_edits.append(edit)
-        return adapted_edits
+        self.connector.on_commit(graph, data_graph, edits, cascaded_edits, epoch)
 
 
 class CommitScope(NamedTuple):

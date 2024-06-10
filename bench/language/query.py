@@ -410,6 +410,10 @@ class QueryBuilder(
                 (self._node_type,), self._options.ancestor_types, self._options.descendant_types
             )
 
+    @property
+    def is_aggregation(self) -> bool:
+        return self._aggregation is not None
+
     #
     # Builder
     #

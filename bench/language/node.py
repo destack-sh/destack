@@ -803,7 +803,15 @@ class BuiltinObject[ObjectDataT: AnyNodeData | AnyStructData](abc.ABC):
     def __str__(self):
         return self.__content_str__()
 
-    def equals_content(self, other: Any) -> bool:
+    def __eq__(self, other):
+        if other is self:
+            return True
+        elif other is None:
+            return False
+        else:
+            return self._equals_content(other)
+
+    def _equals_content(self, other: Any) -> bool:
         """Checks if all wired properties of the two structs are equal (recursively)."""
         if other is None or self.metatype != other.metatype:
             return False
@@ -819,13 +827,12 @@ class BuiltinObject[ObjectDataT: AnyNodeData | AnyStructData](abc.ABC):
                 return False
         return True
 
-    def __eq__(self, other):
-        if other is self:
-            return True
-        elif other is None:
-            return False
-        else:
-            return self.equals_content(other)
+    def __hash__(self):
+        """Hash of content properties."""
+        content_props = tuple(
+            getattr(self, prop.name) for prop in self.__wired_properties__.values() if prop.id < 30
+        )
+        return hash(content_props)
 
     def _do_get(self, item):
         """Called if an attribute doesn't exist in __dict__ or the usual places."""
@@ -1169,6 +1176,7 @@ EDIT_SUBJECT_TYPES = (NodeType.USER, NodeType.SERVER, NodeType.RUN)
 class ReadInfo:
     options: "ReadOptions | None"
     epoch: int | None
+    query_id: str | None
     properties: bitarray | None = None
     graph: NodeDataGraph | None = None
 
@@ -1355,9 +1363,11 @@ class Node[NodeDataT: AnyNodeData](BuiltinObject[NodeDataT], abc.ABC):
         return self._read_info.graph
 
     def __eq__(self, other: Any):
+        """Equals node identity."""
         return type(self) == type(other) and (self.id == other.id or self is other)
 
     def __hash__(self):
+        """Hash node identity."""
         if "ck" in self.__properties__:
             # 'id' may not yet be assigned
             return hash((type(self), self.id, getattr(self, "ck")))
