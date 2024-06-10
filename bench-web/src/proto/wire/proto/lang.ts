@@ -483,6 +483,10 @@ export interface ExpressionData {
      * @generated from protobuf field: optional symbolx.bench.SortMode sort_mode = 38;
      */
     sortMode?: SortMode;
+    /**
+     * @generated from protobuf field: optional float tolerance = 39;
+     */
+    tolerance?: number;
 }
 /**
  * A reference to a file stored somewhere.
@@ -1543,7 +1547,7 @@ export interface TextSpanData {
 }
 /**
  * A simple constraint on the values of a type. :TypeConstraint
- * NOTE :Architecture: ideally all type constraints should be done in expressions?
+ * Basically a more restricted form of a condition Expression.
  *
  * @generated from protobuf message symbolx.bench.TypeConstraintData
  */
@@ -6202,17 +6206,17 @@ export enum AggregationOp {
      */
     SUM = 402,
     /**
-     * @generated from protobuf enum value: AGGREGATION_OP_AVERAGE = 403;
+     * @generated from protobuf enum value: AGGREGATION_OP_MIN = 403;
      */
-    AVERAGE = 403,
+    MIN = 403,
     /**
-     * @generated from protobuf enum value: AGGREGATION_OP_MIN = 404;
+     * @generated from protobuf enum value: AGGREGATION_OP_MAX = 404;
      */
-    MIN = 404,
+    MAX = 404,
     /**
-     * @generated from protobuf enum value: AGGREGATION_OP_MAX = 405;
+     * @generated from protobuf enum value: AGGREGATION_OP_AVERAGE = 405;
      */
-    MAX = 405,
+    AVERAGE = 405,
     /**
      * @generated from protobuf enum value: AGGREGATION_OP_MEDIAN = 406;
      */
@@ -7222,17 +7226,17 @@ export enum ConditionalOp {
      */
     LESS_THAN_OR_EQUALS = 315,
     /**
-     * @generated from protobuf enum value: CONDITIONAL_OP_MATCHES = 320;
+     * @generated from protobuf enum value: CONDITIONAL_OP_MATCHES_REGEX = 320;
      */
-    MATCHES = 320,
+    MATCHES_REGEX = 320,
     /**
      * @generated from protobuf enum value: CONDITIONAL_OP_STARTS_WITH = 321;
      */
     STARTS_WITH = 321,
     /**
-     * @generated from protobuf enum value: CONDITIONAL_OP_REGEX = 322;
+     * @generated from protobuf enum value: CONDITIONAL_OP_ENDS_WITH = 322;
      */
-    REGEX = 322,
+    ENDS_WITH = 322,
     /**
      * @generated from protobuf enum value: CONDITIONAL_OP_CONTAINS = 330;
      */
@@ -7669,6 +7673,46 @@ export enum ExpressionOp {
      */
     UNSPECIFIED = 0,
     /**
+     * @generated from protobuf enum value: EXPRESSION_OP_VALUE = 100;
+     */
+    VALUE = 100,
+    /**
+     * @generated from protobuf enum value: EXPRESSION_OP_NONE = 101;
+     */
+    NONE = 101,
+    /**
+     * @generated from protobuf enum value: EXPRESSION_OP_TRUE = 102;
+     */
+    TRUE = 102,
+    /**
+     * @generated from protobuf enum value: EXPRESSION_OP_FALSE = 103;
+     */
+    FALSE = 103,
+    /**
+     * @generated from protobuf enum value: EXPRESSION_OP_ADD = 200;
+     */
+    ADD = 200,
+    /**
+     * @generated from protobuf enum value: EXPRESSION_OP_SUBTRACT = 201;
+     */
+    SUBTRACT = 201,
+    /**
+     * @generated from protobuf enum value: EXPRESSION_OP_MULTIPLY = 202;
+     */
+    MULTIPLY = 202,
+    /**
+     * @generated from protobuf enum value: EXPRESSION_OP_DIVIDE = 203;
+     */
+    DIVIDE = 203,
+    /**
+     * @generated from protobuf enum value: EXPRESSION_OP_MODULO = 204;
+     */
+    MODULO = 204,
+    /**
+     * @generated from protobuf enum value: EXPRESSION_OP_POWER = 205;
+     */
+    POWER = 205,
+    /**
      * @generated from protobuf enum value: EXPRESSION_OP_NOT = 301;
      */
     NOT = 301,
@@ -7705,17 +7749,17 @@ export enum ExpressionOp {
      */
     LESS_THAN_OR_EQUALS = 315,
     /**
-     * @generated from protobuf enum value: EXPRESSION_OP_MATCHES = 320;
+     * @generated from protobuf enum value: EXPRESSION_OP_MATCHES_REGEX = 320;
      */
-    MATCHES = 320,
+    MATCHES_REGEX = 320,
     /**
      * @generated from protobuf enum value: EXPRESSION_OP_STARTS_WITH = 321;
      */
     STARTS_WITH = 321,
     /**
-     * @generated from protobuf enum value: EXPRESSION_OP_REGEX = 322;
+     * @generated from protobuf enum value: EXPRESSION_OP_ENDS_WITH = 322;
      */
-    REGEX = 322,
+    ENDS_WITH = 322,
     /**
      * @generated from protobuf enum value: EXPRESSION_OP_CONTAINS = 330;
      */
@@ -7753,17 +7797,17 @@ export enum ExpressionOp {
      */
     SUM = 402,
     /**
-     * @generated from protobuf enum value: EXPRESSION_OP_AVERAGE = 403;
+     * @generated from protobuf enum value: EXPRESSION_OP_MIN = 403;
      */
-    AVERAGE = 403,
+    MIN = 403,
     /**
-     * @generated from protobuf enum value: EXPRESSION_OP_MIN = 404;
+     * @generated from protobuf enum value: EXPRESSION_OP_MAX = 404;
      */
-    MIN = 404,
+    MAX = 404,
     /**
-     * @generated from protobuf enum value: EXPRESSION_OP_MAX = 405;
+     * @generated from protobuf enum value: EXPRESSION_OP_AVERAGE = 405;
      */
-    MAX = 405,
+    AVERAGE = 405,
     /**
      * @generated from protobuf enum value: EXPRESSION_OP_MEDIAN = 406;
      */
@@ -8038,7 +8082,11 @@ export enum FunctionalOp {
     /**
      * @generated from protobuf enum value: FUNCTIONAL_OP_MODULO = 204;
      */
-    MODULO = 204
+    MODULO = 204,
+    /**
+     * @generated from protobuf enum value: FUNCTIONAL_OP_POWER = 205;
+     */
+    POWER = 205
 }
 /**
  * @generated from protobuf enum symbolx.bench.IconKind
@@ -8137,17 +8185,17 @@ export enum LiteralOp {
      */
     VALUE = 100,
     /**
-     * @generated from protobuf enum value: LITERAL_OP_TRUE = 101;
+     * @generated from protobuf enum value: LITERAL_OP_NONE = 101;
      */
-    TRUE = 101,
+    NONE = 101,
     /**
-     * @generated from protobuf enum value: LITERAL_OP_FALSE = 102;
+     * @generated from protobuf enum value: LITERAL_OP_TRUE = 102;
      */
-    FALSE = 102,
+    TRUE = 102,
     /**
-     * @generated from protobuf enum value: LITERAL_OP_NONE = 103;
+     * @generated from protobuf enum value: LITERAL_OP_FALSE = 103;
      */
-    NONE = 103
+    FALSE = 103
 }
 /**
  * @generated from protobuf enum symbolx.bench.LogKind
@@ -11398,7 +11446,8 @@ class ExpressionData$Type extends MessageType<ExpressionData> {
             { no: 32, name: "property_ptr", kind: "message", T: () => PropertyReferenceData },
             { no: 35, name: "clauses", kind: "message", repeat: 1 /*RepeatType.PACKED*/, T: () => ExpressionData },
             { no: 36, name: "value_packed", kind: "message", T: () => Struct },
-            { no: 38, name: "sort_mode", kind: "enum", opt: true, T: () => ["symbolx.bench.SortMode", SortMode, "SORT_MODE_"] }
+            { no: 38, name: "sort_mode", kind: "enum", opt: true, T: () => ["symbolx.bench.SortMode", SortMode, "SORT_MODE_"] },
+            { no: 39, name: "tolerance", kind: "scalar", opt: true, T: 2 /*ScalarType.FLOAT*/ }
         ]);
     }
     create(value?: PartialMessage<ExpressionData>): ExpressionData {
@@ -11449,6 +11498,9 @@ class ExpressionData$Type extends MessageType<ExpressionData> {
                 case /* optional symbolx.bench.SortMode sort_mode */ 38:
                     message.sortMode = reader.int32();
                     break;
+                case /* optional float tolerance */ 39:
+                    message.tolerance = reader.float();
+                    break;
                 default:
                     let u = options.readUnknownField;
                     if (u === "throw")
@@ -11494,6 +11546,9 @@ class ExpressionData$Type extends MessageType<ExpressionData> {
         /* optional symbolx.bench.SortMode sort_mode = 38; */
         if (message.sortMode !== undefined)
             writer.tag(38, WireType.Varint).int32(message.sortMode);
+        /* optional float tolerance = 39; */
+        if (message.tolerance !== undefined)
+            writer.tag(39, WireType.Bit32).float(message.tolerance);
         let u = options.writeUnknownFields;
         if (u !== false)
             (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
@@ -25581,6 +25636,7 @@ export enum ExpressionProperty {
   clauses = 35,
   valuePacked = 36,
   sortMode = 38,
+  tolerance = 39,
 }
 
 export enum AggregationProperty {
@@ -26223,6 +26279,7 @@ export const ExpressionDataInfo: Record<ExpressionProperty, PropertyInfo> = {
   [ExpressionProperty.clauses]: { id: 35, name: 'clauses', component: ObjectType.EXPRESSION, kind: 'reference', primitiveType: PrimitiveType.JSON, isList: true, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.EXPRESSION },
   [ExpressionProperty.valuePacked]: { id: 36, name: 'value_packed', component: ObjectType.EXPRESSION, kind: 'primitive', primitiveType: PrimitiveType.JSON, isInternal: true, isRuntime: true, isWired: true, isStored: true, isValuePacked: true },
   [ExpressionProperty.sortMode]: { id: 38, name: 'sort_mode', component: ObjectType.EXPRESSION, enumType: EnumType.SORT_MODE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRuntime: true, isWired: true, isStored: true },
+  [ExpressionProperty.tolerance]: { id: 39, name: 'tolerance', component: ObjectType.EXPRESSION, kind: 'primitive', primitiveType: PrimitiveType.FLOAT32, isRuntime: true, isWired: true, isStored: true },
 }
 export const AggregationDataInfo: Record<AggregationProperty, PropertyInfo> = {
   [AggregationProperty.metatype]: { id: 1, name: 'metatype', component: ObjectType.AGGREGATION, enumType: EnumType.OBJECT_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isComputed: true, isWired: true },

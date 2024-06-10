@@ -12,7 +12,7 @@ from bench.utils.utils import frozendict, get_from_env
 if typing.TYPE_CHECKING:
     from bench.language import Bench, Run, Session, Transaction
 
-VERSION = "2024.06.10.0"
+VERSION = "2024.06.10.1"
 REVISION_PENDING = -1
 TK_LENGTH_BYTES = 8
 TK_LENGTH_B64 = 12  # 1.5 * TK_LENGTH_BYTES (must be integer)
@@ -855,10 +855,14 @@ class ExpressionKind(IdEnum):
 
 @enum_(EnumType.LITERAL_OP)
 class LiteralOp(IdEnum):
-    VALUE = 100
-    TRUE = 101
-    FALSE = 102
-    NONE = 103
+    VALUE = 100  # any freeform value
+    NONE = 101
+    TRUE = 102
+    FALSE = 103
+
+    @property
+    def kind(self) -> "ExpressionKind":
+        return ExpressionKind.LITERAL
 
 
 @enum_(EnumType.FUNCTIONAL_OP)
@@ -869,7 +873,12 @@ class FunctionalOp(IdEnum):
     MULTIPLY = 202
     DIVIDE = 203
     MODULO = 204
+    POWER = 205
     # ...
+
+    @property
+    def kind(self) -> "ExpressionKind":
+        return ExpressionKind.FUNCTIONAL
 
 
 @enum_(EnumType.CONDITIONAL_OP)
@@ -886,9 +895,9 @@ class ConditionalOp(IdEnum):
     LESS_THAN = 314
     LESS_THAN_OR_EQUALS = 315
     # string comparison
-    MATCHES = 320
+    MATCHES_REGEX = 320
     STARTS_WITH = 321
-    REGEX = 322
+    ENDS_WITH = 322
     # containment
     CONTAINS = 330
     NOT_CONTAINS = 331
@@ -910,9 +919,9 @@ class AggregationOp(IdEnum):
     EXISTS = 400
     COUNT = 401
     SUM = 402
-    AVERAGE = 403
-    MIN = 404
-    MAX = 405
+    MIN = 403
+    MAX = 404
+    AVERAGE = 405
     MEDIAN = 406
     HISTOGRAM = 407
 
@@ -941,6 +950,8 @@ class SortMode(IdEnum):
 
 
 EXPRESSION_OPS_BY_KIND: Mapping[ExpressionKind, bittuple["ExpressionOp"]] = {  # type: ignore
+    ExpressionKind.LITERAL: bittuple(*LiteralOp),
+    ExpressionKind.FUNCTIONAL: bittuple(*FunctionalOp),
     ExpressionKind.CONDITIONAL: bittuple(*ConditionalOp),
     ExpressionKind.AGGREGATION: bittuple(*AggregationOp),
     ExpressionKind.SORT: bittuple(*SortOp),
@@ -952,9 +963,11 @@ EXPRESSION_KIND_BY_OP: Mapping["ExpressionOp", ExpressionKind] = {  # type: igno
 }
 
 if typing.TYPE_CHECKING:
-    ExpressionOp = ConditionalOp | AggregationOp | SortOp
+    ExpressionOp = LiteralOp | FunctionalOp | ConditionalOp | AggregationOp | SortOp
 else:
-    ExpressionOp = IdEnum.combine("ExpressionOp", ConditionalOp, AggregationOp, SortOp)
+    ExpressionOp = IdEnum.combine(
+        "ExpressionOp", LiteralOp, FunctionalOp, ConditionalOp, AggregationOp, SortOp
+    )
     ExpressionOp.kind = property(lambda self: EXPRESSION_KIND_BY_OP[self])
     enum_(EnumType.EXPRESSION_OP)(ExpressionOp)
 
