@@ -56,7 +56,7 @@ from bench.language.setup import (
 from bench.language.transaction import pack_node_delta, unpack_node_delta
 from bench.language.value import pack_builtin_object_data, unpack_builtin_object_data
 from bench.proto import wire, wiring
-from bench.proto.wire import AnyNodeData, EditData, IdEnum, NodeReferenceData
+from bench.proto.wire import AnyNodeData, EditData, GraphScope, IdEnum, NodeReferenceData
 from bench.proto.wiring import PROTO_CLASS_BY_TYPE
 from bench.sql import schema
 from bench.sql.client import get_pg_crypto_key
@@ -1444,8 +1444,8 @@ async def pg_get_node_graph(
     root_type: NodeType,
     roots: tuple[UUID, ...] | tuple[AnyNodeData, ...],
     options: ReadOptions,
-    _graph: NodeDataGraph | None = None,
-) -> NodeDataGraph:
+    visited_graph: NodeDataGraph,
+) -> None:
     """
     Reads regular nodes from the given PG database.
     Returns a graph of nodes that *may* contain the requested nodes.
@@ -1453,7 +1453,6 @@ async def pg_get_node_graph(
     NOTE :Performance: we could read all package contents with package_id=x if we know it's a package query.
     """
     assert roots, "no roots to select"
-    visited_graph = _graph if _graph is not None else NodeDataGraph()
 
     # get roots
     if isinstance(roots[0], UUID):
@@ -1466,7 +1465,7 @@ async def pg_get_node_graph(
             properties=options.select(root_type),
         )
         if not roots_result.nodes:
-            return visited_graph
+            return
         root_nodes = roots_result.nodes
     else:  # already got nodes
         root_nodes = cast(tuple[AnyNodeData, ...], roots)
@@ -1533,13 +1532,12 @@ async def pg_get_node_graph(
             for node in layer.nodes:
                 visited_graph.add(node)
 
-    return visited_graph
-
 
 @_trace_pg_span
 async def pg_search_node_graph(
     *,
     cur: psycopg.AsyncCursor,
+    scope: GraphScope,
     node_type: NodeType,
     options: ReadOptions,
     filter: Expression | None = None,
@@ -1549,6 +1547,7 @@ async def pg_search_node_graph(
     after: str | None = None,
 ) -> tuple[PgSelectNodesDataResult, NodeDataGraph]:
     """Select root nodes and then read the graph of nodes from the given PG database."""
+    node_types = tuple({node_type, *options.ancestor_types, *options.descendant_types})
     if options.ancestor_types or options.descendant_types:
         # split into two passes if we have other nodes to fetch
         roots = await pg_get_nodes(
@@ -1561,15 +1560,17 @@ async def pg_search_node_graph(
             after=after,
             properties=options.select(node_type),
         )
+        visited_graph = NodeDataGraph(scope, node_types)
         if not roots.nodes:
-            return roots, NodeDataGraph()
-        graph = await pg_get_node_graph(
+            return roots, visited_graph
+        await pg_get_node_graph(
             cur=cur,
             root_type=node_type,
             roots=roots.nodes,
             options=options,
+            visited_graph=visited_graph,
         )
-        return roots, graph
+        return roots, visited_graph
     else:
         # otherwise just select in one go
         roots = await pg_get_nodes(
@@ -1582,7 +1583,7 @@ async def pg_search_node_graph(
             after=after,
             properties=options.select(node_type),
         )
-        graph = NodeDataGraph(nodes=roots.nodes)
+        graph = NodeDataGraph(scope, node_types, nodes=roots.nodes)
         return roots, graph
 
 

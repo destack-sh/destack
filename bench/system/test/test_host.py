@@ -15,6 +15,7 @@ from bench.language.connection import RemoteEngine
 from bench.language.const import (
     BENCH_NODE_TYPES,
     IN_BENCH_NODE_TYPES,
+    NODE_TYPES,
     PUBLIC_NODE_TYPES,
     ROOT_RESOURCE_NODE_TYPES,
     NodeType,
@@ -206,7 +207,11 @@ async def test_activate_user(some_bench: BenchHandle):
         roots=[user.main_bench_ptr], scope=some_bench.scope, options=read_bench_options._to_data()
     )
     read_bench_rep = await some_bench.host.get_nodes(read_bench_req, metadata=some_bench.headers)
-    data_graph = NodeDataGraph([wiring.unwrap_some_node(n) for n in read_bench_rep.nodes])
+    data_graph = NodeDataGraph(
+        scope=GraphScope(),
+        node_types=NODE_TYPES.tuple,
+        nodes=[wiring.unwrap_some_node(n) for n in read_bench_rep.nodes],
+    )
     roots, _ = wiring.unpack_node_roots(data_graph)
     bench: Bench = cast(Bench, roots[0])
     assert UUID(user.main_bench_ptr.id) == bench.id

@@ -154,7 +154,7 @@ export class TransactionBuilder implements Transaction {
     const packageId = (node as any).packagePtr?.id ?? this.scope.packageId;
     if ("packagePtr" in allProperties && packageId == null)
       throw new Error(`missing packagePtr in ${describeNode(node)}`);
-    return { benchId, packageId, transactionId: this.id };
+    return { benchId, packageId };
   }
 
   /** Adds a simple (non-update) edit */
@@ -415,13 +415,15 @@ export function editGraph(
     } else if (edit.type == EditType.ERASE && !(options?.isOverlayOf && !graph.has(edit.nodePtr!))) {
       // remove
       const oldNode = graph.get(edit.nodePtr!);
-      if (!oldNode) throw new Error(`missing node for delete: ${edit.nodePtr!.id}`);
+      if (!oldNode)
+        throw new Error(`missing node for delete: ${describeNode(edit.nodePtr!)} in ${graph.describeSelf()}`);
       graph.remove(oldNode);
     } else {
       // update
       let updatedNode: AnyNodeData | null;
       if (edit.type == EditType.UNARCHIVE || edit.type == EditType.RESTORE) {
-        if (edit.oldNodePacked == null) throw new Error(`missing old node in edit: ${describeEdit(edit)}`);
+        if (edit.oldNodePacked == null)
+          throw new Error(`missing old node in edit: ${describeEdit(edit)} in ${graph.describeSelf()}`);
         updatedNode = unpackNodeDelta(edit.oldNodePacked, nodeType);
       } else {
         updatedNode = graph.get(edit.nodePtr!);
@@ -429,14 +431,15 @@ export function editGraph(
           updatedNode = options.isOverlayOf.get(edit.nodePtr!);
         }
         if (!updatedNode) {
-          throw new Error(`missing node for update: ${edit.nodePtr!.id}`);
+          throw new Error(`missing node for update: ${describeNode(edit.nodePtr!)} in ${graph.describeSelf()}`);
         }
       }
       updatedNode = { ...updatedNode }; // copy
 
       // directly edited properties
       if (edit.type == EditType.UPDATE || edit.type == EditType.MOVE) {
-        if (edit.newNodePacked == null) throw new Error(`missing new node in edit: ${describeEdit(edit)}`);
+        if (edit.newNodePacked == null)
+          throw new Error(`missing new node in edit: ${describeEdit(edit)} in ${graph.describeSelf()}`);
         const newNode = unpackNodeDelta(edit.newNodePacked, nodeType);
         const propertyEnum = NODE_PROPERTY_ENUM_BY_TYPE[nodeType]!;
         const allProperties = PROPERTY_INFOS_BY_TYPE[nodeType]!;

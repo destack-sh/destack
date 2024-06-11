@@ -20,6 +20,7 @@ from bench.language.access import (
 from bench.language.connection import ConnectionFailedError, FetchOptions, StoreEngine
 from bench.language.const import (
     BASED_NODE_TYPES,
+    NODE_TYPES,
     ConditionalOp,
     EditType,
     NodeType,
@@ -101,7 +102,7 @@ class GraphIoServiceBase(ServiceBase, GraphIoBase):
         self.tx_lock: asyncio.Lock = CriticalLock(
             name=f"{self.__class__.__name__}_{bench_id or ''}"
         )
-        self.connector = QueryConnector()
+        self.connector = QueryConnector(scope=self.scope)
 
     def get_engines(self) -> tuple[StoreEngine, ...]:
         """Gets the store engines available to this subgraph. Implemented in the actual service."""
@@ -397,7 +398,7 @@ class GraphIoServiceBase(ServiceBase, GraphIoBase):
 
             async with self.request_session(readonly=False, system_commit=False) as session:
                 # read the affected nodes into a single graph for evaluation
-                data_graph = NodeDataGraph()
+                data_graph = NodeDataGraph(scope=self.scope, node_types=NODE_TYPES)
                 with self.tracer.start_as_current_span("graph.commit.read"):
                     for node_type, node_references in scope.scopes_by_type.items():
                         node_type = wiring.unpack_enum(NodeType, node_type)

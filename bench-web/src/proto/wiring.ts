@@ -18,6 +18,7 @@ import {
   PackageData,
   EditType,
   EditData,
+  GraphScope,
 } from "@/proto/wire";
 import { BASED_NODE_TYPES, TIMED_NODE_TYPES, getBaseFromNode, toCamelName } from "@/system/lang";
 import { reverseRecord } from "@/utils/functools";
@@ -34,6 +35,13 @@ export const OBJECT_TYPE_NAME: Record<ObjectType, string> = reverseRecord(Object
 export type TypedNodeReferenceData<T extends NodeType> = NodeReferenceData & { type: T };
 export type AnyNodeReferenceData = NodeReferenceData | TypedNodeReferenceData<NodeType>;
 export type SomeNodeReferenceData<T extends NodeType> = NodeReferenceData | TypedNodeReferenceData<T>;
+
+export function describeScope(scope: GraphScope): string {
+  const scopeParts: string[] = [];
+  if (scope.benchId) scopeParts.push(`bench=${scope.benchId}`);
+  if (scope.packageId) scopeParts.push(`package=${scope.packageId}`);
+  return `[${scopeParts.join(", ")}]`;
+}
 
 /** Short string representation of the node (pointer) */
 export function describeNode(node: {

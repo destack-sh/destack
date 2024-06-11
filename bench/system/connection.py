@@ -2,7 +2,7 @@ import abc
 import asyncio
 from dataclasses import dataclass
 from itertools import chain
-from typing import Any, final, override
+from typing import Any, cast, final, override
 from uuid import uuid4
 
 import structlog
@@ -17,6 +17,7 @@ from bench.proto.wire import (
     AggregationData,
     AnyNodeData,
     EditData,
+    GraphScope,
     NodeReferenceData,
 )
 from bench.utils.dt import monons
@@ -32,7 +33,8 @@ MAX_TIME_DRIFT_SECONDS = get_from_env("MAX_TIME_DRIFT_SECONDS", typ=int, default
 class Connection[ResultT: Any, UpdateT: Any](abc.ABC):
     """A (usually live) query connection to a (sub)graph."""
 
-    def __init__(self, query: QueryBuilder):
+    def __init__(self, scope: GraphScope, query: QueryBuilder):
+        self.scope = scope
         self.hash = hash(query)
         self.token: str = str(uuid4())
         self.query = query
@@ -164,8 +166,8 @@ class WatchEditsUpdate:
 class GetConnection(Connection[GetResult, WatchEditsUpdate]):
     """Connected get query in the graph."""
 
-    def __init__(self, query: QueryBuilder):
-        super().__init__(query)
+    def __init__(self, scope: GraphScope, query: QueryBuilder):
+        super().__init__(scope, query)
         self._node_types = bittuple(*query.all_node_types)
 
     def __result_str__(self, result: GetResult) -> str:
@@ -174,7 +176,9 @@ class GetConnection(Connection[GetResult, WatchEditsUpdate]):
     @override
     async def connect(self, session: Session) -> GetResult:
         fetch = await session.tx._read_connection.fetch(self.query, FetchOptions(count=False))
-        graph = NodeDataGraph(fetch.nodes)
+        graph = NodeDataGraph(
+            scope=self.scope, node_types=tuple(self.query.all_node_types), nodes=fetch.nodes
+        )
         result = GetResult(graph)
         self._result = result
         return result
@@ -218,7 +222,8 @@ class GetConnection(Connection[GetResult, WatchEditsUpdate]):
 @dataclass(slots=True)
 class SearchResult:
     graph: NodeDataGraph
-    roots: list[NodeReferenceData]
+    roots: list[AnyNodeData]
+    roots_ptr: list[NodeReferenceData]
     total: int | None
 
 
@@ -234,8 +239,8 @@ class WatchSearchUpdate:
 class SearchConnection(Connection):
     """Connected search query in the graph."""
 
-    def __init__(self, query: QueryBuilder):
-        super().__init__(query)
+    def __init__(self, scope: GraphScope, query: QueryBuilder):
+        super().__init__(scope, query)
         self._node_types = bittuple(*query.all_node_types)
 
     def __result_str__(self, result: SearchResult) -> str:
@@ -244,8 +249,13 @@ class SearchConnection(Connection):
     @override
     async def connect(self, session: Session) -> SearchResult:
         fetch = await session.tx._read_connection.fetch(self.query, FetchOptions(count=True))
-        graph = NodeDataGraph(fetch.nodes)
-        result = SearchResult(graph=graph, roots=list(fetch.roots), total=fetch.total)
+        graph = NodeDataGraph(
+            scope=self.scope, node_types=tuple(self.query.all_node_types), nodes=fetch.nodes
+        )
+        roots = [cast(AnyNodeData, graph[cast(str, ptr.id)]) for ptr in fetch.roots]
+        result = SearchResult(
+            graph=graph, roots=roots, roots_ptr=list(fetch.roots), total=fetch.total
+        )
         self._result = result
         return result
 
@@ -310,7 +320,8 @@ class AggregateConnection(Connection[AggregationResult, AggregationUpdate]):
 class QueryConnector:
     """Connect and cache queries to the graph."""
 
-    def __init__(self):
+    def __init__(self, scope: GraphScope):
+        self.scope = scope
         self._connections_by_hash: dict[int, Connection] = {}
         self._connections_by_token: dict[str, Connection] = {}
         self._lock_by_hash: dict[int, asyncio.Lock] = {}
@@ -324,7 +335,7 @@ class QueryConnector:
     ) -> ConnectionT:
         """Creates or reuses a connection to the graph."""
         if not cache:
-            connection = connection_t(query)
+            connection = connection_t(self.scope, query)
             await connection.connect(session)
             return connection
         else:
@@ -338,7 +349,7 @@ class QueryConnector:
                 connection = self._connections_by_hash.get(connection_hash)
                 cached = connection is not None
                 if connection is None:
-                    connection = connection_t(query)
+                    connection = connection_t(self.scope, query)
                     await connection.connect(session)
                     self._add_connection(connection)
                 else:

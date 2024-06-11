@@ -245,7 +245,7 @@ def unpack_node_graph(
     parent_id = parent.id if parent is not None else None
     unpacked_roots: list[Node] = []
     source_roots = data_graph.find_roots()
-    unpacked_graph = NodeGraph()
+    unpacked_graph = NodeGraph(scope=data_graph.scope, node_types=data_graph.node_types)
 
     for root_data in source_roots:
         # unpack all nodes top down (breadth first)
@@ -287,7 +287,7 @@ def unpack_node_graph(
         if root is None:
             raise ValueError(f"root {source_root!r} root found in unpacked {unpacked_graph!r}")
         root._graph.set(unpacked_graph.nodes)
-        for node in unpacked_graph.nodes_by_id.values():
+        for node in unpacked_graph._nodes_by_id.values():
             node._resolve_references(parent or node)
             if session is not None:
                 node._track_self(session)

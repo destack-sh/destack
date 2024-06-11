@@ -18,11 +18,7 @@ import { ViewCanvas, createDefaultDesktopSpace, createEmptySpace } from "@/views
 import { computed, nextTick, watch } from "vue";
 
 // bench/packages
-export const {
-  graph: benchGraph,
-  access: benchAccess,
-  connection: benchConnection,
-} = useGetConnection(
+export const { graph: benchGraph, connection: benchConnection } = useGetConnection(
   { name: "bench", live: true, paramsPretty: computed(() => ({ id: local.benchPtr.value?.id })) },
   computed(() => ({
     roots: [local.benchPtr.value!],
@@ -31,11 +27,7 @@ export const {
   })),
 );
 export const bench = benchGraph.getRef(local.benchPtr);
-export const {
-  graph: pkgGraph,
-  access: pkgAccess,
-  connection: pkgConnection,
-} = useGetConnection(
+export const { graph: pkgGraph, connection: pkgConnection } = useGetConnection(
   { name: "pkg", live: true, paramsPretty: computed(() => ({ id: local.packagePtr.value?.id })) },
   computed(() => ({
     roots: [local.packagePtr.value!],
@@ -113,8 +105,8 @@ export async function assignSpaceInPackage() {
       createDefaultDesktopSpace(pkgConnection.tx, space);
     }
     spaceGraph.graph = pkgGraph;
-  } else if (pkgAccess.can(EditType.CREATE, NodeType.SPACE)) {
-    // we can create a new space
+  } else {
+    // create a new space
     const space = pkgConnection.tx.create({
       metatype: NodeType.SPACE,
       type: SpaceType.DESKTOP, // should derive this later :HeterogenousClients
@@ -125,10 +117,6 @@ export async function assignSpaceInPackage() {
     local.setSpace(toNodeReference(space));
     spaceGraph.graph = pkgGraph;
     await pkgConnection.txBuffer.commit();
-  } else {
-    // we can't create, so just use a local space
-    local.setSpaceToLocal();
-    spaceGraph.graph = spaceGraphLocal;
   }
 }
 
@@ -142,15 +130,16 @@ export async function goToBench(go: {
   log.info("space.goToBench", go);
 
   // connect to bench/package
+  const scope = { benchId: go.bench.id! };
   const host = await getHostClient({ id: go.bench.id! });
   const {
     response: { nodes },
   } = await host.getNodes({
     roots: [go.bench],
-    scope: { benchId: go.bench.id! },
+    scope,
     options: makeReadOptions({ descendantTypes: [NodeType.BRANCH] }),
   });
-  const graph = new NodeGraph();
+  const graph = new NodeGraph({ scope, nodeTypes: [NodeType.BRANCH] });
   graph.extend(...nodes.map(unwrapSomeNode));
   const bench = graph.roots[0] as BenchData;
   const branch = graph.get(go.branch ?? bench.mainBranchPtr!) as BranchData;
