@@ -9,6 +9,7 @@ import { v4 } from "uuid";
 import { computed, readonly, shallowRef, type Ref } from "vue";
 import { isDeveloperMode as globalIsDeveloperMode } from "@/utils/globals";
 import { NodeGraph, type ReadNodeGraph } from "@/system/graph";
+import { SOURCE_NODE_TYPES } from "@/system/lang";
 
 const BENCH_LOCAL_STORAGE_PREFIX = "bench-";
 
@@ -178,8 +179,11 @@ export const packagePtr = computed(() => {
       benchId: _benchPtr.value.id!,
     });
 }) as Readonly<Ref<TypedNodeReferenceData<NodeType.PACKAGE> | null>>;
-// Current local Space graph (not yet persisted).
-const _spaceGraphLocal = new NodeGraph({ scope: { benchId: LOCAL_BENCH_ID, packageId: LOCAL_PACKAGE_ID } });
+// current local Space graph (not yet persisted).
+const _spaceGraphLocal = new NodeGraph({
+  scope: { benchId: LOCAL_BENCH_ID, packageId: LOCAL_PACKAGE_ID },
+  nodeTypes: SOURCE_NODE_TYPES,
+});
 _spaceGraphLocal.add({
   metatype: ObjectType.SPACE,
   name: "Local",

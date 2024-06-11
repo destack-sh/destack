@@ -1,6 +1,5 @@
 import dataclasses
 import enum
-import hashlib
 from dataclasses import dataclass
 from datetime import datetime
 from itertools import chain
@@ -10,27 +9,7 @@ from uuid import UUID
 from more_itertools import first
 
 from bench.language.const import PrimitiveType
-
-
-def stable_hash(*args) -> int:
-    """
-    Hashes a tuple of arguments deterministically.
-    """
-    hasher = hashlib.sha256()
-
-    def update_hash(value):
-        if isinstance(value, (list, tuple)):
-            for item in value:
-                update_hash(item)
-        elif isinstance(value, (str, int, enum.Enum, type(None))):
-            hasher.update(str(value).encode())
-        else:
-            raise ValueError(f"cannot hash {value!r}")
-
-    for arg in args:
-        update_hash(arg)
-
-    return int(hasher.hexdigest(), 16)
+from bench.utils.func import stable_hash
 
 
 @dataclass(slots=True)

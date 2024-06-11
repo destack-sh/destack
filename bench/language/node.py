@@ -67,7 +67,7 @@ from bench.language.setup import (
 )
 from bench.language.validation import ValidationError, ValidationHandler, on_invalid_raise
 from bench.proto.wire import AnyNodeData, AnyStructData, GraphScope, NodeReferenceData
-from bench.sql.core import Constraint, ConstraintType, Index, IndexType, Table
+from bench.sql.core import Constraint, ConstraintType, Index, IndexType, Table, stable_hash
 from bench.utils.casing import PYTHON_CASING, IdentifierType, to_casing
 from bench.utils.dt import utcnow
 from bench.utils.env import IS_DEV, IS_TEST
@@ -828,12 +828,26 @@ class BuiltinObject[ObjectDataT: AnyNodeData | AnyStructData](abc.ABC):
                 return False
         return True
 
-    def __hash__(self):
+    def _stable_hash(self) -> int:
         """Hash of content properties."""
-        content_props = tuple(
-            getattr(self, prop.name) for prop in self.__wired_properties__.values() if prop.id < 30
-        )
-        return hash(content_props)
+        content_props = []
+        for prop in self.__wired_properties__.values():
+            if prop.id < 30:
+                continue
+            prop_value = getattr(self, prop.name)
+            if prop.is_list and prop_value:
+                for item in prop_value:
+                    if isinstance(item, BuiltinObject):
+                        content_props.append(item._stable_hash())
+                    else:
+                        content_props.append(item)
+            else:
+                if isinstance(prop_value, BuiltinObject):
+                    content_props.append(prop_value._stable_hash())
+                else:
+                    content_props.append(prop_value)
+
+        return stable_hash(content_props)
 
     def _do_get(self, item):
         """Called if an attribute doesn't exist in __dict__ or the usual places."""
@@ -1368,16 +1382,12 @@ class Node[NodeDataT: AnyNodeData](BuiltinObject[NodeDataT], abc.ABC):
         """Equals node identity."""
         return type(self) == type(other) and (self.id == other.id or self is other)
 
-    def __hash__(self):
+    def _stable_hash(self):
         """Hash node identity."""
-        if "ck" in self.__properties__:
-            # 'id' may not yet be assigned
-            return hash((type(self), self.id, getattr(self, "ck")))
-        else:
-            return hash((type(self), self.id))
+        return stable_hash((type(self), self.id))
 
-    def __bool__(self):
-        return True  # allow truthy checks for nodes
+    # only allow __hash__ for nodes since their id is constant
+    __hash__ = _stable_hash  # type: ignore
 
     @final
     def _track_self(self, session: "Session"):

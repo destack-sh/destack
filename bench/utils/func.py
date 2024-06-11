@@ -1,6 +1,8 @@
 import asyncio
 import enum
 import functools
+import hashlib
+import json
 import re
 import secrets
 import traceback
@@ -35,6 +37,29 @@ from bench.utils.env import IS_DEV, IS_TEST
 from bench.utils.utils import get_from_env, sentry_capture
 
 logger = structlog.get_logger(__name__)
+
+
+def stable_hash(*args) -> int:
+    """
+    Hashes a tuple of arguments deterministically into an int64.
+    """
+    hasher = hashlib.sha256()
+
+    def update_hash(value):
+        if isinstance(value, (list, tuple)):
+            for item in value:
+                update_hash(item)
+        elif isinstance(value, (str, int, enum.Enum, type(None))):
+            hasher.update(str(value).encode())
+        elif isinstance(value, dict):
+            hasher.update(json.dumps(value, sort_keys=True).encode())
+        else:
+            raise ValueError(f"cannot hash {value!r}")
+
+    for arg in args:
+        update_hash(arg)
+
+    return int(hasher.hexdigest(), 16) % (1 << 63)
 
 
 def try_to_uuid(id: UUID | str) -> UUID | str:
