@@ -1690,6 +1690,11 @@ class HasPersistentIdentity(Node, abc.ABC):
     ck: UUID = p_system(3, default=None, require=True, autoset=True)  # type: ignore
 
 
+# NOTE :Architecture: to get proper branching for Messages/Records/Notifications/...
+#  we'll have to swap use ck as primary key (swapping ck/id, but only in spirit, not literally)
+#  (same for any local nodes with persistent identity)
+
+
 @node_component()
 class SourceNode[NodeDataT: AnyNodeData](PackageNode[NodeDataT], HasPersistentIdentity, abc.ABC):
     """A package node with a persistent identity that can be instanced."""

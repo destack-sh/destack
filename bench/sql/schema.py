@@ -11,7 +11,7 @@ from bench.sql.core import (
     Table,
 )
 
-VERSION = "2024.06.11.0"
+VERSION = "2024.06.11.1"
 
 BENCH_TABLE = Table(
     "bench_bench",
@@ -1163,21 +1163,6 @@ NOTIFICATION_TABLE = Table(
         Column("text", PrimitiveType.JSON, is_nullable=True),
         Column("value_packed", PrimitiveType.JSON, is_nullable=True),
         Column("secret_value_packed", PrimitiveType.JSON, is_nullable=True, is_encrypted=True),
-        Column("block_id", PrimitiveType.UUID, is_nullable=True),
-        Column("block_ck", PrimitiveType.UUID, is_nullable=True),
-        Column("block_bench_id", PrimitiveType.UUID, is_nullable=True),
-        Column("step_id", PrimitiveType.UUID, is_nullable=True),
-        Column("step_ck", PrimitiveType.UUID, is_nullable=True),
-        Column("step_bench_id", PrimitiveType.UUID, is_nullable=True),
-        Column("session_id", PrimitiveType.UUID, is_nullable=True),
-        Column("run_id", PrimitiveType.UUID, is_nullable=True),
-        Column("run_base_ck", PrimitiveType.UUID, is_nullable=True),
-        Column("run_root_id", PrimitiveType.UUID, is_nullable=True),
-        Column("run_root_base_ck", PrimitiveType.UUID, is_nullable=True),
-        Column("client_id", PrimitiveType.UUID, is_nullable=True),
-        Column("machine_id", PrimitiveType.UUID, is_nullable=True),
-        Column("server_id", PrimitiveType.UUID, is_nullable=True),
-        Column("user_id", PrimitiveType.UUID, is_nullable=True),
     ),
     indexes=(
         Index("bench_idx_created_at", IndexType.BTREE, ("created_at",)),
@@ -1227,21 +1212,6 @@ MESSAGE_TABLE = Table(
         Column("value_packed", PrimitiveType.JSON, is_nullable=True),
         Column("secret_value_packed", PrimitiveType.JSON, is_nullable=True),
         Column("is_pinned", PrimitiveType.BOOLEAN, default="false"),
-        Column("block_id", PrimitiveType.UUID, is_nullable=True),
-        Column("block_ck", PrimitiveType.UUID, is_nullable=True),
-        Column("block_bench_id", PrimitiveType.UUID, is_nullable=True),
-        Column("step_id", PrimitiveType.UUID, is_nullable=True),
-        Column("step_ck", PrimitiveType.UUID, is_nullable=True),
-        Column("step_bench_id", PrimitiveType.UUID, is_nullable=True),
-        Column("session_id", PrimitiveType.UUID, is_nullable=True),
-        Column("run_id", PrimitiveType.UUID, is_nullable=True),
-        Column("run_base_ck", PrimitiveType.UUID, is_nullable=True),
-        Column("run_root_id", PrimitiveType.UUID, is_nullable=True),
-        Column("run_root_base_ck", PrimitiveType.UUID, is_nullable=True),
-        Column("client_id", PrimitiveType.UUID, is_nullable=True),
-        Column("machine_id", PrimitiveType.UUID, is_nullable=True),
-        Column("server_id", PrimitiveType.UUID, is_nullable=True),
-        Column("user_id", PrimitiveType.UUID, is_nullable=True),
     ),
     indexes=(
         Index("bench_idx_created_at", IndexType.BTREE, ("created_at",)),

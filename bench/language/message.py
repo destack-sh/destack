@@ -13,7 +13,6 @@ from bench.language.node import (
     timed_node,
 )
 from bench.language.property import p_node_parent, p_regular, p_value_packed, p_value_runtime
-from bench.language.session import HasSessionContext
 from bench.language.validation import TITLE_CONSTRAINT
 from bench.language.value import HasValues
 from bench.proto.wire import AnyNodeData, MessageData, NodeReferenceData
@@ -35,7 +34,6 @@ class Message(
     HasTimeIdentity,
     HasPersistentIdentity,
     HasNodeBase,
-    HasSessionContext,
     HasValues,
 ):
     """
