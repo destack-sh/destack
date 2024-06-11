@@ -23,7 +23,6 @@ from bench.language.property import (
     p_value_packed,
     p_value_runtime,
 )
-from bench.language.session import HasSessionContext
 from bench.language.validation import TITLE_CONSTRAINT
 from bench.language.value import HasValues
 from bench.proto.wire import (
@@ -44,7 +43,6 @@ class Notification(
     HasTimeIdentity,
     HasPersistentIdentity,
     HasNodeBase,
-    HasSessionContext,
     HasValues,
 ):
     """

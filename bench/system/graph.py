@@ -73,7 +73,7 @@ from bench.system.connection import (
     GetConnection,
     QueryConnector,
     SearchConnection,
-    WatchEditsUpdate,
+    WatchGetUpdate,
     WatchSearchUpdate,
 )
 from bench.utils.dt import utcnow
@@ -206,7 +206,7 @@ class GraphIoServiceBase(ServiceBase, GraphIoBase):
         subscription = await self.connector.subscribe(
             subject,
             GetConnection,
-            WatchEditsUpdate,
+            WatchGetUpdate,
             connection_token=request.connection_token,
             since_epoch=request.since_epoch if request.since_epoch is not None else self.epoch,
         )
@@ -280,7 +280,7 @@ class GraphIoServiceBase(ServiceBase, GraphIoBase):
             span="current",
         )
         return SearchNodesResponse(
-            roots=result.roots,
+            roots=result.roots_ptr,
             nodes=[wiring.wrap_some_node(n) for n in adapted_nodes],
             total=result.total,
             connection_token=connection.token,

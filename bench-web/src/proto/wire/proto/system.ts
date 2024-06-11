@@ -75,7 +75,7 @@ export interface GetNodesResponse {
      */
     epoch: bigint;
     /**
-     * Token to deduplicate and watch updates.
+     * Token to watch updates.
      *
      * @generated from protobuf field: string connection_token = 11;
      */
@@ -223,7 +223,7 @@ export interface SearchNodesResponse {
      */
     epoch: bigint;
     /**
-     * Token to deduplicate and watch updates.
+     * Token to watch updates.
      *
      * @generated from protobuf field: string connection_token = 11;
      */

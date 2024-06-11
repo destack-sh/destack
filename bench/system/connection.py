@@ -26,10 +26,16 @@ from bench.utils.utils import get_from_env
 logger = structlog.get_logger(__name__)
 tracer = trace.get_tracer(__name__)
 
+CONNECTION_REPLAY_BUFFER_SIZE = get_from_env("CONNECTION_REPLAY_BUFFER_SIZE", typ=int, default=64)
 MAX_TIME_DRIFT_SECONDS = get_from_env("MAX_TIME_DRIFT_SECONDS", typ=int, default=60)
 
 
-class Connection[ResultT: Any, UpdateT: Any](abc.ABC):
+@dataclass(slots=True)
+class _Update:
+    epoch: int
+
+
+class Connection[ResultT: Any, UpdateT: _Update](abc.ABC):
     """A (usually live) query connection to a (sub)graph."""
 
     def __init__(self, scope: GraphScope, query: QueryBuilder):
@@ -41,6 +47,7 @@ class Connection[ResultT: Any, UpdateT: Any](abc.ABC):
         self._created_at = monons()
         self._last_active_at = monons()
         self._result: ResultT | None = None
+        self._replay_buffer: list[UpdateT] = []
 
     @abc.abstractmethod
     def __result_str__(self, result: ResultT) -> str: ...
@@ -84,14 +91,15 @@ class Connection[ResultT: Any, UpdateT: Any](abc.ABC):
         self, subject: Subject, since_epoch: int
     ) -> "ConnectionSubscription[UpdateT]":
         """Subscribe to the query results."""
-        subscription = await self._do_subscribe(subject, since_epoch)
+        subscription = ConnectionSubscription(self, subject, since_epoch)
+
+        # replay updates with epoch < since_epoch
+        for update in self._replay_buffer:
+            if update.epoch < since_epoch:
+                subscription._update_queue.put_nowait(update)
+
         self._subscribers.append(subscription)
         return subscription
-
-    @abc.abstractmethod
-    async def _do_subscribe(
-        self, subject: Subject, since_epoch: int
-    ) -> "ConnectionSubscription[UpdateT]": ...
 
     @final
     def unsubscribe(self, subscription: "ConnectionSubscription[UpdateT]"):
@@ -112,7 +120,12 @@ class Connection[ResultT: Any, UpdateT: Any](abc.ABC):
         ...
 
     @final
-    def _do_notify(self, update: UpdateT):
+    def notify_update(self, update: UpdateT):
+        self.bump_active()
+        self._replay_buffer.append(update)
+        if len(self._replay_buffer) > CONNECTION_REPLAY_BUFFER_SIZE:
+            self._replay_buffer.pop(0)
+
         for subscriber in self._subscribers:
             subscriber._update_queue.put_nowait(update)
 
@@ -149,7 +162,7 @@ class ConnectionSubscription[UpdateT: Any]:
         self.connection.unsubscribe(self)
 
 
-# NOTE :Architecture :Security!: filter watch updates to allowed subset
+# NOTE :Architecture :Security!: filter connection subscription with policies
 #  (might need a per-connection-type subscription subtype?)
 
 
@@ -159,14 +172,16 @@ class GetResult:
 
 
 @dataclass(slots=True)
-class WatchEditsUpdate:
+class WatchGetUpdate(_Update):
     edits: list[EditData]
     cascaded_edits: list[EditData]
-    epoch: int
 
 
-class GetConnection(Connection[GetResult, WatchEditsUpdate]):
-    """Connected get query in the graph."""
+class GetConnection(Connection[GetResult, WatchGetUpdate]):
+    """
+    Connected get query in the graph.
+    If live and any root is removed, we error (like the usual get behavior).
+    """
 
     def __init__(self, scope: GraphScope, query: QueryBuilder):
         super().__init__(scope, query)
@@ -185,13 +200,6 @@ class GetConnection(Connection[GetResult, WatchEditsUpdate]):
         self._result = result
         return result
 
-    @override
-    async def _do_subscribe(
-        self, subject: Subject, since_epoch: int
-    ) -> ConnectionSubscription[WatchEditsUpdate]:
-        # nocheckin: GetConnection replay
-        return ConnectionSubscription(self, subject, since_epoch)
-
     def on_commit(
         self,
         graph: NodeGraphLike,
@@ -200,7 +208,7 @@ class GetConnection(Connection[GetResult, WatchEditsUpdate]):
         cascaded_edits: list[EditData],
         epoch: int,
     ):
-        # filter relevant edits & update result graph
+        # filter to relevant edits & update result graph
         cached_graph = self.result.graph
         filtered_edits = []
         filtered_cascaded_edits = []
@@ -212,15 +220,13 @@ class GetConnection(Connection[GetResult, WatchEditsUpdate]):
             old_node_data = cached_graph.get(edit.node_ptr.id)
             new_node_data = data_graph.get(edit.node_ptr.id)
             assert new_node_data is not None, f"missing node data for {edit.node_ptr!r}"
-            # cached_graph.update(new_node_data)  # nocheckin
 
         if filtered_edits or filtered_cascaded_edits:
-            self.bump_active()
-            # notify subscribers
-            update = WatchEditsUpdate(
+            # add relevant update
+            update = WatchGetUpdate(
                 edits=filtered_edits, cascaded_edits=filtered_cascaded_edits, epoch=epoch
             )
-            self._do_notify(update)
+            self.notify_update(update)
 
 
 @dataclass(slots=True)
@@ -232,16 +238,19 @@ class SearchResult:
 
 
 @dataclass(slots=True)
-class WatchSearchUpdate:
+class WatchSearchUpdate(_Update):
     edits: list[EditData]
     cascaded_edits: list[EditData]
     added_nodes: list[AnyNodeData]
     removed_nodes: list[AnyNodeData]
-    epoch: int
 
 
-class SearchConnection(Connection):
-    """Connected search query in the graph."""
+class SearchConnection(Connection[SearchResult, WatchSearchUpdate]):
+    """
+    Connected search query in the graph.
+    If live, we update the result set dynamically (with added/removed nodes).
+    In its final form, we want full incremental materialized view maintenance here.
+    """
 
     def __init__(self, scope: GraphScope, query: QueryBuilder):
         super().__init__(scope, query)
@@ -263,13 +272,6 @@ class SearchConnection(Connection):
         self._result = result
         return result
 
-    @override
-    async def _do_subscribe(
-        self, subject: Subject, since_epoch: int
-    ) -> ConnectionSubscription[WatchSearchUpdate]:
-        # nocheckin: SearchConnection replay
-        return ConnectionSubscription(self, subject, since_epoch)
-
     def on_commit(
         self,
         graph: NodeGraphLike,
@@ -282,33 +284,27 @@ class SearchConnection(Connection):
 
 
 @dataclass(slots=True)
-class AggregationResult:
+class AggregateResult:
     aggregation: AggregationData
 
 
 @dataclass(slots=True)
-class AggregationUpdate:
+class AggregateUpdate(_Update):
     aggregation: AggregationData
 
 
-class AggregateConnection(Connection[AggregationResult, AggregationUpdate]):
+class AggregateConnection(Connection[AggregateResult, AggregateUpdate]):
     """Connected aggregate query in the graph."""
 
-    def __result_str__(self, result: AggregationResult) -> str:
+    def __result_str__(self, result: AggregateResult) -> str:
         return f"{result.aggregation!r}"
 
     @override
-    async def connect(self, session: Session) -> AggregationResult:
+    async def connect(self, session: Session) -> AggregateResult:
         aggregate = await session.tx._read_connection.aggregate(self.query)
-        result = AggregationResult(aggregation=aggregate.aggregation)
+        result = AggregateResult(aggregation=aggregate.aggregation)
         self._result = result
         return result
-
-    @override
-    async def _do_subscribe(
-        self, subject: Subject, since_epoch: int
-    ) -> ConnectionSubscription[AggregationUpdate]:
-        raise NotImplementedError("watch aggregation not yet supported")
 
     def on_commit(
         self,
@@ -318,7 +314,7 @@ class AggregateConnection(Connection[AggregationResult, AggregationUpdate]):
         cascaded_edits: list[EditData],
         epoch: int,
     ):
-        pass  # not yet implemented (see above)
+        pass  # not yet implemented (watch_aggregate errors with not implemented for now)
 
 
 class QueryConnector:

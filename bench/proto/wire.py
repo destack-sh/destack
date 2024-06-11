@@ -3,7 +3,7 @@
 
 from typing import TYPE_CHECKING, Union
 
-VERSION = "2024.06.11.0"
+VERSION = "2024.06.11.1"
 
 if TYPE_CHECKING:
     from bench.language import Subject
@@ -2630,15 +2630,6 @@ class MessageData(betterproto.Message):
         betterproto.message_field(43, optional=True)
     )
     is_pinned: bool = betterproto.bool_field(50)
-    block_ptr: Optional["NodeReferenceData"] = betterproto.message_field(60, optional=True)
-    step_ptr: Optional["NodeReferenceData"] = betterproto.message_field(61, optional=True)
-    session_ptr: Optional["NodeReferenceData"] = betterproto.message_field(62, optional=True)
-    run_ptr: Optional["NodeReferenceData"] = betterproto.message_field(63, optional=True)
-    run_root_ptr: Optional["NodeReferenceData"] = betterproto.message_field(64, optional=True)
-    client_ptr: Optional["NodeReferenceData"] = betterproto.message_field(65, optional=True)
-    machine_ptr: Optional["NodeReferenceData"] = betterproto.message_field(66, optional=True)
-    server_ptr: Optional["NodeReferenceData"] = betterproto.message_field(67, optional=True)
-    user_ptr: Optional["NodeReferenceData"] = betterproto.message_field(68, optional=True)
 
 
 @dataclass(eq=False, repr=False)
@@ -2692,15 +2683,6 @@ class NotificationData(betterproto.Message):
     secret_value_packed: Optional["betterproto_lib_google_protobuf.Struct"] = (
         betterproto.message_field(43, optional=True)
     )
-    block_ptr: Optional["NodeReferenceData"] = betterproto.message_field(60, optional=True)
-    step_ptr: Optional["NodeReferenceData"] = betterproto.message_field(61, optional=True)
-    session_ptr: Optional["NodeReferenceData"] = betterproto.message_field(62, optional=True)
-    run_ptr: Optional["NodeReferenceData"] = betterproto.message_field(63, optional=True)
-    run_root_ptr: Optional["NodeReferenceData"] = betterproto.message_field(64, optional=True)
-    client_ptr: Optional["NodeReferenceData"] = betterproto.message_field(65, optional=True)
-    machine_ptr: Optional["NodeReferenceData"] = betterproto.message_field(66, optional=True)
-    server_ptr: Optional["NodeReferenceData"] = betterproto.message_field(67, optional=True)
-    user_ptr: Optional["NodeReferenceData"] = betterproto.message_field(68, optional=True)
 
 
 @dataclass(eq=False, repr=False)
@@ -3125,7 +3107,7 @@ class StepData(betterproto.Message):
 
 @dataclass(eq=False, repr=False)
 class StoreData(betterproto.Message):
-    """Postgres database."""
+    """A trusty Postgres database."""
 
     metatype: "ObjectType" = betterproto.enum_field(1)
     id: str = betterproto.string_field(2)
@@ -3453,7 +3435,7 @@ class GetNodesResponse(betterproto.Message):
     """Current epoch."""
 
     connection_token: str = betterproto.string_field(11)
-    """Token to deduplicate and watch updates."""
+    """Token to watch updates."""
 
 
 @dataclass(eq=False, repr=False)
@@ -3527,7 +3509,7 @@ class SearchNodesResponse(betterproto.Message):
     """Current epoch."""
 
     connection_token: str = betterproto.string_field(11)
-    """Token to deduplicate and watch updates."""
+    """Token to watch updates."""
 
 
 @dataclass(eq=False, repr=False)

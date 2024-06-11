@@ -420,7 +420,7 @@ class Machine(BenchResourceNode[MachineData]):
 
 @node_(NodeType.STORE)
 class Store(BenchResourceNode[StoreData]):
-    """Postgres database."""
+    """A trusty Postgres database."""
 
     version: Optional[str] = p_system(40, default=None)
     current_version: Optional[str] = p_system(41, default=None)
