@@ -237,7 +237,7 @@ def unpack_node_graph(
     session: Session | None = None,
     exclude: set[NodeType] | tuple[NodeType, ...] | None = (),
     read_info: ReadInfo | None = None,
-) -> NodeGraph["Node"]:
+) -> NodeGraph:
     """Unpacks the node data(s) into a node graph."""
     trace.get_current_span().set_attribute("nodes", len(data_graph))
 
@@ -273,7 +273,7 @@ def unpack_node_graph(
                 for prop in (cast(Node, parent)).__properties__.values():
                     if not prop.is_ephemeral and not prop.is_tree_reference:
                         setattr(parent, prop.name, getattr(node, prop.name))
-                node = parent
+                node = cast(Node, parent)
 
             unpacked_graph.add(node)
 

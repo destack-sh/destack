@@ -541,7 +541,7 @@ def unpack_node_delta(
 
 @tracer.start_as_current_span("graph.edit_graph")
 def edit_graph(
-    graph: NodeGraph["Node"],
+    graph: NodeGraph,
     edits: Collection[EditData],
     options: "ReadOptions | None",
     *,
@@ -630,7 +630,7 @@ def edit_graph(
 
 @tracer.start_as_current_span("graph.edit_data_graph")
 def edit_data_graph(
-    graph: NodeDataGraph[AnyNodeData],
+    graph: NodeDataGraph,
     edits: Collection[EditData],
     options: "ReadOptions | None",
     *,

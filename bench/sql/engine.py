@@ -1445,7 +1445,7 @@ async def pg_get_node_graph(
     roots: tuple[UUID, ...] | tuple[AnyNodeData, ...],
     options: ReadOptions,
     _graph: NodeDataGraph | None = None,
-) -> NodeDataGraph[AnyNodeData]:
+) -> NodeDataGraph:
     """
     Reads regular nodes from the given PG database.
     Returns a graph of nodes that *may* contain the requested nodes.
@@ -1547,7 +1547,7 @@ async def pg_search_node_graph(
     first: int | None = None,
     skip: int | None = None,
     after: str | None = None,
-) -> tuple[PgSelectNodesDataResult, NodeDataGraph[AnyNodeData]]:
+) -> tuple[PgSelectNodesDataResult, NodeDataGraph]:
     """Select root nodes and then read the graph of nodes from the given PG database."""
     if options.ancestor_types or options.descendant_types:
         # split into two passes if we have other nodes to fetch

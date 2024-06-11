@@ -1262,7 +1262,7 @@ class Node[NodeDataT: AnyNodeData](BuiltinObject[NodeDataT], abc.ABC):
     # 30+ for 'user' node/struct properties
     # <... defined in concrete type ...>
 
-    _graph: "NodeGraph[Node]" = p_runtime(default=None)
+    _graph: "NodeGraph" = p_runtime(default=None)
     # _graph_set: NodeGraphSet?
     _read_info: "ReadInfo | None" = p_runtime(default=None)
     _is_new: bool = p_runtime(default=False)

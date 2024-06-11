@@ -1,6 +1,7 @@
 import abc
 import asyncio
 from dataclasses import dataclass
+from itertools import chain
 from typing import Any, final, override
 from uuid import uuid4
 
@@ -9,6 +10,7 @@ from opentelemetry import trace
 
 from bench.language import Session, Subject
 from bench.language.connection import FetchOptions
+from bench.language.const import NodeType
 from bench.language.graph import NodeDataGraph, NodeDataGraphLike, NodeGraphLike
 from bench.language.query import QueryBuilder
 from bench.proto.wire import (
@@ -18,6 +20,7 @@ from bench.proto.wire import (
     NodeReferenceData,
 )
 from bench.utils.dt import monons
+from bench.utils.func import bittuple
 from bench.utils.utils import get_from_env
 
 logger = structlog.get_logger(__name__)
@@ -72,6 +75,26 @@ class Connection[ResultT: Any, UpdateT: Any](abc.ABC):
         """Execute the query."""
         ...
 
+    @final
+    async def subscribe(
+        self, subject: Subject, since_epoch: int
+    ) -> "ConnectionSubscription[UpdateT]":
+        """Subscribe to the query results."""
+        subscription = await self._do_subscribe(subject, since_epoch)
+        self._subscribers.append(subscription)
+        return subscription
+
+    @abc.abstractmethod
+    async def _do_subscribe(
+        self, subject: Subject, since_epoch: int
+    ) -> "ConnectionSubscription[UpdateT]": ...
+
+    @final
+    def unsubscribe(self, subscription: "ConnectionSubscription[UpdateT]"):
+        if subscription not in self._subscribers:
+            raise ValueError(f"{subscription!r} is not subscribed to {self!r}")
+        self._subscribers.remove(subscription)
+
     @abc.abstractmethod
     def on_commit(
         self,
@@ -119,7 +142,11 @@ class ConnectionSubscription[UpdateT: Any]:
         if self._closed_at is not None:
             raise RuntimeError(f"{self!r} is already closed")
         self._closed_at = monons()
-        self.connection._subscribers.remove(self)
+        self.connection.unsubscribe(self)
+
+
+# NOTE :Architecture :Security!: filter watch updates to allowed subset
+#  (might need a per-connection-type subscription subtype?)
 
 
 @dataclass(slots=True)
@@ -137,6 +164,10 @@ class WatchEditsUpdate:
 class GetConnection(Connection[GetResult, WatchEditsUpdate]):
     """Connected get query in the graph."""
 
+    def __init__(self, query: QueryBuilder):
+        super().__init__(query)
+        self._node_types = bittuple(*query.all_node_types)
+
     def __result_str__(self, result: GetResult) -> str:
         return f"{len(result.graph)} nodes"
 
@@ -148,6 +179,13 @@ class GetConnection(Connection[GetResult, WatchEditsUpdate]):
         self._result = result
         return result
 
+    @override
+    async def _do_subscribe(
+        self, subject: Subject, since_epoch: int
+    ) -> ConnectionSubscription[WatchEditsUpdate]:
+        # nocheckin: GetConnection replay
+        return ConnectionSubscription(self, subject, since_epoch)
+
     def on_commit(
         self,
         graph: NodeGraphLike,
@@ -156,7 +194,25 @@ class GetConnection(Connection[GetResult, WatchEditsUpdate]):
         cascaded_edits: list[EditData],
         epoch: int,
     ):
-        pass  # nocheckin: GetConnection.on_commit
+        # filter relevant edits & update result graph
+        cached_graph = self.result.graph
+        filtered_edits = []
+        filtered_cascaded_edits = []
+        for edit in chain(edits, cascaded_edits):
+            node_type = NodeType(edit.node_ptr.type)
+            if node_type not in self._node_types:
+                continue
+            assert edit.node_ptr.id, f"missing node id for {edit.node_ptr!r}"
+            old_node_data = cached_graph.get(edit.node_ptr.id)
+            new_node_data = data_graph.get(edit.node_ptr.id)
+            assert new_node_data is not None, f"missing node data for {edit.node_ptr!r}"
+            cached_graph.update(new_node_data)  # nocheckin
+
+        # notify subscribers
+        update = WatchEditsUpdate(
+            edits=filtered_edits, cascaded_edits=filtered_cascaded_edits, epoch=epoch
+        )
+        self._do_notify(update)
 
 
 @dataclass(slots=True)
@@ -178,6 +234,10 @@ class WatchSearchUpdate:
 class SearchConnection(Connection):
     """Connected search query in the graph."""
 
+    def __init__(self, query: QueryBuilder):
+        super().__init__(query)
+        self._node_types = bittuple(*query.all_node_types)
+
     def __result_str__(self, result: SearchResult) -> str:
         return f"{len(result.graph)} nodes, {len(result.roots)} roots, total={result.total}"
 
@@ -188,6 +248,13 @@ class SearchConnection(Connection):
         result = SearchResult(graph=graph, roots=list(fetch.roots), total=fetch.total)
         self._result = result
         return result
+
+    @override
+    async def _do_subscribe(
+        self, subject: Subject, since_epoch: int
+    ) -> ConnectionSubscription[WatchSearchUpdate]:
+        # nocheckin: SearchConnection replay
+        return ConnectionSubscription(self, subject, since_epoch)
 
     def on_commit(
         self,
@@ -213,12 +280,21 @@ class AggregationUpdate:
 class AggregateConnection(Connection[AggregationResult, AggregationUpdate]):
     """Connected aggregate query in the graph."""
 
+    def __result_str__(self, result: AggregationResult) -> str:
+        return f"{result.aggregation!r}"
+
     @override
     async def connect(self, session: Session) -> AggregationResult:
         aggregate = await session.tx._read_connection.aggregate(self.query)
         result = AggregationResult(aggregation=aggregate.aggregation)
         self._result = result
         return result
+
+    @override
+    async def _do_subscribe(
+        self, subject: Subject, since_epoch: int
+    ) -> ConnectionSubscription[AggregationUpdate]:
+        raise NotImplementedError("watch aggregation not yet supported")
 
     def on_commit(
         self,
@@ -228,7 +304,7 @@ class AggregateConnection(Connection[AggregationResult, AggregationUpdate]):
         cascaded_edits: list[EditData],
         epoch: int,
     ):
-        raise NotImplementedError("watch aggregation not yet supported")
+        pass  # not yet implemented (see above)
 
 
 class QueryConnector:
@@ -246,6 +322,7 @@ class QueryConnector:
     async def connect[ConnectionT: Connection](
         self, query: QueryBuilder, session: Session, connection_t: type[ConnectionT], *, cache: bool
     ) -> ConnectionT:
+        """Creates or reuses a connection to the graph."""
         if not cache:
             connection = connection_t(query)
             await connection.connect(session)
@@ -265,7 +342,10 @@ class QueryConnector:
                     await connection.connect(session)
                     self._add_connection(connection)
                 else:
-                    assert isinstance(connection, connection_t), f"unexpected {connection!r}"
+                    if not isinstance(connection, connection_t):
+                        raise ValueError(
+                            f"unexpected {connection!r} for {query!r} (want {connection_t})"
+                        )
                 logger.debug(
                     f"connect.{query._read_type.name.lower()}",
                     query=query,
@@ -283,8 +363,15 @@ class QueryConnector:
         since_epoch: int,
     ) -> ConnectionSubscription[UpdateT]:
         """Subscribes to an existing graph connection."""
-        raise NotImplementedError("nocheckin: subscribe")
+        connection = self._connections_by_token.get(connection_token)
+        if connection is None:
+            raise ValueError(f"no connection with token {connection_token!r}")
+        if not isinstance(connection, connection_t):
+            raise ValueError(f"unexpected connection {connection!r} (want {connection_t})")
+        subscription = await connection.subscribe(subject, since_epoch)
+        return subscription
 
+    @tracer.start_as_current_span("connection.on_commit")
     def on_commit(
         self,
         graph: NodeGraphLike,

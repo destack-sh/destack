@@ -42,7 +42,6 @@ from bench.language.graph import NodeDataGraph, NodeGraph, NodeList
 from bench.language.node import (
     NODE_CLASS_BY_TYPE,
     InlineStruct,
-    Node,
     SourceNode,
     Struct,
     node_,
@@ -714,9 +713,9 @@ def adapt_read_options(
 @tracer.start_as_current_span("access.generate_access_matrix")
 def generate_access_matrix(
     subject: Subject,
-    graph: NodeDataGraph[AnyNodeData],
+    graph: NodeDataGraph,
     base_policies: Collection[Policy] | None = None,
-    unpacked_graph: NodeGraph[Node] | None = None,
+    unpacked_graph: NodeGraph | None = None,
 ) -> AccessMatrix:
     """Generates an access matrix to quickly evaluate access for a specific subject."""
 
@@ -951,7 +950,7 @@ def evaluate_access(
 @tracer.start_as_current_span("access.evaluate_and_adapt_read")
 def evaluate_and_adapt_read(
     matrix: AccessMatrix,
-    graph: NodeDataGraph[AnyNodeData],
+    graph: NodeDataGraph,
     *,
     required_nodes: Collection[NodeReferenceData] | None = None,
 ) -> tuple[PolicyEffect, Collection[Access], Collection[AnyNodeData]]:
@@ -1056,10 +1055,8 @@ def evaluate_and_adapt_read(
 @tracer.start_as_current_span("access.evaluate_edit")
 def evaluate_edit(
     matrix: AccessMatrix,
-    graph: NodeDataGraph[AnyNodeData],
+    graph: NodeDataGraph,
     edits: Collection[EditData],
-    *,
-    trace: bool = False,
 ) -> tuple[PolicyEffect, Collection[Access]]:
     """
     Evaluates whether the given policies (base and in graph) allow the given edits.

@@ -23,7 +23,7 @@ message GetNodesResponse {
   repeated SomeNodeData nodes = 1;
   // Current epoch.
   uint64 epoch = 10;
-  // Token to deduplicate and watch updates.
+  // Token to watch updates.
   string connection_token = 11;
 }
 
@@ -75,7 +75,7 @@ message SearchNodesResponse {
   optional int32 total = 5;
   // Current epoch.
   uint64 epoch = 10;
-  // Token to deduplicate and watch updates.
+  // Token to watch updates.
   string connection_token = 11;
 }
 
