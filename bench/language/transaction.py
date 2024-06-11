@@ -608,23 +608,23 @@ def edit_graph(
             # implicit metadata
             node.updated_at = edit.edited_at
             if "updated_epoch" in node.__properties__:
-                setattr(node, "updated_epoch", edit.epoch)
-            setattr(node, "updated_by_ptr", edit.subject_ptr)
-            node.revision = edit.revision
+                node._do_set("updated_epoch", edit.epoch, untracked=untracked)
+            node._do_set("updated_by_ptr", edit.subject_ptr, untracked=untracked)
+            node._do_set("revision", edit.revision, untracked=untracked)
             if edit_type == EditType.ARCHIVE:
-                node.archived_at = edit.edited_at
+                node._do_set("archived_at", edit.edited_at, untracked=untracked)
             elif edit_type == EditType.UNARCHIVE:
-                node.archived_at = None
+                node._do_set("archived_at", None, untracked=untracked)
             elif edit_type == EditType.DELETE:
-                node.deleted_at = edit.edited_at
+                node._do_set("deleted_at", edit.edited_at, untracked=untracked)
             elif edit_type == EditType.RESTORE:
-                node.deleted_at = None
+                node._do_set("deleted_at", None, untracked=untracked)
             elif edit_type == EditType.MOVE:
                 if new_node_data.parent_ptr is not None:
                     new_parent = graph.get(UUID(new_node_data.parent_ptr.id))
                 else:
                     new_parent = None
-                node.parent = new_parent
+                node._do_set("parent", new_parent, untracked=untracked)
             graph.update(node)
 
 
