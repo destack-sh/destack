@@ -86,6 +86,8 @@ export type Transaction = {
 
   /** Adds an externally created edit */
   addEdit(edit: EditData): void;
+  /** Gets the sub tx for a specific connection */
+  getSubtransaction(connectionId: number): TransactionBuilder;
 
   /** Create a new node */
   create<T extends NodeType>(
@@ -115,20 +117,55 @@ export type Transaction = {
   erase(node: AnyNodeData): void;
 };
 
-export class TransactionBuilder implements Transaction {
-  public readonly scope: GraphScope;
-  public readonly id: string;
-  public readonly subjectRef: Ref<NodeReferenceData | null>;
-  public readonly edits: EditData[] = [];
-  private readonly debouncedUpdates: Record<string, EditData> = {};
-  private subs: Array<(edit: EditData, debounce: DebounceLevel | null) => void> = [];
-  private benchPtr: TypedNodeReferenceData<NodeType.BENCH> | null;
+/* Shared state to create multiple TransactionBuilder handles from different connections with same data */
+export class TransactionState {
+  readonly id: string;
+  readonly scope: GraphScope;
+  readonly benchPtr: TypedNodeReferenceData<NodeType.BENCH> | null;
+  readonly edits: EditData[] = [];
 
-  constructor(scope: GraphScope, id: string, subject: MaybeRef<NodeReferenceData | null>) {
-    this.scope = scope;
+  readonly _debouncedUpdates: Record<string, EditData> = {};
+  readonly _subs: Array<(edit: EditData, connectionId: number | null, debounce: DebounceLevel | null) => void> = [];
+  readonly _buildersByConnectionId: Record<number, TransactionBuilder> = {};
+
+  constructor(id: string, scope: GraphScope) {
     this.id = id;
-    this.subjectRef = toRef(subject);
+    this.scope = scope;
     this.benchPtr = scope.benchId != null ? nodeReference(NodeType.BENCH, scope.benchId) : null;
+  }
+}
+
+/**
+ *  Build a transaction (maybe for a specific connection)
+ *  NOTE :Architecture: it's a bit gnarly that we share some of the tx state across builders (see above),
+ *   but I can't think of a much better way to do it right now.
+ */
+export class TransactionBuilder implements Transaction {
+  public readonly connectionId: number | null;
+  public readonly subjectRef: Ref<NodeReferenceData | null>;
+
+  state: TransactionState;
+
+  constructor(tx: {
+    connectionId: number | null;
+    subject: MaybeRef<NodeReferenceData | null>;
+    state: TransactionState;
+  }) {
+    this.connectionId = tx.connectionId;
+    this.subjectRef = toRef(tx.subject);
+    this.state = tx.state;
+  }
+
+  get id() {
+    return this.state.id;
+  }
+
+  get scope(): GraphScope {
+    return this.state.scope;
+  }
+
+  get edits(): EditData[] {
+    return this.state.edits;
   }
 
   get subject(): NodeReferenceData {
@@ -136,15 +173,26 @@ export class TransactionBuilder implements Transaction {
     return this.subjectRef.value;
   }
 
-  describeSelf(): string {
-    return `Transaction(${this.id}, ${this.edits.length} edits)`;
+  getSubtransaction(connectionId: number): TransactionBuilder {
+    if (this.state._buildersByConnectionId[connectionId] == null) {
+      this.state._buildersByConnectionId[connectionId] = new TransactionBuilder({
+        connectionId,
+        subject: this.subjectRef,
+        state: this.state,
+      });
+    }
+    return this.state._buildersByConnectionId[connectionId];
   }
 
-  onEdit(sub: (edit: EditData, debounce: DebounceLevel | null) => void): () => void {
-    this.subs.push(sub);
+  describeSelf(): string {
+    return `Transaction(${this.id}, ${this.state.edits.length} edits)`;
+  }
+
+  onEdit(sub: (edit: EditData, connectionId: number | null, debounce: DebounceLevel | null) => void): () => void {
+    this.state._subs.push(sub);
     return () => {
-      const idx = this.subs.indexOf(sub);
-      if (idx >= 0) this.subs.splice(idx, 1);
+      const idx = this.state._subs.indexOf(sub);
+      if (idx >= 0) this.state._subs.splice(idx, 1);
     };
   }
 
@@ -155,6 +203,15 @@ export class TransactionBuilder implements Transaction {
     if ("packagePtr" in allProperties && packageId == null)
       throw new Error(`missing packagePtr in ${describeNode(node)}`);
     return { benchId, packageId };
+  }
+
+  _checkInScope(node: AnyNodeData) {
+    if (this.scope.benchId != null && (!("benchPtr" in node) || node.benchPtr?.id != this.scope.benchId)) {
+      throw new Error(`node from other bench: ${describeNode(node)} != ${this.scope.benchId}`);
+    }
+    if (this.scope.packageId != null && (!("packagePtr" in node) || node.packagePtr?.id != this.scope.packageId)) {
+      throw new Error(`node from other package: ${describeNode(node)} != ${this.scope.packageId}`);
+    }
   }
 
   /** Adds a simple (non-update) edit */
@@ -170,6 +227,8 @@ export class TransactionBuilder implements Transaction {
     node: AnyNodeData,
     debounce: DebounceLevel | null,
   ) {
+    this._checkInScope(node);
+
     // pack 'old' and 'new' node delta
     let newNodePacked = undefined;
     let oldNodePacked = undefined;
@@ -203,19 +262,19 @@ export class TransactionBuilder implements Transaction {
       subjectPtr: this.subject,
       editedAt: Timestamp.now(),
     };
-    this.edits.push(edit);
+    this.state.edits.push(edit);
     this._notifyEdit(edit, debounce);
     return edit;
   }
 
   _notifyEdit(edit: EditData, debounce: DebounceLevel | null) {
-    for (const sub of this.subs) {
-      sub(edit, debounce);
+    for (const sub of this.state._subs) {
+      sub(edit, this.connectionId, debounce);
     }
   }
 
   addEdit(edit: EditData): void {
-    this.edits.push(edit);
+    this.state.edits.push(edit);
     this._notifyEdit(edit, null);
   }
 
@@ -230,12 +289,10 @@ export class TransactionBuilder implements Transaction {
       throw new Error(`missing packagePtr in ${describeNode(nodeIn)}`); // can't infer package
     } else if ("benchPtr" in properties) {
       if ((nodeIn as any).benchPtr == null) {
-        (nodeIn as any).benchPtr = this.benchPtr; // infer bench
-      }
-      if ((nodeIn as any).benchPtr?.id != this.benchPtr?.id) {
-        throw new Error(
-          `node from other benchPtr: ${describeNode(nodeIn)} != ${this.benchPtr != null ? describeNode(this.benchPtr) : "<null>"}`,
-        );
+        if (this.state.benchPtr == null) {
+          throw new Error(`missing benchPtr to infer bench for ${describeNode(nodeIn)}`);
+        }
+        (nodeIn as any).benchPtr = this.state.benchPtr; // infer bench
       }
     }
 
@@ -258,6 +315,8 @@ export class TransactionBuilder implements Transaction {
     update: Partial<T>,
     options?: { debounce?: DebounceLevel },
   ) {
+    this._checkInScope(node);
+
     const propertiesEnum = NODE_PROPERTY_ENUM_BY_TYPE[node.metatype]!;
     const allProperties = PROPERTY_INFOS_BY_TYPE[node.metatype]!;
 
@@ -275,7 +334,7 @@ export class TransactionBuilder implements Transaction {
       properties.push(propInfo);
     }
 
-    if (!options?.debounce || !this.debouncedUpdates[node.id]) {
+    if (!options?.debounce || !this.state._debouncedUpdates[node.id]) {
       // create new edit
       const oldNodePacked: Record<string, JsonValue> = {};
       const newNodePacked: Record<string, JsonValue> = {};
@@ -302,13 +361,13 @@ export class TransactionBuilder implements Transaction {
         editedAt: Timestamp.now(),
       };
       if (options?.debounce) {
-        this.debouncedUpdates[node.id] = edit;
+        this.state._debouncedUpdates[node.id] = edit;
       }
-      this.edits.push(edit);
+      this.state.edits.push(edit);
       this._notifyEdit(edit, options?.debounce ?? null);
     } else {
       // merge into existing edit & notify directly :DebouncedUpdate
-      const edit = this.debouncedUpdates[node.id];
+      const edit = this.state._debouncedUpdates[node.id];
       if (edit.oldNodePacked == null || edit.newNodePacked == null) {
         throw new Error(`missing old/new node in debounced edit: ${describeEdit(edit)}`);
       }
@@ -501,7 +560,9 @@ type CommitFailure = {
   error: RpcError;
 };
 type PendingCallback = (
-  event: { type: "add"; edits: EditData[]; debounce: DebounceLevel | null } | { type: "reset"; edits: EditData[] },
+  event:
+    | { type: "add"; connectionId: number | null; edits: EditData[]; debounce: DebounceLevel | null }
+    | { type: "reset"; connectionId: number | null; edits: EditData[] },
 ) => void;
 type CommittedCallback = (edits: EditData[]) => void;
 
@@ -571,7 +632,11 @@ export class ImmediateTransactionBuffer implements TransactionBuffer {
   reset() {
     // NOTE: we default to null user pointer in immediate transaction buffer since it's only used locally
     //  and we need some 'subject' to create edits (even when not connected to a 'real' remote graph)
-    const newTx = new TransactionBuilder(this.scope, uuidt({ nonce: NONCE_POSTFIX }), userOrNullPtr);
+    const newTx = new TransactionBuilder({
+      connectionId: null,
+      subject: userOrNullPtr,
+      state: new TransactionState(uuidt({ nonce: NONCE_POSTFIX }), this.scope),
+    });
     // immediately apply and reset the transaction
     newTx.onEdit((edit) => {
       if (this.currentTx !== newTx) throw new Error("transaction is closed");
@@ -580,7 +645,7 @@ export class ImmediateTransactionBuffer implements TransactionBuffer {
       // notify
       this.acceptedSubs.forEach((sub) => sub([edit]));
       // 'reset'
-      newTx.edits.length = 0;
+      newTx.state.edits.length = 0;
     });
     this.currentTx = newTx;
   }
@@ -650,9 +715,13 @@ export class RemoteTransactionBuffer implements TransactionBuffer {
 
   async commit() {
     if (this.currentTx == null) throw new Error("no active transaction");
-    if (this.pendingTx != null) throw new Error(`transaction ${this.pendingTx.describeSelf()} is already committing`);
+    if (this.pendingTx != null) throw new Error(`transaction ${this.pendingTx.id} is already committing`);
     try {
-      log.trace("transaction.commit", { scope: this.scope, id: this.currentTx.id, edits: this.currentTx.edits });
+      log.trace("transaction.commit", {
+        scope: this.scope,
+        id: this.currentTx.id,
+        edits: this.currentTx.edits,
+      });
 
       // swap
       const edits = this.currentTx.edits;
@@ -714,7 +783,7 @@ export class RemoteTransactionBuffer implements TransactionBuffer {
     this.currentTx = this._makeCurrentTx();
     this.pendingEditsById = {};
     this.pendingTx = null;
-    this.pendingSubs.forEach((sub) => sub({ type: "reset", edits: [] }));
+    this.pendingSubs.forEach((sub) => sub({ type: "reset", connectionId: null, edits: [] }));
   }
 
   async retry(id: string) {
@@ -728,11 +797,15 @@ export class RemoteTransactionBuffer implements TransactionBuffer {
   }
 
   private _makeCurrentTx() {
-    const tx = new TransactionBuilder(this.scope, newTransactionId(), userPtr);
-    tx.onEdit((edit, debounce) => {
-      if (this.currentTx !== tx) throw new Error(`transaction ${tx.describeSelf()} is closed`);
+    const tx = new TransactionBuilder({
+      connectionId: null, // root tx has no connection
+      subject: userPtr,
+      state: new TransactionState(newTransactionId(), this.scope),
+    });
+    tx.onEdit((edit, connectionId, debounce) => {
+      if (this.currentTx?.id !== tx.id) throw new Error(`transaction ${tx.describeSelf()} is closed`);
       this.pendingEditsById[edit.id] = edit;
-      this.pendingSubs.forEach((sub) => sub({ type: "add", edits: [edit], debounce }));
+      this.pendingSubs.forEach((sub) => sub({ type: "add", connectionId, edits: [edit], debounce }));
     });
     return tx;
   }
@@ -747,7 +820,7 @@ export class RemoteTransactionBuffer implements TransactionBuffer {
     }
     if (pendingEditsChanged) {
       const newPendingEdits = Object.values(this.pendingEditsById);
-      this.pendingSubs.forEach((sub) => sub({ type: "reset", edits: newPendingEdits }));
+      this.pendingSubs.forEach((sub) => sub({ type: "reset", connectionId: null, edits: newPendingEdits }));
     }
   }
 

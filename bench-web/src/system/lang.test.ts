@@ -3,8 +3,8 @@ import { toNodeReference } from "@/proto/wiring";
 import { NodeGraph } from "@/system/graph";
 import { fabricate } from "@/system/graph.test";
 import { fixOrderKeys } from "@/system/lang";
-import { TransactionBuilder, editGraph } from "@/system/transaction";
-import { v4 } from "uuid";
+import { TransactionBuilder, TransactionState, editGraph } from "@/system/transaction";
+import { uuidt } from "@/utils/uuidt";
 import { describe, expect, test } from "vitest";
 
 describe("order keys", () => {
@@ -16,7 +16,11 @@ describe("order keys", () => {
     );
 
     // 'fix' order keys with minimal edits
-    const tx = new TransactionBuilder({}, v4(), toNodeReference(fabricate(ObjectType.USER)));
+    const tx = new TransactionBuilder({
+      connectionId: null,
+      subject: toNodeReference(fabricate(ObjectType.USER)),
+      state: new TransactionState(uuidt(), {}),
+    });
     fixOrderKeys(tx, badNodes);
     expect(tx.edits.length).toBe(3);
 

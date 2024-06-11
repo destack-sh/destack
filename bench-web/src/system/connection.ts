@@ -167,9 +167,19 @@ function getNodeTypesFromParams<T extends NodeType>(
 }
 
 /** Derives the overlay graph for a specific connection */
-function makePendingOverlayGraph(base: NodeGraph, txBuffer: TransactionBuffer, subs: (() => void)[]): NodeGraph {
+function makeConnectionOverlayGraph(
+  base: NodeGraph,
+  connection: GraphConnection<any, any>,
+  subs: (() => void)[],
+): NodeGraph {
   const overlay = new NodeGraph({ scope: base.scope, nodeTypes: base.nodeTypes, isOverlayOf: base });
-  const sub = txBuffer.subscribePending((event) => {
+  const sub = connection.txBuffer.subscribePending((event) => {
+    // NOTE :UX :Architecture: instead of ignoring transactions from other connections outright we could optimistically
+    //  apply edits to the same node identities to other connections as well. Ultimately,
+    //  we probably want to emulate even more of the backend live connection logic (e.g., optimistic search results).
+    // (the reason for having the connection filter below is that while the backend properly filters edits per connection,
+    //  here we distribute optimistic edits to across the transaction buffer, so the edit might not be relevant)
+    if (event.connectionId != null && event.connectionId != connection.meta.id) return;
     if (event.type == "reset") overlay.clear();
     editGraph(overlay, event.edits, { isOverlayOf: base });
   });
@@ -253,7 +263,7 @@ export abstract class GraphConnectionBase<K extends GraphConnectionKind, T exten
   }
 
   get tx(): Transaction {
-    return this.txBuffer.tx;
+    return this.txBuffer.tx.getSubtransaction(this.meta.id);
   }
 
   async close(): Promise<void> {
@@ -511,7 +521,7 @@ export class RemoteGetConnection<T extends NodeType> extends GraphConnectionBase
       subs.push(this.txBuffer.subscribeCommitted((edits) => editGraph(graph, edits)));
     }
 
-    const overlay = makePendingOverlayGraph(graph, this.txBuffer, subs);
+    const overlay = makeConnectionOverlayGraph(graph, this, subs);
     return { graph, overlay, roots: graph.getManyRef(params.roots), subs };
   }
 }
@@ -559,7 +569,7 @@ export class RemoteSearchConnection<T extends NodeType> extends GraphConnectionB
       subs.push(this.txBuffer.subscribeCommitted((edits) => editGraph(graph, edits)));
     }
 
-    const overlay = makePendingOverlayGraph(graph, this.txBuffer, subs);
+    const overlay = makeConnectionOverlayGraph(graph, this, subs);
     return { graph, overlay, roots, page, subs };
   }
 }
