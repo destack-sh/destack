@@ -49,7 +49,7 @@ def stable_hash(*args) -> int:
         if isinstance(value, (list, tuple)):
             for item in value:
                 update_hash(item)
-        elif isinstance(value, (str, int, enum.Enum, type(None))):
+        elif isinstance(value, (str, int, UUID, enum.Enum, type(None))):
             hasher.update(str(value).encode())
         elif isinstance(value, dict):
             hasher.update(json.dumps(value, sort_keys=True).encode())
