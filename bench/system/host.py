@@ -599,7 +599,7 @@ class Host(GraphIoServiceBase, HostBase, HostSpec):
             (self._bench, BENCH_QUERY._options, bench_edits),
             (self._main_package, PACKAGE_QUERY._options, package_edits),
         ):
-            # filter the in memory edits to only those with an origin (the system has origin = null)
+            # filter the in memory edits to only those with an origin (we = system has origin = null)
             external_edits = tuple(e for e in subedits if e.origin is not None)
             edit_graph(root_node._graph, external_edits, options, untracked=True)
             for edit in subedits:

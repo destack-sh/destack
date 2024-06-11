@@ -691,7 +691,7 @@ let connectionId = 0;
 function newConnectionId(): number {
   return connectionId++;
 }
-const _graphConnections: Ref<GraphConnectionBase<any, any>[]> = shallowRef([
+const _connections: Ref<GraphConnectionBase<any, any>[]> = shallowRef([
   // add local graph
   new LocalGetConnection(
     { id: newConnectionId(), name: "local.space", live: true, options: {} },
@@ -701,11 +701,11 @@ const _graphConnections: Ref<GraphConnectionBase<any, any>[]> = shallowRef([
     spaceGraphLocal as ReadNodeGraph & WriteNodeGraph,
   ),
 ]);
-export const graphConnections = pretendReadonly(_graphConnections);
-export const hasPendingConnections = computed(() => graphConnections.value.some((c) => !c.isConnected.value));
+export const connections = pretendReadonly(_connections);
+export const hasPendingConnections = computed(() => connections.value.some((c) => !c.isConnected.value));
 
 export function addGraphConnection(connection: GraphConnectionBase<any, any>): void {
-  _graphConnections.value = [..._graphConnections.value, connection];
+  _connections.value = [..._connections.value, connection];
 }
 
 /** RC-=1. Connections without references are GCed after some time. */
@@ -726,7 +726,7 @@ export function findExistingConnection<K extends GraphConnectionKind, T extends 
   match?: ConnectionMatchOptions<K, T>,
 ): GraphConnectionBase<K, T> | null {
   const matchingConnections =
-    _graphConnections.value.filter((c) => c.kind == kind && c.supports(params) && match?.predicate?.(c) !== false) ??
+    _connections.value.filter((c) => c.kind == kind && c.supports(params) && match?.predicate?.(c) !== false) ??
     null;
   if (matchingConnections.length == 0) return null;
   if (matchingConnections.length > 1) {
@@ -743,7 +743,7 @@ export function findExistingConnectionOrError<K extends GraphConnectionKind, T e
   const connection = findExistingConnection(kind, params, match);
   if (connection == null)
     throw new Error(
-      `no connection found for ${kind}:${JSON.stringify(params)} (available: ${_graphConnections.value.map((c) => c.name).join(", ")})`,
+      `no connection found for ${kind}:${JSON.stringify(params)} (available: ${_connections.value.map((c) => c.name).join(", ")})`,
     );
   return connection;
 }
@@ -760,8 +760,8 @@ function acquireExistingConnection<K extends GraphConnectionKind, T extends Node
 }
 
 export async function clearConnections(): Promise<void> {
-  await Promise.all(_graphConnections.value.map((c) => c.close()));
-  _graphConnections.value = [];
+  await Promise.all(_connections.value.map((c) => c.close()));
+  _connections.value = [];
 }
 
 type ConnectionMetadataIn = Pick<ConnectionMetadata, "name"> & Partial<ConnectionMetadata>;
@@ -890,7 +890,7 @@ export function useExistingConnection<T extends NodeType = any>(
       );
       if (newConnection == null && !options?.isOptional)
         throw new Error(
-          `missing connection for ${describeNode(nodeRef.value)} (available: ${_graphConnections.value.map((c) => c.name).join(", ") ?? "<none>"})`,
+          `missing connection for ${describeNode(nodeRef.value)} (available: ${_connections.value.map((c) => c.name).join(", ") ?? "<none>"})`,
         );
     }
     if (newConnection !== oldConnection) connection.value = newConnection as GraphConnectionBase<"get", T> | null;
@@ -905,7 +905,7 @@ export function useExistingConnection<T extends NodeType = any>(
       connection,
       () => {
         stopGlobalWatch?.();
-        if (!connection.value) stopGlobalWatch = watch(_graphConnections, refreshConnection);
+        if (!connection.value) stopGlobalWatch = watch(_connections, refreshConnection);
       },
       { immediate: true, flush: "sync" },
     );

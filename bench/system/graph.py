@@ -69,6 +69,7 @@ from bench.proto.wire import (
     WatchSearchResponse,
 )
 from bench.system.connection import (
+    CONNECTION_CACHE_ENABLED,
     AggregateConnection,
     GetConnection,
     QueryConnector,
@@ -165,7 +166,10 @@ class GraphIoServiceBase(ServiceBase, GraphIoBase):
                     options=adapt_read_options(subject, node_type, options),
                 )
                 connection = await self.connector.connect(
-                    query, session, GetConnection, cache=not request.no_cache
+                    query=query,
+                    session=session,
+                    connection_t=GetConnection,
+                    cache=CONNECTION_CACHE_ENABLED and not request.no_cache,
                 )
                 result = connection.result
                 span.set_attributes(
@@ -204,9 +208,9 @@ class GraphIoServiceBase(ServiceBase, GraphIoBase):
         self, subject: Subject, request: WatchGetRequest
     ) -> AsyncIterator[WatchGetResponse]:
         subscription = await self.connector.subscribe(
-            subject,
-            GetConnection,
-            WatchGetUpdate,
+            subject=subject,
+            connection_t=GetConnection,
+            update_t=WatchGetUpdate,
             connection_token=request.connection_token,
             since_epoch=request.since_epoch if request.since_epoch is not None else self.epoch,
         )
@@ -254,7 +258,10 @@ class GraphIoServiceBase(ServiceBase, GraphIoBase):
 
             with self.tracer.start_as_current_span("graph.search.fetch") as span:
                 connection = await self.connector.connect(
-                    query, session, SearchConnection, cache=not request.no_cache
+                    query=query,
+                    session=session,
+                    connection_t=SearchConnection,
+                    cache=CONNECTION_CACHE_ENABLED and not request.no_cache,
                 )
                 result = connection.result
                 span.set_attributes(
@@ -292,9 +299,9 @@ class GraphIoServiceBase(ServiceBase, GraphIoBase):
         self, subject: Subject, request: WatchSearchRequest
     ) -> AsyncIterator[WatchSearchResponse]:
         subscription = await self.connector.subscribe(
-            subject,
-            SearchConnection,
-            WatchSearchUpdate,
+            subject=subject,
+            connection_t=SearchConnection,
+            update_t=WatchSearchUpdate,
             connection_token=request.connection_token,
             since_epoch=request.since_epoch if request.since_epoch is not None else self.epoch,
         )
@@ -340,7 +347,10 @@ class GraphIoServiceBase(ServiceBase, GraphIoBase):
 
             with self.tracer.start_as_current_span("graph.aggregate.fetch") as span:
                 connection = await self.connector.connect(
-                    query, session, AggregateConnection, cache=not request.no_cache
+                    query=query,
+                    session=session,
+                    connection_t=AggregateConnection,
+                    cache=CONNECTION_CACHE_ENABLED and not request.no_cache,
                 )
                 span.set_attributes(
                     {"connection_hash": connection.hash, "connection_token": connection.token}
@@ -551,7 +561,7 @@ class GraphIoServiceBase(ServiceBase, GraphIoBase):
         epoch: int,
     ):
         """Handle a commit in the request session."""
-        self.connector.on_commit(graph, data_graph, edits, cascaded_edits, epoch)
+        self.connector.on_commit(data_graph, edits, cascaded_edits, epoch)
 
 
 class CommitScope(NamedTuple):

@@ -1,7 +1,7 @@
 <script lang="ts" setup>
 import { Orientation } from "@/proto/wire";
 import { isDeveloperMode } from "@/system/client";
-import { graphConnections, hasPendingConnections } from "@/system/connection";
+import { connections, hasPendingConnections } from "@/system/connection";
 import { ScrollbarWidth } from "@/utils/layout";
 import Scroll from "@/views/containers/Scroll.vue";
 import Button from "@/views/controls/Button.vue";
@@ -15,7 +15,7 @@ import Popover from "@/views/builtins/Popover.vue";
         v-if="isDeveloperMode || hasPendingConnections"
         class="select-none rounded border-2 px-1 py-1 transition-colors"
         :class="
-          graphConnections.some((c) => c.isPaused.value || c.txBuffer.isPaused.value)
+          connections.some((c) => c.isPaused.value || c.txBuffer.isPaused.value)
             ? 'border-warning-600'
             : 'border-transparent'
         "
@@ -36,7 +36,7 @@ import Popover from "@/views/builtins/Popover.vue";
       <!-- will probably move this to a Connections View (maybe keep summary on hover) -->
       <div v-outside.click.stop="close" class="p z-50 rounded border border-gray-300 bg-white text-gray-900">
         <div class="my-1 border-b border-gray-300 px-3 py-1">
-          <span class="font-semibold">Graph Connections ({{ graphConnections.length }})</span>
+          <span class="font-semibold">Graph Connections ({{ connections.length }})</span>
         </div>
         <Scroll
           :size="{ width: 400, height: 400 }"
@@ -45,7 +45,7 @@ import Popover from "@/views/builtins/Popover.vue";
           :track-width="ScrollbarWidth.sm"
         >
           <ul class="my-1.5 flex min-w-[320px] flex-col gap-y-1 px-3">
-            <li v-for="connection in graphConnections" :key="connection.id" class="flex flex-row py-0.5">
+            <li v-for="connection in connections" :key="connection.id" class="flex flex-row py-0.5">
               <!-- Metadata -->
               <span class="rounded bg-secondary-100 px-2 font-mono uppercase text-secondary-900">
                 {{ connection.kind }}

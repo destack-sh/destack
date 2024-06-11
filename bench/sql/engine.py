@@ -1753,8 +1753,12 @@ async def _pg_edit_cascade(
         for node, cascaded_edit in zip(nodes, cascaded_edits):
             if edit_type in (EditType.UNARCHIVE, EditType.RESTORE):
                 cascaded_edit.new_node_packed = pack_node_delta(node)
-            else:
+            elif edit_type in (EditType.ARCHIVE, EditType.DELETE, EditType.ERASE):
                 cascaded_edit.old_node_packed = pack_node_delta(node)
+            else:
+                raise RuntimeError(
+                    f"unexpected cascaded edit type{edit_type!r} for {cascaded_edit!r}"
+                )
 
     return all_cascaded_edits
 
