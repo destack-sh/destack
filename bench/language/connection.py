@@ -495,7 +495,7 @@ class InMemoryEngine(StoreEngine[NodeT, NodeDataT], Generic[NodeT, NodeDataT]):
     """A read-only engine that reads from an in-memory graph."""
 
     def __init__(
-        self, scope: GraphScope, node_types: bittuple[NodeType], graph: "NodeDataGraph[AnyNodeData]"
+        self, scope: GraphScope, node_types: bittuple[NodeType], graph: "NodeDataGraph"
     ):
         super().__init__(scope, node_types)
         self.graph = graph
@@ -581,7 +581,7 @@ class InMemoryConnection(StoreConnection[NodeT, NodeDataT], Generic[NodeT, NodeD
                     cast(wire.NodeType, node_type): tuple(
                         t for t in CHILD_NODE_TYPES[node_type] if t in descendant_types
                     )
-                    for node_type in query.all_types
+                    for node_type in query.all_node_types
                 }
                 current_parents = roots
                 while current_parents:
@@ -623,7 +623,7 @@ class SplitConnection(StoreConnection[NodeT, NodeDataT], Generic[NodeT, NodeData
 
         # first trim query to nucleus around core node type (use best match)
         initial_engine = self.session.tx._get_engine(
-            scope, query._node_type, best_match=list(query.all_types), is_readonly=True
+            scope, query._node_type, best_match=list(query.all_node_types), is_readonly=True
         )
         initial_query = query.trim_to(initial_engine.node_types)
         initial_connection = await self.session.tx._get_engine_connection(initial_engine)

@@ -50,7 +50,6 @@ from bench.proto.services import ServiceBase
 from bench.proto.wire import (
     AggregateNodesRequest,
     AggregateNodesResponse,
-    AnyNodeData,
     CommitTransactionRequest,
     CommitTransactionResponse,
     EditData,
@@ -194,7 +193,9 @@ class GraphIoServiceBase(ServiceBase, GraphIoBase):
             span="current",
         )
         return GetNodesResponse(
-            nodes=[wiring.wrap_some_node(n) for n in adapted_nodes], epoch=self.epoch
+            nodes=[wiring.wrap_some_node(n) for n in adapted_nodes],
+            connection_token=connection.token,
+            epoch=self.epoch,
         )
 
     @override
@@ -281,6 +282,7 @@ class GraphIoServiceBase(ServiceBase, GraphIoBase):
             roots=result.roots,
             nodes=[wiring.wrap_some_node(n) for n in adapted_nodes],
             total=result.total,
+            connection_token=connection.token,
             epoch=self.epoch,
         )
 
@@ -346,7 +348,11 @@ class GraphIoServiceBase(ServiceBase, GraphIoBase):
         # TODO :Security!: check aggregation access
 
         self.logger.debug("graph.aggregate", subject=subject, epoch=self.epoch, span="current")
-        return AggregateNodesResponse(aggregation=connection.result.aggregation, epoch=self.epoch)
+        return AggregateNodesResponse(
+            aggregation=connection.result.aggregation,
+            connection_token=connection.token,
+            epoch=self.epoch,
+        )
 
     @override
     async def watch_aggregate(
@@ -487,6 +493,8 @@ class GraphIoServiceBase(ServiceBase, GraphIoBase):
         """
         assert session._tx is not None, f"no active tx in {session!r}"
         edit_graph = NodeDict(session._edited_nodes_by_id)
+        # NOTE :Performance: we could be a smarter to avoid packing edited nodes here
+        #  (but it doesn't really matter since the number of nodes here is usually small)
         edit_data_graph = NodeDataDict(
             {str(node.id): node._to_data() for node in session._edited_nodes_by_id.values()}
         )
@@ -553,9 +561,7 @@ class CommitScope(NamedTuple):
     graph_scopes: tuple[GraphScope, ...]
 
 
-def parse_commit_scope(
-    edits: list[EditData], base_graph: NodeDataGraph[AnyNodeData] | None
-) -> CommitScope:
+def parse_commit_scope(edits: list[EditData], base_graph: NodeDataGraph | None) -> CommitScope:
     """
     Gets the specific nodes (scopes) and related nodes that are edited. :NodeEditScope
     """

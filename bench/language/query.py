@@ -401,7 +401,7 @@ class QueryBuilder(
         return f"<{self._node_type.bench_name}Query.{query_type} {self}>"
 
     @property
-    def all_types(self) -> Iterable[NodeType]:
+    def all_node_types(self) -> Iterable[NodeType]:
         if self._options is None:
             return (self._node_type,)
         else:
