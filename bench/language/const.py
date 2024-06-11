@@ -12,7 +12,7 @@ from bench.utils.utils import frozendict, get_from_env
 if typing.TYPE_CHECKING:
     from bench.language import Bench, Run, Session, Transaction
 
-VERSION = "2024.06.10.3"
+VERSION = "2024.06.11.0"
 REVISION_PENDING = -1
 TK_LENGTH_BYTES = 8
 TK_LENGTH_B64 = 12  # 1.5 * TK_LENGTH_BYTES (must be integer)
@@ -68,7 +68,7 @@ class EnumType(IdEnum):
     EDIT_TYPE = 2035
     USE_TYPE = 2036
     ACCESS_TYPE = 2037  # ReadType | EditType | UseType
-    POLICY_EFFECT = 2038
+    POLICY_EFFECT = 2040
 
     # bench
     REGION = 2050
@@ -515,12 +515,12 @@ class ReferenceKind(IdEnum):
 class ReadType(IdEnum):
     """Ways to read nodes."""
 
-    """Any direct read for a single node."""
+    """Any direct read for specific nodes."""
     GET = 1
+    """Search all nodes."""
+    SEARCH = 2
     """Aggregate statistics."""
     AGGREGATE = 3
-    """Search all nodes."""
-    LIST = 5
 
     @property
     def kind(self) -> "AccessKind":

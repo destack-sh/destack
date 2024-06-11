@@ -39,6 +39,7 @@ from bench.language.const import (
     NodeType,
     ObjectType,
     PrimitiveType,
+    ReadType,
     ReferenceKind,
     StructType,
     _active_session,
@@ -1176,7 +1177,7 @@ EDIT_SUBJECT_TYPES = (NodeType.USER, NodeType.SERVER, NodeType.RUN)
 class ReadInfo:
     options: "ReadOptions | None"
     epoch: int | None
-    query_id: str | None
+    connection_token: str | None
     properties: bitarray | None = None
     graph: NodeDataGraph | None = None
 
@@ -1566,7 +1567,7 @@ class Node[NodeDataT: AnyNodeData](BuiltinObject[NodeDataT], abc.ABC):
     def query(cls) -> "QueryBuilder[Self, NodeDataT]":
         from bench.language.query import QueryBuilder
 
-        return QueryBuilder(node_type=cls.metatype)
+        return QueryBuilder(read_type=ReadType.SEARCH, node_type=cls.metatype)
 
     @classmethod
     async def get(cls, conditional: Optional["Expression"] = None, **kwargs) -> Self:

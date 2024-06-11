@@ -22,8 +22,8 @@ enum AccessMode {
 enum AccessType {
   ACCESS_TYPE_UNSPECIFIED = 0;
   ACCESS_TYPE_GET = 1;
+  ACCESS_TYPE_SEARCH = 2;
   ACCESS_TYPE_AGGREGATE = 3;
-  ACCESS_TYPE_LIST = 5;
   ACCESS_TYPE_CREATE = 20;
   ACCESS_TYPE_UPSERT = 21;
   ACCESS_TYPE_UPDATE = 22;
@@ -170,7 +170,7 @@ enum BenchType {
   BENCH_TYPE_EDIT_TYPE = 2035;
   BENCH_TYPE_USE_TYPE = 2036;
   BENCH_TYPE_ACCESS_TYPE = 2037;
-  BENCH_TYPE_POLICY_EFFECT = 2038;
+  BENCH_TYPE_POLICY_EFFECT = 2040;
   BENCH_TYPE_REGION = 2050;
   BENCH_TYPE_TENANCY = 2051;
   BENCH_TYPE_SERVER_PROFILE = 2055;
@@ -369,7 +369,7 @@ enum EnumType {
   ENUM_TYPE_EDIT_TYPE = 2035;
   ENUM_TYPE_USE_TYPE = 2036;
   ENUM_TYPE_ACCESS_TYPE = 2037;
-  ENUM_TYPE_POLICY_EFFECT = 2038;
+  ENUM_TYPE_POLICY_EFFECT = 2040;
   ENUM_TYPE_REGION = 2050;
   ENUM_TYPE_TENANCY = 2051;
   ENUM_TYPE_SERVER_PROFILE = 2055;
@@ -841,8 +841,8 @@ enum PrimitiveType {
 enum ReadType {
   READ_TYPE_UNSPECIFIED = 0;
   READ_TYPE_GET = 1;
+  READ_TYPE_SEARCH = 2;
   READ_TYPE_AGGREGATE = 3;
-  READ_TYPE_LIST = 5;
 }
 
 // A reference to a Node or Struct - usually both have an identity (except for inlined Structs).
@@ -2484,10 +2484,11 @@ message QueryData {
   repeated int32 set_properties = 29;
   string name = 30;
   string order_key = 31;
-  NodeType node_type = 32;
-  optional NodeReferenceData base_ptr = 33;
-  optional ExpressionData filter = 34;
-  repeated ExpressionData sort = 35;
+  ReadType read_type = 32;
+  NodeType node_type = 33;
+  optional NodeReferenceData base_ptr = 34;
+  optional ExpressionData filter = 35;
+  repeated ExpressionData sort = 36;
 }
 
 // A record in a DatabaseBlock.

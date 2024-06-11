@@ -3,7 +3,7 @@
 
 from typing import TYPE_CHECKING, Union
 
-VERSION = "2024.06.10.3"
+VERSION = "2024.06.11.0"
 
 if TYPE_CHECKING:
     from bench.language import Subject
@@ -55,8 +55,8 @@ class AccessMode(betterproto.Enum):
 class AccessType(betterproto.Enum):
     UNSPECIFIED = 0
     GET = 1
+    SEARCH = 2
     AGGREGATE = 3
-    LIST = 5
     CREATE = 20
     UPSERT = 21
     UPDATE = 22
@@ -205,7 +205,7 @@ class BenchType(betterproto.Enum):
     EDIT_TYPE = 2035
     USE_TYPE = 2036
     ACCESS_TYPE = 2037
-    POLICY_EFFECT = 2038
+    POLICY_EFFECT = 2040
     REGION = 2050
     TENANCY = 2051
     SERVER_PROFILE = 2055
@@ -407,7 +407,7 @@ class EnumType(betterproto.Enum):
     EDIT_TYPE = 2035
     USE_TYPE = 2036
     ACCESS_TYPE = 2037
-    POLICY_EFFECT = 2038
+    POLICY_EFFECT = 2040
     REGION = 2050
     TENANCY = 2051
     SERVER_PROFILE = 2055
@@ -889,8 +889,8 @@ class ReadType(betterproto.Enum):
 
     UNSPECIFIED = 0
     GET = 1
+    SEARCH = 2
     AGGREGATE = 3
-    LIST = 5
 
 
 class ReferenceKind(betterproto.Enum):
@@ -2783,10 +2783,11 @@ class QueryData(betterproto.Message):
     set_properties: List[int] = betterproto.int32_field(29)
     name: str = betterproto.string_field(30)
     order_key: str = betterproto.string_field(31)
-    node_type: "NodeType" = betterproto.enum_field(32)
-    base_ptr: Optional["NodeReferenceData"] = betterproto.message_field(33, optional=True)
-    filter: Optional["ExpressionData"] = betterproto.message_field(34, optional=True)
-    sort: List["ExpressionData"] = betterproto.message_field(35)
+    read_type: "ReadType" = betterproto.enum_field(32)
+    node_type: "NodeType" = betterproto.enum_field(33)
+    base_ptr: Optional["NodeReferenceData"] = betterproto.message_field(34, optional=True)
+    filter: Optional["ExpressionData"] = betterproto.message_field(35, optional=True)
+    sort: List["ExpressionData"] = betterproto.message_field(36)
 
 
 @dataclass(eq=False, repr=False)
@@ -3374,7 +3375,6 @@ class GraphScope(betterproto.Message):
 
     bench_id: Optional[str] = betterproto.string_field(1, optional=True)
     package_id: Optional[str] = betterproto.string_field(3, optional=True)
-    transaction_id: Optional[str] = betterproto.string_field(4, optional=True)
 
 
 @dataclass(eq=False, repr=False)
@@ -3435,8 +3435,13 @@ class EditData(betterproto.Message):
 class GetNodesRequest(betterproto.Message):
     scope: "GraphScope" = betterproto.message_field(1)
     roots: List["NodeReferenceData"] = betterproto.message_field(2)
+    """The 'root' nodes to get around."""
+
     options: Optional["ReadOptionsData"] = betterproto.message_field(3, optional=True)
+    """Options to configure read."""
+
     no_cache: Optional[bool] = betterproto.bool_field(4, optional=True)
+    """Whether to use and populate the cache."""
 
 
 @dataclass(eq=False, repr=False)
@@ -3444,81 +3449,164 @@ class GetNodesResponse(betterproto.Message):
     nodes: List["SomeNodeData"] = betterproto.message_field(1)
     """Nodes are in pre-order (parent before children) traversal."""
 
-    access: Optional["AccessMatrixData"] = betterproto.message_field(2, optional=True)
+    epoch: int = betterproto.uint64_field(10)
+    """Current epoch."""
+
+    connection_token: str = betterproto.string_field(11)
+    """Token to deduplicate and watch updates."""
+
+
+@dataclass(eq=False, repr=False)
+class WatchGetRequest(betterproto.Message):
+    scope: "GraphScope" = betterproto.message_field(1)
+    connection_token: str = betterproto.string_field(2)
+    """The connection to watch. Must already exist."""
+
+    since_epoch: Optional[int] = betterproto.uint64_field(3, optional=True)
+    """Get any updates in between the original request and this one."""
+
+
+@dataclass(eq=False, repr=False)
+class WatchGetResponse(betterproto.Message):
+    edits: List["EditData"] = betterproto.message_field(1)
+    """Edits to current result set."""
+
+    cascaded_edits: List["EditData"] = betterproto.message_field(2)
+    """Cascaded edits to current result set."""
+
     epoch: int = betterproto.uint64_field(3)
-    query_token: str = betterproto.string_field(4)
+    """Current epoch."""
 
 
 @dataclass(eq=False, repr=False)
 class SearchNodesRequest(betterproto.Message):
     scope: "GraphScope" = betterproto.message_field(1)
     node_type: "NodeType" = betterproto.enum_field(2)
+    """The type of node to search."""
+
     bases: List["NodeReferenceData"] = betterproto.message_field(3)
+    """Any relevant bases if it's a based node."""
+
     filter: Optional["ExpressionData"] = betterproto.message_field(4, optional=True)
+    """Filter for the search."""
+
     sort: List["ExpressionData"] = betterproto.message_field(5)
+    """Sort order for the search."""
+
     first: Optional[int] = betterproto.int32_field(6, optional=True)
+    """Limit result set."""
+
     skip: Optional[int] = betterproto.int32_field(7, optional=True)
-    after: Optional[str] = betterproto.string_field(8, optional=True)
-    options: Optional["ReadOptionsData"] = betterproto.message_field(9, optional=True)
-    count: Optional[bool] = betterproto.bool_field(10, optional=True)
+    """Paginate result set."""
+
+    after: Optional["NodeReferenceData"] = betterproto.message_field(8, optional=True)
+    """Paginate result set."""
+
+    count: Optional[bool] = betterproto.bool_field(9, optional=True)
+    """Whether to get the total count."""
+
+    options: Optional["ReadOptionsData"] = betterproto.message_field(10, optional=True)
+    """Options to configure read."""
+
     no_cache: Optional[bool] = betterproto.bool_field(11, optional=True)
+    """Whether to use and populate the cache."""
 
 
 @dataclass(eq=False, repr=False)
 class SearchNodesResponse(betterproto.Message):
-    nodes: List["SomeNodeData"] = betterproto.message_field(1)
-    """Nodes in pre-order (parent before children) traversal."""
+    roots: List["NodeReferenceData"] = betterproto.message_field(1)
+    """The 'root' result set for the search."""
 
-    roots: List["NodeReferenceData"] = betterproto.message_field(2)
-    cursors: List[str] = betterproto.string_field(3)
-    start_cursor: Optional[str] = betterproto.string_field(4, optional=True)
+    nodes: List["SomeNodeData"] = betterproto.message_field(2)
+    """All nodes in pre-order (parent before children) traversal."""
+
     total: Optional[int] = betterproto.int32_field(5, optional=True)
-    access: Optional["AccessMatrixData"] = betterproto.message_field(6, optional=True)
-    epoch: int = betterproto.uint64_field(7)
-    query_token: str = betterproto.string_field(8)
+    """Total number of nodes in the result set."""
+
+    epoch: int = betterproto.uint64_field(10)
+    """Current epoch."""
+
+    connection_token: str = betterproto.string_field(11)
+    """Token to deduplicate and watch updates."""
+
+
+@dataclass(eq=False, repr=False)
+class WatchSearchRequest(betterproto.Message):
+    scope: "GraphScope" = betterproto.message_field(1)
+    connection_token: str = betterproto.string_field(2)
+    """The connection to watch. Must already exist."""
+
+    since_epoch: Optional[int] = betterproto.uint64_field(3, optional=True)
+    """Get any updates in between the original request and this one."""
+
+
+@dataclass(eq=False, repr=False)
+class WatchSearchResponse(betterproto.Message):
+    edits: List["EditData"] = betterproto.message_field(1)
+    """Edits to current result set."""
+
+    cascaded_edits: List["EditData"] = betterproto.message_field(2)
+    """Cascaded edits to current result set."""
+
+    added_nodes: List["SomeNodeData"] = betterproto.message_field(3)
+    """New nodes added to the result set."""
+
+    removed_nodes: List["NodeReferenceData"] = betterproto.message_field(4)
+    """Nodes removed from the result set."""
+
+    epoch: int = betterproto.uint64_field(10)
+    """Current epoch."""
 
 
 @dataclass(eq=False, repr=False)
 class AggregateNodesRequest(betterproto.Message):
     scope: "GraphScope" = betterproto.message_field(1)
     node_type: "NodeType" = betterproto.enum_field(2)
+    """The type of node to aggregate."""
+
     bases: List["NodeReferenceData"] = betterproto.message_field(3)
+    """Any relevant bases if it's a based node."""
+
     filter: Optional["ExpressionData"] = betterproto.message_field(4, optional=True)
+    """Filter for the aggregation."""
+
     sort: List["ExpressionData"] = betterproto.message_field(5)
+    """Sort order for the aggregation."""
+
     aggregation: "ExpressionData" = betterproto.message_field(6)
+    """Aggregation expression."""
+
     no_cache: Optional[bool] = betterproto.bool_field(7, optional=True)
+    """Whether to use and populate the cache."""
 
 
 @dataclass(eq=False, repr=False)
 class AggregateNodesResponse(betterproto.Message):
+    scope: "GraphScope" = betterproto.message_field(1)
+    connection_token: str = betterproto.string_field(2)
+    """The connection to watch. Must already exist."""
+
+    aggregation: "AggregationData" = betterproto.message_field(3)
+    """An updated aggregation result."""
+
+    epoch: int = betterproto.uint64_field(10)
+    """Current epoch."""
+
+
+@dataclass(eq=False, repr=False)
+class WatchAggregateRequest(betterproto.Message):
+    scope: "GraphScope" = betterproto.message_field(1)
+    connection_token: str = betterproto.string_field(2)
+    """The connection to watch. Must already exist."""
+
+    since_epoch: Optional[int] = betterproto.uint64_field(3, optional=True)
+    """Get any updates in between the original request and this one."""
+
+
+@dataclass(eq=False, repr=False)
+class WatchAggregateResponse(betterproto.Message):
     aggregation: "AggregationData" = betterproto.message_field(1)
-    epoch: int = betterproto.uint64_field(2)
-    query_token: str = betterproto.string_field(3)
-
-
-@dataclass(eq=False, repr=False)
-class WatchEditsRequest(betterproto.Message):
-    query_token: str = betterproto.string_field(1)
-    since_epoch: Optional[int] = betterproto.uint64_field(2, optional=True)
-
-
-@dataclass(eq=False, repr=False)
-class WatchEditsResponse(betterproto.Message):
-    edits: List["EditData"] = betterproto.message_field(1)
-    cascaded_edits: List["EditData"] = betterproto.message_field(2)
-    epoch: int = betterproto.uint64_field(3)
-
-
-@dataclass(eq=False, repr=False)
-class WatchAggregationRequest(betterproto.Message):
-    query_token: str = betterproto.string_field(1)
-    since_epoch: Optional[int] = betterproto.uint64_field(2, optional=True)
-
-
-@dataclass(eq=False, repr=False)
-class WatchAggregationResponse(betterproto.Message):
-    aggregation: "AggregationData" = betterproto.message_field(1)
-    epoch: int = betterproto.uint64_field(2)
+    epoch: int = betterproto.uint64_field(10)
 
 
 @dataclass(eq=False, repr=False)
@@ -3534,53 +3622,6 @@ class CommitTransactionResponse(betterproto.Message):
     revisions: List[int] = betterproto.int64_field(1)
     cascaded_edits: List["EditData"] = betterproto.message_field(2)
     epoch: int = betterproto.uint64_field(3)
-
-
-@dataclass(eq=False, repr=False)
-class FlushTransactionRequest(betterproto.Message):
-    scope: "GraphScope" = betterproto.message_field(1)
-    id: str = betterproto.string_field(2)
-    edits: List["EditData"] = betterproto.message_field(3)
-
-
-@dataclass(eq=False, repr=False)
-class FlushTransactionResponse(betterproto.Message):
-    revisions: List[int] = betterproto.int64_field(1)
-    cascaded_edits: List["EditData"] = betterproto.message_field(2)
-    epoch: int = betterproto.uint64_field(3)
-
-
-@dataclass(eq=False, repr=False)
-class CompleteTransactionRequest(betterproto.Message):
-    scope: "GraphScope" = betterproto.message_field(1)
-    id: str = betterproto.string_field(2)
-
-
-@dataclass(eq=False, repr=False)
-class CompleteTransactionResponse(betterproto.Message):
-    pass
-
-
-@dataclass(eq=False, repr=False)
-class CommitCompletedTransactionRequest(betterproto.Message):
-    scope: "GraphScope" = betterproto.message_field(1)
-    transaction_id: str = betterproto.string_field(2)
-
-
-@dataclass(eq=False, repr=False)
-class CommitCompletedTransactionResponse(betterproto.Message):
-    pass
-
-
-@dataclass(eq=False, repr=False)
-class CancelTransactionRequest(betterproto.Message):
-    scope: "GraphScope" = betterproto.message_field(1)
-    transaction_id: str = betterproto.string_field(2)
-
-
-@dataclass(eq=False, repr=False)
-class CancelTransactionResponse(betterproto.Message):
-    pass
 
 
 @dataclass(eq=False, repr=False)
@@ -3734,6 +3775,24 @@ class GraphIoStub(betterproto.ServiceStub):
             metadata=metadata,
         )
 
+    async def watch_get(
+        self,
+        request: "WatchGetRequest",
+        *,
+        timeout: Optional[float] = None,
+        deadline: Optional["Deadline"] = None,
+        metadata: Optional["MetadataLike"] = None,
+    ) -> AsyncIterator["WatchGetResponse"]:
+        async for response in self._unary_stream(
+            "/symbolx.bench.GraphIO/WatchGet",
+            request,
+            WatchGetResponse,
+            timeout=timeout,
+            deadline=deadline,
+            metadata=metadata,
+        ):
+            yield response
+
     async def search_nodes(
         self,
         request: "SearchNodesRequest",
@@ -3750,6 +3809,24 @@ class GraphIoStub(betterproto.ServiceStub):
             deadline=deadline,
             metadata=metadata,
         )
+
+    async def watch_search(
+        self,
+        request: "WatchSearchRequest",
+        *,
+        timeout: Optional[float] = None,
+        deadline: Optional["Deadline"] = None,
+        metadata: Optional["MetadataLike"] = None,
+    ) -> AsyncIterator["WatchSearchResponse"]:
+        async for response in self._unary_stream(
+            "/symbolx.bench.GraphIO/WatchSearch",
+            request,
+            WatchSearchResponse,
+            timeout=timeout,
+            deadline=deadline,
+            metadata=metadata,
+        ):
+            yield response
 
     async def aggregate_nodes(
         self,
@@ -3768,36 +3845,18 @@ class GraphIoStub(betterproto.ServiceStub):
             metadata=metadata,
         )
 
-    async def watch_edits(
+    async def watch_aggregate(
         self,
-        request: "WatchEditsRequest",
+        request: "WatchAggregateRequest",
         *,
         timeout: Optional[float] = None,
         deadline: Optional["Deadline"] = None,
         metadata: Optional["MetadataLike"] = None,
-    ) -> AsyncIterator["WatchEditsResponse"]:
+    ) -> AsyncIterator["WatchAggregateResponse"]:
         async for response in self._unary_stream(
-            "/symbolx.bench.GraphIO/WatchEdits",
+            "/symbolx.bench.GraphIO/WatchAggregate",
             request,
-            WatchEditsResponse,
-            timeout=timeout,
-            deadline=deadline,
-            metadata=metadata,
-        ):
-            yield response
-
-    async def watch_aggregation(
-        self,
-        request: "WatchAggregationRequest",
-        *,
-        timeout: Optional[float] = None,
-        deadline: Optional["Deadline"] = None,
-        metadata: Optional["MetadataLike"] = None,
-    ) -> AsyncIterator["WatchAggregationResponse"]:
-        async for response in self._unary_stream(
-            "/symbolx.bench.GraphIO/WatchAggregation",
-            request,
-            WatchAggregationResponse,
+            WatchAggregateResponse,
             timeout=timeout,
             deadline=deadline,
             metadata=metadata,
@@ -3816,57 +3875,6 @@ class GraphIoStub(betterproto.ServiceStub):
             "/symbolx.bench.GraphIO/CommitTransaction",
             request,
             CommitTransactionResponse,
-            timeout=timeout,
-            deadline=deadline,
-            metadata=metadata,
-        )
-
-    async def flush_transaction(
-        self,
-        request: "FlushTransactionRequest",
-        *,
-        timeout: Optional[float] = None,
-        deadline: Optional["Deadline"] = None,
-        metadata: Optional["MetadataLike"] = None,
-    ) -> "FlushTransactionResponse":
-        return await self._unary_unary(
-            "/symbolx.bench.GraphIO/FlushTransaction",
-            request,
-            FlushTransactionResponse,
-            timeout=timeout,
-            deadline=deadline,
-            metadata=metadata,
-        )
-
-    async def complete_transaction(
-        self,
-        request: "CompleteTransactionRequest",
-        *,
-        timeout: Optional[float] = None,
-        deadline: Optional["Deadline"] = None,
-        metadata: Optional["MetadataLike"] = None,
-    ) -> "CompleteTransactionResponse":
-        return await self._unary_unary(
-            "/symbolx.bench.GraphIO/CompleteTransaction",
-            request,
-            CompleteTransactionResponse,
-            timeout=timeout,
-            deadline=deadline,
-            metadata=metadata,
-        )
-
-    async def cancel_transaction(
-        self,
-        request: "CancelTransactionRequest",
-        *,
-        timeout: Optional[float] = None,
-        deadline: Optional["Deadline"] = None,
-        metadata: Optional["MetadataLike"] = None,
-    ) -> "CancelTransactionResponse":
-        return await self._unary_unary(
-            "/symbolx.bench.GraphIO/CancelTransaction",
-            request,
-            CancelTransactionResponse,
             timeout=timeout,
             deadline=deadline,
             metadata=metadata,
@@ -3891,6 +3899,24 @@ class SupervisorStub(betterproto.ServiceStub):
             metadata=metadata,
         )
 
+    async def watch_get(
+        self,
+        request: "WatchGetRequest",
+        *,
+        timeout: Optional[float] = None,
+        deadline: Optional["Deadline"] = None,
+        metadata: Optional["MetadataLike"] = None,
+    ) -> AsyncIterator["WatchGetResponse"]:
+        async for response in self._unary_stream(
+            "/symbolx.bench.Supervisor/WatchGet",
+            request,
+            WatchGetResponse,
+            timeout=timeout,
+            deadline=deadline,
+            metadata=metadata,
+        ):
+            yield response
+
     async def search_nodes(
         self,
         request: "SearchNodesRequest",
@@ -3907,6 +3933,24 @@ class SupervisorStub(betterproto.ServiceStub):
             deadline=deadline,
             metadata=metadata,
         )
+
+    async def watch_search(
+        self,
+        request: "WatchSearchRequest",
+        *,
+        timeout: Optional[float] = None,
+        deadline: Optional["Deadline"] = None,
+        metadata: Optional["MetadataLike"] = None,
+    ) -> AsyncIterator["WatchSearchResponse"]:
+        async for response in self._unary_stream(
+            "/symbolx.bench.Supervisor/WatchSearch",
+            request,
+            WatchSearchResponse,
+            timeout=timeout,
+            deadline=deadline,
+            metadata=metadata,
+        ):
+            yield response
 
     async def aggregate_nodes(
         self,
@@ -3925,36 +3969,18 @@ class SupervisorStub(betterproto.ServiceStub):
             metadata=metadata,
         )
 
-    async def watch_edits(
+    async def watch_aggregate(
         self,
-        request: "WatchEditsRequest",
+        request: "WatchAggregateRequest",
         *,
         timeout: Optional[float] = None,
         deadline: Optional["Deadline"] = None,
         metadata: Optional["MetadataLike"] = None,
-    ) -> AsyncIterator["WatchEditsResponse"]:
+    ) -> AsyncIterator["WatchAggregateResponse"]:
         async for response in self._unary_stream(
-            "/symbolx.bench.Supervisor/WatchEdits",
+            "/symbolx.bench.Supervisor/WatchAggregate",
             request,
-            WatchEditsResponse,
-            timeout=timeout,
-            deadline=deadline,
-            metadata=metadata,
-        ):
-            yield response
-
-    async def watch_aggregation(
-        self,
-        request: "WatchAggregationRequest",
-        *,
-        timeout: Optional[float] = None,
-        deadline: Optional["Deadline"] = None,
-        metadata: Optional["MetadataLike"] = None,
-    ) -> AsyncIterator["WatchAggregationResponse"]:
-        async for response in self._unary_stream(
-            "/symbolx.bench.Supervisor/WatchAggregation",
-            request,
-            WatchAggregationResponse,
+            WatchAggregateResponse,
             timeout=timeout,
             deadline=deadline,
             metadata=metadata,
@@ -3973,57 +3999,6 @@ class SupervisorStub(betterproto.ServiceStub):
             "/symbolx.bench.Supervisor/CommitTransaction",
             request,
             CommitTransactionResponse,
-            timeout=timeout,
-            deadline=deadline,
-            metadata=metadata,
-        )
-
-    async def flush_transaction(
-        self,
-        request: "FlushTransactionRequest",
-        *,
-        timeout: Optional[float] = None,
-        deadline: Optional["Deadline"] = None,
-        metadata: Optional["MetadataLike"] = None,
-    ) -> "FlushTransactionResponse":
-        return await self._unary_unary(
-            "/symbolx.bench.Supervisor/FlushTransaction",
-            request,
-            FlushTransactionResponse,
-            timeout=timeout,
-            deadline=deadline,
-            metadata=metadata,
-        )
-
-    async def complete_transaction(
-        self,
-        request: "CompleteTransactionRequest",
-        *,
-        timeout: Optional[float] = None,
-        deadline: Optional["Deadline"] = None,
-        metadata: Optional["MetadataLike"] = None,
-    ) -> "CompleteTransactionResponse":
-        return await self._unary_unary(
-            "/symbolx.bench.Supervisor/CompleteTransaction",
-            request,
-            CompleteTransactionResponse,
-            timeout=timeout,
-            deadline=deadline,
-            metadata=metadata,
-        )
-
-    async def cancel_transaction(
-        self,
-        request: "CancelTransactionRequest",
-        *,
-        timeout: Optional[float] = None,
-        deadline: Optional["Deadline"] = None,
-        metadata: Optional["MetadataLike"] = None,
-    ) -> "CancelTransactionResponse":
-        return await self._unary_unary(
-            "/symbolx.bench.Supervisor/CancelTransaction",
-            request,
-            CancelTransactionResponse,
             timeout=timeout,
             deadline=deadline,
             metadata=metadata,
@@ -4150,6 +4125,24 @@ class HostStub(betterproto.ServiceStub):
             metadata=metadata,
         )
 
+    async def watch_get(
+        self,
+        request: "WatchGetRequest",
+        *,
+        timeout: Optional[float] = None,
+        deadline: Optional["Deadline"] = None,
+        metadata: Optional["MetadataLike"] = None,
+    ) -> AsyncIterator["WatchGetResponse"]:
+        async for response in self._unary_stream(
+            "/symbolx.bench.Host/WatchGet",
+            request,
+            WatchGetResponse,
+            timeout=timeout,
+            deadline=deadline,
+            metadata=metadata,
+        ):
+            yield response
+
     async def search_nodes(
         self,
         request: "SearchNodesRequest",
@@ -4166,6 +4159,24 @@ class HostStub(betterproto.ServiceStub):
             deadline=deadline,
             metadata=metadata,
         )
+
+    async def watch_search(
+        self,
+        request: "WatchSearchRequest",
+        *,
+        timeout: Optional[float] = None,
+        deadline: Optional["Deadline"] = None,
+        metadata: Optional["MetadataLike"] = None,
+    ) -> AsyncIterator["WatchSearchResponse"]:
+        async for response in self._unary_stream(
+            "/symbolx.bench.Host/WatchSearch",
+            request,
+            WatchSearchResponse,
+            timeout=timeout,
+            deadline=deadline,
+            metadata=metadata,
+        ):
+            yield response
 
     async def aggregate_nodes(
         self,
@@ -4184,36 +4195,18 @@ class HostStub(betterproto.ServiceStub):
             metadata=metadata,
         )
 
-    async def watch_edits(
+    async def watch_aggregate(
         self,
-        request: "WatchEditsRequest",
+        request: "WatchAggregateRequest",
         *,
         timeout: Optional[float] = None,
         deadline: Optional["Deadline"] = None,
         metadata: Optional["MetadataLike"] = None,
-    ) -> AsyncIterator["WatchEditsResponse"]:
+    ) -> AsyncIterator["WatchAggregateResponse"]:
         async for response in self._unary_stream(
-            "/symbolx.bench.Host/WatchEdits",
+            "/symbolx.bench.Host/WatchAggregate",
             request,
-            WatchEditsResponse,
-            timeout=timeout,
-            deadline=deadline,
-            metadata=metadata,
-        ):
-            yield response
-
-    async def watch_aggregation(
-        self,
-        request: "WatchAggregationRequest",
-        *,
-        timeout: Optional[float] = None,
-        deadline: Optional["Deadline"] = None,
-        metadata: Optional["MetadataLike"] = None,
-    ) -> AsyncIterator["WatchAggregationResponse"]:
-        async for response in self._unary_stream(
-            "/symbolx.bench.Host/WatchAggregation",
-            request,
-            WatchAggregationResponse,
+            WatchAggregateResponse,
             timeout=timeout,
             deadline=deadline,
             metadata=metadata,
@@ -4232,57 +4225,6 @@ class HostStub(betterproto.ServiceStub):
             "/symbolx.bench.Host/CommitTransaction",
             request,
             CommitTransactionResponse,
-            timeout=timeout,
-            deadline=deadline,
-            metadata=metadata,
-        )
-
-    async def flush_transaction(
-        self,
-        request: "FlushTransactionRequest",
-        *,
-        timeout: Optional[float] = None,
-        deadline: Optional["Deadline"] = None,
-        metadata: Optional["MetadataLike"] = None,
-    ) -> "FlushTransactionResponse":
-        return await self._unary_unary(
-            "/symbolx.bench.Host/FlushTransaction",
-            request,
-            FlushTransactionResponse,
-            timeout=timeout,
-            deadline=deadline,
-            metadata=metadata,
-        )
-
-    async def complete_transaction(
-        self,
-        request: "CompleteTransactionRequest",
-        *,
-        timeout: Optional[float] = None,
-        deadline: Optional["Deadline"] = None,
-        metadata: Optional["MetadataLike"] = None,
-    ) -> "CompleteTransactionResponse":
-        return await self._unary_unary(
-            "/symbolx.bench.Host/CompleteTransaction",
-            request,
-            CompleteTransactionResponse,
-            timeout=timeout,
-            deadline=deadline,
-            metadata=metadata,
-        )
-
-    async def cancel_transaction(
-        self,
-        request: "CancelTransactionRequest",
-        *,
-        timeout: Optional[float] = None,
-        deadline: Optional["Deadline"] = None,
-        metadata: Optional["MetadataLike"] = None,
-    ) -> "CancelTransactionResponse":
-        return await self._unary_unary(
-            "/symbolx.bench.Host/CancelTransaction",
-            request,
-            CancelTransactionResponse,
             timeout=timeout,
             deadline=deadline,
             metadata=metadata,
@@ -4329,46 +4271,37 @@ class GraphIoBase(ServiceBase):
     async def get_nodes(self, subject: "Subject", request: "GetNodesRequest") -> "GetNodesResponse":
         raise grpclib.GRPCError(grpclib.const.Status.UNIMPLEMENTED)
 
+    async def watch_get(
+        self, subject: "Subject", request: "WatchGetRequest"
+    ) -> AsyncIterator["WatchGetResponse"]:
+        raise grpclib.GRPCError(grpclib.const.Status.UNIMPLEMENTED)
+        yield WatchGetResponse()
+
     async def search_nodes(
         self, subject: "Subject", request: "SearchNodesRequest"
     ) -> "SearchNodesResponse":
         raise grpclib.GRPCError(grpclib.const.Status.UNIMPLEMENTED)
+
+    async def watch_search(
+        self, subject: "Subject", request: "WatchSearchRequest"
+    ) -> AsyncIterator["WatchSearchResponse"]:
+        raise grpclib.GRPCError(grpclib.const.Status.UNIMPLEMENTED)
+        yield WatchSearchResponse()
 
     async def aggregate_nodes(
         self, subject: "Subject", request: "AggregateNodesRequest"
     ) -> "AggregateNodesResponse":
         raise grpclib.GRPCError(grpclib.const.Status.UNIMPLEMENTED)
 
-    async def watch_edits(
-        self, subject: "Subject", request: "WatchEditsRequest"
-    ) -> AsyncIterator["WatchEditsResponse"]:
+    async def watch_aggregate(
+        self, subject: "Subject", request: "WatchAggregateRequest"
+    ) -> AsyncIterator["WatchAggregateResponse"]:
         raise grpclib.GRPCError(grpclib.const.Status.UNIMPLEMENTED)
-        yield WatchEditsResponse()
-
-    async def watch_aggregation(
-        self, subject: "Subject", request: "WatchAggregationRequest"
-    ) -> AsyncIterator["WatchAggregationResponse"]:
-        raise grpclib.GRPCError(grpclib.const.Status.UNIMPLEMENTED)
-        yield WatchAggregationResponse()
+        yield WatchAggregateResponse()
 
     async def commit_transaction(
         self, subject: "Subject", request: "CommitTransactionRequest"
     ) -> "CommitTransactionResponse":
-        raise grpclib.GRPCError(grpclib.const.Status.UNIMPLEMENTED)
-
-    async def flush_transaction(
-        self, subject: "Subject", request: "FlushTransactionRequest"
-    ) -> "FlushTransactionResponse":
-        raise grpclib.GRPCError(grpclib.const.Status.UNIMPLEMENTED)
-
-    async def complete_transaction(
-        self, subject: "Subject", request: "CompleteTransactionRequest"
-    ) -> "CompleteTransactionResponse":
-        raise grpclib.GRPCError(grpclib.const.Status.UNIMPLEMENTED)
-
-    async def cancel_transaction(
-        self, subject: "Subject", request: "CancelTransactionRequest"
-    ) -> "CancelTransactionResponse":
         raise grpclib.GRPCError(grpclib.const.Status.UNIMPLEMENTED)
 
     async def __rpc_get_nodes(
@@ -4378,12 +4311,32 @@ class GraphIoBase(ServiceBase):
         response = await self.get_nodes(request)
         await stream.send_message(response)
 
+    async def __rpc_watch_get(
+        self, stream: "grpclib.server.Stream[WatchGetRequest, WatchGetResponse]"
+    ) -> None:
+        request = await stream.recv_message()
+        await self._call_rpc_handler_server_stream(
+            self.watch_get,
+            stream,
+            request,
+        )
+
     async def __rpc_search_nodes(
         self, stream: "grpclib.server.Stream[SearchNodesRequest, SearchNodesResponse]"
     ) -> None:
         request = await stream.recv_message()
         response = await self.search_nodes(request)
         await stream.send_message(response)
+
+    async def __rpc_watch_search(
+        self, stream: "grpclib.server.Stream[WatchSearchRequest, WatchSearchResponse]"
+    ) -> None:
+        request = await stream.recv_message()
+        await self._call_rpc_handler_server_stream(
+            self.watch_search,
+            stream,
+            request,
+        )
 
     async def __rpc_aggregate_nodes(
         self,
@@ -4393,23 +4346,13 @@ class GraphIoBase(ServiceBase):
         response = await self.aggregate_nodes(request)
         await stream.send_message(response)
 
-    async def __rpc_watch_edits(
-        self, stream: "grpclib.server.Stream[WatchEditsRequest, WatchEditsResponse]"
-    ) -> None:
-        request = await stream.recv_message()
-        await self._call_rpc_handler_server_stream(
-            self.watch_edits,
-            stream,
-            request,
-        )
-
-    async def __rpc_watch_aggregation(
+    async def __rpc_watch_aggregate(
         self,
-        stream: "grpclib.server.Stream[WatchAggregationRequest, WatchAggregationResponse]",
+        stream: "grpclib.server.Stream[WatchAggregateRequest, WatchAggregateResponse]",
     ) -> None:
         request = await stream.recv_message()
         await self._call_rpc_handler_server_stream(
-            self.watch_aggregation,
+            self.watch_aggregate,
             stream,
             request,
         )
@@ -4422,30 +4365,6 @@ class GraphIoBase(ServiceBase):
         response = await self.commit_transaction(request)
         await stream.send_message(response)
 
-    async def __rpc_flush_transaction(
-        self,
-        stream: "grpclib.server.Stream[FlushTransactionRequest, FlushTransactionResponse]",
-    ) -> None:
-        request = await stream.recv_message()
-        response = await self.flush_transaction(request)
-        await stream.send_message(response)
-
-    async def __rpc_complete_transaction(
-        self,
-        stream: "grpclib.server.Stream[CompleteTransactionRequest, CompleteTransactionResponse]",
-    ) -> None:
-        request = await stream.recv_message()
-        response = await self.complete_transaction(request)
-        await stream.send_message(response)
-
-    async def __rpc_cancel_transaction(
-        self,
-        stream: "grpclib.server.Stream[CancelTransactionRequest, CancelTransactionResponse]",
-    ) -> None:
-        request = await stream.recv_message()
-        response = await self.cancel_transaction(request)
-        await stream.send_message(response)
-
     def __mapping__(self) -> Dict[str, grpclib.const.Handler]:
         return {
             "/symbolx.bench.GraphIO/GetNodes": grpclib.const.Handler(
@@ -4454,11 +4373,23 @@ class GraphIoBase(ServiceBase):
                 GetNodesRequest,
                 GetNodesResponse,
             ),
+            "/symbolx.bench.GraphIO/WatchGet": grpclib.const.Handler(
+                self.__rpc_watch_get,
+                grpclib.const.Cardinality.UNARY_STREAM,
+                WatchGetRequest,
+                WatchGetResponse,
+            ),
             "/symbolx.bench.GraphIO/SearchNodes": grpclib.const.Handler(
                 self.__rpc_search_nodes,
                 grpclib.const.Cardinality.UNARY_UNARY,
                 SearchNodesRequest,
                 SearchNodesResponse,
+            ),
+            "/symbolx.bench.GraphIO/WatchSearch": grpclib.const.Handler(
+                self.__rpc_watch_search,
+                grpclib.const.Cardinality.UNARY_STREAM,
+                WatchSearchRequest,
+                WatchSearchResponse,
             ),
             "/symbolx.bench.GraphIO/AggregateNodes": grpclib.const.Handler(
                 self.__rpc_aggregate_nodes,
@@ -4466,41 +4397,17 @@ class GraphIoBase(ServiceBase):
                 AggregateNodesRequest,
                 AggregateNodesResponse,
             ),
-            "/symbolx.bench.GraphIO/WatchEdits": grpclib.const.Handler(
-                self.__rpc_watch_edits,
+            "/symbolx.bench.GraphIO/WatchAggregate": grpclib.const.Handler(
+                self.__rpc_watch_aggregate,
                 grpclib.const.Cardinality.UNARY_STREAM,
-                WatchEditsRequest,
-                WatchEditsResponse,
-            ),
-            "/symbolx.bench.GraphIO/WatchAggregation": grpclib.const.Handler(
-                self.__rpc_watch_aggregation,
-                grpclib.const.Cardinality.UNARY_STREAM,
-                WatchAggregationRequest,
-                WatchAggregationResponse,
+                WatchAggregateRequest,
+                WatchAggregateResponse,
             ),
             "/symbolx.bench.GraphIO/CommitTransaction": grpclib.const.Handler(
                 self.__rpc_commit_transaction,
                 grpclib.const.Cardinality.UNARY_UNARY,
                 CommitTransactionRequest,
                 CommitTransactionResponse,
-            ),
-            "/symbolx.bench.GraphIO/FlushTransaction": grpclib.const.Handler(
-                self.__rpc_flush_transaction,
-                grpclib.const.Cardinality.UNARY_UNARY,
-                FlushTransactionRequest,
-                FlushTransactionResponse,
-            ),
-            "/symbolx.bench.GraphIO/CompleteTransaction": grpclib.const.Handler(
-                self.__rpc_complete_transaction,
-                grpclib.const.Cardinality.UNARY_UNARY,
-                CompleteTransactionRequest,
-                CompleteTransactionResponse,
-            ),
-            "/symbolx.bench.GraphIO/CancelTransaction": grpclib.const.Handler(
-                self.__rpc_cancel_transaction,
-                grpclib.const.Cardinality.UNARY_UNARY,
-                CancelTransactionRequest,
-                CancelTransactionResponse,
             ),
         }
 
@@ -4509,46 +4416,37 @@ class SupervisorBase(ServiceBase):
     async def get_nodes(self, subject: "Subject", request: "GetNodesRequest") -> "GetNodesResponse":
         raise grpclib.GRPCError(grpclib.const.Status.UNIMPLEMENTED)
 
+    async def watch_get(
+        self, subject: "Subject", request: "WatchGetRequest"
+    ) -> AsyncIterator["WatchGetResponse"]:
+        raise grpclib.GRPCError(grpclib.const.Status.UNIMPLEMENTED)
+        yield WatchGetResponse()
+
     async def search_nodes(
         self, subject: "Subject", request: "SearchNodesRequest"
     ) -> "SearchNodesResponse":
         raise grpclib.GRPCError(grpclib.const.Status.UNIMPLEMENTED)
+
+    async def watch_search(
+        self, subject: "Subject", request: "WatchSearchRequest"
+    ) -> AsyncIterator["WatchSearchResponse"]:
+        raise grpclib.GRPCError(grpclib.const.Status.UNIMPLEMENTED)
+        yield WatchSearchResponse()
 
     async def aggregate_nodes(
         self, subject: "Subject", request: "AggregateNodesRequest"
     ) -> "AggregateNodesResponse":
         raise grpclib.GRPCError(grpclib.const.Status.UNIMPLEMENTED)
 
-    async def watch_edits(
-        self, subject: "Subject", request: "WatchEditsRequest"
-    ) -> AsyncIterator["WatchEditsResponse"]:
+    async def watch_aggregate(
+        self, subject: "Subject", request: "WatchAggregateRequest"
+    ) -> AsyncIterator["WatchAggregateResponse"]:
         raise grpclib.GRPCError(grpclib.const.Status.UNIMPLEMENTED)
-        yield WatchEditsResponse()
-
-    async def watch_aggregation(
-        self, subject: "Subject", request: "WatchAggregationRequest"
-    ) -> AsyncIterator["WatchAggregationResponse"]:
-        raise grpclib.GRPCError(grpclib.const.Status.UNIMPLEMENTED)
-        yield WatchAggregationResponse()
+        yield WatchAggregateResponse()
 
     async def commit_transaction(
         self, subject: "Subject", request: "CommitTransactionRequest"
     ) -> "CommitTransactionResponse":
-        raise grpclib.GRPCError(grpclib.const.Status.UNIMPLEMENTED)
-
-    async def flush_transaction(
-        self, subject: "Subject", request: "FlushTransactionRequest"
-    ) -> "FlushTransactionResponse":
-        raise grpclib.GRPCError(grpclib.const.Status.UNIMPLEMENTED)
-
-    async def complete_transaction(
-        self, subject: "Subject", request: "CompleteTransactionRequest"
-    ) -> "CompleteTransactionResponse":
-        raise grpclib.GRPCError(grpclib.const.Status.UNIMPLEMENTED)
-
-    async def cancel_transaction(
-        self, subject: "Subject", request: "CancelTransactionRequest"
-    ) -> "CancelTransactionResponse":
         raise grpclib.GRPCError(grpclib.const.Status.UNIMPLEMENTED)
 
     async def signup_user(
@@ -4586,12 +4484,32 @@ class SupervisorBase(ServiceBase):
         response = await self.get_nodes(request)
         await stream.send_message(response)
 
+    async def __rpc_watch_get(
+        self, stream: "grpclib.server.Stream[WatchGetRequest, WatchGetResponse]"
+    ) -> None:
+        request = await stream.recv_message()
+        await self._call_rpc_handler_server_stream(
+            self.watch_get,
+            stream,
+            request,
+        )
+
     async def __rpc_search_nodes(
         self, stream: "grpclib.server.Stream[SearchNodesRequest, SearchNodesResponse]"
     ) -> None:
         request = await stream.recv_message()
         response = await self.search_nodes(request)
         await stream.send_message(response)
+
+    async def __rpc_watch_search(
+        self, stream: "grpclib.server.Stream[WatchSearchRequest, WatchSearchResponse]"
+    ) -> None:
+        request = await stream.recv_message()
+        await self._call_rpc_handler_server_stream(
+            self.watch_search,
+            stream,
+            request,
+        )
 
     async def __rpc_aggregate_nodes(
         self,
@@ -4601,23 +4519,13 @@ class SupervisorBase(ServiceBase):
         response = await self.aggregate_nodes(request)
         await stream.send_message(response)
 
-    async def __rpc_watch_edits(
-        self, stream: "grpclib.server.Stream[WatchEditsRequest, WatchEditsResponse]"
-    ) -> None:
-        request = await stream.recv_message()
-        await self._call_rpc_handler_server_stream(
-            self.watch_edits,
-            stream,
-            request,
-        )
-
-    async def __rpc_watch_aggregation(
+    async def __rpc_watch_aggregate(
         self,
-        stream: "grpclib.server.Stream[WatchAggregationRequest, WatchAggregationResponse]",
+        stream: "grpclib.server.Stream[WatchAggregateRequest, WatchAggregateResponse]",
     ) -> None:
         request = await stream.recv_message()
         await self._call_rpc_handler_server_stream(
-            self.watch_aggregation,
+            self.watch_aggregate,
             stream,
             request,
         )
@@ -4628,30 +4536,6 @@ class SupervisorBase(ServiceBase):
     ) -> None:
         request = await stream.recv_message()
         response = await self.commit_transaction(request)
-        await stream.send_message(response)
-
-    async def __rpc_flush_transaction(
-        self,
-        stream: "grpclib.server.Stream[FlushTransactionRequest, FlushTransactionResponse]",
-    ) -> None:
-        request = await stream.recv_message()
-        response = await self.flush_transaction(request)
-        await stream.send_message(response)
-
-    async def __rpc_complete_transaction(
-        self,
-        stream: "grpclib.server.Stream[CompleteTransactionRequest, CompleteTransactionResponse]",
-    ) -> None:
-        request = await stream.recv_message()
-        response = await self.complete_transaction(request)
-        await stream.send_message(response)
-
-    async def __rpc_cancel_transaction(
-        self,
-        stream: "grpclib.server.Stream[CancelTransactionRequest, CancelTransactionResponse]",
-    ) -> None:
-        request = await stream.recv_message()
-        response = await self.cancel_transaction(request)
         await stream.send_message(response)
 
     async def __rpc_signup_user(
@@ -4705,11 +4589,23 @@ class SupervisorBase(ServiceBase):
                 GetNodesRequest,
                 GetNodesResponse,
             ),
+            "/symbolx.bench.Supervisor/WatchGet": grpclib.const.Handler(
+                self.__rpc_watch_get,
+                grpclib.const.Cardinality.UNARY_STREAM,
+                WatchGetRequest,
+                WatchGetResponse,
+            ),
             "/symbolx.bench.Supervisor/SearchNodes": grpclib.const.Handler(
                 self.__rpc_search_nodes,
                 grpclib.const.Cardinality.UNARY_UNARY,
                 SearchNodesRequest,
                 SearchNodesResponse,
+            ),
+            "/symbolx.bench.Supervisor/WatchSearch": grpclib.const.Handler(
+                self.__rpc_watch_search,
+                grpclib.const.Cardinality.UNARY_STREAM,
+                WatchSearchRequest,
+                WatchSearchResponse,
             ),
             "/symbolx.bench.Supervisor/AggregateNodes": grpclib.const.Handler(
                 self.__rpc_aggregate_nodes,
@@ -4717,41 +4613,17 @@ class SupervisorBase(ServiceBase):
                 AggregateNodesRequest,
                 AggregateNodesResponse,
             ),
-            "/symbolx.bench.Supervisor/WatchEdits": grpclib.const.Handler(
-                self.__rpc_watch_edits,
+            "/symbolx.bench.Supervisor/WatchAggregate": grpclib.const.Handler(
+                self.__rpc_watch_aggregate,
                 grpclib.const.Cardinality.UNARY_STREAM,
-                WatchEditsRequest,
-                WatchEditsResponse,
-            ),
-            "/symbolx.bench.Supervisor/WatchAggregation": grpclib.const.Handler(
-                self.__rpc_watch_aggregation,
-                grpclib.const.Cardinality.UNARY_STREAM,
-                WatchAggregationRequest,
-                WatchAggregationResponse,
+                WatchAggregateRequest,
+                WatchAggregateResponse,
             ),
             "/symbolx.bench.Supervisor/CommitTransaction": grpclib.const.Handler(
                 self.__rpc_commit_transaction,
                 grpclib.const.Cardinality.UNARY_UNARY,
                 CommitTransactionRequest,
                 CommitTransactionResponse,
-            ),
-            "/symbolx.bench.Supervisor/FlushTransaction": grpclib.const.Handler(
-                self.__rpc_flush_transaction,
-                grpclib.const.Cardinality.UNARY_UNARY,
-                FlushTransactionRequest,
-                FlushTransactionResponse,
-            ),
-            "/symbolx.bench.Supervisor/CompleteTransaction": grpclib.const.Handler(
-                self.__rpc_complete_transaction,
-                grpclib.const.Cardinality.UNARY_UNARY,
-                CompleteTransactionRequest,
-                CompleteTransactionResponse,
-            ),
-            "/symbolx.bench.Supervisor/CancelTransaction": grpclib.const.Handler(
-                self.__rpc_cancel_transaction,
-                grpclib.const.Cardinality.UNARY_UNARY,
-                CancelTransactionRequest,
-                CancelTransactionResponse,
             ),
             "/symbolx.bench.Supervisor/SignupUser": grpclib.const.Handler(
                 self.__rpc_signup_user,
@@ -4796,46 +4668,37 @@ class HostBase(ServiceBase):
     async def get_nodes(self, subject: "Subject", request: "GetNodesRequest") -> "GetNodesResponse":
         raise grpclib.GRPCError(grpclib.const.Status.UNIMPLEMENTED)
 
+    async def watch_get(
+        self, subject: "Subject", request: "WatchGetRequest"
+    ) -> AsyncIterator["WatchGetResponse"]:
+        raise grpclib.GRPCError(grpclib.const.Status.UNIMPLEMENTED)
+        yield WatchGetResponse()
+
     async def search_nodes(
         self, subject: "Subject", request: "SearchNodesRequest"
     ) -> "SearchNodesResponse":
         raise grpclib.GRPCError(grpclib.const.Status.UNIMPLEMENTED)
+
+    async def watch_search(
+        self, subject: "Subject", request: "WatchSearchRequest"
+    ) -> AsyncIterator["WatchSearchResponse"]:
+        raise grpclib.GRPCError(grpclib.const.Status.UNIMPLEMENTED)
+        yield WatchSearchResponse()
 
     async def aggregate_nodes(
         self, subject: "Subject", request: "AggregateNodesRequest"
     ) -> "AggregateNodesResponse":
         raise grpclib.GRPCError(grpclib.const.Status.UNIMPLEMENTED)
 
-    async def watch_edits(
-        self, subject: "Subject", request: "WatchEditsRequest"
-    ) -> AsyncIterator["WatchEditsResponse"]:
+    async def watch_aggregate(
+        self, subject: "Subject", request: "WatchAggregateRequest"
+    ) -> AsyncIterator["WatchAggregateResponse"]:
         raise grpclib.GRPCError(grpclib.const.Status.UNIMPLEMENTED)
-        yield WatchEditsResponse()
-
-    async def watch_aggregation(
-        self, subject: "Subject", request: "WatchAggregationRequest"
-    ) -> AsyncIterator["WatchAggregationResponse"]:
-        raise grpclib.GRPCError(grpclib.const.Status.UNIMPLEMENTED)
-        yield WatchAggregationResponse()
+        yield WatchAggregateResponse()
 
     async def commit_transaction(
         self, subject: "Subject", request: "CommitTransactionRequest"
     ) -> "CommitTransactionResponse":
-        raise grpclib.GRPCError(grpclib.const.Status.UNIMPLEMENTED)
-
-    async def flush_transaction(
-        self, subject: "Subject", request: "FlushTransactionRequest"
-    ) -> "FlushTransactionResponse":
-        raise grpclib.GRPCError(grpclib.const.Status.UNIMPLEMENTED)
-
-    async def complete_transaction(
-        self, subject: "Subject", request: "CompleteTransactionRequest"
-    ) -> "CompleteTransactionResponse":
-        raise grpclib.GRPCError(grpclib.const.Status.UNIMPLEMENTED)
-
-    async def cancel_transaction(
-        self, subject: "Subject", request: "CancelTransactionRequest"
-    ) -> "CancelTransactionResponse":
         raise grpclib.GRPCError(grpclib.const.Status.UNIMPLEMENTED)
 
     async def __rpc_get_nodes(
@@ -4845,12 +4708,32 @@ class HostBase(ServiceBase):
         response = await self.get_nodes(request)
         await stream.send_message(response)
 
+    async def __rpc_watch_get(
+        self, stream: "grpclib.server.Stream[WatchGetRequest, WatchGetResponse]"
+    ) -> None:
+        request = await stream.recv_message()
+        await self._call_rpc_handler_server_stream(
+            self.watch_get,
+            stream,
+            request,
+        )
+
     async def __rpc_search_nodes(
         self, stream: "grpclib.server.Stream[SearchNodesRequest, SearchNodesResponse]"
     ) -> None:
         request = await stream.recv_message()
         response = await self.search_nodes(request)
         await stream.send_message(response)
+
+    async def __rpc_watch_search(
+        self, stream: "grpclib.server.Stream[WatchSearchRequest, WatchSearchResponse]"
+    ) -> None:
+        request = await stream.recv_message()
+        await self._call_rpc_handler_server_stream(
+            self.watch_search,
+            stream,
+            request,
+        )
 
     async def __rpc_aggregate_nodes(
         self,
@@ -4860,23 +4743,13 @@ class HostBase(ServiceBase):
         response = await self.aggregate_nodes(request)
         await stream.send_message(response)
 
-    async def __rpc_watch_edits(
-        self, stream: "grpclib.server.Stream[WatchEditsRequest, WatchEditsResponse]"
-    ) -> None:
-        request = await stream.recv_message()
-        await self._call_rpc_handler_server_stream(
-            self.watch_edits,
-            stream,
-            request,
-        )
-
-    async def __rpc_watch_aggregation(
+    async def __rpc_watch_aggregate(
         self,
-        stream: "grpclib.server.Stream[WatchAggregationRequest, WatchAggregationResponse]",
+        stream: "grpclib.server.Stream[WatchAggregateRequest, WatchAggregateResponse]",
     ) -> None:
         request = await stream.recv_message()
         await self._call_rpc_handler_server_stream(
-            self.watch_aggregation,
+            self.watch_aggregate,
             stream,
             request,
         )
@@ -4889,30 +4762,6 @@ class HostBase(ServiceBase):
         response = await self.commit_transaction(request)
         await stream.send_message(response)
 
-    async def __rpc_flush_transaction(
-        self,
-        stream: "grpclib.server.Stream[FlushTransactionRequest, FlushTransactionResponse]",
-    ) -> None:
-        request = await stream.recv_message()
-        response = await self.flush_transaction(request)
-        await stream.send_message(response)
-
-    async def __rpc_complete_transaction(
-        self,
-        stream: "grpclib.server.Stream[CompleteTransactionRequest, CompleteTransactionResponse]",
-    ) -> None:
-        request = await stream.recv_message()
-        response = await self.complete_transaction(request)
-        await stream.send_message(response)
-
-    async def __rpc_cancel_transaction(
-        self,
-        stream: "grpclib.server.Stream[CancelTransactionRequest, CancelTransactionResponse]",
-    ) -> None:
-        request = await stream.recv_message()
-        response = await self.cancel_transaction(request)
-        await stream.send_message(response)
-
     def __mapping__(self) -> Dict[str, grpclib.const.Handler]:
         return {
             "/symbolx.bench.Host/GetNodes": grpclib.const.Handler(
@@ -4921,11 +4770,23 @@ class HostBase(ServiceBase):
                 GetNodesRequest,
                 GetNodesResponse,
             ),
+            "/symbolx.bench.Host/WatchGet": grpclib.const.Handler(
+                self.__rpc_watch_get,
+                grpclib.const.Cardinality.UNARY_STREAM,
+                WatchGetRequest,
+                WatchGetResponse,
+            ),
             "/symbolx.bench.Host/SearchNodes": grpclib.const.Handler(
                 self.__rpc_search_nodes,
                 grpclib.const.Cardinality.UNARY_UNARY,
                 SearchNodesRequest,
                 SearchNodesResponse,
+            ),
+            "/symbolx.bench.Host/WatchSearch": grpclib.const.Handler(
+                self.__rpc_watch_search,
+                grpclib.const.Cardinality.UNARY_STREAM,
+                WatchSearchRequest,
+                WatchSearchResponse,
             ),
             "/symbolx.bench.Host/AggregateNodes": grpclib.const.Handler(
                 self.__rpc_aggregate_nodes,
@@ -4933,41 +4794,17 @@ class HostBase(ServiceBase):
                 AggregateNodesRequest,
                 AggregateNodesResponse,
             ),
-            "/symbolx.bench.Host/WatchEdits": grpclib.const.Handler(
-                self.__rpc_watch_edits,
+            "/symbolx.bench.Host/WatchAggregate": grpclib.const.Handler(
+                self.__rpc_watch_aggregate,
                 grpclib.const.Cardinality.UNARY_STREAM,
-                WatchEditsRequest,
-                WatchEditsResponse,
-            ),
-            "/symbolx.bench.Host/WatchAggregation": grpclib.const.Handler(
-                self.__rpc_watch_aggregation,
-                grpclib.const.Cardinality.UNARY_STREAM,
-                WatchAggregationRequest,
-                WatchAggregationResponse,
+                WatchAggregateRequest,
+                WatchAggregateResponse,
             ),
             "/symbolx.bench.Host/CommitTransaction": grpclib.const.Handler(
                 self.__rpc_commit_transaction,
                 grpclib.const.Cardinality.UNARY_UNARY,
                 CommitTransactionRequest,
                 CommitTransactionResponse,
-            ),
-            "/symbolx.bench.Host/FlushTransaction": grpclib.const.Handler(
-                self.__rpc_flush_transaction,
-                grpclib.const.Cardinality.UNARY_UNARY,
-                FlushTransactionRequest,
-                FlushTransactionResponse,
-            ),
-            "/symbolx.bench.Host/CompleteTransaction": grpclib.const.Handler(
-                self.__rpc_complete_transaction,
-                grpclib.const.Cardinality.UNARY_UNARY,
-                CompleteTransactionRequest,
-                CompleteTransactionResponse,
-            ),
-            "/symbolx.bench.Host/CancelTransaction": grpclib.const.Handler(
-                self.__rpc_cancel_transaction,
-                grpclib.const.Cardinality.UNARY_UNARY,
-                CancelTransactionRequest,
-                CancelTransactionResponse,
             ),
         }
 

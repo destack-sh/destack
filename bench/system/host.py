@@ -27,7 +27,7 @@ from bench.language.const import (
     NodeType,
 )
 from bench.language.expression import NodeReference
-from bench.language.graph import NodeDataGraph, NodeGraphLike
+from bench.language.graph import NodeDataGraphLike, NodeGraphLike
 from bench.language.log import Log
 from bench.language.property import Property
 from bench.language.session import Session, SessionContext, unsuspend_session
@@ -571,7 +571,7 @@ class Host(GraphIoServiceBase, HostBase, HostSpec):
     async def on_commit(
         self,
         graph: NodeGraphLike,
-        data_graph: NodeDataGraph,
+        data_graph: NodeDataGraphLike,
         edits: list[EditData],
         cascaded_edits: list[EditData],
         epoch: int,

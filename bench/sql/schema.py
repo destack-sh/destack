@@ -11,7 +11,7 @@ from bench.sql.core import (
     Table,
 )
 
-VERSION = "2024.06.10.3"
+VERSION = "2024.06.11.0"
 
 BENCH_TABLE = Table(
     "bench_bench",
@@ -594,6 +594,7 @@ QUERY_TABLE = Table(
         Column("set_properties", PrimitiveType.INT32, is_array=True),
         Column("name", PrimitiveType.STRING),
         Column("order_key", PrimitiveType.STRING, default="'a0'::character varying"),
+        Column("read_type", PrimitiveType.INT16),
         Column("node_type", PrimitiveType.INT16),
         Column("base_id", PrimitiveType.UUID, is_nullable=True),
         Column("base_ck", PrimitiveType.UUID, is_nullable=True),

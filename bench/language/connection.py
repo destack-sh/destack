@@ -27,6 +27,7 @@ from bench.language.const import (
     BenchError,
     ConditionalOp,
     NodeType,
+    ReadType,
     StoreConnectionType,
 )
 from bench.language.node import Node
@@ -109,10 +110,9 @@ class FetchOptions(NamedTuple):
 class FetchResult(NamedTuple):
     nodes: Collection[AnyNodeData]
     roots: Collection[NodeReferenceData]
-    cursors: Collection[str]
-    start_cursor: str | None
     total: int | None = None
     epoch: int | None = None
+    connection_token: str | None = None
 
 
 class FlushResult(NamedTuple):
@@ -307,8 +307,6 @@ class RemoteConnection(StoreConnection[NodeT, NodeDataT]):
         return FetchResult(
             nodes=[wiring.unwrap_some_node(n) for n in response.nodes],
             roots=response.roots,
-            cursors=response.cursors,
-            start_cursor=response.start_cursor,
             total=response.total,
             epoch=response.epoch,
         )
@@ -440,8 +438,6 @@ class PostgresConnection(StoreConnection[NodeT, NodeDataT], Generic[NodeT, NodeD
         return FetchResult(
             roots=[NodeReference.from_node_data(r) for r in roots.nodes],
             nodes=list(graph.nodes),
-            cursors=roots.cursors,
-            start_cursor=roots.start_cursor,
             total=total,
         )
 
@@ -603,9 +599,7 @@ class InMemoryConnection(StoreConnection[NodeT, NodeDataT], Generic[NodeT, NodeD
         return FetchResult(
             roots=[NodeReference.from_node_data(r) for r in roots],
             nodes=list(visited_graph.nodes),
-            # not supported yet (see above):
-            cursors=[],
-            start_cursor=None,
+            # not yet supported
             total=None,
         )
 
@@ -666,6 +660,7 @@ class SplitConnection(StoreConnection[NodeT, NodeDataT], Generic[NodeT, NodeData
                     continue
                 parents_ids = tuple(p.id for p in parents)
                 ancestor_query = QueryBuilder(
+                    read_type=ReadType.GET,
                     node_type=parent_type,
                     filter=C(ConditionalOp.IN, property=Node.id, value=parents_ids),
                     options=ReadOptions(ancestor_types=remaining_ancestors),
@@ -680,8 +675,6 @@ class SplitConnection(StoreConnection[NodeT, NodeDataT], Generic[NodeT, NodeData
         combined_result = FetchResult(
             roots=initial_result.roots,
             nodes=combined_graph.nodes,
-            cursors=initial_result.cursors,
-            start_cursor=initial_result.start_cursor,
             total=initial_result.total,
             epoch=initial_result.epoch,
         )

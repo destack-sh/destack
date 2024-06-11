@@ -4224,19 +4224,23 @@ export interface QueryData {
      */
     orderKey: string;
     /**
-     * @generated from protobuf field: symbolx.bench.NodeType node_type = 32;
+     * @generated from protobuf field: symbolx.bench.ReadType read_type = 32;
+     */
+    readType: ReadType;
+    /**
+     * @generated from protobuf field: symbolx.bench.NodeType node_type = 33;
      */
     nodeType: NodeType;
     /**
-     * @generated from protobuf field: optional symbolx.bench.NodeReferenceData base_ptr = 33;
+     * @generated from protobuf field: optional symbolx.bench.NodeReferenceData base_ptr = 34;
      */
     basePtr?: NodeReferenceData;
     /**
-     * @generated from protobuf field: optional symbolx.bench.ExpressionData filter = 34;
+     * @generated from protobuf field: optional symbolx.bench.ExpressionData filter = 35;
      */
     filter?: ExpressionData;
     /**
-     * @generated from protobuf field: repeated symbolx.bench.ExpressionData sort = 35;
+     * @generated from protobuf field: repeated symbolx.bench.ExpressionData sort = 36;
      */
     sort: ExpressionData[];
 }
@@ -6112,13 +6116,13 @@ export enum AccessType {
      */
     GET = 1,
     /**
+     * @generated from protobuf enum value: ACCESS_TYPE_SEARCH = 2;
+     */
+    SEARCH = 2,
+    /**
      * @generated from protobuf enum value: ACCESS_TYPE_AGGREGATE = 3;
      */
     AGGREGATE = 3,
-    /**
-     * @generated from protobuf enum value: ACCESS_TYPE_LIST = 5;
-     */
-    LIST = 5,
     /**
      * @generated from protobuf enum value: ACCESS_TYPE_CREATE = 20;
      */
@@ -6672,9 +6676,9 @@ export enum BenchType {
      */
     ACCESS_TYPE = 2037,
     /**
-     * @generated from protobuf enum value: BENCH_TYPE_POLICY_EFFECT = 2038;
+     * @generated from protobuf enum value: BENCH_TYPE_POLICY_EFFECT = 2040;
      */
-    POLICY_EFFECT = 2038,
+    POLICY_EFFECT = 2040,
     /**
      * @generated from protobuf enum value: BENCH_TYPE_REGION = 2050;
      */
@@ -7406,9 +7410,9 @@ export enum EnumType {
      */
     ACCESS_TYPE = 2037,
     /**
-     * @generated from protobuf enum value: ENUM_TYPE_POLICY_EFFECT = 2038;
+     * @generated from protobuf enum value: ENUM_TYPE_POLICY_EFFECT = 2040;
      */
-    POLICY_EFFECT = 2038,
+    POLICY_EFFECT = 2040,
     /**
      * @generated from protobuf enum value: ENUM_TYPE_REGION = 2050;
      */
@@ -9079,13 +9083,13 @@ export enum ReadType {
      */
     GET = 1,
     /**
+     * @generated from protobuf enum value: READ_TYPE_SEARCH = 2;
+     */
+    SEARCH = 2,
+    /**
      * @generated from protobuf enum value: READ_TYPE_AGGREGATE = 3;
      */
-    AGGREGATE = 3,
-    /**
-     * @generated from protobuf enum value: READ_TYPE_LIST = 5;
-     */
-    LIST = 5
+    AGGREGATE = 3
 }
 /**
  * A reference to a Node or Struct - usually both have an identity (except for inlined Structs).
@@ -19690,10 +19694,11 @@ class QueryData$Type extends MessageType<QueryData> {
             { no: 29, name: "set_properties", kind: "scalar", repeat: 1 /*RepeatType.PACKED*/, T: 5 /*ScalarType.INT32*/ },
             { no: 30, name: "name", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 31, name: "order_key", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
-            { no: 32, name: "node_type", kind: "enum", T: () => ["symbolx.bench.NodeType", NodeType, "NODE_TYPE_"] },
-            { no: 33, name: "base_ptr", kind: "message", T: () => NodeReferenceData },
-            { no: 34, name: "filter", kind: "message", T: () => ExpressionData },
-            { no: 35, name: "sort", kind: "message", repeat: 1 /*RepeatType.PACKED*/, T: () => ExpressionData }
+            { no: 32, name: "read_type", kind: "enum", T: () => ["symbolx.bench.ReadType", ReadType, "READ_TYPE_"] },
+            { no: 33, name: "node_type", kind: "enum", T: () => ["symbolx.bench.NodeType", NodeType, "NODE_TYPE_"] },
+            { no: 34, name: "base_ptr", kind: "message", T: () => NodeReferenceData },
+            { no: 35, name: "filter", kind: "message", T: () => ExpressionData },
+            { no: 36, name: "sort", kind: "message", repeat: 1 /*RepeatType.PACKED*/, T: () => ExpressionData }
         ]);
     }
     create(value?: PartialMessage<QueryData>): QueryData {
@@ -19707,6 +19712,7 @@ class QueryData$Type extends MessageType<QueryData> {
         message.setProperties = [];
         message.name = "";
         message.orderKey = "";
+        message.readType = 0;
         message.nodeType = 0;
         message.sort = [];
         if (value !== undefined)
@@ -19782,16 +19788,19 @@ class QueryData$Type extends MessageType<QueryData> {
                 case /* string order_key */ 31:
                     message.orderKey = reader.string();
                     break;
-                case /* symbolx.bench.NodeType node_type */ 32:
+                case /* symbolx.bench.ReadType read_type */ 32:
+                    message.readType = reader.int32();
+                    break;
+                case /* symbolx.bench.NodeType node_type */ 33:
                     message.nodeType = reader.int32();
                     break;
-                case /* optional symbolx.bench.NodeReferenceData base_ptr */ 33:
+                case /* optional symbolx.bench.NodeReferenceData base_ptr */ 34:
                     message.basePtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.basePtr);
                     break;
-                case /* optional symbolx.bench.ExpressionData filter */ 34:
+                case /* optional symbolx.bench.ExpressionData filter */ 35:
                     message.filter = ExpressionData.internalBinaryRead(reader, reader.uint32(), options, message.filter);
                     break;
-                case /* repeated symbolx.bench.ExpressionData sort */ 35:
+                case /* repeated symbolx.bench.ExpressionData sort */ 36:
                     message.sort.push(ExpressionData.internalBinaryRead(reader, reader.uint32(), options));
                     break;
                 default:
@@ -19870,18 +19879,21 @@ class QueryData$Type extends MessageType<QueryData> {
         /* string order_key = 31; */
         if (message.orderKey !== "")
             writer.tag(31, WireType.LengthDelimited).string(message.orderKey);
-        /* symbolx.bench.NodeType node_type = 32; */
+        /* symbolx.bench.ReadType read_type = 32; */
+        if (message.readType !== 0)
+            writer.tag(32, WireType.Varint).int32(message.readType);
+        /* symbolx.bench.NodeType node_type = 33; */
         if (message.nodeType !== 0)
-            writer.tag(32, WireType.Varint).int32(message.nodeType);
-        /* optional symbolx.bench.NodeReferenceData base_ptr = 33; */
+            writer.tag(33, WireType.Varint).int32(message.nodeType);
+        /* optional symbolx.bench.NodeReferenceData base_ptr = 34; */
         if (message.basePtr)
-            NodeReferenceData.internalBinaryWrite(message.basePtr, writer.tag(33, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbolx.bench.ExpressionData filter = 34; */
+            NodeReferenceData.internalBinaryWrite(message.basePtr, writer.tag(34, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbolx.bench.ExpressionData filter = 35; */
         if (message.filter)
-            ExpressionData.internalBinaryWrite(message.filter, writer.tag(34, WireType.LengthDelimited).fork(), options).join();
-        /* repeated symbolx.bench.ExpressionData sort = 35; */
+            ExpressionData.internalBinaryWrite(message.filter, writer.tag(35, WireType.LengthDelimited).fork(), options).join();
+        /* repeated symbolx.bench.ExpressionData sort = 36; */
         for (let i = 0; i < message.sort.length; i++)
-            ExpressionData.internalBinaryWrite(message.sort[i], writer.tag(35, WireType.LengthDelimited).fork(), options).join();
+            ExpressionData.internalBinaryWrite(message.sort[i], writer.tag(36, WireType.LengthDelimited).fork(), options).join();
         let u = options.writeUnknownFields;
         if (u !== false)
             (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
@@ -24692,10 +24704,11 @@ export enum QueryProperty {
   setProperties = 29,
   name = 30,
   orderKey = 31,
-  nodeType = 32,
-  basePtr = 33,
-  filter = 34,
-  sort = 35,
+  readType = 32,
+  nodeType = 33,
+  basePtr = 34,
+  filter = 35,
+  sort = 36,
 }
 
 export enum ViewProperty {
@@ -26814,10 +26827,11 @@ export const QueryDataInfo: Record<QueryProperty, PropertyInfo> = {
   [QueryProperty.setProperties]: { id: 29, name: 'set_properties', component: ObjectType.QUERY, kind: 'primitive', primitiveType: PrimitiveType.INT32, isList: true, isRequired: true, isRuntime: true, isWired: true, isStored: true },
   [QueryProperty.name]: { id: 30, name: 'name', component: ObjectType.QUERY, kind: 'primitive', primitiveType: PrimitiveType.STRING, isRequired: true, isRuntime: true, isWired: true, isStored: true },
   [QueryProperty.orderKey]: { id: 31, name: 'order_key', component: ObjectType.QUERY, kind: 'primitive', primitiveType: PrimitiveType.STRING, isRequired: true, isRuntime: true, isWired: true, isStored: true },
-  [QueryProperty.nodeType]: { id: 32, name: 'node_type', component: ObjectType.QUERY, enumType: EnumType.NODE_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isRuntime: true, isWired: true, isStored: true },
-  [QueryProperty.basePtr]: { id: 33, name: 'base_ptr', component: ObjectType.QUERY, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.BLOCK], referenceStruct: StructType.NODE_REFERENCE },
-  [QueryProperty.filter]: { id: 34, name: 'filter', component: ObjectType.QUERY, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.EXPRESSION },
-  [QueryProperty.sort]: { id: 35, name: 'sort', component: ObjectType.QUERY, kind: 'reference', primitiveType: PrimitiveType.JSON, isList: true, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.EXPRESSION },
+  [QueryProperty.readType]: { id: 32, name: 'read_type', component: ObjectType.QUERY, enumType: EnumType.READ_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isRuntime: true, isWired: true, isStored: true },
+  [QueryProperty.nodeType]: { id: 33, name: 'node_type', component: ObjectType.QUERY, enumType: EnumType.NODE_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isRuntime: true, isWired: true, isStored: true },
+  [QueryProperty.basePtr]: { id: 34, name: 'base_ptr', component: ObjectType.QUERY, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.BLOCK], referenceStruct: StructType.NODE_REFERENCE },
+  [QueryProperty.filter]: { id: 35, name: 'filter', component: ObjectType.QUERY, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.EXPRESSION },
+  [QueryProperty.sort]: { id: 36, name: 'sort', component: ObjectType.QUERY, kind: 'reference', primitiveType: PrimitiveType.JSON, isList: true, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.EXPRESSION },
 }
 export const ViewDataInfo: Record<ViewProperty, PropertyInfo> = {
   [ViewProperty.metatype]: { id: 1, name: 'metatype', component: ObjectType.VIEW, enumType: EnumType.OBJECT_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isComputed: true, isWired: true },

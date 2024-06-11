@@ -7,6 +7,7 @@ from typing import (
     Generic,
     Iterable,
     Iterator,
+    Mapping,
     Optional,
     TypeVar,
     Union,
@@ -516,10 +517,10 @@ class NodeGraph(NodeGraphBase[NodeT, UUID]):
             return descendants
 
 
-class NodeDict:
+class NodeDictBase[K, V]:
     """A simple graph-like wrapper for a dict of nodes that has some of the same methods."""
 
-    def __init__(self, nodes_by_id: dict[UUID, "Node"]):
+    def __init__(self, nodes_by_id: Mapping[K, V]):
         self._nodes_by_id = nodes_by_id
 
     def __str__(self):
@@ -532,17 +533,28 @@ class NodeDict:
     def nodes(self):
         return self._nodes_by_id.values()
 
-    def __getitem__(self, item: UUID) -> "Node":
+    def __getitem__(self, item: K) -> V:
         return self._nodes_by_id[item]
 
-    def __contains__(self, item: UUID) -> bool:
+    def __contains__(self, item: K) -> bool:
         return item in self._nodes_by_id
 
-    def get(self, item: UUID) -> "Node":
+    def get(self, item: K) -> V:
         return self._nodes_by_id[item]
 
 
+NodeDict = NodeDictBase[UUID, "Node"]
 NodeGraphLike = Union[NodeGraph["Node"], NodeDict]
+NodeDataDict = NodeDictBase[str, AnyNodeData]
+NodeDataGraphLike = Union[NodeDataGraph[AnyNodeData], NodeDataDict]
+
+
+class NodeSupergraphBase[K, V]:
+    """A set of graphs pretending to be a single larger graph."""
+
+
+NodeSupergraph = NodeSupergraphBase[UUID, "Node"]
+NodeDataSupergraph = NodeSupergraphBase[str, AnyNodeData]
 
 
 def extract_name_id(name: str) -> Optional[int]:
