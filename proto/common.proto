@@ -52,7 +52,6 @@ message RpcMetadata {
 message GraphScope {
   optional string bench_id = 1;
   optional string package_id = 3;
-  optional string transaction_id = 4;
 }
 
 // Edit to a Node.

@@ -1,4 +1,3 @@
-from collections import OrderedDict
 from copy import copy
 from itertools import chain
 from typing import Any, Collection, Union, cast
@@ -229,24 +228,6 @@ def unpack_object_validate_maybe[T: BuiltinObject](
         return None
     else:
         return unpack_object_validate(obj_data, scope=scope, expect=expect, session=session)
-
-
-@tracer.start_as_current_span("wiring.pack_node_graph")
-def pack_node_graph(
-    root: Node, exclude: set[NodeType] | tuple[NodeType, ...] = ()
-) -> tuple[AnyNodeData, list[AnyNodeData]]:
-    """Pack a node and all its descendants"""
-    exclude = exclude or ()
-    packed_by_id: dict[UUID, AnyNodeData] = OrderedDict()
-
-    to_pack = root._graph.collect_descendants(root, recursive=True)
-    packed_by_id[root.id] = pack_object(root)
-    for node in to_pack:
-        if node.metatype in exclude:
-            continue
-        packed_by_id[node.ck] = pack_object(node)
-
-    return packed_by_id[root.id], list(packed_by_id.values())
 
 
 @tracer.start_as_current_span("wiring.unpack_node_graph")

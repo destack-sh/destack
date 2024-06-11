@@ -26,6 +26,7 @@ from bench.language.const import (
     ConditionalOp,
     ExpressionKind,
     NodeType,
+    ReadType,
     StructType,
     active_tx,
 )
@@ -302,10 +303,6 @@ class ReadQueryBase(abc.ABC, Generic[NodeT, NodeDataT]):
         raise NotImplementedError
 
     @abc.abstractmethod
-    def __len__(self):
-        raise NotImplementedError
-
-    @abc.abstractmethod
     def __getitem__(self, item: slice | int) -> Union[Self, NodeT]:
         raise NotImplementedError
 
@@ -355,12 +352,13 @@ class QueryBuilder(
         "_node_cls",
         "_node_type",
         "_options",
-        "_skip",
+        "_skip" "_read_type",
         "_sort",
     )
 
     def __init__(
         self,
+        read_type: ReadType,
         node_type: NodeType,
         base: Optional["Block"] = None,
         filter: Optional["Expression"] = None,
@@ -373,6 +371,7 @@ class QueryBuilder(
     ):
         from bench.language.node import NODE_CLASS_BY_TYPE, Node
 
+        self._read_type = read_type
         self._node_type = node_type
         self._node_cls = NODE_CLASS_BY_TYPE[node_type] if node_type else Node
         self._base = base
@@ -421,6 +420,7 @@ class QueryBuilder(
     def copy(self):
         """Clones the query (the properties are immutable)."""
         return QueryBuilder(
+            read_type=self._read_type,
             node_type=self._node_type,
             base=self._base,
             filter=self._filter,
@@ -571,9 +571,6 @@ class QueryBuilder(
     async def __aiter__(self):
         return iter(await self.fetch())
 
-    def __len__(self):
-        return self.count()
-
     @override
     @tracer.start_as_current_span("query.get")
     async def get(self, filter: Optional["Expression"] = None, **kwargs) -> NodeT:
@@ -581,6 +578,7 @@ class QueryBuilder(
 
         filter = coerce_conditional(self._node_cls, filter, kwargs)
         query = self.where(filter) if filter is not None else self
+        query._read_type = ReadType.GET
         trace.get_current_span().set_attribute("query", repr(query))
         results = await query.fetch()
         if len(results) == 1:
@@ -599,7 +597,12 @@ class QueryBuilder(
         tx = active_tx()
         result = await tx._read_connection.fetch(self, FetchOptions())
         data_graph = NodeDataGraph(result.nodes)
-        read = ReadInfo(options=self._options, epoch=result.epoch, graph=data_graph)
+        read = ReadInfo(
+            options=self._options,
+            epoch=result.epoch,
+            graph=data_graph,
+            connection_token=result.connection_token,
+        )
         roots, _ = unpack_node_roots(
             data_graph, parent=self._base, session=tx.session, roots=result.roots, read=read
         )
@@ -617,6 +620,7 @@ class QueryBuilder(
         filter = coerce_conditional(self._node_cls, filter, kwargs)
         query = self.where(filter) if filter is not None else self
         query = query.aggregate(A(AggregationOp.COUNT))
+        query._read_type = ReadType.AGGREGATE
         trace.get_current_span().set_attribute("query", repr(query))
         result = await tx._read_connection.aggregate(query)
         assert result.aggregation.count is not None, f"missing count in {result!r}"
@@ -631,6 +635,7 @@ class QueryBuilder(
         filter = coerce_conditional(self._node_cls, filter, kwargs)
         query = self.where(filter) if filter is not None else self
         query = query.aggregate(A(AggregationOp.EXISTS))
+        query._read_type = ReadType.AGGREGATE
         trace.get_current_span().set_attribute("query", repr(query))
         result = await tx._read_connection.aggregate(query)
         assert result.aggregation.exists is not None, f"missing exists in {result!r}"
@@ -684,13 +689,14 @@ class Query(SourceNode[QueryData]):
     parent: "Block" = p_node_parent(4, NodeType.BLOCK)
     name: str = p_regular(30, constraint=NAME_CONSTRAINT)
     order_key: str = p_regular(31, default=INTEGER_ZERO)
-    node_type: NodeType = p_regular(32)
+    read_type: ReadType = p_regular(32)
+    node_type: NodeType = p_regular(33)
     base: Optional["Block"] = p_regular(
-        33, array=False, require=False, default=None, references=NodeType.BLOCK
+        34, array=False, require=False, default=None, references=NodeType.BLOCK
     )
-    filter: Optional["Expression"] = p_regular(34, default=None, struct=StructType.EXPRESSION)
+    filter: Optional["Expression"] = p_regular(35, default=None, struct=StructType.EXPRESSION)
     sort: Optional[list["Expression"]] = p_regular(
-        35, default=None, array=True, struct=StructType.EXPRESSION
+        36, default=None, array=True, struct=StructType.EXPRESSION
     )
 
     def __content_str__(self):
@@ -702,6 +708,7 @@ class Query(SourceNode[QueryData]):
 
     def build(self) -> "QueryBuilder":
         return QueryBuilder(
+            read_type=self.read_type,
             node_type=self.node_type,
             base=self.base,
             filter=self.filter,

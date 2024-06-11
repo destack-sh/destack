@@ -60,7 +60,7 @@ export function getScopeKey(scope: GraphScope): string {
 // NOTE: we re-type the graph connection params here to relax some constraints for convenience
 //
 
-export type PageInfo = { cursors: string[]; startCursor?: string; size: number; total?: number };
+export type PageInfo = { roots: NodeReferenceData[]; size: number; total?: number };
 
 /** The options to the connection supervisor. */
 type ConnectionOptions = {
@@ -85,6 +85,7 @@ type ConnectionMetadata = {
   paramsPretty?: Ref<Record<string, any>>;
 };
 
+// get connection
 type GetConnectionParams<T extends NodeType> = {
   isEnabled?: boolean;
   roots: (Omit<NodeReferenceData, "type"> & { type: T })[];
@@ -92,12 +93,12 @@ type GetConnectionParams<T extends NodeType> = {
   options?: Partial<ReadOptionsData>;
 };
 type GetConnectionResult<T extends NodeType> = {
-  access: AccessArbiter;
   graph: ReadNodeGraph;
   overlay: ReadNodeGraph | null;
   roots: Ref<NodeTypeMapping[T][]>;
 };
 
+// search connection
 type SearchConnectionParams<T extends NodeType> = {
   isEnabled?: boolean;
   nodeType: T;
@@ -107,18 +108,18 @@ type SearchConnectionParams<T extends NodeType> = {
   sort?: ExpressionData[];
   first?: number;
   skip?: number;
-  after?: string;
+  after?: NodeReferenceData;
   options?: Partial<ReadOptionsData>;
   count?: boolean;
 };
 type SearchConnectionResult<T extends NodeType> = {
-  access: AccessArbiter;
   graph: ReadNodeGraph;
   overlay: ReadNodeGraph | null;
   roots: Ref<TypedNodeReferenceData<T>[]>;
   page: Ref<PageInfo>;
 };
 
+// aggregate connection
 type AggregateConnectionParams = {
   isEnabled?: boolean;
   nodeType: NodeType;
@@ -163,32 +164,12 @@ function makeEditFilter(params: GetConnectionParams<any> | SearchConnectionParam
   return { includedNodeTypes };
 }
 
-/** Filter and apply the given edits */
-function applyRemoteEdits(filter: EditFilter, edits: EditData[], graph: ReadNodeGraph & WriteNodeGraph): void {
-  const filteredEdits = filterRemoteEdits(filter, edits);
-  editGraph(graph, filteredEdits);
-}
-
-/** Filters the edits to only the ones relevant to the given connection */
-function filterRemoteEdits(filter: EditFilter, edits: EditData[]): EditData[] {
-  // TODO :Broken: connection 'overlap' detection is broken :ConnectionFilter
-  //  maybe we should just filter for edits whose dependencies are in the graph?
-  //  (e.g. create -> parent present, update -> node present, etc.)
-  return edits.filter((e) => filter.includedNodeTypes.includes(e.nodePtr?.type!));
-}
-
 /** Derives the overlay graph for a specific connection */
-function derivePendingOverlayGraph(
-  filter: EditFilter,
-  base: NodeGraph,
-  txBuffer: TransactionBuffer,
-  subs: (() => void)[],
-): NodeGraph {
+function makePendingOverlayGraph(base: NodeGraph, txBuffer: TransactionBuffer, subs: (() => void)[]): NodeGraph {
   const overlay = new NodeGraph({ scope: base.scope, isOverlayOf: base });
   const sub = txBuffer.subscribePending((e) => {
     if (e.type == "reset") overlay.clear();
-    const filteredEdits = filterRemoteEdits(filter, e.edits);
-    if (filteredEdits.length > 0) editGraph(overlay, filteredEdits, { isOverlayOf: base });
+    editGraph(overlay, e.edits, { isOverlayOf: base });
   });
   subs.push(sub);
   return overlay;
@@ -462,7 +443,7 @@ export abstract class GraphConnectionBase<K extends GraphConnectionKind, T exten
   /** Whether this connection is a superset of the given connection */
   supports(params: ConnectionParamsMapping<T>[K]): boolean {
     if (this.kind == "get") {
-      // TODO :Broken: connection 'overlap' detection is broken :ConnectionFilter
+      // nocheckin :Broken: connection 'overlap' detection is broken :ConnectionMatching
       const thisGet = this.params as GetConnectionParams<T>;
       const otherGet = params as GetConnectionParams<T>;
       // scope included?
@@ -502,42 +483,31 @@ export class RemoteGetConnection<T extends NodeType> extends GraphConnectionBase
     const client = await getGraphClient(scope);
     const graph = new NodeGraph({ scope });
     const options = makeReadOptions(params.options ?? {});
-    const filter = makeEditFilter(params);
     const subs: (() => void)[] = [];
 
     // fetch nodes
     const {
-      response: { epoch, access: accessMatrix, nodes },
+      response: { epoch, nodes, connectionToken },
     } = await client.getNodes({ scope: graph.scope, roots: params.roots, options }, { abort, ...this.operationMeta });
-    const access = accessFromMatrix(accessMatrix!);
     graph.extend(...nodes.map(unwrapSomeNode));
 
     // watch edits if live
     if (this.isLive) {
-      const allNodeTypes = [...params.roots.map((r) => r.type), ...options.ancestorTypes, ...options.descendantTypes];
-      const editStream = client.watchEdits(
-        {
-          scope: graph.scope,
-          sinceEpoch: epoch,
-          nodeTypes: allNodeTypes,
-          filters: [],
-        },
-        { abort, ...this.operationMeta },
-      );
+      const editStream = client.watchGet({ scope: graph.scope, connectionToken }, { abort, ...this.operationMeta });
       editStream.responses.onNext((rep) => {
         if (rep != null) {
-          applyRemoteEdits(filter, rep.edits, graph);
+          editGraph(graph, rep.edits);
           this.txBuffer.accept(rep.edits);
         }
       });
       editStream.responses.onError(onError);
     } else {
       // otherwise directly apply confirmed edits
-      subs.push(this.txBuffer.subscribeCommitted((edits) => applyRemoteEdits(filter, edits, graph)));
+      subs.push(this.txBuffer.subscribeCommitted((edits) => editGraph(graph, edits)));
     }
 
-    const overlay = derivePendingOverlayGraph(filter, graph, this.txBuffer, subs);
-    return { graph, overlay, access, roots: graph.getManyRef(params.roots), subs };
+    const overlay = makePendingOverlayGraph(graph, this.txBuffer, subs);
+    return { graph, overlay, roots: graph.getManyRef(params.roots), subs };
   }
 }
 
@@ -558,15 +528,7 @@ export class RemoteSearchConnection<T extends NodeType> extends GraphConnectionB
 
     // fetch nodes
     const {
-      response: {
-        epoch,
-        access: accessMatrix,
-        nodes,
-        roots: rootsInitial,
-        cursors: cursorsInitial,
-        startCursor: startCursorInitial,
-        total: totalInitial,
-      },
+      response: { epoch, nodes, roots: rootsInitial, total: totalInitial },
     } = await client.searchNodes(
       {
         ...params,
@@ -580,43 +542,20 @@ export class RemoteSearchConnection<T extends NodeType> extends GraphConnectionB
     );
     graph.extend(...nodes.map(unwrapSomeNode));
 
-    // nocheckin :Incomplete? :Feature: watch search, not just edits to initial results
-    //  (also this should react to current overlay graph somehow)
     const roots = shallowRef(rootsInitial as TypedNodeReferenceData<T>[]);
-    const access = accessFromMatrix(accessMatrix!);
-    const page = shallowRef({
-      cursors: cursorsInitial,
-      startCursor: startCursorInitial,
-      size: rootsInitial.length,
-      total: totalInitial,
-    });
+    const page = shallowRef({ roots: rootsInitial, size: rootsInitial.length, total: totalInitial });
 
     // watch edits if live
     if (this.isLive) {
-      const allNodeTypes = [params.nodeType, ...options.ancestorTypes, ...options.descendantTypes];
-      const editStream = client.watchEdits(
-        {
-          scope: graph.scope,
-          sinceEpoch: epoch,
-          nodeTypes: allNodeTypes,
-          filters: [],
-        },
-        { abort, ...this.operationMeta },
-      );
-      editStream.responses.onNext((rep) => {
-        if (rep != null) {
-          applyRemoteEdits(filter, rep.edits, graph);
-          this.txBuffer.accept(rep.edits);
-        }
-      });
-      editStream.responses.onError(onError);
+      // nocheckin: watch edits
+      //  (also this should react to current overlay graph somehow)
     } else {
       // otherwise directly apply confirmed edits
-      subs.push(this.txBuffer.subscribeCommitted((edits) => applyRemoteEdits(filter, edits, graph)));
+      subs.push(this.txBuffer.subscribeCommitted((edits) => editGraph(graph, edits)));
     }
 
-    const overlay = derivePendingOverlayGraph(filter, graph, this.txBuffer, subs);
-    return { graph, overlay, access, roots, page, subs };
+    const overlay = makePendingOverlayGraph(graph, this.txBuffer, subs);
+    return { graph, overlay, roots, page, subs };
   }
 }
 
@@ -637,12 +576,7 @@ export class LocalGetConnection<T extends NodeType> extends GraphConnectionBase<
     // 'fuse' the connection
     // (no overlay because the local connection is instant)
     this.isConnected.value = true;
-    this.result.value = {
-      graph: this.graph,
-      overlay: null,
-      access: accessFull(),
-      roots: this.graph.getManyRef(params.roots),
-    };
+    this.result.value = { graph: this.graph, overlay: null, roots: this.graph.getManyRef(params.roots) };
   }
 
   connect(options?: Partial<ConnectionOptions> | undefined): Promise<void> {
@@ -651,7 +585,7 @@ export class LocalGetConnection<T extends NodeType> extends GraphConnectionBase<
   }
 
   protected async doFetch(scope: GraphScope, params: GetConnectionParams<T>): Promise<GetConnectionResult<T>> {
-    return { graph: this.graph, overlay: null, access: accessFull(), roots: this.graph.getManyRef(params.roots) };
+    return { graph: this.graph, overlay: null, roots: this.graph.getManyRef(params.roots) };
   }
 }
 
@@ -981,19 +915,10 @@ export function useGetConnection<T extends NodeType>(
   // map results
   // TODO :Cleanup: mapping connection results is a deep ref chain?
   const graph = useConnectionOverlayGraph(connection);
-  const access = new AccessProxy(
-    computed(() => connection.value?.result?.value?.access ?? null),
-    { default: accessFull() },
-  );
   const roots: Ref<NodeTypeMapping[T][]> = computed(() => connection.value?.result.value?.roots?.value ?? []);
 
-  return {
-    graph,
-    overlay: null, // already overlaid
-    access,
-    connection: new ProxyConnection(connection),
-    roots,
-  };
+  // no overlay because already already overlaid
+  return { graph, overlay: null, connection: new ProxyConnection(connection), roots };
 }
 
 /**
@@ -1009,23 +934,13 @@ export function useSearchConnection<T extends NodeType>(
 
   // map results
   const graph = useConnectionOverlayGraph(connection);
-  const access = new AccessProxy(
-    computed(() => connection.value?.result?.value?.access ?? null),
-    { default: accessFull() },
-  );
   const roots: Ref<TypedNodeReferenceData<T>[]> = computed(() => connection.value?.result?.value?.roots?.value ?? []);
   const page: Ref<PageInfo> = computed(
-    () => connection.value?.result?.value?.page?.value ?? ({ cursors: [], size: 0 } as PageInfo),
+    () => connection.value?.result?.value?.page?.value ?? ({ roots: [], cursors: [], size: 0 } as PageInfo),
   );
 
-  return {
-    graph,
-    overlay: null, // already overlaid
-    access,
-    connection: new ProxyConnection(connection),
-    roots,
-    page,
-  };
+  // no overlay because already already overlaid
+  return { graph, overlay: null, connection: new ProxyConnection(connection), roots, page };
 }
 
 /**

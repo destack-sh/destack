@@ -99,10 +99,6 @@ export interface GraphScope {
      * @generated from protobuf field: optional string package_id = 3;
      */
     packageId?: string;
-    /**
-     * @generated from protobuf field: optional string transaction_id = 4;
-     */
-    transactionId?: string;
 }
 /**
  * Edit to a Node.
@@ -413,8 +409,7 @@ class GraphScope$Type extends MessageType<GraphScope> {
     constructor() {
         super("symbolx.bench.GraphScope", [
             { no: 1, name: "bench_id", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
-            { no: 3, name: "package_id", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
-            { no: 4, name: "transaction_id", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ }
+            { no: 3, name: "package_id", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ }
         ]);
     }
     create(value?: PartialMessage<GraphScope>): GraphScope {
@@ -434,9 +429,6 @@ class GraphScope$Type extends MessageType<GraphScope> {
                 case /* optional string package_id */ 3:
                     message.packageId = reader.string();
                     break;
-                case /* optional string transaction_id */ 4:
-                    message.transactionId = reader.string();
-                    break;
                 default:
                     let u = options.readUnknownField;
                     if (u === "throw")
@@ -455,9 +447,6 @@ class GraphScope$Type extends MessageType<GraphScope> {
         /* optional string package_id = 3; */
         if (message.packageId !== undefined)
             writer.tag(3, WireType.LengthDelimited).string(message.packageId);
-        /* optional string transaction_id = 4; */
-        if (message.transactionId !== undefined)
-            writer.tag(4, WireType.LengthDelimited).string(message.transactionId);
         let u = options.writeUnknownFields;
         if (u !== false)
             (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);

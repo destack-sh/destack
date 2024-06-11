@@ -23,7 +23,6 @@ from bench.proto.wire import (
     PackageData,
     RpcMetadata,
     SupervisorStub,
-    WatchEditsRequest,
 )
 from bench.utils.tenacity import RETRY_GRPC, RetryOptions
 
