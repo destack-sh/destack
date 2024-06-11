@@ -143,7 +143,14 @@ watch([canvas.focusedViewPtr, bench], () => {
       }"
     >
       <div class="flex h-full flex-col items-center justify-center">
-        <i class="fas fa-spinner-third animate-spin text-xl text-gray-400" />
+        <Transition
+          enter-from-class="opacity-0"
+          enter-active-class="transition-opacity duration-200"
+          enter-to-class="opacity-100"
+          appear
+        >
+          <i class="fas fa-spinner-third animate-spin text-xl text-gray-400" />
+        </Transition>
       </div>
     </div>
     <!-- Does not have a space (not signed, space empty or disappeared) -->
