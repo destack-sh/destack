@@ -3,7 +3,6 @@ import asyncio
 from dataclasses import dataclass
 from itertools import chain
 from typing import Any, cast, final, override
-from uuid import uuid4
 
 import structlog
 from opentelemetry import trace
@@ -213,7 +212,7 @@ class GetConnection(Connection[GetResult, WatchEditsUpdate]):
             old_node_data = cached_graph.get(edit.node_ptr.id)
             new_node_data = data_graph.get(edit.node_ptr.id)
             assert new_node_data is not None, f"missing node data for {edit.node_ptr!r}"
-            cached_graph.update(new_node_data)  # nocheckin
+            # cached_graph.update(new_node_data)  # nocheckin
 
         if filtered_edits or filtered_cascaded_edits:
             self.bump_active()
