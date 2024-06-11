@@ -420,6 +420,7 @@ class PostgresConnection(StoreConnection[NodeT, NodeDataT], Generic[NodeT, NodeD
         assert query._node_cls.__table__ is not None, f"{query._node_cls} has no table"
         roots, graph = await pg_search_node_graph(
             cur=self.cur,
+            scope=self.engine.scope,
             node_type=query._node_type,
             options=query._options or ReadOptions(),
             filter=query._filter,
@@ -494,9 +495,7 @@ class PostgresConnection(StoreConnection[NodeT, NodeDataT], Generic[NodeT, NodeD
 class InMemoryEngine(StoreEngine[NodeT, NodeDataT], Generic[NodeT, NodeDataT]):
     """A read-only engine that reads from an in-memory graph."""
 
-    def __init__(
-        self, scope: GraphScope, node_types: bittuple[NodeType], graph: "NodeDataGraph"
-    ):
+    def __init__(self, scope: GraphScope, node_types: bittuple[NodeType], graph: "NodeDataGraph"):
         super().__init__(scope, node_types)
         self.graph = graph
 
@@ -531,7 +530,7 @@ class InMemoryConnection(StoreConnection[NodeT, NodeDataT], Generic[NodeT, NodeD
         from bench.proto import wire
 
         loaded_graph = self.engine.graph
-        visited_graph = NodeDataGraph()
+        visited_graph = NodeDataGraph(scope=self.engine.scope, node_types=self.engine.node_types)
 
         # get roots
         # NOTE :Incomplete: InMemoryConnection only supports trivial get by id for now
@@ -568,7 +567,8 @@ class InMemoryConnection(StoreConnection[NodeT, NodeDataT], Generic[NodeT, NodeD
                             and node.parent_ptr.id not in visited_graph
                             and node.parent_ptr.type in ancestor_types
                         ):
-                            parent = loaded_graph[node.parent_ptr.id]
+                            parent = loaded_graph.get(node.parent_ptr.id)
+                            assert parent is not None, f"missing parent {node.parent_ptr!r}"
                             visited_graph.add(parent)
                             next_parents.append(parent)
                     current_parents = next_parents
@@ -642,7 +642,9 @@ class SplitConnection(StoreConnection[NodeT, NodeDataT], Generic[NodeT, NodeData
         ]
         if not remaining_ancestors and not remaining_descendants:
             return initial_result  # nothing more to do
-        combined_graph = NodeDataGraph(initial_result.nodes)
+        combined_graph = NodeDataGraph(
+            scope=scope, node_types=tuple(query.all_node_types), nodes=initial_result.nodes
+        )
         actual_roots = combined_graph.find_roots()
         if not actual_roots:
             return initial_result  # nothing more to do

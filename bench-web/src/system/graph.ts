@@ -9,8 +9,14 @@ import {
   type AnyPropertyType,
   type NodeTypeMapping,
 } from "@/proto/wire";
-import { describeNode, toNodeReference, type AnyNodeReferenceData, type TypedNodeReferenceData } from "@/proto/wiring";
-import { defaultSortNode } from "@/system/lang";
+import {
+  describeNode,
+  describeScope,
+  toNodeReference,
+  type AnyNodeReferenceData,
+  type TypedNodeReferenceData,
+} from "@/proto/wiring";
+import { defaultSortNode, toCamelName } from "@/system/lang";
 import { computedValue, manualSubRef, watchValue, type SubRef } from "@/utils/ref";
 import { tryOnBeforeUnmount } from "@vueuse/core";
 import { isRef, shallowRef, toRef, watch, type MaybeRef, type Ref, type ShallowRef, type WatchSource } from "vue";
@@ -39,6 +45,9 @@ export interface ReadNodeGraph {
 
   /** The scope contained in this graph */
   get scope(): GraphScope;
+
+  /** The node types contained in this graph */
+  get nodeTypes(): NodeType[];
 
   /** Whether this graph is partial */
   readonly isOverlayOf: ReadNodeGraph | null;
@@ -153,7 +162,10 @@ export interface WriteNodeGraph {
 /**
  * Helper mixin for managing in a graph.
  */
-abstract class BaseNodeGraphMixin implements Omit<ReadNodeGraph, "scope" | "isOverlayOf"> {
+abstract class BaseNodeGraphMixin implements ReadNodeGraph {
+  abstract scope: GraphScope;
+  abstract nodeTypes: NodeType[];
+  abstract isOverlayOf: ReadNodeGraph | null;
   abstract nodes: AnyNodeData[];
   abstract get size(): number;
   abstract get<T extends NodeType>(node: NodeKey<T>): NodeTypeMapping[T] | null;
@@ -164,8 +176,9 @@ abstract class BaseNodeGraphMixin implements Omit<ReadNodeGraph, "scope" | "isOv
   }
 
   describeSelf(): string {
-    const rootsStr = this.roots.map(describeNode).join(", ") || "no roots";
-    return `${this.constructor.name}(${rootsStr}, ${this.size} nodes)`;
+    const rootsStr = this.roots.map(describeNode).join(", ") || "<no roots>";
+    const nodeTypesStr = this.nodeTypes.map((t) => toCamelName(NodeType, t)).join("|");
+    return `${this.constructor.name}(${rootsStr}, ${this.size} nodes, ${nodeTypesStr} ${describeScope(this.scope)})`;
   }
 
   getOrError<T extends NodeType>(key: NodeKey<T>): NodeTypeMapping[T] {
@@ -362,8 +375,10 @@ abstract class BaseNodeGraphMixin implements Omit<ReadNodeGraph, "scope" | "isOv
  * If it's an overlay, we don't try to maintain local consistency (as this is likely an overlay in a layered graph).
  */
 export class NodeGraph extends BaseNodeGraphMixin implements ReadNodeGraph, WriteNodeGraph {
-  public readonly scope: GraphScope = {};
-  public readonly isOverlayOf: ReadNodeGraph | null = null;
+  public readonly scope: GraphScope;
+  public readonly nodeTypes: NodeType[];
+  public readonly isOverlayOf: ReadNodeGraph | null;
+
   private nodesById: { [id: string]: AnyNodeData } = {};
   private nodesByCk: { [ck: string]: string } = {};
   private nodesByParentIdAndType: { [parentId: string]: { [type: string]: string[] } } = {};
@@ -372,9 +387,10 @@ export class NodeGraph extends BaseNodeGraphMixin implements ReadNodeGraph, Writ
   private subsByCk: { [ck: string]: Array<NodeGraphCallback> } = {};
   private subsByParentIdAndType: { [parentId: string]: { [type: string]: Array<NodeGraphCallback> } } = {};
 
-  constructor(init?: { scope?: GraphScope; isOverlayOf?: ReadNodeGraph }) {
+  constructor(init: { scope: GraphScope; nodeTypes: NodeType[]; isOverlayOf?: ReadNodeGraph }) {
     super();
     this.scope = init?.scope ?? {};
+    this.nodeTypes = init?.nodeTypes ?? [];
     this.isOverlayOf = init?.isOverlayOf ?? null;
   }
 
@@ -631,7 +647,7 @@ export class NodeGraph extends BaseNodeGraphMixin implements ReadNodeGraph, Writ
 
 /**
  * A filtered node graph.
- * For consistency this should be the outermost graph, since wrapper layers cannot un-hide nodes.
+ * For consistency this should be the outermost graph, since outer layers cannot un-hide nodes they can't see.
  * (i.e. layers further out can only be more restrictive, not less).
  * TODO :Performance: filtering node graphs is somewhat inefficient because we throw away and recompute a lot of info
  *  For instance, currently we only need deletedAt & archivedAt but we assemble all properties.
@@ -742,6 +758,10 @@ export class ProxyNodeGraph extends FilterBaseNodeGraphMixin implements ReadNode
 
   get scope(): GraphScope {
     return this._graph.value?.scope ?? {};
+  }
+
+  get nodeTypes(): NodeType[] {
+    return this._graph.value?.nodeTypes ?? [];
   }
 
   get isOverlayOf(): ReadNodeGraph | null {
@@ -864,6 +884,11 @@ export class LayerNodeGraph extends FilterBaseNodeGraphMixin implements ReadNode
   get scope(): GraphScope {
     if (this.layers.value.length == 0) return {} as GraphScope;
     else return this.layers.value[0].scope;
+  }
+
+  get nodeTypes(): NodeType[] {
+    if (this.layers.value.length == 0) return [];
+    else return this.layers.value[0].nodeTypes;
   }
 
   getUnfiltered<T extends NodeType>(key: NodeKey<T>): NodeTypeMapping[T] | null {

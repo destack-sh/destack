@@ -129,7 +129,7 @@ test.each(OBJECT_TYPES_NAMES)(`fabricate(%s)`, (metatype) => {
 });
 
 describe("node graph", () => {
-  const graph = new NodeGraph();
+  const graph = new NodeGraph({ scope: {}, nodeTypes: [NodeType.USER, NodeType.CLIENT] });
   let user1 = fabricate(ObjectType.USER, { unset: ["parentPtr"], set: { id: "user1" } });
   let clientA = fabricate(ObjectType.CLIENT, { set: { parentPtr: toNodeReference(user1), id: "clientA" } });
   let clientB = fabricate(ObjectType.CLIENT, { set: { parentPtr: toNodeReference(user1), id: "clientB" } });
@@ -191,8 +191,8 @@ describe("node graph", () => {
 });
 
 describe("layered node graph", () => {
-  const base = new NodeGraph();
-  const overlay = new NodeGraph({ isOverlayOf: base });
+  const base = new NodeGraph({ scope: {}, nodeTypes: [NodeType.USER, NodeType.CLIENT] });
+  const overlay = new NodeGraph({ scope: base.scope, nodeTypes: base.nodeTypes, isOverlayOf: base });
   const graph = new LayerNodeGraph({ layers: [base] });
 
   let user1 = fabricate(ObjectType.USER, { unset: ["parentPtr"], set: { id: "user1" } });
@@ -276,8 +276,8 @@ describe("layered node graph", () => {
 });
 
 describe("proxy node graph", () => {
-  const baseA = new NodeGraph();
-  const baseB = new NodeGraph();
+  const baseA = new NodeGraph({ scope: {}, nodeTypes: [NodeType.USER, NodeType.CLIENT] });
+  const baseB = new NodeGraph({ scope: {}, nodeTypes: [NodeType.USER, NodeType.CLIENT] });
   const graph = new ProxyNodeGraph();
 
   let user1 = fabricate(ObjectType.USER, { unset: ["parentPtr"], set: { id: "user1" } });
@@ -453,12 +453,12 @@ function testFilteredGraph(base: NodeGraph, graph: ReadNodeGraph & { filter: Ref
 }
 
 describe("filtered proxy graph", () => {
-  const base = new NodeGraph();
+  const base = new NodeGraph({ scope: {}, nodeTypes: [NodeType.PACKAGE, NodeType.SPACE, NodeType.VIEW] });
   const graph = new ProxyNodeGraph({ graph: base, filter: PASSTHROUGH_NODE_FILTER });
   testFilteredGraph(base, graph);
 });
 describe("filtered layered graph", () => {
-  const base = new NodeGraph();
+  const base = new NodeGraph({ scope: {}, nodeTypes: [NodeType.PACKAGE, NodeType.SPACE, NodeType.VIEW] });
   const graph = new LayerNodeGraph({ layers: [base], filter: PASSTHROUGH_NODE_FILTER });
   testFilteredGraph(base, graph);
 });

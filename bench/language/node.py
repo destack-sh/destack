@@ -66,7 +66,7 @@ from bench.language.setup import (
     STRUCT_CLASS_BY_TYPE,
 )
 from bench.language.validation import ValidationError, ValidationHandler, on_invalid_raise
-from bench.proto.wire import AnyNodeData, AnyStructData, NodeReferenceData
+from bench.proto.wire import AnyNodeData, AnyStructData, GraphScope, NodeReferenceData
 from bench.sql.core import Constraint, ConstraintType, Index, IndexType, Table
 from bench.utils.casing import PYTHON_CASING, IdentifierType, to_casing
 from bench.utils.dt import utcnow
@@ -1285,7 +1285,8 @@ class Node[NodeDataT: AnyNodeData](BuiltinObject[NodeDataT], abc.ABC):
         # init graph
         if self.parent is None:
             # if we're not in a graph, start a new one
-            self._graph = NodeGraph()
+            #  (not sure which scope/node_types to use here?)
+            self._graph = NodeGraph(scope=GraphScope(), node_types=NODE_TYPES.tuple)
             self._graph.add(self)
         else:
             # we'll be added to the graph by our parent

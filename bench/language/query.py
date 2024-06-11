@@ -28,6 +28,7 @@ from bench.language.const import (
     NodeType,
     ReadType,
     StructType,
+    active_session,
     active_tx,
 )
 from bench.language.expression import C, Expression
@@ -594,9 +595,11 @@ class QueryBuilder(
         from bench.language.connection import FetchOptions
         from bench.proto.wiring import unpack_node_roots
 
-        tx = active_tx()
-        result = await tx._read_connection.fetch(self, FetchOptions())
-        data_graph = NodeDataGraph(result.nodes)
+        session = active_session()
+        result = await session.tx._read_connection.fetch(self, FetchOptions())
+        data_graph = NodeDataGraph(
+            scope=session._default_scope, node_types=list(self.all_node_types), nodes=result.nodes
+        )
         read = ReadInfo(
             options=self._options,
             epoch=result.epoch,
@@ -604,7 +607,7 @@ class QueryBuilder(
             connection_token=result.connection_token,
         )
         roots, _ = unpack_node_roots(
-            data_graph, parent=self._base, session=tx.session, roots=result.roots, read=read
+            data_graph, parent=self._base, session=session, roots=result.roots, read=read
         )
         return cast(tuple[NodeT, ...], roots)
 

@@ -153,23 +153,25 @@ function getScopeFromParams<T extends NodeType>(params: ConnectionParamsMapping<
   throw new Error(`cannot determine scope from params: ${JSON.stringify(params)}`);
 }
 
-type EditFilter = {
-  includedNodeTypes: NodeType[];
-};
-
-function makeEditFilter(params: GetConnectionParams<any> | SearchConnectionParams<any>): EditFilter {
-  const includedNodeTypes = [...(params.options?.ancestorTypes ?? []), ...(params.options?.descendantTypes ?? [])];
-  if ("roots" in params) includedNodeTypes.push(...params.roots.map((r) => r.type));
-  if ("nodeType" in params) includedNodeTypes.push(params.nodeType);
-  return { includedNodeTypes };
+function getNodeTypesFromParams<T extends NodeType>(
+  params: ConnectionParamsMapping<T>[GraphConnectionKind],
+): NodeType[] {
+  const nodeTypes: NodeType[] = [];
+  if ("roots" in params) nodeTypes.push(...params.roots.map((r) => r.type));
+  if ("nodeType" in params) nodeTypes.push(params.nodeType);
+  if ("options" in params) {
+    if (params.options?.ancestorTypes) nodeTypes.push(...params.options.ancestorTypes);
+    if (params.options?.descendantTypes) nodeTypes.push(...params.options.descendantTypes);
+  }
+  return nodeTypes;
 }
 
 /** Derives the overlay graph for a specific connection */
 function makePendingOverlayGraph(base: NodeGraph, txBuffer: TransactionBuffer, subs: (() => void)[]): NodeGraph {
-  const overlay = new NodeGraph({ scope: base.scope, isOverlayOf: base });
-  const sub = txBuffer.subscribePending((e) => {
-    if (e.type == "reset") overlay.clear();
-    editGraph(overlay, e.edits, { isOverlayOf: base });
+  const overlay = new NodeGraph({ scope: base.scope, nodeTypes: base.nodeTypes, isOverlayOf: base });
+  const sub = txBuffer.subscribePending((event) => {
+    if (event.type == "reset") overlay.clear();
+    editGraph(overlay, event.edits, { isOverlayOf: base });
   });
   subs.push(sub);
   return overlay;
@@ -414,7 +416,8 @@ export abstract class GraphConnectionBase<K extends GraphConnectionKind, T exten
 
     try {
       const scope = params.scope ?? getScopeFromParams(params);
-      const result = await this.doFetch(scope, params, this.abortController.signal, onError);
+      const nodeTypes = getNodeTypesFromParams(params);
+      const result = await this.doFetch(scope, nodeTypes, params, this.abortController.signal, onError);
       this.abortController = null;
       log.debug(`graph.${this.kind}.completed`, this.meta.name, params, result);
       return result;
@@ -435,6 +438,7 @@ export abstract class GraphConnectionBase<K extends GraphConnectionKind, T exten
   /** Actually fetch in the relevant connection type. */
   protected abstract doFetch(
     scope: GraphScope,
+    nodeTypes: NodeType[],
     params: ConnectionParamsMapping<T>[K],
     abort: AbortSignal,
     onError: (error: Error) => void,
@@ -476,12 +480,13 @@ export class RemoteGetConnection<T extends NodeType> extends GraphConnectionBase
 
   protected async doFetch(
     scope: GraphScope,
+    nodeTypes: NodeType[],
     params: GetConnectionParams<T>,
     abort: AbortSignal,
     onError: (error: Error) => void,
   ): Promise<GetConnectionResult<T> & ConnectionInternalResult> {
     const client = await getGraphClient(scope);
-    const graph = new NodeGraph({ scope });
+    const graph = new NodeGraph({ scope, nodeTypes });
     const options = makeReadOptions(params.options ?? {});
     const subs: (() => void)[] = [];
 
@@ -516,14 +521,14 @@ export class RemoteSearchConnection<T extends NodeType> extends GraphConnectionB
 
   protected async doFetch(
     scope: GraphScope,
+    nodeTypes: NodeType[],
     params: SearchConnectionParams<T>,
     abort: AbortSignal,
     onError: (error: Error) => void,
   ): Promise<SearchConnectionResult<T> & ConnectionInternalResult> {
     const client = await getGraphClient(scope);
-    const graph = new NodeGraph({ scope });
+    const graph = new NodeGraph({ scope, nodeTypes });
     const options = makeReadOptions(params.options ?? {});
-    const filter = makeEditFilter(params);
     const subs: (() => void)[] = [];
 
     // fetch nodes
@@ -584,7 +589,11 @@ export class LocalGetConnection<T extends NodeType> extends GraphConnectionBase<
     return Promise.resolve();
   }
 
-  protected async doFetch(scope: GraphScope, params: GetConnectionParams<T>): Promise<GetConnectionResult<T>> {
+  protected async doFetch(
+    scope: GraphScope,
+    nodeTypes: NodeType[],
+    params: GetConnectionParams<T>,
+  ): Promise<GetConnectionResult<T>> {
     return { graph: this.graph, overlay: null, roots: this.graph.getManyRef(params.roots) };
   }
 }
