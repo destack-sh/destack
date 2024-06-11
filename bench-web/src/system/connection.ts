@@ -790,7 +790,6 @@ async function acquireNewConnection<K extends GraphConnectionKind, T extends Nod
 /** Container for providing the results of a Get connection to an inner component */
 export type PreparedGetConnection<T extends NodeType = NodeType> = {
   connection: GraphConnection<"get", T>;
-  access: AccessArbiter;
   graph: ReadNodeGraph;
 };
 

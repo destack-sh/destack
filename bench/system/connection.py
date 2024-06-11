@@ -21,7 +21,7 @@ from bench.proto.wire import (
     NodeReferenceData,
 )
 from bench.utils.dt import monons
-from bench.utils.func import bittuple
+from bench.utils.func import bittuple, generate_access_token
 from bench.utils.utils import get_from_env
 
 logger = structlog.get_logger(__name__)
@@ -35,8 +35,8 @@ class Connection[ResultT: Any, UpdateT: Any](abc.ABC):
 
     def __init__(self, scope: GraphScope, query: QueryBuilder):
         self.scope = scope
-        self.hash = hash(query)
-        self.token: str = str(uuid4())
+        self.hash = query._stable_hash()
+        self.token: str = generate_access_token(length=8)
         self.query = query
         self._subscribers: list[ConnectionSubscription[UpdateT]] = []
         self._created_at = monons()
@@ -49,7 +49,7 @@ class Connection[ResultT: Any, UpdateT: Any](abc.ABC):
     @final
     def __str__(self):
         content_str = self.__result_str__(self._result) if self._result else "<no result>"
-        return f"{self.query!r} (hash={self.hash}, token={self.token}) -> {content_str} (alive for {self.alive_duration:.1f}s, last active {self.active_duration:.1f}s, {len(self._subscribers)} subscribers)"
+        return f"(hash={self.hash}, token={self.token}) -> {content_str} (alive={self.alive_duration:.1f}s, last_active={self.active_duration:.1f}s, subscribers={len(self._subscribers)})"
 
     @final
     def __repr__(self):
@@ -71,6 +71,9 @@ class Connection[ResultT: Any, UpdateT: Any](abc.ABC):
     @property
     def active_duration(self) -> float:
         return (monons() - self._last_active_at) / 1_000_000
+
+    def bump_active(self):
+        self._last_active_at = monons()
 
     @abc.abstractmethod
     async def connect(self, session: Session) -> ResultT:
@@ -212,11 +215,13 @@ class GetConnection(Connection[GetResult, WatchEditsUpdate]):
             assert new_node_data is not None, f"missing node data for {edit.node_ptr!r}"
             cached_graph.update(new_node_data)  # nocheckin
 
-        # notify subscribers
-        update = WatchEditsUpdate(
-            edits=filtered_edits, cascaded_edits=filtered_cascaded_edits, epoch=epoch
-        )
-        self._do_notify(update)
+        if filtered_edits or filtered_cascaded_edits:
+            self.bump_active()
+            # notify subscribers
+            update = WatchEditsUpdate(
+                edits=filtered_edits, cascaded_edits=filtered_cascaded_edits, epoch=epoch
+            )
+            self._do_notify(update)
 
 
 @dataclass(slots=True)
@@ -337,31 +342,35 @@ class QueryConnector:
         if not cache:
             connection = connection_t(self.scope, query)
             await connection.connect(session)
+            logger.debug(
+                f"connect.{query._read_type.name.lower()}",
+                query=query,
+                query_hash=connection.hash,
+            )
             return connection
         else:
             # ensure there's only one connection per query
-            connection_hash = hash(query)
-            lock = self._lock_by_hash.get(connection_hash)
+            query_hash = query._stable_hash()
+            lock = self._lock_by_hash.get(query_hash)
             if lock is None:
                 lock = asyncio.Lock()
-                self._lock_by_hash[connection_hash] = lock
+                self._lock_by_hash[query_hash] = lock
             async with lock:
-                connection = self._connections_by_hash.get(connection_hash)
-                cached = connection is not None
+                connection = self._connections_by_hash.get(query_hash)
+                was_cached = connection is not None
                 if connection is None:
                     connection = connection_t(self.scope, query)
                     await connection.connect(session)
                     self._add_connection(connection)
                 else:
                     if not isinstance(connection, connection_t):
-                        raise ValueError(
-                            f"unexpected {connection!r} for {query!r} (want {connection_t})"
-                        )
+                        raise ValueError(f"unexpected {connection!r} (want {connection_t})")
+                    connection.bump_active()
                 logger.debug(
                     f"connect.{query._read_type.name.lower()}",
                     query=query,
-                    cached=cached,
-                    connection_hash=connection_hash,
+                    was_cached=was_cached,
+                    query_hash=query_hash,
                 )
                 return connection
 

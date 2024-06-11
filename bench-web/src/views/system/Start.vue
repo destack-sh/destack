@@ -130,7 +130,7 @@ defineExpose<ViewExposed>({ self });
         <div class="h-[1px] w-full min-w-fit bg-gray-200" />
       </div>
       <!-- Feed -->
-      <!-- nocheckin: ... -->
+      <!-- nocheckin: Feed -->
     </Scroll>
   </div>
   <div v-else class="flex h-full w-full flex-col justify-center bg-white text-center">

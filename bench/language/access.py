@@ -480,18 +480,22 @@ class Subject(Struct):
         return tuple(applicable_principals)
 
     def __content_str__(self):
-        str_parts = []
-        for prop in Subject.__declared_properties__.values():
-            value = getattr(self, prop.name)
-            if value:
-                if isinstance(value, bool):
-                    str_parts.append(prop.name)
-                else:
-                    str_parts.append(f"{prop.name}={value}")
-        if str_parts:
-            return f"{', '.join(str_parts)}"
-        else:
-            return "<anonymous>"
+        content_parts = []
+        if self.is_authenticated:
+            content_parts.append("is_authenticated")
+        if self.is_staff:
+            content_parts.append("is_staff")
+        if self.client:
+            content_parts.append(f"client={self.client}")
+        elif self.user:
+            content_parts.append(f"user={self.user}")
+        elif self.server:
+            content_parts.append(f"server={self.server}")
+        if self.badges:
+            content_parts.append(f"badges={len(self.badges)}")
+        if self.identity:
+            content_parts.append(f"identity={self.identity}")
+        return ", ".join(content_parts)
 
 
 @struct_(StructType.ACCESS_ZONE)

@@ -47,6 +47,7 @@ from bench.language.setup import ANCESTOR_NODE_TYPES, NODE_CLASSES, _on_completi
 from bench.language.validation import NAME_CONSTRAINT
 from bench.proto.wire import AnyNodeData, QueryData
 from bench.utils.fractional import INTEGER_ZERO
+from bench.utils.func import stable_hash
 
 if TYPE_CHECKING:
     from bench.language import Block, Field, ReadOptions
@@ -251,11 +252,6 @@ class MakeQueryBase(abc.ABC, Generic[NodeT, NodeDataT]):
         raise NotImplementedError
 
     @abc.abstractmethod
-    def after(self, cursor: str) -> "QueryBuilder[NodeT, NodeDataT]":
-        """Paginate using an opaque cursor."""
-        raise NotImplementedError
-
-    @abc.abstractmethod
     def aggregate(self, aggregation: "Expression") -> "QueryBuilder[NodeT, NodeDataT]":
         """Aggregates the query results."""
         raise NotImplementedError
@@ -366,7 +362,6 @@ class QueryBuilder(
         sort: list["Expression"] | None = None,
         first: int | None = None,
         skip: int | None = None,
-        after: str | None = None,
         aggregation: Optional["Expression"] = None,
         options: Optional["ReadOptions"] = None,
     ):
@@ -380,26 +375,46 @@ class QueryBuilder(
         self._sort = sort
         self._first = first
         self._skip = skip
-        self._after = after
         self._aggregation = aggregation
         self._options = options
 
     def __str__(self):
-        args_strs = []
+        content_parts = []
         if self._base:
-            args_strs.append(self._base.absolute_path)
+            content_parts.append(self._base.absolute_path)
         for k in ("filter", "sort", "first", "skip", "aggregation"):
             v = getattr(self, f"_{k}", None)
             if k == "query":
                 v = f"({v})" if v is not None else None
             if v is not None and not (type(v) is list and len(v) == 0):
-                args_strs.append(f"{k}={v}")
-        args_str = ", ".join(args_strs) if args_strs else "[*]"
-        return args_str
+                content_parts.append(f"{k}={v}")
+
+        if self._options is not None:
+            if self._options.ancestor_types:
+                ancestors_str = "|".join(a.bench_name for a in self._options.ancestor_types)
+                content_parts.append(f"ancestors={ancestors_str}")
+            if self._options.descendant_types:
+                descendants_str = "|".join(d.bench_name for d in self._options.descendant_types)
+                content_parts.append(f"descendants={descendants_str}")
+
+        return ", ".join(content_parts) if content_parts else "<empty>"
 
     def __repr__(self):
         query_type = self._aggregation.op.bench_name if self._aggregation is not None else "Fetch"
         return f"<{self._node_type.bench_name}Query.{query_type} {self}>"
+
+    def _stable_hash(self):
+        return stable_hash(
+            self._read_type,
+            self._node_type,
+            self._base._stable_hash() if self._base is not None else None,
+            self._filter._stable_hash() if self._filter is not None else None,
+            tuple(s._stable_hash() for s in self._sort) if self._sort is not None else None,
+            self._first,
+            self._skip,
+            self._aggregation._stable_hash() if self._aggregation is not None else None,
+            self._options._stable_hash() if self._options is not None else None,
+        )
 
     @property
     def all_node_types(self) -> Iterable[NodeType]:
@@ -483,12 +498,6 @@ class QueryBuilder(
     def skip(self, count: int) -> "QueryBuilder[NodeT, NodeDataT]":
         copy = self.copy()
         copy._skip = count
-        return copy
-
-    @override
-    def after(self, cursor: str) -> "QueryBuilder[NodeT, NodeDataT]":
-        copy = self.copy()
-        copy._after = cursor
         return copy
 
     @override

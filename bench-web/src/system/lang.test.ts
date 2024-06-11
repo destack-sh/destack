@@ -1,4 +1,4 @@
-import { ObjectType, ViewData } from "@/proto/wire";
+import { NodeType, ObjectType, ViewData } from "@/proto/wire";
 import { toNodeReference } from "@/proto/wiring";
 import { NodeGraph } from "@/system/graph";
 import { fabricate } from "@/system/graph.test";
@@ -21,7 +21,7 @@ describe("order keys", () => {
     expect(tx.edits.length).toBe(3);
 
     // apply edits to graph and check the order is as given
-    const graph = new NodeGraph();
+    const graph = new NodeGraph({ scope: {}, nodeTypes: [NodeType.VIEW] });
     graph.extend(...badNodes);
     editGraph(graph, tx.edits);
     const fixedNodes = graph.nodes as ViewData[];
