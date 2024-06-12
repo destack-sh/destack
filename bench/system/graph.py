@@ -231,7 +231,11 @@ class GraphIoServiceBase(ServiceBase, GraphIoBase):
             while True:
                 update = await subscription.queue.get()
                 yield WatchGetResponse(
-                    edits=update.edits, cascaded_edits=update.cascaded_edits, epoch=update.epoch
+                    edits=update.edits,
+                    cascaded_edits=update.cascaded_edits,
+                    added_nodes=[wiring.wrap_some_node(n) for n in update.added_nodes],
+                    removed_nodes_ptr=update.removed_nodes_ptr,
+                    epoch=update.epoch,
                 )
         finally:
             subscription.cancel()
@@ -326,6 +330,8 @@ class GraphIoServiceBase(ServiceBase, GraphIoBase):
                     cascaded_edits=update.cascaded_edits,
                     added_nodes=[wiring.wrap_some_node(n) for n in update.added_nodes],
                     removed_nodes_ptr=update.removed_nodes_ptr,
+                    added_roots_ptr=update.added_roots_ptr,
+                    removed_roots_ptr=update.removed_roots_ptr,
                     epoch=update.epoch,
                 )
         finally:

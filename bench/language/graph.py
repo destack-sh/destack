@@ -64,7 +64,7 @@ class _NodeGraphBase[K: str | UUID, V: AnyNodeData | Node](abc.ABC):
         self._nodes_by_ck: dict[K, V] = {}  # *most* nodes have a 'ck'
         self._nodes_by_parent: dict[K, dict[ObjectType, list[V]]] = {}
         # (nodes may be edited in place, so we remember the last parent id we know manually)
-        self._parent_by_node: dict[int, K] = {}
+        self._parent_by_node: dict[K, K] = {}
 
         # add initial nodes
         if isinstance(nodes, Collection):
@@ -141,7 +141,7 @@ class _NodeGraphBase[K: str | UUID, V: AnyNodeData | Node](abc.ABC):
         # update parent if changed
         # (the instance may be edited in place, so we remember the last parent by identity as well)
         old_parent_id = self._parent_by_node.get(
-            id(old), old.parent_ptr.id if old.parent_ptr is not None else None
+            node.id, old.parent_ptr.id if old.parent_ptr is not None else None
         )
         assert isinstance(
             old_parent_id, self.key_type
@@ -191,17 +191,17 @@ class _NodeGraphBase[K: str | UUID, V: AnyNodeData | Node](abc.ABC):
         if metatype not in self._nodes_by_parent[parent_id]:
             self._nodes_by_parent[parent_id][metatype] = []
         self._nodes_by_parent[parent_id][metatype].append(node)
-        self._parent_by_node[id(node)] = parent_id
+        self._parent_by_node[cast(K, node.id)] = parent_id
 
     def _remove_from_parent(self, node: V):
         """Removes the node from our parent index, cleaning up child containers if empty"""
         assert node.parent_ptr is not None, f"{node!r} has no parent for {self!r}"
-        parent_id = self._parent_by_node.get(id(node))
+        parent_id = self._parent_by_node.get(cast(K, node.id))
         if parent_id is None:
             parent_id = cast(K | None, node.parent_ptr.id)
             assert parent_id, f"{node!r} has no parent for {self!r}"
         else:
-            del self._parent_by_node[id(node)]
+            del self._parent_by_node[cast(K, node.id)]
         assert parent_id in self._nodes_by_parent, f"{node!r} has no parent in {self!r}"
         metatype = node.metatype
         assert metatype in self._nodes_by_parent[parent_id], f"{node!r} not in {self!r}"

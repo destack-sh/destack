@@ -311,6 +311,8 @@ class WatchSearchUpdate(_Update):
     cascaded_edits: list[EditData]
     added_nodes: list[AnyNodeData]
     removed_nodes_ptr: list[NodeReferenceData]
+    added_roots_ptr: list[NodeReferenceData]
+    removed_roots_ptr: list[NodeReferenceData]
     total: int | None
 
 
