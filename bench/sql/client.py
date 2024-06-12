@@ -19,9 +19,15 @@ from bench.utils.utils import get_from_env
 #  (what we're doing should be fine according to docs and the warning)
 AsyncConnectionPool._warn_open_async = lambda *args, **kwargs: None  # type: ignore
 
-GLOBAL_PG_CRYPTO_KEY = get_from_env("GLOBAL_PG_CRYPTO_KEY", default=None)
-PG_CONNECT_TIMEOUT = get_from_env("PG_CONNECT_TIMEOUT", typ=int, default=10)
-PG_RECONNECT_TIMEOUT = get_from_env("PG_RECONNECT_TIMEOUT", typ=int, default=20)
+GLOBAL_PG_CRYPTO_KEY = get_from_env(
+    "GLOBAL_PG_CRYPTO_KEY", default=None, description="Symmetric key for PG crypto in global store"
+)
+PG_CONNECT_TIMEOUT = get_from_env(
+    "PG_CONNECT_TIMEOUT", typ=int, default=10, description="Postgres connection timeout in seconds"
+)
+PG_RECONNECT_TIMEOUT = get_from_env(
+    "PG_RECONNECT_TIMEOUT", typ=int, default=20, description="Postgres reconnect timeout in seconds"
+)
 
 logger = structlog.get_logger(__name__)
 tracer = trace.get_tracer(__name__)

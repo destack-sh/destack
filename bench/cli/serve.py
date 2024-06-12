@@ -12,7 +12,7 @@ from bench.proto.services import GrpcServer, ServiceBase
 from bench.runtime.runtime import Runtime
 from bench.system.host import HostRouter
 from bench.system.supervisor import Supervisor
-from bench.utils.env import EMV, IS_DEV
+from bench.utils.env import ENV, IS_DEV
 from bench.utils.utils import get_from_env, get_from_env_maybe
 from bench.utils.watch import restart_on_file_changes
 
@@ -28,7 +28,7 @@ async def system(
     if not skip_check:
         await check_is_consistent(check_db=True)
     start = time_ns()
-    logger.info("serve.system", host=host, port=port, env=EMV)
+    logger.info("serve.system", host=host, port=port, env=ENV)
     services: list[ServiceBase] = [HostRouter()]
     if not no_supervisor:
         services.append(Supervisor())
@@ -47,14 +47,18 @@ async def runtime(host: str, port: int, watch: bool = False, skip_check: bool = 
     if not skip_check:
         await check_is_consistent(check_db=True)
     start = time_ns()
-    logger.info("serve.runtime", host=host, port=port, env=EMV)
+    logger.info("serve.runtime", host=host, port=port, env=ENV)
     server = Runtime(
-        supervisor_url=get_from_env("SUPERVISOR_URL"),
-        bench_id=get_from_env("BENCH_ID", typ=UUID),
-        client_type=get_from_env("CLIENT_TYPE", typ=ClientType),
-        client_id=get_from_env("CLIENT_ID", typ=UUID),
-        client_access_token=get_from_env("CLIENT_ACCESS_TOKEN"),
-        machine_id=get_from_env_maybe("MACHINE_ID", typ=UUID),
+        supervisor_url=get_from_env("SUPERVISOR_URL", description="URL of the supervisor"),
+        bench_id=get_from_env("BENCH_ID", typ=UUID, description="Node of current Bench"),
+        client_type=get_from_env("CLIENT_TYPE", typ=ClientType, description="Type of client"),
+        client_id=get_from_env("CLIENT_ID", typ=UUID, description="Node id of current client"),
+        client_access_token=get_from_env(
+            "CLIENT_ACCESS_TOKEN", description="Access token for client"
+        ),
+        machine_id=get_from_env_maybe(
+            "MACHINE_ID", typ=UUID, description="Node id of current machine"
+        ),
     )
     services = [server]
     server = GrpcServer(services)

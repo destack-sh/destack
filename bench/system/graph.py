@@ -70,6 +70,7 @@ from bench.proto.wire import (
 )
 from bench.system.connection import (
     CONNECTION_CACHE_ENABLED,
+    MAX_TIME_DRIFT_SECONDS,
     AggregateConnection,
     GetConnection,
     QueryConnector,
@@ -79,9 +80,6 @@ from bench.system.connection import (
 )
 from bench.utils.dt import utcnow
 from bench.utils.func import CriticalLock, bittuple, group_by, to_uuid, uuid_to_str
-from bench.utils.utils import get_from_env
-
-MAX_TIME_DRIFT_SECONDS = get_from_env("MAX_TIME_DRIFT_SECONDS", typ=int, default=60)
 
 
 class GraphIoServiceBase(ServiceBase, GraphIoBase):

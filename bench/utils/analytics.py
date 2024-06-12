@@ -1,5 +1,4 @@
 import logging
-import os
 from typing import TYPE_CHECKING
 
 import posthog
@@ -7,7 +6,7 @@ import sentry_sdk
 import structlog
 from sentry_sdk.integrations.logging import LoggingIntegration
 
-from bench.utils.env import IS_DEV, IS_TEST
+from bench.utils.env import ENV, IS_DEV, IS_TEST
 from bench.utils.utils import get_from_env
 
 logger = structlog.get_logger(__name__)
@@ -27,19 +26,18 @@ def init_sentry():
     sentry_sdk.utils.MAX_STRING_LENGTH = 10_000_000  # type: ignore
     # https://docs.sentry.io/platforms/python/
     sentry_logging = LoggingIntegration(level=logging.DEBUG, event_level=None)
-    environment = os.getenv("SENTRY_ENVIRONMENT", "production")
-    dsn = get_from_env("SENTRY_DSN")
+    dsn = get_from_env("SENTRY_DSN", description="Sentry DSN")
     integrations = (sentry_logging,)
 
     sentry_sdk.init(
         dsn=dsn,
-        environment=environment,
+        environment=ENV,
         integrations=integrations,
         sample_rate=1.0,
         send_default_pii=True,
         traces_sampler=traces_sampler,
     )
-    logger.debug("sentry.initialized", environment=environment, dsn=dsn[:12] + "..." + dsn[-4:])
+    logger.debug("sentry.initialized", environment=ENV, dsn=dsn[:12] + "..." + dsn[-4:])
 
 
 def setup_analytics():

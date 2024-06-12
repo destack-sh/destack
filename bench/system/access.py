@@ -63,7 +63,12 @@ async def check_password(password: str, salt: bytes, password_hash: bytes) -> bo
     return result
 
 
-CLIENT_CACHE_ENABLED = get_from_env("CLIENT_CACHE_ENABLED", typ=bool, default=True)
+CLIENT_CACHE_ENABLED = get_from_env(
+    "CLIENT_CACHE_ENABLED",
+    typ=bool,
+    default=True,
+    description="Whether to cache Clients in the access system",
+)
 client_cache = TTLCache[UUID, Client](maxsize=10_000, ttl=60)
 
 # TODO :Security: invalidate client_cache on significant events (e.g. logout and such)

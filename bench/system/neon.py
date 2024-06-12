@@ -256,10 +256,17 @@ class NeonApiRemote(NeonApi):
         raise NotImplementedError
 
 
-IS_NEON_LOCAL = get_from_env("IS_NEON_LOCAL", default=IS_DEV, typ=bool)
+IS_NEON_LOCAL = get_from_env(
+    "IS_NEON_LOCAL",
+    default=IS_DEV,
+    typ=bool,
+    description="Whether to use locally installed Neon or remote API",
+)
 if IS_NEON_LOCAL:
-    neon_api = NeonApiLocal(neon_path=get_from_env("NEON_PATH"))
-else:
-    neon_api = NeonApiRemote(
-        url=get_from_env("NEON_BASE_URL"), api_key=get_from_env("NEON_API_KEY")
+    neon_api = NeonApiLocal(
+        neon_path=get_from_env("NEON_PATH", description="Path to Neon installation")
     )
+else:
+    NEON_BASE_URL = get_from_env("NEON_BASE_URL", description="Full URL for Neon API")
+    NEON_API_KEY = get_from_env("NEON_API_KEY", description="Neon API key")
+    neon_api = NeonApiRemote(url=NEON_BASE_URL, api_key=NEON_API_KEY)

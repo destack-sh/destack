@@ -20,9 +20,9 @@ from bench.system.core import (
     HostSpec,
 )
 from bench.system.neon import NeonApi
-from bench.utils.env import EMV, IS_DEV, IS_TEST, Env
+from bench.utils.env import ENV, IS_DEV, IS_TEST, Env
 from bench.utils.func import bittuple
-from bench.utils.utils import get_from_env
+from bench.utils.utils import get_from_env_maybe
 
 if TYPE_CHECKING:
     pass
@@ -192,7 +192,7 @@ class NeonStoreProvisioner(StoreProvisioner):
         if resource.external_name is None:
             assert resource.bench_id, f"{resource!r} has no bench"
             async with self.host.session(autocommit=True):
-                resource.external_name = f"{EMV}-{resource.bench_id}"
+                resource.external_name = f"{ENV}-{resource.bench_id}"
         # create postgres database ('project')
         neon_project = await self._neon_api.create_project(
             name=resource.external_name, region=resource.region, pg_version=16
@@ -219,12 +219,12 @@ class LocalhostPostgresStoreProvisioner(StoreProvisioner):
 
     @override
     async def _do_provision(self, resource: Store):
-        assert IS_DEV or IS_TEST, f"cannot create localhost store in environment: {EMV!r}"
+        assert IS_DEV or IS_TEST, f"cannot create localhost store in environment: {ENV!r}"
         # assign a name
         if resource.external_name is None:
             assert resource.bench_id, f"{resource!r} has no bench"
             async with self.host.session(autocommit=True):
-                resource.external_name = f"{EMV}-{resource.bench_id}"
+                resource.external_name = f"{ENV}-{resource.bench_id}"
         # create database through existing connection
         async with pg_store_connection(GLOBAL_STORE, autocommit=True) as cur:
             await cur.execute(sqlstr(f'CREATE DATABASE "{resource.external_name}"'))
@@ -362,25 +362,32 @@ class S3DriveProvisioner(Provisioner[Drive, Drive]):
             resource.status = ResourceStatus.DECOMMISSIONED
 
 
+LOCAL_NACHINE_URL = get_from_env_maybe(
+    "LOCAL_MACHINE_URL", description="URL for local machine runtime"
+)
+
+
 def get_provisioners_for(host: HostSpec, bench: Bench) -> list[Provisioner]:
     """Gets all available provisioners for that Bench in *this* environment"""
     from bench.system.neon import neon_api
 
-    if EMV == Env.TEST:
+    if ENV == Env.TEST:
+        assert LOCAL_NACHINE_URL, "no LOCAL_MACHINE_URL"
         return [
             LocalhostPostgresStoreProvisioner(host, bench),
             ElasticServerProvisioner(host, bench),
-            LocalhostMachineProvisioner(host, bench, get_from_env("LOCAL_MACHINE_URL")),
+            LocalhostMachineProvisioner(host, bench, LOCAL_NACHINE_URL),
             S3DriveProvisioner(host, bench),
         ]
-    elif EMV == Env.DEV:
+    elif ENV == Env.DEV:
+        assert LOCAL_NACHINE_URL, "no LOCAL_MACHINE_URL"
         return [
             NeonStoreProvisioner(host, bench, neon_api),
             ElasticServerProvisioner(host, bench),
-            LocalhostMachineProvisioner(host, bench, get_from_env("LOCAL_MACHINE_URL")),
+            LocalhostMachineProvisioner(host, bench, LOCAL_NACHINE_URL),
             S3DriveProvisioner(host, bench),
         ]
-    elif EMV == Env.STAGE:
+    elif ENV == Env.STAGE:
         return [
             NeonStoreProvisioner(host, bench, neon_api),
             ElasticServerProvisioner(host, bench),
@@ -388,7 +395,7 @@ def get_provisioners_for(host: HostSpec, bench: Bench) -> list[Provisioner]:
             S3DriveProvisioner(host, bench),
         ]
     else:
-        raise RuntimeError(f"unexpected environment: {EMV!r}")
+        raise RuntimeError(f"unexpected environment: {ENV!r}")
 
 
 async def provision(host: HostSpec, bench: Bench, resources: Collection[BenchResourceNode]) -> None:
