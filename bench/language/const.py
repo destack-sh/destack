@@ -12,7 +12,7 @@ from bench.utils.utils import frozendict, get_from_env
 if typing.TYPE_CHECKING:
     from bench.language import Bench, Run, Session, Transaction
 
-VERSION = "2024.06.12.0"
+VERSION = "2024.06.12.1"
 REVISION_PENDING = -1
 TK_LENGTH_BYTES = 8
 TK_LENGTH_B64 = 12  # 1.5 * TK_LENGTH_BYTES (must be integer)
@@ -321,6 +321,7 @@ class StructType(IdEnum):
     FONT = 1201
     BOX = 1202
     OFFSET = 1203
+    TRANSFORM = 1204
     ...
 
     # files

@@ -325,6 +325,33 @@ class Anchor(IdEnum):
     LEFT_BOTTOM = 33
 
 
+@struct_(StructType.TRANSFORM, inline=True)
+class Transform(InlineStruct):
+    """A transform in 2D space."""
+
+    # translation
+    translate_x: Optional[int] = p_regular(30, default=None)
+    translate_y: Optional[int] = p_regular(31, default=None)
+    # scale
+    scale_x: Optional[float] = p_regular(33, default=None)
+    scale_y: Optional[float] = p_regular(34, default=None)
+    # skew
+    skew_x: Optional[float] = p_regular(36, default=None)
+    skew_y: Optional[float] = p_regular(37, default=None)
+    # rotation
+    rotate_x: Optional[int] = p_regular(40, default=None)
+
+
+@struct_(StructType.BOX, inline=True)
+class Box(InlineStruct):
+    """A box value. Absolute units are in pixels, ideally in Spacing scale."""
+
+    width: Optional[int] = p_regular(50, default=None)
+    height: Optional[int] = p_regular(51, default=None)
+    width_relative: Optional[float] = p_regular(52, default=None)
+    height_relative: Optional[float] = p_regular(53, default=None)
+
+
 @struct_(StructType.OFFSET, inline=True)
 class Offset(InlineStruct):
     """A position value. Absolute units are in pixels, ideally in Spacing scale."""
@@ -338,16 +365,6 @@ class Offset(InlineStruct):
     right_relative: Optional[float] = p_regular(45, default=None)
     bottom_relative: Optional[float] = p_regular(46, default=None)
     left_relative: Optional[float] = p_regular(47, default=None)
-
-
-@struct_(StructType.BOX, inline=True)
-class Box(InlineStruct):
-    """A box value. Absolute units are in pixels, ideally in Spacing scale."""
-
-    width: Optional[int] = p_regular(50, default=None)
-    height: Optional[int] = p_regular(51, default=None)
-    width_relative: Optional[float] = p_regular(52, default=None)
-    height_relative: Optional[float] = p_regular(53, default=None)
 
 
 @enum_(EnumType.ORIENTATION)
@@ -422,6 +439,9 @@ class View(SourceNode[ViewData], HasValues):
     )
     orientation: Optional[Orientation] = p_regular(64, default=None, require=False)
     alignment: Optional[Alignment] = p_regular(65, default=None, require=False)
+    transform: Optional[Transform] = p_regular(
+        66, default=None, require=False, array=False, struct=StructType.TRANSFORM
+    )
 
     # behavior
     selection: Optional[Selection] = p_regular(
