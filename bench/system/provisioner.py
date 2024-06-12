@@ -8,10 +8,19 @@ from bench.language import Bench, BenchResourceNode, Drive, Machine, ResourceSta
 from bench.language.bench import MachineProfile
 from bench.language.const import VERSION, NodeType
 from bench.sql.client import pg_store_connection
+from bench.sql.engine import sqlstr
 from bench.sql.migration import sql_migrate
-from bench.system.core import Commit, DeferredHostPlugin, HostSpec
+from bench.system.core import (
+    GLOBAL_PG_HOST,
+    GLOBAL_PG_PASSWORD,
+    GLOBAL_PG_USERNAME,
+    GLOBAL_STORE,
+    Commit,
+    DeferredHostPlugin,
+    HostSpec,
+)
 from bench.system.neon import NeonApi
-from bench.utils.env import ENVIRONMENT
+from bench.utils.env import EMV, IS_DEV, IS_TEST, Env
 from bench.utils.func import bittuple
 from bench.utils.utils import get_from_env
 
@@ -35,7 +44,7 @@ class Provisioner[PT: BenchResourceNode, WT: BenchResourceNode](DeferredHostPlug
     async def start(self) -> None:
         # check resources
         resources = tuple(
-            cast(PT, r) for r in self._bench.resources if r.metatype in self.provision_types
+            cast(PT, r) for r in self.bench.resources if r.metatype in self.provision_types
         )
         for resource in resources:
             # provision newly declared resources
@@ -46,7 +55,7 @@ class Provisioner[PT: BenchResourceNode, WT: BenchResourceNode](DeferredHostPlug
                 # auto migrate resources to current version
                 # NOTE :Robustness: unsure when to migrate resources
                 if "version" in resource.__properties__ and getattr(resource, "version") != VERSION:
-                    async with self._host.session(autocommit=True):
+                    async with self.host.session(autocommit=True):
                         setattr(resource, "version", VERSION)
                 await self.update(resource)
 
@@ -71,9 +80,9 @@ class Provisioner[PT: BenchResourceNode, WT: BenchResourceNode](DeferredHostPlug
             for resource in subcommit.removed:
                 if resource.status.is_extant:
                     await self.decommission(resource)
-        await self._on_commit_deferred(commit)
+        await self._do_on_commit_deferred(commit)
 
-    async def _on_commit_deferred(self, commit: Commit[WT]) -> None:
+    async def _do_on_commit_deferred(self, commit: Commit[WT]) -> None:
         pass
 
     @final
@@ -83,7 +92,7 @@ class Provisioner[PT: BenchResourceNode, WT: BenchResourceNode](DeferredHostPlug
             with tracer.start_as_current_span(
                 "resource.provision", attributes={"resource": str(resource)}
             ):
-                await self._provision(resource)
+                await self._do_provision(resource)
                 logger.trace(
                     "resource.provision", provisioner=self, resource=resource, span="current"
                 )
@@ -99,7 +108,7 @@ class Provisioner[PT: BenchResourceNode, WT: BenchResourceNode](DeferredHostPlug
             raise
 
     @abc.abstractmethod
-    async def _provision(self, resource: PT): ...
+    async def _do_provision(self, resource: PT): ...
 
     @final
     async def update(self, resource: PT):
@@ -108,7 +117,7 @@ class Provisioner[PT: BenchResourceNode, WT: BenchResourceNode](DeferredHostPlug
             with tracer.start_as_current_span(
                 "resource.update", attributes={"resource": str(resource)}
             ):
-                await self._update(resource)
+                await self._do_update(resource)
                 logger.trace("resource.update", provisioner=self, resource=resource, span="current")
         except Exception as e:
             logger.error(
@@ -121,7 +130,7 @@ class Provisioner[PT: BenchResourceNode, WT: BenchResourceNode](DeferredHostPlug
             )
             raise
 
-    async def _update(self, resource: PT):
+    async def _do_update(self, resource: PT):
         pass
 
     @final
@@ -131,7 +140,7 @@ class Provisioner[PT: BenchResourceNode, WT: BenchResourceNode](DeferredHostPlug
             with tracer.start_as_current_span(
                 "resource.decommission", attributes={"resource": str(resource)}
             ):
-                await self._decommission(resource)
+                await self._do_decommission(resource)
                 logger.trace(
                     "resource.decommission", provisioner=self, resource=resource, span="current"
                 )
@@ -147,61 +156,91 @@ class Provisioner[PT: BenchResourceNode, WT: BenchResourceNode](DeferredHostPlug
             raise
 
     @abc.abstractmethod
-    async def _decommission(self, resource: PT): ...
+    async def _do_decommission(self, resource: PT): ...
 
 
-class NeonStoreProvisioner(Provisioner[Store, Store]):
-    """Provision Stores with the Neon API."""
-
+class StoreProvisioner(Provisioner[Store, Store]):
     watch_types = bittuple(NodeType.STORE)
     provision_types = bittuple(NodeType.STORE)
+
+    async def _do_migrate(self, resource: Store):
+        """Migrate the store to its indicated 'version'."""
+        assert resource.version, f"{resource!r} has no version"
+        async with pg_store_connection(resource) as cur:
+            await sql_migrate(cur, target=resource.version, is_global=False, store=resource)
+            await cur.connection.commit()
+        async with self.host.session(autocommit=True):
+            resource.current_version = resource.version
+
+    @override
+    async def _do_update(self, resource: Store):
+        # auto-migrate if version changed
+        if resource.version != resource.current_version:
+            await self._do_migrate(resource)
+
+
+class NeonStoreProvisioner(StoreProvisioner):
+    """Provision Stores with the Neon API."""
 
     def __init__(self, host: "HostSpec", bench: Bench, neon_api: "NeonApi"):
         super().__init__(host, bench)
         self._neon_api = neon_api
 
-    async def _migrate(self, resource: Store):
-        assert resource.version, f"{resource!r} has no version"
-        async with pg_store_connection(resource) as cur:
-            await sql_migrate(cur, target=resource.version, is_global=False, store=resource)
-            await cur.connection.commit()
-        async with self._host.session(autocommit=True):
-            resource.current_version = resource.version
-
     @override
-    async def _provision(self, resource: Store):
-        # need a name
+    async def _do_provision(self, resource: Store):
+        # assign a name
         if resource.external_name is None:
             assert resource.bench_id, f"{resource!r} has no bench"
-            async with self._host.session(autocommit=True):
-                resource.external_name = f"{ENVIRONMENT}-{resource.bench_id}"
-
-        # create Postgres database ('project')
+            async with self.host.session(autocommit=True):
+                resource.external_name = f"{EMV}-{resource.bench_id}"
+        # create postgres database ('project')
         neon_project = await self._neon_api.create_project(
             name=resource.external_name, region=resource.region, pg_version=16
         )
-        async with self._host.session(autocommit=True):
+        async with self.host.session(autocommit=True):
             resource.external_id = neon_project.project_id
             resource.connection_uri = neon_project.connection_uri
             if not resource.version:
                 resource.version = VERSION
             resource.status = ResourceStatus.HEALTHY
-
         # migrate it immediately
-        await self._migrate(resource)
+        await self._do_migrate(resource)
 
     @override
-    async def _update(self, resource: Store):
-        # migrate
-        if resource.version != resource.current_version:
-            await self._migrate(resource)
-
-    @override
-    async def _decommission(self, resource: Store):
+    async def _do_decommission(self, resource: Store):
         assert resource.external_id, f"{resource!r} has no external ID"
         await self._neon_api.delete_project(project_id=resource.external_id)
-        async with self._host.session(autocommit=True):
+        async with self.host.session(autocommit=True):
             resource.status = ResourceStatus.DECOMMISSIONED
+
+
+class LocalhostPostgresStoreProvisioner(StoreProvisioner):
+    """Provision Stores as local Postgres databases (in the existing database)."""
+
+    @override
+    async def _do_provision(self, resource: Store):
+        assert IS_DEV or IS_TEST, f"cannot create localhost store in environment: {EMV!r}"
+        # assign a name
+        if resource.external_name is None:
+            assert resource.bench_id, f"{resource!r} has no bench"
+            async with self.host.session(autocommit=True):
+                resource.external_name = f"{EMV}-{resource.bench_id}"
+        # create database through existing connection
+        async with pg_store_connection(GLOBAL_STORE, autocommit=True) as cur:
+            await cur.execute(sqlstr(f'CREATE DATABASE "{resource.external_name}"'))
+        async with self.host.session(autocommit=True):
+            resource.connection_uri = f"postgresql://{GLOBAL_PG_USERNAME}:{GLOBAL_PG_PASSWORD}@{GLOBAL_PG_HOST}/{resource.external_name}"
+            if not resource.version:
+                resource.version = VERSION
+            resource.status = ResourceStatus.HEALTHY
+        # migrate it immediately
+        await self._do_migrate(resource)
+
+    @override
+    async def _do_decommission(self, resource: Store):
+        # drop database through existing connection
+        async with pg_store_connection(GLOBAL_STORE) as cur:
+            await cur.execute(sqlstr(f'DROP DATABASE "{resource.external_name}"'))
 
 
 class ElasticServerProvisioner(Provisioner[Server, Server | Machine]):
@@ -216,7 +255,7 @@ class ElasticServerProvisioner(Provisioner[Server, Server | Machine]):
 
         # rescale server if needed (poorly)
         if not machines:
-            async with self._host.session(autocommit=True):
+            async with self.host.session(autocommit=True):
                 machine = Machine(name="Machine1", profile=MachineProfile.TINY)
                 server.machines.append(machine)
                 server.status = ResourceStatus.PROVISIONING
@@ -229,11 +268,11 @@ class ElasticServerProvisioner(Provisioner[Server, Server | Machine]):
         else:
             actual_status = ResourceStatus.HEALTHY  # not sure?
         if server.status != actual_status:
-            async with self._host.session(autocommit=True):
+            async with self.host.session(autocommit=True):
                 server.status = actual_status
 
     @override
-    async def _on_commit_deferred(self, commit: Commit[Server | Machine]) -> None:
+    async def _do_on_commit_deferred(self, commit: Commit[Server | Machine]) -> None:
         # get any edited servers (directly or indirectly via machines)
         servers: set[Server] = set()
         for node in commit.edited:
@@ -250,17 +289,17 @@ class ElasticServerProvisioner(Provisioner[Server, Server | Machine]):
                 await self._tick(server)
 
     @override
-    async def _provision(self, resource: Server):
+    async def _do_provision(self, resource: Server):
         await self._tick(resource)
 
     @override
-    async def _update(self, resource: Server):
+    async def _do_update(self, resource: Server):
         await self._tick(resource)
 
     @override
-    async def _decommission(self, resource: Server):
+    async def _do_decommission(self, resource: Server):
         # nothing special, child machines are automatically removed too
-        async with self._host.session(autocommit=True):
+        async with self.host.session(autocommit=True):
             resource.status = ResourceStatus.DECOMMISSIONED
 
 
@@ -275,14 +314,14 @@ class LocalhostMachineProvisioner(Provisioner[Machine, Machine]):
         self._local_machine_url = local_machine_url
 
     @override
-    async def _provision(self, resource: Machine):
-        async with self._host.session(autocommit=True):
+    async def _do_provision(self, resource: Machine):
+        async with self.host.session(autocommit=True):
             resource.connection_uri = self._local_machine_url
             resource.status = ResourceStatus.HEALTHY
 
     @override
-    async def _decommission(self, resource: Machine):
-        async with self._host.session(autocommit=True):
+    async def _do_decommission(self, resource: Machine):
+        async with self.host.session(autocommit=True):
             resource.status = ResourceStatus.DECOMMISSIONED
 
 
@@ -313,13 +352,13 @@ class S3DriveProvisioner(Provisioner[Drive, Drive]):
     # TODO :Incomplete: S3DriveProvisioner
 
     @override
-    async def _provision(self, resource: Drive):
-        async with self._host.session(autocommit=True):
+    async def _do_provision(self, resource: Drive):
+        async with self.host.session(autocommit=True):
             resource.status = ResourceStatus.HEALTHY
 
     @override
-    async def _decommission(self, resource: Drive):
-        async with self._host.session(autocommit=True):
+    async def _do_decommission(self, resource: Drive):
+        async with self.host.session(autocommit=True):
             resource.status = ResourceStatus.DECOMMISSIONED
 
 
@@ -327,21 +366,29 @@ def get_provisioners_for(host: HostSpec, bench: Bench) -> list[Provisioner]:
     """Gets all available provisioners for that Bench in *this* environment"""
     from bench.system.neon import neon_api
 
-    if ENVIRONMENT == "dev" or ENVIRONMENT == "test":
+    if EMV == Env.TEST:
+        return [
+            LocalhostPostgresStoreProvisioner(host, bench),
+            ElasticServerProvisioner(host, bench),
+            LocalhostMachineProvisioner(host, bench, get_from_env("LOCAL_MACHINE_URL")),
+            S3DriveProvisioner(host, bench),
+        ]
+    elif EMV == Env.DEV:
         return [
             NeonStoreProvisioner(host, bench, neon_api),
             ElasticServerProvisioner(host, bench),
             LocalhostMachineProvisioner(host, bench, get_from_env("LOCAL_MACHINE_URL")),
             S3DriveProvisioner(host, bench),
         ]
-    elif ENVIRONMENT == "prod":
+    elif EMV == Env.STAGE:
         return [
             NeonStoreProvisioner(host, bench, neon_api),
             ElasticServerProvisioner(host, bench),
+            # NOTE :Incomplete: stage/prod machine provisioner
             S3DriveProvisioner(host, bench),
         ]
     else:
-        raise RuntimeError(f"unexpected environment: {ENVIRONMENT!r}")
+        raise RuntimeError(f"unexpected environment: {EMV!r}")
 
 
 async def provision(host: HostSpec, bench: Bench, resources: Collection[BenchResourceNode]) -> None:

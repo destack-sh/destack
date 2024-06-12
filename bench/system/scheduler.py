@@ -48,7 +48,7 @@ class QueueRunPlugin(HostPlugin[Run]):
     @override
     async def start(self) -> None:
         # TODO :Robustness: cancel/re-queue forlorn Runs (like those 'stuck' on dead Machines)
-        self._tasks.start_queue(self._runs_to_queue, self._queue_run, skip_errors=True)
+        self.tasks.start_queue(self._runs_to_queue, self._queue_run, skip_errors=True)
 
     @override
     async def on_commit(self, session: Session, commit: Commit[Run]) -> None:
@@ -65,8 +65,8 @@ class QueueRunPlugin(HostPlugin[Run]):
         op.retry.on_attempt()
         run = op.run
         assert run.package_id is not None, f"missing package id for run {run!r}"
-        environment = self._bench.main_environment
-        assert environment, f"missing main environment for bench {self._bench!r}"
+        environment = self.bench.main_environment
+        assert environment, f"missing main environment for bench {self.bench!r}"
         log = logger.bind(host=self, run=run, server=environment.server, retry=op.retry)
 
         # find machine to queue run on
@@ -90,7 +90,7 @@ class QueueRunPlugin(HostPlugin[Run]):
         if not op.retry.should_retry:
             # give up and mark run as failed
             error = RunError(kind=RunErrorKind.INTERNAL, type=RunErrorType.NO_RUNTIME_AVAILABLE)
-            async with self._host.session(autocommit=True):
+            async with self.host.session(autocommit=True):
                 run.fail(error)
             log.error(
                 "scheduler.queue.failed",

@@ -8,7 +8,7 @@ import structlog
 from grpclib.testing import ChannelFor
 
 from bench.conftest import global_session
-from bench.language import Bench, ReadOptions, User
+from bench.language import Bench, ReadOptions, Store, User
 from bench.language.bench import Branch, Package, ResourceStatus
 from bench.language.code_ import Code
 from bench.language.connection import RemoteEngine
@@ -35,6 +35,7 @@ from bench.proto.wire import (
     SupervisorBase,
     SupervisorStub,
 )
+from bench.sql.client import close_pg_connection_pool
 from bench.system.core import MockHost
 from bench.system.provisioner import get_provisioners_for
 from bench.system.test.conftest import UserHandle, make_random_user_handle
@@ -153,6 +154,10 @@ async def make_some_bench(supervisor: SupervisorStub, host: HostStub):
         provisioners = get_provisioners_for(MockHost(session), bench)
         bench = await Bench.descendants(*ROOT_RESOURCE_NODE_TYPES).get(id=bench_id)
         for resource in bench.resources:
+            # ensure store postgres connections are closed
+            if isinstance(resource, Store):
+                await close_pg_connection_pool(resource)
+            # then decommission
             for provisioner in provisioners:
                 if resource.metatype in provisioner.provision_types:
                     await provisioner.decommission(resource)

@@ -12,7 +12,7 @@ from bench.proto.services import GrpcServer, ServiceBase
 from bench.runtime.runtime import Runtime
 from bench.system.host import HostRouter
 from bench.system.supervisor import Supervisor
-from bench.utils.env import ENVIRONMENT, IS_DEV
+from bench.utils.env import EMV, IS_DEV
 from bench.utils.utils import get_from_env, get_from_env_maybe
 from bench.utils.watch import restart_on_file_changes
 
@@ -28,7 +28,7 @@ async def system(
     if not skip_check:
         await check_is_consistent(check_db=True)
     start = time_ns()
-    logger.info("serve.system", host=host, port=port, env=ENVIRONMENT)
+    logger.info("serve.system", host=host, port=port, env=EMV)
     services: list[ServiceBase] = [HostRouter()]
     if not no_supervisor:
         services.append(Supervisor())
@@ -47,7 +47,7 @@ async def runtime(host: str, port: int, watch: bool = False, skip_check: bool = 
     if not skip_check:
         await check_is_consistent(check_db=True)
     start = time_ns()
-    logger.info("serve.runtime", host=host, port=port, env=ENVIRONMENT)
+    logger.info("serve.runtime", host=host, port=port, env=EMV)
     server = Runtime(
         supervisor_url=get_from_env("SUPERVISOR_URL"),
         bench_id=get_from_env("BENCH_ID", typ=UUID),

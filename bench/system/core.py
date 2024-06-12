@@ -265,13 +265,13 @@ class HostPlugin[T: Node](abc.ABC):
     watch_types: ClassVar[bittuple[NodeType]]
 
     def __init__(self, host: HostSpec, bench: "Bench"):
-        self._host = host
-        self._bench = bench
-        self._tasks = TaskManager(
+        self.host = host
+        self.bench = bench
+        self.tasks = TaskManager(
             owner=self,
             logger=logger,
             on_error=lambda e: host.on_error(source=self, error=e),
-            task_id_prefix=f"{self._bench.slug}_{self.__class__.__name__}",
+            task_id_prefix=f"{self.bench.slug}_{self.__class__.__name__}",
         )
 
     def __str__(self) -> str:
@@ -280,9 +280,9 @@ class HostPlugin[T: Node](abc.ABC):
     def __repr__(self) -> str:
         content_str = str(self)
         if content_str:
-            return f"<{self.__class__.__name__} {content_str} in '{self._bench.slug}'>"
+            return f"<{self.__class__.__name__} {content_str} in '{self.bench.slug}'>"
         else:
-            return f"<{self.__class__.__name__} in '{self._bench.slug}'>"
+            return f"<{self.__class__.__name__} in '{self.bench.slug}'>"
 
     @property
     def name(self) -> str:
@@ -298,11 +298,11 @@ class HostPlugin[T: Node](abc.ABC):
 
     def close(self) -> None:
         """Close any stuff you need to close (if any)."""
-        self._tasks.close()
+        self.tasks.close()
 
     async def wait_closed(self) -> None:
         """After closing, wait for any stuff you need to wait for (if any)."""
-        await self._tasks.wait_closed()
+        await self.tasks.wait_closed()
 
     async def wait_idle(self, timeout: float) -> None:  # noqa: B027
         """Wait for any pending events to finish processing."""
@@ -339,15 +339,15 @@ class DeferredHostPlugin[T: Node](HostPlugin, abc.ABC):
     @override
     async def start(self) -> None:
         await super().start()
-        self._tasks.start_queue(self._commit_queue, self.on_commit_deferred, skip_errors=True)
+        self.tasks.start_queue(self._commit_queue, self.on_commit_deferred, skip_errors=True)
 
     @override
     @final
     async def on_commit(self, session: Session, commit: Commit) -> None:
         self._commit_queue.put_nowait(commit)
-        await self._on_commit(session, commit)
+        await self._do_on_commit(session, commit)
 
-    async def _on_commit(self, session: Session, commit: Commit[T]) -> None:
+    async def _do_on_commit(self, session: Session, commit: Commit[T]) -> None:
         pass
 
     @final
@@ -360,7 +360,7 @@ class DeferredHostPlugin[T: Node](HostPlugin, abc.ABC):
             raise RuntimeError(
                 f"{self!r} timed out after {timeout}s waiting for {self._commit_queue.qsize()} commits"
             ) from e
-        self._tasks.check_no_errors()
+        self.tasks.check_no_errors()
 
     async def on_commit_deferred(self, commit: Commit) -> None:
         """

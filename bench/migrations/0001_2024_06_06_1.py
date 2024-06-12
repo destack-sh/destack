@@ -1293,7 +1293,6 @@ async def upgrade_local(cur: psycopg.AsyncCursor):
     await cur.execute('CREATE EXTENSION IF NOT EXISTS "plpgsql"')
     await cur.execute('CREATE EXTENSION IF NOT EXISTS "pgcrypto"')
     await cur.execute('CREATE EXTENSION IF NOT EXISTS "bloom"')
-    await cur.execute('CREATE EXTENSION IF NOT EXISTS "vector"')
 
     # bench_migration
     await cur.execute(
