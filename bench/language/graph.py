@@ -143,9 +143,6 @@ class _NodeGraphBase[K: str | UUID, V: AnyNodeData | Node](abc.ABC):
         old_parent_id = self._parent_by_node.get(
             node.id, old.parent_ptr.id if old.parent_ptr is not None else None
         )
-        assert isinstance(
-            old_parent_id, self.key_type
-        ), f"expected {self.key_type}, got {old_parent_id!r}"
         new_parent_id = node.parent_ptr.id if node.parent_ptr is not None else None
         if old_parent_id != new_parent_id:
             if old_parent_id is not None:
@@ -154,6 +151,7 @@ class _NodeGraphBase[K: str | UUID, V: AnyNodeData | Node](abc.ABC):
                 self._add_to_parent(node)
         elif old_parent_id is not None:
             # update in parent list (identity may have changed)
+            assert isinstance(old_parent_id, self.key_type), f"bad {old_parent_id!r} for {self!r}"
             for i, child in enumerate(self._nodes_by_parent[old_parent_id][metatype]):
                 if child.id == node.id:
                     self._nodes_by_parent[old_parent_id][metatype][i] = node

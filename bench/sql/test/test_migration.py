@@ -16,7 +16,7 @@ from bench.sql.migration import (
 )
 from bench.system.core import GLOBAL_STORE, global_pg_cursor
 from bench.system.neon import NeonApiRemote
-from bench.utils.env import ENVIRONMENT
+from bench.utils.env import EMV
 from bench.utils.utils import get_from_env
 
 logger = structlog.get_logger(__name__)
@@ -48,7 +48,7 @@ async def blank_local_test_db(request: pytest.FixtureRequest):
     )
     random_postfix = "".join(random.choices(string.ascii_lowercase, k=8))
     create_rep = await neon_client.create_project(
-        name=f"{ENVIRONMENT}-{request.function.__name__}-{random_postfix}",
+        name=f"{EMV}-{request.function.__name__}-{random_postfix}",
         region=Region.EUROPE_CENTRAL,
         pg_version=16,
     )

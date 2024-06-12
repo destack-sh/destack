@@ -79,6 +79,18 @@ async def get_pg_connection_pool(connection_uri: str) -> AsyncConnectionPool:
     return _connection_pools[connection_uri]
 
 
+async def close_pg_connection_pool(connection: Store | str) -> None:
+    if isinstance(connection, Store):
+        connection_uri = get_pg_connection_uri(connection)
+    else:
+        connection_uri = connection
+    pool = _connection_pools.get(connection_uri)
+    if pool is None:
+        raise ValueError(f"no pool for connection_uri {connection_uri!r}")
+    await pool.close()
+    del _connection_pools[connection_uri]
+
+
 _CONNECTION_STR_REGEX = re.compile(
     r"postgresql://(?P<username>[^:]+)(:(?P<password>[^@]+))?@(?P<host>[^/]+)/(?P<database>.+)"
 )

@@ -2,14 +2,17 @@ version: '3'
 
 services:
   postgres:
-    image: postgres:16-alpine
+    image: timescale/timescaledb:latest-pg16
     restart: on-failure
     environment:
       POSTGRES_USER: bench
       POSTGRES_DB: bench
       POSTGRES_PASSWORD: bench
+    volumes:
+      - ./infra/local_postgres.conf:/etc/postgresql/local_postgresql.conf
     ports:
       - '5432:5432'
+    command: ["postgres", "-c", "config_file=./etc/postgresql/local_postgresql.conf"]
 
   minio:
     image: minio/minio:latest

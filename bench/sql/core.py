@@ -605,7 +605,7 @@ BASE_EXTENSIONS = (
 )
 LOCAL_EXTENSIONS = (
     *BASE_EXTENSIONS,
-    Extension("vector"),
+    # Extension("vector"), # until timescaledb image is updated (see docker-compose.dev.yml)
     Extension("pg_trgm"),
     Extension("timescaledb"),
 )

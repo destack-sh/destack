@@ -2,7 +2,7 @@ import inspect
 import os
 import textwrap
 import typing
-from enum import Enum
+from enum import Enum, StrEnum
 from typing import Optional, Type, cast
 
 import sentry_sdk
@@ -36,6 +36,11 @@ def get_from_env_maybe[T](
     try:
         if typ is bool:
             value = str_to_bool(cast(str, value))
+        elif issubclass(typ, StrEnum):
+            try:
+                value = typ(value)
+            except ValueError:
+                value = typ[cast(str, value)]
         elif issubclass(typ, Enum):
             try:
                 value = int(value)  # type: ignore
