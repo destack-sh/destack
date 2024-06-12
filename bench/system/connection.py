@@ -28,6 +28,9 @@ tracer = trace.get_tracer(__name__)
 
 CONNECTION_CACHE_ENABLED = get_from_env("CONNECTION_CACHE_ENABLED", typ=bool, default=True)
 CONNECTION_REPLAY_BUFFER_SIZE = get_from_env("CONNECTION_REPLAY_BUFFER_SIZE", typ=int, default=64)
+CONNECTION_CACHE_EXPIRE_SECONDS = get_from_env(
+    "CONNECTION_CACHE_EXPIRE_SECONDS", typ=int, default=120
+)
 MAX_TIME_DRIFT_SECONDS = get_from_env("MAX_TIME_DRIFT_SECONDS", typ=int, default=60)
 
 
@@ -48,6 +51,7 @@ class Connection[ResultT: Any, UpdateT: _Update](abc.ABC):
         self._subscribers: list[ConnectionSubscription[UpdateT]] = []
         self._created_at = monons()
         self._last_active_at = monons()
+        self._last_referenced_at = monons()
         self._result: ResultT | None = None
         self._replay_buffer: list[UpdateT] = []
 
@@ -57,7 +61,9 @@ class Connection[ResultT: Any, UpdateT: _Update](abc.ABC):
     @final
     def __str__(self):
         content_str = self.__result_str__(self._result) if self._result else "<no result>"
-        return f"(hash={self.hash}, token={self.token}) -> {content_str} (alive={self.alive_duration:.1f}s, last_active={self.active_duration:.1f}s, subscribers={len(self._subscribers)})"
+        alive_duration = (monons() - self._created_at) / 1_000_000
+        active_duration = (monons() - self._last_active_at) / 1_000_000
+        return f"(hash={self.hash}, token={self.token}) -> {content_str} (alive={alive_duration:.1f}s, last_active={active_duration:.1f}s, subscribers={len(self._subscribers)})"
 
     @final
     def __repr__(self):
@@ -73,15 +79,14 @@ class Connection[ResultT: Any, UpdateT: _Update](abc.ABC):
         return self._result
 
     @property
-    def alive_duration(self) -> float:
-        return (monons() - self._created_at) / 1_000_000
-
-    @property
-    def active_duration(self) -> float:
-        return (monons() - self._last_active_at) / 1_000_000
+    def has_subscribers(self) -> bool:
+        return len(self._subscribers) > 0
 
     def bump_active(self):
         self._last_active_at = monons()
+
+    def bump_referenced(self):
+        self._last_referenced_at = monons()
 
     @abc.abstractmethod
     async def connect(self, session: Session) -> ResultT:
@@ -305,7 +310,7 @@ class WatchSearchUpdate(_Update):
     edits: list[EditData]
     cascaded_edits: list[EditData]
     added_nodes: list[AnyNodeData]
-    removed_nodes_ptr: list[AnyNodeData]
+    removed_nodes_ptr: list[NodeReferenceData]
     total: int | None
 
 
@@ -375,9 +380,6 @@ class AggregateConnection(Connection[AggregateResult, AggregateUpdate]):
         pass  # not yet implemented (watch_aggregate errors with not implemented for now)
 
 
-# nocheckin: expire connection cache (after a period of inactivity)
-
-
 class QueryConnector:
     """Connect and cache queries to the graph."""
 
@@ -388,8 +390,37 @@ class QueryConnector:
         self._lock_by_hash: dict[int, asyncio.Lock] = {}
 
     def _add_connection(self, connection: Connection):
+        logger.trace("connect.add", connection=connection)
         self._connections_by_hash[connection.hash] = connection
         self._connections_by_token[connection.token] = connection
+
+    def _remove_connection(self, connection: Connection):
+        logger.trace("connect.remove", connection=connection)
+        assert not connection.has_subscribers, f"cannot remove {connection!r} with subscribers"
+        del self._connections_by_hash[connection.hash]
+        del self._connections_by_token[connection.token]
+        if connection.hash in self._lock_by_hash:
+            del self._lock_by_hash[connection.hash]
+
+    def gc_connections(self):
+        """Removes inactive connections from the cache."""
+        if len(self._connections_by_hash) == 0:
+            return  # nothing to do
+        before_count = len(self._connections_by_hash)
+        now = monons()
+        for connection in tuple(self._connections_by_hash.values()):
+            if (
+                not connection.has_subscribers
+                and (connection._last_referenced_at - now) > CONNECTION_CACHE_EXPIRE_SECONDS
+            ):
+                logger.debug("connect.gc", connection=connection)
+                self._remove_connection(connection)
+        logger.trace(
+            "connect.gc",
+            now=now,
+            before_connections=before_count,
+            after_connections=len(self._connections_by_hash),
+        )
 
     async def connect[ConnectionT: Connection](
         self, query: QueryBuilder, session: Session, connection_t: type[ConnectionT], *, cache: bool
@@ -407,11 +438,11 @@ class QueryConnector:
         else:
             # ensure there's only one connection per query
             query_hash = query._stable_hash()
-            lock = self._lock_by_hash.get(query_hash)
-            if lock is None:
-                lock = asyncio.Lock()
-                self._lock_by_hash[query_hash] = lock
-            async with lock:
+            hash_lock = self._lock_by_hash.get(query_hash)
+            if hash_lock is None:
+                hash_lock = asyncio.Lock()
+                self._lock_by_hash[query_hash] = hash_lock
+            async with hash_lock:
                 connection = self._connections_by_hash.get(query_hash)
                 was_cached = connection is not None
                 if connection is None:
@@ -422,6 +453,7 @@ class QueryConnector:
                     if not isinstance(connection, connection_t):
                         raise ValueError(f"unexpected {connection!r} (want {connection_t})")
                     connection.bump_active()
+                    connection.bump_referenced()
                 logger.debug(
                     f"connect.{query._read_type.name.lower()}",
                     query=query,

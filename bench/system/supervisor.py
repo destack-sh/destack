@@ -67,7 +67,7 @@ class Supervisor(GraphIoServiceBase, SupervisorBase):
         return f"<{self.__class__.__name__} {self}>"
 
     async def start(self) -> None:
-        pass
+        await super().start()
 
     def close(self) -> None:
         pass
