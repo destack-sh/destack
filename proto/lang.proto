@@ -156,6 +156,7 @@ enum BenchType {
   BENCH_TYPE_FONT = 1201;
   BENCH_TYPE_BOX = 1202;
   BENCH_TYPE_OFFSET = 1203;
+  BENCH_TYPE_TRANSFORM = 1204;
   BENCH_TYPE_FILE = 1250;
   BENCH_TYPE_ICON = 1251;
   BENCH_TYPE_ENUM_TYPE = 2001;
@@ -761,6 +762,7 @@ enum ObjectType {
   OBJECT_TYPE_FONT = 1201;
   OBJECT_TYPE_BOX = 1202;
   OBJECT_TYPE_OFFSET = 1203;
+  OBJECT_TYPE_TRANSFORM = 1204;
   OBJECT_TYPE_FILE = 1250;
   OBJECT_TYPE_ICON = 1251;
 }
@@ -1064,6 +1066,7 @@ enum StructType {
   STRUCT_TYPE_FONT = 1201;
   STRUCT_TYPE_BOX = 1202;
   STRUCT_TYPE_OFFSET = 1203;
+  STRUCT_TYPE_TRANSFORM = 1204;
   STRUCT_TYPE_FILE = 1250;
   STRUCT_TYPE_ICON = 1251;
 }
@@ -1745,6 +1748,18 @@ message TextSpanData {
   optional bool is_strikethrough = 62;
   optional bool is_underline = 63;
   optional bool is_code = 64;
+}
+
+// A transform in 2D space.
+message TransformData {
+  ObjectType metatype = 1;
+  optional int32 translate_x = 30;
+  optional int32 translate_y = 31;
+  optional float scale_x = 33;
+  optional float scale_y = 34;
+  optional float skew_x = 36;
+  optional float skew_y = 37;
+  optional int32 rotate_x = 40;
 }
 
 // A simple constraint on the values of a type. :TypeConstraint
@@ -2898,6 +2913,7 @@ message ViewData {
   optional OffsetData padding = 63;
   optional Orientation orientation = 64;
   optional Alignment alignment = 65;
+  optional TransformData transform = 66;
   optional SelectionData selection = 70;
   optional SelectionData focus = 71;
   optional SelectionData expansion = 72;

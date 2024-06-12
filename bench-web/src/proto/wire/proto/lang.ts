@@ -1545,6 +1545,45 @@ export interface TextSpanData {
     isCode?: boolean;
 }
 /**
+ * A transform in 2D space.
+ *
+ * @generated from protobuf message symbolx.bench.TransformData
+ */
+export interface TransformData {
+    /**
+     * @generated from protobuf field: symbolx.bench.ObjectType metatype = 1;
+     */
+    metatype: ObjectType;
+    /**
+     * @generated from protobuf field: optional int32 translate_x = 30;
+     */
+    translateX?: number;
+    /**
+     * @generated from protobuf field: optional int32 translate_y = 31;
+     */
+    translateY?: number;
+    /**
+     * @generated from protobuf field: optional float scale_x = 33;
+     */
+    scaleX?: number;
+    /**
+     * @generated from protobuf field: optional float scale_y = 34;
+     */
+    scaleY?: number;
+    /**
+     * @generated from protobuf field: optional float skew_x = 36;
+     */
+    skewX?: number;
+    /**
+     * @generated from protobuf field: optional float skew_y = 37;
+     */
+    skewY?: number;
+    /**
+     * @generated from protobuf field: optional int32 rotate_x = 40;
+     */
+    rotateX?: number;
+}
+/**
  * A simple constraint on the values of a type. :TypeConstraint
  * Basically a more restricted form of a condition Expression.
  *
@@ -5724,6 +5763,10 @@ export interface ViewData {
      */
     alignment?: Alignment;
     /**
+     * @generated from protobuf field: optional symbolx.bench.TransformData transform = 66;
+     */
+    transform?: TransformData;
+    /**
      * @generated from protobuf field: optional symbolx.bench.SelectionData selection = 70;
      */
     selection?: SelectionData;
@@ -6547,6 +6590,10 @@ export enum BenchType {
      * @generated from protobuf enum value: BENCH_TYPE_OFFSET = 1203;
      */
     OFFSET = 1203,
+    /**
+     * @generated from protobuf enum value: BENCH_TYPE_TRANSFORM = 1204;
+     */
+    TRANSFORM = 1204,
     /**
      * @generated from protobuf enum value: BENCH_TYPE_FILE = 1250;
      */
@@ -8749,6 +8796,10 @@ export enum ObjectType {
      */
     OFFSET = 1203,
     /**
+     * @generated from protobuf enum value: OBJECT_TYPE_TRANSFORM = 1204;
+     */
+    TRANSFORM = 1204,
+    /**
      * @generated from protobuf enum value: OBJECT_TYPE_FILE = 1250;
      */
     FILE = 1250,
@@ -9749,6 +9800,10 @@ export enum StructType {
      * @generated from protobuf enum value: STRUCT_TYPE_OFFSET = 1203;
      */
     OFFSET = 1203,
+    /**
+     * @generated from protobuf enum value: STRUCT_TYPE_TRANSFORM = 1204;
+     */
+    TRANSFORM = 1204,
     /**
      * @generated from protobuf enum value: STRUCT_TYPE_FILE = 1250;
      */
@@ -13971,6 +14026,102 @@ class TextSpanData$Type extends MessageType<TextSpanData> {
  * @generated MessageType for protobuf message symbolx.bench.TextSpanData
  */
 export const TextSpanData = new TextSpanData$Type();
+// @generated message type with reflection information, may provide speed optimized methods
+class TransformData$Type extends MessageType<TransformData> {
+    constructor() {
+        super("symbolx.bench.TransformData", [
+            { no: 1, name: "metatype", kind: "enum", T: () => ["symbolx.bench.ObjectType", ObjectType, "OBJECT_TYPE_"] },
+            { no: 30, name: "translate_x", kind: "scalar", opt: true, T: 5 /*ScalarType.INT32*/ },
+            { no: 31, name: "translate_y", kind: "scalar", opt: true, T: 5 /*ScalarType.INT32*/ },
+            { no: 33, name: "scale_x", kind: "scalar", opt: true, T: 2 /*ScalarType.FLOAT*/ },
+            { no: 34, name: "scale_y", kind: "scalar", opt: true, T: 2 /*ScalarType.FLOAT*/ },
+            { no: 36, name: "skew_x", kind: "scalar", opt: true, T: 2 /*ScalarType.FLOAT*/ },
+            { no: 37, name: "skew_y", kind: "scalar", opt: true, T: 2 /*ScalarType.FLOAT*/ },
+            { no: 40, name: "rotate_x", kind: "scalar", opt: true, T: 5 /*ScalarType.INT32*/ }
+        ]);
+    }
+    create(value?: PartialMessage<TransformData>): TransformData {
+        const message = globalThis.Object.create((this.messagePrototype!));
+        message.metatype = 0;
+        if (value !== undefined)
+            reflectionMergePartial<TransformData>(this, message, value);
+        return message;
+    }
+    internalBinaryRead(reader: IBinaryReader, length: number, options: BinaryReadOptions, target?: TransformData): TransformData {
+        let message = target ?? this.create(), end = reader.pos + length;
+        while (reader.pos < end) {
+            let [fieldNo, wireType] = reader.tag();
+            switch (fieldNo) {
+                case /* symbolx.bench.ObjectType metatype */ 1:
+                    message.metatype = reader.int32();
+                    break;
+                case /* optional int32 translate_x */ 30:
+                    message.translateX = reader.int32();
+                    break;
+                case /* optional int32 translate_y */ 31:
+                    message.translateY = reader.int32();
+                    break;
+                case /* optional float scale_x */ 33:
+                    message.scaleX = reader.float();
+                    break;
+                case /* optional float scale_y */ 34:
+                    message.scaleY = reader.float();
+                    break;
+                case /* optional float skew_x */ 36:
+                    message.skewX = reader.float();
+                    break;
+                case /* optional float skew_y */ 37:
+                    message.skewY = reader.float();
+                    break;
+                case /* optional int32 rotate_x */ 40:
+                    message.rotateX = reader.int32();
+                    break;
+                default:
+                    let u = options.readUnknownField;
+                    if (u === "throw")
+                        throw new globalThis.Error(`Unknown field ${fieldNo} (wire type ${wireType}) for ${this.typeName}`);
+                    let d = reader.skip(wireType);
+                    if (u !== false)
+                        (u === true ? UnknownFieldHandler.onRead : u)(this.typeName, message, fieldNo, wireType, d);
+            }
+        }
+        return message;
+    }
+    internalBinaryWrite(message: TransformData, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
+        /* symbolx.bench.ObjectType metatype = 1; */
+        if (message.metatype !== 0)
+            writer.tag(1, WireType.Varint).int32(message.metatype);
+        /* optional int32 translate_x = 30; */
+        if (message.translateX !== undefined)
+            writer.tag(30, WireType.Varint).int32(message.translateX);
+        /* optional int32 translate_y = 31; */
+        if (message.translateY !== undefined)
+            writer.tag(31, WireType.Varint).int32(message.translateY);
+        /* optional float scale_x = 33; */
+        if (message.scaleX !== undefined)
+            writer.tag(33, WireType.Bit32).float(message.scaleX);
+        /* optional float scale_y = 34; */
+        if (message.scaleY !== undefined)
+            writer.tag(34, WireType.Bit32).float(message.scaleY);
+        /* optional float skew_x = 36; */
+        if (message.skewX !== undefined)
+            writer.tag(36, WireType.Bit32).float(message.skewX);
+        /* optional float skew_y = 37; */
+        if (message.skewY !== undefined)
+            writer.tag(37, WireType.Bit32).float(message.skewY);
+        /* optional int32 rotate_x = 40; */
+        if (message.rotateX !== undefined)
+            writer.tag(40, WireType.Varint).int32(message.rotateX);
+        let u = options.writeUnknownFields;
+        if (u !== false)
+            (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
+        return writer;
+    }
+}
+/**
+ * @generated MessageType for protobuf message symbolx.bench.TransformData
+ */
+export const TransformData = new TransformData$Type();
 // @generated message type with reflection information, may provide speed optimized methods
 class TypeConstraintData$Type extends MessageType<TypeConstraintData> {
     constructor() {
@@ -22745,6 +22896,7 @@ class ViewData$Type extends MessageType<ViewData> {
             { no: 63, name: "padding", kind: "message", T: () => OffsetData },
             { no: 64, name: "orientation", kind: "enum", opt: true, T: () => ["symbolx.bench.Orientation", Orientation, "ORIENTATION_"] },
             { no: 65, name: "alignment", kind: "enum", opt: true, T: () => ["symbolx.bench.Alignment", Alignment, "ALIGNMENT_"] },
+            { no: 66, name: "transform", kind: "message", T: () => TransformData },
             { no: 70, name: "selection", kind: "message", T: () => SelectionData },
             { no: 71, name: "focus", kind: "message", T: () => SelectionData },
             { no: 72, name: "expansion", kind: "message", T: () => SelectionData },
@@ -22885,6 +23037,9 @@ class ViewData$Type extends MessageType<ViewData> {
                     break;
                 case /* optional symbolx.bench.Alignment alignment */ 65:
                     message.alignment = reader.int32();
+                    break;
+                case /* optional symbolx.bench.TransformData transform */ 66:
+                    message.transform = TransformData.internalBinaryRead(reader, reader.uint32(), options, message.transform);
                     break;
                 case /* optional symbolx.bench.SelectionData selection */ 70:
                     message.selection = SelectionData.internalBinaryRead(reader, reader.uint32(), options, message.selection);
@@ -23034,6 +23189,9 @@ class ViewData$Type extends MessageType<ViewData> {
         /* optional symbolx.bench.Alignment alignment = 65; */
         if (message.alignment !== undefined)
             writer.tag(65, WireType.Varint).int32(message.alignment);
+        /* optional symbolx.bench.TransformData transform = 66; */
+        if (message.transform)
+            TransformData.internalBinaryWrite(message.transform, writer.tag(66, WireType.LengthDelimited).fork(), options).join();
         /* optional symbolx.bench.SelectionData selection = 70; */
         if (message.selection)
             SelectionData.internalBinaryWrite(message.selection, writer.tag(70, WireType.LengthDelimited).fork(), options).join();
@@ -23490,9 +23648,9 @@ export const SomeNodeData = new SomeNodeData$Type();
 
 // Any...
 export type AnyNodeData = BenchData | EnvironmentData | BranchData | PackageData | DependencyData | UpgradeData | SpaceData | LinkData | SkipData | IssueData | BlockData | TriggerData | FieldData | QueryData | ViewData | StepData | BadgeData | RoleData | IdentityData | MembershipData | InviteData | SessionData | RunData | SignalData | LogData | NotificationData | MessageData | RecordData | ServerData | StoreData | MachineData | DriveData | BlobData | HandleData | UserData | OrganizationData | ClientData
-export type AnyStructData = PathData | PathSegmentData | PathTokenData | NodeReferenceData | PropertyReferenceData | ValueReferenceData | TypeInfoData | TypeConstraintData | ContextData | SessionContextData | EditContextData | ScheduleData | ProjectionData | PolicyData | PolicyRuleData | SubjectData | AccessZoneData | AccessMatrixData | AccessData | ReadOptionsData | ExpressionData | AggregationData | AggregationBucketData | SelectionData | CodeData | CodeLineData | StepConnectionData | RunErrorData | RunOptionsData | RetryAttemptData | TextData | TextLineData | TextSpanData | ColorData | FontData | BoxData | OffsetData | FileData | IconData
+export type AnyStructData = PathData | PathSegmentData | PathTokenData | NodeReferenceData | PropertyReferenceData | ValueReferenceData | TypeInfoData | TypeConstraintData | ContextData | SessionContextData | EditContextData | ScheduleData | ProjectionData | PolicyData | PolicyRuleData | SubjectData | AccessZoneData | AccessMatrixData | AccessData | ReadOptionsData | ExpressionData | AggregationData | AggregationBucketData | SelectionData | CodeData | CodeLineData | StepConnectionData | RunErrorData | RunOptionsData | RetryAttemptData | TextData | TextLineData | TextSpanData | ColorData | FontData | BoxData | OffsetData | TransformData | FileData | IconData
 export type AnyNodeDataType = typeof BenchData | typeof EnvironmentData | typeof BranchData | typeof PackageData | typeof DependencyData | typeof UpgradeData | typeof SpaceData | typeof LinkData | typeof SkipData | typeof IssueData | typeof BlockData | typeof TriggerData | typeof FieldData | typeof QueryData | typeof ViewData | typeof StepData | typeof BadgeData | typeof RoleData | typeof IdentityData | typeof MembershipData | typeof InviteData | typeof SessionData | typeof RunData | typeof SignalData | typeof LogData | typeof NotificationData | typeof MessageData | typeof RecordData | typeof ServerData | typeof StoreData | typeof MachineData | typeof DriveData | typeof BlobData | typeof HandleData | typeof UserData | typeof OrganizationData | typeof ClientData
-export type AnyStructDataType = typeof PathData | typeof PathSegmentData | typeof PathTokenData | typeof NodeReferenceData | typeof PropertyReferenceData | typeof ValueReferenceData | typeof TypeInfoData | typeof TypeConstraintData | typeof ContextData | typeof SessionContextData | typeof EditContextData | typeof ScheduleData | typeof ProjectionData | typeof PolicyData | typeof PolicyRuleData | typeof SubjectData | typeof AccessZoneData | typeof AccessMatrixData | typeof AccessData | typeof ReadOptionsData | typeof ExpressionData | typeof AggregationData | typeof AggregationBucketData | typeof SelectionData | typeof CodeData | typeof CodeLineData | typeof StepConnectionData | typeof RunErrorData | typeof RunOptionsData | typeof RetryAttemptData | typeof TextData | typeof TextLineData | typeof TextSpanData | typeof ColorData | typeof FontData | typeof BoxData | typeof OffsetData | typeof FileData | typeof IconData
+export type AnyStructDataType = typeof PathData | typeof PathSegmentData | typeof PathTokenData | typeof NodeReferenceData | typeof PropertyReferenceData | typeof ValueReferenceData | typeof TypeInfoData | typeof TypeConstraintData | typeof ContextData | typeof SessionContextData | typeof EditContextData | typeof ScheduleData | typeof ProjectionData | typeof PolicyData | typeof PolicyRuleData | typeof SubjectData | typeof AccessZoneData | typeof AccessMatrixData | typeof AccessData | typeof ReadOptionsData | typeof ExpressionData | typeof AggregationData | typeof AggregationBucketData | typeof SelectionData | typeof CodeData | typeof CodeLineData | typeof StepConnectionData | typeof RunErrorData | typeof RunOptionsData | typeof RetryAttemptData | typeof TextData | typeof TextLineData | typeof TextSpanData | typeof ColorData | typeof FontData | typeof BoxData | typeof OffsetData | typeof TransformData | typeof FileData | typeof IconData
 
 // Ancestry maps
 export const PARENT_NODE_TYPES: Record<NodeType, NodeType[]> = {
@@ -23736,6 +23894,7 @@ export const MESSAGE_TYPE_BY_OBJECT_TYPE: Partial<Record<ObjectType, MessageType
   [ObjectType.FONT]: FontData,
   [ObjectType.BOX]: BoxData,
   [ObjectType.OFFSET]: OffsetData,
+  [ObjectType.TRANSFORM]: TransformData,
   [ObjectType.FILE]: FileData,
   [ObjectType.ICON]: IconData,
 }
@@ -23815,6 +23974,7 @@ export const OBJECT_TYPE_BY_MESSAGE_TYPE_NAME: Record<string, ObjectType> = {
   ["symbolx.bench.FontData"]: ObjectType.FONT,
   ["symbolx.bench.BoxData"]: ObjectType.BOX,
   ["symbolx.bench.OffsetData"]: ObjectType.OFFSET,
+  ["symbolx.bench.TransformData"]: ObjectType.TRANSFORM,
   ["symbolx.bench.FileData"]: ObjectType.FILE,
   ["symbolx.bench.IconData"]: ObjectType.ICON,
 }
@@ -23932,6 +24092,7 @@ export interface StructTypeMapping extends Record<StructType, AnyStructData> {
   [StructType.FONT]: FontData,
   [StructType.BOX]: BoxData,
   [StructType.OFFSET]: OffsetData,
+  [StructType.TRANSFORM]: TransformData,
   [StructType.FILE]: FileData,
   [StructType.ICON]: IconData,
 }
@@ -24051,6 +24212,7 @@ export interface AnyTypeMapping extends Record<ObjectType, AnyStructData | AnyNo
   [ObjectType.FONT]: FontData,
   [ObjectType.BOX]: BoxData,
   [ObjectType.OFFSET]: OffsetData,
+  [ObjectType.TRANSFORM]: TransformData,
   [ObjectType.FILE]: FileData,
   [ObjectType.ICON]: IconData,
 }
@@ -24549,6 +24711,7 @@ export enum ViewProperty {
   padding = 63,
   orientation = 64,
   alignment = 65,
+  transform = 66,
   selection = 70,
   focus = 71,
   expansion = 72,
@@ -25605,6 +25768,17 @@ export enum OffsetProperty {
   leftRelative = 47,
 }
 
+export enum TransformProperty {
+  metatype = 1,
+  translateX = 30,
+  translateY = 31,
+  scaleX = 33,
+  scaleY = 34,
+  skewX = 36,
+  skewY = 37,
+  rotateX = 40,
+}
+
 export enum FileProperty {
   metatype = 1,
   type = 31,
@@ -25625,11 +25799,11 @@ export enum IconProperty {
 }
 
 export type AnyNodeProperty = typeof BenchProperty | typeof EnvironmentProperty | typeof BranchProperty | typeof PackageProperty | typeof DependencyProperty | typeof UpgradeProperty | typeof SpaceProperty | typeof LinkProperty | typeof SkipProperty | typeof IssueProperty | typeof BlockProperty | typeof TriggerProperty | typeof FieldProperty | typeof QueryProperty | typeof ViewProperty | typeof StepProperty | typeof BadgeProperty | typeof RoleProperty | typeof IdentityProperty | typeof MembershipProperty | typeof InviteProperty | typeof SessionProperty | typeof RunProperty | typeof SignalProperty | typeof LogProperty | typeof NotificationProperty | typeof MessageProperty | typeof RecordProperty | typeof ServerProperty | typeof StoreProperty | typeof MachineProperty | typeof DriveProperty | typeof BlobProperty | typeof HandleProperty | typeof UserProperty | typeof OrganizationProperty | typeof ClientProperty
-export type AnyStructProperty = typeof PathProperty | typeof PathSegmentProperty | typeof PathTokenProperty | typeof NodeReferenceProperty | typeof PropertyReferenceProperty | typeof ValueReferenceProperty | typeof TypeInfoProperty | typeof TypeConstraintProperty | typeof ContextProperty | typeof SessionContextProperty | typeof EditContextProperty | typeof ScheduleProperty | typeof ProjectionProperty | typeof PolicyProperty | typeof PolicyRuleProperty | typeof SubjectProperty | typeof AccessZoneProperty | typeof AccessMatrixProperty | typeof AccessProperty | typeof ReadOptionsProperty | typeof ExpressionProperty | typeof AggregationProperty | typeof AggregationBucketProperty | typeof SelectionProperty | typeof CodeProperty | typeof CodeLineProperty | typeof StepConnectionProperty | typeof RunErrorProperty | typeof RunOptionsProperty | typeof RetryAttemptProperty | typeof TextProperty | typeof TextLineProperty | typeof TextSpanProperty | typeof ColorProperty | typeof FontProperty | typeof BoxProperty | typeof OffsetProperty | typeof FileProperty | typeof IconProperty
+export type AnyStructProperty = typeof PathProperty | typeof PathSegmentProperty | typeof PathTokenProperty | typeof NodeReferenceProperty | typeof PropertyReferenceProperty | typeof ValueReferenceProperty | typeof TypeInfoProperty | typeof TypeConstraintProperty | typeof ContextProperty | typeof SessionContextProperty | typeof EditContextProperty | typeof ScheduleProperty | typeof ProjectionProperty | typeof PolicyProperty | typeof PolicyRuleProperty | typeof SubjectProperty | typeof AccessZoneProperty | typeof AccessMatrixProperty | typeof AccessProperty | typeof ReadOptionsProperty | typeof ExpressionProperty | typeof AggregationProperty | typeof AggregationBucketProperty | typeof SelectionProperty | typeof CodeProperty | typeof CodeLineProperty | typeof StepConnectionProperty | typeof RunErrorProperty | typeof RunOptionsProperty | typeof RetryAttemptProperty | typeof TextProperty | typeof TextLineProperty | typeof TextSpanProperty | typeof ColorProperty | typeof FontProperty | typeof BoxProperty | typeof OffsetProperty | typeof TransformProperty | typeof FileProperty | typeof IconProperty
 export type AnyProperty = AnyNodeProperty | AnyStructProperty
 export type AnyNodePropertyType = typeof BenchProperty | typeof EnvironmentProperty | typeof BranchProperty | typeof PackageProperty | typeof DependencyProperty | typeof UpgradeProperty | typeof SpaceProperty | typeof LinkProperty | typeof SkipProperty | typeof IssueProperty | typeof BlockProperty | typeof TriggerProperty | typeof FieldProperty | typeof QueryProperty | typeof ViewProperty | typeof StepProperty | typeof BadgeProperty | typeof RoleProperty | typeof IdentityProperty | typeof MembershipProperty | typeof InviteProperty | typeof SessionProperty | typeof RunProperty | typeof SignalProperty | typeof LogProperty | typeof NotificationProperty | typeof MessageProperty | typeof RecordProperty | typeof ServerProperty | typeof StoreProperty | typeof MachineProperty | typeof DriveProperty | typeof BlobProperty | typeof HandleProperty | typeof UserProperty | typeof OrganizationProperty | typeof ClientProperty
-export type AnyStructPropertyType = typeof PathProperty | typeof PathSegmentProperty | typeof PathTokenProperty | typeof NodeReferenceProperty | typeof PropertyReferenceProperty | typeof ValueReferenceProperty | typeof TypeInfoProperty | typeof TypeConstraintProperty | typeof ContextProperty | typeof SessionContextProperty | typeof EditContextProperty | typeof ScheduleProperty | typeof ProjectionProperty | typeof PolicyProperty | typeof PolicyRuleProperty | typeof SubjectProperty | typeof AccessZoneProperty | typeof AccessMatrixProperty | typeof AccessProperty | typeof ReadOptionsProperty | typeof ExpressionProperty | typeof AggregationProperty | typeof AggregationBucketProperty | typeof SelectionProperty | typeof CodeProperty | typeof CodeLineProperty | typeof StepConnectionProperty | typeof RunErrorProperty | typeof RunOptionsProperty | typeof RetryAttemptProperty | typeof TextProperty | typeof TextLineProperty | typeof TextSpanProperty | typeof ColorProperty | typeof FontProperty | typeof BoxProperty | typeof OffsetProperty | typeof FileProperty | typeof IconProperty
-export type AnyPropertyType = typeof BenchProperty | typeof EnvironmentProperty | typeof BranchProperty | typeof PackageProperty | typeof DependencyProperty | typeof UpgradeProperty | typeof SpaceProperty | typeof LinkProperty | typeof SkipProperty | typeof IssueProperty | typeof BlockProperty | typeof TriggerProperty | typeof FieldProperty | typeof QueryProperty | typeof ViewProperty | typeof StepProperty | typeof BadgeProperty | typeof RoleProperty | typeof IdentityProperty | typeof MembershipProperty | typeof InviteProperty | typeof SessionProperty | typeof RunProperty | typeof SignalProperty | typeof LogProperty | typeof NotificationProperty | typeof MessageProperty | typeof RecordProperty | typeof ServerProperty | typeof StoreProperty | typeof MachineProperty | typeof DriveProperty | typeof BlobProperty | typeof HandleProperty | typeof UserProperty | typeof OrganizationProperty | typeof ClientProperty | typeof PathProperty | typeof PathSegmentProperty | typeof PathTokenProperty | typeof NodeReferenceProperty | typeof PropertyReferenceProperty | typeof ValueReferenceProperty | typeof TypeInfoProperty | typeof TypeConstraintProperty | typeof ContextProperty | typeof SessionContextProperty | typeof EditContextProperty | typeof ScheduleProperty | typeof ProjectionProperty | typeof PolicyProperty | typeof PolicyRuleProperty | typeof SubjectProperty | typeof AccessZoneProperty | typeof AccessMatrixProperty | typeof AccessProperty | typeof ReadOptionsProperty | typeof ExpressionProperty | typeof AggregationProperty | typeof AggregationBucketProperty | typeof SelectionProperty | typeof CodeProperty | typeof CodeLineProperty | typeof StepConnectionProperty | typeof RunErrorProperty | typeof RunOptionsProperty | typeof RetryAttemptProperty | typeof TextProperty | typeof TextLineProperty | typeof TextSpanProperty | typeof ColorProperty | typeof FontProperty | typeof BoxProperty | typeof OffsetProperty | typeof FileProperty | typeof IconProperty
+export type AnyStructPropertyType = typeof PathProperty | typeof PathSegmentProperty | typeof PathTokenProperty | typeof NodeReferenceProperty | typeof PropertyReferenceProperty | typeof ValueReferenceProperty | typeof TypeInfoProperty | typeof TypeConstraintProperty | typeof ContextProperty | typeof SessionContextProperty | typeof EditContextProperty | typeof ScheduleProperty | typeof ProjectionProperty | typeof PolicyProperty | typeof PolicyRuleProperty | typeof SubjectProperty | typeof AccessZoneProperty | typeof AccessMatrixProperty | typeof AccessProperty | typeof ReadOptionsProperty | typeof ExpressionProperty | typeof AggregationProperty | typeof AggregationBucketProperty | typeof SelectionProperty | typeof CodeProperty | typeof CodeLineProperty | typeof StepConnectionProperty | typeof RunErrorProperty | typeof RunOptionsProperty | typeof RetryAttemptProperty | typeof TextProperty | typeof TextLineProperty | typeof TextSpanProperty | typeof ColorProperty | typeof FontProperty | typeof BoxProperty | typeof OffsetProperty | typeof TransformProperty | typeof FileProperty | typeof IconProperty
+export type AnyPropertyType = typeof BenchProperty | typeof EnvironmentProperty | typeof BranchProperty | typeof PackageProperty | typeof DependencyProperty | typeof UpgradeProperty | typeof SpaceProperty | typeof LinkProperty | typeof SkipProperty | typeof IssueProperty | typeof BlockProperty | typeof TriggerProperty | typeof FieldProperty | typeof QueryProperty | typeof ViewProperty | typeof StepProperty | typeof BadgeProperty | typeof RoleProperty | typeof IdentityProperty | typeof MembershipProperty | typeof InviteProperty | typeof SessionProperty | typeof RunProperty | typeof SignalProperty | typeof LogProperty | typeof NotificationProperty | typeof MessageProperty | typeof RecordProperty | typeof ServerProperty | typeof StoreProperty | typeof MachineProperty | typeof DriveProperty | typeof BlobProperty | typeof HandleProperty | typeof UserProperty | typeof OrganizationProperty | typeof ClientProperty | typeof PathProperty | typeof PathSegmentProperty | typeof PathTokenProperty | typeof NodeReferenceProperty | typeof PropertyReferenceProperty | typeof ValueReferenceProperty | typeof TypeInfoProperty | typeof TypeConstraintProperty | typeof ContextProperty | typeof SessionContextProperty | typeof EditContextProperty | typeof ScheduleProperty | typeof ProjectionProperty | typeof PolicyProperty | typeof PolicyRuleProperty | typeof SubjectProperty | typeof AccessZoneProperty | typeof AccessMatrixProperty | typeof AccessProperty | typeof ReadOptionsProperty | typeof ExpressionProperty | typeof AggregationProperty | typeof AggregationBucketProperty | typeof SelectionProperty | typeof CodeProperty | typeof CodeLineProperty | typeof StepConnectionProperty | typeof RunErrorProperty | typeof RunOptionsProperty | typeof RetryAttemptProperty | typeof TextProperty | typeof TextLineProperty | typeof TextSpanProperty | typeof ColorProperty | typeof FontProperty | typeof BoxProperty | typeof OffsetProperty | typeof TransformProperty | typeof FileProperty | typeof IconProperty
 export const NODE_PROPERTY_ENUM_BY_TYPE: Partial<Record<ObjectType, AnyNodePropertyType>> = {
   [ObjectType.BENCH]: BenchProperty,
   [ObjectType.ENVIRONMENT]: EnvironmentProperty,
@@ -25708,6 +25882,7 @@ export const STRUCT_PROPERTY_ENUM_BY_TYPE: Partial<Record<ObjectType, AnyStructP
   [ObjectType.FONT]: FontProperty,
   [ObjectType.BOX]: BoxProperty,
   [ObjectType.OFFSET]: OffsetProperty,
+  [ObjectType.TRANSFORM]: TransformProperty,
   [ObjectType.FILE]: FileProperty,
   [ObjectType.ICON]: IconProperty,
 }
@@ -25787,6 +25962,7 @@ export const PROPERTY_ENUM_BY_TYPE: Partial<Record<ObjectType, AnyPropertyType>>
   [ObjectType.FONT]: FontProperty,
   [ObjectType.BOX]: BoxProperty,
   [ObjectType.OFFSET]: OffsetProperty,
+  [ObjectType.TRANSFORM]: TransformProperty,
   [ObjectType.FILE]: FileProperty,
   [ObjectType.ICON]: IconProperty,
 }
@@ -26231,6 +26407,16 @@ export const OffsetDataInfo: Record<OffsetProperty, PropertyInfo> = {
   [OffsetProperty.bottomRelative]: { id: 46, name: 'bottom_relative', component: ObjectType.OFFSET, kind: 'primitive', primitiveType: PrimitiveType.FLOAT32, isRuntime: true, isWired: true, isStored: true },
   [OffsetProperty.leftRelative]: { id: 47, name: 'left_relative', component: ObjectType.OFFSET, kind: 'primitive', primitiveType: PrimitiveType.FLOAT32, isRuntime: true, isWired: true, isStored: true },
 }
+export const TransformDataInfo: Record<TransformProperty, PropertyInfo> = {
+  [TransformProperty.metatype]: { id: 1, name: 'metatype', component: ObjectType.TRANSFORM, enumType: EnumType.OBJECT_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isComputed: true, isWired: true },
+  [TransformProperty.translateX]: { id: 30, name: 'translate_x', component: ObjectType.TRANSFORM, kind: 'primitive', primitiveType: PrimitiveType.INT32, isRuntime: true, isWired: true, isStored: true },
+  [TransformProperty.translateY]: { id: 31, name: 'translate_y', component: ObjectType.TRANSFORM, kind: 'primitive', primitiveType: PrimitiveType.INT32, isRuntime: true, isWired: true, isStored: true },
+  [TransformProperty.scaleX]: { id: 33, name: 'scale_x', component: ObjectType.TRANSFORM, kind: 'primitive', primitiveType: PrimitiveType.FLOAT32, isRuntime: true, isWired: true, isStored: true },
+  [TransformProperty.scaleY]: { id: 34, name: 'scale_y', component: ObjectType.TRANSFORM, kind: 'primitive', primitiveType: PrimitiveType.FLOAT32, isRuntime: true, isWired: true, isStored: true },
+  [TransformProperty.skewX]: { id: 36, name: 'skew_x', component: ObjectType.TRANSFORM, kind: 'primitive', primitiveType: PrimitiveType.FLOAT32, isRuntime: true, isWired: true, isStored: true },
+  [TransformProperty.skewY]: { id: 37, name: 'skew_y', component: ObjectType.TRANSFORM, kind: 'primitive', primitiveType: PrimitiveType.FLOAT32, isRuntime: true, isWired: true, isStored: true },
+  [TransformProperty.rotateX]: { id: 40, name: 'rotate_x', component: ObjectType.TRANSFORM, kind: 'primitive', primitiveType: PrimitiveType.INT32, isRuntime: true, isWired: true, isStored: true },
+}
 export const FileDataInfo: Record<FileProperty, PropertyInfo> = {
   [FileProperty.metatype]: { id: 1, name: 'metatype', component: ObjectType.FILE, enumType: EnumType.OBJECT_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isComputed: true, isWired: true },
   [FileProperty.type]: { id: 31, name: 'type', component: ObjectType.FILE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isRuntime: true, isWired: true, isStored: true },
@@ -26653,6 +26839,7 @@ export const ViewDataInfo: Record<ViewProperty, PropertyInfo> = {
   [ViewProperty.padding]: { id: 63, name: 'padding', component: ObjectType.VIEW, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.OFFSET },
   [ViewProperty.orientation]: { id: 64, name: 'orientation', component: ObjectType.VIEW, enumType: EnumType.ORIENTATION, kind: 'enum', primitiveType: PrimitiveType.INT16, isRuntime: true, isWired: true, isStored: true },
   [ViewProperty.alignment]: { id: 65, name: 'alignment', component: ObjectType.VIEW, enumType: EnumType.ALIGNMENT, kind: 'enum', primitiveType: PrimitiveType.INT16, isRuntime: true, isWired: true, isStored: true },
+  [ViewProperty.transform]: { id: 66, name: 'transform', component: ObjectType.VIEW, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.TRANSFORM },
   [ViewProperty.selection]: { id: 70, name: 'selection', component: ObjectType.VIEW, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.SELECTION },
   [ViewProperty.focus]: { id: 71, name: 'focus', component: ObjectType.VIEW, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.SELECTION },
   [ViewProperty.expansion]: { id: 72, name: 'expansion', component: ObjectType.VIEW, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.SELECTION },
@@ -27290,6 +27477,7 @@ export const PROPERTY_INFOS_BY_TYPE: Record<ObjectType, Record<any, PropertyInfo
   [ObjectType.FONT]: FontDataInfo,
   [ObjectType.BOX]: BoxDataInfo,
   [ObjectType.OFFSET]: OffsetDataInfo,
+  [ObjectType.TRANSFORM]: TransformDataInfo,
   [ObjectType.FILE]: FileDataInfo,
   [ObjectType.ICON]: IconDataInfo,
   [ObjectType.BENCH]: BenchDataInfo,

@@ -3,7 +3,7 @@
 
 from typing import TYPE_CHECKING, Union
 
-VERSION = "2024.06.12.0"
+VERSION = "2024.06.12.1"
 
 if TYPE_CHECKING:
     from bench.language import Subject
@@ -191,6 +191,7 @@ class BenchType(betterproto.Enum):
     FONT = 1201
     BOX = 1202
     OFFSET = 1203
+    TRANSFORM = 1204
     FILE = 1250
     ICON = 1251
     ENUM_TYPE = 2001
@@ -804,6 +805,7 @@ class ObjectType(betterproto.Enum):
     FONT = 1201
     BOX = 1202
     OFFSET = 1203
+    TRANSFORM = 1204
     FILE = 1250
     ICON = 1251
 
@@ -1122,6 +1124,7 @@ class StructType(betterproto.Enum):
     FONT = 1201
     BOX = 1202
     OFFSET = 1203
+    TRANSFORM = 1204
     FILE = 1250
     ICON = 1251
 
@@ -1932,6 +1935,20 @@ class TextSpanData(betterproto.Message):
     is_strikethrough: Optional[bool] = betterproto.bool_field(62, optional=True)
     is_underline: Optional[bool] = betterproto.bool_field(63, optional=True)
     is_code: Optional[bool] = betterproto.bool_field(64, optional=True)
+
+
+@dataclass(eq=False, repr=False)
+class TransformData(betterproto.Message):
+    """A transform in 2D space."""
+
+    metatype: "ObjectType" = betterproto.enum_field(1)
+    translate_x: Optional[int] = betterproto.int32_field(30, optional=True)
+    translate_y: Optional[int] = betterproto.int32_field(31, optional=True)
+    scale_x: Optional[float] = betterproto.float_field(33, optional=True)
+    scale_y: Optional[float] = betterproto.float_field(34, optional=True)
+    skew_x: Optional[float] = betterproto.float_field(36, optional=True)
+    skew_y: Optional[float] = betterproto.float_field(37, optional=True)
+    rotate_x: Optional[int] = betterproto.int32_field(40, optional=True)
 
 
 @dataclass(eq=False, repr=False)
@@ -3265,6 +3282,7 @@ class ViewData(betterproto.Message):
     padding: Optional["OffsetData"] = betterproto.message_field(63, optional=True)
     orientation: Optional["Orientation"] = betterproto.enum_field(64, optional=True)
     alignment: Optional["Alignment"] = betterproto.enum_field(65, optional=True)
+    transform: Optional["TransformData"] = betterproto.message_field(66, optional=True)
     selection: Optional["SelectionData"] = betterproto.message_field(70, optional=True)
     focus: Optional["SelectionData"] = betterproto.message_field(71, optional=True)
     expansion: Optional["SelectionData"] = betterproto.message_field(72, optional=True)
@@ -4926,6 +4944,7 @@ AnyStructData = Union[
     FontData,
     BoxData,
     OffsetData,
+    TransformData,
     FileData,
     IconData,
 ]
