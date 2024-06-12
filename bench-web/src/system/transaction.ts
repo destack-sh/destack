@@ -448,11 +448,12 @@ export function unpackNodeDelta(nodePackedStruct: ProtoStruct, nodeType?: NodeTy
 
 /**
  * Applies the edits to the graph (in place!).
+ * If a base graph is given, this graph is assumed to be an overlay.
  */
 export function editGraph(
   graph: ReadNodeGraph & WriteNodeGraph,
   edits: EditData[],
-  options?: { isOverlayOf?: ReadNodeGraph },
+  options?: { base?: ReadNodeGraph },
 ) {
   for (const edit of edits) {
     const nodeType = edit.nodePtr!.type;
@@ -471,7 +472,7 @@ export function editGraph(
       } else {
         graph.update(newNodeData);
       }
-    } else if (edit.type == EditType.ERASE && !(options?.isOverlayOf && !graph.has(edit.nodePtr!))) {
+    } else if (edit.type == EditType.ERASE && !(options?.base && !graph.has(edit.nodePtr!))) {
       // remove
       const oldNode = graph.get(edit.nodePtr!);
       if (!oldNode)
@@ -486,8 +487,8 @@ export function editGraph(
         updatedNode = unpackNodeDelta(edit.oldNodePacked, nodeType);
       } else {
         updatedNode = graph.get(edit.nodePtr!);
-        if (!updatedNode && options?.isOverlayOf) {
-          updatedNode = options.isOverlayOf.get(edit.nodePtr!);
+        if (!updatedNode && options?.base) {
+          updatedNode = options.base.get(edit.nodePtr!);
         }
         if (!updatedNode) {
           throw new Error(`missing node for update: ${describeNode(edit.nodePtr!)} in ${graph.describeSelf()}`);
@@ -535,7 +536,7 @@ export function editGraph(
       }
 
       // extend setProperties for overlay
-      if (options?.isOverlayOf != null) {
+      if (options?.base != null) {
         if ((updatedNode.setProperties?.length ?? 0) == 0) {
           updatedNode.setProperties = [
             ...IMPLICIT_UPDATE_PROPERTIES_IDS,
@@ -573,8 +574,6 @@ export interface TransactionBuffer {
   readonly id: number;
   /** Current active Transaction. */
   readonly tx: Transaction;
-  /** Unconfirmed edits in active or pending transactions (for overlays). */
-  readonly pendingEdits: EditData[];
   /** Retryable commits in case of error (for debugging).  */
   readonly failedCommits?: Readonly<Ref<Record<string, CommitFailure>>>;
 
@@ -609,10 +608,9 @@ export class ImmediateTransactionBuffer implements TransactionBuffer {
   public readonly id: number;
   public readonly scope: GraphScope;
   public readonly graph: ReadNodeGraph & WriteNodeGraph;
-  public readonly pendingEdits = [];
   public readonly isPaused: Ref<boolean> = ref(false);
-  private committedSubs: Array<CommittedCallback> = [];
-  private currentTx: TransactionBuilder | null = null; // always keep a single transaction
+  private _committedSubs: Array<CommittedCallback> = [];
+  private _currentTx: TransactionBuilder | null = null; // always keep a single transaction
 
   constructor(id: number, scope: GraphScope, graph: ReadNodeGraph & WriteNodeGraph) {
     this.id = id;
@@ -622,7 +620,7 @@ export class ImmediateTransactionBuffer implements TransactionBuffer {
   }
 
   get tx(): Transaction {
-    return this.currentTx!; // set in constructor
+    return this._currentTx!; // set in constructor
   }
 
   commit() {
@@ -639,15 +637,15 @@ export class ImmediateTransactionBuffer implements TransactionBuffer {
     });
     // immediately apply and reset the transaction
     newTx.onEdit((edit) => {
-      if (this.currentTx !== newTx) throw new Error("transaction is closed");
+      if (this._currentTx !== newTx) throw new Error("transaction is closed");
       // apply edit directly
       editGraph(this.graph, [edit]);
       // notify
-      this.committedSubs.forEach((sub) => sub([edit]));
+      this._committedSubs.forEach((sub) => sub([edit]));
       // 'reset'
       newTx.state.edits.length = 0;
     });
-    this.currentTx = newTx;
+    this._currentTx = newTx;
   }
 
   accept(edits: EditData[]) {
@@ -660,10 +658,10 @@ export class ImmediateTransactionBuffer implements TransactionBuffer {
   }
 
   onCommitted(sub: CommittedCallback): () => void {
-    this.committedSubs.push(sub);
+    this._committedSubs.push(sub);
     return () => {
-      const idx = this.committedSubs.indexOf(sub);
-      if (idx >= 0) this.committedSubs.splice(idx, 1);
+      const idx = this._committedSubs.indexOf(sub);
+      if (idx >= 0) this._committedSubs.splice(idx, 1);
     };
   }
 
@@ -693,6 +691,7 @@ export class RemoteTransactionBuffer implements TransactionBuffer {
   private currentTx: Transaction | null;
   private pendingTx: Transaction | null;
   private pendingEditsById: Record<string, EditData> = {};
+  private pendingConnectionByEditId: Record<string, number> = {};
   failedCommits: Ref<Record<string, CommitFailure>> = shallowRef({});
 
   constructor(id: number, scope: GraphScope, client: IGraphIOClient) {
@@ -709,19 +708,11 @@ export class RemoteTransactionBuffer implements TransactionBuffer {
     return this.currentTx;
   }
 
-  get pendingEdits() {
-    return Object.values(this.pendingEditsById);
-  }
-
   async commit() {
     if (this.currentTx == null) throw new Error("no active transaction");
     if (this.pendingTx != null) throw new Error(`transaction ${this.pendingTx.id} is already committing`);
     try {
-      log.trace("transaction.commit", {
-        scope: this.scope,
-        id: this.currentTx.id,
-        edits: this.currentTx.edits,
-      });
+      log.trace("transaction.commit", { scope: this.scope, id: this.currentTx.id, edits: this.currentTx.edits });
 
       // swap
       const edits = this.currentTx.edits;
@@ -783,6 +774,7 @@ export class RemoteTransactionBuffer implements TransactionBuffer {
   async reset() {
     this.currentTx = this._makeCurrentTx();
     this.pendingEditsById = {};
+    this.pendingConnectionByEditId = {};
     this.pendingTx = null;
     this.pendingSubs.forEach((sub) => sub({ type: "reset", connectionId: null, edits: [] }));
   }
@@ -805,8 +797,13 @@ export class RemoteTransactionBuffer implements TransactionBuffer {
     });
     tx.onEdit((edit, connectionId, debounce) => {
       if (this.currentTx?.id !== tx.id) throw new Error(`transaction ${tx.describeSelf()} is closed`);
-      if (this.pendingEditsById[edit.id] != null) throw new Error(`edit ${edit.id} already pending`);
+      const pendingConnectionId = this.pendingConnectionByEditId[edit.id];
+      if (pendingConnectionId != null && (!connectionId || connectionId != pendingConnectionId))
+        // ensure connections don't trample on each others edits since we currently only optimistically overlay
+        //  edits from the same connection (see connection)
+        throw new Error(`edit ${edit.id} already pending in ${pendingConnectionId}`);
       this.pendingEditsById[edit.id] = edit;
+      if (connectionId != null) this.pendingConnectionByEditId[edit.id] = connectionId;
       this.pendingSubs.forEach((sub) => sub({ type: "add", connectionId, edits: [edit], debounce }));
     });
     return tx;
@@ -817,12 +814,30 @@ export class RemoteTransactionBuffer implements TransactionBuffer {
     for (const edit of edits) {
       if (this.pendingEditsById[edit.id]) {
         delete this.pendingEditsById[edit.id];
+        if (this.pendingConnectionByEditId[edit.id] != null) delete this.pendingConnectionByEditId[edit.id];
         pendingEditsChanged = true;
       }
     }
     if (pendingEditsChanged) {
+      // update all pending subscribers (in multiple steps so they get the correct connectionId if we have one)
       const newPendingEdits = Object.values(this.pendingEditsById);
-      this.pendingSubs.forEach((sub) => sub({ type: "reset", connectionId: null, edits: newPendingEdits }));
+      const newPendingEditsByConnection: Record<number, EditData[]> = {};
+      for (const edit of newPendingEdits) {
+        const connectionId = this.pendingConnectionByEditId[edit.id] ?? -1;
+        if (!newPendingEditsByConnection[connectionId]) newPendingEditsByConnection[connectionId] = [];
+        newPendingEditsByConnection[connectionId].push(edit);
+      }
+      this.pendingSubs.forEach((sub) => {
+        sub({ type: "reset", connectionId: null, edits: newPendingEditsByConnection[-1] ?? [] });
+        for (const connectionId of Object.keys(newPendingEditsByConnection)) {
+          sub({
+            type: "add",
+            connectionId: parseInt(connectionId),
+            edits: newPendingEditsByConnection[parseInt(connectionId)]!,
+            debounce: null,
+          });
+        }
+      });
     }
   }
 
