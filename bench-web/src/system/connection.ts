@@ -42,6 +42,7 @@ import { log } from "@/utils/log";
 import { deepValueEquals, immediateStopWatch, pretendReadonly, toValueRef } from "@/utils/ref";
 import type { RpcError } from "@protobuf-ts/runtime-rpc";
 import { tryOnBeforeUnmount, useNetwork, whenever } from "@vueuse/core";
+import { DateTime } from "luxon";
 import { computed, isRef, markRaw, shallowRef, toRef, watch, type MaybeRef, type Ref, type ShallowRef } from "vue";
 
 export function makeReadOptions(options: Partial<ReadOptionsData>): ReadOptionsData {
@@ -169,7 +170,7 @@ function getNodeTypesFromParams<T extends NodeType>(
 /** Derives the overlay graph for a specific connection */
 function makeConnectionOverlayGraph(
   base: NodeGraph,
-  connection: GraphConnection<any, any>,
+  connection: Connection<any, any>,
   subs: (() => void)[],
 ): NodeGraph {
   const overlay = new NodeGraph({ scope: base.scope, nodeTypes: base.nodeTypes, isOverlayOf: base });
@@ -194,7 +195,7 @@ function makeConnectionOverlayGraph(
 export const network = useNetwork();
 
 /** A connection to a subgraph. */
-export type GraphConnection<K extends GraphConnectionKind, T extends NodeType> = {
+export type Connection<K extends GraphConnectionKind, T extends NodeType> = {
   /** Immutable-after-construction metadata about this connection. */
   readonly meta: ConnectionMetadata;
   /** Immutable-after-construction parameters to this connection. */
@@ -205,6 +206,10 @@ export type GraphConnection<K extends GraphConnectionKind, T extends NodeType> =
   readonly txBuffer: TransactionBuffer;
   /** An active Transaction for editing this subgraph. */
   readonly tx: Transaction;
+  /** When this connection was created */
+  readonly createdAt: DateTime;
+  /** When this connection was last used (had any active active referents) */
+  readonly lastReferencedAt: DateTime | null;
 
   /** Connected to the underlying graph as specified. */
   readonly isConnected: Readonly<Ref<boolean>>;
@@ -215,6 +220,10 @@ export type GraphConnection<K extends GraphConnectionKind, T extends NodeType> =
   /** Closed and will not re-connect again. */
   readonly isClosed: Readonly<Ref<boolean>>;
 
+  /** Increment reference count */
+  incRefCount: () => void;
+  /** Decrement reference count */
+  decRefCount: () => void;
   /** Closes this connection forever. */
   close(): Promise<void>;
   /** Toggle isPaused for debugging. */
@@ -227,13 +236,15 @@ export type GraphConnection<K extends GraphConnectionKind, T extends NodeType> =
 
 type ConnectionInternalResult = { subs?: (() => void)[] };
 
-export abstract class GraphConnectionBase<K extends GraphConnectionKind, T extends NodeType> {
+export abstract class ConnectionBase<K extends GraphConnectionKind, T extends NodeType> {
   abstract readonly kind: K;
 
   readonly meta: ConnectionMetadata;
   readonly params: ConnectionParamsMapping<T>[K];
   readonly result: ShallowRef<(ConnectionResultMapping<T>[K] & ConnectionInternalResult) | null> = shallowRef(null);
   readonly txBuffer: TransactionBuffer;
+  readonly createdAt: DateTime = DateTime.now();
+  lastReferencedAt: DateTime | null = null;
 
   readonly isConnected: Ref<boolean> = shallowRef(false);
   readonly isFetching: Ref<boolean> = shallowRef(false);
@@ -264,6 +275,16 @@ export abstract class GraphConnectionBase<K extends GraphConnectionKind, T exten
 
   get tx(): Transaction {
     return this.txBuffer.tx.getSubtransaction(this.meta.id);
+  }
+
+  incRefCount(): void {
+    this.referenceCount++;
+    this.lastReferencedAt = DateTime.now();
+  }
+
+  decRefCount(): void {
+    this.referenceCount--;
+    this.lastReferencedAt = DateTime.now();
   }
 
   async close(): Promise<void> {
@@ -485,7 +506,7 @@ export abstract class GraphConnectionBase<K extends GraphConnectionKind, T exten
   }
 }
 
-export class RemoteGetConnection<T extends NodeType> extends GraphConnectionBase<"get", T> {
+export class RemoteGetConnection<T extends NodeType> extends ConnectionBase<"get", T> {
   readonly kind = "get";
 
   protected async doFetch(
@@ -526,7 +547,7 @@ export class RemoteGetConnection<T extends NodeType> extends GraphConnectionBase
   }
 }
 
-export class RemoteSearchConnection<T extends NodeType> extends GraphConnectionBase<"search", T> {
+export class RemoteSearchConnection<T extends NodeType> extends ConnectionBase<"search", T> {
   readonly kind = "search";
 
   protected async doFetch(
@@ -574,7 +595,7 @@ export class RemoteSearchConnection<T extends NodeType> extends GraphConnectionB
   }
 }
 
-export class LocalGetConnection<T extends NodeType> extends GraphConnectionBase<"get", T> {
+export class LocalGetConnection<T extends NodeType> extends ConnectionBase<"get", T> {
   readonly kind = "get";
 
   readonly graph: ReadNodeGraph;
@@ -609,19 +630,32 @@ export class LocalGetConnection<T extends NodeType> extends GraphConnectionBase<
 }
 
 /** Shallow reactive proxy for a deferred connection. */
-export class ProxyConnection<K extends GraphConnectionKind, T extends NodeType> implements GraphConnection<K, T> {
-  connection: ShallowRef<GraphConnectionBase<K, T> | null>;
+export class ProxyConnection<K extends GraphConnectionKind, T extends NodeType> implements Connection<K, T> {
+  connection: ShallowRef<ConnectionBase<K, T> | null>;
+  readonly createdAt: DateTime = DateTime.now();
   readonly isConnected: Ref<boolean>;
   readonly isFetching: Ref<boolean>;
   readonly isPaused: Ref<boolean>;
   readonly isClosed: Ref<boolean>;
 
-  constructor(connection: MaybeRef<GraphConnectionBase<K, T> | null>) {
+  constructor(connection: MaybeRef<ConnectionBase<K, T> | null>) {
     this.connection = isRef(connection) ? connection : shallowRef(connection);
     this.isConnected = computed(() => this.connection.value?.isConnected.value ?? false);
     this.isFetching = computed(() => this.connection.value?.isFetching.value ?? false);
     this.isPaused = computed(() => this.connection.value?.isPaused.value ?? false);
     this.isClosed = computed(() => this.connection.value?.isClosed.value ?? false);
+  }
+
+  get lastReferencedAt(): DateTime | null {
+    return this.connection.value?.lastReferencedAt ?? null;
+  }
+
+  incRefCount(): void {
+    this.connection.value?.incRefCount();
+  }
+
+  decRefCount(): void {
+    this.connection.value?.decRefCount();
   }
 
   close(): Promise<void> {
@@ -657,7 +691,7 @@ export class ProxyConnection<K extends GraphConnectionKind, T extends NodeType> 
     });
   }
 
-  get activeConnection(): GraphConnectionBase<K, T> {
+  get activeConnection(): ConnectionBase<K, T> {
     if (this.connection.value == null) throw new Error("no active connection");
     return this.connection.value;
   }
@@ -684,14 +718,17 @@ export class ProxyConnection<K extends GraphConnectionKind, T extends NodeType> 
 }
 
 //
-// Maintaining and routing connections
+// Connection maintenance
+// NOTE :Performance: cache/store connections (results) locally for initial hydration?
 //
+
+const INACTIVE_CONNECTION_TIMEOUT = 60 * 1000; // 1 minute
 
 let connectionId = 0;
 function newConnectionId(): number {
   return connectionId++;
 }
-const _connections: Ref<GraphConnectionBase<any, any>[]> = shallowRef([
+const _connections: Ref<ConnectionBase<any, any>[]> = shallowRef([
   // add local graph
   new LocalGetConnection(
     { id: newConnectionId(), name: "local.space", live: true, options: {} },
@@ -704,19 +741,34 @@ const _connections: Ref<GraphConnectionBase<any, any>[]> = shallowRef([
 export const connections = pretendReadonly(_connections);
 export const hasPendingConnections = computed(() => connections.value.some((c) => !c.isConnected.value));
 
-export function addGraphConnection(connection: GraphConnectionBase<any, any>): void {
+export function addConnection(connection: ConnectionBase<any, any>): void {
   _connections.value = [..._connections.value, connection];
 }
 
+async function gcInactiveConnections() {
+  const inactiveConnections = _connections.value.filter(
+    (c) =>
+      c.referenceCount == 0 &&
+      c.lastReferencedAt != null &&
+      DateTime.now().diff(c.lastReferencedAt).milliseconds > INACTIVE_CONNECTION_TIMEOUT,
+  );
+  if (inactiveConnections.length > 0) {
+    log.debug("graph.gcInactiveConnections", { count: inactiveConnections.length });
+    await Promise.all(inactiveConnections.map((c) => c.close()));
+    _connections.value = _connections.value.filter((c) => !inactiveConnections.includes(c));
+  }
+}
+
+// periodically clean up inactive connections
+setInterval(gcInactiveConnections, INACTIVE_CONNECTION_TIMEOUT);
+
 /** RC-=1. Connections without references are GCed after some time. */
-function releaseConnection(connection: GraphConnectionBase<any, any>): void {
-  connection.referenceCount--;
-  // TODO :Broken: GC connections without references after some time
-  // TODO :Performance: cache/store connections (results) locally for initial hydration
+function releaseConnection(connection: ConnectionBase<any, any>): void {
+  connection.decRefCount();
 }
 
 type ConnectionMatchOptions<K extends GraphConnectionKind, T extends NodeType> = {
-  predicate?: (c: GraphConnectionBase<K, T>) => boolean;
+  predicate?: (c: ConnectionBase<K, T>) => boolean;
 };
 
 /** Finds an existing connection */
@@ -724,10 +776,9 @@ export function findExistingConnection<K extends GraphConnectionKind, T extends 
   kind: K,
   params: ConnectionParamsMapping<T>[K],
   match?: ConnectionMatchOptions<K, T>,
-): GraphConnectionBase<K, T> | null {
+): ConnectionBase<K, T> | null {
   const matchingConnections =
-    _connections.value.filter((c) => c.kind == kind && c.supports(params) && match?.predicate?.(c) !== false) ??
-    null;
+    _connections.value.filter((c) => c.kind == kind && c.supports(params) && match?.predicate?.(c) !== false) ?? null;
   if (matchingConnections.length == 0) return null;
   if (matchingConnections.length > 1) {
     // TODO :Broken: find the best connection match somehow :ConnectionMatching
@@ -739,7 +790,7 @@ export function findExistingConnectionOrError<K extends GraphConnectionKind, T e
   kind: K,
   params: ConnectionParamsMapping<T>[K],
   match?: ConnectionMatchOptions<K, T>,
-): GraphConnectionBase<K, T> {
+): ConnectionBase<K, T> {
   const connection = findExistingConnection(kind, params, match);
   if (connection == null)
     throw new Error(
@@ -753,9 +804,9 @@ function acquireExistingConnection<K extends GraphConnectionKind, T extends Node
   kind: K,
   params: ConnectionParamsMapping<T>[K],
   match?: ConnectionMatchOptions<K, T>,
-): GraphConnectionBase<K, T> | null {
+): ConnectionBase<K, T> | null {
   const connection = findExistingConnection(kind, params, match);
-  if (connection != null) connection.referenceCount++;
+  if (connection != null) connection.incRefCount();
   return connection;
 }
 
@@ -766,30 +817,30 @@ export async function clearConnections(): Promise<void> {
 
 type ConnectionMetadataIn = Pick<ConnectionMetadata, "name"> & Partial<ConnectionMetadata>;
 
-/** Creates a new (remote) connection and immediately acquires it. */
+/** Creates a new (remote) connection and immediately acquires it (RC+=1). */
 async function acquireNewConnection<K extends GraphConnectionKind, T extends NodeType>(
   kind: K,
   metaIn: Pick<ConnectionMetadata, "name"> & Partial<ConnectionMetadata>,
   params: ConnectionParamsMapping<T>[K],
-): Promise<GraphConnectionBase<K, T>> {
+): Promise<ConnectionBase<K, T>> {
   const meta: ConnectionMetadata = { live: false, id: newConnectionId(), options: {}, ...metaIn };
 
   // create
   const scope = getScopeFromParams(params);
   const txBuffer = await getTransactionBuffer(scope);
-  let connection: GraphConnectionBase<K, T>;
+  let connection: ConnectionBase<K, T>;
   if (kind == "get") {
     const getParams = params as GetConnectionParams<T>;
-    connection = new RemoteGetConnection<T>(meta, getParams, txBuffer) as any as GraphConnectionBase<K, T>;
+    connection = new RemoteGetConnection<T>(meta, getParams, txBuffer) as any as ConnectionBase<K, T>;
   } else if (kind == "search") {
     const searchParams = params as SearchConnectionParams<T>;
-    connection = new RemoteSearchConnection<T>(meta, searchParams, txBuffer) as any as GraphConnectionBase<K, T>;
+    connection = new RemoteSearchConnection<T>(meta, searchParams, txBuffer) as any as ConnectionBase<K, T>;
   } else {
     throw new Error(`unsupported connection kind: ${kind}`);
   }
   connection = markRaw(connection); // ensure it's never proxied
-  addGraphConnection(connection);
-  connection.referenceCount++;
+  addConnection(connection);
+  connection.incRefCount();
 
   // connect
   await connection.connect(meta.options);
@@ -799,7 +850,7 @@ async function acquireNewConnection<K extends GraphConnectionKind, T extends Nod
 
 /** Container for providing the results of a Get connection to an inner component */
 export type PreparedGetConnection<T extends NodeType = NodeType> = {
-  connection: GraphConnection<"get", T>;
+  connection: Connection<"get", T>;
   graph: ReadNodeGraph;
 };
 
@@ -809,8 +860,8 @@ export function useConnection<K extends GraphConnectionKind, T extends NodeType>
   metaIn: ConnectionMetadataIn,
   params: MaybeRef<ConnectionParamsMapping<T>[K]>,
   match?: ConnectionMatchOptions<K, T>,
-): Ref<GraphConnectionBase<K, T> | null> {
-  const connection: ShallowRef<GraphConnectionBase<K, T> | null> = shallowRef(null);
+): Ref<ConnectionBase<K, T> | null> {
+  const connection: ShallowRef<ConnectionBase<K, T> | null> = shallowRef(null);
   const paramsRef = toRef(params) as Ref<ConnectionParamsMapping<T>[K]>;
 
   // acquire existing or create new connection
@@ -837,7 +888,7 @@ export function useConnection<K extends GraphConnectionKind, T extends NodeType>
 
 /** The graph of a node connection overlaid with its local overlay */
 function useConnectionOverlayGraph<T extends NodeType>(
-  connection: Ref<GraphConnectionBase<"get" | "search", T> | null>,
+  connection: Ref<ConnectionBase<"get" | "search", T> | null>,
 ): ReadNodeGraph {
   const graph = new LayerNodeGraph({ filter: DEFAULT_NODE_FILTER });
   watch(
@@ -870,10 +921,10 @@ export function useExistingConnection<T extends NodeType = any>(
   },
 ): {
   graph: ReadNodeGraph;
-  connection: GraphConnection<"get", T>;
+  connection: Connection<"get", T>;
 } {
   const nodeRef = toValueRef(toRef(node)) as Ref<NodeReferenceData>;
-  const connection: ShallowRef<GraphConnectionBase<"get", T> | null> = shallowRef(null);
+  const connection: ShallowRef<ConnectionBase<"get", T> | null> = shallowRef(null);
   const graph = useConnectionOverlayGraph(connection);
 
   // route to the appropriate connection
@@ -893,7 +944,7 @@ export function useExistingConnection<T extends NodeType = any>(
           `missing connection for ${describeNode(nodeRef.value)} (available: ${_connections.value.map((c) => c.name).join(", ") ?? "<none>"})`,
         );
     }
-    if (newConnection !== oldConnection) connection.value = newConnection as GraphConnectionBase<"get", T> | null;
+    if (newConnection !== oldConnection) connection.value = newConnection as ConnectionBase<"get", T> | null;
   };
   watch(() => [nodeRef.value, () => options?.isEnabled?.value], refreshConnection, { immediate: true });
 
@@ -923,15 +974,15 @@ export function useExistingConnection<T extends NodeType = any>(
  * Gets the given nodes from the relevant subgraph, fetching/caching automatically.
  * If live, will also ensure that edits for the given nodes are watched.
  */
-export function useGetConnection<T extends NodeType>(
+export function useGet<T extends NodeType>(
   metaIn: ConnectionMetadataIn,
   params: MaybeRef<GetConnectionParams<T>>,
-): GetConnectionResult<T> & { connection: GraphConnection<"get", T> } {
+): GetConnectionResult<T> & { connection: Connection<"get", T> } {
   const paramsRef = toRef(params) as Ref<GetConnectionParams<T>>;
   const connection = useConnection<"get", T>("get", metaIn, paramsRef);
 
   // map results
-  // TODO :Cleanup: mapping connection results is a deep ref chain?
+  // NOTE :Cleanup: mapping connection results is a deep ref chain?
   const graph = useConnectionOverlayGraph(connection);
   const roots: Ref<NodeTypeMapping[T][]> = computed(() => connection.value?.result.value?.roots?.value ?? []);
 
@@ -943,10 +994,10 @@ export function useGetConnection<T extends NodeType>(
  * Searches for nodes of the given type in the relevant subgraph, fetching/caching automatically.
  * If live, will also ensure that 1) edits for the result nodes are watched and 2) the search itself is watched.
  */
-export function useSearchConnection<T extends NodeType>(
+export function useSearch<T extends NodeType>(
   metaIn: ConnectionMetadataIn,
   params: MaybeRef<SearchConnectionParams<T>>,
-): SearchConnectionResult<T> & { connection: GraphConnection<"search", T> } {
+): SearchConnectionResult<T> & { connection: Connection<"search", T> } {
   const paramsRef = toRef(params) as Ref<SearchConnectionParams<T>>;
   const connection = useConnection<"search", T>("search", metaIn, paramsRef);
 
@@ -963,10 +1014,10 @@ export function useSearchConnection<T extends NodeType>(
 
 /**
  * Aggregates nodes of the given type in the relevant subgraph, fetching/caching automatically.
- * TODO :Feature: live aggregation
+ * NOTE :Incomplete: live aggregation
  */
-export function useAggregateConnection(
+export function useAggregate(
   params: MaybeRef<AggregateConnectionParams>,
-): AggregateConnectionResult & { connection: GraphConnectionBase<"aggregate", NodeType> } {
+): AggregateConnectionResult & { connection: ConnectionBase<"aggregate", NodeType> } {
   throw new Error("aggregate not yet implemented");
 }

@@ -16,7 +16,7 @@ import { isNode, type TypedNodeReferenceData } from "@/proto/wiring";
 import type { ActionContext, ActionMapImplementation } from "@/system/action";
 import { useHierarchicalNodeMoveActions } from "@/system/block";
 import { packagePtr } from "@/system/client";
-import { useExistingConnection, type GraphConnection } from "@/system/connection";
+import { useExistingConnection, type Connection } from "@/system/connection";
 import { isDescendantOf, walkDescendantsRef, type NodeTreeItem } from "@/system/graph";
 import { DEFAULT_BENCH_ICON, IconInline, getNodeIcon } from "@/system/icon";
 import { createBlock, moveNode } from "@/system/lang";
@@ -77,7 +77,7 @@ const { graph: pkgGraph, connection: pkgConnection } = useExistingConnection(roo
   match: {
     predicate: (c) => {
       // NOTE: hack to exclude Bench connection (which also contains package) :ConnectionMatching
-      return !(c as GraphConnection<"get", NodeType>).params.roots.some((r) => r.type == NodeType.BENCH);
+      return !(c as Connection<"get", NodeType>).params.roots.some((r) => r.type == NodeType.BENCH);
     },
   },
 });

@@ -4,7 +4,7 @@ import { type TypedNodeReferenceData } from "@/proto/wiring";
 import { makeViewId, viewEmits, type ViewExposed } from "@/views/common";
 import { canvas, inspectionPtr } from "@/system/space";
 import { computed, ref, toRef, type Ref } from "vue";
-import { useGetConnection, type PreparedGetConnection } from "@/system/connection";
+import { useGet, type PreparedGetConnection } from "@/system/connection";
 import Inaccessible from "@/views/builtins/Inaccessible.vue";
 import { IconInline, getNodeIcon } from "@/system/icon";
 import type { ActionMapImplementation } from "@/system/action";
@@ -28,7 +28,7 @@ const nameRef = ref<HTMLElement | null>(null);
 const nodePtr = toRef(props, "nodePtr") as Ref<TypedNodeReferenceData<NodeType.FIELD>>;
 const { graph: pkgGraph, connection: pkgConnection } =
   props.preparedConnection ??
-  useGetConnection(
+  useGet(
     { name: `field.${nodePtr.value.id}` },
     computed(() => ({ roots: [nodePtr.value], isEnabled: nodePtr.value != null })),
   );

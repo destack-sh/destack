@@ -30,7 +30,7 @@ import {
   type AnyNodeReferenceData,
   type TypedNodeReferenceData,
 } from "@/proto/wiring";
-import type { GraphConnection } from "@/system/connection";
+import type { Connection } from "@/system/connection";
 import { isDescendantOf, type NodeKey, type ReadNodeGraph } from "@/system/graph";
 import { ENUM_ICONS_BY_TYPE, toIconMaybe } from "@/system/icon";
 import {
@@ -1154,7 +1154,7 @@ export function collapseSelection(selection: SelectionData, nodes: (AnyNodeData 
 
 export function useExpansion(options: {
   graph: ReadNodeGraph;
-  connection: GraphConnection<any, any>;
+  connection: Connection<any, any>;
   self: Ref<AnyNodeReferenceData>;
   isDefaultExpanded?: boolean;
 }) {

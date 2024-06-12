@@ -9,7 +9,7 @@ import {
   type SomeNodeReferenceData,
 } from "@/proto/wiring";
 import local, { LOCAL_SPACE_ID, spaceGraphLocal, spacePtr } from "@/system/client";
-import { makeReadOptions, useExistingConnection, useGetConnection } from "@/system/connection";
+import { makeReadOptions, useExistingConnection, useGet } from "@/system/connection";
 import { NodeGraph, ProxyNodeGraph } from "@/system/graph";
 import { SOURCE_NODE_TYPES } from "@/system/lang";
 import { toaster } from "@/system/toast";
@@ -18,7 +18,7 @@ import { ViewCanvas, createDefaultDesktopSpace, createEmptySpace } from "@/views
 import { computed, nextTick, watch } from "vue";
 
 // bench/packages
-export const { graph: benchGraph, connection: benchConnection } = useGetConnection(
+export const { graph: benchGraph, connection: benchConnection } = useGet(
   { name: "bench", live: true, paramsPretty: computed(() => ({ id: local.benchPtr.value?.id })) },
   computed(() => ({
     roots: [local.benchPtr.value!],
@@ -27,7 +27,7 @@ export const { graph: benchGraph, connection: benchConnection } = useGetConnecti
   })),
 );
 export const bench = benchGraph.getRef(local.benchPtr);
-export const { graph: pkgGraph, connection: pkgConnection } = useGetConnection(
+export const { graph: pkgGraph, connection: pkgConnection } = useGet(
   { name: "pkg", live: true, paramsPretty: computed(() => ({ id: local.packagePtr.value?.id })) },
   computed(() => ({
     roots: [local.packagePtr.value!],

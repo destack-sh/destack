@@ -1,6 +1,6 @@
 <script lang="ts" setup>
 import { ObjectType, PROPERTY_ENUM_BY_TYPE, ViewType, type AnyNodeData } from "@/proto/wire";
-import type { GraphConnection } from "@/system/connection";
+import type { Connection } from "@/system/connection";
 import { IconInline, getNodeIcon } from "@/system/icon";
 import { toCamelName } from "@/system/lang";
 import type { PopoverInfoIn } from "@/utils/menu";
@@ -8,7 +8,7 @@ import { computed } from "vue";
 
 const props = defineProps<{
   node: AnyNodeData;
-  connection: GraphConnection<"get", any>;
+  connection: Connection<"get", any>;
 }>();
 
 const nodeMetatype = computed(() => props.node?.metatype);

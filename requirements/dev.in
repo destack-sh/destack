@@ -5,6 +5,7 @@ pip-tools==7.3.0
 pre-commit==3.3.3
 pyright==1.1.366
 pytest-asyncio==0.23.6
+pytest-mock==3.14.0
 pytest==8.2.0
 ruff==0.4.5
 watchdog==3.0.0

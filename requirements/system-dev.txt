@@ -200,8 +200,11 @@ pyproject-hooks==1.1.0
     # via build
 pyright==1.1.366
 pytest==8.2.0
-    # via pytest-asyncio
+    # via
+    #   pytest-asyncio
+    #   pytest-mock
 pytest-asyncio==0.23.6
+pytest-mock==3.14.0
 python-dateutil==2.9.0.post0
     # via
     #   betterproto
