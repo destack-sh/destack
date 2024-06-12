@@ -114,7 +114,7 @@ class Runtime(ServiceBase, RuntimeBase):
 
     def __str__(self):
         bench_str = (
-            repr(self._bench.node) if self._bench and self._bench.has_result else self._bench_id
+            repr(self._bench.result) if self._bench and self._bench.has_result else self._bench_id
         )
         client_str = repr(self._client) if self._client else self._client_id
         return f"{client_str} on {bench_str}"
@@ -130,7 +130,7 @@ class Runtime(ServiceBase, RuntimeBase):
     @property
     def bench(self) -> Bench:
         assert self._bench is not None, f"no bench for {self!r}"
-        return self._bench.node
+        return self._bench.result
 
     @property
     def client(self) -> Client:
@@ -145,7 +145,7 @@ class Runtime(ServiceBase, RuntimeBase):
     @property
     def main_package(self) -> Package:
         assert self._main_package is not None, f"no main package for {self!r}"
-        return self._main_package.node
+        return self._main_package.result
 
     @asynccontextmanager
     async def session(self, *, readonly: bool = False, autocommit: bool = False):
@@ -193,12 +193,12 @@ class Runtime(ServiceBase, RuntimeBase):
         # NOTE :Performance: share query connections between runtime/threads?
         async with self.session(readonly=True):
             # connect bench
-            self._bench = await self._connector.connect(
+            self._bench = await self._connector.get(
                 BENCH_QUERY.where(id=self._bench_id), self._tx_lock, self._session, owner=self
             )
-            main_environment = self._bench.node.main_environment
+            main_environment = self._bench.result.main_environment
             assert main_environment is not None, f"{self._bench!r} has no main environment"
-            main_branch = self._bench.node.main_branch
+            main_branch = self._bench.result.main_branch
             assert main_branch is not None, f"{self._bench!r} has no main branch"
             assert main_branch.main_package_id is not None, f"{main_branch!r} has no main package"
 
@@ -221,14 +221,14 @@ class Runtime(ServiceBase, RuntimeBase):
             self._session._origin = self._client.to_origin()
 
             # connect main package
-            self._main_package = await self._connector.connect(
+            self._main_package = await self._connector.get(
                 PACKAGE_QUERY.where(id=main_branch.main_package_id),
                 self._tx_lock,
                 self._session,
                 owner=self,
             )
             self._packages[main_branch.main_package_id] = self._main_package
-            self._session.parent = self._main_package.node
+            self._session.parent = self._main_package.result
 
         # start threads
         for i in range(RUNTIME_CONCURRENCY):
@@ -249,7 +249,7 @@ class Runtime(ServiceBase, RuntimeBase):
         logger.info(
             "runtime.start",
             runtime=self,
-            bench=self._bench.node,
+            bench=self._bench.result,
             client=self._client,
             span="current",
         )

@@ -72,7 +72,7 @@ class RuntimeThread:
         self._tasks = TaskManager(owner=self, logger=logger)
 
     def __str__(self):
-        bench = self._bench._node if self._bench else None
+        bench = self._bench._result if self._bench else None
         return f"{self.id} on {repr(bench) or self._bench_id}"
 
     def __repr__(self):
@@ -81,12 +81,12 @@ class RuntimeThread:
     @property
     def bench(self) -> Bench:
         assert self._bench is not None, f"no bench for {self!r}"
-        return self._bench.node
+        return self._bench.result
 
     @property
     def main_package(self) -> Package:
         assert self._main_package is not None, f"no main package for {self!r}"
-        return self._main_package.node
+        return self._main_package.result
 
     @property
     def epoch(self) -> int:
@@ -123,21 +123,21 @@ class RuntimeThread:
 
         # connect
         async with self.session(readonly=True):
-            self._bench = await self._connector.connect(
+            self._bench = await self._connector.get(
                 BENCH_QUERY.where(id=self._bench_id), self._tx_lock, self._session, owner=self
             )
-            main_environment = self._bench.node.main_environment
+            main_environment = self._bench.result.main_environment
             assert main_environment is not None, f"{self._bench!r} has no main environment"
-            main_branch = self._bench.node.main_branch
+            main_branch = self._bench.result.main_branch
             assert main_branch is not None, f"{self._bench!r} has no main branch"
             assert main_branch.main_package_id is not None, f"{main_branch!r} has no main package"
-            self._main_package = await self._connector.connect(
+            self._main_package = await self._connector.get(
                 PACKAGE_QUERY.where(id=main_branch.main_package_id),
                 self._tx_lock,
                 self._session,
                 owner=self,
             )
-            self._session.parent = self._main_package.node
+            self._session.parent = self._main_package.result
 
         # finally, start processing runs
         self._tasks.start_queue(
@@ -149,7 +149,7 @@ class RuntimeThread:
         # TODO :Architecture!: process run in steps/ticks somehow
         #  (also: flush run/session state independent from other nodes, handle pausing, ...)
         assert self._main_package is not None, f"no main package for {self!r}"
-        package = self._main_package.node
+        package = self._main_package.result
         assert (
             run_data.parent_ptr and UUID(run_data.parent_ptr.id) == package.id
         ), f"{run_data!r} not in {package!r}"

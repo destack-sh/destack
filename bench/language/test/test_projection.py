@@ -9,7 +9,7 @@ from bench.language.const import OBJECT_TYPES, BlockType, NodeType, StructType
 from bench.language.field import Field
 from bench.language.projection import render_node, render_struct
 from bench.language.setup import OBJECT_CLASS_BY_TYPE
-from bench.language.test.fabricator import Fabricator
+from bench.language.test.strategies import Fabricator
 
 fabricator = Fabricator(42)
 BUILTIN_OBJECTS = tuple(fabricator.fabricate(OBJECT_CLASS_BY_TYPE[t], ()) for t in OBJECT_TYPES)

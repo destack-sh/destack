@@ -8,7 +8,7 @@ from bench.language.const import OBJECT_TYPES, BlockType, NodeType, PrimitiveTyp
 from bench.language.field import Field, TypeKind, to_type
 from bench.language.node import BuiltinObject
 from bench.language.setup import OBJECT_CLASS_BY_TYPE
-from bench.language.test.fabricator import Fabricator
+from bench.language.test.strategies import Fabricator
 from bench.language.text import Text
 from bench.language.value import (
     ValueObject,

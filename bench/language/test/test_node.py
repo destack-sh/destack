@@ -8,7 +8,7 @@ from bench.language.const import BlockType, NodeType
 from bench.language.field import Field
 from bench.language.session import Session
 from bench.language.setup import NODE_CLASSES, STRUCT_CLASSES
-from bench.language.test.fabricator import Fabricator
+from bench.language.test.strategies import Fabricator
 
 
 def test_struct_regular_properties_are_available():

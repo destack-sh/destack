@@ -23,7 +23,7 @@ from bench.language import (
 from bench.language.const import ClientType, EnumType, NodeType, UserStatus
 from bench.language.field import TypeKind
 from bench.language.query import NodeNotFoundError
-from bench.language.test.fabricator import Fabricator
+from bench.language.test.strategies import Fabricator
 from bench.language.user import User
 from bench.sql.client import pg_store_connection
 from bench.sql.core import GLOBAL_EXTENSIONS, Column, Schema, Table
