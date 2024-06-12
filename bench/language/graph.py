@@ -41,8 +41,8 @@ class _NodeGraphBase[K: str | UUID, V: AnyNodeData | Node](abc.ABC):
     __slots__ = (
         "_nodes_by_ck",
         "_nodes_by_id",
-        "_nodes_by_parent_id_and_type",
-        "_parent_id_by_node_identity",
+        "_nodes_by_parent",
+        "_parent_by_node",
         "node_types",
         "scope",
     )
@@ -62,9 +62,9 @@ class _NodeGraphBase[K: str | UUID, V: AnyNodeData | Node](abc.ABC):
 
         self._nodes_by_id: dict[K, V] = {}
         self._nodes_by_ck: dict[K, V] = {}  # *most* nodes have a 'ck'
-        self._nodes_by_parent_id_and_type: dict[K, dict[ObjectType, list[V]]] = {}
+        self._nodes_by_parent: dict[K, dict[ObjectType, list[V]]] = {}
         # (nodes may be edited in place, so we remember the last parent id we know manually)
-        self._parent_id_by_node_identity: dict[int, K] = {}
+        self._parent_by_node: dict[int, K] = {}
 
         # add initial nodes
         if isinstance(nodes, Collection):
@@ -107,13 +107,13 @@ class _NodeGraphBase[K: str | UUID, V: AnyNodeData | Node](abc.ABC):
         """Clear the graph"""
         self._nodes_by_id.clear()
         self._nodes_by_ck.clear()
-        self._nodes_by_parent_id_and_type.clear()
+        self._nodes_by_parent.clear()
 
     def add(self, node: V):
         """Add a node to the graph (error if node already exists, *no* descendants)"""
         assert isinstance(
             node.id, self.key_type
-        ), f"cannot add {node!r} to {self!r} with id {node.id!r}"
+        ), f"cannot add {node!r} with id {node.id!r} in {self!r}"
         if node.id in self._nodes_by_id:
             existing = self._nodes_by_id[node.id]
             raise ValueError(
@@ -129,7 +129,7 @@ class _NodeGraphBase[K: str | UUID, V: AnyNodeData | Node](abc.ABC):
         """Updates an existing node in this graph (must exist)"""
         assert isinstance(
             node.id, self.key_type
-        ), f"cannot add {node!r} to {self!r} with id {node.id!r}"
+        ), f"cannot update {node!r} with id {node.id!r} in {self!r}"
         old = self._nodes_by_id.get(node.id)
         if old is None:
             raise ValueError(f"node {node!r} does not exist in {self!r}")
@@ -140,7 +140,7 @@ class _NodeGraphBase[K: str | UUID, V: AnyNodeData | Node](abc.ABC):
 
         # update parent if changed
         # (the instance may be edited in place, so we remember the last parent by identity as well)
-        old_parent_id = self._parent_id_by_node_identity.get(
+        old_parent_id = self._parent_by_node.get(
             id(old), old.parent_ptr.id if old.parent_ptr is not None else None
         )
         assert isinstance(
@@ -154,68 +154,69 @@ class _NodeGraphBase[K: str | UUID, V: AnyNodeData | Node](abc.ABC):
                 self._add_to_parent(node)
         elif old_parent_id is not None:
             # update in parent list (identity may have changed)
-            for i, child in enumerate(self._nodes_by_parent_id_and_type[old_parent_id][metatype]):
+            for i, child in enumerate(self._nodes_by_parent[old_parent_id][metatype]):
                 if child.id == node.id:
-                    self._nodes_by_parent_id_and_type[old_parent_id][metatype][i] = node
+                    self._nodes_by_parent[old_parent_id][metatype][i] = node
                     break
             else:
                 raise ValueError(
-                    f"node {node!r} not in {self!r} (should be in {self._nodes_by_parent_id_and_type[old_parent_id][metatype]}, was {old!r})"
+                    f"node {node!r} not in {self!r} (should be in {self._nodes_by_parent[old_parent_id][metatype]}, was {old!r})"
                 )
 
     def remove(self, node: V):
         """Remove a node from the graph (incl. all descendants)"""
         assert isinstance(
             node.id, self.key_type
-        ), f"cannot add {node!r} with id {node.id!r} to {self!r}"
+        ), f"cannot remove {node!r} with id {node.id!r} in {self!r}"
         if node.parent_ptr is not None:
             self._remove_from_parent(node)
         self._nodes_by_id.pop(node.id, None)
         if hasattr(node, "ck"):
             self._nodes_by_ck.pop(getattr(node, "ck"), None)
         # descend
-        if node.id in self._nodes_by_parent_id_and_type:
-            for child_type in tuple(self._nodes_by_parent_id_and_type[node.id]):
-                for child in tuple(self._nodes_by_parent_id_and_type[node.id][child_type]):
+        if node.id in self._nodes_by_parent:
+            for child_type in tuple(self._nodes_by_parent[node.id]):
+                for child in tuple(self._nodes_by_parent[node.id][child_type]):
                     self.remove(child)
-                if node.id not in self._nodes_by_parent_id_and_type:
+                if node.id not in self._nodes_by_parent:
                     break  # may have been removed
 
     def _add_to_parent(self, node: V):
-        assert node.parent_ptr is not None, f"{node!r} has no parent in {self!r}"
+        """Adds the node to our parent index for that parent/type pair"""
+        assert node.parent_ptr is not None, f"{node!r} has no parent for {self!r}"
         parent_id = cast(K, node.parent_ptr.id)
-        if parent_id not in self._nodes_by_parent_id_and_type:
-            self._nodes_by_parent_id_and_type[parent_id] = {}
+        if parent_id not in self._nodes_by_parent:
+            self._nodes_by_parent[parent_id] = {}
         metatype = cast(ObjectType, node.metatype)
-        if metatype not in self._nodes_by_parent_id_and_type[parent_id]:
-            self._nodes_by_parent_id_and_type[parent_id][metatype] = []
-        self._nodes_by_parent_id_and_type[parent_id][metatype].append(node)
-        self._parent_id_by_node_identity[id(node)] = parent_id
+        if metatype not in self._nodes_by_parent[parent_id]:
+            self._nodes_by_parent[parent_id][metatype] = []
+        self._nodes_by_parent[parent_id][metatype].append(node)
+        self._parent_by_node[id(node)] = parent_id
 
     def _remove_from_parent(self, node: V):
-        assert node.parent_ptr is not None, f"{node!r} has no parent in {self!r}"
-        parent_id = self._parent_id_by_node_identity.get(id(node))
+        """Removes the node from our parent index, cleaning up child containers if empty"""
+        assert node.parent_ptr is not None, f"{node!r} has no parent for {self!r}"
+        parent_id = self._parent_by_node.get(id(node))
         if parent_id is None:
             parent_id = cast(K | None, node.parent_ptr.id)
-            assert parent_id, f"{node!r} has no parent in {self!r}"
+            assert parent_id, f"{node!r} has no parent for {self!r}"
         else:
-            del self._parent_id_by_node_identity[id(node)]
-        assert parent_id in self._nodes_by_parent_id_and_type, f"{node!r} has no parent in {self!r}"
-        assert (
-            node.metatype in self._nodes_by_parent_id_and_type[parent_id]
-        ), f"{node!r} not in {self!r}"
+            del self._parent_by_node[id(node)]
+        assert parent_id in self._nodes_by_parent, f"{node!r} has no parent in {self!r}"
+        metatype = node.metatype
+        assert metatype in self._nodes_by_parent[parent_id], f"{node!r} not in {self!r}"
         # node may be different instance, find by id
-        for n in self._nodes_by_parent_id_and_type[parent_id][node.metatype]:
+        our_node = None
+        for n in self._nodes_by_parent[parent_id][metatype]:
             if n.id == node.id:
-                graph_node = n
+                our_node = n
                 break
-        else:
-            raise ValueError(f"node {node!r} not in {self!r}")
-        self._nodes_by_parent_id_and_type[parent_id][node.metatype].remove(graph_node)
-        if len(self._nodes_by_parent_id_and_type[parent_id][node.metatype]) == 0:
-            self._nodes_by_parent_id_and_type[parent_id].pop(node.metatype)
-        if len(self._nodes_by_parent_id_and_type[parent_id]) == 0:
-            self._nodes_by_parent_id_and_type.pop(parent_id)
+        assert our_node is not None, f"node {node!r} not in {self!r}"
+        self._nodes_by_parent[parent_id][metatype].remove(our_node)
+        if len(self._nodes_by_parent[parent_id][metatype]) == 0:
+            self._nodes_by_parent[parent_id].pop(metatype)
+        if len(self._nodes_by_parent[parent_id]) == 0:
+            self._nodes_by_parent.pop(parent_id)
 
     def find_roots(self) -> tuple[V, ...]:
         """Finds all root nodes in *this* graph"""
@@ -227,11 +228,11 @@ class _NodeGraphBase[K: str | UUID, V: AnyNodeData | Node](abc.ABC):
 
     def has_descendants(self, node: V, child_node_type: NodeType | None = None) -> bool:
         """Checks if a node has descendants of a certain type"""
-        if node.id not in self._nodes_by_parent_id_and_type:
+        if node.id not in self._nodes_by_parent:
             return False
         assert isinstance(node.id, self.key_type), f"expected {self.value_type}, got {node!r}"
         if child_node_type is not None:
-            return child_node_type in self._nodes_by_parent_id_and_type[node.id]
+            return child_node_type in self._nodes_by_parent[node.id]
         else:
             return True
 
@@ -240,28 +241,28 @@ class _NodeGraphBase[K: str | UUID, V: AnyNodeData | Node](abc.ABC):
     ) -> list["V"]:
         """Collects all descendants as filtered in BFS order"""
         assert isinstance(node.id, self.key_type), f"expected {self.value_type}, got {node!r}"
-        if node.id not in self._nodes_by_parent_id_and_type:
+        if node.id not in self._nodes_by_parent:
             return EMPTY_LIST
         if not recursive:
             if child_node_type is not None:
-                return self._nodes_by_parent_id_and_type[node.id].get(child_node_type, [])
+                return self._nodes_by_parent[node.id].get(child_node_type, [])
             else:
                 all_children: list[V] = []
-                for children in self._nodes_by_parent_id_and_type[node.id].values():
+                for children in self._nodes_by_parent[node.id].values():
                     all_children.extend(children)
                 return all_children
         else:
             descendants: list[V] = []
             if child_node_type:
-                queue = deque(self._nodes_by_parent_id_and_type[node.id].get(child_node_type, []))
+                queue = deque(self._nodes_by_parent[node.id].get(child_node_type, []))
             else:
                 queue = deque()
-                for children in self._nodes_by_parent_id_and_type[node.id].values():
+                for children in self._nodes_by_parent[node.id].values():
                     queue.extend(children)
             while queue:
                 cur = queue.popleft()
                 descendants.append(cur)
-                for children in self._nodes_by_parent_id_and_type.get(cast(K, cur.id), {}).values():
+                for children in self._nodes_by_parent.get(cast(K, cur.id), {}).values():
                     queue.extend(children)
             return descendants
 

@@ -104,6 +104,7 @@ class HostRouter(ServiceBase, HostBase):
         return f"<{self.__class__.__name__} {self}>"
 
     async def start(self) -> None:
+        await super().start()
         async with global_session():
             benches: list[Bench] = await Bench.tolist()
         await asyncio.gather(*(self._start_host(bench.id) for bench in benches))
@@ -332,6 +333,7 @@ class Host(GraphIoServiceBase, HostBase, HostSpec):
     @tracer.start_as_current_span("host.start")
     async def start(self) -> None:
         trace.get_current_span().set_attribute("bench_id", str(self.bench_id))
+        await super().start()
 
         # load bench
         #  (in different session because we don't have the actual engines yet)

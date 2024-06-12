@@ -41,7 +41,7 @@ import { IS_DEV } from "@/utils/globals";
 import { log } from "@/utils/log";
 import { deepValueEquals, immediateStopWatch, pretendReadonly, toValueRef } from "@/utils/ref";
 import type { RpcError } from "@protobuf-ts/runtime-rpc";
-import { tryOnBeforeUnmount, useNetwork, whenever } from "@vueuse/core";
+import { tryOnBeforeUnmount, useInterval, useIntervalFn, useNetwork, whenever } from "@vueuse/core";
 import { DateTime } from "luxon";
 import { computed, isRef, markRaw, shallowRef, toRef, watch, type MaybeRef, type Ref, type ShallowRef } from "vue";
 
@@ -740,9 +740,11 @@ export function addConnection(connection: ConnectionBase<any, any>): void {
   _connections.value = [..._connections.value, connection];
 }
 
+/** GC inactive (non-local) connections that have been idle for some time */
 async function gcInactiveConnections() {
   const inactiveConnections = _connections.value.filter(
     (c) =>
+      Object.getPrototypeOf(c) != LocalGetConnection.prototype &&
       c.referenceCount == 0 &&
       c.lastReferencedAt != null &&
       DateTime.now().diff(c.lastReferencedAt).milliseconds > INACTIVE_CONNECTION_TIMEOUT,

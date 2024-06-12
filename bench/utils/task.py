@@ -91,6 +91,54 @@ class TaskManager:
         )
         self._active_tasks.append(task)
 
+    async def _run_scheduled_tasks(
+        self,
+        run_every: float,
+        process: Callable[[], None | Awaitable[None] | Coroutine[None, None, None]],
+        task_id: str,
+        skip_errors: bool = False,
+    ) -> None:
+        while True:
+            try:
+                await asyncio.sleep(run_every)
+            except (asyncio.CancelledError, RuntimeError):
+                self._logger.trace("task.cancelled", owner=self._owner, task_id=task_id)
+                break
+            try:
+                ret = process()
+                if ret is not None:
+                    await ret
+            except Exception as e:
+                self._logger.exception(
+                    "task.error",
+                    owner=self._owner,
+                    task_id=task_id,
+                    exc_info=e,
+                    sentry=sentry_capture(e),
+                )
+                if not skip_errors:
+                    if self._on_error is not None:
+                        self._on_error(e)
+                    self._errors.append(e)
+                    raise
+
+    def start_scheduled(
+        self,
+        run_every: float,
+        process: Callable[[], None | Awaitable[None] | Coroutine[None, None, None]],
+        task_id: str | None = None,
+        *,
+        skip_errors: bool,
+    ) -> None:
+        task_id = self._make_task_id(task_id, process.__name__)
+        task = asyncio.create_task(
+            coro=self._run_scheduled_tasks(
+                run_every=run_every, process=process, task_id=task_id, skip_errors=skip_errors
+            ),
+            name=task_id,
+        )
+        self._active_tasks.append(task)
+
     def close(self):
         for task in self._active_tasks:
             with contextlib.suppress(asyncio.CancelledError, RuntimeError):  # see above

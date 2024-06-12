@@ -117,6 +117,11 @@ class GraphIoServiceBase(ServiceBase, GraphIoBase):
                 GRPCStatus.INVALID_ARGUMENT, f"scope mismatch: {scope.bench_id} != {self.bench_id}"
             )
 
+    async def start(self):
+        self._tasks.start_scheduled(
+            30, self.connector.gc_connections, task_id="gc_connections", skip_errors=False
+        )
+
     def request_session(
         self,
         *,
@@ -320,7 +325,7 @@ class GraphIoServiceBase(ServiceBase, GraphIoBase):
                     edits=update.edits,
                     cascaded_edits=update.cascaded_edits,
                     added_nodes=[wiring.wrap_some_node(n) for n in update.added_nodes],
-                    removed_nodes=[NodeReference.from_node_data(n) for n in update.removed_nodes],
+                    removed_nodes_ptr=update.removed_nodes_ptr,
                     epoch=update.epoch,
                 )
         finally:
