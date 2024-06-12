@@ -60,6 +60,7 @@ from bench.language.property import (
     p_system,
 )
 from bench.language.setup import (
+    DESCENDANT_NODE_TYPES,
     HAS_CHILD_NODE_TYPES,
     NODE_CLASS_BY_TYPE,
     NODE_COMPONENT_CLASS_BY_NAME,
@@ -1300,8 +1301,13 @@ class Node[NodeDataT: AnyNodeData](BuiltinObject[NodeDataT], abc.ABC):
         if self.parent is None:
             # if we're not in a graph, start a new one
             #  (not sure which scope/node_types to use here?)
-            self._graph = NodeGraph(scope=GraphScope(), node_types=NODE_TYPES.tuple)
-            self._graph.add(self)
+            # NOTE: cleanup NodeGraph definition "depends on itself", causing pyright errors
+            graph = NodeGraph(  # type: ignore
+                scope=GraphScope(),
+                node_types=(self.metatype, *DESCENDANT_NODE_TYPES[self.metatype].tuple),
+            )
+            graph.add(self)  # type: ignore
+            self._graph = graph
         else:
             # we'll be added to the graph by our parent
             self._graph = self.parent._graph
