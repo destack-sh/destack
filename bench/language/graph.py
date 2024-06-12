@@ -167,7 +167,7 @@ class _NodeGraphBase[K: str | UUID, V: AnyNodeData | Node](abc.ABC):
         """Remove a node from the graph (incl. all descendants)"""
         assert isinstance(
             node.id, self.key_type
-        ), f"cannot add {node!r} to {self!r} with id {node.id!r}"
+        ), f"cannot add {node!r} with id {node.id!r} to {self!r}"
         if node.parent_ptr is not None:
             self._remove_from_parent(node)
         self._nodes_by_id.pop(node.id, None)
@@ -182,7 +182,7 @@ class _NodeGraphBase[K: str | UUID, V: AnyNodeData | Node](abc.ABC):
                     break  # may have been removed
 
     def _add_to_parent(self, node: V):
-        assert node.parent_ptr is not None, f"{node!r} has no parent"
+        assert node.parent_ptr is not None, f"{node!r} has no parent in {self!r}"
         parent_id = cast(K, node.parent_ptr.id)
         if parent_id not in self._nodes_by_parent_id_and_type:
             self._nodes_by_parent_id_and_type[parent_id] = {}
@@ -193,8 +193,13 @@ class _NodeGraphBase[K: str | UUID, V: AnyNodeData | Node](abc.ABC):
         self._parent_id_by_node_identity[id(node)] = parent_id
 
     def _remove_from_parent(self, node: V):
-        assert node.parent_ptr is not None, f"{node!r} has no parent"
-        parent_id = cast(K, node.parent_ptr.id)
+        assert node.parent_ptr is not None, f"{node!r} has no parent in {self!r}"
+        parent_id = self._parent_id_by_node_identity.get(id(node))
+        if parent_id is None:
+            parent_id = cast(K | None, node.parent_ptr.id)
+            assert parent_id, f"{node!r} has no parent in {self!r}"
+        else:
+            del self._parent_id_by_node_identity[id(node)]
         assert parent_id in self._nodes_by_parent_id_and_type, f"{node!r} has no parent in {self!r}"
         assert (
             node.metatype in self._nodes_by_parent_id_and_type[parent_id]

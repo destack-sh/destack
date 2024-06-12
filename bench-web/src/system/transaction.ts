@@ -582,12 +582,12 @@ export interface TransactionBuffer {
   commit(): void | Promise<void>;
   /** Resets the current transaction and overlay. */
   reset(): void | Promise<void>;
-  /** Accepts the given edits from an external source (does not trigger onCommitted) */
+  /** Accepts the given edits from an external source (does not trigger committed) */
   accept(edits: EditData[]): void;
   /** Subscribes to *pending* edits from this buffer */
-  subscribePending(sub: PendingCallback): () => void;
+  onPending(sub: PendingCallback): () => void;
   /** Subscribes to *committed* edits from this buffer */
-  subscribeCommitted(sub: CommittedCallback): () => void;
+  onCommitted(sub: CommittedCallback): () => void;
   /** Force retries the given commit (for debugging) */
   retry?(id: string): Promise<void>;
 
@@ -611,7 +611,7 @@ export class ImmediateTransactionBuffer implements TransactionBuffer {
   public readonly graph: ReadNodeGraph & WriteNodeGraph;
   public readonly pendingEdits = [];
   public readonly isPaused: Ref<boolean> = ref(false);
-  private acceptedSubs: Array<CommittedCallback> = [];
+  private committedSubs: Array<CommittedCallback> = [];
   private currentTx: TransactionBuilder | null = null; // always keep a single transaction
 
   constructor(id: number, scope: GraphScope, graph: ReadNodeGraph & WriteNodeGraph) {
@@ -643,7 +643,7 @@ export class ImmediateTransactionBuffer implements TransactionBuffer {
       // apply edit directly
       editGraph(this.graph, [edit]);
       // notify
-      this.acceptedSubs.forEach((sub) => sub([edit]));
+      this.committedSubs.forEach((sub) => sub([edit]));
       // 'reset'
       newTx.state.edits.length = 0;
     });
@@ -654,16 +654,16 @@ export class ImmediateTransactionBuffer implements TransactionBuffer {
     // nothing to do
   }
 
-  subscribePending(sub: PendingCallback): () => void {
+  onPending(sub: PendingCallback): () => void {
     // nothing to do
     return () => {};
   }
 
-  subscribeCommitted(sub: CommittedCallback): () => void {
-    this.acceptedSubs.push(sub);
+  onCommitted(sub: CommittedCallback): () => void {
+    this.committedSubs.push(sub);
     return () => {
-      const idx = this.acceptedSubs.indexOf(sub);
-      if (idx >= 0) this.acceptedSubs.splice(idx, 1);
+      const idx = this.committedSubs.indexOf(sub);
+      if (idx >= 0) this.committedSubs.splice(idx, 1);
     };
   }
 
@@ -753,6 +753,7 @@ export class RemoteTransactionBuffer implements TransactionBuffer {
       }
 
       // notify on success
+      // (we do not directly edit state on success, when/how/which edits to accept is up to the caller)
       this.committedSubs.forEach((sub) => sub(edits));
     } catch (error) {
       // failed
@@ -804,6 +805,7 @@ export class RemoteTransactionBuffer implements TransactionBuffer {
     });
     tx.onEdit((edit, connectionId, debounce) => {
       if (this.currentTx?.id !== tx.id) throw new Error(`transaction ${tx.describeSelf()} is closed`);
+      if (this.pendingEditsById[edit.id] != null) throw new Error(`edit ${edit.id} already pending`);
       this.pendingEditsById[edit.id] = edit;
       this.pendingSubs.forEach((sub) => sub({ type: "add", connectionId, edits: [edit], debounce }));
     });
@@ -824,7 +826,7 @@ export class RemoteTransactionBuffer implements TransactionBuffer {
     }
   }
 
-  subscribePending(sub: PendingCallback): () => void {
+  onPending(sub: PendingCallback): () => void {
     this.pendingSubs.push(sub);
     return () => {
       const idx = this.pendingSubs.indexOf(sub);
@@ -832,7 +834,7 @@ export class RemoteTransactionBuffer implements TransactionBuffer {
     };
   }
 
-  subscribeCommitted(sub: CommittedCallback): () => void {
+  onCommitted(sub: CommittedCallback): () => void {
     this.committedSubs.push(sub);
     return () => {
       const idx = this.committedSubs.indexOf(sub);
@@ -907,7 +909,7 @@ function watchTransactionBuffer(buffer: TransactionBuffer) {
   let scheduledDebouncedCommit: any | null = null;
 
   // watch pending edit
-  buffer.subscribePending((event) => {
+  buffer.onPending((event) => {
     if (event.type != "add") return; // only react to added edits
     if (scheduledCommit) return; // already wanted
     if (event.debounce != null && event.debounce != "tick") {

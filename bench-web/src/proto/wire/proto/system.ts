@@ -119,9 +119,21 @@ export interface WatchGetResponse {
      */
     cascadedEdits: EditData[];
     /**
+     * New nodes added to the result set.
+     *
+     * @generated from protobuf field: repeated symbolx.bench.SomeNodeData added_nodes = 3;
+     */
+    addedNodes: SomeNodeData[];
+    /**
+     * Nodes removed from the result set.
+     *
+     * @generated from protobuf field: repeated symbolx.bench.NodeReferenceData removed_nodes_ptr = 4;
+     */
+    removedNodesPtr: NodeReferenceData[];
+    /**
      * Current epoch.
      *
-     * @generated from protobuf field: uint64 epoch = 3;
+     * @generated from protobuf field: uint64 epoch = 10;
      */
     epoch: bigint;
 }
@@ -267,7 +279,7 @@ export interface WatchSearchResponse {
      */
     cascadedEdits: EditData[];
     /**
-     * New nodes added to the result set.
+     * Nodes added to the result set.
      *
      * @generated from protobuf field: repeated symbolx.bench.SomeNodeData added_nodes = 3;
      */
@@ -275,9 +287,27 @@ export interface WatchSearchResponse {
     /**
      * Nodes removed from the result set.
      *
-     * @generated from protobuf field: repeated symbolx.bench.NodeReferenceData removed_nodes = 4;
+     * @generated from protobuf field: repeated symbolx.bench.NodeReferenceData removed_nodes_ptr = 4;
      */
-    removedNodes: NodeReferenceData[];
+    removedNodesPtr: NodeReferenceData[];
+    /**
+     * Roots added to the result set.
+     *
+     * @generated from protobuf field: repeated symbolx.bench.NodeReferenceData added_roots_ptr = 5;
+     */
+    addedRootsPtr: NodeReferenceData[];
+    /**
+     * Roots removed from the result set.
+     *
+     * @generated from protobuf field: repeated symbolx.bench.NodeReferenceData removed_roots_ptr = 6;
+     */
+    removedRootsPtr: NodeReferenceData[];
+    /**
+     * New total count.
+     *
+     * @generated from protobuf field: optional int32 total = 7;
+     */
+    total?: number;
     /**
      * Current epoch.
      *
@@ -916,13 +946,17 @@ class WatchGetResponse$Type extends MessageType<WatchGetResponse> {
         super("symbolx.bench.WatchGetResponse", [
             { no: 1, name: "edits", kind: "message", repeat: 1 /*RepeatType.PACKED*/, T: () => EditData },
             { no: 2, name: "cascaded_edits", kind: "message", repeat: 1 /*RepeatType.PACKED*/, T: () => EditData },
-            { no: 3, name: "epoch", kind: "scalar", T: 4 /*ScalarType.UINT64*/, L: 0 /*LongType.BIGINT*/ }
+            { no: 3, name: "added_nodes", kind: "message", repeat: 1 /*RepeatType.PACKED*/, T: () => SomeNodeData },
+            { no: 4, name: "removed_nodes_ptr", kind: "message", repeat: 1 /*RepeatType.PACKED*/, T: () => NodeReferenceData },
+            { no: 10, name: "epoch", kind: "scalar", T: 4 /*ScalarType.UINT64*/, L: 0 /*LongType.BIGINT*/ }
         ]);
     }
     create(value?: PartialMessage<WatchGetResponse>): WatchGetResponse {
         const message = globalThis.Object.create((this.messagePrototype!));
         message.edits = [];
         message.cascadedEdits = [];
+        message.addedNodes = [];
+        message.removedNodesPtr = [];
         message.epoch = 0n;
         if (value !== undefined)
             reflectionMergePartial<WatchGetResponse>(this, message, value);
@@ -939,7 +973,13 @@ class WatchGetResponse$Type extends MessageType<WatchGetResponse> {
                 case /* repeated symbolx.bench.EditData cascaded_edits */ 2:
                     message.cascadedEdits.push(EditData.internalBinaryRead(reader, reader.uint32(), options));
                     break;
-                case /* uint64 epoch */ 3:
+                case /* repeated symbolx.bench.SomeNodeData added_nodes */ 3:
+                    message.addedNodes.push(SomeNodeData.internalBinaryRead(reader, reader.uint32(), options));
+                    break;
+                case /* repeated symbolx.bench.NodeReferenceData removed_nodes_ptr */ 4:
+                    message.removedNodesPtr.push(NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options));
+                    break;
+                case /* uint64 epoch */ 10:
                     message.epoch = reader.uint64().toBigInt();
                     break;
                 default:
@@ -960,9 +1000,15 @@ class WatchGetResponse$Type extends MessageType<WatchGetResponse> {
         /* repeated symbolx.bench.EditData cascaded_edits = 2; */
         for (let i = 0; i < message.cascadedEdits.length; i++)
             EditData.internalBinaryWrite(message.cascadedEdits[i], writer.tag(2, WireType.LengthDelimited).fork(), options).join();
-        /* uint64 epoch = 3; */
+        /* repeated symbolx.bench.SomeNodeData added_nodes = 3; */
+        for (let i = 0; i < message.addedNodes.length; i++)
+            SomeNodeData.internalBinaryWrite(message.addedNodes[i], writer.tag(3, WireType.LengthDelimited).fork(), options).join();
+        /* repeated symbolx.bench.NodeReferenceData removed_nodes_ptr = 4; */
+        for (let i = 0; i < message.removedNodesPtr.length; i++)
+            NodeReferenceData.internalBinaryWrite(message.removedNodesPtr[i], writer.tag(4, WireType.LengthDelimited).fork(), options).join();
+        /* uint64 epoch = 10; */
         if (message.epoch !== 0n)
-            writer.tag(3, WireType.Varint).uint64(message.epoch);
+            writer.tag(10, WireType.Varint).uint64(message.epoch);
         let u = options.writeUnknownFields;
         if (u !== false)
             (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
@@ -1238,7 +1284,10 @@ class WatchSearchResponse$Type extends MessageType<WatchSearchResponse> {
             { no: 1, name: "edits", kind: "message", repeat: 1 /*RepeatType.PACKED*/, T: () => EditData },
             { no: 2, name: "cascaded_edits", kind: "message", repeat: 1 /*RepeatType.PACKED*/, T: () => EditData },
             { no: 3, name: "added_nodes", kind: "message", repeat: 1 /*RepeatType.PACKED*/, T: () => SomeNodeData },
-            { no: 4, name: "removed_nodes", kind: "message", repeat: 1 /*RepeatType.PACKED*/, T: () => NodeReferenceData },
+            { no: 4, name: "removed_nodes_ptr", kind: "message", repeat: 1 /*RepeatType.PACKED*/, T: () => NodeReferenceData },
+            { no: 5, name: "added_roots_ptr", kind: "message", repeat: 1 /*RepeatType.PACKED*/, T: () => NodeReferenceData },
+            { no: 6, name: "removed_roots_ptr", kind: "message", repeat: 1 /*RepeatType.PACKED*/, T: () => NodeReferenceData },
+            { no: 7, name: "total", kind: "scalar", opt: true, T: 5 /*ScalarType.INT32*/ },
             { no: 10, name: "epoch", kind: "scalar", T: 4 /*ScalarType.UINT64*/, L: 0 /*LongType.BIGINT*/ }
         ]);
     }
@@ -1247,7 +1296,9 @@ class WatchSearchResponse$Type extends MessageType<WatchSearchResponse> {
         message.edits = [];
         message.cascadedEdits = [];
         message.addedNodes = [];
-        message.removedNodes = [];
+        message.removedNodesPtr = [];
+        message.addedRootsPtr = [];
+        message.removedRootsPtr = [];
         message.epoch = 0n;
         if (value !== undefined)
             reflectionMergePartial<WatchSearchResponse>(this, message, value);
@@ -1267,8 +1318,17 @@ class WatchSearchResponse$Type extends MessageType<WatchSearchResponse> {
                 case /* repeated symbolx.bench.SomeNodeData added_nodes */ 3:
                     message.addedNodes.push(SomeNodeData.internalBinaryRead(reader, reader.uint32(), options));
                     break;
-                case /* repeated symbolx.bench.NodeReferenceData removed_nodes */ 4:
-                    message.removedNodes.push(NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options));
+                case /* repeated symbolx.bench.NodeReferenceData removed_nodes_ptr */ 4:
+                    message.removedNodesPtr.push(NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options));
+                    break;
+                case /* repeated symbolx.bench.NodeReferenceData added_roots_ptr */ 5:
+                    message.addedRootsPtr.push(NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options));
+                    break;
+                case /* repeated symbolx.bench.NodeReferenceData removed_roots_ptr */ 6:
+                    message.removedRootsPtr.push(NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options));
+                    break;
+                case /* optional int32 total */ 7:
+                    message.total = reader.int32();
                     break;
                 case /* uint64 epoch */ 10:
                     message.epoch = reader.uint64().toBigInt();
@@ -1294,9 +1354,18 @@ class WatchSearchResponse$Type extends MessageType<WatchSearchResponse> {
         /* repeated symbolx.bench.SomeNodeData added_nodes = 3; */
         for (let i = 0; i < message.addedNodes.length; i++)
             SomeNodeData.internalBinaryWrite(message.addedNodes[i], writer.tag(3, WireType.LengthDelimited).fork(), options).join();
-        /* repeated symbolx.bench.NodeReferenceData removed_nodes = 4; */
-        for (let i = 0; i < message.removedNodes.length; i++)
-            NodeReferenceData.internalBinaryWrite(message.removedNodes[i], writer.tag(4, WireType.LengthDelimited).fork(), options).join();
+        /* repeated symbolx.bench.NodeReferenceData removed_nodes_ptr = 4; */
+        for (let i = 0; i < message.removedNodesPtr.length; i++)
+            NodeReferenceData.internalBinaryWrite(message.removedNodesPtr[i], writer.tag(4, WireType.LengthDelimited).fork(), options).join();
+        /* repeated symbolx.bench.NodeReferenceData added_roots_ptr = 5; */
+        for (let i = 0; i < message.addedRootsPtr.length; i++)
+            NodeReferenceData.internalBinaryWrite(message.addedRootsPtr[i], writer.tag(5, WireType.LengthDelimited).fork(), options).join();
+        /* repeated symbolx.bench.NodeReferenceData removed_roots_ptr = 6; */
+        for (let i = 0; i < message.removedRootsPtr.length; i++)
+            NodeReferenceData.internalBinaryWrite(message.removedRootsPtr[i], writer.tag(6, WireType.LengthDelimited).fork(), options).join();
+        /* optional int32 total = 7; */
+        if (message.total !== undefined)
+            writer.tag(7, WireType.Varint).int32(message.total);
         /* uint64 epoch = 10; */
         if (message.epoch !== 0n)
             writer.tag(10, WireType.Varint).uint64(message.epoch);
