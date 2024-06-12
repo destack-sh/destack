@@ -95,7 +95,7 @@ class Connection[ResultT: Any, UpdateT: _Update](abc.ABC):
 
         # replay updates with epoch < since_epoch
         for update in self._replay_buffer:
-            if update.epoch < since_epoch:
+            if update.epoch > since_epoch:
                 subscription._update_queue.put_nowait(update)
 
         self._subscribers.append(subscription)
