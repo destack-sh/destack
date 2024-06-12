@@ -3,7 +3,7 @@ import pytest
 from bench.language import Node, Struct
 from bench.language.const import OBJECT_TYPES
 from bench.language.setup import OBJECT_CLASS_BY_TYPE
-from bench.language.test.fabricator import Fabricator
+from bench.language.test.strategies import Fabricator
 from bench.proto import wiring
 
 fabricator = Fabricator(42)

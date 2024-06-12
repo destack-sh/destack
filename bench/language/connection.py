@@ -110,9 +110,9 @@ class FetchOptions(NamedTuple):
 class FetchResult(NamedTuple):
     nodes: Collection[AnyNodeData]
     roots: Collection[NodeReferenceData]
-    total: int | None = None
-    epoch: int | None = None
-    connection_token: str | None = None
+    total: int | None
+    epoch: int | None
+    connection_token: str | None
 
 
 class FlushResult(NamedTuple):
@@ -122,6 +122,7 @@ class FlushResult(NamedTuple):
 
 class AggregateResult(NamedTuple):
     aggregation: AggregationData
+    connection_token: str | None
 
 
 def scope_includes(scope: GraphScope, other: GraphScope) -> bool:
@@ -309,6 +310,7 @@ class RemoteConnection(StoreConnection[NodeT, NodeDataT]):
             roots=response.roots,
             total=response.total,
             epoch=response.epoch,
+            connection_token=response.connection_token,
         )
 
     @override
@@ -327,7 +329,9 @@ class RemoteConnection(StoreConnection[NodeT, NodeDataT]):
         response = await self.engine.remote.aggregate_nodes(
             request, metadata=self.engine.rpc_headers
         )
-        return AggregateResult(response.aggregation)
+        return AggregateResult(
+            aggregation=response.aggregation, connection_token=response.connection_token
+        )
 
     @override
     @_remote_method
@@ -440,6 +444,8 @@ class PostgresConnection(StoreConnection[NodeT, NodeDataT], Generic[NodeT, NodeD
             roots=[NodeReference.from_node_data(r) for r in roots.nodes],
             nodes=list(graph.nodes),
             total=total,
+            epoch=None,
+            connection_token=None,
         )
 
     @override
@@ -452,10 +458,12 @@ class PostgresConnection(StoreConnection[NodeT, NodeDataT], Generic[NodeT, NodeD
         where = _pg_compile_conditional_maybe(query._node_cls, query._filter)
         if query._aggregation.op == AggregationOp.EXISTS:
             exists = await pg_exists(cur=self.cur, table=query._node_cls.__table__, where=where)
-            return AggregateResult(AggregationData(exists=exists))
+            return AggregateResult(
+                aggregation=AggregationData(exists=exists), connection_token=None
+            )
         elif query._aggregation.op == AggregationOp.COUNT:
             count = await pg_count(cur=self.cur, table=query._node_cls.__table__, where=where)
-            return AggregateResult(AggregationData(count=count))
+            return AggregateResult(aggregation=AggregationData(count=count), connection_token=None)
         else:
             raise ConnectionIncapableError(
                 self, query, expression=query._aggregation, reason="unsupported"
@@ -601,6 +609,8 @@ class InMemoryConnection(StoreConnection[NodeT, NodeDataT], Generic[NodeT, NodeD
             nodes=list(visited_graph.nodes),
             # not yet supported
             total=None,
+            epoch=None,
+            connection_token=None,
         )
 
 
@@ -679,6 +689,7 @@ class SplitConnection(StoreConnection[NodeT, NodeDataT], Generic[NodeT, NodeData
             nodes=combined_graph.nodes,
             total=initial_result.total,
             epoch=initial_result.epoch,
+            connection_token=initial_result.connection_token,
         )
         return combined_result
 

@@ -1,14 +1,14 @@
 import abc
 import asyncio
 from dataclasses import dataclass
-from typing import Any, cast, final, override
+from typing import Any, ClassVar, cast, final, override
 
 import structlog
 from opentelemetry import trace
 
 from bench.language import Session, Subject
 from bench.language.connection import FetchOptions
-from bench.language.const import EditType, NodeType
+from bench.language.const import EditType, NodeType, ReadType
 from bench.language.graph import NodeDataGraph, NodeDataGraphLike
 from bench.language.query import DEFAULT_READ_OPTIONS, QueryBuilder
 from bench.language.transaction import unpack_node_delta
@@ -53,12 +53,14 @@ MAX_TIME_DRIFT_SECONDS = get_from_env(
 
 
 @dataclass(slots=True)
-class _Update:
+class _WatchUpdateBase:
     epoch: int
 
 
-class Connection[ResultT: Any, UpdateT: _Update](abc.ABC):
+class Connection[ResultT: Any, UpdateT: _WatchUpdateBase](abc.ABC):
     """A (usually live) query connection to a (sub)graph."""
+
+    read_type: ClassVar[ReadType]
 
     def __init__(self, scope: GraphScope, query: QueryBuilder):
         self.scope = scope
@@ -263,7 +265,7 @@ class GetResult:
 
 
 @dataclass(slots=True)
-class WatchGetUpdate(_Update):
+class WatchGetUpdate(_WatchUpdateBase):
     edits: list[EditData]
     cascaded_edits: list[EditData]
     added_nodes: list[AnyNodeData]
@@ -275,6 +277,8 @@ class GetConnection(NodeConnectionBase[GetResult, WatchGetUpdate]):
     Connected get query in the graph.
     If live and any root is removed, we error (like the usual get behavior).
     """
+
+    read_type: ClassVar[ReadType] = ReadType.GET
 
     def __result_str__(self, result: GetResult) -> str:
         return f"{len(result.graph)} nodes"
@@ -324,7 +328,7 @@ class SearchResult:
 
 
 @dataclass(slots=True)
-class WatchSearchUpdate(_Update):
+class WatchSearchUpdate(_WatchUpdateBase):
     edits: list[EditData]
     cascaded_edits: list[EditData]
     added_nodes: list[AnyNodeData]
@@ -340,6 +344,8 @@ class SearchConnection(NodeConnectionBase[SearchResult, WatchSearchUpdate]):
     If live, we update the result set dynamically (with added/removed nodes).
     In its final form, we want full incremental materialized view maintenance here.
     """
+
+    read_type: ClassVar[ReadType] = ReadType.SEARCH
 
     def __result_str__(self, result: SearchResult) -> str:
         return f"{len(result.graph)} nodes, {len(result.roots)} roots, total={result.total}"
@@ -373,12 +379,14 @@ class AggregateResult:
 
 
 @dataclass(slots=True)
-class AggregateUpdate(_Update):
+class AggregateUpdate(_WatchUpdateBase):
     aggregation: AggregationData
 
 
 class AggregateConnection(Connection[AggregateResult, AggregateUpdate]):
     """Connected aggregate query in the graph."""
+
+    read_type: ClassVar[ReadType] = ReadType.AGGREGATE
 
     def __result_str__(self, result: AggregateResult) -> str:
         return f"{result.aggregation!r}"

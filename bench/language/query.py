@@ -587,7 +587,7 @@ class QueryBuilder(
         from bench.language.expression import coerce_conditional
 
         filter = coerce_conditional(self._node_cls, filter, kwargs)
-        query = self.where(filter) if filter is not None else self
+        query = self.where(filter) if filter is not None else self.copy()
         query._read_type = ReadType.GET
         trace.get_current_span().set_attribute("query", repr(query))
         results = await query.fetch()

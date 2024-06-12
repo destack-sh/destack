@@ -1190,6 +1190,7 @@ EDIT_SUBJECT_TYPES = (NodeType.USER, NodeType.SERVER, NodeType.RUN)
 
 @dataclass(slots=True)
 class ReadInfo:
+    # NOTE :Architecture: ReadInfo is a clumsy way of passing around epoch/connection_token?
     options: "ReadOptions | None"
     epoch: int | None
     connection_token: str | None

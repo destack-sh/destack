@@ -40,7 +40,7 @@ from bench.system.test.conftest import UserHandle, make_new_user_handle
 from bench.utils.dt import utcnow
 
 if TYPE_CHECKING:
-    from bench.language.test.fabricator import Fabricator
+    from bench.language.test.strategies import Fabricator
 
 
 async def test_user_registration(supervisor: SupervisorStub):
