@@ -1,5 +1,5 @@
 import { ObjectType, BoxData, NodeType, Orientation, type ViewData } from "@/proto/wire";
-import type { GraphConnection } from "@/system/connection";
+import type { Connection } from "@/system/connection";
 import { roundToDigits } from "@/utils/functools";
 import {
   useElementSize,
@@ -167,7 +167,7 @@ export function useSplitView(
   sizeRef: Ref<{ width: number; height: number }>,
   containerRef: Ref<HTMLElement | null>,
   layoutRef: Ref<SplitLayout>,
-  graphConnection: GraphConnection<any, any>,
+  graphConnection: Connection<any, any>,
 ) {
   const { sizedViews, updateSeparator } = splitView(viewsRef, sizeRef, layoutRef);
   const { elementX: mouseRelativeX, elementY: mouseRelativeY } = useMouseInElement(containerRef);

@@ -2,7 +2,7 @@
 import { BlockType, FieldZone, NodeType, Orientation, Variant, ViewData, type FieldData } from "@/proto/wire";
 import { isNode, toNodeReference, type TypedNodeReferenceData } from "@/proto/wiring";
 import type { ActionContext, ActionMapImplementation } from "@/system/action";
-import { useGetConnection, type PreparedGetConnection } from "@/system/connection";
+import { useGet, type PreparedGetConnection } from "@/system/connection";
 import { RUNNABLE_BLOCK_TYPES, createField, moveNode, onNodeMorphed, toCamelName } from "@/system/lang";
 import { canvas } from "@/system/space";
 import { startDragging, useMultiDropZone, type DraggedData, type MultiAnchor } from "@/utils/drag";
@@ -28,7 +28,7 @@ const rightFieldRefs: Ref<Record<string, InstanceType<typeof Field> | null>> = r
 const nodePtr = toRef(props, "nodePtr") as Ref<TypedNodeReferenceData<NodeType.BLOCK>>;
 const { graph: pkgGraph, connection: pkgConnection } =
   props.preparedConnection ??
-  useGetConnection(
+  useGet(
     { name: `class.${nodePtr.value.id}` },
     computed(() => ({ roots: [nodePtr.value], isEnabled: nodePtr.value != null })),
   );
