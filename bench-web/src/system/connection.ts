@@ -182,7 +182,7 @@ function makeConnectionOverlayGraph(
     //  here we distribute optimistic edits to across the transaction buffer, so the edit might not be relevant)
     if (event.connectionId != null && event.connectionId != connection.meta.id) return;
     if (event.type == "reset") overlay.clear();
-    editGraph(overlay, event.edits, { isOverlayOf: base });
+    editGraph(overlay, event.edits, { base: base });
   });
   subs.push(sub);
   return overlay;
