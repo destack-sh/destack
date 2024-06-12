@@ -39,8 +39,12 @@ message WatchGetResponse {
   repeated EditData edits = 1;
   // Cascaded edits to current result set.
   repeated EditData cascaded_edits = 2;
+  // New nodes added to the result set.
+  repeated SomeNodeData added_nodes = 3;
+  // Nodes removed from the result set.
+  repeated NodeReferenceData removed_nodes_ptr = 4;
   // Current epoch.
-  uint64 epoch = 3;
+  uint64 epoch = 10;
 }
 
 message SearchNodesRequest {
@@ -91,10 +95,16 @@ message WatchSearchResponse {
   repeated EditData edits = 1;
   // Cascaded edits to current result set.
   repeated EditData cascaded_edits = 2;
-  // New nodes added to the result set.
+  // Nodes added to the result set.
   repeated SomeNodeData added_nodes = 3;
   // Nodes removed from the result set.
-  repeated NodeReferenceData removed_nodes = 4;
+  repeated NodeReferenceData removed_nodes_ptr = 4;
+  // Roots added to the result set.
+  repeated NodeReferenceData added_roots_ptr = 5;
+  // Roots removed from the result set.
+  repeated NodeReferenceData removed_roots_ptr = 6;
+  // New total count.
+  optional int32 total = 7;
   // Current epoch.
   uint64 epoch = 10;
 }

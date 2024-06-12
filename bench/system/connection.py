@@ -6,11 +6,12 @@ from typing import Any, cast, final, override
 import structlog
 from opentelemetry import trace
 
-from bench.language import ReadOptions, Session, Subject
+from bench.language import Session, Subject
 from bench.language.connection import FetchOptions
 from bench.language.const import EditType, NodeType
 from bench.language.graph import NodeDataGraph, NodeDataGraphLike
-from bench.language.query import QueryBuilder
+from bench.language.query import DEFAULT_READ_OPTIONS, QueryBuilder
+from bench.language.transaction import unpack_node_delta
 from bench.proto.wire import (
     AggregationData,
     AnyNodeData,
@@ -43,6 +44,7 @@ class Connection[ResultT: Any, UpdateT: _Update](abc.ABC):
         self.hash = query._stable_hash()
         self.token: str = generate_access_token(length=8)
         self.query = query
+        self._node_types = bittuple(*query.all_node_types)
         self._subscribers: list[ConnectionSubscription[UpdateT]] = []
         self._created_at = monons()
         self._last_active_at = monons()
@@ -161,8 +163,75 @@ class ConnectionSubscription[UpdateT: Any]:
         self.connection.unsubscribe(self)
 
 
-# NOTE :Architecture :Security!: filter connection subscription with policies
+# TODO :Security!: filter connection subscription with policies
 #  (might need a per-connection-type subscription subtype?)
+
+
+class NodeConnectionBase[
+    ResultT: "GetResult | SearchResult",
+    UpdateT: "WatchGetUpdate | WatchSearchUpdate",
+](Connection[ResultT, UpdateT]):
+    """Base connection for get/search queries in the graph."""
+
+    def _apply_node_edits(
+        self,
+        updated_graph: NodeDataGraphLike,
+        edits: list[EditData],
+        is_cascaded: bool,
+    ) -> list[EditData]:
+        """Apply relevant node edits to the result graph, return filtered edits."""
+        options = self.query._options or DEFAULT_READ_OPTIONS
+        result_graph = self.result.graph
+        filtered_edits: list[EditData] = []
+        for edit in edits:
+            # filter type
+            node_type = NodeType(edit.node_ptr.type)
+            if node_type not in self._node_types:
+                continue  # irrelevant type
+            edit_type = EditType(edit.type)
+
+            # filter scope
+            node_id = edit.node_ptr.id
+            assert node_id, f"missing node id for {edit.node_ptr!r}"
+            if is_cascaded:
+                if edit.type in (EditType.ARCHIVE, EditType.DELETE, EditType.ERASE):
+                    assert edit.old_node_packed, f"missing old node data for {edit!r}"
+                    updated_node = unpack_node_delta(edit.old_node_packed, node_type=node_type)
+                elif edit.type in (EditType.UNARCHIVE, EditType.RESTORE):
+                    assert edit.new_node_packed, f"missing new node data for {edit!r}"
+                    updated_node = unpack_node_delta(edit.new_node_packed, node_type=node_type)
+                else:
+                    raise RuntimeError(f"unexpected cascaded edit type {edit.type} in {edit!r}")
+            else:
+                updated_node = updated_graph.get(node_id)
+                # (all edited nodes must be in the data graph, even deleted ones)
+                assert updated_node is not None, f"missing node data for {edit.node_ptr!r}"
+            if edit.type in (EditType.CREATE, EditType.UPSERT) or (
+                not options.include_hidden and edit_type in (EditType.UNARCHIVE, EditType.RESTORE)
+            ):
+                # parent must be in our result graph
+                #  (cannot be a root type here, so must have a parent)
+                parent_id = updated_node.parent_ptr.id if updated_node.parent_ptr else None
+                assert parent_id, f"missing parent for {updated_node!r}"
+                is_in_scope = parent_id in result_graph
+            else:
+                # node must be in our result graph
+                is_in_scope = node_id in result_graph
+            if not is_in_scope:
+                continue  # irrelevant scope
+
+            # apply (just copy node instead of actually applying edit, we don't modify anything)
+            filtered_edits.append(edit)
+            if edit_type == EditType.ERASE or (
+                not options.include_hidden and edit_type in (EditType.ARCHIVE, EditType.DELETE)
+            ):
+                if node_id in result_graph:
+                    result_graph.remove(updated_node)
+            elif node_id in result_graph:
+                result_graph.update(updated_node)
+            else:
+                result_graph.add(updated_node)
+        return filtered_edits
 
 
 @dataclass(slots=True)
@@ -174,17 +243,15 @@ class GetResult:
 class WatchGetUpdate(_Update):
     edits: list[EditData]
     cascaded_edits: list[EditData]
+    added_nodes: list[AnyNodeData]
+    removed_nodes_ptr: list[NodeReferenceData]
 
 
-class GetConnection(Connection[GetResult, WatchGetUpdate]):
+class GetConnection(NodeConnectionBase[GetResult, WatchGetUpdate]):
     """
     Connected get query in the graph.
     If live and any root is removed, we error (like the usual get behavior).
     """
-
-    def __init__(self, scope: GraphScope, query: QueryBuilder):
-        super().__init__(scope, query)
-        self._node_types = bittuple(*query.all_node_types)
 
     def __result_str__(self, result: GetResult) -> str:
         return f"{len(result.graph)} nodes"
@@ -207,53 +274,20 @@ class GetConnection(Connection[GetResult, WatchGetUpdate]):
         epoch: int,
     ):
         # filter to relevant edits & update result graph
-        options = self.query._options or ReadOptions.default()
-        result_graph = self.result.graph
-        filtered_edits = []
-        for edit in edits:
-            # filter type
-            node_type = NodeType(edit.node_ptr.type)
-            if node_type not in self._node_types:
-                continue  # irrelevant type
-            edit_type = EditType(edit.type)
+        filtered_edits = self._apply_node_edits(updated_graph=graph, edits=edits, is_cascaded=False)
+        filtered_cascaded_edits = self._apply_node_edits(
+            updated_graph=graph, edits=cascaded_edits, is_cascaded=True
+        )
 
-            # filter scope
-            node_id = edit.node_ptr.id
-            assert node_id, f"missing node id for {edit.node_ptr!r}"
-            updated_node = graph.get(node_id)
-            # (all edited nodes must be in the data graph, even deleted ones)
-            assert updated_node is not None, f"missing node data for {edit.node_ptr!r}"
-            parent_id = updated_node.parent_ptr.id if updated_node.parent_ptr else None
-            if edit.type in (EditType.CREATE, EditType.UPSERT):
-                # parent must be in our result graph
-                #  (cannot be a root type here, so must have a parent)
-                assert parent_id, f"missing parent for {updated_node!r}"
-                is_in_scope = parent_id in result_graph
-            else:
-                # node must be in our result graph
-                is_in_scope = node_id in result_graph
-            if not is_in_scope:
-                continue  # irrelevant scope
-
-            # apply (just copy node instead of actually applying edit, we don't modify anything)
-            filtered_edits.append(edit)
-            if edit_type == EditType.ERASE or (
-                not options.include_hidden and edit_type in (EditType.ARCHIVE, EditType.DELETE)
-            ):
-                if node_id in result_graph:
-                    result_graph.remove(updated_node)
-            elif node_id in result_graph:
-                result_graph.update(updated_node)
-            else:
-                result_graph.add(updated_node)
-
-        # nocheckin: handle cascaded edits
-        filtered_cascaded_edits = []
-
-        # add filtered update if any
+        # emit update if any
         if filtered_edits or filtered_cascaded_edits:
             update = WatchGetUpdate(
-                edits=filtered_edits, cascaded_edits=filtered_cascaded_edits, epoch=epoch
+                edits=filtered_edits,
+                cascaded_edits=filtered_cascaded_edits,
+                # we don't handle permissions here, so no added/removed nodes as roots are static
+                added_nodes=[],
+                removed_nodes_ptr=[],
+                epoch=epoch,
             )
             self.notify_update(update)
 
@@ -271,19 +305,16 @@ class WatchSearchUpdate(_Update):
     edits: list[EditData]
     cascaded_edits: list[EditData]
     added_nodes: list[AnyNodeData]
-    removed_nodes: list[AnyNodeData]
+    removed_nodes_ptr: list[AnyNodeData]
+    total: int | None
 
 
-class SearchConnection(Connection[SearchResult, WatchSearchUpdate]):
+class SearchConnection(NodeConnectionBase[SearchResult, WatchSearchUpdate]):
     """
     Connected search query in the graph.
     If live, we update the result set dynamically (with added/removed nodes).
     In its final form, we want full incremental materialized view maintenance here.
     """
-
-    def __init__(self, scope: GraphScope, query: QueryBuilder):
-        super().__init__(scope, query)
-        self._node_types = bittuple(*query.all_node_types)
 
     def __result_str__(self, result: SearchResult) -> str:
         return f"{len(result.graph)} nodes, {len(result.roots)} roots, total={result.total}"

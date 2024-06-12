@@ -174,7 +174,7 @@ function makeConnectionOverlayGraph(
   subs: (() => void)[],
 ): NodeGraph {
   const overlay = new NodeGraph({ scope: base.scope, nodeTypes: base.nodeTypes, isOverlayOf: base });
-  const sub = connection.txBuffer.subscribePending((event) => {
+  const sub = connection.txBuffer.onPending((event) => {
     // NOTE :UX :Architecture: instead of ignoring transactions from other connections outright we could optimistically
     //  apply edits to the same node identities to other connections as well. Ultimately,
     //  we probably want to emulate even more of the backend live connection logic (e.g., optimistic search results).
@@ -539,7 +539,7 @@ export class RemoteGetConnection<T extends NodeType> extends ConnectionBase<"get
       editStream.responses.onError(onError);
     } else {
       // otherwise directly apply confirmed edits
-      subs.push(this.txBuffer.subscribeCommitted((edits) => editGraph(graph, edits)));
+      subs.push(this.txBuffer.onCommitted((edits) => this.txBuffer.accept(edits)));
     }
 
     const overlay = makeConnectionOverlayGraph(graph, this, subs);
@@ -582,13 +582,8 @@ export class RemoteSearchConnection<T extends NodeType> extends ConnectionBase<"
     const page = shallowRef({ roots: rootsInitial, size: rootsInitial.length, total: totalInitial });
 
     // watch edits if live
-    if (this.isLive) {
-      // nocheckin: watch edits
-      //  (also this should react to current overlay graph somehow)
-    } else {
-      // otherwise directly apply confirmed edits
-      subs.push(this.txBuffer.subscribeCommitted((edits) => editGraph(graph, edits)));
-    }
+    // nocheckin: watch edits
+    //  (also this should react to current overlay graph somehow)
 
     const overlay = makeConnectionOverlayGraph(graph, this, subs);
     return { graph, overlay, roots, page, subs };

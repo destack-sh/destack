@@ -3,7 +3,7 @@
 
 from typing import TYPE_CHECKING, Union
 
-VERSION = "2024.06.11.1"
+VERSION = "2024.06.12.0"
 
 if TYPE_CHECKING:
     from bench.language import Subject
@@ -3456,7 +3456,13 @@ class WatchGetResponse(betterproto.Message):
     cascaded_edits: List["EditData"] = betterproto.message_field(2)
     """Cascaded edits to current result set."""
 
-    epoch: int = betterproto.uint64_field(3)
+    added_nodes: List["SomeNodeData"] = betterproto.message_field(3)
+    """New nodes added to the result set."""
+
+    removed_nodes_ptr: List["NodeReferenceData"] = betterproto.message_field(4)
+    """Nodes removed from the result set."""
+
+    epoch: int = betterproto.uint64_field(10)
     """Current epoch."""
 
 
@@ -3531,10 +3537,19 @@ class WatchSearchResponse(betterproto.Message):
     """Cascaded edits to current result set."""
 
     added_nodes: List["SomeNodeData"] = betterproto.message_field(3)
-    """New nodes added to the result set."""
+    """Nodes added to the result set."""
 
-    removed_nodes: List["NodeReferenceData"] = betterproto.message_field(4)
+    removed_nodes_ptr: List["NodeReferenceData"] = betterproto.message_field(4)
     """Nodes removed from the result set."""
+
+    added_roots_ptr: List["NodeReferenceData"] = betterproto.message_field(5)
+    """Roots added to the result set."""
+
+    removed_roots_ptr: List["NodeReferenceData"] = betterproto.message_field(6)
+    """Roots removed from the result set."""
+
+    total: Optional[int] = betterproto.int32_field(7, optional=True)
+    """New total count."""
 
     epoch: int = betterproto.uint64_field(10)
     """Current epoch."""
