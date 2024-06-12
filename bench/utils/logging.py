@@ -27,9 +27,15 @@ _PYTHON_LOG_LEVEL_BY_LEVEL = {  # :LogLevel
 }
 
 
-LOG_LEVEL = get_from_env("LOG_LEVEL", default="DEBUG")
+LOG_LEVEL = get_from_env(
+    "LOG_LEVEL",
+    default="DEBUG",
+    description="Python log level [TRACE, DEBUG, INFO, WARNING, ERROR, CRITICAL]",
+)
 PYTHON_LOG_LEVEL = _PYTHON_LOG_LEVEL_BY_LEVEL[LOG_LEVEL]
-LOG_MODE = get_from_env("LOG_MODE", typ=LogMode)
+LOG_MODE = get_from_env(
+    "LOG_MODE", typ=LogMode, default=LogMode.JSON, description="Log mode [plain, json]"
+)
 
 
 def _padright(s: str, width: int) -> str:

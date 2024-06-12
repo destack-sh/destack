@@ -15,7 +15,7 @@ from opentelemetry import trace
 
 from bench.language import Bench, Package, Run, Server, Subject
 from bench.language.access import Badge, Ownable
-from bench.language.bench import Client, Machine, MachineProfile, ResourceStatus
+from bench.language.bench import Client
 from bench.language.connection import InMemoryEngine, PostgresEngine, StoreEngine
 from bench.language.const import (
     ETERNAL_NODE_TYPES,
@@ -67,19 +67,17 @@ from bench.system.provisioner import Provisioner, get_provisioners_for
 from bench.system.scheduler import QueueRunPlugin
 from bench.utils.dt import utcnow
 from bench.utils.func import to_uuid
-from bench.utils.utils import get_from_env, get_from_env_maybe
+from bench.utils.utils import get_from_env
 from bench.utils.uuidt import UUIDT
 
 logger = structlog.get_logger(__name__)
 tracer = trace.get_tracer(__name__)
 
-HOST_MEMORY_ENGINE_ENABLED = get_from_env("HOST_MEMORY_ENGINE_ENABLED", typ=bool, default=True)
-LOCAL_MACHINE_URL = get_from_env_maybe("LOCAL_MACHINE_URL")
-LOCAL_MACHINE = Machine(
-    name="localhost",
-    status=ResourceStatus.HEALTHY,
-    connection_uri=LOCAL_MACHINE_URL,
-    profile=MachineProfile.MEDIUM,
+HOST_MEMORY_ENGINE_ENABLED = get_from_env(
+    "HOST_MEMORY_ENGINE_ENABLED",
+    typ=bool,
+    default=True,
+    description="Whether to provide in-memory engines for Bench/Package",
 )
 
 

@@ -16,14 +16,12 @@ def str_to_bool(value: str) -> bool:
 def get_from_env_maybe[T](
     key: str,
     *,
+    description: str,
     default: Optional[T] = None,
-    alt: Optional[str] = None,
     optional: bool = True,
     typ: type[T] = str,
 ) -> T | None:
     value = os.getenv(key)
-    if (value is None or value == "") and alt:
-        value = os.getenv(alt)
     if value is None or value == "":
         if default is not None:
             return default
@@ -31,7 +29,7 @@ def get_from_env_maybe[T](
             return None
         else:
             raise ValueError(
-                f'environment variable {key} is required (alt={alt or "<not set>"}, type_cast={typ}).'
+                f'environment variable {key} is required (type={typ}, description="{description}")'
             )
     try:
         if typ is bool:
@@ -51,8 +49,7 @@ def get_from_env_maybe[T](
             value = cast(T, typ(value))  # type: ignore
     except Exception as e:
         raise ValueError(
-            f'environment variable {key} with value "{value}" (alt={alt or "<not set>"}) '
-            f"could not be cast to {typ}"
+            f'environment variable is invalid (key={key}, value={value}, type_cast={typ}, description="{description}"'
         ) from e
     return cast(T, value)
 
@@ -60,11 +57,13 @@ def get_from_env_maybe[T](
 def get_from_env[T](
     key: str,
     *,
+    description: str,
     default: Optional[T] = None,
-    alt: Optional[str] = None,
     typ: Type[T] = str,
 ) -> T:
-    value = get_from_env_maybe(key, default=default, alt=alt, optional=False, typ=typ)
+    value = get_from_env_maybe(
+        key, description=description, default=default, optional=False, typ=typ
+    )
     return cast(T, value)
 
 

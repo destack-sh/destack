@@ -1018,7 +1018,7 @@ class NotificationKind(IdEnum):
 # Other global stuff
 #
 
-REGION = get_from_env("REGION", typ=Region)
+REGION = get_from_env("REGION", typ=Region, description="Region we're running in")
 
 
 class BenchError(Exception):

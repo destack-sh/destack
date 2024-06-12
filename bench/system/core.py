@@ -33,10 +33,10 @@ from bench.utils.utils import get_from_env
 logger = structlog.get_logger(__name__)
 tracer = trace.get_tracer(__name__)
 
-GLOBAL_PG_HOST = get_from_env("GLOBAL_PG_HOST")
-GLOBAL_PG_NAME = get_from_env("GLOBAL_PG_NAME")
-GLOBAL_PG_USERNAME = get_from_env("GLOBAL_PG_USERNAME")
-GLOBAL_PG_PASSWORD = get_from_env("GLOBAL_PG_PASSWORD")
+GLOBAL_PG_HOST = get_from_env("GLOBAL_PG_HOST", description="Global Postgres host")
+GLOBAL_PG_NAME = get_from_env("GLOBAL_PG_NAME", description="Global Postgres database name")
+GLOBAL_PG_USERNAME = get_from_env("GLOBAL_PG_USERNAME", description="Global Postgres username")
+GLOBAL_PG_PASSWORD = get_from_env("GLOBAL_PG_PASSWORD", description="Global Postgres password")
 
 SYSTEM_BENCH_STUB = Bench(
     name="System (Stub)", slug="system", region=Region.GLOBAL, encryption_key=GLOBAL_PG_CRYPTO_KEY

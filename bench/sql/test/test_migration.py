@@ -16,7 +16,7 @@ from bench.sql.migration import (
 )
 from bench.system.core import GLOBAL_STORE, global_pg_cursor
 from bench.system.neon import NeonApiRemote
-from bench.utils.env import EMV
+from bench.utils.env import ENV
 from bench.utils.utils import get_from_env
 
 logger = structlog.get_logger(__name__)
@@ -44,11 +44,12 @@ async def blank_global_test_cur(blank_global_test_db: str):
 async def blank_local_test_db(request: pytest.FixtureRequest):
     # use actual Neon API (remote) because we don't have all the extensions locally
     neon_client = NeonApiRemote(
-        url=get_from_env("NEON_BASE_URL"), api_key=get_from_env("NEON_API_KEY")
+        url=get_from_env("NEON_BASE_URL", description="Full URL for Neon API"),
+        api_key=get_from_env("NEON_API_KEY", description="Neon API key"),
     )
     random_postfix = "".join(random.choices(string.ascii_lowercase, k=8))
     create_rep = await neon_client.create_project(
-        name=f"{EMV}-{request.function.__name__}-{random_postfix}",
+        name=f"{ENV}-{request.function.__name__}-{random_postfix}",
         region=Region.EUROPE_CENTRAL,
         pg_version=16,
     )

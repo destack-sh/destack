@@ -373,8 +373,18 @@ _MAX_ID_BY_ENUM: dict[type, int] = {}
 
 IdEnumT = TypeVar("IdEnumT", bound="IdEnum")
 
-TRACE_LOCKS = get_from_env("TRACE_LOCKS", typ=bool, default=False)
-CRITICAL_LOCK_TIMEOUT = get_from_env("CRITICAL_LOCK_TIMEOUT", typ=int, default=10)
+TRACE_LOCKS = get_from_env(
+    "TRACE_LOCKS",
+    typ=bool,
+    default=False,
+    description="Whether to trace critical lock acquisition/release",
+)
+CRITICAL_LOCK_TIMEOUT = get_from_env(
+    "CRITICAL_LOCK_TIMEOUT",
+    typ=int,
+    default=10,
+    description="Timeout for critical locks in seconds",
+)
 
 
 def generate_access_token(length: int) -> str:
