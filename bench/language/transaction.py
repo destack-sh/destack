@@ -8,11 +8,12 @@ import structlog
 from betterproto.lib.google.protobuf import Struct as ProtoStruct
 from opentelemetry import trace
 
-from bench.language.channel import (
-    InMemoryEngine,
+from bench.language.connection import (
+    Channel,
+    GraphEngine,
+    MemoryEngine,
     SplitChannel,
-    StoreChannel,
-    StoreEngine,
+    WritableChannel,
     scope_includes,
 )
 from bench.language.const import UNSET, BenchError, EditType, NodeType
@@ -50,8 +51,8 @@ class Transaction:
     id: UUID
     session: "Session"
     is_readonly: bool = dataclasses.field(default=False)
-    _read_channel: StoreChannel = dataclasses.field(init=False)
-    _channels_by_engine_id: dict[Any, StoreChannel] = dataclasses.field(default_factory=dict)
+    _read_channel: Channel = dataclasses.field(init=False)
+    _channels_by_engine_id: dict[Any, Channel] = dataclasses.field(default_factory=dict)
 
     """All edits from this transaction (since the previous commit)."""
     edits: list[EditData] = dataclasses.field(default_factory=list)
@@ -83,7 +84,7 @@ class Transaction:
     def has_pending_edits(self) -> bool:
         return any(self._pending_edits_by_engine_id.values())
 
-    async def _get_channel(self, engine: StoreEngine) -> StoreChannel:
+    async def _get_channel(self, engine: GraphEngine) -> Channel:
         """Gets or creates a store channel"""
         channel = self._channels_by_engine_id.get(engine.id)
         if channel is None:
@@ -107,7 +108,7 @@ class Transaction:
         *,
         is_readonly: bool,
         best_match: Collection[NodeType] | None = None,
-    ) -> StoreEngine:
+    ) -> GraphEngine:
         """Gets the appropriate engine"""
         node_types = (node_types,) if isinstance(node_types, NodeType) else node_types
         candidate_engines = [
@@ -129,9 +130,9 @@ class Transaction:
         else:
             # try to find best match (most type overlap, best first)
             candidate_engines.sort(key=lambda e: -len([t for t in best_match if t in e.node_types]))
-            if any(isinstance(e, InMemoryEngine) for e in candidate_engines):
+            if any(isinstance(e, MemoryEngine) for e in candidate_engines):
                 # prefer in-memory engines
-                return next(e for e in candidate_engines if isinstance(e, InMemoryEngine))
+                return next(e for e in candidate_engines if isinstance(e, MemoryEngine))
             return candidate_engines[0]
 
     #
@@ -412,7 +413,7 @@ class Transaction:
     async def open(self):
         pass
 
-    def _add_pending_edit(self, edit: EditData, node: Optional[Node]) -> StoreEngine:
+    def _add_pending_edit(self, edit: EditData, node: Optional[Node]) -> GraphEngine:
         """Adds an edit to the pending (unflushed, uncommitted)"""
         from bench.proto import wiring
 
@@ -444,6 +445,7 @@ class Transaction:
             if not (pending_edits or (commit and engine.id in self._used_engine_ids)):
                 continue  # nothing to do
             channel = await self._get_channel(engine)
+            assert isinstance(channel, WritableChannel), f"read-only {channel!r} for {engine!r}"
 
             # flush/commit
             message = "transaction.commit.engine" if commit else "transaction.flush.engine"

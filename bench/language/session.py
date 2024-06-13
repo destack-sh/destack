@@ -8,7 +8,7 @@ from uuid import UUID
 import structlog
 from opentelemetry import trace
 
-from bench.language.channel import ChannelFailedError, StoreEngine
+from bench.language.connection import ChannelFailedError, GraphEngine
 from bench.language.const import (
     NodeType,
     PrimitiveType,
@@ -114,7 +114,7 @@ class Session(PackageNode[SessionData], HasTimeIdentity):
     # transaction
     _origin: ClientOrigin | None = p_runtime(default=None)
     _subject: EditSubject | None = p_runtime(default=None)
-    _engines: tuple["StoreEngine", ...] = p_runtime(default_factory=tuple)
+    _engines: tuple["GraphEngine", ...] = p_runtime(default_factory=tuple)
     _tx: Transaction | None = p_runtime(default=None)
     _tx_lock: asyncio.Lock = p_runtime(default_factory=lambda: CriticalLock(name="session"))
     _edited_nodes_by_id: dict[UUID, Node] = p_runtime(default_factory=dict)

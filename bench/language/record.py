@@ -2,13 +2,6 @@ from typing import TYPE_CHECKING, Any, Optional, cast
 
 import structlog
 
-from bench.language.channel import (
-    AggregateResult,
-    FetchOptions,
-    FetchResult,
-    PostgresChannel,
-    PostgresEngine,
-)
 from bench.language.const import NodeType
 from bench.language.field import TypeInfoBase
 from bench.language.node import HasNodeBase, HasPersistentIdentity, PackageNode, node_
@@ -18,7 +11,6 @@ from bench.language.property import (
     p_value_packed,
     p_value_runtime,
 )
-from bench.language.query import QueryBuilder
 from bench.language.value import HasValues
 from bench.proto.wire import AnyNodeData, NodeReferenceData, RecordData
 from bench.utils.func import describe_type
@@ -64,17 +56,3 @@ class Record(PackageNode[RecordData], HasPersistentIdentity, HasNodeBase, HasVal
     @property
     def _type(self) -> "TypeInfo":
         return getattr(self.parent, "as_type")
-
-
-class RecordPostgresEngine(PostgresEngine[Record, RecordData]):
-    pass
-
-
-class RecordConnection(PostgresChannel[Record, RecordData]):
-    async def fetch(
-        self, query: "QueryBuilder[Record, RecordData]", options: FetchOptions
-    ) -> FetchResult:
-        raise NotImplementedError
-
-    async def aggregate(self, query: "QueryBuilder[Record, RecordData]") -> AggregateResult:
-        raise NotImplementedError

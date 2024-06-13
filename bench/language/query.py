@@ -16,6 +16,7 @@ from typing import (
 import structlog
 from opentelemetry import trace
 
+from bench.language.connection import AggregateOptions
 from bench.language.const import (
     AggregationOp,
     BenchError,
@@ -28,12 +29,10 @@ from bench.language.const import (
     active_tx,
 )
 from bench.language.expression import C, Expression
-from bench.language.graph import NodeDataGraph
 from bench.language.node import (
     NODE_CLASS_BY_TYPE,
     InlineStruct,
     Node,
-    ReadInfo,
     SourceNode,
     node_,
     struct_,
@@ -434,18 +433,21 @@ class QueryBuilder[NodeT: Node, NodeDataT: AnyNodeData]:
             raise TypeError(f"expected slice into {self!r}, got {type(item)}: {item}")
 
     async def __aiter__(self):
-        return iter(await self.fetch())
+        return iter(await self.search())
 
     @tracer.start_as_current_span("query.get")
-    async def get(self, filter: Optional["Expression"] = None, **kwargs) -> NodeT:
+    async def get(
+        self, filter: Optional["Expression"] = None, live: bool = False, **kwargs
+    ) -> NodeT:
         """Returns the unique result matching the query (errors otherwise)."""
         from bench.language.expression import coerce_conditional
 
+        # nocheckin: turn this into a get connection if possible somehow
         filter = coerce_conditional(self._node_cls, filter, kwargs)
         query = self.where(filter) if filter is not None else self.copy()
         query._read_type = ReadType.GET
         trace.get_current_span().set_attribute("query", repr(query))
-        results = await query.fetch()
+        results = await query.search()
         if len(results) == 1:
             return results[0]
         else:
@@ -454,30 +456,19 @@ class QueryBuilder[NodeT: Node, NodeDataT: AnyNodeData]:
             else:
                 raise MultipleNodesFoundError(query=query, result=results)
 
-    @tracer.start_as_current_span("query.fetch")
-    async def fetch(self) -> list[NodeT]:
+    @tracer.start_as_current_span("query.search")
+    async def search(self, *, live: bool = False) -> list[NodeT]:
         """Fetches the nodes matching the query."""
-        from bench.language.channel import FetchOptions
-        from bench.proto.wiring import unpack_node_roots
+        from bench.language.connection import SearchOptions
 
         session = active_session()
-        result = await session.tx._read_channel.fetch(self, FetchOptions())
-        data_graph = NodeDataGraph(
-            scope=session._default_scope, node_types=list(self.all_node_types), nodes=result.nodes
+        connection = await session.tx._read_channel.search(
+            self, SearchOptions(live=live, unpack=True, count=False)
         )
-        read = ReadInfo(
-            options=self._options,
-            epoch=result.epoch,
-            graph=data_graph,
-            connection_token=result.connection_token,
-        )
-        roots, _ = unpack_node_roots(
-            data_graph, parent=self._base, session=session, roots=result.roots, read=read
-        )
-        return cast(list[NodeT], list(roots))
+        return cast(list[NodeT], connection.result.roots)
 
-    tolist = fetch  # type: ignore
-    to_list = fetch  # type: ignore
+    tolist = search  # type: ignore
+    to_list = search  # type: ignore
 
     @tracer.start_as_current_span("query.count")
     async def count(self, filter: Optional["Expression"] = None, **kwargs) -> int:
@@ -490,9 +481,12 @@ class QueryBuilder[NodeT: Node, NodeDataT: AnyNodeData]:
         query = query.aggregate(A(AggregationOp.COUNT))
         query._read_type = ReadType.AGGREGATE
         trace.get_current_span().set_attribute("query", repr(query))
-        result = await tx._read_channel.aggregate(query)
-        assert result.aggregation.count is not None, f"missing count in {result!r}"
-        return result.aggregation.count
+        connection = await tx._read_channel.aggregate(
+            query, AggregateOptions(live=False, unpack=False)
+        )
+        aggregation = connection.result_data.aggregation
+        assert aggregation.count is not None, f"missing count in {connection!r}"
+        return aggregation.count
 
     @tracer.start_as_current_span("query.exists")
     async def exists(self, filter: Optional["Expression"] = None, **kwargs) -> bool:
@@ -505,9 +499,12 @@ class QueryBuilder[NodeT: Node, NodeDataT: AnyNodeData]:
         query = query.aggregate(A(AggregationOp.EXISTS))
         query._read_type = ReadType.AGGREGATE
         trace.get_current_span().set_attribute("query", repr(query))
-        result = await tx._read_channel.aggregate(query)
-        assert result.aggregation.exists is not None, f"missing exists in {result!r}"
-        return result.aggregation.exists
+        connection = await tx._read_channel.aggregate(
+            query, AggregateOptions(live=False, unpack=False)
+        )
+        aggregation = connection.result_data.aggregation
+        assert aggregation.exists is not None, f"missing exists in {connection!r}"
+        return aggregation.exists
 
     @tracer.start_as_current_span("query.scalar")
     async def scalar(self, *properties: "str | Property") -> Any:
@@ -525,7 +522,7 @@ class QueryBuilder[NodeT: Node, NodeDataT: AnyNodeData]:
         """Returns a single value from the single result, or None if no result."""
         assert properties, "expected at least one property"
         properties_names = tuple(p.name if not isinstance(p, str) else p for p in properties)
-        results = await self.fetch()
+        results = await self.search()
         if len(results) == 1:
             node = results[0]
             if len(properties) == 1:
@@ -543,10 +540,10 @@ class QueryBuilder[NodeT: Node, NodeDataT: AnyNodeData]:
         assert properties, "expected at least one property"
         properties_names = tuple(p.name if not isinstance(p, str) else p for p in properties)
         if len(properties) == 1:
-            return [getattr(node, properties_names[0]) for node in await self.fetch()]
+            return [getattr(node, properties_names[0]) for node in await self.search()]
         else:
             return [
-                tuple(getattr(node, p) for p in properties_names) for node in await self.fetch()
+                tuple(getattr(node, p) for p in properties_names) for node in await self.search()
             ]
 
     @staticmethod

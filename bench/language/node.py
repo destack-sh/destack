@@ -81,12 +81,15 @@ if TYPE_CHECKING:
         Bench,
         Expression,
         Field,
+        GetConnection,
         NodeReference,
+        NodeSuperGraph,
         Package,
         PropertyReference,
         QueryBuilder,
         ReadOptions,
         Run,
+        SearchConnection,
         Server,
         Session,
         User,
@@ -1013,13 +1016,8 @@ class BuiltinObject[ObjectDataT: AnyNodeData | AnyStructData](abc.ABC):
 
     def _resolve_references(self, scope: Optional["Node"]):
         # resolve node references
-        # TODO :Robustness :Architecture: turn regular node refs into computed properties?
+        # TODO :Robustness :Architecture: turn regular node refs into computed properties in supergraph
         #   :NodeRefs  :NoFakeComputed
-        #  Currently, we manually set wired ptrs on set and resolve on interp.
-        #  If we had immediate (=fast) access to a graph in all Object/Struct/Nodes,
-        #  we could skip having to resolve during interp and leaving stale refs until re-interp.
-        #  I'm not sure how Nodes that aren't in our current graph should be treated then.
-        #   (use a collective NodeGraphSet for all currently available graphs?)
         if scope is not None:
             graph = scope._graph
             for prop in self.__node_reference_properties__.values():
@@ -1194,7 +1192,6 @@ class ReadInfo:
     options: "ReadOptions | None"
     epoch: int | None
     connection_token: str | None
-    properties: bitarray | None = None
     graph: NodeDataGraph | None = None
 
 
@@ -1279,8 +1276,8 @@ class Node[NodeDataT: AnyNodeData](BuiltinObject[NodeDataT], abc.ABC):
     # <... defined in concrete type ...>
 
     _graph: "NodeGraph" = p_runtime(default=None)
-    # _supergraph: NodeSupergraph?
-    _read_info: "ReadInfo | None" = p_runtime(default=None)
+    _supergraph: "NodeSuperGraph" = p_runtime(default=None)
+    _connection: "GetConnection | SearchConnection" = p_runtime(default=None)
     _is_new: bool = p_runtime(default=False)
 
     def __post_init__(self):
@@ -1380,10 +1377,16 @@ class Node[NodeDataT: AnyNodeData](BuiltinObject[NodeDataT], abc.ABC):
         return True
 
     @property
+    def connection(self):
+        """The currently active connection (errors if none)"""
+        assert self._connection is not None, f"no connection for {self!r}"
+        return self._connection
+
+    @property
     def _data_graph(self) -> "NodeDataGraph":
-        assert self._read_info is not None, f"no read info for {self!r}"
-        assert self._read_info.graph is not None, f"no read data graph for {self!r}"
-        return self._read_info.graph
+        assert self._connection is not None, f"no connection for {self!r}"
+        assert self._connection.result_data is not None, f"no data graph for {self!r}"
+        return self._connection.result_data.graph
 
     def __eq__(self, other: Any):
         """Equals node identity."""

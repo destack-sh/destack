@@ -12,7 +12,7 @@ from opentelemetry import trace
 
 from bench.language import Bench, Node, NodeType, Store
 from bench.language.bench import Branch, Package, Region
-from bench.language.channel import PostgresEngine
+from bench.language.connection import PostgresEngine
 from bench.language.const import (
     GLOBAL_NODE_TYPES,
     LOADED_BENCH_NODE_TYPES,

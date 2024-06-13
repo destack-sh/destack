@@ -213,9 +213,9 @@ export interface SearchNodesResponse {
     /**
      * The 'root' result set for the search.
      *
-     * @generated from protobuf field: repeated symbolx.bench.NodeReferenceData roots = 1;
+     * @generated from protobuf field: repeated symbolx.bench.NodeReferenceData roots_ptr = 1;
      */
-    roots: NodeReferenceData[];
+    rootsPtr: NodeReferenceData[];
     /**
      * All nodes in pre-order (parent before children) traversal.
      *
@@ -1143,7 +1143,7 @@ export const SearchNodesRequest = new SearchNodesRequest$Type();
 class SearchNodesResponse$Type extends MessageType<SearchNodesResponse> {
     constructor() {
         super("symbolx.bench.SearchNodesResponse", [
-            { no: 1, name: "roots", kind: "message", repeat: 1 /*RepeatType.PACKED*/, T: () => NodeReferenceData },
+            { no: 1, name: "roots_ptr", kind: "message", repeat: 1 /*RepeatType.PACKED*/, T: () => NodeReferenceData },
             { no: 2, name: "nodes", kind: "message", repeat: 1 /*RepeatType.PACKED*/, T: () => SomeNodeData },
             { no: 5, name: "total", kind: "scalar", opt: true, T: 5 /*ScalarType.INT32*/ },
             { no: 10, name: "epoch", kind: "scalar", T: 4 /*ScalarType.UINT64*/, L: 0 /*LongType.BIGINT*/ },
@@ -1152,7 +1152,7 @@ class SearchNodesResponse$Type extends MessageType<SearchNodesResponse> {
     }
     create(value?: PartialMessage<SearchNodesResponse>): SearchNodesResponse {
         const message = globalThis.Object.create((this.messagePrototype!));
-        message.roots = [];
+        message.rootsPtr = [];
         message.nodes = [];
         message.epoch = 0n;
         message.connectionToken = "";
@@ -1165,8 +1165,8 @@ class SearchNodesResponse$Type extends MessageType<SearchNodesResponse> {
         while (reader.pos < end) {
             let [fieldNo, wireType] = reader.tag();
             switch (fieldNo) {
-                case /* repeated symbolx.bench.NodeReferenceData roots */ 1:
-                    message.roots.push(NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options));
+                case /* repeated symbolx.bench.NodeReferenceData roots_ptr */ 1:
+                    message.rootsPtr.push(NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options));
                     break;
                 case /* repeated symbolx.bench.SomeNodeData nodes */ 2:
                     message.nodes.push(SomeNodeData.internalBinaryRead(reader, reader.uint32(), options));
@@ -1192,9 +1192,9 @@ class SearchNodesResponse$Type extends MessageType<SearchNodesResponse> {
         return message;
     }
     internalBinaryWrite(message: SearchNodesResponse, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
-        /* repeated symbolx.bench.NodeReferenceData roots = 1; */
-        for (let i = 0; i < message.roots.length; i++)
-            NodeReferenceData.internalBinaryWrite(message.roots[i], writer.tag(1, WireType.LengthDelimited).fork(), options).join();
+        /* repeated symbolx.bench.NodeReferenceData roots_ptr = 1; */
+        for (let i = 0; i < message.rootsPtr.length; i++)
+            NodeReferenceData.internalBinaryWrite(message.rootsPtr[i], writer.tag(1, WireType.LengthDelimited).fork(), options).join();
         /* repeated symbolx.bench.SomeNodeData nodes = 2; */
         for (let i = 0; i < message.nodes.length; i++)
             SomeNodeData.internalBinaryWrite(message.nodes[i], writer.tag(2, WireType.LengthDelimited).fork(), options).join();

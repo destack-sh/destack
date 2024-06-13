@@ -103,6 +103,13 @@ class _NodeGraphBase[K: str | UUID, V: AnyNodeData | Node](abc.ABC):
             return node
         return self._nodes_by_ck.get(node_id_or_ck)
 
+    def get_or_fail(self, node_id_or_ck: K) -> V:
+        """Gets a node by id, raising an error if not found"""
+        node = self.get(node_id_or_ck)
+        if node is None:
+            raise KeyError(f"node {node_id_or_ck!r} not found in {self!r}")
+        return node
+
     def clear(self):
         """Clear the graph"""
         self._nodes_by_id.clear()
@@ -282,11 +289,7 @@ class _NodeGraphBase[K: str | UUID, V: AnyNodeData | Node](abc.ABC):
 
     # utilities
 
-    def __getitem__(self, key: K):
-        item = self.get(key)
-        if item is None:
-            raise KeyError(key)
-        return item
+    __getitem__ = get_or_fail
 
     def __contains__(self, item: K):
         return self.get(item) is not None
@@ -327,6 +330,14 @@ class NodeDataGraph(_NodeGraphBase[str, AnyNodeData]):
 
     key_type = str
     value_type = "AnyNodeData"
+
+
+class _NodeSuperGraphBase[K, V]:
+    """A set of graphs pretending to be a single larger graph."""
+
+
+NodeSuperGraph = _NodeSuperGraphBase[UUID, "Node"]
+NodeDataSuperGraph = _NodeSuperGraphBase[str, AnyNodeData]
 
 
 class _NodeDictBase[K, V]:
@@ -370,14 +381,6 @@ class NodeDataDict(_NodeDictBase[str, AnyNodeData]):
 
 NodeGraphLike = Union[NodeGraph, NodeDict]
 NodeDataGraphLike = Union[NodeDataGraph, NodeDataDict]
-
-
-class NodeSupergraphBase[K, V]:
-    """A set of graphs pretending to be a single larger graph."""
-
-
-NodeSupergraph = NodeSupergraphBase[UUID, "Node"]
-NodeDataSupergraph = NodeSupergraphBase[str, AnyNodeData]
 
 
 def extract_name_id(name: str) -> Optional[int]:

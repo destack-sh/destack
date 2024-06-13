@@ -61,8 +61,8 @@ def show(path: str = "bench"):
     console = Console()
     table = Table(show_header=True, header_style="bold magenta")
     table.add_column("Name", style="bold cyan")
-    table.add_column("Required", style="bold")
     table.add_column("Type", style="bold")
+    table.add_column("Required", style="bold")
     table.add_column("Description", style="dim")
     table.add_column("Default", style="yellow")
 
