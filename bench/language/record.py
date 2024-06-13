@@ -2,11 +2,11 @@ from typing import TYPE_CHECKING, Any, Optional, cast
 
 import structlog
 
-from bench.language.connection import (
+from bench.language.channel import (
     AggregateResult,
     FetchOptions,
     FetchResult,
-    PostgresConnection,
+    PostgresChannel,
     PostgresEngine,
 )
 from bench.language.const import NodeType
@@ -70,7 +70,7 @@ class RecordPostgresEngine(PostgresEngine[Record, RecordData]):
     pass
 
 
-class RecordConnection(PostgresConnection[Record, RecordData]):
+class RecordConnection(PostgresChannel[Record, RecordData]):
     async def fetch(
         self, query: "QueryBuilder[Record, RecordData]", options: FetchOptions
     ) -> FetchResult:

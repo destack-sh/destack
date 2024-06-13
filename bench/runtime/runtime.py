@@ -10,7 +10,13 @@ from opentelemetry import trace
 
 from bench.language import Bench, Package
 from bench.language.bench import Client, Machine, Server
-from bench.language.connection import RemoteEngine
+from bench.language.channel import RemoteEngine
+from bench.language.connection import (
+    ConnectedBench,
+    ConnectedPackage,
+    QueryConnector,
+    RemoteConnector,
+)
 from bench.language.const import (
     BENCH_NODE_TYPES,
     IN_PACKAGE_NODE_TYPES,
@@ -32,12 +38,6 @@ from bench.proto.wire import (
     RuntimeBase,
     ServiceKind,
     SupervisorStub,
-)
-from bench.runtime.connection import (
-    ConnectedBench,
-    ConnectedPackage,
-    QueryConnector,
-    RemoteConnector,
 )
 from bench.runtime.core import (
     BENCH_QUERY,

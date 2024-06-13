@@ -8,10 +8,10 @@ import structlog
 from betterproto.lib.google.protobuf import Struct as ProtoStruct
 from opentelemetry import trace
 
-from bench.language.connection import (
+from bench.language.channel import (
     InMemoryEngine,
-    SplitConnection,
-    StoreConnection,
+    SplitChannel,
+    StoreChannel,
     StoreEngine,
     scope_includes,
 )
@@ -50,8 +50,8 @@ class Transaction:
     id: UUID
     session: "Session"
     is_readonly: bool = dataclasses.field(default=False)
-    _read_connection: StoreConnection = dataclasses.field(init=False)
-    _connections_by_engine_id: dict[Any, StoreConnection] = dataclasses.field(default_factory=dict)
+    _read_channel: StoreChannel = dataclasses.field(init=False)
+    _channels_by_engine_id: dict[Any, StoreChannel] = dataclasses.field(default_factory=dict)
 
     """All edits from this transaction (since the previous commit)."""
     edits: list[EditData] = dataclasses.field(default_factory=list)
@@ -67,7 +67,7 @@ class Transaction:
     _pending_nodes_by_ck: dict[UUID, Node] = dataclasses.field(default_factory=dict)
 
     def __post_init__(self):
-        self._read_connection = SplitConnection(self.session)
+        self._read_channel = SplitChannel(self.session)
 
     def __str__(self):
         return f"[id={self.id}] ({len(self.edits)} edits, {len(self.cascaded_edits)} cascaded, {len(self.pending_edits)} pending)"
@@ -83,13 +83,13 @@ class Transaction:
     def has_pending_edits(self) -> bool:
         return any(self._pending_edits_by_engine_id.values())
 
-    async def _get_engine_connection(self, engine: StoreEngine) -> StoreConnection:
-        """Gets or creates a store connection"""
-        connection = self._connections_by_engine_id.get(engine.id)
-        if connection is None:
-            connection = await engine.connect(self.session)
-            self._connections_by_engine_id[engine.id] = connection
-        return connection
+    async def _get_channel(self, engine: StoreEngine) -> StoreChannel:
+        """Gets or creates a store channel"""
+        channel = self._channels_by_engine_id.get(engine.id)
+        if channel is None:
+            channel = await engine.connect(self.session)
+            self._channels_by_engine_id[engine.id] = channel
+        return channel
 
     def _get_scope_for_node(self, n: Node) -> GraphScope:
         """Gets the explicit or implicit scope for a node."""
@@ -439,11 +439,11 @@ class Transaction:
 
         # TODO :Robustness!: use :2PC in Transaction.commit (if there are more than 2 engines)
         for engine in self.session._engines:
-            # prepare edits & connection
+            # prepare edits & channel
             pending_edits = self._pending_edits_by_engine_id.get(engine.id, [])
             if not (pending_edits or (commit and engine.id in self._used_engine_ids)):
                 continue  # nothing to do
-            connection = await self._get_engine_connection(engine)
+            channel = await self._get_channel(engine)
 
             # flush/commit
             message = "transaction.commit.engine" if commit else "transaction.flush.engine"
@@ -451,9 +451,9 @@ class Transaction:
                 message, attributes={"engine": engine.__class__.__name__}
             ):
                 if commit:
-                    flush = await connection.commit(pending_edits)
+                    flush = await channel.commit(pending_edits)
                 else:
-                    flush = await connection.flush(pending_edits)
+                    flush = await channel.flush(pending_edits)
                 log.trace(message, engine=engine, edits=len(pending_edits))
             assert len(flush.revisions or ()) == len(pending_edits), "revisions mismatch"
             for edit, new_revision in zip(pending_edits, cast(list[int], flush.revisions)):
@@ -492,7 +492,7 @@ class Transaction:
         raise NotImplementedError("not yet supported")  # :2PC
 
     async def reset(self):
-        """Resets the transaction, any edits and connections (without closing)."""
+        """Resets the transaction, any edits and channels (without closing)."""
         self.edits.clear()
         self.cascaded_edits.clear()
         self.pending_edits.clear()
@@ -500,15 +500,15 @@ class Transaction:
         self._pending_updates_idx.clear()
         self._pending_nodes_by_ck.clear()
         self._used_engine_ids.clear()
-        for connection in self._connections_by_engine_id.values():
-            await connection.close()
-        self._connections_by_engine_id.clear()
+        for channel in self._channels_by_engine_id.values():
+            await channel.close()
+        self._channels_by_engine_id.clear()
 
     async def close(self):
         """Closes the transaction and associated store engines, rolling back uncommitted edits."""
-        for connection in self._connections_by_engine_id.values():
-            await connection.close()
-        self._connections_by_engine_id.clear()
+        for channel in self._channels_by_engine_id.values():
+            await channel.close()
+        self._channels_by_engine_id.clear()
 
 
 def pack_node_delta(

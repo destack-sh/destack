@@ -68,6 +68,8 @@ distro==1.9.0
     # via openai
 docker==7.0.0
 dropbox==11.36.2
+execnet==2.1.1
+    # via pytest-xdist
 feedparser==6.0.10
 filelock==3.14.0
     # via virtualenv
@@ -268,8 +270,10 @@ pytest==8.2.0
     # via
     #   pytest-asyncio
     #   pytest-mock
+    #   pytest-xdist
 pytest-asyncio==0.23.6
 pytest-mock==3.14.0
+pytest-xdist==3.6.1
 python-dateutil==2.9.0.post0
     # via
     #   betterproto

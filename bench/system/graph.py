@@ -17,7 +17,7 @@ from bench.language.access import (
     evaluate_edit,
     generate_access_matrix,
 )
-from bench.language.connection import ConnectionFailedError, FetchOptions, StoreEngine
+from bench.language.channel import ChannelFailedError, FetchOptions, StoreEngine
 from bench.language.const import (
     BASED_NODE_TYPES,
     NODE_TYPES,
@@ -430,7 +430,7 @@ class GraphIoServiceBase(ServiceBase, GraphIoBase):
                             filter=C(ConditionalOp.IN, property=Node.id, value=node_ids),
                             options=options,
                         )
-                        result = await session.tx._read_connection.fetch(
+                        result = await session.tx._read_channel.fetch(
                             query, FetchOptions(count=False)
                         )
                         # merge result into data_graph (there may be duplicates)
@@ -534,7 +534,7 @@ class GraphIoServiceBase(ServiceBase, GraphIoBase):
 
             # commit
             edits, cascaded_edits = await session._tx.commit()
-        except ConnectionFailedError as e:
+        except ChannelFailedError as e:
             self.logger.error("graph.commit.error", session=session, error=e)
             await session._tx.reset()
             raise

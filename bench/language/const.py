@@ -621,13 +621,6 @@ class AccessMode(IdEnum):
 #
 
 
-class StoreConnectionType(IdEnum):
-    LOCAL = 1
-    REMOTE = 2
-    POSTGRES = 3
-    # CLICKHOUSE, ...
-
-
 @enum_(EnumType.POLICY_EFFECT)
 class PolicyEffect(IdEnum):
     ALLOW = 1

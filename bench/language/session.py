@@ -8,7 +8,7 @@ from uuid import UUID
 import structlog
 from opentelemetry import trace
 
-from bench.language.connection import ConnectionFailedError, StoreEngine
+from bench.language.channel import ChannelFailedError, StoreEngine
 from bench.language.const import (
     NodeType,
     PrimitiveType,
@@ -76,7 +76,7 @@ CustomCommit = Callable[["Session"], Awaitable[tuple[list[EditData], list[EditDa
 @timed_node(NodeType.SESSION)
 class Session(PackageNode[SessionData], HasTimeIdentity):
     """
-    A managed Session for interacting with and running a Package in a Client.
+    A managed Session for interacting with and running a Bench in a Client.
     If a Run spans multiple Clients, each Client will have its own Session.
     On some Clients a Session may persist across Runs (like in the web client).
     Once closed, a Session (like a Run) is effectively immutable.
@@ -242,7 +242,7 @@ class Session(PackageNode[SessionData], HasTimeIdentity):
         self._is_suspended = False
         self._active_session_token = _active_session.set(self)
 
-    # TODO :Robustness!: auto re-connect Session.flush/commit/...? on ConnectionFailedError
+    # TODO :Robustness!: auto re-connect Session.flush/commit/...? on error
     #  (need to replay all previous edits, maybe do some other stuff?)
 
     @tracer.start_as_current_span("session.flush")
@@ -256,7 +256,7 @@ class Session(PackageNode[SessionData], HasTimeIdentity):
                 await self._tx_lock.acquire()
             await self._tx.flush()
             return self._tx.edits, self._tx.cascaded_edits
-        except ConnectionFailedError as e:
+        except ChannelFailedError as e:
             logger.error("session.flush.error", session=self, error=e)
             await self._tx.reset()
             raise
@@ -283,7 +283,7 @@ class Session(PackageNode[SessionData], HasTimeIdentity):
             else:
                 # custom commit (in system)
                 return await self._custom_commit(self)
-        except ConnectionFailedError as e:
+        except ChannelFailedError as e:
             logger.error("session.commit.error", session=self, error=e)
             await self._tx.reset()
             raise

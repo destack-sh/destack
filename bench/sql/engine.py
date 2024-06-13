@@ -28,8 +28,8 @@ from opentelemetry import trace
 from psycopg import OperationalError, sql
 from psycopg.types.json import Jsonb
 
-from bench.language import Block, ConditionalOp, Field, Property, StoreConnectionType
-from bench.language.connection import ConnectionIncapableError
+from bench.language import Block, ConditionalOp, Field, Property
+from bench.language.channel import ChannelIncapableError
 from bench.language.const import (
     CASCADING_EDIT_TYPES,
     EMPTY_DICT,
@@ -501,9 +501,7 @@ def _pg_compile_conditional(
             left=_compile_expression_ref(node, cond),
             op=PG_CONDITIONAL_OP_BY_BENCH[cond.op],
         )
-    raise ConnectionIncapableError(
-        StoreConnectionType.POSTGRES, expression=cond, reason="unsupported conditional"
-    )
+    raise ChannelIncapableError("postgres", expression=cond, reason="unsupported conditional")
 
 
 def _pg_compile_sort(node: Union[type[Node], Block], sort: Expression) -> sql.Composed:

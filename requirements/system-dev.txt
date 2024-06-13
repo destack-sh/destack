@@ -60,6 +60,8 @@ distlib==0.3.8
 distro==1.9.0
     # via openai
 docker==7.0.0
+execnet==2.1.1
+    # via pytest-xdist
 filelock==3.14.0
     # via virtualenv
 frozenlist==1.4.1
@@ -203,8 +205,10 @@ pytest==8.2.0
     # via
     #   pytest-asyncio
     #   pytest-mock
+    #   pytest-xdist
 pytest-asyncio==0.23.6
 pytest-mock==3.14.0
+pytest-xdist==3.6.1
 python-dateutil==2.9.0.post0
     # via
     #   betterproto
