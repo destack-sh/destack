@@ -28,6 +28,13 @@ from .bench import (
 )
 from .block import Block
 from .code import Code, CodeLine
+from .connection import (
+    AggregateConnection,
+    Channel,
+    ConnectionBase,
+    GetConnection,
+    SearchConnection,
+)
 from .const import (
     VERSION,
     AccessType,
@@ -60,7 +67,15 @@ from .expression import (
 )
 from .field import Field, FieldZone, TypeConstraint, TypeInfo, TypeInfoBase
 from .file import Blob, File, Icon
-from .graph import ValueList
+from .graph import (
+    NodeDataDict,
+    NodeDataGraph,
+    NodeDataSuperGraph,
+    NodeDict,
+    NodeGraph,
+    NodeSuperGraph,
+    ValueList,
+)
 from .issue import Issue, IssueError, IssueKind, IssueType
 from .log import Log, LogKind, LogLevel
 from .message import Message
@@ -118,6 +133,7 @@ __all__ = [
     "Access",
     "AccessError",
     "AccessType",
+    "AggregateConnection",
     "Aggregation",
     "Alignment",
     "Anchor",
@@ -134,6 +150,7 @@ __all__ = [
     "Branch",
     "BuiltinObject",
     "C",
+    "Channel",
     "Client",
     "ClientType",
     "Code",
@@ -145,6 +162,7 @@ __all__ = [
     "ColorType",
     "ColorType",
     "ConditionalOp",
+    "ConnectionBase",
     "Context",
     "Dependency",
     "Drive",
@@ -158,6 +176,7 @@ __all__ = [
     "FontType",
     "FontWeight",
     "FormatHint",
+    "GetConnection",
     "Handle",
     "HasNodeBase",
     "Icon",
@@ -175,7 +194,13 @@ __all__ = [
     "Message",
     "Node",
     "Node",
+    "NodeDataDict",
+    "NodeDataGraph",
+    "NodeDataSuperGraph",
+    "NodeDict",
+    "NodeGraph",
     "NodeReference",
+    "NodeSuperGraph",
     "NodeType",
     "Notification",
     "ObjectType",
@@ -206,6 +231,7 @@ __all__ = [
     "RunOptions",
     "S",
     "ScheduleType",
+    "SearchConnection",
     "Server",
     "ServerProfile",
     "Session",

@@ -8,9 +8,10 @@ import structlog
 from betterproto.lib.google.protobuf import Struct as ProtoStruct
 from opentelemetry import trace
 
+from bench.language.connection import ConnectionBase
 from bench.language.const import UNSET, NodeType, ObjectType
 from bench.language.graph import NodeDataGraph
-from bench.language.node import BuiltinObject, Node, NodeGraph, ReadInfo
+from bench.language.node import BuiltinObject, Node, NodeGraph
 from bench.language.property import Property
 from bench.language.session import Session
 from bench.language.setup import OBJECT_CLASS_BY_TYPE
@@ -236,7 +237,7 @@ def unpack_node_graph(
     parent: Node | None = None,
     session: Session | None = None,
     exclude: set[NodeType] | tuple[NodeType, ...] | None = (),
-    read_info: ReadInfo | None = None,
+    connection: ConnectionBase | None = None,
 ) -> NodeGraph:
     """Unpacks the node data(s) into a node graph."""
     trace.get_current_span().set_attribute("nodes", len(data_graph))
@@ -266,7 +267,7 @@ def unpack_node_graph(
                 # if node_parent is None:
                 #     raise ValueError(f"parent {node_parent_id} not found in {unpacked_graph!r}")
             node = unpack_object(node_data, parent=node_parent, expect=Node)
-            node._read_info = read_info
+            node._connection = connection
 
             # keep parent instance if it was passed (update it in place)
             if node.id == parent_id:
@@ -302,11 +303,13 @@ def unpack_node_roots(
     session: Session | None = None,
     exclude: set[NodeType] | None = None,
     roots: Collection[NodeReferenceData] | None = None,
-    read: ReadInfo | None = None,
+    connection: ConnectionBase | None = None,
 ) -> tuple[tuple[Node, ...], NodeGraph]:
     """Unpack nodes and their descendants. Returns the actual roots (or passed ones)."""
 
-    node_graph = unpack_node_graph(data_graph, parent, session, exclude=exclude, read_info=read)
+    node_graph = unpack_node_graph(
+        data_graph, parent, session, exclude=exclude, connection=connection
+    )
 
     if roots:
         # recover roots if specified (may not be actual roots)

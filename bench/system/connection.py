@@ -1,23 +1,29 @@
 import abc
 import asyncio
-from dataclasses import dataclass
-from typing import Any, ClassVar, cast, final, override
+from typing import Any, ClassVar, final, override
 
 import structlog
 from opentelemetry import trace
 
 from bench.language import Session, Subject
-from bench.language.channel import FetchOptions
+from bench.language.connection import (
+    AggregateOptions,
+    AggregateResultData,
+    GetOptions,
+    GetResultData,
+    SearchOptions,
+    SearchResultData,
+    WatchAggregateUpdate,
+    WatchGetUpdate,
+    WatchSearchUpdate,
+)
 from bench.language.const import EditType, NodeType, ReadType
-from bench.language.graph import NodeDataGraph, NodeDataGraphLike
+from bench.language.graph import NodeDataGraphLike
 from bench.language.query import DEFAULT_READ_OPTIONS, QueryBuilder
 from bench.language.transaction import unpack_node_delta
 from bench.proto.wire import (
-    AggregationData,
-    AnyNodeData,
     EditData,
     GraphScope,
-    NodeReferenceData,
 )
 from bench.utils.dt import monons
 from bench.utils.func import bittuple, generate_access_token
@@ -42,7 +48,7 @@ CONNECTION_CACHE_EXPIRE_SECONDS = get_from_env(
     "CONNECTION_CACHE_EXPIRE_SECONDS",
     typ=int,
     default=120,
-    description="How long to keep inactive connections around in seconds",
+    description="How long to keep unused connections around in seconds",
 )
 MAX_TIME_DRIFT_SECONDS = get_from_env(
     "MAX_TIME_DRIFT_SECONDS",
@@ -52,15 +58,14 @@ MAX_TIME_DRIFT_SECONDS = get_from_env(
 )
 
 
-@dataclass(slots=True)
-class _WatchUpdateBase:
-    epoch: int
-
-
-class Connection[ResultT: Any, UpdateT: _WatchUpdateBase](abc.ABC):
+class Connection[
+    ResultT: GetResultData | SearchResultData | AggregateResultData,
+    UpdateT: WatchGetUpdate | WatchSearchUpdate | WatchAggregateUpdate,
+](abc.ABC):
     """
-    A (usually live) query connection to a (sub)graph.
-    This is the counterpart to the runtime/language connections that answers the calls.
+    A system-side query connection to a (sub)graph.
+    This is the counterpart to the runtime/language connections that answers the calls,
+     where we cache results, replay and push updates to connection subscribers.
     """
 
     read_type: ClassVar[ReadType]
@@ -197,7 +202,7 @@ class ConnectionSubscription[UpdateT: Any]:
 
 
 class NodeConnectionBase[
-    ResultT: "GetResult | SearchResult",
+    ResultT: "GetResultData | SearchResultData",
     UpdateT: "WatchGetUpdate | WatchSearchUpdate",
 ](Connection[ResultT, UpdateT]):
     """Base connection for get/search queries in the graph."""
@@ -263,20 +268,7 @@ class NodeConnectionBase[
         return filtered_edits
 
 
-@dataclass(slots=True)
-class GetResult:
-    graph: NodeDataGraph
-
-
-@dataclass(slots=True)
-class WatchGetUpdate(_WatchUpdateBase):
-    edits: list[EditData]
-    cascaded_edits: list[EditData]
-    added_nodes: list[AnyNodeData]
-    removed_nodes_ptr: list[NodeReferenceData]
-
-
-class GetConnection(NodeConnectionBase[GetResult, WatchGetUpdate]):
+class GetConnection(NodeConnectionBase[GetResultData, WatchGetUpdate]):
     """
     Connected get query in the graph.
     If live and any root is removed, we error (like the usual get behavior).
@@ -284,16 +276,14 @@ class GetConnection(NodeConnectionBase[GetResult, WatchGetUpdate]):
 
     read_type: ClassVar[ReadType] = ReadType.GET
 
-    def __result_str__(self, result: GetResult) -> str:
+    def __result_str__(self, result: GetResultData) -> str:
         return f"{len(result.graph)} nodes"
 
     @override
-    async def connect(self, session: Session) -> GetResult:
-        fetch = await session.tx._read_channel.fetch(self.query, FetchOptions(count=False))
-        graph = NodeDataGraph(
-            scope=self.scope, node_types=tuple(self.query.all_node_types), nodes=fetch.nodes
+    async def connect(self, session: Session) -> GetResultData:
+        result = await session.tx._read_channel.get(
+            self.query, GetOptions(live=False, unpack=False)
         )
-        result = GetResult(graph)
         self._result = result
         return result
 
@@ -326,26 +316,7 @@ class GetConnection(NodeConnectionBase[GetResult, WatchGetUpdate]):
             self.notify_update(update)
 
 
-@dataclass(slots=True)
-class SearchResult:
-    graph: NodeDataGraph
-    roots: list[AnyNodeData]
-    roots_ptr: list[NodeReferenceData]
-    total: int | None
-
-
-@dataclass(slots=True)
-class WatchSearchUpdate(_WatchUpdateBase):
-    edits: list[EditData]
-    cascaded_edits: list[EditData]
-    added_nodes: list[AnyNodeData]
-    removed_nodes_ptr: list[NodeReferenceData]
-    added_roots_ptr: list[NodeReferenceData]
-    removed_roots_ptr: list[NodeReferenceData]
-    total: int | None
-
-
-class SearchConnection(NodeConnectionBase[SearchResult, WatchSearchUpdate]):
+class SearchConnection(NodeConnectionBase[SearchResultData, WatchSearchUpdate]):
     """
     Connected search query in the graph.
     If live, we update the result set dynamically (with added/removed nodes).
@@ -354,18 +325,13 @@ class SearchConnection(NodeConnectionBase[SearchResult, WatchSearchUpdate]):
 
     read_type: ClassVar[ReadType] = ReadType.SEARCH
 
-    def __result_str__(self, result: SearchResult) -> str:
+    def __result_str__(self, result: SearchResultData) -> str:
         return f"{len(result.graph)} nodes, {len(result.roots)} roots, total={result.total}"
 
     @override
-    async def connect(self, session: Session) -> SearchResult:
-        fetch = await session.tx._read_channel.fetch(self.query, FetchOptions(count=True))
-        graph = NodeDataGraph(
-            scope=self.scope, node_types=tuple(self.query.all_node_types), nodes=fetch.nodes
-        )
-        roots = [cast(AnyNodeData, graph[cast(str, ptr.id)]) for ptr in fetch.roots]
-        result = SearchResult(
-            graph=graph, roots=roots, roots_ptr=list(fetch.roots), total=fetch.total
+    async def connect(self, session: Session) -> SearchResultData:
+        result = await session.tx._read_channel.search(
+            self.query, SearchOptions(live=False, unpack=False, count=True)
         )
         self._result = result
         return result
@@ -380,28 +346,19 @@ class SearchConnection(NodeConnectionBase[SearchResult, WatchSearchUpdate]):
         raise NotImplementedError("nocheckin: SearchConnection.on_commit")
 
 
-@dataclass(slots=True)
-class AggregateResult:
-    aggregation: AggregationData
-
-
-@dataclass(slots=True)
-class AggregateUpdate(_WatchUpdateBase):
-    aggregation: AggregationData
-
-
-class AggregateConnection(Connection[AggregateResult, AggregateUpdate]):
+class AggregateConnection(Connection[AggregateResultData, WatchAggregateUpdate]):
     """Connected aggregate query in the graph."""
 
     read_type: ClassVar[ReadType] = ReadType.AGGREGATE
 
-    def __result_str__(self, result: AggregateResult) -> str:
+    def __result_str__(self, result: AggregateResultData) -> str:
         return f"{result.aggregation!r}"
 
     @override
-    async def connect(self, session: Session) -> AggregateResult:
-        aggregate = await session.tx._read_channel.aggregate(self.query)
-        result = AggregateResult(aggregation=aggregate.aggregation)
+    async def connect(self, session: Session) -> AggregateResultData:
+        result = await session.tx._read_channel.aggregate(
+            self.query, AggregateOptions(live=False, unpack=False)
+        )
         self._result = result
         return result
 
@@ -415,7 +372,7 @@ class AggregateConnection(Connection[AggregateResult, AggregateUpdate]):
         pass  # not yet implemented (watch_aggregate errors with not implemented for now)
 
 
-class QueryConnector:
+class ConnectionIndex:
     """Connect and cache queries to the graph."""
 
     def __init__(self, scope: GraphScope):
@@ -438,7 +395,7 @@ class QueryConnector:
             del self._lock_by_connection[connection.hash]
 
     def gc_connections(self):
-        """Removes inactive connections from the cache."""
+        """Removes unused connections from the cache."""
         if len(self._connections_by_hash) == 0:
             return  # nothing to do
         before_count = len(self._connections_by_hash)

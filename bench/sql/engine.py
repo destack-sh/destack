@@ -10,7 +10,6 @@ from typing import (
     Collection,
     Iterable,
     Mapping,
-    NamedTuple,
     Optional,
     TypeVar,
     Union,
@@ -29,7 +28,7 @@ from psycopg import OperationalError, sql
 from psycopg.types.json import Jsonb
 
 from bench.language import Block, ConditionalOp, Field, Property
-from bench.language.channel import ChannelIncapableError
+from bench.language.connection import ChannelIncapableError
 from bench.language.const import (
     CASCADING_EDIT_TYPES,
     EMPTY_DICT,
@@ -1301,12 +1300,6 @@ def pg_unpack_node_data_row(node_cls: type[Node], row: Mapping[str, Any]) -> Any
         raise ValueError(f"could not unpack row {node_cls.metatype.name}: {row_str}") from e
 
 
-class PgSelectNodesDataResult(NamedTuple):
-    nodes: tuple[AnyNodeData, ...]
-    cursors: tuple[str, ...]
-    start_cursor: str | None
-
-
 @_trace_pg_span
 async def pg_get_nodes(
     cur: psycopg.AsyncCursor,
@@ -1317,13 +1310,10 @@ async def pg_get_nodes(
     sort: Collection[Expression] | None = None,
     first: int | None = None,
     skip: int | None = None,
-    after: str | None = None,
-) -> PgSelectNodesDataResult:
+) -> list[AnyNodeData]:
     """Selects regular nodes from the given PG database."""
     node_cls = NODE_CLASS_BY_TYPE[node_type]
     assert node_cls.__table__, f"no table for {node_cls!r}"
-    if after:
-        skip = (skip or 0) + int(decode_pg_cursor(after)) + 1  # 'after' is exclusive
     columns = [prop.column for prop in properties]
     assert any(c.is_primary_key for c in columns), f"no primary key selected in {columns!r}"
     where = _pg_compile_conditional(node_cls, filter) if filter is not None else None
@@ -1337,10 +1327,8 @@ async def pg_get_nodes(
         first=first,
         skip=skip,
     )
-    nodes_data = tuple(pg_unpack_node_data_row(node_cls, row) for row in rows)
-    cursors = tuple(encode_pg_cursor(i) for i in range(skip or 0, (skip or 0) + len(nodes_data)))
-    assert len(nodes_data) == len(cursors), f"unexpected cursors: {cursors} for {nodes_data}"
-    return PgSelectNodesDataResult(nodes_data, cursors, after)
+    nodes_data = [pg_unpack_node_data_row(node_cls, row) for row in rows]
+    return nodes_data
 
 
 @_trace_pg_span
@@ -1440,7 +1428,7 @@ async def pg_get_node_graph(
     *,
     cur: psycopg.AsyncCursor,
     root_type: NodeType,
-    roots: tuple[UUID, ...] | tuple[AnyNodeData, ...],
+    roots: tuple[UUID, ...] | tuple[AnyNodeData, ...] | list[AnyNodeData] | list[UUID],
     options: ReadOptions,
     visited_graph: NodeDataGraph,
 ) -> None:
@@ -1456,15 +1444,12 @@ async def pg_get_node_graph(
     if isinstance(roots[0], UUID):
         # select roots
         root_filter = options.filter(root_type, C(ConditionalOp.IN, property=Node.id, value=roots))
-        roots_result = await pg_get_nodes(
+        root_nodes = await pg_get_nodes(
             cur=cur,
             node_type=root_type,
             filter=root_filter,
             properties=options.select(root_type),
         )
-        if not roots_result.nodes:
-            return
-        root_nodes = roots_result.nodes
     else:  # already got nodes
         root_nodes = cast(tuple[AnyNodeData, ...], roots)
     for node in root_nodes:
@@ -1492,7 +1477,7 @@ async def pg_get_node_graph(
             # select next parents
             next_parents = []
             for node_type, node_ids in to_select_by_type.items():
-                layer = await pg_get_nodes(
+                new_parents = await pg_get_nodes(
                     cur=cur,
                     node_type=node_type,
                     filter=options.filter(
@@ -1501,8 +1486,8 @@ async def pg_get_node_graph(
                     ),
                     properties=options.select(node_type),
                 )
-                next_parents.extend(layer.nodes)
-                for node in layer.nodes:
+                next_parents.extend(new_parents)
+                for node in new_parents:
                     visited_graph.add(node)
             current_parents = next_parents
 
@@ -1518,7 +1503,7 @@ async def pg_get_node_graph(
         descendant_node_ptrs_by_type = group_by(descendant_node_ptrs, lambda ptr: ptr.type)
         for wire_node_type, node_ptrs in descendant_node_ptrs_by_type.items():
             node_type = NodeType(wire_node_type)
-            layer = await pg_get_nodes(
+            new_children = await pg_get_nodes(
                 cur=cur,
                 node_type=node_type,
                 filter=options.filter(
@@ -1527,7 +1512,7 @@ async def pg_get_node_graph(
                 ),
                 properties=options.select(node_type),
             )
-            for node in layer.nodes:
+            for node in new_children:
                 visited_graph.add(node)
 
 
@@ -1542,8 +1527,7 @@ async def pg_search_node_graph(
     sort: Collection[Expression] | None = None,
     first: int | None = None,
     skip: int | None = None,
-    after: str | None = None,
-) -> tuple[PgSelectNodesDataResult, NodeDataGraph]:
+) -> tuple[list[AnyNodeData], NodeDataGraph]:
     """Select root nodes and then read the graph of nodes from the given PG database."""
     node_types = tuple({node_type, *options.ancestor_types, *options.descendant_types})
     if options.ancestor_types or options.descendant_types:
@@ -1555,16 +1539,15 @@ async def pg_search_node_graph(
             sort=sort,
             first=first,
             skip=skip,
-            after=after,
             properties=options.select(node_type),
         )
         visited_graph = NodeDataGraph(scope, node_types)
-        if not roots.nodes:
+        if not roots:
             return roots, visited_graph
         await pg_get_node_graph(
             cur=cur,
             root_type=node_type,
-            roots=roots.nodes,
+            roots=roots,
             options=options,
             visited_graph=visited_graph,
         )
@@ -1578,10 +1561,9 @@ async def pg_search_node_graph(
             sort=sort,
             first=first,
             skip=skip,
-            after=after,
             properties=options.select(node_type),
         )
-        graph = NodeDataGraph(scope, node_types, nodes=roots.nodes)
+        graph = NodeDataGraph(scope, node_types, nodes=roots)
         return roots, graph
 
 

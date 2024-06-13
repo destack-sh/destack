@@ -17,7 +17,7 @@ from bench.language.access import (
     evaluate_edit,
     generate_access_matrix,
 )
-from bench.language.channel import ChannelFailedError, FetchOptions, StoreEngine
+from bench.language.connection import ChannelFailedError, GraphEngine, SearchOptions
 from bench.language.const import (
     BASED_NODE_TYPES,
     NODE_TYPES,
@@ -72,8 +72,8 @@ from bench.system.connection import (
     CONNECTION_CACHE_ENABLED,
     MAX_TIME_DRIFT_SECONDS,
     AggregateConnection,
+    ConnectionIndex,
     GetConnection,
-    QueryConnector,
     SearchConnection,
     WatchGetUpdate,
     WatchSearchUpdate,
@@ -101,9 +101,9 @@ class GraphIoServiceBase(ServiceBase, GraphIoBase):
         self.tx_lock: asyncio.Lock = CriticalLock(
             name=f"{self.__class__.__name__}_{bench_id or ''}"
         )
-        self.connector = QueryConnector(scope=self.scope)
+        self.connector = ConnectionIndex(scope=self.scope)
 
-    def get_engines(self) -> tuple[StoreEngine, ...]:
+    def get_engines(self) -> tuple[GraphEngine, ...]:
         """Gets the store engines available to this subgraph. Implemented in the actual service."""
         raise NotImplementedError
 
@@ -123,7 +123,7 @@ class GraphIoServiceBase(ServiceBase, GraphIoBase):
     def request_session(
         self,
         *,
-        engines: tuple[StoreEngine, ...] | None = None,
+        engines: tuple[GraphEngine, ...] | None = None,
         readonly: bool = True,
         system_commit: bool = True,
     ):
@@ -294,7 +294,7 @@ class GraphIoServiceBase(ServiceBase, GraphIoBase):
             span="current",
         )
         return SearchNodesResponse(
-            roots=result.roots_ptr,
+            roots_ptr=result.roots_ptr,
             nodes=[wiring.wrap_some_node(n) for n in adapted_nodes],
             total=result.total,
             connection_token=connection.token,
@@ -430,11 +430,11 @@ class GraphIoServiceBase(ServiceBase, GraphIoBase):
                             filter=C(ConditionalOp.IN, property=Node.id, value=node_ids),
                             options=options,
                         )
-                        result = await session.tx._read_channel.fetch(
-                            query, FetchOptions(count=False)
+                        connection = await session.tx._read_channel.search(
+                            query, SearchOptions(live=False, unpack=False, count=False)
                         )
                         # merge result into data_graph (there may be duplicates)
-                        for node_data in result.nodes:
+                        for node_data in connection.result_data.graph.nodes:
                             if node_data.id not in data_graph:
                                 data_graph.add(node_data)
                     self.logger.trace("graph.commit.read", graph=data_graph)

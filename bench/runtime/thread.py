@@ -8,9 +8,8 @@ from opentelemetry import trace
 
 from bench.language import Bench, Package, User
 from bench.language.bench import Client, Machine
-from bench.language.channel import StoreEngine
 from bench.language.code import Code, run_code_exec
-from bench.language.connection import ConnectedBench, ConnectedPackage, QueryConnector
+from bench.language.connection import GraphEngine
 from bench.language.const import BlockType, RunKind, RunStatus, _active_run
 from bench.language.run import Run, RunError
 from bench.language.session import Session, unsuspend_session
@@ -44,8 +43,7 @@ class RuntimeThread:
         host: HostStub,
         client: Client,
         machine: Machine | None,
-        connector: QueryConnector,
-        engines: tuple[StoreEngine, ...],
+        engines: tuple[GraphEngine, ...],
         queue: asyncio.Queue[RunData],
     ):
         self.id = id
@@ -54,13 +52,12 @@ class RuntimeThread:
         self._supervisor = supervisor
         self._host = host
         self._bench_id = bench_id
-        self._bench: ConnectedBench | None = None
-        self._main_package: ConnectedPackage | None = None
+        self._bench: Bench | None = None
+        self._main_package: Package | None = None
 
         # context
         self._client = client
         self._machine = machine
-        self._connector = connector
         self._engines = engines
 
         # processing
@@ -72,8 +69,7 @@ class RuntimeThread:
         self._tasks = TaskManager(owner=self, logger=logger)
 
     def __str__(self):
-        bench = self._bench._result if self._bench else None
-        return f"{self.id} on {repr(bench) or self._bench_id}"
+        return f"{self.id} on {repr(self.bench) if self.bench else self._bench_id}"
 
     def __repr__(self):
         return f"<{self.__class__.__name__} {self}>"
@@ -81,18 +77,20 @@ class RuntimeThread:
     @property
     def bench(self) -> Bench:
         assert self._bench is not None, f"no bench for {self!r}"
-        return self._bench.result
+        return self._bench
 
     @property
     def main_package(self) -> Package:
         assert self._main_package is not None, f"no main package for {self!r}"
-        return self._main_package.result
+        return self._main_package
 
     @property
     def epoch(self) -> int:
         assert self._bench is not None, f"no bench for {self!r}"
         assert self._main_package is not None, f"no main package for {self!r}"
-        return max(self._bench.epoch, self._main_package.epoch)
+        # NOTE :Cleanup: get current runtime epoch from session? supergraph?
+        #  (feels clumsy and incorrect to get it just from bench/package here)
+        return max(self._bench.connection.epoch, self._main_package.connection.epoch)
 
     @asynccontextmanager
     async def session(self, *, readonly: bool = False, autocommit: bool = False):
@@ -123,21 +121,17 @@ class RuntimeThread:
 
         # connect
         async with self.session(readonly=True):
-            self._bench = await self._connector.get(
-                BENCH_QUERY.where(id=self._bench_id), self._tx_lock, self._session, owner=self
-            )
-            main_environment = self._bench.result.main_environment
+            # self._bench = await self._connector.get(
+            #     BENCH_QUERY.where(id=self._bench_id), self._tx_lock, self._session, owner=self
+            # )
+            self._bench = await BENCH_QUERY.get(id=self._bench_id, live=True)
+            main_environment = self._bench.main_environment
             assert main_environment is not None, f"{self._bench!r} has no main environment"
-            main_branch = self._bench.result.main_branch
+            main_branch = self._bench.main_branch
             assert main_branch is not None, f"{self._bench!r} has no main branch"
             assert main_branch.main_package_id is not None, f"{main_branch!r} has no main package"
-            self._main_package = await self._connector.get(
-                PACKAGE_QUERY.where(id=main_branch.main_package_id),
-                self._tx_lock,
-                self._session,
-                owner=self,
-            )
-            self._session.parent = self._main_package.result
+            self._main_package = await PACKAGE_QUERY.get(id=main_branch.main_package_id, live=True)
+            self._session.parent = self._main_package
 
         # finally, start processing runs
         self._tasks.start_queue(
@@ -149,7 +143,7 @@ class RuntimeThread:
         # TODO :Architecture!: process run in steps/ticks somehow
         #  (also: flush run/session state independent from other nodes, handle pausing, ...)
         assert self._main_package is not None, f"no main package for {self!r}"
-        package = self._main_package.result
+        package = self._main_package
         assert (
             run_data.parent_ptr and UUID(run_data.parent_ptr.id) == package.id
         ), f"{run_data!r} not in {package!r}"

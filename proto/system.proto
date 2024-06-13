@@ -72,7 +72,7 @@ message SearchNodesRequest {
 }
 message SearchNodesResponse {
   // The 'root' result set for the search.
-  repeated NodeReferenceData roots = 1;
+  repeated NodeReferenceData roots_ptr = 1;
   // All nodes in pre-order (parent before children) traversal.
   repeated SomeNodeData nodes = 2;
   // Total number of nodes in the result set.

@@ -10,13 +10,7 @@ from opentelemetry import trace
 
 from bench.language import Bench, Package
 from bench.language.bench import Client, Machine, Server
-from bench.language.channel import RemoteEngine
-from bench.language.connection import (
-    ConnectedBench,
-    ConnectedPackage,
-    QueryConnector,
-    RemoteConnector,
-)
+from bench.language.connection import RemoteEngine
 from bench.language.const import (
     BENCH_NODE_TYPES,
     IN_PACKAGE_NODE_TYPES,
@@ -93,15 +87,14 @@ class Runtime(ServiceBase, RuntimeBase):
         self._client: Client | None = None
         self._machine_id = machine_id
         self._machine: Machine | None = None
-        self._connector: QueryConnector | None = None
         self._engines: tuple[RemoteEngine, ...] = ()
 
         # bench stuff
         self._host: HostStub | None = None
         self._bench_id = bench_id
-        self._bench: ConnectedBench | None = None
-        self._main_package: ConnectedPackage | None = None
-        self._packages: dict[UUID, ConnectedPackage] = {}
+        self._bench: Bench | None = None
+        self._main_package: Package | None = None
+        self._packages: dict[UUID, Package] = {}
         self._packages_lock = asyncio.Lock()
 
         # processing
@@ -113,9 +106,7 @@ class Runtime(ServiceBase, RuntimeBase):
         self._threads: list[RuntimeThread] = []
 
     def __str__(self):
-        bench_str = (
-            repr(self._bench.result) if self._bench and self._bench.has_result else self._bench_id
-        )
+        bench_str = repr(self._bench) if self._bench else self._bench_id
         client_str = repr(self._client) if self._client else self._client_id
         return f"{client_str} on {bench_str}"
 
@@ -130,7 +121,7 @@ class Runtime(ServiceBase, RuntimeBase):
     @property
     def bench(self) -> Bench:
         assert self._bench is not None, f"no bench for {self!r}"
-        return self._bench.result
+        return self._bench
 
     @property
     def client(self) -> Client:
@@ -145,7 +136,7 @@ class Runtime(ServiceBase, RuntimeBase):
     @property
     def main_package(self) -> Package:
         assert self._main_package is not None, f"no main package for {self!r}"
-        return self._main_package.result
+        return self._main_package
 
     @asynccontextmanager
     async def session(self, *, readonly: bool = False, autocommit: bool = False):
@@ -161,7 +152,6 @@ class Runtime(ServiceBase, RuntimeBase):
         # setup host
         self._host = await get_host_client(self._bench_id, self._supervisor)
         bench_scope = GraphScope(bench_id=str(self._bench_id))
-        self._connector = RemoteConnector(self._host, bench_scope, self._rpc_metadata)
         self._engines = (
             # global engine
             RemoteEngine(
@@ -193,12 +183,10 @@ class Runtime(ServiceBase, RuntimeBase):
         # NOTE :Performance: share query connections between runtime/threads?
         async with self.session(readonly=True):
             # connect bench
-            self._bench = await self._connector.get(
-                BENCH_QUERY.where(id=self._bench_id), self._tx_lock, self._session, owner=self
-            )
-            main_environment = self._bench.result.main_environment
+            self._bench = await BENCH_QUERY.get(id=self._bench_id, live=True)
+            main_environment = self._bench.main_environment
             assert main_environment is not None, f"{self._bench!r} has no main environment"
-            main_branch = self._bench.result.main_branch
+            main_branch = self._bench.main_branch
             assert main_branch is not None, f"{self._bench!r} has no main branch"
             assert main_branch.main_package_id is not None, f"{main_branch!r} has no main package"
 
@@ -221,14 +209,9 @@ class Runtime(ServiceBase, RuntimeBase):
             self._session._origin = self._client.to_origin()
 
             # connect main package
-            self._main_package = await self._connector.get(
-                PACKAGE_QUERY.where(id=main_branch.main_package_id),
-                self._tx_lock,
-                self._session,
-                owner=self,
-            )
+            self._main_package = await PACKAGE_QUERY.get(id=main_branch.main_package_id, live=True)
             self._packages[main_branch.main_package_id] = self._main_package
-            self._session.parent = self._main_package.result
+            self._session.parent = self._main_package
 
         # start threads
         for i in range(RUNTIME_CONCURRENCY):
@@ -239,7 +222,6 @@ class Runtime(ServiceBase, RuntimeBase):
                 host=self._host,
                 client=self._client,
                 machine=self._machine,
-                connector=self._connector,
                 engines=self._engines,
                 queue=self._run_queue,
             )
@@ -249,24 +231,18 @@ class Runtime(ServiceBase, RuntimeBase):
         logger.info(
             "runtime.start",
             runtime=self,
-            bench=self._bench.result,
+            bench=self._bench,
             client=self._client,
             span="current",
         )
 
     def close(self):
         super().close()
-        if self._bench is not None:
-            self._bench.close()
-        for package in self._packages.values():
-            package.close()
 
     async def wait_closed(self):
         await super().wait_closed()
-        if self._bench is not None:
-            await self._bench.wait_closed()
-        for package in self._packages.values():
-            await package.wait_closed()
+        if self._session:
+            await self._session.close()
         self._bench = None
         self._main_package = None
         self._packages.clear()

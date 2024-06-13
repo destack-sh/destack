@@ -16,7 +16,7 @@ from opentelemetry import trace
 from bench.language import Bench, Package, Run, Server, Subject
 from bench.language.access import Badge, Ownable
 from bench.language.bench import Client
-from bench.language.channel import InMemoryEngine, PostgresEngine, StoreEngine
+from bench.language.connection import GraphEngine, MemoryEngine, PostgresEngine
 from bench.language.const import (
     ETERNAL_NODE_TYPES,
     IN_BENCH_GLOBAL_NODE_TYPES,
@@ -200,7 +200,7 @@ class Host(GraphIoServiceBase, HostBase, HostSpec):
         # NOTE: currently we only have one local engine because we only have one branch :Branching
         #  but later we'll need different engines for every 'full' branch (separate Neon branch)
         self._local_pg_engine: PostgresEngine | None = None
-        self._engines: tuple[StoreEngine, ...] = ()
+        self._engines: tuple[GraphEngine, ...] = ()
 
         # processing
         self._session: Session | None = None
@@ -232,7 +232,7 @@ class Host(GraphIoServiceBase, HostBase, HostSpec):
     def request_session(
         self,
         *,
-        engines: tuple[StoreEngine, ...] | None = None,
+        engines: tuple[GraphEngine, ...] | None = None,
         readonly: bool = True,
         system_commit: bool = True,
     ):
@@ -260,7 +260,7 @@ class Host(GraphIoServiceBase, HostBase, HostSpec):
         return self._bench._graph, self._main_package._graph
 
     @override
-    def get_engines(self) -> tuple[StoreEngine, ...]:
+    def get_engines(self) -> tuple[GraphEngine, ...]:
         return self._engines
 
     @tracer.start_as_current_span("host.get_subject")
@@ -364,12 +364,12 @@ class Host(GraphIoServiceBase, HostBase, HostSpec):
         self._engines = (self._global_pg_engine, self._local_pg_engine)
         if HOST_MEMORY_ENGINE_ENABLED:
             inmemory_engines = (
-                InMemoryEngine(
+                MemoryEngine(
                     scope=self._scope,
                     node_types=LOADED_BENCH_NODE_TYPES,
                     graph=self._bench._data_graph,
                 ),
-                InMemoryEngine(
+                MemoryEngine(
                     scope=self._scope,
                     node_types=SOURCE_NODE_TYPES,
                     graph=self._main_package._data_graph,
