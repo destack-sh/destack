@@ -30,21 +30,6 @@ logger = structlog.get_logger(__name__)
 tracer = trace.get_tracer(__name__)
 
 
-class QueryConnector(abc.ABC):
-    """Connect and cache queries to the graph."""
-
-    @abc.abstractmethod
-    async def get[NodeT: Node, NodeDataT: AnyNodeData](
-        self,
-        query: QueryBuilder[NodeT, NodeDataT],
-        tx_lock: asyncio.Lock,
-        session: Session,
-        owner: Any,
-    ) -> "Connection[NodeT, NodeDataT, Any]":
-        """Create a connected query."""
-        ...
-
-
 class Connection[NodeT: Node, NodeDataT: AnyNodeData, ResultT](abc.ABC):
     """A live query result from a graph connection."""
 
@@ -201,6 +186,27 @@ class RemoteGetConnection[NodeT: Node, NodeDataT: AnyNodeData](Connection[NodeT,
             with contextlib.suppress(asyncio.CancelledError):
                 await self._connect_task
 
+    # NOTE :Incomplete: live search/aggregate connections for runtime
+
+
+ConnectedBench = Connection[Bench, BenchData, Bench]
+ConnectedPackage = Connection[Package, PackageData, Package]
+
+
+class QueryConnector(abc.ABC):
+    """Connect and cache queries to the graph."""
+
+    @abc.abstractmethod
+    async def get[NodeT: Node, NodeDataT: AnyNodeData](
+        self,
+        query: QueryBuilder[NodeT, NodeDataT],
+        tx_lock: asyncio.Lock,
+        session: Session,
+        owner: Any,
+    ) -> "Connection[NodeT, NodeDataT, Any]":
+        """Create a connected query."""
+        ...
+
 
 class RemoteConnector(QueryConnector):
     """Connect queries to a remote graph with gRPC."""
@@ -236,9 +242,3 @@ class RemoteConnector(QueryConnector):
         )
         await connected_query.start()
         return connected_query
-
-    # NOTE :Incomplete: live search/aggregate connections for runtime
-
-
-ConnectedBench = Connection[Bench, BenchData, Bench]
-ConnectedPackage = Connection[Package, PackageData, Package]

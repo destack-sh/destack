@@ -9,7 +9,7 @@ from opentelemetry import trace
 from bench.language import Bench, Package, User
 from bench.language.bench import Client, Machine
 from bench.language.channel import StoreEngine
-from bench.language.code_ import Code, run_code_exec
+from bench.language.code import Code, run_code_exec
 from bench.language.connection import ConnectedBench, ConnectedPackage, QueryConnector
 from bench.language.const import BlockType, RunKind, RunStatus, _active_run
 from bench.language.run import Run, RunError

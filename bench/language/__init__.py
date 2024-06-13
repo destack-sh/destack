@@ -27,7 +27,7 @@ from .bench import (
     Upgrade,
 )
 from .block import Block
-from .code_ import Code, CodeLine
+from .code import Code, CodeLine
 from .const import (
     VERSION,
     AccessType,

@@ -254,7 +254,7 @@ def render_node(
 
 def render(value: Node | Struct) -> str:
     """Renders the given Node/Struct to Bench python and prettifies it."""
-    from bench.language.code_ import format_code
+    from bench.language.code import format_code
 
     rendered = render_node(value) if isinstance(value, Node) else render_struct(value)
     rendered = format_code(rendered)
