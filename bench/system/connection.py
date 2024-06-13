@@ -7,7 +7,7 @@ import structlog
 from opentelemetry import trace
 
 from bench.language import Session, Subject
-from bench.language.connection import FetchOptions
+from bench.language.channel import FetchOptions
 from bench.language.const import EditType, NodeType, ReadType
 from bench.language.graph import NodeDataGraph, NodeDataGraphLike
 from bench.language.query import DEFAULT_READ_OPTIONS, QueryBuilder
@@ -58,7 +58,10 @@ class _WatchUpdateBase:
 
 
 class Connection[ResultT: Any, UpdateT: _WatchUpdateBase](abc.ABC):
-    """A (usually live) query connection to a (sub)graph."""
+    """
+    A (usually live) query connection to a (sub)graph.
+    This is the counterpart to the runtime/language connections that answers the calls.
+    """
 
     read_type: ClassVar[ReadType]
 
@@ -132,6 +135,7 @@ class Connection[ResultT: Any, UpdateT: _WatchUpdateBase](abc.ABC):
     def unsubscribe(self, subscription: "ConnectionSubscription[UpdateT]"):
         if subscription not in self._subscribers:
             raise ValueError(f"{subscription!r} is not subscribed to {self!r}")
+        self.bump_referenced()  # set last referenced to now
         self._subscribers.remove(subscription)
 
     @abc.abstractmethod
@@ -201,14 +205,14 @@ class NodeConnectionBase[
     def _apply_node_edits(
         self,
         updated_graph: NodeDataGraphLike,
-        edits: list[EditData],
+        unfiltered_edits: list[EditData],
         is_cascaded: bool,
     ) -> list[EditData]:
-        """Apply relevant node edits to the result graph, return filtered edits."""
+        """Apply relevant node edits to our result graph, return filtered edits."""
         options = self.query._options or DEFAULT_READ_OPTIONS
         result_graph = self.result.graph
         filtered_edits: list[EditData] = []
-        for edit in edits:
+        for edit in unfiltered_edits:
             # filter type
             node_type = NodeType(edit.node_ptr.type)
             if node_type not in self._node_types:
@@ -285,7 +289,7 @@ class GetConnection(NodeConnectionBase[GetResult, WatchGetUpdate]):
 
     @override
     async def connect(self, session: Session) -> GetResult:
-        fetch = await session.tx._read_connection.fetch(self.query, FetchOptions(count=False))
+        fetch = await session.tx._read_channel.fetch(self.query, FetchOptions(count=False))
         graph = NodeDataGraph(
             scope=self.scope, node_types=tuple(self.query.all_node_types), nodes=fetch.nodes
         )
@@ -301,9 +305,11 @@ class GetConnection(NodeConnectionBase[GetResult, WatchGetUpdate]):
         epoch: int,
     ):
         # filter to relevant edits & update result graph
-        filtered_edits = self._apply_node_edits(updated_graph=graph, edits=edits, is_cascaded=False)
+        filtered_edits = self._apply_node_edits(
+            updated_graph=graph, unfiltered_edits=edits, is_cascaded=False
+        )
         filtered_cascaded_edits = self._apply_node_edits(
-            updated_graph=graph, edits=cascaded_edits, is_cascaded=True
+            updated_graph=graph, unfiltered_edits=cascaded_edits, is_cascaded=True
         )
 
         # emit update if any
@@ -311,7 +317,8 @@ class GetConnection(NodeConnectionBase[GetResult, WatchGetUpdate]):
             update = WatchGetUpdate(
                 edits=filtered_edits,
                 cascaded_edits=filtered_cascaded_edits,
-                # we don't handle permissions here, so no added/removed nodes as roots are static
+                # no added/removed nodes as roots are static in get
+                #  (we don't handle permissions here)
                 added_nodes=[],
                 removed_nodes_ptr=[],
                 epoch=epoch,
@@ -352,7 +359,7 @@ class SearchConnection(NodeConnectionBase[SearchResult, WatchSearchUpdate]):
 
     @override
     async def connect(self, session: Session) -> SearchResult:
-        fetch = await session.tx._read_connection.fetch(self.query, FetchOptions(count=True))
+        fetch = await session.tx._read_channel.fetch(self.query, FetchOptions(count=True))
         graph = NodeDataGraph(
             scope=self.scope, node_types=tuple(self.query.all_node_types), nodes=fetch.nodes
         )
@@ -393,7 +400,7 @@ class AggregateConnection(Connection[AggregateResult, AggregateUpdate]):
 
     @override
     async def connect(self, session: Session) -> AggregateResult:
-        aggregate = await session.tx._read_connection.aggregate(self.query)
+        aggregate = await session.tx._read_channel.aggregate(self.query)
         result = AggregateResult(aggregation=aggregate.aggregation)
         self._result = result
         return result
@@ -415,7 +422,7 @@ class QueryConnector:
         self.scope = scope
         self._connections_by_hash: dict[int, Connection] = {}
         self._connections_by_token: dict[str, Connection] = {}
-        self._lock_by_hash: dict[int, asyncio.Lock] = {}
+        self._lock_by_connection: dict[int, asyncio.Lock] = {}
 
     def _add_connection(self, connection: Connection):
         logger.trace("connect.add", connection=connection)
@@ -427,8 +434,8 @@ class QueryConnector:
         assert not connection.has_subscribers, f"cannot remove {connection!r} with subscribers"
         del self._connections_by_hash[connection.hash]
         del self._connections_by_token[connection.token]
-        if connection.hash in self._lock_by_hash:
-            del self._lock_by_hash[connection.hash]
+        if connection.hash in self._lock_by_connection:
+            del self._lock_by_connection[connection.hash]
 
     def gc_connections(self):
         """Removes inactive connections from the cache."""
@@ -454,6 +461,9 @@ class QueryConnector:
         self, query: QueryBuilder, session: Session, connection_t: type[ConnectionT], *, cache: bool
     ) -> ConnectionT:
         """Creates or reuses a connection to the graph."""
+        assert (
+            query._read_type == connection_t.read_type
+        ), f"unexpected {query!r} (want {connection_t})"
         if not cache:
             connection = connection_t(self.scope, query)
             await connection.connect(session)
@@ -464,13 +474,13 @@ class QueryConnector:
             )
             return connection
         else:
-            # ensure there's only one connection per query
+            # ensure there's only one connection per query (even for simultaneous requests)
             query_hash = query._stable_hash()
-            hash_lock = self._lock_by_hash.get(query_hash)
-            if hash_lock is None:
-                hash_lock = asyncio.Lock()
-                self._lock_by_hash[query_hash] = hash_lock
-            async with hash_lock:
+            connection_lock = self._lock_by_connection.get(query_hash)
+            if connection_lock is None:
+                connection_lock = asyncio.Lock()
+                self._lock_by_connection[query_hash] = connection_lock
+            async with connection_lock:
                 connection = self._connections_by_hash.get(query_hash)
                 was_cached = connection is not None
                 if connection is None:
@@ -478,8 +488,7 @@ class QueryConnector:
                     await connection.connect(session)
                     self._add_connection(connection)
                 else:
-                    if not isinstance(connection, connection_t):
-                        raise ValueError(f"unexpected {connection!r} (want {connection_t})")
+                    assert isinstance(connection, connection_t), f"unexpected {connection!r}"
                     connection.bump_active()
                     connection.bump_referenced()
                 logger.debug(

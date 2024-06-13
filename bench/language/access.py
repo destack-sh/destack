@@ -695,19 +695,12 @@ def adapt_read_options(
     Does NOT fully evaluate access yet, but avoids loading data that will be denied anyway.
     """
 
-    from bench.language.bench import Bench
-
     options = options.copy()
 
     # query ancestors up to root
     for ancestor_type in ANCESTOR_NODE_TYPES[root_node_type]:
         if ancestor_type not in options.ancestor_types:
             options.ancestor_types.append(ancestor_type)
-
-    # if root >: Bench, also load related actual owner (User/Organization)
-    root_node_cls = NODE_CLASS_BY_TYPE[root_node_type]
-    if NodeType.BENCH in root_node_cls.__roots__:
-        options.related_properties.append(cast(Property, Bench.owner))
 
     # TODO :Performance :Security: also pre-filter read options for owner?
 

@@ -1,20 +1,16 @@
 #
 # Queries
 #
-import abc
 from itertools import chain
 from typing import (
     TYPE_CHECKING,
     Any,
     Collection,
-    Generic,
     Iterable,
     Optional,
-    Self,
     TypeVar,
     Union,
     cast,
-    override,
 )
 
 import structlog
@@ -95,9 +91,6 @@ class ReadOptions(InlineStruct):
     # relations
     ancestor_types: list[NodeType] = p_regular(31, array=True, require=False)
     descendant_types: list[NodeType] = p_regular(32, array=True, require=False)
-    related_properties: list[Property] = p_regular(
-        33, require=False, array=True, struct=StructType.PROPERTY_REFERENCE
-    )
 
     # properties (include/exclude relative to default OR select specific properties)
     include_properties: list[Property] = p_regular(
@@ -129,7 +122,6 @@ class ReadOptions(InlineStruct):
         return ReadOptions(
             ancestor_types=list(self.ancestor_types),
             descendant_types=list(self.descendant_types),
-            related_properties=list(self.related_properties),
             include_properties=list(self.include_properties),
             exclude_properties=list(self.exclude_properties),
             select_properties=list(self.select_properties),
@@ -142,9 +134,6 @@ class ReadOptions(InlineStruct):
         copy.ancestor_types = [t for t in self.ancestor_types if t in node_types]
         copy.descendant_types = [t for t in self.descendant_types if t in node_types]
         return copy
-
-    def related(self, node_type: NodeType) -> list[Property] | tuple[Property, ...]:
-        return tuple(p for p in self.related_properties if p.type == node_type)
 
     def select(self, node_type: NodeType) -> list[Property] | tuple[Property, ...]:
         # NOTE :Performance: if len(exclude_properties) gets larger this will be pretty inefficient
@@ -220,126 +209,7 @@ class MultipleNodesFoundError(QueryError):
     pass
 
 
-class MakeQueryBase(abc.ABC, Generic[NodeT, NodeDataT]):
-    """Build or modify a query. :ReadQueryBase"""
-
-    @abc.abstractmethod
-    def where(
-        self, filter: Optional["Expression"] = None, **kwargs
-    ) -> "QueryBuilder[NodeT, NodeDataT]":
-        """Adds a filter clause to the query."""
-        raise NotImplementedError
-
-    @abc.abstractmethod
-    def order_by(
-        self,
-        sort: Union[list[Union["Expression", str]], str, "Expression", None] = None,
-        *args: str,
-    ) -> "QueryBuilder[NodeT, NodeDataT]":
-        """Sorts the query results by the given sort criteria."""
-        raise NotImplementedError
-
-    @abc.abstractmethod
-    def first(self, count: int) -> "QueryBuilder[NodeT, NodeDataT]":
-        """Returns the first N results."""
-        raise NotImplementedError
-
-    limit = first
-
-    @abc.abstractmethod
-    def skip(self, count: int) -> "QueryBuilder[NodeT, NodeDataT]":
-        """Skips the first N results."""
-        raise NotImplementedError
-
-    @abc.abstractmethod
-    def aggregate(self, aggregation: "Expression") -> "QueryBuilder[NodeT, NodeDataT]":
-        """Aggregates the query results."""
-        raise NotImplementedError
-
-    @abc.abstractmethod
-    def include(self, *properties: FieldOrProperty) -> "QueryBuilder[NodeT, NodeDataT]":
-        """Includes given default-excluded properties in the results."""
-        raise NotImplementedError
-
-    @abc.abstractmethod
-    def include_ancestors(self) -> "QueryBuilder[NodeT, NodeDataT]":
-        """Includes all ancestors in the results."""
-        raise NotImplementedError
-
-    @abc.abstractmethod
-    def select_all(self) -> "QueryBuilder[NodeT, NodeDataT]":
-        """Includes all (non-relational) properties in the results."""
-        raise NotImplementedError
-
-    @abc.abstractmethod
-    def exclude(self, *properties: FieldOrProperty) -> "QueryBuilder[NodeT, NodeDataT]":
-        """Excludes given default-included properties from the results."""
-        raise NotImplementedError
-
-    @abc.abstractmethod
-    def related(self, *properties: FieldOrProperty) -> "QueryBuilder[NodeT, NodeDataT]":
-        """Joins the given related properties in the results."""
-        raise NotImplementedError
-
-    @abc.abstractmethod
-    def ancestors(self, *node_types: NodeTypeOrClass) -> "QueryBuilder[NodeT, NodeDataT]":
-        """Joins the given ancestors in the results."""
-        raise NotImplementedError
-
-    @abc.abstractmethod
-    def descendants(self, *node_types: NodeTypeOrClass) -> "QueryBuilder[NodeT, NodeDataT]":
-        """Joins the given descendants in the results."""
-        raise NotImplementedError
-
-
-class ReadQueryBase(abc.ABC, Generic[NodeT, NodeDataT]):
-    """Fetch the nodes matching a query. :ReadQueryBase"""
-
-    @abc.abstractmethod
-    async def __aiter__(self):
-        raise NotImplementedError
-
-    @abc.abstractmethod
-    def __getitem__(self, item: slice | int) -> Union[Self, NodeT]:
-        raise NotImplementedError
-
-    @abc.abstractmethod
-    async def tolist(self) -> list[NodeT]:
-        raise NotImplementedError
-
-    @abc.abstractmethod
-    async def scalar_list(self, *properties: str) -> list[Any]:
-        """Returns a list of values from the results."""
-        raise NotImplementedError
-
-    @abc.abstractmethod
-    async def get(self, filter: Optional["Expression"] = None, **kwargs) -> NodeT:
-        """Returns the unique result matching the query (errors otherwise)."""
-        raise NotImplementedError
-
-    @abc.abstractmethod
-    async def scalar(self, *properties: str) -> Any:
-        """Returns a single value from the single result."""
-        raise NotImplementedError
-
-    @abc.abstractmethod
-    async def scalar_maybe(self, *properties: str) -> Any | None:
-        """Returns a single value from the single result, or None if no result."""
-        raise NotImplementedError
-
-    @abc.abstractmethod
-    async def count(self, filter: Optional["Expression"] = None, **kwargs) -> int:
-        """Returns the number of results."""
-        raise NotImplementedError
-
-    @abc.abstractmethod
-    async def exists(self, filter: Optional["Expression"] = None, **kwargs) -> bool:
-        raise NotImplementedError
-
-
-class QueryBuilder(
-    Generic[NodeT, NodeDataT], MakeQueryBase[NodeT, NodeDataT], ReadQueryBase[NodeT, NodeDataT]
-):
+class QueryBuilder[NodeT: Node, NodeDataT: AnyNodeData]:
     __slots__ = (
         "_after",
         "_aggregation",
@@ -349,7 +219,8 @@ class QueryBuilder(
         "_node_cls",
         "_node_type",
         "_options",
-        "_skip" "_read_type",
+        "_read_type",
+        "_skip",
         "_sort",
     )
 
@@ -400,8 +271,7 @@ class QueryBuilder(
         return ", ".join(content_parts) if content_parts else "<empty>"
 
     def __repr__(self):
-        query_type = self._aggregation.op.bench_name if self._aggregation is not None else "Fetch"
-        return f"<{self._node_type.bench_name}Query.{query_type} {self}>"
+        return f"<{self._node_type.bench_name}Query.{self._read_type.bench_name} {self}>"
 
     def _stable_hash(self):
         return stable_hash(
@@ -461,10 +331,10 @@ class QueryBuilder(
         copy._options = self._options.trim_to(node_types)
         return copy
 
-    @override
     def where(
         self, filter: Optional["Expression"] = None, **kwargs
     ) -> "QueryBuilder[NodeT, NodeDataT]":
+        """Adds a filter clause to the query."""
         from bench.language.expression import coerce_conditional
 
         filter = coerce_conditional(self._node_cls, filter, kwargs)
@@ -474,97 +344,82 @@ class QueryBuilder(
         )
         return copy
 
-    @override
     def order_by(
         self,
         sort: Union[list[Union["Expression", str]], str, "Expression", None] = None,
         *args: str,
     ) -> "QueryBuilder[NodeT, NodeDataT]":
+        """Sorts the query results by the given sort criteria."""
         from bench.language.expression import coerce_sort
 
         copy = self.copy()
         copy._sort = coerce_sort(self._node_cls, sort, *args)
         return copy
 
-    @override
     def first(self, count: int) -> "QueryBuilder[NodeT, NodeDataT]":
+        """Returns the first N results."""
         copy = self.copy()
         copy._first = count
         return copy
 
     limit = first
 
-    @override
     def skip(self, count: int) -> "QueryBuilder[NodeT, NodeDataT]":
+        """Skips the first N results."""
         copy = self.copy()
         copy._skip = count
         return copy
 
-    @override
     def aggregate(self, aggregation: "Expression") -> "QueryBuilder[NodeT, NodeDataT]":
+        """Aggregates the query results."""
         assert aggregation.kind == ExpressionKind.AGGREGATION, f"not an aggregation: {aggregation}"
         copy = self.copy()
         copy._aggregation = aggregation
         return copy
 
-    @staticmethod
-    def _to_properties(properties: tuple[FieldOrProperty, ...]) -> tuple["Property", ...]:
-        return cast(tuple["Property"], properties)
-
-    @staticmethod
-    def _to_node_types(node_types: tuple[NodeTypeOrClass, ...]) -> list[NodeType]:
-        return [cast(type[Node], t).metatype if isinstance(t, type) else t for t in node_types]
-
-    @override
     def include(self, *properties: FieldOrProperty) -> "QueryBuilder[NodeT, NodeDataT]":
+        """Includes given default-excluded properties in the results."""
         copy = self.copy()
         copy._options = self._copy_options()
         copy._options.include_properties.extend(self._to_properties(properties))
         return copy
 
-    @override
     def select_all(self) -> "QueryBuilder[NodeT, NodeDataT]":
+        """Includes all (non-relational) properties in the results."""
         copy = self.copy()
         copy._options = self._copy_options()
         copy._options.select_all_properties = True
         return copy
 
-    @override
     def exclude(self, *properties: FieldOrProperty) -> "QueryBuilder[NodeT, NodeDataT]":
+        """Excludes given default-included properties from the results."""
         copy = self.copy()
         copy._options = self._copy_options()
         copy._options.exclude_properties.extend(self._to_properties(properties))
         return copy
 
-    @override
-    def related(self, *properties: FieldOrProperty) -> "QueryBuilder[NodeT, NodeDataT]":
-        copy = self.copy()
-        copy._options = self._copy_options()
-        copy._options.related_properties.extend(self._to_properties(properties))
-        return copy
-
-    @override
     def include_ancestors(self) -> "QueryBuilder[NodeT, NodeDataT]":
+        """Includes all ancestors in the results."""
         # not quite happy with this API for getting a 'full' node yet, see :LoadOrphanNode
         ancestors = ANCESTOR_NODE_TYPES[self._node_type]
         return self.ancestors(*ancestors)
 
-    @override
     def ancestors(self, *node_types: NodeTypeOrClass) -> "QueryBuilder[NodeT, NodeDataT]":
+        """Joins the given ancestors in the results."""
         copy = self.copy()
         copy._options = self._copy_options()
         copy._options.ancestor_types = self._to_node_types(node_types)
         return copy
 
-    @override
     def descendants(self, *node_types: NodeTypeOrClass) -> "QueryBuilder[NodeT, NodeDataT]":
+        """Joins the given descendants in the results."""
         copy = self.copy()
         copy._options = self._copy_options()
         copy._options.descendant_types = self._to_node_types(node_types)
         return copy
 
     #
-    # Fetch
+    # Read
     #
 
     def __getitem__(self, item: slice) -> Union["QueryBuilder[NodeT, NodeDataT]", NodeT]:  # type: ignore
@@ -581,9 +436,9 @@ class QueryBuilder(
     async def __aiter__(self):
         return iter(await self.fetch())
 
-    @override
     @tracer.start_as_current_span("query.get")
     async def get(self, filter: Optional["Expression"] = None, **kwargs) -> NodeT:
+        """Returns the unique result matching the query (errors otherwise)."""
         from bench.language.expression import coerce_conditional
 
         filter = coerce_conditional(self._node_cls, filter, kwargs)
@@ -600,12 +455,13 @@ class QueryBuilder(
                 raise MultipleNodesFoundError(query=query, result=results)
 
     @tracer.start_as_current_span("query.fetch")
-    async def fetch(self) -> list[NodeT] | tuple[NodeT, ...]:
-        from bench.language.connection import FetchOptions
+    async def fetch(self) -> list[NodeT]:
+        """Fetches the nodes matching the query."""
+        from bench.language.channel import FetchOptions
         from bench.proto.wiring import unpack_node_roots
 
         session = active_session()
-        result = await session.tx._read_connection.fetch(self, FetchOptions())
+        result = await session.tx._read_channel.fetch(self, FetchOptions())
         data_graph = NodeDataGraph(
             scope=session._default_scope, node_types=list(self.all_node_types), nodes=result.nodes
         )
@@ -618,14 +474,14 @@ class QueryBuilder(
         roots, _ = unpack_node_roots(
             data_graph, parent=self._base, session=session, roots=result.roots, read=read
         )
-        return cast(tuple[NodeT, ...], roots)
+        return cast(list[NodeT], list(roots))
 
     tolist = fetch  # type: ignore
     to_list = fetch  # type: ignore
 
-    @override
     @tracer.start_as_current_span("query.count")
     async def count(self, filter: Optional["Expression"] = None, **kwargs) -> int:
+        """Returns the number of results."""
         from bench.language.expression import A, coerce_conditional
 
         tx = active_tx()
@@ -634,13 +490,13 @@ class QueryBuilder(
         query = query.aggregate(A(AggregationOp.COUNT))
         query._read_type = ReadType.AGGREGATE
         trace.get_current_span().set_attribute("query", repr(query))
-        result = await tx._read_connection.aggregate(query)
+        result = await tx._read_channel.aggregate(query)
         assert result.aggregation.count is not None, f"missing count in {result!r}"
         return result.aggregation.count
 
-    @override
     @tracer.start_as_current_span("query.exists")
     async def exists(self, filter: Optional["Expression"] = None, **kwargs) -> bool:
+        """Whether any nodes match the query."""
         from bench.language.expression import A, coerce_conditional
 
         tx = active_tx()
@@ -649,13 +505,13 @@ class QueryBuilder(
         query = query.aggregate(A(AggregationOp.EXISTS))
         query._read_type = ReadType.AGGREGATE
         trace.get_current_span().set_attribute("query", repr(query))
-        result = await tx._read_connection.aggregate(query)
+        result = await tx._read_channel.aggregate(query)
         assert result.aggregation.exists is not None, f"missing exists in {result!r}"
         return result.aggregation.exists
 
-    @override
     @tracer.start_as_current_span("query.scalar")
     async def scalar(self, *properties: "str | Property") -> Any:
+        """Returns a single value from the single result (error if None)."""
         assert properties, "expected at least one property"
         properties_names = tuple(p.name if not isinstance(p, str) else p for p in properties)
         node = await self.get()
@@ -664,9 +520,9 @@ class QueryBuilder(
         else:
             return tuple(getattr(node, p) for p in properties_names)
 
-    @override
     @tracer.start_as_current_span("query.scalar_maybe")
     async def scalar_maybe(self, *properties: "str | Property") -> Any | None:
+        """Returns a single value from the single result, or None if no result."""
         assert properties, "expected at least one property"
         properties_names = tuple(p.name if not isinstance(p, str) else p for p in properties)
         results = await self.fetch()
@@ -681,9 +537,9 @@ class QueryBuilder(
         else:
             raise MultipleNodesFoundError(query=self, result=results)
 
-    @override
     @tracer.start_as_current_span("query.scalar_list")
     async def scalar_list(self, *properties: "str | Property") -> list[Any]:
+        """Returns a list of values from the results."""
         assert properties, "expected at least one property"
         properties_names = tuple(p.name if not isinstance(p, str) else p for p in properties)
         if len(properties) == 1:
@@ -692,6 +548,14 @@ class QueryBuilder(
             return [
                 tuple(getattr(node, p) for p in properties_names) for node in await self.fetch()
             ]
+
+    @staticmethod
+    def _to_properties(properties: tuple[FieldOrProperty, ...]) -> tuple["Property", ...]:
+        return cast(tuple["Property"], properties)
+
+    @staticmethod
+    def _to_node_types(node_types: tuple[NodeTypeOrClass, ...]) -> list[NodeType]:
+        return [cast(type[Node], t).metatype if isinstance(t, type) else t for t in node_types]
 
 
 @node_(NodeType.QUERY)

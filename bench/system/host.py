@@ -16,7 +16,7 @@ from opentelemetry import trace
 from bench.language import Bench, Package, Run, Server, Subject
 from bench.language.access import Badge, Ownable
 from bench.language.bench import Client
-from bench.language.connection import InMemoryEngine, PostgresEngine, StoreEngine
+from bench.language.channel import InMemoryEngine, PostgresEngine, StoreEngine
 from bench.language.const import (
     ETERNAL_NODE_TYPES,
     IN_BENCH_GLOBAL_NODE_TYPES,

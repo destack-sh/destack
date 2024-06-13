@@ -8,8 +8,9 @@ from opentelemetry import trace
 
 from bench.language import Bench, Package, User
 from bench.language.bench import Client, Machine
+from bench.language.channel import StoreEngine
 from bench.language.code_ import Code, run_code_exec
-from bench.language.connection import StoreEngine
+from bench.language.connection import ConnectedBench, ConnectedPackage, QueryConnector
 from bench.language.const import BlockType, RunKind, RunStatus, _active_run
 from bench.language.run import Run, RunError
 from bench.language.session import Session, unsuspend_session
@@ -17,7 +18,6 @@ from bench.language.validation import on_invalid_raise
 from bench.language.value import check_value
 from bench.proto import wiring
 from bench.proto.wire import GraphScope, HostStub, RunData, SupervisorStub
-from bench.runtime.connection import ConnectedBench, ConnectedPackage, QueryConnector
 from bench.runtime.core import BENCH_QUERY, PACKAGE_QUERY
 from bench.utils.dt import utcnow
 from bench.utils.func import CriticalLock

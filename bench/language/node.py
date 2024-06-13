@@ -1279,7 +1279,7 @@ class Node[NodeDataT: AnyNodeData](BuiltinObject[NodeDataT], abc.ABC):
     # <... defined in concrete type ...>
 
     _graph: "NodeGraph" = p_runtime(default=None)
-    # _graph_set: NodeGraphSet?
+    # _supergraph: NodeSupergraph?
     _read_info: "ReadInfo | None" = p_runtime(default=None)
     _is_new: bool = p_runtime(default=False)
 
@@ -1614,10 +1614,6 @@ class Node[NodeDataT: AnyNodeData](BuiltinObject[NodeDataT], abc.ABC):
     @classmethod
     def exclude(cls, *properties: FieldOrProperty) -> "QueryBuilder[Self, NodeDataT]":
         return cls.query().exclude(*properties)
-
-    @classmethod
-    def related(cls, *properties: FieldOrProperty) -> "QueryBuilder[Self, NodeDataT]":
-        return cls.query().related(*properties)
 
     @classmethod
     def include_ancestors(cls) -> "QueryBuilder[Self, NodeDataT]":
