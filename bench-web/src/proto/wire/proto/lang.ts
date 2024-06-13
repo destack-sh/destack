@@ -991,10 +991,6 @@ export interface ReadOptionsData {
      */
     descendantTypes: NodeType[];
     /**
-     * @generated from protobuf field: repeated symbolx.bench.PropertyReferenceData related_properties_ptr = 33;
-     */
-    relatedPropertiesPtr: PropertyReferenceData[];
-    /**
      * @generated from protobuf field: repeated symbolx.bench.PropertyReferenceData include_properties_ptr = 40;
      */
     includePropertiesPtr: PropertyReferenceData[];
@@ -4683,7 +4679,7 @@ export interface ServerData {
     bumpedAt?: Timestamp;
 }
 /**
- * A managed Session for interacting with and running a Package in a Client.
+ * A managed Session for interacting with and running a Bench in a Client.
  * If a Run spans multiple Clients, each Client will have its own Session.
  * On some Clients a Session may persist across Runs (like in the web client).
  * Once closed, a Session (like a Run) is effectively immutable.
@@ -9624,27 +9620,6 @@ export enum StepType {
     GROUP = 50
 }
 /**
- * @generated from protobuf enum symbolx.bench.StoreConnectionType
- */
-export enum StoreConnectionType {
-    /**
-     * @generated from protobuf enum value: STORE_CONNECTION_TYPE_UNSPECIFIED = 0;
-     */
-    UNSPECIFIED = 0,
-    /**
-     * @generated from protobuf enum value: STORE_CONNECTION_TYPE_LOCAL = 1;
-     */
-    LOCAL = 1,
-    /**
-     * @generated from protobuf enum value: STORE_CONNECTION_TYPE_REMOTE = 2;
-     */
-    REMOTE = 2,
-    /**
-     * @generated from protobuf enum value: STORE_CONNECTION_TYPE_POSTGRES = 3;
-     */
-    POSTGRES = 3
-}
-/**
  * @generated from protobuf enum symbolx.bench.StructType
  */
 export enum StructType {
@@ -12650,7 +12625,6 @@ class ReadOptionsData$Type extends MessageType<ReadOptionsData> {
             { no: 1, name: "metatype", kind: "enum", T: () => ["symbolx.bench.ObjectType", ObjectType, "OBJECT_TYPE_"] },
             { no: 31, name: "ancestor_types", kind: "enum", repeat: 1 /*RepeatType.PACKED*/, T: () => ["symbolx.bench.NodeType", NodeType, "NODE_TYPE_"] },
             { no: 32, name: "descendant_types", kind: "enum", repeat: 1 /*RepeatType.PACKED*/, T: () => ["symbolx.bench.NodeType", NodeType, "NODE_TYPE_"] },
-            { no: 33, name: "related_properties_ptr", kind: "message", repeat: 1 /*RepeatType.PACKED*/, T: () => PropertyReferenceData },
             { no: 40, name: "include_properties_ptr", kind: "message", repeat: 1 /*RepeatType.PACKED*/, T: () => PropertyReferenceData },
             { no: 41, name: "exclude_properties_ptr", kind: "message", repeat: 1 /*RepeatType.PACKED*/, T: () => PropertyReferenceData },
             { no: 42, name: "select_properties_ptr", kind: "message", repeat: 1 /*RepeatType.PACKED*/, T: () => PropertyReferenceData },
@@ -12663,7 +12637,6 @@ class ReadOptionsData$Type extends MessageType<ReadOptionsData> {
         message.metatype = 0;
         message.ancestorTypes = [];
         message.descendantTypes = [];
-        message.relatedPropertiesPtr = [];
         message.includePropertiesPtr = [];
         message.excludePropertiesPtr = [];
         message.selectPropertiesPtr = [];
@@ -12694,9 +12667,6 @@ class ReadOptionsData$Type extends MessageType<ReadOptionsData> {
                             message.descendantTypes.push(reader.int32());
                     else
                         message.descendantTypes.push(reader.int32());
-                    break;
-                case /* repeated symbolx.bench.PropertyReferenceData related_properties_ptr */ 33:
-                    message.relatedPropertiesPtr.push(PropertyReferenceData.internalBinaryRead(reader, reader.uint32(), options));
                     break;
                 case /* repeated symbolx.bench.PropertyReferenceData include_properties_ptr */ 40:
                     message.includePropertiesPtr.push(PropertyReferenceData.internalBinaryRead(reader, reader.uint32(), options));
@@ -12742,9 +12712,6 @@ class ReadOptionsData$Type extends MessageType<ReadOptionsData> {
                 writer.int32(message.descendantTypes[i]);
             writer.join();
         }
-        /* repeated symbolx.bench.PropertyReferenceData related_properties_ptr = 33; */
-        for (let i = 0; i < message.relatedPropertiesPtr.length; i++)
-            PropertyReferenceData.internalBinaryWrite(message.relatedPropertiesPtr[i], writer.tag(33, WireType.LengthDelimited).fork(), options).join();
         /* repeated symbolx.bench.PropertyReferenceData include_properties_ptr = 40; */
         for (let i = 0; i < message.includePropertiesPtr.length; i++)
             PropertyReferenceData.internalBinaryWrite(message.includePropertiesPtr[i], writer.tag(40, WireType.LengthDelimited).fork(), options).join();
@@ -25575,7 +25542,6 @@ export enum ReadOptionsProperty {
   metatype = 1,
   ancestorTypes = 31,
   descendantTypes = 32,
-  relatedPropertiesPtr = 33,
   includePropertiesPtr = 40,
   excludePropertiesPtr = 41,
   selectPropertiesPtr = 42,
@@ -26232,7 +26198,6 @@ export const ReadOptionsDataInfo: Record<ReadOptionsProperty, PropertyInfo> = {
   [ReadOptionsProperty.metatype]: { id: 1, name: 'metatype', component: ObjectType.READ_OPTIONS, enumType: EnumType.OBJECT_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isComputed: true, isWired: true },
   [ReadOptionsProperty.ancestorTypes]: { id: 31, name: 'ancestor_types', component: ObjectType.READ_OPTIONS, enumType: EnumType.NODE_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isList: true, isRuntime: true, isWired: true, isStored: true },
   [ReadOptionsProperty.descendantTypes]: { id: 32, name: 'descendant_types', component: ObjectType.READ_OPTIONS, enumType: EnumType.NODE_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isList: true, isRuntime: true, isWired: true, isStored: true },
-  [ReadOptionsProperty.relatedPropertiesPtr]: { id: 33, name: 'related_properties_ptr', component: ObjectType.READ_OPTIONS, kind: 'primitive', primitiveType: PrimitiveType.JSON, isList: true, isRuntime: true, isWired: true, isStored: true, referenceStruct: StructType.PROPERTY_REFERENCE },
   [ReadOptionsProperty.includePropertiesPtr]: { id: 40, name: 'include_properties_ptr', component: ObjectType.READ_OPTIONS, kind: 'primitive', primitiveType: PrimitiveType.JSON, isList: true, isRuntime: true, isWired: true, isStored: true, referenceStruct: StructType.PROPERTY_REFERENCE },
   [ReadOptionsProperty.excludePropertiesPtr]: { id: 41, name: 'exclude_properties_ptr', component: ObjectType.READ_OPTIONS, kind: 'primitive', primitiveType: PrimitiveType.JSON, isList: true, isRuntime: true, isWired: true, isStored: true, referenceStruct: StructType.PROPERTY_REFERENCE },
   [ReadOptionsProperty.selectPropertiesPtr]: { id: 42, name: 'select_properties_ptr', component: ObjectType.READ_OPTIONS, kind: 'primitive', primitiveType: PrimitiveType.JSON, isList: true, isRuntime: true, isWired: true, isStored: true, referenceStruct: StructType.PROPERTY_REFERENCE },

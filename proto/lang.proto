@@ -1020,13 +1020,6 @@ enum StepType {
   STEP_TYPE_GROUP = 50;
 }
 
-enum StoreConnectionType {
-  STORE_CONNECTION_TYPE_UNSPECIFIED = 0;
-  STORE_CONNECTION_TYPE_LOCAL = 1;
-  STORE_CONNECTION_TYPE_REMOTE = 2;
-  STORE_CONNECTION_TYPE_POSTGRES = 3;
-}
-
 enum StructType {
   STRUCT_TYPE_UNSPECIFIED = 0;
   STRUCT_TYPE_PATH = 1000;
@@ -1582,7 +1575,6 @@ message ReadOptionsData {
   ObjectType metatype = 1;
   repeated NodeType ancestor_types = 31;
   repeated NodeType descendant_types = 32;
-  repeated PropertyReferenceData related_properties_ptr = 33;
   repeated PropertyReferenceData include_properties_ptr = 40;
   repeated PropertyReferenceData exclude_properties_ptr = 41;
   repeated PropertyReferenceData select_properties_ptr = 42;
@@ -2620,7 +2612,7 @@ message ServerData {
   optional google.protobuf.Timestamp bumped_at = 61;
 }
 
-// A managed Session for interacting with and running a Package in a Client.
+// A managed Session for interacting with and running a Bench in a Client.
 // If a Run spans multiple Clients, each Client will have its own Session.
 // On some Clients a Session may persist across Runs (like in the web client).
 // Once closed, a Session (like a Run) is effectively immutable.

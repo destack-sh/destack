@@ -3,7 +3,7 @@
 
 from typing import TYPE_CHECKING, Union
 
-VERSION = "2024.06.12.1"
+VERSION = "2024.06.13.0"
 
 if TYPE_CHECKING:
     from bench.language import Subject
@@ -1078,13 +1078,6 @@ class StepType(betterproto.Enum):
     GROUP = 50
 
 
-class StoreConnectionType(betterproto.Enum):
-    UNSPECIFIED = 0
-    LOCAL = 1
-    REMOTE = 2
-    POSTGRES = 3
-
-
 class StructType(betterproto.Enum):
     UNSPECIFIED = 0
     PATH = 1000
@@ -1737,7 +1730,6 @@ class ReadOptionsData(betterproto.Message):
     metatype: "ObjectType" = betterproto.enum_field(1)
     ancestor_types: List["NodeType"] = betterproto.enum_field(31)
     descendant_types: List["NodeType"] = betterproto.enum_field(32)
-    related_properties_ptr: List["PropertyReferenceData"] = betterproto.message_field(33)
     include_properties_ptr: List["PropertyReferenceData"] = betterproto.message_field(40)
     exclude_properties_ptr: List["PropertyReferenceData"] = betterproto.message_field(41)
     select_properties_ptr: List["PropertyReferenceData"] = betterproto.message_field(42)
@@ -2956,7 +2948,7 @@ class ServerData(betterproto.Message):
 @dataclass(eq=False, repr=False)
 class SessionData(betterproto.Message):
     """
-    A managed Session for interacting with and running a Package in a Client.
+    A managed Session for interacting with and running a Bench in a Client.
      If a Run spans multiple Clients, each Client will have its own Session.
      On some Clients a Session may persist across Runs (like in the web client).
      Once closed, a Session (like a Run) is effectively immutable.
@@ -3462,7 +3454,7 @@ class WatchGetRequest(betterproto.Message):
     connection_token: str = betterproto.string_field(2)
     """The connection to watch. Must already exist."""
 
-    since_epoch: Optional[int] = betterproto.uint64_field(3, optional=True)
+    since_epoch: int = betterproto.uint64_field(3)
     """Get any updates in between the original request and this one."""
 
 
@@ -3542,7 +3534,7 @@ class WatchSearchRequest(betterproto.Message):
     connection_token: str = betterproto.string_field(2)
     """The connection to watch. Must already exist."""
 
-    since_epoch: Optional[int] = betterproto.uint64_field(3, optional=True)
+    since_epoch: int = betterproto.uint64_field(3)
     """Get any updates in between the original request and this one."""
 
 
@@ -3614,7 +3606,7 @@ class WatchAggregateRequest(betterproto.Message):
     connection_token: str = betterproto.string_field(2)
     """The connection to watch. Must already exist."""
 
-    since_epoch: Optional[int] = betterproto.uint64_field(3, optional=True)
+    since_epoch: int = betterproto.uint64_field(3)
     """Get any updates in between the original request and this one."""
 
 

@@ -545,7 +545,8 @@ def edit_graph(
     edits: Collection[EditData],
     options: "ReadOptions | None",
     *,
-    untracked: bool,
+    track: bool,
+    validate: bool,
 ) -> None:
     """Applies the edits to the graph (in place!)."""
     trace.get_current_span().set_attribute("edits", len(edits))
@@ -604,27 +605,27 @@ def edit_graph(
                     prop = prop.reference_wired_ptr
                 new_value_data = getattr(new_node_data, prop.name)
                 new_value = wiring.unpack_object_prop(prop, new_value_data)
-                node._do_set(prop.name, new_value, untracked=untracked)
+                node._do_set(prop.name, new_value, track=track)
             # implicit metadata
             node.updated_at = edit.edited_at
             if "updated_epoch" in node.__properties__:
-                node._do_set("updated_epoch", edit.epoch, untracked=untracked)
-            node._do_set("updated_by_ptr", edit.subject_ptr, untracked=untracked)
-            node._do_set("revision", edit.revision, untracked=untracked)
+                node._do_set("updated_epoch", edit.epoch, track=track)
+            node._do_set("updated_by_ptr", edit.subject_ptr, track=track)
+            node._do_set("revision", edit.revision, track=track)
             if edit_type == EditType.ARCHIVE:
-                node._do_set("archived_at", edit.edited_at, untracked=untracked)
+                node._do_set("archived_at", edit.edited_at, track=track)
             elif edit_type == EditType.UNARCHIVE:
-                node._do_set("archived_at", None, untracked=untracked)
+                node._do_set("archived_at", None, track=track)
             elif edit_type == EditType.DELETE:
-                node._do_set("deleted_at", edit.edited_at, untracked=untracked)
+                node._do_set("deleted_at", edit.edited_at, track=track)
             elif edit_type == EditType.RESTORE:
-                node._do_set("deleted_at", None, untracked=untracked)
+                node._do_set("deleted_at", None, track=track)
             elif edit_type == EditType.MOVE:
                 if new_node_data.parent_ptr is not None:
                     new_parent = graph.get(UUID(new_node_data.parent_ptr.id))
                 else:
                     new_parent = None
-                node._do_set("parent", new_parent, untracked=untracked)
+                node._do_set("parent", new_parent, track=track, validate=validate)
             graph.update(node)
 
 

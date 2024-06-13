@@ -98,9 +98,9 @@ export interface WatchGetRequest {
     /**
      * Get any updates in between the original request and this one.
      *
-     * @generated from protobuf field: optional uint64 since_epoch = 3;
+     * @generated from protobuf field: uint64 since_epoch = 3;
      */
-    sinceEpoch?: bigint;
+    sinceEpoch: bigint;
 }
 /**
  * @generated from protobuf message symbolx.bench.WatchGetResponse
@@ -258,9 +258,9 @@ export interface WatchSearchRequest {
     /**
      * Get any updates in between the original request and this one.
      *
-     * @generated from protobuf field: optional uint64 since_epoch = 3;
+     * @generated from protobuf field: uint64 since_epoch = 3;
      */
-    sinceEpoch?: bigint;
+    sinceEpoch: bigint;
 }
 /**
  * @generated from protobuf message symbolx.bench.WatchSearchResponse
@@ -404,9 +404,9 @@ export interface WatchAggregateRequest {
     /**
      * Get any updates in between the original request and this one.
      *
-     * @generated from protobuf field: optional uint64 since_epoch = 3;
+     * @generated from protobuf field: uint64 since_epoch = 3;
      */
-    sinceEpoch?: bigint;
+    sinceEpoch: bigint;
 }
 /**
  * @generated from protobuf message symbolx.bench.WatchAggregateResponse
@@ -885,12 +885,13 @@ class WatchGetRequest$Type extends MessageType<WatchGetRequest> {
         super("symbolx.bench.WatchGetRequest", [
             { no: 1, name: "scope", kind: "message", T: () => GraphScope },
             { no: 2, name: "connection_token", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
-            { no: 3, name: "since_epoch", kind: "scalar", opt: true, T: 4 /*ScalarType.UINT64*/, L: 0 /*LongType.BIGINT*/ }
+            { no: 3, name: "since_epoch", kind: "scalar", T: 4 /*ScalarType.UINT64*/, L: 0 /*LongType.BIGINT*/ }
         ]);
     }
     create(value?: PartialMessage<WatchGetRequest>): WatchGetRequest {
         const message = globalThis.Object.create((this.messagePrototype!));
         message.connectionToken = "";
+        message.sinceEpoch = 0n;
         if (value !== undefined)
             reflectionMergePartial<WatchGetRequest>(this, message, value);
         return message;
@@ -906,7 +907,7 @@ class WatchGetRequest$Type extends MessageType<WatchGetRequest> {
                 case /* string connection_token */ 2:
                     message.connectionToken = reader.string();
                     break;
-                case /* optional uint64 since_epoch */ 3:
+                case /* uint64 since_epoch */ 3:
                     message.sinceEpoch = reader.uint64().toBigInt();
                     break;
                 default:
@@ -927,8 +928,8 @@ class WatchGetRequest$Type extends MessageType<WatchGetRequest> {
         /* string connection_token = 2; */
         if (message.connectionToken !== "")
             writer.tag(2, WireType.LengthDelimited).string(message.connectionToken);
-        /* optional uint64 since_epoch = 3; */
-        if (message.sinceEpoch !== undefined)
+        /* uint64 since_epoch = 3; */
+        if (message.sinceEpoch !== 0n)
             writer.tag(3, WireType.Varint).uint64(message.sinceEpoch);
         let u = options.writeUnknownFields;
         if (u !== false)
@@ -1222,12 +1223,13 @@ class WatchSearchRequest$Type extends MessageType<WatchSearchRequest> {
         super("symbolx.bench.WatchSearchRequest", [
             { no: 1, name: "scope", kind: "message", T: () => GraphScope },
             { no: 2, name: "connection_token", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
-            { no: 3, name: "since_epoch", kind: "scalar", opt: true, T: 4 /*ScalarType.UINT64*/, L: 0 /*LongType.BIGINT*/ }
+            { no: 3, name: "since_epoch", kind: "scalar", T: 4 /*ScalarType.UINT64*/, L: 0 /*LongType.BIGINT*/ }
         ]);
     }
     create(value?: PartialMessage<WatchSearchRequest>): WatchSearchRequest {
         const message = globalThis.Object.create((this.messagePrototype!));
         message.connectionToken = "";
+        message.sinceEpoch = 0n;
         if (value !== undefined)
             reflectionMergePartial<WatchSearchRequest>(this, message, value);
         return message;
@@ -1243,7 +1245,7 @@ class WatchSearchRequest$Type extends MessageType<WatchSearchRequest> {
                 case /* string connection_token */ 2:
                     message.connectionToken = reader.string();
                     break;
-                case /* optional uint64 since_epoch */ 3:
+                case /* uint64 since_epoch */ 3:
                     message.sinceEpoch = reader.uint64().toBigInt();
                     break;
                 default:
@@ -1264,8 +1266,8 @@ class WatchSearchRequest$Type extends MessageType<WatchSearchRequest> {
         /* string connection_token = 2; */
         if (message.connectionToken !== "")
             writer.tag(2, WireType.LengthDelimited).string(message.connectionToken);
-        /* optional uint64 since_epoch = 3; */
-        if (message.sinceEpoch !== undefined)
+        /* uint64 since_epoch = 3; */
+        if (message.sinceEpoch !== 0n)
             writer.tag(3, WireType.Varint).uint64(message.sinceEpoch);
         let u = options.writeUnknownFields;
         if (u !== false)
@@ -1545,12 +1547,13 @@ class WatchAggregateRequest$Type extends MessageType<WatchAggregateRequest> {
         super("symbolx.bench.WatchAggregateRequest", [
             { no: 1, name: "scope", kind: "message", T: () => GraphScope },
             { no: 2, name: "connection_token", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
-            { no: 3, name: "since_epoch", kind: "scalar", opt: true, T: 4 /*ScalarType.UINT64*/, L: 0 /*LongType.BIGINT*/ }
+            { no: 3, name: "since_epoch", kind: "scalar", T: 4 /*ScalarType.UINT64*/, L: 0 /*LongType.BIGINT*/ }
         ]);
     }
     create(value?: PartialMessage<WatchAggregateRequest>): WatchAggregateRequest {
         const message = globalThis.Object.create((this.messagePrototype!));
         message.connectionToken = "";
+        message.sinceEpoch = 0n;
         if (value !== undefined)
             reflectionMergePartial<WatchAggregateRequest>(this, message, value);
         return message;
@@ -1566,7 +1569,7 @@ class WatchAggregateRequest$Type extends MessageType<WatchAggregateRequest> {
                 case /* string connection_token */ 2:
                     message.connectionToken = reader.string();
                     break;
-                case /* optional uint64 since_epoch */ 3:
+                case /* uint64 since_epoch */ 3:
                     message.sinceEpoch = reader.uint64().toBigInt();
                     break;
                 default:
@@ -1587,8 +1590,8 @@ class WatchAggregateRequest$Type extends MessageType<WatchAggregateRequest> {
         /* string connection_token = 2; */
         if (message.connectionToken !== "")
             writer.tag(2, WireType.LengthDelimited).string(message.connectionToken);
-        /* optional uint64 since_epoch = 3; */
-        if (message.sinceEpoch !== undefined)
+        /* uint64 since_epoch = 3; */
+        if (message.sinceEpoch !== 0n)
             writer.tag(3, WireType.Varint).uint64(message.sinceEpoch);
         let u = options.writeUnknownFields;
         if (u !== false)

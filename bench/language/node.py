@@ -764,14 +764,14 @@ class BuiltinObject[ObjectDataT: AnyNodeData | AnyStructData](abc.ABC):
                 if prop.is_list:
                     assert prop.reference_list_type is not None
                     self._do_set(
-                        prop.name, prop.reference_list_type(cast(Node, self), prop), untracked=True
+                        prop.name, prop.reference_list_type(cast(Node, self), prop), track=False
                     )
                     if existing:
                         # will auto copy if needed
                         getattr(self, prop.name).extend(existing)
                 elif existing is not None:
                     if prop.reference_kind == ReferenceKind.STRUCT_CHILD:
-                        self._do_set(prop.name, existing._move_to(self, prop), untracked=True)
+                        self._do_set(prop.name, existing._move_to(self, prop), track=False)
 
             # init property reference pointers if references are set
             if prop.reference_kind == ReferenceKind.PROPERTY:
@@ -782,11 +782,11 @@ class BuiltinObject[ObjectDataT: AnyNodeData | AnyStructData](abc.ABC):
                         self._do_set(
                             prop.reference_wired_ptr.name,
                             prop.to_wired_ptr(existing),
-                            untracked=True,
+                            track=False,
                         )
                 elif existing is not None:
                     self._do_set(
-                        prop.reference_wired_ptr.name, prop.to_wired_ptr(existing), untracked=True
+                        prop.reference_wired_ptr.name, prop.to_wired_ptr(existing), track=False
                     )
 
         # init reference pointers if references are set
@@ -862,10 +862,10 @@ class BuiltinObject[ObjectDataT: AnyNodeData | AnyStructData](abc.ABC):
 
         raise AttributeError(item)
 
-    def _do_set(self, key: str, value, *, untracked: bool = False):
+    def _do_set(self, key: str, value, *, track: bool = True, validate: bool = True):
         """Sets *any* attribute on this node."""
         session = getattr(self, "_session", None)
-        is_tracked = not untracked and session is not None and session is not UNSET
+        is_tracked = track and session is not None and session is not UNSET
         prop = self.__properties__.get(key)
         if prop is not None:
             if (prop.is_ephemeral and not prop.is_value_runtime) or prop.is_autoset:  # untracked
@@ -881,7 +881,7 @@ class BuiltinObject[ObjectDataT: AnyNodeData | AnyStructData](abc.ABC):
 
             # validate/set
             old_value = getattr(self, key, UNSET)
-            if is_tracked and old_value is not UNSET:
+            if is_tracked and validate and old_value is not UNSET:
                 # coerce & check type
                 if prop.type_info is not None and prop.reference_source is None:
                     value = coerce_value(value, prop.type_info, self, prop, prop)
@@ -1057,10 +1057,10 @@ class BuiltinObject[ObjectDataT: AnyNodeData | AnyStructData](abc.ABC):
                 continue
             if prop.is_list:
                 ptr = cast(list["PropertyReference"], ptr)
-                self._do_set(prop.name, [p.resolve() for p in ptr], untracked=True)
+                self._do_set(prop.name, [p.resolve() for p in ptr], track=False)
             else:
                 ptr = cast("PropertyReference", ptr)
-                self._do_set(prop.name, ptr.resolve(), untracked=True)
+                self._do_set(prop.name, ptr.resolve(), track=False)
 
     def __bool__(self):
         return True  # allow truthy checks for objects

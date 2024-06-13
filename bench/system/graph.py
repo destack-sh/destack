@@ -215,7 +215,7 @@ class GraphIoServiceBase(ServiceBase, GraphIoBase):
             connection_t=GetConnection,
             update_t=WatchGetUpdate,
             connection_token=request.connection_token,
-            since_epoch=request.since_epoch if request.since_epoch is not None else self.epoch,
+            since_epoch=request.since_epoch,
         )
         try:
             self.logger.info(
@@ -310,7 +310,7 @@ class GraphIoServiceBase(ServiceBase, GraphIoBase):
             connection_t=SearchConnection,
             update_t=WatchSearchUpdate,
             connection_token=request.connection_token,
-            since_epoch=request.since_epoch if request.since_epoch is not None else self.epoch,
+            since_epoch=request.since_epoch,
         )
         try:
             self.logger.info(
