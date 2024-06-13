@@ -897,10 +897,10 @@ class HasValues(BuiltinObject):
                 if getattr(self, prop.value_packed_ptr.name) is not None:
                     continue  # skip if already set
                 value_packed, _ = pack_value(value, value_type)
-                self._do_set(prop.value_packed_ptr.name, value_packed, untracked=True)
+                self._do_set(prop.value_packed_ptr.name, value_packed, track=False)
             else:
                 value = unpack_value(value_packed, None, value_type)
-                self._do_set(prop.name, value, untracked=True)
+                self._do_set(prop.name, value, track=False)
 
     @override
     def _updated_component(self, properties: Collection[Property]) -> None:
@@ -925,7 +925,7 @@ class HasValues(BuiltinObject):
                 )
                 if value_type is not None:
                     value = unpack_value(value_packed, None, value_type)
-                    self._do_set(prop.name, value, untracked=True)
+                    self._do_set(prop.name, value, track=False)
 
     def _pack_values_inplace(
         self, properties: Collection[Property] = (), skip_already_set: bool = False
@@ -945,6 +945,6 @@ class HasValues(BuiltinObject):
                 )
                 if value_type is not None:
                     value_packed, _ = pack_value(value, value_type)
-                    self._do_set(prop.value_packed_ptr.name, value_packed, untracked=True)
+                    self._do_set(prop.value_packed_ptr.name, value_packed, track=False)
             else:
-                self._do_set(prop.value_packed_ptr.name, None, untracked=True)
+                self._do_set(prop.value_packed_ptr.name, None, track=False)

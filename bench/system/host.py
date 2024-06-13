@@ -601,7 +601,7 @@ class Host(GraphIoServiceBase, HostBase, HostSpec):
         ):
             # filter the in memory edits to only those with an origin (we = system has origin = null)
             external_edits = tuple(e for e in subedits if e.origin is not None)
-            edit_graph(root_node._graph, external_edits, options, untracked=True)
+            edit_graph(root_node._graph, external_edits, options, track=False, validate=False)
             for edit in subedits:
                 # manually patch revisions since we skipped some edits above
                 assert edit.revision is not None, f"revision not set in {edit!r}"

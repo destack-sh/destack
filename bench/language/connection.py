@@ -31,7 +31,7 @@ tracer = trace.get_tracer(__name__)
 
 
 class QueryConnector(abc.ABC):
-    """A factory for connected queries."""
+    """Connect and cache queries to the graph."""
 
     @abc.abstractmethod
     async def get[NodeT: Node, NodeDataT: AnyNodeData](
@@ -178,7 +178,13 @@ class RemoteGetConnection[NodeT: Node, NodeDataT: AnyNodeData](Connection[NodeT,
                     # apply edits (should filter these :ConnectionFilter)
                     log.trace("connect.update", node=self._result, epoch=rep.epoch)
                     async with self._tx_lock:
-                        edit_graph(graph, rep.edits, options=self._query._options, untracked=True)
+                        edit_graph(
+                            graph,
+                            rep.edits,
+                            options=self._query._options,
+                            track=False,
+                            validate=False,
+                        )
                         self._epoch = rep.epoch
             except self._retry.retry_on as e:
                 log.error("connect.error", node=self._result, exc_info=e)

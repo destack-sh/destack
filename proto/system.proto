@@ -32,7 +32,7 @@ message WatchGetRequest {
   // The connection to watch. Must already exist.
   string connection_token = 2;
   // Get any updates in between the original request and this one.
-  optional uint64 since_epoch = 3;
+  uint64 since_epoch = 3;
 }
 message WatchGetResponse {
   // Edits to current result set.
@@ -88,7 +88,7 @@ message WatchSearchRequest {
   // The connection to watch. Must already exist.
   string connection_token = 2;
   // Get any updates in between the original request and this one.
-  optional uint64 since_epoch = 3;
+  uint64 since_epoch = 3;
 }
 message WatchSearchResponse {
   // Edits to current result set.
@@ -139,7 +139,7 @@ message WatchAggregateRequest {
   // The connection to watch. Must already exist.
   string connection_token = 2;
   // Get any updates in between the original request and this one.
-  optional uint64 since_epoch = 3;
+  uint64 since_epoch = 3;
 }
 message WatchAggregateResponse {
   AggregationData aggregation = 1;

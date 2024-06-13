@@ -529,7 +529,10 @@ export class RemoteGetConnection<T extends NodeType> extends ConnectionBase<"get
 
     // watch edits if live
     if (this.isLive) {
-      const editStream = client.watchGet({ scope: graph.scope, connectionToken }, { abort, ...this.operationMeta });
+      const editStream = client.watchGet(
+        { scope: graph.scope, connectionToken, sinceEpoch: epoch },
+        { abort, ...this.operationMeta },
+      );
       editStream.responses.onNext((rep) => {
         if (rep != null) {
           editGraph(graph, rep.edits);
