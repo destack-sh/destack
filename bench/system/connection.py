@@ -192,7 +192,7 @@ class ConnectionSubscription[UpdateT: Any]:
         self.connection.unsubscribe(self)
 
 
-# TODO :Security!: filter connection subscription with policies
+# TODO :Security!: apply policies to connection subscriptions
 #  (might need a per-connection-type subscription subtype?)
 
 

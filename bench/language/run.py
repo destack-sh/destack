@@ -1,7 +1,7 @@
 from datetime import datetime
 from typing import TYPE_CHECKING, Any, Collection, Optional, Union, cast
 
-from bench.language.code_ import Code
+from bench.language.code import Code
 from bench.language.const import (
     TERMINAL_RUN_STATUSES,
     BenchError,

@@ -11,7 +11,7 @@ from bench.conftest import global_session
 from bench.language import Bench, ReadOptions, Store, User
 from bench.language.bench import Branch, Package, ResourceStatus
 from bench.language.channel import RemoteEngine
-from bench.language.code_ import Code
+from bench.language.code import Code
 from bench.language.const import (
     BENCH_NODE_TYPES,
     IN_BENCH_NODE_TYPES,
