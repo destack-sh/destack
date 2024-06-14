@@ -10,7 +10,8 @@ from opentelemetry import trace
 
 from bench.language.connection import ConnectionBase
 from bench.language.const import UNSET, NodeType, ObjectType
-from bench.language.graph import NodeDataGraph
+from bench.language.expression import NodeReference
+from bench.language.graph import NodeDataGraph, NodeSuperGraph
 from bench.language.node import BuiltinObject, Node, NodeGraph
 from bench.language.property import Property
 from bench.language.session import Session
@@ -24,6 +25,9 @@ from bench.utils.func import IdEnum, IdEnumOrUnion, to_uuid
 
 logger = structlog.get_logger(__name__)
 tracer = trace.get_tracer(__name__)
+
+NULL_PTR = NodeReference(type=NodeType.BENCH, id=UUID(int=0), ck=UUID(int=0), bench_id=UUID(int=0))
+NULL_SUPERGRAPH = NodeSuperGraph(NULL_PTR)
 
 PROTO_CLASS_BY_TYPE: dict[ObjectType, type[Union[AnyNodeData, AnyStructData]]] = {
     _type: getattr(wire, _type.bench_name + "Data")
@@ -118,16 +122,20 @@ def pack_object_prop(prop: Property, value: Any, ignore_array: bool) -> Any:
         return value
 
 
-def unpack_object_prop(prop: Property, value: Any, ignore_array: bool = False) -> Any:
+def unpack_object_prop(
+    prop: Property, value: Any, *, supergraph: NodeSuperGraph, ignore_array: bool = False
+) -> Any:
     from bench.language.expression import NodeReference
 
     try:
         if value is None:
             return None
         elif prop.is_list and not ignore_array:
-            return [unpack_object_prop(prop, v, ignore_array=True) for v in value]
+            return [
+                unpack_object_prop(prop, v, supergraph=supergraph, ignore_array=True) for v in value
+            ]
         elif prop.is_struct:
-            return unpack_object(value)
+            return unpack_object(value, supergraph=supergraph)
         elif prop.is_enum:
             return unpack_enum(prop.py_type_stripped, value)
         elif prop.reference_kind is not None and not prop.reference_kind.is_struct_tree:
@@ -178,11 +186,13 @@ def pack_object_maybe[T: AnyStructData | AnyNodeData](
 def unpack_object[T: BuiltinObject](
     obj_data: AnyStructData | AnyNodeData,
     *,
+    supergraph: NodeSuperGraph | None,
     parent: Node | None = None,
     expect: type[T] | None = None,
     session: Session | None = None,
 ) -> T:
     """Unpack a builtin object and any contained structs without validating."""
+    supergraph = supergraph or NULL_SUPERGRAPH
     object_cls = OBJECT_CLASS_BY_TYPE[ObjectType(obj_data.metatype)]  # type: ignore
     if expect and not issubclass(object_cls, expect):
         raise RuntimeError(f"expected {expect} but got {object_cls}")
@@ -192,9 +202,12 @@ def unpack_object[T: BuiltinObject](
             if not prop.is_runtime or prop.is_computed:
                 continue
             value = getattr(obj_data, prop.name)
-            object_kwargs[prop.name] = unpack_object_prop(prop, value, ignore_array=False)
+            object_kwargs[prop.name] = unpack_object_prop(
+                prop, value, supergraph=supergraph, ignore_array=False
+            )
         if parent is not None:
-            object_kwargs["_supergraph"] = parent._supergraph
+            object_kwargs["_arent"] = parent
+        object_kwargs["_supergraph"] = supergraph
         if issubclass(object_cls, Node):
             object_kwargs["_session"] = UNSET
         obj = object_cls(**object_kwargs)
@@ -207,19 +220,25 @@ def unpack_object[T: BuiltinObject](
 
 def unpack_object_validate[T: BuiltinObject](
     obj_data: AnyStructData | AnyNodeData,
+    *,
+    supergraph: NodeSuperGraph | None,
     parent: Node | None = None,
     scope: Node | None = None,
     expect: type[T] | None = None,
     session: Session | None = None,
 ) -> T:
     """Unpack a builtin object and validate it."""
-    obj = unpack_object(obj_data, parent=parent, expect=expect, session=session)
+    obj = unpack_object(
+        obj_data, supergraph=supergraph, parent=parent, expect=expect, session=session
+    )
     obj._validate_rec(invalid=on_invalid_raise)
     return obj
 
 
 def unpack_object_validate_maybe[T: BuiltinObject](
     obj_data: AnyStructData | AnyNodeData | None,
+    *,
+    supergraph: NodeSuperGraph | None,
     scope: Node | None = None,
     expect: type[T] | None = None,
     session: Session | None = None,
@@ -227,12 +246,19 @@ def unpack_object_validate_maybe[T: BuiltinObject](
     if obj_data is None:
         return None
     else:
-        return unpack_object_validate(obj_data, scope=scope, expect=expect, session=session)
+        return unpack_object_validate(
+            obj_data,
+            supergraph=supergraph,
+            scope=scope,
+            expect=expect,
+            session=session,
+        )
 
 
 @tracer.start_as_current_span("wiring.unpack_node_graph")
 def unpack_node_graph(
     data_graph: NodeDataGraph,
+    supergraph: NodeSuperGraph,
     parent: Node | None = None,
     session: Session | None = None,
     exclude: set[NodeType] | tuple[NodeType, ...] | None = (),
@@ -245,7 +271,10 @@ def unpack_node_graph(
     parent_id = parent.id if parent is not None else None
     unpacked_roots: list[Node] = []
     source_roots = data_graph.find_roots()
-    unpacked_graph = NodeGraph(scope=data_graph.scope, node_types=data_graph.node_types)
+    unpacked_graph = NodeGraph(
+        scope=data_graph.scope, node_types=data_graph.node_types, supergraph=supergraph
+    )
+    supergraph.add_graph(unpacked_graph)
 
     for root_data in source_roots:
         # unpack all nodes top down (breadth first)
@@ -265,7 +294,7 @@ def unpack_node_graph(
                 #  (this errors here, but sometimes we just want a node without ancestors)
                 # if node_parent is None:
                 #     raise ValueError(f"parent {node_parent_id} not found in {unpacked_graph!r}")
-            node = unpack_object(node_data, parent=node_parent, expect=Node)
+            node = unpack_object(node_data, supergraph=supergraph, parent=node_parent, expect=Node)
             node._connection = connection  # type: ignore
 
             # keep parent instance if it was passed (update it in place)
@@ -295,6 +324,7 @@ def unpack_node_graph(
 
 def unpack_node_roots(
     data_graph: NodeDataGraph,
+    supergraph: NodeSuperGraph,
     parent: Node | None = None,
     session: Session | None = None,
     exclude: set[NodeType] | None = None,
@@ -304,7 +334,12 @@ def unpack_node_roots(
     """Unpack nodes and their descendants. Returns the actual roots (or passed ones)."""
 
     node_graph = unpack_node_graph(
-        data_graph, parent, session, exclude=exclude, connection=connection
+        data_graph=data_graph,
+        supergraph=supergraph,
+        parent=parent,
+        session=session,
+        exclude=exclude,
+        connection=connection,
     )
 
     if roots:

@@ -77,6 +77,8 @@ NodeTypeOrClass = Union[NodeType, type[Node]]
 
 
 class ChannelError(BenchError):
+    """An error. From a channel."""
+
     def __init__(
         self,
         medium: Union["GraphEngine", "Channel", Any],
@@ -478,8 +480,13 @@ class GetConnection[ChannelT: Channel](
     def _unpack_result(self, result_data: GetResultData) -> GetResult:
         from bench.proto import wiring
 
+        assert self.session._supergraph is not None, f"{self!r} has no supergraph"
         roots, graph = wiring.unpack_node_roots(
-            result_data.graph, roots=result_data.roots_ptr, session=self.session, connection=self
+            data_graph=result_data.graph,
+            supergraph=self.session._supergraph,
+            roots=result_data.roots_ptr,
+            session=self.session,
+            connection=self,
         )
         return GetResult(graph=graph, roots=list(roots))
 
@@ -488,8 +495,14 @@ class GetConnection[ChannelT: Channel](
 
         edit_data_graph(self.result_data.graph, update.edits, self.query._options)
         if self._result is not None:
+            assert self.session._supergraph is not None, f"{self!r} has no supergraph"
             edit_graph(
-                self._result.graph, update.edits, self.query._options, track=False, validate=False
+                graph=self._result.graph,
+                supergraph=self.session._supergraph,
+                edits=update.edits,
+                options=self.query._options,
+                track=False,
+                validate=False,
             )
 
 
@@ -501,8 +514,13 @@ class SearchConnection[ChannelT: Channel](
     def _unpack_result(self, result_data: SearchResultData) -> SearchResult:
         from bench.proto import wiring
 
+        assert self.session._supergraph is not None, f"{self!r} has no supergraph"
         roots, graph = wiring.unpack_node_roots(
-            result_data.graph, roots=result_data.roots_ptr, session=self.session, connection=self
+            data_graph=result_data.graph,
+            supergraph=self.session._supergraph,
+            roots=result_data.roots_ptr,
+            session=self.session,
+            connection=self,
         )
         return SearchResult(graph=graph, roots=list(roots), total=result_data.total)
 
@@ -511,8 +529,14 @@ class SearchConnection[ChannelT: Channel](
 
         edit_data_graph(self.result_data.graph, update.edits, self.query._options)
         if self._result is not None:
+            assert self.session._supergraph is not None, f"{self!r} has no supergraph"
             edit_graph(
-                self._result.graph, update.edits, self.query._options, track=False, validate=False
+                graph=self._result.graph,
+                supergraph=self.session._supergraph,
+                edits=update.edits,
+                options=self.query._options,
+                track=False,
+                validate=False,
             )
 
 
@@ -527,7 +551,10 @@ class AggregateConnection[ChannelT: Channel](
         from bench.language import Aggregation
         from bench.proto import wiring
 
-        aggregation = wiring.unpack_object(result_data.aggregation, expect=Aggregation)
+        assert self.session._supergraph is not None, f"{self!r} has no supergraph"
+        aggregation = wiring.unpack_object(
+            result_data.aggregation, supergraph=self.session._supergraph, expect=Aggregation
+        )
         return AggregateResult(aggregation=aggregation)
 
     def _apply_update(self, update: WatchAggregateUpdate):
@@ -708,7 +735,10 @@ class SplitConnectionBase(ConnectionBase):
                 ancestor_query = QueryBuilder(
                     read_type=ReadType.GET,
                     node_type=parent_type,
-                    roots=[wiring.unpack_object(p, expect=NodeReference) for p in parents],
+                    roots=[
+                        wiring.unpack_object(p, supergraph=None, expect=NodeReference)
+                        for p in parents
+                    ],
                     options=ReadOptions(ancestor_types=remaining_ancestors),
                 )
                 ancestor_connection = await ancestor_channel.search(ancestor_query, self.options)

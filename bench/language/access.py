@@ -38,7 +38,7 @@ from bench.language.const import (
     UseType,
 )
 from bench.language.expression import NodeReference
-from bench.language.graph import NodeDataGraph, NodeGraph, NodeList
+from bench.language.graph import NodeDataGraph, NodeGraph, NodeList, NodeSuperGraph
 from bench.language.node import (
     NODE_CLASS_BY_TYPE,
     InlineStruct,
@@ -709,6 +709,7 @@ def adapt_read_options(
 def generate_access_matrix(
     subject: Subject,
     graph: NodeDataGraph,
+    supergraph: NodeSuperGraph | None,
     base_policies: Collection[Policy] | None = None,
     unpacked_graph: NodeGraph | None = None,
 ) -> AccessMatrix:
@@ -741,7 +742,8 @@ def generate_access_matrix(
                 new_policies: list[Policy] = getattr(node, "policies")
             else:
                 new_policies: list[Policy] = [
-                    wiring.unpack_object_validate(p) for p in getattr(node_data, "policies")
+                    wiring.unpack_object_validate(p, supergraph=supergraph)
+                    for p in getattr(node_data, "policies")
                 ]
             for policy in new_policies:
                 if policy.scopes:

@@ -11,7 +11,7 @@ import structlog
 from opentelemetry import trace
 
 from bench.language import Bench, Node, NodeType, Store
-from bench.language.bench import Branch, Package, Region
+from bench.language.bench import Package, Region
 from bench.language.connection import PostgresEngine
 from bench.language.const import (
     GLOBAL_NODE_TYPES,
@@ -20,7 +20,8 @@ from bench.language.const import (
     VERSION,
     EditType,
 )
-from bench.language.graph import NodeGraphLike
+from bench.language.expression import NodeReference
+from bench.language.graph import NodeGraphLike, NodeSuperGraph
 from bench.language.session import Session
 from bench.language.transaction import unpack_node_delta
 from bench.proto import wiring
@@ -38,8 +39,17 @@ GLOBAL_PG_NAME = get_from_env("GLOBAL_PG_NAME", description="Global Postgres dat
 GLOBAL_PG_USERNAME = get_from_env("GLOBAL_PG_USERNAME", description="Global Postgres username")
 GLOBAL_PG_PASSWORD = get_from_env("GLOBAL_PG_PASSWORD", description="Global Postgres password")
 
+SYSTEM_BENCH_ID = UUID(int=0)
+SYSTEM_BENCH_PTR = NodeReference(
+    type=NodeType.BENCH, id=SYSTEM_BENCH_ID, ck=SYSTEM_BENCH_ID, bench_id=SYSTEM_BENCH_ID
+)
 SYSTEM_BENCH_STUB = Bench(
-    name="System (Stub)", slug="system", region=Region.GLOBAL, encryption_key=GLOBAL_PG_CRYPTO_KEY
+    id=SYSTEM_BENCH_ID,
+    name="System (Stub)",
+    slug="system",
+    region=Region.GLOBAL,
+    encryption_key=GLOBAL_PG_CRYPTO_KEY,
+    _supergraph=NodeSuperGraph(SYSTEM_BENCH_PTR),
 )
 
 GLOBAL_STORE = Store(
@@ -60,12 +70,7 @@ GLOBAL_POSTGRES_ENGINE = PostgresEngine(
 
 LOADED_HOST_NODE_TYPES = LOADED_BENCH_NODE_TYPES | SOURCE_NODE_TYPES
 BENCH_QUERY = Bench.descendants(*LOADED_BENCH_NODE_TYPES).select_all()
-PACKAGE_QUERY = (
-    Package.descendants(*SOURCE_NODE_TYPES)
-    .ancestors(Bench, Branch)
-    .select_all()
-    .exclude(Bench.encryption_key)
-)
+PACKAGE_QUERY = Package.descendants(*SOURCE_NODE_TYPES).select_all().exclude(Bench.encryption_key)
 
 
 def global_pg_cursor(autocommit: bool = False):
@@ -74,7 +79,11 @@ def global_pg_cursor(autocommit: bool = False):
 
 def global_session(epoch: Optional[int] = None):
     return Session(
-        parent=None, _default_scope=GraphScope(), _engines=(GLOBAL_POSTGRES_ENGINE,), _epoch=epoch
+        parent=None,
+        _default_scope=GraphScope(),
+        _engines=(GLOBAL_POSTGRES_ENGINE,),
+        _epoch=epoch,
+        _supergraph=SYSTEM_BENCH_STUB._supergraph,
     )
 
 
@@ -136,6 +145,7 @@ class Commit[T: Node]:
 def unpack_commit(
     session: Session,
     graphs: Collection[NodeGraphLike],
+    supergraph: NodeSuperGraph,
     edits: list[EditData],
     cascaded_edits: list[EditData],
     epoch: int,
@@ -213,7 +223,9 @@ def unpack_commit(
             else:
                 # cascaded edits should bei in pre-order, so the parent must exist
                 raise RuntimeError(f"missing parent {parent_id} for {node!r} in {edit!r}")
-        node = wiring.unpack_object(node, parent=parent, session=session, expect=Node)
+        node = wiring.unpack_object(
+            node, supergraph=supergraph, parent=parent, session=session, expect=Node
+        )
         unpacked_nodes[node.id] = node
         # map
         _add_edit(edit, node)

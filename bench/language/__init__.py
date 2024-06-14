@@ -83,7 +83,6 @@ from .file import Blob, File, Icon
 from .graph import (
     NodeDataDict,
     NodeDataGraph,
-    NodeDataSuperGraph,
     NodeDict,
     NodeGraph,
     NodeSuperGraph,
@@ -215,7 +214,6 @@ __all__ = [
     "Node",
     "NodeDataDict",
     "NodeDataGraph",
-    "NodeDataSuperGraph",
     "NodeDict",
     "NodeGraph",
     "NodeReference",

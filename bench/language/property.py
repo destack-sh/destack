@@ -241,11 +241,10 @@ class Property(_TypeQueryBuilder if TYPE_CHECKING else object):
         return (
             # exclude our own runtime-only properties
             not self.is_ephemeral
-            # exclude references (we have them as properties, so they're not directly introspectable)
-            and not self.reference_kind
-            # exclude ancestor properties (they're computed but would be nice to have :c)
-            and self.reference_kind
-            not in (ReferenceKind.NODE_ANCESTOR_FIRST, ReferenceKind.NODE_ANCESTOR_ROOT)
+            # exclude references (we have them as properties, so they're not directly introspectable, but would be ncie)
+            and not (self.reference_kind is not None and self.reference_kind.is_node)
+            and self.reference_kind != ReferenceKind.PROPERTY
+            and self.reference_kind != ReferenceKind.STRUCT_PARENT
             # exclude contributed reference properties (like parent_id)
             and not self.reference_source
         )

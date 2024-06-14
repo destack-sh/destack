@@ -32,7 +32,7 @@ from bench.utils.func import uuid_to_str
 from bench.utils.uuidt import UUIDT
 
 if TYPE_CHECKING:
-    from bench.language import ReadOptions, Session
+    from bench.language import NodeSuperGraph, ReadOptions, Session
 
 logger = structlog.get_logger(__name__)
 tracer = trace.get_tracer(__name__)
@@ -544,6 +544,7 @@ def unpack_node_delta(
 @tracer.start_as_current_span("graph.edit_graph")
 def edit_graph(
     graph: NodeGraph,
+    supergraph: "NodeSuperGraph",
     edits: Collection[EditData],
     options: "ReadOptions | None",
     *,
@@ -582,7 +583,9 @@ def edit_graph(
                 parent = graph.get(UUID(new_node_data.parent_ptr.id))
             else:
                 parent = None
-            node = wiring.unpack_object(new_node_data, parent=parent, expect=Node)
+            node = wiring.unpack_object(
+                new_node_data, supergraph=supergraph, parent=parent, expect=Node
+            )
             if edit_type == EditType.CREATE or node.id not in graph:
                 graph.add(node)
             else:
@@ -606,7 +609,7 @@ def edit_graph(
                 if prop.reference_wired_ptr is not None:
                     prop = prop.reference_wired_ptr
                 new_value_data = getattr(new_node_data, prop.name)
-                new_value = wiring.unpack_object_prop(prop, new_value_data)
+                new_value = wiring.unpack_object_prop(prop, new_value_data, supergraph=supergraph)
                 node._do_set(prop.name, new_value, track=track)
             # implicit metadata
             node.updated_at = edit.edited_at

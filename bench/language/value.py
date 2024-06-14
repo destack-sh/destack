@@ -586,7 +586,8 @@ def unpack_value_scalar(value_packed: JsonValue, typ: "TypeInfoBase") -> ScalarV
 
         assert isinstance(value_packed, dict), f"{value_packed!r} is not a dict (expected {typ!r})"
         value_struct = unpack_builtin_object_data(value_packed)
-        return wiring.unpack_object(cast(AnyStructData, value_struct))
+        # TODO :Broken: pass in proper supergraph to values (and structs in values)
+        return wiring.unpack_object(cast(AnyStructData, value_struct), supergraph=None)
     else:
         raise TypeError(f"cannot unpack value of type {typ!r}")
 

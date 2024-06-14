@@ -27,7 +27,7 @@ from bench.language.const import (
     NodeType,
 )
 from bench.language.expression import NodeReference
-from bench.language.graph import NodeDataGraphLike, NodeGraphLike
+from bench.language.graph import NodeDataGraphLike, NodeGraphLike, NodeSuperGraph
 from bench.language.log import Log
 from bench.language.property import Property
 from bench.language.session import Session, SessionContext, unsuspend_session
@@ -196,6 +196,7 @@ class Host(GraphIoServiceBase, HostBase, HostSpec):
         self.bench_ptr = NodeReference(
             type=NodeType.BENCH, id=bench_id, ck=bench_id, bench_id=bench_id
         )
+        self._supergraph = NodeSuperGraph(self.bench_ptr)
         self._bench: Bench | None = None
         self._main_package: Package | None = None
         self._scope: GraphScope = GraphScope(bench_id=str(bench_id))
@@ -232,6 +233,20 @@ class Host(GraphIoServiceBase, HostBase, HostSpec):
     def on_error(self, source: HostPlugin, error: Exception) -> None:
         pass  # error is already reported, we just keep running
 
+    @property
+    def graphs(self) -> tuple[NodeGraphLike, ...]:
+        assert self._bench is not None, f"bench not loaded in {self!r}"
+        assert self._main_package is not None, f"main package not loaded in {self!r}"
+        return self._bench._graph, self._main_package._graph
+
+    @override
+    def get_engines(self) -> tuple[GraphEngine, ...]:
+        return self._engines
+
+    @override
+    def get_supergraph(self) -> NodeSuperGraph:
+        return self._supergraph
+
     @override
     def request_session(
         self,
@@ -256,16 +271,6 @@ class Host(GraphIoServiceBase, HostBase, HostSpec):
         ):
             self._session._epoch = self.epoch
             yield self._session
-
-    @property
-    def graphs(self) -> tuple[NodeGraphLike, ...]:
-        assert self._bench is not None, f"bench not loaded in {self!r}"
-        assert self._main_package is not None, f"main package not loaded in {self!r}"
-        return self._bench._graph, self._main_package._graph
-
-    @override
-    def get_engines(self) -> tuple[GraphEngine, ...]:
-        return self._engines
 
     @tracer.start_as_current_span("host.get_subject")
     async def _get_subject(
@@ -387,6 +392,7 @@ class Host(GraphIoServiceBase, HostBase, HostSpec):
             _default_scope=self.scope,
             _engines=self._engines,
             _custom_commit=self._commit_system_session,
+            _supergraph=self._bench._supergraph,
         )
         self._bench._track_rec(self._session)
         self._main_package._track_rec(self._session)
@@ -604,7 +610,14 @@ class Host(GraphIoServiceBase, HostBase, HostSpec):
         ):
             # filter the in memory edits to only those with an origin (we = system has origin = null)
             external_edits = tuple(e for e in subedits if e.origin is not None)
-            edit_graph(root_node._graph, external_edits, options, track=False, validate=False)
+            edit_graph(
+                graph=root_node._graph,
+                supergraph=self._supergraph,
+                edits=external_edits,
+                options=options,
+                track=False,
+                validate=False,
+            )
             for edit in subedits:
                 # manually patch revisions since we skipped some edits above
                 assert edit.revision is not None, f"revision not set in {edit!r}"
@@ -621,6 +634,7 @@ class Host(GraphIoServiceBase, HostBase, HostSpec):
         self._session.track_many(*graph.nodes)
         commit = unpack_commit(
             session=self._session,
+            supergraph=self._supergraph,
             graphs=(*self.graphs, graph),
             edits=edits,
             cascaded_edits=cascaded_edits,
