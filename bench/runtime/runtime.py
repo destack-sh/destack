@@ -20,6 +20,7 @@ from bench.language.const import (
     RunStatus,
 )
 from bench.language.expression import NodeReference
+from bench.language.graph import NodeSuperGraph
 from bench.language.run import Run
 from bench.language.session import Session, unsuspend_session
 from bench.proto import wire, wiring
@@ -97,6 +98,7 @@ class Runtime(ServiceBase, RuntimeBase):
         self._bench_ptr = NodeReference(
             type=NodeType.BENCH, id=bench_id, ck=bench_id, bench_id=bench_id
         )
+        self._supergraph = NodeSuperGraph(self._bench_ptr)
         self._bench: Bench | None = None
         self._main_package: Package | None = None
         self._packages: dict[UUID, Package] = {}
@@ -181,6 +183,7 @@ class Runtime(ServiceBase, RuntimeBase):
             _engines=self._engines,
             _supervisor=self._supervisor,
             _host=self._host,
+            _supergraph=self._supergraph,
         )
         await self._session.open(set_in_context=False)
 
@@ -258,7 +261,11 @@ class Runtime(ServiceBase, RuntimeBase):
 
         # mark run as queued in this runtime
         run = wiring.unpack_object(
-            request.run, parent=self.main_package, session=self._session, expect=Run
+            request.run,
+            supergraph=self._supergraph,
+            parent=self.main_package,
+            session=self._session,
+            expect=Run,
         )
         async with self.session(autocommit=True):
             run.status = RunStatus.QUEUED

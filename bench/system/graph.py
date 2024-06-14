@@ -1,6 +1,6 @@
 import asyncio
 from datetime import datetime
-from typing import AsyncIterator, NamedTuple, cast, override
+from typing import AsyncIterator, NamedTuple, Optional, cast, override
 from uuid import UUID
 
 import betterproto
@@ -33,6 +33,7 @@ from bench.language.graph import (
     NodeDataGraphLike,
     NodeDict,
     NodeGraphLike,
+    NodeSuperGraph,
 )
 from bench.language.node import (
     EDIT_SUBJECT_TYPES,
@@ -78,6 +79,7 @@ from bench.system.connection import (
     WatchGetUpdate,
     WatchSearchUpdate,
 )
+from bench.system.core import SYSTEM_BENCH_PTR
 from bench.utils.dt import utcnow
 from bench.utils.func import CriticalLock, bittuple, group_by, to_uuid, uuid_to_str
 
@@ -107,6 +109,10 @@ class GraphIoServiceBase(ServiceBase, GraphIoBase):
         """Gets the store engines available to this subgraph. Implemented in the actual service."""
         raise NotImplementedError
 
+    def get_supergraph(self) -> Optional[NodeSuperGraph]:
+        """Gets the supergraph to use"""
+        return None
+
     def _validate_request(self, request: betterproto.Message) -> None:
         """Validate a request message for this service."""
         scope: GraphScope = getattr(request, "scope", GraphScope())
@@ -128,6 +134,9 @@ class GraphIoServiceBase(ServiceBase, GraphIoBase):
         system_commit: bool = True,
     ):
         """Gets a new session for processing a single request."""
+        supergraph = self.get_supergraph()
+        if supergraph is None:
+            supergraph = NodeSuperGraph(SYSTEM_BENCH_PTR)
         return Session(
             parent=None,
             _is_readonly=readonly,
@@ -135,6 +144,7 @@ class GraphIoServiceBase(ServiceBase, GraphIoBase):
             _engines=engines if engines is not None else self.get_engines(),
             _epoch=self.epoch,
             _custom_commit=self._commit_system_session if system_commit else None,
+            _supergraph=supergraph,
         )
 
     @override
@@ -143,14 +153,17 @@ class GraphIoServiceBase(ServiceBase, GraphIoBase):
         async with self.request_session() as session:
             with self.tracer.start_as_current_span("graph.get.parse"):
                 roots = [
-                    wiring.unpack_object_validate(r, expect=NodeReference) for r in request.roots
+                    wiring.unpack_object_validate(r, supergraph=None, expect=NodeReference)
+                    for r in request.roots
                 ]
                 if not roots:
                     raise GRPCError(GRPCStatus.INVALID_ARGUMENT, "no roots provided")
                 if any(not r.id for r in roots):
                     raise GRPCError(GRPCStatus.INVALID_ARGUMENT, "root nodes must have an id")
                 options: ReadOptions = (
-                    wiring.unpack_object_validate_maybe(request.options, expect=ReadOptions)
+                    wiring.unpack_object_validate_maybe(
+                        request.options, supergraph=None, expect=ReadOptions
+                    )
                     or ReadOptions.default()
                 )
                 roots_by_type: dict[NodeType, list[NodeReference]] = group_by(
@@ -183,7 +196,7 @@ class GraphIoServiceBase(ServiceBase, GraphIoBase):
 
         # check access
         with self.tracer.start_as_current_span("graph.get.check_access"):
-            matrix = generate_access_matrix(subject, result.graph)
+            matrix = generate_access_matrix(subject, result.graph, supergraph=session._supergraph)
             decision, accesses, adapted_nodes = evaluate_and_adapt_read(
                 matrix, result.graph, required_nodes=request.roots
             )
@@ -245,12 +258,19 @@ class GraphIoServiceBase(ServiceBase, GraphIoBase):
         async with self.request_session() as session:
             with self.tracer.start_as_current_span("graph.search.parse"):
                 node_type: NodeType = wiring.unpack_enum(NodeType, request.node_type)
-                filter = wiring.unpack_object_validate_maybe(request.filter, expect=Expression)
+                filter = wiring.unpack_object_validate_maybe(
+                    request.filter, supergraph=session._supergraph, expect=Expression
+                )
                 sort = [
-                    wiring.unpack_object_validate(s, expect=Expression) for s in request.sort
+                    wiring.unpack_object_validate(
+                        s, supergraph=session._supergraph, expect=Expression
+                    )
+                    for s in request.sort
                 ] or []
                 options = (
-                    wiring.unpack_object_validate_maybe(request.options, expect=ReadOptions)
+                    wiring.unpack_object_validate_maybe(
+                        request.options, supergraph=None, expect=ReadOptions
+                    )
                     or ReadOptions.default()
                 )
                 adapted_options = adapt_read_options(subject, node_type, options)
@@ -276,7 +296,7 @@ class GraphIoServiceBase(ServiceBase, GraphIoBase):
 
         # check access
         with self.tracer.start_as_current_span("graph.search.check_access"):
-            matrix = generate_access_matrix(subject, result.graph)
+            matrix = generate_access_matrix(subject, result.graph, supergraph=session._supergraph)
             decision, accesses, adapted_nodes = evaluate_and_adapt_read(
                 matrix, result.graph, required_nodes=request.bases
             )
@@ -342,8 +362,12 @@ class GraphIoServiceBase(ServiceBase, GraphIoBase):
         async with self.request_session() as session:
             with self.tracer.start_as_current_span("graph.aggregate.parse"):
                 node_type: NodeType = wiring.unpack_enum(NodeType, request.node_type)
-                filter: Expression | None = wiring.unpack_object_validate_maybe(request.filter)
-                aggregation: Expression = wiring.unpack_object_validate(request.aggregation)
+                filter = wiring.unpack_object_validate_maybe(
+                    request.filter, supergraph=session._supergraph, expect=Expression
+                )
+                aggregation = wiring.unpack_object_validate(
+                    request.aggregation, supergraph=session._supergraph, expect=Expression
+                )
                 adapted_options = adapt_read_options(subject, node_type, ReadOptions())
                 query = QueryBuilder(
                     read_type=ReadType.AGGREGATE,
@@ -400,7 +424,9 @@ class GraphIoServiceBase(ServiceBase, GraphIoBase):
         assert subject.client is not None, f"no client for {subject!r}"
 
         # figure out context
-        context = wiring.unpack_object_validate_maybe(request.context, expect=SessionContext)
+        context = wiring.unpack_object_validate_maybe(
+            request.context, supergraph=None, expect=SessionContext
+        )
         if context is None:
             context = SessionContext(
                 client=subject.client, server=subject.server, user=subject.user
@@ -415,6 +441,9 @@ class GraphIoServiceBase(ServiceBase, GraphIoBase):
             scope, epoch = self._prepare_commit(subject, context, request.edits)
 
             async with self.request_session(readonly=False, system_commit=False) as session:
+                # use supergraph to project edits 'on top' of the current graph
+                assert session._supergraph is not None, f"{session!r} has no supergraph"
+
                 # read the affected nodes into a single graph for evaluation
                 data_graph = NodeDataGraph(scope=self.scope, node_types=NODE_TYPES)
                 with self.tracer.start_as_current_span("graph.commit.read"):
@@ -440,7 +469,9 @@ class GraphIoServiceBase(ServiceBase, GraphIoBase):
 
                 # check access
                 with self.tracer.start_as_current_span("graph.commit.check_access"):
-                    matrix = generate_access_matrix(subject, data_graph)
+                    matrix = generate_access_matrix(
+                        subject, data_graph, supergraph=session._supergraph
+                    )
                     decision, accesses = evaluate_edit(matrix, data_graph, request.edits)
                     if decision != PolicyEffect.ALLOW:
                         raise AccessError(accesses)
@@ -453,7 +484,10 @@ class GraphIoServiceBase(ServiceBase, GraphIoBase):
                     options=ReadOptions.all(),
                     is_prepass=True,
                 )
-                unpacked_graph = wiring.unpack_node_graph(data_graph, parent=None, session=session)
+                unpacked_graph = wiring.unpack_node_graph(
+                    data_graph, supergraph=session._supergraph, parent=None, session=session
+                )
+
                 for node_id in scope.edited_node_ids:
                     node = unpacked_graph.get(UUID(node_id))
                     if node is None:
@@ -644,7 +678,8 @@ def parse_commit_scope(edits: list[EditData], base_graph: NodeDataGraph | None) 
             graph_scopes[graph_scope_hash] = graph_scope
 
     node_scopes: dict[UUID, NodeReference] = {
-        UUID(k): wiring.unpack_object(v, expect=NodeReference) for k, v in node_scopes_by_id.items()
+        UUID(k): wiring.unpack_object(v, supergraph=None, expect=NodeReference)
+        for k, v in node_scopes_by_id.items()
     }
     node_scopes_by_type = group_by(node_scopes.values(), lambda n: n.type)
     return CommitScope(

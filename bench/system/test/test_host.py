@@ -23,7 +23,8 @@ from bench.language.const import (
     RunStatus,
     UserStatus,
 )
-from bench.language.graph import NodeDataGraph
+from bench.language.expression import NodeReference
+from bench.language.graph import NodeDataGraph, NodeSuperGraph
 from bench.language.run import Run
 from bench.language.session import Session
 from bench.proto import wire, wiring
@@ -217,7 +218,10 @@ async def test_activate_user(some_bench: BenchHandle):
         node_types=NODE_TYPES.tuple,
         nodes=[wiring.unwrap_some_node(n) for n in read_bench_rep.nodes],
     )
-    roots, _ = wiring.unpack_node_roots(data_graph)
+    supergraph = NodeSuperGraph(
+        root_ptr=wiring.unpack_object(user.main_bench_ptr, supergraph=None, expect=NodeReference)
+    )
+    roots, _ = wiring.unpack_node_roots(data_graph, supergraph)
     bench: Bench = cast(Bench, roots[0])
     assert UUID(user.main_bench_ptr.id) == bench.id
     assert bench.owner_id == some_bench.owner.id

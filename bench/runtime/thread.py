@@ -12,6 +12,7 @@ from bench.language.code import Code, run_code_exec
 from bench.language.connection import GraphEngine
 from bench.language.const import BlockType, NodeType, RunKind, RunStatus, _active_run
 from bench.language.expression import NodeReference
+from bench.language.graph import NodeSuperGraph
 from bench.language.run import Run, RunError
 from bench.language.session import Session, unsuspend_session
 from bench.language.validation import on_invalid_raise
@@ -56,6 +57,7 @@ class RuntimeThread:
         self._bench_ptr = NodeReference(
             type=NodeType.BENCH, id=bench_id, ck=bench_id, bench_id=bench_id
         )
+        self._supergraph = NodeSuperGraph(self._bench_ptr)
         self._bench: Bench | None = None
         self._main_package: Package | None = None
 
@@ -120,6 +122,7 @@ class RuntimeThread:
             _host=self._host,
             _subject=self._client.parent,
             _origin=self._client.to_origin(),
+            _supergraph=self._supergraph,
         )
         await self._session.open(set_in_context=False)
 
@@ -151,7 +154,11 @@ class RuntimeThread:
 
         async with self.session(readonly=False, autocommit=True):
             run = wiring.unpack_object_validate(
-                run_data, parent=package, session=self._session, expect=Run
+                run_data,
+                supergraph=self._supergraph,
+                parent=package,
+                session=self._session,
+                expect=Run,
             )
             run._unpack_values_inplace()  # values are a bit crummy :NoFakeComputed
             run.status = RunStatus.RUNNING

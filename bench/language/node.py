@@ -291,6 +291,7 @@ def _process_object_cls[ObjectT: BuiltinObject](
                 setattr(cls, name, _object_computed_property_ref(prop))
             # computed node property
             elif prop.reference_kind in (
+                # NOTE :Performance: maybe Node.parent shouldn't be computed?
                 ReferenceKind.NODE_PARENT,
                 ReferenceKind.NODE_REGULAR,
                 ReferenceKind.NODE_TEMPLATE,
@@ -1096,19 +1097,30 @@ class BuiltinObject[ObjectDataT: AnyNodeData | AnyStructData](abc.ABC):
     def __bool__(self):
         return True  # allow truthy checks for objects
 
-    @classmethod
-    def _from_data(cls, data: ObjectDataT) -> Self:
-        """Convert from wire format"""
-        from bench.proto.wiring import unpack_object
-
-        return unpack_object(data, expect=cls)
-
     @final
     def _to_data(self) -> ObjectDataT:
         """Convert to wire format"""
         from bench.proto.wiring import pack_object
 
         return pack_object(self)  # type: ignore
+
+    @classmethod
+    def _prop(cls, key: str | Property) -> Property:
+        if isinstance(key, str):
+            prop = cls.__properties__.get(key)
+            if prop is None:
+                raise ValueError(f"no property {key} in {cls}")
+            return prop
+        elif isinstance(key, Property):
+            if key.component == cls:
+                return key
+            else:
+                prop = cls.__properties_by_id__.get(key.id)
+                if prop is None:
+                    raise ValueError(f"no property {key} in {cls}")
+                return prop
+        else:
+            raise ValueError(f"invalid prop key {key}")
 
     @classmethod
     def _unmask_properties_ids(cls, mask: bitarray) -> tuple[int, ...]:
@@ -1230,7 +1242,12 @@ def is_implicit_node_property(prop_id: int) -> bool:
 
 @node_component()
 class Node[NodeDataT: AnyNodeData](BuiltinObject[NodeDataT], abc.ABC):
-    """A basic node with properties like a Struct and a global identity in our graph."""
+    """
+    A basic Node with properties like a Struct and a global identity in our graph.
+    Conceptually, all nodes live together happily in a single big graph family.
+    In practice and at runtime, there are multiple smaller NodeGraphs we load via Connections.
+    Nodes resolve references to each through a super graph composed of currently loaded NodeGraphs.
+    """
 
     metatype: ClassVar[NodeType]  # type: ignore
 
@@ -1327,32 +1344,35 @@ class Node[NodeDataT: AnyNodeData](BuiltinObject[NodeDataT], abc.ABC):
             self.created_at = now
             self.updated_at = now
 
-        # init graph
-        if self._session is not None:
-            self._supergraph = self._session._supergraph
-        if self.parent is None:
-            # if we're not in a graph, start a new one
-            # NOTE: cleanup NodeGraph definition "depends on itself", causing pyright errors
-            graph = NodeGraph(  # type: ignore
-                scope=GraphScope(),
-                node_types=(self.metatype, *DESCENDANT_NODE_TYPES[self.metatype].tuple),
-            )
-            graph.add(self)  # type: ignore
-            if self._supergraph is not None:
-                self._supergraph.add_graph(graph)
-            else:
-                self._supergraph = NodeSuperGraph(self.to_ref(), (graph,))
-            self._graph = graph
-        else:
-            # we'll be added to the graph by our parent
-            self._graph = self.parent._graph
-            self._supergraph = self.parent._supergraph
-
         # init node lists (preserving existing lists)
         for name, prop in self.__node_child_properties__.items():
             assert prop.reference_list_type is not None
             node_list = prop.reference_list_type(self, prop)
             setattr(self, name, node_list)
+
+        # init graph
+        if self.parent_ptr is None:
+            if self._session is not None:
+                self._supergraph = self._session._supergraph
+            assert self._supergraph is not None, f"{self!r} has no super graph"
+            # if we're not in a graph, start a new one
+            # NOTE: cleanup NodeGraph definition "depends on itself", causing pyright errors
+            graph = NodeGraph(  # type: ignore
+                scope=GraphScope(),
+                node_types=(self.metatype, *DESCENDANT_NODE_TYPES[self.metatype].tuple),
+                supergraph=self._supergraph,
+            )
+            graph.add(self)  # type: ignore
+            self._graph = graph
+            self._supergraph.add_graph(graph)
+        else:
+            # we'll be added to the graph by our parent
+            parent = self.parent
+            assert (
+                parent is not None
+            ), f"parent for {type(self).__name__} not in {self._supergraph!r}: {self.parent_ptr!r}"
+            self._graph = parent._graph
+            self._supergraph = parent._supergraph
 
         # init session context
         if self._session is not None:

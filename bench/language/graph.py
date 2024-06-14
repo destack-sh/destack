@@ -24,7 +24,7 @@ from opentelemetry import trace
 from bench.language.const import EMPTY_LIST, NodeType, ObjectType, ReferenceKind
 from bench.language.setup import NODE_CLASS_BY_TYPE, STRUCT_CLASS_BY_TYPE
 from bench.language.validation import on_invalid_raise
-from bench.proto.wire import AnyNodeData, GraphScope, NodeReferenceData
+from bench.proto.wire import AnyNodeData, GraphScope
 from bench.utils.casing import Casing, to_casing
 from bench.utils.fractional import get_key_bounds, get_order_key, get_order_keys
 from bench.utils.func import IdEnum
@@ -317,10 +317,22 @@ class _NodeGraphBase[K: str | UUID, V: AnyNodeData | Node](abc.ABC):
 class NodeGraph(_NodeGraphBase[UUID, "Node"]):
     """
     A NodeGraph for Node objects (UUIDs for ids, parent_ptr).
+    Nodes must be part of a supergraph.
     """
 
     key_type = UUID
     value_type = "Node"
+
+    def __init__(
+        self,
+        scope: GraphScope,
+        node_types: Collection[NodeType],
+        supergraph: "NodeSuperGraph",
+        *,
+        nodes: Collection["Node"] | None = None,
+    ):
+        super().__init__(scope, node_types, nodes=nodes)
+        self.supergraph = supergraph
 
 
 class NodeDataGraph(_NodeGraphBase[str, AnyNodeData]):
@@ -332,16 +344,10 @@ class NodeDataGraph(_NodeGraphBase[str, AnyNodeData]):
     value_type = "AnyNodeData"
 
 
-class _NodeSuperGraphBase[
-    K: str | UUID,
-    P: NodeReference | NodeReferenceData,
-    V: AnyNodeData | Node,
-]:
+class NodeSuperGraph:
     """A set of graphs making up the currently available graph in some context (like a session)."""
 
-    key_type: type[K]
-
-    def __init__(self, root_ptr: P, graphs: Collection[_NodeGraphBase[K, V]] | None = None):
+    def __init__(self, root_ptr: "NodeReference", graphs: Collection[NodeGraph] | None = None):
         self._root_ptr = root_ptr
         self._graphs = list(graphs) if graphs is not None else []
 
@@ -349,42 +355,44 @@ class _NodeSuperGraphBase[
         return f"{len(self._graphs)} graphs"
 
     def __repr__(self):
-        return f"<{self.__class__.__name__} from {self.root!r} ({self!s})>"
+        root = self.get(self._root_ptr)
+        root_str = repr(root) if root is not None else f"{self._root_ptr!r}"
+        return f"<{self.__class__.__name__} from {root_str} ({self!s})>"
 
     @property
-    def root(self) -> V:
+    def root(self) -> "Node":
         return self.get_or_fail(self._root_ptr)
 
-    def add_graph(self, graph: _NodeGraphBase[K, V]):
+    def add_graph(self, graph: NodeGraph):
+        if graph.supergraph is None:
+            graph.supergraph = self
+        assert graph.supergraph is self, f"{graph!r} is from {graph.supergraph!r}, not {self!r}"
+        assert graph not in self._graphs, f"{graph!r} already in {self!r}"
         self._graphs.append(graph)
 
-    def get(self, ptr: K | P) -> Optional[V]:
-        if isinstance(ptr, self.key_type):
+    def remove_graph(self, graph: NodeGraph):
+        assert graph in self._graphs, f"{graph!r} not in {self!r}"
+        self._graphs.remove(graph)
+
+    def get(self, ptr: "UUID | NodeReference") -> Optional["Node"]:
+        if isinstance(ptr, UUID):
             key = ptr
         else:
             key = ptr.id
-            assert isinstance(key, self.key_type), f"expected {self.key_type}, got {key!r}"
+            assert key is not None, f"expected id for {ptr!r}"
         for graph in self._graphs:
             node = graph.get(key)
             if node is not None:
                 return node
         return None
 
-    def get_or_fail(self, ptr: K | P) -> V:
+    def get_or_fail(self, ptr: "UUID | NodeReference") -> "Node":
         node = self.get(ptr)
         if node is None:
             raise KeyError(f"node {ptr!r} not found in {self!r}")
         return node
 
     __getitem__ = get_or_fail
-
-
-class NodeSuperGraph(_NodeSuperGraphBase[UUID, "NodeReference", "Node"]):
-    key_type = UUID
-
-
-class NodeDataSuperGraph(_NodeSuperGraphBase[str, NodeReferenceData, AnyNodeData]):
-    key_type = str
 
 
 class _NodeDictBase[K, V]:
