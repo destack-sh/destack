@@ -960,6 +960,8 @@ class RemoteAggregateConnection(AggregateConnection[RemoteChannel]):
             aggregation=response.aggregation, epoch=response.epoch, token=response.connection_token
         )
 
+    # NOTE :Incomplete: RemoteAggregateConnection subscription
+
 
 class PostgresEngine(GraphEngine):
     """An engine that talks directly to a Postgres store."""

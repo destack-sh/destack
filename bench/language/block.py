@@ -10,7 +10,8 @@ from bench.language.const import (
     Visibility,
 )
 from bench.language.field import TypeInfoBase
-from bench.language.node import NodeList, SourceNode, node_
+from bench.language.graph import NodeList
+from bench.language.node import SourceNode, node_
 from bench.language.property import (
     p_internal,
     p_node_children,
