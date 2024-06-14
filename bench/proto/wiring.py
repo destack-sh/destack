@@ -198,7 +198,6 @@ def unpack_object[T: BuiltinObject](
         if issubclass(object_cls, Node):
             object_kwargs["_session"] = UNSET
         obj = object_cls(**object_kwargs)
-        obj._resolve_references(parent)
         if session is not None and isinstance(obj, Node):
             obj._track_self(session)
         return cast(T, obj)
@@ -278,21 +277,18 @@ def unpack_node_graph(
 
             unpacked_graph.add(node)
 
-    # update parent references
-    if parent is not None:
-        parent._resolve_references(parent)
-
     # resolve references
     for source_root in source_roots:
         root = unpacked_graph.get(UUID(source_root.id))
         if root is None:
             raise ValueError(f"root {source_root!r} root found in unpacked {unpacked_graph!r}")
         root._graph.set(unpacked_graph.nodes)
-        for node in unpacked_graph._nodes_by_id.values():
-            node._resolve_references(parent or node)
-            if session is not None:
-                node._track_self(session)
         unpacked_roots.append(root)
+
+    # track in session
+    if session is not None:
+        for node in unpacked_graph._nodes_by_id.values():
+            node._track_self(session)
 
     return unpacked_graph
 
