@@ -48,6 +48,7 @@ GLOBAL_STORE = Store(
     version=VERSION,
     external_name=GLOBAL_PG_NAME,
     connection_uri=f"postgresql://{GLOBAL_PG_USERNAME}:{GLOBAL_PG_PASSWORD}@{GLOBAL_PG_HOST}/{GLOBAL_PG_NAME}",
+    _supergraph=SYSTEM_BENCH_STUB._supergraph,
 )
 GLOBAL_POSTGRES_ENGINE = PostgresEngine(
     store=GLOBAL_STORE,

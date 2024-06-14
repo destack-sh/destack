@@ -206,6 +206,7 @@ class PropertyReference(InlineStruct):
 
     type: ObjectType | None = p_regular(30)
     id: int = p_regular(31)
+    references_node: Optional[NodeType] = p_internal(32)  # disambiguate reference properties
 
     def __content_str__(self):
         object_cls = Node if self.type is None else OBJECT_CLASS_BY_TYPE.get(self.type)
@@ -239,10 +240,21 @@ class PropertyReference(InlineStruct):
                 invalid(self, "invalid prop id", (PropertyReference.id,))
 
     def resolve(self) -> Property:
+        resolved = self.resolve_maybe()
+        if resolved is None:
+            raise ValueError(f"could not resolve {self!r}")
+        return resolved
+
+    def resolve_maybe(self) -> "Property | None":
         object_cls = self.object_cls
         prop = (object_cls or Node).__properties_by_id__.get(self.id)
         if prop is None:
-            raise ValueError(f"invalid property: {self!r}")
+            return None
+        if self.references_node is not None:
+            assert prop.reference_stored_ids_by_type is not None, f"{prop!r} has no stored ids"
+            prop = prop.reference_stored_ids_by_type.get(self.references_node)
+            if prop is None:
+                return None
         return prop
 
 
@@ -278,7 +290,7 @@ class Selection(InlineStruct):
     )
 
 
-__property__ = property
+property_ = property
 
 
 @struct_(StructType.EXPRESSION)
@@ -320,11 +332,11 @@ class Expression(Struct, HasValues):
             return f"{'-' if self.op == SortOp.DESCENDING else ''}{py_ident}"
         return to_casing(self.op.name, Casing.CAMEL)
 
-    @__property__
+    @property_
     def kind(self) -> ExpressionKind:
         return EXPRESSION_KIND_BY_OP[self.op]
 
-    @__property__
+    @property_
     def value_type(self) -> "TypeInfoBase | None":
         if self.field is not None:
             typ = self.field.as_type_info
@@ -378,7 +390,7 @@ class Expression(Struct, HasValues):
         else:
             return C(ConditionalOp.OR, clauses=[self, other])
 
-    @__property__
+    @property_
     def target(self) -> Union["Field", Property, None]:
         if self.field is not None:
             return self.field

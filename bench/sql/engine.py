@@ -1385,7 +1385,7 @@ async def pg_walk_graph_down(
                 op=ConditionalOp.IN,
                 property=child_cls.__parent_property__.reference_stored_ids[0],
                 value=parent_ids,
-                value_packed=UNSET,  # don't pack this value
+                value_packed={},  # don't pack this value
             )
             if extra_filter is not None:
                 parent_filter = parent_filter & extra_filter
