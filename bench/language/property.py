@@ -209,6 +209,9 @@ class Property(_TypeQueryBuilder if TYPE_CHECKING else object):
             from bench.language.expression import PropertyReference
 
             ref = PropertyReference(type=getattr(self.component, "metatype", None), id=self.id)
+            if self.reference_source is not None and self.reference_source.is_node_reference:
+                assert self.reference_nodes is not None, f"missing reference nodes for {self!r}"
+                ref.references_node = self.reference_nodes[0]
             self._cached_as_ref = ref
         return self._cached_as_ref
 

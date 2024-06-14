@@ -881,7 +881,8 @@ class HasValues(BuiltinObject):
     def _init_component(self):
         # if unpacked is set, pack in place, otherwise vice versa
         # (this is a bit unwieldy and means we don't get value if the object is created
-        #  outside a session, but we'll likely change this soon anyway - see above)
+        #  outside a session, but we'll likely change this soon anyway - see above;
+        #  also, it feels like this should be done in the main BuiltinObject.__init__ loop?)
         if self._session is None:
             return
         for prop in self.__value_properties__.values():

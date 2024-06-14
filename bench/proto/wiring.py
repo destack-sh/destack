@@ -194,7 +194,7 @@ def unpack_object[T: BuiltinObject](
             value = getattr(obj_data, prop.name)
             object_kwargs[prop.name] = unpack_object_prop(prop, value, ignore_array=False)
         if parent is not None:
-            object_kwargs["parent"] = parent
+            object_kwargs["_supergraph"] = parent._supergraph
         if issubclass(object_cls, Node):
             object_kwargs["_session"] = UNSET
         obj = object_cls(**object_kwargs)

@@ -44,7 +44,7 @@ from bench.language.const import (
     _active_session,
     new_struct_id,
 )
-from bench.language.graph import NodeDataGraph, NodeGraph
+from bench.language.graph import NodeDataGraph, NodeGraph, NodeSuperGraph
 from bench.language.property import (
     _PROPERTY_SPECIFIERS,
     METATYPE_PROPERTY,
@@ -82,7 +82,6 @@ if TYPE_CHECKING:
         Field,
         GetConnection,
         NodeReference,
-        NodeSuperGraph,
         Package,
         PropertyReference,
         QueryBuilder,
@@ -633,7 +632,8 @@ def _object_computed_node_ref(prop: Property) -> property:
         def _get_node_scalar(self: BuiltinObject) -> Optional["Node"]:
             value_ptr: NodeReference | None = getattr(self, wired_prop.name)
             if value_ptr is not None:
-                raise NotImplementedError("nocheckin: resolve node!")
+                assert self._supergraph is not None, f"{self!r} is not in any super graph"
+                return self._supergraph.get(value_ptr)
             else:
                 return None
 
@@ -648,7 +648,17 @@ def _object_computed_node_ref(prop: Property) -> property:
     else:
 
         def _get_node_many(self: BuiltinObject) -> tuple["Node", ...]:
-            raise NotImplementedError(f"list nodes not yet supported {prop!r}")
+            value_ptrs = getattr(self, wired_prop.name)
+            assert type(value_ptrs) is list, f"invalid {prop!r}: {value_ptrs!r}"
+            if len(value_ptrs) == 0:
+                return ()
+            assert self._supergraph is not None, f"{self!r} is not in any super graph"
+            values = []
+            for value_ptr in value_ptrs:
+                value = self._supergraph.get(value_ptr)
+                if value is not None:
+                    values.append(value)
+            return tuple(values)
 
         def _set_node_many(self: BuiltinObject, values: Collection["Node"]):
             value_ptrs = [p.to_ref() for p in values]
@@ -785,12 +795,18 @@ class BuiltinObject[ObjectDataT: AnyNodeData | AnyStructData](abc.ABC):
         parent: "BuiltinObject | ValueObject | None" = None
 
     _session: "Session | None" = p_runtime(default=None)
+    _supergraph: "NodeSuperGraph | None" = p_runtime(default=None)
     _updated_properties: bitarray | None = p_runtime(default=None)
 
     def __init__(self, *, _skip_init_self: bool = False, **kwargs):
+        self_dict = self.__dict__
         # init object
         for prop in self.__runtime_properties__.values():
-            if prop.reference_source is not None or prop.is_computed:
+            # NOTE :Cleanup: Struct.parent_key needs to be handled as well because it's not part of any pointer
+            #  (like the other node/property references, which we're excluding with prop.reference_source check)
+            if (
+                prop.reference_source is not None and prop.name != "parent_key"
+            ) or prop.is_computed:
                 continue  # only handle top level properties
             wired_ptr_prop = prop.reference_wired_ptr
             prop_value = kwargs.get(prop.name, UNSET)
@@ -816,7 +832,7 @@ class BuiltinObject[ObjectDataT: AnyNodeData | AnyStructData](abc.ABC):
                         wired_prop_value = cast(Any, prop_value).to_ref()
                     else:
                         wired_prop_value = [p.to_ref() for p in prop_value]
-                    object.__setattr__(self, wired_ptr_prop.name, wired_prop_value)
+                    self_dict[wired_ptr_prop.name] = wired_prop_value
                     continue
             # init property references if properties are passed directly
             elif prop.reference_kind == ReferenceKind.PROPERTY:
@@ -830,7 +846,7 @@ class BuiltinObject[ObjectDataT: AnyNodeData | AnyStructData](abc.ABC):
                         wired_prop_value = [p.to_ref() for p in prop_value]
                     else:
                         wired_prop_value = cast(Any, prop_value).to_ref()
-                    object.__setattr__(self, wired_ptr_prop.name, wired_prop_value)
+                    self_dict[wired_ptr_prop.name] = wired_prop_value
                     continue
             # move struct values into this object if passed
             elif prop.reference_kind == ReferenceKind.STRUCT_CHILD:
@@ -861,9 +877,9 @@ class BuiltinObject[ObjectDataT: AnyNodeData | AnyStructData](abc.ABC):
             # and set it
             if prop_value is UNSET:
                 raise ValueError(f"missing value for {prop!r}")
-            object.__setattr__(self, prop.name, prop_value)
+            self_dict[prop.name] = prop_value
             if wired_ptr_prop is not None:
-                object.__setattr__(self, wired_ptr_prop.name, wired_prop_value)
+                self_dict[wired_ptr_prop.name] = wired_prop_value
 
         # init session context
         if self._session is None:
@@ -925,17 +941,17 @@ class BuiltinObject[ObjectDataT: AnyNodeData | AnyStructData](abc.ABC):
 
         return stable_hash(content_props)
 
-    def _do_get(self, item):
+    def _do_get(self, key):
         """Called if an attribute doesn't exist in __dict__ or the usual places."""
 
         # check passthrough (if 'live' in session)
         if self.__passthrough__ is not None and self._session is not None:
             target = getattr(self, self.__passthrough__)
-            attr = getattr(target, item, UNSET)
+            attr = getattr(target, key, UNSET)
             if attr is not UNSET:
                 return attr
 
-        raise AttributeError(item)
+        raise AttributeError(f"{self.__class__.__name__} has no attribute '{key}'")
 
     def _do_set(self, key: str, value, *, track: bool = True, validate: bool = True):
         """Sets *any* attribute on this node."""
@@ -996,7 +1012,7 @@ class BuiltinObject[ObjectDataT: AnyNodeData | AnyStructData](abc.ABC):
                 setattr(target, key, value)
                 return
 
-        raise AttributeError(key)
+        raise AttributeError(f"{self.__class__.__name__} has no attribute '{key}'")
 
     if not TYPE_CHECKING:
         # NOTE: __setattr__/__getattr__ confuses type checking, so only define it at runtime
@@ -1011,11 +1027,7 @@ class BuiltinObject[ObjectDataT: AnyNodeData | AnyStructData](abc.ABC):
         return self._session
 
     def _copy(self, **update) -> "Self":
-        kwargs = {
-            p.name: getattr(self, p.name)
-            for p in self.__properties__.values()
-            if p.is_runtime and not p.is_ephemeral and not p.is_computed
-        }
+        kwargs = {p.name: getattr(self, p.name) for p in self.__wired_properties__.values()}
         kwargs.update(update)
         copy = self.__class__(**kwargs)
         return copy
@@ -1023,11 +1035,11 @@ class BuiltinObject[ObjectDataT: AnyNodeData | AnyStructData](abc.ABC):
     def _walk_struct(self) -> Iterable["BuiltinObject"]:
         yield self
         for prop in self.__struct_properties__.values():
-            value: Struct | list[Struct] | None = getattr(self, prop.name)
+            value: InlineStruct | list[InlineStruct] | None = getattr(self, prop.name)
             if value is None:
                 continue
             elif not prop.is_list:
-                yield from (cast(Struct, value))._walk_struct()
+                yield from (cast(InlineStruct, value))._walk_struct()
             elif len(cast(list, value)) > 0:
                 for item in cast(list, value):
                     yield from cast(InlineStruct, item)._walk_struct()
@@ -1168,11 +1180,7 @@ class InlineStruct[StructDataT: AnyStructData](BuiltinObject[StructDataT], abc.A
         self, parent: Union["BuiltinObject", "ValueObject"], prop: Union[Property, "Field"]
     ) -> Self:
         """Create a copy of this struct for the given parent/prop."""
-        kwargs = {
-            p.name: getattr(self, p.name)
-            for p in self.__properties__.values()
-            if p.is_runtime and not p.is_ephemeral and not p.is_computed
-        }
+        kwargs = {p.name: getattr(self, p.name) for p in self.__wired_properties__.values()}
         kwargs["parent"] = parent
         kwargs["parent_key"] = prop.id_as_str if isinstance(prop, Property) else prop.identity_key
         copy = self.__class__(**kwargs)
@@ -1297,7 +1305,6 @@ class Node[NodeDataT: AnyNodeData](BuiltinObject[NodeDataT], abc.ABC):
     # <... defined in concrete type ...>
 
     _graph: "NodeGraph" = p_runtime(default=None)
-    _supergraph: "NodeSuperGraph" = p_runtime(default=None)
     _connection: "GetConnection | SearchConnection" = p_runtime(default=None)
     _is_new: bool = p_runtime(default=False)
 
@@ -1321,6 +1328,8 @@ class Node[NodeDataT: AnyNodeData](BuiltinObject[NodeDataT], abc.ABC):
             self.updated_at = now
 
         # init graph
+        if self._session is not None:
+            self._supergraph = self._session._supergraph
         if self.parent is None:
             # if we're not in a graph, start a new one
             # NOTE: cleanup NodeGraph definition "depends on itself", causing pyright errors
@@ -1329,6 +1338,10 @@ class Node[NodeDataT: AnyNodeData](BuiltinObject[NodeDataT], abc.ABC):
                 node_types=(self.metatype, *DESCENDANT_NODE_TYPES[self.metatype].tuple),
             )
             graph.add(self)  # type: ignore
+            if self._supergraph is not None:
+                self._supergraph.add_graph(graph)
+            else:
+                self._supergraph = NodeSuperGraph(self.to_ref(), (graph,))
             self._graph = graph
         else:
             # we'll be added to the graph by our parent
@@ -1489,7 +1502,7 @@ class Node[NodeDataT: AnyNodeData](BuiltinObject[NodeDataT], abc.ABC):
             ident = self.bench_ident
             assert ident is not None, f"no bench ident for {self!r}"
             return ident
-        elif self.parent is None:
+        elif self._supergraph is None or self.parent is None:
             return f"<detached>/{self.bench_path_key}"
         else:
             # NOTE :Broken: Node.absolute_path is a mess & incorrect

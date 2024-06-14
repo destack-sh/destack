@@ -24,14 +24,14 @@ from opentelemetry import trace
 from bench.language.const import EMPTY_LIST, NodeType, ObjectType, ReferenceKind
 from bench.language.setup import NODE_CLASS_BY_TYPE, STRUCT_CLASS_BY_TYPE
 from bench.language.validation import on_invalid_raise
-from bench.proto.wire import AnyNodeData, GraphScope
+from bench.proto.wire import AnyNodeData, GraphScope, NodeReferenceData
 from bench.utils.casing import Casing, to_casing
 from bench.utils.fractional import get_key_bounds, get_order_key, get_order_keys
 from bench.utils.func import IdEnum
 
 if TYPE_CHECKING:
     # noinspection PyUnresolvedReferences
-    from bench.language import Field, Node, Property, Struct, ValueObject
+    from bench.language import Field, Node, NodeReference, Property, Struct, ValueObject
 
 logger = structlog.get_logger(__name__)
 tracer = trace.get_tracer(__name__)
@@ -332,12 +332,59 @@ class NodeDataGraph(_NodeGraphBase[str, AnyNodeData]):
     value_type = "AnyNodeData"
 
 
-class _NodeSuperGraphBase[K, V]:
-    """A set of graphs pretending to be a single larger graph."""
+class _NodeSuperGraphBase[
+    K: str | UUID,
+    P: NodeReference | NodeReferenceData,
+    V: AnyNodeData | Node,
+]:
+    """A set of graphs making up the currently available graph in some context (like a session)."""
+
+    key_type: type[K]
+
+    def __init__(self, root_ptr: P, graphs: Collection[_NodeGraphBase[K, V]] | None = None):
+        self._root_ptr = root_ptr
+        self._graphs = list(graphs) if graphs is not None else []
+
+    def __str__(self):
+        return f"{len(self._graphs)} graphs"
+
+    def __repr__(self):
+        return f"<{self.__class__.__name__} from {self.root!r} ({self!s})>"
+
+    @property
+    def root(self) -> V:
+        return self.get_or_fail(self._root_ptr)
+
+    def add_graph(self, graph: _NodeGraphBase[K, V]):
+        self._graphs.append(graph)
+
+    def get(self, ptr: K | P) -> Optional[V]:
+        if isinstance(ptr, self.key_type):
+            key = ptr
+        else:
+            key = ptr.id
+            assert isinstance(key, self.key_type), f"expected {self.key_type}, got {key!r}"
+        for graph in self._graphs:
+            node = graph.get(key)
+            if node is not None:
+                return node
+        return None
+
+    def get_or_fail(self, ptr: K | P) -> V:
+        node = self.get(ptr)
+        if node is None:
+            raise KeyError(f"node {ptr!r} not found in {self!r}")
+        return node
+
+    __getitem__ = get_or_fail
 
 
-NodeSuperGraph = _NodeSuperGraphBase[UUID, "Node"]
-NodeDataSuperGraph = _NodeSuperGraphBase[str, AnyNodeData]
+class NodeSuperGraph(_NodeSuperGraphBase[UUID, "NodeReference", "Node"]):
+    key_type = UUID
+
+
+class NodeDataSuperGraph(_NodeSuperGraphBase[str, NodeReferenceData, AnyNodeData]):
+    key_type = str
 
 
 class _NodeDictBase[K, V]:
