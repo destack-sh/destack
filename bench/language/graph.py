@@ -650,6 +650,7 @@ class ValueList(list, Generic[ValueParentT]):
     """
     A list of Values or Value-like objects (with local identity, so can't be inlined).
     Unlike a NodeList, value lists are actual lists and not computed on access.
+    NOTE :Cleanup: shouldn't ValueList be in value.py?
     """
 
     def __init__(

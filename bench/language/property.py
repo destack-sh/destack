@@ -221,7 +221,9 @@ class Property(_TypeQueryBuilder if TYPE_CHECKING else object):
     def column(self) -> Column:
         table = getattr(self.component, "__table__", None)
         assert isinstance(table, Table), f"{self.component} has no table"
-        return table._columns_by_name[self.name]
+        column = table._columns_by_name.get(self.name)
+        assert column is not None, f"{self!r} has no column in {table!r}"
+        return column
 
     @property
     def type(self) -> Optional[ObjectType]:
@@ -236,10 +238,8 @@ class Property(_TypeQueryBuilder if TYPE_CHECKING else object):
         return (
             # exclude our own runtime-only properties
             not self.is_ephemeral
-            # exclude empty references type, TypeInfo can't handle that yet
-            and (
-                not self.reference_kind or bool(self.reference_nodes) or bool(self.reference_struct)
-            )
+            # exclude references (we have them as properties, so they're not directly introspectable)
+            and not self.reference_kind
             # exclude ancestor properties (they're computed but would be nice to have :c)
             and self.reference_kind
             not in (ReferenceKind.NODE_ANCESTOR_FIRST, ReferenceKind.NODE_ANCESTOR_ROOT)
@@ -388,98 +388,6 @@ class Property(_TypeQueryBuilder if TYPE_CHECKING else object):
         """The type info for this property (can't extend TypeInfo because circles)."""
         assert self.type_info is not None, f"{self!r} is not finalized"
         return self.type_info
-
-    def _finalize(self) -> None:
-        """Analyzes the final type and configures storage options. Must run after all class defs."""
-
-        # store/wire property by default if not runtime (and not indicated otherwise)
-        if self.primitive_type is UNSET and (self.is_tree_reference or self.reference_nodes):
-            if self.is_stored is UNSET:
-                self.is_stored = False
-            self.primitive_type = None
-        elif self.is_stored is UNSET:
-            self.is_stored = True
-        if self.is_wired is UNSET:
-            self.is_wired = self.is_stored
-        if self.is_runtime is UNSET:
-            self.is_runtime = self.is_stored
-
-        # resolve & check value type info
-        if self.is_value_runtime:
-            from bench.language.value import HasValues
-
-            assert HasValues in self.component.__components__, f"{self.component} is not HasValues"
-            assert self.value_packed_ptr is not None, f"{self!r} is missing value_packed_ptr"
-            if isinstance(self.value_packed_ptr, int):
-                self.value_packed_ptr = self.component.__properties_by_id__[self.value_packed_ptr]
-            if isinstance(self.secret_value_packed_ptr, int):
-                self.secret_value_packed_ptr = self.component.__properties_by_id__[
-                    self.secret_value_packed_ptr
-                ]
-
-        # resolve py type
-        if (
-            self.is_ephemeral and not (self.is_struct or self.is_enum)
-        ) or self.reference_kind == ReferenceKind.NODE_CHILDREN:
-            # can't resolve these because they may point to non-Bench types
-            self.py_type_stripped = self.py_type_raw
-            return
-
-        # update/check info from annotation
-        annotation = parse_py_annotation(self.py_type_raw, BENCH_CLASS_BY_NAME)
-        self.py_type_stripped = annotation.type
-        if annotation.is_list != self.is_list:
-            raise ValueError(f"array mismatch for {self!r} (expected is_list={self.is_list})")
-        if self.is_required is UNSET:
-            self.is_required = not annotation.is_optional
-        if not self.is_required and self.default is UNSET and self.default_factory is None:
-            self.default = None
-        if isinstance(annotation.type, type) and issubclass(annotation.type, enum.Enum):
-            if not issubclass(annotation.type, IdEnum):
-                raise ValueError(f"only IdEnum is supported for enums: {self!r}")
-            self.enum_type = ENUM_TYPE_BY_CLASS.get(annotation.type)
-            if self.enum_type is None:
-                raise ValueError(f"missing enum type for {annotation.type!r} at {self!r}")
-
-        # determine storage type
-        if self.primitive_type is UNSET and (self.is_stored or self.is_wired):
-            if annotation.is_union:
-                raise ValueError(f"cannot store union {self!r}")
-            # map to column type
-            assert isinstance(annotation.type, type), f"invalid type {annotation!r} for {self!r}"
-            if issubclass(annotation.type, IdEnum):
-                self.primitive_type = PrimitiveType.INT16
-            elif issubclass(annotation.type, enum.IntFlag):
-                self.primitive_type = PrimitiveType.INT64
-            elif getattr(annotation.type, "__is_node__", False):
-                raise ValueError(f"cannot store/wire node directly: {self!r}")
-            elif getattr(annotation.type, "__is_struct__", False):
-                assert self.reference_struct is not None, f"missing struct type for {self!r}"
-                self.primitive_type = PrimitiveType.JSON  # robust json
-            else:
-                primitive_type = PRIMITIVE_TYPE_BY_PY_TYPE.get(annotation.type)
-                if primitive_type is None:
-                    raise ValueError(f"cannot determine storage for {self!r}: {self.py_type_raw!r}")
-                self.primitive_type = primitive_type
-
-        # derive type info
-        if self.is_introspectable or self.reference_source is not None or self.id == 1:
-            self.type_info = self._to_type_info()
-
-        # sanity check some stuff
-        if IS_DEV:
-            if (
-                self.component.__is_struct_inlined__
-                and self.reference_kind == ReferenceKind.STRUCT_CHILD
-                and self.reference_struct
-            ):
-                referenced_struct_cls = STRUCT_CLASS_BY_TYPE[self.reference_struct]
-                if not referenced_struct_cls.__is_struct_inlined__:
-                    raise ValueError(f"{self!r} cannot reference non-inlined struct {self!r}")
-            if self.is_encrypted and not self.is_sensitive:
-                raise ValueError(f"encrypted properties should be sensitive {self!r}")
-            if self.is_encrypted and not self.is_deferred:
-                raise ValueError(f"encrypted properties should be deferred {self!r}")
 
     def _contribute_ptrs(self, *, is_root: bool, is_inlined: bool) -> tuple["Property", ...]:
         """
@@ -784,6 +692,105 @@ class Property(_TypeQueryBuilder if TYPE_CHECKING else object):
 
         return tuple(self.contributed_props)
 
+    def _finalize_meta(self) -> None:
+        """Analyzes the storage options. Must run after all class defs."""
+        # store/wire property by default if not runtime (and not indicated otherwise)
+        if self.primitive_type is UNSET and (self.is_tree_reference or self.reference_nodes):
+            if self.is_stored is UNSET:
+                self.is_stored = False
+            self.primitive_type = None
+        elif self.is_stored is UNSET:
+            self.is_stored = True
+        if self.is_wired is UNSET:
+            self.is_wired = self.is_stored
+        if self.is_runtime is UNSET:
+            self.is_runtime = self.is_stored
+        # obviously, we don't store the runtime properties with different wired/stored representations
+        #  directly, we just use is_wired/is_stored to indicate whether to generate those (above)
+        if self.reference_wired_ptr or self.reference_stored_ids:
+            self.is_wired = False
+            self.is_stored = False
+
+    def _finalize_type(self) -> None:
+        """Finalizes the type info for this property."""
+
+        # resolve & check value type info
+        if self.is_value_runtime:
+            from bench.language.value import HasValues
+
+            assert HasValues in self.component.__components__, f"{self.component} is not HasValues"
+            assert self.value_packed_ptr is not None, f"{self!r} is missing value_packed_ptr"
+            if isinstance(self.value_packed_ptr, int):
+                self.value_packed_ptr = self.component.__properties_by_id__[self.value_packed_ptr]
+            if isinstance(self.secret_value_packed_ptr, int):
+                self.secret_value_packed_ptr = self.component.__properties_by_id__[
+                    self.secret_value_packed_ptr
+                ]
+
+        # resolve py type
+        if (
+            self.is_ephemeral and not (self.is_struct or self.is_enum)
+        ) or self.reference_kind == ReferenceKind.NODE_CHILDREN:
+            # can't resolve these because they may point to non-Bench types
+            self.py_type_stripped = self.py_type_raw
+            return
+
+        # update/check info from annotation
+        annotation = parse_py_annotation(self.py_type_raw, BENCH_CLASS_BY_NAME)
+        self.py_type_stripped = annotation.type
+        if annotation.is_list != self.is_list:
+            raise ValueError(f"array mismatch for {self!r} (expected is_list={self.is_list})")
+        if self.is_required is UNSET:
+            self.is_required = not annotation.is_optional
+        if not self.is_required and self.default is UNSET and self.default_factory is None:
+            self.default = None
+        if isinstance(annotation.type, type) and issubclass(annotation.type, enum.Enum):
+            if not issubclass(annotation.type, IdEnum):
+                raise ValueError(f"only IdEnum is supported for enums: {self!r}")
+            self.enum_type = ENUM_TYPE_BY_CLASS.get(annotation.type)
+            if self.enum_type is None:
+                raise ValueError(f"missing enum type for {annotation.type!r} at {self!r}")
+
+        # determine storage type
+        if self.primitive_type is UNSET and (self.is_stored or self.is_wired):
+            if annotation.is_union:
+                raise ValueError(f"cannot store union {self!r}")
+            # map to column type
+            assert isinstance(annotation.type, type), f"invalid type {annotation!r} for {self!r}"
+            if issubclass(annotation.type, IdEnum):
+                self.primitive_type = PrimitiveType.INT16
+            elif issubclass(annotation.type, enum.IntFlag):
+                self.primitive_type = PrimitiveType.INT64
+            elif getattr(annotation.type, "__is_node__", False):
+                raise ValueError(f"cannot store/wire node directly: {self!r}")
+            elif getattr(annotation.type, "__is_struct__", False):
+                assert self.reference_struct is not None, f"missing struct type for {self!r}"
+                self.primitive_type = PrimitiveType.JSON  # robust json
+            else:
+                primitive_type = PRIMITIVE_TYPE_BY_PY_TYPE.get(annotation.type)
+                if primitive_type is None:
+                    raise ValueError(f"cannot determine storage for {self!r}: {self.py_type_raw!r}")
+                self.primitive_type = primitive_type
+
+        # derive type info
+        if self.is_introspectable or self.reference_source is not None or self.id == 1:
+            self.type_info = self._to_type_info()
+
+        # sanity check some stuff
+        if IS_DEV:
+            if (
+                self.component.__is_struct_inlined__
+                and self.reference_kind == ReferenceKind.STRUCT_CHILD
+                and self.reference_struct
+            ):
+                referenced_struct_cls = STRUCT_CLASS_BY_TYPE[self.reference_struct]
+                if not referenced_struct_cls.__is_struct_inlined__:
+                    raise ValueError(f"{self!r} cannot reference non-inlined struct {self!r}")
+            if self.is_encrypted and not self.is_sensitive:
+                raise ValueError(f"encrypted properties should be sensitive {self!r}")
+            if self.is_encrypted and not self.is_deferred:
+                raise ValueError(f"encrypted properties should be deferred {self!r}")
+
     def new(self) -> Any:
         """Gets a new default value for this property"""
         if self.default is not UNSET:
@@ -909,9 +916,11 @@ def p_node_parent(id: int, *node_type: NodeType, is_system: bool = False) -> Any
         id=id,
         reference_kind=ReferenceKind.NODE_PARENT,
         reference_nodes=tuple(node_type),
+        default=None,
         is_internal=True,
         is_stored=False,
         is_list=False,
+        is_runtime=True,
         is_system=is_system,
     )
 

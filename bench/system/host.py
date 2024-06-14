@@ -452,7 +452,6 @@ class Host(GraphIoServiceBase, HostBase, HostSpec):
             edit.epoch = epoch
 
         # check context
-        context._resolve_references(self._bench)
         validate_context(subject, context, edits)
 
         return scope, epoch

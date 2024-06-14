@@ -12,11 +12,20 @@ from bench.utils.utils import frozendict, get_from_env
 if typing.TYPE_CHECKING:
     from bench.language import Bench, Run, Session, Transaction
 
+
+class _Unset:
+    def __repr__(self):
+        return "<UNSET!>"
+
+    def __str__(self):
+        return "<UNSET!>"
+
+
 VERSION = "2024.06.13.1"
 REVISION_PENDING = -1
 TK_LENGTH_BYTES = 8
 TK_LENGTH_B64 = 12  # 1.5 * TK_LENGTH_BYTES (must be integer)
-UNSET = cast(Any, object())
+UNSET = cast(Any, _Unset())
 EMPTY_LIST: list = []
 EMPTY_SET: frozenset = frozenset()
 EMPTY_DICT: dict[Any, Any] = frozendict()

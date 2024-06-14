@@ -567,7 +567,7 @@ export class RemoteSearchConnection<T extends NodeType> extends ConnectionBase<"
 
     // fetch nodes
     const {
-      response: { epoch, nodes, roots: rootsInitial, total: totalInitial },
+      response: { epoch, nodes, rootsPtr: rootsInitial, total: totalInitial },
     } = await client.searchNodes(
       {
         ...params,
