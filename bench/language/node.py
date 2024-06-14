@@ -1038,12 +1038,12 @@ class BuiltinObject[ObjectDataT: AnyNodeData | AnyStructData](abc.ABC):
                         r = graph.get(cast(UUID, p.id or p.ck))
                         if r is not None:
                             resolved.append(r)
-                    self._do_set(prop.name, resolved)
+                    self._do_set(prop.name, resolved, track=False, validate=False)
                 else:
                     ptr = cast("NodeReference", ptr)
                     resolved = graph.get(cast(UUID, ptr.id or ptr.ck))
                     if resolved is not None:
-                        self._do_set(prop.name, resolved)
+                        self._do_set(prop.name, resolved, track=False, validate=False)
 
         # resolve property references
         for prop in self.__property_reference_properties__.values():
@@ -1591,10 +1591,6 @@ class Node[NodeDataT: AnyNodeData](BuiltinObject[NodeDataT], abc.ABC):
         return QueryBuilder(read_type=ReadType.SEARCH, node_type=cls.metatype)
 
     @classmethod
-    async def get(cls, conditional: Optional["Expression"] = None, **kwargs) -> Self:
-        return await cls.query().get(conditional, **kwargs)
-
-    @classmethod
     def where(
         cls, filter: Optional["Expression"] = None, **kwargs
     ) -> "QueryBuilder[Self, NodeDataT]":
@@ -1631,12 +1627,16 @@ class Node[NodeDataT: AnyNodeData](BuiltinObject[NodeDataT], abc.ABC):
         return cls.query().descendants(*node_types)
 
     #
-    # Fetch
+    # Read
     #
 
     @classmethod
-    async def tolist(cls) -> list[Self]:
-        return await cls.query().tolist()
+    async def get(cls, filter: Optional["Expression"] = None, live: bool = False, **kwargs) -> Self:
+        return await cls.query().get(filter, live=live, **kwargs)
+
+    @classmethod
+    async def search(cls, filter: Optional["Expression"] = None, **kwargs) -> list[Self]:
+        return await cls.query().search(filter, **kwargs)
 
     @classmethod
     def first(cls, count: int) -> "QueryBuilder[Self, NodeDataT]":
@@ -1649,8 +1649,6 @@ class Node[NodeDataT: AnyNodeData](BuiltinObject[NodeDataT], abc.ABC):
     @classmethod
     async def exists(cls, filter: Optional["Expression"] = None, **kwargs) -> bool:
         return await cls.query().exists(filter, **kwargs)
-
-    pass
 
 
 @node_component()

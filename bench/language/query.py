@@ -28,7 +28,7 @@ from bench.language.const import (
     active_session,
     active_tx,
 )
-from bench.language.expression import C, Expression
+from bench.language.expression import C, Expression, coerce_conditional
 from bench.language.node import (
     NODE_CLASS_BY_TYPE,
     InlineStruct,
@@ -40,12 +40,12 @@ from bench.language.node import (
 from bench.language.property import Property, p_node_parent, p_regular
 from bench.language.setup import ANCESTOR_NODE_TYPES, NODE_CLASSES, _on_completing_setup
 from bench.language.validation import NAME_CONSTRAINT
-from bench.proto.wire import AnyNodeData, QueryData
+from bench.proto.wire import AnyNodeData, GraphScope, QueryData
 from bench.utils.fractional import INTEGER_ZERO
 from bench.utils.func import stable_hash
 
 if TYPE_CHECKING:
-    from bench.language import Block, Field, ReadOptions
+    from bench.language import Block, Field, NodeReference, ReadOptions, Session
 
 
 logger = structlog.get_logger(__name__)
@@ -219,6 +219,7 @@ class QueryBuilder[NodeT: Node, NodeDataT: AnyNodeData]:
         "_node_type",
         "_options",
         "_read_type",
+        "_roots",
         "_skip",
         "_sort",
     )
@@ -228,6 +229,7 @@ class QueryBuilder[NodeT: Node, NodeDataT: AnyNodeData]:
         read_type: ReadType,
         node_type: NodeType,
         base: Optional["Block"] = None,
+        roots: Optional[list["NodeReference"]] = None,
         filter: Optional["Expression"] = None,
         sort: list["Expression"] | None = None,
         first: int | None = None,
@@ -242,6 +244,7 @@ class QueryBuilder[NodeT: Node, NodeDataT: AnyNodeData]:
         self._node_cls = NODE_CLASS_BY_TYPE[node_type] if node_type else Node
         self._base = base
         self._filter = filter
+        self._roots = roots
         self._sort = sort
         self._first = first
         self._skip = skip
@@ -252,7 +255,7 @@ class QueryBuilder[NodeT: Node, NodeDataT: AnyNodeData]:
         content_parts = []
         if self._base:
             content_parts.append(self._base.absolute_path)
-        for k in ("filter", "sort", "first", "skip", "aggregation"):
+        for k in ("roots", "filter", "sort", "first", "skip", "aggregation"):
             v = getattr(self, f"_{k}", None)
             if k == "query":
                 v = f"({v})" if v is not None else None
@@ -278,6 +281,7 @@ class QueryBuilder[NodeT: Node, NodeDataT: AnyNodeData]:
             self._node_type,
             self._base._stable_hash() if self._base is not None else None,
             self._filter._stable_hash() if self._filter is not None else None,
+            tuple(r._stable_hash() for r in self._roots) if self._roots is not None else None,
             tuple(s._stable_hash() for s in self._sort) if self._sort is not None else None,
             self._first,
             self._skip,
@@ -298,6 +302,9 @@ class QueryBuilder[NodeT: Node, NodeDataT: AnyNodeData]:
     def is_aggregation(self) -> bool:
         return self._aggregation is not None
 
+    def get_scope_in(self, session: "Session") -> GraphScope:
+        return session.tx._get_scope_for_node(self._base) if self._base else session._default_scope
+
     #
     # Builder
     #
@@ -308,6 +315,7 @@ class QueryBuilder[NodeT: Node, NodeDataT: AnyNodeData]:
             read_type=self._read_type,
             node_type=self._node_type,
             base=self._base,
+            roots=self._roots,
             filter=self._filter,
             sort=self._sort,
             first=self._first,
@@ -437,33 +445,57 @@ class QueryBuilder[NodeT: Node, NodeDataT: AnyNodeData]:
 
     @tracer.start_as_current_span("query.get")
     async def get(
-        self, filter: Optional["Expression"] = None, live: bool = False, **kwargs
+        self,
+        filter: Union["Expression", "NodeReference", None] = None,
+        live: bool = False,
+        **kwargs,
     ) -> NodeT:
-        """Returns the unique result matching the query (errors otherwise)."""
-        from bench.language.expression import coerce_conditional
+        """
+        Returns the unique result matching the query (errors otherwise).
+        NOTE: this is only a true get query with specific node pointers as roots, otherwise it's a search.
+        """
+        from bench.language import GetOptions, NodeReference, coerce_conditional
 
-        # nocheckin: turn this into a get connection if possible somehow
-        filter = coerce_conditional(self._node_cls, filter, kwargs)
-        query = self.where(filter) if filter is not None else self.copy()
-        query._read_type = ReadType.GET
-        trace.get_current_span().set_attribute("query", repr(query))
-        results = await query.search()
-        if len(results) == 1:
-            return results[0]
+        if isinstance(filter, NodeReference):
+            # true get request (with node pointers)
+            assert self._filter is None, f"cannot combine filter and roots in {self!r}"
+            query = self.copy()
+            query._roots = [filter]
+            query._read_type = ReadType.GET
+            session = active_session()
+            connection = await session.tx._read_channel.get(
+                query, GetOptions(unpack=True, live=live)
+            )
+            assert (
+                len(connection.result.roots) == 1
+            ), f"expected one node for {query!r} in {connection!r}: {connection.result.roots}"
+            node = connection.result.roots[0]
+            return cast(NodeT, node)
         else:
-            if len(results) == 0:
-                raise NodeNotFoundError(query=query)
+            # search which should only have one result
+            filter = coerce_conditional(self._node_cls, filter, kwargs)
+            query = self.where(filter) if filter is not None else self.copy()
+            results = await query.search()
+            if len(results) == 1:
+                return results[0]
             else:
-                raise MultipleNodesFoundError(query=query, result=results)
+                if len(results) == 0:
+                    raise NodeNotFoundError(query=query)
+                else:
+                    raise MultipleNodesFoundError(query=query, result=results)
 
     @tracer.start_as_current_span("query.search")
-    async def search(self, *, live: bool = False) -> list[NodeT]:
+    async def search(
+        self, filter: Optional["Expression"] = None, *, live: bool = False, **kwargs
+    ) -> list[NodeT]:
         """Fetches the nodes matching the query."""
         from bench.language.connection import SearchOptions
 
+        filter = coerce_conditional(self._node_cls, filter, kwargs)
+        query = self.where(filter) if filter is not None else self
         session = active_session()
         connection = await session.tx._read_channel.search(
-            self, SearchOptions(live=live, unpack=True, count=False)
+            query, SearchOptions(live=live, unpack=True, count=False)
         )
         return cast(list[NodeT], connection.result.roots)
 

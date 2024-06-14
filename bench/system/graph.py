@@ -142,9 +142,9 @@ class GraphIoServiceBase(ServiceBase, GraphIoBase):
         # parse query & fetch
         async with self.request_session() as session:
             with self.tracer.start_as_current_span("graph.get.parse"):
-                roots = tuple(
+                roots = [
                     wiring.unpack_object_validate(r, expect=NodeReference) for r in request.roots
-                )
+                ]
                 if not roots:
                     raise GRPCError(GRPCStatus.INVALID_ARGUMENT, "no roots provided")
                 if any(not r.id for r in roots):
@@ -161,11 +161,10 @@ class GraphIoServiceBase(ServiceBase, GraphIoBase):
                 node_type = next(iter(roots_by_type.keys()))
 
             with self.tracer.start_as_current_span("graph.get.fetch") as span:
-                root_ids = tuple(r.id for r in roots)
                 query = QueryBuilder(
                     read_type=ReadType.GET,
                     node_type=wiring.unpack_enum(NodeType, node_type),
-                    filter=C(ConditionalOp.IN, property=Node.id, value=root_ids),
+                    roots=roots,
                     options=adapt_read_options(subject, node_type, options),
                 )
                 connection = await self.connector.connect(

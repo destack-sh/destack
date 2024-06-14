@@ -165,7 +165,7 @@ async def clear(from_id: int, to_id: int):
         await delete_migrations_in_pg(cur, from_id=from_id, to_id=to_id)
         await cur.connection.commit()
     async with global_session():
-        benches = await Bench.tolist()
+        benches = await Bench.search()
         for bench in benches:
             stores = tuple(e.store for e in bench.environments)
             for store in stores:

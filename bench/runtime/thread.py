@@ -10,7 +10,8 @@ from bench.language import Bench, Package, User
 from bench.language.bench import Client, Machine
 from bench.language.code import Code, run_code_exec
 from bench.language.connection import GraphEngine
-from bench.language.const import BlockType, RunKind, RunStatus, _active_run
+from bench.language.const import BlockType, NodeType, RunKind, RunStatus, _active_run
+from bench.language.expression import NodeReference
 from bench.language.run import Run, RunError
 from bench.language.session import Session, unsuspend_session
 from bench.language.validation import on_invalid_raise
@@ -52,6 +53,9 @@ class RuntimeThread:
         self._supervisor = supervisor
         self._host = host
         self._bench_id = bench_id
+        self._bench_ptr = NodeReference(
+            type=NodeType.BENCH, id=bench_id, ck=bench_id, bench_id=bench_id
+        )
         self._bench: Bench | None = None
         self._main_package: Package | None = None
 
@@ -121,16 +125,13 @@ class RuntimeThread:
 
         # connect
         async with self.session(readonly=True):
-            # self._bench = await self._connector.get(
-            #     BENCH_QUERY.where(id=self._bench_id), self._tx_lock, self._session, owner=self
-            # )
-            self._bench = await BENCH_QUERY.get(id=self._bench_id, live=True)
+            self._bench = await BENCH_QUERY.get(self._bench_ptr, live=True)
             main_environment = self._bench.main_environment
             assert main_environment is not None, f"{self._bench!r} has no main environment"
             main_branch = self._bench.main_branch
             assert main_branch is not None, f"{self._bench!r} has no main branch"
             assert main_branch.main_package_id is not None, f"{main_branch!r} has no main package"
-            self._main_package = await PACKAGE_QUERY.get(id=main_branch.main_package_id, live=True)
+            self._main_package = await PACKAGE_QUERY.get(main_branch.main_package_ptr, live=True)
             self._session.parent = self._main_package
 
         # finally, start processing runs

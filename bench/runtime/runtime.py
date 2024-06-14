@@ -16,8 +16,10 @@ from bench.language.const import (
     IN_PACKAGE_NODE_TYPES,
     PUBLIC_NODE_TYPES,
     ClientType,
+    NodeType,
     RunStatus,
 )
+from bench.language.expression import NodeReference
 from bench.language.run import Run
 from bench.language.session import Session, unsuspend_session
 from bench.proto import wire, wiring
@@ -92,6 +94,9 @@ class Runtime(ServiceBase, RuntimeBase):
         # bench stuff
         self._host: HostStub | None = None
         self._bench_id = bench_id
+        self._bench_ptr = NodeReference(
+            type=NodeType.BENCH, id=bench_id, ck=bench_id, bench_id=bench_id
+        )
         self._bench: Bench | None = None
         self._main_package: Package | None = None
         self._packages: dict[UUID, Package] = {}
@@ -183,7 +188,7 @@ class Runtime(ServiceBase, RuntimeBase):
         # NOTE :Performance: share query connections between runtime/threads?
         async with self.session(readonly=True):
             # connect bench
-            self._bench = await BENCH_QUERY.get(id=self._bench_id, live=True)
+            self._bench = await BENCH_QUERY.get(self._bench_ptr, live=True)
             main_environment = self._bench.main_environment
             assert main_environment is not None, f"{self._bench!r} has no main environment"
             main_branch = self._bench.main_branch
@@ -209,7 +214,7 @@ class Runtime(ServiceBase, RuntimeBase):
             self._session._origin = self._client.to_origin()
 
             # connect main package
-            self._main_package = await PACKAGE_QUERY.get(id=main_branch.main_package_id, live=True)
+            self._main_package = await PACKAGE_QUERY.get(main_branch.main_package_ptr, live=True)
             self._packages[main_branch.main_package_id] = self._main_package
             self._session.parent = self._main_package
 
