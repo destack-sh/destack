@@ -104,7 +104,7 @@ class HostRouter(ServiceBase, HostBase):
     async def start(self) -> None:
         await super().start()
         async with global_session():
-            benches: list[Bench] = await Bench.tolist()
+            benches: list[Bench] = await Bench.search()
         await asyncio.gather(*(self._start_host(bench.id) for bench in benches))
 
     def close(self) -> None:
@@ -193,12 +193,16 @@ class Host(GraphIoServiceBase, HostBase, HostSpec):
         )
 
         self.bench_id = bench_id
+        self.bench_ptr = NodeReference(
+            type=NodeType.BENCH, id=bench_id, ck=bench_id, bench_id=bench_id
+        )
         self._bench: Bench | None = None
         self._main_package: Package | None = None
         self._scope: GraphScope = GraphScope(bench_id=str(bench_id))
         self._global_pg_engine: PostgresEngine | None = None
         # NOTE: currently we only have one local engine because we only have one branch :Branching
-        #  but later we'll need different engines for every 'full' branch (separate Neon branch)
+        #  but later we may need different engines for every 'full' branch
+        #  (separate Neon branch with separate compute endpoint with its own connection info)
         self._local_pg_engine: PostgresEngine | None = None
         self._engines: tuple[GraphEngine, ...] = ()
 
@@ -336,7 +340,7 @@ class Host(GraphIoServiceBase, HostBase, HostSpec):
         # load bench
         #  (in different session because we don't have the actual engines yet)
         async with self.request_session(engines=(GLOBAL_POSTGRES_ENGINE,)) as session:
-            self._bench = await BENCH_QUERY.get(id=self.bench_id)
+            self._bench = await BENCH_QUERY.get(self.bench_ptr)
             assert self._bench.main_environment, f"{self._bench!r} has no main environment"
             assert self._bench.main_environment.store, f"{self._bench!r} has no main store"
             assert self._bench.main_branch, f"{self._bench!r} has no main branch"
@@ -344,7 +348,7 @@ class Host(GraphIoServiceBase, HostBase, HostSpec):
             session.parent = self._bench.main_branch.main_package  # add bench hack for pg context
 
             # preload main packages
-            self._main_package = await PACKAGE_QUERY.get(id=self._bench.main_branch.main_package_id)
+            self._main_package = await PACKAGE_QUERY.get(self._bench.main_branch.main_package_ptr)
             self._main_package._untrack_rec()
         trace.get_current_span().set_attribute("bench", self._bench.slug)
 

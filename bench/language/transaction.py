@@ -122,7 +122,7 @@ class Transaction:
         ]
         if not candidate_engines:
             raise BenchError(
-                f"no engine for [scope={scope!r}, node_types={[t.bench_name for t in node_types]}] in {self.session!r}"
+                f"no engine for [scope={scope!r}, node_types={'|'.join(t.bench_name for t in node_types)}] in {self.session!r}"
                 f" (engines: {self.session._engines!r})"
             )
         if best_match is None or len(candidate_engines) < 2:

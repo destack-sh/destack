@@ -1428,7 +1428,7 @@ async def pg_get_node_graph(
     *,
     cur: psycopg.AsyncCursor,
     root_type: NodeType,
-    roots: tuple[UUID, ...] | tuple[AnyNodeData, ...] | list[AnyNodeData] | list[UUID],
+    roots: list[NodeReferenceData] | list[AnyNodeData],
     options: ReadOptions,
     visited_graph: NodeDataGraph,
 ) -> None:
@@ -1441,9 +1441,12 @@ async def pg_get_node_graph(
     assert roots, "no roots to select"
 
     # get roots
-    if isinstance(roots[0], UUID):
+    if isinstance(roots[0], NodeReferenceData):
         # select roots
-        root_filter = options.filter(root_type, C(ConditionalOp.IN, property=Node.id, value=roots))
+        roots_ids = [node.id for node in roots]
+        root_filter = options.filter(
+            root_type, C(ConditionalOp.IN, property=Node.id, value=roots_ids)
+        )
         root_nodes = await pg_get_nodes(
             cur=cur,
             node_type=root_type,

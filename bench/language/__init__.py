@@ -30,10 +30,22 @@ from .block import Block
 from .code import Code, CodeLine
 from .connection import (
     AggregateConnection,
+    AggregateOptions,
+    AggregateResult,
+    AggregateResultData,
     Channel,
     ConnectionBase,
     GetConnection,
+    GetOptions,
+    GetResult,
+    GetResultData,
     SearchConnection,
+    SearchOptions,
+    SearchResult,
+    SearchResultData,
+    WatchAggregateUpdate,
+    WatchGetUpdate,
+    WatchSearchUpdate,
 )
 from .const import (
     VERSION,
@@ -64,6 +76,7 @@ from .expression import (
     PropertyReference,
     S,
     ValueReference,
+    coerce_conditional,
 )
 from .field import Field, FieldZone, TypeConstraint, TypeInfo, TypeInfoBase
 from .file import Blob, File, Icon
@@ -134,6 +147,9 @@ __all__ = [
     "AccessError",
     "AccessType",
     "AggregateConnection",
+    "AggregateOptions",
+    "AggregateResult",
+    "AggregateResultData",
     "Aggregation",
     "Alignment",
     "Anchor",
@@ -177,6 +193,9 @@ __all__ = [
     "FontWeight",
     "FormatHint",
     "GetConnection",
+    "GetOptions",
+    "GetResult",
+    "GetResultData",
     "Handle",
     "HasNodeBase",
     "Icon",
@@ -232,6 +251,9 @@ __all__ = [
     "S",
     "ScheduleType",
     "SearchConnection",
+    "SearchOptions",
+    "SearchResult",
+    "SearchResultData",
     "Server",
     "ServerProfile",
     "Session",
@@ -266,6 +288,10 @@ __all__ = [
     "View",
     "ViewType",
     "Visibility",
+    "WatchAggregateUpdate",
+    "WatchGetUpdate",
+    "WatchSearchUpdate",
+    "coerce_conditional",
 ]
 
 # after all the imports, we can finalize
