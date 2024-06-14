@@ -388,7 +388,7 @@ class QueryBuilder[NodeT: Node, NodeDataT: AnyNodeData]:
         """Includes given default-excluded properties in the results."""
         copy = self.copy()
         copy._options = self._copy_options()
-        copy._options.include_properties.extend(self._to_properties(properties))
+        copy._options.include_properties += self._to_properties(properties)
         return copy
 
     def select_all(self) -> "QueryBuilder[NodeT, NodeDataT]":
@@ -402,7 +402,7 @@ class QueryBuilder[NodeT: Node, NodeDataT: AnyNodeData]:
         """Excludes given default-included properties from the results."""
         copy = self.copy()
         copy._options = self._copy_options()
-        copy._options.exclude_properties.extend(self._to_properties(properties))
+        copy._options.exclude_properties += self._to_properties(properties)
         return copy
 
     def include_ancestors(self) -> "QueryBuilder[NodeT, NodeDataT]":

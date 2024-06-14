@@ -875,14 +875,14 @@ from bench.language.node import BuiltinObject, HasNodeBase, object_component  # 
 
 @object_component()
 class HasValues(BuiltinObject):
-    # TODO :Robustness :Architecture: turn value into computed property :NoFakeComputed
+    # TODO :Robustness :Architecture: turn value into computed property? :NoFakeComputed
 
     @override
     def _init_component(self):
         # if unpacked is set, pack in place, otherwise vice versa
         # (this is a bit unwieldy and means we don't get value if the object is created
         #  outside a session, but we'll likely change this soon anyway - see above)
-        if not self._is_tracked:
+        if self._session is None:
             return
         for prop in self.__value_properties__.values():
             assert type(prop.value_packed_ptr) is Property, f"{prop!r} has no value_packed_ptr"

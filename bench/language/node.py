@@ -223,7 +223,7 @@ def _process_object_cls[ObjectT: BuiltinObject](
     cls.__declared_properties__ = frozendict(own_properties)
     cls.__own_properties__ = frozendict(properties_by_name)  # remember 'own' properties
 
-    # collect properties from all components
+    # collect properties from all parent components
     for component in reversed(static_components):
         for name, prop in component.__own_properties__.items():
             existing = properties_by_name.get(name)
@@ -273,7 +273,7 @@ def _process_object_cls[ObjectT: BuiltinObject](
                     )
                 properties_by_name[p.name] = p
 
-    # add copmuted properties to final classes
+    # add computed properties to final classes
     if is_final:
 
         def _set_computed(name: str, prop: property):
@@ -314,9 +314,10 @@ def _process_object_cls[ObjectT: BuiltinObject](
                         continue  # no need for *_type if only one possible node type
                     _set_computed(f"{prop.name}_{key}", _object_computed_node_ref_attr(key, prop))
 
-    # update reference to transformed class
+    # finalize props & update reference to transformed class
     for prop in properties_by_name.values():
         prop.component = cls
+        prop._finalize_meta()
 
     # register components and index properties
     cls.__components__ = tuple(static_components)  # type: ignore
@@ -359,6 +360,15 @@ def _process_object_cls[ObjectT: BuiltinObject](
     cls.__sensitive_properties__ = frozendict({p.name: p for p in props if p.is_sensitive})
     cls.__struct_properties__ = frozendict({p.name: p for p in props if p.is_struct})
     cls.__value_properties__ = frozendict({p.name: p for p in props if p.is_value_runtime})
+    cls.__stored_properties__ = frozendict(
+        {p.name: p for p in cls.__properties__.values() if p.is_stored is True}
+    )
+    cls.__wired_properties__ = frozendict(
+        {p.name: p for p in cls.__properties__.values() if p.is_wired is True}
+    )
+    cls.__runtime_properties__ = frozendict(
+        {p.name: p for p in cls.__properties__.values() if p.is_runtime is True}
+    )
     cls.__properties_in_order__ = tuple(sorted(properties_by_id.values(), key=lambda p: p.id))
     for i, prop in enumerate(cls.__properties_in_order__):
         prop.ord = i
@@ -435,9 +445,6 @@ def struct_(struct_type: StructType, inline: bool = False):
     return decorate
 
 
-_NodeT = TypeVar("_NodeT", bound="Node")
-
-
 @dataclass_transform(kw_only_default=True, field_specifiers=_PROPERTY_SPECIFIERS)
 def node_component(
     node_type: NodeType | None = None,
@@ -448,7 +455,7 @@ def node_component(
 ):
     """Mark a class as a node component (or concrete node for a NodeType)."""
 
-    def decorate(cls: Type[_NodeT]) -> Type[_NodeT]:
+    def decorate(cls: Type["Node"]) -> Type["Node"]:
         cls, properties = _process_object_cls(
             cls=cls,
             object_type=node_type,
@@ -507,7 +514,7 @@ def node_(
     in_package = node_type in IN_PACKAGE_NODE_TYPES
     in_bench = node_type in IN_BENCH_NODE_TYPES
 
-    def decorate(cls: Type[_NodeT]) -> Type[_NodeT]:
+    def decorate(cls: Type["Node"]) -> Type["Node"]:
         cls = node_component(
             node_type=node_type,
             passthrough=passthrough,
@@ -607,6 +614,7 @@ def _object_computed_property_ref(prop: Property) -> property:
 
         def _get_properties_many(self: BuiltinObject) -> tuple[Property, ...]:
             value_ptrs: list[PropertyReference] = getattr(self, wired_prop.name)
+            assert type(value_ptrs) is list, f"invalid {prop!r}: {value_ptrs!r}"
             return tuple(p.resolve() for p in value_ptrs)
 
         def _set_properties_many(self: BuiltinObject, values: Collection[Property]):
@@ -643,7 +651,8 @@ def _object_computed_node_ref(prop: Property) -> property:
             raise NotImplementedError(f"list nodes not yet supported {prop!r}")
 
         def _set_node_many(self: BuiltinObject, values: Collection["Node"]):
-            raise NotImplementedError(f"list nodes not yet supported {prop!r}")
+            value_ptrs = [p.to_ref() for p in values]
+            self._do_set(wired_prop.name, value_ptrs)
 
         return property(_get_node_many, _set_node_many)
 
@@ -672,6 +681,7 @@ def _object_computed_node_ref_attr(key: str, prop: Property) -> property:
 
         def _get_node_ref_attr_many(self: BuiltinObject):
             value_ptrs = getattr(self, wired_prop.name)
+            assert type(value_ptrs) is list, f"invalid {prop!r}: {value_ptrs!r}"
             return tuple(getattr(p, key) for p in value_ptrs)
 
         def _set_node_ref_attr_many(self: BuiltinObject, values):
@@ -777,29 +787,91 @@ class BuiltinObject[ObjectDataT: AnyNodeData | AnyStructData](abc.ABC):
     _session: "Session | None" = p_runtime(default=None)
     _updated_properties: bitarray | None = p_runtime(default=None)
 
-    def __init__(self, **kwargs):
-        self._init_pointers()
-        if self._session is not UNSET and self._session is None:
-            self._session = _active_session.get()
-        self._init_self()
+    def __init__(self, *, _skip_init_self: bool = False, **kwargs):
+        # init object
+        for prop in self.__runtime_properties__.values():
+            if prop.reference_source is not None or prop.is_computed:
+                continue  # only handle top level properties
+            wired_ptr_prop = prop.reference_wired_ptr
+            prop_value = kwargs.get(prop.name, UNSET)
 
-    def _init_pointers(self):
-        for prop in self.__struct_reference_properties__.values():
-            # copy new structs if needed
-            if prop.reference_kind == ReferenceKind.STRUCT_CHILD:
-                existing = getattr(self, prop.name, None)
+            # also get wired pointer if available
+            if wired_ptr_prop is not None:
+                wired_prop_value = kwargs.get(wired_ptr_prop.name, UNSET)
+            else:
+                wired_prop_value = UNSET
+
+            # init node references if nodes are passed directly
+            if prop.is_node_reference:
+                if prop_value is not UNSET:
+                    assert wired_ptr_prop is not None, f"no wired prop for {prop!r}"
+                    if wired_prop_value is not UNSET:
+                        raise ValueError(
+                            f"got both {prop!r} and {wired_ptr_prop!r}: {prop_value!r}, {wired_prop_value!r}"
+                        )
+                    # init node references
+                    if prop_value is None:
+                        wired_prop_value = None
+                    elif not prop.is_list:
+                        wired_prop_value = cast(Any, prop_value).to_ref()
+                    else:
+                        wired_prop_value = [p.to_ref() for p in prop_value]
+                    object.__setattr__(self, wired_ptr_prop.name, wired_prop_value)
+                    continue
+            # init property references if properties are passed directly
+            elif prop.reference_kind == ReferenceKind.PROPERTY:
+                if prop_value is not UNSET:
+                    assert wired_ptr_prop is not None, f"no wired prop for {prop!r}"
+                    if wired_prop_value is not UNSET:
+                        raise ValueError(
+                            f"got both {prop!r} and {wired_ptr_prop!r}: {prop_value!r}, {wired_prop_value!r}"
+                        )
+                    if prop.is_list:
+                        wired_prop_value = [p.to_ref() for p in prop_value]
+                    else:
+                        wired_prop_value = cast(Any, prop_value).to_ref()
+                    object.__setattr__(self, wired_ptr_prop.name, wired_prop_value)
+                    continue
+            # move struct values into this object if passed
+            elif prop.reference_kind == ReferenceKind.STRUCT_CHILD:
                 if prop.is_list:
-                    assert prop.reference_list_type is not None
+                    # and init value list
+                    assert prop.reference_list_type is not None, f"no list type for {prop!r}"
                     value_list = prop.reference_list_type(cast(Node, self), prop)
-                    self._do_set(
-                        prop.name, value_list, track=False
-                    )
-                    if existing:
-                        # will auto copy if needed
-                        value_list.extend(existing)
-                elif existing is not None:
-                    if prop.reference_kind == ReferenceKind.STRUCT_CHILD:
-                        self._do_set(prop.name, existing._move_to(self, prop), track=False)
+                    if isinstance(prop_value, list):
+                        value_list.extend(prop_value)  # will auto copy if needed
+                    prop_value = value_list
+                elif isinstance(prop_value, InlineStruct):
+                    prop_value = prop_value._move_to(self, prop)
+
+            # default value
+            if prop_value is UNSET:
+                if prop.default_factory is not None:
+                    prop_value = prop.default_factory()
+                elif prop.default is not UNSET:
+                    prop_value = prop.default
+                elif not prop.is_required:
+                    prop_value = None if not prop.is_list else []
+            if wired_ptr_prop is not None and wired_prop_value is UNSET:
+                if prop.is_list:
+                    wired_prop_value = []
+                elif not prop.is_required:
+                    wired_prop_value = None
+
+            # and set it
+            if prop_value is UNSET:
+                raise ValueError(f"missing value for {prop!r}")
+            object.__setattr__(self, prop.name, prop_value)
+            if wired_ptr_prop is not None:
+                object.__setattr__(self, wired_ptr_prop.name, wired_prop_value)
+
+        # init session context
+        if self._session is None:
+            self._session = _active_session.get()
+
+        # and init components
+        if not _skip_init_self:
+            self._init_self()
 
     def __content_str__(self) -> str:
         return ""  # empty by default
@@ -867,8 +939,7 @@ class BuiltinObject[ObjectDataT: AnyNodeData | AnyStructData](abc.ABC):
 
     def _do_set(self, key: str, value, *, track: bool = True, validate: bool = True):
         """Sets *any* attribute on this node."""
-        session = getattr(self, "_session", None)
-        is_tracked = track and session is not None and session is not UNSET
+        is_tracked = track and self._session is not None
         prop = self.__properties__.get(key)
         if prop is not None:
             if (prop.is_ephemeral and not prop.is_value_runtime) or prop.is_autoset:  # untracked
@@ -903,11 +974,6 @@ class BuiltinObject[ObjectDataT: AnyNodeData | AnyStructData](abc.ABC):
             else:
                 object.__setattr__(self, key, value)
 
-            # update reference pointers :NodeRefs
-            if prop.reference_wired_ptr is not None:
-                wired_ptr = prop.to_wired_ptr(cast(Any, value))
-                object.__setattr__(self, prop.reference_wired_ptr.name, wired_ptr)
-
             if is_tracked:
                 # notify
                 self._updated_self((prop,))
@@ -937,10 +1003,6 @@ class BuiltinObject[ObjectDataT: AnyNodeData | AnyStructData](abc.ABC):
         #  (we don't need it since dynamic access is meant for Values at runtime)
         __getattr__ = _do_get
         __setattr__ = _do_set
-
-    @property
-    def _is_tracked(self) -> bool:
-        return self._session is not None and self._session is not UNSET
 
     @property
     def active_session(self) -> "Session":
@@ -1240,6 +1302,8 @@ class Node[NodeDataT: AnyNodeData](BuiltinObject[NodeDataT], abc.ABC):
     _is_new: bool = p_runtime(default=False)
 
     def __init__(self, **kwargs):
+        super().__init__(**kwargs, _skip_init_self=True)
+
         # init ck/id
         if isinstance(self, HasPersistentIdentity):
             if self.ck is None:
@@ -1249,15 +1313,16 @@ class Node[NodeDataT: AnyNodeData](BuiltinObject[NodeDataT], abc.ABC):
         elif self.id is None:
             self.id = self.__class__.__id_factory__()
             self._is_new = True
+
         # init timestamps
         if self.created_at is None:
             now = utcnow()
             self.created_at = now
             self.updated_at = now
+
         # init graph
         if self.parent is None:
             # if we're not in a graph, start a new one
-            #  (not sure which scope/node_types to use here?)
             # NOTE: cleanup NodeGraph definition "depends on itself", causing pyright errors
             graph = NodeGraph(  # type: ignore
                 scope=GraphScope(),
@@ -1268,9 +1333,7 @@ class Node[NodeDataT: AnyNodeData](BuiltinObject[NodeDataT], abc.ABC):
         else:
             # we'll be added to the graph by our parent
             self._graph = self.parent._graph
-
-        # init super (builtin object)
-        self._init_pointers()
+            self._supergraph = self.parent._supergraph
 
         # init node lists (preserving existing lists)
         for name, prop in self.__node_child_properties__.items():
@@ -1279,13 +1342,10 @@ class Node[NodeDataT: AnyNodeData](BuiltinObject[NodeDataT], abc.ABC):
             setattr(self, name, node_list)
 
         # init session context
-        if self._session is not UNSET:
-            if self._session is None:
-                self._session = _active_session.get()
-            if self._session is not None:
-                if self._is_new:
-                    self._validate_self((), invalid=on_invalid_raise)
-                self._track_self(self._session)
+        if self._session is not None:
+            if self._is_new:
+                self._validate_self((), invalid=on_invalid_raise)
+            self._track_self(self._session)
 
         # init components
         self._init_self()
@@ -1349,11 +1409,7 @@ class Node[NodeDataT: AnyNodeData](BuiltinObject[NodeDataT], abc.ABC):
     @final
     def _track_self(self, session: "Session"):
         """Track this object in the given session."""
-        if (
-            self._session is not None
-            and self._session is not UNSET
-            and self._session is not session
-        ):
+        if self._session is not None and self._session is not session:
             raise RuntimeError(f"{self!r} is already in {self._session!r}, not {session!r}")
         self._session = session
 

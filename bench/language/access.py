@@ -285,7 +285,7 @@ class PolicyRule(Struct):
         # object mask
         self._object_node_types_mask = _enums_to_mask(self.object_node_types, NodeType)  # type: ignore
         self._object_properties_masks = {}
-        all_properties = self.object_properties or ()
+        all_properties = self.object_properties
         if (
             self.object_properties_is_system is not None
             or self.object_properties_is_sensitive is not None
@@ -623,10 +623,8 @@ def _setup_system_policies():
             .object(node_types=(NodeType.HANDLE,)),
             PolicyRule(
                 name="CannotUpsertLegislativeNodes",
-                text=Text.plain(
-                    "Nodes that define their own policies cannot be upserted to prevent ambiguities in evaluation."
-                    # (we could do it, but it would be confusing and tedious)
-                ),
+                # (to prevent ambiguities in evaluation - we could do it, but it would be confusing)
+                text=Text.plain("Nodes that define their own policies cannot be upserted."),
             )
             .deny(EditType.UPSERT)
             .object(node_types=LEGISLATIVE_NODE_TYPES.tuple),

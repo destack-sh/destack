@@ -17,10 +17,9 @@ from bench.language.const import (
 )
 from bench.utils.env import IS_DEV
 from bench.utils.func import IdEnum, assert_collections_equal, bittuple, get_subclasses
-from bench.utils.utils import frozendict
 
 if TYPE_CHECKING:
-    from bench.language import BuiltinObject, InlineStruct, Node, Property
+    from bench.language import BuiltinObject, InlineStruct, Node
 
 # some global indexes for language types/classes
 ENUM_CLASS_BY_TYPE = _ENUM_CLASS_BY_TYPE  # re-exported to avoid circular imports
@@ -108,18 +107,8 @@ def _complete_bench_setup():
     for cls in get_subclasses(BuiltinObject):
         # misc finalization on properties
         for name, prop in cls.__properties__.items():
-            prop: Property
-
-            if prop.reference_wired_ptr or prop.reference_stored_ids:
-                # Properties with reference ptrs (like Node.parent -> parent_ptr/parent_id)
-                #  aren't wired/stored directly, we just use is_wired/is_stored to indicate what
-                #  the contributed properties should do. Now that they're all contributed,
-                #  we can set them to False, so they don't get indexed.
-                prop.is_wired = False
-                prop.is_stored = False
-
             # finalize type info
-            prop._finalize()
+            prop._finalize_type()
 
             # set introspectable properties as <cls>.<property>
             if prop.is_introspectable:
@@ -142,16 +131,6 @@ def _complete_bench_setup():
                         )
                     if STRUCT_CLASS_BY_TYPE[prop.reference_struct] is not prop.py_type_raw:
                         raise ValueError(f"{prop!r} {prop.reference_struct} != {prop.py_type_raw}")
-
-        cls.__stored_properties__ = frozendict(
-            {p.name: p for p in cls.__properties__.values() if p.is_stored is True}
-        )
-        cls.__wired_properties__ = frozendict(
-            {p.name: p for p in cls.__properties__.values() if p.is_wired is True}
-        )
-        cls.__runtime_properties__ = frozendict(
-            {p.name: p for p in cls.__properties__.values() if p.is_runtime is True}
-        )
 
     # determine node ancestry relationships (parent/child)
     parent_types: dict[NodeType, set[NodeType]] = {nt: set() for nt in NODE_TYPES}
