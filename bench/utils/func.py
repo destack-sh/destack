@@ -8,7 +8,6 @@ import secrets
 import traceback
 import types
 import typing
-from asyncio import CancelledError
 from collections import OrderedDict
 from itertools import filterfalse, tee
 from os import urandom
@@ -18,7 +17,6 @@ from typing import (
     Any,
     Callable,
     Collection,
-    Coroutine,
     Iterable,
     Mapping,
     TypeVar,
@@ -34,7 +32,7 @@ from more_itertools import first
 
 from bench.utils.base58 import base58_encode
 from bench.utils.env import IS_DEV, IS_TEST
-from bench.utils.utils import get_from_env, sentry_capture
+from bench.utils.utils import get_from_env
 
 logger = structlog.get_logger(__name__)
 
@@ -159,18 +157,6 @@ def dict_minus[K, V](obj: dict[K, V], *keys: Iterable[K]) -> dict[K, V]:
 
 def dict_intersect[K, V](obj: dict[K, V], keys: Iterable[K]) -> dict[K, V]:
     return {k: v for k, v in obj.items() if k in keys}
-
-
-async def wrap_task(coro: Coroutine, task_id: str | None = None) -> None:
-    task_id = task_id or coro.__name__
-    try:
-        return await coro
-    except CancelledError as e:
-        logger.exception("task.cancelled", task_id=task_id, exc_info=e)
-        raise
-    except BaseException as e:
-        logger.exception("task.errored", task_id=task_id, exc_info=e, sentry=sentry_capture(e))
-        raise
 
 
 def describe_type(obj: Any) -> str:

@@ -6,6 +6,19 @@ from bench.utils.oracle import get_oracle
 from bench.utils.utils import sentry_capture
 
 
+async def wrap_task(coro: Coroutine, logger, task_id: str, owner: Any) -> None:
+    try:
+        return await coro
+    except asyncio.CancelledError as e:
+        logger.exception(f"f{task_id}.cancelled", task_id=task_id, owner=owner, exc_info=e)
+        pass
+    except BaseException as e:
+        logger.exception(
+            f"{task_id}.errored", task_id=task_id, owner=owner, exc_info=e, sentry=sentry_capture(e)
+        )
+        raise
+
+
 class TaskManager:
     """Simple async task manager incl. error handling and logging"""
 

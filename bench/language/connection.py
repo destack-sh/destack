@@ -3,6 +3,7 @@
 #
 import abc
 import asyncio
+import contextlib
 from dataclasses import dataclass
 from functools import wraps
 from typing import (
@@ -47,6 +48,7 @@ from bench.proto.wire import (
 )
 from bench.utils.func import bittuple, group_by
 from bench.utils.oracle import get_oracle
+from bench.utils.task import wrap_task
 from bench.utils.tenacity import RETRY_GRPC, RetryOptions
 
 if TYPE_CHECKING:
@@ -375,6 +377,7 @@ class ConnectionBase[
         self.channel = channel
         self.scope = scope
         self.query = query
+        self.type = query._read_type
         self.node_types = list(query.all_node_types)
         self.options = options
         self.is_live = options.live
@@ -434,7 +437,13 @@ class ConnectionBase[
             self._has_result.set()
         else:
             # start live connection loop and await first result
-            self._connect_task = asyncio.create_task(self._do_connect_live())
+            task = wrap_task(
+                self._do_connect_live(),
+                logger=logger,
+                task_id=f"connect.{self.type.name.lower()}.live",
+                owner=self,
+            )
+            self._connect_task = asyncio.create_task(task)
             await self._has_result.wait()
 
     async def _do_connect_live(self) -> None:
@@ -466,10 +475,16 @@ class ConnectionBase[
     def close(self):
         """Close the connection."""
         self._is_closed = True
+        if self._connect_task is not None:
+            self._connect_task.cancel()
 
-    async def wait_closed(self):  # noqa: B027
+    @final
+    async def wait_closed(self):
         """Wait for any pending operations to complete."""
-        pass
+        if self._connect_task is not None:
+            with contextlib.suppress(asyncio.CancelledError):
+                await self._connect_task
+            self._connect_task = None
 
 
 class GetConnection[ChannelT: Channel](
