@@ -77,13 +77,13 @@ def global_pg_cursor(autocommit: bool = False):
     return PgStoreConnection(GLOBAL_STORE, SYSTEM_BENCH_STUB, autocommit=autocommit)
 
 
-def global_session(epoch: Optional[int] = None):
+def global_session(epoch: Optional[int] = None, _supergraph: Optional[NodeSuperGraph] = None):
     return Session(
         parent=None,
         _default_scope=GraphScope(),
         _engines=(GLOBAL_POSTGRES_ENGINE,),
         _epoch=epoch,
-        _supergraph=SYSTEM_BENCH_STUB._supergraph,
+        _supergraph=_supergraph or SYSTEM_BENCH_STUB._supergraph,
     )
 
 

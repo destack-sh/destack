@@ -983,15 +983,12 @@ class BuiltinObject[ObjectDataT: AnyNodeData | AnyStructData](abc.ABC):
         prop = self.__properties__.get(key)
         if prop is not None:
             if (prop.is_ephemeral and not prop.is_value_runtime) or prop.is_autoset:  # untracked
-                return object.__setattr__(self, key, value)
+                object.__setattr__(self, key, value)
+                return
             elif prop.reference_kind == ReferenceKind.NODE_CHILDREN:
-                attr = object.__getattribute__(self, key)
-                if attr is None or type(attr) is Property:  # initial set
-                    return object.__setattr__(self, key, value)
-                else:
-                    return attr.set(value)  # has its own set
-            elif prop.is_computed:
-                raise AttributeError(f"cannot set computed property: '{key}'")
+                existing = getattr(self, key)
+                existing.set(value)
+                return
 
             # validate/set
             old_value = getattr(self, key, UNSET)
@@ -1398,7 +1395,7 @@ class Node[NodeDataT: AnyNodeData](BuiltinObject[NodeDataT], abc.ABC):
         for name, prop in self.__node_child_properties__.items():
             assert prop.reference_list_type is not None
             node_list = prop.reference_list_type(self, prop)
-            setattr(self, name, node_list)
+            self.__dict__[name] = node_list
             existing = kwargs.get(name, UNSET)
             if existing is not UNSET:
                 node_list.extend(existing)

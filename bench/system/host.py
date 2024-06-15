@@ -49,7 +49,7 @@ from bench.proto.wire import (
     SessionContextData,
 )
 from bench.proto.wiring import unpack_proto_json
-from bench.system.access import get_client
+from bench.system.access import CLIENT_CACHE_ENABLED, ClientCache, get_client
 from bench.system.core import (
     BENCH_QUERY,
     GLOBAL_POSTGRES_ENGINE,
@@ -197,6 +197,7 @@ class Host(GraphIoServiceBase, HostBase, HostSpec):
             type=NodeType.BENCH, id=bench_id, ck=bench_id, bench_id=bench_id
         )
         self._supergraph = NodeSuperGraph(self.bench_ptr)
+        self._client_cache = ClientCache()
         self._bench: Bench | None = None
         self._main_package: Package | None = None
         self._scope: GraphScope = GraphScope(bench_id=str(bench_id))
@@ -290,8 +291,13 @@ class Host(GraphIoServiceBase, HostBase, HostSpec):
             client_id = UUID(metadata.client_id)
             if metadata.client_type != wire.ClientType.BENCH_SERVER:
                 # user client
-                async with global_session() as session:
-                    client = await get_client(session, client_id, metadata.client_access_token)
+                async with global_session(_supergraph=self._supergraph):
+                    if CLIENT_CACHE_ENABLED:
+                        client = await self._client_cache.get(
+                            client_id, metadata.client_access_token
+                        )
+                    else:
+                        client = await get_client(client_id, metadata.client_access_token)
                 assert isinstance(client.parent, User), f"unexpected client: {client!r}"
                 if client.parent.main_bench_id == self._bench.id:
                     owned = [client.parent, self._bench]

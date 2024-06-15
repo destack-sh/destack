@@ -1,4 +1,5 @@
 import asyncio
+import weakref
 from uuid import UUID
 
 import structlog
@@ -10,7 +11,6 @@ from opentelemetry import trace
 from bench.language import Client, Server, User
 from bench.language.bench import Bench
 from bench.language.query import NodeNotFoundError
-from bench.language.session import Session
 from bench.utils.env import IS_DEV
 from bench.utils.utils import get_from_env
 
@@ -69,15 +69,38 @@ CLIENT_CACHE_ENABLED = get_from_env(
     default=True,
     description="Whether to cache Clients in the access system",
 )
-client_cache = TTLCache[UUID, Client](maxsize=10_000, ttl=60)
-
-# TODO :Security: invalidate client_cache on significant events (e.g. logout and such)
+_caches: weakref.WeakSet["ClientCache"] = weakref.WeakSet()
 
 
-@tracer.start_as_current_span("access.get_client_from_metadata")
-async def _do_get_client(session: Session, client_id: UUID) -> Client:
-    """Gets the authenticated client (if any)."""
+class ClientCache:
+    def __init__(self):
+        self._cache = TTLCache[UUID, Client](maxsize=10_000, ttl=60)
+        _caches.add(self)
 
+    async def get(self, client_id: UUID, client_access_token: str) -> Client:
+        client = self._cache.get(client_id)
+        if client is None:
+            client = await do_get_client(client_id)
+            self._cache[client_id] = client
+        if client.access_token != client_access_token:
+            raise GRPCError(GRPCStatus.UNAUTHENTICATED, "invalid access token")
+        return client
+
+    def purge(self, user: User) -> None:
+        for key, client in list(self._cache.items()):
+            if client.parent_id == user.id:
+                self._cache.pop(key)
+
+
+async def get_client(client_id: UUID, client_access_token: str):
+    client = await do_get_client(client_id)
+    if client.access_token != client_access_token:
+        raise GRPCError(GRPCStatus.UNAUTHENTICATED, "invalid access token")
+    return client
+
+
+@tracer.start_as_current_span("access.get_client")
+async def do_get_client(client_id: UUID) -> Client:
     try:
         client: Client = (
             await Client.include(User.email, Client.access_token)
@@ -90,23 +113,9 @@ async def _do_get_client(session: Session, client_id: UUID) -> Client:
         raise GRPCError(GRPCStatus.UNAUTHENTICATED, str(e) if IS_DEV else "client not found") from e
 
 
-async def get_client(session: Session, client_id: UUID, client_access_token: str) -> Client:
-    """Gets the authenticated client (if any) from the cache."""
-    # get client
-    if not CLIENT_CACHE_ENABLED:
-        client = await _do_get_client(session, client_id)
-    else:
-        client = client_cache.get(client_id)
-        if client is None:
-            client = await _do_get_client(session, client_id)
-            client_cache[client_id] = client
-    # check access token
-    if client_access_token != client.access_token:
-        raise GRPCError(GRPCStatus.UNAUTHENTICATED, "invalid access token")
-    return client
+def purge_client_caches(user: User) -> None:
+    for cache in _caches:
+        cache.purge(user)
 
 
-def purge_client_cache(user: User) -> None:
-    for key, client in list(client_cache.items()):
-        if client.parent_id == user.id:
-            client_cache.pop(key)
+# TODO :Security: invalidate client_cache on significant events (e.g. logout and such)

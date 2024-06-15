@@ -39,7 +39,7 @@ from bench.system.access import (
     check_password,
     get_client,
     hash_password,
-    purge_client_cache,
+    purge_client_caches,
 )
 from bench.system.core import GLOBAL_POSTGRES_ENGINE, global_session
 from bench.system.graph import GraphIoServiceBase
@@ -87,9 +87,9 @@ class Supervisor(GraphIoServiceBase, SupervisorBase):
         if not metadata.client_id or not metadata.client_access_token:
             return Subject(is_authenticated=False)
 
-        async with global_session() as session:
+        async with global_session():
             client_id = UUID(metadata.client_id)
-            client = await get_client(session, client_id, metadata.client_access_token)
+            client = await get_client(client_id, metadata.client_access_token)
             if isinstance(client.parent, User):
                 return Subject(
                     is_authenticated=True,
@@ -190,7 +190,7 @@ class Supervisor(GraphIoServiceBase, SupervisorBase):
             user.password_hash = hash_password(request.new_password, user.password_salt)
             await session.commit()
 
-        purge_client_cache(user)
+        purge_client_caches(user)
         logger.info("supervisor.change_user_password", user=user, span="current")
         return ChangeUserPasswordResponse(user=user._to_data())
 
@@ -222,7 +222,7 @@ class Supervisor(GraphIoServiceBase, SupervisorBase):
             await session.commit()
 
         logger.info("supervisor.login_user", user=user, client=client, span="current")
-        purge_client_cache(user)
+        purge_client_caches(user)
         return LoginUserResponse(
             user=user._to_data(),
             client=client._to_data(),
@@ -257,7 +257,7 @@ class Supervisor(GraphIoServiceBase, SupervisorBase):
                 client.seen_at = utcnow()
             await session.commit()
 
-        purge_client_cache(subject.user)
+        purge_client_caches(subject.user)
         logger.info("supervisor.logout_user", user=subject.user, clients=clients, span="current")
         return LogoutUserResponse()
 
@@ -322,7 +322,7 @@ class Supervisor(GraphIoServiceBase, SupervisorBase):
 
         if isinstance(owner, User):
             # update user with new bench (supervisor and host may be in same process)
-            purge_client_cache(owner)
+            purge_client_caches(owner)
         logger.info("supervisor.create_bench", bench=bench, span="current")
         return CreateBenchResponse(bench=bench._to_data())
 
