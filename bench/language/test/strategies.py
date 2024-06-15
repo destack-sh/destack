@@ -19,8 +19,8 @@ from bench.language.const import (
 from bench.language.node import BuiltinObject, InlineStruct, Node, Struct
 from bench.language.setup import NODE_CLASS_BY_TYPE, OBJECT_CLASS_BY_TYPE
 from bench.proto.wire import NodeReferenceData
-from bench.utils.dt import utcnow
 from bench.utils.fractional import INTEGER_ZERO
+from bench.utils.oracle import get_oracle
 
 logger = structlog.get_logger(__name__)
 
@@ -40,7 +40,7 @@ class Fabricator:
             float: lambda: self.random.random(),
             bytes: lambda: self.random.randbytes(24),
             uuid.UUID: lambda: uuid.uuid4(),
-            datetime: lambda: utcnow(),
+            datetime: lambda: get_oracle().utc(),
             timedelta: lambda: timedelta(seconds=self.random.randint(0, 1000)),
         }
 

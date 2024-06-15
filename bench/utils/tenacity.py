@@ -1,4 +1,3 @@
-import asyncio
 from dataclasses import dataclass
 from functools import wraps
 from typing import Any, Awaitable, Callable, Coroutine, Type, TypeVar, Union
@@ -6,7 +5,7 @@ from typing import Any, Awaitable, Callable, Coroutine, Type, TypeVar, Union
 from grpclib import GRPCError
 from grpclib import Status as GRPCStatus
 
-from bench.utils.dt import monons
+from bench.utils.oracle import get_oracle
 
 T = TypeVar("T")
 
@@ -19,6 +18,7 @@ class RetryOptions:
     retry_interval: float = 1.0  # seconds
     backoff: float = 2.0  # exponential backoff
     max_retry_interval: float = 60.0  # seconds
+    jitter: float | None = None  # [0, 1] percentage of randomness
     retry_on: Union[Type[Exception], tuple[Type[Exception], ...]] = Exception
     retry_if: Callable[[Exception], bool] | None = None
 
@@ -28,11 +28,14 @@ class RetryOptions:
     def __repr__(self) -> str:
         return f"<RetryOptions {self}>"
 
-    def get_interval(self, attempt: int) -> float:
-        return min(self.retry_interval * (self.backoff**attempt), self.max_retry_interval)
+    def get_wait_interval(self, attempt: int) -> float:
+        interval = min(self.retry_interval * (self.backoff**attempt), self.max_retry_interval)
+        if self.jitter is not None:
+            interval *= 1 + self.jitter * (2 * get_oracle().random.random() - 1)
+        return interval
 
     def new(self):
-        return RetryState(options=self, start=monons())
+        return RetryState(options=self, start_ns=get_oracle().time_ns())
 
 
 class RetryError(Exception):
@@ -51,7 +54,7 @@ class RetryState:
     """State of a retryable operation."""
 
     options: RetryOptions
-    start: float
+    start_ns: float
     errors: list[Exception] | None = None
     attempt: int = 0
 
@@ -87,12 +90,11 @@ class RetryState:
         return attempts_left and not bad_error
 
     @property
-    def duration(self) -> float:
-        return monons() - self.start
+    def duration_ns(self) -> float:
+        return get_oracle().time_ns() - self.start_ns
 
-    @property
-    def interval(self) -> float:
-        return self.options.get_interval(self.attempt)
+    def get_wait_interval(self) -> float:
+        return self.options.get_wait_interval(self.attempt)
 
     def to_error(self, operation: Any = None) -> RetryError | Exception:
         if self.errors:
@@ -122,7 +124,7 @@ def retry(
                         on_error(*args, **kwargs, e=e)
                     if not retry.should_retry:
                         raise
-                    await asyncio.sleep(retry.interval)
+                    await get_oracle().sleep(retry.get_wait_interval())
             raise retry.to_error()
 
         return wrapper

@@ -1,4 +1,3 @@
-import asyncio
 import weakref
 from uuid import UUID
 
@@ -12,6 +11,7 @@ from bench.language import Client, Server, User
 from bench.language.bench import Bench
 from bench.language.query import NodeNotFoundError
 from bench.utils.env import IS_DEV
+from bench.utils.oracle import get_oracle
 from bench.utils.utils import get_from_env
 
 logger = structlog.get_logger(__name__)
@@ -54,12 +54,12 @@ MIN_CHECK_PASSWORD_DURATION = 0.005  # =5ms
 
 async def check_password(password: str, salt: bytes, password_hash: bytes) -> bool:
     """Check if a password matches its hash. Adds a small random delay to prevent timing attacks."""
-    loop = asyncio.get_running_loop()
-    start = loop.time()
+    oracle = get_oracle()
+    start = oracle.time()
     result = hash_password(password, salt) == password_hash
-    duration = loop.time() - start
+    duration = oracle.time() - start
     if duration < MIN_CHECK_PASSWORD_DURATION:
-        await asyncio.sleep(MIN_CHECK_PASSWORD_DURATION - duration)
+        await get_oracle().sleep(MIN_CHECK_PASSWORD_DURATION - duration)
     return result
 
 

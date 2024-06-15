@@ -79,8 +79,8 @@ from bench.system.connection import (
     WatchSearchUpdate,
 )
 from bench.system.core import SYSTEM_BENCH_PTR
-from bench.utils.dt import utcnow
 from bench.utils.func import CriticalLock, bittuple, group_by, to_uuid, uuid_to_str
+from bench.utils.oracle import get_oracle
 
 
 class GraphIoServiceBase(ServiceBase, GraphIoBase):
@@ -410,7 +410,7 @@ class GraphIoServiceBase(ServiceBase, GraphIoBase):
     ) -> tuple["CommitScope", int]:
         """Prepares and validates the edits for a commit."""
         scope = parse_commit_scope(edits, base_graph=None)
-        now = utcnow()
+        now = get_oracle().utc()
         epoch = self.epoch
         for edit in edits:
             validate_edit(edit, subject, now)
@@ -445,6 +445,9 @@ class GraphIoServiceBase(ServiceBase, GraphIoBase):
             scope, epoch = self._prepare_commit(subject, context, request.edits)
 
             async with self.request_session(readonly=False, system_commit=False) as session:
+                # nocheckin: use supergraph copy/overlay for request session
+                # (and clean up graphs in supergraphs somehow)
+
                 # read the affected nodes into a single graph for evaluation
                 data_graph = NodeDataGraph(scope=self.scope, node_types=NODE_TYPES)
                 with self.tracer.start_as_current_span("graph.commit.read"):

@@ -65,8 +65,8 @@ from bench.system.core import (
 from bench.system.graph import CommitScope, GraphIoServiceBase, parse_commit_scope, validate_edit
 from bench.system.provisioner import Provisioner, get_provisioners_for
 from bench.system.scheduler import QueueRunPlugin
-from bench.utils.dt import utcnow
 from bench.utils.func import to_uuid
+from bench.utils.oracle import get_oracle
 from bench.utils.utils import get_from_env
 from bench.utils.uuidt import UUIDT
 
@@ -455,7 +455,7 @@ class Host(GraphIoServiceBase, HostBase, HostSpec):
 
         # prepare commit
         scope = parse_commit_scope(edits, base_graph=self._main_package._data_graph)
-        now = utcnow()
+        now = get_oracle().utc()
         epoch = self.epoch
         for edit in edits:
             validate_edit(edit, subject, now)

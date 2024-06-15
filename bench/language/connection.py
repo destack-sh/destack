@@ -46,6 +46,7 @@ from bench.proto.wire import (
     SupervisorStub,
 )
 from bench.utils.func import bittuple, group_by
+from bench.utils.oracle import get_oracle
 from bench.utils.tenacity import RETRY_GRPC, RetryOptions
 
 if TYPE_CHECKING:
@@ -865,7 +866,7 @@ class RemoteChannel(WritableChannel):
                     retry.on_error(e)
                     logger.error(f"remote.{method_name}.error", channel=self, exc_info=True)
                     if retry.should_retry:
-                        await asyncio.sleep(retry.interval)
+                        await get_oracle().sleep(retry.get_wait_interval())
             error = retry.to_error()
             if isinstance(error, (OSError,)):
                 raise ChannelFailedError(

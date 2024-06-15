@@ -3,12 +3,12 @@ import logging
 import logging.config
 from dataclasses import dataclass
 from io import StringIO
+from time import time_ns
 from typing import Callable
 
 import structlog
 from opentelemetry import trace
 
-from bench.utils.dt import monons
 from bench.utils.utils import get_from_env
 
 
@@ -248,7 +248,7 @@ def trim_otel_span(_, __, event_dict):
     if event_dict.get("span") == "current":
         span = trace.get_current_span()
         if hasattr(span, "start_time"):
-            end_time = getattr(span, "end_time", None) or monons()
+            end_time = getattr(span, "end_time", None) or time_ns()
             duration = end_time - getattr(span, "start_time")
             event_dict["duration"] = duration
     if "span" in event_dict:

@@ -37,7 +37,7 @@ from bench.proto.wire import (
     SupervisorStub,
 )
 from bench.system.test.conftest import UserHandle, make_new_user_handle
-from bench.utils.dt import utcnow
+from bench.utils.oracle import get_oracle
 
 if TYPE_CHECKING:
     from bench.language.test.strategies import Fabricator
@@ -53,7 +53,7 @@ async def test_user_registration(supervisor: SupervisorStub):
         type=ClientType.BENCH_WEB,
         name="test",
         device_name="pytest",
-        seen_at=utcnow(),
+        seen_at=get_oracle().utc(),
     )
 
     # signup -> success
@@ -159,7 +159,7 @@ async def test_cross_user_access(supervisor: SupervisorStub):
 
             # update the User's full name
             target_data = target._to_data()
-            target_data.updated_at = utcnow()
+            target_data.updated_at = get_oracle().utc()
             target_data.updated_by_ptr = actor_handle.subject
             target_data.name = f"{actor.name}'s Puppet"
             edit = EditData(
@@ -171,7 +171,7 @@ async def test_cross_user_access(supervisor: SupervisorStub):
                 old_node_packed=pack_node_delta(target_data, only=(User.name,)),
                 origin=actor_handle.origin,
                 subject_ptr=actor_handle.subject,
-                edited_at=utcnow(),
+                edited_at=get_oracle().utc(),
             )
             commit_req = CommitTransactionRequest(id=str(uuid4()), edits=[edit])
             if actor == target:  # can update our own data
@@ -183,7 +183,7 @@ async def test_cross_user_access(supervisor: SupervisorStub):
                     )
             # update the User's client's device name
             target_data = target_handle.client._to_data()
-            target_data.updated_at = utcnow()
+            target_data.updated_at = get_oracle().utc()
             target_data.updated_by_ptr = target_handle.subject
             target_data.device_name = f"{actor.name}'s Puppet Device"
             edit = EditData(
@@ -195,7 +195,7 @@ async def test_cross_user_access(supervisor: SupervisorStub):
                 old_node_packed=pack_node_delta(target_data, only=(Client.device_name,)),
                 origin=actor_handle.origin,
                 subject_ptr=actor_handle.subject,
-                edited_at=utcnow(),
+                edited_at=get_oracle().utc(),
             )
             commit_req = CommitTransactionRequest(id=str(uuid4()), edits=[edit])
             if actor == target:  # can update our own data
@@ -262,7 +262,7 @@ async def test_root_node_create_denied(
             new_node_packed=pack_node_delta(node_data),
             origin=some_user.origin,
             subject_ptr=some_user.user._to_ref_data(),
-            edited_at=utcnow(),
+            edited_at=get_oracle().utc(),
         )
         commit_req = CommitTransactionRequest(id=str(uuid4()), edits=[edit])
         with raises_grpc_error(GRPCStatus.PERMISSION_DENIED, GRPCStatus.INVALID_ARGUMENT):

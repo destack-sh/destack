@@ -13,6 +13,7 @@ from collections import OrderedDict
 from itertools import filterfalse, tee
 from os import urandom
 from sys import intern
+from time import time_ns
 from typing import (
     Any,
     Callable,
@@ -32,7 +33,6 @@ from cachetools import cached
 from more_itertools import first
 
 from bench.utils.base58 import base58_encode
-from bench.utils.dt import monons
 from bench.utils.env import IS_DEV, IS_TEST
 from bench.utils.utils import get_from_env, sentry_capture
 
@@ -449,7 +449,7 @@ class CriticalLock(asyncio.Lock):
 
         if self._track_acquirer:
             self._acquired_by = traceback.extract_stack()[:-1]
-        self._acquired_at = monons()
+        self._acquired_at = time_ns()
         if TRACE_LOCKS:
             logger.trace("lock.acquire.success", name=self._name, acquired_at=self._acquired_at)
         return True

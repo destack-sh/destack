@@ -20,8 +20,8 @@ from bench.language.value import check_value
 from bench.proto import wiring
 from bench.proto.wire import GraphScope, HostStub, RunData, SupervisorStub
 from bench.runtime.core import BENCH_QUERY, PACKAGE_QUERY
-from bench.utils.dt import utcnow
 from bench.utils.func import CriticalLock
+from bench.utils.oracle import get_oracle
 from bench.utils.task import TaskManager
 
 if TYPE_CHECKING:
@@ -162,7 +162,7 @@ class RuntimeThread:
             )
             run._unpack_values_inplace()  # values are a bit crummy :NoFakeComputed
             run.status = RunStatus.RUNNING
-            run.started_at = utcnow()
+            run.started_at = get_oracle().utc()
             run.started_epoch = self.epoch
             run_token = _active_run.set(run)
             logger.info("run.start", thread=self, run=run)
@@ -191,7 +191,7 @@ class RuntimeThread:
                 run.fail(RunError.from_exception(e))
                 logger.error("run.fail", thread=self, run=run, error=e, exc_info=e)
             finally:
-                run.terminated_at = utcnow()
+                run.terminated_at = get_oracle().utc()
                 run.terminated_epoch = self.epoch
                 run.duration = (run.terminated_at - run.started_at).total_seconds()
                 _active_run.reset(run_token)
