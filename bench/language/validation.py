@@ -42,12 +42,17 @@ def on_invalid_raise(value: Any, message: Optional[str], site: ValidationSite | 
 class TypeConstraintIn:
     """A mini-TypeConstraint so we can define constraints without having to import :TypeConstraint."""
 
+    # numeric
     min_value: float | None = None
     max_value: float | None = None
     step_value: float | None = None
+    # list-ish
     min_length: int | None = None
     max_length: int | None = None
+    # string-ish
     regex: str | None = None
+    starts_with: str | None = None
+    ends_with: str | None = None
 
     def into(self) -> "TypeConstraint":
         from bench.language.field import TypeConstraint
@@ -58,6 +63,8 @@ class TypeConstraintIn:
             min_length=self.min_length,
             max_length=self.max_length,
             regex=self.regex,
+            starts_with=self.starts_with,
+            ends_with=self.ends_with,
         )
 
 

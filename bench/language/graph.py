@@ -364,7 +364,7 @@ class NodeSuperGraph:
 
     def __repr__(self):
         if self._root_ptr is None:
-            return f"<{self.__class__.__name__} <null>>"
+            return f"<{self.__class__.__name__} <NULL!>>"
         else:
             root = self.get(self._root_ptr)
             root_str = repr(root) if root is not None else f"{self._root_ptr!r}"

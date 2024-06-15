@@ -75,7 +75,7 @@ client_cache = TTLCache[UUID, Client](maxsize=10_000, ttl=60)
 
 
 @tracer.start_as_current_span("access.get_client_from_metadata")
-async def get_client(session: Session, client_id: UUID) -> Client:
+async def _do_get_client(session: Session, client_id: UUID) -> Client:
     """Gets the authenticated client (if any)."""
 
     try:
@@ -90,15 +90,15 @@ async def get_client(session: Session, client_id: UUID) -> Client:
         raise GRPCError(GRPCStatus.UNAUTHENTICATED, str(e) if IS_DEV else "client not found") from e
 
 
-async def get_client_cached(session: Session, client_id: UUID, client_access_token: str) -> Client:
+async def get_client(session: Session, client_id: UUID, client_access_token: str) -> Client:
     """Gets the authenticated client (if any) from the cache."""
     # get client
     if not CLIENT_CACHE_ENABLED:
-        client = await get_client(session, client_id)
+        client = await _do_get_client(session, client_id)
     else:
         client = client_cache.get(client_id)
         if client is None:
-            client = await get_client(session, client_id)
+            client = await _do_get_client(session, client_id)
             client_cache[client_id] = client
     # check access token
     if client_access_token != client.access_token:

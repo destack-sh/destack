@@ -49,7 +49,7 @@ from bench.proto.wire import (
     SessionContextData,
 )
 from bench.proto.wiring import unpack_proto_json
-from bench.system.access import get_client_cached
+from bench.system.access import get_client
 from bench.system.core import (
     BENCH_QUERY,
     GLOBAL_POSTGRES_ENGINE,
@@ -291,9 +291,7 @@ class Host(GraphIoServiceBase, HostBase, HostSpec):
             if metadata.client_type != wire.ClientType.BENCH_SERVER:
                 # user client
                 async with global_session() as session:
-                    client = await get_client_cached(
-                        session, client_id, metadata.client_access_token
-                    )
+                    client = await get_client(session, client_id, metadata.client_access_token)
                 assert isinstance(client.parent, User), f"unexpected client: {client!r}"
                 if client.parent.main_bench_id == self._bench.id:
                     owned = [client.parent, self._bench]

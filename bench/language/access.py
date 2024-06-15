@@ -180,8 +180,13 @@ class Policy(Struct):
     scopes: list["Block"] = p_regular(33, require=False, array=True, references=NodeType.BLOCK)
 
     def __content_str__(self) -> str:
-        scopes_str = ", ".join(repr(s) for s in self.scopes) if self.scopes else "<scope>"
-        return f"{self.name or '<unnamed>'} (at {scopes_str}, {len(self.rules)} rules)"
+        scopes = self.scopes
+        if scopes:
+            scopes_str = ", ".join(repr(s) for s in scopes)
+            scopes_str = f" at {scopes_str}"
+        else:
+            scopes_str = "<unscoped>"
+        return f"{self.name or '<unnamed>'} ({len(self.rules)} rules, {scopes_str})"
 
     def append(self, *rules: "PolicyRule") -> "Self":
         self.rules.extend(rules)
@@ -454,29 +459,27 @@ class Subject(Struct):
         if self.is_staff:
             subjects.append(Subject(is_staff=True))
         if self.user:
-            subjects.append(Subject(user=self.user))
+            subjects.append(Subject(user=self.user, _supergraph=self._supergraph))
         if self.identity:
-            subjects.append(Subject(identity=self.identity))
+            subjects.append(Subject(identity=self.identity, _supergraph=self._supergraph))
         if self.badges:
             for badge in self.badges:
-                subjects.append(Subject(badges=[badge]))
+                subjects.append(Subject(badges=[badge], _supergraph=self._supergraph))
         for owner in self.owned or ():
             if str(owner.id) in graph:
-                subjects.append(Subject(owned=[owner]))
+                subjects.append(Subject(owned=[owner], _supergraph=self._supergraph))
         for membership in self.memberships or ():
             if str(membership.parent_id) in graph:
-                subjects.append(Subject(memberships=[membership]))
+                subjects.append(Subject(memberships=[membership], _supergraph=self._supergraph))
         for role in self.roles or ():
             if role.parent_type == NodeType.BLOCK:
                 if str(role.parent_id) in graph:
-                    subjects.append(Subject(roles=[role]))
+                    subjects.append(Subject(roles=[role], _supergraph=self._supergraph))
             elif role.parent_type == NodeType.MEMBERSHIP:
                 if str(role.parent.parent_id) in graph:
-                    subjects.append(Subject(roles=[role]))
+                    subjects.append(Subject(roles=[role], _supergraph=self._supergraph))
             else:
                 raise BenchError(f"unexpected parent to {role!r}")
-        for subject in subjects:
-            subject._supergraph = self._supergraph  # keep the supergraph
 
         assert len(subjects) > 0, f"no applicable principals in {self!r}"
         return tuple(subjects)

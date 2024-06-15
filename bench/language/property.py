@@ -47,14 +47,11 @@ if TYPE_CHECKING:
     # noinspection PyUnresolvedReferences
     from bench.language import (
         BuiltinObject,
-        Node,
         NodeReference,
         PropertyReference,
-        Struct,
         TypeConstraint,
         TypeInfo,
         TypeInfoBase,
-        ValueObject,
     )
     from bench.language.expression import _TypeQueryBuilder
 
@@ -285,44 +282,6 @@ class Property(_TypeQueryBuilder if TYPE_CHECKING else object):
     @property
     def is_enum(self):
         return self.enum_type is not None
-
-    def to_wired_ptr(
-        self,
-        ref: Union[
-            "ValueObject", "BuiltinObject", list["ValueObject"], list["Node"], list["Struct"], None
-        ],
-    ) -> Union[
-        "NodeReference",
-        "PropertyReference",
-        list["NodeReference"],
-        list["PropertyReference"],
-        int,
-        None,
-    ]:
-        """Transforms the given instantiated reference value for this property int its wired form."""
-        if ref is None:
-            return None
-        elif self.is_list:
-            if self.is_node_reference or self.is_property_reference:
-                assert isinstance(ref, (list, tuple)), f"expected list for {self!r}: {ref!r}"
-                return [cast("Node", r).to_ref() for r in ref]
-        else:
-            if self.is_node_reference or self.is_property_reference:
-                return (cast(Union["Node", "Property"], ref)).to_ref()
-            elif self.is_struct_reference:
-                maybe_ref = cast(Union["BuiltinObject", "ValueObject"], ref)
-                if maybe_ref.__class__.__name__ == "Object" or (
-                    getattr(maybe_ref, "__is_struct__", False)
-                    and not getattr(maybe_ref, "__is_struct_inlined__", False)
-                ):
-                    struct_ref = cast("Struct", maybe_ref)
-                    assert isinstance(
-                        struct_ref.id, int
-                    ), f"bad {self!r}: {ref!r}.id={struct_ref.id}"
-                    return struct_ref.id
-                else:
-                    return None  # not stored
-        raise ValueError(f"unexpected ref {ref!r} for {self!r}")
 
     def _equals_type(self, other: "Property") -> bool:
         """Compares everything but the source component."""
