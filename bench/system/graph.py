@@ -437,7 +437,7 @@ class GraphIoServiceBase(ServiceBase, GraphIoBase):
         # NOTE :Performance: obviously, putting a big lock around commit is not ideal,
         #  but we have to guarantee absolute order + integrity of any loaded graphs (in Host).
         # We can probably optimize this by only locking some tighter critical sections
-        #  if we rollback somehow if an optimistic commit (outside the lock) fails... somehow.
+        #  if we rollback somehow on failure. Maybe we can even 'cache' apply some edits only in memory.
         async with self.tx_lock:
             # pre-validate/prepare edits
             scope, epoch = self._prepare_commit(subject, context, request.edits)

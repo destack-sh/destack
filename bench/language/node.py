@@ -624,7 +624,8 @@ def _object_computed_property_ref(prop: Property) -> property:
 
 
 def _object_computed_node_ref(prop: Property) -> property:
-    """The computed get/set property for a node reference."""
+    """The computed get/set property for a node reference. Resolved against the active supergraph."""
+
     wired_prop = prop.reference_wired_ptr
     assert wired_prop is not None, f"no wired prop for {prop!r}"
 
@@ -641,6 +642,9 @@ def _object_computed_node_ref(prop: Property) -> property:
             if value is None:
                 self._do_set(wired_prop.name, None)
             else:
+                assert (
+                    value._supergraph is self._supergraph
+                ), f"{prop}: {value!r} is from {value._supergraph!r} not {self._supergraph!r}"
                 self._do_set(wired_prop.name, value.to_ref())
 
         return property(_get_node_scalar, _set_node_scalar)
@@ -649,7 +653,7 @@ def _object_computed_node_ref(prop: Property) -> property:
 
         def _get_node_many(self: BuiltinObject) -> tuple["Node", ...]:
             value_ptrs = getattr(self, wired_prop.name)
-            assert type(value_ptrs) is list, f"invalid {prop!r}: {value_ptrs!r}"
+            assert type(value_ptrs) is list, f"invalid {prop}: {value_ptrs!r}"
             if len(value_ptrs) == 0:
                 return ()
             values = []
@@ -660,6 +664,10 @@ def _object_computed_node_ref(prop: Property) -> property:
             return tuple(values)
 
         def _set_node_many(self: BuiltinObject, values: Collection["Node"]):
+            values = tuple(values)
+            assert all(
+                v._supergraph is self._supergraph for v in values
+            ), f"{prop}: {values!r} is from {values[0]._supergraph} not {self._supergraph!r}"
             value_ptrs = [p.to_ref() for p in values]
             self._do_set(wired_prop.name, value_ptrs)
 
@@ -690,7 +698,7 @@ def _object_computed_node_ref_attr(key: str, prop: Property) -> property:
 
         def _get_node_ref_attr_many(self: BuiltinObject):
             value_ptrs = getattr(self, wired_prop.name)
-            assert type(value_ptrs) is list, f"invalid {prop!r}: {value_ptrs!r}"
+            assert type(value_ptrs) is list, f"invalid {prop}: {value_ptrs!r}"
             return tuple(getattr(p, key) for p in value_ptrs)
 
         def _set_node_ref_attr_many(self: BuiltinObject, values):
@@ -799,12 +807,27 @@ class BuiltinObject[ObjectDataT: AnyNodeData | AnyStructData](abc.ABC):
 
     def __init__(self, *, _skip_init_self: bool = False, **kwargs):
         self_dict = self.__dict__
-        # init object
+
+        # init session / supergraph context (first)
+        self_dict["_session"] = kwargs.pop("session", None) or _active_session.get()
+        if "_supergraph" in kwargs:
+            supergraph = kwargs.pop("_supergraph")
+        elif self._session is not None:
+            supergraph = self._session._supergraph
+        else:
+            supergraph = None
+        if supergraph is None:
+            supergraph = NULL_SUPERGRAPH
+        self_dict["_supergraph"] = supergraph
+
+        # init object (from kwargs & defaults)
         for prop in self.__runtime_properties__.values():
             # NOTE :Cleanup: Struct.parent_key needs to be handled as well because it's not part of any pointer
             #  (like the other node/property references, which we're excluding with prop.reference_source check)
             if (
-                prop.reference_source is not None and prop.name != "parent_key"
+                (prop.reference_source is not None and prop.name != "parent_key")
+                or prop.name == "_session"
+                or prop.name == "_supergraph"
             ) or prop.is_computed:
                 continue  # only handle top level properties
             wired_ptr_prop = prop.reference_wired_ptr
@@ -822,14 +845,20 @@ class BuiltinObject[ObjectDataT: AnyNodeData | AnyStructData](abc.ABC):
                     assert wired_ptr_prop is not None, f"no wired prop for {prop!r}"
                     if wired_prop_value is not UNSET:
                         raise ValueError(
-                            f"got both {prop!r} and {wired_ptr_prop!r}: {prop_value!r}, {wired_prop_value!r}"
+                            f"got both {prop} and {wired_ptr_prop}: {prop_value!r}, {wired_prop_value!r}"
                         )
-                    # init node references
+                    # init node references (must be in same)
                     if prop_value is None:
                         wired_prop_value = None
                     elif not prop.is_list:
+                        assert (
+                            prop_value._supergraph is supergraph
+                        ), f"{prop}: {prop_value!r} is from {prop_value._supergraph!r} not {supergraph!r}"
                         wired_prop_value = cast(Any, prop_value).to_ref()
                     else:
+                        assert all(
+                            v._supergraph is supergraph for v in prop_value
+                        ), f"{prop}: {prop_value!r} is from {prop_value[0]._supergraph!r} not {supergraph!r}"
                         wired_prop_value = [p.to_ref() for p in prop_value]
                     self_dict[wired_ptr_prop.name] = wired_prop_value
                     continue
@@ -879,17 +908,6 @@ class BuiltinObject[ObjectDataT: AnyNodeData | AnyStructData](abc.ABC):
             self_dict[prop.name] = prop_value
             if wired_ptr_prop is not None:
                 self_dict[wired_ptr_prop.name] = wired_prop_value
-
-        # init session context
-        if self._session is None:
-            self._session = _active_session.get()
-
-        # need to know supergraph
-        if self._supergraph is None:
-            if self._session is not None:
-                self._supergraph = self._session._supergraph
-            else:
-                self._supergraph = NULL_SUPERGRAPH
 
         # and init components
         if not _skip_init_self:

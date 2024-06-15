@@ -37,7 +37,7 @@ from bench.system.access import (
     ACCESS_TOKEN_LENGTH,
     SALT_LENGTH,
     check_password,
-    get_client_cached,
+    get_client,
     hash_password,
     purge_client_cache,
 )
@@ -89,7 +89,7 @@ class Supervisor(GraphIoServiceBase, SupervisorBase):
 
         async with global_session() as session:
             client_id = UUID(metadata.client_id)
-            client = await get_client_cached(session, client_id, metadata.client_access_token)
+            client = await get_client(session, client_id, metadata.client_access_token)
             if isinstance(client.parent, User):
                 return Subject(
                     is_authenticated=True,

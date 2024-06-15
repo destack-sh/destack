@@ -5,12 +5,11 @@ import pytz
 from croniter import croniter
 
 from bench.language.const import NodeType, ScheduleType, StructType, TimeInterval, TriggerType
-from bench.language.field import TypeConstraint
 from bench.language.graph import NodeList
 from bench.language.issue import Issue
 from bench.language.node import SourceNode, Struct, node_, struct_
 from bench.language.property import Property, p_node_children, p_node_parent, p_regular
-from bench.language.validation import NAME_CONSTRAINT, ValidationHandler
+from bench.language.validation import NAME_CONSTRAINT, TypeConstraintIn, ValidationHandler
 from bench.proto.wire import TriggerData
 
 if TYPE_CHECKING:
@@ -29,7 +28,7 @@ class Schedule(Struct):
     timezone: Optional[str] = p_regular(31, default=pytz.utc.zone)
 
     # interval
-    every: int = p_regular(40, default=1, constraint=TypeConstraint(min_value=0, max_value=60))
+    every: int = p_regular(40, default=1, constraint=TypeConstraintIn(min_value=0, max_value=60))
     interval: TimeInterval = p_regular(41, default=TimeInterval.DAY)
     offset: Optional[timedelta] = p_regular(42, default=None)
 
