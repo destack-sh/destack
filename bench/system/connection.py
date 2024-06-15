@@ -203,7 +203,7 @@ class ConnectionSubscription[UpdateT: Any]:
 #  (might need a per-connection-type subscription subtype?)
 
 
-class NodeConnectionBase[
+class NodeConnection[
     ResultT: "GetResultData | SearchResultData",
     UpdateT: "WatchGetUpdate | WatchSearchUpdate",
 ](Connection[ResultT, UpdateT]):
@@ -270,7 +270,7 @@ class NodeConnectionBase[
         return filtered_edits
 
 
-class GetConnection(NodeConnectionBase[GetResultData, WatchGetUpdate]):
+class GetConnection(NodeConnection[GetResultData, WatchGetUpdate]):
     """
     Connected get query in the graph.
     If live and any root is removed, we error (like the usual get behavior; not sure about this).
@@ -318,7 +318,7 @@ class GetConnection(NodeConnectionBase[GetResultData, WatchGetUpdate]):
             self.notify_update(update)
 
 
-class SearchConnection(NodeConnectionBase[SearchResultData, WatchSearchUpdate]):
+class SearchConnection(NodeConnection[SearchResultData, WatchSearchUpdate]):
     """
     Connected search query in the graph.
     If live, we update the result set dynamically (with added/removed nodes).

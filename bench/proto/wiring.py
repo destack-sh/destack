@@ -8,7 +8,7 @@ import structlog
 from betterproto.lib.google.protobuf import Struct as ProtoStruct
 from opentelemetry import trace
 
-from bench.language.connection import ConnectionBase
+from bench.language.connection import Connection
 from bench.language.const import UNSET, NodeType, ObjectType
 from bench.language.expression import NodeReference
 from bench.language.graph import NULL_SUPERGRAPH, NodeDataGraph, NodeSuperGraph
@@ -261,7 +261,7 @@ def unpack_node_graph(
     parent: Node | None = None,
     session: Session | None = None,
     exclude: set[NodeType] | tuple[NodeType, ...] | None = (),
-    connection: ConnectionBase | None = None,
+    connection: Connection | None = None,
 ) -> NodeGraph:
     """Unpacks the node data(s) into a node graph."""
     trace.get_current_span().set_attribute("nodes", len(data_graph))
@@ -323,7 +323,7 @@ def unpack_node_roots(
     session: Session | None = None,
     exclude: set[NodeType] | None = None,
     roots: Collection[NodeReferenceData] | None = None,
-    connection: ConnectionBase | None = None,
+    connection: Connection | None = None,
 ) -> tuple[tuple[Node, ...], NodeGraph]:
     """Unpack nodes and their descendants. Returns the actual roots (or passed ones)."""
 
