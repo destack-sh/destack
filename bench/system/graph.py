@@ -9,7 +9,7 @@ from grpclib import GRPCError
 from grpclib import Status as GRPCStatus
 from opentelemetry import trace
 
-from bench.language import C, Expression, NodeReference, ReadOptions, Session, Subject
+from bench.language import Expression, NodeReference, ReadOptions, Session, Subject
 from bench.language.access import (
     AccessError,
     adapt_read_options,
@@ -17,11 +17,10 @@ from bench.language.access import (
     evaluate_edit,
     generate_access_matrix,
 )
-from bench.language.connection import ChannelFailedError, GraphEngine, SearchOptions
+from bench.language.connection import ChannelFailedError, GetOptions, GraphEngine
 from bench.language.const import (
     BASED_NODE_TYPES,
     NODE_TYPES,
-    ConditionalOp,
     EditType,
     NodeType,
     PolicyEffect,
@@ -431,7 +430,10 @@ class GraphIoServiceBase(ServiceBase, GraphIoBase):
         )
         if context is None:
             context = SessionContext(
-                client=subject.client, server=subject.server, user=subject.user
+                client=subject.client,
+                server=subject.server,
+                user=subject.user,
+                _supergraph=subject._supergraph,
             )
 
         # NOTE :Performance: obviously, putting a big lock around commit is not ideal,
@@ -450,15 +452,14 @@ class GraphIoServiceBase(ServiceBase, GraphIoBase):
                         node_type = wiring.unpack_enum(NodeType, node_type)
                         # NOTE :Performance: select only properties required to evaluate edit (id/policies/...?)
                         options = adapt_read_options(subject, node_type, ReadOptions.all())
-                        node_ids = tuple(r.id for r in node_references)
                         query = QueryBuilder(
                             read_type=ReadType.GET,
                             node_type=node_type,
-                            filter=C(ConditionalOp.IN, property=Node.id, value=node_ids),
+                            roots=node_references,
                             options=options,
                         )
-                        connection = await session.tx._read_channel.search(
-                            query, SearchOptions(live=False, unpack=False, count=False)
+                        connection = await session.tx._read_channel.get(
+                            query, GetOptions(live=False, unpack=False)
                         )
                         # merge result into data_graph (there may be duplicates)
                         for node_data in connection.result_data.graph.nodes:
