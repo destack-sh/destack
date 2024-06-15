@@ -288,7 +288,7 @@ def _process_object_cls[ObjectT: BuiltinObject](
 
             # computed property.. property
             if prop.reference_kind == ReferenceKind.PROPERTY:
-                setattr(cls, name, _object_computed_property_ref(prop))
+                setattr(cls, name, _object_property_ref(prop))
             # computed node property
             elif prop.reference_kind in (
                 # NOTE :Performance: maybe Node.parent shouldn't be computed?
@@ -296,14 +296,14 @@ def _process_object_cls[ObjectT: BuiltinObject](
                 ReferenceKind.NODE_REGULAR,
                 ReferenceKind.NODE_TEMPLATE,
             ):
-                setattr(cls, name, _object_computed_node_ref(prop))
+                setattr(cls, name, _object_node_ref(prop))
             # computed node ancestor property
             elif prop.reference_kind in (
                 ReferenceKind.NODE_ANCESTOR_FIRST,
                 ReferenceKind.NODE_ANCESTOR_ROOT,
             ):
-                setattr(cls, name, _node_computed_ancestor_prop(prop))
-                setattr(cls, f"{name}_ptr", _node_computed_ancestor_ptr_prop(prop))
+                setattr(cls, name, _node_ancestor_ref(prop))
+                setattr(cls, f"{name}_ptr", _node_ancestor_ptr_ref(prop))
 
             # computed _x node reference properties (e.g., parent_id, type_ck, node_type, ...)
             if prop.is_node_reference and prop.reference_kind != ReferenceKind.NODE_CHILDREN:
@@ -312,7 +312,7 @@ def _process_object_cls[ObjectT: BuiltinObject](
                         not prop.reference_nodes or len(prop.reference_nodes) <= 1
                     ):
                         continue  # no need for *_type if only one possible node type
-                    _set_computed(f"{prop.name}_{key}", _object_computed_node_ref_attr(key, prop))
+                    _set_computed(f"{prop.name}_{key}", _object_node_ref_attr(key, prop))
 
     # finalize props & update reference to transformed class
     for prop in properties_by_name.values():
@@ -587,7 +587,13 @@ def timed_node(
     )
 
 
-def _object_computed_property_ref(prop: Property) -> property:
+# NOTE: we don't track the inner _do_set in these computed properties because they're called
+#  via BuiltinObject._do_set already (it's called for every set), which applies the
+#  track/validate level at the outer level if they are required.
+#  (this is quite neat because it means we don't need to propagate the track/validate flags)
+
+
+def _object_property_ref(prop: Property) -> property:
     """The computed get/set property for a property reference."""
 
     wired_prop = prop.reference_wired_ptr
@@ -604,9 +610,9 @@ def _object_computed_property_ref(prop: Property) -> property:
 
         def _set_property_scalar(self: BuiltinObject, value: Property | None):
             if value is None:
-                self._do_set(wired_prop.name, None)
+                self._do_set(wired_prop.name, None, track=False, validate=False)
             else:
-                self._do_set(wired_prop.name, value.to_ref())
+                self._do_set(wired_prop.name, value.to_ref(), track=False, validate=False)
 
         return property(_get_property_scalar, _set_property_scalar)
 
@@ -618,12 +624,12 @@ def _object_computed_property_ref(prop: Property) -> property:
             return tuple(p.resolve() for p in value_ptrs)
 
         def _set_properties_many(self: BuiltinObject, values: Collection[Property]):
-            self._do_set(wired_prop.name, [p.to_ref() for p in values])
+            self._do_set(wired_prop.name, [p.to_ref() for p in values], track=False, validate=False)
 
         return property(_get_properties_many, _set_properties_many)
 
 
-def _object_computed_node_ref(prop: Property) -> property:
+def _object_node_ref(prop: Property) -> property:
     """The computed get/set property for a node reference. Resolved against the active supergraph."""
 
     wired_prop = prop.reference_wired_ptr
@@ -640,12 +646,12 @@ def _object_computed_node_ref(prop: Property) -> property:
 
         def _set_node_scalar(self: BuiltinObject, value: "Node | None"):
             if value is None:
-                self._do_set(wired_prop.name, None)
+                self._do_set(wired_prop.name, None, track=False, validate=False)
             else:
                 assert (
                     value._supergraph is self._supergraph
                 ), f"{prop}: {value!r} is from {value._supergraph!r} not {self._supergraph!r}"
-                self._do_set(wired_prop.name, value.to_ref())
+                self._do_set(wired_prop.name, value.to_ref(), track=False, validate=False)
 
         return property(_get_node_scalar, _set_node_scalar)
 
@@ -669,12 +675,12 @@ def _object_computed_node_ref(prop: Property) -> property:
                 v._supergraph is self._supergraph for v in values
             ), f"{prop}: {values!r} is from {values[0]._supergraph} not {self._supergraph!r}"
             value_ptrs = [p.to_ref() for p in values]
-            self._do_set(wired_prop.name, value_ptrs)
+            self._do_set(wired_prop.name, value_ptrs, track=False, validate=False)
 
         return property(_get_node_many, _set_node_many)
 
 
-def _object_computed_node_ref_attr(key: str, prop: Property) -> property:
+def _object_node_ref_attr(key: str, prop: Property) -> property:
     """The computed get property from a specific attribute of a node pointer."""
 
     wired_prop = prop.reference_wired_ptr
@@ -707,8 +713,10 @@ def _object_computed_node_ref_attr(key: str, prop: Property) -> property:
         return property(_get_node_ref_attr_many, _set_node_ref_attr_many)
 
 
-def _node_computed_ancestor_prop(prop: Property) -> property:
+def _node_ancestor_ref(prop: Property) -> property:
     """The computer get property for Node ancestors."""
+
+    # NOTE :Performance: _node_ancestor_ref could just walk in the graph directly?
 
     if prop.reference_kind == ReferenceKind.NODE_ANCESTOR_FIRST:
 
@@ -744,7 +752,7 @@ def _node_computed_ancestor_prop(prop: Property) -> property:
     return property(get, set)
 
 
-def _node_computed_ancestor_ptr_prop(prop: Property) -> property:
+def _node_ancestor_ptr_ref(prop: Property) -> property:
     """The computed get property for Node ancestor pointers (computed because ancestors are computed)."""
 
     wired_prop = prop.reference_wired_ptr
@@ -991,13 +999,8 @@ class BuiltinObject[ObjectDataT: AnyNodeData | AnyStructData](abc.ABC):
                 return
 
             # validate/set
-            old_value = getattr(self, key, UNSET)
-            if (
-                is_tracked
-                and validate
-                and old_value is not UNSET
-                and old_value is not getattr(self.__class__, key, UNSET)
-            ):
+            old_value = getattr(self, key)
+            if is_tracked and validate:
                 # coerce & check type
                 if prop.type_info is not None and prop.reference_source is None:
                     value = coerce_value(value, prop.type_info, self, prop, prop)
@@ -1364,7 +1367,7 @@ class Node[NodeDataT: AnyNodeData](BuiltinObject[NodeDataT], abc.ABC):
             self.created_at = now
             self.updated_at = now
 
-        # init graph
+        # init graph (nodes must always be in a non-null supergraph)
         assert self._supergraph is not NULL_SUPERGRAPH, f"no supergraph for {self!r}"
         if self._graph is not None:
             # use given graph
