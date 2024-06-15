@@ -1287,7 +1287,7 @@ message BoxData {
   optional float height_relative = 53;
 }
 
-// Code(lines: list[bench.language.code.CodeLine] = None, _session: 'Session | None' = None, _updated_properties: bitarray.bitarray | None = None, parent: Union[ForwardRef('BuiltinObject'), ForwardRef('ValueObject'), NoneType] = None, id: int = <factory>, order_key: str | None = None, parent_id: int = None, parent_key: str = None)
+// Code composed of multiple lines.
 message CodeData {
   ObjectType metatype = 1;
   int32 id = 2;
@@ -1297,7 +1297,7 @@ message CodeData {
   repeated CodeLineData lines = 30;
 }
 
-// CodeLine(content: str = <factory>, _session: 'Session | None' = None, _updated_properties: bitarray.bitarray | None = None, parent: Union[ForwardRef('BuiltinObject'), ForwardRef('ValueObject'), NoneType] = None, id: int = <factory>, order_key: str | None = None, parent_id: int = None, parent_key: str = None)
+// A line of code.
 message CodeLineData {
   ObjectType metatype = 1;
   int32 id = 2;
@@ -1386,7 +1386,7 @@ message FontData {
   optional FontSize size = 33;
 }
 
-// Icon(kind: bench.language.file.IconKind = False, emoji: Optional[str] = <factory>, file: Optional[ForwardRef('File')] = None, fa_name: Optional[str] = <factory>, color: Optional[ForwardRef('Color')] = None, _session: 'Session | None' = None, _updated_properties: bitarray.bitarray | None = None, parent: Union[ForwardRef('BuiltinObject'), ForwardRef('ValueObject'), NoneType] = None, parent_id: int = None, parent_key: str = None)
+// An icon to be displayed in some view.
 message IconData {
   ObjectType metatype = 1;
   IconKind kind = 30;
@@ -1481,7 +1481,7 @@ message PathData {
   repeated PathSegmentData segments = 31;
 }
 
-// PathSegment(type: bench.language.path.PathSegmentType = <factory>, name: Optional[str] = None, reference: Optional[ForwardRef('Node')] = None, _session: 'Session | None' = None, _updated_properties: bitarray.bitarray | None = None, parent: Union[ForwardRef('BuiltinObject'), ForwardRef('ValueObject'), NoneType] = None, reference_ptr: 'NodeReference' = None, parent_id: int = None, parent_key: str = None)
+// A semantic part of a Bench path.
 message PathSegmentData {
   ObjectType metatype = 1;
   PathSegmentType type = 31;
@@ -1489,10 +1489,11 @@ message PathSegmentData {
   optional NodeReferenceData reference_ptr = 33;
 }
 
-// PathToken(type: bench.language.path.PathTokenType = <factory>, _session: 'Session | None' = None, _updated_properties: bitarray.bitarray | None = None, parent: Union[ForwardRef('BuiltinObject'), ForwardRef('ValueObject'), NoneType] = None, parent_id: int = None, parent_key: str = None)
+// A lexical token in a Bench path.
 message PathTokenData {
   ObjectType metatype = 1;
   PathTokenType type = 31;
+  optional string content = 32;
 }
 
 // A policy regulating access to nodes within its scope.
@@ -1567,6 +1568,7 @@ message PropertyReferenceData {
   ObjectType metatype = 1;
   optional ObjectType type = 30;
   int32 id = 31;
+  optional NodeType references_node = 32;
 }
 
 // Fine-grained options to a read request.
@@ -1652,7 +1654,7 @@ message SelectionData {
   optional NodeReferenceData to_node_ptr = 33;
 }
 
-// SessionContext(block: Optional[ForwardRef('Block')] = None, step: Optional[ForwardRef('Step')] = None, session: Optional[ForwardRef('Session')] = None, run: Optional[ForwardRef('Run')] = None, run_root: Optional[ForwardRef('Run')] = None, client: Optional[ForwardRef('Client')] = None, machine: Optional[ForwardRef('Machine')] = None, server: Optional[ForwardRef('Server')] = None, user: Optional[ForwardRef('User')] = None, _session: 'Session | None' = None, _updated_properties: bitarray.bitarray | None = None, parent: Union[ForwardRef('BuiltinObject'), ForwardRef('ValueObject'), NoneType] = None, block_ptr: 'NodeReference' = None, step_ptr: 'NodeReference' = None, session_ptr: 'NodeReference' = None, run_ptr: 'NodeReference' = None, run_root_ptr: 'NodeReference' = None, client_ptr: 'NodeReference' = None, machine_ptr: 'NodeReference' = None, server_ptr: 'NodeReference' = None, user_ptr: 'NodeReference' = None, parent_id: int = None, parent_key: str = None)
+// Context information for runtime nodes created in a session.
 message SessionContextData {
   ObjectType metatype = 1;
   optional NodeReferenceData block_ptr = 60;
@@ -1729,7 +1731,7 @@ message TextLineData {
   optional bool is_code = 64;
 }
 
-// TextSpan(content: Optional[str] = None, node: Optional[bench.language.node.Node] = None, parent: Union[ForwardRef('BuiltinObject'), ForwardRef('ValueObject'), NoneType] = None, _session: 'Session | None' = None, _updated_properties: bitarray.bitarray | None = None, color: Optional[ForwardRef('ColorType')] = None, is_bold: Optional[bool] = None, is_italic: Optional[bool] = None, is_strikethrough: Optional[bool] = None, is_underline: Optional[bool] = None, is_code: Optional[bool] = None, node_ptr: 'NodeReference' = None, parent_id: int = None, parent_key: str = None)
+// A span of text with optional formatting.
 message TextSpanData {
   ObjectType metatype = 1;
   optional string content = 33;
@@ -1772,7 +1774,7 @@ message TypeConstraintData {
   optional string ends_with = 62;
 }
 
-// TypeInfo(kind: bench.language.const.TypeKind = <factory>, primitive_type: Optional[bench.language.const.PrimitiveType] = None, bench_type: Optional[bench.utils.func.BenchType] = None, base_type: Union[ForwardRef('Block'), ForwardRef('Step'), NoneType] = None, base_field_zone: Optional[ForwardRef('FieldZone')] = None, default_packed: Optional[Any] = None, default: None = None, visibility: Optional[bench.language.const.Visibility] = None, format_hint: Optional[bench.language.const.FormatHint] = None, condition: Optional[ForwardRef('Expression')] = None, constraint: Optional[ForwardRef('TypeConstraint')] = None, is_list: bool = False, is_secret: bool = False, is_required: bool = False, _resolved_type: Optional[ForwardRef('TypeInfoBase')] = None, _resolved_identity_key: str | None = None, _from_property: Optional[ForwardRef('Property')] = None, _session: 'Session | None' = None, _updated_properties: bitarray.bitarray | None = None, parent: Union[ForwardRef('BuiltinObject'), ForwardRef('ValueObject'), NoneType] = None, id: int = <factory>, order_key: str | None = None, base_type_ptr: 'NodeReference' = None, parent_id: int = None, parent_key: str = None)
+// A type from the type system.
 message TypeInfoData {
   ObjectType metatype = 1;
   int32 id = 2;
@@ -2358,7 +2360,10 @@ message MessageData {
   bool is_pinned = 50;
 }
 
-// A basic node with properties like a Struct and a global identity in our graph.
+// A basic Node with properties like a Struct and a global identity in our graph.
+// Conceptually, all nodes live together happily in a single big graph family.
+// In practice and at runtime, there are multiple smaller NodeGraphs we load via Connections.
+// Nodes resolve references to each through a super graph composed of currently loaded NodeGraphs.
 message BaseNodeData {
   ObjectType metatype = 1;
   string id = 2;

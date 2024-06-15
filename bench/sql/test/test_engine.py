@@ -198,7 +198,7 @@ async def test_crud_node_pointers(fabricator: "Fabricator"):
     # write
     async with global_session() as session:
         bench: Bench = Bench(slug="test", name="test_b", region=Region.GLOBAL, encryption_key="yo")
-        session.create(bench)
+        session._create(bench)
         await session.flush()
         server = bench.servers.create(name="Production A", profile=ServerProfile.TINY)
         store = bench.stores.create(name="Production A")
@@ -251,23 +251,23 @@ async def test_cascade_edits():
         user_1 = User(
             name="Rabbit", slug="rabbit", status=UserStatus.REGISTERED, email="rabbit@symbolx.com"
         )
-        session.create(user_1)
+        session._create(user_1)
         await session.flush()
 
         client_1_a = Client(parent=user_1, type=ClientType.BENCH_WEB, name="Rabbit's Web")
         client_1_b = Client(parent=user_1, type=ClientType.BENCH_MOBILE, name="Rabbit's iPhone")
         client_1_c = Client(parent=user_1, type=ClientType.BENCH_MOBILE, name="Rabbit's Android")
-        session.create(client_1_a, client_1_b, client_1_c)
+        session._create(client_1_a, client_1_b, client_1_c)
         await session.commit()
 
         # delete non-cascading
-        session.delete(client_1_c)
+        session._delete(client_1_c)
         await session.commit()
         with pytest.raises(NodeNotFoundError):
             await Client.get(id=client_1_c.id)
 
         # delete cascading
-        session.delete(user_1)
+        session._delete(user_1)
         edits, cascaded_edits = await session.commit()
         assert len(edits) == 1
         assert len(cascaded_edits) == 2
@@ -277,7 +277,7 @@ async def test_cascade_edits():
             await Client.get(id=client_1_a.id)
 
         # restore cascading
-        session.restore(user_1)
+        session._restore(user_1)
         edits, cascaded_edits = await session.commit()
         assert len(edits) == 1
         assert len(cascaded_edits) == 2
@@ -287,7 +287,7 @@ async def test_cascade_edits():
             await Client.get(id=client_1_c.id)
 
         # restore non-cascading
-        session.restore(client_1_c)
+        session._restore(client_1_c)
         edits, cascaded_edits = await session.commit()
         assert len(edits) == 1
         assert len(cascaded_edits) == 0

@@ -31,7 +31,7 @@ export const { graph: pkgGraph, connection: pkgConnection } = useGet(
   { name: "pkg", live: true, paramsPretty: computed(() => ({ id: local.packagePtr.value?.id })) },
   computed(() => ({
     roots: [local.packagePtr.value!],
-    options: { ancestorTypes: [NodeType.BENCH], descendantTypes: SOURCE_NODE_TYPES },
+    options: { descendantTypes: SOURCE_NODE_TYPES },
     isEnabled: local.packagePtr.value != null,
   })),
 );

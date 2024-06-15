@@ -152,11 +152,11 @@ class Supervisor(GraphIoServiceBase, SupervisorBase):
             )
             user.password_salt = generate_salt(SALT_LENGTH)
             user.password_hash = hash_password(request.password, user.password_salt)
-            session.create(user)
+            session._create(user)
             await session.flush()
             client = await self._make_client(user, request.client)
             client.access_token = generate_access_token(ACCESS_TOKEN_LENGTH)
-            session.create(client)
+            session._create(client)
             await session.flush()
             user.main_handle = user.handles.create(slug=user.slug)
             await session.commit()
@@ -218,7 +218,7 @@ class Supervisor(GraphIoServiceBase, SupervisorBase):
             user.last_logged_in_at = utcnow()
             client = await self._make_client(user, request.client)
             client.access_token = generate_access_token(ACCESS_TOKEN_LENGTH)
-            session.upsert(client)
+            session._upsert(client)
             await session.commit()
 
         logger.info("supervisor.login_user", user=user, client=client, span="current")
@@ -350,7 +350,7 @@ async def create_default_bench(
         owner=owner,
         region=region,
     )
-    session.create(bench)
+    session._create(bench)
     await session.flush()
 
     # create resources (in pending state, resources are managed by hosts)

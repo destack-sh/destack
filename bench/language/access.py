@@ -448,36 +448,38 @@ class Subject(Struct):
         Basically, acting subject X in "subject is acting as X" (where X may have different access).
         """
 
-        applicable_principals: list[Subject] = [Subject(is_authenticated=False)]  # anonymous
+        subjects: list[Subject] = [Subject(is_authenticated=False)]  # anonymous
         if self.is_authenticated:
-            applicable_principals.append(Subject(is_authenticated=True))
+            subjects.append(Subject(is_authenticated=True))
         if self.is_staff:
-            applicable_principals.append(Subject(is_staff=True))
+            subjects.append(Subject(is_staff=True))
         if self.user:
-            applicable_principals.append(Subject(user=self.user))
+            subjects.append(Subject(user=self.user))
         if self.identity:
-            applicable_principals.append(Subject(identity=self.identity))
+            subjects.append(Subject(identity=self.identity))
         if self.badges:
             for badge in self.badges:
-                applicable_principals.append(Subject(badges=[badge]))
+                subjects.append(Subject(badges=[badge]))
         for owner in self.owned or ():
             if str(owner.id) in graph:
-                applicable_principals.append(Subject(owned=[owner]))
+                subjects.append(Subject(owned=[owner]))
         for membership in self.memberships or ():
             if str(membership.parent_id) in graph:
-                applicable_principals.append(Subject(memberships=[membership]))
+                subjects.append(Subject(memberships=[membership]))
         for role in self.roles or ():
             if role.parent_type == NodeType.BLOCK:
                 if str(role.parent_id) in graph:
-                    applicable_principals.append(Subject(roles=[role]))
+                    subjects.append(Subject(roles=[role]))
             elif role.parent_type == NodeType.MEMBERSHIP:
                 if str(role.parent.parent_id) in graph:
-                    applicable_principals.append(Subject(roles=[role]))
+                    subjects.append(Subject(roles=[role]))
             else:
                 raise BenchError(f"unexpected parent to {role!r}")
+        for subject in subjects:
+            subject._supergraph = self._supergraph  # keep the supergraph
 
-        assert len(applicable_principals) > 0, f"no applicable principals in {self!r}"
-        return tuple(applicable_principals)
+        assert len(subjects) > 0, f"no applicable principals in {self!r}"
+        return tuple(subjects)
 
     def __content_str__(self):
         content_parts = []

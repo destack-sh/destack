@@ -89,9 +89,9 @@ class Connection[
     @final
     def __str__(self):
         content_str = self.__result_str__(self._result_data) if self._result_data else "<no result>"
-        alive_duration = (monons() - self._created_at) / 1_000_000
-        active_duration = (monons() - self._last_active_at) / 1_000_000
-        return f"(hash={self.hash}, token={self.token}) -> {content_str} (alive={alive_duration:.1f}s, last_active={active_duration:.1f}s, subscribers={len(self._subscribers)})"
+        alive_duration = (monons() - self._created_at) / 1_000_000_000
+        active_duration = (monons() - self._last_active_at) / 1_000_000_000
+        return f"{content_str} (hash={self.hash}, token={self.token}, alive={alive_duration:.1f}s, last_active={active_duration:.1f}s, subscribers={len(self._subscribers)})"
 
     @final
     def __repr__(self):
@@ -428,6 +428,7 @@ class ConnectionIndex:
                 f"connect.{query._read_type.name.lower()}",
                 query=query,
                 query_hash=connection.hash,
+                span="current",
             )
             return connection
         else:
@@ -453,6 +454,7 @@ class ConnectionIndex:
                     query=query,
                     was_cached=was_cached,
                     query_hash=query_hash,
+                    span="current",
                 )
                 return connection
 

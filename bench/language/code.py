@@ -18,11 +18,15 @@ logger = structlog.get_logger(__name__)
 
 @struct_(StructType.CODE_LINE)
 class CodeLine(Struct):
+    """A line of code."""
+
     content: str = p_regular(32)
 
 
 @struct_(StructType.CODE)
 class Code(Struct):
+    """Code composed of multiple lines."""
+
     # language: ...
     lines: list[CodeLine] = p_regular(30, require=True, array=True, struct=StructType.CODE_LINE)
 

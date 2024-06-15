@@ -3,7 +3,7 @@
 
 from typing import TYPE_CHECKING, Union
 
-VERSION = "2024.06.13.1"
+VERSION = "2024.06.15.0"
 
 if TYPE_CHECKING:
     from bench.language import Subject
@@ -1376,9 +1376,7 @@ class BoxData(betterproto.Message):
 
 @dataclass(eq=False, repr=False)
 class CodeData(betterproto.Message):
-    """
-    Code(lines: list[bench.language.code.CodeLine] = None, _session: 'Session | None' = None, _updated_properties: bitarray.bitarray | None = None, parent: Union[ForwardRef('BuiltinObject'), ForwardRef('ValueObject'), NoneType] = None, id: int = <factory>, order_key: str | None = None, parent_id: int = None, parent_key: str = None)
-    """
+    """Code composed of multiple lines."""
 
     metatype: "ObjectType" = betterproto.enum_field(1)
     id: int = betterproto.int32_field(2)
@@ -1390,9 +1388,7 @@ class CodeData(betterproto.Message):
 
 @dataclass(eq=False, repr=False)
 class CodeLineData(betterproto.Message):
-    """
-    CodeLine(content: str = <factory>, _session: 'Session | None' = None, _updated_properties: bitarray.bitarray | None = None, parent: Union[ForwardRef('BuiltinObject'), ForwardRef('ValueObject'), NoneType] = None, id: int = <factory>, order_key: str | None = None, parent_id: int = None, parent_key: str = None)
-    """
+    """A line of code."""
 
     metatype: "ObjectType" = betterproto.enum_field(1)
     id: int = betterproto.int32_field(2)
@@ -1499,9 +1495,7 @@ class FontData(betterproto.Message):
 
 @dataclass(eq=False, repr=False)
 class IconData(betterproto.Message):
-    """
-    Icon(kind: bench.language.file.IconKind = False, emoji: Optional[str] = <factory>, file: Optional[ForwardRef('File')] = None, fa_name: Optional[str] = <factory>, color: Optional[ForwardRef('Color')] = None, _session: 'Session | None' = None, _updated_properties: bitarray.bitarray | None = None, parent: Union[ForwardRef('BuiltinObject'), ForwardRef('ValueObject'), NoneType] = None, parent_id: int = None, parent_key: str = None)
-    """
+    """An icon to be displayed in some view."""
 
     metatype: "ObjectType" = betterproto.enum_field(1)
     kind: "IconKind" = betterproto.enum_field(30)
@@ -1610,9 +1604,7 @@ class PathData(betterproto.Message):
 
 @dataclass(eq=False, repr=False)
 class PathSegmentData(betterproto.Message):
-    """
-    PathSegment(type: bench.language.path.PathSegmentType = <factory>, name: Optional[str] = None, reference: Optional[ForwardRef('Node')] = None, _session: 'Session | None' = None, _updated_properties: bitarray.bitarray | None = None, parent: Union[ForwardRef('BuiltinObject'), ForwardRef('ValueObject'), NoneType] = None, reference_ptr: 'NodeReference' = None, parent_id: int = None, parent_key: str = None)
-    """
+    """A semantic part of a Bench path."""
 
     metatype: "ObjectType" = betterproto.enum_field(1)
     type: "PathSegmentType" = betterproto.enum_field(31)
@@ -1622,12 +1614,11 @@ class PathSegmentData(betterproto.Message):
 
 @dataclass(eq=False, repr=False)
 class PathTokenData(betterproto.Message):
-    """
-    PathToken(type: bench.language.path.PathTokenType = <factory>, _session: 'Session | None' = None, _updated_properties: bitarray.bitarray | None = None, parent: Union[ForwardRef('BuiltinObject'), ForwardRef('ValueObject'), NoneType] = None, parent_id: int = None, parent_key: str = None)
-    """
+    """A lexical token in a Bench path."""
 
     metatype: "ObjectType" = betterproto.enum_field(1)
     type: "PathTokenType" = betterproto.enum_field(31)
+    content: Optional[str] = betterproto.string_field(32, optional=True)
 
 
 @dataclass(eq=False, repr=False)
@@ -1718,6 +1709,7 @@ class PropertyReferenceData(betterproto.Message):
     metatype: "ObjectType" = betterproto.enum_field(1)
     type: Optional["ObjectType"] = betterproto.enum_field(30, optional=True)
     id: int = betterproto.int32_field(31)
+    references_node: Optional["NodeType"] = betterproto.enum_field(32, optional=True)
 
 
 @dataclass(eq=False, repr=False)
@@ -1819,9 +1811,7 @@ class SelectionData(betterproto.Message):
 
 @dataclass(eq=False, repr=False)
 class SessionContextData(betterproto.Message):
-    """
-    SessionContext(block: Optional[ForwardRef('Block')] = None, step: Optional[ForwardRef('Step')] = None, session: Optional[ForwardRef('Session')] = None, run: Optional[ForwardRef('Run')] = None, run_root: Optional[ForwardRef('Run')] = None, client: Optional[ForwardRef('Client')] = None, machine: Optional[ForwardRef('Machine')] = None, server: Optional[ForwardRef('Server')] = None, user: Optional[ForwardRef('User')] = None, _session: 'Session | None' = None, _updated_properties: bitarray.bitarray | None = None, parent: Union[ForwardRef('BuiltinObject'), ForwardRef('ValueObject'), NoneType] = None, block_ptr: 'NodeReference' = None, step_ptr: 'NodeReference' = None, session_ptr: 'NodeReference' = None, run_ptr: 'NodeReference' = None, run_root_ptr: 'NodeReference' = None, client_ptr: 'NodeReference' = None, machine_ptr: 'NodeReference' = None, server_ptr: 'NodeReference' = None, user_ptr: 'NodeReference' = None, parent_id: int = None, parent_key: str = None)
-    """
+    """Context information for runtime nodes created in a session."""
 
     metatype: "ObjectType" = betterproto.enum_field(1)
     block_ptr: Optional["NodeReferenceData"] = betterproto.message_field(60, optional=True)
@@ -1914,9 +1904,7 @@ class TextLineData(betterproto.Message):
 
 @dataclass(eq=False, repr=False)
 class TextSpanData(betterproto.Message):
-    """
-    TextSpan(content: Optional[str] = None, node: Optional[bench.language.node.Node] = None, parent: Union[ForwardRef('BuiltinObject'), ForwardRef('ValueObject'), NoneType] = None, _session: 'Session | None' = None, _updated_properties: bitarray.bitarray | None = None, color: Optional[ForwardRef('ColorType')] = None, is_bold: Optional[bool] = None, is_italic: Optional[bool] = None, is_strikethrough: Optional[bool] = None, is_underline: Optional[bool] = None, is_code: Optional[bool] = None, node_ptr: 'NodeReference' = None, parent_id: int = None, parent_key: str = None)
-    """
+    """A span of text with optional formatting."""
 
     metatype: "ObjectType" = betterproto.enum_field(1)
     content: Optional[str] = betterproto.string_field(33, optional=True)
@@ -1967,9 +1955,7 @@ class TypeConstraintData(betterproto.Message):
 
 @dataclass(eq=False, repr=False)
 class TypeInfoData(betterproto.Message):
-    """
-    TypeInfo(kind: bench.language.const.TypeKind = <factory>, primitive_type: Optional[bench.language.const.PrimitiveType] = None, bench_type: Optional[bench.utils.func.BenchType] = None, base_type: Union[ForwardRef('Block'), ForwardRef('Step'), NoneType] = None, base_field_zone: Optional[ForwardRef('FieldZone')] = None, default_packed: Optional[Any] = None, default: None = None, visibility: Optional[bench.language.const.Visibility] = None, format_hint: Optional[bench.language.const.FormatHint] = None, condition: Optional[ForwardRef('Expression')] = None, constraint: Optional[ForwardRef('TypeConstraint')] = None, is_list: bool = False, is_secret: bool = False, is_required: bool = False, _resolved_type: Optional[ForwardRef('TypeInfoBase')] = None, _resolved_identity_key: str | None = None, _from_property: Optional[ForwardRef('Property')] = None, _session: 'Session | None' = None, _updated_properties: bitarray.bitarray | None = None, parent: Union[ForwardRef('BuiltinObject'), ForwardRef('ValueObject'), NoneType] = None, id: int = <factory>, order_key: str | None = None, base_type_ptr: 'NodeReference' = None, parent_id: int = None, parent_key: str = None)
-    """
+    """A type from the type system."""
 
     metatype: "ObjectType" = betterproto.enum_field(1)
     id: int = betterproto.int32_field(2)
@@ -2644,7 +2630,10 @@ class MessageData(betterproto.Message):
 @dataclass(eq=False, repr=False)
 class BaseNodeData(betterproto.Message):
     """
-    A basic node with properties like a Struct and a global identity in our graph.
+    A basic Node with properties like a Struct and a global identity in our graph.
+     Conceptually, all nodes live together happily in a single big graph family.
+     In practice and at runtime, there are multiple smaller NodeGraphs we load via Connections.
+     Nodes resolve references to each through a super graph composed of currently loaded NodeGraphs.
     """
 
     metatype: "ObjectType" = betterproto.enum_field(1)

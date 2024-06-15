@@ -222,7 +222,7 @@ export interface BoxData {
     heightRelative?: number;
 }
 /**
- * Code(lines: list[bench.language.code.CodeLine] = None, _session: 'Session | None' = None, _updated_properties: bitarray.bitarray | None = None, parent: Union[ForwardRef('BuiltinObject'), ForwardRef('ValueObject'), NoneType] = None, id: int = <factory>, order_key: str | None = None, parent_id: int = None, parent_key: str = None)
+ * Code composed of multiple lines.
  *
  * @generated from protobuf message symbolx.bench.CodeData
  */
@@ -253,7 +253,7 @@ export interface CodeData {
     lines: CodeLineData[];
 }
 /**
- * CodeLine(content: str = <factory>, _session: 'Session | None' = None, _updated_properties: bitarray.bitarray | None = None, parent: Union[ForwardRef('BuiltinObject'), ForwardRef('ValueObject'), NoneType] = None, id: int = <factory>, order_key: str | None = None, parent_id: int = None, parent_key: str = None)
+ * A line of code.
  *
  * @generated from protobuf message symbolx.bench.CodeLineData
  */
@@ -546,7 +546,7 @@ export interface FontData {
     size?: FontSize;
 }
 /**
- * Icon(kind: bench.language.file.IconKind = False, emoji: Optional[str] = <factory>, file: Optional[ForwardRef('File')] = None, fa_name: Optional[str] = <factory>, color: Optional[ForwardRef('Color')] = None, _session: 'Session | None' = None, _updated_properties: bitarray.bitarray | None = None, parent: Union[ForwardRef('BuiltinObject'), ForwardRef('ValueObject'), NoneType] = None, parent_id: int = None, parent_key: str = None)
+ * An icon to be displayed in some view.
  *
  * @generated from protobuf message symbolx.bench.IconData
  */
@@ -737,7 +737,7 @@ export interface PathData {
     segments: PathSegmentData[];
 }
 /**
- * PathSegment(type: bench.language.path.PathSegmentType = <factory>, name: Optional[str] = None, reference: Optional[ForwardRef('Node')] = None, _session: 'Session | None' = None, _updated_properties: bitarray.bitarray | None = None, parent: Union[ForwardRef('BuiltinObject'), ForwardRef('ValueObject'), NoneType] = None, reference_ptr: 'NodeReference' = None, parent_id: int = None, parent_key: str = None)
+ * A semantic part of a Bench path.
  *
  * @generated from protobuf message symbolx.bench.PathSegmentData
  */
@@ -760,7 +760,7 @@ export interface PathSegmentData {
     referencePtr?: NodeReferenceData;
 }
 /**
- * PathToken(type: bench.language.path.PathTokenType = <factory>, _session: 'Session | None' = None, _updated_properties: bitarray.bitarray | None = None, parent: Union[ForwardRef('BuiltinObject'), ForwardRef('ValueObject'), NoneType] = None, parent_id: int = None, parent_key: str = None)
+ * A lexical token in a Bench path.
  *
  * @generated from protobuf message symbolx.bench.PathTokenData
  */
@@ -773,6 +773,10 @@ export interface PathTokenData {
      * @generated from protobuf field: symbolx.bench.PathTokenType type = 31;
      */
     type: PathTokenType;
+    /**
+     * @generated from protobuf field: optional string content = 32;
+     */
+    content?: string;
 }
 /**
  * A policy regulating access to nodes within its scope.
@@ -970,6 +974,10 @@ export interface PropertyReferenceData {
      * @generated from protobuf field: int32 id = 31;
      */
     id: number;
+    /**
+     * @generated from protobuf field: optional symbolx.bench.NodeType references_node = 32;
+     */
+    referencesNode?: NodeType;
 }
 /**
  * Fine-grained options to a read request.
@@ -1247,7 +1255,7 @@ export interface SelectionData {
     toNodePtr?: NodeReferenceData;
 }
 /**
- * SessionContext(block: Optional[ForwardRef('Block')] = None, step: Optional[ForwardRef('Step')] = None, session: Optional[ForwardRef('Session')] = None, run: Optional[ForwardRef('Run')] = None, run_root: Optional[ForwardRef('Run')] = None, client: Optional[ForwardRef('Client')] = None, machine: Optional[ForwardRef('Machine')] = None, server: Optional[ForwardRef('Server')] = None, user: Optional[ForwardRef('User')] = None, _session: 'Session | None' = None, _updated_properties: bitarray.bitarray | None = None, parent: Union[ForwardRef('BuiltinObject'), ForwardRef('ValueObject'), NoneType] = None, block_ptr: 'NodeReference' = None, step_ptr: 'NodeReference' = None, session_ptr: 'NodeReference' = None, run_ptr: 'NodeReference' = None, run_root_ptr: 'NodeReference' = None, client_ptr: 'NodeReference' = None, machine_ptr: 'NodeReference' = None, server_ptr: 'NodeReference' = None, user_ptr: 'NodeReference' = None, parent_id: int = None, parent_key: str = None)
+ * Context information for runtime nodes created in a session.
  *
  * @generated from protobuf message symbolx.bench.SessionContextData
  */
@@ -1498,7 +1506,7 @@ export interface TextLineData {
     isCode?: boolean;
 }
 /**
- * TextSpan(content: Optional[str] = None, node: Optional[bench.language.node.Node] = None, parent: Union[ForwardRef('BuiltinObject'), ForwardRef('ValueObject'), NoneType] = None, _session: 'Session | None' = None, _updated_properties: bitarray.bitarray | None = None, color: Optional[ForwardRef('ColorType')] = None, is_bold: Optional[bool] = None, is_italic: Optional[bool] = None, is_strikethrough: Optional[bool] = None, is_underline: Optional[bool] = None, is_code: Optional[bool] = None, node_ptr: 'NodeReference' = None, parent_id: int = None, parent_key: str = None)
+ * A span of text with optional formatting.
  *
  * @generated from protobuf message symbolx.bench.TextSpanData
  */
@@ -1640,7 +1648,7 @@ export interface TypeConstraintData {
     endsWith?: string;
 }
 /**
- * TypeInfo(kind: bench.language.const.TypeKind = <factory>, primitive_type: Optional[bench.language.const.PrimitiveType] = None, bench_type: Optional[bench.utils.func.BenchType] = None, base_type: Union[ForwardRef('Block'), ForwardRef('Step'), NoneType] = None, base_field_zone: Optional[ForwardRef('FieldZone')] = None, default_packed: Optional[Any] = None, default: None = None, visibility: Optional[bench.language.const.Visibility] = None, format_hint: Optional[bench.language.const.FormatHint] = None, condition: Optional[ForwardRef('Expression')] = None, constraint: Optional[ForwardRef('TypeConstraint')] = None, is_list: bool = False, is_secret: bool = False, is_required: bool = False, _resolved_type: Optional[ForwardRef('TypeInfoBase')] = None, _resolved_identity_key: str | None = None, _from_property: Optional[ForwardRef('Property')] = None, _session: 'Session | None' = None, _updated_properties: bitarray.bitarray | None = None, parent: Union[ForwardRef('BuiltinObject'), ForwardRef('ValueObject'), NoneType] = None, id: int = <factory>, order_key: str | None = None, base_type_ptr: 'NodeReference' = None, parent_id: int = None, parent_key: str = None)
+ * A type from the type system.
  *
  * @generated from protobuf message symbolx.bench.TypeInfoData
  */
@@ -3768,7 +3776,10 @@ export interface MessageData {
     isPinned: boolean;
 }
 /**
- * A basic node with properties like a Struct and a global identity in our graph.
+ * A basic Node with properties like a Struct and a global identity in our graph.
+ * Conceptually, all nodes live together happily in a single big graph family.
+ * In practice and at runtime, there are multiple smaller NodeGraphs we load via Connections.
+ * Nodes resolve references to each through a super graph composed of currently loaded NodeGraphs.
  *
  * @generated from protobuf message symbolx.bench.BaseNodeData
  */
@@ -12112,7 +12123,8 @@ class PathTokenData$Type extends MessageType<PathTokenData> {
     constructor() {
         super("symbolx.bench.PathTokenData", [
             { no: 1, name: "metatype", kind: "enum", T: () => ["symbolx.bench.ObjectType", ObjectType, "OBJECT_TYPE_"] },
-            { no: 31, name: "type", kind: "enum", T: () => ["symbolx.bench.PathTokenType", PathTokenType, "PATH_TOKEN_TYPE_"] }
+            { no: 31, name: "type", kind: "enum", T: () => ["symbolx.bench.PathTokenType", PathTokenType, "PATH_TOKEN_TYPE_"] },
+            { no: 32, name: "content", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ }
         ]);
     }
     create(value?: PartialMessage<PathTokenData>): PathTokenData {
@@ -12134,6 +12146,9 @@ class PathTokenData$Type extends MessageType<PathTokenData> {
                 case /* symbolx.bench.PathTokenType type */ 31:
                     message.type = reader.int32();
                     break;
+                case /* optional string content */ 32:
+                    message.content = reader.string();
+                    break;
                 default:
                     let u = options.readUnknownField;
                     if (u === "throw")
@@ -12152,6 +12167,9 @@ class PathTokenData$Type extends MessageType<PathTokenData> {
         /* symbolx.bench.PathTokenType type = 31; */
         if (message.type !== 0)
             writer.tag(31, WireType.Varint).int32(message.type);
+        /* optional string content = 32; */
+        if (message.content !== undefined)
+            writer.tag(32, WireType.LengthDelimited).string(message.content);
         let u = options.writeUnknownFields;
         if (u !== false)
             (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
@@ -12562,7 +12580,8 @@ class PropertyReferenceData$Type extends MessageType<PropertyReferenceData> {
         super("symbolx.bench.PropertyReferenceData", [
             { no: 1, name: "metatype", kind: "enum", T: () => ["symbolx.bench.ObjectType", ObjectType, "OBJECT_TYPE_"] },
             { no: 30, name: "type", kind: "enum", opt: true, T: () => ["symbolx.bench.ObjectType", ObjectType, "OBJECT_TYPE_"] },
-            { no: 31, name: "id", kind: "scalar", T: 5 /*ScalarType.INT32*/ }
+            { no: 31, name: "id", kind: "scalar", T: 5 /*ScalarType.INT32*/ },
+            { no: 32, name: "references_node", kind: "enum", opt: true, T: () => ["symbolx.bench.NodeType", NodeType, "NODE_TYPE_"] }
         ]);
     }
     create(value?: PartialMessage<PropertyReferenceData>): PropertyReferenceData {
@@ -12587,6 +12606,9 @@ class PropertyReferenceData$Type extends MessageType<PropertyReferenceData> {
                 case /* int32 id */ 31:
                     message.id = reader.int32();
                     break;
+                case /* optional symbolx.bench.NodeType references_node */ 32:
+                    message.referencesNode = reader.int32();
+                    break;
                 default:
                     let u = options.readUnknownField;
                     if (u === "throw")
@@ -12608,6 +12630,9 @@ class PropertyReferenceData$Type extends MessageType<PropertyReferenceData> {
         /* int32 id = 31; */
         if (message.id !== 0)
             writer.tag(31, WireType.Varint).int32(message.id);
+        /* optional symbolx.bench.NodeType references_node = 32; */
+        if (message.referencesNode !== undefined)
+            writer.tag(32, WireType.Varint).int32(message.referencesNode);
         let u = options.writeUnknownFields;
         if (u !== false)
             (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
@@ -25319,6 +25344,7 @@ export enum PathSegmentProperty {
 export enum PathTokenProperty {
   metatype = 1,
   type = 31,
+  content = 32,
 }
 
 export enum NodeReferenceProperty {
@@ -25335,6 +25361,7 @@ export enum PropertyReferenceProperty {
   metatype = 1,
   type = 30,
   id = 31,
+  referencesNode = 32,
 }
 
 export enum ValueReferenceProperty {
@@ -25992,6 +26019,7 @@ export const PathSegmentDataInfo: Record<PathSegmentProperty, PropertyInfo> = {
 export const PathTokenDataInfo: Record<PathTokenProperty, PropertyInfo> = {
   [PathTokenProperty.metatype]: { id: 1, name: 'metatype', component: ObjectType.PATH_TOKEN, enumType: EnumType.OBJECT_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isComputed: true, isWired: true },
   [PathTokenProperty.type]: { id: 31, name: 'type', component: ObjectType.PATH_TOKEN, enumType: EnumType.PATH_TOKEN_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isRuntime: true, isWired: true, isStored: true },
+  [PathTokenProperty.content]: { id: 32, name: 'content', component: ObjectType.PATH_TOKEN, kind: 'primitive', primitiveType: PrimitiveType.STRING, isRuntime: true, isWired: true, isStored: true },
 }
 export const NodeReferenceDataInfo: Record<NodeReferenceProperty, PropertyInfo> = {
   [NodeReferenceProperty.metatype]: { id: 1, name: 'metatype', component: ObjectType.NODE_REFERENCE, enumType: EnumType.OBJECT_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isComputed: true, isWired: true },
@@ -26006,6 +26034,7 @@ export const PropertyReferenceDataInfo: Record<PropertyReferenceProperty, Proper
   [PropertyReferenceProperty.metatype]: { id: 1, name: 'metatype', component: ObjectType.PROPERTY_REFERENCE, enumType: EnumType.OBJECT_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isComputed: true, isWired: true },
   [PropertyReferenceProperty.type]: { id: 30, name: 'type', component: ObjectType.PROPERTY_REFERENCE, enumType: EnumType.OBJECT_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRuntime: true, isWired: true, isStored: true },
   [PropertyReferenceProperty.id]: { id: 31, name: 'id', component: ObjectType.PROPERTY_REFERENCE, kind: 'primitive', primitiveType: PrimitiveType.INT32, isRequired: true, isRuntime: true, isWired: true, isStored: true },
+  [PropertyReferenceProperty.referencesNode]: { id: 32, name: 'references_node', component: ObjectType.PROPERTY_REFERENCE, enumType: EnumType.NODE_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isInternal: true, isRuntime: true, isWired: true, isStored: true },
 }
 export const ValueReferenceDataInfo: Record<ValueReferenceProperty, PropertyInfo> = {
   [ValueReferenceProperty.metatype]: { id: 1, name: 'metatype', component: ObjectType.VALUE_REFERENCE, enumType: EnumType.OBJECT_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isComputed: true, isWired: true },

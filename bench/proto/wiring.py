@@ -11,7 +11,7 @@ from opentelemetry import trace
 from bench.language.connection import ConnectionBase
 from bench.language.const import UNSET, NodeType, ObjectType
 from bench.language.expression import NodeReference
-from bench.language.graph import NodeDataGraph, NodeSuperGraph
+from bench.language.graph import NULL_SUPERGRAPH, NodeDataGraph, NodeSuperGraph
 from bench.language.node import BuiltinObject, Node, NodeGraph
 from bench.language.property import Property
 from bench.language.session import Session
@@ -26,8 +26,6 @@ from bench.utils.func import IdEnum, IdEnumOrUnion, to_uuid
 logger = structlog.get_logger(__name__)
 tracer = trace.get_tracer(__name__)
 
-NULL_PTR = NodeReference(type=NodeType.BENCH, id=UUID(int=0), ck=UUID(int=0), bench_id=UUID(int=0))
-NULL_SUPERGRAPH = NodeSuperGraph(NULL_PTR)
 
 PROTO_CLASS_BY_TYPE: dict[ObjectType, type[Union[AnyNodeData, AnyStructData]]] = {
     _type: getattr(wire, _type.bench_name + "Data")
@@ -125,8 +123,6 @@ def pack_object_prop(prop: Property, value: Any, ignore_array: bool) -> Any:
 def unpack_object_prop(
     prop: Property, value: Any, *, supergraph: NodeSuperGraph, ignore_array: bool = False
 ) -> Any:
-    from bench.language.expression import NodeReference
-
     try:
         if value is None:
             return None
@@ -186,6 +182,7 @@ def pack_object_maybe[T: AnyStructData | AnyNodeData](
 def unpack_object[T: BuiltinObject](
     obj_data: AnyStructData | AnyNodeData,
     *,
+    graph: NodeGraph | None = None,
     supergraph: NodeSuperGraph | None,
     parent: Node | None = None,
     expect: type[T] | None = None,
@@ -206,7 +203,9 @@ def unpack_object[T: BuiltinObject](
                 prop, value, supergraph=supergraph, ignore_array=False
             )
         if parent is not None:
-            object_kwargs["_arent"] = parent
+            object_kwargs["_parent"] = parent
+        if graph is not None:
+            object_kwargs["_graph"] = graph
         object_kwargs["_supergraph"] = supergraph
         if issubclass(object_cls, Node):
             object_kwargs["_session"] = UNSET
@@ -269,14 +268,13 @@ def unpack_node_graph(
 
     exclude = exclude or ()
     parent_id = parent.id if parent is not None else None
-    unpacked_roots: list[Node] = []
-    source_roots = data_graph.find_roots()
-    unpacked_graph = NodeGraph(
+    roots_data = data_graph.find_roots()
+    graph = NodeGraph(
         scope=data_graph.scope, node_types=data_graph.node_types, supergraph=supergraph
     )
-    supergraph.add_graph(unpacked_graph)
+    supergraph.add_graph(graph)
 
-    for root_data in source_roots:
+    for root_data in roots_data:
         # unpack all nodes top down (breadth first)
         for node_data in chain(
             (root_data,), data_graph.iter_descendants(root_data, recursive=True)
@@ -289,12 +287,18 @@ def unpack_node_graph(
             if node_parent_id is None or node_parent_id == parent_id:
                 node_parent = parent
             else:
-                node_parent = unpacked_graph.get(node_parent_id)
+                node_parent = graph.get(node_parent_id)
                 # NOTE :Architecture: enable loading nodes without ancestors :LoadOrphanNode?
                 #  (this errors here, but sometimes we just want a node without ancestors)
                 # if node_parent is None:
                 #     raise ValueError(f"parent {node_parent_id} not found in {unpacked_graph!r}")
-            node = unpack_object(node_data, supergraph=supergraph, parent=node_parent, expect=Node)
+            node = unpack_object(
+                node_data,
+                graph=graph,
+                supergraph=supergraph,
+                parent=node_parent,
+                expect=Node,
+            )
             node._connection = connection  # type: ignore
 
             # keep parent instance if it was passed (update it in place)
@@ -304,22 +308,12 @@ def unpack_node_graph(
                         setattr(parent, prop.name, getattr(node, prop.name))
                 node = cast(Node, parent)
 
-            unpacked_graph.add(node)
-
-    # resolve references
-    for source_root in source_roots:
-        root = unpacked_graph.get(UUID(source_root.id))
-        if root is None:
-            raise ValueError(f"root {source_root!r} root found in unpacked {unpacked_graph!r}")
-        root._graph.set(unpacked_graph.nodes)
-        unpacked_roots.append(root)
-
     # track in session
     if session is not None:
-        for node in unpacked_graph._nodes_by_id.values():
+        for node in graph._nodes_by_id.values():
             node._track_self(session)
 
-    return unpacked_graph
+    return graph
 
 
 def unpack_node_roots(

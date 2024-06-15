@@ -97,18 +97,21 @@ class NodeReference(InlineStruct[NodeReferenceData]):
     base_bench_id: Optional[UUID] = p_internal(35, default=None)
 
     def __content_str__(self):
-        selector_str_parts = []
+        content_parts = []
         if self.id is not None:
-            selector_str_parts.append(f"id={self.id}")
+            content_parts.append(f"id={self.id}")
         if self.ck is not None:
-            selector_str_parts.append(f"ck={self.ck}")
+            if self.ck == self.id:
+                content_parts.append("ck=id")
+            else:
+                content_parts.append(f"ck={self.ck}")
         if self.bench_id is not None:
-            selector_str_parts.append(f"bench_id={self.bench_id}")
+            content_parts.append(f"bench_id={self.bench_id}")
         if self.base_ck is not None:
-            selector_str_parts.append(f"base_ck={self.base_ck}")
+            content_parts.append(f"base_ck={self.base_ck}")
         if self.base_bench_id is not None:
-            selector_str_parts.append(f"base_bench_id={self.base_bench_id}")
-        selector_str = ", ".join(selector_str_parts)
+            content_parts.append(f"base_bench_id={self.base_bench_id}")
+        selector_str = ", ".join(content_parts)
         return f"{self.type.bench_name}:[{selector_str}]"
 
     def _validate_component(

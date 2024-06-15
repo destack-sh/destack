@@ -302,7 +302,7 @@ class Host(GraphIoServiceBase, HostBase, HostSpec):
                 is_staff = client.parent.is_staff
                 user = client.parent
             else:
-                # server client
+                # server client (must be in bench graph)
                 client = self._bench._graph.get(client_id)
                 if not isinstance(client, Client):
                     raise GRPCError(GRPCStatus.UNAUTHENTICATED, "invalid client id")
@@ -334,6 +334,7 @@ class Host(GraphIoServiceBase, HostBase, HostSpec):
             server=server,
             badges=badges,
             owned=owned,
+            _supergraph=self._supergraph,
         )
         return subject
 
@@ -648,7 +649,11 @@ class Host(GraphIoServiceBase, HostBase, HostSpec):
                     trimmed_commit = commit.trim_to(plugin.watch_types)
                     await plugin.on_commit(self._session, trimmed_commit)
                     logger.debug(
-                        "host.on_commit.plugin", host=self, plugin=plugin, commit=trimmed_commit
+                        "host.on_commit.plugin",
+                        host=self,
+                        plugin=plugin,
+                        commit=trimmed_commit,
+                        span="current",
                     )
         await self._session.commit(_skip_lock=True)  # already in a locked section
         if was_suspended:
