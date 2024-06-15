@@ -45,11 +45,13 @@ from bench.proto.wire import (
     ReadOptionsData,
     RpcMetadata,
     SupervisorStub,
+    WatchGetRequest,
+    WatchSearchRequest,
 )
 from bench.utils.func import bittuple, group_by
 from bench.utils.oracle import get_oracle
 from bench.utils.task import wrap_task
-from bench.utils.tenacity import RETRY_GRPC, RetryOptions
+from bench.utils.tenacity import RETRY_GRPC, RETRY_NEVER, RetryOptions
 
 if TYPE_CHECKING:
     from bench.language import (
@@ -94,7 +96,7 @@ class ChannelError(BenchError):
             action = repr(expression)
         else:
             action = "<unknown action>"
-        super().__init__(f"{medium} cannot {action}: {reason or '<unknown error>'}")
+        super().__init__(f"{medium!r} cannot {action!r}: {reason or '<unknown error>'}")
         self.medium = medium
         self.query = query
         self.expression = expression
@@ -286,10 +288,14 @@ class Channel(abc.ABC):
     # Read
     #
 
+    @property
+    def retry(self) -> RetryOptions:
+        return RETRY_NEVER
+
     @abc.abstractmethod
-    def _make_connection(
+    def _get_connection_cls(
         self, query: "QueryBuilder", scope: GraphScope, options: Options
-    ) -> "ConnectionBase": ...
+    ) -> "type[Connection]": ...
 
     @final
     async def get(self, query: "QueryBuilder", options: GetOptions) -> "GetConnection":
@@ -297,7 +303,8 @@ class Channel(abc.ABC):
         assert query._read_type == ReadType.GET, f"{query!r} is not a get"
         assert query._roots is not None, f"{query!r} has no roots"
         scope: GraphScope = query.get_scope_in(self.session)
-        connection = self._make_connection(query, scope, options)
+        connection_cls = self._get_connection_cls(query, scope, options)
+        connection = connection_cls(self, scope, query, self.retry, options)
         assert isinstance(connection, GetConnection), f"{connection!r} is not a get"
         await connection.connect()
         return connection
@@ -307,7 +314,8 @@ class Channel(abc.ABC):
         """Read the nodes given the search query in the current transaction context (if any)."""
         assert query._read_type == ReadType.SEARCH, f"{query!r} is not a search"
         scope: GraphScope = query.get_scope_in(self.session)
-        connection = self._make_connection(query, scope, options)
+        connection_cls = self._get_connection_cls(query, scope, options)
+        connection = connection_cls(self, scope, query, self.retry, options)
         assert isinstance(connection, SearchConnection), f"{connection!r} is not a search"
         await connection.connect()
         return connection
@@ -320,7 +328,8 @@ class Channel(abc.ABC):
         assert query._read_type == ReadType.AGGREGATE, f"{query!r} is not an aggregate"
         assert query._aggregation is not None, f"{query!r} has no aggregation"
         scope: GraphScope = query.get_scope_in(self.session)
-        connection = self._make_connection(query, scope, options)
+        connection_cls = self._get_connection_cls(query, scope, options)
+        connection = connection_cls(self, scope, query, self.retry, options)
         assert isinstance(connection, AggregateConnection), f"{connection!r} is not an aggregate"
         await connection.connect()
         return connection
@@ -362,7 +371,7 @@ class WritableChannel(Channel):
         ...
 
 
-class ConnectionBase[
+class Connection[
     ChannelT: Channel,
     OptionsT: Options,
     ResultT: Result,
@@ -372,12 +381,19 @@ class ConnectionBase[
     """A live query result from a graph connection."""
 
     def __init__(
-        self, channel: ChannelT, scope: GraphScope, query: "QueryBuilder", options: OptionsT
+        self,
+        channel: ChannelT,
+        scope: GraphScope,
+        query: "QueryBuilder",
+        retry: RetryOptions,
+        options: OptionsT,
     ):
         self.channel = channel
         self.scope = scope
         self.query = query
         self.type = query._read_type
+        self.type_name = self.type.name.lower()
+        self.retry = retry
         self.node_types = list(query.all_node_types)
         self.options = options
         self.is_live = options.live
@@ -431,16 +447,32 @@ class ConnectionBase[
         """
         if not self.is_live:
             # simple: just read and unpack
-            self._result_data = await self._do_read(self.query)
+            retry = self.retry.new()
+            while retry.should_retry:
+                retry.on_attempt()
+                # try read
+                with tracer.start_as_current_span(f"connect.{self.type_name}.read"):
+                    try:
+                        self._result_data = await self._do_read(self.query)
+                        logger.trace(f"connect.{self.type_name}", connection=self, span="current")
+                        break  # success
+                    except retry.options.retry_on as e:
+                        logger.error(f"connect.{self.type_name}.error", exc_info=e, connection=self)
+                        retry.on_error(e)
+                        await get_oracle().sleep(retry.get_wait_interval())
+                        continue
+            else:
+                raise retry.to_error(operation=self.query)
+            # unpack (should not be retried)
             if self._unpack_result is not None:
                 self._result = self._unpack_result(self._result_data)
             self._has_result.set()
         else:
-            # start live connection loop and await first result
+            # start live connection loop (in seperate task) and await first result
             task = wrap_task(
                 self._do_connect_live(),
                 logger=logger,
-                task_id=f"connect.{self.type.name.lower()}.live",
+                task_id=f"connect.{self.type_name}",
                 owner=self,
             )
             self._connect_task = asyncio.create_task(task)
@@ -448,7 +480,30 @@ class ConnectionBase[
 
     async def _do_connect_live(self) -> None:
         """Runs the live connection loop until closed."""
-        raise NotImplementedError("nocheckin: ConnectionBase._do_connect_live")
+        retry = self.retry.new()
+        while not self._is_closed:
+            if not retry.should_retry:
+                raise retry.to_error(operation=self.query)
+            retry.on_attempt()
+
+            try:
+                # initial read
+                with tracer.start_as_current_span(f"connect.{self.type_name}"):
+                    self._result_data = await self._do_read(self.query)
+                    logger.trace(f"connect.{self.type_name}", connection=self, span="current")
+                # unpack
+                if self._unpack_result is not None:
+                    self._result = self._unpack_result(self._result_data)
+                self._has_result.set()
+
+                # subscribe
+                async for update in self._do_subscribe(self.query, self._result_data):
+                    self._apply_update(update)
+            except retry.options.retry_on as e:
+                logger.error(f"connect.{self.type_name}.error", exc_info=e, connection=self)
+                retry.on_error(e)
+                await get_oracle().sleep(retry.get_wait_interval())
+                continue
 
     @abc.abstractmethod
     def _unpack_result(self, result_data: ResultDataT) -> ResultT:
@@ -465,9 +520,7 @@ class ConnectionBase[
         """Fetches the result from the graph."""
         ...
 
-    async def _do_subscribe(
-        self, query: "QueryBuilder", result: ResultDataT
-    ) -> AsyncIterator[UpdateT]:
+    def _do_subscribe(self, query: "QueryBuilder", result: ResultDataT) -> AsyncIterator[UpdateT]:
         """Subscribes to updates from the graph."""
         raise ChannelIncapableError(self, query, reason="live subscription not supported")
 
@@ -488,7 +541,7 @@ class ConnectionBase[
 
 
 class GetConnection[ChannelT: Channel](
-    ConnectionBase[ChannelT, GetOptions, GetResult, GetResultData, WatchGetUpdate]
+    Connection[ChannelT, GetOptions, GetResult, GetResultData, WatchGetUpdate]
 ):
     """Base for get connections (may be live)."""
 
@@ -520,7 +573,7 @@ class GetConnection[ChannelT: Channel](
 
 
 class SearchConnection[ChannelT: Channel](
-    ConnectionBase[ChannelT, SearchOptions, SearchResult, SearchResultData, WatchSearchUpdate]
+    Connection[ChannelT, SearchOptions, SearchResult, SearchResultData, WatchSearchUpdate]
 ):
     """Base for search connections (may be live)."""
 
@@ -539,6 +592,7 @@ class SearchConnection[ChannelT: Channel](
     def _apply_update(self, update: WatchSearchUpdate):
         from bench.language.transaction import edit_data_graph, edit_graph
 
+        # nocheckin :Broken: SearchConnection._apply_update
         edit_data_graph(self.result_data.graph, update.edits, self.query._options)
         if self._result is not None:
             edit_graph(
@@ -552,7 +606,7 @@ class SearchConnection[ChannelT: Channel](
 
 
 class AggregateConnection[ChannelT: Channel](
-    ConnectionBase[
+    Connection[
         ChannelT, AggregateOptions, AggregateResult, AggregateResultData, WatchAggregateUpdate
     ]
 ):
@@ -601,11 +655,11 @@ class MemoryChannel(Channel):
     def __str__(self):
         return f"engine={self.engine!r}, session={self.session}"
 
-    def _make_connection(
+    def _get_connection_cls(
         self, query: "QueryBuilder", scope: GraphScope, options: Options
-    ) -> ConnectionBase:
+    ) -> type[Connection]:
         if query._read_type == ReadType.GET:
-            return MemoryGetConnection(self, scope, query, cast(GetOptions, options))
+            return MemoryGetConnection
         else:
             raise RuntimeError(f"unsupported memory read {query!r}")
 
@@ -688,18 +742,18 @@ class MemoryGetConnection(GetConnection[MemoryChannel]):
 class SplitChannel(Channel):
     """A read-only channel splits queries across channels."""
 
-    def _make_connection(
+    def _get_connection_cls(
         self, query: "QueryBuilder", scope: GraphScope, options: Options
-    ) -> ConnectionBase:
+    ) -> type[Connection]:
         if query._read_type == ReadType.GET:
-            return SplitGetConnection(self, scope, query, cast(GetOptions, options))
+            return SplitGetConnection
         elif query._read_type == ReadType.SEARCH:
-            return SplitSearchConnection(self, scope, query, cast(SearchOptions, options))
+            return SplitSearchConnection
         else:
             raise RuntimeError(f"unsupported split read {query!r}")
 
 
-class SplitConnectionBase(ConnectionBase):
+class SplitConnection(Connection):
     # NOTE :Robustness: we handle splits by assuming the node type split is a 'clean' horizontal
     #  line in the ancestry tree (like the local/global split).
 
@@ -734,7 +788,7 @@ class SplitConnectionBase(ConnectionBase):
             # just select our way up
             actual_roots_parents = tuple(n.parent_ptr for n in actual_roots if n.parent_ptr)
             actual_roots_parents_by_type = group_by(actual_roots_parents, lambda n: n.type)
-            ancestor_engine = self.session.tx._get_engine(
+            ancestor_engine = self.session.tx._get_engine_for(
                 self.scope, remaining_ancestors, is_readonly=True
             )
             ancestor_channel = await self.session.tx._get_channel(ancestor_engine)
@@ -760,12 +814,12 @@ class SplitConnectionBase(ConnectionBase):
         return combined_graph
 
 
-class SplitSearchConnection(SearchConnection[SplitChannel], SplitConnectionBase):
+class SplitSearchConnection(SearchConnection[SplitChannel], SplitConnection):
     """Search across multiple connections."""
 
     async def _do_read(self, query: "QueryBuilder") -> SearchResultData:
         # first trim query to nucleus around core node type (use best match)
-        engine = self.session.tx._get_engine(
+        engine = self.session.tx._get_engine_for(
             self.scope, query._node_type, best_match=self.node_types, is_readonly=True
         )
         channel = await self.session.tx._get_channel(engine)
@@ -790,12 +844,12 @@ class SplitSearchConnection(SearchConnection[SplitChannel], SplitConnectionBase)
         return combined_result
 
 
-class SplitGetConnection(GetConnection[SplitChannel], SplitConnectionBase):
+class SplitGetConnection(GetConnection[SplitChannel], SplitConnection):
     """Get across multiple connections."""
 
     async def _do_read(self, query: "QueryBuilder") -> GetResultData:
         # first trim query to nucleus around core node type (use best match)
-        engine = self.session.tx._get_engine(
+        engine = self.session.tx._get_engine_for(
             self.scope, query._node_type, best_match=self.node_types, is_readonly=True
         )
         channel = await self.session.tx._get_channel(engine)
@@ -852,15 +906,15 @@ class RemoteChannel(WritableChannel):
     def __str__(self):
         return f"engine={self.engine!r}, session={self.session}"
 
-    def _make_connection(
+    def _get_connection_cls(
         self, query: "QueryBuilder", scope: GraphScope, options: Options
-    ) -> ConnectionBase:
+    ) -> type[Connection]:
         if query._read_type == ReadType.GET:
-            return RemoteGetConnection(self, scope, query, cast(GetOptions, options))
+            return RemoteGetConnection
         elif query._read_type == ReadType.SEARCH:
-            return RemoteSearchConnection(self, scope, query, cast(SearchOptions, options))
+            return RemoteSearchConnection
         elif query._read_type == ReadType.AGGREGATE:
-            return RemoteAggregateConnection(self, scope, query, cast(AggregateOptions, options))
+            return RemoteAggregateConnection
         else:
             raise RuntimeError(f"unsupported read type {query._read_type}")
 
@@ -944,7 +998,22 @@ class RemoteGetConnection(GetConnection[RemoteChannel]):
     async def _do_subscribe(
         self, query: "QueryBuilder", result: GetResultData
     ) -> AsyncIterator[WatchGetUpdate]:
-        raise NotImplementedError("nocheckin: RemoteGetConnection._do_subscribe")
+        from bench.proto import wiring
+
+        assert result.token is not None, f"{result!r} has no token"
+        assert result.epoch is not None, f"{result!r} has no epoch"
+        watch_req = WatchGetRequest(
+            scope=self.scope, connection_token=result.token, since_epoch=result.epoch
+        )
+        async for rep in self.channel.engine.remote.watch_get(watch_req):
+            update = WatchGetUpdate(
+                edits=rep.edits,
+                cascaded_edits=rep.cascaded_edits,
+                added_nodes=[wiring.unwrap_some_node(n) for n in rep.added_nodes],
+                removed_nodes_ptr=rep.removed_nodes_ptr,
+                epoch=rep.epoch,
+            )
+            yield update
 
 
 class RemoteSearchConnection(SearchConnection[RemoteChannel]):
@@ -983,7 +1052,24 @@ class RemoteSearchConnection(SearchConnection[RemoteChannel]):
     async def _do_subscribe(
         self, query: "QueryBuilder", result: SearchResultData
     ) -> AsyncIterator[WatchSearchUpdate]:
-        raise NotImplementedError("nocheckin: RemoteSearchConnection._do_subscribe")
+        from bench.proto import wiring
+
+        assert result.token is not None, f"{result!r} has no token"
+        assert result.epoch is not None, f"{result!r} has no epoch"
+        watch_req = WatchSearchRequest(
+            scope=self.scope, connection_token=result.token, since_epoch=result.epoch
+        )
+        async for rep in self.channel.engine.remote.watch_search(watch_req):
+            update = WatchSearchUpdate(
+                edits=rep.edits,
+                cascaded_edits=rep.cascaded_edits,
+                added_nodes=[wiring.unwrap_some_node(n) for n in rep.added_nodes],
+                removed_nodes_ptr=rep.removed_nodes_ptr,
+                added_roots_ptr=rep.added_roots_ptr,
+                removed_roots_ptr=rep.removed_roots_ptr,
+                epoch=rep.epoch,
+            )
+            yield update
 
 
 class RemoteAggregateConnection(AggregateConnection[RemoteChannel]):
@@ -1052,15 +1138,15 @@ class PostgresChannel(WritableChannel):
     def __str__(self):
         return f"engine={self.engine!r}, session={self.session}"
 
-    def _make_connection(
+    def _get_connection_cls(
         self, query: "QueryBuilder", scope: GraphScope, options: Options
-    ) -> ConnectionBase:
+    ) -> type[Connection]:
         if query._read_type == ReadType.GET:
-            return PostgresGetConnection(self, scope, query, cast(GetOptions, options))
+            return PostgresGetConnection
         elif query._read_type == ReadType.SEARCH:
-            return PostgresSearchConnection(self, scope, query, cast(SearchOptions, options))
+            return PostgresSearchConnection
         elif query._read_type == ReadType.AGGREGATE:
-            return PostgresAggregateConnection(self, scope, query, cast(AggregateOptions, options))
+            return PostgresAggregateConnection
         else:
             raise RuntimeError(f"unsupported read type {query._read_type}")
 

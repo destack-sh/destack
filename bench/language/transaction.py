@@ -84,14 +84,6 @@ class Transaction:
     def has_pending_edits(self) -> bool:
         return any(self._pending_edits_by_engine_id.values())
 
-    async def _get_channel(self, engine: GraphEngine) -> Channel:
-        """Gets or creates a store channel"""
-        channel = self._channels_by_engine_id.get(engine.id)
-        if channel is None:
-            channel = await engine.connect(self.session)
-            self._channels_by_engine_id[engine.id] = channel
-        return channel
-
     def _get_scope_for_node(self, n: Node) -> GraphScope:
         """Gets the explicit or implicit scope for a node."""
         scope = GraphScope()
@@ -101,7 +93,7 @@ class Transaction:
             scope.package_id = uuid_to_str(n.package_id) or self.session._default_scope.package_id
         return scope
 
-    def _get_engine(
+    def _get_engine_for(
         self,
         scope: GraphScope,
         node_types: NodeType | Collection[NodeType],
@@ -134,6 +126,14 @@ class Transaction:
                 # prefer in-memory engines
                 return next(e for e in candidate_engines if isinstance(e, MemoryEngine))
             return candidate_engines[0]
+
+    async def _get_channel(self, engine: GraphEngine) -> Channel:
+        """Gets or creates a store channel"""
+        channel = self._channels_by_engine_id.get(engine.id)
+        if channel is None:
+            channel = await engine.connect(self.session)
+            self._channels_by_engine_id[engine.id] = channel
+        return channel
 
     #
     # Edits
@@ -418,7 +418,7 @@ class Transaction:
         from bench.proto import wiring
 
         node_type = wiring.unpack_enum(NodeType, edit.node_ptr.type)
-        engine = self._get_engine(edit.scope, node_type, is_readonly=False)
+        engine = self._get_engine_for(edit.scope, node_type, is_readonly=False)
         self.edits.append(edit)
         self.pending_edits.append(edit)
         self._pending_edits_by_engine_id[engine.id].append(edit)
