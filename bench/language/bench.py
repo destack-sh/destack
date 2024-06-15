@@ -43,7 +43,6 @@ from bench.proto.wire import (
     UpgradeData,
 )
 from bench.utils.casing import IdentifierType
-from bench.utils.dt import utcnow
 from bench.utils.func import IdEnum, bittuple, generate_encryption_key
 
 if TYPE_CHECKING:
@@ -457,7 +456,7 @@ class Client(BenchNode[ClientData]):
     access_token: Optional[str] = p_kernel(
         50, default=None, defer=True, unique=True, sensitive=True
     )
-    seen_at: datetime = p_system(51, default_factory=utcnow)
+    seen_at: datetime = p_system(51)
     logged_in_at: Optional[datetime] = p_system(52, default=None)
 
     space: Optional["Space"] = p_system(

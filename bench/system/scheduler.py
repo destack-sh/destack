@@ -101,12 +101,12 @@ class QueueRunPlugin(HostPlugin[Run]):
         else:
             # retry run later
             asyncio.get_event_loop().call_later(
-                op.retry.interval, self._runs_to_queue.put_nowait, op
+                op.retry.get_wait_interval(), self._runs_to_queue.put_nowait, op
             )
             log.debug(
                 "scheduler.queue.retry",
                 machines=environment.server.machines,
-                interval=op.retry.interval,
+                interval=op.retry.get_wait_interval,
                 retry=op.retry,
                 span="current",
             )

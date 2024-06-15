@@ -43,8 +43,8 @@ from bench.proto.wire import (
     SessionData,
     SupervisorStub,
 )
-from bench.utils.dt import utcnow
 from bench.utils.func import CriticalLock, uuid_to_str
+from bench.utils.oracle import get_oracle
 from bench.utils.uuidt import UUIDT
 
 if TYPE_CHECKING:
@@ -200,7 +200,7 @@ class Session(PackageNode[SessionData], HasTimeIdentity):
         assert not self.opened_at, f"session already open {self!r}"
         async with self._tx_lock:
             self._tx = Transaction(id=UUIDT(), session=self, is_readonly=self._is_readonly)
-        self.opened_at = utcnow()
+        self.opened_at = get_oracle().utc()
         self._session = self
         if self.parent is not None:
             self._default_scope = GraphScope(
@@ -221,7 +221,7 @@ class Session(PackageNode[SessionData], HasTimeIdentity):
             self._tx = None
 
         # close session
-        self.closed_at = utcnow()
+        self.closed_at = get_oracle().utc()
         self.duration = (self.closed_at - self.opened_at).total_seconds()
         if self._active_session_token is not None:
             _active_session.reset(self._active_session_token)
@@ -383,7 +383,7 @@ class Session(PackageNode[SessionData], HasTimeIdentity):
         subject, context = self._get_edit_context()
         for n in nodes:
             self._edited_nodes_by_id[n.id] = n
-            self._tx.create(n, subject, self._origin, context, utcnow())
+            self._tx.create(n, subject, self._origin, context, get_oracle().utc())
 
     def _upsert(self, *nodes: Node):
         """Creates or updates a node. Any non-id properties will be overwritten."""
@@ -392,7 +392,7 @@ class Session(PackageNode[SessionData], HasTimeIdentity):
         subject, context = self._get_edit_context()
         for n in nodes:
             self._edited_nodes_by_id[n.id] = n
-            self._tx.upsert(n, subject, self._origin, context, utcnow())
+            self._tx.upsert(n, subject, self._origin, context, get_oracle().utc())
 
     def _update(self, node: Node, properties: Collection[Property], old_values: dict[int, Any]):
         """Updates an existing node. Cannot move. The given properties are overwritten."""
@@ -400,7 +400,9 @@ class Session(PackageNode[SessionData], HasTimeIdentity):
         assert not self._is_readonly and not self._is_suspended, f"cannot edit in {self!r}"
         self._edited_nodes_by_id[node.id] = node
         subject, context = self._get_edit_context()
-        self._tx.update(node, subject, self._origin, context, properties, old_values, utcnow())
+        self._tx.update(
+            node, subject, self._origin, context, properties, old_values, get_oracle().utc()
+        )
 
     def _move(self, node: Node, properties: Collection[Property], old_values: dict[int, Any]):
         """Moves and updates an existing node."""
@@ -408,7 +410,9 @@ class Session(PackageNode[SessionData], HasTimeIdentity):
         assert not self._is_readonly and not self._is_suspended, f"cannot edit in {self!r}"
         self._edited_nodes_by_id[node.id] = node
         subject, context = self._get_edit_context()
-        self._tx.move(node, subject, self._origin, context, properties, old_values, utcnow())
+        self._tx.move(
+            node, subject, self._origin, context, properties, old_values, get_oracle().utc()
+        )
 
     def _archive(self, *nodes: Node):
         """Marks a node as archived, so it will be hidden by default."""
@@ -416,7 +420,7 @@ class Session(PackageNode[SessionData], HasTimeIdentity):
         assert not self._is_readonly and not self._is_suspended, f"cannot edit in {self!r}"
         subject, context = self._get_edit_context()
         for n in nodes:
-            now = utcnow()
+            now = get_oracle().utc()
             self._edited_nodes_by_id[n.id] = n
             # descendants will be removed from graph, so track them manually
             for descendant in n._graph.iter_descendants(n, recursive=True):
@@ -431,7 +435,7 @@ class Session(PackageNode[SessionData], HasTimeIdentity):
         subject, context = self._get_edit_context()
         for n in nodes:
             self._edited_nodes_by_id[n.id] = n
-            self._tx.unarchive(n, subject, self._origin, context, utcnow())
+            self._tx.unarchive(n, subject, self._origin, context, get_oracle().utc())
             n.archived_at = None
 
     def _delete(self, *nodes: Node):
@@ -440,7 +444,7 @@ class Session(PackageNode[SessionData], HasTimeIdentity):
         assert not self._is_readonly and not self._is_suspended, f"cannot edit in {self!r}"
         subject, context = self._get_edit_context()
         for n in nodes:
-            now = utcnow()
+            now = get_oracle().utc()
             self._edited_nodes_by_id[n.id] = n
             # descendants will be removed from graph, so track them manually
             for descendant in n._graph.iter_descendants(n, recursive=True):
@@ -454,7 +458,7 @@ class Session(PackageNode[SessionData], HasTimeIdentity):
         assert not self._is_readonly and not self._is_suspended, f"cannot edit in {self!r}"
         subject, context = self._get_edit_context()
         for n in nodes:
-            now = utcnow()
+            now = get_oracle().utc()
             self._edited_nodes_by_id[n.id] = n
             self._tx.restore(n, subject, self._origin, context, now)
             n.deleted_at = None
@@ -465,7 +469,7 @@ class Session(PackageNode[SessionData], HasTimeIdentity):
         assert not self._is_readonly and not self._is_suspended, f"cannot edit in {self!r}"
         subject, context = self._get_edit_context()
         for n in nodes:
-            now = utcnow()
+            now = get_oracle().utc()
             self._edited_nodes_by_id[n.id] = n
             # descendants will be removed from graph, so track them manually
             for descendant in n._graph.iter_descendants(n, recursive=True):

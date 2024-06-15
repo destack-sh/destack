@@ -45,8 +45,8 @@ from bench.system.core import GLOBAL_POSTGRES_ENGINE, global_session
 from bench.system.graph import GraphIoServiceBase
 from bench.system.provisioner import provision
 from bench.system.test.test_host import MockHost
-from bench.utils.dt import utcnow
 from bench.utils.func import generate_access_token, generate_salt, to_uuid
+from bench.utils.oracle import get_oracle
 
 logger = structlog.get_logger(__name__)
 tracer = trace.get_tracer(__name__)
@@ -147,7 +147,7 @@ class Supervisor(GraphIoServiceBase, SupervisorBase):
                 name=request.name or request.slug,
                 email=request.email,
                 status=UserStatus.REGISTERED,
-                last_logged_in_at=utcnow(),
+                last_logged_in_at=get_oracle().utc(),
                 _is_new=True,  # force create
             )
             user.password_salt = generate_salt(SALT_LENGTH)
@@ -215,7 +215,7 @@ class Supervisor(GraphIoServiceBase, SupervisorBase):
             if not await check_password(request.password, user.password_salt, user.password_hash):
                 raise GRPCError(GRPCStatus.UNAUTHENTICATED, "incorrect password")
 
-            user.last_logged_in_at = utcnow()
+            user.last_logged_in_at = get_oracle().utc()
             client = await self._make_client(user, request.client)
             client.access_token = generate_access_token(ACCESS_TOKEN_LENGTH)
             session._upsert(client)
@@ -254,7 +254,7 @@ class Supervisor(GraphIoServiceBase, SupervisorBase):
             for client in clients:
                 client.logged_in_at = None
                 client.access_token = None
-                client.seen_at = utcnow()
+                client.seen_at = get_oracle().utc()
             await session.commit()
 
         purge_client_caches(subject.user)

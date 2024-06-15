@@ -17,7 +17,7 @@ from bench.proto.wire import (
     SupervisorBase,
     SupervisorStub,
 )
-from bench.utils.dt import utcnow
+from bench.utils.oracle import get_oracle
 
 if TYPE_CHECKING:
     from bench.language.user import Client, User
@@ -99,7 +99,7 @@ async def make_new_user_handle(
         type=ClientType.BENCH_WEB,
         name=f"{user.name}'s {client_name}",
         device_name="pytest",
-        seen_at=utcnow(),
+        seen_at=get_oracle().utc(),
     )
     signup_req = SignupUserRequest(
         id=str(user.id),
@@ -146,7 +146,7 @@ async def make_existing_user_handle(
         type=ClientType.BENCH_WEB,
         name=f"{user.name}'s {client_name}",
         device_name="pytest",
-        seen_at=utcnow(),
+        seen_at=get_oracle().utc(),
     )
     login_req = LoginUserRequest(
         id=str(user.id),

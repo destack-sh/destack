@@ -69,9 +69,9 @@ from bench.language.validation import ValidationError, ValidationHandler, on_inv
 from bench.proto.wire import AnyNodeData, AnyStructData, GraphScope, NodeReferenceData
 from bench.sql.core import Constraint, ConstraintType, Index, IndexType, Table, stable_hash
 from bench.utils.casing import PYTHON_CASING, IdentifierType, to_casing
-from bench.utils.dt import utcnow
 from bench.utils.env import IS_DEV, IS_TEST
 from bench.utils.func import bittuple
+from bench.utils.oracle import get_oracle
 from bench.utils.utils import frozendict
 from bench.utils.uuidt import UUIDT
 
@@ -1363,11 +1363,11 @@ class Node[NodeDataT: AnyNodeData](BuiltinObject[NodeDataT], abc.ABC):
 
         # init timestamps
         if self.created_at is None:
-            now = utcnow()
+            now = get_oracle().utc()
             self.created_at = now
             self.updated_at = now
 
-        # init graph (nodes must always be in a non-null supergraph)
+        # init graph (nodes must always be in a non-null supergraph & graph)
         assert self._supergraph is not NULL_SUPERGRAPH, f"no supergraph for {self!r}"
         if self._graph is not None:
             # use given graph

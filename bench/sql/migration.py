@@ -50,9 +50,9 @@ from bench.sql.engine import (
     pg_upsert,
     sqlstr,
 )
-from bench.utils.dt import LOCAL_TZ, utcnow
 from bench.utils.env import REPOSITORY_PATH
 from bench.utils.func import partition, re_search_or_error
+from bench.utils.oracle import get_oracle
 from bench.utils.utils import format_python
 
 if TYPE_CHECKING:
@@ -303,7 +303,7 @@ async def _do_sql_migrate(
     store: Optional["Store"] = None,
 ):
     """Applies the given migrations in the given order."""
-    now = utcnow()
+    now = get_oracle().utc()
     for migration in migrations:
         func_name = (
             f"{(is_upgrade and 'upgrade') or 'downgrade'}_{(is_global and 'global') or 'local'}"
@@ -518,7 +518,8 @@ def generate_sql_migration_code(
     migration_code = Path(MIGRATIONS_TEMPLATE_PATH).read_text()
 
     # impute header/metadata
-    today = datetime.now(LOCAL_TZ).date().strftime("%Y.%m.%d")
+    oracle = get_oracle()
+    today = oracle.utc().astimezone(oracle.tz).date().strftime("%Y.%m.%d")
     metadata_substitutions: dict[str, str] = {
         "# <Header>": f"# This migration was automatically generated on {today}. Edit as needed.",
         '"<ID>"': str(migration.id),

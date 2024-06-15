@@ -25,8 +25,8 @@ from bench.proto.wire import (
     EditData,
     GraphScope,
 )
-from bench.utils.dt import monons
 from bench.utils.func import bittuple, generate_access_token
+from bench.utils.oracle import get_oracle
 from bench.utils.utils import get_from_env
 
 logger = structlog.get_logger(__name__)
@@ -77,9 +77,10 @@ class Connection[
         self.query = query
         self._node_types = bittuple(*query.all_node_types)
         self._subscribers: list[ConnectionSubscription[UpdateT]] = []
-        self._created_at = monons()
-        self._last_active_at = monons()
-        self._last_referenced_at = monons()
+        now_ns = get_oracle().time_ns()
+        self._created_at_ns = now_ns
+        self._last_active_at_ns = now_ns
+        self._last_referenced_at_ns = now_ns
         self._result_data: ResultT | None = None
         self._replay_buffer: list[UpdateT] = []
 
@@ -89,8 +90,9 @@ class Connection[
     @final
     def __str__(self):
         content_str = self.__result_str__(self._result_data) if self._result_data else "<no result>"
-        alive_duration = (monons() - self._created_at) / 1_000_000_000
-        active_duration = (monons() - self._last_active_at) / 1_000_000_000
+        now_ns = get_oracle().time_ns()
+        alive_duration = (now_ns - self._created_at_ns) / 1_000_000_000
+        active_duration = (now_ns - self._last_active_at_ns) / 1_000_000_000
         return f"{content_str} (hash={self.hash}, token={self.token}, alive={alive_duration:.1f}s, last_active={active_duration:.1f}s, subscribers={len(self._subscribers)})"
 
     @final
@@ -111,10 +113,10 @@ class Connection[
         return len(self._subscribers) > 0
 
     def bump_active(self):
-        self._last_active_at = monons()
+        self._last_active_at_ns = get_oracle().time_ns()
 
     def bump_referenced(self):
-        self._last_referenced_at = monons()
+        self._last_referenced_at_ns = get_oracle().time_ns()
 
     @abc.abstractmethod
     async def connect(self, session: Session) -> ResultT:
@@ -172,8 +174,8 @@ class ConnectionSubscription[UpdateT: Any]:
         self.connection = connection
         self.subject = subject
         self._since_epoch = since_epoch
-        self._subscribed_at = monons()
-        self._closed_at: int | None = None
+        self._subscribed_at_ns = get_oracle().time_ns()
+        self._closed_at_ns: int | None = None
         self._update_queue: asyncio.Queue[UpdateT] = asyncio.Queue()
 
     def __str__(self):
@@ -184,16 +186,16 @@ class ConnectionSubscription[UpdateT: Any]:
 
     @property
     def active_duration(self) -> float:
-        return (monons() - self._subscribed_at) / 1_000_000
+        return (get_oracle().time_ns() - self._subscribed_at_ns) / 1_000_000
 
     @property
     def queue(self) -> asyncio.Queue[UpdateT]:
         return self._update_queue
 
     def cancel(self):
-        if self._closed_at is not None:
+        if self._closed_at_ns is not None:
             raise RuntimeError(f"{self!r} is already closed")
-        self._closed_at = monons()
+        self._closed_at_ns = get_oracle().time_ns()
         self.connection.unsubscribe(self)
 
 
@@ -399,17 +401,17 @@ class ConnectionIndex:
         if len(self._connections_by_hash) == 0:
             return  # nothing to do
         before_count = len(self._connections_by_hash)
-        now = monons()
+        now_ns = get_oracle().time_ns()
         for connection in tuple(self._connections_by_hash.values()):
             if (
                 not connection.has_subscribers
-                and (connection._last_referenced_at - now) > CONNECTION_CACHE_EXPIRE_SECONDS
+                and (connection._last_referenced_at_ns - now_ns) > CONNECTION_CACHE_EXPIRE_SECONDS
             ):
                 logger.debug("connect.gc", connection=connection)
                 self._remove_connection(connection)
         logger.trace(
             "connect.gc",
-            now=now,
+            now_ns=now_ns,
             before_connections=before_count,
             after_connections=len(self._connections_by_hash),
         )

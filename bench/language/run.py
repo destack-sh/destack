@@ -40,8 +40,8 @@ from bench.language.text import Text
 from bench.language.validation import TITLE_CONSTRAINT, TypeConstraintIn, ValidationHandler
 from bench.language.value import HasValues
 from bench.proto.wire import AnyNodeData, NodeReferenceData, RunData
-from bench.utils.dt import utcnow
 from bench.utils.func import IdEnum
+from bench.utils.oracle import get_oracle
 
 if TYPE_CHECKING:
     from bench.language import Block, NodeReference, Package, TypeInfoBase, ValueObject
@@ -58,7 +58,8 @@ class RunOptions(Struct):
     retry_interval: Optional[float] = p_regular(32, constraint=TypeConstraintIn(min_value=0))
     backoff: Optional[float] = p_regular(33, constraint=TypeConstraintIn(min_value=1))
     max_retry_interval: Optional[float] = p_regular(34, constraint=TypeConstraintIn(min_value=0))
-    retry_on: list["RunErrorType"] = p_regular(35, array=True)
+    jitter: Optional[float] = p_regular(35, constraint=TypeConstraintIn(min_value=0, max_value=1))
+    retry_on: list["RunErrorType"] = p_regular(38, array=True)
 
 
 @struct_(StructType.RETRY_ATTEMPT)
@@ -217,7 +218,7 @@ class Run(PackageNode[RunData], HasTimeIdentity, HasNodeBase, HasSessionContext,
         """Pauses the Run."""
         assert self.status == RunStatus.RUNNING, f"cannot pause {self.status} run {self!r}"
         self.status = RunStatus.PAUSED
-        self.paused_at = utcnow()
+        self.paused_at = get_oracle().utc()
 
     def resume(self):
         """Resumes the Run."""
